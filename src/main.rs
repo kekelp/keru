@@ -1,3 +1,4 @@
+use bytemuck::{Pod, Zeroable};
 use glyphon::{
     Attrs, Buffer, Color, Family, FontSystem, Metrics, Resolution, Shaping, SwashCache, TextArea,
     TextAtlas, TextBounds, TextRenderer,
@@ -6,7 +7,7 @@ use wgpu::{
     CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance,
     InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations, PresentMode, Queue,
     RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, Surface,
-    SurfaceConfiguration, TextureFormat, TextureUsages, TextureViewDescriptor,
+    SurfaceConfiguration, TextureFormat, TextureUsages, TextureViewDescriptor, VertexAttribute, vertex_attr_array, util::{DeviceExt, self}, BufferUsages, VertexBufferLayout, VertexStepMode, BufferAddress, RenderPipeline,
 };
 use winit::{
     dpi::LogicalSize,
@@ -15,7 +16,7 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 
-use std::sync::Arc;
+use std::{sync::Arc, mem, marker::PhantomData};
 
 #[rustfmt::skip]
 fn main() {
@@ -68,6 +69,48 @@ fn init() -> (EventLoop<()>, State<'static>) {
     };
     surface.configure(&device, &config);
 
+    let vertex_buffer = device.create_buffer_init(&util::BufferInitDescriptor {
+        label: Some("player bullet pos buffer"),
+        contents: bytemuck::cast_slice(&[0.0; 9000]),
+        usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
+    });
+
+    let vertex_buffer = TypedGpuBuffer::new(vertex_buffer);
+    let vert_buff_layout = VertexBufferLayout {
+        array_stride: mem::size_of::<Box>() as BufferAddress,
+        step_mode: VertexStepMode::Instance,
+        attributes: &Box::buffer_desc(),
+    };
+    let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: None,
+        bind_group_layouts: &[],
+        push_constant_ranges: &[],
+    });
+
+    let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        label: None,
+        source: wgpu::ShaderSource::Wgsl(include_str!("box.wgsl").into()),
+    });
+
+    let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: None,
+        layout: Some(&pipeline_layout),
+        vertex: wgpu::VertexState {
+            module: &shader,
+            entry_point: "vs_main",
+            buffers: &[vert_buff_layout],
+        },
+        fragment: Some(wgpu::FragmentState {
+            module: &shader,
+            entry_point: "fs_main",
+            targets: &[Some(swapchain_format.into())],
+        }),
+        primitive: wgpu::PrimitiveState::default(),
+        depth_stencil: None,
+        multisample: wgpu::MultisampleState::default(),
+        multiview: None,
+    });
+
     // Set up text renderer
     let mut font_system = FontSystem::new();
     let cache = SwashCache::new();
@@ -97,6 +140,10 @@ fn init() -> (EventLoop<()>, State<'static>) {
         depth: 0.0,
     }];
 
+    let boxes = vec![
+        Box { x0: -0.5, x1: 0.5, y0: -0.5, y1: 0.5 }
+    ];
+
     let state = State {
         window,
         surface,
@@ -104,27 +151,34 @@ fn init() -> (EventLoop<()>, State<'static>) {
         device,
         cache,
         queue,
+        render_pipeline,
         atlas,
         text_renderer,
         font_system,
         text_areas,
+        boxes,
+        gpu_vertex_buffer: vertex_buffer,
     };
 
     return (event_loop, state);
 }
 
 pub struct State<'window> {
-    window: Arc<Window>,
-    surface: Surface<'window>,
-    config: SurfaceConfiguration,
-    device: Device,
-    queue: Queue,
+    pub window: Arc<Window>,
+    pub surface: Surface<'window>,
+    pub config: SurfaceConfiguration,
+    pub device: Device,
+    pub queue: Queue,
+    pub boxes: Vec<Box>,
+    pub gpu_vertex_buffer: TypedGpuBuffer<Box>,
+    pub render_pipeline: RenderPipeline,
 
-    font_system: FontSystem,
-    cache: SwashCache,
-    atlas: TextAtlas,
-    text_renderer: TextRenderer,
-    text_areas: Vec<TextArea>,
+    pub font_system: FontSystem,
+    pub cache: SwashCache,
+    pub atlas: TextAtlas,
+    pub text_renderer: TextRenderer,
+    pub text_areas: Vec<TextArea>,
+
 }
 
 impl<'window> State<'window> {
@@ -145,6 +199,9 @@ impl<'window> State<'window> {
     }
 
     pub fn update_and_render(&mut self) {
+        self.gpu_vertex_buffer
+            .queue_write(&self.boxes[..], &self.queue);
+
         self.text_renderer
             .prepare(
                 &self.device,
@@ -165,15 +222,38 @@ impl<'window> State<'window> {
         let mut encoder = self
             .device
             .create_command_encoder(&CommandEncoderDescriptor { label: None });
+
         {
             const GREY: wgpu::Color = wgpu::Color { r: 0.027, g: 0.027, b: 0.027, a: 1.0 };
+            let mut r_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: None,
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(GREY),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+            });
+            let n = self.boxes.len() as u32;
+
+            r_pass.set_pipeline(&self.render_pipeline);
+            r_pass.set_vertex_buffer(0, self.gpu_vertex_buffer.slice(n));
+            r_pass.draw(0..6, 0..n);
+        }
+
+        {
             let mut pass = encoder.begin_render_pass(&RenderPassDescriptor {
                 label: None,
                 color_attachments: &[Some(RenderPassColorAttachment {
                     view: &view,
                     resolve_target: None,
                     ops: Operations {
-                        load: LoadOp::Clear(GREY),
+                        load: LoadOp::Load,
                         store: wgpu::StoreOp::Store,
                     },
                 })],
@@ -189,5 +269,51 @@ impl<'window> State<'window> {
         frame.present();
 
         self.atlas.trim();
+    }
+}
+
+#[derive(Default, Debug, Pod, Copy, Clone, Zeroable)]
+#[repr(C)]
+// Layout has to match the one in the shader.
+pub struct Box {
+    pub x0: f32,
+    pub x1: f32,
+    pub y0: f32,
+    pub y1: f32,
+}
+impl Box {
+    pub fn buffer_desc() -> [VertexAttribute; 2] {
+        return vertex_attr_array![
+            0 => Float32x2,
+            1 => Float32x2,
+        ];
+    }
+}
+
+#[derive(Debug)]
+pub struct TypedGpuBuffer<T: Pod> {
+    pub buffer: wgpu::Buffer,
+    pub marker: std::marker::PhantomData<T>,
+}
+impl<T: Pod> TypedGpuBuffer<T> {
+    pub fn new(buffer: wgpu::Buffer) -> Self {
+        Self {
+            buffer,
+            marker: PhantomData::<T>,
+        }
+    }
+
+    pub fn size() -> u64 {
+        mem::size_of::<T>() as u64
+    }
+
+    pub fn slice<N: Into<u64>>(&self, n: N) -> wgpu::BufferSlice {
+        let bytes = n.into() * (mem::size_of::<T>()) as u64;
+        return self.buffer.slice(..bytes);
+    }
+
+    pub fn queue_write(&mut self, data: &[T], queue: &Queue) {
+        let data = bytemuck::cast_slice(data);
+        queue.write_buffer(&self.buffer, 0, data);
     }
 }
