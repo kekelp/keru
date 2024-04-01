@@ -17,12 +17,19 @@ use winit::{
 
 use std::sync::Arc;
 
+#[rustfmt::skip]
 fn main() {
-    pollster::block_on(run());
+    let (event_loop, mut state) = init();
+
+    event_loop.run(
+        move |event, target| {
+            state.handle_event(&event, target);
+        }
+    ).unwrap();
 }
 
-async fn run() {
-    let (width, height) = (800, 600);
+fn init() -> (EventLoop<()>, State<'static>) {
+    let (width, height) = (1200, 800);
     let event_loop = EventLoop::new().unwrap();
     let window = Arc::new(
         WindowBuilder::new()
@@ -35,25 +42,19 @@ async fn run() {
     let scale_factor = window.scale_factor();
 
     let instance = Instance::new(InstanceDescriptor::default());
-    let adapter = instance
-        .request_adapter(&RequestAdapterOptions::default())
-        .await
-        .unwrap();
-    let (device, queue) = adapter
-        .request_device(
-            &DeviceDescriptor {
-                label: None,
-                required_features: Features::empty(),
-                required_limits: Limits::downlevel_defaults(),
-            },
-            None,
-        )
-        .await
-        .unwrap();
 
-    let surface = instance
-        .create_surface(window.clone())
-        .expect("Create surface");
+    let adapter_options = &RequestAdapterOptions::default();
+    let adapter = pollster::block_on(instance.request_adapter(adapter_options)).unwrap();
+
+    let device_desc = &DeviceDescriptor {
+        label: None,
+        required_features: Features::empty(),
+        required_limits: Limits::downlevel_defaults(),
+    };
+    let (device, queue) = pollster::block_on(adapter.request_device(device_desc, None)).unwrap();
+
+    let surface = instance.create_surface(window.clone()).unwrap();
+
     let swapchain_format = TextureFormat::Bgra8UnormSrgb;
     let config = SurfaceConfiguration {
         usage: TextureUsages::RENDER_ATTACHMENT,
@@ -81,7 +82,22 @@ async fn run() {
     buffer.set_text(&mut font_system, "Hello world! 👋この動画の元になった作品ヽ༼ ຈل͜ຈ༽ ﾉヽ༼ ຈل͜ຈ༽ ﾉ\nヽ༼ ຈل͜ຈ༽\nThis is rendered with 🦅 glyphon 🦁\nThe text below should be partially clipped.\na b c d e f g h i j k l m n o p q r s t u v w x y z", Attrs::new().family(Family::SansSerif), Shaping::Advanced);
     buffer.shape_until_scroll(&mut font_system);
 
-    let mut state = State {
+    let text_areas = vec![TextArea {
+        buffer,
+        left: 10.0,
+        top: 10.0,
+        scale: 1.0,
+        bounds: TextBounds {
+            left: 0,
+            top: 0,
+            right: 900,
+            bottom: 660,
+        },
+        default_color: Color::rgb(255, 255, 255),
+        depth: 0.0,
+    }];
+
+    let state = State {
         window,
         surface,
         config,
@@ -91,15 +107,10 @@ async fn run() {
         atlas,
         text_renderer,
         font_system,
-        buffer,
+        text_areas,
     };
 
-    #[rustfmt::skip]
-    event_loop.run(
-        move |event, target| {
-            state.handle_event(&event, target);
-        }
-    ).unwrap();
+    return (event_loop, state);
 }
 
 pub struct State<'window> {
@@ -113,10 +124,10 @@ pub struct State<'window> {
     cache: SwashCache,
     atlas: TextAtlas,
     text_renderer: TextRenderer,
-    buffer: Buffer,
+    text_areas: Vec<TextArea>,
 }
 
-impl<'a> State<'a> {
+impl<'window> State<'window> {
     pub fn handle_event(&mut self, event: &Event<()>, target: &EventLoopWindowTarget<()>) {
         if let Event::WindowEvent { event, .. } = event {
             match event {
@@ -144,19 +155,7 @@ impl<'a> State<'a> {
                     width: self.config.width,
                     height: self.config.height,
                 },
-                [TextArea {
-                    buffer: &self.buffer,
-                    left: 10.0,
-                    top: 10.0,
-                    scale: 1.0,
-                    bounds: TextBounds {
-                        left: 0,
-                        top: 0,
-                        right: 900,
-                        bottom: 660,
-                    },
-                    default_color: Color::rgb(255, 255, 255),
-                }],
+                &mut self.text_areas,
                 &mut self.cache,
             )
             .unwrap();
@@ -167,13 +166,14 @@ impl<'a> State<'a> {
             .device
             .create_command_encoder(&CommandEncoderDescriptor { label: None });
         {
+            const GREY: wgpu::Color = wgpu::Color { r: 0.027, g: 0.027, b: 0.027, a: 1.0 };
             let mut pass = encoder.begin_render_pass(&RenderPassDescriptor {
                 label: None,
                 color_attachments: &[Some(RenderPassColorAttachment {
                     view: &view,
                     resolve_target: None,
                     ops: Operations {
-                        load: LoadOp::Clear(wgpu::Color::BLACK),
+                        load: LoadOp::Clear(GREY),
                         store: wgpu::StoreOp::Store,
                     },
                 })],
