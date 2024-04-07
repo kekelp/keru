@@ -1,13 +1,16 @@
 use bytemuck::{Pod, Zeroable};
 use glyphon::{
-    Attrs, Buffer, Color, Family, FontSystem, Metrics, Resolution as GlyphonResolution, Shaping, SwashCache, TextArea,
-    TextAtlas, TextBounds, TextRenderer,
+    Attrs, Buffer, Color, Family, FontSystem, Metrics, Resolution as GlyphonResolution, Shaping,
+    SwashCache, TextArea, TextAtlas, TextBounds, TextRenderer,
 };
 use wgpu::{
+    util::{self, DeviceExt},
+    vertex_attr_array, BindGroup, BufferAddress, BufferUsages, ColorTargetState,
     CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance,
     InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations, PresentMode, Queue,
-    RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, Surface,
-    SurfaceConfiguration, TextureFormat, TextureUsages, TextureViewDescriptor, VertexAttribute, vertex_attr_array, util::{DeviceExt, self}, BufferUsages, VertexBufferLayout, VertexStepMode, BufferAddress, RenderPipeline, BindGroup,
+    RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RequestAdapterOptions,
+    Surface, SurfaceConfiguration, TextureFormat, TextureUsages, TextureViewDescriptor,
+    VertexAttribute, VertexBufferLayout, VertexStepMode,
 };
 use winit::{
     dpi::LogicalSize,
@@ -16,7 +19,7 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 
-use std::{sync::Arc, mem, marker::PhantomData};
+use std::{marker::PhantomData, mem, sync::Arc};
 
 #[rustfmt::skip]
 fn main() {
@@ -82,14 +85,15 @@ fn init() -> (EventLoop<()>, State<'static>) {
         attributes: &Box::buffer_desc(),
     };
 
-    let resolution = Resolution { width: width as f32, height: height as f32 };
-    let resolution_buffer = device.create_buffer_init(
-        &wgpu::util::BufferInitDescriptor {
-            label: Some("Resolution Uniform Buffer"),
-            contents: bytemuck::bytes_of(&resolution),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        }
-    );
+    let resolution = Resolution {
+        width: width as f32,
+        height: height as f32,
+    };
+    let resolution_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("Resolution Uniform Buffer"),
+        contents: bytemuck::bytes_of(&resolution),
+        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+    });
 
     let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         entries: &[wgpu::BindGroupLayoutEntry {
@@ -104,7 +108,7 @@ fn init() -> (EventLoop<()>, State<'static>) {
         }],
         label: Some("Resolution Bind Group Layout"),
     });
-    
+
     // Create the bind group
     let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
         layout: &bind_group_layout,
@@ -114,7 +118,6 @@ fn init() -> (EventLoop<()>, State<'static>) {
         }],
         label: Some("Resolution Bind Group"),
     });
-
 
     let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: None,
@@ -127,7 +130,6 @@ fn init() -> (EventLoop<()>, State<'static>) {
         source: wgpu::ShaderSource::Wgsl(include_str!("box.wgsl").into()),
     });
 
-
     let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
         label: None,
         layout: Some(&pipeline_layout),
@@ -139,7 +141,11 @@ fn init() -> (EventLoop<()>, State<'static>) {
         fragment: Some(wgpu::FragmentState {
             module: &shader,
             entry_point: "fs_main",
-            targets: &[Some(swapchain_format.into())],
+            targets: &[Some(ColorTargetState {
+                format: config.format,
+                blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                write_mask: wgpu::ColorWrites::ALL,
+            })],
         }),
         primitive: wgpu::PrimitiveState::default(),
         depth_stencil: None,
@@ -176,9 +182,12 @@ fn init() -> (EventLoop<()>, State<'static>) {
         depth: 0.0,
     }];
 
-    let boxes = vec![
-        Box { x0: -0.5, x1: 0.5, y0: -0.5, y1: 0.5 }
-    ];
+    let boxes = vec![Box {
+        x0: -0.5,
+        x1: 0.5,
+        y0: -0.5,
+        y1: 0.5,
+    }];
 
     let state = State {
         window,
@@ -230,8 +239,15 @@ impl<'window> State<'window> {
                     self.config.height = size.height;
                     self.surface.configure(&self.device, &self.config);
 
-                    let resolution = Resolution { width: size.width as f32, height: size.height as f32 };
-                    self.queue.write_buffer(&self.resolution_buffer, 0, bytemuck::bytes_of(&resolution));
+                    let resolution = Resolution {
+                        width: size.width as f32,
+                        height: size.height as f32,
+                    };
+                    self.queue.write_buffer(
+                        &self.resolution_buffer,
+                        0,
+                        bytemuck::bytes_of(&resolution),
+                    );
 
                     self.window.request_redraw();
                 }
@@ -268,7 +284,12 @@ impl<'window> State<'window> {
             .create_command_encoder(&CommandEncoderDescriptor { label: None });
 
         {
-            const GREY: wgpu::Color = wgpu::Color { r: 0.027, g: 0.027, b: 0.027, a: 1.0 };
+            const GREY: wgpu::Color = wgpu::Color {
+                r: 0.027,
+                g: 0.027,
+                b: 0.027,
+                a: 1.0,
+            };
             let mut r_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: None,
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {

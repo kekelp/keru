@@ -1,8 +1,3 @@
-// @group(0) @binding(0)
-// var t_diffuse: texture_2d<f32>;
-// @group(0) @binding(1)
-// var s_diffuse: sampler;
-
 @group(0) @binding(0)
 var<uniform> screen_resolution: vec2f;
 
@@ -29,7 +24,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     out.clip_position = vec4(x, y, 0.0, 1.0);
 
     // unit: screen pixel
-    // center: center of the rectangle
+    // zero: center of the rectangle
     out.uv.x = (f32 (2 * i_x) - 1.0) * screen_resolution.x / 2.0;
     out.uv.y = (f32 (2 * i_y) - 1.0) * screen_resolution.y / 2.0;
 
@@ -38,28 +33,13 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    
-    // var screen_resolution = vec2(1200.0, 800.0);
-    var aspect = screen_resolution.y / screen_resolution.x;
-
-
-    // // scale (no translation doe) (which is right doe)
     var pos = in.uv;
-    // pos.y = pos.y * aspect;
-    // var pos = (2.0 * in.clip_position.xy - screen_resolution) / screen_resolution.y;
 
-    // return vec4(in.uv.xy, 1.0, 1.0);
-    // return vec4(pos, 1.0, 1.0);
-
-
-    // var dist = length(pos);
-    var radius = 50.0;
+    var radius = 20.0;
     var q = abs(pos) - vec2(screen_resolution.x / 2.0 - 10.0, screen_resolution.y / 2.0 - 10.0) + radius;
-    // var dist = max(q.x, q.y);
+
     var dist = length(max(q, vec2(0.0, 0.0))) - radius;
 
-    // return vec4(dist, dist, dist, 1.0);
-
     var alpha = 1.0 - smoothstep(-1.0, 1.0, dist);
-    return vec4(1.0-alpha, 0.0, alpha, 1.0);
+    return vec4(0.16796875, 0.17578125, 0.2265625, alpha);
 }
