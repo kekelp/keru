@@ -1,13 +1,13 @@
 use bytemuck::{Pod, Zeroable};
 use glyphon::{
-    Attrs, Buffer, Color, Family, FontSystem, Metrics, Resolution, Shaping, SwashCache, TextArea,
+    Attrs, Buffer, Color, Family, FontSystem, Metrics, Resolution as GlyphonResolution, Shaping, SwashCache, TextArea,
     TextAtlas, TextBounds, TextRenderer,
 };
 use wgpu::{
     CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance,
     InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations, PresentMode, Queue,
     RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, Surface,
-    SurfaceConfiguration, TextureFormat, TextureUsages, TextureViewDescriptor, VertexAttribute, vertex_attr_array, util::{DeviceExt, self}, BufferUsages, VertexBufferLayout, VertexStepMode, BufferAddress, RenderPipeline,
+    SurfaceConfiguration, TextureFormat, TextureUsages, TextureViewDescriptor, VertexAttribute, vertex_attr_array, util::{DeviceExt, self}, BufferUsages, VertexBufferLayout, VertexStepMode, BufferAddress, RenderPipeline, BindGroup,
 };
 use winit::{
     dpi::LogicalSize,
@@ -81,9 +81,44 @@ fn init() -> (EventLoop<()>, State<'static>) {
         step_mode: VertexStepMode::Instance,
         attributes: &Box::buffer_desc(),
     };
+
+    let resolution = Resolution { width: width as f32, height: height as f32 };
+    let resolution_buffer = device.create_buffer_init(
+        &wgpu::util::BufferInitDescriptor {
+            label: Some("Resolution Uniform Buffer"),
+            contents: bytemuck::bytes_of(&resolution),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        }
+    );
+
+    let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        entries: &[wgpu::BindGroupLayoutEntry {
+            binding: 0,
+            visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+            ty: wgpu::BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Uniform,
+                has_dynamic_offset: false,
+                min_binding_size: None,
+            },
+            count: None,
+        }],
+        label: Some("Resolution Bind Group Layout"),
+    });
+    
+    // Create the bind group
+    let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        layout: &bind_group_layout,
+        entries: &[wgpu::BindGroupEntry {
+            binding: 0,
+            resource: resolution_buffer.as_entire_binding(),
+        }],
+        label: Some("Resolution Bind Group"),
+    });
+
+
     let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: None,
-        bind_group_layouts: &[],
+        bind_group_layouts: &[&bind_group_layout],
         push_constant_ranges: &[],
     });
 
@@ -91,6 +126,7 @@ fn init() -> (EventLoop<()>, State<'static>) {
         label: None,
         source: wgpu::ShaderSource::Wgsl(include_str!("box.wgsl").into()),
     });
+
 
     let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
         label: None,
@@ -158,6 +194,8 @@ fn init() -> (EventLoop<()>, State<'static>) {
         text_areas,
         boxes,
         gpu_vertex_buffer: vertex_buffer,
+        resolution_buffer,
+        bind_group,
     };
 
     return (event_loop, state);
@@ -179,6 +217,8 @@ pub struct State<'window> {
     pub text_renderer: TextRenderer,
     pub text_areas: Vec<TextArea>,
 
+    pub resolution_buffer: wgpu::Buffer,
+    pub bind_group: BindGroup,
 }
 
 impl<'window> State<'window> {
@@ -189,6 +229,10 @@ impl<'window> State<'window> {
                     self.config.width = size.width;
                     self.config.height = size.height;
                     self.surface.configure(&self.device, &self.config);
+
+                    let resolution = Resolution { width: size.width as f32, height: size.height as f32 };
+                    self.queue.write_buffer(&self.resolution_buffer, 0, bytemuck::bytes_of(&resolution));
+
                     self.window.request_redraw();
                 }
                 WindowEvent::RedrawRequested => self.update_and_render(),
@@ -208,7 +252,7 @@ impl<'window> State<'window> {
                 &self.queue,
                 &mut self.font_system,
                 &mut self.atlas,
-                Resolution {
+                GlyphonResolution {
                     width: self.config.width,
                     height: self.config.height,
                 },
@@ -242,6 +286,7 @@ impl<'window> State<'window> {
             let n = self.boxes.len() as u32;
 
             r_pass.set_pipeline(&self.render_pipeline);
+            r_pass.set_bind_group(0, &self.bind_group, &[]);
             r_pass.set_vertex_buffer(0, self.gpu_vertex_buffer.slice(n));
             r_pass.draw(0..6, 0..n);
         }
@@ -288,6 +333,13 @@ impl Box {
             1 => Float32x2,
         ];
     }
+}
+
+#[repr(C)]
+#[derive(Default, Debug, Pod, Copy, Clone, Zeroable)]
+pub struct Resolution {
+    width: f32,
+    height: f32,
 }
 
 #[derive(Debug)]
