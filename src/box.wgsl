@@ -41,5 +41,5 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var dist = length(max(q, vec2(0.0, 0.0))) - radius;
 
     var alpha = 1.0 - smoothstep(-1.0, 1.0, dist);
-    return vec4(0.16796875, 0.17578125, 0.2265625, alpha);
+    return vec4(0.3, 0.5, 0.8, alpha);
 }

@@ -13,13 +13,13 @@ use wgpu::{
     VertexAttribute, VertexBufferLayout, VertexStepMode,
 };
 use winit::{
-    dpi::LogicalSize,
+    dpi::{LogicalSize, PhysicalSize},
     event::{Event, WindowEvent},
     event_loop::{EventLoop, EventLoopWindowTarget},
     window::{Window, WindowBuilder},
 };
 
-use std::{marker::PhantomData, mem, sync::Arc};
+use std::{marker::PhantomData, mem, sync::Arc, collections::HashMap};
 
 #[rustfmt::skip]
 fn main() {
@@ -53,7 +53,7 @@ fn init() -> (EventLoop<()>, State<'static>) {
     let device_desc = &DeviceDescriptor {
         label: None,
         required_features: Features::empty(),
-        required_limits: Limits::downlevel_defaults(),
+        required_limits: Limits::default(),
     };
     let (device, queue) = pollster::block_on(adapter.request_device(device_desc, None)).unwrap();
 
@@ -80,9 +80,9 @@ fn init() -> (EventLoop<()>, State<'static>) {
 
     let vertex_buffer = TypedGpuBuffer::new(vertex_buffer);
     let vert_buff_layout = VertexBufferLayout {
-        array_stride: mem::size_of::<Box>() as BufferAddress,
+        array_stride: mem::size_of::<Rectangle>() as BufferAddress,
         step_mode: VertexStepMode::Instance,
-        attributes: &Box::buffer_desc(),
+        attributes: &Rectangle::buffer_desc(),
     };
 
     let resolution = Resolution {
@@ -157,12 +157,11 @@ fn init() -> (EventLoop<()>, State<'static>) {
     let mut font_system = FontSystem::new();
     let cache = SwashCache::new();
     let mut atlas = TextAtlas::new(&device, &queue, swapchain_format);
-    let text_renderer = TextRenderer::new(&mut atlas, &device, MultisampleState::default(), None);
-    let mut buffer = Buffer::new(&mut font_system, Metrics::new(30.0, 42.0));
-
+    let text_renderer = TextRenderer::new(&mut atlas, &device, MultisampleState::default(), None);   
     let physical_width = (width as f64 * scale_factor) as f32;
     let physical_height = (height as f64 * scale_factor) as f32;
-
+    
+    let mut buffer = Buffer::new(&mut font_system, Metrics::new(30.0, 42.0));
     buffer.set_size(&mut font_system, physical_width, physical_height);
     buffer.set_text(&mut font_system, "Hello world! 👋この動画の元になった作品ヽ༼ ຈل͜ຈ༽ ﾉヽ༼ ຈل͜ຈ༽ ﾉ\nヽ༼ ຈل͜ຈ༽\nThis is rendered with 🦅 glyphon 🦁\nThe text below should be partially clipped.\na b c d e f g h i j k l m n o p q r s t u v w x y z", Attrs::new().family(Family::SansSerif), Shaping::Advanced);
     buffer.shape_until_scroll(&mut font_system);
@@ -182,12 +181,15 @@ fn init() -> (EventLoop<()>, State<'static>) {
         depth: 0.0,
     }];
 
-    let boxes = vec![Box {
+    let rects = vec![Rectangle {
         x0: -0.5,
         x1: 0.5,
         y0: -0.5,
         y1: 0.5,
     }];
+
+    let mut nodes = HashMap::new();
+    nodes.insert("root".to_string(), Node { rect_id: None, text_id: None, parent_id: 0 });
 
     let state = State {
         window,
@@ -201,10 +203,14 @@ fn init() -> (EventLoop<()>, State<'static>) {
         text_renderer,
         font_system,
         text_areas,
-        boxes,
+        rects,
+        nodes,
         gpu_vertex_buffer: vertex_buffer,
         resolution_buffer,
         bind_group,
+
+        parent_stack: Vec::with_capacity(5),
+        count: 0,
     };
 
     return (event_loop, state);
@@ -212,55 +218,84 @@ fn init() -> (EventLoop<()>, State<'static>) {
 
 pub struct State<'window> {
     pub window: Arc<Window>,
+
     pub surface: Surface<'window>,
     pub config: SurfaceConfiguration,
     pub device: Device,
     pub queue: Queue,
-    pub boxes: Vec<Box>,
-    pub gpu_vertex_buffer: TypedGpuBuffer<Box>,
+    pub gpu_vertex_buffer: TypedGpuBuffer<Rectangle>,
     pub render_pipeline: RenderPipeline,
-
+    pub resolution_buffer: wgpu::Buffer,
+    pub bind_group: BindGroup,
+    
     pub font_system: FontSystem,
     pub cache: SwashCache,
     pub atlas: TextAtlas,
-    pub text_renderer: TextRenderer,
-    pub text_areas: Vec<TextArea>,
+    pub text_renderer: TextRenderer,    
 
-    pub resolution_buffer: wgpu::Buffer,
-    pub bind_group: BindGroup,
+    pub rects: Vec<Rectangle>,
+    pub text_areas: Vec<TextArea>,
+    pub nodes: HashMap<String, Node>,
+
+    pub parent_stack: Vec<String>,
+
+    pub count: i32,
 }
 
 impl<'window> State<'window> {
     pub fn handle_event(&mut self, event: &Event<()>, target: &EventLoopWindowTarget<()>) {
         if let Event::WindowEvent { event, .. } = event {
             match event {
-                WindowEvent::Resized(size) => {
-                    self.config.width = size.width;
-                    self.config.height = size.height;
-                    self.surface.configure(&self.device, &self.config);
-
-                    let resolution = Resolution {
-                        width: size.width as f32,
-                        height: size.height as f32,
-                    };
-                    self.queue.write_buffer(
-                        &self.resolution_buffer,
-                        0,
-                        bytemuck::bytes_of(&resolution),
-                    );
-
-                    self.window.request_redraw();
+                WindowEvent::Resized(size) => self.resize(size),
+                WindowEvent::RedrawRequested => {
+                    self.update();
+                    self.render();
                 }
-                WindowEvent::RedrawRequested => self.update_and_render(),
                 WindowEvent::CloseRequested => target.exit(),
                 _ => {}
             }
         }
     }
 
-    pub fn update_and_render(&mut self) {
+    pub fn update(&mut self) {
+        let rect1 = (-0.5, 0.5, -0.5, 0.5);
+        let name = "window".to_string();
+
+        // self.floating_window(name, rect1, |self2| { 
+            
+        //     self2.render();
+            
+        //     self2.column(|self2| {
+        //         // if self2.button("+1".to_string()) {
+        //         //     self2.count += 1;
+        //         // }
+
+        //         self2.label(self2.count.to_string());
+        //     });
+        // });
+
+
+        floating_window_m!(self, rect1, name, {
+
+
+            println!(" {:?}", self.count);
+            self.label(self.count.to_string());
+
+            
+            
+            let name2 = String::from("w1");
+            floating_window_m!(self, rect1, name2, {
+                self.label(self.count.to_string());
+                println!(" {:?}", self.count);
+
+            });
+        });
+        
+    }
+
+    pub fn render(&mut self) {
         self.gpu_vertex_buffer
-            .queue_write(&self.boxes[..], &self.queue);
+            .queue_write(&self.rects[..], &self.queue);
 
         self.text_renderer
             .prepare(
@@ -285,9 +320,9 @@ impl<'window> State<'window> {
 
         {
             const GREY: wgpu::Color = wgpu::Color {
-                r: 0.027,
-                g: 0.027,
-                b: 0.027,
+                r: 0.009,
+                g: 0.017,
+                b: 0.077,
                 a: 1.0,
             };
             let mut r_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -304,7 +339,7 @@ impl<'window> State<'window> {
                 timestamp_writes: None,
                 occlusion_query_set: None,
             });
-            let n = self.boxes.len() as u32;
+            let n = self.rects.len() as u32;
 
             r_pass.set_pipeline(&self.render_pipeline);
             r_pass.set_bind_group(0, &self.bind_group, &[]);
@@ -336,18 +371,112 @@ impl<'window> State<'window> {
 
         self.atlas.trim();
     }
+
+    pub fn resize(&mut self, size: &PhysicalSize<u32>) {
+        self.config.width = size.width;
+        self.config.height = size.height;
+        self.surface.configure(&self.device, &self.config);
+
+        let resolution = Resolution {
+            width: size.width as f32,
+            height: size.height as f32,
+        };
+        self.queue.write_buffer(
+            &self.resolution_buffer,
+            0,
+            bytemuck::bytes_of(&resolution),
+        );
+
+        self.window.request_redraw();
+    }
+
+    pub fn add_button() {
+
+    }
+
+    pub fn floating_window(&mut self, name: String, rect1: (f32, f32, f32, f32), mut closure: impl FnMut(&mut Self)) {
+        
+        let rect_id = self.rects.len();
+        self.rects.push(Rectangle { x0: rect1.0, x1: rect1.1, y0: rect1.2, y1: rect1.3 });
+        
+        let node = Node { rect_id: Some(rect_id as u32), text_id: None, parent_id: 0 };
+        self.nodes.insert(name.clone(), node);
+
+
+        self.parent_stack.push(name);
+        closure(self);
+        self.parent_stack.pop();
+    }
+    
+    pub fn column(&mut self, closure: impl FnOnce(&mut Self)) {
+        
+        self.parent_stack.push(String::from("nameless"));        
+        
+        closure(self);
+        
+        self.parent_stack.pop();
+    }
+
+    pub fn label(&mut self, text: String) {
+        println!(" {:?}", text);
+    }
+
+    // pub fn floating_window_2(&mut self, name: String, rect1: (f32, f32, f32, f32)) -> FloatingWindowDropper<'_>{
+        
+    //     let rect_id = self.rects.len();
+    //     self.rects.push(Rectangle { x0: rect1.0, x1: rect1.1, y0: rect1.2, y1: rect1.3 });
+        
+    //     let node = Node { rect_id: Some(rect_id as u32), text_id: None, parent_id: 0 };
+    //     self.nodes.insert(name.clone(), node);
+
+
+    //     self.parent_stack.push(name);
+
+    //     return FloatingWindowDropper {
+    //         parent_stack: &mut self.parent_stack,
+    //     }
+    // }
+
+}
+
+// struct FloatingWindowDropper<'a> {
+//     pub parent_stack: &'a mut Vec<String>,
+// }
+// impl<'a> Drop for FloatingWindowDropper<'a> {
+//     fn drop(&mut self) {
+//         self.parent_stack.pop();
+//     }
+// }
+
+
+
+
+#[macro_export]
+macro_rules! floating_window_m {
+    ($self:ident, $rect1:tt, $name:tt, $code:tt) => {
+        let rect_id = $self.rects.len();
+        $self.rects.push(Rectangle { x0: $rect1.0, x1: $rect1.1, y0: $rect1.2, y1: $rect1.3 });
+        
+        let node = Node { rect_id: Some(rect_id as u32), text_id: None, parent_id: 0 };
+        $self.nodes.insert($name.clone(), node);
+
+
+        $self.parent_stack.push($name);
+        $code;
+        $self.parent_stack.pop();
+    };
 }
 
 #[derive(Default, Debug, Pod, Copy, Clone, Zeroable)]
 #[repr(C)]
 // Layout has to match the one in the shader.
-pub struct Box {
+pub struct Rectangle {
     pub x0: f32,
     pub x1: f32,
     pub y0: f32,
     pub y1: f32,
 }
-impl Box {
+impl Rectangle {
     pub fn buffer_desc() -> [VertexAttribute; 2] {
         return vertex_attr_array![
             0 => Float32x2,
@@ -389,4 +518,18 @@ impl<T: Pod> TypedGpuBuffer<T> {
         let data = bytemuck::cast_slice(data);
         queue.write_buffer(&self.buffer, 0, data);
     }
+}
+
+// bitflags::bitflags! {
+//     #[repr(transparent)]
+//     #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+//     pub struct WidgetFlags: u32 {
+//         const CLICKABLE = 1 << 0;
+//     }
+// }
+
+pub struct Node {
+    pub rect_id: Option<u32>,
+    pub text_id: Option<u32>,
+    pub parent_id: u32,
 }

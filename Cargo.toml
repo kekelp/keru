@@ -11,3 +11,4 @@ wgpu = { version = "0.19.3", default-features = true }
 glyphon = { path = "../glyphon" }
 pollster = "0.3.0"
 bytemuck = { version = "1.15.0", features = [ "derive" ] }
+bitflags = "2.5.0"
