@@ -1,7 +1,8 @@
 use bytemuck::{Pod, Zeroable};
 use glyphon::{
-    Attrs, Buffer, Color, Family, FontSystem, Metrics, Resolution as GlyphonResolution, Shaping,
-    SwashCache, TextArea, TextAtlas, TextBounds, TextRenderer,
+    Attrs, Buffer, Color as GlyphonColor, Family, FontSystem, Metrics,
+    Resolution as GlyphonResolution, Shaping, SwashCache, TextArea, TextAtlas, TextBounds,
+    TextRenderer,
 };
 use wgpu::{
     util::{self, DeviceExt},
@@ -19,7 +20,8 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 
-use std::{marker::PhantomData, mem, sync::Arc, collections::HashMap};
+use std::{collections::HashMap, marker::PhantomData, mem, sync::Arc, os::unix::process};
+const NODE_ROOT: u64 = 0;
 
 #[rustfmt::skip]
 fn main() {
@@ -38,7 +40,7 @@ fn init() -> (EventLoop<()>, State<'static>) {
     let window = Arc::new(
         WindowBuilder::new()
             .with_inner_size(LogicalSize::new(width as f64, height as f64))
-            .with_title("glyphon hello world")
+            .with_title("BLUE")
             .build(&event_loop)
             .unwrap(),
     );
@@ -157,10 +159,10 @@ fn init() -> (EventLoop<()>, State<'static>) {
     let mut font_system = FontSystem::new();
     let cache = SwashCache::new();
     let mut atlas = TextAtlas::new(&device, &queue, swapchain_format);
-    let text_renderer = TextRenderer::new(&mut atlas, &device, MultisampleState::default(), None);   
+    let text_renderer = TextRenderer::new(&mut atlas, &device, MultisampleState::default(), None);
     let physical_width = (width as f64 * scale_factor) as f32;
     let physical_height = (height as f64 * scale_factor) as f32;
-    
+
     let mut buffer = Buffer::new(&mut font_system, Metrics::new(30.0, 42.0));
     buffer.set_size(&mut font_system, physical_width, physical_height);
     buffer.set_text(&mut font_system, "Hello world! 👋この動画の元になった作品ヽ༼ ຈل͜ຈ༽ ﾉヽ༼ ຈل͜ຈ༽ ﾉ\nヽ༼ ຈل͜ຈ༽\nThis is rendered with 🦅 glyphon 🦁\nThe text below should be partially clipped.\na b c d e f g h i j k l m n o p q r s t u v w x y z", Attrs::new().family(Family::SansSerif), Shaping::Advanced);
@@ -177,19 +179,28 @@ fn init() -> (EventLoop<()>, State<'static>) {
             right: 900,
             bottom: 660,
         },
-        default_color: Color::rgb(255, 255, 255),
+        default_color: GlyphonColor::rgb(255, 255, 255),
         depth: 0.0,
     }];
 
-    let rects = vec![Rectangle {
-        x0: -0.5,
-        x1: 0.5,
-        y0: -0.5,
-        y1: 0.5,
-    }];
+    let mut nodes = HashMap::with_capacity(20);
 
-    let mut nodes = HashMap::new();
-    nodes.insert("root".to_string(), Node { rect_id: None, text_id: None, parent_id: 0 });
+    nodes.insert(
+        0,
+        Node {
+            x0: 0.0,
+            x1: 1.0,
+            y0: 0.0,
+            y1: 1.0,
+            text_id: None,
+            parent_id: NODE_ROOT,
+            children_ids: Vec::new(),
+            key: NODE_ROOT_KEY,
+        },
+    );
+
+    let mut parent_stack = Vec::with_capacity(7);
+    parent_stack.push(0);
 
     let state = State {
         window,
@@ -203,13 +214,14 @@ fn init() -> (EventLoop<()>, State<'static>) {
         text_renderer,
         font_system,
         text_areas,
-        rects,
+        rects: Vec::with_capacity(20),
         nodes,
         gpu_vertex_buffer: vertex_buffer,
         resolution_buffer,
         bind_group,
 
-        parent_stack: Vec::with_capacity(5),
+        parent_stack,
+
         count: 0,
     };
 
@@ -227,19 +239,143 @@ pub struct State<'window> {
     pub render_pipeline: RenderPipeline,
     pub resolution_buffer: wgpu::Buffer,
     pub bind_group: BindGroup,
-    
+
     pub font_system: FontSystem,
     pub cache: SwashCache,
     pub atlas: TextAtlas,
-    pub text_renderer: TextRenderer,    
+    pub text_renderer: TextRenderer,
 
     pub rects: Vec<Rectangle>,
     pub text_areas: Vec<TextArea>,
-    pub nodes: HashMap<String, Node>,
+    pub nodes: HashMap<u64, Node>,
 
-    pub parent_stack: Vec<String>,
+    pub parent_stack: Vec<u64>,
 
     pub count: i32,
+}
+
+#[derive(Debug, Clone)]
+pub struct Node {
+    pub x0: f32,
+    pub x1: f32,
+    pub y0: f32,
+    pub y1: f32,
+
+    pub text_id: Option<u32>,
+    pub parent_id: u64,
+    // todo: maybe switch with that prev/next thing
+    pub children_ids: Vec<u64>,
+    pub key: NodeKey,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct NodeKey {
+    // stuff like layout params, how it reacts to clicks, etc
+    pub id: u64,
+    pub clickable: bool,
+    pub color: Color,
+    pub layout_x: LayoutMode,
+    pub layout_y: LayoutMode,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum LayoutMode {
+    PercentOfParent { start: f32, end: f32 },
+    ChildrenSum {},
+}
+
+pub const NODE_ROOT_KEY: NodeKey = NodeKey {
+    id: 0,
+    clickable: false,
+    color: Color {
+        r: 1.0,
+        g: 1.0,
+        b: 1.0,
+        a: 0.0,
+    },
+    layout_x: LayoutMode::PercentOfParent {
+        start: 0.0,
+        end: 1.0,
+    },
+    layout_y: LayoutMode::PercentOfParent {
+        start: 0.0,
+        end: 1.0,
+    },
+};
+
+pub const INCREASE_BUTTON: NodeKey = NodeKey {
+    id: 111111111,
+    clickable: true,
+    color: Color {
+        r: 0.0,
+        g: 1.0,
+        b: 0.0,
+        a: 0.2,
+    },
+    layout_x: LayoutMode::PercentOfParent {
+        start: 0.25,
+        end: 0.33,
+    },
+    layout_y: LayoutMode::PercentOfParent {
+        start: 0.25,
+        end: 0.33,
+    },
+};
+
+pub const fn floating_window_1() -> NodeKey {
+    return NodeKey {
+        id: 77777777,
+        clickable: true,
+        color: Color {
+            r: 0.0,
+            g: 1.0,
+            b: 0.0,
+            a: 0.2,
+        },
+        layout_x: LayoutMode::PercentOfParent {
+            start: 0.1,
+            end: 0.9,
+        },
+        layout_y: LayoutMode::PercentOfParent {
+            start: 0.1,
+            end: 0.9,
+        },
+    };
+}
+impl NodeKey {
+    pub const fn with_id(mut self, id: u64) -> Self {
+        self.id = id;
+        return self;
+    }
+}
+
+pub const FLOATING_WINDOW_1: NodeKey = floating_window_1().with_id(34);
+
+pub const COLUMN_1: NodeKey = NodeKey {
+    id: 3333333,
+    clickable: true,
+    color: Color {
+        r: 0.0,
+        g: 1.0,
+        b: 0.0,
+        a: 0.2,
+    },
+    layout_x: LayoutMode::PercentOfParent {
+        start: 0.7,
+        end: 0.9,
+    },
+    layout_y: LayoutMode::PercentOfParent {
+        start: 0.0,
+        end: 1.0,
+    },
+};
+
+#[derive(Debug, Clone, Copy)]
+pub struct Color {
+    r: f32,
+    g: f32,
+    b: f32,
+    a: f32,
 }
 
 impl<'window> State<'window> {
@@ -258,39 +394,23 @@ impl<'window> State<'window> {
     }
 
     pub fn update(&mut self) {
-        let rect1 = (-0.5, 0.5, -0.5, 0.5);
-        let name = "window".to_string();
-
-        // self.floating_window(name, rect1, |self2| { 
-            
-        //     self2.render();
-            
-        //     self2.column(|self2| {
-        //         // if self2.button("+1".to_string()) {
-        //         //     self2.count += 1;
-        //         // }
-
-        //         self2.label(self2.count.to_string());
-        //     });
-        // });
 
 
-        floating_window_m!(self, rect1, name, {
+        floating_window!((self, FLOATING_WINDOW_1) {
 
+            zzcolumn!((self, COLUMN_1) {
 
-            println!(" {:?}", self.count);
-            self.label(self.count.to_string());
+                button!((self, INCREASE_BUTTON) {
 
-            
-            
-            let name2 = String::from("w1");
-            floating_window_m!(self, rect1, name2, {
-                self.label(self.count.to_string());
-                println!(" {:?}", self.count);
+                });
 
             });
+
         });
-        
+
+        self.layout();
+        // self.resolve_input();
+        self.build_buffers();
     }
 
     pub fn render(&mut self) {
@@ -340,11 +460,12 @@ impl<'window> State<'window> {
                 occlusion_query_set: None,
             });
             let n = self.rects.len() as u32;
-
-            r_pass.set_pipeline(&self.render_pipeline);
-            r_pass.set_bind_group(0, &self.bind_group, &[]);
-            r_pass.set_vertex_buffer(0, self.gpu_vertex_buffer.slice(n));
-            r_pass.draw(0..6, 0..n);
+            if n > 0 {
+                r_pass.set_pipeline(&self.render_pipeline);
+                r_pass.set_bind_group(0, &self.bind_group, &[]);
+                r_pass.set_vertex_buffer(0, self.gpu_vertex_buffer.slice(n));
+                r_pass.draw(0..6, 0..n);
+            }
         }
 
         {
@@ -381,91 +502,195 @@ impl<'window> State<'window> {
             width: size.width as f32,
             height: size.height as f32,
         };
-        self.queue.write_buffer(
-            &self.resolution_buffer,
-            0,
-            bytemuck::bytes_of(&resolution),
-        );
+        self.queue
+            .write_buffer(&self.resolution_buffer, 0, bytemuck::bytes_of(&resolution));
 
         self.window.request_redraw();
     }
 
-    pub fn add_button() {
+    pub fn build_buffers(&mut self) {
+        self.rects.clear();
+        let mut stack = Vec::<u64>::new();
 
+        // push the direct children of the root without processing the root
+        if let Some(root) = self.nodes.get(&NODE_ROOT) {
+            for &child_id in root.children_ids.iter().rev() {
+                stack.push(child_id);
+            }
+        }
+
+        while let Some(current_node_id) = stack.pop() {
+            let current_node = self.nodes.get_mut(&current_node_id).unwrap();
+
+            self.rects.push(Rectangle {
+                x0: current_node.x0,
+                x1: current_node.x1,
+                y0: current_node.y0,
+                y1: current_node.y1,
+                r: current_node.key.color.r,
+                g: current_node.key.color.g,
+                b: current_node.key.color.b,
+                a: current_node.key.color.a,
+            });
+
+            // do I really need iter.rev() here? why?
+            for &child_id in current_node.children_ids.iter().rev() {
+                stack.push(child_id);
+            }
+        }
     }
 
-    pub fn floating_window(&mut self, name: String, rect1: (f32, f32, f32, f32), mut closure: impl FnMut(&mut Self)) {
-        
-        let rect_id = self.rects.len();
-        self.rects.push(Rectangle { x0: rect1.0, x1: rect1.1, y0: rect1.2, y1: rect1.3 });
-        
-        let node = Node { rect_id: Some(rect_id as u32), text_id: None, parent_id: 0 };
-        self.nodes.insert(name.clone(), node);
+    pub fn layout(&mut self) {
 
+        let mut stack = Vec::<u64>::new();
 
-        self.parent_stack.push(name);
-        closure(self);
-        self.parent_stack.pop();
+        let mut last_rect_xs = (0.0, 1.0);
+        let mut last_rect_ys = (0.0, 1.0);
+        // push the direct children of the root without processing the root
+        if let Some(root) = self.nodes.get(&NODE_ROOT) {
+            for &child_id in root.children_ids.iter().rev() {
+                stack.push(child_id);
+            }
+        }
+
+        while let Some(current_node_id) = stack.pop() {
+            let current_node = self.nodes.get_mut(&current_node_id).unwrap();
+
+            println!("Node: {:?}", current_node.key.id);
+            println!(" {:?}", last_rect_xs);
+
+            match current_node.key.layout_x {
+                LayoutMode::PercentOfParent { start, end } => {
+                    last_rect_xs = (last_rect_xs.0 * start, last_rect_xs.1 * end)
+                },
+                LayoutMode::ChildrenSum {  } => todo!(),
+            }
+            match current_node.key.layout_y {
+                LayoutMode::PercentOfParent { start, end } => {
+                    last_rect_ys = (last_rect_ys.0 * start, last_rect_ys.1 * end)
+                },
+                LayoutMode::ChildrenSum {  } => todo!(),
+            }
+
+            current_node.x0 = last_rect_xs.0;
+            current_node.x1 = last_rect_xs.1;
+            current_node.y0 = last_rect_ys.0;
+            current_node.y1 = last_rect_ys.1;
+
+            // do I really need iter.rev() here? why?
+            for &child_id in current_node.children_ids.iter().rev() {
+                stack.push(child_id);
+            }
+        }
+
+        println!(" {:?}", "End layout");
+        println!(" {:?}", "");
+        println!(" {:?}", "");
+
+        for (k, v) in &self.nodes {
+            println!(" {:?}: {:?}", k, v.key.id);
+        }
     }
-    
-    pub fn column(&mut self, closure: impl FnOnce(&mut Self)) {
-        
-        self.parent_stack.push(String::from("nameless"));        
-        
-        closure(self);
-        
-        self.parent_stack.pop();
+
+    fn floating_window(&mut self, fl_win: NodeKey) {
+        let parent_id = NODE_ROOT;
+
+
+        let node = Node {
+            x0: 0.0,
+            x1: 1.0,
+            y0: 0.0,
+            y1: 1.0,
+            text_id: None,
+            parent_id: 0,
+            children_ids: Vec::new(),
+            key: fl_win,
+        };
+        if ! self.nodes.contains_key(&fl_win.id) {
+            self.nodes.insert(fl_win.id, node);
+
+            self.nodes
+            .get_mut(&parent_id)
+            .unwrap()
+            .children_ids
+            .push(fl_win.id);
+        }
     }
 
-    pub fn label(&mut self, text: String) {
-        println!(" {:?}", text);
+    fn zzcolumn(&mut self, column: NodeKey) {
+        let parent_id = self.parent_stack.last().unwrap();
+
+        let node = Node {
+            x0: 0.0,
+            x1: 1.0,
+            y0: 0.0,
+            y1: 1.0,
+            text_id: None,
+            parent_id: parent_id.clone(),
+            children_ids: Vec::new(),
+            key: column,
+        };
+
+        if ! self.nodes.contains_key(&column.id) {
+            self.nodes.insert(column.id, node);
+            
+            self.nodes
+            .get_mut(parent_id)
+            .unwrap()
+            .children_ids
+            .push(column.id);
+        }
     }
 
-    // pub fn floating_window_2(&mut self, name: String, rect1: (f32, f32, f32, f32)) -> FloatingWindowDropper<'_>{
-        
-    //     let rect_id = self.rects.len();
-    //     self.rects.push(Rectangle { x0: rect1.0, x1: rect1.1, y0: rect1.2, y1: rect1.3 });
-        
-    //     let node = Node { rect_id: Some(rect_id as u32), text_id: None, parent_id: 0 };
-    //     self.nodes.insert(name.clone(), node);
+    pub fn button(&mut self, button: NodeKey) {
+        let parent_id = self.parent_stack.last().unwrap().clone();
 
+        let node = Node {
+            x0: 0.0,
+            x1: 1.0,
+            y0: 0.0,
+            y1: 1.0,
+            text_id: None,
+            parent_id,
+            children_ids: Vec::new(),
+            key: button,
+        };
 
-    //     self.parent_stack.push(name);
+        if ! self.nodes.contains_key(&button.id) {
 
-    //     return FloatingWindowDropper {
-    //         parent_stack: &mut self.parent_stack,
-    //     }
-    // }
+            self.nodes.insert(button.id, node);
 
+            self.nodes
+                .get_mut(&parent_id)
+                .unwrap()
+                .children_ids
+                .push(button.id);
+        }
+    }
 }
 
-// struct FloatingWindowDropper<'a> {
-//     pub parent_stack: &'a mut Vec<String>,
-// }
-// impl<'a> Drop for FloatingWindowDropper<'a> {
-//     fn drop(&mut self) {
-//         self.parent_stack.pop();
-//     }
-// }
-
-
-
+// these have to be macros only because of the deferred pop().
+// todo: pass "ui" or something instead of self.
 
 #[macro_export]
-macro_rules! floating_window_m {
-    ($self:ident, $rect1:tt, $name:tt, $code:tt) => {
-        let rect_id = $self.rects.len();
-        $self.rects.push(Rectangle { x0: $rect1.0, x1: $rect1.1, y0: $rect1.2, y1: $rect1.3 });
-        
-        let node = Node { rect_id: Some(rect_id as u32), text_id: None, parent_id: 0 };
-        $self.nodes.insert($name.clone(), node);
+macro_rules! make_stack_macro {
+    ($func_name:ident) => {
+        #[macro_export]
+        macro_rules! $func_name {
+            (($self:ident, $node_key:ident) $code:tt) => {
+                $self.$func_name($node_key);
 
-
-        $self.parent_stack.push($name);
-        $code;
-        $self.parent_stack.pop();
+                $self.parent_stack.push($node_key.id);
+                $code;
+                $self.parent_stack.pop();
+            };
+        }
     };
 }
+
+make_stack_macro!(floating_window);
+make_stack_macro!(zzcolumn);
+make_stack_macro!(button);
 
 #[derive(Default, Debug, Pod, Copy, Clone, Zeroable)]
 #[repr(C)]
@@ -475,12 +700,18 @@ pub struct Rectangle {
     pub x1: f32,
     pub y0: f32,
     pub y1: f32,
+
+    pub r: f32,
+    pub g: f32,
+    pub b: f32,
+    pub a: f32,
 }
 impl Rectangle {
-    pub fn buffer_desc() -> [VertexAttribute; 2] {
+    pub fn buffer_desc() -> [VertexAttribute; 3] {
         return vertex_attr_array![
             0 => Float32x2,
             1 => Float32x2,
+            2 => Float32x4,
         ];
     }
 }
@@ -518,18 +749,4 @@ impl<T: Pod> TypedGpuBuffer<T> {
         let data = bytemuck::cast_slice(data);
         queue.write_buffer(&self.buffer, 0, data);
     }
-}
-
-// bitflags::bitflags! {
-//     #[repr(transparent)]
-//     #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-//     pub struct WidgetFlags: u32 {
-//         const CLICKABLE = 1 << 0;
-//     }
-// }
-
-pub struct Node {
-    pub rect_id: Option<u32>,
-    pub text_id: Option<u32>,
-    pub parent_id: u32,
 }

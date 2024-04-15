@@ -5,11 +5,13 @@ struct VertexInput {
     @builtin(vertex_index) index: u32,
     @location(0) xs: vec2f,
     @location(1) ys: vec2f,
+    @location(2) color: vec4f,
 };
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) uv: vec2<f32>,
+    @location(1) color: vec4<f32>,
 }
 
 @vertex
@@ -27,6 +29,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     // zero: center of the rectangle
     out.uv.x = (f32 (2 * i_x) - 1.0) * screen_resolution.x / 2.0;
     out.uv.y = (f32 (2 * i_y) - 1.0) * screen_resolution.y / 2.0;
+    out.color = in.color;
 
     return out;
 }
@@ -40,6 +43,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     var dist = length(max(q, vec2(0.0, 0.0))) - radius;
 
-    var alpha = 1.0 - smoothstep(-1.0, 1.0, dist);
-    return vec4(0.3, 0.5, 0.8, alpha);
+    var alpha = in.color.a * (1.0 - smoothstep(-1.0, 1.0, dist));
+    return vec4(in.color.rgb, alpha);
 }
