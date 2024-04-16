@@ -20,7 +20,7 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 
-use std::{collections::HashMap, marker::PhantomData, mem, sync::Arc, os::unix::process};
+use std::{collections::HashMap, marker::PhantomData, mem, sync::Arc};
 const NODE_ROOT: u64 = 0;
 
 #[rustfmt::skip]
@@ -188,14 +188,15 @@ fn init() -> (EventLoop<()>, State<'static>) {
     nodes.insert(
         0,
         Node {
-            x0: 0.0,
+            x0: -1.0,
             x1: 1.0,
-            y0: 0.0,
+            y0: -1.0,
             y1: 1.0,
             text_id: None,
             parent_id: NODE_ROOT,
             children_ids: Vec::new(),
             key: NODE_ROOT_KEY,
+            last_frame_touched: 0,
         },
     );
 
@@ -221,6 +222,7 @@ fn init() -> (EventLoop<()>, State<'static>) {
         bind_group,
 
         parent_stack,
+        latest_frame: 0,
 
         count: 0,
     };
@@ -252,6 +254,7 @@ pub struct State<'window> {
     pub parent_stack: Vec<u64>,
 
     pub count: i32,
+    pub latest_frame: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -260,6 +263,8 @@ pub struct Node {
     pub x1: f32,
     pub y0: f32,
     pub y1: f32,
+
+    pub last_frame_touched: u64,
 
     pub text_id: Option<u32>,
     pub parent_id: u64,
@@ -322,13 +327,32 @@ pub const INCREASE_BUTTON: NodeKey = NodeKey {
     },
 };
 
+pub const COLUMN_1: NodeKey = NodeKey {
+    id: 3333333,
+    clickable: true,
+    color: Color {
+        r: 0.0,
+        g: 0.2,
+        b: 0.7,
+        a: 0.2,
+    },
+    layout_x: LayoutMode::PercentOfParent {
+        start: 0.8,
+        end: 0.9,
+    },
+    layout_y: LayoutMode::PercentOfParent {
+        start: 0.0,
+        end: 1.0,
+    },
+};
+
 pub const fn floating_window_1() -> NodeKey {
     return NodeKey {
         id: 77777777,
         clickable: true,
         color: Color {
-            r: 0.0,
-            g: 1.0,
+            r: 0.7,
+            g: 0.0,
             b: 0.0,
             a: 0.2,
         },
@@ -351,24 +375,7 @@ impl NodeKey {
 
 pub const FLOATING_WINDOW_1: NodeKey = floating_window_1().with_id(34);
 
-pub const COLUMN_1: NodeKey = NodeKey {
-    id: 3333333,
-    clickable: true,
-    color: Color {
-        r: 0.0,
-        g: 1.0,
-        b: 0.0,
-        a: 0.2,
-    },
-    layout_x: LayoutMode::PercentOfParent {
-        start: 0.7,
-        end: 0.9,
-    },
-    layout_y: LayoutMode::PercentOfParent {
-        start: 0.0,
-        end: 1.0,
-    },
-};
+
 
 #[derive(Debug, Clone, Copy)]
 pub struct Color {
@@ -522,22 +529,27 @@ impl<'window> State<'window> {
         while let Some(current_node_id) = stack.pop() {
             let current_node = self.nodes.get_mut(&current_node_id).unwrap();
 
-            self.rects.push(Rectangle {
-                x0: current_node.x0,
-                x1: current_node.x1,
-                y0: current_node.y0,
-                y1: current_node.y1,
-                r: current_node.key.color.r,
-                g: current_node.key.color.g,
-                b: current_node.key.color.b,
-                a: current_node.key.color.a,
-            });
+            if current_node.last_frame_touched == self.latest_frame {
+
+                self.rects.push(Rectangle {
+                    x0: current_node.x0 * 2. - 1.,
+                    x1: current_node.x1 * 2. - 1.,
+                    y0: current_node.y0 * 2. - 1.,
+                    y1: current_node.y1 * 2. - 1.,
+                    r: current_node.key.color.r,
+                    g: current_node.key.color.g,
+                    b: current_node.key.color.b,
+                    a: current_node.key.color.a,
+                });
+            }
 
             // do I really need iter.rev() here? why?
             for &child_id in current_node.children_ids.iter().rev() {
                 stack.push(child_id);
             }
         }
+
+        self.latest_frame += 1;
     }
 
     pub fn layout(&mut self) {
@@ -558,16 +570,21 @@ impl<'window> State<'window> {
 
             println!("Node: {:?}", current_node.key.id);
             println!(" {:?}", last_rect_xs);
-
+            
             match current_node.key.layout_x {
                 LayoutMode::PercentOfParent { start, end } => {
-                    last_rect_xs = (last_rect_xs.0 * start, last_rect_xs.1 * end)
+                    println!(" {:?} {:?}", start, end);
+                    let len = last_rect_xs.1 - last_rect_xs.0;
+                    let x0 = last_rect_xs.0;
+                    last_rect_xs = (x0 + len * start, x0 + len * end)
                 },
                 LayoutMode::ChildrenSum {  } => todo!(),
             }
             match current_node.key.layout_y {
                 LayoutMode::PercentOfParent { start, end } => {
-                    last_rect_ys = (last_rect_ys.0 * start, last_rect_ys.1 * end)
+                    let len = last_rect_ys.1 - last_rect_ys.0;
+                    let y0 = last_rect_ys.0;
+                    last_rect_ys = (y0 + len * start, y0 + len * end)
                 },
                 LayoutMode::ChildrenSum {  } => todo!(),
             }
@@ -592,9 +609,12 @@ impl<'window> State<'window> {
         }
     }
 
+    // what if a node gets reinserted but in a different position?
+    // who clears the children id's held by the old parent?
+    // one way could be to always check that links are two-sided before using them.
+    //     (this could make it impossible to do that dumb linked-list-of-children thing.)
     fn floating_window(&mut self, fl_win: NodeKey) {
         let parent_id = NODE_ROOT;
-
 
         let node = Node {
             x0: 0.0,
@@ -605,15 +625,19 @@ impl<'window> State<'window> {
             parent_id: 0,
             children_ids: Vec::new(),
             key: fl_win,
+            last_frame_touched: self.latest_frame,
         };
-        if ! self.nodes.contains_key(&fl_win.id) {
-            self.nodes.insert(fl_win.id, node);
-
-            self.nodes
-            .get_mut(&parent_id)
-            .unwrap()
-            .children_ids
-            .push(fl_win.id);
+        match self.nodes.get_mut(&fl_win.id) {
+            Some(node) => node.last_frame_touched = self.latest_frame,
+            None => {
+                self.nodes.insert(fl_win.id, node);
+    
+                self.nodes
+                    .get_mut(&parent_id)
+                    .unwrap()
+                    .children_ids
+                    .push(fl_win.id);
+            },
         }
     }
 
@@ -629,16 +653,20 @@ impl<'window> State<'window> {
             parent_id: parent_id.clone(),
             children_ids: Vec::new(),
             key: column,
+            last_frame_touched: self.latest_frame,
         };
 
-        if ! self.nodes.contains_key(&column.id) {
-            self.nodes.insert(column.id, node);
-            
-            self.nodes
-            .get_mut(parent_id)
-            .unwrap()
-            .children_ids
-            .push(column.id);
+        match self.nodes.get_mut(&column.id) {
+            Some(node) => node.last_frame_touched = self.latest_frame,
+            None => {
+                self.nodes.insert(column.id, node);
+    
+                self.nodes
+                    .get_mut(&parent_id)
+                    .unwrap()
+                    .children_ids
+                    .push(column.id);
+            },
         }
     }
 
@@ -654,18 +682,23 @@ impl<'window> State<'window> {
             parent_id,
             children_ids: Vec::new(),
             key: button,
+            last_frame_touched: self.latest_frame,
         };
 
-        if ! self.nodes.contains_key(&button.id) {
 
-            self.nodes.insert(button.id, node);
-
-            self.nodes
-                .get_mut(&parent_id)
-                .unwrap()
-                .children_ids
-                .push(button.id);
+        match self.nodes.get_mut(&button.id) {
+            Some(node) => node.last_frame_touched = self.latest_frame,
+            None => {
+                self.nodes.insert(button.id, node);
+    
+                self.nodes
+                    .get_mut(&parent_id)
+                    .unwrap()
+                    .children_ids
+                    .push(button.id);
+            },
         }
+
     }
 }
 
