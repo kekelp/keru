@@ -14,8 +14,8 @@ use wgpu::{
     VertexAttribute, VertexBufferLayout, VertexStepMode,
 };
 use winit::{
-    dpi::{LogicalSize, PhysicalSize},
-    event::{Event, WindowEvent},
+    dpi::{LogicalSize, PhysicalPosition, PhysicalSize},
+    event::{ElementState, Event, MouseButton, WindowEvent},
     event_loop::{EventLoop, EventLoopWindowTarget},
     window::{Window, WindowBuilder},
 };
@@ -225,6 +225,11 @@ fn init() -> (EventLoop<()>, State<'static>) {
         latest_frame: 0,
 
         count: 0,
+        mouse_pos: PhysicalPosition { x: 0., y: 0. },
+        mouse_left_clicked: false,
+        mouse_left_just_clicked: false,
+
+        counter_mode: true,
     };
 
     return (event_loop, state);
@@ -255,6 +260,12 @@ pub struct State<'window> {
 
     pub count: i32,
     pub latest_frame: u64,
+
+    pub mouse_pos: PhysicalPosition<f32>,
+    pub mouse_left_clicked: bool,
+    pub mouse_left_just_clicked: bool,
+
+    pub counter_mode: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -286,6 +297,7 @@ pub struct NodeKey {
 #[derive(Debug, Clone, Copy)]
 pub enum LayoutMode {
     PercentOfParent { start: f32, end: f32 },
+    Fixed { start: u32, len: u32 },
     ChildrenSum {},
 }
 
@@ -318,12 +330,31 @@ pub const INCREASE_BUTTON: NodeKey = NodeKey {
         a: 0.2,
     },
     layout_x: LayoutMode::PercentOfParent {
-        start: 0.25,
-        end: 0.33,
+        start: 0.1,
+        end: 0.9,
     },
-    layout_y: LayoutMode::PercentOfParent {
-        start: 0.25,
-        end: 0.33,
+    layout_y: LayoutMode::Fixed {
+        start: 200,
+        len: 100,
+    },
+};
+
+pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey {
+    id: 2222222,
+    clickable: true,
+    color: Color {
+        r: 0.6,
+        g: 0.3,
+        b: 0.6,
+        a: 0.6,
+    },
+    layout_x: LayoutMode::PercentOfParent {
+        start: 0.1,
+        end: 0.9,
+    },
+    layout_y: LayoutMode::Fixed {
+        start: 50,
+        len: 100,
     },
 };
 
@@ -392,9 +423,26 @@ impl<'window> State<'window> {
                 WindowEvent::Resized(size) => self.resize(size),
                 WindowEvent::RedrawRequested => {
                     self.update();
-                    self.render();
+
+                    self.window.request_redraw();
                 }
                 WindowEvent::CloseRequested => target.exit(),
+                WindowEvent::CursorMoved { position, .. } => {
+                    self.mouse_pos.x = position.x as f32;
+                    self.mouse_pos.y = position.y as f32;
+                }
+                WindowEvent::MouseInput { button, state, .. } => {
+                    if *button == MouseButton::Left {
+                        if *state == ElementState::Pressed {
+                            self.mouse_left_clicked = true;
+                            if ! self.mouse_left_just_clicked {
+                                self.mouse_left_just_clicked = true;
+                            } 
+                        } else {
+                            self.mouse_left_clicked = false;
+                        }
+                    }
+                }
                 _ => {}
             }
         }
@@ -407,9 +455,12 @@ impl<'window> State<'window> {
 
             zzcolumn!((self, COLUMN_1) {
 
-                button!((self, INCREASE_BUTTON) {
+                button!(self, SHOW_COUNTER_BUTTON);
 
-                });
+                if self.counter_mode {
+                    button!(self, INCREASE_BUTTON);
+
+                }
 
             });
 
@@ -417,7 +468,20 @@ impl<'window> State<'window> {
 
         self.layout();
         // self.resolve_input();
+        
+        if self.is_clicked(INCREASE_BUTTON) {
+            self.count += 1;
+            println!("{:?}", self.count);
+        }
+
+        if self.is_clicked(SHOW_COUNTER_BUTTON) {
+            self.counter_mode = !self.counter_mode;
+        }
+        
         self.build_buffers();
+        self.render();
+
+        self.mouse_left_just_clicked = false;
     }
 
     pub fn render(&mut self) {
@@ -566,25 +630,34 @@ impl<'window> State<'window> {
         }
 
         while let Some(current_node_id) = stack.pop() {
-            let current_node = self.nodes.get_mut(&current_node_id).unwrap();
-
-            println!("Node: {:?}", current_node.key.id);
-            println!(" {:?}", last_rect_xs);
-            
+            let current_node = self.nodes.get_mut(&current_node_id).unwrap();            
             match current_node.key.layout_x {
                 LayoutMode::PercentOfParent { start, end } => {
-                    println!(" {:?} {:?}", start, end);
                     let len = last_rect_xs.1 - last_rect_xs.0;
                     let x0 = last_rect_xs.0;
                     last_rect_xs = (x0 + len * start, x0 + len * end)
                 },
                 LayoutMode::ChildrenSum {  } => todo!(),
+                LayoutMode::Fixed { start, len } => {
+                    let x0 = last_rect_xs.0;
+                    last_rect_xs = (
+                        x0 + (start as f32)/(self.config.width as f32),
+                        x0 + ((start + len) as f32)/(self.config.width as f32),
+                    )
+                },
             }
             match current_node.key.layout_y {
                 LayoutMode::PercentOfParent { start, end } => {
                     let len = last_rect_ys.1 - last_rect_ys.0;
                     let y0 = last_rect_ys.0;
                     last_rect_ys = (y0 + len * start, y0 + len * end)
+                },
+                LayoutMode::Fixed { start, len } => {
+                    let y0 = last_rect_ys.0;
+                    last_rect_ys = (
+                        y0 + (start as f32)/(self.config.height as f32),
+                        y0 + ((start + len) as f32)/(self.config.height as f32),
+                    )
                 },
                 LayoutMode::ChildrenSum {  } => todo!(),
             }
@@ -600,13 +673,9 @@ impl<'window> State<'window> {
             }
         }
 
-        println!(" {:?}", "End layout");
-        println!(" {:?}", "");
-        println!(" {:?}", "");
-
-        for (k, v) in &self.nodes {
-            println!(" {:?}: {:?}", k, v.key.id);
-        }
+        // for (k, v) in &self.nodes {
+        //     println!(" {:?}: {:?}", k, v.key.id);
+        // }
     }
 
     // what if a node gets reinserted but in a different position?
@@ -700,6 +769,28 @@ impl<'window> State<'window> {
         }
 
     }
+    
+    // in the future, do the full tree pass (for covered stuff etc)
+    pub fn is_clicked(&self, button: NodeKey) -> bool {
+        if ! self.mouse_left_just_clicked {
+            return false;
+        }
+
+        let node = self.nodes.get(&button.id);
+        if let Some(node) = node {
+            let mouse_pos = (
+                self.mouse_pos.x / (self.config.width as f32),
+                1.0 - (self.mouse_pos.y / (self.config.height as f32)),
+            );
+            if node.x0 < mouse_pos.0 && mouse_pos.0 < node.x1 {
+                if node.y0 < mouse_pos.1 && mouse_pos.1 < node.y1 {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }    
 }
 
 // these have to be macros only because of the deferred pop().
@@ -710,12 +801,17 @@ macro_rules! make_stack_macro {
     ($func_name:ident) => {
         #[macro_export]
         macro_rules! $func_name {
+            // non-leaf, has to run the stack.pop() after the code
             (($self:ident, $node_key:ident) $code:tt) => {
                 $self.$func_name($node_key);
 
                 $self.parent_stack.push($node_key.id);
                 $code;
                 $self.parent_stack.pop();
+            };
+            // leaf. doesn't need to touch the stack. doesn't actually need to be a macro except for symmetry.
+            ($self:ident, $node_key:ident) => {
+                $self.$func_name($node_key);
             };
         }
     };
