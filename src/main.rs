@@ -225,11 +225,14 @@ fn init() -> (EventLoop<()>, State<'static>) {
         parent_stack,
         current_frame: 0,
 
-        count: 0,
         mouse_pos: PhysicalPosition { x: 0., y: 0. },
         mouse_left_clicked: false,
         mouse_left_just_clicked: false,
-
+        
+        node_tree_touched: false,
+        
+        // app state
+        count: 0,
         counter_mode: true,
     };
 
@@ -267,6 +270,7 @@ pub struct State<'window> {
     pub mouse_left_just_clicked: bool,
 
     pub counter_mode: bool,
+    pub node_tree_touched: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -441,10 +445,6 @@ impl NodeKey {
         self.is_update = true;
         return self;
     }
-    pub const fn with_text(mut self, text: &str) -> Self {
-        self.text = Some(&"Some(text)");
-        return self;
-    }
 }
 
 pub const FLOATING_WINDOW_1: NodeKey = floating_window_1().with_id(34);
@@ -495,6 +495,8 @@ impl<'window> State<'window> {
             .unwrap()
             .children_ids
             .clear();
+
+        self.node_tree_touched = false;
 
         div!((self, FLOATING_WINDOW_1) {
 
@@ -663,6 +665,11 @@ impl<'window> State<'window> {
 
     // todo: deduplicate the layout with build_buffers
     pub fn layout(&mut self) {
+        if self.node_tree_touched == false {
+            println!("skipping layout");
+            return;
+        }
+        
         let mut stack = Vec::<u64>::new();
 
         let mut last_rect_xs = (0.0, 1.0);
@@ -737,48 +744,51 @@ impl<'window> State<'window> {
     pub fn div(&mut self, node_key: NodeKey) {
         let parent_id = self.parent_stack.last().unwrap().clone();
 
-        match self.nodes.get_mut(&node_key.id) {
-            None => {
-                let text_id = match node_key.text {
-                    Some(text) => {
+        let old_node = self.nodes.get_mut(&node_key.id);
+        if old_node.is_none() || node_key.is_update {
+            self.node_tree_touched = true; 
 
-                        let mut buffer = Buffer::new(&mut self.font_system, Metrics::new(30.0, 42.0));
-                        buffer.set_text(&mut self.font_system, text, Attrs::new().family(Family::SansSerif), Shaping::Advanced);
-                    
-                        let text_area = TextArea {
-                            buffer,
-                            left: 10.0,
-                            top: 10.0,
-                            scale: 1.0,
-                            bounds: TextBounds {
-                                left: 0,
-                                top: 0,
-                                right: 10000,
-                                bottom: 10000,
-                            },
-                            default_color: GlyphonColor::rgb(255, 255, 255),
-                            depth: 0.0,
-                            last_frame_touched: self.current_frame,
-                        };
+            let text_id = match node_key.text {
+                Some(text) => {
 
-                        self.text_areas.push(text_area);
-                        Some((self.text_areas.len() - 1) as u32)
-                    },
-                    None => None,
-                };
+                    let mut buffer = Buffer::new(&mut self.font_system, Metrics::new(30.0, 42.0));
+                    buffer.set_text(&mut self.font_system, text, Attrs::new().family(Family::SansSerif), Shaping::Advanced);
+                
+                    let text_area = TextArea {
+                        buffer,
+                        left: 10.0,
+                        top: 10.0,
+                        scale: 1.0,
+                        bounds: TextBounds {
+                            left: 0,
+                            top: 0,
+                            right: 10000,
+                            bottom: 10000,
+                        },
+                        default_color: GlyphonColor::rgb(255, 255, 255),
+                        depth: 0.0,
+                        last_frame_touched: self.current_frame,
+                    };
 
-                let new_node = self.new_node(node_key, parent_id, text_id);
-                self.nodes.insert(node_key.id, new_node);
+                    self.text_areas.push(text_area);
+                    Some((self.text_areas.len() - 1) as u32)
+                },
+                None => None,
+            };
 
-            }
-            Some(old_node) => {
-                old_node.children_ids.clear();
-                old_node.last_frame_touched = self.current_frame;
-                if let Some(text_id) = old_node.text_id {
-                    self.text_areas[text_id as usize].last_frame_touched = self.current_frame;
-                }
+            let new_node = self.new_node(node_key, parent_id, text_id);
+            self.nodes.insert(node_key.id, new_node);
+
+        } else {
+
+            let old_node = old_node.unwrap();
+            old_node.children_ids.clear();
+            old_node.last_frame_touched = self.current_frame;
+            if let Some(text_id) = old_node.text_id {
+                self.text_areas[text_id as usize].last_frame_touched = self.current_frame;
             }
         }
+
         self.nodes
             .get_mut(&parent_id)
             .unwrap()
