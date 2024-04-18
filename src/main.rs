@@ -45,7 +45,7 @@ fn init() -> (EventLoop<()>, State<'static>) {
             .unwrap(),
     );
     let size = window.inner_size();
-    let scale_factor = window.scale_factor();
+    // let scale_factor = window.scale_factor();
 
     let instance = Instance::new(InstanceDescriptor::default());
 
@@ -156,32 +156,33 @@ fn init() -> (EventLoop<()>, State<'static>) {
     });
 
     // Set up text renderer
-    let mut font_system = FontSystem::new();
+    let font_system = FontSystem::new();
     let cache = SwashCache::new();
     let mut atlas = TextAtlas::new(&device, &queue, swapchain_format);
     let text_renderer = TextRenderer::new(&mut atlas, &device, MultisampleState::default(), None);
-    let physical_width = (width as f64 * scale_factor) as f32;
-    let physical_height = (height as f64 * scale_factor) as f32;
+    // let physical_width = (width as f64 * scale_factor) as f32;
+    // let physical_height = (height as f64 * scale_factor) as f32;
 
-    let mut buffer = Buffer::new(&mut font_system, Metrics::new(30.0, 42.0));
-    buffer.set_size(&mut font_system, physical_width, physical_height);
-    buffer.set_text(&mut font_system, "Hello world! 👋この動画の元になった作品ヽ༼ ຈل͜ຈ༽ ﾉヽ༼ ຈل͜ຈ༽ ﾉ\nヽ༼ ຈل͜ຈ༽\nThis is rendered with 🦅 glyphon 🦁\nThe text below should be partially clipped.\na b c d e f g h i j k l m n o p q r s t u v w x y z", Attrs::new().family(Family::SansSerif), Shaping::Advanced);
-    buffer.shape_until_scroll(&mut font_system);
+    // let mut buffer = Buffer::new(&mut font_system, Metrics::new(30.0, 42.0));
+    // buffer.set_size(&mut font_system, physical_width, physical_height);
+    // buffer.set_text(&mut font_system, "Hello world! 👋この動画の元になった作品ヽ༼ ຈل͜ຈ༽ ﾉヽ༼ ຈل͜ຈ༽ ﾉ\nヽ༼ ຈل͜ຈ༽\nThis is rendered with 🦅 glyphon 🦁\nThe text below should be partially clipped.\na b c d e f g h i j k l m n o p q r s t u v w x y z", Attrs::new().family(Family::SansSerif), Shaping::Advanced);
+    // buffer.shape_until_scroll(&mut font_system);
 
-    let text_areas = vec![TextArea {
-        buffer,
-        left: 10.0,
-        top: 10.0,
-        scale: 1.0,
-        bounds: TextBounds {
-            left: 0,
-            top: 0,
-            right: 900,
-            bottom: 660,
-        },
-        default_color: GlyphonColor::rgb(255, 255, 255),
-        depth: 0.0,
-    }];
+    // let text_areas = vec![TextArea {
+    //     buffer,
+    //     left: 10.0,
+    //     top: 10.0,
+    //     scale: 1.0,
+    //     bounds: TextBounds {
+    //         left: 0,
+    //         top: 0,
+    //         right: 900,
+    //         bottom: 660,
+    //     },
+    //     default_color: GlyphonColor::rgb(255, 255, 255),
+    //     depth: 0.0,
+    // }];
+    let text_areas = Vec::new();
 
     let mut nodes = HashMap::with_capacity(20);
 
@@ -362,6 +363,26 @@ pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey {
     },
 };
 
+pub const COUNT_LABEL: NodeKey = NodeKey {
+    id: 555555,
+    text: Some(&"0"),
+    clickable: false,
+    color: Color {
+        r: 0.1,
+        g: 0.3,
+        b: 0.9,
+        a: 0.6,
+    },
+    layout_x: LayoutMode::Fixed {
+        start: 400,
+        len: 100,
+    },
+    layout_y: LayoutMode::PercentOfParent {
+        start: 0.3,
+        end: 0.7,
+    },
+};
+
 pub const COLUMN_1: NodeKey = NodeKey {
     id: 3333333,
     text: None,
@@ -406,6 +427,14 @@ pub const fn floating_window_1() -> NodeKey {
 impl NodeKey {
     pub const fn with_id(mut self, id: u64) -> Self {
         self.id = id;
+        return self;
+    }
+    pub const fn with_color(mut self, color: Color) -> Self {
+        self.color = color;
+        return self;
+    }
+    pub const fn with_text(mut self, text: &str) -> Self {
+        self.text = Some(&"Some(text)");
         return self;
     }
 }
@@ -461,12 +490,14 @@ impl<'window> State<'window> {
 
         div!((self, FLOATING_WINDOW_1) {
 
+            // div!(self, COUNT_LABEL.with_text(&self.count.to_string()));
+
             div!((self, COLUMN_1) {
 
                 div!(self, SHOW_COUNTER_BUTTON);
 
                 if self.counter_mode {
-                    div!(self, INCREASE_BUTTON);
+                    div!(self, INCREASE_BUTTON.with_color(Color { g: 0.0, r: 0.1 * (self.count as f32), b: 0.0, a: 1.0 }));
 
                 }
 
@@ -674,10 +705,17 @@ impl<'window> State<'window> {
             current_node.y1 = last_rect_ys.1;
 
             if let Some(id) = current_node.text_id {
-                self.text_areas[id as usize].buffer.set_size(&mut self.font_system, current_node.x1 - current_node.x0, current_node.y1 - current_node.y0);
-                self.text_areas[id as usize].buffer.shape_until_scroll(&mut self.font_system);
-                println!(" {:?}", id);
-
+                self.text_areas[id as usize].left = current_node.x0 * (self.config.width as f32);
+                self.text_areas[id as usize].top =
+                    (1.0 - current_node.y1) * (self.config.height as f32);
+                self.text_areas[id as usize].buffer.set_size(
+                    &mut self.font_system,
+                    100000.,
+                    100000.,
+                );
+                self.text_areas[id as usize]
+                    .buffer
+                    .shape_until_scroll(&mut self.font_system);
             }
 
             // do I really need iter.rev() here? why?
@@ -686,63 +724,60 @@ impl<'window> State<'window> {
             }
         }
 
-        // // print whole tree
+        // // print_whole_tree
         // for (k, v) in &self.nodes {
-        //     println!(" {:?}: {:#?}", k, v);
+        // println!(" {:?}: {:#?}", k, v);
         // }
     }
 
     pub fn div(&mut self, node_key: NodeKey) {
         let parent_id = self.parent_stack.last().unwrap().clone();
 
-        match self.nodes.get_mut(&node_key.id) {
-            None => {
-                let text_id = match node_key.text {
-                    Some(text) => {
+        let text_id = match node_key.text {
+            Some(text) => {
+                let mut buffer = Buffer::new(&mut self.font_system, Metrics::new(30.0, 42.0));
+                buffer.set_text(
+                    &mut self.font_system,
+                    text,
+                    Attrs::new().family(Family::SansSerif),
+                    Shaping::Advanced,
+                );
 
-                        let mut buffer = Buffer::new(&mut self.font_system, Metrics::new(30.0, 42.0));
-                        buffer.set_text(&mut self.font_system, text, Attrs::new().family(Family::SansSerif), Shaping::Advanced);
-                    
-                        let text_area = TextArea {
-                            buffer,
-                            left: 10.0,
-                            top: 10.0,
-                            scale: 1.0,
-                            bounds: TextBounds {
-                                left: 0,
-                                top: 0,
-                                right: 900,
-                                bottom: 660,
-                            },
-                            default_color: GlyphonColor::rgb(255, 255, 255),
-                            depth: 0.0,
-                        };
-
-                        self.text_areas.push(text_area);
-                        Some((self.text_areas.len() - 1) as u32)
+                let text_area = TextArea {
+                    buffer,
+                    left: 10.0,
+                    top: 10.0,
+                    scale: 1.0,
+                    bounds: TextBounds {
+                        left: 0,
+                        top: 0,
+                        right: 10000,
+                        bottom: 10000,
                     },
-                    None => None,
+                    default_color: GlyphonColor::rgb(255, 255, 255),
+                    depth: 0.0,
                 };
 
-                let new_node = Node {  
-                    x0: 0.0,
-                    x1: 1.0,
-                    y0: 0.0,
-                    y1: 1.0,
-                    text_id,
-                    parent_id,
-                    children_ids: Vec::new(),
-                    key: node_key,
-                    last_frame_touched: self.latest_frame,
-                };
+                self.text_areas.push(text_area);
+                Some((self.text_areas.len() - 1) as u32)
+            }
+            None => None,
+        };
 
-                self.nodes.insert(node_key.id, new_node);
-            }
-            Some(old_node) => {
-                old_node.children_ids.clear();
-                old_node.last_frame_touched = self.latest_frame
-            }
-        }
+        let new_node = Node {
+            x0: 0.0,
+            x1: 1.0,
+            y0: 0.0,
+            y1: 1.0,
+            text_id,
+            parent_id,
+            children_ids: Vec::new(),
+            key: node_key,
+            last_frame_touched: self.latest_frame,
+        };
+
+        self.nodes.insert(node_key.id, new_node);
+
         self.nodes
             .get_mut(&parent_id)
             .unwrap()
@@ -779,7 +814,7 @@ impl<'window> State<'window> {
 #[macro_export]
 macro_rules! div {
     // non-leaf, has to manage the stack and pop() after the code
-    (($self:ident, $node_key:ident) $code:tt) => {
+    (($self:ident, $node_key:expr) $code:block) => {
         $self.div($node_key);
 
         $self.parent_stack.push($node_key.id);
@@ -787,7 +822,7 @@ macro_rules! div {
         $self.parent_stack.pop();
     };
     // leaf. doesn't need to touch the stack. doesn't actually need to be a macro except for symmetry.
-    ($self:ident, $node_key:ident) => {
+    ($self:ident, $node_key:expr) => {
         $self.div($node_key);
     };
 }
