@@ -223,7 +223,7 @@ fn init() -> (EventLoop<()>, State<'static>) {
         bind_group,
 
         parent_stack,
-        latest_frame: 0,
+        current_frame: 0,
 
         count: 0,
         mouse_pos: PhysicalPosition { x: 0., y: 0. },
@@ -260,7 +260,7 @@ pub struct State<'window> {
     pub parent_stack: Vec<u64>,
 
     pub count: i32,
-    pub latest_frame: u64,
+    pub current_frame: u64,
 
     pub mouse_pos: PhysicalPosition<f32>,
     pub mouse_left_clicked: bool,
@@ -294,6 +294,7 @@ pub struct NodeKey {
     pub color: Color,
     pub layout_x: LayoutMode,
     pub layout_y: LayoutMode,
+    pub is_update: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -321,6 +322,7 @@ pub const NODE_ROOT_KEY: NodeKey = NodeKey {
         start: 0.0,
         end: 1.0,
     },
+    is_update: false,
 };
 
 pub const INCREASE_BUTTON: NodeKey = NodeKey {
@@ -329,9 +331,9 @@ pub const INCREASE_BUTTON: NodeKey = NodeKey {
     clickable: true,
     color: Color {
         r: 0.0,
-        g: 1.0,
-        b: 0.0,
-        a: 0.2,
+        g: 0.1,
+        b: 0.1,
+        a: 0.9,
     },
     layout_x: LayoutMode::PercentOfParent {
         start: 0.1,
@@ -341,6 +343,7 @@ pub const INCREASE_BUTTON: NodeKey = NodeKey {
         start: 100,
         len: 100,
     },
+    is_update: false,
 };
 
 pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey {
@@ -361,6 +364,7 @@ pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey {
         start: 400,
         len: 100,
     },
+    is_update: false,
 };
 
 pub const COUNT_LABEL: NodeKey = NodeKey {
@@ -381,6 +385,7 @@ pub const COUNT_LABEL: NodeKey = NodeKey {
         start: 0.3,
         end: 0.7,
     },
+    is_update: false,
 };
 
 pub const COLUMN_1: NodeKey = NodeKey {
@@ -401,6 +406,7 @@ pub const COLUMN_1: NodeKey = NodeKey {
         start: 0.0,
         end: 1.0,
     },
+    is_update: false,
 };
 
 pub const fn floating_window_1() -> NodeKey {
@@ -422,6 +428,7 @@ pub const fn floating_window_1() -> NodeKey {
             start: 0.1,
             end: 0.9,
         },
+        is_update: false,
     };
 }
 impl NodeKey {
@@ -431,6 +438,7 @@ impl NodeKey {
     }
     pub const fn with_color(mut self, color: Color) -> Self {
         self.color = color;
+        self.is_update = true;
         return self;
     }
     pub const fn with_text(mut self, text: &str) -> Self {
@@ -497,8 +505,8 @@ impl<'window> State<'window> {
                 div!(self, SHOW_COUNTER_BUTTON);
 
                 if self.counter_mode {
-                    div!(self, INCREASE_BUTTON.with_color(Color { g: 0.0, r: 0.1 * (self.count as f32), b: 0.0, a: 1.0 }));
-
+                    let color = Color { r: 0.1 * (self.count as f32), g: 0.0, b: 0.0, a: 1.0 };
+                    div!(self, INCREASE_BUTTON.with_color(color));
                 }
 
             });
@@ -520,6 +528,7 @@ impl<'window> State<'window> {
         self.build_buffers();
         self.render();
 
+        self.current_frame += 1;
         self.mouse_left_just_clicked = false;
     }
 
@@ -539,6 +548,7 @@ impl<'window> State<'window> {
                 },
                 &mut self.text_areas,
                 &mut self.cache,
+                self.current_frame,
             )
             .unwrap();
 
@@ -632,7 +642,7 @@ impl<'window> State<'window> {
         while let Some(current_node_id) = stack.pop() {
             let current_node = self.nodes.get_mut(&current_node_id).unwrap();
 
-            if current_node.last_frame_touched == self.latest_frame {
+            if current_node.last_frame_touched == self.current_frame {
                 self.rects.push(Rectangle {
                     x0: current_node.x0 * 2. - 1.,
                     x1: current_node.x1 * 2. - 1.,
@@ -645,15 +655,13 @@ impl<'window> State<'window> {
                 });
             }
 
-            // do I really need iter.rev() here? why?
-            for &child_id in current_node.children_ids.iter().rev() {
+            for &child_id in current_node.children_ids.iter() {
                 stack.push(child_id);
             }
         }
-
-        self.latest_frame += 1;
     }
 
+    // todo: deduplicate the layout with build_buffers
     pub fn layout(&mut self) {
         let mut stack = Vec::<u64>::new();
 
@@ -661,7 +669,7 @@ impl<'window> State<'window> {
         let mut last_rect_ys = (0.0, 1.0);
         // push the direct children of the root without processing the root
         if let Some(root) = self.nodes.get(&NODE_ROOT_ID) {
-            for &child_id in root.children_ids.iter().rev() {
+            for &child_id in root.children_ids.iter() {
                 stack.push(child_id);
             }
         }
@@ -706,16 +714,9 @@ impl<'window> State<'window> {
 
             if let Some(id) = current_node.text_id {
                 self.text_areas[id as usize].left = current_node.x0 * (self.config.width as f32);
-                self.text_areas[id as usize].top =
-                    (1.0 - current_node.y1) * (self.config.height as f32);
-                self.text_areas[id as usize].buffer.set_size(
-                    &mut self.font_system,
-                    100000.,
-                    100000.,
-                );
-                self.text_areas[id as usize]
-                    .buffer
-                    .shape_until_scroll(&mut self.font_system);
+                self.text_areas[id as usize].top = (1.0 - current_node.y1) * (self.config.height as f32);
+                self.text_areas[id as usize].buffer.set_size(&mut self.font_system, 100000., 100000.,);
+                self.text_areas[id as usize].buffer.shape_until_scroll(&mut self.font_system);
             }
 
             // do I really need iter.rev() here? why?
@@ -726,45 +727,67 @@ impl<'window> State<'window> {
 
         // // print_whole_tree
         // for (k, v) in &self.nodes {
-        // println!(" {:?}: {:#?}", k, v);
+            // println!(" {:?}: {:#?}", k, v);
         // }
+
+        // println!("self.text_areas.len() {:?}", self.text_areas.len());
+        // println!("self.rects.len() {:?}", self.rects.len());
     }
 
     pub fn div(&mut self, node_key: NodeKey) {
         let parent_id = self.parent_stack.last().unwrap().clone();
 
-        let text_id = match node_key.text {
-            Some(text) => {
-                let mut buffer = Buffer::new(&mut self.font_system, Metrics::new(30.0, 42.0));
-                buffer.set_text(
-                    &mut self.font_system,
-                    text,
-                    Attrs::new().family(Family::SansSerif),
-                    Shaping::Advanced,
-                );
+        match self.nodes.get_mut(&node_key.id) {
+            None => {
+                let text_id = match node_key.text {
+                    Some(text) => {
 
-                let text_area = TextArea {
-                    buffer,
-                    left: 10.0,
-                    top: 10.0,
-                    scale: 1.0,
-                    bounds: TextBounds {
-                        left: 0,
-                        top: 0,
-                        right: 10000,
-                        bottom: 10000,
+                        let mut buffer = Buffer::new(&mut self.font_system, Metrics::new(30.0, 42.0));
+                        buffer.set_text(&mut self.font_system, text, Attrs::new().family(Family::SansSerif), Shaping::Advanced);
+                    
+                        let text_area = TextArea {
+                            buffer,
+                            left: 10.0,
+                            top: 10.0,
+                            scale: 1.0,
+                            bounds: TextBounds {
+                                left: 0,
+                                top: 0,
+                                right: 10000,
+                                bottom: 10000,
+                            },
+                            default_color: GlyphonColor::rgb(255, 255, 255),
+                            depth: 0.0,
+                            last_frame_touched: self.current_frame,
+                        };
+
+                        self.text_areas.push(text_area);
+                        Some((self.text_areas.len() - 1) as u32)
                     },
-                    default_color: GlyphonColor::rgb(255, 255, 255),
-                    depth: 0.0,
+                    None => None,
                 };
 
-                self.text_areas.push(text_area);
-                Some((self.text_areas.len() - 1) as u32)
-            }
-            None => None,
-        };
+                let new_node = self.new_node(node_key, parent_id, text_id);
+                self.nodes.insert(node_key.id, new_node);
 
-        let new_node = Node {
+            }
+            Some(old_node) => {
+                old_node.children_ids.clear();
+                old_node.last_frame_touched = self.current_frame;
+                if let Some(text_id) = old_node.text_id {
+                    self.text_areas[text_id as usize].last_frame_touched = self.current_frame;
+                }
+            }
+        }
+        self.nodes
+            .get_mut(&parent_id)
+            .unwrap()
+            .children_ids
+            .push(node_key.id);
+    }
+
+    pub fn new_node(&self, node_key: NodeKey, parent_id: u64, text_id: Option<u32>) -> Node {
+        Node {  
             x0: 0.0,
             x1: 1.0,
             y0: 0.0,
@@ -773,16 +796,8 @@ impl<'window> State<'window> {
             parent_id,
             children_ids: Vec::new(),
             key: node_key,
-            last_frame_touched: self.latest_frame,
-        };
-
-        self.nodes.insert(node_key.id, new_node);
-
-        self.nodes
-            .get_mut(&parent_id)
-            .unwrap()
-            .children_ids
-            .push(node_key.id);
+            last_frame_touched: self.current_frame,
+        }
     }
 
     // in the future, do the full tree pass (for covered stuff etc)
