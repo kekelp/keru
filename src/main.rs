@@ -21,7 +21,7 @@ use winit::{
 };
 
 use std::{collections::HashMap, marker::PhantomData, mem, sync::Arc};
-const NODE_ROOT: u64 = 0;
+const NODE_ROOT_ID: u64 = 0;
 
 #[rustfmt::skip]
 fn main() {
@@ -193,7 +193,7 @@ fn init() -> (EventLoop<()>, State<'static>) {
             y0: -1.0,
             y1: 1.0,
             text_id: None,
-            parent_id: NODE_ROOT,
+            parent_id: NODE_ROOT_ID,
             children_ids: Vec::new(),
             key: NODE_ROOT_KEY,
             last_frame_touched: 0,
@@ -406,8 +406,6 @@ impl NodeKey {
 
 pub const FLOATING_WINDOW_1: NodeKey = floating_window_1().with_id(34);
 
-
-
 #[derive(Debug, Clone, Copy)]
 pub struct Color {
     r: f32,
@@ -435,9 +433,9 @@ impl<'window> State<'window> {
                     if *button == MouseButton::Left {
                         if *state == ElementState::Pressed {
                             self.mouse_left_clicked = true;
-                            if ! self.mouse_left_just_clicked {
+                            if !self.mouse_left_just_clicked {
                                 self.mouse_left_just_clicked = true;
-                            } 
+                            }
                         } else {
                             self.mouse_left_clicked = false;
                         }
@@ -449,16 +447,20 @@ impl<'window> State<'window> {
     }
 
     pub fn update(&mut self) {
+        self.nodes
+            .get_mut(&NODE_ROOT_ID)
+            .unwrap()
+            .children_ids
+            .clear();
 
+        div!((self, FLOATING_WINDOW_1) {
 
-        floating_window!((self, FLOATING_WINDOW_1) {
+            div!((self, COLUMN_1) {
 
-            zzcolumn!((self, COLUMN_1) {
-
-                button!(self, SHOW_COUNTER_BUTTON);
+                div!(self, SHOW_COUNTER_BUTTON);
 
                 if self.counter_mode {
-                    button!(self, INCREASE_BUTTON);
+                    div!(self, INCREASE_BUTTON);
 
                 }
 
@@ -468,7 +470,7 @@ impl<'window> State<'window> {
 
         self.layout();
         // self.resolve_input();
-        
+
         if self.is_clicked(INCREASE_BUTTON) {
             self.count += 1;
             println!("{:?}", self.count);
@@ -477,7 +479,7 @@ impl<'window> State<'window> {
         if self.is_clicked(SHOW_COUNTER_BUTTON) {
             self.counter_mode = !self.counter_mode;
         }
-        
+
         self.build_buffers();
         self.render();
 
@@ -584,7 +586,7 @@ impl<'window> State<'window> {
         let mut stack = Vec::<u64>::new();
 
         // push the direct children of the root without processing the root
-        if let Some(root) = self.nodes.get(&NODE_ROOT) {
+        if let Some(root) = self.nodes.get(&NODE_ROOT_ID) {
             for &child_id in root.children_ids.iter().rev() {
                 stack.push(child_id);
             }
@@ -594,7 +596,6 @@ impl<'window> State<'window> {
             let current_node = self.nodes.get_mut(&current_node_id).unwrap();
 
             if current_node.last_frame_touched == self.latest_frame {
-
                 self.rects.push(Rectangle {
                     x0: current_node.x0 * 2. - 1.,
                     x1: current_node.x1 * 2. - 1.,
@@ -617,49 +618,48 @@ impl<'window> State<'window> {
     }
 
     pub fn layout(&mut self) {
-
         let mut stack = Vec::<u64>::new();
 
         let mut last_rect_xs = (0.0, 1.0);
         let mut last_rect_ys = (0.0, 1.0);
         // push the direct children of the root without processing the root
-        if let Some(root) = self.nodes.get(&NODE_ROOT) {
+        if let Some(root) = self.nodes.get(&NODE_ROOT_ID) {
             for &child_id in root.children_ids.iter().rev() {
                 stack.push(child_id);
             }
         }
 
         while let Some(current_node_id) = stack.pop() {
-            let current_node = self.nodes.get_mut(&current_node_id).unwrap();            
+            let current_node = self.nodes.get_mut(&current_node_id).unwrap();
             match current_node.key.layout_x {
                 LayoutMode::PercentOfParent { start, end } => {
                     let len = last_rect_xs.1 - last_rect_xs.0;
                     let x0 = last_rect_xs.0;
                     last_rect_xs = (x0 + len * start, x0 + len * end)
-                },
-                LayoutMode::ChildrenSum {  } => todo!(),
+                }
+                LayoutMode::ChildrenSum {} => todo!(),
                 LayoutMode::Fixed { start, len } => {
                     let x0 = last_rect_xs.0;
                     last_rect_xs = (
-                        x0 + (start as f32)/(self.config.width as f32),
-                        x0 + ((start + len) as f32)/(self.config.width as f32),
+                        x0 + (start as f32) / (self.config.width as f32),
+                        x0 + ((start + len) as f32) / (self.config.width as f32),
                     )
-                },
+                }
             }
             match current_node.key.layout_y {
                 LayoutMode::PercentOfParent { start, end } => {
                     let len = last_rect_ys.1 - last_rect_ys.0;
                     let y0 = last_rect_ys.0;
                     last_rect_ys = (y0 + len * start, y0 + len * end)
-                },
+                }
                 LayoutMode::Fixed { start, len } => {
                     let y0 = last_rect_ys.0;
                     last_rect_ys = (
-                        y0 + (start as f32)/(self.config.height as f32),
-                        y0 + ((start + len) as f32)/(self.config.height as f32),
+                        y0 + (start as f32) / (self.config.height as f32),
+                        y0 + ((start + len) as f32) / (self.config.height as f32),
                     )
-                },
-                LayoutMode::ChildrenSum {  } => todo!(),
+                }
+                LayoutMode::ChildrenSum {} => todo!(),
             }
 
             current_node.x0 = last_rect_xs.0;
@@ -673,106 +673,46 @@ impl<'window> State<'window> {
             }
         }
 
+        // // print whole tree
         // for (k, v) in &self.nodes {
-        //     println!(" {:?}: {:?}", k, v.key.id);
+        //     println!(" {:?}: {:#?}", k, v);
         // }
     }
 
-    // what if a node gets reinserted but in a different position?
-    // who clears the children id's held by the old parent?
-    // one way could be to always check that links are two-sided before using them.
-    //     (this could make it impossible to do that dumb linked-list-of-children thing.)
-    fn floating_window(&mut self, fl_win: NodeKey) {
-        let parent_id = NODE_ROOT;
-
-        let node = Node {
-            x0: 0.0,
-            x1: 1.0,
-            y0: 0.0,
-            y1: 1.0,
-            text_id: None,
-            parent_id: 0,
-            children_ids: Vec::new(),
-            key: fl_win,
-            last_frame_touched: self.latest_frame,
-        };
-        match self.nodes.get_mut(&fl_win.id) {
-            Some(node) => node.last_frame_touched = self.latest_frame,
-            None => {
-                self.nodes.insert(fl_win.id, node);
-    
-                self.nodes
-                    .get_mut(&parent_id)
-                    .unwrap()
-                    .children_ids
-                    .push(fl_win.id);
-            },
-        }
-    }
-
-    fn zzcolumn(&mut self, column: NodeKey) {
-        let parent_id = self.parent_stack.last().unwrap();
-
-        let node = Node {
-            x0: 0.0,
-            x1: 1.0,
-            y0: 0.0,
-            y1: 1.0,
-            text_id: None,
-            parent_id: parent_id.clone(),
-            children_ids: Vec::new(),
-            key: column,
-            last_frame_touched: self.latest_frame,
-        };
-
-        match self.nodes.get_mut(&column.id) {
-            Some(node) => node.last_frame_touched = self.latest_frame,
-            None => {
-                self.nodes.insert(column.id, node);
-    
-                self.nodes
-                    .get_mut(&parent_id)
-                    .unwrap()
-                    .children_ids
-                    .push(column.id);
-            },
-        }
-    }
-
-    pub fn button(&mut self, button: NodeKey) {
+    pub fn div(&mut self, node_key: NodeKey) {
         let parent_id = self.parent_stack.last().unwrap().clone();
 
-        let node = Node {
-            x0: 0.0,
-            x1: 1.0,
-            y0: 0.0,
-            y1: 1.0,
-            text_id: None,
-            parent_id,
-            children_ids: Vec::new(),
-            key: button,
-            last_frame_touched: self.latest_frame,
-        };
-
-
-        match self.nodes.get_mut(&button.id) {
-            Some(node) => node.last_frame_touched = self.latest_frame,
+        match self.nodes.get_mut(&node_key.id) {
             None => {
-                self.nodes.insert(button.id, node);
-    
-                self.nodes
-                    .get_mut(&parent_id)
-                    .unwrap()
-                    .children_ids
-                    .push(button.id);
-            },
-        }
+                let new_node = Node {
+                    x0: 0.0,
+                    x1: 1.0,
+                    y0: 0.0,
+                    y1: 1.0,
+                    text_id: None,
+                    parent_id,
+                    children_ids: Vec::new(),
+                    key: node_key,
+                    last_frame_touched: self.latest_frame,
+                };
 
+                self.nodes.insert(node_key.id, new_node);
+            }
+            Some(old_node) => {
+                old_node.children_ids.clear();
+                old_node.last_frame_touched = self.latest_frame
+            }
+        }
+        self.nodes
+            .get_mut(&parent_id)
+            .unwrap()
+            .children_ids
+            .push(node_key.id);
     }
-    
+
     // in the future, do the full tree pass (for covered stuff etc)
     pub fn is_clicked(&self, button: NodeKey) -> bool {
-        if ! self.mouse_left_just_clicked {
+        if !self.mouse_left_just_clicked {
             return false;
         }
 
@@ -790,36 +730,27 @@ impl<'window> State<'window> {
         }
 
         return false;
-    }    
+    }
 }
 
 // these have to be macros only because of the deferred pop().
 // todo: pass "ui" or something instead of self.
 
 #[macro_export]
-macro_rules! make_stack_macro {
-    ($func_name:ident) => {
-        #[macro_export]
-        macro_rules! $func_name {
-            // non-leaf, has to run the stack.pop() after the code
-            (($self:ident, $node_key:ident) $code:tt) => {
-                $self.$func_name($node_key);
+macro_rules! div {
+    // non-leaf, has to manage the stack and pop() after the code
+    (($self:ident, $node_key:ident) $code:tt) => {
+        $self.div($node_key);
 
-                $self.parent_stack.push($node_key.id);
-                $code;
-                $self.parent_stack.pop();
-            };
-            // leaf. doesn't need to touch the stack. doesn't actually need to be a macro except for symmetry.
-            ($self:ident, $node_key:ident) => {
-                $self.$func_name($node_key);
-            };
-        }
+        $self.parent_stack.push($node_key.id);
+        $code;
+        $self.parent_stack.pop();
+    };
+    // leaf. doesn't need to touch the stack. doesn't actually need to be a macro except for symmetry.
+    ($self:ident, $node_key:ident) => {
+        $self.div($node_key);
     };
 }
-
-make_stack_macro!(floating_window);
-make_stack_macro!(zzcolumn);
-make_stack_macro!(button);
 
 #[derive(Default, Debug, Pod, Copy, Clone, Zeroable)]
 #[repr(C)]
