@@ -288,6 +288,7 @@ pub struct Node {
 pub struct NodeKey {
     // stuff like layout params, how it reacts to clicks, etc
     pub id: u64,
+    pub text: Option<&'static str>,
     pub clickable: bool,
     pub color: Color,
     pub layout_x: LayoutMode,
@@ -303,6 +304,7 @@ pub enum LayoutMode {
 
 pub const NODE_ROOT_KEY: NodeKey = NodeKey {
     id: 0,
+    text: None,
     clickable: false,
     color: Color {
         r: 1.0,
@@ -322,6 +324,7 @@ pub const NODE_ROOT_KEY: NodeKey = NodeKey {
 
 pub const INCREASE_BUTTON: NodeKey = NodeKey {
     id: 111111111,
+    text: Some(&"Increase"),
     clickable: true,
     color: Color {
         r: 0.0,
@@ -334,13 +337,14 @@ pub const INCREASE_BUTTON: NodeKey = NodeKey {
         end: 0.9,
     },
     layout_y: LayoutMode::Fixed {
-        start: 50,
+        start: 100,
         len: 100,
     },
 };
 
 pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey {
     id: 2222222,
+    text: Some(&"Show counter"),
     clickable: true,
     color: Color {
         r: 0.6,
@@ -353,13 +357,14 @@ pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey {
         end: 0.9,
     },
     layout_y: LayoutMode::Fixed {
-        start: 200,
+        start: 400,
         len: 100,
     },
 };
 
 pub const COLUMN_1: NodeKey = NodeKey {
     id: 3333333,
+    text: None,
     clickable: true,
     color: Color {
         r: 0.0,
@@ -380,6 +385,7 @@ pub const COLUMN_1: NodeKey = NodeKey {
 pub const fn floating_window_1() -> NodeKey {
     return NodeKey {
         id: 77777777,
+        text: None,
         clickable: true,
         color: Color {
             r: 0.7,
@@ -667,6 +673,13 @@ impl<'window> State<'window> {
             current_node.y0 = last_rect_ys.0;
             current_node.y1 = last_rect_ys.1;
 
+            if let Some(id) = current_node.text_id {
+                self.text_areas[id as usize].buffer.set_size(&mut self.font_system, current_node.x1 - current_node.x0, current_node.y1 - current_node.y0);
+                self.text_areas[id as usize].buffer.shape_until_scroll(&mut self.font_system);
+                println!(" {:?}", id);
+
+            }
+
             // do I really need iter.rev() here? why?
             for &child_id in current_node.children_ids.iter().rev() {
                 stack.push(child_id);
@@ -684,12 +697,39 @@ impl<'window> State<'window> {
 
         match self.nodes.get_mut(&node_key.id) {
             None => {
-                let new_node = Node {
+                let text_id = match node_key.text {
+                    Some(text) => {
+
+                        let mut buffer = Buffer::new(&mut self.font_system, Metrics::new(30.0, 42.0));
+                        buffer.set_text(&mut self.font_system, text, Attrs::new().family(Family::SansSerif), Shaping::Advanced);
+                    
+                        let text_area = TextArea {
+                            buffer,
+                            left: 10.0,
+                            top: 10.0,
+                            scale: 1.0,
+                            bounds: TextBounds {
+                                left: 0,
+                                top: 0,
+                                right: 900,
+                                bottom: 660,
+                            },
+                            default_color: GlyphonColor::rgb(255, 255, 255),
+                            depth: 0.0,
+                        };
+
+                        self.text_areas.push(text_area);
+                        Some((self.text_areas.len() - 1) as u32)
+                    },
+                    None => None,
+                };
+
+                let new_node = Node {  
                     x0: 0.0,
                     x1: 1.0,
                     y0: 0.0,
                     y1: 1.0,
-                    text_id: None,
+                    text_id,
                     parent_id,
                     children_ids: Vec::new(),
                     key: node_key,
