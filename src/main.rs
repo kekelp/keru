@@ -334,7 +334,7 @@ pub const INCREASE_BUTTON: NodeKey = NodeKey {
         end: 0.9,
     },
     layout_y: LayoutMode::Fixed {
-        start: 200,
+        start: 50,
         len: 100,
     },
 };
@@ -353,7 +353,7 @@ pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey {
         end: 0.9,
     },
     layout_y: LayoutMode::Fixed {
-        start: 50,
+        start: 200,
         len: 100,
     },
 };
