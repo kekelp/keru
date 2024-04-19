@@ -38,8 +38,8 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var pos = in.uv;
 
-    var radius = 20.0;
-    var q = abs(pos) - vec2(screen_resolution.x / 2.0 - 10.0, screen_resolution.y / 2.0 - 10.0) + radius;
+    var radius = 22.0;
+    var q = abs(pos) - vec2(screen_resolution.x / 2.0, screen_resolution.y / 2.0) + radius;
 
     var dist = length(max(q, vec2(0.0, 0.0))) - radius;
 

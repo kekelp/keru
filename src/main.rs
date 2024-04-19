@@ -397,13 +397,13 @@ pub const COUNT_LABEL: NodeKey = NodeKey {
         b: 0.9,
         a: 0.6,
     },
-    layout_x: LayoutMode::Fixed {
-        start: 400,
-        len: 100,
+    layout_x: LayoutMode::PercentOfParent {
+        start: 0.2,
+        end: 0.5,
     },
     layout_y: LayoutMode::PercentOfParent {
-        start: 0.3,
-        end: 0.7,
+        start: 0.2,
+        end: 0.8,
     },
     is_update: false,
     is_layout_update: false,
@@ -421,7 +421,7 @@ pub const COLUMN_1: NodeKey = NodeKey {
         a: 0.2,
     },
     layout_x: LayoutMode::PercentOfParent {
-        start: 0.8,
+        start: 0.7,
         end: 0.9,
     },
     layout_y: LayoutMode::PercentOfParent {
@@ -466,8 +466,14 @@ impl NodeKey {
         self.is_update = true;
         return self;
     }
-    pub fn with_text(mut self, text: String) -> Self {
-        self.dyn_text = Some(text.clone());
+    pub fn with_static_text(mut self, text: &'static str) -> Self {
+        self.static_text = Some(text);
+        return self;
+    }
+    pub fn with_text(mut self, text: impl ToString) -> Self {
+        // todo: could keep a hash of the last to_string value and compare it, so you could skip an allocation if it's the same.
+        // it's pretty cringe to allocate the string every frame for no reason.
+        self.dyn_text = Some(text.to_string());
         self.is_update = true;
         return self;
     }
@@ -524,11 +530,15 @@ impl<'window> State<'window> {
 
         div!((self, FLOATING_WINDOW_1) {
 
-            div!(self, COUNT_LABEL.with_text(self.count.to_string()));
+            div!(self, COUNT_LABEL.with_text(self.count));
 
             div!((self, COLUMN_1) {
 
-                div!(self, SHOW_COUNTER_BUTTON);
+                let text = match self.counter_mode {
+                    true => &"Hide counter",
+                    false => &"Show counter",
+                };
+                div!(self, SHOW_COUNTER_BUTTON.with_text(text));
 
                 if self.counter_mode {
                     let color = Color { r: 0.1 * (self.count as f32), g: 0.0, b: 0.0, a: 1.0 };
@@ -544,7 +554,6 @@ impl<'window> State<'window> {
 
         if self.is_clicked(INCREASE_BUTTON) {
             self.count += 1;
-            println!("{:?}", self.count);
         }
         
         if self.is_clicked(SHOW_COUNTER_BUTTON) {
@@ -687,13 +696,15 @@ impl<'window> State<'window> {
         }
     }
 
-    // todo: deduplicate the layout with build_buffers
+    // todo: deduplicate the traversal with build_buffers, or just merge build_buffers inside here.
+    // either way should wait to see how a real layout pass would look like 
     pub fn layout(&mut self) {
         
         self.stack.clear();
 
         let mut last_rect_xs = (0.0, 1.0);
         let mut last_rect_ys = (0.0, 1.0);
+
         // push the direct children of the root without processing the root
         if let Some(root) = self.nodes.get(&NODE_ROOT_ID) {
             for &child_id in root.children_ids.iter() {
@@ -703,16 +714,20 @@ impl<'window> State<'window> {
 
         while let Some(current_node_id) = self.stack.pop() {
             let current_node = self.nodes.get_mut(&current_node_id).unwrap();
+
+            let mut new_rect_xs = last_rect_xs;
+            let mut new_rect_ys = last_rect_ys;
+
             match current_node.key.layout_x {
                 LayoutMode::PercentOfParent { start, end } => {
-                    let len = last_rect_xs.1 - last_rect_xs.0;
-                    let x0 = last_rect_xs.0;
-                    last_rect_xs = (x0 + len * start, x0 + len * end)
+                    let len = new_rect_xs.1 - new_rect_xs.0;
+                    let x0 = new_rect_xs.0;
+                    new_rect_xs = (x0 + len * start, x0 + len * end)
                 }
                 LayoutMode::ChildrenSum {} => todo!(),
                 LayoutMode::Fixed { start, len } => {
-                    let x0 = last_rect_xs.0;
-                    last_rect_xs = (
+                    let x0 = new_rect_xs.0;
+                    new_rect_xs = (
                         x0 + (start as f32) / (self.config.width as f32),
                         x0 + ((start + len) as f32) / (self.config.width as f32),
                     )
@@ -720,13 +735,13 @@ impl<'window> State<'window> {
             }
             match current_node.key.layout_y {
                 LayoutMode::PercentOfParent { start, end } => {
-                    let len = last_rect_ys.1 - last_rect_ys.0;
-                    let y0 = last_rect_ys.0;
-                    last_rect_ys = (y0 + len * start, y0 + len * end)
+                    let len = new_rect_ys.1 - new_rect_ys.0;
+                    let y0 = new_rect_ys.0;
+                    new_rect_ys = (y0 + len * start, y0 + len * end)
                 }
                 LayoutMode::Fixed { start, len } => {
-                    let y0 = last_rect_ys.0;
-                    last_rect_ys = (
+                    let y0 = new_rect_ys.0;
+                    new_rect_ys = (
                         y0 + (start as f32) / (self.config.height as f32),
                         y0 + ((start + len) as f32) / (self.config.height as f32),
                     )
@@ -734,10 +749,10 @@ impl<'window> State<'window> {
                 LayoutMode::ChildrenSum {} => todo!(),
             }
 
-            current_node.x0 = last_rect_xs.0;
-            current_node.x1 = last_rect_xs.1;
-            current_node.y0 = last_rect_ys.0;
-            current_node.y1 = last_rect_ys.1;
+            current_node.x0 = new_rect_xs.0;
+            current_node.x1 = new_rect_xs.1;
+            current_node.y0 = new_rect_ys.0;
+            current_node.y1 = new_rect_ys.1;
 
             if let Some(id) = current_node.text_id {
                 self.text_areas[id as usize].left = current_node.x0 * (self.config.width as f32);
@@ -749,12 +764,19 @@ impl<'window> State<'window> {
             // do I really need iter.rev() here? why?
             for &child_id in current_node.children_ids.iter().rev() {
                 self.stack.push(child_id);
+
+                last_rect_xs.0 = new_rect_xs.0;
+                last_rect_xs.1 = new_rect_xs.1;
+                last_rect_ys.0 = new_rect_ys.0;
+                last_rect_ys.1 = new_rect_ys.1;
             }
         }
 
-        // // print_whole_tree
+        // println!(" {:?}", "  ");
+
+        // print_whole_tree
         // for (k, v) in &self.nodes {
-            // println!(" {:?}: {:#?}", k, v);
+        //     println!(" {:?}: {:#?}", k, v);
         // }
 
         // println!("self.text_areas.len() {:?}", self.text_areas.len());
@@ -766,7 +788,7 @@ impl<'window> State<'window> {
 
         let node_key_id = node_key.id;
         let old_node = self.nodes.get_mut(&node_key_id);
-        if old_node.is_none() || node_key.is_update || node_key.is_layout_update {
+        if old_node.is_none() {
 
             let has_text = node_key.static_text.is_some() || node_key.dyn_text.is_some();
             let mut text_id = None;
@@ -806,6 +828,32 @@ impl<'window> State<'window> {
 
             let new_node = self.new_node(node_key, parent_id, text_id);
             self.nodes.insert(node_key_id.clone(), new_node);
+
+        } else if node_key.is_update || node_key.is_layout_update {
+            // instead of reinserting, could just handle all update possibilities by his own.
+            let old_node = old_node.unwrap();
+            if let Some(text_id) = old_node.text_id {
+
+
+                let mut text: &str = &"Remove this";
+
+                if let Some(ref dyn_text) = node_key.dyn_text {
+                    text = &dyn_text;
+                } else {
+                    if let Some(static_text) = node_key.static_text {
+                        text = static_text;
+                    }
+                }
+
+                self.text_areas[text_id as usize].buffer.set_text(&mut self.font_system, text, Attrs::new().family(Family::SansSerif), Shaping::Advanced);
+                self.text_areas[text_id as usize].last_frame_touched = self.current_frame;
+                
+            }
+            let text_id = old_node.text_id;
+            let new_node = self.new_node(node_key, parent_id, text_id);
+
+            self.nodes.insert(node_key_id.clone(), new_node);
+
 
         } else {
 
