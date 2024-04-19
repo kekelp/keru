@@ -155,33 +155,11 @@ fn init() -> (EventLoop<()>, State<'static>) {
         multiview: None,
     });
 
-    // Set up text renderer
     let font_system = FontSystem::new();
     let cache = SwashCache::new();
     let mut atlas = TextAtlas::new(&device, &queue, swapchain_format);
     let text_renderer = TextRenderer::new(&mut atlas, &device, MultisampleState::default(), None);
-    // let physical_width = (width as f64 * scale_factor) as f32;
-    // let physical_height = (height as f64 * scale_factor) as f32;
 
-    // let mut buffer = Buffer::new(&mut font_system, Metrics::new(30.0, 42.0));
-    // buffer.set_size(&mut font_system, physical_width, physical_height);
-    // buffer.set_text(&mut font_system, "Hello world! 👋この動画の元になった作品ヽ༼ ຈل͜ຈ༽ ﾉヽ༼ ຈل͜ຈ༽ ﾉ\nヽ༼ ຈل͜ຈ༽\nThis is rendered with 🦅 glyphon 🦁\nThe text below should be partially clipped.\na b c d e f g h i j k l m n o p q r s t u v w x y z", Attrs::new().family(Family::SansSerif), Shaping::Advanced);
-    // buffer.shape_until_scroll(&mut font_system);
-
-    // let text_areas = vec![TextArea {
-    //     buffer,
-    //     left: 10.0,
-    //     top: 10.0,
-    //     scale: 1.0,
-    //     bounds: TextBounds {
-    //         left: 0,
-    //         top: 0,
-    //         right: 900,
-    //         bottom: 660,
-    //     },
-    //     default_color: GlyphonColor::rgb(255, 255, 255),
-    //     depth: 0.0,
-    // }];
     let text_areas = Vec::new();
 
     let mut nodes = HashMap::with_capacity(20);
@@ -614,13 +592,7 @@ impl<'window> State<'window> {
                 timestamp_writes: None,
                 occlusion_query_set: None,
             });
-            let n = self.rects.len() as u32;
-            if n > 0 {
-                r_pass.set_pipeline(&self.render_pipeline);
-                r_pass.set_bind_group(0, &self.bind_group, &[]);
-                r_pass.set_vertex_buffer(0, self.gpu_vertex_buffer.slice(n));
-                r_pass.draw(0..6, 0..n);
-            }
+
         }
 
         {
@@ -640,6 +612,15 @@ impl<'window> State<'window> {
             });
 
             self.text_renderer.render(&self.atlas, &mut pass).unwrap();
+        
+        
+            let n = self.rects.len() as u32;
+            if n > 0 {
+                pass.set_pipeline(&self.render_pipeline);
+                pass.set_bind_group(0, &self.bind_group, &[]);
+                pass.set_vertex_buffer(0, self.gpu_vertex_buffer.slice(n));
+                pass.draw(0..6, 0..n);
+            }
         }
 
         self.queue.submit(Some(encoder.finish()));
