@@ -572,30 +572,6 @@ impl<'window> State<'window> {
             .create_command_encoder(&CommandEncoderDescriptor { label: None });
 
         {
-            const GREY: wgpu::Color = wgpu::Color {
-                r: 0.009,
-                g: 0.017,
-                b: 0.077,
-                a: 1.0,
-            };
-            let mut r_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: None,
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(GREY),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
-
-        }
-
-        {
             let mut pass = encoder.begin_render_pass(&RenderPassDescriptor {
                 label: None,
                 color_attachments: &[Some(RenderPassColorAttachment {
@@ -611,9 +587,6 @@ impl<'window> State<'window> {
                 occlusion_query_set: None,
             });
 
-            self.text_renderer.render(&self.atlas, &mut pass).unwrap();
-        
-        
             let n = self.rects.len() as u32;
             if n > 0 {
                 pass.set_pipeline(&self.render_pipeline);
@@ -621,6 +594,8 @@ impl<'window> State<'window> {
                 pass.set_vertex_buffer(0, self.gpu_vertex_buffer.slice(n));
                 pass.draw(0..6, 0..n);
             }
+
+            self.text_renderer.render(&self.atlas, &mut pass).unwrap();
         }
 
         self.queue.submit(Some(encoder.finish()));
