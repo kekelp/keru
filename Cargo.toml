@@ -13,4 +13,6 @@ pollster = "0.3.0"
 bytemuck = { version = "1.15.0", features = [ "derive" ] }
 bitflags = "2.5.0"
 lazy_static = "1.4.0"
-uuid = { version = "1.8.0", features = [ "v4" ] }
+
+[lints.clippy]
+needless_return = {level = "allow"}
