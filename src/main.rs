@@ -1,29 +1,29 @@
 pub mod ui;
+pub use ui::Id;
 
 use bytemuck::{Pod, Zeroable};
 use glyphon::{
-    Attrs, Buffer, Color as GlyphonColor, Family, FontSystem, Metrics,
-    Resolution as GlyphonResolution, Shaping, SwashCache, TextArea, TextAtlas, TextBounds,
-    TextRenderer,
+    Resolution as GlyphonResolution,
 };
-use ui::{Ui, NodeKey, LayoutMode};
+use ui::{Ui, NodeKey, LayoutMode, Color, floating_window_1, Resolution, Rectangle};
 use wgpu::{
-    util::{self, DeviceExt},
-    vertex_attr_array, BindGroup, BufferAddress, BufferUsages, ColorTargetState,
+    vertex_attr_array,
     CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance,
-    InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations, PresentMode, Queue,
-    RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RequestAdapterOptions,
+    InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue,
+    RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions,
     Surface, SurfaceConfiguration, TextureFormat, TextureUsages, TextureViewDescriptor,
-    VertexAttribute, VertexBufferLayout, VertexStepMode,
+    VertexAttribute,
 };
 use winit::{
-    dpi::{LogicalSize, PhysicalPosition, PhysicalSize},
+    dpi::{LogicalSize, PhysicalSize},
     event::{ElementState, Event, MouseButton, WindowEvent},
     event_loop::{EventLoop, EventLoopWindowTarget},
     window::{Window, WindowBuilder},
 };
 
-use std::{collections::HashMap, marker::PhantomData, mem, sync::Arc};
+use std::{marker::PhantomData, mem, sync::Arc};
+
+use crate::ui::NODE_ROOT_ID;
 
 
 
@@ -206,62 +206,9 @@ pub const COLUMN_1: NodeKey = NodeKey {
     is_layout_update: false,
 };
 
-pub const fn floating_window_1() -> NodeKey {
-    return NodeKey {
-        id: id!(),
-        static_text: None,
-        dyn_text: None,
-        clickable: true,
-        color: Color {
-            r: 0.7,
-            g: 0.0,
-            b: 0.0,
-            a: 0.2,
-        },
-        layout_x: LayoutMode::PercentOfParent {
-            start: 0.1,
-            end: 0.9,
-        },
-        layout_y: LayoutMode::PercentOfParent {
-            start: 0.1,
-            end: 0.9,
-        },
-        is_update: false,
-        is_layout_update: false,
-    };
-}
-impl NodeKey {
-    pub const fn with_id(mut self, id: Id) -> Self {
-        self.id = id;
-        return self;
-    }
-    pub const fn with_color(mut self, color: Color) -> Self {
-        self.color = color;
-        self.is_update = true;
-        return self;
-    }
-    pub fn with_static_text(mut self, text: &'static str) -> Self {
-        self.static_text = Some(text);
-        return self;
-    }
-    pub fn with_text(mut self, text: impl ToString) -> Self {
-        // todo: could keep a hash of the last to_string value and compare it, so you could skip an allocation if it's the same.
-        // it's pretty cringe to allocate the string every frame for no reason.
-        self.dyn_text = Some(text.to_string());
-        self.is_update = true;
-        return self;
-    }
-}
 
 pub const FLOATING_WINDOW_1: NodeKey = floating_window_1();
 
-#[derive(Debug, Clone, Copy)]
-pub struct Color {
-    r: f32,
-    g: f32,
-    b: f32,
-    a: f32,
-}
 
 impl<'window> State<'window> {
     pub fn handle_event(&mut self, event: &Event<()>, target: &EventLoopWindowTarget<()>) {
@@ -598,61 +545,3 @@ macro_rules! div {
     };
 }
 
-#[derive(Default, Debug, Pod, Copy, Clone, Zeroable)]
-#[repr(C)]
-// Layout has to match the one in the shader.
-pub struct Rectangle {
-    pub x0: f32,
-    pub x1: f32,
-    pub y0: f32,
-    pub y1: f32,
-
-    pub r: f32,
-    pub g: f32,
-    pub b: f32,
-    pub a: f32,
-}
-impl Rectangle {
-    pub fn buffer_desc() -> [VertexAttribute; 3] {
-        return vertex_attr_array![
-            0 => Float32x2,
-            1 => Float32x2,
-            2 => Float32x4,
-        ];
-    }
-}
-
-#[repr(C)]
-#[derive(Default, Debug, Pod, Copy, Clone, Zeroable)]
-pub struct Resolution {
-    width: f32,
-    height: f32,
-}
-
-#[derive(Debug)]
-pub struct TypedGpuBuffer<T: Pod> {
-    pub buffer: wgpu::Buffer,
-    pub marker: std::marker::PhantomData<T>,
-}
-impl<T: Pod> TypedGpuBuffer<T> {
-    pub fn new(buffer: wgpu::Buffer) -> Self {
-        Self {
-            buffer,
-            marker: PhantomData::<T>,
-        }
-    }
-
-    pub fn size() -> u64 {
-        mem::size_of::<T>() as u64
-    }
-
-    pub fn slice<N: Into<u64>>(&self, n: N) -> wgpu::BufferSlice {
-        let bytes = n.into() * (mem::size_of::<T>()) as u64;
-        return self.buffer.slice(..bytes);
-    }
-
-    pub fn queue_write(&mut self, data: &[T], queue: &Queue) {
-        let data = bytemuck::cast_slice(data);
-        queue.write_buffer(&self.buffer, 0, data);
-    }
-}
