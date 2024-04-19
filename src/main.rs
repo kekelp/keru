@@ -228,12 +228,15 @@ fn init() -> (EventLoop<()>, State<'static>) {
         mouse_pos: PhysicalPosition { x: 0., y: 0. },
         mouse_left_clicked: false,
         mouse_left_just_clicked: false,
-        
-        node_tree_touched: false,
-        
+
+        // stack for traversing
+        stack: Vec::new(),
+
         // app state
         count: 0,
         counter_mode: true,
+
+
     };
 
     return (event_loop, state);
@@ -270,7 +273,11 @@ pub struct State<'window> {
     pub mouse_left_just_clicked: bool,
 
     pub counter_mode: bool,
-    pub node_tree_touched: bool,
+
+    // tried this, but wasn't picking up the case where one node disappears 
+    // pub node_tree_touched: bool,
+
+    pub stack: Vec<u64>
 }
 
 #[derive(Debug, Clone)]
@@ -289,16 +296,18 @@ pub struct Node {
     pub key: NodeKey,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct NodeKey {
     // stuff like layout params, how it reacts to clicks, etc
     pub id: u64,
-    pub text: Option<&'static str>,
+    pub static_text: Option<&'static str>,
+    pub dyn_text: Option<String>,
     pub clickable: bool,
     pub color: Color,
     pub layout_x: LayoutMode,
     pub layout_y: LayoutMode,
     pub is_update: bool,
+    pub is_layout_update: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -310,7 +319,8 @@ pub enum LayoutMode {
 
 pub const NODE_ROOT_KEY: NodeKey = NodeKey {
     id: 0,
-    text: None,
+    static_text: None,
+    dyn_text: None,
     clickable: false,
     color: Color {
         r: 1.0,
@@ -327,11 +337,13 @@ pub const NODE_ROOT_KEY: NodeKey = NodeKey {
         end: 1.0,
     },
     is_update: false,
+    is_layout_update: false,
 };
 
 pub const INCREASE_BUTTON: NodeKey = NodeKey {
     id: 111111111,
-    text: Some(&"Increase"),
+    static_text: Some(&"Increase"),
+    dyn_text: None,
     clickable: true,
     color: Color {
         r: 0.0,
@@ -348,11 +360,13 @@ pub const INCREASE_BUTTON: NodeKey = NodeKey {
         len: 100,
     },
     is_update: false,
+    is_layout_update: false,
 };
 
 pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey {
     id: 2222222,
-    text: Some(&"Show counter"),
+    static_text: Some(&"Show counter"),
+    dyn_text: None,
     clickable: true,
     color: Color {
         r: 0.6,
@@ -369,11 +383,13 @@ pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey {
         len: 100,
     },
     is_update: false,
+    is_layout_update: false,
 };
 
 pub const COUNT_LABEL: NodeKey = NodeKey {
     id: 555555,
-    text: Some(&"0"),
+    static_text: None,
+    dyn_text: None,
     clickable: false,
     color: Color {
         r: 0.1,
@@ -390,11 +406,13 @@ pub const COUNT_LABEL: NodeKey = NodeKey {
         end: 0.7,
     },
     is_update: false,
+    is_layout_update: false,
 };
 
 pub const COLUMN_1: NodeKey = NodeKey {
     id: 3333333,
-    text: None,
+    static_text: None,
+    dyn_text: None,
     clickable: true,
     color: Color {
         r: 0.0,
@@ -411,12 +429,14 @@ pub const COLUMN_1: NodeKey = NodeKey {
         end: 1.0,
     },
     is_update: false,
+    is_layout_update: false,
 };
 
 pub const fn floating_window_1() -> NodeKey {
     return NodeKey {
         id: 77777777,
-        text: None,
+        static_text: None,
+        dyn_text: None,
         clickable: true,
         color: Color {
             r: 0.7,
@@ -433,6 +453,7 @@ pub const fn floating_window_1() -> NodeKey {
             end: 0.9,
         },
         is_update: false,
+            is_layout_update: false,
     };
 }
 impl NodeKey {
@@ -442,6 +463,11 @@ impl NodeKey {
     }
     pub const fn with_color(mut self, color: Color) -> Self {
         self.color = color;
+        self.is_update = true;
+        return self;
+    }
+    pub fn with_text(mut self, text: String) -> Self {
+        self.dyn_text = Some(text.clone());
         self.is_update = true;
         return self;
     }
@@ -496,11 +522,9 @@ impl<'window> State<'window> {
             .children_ids
             .clear();
 
-        self.node_tree_touched = false;
-
         div!((self, FLOATING_WINDOW_1) {
 
-            // div!(self, COUNT_LABEL.with_text(&self.count.to_string()));
+            div!(self, COUNT_LABEL.with_text(self.count.to_string()));
 
             div!((self, COLUMN_1) {
 
@@ -522,7 +546,7 @@ impl<'window> State<'window> {
             self.count += 1;
             println!("{:?}", self.count);
         }
-
+        
         if self.is_clicked(SHOW_COUNTER_BUTTON) {
             self.counter_mode = !self.counter_mode;
         }
@@ -632,16 +656,16 @@ impl<'window> State<'window> {
 
     pub fn build_buffers(&mut self) {
         self.rects.clear();
-        let mut stack = Vec::<u64>::new();
+        self.stack.clear();
 
         // push the direct children of the root without processing the root
         if let Some(root) = self.nodes.get(&NODE_ROOT_ID) {
             for &child_id in root.children_ids.iter().rev() {
-                stack.push(child_id);
+                self.stack.push(child_id);
             }
         }
 
-        while let Some(current_node_id) = stack.pop() {
+        while let Some(current_node_id) = self.stack.pop() {
             let current_node = self.nodes.get_mut(&current_node_id).unwrap();
 
             if current_node.last_frame_touched == self.current_frame {
@@ -658,30 +682,26 @@ impl<'window> State<'window> {
             }
 
             for &child_id in current_node.children_ids.iter() {
-                stack.push(child_id);
+                self.stack.push(child_id);
             }
         }
     }
 
     // todo: deduplicate the layout with build_buffers
     pub fn layout(&mut self) {
-        if self.node_tree_touched == false {
-            println!("skipping layout");
-            return;
-        }
         
-        let mut stack = Vec::<u64>::new();
+        self.stack.clear();
 
         let mut last_rect_xs = (0.0, 1.0);
         let mut last_rect_ys = (0.0, 1.0);
         // push the direct children of the root without processing the root
         if let Some(root) = self.nodes.get(&NODE_ROOT_ID) {
             for &child_id in root.children_ids.iter() {
-                stack.push(child_id);
+                self.stack.push(child_id);
             }
         }
 
-        while let Some(current_node_id) = stack.pop() {
+        while let Some(current_node_id) = self.stack.pop() {
             let current_node = self.nodes.get_mut(&current_node_id).unwrap();
             match current_node.key.layout_x {
                 LayoutMode::PercentOfParent { start, end } => {
@@ -728,7 +748,7 @@ impl<'window> State<'window> {
 
             // do I really need iter.rev() here? why?
             for &child_id in current_node.children_ids.iter().rev() {
-                stack.push(child_id);
+                self.stack.push(child_id);
             }
         }
 
@@ -744,40 +764,48 @@ impl<'window> State<'window> {
     pub fn div(&mut self, node_key: NodeKey) {
         let parent_id = self.parent_stack.last().unwrap().clone();
 
-        let old_node = self.nodes.get_mut(&node_key.id);
-        if old_node.is_none() || node_key.is_update {
-            self.node_tree_touched = true; 
+        let node_key_id = node_key.id;
+        let old_node = self.nodes.get_mut(&node_key_id);
+        if old_node.is_none() || node_key.is_update || node_key.is_layout_update {
 
-            let text_id = match node_key.text {
-                Some(text) => {
+            let has_text = node_key.static_text.is_some() || node_key.dyn_text.is_some();
+            let mut text_id = None;
+            if has_text {
+                let mut text: &str = &"Remove this";
 
-                    let mut buffer = Buffer::new(&mut self.font_system, Metrics::new(30.0, 42.0));
-                    buffer.set_text(&mut self.font_system, text, Attrs::new().family(Family::SansSerif), Shaping::Advanced);
-                
-                    let text_area = TextArea {
-                        buffer,
-                        left: 10.0,
-                        top: 10.0,
-                        scale: 1.0,
-                        bounds: TextBounds {
-                            left: 0,
-                            top: 0,
-                            right: 10000,
-                            bottom: 10000,
-                        },
-                        default_color: GlyphonColor::rgb(255, 255, 255),
-                        depth: 0.0,
-                        last_frame_touched: self.current_frame,
-                    };
+                if let Some(ref dyn_text) = node_key.dyn_text {
+                    text = &dyn_text;
+                } else {
+                    if let Some(static_text) = node_key.static_text {
+                        text = static_text;
+                    }
+                }
 
-                    self.text_areas.push(text_area);
-                    Some((self.text_areas.len() - 1) as u32)
-                },
-                None => None,
-            };
+                let mut buffer = Buffer::new(&mut self.font_system, Metrics::new(30.0, 42.0));
+                buffer.set_text(&mut self.font_system, text, Attrs::new().family(Family::SansSerif), Shaping::Advanced);
+            
+                let text_area = TextArea {
+                    buffer,
+                    left: 10.0,
+                    top: 10.0,
+                    scale: 1.0,
+                    bounds: TextBounds {
+                        left: 0,
+                        top: 0,
+                        right: 10000,
+                        bottom: 10000,
+                    },
+                    default_color: GlyphonColor::rgb(255, 255, 255),
+                    depth: 0.0,
+                    last_frame_touched: self.current_frame,
+                };
+
+                self.text_areas.push(text_area);
+                text_id = Some((self.text_areas.len() - 1) as u32);
+            }
 
             let new_node = self.new_node(node_key, parent_id, text_id);
-            self.nodes.insert(node_key.id, new_node);
+            self.nodes.insert(node_key_id.clone(), new_node);
 
         } else {
 
@@ -793,7 +821,7 @@ impl<'window> State<'window> {
             .get_mut(&parent_id)
             .unwrap()
             .children_ids
-            .push(node_key.id);
+            .push(node_key_id);
     }
 
     pub fn new_node(&self, node_key: NodeKey, parent_id: u64, text_id: Option<u32>) -> Node {
@@ -818,6 +846,10 @@ impl<'window> State<'window> {
 
         let node = self.nodes.get(&button.id);
         if let Some(node) = node {
+            if node.last_frame_touched != self.current_frame {
+                return false;
+            }
+
             let mouse_pos = (
                 self.mouse_pos.x / (self.config.width as f32),
                 1.0 - (self.mouse_pos.y / (self.config.height as f32)),
