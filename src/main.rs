@@ -109,7 +109,7 @@ pub struct State<'window> {
 
 pub const INCREASE_BUTTON: NodeKey = NodeKey {
     id: id!(),
-    static_text: Some(&"Increase"),
+    static_text: Some("Increase"),
     dyn_text: None,
     clickable: true,
     color: Color {
@@ -132,7 +132,7 @@ pub const INCREASE_BUTTON: NodeKey = NodeKey {
 
 pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey {
     id: id!(),
-    static_text: Some(&"Show counter"),
+    static_text: Some("Show counter"),
     dyn_text: None,
     clickable: true,
     color: Color {
@@ -506,10 +506,8 @@ impl<'window> State<'window> {
                 self.ui.mouse_pos.x / (self.config.width as f32),
                 1.0 - (self.ui.mouse_pos.y / (self.config.height as f32)),
             );
-            if node.x0 < mouse_pos.0 && mouse_pos.0 < node.x1 {
-                if node.y0 < mouse_pos.1 && mouse_pos.1 < node.y1 {
-                    return true;
-                }
+            if node.x0 < mouse_pos.0 && mouse_pos.0 < node.x1 && node.y0 < mouse_pos.1 && mouse_pos.1 < node.y1 {
+                return true;
             }
         }
 

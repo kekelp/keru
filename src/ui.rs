@@ -208,9 +208,9 @@ impl Ui {
 
         let font_system = FontSystem::new();
         let cache = SwashCache::new();
-        let mut atlas = TextAtlas::new(&device, &queue, SWAPCHAIN_FORMAT);
+        let mut atlas = TextAtlas::new(device, queue, SWAPCHAIN_FORMAT);
         let text_renderer =
-            TextRenderer::new(&mut atlas, &device, MultisampleState::default(), None);
+            TextRenderer::new(&mut atlas, device, MultisampleState::default(), None);
 
         let text_areas = Vec::new();
 
@@ -260,7 +260,7 @@ impl Ui {
     }
 
     pub fn div(&mut self, node_key: NodeKey) {
-        let parent_id = self.parent_stack.last().unwrap().clone();
+        let parent_id = *self.parent_stack.last().unwrap();
 
         let node_key_id = node_key.id;
         let old_node = self.nodes.get_mut(&node_key_id);
@@ -268,14 +268,12 @@ impl Ui {
             let has_text = node_key.static_text.is_some() || node_key.dyn_text.is_some();
             let mut text_id = None;
             if has_text {
-                let mut text: &str = &"Remove this";
+                let mut text: &str = "Remove this";
 
                 if let Some(ref dyn_text) = node_key.dyn_text {
                     text = &dyn_text;
-                } else {
-                    if let Some(static_text) = node_key.static_text {
-                        text = static_text;
-                    }
+                } else if let Some(static_text) = node_key.static_text {
+                    text = static_text;
                 }
 
                 let mut buffer = Buffer::new(&mut self.font_system, Metrics::new(30.0, 42.0));
@@ -307,19 +305,17 @@ impl Ui {
             }
 
             let new_node = self.new_node(node_key, parent_id, text_id);
-            self.nodes.insert(node_key_id.clone(), new_node);
+            self.nodes.insert(node_key_id, new_node);
         } else if node_key.is_update || node_key.is_layout_update {
             // instead of reinserting, could just handle all update possibilities by his own.
             let old_node = old_node.unwrap();
             if let Some(text_id) = old_node.text_id {
-                let mut text: &str = &"Remove this";
+                let mut text: &str = "Remove this";
 
                 if let Some(ref dyn_text) = node_key.dyn_text {
                     text = &dyn_text;
-                } else {
-                    if let Some(static_text) = node_key.static_text {
-                        text = static_text;
-                    }
+                } else if let Some(static_text) = node_key.static_text {
+                    text = static_text;
                 }
 
                 self.text_areas[text_id as usize].buffer.set_text(
@@ -333,7 +329,7 @@ impl Ui {
             let text_id = old_node.text_id;
             let new_node = self.new_node(node_key, parent_id, text_id);
 
-            self.nodes.insert(node_key_id.clone(), new_node);
+            self.nodes.insert(node_key_id, new_node);
         } else {
             let old_node = old_node.unwrap();
             old_node.children_ids.clear();
@@ -428,7 +424,7 @@ pub const NODE_ROOT_KEY: NodeKey = NodeKey {
 #[macro_export]
 macro_rules! id {
     () => {{
-        crate::ui::Id((std::line!() as u64) << 32 | (std::column!() as u64))
+        $crate::ui::Id((std::line!() as u64) << 32 | (std::column!() as u64))
     }};
 }
 
