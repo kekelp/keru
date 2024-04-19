@@ -2,17 +2,13 @@ pub mod ui;
 pub use ui::Id;
 
 use bytemuck::{Pod, Zeroable};
-use glyphon::{
-    Resolution as GlyphonResolution,
-};
-use ui::{Ui, NodeKey, LayoutMode, Color, floating_window_1, Resolution, Rectangle};
+use glyphon::Resolution as GlyphonResolution;
+use ui::{floating_window_1, Color, LayoutMode, NodeKey, Rectangle, Resolution, Ui};
 use wgpu::{
-    vertex_attr_array,
-    CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance,
-    InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue,
-    RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions,
-    Surface, SurfaceConfiguration, TextureFormat, TextureUsages, TextureViewDescriptor,
-    VertexAttribute,
+    vertex_attr_array, CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor,
+    Features, Instance, InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue,
+    RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, Surface,
+    SurfaceConfiguration, TextureFormat, TextureUsages, TextureViewDescriptor, VertexAttribute,
 };
 use winit::{
     dpi::{LogicalSize, PhysicalSize},
@@ -24,8 +20,6 @@ use winit::{
 use std::{marker::PhantomData, mem, sync::Arc};
 
 use crate::ui::NODE_ROOT_ID;
-
-
 
 #[rustfmt::skip]
 fn main() {
@@ -112,7 +106,6 @@ pub struct State<'window> {
     pub count: i32,
     pub counter_mode: bool,
 }
-
 
 pub const INCREASE_BUTTON: NodeKey = NodeKey {
     id: id!(),
@@ -206,9 +199,7 @@ pub const COLUMN_1: NodeKey = NodeKey {
     is_layout_update: false,
 };
 
-
 pub const FLOATING_WINDOW_1: NodeKey = floating_window_1();
-
 
 impl<'window> State<'window> {
     pub fn handle_event(&mut self, event: &Event<()>, target: &EventLoopWindowTarget<()>) {
@@ -544,4 +535,3 @@ macro_rules! div {
         $ui.div($node_key);
     };
 }
-

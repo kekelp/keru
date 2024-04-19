@@ -1,6 +1,6 @@
-use std::{marker::PhantomData, mem, collections::HashMap};
+use std::{collections::HashMap, marker::PhantomData, mem};
 
-use crate::{id, WIDTH, HEIGHT, SWAPCHAIN_FORMAT};
+use crate::{id, HEIGHT, SWAPCHAIN_FORMAT, WIDTH};
 
 use bytemuck::{Pod, Zeroable};
 use glyphon::{
@@ -27,7 +27,6 @@ use winit::{
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Id(pub u64);
 pub const NODE_ROOT_ID: Id = Id(0);
-
 
 pub const fn floating_window_1() -> NodeKey {
     return NodeKey {
@@ -75,7 +74,6 @@ impl NodeKey {
         return self;
     }
 }
-
 
 #[derive(Default, Debug, Pod, Copy, Clone, Zeroable)]
 #[repr(C)]
@@ -441,7 +439,6 @@ macro_rules! id {
         crate::ui::Id((std::line!() as u64) << 32 | (std::column!() as u64))
     }};
 }
-
 
 #[repr(C)]
 #[derive(Default, Debug, Pod, Copy, Clone, Zeroable)]
