@@ -34,12 +34,16 @@ fn main() {
     ).unwrap();
 }
 
+pub const WIDTH: u32 = 1200;
+pub const HEIGHT: u32 = 800;
+pub const SWAPCHAIN_FORMAT: TextureFormat = TextureFormat::Bgra8UnormSrgb;
+
+
 fn init() -> (EventLoop<()>, State<'static>) {
-    let (width, height) = (1200, 800);
     let event_loop = EventLoop::new().unwrap();
     let window = Arc::new(
         WindowBuilder::new()
-            .with_inner_size(LogicalSize::new(width as f64, height as f64))
+            .with_inner_size(LogicalSize::new(WIDTH as f64, HEIGHT as f64))
             .with_title("BLUE")
             .build(&event_loop)
             .unwrap(),
@@ -61,10 +65,9 @@ fn init() -> (EventLoop<()>, State<'static>) {
 
     let surface = instance.create_surface(window.clone()).unwrap();
 
-    let swapchain_format = TextureFormat::Bgra8UnormSrgb;
     let config = SurfaceConfiguration {
         usage: TextureUsages::RENDER_ATTACHMENT,
-        format: swapchain_format,
+        format: SWAPCHAIN_FORMAT,
         width: size.width,
         height: size.height,
         present_mode: PresentMode::Fifo,
@@ -74,141 +77,17 @@ fn init() -> (EventLoop<()>, State<'static>) {
     };
     surface.configure(&device, &config);
 
-    let vertex_buffer = device.create_buffer_init(&util::BufferInitDescriptor {
-        label: Some("player bullet pos buffer"),
-        contents: bytemuck::cast_slice(&[0.0; 9000]),
-        usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
-    });
 
-    let vertex_buffer = TypedGpuBuffer::new(vertex_buffer);
-    let vert_buff_layout = VertexBufferLayout {
-        array_stride: mem::size_of::<Rectangle>() as BufferAddress,
-        step_mode: VertexStepMode::Instance,
-        attributes: &Rectangle::buffer_desc(),
-    };
-
-    let resolution = Resolution {
-        width: width as f32,
-        height: height as f32,
-    };
-    let resolution_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("Resolution Uniform Buffer"),
-        contents: bytemuck::bytes_of(&resolution),
-        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-    });
-
-    let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        entries: &[wgpu::BindGroupLayoutEntry {
-            binding: 0,
-            visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-            ty: wgpu::BindingType::Buffer {
-                ty: wgpu::BufferBindingType::Uniform,
-                has_dynamic_offset: false,
-                min_binding_size: None,
-            },
-            count: None,
-        }],
-        label: Some("Resolution Bind Group Layout"),
-    });
-
-    // Create the bind group
-    let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-        layout: &bind_group_layout,
-        entries: &[wgpu::BindGroupEntry {
-            binding: 0,
-            resource: resolution_buffer.as_entire_binding(),
-        }],
-        label: Some("Resolution Bind Group"),
-    });
-
-    let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-        label: None,
-        bind_group_layouts: &[&bind_group_layout],
-        push_constant_ranges: &[],
-    });
-
-    let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-        label: None,
-        source: wgpu::ShaderSource::Wgsl(include_str!("box.wgsl").into()),
-    });
-
-    let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: None,
-        layout: Some(&pipeline_layout),
-        vertex: wgpu::VertexState {
-            module: &shader,
-            entry_point: "vs_main",
-            buffers: &[vert_buff_layout],
-        },
-        fragment: Some(wgpu::FragmentState {
-            module: &shader,
-            entry_point: "fs_main",
-            targets: &[Some(ColorTargetState {
-                format: config.format,
-                blend: Some(wgpu::BlendState::ALPHA_BLENDING),
-                write_mask: wgpu::ColorWrites::ALL,
-            })],
-        }),
-        primitive: wgpu::PrimitiveState::default(),
-        depth_stencil: None,
-        multisample: wgpu::MultisampleState::default(),
-        multiview: None,
-    });
-
-    let font_system = FontSystem::new();
-    let cache = SwashCache::new();
-    let mut atlas = TextAtlas::new(&device, &queue, swapchain_format);
-    let text_renderer = TextRenderer::new(&mut atlas, &device, MultisampleState::default(), None);
-
-    let text_areas = Vec::new();
-
-    let mut nodes = HashMap::with_capacity(20);
-
-    nodes.insert(
-        0,
-        Node {
-            x0: -1.0,
-            x1: 1.0,
-            y0: -1.0,
-            y1: 1.0,
-            text_id: None,
-            parent_id: NODE_ROOT_ID,
-            children_ids: Vec::new(),
-            key: NODE_ROOT_KEY,
-            last_frame_touched: 0,
-        },
-    );
-
-    let mut parent_stack = Vec::with_capacity(7);
-    parent_stack.push(0);
+    let ui = Ui::new(&device, &config, &queue);
 
     let state = State {
         window,
         surface,
         config,
         device,
-        cache,
         queue,
-        render_pipeline,
-        atlas,
-        text_renderer,
-        font_system,
-        text_areas,
-        rects: Vec::with_capacity(20),
-        nodes,
-        gpu_vertex_buffer: vertex_buffer,
-        resolution_buffer,
-        bind_group,
 
-        parent_stack,
-        current_frame: 0,
-
-        mouse_pos: PhysicalPosition { x: 0., y: 0. },
-        mouse_left_clicked: false,
-        mouse_left_just_clicked: false,
-
-        // stack for traversing
-        stack: Vec::new(),
+        ui,
 
         // app state
         count: 0,
@@ -227,6 +106,14 @@ pub struct State<'window> {
     pub config: SurfaceConfiguration,
     pub device: Device,
     pub queue: Queue,
+    
+    pub ui: Ui,
+
+    pub count: i32,
+    pub counter_mode: bool,
+}
+
+pub struct Ui {
     pub gpu_vertex_buffer: TypedGpuBuffer<Rectangle>,
     pub render_pipeline: RenderPipeline,
     pub resolution_buffer: wgpu::Buffer,
@@ -243,19 +130,253 @@ pub struct State<'window> {
 
     pub parent_stack: Vec<u64>,
 
-    pub count: i32,
     pub current_frame: u64,
-
+    
     pub mouse_pos: PhysicalPosition<f32>,
     pub mouse_left_clicked: bool,
     pub mouse_left_just_clicked: bool,
+    pub stack: Vec<u64>,
+}
+impl Ui {
+    pub fn new(device: &Device, config: &SurfaceConfiguration, queue: &Queue) -> Self {
 
-    pub counter_mode: bool,
+        let vertex_buffer = device.create_buffer_init(&util::BufferInitDescriptor {
+            label: Some("player bullet pos buffer"),
+            contents: bytemuck::cast_slice(&[0.0; 9000]),
+            usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
+        });
+    
+        let vertex_buffer = TypedGpuBuffer::new(vertex_buffer);
+        let vert_buff_layout = VertexBufferLayout {
+            array_stride: mem::size_of::<Rectangle>() as BufferAddress,
+            step_mode: VertexStepMode::Instance,
+            attributes: &Rectangle::buffer_desc(),
+        };
+    
+        let resolution = Resolution {
+            width: WIDTH as f32,
+            height: HEIGHT as f32,
+        };
+        let resolution_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Resolution Uniform Buffer"),
+            contents: bytemuck::bytes_of(&resolution),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+    
+        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
+            label: Some("Resolution Bind Group Layout"),
+        });
+    
+        // Create the bind group
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: resolution_buffer.as_entire_binding(),
+            }],
+            label: Some("Resolution Bind Group"),
+        });
+    
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: None,
+            bind_group_layouts: &[&bind_group_layout],
+            push_constant_ranges: &[],
+        });
+    
+        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: None,
+            source: wgpu::ShaderSource::Wgsl(include_str!("box.wgsl").into()),
+        });
+    
+        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: None,
+            layout: Some(&pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: "vs_main",
+                buffers: &[vert_buff_layout],
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: "fs_main",
+                targets: &[Some(ColorTargetState {
+                    format: config.format,
+                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
+            primitive: wgpu::PrimitiveState::default(),
+            depth_stencil: None,
+            multisample: wgpu::MultisampleState::default(),
+            multiview: None,
+        });
+    
+        let font_system = FontSystem::new();
+        let cache = SwashCache::new();
+        let mut atlas = TextAtlas::new(&device, &queue, SWAPCHAIN_FORMAT);
+        let text_renderer = TextRenderer::new(&mut atlas, &device, MultisampleState::default(), None);
+    
+        let text_areas = Vec::new();
+    
+        let mut nodes = HashMap::with_capacity(20);
+    
+        nodes.insert(
+            0,
+            Node {
+                x0: -1.0,
+                x1: 1.0,
+                y0: -1.0,
+                y1: 1.0,
+                text_id: None,
+                parent_id: NODE_ROOT_ID,
+                children_ids: Vec::new(),
+                key: NODE_ROOT_KEY,
+                last_frame_touched: 0,
+            },
+        );
+    
+        let mut parent_stack = Vec::with_capacity(7);
+        parent_stack.push(0);
 
-    // tried this, but wasn't picking up the case where one node disappears 
-    // pub node_tree_touched: bool,
+        Self {
+            cache,
+            render_pipeline,
+            atlas,
+            text_renderer,
+            font_system,
+            text_areas,
+            rects: Vec::with_capacity(20),
+            nodes,
+            gpu_vertex_buffer: vertex_buffer,
+            resolution_buffer,
+            bind_group,
+    
+            parent_stack,
+            current_frame: 0,
+    
+            mouse_pos: PhysicalPosition { x: 0., y: 0. },
+            mouse_left_clicked: false,
+            mouse_left_just_clicked: false,
+    
+            // stack for traversing
+            stack: Vec::new(),
+    
+        }
+    }
 
-    pub stack: Vec<u64>
+
+    pub fn div(&mut self, node_key: NodeKey) {
+        let parent_id = self.parent_stack.last().unwrap().clone();
+
+        let node_key_id = node_key.id;
+        let old_node = self.nodes.get_mut(&node_key_id);
+        if old_node.is_none() {
+
+            let has_text = node_key.static_text.is_some() || node_key.dyn_text.is_some();
+            let mut text_id = None;
+            if has_text {
+                let mut text: &str = &"Remove this";
+
+                if let Some(ref dyn_text) = node_key.dyn_text {
+                    text = &dyn_text;
+                } else {
+                    if let Some(static_text) = node_key.static_text {
+                        text = static_text;
+                    }
+                }
+
+                let mut buffer = Buffer::new(&mut self.font_system, Metrics::new(30.0, 42.0));
+                buffer.set_text(&mut self.font_system, text, Attrs::new().family(Family::SansSerif), Shaping::Advanced);
+            
+                let text_area = TextArea {
+                    buffer,
+                    left: 10.0,
+                    top: 10.0,
+                    scale: 1.0,
+                    bounds: TextBounds {
+                        left: 0,
+                        top: 0,
+                        right: 10000,
+                        bottom: 10000,
+                    },
+                    default_color: GlyphonColor::rgb(255, 255, 255),
+                    depth: 0.0,
+                    last_frame_touched: self.current_frame,
+                };
+
+                self.text_areas.push(text_area);
+                text_id = Some((self.text_areas.len() - 1) as u32);
+            }
+
+            let new_node = self.new_node(node_key, parent_id, text_id);
+            self.nodes.insert(node_key_id.clone(), new_node);
+
+        } else if node_key.is_update || node_key.is_layout_update {
+            // instead of reinserting, could just handle all update possibilities by his own.
+            let old_node = old_node.unwrap();
+            if let Some(text_id) = old_node.text_id {
+
+
+                let mut text: &str = &"Remove this";
+
+                if let Some(ref dyn_text) = node_key.dyn_text {
+                    text = &dyn_text;
+                } else {
+                    if let Some(static_text) = node_key.static_text {
+                        text = static_text;
+                    }
+                }
+
+                self.text_areas[text_id as usize].buffer.set_text(&mut self.font_system, text, Attrs::new().family(Family::SansSerif), Shaping::Advanced);
+                self.text_areas[text_id as usize].last_frame_touched = self.current_frame;
+            }
+            let text_id = old_node.text_id;
+            let new_node = self.new_node(node_key, parent_id, text_id);
+
+            self.nodes.insert(node_key_id.clone(), new_node);
+
+
+        } else {
+
+            let old_node = old_node.unwrap();
+            old_node.children_ids.clear();
+            old_node.last_frame_touched = self.current_frame;
+            if let Some(text_id) = old_node.text_id {
+                self.text_areas[text_id as usize].last_frame_touched = self.current_frame;
+            }
+        }
+
+        self.nodes
+            .get_mut(&parent_id)
+            .unwrap()
+            .children_ids
+            .push(node_key_id);
+    }
+
+    pub fn new_node(&self, node_key: NodeKey, parent_id: u64, text_id: Option<u32>) -> Node {
+        Node {  
+            x0: 0.0,
+            x1: 1.0,
+            y0: 0.0,
+            y1: 1.0,
+            text_id,
+            parent_id,
+            children_ids: Vec::new(),
+            key: node_key,
+            last_frame_touched: self.current_frame,
+        }
+    }
+
 }
 
 #[derive(Debug, Clone)]
@@ -479,18 +600,18 @@ impl<'window> State<'window> {
                 }
                 WindowEvent::CloseRequested => target.exit(),
                 WindowEvent::CursorMoved { position, .. } => {
-                    self.mouse_pos.x = position.x as f32;
-                    self.mouse_pos.y = position.y as f32;
+                    self.ui.mouse_pos.x = position.x as f32;
+                    self.ui.mouse_pos.y = position.y as f32;
                 }
                 WindowEvent::MouseInput { button, state, .. } => {
                     if *button == MouseButton::Left {
                         if *state == ElementState::Pressed {
-                            self.mouse_left_clicked = true;
-                            if !self.mouse_left_just_clicked {
-                                self.mouse_left_just_clicked = true;
+                            self.ui.mouse_left_clicked = true;
+                            if !self.ui.mouse_left_just_clicked {
+                                self.ui.mouse_left_just_clicked = true;
                             }
                         } else {
-                            self.mouse_left_clicked = false;
+                            self.ui.mouse_left_clicked = false;
                         }
                     }
                 }
@@ -500,27 +621,29 @@ impl<'window> State<'window> {
     }
 
     pub fn update(&mut self) {
-        self.nodes
+        self.ui.nodes
             .get_mut(&NODE_ROOT_ID)
             .unwrap()
             .children_ids
             .clear();
 
-        div!((self, FLOATING_WINDOW_1) {
+        let ui = &mut self.ui;
+        
+        div!((ui, FLOATING_WINDOW_1) {
 
-            div!(self, COUNT_LABEL.with_text(self.count));
+            div!(ui, COUNT_LABEL.with_text(self.count));
 
-            div!((self, COLUMN_1) {
+            div!((ui, COLUMN_1) {
 
                 let text = match self.counter_mode {
                     true => &"Hide counter",
                     false => &"Show counter",
                 };
-                div!(self, SHOW_COUNTER_BUTTON.with_text(text));
+                div!(ui, SHOW_COUNTER_BUTTON.with_text(text));
 
                 if self.counter_mode {
                     let color = Color { r: 0.1 * (self.count as f32), g: 0.0, b: 0.0, a: 1.0 };
-                    div!(self, INCREASE_BUTTON.with_color(color));
+                    div!(ui, INCREASE_BUTTON.with_color(color));
                 }
 
             });
@@ -541,27 +664,27 @@ impl<'window> State<'window> {
         self.build_buffers();
         self.render();
 
-        self.current_frame += 1;
-        self.mouse_left_just_clicked = false;
+        self.ui.current_frame += 1;
+        self.ui.mouse_left_just_clicked = false;
     }
 
     pub fn render(&mut self) {
-        self.gpu_vertex_buffer
-            .queue_write(&self.rects[..], &self.queue);
+        self.ui.gpu_vertex_buffer
+            .queue_write(&self.ui.rects[..], &self.queue);
 
-        self.text_renderer
+        self.ui.text_renderer
             .prepare(
                 &self.device,
                 &self.queue,
-                &mut self.font_system,
-                &mut self.atlas,
+                &mut self.ui.font_system,
+                &mut self.ui.atlas,
                 GlyphonResolution {
                     width: self.config.width,
                     height: self.config.height,
                 },
-                &mut self.text_areas,
-                &mut self.cache,
-                self.current_frame,
+                &mut self.ui.text_areas,
+                &mut self.ui.cache,
+                self.ui.current_frame,
             )
             .unwrap();
 
@@ -587,21 +710,21 @@ impl<'window> State<'window> {
                 occlusion_query_set: None,
             });
 
-            let n = self.rects.len() as u32;
+            let n = self.ui.rects.len() as u32;
             if n > 0 {
-                pass.set_pipeline(&self.render_pipeline);
-                pass.set_bind_group(0, &self.bind_group, &[]);
-                pass.set_vertex_buffer(0, self.gpu_vertex_buffer.slice(n));
+                pass.set_pipeline(&self.ui.render_pipeline);
+                pass.set_bind_group(0, &self.ui.bind_group, &[]);
+                pass.set_vertex_buffer(0, self.ui.gpu_vertex_buffer.slice(n));
                 pass.draw(0..6, 0..n);
             }
 
-            self.text_renderer.render(&self.atlas, &mut pass).unwrap();
+            self.ui.text_renderer.render(&self.ui.atlas, &mut pass).unwrap();
         }
 
         self.queue.submit(Some(encoder.finish()));
         frame.present();
 
-        self.atlas.trim();
+        self.ui.atlas.trim();
     }
 
     pub fn resize(&mut self, size: &PhysicalSize<u32>) {
@@ -614,27 +737,27 @@ impl<'window> State<'window> {
             height: size.height as f32,
         };
         self.queue
-            .write_buffer(&self.resolution_buffer, 0, bytemuck::bytes_of(&resolution));
+            .write_buffer(&self.ui.resolution_buffer, 0, bytemuck::bytes_of(&resolution));
 
         self.window.request_redraw();
     }
 
     pub fn build_buffers(&mut self) {
-        self.rects.clear();
-        self.stack.clear();
+        self.ui.rects.clear();
+        self.ui.stack.clear();
 
-        // push the direct children of the root without processing the root
-        if let Some(root) = self.nodes.get(&NODE_ROOT_ID) {
+        // push the ui.direct children of the root without processing the root
+        if let Some(root) = self.ui.nodes.get(&NODE_ROOT_ID) {
             for &child_id in root.children_ids.iter().rev() {
-                self.stack.push(child_id);
+                self.ui.stack.push(child_id);
             }
         }
 
-        while let Some(current_node_id) = self.stack.pop() {
-            let current_node = self.nodes.get_mut(&current_node_id).unwrap();
+        while let Some(current_node_id) = self.ui.stack.pop() {
+            let current_node = self.ui.nodes.get_mut(&current_node_id).unwrap();
 
-            if current_node.last_frame_touched == self.current_frame {
-                self.rects.push(Rectangle {
+            if current_node.last_frame_touched == self.ui.current_frame {
+                self.ui.rects.push(Rectangle {
                     x0: current_node.x0 * 2. - 1.,
                     x1: current_node.x1 * 2. - 1.,
                     y0: current_node.y0 * 2. - 1.,
@@ -647,7 +770,7 @@ impl<'window> State<'window> {
             }
 
             for &child_id in current_node.children_ids.iter() {
-                self.stack.push(child_id);
+                self.ui.stack.push(child_id);
             }
         }
     }
@@ -656,20 +779,20 @@ impl<'window> State<'window> {
     // either way should wait to see how a real layout pass would look like 
     pub fn layout(&mut self) {
         
-        self.stack.clear();
+        self.ui.stack.clear();
 
         let mut last_rect_xs = (0.0, 1.0);
         let mut last_rect_ys = (0.0, 1.0);
 
         // push the direct children of the root without processing the root
-        if let Some(root) = self.nodes.get(&NODE_ROOT_ID) {
+        if let Some(root) = self.ui.nodes.get(&NODE_ROOT_ID) {
             for &child_id in root.children_ids.iter() {
-                self.stack.push(child_id);
+                self.ui.stack.push(child_id);
             }
         }
 
-        while let Some(current_node_id) = self.stack.pop() {
-            let current_node = self.nodes.get_mut(&current_node_id).unwrap();
+        while let Some(current_node_id) = self.ui.stack.pop() {
+            let current_node = self.ui.nodes.get_mut(&current_node_id).unwrap();
 
             let mut new_rect_xs = last_rect_xs;
             let mut new_rect_ys = last_rect_ys;
@@ -711,15 +834,15 @@ impl<'window> State<'window> {
             current_node.y1 = new_rect_ys.1;
 
             if let Some(id) = current_node.text_id {
-                self.text_areas[id as usize].left = current_node.x0 * (self.config.width as f32);
-                self.text_areas[id as usize].top = (1.0 - current_node.y1) * (self.config.height as f32);
-                self.text_areas[id as usize].buffer.set_size(&mut self.font_system, 100000., 100000.,);
-                self.text_areas[id as usize].buffer.shape_until_scroll(&mut self.font_system);
+                self.ui.text_areas[id as usize].left = current_node.x0 * (self.config.width as f32);
+                self.ui.text_areas[id as usize].top = (1.0 - current_node.y1) * (self.config.height as f32);
+                self.ui.text_areas[id as usize].buffer.set_size(&mut self.ui.font_system, 100000., 100000.,);
+                self.ui.text_areas[id as usize].buffer.shape_until_scroll(&mut self.ui.font_system);
             }
 
             // do I really need iter.rev() here? why?
             for &child_id in current_node.children_ids.iter().rev() {
-                self.stack.push(child_id);
+                self.ui.stack.push(child_id);
 
                 last_rect_xs.0 = new_rect_xs.0;
                 last_rect_xs.1 = new_rect_xs.1;
@@ -731,132 +854,29 @@ impl<'window> State<'window> {
         // println!(" {:?}", "  ");
 
         // print_whole_tree
-        // for (k, v) in &self.nodes {
+        // for (k, v) in &self.ui.nodes {
         //     println!(" {:?}: {:#?}", k, v);
         // }
 
         // println!("self.text_areas.len() {:?}", self.text_areas.len());
-        // println!("self.rects.len() {:?}", self.rects.len());
-    }
-
-    pub fn div(&mut self, node_key: NodeKey) {
-        let parent_id = self.parent_stack.last().unwrap().clone();
-
-        let node_key_id = node_key.id;
-        let old_node = self.nodes.get_mut(&node_key_id);
-        if old_node.is_none() {
-
-            let has_text = node_key.static_text.is_some() || node_key.dyn_text.is_some();
-            let mut text_id = None;
-            if has_text {
-                let mut text: &str = &"Remove this";
-
-                if let Some(ref dyn_text) = node_key.dyn_text {
-                    text = &dyn_text;
-                } else {
-                    if let Some(static_text) = node_key.static_text {
-                        text = static_text;
-                    }
-                }
-
-                let mut buffer = Buffer::new(&mut self.font_system, Metrics::new(30.0, 42.0));
-                buffer.set_text(&mut self.font_system, text, Attrs::new().family(Family::SansSerif), Shaping::Advanced);
-            
-                let text_area = TextArea {
-                    buffer,
-                    left: 10.0,
-                    top: 10.0,
-                    scale: 1.0,
-                    bounds: TextBounds {
-                        left: 0,
-                        top: 0,
-                        right: 10000,
-                        bottom: 10000,
-                    },
-                    default_color: GlyphonColor::rgb(255, 255, 255),
-                    depth: 0.0,
-                    last_frame_touched: self.current_frame,
-                };
-
-                self.text_areas.push(text_area);
-                text_id = Some((self.text_areas.len() - 1) as u32);
-            }
-
-            let new_node = self.new_node(node_key, parent_id, text_id);
-            self.nodes.insert(node_key_id.clone(), new_node);
-
-        } else if node_key.is_update || node_key.is_layout_update {
-            // instead of reinserting, could just handle all update possibilities by his own.
-            let old_node = old_node.unwrap();
-            if let Some(text_id) = old_node.text_id {
-
-
-                let mut text: &str = &"Remove this";
-
-                if let Some(ref dyn_text) = node_key.dyn_text {
-                    text = &dyn_text;
-                } else {
-                    if let Some(static_text) = node_key.static_text {
-                        text = static_text;
-                    }
-                }
-
-                self.text_areas[text_id as usize].buffer.set_text(&mut self.font_system, text, Attrs::new().family(Family::SansSerif), Shaping::Advanced);
-                self.text_areas[text_id as usize].last_frame_touched = self.current_frame;
-                
-            }
-            let text_id = old_node.text_id;
-            let new_node = self.new_node(node_key, parent_id, text_id);
-
-            self.nodes.insert(node_key_id.clone(), new_node);
-
-
-        } else {
-
-            let old_node = old_node.unwrap();
-            old_node.children_ids.clear();
-            old_node.last_frame_touched = self.current_frame;
-            if let Some(text_id) = old_node.text_id {
-                self.text_areas[text_id as usize].last_frame_touched = self.current_frame;
-            }
-        }
-
-        self.nodes
-            .get_mut(&parent_id)
-            .unwrap()
-            .children_ids
-            .push(node_key_id);
-    }
-
-    pub fn new_node(&self, node_key: NodeKey, parent_id: u64, text_id: Option<u32>) -> Node {
-        Node {  
-            x0: 0.0,
-            x1: 1.0,
-            y0: 0.0,
-            y1: 1.0,
-            text_id,
-            parent_id,
-            children_ids: Vec::new(),
-            key: node_key,
-            last_frame_touched: self.current_frame,
-        }
+        // println!("self.ui.rects.len() {:?}", self.ui.rects.len());
     }
 
     // in the future, do the full tree pass (for covered stuff etc)
     pub fn is_clicked(&self, button: NodeKey) -> bool {
-        if !self.mouse_left_just_clicked {
+        if !self.ui.mouse_left_just_clicked {
             return false;
         }
 
-        let node = self.nodes.get(&button.id);
+        let node = self.ui.nodes.get(&button.id);
         if let Some(node) = node {
-            if node.last_frame_touched != self.current_frame {
+            if node.last_frame_touched != self.ui.current_frame {
                 return false;
             }
 
             let mouse_pos = (
-                self.mouse_pos.x / (self.config.width as f32),
-                1.0 - (self.mouse_pos.y / (self.config.height as f32)),
+                self.ui.mouse_pos.x / (self.config.width as f32),
+                1.0 - (self.ui.mouse_pos.y / (self.config.height as f32)),
             );
             if node.x0 < mouse_pos.0 && mouse_pos.0 < node.x1 {
                 if node.y0 < mouse_pos.1 && mouse_pos.1 < node.y1 {
@@ -875,16 +895,16 @@ impl<'window> State<'window> {
 #[macro_export]
 macro_rules! div {
     // non-leaf, has to manage the stack and pop() after the code
-    (($self:ident, $node_key:expr) $code:block) => {
-        $self.div($node_key);
+    (($ui:expr, $node_key:expr) $code:block) => {
+        $ui.div($node_key);
 
-        $self.parent_stack.push($node_key.id);
+        $ui.parent_stack.push($node_key.id);
         $code;
-        $self.parent_stack.pop();
+        $ui.parent_stack.pop();
     };
     // leaf. doesn't need to touch the stack. doesn't actually need to be a macro except for symmetry.
-    ($self:ident, $node_key:expr) => {
-        $self.div($node_key);
+    ($ui:expr, $node_key:expr) => {
+        $ui.div($node_key);
     };
 }
 
