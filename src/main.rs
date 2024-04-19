@@ -21,7 +21,10 @@ use winit::{
 };
 
 use std::{collections::HashMap, marker::PhantomData, mem, sync::Arc};
-const NODE_ROOT_ID: u64 = 0;
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+pub struct Id(u64);
+const NODE_ROOT_ID: Id = Id(0);
 
 #[rustfmt::skip]
 fn main() {
@@ -122,16 +125,16 @@ pub struct Ui {
 
     pub rects: Vec<Rectangle>,
     pub text_areas: Vec<TextArea>,
-    pub nodes: HashMap<u64, Node>,
+    pub nodes: HashMap<Id, Node>,
 
-    pub parent_stack: Vec<u64>,
+    pub parent_stack: Vec<Id>,
 
     pub current_frame: u64,
 
     pub mouse_pos: PhysicalPosition<f32>,
     pub mouse_left_clicked: bool,
     pub mouse_left_just_clicked: bool,
-    pub stack: Vec<u64>,
+    pub stack: Vec<Id>,
 }
 impl Ui {
     pub fn new(device: &Device, config: &SurfaceConfiguration, queue: &Queue) -> Self {
@@ -227,7 +230,7 @@ impl Ui {
         let mut nodes = HashMap::with_capacity(20);
 
         nodes.insert(
-            0,
+            NODE_ROOT_ID,
             Node {
                 x0: -1.0,
                 x1: 1.0,
@@ -242,7 +245,7 @@ impl Ui {
         );
 
         let mut parent_stack = Vec::with_capacity(7);
-        parent_stack.push(0);
+        parent_stack.push(NODE_ROOT_ID);
 
         Self {
             cache,
@@ -360,7 +363,7 @@ impl Ui {
             .push(node_key_id);
     }
 
-    pub fn new_node(&self, node_key: NodeKey, parent_id: u64, text_id: Option<u32>) -> Node {
+    pub fn new_node(&self, node_key: NodeKey, parent_id: Id, text_id: Option<u32>) -> Node {
         Node {
             x0: 0.0,
             x1: 1.0,
@@ -385,16 +388,16 @@ pub struct Node {
     pub last_frame_touched: u64,
 
     pub text_id: Option<u32>,
-    pub parent_id: u64,
+    pub parent_id: Id,
     // todo: maybe switch with that prev/next thing
-    pub children_ids: Vec<u64>,
+    pub children_ids: Vec<Id>,
     pub key: NodeKey,
 }
 
 #[derive(Debug, Clone)]
 pub struct NodeKey {
     // stuff like layout params, how it reacts to clicks, etc
-    pub id: u64,
+    pub id: Id,
     pub static_text: Option<&'static str>,
     pub dyn_text: Option<String>,
     pub clickable: bool,
@@ -413,7 +416,7 @@ pub enum LayoutMode {
 }
 
 pub const NODE_ROOT_KEY: NodeKey = NodeKey {
-    id: 0,
+    id: NODE_ROOT_ID,
     static_text: None,
     dyn_text: None,
     clickable: false,
@@ -435,8 +438,15 @@ pub const NODE_ROOT_KEY: NodeKey = NodeKey {
     is_layout_update: false,
 };
 
+#[macro_export]
+macro_rules! id {
+    () => {{
+        Id((std::line!() as u64) << 32 | (std::column!() as u64))
+    }};
+}
+
 pub const INCREASE_BUTTON: NodeKey = NodeKey {
-    id: 111111111,
+    id: id!(),
     static_text: Some(&"Increase"),
     dyn_text: None,
     clickable: true,
@@ -459,7 +469,7 @@ pub const INCREASE_BUTTON: NodeKey = NodeKey {
 };
 
 pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey {
-    id: 2222222,
+    id: id!(),
     static_text: Some(&"Show counter"),
     dyn_text: None,
     clickable: true,
@@ -482,7 +492,7 @@ pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey {
 };
 
 pub const COUNT_LABEL: NodeKey = NodeKey {
-    id: 555555,
+    id: id!(),
     static_text: None,
     dyn_text: None,
     clickable: false,
@@ -505,7 +515,7 @@ pub const COUNT_LABEL: NodeKey = NodeKey {
 };
 
 pub const COLUMN_1: NodeKey = NodeKey {
-    id: 3333333,
+    id: id!(),
     static_text: None,
     dyn_text: None,
     clickable: true,
@@ -529,7 +539,7 @@ pub const COLUMN_1: NodeKey = NodeKey {
 
 pub const fn floating_window_1() -> NodeKey {
     return NodeKey {
-        id: 77777777,
+        id: id!(),
         static_text: None,
         dyn_text: None,
         clickable: true,
@@ -552,7 +562,7 @@ pub const fn floating_window_1() -> NodeKey {
     };
 }
 impl NodeKey {
-    pub const fn with_id(mut self, id: u64) -> Self {
+    pub const fn with_id(mut self, id: Id) -> Self {
         self.id = id;
         return self;
     }
@@ -574,7 +584,7 @@ impl NodeKey {
     }
 }
 
-pub const FLOATING_WINDOW_1: NodeKey = floating_window_1().with_id(34);
+pub const FLOATING_WINDOW_1: NodeKey = floating_window_1();
 
 #[derive(Debug, Clone, Copy)]
 pub struct Color {
