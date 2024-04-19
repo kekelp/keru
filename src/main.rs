@@ -1,14 +1,14 @@
 pub mod ui;
 pub use ui::Id;
 
-use bytemuck::{Pod, Zeroable};
+
 use glyphon::Resolution as GlyphonResolution;
 use ui::{floating_window_1, Color, LayoutMode, NodeKey, Rectangle, Resolution, Ui};
 use wgpu::{
-    vertex_attr_array, CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor,
+    CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor,
     Features, Instance, InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue,
     RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, Surface,
-    SurfaceConfiguration, TextureFormat, TextureUsages, TextureViewDescriptor, VertexAttribute,
+    SurfaceConfiguration, TextureFormat, TextureUsages, TextureViewDescriptor,
 };
 use winit::{
     dpi::{LogicalSize, PhysicalSize},
@@ -17,7 +17,7 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 
-use std::{marker::PhantomData, mem, sync::Arc};
+use std::{sync::Arc};
 
 use crate::ui::NODE_ROOT_ID;
 

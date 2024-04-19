@@ -4,24 +4,16 @@ use crate::{id, HEIGHT, SWAPCHAIN_FORMAT, WIDTH};
 
 use bytemuck::{Pod, Zeroable};
 use glyphon::{
-    Attrs, Buffer, Color as GlyphonColor, Family, FontSystem, Metrics,
-    Resolution as GlyphonResolution, Shaping, SwashCache, TextArea, TextAtlas, TextBounds,
+    Attrs, Buffer, Color as GlyphonColor, Family, FontSystem, Metrics, Shaping, SwashCache, TextArea, TextAtlas, TextBounds,
     TextRenderer,
 };
 use wgpu::{
     util::{self, DeviceExt},
-    vertex_attr_array, BindGroup, BufferAddress, BufferUsages, ColorTargetState,
-    CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance,
-    InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations, PresentMode, Queue,
-    RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RequestAdapterOptions,
-    Surface, SurfaceConfiguration, TextureFormat, TextureUsages, TextureViewDescriptor,
+    vertex_attr_array, BindGroup, BufferAddress, BufferUsages, ColorTargetState, Device, MultisampleState, Queue, RenderPipeline, SurfaceConfiguration,
     VertexAttribute, VertexBufferLayout, VertexStepMode,
 };
 use winit::{
-    dpi::{LogicalSize, PhysicalPosition, PhysicalSize},
-    event::{ElementState, Event, MouseButton, WindowEvent},
-    event_loop::{EventLoop, EventLoopWindowTarget},
-    window::{Window, WindowBuilder},
+    dpi::{PhysicalPosition},
 };
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
