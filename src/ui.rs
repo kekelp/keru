@@ -23,42 +23,91 @@ use winit::{
 pub struct Id(pub u64);
 pub const NODE_ROOT_ID: Id = Id(0);
 
-pub const fn floating_window_1() -> NodeKey {
-    return NodeKey {
-        id: id!(),
-        static_text: None,
-        dyn_text: None,
-        clickable: true,
-        color: Color {
-            r: 0.7,
-            g: 0.0,
-            b: 0.0,
-            a: 0.2,
-        },
-        layout_x: LayoutMode::PercentOfParent {
-            start: 0.1,
-            end: 0.9,
-        },
-        layout_y: LayoutMode::PercentOfParent {
-            start: 0.1,
-            end: 0.9,
-        },
-        is_update: false,
-        is_layout_update: false,
-    };
+#[derive(Debug, Clone)]
+pub struct NodeKey {
+    // stuff like layout params, how it reacts to clicks, etc
+    pub id: Id,
+    pub static_text: Option<&'static str>,
+    pub dyn_text: Option<String>,
+    pub clickable: bool,
+    pub color: Color,
+    pub layout_x: LayoutMode,
+    pub layout_y: LayoutMode,
+    pub is_update: bool,
+    pub is_layout_update: bool,
 }
 impl NodeKey {
+    pub const fn button() -> NodeKey {
+        return NodeKey {
+            id: id!(),
+            static_text: None,
+            dyn_text: None,
+            clickable: true,
+            color: Color {
+                r: 0.0,
+                g: 0.1,
+                b: 0.1,
+                a: 0.9,
+            },
+            layout_x: LayoutMode::Fixed {
+                start: 100,
+                len: 100,
+            },
+            layout_y: LayoutMode::Fixed {
+                start: 100,
+                len: 100,
+            },
+            is_update: false,
+            is_layout_update: false,
+        };
+    }
+    pub const fn label() -> NodeKey {
+        return NodeKey {
+            id: id!(),
+            static_text: None,
+            dyn_text: None,
+            clickable: true,
+            color: Color {
+                r: 0.0,
+                g: 0.1,
+                b: 0.1,
+                a: 0.9,
+            },
+            layout_x: LayoutMode::Fixed {
+                start: 100,
+                len: 100,
+            },
+            layout_y: LayoutMode::Fixed {
+                start: 100,
+                len: 100,
+            },
+            is_update: false,
+            is_layout_update: false,
+        };
+    }
+
     pub const fn with_id(mut self, id: Id) -> Self {
         self.id = id;
+        return self;
+    }
+    pub const fn with_static_text(mut self, text: &'static str) -> Self {
+        self.static_text = Some(text);
+        self.is_update = true;
+        return self;
+    }
+    pub const fn with_layout_x(mut self, layout: LayoutMode) -> Self {
+        self.layout_x = layout;
+        self.is_update = true;
+        return self;
+    }
+    pub const fn with_layout_y(mut self, layout: LayoutMode) -> Self {
+        self.layout_y = layout;
+        self.is_update = true;
         return self;
     }
     pub const fn with_color(mut self, color: Color) -> Self {
         self.color = color;
         self.is_update = true;
-        return self;
-    }
-    pub fn with_static_text(mut self, text: &'static str) -> Self {
-        self.static_text = Some(text);
         return self;
     }
     pub fn with_text(mut self, text: impl ToString) -> Self {
@@ -267,6 +316,60 @@ impl Ui {
             stack: Vec::new(),
         }
     }
+
+    pub fn column(&mut self, id: Id) {
+        let key = NodeKey {
+            id,
+            static_text: None,
+            dyn_text: None,
+            clickable: true,
+            color: Color {
+                r: 0.0,
+                g: 0.2,
+                b: 0.7,
+                a: 0.2,
+            },
+            layout_x: LayoutMode::PercentOfParent {
+                start: 0.7,
+                end: 0.9,
+            },
+            layout_y: LayoutMode::PercentOfParent {
+                start: 0.0,
+                end: 1.0,
+            },
+            is_update: false,
+            is_layout_update: false,
+        };
+        self.div(key);
+    }
+
+
+    pub fn floating_window(&mut self, id: Id) {
+        let key = NodeKey {
+            id,
+            static_text: None,
+            dyn_text: None,
+            clickable: true,
+            color: Color {
+                r: 0.7,
+                g: 0.0,
+                b: 0.0,
+                a: 0.2,
+            },
+            layout_x: LayoutMode::PercentOfParent {
+                start: 0.1,
+                end: 0.9,
+            },
+            layout_y: LayoutMode::PercentOfParent {
+                start: 0.1,
+                end: 0.9,
+            },
+            is_update: false,
+            is_layout_update: false,
+        };
+        self.div(key);
+    }
+
 
     pub fn div(&mut self, node_key: NodeKey) {
         let parent_id = *self.parent_stack.last().unwrap();
@@ -477,12 +580,12 @@ impl Ui {
         // println!(" {:?}", "  ");
 
         // print_whole_tree
-        // for (k, v) in &self.ui.nodes {
-        //     println!(" {:?}: {:#?}", k, v);
+        // for (k, v) in &self.nodes {
+        //     println!(" {:?}: {:#?}", k, v.key.id);
         // }
 
         // println!("self.text_areas.len() {:?}", self.text_areas.len());
-        // println!("self.ui.rects.len() {:?}", self.ui.rects.len());
+        // println!("self.rects.len() {:?}", self.rects.len());
     }
 
     // in the future, do the full tree pass (for covered stuff etc)
@@ -611,20 +714,6 @@ pub struct Node {
     pub key: NodeKey,
 }
 
-#[derive(Debug, Clone)]
-pub struct NodeKey {
-    // stuff like layout params, how it reacts to clicks, etc
-    pub id: Id,
-    pub static_text: Option<&'static str>,
-    pub dyn_text: Option<String>,
-    pub clickable: bool,
-    pub color: Color,
-    pub layout_x: LayoutMode,
-    pub layout_y: LayoutMode,
-    pub is_update: bool,
-    pub is_layout_update: bool,
-}
-
 #[derive(Debug, Clone, Copy)]
 pub enum LayoutMode {
     PercentOfParent { start: f32, end: f32 },
@@ -658,6 +747,7 @@ pub const NODE_ROOT_KEY: NodeKey = NodeKey {
 #[macro_export]
 macro_rules! id {
     () => {{
+        // todo: this is trash, I think.
         $crate::ui::Id((std::line!() as u64) << 32 | (std::column!() as u64))
     }};
 }
@@ -713,5 +803,29 @@ macro_rules! div {
     // leaf. doesn't need to touch the stack. doesn't actually need to be a macro except for symmetry.
     ($ui:expr, $node_key:expr) => {
         $ui.div($node_key);
+    };
+}
+
+#[macro_export]
+macro_rules! column {
+    (($ui:expr) $code:block) => {
+        let anonymous_id = id!();
+        $ui.column(anonymous_id);
+
+        $ui.parent_stack.push(anonymous_id);
+        $code;
+        $ui.parent_stack.pop();
+    };
+}
+
+#[macro_export]
+macro_rules! floating_window {
+    (($ui:expr) $code:block) => {
+        let anonymous_id = id!();
+        $ui.floating_window(anonymous_id);
+
+        $ui.parent_stack.push(anonymous_id);
+        $code;
+        $ui.parent_stack.pop();
     };
 }

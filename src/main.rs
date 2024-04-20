@@ -1,12 +1,12 @@
+pub mod helper;
 pub mod ui;
-pub mod wgpu_helpers;
-pub use ui::Id;
-use wgpu_helpers::{
+use helper::{
     base_color_attachment, base_render_pass_desc, base_surface_config, init_wgpu,
     init_winit_window, ENC_DESC,
 };
+pub use ui::Id;
 
-use ui::{floating_window_1, Color, LayoutMode, NodeKey, Ui};
+use ui::{Color, LayoutMode, NodeKey, Ui};
 use wgpu::{Device, Queue, Surface, SurfaceConfiguration, TextureFormat, TextureViewDescriptor};
 use winit::{
     dpi::PhysicalSize,
@@ -69,100 +69,6 @@ pub struct State<'window> {
     pub counter_mode: bool,
 }
 
-pub const INCREASE_BUTTON: NodeKey = NodeKey {
-    id: id!(),
-    static_text: Some("Increase"),
-    dyn_text: None,
-    clickable: true,
-    color: Color {
-        r: 0.0,
-        g: 0.1,
-        b: 0.1,
-        a: 0.9,
-    },
-    layout_x: LayoutMode::PercentOfParent {
-        start: 0.1,
-        end: 0.9,
-    },
-    layout_y: LayoutMode::Fixed {
-        start: 100,
-        len: 100,
-    },
-    is_update: false,
-    is_layout_update: false,
-};
-
-pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey {
-    id: id!(),
-    static_text: Some("Show counter"),
-    dyn_text: None,
-    clickable: true,
-    color: Color {
-        r: 0.6,
-        g: 0.3,
-        b: 0.6,
-        a: 0.6,
-    },
-    layout_x: LayoutMode::PercentOfParent {
-        start: 0.1,
-        end: 0.9,
-    },
-    layout_y: LayoutMode::Fixed {
-        start: 400,
-        len: 100,
-    },
-    is_update: false,
-    is_layout_update: false,
-};
-
-pub const COUNT_LABEL: NodeKey = NodeKey {
-    id: id!(),
-    static_text: None,
-    dyn_text: None,
-    clickable: false,
-    color: Color {
-        r: 0.1,
-        g: 0.3,
-        b: 0.9,
-        a: 0.6,
-    },
-    layout_x: LayoutMode::PercentOfParent {
-        start: 0.2,
-        end: 0.5,
-    },
-    layout_y: LayoutMode::PercentOfParent {
-        start: 0.2,
-        end: 0.8,
-    },
-    is_update: false,
-    is_layout_update: false,
-};
-
-pub const COLUMN_1: NodeKey = NodeKey {
-    id: id!(),
-    static_text: None,
-    dyn_text: None,
-    clickable: true,
-    color: Color {
-        r: 0.0,
-        g: 0.2,
-        b: 0.7,
-        a: 0.2,
-    },
-    layout_x: LayoutMode::PercentOfParent {
-        start: 0.7,
-        end: 0.9,
-    },
-    layout_y: LayoutMode::PercentOfParent {
-        start: 0.0,
-        end: 1.0,
-    },
-    is_update: false,
-    is_layout_update: false,
-};
-
-pub const FLOATING_WINDOW_1: NodeKey = floating_window_1();
-
 impl<'window> State<'window> {
     pub fn handle_event(&mut self, event: &Event<()>, target: &EventLoopWindowTarget<()>) {
         self.ui.handle_input_events(event);
@@ -182,11 +88,11 @@ impl<'window> State<'window> {
     pub fn update(&mut self) {
         let ui = &mut self.ui;
 
-        div!((ui, FLOATING_WINDOW_1) {
+        floating_window!((ui) {
 
             div!(ui, COUNT_LABEL.with_text(self.count));
 
-            div!((ui, COLUMN_1) {
+            column!((ui) {
 
                 let text = match self.counter_mode {
                     true => &"Hide counter",
@@ -249,3 +155,51 @@ impl<'window> State<'window> {
         self.window.request_redraw();
     }
 }
+
+
+
+
+pub const INCREASE_BUTTON: NodeKey = NodeKey::button()
+    .with_static_text("Increase")
+    .with_color(Color {
+        r: 0.6,
+        g: 0.3,
+        b: 0.6,
+        a: 0.6,
+    })
+    .with_layout_x(LayoutMode::PercentOfParent {
+        start: 0.1,
+        end: 0.9,
+    })
+    .with_layout_y(LayoutMode::Fixed {
+        start: 400,
+        len: 100,
+    })
+    .with_id(id!());
+
+pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey::button()
+    .with_static_text("Increase")
+    .with_color(Color {
+        r: 0.6,
+        g: 0.3,
+        b: 0.6,
+        a: 0.6,
+    })
+    .with_layout_x(LayoutMode::PercentOfParent {
+        start: 0.1,
+        end: 0.9,
+    })
+    .with_layout_y(LayoutMode::Fixed {
+        start: 100,
+        len: 100,
+    })
+    .with_id(id!());
+
+pub const COUNT_LABEL: NodeKey = NodeKey::button()
+    .with_color(Color {
+        r: 0.1,
+        g: 0.3,
+        b: 0.9,
+        a: 0.6,
+    })
+    .with_id(id!());
