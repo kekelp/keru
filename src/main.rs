@@ -3,7 +3,7 @@ pub mod ui;
 pub use ui::Id;
 
 use glyphon::Resolution as GlyphonResolution;
-use ui::{floating_window_1, Color, LayoutMode, NodeKey, Rectangle, Ui};
+use ui::{floating_window_1, Color, LayoutMode, NodeKey, Ui};
 use wgpu::{
     CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance,
     InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue, RenderPassColorAttachment,
