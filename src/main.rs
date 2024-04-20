@@ -1,25 +1,22 @@
-pub mod render;
 pub mod ui;
+pub mod wgpu_helpers;
+use wgpu_helpers::{base_color_attachment, base_render_pass_desc, ENC_DESC};
 pub use ui::Id;
 
-use glyphon::Resolution as GlyphonResolution;
 use ui::{floating_window_1, Color, LayoutMode, NodeKey, Ui};
 use wgpu::{
-    CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance,
-    InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue, RenderPassColorAttachment,
-    RenderPassDescriptor, RequestAdapterOptions, Surface, SurfaceConfiguration, TextureFormat,
+    CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance,
+    InstanceDescriptor, Limits, PresentMode, Queue, RequestAdapterOptions, Surface, SurfaceConfiguration, TextureFormat,
     TextureUsages, TextureViewDescriptor,
 };
 use winit::{
     dpi::{LogicalSize, PhysicalSize},
-    event::{ElementState, Event, MouseButton, WindowEvent},
+    event::{Event, WindowEvent},
     event_loop::{EventLoop, EventLoopWindowTarget},
     window::{Window, WindowBuilder},
 };
 
 use std::sync::Arc;
-
-use crate::ui::NODE_ROOT_ID;
 
 #[rustfmt::skip]
 fn main() {
@@ -46,7 +43,6 @@ fn init() -> (EventLoop<()>, State<'static>) {
             .unwrap(),
     );
     let size = window.inner_size();
-    // let scale_factor = window.scale_factor();
 
     let instance = Instance::new(InstanceDescriptor::default());
 
@@ -203,46 +199,21 @@ pub const FLOATING_WINDOW_1: NodeKey = floating_window_1();
 
 impl<'window> State<'window> {
     pub fn handle_event(&mut self, event: &Event<()>, target: &EventLoopWindowTarget<()>) {
-        self.ui.handle_event(event, &self.queue);
-
+        self.ui.handle_input_events(event);
         if let Event::WindowEvent { event, .. } = event {
             match event {
                 WindowEvent::Resized(size) => self.resize(size),
                 WindowEvent::RedrawRequested => {
                     self.update();
-
                     self.window.request_redraw();
                 }
                 WindowEvent::CloseRequested => target.exit(),
-                WindowEvent::CursorMoved { position, .. } => {
-                    self.ui.mouse_pos.x = position.x as f32;
-                    self.ui.mouse_pos.y = position.y as f32;
-                }
-                WindowEvent::MouseInput { button, state, .. } => {
-                    if *button == MouseButton::Left {
-                        if *state == ElementState::Pressed {
-                            self.ui.mouse_left_clicked = true;
-                            if !self.ui.mouse_left_just_clicked {
-                                self.ui.mouse_left_just_clicked = true;
-                            }
-                        } else {
-                            self.ui.mouse_left_clicked = false;
-                        }
-                    }
-                }
                 _ => {}
             }
         }
     }
 
     pub fn update(&mut self) {
-        self.ui
-            .nodes
-            .get_mut(&NODE_ROOT_ID)
-            .unwrap()
-            .children_ids
-            .clear();
-
         let ui = &mut self.ui;
 
         div!((ui, FLOATING_WINDOW_1) {
@@ -286,74 +257,29 @@ impl<'window> State<'window> {
     }
 
     pub fn render(&mut self) {
-        self.ui
-            .gpu_vertex_buffer
-            .queue_write(&self.ui.rects[..], &self.queue);
-
-        self.ui
-            .text_renderer
-            .prepare(
-                &self.device,
-                &self.queue,
-                &mut self.ui.font_system,
-                &mut self.ui.atlas,
-                GlyphonResolution {
-                    width: self.config.width,
-                    height: self.config.height,
-                },
-                &mut self.ui.text_areas,
-                &mut self.ui.cache,
-                self.ui.current_frame,
-            )
-            .unwrap();
+        self.ui.prepare(&self.device, &self.queue);
 
         let frame = self.surface.get_current_texture().unwrap();
         let view = frame.texture.create_view(&TextureViewDescriptor::default());
-        let mut encoder = self
-            .device
-            .create_command_encoder(&CommandEncoderDescriptor { label: None });
+        let mut encoder = self.device.create_command_encoder(&ENC_DESC);
 
         {
-            let mut pass = encoder.begin_render_pass(&RenderPassDescriptor {
-                label: None,
-                color_attachments: &[Some(RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: Operations {
-                        load: LoadOp::Load,
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
+            let color_att = base_color_attachment(&view);
+            let render_pass_desc = &base_render_pass_desc(&color_att);
+            let mut render_pass = encoder.begin_render_pass(render_pass_desc);
 
-            let n = self.ui.rects.len() as u32;
-            if n > 0 {
-                pass.set_pipeline(&self.ui.render_pipeline);
-                pass.set_bind_group(0, &self.ui.bind_group, &[]);
-                pass.set_vertex_buffer(0, self.ui.gpu_vertex_buffer.slice(n));
-                pass.draw(0..6, 0..n);
-            }
-
-            self.ui
-                .text_renderer
-                .render(&self.ui.atlas, &mut pass)
-                .unwrap();
+            self.ui.render(&mut render_pass);
         }
 
         self.queue.submit(Some(encoder.finish()));
         frame.present();
-
-        self.ui.atlas.trim();
     }
 
     pub fn resize(&mut self, size: &PhysicalSize<u32>) {
         self.config.width = size.width;
         self.config.height = size.height;
         self.surface.configure(&self.device, &self.config);
-
+        self.ui.resize(size, &self.queue);
         self.window.request_redraw();
     }
 }

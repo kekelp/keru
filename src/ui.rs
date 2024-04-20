@@ -1,3 +1,4 @@
+use glyphon::Resolution as GlyphonResolution;
 use std::{collections::HashMap, marker::PhantomData, mem};
 
 use crate::{id, HEIGHT, SWAPCHAIN_FORMAT, WIDTH};
@@ -10,7 +11,7 @@ use glyphon::{
 use wgpu::{
     util::{self, DeviceExt},
     vertex_attr_array, BindGroup, BufferAddress, BufferUsages, ColorTargetState, Device,
-    MultisampleState, Queue, RenderPipeline, SurfaceConfiguration, VertexAttribute,
+    MultisampleState, Queue, RenderPass, RenderPipeline, SurfaceConfiguration, VertexAttribute,
     VertexBufferLayout, VertexStepMode,
 };
 use winit::{
@@ -368,10 +369,9 @@ impl Ui {
         }
     }
 
-    pub fn handle_event(&mut self, event: &Event<()>, queue: &Queue) {
+    pub fn handle_input_events(&mut self, event: &Event<()>) {
         if let Event::WindowEvent { event, .. } = event {
             match event {
-                WindowEvent::Resized(size) => self.resize(size, queue),
                 WindowEvent::CursorMoved { position, .. } => {
                     self.mouse_pos.x = position.x as f32;
                     self.mouse_pos.y = position.y as f32;
@@ -451,10 +451,8 @@ impl Ui {
             current_node.y1 = new_rect_ys.1;
 
             if let Some(id) = current_node.text_id {
-                self.text_areas[id as usize].left =
-                    current_node.x0 * self.resolution.width;
-                self.text_areas[id as usize].top =
-                    (1.0 - current_node.y1) * self.resolution.height;
+                self.text_areas[id as usize].left = current_node.x0 * self.resolution.width;
+                self.text_areas[id as usize].top = (1.0 - current_node.y1) * self.resolution.height;
                 self.text_areas[id as usize].buffer.set_size(
                     &mut self.font_system,
                     100000.,
@@ -515,7 +513,7 @@ impl Ui {
         return false;
     }
 
-    fn resize(&mut self, size: &PhysicalSize<u32>, queue: &Queue) {
+    pub fn resize(&mut self, size: &PhysicalSize<u32>, queue: &Queue) {
         let resolution = Resolution {
             width: size.width as f32,
             height: size.height as f32,
@@ -555,6 +553,45 @@ impl Ui {
                 self.stack.push(child_id);
             }
         }
+    }
+
+    pub fn render<'pass>(&'pass self, render_pass: &mut RenderPass<'pass>) {
+        let n = self.rects.len() as u32;
+        if n > 0 {
+            render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.set_bind_group(0, &self.bind_group, &[]);
+            render_pass.set_vertex_buffer(0, self.gpu_vertex_buffer.slice(n));
+            render_pass.draw(0..6, 0..n);
+        }
+
+        self.text_renderer.render(&self.atlas, render_pass).unwrap();
+    }
+
+    pub fn prepare(&mut self, device: &Device, queue: &Queue) {
+        self.gpu_vertex_buffer.queue_write(&self.rects[..], queue);
+
+        self.text_renderer
+            .prepare(
+                device,
+                queue,
+                &mut self.font_system,
+                &mut self.atlas,
+                GlyphonResolution {
+                    width: self.resolution.width as u32,
+                    height: self.resolution.height as u32,
+                },
+                &mut self.text_areas,
+                &mut self.cache,
+                self.current_frame,
+            )
+            .unwrap();
+
+        // self.ui.atlas.trim();
+        self.nodes
+            .get_mut(&NODE_ROOT_ID)
+            .unwrap()
+            .children_ids
+            .clear();
     }
 }
 
