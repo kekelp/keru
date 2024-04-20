@@ -1,19 +1,18 @@
 pub mod ui;
 pub mod wgpu_helpers;
-use wgpu_helpers::{base_color_attachment, base_render_pass_desc, ENC_DESC};
 pub use ui::Id;
+use wgpu_helpers::{
+    base_color_attachment, base_render_pass_desc, base_surface_config, init_wgpu,
+    init_winit_window, ENC_DESC,
+};
 
 use ui::{floating_window_1, Color, LayoutMode, NodeKey, Ui};
-use wgpu::{
-    CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance,
-    InstanceDescriptor, Limits, PresentMode, Queue, RequestAdapterOptions, Surface, SurfaceConfiguration, TextureFormat,
-    TextureUsages, TextureViewDescriptor,
-};
+use wgpu::{Device, Queue, Surface, SurfaceConfiguration, TextureFormat, TextureViewDescriptor};
 use winit::{
-    dpi::{LogicalSize, PhysicalSize},
+    dpi::PhysicalSize,
     event::{Event, WindowEvent},
     event_loop::{EventLoop, EventLoopWindowTarget},
-    window::{Window, WindowBuilder},
+    window::Window,
 };
 
 use std::sync::Arc;
@@ -34,40 +33,11 @@ pub const HEIGHT: u32 = 800;
 pub const SWAPCHAIN_FORMAT: TextureFormat = TextureFormat::Bgra8UnormSrgb;
 
 fn init() -> (EventLoop<()>, State<'static>) {
-    let event_loop = EventLoop::new().unwrap();
-    let window = Arc::new(
-        WindowBuilder::new()
-            .with_inner_size(LogicalSize::new(WIDTH as f64, HEIGHT as f64))
-            .with_title("BLUE")
-            .build(&event_loop)
-            .unwrap(),
-    );
-    let size = window.inner_size();
-
-    let instance = Instance::new(InstanceDescriptor::default());
-
-    let adapter_options = &RequestAdapterOptions::default();
-    let adapter = pollster::block_on(instance.request_adapter(adapter_options)).unwrap();
-
-    let device_desc = &DeviceDescriptor {
-        label: None,
-        required_features: Features::empty(),
-        required_limits: Limits::default(),
-    };
-    let (device, queue) = pollster::block_on(adapter.request_device(device_desc, None)).unwrap();
+    let (event_loop, window) = init_winit_window(WIDTH as f64, HEIGHT as f64);
+    let (instance, device, queue) = init_wgpu();
 
     let surface = instance.create_surface(window.clone()).unwrap();
-
-    let config = SurfaceConfiguration {
-        usage: TextureUsages::RENDER_ATTACHMENT,
-        format: SWAPCHAIN_FORMAT,
-        width: size.width,
-        height: size.height,
-        present_mode: PresentMode::Fifo,
-        alpha_mode: CompositeAlphaMode::Opaque,
-        view_formats: vec![],
-        desired_maximum_frame_latency: 2,
-    };
+    let config = base_surface_config(WIDTH, HEIGHT);
     surface.configure(&device, &config);
 
     let ui = Ui::new(&device, &config, &queue);
@@ -78,10 +48,7 @@ fn init() -> (EventLoop<()>, State<'static>) {
         config,
         device,
         queue,
-
         ui,
-
-        // app state
         count: 0,
         counter_mode: true,
     };
@@ -91,14 +58,13 @@ fn init() -> (EventLoop<()>, State<'static>) {
 
 pub struct State<'window> {
     pub window: Arc<Window>,
-
     pub surface: Surface<'window>,
     pub config: SurfaceConfiguration,
     pub device: Device,
     pub queue: Queue,
-
     pub ui: Ui,
 
+    // app state
     pub count: i32,
     pub counter_mode: bool,
 }

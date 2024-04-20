@@ -1,20 +1,20 @@
 use std::sync::Arc;
 
-
 use wgpu::{
-    CompositeAlphaMode, DeviceDescriptor, Features, Instance,
-    InstanceDescriptor, Limits, PresentMode, RequestAdapterOptions, TextureUsages, Surface, SurfaceConfiguration, Device, Queue, RenderPassDescriptor, RenderPassColorAttachment, TextureView, Operations, LoadOp, CommandEncoderDescriptor,
+    CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance,
+    InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue, RenderPassColorAttachment,
+    RenderPassDescriptor, RequestAdapterOptions, SurfaceConfiguration, TextureUsages,
+    TextureView,
 };
 use winit::{
-    dpi::{LogicalSize},
-    event_loop::{EventLoop},
+    dpi::LogicalSize,
+    event_loop::EventLoop,
     window::{Window, WindowBuilder},
 };
 
 use crate::SWAPCHAIN_FORMAT;
 
-
-pub fn init_winit_window(width: f64, height: f64) -> ( EventLoop<()>, Arc<Window> ) {
+pub fn init_winit_window(width: f64, height: f64) -> (EventLoop<()>, Arc<Window>) {
     let event_loop = EventLoop::new().unwrap();
     let window = Arc::new(
         WindowBuilder::new()
@@ -27,12 +27,7 @@ pub fn init_winit_window(width: f64, height: f64) -> ( EventLoop<()>, Arc<Window
     return (event_loop, window);
 }
 
-
-
-pub fn init_wgpu_renderer(window: &Window) -> ( Surface, SurfaceConfiguration, Device, Queue, ) {
-
-    let size = window.inner_size();
-
+pub fn init_wgpu() -> (Instance, Device, Queue) {
     let instance = Instance::new(InstanceDescriptor::default());
 
     let adapter_options = &RequestAdapterOptions::default();
@@ -45,24 +40,25 @@ pub fn init_wgpu_renderer(window: &Window) -> ( Surface, SurfaceConfiguration, D
     };
     let (device, queue) = pollster::block_on(adapter.request_device(device_desc, None)).unwrap();
 
-    let surface = instance.create_surface(window).unwrap();
+    return (instance, device, queue);
+}
 
-    let config = SurfaceConfiguration {
+pub fn base_surface_config(width: u32, height: u32) -> SurfaceConfiguration {
+    return SurfaceConfiguration {
         usage: TextureUsages::RENDER_ATTACHMENT,
         format: SWAPCHAIN_FORMAT,
-        width: size.width,
-        height: size.height,
+        width,
+        height,
         present_mode: PresentMode::Fifo,
         alpha_mode: CompositeAlphaMode::Opaque,
         view_formats: vec![],
         desired_maximum_frame_latency: 2,
     };
-    surface.configure(&device, &config);
-
-    return (surface, config, device, queue);
 }
 
-pub fn base_render_pass_desc<'tex, 'desc>(color_att: &'desc [Option<RenderPassColorAttachment<'tex>>; 1]) -> RenderPassDescriptor<'tex, 'desc> {
+pub fn base_render_pass_desc<'tex, 'desc>(
+    color_att: &'desc [Option<RenderPassColorAttachment<'tex>>; 1],
+) -> RenderPassDescriptor<'tex, 'desc> {
     return RenderPassDescriptor {
         label: None,
         color_attachments: color_att,
@@ -80,7 +76,7 @@ pub fn base_color_attachment(view: &TextureView) -> [Option<RenderPassColorAttac
             load: LoadOp::Load,
             store: wgpu::StoreOp::Store,
         },
-    })]
+    })];
 }
 
 pub const ENC_DESC: CommandEncoderDescriptor = CommandEncoderDescriptor { label: None };
