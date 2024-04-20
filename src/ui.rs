@@ -4,16 +4,18 @@ use crate::{id, HEIGHT, SWAPCHAIN_FORMAT, WIDTH};
 
 use bytemuck::{Pod, Zeroable};
 use glyphon::{
-    Attrs, Buffer, Color as GlyphonColor, Family, FontSystem, Metrics, Shaping, SwashCache, TextArea, TextAtlas, TextBounds,
-    TextRenderer,
+    Attrs, Buffer, Color as GlyphonColor, Family, FontSystem, Metrics, Shaping, SwashCache,
+    TextArea, TextAtlas, TextBounds, TextRenderer,
 };
 use wgpu::{
     util::{self, DeviceExt},
-    vertex_attr_array, BindGroup, BufferAddress, BufferUsages, ColorTargetState, Device, MultisampleState, Queue, RenderPipeline, SurfaceConfiguration,
-    VertexAttribute, VertexBufferLayout, VertexStepMode,
+    vertex_attr_array, BindGroup, BufferAddress, BufferUsages, ColorTargetState, Device,
+    MultisampleState, Queue, RenderPipeline, SurfaceConfiguration, VertexAttribute,
+    VertexBufferLayout, VertexStepMode,
 };
 use winit::{
-    dpi::{PhysicalPosition},
+    dpi::{PhysicalPosition, PhysicalSize},
+    event::{ElementState, Event, MouseButton, WindowEvent},
 };
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
@@ -102,6 +104,8 @@ pub struct Color {
 pub struct Ui {
     pub gpu_vertex_buffer: TypedGpuBuffer<Rectangle>,
     pub render_pipeline: RenderPipeline,
+
+    pub resolution: Resolution,
     pub resolution_buffer: wgpu::Buffer,
     pub bind_group: BindGroup,
 
@@ -247,6 +251,10 @@ impl Ui {
             resolution_buffer,
             bind_group,
 
+            resolution: Resolution {
+                width: WIDTH as f32,
+                height: HEIGHT as f32,
+            },
             parent_stack,
             current_frame: 0,
 
@@ -359,6 +367,195 @@ impl Ui {
             last_frame_touched: self.current_frame,
         }
     }
+
+    pub fn handle_event(&mut self, event: &Event<()>, queue: &Queue) {
+        if let Event::WindowEvent { event, .. } = event {
+            match event {
+                WindowEvent::Resized(size) => self.resize(size, queue),
+                WindowEvent::CursorMoved { position, .. } => {
+                    self.mouse_pos.x = position.x as f32;
+                    self.mouse_pos.y = position.y as f32;
+                }
+                WindowEvent::MouseInput { button, state, .. } => {
+                    if *button == MouseButton::Left {
+                        if *state == ElementState::Pressed {
+                            self.mouse_left_clicked = true;
+                            if !self.mouse_left_just_clicked {
+                                self.mouse_left_just_clicked = true;
+                            }
+                        } else {
+                            self.mouse_left_clicked = false;
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    // todo: deduplicate the traversal with build_buffers, or just merge build_buffers inside here.
+    // either way should wait to see how a real layout pass would look like
+    pub fn layout(&mut self) {
+        self.stack.clear();
+
+        let mut last_rect_xs = (0.0, 1.0);
+        let mut last_rect_ys = (0.0, 1.0);
+
+        // push the direct children of the root without processing the root
+        if let Some(root) = self.nodes.get(&NODE_ROOT_ID) {
+            for &child_id in root.children_ids.iter() {
+                self.stack.push(child_id);
+            }
+        }
+
+        while let Some(current_node_id) = self.stack.pop() {
+            let current_node = self.nodes.get_mut(&current_node_id).unwrap();
+
+            let mut new_rect_xs = last_rect_xs;
+            let mut new_rect_ys = last_rect_ys;
+
+            match current_node.key.layout_x {
+                LayoutMode::PercentOfParent { start, end } => {
+                    let len = new_rect_xs.1 - new_rect_xs.0;
+                    let x0 = new_rect_xs.0;
+                    new_rect_xs = (x0 + len * start, x0 + len * end)
+                }
+                LayoutMode::ChildrenSum {} => todo!(),
+                LayoutMode::Fixed { start, len } => {
+                    let x0 = new_rect_xs.0;
+                    new_rect_xs = (
+                        x0 + (start as f32) / (self.resolution.width as f32),
+                        x0 + ((start + len) as f32) / (self.resolution.width as f32),
+                    )
+                }
+            }
+            match current_node.key.layout_y {
+                LayoutMode::PercentOfParent { start, end } => {
+                    let len = new_rect_ys.1 - new_rect_ys.0;
+                    let y0 = new_rect_ys.0;
+                    new_rect_ys = (y0 + len * start, y0 + len * end)
+                }
+                LayoutMode::Fixed { start, len } => {
+                    let y0 = new_rect_ys.0;
+                    new_rect_ys = (
+                        y0 + (start as f32) / (self.resolution.height as f32),
+                        y0 + ((start + len) as f32) / (self.resolution.height as f32),
+                    )
+                }
+                LayoutMode::ChildrenSum {} => todo!(),
+            }
+
+            current_node.x0 = new_rect_xs.0;
+            current_node.x1 = new_rect_xs.1;
+            current_node.y0 = new_rect_ys.0;
+            current_node.y1 = new_rect_ys.1;
+
+            if let Some(id) = current_node.text_id {
+                self.text_areas[id as usize].left =
+                    current_node.x0 * (self.resolution.width as f32);
+                self.text_areas[id as usize].top =
+                    (1.0 - current_node.y1) * (self.resolution.height as f32);
+                self.text_areas[id as usize].buffer.set_size(
+                    &mut self.font_system,
+                    100000.,
+                    100000.,
+                );
+                self.text_areas[id as usize]
+                    .buffer
+                    .shape_until_scroll(&mut self.font_system);
+            }
+
+            // do I really need iter.rev() here? why?
+            for &child_id in current_node.children_ids.iter().rev() {
+                self.stack.push(child_id);
+
+                last_rect_xs.0 = new_rect_xs.0;
+                last_rect_xs.1 = new_rect_xs.1;
+                last_rect_ys.0 = new_rect_ys.0;
+                last_rect_ys.1 = new_rect_ys.1;
+            }
+        }
+
+        // println!(" {:?}", "  ");
+
+        // print_whole_tree
+        // for (k, v) in &self.ui.nodes {
+        //     println!(" {:?}: {:#?}", k, v);
+        // }
+
+        // println!("self.text_areas.len() {:?}", self.text_areas.len());
+        // println!("self.ui.rects.len() {:?}", self.ui.rects.len());
+    }
+
+    // in the future, do the full tree pass (for covered stuff etc)
+    pub fn is_clicked(&self, button: NodeKey) -> bool {
+        if !self.mouse_left_just_clicked {
+            return false;
+        }
+
+        let node = self.nodes.get(&button.id);
+        if let Some(node) = node {
+            if node.last_frame_touched != self.current_frame {
+                return false;
+            }
+
+            let mouse_pos = (
+                self.mouse_pos.x / (self.resolution.width as f32),
+                1.0 - (self.mouse_pos.y / (self.resolution.height as f32)),
+            );
+            if node.x0 < mouse_pos.0
+                && mouse_pos.0 < node.x1
+                && node.y0 < mouse_pos.1
+                && mouse_pos.1 < node.y1
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    fn resize(&mut self, size: &PhysicalSize<u32>, queue: &Queue) {
+        let resolution = Resolution {
+            width: size.width as f32,
+            height: size.height as f32,
+        };
+        self.resolution = resolution;
+        queue.write_buffer(&self.resolution_buffer, 0, bytemuck::bytes_of(&resolution));
+    }
+
+    pub fn build_buffers(&mut self) {
+        self.rects.clear();
+        self.stack.clear();
+
+        // push the ui.direct children of the root without processing the root
+        if let Some(root) = self.nodes.get(&NODE_ROOT_ID) {
+            for &child_id in root.children_ids.iter().rev() {
+                self.stack.push(child_id);
+            }
+        }
+
+        while let Some(current_node_id) = self.stack.pop() {
+            let current_node = self.nodes.get_mut(&current_node_id).unwrap();
+
+            if current_node.last_frame_touched == self.current_frame {
+                self.rects.push(Rectangle {
+                    x0: current_node.x0 * 2. - 1.,
+                    x1: current_node.x1 * 2. - 1.,
+                    y0: current_node.y0 * 2. - 1.,
+                    y1: current_node.y1 * 2. - 1.,
+                    r: current_node.key.color.r,
+                    g: current_node.key.color.g,
+                    b: current_node.key.color.b,
+                    a: current_node.key.color.a,
+                });
+            }
+
+            for &child_id in current_node.children_ids.iter() {
+                self.stack.push(child_id);
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -461,4 +658,23 @@ impl<T: Pod> TypedGpuBuffer<T> {
         let data = bytemuck::cast_slice(data);
         queue.write_buffer(&self.buffer, 0, data);
     }
+}
+
+// these have to be macros only because of the deferred pop().
+// todo: pass "ui" or something instead of self.
+
+#[macro_export]
+macro_rules! div {
+    // non-leaf, has to manage the stack and pop() after the code
+    (($ui:expr, $node_key:expr) $code:block) => {
+        $ui.div($node_key);
+
+        $ui.parent_stack.push($node_key.id);
+        $code;
+        $ui.parent_stack.pop();
+    };
+    // leaf. doesn't need to touch the stack. doesn't actually need to be a macro except for symmetry.
+    ($ui:expr, $node_key:expr) => {
+        $ui.div($node_key);
+    };
 }
