@@ -424,8 +424,8 @@ impl Ui {
                 LayoutMode::Fixed { start, len } => {
                     let x0 = new_rect_xs.0;
                     new_rect_xs = (
-                        x0 + (start as f32) / (self.resolution.width as f32),
-                        x0 + ((start + len) as f32) / (self.resolution.width as f32),
+                        x0 + (start as f32) / self.resolution.width,
+                        x0 + ((start + len) as f32) / self.resolution.width,
                     )
                 }
             }
@@ -438,8 +438,8 @@ impl Ui {
                 LayoutMode::Fixed { start, len } => {
                     let y0 = new_rect_ys.0;
                     new_rect_ys = (
-                        y0 + (start as f32) / (self.resolution.height as f32),
-                        y0 + ((start + len) as f32) / (self.resolution.height as f32),
+                        y0 + (start as f32) / self.resolution.height,
+                        y0 + ((start + len) as f32) / self.resolution.height,
                     )
                 }
                 LayoutMode::ChildrenSum {} => todo!(),
@@ -452,9 +452,9 @@ impl Ui {
 
             if let Some(id) = current_node.text_id {
                 self.text_areas[id as usize].left =
-                    current_node.x0 * (self.resolution.width as f32);
+                    current_node.x0 * self.resolution.width;
                 self.text_areas[id as usize].top =
-                    (1.0 - current_node.y1) * (self.resolution.height as f32);
+                    (1.0 - current_node.y1) * self.resolution.height;
                 self.text_areas[id as usize].buffer.set_size(
                     &mut self.font_system,
                     100000.,
@@ -500,8 +500,8 @@ impl Ui {
             }
 
             let mouse_pos = (
-                self.mouse_pos.x / (self.resolution.width as f32),
-                1.0 - (self.mouse_pos.y / (self.resolution.height as f32)),
+                self.mouse_pos.x / self.resolution.width,
+                1.0 - (self.mouse_pos.y / self.resolution.height),
             );
             if node.x0 < mouse_pos.0
                 && mouse_pos.0 < node.x1
