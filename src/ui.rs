@@ -176,6 +176,8 @@ pub struct Ui {
     pub mouse_left_clicked: bool,
     pub mouse_left_just_clicked: bool,
     pub stack: Vec<Id>,
+
+    pub immediate_mode: bool,
 }
 impl Ui {
     pub fn new(device: &Device, config: &SurfaceConfiguration, queue: &Queue) -> Self {
@@ -314,6 +316,8 @@ impl Ui {
 
             // stack for traversing
             stack: Vec::new(),
+
+            immediate_mode: true,
         }
     }
 
@@ -343,34 +347,34 @@ impl Ui {
         self.div(key);
     }
 
-
+    pub const FLOATING_WINDOW: NodeKey = NodeKey {
+        id: Id(0),
+        static_text: None,
+        dyn_text: None,
+        clickable: true,
+        color: Color {
+            r: 0.7,
+            g: 0.0,
+            b: 0.0,
+            a: 0.2,
+        },
+        layout_x: LayoutMode::PercentOfParent {
+            start: 0.1,
+            end: 0.9,
+        },
+        layout_y: LayoutMode::PercentOfParent {
+            start: 0.1,
+            end: 0.9,
+        },
+        is_update: false,
+        is_layout_update: false,
+    };
     pub fn floating_window(&mut self, id: Id) {
-        let key = NodeKey {
-            id,
-            static_text: None,
-            dyn_text: None,
-            clickable: true,
-            color: Color {
-                r: 0.7,
-                g: 0.0,
-                b: 0.0,
-                a: 0.2,
-            },
-            layout_x: LayoutMode::PercentOfParent {
-                start: 0.1,
-                end: 0.9,
-            },
-            layout_y: LayoutMode::PercentOfParent {
-                start: 0.1,
-                end: 0.9,
-            },
-            is_update: false,
-            is_layout_update: false,
-        };
+        let key = Self::FLOATING_WINDOW.with_id(id);
         self.div(key);
     }
 
-
+    // todo: deduplicate with refresh (maybe)
     pub fn div(&mut self, node_key: NodeKey) {
         let parent_id = *self.parent_stack.last().unwrap();
 
@@ -596,7 +600,7 @@ impl Ui {
 
         let node = self.nodes.get(&button.id);
         if let Some(node) = node {
-            if node.last_frame_touched != self.current_frame {
+            if self.immediate_mode && (node.last_frame_touched != self.current_frame) {
                 return false;
             }
 
@@ -639,7 +643,7 @@ impl Ui {
         while let Some(current_node_id) = self.stack.pop() {
             let current_node = self.nodes.get_mut(&current_node_id).unwrap();
 
-            if current_node.last_frame_touched == self.current_frame {
+            if current_node.last_frame_touched == self.current_frame || self.immediate_mode == false {
                 self.rects.push(Rectangle {
                     x0: current_node.x0 * 2. - 1.,
                     x1: current_node.x1 * 2. - 1.,
@@ -686,16 +690,63 @@ impl Ui {
                 &mut self.text_areas,
                 &mut self.cache,
                 self.current_frame,
+                self.immediate_mode,
             )
             .unwrap();
 
         // self.ui.atlas.trim();
-        self.nodes
+
+        // the root isn't processed in the div! stuff because there's usually nothing to do with it (except this)
+        if self.immediate_mode {
+            self.nodes
             .get_mut(&NODE_ROOT_ID)
             .unwrap()
             .children_ids
             .clear();
+        }
     }
+
+    pub fn refresh(&mut self, node_key: NodeKey) {
+        
+        let node_key_id = node_key.id;
+        let old_node = self.nodes.get_mut(&node_key_id);
+        let old_node = old_node.unwrap();
+        let parent_id = old_node.parent_id;
+        if node_key.is_update || node_key.is_layout_update {
+            // instead of reinserting, could just handle all update possibilities by his own.
+            if let Some(text_id) = old_node.text_id {
+                let mut text: &str = "Remove this";
+
+                if let Some(ref dyn_text) = node_key.dyn_text {
+                    text = &dyn_text;
+                } else if let Some(static_text) = node_key.static_text {
+                    text = static_text;
+                }
+
+                self.text_areas[text_id as usize].buffer.set_text(
+                    &mut self.font_system,
+                    text,
+                    Attrs::new().family(Family::SansSerif),
+                    Shaping::Advanced,
+                );
+                self.text_areas[text_id as usize].last_frame_touched = self.current_frame;
+            }
+            let text_id = old_node.text_id;
+            let new_node = self.new_node(node_key, parent_id, text_id);
+
+            self.nodes.insert(node_key_id, new_node);
+        } else {
+            old_node.last_frame_touched = self.current_frame;
+            if let Some(text_id) = old_node.text_id {
+                self.text_areas[text_id as usize].last_frame_touched = self.current_frame;
+            }
+        }
+
+        self.layout();
+        self.build_buffers();
+    }
+
+
 }
 
 #[derive(Debug, Clone)]

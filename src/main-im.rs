@@ -21,8 +21,6 @@ use std::sync::Arc;
 fn main() {
     let (event_loop, mut state) = init();
 
-    state.init_ui();
-
     event_loop.run(
         move |event, target| {
             state.handle_event(&event, target);
@@ -87,9 +85,8 @@ impl<'window> State<'window> {
         }
     }
 
-    pub fn init_ui(&mut self) {
+    pub fn update(&mut self) {
         let ui = &mut self.ui;
-        ui.immediate_mode = false;
 
         floating_window!((ui) {
 
@@ -113,27 +110,22 @@ impl<'window> State<'window> {
         });
 
         self.ui.layout();
+        // self.resolve_input();
+
+        if self.ui.is_clicked(INCREASE_BUTTON) {
+            self.count += 1;
+        }
+
+        if self.ui.is_clicked(SHOW_COUNTER_BUTTON) {
+            self.counter_mode = !self.counter_mode;
+        }
+
         self.ui.build_buffers();
 
         self.render();
 
-    }
-
-    pub fn update(&mut self) {
-
-        // if self.ui.is_clicked(INCREASE_BUTTON) {
-        //     self.count += 1;
-        //     self.ui.refresh(COUNT_LABEL.with_text(self.count));
-        //     self.render();
-        // }
-
-        // if self.ui.is_clicked(SHOW_COUNTER_BUTTON) {
-        //     self.counter_mode = !self.counter_mode;
-        // }
-
-        // self.ui.current_frame += 1;
-        // self.ui.mouse_left_just_clicked = false;
-
+        self.ui.current_frame += 1;
+        self.ui.mouse_left_just_clicked = false;
     }
 
     pub fn render(&mut self) {
