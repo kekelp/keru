@@ -6,7 +6,7 @@ use helper::{
 };
 pub use ui::Id;
 
-use ui::{Color, LayoutMode, NodeKey, Ui};
+use ui::{Color, LayoutMode, NodeKey, NodeParams, Ui};
 use wgpu::{Device, Queue, Surface, SurfaceConfiguration, TextureFormat, TextureViewDescriptor};
 use winit::{
     dpi::PhysicalSize,
@@ -20,8 +20,6 @@ use std::sync::Arc;
 #[rustfmt::skip]
 fn main() {
     let (event_loop, mut state) = init();
-
-    state.init_ui();
 
     event_loop.run(
         move |event, target| {
@@ -87,53 +85,44 @@ impl<'window> State<'window> {
         }
     }
 
-    pub fn init_ui(&mut self) {
+    pub fn update(&mut self) {
         let ui = &mut self.ui;
-        ui.immediate_mode = false;
 
-        floating_window!((ui) {
+        floating_window!(ui, {
+            ui.add(COUNT_LABEL.with_text(self.count));
 
-            div!(ui, COUNT_LABEL.with_text(self.count));
-
-            column!((ui) {
-
+            column!(ui, {
                 let text = match self.counter_mode {
                     true => &"Hide counter",
                     false => &"Show counter",
                 };
-                div!(ui, SHOW_COUNTER_BUTTON.with_text(text));
+                ui.add(SHOW_COUNTER_BUTTON.with_text(text));
 
                 if self.counter_mode {
-                    let color = Color { r: 0.1 * (self.count as f32), g: 0.0, b: 0.0, a: 1.0 };
-                    div!(ui, INCREASE_BUTTON.with_color(color));
+                    let red = 0.1 * (self.count as f32);
+                    let color = Color::rgba(red, 0.0, 0.0, 1.0);
+                    ui.add(INCREASE_BUTTON.with_color(color));
                 }
-
             });
-
         });
 
         self.ui.layout();
+        // self.resolve_input();
+
+        if self.ui.is_clicked(INCREASE_BUTTON) {
+            self.count += 1;
+        }
+
+        if self.ui.is_clicked(SHOW_COUNTER_BUTTON) {
+            self.counter_mode = !self.counter_mode;
+        }
+
         self.ui.build_buffers();
 
         self.render();
 
-    }
-
-    pub fn update(&mut self) {
-
-        // if self.ui.is_clicked(INCREASE_BUTTON) {
-        //     self.count += 1;
-        //     self.ui.refresh(COUNT_LABEL.with_text(self.count));
-        //     self.render();
-        // }
-
-        // if self.ui.is_clicked(SHOW_COUNTER_BUTTON) {
-        //     self.counter_mode = !self.counter_mode;
-        // }
-
-        // self.ui.current_frame += 1;
-        // self.ui.mouse_left_just_clicked = false;
-
+        self.ui.current_frame += 1;
+        self.ui.mouse_left_just_clicked = false;
     }
 
     pub fn render(&mut self) {
@@ -164,50 +153,26 @@ impl<'window> State<'window> {
     }
 }
 
+pub const INCREASE_BUTTON: NodeKey = NodeKey::defaults(NodeParams::BUTTON, id!())
+    .with_default_static_text("Increase")
+    .with_default_color(Color::BLUE);
 
+pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey::defaults(
+    NodeParams {
+        static_text: Some("Show Counter"),
+        dyn_text: None,
+        clickable: false,
+        color: Color::rgba(1.0, 0.3, 0.2, 0.6),
+        layout_x: LayoutMode::PercentOfParent {
+            start: 0.1,
+            end: 0.9,
+        },
+        layout_y: LayoutMode::Fixed {
+            start: 400,
+            len: 100,
+        },
+    },
+    id!(),
+);
 
-
-pub const INCREASE_BUTTON: NodeKey = NodeKey::button()
-    .with_static_text("Increase")
-    .with_color(Color {
-        r: 0.6,
-        g: 0.3,
-        b: 0.6,
-        a: 0.6,
-    })
-    .with_layout_x(LayoutMode::PercentOfParent {
-        start: 0.1,
-        end: 0.9,
-    })
-    .with_layout_y(LayoutMode::Fixed {
-        start: 400,
-        len: 100,
-    })
-    .with_id(id!());
-
-pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey::button()
-    .with_static_text("Increase")
-    .with_color(Color {
-        r: 0.6,
-        g: 0.3,
-        b: 0.6,
-        a: 0.6,
-    })
-    .with_layout_x(LayoutMode::PercentOfParent {
-        start: 0.1,
-        end: 0.9,
-    })
-    .with_layout_y(LayoutMode::Fixed {
-        start: 100,
-        len: 100,
-    })
-    .with_id(id!());
-
-pub const COUNT_LABEL: NodeKey = NodeKey::button()
-    .with_color(Color {
-        r: 0.1,
-        g: 0.3,
-        b: 0.9,
-        a: 0.6,
-    })
-    .with_id(id!());
+pub const COUNT_LABEL: NodeKey = NodeKey::defaults(NodeParams::LABEL, id!());

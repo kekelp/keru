@@ -1,7 +1,8 @@
 use glyphon::Resolution as GlyphonResolution;
+
 use std::{collections::HashMap, marker::PhantomData, mem};
 
-use crate::{id, HEIGHT, SWAPCHAIN_FORMAT, WIDTH};
+use crate::{HEIGHT, SWAPCHAIN_FORMAT, WIDTH};
 
 use bytemuck::{Pod, Zeroable};
 use glyphon::{
@@ -24,99 +25,189 @@ pub struct Id(pub u64);
 pub const NODE_ROOT_ID: Id = Id(0);
 
 #[derive(Debug, Clone)]
-pub struct NodeKey {
-    // stuff like layout params, how it reacts to clicks, etc
-    pub id: Id,
+pub struct NodeParams {
     pub static_text: Option<&'static str>,
     pub dyn_text: Option<String>,
     pub clickable: bool,
     pub color: Color,
     pub layout_x: LayoutMode,
     pub layout_y: LayoutMode,
+}
+
+impl Default for NodeParams {
+    fn default() -> Self {
+        Self {
+            static_text: None,
+            dyn_text: None,
+            clickable: false,
+            color: Color::BLUE,
+            layout_x: Default::default(),
+            layout_y: Default::default(),
+        }
+    }
+}
+
+impl NodeParams {
+    pub const COLUMN: Self = Self {
+        static_text: None,
+        dyn_text: None,
+        clickable: true,
+        color: Color {
+            r: 0.0,
+            g: 0.2,
+            b: 0.7,
+            a: 0.2,
+        },
+        layout_x: LayoutMode::PercentOfParent {
+            start: 0.7,
+            end: 0.9,
+        },
+        layout_y: LayoutMode::PercentOfParent {
+            start: 0.0,
+            end: 1.0,
+        },
+    };
+    pub const FLOATING_WINDOW: Self = Self {
+        static_text: None,
+        dyn_text: None,
+        clickable: true,
+        color: Color {
+            r: 0.7,
+            g: 0.0,
+            b: 0.0,
+            a: 0.2,
+        },
+        layout_x: LayoutMode::PercentOfParent {
+            start: 0.1,
+            end: 0.9,
+        },
+        layout_y: LayoutMode::PercentOfParent {
+            start: 0.1,
+            end: 0.9,
+        },
+    };
+
+    pub const BUTTON: Self = Self {
+        static_text: None,
+        dyn_text: None,
+        clickable: true,
+        color: Color {
+            r: 0.0,
+            g: 0.1,
+            b: 0.1,
+            a: 0.9,
+        },
+        layout_x: LayoutMode::Fixed {
+            start: 100,
+            len: 100,
+        },
+        layout_y: LayoutMode::Fixed {
+            start: 100,
+            len: 100,
+        },
+    };
+
+    pub const LABEL: Self = Self {
+        static_text: None,
+        dyn_text: None,
+        clickable: true,
+        color: Color {
+            r: 0.0,
+            g: 0.1,
+            b: 0.1,
+            a: 0.9,
+        },
+        layout_x: LayoutMode::Fixed {
+            start: 100,
+            len: 100,
+        },
+        layout_y: LayoutMode::Fixed {
+            start: 100,
+            len: 100,
+        },
+    };
+}
+
+#[derive(Debug, Clone)]
+pub struct NodeKey {
+    // stuff like layout params, how it reacts to clicks, etc
+    pub id: Id,
+    pub params: NodeParams,
     pub is_update: bool,
     pub is_layout_update: bool,
 }
+
 impl NodeKey {
-    pub const fn button() -> NodeKey {
-        return NodeKey {
-            id: id!(),
-            static_text: None,
-            dyn_text: None,
-            clickable: true,
-            color: Color {
-                r: 0.0,
-                g: 0.1,
-                b: 0.1,
-                a: 0.9,
-            },
-            layout_x: LayoutMode::Fixed {
-                start: 100,
-                len: 100,
-            },
-            layout_y: LayoutMode::Fixed {
-                start: 100,
-                len: 100,
-            },
-            is_update: false,
+    pub const fn defaults(params: NodeParams, id: Id) -> Self {
+        return Self {
+            params,
+            id,
             is_layout_update: false,
-        };
-    }
-    pub const fn label() -> NodeKey {
-        return NodeKey {
-            id: id!(),
-            static_text: None,
-            dyn_text: None,
-            clickable: true,
-            color: Color {
-                r: 0.0,
-                g: 0.1,
-                b: 0.1,
-                a: 0.9,
-            },
-            layout_x: LayoutMode::Fixed {
-                start: 100,
-                len: 100,
-            },
-            layout_y: LayoutMode::Fixed {
-                start: 100,
-                len: 100,
-            },
             is_update: false,
-            is_layout_update: false,
         };
     }
 
-    pub const fn with_id(mut self, id: Id) -> Self {
+    pub fn with_id(mut self, id: Id) -> Self {
         self.id = id;
         return self;
     }
-    pub const fn with_static_text(mut self, text: &'static str) -> Self {
-        self.static_text = Some(text);
+
+    pub fn with_static_text(mut self, text: &'static str) -> Self {
+        self.params.static_text = Some(text);
         self.is_update = true;
         return self;
     }
-    pub const fn with_layout_x(mut self, layout: LayoutMode) -> Self {
-        self.layout_x = layout;
+    pub const fn with_default_static_text(mut self, text: &'static str) -> Self {
+        self.params.static_text = Some(text);
         self.is_update = true;
         return self;
     }
-    pub const fn with_layout_y(mut self, layout: LayoutMode) -> Self {
-        self.layout_y = layout;
+
+    pub fn with_layout_x(mut self, layout: LayoutMode) -> Self {
+        self.params.layout_x = layout;
         self.is_update = true;
         return self;
     }
-    pub const fn with_color(mut self, color: Color) -> Self {
-        self.color = color;
+    pub const fn with_default_layout_x(mut self, layout: LayoutMode) -> Self {
+        self.params.layout_x = layout;
         self.is_update = true;
         return self;
     }
+
+    pub fn with_layout_y(mut self, layout: LayoutMode) -> Self {
+        self.params.layout_y = layout;
+        self.is_update = true;
+        return self;
+    }
+    pub const fn with_default_layout_y(mut self, layout: LayoutMode) -> Self {
+        self.params.layout_y = layout;
+        self.is_update = true;
+        return self;
+    }
+
+    pub fn with_color(mut self, color: Color) -> Self {
+        self.params.color = color;
+        self.is_update = true;
+        return self;
+    }
+    pub const fn with_default_color(mut self, color: Color) -> Self {
+        self.params.color = color;
+        self.is_update = true;
+        return self;
+    }
+
     pub fn with_text(mut self, text: impl ToString) -> Self {
         // todo: could keep a hash of the last to_string value and compare it, so you could skip an allocation if it's the same.
         // it's pretty cringe to allocate the string every frame for no reason.
-        self.dyn_text = Some(text.to_string());
+        self.params.dyn_text = Some(text.to_string());
         self.is_update = true;
+
         return self;
     }
+    // pub const fn with_default_text(mut self, text: impl ToString) -> Self {
+    //     self.params.dyn_text = Some(text.to_string());
+    //     return self;
+    // }
 }
 
 #[derive(Default, Debug, Pod, Copy, Clone, Zeroable)]
@@ -149,6 +240,26 @@ pub struct Color {
     pub g: f32,
     pub b: f32,
     pub a: f32,
+}
+
+impl Color {
+    pub const BLACK: Self = Self {
+        r: 0.6,
+        g: 0.3,
+        b: 0.6,
+        a: 0.6,
+    };
+
+    pub const BLUE: Self = Self {
+        r: 0.6,
+        g: 0.3,
+        b: 1.0,
+        a: 0.6,
+    };
+
+    pub const fn rgba(r: f32, g: f32, b: f32, a: f32) -> Self {
+        Self { r, g, b, a }
+    }
 }
 
 pub struct Ui {
@@ -322,73 +433,31 @@ impl Ui {
     }
 
     pub fn column(&mut self, id: Id) {
-        let key = NodeKey {
-            id,
-            static_text: None,
-            dyn_text: None,
-            clickable: true,
-            color: Color {
-                r: 0.0,
-                g: 0.2,
-                b: 0.7,
-                a: 0.2,
-            },
-            layout_x: LayoutMode::PercentOfParent {
-                start: 0.7,
-                end: 0.9,
-            },
-            layout_y: LayoutMode::PercentOfParent {
-                start: 0.0,
-                end: 1.0,
-            },
-            is_update: false,
-            is_layout_update: false,
-        };
-        self.div(key);
+        let key = NodeKey::defaults(NodeParams::COLUMN, id);
+        self.add(key);
     }
 
-    pub const FLOATING_WINDOW: NodeKey = NodeKey {
-        id: Id(0),
-        static_text: None,
-        dyn_text: None,
-        clickable: true,
-        color: Color {
-            r: 0.7,
-            g: 0.0,
-            b: 0.0,
-            a: 0.2,
-        },
-        layout_x: LayoutMode::PercentOfParent {
-            start: 0.1,
-            end: 0.9,
-        },
-        layout_y: LayoutMode::PercentOfParent {
-            start: 0.1,
-            end: 0.9,
-        },
-        is_update: false,
-        is_layout_update: false,
-    };
     pub fn floating_window(&mut self, id: Id) {
-        let key = Self::FLOATING_WINDOW.with_id(id);
-        self.div(key);
+        let key = NodeKey::defaults(NodeParams::FLOATING_WINDOW, id);
+        self.add(key);
     }
 
     // todo: deduplicate with refresh (maybe)
-    pub fn div(&mut self, node_key: NodeKey) {
+    pub fn add(&mut self, node_key: NodeKey) {
         let parent_id = *self.parent_stack.last().unwrap();
 
         let node_key_id = node_key.id;
         let old_node = self.nodes.get_mut(&node_key_id);
         if old_node.is_none() {
-            let has_text = node_key.static_text.is_some() || node_key.dyn_text.is_some();
+            let has_text =
+                node_key.params.static_text.is_some() || node_key.params.dyn_text.is_some();
             let mut text_id = None;
             if has_text {
                 let mut text: &str = "Remove this";
 
-                if let Some(ref dyn_text) = node_key.dyn_text {
+                if let Some(ref dyn_text) = node_key.params.dyn_text {
                     text = &dyn_text;
-                } else if let Some(static_text) = node_key.static_text {
+                } else if let Some(static_text) = node_key.params.static_text {
                     text = static_text;
                 }
 
@@ -428,9 +497,9 @@ impl Ui {
             if let Some(text_id) = old_node.text_id {
                 let mut text: &str = "Remove this";
 
-                if let Some(ref dyn_text) = node_key.dyn_text {
+                if let Some(ref dyn_text) = node_key.params.dyn_text {
                     text = &dyn_text;
-                } else if let Some(static_text) = node_key.static_text {
+                } else if let Some(static_text) = node_key.params.static_text {
                     text = static_text;
                 }
 
@@ -521,7 +590,7 @@ impl Ui {
             let mut new_rect_xs = last_rect_xs;
             let mut new_rect_ys = last_rect_ys;
 
-            match current_node.key.layout_x {
+            match current_node.key.params.layout_x {
                 LayoutMode::PercentOfParent { start, end } => {
                     let len = new_rect_xs.1 - new_rect_xs.0;
                     let x0 = new_rect_xs.0;
@@ -536,7 +605,7 @@ impl Ui {
                     )
                 }
             }
-            match current_node.key.layout_y {
+            match current_node.key.params.layout_y {
                 LayoutMode::PercentOfParent { start, end } => {
                     let len = new_rect_ys.1 - new_rect_ys.0;
                     let y0 = new_rect_ys.0;
@@ -643,16 +712,17 @@ impl Ui {
         while let Some(current_node_id) = self.stack.pop() {
             let current_node = self.nodes.get_mut(&current_node_id).unwrap();
 
-            if current_node.last_frame_touched == self.current_frame || self.immediate_mode == false {
+            if current_node.last_frame_touched == self.current_frame || self.immediate_mode == false
+            {
                 self.rects.push(Rectangle {
                     x0: current_node.x0 * 2. - 1.,
                     x1: current_node.x1 * 2. - 1.,
                     y0: current_node.y0 * 2. - 1.,
                     y1: current_node.y1 * 2. - 1.,
-                    r: current_node.key.color.r,
-                    g: current_node.key.color.g,
-                    b: current_node.key.color.b,
-                    a: current_node.key.color.a,
+                    r: current_node.key.params.color.r,
+                    g: current_node.key.params.color.g,
+                    b: current_node.key.params.color.b,
+                    a: current_node.key.params.color.a,
                 });
             }
 
@@ -699,15 +769,14 @@ impl Ui {
         // the root isn't processed in the div! stuff because there's usually nothing to do with it (except this)
         if self.immediate_mode {
             self.nodes
-            .get_mut(&NODE_ROOT_ID)
-            .unwrap()
-            .children_ids
-            .clear();
+                .get_mut(&NODE_ROOT_ID)
+                .unwrap()
+                .children_ids
+                .clear();
         }
     }
 
     pub fn refresh(&mut self, node_key: NodeKey) {
-        
         let node_key_id = node_key.id;
         let old_node = self.nodes.get_mut(&node_key_id);
         let old_node = old_node.unwrap();
@@ -717,9 +786,9 @@ impl Ui {
             if let Some(text_id) = old_node.text_id {
                 let mut text: &str = "Remove this";
 
-                if let Some(ref dyn_text) = node_key.dyn_text {
+                if let Some(ref dyn_text) = node_key.params.dyn_text {
                     text = &dyn_text;
-                } else if let Some(static_text) = node_key.static_text {
+                } else if let Some(static_text) = node_key.params.static_text {
                     text = static_text;
                 }
 
@@ -745,8 +814,6 @@ impl Ui {
         self.layout();
         self.build_buffers();
     }
-
-
 }
 
 #[derive(Debug, Clone)]
@@ -771,25 +838,35 @@ pub enum LayoutMode {
     Fixed { start: u32, len: u32 },
     ChildrenSum {},
 }
+impl Default for LayoutMode {
+    fn default() -> Self {
+        Self::PercentOfParent {
+            start: 0.2,
+            end: 0.8,
+        }
+    }
+}
 
 pub const NODE_ROOT_KEY: NodeKey = NodeKey {
     id: NODE_ROOT_ID,
-    static_text: None,
-    dyn_text: None,
-    clickable: false,
-    color: Color {
-        r: 1.0,
-        g: 1.0,
-        b: 1.0,
-        a: 0.0,
-    },
-    layout_x: LayoutMode::PercentOfParent {
-        start: 0.0,
-        end: 1.0,
-    },
-    layout_y: LayoutMode::PercentOfParent {
-        start: 0.0,
-        end: 1.0,
+    params: NodeParams {
+        static_text: None,
+        dyn_text: None,
+        clickable: false,
+        color: Color {
+            r: 1.0,
+            g: 1.0,
+            b: 1.0,
+            a: 0.0,
+        },
+        layout_x: LayoutMode::PercentOfParent {
+            start: 0.0,
+            end: 1.0,
+        },
+        layout_y: LayoutMode::PercentOfParent {
+            start: 0.0,
+            end: 1.0,
+        },
     },
     is_update: false,
     is_layout_update: false,
@@ -839,11 +916,8 @@ impl<T: Pod> TypedGpuBuffer<T> {
 }
 
 // these have to be macros only because of the deferred pop().
-// todo: pass "ui" or something instead of self.
-
 #[macro_export]
 macro_rules! div {
-    // non-leaf, has to manage the stack and pop() after the code
     (($ui:expr, $node_key:expr) $code:block) => {
         $ui.div($node_key);
 
@@ -851,15 +925,11 @@ macro_rules! div {
         $code;
         $ui.parent_stack.pop();
     };
-    // leaf. doesn't need to touch the stack. doesn't actually need to be a macro except for symmetry.
-    ($ui:expr, $node_key:expr) => {
-        $ui.div($node_key);
-    };
 }
 
 #[macro_export]
 macro_rules! column {
-    (($ui:expr) $code:block) => {
+    ($ui:expr, $code:block) => {
         let anonymous_id = id!();
         $ui.column(anonymous_id);
 
@@ -871,7 +941,7 @@ macro_rules! column {
 
 #[macro_export]
 macro_rules! floating_window {
-    (($ui:expr) $code:block) => {
+    ($ui:expr, $code:block) => {
         let anonymous_id = id!();
         $ui.floating_window(anonymous_id);
 
