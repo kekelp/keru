@@ -160,7 +160,7 @@ impl NodeKey {
         return self;
     }
     // todo: these duplicate functions are actually quite useless, because most of the time the user will use a with_x call even for the default value. And even when it's not the default, it's normal for the value to be the same for many consecutive frames.
-    // options: either remove it and write some kind of hash based 
+    // options: either remove it and write some kind of hash based
     pub const fn with_default_static_text(mut self, text: &'static str) -> Self {
         self.params.static_text = Some(text);
         self.is_update = true;
@@ -878,11 +878,50 @@ pub const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     },
 };
 
+// todo: change
+// copied from stackoverflow: https://stackoverflow.com/questions/71463576/
+pub const fn callsite_hash(
+    module_path: &'static str,
+    filename: &'static str,
+    line: u32,
+    column: u32,
+) -> u64 {
+    let mut hash = 0xcbf29ce484222325;
+    let prime = 0x00000100000001B3;
+
+    let mut i = 0;
+
+    let mut bytes = module_path.as_bytes();
+    while i < bytes.len() {
+        hash ^= bytes[i] as u64;
+        hash = hash.wrapping_mul(prime);
+        i += 1;
+    }
+
+    bytes = filename.as_bytes();
+    i = 0;
+    while i < bytes.len() {
+        hash ^= bytes[i] as u64;
+        hash = hash.wrapping_mul(prime);
+        i += 1;
+    }
+
+    hash ^= line as u64;
+    hash = hash.wrapping_mul(prime);
+    hash ^= column as u64;
+    hash = hash.wrapping_mul(prime);
+    return hash;
+}
+
 #[macro_export]
 macro_rules! new_id {
     () => {{
-        // todo: this is trash, I think.
-        $crate::ui::Id((std::line!() as u64) << 32 | (std::column!() as u64))
+        $crate::Id($crate::ui::callsite_hash(
+            std::module_path!(),
+            std::file!(),
+            std::line!(),
+            std::column!(),
+        ))
     }};
 }
 

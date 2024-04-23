@@ -14,4 +14,5 @@ lazy_static = "1.4.0"
 smart-default = "0.7.1"
 
 [lints.clippy]
-needless_return = {level = "allow"}
+needless_return = { level = "allow" } 
+bool_comparison = { level = "allow" }
