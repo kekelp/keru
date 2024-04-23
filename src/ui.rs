@@ -21,7 +21,8 @@ use winit::{
 };
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-pub struct Id(pub u64);
+pub struct Id(pub(crate) u64);
+
 pub const NODE_ROOT_ID: Id = Id(0);
 
 #[derive(Debug, Clone)]
@@ -128,17 +129,18 @@ impl NodeParams {
     };
 }
 
-#[derive(Debug, Clone)]
+// NodeKey intentionally does not implement Clone, so that it's harder for the user to accidentally have duplicated Ids.
+#[derive(Debug)]
 pub struct NodeKey {
     // stuff like layout params, how it reacts to clicks, etc
-    pub id: Id,
-    pub params: NodeParams,
-    pub is_update: bool,
-    pub is_layout_update: bool,
+    id: Id,
+    params: NodeParams,
+    is_update: bool,
+    is_layout_update: bool,
 }
 
 impl NodeKey {
-    pub const fn defaults(params: NodeParams, id: Id) -> Self {
+    pub const fn new(params: NodeParams, id: Id) -> Self {
         return Self {
             params,
             id,
@@ -157,6 +159,8 @@ impl NodeKey {
         self.is_update = true;
         return self;
     }
+    // todo: these duplicate functions are actually quite useless, because most of the time the user will use a with_x call even for the default value. And even when it's not the default, it's normal for the value to be the same for many consecutive frames.
+    // options: either remove it and write some kind of hash based 
     pub const fn with_default_static_text(mut self, text: &'static str) -> Self {
         self.params.static_text = Some(text);
         self.is_update = true;
@@ -393,7 +397,7 @@ impl Ui {
                 text_id: None,
                 parent_id: NODE_ROOT_ID,
                 children_ids: Vec::new(),
-                key: NODE_ROOT_KEY,
+                params: NODE_ROOT_PARAMS,
                 last_frame_touched: 0,
             },
         );
@@ -433,12 +437,12 @@ impl Ui {
     }
 
     pub fn column(&mut self, id: Id) {
-        let key = NodeKey::defaults(NodeParams::COLUMN, id);
+        let key = NodeKey::new(NodeParams::COLUMN, id);
         self.add(key);
     }
 
     pub fn floating_window(&mut self, id: Id) {
-        let key = NodeKey::defaults(NodeParams::FLOATING_WINDOW, id);
+        let key = NodeKey::new(NodeParams::FLOATING_WINDOW, id);
         self.add(key);
     }
 
@@ -540,7 +544,7 @@ impl Ui {
             text_id,
             parent_id,
             children_ids: Vec::new(),
-            key: node_key,
+            params: node_key.params,
             last_frame_touched: self.current_frame,
         }
     }
@@ -590,7 +594,7 @@ impl Ui {
             let mut new_rect_xs = last_rect_xs;
             let mut new_rect_ys = last_rect_ys;
 
-            match current_node.key.params.layout_x {
+            match current_node.params.layout_x {
                 LayoutMode::PercentOfParent { start, end } => {
                     let len = new_rect_xs.1 - new_rect_xs.0;
                     let x0 = new_rect_xs.0;
@@ -605,7 +609,7 @@ impl Ui {
                     )
                 }
             }
-            match current_node.key.params.layout_y {
+            match current_node.params.layout_y {
                 LayoutMode::PercentOfParent { start, end } => {
                     let len = new_rect_ys.1 - new_rect_ys.0;
                     let y0 = new_rect_ys.0;
@@ -719,10 +723,10 @@ impl Ui {
                     x1: current_node.x1 * 2. - 1.,
                     y0: current_node.y0 * 2. - 1.,
                     y1: current_node.y1 * 2. - 1.,
-                    r: current_node.key.params.color.r,
-                    g: current_node.key.params.color.g,
-                    b: current_node.key.params.color.b,
-                    a: current_node.key.params.color.a,
+                    r: current_node.params.color.r,
+                    g: current_node.params.color.g,
+                    b: current_node.params.color.b,
+                    a: current_node.params.color.a,
                 });
             }
 
@@ -829,7 +833,7 @@ pub struct Node {
     pub parent_id: Id,
     // todo: maybe switch with that prev/next thing
     pub children_ids: Vec<Id>,
-    pub key: NodeKey,
+    pub params: NodeParams,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -849,31 +853,33 @@ impl Default for LayoutMode {
 
 pub const NODE_ROOT_KEY: NodeKey = NodeKey {
     id: NODE_ROOT_ID,
-    params: NodeParams {
-        static_text: None,
-        dyn_text: None,
-        clickable: false,
-        color: Color {
-            r: 1.0,
-            g: 1.0,
-            b: 1.0,
-            a: 0.0,
-        },
-        layout_x: LayoutMode::PercentOfParent {
-            start: 0.0,
-            end: 1.0,
-        },
-        layout_y: LayoutMode::PercentOfParent {
-            start: 0.0,
-            end: 1.0,
-        },
-    },
+    params: NODE_ROOT_PARAMS,
     is_update: false,
     is_layout_update: false,
 };
 
+pub const NODE_ROOT_PARAMS: NodeParams = NodeParams {
+    static_text: None,
+    dyn_text: None,
+    clickable: false,
+    color: Color {
+        r: 1.0,
+        g: 1.0,
+        b: 1.0,
+        a: 0.0,
+    },
+    layout_x: LayoutMode::PercentOfParent {
+        start: 0.0,
+        end: 1.0,
+    },
+    layout_y: LayoutMode::PercentOfParent {
+        start: 0.0,
+        end: 1.0,
+    },
+};
+
 #[macro_export]
-macro_rules! id {
+macro_rules! new_id {
     () => {{
         // todo: this is trash, I think.
         $crate::ui::Id((std::line!() as u64) << 32 | (std::column!() as u64))
@@ -930,7 +936,7 @@ macro_rules! div {
 #[macro_export]
 macro_rules! column {
     ($ui:expr, $code:block) => {
-        let anonymous_id = id!();
+        let anonymous_id = new_id!();
         $ui.column(anonymous_id);
 
         $ui.parent_stack.push(anonymous_id);
@@ -942,7 +948,7 @@ macro_rules! column {
 #[macro_export]
 macro_rules! floating_window {
     ($ui:expr, $code:block) => {
-        let anonymous_id = id!();
+        let anonymous_id = new_id!();
         $ui.floating_window(anonymous_id);
 
         $ui.parent_stack.push(anonymous_id);

@@ -153,11 +153,11 @@ impl<'window> State<'window> {
     }
 }
 
-pub const INCREASE_BUTTON: NodeKey = NodeKey::defaults(NodeParams::BUTTON, id!())
+pub const INCREASE_BUTTON: NodeKey = NodeKey::new(NodeParams::BUTTON, new_id!())
     .with_default_static_text("Increase")
     .with_default_color(Color::BLUE);
 
-pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey::defaults(
+pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey::new(
     NodeParams {
         static_text: Some("Show Counter"),
         dyn_text: None,
@@ -172,7 +172,7 @@ pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey::defaults(
             len: 100,
         },
     },
-    id!(),
+    new_id!(),
 );
 
-pub const COUNT_LABEL: NodeKey = NodeKey::defaults(NodeParams::LABEL, id!());
+pub const COUNT_LABEL: NodeKey = NodeKey::new(NodeParams::LABEL, new_id!());
