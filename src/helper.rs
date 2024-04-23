@@ -1,18 +1,13 @@
 use std::sync::Arc;
 
 use wgpu::{
-    CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance,
-    InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue, RenderPassColorAttachment,
-    RenderPassDescriptor, RequestAdapterOptions, SurfaceConfiguration, TextureUsages,
-    TextureView,
+    CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance, InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue, RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, SurfaceConfiguration, TextureFormat, TextureUsages, TextureView
 };
 use winit::{
     dpi::LogicalSize,
     event_loop::EventLoop,
     window::{Window, WindowBuilder},
 };
-
-use crate::SWAPCHAIN_FORMAT;
 
 pub fn init_winit_window(width: f64, height: f64) -> (EventLoop<()>, Arc<Window>) {
     let event_loop = EventLoop::new().unwrap();
@@ -43,10 +38,10 @@ pub fn init_wgpu() -> (Instance, Device, Queue) {
     return (instance, device, queue);
 }
 
-pub fn base_surface_config(width: u32, height: u32) -> SurfaceConfiguration {
+pub fn base_surface_config(width: u32, height: u32, format: TextureFormat) -> SurfaceConfiguration {
     return SurfaceConfiguration {
         usage: TextureUsages::RENDER_ATTACHMENT,
-        format: SWAPCHAIN_FORMAT,
+        format,
         width,
         height,
         present_mode: PresentMode::Fifo,

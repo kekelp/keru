@@ -2,8 +2,6 @@ use glyphon::Resolution as GlyphonResolution;
 
 use std::{collections::HashMap, marker::PhantomData, mem};
 
-use crate::{HEIGHT, SWAPCHAIN_FORMAT, WIDTH};
-
 use bytemuck::{Pod, Zeroable};
 use glyphon::{
     Attrs, Buffer, Color as GlyphonColor, Family, FontSystem, Metrics, Shaping, SwashCache,
@@ -21,7 +19,7 @@ use winit::{
 };
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-pub struct Id(pub(crate) u64);
+pub struct Id(pub u64);
 
 pub const NODE_ROOT_ID: Id = Id(0);
 
@@ -129,7 +127,7 @@ impl NodeParams {
     };
 }
 
-// NodeKey intentionally does not implement Clone, so that it's harder for the user to accidentally have duplicated Ids.
+// NodeKey intentionally does not implement Clone, so that it's harder for the user to accidentally use duplicated Ids for different nodes.
 #[derive(Debug)]
 pub struct NodeKey {
     // stuff like layout params, how it reacts to clicks, etc
@@ -310,8 +308,8 @@ impl Ui {
         };
 
         let resolution = Resolution {
-            width: WIDTH as f32,
-            height: HEIGHT as f32,
+            width: config.width as f32,
+            height: config.height as f32,
         };
         let resolution_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Resolution Uniform Buffer"),
@@ -379,7 +377,7 @@ impl Ui {
 
         let font_system = FontSystem::new();
         let cache = SwashCache::new();
-        let mut atlas = TextAtlas::new(device, queue, SWAPCHAIN_FORMAT);
+        let mut atlas = TextAtlas::new(device, queue, config.format);
         let text_renderer =
             TextRenderer::new(&mut atlas, device, MultisampleState::default(), None);
 
@@ -419,8 +417,8 @@ impl Ui {
             bind_group,
 
             resolution: Resolution {
-                width: WIDTH as f32,
-                height: HEIGHT as f32,
+                width: config.width as f32,
+                height: config.height as f32,
             },
             parent_stack,
             current_frame: 0,

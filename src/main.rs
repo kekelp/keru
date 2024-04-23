@@ -17,27 +17,27 @@ use winit::{
 
 use std::sync::Arc;
 
-#[rustfmt::skip]
 fn main() {
     let (event_loop, mut state) = init();
 
-    event_loop.run(
-        move |event, target| {
+    event_loop
+        .run(move |event, target| {
             state.handle_event(&event, target);
-        }
-    ).unwrap();
+        })
+        .unwrap();
 }
 
-pub const WIDTH: u32 = 1200;
-pub const HEIGHT: u32 = 800;
+pub const BASE_WIDTH: u32 = 1200;
+pub const BASE_HEIGHT: u32 = 800;
 pub const SWAPCHAIN_FORMAT: TextureFormat = TextureFormat::Bgra8UnormSrgb;
 
 fn init() -> (EventLoop<()>, State<'static>) {
-    let (event_loop, window) = init_winit_window(WIDTH as f64, HEIGHT as f64);
+    let (event_loop, window) = init_winit_window(BASE_WIDTH as f64, BASE_HEIGHT as f64);
     let (instance, device, queue) = init_wgpu();
 
     let surface = instance.create_surface(window.clone()).unwrap();
-    let config = base_surface_config(WIDTH, HEIGHT);
+    let size = window.inner_size();
+    let config = base_surface_config(size.width, size.height, SWAPCHAIN_FORMAT);
     surface.configure(&device, &config);
 
     let ui = Ui::new(&device, &config, &queue);
