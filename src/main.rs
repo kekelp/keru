@@ -72,17 +72,18 @@ pub struct State<'window> {
 impl<'window> State<'window> {
     pub fn handle_event(&mut self, event: &Event<()>, target: &EventLoopWindowTarget<()>) {
         self.ui.handle_input_events(event);
-        if let Event::WindowEvent { event, .. } = event {
-            match event {
-                WindowEvent::Resized(size) => self.resize(size),
-                WindowEvent::RedrawRequested => {
-                    self.update();
-                    self.window.request_redraw();
-                }
-                WindowEvent::CloseRequested => target.exit(),
-                _ => {}
-            }
+        match event {
+            Event::WindowEvent { event: WindowEvent::Resized(size) , ..} => self.resize(size),
+            Event::WindowEvent { event: WindowEvent::RedrawRequested , ..} => {
+                self.update();
+            },
+            Event::AboutToWait => {
+                self.window.request_redraw();
+            },
+            Event::WindowEvent { event: WindowEvent::CloseRequested , ..} => target.exit(),
+            _ => {}
         }
+    
     }
 
     pub fn update(&mut self) {
@@ -96,12 +97,17 @@ impl<'window> State<'window> {
                     true => &"Hide counter",
                     false => &"Show counter",
                 };
-                ui.add(SHOW_COUNTER_BUTTON.with_text(text));
+                // ui.add(SHOW_COUNTER_BUTTON.with_text(text));
+                add!(ui, SHOW_COUNTER_BUTTON.with_text(text));
 
                 if self.counter_mode {
                     let red = 0.1 * (self.count as f32);
                     let color = Color::rgba(red, 0.0, 0.0, 1.0);
                     ui.add(INCREASE_BUTTON.with_color(color));
+
+                    column!(ui, {
+                        ui.add(INCREASE_BUTTON.sibling(2).with_color(color));
+                    });
                 }
             });
         });
@@ -110,6 +116,9 @@ impl<'window> State<'window> {
         // self.resolve_input();
 
         if self.ui.is_clicked(INCREASE_BUTTON) {
+            self.count += 1;
+        }
+        if self.ui.is_clicked(INCREASE_BUTTON.sibling(2)) {
             self.count += 1;
         }
 

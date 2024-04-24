@@ -173,6 +173,7 @@ dependencies = [
  "glyphon",
  "lazy_static",
  "pollster",
+ "rustc-hash",
  "smart-default",
  "wgpu",
  "winit",

@@ -1,6 +1,7 @@
 use glyphon::Resolution as GlyphonResolution;
+use rustc_hash::{FxHashMap, FxHasher};
 
-use std::{collections::HashMap, marker::PhantomData, mem};
+use std::{marker::PhantomData, mem, hash::Hasher};
 
 use bytemuck::{Pod, Zeroable};
 use glyphon::{
@@ -19,7 +20,7 @@ use winit::{
 };
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-pub struct Id(pub u64);
+pub struct Id(pub(crate) u64);
 
 pub const NODE_ROOT_ID: Id = Id(0);
 
@@ -128,6 +129,7 @@ impl NodeParams {
 }
 
 // NodeKey intentionally does not implement Clone, so that it's harder for the user to accidentally use duplicated Ids for different nodes.
+// it's still too easy to clone an Id, but taking Clone out from that seems too annoying for now.
 #[derive(Debug)]
 pub struct NodeKey {
     // stuff like layout params, how it reacts to clicks, etc
@@ -137,6 +139,7 @@ pub struct NodeKey {
     is_layout_update: bool,
 }
 
+use std::hash::Hash;
 impl NodeKey {
     pub const fn new(params: NodeParams, id: Id) -> Self {
         return Self {
@@ -152,13 +155,31 @@ impl NodeKey {
         return self;
     }
 
+
+    pub fn sibling<H: Hash>(&self, value: H) -> Self {
+
+        let mut hasher = FxHasher::default();
+        self.id.hash(&mut hasher);
+        value.hash(&mut hasher);
+        let new_id = hasher.finish();
+
+        let sibling = Self {
+            id: Id(new_id),
+            params: self.params.clone(),
+            is_update: false,
+            is_layout_update: false,
+        };
+
+        return sibling;
+    }
+
     pub fn with_static_text(mut self, text: &'static str) -> Self {
         self.params.static_text = Some(text);
         self.is_update = true;
         return self;
     }
     // todo: these duplicate functions are actually quite useless, because most of the time the user will use a with_x call even for the default value. And even when it's not the default, it's normal for the value to be the same for many consecutive frames.
-    // options: either remove it and write some kind of hash based
+    // options: either remove it and write some kind of hash based change detection, or remove it and don't do anything.
     pub const fn with_default_static_text(mut self, text: &'static str) -> Self {
         self.params.static_text = Some(text);
         self.is_update = true;
@@ -279,7 +300,7 @@ pub struct Ui {
 
     pub rects: Vec<Rectangle>,
     pub text_areas: Vec<TextArea>,
-    pub nodes: HashMap<Id, Node>,
+    pub nodes: FxHashMap<Id, Node>,
 
     pub parent_stack: Vec<Id>,
 
@@ -383,7 +404,7 @@ impl Ui {
 
         let text_areas = Vec::new();
 
-        let mut nodes = HashMap::with_capacity(20);
+        let mut nodes = FxHashMap::default();
 
         nodes.insert(
             NODE_ROOT_ID,
@@ -958,18 +979,15 @@ impl<T: Pod> TypedGpuBuffer<T> {
     }
 }
 
-// these have to be macros only because of the deferred pop().
+// this is a macro only for symmetry. probably not worth it over just ui.add(node_key).
 #[macro_export]
-macro_rules! div {
-    (($ui:expr, $node_key:expr) $code:block) => {
-        $ui.div($node_key);
-
-        $ui.parent_stack.push($node_key.id);
-        $code;
-        $ui.parent_stack.pop();
+macro_rules! add {
+    ($ui:expr, $node_key:expr) => {
+        $ui.add($node_key);
     };
 }
 
+// these have to be macros only because of the deferred pop().
 #[macro_export]
 macro_rules! column {
     ($ui:expr, $code:block) => {
