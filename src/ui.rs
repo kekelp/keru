@@ -1,7 +1,7 @@
 use glyphon::Resolution as GlyphonResolution;
 use rustc_hash::{FxHashMap, FxHasher};
 
-use std::{marker::PhantomData, mem, hash::Hasher};
+use std::{hash::Hasher, marker::PhantomData, mem};
 
 use bytemuck::{Pod, Zeroable};
 use glyphon::{
@@ -135,19 +135,12 @@ pub struct NodeKey {
     // stuff like layout params, how it reacts to clicks, etc
     id: Id,
     params: NodeParams,
-    is_update: bool,
-    is_layout_update: bool,
 }
 
 use std::hash::Hash;
 impl NodeKey {
     pub const fn new(params: NodeParams, id: Id) -> Self {
-        return Self {
-            params,
-            id,
-            is_layout_update: false,
-            is_update: false,
-        };
+        return Self { params, id };
     }
 
     pub fn with_id(mut self, id: Id) -> Self {
@@ -155,67 +148,38 @@ impl NodeKey {
         return self;
     }
 
-
+    // are they really all siblings? the base one is different from all the derived ones.
     pub fn sibling<H: Hash>(&self, value: H) -> Self {
-
         let mut hasher = FxHasher::default();
         self.id.hash(&mut hasher);
         value.hash(&mut hasher);
         let new_id = hasher.finish();
 
-        let sibling = Self {
+        return Self {
             id: Id(new_id),
             params: self.params.clone(),
-            is_update: false,
-            is_layout_update: false,
         };
-
-        return sibling;
     }
 
-    pub fn with_static_text(mut self, text: &'static str) -> Self {
+    pub const fn with_static_text(mut self, text: &'static str) -> Self {
         self.params.static_text = Some(text);
-        self.is_update = true;
         return self;
     }
     // todo: these duplicate functions are actually quite useless, because most of the time the user will use a with_x call even for the default value. And even when it's not the default, it's normal for the value to be the same for many consecutive frames.
     // options: either remove it and write some kind of hash based change detection, or remove it and don't do anything.
-    pub const fn with_default_static_text(mut self, text: &'static str) -> Self {
-        self.params.static_text = Some(text);
-        self.is_update = true;
-        return self;
-    }
 
-    pub fn with_layout_x(mut self, layout: LayoutMode) -> Self {
+    pub const fn with_layout_x(mut self, layout: LayoutMode) -> Self {
         self.params.layout_x = layout;
-        self.is_update = true;
-        return self;
-    }
-    pub const fn with_default_layout_x(mut self, layout: LayoutMode) -> Self {
-        self.params.layout_x = layout;
-        self.is_update = true;
         return self;
     }
 
-    pub fn with_layout_y(mut self, layout: LayoutMode) -> Self {
+    pub const fn with_layout_y(mut self, layout: LayoutMode) -> Self {
         self.params.layout_y = layout;
-        self.is_update = true;
-        return self;
-    }
-    pub const fn with_default_layout_y(mut self, layout: LayoutMode) -> Self {
-        self.params.layout_y = layout;
-        self.is_update = true;
         return self;
     }
 
-    pub fn with_color(mut self, color: Color) -> Self {
+    pub const fn with_color(mut self, color: Color) -> Self {
         self.params.color = color;
-        self.is_update = true;
-        return self;
-    }
-    pub const fn with_default_color(mut self, color: Color) -> Self {
-        self.params.color = color;
-        self.is_update = true;
         return self;
     }
 
@@ -223,14 +187,9 @@ impl NodeKey {
         // todo: could keep a hash of the last to_string value and compare it, so you could skip an allocation if it's the same.
         // it's pretty cringe to allocate the string every frame for no reason.
         self.params.dyn_text = Some(text.to_string());
-        self.is_update = true;
 
         return self;
     }
-    // pub const fn with_default_text(mut self, text: impl ToString) -> Self {
-    //     self.params.dyn_text = Some(text.to_string());
-    //     return self;
-    // }
 }
 
 #[derive(Default, Debug, Pod, Copy, Clone, Zeroable)]
@@ -514,7 +473,7 @@ impl Ui {
 
             let new_node = self.new_node(node_key, parent_id, text_id);
             self.nodes.insert(node_key_id, new_node);
-        } else if node_key.is_update || node_key.is_layout_update {
+        } else {
             // instead of reinserting, could just handle all update possibilities by his own.
             let old_node = old_node.unwrap();
             if let Some(text_id) = old_node.text_id {
@@ -538,13 +497,6 @@ impl Ui {
             let new_node = self.new_node(node_key, parent_id, text_id);
 
             self.nodes.insert(node_key_id, new_node);
-        } else {
-            let old_node = old_node.unwrap();
-            old_node.children_ids.clear();
-            old_node.last_frame_touched = self.current_frame;
-            if let Some(text_id) = old_node.text_id {
-                self.text_areas[text_id as usize].last_frame_touched = self.current_frame;
-            }
         }
 
         self.nodes
@@ -798,45 +750,6 @@ impl Ui {
                 .clear();
         }
     }
-
-    pub fn refresh(&mut self, node_key: NodeKey) {
-        let node_key_id = node_key.id;
-        let old_node = self.nodes.get_mut(&node_key_id);
-        let old_node = old_node.unwrap();
-        let parent_id = old_node.parent_id;
-        if node_key.is_update || node_key.is_layout_update {
-            // instead of reinserting, could just handle all update possibilities by his own.
-            if let Some(text_id) = old_node.text_id {
-                let mut text: &str = "Remove this";
-
-                if let Some(ref dyn_text) = node_key.params.dyn_text {
-                    text = &dyn_text;
-                } else if let Some(static_text) = node_key.params.static_text {
-                    text = static_text;
-                }
-
-                self.text_areas[text_id as usize].buffer.set_text(
-                    &mut self.font_system,
-                    text,
-                    Attrs::new().family(Family::SansSerif),
-                    Shaping::Advanced,
-                );
-                self.text_areas[text_id as usize].last_frame_touched = self.current_frame;
-            }
-            let text_id = old_node.text_id;
-            let new_node = self.new_node(node_key, parent_id, text_id);
-
-            self.nodes.insert(node_key_id, new_node);
-        } else {
-            old_node.last_frame_touched = self.current_frame;
-            if let Some(text_id) = old_node.text_id {
-                self.text_areas[text_id as usize].last_frame_touched = self.current_frame;
-            }
-        }
-
-        self.layout();
-        self.build_buffers();
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -873,8 +786,6 @@ impl Default for LayoutMode {
 pub const NODE_ROOT_KEY: NodeKey = NodeKey {
     id: NODE_ROOT_ID,
     params: NODE_ROOT_PARAMS,
-    is_update: false,
-    is_layout_update: false,
 };
 
 pub const NODE_ROOT_PARAMS: NodeParams = NodeParams {
