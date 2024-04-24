@@ -102,8 +102,8 @@ impl<'window> State<'window> {
 
             column!(ui, {
                 let text = match self.counter_mode {
-                    true => &"Hide counter",
-                    false => &"Show counter",
+                    true => "Hide counter",
+                    false => "Show counter",
                 };
                 // ui.add(SHOW_COUNTER_BUTTON.with_text(text));
                 add!(ui, SHOW_COUNTER_BUTTON.with_text(text));

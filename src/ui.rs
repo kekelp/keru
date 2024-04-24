@@ -186,6 +186,9 @@ impl NodeKey {
     pub fn with_text(mut self, text: impl ToString) -> Self {
         // todo: could keep a hash of the last to_string value and compare it, so you could skip an allocation if it's the same.
         // it's pretty cringe to allocate the string every frame for no reason.
+        // to be honest, it's cringe to allocate it even when it does change. you could just edit the textbuffer content directly.
+        // but maybe that's just the price of immediate mode.
+        // also, the allocation could be done in an epic per-frame arena. it wouldn't be a problem then. (it's not a problem now either, but you know).
         self.params.dyn_text = Some(text.to_string());
 
         return self;
@@ -571,7 +574,6 @@ impl Ui {
                     let x0 = new_rect_xs.0;
                     new_rect_xs = (x0 + len * start, x0 + len * end)
                 }
-                LayoutMode::ChildrenSum {} => todo!(),
                 LayoutMode::Fixed { start, len } => {
                     let x0 = new_rect_xs.0;
                     new_rect_xs = (
@@ -593,7 +595,6 @@ impl Ui {
                         y0 + ((start + len) as f32) / self.resolution.height,
                     )
                 }
-                LayoutMode::ChildrenSum {} => todo!(),
             }
 
             current_node.x0 = new_rect_xs.0;
@@ -772,7 +773,6 @@ pub struct Node {
 pub enum LayoutMode {
     PercentOfParent { start: f32, end: f32 },
     Fixed { start: u32, len: u32 },
-    ChildrenSum {},
 }
 impl Default for LayoutMode {
     fn default() -> Self {
