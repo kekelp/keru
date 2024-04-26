@@ -6,7 +6,7 @@ use helper::{
 };
 pub use ui::Id;
 
-use ui::{Color, LayoutMode, NodeKey, NodeParams, Ui};
+use ui::{Color, NodeKey, NodeParams, Ui, Xy, Size, Position};
 use wgpu::{Device, Queue, Surface, SurfaceConfiguration, TextureFormat, TextureViewDescriptor};
 use winit::{
     dpi::PhysicalSize,
@@ -113,11 +113,17 @@ impl<'window> State<'window> {
                     let color = Color::rgba(red, 0.0, 0.0, 1.0);
                     ui.add(INCREASE_BUTTON.with_color(color));
 
-                    column!(ui, {
-                        ui.add(INCREASE_BUTTON.sibling(2).with_color(color));
-                    });
+                    // column!(ui, {
+                    //     ui.add(INCREASE_BUTTON.sibling(2).with_color(color));
+                    // });
                 }
             });
+
+            // column!(ui, {
+            //     for l in ["X", "Y", "Z", "W", "Y"] {
+            //         ui.add(LETTER_BUTTON.sibling(l).with_text(l));
+            //     }
+            // });
         });
 
         self.ui.layout();
@@ -129,6 +135,12 @@ impl<'window> State<'window> {
 
         if self.ui.is_clicked(SHOW_COUNTER_BUTTON) {
             self.counter_mode = !self.counter_mode;
+        }
+
+        for l in ["X", "Y", "Z", "W", "Y"] {
+            if self.ui.is_clicked(LETTER_BUTTON.sibling(l)) {
+                println!(" {:?}", l);
+            }
         }
 
         self.ui.build_buffers();
@@ -169,22 +181,24 @@ impl<'window> State<'window> {
 
 pub const INCREASE_BUTTON: NodeKey = NodeKey::new(NodeParams::BUTTON, new_id!())
     .with_static_text("Increase")
+    .with_debug_name("Increase")
     .with_color(Color::BLUE);
+
+pub const LETTER_BUTTON: NodeKey = NodeKey::new(NodeParams::BUTTON, new_id!())
+    .with_static_text("Letter")
+    .with_debug_name("Letter")
+    .with_color(Color::LIGHT_BLUE);
 
 pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey::new(
     NodeParams {
+        debug_name: "SHOW_COUNTER_BUTTON",
         static_text: Some("Show Counter"),
         dyn_text: None,
         clickable: false,
         color: Color::rgba(1.0, 0.3, 0.2, 0.6),
-        layout_x: LayoutMode::PercentOfParent {
-            start: 0.1,
-            end: 0.9,
-        },
-        layout_y: LayoutMode::Fixed {
-            start: 400,
-            len: 100,
-        },
+        size: Xy::new_symm(Size::PercentOfParent(0.2)),
+        position: Xy::new_symm(Position::Start { padding: 5 }),
+        container_mode: None,
     },
     new_id!(),
 );

@@ -1,7 +1,7 @@
 use glyphon::Resolution as GlyphonResolution;
 use rustc_hash::{FxHashMap, FxHasher};
 
-use std::{hash::Hasher, marker::PhantomData, mem};
+use std::{hash::Hasher, marker::PhantomData, mem, ops::{Index, IndexMut}};
 
 use bytemuck::{Pod, Zeroable};
 use glyphon::{
@@ -24,31 +24,87 @@ pub struct Id(pub(crate) u64);
 
 pub const NODE_ROOT_ID: Id = Id(0);
 
+#[derive(Debug, Clone, Copy)]
+pub enum Axis {
+    X,
+    Y,
+}
+impl Axis {
+    pub fn other(&self) -> Self {
+        match self {
+            Axis::X => return Axis::Y,
+            Axis::Y => return Axis::X,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Xy<T>([T; 2]);
+impl<T> Index<Axis> for Xy<T> {
+    type Output = T;
+    fn index(&self, axis: Axis) -> &Self::Output {
+        match axis {
+            Axis::X => return &self.0[0],
+            Axis::Y => return &self.0[1],
+        }
+    }
+}
+impl<T> IndexMut<Axis> for Xy<T> {
+    fn index_mut(&mut self, axis: Axis) -> &mut Self::Output {
+        match axis {
+            Axis::X => return &mut self.0[0],
+            Axis::Y => return &mut self.0[1],
+        }    
+    }
+}
+impl<T: Copy> Xy<T> {
+    pub const fn x(&self) -> T {
+        return self.0[0];
+    }
+    pub const fn y(&self) -> T {
+        return self.0[1];
+    }
+
+    pub const fn new(x: T, y: T) -> Self {
+        return Self([x, y]);
+    }
+
+    pub const fn new_symm(v: T) -> Self {
+        return Self([v, v]);
+    }
+}
+
+
 #[derive(Debug, Clone)]
 pub struct NodeParams {
+    pub debug_name: &'static str,
     pub static_text: Option<&'static str>,
     pub dyn_text: Option<String>,
     pub clickable: bool,
     pub color: Color,
-    pub layout_x: LayoutMode,
-    pub layout_y: LayoutMode,
+    pub size: Xy<Size>,
+    pub position: Xy<Position>,
+    pub container_mode: Option<ContainerMode>,
 }
 
 impl Default for NodeParams {
     fn default() -> Self {
         Self {
+            debug_name: "DEFAULT",
             static_text: None,
             dyn_text: None,
             clickable: false,
             color: Color::BLUE,
-            layout_x: Default::default(),
-            layout_y: Default::default(),
+            size: Xy::new_symm(Size::PercentOfParent(0.5)),
+            position: Xy::new_symm(Position::Start { padding: 5 }),
+            container_mode: None,
         }
     }
 }
 
 impl NodeParams {
     pub const COLUMN: Self = Self {
+        debug_name: "Column",
         static_text: None,
         dyn_text: None,
         clickable: true,
@@ -58,16 +114,16 @@ impl NodeParams {
             b: 0.7,
             a: 0.2,
         },
-        layout_x: LayoutMode::PercentOfParent {
-            start: 0.7,
-            end: 0.9,
-        },
-        layout_y: LayoutMode::PercentOfParent {
-            start: 0.0,
-            end: 1.0,
-        },
+        size: Xy::new(Size::PercentOfParent(0.2), Size::PercentOfParent(1.0)),
+        position: Xy::new_symm(Position::Start { padding: 5 }),
+        container_mode: Some(ContainerMode{
+            justify: Justify::Start,
+            align: Align::Fill,
+            axis: Axis::Y,
+        }),
     };
     pub const FLOATING_WINDOW: Self = Self {
+        debug_name: "FLOATING_WINDOW",
         static_text: None,
         dyn_text: None,
         clickable: true,
@@ -77,17 +133,13 @@ impl NodeParams {
             b: 0.0,
             a: 0.2,
         },
-        layout_x: LayoutMode::PercentOfParent {
-            start: 0.1,
-            end: 0.9,
-        },
-        layout_y: LayoutMode::PercentOfParent {
-            start: 0.1,
-            end: 0.9,
-        },
+        size: Xy::new_symm(Size::PercentOfParent(0.9)),
+        position: Xy::new_symm(Position::Start { padding: 5 }),
+        container_mode: None,
     };
 
     pub const BUTTON: Self = Self {
+        debug_name: "Button",
         static_text: None,
         dyn_text: None,
         clickable: true,
@@ -97,17 +149,13 @@ impl NodeParams {
             b: 0.1,
             a: 0.9,
         },
-        layout_x: LayoutMode::Fixed {
-            start: 100,
-            len: 100,
-        },
-        layout_y: LayoutMode::Fixed {
-            start: 100,
-            len: 100,
-        },
+        size: Xy::new_symm(Size::PercentOfParent(0.7)),
+        position: Xy::new_symm(Position::Start { padding: 5 }),
+        container_mode: None,
     };
 
     pub const LABEL: Self = Self {
+        debug_name: "label",
         static_text: None,
         dyn_text: None,
         clickable: true,
@@ -117,14 +165,9 @@ impl NodeParams {
             b: 0.1,
             a: 0.9,
         },
-        layout_x: LayoutMode::Fixed {
-            start: 100,
-            len: 100,
-        },
-        layout_y: LayoutMode::Fixed {
-            start: 100,
-            len: 100,
-        },
+        size: Xy::new_symm(Size::PercentOfParent(0.7)),
+        position: Xy::new_symm(Position::Start { padding: 5 }),
+        container_mode: None,
     };
 }
 
@@ -148,6 +191,7 @@ impl NodeKey {
         return self;
     }
 
+    // todo: make const?
     // are they really all siblings? the base one is different from all the derived ones.
     pub fn sibling<H: Hash>(&self, value: H) -> Self {
         let mut hasher = FxHasher::default();
@@ -165,16 +209,9 @@ impl NodeKey {
         self.params.static_text = Some(text);
         return self;
     }
-    // todo: these duplicate functions are actually quite useless, because most of the time the user will use a with_x call even for the default value. And even when it's not the default, it's normal for the value to be the same for many consecutive frames.
-    // options: either remove it and write some kind of hash based change detection, or remove it and don't do anything.
 
-    pub const fn with_layout_x(mut self, layout: LayoutMode) -> Self {
-        self.params.layout_x = layout;
-        return self;
-    }
-
-    pub const fn with_layout_y(mut self, layout: LayoutMode) -> Self {
-        self.params.layout_y = layout;
+    pub const fn with_debug_name(mut self, text: &'static str) -> Self {
+        self.params.debug_name = text;
         return self;
     }
 
@@ -238,6 +275,13 @@ impl Color {
     pub const BLUE: Self = Self {
         r: 0.6,
         g: 0.3,
+        b: 1.0,
+        a: 0.6,
+    };
+
+    pub const LIGHT_BLUE: Self = Self {
+        r: 0.9,
+        g: 0.7,
         b: 1.0,
         a: 0.6,
     };
@@ -549,11 +593,14 @@ impl Ui {
 
     // todo: deduplicate the traversal with build_buffers, or just merge build_buffers inside here.
     // either way should wait to see how a real layout pass would look like
+    // laying eggs
     pub fn layout(&mut self) {
         self.stack.clear();
 
-        let mut last_rect_xs = (0.0, 1.0);
-        let mut last_rect_ys = (0.0, 1.0);
+        let mut parent_already_decided = false;
+        let mut last_container_mode = None;
+        let mut last_name = "root?";
+        let mut last_rect = Xy::new_symm([0.0, 1.0]);
 
         // push the direct children of the root without processing the root
         if let Some(root) = self.nodes.get(&NODE_ROOT_ID) {
@@ -563,70 +610,103 @@ impl Ui {
         }
 
         while let Some(current_node_id) = self.stack.pop() {
-            let current_node = self.nodes.get_mut(&current_node_id).unwrap();
+            let children_ids;
+            let container;
+            let debug_name;
+            let mut new_rect = last_rect;
+            let len = Xy::new(new_rect[Axis::X][1] - new_rect[Axis::X][0], new_rect[Axis::Y][1] - new_rect[Axis::Y][0]);
+            {            
+                let current_node = self.nodes.get_mut(&current_node_id).unwrap();
+                children_ids = current_node.children_ids.clone();
+                container = current_node.params.container_mode;
+                debug_name = current_node.params.debug_name;
 
-            let mut new_rect_xs = last_rect_xs;
-            let mut new_rect_ys = last_rect_ys;
+                println!("visiting {:?}, parent: {:?}", current_node.params.debug_name, last_name);
 
-            match current_node.params.layout_x {
-                LayoutMode::PercentOfParent { start, end } => {
-                    let len = new_rect_xs.1 - new_rect_xs.0;
-                    let x0 = new_rect_xs.0;
-                    new_rect_xs = (x0 + len * start, x0 + len * end)
+                
+                if ! parent_already_decided {
+
+                    for axis in [Axis::X, Axis::Y] {
+                        match current_node.params.position[axis] {
+                            Position::Start { padding } => {
+                                let x0 = last_rect[axis][0] + (padding as f32 / self.resolution.width);
+                                match current_node.params.size[axis] {
+                                    Size::PercentOfParent(percent) => {
+                                        let x1 = x0 + len[axis] * percent;
+                                        new_rect[axis] = [x0, x1];
+                                    },
+                                }
+                                
+                            },
+                        }
+                    }
+                    
+                    println!(" {:?}", new_rect);
+                    current_node.x0 = new_rect[Axis::X][0];
+                    current_node.x1 = new_rect[Axis::X][1];
+                    current_node.y0 = new_rect[Axis::Y][0];
+                    current_node.y1 = new_rect[Axis::Y][1];
                 }
-                LayoutMode::Fixed { start, len } => {
-                    let x0 = new_rect_xs.0;
-                    new_rect_xs = (
-                        x0 + (start as f32) / self.resolution.width,
-                        x0 + ((start + len) as f32) / self.resolution.width,
-                    )
+
+                if let Some(id) = current_node.text_id {
+                    self.text_areas[id as usize].left = current_node.x0 * self.resolution.width;
+                    self.text_areas[id as usize].top = (1.0 - current_node.y1) * self.resolution.height;
+                    self.text_areas[id as usize].buffer.set_size(
+                        &mut self.font_system,
+                        100000.,
+                        100000.,
+                    );
+                    self.text_areas[id as usize]
+                        .buffer
+                        .shape_until_scroll(&mut self.font_system);
                 }
             }
-            match current_node.params.layout_y {
-                LayoutMode::PercentOfParent { start, end } => {
-                    let len = new_rect_ys.1 - new_rect_ys.0;
-                    let y0 = new_rect_ys.0;
-                    new_rect_ys = (y0 + len * start, y0 + len * end)
-                }
-                LayoutMode::Fixed { start, len } => {
-                    let y0 = new_rect_ys.0;
-                    new_rect_ys = (
-                        y0 + (start as f32) / self.resolution.height,
-                        y0 + ((start + len) as f32) / self.resolution.height,
-                    )
-                }
+
+            match container {
+                Some(mode) => {
+                    // decide the children positions all at once
+                    let padding = 5;
+                    let mut x0 = last_rect[mode.axis][0] + (padding as f32 / self.resolution.width);
+
+                    for &child_id in children_ids.iter().rev() {
+                        let child = self.nodes.get_mut(&child_id).unwrap();
+                        child.x0 = x0;
+                        match child.params.size[mode.axis] {
+                            Size::PercentOfParent(percent) => {
+                                let x1 = x0 + len[mode.axis] * percent;
+                                child.x1 = x1;
+                                x0 = x1 + (padding as f32 / self.resolution.width);
+                            },
+                        }
+                    }
+
+
+                    for &child_id in children_ids.iter().rev() {
+                        self.stack.push(child_id);
+
+                        last_container_mode = container;
+                        last_name = debug_name;
+                        last_rect = new_rect;
+                        parent_already_decided = true;
+                    }
+
+                },
+                None => {
+                    // just go to the children
+                    for &child_id in children_ids.iter().rev() {
+                        self.stack.push(child_id);
+
+                        last_container_mode = container;
+                        last_name = debug_name;
+                        last_rect = new_rect;
+                        parent_already_decided = false;
+                    }
+                },
             }
 
-            current_node.x0 = new_rect_xs.0;
-            current_node.x1 = new_rect_xs.1;
-            current_node.y0 = new_rect_ys.0;
-            current_node.y1 = new_rect_ys.1;
-
-            if let Some(id) = current_node.text_id {
-                self.text_areas[id as usize].left = current_node.x0 * self.resolution.width;
-                self.text_areas[id as usize].top = (1.0 - current_node.y1) * self.resolution.height;
-                self.text_areas[id as usize].buffer.set_size(
-                    &mut self.font_system,
-                    100000.,
-                    100000.,
-                );
-                self.text_areas[id as usize]
-                    .buffer
-                    .shape_until_scroll(&mut self.font_system);
-            }
-
-            // do I really need iter.rev() here? why?
-            for &child_id in current_node.children_ids.iter().rev() {
-                self.stack.push(child_id);
-
-                last_rect_xs.0 = new_rect_xs.0;
-                last_rect_xs.1 = new_rect_xs.1;
-                last_rect_ys.0 = new_rect_ys.0;
-                last_rect_ys.1 = new_rect_ys.1;
-            }
         }
 
-        // println!(" {:?}", "  ");
+        println!("  ");
 
         // print_whole_tree
         // for (k, v) in &self.nodes {
@@ -638,6 +718,7 @@ impl Ui {
     }
 
     // in the future, do the full tree pass (for covered stuff etc)
+    // probably better to take just the id (for performance)
     pub fn is_clicked(&self, button: NodeKey) -> bool {
         if !self.mouse_left_just_clicked {
             return false;
@@ -769,18 +850,64 @@ pub struct Node {
     pub params: NodeParams,
 }
 
+
 #[derive(Debug, Clone, Copy)]
-pub enum LayoutMode {
-    PercentOfParent { start: f32, end: f32 },
-    Fixed { start: u32, len: u32 },
+pub enum Len {
+    PercentOfParent(f32),
+    Pixels(u32),
 }
-impl Default for LayoutMode {
-    fn default() -> Self {
-        Self::PercentOfParent {
-            start: 0.2,
-            end: 0.8,
+impl Len {
+    pub fn to_pixels(&self, parent_pixels: u32) -> u32 {
+        match self {
+            Len::PercentOfParent(percent) => return (parent_pixels as f32 * percent) as u32,
+            Len::Pixels(pixels) => return pixels.clone(),
         }
     }
+}
+
+// textorimagecontent is more of a "min size" thing, I think.
+#[derive(Debug, Clone, Copy)]
+pub enum Size {
+    PercentOfParent(f32),
+    // Pixels(u32),
+    // TextOrImageContent { padding: u32 },
+    // // ImageContent { padding: u32 },
+    // FillParent { padding: u32 },
+    // // SumOfChildren { padding: u32 },
+    // TrustParent,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Position {
+    // Center,
+    Start { padding: u32 },
+    // End { padding: u32 },
+    // TrustParent,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ContainerMode {
+    justify: Justify,
+    align: Align,
+    axis: Axis,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Justify {
+    Start,
+    End,
+    Center,
+    SpaceBetween,
+    SpaceAround,
+    SpaceEvenly,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Align {
+    Start,
+    End,
+    Center,
+    Fill,
 }
 
 pub const NODE_ROOT_KEY: NodeKey = NodeKey {
@@ -789,6 +916,7 @@ pub const NODE_ROOT_KEY: NodeKey = NodeKey {
 };
 
 pub const NODE_ROOT_PARAMS: NodeParams = NodeParams {
+    debug_name: "ROOT",
     static_text: None,
     dyn_text: None,
     clickable: false,
@@ -798,14 +926,9 @@ pub const NODE_ROOT_PARAMS: NodeParams = NodeParams {
         b: 1.0,
         a: 0.0,
     },
-    layout_x: LayoutMode::PercentOfParent {
-        start: 0.0,
-        end: 1.0,
-    },
-    layout_y: LayoutMode::PercentOfParent {
-        start: 0.0,
-        end: 1.0,
-    },
+    size: Xy::new_symm(Size::PercentOfParent(1.0)),
+    position: Xy::new_symm(Position::Start { padding: 0 }),
+    container_mode: None,
 };
 
 // todo: change
