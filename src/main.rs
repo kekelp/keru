@@ -49,8 +49,7 @@ fn init() -> (EventLoop<()>, State<'static>) {
         device,
         queue,
         ui,
-        count: 0,
-        counter_mode: true,
+        counter_state: CounterState::new(),
     };
 
     return (event_loop, state);
@@ -65,8 +64,7 @@ pub struct State<'window> {
     pub ui: Ui,
 
     // app state
-    pub count: i32,
-    pub counter_mode: bool,
+    pub counter_state: CounterState,
 }
 
 impl<'window> State<'window> {
@@ -95,45 +93,22 @@ impl<'window> State<'window> {
     }
 
     pub fn update(&mut self) {
-        let ui = &mut self.ui;
-
-        floating_window!(ui, {
-            add!(ui, CENTER_COLUMN, {
-                if self.counter_mode {
-                    let color = count_color(self.count);
-                    add!(ui, INCREASE_BUTTON.with_color(color));
-
-                    add!(ui, COUNT_LABEL);
-                    ui.update_text(COUNT_LABEL.id, self.count);
-                    
-                    add!(ui, DECREASE_BUTTON);
-                }
-                
-                let text = match self.counter_mode {
-                    true => "Hide counter",
-                    false => "Show counter",
-                };
-                add!(ui, SHOW_COUNTER_BUTTON);
-                ui.update_text(SHOW_COUNTER_BUTTON.id, text);
-            });
-
-
-        });
+        self.counter_state.add(&mut self.ui);
 
         self.ui.layout();
         // self.resolve_input();
 
-        if self.ui.is_clicked(INCREASE_BUTTON.id) {
-            self.count += 1;
-        }
+        // if self.ui.is_clicked(INCREASE_BUTTON.id) {
+        //     self.count += 1;
+        // }
 
-        if self.ui.is_clicked(DECREASE_BUTTON.id) {
-            self.count -= 1;
-        }
+        // if self.ui.is_clicked(DECREASE_BUTTON.id) {
+        //     self.count -= 1;
+        // }
 
-        if self.ui.is_clicked(SHOW_COUNTER_BUTTON.id) {
-            self.counter_mode = !self.counter_mode;
-        }
+        // if self.ui.is_clicked(SHOW_COUNTER_BUTTON.id) {
+        //     self.counter_mode = !self.counter_mode;
+        // }
 
         self.ui.build_buffers();
 
@@ -211,3 +186,40 @@ pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey::new(
 );
 
 pub const COUNT_LABEL: NodeKey = NodeKey::new(NodeParams::LABEL, new_id!());
+
+
+pub struct CounterState {
+    pub count: i32,
+    pub counter_mode: bool,
+}
+impl CounterState {
+    pub fn new() -> Self {
+        return CounterState {
+            count: 0,
+            counter_mode: true,
+        };
+    }
+
+    pub fn add(&mut self, ui: &mut Ui) {
+        floating_window!(ui, {
+            add!(ui, CENTER_COLUMN, {
+                if self.counter_mode {
+                    let color = count_color(self.count);
+                    add!(ui, INCREASE_BUTTON.with_color(color));
+
+                    add!(ui, COUNT_LABEL);
+                    ui.update_text(COUNT_LABEL.id, self.count);
+                    
+                    add!(ui, DECREASE_BUTTON);
+                }
+                
+                let text = match self.counter_mode {
+                    true => "Hide counter",
+                    false => "Show counter",
+                };
+                add!(ui, SHOW_COUNTER_BUTTON);
+                ui.update_text(SHOW_COUNTER_BUTTON.id, text);
+            });
+        });
+    }
+}
