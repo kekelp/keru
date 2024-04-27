@@ -341,11 +341,14 @@ impl Ui {
         let text_id = match text_id {
             Some(text_id) => {
 
-                let last_hash = self.text_areas[text_id as usize].last_hash;
-                if hash == last_hash {
+                if hash == self.text_areas[text_id as usize].last_hash {
                     println!(" dodged update");
+                    // todo: I shouldn't have to do this, I don't think, it's visible as long as the node is visible?? 
+                    self.text_areas[text_id as usize].last_frame_touched = self.current_frame;
                     return;
                 }
+                println!(" didn't dodge");
+                self.text_areas[text_id as usize].last_hash = hash;
 
                 text_id
             },
@@ -586,13 +589,19 @@ impl Ui {
             let old_node = old_node.unwrap();
             if let Some(text_id) = old_node.text_id {
                 if let Some(text) = node_key.params.static_text {
-                        
+
+                    let mut hasher = FxHasher::default();
+                    text.hash(&mut hasher);
+                    let hash = hasher.finish();
+
+                    if hash != self.text_areas[text_id as usize].last_hash {                      
                         self.text_areas[text_id as usize].buffer.set_text(
                             &mut self.font_system,
-                        text,
-                        Attrs::new().family(Family::SansSerif),
+                            text,
+                            Attrs::new().family(Family::SansSerif),
                         Shaping::Advanced,
-                    );
+                        );
+                    }
                     self.text_areas[text_id as usize].last_frame_touched = self.current_frame;
                 }
             }
