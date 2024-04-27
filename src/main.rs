@@ -98,40 +98,37 @@ impl<'window> State<'window> {
         let ui = &mut self.ui;
 
         floating_window!(ui, {
-            // ui.add(COUNT_LABEL.with_text(self.count));
+            add!(ui, CENTER_COLUMN, {
+                if self.counter_mode {
+                    let red = 0.1 * (self.count as f32);
+                    let color = Color::rgba(red, 0.1, 0.2, 0.8);
+                    add!(ui, INCREASE_BUTTON.with_color(color));
 
-            div!(ui, CENTER_COLUMN, {
+                    add!(ui, COUNT_LABEL);
+                    ui.update_text(COUNT_LABEL.id(), self.count);
+                    
+                    add!(ui, DECREASE_BUTTON);
+                }
 
                 let text = match self.counter_mode {
                     true => "Hide counter",
                     false => "Show counter",
                 };
-                // ui.add(SHOW_COUNTER_BUTTON.with_text(text));
-                div!(ui, SHOW_COUNTER_BUTTON.with_static_text(text));
-
-                if self.counter_mode {
-                    let red = 0.1 * (self.count as f32);
-                    let color = Color::rgba(red, 0.1, 0.2, 0.8);
-                    ui.add(INCREASE_BUTTON.with_color(color));
-
-                    // column!(ui, {
-                    //     ui.add(INCREASE_BUTTON.sibling(2).with_color(color));
-                    // });
-                }
+                add!(ui, SHOW_COUNTER_BUTTON.with_static_text(text));
             });
 
-            // column!(ui, {
-            //     for l in ["X", "Y", "Z", "W", "Y"] {
-            //         ui.add(LETTER_BUTTON.sibling(l).with_text(l));
-            //     }
-            // });
+
         });
 
         self.ui.layout();
         // self.resolve_input();
 
-        if self.ui.is_clicked(INCREASE_BUTTON) || self.ui.is_clicked(INCREASE_BUTTON.sibling(2)) {
+        if self.ui.is_clicked(INCREASE_BUTTON) {
             self.count += 1;
+        }
+
+        if self.ui.is_clicked(DECREASE_BUTTON) {
+            self.count -= 1;
         }
 
         if self.ui.is_clicked(SHOW_COUNTER_BUTTON) {
@@ -191,6 +188,11 @@ pub const INCREASE_BUTTON: NodeKey = NodeKey::new(NodeParams::BUTTON, new_id!())
     .with_debug_name("Increase")
     .with_color(Color::BLUE);
 
+pub const DECREASE_BUTTON: NodeKey = NodeKey::new(NodeParams::BUTTON, new_id!())
+    .with_static_text("Decrease")
+    .with_debug_name("Decrease")
+    .with_color(Color::BLUE);
+
 pub const LETTER_BUTTON: NodeKey = NodeKey::new(NodeParams::BUTTON, new_id!())
     .with_static_text("Letter")
     .with_debug_name("Letter")
@@ -200,7 +202,6 @@ pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey::new(
     NodeParams {
         debug_name: "SHOW_COUNTER_BUTTON",
         static_text: Some("Show Counter"),
-        dyn_text: None,
         clickable: false,
         color: Color::rgba(1.0, 0.3, 0.2, 0.6),
         size: Xy::new_symm(Size::PercentOfParent(0.2)),

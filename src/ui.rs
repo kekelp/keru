@@ -60,13 +60,6 @@ impl<T> IndexMut<Axis> for Xy<T> {
     }
 }
 impl<T: Copy> Xy<T> {
-    // pub const fn x(&self) -> T {
-    //     return self.0[0];
-    // }
-    // pub const fn y(&self) -> T {
-    //     return self.0[1];
-    // }
-
     pub const fn new(x: T, y: T) -> Self {
         return Self([x, y]);
     }
@@ -75,22 +68,11 @@ impl<T: Copy> Xy<T> {
         return Self([v, v]);
     }
 }
-// impl Xy<[f32; 2]> {
-//     pub const fn x(&self, index: usize) -> T {
-//         return self.0[0][index];
-//     }
-//     pub const fn y(&self, index: usize) -> T {
-//         return self.0[1][index];
-//     }
-
-// }
-
 
 #[derive(Debug, Clone)]
 pub struct NodeParams {
     pub debug_name: &'static str,
     pub static_text: Option<&'static str>,
-    pub dyn_text: Option<String>,
     pub clickable: bool,
     pub color: Color,
     pub size: Xy<Size>,
@@ -103,7 +85,6 @@ impl Default for NodeParams {
         Self {
             debug_name: "DEFAULT",
             static_text: None,
-            dyn_text: None,
             clickable: false,
             color: Color::BLUE,
             size: Xy::new_symm(Size::PercentOfParent(0.5)),
@@ -117,7 +98,6 @@ impl NodeParams {
     pub const COLUMN: Self = Self {
         debug_name: "Column",
         static_text: None,
-        dyn_text: None,
         clickable: true,
         color: Color {
             r: 0.0,
@@ -128,15 +108,14 @@ impl NodeParams {
         size: Xy::new(Size::PercentOfParent(0.2), Size::PercentOfParent(1.0)),
         position: Xy::new_symm(Position::Start { padding: 5 }),
         container_mode: Some(ContainerMode{
-            justify: Justify::Start,
-            align: Align::Fill,
-            axis: Axis::Y,
+            main_axis_justify: Justify::Start,
+            cross_axis_align: Align::Fill,
+            main_axis: Axis::Y,
         }),
     };
     pub const ROW: Self = Self {
         debug_name: "Column",
         static_text: None,
-        dyn_text: None,
         clickable: true,
         color: Color {
             r: 0.0,
@@ -147,15 +126,14 @@ impl NodeParams {
         size: Xy::new(Size::PercentOfParent(1.0), Size::PercentOfParent(1.0)),
         position: Xy::new_symm(Position::Start { padding: 5 }),
         container_mode: Some(ContainerMode{
-            justify: Justify::Start,
-            align: Align::Fill,
-            axis: Axis::X,
+            main_axis_justify: Justify::Start,
+            cross_axis_align: Align::Fill,
+            main_axis: Axis::X,
         }),
     };
     pub const FLOATING_WINDOW: Self = Self {
         debug_name: "FLOATING_WINDOW",
         static_text: None,
-        dyn_text: None,
         clickable: true,
         color: Color {
             r: 0.7,
@@ -171,7 +149,6 @@ impl NodeParams {
     pub const BUTTON: Self = Self {
         debug_name: "Button",
         static_text: None,
-        dyn_text: None,
         clickable: true,
         color: Color {
             r: 0.0,
@@ -179,7 +156,7 @@ impl NodeParams {
             b: 0.1,
             a: 0.9,
         },
-        size: Xy::new_symm(Size::PercentOfParent(0.7)),
+        size: Xy::new_symm(Size::PercentOfParent(0.17)),
         position: Xy::new_symm(Position::Start { padding: 5 }),
         container_mode: None,
     };
@@ -187,7 +164,6 @@ impl NodeParams {
     pub const LABEL: Self = Self {
         debug_name: "label",
         static_text: None,
-        dyn_text: None,
         clickable: true,
         color: Color {
             r: 0.0,
@@ -195,7 +171,7 @@ impl NodeParams {
             b: 0.1,
             a: 0.9,
         },
-        size: Xy::new_symm(Size::PercentOfParent(0.7)),
+        size: Xy::new_symm(Size::PercentOfParent(0.3)),
         position: Xy::new_symm(Position::Start { padding: 5 }),
         container_mode: None,
     };
@@ -261,17 +237,6 @@ impl NodeKey {
 
     pub const fn with_color(mut self, color: Color) -> Self {
         self.params.color = color;
-        return self;
-    }
-
-    pub fn with_text(mut self, text: impl ToString) -> Self {
-        // todo: could keep a hash of the last to_string value and compare it, so you could skip an allocation if it's the same.
-        // it's pretty cringe to allocate the string every frame for no reason.
-        // to be honest, it's cringe to allocate it even when it does change. you could just edit the textbuffer content directly.
-        // but maybe that's just the price of immediate mode.
-        // also, the allocation could be done in an epic per-frame arena. it wouldn't be a problem then. (it's not a problem now either, but you know).
-        self.params.dyn_text = Some(text.to_string());
-
         return self;
     }
 }
@@ -364,6 +329,44 @@ pub struct Ui {
     pub immediate_mode: bool,
 }
 impl Ui {
+    // todo: check if the string is different and skip...?
+    pub fn update_text(&mut self, id: Id, text: impl ToString) {
+        let text_id = self.nodes.get(&id).unwrap().text_id;
+        let text_id = match text_id {
+            Some(text_id) => text_id,
+            None => {
+                let buffer = Buffer::new(&mut self.font_system, Metrics::new(30.0, 42.0));
+                let text_area = TextArea {
+                    buffer,
+                    left: 10.0,
+                    top: 10.0,
+                    scale: 1.0,
+                    bounds: TextBounds {
+                        left: 0,
+                        top: 0,
+                        right: 10000,
+                        bottom: 10000,
+                    },
+                    default_color: GlyphonColor::rgb(255, 255, 255),
+                    depth: 0.0,
+                    last_frame_touched: self.current_frame,
+                };
+
+                self.text_areas.push(text_area);
+                let text_id = Some((self.text_areas.len() - 1) as u32);
+                self.nodes.get_mut(&id).unwrap().text_id = text_id;
+                text_id.unwrap()
+            },
+        };
+        self.text_areas[text_id as usize].buffer.set_text(
+            &mut self.font_system,
+            &text.to_string(), 
+            Attrs::new().family(Family::SansSerif),
+            Shaping::Advanced,
+        );
+        self.text_areas[text_id as usize].last_frame_touched = self.current_frame;
+    }
+
     pub fn new(device: &Device, config: &SurfaceConfiguration, queue: &Queue) -> Self {
         let vertex_buffer = device.create_buffer_init(&util::BufferInitDescriptor {
             label: Some("player bullet pos buffer"),
@@ -524,18 +527,8 @@ impl Ui {
         let node_key_id = node_key.id;
         let old_node = self.nodes.get_mut(&node_key_id);
         if old_node.is_none() {
-            let has_text =
-                node_key.params.static_text.is_some() || node_key.params.dyn_text.is_some();
             let mut text_id = None;
-            if has_text {
-                let mut text: &str = "Remove this";
-
-                if let Some(ref dyn_text) = node_key.params.dyn_text {
-                    text = &dyn_text;
-                } else if let Some(static_text) = node_key.params.static_text {
-                    text = static_text;
-                }
-
+            if let Some(text) = node_key.params.static_text {
                 let mut buffer = Buffer::new(&mut self.font_system, Metrics::new(30.0, 42.0));
                 buffer.set_text(
                     &mut self.font_system,
@@ -570,21 +563,16 @@ impl Ui {
             // instead of reinserting, could just handle all update possibilities by his own.
             let old_node = old_node.unwrap();
             if let Some(text_id) = old_node.text_id {
-                let mut text: &str = "Remove this";
-
-                if let Some(ref dyn_text) = node_key.params.dyn_text {
-                    text = &dyn_text;
-                } else if let Some(static_text) = node_key.params.static_text {
-                    text = static_text;
+                if let Some(text) = node_key.params.static_text {
+                        
+                        self.text_areas[text_id as usize].buffer.set_text(
+                            &mut self.font_system,
+                        text,
+                        Attrs::new().family(Family::SansSerif),
+                        Shaping::Advanced,
+                    );
+                    self.text_areas[text_id as usize].last_frame_touched = self.current_frame;
                 }
-
-                self.text_areas[text_id as usize].buffer.set_text(
-                    &mut self.font_system,
-                    text,
-                    Attrs::new().family(Family::SansSerif),
-                    Shaping::Advanced,
-                );
-                self.text_areas[text_id as usize].last_frame_touched = self.current_frame;
             }
             let text_id = old_node.text_id;
             let new_node = self.new_node(node_key, parent_id, text_id);
@@ -640,7 +628,8 @@ impl Ui {
     pub fn layout(&mut self) {
         self.stack.clear();
 
-        let mut parent_already_decided = false;        let mut last_name = "root?";
+        let mut parent_already_decided = false;
+        let mut last_name = "root?";
         let mut last_rect = Xy::new_symm([0.0, 1.0]);
         let mut new_rect = last_rect;
 
@@ -662,7 +651,7 @@ impl Ui {
                 container = current_node.params.container_mode;
                 debug_name = current_node.params.debug_name;
 
-                println!("visiting {:?}, parent: {:?}", current_node.params.debug_name, last_name);
+                // println!("visiting {:?}, parent: {:?}", current_node.params.debug_name, last_name);
 
                 
                 if ! parent_already_decided {
@@ -706,6 +695,7 @@ impl Ui {
                     self.text_areas[id as usize]
                         .buffer
                         .shape_until_scroll(&mut self.font_system);
+
                 }
             }
 
@@ -713,11 +703,11 @@ impl Ui {
                 Some(mode) => {
                     // decide the children positions all at once
                     let padding = 5;
-                    let mut main_0 = new_rect[mode.axis][0] + (padding as f32 / self.resolution.width);
+                    let mut main_0 = new_rect[mode.main_axis][0] + (padding as f32 / self.resolution.width);
 
                     for &child_id in children_ids.iter().rev() {
                         let child = self.nodes.get_mut(&child_id).unwrap();
-                        let main_axis = mode.axis;
+                        let main_axis = mode.main_axis;
                         child.rect[main_axis][0] = main_0;
 
                         match child.params.size[main_axis] {
@@ -728,11 +718,9 @@ impl Ui {
                             },
                         }
 
-                        let cross_axis = mode.axis.other();
+                        let cross_axis = mode.main_axis.other();
                         match child.params.size[cross_axis] {
                             Size::PercentOfParent(percent) => {
-                                println!(" {:?}", new_rect);
-                                println!(" {:?}", last_name);
                                 let cross_0 = new_rect[cross_axis][0] + (padding as f32 / self.resolution.width);
                                 let cross_1 = cross_0 + len[cross_axis] * percent;
                                 child.rect[cross_axis][0] = cross_0;
@@ -763,7 +751,7 @@ impl Ui {
 
         }
 
-        println!("  ");
+        // println!("  ");
 
         // print_whole_tree
         // for (k, v) in &self.nodes {
@@ -946,9 +934,9 @@ pub enum Position {
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
 pub struct ContainerMode {
-    justify: Justify,
-    align: Align,
-    axis: Axis,
+    main_axis_justify: Justify,
+    cross_axis_align: Align,
+    main_axis: Axis,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -977,7 +965,6 @@ pub const NODE_ROOT_KEY: NodeKey = NodeKey {
 pub const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     debug_name: "ROOT",
     static_text: None,
-    dyn_text: None,
     clickable: false,
     color: Color {
         r: 1.0,
@@ -1074,7 +1061,7 @@ impl<T: Pod> TypedGpuBuffer<T> {
 
 // this is a macro only for symmetry. probably not worth it over just ui.add(node_key).
 #[macro_export]
-macro_rules! div {
+macro_rules! add {
     ($ui:expr, $node_key:expr) => {
         $ui.add($node_key);
     };
