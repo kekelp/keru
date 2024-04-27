@@ -331,9 +331,24 @@ pub struct Ui {
 impl Ui {
     // todo: check if the string is different and skip...?
     pub fn update_text(&mut self, id: Id, text: impl ToString) {
+        let text = text.to_string();
+        let mut hasher = FxHasher::default();
+        text.hash(&mut hasher);
+        let hash = hasher.finish();
+
+        // todo: return instead of unwrap. remove the others too...
         let text_id = self.nodes.get(&id).unwrap().text_id;
         let text_id = match text_id {
-            Some(text_id) => text_id,
+            Some(text_id) => {
+
+                let last_hash = self.text_areas[text_id as usize].last_hash;
+                if hash == last_hash {
+                    println!(" dodged update");
+                    return;
+                }
+
+                text_id
+            },
             None => {
                 let buffer = Buffer::new(&mut self.font_system, Metrics::new(30.0, 42.0));
                 let text_area = TextArea {
@@ -350,6 +365,7 @@ impl Ui {
                     default_color: GlyphonColor::rgb(255, 255, 255),
                     depth: 0.0,
                     last_frame_touched: self.current_frame,
+                    last_hash: hash,
                 };
 
                 self.text_areas.push(text_area);
@@ -360,7 +376,7 @@ impl Ui {
         };
         self.text_areas[text_id as usize].buffer.set_text(
             &mut self.font_system,
-            &text.to_string(), 
+            &text, 
             Attrs::new().family(Family::SansSerif),
             Shaping::Advanced,
         );
@@ -530,6 +546,11 @@ impl Ui {
             let mut text_id = None;
             if let Some(text) = node_key.params.static_text {
                 let mut buffer = Buffer::new(&mut self.font_system, Metrics::new(30.0, 42.0));
+                
+                let mut hasher = FxHasher::default();
+                text.hash(&mut hasher);
+                let hash = hasher.finish();
+
                 buffer.set_text(
                     &mut self.font_system,
                     text,
@@ -551,6 +572,7 @@ impl Ui {
                     default_color: GlyphonColor::rgb(255, 255, 255),
                     depth: 0.0,
                     last_frame_touched: self.current_frame,
+                    last_hash: hash,
                 };
 
                 self.text_areas.push(text_area);
