@@ -100,21 +100,21 @@ impl<'window> State<'window> {
         floating_window!(ui, {
             add!(ui, CENTER_COLUMN, {
                 if self.counter_mode {
-                    let red = 0.1 * (self.count as f32);
-                    let color = Color::rgba(red, 0.1, 0.2, 0.8);
+                    let color = count_color(self.count);
                     add!(ui, INCREASE_BUTTON.with_color(color));
 
                     add!(ui, COUNT_LABEL);
-                    ui.update_text(COUNT_LABEL.id(), self.count);
+                    ui.update_text(COUNT_LABEL.id, self.count);
                     
                     add!(ui, DECREASE_BUTTON);
                 }
-
+                
                 let text = match self.counter_mode {
                     true => "Hide counter",
                     false => "Show counter",
                 };
-                add!(ui, SHOW_COUNTER_BUTTON.with_static_text(text));
+                add!(ui, SHOW_COUNTER_BUTTON);
+                ui.update_text(SHOW_COUNTER_BUTTON.id, text);
             });
 
 
@@ -123,22 +123,16 @@ impl<'window> State<'window> {
         self.ui.layout();
         // self.resolve_input();
 
-        if self.ui.is_clicked(INCREASE_BUTTON) {
+        if self.ui.is_clicked(INCREASE_BUTTON.id) {
             self.count += 1;
         }
 
-        if self.ui.is_clicked(DECREASE_BUTTON) {
+        if self.ui.is_clicked(DECREASE_BUTTON.id) {
             self.count -= 1;
         }
 
-        if self.ui.is_clicked(SHOW_COUNTER_BUTTON) {
+        if self.ui.is_clicked(SHOW_COUNTER_BUTTON.id) {
             self.counter_mode = !self.counter_mode;
-        }
-
-        for l in ["X", "Y", "Z", "W", "Y"] {
-            if self.ui.is_clicked(LETTER_BUTTON.sibling(l)) {
-                println!(" {:?}", l);
-            }
         }
 
         self.ui.build_buffers();
@@ -175,6 +169,11 @@ impl<'window> State<'window> {
         self.ui.resize(size, &self.queue);
         self.window.request_redraw();
     }
+}
+
+pub fn count_color(count: i32) -> Color {
+    let red = 0.1 * (count as f32);
+    return Color::rgba(red, 0.1, 0.2, 0.8);
 }
 
 pub const CENTER_COLUMN: NodeKey = NodeKey::new(NodeParams::COLUMN, new_id!())
