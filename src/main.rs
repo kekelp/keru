@@ -98,19 +98,20 @@ impl<'window> State<'window> {
         let ui = &mut self.ui;
 
         floating_window!(ui, {
-            ui.add(COUNT_LABEL.with_text(self.count));
+            // ui.add(COUNT_LABEL.with_text(self.count));
 
-            column!(ui, {
+            div!(ui, CENTER_COLUMN, {
+
                 let text = match self.counter_mode {
                     true => "Hide counter",
                     false => "Show counter",
                 };
                 // ui.add(SHOW_COUNTER_BUTTON.with_text(text));
-                add!(ui, SHOW_COUNTER_BUTTON.with_text(text));
+                div!(ui, SHOW_COUNTER_BUTTON.with_static_text(text));
 
                 if self.counter_mode {
                     let red = 0.1 * (self.count as f32);
-                    let color = Color::rgba(red, 0.0, 0.0, 1.0);
+                    let color = Color::rgba(red, 0.1, 0.2, 0.8);
                     ui.add(INCREASE_BUTTON.with_color(color));
 
                     // column!(ui, {
@@ -178,6 +179,12 @@ impl<'window> State<'window> {
         self.window.request_redraw();
     }
 }
+
+pub const CENTER_COLUMN: NodeKey = NodeKey::new(NodeParams::COLUMN, new_id!())
+    .with_size_x(0.5)
+    .with_position_x(Position::Center)
+    .with_debug_name("Center column")
+    .with_color(Color::BLUE);
 
 pub const INCREASE_BUTTON: NodeKey = NodeKey::new(NodeParams::BUTTON, new_id!())
     .with_static_text("Increase")

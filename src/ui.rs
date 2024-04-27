@@ -19,6 +19,8 @@ use winit::{
     event::{ElementState, Event, MouseButton, WindowEvent},
 };
 
+use Axis::{X, Y};
+
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Id(pub(crate) u64);
 
@@ -58,12 +60,12 @@ impl<T> IndexMut<Axis> for Xy<T> {
     }
 }
 impl<T: Copy> Xy<T> {
-    pub const fn x(&self) -> T {
-        return self.0[0];
-    }
-    pub const fn y(&self) -> T {
-        return self.0[1];
-    }
+    // pub const fn x(&self) -> T {
+    //     return self.0[0];
+    // }
+    // pub const fn y(&self) -> T {
+    //     return self.0[1];
+    // }
 
     pub const fn new(x: T, y: T) -> Self {
         return Self([x, y]);
@@ -73,6 +75,15 @@ impl<T: Copy> Xy<T> {
         return Self([v, v]);
     }
 }
+// impl Xy<[f32; 2]> {
+//     pub const fn x(&self, index: usize) -> T {
+//         return self.0[0][index];
+//     }
+//     pub const fn y(&self, index: usize) -> T {
+//         return self.0[1][index];
+//     }
+
+// }
 
 
 #[derive(Debug, Clone)]
@@ -122,6 +133,25 @@ impl NodeParams {
             axis: Axis::Y,
         }),
     };
+    pub const ROW: Self = Self {
+        debug_name: "Column",
+        static_text: None,
+        dyn_text: None,
+        clickable: true,
+        color: Color {
+            r: 0.0,
+            g: 0.2,
+            b: 0.7,
+            a: 0.2,
+        },
+        size: Xy::new(Size::PercentOfParent(1.0), Size::PercentOfParent(1.0)),
+        position: Xy::new_symm(Position::Start { padding: 5 }),
+        container_mode: Some(ContainerMode{
+            justify: Justify::Start,
+            align: Align::Fill,
+            axis: Axis::X,
+        }),
+    };
     pub const FLOATING_WINDOW: Self = Self {
         debug_name: "FLOATING_WINDOW",
         static_text: None,
@@ -134,7 +164,7 @@ impl NodeParams {
             a: 0.2,
         },
         size: Xy::new_symm(Size::PercentOfParent(0.9)),
-        position: Xy::new_symm(Position::Start { padding: 5 }),
+        position: Xy::new_symm(Position::Center),
         container_mode: None,
     };
 
@@ -176,14 +206,18 @@ impl NodeParams {
 #[derive(Debug)]
 pub struct NodeKey {
     // stuff like layout params, how it reacts to clicks, etc
-    id: Id,
-    params: NodeParams,
+    pub id: Id,
+    pub params: NodeParams,
 }
 
 use std::hash::Hash;
 impl NodeKey {
     pub const fn new(params: NodeParams, id: Id) -> Self {
         return Self { params, id };
+    }
+
+    pub fn id(&self) -> Id {
+        return self.id;
     }
 
     pub fn with_id(mut self, id: Id) -> Self {
@@ -203,6 +237,16 @@ impl NodeKey {
             id: Id(new_id),
             params: self.params.clone(),
         };
+    }
+
+    pub const fn with_size_x(mut self, size: f32) -> Self {
+        self.params.size.0[0] = Size::PercentOfParent(size);
+        return self;
+    }
+
+    pub const fn with_position_x(mut self, position: Position) -> Self {
+        self.params.position.0[0] = position;
+        return self;
     }
 
     pub const fn with_static_text(mut self, text: &'static str) -> Self {
@@ -415,10 +459,7 @@ impl Ui {
         nodes.insert(
             NODE_ROOT_ID,
             Node {
-                x0: -1.0,
-                x1: 1.0,
-                y0: -1.0,
-                y1: 1.0,
+                rect: Xy::new_symm([-1.0, 1.0]),
                 text_id: None,
                 parent_id: NODE_ROOT_ID,
                 children_ids: Vec::new(),
@@ -463,6 +504,11 @@ impl Ui {
 
     pub fn column(&mut self, id: Id) {
         let key = NodeKey::new(NodeParams::COLUMN, id);
+        self.add(key);
+    }
+
+    pub fn row(&mut self, id: Id) {
+        let key = NodeKey::new(NodeParams::ROW, id);
         self.add(key);
     }
 
@@ -555,10 +601,7 @@ impl Ui {
 
     pub fn new_node(&self, node_key: NodeKey, parent_id: Id, text_id: Option<u32>) -> Node {
         Node {
-            x0: 0.0,
-            x1: 1.0,
-            y0: 0.0,
-            y1: 1.0,
+            rect: Xy::new_symm([0.0, 1.0]),
             text_id,
             parent_id,
             children_ids: Vec::new(),
@@ -597,10 +640,9 @@ impl Ui {
     pub fn layout(&mut self) {
         self.stack.clear();
 
-        let mut parent_already_decided = false;
-        let mut last_container_mode = None;
-        let mut last_name = "root?";
+        let mut parent_already_decided = false;        let mut last_name = "root?";
         let mut last_rect = Xy::new_symm([0.0, 1.0]);
+        let mut new_rect = last_rect;
 
         // push the direct children of the root without processing the root
         if let Some(root) = self.nodes.get(&NODE_ROOT_ID) {
@@ -613,7 +655,6 @@ impl Ui {
             let children_ids;
             let container;
             let debug_name;
-            let mut new_rect = last_rect;
             let len = Xy::new(new_rect[Axis::X][1] - new_rect[Axis::X][0], new_rect[Axis::Y][1] - new_rect[Axis::Y][0]);
             {            
                 let current_node = self.nodes.get_mut(&current_node_id).unwrap();
@@ -636,21 +677,27 @@ impl Ui {
                                         new_rect[axis] = [x0, x1];
                                     },
                                 }
-                                
+                            },
+                            Position::Center => {
+                                let center = last_rect[axis][0] + len[axis] / 2.0;
+                                match current_node.params.size[axis] {
+                                    Size::PercentOfParent(percent) => {
+                                        let width = len[axis] * percent;
+                                        let x0 = center - width / 2.0;
+                                        let x1 = center + width / 2.0;
+                                        new_rect[axis] = [x0, x1];
+                                    },
+                                }
                             },
                         }
                     }
                     
-                    println!(" {:?}", new_rect);
-                    current_node.x0 = new_rect[Axis::X][0];
-                    current_node.x1 = new_rect[Axis::X][1];
-                    current_node.y0 = new_rect[Axis::Y][0];
-                    current_node.y1 = new_rect[Axis::Y][1];
+                    current_node.rect = new_rect;
                 }
 
                 if let Some(id) = current_node.text_id {
-                    self.text_areas[id as usize].left = current_node.x0 * self.resolution.width;
-                    self.text_areas[id as usize].top = (1.0 - current_node.y1) * self.resolution.height;
+                    self.text_areas[id as usize].left = current_node.rect[X][0] * self.resolution.width;
+                    self.text_areas[id as usize].top = (1.0 - current_node.rect[Y][1]) * self.resolution.height;
                     self.text_areas[id as usize].buffer.set_size(
                         &mut self.font_system,
                         100000.,
@@ -666,16 +713,30 @@ impl Ui {
                 Some(mode) => {
                     // decide the children positions all at once
                     let padding = 5;
-                    let mut x0 = last_rect[mode.axis][0] + (padding as f32 / self.resolution.width);
+                    let mut main_0 = new_rect[mode.axis][0] + (padding as f32 / self.resolution.width);
 
                     for &child_id in children_ids.iter().rev() {
                         let child = self.nodes.get_mut(&child_id).unwrap();
-                        child.x0 = x0;
-                        match child.params.size[mode.axis] {
+                        let main_axis = mode.axis;
+                        child.rect[main_axis][0] = main_0;
+
+                        match child.params.size[main_axis] {
                             Size::PercentOfParent(percent) => {
-                                let x1 = x0 + len[mode.axis] * percent;
-                                child.x1 = x1;
-                                x0 = x1 + (padding as f32 / self.resolution.width);
+                                let main_1 = main_0 + len[main_axis] * percent;
+                                child.rect[main_axis][1] = main_1;
+                                main_0 = main_1 + (padding as f32 / self.resolution.width);
+                            },
+                        }
+
+                        let cross_axis = mode.axis.other();
+                        match child.params.size[cross_axis] {
+                            Size::PercentOfParent(percent) => {
+                                println!(" {:?}", new_rect);
+                                println!(" {:?}", last_name);
+                                let cross_0 = new_rect[cross_axis][0] + (padding as f32 / self.resolution.width);
+                                let cross_1 = cross_0 + len[cross_axis] * percent;
+                                child.rect[cross_axis][0] = cross_0;
+                                child.rect[cross_axis][1] = cross_1;
                             },
                         }
                     }
@@ -683,8 +744,6 @@ impl Ui {
 
                     for &child_id in children_ids.iter().rev() {
                         self.stack.push(child_id);
-
-                        last_container_mode = container;
                         last_name = debug_name;
                         last_rect = new_rect;
                         parent_already_decided = true;
@@ -695,8 +754,6 @@ impl Ui {
                     // just go to the children
                     for &child_id in children_ids.iter().rev() {
                         self.stack.push(child_id);
-
-                        last_container_mode = container;
                         last_name = debug_name;
                         last_rect = new_rect;
                         parent_already_decided = false;
@@ -734,10 +791,10 @@ impl Ui {
                 self.mouse_pos.x / self.resolution.width,
                 1.0 - (self.mouse_pos.y / self.resolution.height),
             );
-            if node.x0 < mouse_pos.0
-                && mouse_pos.0 < node.x1
-                && node.y0 < mouse_pos.1
-                && mouse_pos.1 < node.y1
+            if node.rect[X][0] < mouse_pos.0
+                && mouse_pos.0 < node.rect[X][1]
+                && node.rect[Y][0] < mouse_pos.1
+                && mouse_pos.1 < node.rect[Y][1]
             {
                 return true;
             }
@@ -772,10 +829,10 @@ impl Ui {
             if current_node.last_frame_touched == self.current_frame || self.immediate_mode == false
             {
                 self.rects.push(Rectangle {
-                    x0: current_node.x0 * 2. - 1.,
-                    x1: current_node.x1 * 2. - 1.,
-                    y0: current_node.y0 * 2. - 1.,
-                    y1: current_node.y1 * 2. - 1.,
+                    x0: current_node.rect[X][0] * 2. - 1.,
+                    x1: current_node.rect[X][1] * 2. - 1.,
+                    y0: current_node.rect[Y][0] * 2. - 1.,
+                    y1: current_node.rect[Y][1] * 2. - 1.,
                     r: current_node.params.color.r,
                     g: current_node.params.color.g,
                     b: current_node.params.color.b,
@@ -836,10 +893,11 @@ impl Ui {
 
 #[derive(Debug, Clone)]
 pub struct Node {
-    pub x0: f32,
-    pub x1: f32,
-    pub y0: f32,
-    pub y1: f32,
+    pub rect: Xy<[f32; 2]>,
+    // pub x0: f32,
+    // pub x1: f32,
+    // pub y0: f32,
+    // pub y1: f32,
 
     pub last_frame_touched: u64,
 
@@ -879,12 +937,13 @@ pub enum Size {
 
 #[derive(Debug, Clone, Copy)]
 pub enum Position {
-    // Center,
+    Center,
     Start { padding: u32 },
     // End { padding: u32 },
     // TrustParent,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
 pub struct ContainerMode {
     justify: Justify,
@@ -1015,9 +1074,16 @@ impl<T: Pod> TypedGpuBuffer<T> {
 
 // this is a macro only for symmetry. probably not worth it over just ui.add(node_key).
 #[macro_export]
-macro_rules! add {
+macro_rules! div {
     ($ui:expr, $node_key:expr) => {
         $ui.add($node_key);
+    };
+    ($ui:expr, $node_key:expr, $code:block) => {
+        $ui.add($node_key);
+
+        $ui.parent_stack.push($node_key.id());
+        $code;
+        $ui.parent_stack.pop();
     };
 }
 
@@ -1027,6 +1093,18 @@ macro_rules! column {
     ($ui:expr, $code:block) => {
         let anonymous_id = new_id!();
         $ui.column(anonymous_id);
+
+        $ui.parent_stack.push(anonymous_id);
+        $code;
+        $ui.parent_stack.pop();
+    };
+}
+
+#[macro_export]
+macro_rules! row {
+    ($ui:expr, $code:block) => {
+        let anonymous_id = new_id!();
+        $ui.row(anonymous_id);
 
         $ui.parent_stack.push(anonymous_id);
         $code;
