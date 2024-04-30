@@ -4,6 +4,7 @@ use helper::{
     base_color_attachment, base_render_pass_desc, base_surface_config, init_wgpu,
     init_winit_window, ENC_DESC,
 };
+use rustc_hash::FxHasher;
 pub use ui::Id;
 
 use ui::{Color, NodeKey, NodeParams, Ui, Xy, Size, Position};
@@ -15,7 +16,7 @@ use winit::{
     window::Window,
 };
 
-use std::sync::Arc;
+use std::{sync::Arc, hash::Hasher, time::Duration};
 
 fn main() {
     let (event_loop, mut state) = init();
@@ -75,6 +76,7 @@ impl<'window> State<'window> {
                 event: WindowEvent::Resized(size),
                 ..
             } => self.resize(size),
+
             Event::WindowEvent {
                 event: WindowEvent::RedrawRequested,
                 ..
@@ -93,48 +95,45 @@ impl<'window> State<'window> {
     }
 
     pub fn update(&mut self) {
+        
         self.counter_state.add(&mut self.ui);
-
+        
+        self.ui.finish_tree();
         self.ui.layout();
+        
+        self.counter_state.interact(&mut self.ui);
+        
         // self.resolve_input();
-
-        // if self.ui.is_clicked(INCREASE_BUTTON.id) {
-        //     self.count += 1;
-        // }
-
-        // if self.ui.is_clicked(DECREASE_BUTTON.id) {
-        //     self.count -= 1;
-        // }
-
-        // if self.ui.is_clicked(SHOW_COUNTER_BUTTON.id) {
-        //     self.counter_mode = !self.counter_mode;
-        // }
-
+        
         self.ui.build_buffers();
-
+        
         self.render();
-
-        self.ui.current_frame += 1;
-        self.ui.mouse_left_just_clicked = false;
+        
+        self.ui.finish_frame();
     }
 
     pub fn render(&mut self) {
-        self.ui.prepare(&self.device, &self.queue);
+        if self.ui.needs_redraw() {
+            self.ui.prepare(&self.device, &self.queue);
 
-        let frame = self.surface.get_current_texture().unwrap();
-        let view = frame.texture.create_view(&TextureViewDescriptor::default());
-        let mut encoder = self.device.create_command_encoder(&ENC_DESC);
+            let frame = self.surface.get_current_texture().unwrap();
 
-        {
-            let color_att = base_color_attachment(&view);
-            let render_pass_desc = &base_render_pass_desc(&color_att);
-            let mut render_pass = encoder.begin_render_pass(render_pass_desc);
-
-            self.ui.render(&mut render_pass);
+            let view = frame.texture.create_view(&TextureViewDescriptor::default());
+            let mut encoder = self.device.create_command_encoder(&ENC_DESC);
+            
+            {
+                let color_att = base_color_attachment(&view);
+                let render_pass_desc = &base_render_pass_desc(&color_att);
+                let mut render_pass = encoder.begin_render_pass(render_pass_desc);
+                
+                self.ui.render(&mut render_pass);
+            }
+            
+            self.queue.submit(Some(encoder.finish()));
+            frame.present();
+        } else {
+            std::thread::sleep(Duration::from_millis(6));
         }
-
-        self.queue.submit(Some(encoder.finish()));
-        frame.present();
     }
 
     pub fn resize(&mut self, size: &PhysicalSize<u32>) {
@@ -166,11 +165,6 @@ pub const DECREASE_BUTTON: NodeKey = NodeKey::new(NodeParams::BUTTON, new_id!())
     .with_static_text("Decrease")
     .with_debug_name("Decrease")
     .with_color(Color::BLUE);
-
-pub const LETTER_BUTTON: NodeKey = NodeKey::new(NodeParams::BUTTON, new_id!())
-    .with_static_text("Letter")
-    .with_debug_name("Letter")
-    .with_color(Color::LIGHT_BLUE);
 
 pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey::new(
     NodeParams {
@@ -204,8 +198,8 @@ impl CounterState {
         floating_window!(ui, {
             add!(ui, CENTER_COLUMN, {
                 if self.counter_mode {
-                    let color = count_color(self.count);
-                    add!(ui, INCREASE_BUTTON.with_color(color));
+                    add!(ui, INCREASE_BUTTON);
+                    ui.update_color(INCREASE_BUTTON.id, count_color(self.count));
 
                     add!(ui, COUNT_LABEL);
                     ui.update_text(COUNT_LABEL.id, self.count);
@@ -221,5 +215,19 @@ impl CounterState {
                 ui.update_text(SHOW_COUNTER_BUTTON.id, text);
             });
         });
+    }
+
+    pub fn interact(&mut self, ui: &mut Ui) {
+        if ui.is_clicked(INCREASE_BUTTON.id) {
+            self.count += 1;
+        }
+
+        if ui.is_clicked(DECREASE_BUTTON.id) {
+            self.count -= 1;
+        }
+
+        if ui.is_clicked(SHOW_COUNTER_BUTTON.id) {
+            self.counter_mode = !self.counter_mode;
+        }
     }
 }

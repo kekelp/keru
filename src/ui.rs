@@ -265,7 +265,7 @@ impl Rectangle {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Color {
     pub r: f32,
     pub g: f32,
@@ -327,9 +327,15 @@ pub struct Ui {
     pub stack: Vec<Id>,
 
     pub immediate_mode: bool,
+
+    pub last_tree_hash: u64,
+    pub tree_hasher: FxHasher,
+
+    // remember about animations (surely there will be)
+    pub content_changed: bool,
+    pub tree_changed: bool,
 }
 impl Ui {
-    // todo: check if the string is different and skip...?
     pub fn update_text(&mut self, id: Id, text: impl ToString) {
         let text = text.to_string();
         let mut hasher = FxHasher::default();
@@ -382,6 +388,19 @@ impl Ui {
             Shaping::Advanced,
         );
         self.text_areas[text_id as usize].last_frame_touched = self.current_frame;
+
+        self.content_changed = true;
+    }
+
+    pub fn update_color(&mut self, id: Id, color: Color) {
+        if let Some(node) = self.nodes.get_mut(&id) {
+            if node.params.color == color {
+                return;
+            } else {
+                node.params.color = color;
+                self.content_changed = true;
+            }
+        }
     }
 
     pub fn new(device: &Device, config: &SurfaceConfiguration, queue: &Queue) -> Self {
@@ -519,6 +538,11 @@ impl Ui {
             stack: Vec::new(),
 
             immediate_mode: true,
+
+            tree_hasher: FxHasher::default(),
+            last_tree_hash: 0,
+            content_changed: true,
+            tree_changed: true,
         }
     }
 
@@ -542,6 +566,9 @@ impl Ui {
         let parent_id = *self.parent_stack.last().unwrap();
 
         let node_key_id = node_key.id;
+
+        node_key_id.hash(&mut self.tree_hasher);
+
         let old_node = self.nodes.get_mut(&node_key_id);
         if old_node.is_none() {
             let mut text_id = None;
@@ -575,7 +602,6 @@ impl Ui {
                     last_frame_touched: self.current_frame,
                     last_hash: hash,
                 };
-
                 self.text_areas.push(text_area);
                 text_id = Some((self.text_areas.len() - 1) as u32);
             }
@@ -583,33 +609,12 @@ impl Ui {
             let new_node = self.new_node(node_key, parent_id, text_id);
             self.nodes.insert(node_key_id, new_node);
         } else {
-            // instead of reinserting, could just handle all update possibilities by his own.
             let old_node = old_node.unwrap();
             if let Some(text_id) = old_node.text_id {
-                // todo: right now we turned this off (static strings passed through the key) 
-                //  because you can do the same with update_text and "only one way to do things == good",
-                    // but it was kind of nice.
-                
-                // if let Some(text) = node_key.params.static_text {
-            //         let mut hasher = FxHasher::default();
-            //         text.hash(&mut hasher);
-            //         let hash = hasher.finish();
-
-            //         if hash != self.text_areas[text_id as usize].last_hash {                      
-            //             self.text_areas[text_id as usize].buffer.set_text(
-            //                 &mut self.font_system,
-            //                 text,
-            //                 Attrs::new().family(Family::SansSerif),
-            //             Shaping::Advanced,
-            //             );
-            //         }
                     self.text_areas[text_id as usize].last_frame_touched = self.current_frame;
-                // }
             }
-            let text_id = old_node.text_id;
-            let new_node = self.new_node(node_key, parent_id, text_id);
-
-            self.nodes.insert(node_key_id, new_node);
+            old_node.last_frame_touched = self.current_frame;
+            old_node.children_ids.clear();
         }
 
         self.nodes
@@ -656,12 +661,17 @@ impl Ui {
 
     // todo: deduplicate the traversal with build_buffers, or just merge build_buffers inside here.
     // either way should wait to see how a real layout pass would look like
-    // laying eggs
+    // ctrl+f: laying eggs
+    // todo: layout has to be called BEFORE is_clicked and similar. maybe there's a way to force it or at least to print a warning?
+    // or just do layout automatically somewhere? 
     pub fn layout(&mut self) {
+        if ! self.needs_redraw() {
+            return;
+        }
         self.stack.clear();
 
         let mut parent_already_decided = false;
-        let mut last_name = "root?";
+        // let mut last_name = "root?";
         let mut last_rect = Xy::new_symm([0.0, 1.0]);
         let mut new_rect = last_rect;
 
@@ -673,15 +683,16 @@ impl Ui {
         }
 
         while let Some(current_node_id) = self.stack.pop() {
+            // this mess over here is to avoid borrowing 2 nodes (which shouldn't even be a problem. but layout will change anyway.)
             let children_ids;
             let container;
-            let debug_name;
+            // let debug_name;
             let len = Xy::new(new_rect[Axis::X][1] - new_rect[Axis::X][0], new_rect[Axis::Y][1] - new_rect[Axis::Y][0]);
             {            
                 let current_node = self.nodes.get_mut(&current_node_id).unwrap();
                 children_ids = current_node.children_ids.clone();
                 container = current_node.params.container_mode;
-                debug_name = current_node.params.debug_name;
+                // debug_name = current_node.params.debug_name;
 
                 // println!("visiting {:?}, parent: {:?}", current_node.params.debug_name, last_name);
 
@@ -764,7 +775,7 @@ impl Ui {
 
                     for &child_id in children_ids.iter().rev() {
                         self.stack.push(child_id);
-                        last_name = debug_name;
+                        // last_name = debug_name;
                         last_rect = new_rect;
                         parent_already_decided = true;
                     }
@@ -774,7 +785,7 @@ impl Ui {
                     // just go to the children
                     for &child_id in children_ids.iter().rev() {
                         self.stack.push(child_id);
-                        last_name = debug_name;
+                        // last_name = debug_name;
                         last_rect = new_rect;
                         parent_already_decided = false;
                     }
@@ -787,7 +798,7 @@ impl Ui {
 
         // print_whole_tree
         // for (k, v) in &self.nodes {
-        //     println!(" {:?}: {:#?}", k, v.key.id);
+        //     println!(" {:?}: {:#?}", k, v.params.debug_name);
         // }
 
         // println!("self.text_areas.len() {:?}", self.text_areas.len());
@@ -806,7 +817,7 @@ impl Ui {
             if self.immediate_mode && (node.last_frame_touched != self.current_frame) {
                 return false;
             }
-
+            
             let mouse_pos = (
                 self.mouse_pos.x / self.resolution.width,
                 1.0 - (self.mouse_pos.y / self.resolution.height),
@@ -829,10 +840,17 @@ impl Ui {
             height: size.height as f32,
         };
         self.resolution = resolution;
+        self.content_changed = true;
+        self.tree_changed = true;
+
         queue.write_buffer(&self.resolution_buffer, 0, bytemuck::bytes_of(&resolution));
     }
 
     pub fn build_buffers(&mut self) {
+        if ! self.needs_redraw() {
+            return;
+        }
+
         self.rects.clear();
         self.stack.clear();
 
@@ -848,6 +866,8 @@ impl Ui {
 
             if current_node.last_frame_touched == self.current_frame || self.immediate_mode == false
             {
+                // println!(" maybe too much?");
+                // println!(" {:?}", current_node.params.debug_name);
                 self.rects.push(Rectangle {
                     x0: current_node.rect[X][0] * 2. - 1.,
                     x1: current_node.rect[X][1] * 2. - 1.,
@@ -864,24 +884,31 @@ impl Ui {
                 self.stack.push(child_id);
             }
         }
+
+        println!("About to render {:?} rectangles.", self.rects.len());
     }
 
     pub fn render<'pass>(&'pass self, render_pass: &mut RenderPass<'pass>) {
-        let n = self.rects.len() as u32;
-        if n > 0 {
-            render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_bind_group(0, &self.bind_group, &[]);
-            render_pass.set_vertex_buffer(0, self.gpu_vertex_buffer.slice(n));
-            render_pass.draw(0..6, 0..n);
-        }
+        if self.needs_redraw() {
 
-        self.text_renderer.render(&self.atlas, render_pass).unwrap();
+            let n = self.rects.len() as u32;
+            if n > 0 {
+                render_pass.set_pipeline(&self.render_pipeline);
+                render_pass.set_bind_group(0, &self.bind_group, &[]);
+                render_pass.set_vertex_buffer(0, self.gpu_vertex_buffer.slice(n));
+                render_pass.draw(0..6, 0..n);
+            }
+            
+            self.text_renderer.render(&self.atlas, render_pass).unwrap();
+        }
     }
 
     pub fn prepare(&mut self, device: &Device, queue: &Queue) {
-        self.gpu_vertex_buffer.queue_write(&self.rects[..], queue);
+        if self.needs_redraw() {
 
-        self.text_renderer
+            self.gpu_vertex_buffer.queue_write(&self.rects[..], queue);
+            
+            self.text_renderer
             .prepare(
                 device,
                 queue,
@@ -896,10 +923,12 @@ impl Ui {
                 self.current_frame,
                 self.immediate_mode,
             )
-            .unwrap();
+            .unwrap();        
+        }
+    }
 
-        // self.ui.atlas.trim();
-
+    // todo: this can be called at the end of prepare() or render() instead of in main(), maybe.
+    pub fn finish_frame(&mut self) {
         // the root isn't processed in the div! stuff because there's usually nothing to do with it (except this)
         if self.immediate_mode {
             self.nodes
@@ -908,6 +937,23 @@ impl Ui {
                 .children_ids
                 .clear();
         }
+
+        self.content_changed = false;
+        self.tree_changed = false;
+        self.current_frame += 1;
+        self.mouse_left_just_clicked = false;
+        self.tree_hasher = FxHasher::default();
+    }
+
+    // todo: this can be called at the start of layout() (before the early return) instead that in main, if nothing changes.
+    pub fn finish_tree(&mut self) {
+        let hash = self.tree_hasher.finish();
+        self.tree_changed = hash != self.last_tree_hash;
+        self.last_tree_hash = hash;
+    }
+
+    pub fn needs_redraw(&self) -> bool {
+        return self.tree_changed || self.content_changed; 
     }
 }
 
