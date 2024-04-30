@@ -4,10 +4,10 @@ use helper::{
     base_color_attachment, base_render_pass_desc, base_surface_config, init_wgpu,
     init_winit_window, ENC_DESC,
 };
-use rustc_hash::FxHasher;
+
 pub use ui::Id;
 
-use ui::{Color, NodeKey, NodeParams, Ui, Xy, Size, Position};
+use ui::{Color, NodeKey, NodeParams, Position, Size, Ui, Xy};
 use wgpu::{Device, Queue, Surface, SurfaceConfiguration, TextureFormat, TextureViewDescriptor};
 use winit::{
     dpi::PhysicalSize,
@@ -16,7 +16,7 @@ use winit::{
     window::Window,
 };
 
-use std::{sync::Arc, hash::Hasher, time::Duration};
+use std::{sync::Arc, time::Duration};
 
 fn main() {
     let (event_loop, mut state) = init();
@@ -95,20 +95,19 @@ impl<'window> State<'window> {
     }
 
     pub fn update(&mut self) {
-        
         self.counter_state.add(&mut self.ui);
-        
+
         self.ui.finish_tree();
         self.ui.layout();
-        
+
         self.counter_state.interact(&mut self.ui);
-        
+
         // self.resolve_input();
-        
+
         self.ui.build_buffers();
-        
+
         self.render();
-        
+
         self.ui.finish_frame();
     }
 
@@ -120,15 +119,15 @@ impl<'window> State<'window> {
 
             let view = frame.texture.create_view(&TextureViewDescriptor::default());
             let mut encoder = self.device.create_command_encoder(&ENC_DESC);
-            
+
             {
                 let color_att = base_color_attachment(&view);
                 let render_pass_desc = &base_render_pass_desc(&color_att);
                 let mut render_pass = encoder.begin_render_pass(render_pass_desc);
-                
+
                 self.ui.render(&mut render_pass);
             }
-            
+
             self.queue.submit(Some(encoder.finish()));
             frame.present();
         } else {
@@ -181,7 +180,6 @@ pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey::new(
 
 pub const COUNT_LABEL: NodeKey = NodeKey::new(NodeParams::LABEL, new_id!());
 
-
 pub struct CounterState {
     pub count: i32,
     pub counter_mode: bool,
@@ -203,10 +201,10 @@ impl CounterState {
 
                     add!(ui, COUNT_LABEL);
                     ui.update_text(COUNT_LABEL.id, self.count);
-                    
+
                     add!(ui, DECREASE_BUTTON);
                 }
-                
+
                 let text = match self.counter_mode {
                     true => "Hide counter",
                     false => "Show counter",
