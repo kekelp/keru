@@ -31,7 +31,8 @@ fn vs_main(in: VertexInput) -> VertexOutput {
         (in.ys[1] - in.ys[0]) * screen_resolution.y / 2.0, 
     );
 
-    // calculate for corners, will be interpolated
+    // calculate for corners, will be interpolated.
+    // interpolation after the abs() won't work.
     var corner = 2.0 * vec2f(vec2u(i_x, i_y)) - 1.0;    
     var uv = corner * half_size;
 
@@ -44,6 +45,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // +L <-- 0 --> +L
     // where L = rect_half_size (pixels)
     var radius = 30.0;
+
+    // todo: what the fuck is a q?
     var q = abs(in.uv) - in.half_size + radius;
 
     var dist = length(max(q, vec2(0.0, 0.0))) - radius;
