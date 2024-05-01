@@ -300,11 +300,44 @@ impl Color {
     }
 }
 
+pub struct PartialBorrowStuff {
+    pub mouse_pos: PhysicalPosition<f32>,
+    pub mouse_left_clicked: bool,
+    pub mouse_left_just_clicked: bool,
+    pub resolution: Resolution,
+    pub current_frame: u64,
+
+}
+impl PartialBorrowStuff {
+    pub fn is_node_clicked_or_hovered(&self, node: &Node) -> (bool, bool) {
+        if node.last_frame_touched != self.current_frame {
+            return (false, false);
+        }
+        
+        let mouse_pos = (
+            self.mouse_pos.x / self.resolution.width,
+            1.0 - (self.mouse_pos.y / self.resolution.height),
+        );
+
+        let hovered = node.rect[X][0] < mouse_pos.0
+            && mouse_pos.0 < node.rect[X][1]
+            && node.rect[Y][0] < mouse_pos.1
+            && mouse_pos.1 < node.rect[Y][1];
+
+        if hovered == false {
+            return (false, false)
+        };
+
+        let clicked = self.mouse_left_just_clicked;
+        return (clicked, hovered);
+    }
+}
+
+
 pub struct Ui {
     pub gpu_vertex_buffer: TypedGpuBuffer<Rectangle>,
     pub render_pipeline: RenderPipeline,
 
-    pub resolution: Resolution,
     pub resolution_buffer: wgpu::Buffer,
     pub bind_group: BindGroup,
 
@@ -319,11 +352,9 @@ pub struct Ui {
 
     pub parent_stack: Vec<Id>,
 
-    pub current_frame: u64,
 
-    pub mouse_pos: PhysicalPosition<f32>,
-    pub mouse_left_clicked: bool,
-    pub mouse_left_just_clicked: bool,
+    pub input: PartialBorrowStuff,
+
     pub stack: Vec<Id>,
 
     pub last_tree_hash: u64,
@@ -349,7 +380,7 @@ impl Ui {
 
                 if hash == self.text_areas[text_id as usize].last_hash {
                     // todo: I shouldn't have to do this, I don't think, it's visible as long as the node is visible?? 
-                    self.text_areas[text_id as usize].last_frame_touched = self.current_frame;
+                    self.text_areas[text_id as usize].last_frame_touched = self.input.current_frame;
                     return;
                 }
                 self.text_areas[text_id as usize].last_hash = hash;
@@ -371,7 +402,7 @@ impl Ui {
                     },
                     default_color: GlyphonColor::rgb(255, 255, 255),
                     depth: 0.0,
-                    last_frame_touched: self.current_frame,
+                    last_frame_touched: self.input.current_frame,
                     last_hash: hash,
                 };
 
@@ -387,7 +418,7 @@ impl Ui {
             Attrs::new().family(Family::SansSerif),
             Shaping::Advanced,
         );
-        self.text_areas[text_id as usize].last_frame_touched = self.current_frame;
+        self.text_areas[text_id as usize].last_frame_touched = self.input.current_frame;
 
         self.content_changed = true;
     }
@@ -523,16 +554,19 @@ impl Ui {
             resolution_buffer,
             bind_group,
 
-            resolution: Resolution {
-                width: config.width as f32,
-                height: config.height as f32,
-            },
-            parent_stack,
-            current_frame: 0,
 
-            mouse_pos: PhysicalPosition { x: 0., y: 0. },
-            mouse_left_clicked: false,
-            mouse_left_just_clicked: false,
+            parent_stack,
+            
+            input: PartialBorrowStuff {
+                mouse_pos: PhysicalPosition { x: 0., y: 0. },
+                mouse_left_clicked: false,
+                mouse_left_just_clicked: false,
+                current_frame: 0,
+                resolution: Resolution {
+                    width: config.width as f32,
+                    height: config.height as f32,
+                },
+            },
 
             // stack for traversing
             stack: Vec::new(),
@@ -599,7 +633,7 @@ impl Ui {
                     },
                     default_color: GlyphonColor::rgb(255, 255, 255),
                     depth: 0.0,
-                    last_frame_touched: self.current_frame,
+                    last_frame_touched: self.input.current_frame,
                     last_hash: hash,
                 };
                 self.text_areas.push(text_area);
@@ -611,9 +645,9 @@ impl Ui {
         } else {
             let old_node = old_node.unwrap();
             if let Some(text_id) = old_node.text_id {
-                    self.text_areas[text_id as usize].last_frame_touched = self.current_frame;
+                    self.text_areas[text_id as usize].last_frame_touched = self.input.current_frame;
             }
-            old_node.last_frame_touched = self.current_frame;
+            old_node.last_frame_touched = self.input.current_frame;
             old_node.children_ids.clear();
         }
 
@@ -631,7 +665,7 @@ impl Ui {
             parent_id,
             children_ids: Vec::new(),
             params: node_key.params,
-            last_frame_touched: self.current_frame,
+            last_frame_touched: self.input.current_frame,
         }
     }
 
@@ -639,18 +673,18 @@ impl Ui {
         if let Event::WindowEvent { event, .. } = event {
             match event {
                 WindowEvent::CursorMoved { position, .. } => {
-                    self.mouse_pos.x = position.x as f32;
-                    self.mouse_pos.y = position.y as f32;
+                    self.input.mouse_pos.x = position.x as f32;
+                    self.input.mouse_pos.y = position.y as f32;
                 }
                 WindowEvent::MouseInput { button, state, .. } => {
                     if *button == MouseButton::Left {
                         if *state == ElementState::Pressed {
-                            self.mouse_left_clicked = true;
-                            if !self.mouse_left_just_clicked {
-                                self.mouse_left_just_clicked = true;
+                            self.input.mouse_left_clicked = true;
+                            if !self.input.mouse_left_just_clicked {
+                                self.input.mouse_left_just_clicked = true;
                             }
                         } else {
-                            self.mouse_left_clicked = false;
+                            self.input.mouse_left_clicked = false;
                         }
                     }
                 }
@@ -702,7 +736,7 @@ impl Ui {
                     for axis in [Axis::X, Axis::Y] {
                         match current_node.params.position[axis] {
                             Position::Start { padding } => {
-                                let x0 = last_rect[axis][0] + (padding as f32 / self.resolution.width);
+                                let x0 = last_rect[axis][0] + (padding as f32 / self.input.resolution.width);
                                 match current_node.params.size[axis] {
                                     Size::PercentOfParent(percent) => {
                                         let x1 = x0 + len[axis] * percent;
@@ -728,8 +762,8 @@ impl Ui {
                 }
 
                 if let Some(id) = current_node.text_id {
-                    self.text_areas[id as usize].left = current_node.rect[X][0] * self.resolution.width;
-                    self.text_areas[id as usize].top = (1.0 - current_node.rect[Y][1]) * self.resolution.height;
+                    self.text_areas[id as usize].left = current_node.rect[X][0] * self.input.resolution.width;
+                    self.text_areas[id as usize].top = (1.0 - current_node.rect[Y][1]) * self.input.resolution.height;
                     self.text_areas[id as usize].buffer.set_size(
                         &mut self.font_system,
                         100000.,
@@ -746,7 +780,7 @@ impl Ui {
                 Some(mode) => {
                     // decide the children positions all at once
                     let padding = 5;
-                    let mut main_0 = new_rect[mode.main_axis][0] + (padding as f32 / self.resolution.width);
+                    let mut main_0 = new_rect[mode.main_axis][0] + (padding as f32 / self.input.resolution.width);
 
                     for &child_id in children_ids.iter().rev() {
                         let child = self.nodes.get_mut(&child_id).unwrap();
@@ -757,14 +791,14 @@ impl Ui {
                             Size::PercentOfParent(percent) => {
                                 let main_1 = main_0 + len[main_axis] * percent;
                                 child.rect[main_axis][1] = main_1;
-                                main_0 = main_1 + (padding as f32 / self.resolution.width);
+                                main_0 = main_1 + (padding as f32 / self.input.resolution.width);
                             },
                         }
 
                         let cross_axis = mode.main_axis.other();
                         match child.params.size[cross_axis] {
                             Size::PercentOfParent(percent) => {
-                                let cross_0 = new_rect[cross_axis][0] + (padding as f32 / self.resolution.width);
+                                let cross_0 = new_rect[cross_axis][0] + (padding as f32 / self.input.resolution.width);
                                 let cross_1 = cross_0 + len[cross_axis] * percent;
                                 child.rect[cross_axis][0] = cross_0;
                                 child.rect[cross_axis][1] = cross_1;
@@ -807,7 +841,7 @@ impl Ui {
 
     // in the future, do the full tree pass (for covered stuff etc)
     pub fn is_clicked(&self, id: Id) -> bool {
-        if !self.mouse_left_just_clicked {
+        if !self.input.mouse_left_just_clicked {
             return false;
         }
 
@@ -816,35 +850,12 @@ impl Ui {
         return self.clicked.contains(&id);
     }
 
-    pub fn is_node_clicked_or_hovered(&self, node: &Node) -> (bool, bool) {
-        if node.last_frame_touched != self.current_frame {
-            return (false, false);
-        }
-        
-        let mouse_pos = (
-            self.mouse_pos.x / self.resolution.width,
-            1.0 - (self.mouse_pos.y / self.resolution.height),
-        );
-
-        let hovered = node.rect[X][0] < mouse_pos.0
-            && mouse_pos.0 < node.rect[X][1]
-            && node.rect[Y][0] < mouse_pos.1
-            && mouse_pos.1 < node.rect[Y][1];
-
-        if hovered == false {
-            return (false, false)
-        };
-
-        let clicked = self.mouse_left_just_clicked;
-        return (clicked, hovered);
-    }
-
     pub fn resize(&mut self, size: &PhysicalSize<u32>, queue: &Queue) {
         let resolution = Resolution {
             width: size.width as f32,
             height: size.height as f32,
         };
-        self.resolution = resolution;
+        self.input.resolution = resolution;
         self.content_changed = true;
         self.tree_changed = true;
 
@@ -869,7 +880,7 @@ impl Ui {
         while let Some(current_node_id) = self.stack.pop() {
             let current_node = self.nodes.get_mut(&current_node_id).unwrap();
 
-            if current_node.last_frame_touched == self.current_frame {
+            if current_node.last_frame_touched == self.input.current_frame {
                 // println!(" maybe too much?");
                 // println!(" {:?}", current_node.params.debug_name);
                 self.rects.push(Rectangle {
@@ -919,12 +930,12 @@ impl Ui {
                 &mut self.font_system,
                 &mut self.atlas,
                 GlyphonResolution {
-                    width: self.resolution.width as u32,
-                    height: self.resolution.height as u32,
+                    width: self.input.resolution.width as u32,
+                    height: self.input.resolution.height as u32,
                 },
                 &mut self.text_areas,
                 &mut self.cache,
-                self.current_frame,
+                self.input.current_frame,
                 true
             )
             .unwrap();        
@@ -944,8 +955,8 @@ impl Ui {
 
         self.content_changed = false;
         self.tree_changed = false;
-        self.current_frame += 1;
-        self.mouse_left_just_clicked = false;
+        self.input.current_frame += 1;
+        self.input.mouse_left_just_clicked = false;
         self.tree_hasher = FxHasher::default();
     }
 
@@ -973,10 +984,9 @@ impl Ui {
         }
 
         while let Some(current_node_id) = self.stack.pop() {
-            // todo: make mut!!!!!!!!
             let current_node = self.nodes.get_mut(&current_node_id).unwrap();
 
-            let (clicked, hovered) = self.is_node_clicked_or_hovered(&current_node);
+            let (clicked, hovered) = self.input.is_node_clicked_or_hovered(&current_node);
             if clicked {
                 self.clicked.push(current_node_id);
             }
