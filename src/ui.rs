@@ -329,6 +329,8 @@ pub struct Ui {
     pub last_tree_hash: u64,
     pub tree_hasher: FxHasher,
 
+    pub clicked: Vec<Id>,
+
     // remember about animations (surely there will be)
     pub content_changed: bool,
     pub tree_changed: bool,
@@ -534,6 +536,8 @@ impl Ui {
 
             // stack for traversing
             stack: Vec::new(),
+
+            clicked: Vec::new(),
 
             tree_hasher: FxHasher::default(),
             last_tree_hash: 0,
@@ -802,42 +806,37 @@ impl Ui {
     }
 
     // in the future, do the full tree pass (for covered stuff etc)
-    // probably better to take just the id (for performance)
     pub fn is_clicked(&self, id: Id) -> bool {
         if !self.mouse_left_just_clicked {
             return false;
         }
 
-        let node = self.nodes.get(&id);
-        if let Some(node) = node {
-            return self.is_node_clicked(node);
-        }
+        println!(" {:?}", self.clicked);
 
-        return false;
+        return self.clicked.contains(&id);
     }
 
-    pub fn is_node_clicked(&self, node: &Node) -> bool {
-        if !self.mouse_left_just_clicked {
-            return false;
-        }
-
+    pub fn is_node_clicked_or_hovered(&self, node: &Node) -> (bool, bool) {
         if node.last_frame_touched != self.current_frame {
-            return false;
+            return (false, false);
         }
         
         let mouse_pos = (
             self.mouse_pos.x / self.resolution.width,
             1.0 - (self.mouse_pos.y / self.resolution.height),
         );
-        if node.rect[X][0] < mouse_pos.0
+
+        let hovered = node.rect[X][0] < mouse_pos.0
             && mouse_pos.0 < node.rect[X][1]
             && node.rect[Y][0] < mouse_pos.1
-            && mouse_pos.1 < node.rect[Y][1]
-        {
-            return true;
-        }
+            && mouse_pos.1 < node.rect[Y][1];
 
-        return false;
+        if hovered == false {
+            return (false, false)
+        };
+
+        let clicked = self.mouse_left_just_clicked;
+        return (clicked, hovered);
     }
 
     pub fn resize(&mut self, size: &PhysicalSize<u32>, queue: &Queue) {
@@ -941,6 +940,7 @@ impl Ui {
             .children_ids
             .clear();
     
+        self.clicked.clear();
 
         self.content_changed = false;
         self.tree_changed = false;
@@ -960,10 +960,9 @@ impl Ui {
         return self.tree_changed || self.content_changed; 
     }
 
-    // this could be merged into any of the other full tree passes,
-    // except that it has to run every frame and never skipped ...
+    // this could be merged into any of the other full tree passes, probably the last pass of layout.
+    // but that it has to run every frame and never skipped.
     pub fn resolve_input(&mut self) {
-        // todo: it's actually a bit cringe to use this same stack for 6 million different things.
         self.stack.clear();
 
         // push the ui.direct children of the root without processing the root
@@ -974,8 +973,13 @@ impl Ui {
         }
 
         while let Some(current_node_id) = self.stack.pop() {
+            // todo: make mut!!!!!!!!
             let current_node = self.nodes.get_mut(&current_node_id).unwrap();
 
+            let (clicked, hovered) = self.is_node_clicked_or_hovered(&current_node);
+            if clicked {
+                self.clicked.push(current_node_id);
+            }
 
             for &child_id in current_node.children_ids.iter() {
                 self.stack.push(child_id);
@@ -1218,6 +1222,7 @@ macro_rules! floating_window {
 
 pub trait Component {
     fn add(&mut self);
-    fn update(&mut self);
-    fn auto_interact(&mut self);
+    // fn update(&mut self);
+    // fn auto_interact(&mut self);
 }
+

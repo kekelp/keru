@@ -95,14 +95,14 @@ impl<'window> State<'window> {
     }
 
     pub fn update(&mut self) {
-        self.counter_state.add(&mut self.ui);
+        CounterState::add(&mut self.ui, &mut self.counter_state);
 
         self.ui.finish_tree();
         self.ui.layout();
 
+        self.ui.resolve_input();
         self.counter_state.interact(&mut self.ui);
 
-        self.ui.resolve_input();
         self.ui.build_buffers();
 
         self.render();
@@ -192,20 +192,20 @@ impl CounterState {
         };
     }
 
-    pub fn add(&mut self, ui: &mut Ui) {
+    pub fn add(ui: &mut Ui, state: &mut Self) {
         floating_window!(ui, {
             add!(ui, CENTER_COLUMN, {
-                if self.counter_mode {
+                if state.counter_mode {
                     add!(ui, INCREASE_BUTTON);
-                    ui.update_color(INCREASE_BUTTON.id, count_color(self.count));
+                    ui.update_color(INCREASE_BUTTON.id, count_color(state.count));
 
                     add!(ui, COUNT_LABEL);
-                    ui.update_text(COUNT_LABEL.id, self.count);
+                    ui.update_text(COUNT_LABEL.id, state.count);
 
                     add!(ui, DECREASE_BUTTON);
                 }
 
-                let text = match self.counter_mode {
+                let text = match state.counter_mode {
                     true => "Hide counter",
                     false => "Show counter",
                 };
