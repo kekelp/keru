@@ -102,8 +102,7 @@ impl<'window> State<'window> {
 
         self.counter_state.interact(&mut self.ui);
 
-        // self.resolve_input();
-
+        self.ui.resolve_input();
         self.ui.build_buffers();
 
         self.render();
@@ -142,6 +141,7 @@ impl<'window> State<'window> {
         self.ui.resize(size, &self.queue);
         self.window.request_redraw();
     }
+
 }
 
 pub fn count_color(count: i32) -> Color {

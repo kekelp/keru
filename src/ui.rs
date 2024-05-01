@@ -326,8 +326,6 @@ pub struct Ui {
     pub mouse_left_just_clicked: bool,
     pub stack: Vec<Id>,
 
-    pub immediate_mode: bool,
-
     pub last_tree_hash: u64,
     pub tree_hasher: FxHasher,
 
@@ -536,8 +534,6 @@ impl Ui {
 
             // stack for traversing
             stack: Vec::new(),
-
-            immediate_mode: true,
 
             tree_hasher: FxHasher::default(),
             last_tree_hash: 0,
@@ -814,21 +810,31 @@ impl Ui {
 
         let node = self.nodes.get(&id);
         if let Some(node) = node {
-            if self.immediate_mode && (node.last_frame_touched != self.current_frame) {
-                return false;
-            }
-            
-            let mouse_pos = (
-                self.mouse_pos.x / self.resolution.width,
-                1.0 - (self.mouse_pos.y / self.resolution.height),
-            );
-            if node.rect[X][0] < mouse_pos.0
-                && mouse_pos.0 < node.rect[X][1]
-                && node.rect[Y][0] < mouse_pos.1
-                && mouse_pos.1 < node.rect[Y][1]
-            {
-                return true;
-            }
+            return self.is_node_clicked(node);
+        }
+
+        return false;
+    }
+
+    pub fn is_node_clicked(&self, node: &Node) -> bool {
+        if !self.mouse_left_just_clicked {
+            return false;
+        }
+
+        if node.last_frame_touched != self.current_frame {
+            return false;
+        }
+        
+        let mouse_pos = (
+            self.mouse_pos.x / self.resolution.width,
+            1.0 - (self.mouse_pos.y / self.resolution.height),
+        );
+        if node.rect[X][0] < mouse_pos.0
+            && mouse_pos.0 < node.rect[X][1]
+            && node.rect[Y][0] < mouse_pos.1
+            && mouse_pos.1 < node.rect[Y][1]
+        {
+            return true;
         }
 
         return false;
@@ -864,8 +870,7 @@ impl Ui {
         while let Some(current_node_id) = self.stack.pop() {
             let current_node = self.nodes.get_mut(&current_node_id).unwrap();
 
-            if current_node.last_frame_touched == self.current_frame || self.immediate_mode == false
-            {
+            if current_node.last_frame_touched == self.current_frame {
                 // println!(" maybe too much?");
                 // println!(" {:?}", current_node.params.debug_name);
                 self.rects.push(Rectangle {
@@ -921,7 +926,7 @@ impl Ui {
                 &mut self.text_areas,
                 &mut self.cache,
                 self.current_frame,
-                self.immediate_mode,
+                true
             )
             .unwrap();        
         }
@@ -930,13 +935,12 @@ impl Ui {
     // todo: this can be called at the end of prepare() or render() instead of in main(), maybe.
     pub fn finish_frame(&mut self) {
         // the root isn't processed in the div! stuff because there's usually nothing to do with it (except this)
-        if self.immediate_mode {
-            self.nodes
-                .get_mut(&NODE_ROOT_ID)
-                .unwrap()
-                .children_ids
-                .clear();
-        }
+        self.nodes
+            .get_mut(&NODE_ROOT_ID)
+            .unwrap()
+            .children_ids
+            .clear();
+    
 
         self.content_changed = false;
         self.tree_changed = false;
@@ -954,6 +958,29 @@ impl Ui {
 
     pub fn needs_redraw(&self) -> bool {
         return self.tree_changed || self.content_changed; 
+    }
+
+    // this could be merged into any of the other full tree passes,
+    // except that it has to run every frame and never skipped ...
+    pub fn resolve_input(&mut self) {
+        // todo: it's actually a bit cringe to use this same stack for 6 million different things.
+        self.stack.clear();
+
+        // push the ui.direct children of the root without processing the root
+        if let Some(root) = self.nodes.get(&NODE_ROOT_ID) {
+            for &child_id in root.children_ids.iter().rev() {
+                self.stack.push(child_id);
+            }
+        }
+
+        while let Some(current_node_id) = self.stack.pop() {
+            let current_node = self.nodes.get_mut(&current_node_id).unwrap();
+
+
+            for &child_id in current_node.children_ids.iter() {
+                self.stack.push(child_id);
+            }
+        }
     }
 }
 
@@ -1187,4 +1214,10 @@ macro_rules! floating_window {
         $code;
         $ui.parent_stack.pop();
     };
+}
+
+pub trait Component {
+    fn add(&mut self);
+    fn update(&mut self);
+    fn auto_interact(&mut self);
 }
