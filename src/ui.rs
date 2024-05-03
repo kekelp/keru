@@ -25,6 +25,17 @@ use Axis::{X, Y};
 pub struct Id(pub(crate) u64);
 
 pub const NODE_ROOT_ID: Id = Id(0);
+pub const NODE_ROOT: Node = Node {
+    rect: Xy::new_symm([-1.0, 1.0]),
+    color_mod: Color::WHITE,
+    text_id: None,
+    parent_id: NODE_ROOT_ID,
+    children_ids: Vec::new(),
+    params: NODE_ROOT_PARAMS,
+    last_frame_touched: 0,
+    last_frame_status: LastFrameStatus::Nothing,
+    z: -10000.0,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Axis {
@@ -281,6 +292,8 @@ impl Color {
         a: 0.6,
     };
 
+    pub const WHITE: Self = Self::rgba(1.0, 1.0, 1.0, 1.0);
+
     pub const BLUE: Self = Self {
         r: 0.6,
         g: 0.3,
@@ -297,6 +310,20 @@ impl Color {
 
     pub const fn rgba(r: f32, g: f32, b: f32, a: f32) -> Self {
         Self { r, g, b, a }
+    }
+
+    pub fn darken(&mut self, amount: f32) {
+        self.r = self.r * (1.0 - amount);
+        self.g = self.g * (1.0 - amount);
+        self.b = self.b * (1.0 - amount);
+        self.a = self.a * (1.0 - amount);
+    }
+
+    pub fn lighten(&mut self, amount: f32) {
+        self.r = self.r * (1.0 + amount);
+        self.g = self.g * (1.0 + amount);
+        self.b = self.b * (1.0 + amount);
+        self.a = self.a * (1.0 + amount);
     }
 }
 
@@ -333,6 +360,13 @@ impl PartialBorrowStuff {
     }
 }
 
+// pub enum InteractKind {
+//     Hovered,
+//     Clicked
+// }
+// pub struct MouseInteract {
+//     kind: 
+// }
 
 pub struct Ui {
     pub gpu_vertex_buffer: TypedGpuBuffer<Rectangle>,
@@ -360,7 +394,10 @@ pub struct Ui {
     pub last_tree_hash: u64,
     pub tree_hasher: FxHasher,
 
-    pub clicked: Vec<Id>,
+    pub clicked_stack: Vec<(Id, f32)>,
+    pub hovered_stack: Vec<(Id, f32)>,
+    pub clicked: Option<Id>,
+    pub hovered: Option<Id>,
 
     // remember about animations (surely there will be)
     pub content_changed: bool,
@@ -429,6 +466,16 @@ impl Ui {
                 return;
             } else {
                 node.params.color = color;
+                self.content_changed = true;
+            }
+        }
+    }
+    pub fn update_color_mod(&mut self, id: Id, color: Color) {
+        if let Some(node) = self.nodes.get_mut(&id) {
+            if node.color_mod == color {
+                return;
+            } else {
+                node.color_mod = color;
                 self.content_changed = true;
             }
         }
@@ -526,17 +573,7 @@ impl Ui {
 
         let mut nodes = FxHashMap::default();
 
-        nodes.insert(
-            NODE_ROOT_ID,
-            Node {
-                rect: Xy::new_symm([-1.0, 1.0]),
-                text_id: None,
-                parent_id: NODE_ROOT_ID,
-                children_ids: Vec::new(),
-                params: NODE_ROOT_PARAMS,
-                last_frame_touched: 0,
-            },
-        );
+        nodes.insert(NODE_ROOT_ID, NODE_ROOT);
 
         let mut parent_stack = Vec::with_capacity(7);
         parent_stack.push(NODE_ROOT_ID);
@@ -571,7 +608,10 @@ impl Ui {
             // stack for traversing
             stack: Vec::new(),
 
-            clicked: Vec::new(),
+            clicked_stack: Vec::new(),
+            clicked: None,
+            hovered_stack: Vec::new(),
+            hovered: None,
 
             tree_hasher: FxHasher::default(),
             last_tree_hash: 0,
@@ -661,11 +701,14 @@ impl Ui {
     pub fn new_node(&self, node_key: NodeKey, parent_id: Id, text_id: Option<u32>) -> Node {
         Node {
             rect: Xy::new_symm([0.0, 1.0]),
+            color_mod: Color::WHITE,
             text_id,
             parent_id,
             children_ids: Vec::new(),
             params: node_key.params,
             last_frame_touched: self.input.current_frame,
+            last_frame_status: LastFrameStatus::Nothing,
+            z: 0.0,
         }
     }
 
@@ -839,15 +882,16 @@ impl Ui {
         // println!("self.rects.len() {:?}", self.rects.len());
     }
 
-    // in the future, do the full tree pass (for covered stuff etc)
     pub fn is_clicked(&self, id: Id) -> bool {
         if !self.input.mouse_left_just_clicked {
             return false;
         }
-
-        println!(" {:?}", self.clicked);
-
-        return self.clicked.contains(&id);
+        for (clicked_id, _z) in &self.clicked_stack {
+            if *clicked_id == id {
+                return true;
+            }
+        }
+        return false;
     }
 
     pub fn resize(&mut self, size: &PhysicalSize<u32>, queue: &Queue) {
@@ -888,10 +932,10 @@ impl Ui {
                     x1: current_node.rect[X][1] * 2. - 1.,
                     y0: current_node.rect[Y][0] * 2. - 1.,
                     y1: current_node.rect[Y][1] * 2. - 1.,
-                    r: current_node.params.color.r,
-                    g: current_node.params.color.g,
-                    b: current_node.params.color.b,
-                    a: current_node.params.color.a,
+                    r: current_node.params.color.r * current_node.color_mod.r,
+                    g: current_node.params.color.g * current_node.color_mod.g,
+                    b: current_node.params.color.b * current_node.color_mod.b,
+                    a: current_node.params.color.a * current_node.color_mod.a,
                 });
             }
 
@@ -951,8 +995,6 @@ impl Ui {
             .children_ids
             .clear();
     
-        self.clicked.clear();
-
         self.content_changed = false;
         self.tree_changed = false;
         self.input.current_frame += 1;
@@ -972,9 +1014,11 @@ impl Ui {
     }
 
     // this could be merged into any of the other full tree passes, probably the last pass of layout.
-    // but that it has to run every frame and never skipped.
+    // todo: skip this if there has been no new input.
     pub fn resolve_input(&mut self) {
         self.stack.clear();
+        self.clicked_stack.clear();
+        self.hovered_stack.clear();
 
         // push the ui.direct children of the root without processing the root
         if let Some(root) = self.nodes.get(&NODE_ROOT_ID) {
@@ -988,31 +1032,96 @@ impl Ui {
 
             let (clicked, hovered) = self.input.is_node_clicked_or_hovered(&current_node);
             if clicked {
-                self.clicked.push(current_node_id);
+                self.clicked_stack.push((current_node_id, current_node.z));
+            } else if hovered {
+                self.hovered_stack.push((current_node_id, current_node.z));
             }
 
             for &child_id in current_node.children_ids.iter() {
                 self.stack.push(child_id);
             }
         }
+
+        // only the one with the highest z is actually clicked.
+        // there may be exceptions.
+        // also, nothing is really specifying their z right now.
+        // if there are overlapping rects with the same z, it would be nice to use the inverse order of the rects, so that it's consistent with what gets drawn on top, but I don't know how to do that right now -- (actually using rev() does basically the same thing).
+        // one way would be to stick a lot of duplicated data in the rect (or a soa thing) and decide clicked over rects instead of nodes.
+        // that might actually be good for speed as well. 
+        // but it might be bad for order of operations.
+
+        // reset old color mods
+
+        let mut new_hovered = None;
+        let mut new_clicked = None;
+        let mut max_z = f32::MAX;
+        for (id, z) in self.clicked_stack.iter().rev() {
+            if *z < max_z {
+                max_z = *z;
+                new_clicked = Some(*id);
+            }
+        }
+
+        let mut max_z = f32::MAX;
+        for (id, z) in self.hovered_stack.iter().rev() {
+            if *z < max_z {
+                max_z = *z;
+                new_hovered = Some(*id);
+            }
+        }
+
+        if self.hovered != new_hovered {
+            if let Some(id) = self.hovered {
+                self.update_color_mod(id, Color::WHITE);
+            }
+            
+            if let Some(id) = new_hovered {
+                self.update_color_mod(id, Color::rgba(0.85, 0.85, 0.75, 1.0));
+            }
+        }
+        self.hovered = new_hovered;
+
+        // this looks terrible actually. it can't be 1 frame only.
+        if self.clicked != new_clicked {
+            if let Some(id) = self.clicked {
+                self.update_color_mod(id, Color::WHITE);
+            }
+            
+            if let Some(id) = new_clicked {
+                self.update_color_mod(id, Color::rgba(0.3, 0.3, 0.4, 1.0));
+            }
+        }
+        self.clicked = new_clicked;
+        
     }
+
+    
 }
 
-#[derive(Debug, Clone)]
+
+#[derive(Debug)]
 pub struct Node {
     pub rect: Xy<[f32; 2]>,
-    // pub x0: f32,
-    // pub x1: f32,
-    // pub y0: f32,
-    // pub y1: f32,
+
+    pub color_mod: Color,
 
     pub last_frame_touched: u64,
+    pub last_frame_status: LastFrameStatus,
 
     pub text_id: Option<u32>,
     pub parent_id: Id,
     // todo: maybe switch with that prev/next thing
     pub children_ids: Vec<Id>,
     pub params: NodeParams,
+
+    pub z: f32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LastFrameStatus {
+    Clicked,
+    Hovered,
+    Nothing,
 }
 
 

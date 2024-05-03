@@ -1,4 +1,4 @@
-pub mod helper;
+    pub mod helper;
 pub mod ui;
 use helper::{
     base_color_attachment, base_render_pass_desc, base_surface_config, init_wgpu,
@@ -98,8 +98,8 @@ impl<'window> State<'window> {
         CounterState::add(&mut self.ui, &mut self.counter_state);
 
         self.ui.finish_tree();
+        
         self.ui.layout();
-
         self.ui.resolve_input();
         self.counter_state.interact(&mut self.ui);
 
