@@ -498,6 +498,8 @@ impl Ui {
         let resolution = Resolution {
             width: config.width as f32,
             height: config.height as f32,
+            t: 0.,
+            _padding: 0.,
         };
         let resolution_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Resolution Uniform Buffer"),
@@ -599,10 +601,7 @@ impl Ui {
                 mouse_left_clicked: false,
                 mouse_left_just_clicked: false,
                 current_frame: 0,
-                resolution: Resolution {
-                    width: config.width as f32,
-                    height: config.height as f32,
-                },
+                resolution,
             },
 
             // stack for traversing
@@ -895,15 +894,12 @@ impl Ui {
     }
 
     pub fn resize(&mut self, size: &PhysicalSize<u32>, queue: &Queue) {
-        let resolution = Resolution {
-            width: size.width as f32,
-            height: size.height as f32,
-        };
-        self.input.resolution = resolution;
+        self.input.resolution.width = size.width as f32;
+        self.input.resolution.height = size.height as f32;
         self.content_changed = true;
         self.tree_changed = true;
 
-        queue.write_buffer(&self.resolution_buffer, 0, bytemuck::bytes_of(&resolution));
+        queue.write_buffer(&self.resolution_buffer, 0, bytemuck::bytes_of(&self.input.resolution));
     }
 
     pub fn build_buffers(&mut self) {
@@ -1257,6 +1253,8 @@ macro_rules! new_id {
 pub struct Resolution {
     pub width: f32,
     pub height: f32,
+    pub t: f32,
+    pub _padding: f32,
 }
 
 #[derive(Debug)]

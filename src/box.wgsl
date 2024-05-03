@@ -1,5 +1,10 @@
+struct Uniforms {
+    @location(1) screen_resolution: vec2f,
+    @location(0) t: f32,
+};
+
 @group(0) @binding(0)
-var<uniform> screen_resolution: vec2f;
+var<uniform> unif: Uniforms;
 
 struct VertexInput {
     @builtin(vertex_index) index: u32,
@@ -27,8 +32,8 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     var clip_position = vec4(x, y, 0.0, 1.0);
 
     var half_size = vec2f( 
-        (in.xs[1] - in.xs[0]) * screen_resolution.x / 2.0, 
-        (in.ys[1] - in.ys[0]) * screen_resolution.y / 2.0, 
+        (in.xs[1] - in.xs[0]) * unif.screen_resolution.x / 2.0, 
+        (in.ys[1] - in.ys[0]) * unif.screen_resolution.y / 2.0, 
     );
 
     // calculate for corners, will be interpolated.
