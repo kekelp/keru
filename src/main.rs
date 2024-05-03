@@ -95,6 +95,11 @@ impl<'window> State<'window> {
     }
 
     pub fn update(&mut self) {
+        self.ui.content_changed = true;
+
+        self.ui.update_time();
+        self.ui.update_gpu_time(&self.queue);
+
         CounterState::add(&mut self.ui, &mut self.counter_state);
 
         self.ui.finish_tree();
@@ -170,6 +175,7 @@ pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey::new(
         debug_name: "SHOW_COUNTER_BUTTON",
         static_text: Some("Show Counter"),
         clickable: false,
+        visible_rect: true,
         color: Color::rgba(1.0, 0.3, 0.2, 0.6),
         size: Xy::new_symm(Size::PercentOfParent(0.2)),
         position: Xy::new_symm(Position::Start { padding: 5 }),

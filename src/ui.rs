@@ -1,7 +1,7 @@
 use glyphon::Resolution as GlyphonResolution;
 use rustc_hash::{FxHashMap, FxHasher};
 
-use std::{hash::Hasher, marker::PhantomData, mem, ops::{Index, IndexMut}};
+use std::{hash::Hasher, marker::PhantomData, mem, ops::{Index, IndexMut}, time::Instant};
 
 use bytemuck::{Pod, Zeroable};
 use glyphon::{
@@ -34,6 +34,8 @@ pub const NODE_ROOT: Node = Node {
     params: NODE_ROOT_PARAMS,
     last_frame_touched: 0,
     last_frame_status: LastFrameStatus::Nothing,
+    last_hover: f32::MIN,
+    last_click: f32::MIN,
     z: -10000.0,
 };
 
@@ -84,6 +86,7 @@ impl<T: Copy> Xy<T> {
 pub struct NodeParams {
     pub debug_name: &'static str,
     pub static_text: Option<&'static str>,
+    pub visible_rect: bool,
     pub clickable: bool,
     pub color: Color,
     pub size: Xy<Size>,
@@ -97,6 +100,7 @@ impl Default for NodeParams {
             debug_name: "DEFAULT",
             static_text: None,
             clickable: false,
+            visible_rect: false,
             color: Color::BLUE,
             size: Xy::new_symm(Size::PercentOfParent(0.5)),
             position: Xy::new_symm(Position::Start { padding: 5 }),
@@ -110,6 +114,7 @@ impl NodeParams {
         debug_name: "Column",
         static_text: None,
         clickable: true,
+        visible_rect: false,
         color: Color {
             r: 0.0,
             g: 0.2,
@@ -127,6 +132,7 @@ impl NodeParams {
     pub const ROW: Self = Self {
         debug_name: "Column",
         static_text: None,
+        visible_rect: false,
         clickable: true,
         color: Color {
             r: 0.0,
@@ -146,6 +152,7 @@ impl NodeParams {
         debug_name: "FLOATING_WINDOW",
         static_text: None,
         clickable: true,
+        visible_rect: false,
         color: Color {
             r: 0.7,
             g: 0.0,
@@ -161,6 +168,7 @@ impl NodeParams {
         debug_name: "Button",
         static_text: None,
         clickable: true,
+        visible_rect: true,
         color: Color {
             r: 0.0,
             g: 0.1,
@@ -176,6 +184,7 @@ impl NodeParams {
         debug_name: "label",
         static_text: None,
         clickable: true,
+        visible_rect: true,
         color: Color {
             r: 0.0,
             g: 0.1,
@@ -265,13 +274,18 @@ pub struct Rectangle {
     pub g: f32,
     pub b: f32,
     pub a: f32,
+
+    pub last_hover: f32,
+    pub last_click: f32,
 }
 impl Rectangle {
-    pub fn buffer_desc() -> [VertexAttribute; 3] {
+    pub fn buffer_desc() -> [VertexAttribute; 5] {
         return vertex_attr_array![
             0 => Float32x2,
             1 => Float32x2,
             2 => Float32x4,
+            3 => Float32,
+            4 => Float32,
         ];
     }
 }
@@ -331,9 +345,9 @@ pub struct PartialBorrowStuff {
     pub mouse_pos: PhysicalPosition<f32>,
     pub mouse_left_clicked: bool,
     pub mouse_left_just_clicked: bool,
-    pub resolution: Resolution,
+    pub uniforms: Uniforms,
     pub current_frame: u64,
-
+    pub t0: Instant,
 }
 impl PartialBorrowStuff {
     pub fn is_node_clicked_or_hovered(&self, node: &Node) -> (bool, bool) {
@@ -342,8 +356,8 @@ impl PartialBorrowStuff {
         }
         
         let mouse_pos = (
-            self.mouse_pos.x / self.resolution.width,
-            1.0 - (self.mouse_pos.y / self.resolution.height),
+            self.mouse_pos.x / self.uniforms.width,
+            1.0 - (self.mouse_pos.y / self.uniforms.height),
         );
 
         let hovered = node.rect[X][0] < mouse_pos.0
@@ -372,7 +386,7 @@ pub struct Ui {
     pub gpu_vertex_buffer: TypedGpuBuffer<Rectangle>,
     pub render_pipeline: RenderPipeline,
 
-    pub resolution_buffer: wgpu::Buffer,
+    pub uniform_buffer: wgpu::Buffer,
     pub bind_group: BindGroup,
 
     pub font_system: FontSystem,
@@ -387,7 +401,7 @@ pub struct Ui {
     pub parent_stack: Vec<Id>,
 
 
-    pub input: PartialBorrowStuff,
+    pub partial_stuff: PartialBorrowStuff,
 
     pub stack: Vec<Id>,
 
@@ -402,6 +416,8 @@ pub struct Ui {
     // remember about animations (surely there will be)
     pub content_changed: bool,
     pub tree_changed: bool,
+
+    pub t: f32,
 }
 impl Ui {
     pub fn update_text(&mut self, id: Id, text: impl ToString) {
@@ -417,7 +433,7 @@ impl Ui {
 
                 if hash == self.text_areas[text_id as usize].last_hash {
                     // todo: I shouldn't have to do this, I don't think, it's visible as long as the node is visible?? 
-                    self.text_areas[text_id as usize].last_frame_touched = self.input.current_frame;
+                    self.text_areas[text_id as usize].last_frame_touched = self.partial_stuff.current_frame;
                     return;
                 }
                 self.text_areas[text_id as usize].last_hash = hash;
@@ -439,7 +455,7 @@ impl Ui {
                     },
                     default_color: GlyphonColor::rgb(255, 255, 255),
                     depth: 0.0,
-                    last_frame_touched: self.input.current_frame,
+                    last_frame_touched: self.partial_stuff.current_frame,
                     last_hash: hash,
                 };
 
@@ -455,7 +471,7 @@ impl Ui {
             Attrs::new().family(Family::SansSerif),
             Shaping::Advanced,
         );
-        self.text_areas[text_id as usize].last_frame_touched = self.input.current_frame;
+        self.text_areas[text_id as usize].last_frame_touched = self.partial_stuff.current_frame;
 
         self.content_changed = true;
     }
@@ -495,7 +511,7 @@ impl Ui {
             attributes: &Rectangle::buffer_desc(),
         };
 
-        let resolution = Resolution {
+        let uniforms = Uniforms {
             width: config.width as f32,
             height: config.height as f32,
             t: 0.,
@@ -503,7 +519,7 @@ impl Ui {
         };
         let resolution_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Resolution Uniform Buffer"),
-            contents: bytemuck::bytes_of(&resolution),
+            contents: bytemuck::bytes_of(&uniforms),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
@@ -590,18 +606,19 @@ impl Ui {
             rects: Vec::with_capacity(20),
             nodes,
             gpu_vertex_buffer: vertex_buffer,
-            resolution_buffer,
+            uniform_buffer: resolution_buffer,
             bind_group,
 
 
             parent_stack,
             
-            input: PartialBorrowStuff {
+            partial_stuff: PartialBorrowStuff {
                 mouse_pos: PhysicalPosition { x: 0., y: 0. },
                 mouse_left_clicked: false,
                 mouse_left_just_clicked: false,
                 current_frame: 0,
-                resolution,
+                uniforms,
+                t0: Instant::now(),
             },
 
             // stack for traversing
@@ -616,6 +633,8 @@ impl Ui {
             last_tree_hash: 0,
             content_changed: true,
             tree_changed: true,
+
+            t: 0.0,
         }
     }
 
@@ -672,7 +691,7 @@ impl Ui {
                     },
                     default_color: GlyphonColor::rgb(255, 255, 255),
                     depth: 0.0,
-                    last_frame_touched: self.input.current_frame,
+                    last_frame_touched: self.partial_stuff.current_frame,
                     last_hash: hash,
                 };
                 self.text_areas.push(text_area);
@@ -684,9 +703,9 @@ impl Ui {
         } else {
             let old_node = old_node.unwrap();
             if let Some(text_id) = old_node.text_id {
-                    self.text_areas[text_id as usize].last_frame_touched = self.input.current_frame;
+                    self.text_areas[text_id as usize].last_frame_touched = self.partial_stuff.current_frame;
             }
-            old_node.last_frame_touched = self.input.current_frame;
+            old_node.last_frame_touched = self.partial_stuff.current_frame;
             old_node.children_ids.clear();
         }
 
@@ -705,8 +724,10 @@ impl Ui {
             parent_id,
             children_ids: Vec::new(),
             params: node_key.params,
-            last_frame_touched: self.input.current_frame,
+            last_frame_touched: self.partial_stuff.current_frame,
             last_frame_status: LastFrameStatus::Nothing,
+            last_hover: f32::MIN,
+            last_click: f32::MIN,
             z: 0.0,
         }
     }
@@ -715,18 +736,18 @@ impl Ui {
         if let Event::WindowEvent { event, .. } = event {
             match event {
                 WindowEvent::CursorMoved { position, .. } => {
-                    self.input.mouse_pos.x = position.x as f32;
-                    self.input.mouse_pos.y = position.y as f32;
+                    self.partial_stuff.mouse_pos.x = position.x as f32;
+                    self.partial_stuff.mouse_pos.y = position.y as f32;
                 }
                 WindowEvent::MouseInput { button, state, .. } => {
                     if *button == MouseButton::Left {
                         if *state == ElementState::Pressed {
-                            self.input.mouse_left_clicked = true;
-                            if !self.input.mouse_left_just_clicked {
-                                self.input.mouse_left_just_clicked = true;
+                            self.partial_stuff.mouse_left_clicked = true;
+                            if !self.partial_stuff.mouse_left_just_clicked {
+                                self.partial_stuff.mouse_left_just_clicked = true;
                             }
                         } else {
-                            self.input.mouse_left_clicked = false;
+                            self.partial_stuff.mouse_left_clicked = false;
                         }
                     }
                 }
@@ -778,7 +799,7 @@ impl Ui {
                     for axis in [Axis::X, Axis::Y] {
                         match current_node.params.position[axis] {
                             Position::Start { padding } => {
-                                let x0 = last_rect[axis][0] + (padding as f32 / self.input.resolution.width);
+                                let x0 = last_rect[axis][0] + (padding as f32 / self.partial_stuff.uniforms.width);
                                 match current_node.params.size[axis] {
                                     Size::PercentOfParent(percent) => {
                                         let x1 = x0 + len[axis] * percent;
@@ -804,8 +825,8 @@ impl Ui {
                 }
 
                 if let Some(id) = current_node.text_id {
-                    self.text_areas[id as usize].left = current_node.rect[X][0] * self.input.resolution.width;
-                    self.text_areas[id as usize].top = (1.0 - current_node.rect[Y][1]) * self.input.resolution.height;
+                    self.text_areas[id as usize].left = current_node.rect[X][0] * self.partial_stuff.uniforms.width;
+                    self.text_areas[id as usize].top = (1.0 - current_node.rect[Y][1]) * self.partial_stuff.uniforms.height;
                     self.text_areas[id as usize].buffer.set_size(
                         &mut self.font_system,
                         100000.,
@@ -822,7 +843,7 @@ impl Ui {
                 Some(mode) => {
                     // decide the children positions all at once
                     let padding = 5;
-                    let mut main_0 = new_rect[mode.main_axis][0] + (padding as f32 / self.input.resolution.width);
+                    let mut main_0 = new_rect[mode.main_axis][0] + (padding as f32 / self.partial_stuff.uniforms.width);
 
                     for &child_id in children_ids.iter().rev() {
                         let child = self.nodes.get_mut(&child_id).unwrap();
@@ -833,14 +854,14 @@ impl Ui {
                             Size::PercentOfParent(percent) => {
                                 let main_1 = main_0 + len[main_axis] * percent;
                                 child.rect[main_axis][1] = main_1;
-                                main_0 = main_1 + (padding as f32 / self.input.resolution.width);
+                                main_0 = main_1 + (padding as f32 / self.partial_stuff.uniforms.width);
                             },
                         }
 
                         let cross_axis = mode.main_axis.other();
                         match child.params.size[cross_axis] {
                             Size::PercentOfParent(percent) => {
-                                let cross_0 = new_rect[cross_axis][0] + (padding as f32 / self.input.resolution.width);
+                                let cross_0 = new_rect[cross_axis][0] + (padding as f32 / self.partial_stuff.uniforms.width);
                                 let cross_1 = cross_0 + len[cross_axis] * percent;
                                 child.rect[cross_axis][0] = cross_0;
                                 child.rect[cross_axis][1] = cross_1;
@@ -882,7 +903,7 @@ impl Ui {
     }
 
     pub fn is_clicked(&self, id: Id) -> bool {
-        if !self.input.mouse_left_just_clicked {
+        if !self.partial_stuff.mouse_left_just_clicked {
             return false;
         }
         for (clicked_id, _z) in &self.clicked_stack {
@@ -894,12 +915,21 @@ impl Ui {
     }
 
     pub fn resize(&mut self, size: &PhysicalSize<u32>, queue: &Queue) {
-        self.input.resolution.width = size.width as f32;
-        self.input.resolution.height = size.height as f32;
+        self.partial_stuff.uniforms.width = size.width as f32;
+        self.partial_stuff.uniforms.height = size.height as f32;
         self.content_changed = true;
         self.tree_changed = true;
 
-        queue.write_buffer(&self.resolution_buffer, 0, bytemuck::bytes_of(&self.input.resolution));
+        queue.write_buffer(&self.uniform_buffer, 0, &bytemuck::bytes_of(&self.partial_stuff.uniforms)[..16]);
+    }
+
+    pub fn update_gpu_time(&mut self, queue: &Queue) {
+        // magical offset...
+        queue.write_buffer(&self.uniform_buffer, 8, bytemuck::bytes_of(&self.t));
+    }
+
+    pub fn update_time(&mut self) {
+        self.t = self.partial_stuff.t0.elapsed().as_secs_f32();
     }
 
     pub fn build_buffers(&mut self) {
@@ -920,7 +950,9 @@ impl Ui {
         while let Some(current_node_id) = self.stack.pop() {
             let current_node = self.nodes.get_mut(&current_node_id).unwrap();
 
-            if current_node.last_frame_touched == self.input.current_frame {
+
+            if current_node.params.visible_rect &&
+            current_node.last_frame_touched == self.partial_stuff.current_frame {
                 // println!(" maybe too much?");
                 // println!(" {:?}", current_node.params.debug_name);
                 self.rects.push(Rectangle {
@@ -932,6 +964,8 @@ impl Ui {
                     g: current_node.params.color.g * current_node.color_mod.g,
                     b: current_node.params.color.b * current_node.color_mod.b,
                     a: current_node.params.color.a * current_node.color_mod.a,
+                    last_hover: current_node.last_hover,
+                    last_click: current_node.last_click,
                 });
             }
 
@@ -970,12 +1004,12 @@ impl Ui {
                 &mut self.font_system,
                 &mut self.atlas,
                 GlyphonResolution {
-                    width: self.input.resolution.width as u32,
-                    height: self.input.resolution.height as u32,
+                    width: self.partial_stuff.uniforms.width as u32,
+                    height: self.partial_stuff.uniforms.height as u32,
                 },
                 &mut self.text_areas,
                 &mut self.cache,
-                self.input.current_frame,
+                self.partial_stuff.current_frame,
                 true
             )
             .unwrap();        
@@ -993,8 +1027,8 @@ impl Ui {
     
         self.content_changed = false;
         self.tree_changed = false;
-        self.input.current_frame += 1;
-        self.input.mouse_left_just_clicked = false;
+        self.partial_stuff.current_frame += 1;
+        self.partial_stuff.mouse_left_just_clicked = false;
         self.tree_hasher = FxHasher::default();
     }
 
@@ -1015,6 +1049,8 @@ impl Ui {
         self.stack.clear();
         self.clicked_stack.clear();
         self.hovered_stack.clear();
+        self.hovered = None;
+        self.clicked = None;
 
         // push the ui.direct children of the root without processing the root
         if let Some(root) = self.nodes.get(&NODE_ROOT_ID) {
@@ -1026,7 +1062,7 @@ impl Ui {
         while let Some(current_node_id) = self.stack.pop() {
             let current_node = self.nodes.get_mut(&current_node_id).unwrap();
 
-            let (clicked, hovered) = self.input.is_node_clicked_or_hovered(&current_node);
+            let (clicked, hovered) = self.partial_stuff.is_node_clicked_or_hovered(&current_node);
             if clicked {
                 self.clicked_stack.push((current_node_id, current_node.z));
             } else if hovered {
@@ -1048,13 +1084,11 @@ impl Ui {
 
         // reset old color mods
 
-        let mut new_hovered = None;
-        let mut new_clicked = None;
         let mut max_z = f32::MAX;
         for (id, z) in self.clicked_stack.iter().rev() {
             if *z < max_z {
                 max_z = *z;
-                new_clicked = Some(*id);
+                self.clicked = Some(*id);
             }
         }
 
@@ -1062,33 +1096,19 @@ impl Ui {
         for (id, z) in self.hovered_stack.iter().rev() {
             if *z < max_z {
                 max_z = *z;
-                new_hovered = Some(*id);
+                self.hovered = Some(*id);
             }
         }
 
-        if self.hovered != new_hovered {
-            if let Some(id) = self.hovered {
-                self.update_color_mod(id, Color::WHITE);
-            }
-            
-            if let Some(id) = new_hovered {
-                self.update_color_mod(id, Color::rgba(0.85, 0.85, 0.75, 1.0));
-            }
+        if let Some(id) = self.hovered {
+            let node = self.nodes.get_mut(&id).unwrap();
+            node.last_hover = self.t;
         }
-        self.hovered = new_hovered;
+        if let Some(id) = self.clicked {
+            let node = self.nodes.get_mut(&id).unwrap();
+            node.last_click = self.t;
+        }
 
-        // this looks terrible actually. it can't be 1 frame only.
-        if self.clicked != new_clicked {
-            if let Some(id) = self.clicked {
-                self.update_color_mod(id, Color::WHITE);
-            }
-            
-            if let Some(id) = new_clicked {
-                self.update_color_mod(id, Color::rgba(0.3, 0.3, 0.4, 1.0));
-            }
-        }
-        self.clicked = new_clicked;
-        
     }
 
     
@@ -1110,6 +1130,8 @@ pub struct Node {
     pub children_ids: Vec<Id>,
     pub params: NodeParams,
 
+    pub last_hover: f32,
+    pub last_click: f32,
     pub z: f32,
 }
 
@@ -1189,6 +1211,7 @@ pub const NODE_ROOT_KEY: NodeKey = NodeKey {
 pub const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     debug_name: "ROOT",
     static_text: None,
+    visible_rect: false,
     clickable: false,
     color: Color {
         r: 1.0,
@@ -1250,7 +1273,7 @@ macro_rules! new_id {
 
 #[repr(C)]
 #[derive(Default, Debug, Pod, Copy, Clone, Zeroable)]
-pub struct Resolution {
+pub struct Uniforms {
     pub width: f32,
     pub height: f32,
     pub t: f32,

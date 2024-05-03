@@ -6,11 +6,14 @@ struct Uniforms {
 @group(0) @binding(0)
 var<uniform> unif: Uniforms;
 
+// has to match Rectangle
 struct VertexInput {
     @builtin(vertex_index) index: u32,
     @location(0) xs: vec2f,
     @location(1) ys: vec2f,
     @location(2) color: vec4f,
+    @location(3) last_hover: f32,
+    @location(4) last_click: f32,
 };
 
 struct VertexOutput {
@@ -18,6 +21,7 @@ struct VertexOutput {
     @location(0) uv: vec2<f32>,
     @location(1) half_size: vec2<f32>,
     @location(2) color: vec4<f32>,
+    @location(3) dark: f32,
 }
 
 @vertex
@@ -41,7 +45,16 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     var corner = 2.0 * vec2f(vec2u(i_x, i_y)) - 1.0;    
     var uv = corner * half_size;
 
-    return VertexOutput(clip_position, uv, half_size, in.color);
+    var t_since_hover = (unif.t - in.last_hover) * 4.5;
+    var hover = (1.0 - clamp(t_since_hover, 0.0, 1.0)) * f32(t_since_hover < 1.0);
+    var t_since_click = (unif.t - in.last_click) * 4.1;
+    var click = (1.0 - clamp(t_since_click, 0.0, 1.0)) * f32(t_since_click < 1.0);
+
+    var dark_hover = 1.0 - hover * 0.32;
+    var dark_click = 1.0 - click * 0.78;
+
+    var dark = min(dark_click, dark_hover);
+    return VertexOutput(clip_position, uv, half_size, in.color, dark);
 }
 
 @fragment
@@ -57,5 +70,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var dist = length(max(q, vec2(0.0, 0.0))) - radius;
 
     var alpha = in.color.a * (1.0 - smoothstep(-1.0, 1.0, dist));
-    return vec4(in.color.rgb, alpha);
+
+    return vec4(in.color.rgb * in.dark, alpha);
 }
