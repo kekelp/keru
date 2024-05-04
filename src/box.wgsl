@@ -15,6 +15,7 @@ struct VertexInput {
     @location(3) last_hover: f32,
     @location(4) last_click: f32,
     @location(5) clickable: u32,
+    @location(6) z: f32,
 };
 
 struct VertexOutput {
@@ -34,7 +35,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     var x = in.xs[i_x];
     var y = in.ys[i_y];
 
-    var clip_position = vec4(x, y, 0.0, 1.0);
+    var clip_position = vec4(x, y, in.z, 1.0);
 
     var half_size = vec2f( 
         (in.xs[1] - in.xs[0]) * unif.screen_resolution.x / 2.0, 
@@ -63,6 +64,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // in.uv: absolute value coords: 
     // +L <-- 0 --> +L
     // where L = rect_half_size (pixels)
+
     var radius = 30.0;
 
     // todo: what the fuck is a q?

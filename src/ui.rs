@@ -286,13 +286,13 @@ pub struct Rectangle {
     pub last_hover: f32,
     pub last_click: f32,
     pub clickable: u32,
+    pub z: f32,
 
     // -- not passed 
-    pub z: f32,
     pub id: Id,
 }
 impl Rectangle {
-    pub fn buffer_desc() -> [VertexAttribute; 6] {
+    pub fn buffer_desc() -> [VertexAttribute; 7] {
         return vertex_attr_array![
             0 => Float32x2,
             1 => Float32x2,
@@ -300,6 +300,7 @@ impl Rectangle {
             3 => Float32,
             4 => Float32,
             5 => Uint32,
+            6 => Float32,
         ];
     }
 }
@@ -364,7 +365,7 @@ pub struct PartialBorrowStuff {
     pub t0: Instant,
 }
 impl PartialBorrowStuff {
-    pub fn is_node_clicked_or_hovered(&self, rect: &Rectangle) -> (bool, bool) {
+    pub fn is_rect_clicked_or_hovered(&self, rect: &Rectangle) -> (bool, bool) {
         
         // if rect.last_frame_touched != self.current_frame {
             //     return (false, false);
@@ -1118,11 +1119,13 @@ impl Ui {
         self.clicked = None;
 
         for rect in &self.rects {
-            let (clicked, hovered) = self.partial_stuff.is_node_clicked_or_hovered(&rect);
-            if clicked {
-                self.clicked_stack.push((rect.id, rect.z));
-            } else if hovered {
-                self.hovered_stack.push((rect.id, rect.z));
+            if rect.clickable != 0 {
+                let (clicked, hovered) = self.partial_stuff.is_rect_clicked_or_hovered(&rect);
+                if clicked {
+                    self.clicked_stack.push((rect.id, rect.z));
+                } else if hovered {
+                    self.hovered_stack.push((rect.id, rect.z));
+                }
             }
         }
 
