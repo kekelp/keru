@@ -21,14 +21,13 @@ use winit::{
 
 use Axis::{X, Y};
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, Pod, Zeroable)]
+#[repr(C)]
 pub struct Id(pub(crate) u64);
 
 pub const NODE_ROOT_ID: Id = Id(0);
 pub const NODE_ROOT: Node = Node {
-    rect: Xy::new_symm([-1.0, 1.0]),
-    color_mod: Color::WHITE,
-    text_id: None,
+    rect: Xy::new_symm([-1.0, 1.0]),    text_id: None,
     parent_id: NODE_ROOT_ID,
     children_ids: Vec::new(),
     params: NODE_ROOT_PARAMS,
@@ -183,7 +182,7 @@ impl NodeParams {
     pub const LABEL: Self = Self {
         debug_name: "label",
         static_text: None,
-        clickable: true,
+        clickable: false,
         visible_rect: true,
         color: Color {
             r: 0.0,
@@ -277,15 +276,21 @@ pub struct Rectangle {
 
     pub last_hover: f32,
     pub last_click: f32,
+    pub clickable: u32,
+
+    // -- not passed 
+    // pub id: Id,
+    // pub _padding: u32,
 }
 impl Rectangle {
-    pub fn buffer_desc() -> [VertexAttribute; 5] {
+    pub fn buffer_desc() -> [VertexAttribute; 6] {
         return vertex_attr_array![
             0 => Float32x2,
             1 => Float32x2,
             2 => Float32x4,
             3 => Float32,
             4 => Float32,
+            5 => Uint32,
         ];
     }
 }
@@ -380,6 +385,26 @@ impl PartialBorrowStuff {
 // }
 // pub struct MouseInteract {
 //     kind: 
+// }
+
+// pub struct NewUi {
+//     pub node_map: FxHashMap<Id, usize>,
+//     pub nodes: Vec<NewNode>,
+//     pub rects: Vec<NewRectangle>,
+// }
+// pub struct NewNode {
+//     pub last_frame_touched: u64,
+//     pub last_frame_status: LastFrameStatus,
+
+//     pub text_id: Option<u32>,
+//     pub parent_id: Id,
+//     // todo: maybe switch with that prev/next thing
+//     pub children_ids: Vec<Id>,
+//     pub params: NodeParams,
+
+//     pub last_hover: f32,
+//     pub last_click: f32,
+//     pub z: f32,
 // }
 
 pub struct Ui {
@@ -482,16 +507,6 @@ impl Ui {
                 return;
             } else {
                 node.params.color = color;
-                self.content_changed = true;
-            }
-        }
-    }
-    pub fn update_color_mod(&mut self, id: Id, color: Color) {
-        if let Some(node) = self.nodes.get_mut(&id) {
-            if node.color_mod == color {
-                return;
-            } else {
-                node.color_mod = color;
                 self.content_changed = true;
             }
         }
@@ -718,9 +733,7 @@ impl Ui {
 
     pub fn new_node(&self, node_key: NodeKey, parent_id: Id, text_id: Option<u32>) -> Node {
         Node {
-            rect: Xy::new_symm([0.0, 1.0]),
-            color_mod: Color::WHITE,
-            text_id,
+            rect: Xy::new_symm([0.0, 1.0]),            text_id,
             parent_id,
             children_ids: Vec::new(),
             params: node_key.params,
@@ -960,12 +973,13 @@ impl Ui {
                     x1: current_node.rect[X][1] * 2. - 1.,
                     y0: current_node.rect[Y][0] * 2. - 1.,
                     y1: current_node.rect[Y][1] * 2. - 1.,
-                    r: current_node.params.color.r * current_node.color_mod.r,
-                    g: current_node.params.color.g * current_node.color_mod.g,
-                    b: current_node.params.color.b * current_node.color_mod.b,
-                    a: current_node.params.color.a * current_node.color_mod.a,
+                    r: current_node.params.color.r,
+                    g: current_node.params.color.g,
+                    b: current_node.params.color.b,
+                    a: current_node.params.color.a,
                     last_hover: current_node.last_hover,
                     last_click: current_node.last_click,
+                    clickable: current_node.params.clickable.into(),
                 });
             }
 
@@ -1118,8 +1132,6 @@ impl Ui {
 #[derive(Debug)]
 pub struct Node {
     pub rect: Xy<[f32; 2]>,
-
-    pub color_mod: Color,
 
     pub last_frame_touched: u64,
     pub last_frame_status: LastFrameStatus,

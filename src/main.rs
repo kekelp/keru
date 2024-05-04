@@ -174,7 +174,7 @@ pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey::new(
     NodeParams {
         debug_name: "SHOW_COUNTER_BUTTON",
         static_text: Some("Show Counter"),
-        clickable: false,
+        clickable: true,
         visible_rect: true,
         color: Color::rgba(1.0, 0.3, 0.2, 0.6),
         size: Xy::new_symm(Size::PercentOfParent(0.2)),

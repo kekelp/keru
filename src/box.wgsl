@@ -14,6 +14,7 @@ struct VertexInput {
     @location(2) color: vec4f,
     @location(3) last_hover: f32,
     @location(4) last_click: f32,
+    @location(5) clickable: u32,
 };
 
 struct VertexOutput {
@@ -46,9 +47,9 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     var uv = corner * half_size;
 
     var t_since_hover = (unif.t - in.last_hover) * 4.5;
-    var hover = (1.0 - clamp(t_since_hover, 0.0, 1.0)) * f32(t_since_hover < 1.0);
+    var hover = (1.0 - clamp(t_since_hover, 0.0, 1.0)) * f32(t_since_hover < 1.0) * f32(in.clickable);
     var t_since_click = (unif.t - in.last_click) * 4.1;
-    var click = (1.0 - clamp(t_since_click, 0.0, 1.0)) * f32(t_since_click < 1.0);
+    var click = (1.0 - clamp(t_since_click, 0.0, 1.0)) * f32(t_since_click < 1.0) * f32(in.clickable);
 
     var dark_hover = 1.0 - hover * 0.32;
     var dark_click = 1.0 - click * 0.78;
