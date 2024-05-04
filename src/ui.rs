@@ -289,7 +289,6 @@ pub struct Rectangle {
 
     // -- not passed 
     pub z: f32,
-    pub last_frame_touched: u64,
     pub id: Id,
 }
 impl Rectangle {
@@ -386,9 +385,6 @@ impl PartialBorrowStuff {
             && mouse_pos.1 < rect.y1;
 
         if hovered == false {
-            // println!("mouse pos {:?} rect {:?}", mouse_pos.0, rect.x1);
-            println!("mouse pos {:?} rect {:?}", mouse_pos.1, rect.y1);
-
             return (false, false)
         };
 
@@ -1037,7 +1033,6 @@ impl Ui {
                     last_click: current_node.last_click,
                     clickable: current_node.params.clickable.into(),
                     id: current_node_id,
-                    last_frame_touched: current_node.last_frame_touched,
                     z: 0.0,
                 });
             }
