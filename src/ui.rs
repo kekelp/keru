@@ -27,7 +27,9 @@ pub struct Id(pub(crate) u64);
 
 pub const NODE_ROOT_ID: Id = Id(0);
 pub const NODE_ROOT: Node = Node {
-    rect: Xy::new_symm([-1.0, 1.0]),    text_id: None,
+    rect: Xy::new_symm([99999.0, 99999.0]),
+    rect_id: None,
+    text_id: None,
     parent_id: NODE_ROOT_ID,
     children_ids: Vec::new(),
     params: NODE_ROOT_PARAMS,
@@ -91,6 +93,7 @@ pub struct NodeParams {
     pub size: Xy<Size>,
     pub position: Xy<Position>,
     pub container_mode: Option<ContainerMode>,
+    pub z: f32,
 }
 
 impl Default for NodeParams {
@@ -104,6 +107,7 @@ impl Default for NodeParams {
             size: Xy::new_symm(Size::PercentOfParent(0.5)),
             position: Xy::new_symm(Position::Start { padding: 5 }),
             container_mode: None,
+            z: 0.0,
         }
     }
 }
@@ -127,6 +131,7 @@ impl NodeParams {
             cross_axis_align: Align::Fill,
             main_axis: Axis::Y,
         }),
+        z: 0.0,
     };
     pub const ROW: Self = Self {
         debug_name: "Column",
@@ -146,6 +151,7 @@ impl NodeParams {
             cross_axis_align: Align::Fill,
             main_axis: Axis::X,
         }),
+        z: 0.0,
     };
     pub const FLOATING_WINDOW: Self = Self {
         debug_name: "FLOATING_WINDOW",
@@ -161,6 +167,7 @@ impl NodeParams {
         size: Xy::new_symm(Size::PercentOfParent(0.9)),
         position: Xy::new_symm(Position::Center),
         container_mode: None,
+        z: 0.0,
     };
 
     pub const BUTTON: Self = Self {
@@ -177,6 +184,7 @@ impl NodeParams {
         size: Xy::new_symm(Size::PercentOfParent(0.17)),
         position: Xy::new_symm(Position::Start { padding: 5 }),
         container_mode: None,
+        z: 0.0,
     };
 
     pub const LABEL: Self = Self {
@@ -193,6 +201,7 @@ impl NodeParams {
         size: Xy::new_symm(Size::PercentOfParent(0.3)),
         position: Xy::new_symm(Position::Start { padding: 5 }),
         container_mode: None,
+        z: 0.0,
     };
 }
 
@@ -279,8 +288,9 @@ pub struct Rectangle {
     pub clickable: u32,
 
     // -- not passed 
-    // pub id: Id,
-    // pub _padding: u32,
+    pub z: f32,
+    pub last_frame_touched: u64,
+    pub id: Id,
 }
 impl Rectangle {
     pub fn buffer_desc() -> [VertexAttribute; 6] {
@@ -355,22 +365,30 @@ pub struct PartialBorrowStuff {
     pub t0: Instant,
 }
 impl PartialBorrowStuff {
-    pub fn is_node_clicked_or_hovered(&self, node: &Node) -> (bool, bool) {
-        if node.last_frame_touched != self.current_frame {
-            return (false, false);
-        }
+    pub fn is_node_clicked_or_hovered(&self, rect: &Rectangle) -> (bool, bool) {
         
-        let mouse_pos = (
+        // if rect.last_frame_touched != self.current_frame {
+            //     return (false, false);
+            // }
+            
+        let mut mouse_pos = (
             self.mouse_pos.x / self.uniforms.width,
             1.0 - (self.mouse_pos.y / self.uniforms.height),
         );
 
-        let hovered = node.rect[X][0] < mouse_pos.0
-            && mouse_pos.0 < node.rect[X][1]
-            && node.rect[Y][0] < mouse_pos.1
-            && mouse_pos.1 < node.rect[Y][1];
+        // transform mouse_pos into "opengl" centered coordinates
+        mouse_pos.0 = (mouse_pos.0 * 2.0) - 1.0 ;
+        mouse_pos.1 = (mouse_pos.1 * 2.0) - 1.0 ;
+
+        let hovered = rect.x0 < mouse_pos.0
+            && mouse_pos.0 < rect.x1
+            && rect.y0 < mouse_pos.1
+            && mouse_pos.1 < rect.y1;
 
         if hovered == false {
+            // println!("mouse pos {:?} rect {:?}", mouse_pos.0, rect.x1);
+            println!("mouse pos {:?} rect {:?}", mouse_pos.1, rect.y1);
+
             return (false, false)
         };
 
@@ -379,33 +397,69 @@ impl PartialBorrowStuff {
     }
 }
 
-// pub enum InteractKind {
-//     Hovered,
-//     Clicked
-// }
-// pub struct MouseInteract {
-//     kind: 
-// }
 
-// pub struct NewUi {
-//     pub node_map: FxHashMap<Id, usize>,
-//     pub nodes: Vec<NewNode>,
-//     pub rects: Vec<NewRectangle>,
-// }
-// pub struct NewNode {
-//     pub last_frame_touched: u64,
-//     pub last_frame_status: LastFrameStatus,
+pub struct NewUi {
+    pub node_map: FxHashMap<Id, u16>,
+    pub nodes: Vec<NewNode>,
+    pub rects: Vec<NewRectangle>,
+}
 
-//     pub text_id: Option<u32>,
-//     pub parent_id: Id,
-//     // todo: maybe switch with that prev/next thing
-//     pub children_ids: Vec<Id>,
-//     pub params: NodeParams,
+pub struct NewNode {
+    pub last_frame_touched: u64,
+    pub last_frame_status: LastFrameStatus,
 
-//     pub last_hover: f32,
-//     pub last_click: f32,
-//     pub z: f32,
-// }
+    pub text_id: Option<u32>,
+    pub parent_id: usize,
+    // todo: maybe switch with that prev/next thing
+    pub children_ids: Vec<usize>,
+
+    
+    pub last_hover: f32,
+    pub last_click: f32,
+    pub z: f32,
+
+    // old params
+    pub debug_name: &'static str,
+    // pub visible_rect: bool, //  replaced by rect_i
+    pub rect_i: Option<u16>,
+    // pub clickable: bool, //  now only in the rectangle (but stays in the key)
+    // pub color: Color, // now only in the rectangle (but stays in the key)
+    // pub static_text: Option<&'static str>, // goes straight to text-area, but stays in the key
+    // layout stuff
+    pub size: Xy<Size>,
+    pub position: Xy<Position>,
+    pub container_mode: Option<ContainerMode>,
+}
+pub struct NewNodeKey {
+    pub id: Id,
+    
+    // pub debug_name: &'static str,
+    pub static_text: Option<&'static str>,
+    pub visible_rect: bool,
+    pub clickable: bool,
+    pub color: Color,
+    pub size: Xy<Size>,
+    pub position: Xy<Position>,
+    pub container_mode: Option<ContainerMode>,
+}
+
+pub struct NewRectangle {
+    pub x0: f32,
+    pub x1: f32,
+    pub y0: f32,
+    pub y1: f32,
+
+    pub r: f32,
+    pub g: f32,
+    pub b: f32,
+    pub a: f32,
+
+    pub last_hover: f32,
+    pub last_click: f32,
+    pub clickable: u32,
+
+    pub id: Id,
+}
 
 pub struct Ui {
     pub gpu_vertex_buffer: TypedGpuBuffer<Rectangle>,
@@ -733,7 +787,9 @@ impl Ui {
 
     pub fn new_node(&self, node_key: NodeKey, parent_id: Id, text_id: Option<u32>) -> Node {
         Node {
-            rect: Xy::new_symm([0.0, 1.0]),            text_id,
+            rect_id: None,
+            rect: Xy::new_symm([0.0, 0.0]),
+            text_id,
             parent_id,
             children_ids: Vec::new(),
             params: node_key.params,
@@ -980,6 +1036,9 @@ impl Ui {
                     last_hover: current_node.last_hover,
                     last_click: current_node.last_click,
                     clickable: current_node.params.clickable.into(),
+                    id: current_node_id,
+                    last_frame_touched: current_node.last_frame_touched,
+                    z: 0.0,
                 });
             }
 
@@ -988,7 +1047,6 @@ impl Ui {
             }
         }
 
-        println!("About to render {:?} rectangles.", self.rects.len());
     }
 
     pub fn render<'pass>(&'pass self, render_pass: &mut RenderPass<'pass>) {
@@ -1057,34 +1115,19 @@ impl Ui {
         return self.tree_changed || self.content_changed; 
     }
 
-    // this could be merged into any of the other full tree passes, probably the last pass of layout.
     // todo: skip this if there has been no new input.
     pub fn resolve_input(&mut self) {
-        self.stack.clear();
         self.clicked_stack.clear();
         self.hovered_stack.clear();
         self.hovered = None;
         self.clicked = None;
 
-        // push the ui.direct children of the root without processing the root
-        if let Some(root) = self.nodes.get(&NODE_ROOT_ID) {
-            for &child_id in root.children_ids.iter().rev() {
-                self.stack.push(child_id);
-            }
-        }
-
-        while let Some(current_node_id) = self.stack.pop() {
-            let current_node = self.nodes.get_mut(&current_node_id).unwrap();
-
-            let (clicked, hovered) = self.partial_stuff.is_node_clicked_or_hovered(&current_node);
+        for rect in &self.rects {
+            let (clicked, hovered) = self.partial_stuff.is_node_clicked_or_hovered(&rect);
             if clicked {
-                self.clicked_stack.push((current_node_id, current_node.z));
+                self.clicked_stack.push((rect.id, rect.z));
             } else if hovered {
-                self.hovered_stack.push((current_node_id, current_node.z));
-            }
-
-            for &child_id in current_node.children_ids.iter() {
-                self.stack.push(child_id);
+                self.hovered_stack.push((rect.id, rect.z));
             }
         }
 
@@ -1131,7 +1174,11 @@ impl Ui {
 
 #[derive(Debug)]
 pub struct Node {
+    // visible rect only
+    pub rect_id: Option<usize>,
+    // also for invisible rects, used for layout
     pub rect: Xy<[f32; 2]>,
+
 
     pub last_frame_touched: u64,
     pub last_frame_status: LastFrameStatus,
@@ -1234,6 +1281,7 @@ pub const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     size: Xy::new_symm(Size::PercentOfParent(1.0)),
     position: Xy::new_symm(Position::Start { padding: 0 }),
     container_mode: None,
+    z: 0.0,
 };
 
 // todo: change

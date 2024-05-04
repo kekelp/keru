@@ -180,6 +180,7 @@ pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey::new(
         size: Xy::new_symm(Size::PercentOfParent(0.2)),
         position: Xy::new_symm(Position::Start { padding: 5 }),
         container_mode: None,
+        z: 0.0,
     },
     new_id!(),
 );
