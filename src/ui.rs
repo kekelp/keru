@@ -1261,10 +1261,10 @@ impl Ui {
                     let x0 = x0 + (node.rect[X][0] * 2. - 1.);
                     let x1 = x1 + (node.rect[X][0] * 2. - 1.);
                     
-                    let y0 = (-y / self.part.unifs.height) * 2.0;
-                    let y1 = ((-y + cursor_height) / self.part.unifs.height) * 2.0;
-                    // let y0 = y0 + (node.rect[Y][0] * 2. - 1.);
-                    // let y1 = y1 + (node.rect[Y][0] * 2. - 1.);
+                    let y0 = (- y / self.part.unifs.height) * 2.0;
+                    let y1 = ((- y + cursor_height) / self.part.unifs.height) * 2.0;
+                    let y0 = y0 + (node.rect[Y][1] * 2. - 1.);
+                    let y1 = y1 + (node.rect[Y][1] * 2. - 1.);
                     self.cursor = Some(Cursor::BlinkyLine(
                         BlinkyLine {
                             x0,
