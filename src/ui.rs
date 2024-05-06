@@ -1,6 +1,7 @@
-use glyphon::Resolution as GlyphonResolution;
+use glyphon::{Resolution as GlyphonResolution};
 use rustc_hash::{FxHashMap, FxHasher};
 
+use glyphon::{cosmic_text::Selection, Cursor as GlyphonCursor};
 use std::{hash::Hasher, marker::PhantomData, mem, ops::{Index, IndexMut}, time::Instant};
 
 use bytemuck::{Pod, Zeroable};
@@ -15,8 +16,7 @@ use wgpu::{
     VertexBufferLayout, VertexStepMode,
 };
 use winit::{
-    dpi::{PhysicalPosition, PhysicalSize},
-    event::{ElementState, Event, MouseButton, WindowEvent},
+    dpi::{PhysicalPosition, PhysicalSize}, event::{ElementState, Event, MouseButton, WindowEvent}, keyboard::{ModifiersState, NamedKey}
 };
 
 use Axis::{X, Y};
@@ -89,6 +89,7 @@ pub struct NodeParams {
     pub static_text: Option<&'static str>,
     pub visible_rect: bool,
     pub clickable: bool,
+    pub editable: bool,
     pub color: Color,
     pub size: Xy<Size>,
     pub position: Xy<Position>,
@@ -107,6 +108,7 @@ impl Default for NodeParams {
             size: Xy::new_symm(Size::PercentOfParent(0.5)),
             position: Xy::new_symm(Position::Start { padding: 5 }),
             container_mode: None,
+            editable: false,
             z: 0.0,
         }
     }
@@ -131,6 +133,7 @@ impl NodeParams {
             cross_axis_align: Align::Fill,
             main_axis: Axis::Y,
         }),
+        editable: false,
         z: 0.0,
     };
     pub const ROW: Self = Self {
@@ -151,6 +154,7 @@ impl NodeParams {
             cross_axis_align: Align::Fill,
             main_axis: Axis::X,
         }),
+        editable: false,
         z: 0.0,
     };
     pub const FLOATING_WINDOW: Self = Self {
@@ -167,6 +171,7 @@ impl NodeParams {
         size: Xy::new_symm(Size::PercentOfParent(0.9)),
         position: Xy::new_symm(Position::Center),
         container_mode: None,
+        editable: false,
         z: 0.0,
     };
 
@@ -184,6 +189,7 @@ impl NodeParams {
         size: Xy::new_symm(Size::PercentOfParent(0.17)),
         position: Xy::new_symm(Position::Start { padding: 5 }),
         container_mode: None,
+        editable: false,
         z: 0.0,
     };
 
@@ -201,6 +207,25 @@ impl NodeParams {
         size: Xy::new_symm(Size::PercentOfParent(0.3)),
         position: Xy::new_symm(Position::Start { padding: 5 }),
         container_mode: None,
+        editable: false,
+        z: 0.0,
+    };
+
+    pub const TEXT_INPUT: Self = Self {
+        debug_name: "label",
+        static_text: None,
+        clickable: true,
+        visible_rect: true,
+        color: Color {
+            r: 0.0,
+            g: 0.1,
+            b: 0.1,
+            a: 0.9,
+        },
+        size: Xy::new(Size::PercentOfParent(0.5), Size::PercentOfParent(0.1)),
+        position: Xy::new_symm(Position::Start { padding: 5 }),
+        container_mode: None,
+        editable: true,
         z: 0.0,
     };
 }
@@ -288,11 +313,15 @@ pub struct Rectangle {
     pub clickable: u32,
     pub z: f32,
 
-    // -- not passed 
+    pub radius: f32,
+    
+    // -- useless for shader
+    pub _padding: f32,
     pub id: Id,
+
 }
 impl Rectangle {
-    pub fn buffer_desc() -> [VertexAttribute; 7] {
+    pub fn buffer_desc() -> [VertexAttribute; 8] {
         return vertex_attr_array![
             0 => Float32x2,
             1 => Float32x2,
@@ -301,6 +330,7 @@ impl Rectangle {
             4 => Float32,
             5 => Uint32,
             6 => Float32,
+            7 => Float32,
         ];
     }
 }
@@ -360,7 +390,7 @@ pub struct PartialBorrowStuff {
     pub mouse_pos: PhysicalPosition<f32>,
     pub mouse_left_clicked: bool,
     pub mouse_left_just_clicked: bool,
-    pub uniforms: Uniforms,
+    pub unifs: Uniforms,
     pub current_frame: u64,
     pub t0: Instant,
 }
@@ -372,8 +402,8 @@ impl PartialBorrowStuff {
             // }
             
         let mut mouse_pos = (
-            self.mouse_pos.x / self.uniforms.width,
-            1.0 - (self.mouse_pos.y / self.uniforms.height),
+            self.mouse_pos.x / self.unifs.width,
+            1.0 - (self.mouse_pos.y / self.unifs.height),
         );
 
         // transform mouse_pos into "opengl" centered coordinates
@@ -394,71 +424,27 @@ impl PartialBorrowStuff {
     }
 }
 
-
-pub struct NewUi {
-    pub node_map: FxHashMap<Id, u16>,
-    pub nodes: Vec<NewNode>,
-    pub rects: Vec<NewRectangle>,
-}
-
-pub struct NewNode {
-    pub last_frame_touched: u64,
-    pub last_frame_status: LastFrameStatus,
-
-    pub text_id: Option<u32>,
-    pub parent_id: usize,
-    // todo: maybe switch with that prev/next thing
-    pub children_ids: Vec<usize>,
-
-    
-    pub last_hover: f32,
-    pub last_click: f32,
-    pub z: f32,
-
-    // old params
-    pub debug_name: &'static str,
-    // pub visible_rect: bool, //  replaced by rect_i
-    pub rect_i: Option<u16>,
-    // pub clickable: bool, //  now only in the rectangle (but stays in the key)
-    // pub color: Color, // now only in the rectangle (but stays in the key)
-    // pub static_text: Option<&'static str>, // goes straight to text-area, but stays in the key
-    // layout stuff
-    pub size: Xy<Size>,
-    pub position: Xy<Position>,
-    pub container_mode: Option<ContainerMode>,
-}
-pub struct NewNodeKey {
-    pub id: Id,
-    
-    // pub debug_name: &'static str,
-    pub static_text: Option<&'static str>,
-    pub visible_rect: bool,
-    pub clickable: bool,
-    pub color: Color,
-    pub size: Xy<Size>,
-    pub position: Xy<Position>,
-    pub container_mode: Option<ContainerMode>,
-}
-
-pub struct NewRectangle {
+#[derive(Debug, Copy, Clone)]
+pub struct BlinkyLine {
+    // this is more of the classic "duplicate for convenience" data. otherwise we have to lookup the focused node when drawing the rectangle.
+    // it would be kind of epic to just self.rect.push as soon straight from resolve_mouse_input(). but maybe a bit too epic.
     pub x0: f32,
     pub x1: f32,
     pub y0: f32,
     pub y1: f32,
+    pub cursor: GlyphonCursor,
+}
 
-    pub r: f32,
-    pub g: f32,
-    pub b: f32,
-    pub a: f32,
 
-    pub last_hover: f32,
-    pub last_click: f32,
-    pub clickable: u32,
-
-    pub id: Id,
+#[derive(Debug, Copy, Clone)]
+pub enum Cursor {
+    BlinkyLine(BlinkyLine),
+    Selection((GlyphonCursor, GlyphonCursor))
 }
 
 pub struct Ui {
+    pub key_modifiers: ModifiersState,
+
     pub gpu_vertex_buffer: TypedGpuBuffer<Rectangle>,
     pub render_pipeline: RenderPipeline,
 
@@ -477,7 +463,7 @@ pub struct Ui {
     pub parent_stack: Vec<Id>,
 
 
-    pub partial_stuff: PartialBorrowStuff,
+    pub part: PartialBorrowStuff,
 
     pub stack: Vec<Id>,
 
@@ -488,6 +474,10 @@ pub struct Ui {
     pub hovered_stack: Vec<(Id, f32)>,
     pub clicked: Option<Id>,
     pub hovered: Option<Id>,
+
+    pub focused: Option<Id>,
+
+    pub cursor: Option<Cursor>,
 
     // remember about animations (surely there will be)
     pub content_changed: bool,
@@ -509,7 +499,7 @@ impl Ui {
 
                 if hash == self.text_areas[text_id as usize].last_hash {
                     // todo: I shouldn't have to do this, I don't think, it's visible as long as the node is visible?? 
-                    self.text_areas[text_id as usize].last_frame_touched = self.partial_stuff.current_frame;
+                    self.text_areas[text_id as usize].last_frame_touched = self.part.current_frame;
                     return;
                 }
                 self.text_areas[text_id as usize].last_hash = hash;
@@ -517,7 +507,7 @@ impl Ui {
                 text_id
             },
             None => {
-                let buffer = Buffer::new(&mut self.font_system, Metrics::new(30.0, 42.0));
+                let buffer = Buffer::new(&mut self.font_system, Metrics::new(42.0, 42.0));
                 let text_area = TextArea {
                     buffer,
                     left: 10.0,
@@ -531,7 +521,7 @@ impl Ui {
                     },
                     default_color: GlyphonColor::rgb(255, 255, 255),
                     depth: 0.0,
-                    last_frame_touched: self.partial_stuff.current_frame,
+                    last_frame_touched: self.part.current_frame,
                     last_hash: hash,
                 };
 
@@ -547,7 +537,7 @@ impl Ui {
             Attrs::new().family(Family::SansSerif),
             Shaping::Advanced,
         );
-        self.text_areas[text_id as usize].last_frame_touched = self.partial_stuff.current_frame;
+        self.text_areas[text_id as usize].last_frame_touched = self.part.current_frame;
 
         self.content_changed = true;
     }
@@ -663,6 +653,7 @@ impl Ui {
         parent_stack.push(NODE_ROOT_ID);
 
         Self {
+            key_modifiers: ModifiersState::default(),
             cache,
             render_pipeline,
             atlas,
@@ -678,12 +669,12 @@ impl Ui {
 
             parent_stack,
             
-            partial_stuff: PartialBorrowStuff {
+            part: PartialBorrowStuff {
                 mouse_pos: PhysicalPosition { x: 0., y: 0. },
                 mouse_left_clicked: false,
                 mouse_left_just_clicked: false,
                 current_frame: 0,
-                uniforms,
+                unifs: uniforms,
                 t0: Instant::now(),
             },
 
@@ -694,6 +685,8 @@ impl Ui {
             clicked: None,
             hovered_stack: Vec::new(),
             hovered: None,
+            focused: None,
+            cursor: None,
 
             tree_hasher: FxHasher::default(),
             last_tree_hash: 0,
@@ -731,7 +724,8 @@ impl Ui {
         if old_node.is_none() {
             let mut text_id = None;
             if let Some(text) = node_key.params.static_text {
-                let mut buffer = Buffer::new(&mut self.font_system, Metrics::new(30.0, 42.0));
+                // text size
+                let mut buffer = Buffer::new(&mut self.font_system, Metrics::new(42.0, 42.0));
                 
                 let mut hasher = FxHasher::default();
                 text.hash(&mut hasher);
@@ -757,7 +751,7 @@ impl Ui {
                     },
                     default_color: GlyphonColor::rgb(255, 255, 255),
                     depth: 0.0,
-                    last_frame_touched: self.partial_stuff.current_frame,
+                    last_frame_touched: self.part.current_frame,
                     last_hash: hash,
                 };
                 self.text_areas.push(text_area);
@@ -769,9 +763,9 @@ impl Ui {
         } else {
             let old_node = old_node.unwrap();
             if let Some(text_id) = old_node.text_id {
-                    self.text_areas[text_id as usize].last_frame_touched = self.partial_stuff.current_frame;
+                    self.text_areas[text_id as usize].last_frame_touched = self.part.current_frame;
             }
-            old_node.last_frame_touched = self.partial_stuff.current_frame;
+            old_node.last_frame_touched = self.part.current_frame;
             old_node.children_ids.clear();
         }
 
@@ -790,7 +784,7 @@ impl Ui {
             parent_id,
             children_ids: Vec::new(),
             params: node_key.params,
-            last_frame_touched: self.partial_stuff.current_frame,
+            last_frame_touched: self.part.current_frame,
             last_frame_status: LastFrameStatus::Nothing,
             last_hover: f32::MIN,
             last_click: f32::MIN,
@@ -798,22 +792,77 @@ impl Ui {
         }
     }
 
-    pub fn handle_input_events(&mut self, event: &Event<()>) {
-        if let Event::WindowEvent { event, .. } = event {
+    pub fn handle_input_events(&mut self, full_event: &Event<()>) {
+        if let Event::WindowEvent { event, .. } = full_event {
             match event {
                 WindowEvent::CursorMoved { position, .. } => {
-                    self.partial_stuff.mouse_pos.x = position.x as f32;
-                    self.partial_stuff.mouse_pos.y = position.y as f32;
+                    self.part.mouse_pos.x = position.x as f32;
+                    self.part.mouse_pos.y = position.y as f32;
                 }
                 WindowEvent::MouseInput { button, state, .. } => {
                     if *button == MouseButton::Left {
                         if *state == ElementState::Pressed {
-                            self.partial_stuff.mouse_left_clicked = true;
-                            if !self.partial_stuff.mouse_left_just_clicked {
-                                self.partial_stuff.mouse_left_just_clicked = true;
+                            self.part.mouse_left_clicked = true;
+                            if !self.part.mouse_left_just_clicked {
+                                self.part.mouse_left_just_clicked = true;
                             }
                         } else {
-                            self.partial_stuff.mouse_left_clicked = false;
+                            self.part.mouse_left_clicked = false;
+                        }
+                    }
+                }
+                WindowEvent::ModifiersChanged(modifiers) => {
+                    self.key_modifiers = modifiers.state();
+                }
+                WindowEvent::KeyboardInput { event, .. } => {
+                    if let Some(id) = self.focused {
+                        if let Some(node) = self.nodes.get(&id) {
+                            if let Some(text_id) = node.text_id {
+                                if event.state.is_pressed() {
+                                    let buffer = &mut self.text_areas[text_id as usize].buffer;
+                                    let line = &mut buffer.lines[0];
+
+                                    match &event.logical_key {
+                                        winit::keyboard::Key::Named(named_key) => {
+                                            match named_key {
+                                                NamedKey::Backspace => {
+                                                    if self.key_modifiers.control_key() {
+                                                        // trim all leading spaces ("text text      " -> "text text")
+                                                        let leading_spaces = line.text.trim_end().len();
+                                                        line.text.truncate(leading_spaces);
+                                                        
+                                                        // trim the last word ("text text" -> "text")
+                                                        if let Some(i) = line.text.rfind(' ') {
+                                                            // panic: we trust rfind.
+                                                            line.text.truncate(i);
+                                                        } else {
+                                                            line.text.clear();
+                                                        }
+                                                    } else {
+                                                        line.text.pop();
+                                                    }
+                                                    line.reset();
+                                                }
+                                                NamedKey::Space => {
+                                                    line.text.push_str(" ");
+                                                    line.reset();
+                                                }
+                                                _ => {},
+                                            }
+                                        },
+                                        winit::keyboard::Key::Character(new_char) => {
+
+                                            // let new_text = line.text() + new_str.as_str();
+                                            line.text.push_str(new_char);
+                                            line.reset();
+                                            // note: this probably wouldn't work if we weren't spamming shape_until_scroll() on every layout aka every 
+                                        },
+                                        winit::keyboard::Key::Unidentified(_) => {},
+                                        winit::keyboard::Key::Dead(_) => {},
+                                    };
+                                }
+
+                            }
                         }
                     }
                 }
@@ -824,7 +873,6 @@ impl Ui {
 
     // todo: deduplicate the traversal with build_buffers, or just merge build_buffers inside here.
     // either way should wait to see how a real layout pass would look like
-    // ctrl+f: laying eggs
     // todo: layout has to be called BEFORE is_clicked and similar. maybe there's a way to force it or at least to print a warning?
     // or just do layout automatically somewhere? 
     pub fn layout(&mut self) {
@@ -834,7 +882,7 @@ impl Ui {
         self.stack.clear();
 
         let mut parent_already_decided = false;
-        // let mut last_name = "root?";
+        let mut last_name = "root?";
         let mut last_rect = Xy::new_symm([0.0, 1.0]);
         let mut new_rect = last_rect;
 
@@ -849,15 +897,20 @@ impl Ui {
             // this mess over here is to avoid borrowing 2 nodes (which shouldn't even be a problem. but layout will change anyway.)
             let children_ids;
             let container;
-            // let debug_name;
+            let debug_name;
             let len = Xy::new(new_rect[Axis::X][1] - new_rect[Axis::X][0], new_rect[Axis::Y][1] - new_rect[Axis::Y][0]);
             {            
                 let current_node = self.nodes.get_mut(&current_node_id).unwrap();
+                
+                // println!("visiting {:?}, parent: {:?}", current_node.params.debug_name, last_name);
+                // // println!("node {:?}", current_node.params.debug_name);
+                // println!("rect {:?}", last_rect);
+                // println!(" {:?}", "");
+
                 children_ids = current_node.children_ids.clone();
                 container = current_node.params.container_mode;
-                // debug_name = current_node.params.debug_name;
+                debug_name = current_node.params.debug_name;
 
-                // println!("visiting {:?}, parent: {:?}", current_node.params.debug_name, last_name);
 
                 
                 if ! parent_already_decided {
@@ -865,7 +918,7 @@ impl Ui {
                     for axis in [Axis::X, Axis::Y] {
                         match current_node.params.position[axis] {
                             Position::Start { padding } => {
-                                let x0 = last_rect[axis][0] + (padding as f32 / self.partial_stuff.uniforms.width);
+                                let x0 = last_rect[axis][0] + (padding as f32 / self.part.unifs.width);
                                 match current_node.params.size[axis] {
                                     Size::PercentOfParent(percent) => {
                                         let x1 = x0 + len[axis] * percent;
@@ -891,8 +944,8 @@ impl Ui {
                 }
 
                 if let Some(id) = current_node.text_id {
-                    self.text_areas[id as usize].left = current_node.rect[X][0] * self.partial_stuff.uniforms.width;
-                    self.text_areas[id as usize].top = (1.0 - current_node.rect[Y][1]) * self.partial_stuff.uniforms.height;
+                    self.text_areas[id as usize].left = current_node.rect[X][0] * self.part.unifs.width;
+                    self.text_areas[id as usize].top = (1.0 - current_node.rect[Y][1]) * self.part.unifs.height;
                     self.text_areas[id as usize].buffer.set_size(
                         &mut self.font_system,
                         100000.,
@@ -900,7 +953,7 @@ impl Ui {
                     );
                     self.text_areas[id as usize]
                         .buffer
-                        .shape_until_scroll(&mut self.font_system);
+                        .shape_until_scroll(&mut self.font_system, false);
 
                 }
             }
@@ -909,7 +962,7 @@ impl Ui {
                 Some(mode) => {
                     // decide the children positions all at once
                     let padding = 5;
-                    let mut main_0 = new_rect[mode.main_axis][0] + (padding as f32 / self.partial_stuff.uniforms.width);
+                    let mut main_0 = new_rect[mode.main_axis][0] + (padding as f32 / self.part.unifs.width);
 
                     for &child_id in children_ids.iter().rev() {
                         let child = self.nodes.get_mut(&child_id).unwrap();
@@ -920,14 +973,14 @@ impl Ui {
                             Size::PercentOfParent(percent) => {
                                 let main_1 = main_0 + len[main_axis] * percent;
                                 child.rect[main_axis][1] = main_1;
-                                main_0 = main_1 + (padding as f32 / self.partial_stuff.uniforms.width);
+                                main_0 = main_1 + (padding as f32 / self.part.unifs.width);
                             },
                         }
 
                         let cross_axis = mode.main_axis.other();
                         match child.params.size[cross_axis] {
                             Size::PercentOfParent(percent) => {
-                                let cross_0 = new_rect[cross_axis][0] + (padding as f32 / self.partial_stuff.uniforms.width);
+                                let cross_0 = new_rect[cross_axis][0] + (padding as f32 / self.part.unifs.width);
                                 let cross_1 = cross_0 + len[cross_axis] * percent;
                                 child.rect[cross_axis][0] = cross_0;
                                 child.rect[cross_axis][1] = cross_1;
@@ -938,7 +991,7 @@ impl Ui {
 
                     for &child_id in children_ids.iter().rev() {
                         self.stack.push(child_id);
-                        // last_name = debug_name;
+                        last_name = debug_name;
                         last_rect = new_rect;
                         parent_already_decided = true;
                     }
@@ -948,7 +1001,7 @@ impl Ui {
                     // just go to the children
                     for &child_id in children_ids.iter().rev() {
                         self.stack.push(child_id);
-                        // last_name = debug_name;
+                        last_name = debug_name;
                         last_rect = new_rect;
                         parent_already_decided = false;
                     }
@@ -969,7 +1022,7 @@ impl Ui {
     }
 
     pub fn is_clicked(&self, id: Id) -> bool {
-        if !self.partial_stuff.mouse_left_just_clicked {
+        if !self.part.mouse_left_just_clicked {
             return false;
         }
         for (clicked_id, _z) in &self.clicked_stack {
@@ -981,12 +1034,12 @@ impl Ui {
     }
 
     pub fn resize(&mut self, size: &PhysicalSize<u32>, queue: &Queue) {
-        self.partial_stuff.uniforms.width = size.width as f32;
-        self.partial_stuff.uniforms.height = size.height as f32;
+        self.part.unifs.width = size.width as f32;
+        self.part.unifs.height = size.height as f32;
         self.content_changed = true;
         self.tree_changed = true;
 
-        queue.write_buffer(&self.uniform_buffer, 0, &bytemuck::bytes_of(&self.partial_stuff.uniforms)[..16]);
+        queue.write_buffer(&self.uniform_buffer, 0, &bytemuck::bytes_of(&self.part.unifs)[..16]);
     }
 
     pub fn update_gpu_time(&mut self, queue: &Queue) {
@@ -995,7 +1048,7 @@ impl Ui {
     }
 
     pub fn update_time(&mut self) {
-        self.t = self.partial_stuff.t0.elapsed().as_secs_f32();
+        self.t = self.part.t0.elapsed().as_secs_f32();
     }
 
     pub fn build_buffers(&mut self) {
@@ -1018,7 +1071,7 @@ impl Ui {
 
 
             if current_node.params.visible_rect &&
-            current_node.last_frame_touched == self.partial_stuff.current_frame {
+            current_node.last_frame_touched == self.part.current_frame {
                 // println!(" maybe too much?");
                 // println!(" {:?}", current_node.params.debug_name);
                 self.rects.push(Rectangle {
@@ -1035,12 +1088,31 @@ impl Ui {
                     clickable: current_node.params.clickable.into(),
                     id: current_node_id,
                     z: 0.0,
+                    radius: 30.0,
+                    _padding: 0.0,
                 });
             }
 
             for &child_id in current_node.children_ids.iter() {
                 self.stack.push(child_id);
             }
+        }
+
+
+        // cursor
+        // how to make it appear at the right z? might be impossible if there are overlapping rects at the same z.
+        // one epic way could be to increase the z sequentially when rendering, so that all rects have different z's, so the cursor can have the z of its rect plus 0.0001.
+        // would definitely be very cringe for anyone doing custom rendering. but not really. nobody will ever want to stick his custom rendered stuff between a rectangle and another. when custom rendering INSIDE a rectangle, the user can get the z every time. might be annoying (very annoying even) but not deal breaking.
+        if let Some(cursor) = self.cursor {
+            match cursor {
+                Cursor::BlinkyLine(cursor) => {
+                    let cursor_rect = self.cursor_rectangle(cursor.x0, cursor.x1, cursor.y0, cursor.y1);
+                    // println!(" {:?}", cursor_rect);
+                    self.rects.push(cursor_rect);
+                },
+                Cursor::Selection(_) => {todo!("sneed and feed")},
+            }
+            
         }
 
     }
@@ -1072,13 +1144,12 @@ impl Ui {
                 &mut self.font_system,
                 &mut self.atlas,
                 GlyphonResolution {
-                    width: self.partial_stuff.uniforms.width as u32,
-                    height: self.partial_stuff.uniforms.height as u32,
+                    width: self.part.unifs.width as u32,
+                    height: self.part.unifs.height as u32,
                 },
                 &mut self.text_areas,
                 &mut self.cache,
-                self.partial_stuff.current_frame,
-                true
+                self.part.current_frame,
             )
             .unwrap();        
         }
@@ -1095,8 +1166,8 @@ impl Ui {
     
         self.content_changed = false;
         self.tree_changed = false;
-        self.partial_stuff.current_frame += 1;
-        self.partial_stuff.mouse_left_just_clicked = false;
+        self.part.current_frame += 1;
+        self.part.mouse_left_just_clicked = false;
         self.tree_hasher = FxHasher::default();
     }
 
@@ -1111,8 +1182,8 @@ impl Ui {
         return self.tree_changed || self.content_changed; 
     }
 
-    // todo: skip this if there has been no new input.
-    pub fn resolve_input(&mut self) {
+    // todo: skip this if there has been no new mouse movement and no new clicks.
+    pub fn resolve_mouse_input(&mut self) {
         self.clicked_stack.clear();
         self.hovered_stack.clear();
         self.hovered = None;
@@ -1120,7 +1191,7 @@ impl Ui {
 
         for rect in &self.rects {
             if rect.clickable != 0 {
-                let (clicked, hovered) = self.partial_stuff.is_rect_clicked_or_hovered(&rect);
+                let (clicked, hovered) = self.part.is_rect_clicked_or_hovered(&rect);
                 if clicked {
                     self.clicked_stack.push((rect.id, rect.z));
                 } else if hovered {
@@ -1155,18 +1226,87 @@ impl Ui {
             }
         }
 
+        // this goes on the node because the rect isn't a real entity. it's rebuilt every frame
         if let Some(id) = self.hovered {
             let node = self.nodes.get_mut(&id).unwrap();
             node.last_hover = self.t;
         }
+
+        let mut focused_anything = false;
         if let Some(id) = self.clicked {
             let node = self.nodes.get_mut(&id).unwrap();
             node.last_click = self.t;
+            
+            if node.params.editable {
+                self.focused = self.clicked;
+                focused_anything = true;
+            }
+
+            if let Some(id) = node.text_id {
+                let text_area = &mut self.text_areas[id as usize];
+                let (x, y) = (
+                    
+                    self.part.mouse_pos.x - text_area.left,
+                    self.part.mouse_pos.y - text_area.top
+                );
+
+
+                if let Some(cursor) = text_area.buffer.hit(x, y) {
+                    let (x, y) = (cursor.x, cursor.y);
+                    let cursor_width = text_area.buffer.metrics().font_size / 20.0;
+                    let cursor_height = text_area.buffer.metrics().font_size;
+                    // we're counting on this always happening after layout. which should be safe.
+                    let x0 = (x / self.part.unifs.width) * 2.0;
+                    let x1 = ((x + cursor_width) / self.part.unifs.width) * 2.0;
+                    let x0 = x0 + (node.rect[X][0] * 2. - 1.);
+                    let x1 = x1 + (node.rect[X][0] * 2. - 1.);
+                    
+                    let y0 = (-y / self.part.unifs.height) * 2.0;
+                    let y1 = ((-y + cursor_height) / self.part.unifs.height) * 2.0;
+                    let y0 = y0 + (node.rect[Y][0] * 2. - 1.);
+                    let y1 = y1 + (node.rect[Y][0] * 2. - 1.);
+                    self.cursor = Some(Cursor::BlinkyLine(
+                        BlinkyLine {
+                            x0,
+                            x1,
+                            y0,
+                            y1,
+                            cursor,
+                        }
+                    ));
+                    // println!("x0 {:?}", x0);
+                    // println!("node.rect[X][0] {:?}", node.rect[X][0]);
+                    println!(" {:?}", self.cursor);
+                }
+                
+            }
         }
 
+        // defocus when use clicked anywhere else
+        if self.part.mouse_left_just_clicked && focused_anything == false {
+            self.focused = None;
+        }
     }
 
-    
+    pub fn cursor_rectangle(&self, x0: f32, x1: f32, y0: f32, y1: f32) -> Rectangle {
+        return Rectangle {
+            x0,
+            x1,
+            y0,
+            y1,
+            r: 0.5,
+            g: 0.3,
+            b: 0.5,
+            a: 0.5,
+            last_hover: 0.0,
+            last_click: 0.0,
+            clickable: 0,
+            z: 0.0,
+            id: Id(0),
+            _padding: 0.0,
+            radius: 0.0,
+        }
+    }
 }
 
 
@@ -1177,11 +1317,11 @@ pub struct Node {
     // also for invisible rects, used for layout
     pub rect: Xy<[f32; 2]>,
 
-
     pub last_frame_touched: u64,
     pub last_frame_status: LastFrameStatus,
 
     pub text_id: Option<u32>,
+
     pub parent_id: Id,
     // todo: maybe switch with that prev/next thing
     pub children_ids: Vec<Id>,
@@ -1279,6 +1419,7 @@ pub const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     size: Xy::new_symm(Size::PercentOfParent(1.0)),
     position: Xy::new_symm(Position::Start { padding: 0 }),
     container_mode: None,
+    editable: false,
     z: 0.0,
 };
 

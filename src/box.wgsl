@@ -16,6 +16,7 @@ struct VertexInput {
     @location(4) last_click: f32,
     @location(5) clickable: u32,
     @location(6) z: f32,
+    @location(7) radius: f32,
 };
 
 struct VertexOutput {
@@ -24,6 +25,7 @@ struct VertexOutput {
     @location(1) half_size: vec2<f32>,
     @location(2) color: vec4<f32>,
     @location(3) dark: f32,
+    @location(4) radius: f32,
 }
 
 @vertex
@@ -56,7 +58,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     var dark_click = 1.0 - click * 0.78;
 
     var dark = min(dark_click, dark_hover);
-    return VertexOutput(clip_position, uv, half_size, in.color, dark);
+    return VertexOutput(clip_position, uv, half_size, in.color, dark, in.radius);
 }
 
 @fragment
@@ -65,12 +67,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // +L <-- 0 --> +L
     // where L = rect_half_size (pixels)
 
-    var radius = 30.0;
-
     // todo: what the fuck is a q?
-    var q = abs(in.uv) - in.half_size + radius;
+    var q = abs(in.uv) - in.half_size + in.radius;
 
-    var dist = length(max(q, vec2(0.0, 0.0))) - radius;
+    var dist = length(max(q, vec2(0.0, 0.0))) - in.radius;
 
     var alpha = in.color.a * (1.0 - smoothstep(-1.0, 1.0, dist));
 

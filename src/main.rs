@@ -1,4 +1,4 @@
-    pub mod helper;
+pub mod helper;
 pub mod ui;
 use helper::{
     base_color_attachment, base_render_pass_desc, base_surface_config, init_wgpu,
@@ -100,12 +100,41 @@ impl<'window> State<'window> {
         self.ui.update_time();
         self.ui.update_gpu_time(&self.queue);
 
-        CounterState::add(&mut self.ui, &mut self.counter_state);
+        let ui = &mut self.ui;
+        // CounterState::add(&mut self.ui, &mut self.counter_state);
+        floating_window!(ui, {
+            
+            add!(ui, CENTER_COLUMN, {
+                add!(ui, COMMAND_LINE);
+
+
+                if self.counter_state.counter_mode {
+                    add!(ui, INCREASE_BUTTON);
+                    ui.update_color(INCREASE_BUTTON.id, count_color(self.counter_state.count));
+
+                    add!(ui, COUNT_LABEL);
+                    ui.update_text(COUNT_LABEL.id, self.counter_state.count);
+
+                    add!(ui, DECREASE_BUTTON);
+                }
+
+                let text = match self.counter_state.counter_mode {
+                    true => "Hide counter",
+                    false => "Show counter",
+                };
+                add!(ui, SHOW_COUNTER_BUTTON);
+                ui.update_text(SHOW_COUNTER_BUTTON.id, text);
+            });
+
+        });
+
+
+
 
         self.ui.finish_tree();
         
         self.ui.layout();
-        self.ui.resolve_input();
+        self.ui.resolve_mouse_input();
         self.counter_state.interact(&mut self.ui);
 
         self.ui.build_buffers();
@@ -180,12 +209,17 @@ pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey::new(
         size: Xy::new_symm(Size::PercentOfParent(0.2)),
         position: Xy::new_symm(Position::Start { padding: 5 }),
         container_mode: None,
+        editable: false,
         z: 0.0,
     },
     new_id!(),
 );
 
 pub const COUNT_LABEL: NodeKey = NodeKey::new(NodeParams::LABEL, new_id!());
+
+pub const COMMAND_LINE: NodeKey = NodeKey::new(NodeParams::TEXT_INPUT, new_id!())
+    .with_debug_name("Anomg us")
+    .with_static_text("Among us");
 
 pub struct CounterState {
     pub count: i32,
@@ -199,28 +233,28 @@ impl CounterState {
         };
     }
 
-    pub fn add(ui: &mut Ui, state: &mut Self) {
-        floating_window!(ui, {
-            add!(ui, CENTER_COLUMN, {
-                if state.counter_mode {
-                    add!(ui, INCREASE_BUTTON);
-                    ui.update_color(INCREASE_BUTTON.id, count_color(state.count));
+    // pub fn add(ui: &mut Ui, state: &mut Self) {
+    //     floating_window!(ui, {
+    //         add!(ui, CENTER_COLUMN, {
+    //             if state.counter_mode {
+    //                 add!(ui, INCREASE_BUTTON);
+    //                 ui.update_color(INCREASE_BUTTON.id, count_color(state.count));
 
-                    add!(ui, COUNT_LABEL);
-                    ui.update_text(COUNT_LABEL.id, state.count);
+    //                 add!(ui, COUNT_LABEL);
+    //                 ui.update_text(COUNT_LABEL.id, state.count);
 
-                    add!(ui, DECREASE_BUTTON);
-                }
+    //                 add!(ui, DECREASE_BUTTON);
+    //             }
 
-                let text = match state.counter_mode {
-                    true => "Hide counter",
-                    false => "Show counter",
-                };
-                add!(ui, SHOW_COUNTER_BUTTON);
-                ui.update_text(SHOW_COUNTER_BUTTON.id, text);
-            });
-        });
-    }
+    //             let text = match state.counter_mode {
+    //                 true => "Hide counter",
+    //                 false => "Show counter",
+    //             };
+    //             add!(ui, SHOW_COUNTER_BUTTON);
+    //             ui.update_text(SHOW_COUNTER_BUTTON.id, text);
+    //         });
+    //     });
+    // }
 
     pub fn interact(&mut self, ui: &mut Ui) {
         if ui.is_clicked(INCREASE_BUTTON.id) {
