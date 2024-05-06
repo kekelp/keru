@@ -1253,7 +1253,7 @@ impl Ui {
 
                 if let Some(cursor) = text_area.buffer.hit(x, y) {
                     let (x, y) = (cursor.x, cursor.y);
-                    let cursor_width = text_area.buffer.metrics().font_size / 20.0;
+                    let cursor_width = text_area.buffer.metrics().font_size / 20.0 * 3.0;
                     let cursor_height = text_area.buffer.metrics().font_size;
                     // we're counting on this always happening after layout. which should be safe.
                     let x0 = (x / self.part.unifs.width) * 2.0;
@@ -1261,8 +1261,8 @@ impl Ui {
                     let x0 = x0 + (node.rect[X][0] * 2. - 1.);
                     let x1 = x1 + (node.rect[X][0] * 2. - 1.);
                     
-                    let y0 = (- y / self.part.unifs.height) * 2.0;
-                    let y1 = ((- y + cursor_height) / self.part.unifs.height) * 2.0;
+                    let y0 = ((- y - cursor_height) / self.part.unifs.height) * 2.0;
+                    let y1 = ((- y ) / self.part.unifs.height) * 2.0;
                     let y0 = y0 + (node.rect[Y][1] * 2. - 1.);
                     let y1 = y1 + (node.rect[Y][1] * 2. - 1.);
                     self.cursor = Some(Cursor::BlinkyLine(
@@ -1297,7 +1297,7 @@ impl Ui {
             r: 0.5,
             g: 0.3,
             b: 0.5,
-            a: 0.5,
+            a: 0.9,
             last_hover: 0.0,
             last_click: 0.0,
             clickable: 0,
