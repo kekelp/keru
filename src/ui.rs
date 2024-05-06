@@ -832,7 +832,7 @@ impl Ui {
                                                         line.text.truncate(leading_spaces);
                                                         
                                                         // trim the last word ("text text" -> "text")
-                                                        if let Some(i) = line.text.rfind(' ') {
+                                                        if let Some(i) = line.text.rfind(is_word_separator) {
                                                             // panic: we trust rfind.
                                                             line.text.truncate(i);
                                                         } else {
@@ -1253,10 +1253,10 @@ impl Ui {
 
                 if let Some(cursor) = text_area.buffer.hit(x, y) {
                     let (x, y) = (cursor.x, cursor.y);
-                    let cursor_width = text_area.buffer.metrics().font_size / 20.0 * 3.0;
+                    let cursor_width = text_area.buffer.metrics().font_size / 20.0;
                     let cursor_height = text_area.buffer.metrics().font_size;
                     // we're counting on this always happening after layout. which should be safe.
-                    let x0 = (x / self.part.unifs.width) * 2.0;
+                    let x0 = ((x - 1.0) / self.part.unifs.width) * 2.0;
                     let x1 = ((x + cursor_width) / self.part.unifs.width) * 2.0;
                     let x0 = x0 + (node.rect[X][0] * 2. - 1.);
                     let x1 = x1 + (node.rect[X][0] * 2. - 1.);
@@ -1565,3 +1565,12 @@ pub trait Component {
     // fn auto_interact(&mut self);
 }
 
+pub fn is_word_separator(c: char) -> bool {
+    if c.is_alphanumeric() {
+        return false;
+    }
+    // if c.is_whitespace() {
+    //     return true;
+    // }
+    return true;
+}
