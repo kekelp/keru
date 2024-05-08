@@ -18,6 +18,7 @@ bitflags = "2.5.0"
 lazy_static = "1.4.0"
 smart-default = "0.7.1"
 rustc-hash = "1.1.0"
+unicode-segmentation = "1.11.0"
 
 [lints.clippy]
 needless_return = { level = "allow" } 

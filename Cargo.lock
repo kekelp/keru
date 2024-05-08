@@ -175,6 +175,7 @@ dependencies = [
  "pollster",
  "rustc-hash",
  "smart-default",
+ "unicode-segmentation",
  "wgpu",
  "winit",
 ]

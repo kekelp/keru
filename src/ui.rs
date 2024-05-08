@@ -1,8 +1,9 @@
-use glyphon::{Resolution as GlyphonResolution};
+use glyphon::{Affinity, Resolution as GlyphonResolution};
 use rustc_hash::{FxHashMap, FxHasher};
 
 use glyphon::{cosmic_text::Selection, Cursor as GlyphonCursor};
-use std::{hash::Hasher, marker::PhantomData, mem, ops::{Index, IndexMut}, time::Instant};
+use unicode_segmentation::UnicodeSegmentation;
+use std::{future::pending, hash::Hasher, marker::PhantomData, mem, ops::{Index, IndexMut}, time::Instant};
 
 use bytemuck::{Pod, Zeroable};
 use glyphon::{
@@ -475,8 +476,8 @@ pub struct Ui {
     pub clicked: Option<Id>,
     pub hovered: Option<Id>,
 
+    // muh impossible states?
     pub focused: Option<Id>,
-
     pub cursor: Option<Cursor>,
 
     // remember about animations (surely there will be)
@@ -819,42 +820,65 @@ impl Ui {
                         if let Some(node) = self.nodes.get(&id) {
                             if let Some(text_id) = node.text_id {
                                 if event.state.is_pressed() {
-                                    let buffer = &mut self.text_areas[text_id as usize].buffer;
-                                    let line = &mut buffer.lines[0];
+                                    let mut buffer = &mut self.text_areas[text_id as usize].buffer;
+                                    // let line = &mut buffer.lines[0];
 
                                     match &event.logical_key {
                                         winit::keyboard::Key::Named(named_key) => {
                                             match named_key {
+
+                                                NamedKey::ArrowLeft => {
+
+                                                }
+
                                                 NamedKey::Backspace => {
                                                     if self.key_modifiers.control_key() {
-                                                        // trim all leading spaces ("text text      " -> "text text")
-                                                        let leading_spaces = line.text.trim_end().len();
-                                                        line.text.truncate(leading_spaces);
+
+                                                        // todo: this doesn't split on things like dots, apostrophes ecc    
+                                                        let mut words_i = buffer.lines[0].text.unicode_word_indices().rev();
                                                         
-                                                        // trim the last word ("text text" -> "text")
-                                                        if let Some(i) = line.text.rfind(is_word_separator) {
-                                                            // panic: we trust rfind.
-                                                            line.text.truncate(i);
-                                                        } else {
-                                                            line.text.clear();
+                                                        if let Some(cursor) = &mut self.cursor {
+                                                            match cursor {
+                                                                Cursor::BlinkyLine(cursor) => {
+                                                                    if let Some((i, _)) = words_i.next() {
+                                                                        buffer.lines[0].text.replace_range((i..), "");
+                                                                        // here I need to do the following:
+                                                                        // set the cursor byte index to i
+                                                                        // get a new x and y for the new cursor
+                                                                    }
+                                                                },
+                                                                Cursor::Selection(_) => todo!(),
+                                                            }
                                                         }
+
                                                     } else {
-                                                        line.text.pop();
+                                                        if let Some(cursor) = &mut self.cursor {
+                                                            match cursor {
+                                                                Cursor::BlinkyLine(cursor) => {
+                                                                    if let Some((i, _)) = buffer.lines[0].text.grapheme_indices(true).rev().next() {
+                                                                        cursor_from_byte_offset(&mut buffer, i);
+                                                                        buffer.lines[0].text.replace_range((i..), "");
+
+                                                                    }
+                                                                },
+                                                                Cursor::Selection(_) => todo!(),
+                                                            }
+                                                        }
                                                     }
-                                                    line.reset();
+                                                    buffer.lines[0].reset();
                                                 }
                                                 NamedKey::Space => {
-                                                    line.text.push_str(" ");
-                                                    line.reset();
+                                                    buffer.lines[0].text.push_str(" ");
+                                                    buffer.lines[0].reset();
                                                 }
                                                 _ => {},
                                             }
                                         },
                                         winit::keyboard::Key::Character(new_char) => {
 
-                                            // let new_text = line.text() + new_str.as_str();
-                                            line.text.push_str(new_char);
-                                            line.reset();
+                                            // let new_text = buffer.lines[0].text() + new_str.as_str();
+                                            buffer.lines[0].text.push_str(new_char);
+                                            buffer.lines[0].reset();
                                             // note: this probably wouldn't work if we weren't spamming shape_until_scroll() on every layout aka every 
                                         },
                                         winit::keyboard::Key::Unidentified(_) => {},
@@ -1252,31 +1276,38 @@ impl Ui {
 
 
                 if let Some(cursor) = text_area.buffer.hit(x, y) {
-                    let (x, y) = (cursor.x, cursor.y);
-                    let cursor_width = text_area.buffer.metrics().font_size / 20.0;
-                    let cursor_height = text_area.buffer.metrics().font_size;
-                    // we're counting on this always happening after layout. which should be safe.
-                    let x0 = ((x - 1.0) / self.part.unifs.width) * 2.0;
-                    let x1 = ((x + cursor_width) / self.part.unifs.width) * 2.0;
-                    let x0 = x0 + (node.rect[X][0] * 2. - 1.);
-                    let x1 = x1 + (node.rect[X][0] * 2. - 1.);
-                    
-                    let y0 = ((- y - cursor_height) / self.part.unifs.height) * 2.0;
-                    let y1 = ((- y ) / self.part.unifs.height) * 2.0;
-                    let y0 = y0 + (node.rect[Y][1] * 2. - 1.);
-                    let y1 = y1 + (node.rect[Y][1] * 2. - 1.);
-                    self.cursor = Some(Cursor::BlinkyLine(
-                        BlinkyLine {
-                            x0,
-                            x1,
-                            y0,
-                            y1,
-                            cursor,
-                        }
-                    ));
-                    // println!("x0 {:?}", x0);
-                    // println!("node.rect[X][0] {:?}", node.rect[X][0]);
-                    println!(" {:?}", self.cursor);
+
+                    if let Some((x, y)) = cursor_from_byte_offset(&mut text_area.buffer, cursor.index) {
+
+
+                        println!("from muh hack {:?}", (x, y));
+                        println!("from func     {:?}", cursor_from_byte_offset(&mut text_area.buffer, cursor.index));
+                        println!("(index)       {:?}", cursor.index);
+                        let cursor_width = text_area.buffer.metrics().font_size / 20.0;
+                        let cursor_height = text_area.buffer.metrics().font_size;
+                        // we're counting on this always happening after layout. which should be safe.
+                        let x0 = ((x - 1.0) / self.part.unifs.width) * 2.0;
+                        let x1 = ((x + cursor_width) / self.part.unifs.width) * 2.0;
+                        let x0 = x0 + (node.rect[X][0] * 2. - 1.);
+                        let x1 = x1 + (node.rect[X][0] * 2. - 1.);
+                        
+                        let y0 = ((- y - cursor_height) / self.part.unifs.height) * 2.0;
+                        let y1 = ((- y ) / self.part.unifs.height) * 2.0;
+                        let y0 = y0 + (node.rect[Y][1] * 2. - 1.);
+                        let y1 = y1 + (node.rect[Y][1] * 2. - 1.);
+                        self.cursor = Some(Cursor::BlinkyLine(
+                            BlinkyLine {
+                                x0,
+                                x1,
+                                y0,
+                                y1,
+                                cursor,
+                            }
+                        ));
+                        // println!("x0 {:?}", x0);
+                        // println!("node.rect[X][0] {:?}", node.rect[X][0]);
+                        println!(" {:?}", self.cursor);
+                    }
                 }
                 
             }
@@ -1573,4 +1604,28 @@ pub fn is_word_separator(c: char) -> bool {
     //     return true;
     // }
     return true;
+}
+
+pub fn cursor_from_byte_offset(buffer: &mut Buffer, byte_offset: usize) -> Option<(f32, f32)> {
+    let line = &buffer.lines[0];
+    let buffer_line = line.layout_opt().as_ref().unwrap();
+    let glyphs = &buffer_line[0].glyphs;
+    
+    let mut glyph = None;
+    // todo: binary search? lol. maybe vec has it built in
+    println!("byte_offset {:?}", byte_offset);
+    // println!("g's:  {:#?}", glyphs);
+    for g in glyphs {
+        println!("seeing:  {:?}", g.start);
+        if g.start >= byte_offset {
+            glyph = Some(g);
+            break;
+        }
+    }
+
+    let glyph = glyph?;
+    // println!(" {:?}", glyph);
+
+    return Some((glyph.x, glyph.y));
+
 }

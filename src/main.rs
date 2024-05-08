@@ -219,7 +219,7 @@ pub const COUNT_LABEL: NodeKey = NodeKey::new(NodeParams::LABEL, new_id!());
 
 pub const COMMAND_LINE: NodeKey = NodeKey::new(NodeParams::TEXT_INPUT, new_id!())
     .with_debug_name("Anomg us")
-    .with_static_text("Among us");
+    .with_static_text("高38道ょつ準傷に債健の🤦🏼‍♂️🚵🏻‍♀️");
 
 pub struct CounterState {
     pub count: i32,
