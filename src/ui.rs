@@ -427,13 +427,8 @@ impl PartialBorrowStuff {
 
 #[derive(Debug, Copy, Clone)]
 pub struct BlinkyLine {
-    // this is more of the classic "duplicate for convenience" data. otherwise we have to lookup the focused node when drawing the rectangle.
-    // it would be kind of epic to just self.rect.push as soon straight from resolve_mouse_input(). but maybe a bit too epic.
-    pub x0: f32,
-    pub x1: f32,
-    pub y0: f32,
-    pub y1: f32,
-    pub cursor: GlyphonCursor,
+    pub index: usize,
+    pub affinity: Affinity,
 }
 
 
@@ -498,12 +493,12 @@ impl Ui {
         let text_id = match text_id {
             Some(text_id) => {
 
-                if hash == self.text_areas[text_id as usize].last_hash {
+                if hash == self.text_areas[text_id].last_hash {
                     // todo: I shouldn't have to do this, I don't think, it's visible as long as the node is visible?? 
-                    self.text_areas[text_id as usize].last_frame_touched = self.part.current_frame;
+                    self.text_areas[text_id].last_frame_touched = self.part.current_frame;
                     return;
                 }
-                self.text_areas[text_id as usize].last_hash = hash;
+                self.text_areas[text_id].last_hash = hash;
 
                 text_id
             },
@@ -527,18 +522,18 @@ impl Ui {
                 };
 
                 self.text_areas.push(text_area);
-                let text_id = Some((self.text_areas.len() - 1) as u32);
+                let text_id = Some(self.text_areas.len() - 1);
                 self.nodes.get_mut(&id).unwrap().text_id = text_id;
                 text_id.unwrap()
             },
         };
-        self.text_areas[text_id as usize].buffer.set_text(
+        self.text_areas[text_id].buffer.set_text(
             &mut self.font_system,
             &text, 
             Attrs::new().family(Family::SansSerif),
             Shaping::Advanced,
         );
-        self.text_areas[text_id as usize].last_frame_touched = self.part.current_frame;
+        self.text_areas[text_id].last_frame_touched = self.part.current_frame;
 
         self.content_changed = true;
     }
@@ -756,7 +751,7 @@ impl Ui {
                     last_hash: hash,
                 };
                 self.text_areas.push(text_area);
-                text_id = Some((self.text_areas.len() - 1) as u32);
+                text_id = Some(self.text_areas.len() - 1);
             }
 
             let new_node = self.new_node(node_key, parent_id, text_id);
@@ -764,7 +759,7 @@ impl Ui {
         } else {
             let old_node = old_node.unwrap();
             if let Some(text_id) = old_node.text_id {
-                    self.text_areas[text_id as usize].last_frame_touched = self.part.current_frame;
+                    self.text_areas[text_id].last_frame_touched = self.part.current_frame;
             }
             old_node.last_frame_touched = self.part.current_frame;
             old_node.children_ids.clear();
@@ -777,7 +772,7 @@ impl Ui {
             .push(node_key_id);
     }
 
-    pub fn new_node(&self, node_key: NodeKey, parent_id: Id, text_id: Option<u32>) -> Node {
+    pub fn new_node(&self, node_key: NodeKey, parent_id: Id, text_id: Option<usize>) -> Node {
         Node {
             rect_id: None,
             rect: Xy::new_symm([0.0, 0.0]),
@@ -799,7 +794,7 @@ impl Ui {
         let text_id = node.text_id?;
         
         if event.state.is_pressed() {
-            let mut buffer = &mut self.text_areas[text_id as usize].buffer;
+            let mut buffer = &mut self.text_areas[text_id].buffer;
             // let line = &mut buffer.lines[0];
 
             match &event.logical_key {
@@ -816,8 +811,8 @@ impl Ui {
                                 if let Some(cursor) = &mut self.cursor {
                                     match cursor {
                                         Cursor::BlinkyLine(cursor) => {
-                                            let new_cursor = buffer.lines[0].text.ctrl_backspace_unicode_word(cursor.cursor.index);
-                                            cursor.cursor.index = new_cursor;
+                                            let new_cursor = buffer.lines[0].text.ctrl_backspace_unicode_word(cursor.index);
+                                            cursor.index = new_cursor;
                                         },
                                         Cursor::Selection(_) => todo!(),
                                     }
@@ -827,8 +822,8 @@ impl Ui {
                                 if let Some(cursor) = &mut self.cursor {
                                     match cursor {
                                         Cursor::BlinkyLine(cursor) => {
-                                            let new_cursor = buffer.lines[0].text.backspace(cursor.cursor.index);
-                                            cursor.cursor.index = new_cursor;
+                                            let new_cursor = buffer.lines[0].text.backspace(cursor.index);
+                                            cursor.index = new_cursor;
                                         },
                                         Cursor::Selection(_) => todo!(),
                                     }
@@ -963,14 +958,14 @@ impl Ui {
                 }
 
                 if let Some(id) = current_node.text_id {
-                    self.text_areas[id as usize].left = current_node.rect[X][0] * self.part.unifs.width;
-                    self.text_areas[id as usize].top = (1.0 - current_node.rect[Y][1]) * self.part.unifs.height;
-                    self.text_areas[id as usize].buffer.set_size(
+                    self.text_areas[id].left = current_node.rect[X][0] * self.part.unifs.width;
+                    self.text_areas[id].top = (1.0 - current_node.rect[Y][1]) * self.part.unifs.height;
+                    self.text_areas[id].buffer.set_size(
                         &mut self.font_system,
                         100000.,
                         100000.,
                     );
-                    self.text_areas[id as usize]
+                    self.text_areas[id]
                         .buffer
                         .shape_until_scroll(&mut self.font_system, false);
 
@@ -1118,24 +1113,67 @@ impl Ui {
         }
 
 
-        // cursor
+        self.push_cursor_rect();
+
+    }
+
+    pub fn push_cursor_rect(&mut self) -> Option<()> {
+                // cursor
         // how to make it appear at the right z? might be impossible if there are overlapping rects at the same z.
         // one epic way could be to increase the z sequentially when rendering, so that all rects have different z's, so the cursor can have the z of its rect plus 0.0001.
         // would definitely be very cringe for anyone doing custom rendering. but not really. nobody will ever want to stick his custom rendered stuff between a rectangle and another. when custom rendering INSIDE a rectangle, the user can get the z every time. might be annoying (very annoying even) but not deal breaking.
-        if let Some(cursor) = self.cursor {
-
+        let cursor = self.cursor?;
+        let focused_node = self.nodes.get(&self.focused?)?;
+        let focused_text_area = self.text_areas.get(focused_node.text_id?)?;
         
-            match cursor {
-                Cursor::BlinkyLine(cursor) => {
-                    let cursor_rect = self.cursor_rectangle(cursor.x0, cursor.x1, cursor.y0, cursor.y1);
-                    // println!(" {:?}", cursor_rect);
-                    self.rects.push(cursor_rect);
-                },
-                Cursor::Selection(_) => {todo!("sneed and feed")},
-            }
-            
-        }
+        match cursor {
+            Cursor::BlinkyLine(cursor) => {
+                let rect_x0 = focused_node.rect[X][0];
+                let rect_y1 = focused_node.rect[Y][1];
+                
+                // todo: is it right to just return here?
+                let (x, y) = cursor_from_byte_offset(&focused_text_area.buffer, cursor.index)?;
 
+                let cursor_width = focused_text_area.buffer.metrics().font_size / 20.0;
+                let cursor_height = focused_text_area.buffer.metrics().font_size;
+                // we're counting on this always happening after layout. which should be safe.
+                let x0 = ((x - 1.0) / self.part.unifs.width) * 2.0;
+                let x1 = ((x + cursor_width) / self.part.unifs.width) * 2.0;
+                let x0 = x0 + (rect_x0 * 2. - 1.);
+                let x1 = x1 + (rect_x0 * 2. - 1.);
+                
+                let y0 = ((- y - cursor_height) / self.part.unifs.height) * 2.0;
+                let y1 = ((- y ) / self.part.unifs.height) * 2.0;
+                let y0 = y0 + (rect_y1 * 2. - 1.);
+                let y1 = y1 + (rect_y1 * 2. - 1.);
+
+                let cursor_rect = Rectangle {
+                    x0,
+                    x1,
+                    y0,
+                    y1,
+                    r: 0.5,
+                    g: 0.3,
+                    b: 0.5,
+                    a: 0.9,
+                    last_hover: 0.0,
+                    last_click: 0.0,
+                    clickable: 0,
+                    z: 0.0,
+                    id: Id(0),
+                    _padding: 0.0,
+                    radius: 0.0,
+                }; 
+
+
+                self.rects.push(cursor_rect);
+            },
+            Cursor::Selection(_) => {todo!("sneed and feed")},
+        }
+        
+        
+
+        return Some(());
     }
 
     pub fn render<'pass>(&'pass self, render_pass: &mut RenderPass<'pass>) {
@@ -1264,7 +1302,7 @@ impl Ui {
             }
 
             if let Some(id) = node.text_id {
-                let text_area = &mut self.text_areas[id as usize];
+                let text_area = &mut self.text_areas[id];
                 let (x, y) = (
                     
                     self.part.mouse_pos.x - text_area.left,
@@ -1273,38 +1311,11 @@ impl Ui {
 
 
                 if let Some(cursor) = text_area.buffer.hit(x, y) {
-
-                    if let Some((x, y)) = cursor_from_byte_offset(&mut text_area.buffer, cursor.index) {
-
-
-                        println!("from muh hack {:?}", (x, y));
-                        println!("from func     {:?}", cursor_from_byte_offset(&mut text_area.buffer, cursor.index));
-                        println!("(index)       {:?}", cursor.index);
-                        let cursor_width = text_area.buffer.metrics().font_size / 20.0;
-                        let cursor_height = text_area.buffer.metrics().font_size;
-                        // we're counting on this always happening after layout. which should be safe.
-                        let x0 = ((x - 1.0) / self.part.unifs.width) * 2.0;
-                        let x1 = ((x + cursor_width) / self.part.unifs.width) * 2.0;
-                        let x0 = x0 + (node.rect[X][0] * 2. - 1.);
-                        let x1 = x1 + (node.rect[X][0] * 2. - 1.);
-                        
-                        let y0 = ((- y - cursor_height) / self.part.unifs.height) * 2.0;
-                        let y1 = ((- y ) / self.part.unifs.height) * 2.0;
-                        let y0 = y0 + (node.rect[Y][1] * 2. - 1.);
-                        let y1 = y1 + (node.rect[Y][1] * 2. - 1.);
-                        self.cursor = Some(Cursor::BlinkyLine(
-                            BlinkyLine {
-                                x0,
-                                x1,
-                                y0,
-                                y1,
-                                cursor,
-                            }
-                        ));
-                        // println!("x0 {:?}", x0);
-                        // println!("node.rect[X][0] {:?}", node.rect[X][0]);
-                        println!(" {:?}", self.cursor);
-                    }
+                    // here set the usize cursor only 
+                    self.cursor = Some(Cursor::BlinkyLine(BlinkyLine {
+                        index: cursor.index,
+                        affinity: cursor.affinity,
+                    }));
                 }
                 
             }
@@ -1313,26 +1324,6 @@ impl Ui {
         // defocus when use clicked anywhere else
         if self.part.mouse_left_just_clicked && focused_anything == false {
             self.focused = None;
-        }
-    }
-
-    pub fn cursor_rectangle(&self, x0: f32, x1: f32, y0: f32, y1: f32) -> Rectangle {
-        return Rectangle {
-            x0,
-            x1,
-            y0,
-            y1,
-            r: 0.5,
-            g: 0.3,
-            b: 0.5,
-            a: 0.9,
-            last_hover: 0.0,
-            last_click: 0.0,
-            clickable: 0,
-            z: 0.0,
-            id: Id(0),
-            _padding: 0.0,
-            radius: 0.0,
         }
     }
 }
@@ -1348,7 +1339,7 @@ pub struct Node {
     pub last_frame_touched: u64,
     pub last_frame_status: LastFrameStatus,
 
-    pub text_id: Option<u32>,
+    pub text_id: Option<usize>,
 
     pub parent_id: Id,
     // todo: maybe switch with that prev/next thing
@@ -1603,7 +1594,7 @@ pub fn is_word_separator(c: char) -> bool {
     return true;
 }
 
-pub fn cursor_from_byte_offset(buffer: &mut Buffer, byte_offset: usize) -> Option<(f32, f32)> {
+pub fn cursor_from_byte_offset(buffer: &Buffer, byte_offset: usize) -> Option<(f32, f32)> {
     let line = &buffer.lines[0];
     let buffer_line = line.layout_opt().as_ref().unwrap();
     let glyphs = &buffer_line[0].glyphs;
@@ -1626,3 +1617,5 @@ pub fn cursor_from_byte_offset(buffer: &mut Buffer, byte_offset: usize) -> Optio
     return Some((glyph.x, glyph.y));
 
 }
+
+
