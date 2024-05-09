@@ -17,9 +17,9 @@ use wgpu::{
     VertexBufferLayout, VertexStepMode,
 };
 use winit::{
-    dpi::{PhysicalPosition, PhysicalSize}, event::{ElementState, Event, MouseButton, WindowEvent}, keyboard::{ModifiersState, NamedKey}
+    dpi::{PhysicalPosition, PhysicalSize}, event::{ElementState, Event, KeyEvent, MouseButton, WindowEvent}, keyboard::{ModifiersState, NamedKey}
 };
-
+use crate::string_edit::*;
 use Axis::{X, Y};
 
 #[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, Pod, Zeroable)]
@@ -793,6 +793,73 @@ impl Ui {
         }
     }
 
+    pub fn handle_keyboard_event(&mut self, event: &KeyEvent) -> Option<()> {
+        let id = self.focused?;
+        let node = self.nodes.get(&id)?;
+        let text_id = node.text_id?;
+        
+        if event.state.is_pressed() {
+            let mut buffer = &mut self.text_areas[text_id as usize].buffer;
+            // let line = &mut buffer.lines[0];
+
+            match &event.logical_key {
+                winit::keyboard::Key::Named(named_key) => {
+                    match named_key {
+
+                        NamedKey::ArrowLeft => {
+
+                        }
+
+                        NamedKey::Backspace => {
+                            if self.key_modifiers.control_key() {
+                                
+                                if let Some(cursor) = &mut self.cursor {
+                                    match cursor {
+                                        Cursor::BlinkyLine(cursor) => {
+                                            let new_cursor = buffer.lines[0].text.ctrl_backspace_unicode_word(cursor.cursor.index);
+                                            cursor.cursor.index = new_cursor;
+                                        },
+                                        Cursor::Selection(_) => todo!(),
+                                    }
+                                }
+
+                            } else {
+                                if let Some(cursor) = &mut self.cursor {
+                                    match cursor {
+                                        Cursor::BlinkyLine(cursor) => {
+                                            let new_cursor = buffer.lines[0].text.backspace(cursor.cursor.index);
+                                            cursor.cursor.index = new_cursor;
+                                        },
+                                        Cursor::Selection(_) => todo!(),
+                                    }
+                                }
+                            }
+                            buffer.lines[0].reset();
+                        }
+                        NamedKey::Space => {
+                            buffer.lines[0].text.push_str(" ");
+                            buffer.lines[0].reset();
+                        }
+                        _ => {},
+                    }
+                },
+                winit::keyboard::Key::Character(new_char) => {
+
+                    // let new_text = buffer.lines[0].text() + new_str.as_str();
+                    buffer.lines[0].text.push_str(new_char);
+                    buffer.lines[0].reset();
+                    // note: this probably wouldn't work if we weren't spamming shape_until_scroll() on every layout aka every 
+                },
+                winit::keyboard::Key::Unidentified(_) => {},
+                winit::keyboard::Key::Dead(_) => {},
+            };
+        
+
+        }
+        
+        return Some(());
+    }
+
     pub fn handle_input_events(&mut self, full_event: &Event<()>) {
         if let Event::WindowEvent { event, .. } = full_event {
             match event {
@@ -816,79 +883,7 @@ impl Ui {
                     self.key_modifiers = modifiers.state();
                 }
                 WindowEvent::KeyboardInput { event, .. } => {
-                    if let Some(id) = self.focused {
-                        if let Some(node) = self.nodes.get(&id) {
-                            if let Some(text_id) = node.text_id {
-                                if event.state.is_pressed() {
-                                    let mut buffer = &mut self.text_areas[text_id as usize].buffer;
-                                    // let line = &mut buffer.lines[0];
-
-                                    match &event.logical_key {
-                                        winit::keyboard::Key::Named(named_key) => {
-                                            match named_key {
-
-                                                NamedKey::ArrowLeft => {
-
-                                                }
-
-                                                NamedKey::Backspace => {
-                                                    if self.key_modifiers.control_key() {
-
-                                                        // todo: this doesn't split on things like dots, apostrophes ecc    
-                                                        let mut words_i = buffer.lines[0].text.unicode_word_indices().rev();
-                                                        
-                                                        if let Some(cursor) = &mut self.cursor {
-                                                            match cursor {
-                                                                Cursor::BlinkyLine(cursor) => {
-                                                                    if let Some((i, _)) = words_i.next() {
-                                                                        buffer.lines[0].text.replace_range((i..), "");
-                                                                        // here I need to do the following:
-                                                                        // set the cursor byte index to i
-                                                                        // get a new x and y for the new cursor
-                                                                    }
-                                                                },
-                                                                Cursor::Selection(_) => todo!(),
-                                                            }
-                                                        }
-
-                                                    } else {
-                                                        if let Some(cursor) = &mut self.cursor {
-                                                            match cursor {
-                                                                Cursor::BlinkyLine(cursor) => {
-                                                                    if let Some((i, _)) = buffer.lines[0].text.grapheme_indices(true).rev().next() {
-                                                                        cursor_from_byte_offset(&mut buffer, i);
-                                                                        buffer.lines[0].text.replace_range((i..), "");
-
-                                                                    }
-                                                                },
-                                                                Cursor::Selection(_) => todo!(),
-                                                            }
-                                                        }
-                                                    }
-                                                    buffer.lines[0].reset();
-                                                }
-                                                NamedKey::Space => {
-                                                    buffer.lines[0].text.push_str(" ");
-                                                    buffer.lines[0].reset();
-                                                }
-                                                _ => {},
-                                            }
-                                        },
-                                        winit::keyboard::Key::Character(new_char) => {
-
-                                            // let new_text = buffer.lines[0].text() + new_str.as_str();
-                                            buffer.lines[0].text.push_str(new_char);
-                                            buffer.lines[0].reset();
-                                            // note: this probably wouldn't work if we weren't spamming shape_until_scroll() on every layout aka every 
-                                        },
-                                        winit::keyboard::Key::Unidentified(_) => {},
-                                        winit::keyboard::Key::Dead(_) => {},
-                                    };
-                                }
-
-                            }
-                        }
-                    }
+                    self.handle_keyboard_event(&event);
                 }
                 _ => {}
             }
@@ -1128,6 +1123,8 @@ impl Ui {
         // one epic way could be to increase the z sequentially when rendering, so that all rects have different z's, so the cursor can have the z of its rect plus 0.0001.
         // would definitely be very cringe for anyone doing custom rendering. but not really. nobody will ever want to stick his custom rendered stuff between a rectangle and another. when custom rendering INSIDE a rectangle, the user can get the z every time. might be annoying (very annoying even) but not deal breaking.
         if let Some(cursor) = self.cursor {
+
+        
             match cursor {
                 Cursor::BlinkyLine(cursor) => {
                     let cursor_rect = self.cursor_rectangle(cursor.x0, cursor.x1, cursor.y0, cursor.y1);

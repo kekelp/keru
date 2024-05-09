@@ -1,4 +1,5 @@
 pub mod helper;
+pub mod string_edit;
 pub mod ui;
 use helper::{
     base_color_attachment, base_render_pass_desc, base_surface_config, init_wgpu,
