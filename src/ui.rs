@@ -1,4 +1,4 @@
-use glyphon::{Affinity, Resolution as GlyphonResolution};
+use glyphon::{cosmic_text::Scroll, Affinity, Resolution as GlyphonResolution};
 use rustc_hash::{FxHashMap, FxHasher};
 
 use glyphon::{cosmic_text::Selection, Cursor as GlyphonCursor};
@@ -808,6 +808,7 @@ impl Ui {
                             NamedKey::ArrowLeft => {
                                 let new_cursor = buffer.lines[0].text.left_arrow(cursor.index);
                                 cursor.index = new_cursor;
+                                buffer.set_scroll(Scroll::new(10, 30));
                             }
                             NamedKey::ArrowRight => {
                                 let new_cursor = buffer.lines[0].text.right_arrow(cursor.index);
@@ -1144,7 +1145,7 @@ impl Ui {
                 let rect_x0 = focused_node.rect[X][0];
                 let rect_y1 = focused_node.rect[Y][1];
                 
-                let (x, y) = cursor_from_byte_offset(&focused_text_area.buffer, cursor.index);
+                let (x, y) = cursor_pos_from_byte_offset(&focused_text_area.buffer, cursor.index);
                 
                 let cursor_width = focused_text_area.buffer.metrics().font_size / 20.0;
                 let cursor_height = focused_text_area.buffer.metrics().font_size;
@@ -1608,7 +1609,7 @@ pub fn is_word_separator(c: char) -> bool {
     return true;
 }
 
-pub fn cursor_from_byte_offset(buffer: &Buffer, byte_offset: usize) -> (f32, f32) {
+pub fn cursor_pos_from_byte_offset(buffer: &Buffer, byte_offset: usize) -> (f32, f32) {
     let line = &buffer.lines[0];
     let buffer_line = line.layout_opt().as_ref().unwrap();
     let glyphs = &buffer_line[0].glyphs;
