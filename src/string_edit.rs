@@ -43,13 +43,13 @@ impl StringEdit for String {
         return cursor;
     }
 
-    // todo: can't get to the very end of the string
     fn right_arrow(&mut self, cursor: usize) -> usize {
         let next_grapheme = self[cursor..].grapheme_indices(true).nth(1);
         if let Some((next_idx, _next_grapheme)) = next_grapheme {
             return cursor + next_idx;
+        } else {
+            return self.len();
         }
-        return cursor;
     }
 }
 

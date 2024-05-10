@@ -1144,9 +1144,8 @@ impl Ui {
                 let rect_x0 = focused_node.rect[X][0];
                 let rect_y1 = focused_node.rect[Y][1];
                 
-                // todo: is it right to just return here?
-                let (x, y) = cursor_from_byte_offset(&focused_text_area.buffer, cursor.index)?;
-
+                let (x, y) = cursor_from_byte_offset(&focused_text_area.buffer, cursor.index);
+                
                 let cursor_width = focused_text_area.buffer.metrics().font_size / 20.0;
                 let cursor_height = focused_text_area.buffer.metrics().font_size;
                 // we're counting on this always happening after layout. which should be safe.
@@ -1609,25 +1608,24 @@ pub fn is_word_separator(c: char) -> bool {
     return true;
 }
 
-pub fn cursor_from_byte_offset(buffer: &Buffer, byte_offset: usize) -> Option<(f32, f32)> {
+pub fn cursor_from_byte_offset(buffer: &Buffer, byte_offset: usize) -> (f32, f32) {
     let line = &buffer.lines[0];
     let buffer_line = line.layout_opt().as_ref().unwrap();
     let glyphs = &buffer_line[0].glyphs;
     
-    let mut glyph = None;
     // todo: binary search? lol. maybe vec has it built in
     for g in glyphs {
         if g.start >= byte_offset {
-            glyph = Some(g);
-            break;
+            return (g.x, g.y);
         }
     }
 
-    let glyph = glyph?;
-    // println!(" {:?}", glyph);
+    if let Some(glyph) = glyphs.last() {
+        return (glyph.x + glyph.w, glyph.y);
+    }
 
-    return Some((glyph.x, glyph.y));
-
+    // string is empty
+    return (0.0, 0.0); 
 }
 
 
