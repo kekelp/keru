@@ -1,10 +1,11 @@
-use unicode_segmentation::UnicodeSegmentation;
+use unicode_segmentation::{GraphemeIndices, UnicodeSegmentation};
 
 pub trait StringEdit {
     fn backspace(&mut self, cursor: usize) -> usize;
     fn ctrl_backspace_unicode_word(&mut self, cursor: usize) -> usize;
     fn left_arrow(&mut self, cursor: usize) -> usize;
     fn right_arrow(&mut self, cursor: usize) -> usize;
+    fn insert_str_at_cursor(&mut self, cursor: usize, new_text: &str) -> usize;
 }
 
 impl StringEdit for String {
@@ -28,6 +29,12 @@ impl StringEdit for String {
         return cursor;
     }
 
+    fn insert_str_at_cursor(&mut self, cursor: usize, new_text: &str) -> usize {
+        let new_bytes = new_text.bytes().count();
+        self.insert_str(cursor, new_text);
+        return cursor + new_bytes;
+    }
+
     fn left_arrow(&mut self, cursor: usize) -> usize {
         let previous_grapheme = self[0..cursor].grapheme_indices(true).rev().next();
         if let Some((prev_idx, _prev_grapheme)) = previous_grapheme {
@@ -36,10 +43,11 @@ impl StringEdit for String {
         return cursor;
     }
 
+    // todo: can't get to the very end of the string
     fn right_arrow(&mut self, cursor: usize) -> usize {
-        let previous_grapheme = self[0..cursor].grapheme_indices(true).next();
-        if let Some((prev_idx, _prev_grapheme)) = previous_grapheme {
-            return prev_idx;
+        let next_grapheme = self[cursor..].grapheme_indices(true).nth(1);
+        if let Some((next_idx, _next_grapheme)) = next_grapheme {
+            return cursor + next_idx;
         }
         return cursor;
     }

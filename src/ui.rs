@@ -788,71 +788,84 @@ impl Ui {
         }
     }
 
-    pub fn handle_keyboard_event(&mut self, event: &KeyEvent) -> Option<()> {
+    pub fn handle_keyboard_event_blinkyline(&mut self, event: &KeyEvent) -> Option<()> {
         let id = self.focused?;
         let node = self.nodes.get(&id)?;
         let text_id = node.text_id?;
-        
-        if event.state.is_pressed() {
-            let mut buffer = &mut self.text_areas[text_id].buffer;
-            // let line = &mut buffer.lines[0];
 
-            match &event.logical_key {
-                winit::keyboard::Key::Named(named_key) => {
-                    match named_key {
 
-                        NamedKey::ArrowLeft => {
+        if let Some(Cursor::BlinkyLine(cursor)) = &mut self.cursor {
 
-                        }
-
-                        NamedKey::Backspace => {
-                            if self.key_modifiers.control_key() {
-                                
-                                if let Some(cursor) = &mut self.cursor {
-                                    match cursor {
-                                        Cursor::BlinkyLine(cursor) => {
-                                            let new_cursor = buffer.lines[0].text.ctrl_backspace_unicode_word(cursor.index);
-                                            cursor.index = new_cursor;
-                                        },
-                                        Cursor::Selection(_) => todo!(),
-                                    }
-                                }
-
-                            } else {
-                                if let Some(cursor) = &mut self.cursor {
-                                    match cursor {
-                                        Cursor::BlinkyLine(cursor) => {
-                                            let new_cursor = buffer.lines[0].text.backspace(cursor.index);
-                                            cursor.index = new_cursor;
-                                        },
-                                        Cursor::Selection(_) => todo!(),
-                                    }
-                                }
+            
+            if event.state.is_pressed() {
+                let mut buffer = &mut self.text_areas[text_id].buffer;
+                // let line = &mut buffer.lines[0];
+                
+                match &event.logical_key {
+                    winit::keyboard::Key::Named(named_key) => {
+                        match named_key {
+                            
+                            NamedKey::ArrowLeft => {
+                                let new_cursor = buffer.lines[0].text.left_arrow(cursor.index);
+                                cursor.index = new_cursor;
                             }
-                            buffer.lines[0].reset();
+                            NamedKey::ArrowRight => {
+                                let new_cursor = buffer.lines[0].text.right_arrow(cursor.index);
+                                cursor.index = new_cursor;
+                            }
+                            NamedKey::Backspace => {
+                                if self.key_modifiers.control_key() {
+                                    let new_cursor = buffer.lines[0].text.ctrl_backspace_unicode_word(cursor.index);
+                                    cursor.index = new_cursor;
+                                } else {
+                                    let new_cursor = buffer.lines[0].text.backspace(cursor.index);
+                                    cursor.index = new_cursor;
+                                }
+                                buffer.lines[0].reset();
+                            }
+                            
+                            NamedKey::Space => {
+                                let new_cursor = buffer.lines[0].text.insert_str_at_cursor(cursor.index, " ");
+                                cursor.index = new_cursor;
+                                buffer.lines[0].reset();
+                            },
+                            _ => {},
                         }
-                        NamedKey::Space => {
-                            buffer.lines[0].text.push_str(" ");
-                            buffer.lines[0].reset();
-                        }
-                        _ => {},
-                    }
-                },
-                winit::keyboard::Key::Character(new_char) => {
-
-                    // let new_text = buffer.lines[0].text() + new_str.as_str();
-                    buffer.lines[0].text.push_str(new_char);
-                    buffer.lines[0].reset();
-                    // note: this probably wouldn't work if we weren't spamming shape_until_scroll() on every layout aka every 
-                },
-                winit::keyboard::Key::Unidentified(_) => {},
-                winit::keyboard::Key::Dead(_) => {},
-            };
+                    },
+                    winit::keyboard::Key::Character(new_char) => {
+                        let new_cursor = buffer.lines[0].text.insert_str_at_cursor(cursor.index, &new_char);
+                        cursor.index = new_cursor;
+                        buffer.lines[0].reset();
+                    },
+                    winit::keyboard::Key::Unidentified(_) => {},
+                    winit::keyboard::Key::Dead(_) => {},
+                };
+                
+                
+            }
         
-
         }
+        return Some(())
+    }
+
+    pub fn handle_keyboard_event(&mut self, event: &KeyEvent) {
         
-        return Some(());
+        // match self {
+        //     &mut Ui { cursor: Some(Cursor::BlinkyLine(cursor)), .. } => {
+        //         self.handle_keyboard_event_blinkyline(event, &mut cursor);
+        //     }
+        //     &mut Ui { cursor: Some(Cursor::Selection(cursor)), .. } => {
+        //         todo!()
+        //     }
+        //     _ => {},
+        // }
+
+        match &mut self.cursor {
+            Some(Cursor::BlinkyLine(cursor)) => {self.handle_keyboard_event_blinkyline(event);},
+            Some(Cursor::Selection(cursor)) => todo!(),
+            None => {},
+        };
+
     }
 
     pub fn handle_input_events(&mut self, full_event: &Event<()>) {
@@ -1309,7 +1322,9 @@ impl Ui {
                     self.part.mouse_pos.y - text_area.top
                 );
 
-
+                // todo: with how I'm misusing cosmic-text, this might become "unsafe" soon (as in, might be incorrect or cause panics, not actually unsafe).
+                // I think in general, there should be a safe version of hit() would just force a rerender just to be sure that the offset is safe to use.
+                // But in this case, calling this in resolve_mouse_input() and not on every winit mouse event probably means it's safe
                 if let Some(cursor) = text_area.buffer.hit(x, y) {
                     // here set the usize cursor only 
                     self.cursor = Some(Cursor::BlinkyLine(BlinkyLine {
@@ -1601,10 +1616,7 @@ pub fn cursor_from_byte_offset(buffer: &Buffer, byte_offset: usize) -> Option<(f
     
     let mut glyph = None;
     // todo: binary search? lol. maybe vec has it built in
-    println!("byte_offset {:?}", byte_offset);
-    // println!("g's:  {:#?}", glyphs);
     for g in glyphs {
-        println!("seeing:  {:?}", g.start);
         if g.start >= byte_offset {
             glyph = Some(g);
             break;
