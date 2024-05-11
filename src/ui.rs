@@ -798,8 +798,8 @@ impl Ui {
             
             match &event.logical_key {
                 winit::keyboard::Key::Named(named_key) => {
+                    // todo: when holding control all key events arrive duplicated??
                     match named_key {
-                        
                         NamedKey::ArrowLeft => {
                             match (self.key_modifiers.shift_key(), self.key_modifiers.control_key()) {
                                 (true, true) => buffer.lines[0].text.control_shift_left_arrow(),
@@ -835,6 +835,14 @@ impl Ui {
                             match self.key_modifiers.shift_key() {
                                 false => buffer.lines[0].text.go_to_start(),
                                 true => buffer.lines[0].text.shift_home(),
+                            }
+                            buffer.lines[0].reset();
+                        }
+                        NamedKey::Delete => {
+                            if self.key_modifiers.control_key() {
+                                buffer.lines[0].text.ctrl_delete();
+                            } else {
+                                buffer.lines[0].text.delete();
                             }
                             buffer.lines[0].reset();
                         }
