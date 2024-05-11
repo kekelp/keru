@@ -1,7 +1,7 @@
 use glyphon::{cosmic_text::{Scroll, StringCursor}, Affinity, Resolution as GlyphonResolution};
 use rustc_hash::{FxHashMap, FxHasher};
 
-use glyphon::{cosmic_text::Selection, Cursor as GlyphonCursor};
+use glyphon::{Cursor as GlyphonCursor};
 use unicode_segmentation::UnicodeSegmentation;
 use std::{future::pending, hash::Hasher, marker::PhantomData, mem, ops::{Index, IndexMut}, time::Instant};
 
@@ -1144,14 +1144,14 @@ impl Ui {
         let text_id = focused_node.text_id?;
         let focused_text_area = self.text_areas.get(text_id)?;
         
-        println!(" {:?}", focused_text_area.buffer.lines[0].text.cursor);
+        println!(" {:?}", focused_text_area.buffer.lines[0].text.cursor());
 
-        match focused_text_area.buffer.lines[0].text.cursor {
+        match focused_text_area.buffer.lines[0].text.cursor() {
             StringCursor::Point(cursor) => {
                 let rect_x0 = focused_node.rect[X][0];
                 let rect_y1 = focused_node.rect[Y][1];
                 
-                let (x, y) = cursor_pos_from_byte_offset(&focused_text_area.buffer, cursor);
+                let (x, y) = cursor_pos_from_byte_offset(&focused_text_area.buffer, *cursor);
                 
                 let cursor_width = focused_text_area.buffer.metrics().font_size / 20.0;
                 let cursor_height = focused_text_area.buffer.metrics().font_size;
@@ -1186,12 +1186,12 @@ impl Ui {
 
                 self.rects.push(cursor_rect);
             },
-            StringCursor::Selection(start, end) => {
+            StringCursor::Selection(selection) => {
                 let rect_x0 = focused_node.rect[X][0];
                 let rect_y1 = focused_node.rect[Y][1];
                 
-                let (x0, y0) = cursor_pos_from_byte_offset(&focused_text_area.buffer, start);
-                let (x1, y1) = cursor_pos_from_byte_offset(&focused_text_area.buffer, end);
+                let (x0, y0) = cursor_pos_from_byte_offset(&focused_text_area.buffer, selection.start);
+                let (x1, y1) = cursor_pos_from_byte_offset(&focused_text_area.buffer, selection.end);
                
 
                 let cursor_width = focused_text_area.buffer.metrics().font_size / 20.0;
