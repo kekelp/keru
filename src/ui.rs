@@ -470,9 +470,7 @@ pub struct Ui {
     pub clicked: Option<Id>,
     pub hovered: Option<Id>,
 
-    // muh impossible states?
     pub focused: Option<Id>,
-    pub cursor: Option<Cursor>,
 
     // remember about animations (surely there will be)
     pub content_changed: bool,
@@ -684,7 +682,6 @@ impl Ui {
             hovered_stack: Vec::new(),
             hovered: None,
             focused: None,
-            cursor: None,
 
             tree_hasher: FxHasher::default(),
             last_tree_hash: 0,
@@ -790,83 +787,63 @@ impl Ui {
         }
     }
 
-    pub fn handle_keyboard_event_blinkyline(&mut self, event: &KeyEvent) -> Option<()> {
+    pub fn handle_keyboard_event(&mut self, event: &KeyEvent) -> Option<()> {
         let id = self.focused?;
         let node = self.nodes.get(&id)?;
         let text_id = node.text_id?;
-
-        if let Some(Cursor::BlinkyLine(cursor)) = &mut self.cursor {
+        println!(" {:#?}\n", event);
             
+        if event.state.is_pressed() {
+            let mut buffer = &mut self.text_areas[text_id].buffer;
             
-            if event.state.is_pressed() {
-                let mut buffer = &mut self.text_areas[text_id].buffer;
-                
-                match &event.logical_key {
-                    winit::keyboard::Key::Named(named_key) => {
-                        match named_key {
-                            
-                            NamedKey::ArrowLeft => {
-                                if self.key_modifiers.shift_key() {
-                                    buffer.lines[0].text.shift_left_arrow();
-                                } else {
-                                    buffer.lines[0].text.left_arrow();
-                                }
+            match &event.logical_key {
+                winit::keyboard::Key::Named(named_key) => {
+                    match named_key {
+                        
+                        NamedKey::ArrowLeft => {
+                            match (self.key_modifiers.shift_key(), self.key_modifiers.control_key()) {
+                                (true, true) => buffer.lines[0].text.control_shift_left_arrow(),
+                                (true, false) => buffer.lines[0].text.shift_left_arrow(),
+                                (false, true) => buffer.lines[0].text.control_left_arrow(),
+                                (false, false) => buffer.lines[0].text.left_arrow(),
                             }
-                            NamedKey::ArrowRight => {
-                                if self.key_modifiers.shift_key() {
-                                    buffer.lines[0].text.shift_right_arrow();
-                                } else {
-                                    buffer.lines[0].text.right_arrow();
-                                }
-                            }
-                            NamedKey::Backspace => {
-                                if self.key_modifiers.control_key() {
-                                    buffer.lines[0].text.ctrl_backspace_unicode_word();
-                                } else {
-                                    buffer.lines[0].text.backspace();
-                                }
-                                buffer.lines[0].reset();
-                            }
-                            NamedKey::Space => {
-                                buffer.lines[0].text.insert_str_at_cursor(" ");
-                                buffer.lines[0].reset();
-                            },
-                            _ => {},
                         }
-                    },
-                    winit::keyboard::Key::Character(new_char) => {
-                        buffer.lines[0].text.insert_str_at_cursor(&new_char);
-                        buffer.lines[0].reset();
-                    },
-                    winit::keyboard::Key::Unidentified(_) => {},
-                    winit::keyboard::Key::Dead(_) => {},
-                };
-                
-                
-            }
-        
+                        NamedKey::ArrowRight => {
+                            match (self.key_modifiers.shift_key(), self.key_modifiers.control_key()) {
+                                (true, true) => buffer.lines[0].text.control_shift_right_arrow(),
+                                (true, false) => buffer.lines[0].text.shift_right_arrow(),
+                                (false, true) => buffer.lines[0].text.control_right_arrow(),
+                                (false, false) => buffer.lines[0].text.right_arrow(),
+                            }
+                        }
+                        NamedKey::Backspace => {
+                            if self.key_modifiers.control_key() {
+                                buffer.lines[0].text.ctrl_backspace_unicode_word();
+                            } else {
+                                buffer.lines[0].text.backspace();
+                            }
+                            buffer.lines[0].reset();
+                        }
+                        NamedKey::Space => {
+                            buffer.lines[0].text.insert_str_at_cursor(" ");
+                            buffer.lines[0].reset();
+                        },
+                        _ => {},
+                    }
+                },
+                winit::keyboard::Key::Character(new_char) => {
+                    buffer.lines[0].text.insert_str_at_cursor(&new_char);
+                    buffer.lines[0].reset();
+                },
+                winit::keyboard::Key::Unidentified(_) => {},
+                winit::keyboard::Key::Dead(_) => {},
+            };
+            
+            
         }
+    
+    
         return Some(())
-    }
-
-    pub fn handle_keyboard_event(&mut self, event: &KeyEvent) {
-        
-        // match self {
-        //     &mut Ui { cursor: Some(Cursor::BlinkyLine(cursor)), .. } => {
-        //         self.handle_keyboard_event_blinkyline(event, &mut cursor);
-        //     }
-        //     &mut Ui { cursor: Some(Cursor::Selection(cursor)), .. } => {
-        //         todo!()
-        //     }
-        //     _ => {},
-        // }
-
-        match &mut self.cursor {
-            Some(Cursor::BlinkyLine(cursor)) => {self.handle_keyboard_event_blinkyline(event);},
-            Some(Cursor::Selection(cursor)) => todo!(),
-            None => {},
-        };
-
     }
 
     pub fn handle_input_events(&mut self, full_event: &Event<()>) {
@@ -1144,8 +1121,6 @@ impl Ui {
         let text_id = focused_node.text_id?;
         let focused_text_area = self.text_areas.get(text_id)?;
         
-        println!(" {:?}", focused_text_area.buffer.lines[0].text.cursor());
-
         match focused_text_area.buffer.lines[0].text.cursor() {
             StringCursor::Point(cursor) => {
                 let rect_x0 = focused_node.rect[X][0];
@@ -1367,15 +1342,11 @@ impl Ui {
                 );
 
                 // todo: with how I'm misusing cosmic-text, this might become "unsafe" soon (as in, might be incorrect or cause panics, not actually unsafe).
-                // I think in general, there should be a safe version of hit() would just force a rerender just to be sure that the offset is safe to use.
+                // I think in general, there should be a safe version of hit() that just forces a rerender just to be sure that the offset is safe to use.
                 // But in this case, calling this in resolve_mouse_input() and not on every winit mouse event probably means it's safe
-                if let Some(cursor) = text_area.buffer.hit(x, y) {
-                    // here set the usize cursor only 
-                    self.cursor = Some(Cursor::BlinkyLine(BlinkyLine {
-                        index: cursor.index,
-                        affinity: cursor.affinity,
-                    }));
-                }
+
+                // actually, the enlightened way is that cosmic_text exposes an "unsafe" hit(), but we only ever see the string + cursor + buffer struct, and call that hit(), which doesn't return an offset but just mutates the one inside. 
+                text_area.buffer.hit(x, y);
                 
             }
         }
