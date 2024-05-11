@@ -818,9 +818,23 @@ impl Ui {
                         }
                         NamedKey::Backspace => {
                             if self.key_modifiers.control_key() {
-                                buffer.lines[0].text.ctrl_backspace_unicode_word();
+                                buffer.lines[0].text.ctrl_backspace();
                             } else {
                                 buffer.lines[0].text.backspace();
+                            }
+                            buffer.lines[0].reset();
+                        }
+                        NamedKey::End => {
+                            match self.key_modifiers.shift_key() {
+                                true => buffer.lines[0].text.shift_end(),
+                                false => buffer.lines[0].text.go_to_end(),
+                            }
+                            buffer.lines[0].reset();
+                        }
+                        NamedKey::Home => {
+                            match self.key_modifiers.shift_key() {
+                                false => buffer.lines[0].text.go_to_start(),
+                                true => buffer.lines[0].text.shift_home(),
                             }
                             buffer.lines[0].reset();
                         }
