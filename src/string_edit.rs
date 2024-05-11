@@ -6,23 +6,48 @@ pub trait StringEdit {
     fn left_arrow(&mut self, cursor: usize) -> usize;
     fn right_arrow(&mut self, cursor: usize) -> usize;
     fn insert_str_at_cursor(&mut self, cursor: usize, new_text: &str) -> usize;
+    
+    fn one_grapheme_left(&mut self, cursor: usize) -> Option<usize>;
+    fn one_grapheme_right(&mut self, cursor: usize) -> Option<usize>;
+    fn one_unicode_word_left(&mut self, cursor: usize) -> Option<usize>;
+    fn one_unicode_word_right(&mut self, cursor: usize) -> Option<usize>;
+}
+
+pub trait CursorMove {
 }
 
 impl StringEdit for String {
+    fn one_grapheme_left(&mut self, cursor: usize) -> Option<usize> {
+        let (prev_idx, _prev_grapheme) = self[..cursor].grapheme_indices(true).rev().next()?;
+        return Some(prev_idx);
+    }
 
+    fn one_grapheme_right(&mut self, cursor: usize) -> Option<usize> {
+        let (next_idx, _next_grapheme) = self[cursor..].grapheme_indices(true).nth(1)?;
+        return Some(cursor + next_idx);
+    }
+
+    fn one_unicode_word_left(&mut self, cursor: usize) -> Option<usize> {
+        let (prev_idx, _prev_unicode_word) = self[..cursor].unicode_word_indices().rev().next()?;
+        return Some(prev_idx);
+    }
+
+    fn one_unicode_word_right(&mut self, cursor: usize) -> Option<usize> {
+        let (next_idx, _next_unicode_word) = self[cursor..].unicode_word_indices().nth(1)?;
+        return Some(cursor + next_idx);
+    }
 
     fn backspace(&mut self, cursor: usize) -> usize {
-        let previous_grapheme = self[0..cursor].grapheme_indices(true).rev().next();
-        if let Some((prev_idx, _prev_grapheme)) = previous_grapheme {
+        if let Some(prev_idx) = self.one_grapheme_left(cursor) {
             self.replace_range(prev_idx..cursor, "");
             return prev_idx;
+        } else {
+            return 0;
         }
-        return cursor;
     }
 
     fn ctrl_backspace_unicode_word(&mut self, cursor: usize) -> usize {
-        let previous_grapheme = self[0..cursor].unicode_word_indices().rev().next();
-        if let Some((prev_idx, _prev_grapheme)) = previous_grapheme {
+        if let Some(prev_idx) = self.one_unicode_word_left(cursor) {
             self.replace_range(prev_idx..cursor, "");
             return prev_idx;
         }
@@ -36,17 +61,16 @@ impl StringEdit for String {
     }
 
     fn left_arrow(&mut self, cursor: usize) -> usize {
-        let previous_grapheme = self[0..cursor].grapheme_indices(true).rev().next();
-        if let Some((prev_idx, _prev_grapheme)) = previous_grapheme {
+        if let Some(prev_idx) = self.one_grapheme_left(cursor) {
             return prev_idx;
+        } else {
+            return self.len();
         }
-        return cursor;
     }
 
     fn right_arrow(&mut self, cursor: usize) -> usize {
-        let next_grapheme = self[cursor..].grapheme_indices(true).nth(1);
-        if let Some((next_idx, _next_grapheme)) = next_grapheme {
-            return cursor + next_idx;
+        if let Some(next_idx) = self.one_grapheme_right(cursor) {
+            return next_idx;
         } else {
             return self.len();
         }

@@ -808,7 +808,6 @@ impl Ui {
                             NamedKey::ArrowLeft => {
                                 let new_cursor = buffer.lines[0].text.left_arrow(cursor.index);
                                 cursor.index = new_cursor;
-                                buffer.set_scroll(Scroll::new(10, 30));
                             }
                             NamedKey::ArrowRight => {
                                 let new_cursor = buffer.lines[0].text.right_arrow(cursor.index);
