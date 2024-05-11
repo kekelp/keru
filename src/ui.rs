@@ -1165,9 +1165,7 @@ impl Ui {
                 let y1 = ((- y ) / self.part.unifs.height) * 2.0;
                 let y0 = y0 + (rect_y1 * 2. - 1.);
                 let y1 = y1 + (rect_y1 * 2. - 1.);
-
-                dbg!(x0, y0);
-                dbg!(x1, y1);
+              
                 let cursor_rect = Rectangle {
                     x0,
                     x1,
@@ -1207,9 +1205,6 @@ impl Ui {
                 let y1 = ((- y1 ) / self.part.unifs.height) * 2.0;
                 let y0 = y0 + (rect_y1 * 2. - 1.);
                 let y1 = y1 + (rect_y1 * 2. - 1.);
-
-                dbg!(x0, y0);
-                dbg!(x1, y1);
 
                 let cursor_rect = Rectangle {
                     x0,
