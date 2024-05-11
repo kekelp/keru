@@ -792,7 +792,7 @@ impl Ui {
         let node = self.nodes.get(&id)?;
         let text_id = node.text_id?;
         println!(" {:#?}\n", event);
-            
+
         if event.state.is_pressed() {
             let mut buffer = &mut self.text_areas[text_id].buffer;
             
