@@ -1,4 +1,4 @@
-use glyphon::{cosmic_text::Scroll, Affinity, Resolution as GlyphonResolution};
+use glyphon::{cosmic_text::{Scroll, StringCursor}, Affinity, Resolution as GlyphonResolution};
 use rustc_hash::{FxHashMap, FxHasher};
 
 use glyphon::{cosmic_text::Selection, Cursor as GlyphonCursor};
@@ -19,7 +19,6 @@ use wgpu::{
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize}, event::{ElementState, Event, KeyEvent, MouseButton, WindowEvent}, keyboard::{ModifiersState, NamedKey}
 };
-use crate::string_edit::*;
 use Axis::{X, Y};
 
 #[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, Pod, Zeroable)]
@@ -610,6 +609,9 @@ impl Ui {
             source: wgpu::ShaderSource::Wgsl(include_str!("box.wgsl").into()),
         });
 
+        let mut primitive = wgpu::PrimitiveState::default();
+        primitive.cull_mode = None;
+
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: None,
             layout: Some(&pipeline_layout),
@@ -627,7 +629,7 @@ impl Ui {
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
             }),
-            primitive: wgpu::PrimitiveState::default(),
+            primitive,
             depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
             multiview: None,
@@ -793,48 +795,47 @@ impl Ui {
         let node = self.nodes.get(&id)?;
         let text_id = node.text_id?;
 
-
         if let Some(Cursor::BlinkyLine(cursor)) = &mut self.cursor {
-
+            
             
             if event.state.is_pressed() {
                 let mut buffer = &mut self.text_areas[text_id].buffer;
-                // let line = &mut buffer.lines[0];
                 
                 match &event.logical_key {
                     winit::keyboard::Key::Named(named_key) => {
                         match named_key {
                             
                             NamedKey::ArrowLeft => {
-                                let new_cursor = buffer.lines[0].text.left_arrow(cursor.index);
-                                cursor.index = new_cursor;
+                                if self.key_modifiers.shift_key() {
+                                    buffer.lines[0].text.shift_left_arrow();
+                                } else {
+                                    buffer.lines[0].text.left_arrow();
+                                }
                             }
                             NamedKey::ArrowRight => {
-                                let new_cursor = buffer.lines[0].text.right_arrow(cursor.index);
-                                cursor.index = new_cursor;
+                                if self.key_modifiers.shift_key() {
+                                    buffer.lines[0].text.shift_right_arrow();
+                                } else {
+                                    buffer.lines[0].text.right_arrow();
+                                }
                             }
                             NamedKey::Backspace => {
                                 if self.key_modifiers.control_key() {
-                                    let new_cursor = buffer.lines[0].text.ctrl_backspace_unicode_word(cursor.index);
-                                    cursor.index = new_cursor;
+                                    buffer.lines[0].text.ctrl_backspace_unicode_word();
                                 } else {
-                                    let new_cursor = buffer.lines[0].text.backspace(cursor.index);
-                                    cursor.index = new_cursor;
+                                    buffer.lines[0].text.backspace();
                                 }
                                 buffer.lines[0].reset();
                             }
-                            
                             NamedKey::Space => {
-                                let new_cursor = buffer.lines[0].text.insert_str_at_cursor(cursor.index, " ");
-                                cursor.index = new_cursor;
+                                buffer.lines[0].text.insert_str_at_cursor(" ");
                                 buffer.lines[0].reset();
                             },
                             _ => {},
                         }
                     },
                     winit::keyboard::Key::Character(new_char) => {
-                        let new_cursor = buffer.lines[0].text.insert_str_at_cursor(cursor.index, &new_char);
-                        cursor.index = new_cursor;
+                        buffer.lines[0].text.insert_str_at_cursor(&new_char);
                         buffer.lines[0].reset();
                     },
                     winit::keyboard::Key::Unidentified(_) => {},
@@ -1135,16 +1136,22 @@ impl Ui {
         // how to make it appear at the right z? might be impossible if there are overlapping rects at the same z.
         // one epic way could be to increase the z sequentially when rendering, so that all rects have different z's, so the cursor can have the z of its rect plus 0.0001.
         // would definitely be very cringe for anyone doing custom rendering. but not really. nobody will ever want to stick his custom rendered stuff between a rectangle and another. when custom rendering INSIDE a rectangle, the user can get the z every time. might be annoying (very annoying even) but not deal breaking.
-        let cursor = self.cursor?;
-        let focused_node = self.nodes.get(&self.focused?)?;
-        let focused_text_area = self.text_areas.get(focused_node.text_id?)?;
+
+        // it's a specific choice by me to keep cursors for every string at all times, but only display (and use) the one on the currently focused ui node.
+        // someone might want multi-cursor in the same node, multi-cursor on different nodes, etc.
+        let focused_id = &self.focused?;
+        let focused_node = self.nodes.get(focused_id)?;
+        let text_id = focused_node.text_id?;
+        let focused_text_area = self.text_areas.get(text_id)?;
         
-        match cursor {
-            Cursor::BlinkyLine(cursor) => {
+        println!(" {:?}", focused_text_area.buffer.lines[0].text.cursor);
+
+        match focused_text_area.buffer.lines[0].text.cursor {
+            StringCursor::Point(cursor) => {
                 let rect_x0 = focused_node.rect[X][0];
                 let rect_y1 = focused_node.rect[Y][1];
                 
-                let (x, y) = cursor_pos_from_byte_offset(&focused_text_area.buffer, cursor.index);
+                let (x, y) = cursor_pos_from_byte_offset(&focused_text_area.buffer, cursor);
                 
                 let cursor_width = focused_text_area.buffer.metrics().font_size / 20.0;
                 let cursor_height = focused_text_area.buffer.metrics().font_size;
@@ -1158,6 +1165,51 @@ impl Ui {
                 let y1 = ((- y ) / self.part.unifs.height) * 2.0;
                 let y0 = y0 + (rect_y1 * 2. - 1.);
                 let y1 = y1 + (rect_y1 * 2. - 1.);
+
+                dbg!(x0, y0);
+                dbg!(x1, y1);
+                let cursor_rect = Rectangle {
+                    x0,
+                    x1,
+                    y0,
+                    y1,
+                    r: 0.5,
+                    g: 0.3,
+                    b: 0.5,
+                    a: 0.9,
+                    last_hover: 0.0,
+                    last_click: 0.0,
+                    clickable: 0,
+                    z: 0.0,
+                    id: Id(0),
+                    _padding: 0.0,
+                    radius: 0.0,
+                }; 
+
+                self.rects.push(cursor_rect);
+            },
+            StringCursor::Selection(start, end) => {
+                let rect_x0 = focused_node.rect[X][0];
+                let rect_y1 = focused_node.rect[Y][1];
+                
+                let (x0, y0) = cursor_pos_from_byte_offset(&focused_text_area.buffer, start);
+                let (x1, y1) = cursor_pos_from_byte_offset(&focused_text_area.buffer, end);
+               
+
+                let cursor_width = focused_text_area.buffer.metrics().font_size / 20.0;
+                let cursor_height = focused_text_area.buffer.metrics().font_size;
+                let x0 = ((x0 - 1.0) / self.part.unifs.width) * 2.0;
+                let x1 = ((x1 + 1.0) / self.part.unifs.width) * 2.0;
+                let x0 = x0 + (rect_x0 * 2. - 1.);
+                let x1 = x1 + (rect_x0 * 2. - 1.);
+                
+                let y0 = ((- y0 - cursor_height) / self.part.unifs.height) * 2.0;
+                let y1 = ((- y1 ) / self.part.unifs.height) * 2.0;
+                let y0 = y0 + (rect_y1 * 2. - 1.);
+                let y1 = y1 + (rect_y1 * 2. - 1.);
+
+                dbg!(x0, y0);
+                dbg!(x1, y1);
 
                 let cursor_rect = Rectangle {
                     x0,
@@ -1177,10 +1229,8 @@ impl Ui {
                     radius: 0.0,
                 }; 
 
-
                 self.rects.push(cursor_rect);
             },
-            Cursor::Selection(_) => {todo!("sneed and feed")},
         }
         
         
