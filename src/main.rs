@@ -103,9 +103,9 @@ impl<'window> State<'window> {
         let ui = &mut self.ui;
         // CounterState::add(&mut self.ui, &mut self.counter_state);
         floating_window!(ui, {
+            add!(ui, COMMAND_LINE);
             
             add!(ui, CENTER_COLUMN, {
-                add!(ui, COMMAND_LINE);
 
 
                 if self.counter_state.counter_mode {
@@ -133,7 +133,7 @@ impl<'window> State<'window> {
 
         self.ui.finish_tree();
         
-        self.ui.layout();
+        self.ui.layout2();
         self.ui.resolve_mouse_input();
         self.counter_state.interact(&mut self.ui);
 
@@ -206,8 +206,8 @@ pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey::new(
         clickable: true,
         visible_rect: true,
         color: Color::rgba(1.0, 0.3, 0.2, 0.6),
-        size: Xy::new_symm(Size::PercentOfParent(0.2)),
-        position: Xy::new_symm(Position::Start { padding: 5 }),
+        size: Xy::new(Size::PercentOfParent(1.0), Size::PercentOfParent(0.2)),
+        position: Xy::new_symm(Position::Center),
         container_mode: None,
         editable: false,
         z: 0.0,
@@ -218,7 +218,7 @@ pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey::new(
 pub const COUNT_LABEL: NodeKey = NodeKey::new(NodeParams::LABEL, new_id!());
 
 pub const COMMAND_LINE: NodeKey = NodeKey::new(NodeParams::TEXT_INPUT, new_id!())
-    .with_debug_name("Anomg us")
+    .with_debug_name("Command line")
     .with_static_text("高38道ょつ準傷に債健の🤦🏼‍♂️🚵🏻‍♀️");
 
 pub struct CounterState {
