@@ -794,7 +794,7 @@ impl Ui {
         println!(" {:#?}\n", event);
 
         if event.state.is_pressed() {
-            let mut buffer = &mut self.text_areas[text_id].buffer;
+            let buffer = &mut self.text_areas[text_id].buffer;
             
             match &event.logical_key {
                 winit::keyboard::Key::Named(named_key) => {
