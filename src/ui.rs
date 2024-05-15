@@ -505,7 +505,13 @@ impl Ui {
                 text_id
             },
             None => {
-                let buffer = Buffer::new(&mut self.font_system, Metrics::new(42.0, 42.0));
+                let mut buffer = Buffer::new(&mut self.font_system, Metrics::new(42.0, 42.0));
+                buffer.set_size(
+                    &mut self.font_system,
+                    100000.,
+                    100000.,
+                );
+
                 let text_area = TextArea {
                     buffer,
                     left: 10.0,
@@ -727,6 +733,11 @@ impl Ui {
             if let Some(text) = node_key.params.static_text {
                 // text size
                 let mut buffer = Buffer::new(&mut self.font_system, Metrics::new(42.0, 42.0));
+                buffer.set_size(
+                    &mut self.font_system,
+                    100000.,
+                    100000.,
+                );
                 
                 let mut hasher = FxHasher::default();
                 text.hash(&mut hasher);
@@ -976,6 +987,10 @@ impl Ui {
                             },
                         }
 
+                        let rect = child.rect;
+                        let text_id = child.text_id;
+                        self.layout_text(text_id, rect);
+
                         self.stack.push(child_id);
                     }
                     
@@ -1010,172 +1025,185 @@ impl Ui {
                             }
                         }
 
+                        // trash language
+                        let rect = child.rect;
+                        let text_id = child.text_id;
+                        self.layout_text(text_id, rect);
+                        
                         self.stack.push(child_id);
                     }
                 },
             }
         }
 
+    }
+
+    pub fn layout_text(&mut self, text_id: Option<usize>, rect: Rect) {
+        if let Some(text_id) = text_id {
+            self.text_areas[text_id].left = rect[X][0] * self.part.unifs.width;
+            self.text_areas[text_id].top = (1.0 - rect[Y][1]) * self.part.unifs.height;
+            self.text_areas[text_id]
+                .buffer
+                .shape_until_scroll(&mut self.font_system, false);
+        }
     }
 
     // todo: deduplicate the traversal with build_buffers, or just merge build_buffers inside here.
     // either way should wait to see how a real layout pass would look like
     // todo: layout has to be called BEFORE is_clicked and similar. maybe there's a way to force it or at least to print a warning?
     // or just do layout automatically somewhere? 
-    pub fn layout(&mut self) {
-        if ! self.needs_redraw() {
-            return;
-        }
-        self.stack.clear();
+    // pub fn layout(&mut self) {
+    //     if ! self.needs_redraw() {
+    //         return;
+    //     }
+    //     self.stack.clear();
 
-        let mut parent_already_decided = false;
-        let mut last_name = "root?";
-        let mut last_rect = Xy::new_symm([0.0, 1.0]);
-        let mut new_rect = last_rect;
+    //     let mut parent_already_decided = false;
+    //     let mut last_name = "root?";
+    //     let mut last_rect = Xy::new_symm([0.0, 1.0]);
+    //     let mut new_rect = last_rect;
 
-        // push the direct children of the root without processing the root
-        if let Some(root) = self.nodes.get(&NODE_ROOT_ID) {
-            for &child_id in root.children_ids.iter() {
-                self.stack.push(child_id);
-            }
-        }
+    //     // push the direct children of the root without processing the root
+    //     if let Some(root) = self.nodes.get(&NODE_ROOT_ID) {
+    //         for &child_id in root.children_ids.iter() {
+    //             self.stack.push(child_id);
+    //         }
+    //     }
 
-        while let Some(current_node_id) = self.stack.pop() {
-            // this mess over here is to avoid borrowing 2 nodes (which shouldn't even be a problem. but layout will change anyway.)
-            let children_ids;
-            let container;
-            let debug_name;
-            let len = Xy::new(new_rect[Axis::X][1] - new_rect[Axis::X][0], new_rect[Axis::Y][1] - new_rect[Axis::Y][0]);
-            {            
-                let current_node = self.nodes.get_mut(&current_node_id).unwrap();
+    //     while let Some(current_node_id) = self.stack.pop() {
+    //         // this mess over here is to avoid borrowing 2 nodes (which shouldn't even be a problem. but layout will change anyway.)
+    //         let children_ids;
+    //         let container;
+    //         let debug_name;
+    //         let len = Xy::new(new_rect[Axis::X][1] - new_rect[Axis::X][0], new_rect[Axis::Y][1] - new_rect[Axis::Y][0]);
+    //         {            
+    //             let current_node = self.nodes.get_mut(&current_node_id).unwrap();
                 
-                // println!("visiting {:?}, parent: {:?}", current_node.params.debug_name, last_name);
-                // // println!("node {:?}", current_node.params.debug_name);
-                // println!("rect {:?}", last_rect);
-                // println!(" {:?}", "");
+    //             // println!("visiting {:?}, parent: {:?}", current_node.params.debug_name, last_name);
+    //             // // println!("node {:?}", current_node.params.debug_name);
+    //             // println!("rect {:?}", last_rect);
+    //             // println!(" {:?}", "");
 
-                children_ids = current_node.children_ids.clone();
-                container = current_node.params.container_mode;
-                debug_name = current_node.params.debug_name;
+    //             children_ids = current_node.children_ids.clone();
+    //             container = current_node.params.container_mode;
+    //             debug_name = current_node.params.debug_name;
 
 
                 
-                if ! parent_already_decided {
+    //             if ! parent_already_decided {
 
-                    for axis in [Axis::X, Axis::Y] {
-                        match current_node.params.position[axis] {
-                            Position::Start { padding } => {
-                                let x0 = last_rect[axis][0] + (padding as f32 / self.part.unifs.width);
-                                match current_node.params.size[axis] {
-                                    Size::PercentOfParent(percent) => {
-                                        let x1 = x0 + len[axis] * percent;
-                                        new_rect[axis] = [x0, x1];
-                                    },
-                                }
-                            },
-                            Position::Center => {
-                                let center = last_rect[axis][0] + len[axis] / 2.0;
-                                match current_node.params.size[axis] {
-                                    Size::PercentOfParent(percent) => {
-                                        let width = len[axis] * percent;
-                                        let x0 = center - width / 2.0;
-                                        let x1 = center + width / 2.0;
-                                        new_rect[axis] = [x0, x1];
-                                    },
-                                }
-                            },
-                        }
-                    }
+    //                 for axis in [Axis::X, Axis::Y] {
+    //                     match current_node.params.position[axis] {
+    //                         Position::Start { padding } => {
+    //                             let x0 = last_rect[axis][0] + (padding as f32 / self.part.unifs.width);
+    //                             match current_node.params.size[axis] {
+    //                                 Size::PercentOfParent(percent) => {
+    //                                     let x1 = x0 + len[axis] * percent;
+    //                                     new_rect[axis] = [x0, x1];
+    //                                 },
+    //                             }
+    //                         },
+    //                         Position::Center => {
+    //                             let center = last_rect[axis][0] + len[axis] / 2.0;
+    //                             match current_node.params.size[axis] {
+    //                                 Size::PercentOfParent(percent) => {
+    //                                     let width = len[axis] * percent;
+    //                                     let x0 = center - width / 2.0;
+    //                                     let x1 = center + width / 2.0;
+    //                                     new_rect[axis] = [x0, x1];
+    //                                 },
+    //                             }
+    //                         },
+    //                     }
+    //                 }
                     
-                    current_node.rect = new_rect;
-                }
+    //                 current_node.rect = new_rect;
+    //             }
 
-                if let Some(id) = current_node.text_id {
-                    self.text_areas[id].left = current_node.rect[X][0] * self.part.unifs.width;
-                    self.text_areas[id].top = (1.0 - current_node.rect[Y][1]) * self.part.unifs.height;
-                    self.text_areas[id].buffer.set_size(
-                        &mut self.font_system,
-                        100000.,
-                        100000.,
-                    );
-                    self.text_areas[id]
-                        .buffer
-                        .shape_until_scroll(&mut self.font_system, false);
+    //             if let Some(id) = current_node.text_id {
+    //                 self.text_areas[id].left = current_node.rect[X][0] * self.part.unifs.width;
+    //                 self.text_areas[id].top = (1.0 - current_node.rect[Y][1]) * self.part.unifs.height;
+    //                 self.text_areas[id].buffer.set_size(
+    //                     &mut self.font_system,
+    //                     100000.,
+    //                     100000.,
+    //                 );
+    //                 self.text_areas[id]
+    //                     .buffer
+    //                     .shape_until_scroll(&mut self.font_system, false);
 
-                }
-            }
+    //             }
+    //         }
 
-            match container {
-                Some(mode) => {
-                    // decide the children positions all at once
-                    let padding = 5;
-                    let mut main_0 = new_rect[mode.main_axis][0] + (padding as f32 / self.part.unifs.width);
+    //         match container {
+    //             Some(mode) => {
+    //                 // decide the children positions all at once
+    //                 let padding = 5;
+    //                 let mut main_0 = new_rect[mode.main_axis][0] + (padding as f32 / self.part.unifs.width);
 
-                    for &child_id in children_ids.iter().rev() {
-                        let child = self.nodes.get_mut(&child_id).unwrap();
-                        let main_axis = mode.main_axis;
-                        child.rect[main_axis][0] = main_0;
+    //                 for &child_id in children_ids.iter().rev() {
+    //                     let child = self.nodes.get_mut(&child_id).unwrap();
+    //                     let main_axis = mode.main_axis;
+    //                     child.rect[main_axis][0] = main_0;
 
-                        match child.params.size[main_axis] {
-                            Size::PercentOfParent(percent) => {
-                                let main_1 = main_0 + len[main_axis] * percent;
-                                child.rect[main_axis][1] = main_1;
-                                main_0 = main_1 + (padding as f32 / self.part.unifs.width);
-                            },
-                        }
+    //                     match child.params.size[main_axis] {
+    //                         Size::PercentOfParent(percent) => {
+    //                             let main_1 = main_0 + len[main_axis] * percent;
+    //                             child.rect[main_axis][1] = main_1;
+    //                             main_0 = main_1 + (padding as f32 / self.part.unifs.width);
+    //                         },
+    //                     }
 
-                        let cross_axis = mode.main_axis.other();
-                        match child.params.size[cross_axis] {
-                            Size::PercentOfParent(percent) => {
-                                let cross_0 = new_rect[cross_axis][0] + (padding as f32 / self.part.unifs.width);
-                                let cross_1 = cross_0 + len[cross_axis] * percent;
-                                child.rect[cross_axis][0] = cross_0;
-                                child.rect[cross_axis][1] = cross_1;
-                            },
-                        }
-                    }
+    //                     let cross_axis = mode.main_axis.other();
+    //                     match child.params.size[cross_axis] {
+    //                         Size::PercentOfParent(percent) => {
+    //                             let cross_0 = new_rect[cross_axis][0] + (padding as f32 / self.part.unifs.width);
+    //                             let cross_1 = cross_0 + len[cross_axis] * percent;
+    //                             child.rect[cross_axis][0] = cross_0;
+    //                             child.rect[cross_axis][1] = cross_1;
+    //                         },
+    //                     }
+    //                 }
 
 
-                    for &child_id in children_ids.iter().rev() {
-                        self.stack.push(child_id);
-                        last_name = debug_name;
-                        last_rect = new_rect;
-                        parent_already_decided = true;
-                    }
+    //                 for &child_id in children_ids.iter().rev() {
+    //                     self.stack.push(child_id);
+    //                     last_name = debug_name;
+    //                     last_rect = new_rect;
+    //                     parent_already_decided = true;
+    //                 }
 
-                },
-                None => {
-                    // just go to the children
-                    for &child_id in children_ids.iter().rev() {
-                        self.stack.push(child_id);
-                        last_name = debug_name;
-                        last_rect = new_rect;
-                        parent_already_decided = false;
-                    }
-                },
-            }
+    //             },
+    //             None => {
+    //                 // just go to the children
+    //                 for &child_id in children_ids.iter().rev() {
+    //                     self.stack.push(child_id);
+    //                     last_name = debug_name;
+    //                     last_rect = new_rect;
+    //                     parent_already_decided = false;
+    //                 }
+    //             },
+    //         }
 
-        }
+    //     }
 
-        // println!("  ");
+    //     // println!("  ");
 
-        // print_whole_tree
-        // for (k, v) in &self.nodes {
-        //     println!(" {:?}: {:#?}", k, v.params.debug_name);
-        // }
+    //     // print_whole_tree
+    //     // for (k, v) in &self.nodes {
+    //     //     println!(" {:?}: {:#?}", k, v.params.debug_name);
+    //     // }
 
-        // println!("self.text_areas.len() {:?}", self.text_areas.len());
-        // println!("self.rects.len() {:?}", self.rects.len());
-    }
+    //     // println!("self.text_areas.len() {:?}", self.text_areas.len());
+    //     // println!("self.rects.len() {:?}", self.rects.len());
+    // }
 
     pub fn is_clicked(&self, id: Id) -> bool {
         if !self.part.mouse_left_just_clicked {
             return false;
         }
-        for (clicked_id, _z) in &self.clicked_stack {
-            if *clicked_id == id {
-                return true;
-            }
+        if let Some(clicked_id) = &self.clicked {
+            return *clicked_id == id;
         }
         return false;
     }
@@ -1433,13 +1461,6 @@ impl Ui {
 
         // only the one with the highest z is actually clicked.
         // there may be exceptions.
-        // also, nothing is really specifying their z right now.
-        // if there are overlapping rects with the same z, it would be nice to use the inverse order of the rects, so that it's consistent with what gets drawn on top, but I don't know how to do that right now -- (actually using rev() does basically the same thing).
-        // one way would be to stick a lot of duplicated data in the rect (or a soa thing) and decide clicked over rects instead of nodes.
-        // that might actually be good for speed as well. 
-        // but it might be bad for order of operations.
-
-        // reset old color mods
 
         let mut max_z = f32::MAX;
         for (id, z) in self.clicked_stack.iter().rev() {
