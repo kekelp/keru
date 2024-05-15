@@ -105,7 +105,7 @@ impl<'window> State<'window> {
         floating_window!(ui, {
             add!(ui, COMMAND_LINE);
             
-            add!(ui, CENTER_COLUMN, {
+            add!(ui, CENTER_ROW, {
 
 
                 if self.counter_state.counter_mode {
@@ -133,7 +133,7 @@ impl<'window> State<'window> {
 
         self.ui.finish_tree();
         
-        self.ui.layout2();
+        self.ui.layout();
         self.ui.resolve_mouse_input();
         self.counter_state.interact(&mut self.ui);
 
@@ -183,7 +183,7 @@ pub fn count_color(count: i32) -> Color {
     return Color::rgba(red, 0.1, 0.2, 0.8);
 }
 
-pub const CENTER_COLUMN: NodeKey = NodeKey::new(NodeParams::COLUMN, new_id!())
+pub const CENTER_ROW: NodeKey = NodeKey::new(NodeParams::ROW, new_id!())
     .with_size_x(0.5)
     .with_position_x(Position::Center)
     .with_debug_name("Center column")

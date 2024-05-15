@@ -85,6 +85,12 @@ impl<T: Copy> Xy<T> {
     }
 }
 
+impl Rect {
+    pub fn size(&self) -> Xy<f32> {
+        return Xy::new(self[X][1] - self[X][0], self[Y][1] - self[Y][0]);
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct NodeParams {
     pub debug_name: &'static str,
@@ -128,8 +134,8 @@ impl NodeParams {
             b: 0.7,
             a: 0.2,
         },
-        size: Xy::new(Size::PercentOfParent(0.5), Size::PercentOfParent(1.0)),
-        position: Xy::new_symm(Position::Center),
+        size: Xy::new(Size::PercentOfParent(1.0), Size::PercentOfParent(0.5)),
+        position: Xy::new(Position::Start { padding: 5 }, Position::Center),
         container_mode: Some(ContainerMode{
             main_axis_justify: Justify::Start,
             cross_axis_align: Align::Fill,
@@ -915,9 +921,7 @@ impl Ui {
         }
     }
 
-    
-    pub fn layout2(&mut self) {
-        
+    pub fn layout(&mut self) {
         if ! self.needs_redraw() {
             return;
         }
@@ -926,7 +930,6 @@ impl Ui {
         // push the root
         self.stack.push(NODE_ROOT_ID);
         
-    
         // start processing a parent
         while let Some(current_node_id) = self.stack.pop() {
             
@@ -940,8 +943,7 @@ impl Ui {
                 parent_rect = parent_node.rect;
                 container_mode = parent_node.params.container_mode;
             }
-            let parent_len = Xy::new(parent_rect[Axis::X][1] - parent_rect[Axis::X][0], parent_rect[Axis::Y][1] - parent_rect[Axis::Y][0]);
-            // println!("{:?}", parent_rect);
+            let parent_size = parent_rect.size();
 
             match container_mode {
                 Some(mode) => {
@@ -956,7 +958,7 @@ impl Ui {
 
                         match child.params.size[main_axis] {
                             Size::PercentOfParent(percent) => {
-                                let main_1 = main_0 + parent_len[main_axis] * percent;
+                                let main_1 = main_0 + parent_size[main_axis] * percent;
                                 child.rect[main_axis][1] = main_1;
                                 main_0 = main_1 + (padding as f32 / self.part.unifs.width);
                             },
@@ -968,7 +970,7 @@ impl Ui {
                                 match child.params.size[cross_axis] {
                                     Size::PercentOfParent(percent) => {
                                         let cross_0 = parent_rect[cross_axis][0] + (padding as f32 / self.part.unifs.width);
-                                        let cross_1 = cross_0 + parent_len[cross_axis] * percent;
+                                        let cross_1 = cross_0 + parent_size[cross_axis] * percent;
                                         child.rect[cross_axis][0] = cross_0;
                                         child.rect[cross_axis][1] = cross_1;
                                     },
@@ -977,8 +979,8 @@ impl Ui {
                             Position::Center => {
                                 match child.params.size[cross_axis] {
                                     Size::PercentOfParent(percent) => {
-                                        let center = parent_rect[cross_axis][0] + parent_len[cross_axis] / 2.0;
-                                        let width = parent_len[cross_axis] * percent;
+                                        let center = parent_rect[cross_axis][0] + parent_size[cross_axis] / 2.0;
+                                        let width = parent_size[cross_axis] * percent;
                                         let x0 = center - width / 2.0;
                                         let x1 = center + width / 2.0;
                                         child.rect[cross_axis] = [x0, x1];
@@ -1006,16 +1008,16 @@ impl Ui {
                                     let x0 = parent_rect[axis][0] + (padding as f32 / self.part.unifs.width);
                                     match child.params.size[axis] {
                                         Size::PercentOfParent(percent) => {
-                                            let x1 = x0 + parent_len[axis] * percent;
+                                            let x1 = x0 + parent_size[axis] * percent;
                                             child.rect[axis] = [x0, x1];
                                         },
                                     }
                                 },
                                 Position::Center => {
-                                    let center = parent_rect[axis][0] + parent_len[axis] / 2.0;
+                                    let center = parent_rect[axis][0] + parent_size[axis] / 2.0;
                                     match child.params.size[axis] {
                                         Size::PercentOfParent(percent) => {
-                                            let width = parent_len[axis] * percent;
+                                            let width = parent_size[axis] * percent;
                                             let x0 = center - width / 2.0;
                                             let x1 = center + width / 2.0;
                                             child.rect[axis] = [x0, x1];
