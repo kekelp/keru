@@ -1,11 +1,8 @@
-use bitflags::parser::ParseError;
-// use glyphon::{cosmic_text::{Scroll, StringCursor}, Affinity, Resolution as GlyphonResolution};
-use glyphon::{cosmic_text::{Scroll}, Affinity, Resolution as GlyphonResolution};
+use glyphon::{cosmic_text::StringCursor, Affinity, Resolution as GlyphonResolution};
 use rustc_hash::{FxHashMap, FxHasher};
+use glyphon::Cursor as GlyphonCursor;
 
-use glyphon::{Cursor as GlyphonCursor};
-use unicode_segmentation::UnicodeSegmentation;
-use std::{future::pending, hash::Hasher, marker::PhantomData, mem, ops::{Index, IndexMut}, time::Instant};
+use std::{hash::Hasher, marker::PhantomData, mem, ops::{Index, IndexMut}, time::Instant};
 
 use bytemuck::{Pod, Zeroable};
 use glyphon::{
@@ -394,6 +391,30 @@ impl Color {
     }
 }
 
+// a reference to Ui with a particular Id "selected"
+// ui.add returns this, so that function calls to update the just-added node are slightly more aesthetic
+// this probably counts as oversugaring.
+// but with advanced hashmap stuff like RawEntryMut or however the brown is hashed, it should be possible to do something similar to this:
+// pub struct UiWithNodeRef<'a> {
+//     ui: &'a mut Ui,
+//     node: &'a mut Node,
+// }
+// which would have the same aethetics but would also be faster.
+pub struct UiWithId<'a> {
+    ui: &'a mut Ui,
+    id: Id,
+}
+
+impl<'a> UiWithId<'a> {
+    pub fn color(&mut self, color: Color) {
+        self.ui.color(self.id, color)
+    }
+
+    pub fn text(&mut self, text: impl ToString) {
+        self.ui.text(self.id, text)
+    }
+}
+
 pub struct PartialBorrowStuff {
     pub mouse_pos: PhysicalPosition<f32>,
     pub mouse_left_clicked: bool,
@@ -490,7 +511,7 @@ pub struct Ui {
     pub t: f32,
 }
 impl Ui {
-    pub fn update_text(&mut self, id: Id, text: impl ToString) {
+    pub fn text(&mut self, id: Id, text: impl ToString) {
         let text = text.to_string();
         let mut hasher = FxHasher::default();
         text.hash(&mut hasher);
@@ -552,7 +573,7 @@ impl Ui {
         self.content_changed = true;
     }
 
-    pub fn update_color(&mut self, id: Id, color: Color) {
+    pub fn color(&mut self, id: Id, color: Color) {
         if let Some(node) = self.nodes.get_mut(&id) {
             if node.params.color == color {
                 return;
@@ -710,23 +731,8 @@ impl Ui {
         }
     }
 
-    pub fn column(&mut self, id: Id) {
-        let key = NodeKey::new(NodeParams::COLUMN, id);
-        self.add(key);
-    }
-
-    pub fn row(&mut self, id: Id) {
-        let key = NodeKey::new(NodeParams::ROW, id);
-        self.add(key);
-    }
-
-    pub fn floating_window(&mut self, id: Id) {
-        let key = NodeKey::new(NodeParams::FLOATING_WINDOW, id);
-        self.add(key);
-    }
-
     // todo: deduplicate with refresh (maybe)
-    pub fn add(&mut self, node_key: NodeKey) {
+    pub fn add(&mut self, node_key: NodeKey) -> UiWithId {
         let parent_id = *self.parent_stack.last().unwrap();
 
         let node_key_id = node_key.id;
@@ -792,6 +798,11 @@ impl Ui {
             .unwrap()
             .children_ids
             .push(node_key_id);
+
+        return UiWithId {
+            ui: self,
+            id: node_key_id,
+        }
     }
 
     pub fn new_node(&self, node_key: NodeKey, parent_id: Id, text_id: Option<usize>) -> Node {
@@ -810,86 +821,86 @@ impl Ui {
         }
     }
 
-    // pub fn handle_keyboard_event(&mut self, event: &KeyEvent) -> Option<()> {
-    //     let id = self.focused?;
-    //     let node = self.nodes.get(&id)?;
-    //     let text_id = node.text_id?;
-    //     println!(" {:#?}\n", event);
+    pub fn handle_keyboard_event(&mut self, event: &KeyEvent) -> Option<()> {
+        let id = self.focused?;
+        let node = self.nodes.get(&id)?;
+        let text_id = node.text_id?;
+        // println!(" {:#?}\n", event);
 
-    //     if event.state.is_pressed() {
-    //         let buffer = &mut self.text_areas[text_id].buffer;
+        if event.state.is_pressed() {
+            let buffer = &mut self.text_areas[text_id].buffer;
             
-    //         match &event.logical_key {
-    //             winit::keyboard::Key::Named(named_key) => {
-    //                 // todo: when holding control all key events arrive duplicated??
-    //                 match named_key {
-    //                     NamedKey::ArrowLeft => {
-    //                         match (self.key_modifiers.shift_key(), self.key_modifiers.control_key()) {
-    //                             (true, true) => buffer.lines[0].text.control_shift_left_arrow(),
-    //                             (true, false) => buffer.lines[0].text.shift_left_arrow(),
-    //                             (false, true) => buffer.lines[0].text.control_left_arrow(),
-    //                             (false, false) => buffer.lines[0].text.left_arrow(),
-    //                         }
-    //                     }
-    //                     NamedKey::ArrowRight => {
-    //                         match (self.key_modifiers.shift_key(), self.key_modifiers.control_key()) {
-    //                             (true, true) => buffer.lines[0].text.control_shift_right_arrow(),
-    //                             (true, false) => buffer.lines[0].text.shift_right_arrow(),
-    //                             (false, true) => buffer.lines[0].text.control_right_arrow(),
-    //                             (false, false) => buffer.lines[0].text.right_arrow(),
-    //                         }
-    //                     }
-    //                     NamedKey::Backspace => {
-    //                         if self.key_modifiers.control_key() {
-    //                             buffer.lines[0].text.ctrl_backspace();
-    //                         } else {
-    //                             buffer.lines[0].text.backspace();
-    //                         }
-    //                         buffer.lines[0].reset();
-    //                     }
-    //                     NamedKey::End => {
-    //                         match self.key_modifiers.shift_key() {
-    //                             true => buffer.lines[0].text.shift_end(),
-    //                             false => buffer.lines[0].text.go_to_end(),
-    //                         }
-    //                         buffer.lines[0].reset();
-    //                     }
-    //                     NamedKey::Home => {
-    //                         match self.key_modifiers.shift_key() {
-    //                             false => buffer.lines[0].text.go_to_start(),
-    //                             true => buffer.lines[0].text.shift_home(),
-    //                         }
-    //                         buffer.lines[0].reset();
-    //                     }
-    //                     NamedKey::Delete => {
-    //                         if self.key_modifiers.control_key() {
-    //                             buffer.lines[0].text.ctrl_delete();
-    //                         } else {
-    //                             buffer.lines[0].text.delete();
-    //                         }
-    //                         buffer.lines[0].reset();
-    //                     }
-    //                     NamedKey::Space => {
-    //                         buffer.lines[0].text.insert_str_at_cursor(" ");
-    //                         buffer.lines[0].reset();
-    //                     },
-    //                     _ => {},
-    //                 }
-    //             },
-    //             winit::keyboard::Key::Character(new_char) => {
-    //                 buffer.lines[0].text.insert_str_at_cursor(&new_char);
-    //                 buffer.lines[0].reset();
-    //             },
-    //             winit::keyboard::Key::Unidentified(_) => {},
-    //             winit::keyboard::Key::Dead(_) => {},
-    //         };
+            match &event.logical_key {
+                winit::keyboard::Key::Named(named_key) => {
+                    // todo: when holding control all key events arrive duplicated??
+                    match named_key {
+                        NamedKey::ArrowLeft => {
+                            match (self.key_modifiers.shift_key(), self.key_modifiers.control_key()) {
+                                (true, true) => buffer.lines[0].text.control_shift_left_arrow(),
+                                (true, false) => buffer.lines[0].text.shift_left_arrow(),
+                                (false, true) => buffer.lines[0].text.control_left_arrow(),
+                                (false, false) => buffer.lines[0].text.left_arrow(),
+                            }
+                        }
+                        NamedKey::ArrowRight => {
+                            match (self.key_modifiers.shift_key(), self.key_modifiers.control_key()) {
+                                (true, true) => buffer.lines[0].text.control_shift_right_arrow(),
+                                (true, false) => buffer.lines[0].text.shift_right_arrow(),
+                                (false, true) => buffer.lines[0].text.control_right_arrow(),
+                                (false, false) => buffer.lines[0].text.right_arrow(),
+                            }
+                        }
+                        NamedKey::Backspace => {
+                            if self.key_modifiers.control_key() {
+                                buffer.lines[0].text.ctrl_backspace();
+                            } else {
+                                buffer.lines[0].text.backspace();
+                            }
+                            buffer.lines[0].reset();
+                        }
+                        NamedKey::End => {
+                            match self.key_modifiers.shift_key() {
+                                true => buffer.lines[0].text.shift_end(),
+                                false => buffer.lines[0].text.go_to_end(),
+                            }
+                            buffer.lines[0].reset();
+                        }
+                        NamedKey::Home => {
+                            match self.key_modifiers.shift_key() {
+                                false => buffer.lines[0].text.go_to_start(),
+                                true => buffer.lines[0].text.shift_home(),
+                            }
+                            buffer.lines[0].reset();
+                        }
+                        NamedKey::Delete => {
+                            if self.key_modifiers.control_key() {
+                                buffer.lines[0].text.ctrl_delete();
+                            } else {
+                                buffer.lines[0].text.delete();
+                            }
+                            buffer.lines[0].reset();
+                        }
+                        NamedKey::Space => {
+                            buffer.lines[0].text.insert_str_at_cursor(" ");
+                            buffer.lines[0].reset();
+                        },
+                        _ => {},
+                    }
+                },
+                winit::keyboard::Key::Character(new_char) => {
+                    buffer.lines[0].text.insert_str_at_cursor(&new_char);
+                    buffer.lines[0].reset();
+                },
+                winit::keyboard::Key::Unidentified(_) => {},
+                winit::keyboard::Key::Dead(_) => {},
+            };
             
             
-    //     }
+        }
     
     
-    //     return Some(())
-    // }
+        return Some(())
+    }
 
     pub fn handle_input_events(&mut self, full_event: &Event<()>) {
         if let Event::WindowEvent { event, .. } = full_event {
@@ -914,7 +925,7 @@ impl Ui {
                     self.key_modifiers = modifiers.state();
                 }
                 WindowEvent::KeyboardInput { event, .. } => {
-                    // self.handle_keyboard_event(&event);
+                    self.handle_keyboard_event(&event);
                 }
                 _ => {}
             }
@@ -1050,156 +1061,6 @@ impl Ui {
         }
     }
 
-    // todo: deduplicate the traversal with build_buffers, or just merge build_buffers inside here.
-    // either way should wait to see how a real layout pass would look like
-    // todo: layout has to be called BEFORE is_clicked and similar. maybe there's a way to force it or at least to print a warning?
-    // or just do layout automatically somewhere? 
-    // pub fn layout(&mut self) {
-    //     if ! self.needs_redraw() {
-    //         return;
-    //     }
-    //     self.stack.clear();
-
-    //     let mut parent_already_decided = false;
-    //     let mut last_name = "root?";
-    //     let mut last_rect = Xy::new_symm([0.0, 1.0]);
-    //     let mut new_rect = last_rect;
-
-    //     // push the direct children of the root without processing the root
-    //     if let Some(root) = self.nodes.get(&NODE_ROOT_ID) {
-    //         for &child_id in root.children_ids.iter() {
-    //             self.stack.push(child_id);
-    //         }
-    //     }
-
-    //     while let Some(current_node_id) = self.stack.pop() {
-    //         // this mess over here is to avoid borrowing 2 nodes (which shouldn't even be a problem. but layout will change anyway.)
-    //         let children_ids;
-    //         let container;
-    //         let debug_name;
-    //         let len = Xy::new(new_rect[Axis::X][1] - new_rect[Axis::X][0], new_rect[Axis::Y][1] - new_rect[Axis::Y][0]);
-    //         {            
-    //             let current_node = self.nodes.get_mut(&current_node_id).unwrap();
-                
-    //             // println!("visiting {:?}, parent: {:?}", current_node.params.debug_name, last_name);
-    //             // // println!("node {:?}", current_node.params.debug_name);
-    //             // println!("rect {:?}", last_rect);
-    //             // println!(" {:?}", "");
-
-    //             children_ids = current_node.children_ids.clone();
-    //             container = current_node.params.container_mode;
-    //             debug_name = current_node.params.debug_name;
-
-
-                
-    //             if ! parent_already_decided {
-
-    //                 for axis in [Axis::X, Axis::Y] {
-    //                     match current_node.params.position[axis] {
-    //                         Position::Start { padding } => {
-    //                             let x0 = last_rect[axis][0] + (padding as f32 / self.part.unifs.width);
-    //                             match current_node.params.size[axis] {
-    //                                 Size::PercentOfParent(percent) => {
-    //                                     let x1 = x0 + len[axis] * percent;
-    //                                     new_rect[axis] = [x0, x1];
-    //                                 },
-    //                             }
-    //                         },
-    //                         Position::Center => {
-    //                             let center = last_rect[axis][0] + len[axis] / 2.0;
-    //                             match current_node.params.size[axis] {
-    //                                 Size::PercentOfParent(percent) => {
-    //                                     let width = len[axis] * percent;
-    //                                     let x0 = center - width / 2.0;
-    //                                     let x1 = center + width / 2.0;
-    //                                     new_rect[axis] = [x0, x1];
-    //                                 },
-    //                             }
-    //                         },
-    //                     }
-    //                 }
-                    
-    //                 current_node.rect = new_rect;
-    //             }
-
-    //             if let Some(id) = current_node.text_id {
-    //                 self.text_areas[id].left = current_node.rect[X][0] * self.part.unifs.width;
-    //                 self.text_areas[id].top = (1.0 - current_node.rect[Y][1]) * self.part.unifs.height;
-    //                 self.text_areas[id].buffer.set_size(
-    //                     &mut self.font_system,
-    //                     100000.,
-    //                     100000.,
-    //                 );
-    //                 self.text_areas[id]
-    //                     .buffer
-    //                     .shape_until_scroll(&mut self.font_system, false);
-
-    //             }
-    //         }
-
-    //         match container {
-    //             Some(mode) => {
-    //                 // decide the children positions all at once
-    //                 let padding = 5;
-    //                 let mut main_0 = new_rect[mode.main_axis][0] + (padding as f32 / self.part.unifs.width);
-
-    //                 for &child_id in children_ids.iter().rev() {
-    //                     let child = self.nodes.get_mut(&child_id).unwrap();
-    //                     let main_axis = mode.main_axis;
-    //                     child.rect[main_axis][0] = main_0;
-
-    //                     match child.params.size[main_axis] {
-    //                         Size::PercentOfParent(percent) => {
-    //                             let main_1 = main_0 + len[main_axis] * percent;
-    //                             child.rect[main_axis][1] = main_1;
-    //                             main_0 = main_1 + (padding as f32 / self.part.unifs.width);
-    //                         },
-    //                     }
-
-    //                     let cross_axis = mode.main_axis.other();
-    //                     match child.params.size[cross_axis] {
-    //                         Size::PercentOfParent(percent) => {
-    //                             let cross_0 = new_rect[cross_axis][0] + (padding as f32 / self.part.unifs.width);
-    //                             let cross_1 = cross_0 + len[cross_axis] * percent;
-    //                             child.rect[cross_axis][0] = cross_0;
-    //                             child.rect[cross_axis][1] = cross_1;
-    //                         },
-    //                     }
-    //                 }
-
-
-    //                 for &child_id in children_ids.iter().rev() {
-    //                     self.stack.push(child_id);
-    //                     last_name = debug_name;
-    //                     last_rect = new_rect;
-    //                     parent_already_decided = true;
-    //                 }
-
-    //             },
-    //             None => {
-    //                 // just go to the children
-    //                 for &child_id in children_ids.iter().rev() {
-    //                     self.stack.push(child_id);
-    //                     last_name = debug_name;
-    //                     last_rect = new_rect;
-    //                     parent_already_decided = false;
-    //                 }
-    //             },
-    //         }
-
-    //     }
-
-    //     // println!("  ");
-
-    //     // print_whole_tree
-    //     // for (k, v) in &self.nodes {
-    //     //     println!(" {:?}: {:#?}", k, v.params.debug_name);
-    //     // }
-
-    //     // println!("self.text_areas.len() {:?}", self.text_areas.len());
-    //     // println!("self.rects.len() {:?}", self.rects.len());
-    // }
-
     pub fn is_clicked(&self, id: Id) -> bool {
         if !self.part.mouse_left_just_clicked {
             return false;
@@ -1291,90 +1152,88 @@ impl Ui {
         let text_id = focused_node.text_id?;
         let focused_text_area = self.text_areas.get(text_id)?;
         
-        // match focused_text_area.buffer.lines[0].text.cursor() {
-        //     StringCursor::Point(cursor) => {
-        //         let rect_x0 = focused_node.rect[X][0];
-        //         let rect_y1 = focused_node.rect[Y][1];
+        match focused_text_area.buffer.lines[0].text.cursor() {
+            StringCursor::Point(cursor) => {
+                let rect_x0 = focused_node.rect[X][0];
+                let rect_y1 = focused_node.rect[Y][1];
                 
-        //         let (x, y) = cursor_pos_from_byte_offset(&focused_text_area.buffer, *cursor);
+                let (x, y) = cursor_pos_from_byte_offset(&focused_text_area.buffer, *cursor);
                 
-        //         let cursor_width = focused_text_area.buffer.metrics().font_size / 20.0;
-        //         let cursor_height = focused_text_area.buffer.metrics().font_size;
-        //         // we're counting on this always happening after layout. which should be safe.
-        //         let x0 = ((x - 1.0) / self.part.unifs.width) * 2.0;
-        //         let x1 = ((x + cursor_width) / self.part.unifs.width) * 2.0;
-        //         let x0 = x0 + (rect_x0 * 2. - 1.);
-        //         let x1 = x1 + (rect_x0 * 2. - 1.);
+                let cursor_width = focused_text_area.buffer.metrics().font_size / 20.0;
+                let cursor_height = focused_text_area.buffer.metrics().font_size;
+                // we're counting on this always happening after layout. which should be safe.
+                let x0 = ((x - 1.0) / self.part.unifs.width) * 2.0;
+                let x1 = ((x + cursor_width) / self.part.unifs.width) * 2.0;
+                let x0 = x0 + (rect_x0 * 2. - 1.);
+                let x1 = x1 + (rect_x0 * 2. - 1.);
                 
-        //         let y0 = ((- y - cursor_height) / self.part.unifs.height) * 2.0;
-        //         let y1 = ((- y ) / self.part.unifs.height) * 2.0;
-        //         let y0 = y0 + (rect_y1 * 2. - 1.);
-        //         let y1 = y1 + (rect_y1 * 2. - 1.);
+                let y0 = ((- y - cursor_height) / self.part.unifs.height) * 2.0;
+                let y1 = ((- y ) / self.part.unifs.height) * 2.0;
+                let y0 = y0 + (rect_y1 * 2. - 1.);
+                let y1 = y1 + (rect_y1 * 2. - 1.);
               
-        //         let cursor_rect = Rectangle {
-        //             x0,
-        //             x1,
-        //             y0,
-        //             y1,
-        //             r: 0.5,
-        //             g: 0.3,
-        //             b: 0.5,
-        //             a: 0.9,
-        //             last_hover: 0.0,
-        //             last_click: 0.0,
-        //             clickable: 0,
-        //             z: 0.0,
-        //             id: Id(0),
-        //             _padding: 0.0,
-        //             radius: 0.0,
-        //         }; 
+                let cursor_rect = Rectangle {
+                    x0,
+                    x1,
+                    y0,
+                    y1,
+                    r: 0.5,
+                    g: 0.3,
+                    b: 0.5,
+                    a: 0.9,
+                    last_hover: 0.0,
+                    last_click: 0.0,
+                    clickable: 0,
+                    z: 0.0,
+                    id: Id(0),
+                    _padding: 0.0,
+                    radius: 0.0,
+                }; 
 
-        //         self.rects.push(cursor_rect);
-        //     },
-        //     StringCursor::Selection(selection) => {
-        //         let rect_x0 = focused_node.rect[X][0];
-        //         let rect_y1 = focused_node.rect[Y][1];
+                self.rects.push(cursor_rect);
+            },
+            StringCursor::Selection(selection) => {
+                let rect_x0 = focused_node.rect[X][0];
+                let rect_y1 = focused_node.rect[Y][1];
                 
-        //         let (x0, y0) = cursor_pos_from_byte_offset(&focused_text_area.buffer, selection.start);
-        //         let (x1, y1) = cursor_pos_from_byte_offset(&focused_text_area.buffer, selection.end);
+                let (x0, y0) = cursor_pos_from_byte_offset(&focused_text_area.buffer, selection.start);
+                let (x1, y1) = cursor_pos_from_byte_offset(&focused_text_area.buffer, selection.end);
                
 
-        //         let cursor_width = focused_text_area.buffer.metrics().font_size / 20.0;
-        //         let cursor_height = focused_text_area.buffer.metrics().font_size;
-        //         let x0 = ((x0 - 1.0) / self.part.unifs.width) * 2.0;
-        //         let x1 = ((x1 + 1.0) / self.part.unifs.width) * 2.0;
-        //         let x0 = x0 + (rect_x0 * 2. - 1.);
-        //         let x1 = x1 + (rect_x0 * 2. - 1.);
+                // let cursor_width = focused_text_area.buffer.metrics().font_size / 20.0;
+                let cursor_height = focused_text_area.buffer.metrics().font_size;
+                let x0 = ((x0 - 1.0) / self.part.unifs.width) * 2.0;
+                let x1 = ((x1 + 1.0) / self.part.unifs.width) * 2.0;
+                let x0 = x0 + (rect_x0 * 2. - 1.);
+                let x1 = x1 + (rect_x0 * 2. - 1.);
                 
-        //         let y0 = ((- y0 - cursor_height) / self.part.unifs.height) * 2.0;
-        //         let y1 = ((- y1 ) / self.part.unifs.height) * 2.0;
-        //         let y0 = y0 + (rect_y1 * 2. - 1.);
-        //         let y1 = y1 + (rect_y1 * 2. - 1.);
+                let y0 = ((- y0 - cursor_height) / self.part.unifs.height) * 2.0;
+                let y1 = ((- y1 ) / self.part.unifs.height) * 2.0;
+                let y0 = y0 + (rect_y1 * 2. - 1.);
+                let y1 = y1 + (rect_y1 * 2. - 1.);
 
-        //         let cursor_rect = Rectangle {
-        //             x0,
-        //             x1,
-        //             y0,
-        //             y1,
-        //             r: 0.5,
-        //             g: 0.3,
-        //             b: 0.5,
-        //             a: 0.9,
-        //             last_hover: 0.0,
-        //             last_click: 0.0,
-        //             clickable: 0,
-        //             z: 0.0,
-        //             id: Id(0),
-        //             _padding: 0.0,
-        //             radius: 0.0,
-        //         }; 
+                let cursor_rect = Rectangle {
+                    x0,
+                    x1,
+                    y0,
+                    y1,
+                    r: 0.5,
+                    g: 0.3,
+                    b: 0.5,
+                    a: 0.9,
+                    last_hover: 0.0,
+                    last_click: 0.0,
+                    clickable: 0,
+                    z: 0.0,
+                    id: Id(0),
+                    _padding: 0.0,
+                    radius: 0.0,
+                }; 
 
-        //         self.rects.push(cursor_rect);
-        //     },
-        // }
+                self.rects.push(cursor_rect);
+            },
+        }
         
-        
-
         return Some(());
     }
 
@@ -1739,7 +1598,9 @@ macro_rules! add {
 macro_rules! column {
     ($ui:expr, $code:block) => {
         let anonymous_id = new_id!();
-        $ui.column(anonymous_id);
+        let key = NodeKey::new(NodeParams::COLUMN, anonymous_id);
+        
+        $ui.add(key);
 
         $ui.parent_stack.push(anonymous_id);
         $code;
@@ -1751,7 +1612,9 @@ macro_rules! column {
 macro_rules! row {
     ($ui:expr, $code:block) => {
         let anonymous_id = new_id!();
-        $ui.row(anonymous_id);
+        let key = NodeKey::new(NodeParams::ROW, anonymous_id);
+        
+        $ui.add(key);
 
         $ui.parent_stack.push(anonymous_id);
         $code;
@@ -1763,7 +1626,9 @@ macro_rules! row {
 macro_rules! floating_window {
     ($ui:expr, $code:block) => {
         let anonymous_id = new_id!();
-        $ui.floating_window(anonymous_id);
+        let key = NodeKey::new(NodeParams::FLOATING_WINDOW, anonymous_id);
+        
+        $ui.add(key);
 
         $ui.parent_stack.push(anonymous_id);
         $code;
@@ -1775,16 +1640,6 @@ pub trait Component {
     fn add(&mut self);
     // fn update(&mut self);
     // fn auto_interact(&mut self);
-}
-
-pub fn is_word_separator(c: char) -> bool {
-    if c.is_alphanumeric() {
-        return false;
-    }
-    // if c.is_whitespace() {
-    //     return true;
-    // }
-    return true;
 }
 
 pub fn cursor_pos_from_byte_offset(buffer: &Buffer, byte_offset: usize) -> (f32, f32) {

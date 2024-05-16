@@ -104,35 +104,33 @@ impl<'window> State<'window> {
         // CounterState::add(&mut self.ui, &mut self.counter_state);
         floating_window!(ui, {
             add!(ui, COMMAND_LINE);
-            
+
             add!(ui, CENTER_ROW, {
 
+                column!(ui, {
+                    if self.counter_state.counter_mode {
+                        let new_color = count_color(self.counter_state.count);
+                        ui.add(INCREASE_BUTTON).color(new_color);
+                        
+                        ui.add(COUNT_LABEL).text(self.counter_state.count);
+                        
+                        ui.add(DECREASE_BUTTON);
+                    }
+                });
 
-                if self.counter_state.counter_mode {
-                    add!(ui, INCREASE_BUTTON);
-                    ui.update_color(INCREASE_BUTTON.id, count_color(self.counter_state.count));
-
-                    add!(ui, COUNT_LABEL);
-                    ui.update_text(COUNT_LABEL.id, self.counter_state.count);
-
-                    add!(ui, DECREASE_BUTTON);
-                }
-
-                let text = match self.counter_state.counter_mode {
-                    true => "Hide counter",
-                    false => "Show counter",
-                };
-                add!(ui, SHOW_COUNTER_BUTTON);
-                ui.update_text(SHOW_COUNTER_BUTTON.id, text);
+                column!(ui, { 
+                    let text = match self.counter_state.counter_mode {
+                        true => "Hide counter",
+                        false => "Show counter",
+                    };
+                    add!(ui, SHOW_COUNTER_BUTTON);
+                    ui.text(SHOW_COUNTER_BUTTON.id, text);
+                });
             });
-
         });
 
-
-
-
         self.ui.finish_tree();
-        
+
         self.ui.layout();
         self.ui.resolve_mouse_input();
         self.counter_state.interact(&mut self.ui);
@@ -175,7 +173,6 @@ impl<'window> State<'window> {
         self.ui.resize(size, &self.queue);
         self.window.request_redraw();
     }
-
 }
 
 pub fn count_color(count: i32) -> Color {
@@ -206,7 +203,7 @@ pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey::new(
         clickable: true,
         visible_rect: true,
         color: Color::rgba(1.0, 0.3, 0.2, 0.6),
-        size: Xy::new(Size::PercentOfParent(1.0), Size::PercentOfParent(0.2)),
+        size: Xy::new(Size::PercentOfParent(0.17), Size::PercentOfParent(0.2)),
         position: Xy::new_symm(Position::Center),
         container_mode: None,
         editable: false,
