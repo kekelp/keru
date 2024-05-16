@@ -1578,21 +1578,6 @@ impl<T: Pod> TypedGpuBuffer<T> {
     }
 }
 
-// this is a macro only for symmetry. probably not worth it over just ui.add(node_key).
-#[macro_export]
-macro_rules! add {
-    ($ui:expr, $node_key:expr) => {
-        $ui.add($node_key);
-    };
-    ($ui:expr, $node_key:expr, $code:block) => {
-        $ui.add($node_key);
-
-        $ui.parent_stack.push($node_key.id());
-        $code;
-        $ui.parent_stack.pop();
-    };
-}
-
 // these have to be macros only because of the deferred pop().
 #[macro_export]
 macro_rules! column {
@@ -1610,13 +1595,22 @@ macro_rules! column {
 
 #[macro_export]
 macro_rules! row {
+    // anonymous
     ($ui:expr, $code:block) => {
         let anonymous_id = new_id!();
-        let key = NodeKey::new(NodeParams::ROW, anonymous_id);
+        let node_key = NodeKey::new(NodeParams::ROW, anonymous_id);
         
-        $ui.add(key);
+        $ui.add(node_key);
 
         $ui.parent_stack.push(anonymous_id);
+        $code;
+        $ui.parent_stack.pop();
+    };
+    // named
+    ($ui:expr, $node_key:expr, $code:block) => {
+        $ui.add($node_key);
+
+        $ui.parent_stack.push($node_key.id());
         $code;
         $ui.parent_stack.pop();
     };

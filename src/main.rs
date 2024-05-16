@@ -101,11 +101,10 @@ impl<'window> State<'window> {
         self.ui.update_gpu_time(&self.queue);
 
         let ui = &mut self.ui;
-        // CounterState::add(&mut self.ui, &mut self.counter_state);
         floating_window!(ui, {
-            add!(ui, COMMAND_LINE);
+            ui.add(COMMAND_LINE);
 
-            add!(ui, CENTER_ROW, {
+            row!(ui, CENTER_ROW, {
 
                 column!(ui, {
                     if self.counter_state.counter_mode {
@@ -123,8 +122,7 @@ impl<'window> State<'window> {
                         true => "Hide counter",
                         false => "Show counter",
                     };
-                    add!(ui, SHOW_COUNTER_BUTTON);
-                    ui.text(SHOW_COUNTER_BUTTON.id, text);
+                    ui.add(SHOW_COUNTER_BUTTON).text(text);
                 });
             });
         });
