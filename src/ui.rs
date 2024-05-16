@@ -120,7 +120,7 @@ impl Default for NodeParams {
 }
 
 impl NodeParams {
-    pub const COLUMN: Self = Self {
+    pub const V_STACK: Self = Self {
         debug_name: "Column",
         static_text: None,
         clickable: true,
@@ -141,7 +141,7 @@ impl NodeParams {
         editable: false,
         z: 0.0,
     };
-    pub const ROW: Self = Self {
+    pub const H_STACK: Self = Self {
         debug_name: "Column",
         static_text: None,
         visible_rect: false,
@@ -1578,57 +1578,37 @@ impl<T: Pod> TypedGpuBuffer<T> {
     }
 }
 
-// these have to be macros only because of the deferred pop().
-#[macro_export]
-macro_rules! column {
-    ($ui:expr, $code:block) => {
-        let anonymous_id = new_id!();
-        let key = NodeKey::new(NodeParams::COLUMN, anonymous_id);
+macro_rules! create_pop_macro {
+    ($macro_name:ident, $node_params_name:expr) => {
+        #[macro_export]
+        macro_rules! $macro_name {
+            // anonymous
+            ($ui:expr, $code:block) => {
+                let anonymous_id = new_id!();
+                let node_key = NodeKey::new($node_params_name, anonymous_id);
+                
+                $ui.add(node_key);
         
-        $ui.add(key);
-
-        $ui.parent_stack.push(anonymous_id);
-        $code;
-        $ui.parent_stack.pop();
+                $ui.parent_stack.push(anonymous_id);
+                $code;
+                $ui.parent_stack.pop();
+            };
+            // named
+            ($ui:expr, $node_key:expr, $code:block) => {
+                $ui.add($node_key);
+        
+                $ui.parent_stack.push($node_key.id());
+                $code;
+                $ui.parent_stack.pop();
+            };
+        }
     };
 }
 
-#[macro_export]
-macro_rules! row {
-    // anonymous
-    ($ui:expr, $code:block) => {
-        let anonymous_id = new_id!();
-        let node_key = NodeKey::new(NodeParams::ROW, anonymous_id);
-        
-        $ui.add(node_key);
+create_pop_macro!(h_stack, NodeParams::H_STACK);
+create_pop_macro!(v_stack, NodeParams::V_STACK);
+create_pop_macro!(floating_window, NodeParams::FLOATING_WINDOW);
 
-        $ui.parent_stack.push(anonymous_id);
-        $code;
-        $ui.parent_stack.pop();
-    };
-    // named
-    ($ui:expr, $node_key:expr, $code:block) => {
-        $ui.add($node_key);
-
-        $ui.parent_stack.push($node_key.id());
-        $code;
-        $ui.parent_stack.pop();
-    };
-}
-
-#[macro_export]
-macro_rules! floating_window {
-    ($ui:expr, $code:block) => {
-        let anonymous_id = new_id!();
-        let key = NodeKey::new(NodeParams::FLOATING_WINDOW, anonymous_id);
-        
-        $ui.add(key);
-
-        $ui.parent_stack.push(anonymous_id);
-        $code;
-        $ui.parent_stack.pop();
-    };
-}
 
 pub trait Component {
     fn add(&mut self);

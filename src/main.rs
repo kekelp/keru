@@ -104,9 +104,9 @@ impl<'window> State<'window> {
         floating_window!(ui, {
             ui.add(COMMAND_LINE);
 
-            row!(ui, CENTER_ROW, {
+            h_stack!(ui, CENTER_ROW, {
 
-                column!(ui, {
+                v_stack!(ui, {
                     if self.counter_state.counter_mode {
                         let new_color = count_color(self.counter_state.count);
                         ui.add(INCREASE_BUTTON).color(new_color);
@@ -117,7 +117,7 @@ impl<'window> State<'window> {
                     }
                 });
 
-                column!(ui, { 
+                v_stack!(ui, { 
                     let text = match self.counter_state.counter_mode {
                         true => "Hide counter",
                         false => "Show counter",
@@ -178,7 +178,7 @@ pub fn count_color(count: i32) -> Color {
     return Color::rgba(red, 0.1, 0.2, 0.8);
 }
 
-pub const CENTER_ROW: NodeKey = NodeKey::new(NodeParams::ROW, new_id!())
+pub const CENTER_ROW: NodeKey = NodeKey::new(NodeParams::H_STACK, new_id!())
     .with_size_x(0.5)
     .with_position_x(Position::Center)
     .with_debug_name("Center column")
