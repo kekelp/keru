@@ -131,8 +131,8 @@ impl NodeParams {
             b: 0.7,
             a: 0.2,
         },
-        size: Xy::new(Size::PercentOfParent(1.0), Size::PercentOfParent(0.5)),
-        position: Xy::new(Position::Start { padding: 5 }, Position::Center),
+        size: Xy::new(Size::PercentOfParent(0.5), Size::PercentOfParent(1.0)),
+        position: Xy::new_symm(Position::Center),
         container_mode: Some(ContainerMode{
             main_axis_justify: Justify::Start,
             cross_axis_align: Align::Fill,
@@ -153,7 +153,7 @@ impl NodeParams {
             a: 0.2,
         },
         size: Xy::new(Size::PercentOfParent(1.0), Size::PercentOfParent(1.0)),
-        position: Xy::new_symm(Position::Start { padding: 5 }),
+        position: Xy::new_symm(Position::Center),
         container_mode: Some(ContainerMode{
             main_axis_justify: Justify::Start,
             cross_axis_align: Align::Fill,
@@ -400,17 +400,17 @@ impl Color {
 //     node: &'a mut Node,
 // }
 // which would have the same aethetics but would also be faster.
-pub struct UiWithId<'a> {
+pub struct UiWithNode<'a> {
     ui: &'a mut Ui,
     id: Id,
 }
 
-impl<'a> UiWithId<'a> {
-    pub fn color(&mut self, color: Color) {
+impl<'a> UiWithNode<'a> {
+    pub fn set_color(&mut self, color: Color) {
         self.ui.color(self.id, color)
     }
 
-    pub fn text(&mut self, text: impl ToString) {
+    pub fn set_text(&mut self, text: impl ToString) {
         self.ui.text(self.id, text)
     }
 }
@@ -732,7 +732,7 @@ impl Ui {
     }
 
     // todo: deduplicate with refresh (maybe)
-    pub fn add(&mut self, node_key: NodeKey) -> UiWithId {
+    pub fn add(&mut self, node_key: NodeKey) -> UiWithNode {
         let parent_id = *self.parent_stack.last().unwrap();
 
         let node_key_id = node_key.id;
@@ -799,7 +799,7 @@ impl Ui {
             .children_ids
             .push(node_key_id);
 
-        return UiWithId {
+        return UiWithNode {
             ui: self,
             id: node_key_id,
         }
@@ -902,7 +902,7 @@ impl Ui {
         return Some(())
     }
 
-    pub fn handle_input_events(&mut self, full_event: &Event<()>) {
+    pub fn handle_events(&mut self, full_event: &Event<()>, queue: &Queue) {
         if let Event::WindowEvent { event, .. } = full_event {
             match event {
                 WindowEvent::CursorMoved { position, .. } => {
@@ -926,6 +926,9 @@ impl Ui {
                 }
                 WindowEvent::KeyboardInput { event, .. } => {
                     self.handle_keyboard_event(&event);
+                }
+                WindowEvent::Resized(size) => {
+                    self.resize(size, queue)
                 }
                 _ => {}
             }
@@ -1637,3 +1640,6 @@ pub fn cursor_pos_from_byte_offset(buffer: &Buffer, byte_offset: usize) -> (f32,
 }
 
 
+pub fn chud_row() {
+
+}

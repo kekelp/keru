@@ -1,13 +1,44 @@
 use std::sync::Arc;
 
 use wgpu::{
-    CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance, InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue, RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, SurfaceConfiguration, TextureFormat, TextureUsages, TextureView
+    CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance, InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue, RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, Surface, SurfaceConfiguration, TextureFormat, TextureUsages, TextureView
 };
 use winit::{
-    dpi::LogicalSize,
-    event_loop::EventLoop,
-    window::{Window, WindowBuilder},
+    dpi::{LogicalSize, PhysicalSize}, event::{Event, WindowEvent}, event_loop::{EventLoop, EventLoopWindowTarget}, window::{Window, WindowBuilder}
 };
+
+pub struct BaseWindowState<'window> {
+    pub window: Arc<Window>,
+    pub surface: Surface<'window>,
+    pub config: SurfaceConfiguration,
+    pub device: Device,
+    pub queue: Queue,
+}
+impl<'window> BaseWindowState<'window> {
+    pub fn handle_events(&mut self, event: &Event<()>, target: &EventLoopWindowTarget<()>) {
+        match event {
+            Event::WindowEvent {
+                event: WindowEvent::Resized(size),
+                ..
+            } => self.resize(size),
+            Event::AboutToWait => {
+                self.window.request_redraw();
+            }
+            Event::WindowEvent {
+                event: WindowEvent::CloseRequested,
+                ..
+            } => target.exit(),
+            _ => {}
+        }
+    }
+
+    pub fn resize(&mut self, size: &PhysicalSize<u32>) {
+        self.config.width = size.width;
+        self.config.height = size.height;
+        self.surface.configure(&self.device, &self.config);
+        self.window.request_redraw();
+    }
+}
 
 pub fn init_winit_window(width: f64, height: f64) -> (EventLoop<()>, Arc<Window>) {
     let event_loop = EventLoop::new().unwrap();

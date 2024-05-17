@@ -1,22 +1,19 @@
 pub mod helper;
 pub mod ui;
 use helper::{
-    base_color_attachment, base_render_pass_desc, base_surface_config, init_wgpu,
-    init_winit_window, ENC_DESC,
+    base_color_attachment, base_render_pass_desc, base_surface_config, init_wgpu, init_winit_window, BaseWindowState, ENC_DESC
 };
 
 pub use ui::Id;
 
 use ui::{Color, NodeKey, NodeParams, Position, Size, Ui, Xy};
-use wgpu::{Device, Queue, Surface, SurfaceConfiguration, TextureFormat, TextureViewDescriptor};
+use wgpu::{TextureFormat, TextureViewDescriptor};
 use winit::{
-    dpi::PhysicalSize,
     event::{Event, WindowEvent},
     event_loop::{EventLoop, EventLoopWindowTarget},
-    window::Window,
 };
 
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 
 fn main() {
     let (event_loop, mut state) = init();
@@ -44,11 +41,13 @@ fn init() -> (EventLoop<()>, State<'static>) {
     let ui = Ui::new(&device, &config, &queue);
 
     let state = State {
-        window,
-        surface,
-        config,
-        device,
-        queue,
+        base: BaseWindowState {
+            window,
+            surface,
+            config,
+            device,
+            queue,
+        },
         ui,
         counter_state: CounterState::new(),
     };
@@ -57,50 +56,32 @@ fn init() -> (EventLoop<()>, State<'static>) {
 }
 
 pub struct State<'window> {
-    pub window: Arc<Window>,
-    pub surface: Surface<'window>,
-    pub config: SurfaceConfiguration,
-    pub device: Device,
-    pub queue: Queue,
+    pub base: BaseWindowState<'window>,
     pub ui: Ui,
-
     // app state
     pub counter_state: CounterState,
 }
 
 impl<'window> State<'window> {
     pub fn handle_event(&mut self, event: &Event<()>, target: &EventLoopWindowTarget<()>) {
-        self.ui.handle_input_events(event);
-        match event {
-            Event::WindowEvent {
-                event: WindowEvent::Resized(size),
-                ..
-            } => self.resize(size),
+        self.base.handle_events(event, target);
+        self.ui.handle_events(event, &self.base.queue);
 
-            Event::WindowEvent {
-                event: WindowEvent::RedrawRequested,
-                ..
-            } => {
+        if let Event::WindowEvent { event, .. } = event {
+            if let WindowEvent::RedrawRequested = event {
                 self.update();
             }
-            Event::AboutToWait => {
-                self.window.request_redraw();
-            }
-            Event::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                ..
-            } => target.exit(),
-            _ => {}
         }
     }
 
     pub fn update(&mut self) {
-        self.ui.content_changed = true;
-
-        self.ui.update_time();
-        self.ui.update_gpu_time(&self.queue);
-
         let ui = &mut self.ui;
+        
+        ui.content_changed = true;
+
+        ui.update_time();
+        ui.update_gpu_time(&self.base.queue);
+
         floating_window!(ui, {
             ui.add(COMMAND_LINE);
 
@@ -109,9 +90,9 @@ impl<'window> State<'window> {
                 v_stack!(ui, {
                     if self.counter_state.counter_mode {
                         let new_color = count_color(self.counter_state.count);
-                        ui.add(INCREASE_BUTTON).color(new_color);
+                        ui.add(INCREASE_BUTTON).set_color(new_color);
                         
-                        ui.add(COUNT_LABEL).text(self.counter_state.count);
+                        ui.add(COUNT_LABEL).set_text(self.counter_state.count);
                         
                         ui.add(DECREASE_BUTTON);
                     }
@@ -122,16 +103,27 @@ impl<'window> State<'window> {
                         true => "Hide counter",
                         false => "Show counter",
                     };
-                    ui.add(SHOW_COUNTER_BUTTON).text(text);
+                    ui.add(SHOW_COUNTER_BUTTON).set_text(text);
                 });
             });
         });
 
-        self.ui.finish_tree();
+        ui.finish_tree();
 
-        self.ui.layout();
-        self.ui.resolve_mouse_input();
-        self.counter_state.interact(&mut self.ui);
+        ui.layout();
+        ui.resolve_mouse_input();
+
+        if ui.is_clicked(INCREASE_BUTTON.id) {
+            self.counter_state.count += 1;
+        }
+
+        if ui.is_clicked(DECREASE_BUTTON.id) {
+            self.counter_state.count -= 1;
+        }
+
+        if ui.is_clicked(SHOW_COUNTER_BUTTON.id) {
+            self.counter_state.counter_mode = !self.counter_state.counter_mode;
+        }
 
         self.ui.build_buffers();
 
@@ -142,12 +134,12 @@ impl<'window> State<'window> {
 
     pub fn render(&mut self) {
         if self.ui.needs_redraw() {
-            self.ui.prepare(&self.device, &self.queue);
+            self.ui.prepare(&self.base.device, &self.base.queue);
 
-            let frame = self.surface.get_current_texture().unwrap();
+            let frame = self.base.surface.get_current_texture().unwrap();
 
             let view = frame.texture.create_view(&TextureViewDescriptor::default());
-            let mut encoder = self.device.create_command_encoder(&ENC_DESC);
+            let mut encoder = self.base.device.create_command_encoder(&ENC_DESC);
 
             {
                 let color_att = base_color_attachment(&view);
@@ -157,19 +149,11 @@ impl<'window> State<'window> {
                 self.ui.render(&mut render_pass);
             }
 
-            self.queue.submit(Some(encoder.finish()));
+            self.base.queue.submit(Some(encoder.finish()));
             frame.present();
         } else {
             std::thread::sleep(Duration::from_millis(6));
         }
-    }
-
-    pub fn resize(&mut self, size: &PhysicalSize<u32>) {
-        self.config.width = size.width;
-        self.config.height = size.height;
-        self.surface.configure(&self.device, &self.config);
-        self.ui.resize(size, &self.queue);
-        self.window.request_redraw();
     }
 }
 
@@ -226,42 +210,5 @@ impl CounterState {
             count: 0,
             counter_mode: true,
         };
-    }
-
-    // pub fn add(ui: &mut Ui, state: &mut Self) {
-    //     floating_window!(ui, {
-    //         add!(ui, CENTER_COLUMN, {
-    //             if state.counter_mode {
-    //                 add!(ui, INCREASE_BUTTON);
-    //                 ui.update_color(INCREASE_BUTTON.id, count_color(state.count));
-
-    //                 add!(ui, COUNT_LABEL);
-    //                 ui.update_text(COUNT_LABEL.id, state.count);
-
-    //                 add!(ui, DECREASE_BUTTON);
-    //             }
-
-    //             let text = match state.counter_mode {
-    //                 true => "Hide counter",
-    //                 false => "Show counter",
-    //             };
-    //             add!(ui, SHOW_COUNTER_BUTTON);
-    //             ui.update_text(SHOW_COUNTER_BUTTON.id, text);
-    //         });
-    //     });
-    // }
-
-    pub fn interact(&mut self, ui: &mut Ui) {
-        if ui.is_clicked(INCREASE_BUTTON.id) {
-            self.count += 1;
-        }
-
-        if ui.is_clicked(DECREASE_BUTTON.id) {
-            self.count -= 1;
-        }
-
-        if ui.is_clicked(SHOW_COUNTER_BUTTON.id) {
-            self.counter_mode = !self.counter_mode;
-        }
     }
 }
