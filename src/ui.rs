@@ -47,6 +47,9 @@ pub const NODE_ROOT: Node = Node {
     z: -10000.0,
 };
 
+const IX: usize = 0;
+const IY: usize = 1;
+
 #[derive(Debug, Clone, Copy)]
 pub enum Axis {
     X,
@@ -80,6 +83,9 @@ impl<T> IndexMut<Axis> for Xy<T> {
         }
     }
 }
+unsafe impl Zeroable for Xy<f32> {}
+unsafe impl Pod for Xy<f32> {}
+
 impl<T: Copy> Xy<T> {
     pub const fn new(x: T, y: T) -> Self {
         return Self([x, y]);
@@ -106,7 +112,7 @@ pub struct NodeParams {
     pub color: Color,
     pub size: Xy<Size>,
     pub position: Xy<Position>,
-    pub container_mode: Option<ContainerMode>,
+    pub container_mode: Option<Stack>,
     pub z: f32,
 }
 
@@ -118,8 +124,8 @@ impl Default for NodeParams {
             clickable: false,
             visible_rect: false,
             color: Color::BLUE,
-            size: Xy::new_symm(Size::PercentOfParent(0.5)),
-            position: Xy::new_symm(Position::Start { padding: 5 }),
+            size: Xy::new_symm(Size::PercentOfAvailable(0.5)),
+            position: Xy::new_symm(Position::Start),
             container_mode: None,
             editable: false,
             z: 0.0,
@@ -133,15 +139,10 @@ impl NodeParams {
         static_text: None,
         clickable: true,
         visible_rect: false,
-        color: Color {
-            r: 0.0,
-            g: 0.2,
-            b: 0.7,
-            a: 0.2,
-        },
-        size: Xy::new(Size::PercentOfParent(0.5), Size::PercentOfParent(1.0)),
+        color: Color::rgba(0.0, 0.0, 0.0, 0.0),
+        size: Xy::new(Size::PercentOfAvailable(1.0), Size::PercentOfAvailable(1.0)),
         position: Xy::new_symm(Position::Center),
-        container_mode: Some(ContainerMode {
+        container_mode: Some(Stack {
             main_axis_justify: Justify::Start,
             cross_axis_align: Align::Fill,
             main_axis: Axis::Y,
@@ -154,15 +155,10 @@ impl NodeParams {
         static_text: None,
         visible_rect: false,
         clickable: true,
-        color: Color {
-            r: 0.0,
-            g: 0.2,
-            b: 0.7,
-            a: 0.2,
-        },
-        size: Xy::new(Size::PercentOfParent(1.0), Size::PercentOfParent(1.0)),
+        color: Color::rgba(0.0, 0.0, 0.0, 0.0),
+        size: Xy::new(Size::PercentOfAvailable(1.0), Size::PercentOfAvailable(1.0)),
         position: Xy::new_symm(Position::Center),
-        container_mode: Some(ContainerMode {
+        container_mode: Some(Stack {
             main_axis_justify: Justify::Start,
             cross_axis_align: Align::Fill,
             main_axis: Axis::X,
@@ -175,13 +171,8 @@ impl NodeParams {
         static_text: None,
         clickable: true,
         visible_rect: false,
-        color: Color {
-            r: 0.7,
-            g: 0.0,
-            b: 0.0,
-            a: 0.2,
-        },
-        size: Xy::new_symm(Size::PercentOfParent(0.9)),
+        color: Color::rgba(0.0, 0.0, 0.0, 0.0),
+        size: Xy::new_symm(Size::PercentOfAvailable(0.95)),
         position: Xy::new_symm(Position::Center),
         container_mode: None,
         editable: false,
@@ -193,13 +184,8 @@ impl NodeParams {
         static_text: None,
         clickable: true,
         visible_rect: true,
-        color: Color {
-            r: 0.0,
-            g: 0.1,
-            b: 0.1,
-            a: 0.9,
-        },
-        size: Xy::new_symm(Size::PercentOfParent(0.17)),
+        color: Color::rgba(0.0, 0.1, 0.1, 0.9),
+        size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
         position: Xy::new_symm(Position::Center),
         container_mode: None,
         editable: false,
@@ -211,13 +197,8 @@ impl NodeParams {
         static_text: None,
         clickable: false,
         visible_rect: true,
-        color: Color {
-            r: 0.0,
-            g: 0.1,
-            b: 0.1,
-            a: 0.9,
-        },
-        size: Xy::new_symm(Size::PercentOfParent(0.3)),
+        color: Color::rgba(0.0, 0.1, 0.1, 0.9),
+        size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
         position: Xy::new_symm(Position::Center),
         container_mode: None,
         editable: false,
@@ -229,14 +210,9 @@ impl NodeParams {
         static_text: None,
         clickable: true,
         visible_rect: true,
-        color: Color {
-            r: 0.0,
-            g: 0.1,
-            b: 0.1,
-            a: 0.9,
-        },
-        size: Xy::new(Size::PercentOfParent(0.5), Size::PercentOfParent(0.1)),
-        position: Xy::new_symm(Position::Start { padding: 5 }),
+        color: Color::rgba(0.1, 0.0, 0.1, 0.9),
+        size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
+        position: Xy::new_symm(Position::Start),
         container_mode: None,
         editable: true,
         z: 0.0,
@@ -247,15 +223,14 @@ impl NodeParams {
 // it's still too easy to clone an Id, but taking Clone out from that seems too annoying for now.
 #[derive(Debug)]
 pub struct NodeKey {
-    // stuff like layout params, how it reacts to clicks, etc
     pub id: Id,
-    pub params: NodeParams,
+    pub defaults: NodeParams,
 }
 
 use std::hash::Hash;
 impl NodeKey {
-    pub const fn new(params: NodeParams, id: Id) -> Self {
-        return Self { params, id };
+    pub const fn new(defaults: NodeParams, id: Id) -> Self {
+        return Self { defaults, id };
     }
 
     pub fn id(&self) -> Id {
@@ -277,32 +252,46 @@ impl NodeKey {
 
         return Self {
             id: Id(new_id),
-            params: self.params.clone(),
+            defaults: self.defaults.clone(),
         };
     }
 
     pub const fn with_size_x(mut self, size: f32) -> Self {
-        self.params.size.0[0] = Size::PercentOfParent(size);
+        // can't use the [X] syntax in const functions: functions in trait impls cannot be declared const
+        self.defaults.size.0[IX] = Size::PercentOfAvailable(size);
+        return self;
+    }
+
+    pub const fn with_size_y(mut self, size: f32) -> Self {
+        // can't use the [X] syntax in const functions: functions in trait impls cannot be declared const
+        self.defaults.size.0[IY] = Size::PercentOfAvailable(size);
         return self;
     }
 
     pub const fn with_position_x(mut self, position: Position) -> Self {
-        self.params.position.0[0] = position;
+        // can't use the [X] syntax in const functions: functions in trait impls cannot be declared const
+        self.defaults.position.0[IX] = position;
+        return self;
+    }
+
+    pub const fn with_position_y(mut self, position: Position) -> Self {
+        // can't use the [X] syntax in const functions: functions in trait impls cannot be declared const
+        self.defaults.position.0[IY] = position;
         return self;
     }
 
     pub const fn with_static_text(mut self, text: &'static str) -> Self {
-        self.params.static_text = Some(text);
+        self.defaults.static_text = Some(text);
         return self;
     }
 
     pub const fn with_debug_name(mut self, text: &'static str) -> Self {
-        self.params.debug_name = text;
+        self.defaults.debug_name = text;
         return self;
     }
 
     pub const fn with_color(mut self, color: Color) -> Self {
-        self.params.color = color;
+        self.defaults.color = color;
         return self;
     }
 }
@@ -311,6 +300,7 @@ impl NodeKey {
 #[repr(C)]
 // Layout has to match the one in the shader.
 pub struct Rectangle {
+    // todo: switch to Xy<[f32; 2]>
     pub x0: f32,
     pub x1: f32,
     pub y0: f32,
@@ -432,13 +422,14 @@ pub struct PartialBorrowStuff {
 }
 impl PartialBorrowStuff {
     pub fn is_rect_clicked_or_hovered(&self, rect: &Rectangle) -> (bool, bool) {
+        // rects are rebuilt from scratch every render, so this isn't needed, for now. 
         // if rect.last_frame_touched != self.current_frame {
         //     return (false, false);
         // }
 
         let mut mouse_pos = (
-            self.mouse_pos.x / self.unifs.width,
-            1.0 - (self.mouse_pos.y / self.unifs.height),
+            self.mouse_pos.x / self.unifs.size[X],
+            1.0 - (self.mouse_pos.y / self.unifs.size[Y]),
         );
 
         // transform mouse_pos into "opengl" centered coordinates
@@ -599,8 +590,7 @@ impl Ui {
         };
 
         let uniforms = Uniforms {
-            width: config.width as f32,
-            height: config.height as f32,
+            size: Xy::new(config.width as f32, config.height as f32),
             t: 0.,
             _padding: 0.,
         };
@@ -742,7 +732,7 @@ impl Ui {
         let old_node = self.nodes.get_mut(&node_key_id);
         if old_node.is_none() {
             let mut text_id = None;
-            if let Some(text) = node_key.params.static_text {
+            if let Some(text) = node_key.defaults.static_text {
                 // text size
                 let mut buffer = Buffer::new(&mut self.font_system, Metrics::new(42.0, 42.0));
                 buffer.set_size(&mut self.font_system, 100000., 100000.);
@@ -808,7 +798,7 @@ impl Ui {
             text_id,
             parent_id,
             children_ids: Vec::new(),
-            params: node_key.params,
+            params: node_key.defaults,
             last_frame_touched: self.part.current_frame,
             last_frame_status: LastFrameStatus::Nothing,
             last_hover: f32::MIN,
@@ -946,47 +936,51 @@ impl Ui {
             // todo: garbage
             let parent_rect: Rect;
             let children: Vec<Id>;
-            let container_mode: Option<ContainerMode>;
+            let is_stack: Option<Stack>;
             {
                 let parent_node = self.nodes.get(&current_node_id).unwrap();
                 children = parent_node.children_ids.clone();
                 parent_rect = parent_node.rect;
-                container_mode = parent_node.params.container_mode;
+                is_stack = parent_node.params.container_mode;
             }
             let parent_size = parent_rect.size();
 
-            match container_mode {
-                Some(mode) => {
-                    let padding = 5;
-                    let mut main_0 =
-                        parent_rect[mode.main_axis][0] + (padding as f32 / self.part.unifs.width);
+            match is_stack {
+                Some(stack) => {
+                    let main_axis = stack.main_axis;
+                    // space for each child on the main axis
+                    let n = children.len() as f32;
+                    let spacing_pixels = 7;
+                    let spacing_f = spacing_pixels as f32 / self.part.unifs.size[main_axis];
+                    let main_width = (parent_size[main_axis] - (n - 1.0) * spacing_f as f32) / n;
+
+                    let mut main_0 = parent_rect[main_axis][0];
 
                     for &child_id in children.iter().rev() {
                         let child = self.nodes.get_mut(&child_id).unwrap();
-                        let main_axis = mode.main_axis;
                         child.rect[main_axis][0] = main_0;
 
                         match child.params.size[main_axis] {
-                            Size::PercentOfParent(percent) => {
-                                let main_1 = main_0 + parent_size[main_axis] * percent;
+                            Size::PercentOfAvailable(percent) => {
+                                let main_1 = main_0 + main_width * percent;
                                 child.rect[main_axis][1] = main_1;
-                                main_0 = main_1 + (padding as f32 / self.part.unifs.width);
+                                main_0 = main_1 + spacing_f;
                             }
                         }
 
-                        let cross_axis = mode.main_axis.other();
+                        let cross_axis = main_axis.other();
                         match child.params.position[cross_axis] {
-                            Position::Start { padding } => match child.params.size[cross_axis] {
-                                Size::PercentOfParent(percent) => {
+                            Position::Start => match child.params.size[cross_axis] {
+                                Size::PercentOfAvailable(percent) => {
                                     let cross_0 = parent_rect[cross_axis][0]
-                                        + (padding as f32 / self.part.unifs.width);
+                                        + spacing_f;
                                     let cross_1 = cross_0 + parent_size[cross_axis] * percent;
                                     child.rect[cross_axis][0] = cross_0;
                                     child.rect[cross_axis][1] = cross_1;
                                 }
                             },
                             Position::Center => match child.params.size[cross_axis] {
-                                Size::PercentOfParent(percent) => {
+                                Size::PercentOfAvailable(percent) => {
                                     let center =
                                         parent_rect[cross_axis][0] + parent_size[cross_axis] / 2.0;
                                     let width = parent_size[cross_axis] * percent;
@@ -995,6 +989,7 @@ impl Ui {
                                     child.rect[cross_axis] = [x0, x1];
                                 }
                             },
+                            Position::End => todo!(),
                         }
 
                         let rect = child.rect;
@@ -1010,12 +1005,20 @@ impl Ui {
 
                         for axis in [X, Y] {
                             match child.params.position[axis] {
-                                Position::Start { padding } => {
-                                    let x0 = parent_rect[axis][0]
-                                        + (padding as f32 / self.part.unifs.width);
+                                Position::Start => {
+                                    let x0 = parent_rect[axis][0];
                                     match child.params.size[axis] {
-                                        Size::PercentOfParent(percent) => {
+                                        Size::PercentOfAvailable(percent) => {
                                             let x1 = x0 + parent_size[axis] * percent;
+                                            child.rect[axis] = [x0, x1];
+                                        }
+                                    }
+                                }
+                                Position::End => {
+                                    let x1 = parent_rect[axis][1];
+                                    match child.params.size[axis] {
+                                        Size::PercentOfAvailable(percent) => {
+                                            let x0 = x1 - parent_size[axis] * percent;
                                             child.rect[axis] = [x0, x1];
                                         }
                                     }
@@ -1023,7 +1026,7 @@ impl Ui {
                                 Position::Center => {
                                     let center = parent_rect[axis][0] + parent_size[axis] / 2.0;
                                     match child.params.size[axis] {
-                                        Size::PercentOfParent(percent) => {
+                                        Size::PercentOfAvailable(percent) => {
                                             let width = parent_size[axis] * percent;
                                             let x0 = center - width / 2.0;
                                             let x1 = center + width / 2.0;
@@ -1048,8 +1051,8 @@ impl Ui {
 
     pub fn layout_text(&mut self, text_id: Option<usize>, rect: Rect) {
         if let Some(text_id) = text_id {
-            self.text_areas[text_id].left = rect[X][0] * self.part.unifs.width;
-            self.text_areas[text_id].top = (1.0 - rect[Y][1]) * self.part.unifs.height;
+            self.text_areas[text_id].left = rect[X][0] * self.part.unifs.size[X];
+            self.text_areas[text_id].top = (1.0 - rect[Y][1]) * self.part.unifs.size[Y];
             self.text_areas[text_id]
                 .buffer
                 .shape_until_scroll(&mut self.font_system, false);
@@ -1067,8 +1070,8 @@ impl Ui {
     }
 
     pub fn resize(&mut self, size: &PhysicalSize<u32>, queue: &Queue) {
-        self.part.unifs.width = size.width as f32;
-        self.part.unifs.height = size.height as f32;
+        self.part.unifs.size[X] = size.width as f32;
+        self.part.unifs.size[Y] = size.height as f32;
         self.content_changed = true;
         self.tree_changed = true;
 
@@ -1159,13 +1162,13 @@ impl Ui {
                 let cursor_width = focused_text_area.buffer.metrics().font_size / 20.0;
                 let cursor_height = focused_text_area.buffer.metrics().font_size;
                 // we're counting on this always happening after layout. which should be safe.
-                let x0 = ((x - 1.0) / self.part.unifs.width) * 2.0;
-                let x1 = ((x + cursor_width) / self.part.unifs.width) * 2.0;
+                let x0 = ((x - 1.0) / self.part.unifs.size[X]) * 2.0;
+                let x1 = ((x + cursor_width) / self.part.unifs.size[X]) * 2.0;
                 let x0 = x0 + (rect_x0 * 2. - 1.);
                 let x1 = x1 + (rect_x0 * 2. - 1.);
 
-                let y0 = ((-y - cursor_height) / self.part.unifs.height) * 2.0;
-                let y1 = ((-y) / self.part.unifs.height) * 2.0;
+                let y0 = ((-y - cursor_height) / self.part.unifs.size[Y]) * 2.0;
+                let y1 = ((-y) / self.part.unifs.size[Y]) * 2.0;
                 let y0 = y0 + (rect_y1 * 2. - 1.);
                 let y1 = y1 + (rect_y1 * 2. - 1.);
 
@@ -1200,13 +1203,13 @@ impl Ui {
 
                 // let cursor_width = focused_text_area.buffer.metrics().font_size / 20.0;
                 let cursor_height = focused_text_area.buffer.metrics().font_size;
-                let x0 = ((x0 - 1.0) / self.part.unifs.width) * 2.0;
-                let x1 = ((x1 + 1.0) / self.part.unifs.width) * 2.0;
+                let x0 = ((x0 - 1.0) / self.part.unifs.size[X]) * 2.0;
+                let x1 = ((x1 + 1.0) / self.part.unifs.size[X]) * 2.0;
                 let x0 = x0 + (rect_x0 * 2. - 1.);
                 let x1 = x1 + (rect_x0 * 2. - 1.);
 
-                let y0 = ((-y0 - cursor_height) / self.part.unifs.height) * 2.0;
-                let y1 = ((-y1) / self.part.unifs.height) * 2.0;
+                let y0 = ((-y0 - cursor_height) / self.part.unifs.size[Y]) * 2.0;
+                let y1 = ((-y1) / self.part.unifs.size[Y]) * 2.0;
                 let y0 = y0 + (rect_y1 * 2. - 1.);
                 let y1 = y1 + (rect_y1 * 2. - 1.);
 
@@ -1260,8 +1263,8 @@ impl Ui {
                     &mut self.font_system,
                     &mut self.atlas,
                     GlyphonResolution {
-                        width: self.part.unifs.width as u32,
-                        height: self.part.unifs.height as u32,
+                        width: self.part.unifs.size[X] as u32,
+                        height: self.part.unifs.size[Y] as u32,
                     },
                     &mut self.text_areas,
                     &mut self.cache,
@@ -1420,7 +1423,7 @@ impl Len {
 // textorimagecontent is more of a "min size" thing, I think.
 #[derive(Debug, Clone, Copy)]
 pub enum Size {
-    PercentOfParent(f32),
+    PercentOfAvailable(f32),
     // Pixels(u32),
     // TextOrImageContent { padding: u32 },
     // // ImageContent { padding: u32 },
@@ -1432,14 +1435,14 @@ pub enum Size {
 #[derive(Debug, Clone, Copy)]
 pub enum Position {
     Center,
-    Start { padding: u32 },
-    // End { padding: u32 },
+    Start,
+    End,
     // TrustParent,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
-pub struct ContainerMode {
+pub struct Stack {
     main_axis_justify: Justify,
     cross_axis_align: Align,
     main_axis: Axis,
@@ -1465,7 +1468,7 @@ pub enum Align {
 
 pub const NODE_ROOT_KEY: NodeKey = NodeKey {
     id: NODE_ROOT_ID,
-    params: NODE_ROOT_PARAMS,
+    defaults: NODE_ROOT_PARAMS,
 };
 
 pub const NODE_ROOT_PARAMS: NodeParams = NodeParams {
@@ -1479,8 +1482,8 @@ pub const NODE_ROOT_PARAMS: NodeParams = NodeParams {
         b: 1.0,
         a: 0.0,
     },
-    size: Xy::new_symm(Size::PercentOfParent(1.0)),
-    position: Xy::new_symm(Position::Start { padding: 0 }),
+    size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
+    position: Xy::new_symm(Position::Start),
     container_mode: None,
     editable: false,
     z: 0.0,
@@ -1534,10 +1537,9 @@ macro_rules! new_id {
 }
 
 #[repr(C)]
-#[derive(Default, Debug, Pod, Copy, Clone, Zeroable)]
+#[derive(Debug, Pod, Copy, Clone, Zeroable)]
 pub struct Uniforms {
-    pub width: f32,
-    pub height: f32,
+    pub size: Xy<f32>,
     pub t: f32,
     pub _padding: f32,
 }

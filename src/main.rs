@@ -118,7 +118,7 @@ impl<'window> State<'window> {
         self.ui.build_buffers();
 
         self.render();
-
+        
         self.ui.finish_frame();
     }
 
@@ -153,8 +153,6 @@ pub fn count_color(count: i32) -> Color {
 }
 
 pub const CENTER_ROW: NodeKey = NodeKey::new(NodeParams::H_STACK, new_id!())
-    .with_size_x(0.5)
-    .with_position_x(Position::Center)
     .with_debug_name("Center column")
     .with_color(Color::BLUE);
 
@@ -177,6 +175,8 @@ pub const COUNT_LABEL: NodeKey = NodeKey::new(NodeParams::LABEL, new_id!());
 
 pub const COMMAND_LINE: NodeKey = NodeKey::new(NodeParams::TEXT_INPUT, new_id!())
     .with_debug_name("Command line")
+    .with_size_y(0.1)
+    .with_position_y(Position::End)
     .with_static_text("高38道ょつ準傷に債健の🤦🏼‍♂️🚵🏻‍♀️");
 
 pub struct CounterState {
