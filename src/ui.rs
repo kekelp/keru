@@ -1,8 +1,14 @@
+use glyphon::Cursor as GlyphonCursor;
 use glyphon::{cosmic_text::StringCursor, Affinity, Resolution as GlyphonResolution};
 use rustc_hash::{FxHashMap, FxHasher};
-use glyphon::Cursor as GlyphonCursor;
 
-use std::{hash::Hasher, marker::PhantomData, mem, ops::{Index, IndexMut}, time::Instant};
+use std::{
+    hash::Hasher,
+    marker::PhantomData,
+    mem,
+    ops::{Index, IndexMut},
+    time::Instant,
+};
 
 use bytemuck::{Pod, Zeroable};
 use glyphon::{
@@ -16,7 +22,9 @@ use wgpu::{
     VertexBufferLayout, VertexStepMode,
 };
 use winit::{
-    dpi::{PhysicalPosition, PhysicalSize}, event::{ElementState, Event, KeyEvent, MouseButton, WindowEvent}, keyboard::{ModifiersState, NamedKey}
+    dpi::{PhysicalPosition, PhysicalSize},
+    event::{ElementState, Event, KeyEvent, MouseButton, WindowEvent},
+    keyboard::{ModifiersState, NamedKey},
 };
 use Axis::{X, Y};
 
@@ -69,7 +77,7 @@ impl<T> IndexMut<Axis> for Xy<T> {
         match axis {
             Axis::X => return &mut self.0[0],
             Axis::Y => return &mut self.0[1],
-        }    
+        }
     }
 }
 impl<T: Copy> Xy<T> {
@@ -133,7 +141,7 @@ impl NodeParams {
         },
         size: Xy::new(Size::PercentOfParent(0.5), Size::PercentOfParent(1.0)),
         position: Xy::new_symm(Position::Center),
-        container_mode: Some(ContainerMode{
+        container_mode: Some(ContainerMode {
             main_axis_justify: Justify::Start,
             cross_axis_align: Align::Fill,
             main_axis: Axis::Y,
@@ -154,7 +162,7 @@ impl NodeParams {
         },
         size: Xy::new(Size::PercentOfParent(1.0), Size::PercentOfParent(1.0)),
         position: Xy::new_symm(Position::Center),
-        container_mode: Some(ContainerMode{
+        container_mode: Some(ContainerMode {
             main_axis_justify: Justify::Start,
             cross_axis_align: Align::Fill,
             main_axis: Axis::X,
@@ -319,11 +327,10 @@ pub struct Rectangle {
     pub z: f32,
 
     pub radius: f32,
-    
+
     // -- useless for shader
     pub _padding: f32,
     pub id: Id,
-
 }
 impl Rectangle {
     pub fn buffer_desc() -> [VertexAttribute; 8] {
@@ -425,19 +432,18 @@ pub struct PartialBorrowStuff {
 }
 impl PartialBorrowStuff {
     pub fn is_rect_clicked_or_hovered(&self, rect: &Rectangle) -> (bool, bool) {
-        
         // if rect.last_frame_touched != self.current_frame {
-            //     return (false, false);
-            // }
-            
+        //     return (false, false);
+        // }
+
         let mut mouse_pos = (
             self.mouse_pos.x / self.unifs.width,
             1.0 - (self.mouse_pos.y / self.unifs.height),
         );
 
         // transform mouse_pos into "opengl" centered coordinates
-        mouse_pos.0 = (mouse_pos.0 * 2.0) - 1.0 ;
-        mouse_pos.1 = (mouse_pos.1 * 2.0) - 1.0 ;
+        mouse_pos.0 = (mouse_pos.0 * 2.0) - 1.0;
+        mouse_pos.1 = (mouse_pos.1 * 2.0) - 1.0;
 
         let hovered = rect.x0 < mouse_pos.0
             && mouse_pos.0 < rect.x1
@@ -445,7 +451,7 @@ impl PartialBorrowStuff {
             && mouse_pos.1 < rect.y1;
 
         if hovered == false {
-            return (false, false)
+            return (false, false);
         };
 
         let clicked = self.mouse_left_just_clicked;
@@ -459,11 +465,10 @@ pub struct BlinkyLine {
     pub affinity: Affinity,
 }
 
-
 #[derive(Debug, Copy, Clone)]
 pub enum Cursor {
     BlinkyLine(BlinkyLine),
-    Selection((GlyphonCursor, GlyphonCursor))
+    Selection((GlyphonCursor, GlyphonCursor)),
 }
 
 type Rect = Xy<[f32; 2]>;
@@ -521,23 +526,18 @@ impl Ui {
         let text_id = self.nodes.get(&id).unwrap().text_id;
         let text_id = match text_id {
             Some(text_id) => {
-
                 if hash == self.text_areas[text_id].last_hash {
-                    // todo: I shouldn't have to do this, I don't think, it's visible as long as the node is visible?? 
+                    // todo: I shouldn't have to do this, I don't think, it's visible as long as the node is visible??
                     self.text_areas[text_id].last_frame_touched = self.part.current_frame;
                     return;
                 }
                 self.text_areas[text_id].last_hash = hash;
 
                 text_id
-            },
+            }
             None => {
                 let mut buffer = Buffer::new(&mut self.font_system, Metrics::new(42.0, 42.0));
-                buffer.set_size(
-                    &mut self.font_system,
-                    100000.,
-                    100000.,
-                );
+                buffer.set_size(&mut self.font_system, 100000., 100000.);
 
                 let text_area = TextArea {
                     buffer,
@@ -560,11 +560,11 @@ impl Ui {
                 let text_id = Some(self.text_areas.len() - 1);
                 self.nodes.get_mut(&id).unwrap().text_id = text_id;
                 text_id.unwrap()
-            },
+            }
         };
         self.text_areas[text_id].buffer.set_text(
             &mut self.font_system,
-            &text, 
+            &text,
             Attrs::new().family(Family::SansSerif),
             Shaping::Advanced,
         );
@@ -706,7 +706,7 @@ impl Ui {
             stack: Vec::new(),
 
             parent_stack,
-            
+
             part: PartialBorrowStuff {
                 mouse_pos: PhysicalPosition { x: 0., y: 0. },
                 mouse_left_clicked: false,
@@ -745,12 +745,8 @@ impl Ui {
             if let Some(text) = node_key.params.static_text {
                 // text size
                 let mut buffer = Buffer::new(&mut self.font_system, Metrics::new(42.0, 42.0));
-                buffer.set_size(
-                    &mut self.font_system,
-                    100000.,
-                    100000.,
-                );
-                
+                buffer.set_size(&mut self.font_system, 100000., 100000.);
+
                 let mut hasher = FxHasher::default();
                 text.hash(&mut hasher);
                 let hash = hasher.finish();
@@ -787,7 +783,7 @@ impl Ui {
         } else {
             let old_node = old_node.unwrap();
             if let Some(text_id) = old_node.text_id {
-                    self.text_areas[text_id].last_frame_touched = self.part.current_frame;
+                self.text_areas[text_id].last_frame_touched = self.part.current_frame;
             }
             old_node.last_frame_touched = self.part.current_frame;
             old_node.children_ids.clear();
@@ -802,7 +798,7 @@ impl Ui {
         return UiWithNode {
             ui: self,
             id: node_key_id,
-        }
+        };
     }
 
     pub fn new_node(&self, node_key: NodeKey, parent_id: Id, text_id: Option<usize>) -> Node {
@@ -829,13 +825,16 @@ impl Ui {
 
         if event.state.is_pressed() {
             let buffer = &mut self.text_areas[text_id].buffer;
-            
+
             match &event.logical_key {
                 winit::keyboard::Key::Named(named_key) => {
                     // todo: when holding control all key events arrive duplicated??
                     match named_key {
                         NamedKey::ArrowLeft => {
-                            match (self.key_modifiers.shift_key(), self.key_modifiers.control_key()) {
+                            match (
+                                self.key_modifiers.shift_key(),
+                                self.key_modifiers.control_key(),
+                            ) {
                                 (true, true) => buffer.lines[0].text.control_shift_left_arrow(),
                                 (true, false) => buffer.lines[0].text.shift_left_arrow(),
                                 (false, true) => buffer.lines[0].text.control_left_arrow(),
@@ -843,7 +842,10 @@ impl Ui {
                             }
                         }
                         NamedKey::ArrowRight => {
-                            match (self.key_modifiers.shift_key(), self.key_modifiers.control_key()) {
+                            match (
+                                self.key_modifiers.shift_key(),
+                                self.key_modifiers.control_key(),
+                            ) {
                                 (true, true) => buffer.lines[0].text.control_shift_right_arrow(),
                                 (true, false) => buffer.lines[0].text.shift_right_arrow(),
                                 (false, true) => buffer.lines[0].text.control_right_arrow(),
@@ -883,23 +885,20 @@ impl Ui {
                         NamedKey::Space => {
                             buffer.lines[0].text.insert_str_at_cursor(" ");
                             buffer.lines[0].reset();
-                        },
-                        _ => {},
+                        }
+                        _ => {}
                     }
-                },
+                }
                 winit::keyboard::Key::Character(new_char) => {
                     buffer.lines[0].text.insert_str_at_cursor(&new_char);
                     buffer.lines[0].reset();
-                },
-                winit::keyboard::Key::Unidentified(_) => {},
-                winit::keyboard::Key::Dead(_) => {},
+                }
+                winit::keyboard::Key::Unidentified(_) => {}
+                winit::keyboard::Key::Dead(_) => {}
             };
-            
-            
         }
-    
-    
-        return Some(())
+
+        return Some(());
     }
 
     pub fn handle_events(&mut self, full_event: &Event<()>, queue: &Queue) {
@@ -927,26 +926,23 @@ impl Ui {
                 WindowEvent::KeyboardInput { event, .. } => {
                     self.handle_keyboard_event(&event);
                 }
-                WindowEvent::Resized(size) => {
-                    self.resize(size, queue)
-                }
+                WindowEvent::Resized(size) => self.resize(size, queue),
                 _ => {}
             }
         }
     }
 
     pub fn layout(&mut self) {
-        if ! self.needs_redraw() {
+        if !self.needs_redraw() {
             return;
         }
         self.stack.clear();
 
         // push the root
         self.stack.push(NODE_ROOT_ID);
-        
+
         // start processing a parent
         while let Some(current_node_id) = self.stack.pop() {
-            
             // todo: garbage
             let parent_rect: Rect;
             let children: Vec<Id>;
@@ -962,10 +958,10 @@ impl Ui {
             match container_mode {
                 Some(mode) => {
                     let padding = 5;
-                    let mut main_0 = parent_rect[mode.main_axis][0] + (padding as f32 / self.part.unifs.width);
+                    let mut main_0 =
+                        parent_rect[mode.main_axis][0] + (padding as f32 / self.part.unifs.width);
 
                     for &child_id in children.iter().rev() {
-
                         let child = self.nodes.get_mut(&child_id).unwrap();
                         let main_axis = mode.main_axis;
                         child.rect[main_axis][0] = main_0;
@@ -975,30 +971,28 @@ impl Ui {
                                 let main_1 = main_0 + parent_size[main_axis] * percent;
                                 child.rect[main_axis][1] = main_1;
                                 main_0 = main_1 + (padding as f32 / self.part.unifs.width);
-                            },
+                            }
                         }
 
                         let cross_axis = mode.main_axis.other();
                         match child.params.position[cross_axis] {
-                            Position::Start { padding } => {
-                                match child.params.size[cross_axis] {
-                                    Size::PercentOfParent(percent) => {
-                                        let cross_0 = parent_rect[cross_axis][0] + (padding as f32 / self.part.unifs.width);
-                                        let cross_1 = cross_0 + parent_size[cross_axis] * percent;
-                                        child.rect[cross_axis][0] = cross_0;
-                                        child.rect[cross_axis][1] = cross_1;
-                                    },
+                            Position::Start { padding } => match child.params.size[cross_axis] {
+                                Size::PercentOfParent(percent) => {
+                                    let cross_0 = parent_rect[cross_axis][0]
+                                        + (padding as f32 / self.part.unifs.width);
+                                    let cross_1 = cross_0 + parent_size[cross_axis] * percent;
+                                    child.rect[cross_axis][0] = cross_0;
+                                    child.rect[cross_axis][1] = cross_1;
                                 }
                             },
-                            Position::Center => {
-                                match child.params.size[cross_axis] {
-                                    Size::PercentOfParent(percent) => {
-                                        let center = parent_rect[cross_axis][0] + parent_size[cross_axis] / 2.0;
-                                        let width = parent_size[cross_axis] * percent;
-                                        let x0 = center - width / 2.0;
-                                        let x1 = center + width / 2.0;
-                                        child.rect[cross_axis] = [x0, x1];
-                                    },
+                            Position::Center => match child.params.size[cross_axis] {
+                                Size::PercentOfParent(percent) => {
+                                    let center =
+                                        parent_rect[cross_axis][0] + parent_size[cross_axis] / 2.0;
+                                    let width = parent_size[cross_axis] * percent;
+                                    let x0 = center - width / 2.0;
+                                    let x1 = center + width / 2.0;
+                                    child.rect[cross_axis] = [x0, x1];
                                 }
                             },
                         }
@@ -1009,24 +1003,23 @@ impl Ui {
 
                         self.stack.push(child_id);
                     }
-                    
-                },
+                }
                 None => {
                     for &child_id in children.iter().rev() {
-
                         let child = self.nodes.get_mut(&child_id).unwrap();
 
                         for axis in [X, Y] {
                             match child.params.position[axis] {
                                 Position::Start { padding } => {
-                                    let x0 = parent_rect[axis][0] + (padding as f32 / self.part.unifs.width);
+                                    let x0 = parent_rect[axis][0]
+                                        + (padding as f32 / self.part.unifs.width);
                                     match child.params.size[axis] {
                                         Size::PercentOfParent(percent) => {
                                             let x1 = x0 + parent_size[axis] * percent;
                                             child.rect[axis] = [x0, x1];
-                                        },
+                                        }
                                     }
-                                },
+                                }
                                 Position::Center => {
                                     let center = parent_rect[axis][0] + parent_size[axis] / 2.0;
                                     match child.params.size[axis] {
@@ -1035,9 +1028,9 @@ impl Ui {
                                             let x0 = center - width / 2.0;
                                             let x1 = center + width / 2.0;
                                             child.rect[axis] = [x0, x1];
-                                        },
+                                        }
                                     }
-                                },
+                                }
                             }
                         }
 
@@ -1045,13 +1038,12 @@ impl Ui {
                         let rect = child.rect;
                         let text_id = child.text_id;
                         self.layout_text(text_id, rect);
-                        
+
                         self.stack.push(child_id);
                     }
-                },
+                }
             }
         }
-
     }
 
     pub fn layout_text(&mut self, text_id: Option<usize>, rect: Rect) {
@@ -1080,7 +1072,11 @@ impl Ui {
         self.content_changed = true;
         self.tree_changed = true;
 
-        queue.write_buffer(&self.uniform_buffer, 0, &bytemuck::bytes_of(&self.part.unifs)[..16]);
+        queue.write_buffer(
+            &self.uniform_buffer,
+            0,
+            &bytemuck::bytes_of(&self.part.unifs)[..16],
+        );
     }
 
     pub fn update_gpu_time(&mut self, queue: &Queue) {
@@ -1093,7 +1089,7 @@ impl Ui {
     }
 
     pub fn build_buffers(&mut self) {
-        if ! self.needs_redraw() {
+        if !self.needs_redraw() {
             return;
         }
 
@@ -1110,9 +1106,9 @@ impl Ui {
         while let Some(current_node_id) = self.stack.pop() {
             let current_node = self.nodes.get_mut(&current_node_id).unwrap();
 
-
-            if current_node.params.visible_rect &&
-            current_node.last_frame_touched == self.part.current_frame {
+            if current_node.params.visible_rect
+                && current_node.last_frame_touched == self.part.current_frame
+            {
                 self.rects.push(Rectangle {
                     x0: current_node.rect[X][0] * 2. - 1.,
                     x1: current_node.rect[X][1] * 2. - 1.,
@@ -1137,13 +1133,11 @@ impl Ui {
             }
         }
 
-
         self.push_cursor_rect();
-
     }
 
     pub fn push_cursor_rect(&mut self) -> Option<()> {
-                // cursor
+        // cursor
         // how to make it appear at the right z? might be impossible if there are overlapping rects at the same z.
         // one epic way could be to increase the z sequentially when rendering, so that all rects have different z's, so the cursor can have the z of its rect plus 0.0001.
         // would definitely be very cringe for anyone doing custom rendering. but not really. nobody will ever want to stick his custom rendered stuff between a rectangle and another. when custom rendering INSIDE a rectangle, the user can get the z every time. might be annoying (very annoying even) but not deal breaking.
@@ -1154,14 +1148,14 @@ impl Ui {
         let focused_node = self.nodes.get(focused_id)?;
         let text_id = focused_node.text_id?;
         let focused_text_area = self.text_areas.get(text_id)?;
-        
+
         match focused_text_area.buffer.lines[0].text.cursor() {
             StringCursor::Point(cursor) => {
                 let rect_x0 = focused_node.rect[X][0];
                 let rect_y1 = focused_node.rect[Y][1];
-                
+
                 let (x, y) = cursor_pos_from_byte_offset(&focused_text_area.buffer, *cursor);
-                
+
                 let cursor_width = focused_text_area.buffer.metrics().font_size / 20.0;
                 let cursor_height = focused_text_area.buffer.metrics().font_size;
                 // we're counting on this always happening after layout. which should be safe.
@@ -1169,12 +1163,12 @@ impl Ui {
                 let x1 = ((x + cursor_width) / self.part.unifs.width) * 2.0;
                 let x0 = x0 + (rect_x0 * 2. - 1.);
                 let x1 = x1 + (rect_x0 * 2. - 1.);
-                
-                let y0 = ((- y - cursor_height) / self.part.unifs.height) * 2.0;
-                let y1 = ((- y ) / self.part.unifs.height) * 2.0;
+
+                let y0 = ((-y - cursor_height) / self.part.unifs.height) * 2.0;
+                let y1 = ((-y) / self.part.unifs.height) * 2.0;
                 let y0 = y0 + (rect_y1 * 2. - 1.);
                 let y1 = y1 + (rect_y1 * 2. - 1.);
-              
+
                 let cursor_rect = Rectangle {
                     x0,
                     x1,
@@ -1191,17 +1185,18 @@ impl Ui {
                     id: Id(0),
                     _padding: 0.0,
                     radius: 0.0,
-                }; 
+                };
 
                 self.rects.push(cursor_rect);
-            },
+            }
             StringCursor::Selection(selection) => {
                 let rect_x0 = focused_node.rect[X][0];
                 let rect_y1 = focused_node.rect[Y][1];
-                
-                let (x0, y0) = cursor_pos_from_byte_offset(&focused_text_area.buffer, selection.start);
-                let (x1, y1) = cursor_pos_from_byte_offset(&focused_text_area.buffer, selection.end);
-               
+
+                let (x0, y0) =
+                    cursor_pos_from_byte_offset(&focused_text_area.buffer, selection.start);
+                let (x1, y1) =
+                    cursor_pos_from_byte_offset(&focused_text_area.buffer, selection.end);
 
                 // let cursor_width = focused_text_area.buffer.metrics().font_size / 20.0;
                 let cursor_height = focused_text_area.buffer.metrics().font_size;
@@ -1209,9 +1204,9 @@ impl Ui {
                 let x1 = ((x1 + 1.0) / self.part.unifs.width) * 2.0;
                 let x0 = x0 + (rect_x0 * 2. - 1.);
                 let x1 = x1 + (rect_x0 * 2. - 1.);
-                
-                let y0 = ((- y0 - cursor_height) / self.part.unifs.height) * 2.0;
-                let y1 = ((- y1 ) / self.part.unifs.height) * 2.0;
+
+                let y0 = ((-y0 - cursor_height) / self.part.unifs.height) * 2.0;
+                let y1 = ((-y1) / self.part.unifs.height) * 2.0;
                 let y0 = y0 + (rect_y1 * 2. - 1.);
                 let y1 = y1 + (rect_y1 * 2. - 1.);
 
@@ -1231,18 +1226,17 @@ impl Ui {
                     id: Id(0),
                     _padding: 0.0,
                     radius: 0.0,
-                }; 
+                };
 
                 self.rects.push(cursor_rect);
-            },
+            }
         }
-        
+
         return Some(());
     }
 
     pub fn render<'pass>(&'pass self, render_pass: &mut RenderPass<'pass>) {
         if self.needs_redraw() {
-
             let n = self.rects.len() as u32;
             if n > 0 {
                 render_pass.set_pipeline(&self.render_pipeline);
@@ -1250,31 +1244,30 @@ impl Ui {
                 render_pass.set_vertex_buffer(0, self.gpu_vertex_buffer.slice(n));
                 render_pass.draw(0..6, 0..n);
             }
-            
+
             self.text_renderer.render(&self.atlas, render_pass).unwrap();
         }
     }
 
     pub fn prepare(&mut self, device: &Device, queue: &Queue) {
         if self.needs_redraw() {
-
             self.gpu_vertex_buffer.queue_write(&self.rects[..], queue);
-            
+
             self.text_renderer
-            .prepare(
-                device,
-                queue,
-                &mut self.font_system,
-                &mut self.atlas,
-                GlyphonResolution {
-                    width: self.part.unifs.width as u32,
-                    height: self.part.unifs.height as u32,
-                },
-                &mut self.text_areas,
-                &mut self.cache,
-                self.part.current_frame,
-            )
-            .unwrap();        
+                .prepare(
+                    device,
+                    queue,
+                    &mut self.font_system,
+                    &mut self.atlas,
+                    GlyphonResolution {
+                        width: self.part.unifs.width as u32,
+                        height: self.part.unifs.height as u32,
+                    },
+                    &mut self.text_areas,
+                    &mut self.cache,
+                    self.part.current_frame,
+                )
+                .unwrap();
         }
     }
 
@@ -1286,7 +1279,7 @@ impl Ui {
             .unwrap()
             .children_ids
             .clear();
-    
+
         self.content_changed = false;
         self.tree_changed = false;
         self.part.current_frame += 1;
@@ -1302,7 +1295,7 @@ impl Ui {
     }
 
     pub fn needs_redraw(&self) -> bool {
-        return self.tree_changed || self.content_changed; 
+        return self.tree_changed || self.content_changed;
     }
 
     // todo: skip this if there has been no new mouse movement and no new clicks.
@@ -1352,7 +1345,7 @@ impl Ui {
         if let Some(id) = self.clicked {
             let node = self.nodes.get_mut(&id).unwrap();
             node.last_click = self.t;
-            
+
             if node.params.editable {
                 self.focused = self.clicked;
                 focused_anything = true;
@@ -1361,18 +1354,16 @@ impl Ui {
             if let Some(id) = node.text_id {
                 let text_area = &mut self.text_areas[id];
                 let (x, y) = (
-                    
                     self.part.mouse_pos.x - text_area.left,
-                    self.part.mouse_pos.y - text_area.top
+                    self.part.mouse_pos.y - text_area.top,
                 );
 
                 // todo: with how I'm misusing cosmic-text, this might become "unsafe" soon (as in, might be incorrect or cause panics, not actually unsafe).
                 // I think in general, there should be a safe version of hit() that just forces a rerender just to be sure that the offset is safe to use.
                 // But in this case, calling this in resolve_mouse_input() and not on every winit mouse event probably means it's safe
 
-                // actually, the enlightened way is that cosmic_text exposes an "unsafe" hit(), but we only ever see the string + cursor + buffer struct, and call that hit(), which doesn't return an offset but just mutates the one inside. 
+                // actually, the enlightened way is that cosmic_text exposes an "unsafe" hit(), but we only ever see the string + cursor + buffer struct, and call that hit(), which doesn't return an offset but just mutates the one inside.
                 text_area.buffer.hit(x, y);
-                
             }
         }
 
@@ -1382,7 +1373,6 @@ impl Ui {
         }
     }
 }
-
 
 #[derive(Debug)]
 pub struct Node {
@@ -1412,7 +1402,6 @@ pub enum LastFrameStatus {
     Hovered,
     Nothing,
 }
-
 
 #[derive(Debug, Clone, Copy)]
 pub enum Len {
@@ -1589,9 +1578,9 @@ macro_rules! create_pop_macro {
             ($ui:expr, $code:block) => {
                 let anonymous_id = new_id!();
                 let node_key = NodeKey::new($node_params_name, anonymous_id);
-                
+
                 $ui.add(node_key);
-        
+
                 $ui.parent_stack.push(anonymous_id);
                 $code;
                 $ui.parent_stack.pop();
@@ -1599,7 +1588,7 @@ macro_rules! create_pop_macro {
             // named
             ($ui:expr, $node_key:expr, $code:block) => {
                 $ui.add($node_key);
-        
+
                 $ui.parent_stack.push($node_key.id());
                 $code;
                 $ui.parent_stack.pop();
@@ -1612,7 +1601,6 @@ create_pop_macro!(h_stack, NodeParams::H_STACK);
 create_pop_macro!(v_stack, NodeParams::V_STACK);
 create_pop_macro!(floating_window, NodeParams::FLOATING_WINDOW);
 
-
 pub trait Component {
     fn add(&mut self);
     // fn update(&mut self);
@@ -1623,7 +1611,7 @@ pub fn cursor_pos_from_byte_offset(buffer: &Buffer, byte_offset: usize) -> (f32,
     let line = &buffer.lines[0];
     let buffer_line = line.layout_opt().as_ref().unwrap();
     let glyphs = &buffer_line[0].glyphs;
-    
+
     // todo: binary search? lol. maybe vec has it built in
     for g in glyphs {
         if g.start >= byte_offset {
@@ -1636,10 +1624,7 @@ pub fn cursor_pos_from_byte_offset(buffer: &Buffer, byte_offset: usize) -> (f32,
     }
 
     // string is empty
-    return (0.0, 0.0); 
+    return (0.0, 0.0);
 }
 
-
-pub fn chud_row() {
-
-}
+pub fn chud_row() {}
