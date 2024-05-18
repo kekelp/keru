@@ -1,20 +1,39 @@
 use std::sync::Arc;
 
 use wgpu::{
-    CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance, InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue, RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, Surface, SurfaceConfiguration, TextureFormat, TextureUsages, TextureView
+    SurfaceConfiguration, CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance, InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue, RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, Surface, TextureFormat, TextureUsages, TextureView
 };
 use winit::{
     dpi::{LogicalSize, PhysicalSize}, event::{Event, WindowEvent}, event_loop::{EventLoop, EventLoopWindowTarget}, window::{Window, WindowBuilder}
 };
 
-pub struct BaseWindowState<'window> {
+pub const SWAPCHAIN_FORMAT: TextureFormat = TextureFormat::Bgra8UnormSrgb;
+pub fn configure_surface(surface: &Surface, window: &Window, device: &Device) -> SurfaceConfiguration {
+    let size = window.inner_size();
+    let config = base_surface_config(size.width, size.height, SWAPCHAIN_FORMAT);
+    surface.configure(&device, &config);
+
+    return config;
+}
+
+pub struct WgpuWindow<'window> {
     pub window: Arc<Window>,
     pub surface: Surface<'window>,
     pub config: SurfaceConfiguration,
     pub device: Device,
     pub queue: Queue,
 }
-impl<'window> BaseWindowState<'window> {
+impl<'window> WgpuWindow<'window> {
+    pub fn new(window: Arc<Window>, surface: Surface<'window>, config: SurfaceConfiguration, device: Device, queue: Queue) -> Self {
+        return WgpuWindow {
+            window,
+            surface,
+            config,
+            device,
+            queue,
+        };
+    }
+
     pub fn handle_events(&mut self, event: &Event<()>, target: &EventLoopWindowTarget<()>) {
         match event {
             Event::WindowEvent {
@@ -40,7 +59,7 @@ impl<'window> BaseWindowState<'window> {
     }
 }
 
-pub fn init_winit_window(width: f64, height: f64) -> (EventLoop<()>, Arc<Window>) {
+pub fn init_winit_and_wgpu(width: f64, height: f64) -> (EventLoop<()>, Arc<Window>, Instance, Device, Queue) {
     let event_loop = EventLoop::new().unwrap();
     let window = Arc::new(
         WindowBuilder::new()
@@ -50,7 +69,9 @@ pub fn init_winit_window(width: f64, height: f64) -> (EventLoop<()>, Arc<Window>
             .unwrap(),
     );
 
-    return (event_loop, window);
+    let (instance, device, queue) = init_wgpu();
+
+    return (event_loop, window, instance, device, queue);
 }
 
 pub fn init_wgpu() -> (Instance, Device, Queue) {

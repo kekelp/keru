@@ -1,13 +1,14 @@
 pub mod helper;
 pub mod ui;
 use helper::{
-    base_color_attachment, base_render_pass_desc, base_surface_config, init_wgpu, init_winit_window, BaseWindowState, ENC_DESC
+    base_color_attachment, base_render_pass_desc, configure_surface, init_winit_and_wgpu,
+    WgpuWindow, ENC_DESC,
 };
 
 pub use ui::Id;
 
-use ui::{Color, NodeKey, NodeParams, Position, Size, Ui, Xy};
-use wgpu::{TextureFormat, TextureViewDescriptor};
+use ui::{Color, NodeKey, NodeParams, Position, Ui};
+use wgpu::TextureViewDescriptor;
 use winit::{
     event::{Event, WindowEvent},
     event_loop::{EventLoop, EventLoopWindowTarget},
@@ -25,29 +26,19 @@ fn main() {
         .unwrap();
 }
 
-pub const BASE_WIDTH: u32 = 1200;
-pub const BASE_HEIGHT: u32 = 800;
-pub const SWAPCHAIN_FORMAT: TextureFormat = TextureFormat::Bgra8UnormSrgb;
+pub const BASE_WIDTH: f64 = 1200.0;
+pub const BASE_HEIGHT: f64 = 800.0;
 
 fn init() -> (EventLoop<()>, State<'static>) {
-    let (event_loop, window) = init_winit_window(BASE_WIDTH as f64, BASE_HEIGHT as f64);
-    let (instance, device, queue) = init_wgpu();
-
+    let (event_loop, window, instance, device, queue) =
+        init_winit_and_wgpu(BASE_WIDTH, BASE_HEIGHT);
     let surface = instance.create_surface(window.clone()).unwrap();
-    let size = window.inner_size();
-    let config = base_surface_config(size.width, size.height, SWAPCHAIN_FORMAT);
-    surface.configure(&device, &config);
+    let config = configure_surface(&surface, &window, &device);
 
     let ui = Ui::new(&device, &config, &queue);
 
     let state = State {
-        base: BaseWindowState {
-            window,
-            surface,
-            config,
-            device,
-            queue,
-        },
+        window: WgpuWindow::new(window, surface, config, device, queue),
         ui,
         counter_state: CounterState::new(),
     };
@@ -56,7 +47,7 @@ fn init() -> (EventLoop<()>, State<'static>) {
 }
 
 pub struct State<'window> {
-    pub base: BaseWindowState<'window>,
+    pub window: WgpuWindow<'window>,
     pub ui: Ui,
     // app state
     pub counter_state: CounterState,
@@ -64,8 +55,8 @@ pub struct State<'window> {
 
 impl<'window> State<'window> {
     pub fn handle_event(&mut self, event: &Event<()>, target: &EventLoopWindowTarget<()>) {
-        self.base.handle_events(event, target);
-        self.ui.handle_events(event, &self.base.queue);
+        self.window.handle_events(event, target);
+        self.ui.handle_events(event, &self.window.queue);
 
         if let Event::WindowEvent { event, .. } = event {
             if let WindowEvent::RedrawRequested = event {
@@ -76,29 +67,28 @@ impl<'window> State<'window> {
 
     pub fn update(&mut self) {
         let ui = &mut self.ui;
-        
+
         ui.content_changed = true;
 
         ui.update_time();
-        ui.update_gpu_time(&self.base.queue);
+        ui.update_gpu_time(&self.window.queue);
 
         floating_window!(ui, {
             ui.add(COMMAND_LINE);
 
             h_stack!(ui, CENTER_ROW, {
-
                 v_stack!(ui, {
                     if self.counter_state.counter_mode {
                         let new_color = count_color(self.counter_state.count);
                         ui.add(INCREASE_BUTTON).set_color(new_color);
-                        
+
                         ui.add(COUNT_LABEL).set_text(self.counter_state.count);
-                        
+
                         ui.add(DECREASE_BUTTON);
                     }
                 });
 
-                v_stack!(ui, { 
+                v_stack!(ui, {
                     let text = match self.counter_state.counter_mode {
                         true => "Hide counter",
                         false => "Show counter",
@@ -134,12 +124,12 @@ impl<'window> State<'window> {
 
     pub fn render(&mut self) {
         if self.ui.needs_redraw() {
-            self.ui.prepare(&self.base.device, &self.base.queue);
+            self.ui.prepare(&self.window.device, &self.window.queue);
 
-            let frame = self.base.surface.get_current_texture().unwrap();
+            let frame = self.window.surface.get_current_texture().unwrap();
 
             let view = frame.texture.create_view(&TextureViewDescriptor::default());
-            let mut encoder = self.base.device.create_command_encoder(&ENC_DESC);
+            let mut encoder = self.window.device.create_command_encoder(&ENC_DESC);
 
             {
                 let color_att = base_color_attachment(&view);
@@ -149,7 +139,7 @@ impl<'window> State<'window> {
                 self.ui.render(&mut render_pass);
             }
 
-            self.base.queue.submit(Some(encoder.finish()));
+            self.window.queue.submit(Some(encoder.finish()));
             frame.present();
         } else {
             std::thread::sleep(Duration::from_millis(6));
@@ -178,21 +168,10 @@ pub const DECREASE_BUTTON: NodeKey = NodeKey::new(NodeParams::BUTTON, new_id!())
     .with_debug_name("Decrease")
     .with_color(Color::BLUE);
 
-pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey::new(
-    NodeParams {
-        debug_name: "SHOW_COUNTER_BUTTON",
-        static_text: Some("Show Counter"),
-        clickable: true,
-        visible_rect: true,
-        color: Color::rgba(1.0, 0.3, 0.2, 0.6),
-        size: Xy::new(Size::PercentOfParent(0.17), Size::PercentOfParent(0.2)),
-        position: Xy::new_symm(Position::Center),
-        container_mode: None,
-        editable: false,
-        z: 0.0,
-    },
-    new_id!(),
-);
+pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey::new(NodeParams::BUTTON, new_id!())
+    .with_static_text("Show Counter")
+    .with_debug_name("SHOW_COUNTER_BUTTON")
+    .with_color(Color::BLUE);
 
 pub const COUNT_LABEL: NodeKey = NodeKey::new(NodeParams::LABEL, new_id!());
 
