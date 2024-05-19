@@ -7,7 +7,7 @@ use helper::{
 
 pub use ui::Id;
 
-use ui::{Color, NodeKey, NodeParams, Position, Ui};
+use ui::{Axis::X, Axis::Y, Color, Arrange, NodeKey, NodeParams, Position, Ui};
 use wgpu::TextureViewDescriptor;
 use winit::{
     event::{Event, WindowEvent},
@@ -73,9 +73,11 @@ impl<'window> State<'window> {
         ui.update_time();
         ui.update_gpu_time(&self.window.queue);
 
-        floating_window!(ui, {
+        h_stack!(ui, COMMAND_LINE_ROW, {
             ui.add(COMMAND_LINE);
+        });
 
+        frame!(ui, {
             h_stack!(ui, CENTER_ROW, {
                 v_stack!(ui, {
                     if self.counter_state.counter_mode {
@@ -154,6 +156,7 @@ pub fn count_color(count: i32) -> Color {
 
 pub const CENTER_ROW: NodeKey = NodeKey::new(NodeParams::H_STACK, new_id!())
     .with_debug_name("Center column")
+    // .with_stack(X, Arrange::End)
     .with_color(Color::BLUE);
 
 pub const INCREASE_BUTTON: NodeKey = NodeKey::new(NodeParams::BUTTON, new_id!())
@@ -176,8 +179,14 @@ pub const COUNT_LABEL: NodeKey = NodeKey::new(NodeParams::LABEL, new_id!());
 pub const COMMAND_LINE: NodeKey = NodeKey::new(NodeParams::TEXT_INPUT, new_id!())
     .with_debug_name("Command line")
     .with_size_y(0.1)
-    .with_position_y(Position::End)
     .with_static_text("高38道ょつ準傷に債健の🤦🏼‍♂️🚵🏻‍♀️");
+
+pub const COMMAND_LINE_ROW: NodeKey = NodeKey::new(NodeParams::H_STACK, new_id!())
+    .with_debug_name("Center column")
+    .with_size_y(0.95)
+    .with_size_x(0.8)
+    .with_stack(Y, Arrange::Start)
+    .with_color(Color::BLUE);
 
 pub struct CounterState {
     pub count: i32,

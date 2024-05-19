@@ -1,6 +1,7 @@
 use glyphon::Cursor as GlyphonCursor;
 use glyphon::{cosmic_text::StringCursor, Affinity, Resolution as GlyphonResolution};
 use rustc_hash::{FxHashMap, FxHasher};
+use wgpu::Face;
 
 use std::{
     hash::Hasher,
@@ -112,7 +113,7 @@ pub struct NodeParams {
     pub color: Color,
     pub size: Xy<Size>,
     pub position: Xy<Position>,
-    pub container_mode: Option<Stack>,
+    pub is_stack: Option<Stack>,
     pub z: f32,
 }
 
@@ -126,7 +127,7 @@ impl Default for NodeParams {
             color: Color::BLUE,
             size: Xy::new_symm(Size::PercentOfAvailable(0.5)),
             position: Xy::new_symm(Position::Start),
-            container_mode: None,
+            is_stack: None,
             editable: false,
             z: 0.0,
         }
@@ -142,10 +143,9 @@ impl NodeParams {
         color: Color::rgba(0.0, 0.0, 0.0, 0.0),
         size: Xy::new(Size::PercentOfAvailable(1.0), Size::PercentOfAvailable(1.0)),
         position: Xy::new_symm(Position::Center),
-        container_mode: Some(Stack {
-            main_axis_justify: Justify::Start,
-            cross_axis_align: Align::Fill,
-            main_axis: Axis::Y,
+        is_stack: Some(Stack {
+            arrange: Arrange::Start,
+            axis: Axis::Y,
         }),
         editable: false,
         z: 0.0,
@@ -158,23 +158,22 @@ impl NodeParams {
         color: Color::rgba(0.0, 0.0, 0.0, 0.0),
         size: Xy::new(Size::PercentOfAvailable(1.0), Size::PercentOfAvailable(1.0)),
         position: Xy::new_symm(Position::Center),
-        container_mode: Some(Stack {
-            main_axis_justify: Justify::Start,
-            cross_axis_align: Align::Fill,
-            main_axis: Axis::X,
+        is_stack: Some(Stack {
+            arrange: Arrange::Start,
+            axis: Axis::X,
         }),
         editable: false,
         z: 0.0,
     };
-    pub const FLOATING_WINDOW: Self = Self {
-        debug_name: "FLOATING_WINDOW",
+    pub const FRAME: Self = Self {
+        debug_name: "FRAME",
         static_text: None,
         clickable: true,
         visible_rect: false,
         color: Color::rgba(0.0, 0.0, 0.0, 0.0),
-        size: Xy::new_symm(Size::PercentOfAvailable(0.95)),
+        size: Xy::new_symm(Size::PercentOfAvailable(0.7)),
         position: Xy::new_symm(Position::Center),
-        container_mode: None,
+        is_stack: None,
         editable: false,
         z: 0.0,
     };
@@ -187,7 +186,7 @@ impl NodeParams {
         color: Color::rgba(0.0, 0.1, 0.1, 0.9),
         size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
         position: Xy::new_symm(Position::Center),
-        container_mode: None,
+        is_stack: None,
         editable: false,
         z: 0.0,
     };
@@ -200,7 +199,7 @@ impl NodeParams {
         color: Color::rgba(0.0, 0.1, 0.1, 0.9),
         size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
         position: Xy::new_symm(Position::Center),
-        container_mode: None,
+        is_stack: None,
         editable: false,
         z: 0.0,
     };
@@ -213,7 +212,7 @@ impl NodeParams {
         color: Color::rgba(0.1, 0.0, 0.1, 0.9),
         size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
         position: Xy::new_symm(Position::Start),
-        container_mode: None,
+        is_stack: None,
         editable: true,
         z: 0.0,
     };
@@ -256,27 +255,30 @@ impl NodeKey {
         };
     }
 
+    // can't use the [X] syntax in const functions: functions in trait impls cannot be declared const
     pub const fn with_size_x(mut self, size: f32) -> Self {
-        // can't use the [X] syntax in const functions: functions in trait impls cannot be declared const
         self.defaults.size.0[IX] = Size::PercentOfAvailable(size);
         return self;
     }
-
     pub const fn with_size_y(mut self, size: f32) -> Self {
-        // can't use the [X] syntax in const functions: functions in trait impls cannot be declared const
         self.defaults.size.0[IY] = Size::PercentOfAvailable(size);
+        return self;
+    }
+    pub const fn with_size_symm(mut self, size: f32) -> Self {
+        self.defaults.size = Xy::new_symm(Size::PercentOfAvailable(size));
         return self;
     }
 
     pub const fn with_position_x(mut self, position: Position) -> Self {
-        // can't use the [X] syntax in const functions: functions in trait impls cannot be declared const
         self.defaults.position.0[IX] = position;
         return self;
     }
-
     pub const fn with_position_y(mut self, position: Position) -> Self {
-        // can't use the [X] syntax in const functions: functions in trait impls cannot be declared const
         self.defaults.position.0[IY] = position;
+        return self;
+    }
+    pub const fn with_position_symm(mut self, position: Position) -> Self {
+        self.defaults.position = Xy::new_symm(position);
         return self;
     }
 
@@ -292,6 +294,14 @@ impl NodeKey {
 
     pub const fn with_color(mut self, color: Color) -> Self {
         self.defaults.color = color;
+        return self;
+    }
+
+    pub const fn with_stack(mut self, axis: Axis, arrange: Arrange) -> Self {
+        self.defaults.is_stack = Some(Stack {
+            arrange,
+            axis,
+        });
         return self;
     }
 }
@@ -941,30 +951,45 @@ impl Ui {
                 let parent_node = self.nodes.get(&current_node_id).unwrap();
                 children = parent_node.children_ids.clone();
                 parent_rect = parent_node.rect;
-                is_stack = parent_node.params.container_mode;
+                is_stack = parent_node.params.is_stack;
             }
             let parent_size = parent_rect.size();
 
             match is_stack {
                 Some(stack) => {
-                    let main_axis = stack.main_axis;
+                    let main_axis = stack.axis;
+                    let sign = match stack.arrange {
+                        Arrange::Start => 1.0,
+                        Arrange::End => -1.0,
+                        _ => todo!(),
+                    };
+                    let i0 = match stack.arrange {
+                        Arrange::Start => 0,
+                        Arrange::End => 1,
+                        _ => todo!(),
+                    };
+                    let i1 = match stack.arrange {
+                        Arrange::Start => 1,
+                        Arrange::End => 0,
+                        _ => todo!(),
+                    };
                     // space for each child on the main axis
                     let n = children.len() as f32;
                     let spacing_pixels = 7;
                     let spacing_f = spacing_pixels as f32 / self.part.unifs.size[main_axis];
                     let main_width = (parent_size[main_axis] - (n - 1.0) * spacing_f as f32) / n;
 
-                    let mut main_0 = parent_rect[main_axis][0];
+                    let mut walker = parent_rect[main_axis][i0];
 
                     for &child_id in children.iter().rev() {
                         let child = self.nodes.get_mut(&child_id).unwrap();
-                        child.rect[main_axis][0] = main_0;
+                        child.rect[main_axis][i0] = walker;
 
                         match child.params.size[main_axis] {
                             Size::PercentOfAvailable(percent) => {
-                                let main_1 = main_0 + main_width * percent;
-                                child.rect[main_axis][1] = main_1;
-                                main_0 = main_1 + spacing_f;
+                                let other_corner = walker + sign * main_width * percent;
+                                child.rect[main_axis][i1] = other_corner;
+                                walker = other_corner + sign * spacing_f;
                             }
                         }
 
@@ -975,8 +1000,7 @@ impl Ui {
                                     let cross_0 = parent_rect[cross_axis][0]
                                         + spacing_f;
                                     let cross_1 = cross_0 + parent_size[cross_axis] * percent;
-                                    child.rect[cross_axis][0] = cross_0;
-                                    child.rect[cross_axis][1] = cross_1;
+                                    child.rect[cross_axis] = [cross_0, cross_1];
                                 }
                             },
                             Position::Center => match child.params.size[cross_axis] {
@@ -1443,27 +1467,18 @@ pub enum Position {
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
 pub struct Stack {
-    main_axis_justify: Justify,
-    cross_axis_align: Align,
-    main_axis: Axis,
+    arrange: Arrange,
+    axis: Axis,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum Justify {
+pub enum Arrange {
     Start,
     End,
     Center,
     SpaceBetween,
     SpaceAround,
     SpaceEvenly,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum Align {
-    Start,
-    End,
-    Center,
-    Fill,
 }
 
 pub const NODE_ROOT_KEY: NodeKey = NodeKey {
@@ -1484,7 +1499,7 @@ pub const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     },
     size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
     position: Xy::new_symm(Position::Start),
-    container_mode: None,
+    is_stack: None,
     editable: false,
     z: 0.0,
 };
@@ -1601,7 +1616,7 @@ macro_rules! create_pop_macro {
 
 create_pop_macro!(h_stack, NodeParams::H_STACK);
 create_pop_macro!(v_stack, NodeParams::V_STACK);
-create_pop_macro!(floating_window, NodeParams::FLOATING_WINDOW);
+create_pop_macro!(frame, NodeParams::FRAME);
 
 pub trait Component {
     fn add(&mut self);
