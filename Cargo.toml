@@ -19,6 +19,8 @@ lazy_static = "1.4.0"
 smart-default = "0.7.1"
 rustc-hash = "1.1.0"
 unicode-segmentation = "1.11.0"
+enum_delegate = "0.2.0"
+enum_dispatch = "0.3.13"
 
 [lints.clippy]
 needless_return = { level = "allow" } 

@@ -3,6 +3,7 @@ use glyphon::{cosmic_text::StringCursor, Affinity, Resolution as GlyphonResoluti
 use rustc_hash::{FxHashMap, FxHasher};
 use wgpu::Face;
 
+use std::any::TypeId;
 use std::{
     hash::Hasher,
     marker::PhantomData,
@@ -1643,5 +1644,3 @@ pub fn cursor_pos_from_byte_offset(buffer: &Buffer, byte_offset: usize) -> (f32,
     // string is empty
     return (0.0, 0.0);
 }
-
-pub fn chud_row() {}

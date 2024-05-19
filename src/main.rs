@@ -14,16 +14,51 @@ use winit::{
     event_loop::{EventLoop, EventLoopWindowTarget},
 };
 
-use std::time::Duration;
+use std::{any::TypeId, time::Duration};
+
+
+use enum_dispatch::enum_dispatch;
+
+#[enum_dispatch]
+pub trait UiId {
+    fn id(&self) -> TypeId;
+}
+
+#[enum_dispatch]
+pub trait UiDefaults<T> {
+    fn defaults(&self) -> NodeParams;
+}
+
+pub struct ColorButton {}
+
+impl UiDefaults<()> for ColorButton {
+    fn defaults(&self) -> NodeParams {
+        return NodeParams::BUTTON;
+    }
+}
+impl UiId for ColorButton {
+    fn id(&self) -> TypeId {
+        return std::any::TypeId::of::<Self>();
+    }
+}
+
+// #[enum_dispatch(UiDefaults)]
+#[enum_dispatch(UiId)]
+pub enum Component {
+    ColorButton(ColorButton),
+}
 
 fn main() {
-    let (event_loop, mut state) = init();
+    let a = Component::ColorButton(ColorButton {});
+    println!("chud {:?}", a.id());
 
-    event_loop
-        .run(move |event, target| {
-            state.handle_event(&event, target);
-        })
-        .unwrap();
+    // let (event_loop, mut state) = init();
+
+    // event_loop
+    //     .run(move |event, target| {
+    //         state.handle_event(&event, target);
+    //     })
+    //     .unwrap();
 }
 
 pub const BASE_WIDTH: f64 = 1200.0;
