@@ -5,60 +5,85 @@ use helper::{
     WgpuWindow, ENC_DESC,
 };
 
+use rustc_hash::FxHasher;
 pub use ui::Id;
 
-use ui::{Axis::X, Axis::Y, Color, Arrange, NodeKey, NodeParams, Position, Ui};
+use ui::{Arrange, Axis::{X, Y}, Color, NodeKey, NodeParams, Position, Ui, UiDefaults, UiDefaultsParam, UiId, UiIdParam};
 use wgpu::TextureViewDescriptor;
 use winit::{
     event::{Event, WindowEvent},
     event_loop::{EventLoop, EventLoopWindowTarget},
 };
 
-use std::{any::TypeId, time::Duration};
+use std::{any::TypeId, hash::{Hash, Hasher}, time::Duration};
+
+use crate::ui::NODE_ROOT_ID;
 
 
-use enum_dispatch::enum_dispatch;
+pub struct HStack {}
+const HSTACK: HStack = HStack {};
 
-#[enum_dispatch]
-pub trait UiId {
-    fn id(&self) -> TypeId;
+impl UiDefaults for HStack {
+    fn defaults(&self) -> NodeParams {
+        return NodeParams::H_STACK;
+    }
+}
+impl UiId for HStack {
+    fn id(&self) -> Id {
+        let mut hasher = FxHasher::default();
+        TypeId::of::<Self>().hash(&mut hasher);
+        return Id(hasher.finish());
+    }
 }
 
-#[enum_dispatch]
-pub trait UiDefaults<T> {
-    fn defaults(&self) -> NodeParams;
+pub struct Button {}
+const BUTTON: Button = Button {};
+
+impl UiDefaults for Button {
+    fn defaults(&self) -> NodeParams {
+        return NodeParams::BUTTON.with_static_text("Click");
+    }
 }
+impl UiId for Button {
+    fn id(&self) -> Id {
+        let mut hasher = FxHasher::default();
+        TypeId::of::<Self>().hash(&mut hasher);
+        return Id(hasher.finish());
+    }
+}
+
 
 pub struct ColorButton {}
+const COLOR_BUTTON: ColorButton = ColorButton {};
 
-impl UiDefaults<()> for ColorButton {
-    fn defaults(&self) -> NodeParams {
-        return NodeParams::BUTTON;
+impl UiDefaultsParam<&str> for ColorButton {
+    fn defaults(&self, string: &&str) -> NodeParams {
+        let (str2, color) = match string {
+            &"Blue" => ("Blue", Color::rgba(0.0, 0.0, 1.0, 0.9)),
+            &"Green" => ("Green", Color::rgba(0.0, 1.0, 0.0, 0.9)),
+            &"Red" => ("Red", Color::rgba(1.0, 0.0, 0.0, 0.9)),
+            _ => panic!(),
+        };
+        return NodeParams::BUTTON.with_color(color).with_static_text(str2);
     }
 }
-impl UiId for ColorButton {
-    fn id(&self) -> TypeId {
-        return std::any::TypeId::of::<Self>();
+impl UiIdParam<&str> for ColorButton {
+    fn id(&self, string: &&str) -> Id {
+        let mut hasher = FxHasher::default();
+        TypeId::of::<Self>().hash(&mut hasher);
+        string.hash(&mut hasher);
+        return Id(hasher.finish());
     }
-}
-
-// #[enum_dispatch(UiDefaults)]
-#[enum_dispatch(UiId)]
-pub enum Component {
-    ColorButton(ColorButton),
 }
 
 fn main() {
-    let a = Component::ColorButton(ColorButton {});
-    println!("chud {:?}", a.id());
+    let (event_loop, mut state) = init();
 
-    // let (event_loop, mut state) = init();
-
-    // event_loop
-    //     .run(move |event, target| {
-    //         state.handle_event(&event, target);
-    //     })
-    //     .unwrap();
+    event_loop
+        .run(move |event, target| {
+            state.handle_event(&event, target);
+        })
+        .unwrap();
 }
 
 pub const BASE_WIDTH: f64 = 1200.0;
@@ -108,37 +133,51 @@ impl<'window> State<'window> {
         ui.update_time();
         ui.update_gpu_time(&self.window.queue);
 
-        h_stack!(ui, COMMAND_LINE_ROW, {
-            ui.add(COMMAND_LINE);
+        ui.tree_trace.clear();
+        ui.tree_trace_defaults.clear();
+
+        h_stack!(ui, HSTACK, {
+            ui.add2(BUTTON);
+            for str2 in ["Blue", "Green", "Red"] {
+                ui.add2_params(COLOR_BUTTON, &str2);
+            }
         });
 
-        frame!(ui, {
-            h_stack!(ui, CENTER_ROW, {
-                v_stack!(ui, {
-                    if self.counter_state.counter_mode {
-                        let new_color = count_color(self.counter_state.count);
-                        ui.add(INCREASE_BUTTON).set_color(new_color);
-
-                        ui.add(COUNT_LABEL).set_text(self.counter_state.count);
-
-                        ui.add(DECREASE_BUTTON);
-                    }
-                });
-
-                v_stack!(ui, {
-                    let text = match self.counter_state.counter_mode {
-                        true => "Hide counter",
-                        false => "Show counter",
+        // todo dont clone
+        let mut current_parent_id = NODE_ROOT_ID;
+        for (i, e) in ui.tree_trace.clone().iter().enumerate() {
+            match e {
+                TreeTraceEntry::Node(id) => {
+                    let defaults = ui.tree_trace_defaults[i].unwrap();
+                    let key = NodeKey {
+                        id: *id,
+                        defaults,
                     };
-                    ui.add(SHOW_COUNTER_BUTTON).set_text(text);
-                });
-            });
-        });
+                    ui.add(key, current_parent_id);
+                },
+                TreeTraceEntry::SetParent(id) => {
+                    current_parent_id = *id;
+                },
+            }
+        }
+
+        // println!("{:?}", ui.tree_trace);
+        // println!("");
 
         ui.finish_tree();
 
         ui.layout();
         ui.resolve_mouse_input();
+
+        if ui.is_clicked((Button {}).id()) {
+            println!("Click");
+        }
+
+        for str2 in ["Blue", "Green", "Red"] {
+            if ui.is_clicked(COLOR_BUTTON.id(&str2)) {
+                println!("{:?}", str2);
+            }
+        }
 
         if ui.is_clicked(INCREASE_BUTTON.id) {
             self.counter_state.count += 1;
