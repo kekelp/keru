@@ -1763,4 +1763,6 @@ fn fx_hash<T: Hash>(value: &T) -> u64 {
     hasher.finish()
 }
 
-// pub trait View 
+pub trait View {
+    fn defaults(&self) -> NodeParams;
+}

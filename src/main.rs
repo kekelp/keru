@@ -1,5 +1,6 @@
 pub mod helper;
 pub mod ui;
+
 use helper::{
     base_color_attachment, base_render_pass_desc, configure_surface, init_winit_and_wgpu,
     WgpuWindow, ENC_DESC,
@@ -7,7 +8,7 @@ use helper::{
 
 pub use ui::Id;
 
-use ui::{Arrange, Axis::Y, Color, NodeKey, NodeParams, Ui};
+use ui::{Arrange, Axis::Y, Color, NodeKey, NodeParams, Ui, View};
 use wgpu::TextureViewDescriptor;
 use winit::{
     event::{Event, WindowEvent},
@@ -82,7 +83,7 @@ impl<'window> State<'window> {
 
         ui.begin_tree();
         
-        ui.update_gpu_time(&self.window.queue);
+        ui.update_gpu_time(&self.window.queue);       
 
         h_stack!(ui, &COMMAND_LINE_ROW, {
             ui.add(&COMMAND_LINE);
@@ -193,3 +194,37 @@ pub const COMMAND_LINE_ROW: NodeKey = unique_node_key!()
     .with_size_x(0.8)
     .with_stack(Y, Arrange::End)
     .with_color(Color::BLUE);
+
+
+pub struct SneedButton {}
+
+impl View for SneedButton {
+    fn defaults(&self) -> NodeParams {
+        return NodeParams::BUTTON.with_debug_name("Sneed").with_static_text("Sneed");
+    }
+}
+
+pub struct FeedButton {}
+
+impl View for FeedButton {
+    fn defaults(&self) -> NodeParams {
+        return NodeParams::BUTTON.with_debug_name("Feed").with_static_text("Feed");
+    }
+}
+
+// to give tree_trace a real type, the whole ui can be generic over this type
+// when adding, we have to humiliate ourselves with the double SneedButton(SneedButton)
+pub enum Components {
+    SneedButton(SneedButton),
+    FeedButton(FeedButton),
+}
+
+// Kill yourself
+impl Components {
+    pub fn defaults(&self) -> NodeParams {
+        match self {
+            Components::SneedButton(c) => return c.defaults(),
+            Components::FeedButton(c) => return c.defaults(),
+        }
+    }
+}
