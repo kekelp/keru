@@ -191,5 +191,5 @@ pub const COMMAND_LINE_ROW: NodeKey = unique_node_key!()
     .with_defaults(NodeParams::H_STACK)
     .with_size_y(0.95)
     .with_size_x(0.8)
-    .with_stack(Y, Arrange::Start)
+    .with_stack(Y, Arrange::End)
     .with_color(Color::BLUE);
