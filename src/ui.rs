@@ -451,7 +451,7 @@ impl Color {
 // }
 // which would have the same aethetics but would also be faster.
 
-// ^all the above is obsolete. this is great the way it is now. except for the lifetime soup, and it's still oversugaring.
+// ^all the above is obsolete. this is great the way it is now. except for the lifetime soup. and it's still oversugaring.
 pub struct UiWithNodeKey<'a, 'b> {
     ui: &'a mut Ui,
     key: &'b NodeKey,
@@ -462,7 +462,7 @@ impl<'a, 'b> UiWithNodeKey<'a, 'b> {
         self.ui.set_color(self.key.id, color)
     }
 
-    pub fn set_text(&mut self, text: impl ToString) {
+    pub fn set_text(&mut self, text: &str) {
         self.ui.set_text(&self.key, text)
     }
 }
@@ -568,9 +568,8 @@ pub struct Ui {
     pub tree_trace_defaults: Vec<Option<NodeParams>>,
 }
 impl Ui {
-    pub fn set_text(&mut self, key: &NodeKey, text: impl ToString) {
+    pub fn set_text(&mut self, key: &NodeKey, text: &str) {
         let id = key.id;
-        let text = text.to_string();
         let mut hasher = FxHasher::default();
         text.hash(&mut hasher);
         let hash = hasher.finish();
@@ -788,7 +787,7 @@ impl Ui {
         }
     }
 
-    pub fn add2<'b>(&mut self, node_key: &'b NodeKey) -> UiWithNodeKey<'_, 'b> {
+    pub fn add<'b>(&mut self, node_key: &'b NodeKey) -> UiWithNodeKey<'_, 'b> {
         let id = node_key.id();
         self.tree_trace.push(TreeTraceEntry::Node(id));
 
@@ -1421,6 +1420,7 @@ impl Ui {
         }
 
         // only the one with the highest z is actually clicked.
+        // in practice, nobody ever sets the Z. it depends on the order.
         // there may be exceptions.
 
         let mut max_z = f32::MAX;
@@ -1476,7 +1476,54 @@ impl Ui {
             self.focused = None;
         }
     }
+
+    pub fn start_layer(&mut self, parent_id: Id) {
+        self.parent_stack.push(parent_id);
+        self.tree_trace.push(TreeTraceEntry::SetParent(parent_id));
+        self.tree_trace_defaults.push(None);
+    }
+
+    pub fn end_layer(&mut self) {
+        self.parent_stack.pop();
+        let new_parent = self.parent_stack.last().unwrap();
+        self.tree_trace.push(crate::ui::TreeTraceEntry::SetParent(*new_parent));
+        self.tree_trace_defaults.push(None);
+    }
 }
+
+
+macro_rules! create_layer_macro {
+    ($macro_name:ident, $node_params_name:expr) => {
+        #[macro_export]
+        macro_rules! $macro_name {
+            ($ui:expr, $code:block) => {
+                let anonymous_id = new_id!();
+                let node_key = NodeKey::new($node_params_name, anonymous_id);
+                $ui.add(&node_key);
+
+                $ui.start_layer(anonymous_id);
+                
+                $code;
+                
+                $ui.end_layer();
+            };
+            // named
+            ($ui:expr, $node_key:expr, $code:block) => {
+                $ui.add($node_key);
+
+                $ui.start_layer($node_key.id);
+                
+                $code;
+                
+                $ui.end_layer();
+            };
+        }
+    };
+}
+
+create_layer_macro!(h_stack, NodeParams::H_STACK);
+create_layer_macro!(v_stack, NodeParams::V_STACK);
+create_layer_macro!(frame, NodeParams::FRAME);
 
 #[derive(Debug)]
 pub struct Node {
@@ -1662,64 +1709,6 @@ impl<T: Pod> TypedGpuBuffer<T> {
         queue.write_buffer(&self.buffer, 0, data);
     }
 }
-
-macro_rules! create_pop_macro {
-    ($macro_name:ident, $node_params_name:expr) => {
-        #[macro_export]
-        macro_rules! $macro_name {
-            // anonymous
-            // ($ui:expr, $code:block) => {
-            //     let anonymous_id = new_id!();
-            //     let node_key = NodeKey::new($node_params_name, anonymous_id);
-
-            //     $ui.add(node_key);
-
-            //     $ui.parent_stack.push(anonymous_id);
-            //     $code;
-            //     $ui.parent_stack.pop();
-            // };
-            ($ui:expr, $code:block) => {
-                let anonymous_id = new_id!();
-                let node_key = NodeKey::new($node_params_name, anonymous_id);
-                $ui.add2(&node_key);
-
-                
-                $ui.parent_stack.push(anonymous_id);
-                let new_parent = $ui.parent_stack.last().unwrap();
-                $ui.tree_trace.push(crate::ui::TreeTraceEntry::SetParent(*new_parent));
-                $ui.tree_trace_defaults.push(None);
-                
-                $code;
-                
-                $ui.parent_stack.pop();
-                let new_parent = $ui.parent_stack.last().unwrap();
-                $ui.tree_trace.push(crate::ui::TreeTraceEntry::SetParent(*new_parent));
-                $ui.tree_trace_defaults.push(None);
-            };
-            // named
-            ($ui:expr, $node_key:expr, $code:block) => {
-                $ui.add2($node_key);
-
-                
-                $ui.parent_stack.push($node_key.id());
-                let new_parent = $ui.parent_stack.last().unwrap();
-                $ui.tree_trace.push(crate::ui::TreeTraceEntry::SetParent(*new_parent));
-                $ui.tree_trace_defaults.push(None);
-                
-                $code;
-                
-                $ui.parent_stack.pop();
-                let new_parent = $ui.parent_stack.last().unwrap();
-                $ui.tree_trace.push(crate::ui::TreeTraceEntry::SetParent(*new_parent));
-                $ui.tree_trace_defaults.push(None);
-            };
-        }
-    };
-}
-
-create_pop_macro!(h_stack, NodeParams::H_STACK);
-create_pop_macro!(v_stack, NodeParams::V_STACK);
-create_pop_macro!(frame, NodeParams::FRAME);
 
 pub fn cursor_pos_from_byte_offset(buffer: &Buffer, byte_offset: usize) -> (f32, f32) {
     let line = &buffer.lines[0];

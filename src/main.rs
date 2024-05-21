@@ -80,7 +80,7 @@ impl<'window> State<'window> {
         ui.tree_trace_defaults.clear();
 
         h_stack!(ui, &COMMAND_LINE_ROW, {
-            ui.add2(&COMMAND_LINE);
+            ui.add(&COMMAND_LINE);
         });
 
         frame!(ui, {
@@ -88,11 +88,11 @@ impl<'window> State<'window> {
                 v_stack!(ui, {
                     if self.counter_state.counter_mode {
                         let new_color = count_color(self.counter_state.count);
-                        ui.add2(&INCREASE_BUTTON).set_color(new_color);
+                        ui.add(&INCREASE_BUTTON).set_color(new_color);
 
-                        ui.add2(&COUNT_LABEL).set_text(self.counter_state.count);
+                        ui.add(&COUNT_LABEL).set_text(&self.counter_state.count.to_string());
 
-                        ui.add2(&DECREASE_BUTTON);
+                        ui.add(&DECREASE_BUTTON);
                     }
                 });
 
@@ -101,7 +101,7 @@ impl<'window> State<'window> {
                         true => "Hide counter",
                         false => "Show counter",
                     };
-                    ui.add2(&SHOW_COUNTER_BUTTON).set_text(text);
+                    ui.add(&SHOW_COUNTER_BUTTON).set_text(text);
                 });
             });
         });
