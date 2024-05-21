@@ -134,6 +134,20 @@ impl Default for NodeParams {
 }
 
 impl NodeParams {
+    pub const fn const_default() -> Self {
+        Self {
+            debug_name: "Default Button",
+            static_text: Some("Button"),
+            clickable: true,
+            visible_rect: true,
+            color: Color::BLUE,
+            size: Xy::new_symm(Size::PercentOfAvailable(0.5)),
+            position: Xy::new_symm(Position::Start),
+            is_stack: None,
+            editable: false,
+        }
+    }
+
     pub const fn with_size_x(mut self, size: f32) -> Self {
         self.size.0[IX] = Size::PercentOfAvailable(size);
         return self;
@@ -294,6 +308,11 @@ impl NodeKey {
             id: Id(new_id),
             defaults: self.defaults.clone(),
         };
+    }
+
+    pub const fn with_defaults(mut self, defaults: NodeParams) -> Self {
+        self.defaults = defaults;
+        return self;
     }
 
     // can't use the [X] syntax in const functions: functions in trait impls cannot be declared const
@@ -573,16 +592,13 @@ pub struct Ui {
 }
 impl Ui {
     pub fn set_text(&mut self, key: &NodeKey, text: &str) {
-        let id = key.id;
-        let mut hasher = FxHasher::default();
-        text.hash(&mut hasher);
-        let hash = hasher.finish();
+        let hash = fx_hash(&text);
 
-        if let None = self.node_map.get(&id) {
+        if let None = self.node_map.get(&key.id) {
             //todo: call a fake_add that doesn't set parent and children, and remove the whole Option(parent_id) trash everywhere
             self.update_node(key, None);
         }
-        let text_id = self.node_map.get(&id).unwrap().text_id;
+        let text_id = self.node_map.get(&key.id).unwrap().text_id;
         let text_id = match text_id {
             Some(text_id) => {
                 if hash == self.text_areas[text_id].last_hash {
@@ -617,7 +633,7 @@ impl Ui {
 
                 self.text_areas.push(text_area);
                 let text_id = Some(self.text_areas.len() - 1);
-                self.node_map.get_mut(&id).unwrap().text_id = text_id;
+                self.node_map.get_mut(&key.id).unwrap().text_id = text_id;
                 text_id.unwrap()
             }
         };
@@ -788,7 +804,6 @@ impl Ui {
     pub fn add<'b>(&mut self, node_key: &'b NodeKey) -> UiWithNodeKey<'_, 'b> {
         let id = node_key.id();
         self.tree_trace.push(TreeTraceEntry::Node(id));
-
         self.tree_trace_defaults.push(Some(node_key.defaults));
 
         return UiWithNodeKey {
@@ -1356,13 +1371,11 @@ impl Ui {
     }
 
     pub fn begin_tree(&mut self) {
-
         self.update_time();
 
         self.tree_trace.clear();
         self.tree_trace_defaults.clear();
 
-        // the root isn't processed in the div! stuff because there's usually nothing to do with it (except this)
         self.node_map
             .get_mut(&NODE_ROOT_ID)
             .unwrap()
@@ -1485,7 +1498,11 @@ impl Ui {
     }
 }
 
-
+// todo: since macros = le bad, maybe make separate functions so that it's possible to do 
+// ui.begin_hstack()
+// ui.add(children)
+// ui.end_hstack()
+// multiple ways to do the same thing = also le bad albeit
 macro_rules! create_layer_macro {
     ($macro_name:ident, $node_params_name:expr) => {
         #[macro_export]
@@ -1517,7 +1534,7 @@ macro_rules! create_layer_macro {
 
 create_layer_macro!(h_stack, NodeParams::H_STACK);
 create_layer_macro!(v_stack, NodeParams::V_STACK);
-create_layer_macro!(frame, NodeParams::FRAME);
+create_layer_macro!(margin, NodeParams::FRAME);
 
 #[derive(Debug)]
 pub struct Node {
@@ -1668,6 +1685,22 @@ macro_rules! new_id {
     }};
 }
 
+#[macro_export]
+macro_rules! unique_node_key {
+    () => {{
+        let id = $crate::Id($crate::ui::callsite_hash(
+            std::module_path!(),
+            std::file!(),
+            std::line!(),
+            std::column!(),
+        ));
+        NodeKey {
+            defaults: NodeParams::const_default(),
+            id,
+        }
+    }};
+}
+
 #[repr(C)]
 #[derive(Debug, Pod, Copy, Clone, Zeroable)]
 pub struct Uniforms {
@@ -1722,4 +1755,10 @@ pub fn cursor_pos_from_byte_offset(buffer: &Buffer, byte_offset: usize) -> (f32,
 
     // string is empty
     return (0.0, 0.0);
+}
+
+fn fx_hash<T: Hash>(value: &T) -> u64 {
+    let mut hasher = FxHasher::default();
+    value.hash(&mut hasher);
+    hasher.finish()
 }

@@ -51,6 +51,20 @@ pub struct State<'window> {
     pub counter_state: CounterState,
 }
 
+pub struct CounterState {
+    pub count: i32,
+    pub counter_mode: bool,
+}
+impl CounterState {
+    pub fn new() -> Self {
+        return CounterState {
+            count: 0,
+            counter_mode: true,
+        };
+    }
+}
+
+
 impl<'window> State<'window> {
     pub fn handle_event(&mut self, event: &Event<()>, target: &EventLoopWindowTarget<()>) {
         self.window.handle_events(event, target);
@@ -74,7 +88,7 @@ impl<'window> State<'window> {
             ui.add(&COMMAND_LINE);
         });
 
-        frame!(ui, {
+        margin!(ui, {
             h_stack!(ui, &CENTER_ROW, {
                 v_stack!(ui, {
                     if self.counter_state.counter_mode {
@@ -146,49 +160,36 @@ pub fn count_color(count: i32) -> Color {
     return Color::rgba(red, 0.1, 0.2, 0.8);
 }
 
-pub const CENTER_ROW: NodeKey = NodeKey::new(NodeParams::H_STACK, new_id!())
-    .with_debug_name("Center column")
-    // .with_stack(X, Arrange::End)
+pub const CENTER_ROW: NodeKey = unique_node_key!()
+    .with_defaults(NodeParams::H_STACK)
     .with_color(Color::BLUE);
 
-pub const INCREASE_BUTTON: NodeKey = NodeKey::new(NodeParams::BUTTON, new_id!())
+pub const INCREASE_BUTTON: NodeKey = unique_node_key!()
+    .with_defaults(NodeParams::BUTTON)
     .with_static_text("Increase")
-    .with_debug_name("Increase")
     .with_color(Color::BLUE);
 
-pub const DECREASE_BUTTON: NodeKey = NodeKey::new(NodeParams::BUTTON, new_id!())
+pub const DECREASE_BUTTON: NodeKey = unique_node_key!()
+    .with_defaults(NodeParams::BUTTON)
     .with_static_text("Decrease")
-    .with_debug_name("Decrease")
     .with_color(Color::BLUE);
 
-pub const SHOW_COUNTER_BUTTON: NodeKey = NodeKey::new(NodeParams::BUTTON, new_id!())
+pub const SHOW_COUNTER_BUTTON: NodeKey = unique_node_key!()
+    .with_defaults(NodeParams::BUTTON)
     .with_static_text("Show Counter")
-    .with_debug_name("SHOW_COUNTER_BUTTON")
     .with_color(Color::BLUE);
 
-pub const COUNT_LABEL: NodeKey = NodeKey::new(NodeParams::LABEL, new_id!());
+pub const COUNT_LABEL: NodeKey = unique_node_key!()
+    .with_defaults(NodeParams::LABEL);
 
-pub const COMMAND_LINE: NodeKey = NodeKey::new(NodeParams::TEXT_INPUT, new_id!())
-    .with_debug_name("Command line")
+pub const COMMAND_LINE: NodeKey = unique_node_key!()
+    .with_defaults(NodeParams::TEXT_INPUT)
     .with_size_y(0.1)
     .with_static_text("高38道ょつ準傷に債健の🤦🏼‍♂️🚵🏻‍♀️");
 
-pub const COMMAND_LINE_ROW: NodeKey = NodeKey::new(NodeParams::H_STACK, new_id!())
-    .with_debug_name("Center column")
+pub const COMMAND_LINE_ROW: NodeKey = unique_node_key!()
+    .with_defaults(NodeParams::H_STACK)
     .with_size_y(0.95)
     .with_size_x(0.8)
     .with_stack(Y, Arrange::Start)
     .with_color(Color::BLUE);
-
-pub struct CounterState {
-    pub count: i32,
-    pub counter_mode: bool,
-}
-impl CounterState {
-    pub fn new() -> Self {
-        return CounterState {
-            count: 0,
-            counter_mode: true,
-        };
-    }
-}
