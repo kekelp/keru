@@ -525,6 +525,8 @@ pub enum TreeTraceEntry {
     SetParent(Id),
 }
 
+pub struct EverythingExceptTreeTrace {}
+
 pub struct Ui {
     pub key_modifiers: ModifiersState,
 
@@ -541,7 +543,7 @@ pub struct Ui {
 
     pub rects: Vec<Rectangle>,
     pub text_areas: Vec<TextArea>,
-    pub nodes: FxHashMap<Id, Node>,
+    pub node_map: FxHashMap<Id, Node>,
 
     // stack for traversing
     pub stack: Vec<Id>,
@@ -564,6 +566,9 @@ pub struct Ui {
 
     pub t: f32,
 
+    // todo: add this
+    // pub last_tree_trace: Vec<TreeTraceEntry>,
+    
     pub tree_trace: Vec<TreeTraceEntry>,
     pub tree_trace_defaults: Vec<Option<NodeParams>>,
 }
@@ -574,11 +579,11 @@ impl Ui {
         text.hash(&mut hasher);
         let hash = hasher.finish();
 
-        if let None = self.nodes.get(&id) {
+        if let None = self.node_map.get(&id) {
             //todo: call a fake_add that doesn't set parent and children, and remove the whole Option(parent_id) crap everywhere
-            self.update_hashmap(key, None);
+            self.update_node(key, None);
         }
-        let text_id = self.nodes.get(&id).unwrap().text_id;
+        let text_id = self.node_map.get(&id).unwrap().text_id;
         let text_id = match text_id {
             Some(text_id) => {
                 if hash == self.text_areas[text_id].last_hash {
@@ -613,7 +618,7 @@ impl Ui {
 
                 self.text_areas.push(text_area);
                 let text_id = Some(self.text_areas.len() - 1);
-                self.nodes.get_mut(&id).unwrap().text_id = text_id;
+                self.node_map.get_mut(&id).unwrap().text_id = text_id;
                 text_id.unwrap()
             }
         };
@@ -630,7 +635,7 @@ impl Ui {
 
     pub fn set_color(&mut self, id: Id, color: Color) {
         // todo: dont return, add, etc
-        if let Some(node) = self.nodes.get_mut(&id) {
+        if let Some(node) = self.node_map.get_mut(&id) {
             if node.params.color == color {
                 return;
             } else {
@@ -753,7 +758,7 @@ impl Ui {
             font_system,
             text_areas,
             rects: Vec::with_capacity(20),
-            nodes,
+            node_map: nodes,
             gpu_vertex_buffer: vertex_buffer,
             uniform_buffer: resolution_buffer,
             bind_group,
@@ -808,10 +813,10 @@ impl Ui {
     }
 
     // todo: deduplicate with refresh (maybe)
-    pub fn update_hashmap<'b>(&mut self, node_key: &'b NodeKey, parent_id: Option<Id>) -> UiWithNodeKey<'_, 'b> {
+    pub fn update_node<'b>(&mut self, node_key: &'b NodeKey, parent_id: Option<Id>) -> UiWithNodeKey<'_, 'b> {
         let node_key_id = node_key.id;
 
-        let old_node = self.nodes.get_mut(&node_key_id);
+        let old_node = self.node_map.get_mut(&node_key_id);
         if old_node.is_none() {
             let mut text_id = None;
             if let Some(text) = node_key.defaults.static_text {
@@ -851,7 +856,7 @@ impl Ui {
             }
 
             let new_node = self.new_node(node_key, parent_id, text_id);
-            self.nodes.insert(node_key_id, new_node);
+            self.node_map.insert(node_key_id, new_node);
         } else {
             let old_node = old_node.unwrap();
             if let Some(text_id) = old_node.text_id {
@@ -863,7 +868,7 @@ impl Ui {
 
 
         if let Some(parent_id) = parent_id {
-            self.nodes
+            self.node_map
             .get_mut(&parent_id)
             .unwrap()
             .children_ids
@@ -1027,7 +1032,7 @@ impl Ui {
             let children: Vec<Id>;
             let is_stack: Option<Stack>;
             {
-                let parent_node = self.nodes.get(&current_node_id).unwrap();
+                let parent_node = self.node_map.get(&current_node_id).unwrap();
                 children = parent_node.children_ids.clone();
                 parent_rect = parent_node.rect;
                 is_stack = parent_node.params.is_stack;
@@ -1061,7 +1066,7 @@ impl Ui {
                     let mut walker = parent_rect[main_axis][i0];
 
                     for &child_id in children.iter().rev() {
-                        let child = self.nodes.get_mut(&child_id).unwrap();
+                        let child = self.node_map.get_mut(&child_id).unwrap();
                         child.rect[main_axis][i0] = walker;
 
                         match child.params.size[main_axis] {
@@ -1104,7 +1109,7 @@ impl Ui {
                 }
                 None => {
                     for &child_id in children.iter().rev() {
-                        let child = self.nodes.get_mut(&child_id).unwrap();
+                        let child = self.node_map.get_mut(&child_id).unwrap();
 
                         for axis in [X, Y] {
                             match child.params.position[axis] {
@@ -1203,14 +1208,14 @@ impl Ui {
         self.stack.clear();
 
         // push the ui.direct children of the root without processing the root
-        if let Some(root) = self.nodes.get(&NODE_ROOT_ID) {
+        if let Some(root) = self.node_map.get(&NODE_ROOT_ID) {
             for &child_id in root.children_ids.iter().rev() {
                 self.stack.push(child_id);
             }
         }
 
         while let Some(current_node_id) = self.stack.pop() {
-            let current_node = self.nodes.get_mut(&current_node_id).unwrap();
+            let current_node = self.node_map.get_mut(&current_node_id).unwrap();
 
             if current_node.params.visible_rect
                 && current_node.last_frame_touched == self.part.current_frame
@@ -1380,7 +1385,7 @@ impl Ui {
     // todo: this can be called at the end of prepare() or render() instead of in main(), maybe.
     pub fn finish_frame(&mut self) {
         // the root isn't processed in the div! stuff because there's usually nothing to do with it (except this)
-        self.nodes
+        self.node_map
             .get_mut(&NODE_ROOT_ID)
             .unwrap()
             .children_ids
@@ -1441,13 +1446,13 @@ impl Ui {
 
         // this goes on the node because the rect isn't a real entity. it's rebuilt every frame
         if let Some(id) = self.hovered {
-            let node = self.nodes.get_mut(&id).unwrap();
+            let node = self.node_map.get_mut(&id).unwrap();
             node.last_hover = self.t;
         }
 
         let mut focused_anything = false;
         if let Some(id) = self.clicked {
-            let node = self.nodes.get_mut(&id).unwrap();
+            let node = self.node_map.get_mut(&id).unwrap();
             node.last_click = self.t;
 
             if node.params.editable {
@@ -1488,6 +1493,22 @@ impl Ui {
         let new_parent = self.parent_stack.last().unwrap();
         self.tree_trace.push(crate::ui::TreeTraceEntry::SetParent(*new_parent));
         self.tree_trace_defaults.push(None);
+    }
+
+    pub(crate) fn update_nodes(&mut self) {
+        let mut current_parent_id = NODE_ROOT_ID;
+        for i in 0..self.tree_trace.len() {
+            match &self.tree_trace[i] {
+                TreeTraceEntry::Node(id) => {
+                    let defaults = self.tree_trace_defaults[i].unwrap();
+                    let key = NodeKey::new(defaults, *id);
+                    self.update_node(&key, Some(current_parent_id));
+                },
+                TreeTraceEntry::SetParent(id) => {
+                    current_parent_id = *id;
+                },
+            }
+        }
     }
 }
 

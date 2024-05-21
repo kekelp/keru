@@ -106,23 +106,7 @@ impl<'window> State<'window> {
             });
         });
 
-        // todo dont clone
-        let mut current_parent_id = NODE_ROOT_ID;
-        for (i, e) in ui.tree_trace.clone().iter().enumerate() {
-            match e {
-                TreeTraceEntry::Node(id) => {
-                    let defaults = ui.tree_trace_defaults[i].unwrap();
-                    let key = NodeKey {
-                        id: *id,
-                        defaults,
-                    };
-                    ui.update_hashmap(&key, Some(current_parent_id));
-                },
-                TreeTraceEntry::SetParent(id) => {
-                    current_parent_id = *id;
-                },
-            }
-        }
+        ui.update_nodes();
 
         // println!("{:?}", ui.tree_trace);
         // println!("");
