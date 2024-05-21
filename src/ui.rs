@@ -1,9 +1,7 @@
 use glyphon::Cursor as GlyphonCursor;
 use glyphon::{Affinity, Resolution as GlyphonResolution};
 use rustc_hash::{FxHashMap, FxHasher};
-use wgpu::Face;
 
-use std::any::TypeId;
 use std::{
     hash::Hasher,
     marker::PhantomData,
