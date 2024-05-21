@@ -1762,3 +1762,5 @@ fn fx_hash<T: Hash>(value: &T) -> u64 {
     value.hash(&mut hasher);
     hasher.finish()
 }
+
+// pub trait View 
