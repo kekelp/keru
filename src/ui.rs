@@ -558,9 +558,10 @@ pub struct Ui {
 
     pub focused: Option<Id>,
 
-    // remember about animations (surely there will be)
-    pub content_changed: bool,
-    pub tree_changed: bool,
+    // todo: add these back sometime. probably better to have relayout_needed, rerender_needed, etc instead of some vaguely named trash
+    // // remember about animations (surely there will be)
+    // pub content_changed: bool,
+    // pub tree_changed: bool,
 
     pub t: f32,
 
@@ -578,7 +579,7 @@ impl Ui {
         let hash = hasher.finish();
 
         if let None = self.node_map.get(&id) {
-            //todo: call a fake_add that doesn't set parent and children, and remove the whole Option(parent_id) crap everywhere
+            //todo: call a fake_add that doesn't set parent and children, and remove the whole Option(parent_id) trash everywhere
             self.update_node(key, None);
         }
         let text_id = self.node_map.get(&id).unwrap().text_id;
@@ -627,8 +628,6 @@ impl Ui {
             Shaping::Advanced,
         );
         self.text_areas[text_id].last_frame_touched = self.part.current_frame;
-
-        self.content_changed = true;
     }
 
     pub fn set_color(&mut self, id: Id, color: Color) {
@@ -638,7 +637,6 @@ impl Ui {
                 return;
             } else {
                 node.params.color = color;
-                self.content_changed = true;
             }
         }
     }
@@ -780,9 +778,6 @@ impl Ui {
             hovered: None,
             focused: None,
 
-            content_changed: true,
-            tree_changed: true,
-
             t: 0.0,
 
             tree_trace: Vec::new(),
@@ -800,14 +795,6 @@ impl Ui {
             ui: self,
             key: &node_key,
         };
-    }
-
-    pub fn add2_params<T>(&mut self, node_key: impl UiIdParam<T> + UiDefaultsParam<T>, param: &T) {
-        let id = node_key.id(param);
-        self.tree_trace.push(TreeTraceEntry::Node(id));
-
-        let defaults = node_key.defaults(param);
-        self.tree_trace_defaults.push(Some(defaults));
     }
 
     // todo: deduplicate with refresh (maybe)
@@ -1015,9 +1002,6 @@ impl Ui {
     }
 
     pub fn layout(&mut self) {
-        if !self.needs_redraw() {
-            return;
-        }
         self.stack.clear();
 
         // push the root
@@ -1178,8 +1162,6 @@ impl Ui {
     pub fn resize(&mut self, size: &PhysicalSize<u32>, queue: &Queue) {
         self.part.unifs.size[X] = size.width as f32;
         self.part.unifs.size[Y] = size.height as f32;
-        self.content_changed = true;
-        self.tree_changed = true;
 
         queue.write_buffer(
             &self.uniform_buffer,
@@ -1198,9 +1180,6 @@ impl Ui {
     }
 
     pub fn build_buffers(&mut self) {
-        if !self.needs_redraw() {
-            return;
-        }
 
         self.rects.clear();
         self.stack.clear();
@@ -1345,43 +1324,44 @@ impl Ui {
     // }
 
     pub fn render<'pass>(&'pass self, render_pass: &mut RenderPass<'pass>) {
-        if self.needs_redraw() {
-            let n = self.rects.len() as u32;
-            if n > 0 {
-                render_pass.set_pipeline(&self.render_pipeline);
-                render_pass.set_bind_group(0, &self.bind_group, &[]);
-                render_pass.set_vertex_buffer(0, self.gpu_vertex_buffer.slice(n));
-                render_pass.draw(0..6, 0..n);
-            }
-
-            self.text_renderer.render(&self.atlas, render_pass).unwrap();
+        let n = self.rects.len() as u32;
+        if n > 0 {
+            render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.set_bind_group(0, &self.bind_group, &[]);
+            render_pass.set_vertex_buffer(0, self.gpu_vertex_buffer.slice(n));
+            render_pass.draw(0..6, 0..n);
         }
+
+        self.text_renderer.render(&self.atlas, render_pass).unwrap();
     }
 
     pub fn prepare(&mut self, device: &Device, queue: &Queue) {
-        if self.needs_redraw() {
-            self.gpu_vertex_buffer.queue_write(&self.rects[..], queue);
+        self.gpu_vertex_buffer.queue_write(&self.rects[..], queue);
 
-            self.text_renderer
-                .prepare(
-                    device,
-                    queue,
-                    &mut self.font_system,
-                    &mut self.atlas,
-                    GlyphonResolution {
-                        width: self.part.unifs.size[X] as u32,
-                        height: self.part.unifs.size[Y] as u32,
-                    },
-                    &mut self.text_areas,
-                    &mut self.cache,
-                    self.part.current_frame,
-                )
-                .unwrap();
-        }
+        self.text_renderer
+            .prepare(
+                device,
+                queue,
+                &mut self.font_system,
+                &mut self.atlas,
+                GlyphonResolution {
+                    width: self.part.unifs.size[X] as u32,
+                    height: self.part.unifs.size[Y] as u32,
+                },
+                &mut self.text_areas,
+                &mut self.cache,
+                self.part.current_frame,
+            )
+            .unwrap();
     }
 
-    // todo: this can be called at the end of prepare() or render() instead of in main(), maybe.
-    pub fn finish_frame(&mut self) {
+    pub fn begin_tree(&mut self) {
+
+        self.update_time();
+
+        self.tree_trace.clear();
+        self.tree_trace_defaults.clear();
+
         // the root isn't processed in the div! stuff because there's usually nothing to do with it (except this)
         self.node_map
             .get_mut(&NODE_ROOT_ID)
@@ -1389,19 +1369,14 @@ impl Ui {
             .children_ids
             .clear();
 
-        self.content_changed = false;
-        self.tree_changed = false;
         self.part.current_frame += 1;
-        self.part.mouse_left_just_clicked = false;
     }
 
-    // todo: this can be called at the start of layout() (before the early return) instead that in main, if nothing changes.
     pub fn finish_tree(&mut self) {
-
-    }
-
-    pub fn needs_redraw(&self) -> bool {
-        return self.tree_changed || self.content_changed;
+        self.update_nodes();
+        self.layout();
+        self.resolve_mouse_input();
+        
     }
 
     // todo: skip this if there has been no new mouse movement and no new clicks.
@@ -1747,20 +1722,4 @@ pub fn cursor_pos_from_byte_offset(buffer: &Buffer, byte_offset: usize) -> (f32,
 
     // string is empty
     return (0.0, 0.0);
-}
-
-pub trait UiId {
-    fn id(&self) -> Id;
-}
-
-pub trait UiDefaults {
-    fn defaults(&self) -> NodeParams;
-}
-
-pub trait UiIdParam<T> {
-    fn id(&self, param: &T) -> Id;
-}
-
-pub trait UiDefaultsParam<T> {
-    fn defaults(&self, param: &T) -> NodeParams;
 }

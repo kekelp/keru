@@ -5,19 +5,14 @@ use helper::{
     WgpuWindow, ENC_DESC,
 };
 
-use rustc_hash::FxHasher;
 pub use ui::Id;
 
-use ui::{Arrange, Axis::{X, Y}, Color, NodeKey, NodeParams, Position, Ui, UiDefaults, UiDefaultsParam, UiId, UiIdParam};
+use ui::{Arrange, Axis::Y, Color, NodeKey, NodeParams, Ui};
 use wgpu::TextureViewDescriptor;
 use winit::{
     event::{Event, WindowEvent},
     event_loop::{EventLoop, EventLoopWindowTarget},
 };
-
-use std::{any::TypeId, hash::{Hash, Hasher}, time::Duration};
-
-use crate::ui::{TreeTraceEntry, NODE_ROOT_ID};
 
 fn main() {
     let (event_loop, mut state) = init();
@@ -71,13 +66,9 @@ impl<'window> State<'window> {
     pub fn update(&mut self) {
         let ui = &mut self.ui;
 
-        ui.content_changed = true;
-
-        ui.update_time();
+        ui.begin_tree();
+        
         ui.update_gpu_time(&self.window.queue);
-
-        ui.tree_trace.clear();
-        ui.tree_trace_defaults.clear();
 
         h_stack!(ui, &COMMAND_LINE_ROW, {
             ui.add(&COMMAND_LINE);
@@ -106,57 +97,47 @@ impl<'window> State<'window> {
             });
         });
 
-        ui.update_nodes();
-
-        // println!("{:?}", ui.tree_trace);
-        // println!("");
-
         ui.finish_tree();
 
-        ui.layout();
-        ui.resolve_mouse_input();
 
         if ui.is_clicked(INCREASE_BUTTON.id) {
             self.counter_state.count += 1;
         }
-
+        
         if ui.is_clicked(DECREASE_BUTTON.id) {
             self.counter_state.count -= 1;
         }
-
+        
         if ui.is_clicked(SHOW_COUNTER_BUTTON.id) {
             self.counter_state.counter_mode = !self.counter_state.counter_mode;
         }
-
+        
         self.ui.build_buffers();
 
         self.render();
-        
-        self.ui.finish_frame();
+
+        // todo: why does this have to be here again?
+        self.ui.part.mouse_left_just_clicked = false;
     }
 
     pub fn render(&mut self) {
-        if self.ui.needs_redraw() {
-            self.ui.prepare(&self.window.device, &self.window.queue);
+        self.ui.prepare(&self.window.device, &self.window.queue);
 
-            let frame = self.window.surface.get_current_texture().unwrap();
+        let frame = self.window.surface.get_current_texture().unwrap();
 
-            let view = frame.texture.create_view(&TextureViewDescriptor::default());
-            let mut encoder = self.window.device.create_command_encoder(&ENC_DESC);
+        let view = frame.texture.create_view(&TextureViewDescriptor::default());
+        let mut encoder = self.window.device.create_command_encoder(&ENC_DESC);
 
-            {
-                let color_att = base_color_attachment(&view);
-                let render_pass_desc = &base_render_pass_desc(&color_att);
-                let mut render_pass = encoder.begin_render_pass(render_pass_desc);
+        {
+            let color_att = base_color_attachment(&view);
+            let render_pass_desc = &base_render_pass_desc(&color_att);
+            let mut render_pass = encoder.begin_render_pass(render_pass_desc);
 
-                self.ui.render(&mut render_pass);
-            }
-
-            self.window.queue.submit(Some(encoder.finish()));
-            frame.present();
-        } else {
-            std::thread::sleep(Duration::from_millis(6));
+            self.ui.render(&mut render_pass);
         }
+
+        self.window.queue.submit(Some(encoder.finish()));
+        frame.present();
     }
 }
 
