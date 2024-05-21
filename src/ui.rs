@@ -104,6 +104,8 @@ impl Rect {
     }
 }
 
+// todo: compress some fields... for example, stacks can never be clickable or editable
+// maybe remove z as well. nodoby uses that.
 #[derive(Debug, Copy, Clone)]
 pub struct NodeParams {
     pub debug_name: &'static str,
@@ -115,7 +117,6 @@ pub struct NodeParams {
     pub size: Xy<Size>,
     pub position: Xy<Position>,
     pub is_stack: Option<Stack>,
-    pub z: f32,
 }
 
 impl Default for NodeParams {
@@ -130,7 +131,6 @@ impl Default for NodeParams {
             position: Xy::new_symm(Position::Start),
             is_stack: None,
             editable: false,
-            z: 0.0,
         }
     }
 }
@@ -198,7 +198,6 @@ impl NodeParams {
             axis: Axis::Y,
         }),
         editable: false,
-        z: 0.0,
     };
     pub const H_STACK: Self = Self {
         debug_name: "Column",
@@ -213,7 +212,6 @@ impl NodeParams {
             axis: Axis::X,
         }),
         editable: false,
-        z: 0.0,
     };
     pub const FRAME: Self = Self {
         debug_name: "FRAME",
@@ -225,7 +223,6 @@ impl NodeParams {
         position: Xy::new_symm(Position::Center),
         is_stack: None,
         editable: false,
-        z: 0.0,
     };
 
     pub const BUTTON: Self = Self {
@@ -238,7 +235,6 @@ impl NodeParams {
         position: Xy::new_symm(Position::Center),
         is_stack: None,
         editable: false,
-        z: 0.0,
     };
 
     pub const LABEL: Self = Self {
@@ -251,7 +247,6 @@ impl NodeParams {
         position: Xy::new_symm(Position::Center),
         is_stack: None,
         editable: false,
-        z: 0.0,
     };
 
     pub const TEXT_INPUT: Self = Self {
@@ -264,13 +259,10 @@ impl NodeParams {
         position: Xy::new_symm(Position::Start),
         is_stack: None,
         editable: true,
-        z: 0.0,
     };
 }
 
-// NodeKey intentionally does not implement Clone, so that it's harder for the user to accidentally use duplicated Ids for different nodes.
-// it's still too easy to clone an Id, but taking Clone out from that seems too annoying for now.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct NodeKey {
     pub id: Id,
     pub defaults: NodeParams,
@@ -458,18 +450,20 @@ impl Color {
 //     node: &'a mut Node,
 // }
 // which would have the same aethetics but would also be faster.
-pub struct UiWithNode<'a> {
+
+// ^all the above is obsolete. this is great the way it is now. except for the lifetime soup, and it's still oversugaring.
+pub struct UiWithNodeKey<'a, 'b> {
     ui: &'a mut Ui,
-    id: Id,
+    key: &'b NodeKey,
 }
 
-impl<'a> UiWithNode<'a> {
+impl<'a, 'b> UiWithNodeKey<'a, 'b> {
     pub fn set_color(&mut self, color: Color) {
-        self.ui.color(self.id, color)
+        self.ui.set_color(self.key.id, color)
     }
 
     pub fn set_text(&mut self, text: impl ToString) {
-        self.ui.text(self.id, text)
+        self.ui.set_text(&self.key, text)
     }
 }
 
@@ -557,9 +551,6 @@ pub struct Ui {
 
     pub part: PartialBorrowStuff,
 
-    pub last_tree_hash: u64,
-    pub tree_hasher: FxHasher,
-
     pub clicked_stack: Vec<(Id, f32)>,
     pub hovered_stack: Vec<(Id, f32)>,
     pub clicked: Option<Id>,
@@ -577,13 +568,17 @@ pub struct Ui {
     pub tree_trace_defaults: Vec<Option<NodeParams>>,
 }
 impl Ui {
-    pub fn text(&mut self, id: Id, text: impl ToString) {
+    pub fn set_text(&mut self, key: &NodeKey, text: impl ToString) {
+        let id = key.id;
         let text = text.to_string();
         let mut hasher = FxHasher::default();
         text.hash(&mut hasher);
         let hash = hasher.finish();
 
-        // todo: return instead of unwrap. remove the others too...
+        if let None = self.nodes.get(&id) {
+            //todo: call a fake_add that doesn't set parent and children, and remove the whole Option(parent_id) crap everywhere
+            self.update_hashmap(key, None);
+        }
         let text_id = self.nodes.get(&id).unwrap().text_id;
         let text_id = match text_id {
             Some(text_id) => {
@@ -634,7 +629,8 @@ impl Ui {
         self.content_changed = true;
     }
 
-    pub fn color(&mut self, id: Id, color: Color) {
+    pub fn set_color(&mut self, id: Id, color: Color) {
+        // todo: dont return, add, etc
         if let Some(node) = self.nodes.get_mut(&id) {
             if node.params.color == color {
                 return;
@@ -782,8 +778,6 @@ impl Ui {
             hovered: None,
             focused: None,
 
-            tree_hasher: FxHasher::default(),
-            last_tree_hash: 0,
             content_changed: true,
             tree_changed: true,
 
@@ -794,12 +788,16 @@ impl Ui {
         }
     }
 
-    pub fn add2(&mut self, node_key: impl UiId + UiDefaults) {
+    pub fn add2<'b>(&mut self, node_key: &'b NodeKey) -> UiWithNodeKey<'_, 'b> {
         let id = node_key.id();
         self.tree_trace.push(TreeTraceEntry::Node(id));
 
-        let defaults = node_key.defaults();
-        self.tree_trace_defaults.push(Some(defaults));
+        self.tree_trace_defaults.push(Some(node_key.defaults));
+
+        return UiWithNodeKey {
+            ui: self,
+            key: &node_key,
+        };
     }
 
     pub fn add2_params<T>(&mut self, node_key: impl UiIdParam<T> + UiDefaultsParam<T>, param: &T) {
@@ -811,10 +809,8 @@ impl Ui {
     }
 
     // todo: deduplicate with refresh (maybe)
-    pub fn add(&mut self, node_key: NodeKey, parent_id: Id) -> UiWithNode {
+    pub fn update_hashmap<'b>(&mut self, node_key: &'b NodeKey, parent_id: Option<Id>) -> UiWithNodeKey<'_, 'b> {
         let node_key_id = node_key.id;
-
-        node_key_id.hash(&mut self.tree_hasher);
 
         let old_node = self.nodes.get_mut(&node_key_id);
         if old_node.is_none() {
@@ -866,19 +862,26 @@ impl Ui {
             old_node.children_ids.clear();
         }
 
-        self.nodes
+
+        if let Some(parent_id) = parent_id {
+            self.nodes
             .get_mut(&parent_id)
             .unwrap()
             .children_ids
             .push(node_key_id);
+        }
 
-        return UiWithNode {
+        return UiWithNodeKey {
             ui: self,
-            id: node_key_id,
+            key: &node_key,
         };
     }
 
-    pub fn new_node(&self, node_key: NodeKey, parent_id: Id, text_id: Option<usize>) -> Node {
+    pub fn new_node(&self, node_key: &NodeKey, parent_id: Option<Id>, text_id: Option<usize>) -> Node {
+        let parent_id = match parent_id {
+            Some(parent_id) => parent_id,
+            None => Id(999999),
+        };
         Node {
             rect_id: None,
             rect: Xy::new_symm([0.0, 1.0]),
@@ -1388,14 +1391,11 @@ impl Ui {
         self.tree_changed = false;
         self.part.current_frame += 1;
         self.part.mouse_left_just_clicked = false;
-        self.tree_hasher = FxHasher::default();
     }
 
     // todo: this can be called at the start of layout() (before the early return) instead that in main, if nothing changes.
     pub fn finish_tree(&mut self) {
-        let hash = self.tree_hasher.finish();
-        self.tree_changed = hash != self.last_tree_hash;
-        self.last_tree_hash = hash;
+
     }
 
     pub fn needs_redraw(&self) -> bool {
@@ -1578,7 +1578,6 @@ pub const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     position: Xy::new_symm(Position::Start),
     is_stack: None,
     editable: false,
-    z: 0.0,
 };
 
 // todo: change
@@ -1679,22 +1678,39 @@ macro_rules! create_pop_macro {
             //     $code;
             //     $ui.parent_stack.pop();
             // };
-            // named
-            ($ui:expr, $node_key:expr, $code:block) => {
-                use crate::ui::TreeTraceEntry;
-                $ui.add2($node_key);
+            ($ui:expr, $code:block) => {
+                let anonymous_id = new_id!();
+                let node_key = NodeKey::new($node_params_name, anonymous_id);
+                $ui.add2(&node_key);
 
                 
-                $ui.parent_stack.push($node_key.id());
+                $ui.parent_stack.push(anonymous_id);
                 let new_parent = $ui.parent_stack.last().unwrap();
-                $ui.tree_trace.push(TreeTraceEntry::SetParent(*new_parent));
+                $ui.tree_trace.push(crate::ui::TreeTraceEntry::SetParent(*new_parent));
                 $ui.tree_trace_defaults.push(None);
                 
                 $code;
                 
                 $ui.parent_stack.pop();
                 let new_parent = $ui.parent_stack.last().unwrap();
-                $ui.tree_trace.push(TreeTraceEntry::SetParent(*new_parent));
+                $ui.tree_trace.push(crate::ui::TreeTraceEntry::SetParent(*new_parent));
+                $ui.tree_trace_defaults.push(None);
+            };
+            // named
+            ($ui:expr, $node_key:expr, $code:block) => {
+                $ui.add2($node_key);
+
+                
+                $ui.parent_stack.push($node_key.id());
+                let new_parent = $ui.parent_stack.last().unwrap();
+                $ui.tree_trace.push(crate::ui::TreeTraceEntry::SetParent(*new_parent));
+                $ui.tree_trace_defaults.push(None);
+                
+                $code;
+                
+                $ui.parent_stack.pop();
+                let new_parent = $ui.parent_stack.last().unwrap();
+                $ui.tree_trace.push(crate::ui::TreeTraceEntry::SetParent(*new_parent));
                 $ui.tree_trace_defaults.push(None);
             };
         }

@@ -17,64 +17,7 @@ use winit::{
 
 use std::{any::TypeId, hash::{Hash, Hasher}, time::Duration};
 
-use crate::ui::NODE_ROOT_ID;
-
-
-pub struct HStack {}
-const HSTACK: HStack = HStack {};
-
-impl UiDefaults for HStack {
-    fn defaults(&self) -> NodeParams {
-        return NodeParams::H_STACK;
-    }
-}
-impl UiId for HStack {
-    fn id(&self) -> Id {
-        let mut hasher = FxHasher::default();
-        TypeId::of::<Self>().hash(&mut hasher);
-        return Id(hasher.finish());
-    }
-}
-
-pub struct Button {}
-const BUTTON: Button = Button {};
-
-impl UiDefaults for Button {
-    fn defaults(&self) -> NodeParams {
-        return NodeParams::BUTTON.with_static_text("Click");
-    }
-}
-impl UiId for Button {
-    fn id(&self) -> Id {
-        let mut hasher = FxHasher::default();
-        TypeId::of::<Self>().hash(&mut hasher);
-        return Id(hasher.finish());
-    }
-}
-
-
-pub struct ColorButton {}
-const COLOR_BUTTON: ColorButton = ColorButton {};
-
-impl UiDefaultsParam<&str> for ColorButton {
-    fn defaults(&self, string: &&str) -> NodeParams {
-        let (str2, color) = match string {
-            &"Blue" => ("Blue", Color::rgba(0.0, 0.0, 1.0, 0.9)),
-            &"Green" => ("Green", Color::rgba(0.0, 1.0, 0.0, 0.9)),
-            &"Red" => ("Red", Color::rgba(1.0, 0.0, 0.0, 0.9)),
-            _ => panic!(),
-        };
-        return NodeParams::BUTTON.with_color(color).with_static_text(str2);
-    }
-}
-impl UiIdParam<&str> for ColorButton {
-    fn id(&self, string: &&str) -> Id {
-        let mut hasher = FxHasher::default();
-        TypeId::of::<Self>().hash(&mut hasher);
-        string.hash(&mut hasher);
-        return Id(hasher.finish());
-    }
-}
+use crate::ui::{TreeTraceEntry, NODE_ROOT_ID};
 
 fn main() {
     let (event_loop, mut state) = init();
@@ -136,11 +79,31 @@ impl<'window> State<'window> {
         ui.tree_trace.clear();
         ui.tree_trace_defaults.clear();
 
-        h_stack!(ui, HSTACK, {
-            ui.add2(BUTTON);
-            for str2 in ["Blue", "Green", "Red"] {
-                ui.add2_params(COLOR_BUTTON, &str2);
-            }
+        h_stack!(ui, &COMMAND_LINE_ROW, {
+            ui.add2(&COMMAND_LINE);
+        });
+
+        frame!(ui, {
+            h_stack!(ui, &CENTER_ROW, {
+                v_stack!(ui, {
+                    if self.counter_state.counter_mode {
+                        let new_color = count_color(self.counter_state.count);
+                        ui.add2(&INCREASE_BUTTON).set_color(new_color);
+
+                        ui.add2(&COUNT_LABEL).set_text(self.counter_state.count);
+
+                        ui.add2(&DECREASE_BUTTON);
+                    }
+                });
+
+                v_stack!(ui, {
+                    let text = match self.counter_state.counter_mode {
+                        true => "Hide counter",
+                        false => "Show counter",
+                    };
+                    ui.add2(&SHOW_COUNTER_BUTTON).set_text(text);
+                });
+            });
         });
 
         // todo dont clone
@@ -153,7 +116,7 @@ impl<'window> State<'window> {
                         id: *id,
                         defaults,
                     };
-                    ui.add(key, current_parent_id);
+                    ui.update_hashmap(&key, Some(current_parent_id));
                 },
                 TreeTraceEntry::SetParent(id) => {
                     current_parent_id = *id;
@@ -168,16 +131,6 @@ impl<'window> State<'window> {
 
         ui.layout();
         ui.resolve_mouse_input();
-
-        if ui.is_clicked((Button {}).id()) {
-            println!("Click");
-        }
-
-        for str2 in ["Blue", "Green", "Red"] {
-            if ui.is_clicked(COLOR_BUTTON.id(&str2)) {
-                println!("{:?}", str2);
-            }
-        }
 
         if ui.is_clicked(INCREASE_BUTTON.id) {
             self.counter_state.count += 1;
