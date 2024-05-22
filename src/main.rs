@@ -6,6 +6,7 @@ use helper::{
     WgpuWindow, ENC_DESC,
 };
 
+use smallbox::{smallbox, space::{S4, S8}, SmallBox};
 pub use ui::Id;
 
 use ui::{Arrange, Axis::Y, Color, NodeKey, NodeParams, Ui, View};
@@ -85,32 +86,45 @@ impl<'window> State<'window> {
         
         ui.update_gpu_time(&self.window.queue);       
 
-        h_stack!(ui, &COMMAND_LINE_ROW, {
-            ui.add(&COMMAND_LINE);
-        });
 
-        margin!(ui, {
-            h_stack!(ui, &CENTER_ROW, {
-                v_stack!(ui, {
-                    if self.counter_state.counter_mode {
-                        let new_color = count_color(self.counter_state.count);
-                        ui.add(&INCREASE_BUTTON).set_color(new_color);
+        type ViewBox = SmallBox<dyn View, S8>;
 
-                        ui.add(&COUNT_LABEL).set_text(&self.counter_state.count.to_string());
+        let mut trace: Vec<ViewBox> = Vec::new();
+        
+        trace.push(smallbox!(FeedButton {}));
+        trace.push(smallbox!(SneedButton {}));
 
-                        ui.add(&DECREASE_BUTTON);
-                    }
-                });
+        for el in trace {
+            let defaults = el.defaults();
+            println!("{:?}", defaults.static_text);
+        }
 
-                v_stack!(ui, {
-                    let text = match self.counter_state.counter_mode {
-                        true => "Hide counter",
-                        false => "Show counter",
-                    };
-                    ui.add(&SHOW_COUNTER_BUTTON).set_text(text);
-                });
-            });
-        });
+        // h_stack!(ui, &COMMAND_LINE_ROW, {
+        //     ui.add(&COMMAND_LINE);
+        // });
+
+        // margin!(ui, {
+        //     h_stack!(ui, &CENTER_ROW, {
+        //         v_stack!(ui, {
+        //             if self.counter_state.counter_mode {
+        //                 let new_color = count_color(self.counter_state.count);
+        //                 ui.add(&INCREASE_BUTTON).set_color(new_color);
+
+        //                 ui.add(&COUNT_LABEL).set_text(&self.counter_state.count.to_string());
+
+        //                 ui.add(&DECREASE_BUTTON);
+        //             }
+        //         });
+
+        //         v_stack!(ui, {
+        //             let text = match self.counter_state.counter_mode {
+        //                 true => "Hide counter",
+        //                 false => "Show counter",
+        //             };
+        //             ui.add(&SHOW_COUNTER_BUTTON).set_text(text);
+        //         });
+        //     });
+        // });
 
         ui.finish_tree();
 
@@ -197,7 +211,6 @@ pub const COMMAND_LINE_ROW: NodeKey = unique_node_key!()
 
 
 pub struct SneedButton {}
-
 impl View for SneedButton {
     fn defaults(&self) -> NodeParams {
         return NodeParams::BUTTON.with_debug_name("Sneed").with_static_text("Sneed");
@@ -205,26 +218,8 @@ impl View for SneedButton {
 }
 
 pub struct FeedButton {}
-
 impl View for FeedButton {
     fn defaults(&self) -> NodeParams {
         return NodeParams::BUTTON.with_debug_name("Feed").with_static_text("Feed");
-    }
-}
-
-// to give tree_trace a real type, the whole ui can be generic over this type
-// when adding, we have to humiliate ourselves with the double SneedButton(SneedButton)
-pub enum Components {
-    SneedButton(SneedButton),
-    FeedButton(FeedButton),
-}
-
-// Kill yourself
-impl Components {
-    pub fn defaults(&self) -> NodeParams {
-        match self {
-            Components::SneedButton(c) => return c.defaults(),
-            Components::FeedButton(c) => return c.defaults(),
-        }
     }
 }

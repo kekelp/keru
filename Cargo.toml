@@ -21,6 +21,7 @@ rustc-hash = "1.1.0"
 unicode-segmentation = "1.11.0"
 enum_delegate = "0.2.0"
 enum_dispatch = "0.3.13"
+smallbox = "0.8.2"
 
 [lints.clippy]
 needless_return = { level = "allow" } 

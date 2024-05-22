@@ -176,6 +176,7 @@ dependencies = [
  "lazy_static",
  "pollster",
  "rustc-hash",
+ "smallbox",
  "smart-default",
  "unicode-segmentation",
  "wgpu",
@@ -1383,6 +1384,12 @@ checksum = "dbff4acf519f630b3a3ddcfaea6c06b42174d9a44bc70c620e9ed1649d58b82a"
 dependencies = [
  "version_check",
 ]
+
+[[package]]
+name = "smallbox"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d92359f97e6b417da4328a970cf04a044db104fbd57f7d72cb7ff665bb8806af"
 
 [[package]]
 name = "smallvec"
