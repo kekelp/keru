@@ -86,58 +86,46 @@ impl<'window> State<'window> {
         
         ui.update_gpu_time(&self.window.queue);       
 
+        h_stack!(ui, COMMAND_LINE_ROW, {
+            ui.add(COMMAND_LINE);
+        });
 
-        type ViewBox = SmallBox<dyn View, S8>;
+        margin!(ui, {
+            h_stack!(ui, CENTER_ROW, {
+                v_stack!(ui, {
+                    if self.counter_state.counter_mode {
+                        let new_color = count_color(self.counter_state.count);
+                        // ui.add(INCREASE_BUTTON).set_color(new_color);
+                        ui.add(INCREASE_BUTTON);
 
-        let mut trace: Vec<ViewBox> = Vec::new();
-        
-        trace.push(smallbox!(FeedButton {}));
-        trace.push(smallbox!(SneedButton {}));
+                        ui.add(COUNT_LABEL).set_text(&self.counter_state.count.to_string());
 
-        for el in trace {
-            let defaults = el.defaults();
-            println!("{:?}", defaults.static_text);
-        }
+                        ui.add(DECREASE_BUTTON);
+                    }
+                });
 
-        // h_stack!(ui, &COMMAND_LINE_ROW, {
-        //     ui.add(&COMMAND_LINE);
-        // });
-
-        // margin!(ui, {
-        //     h_stack!(ui, &CENTER_ROW, {
-        //         v_stack!(ui, {
-        //             if self.counter_state.counter_mode {
-        //                 let new_color = count_color(self.counter_state.count);
-        //                 ui.add(&INCREASE_BUTTON).set_color(new_color);
-
-        //                 ui.add(&COUNT_LABEL).set_text(&self.counter_state.count.to_string());
-
-        //                 ui.add(&DECREASE_BUTTON);
-        //             }
-        //         });
-
-        //         v_stack!(ui, {
-        //             let text = match self.counter_state.counter_mode {
-        //                 true => "Hide counter",
-        //                 false => "Show counter",
-        //             };
-        //             ui.add(&SHOW_COUNTER_BUTTON).set_text(text);
-        //         });
-        //     });
-        // });
+                v_stack!(ui, {
+                    let text = match self.counter_state.counter_mode {
+                        true => "Hide counter",
+                        false => "Show counter",
+                    };
+                    ui.add(SHOW_COUNTER_BUTTON).set_text(text);
+                });
+            });
+        });
 
         ui.finish_tree();
 
 
-        if ui.is_clicked(INCREASE_BUTTON.id) {
+        if ui.is_clicked(INCREASE_BUTTON) {
             self.counter_state.count += 1;
         }
         
-        if ui.is_clicked(DECREASE_BUTTON.id) {
+        if ui.is_clicked(DECREASE_BUTTON) {
             self.counter_state.count -= 1;
         }
         
-        if ui.is_clicked(SHOW_COUNTER_BUTTON.id) {
+        if ui.is_clicked(SHOW_COUNTER_BUTTON) {
             self.counter_state.counter_mode = !self.counter_state.counter_mode;
         }
         
@@ -175,51 +163,63 @@ pub fn count_color(count: i32) -> Color {
     return Color::rgba(red, 0.1, 0.2, 0.8);
 }
 
-pub const CENTER_ROW: NodeKey = unique_node_key!()
-    .with_defaults(NodeParams::H_STACK)
-    .with_color(Color::BLUE);
 
-pub const INCREASE_BUTTON: NodeKey = unique_node_key!()
-    .with_defaults(NodeParams::BUTTON)
-    .with_static_text("Increase")
-    .with_color(Color::BLUE);
-
-pub const DECREASE_BUTTON: NodeKey = unique_node_key!()
-    .with_defaults(NodeParams::BUTTON)
-    .with_static_text("Decrease")
-    .with_color(Color::BLUE);
-
-pub const SHOW_COUNTER_BUTTON: NodeKey = unique_node_key!()
-    .with_defaults(NodeParams::BUTTON)
-    .with_static_text("Show Counter")
-    .with_color(Color::BLUE);
-
-pub const COUNT_LABEL: NodeKey = unique_node_key!()
-    .with_defaults(NodeParams::LABEL);
-
-pub const COMMAND_LINE: NodeKey = unique_node_key!()
-    .with_defaults(NodeParams::TEXT_INPUT)
-    .with_size_y(0.1)
-    .with_static_text("高38道ょつ準傷に債健の🤦🏼‍♂️🚵🏻‍♀️");
-
-pub const COMMAND_LINE_ROW: NodeKey = unique_node_key!()
-    .with_defaults(NodeParams::H_STACK)
-    .with_size_y(0.95)
-    .with_size_x(0.8)
-    .with_stack(Y, Arrange::End)
-    .with_color(Color::BLUE);
-
-
-pub struct SneedButton {}
-impl View for SneedButton {
+pub struct CenterRow {}
+pub const CENTER_ROW: CenterRow = CenterRow {};
+impl View for CenterRow {
     fn defaults(&self) -> NodeParams {
-        return NodeParams::BUTTON.with_debug_name("Sneed").with_static_text("Sneed");
+        return NodeParams::H_STACK.with_color(Color::BLUE);
     }
 }
 
-pub struct FeedButton {}
-impl View for FeedButton {
+pub struct IncreaseButton {}
+pub const INCREASE_BUTTON: IncreaseButton = IncreaseButton {};
+impl View for IncreaseButton {
     fn defaults(&self) -> NodeParams {
-        return NodeParams::BUTTON.with_debug_name("Feed").with_static_text("Feed");
+        return NodeParams::BUTTON.with_static_text("Increase").with_color(Color::BLUE);
+    }
+}
+
+pub struct DecreaseButton {} 
+pub const DECREASE_BUTTON: DecreaseButton = DecreaseButton {};
+impl View for DecreaseButton {
+    fn defaults(&self) -> NodeParams {
+        return NodeParams::BUTTON.with_static_text("Decrease").with_color(Color::BLUE);
+    }
+}
+
+pub struct ShowCounterButton {}
+pub const SHOW_COUNTER_BUTTON: ShowCounterButton = ShowCounterButton {};
+impl View for ShowCounterButton {
+    fn defaults(&self) -> NodeParams {
+        return NodeParams::BUTTON.with_static_text("Show Counter").with_color(Color::BLUE);
+    }
+}
+
+pub struct CountLabel {}
+pub const COUNT_LABEL: CountLabel = CountLabel {};
+impl View for CountLabel {
+    fn defaults(&self) -> NodeParams {
+        return NodeParams::LABEL;
+    }
+}
+
+pub struct CommandLine {}
+pub const COMMAND_LINE: CommandLine = CommandLine {};
+impl View for CommandLine {
+    fn defaults(&self) -> NodeParams {
+        return NodeParams::TEXT_INPUT.with_size_y(0.1).with_static_text("高38道ょつ準傷に債健の🤦🏼‍♂️🚵🏻‍♀️");
+    }
+}
+
+pub struct CommandLineRow {}
+pub const COMMAND_LINE_ROW: CommandLineRow = CommandLineRow {};
+impl View for CommandLineRow {
+    fn defaults(&self) -> NodeParams {
+        return NodeParams::H_STACK
+            .with_size_y(0.95)
+            .with_size_x(0.8)
+            .with_stack(Y, Arrange::End)
+            .with_color(Color::BLUE);
     }
 }

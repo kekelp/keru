@@ -1,7 +1,11 @@
 use glyphon::Cursor as GlyphonCursor;
 use glyphon::{Affinity, Resolution as GlyphonResolution};
 use rustc_hash::{FxHashMap, FxHasher};
+use smallbox::space::S8;
+use smallbox::{smallbox, SmallBox};
 
+use std::any::TypeId;
+use std::mem::transmute;
 use std::{
     hash::Hasher,
     marker::PhantomData,
@@ -274,6 +278,50 @@ impl NodeParams {
     };
 }
 
+pub struct VStack {}
+pub const V_STACK: VStack = VStack {};
+impl View for VStack{
+        fn defaults(&self) -> NodeParams {
+        return NodeParams::V_STACK;
+    }
+}
+pub struct HStack {}
+pub const H_STACK: HStack = HStack {};
+impl View for HStack{
+        fn defaults(&self) -> NodeParams {
+        return NodeParams::H_STACK;
+    }
+}
+pub struct Frame {}
+pub const FRAME: Frame = Frame {};
+impl View for Frame{
+        fn defaults(&self) -> NodeParams {
+        return NodeParams::FRAME;
+    }
+}
+pub struct Button {}
+pub const BUTTON: Button = Button {};
+impl View for Button{
+        fn defaults(&self) -> NodeParams {
+        return NodeParams::BUTTON;
+    }
+}
+pub struct Label {}
+pub const LABEL: Label = Label {};
+impl View for Label{
+        fn defaults(&self) -> NodeParams {
+        return NodeParams::LABEL;
+    }
+}
+pub struct TextInput {}
+pub const TEXT_INPUT: TextInput = TextInput {};
+impl View for TextInput{
+        fn defaults(&self) -> NodeParams {
+        return NodeParams::TEXT_INPUT;
+    }
+}
+
+
 #[derive(Debug, Clone, Copy)]
 pub struct NodeKey {
     pub id: Id,
@@ -458,29 +506,28 @@ impl Color {
     }
 }
 
-// a reference to Ui with a particular Id "selected"
-// ui.add returns this, so that function calls to update the just-added node are slightly more aesthetic
-// this probably counts as oversugaring.
-// but with advanced hashmap stuff like RawEntryMut or however the brown is hashed, it should be possible to do something similar to this:
-// pub struct UiWithNodeRef<'a> {
-//     ui: &'a mut Ui,
-//     node: &'a mut Node,
-// }
-// which would have the same aethetics but would also be faster.
+// // a reference to Ui with a particular Id "selected"
+// // ui.add returns this, so that function calls to update the just-added node are slightly more aesthetic
+// // this probably counts as oversugaring.
+// // but with advanced hashmap stuff like RawEntryMut or however the brown is hashed, it should be possible to do something similar to this:
+// // pub struct UiWithNodeRef<'a> {
+// //     ui: &'a mut Ui,
+// //     node: &'a mut Node,
+// // }
+// // which would have the same aethetics but would also be faster.
 
-// ^all the above is obsolete. this is great the way it is now. except for the lifetime soup. and it's still oversugaring.
-pub struct UiWithNodeKey<'a, 'b> {
+// // ^all the above is obsolete. this is great the way it is now. except for the lifetime soup. and it's still oversugaring.
+pub struct UiChainRef<'a> {
     ui: &'a mut Ui,
-    key: &'b NodeKey,
 }
 
-impl<'a, 'b> UiWithNodeKey<'a, 'b> {
-    pub fn set_color(&mut self, color: Color) {
-        self.ui.set_color(self.key.id, color)
-    }
+impl<'a> UiChainRef<'a> {
+    // pub fn set_color(&mut self, color: Color) {
+    //     self.ui.set_color(color)
+    // }
 
     pub fn set_text(&mut self, text: &str) {
-        self.ui.set_text(&self.key, text)
+        self.ui.chained_set_text(text)
     }
 }
 
@@ -542,7 +589,7 @@ pub enum TreeTraceEntry {
     SetParent(Id),
 }
 
-pub struct EverythingExceptTreeTrace {}
+type ViewBox = SmallBox<dyn View, S8>;
 
 pub struct Ui {
     pub key_modifiers: ModifiersState,
@@ -588,15 +635,23 @@ pub struct Ui {
     // pub last_tree_trace: Vec<TreeTraceEntry>,
     
     pub tree_trace: Vec<TreeTraceEntry>,
-    pub tree_trace_defaults: Vec<Option<NodeParams>>,
+    pub tree_trace_defaults: Vec<Option<ViewBox>>,
 }
 impl Ui {
-    pub fn set_text(&mut self, key: &NodeKey, text: &str) {
+    fn chained_set_text(&mut self, text: &str) {
         let hash = fx_hash(&text);
+
+        // because this is an epic chain method, this may work
+        let id = match self.tree_trace.last().unwrap() {
+            TreeTraceEntry::Node(id) => id,
+            TreeTraceEntry::SetParent(id) => panic!(),
+        };
+        let defaults = self.tree_trace_defaults.last().unwrap().as_ref().unwrap().defaults();
+        let key = NodeKey::new(defaults, *id);
 
         if let None = self.node_map.get(&key.id) {
             //todo: call a fake_add that doesn't set parent and children, and remove the whole Option(parent_id) trash everywhere
-            self.update_node(key, None);
+            self.update_node(&key, None);
         }
         let text_id = self.node_map.get(&key.id).unwrap().text_id;
         let text_id = match text_id {
@@ -801,19 +856,29 @@ impl Ui {
         }
     }
 
-    pub fn add<'b>(&mut self, node_key: &'b NodeKey) -> UiWithNodeKey<'_, 'b> {
-        let id = node_key.id();
-        self.tree_trace.push(TreeTraceEntry::Node(id));
-        self.tree_trace_defaults.push(Some(node_key.defaults));
-
-        return UiWithNodeKey {
+    pub fn chain_ref(&mut self) -> UiChainRef {
+        return UiChainRef {
             ui: self,
-            key: &node_key,
         };
     }
 
+    pub fn add<V: View + 'static>(&mut self, view: V) -> UiChainRef {
+        let id = view_type_id(&view);
+        self.tree_trace.push(TreeTraceEntry::Node(id));
+        self.tree_trace_defaults.push(Some(smallbox!(view)));
+
+        return self.chain_ref()
+    }
+
+    pub fn add_anonymous<V: View + 'static>(&mut self, view: V, id: Id) -> UiChainRef {
+        self.tree_trace.push(TreeTraceEntry::Node(id));
+        self.tree_trace_defaults.push(Some(smallbox!(view)));
+        
+        return self.chain_ref()
+    }
+
     // todo: deduplicate with refresh (maybe)
-    pub fn update_node<'b>(&mut self, node_key: &'b NodeKey, parent_id: Option<Id>) -> UiWithNodeKey<'_, 'b> {
+    pub fn update_node<'b>(&mut self, node_key: &'b NodeKey, parent_id: Option<Id>) {
         let node_key_id = node_key.id;
 
         let old_node = self.node_map.get_mut(&node_key_id);
@@ -875,10 +940,10 @@ impl Ui {
             .push(node_key_id);
         }
 
-        return UiWithNodeKey {
-            ui: self,
-            key: &node_key,
-        };
+        // return UiWithView {
+        //     ui: self,
+        //     key: &node_key,
+        // };
     }
 
     pub fn new_node(&self, node_key: &NodeKey, parent_id: Option<Id>, text_id: Option<usize>) -> Node {
@@ -1164,11 +1229,12 @@ impl Ui {
         }
     }
 
-    pub fn is_clicked(&self, id: Id) -> bool {
+    pub fn is_clicked<V: View + 'static>(&self, view: V) -> bool {
         if !self.part.mouse_left_just_clicked {
             return false;
         }
         if let Some(clicked_id) = &self.clicked {
+            let id = view_type_id(&view);
             return *clicked_id == id;
         }
         return false;
@@ -1486,7 +1552,9 @@ impl Ui {
         for i in 0..self.tree_trace.len() {
             match &self.tree_trace[i] {
                 TreeTraceEntry::Node(id) => {
-                    let defaults = self.tree_trace_defaults[i].unwrap();
+
+                    // todo: don't create a key. pass the view directly.
+                    let defaults = self.tree_trace_defaults[i].as_ref().unwrap().defaults();
                     let key = NodeKey::new(defaults, *id);
                     self.update_node(&key, Some(current_parent_id));
                 },
@@ -1509,8 +1577,7 @@ macro_rules! create_layer_macro {
         macro_rules! $macro_name {
             ($ui:expr, $code:block) => {
                 let anonymous_id = new_id!();
-                let node_key = NodeKey::new($node_params_name, anonymous_id);
-                $ui.add(&node_key);
+                $ui.add_anonymous($node_params_name, anonymous_id);
 
                 $ui.start_layer(anonymous_id);
                 
@@ -1522,7 +1589,7 @@ macro_rules! create_layer_macro {
             ($ui:expr, $node_key:expr, $code:block) => {
                 $ui.add($node_key);
 
-                $ui.start_layer($node_key.id);
+                $ui.start_layer(crate::ui::view_type_id(&$node_key));
                 
                 $code;
                 
@@ -1532,9 +1599,9 @@ macro_rules! create_layer_macro {
     };
 }
 
-create_layer_macro!(h_stack, NodeParams::H_STACK);
-create_layer_macro!(v_stack, NodeParams::V_STACK);
-create_layer_macro!(margin, NodeParams::FRAME);
+create_layer_macro!(h_stack, crate::ui::H_STACK);
+create_layer_macro!(v_stack, crate::ui::V_STACK);
+create_layer_macro!(margin, crate::ui::FRAME);
 
 #[derive(Debug)]
 pub struct Node {
@@ -1765,4 +1832,10 @@ fn fx_hash<T: Hash>(value: &T) -> u64 {
 
 pub trait View {
     fn defaults(&self) -> NodeParams;
+}
+
+pub fn view_type_id<V: View + 'static>(view: &V) -> Id {
+    let id = TypeId::of::<V>();
+    let id: u128 = unsafe{ transmute(id) };
+    return Id(id as u64);
 }
