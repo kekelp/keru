@@ -506,22 +506,13 @@ impl Color {
     }
 }
 
-// // a reference to Ui with a particular Id "selected"
-// // ui.add returns this, so that function calls to update the just-added node are slightly more aesthetic
-// // this probably counts as oversugaring.
-// // but with advanced hashmap stuff like RawEntryMut or however the brown is hashed, it should be possible to do something similar to this:
-// // pub struct UiWithNodeRef<'a> {
-// //     ui: &'a mut Ui,
-// //     node: &'a mut Node,
-// // }
-// // which would have the same aethetics but would also be faster.
-
-// // ^all the above is obsolete. this is great the way it is now. except for the lifetime soup. and it's still oversugaring.
-pub struct UiChainRef<'a> {
+// with the trace system, this doesn't need to hold any information. Calls to ChainedMethodUi can just do tree_trace.last() to see the Id that they're supposed to use.
+// it's still somewhat useful to have this wrapper type, so that the chained_set_text can be kept private, and set_text can *only* be called right after an ui.add().
+pub struct ChainedMethodUi<'a> {
     ui: &'a mut Ui,
 }
 
-impl<'a> UiChainRef<'a> {
+impl<'a> ChainedMethodUi<'a> {
     // pub fn set_color(&mut self, color: Color) {
     //     self.ui.set_color(color)
     // }
@@ -856,13 +847,13 @@ impl Ui {
         }
     }
 
-    pub fn chain_ref(&mut self) -> UiChainRef {
-        return UiChainRef {
+    pub fn chain_ref(&mut self) -> ChainedMethodUi {
+        return ChainedMethodUi {
             ui: self,
         };
     }
 
-    pub fn add<V: View + 'static>(&mut self, view: V) -> UiChainRef {
+    pub fn add<V: View + 'static>(&mut self, view: V) -> ChainedMethodUi {
         let id = view_type_id(&view);
         self.tree_trace.push(TreeTraceEntry::Node(id));
         self.tree_trace_defaults.push(Some(smallbox!(view)));
@@ -870,7 +861,7 @@ impl Ui {
         return self.chain_ref()
     }
 
-    pub fn add_anonymous<V: View + 'static>(&mut self, view: V, id: Id) -> UiChainRef {
+    pub fn add_anonymous<V: View + 'static>(&mut self, view: V, id: Id) -> ChainedMethodUi {
         self.tree_trace.push(TreeTraceEntry::Node(id));
         self.tree_trace_defaults.push(Some(smallbox!(view)));
         
