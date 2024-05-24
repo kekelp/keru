@@ -278,43 +278,48 @@ impl NodeParams {
     };
 }
 
+#[derive(Default)]
 pub struct VStack {}
-pub const V_STACK: VStack = VStack {};
 impl View for VStack{
         fn defaults(&self) -> NodeParams {
         return NodeParams::V_STACK;
     }
 }
+
+#[derive(Default)]
 pub struct HStack {}
-pub const H_STACK: HStack = HStack {};
 impl View for HStack{
         fn defaults(&self) -> NodeParams {
         return NodeParams::H_STACK;
     }
 }
+
+#[derive(Default)]
 pub struct Frame {}
-pub const FRAME: Frame = Frame {};
 impl View for Frame{
         fn defaults(&self) -> NodeParams {
         return NodeParams::FRAME;
     }
 }
+
+#[derive(Default)]
 pub struct Button {}
-pub const BUTTON: Button = Button {};
 impl View for Button{
         fn defaults(&self) -> NodeParams {
         return NodeParams::BUTTON;
     }
 }
+
+#[derive(Default)]
 pub struct Label {}
-pub const LABEL: Label = Label {};
 impl View for Label{
         fn defaults(&self) -> NodeParams {
         return NodeParams::LABEL;
     }
 }
+
+#[derive(Default)]
 pub struct TextInput {}
-pub const TEXT_INPUT: TextInput = TextInput {};
 impl View for TextInput{
         fn defaults(&self) -> NodeParams {
         return NodeParams::TEXT_INPUT;
@@ -853,7 +858,16 @@ impl Ui {
         };
     }
 
-    pub fn add<V: View + 'static>(&mut self, view: V) -> ChainedMethodUi {
+    // pub fn add<V: View + 'static>(&mut self, view: V) -> ChainedMethodUi {
+    //     let id = view_type_id(&view);
+    //     self.tree_trace.push(TreeTraceEntry::Node(id));
+    //     self.tree_trace_defaults.push(Some(smallbox!(view)));
+
+    //     return self.chain_ref()
+    // }
+
+    pub fn add<V: View + Default + 'static>(&mut self) -> ChainedMethodUi {
+        let view = V::default();
         let id = view_type_id(&view);
         self.tree_trace.push(TreeTraceEntry::Node(id));
         self.tree_trace_defaults.push(Some(smallbox!(view)));
@@ -861,7 +875,8 @@ impl Ui {
         return self.chain_ref()
     }
 
-    pub fn add_anonymous<V: View + 'static>(&mut self, view: V, id: Id) -> ChainedMethodUi {
+    pub fn add_anonymous<V: View + Default + 'static>(&mut self, id: Id) -> ChainedMethodUi {
+        let view = V::default();
         self.tree_trace.push(TreeTraceEntry::Node(id));
         self.tree_trace_defaults.push(Some(smallbox!(view)));
         
@@ -1220,12 +1235,12 @@ impl Ui {
         }
     }
 
-    pub fn is_clicked<V: View + 'static>(&self, view: V) -> bool {
+    pub fn is_clicked<V: View + 'static>(&self) -> bool {
         if !self.part.mouse_left_just_clicked {
             return false;
         }
         if let Some(clicked_id) = &self.clicked {
-            let id = view_type_id(&view);
+            let id = view_type_id_gemmy::<V>();
             return *clicked_id == id;
         }
         return false;
@@ -1563,12 +1578,12 @@ impl Ui {
 // ui.end_hstack()
 // multiple ways to do the same thing = also le bad albeit
 macro_rules! create_layer_macro {
-    ($macro_name:ident, $node_params_name:expr) => {
+    ($macro_name:ident, $node_params_name:ty) => {
         #[macro_export]
         macro_rules! $macro_name {
             ($ui:expr, $code:block) => {
                 let anonymous_id = new_id!();
-                $ui.add_anonymous($node_params_name, anonymous_id);
+                $ui.add_anonymous::<$node_params_name>(anonymous_id);
 
                 $ui.start_layer(anonymous_id);
                 
@@ -1577,10 +1592,11 @@ macro_rules! create_layer_macro {
                 $ui.end_layer();
             };
             // named
-            ($ui:expr, $node_key:expr, $code:block) => {
-                $ui.add($node_key);
+            ($ui:expr, $node_key:ty, $code:block) => {
+                $ui.add::<$node_key>();
 
-                $ui.start_layer(crate::ui::view_type_id(&$node_key));
+                let id = crate::ui::view_type_id_gemmy::<$node_key>();
+                $ui.start_layer(id);
                 
                 $code;
                 
@@ -1590,9 +1606,9 @@ macro_rules! create_layer_macro {
     };
 }
 
-create_layer_macro!(h_stack, crate::ui::H_STACK);
-create_layer_macro!(v_stack, crate::ui::V_STACK);
-create_layer_macro!(margin, crate::ui::FRAME);
+create_layer_macro!(h_stack, crate::ui::HStack);
+create_layer_macro!(v_stack, crate::ui::VStack);
+create_layer_macro!(margin, crate::ui::Frame);
 
 #[derive(Debug)]
 pub struct Node {
@@ -1826,6 +1842,12 @@ pub trait View {
 }
 
 pub fn view_type_id<V: View + 'static>(view: &V) -> Id {
+    let id = TypeId::of::<V>();
+    let id: u128 = unsafe{ transmute(id) };
+    return Id(id as u64);
+}
+
+pub fn view_type_id_gemmy<V: View + 'static>() -> Id {
     let id = TypeId::of::<V>();
     let id: u128 = unsafe{ transmute(id) };
     return Id(id as u64);

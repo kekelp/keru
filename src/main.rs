@@ -86,21 +86,21 @@ impl<'window> State<'window> {
         
         ui.update_gpu_time(&self.window.queue);       
 
-        h_stack!(ui, COMMAND_LINE_ROW, {
-            ui.add(COMMAND_LINE);
+        h_stack!(ui, CommandLineRow, {
+            ui.add::<CommandLine>();
         });
 
         margin!(ui, {
-            h_stack!(ui, CENTER_ROW, {
+            h_stack!(ui, CenterRow, {
                 v_stack!(ui, {
                     if self.counter_state.counter_mode {
                         let new_color = count_color(self.counter_state.count);
                         // ui.add(INCREASE_BUTTON).set_color(new_color);
-                        ui.add(INCREASE_BUTTON);
+                        ui.add::<IncreaseButton>();
 
-                        ui.add(COUNT_LABEL).set_text(&self.counter_state.count.to_string());
+                        ui.add::<CountLabel>().set_text(&self.counter_state.count.to_string());
 
-                        ui.add(DECREASE_BUTTON);
+                        ui.add::<DecreaseButton>();
                     }
                 });
 
@@ -109,7 +109,7 @@ impl<'window> State<'window> {
                         true => "Hide counter",
                         false => "Show counter",
                     };
-                    ui.add(SHOW_COUNTER_BUTTON).set_text(text);
+                    ui.add::<ShowCounterButton>().set_text(text);
                 });
             });
         });
@@ -117,15 +117,15 @@ impl<'window> State<'window> {
         ui.finish_tree();
 
 
-        if ui.is_clicked(INCREASE_BUTTON) {
+        if ui.is_clicked::<IncreaseButton>() {
             self.counter_state.count += 1;
         }
         
-        if ui.is_clicked(DECREASE_BUTTON) {
+        if ui.is_clicked::<DecreaseButton>() {
             self.counter_state.count -= 1;
         }
         
-        if ui.is_clicked(SHOW_COUNTER_BUTTON) {
+        if ui.is_clicked::<ShowCounterButton>() {
             self.counter_state.counter_mode = !self.counter_state.counter_mode;
         }
         
@@ -164,56 +164,56 @@ pub fn count_color(count: i32) -> Color {
 }
 
 
+#[derive(Default)]
 pub struct CenterRow {}
-pub const CENTER_ROW: CenterRow = CenterRow {};
 impl View for CenterRow {
     fn defaults(&self) -> NodeParams {
         return NodeParams::H_STACK.with_color(Color::BLUE);
     }
 }
 
+#[derive(Default)]
 pub struct IncreaseButton {}
-pub const INCREASE_BUTTON: IncreaseButton = IncreaseButton {};
 impl View for IncreaseButton {
     fn defaults(&self) -> NodeParams {
         return NodeParams::BUTTON.with_static_text("Increase").with_color(Color::BLUE);
     }
 }
 
+#[derive(Default)]
 pub struct DecreaseButton {} 
-pub const DECREASE_BUTTON: DecreaseButton = DecreaseButton {};
 impl View for DecreaseButton {
     fn defaults(&self) -> NodeParams {
         return NodeParams::BUTTON.with_static_text("Decrease").with_color(Color::BLUE);
     }
 }
 
+#[derive(Default)]
 pub struct ShowCounterButton {}
-pub const SHOW_COUNTER_BUTTON: ShowCounterButton = ShowCounterButton {};
 impl View for ShowCounterButton {
     fn defaults(&self) -> NodeParams {
         return NodeParams::BUTTON.with_static_text("Show Counter").with_color(Color::BLUE);
     }
 }
 
+#[derive(Default)]
 pub struct CountLabel {}
-pub const COUNT_LABEL: CountLabel = CountLabel {};
 impl View for CountLabel {
     fn defaults(&self) -> NodeParams {
         return NodeParams::LABEL;
     }
 }
 
+#[derive(Default)]
 pub struct CommandLine {}
-pub const COMMAND_LINE: CommandLine = CommandLine {};
 impl View for CommandLine {
     fn defaults(&self) -> NodeParams {
         return NodeParams::TEXT_INPUT.with_size_y(0.1).with_static_text("高38道ょつ準傷に債健の🤦🏼‍♂️🚵🏻‍♀️");
     }
 }
 
+#[derive(Default)]
 pub struct CommandLineRow {}
-pub const COMMAND_LINE_ROW: CommandLineRow = CommandLineRow {};
 impl View for CommandLineRow {
     fn defaults(&self) -> NodeParams {
         return NodeParams::H_STACK
