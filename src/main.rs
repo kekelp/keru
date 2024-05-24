@@ -5,7 +5,7 @@ use helper::{
     base_color_attachment, base_render_pass_desc, configure_surface, init_winit_and_wgpu,
     WgpuWindow, ENC_DESC,
 };
-use view_derive::view;
+use view_derive::derive_view;
 pub use ui::Id;
 use ui::{Arrange, Axis::Y, Color, NodeParams, Ui, View};
 use wgpu::TextureViewDescriptor;
@@ -160,22 +160,22 @@ pub fn count_color(count: i32) -> Color {
     return Color::rgba(red, 0.1, 0.2, 0.8);
 }
 
-#[view(NodeParams::H_STACK.color(Color::BLUE))]
+#[derive_view(NodeParams::H_STACK.color(Color::BLUE))]
 pub struct CenterRow;
 
-#[view(NodeParams::BUTTON.text("Increase").color(Color::GREEN))]
+#[derive_view(NodeParams::BUTTON.text("Increase").color(Color::GREEN))]
 pub struct IncreaseButton;
 
-#[view(NodeParams::BUTTON.text("Decrease").color(Color::RED))]
+#[derive_view(NodeParams::BUTTON.text("Decrease").color(Color::RED))]
 pub struct DecreaseButton;
 
-#[view(NodeParams::BUTTON.text("Show Counter").color(Color::rgba(0.5, 0.1, 0.7, 0.7)))]
+#[derive_view(NodeParams::BUTTON.text("Show Counter").color(Color::rgba(0.5, 0.1, 0.7, 0.7)))]
 pub struct ShowCounterButton;
 
-#[view(NodeParams::LABEL)]
+#[derive_view(NodeParams::LABEL)]
 pub struct CountLabel;
 
-#[view(
+#[derive_view(
     NodeParams::H_STACK
     .size_y(0.95)
     .size_x(0.8)
@@ -184,5 +184,5 @@ pub struct CountLabel;
 )]
 pub struct CommandLineRow;
 
-#[view(NodeParams::TEXT_INPUT.text("Uuuu高38道ょつ準傷に債健の🤦🏼‍♂️🚵🏻‍♀️").size_y(0.1))]
+#[derive_view(NodeParams::TEXT_INPUT.text("Uuuu高38道ょつ準傷に債健の🤦🏼‍♂️🚵🏻‍♀️").size_y(0.1))]
 pub struct CommandLine;

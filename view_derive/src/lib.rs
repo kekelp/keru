@@ -3,8 +3,11 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, Expr, Fields, ItemStruct};
 
+// using an attribute macro instead of a derive macro seems to work better with rust-analyzer, for some reason.
+// this way, it fully understands the stuff inside the #[derive_view(...)]
+// it also uses one line less, so I guess it's staying this way for now.
 #[proc_macro_attribute]
-pub fn view(attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn derive_view(attr: TokenStream, item: TokenStream) -> TokenStream {
     let item_struct = parse_macro_input!(item as ItemStruct);
     let name = item_struct.ident.clone();
     
