@@ -184,5 +184,5 @@ pub struct CountLabel;
 )]
 pub struct CommandLineRow;
 
-#[view(NodeParams::BUTTON.text("Uuuu高38道ょつ準傷に債健の🤦🏼‍♂️🚵🏻‍♀️").size_y(0.1))]
+#[view(NodeParams::TEXT_INPUT.text("Uuuu高38道ょつ準傷に債健の🤦🏼‍♂️🚵🏻‍♀️").size_y(0.1))]
 pub struct CommandLine;
