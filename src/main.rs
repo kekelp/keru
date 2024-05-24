@@ -95,7 +95,8 @@ impl<'window> State<'window> {
                         // ui.add(IncreaseButton).set_color(new_color);
                         ui.add(IncreaseButton);
 
-                        ui.add(CountLabel).set_text(&self.counter_state.count.to_string());
+                        let count = &self.counter_state.count.to_string();
+                        ui.add(CountLabel).set_text(count);
 
                         ui.add(DecreaseButton);
                     }
@@ -171,7 +172,7 @@ pub struct DecreaseButton;
 #[view(NodeParams::BUTTON.text("Show Counter").color(Color::rgba(0.5, 0.1, 0.7, 0.7)))]
 pub struct ShowCounterButton;
 
-#[view]
+#[view(NodeParams::LABEL)]
 pub struct CountLabel;
 
 #[view(

@@ -193,7 +193,7 @@ impl NodeParams {
 
     pub const DEFAULT: Self = Self {
         debug_name: "DEFAULT",
-        static_text: None,
+        static_text: Some("Default"),
         clickable: false,
         visible_rect: true,
         color: Color::BLUE,
