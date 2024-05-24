@@ -260,7 +260,7 @@ impl NodeParams {
         static_text: None,
         clickable: false,
         visible_rect: true,
-        color: Color::rgba(0.0, 0.1, 0.1, 0.9),
+        color: Color::BLUE,
         size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
         position: Xy::new_symm(Position::Center),
         is_stack: None,
