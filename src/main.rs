@@ -6,10 +6,11 @@ use helper::{
     WgpuWindow, ENC_DESC,
 };
 
-use smallbox::{smallbox, space::{S4, S8}, SmallBox};
+use view_derive::view;
+
 pub use ui::Id;
 
-use ui::{Arrange, Axis::Y, Color, NodeKey, NodeParams, Ui, View};
+use ui::{Arrange, Axis::Y, Color, NodeParams, Ui, View};
 use wgpu::TextureViewDescriptor;
 use winit::{
     event::{Event, WindowEvent},
@@ -66,7 +67,6 @@ impl CounterState {
     }
 }
 
-
 impl<'window> State<'window> {
     pub fn handle_event(&mut self, event: &Event<()>, target: &EventLoopWindowTarget<()>) {
         self.window.handle_events(event, target);
@@ -83,8 +83,8 @@ impl<'window> State<'window> {
         let ui = &mut self.ui;
 
         ui.begin_tree();
-        
-        ui.update_gpu_time(&self.window.queue);       
+
+        ui.update_gpu_time(&self.window.queue);
 
         h_stack!(ui, CommandLineRow, {
             ui.add::<CommandLine>();
@@ -98,7 +98,8 @@ impl<'window> State<'window> {
                         // ui.add(INCREASE_BUTTON).set_color(new_color);
                         ui.add::<IncreaseButton>();
 
-                        ui.add::<CountLabel>().set_text(&self.counter_state.count.to_string());
+                        ui.add::<CountLabel>()
+                            .set_text(&self.counter_state.count.to_string());
 
                         ui.add::<DecreaseButton>();
                     }
@@ -116,19 +117,18 @@ impl<'window> State<'window> {
 
         ui.finish_tree();
 
-
         if ui.is_clicked::<IncreaseButton>() {
             self.counter_state.count += 1;
         }
-        
+
         if ui.is_clicked::<DecreaseButton>() {
             self.counter_state.count -= 1;
         }
-        
+
         if ui.is_clicked::<ShowCounterButton>() {
             self.counter_state.counter_mode = !self.counter_state.counter_mode;
         }
-        
+
         self.ui.build_buffers();
 
         self.render();
@@ -163,63 +163,28 @@ pub fn count_color(count: i32) -> Color {
     return Color::rgba(red, 0.1, 0.2, 0.8);
 }
 
-
-#[derive(Default)]
+#[view(NodeParams::H_STACK.with_color(Color::BLUE))]
 pub struct CenterRow {}
-impl View for CenterRow {
-    fn defaults(&self) -> NodeParams {
-        return NodeParams::H_STACK.with_color(Color::BLUE);
-    }
-}
 
-#[derive(Default)]
+#[view(NodeParams::BUTTON.with_text("Increase").with_color(Color::BLUE))]
 pub struct IncreaseButton {}
-impl View for IncreaseButton {
-    fn defaults(&self) -> NodeParams {
-        return NodeParams::BUTTON.with_static_text("Increase").with_color(Color::BLUE);
-    }
-}
 
-#[derive(Default)]
-pub struct DecreaseButton {} 
-impl View for DecreaseButton {
-    fn defaults(&self) -> NodeParams {
-        return NodeParams::BUTTON.with_static_text("Decrease").with_color(Color::BLUE);
-    }
-}
+#[view(NodeParams::BUTTON.with_text("Decrease").with_color(Color::RED))]
+pub struct DecreaseButton {}
 
-#[derive(Default)]
+#[view(NodeParams::BUTTON.with_text("Show Counter").with_color(Color::rgba(0.5, 0.1, 0.7, 0.7)))]
 pub struct ShowCounterButton {}
-impl View for ShowCounterButton {
-    fn defaults(&self) -> NodeParams {
-        return NodeParams::BUTTON.with_static_text("Show Counter").with_color(Color::BLUE);
-    }
-}
 
-#[derive(Default)]
+#[view(NodeParams::LABEL)]
 pub struct CountLabel {}
-impl View for CountLabel {
-    fn defaults(&self) -> NodeParams {
-        return NodeParams::LABEL;
-    }
-}
 
-#[derive(Default)]
-pub struct CommandLine {}
-impl View for CommandLine {
-    fn defaults(&self) -> NodeParams {
-        return NodeParams::TEXT_INPUT.with_size_y(0.1).with_static_text("高38道ょつ準傷に債健の🤦🏼‍♂️🚵🏻‍♀️");
-    }
-}
-
-#[derive(Default)]
+#[view(NodeParams::H_STACK
+    .with_size_y(0.95)
+    .with_size_x(0.8)
+    .with_stack(Y, Arrange::End)
+    .with_color(Color::BLUE)
+)]
 pub struct CommandLineRow {}
-impl View for CommandLineRow {
-    fn defaults(&self) -> NodeParams {
-        return NodeParams::H_STACK
-            .with_size_y(0.95)
-            .with_size_x(0.8)
-            .with_stack(Y, Arrange::End)
-            .with_color(Color::BLUE);
-    }
-}
+
+#[view(NodeParams::BUTTON.with_text("Uuuu高38道ょつ準傷に債健の🤦🏼‍♂️🚵🏻‍♀️").with_size_y(0.1))]
+pub struct CommandLine {}

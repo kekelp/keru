@@ -179,6 +179,7 @@ dependencies = [
  "smallbox",
  "smart-default",
  "unicode-segmentation",
+ "view_derive",
  "wgpu",
  "winit",
 ]
@@ -1684,6 +1685,15 @@ name = "version_check"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
+
+[[package]]
+name = "view_derive"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.57",
+]
 
 [[package]]
 name = "walkdir"

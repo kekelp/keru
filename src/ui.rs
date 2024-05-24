@@ -178,7 +178,7 @@ impl NodeParams {
         return self;
     }
 
-    pub const fn with_static_text(mut self, text: &'static str) -> Self {
+    pub const fn with_text(mut self, text: &'static str) -> Self {
         self.static_text = Some(text);
         return self;
     }
@@ -478,12 +478,8 @@ impl Color {
 
     pub const WHITE: Self = Self::rgba(1.0, 1.0, 1.0, 1.0);
 
-    pub const BLUE: Self = Self {
-        r: 0.6,
-        g: 0.3,
-        b: 1.0,
-        a: 0.6,
-    };
+    pub const BLUE: Self = Self::rgba(0.1, 0.1, 1.0, 0.6);
+    pub const RED: Self = Self::rgba(1.0, 0.1, 0.1, 0.6);
 
     pub const LIGHT_BLUE: Self = Self {
         r: 0.9,

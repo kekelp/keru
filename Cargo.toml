@@ -1,3 +1,4 @@
+workspace = { members = ["view_derive"] }
 [package]
 name = "blue"
 version = "0.1.0"
@@ -22,6 +23,7 @@ unicode-segmentation = "1.11.0"
 enum_delegate = "0.2.0"
 enum_dispatch = "0.3.13"
 smallbox = "0.8.2"
+view_derive = { path = "view_derive" }
 
 [lints.clippy]
 needless_return = { level = "allow" } 
