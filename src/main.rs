@@ -87,7 +87,7 @@ impl<'window> State<'window> {
         ui.update_gpu_time(&self.window.queue);
 
         h_stack!(ui, CommandLineRow, {
-            ui.add::<CommandLine>();
+            ui.add(CommandLine);
         });
 
         margin!(ui, {
@@ -96,12 +96,12 @@ impl<'window> State<'window> {
                     if self.counter_state.counter_mode {
                         let new_color = count_color(self.counter_state.count);
                         // ui.add(INCREASE_BUTTON).set_color(new_color);
-                        ui.add::<IncreaseButton>();
+                        ui.add(IncreaseButton);
 
-                        ui.add::<CountLabel>()
+                        ui.add(CountLabel)
                             .set_text(&self.counter_state.count.to_string());
 
-                        ui.add::<DecreaseButton>();
+                        ui.add(DecreaseButton);
                     }
                 });
 
@@ -110,22 +110,22 @@ impl<'window> State<'window> {
                         true => "Hide counter",
                         false => "Show counter",
                     };
-                    ui.add::<ShowCounterButton>().set_text(text);
+                    ui.add(ShowCounterButton).set_text(text);
                 });
             });
         });
 
         ui.finish_tree();
 
-        if ui.is_clicked::<IncreaseButton>() {
+        if ui.is_clicked(IncreaseButton) {
             self.counter_state.count += 1;
         }
 
-        if ui.is_clicked::<DecreaseButton>() {
+        if ui.is_clicked(DecreaseButton) {
             self.counter_state.count -= 1;
         }
 
-        if ui.is_clicked::<ShowCounterButton>() {
+        if ui.is_clicked(ShowCounterButton) {
             self.counter_state.counter_mode = !self.counter_state.counter_mode;
         }
 
@@ -164,27 +164,28 @@ pub fn count_color(count: i32) -> Color {
 }
 
 #[view(NodeParams::H_STACK.with_color(Color::BLUE))]
-pub struct CenterRow {}
+pub struct CenterRow;
 
 #[view(NodeParams::BUTTON.with_text("Increase").with_color(Color::BLUE))]
-pub struct IncreaseButton {}
+pub struct IncreaseButton;
 
 #[view(NodeParams::BUTTON.with_text("Decrease").with_color(Color::RED))]
-pub struct DecreaseButton {}
+pub struct DecreaseButton;
 
 #[view(NodeParams::BUTTON.with_text("Show Counter").with_color(Color::rgba(0.5, 0.1, 0.7, 0.7)))]
-pub struct ShowCounterButton {}
+pub struct ShowCounterButton;
 
 #[view(NodeParams::LABEL)]
-pub struct CountLabel {}
+pub struct CountLabel;
 
-#[view(NodeParams::H_STACK
+#[view(
+    NodeParams::H_STACK
     .with_size_y(0.95)
     .with_size_x(0.8)
     .with_stack(Y, Arrange::End)
     .with_color(Color::BLUE)
 )]
-pub struct CommandLineRow {}
+pub struct CommandLineRow;
 
 #[view(NodeParams::BUTTON.with_text("Uuuu高38道ょつ準傷に債健の🤦🏼‍♂️🚵🏻‍♀️").with_size_y(0.1))]
-pub struct CommandLine {}
+pub struct CommandLine;
