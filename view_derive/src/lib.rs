@@ -2,6 +2,7 @@ extern crate proc_macro;
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, Expr, Fields, ItemStruct};
+use rand::Rng;
 
 // using an attribute macro instead of a derive macro seems to work better with rust-analyzer, for some reason.
 // this way, it fully understands the stuff inside the #[derive_view(...)]
@@ -19,14 +20,19 @@ pub fn derive_view(attr: TokenStream, item: TokenStream) -> TokenStream {
         });
     }
 
+    let random_id: u64 = rand::thread_rng().gen();
+
     let expanded = quote! {
         impl View for #name {
             fn defaults(&self) -> NodeParams {
-                #expr
+                return #expr;
+            }
+
+            fn id(&self) -> Id {
+                return Id(#random_id);
             }
         }
 
-        #[derive(Default, Debug)]
         #item_struct
     };
 

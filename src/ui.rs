@@ -4,6 +4,8 @@ use glyphon::{Affinity, Resolution as GlyphonResolution};
 use rustc_hash::{FxHashMap, FxHasher};
 use smallbox::space::S8;
 use smallbox::{smallbox, SmallBox};
+use typeid::ConstTypeId;
+use view_derive::derive_view;
 
 use std::any::TypeId;
 use std::mem::transmute;
@@ -281,53 +283,23 @@ impl NodeParams {
     };
 }
 
-#[derive(Default)]
+#[derive_view(NodeParams::V_STACK)]
 pub struct VStack;
-impl View for VStack{
-        fn defaults(&self) -> NodeParams {
-        return NodeParams::V_STACK;
-    }
-}
 
-#[derive(Default)]
+#[derive_view(NodeParams::H_STACK)]
 pub struct HStack;
-impl View for HStack{
-        fn defaults(&self) -> NodeParams {
-        return NodeParams::H_STACK;
-    }
-}
 
-#[derive(Default)]
+#[derive_view(NodeParams::FRAME)]
 pub struct Frame;
-impl View for Frame{
-        fn defaults(&self) -> NodeParams {
-        return NodeParams::FRAME;
-    }
-}
 
-#[derive(Default)]
+#[derive_view(NodeParams::BUTTON)]
 pub struct Button;
-impl View for Button{
-        fn defaults(&self) -> NodeParams {
-        return NodeParams::BUTTON;
-    }
-}
 
-#[derive(Default)]
+#[derive_view(NodeParams::LABEL)]
 pub struct Label;
-impl View for Label{
-        fn defaults(&self) -> NodeParams {
-        return NodeParams::LABEL;
-    }
-}
 
-#[derive(Default)]
+#[derive_view(NodeParams::TEXT_INPUT)]
 pub struct TextInput;
-impl View for TextInput{
-        fn defaults(&self) -> NodeParams {
-        return NodeParams::TEXT_INPUT;
-    }
-}
 
 
 #[derive(Debug, Clone, Copy)]
@@ -859,8 +831,7 @@ impl Ui {
     }
 
     pub fn add<V: View + 'static>(&mut self, view: V) -> ChainedMethodUi {
-        let id = view_type_id(&view);
-        self.tree_trace.push(TreeTraceEntry::Node(id));
+        self.tree_trace.push(TreeTraceEntry::Node(view.id()));
         self.tree_trace_defaults.push(Some(smallbox!(view)));
 
         return self.chain_ref()
@@ -1230,8 +1201,7 @@ impl Ui {
             return false;
         }
         if let Some(clicked_id) = &self.clicked {
-            let id = view_type_id(&view);
-            return *clicked_id == id;
+            return *clicked_id == view.id();
         }
         return false;
     }
@@ -1585,7 +1555,7 @@ macro_rules! create_layer_macro {
             ($ui:expr, $node_key:expr, $code:block) => {
                 $ui.add($node_key);
 
-                $ui.start_layer(crate::ui::view_type_id(&$node_key));
+                $ui.start_layer($node_key.id());
                 
                 $code;
                 
@@ -1828,10 +1798,5 @@ fn fx_hash<T: Hash>(value: &T) -> u64 {
 
 pub trait View {
     fn defaults(&self) -> NodeParams;
-}
-
-pub fn view_type_id<V: View + 'static>(_: &V) -> Id {
-    let id = TypeId::of::<V>();
-    let id: u128 = unsafe{ transmute(id) };
-    return Id(id as u64);
+    fn id(&self) -> Id;
 }
