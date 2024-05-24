@@ -4,11 +4,8 @@ use glyphon::{Affinity, Resolution as GlyphonResolution};
 use rustc_hash::{FxHashMap, FxHasher};
 use smallbox::space::S8;
 use smallbox::{smallbox, SmallBox};
-use typeid::ConstTypeId;
 use view_derive::derive_view;
 
-use std::any::TypeId;
-use std::mem::transmute;
 use std::{
     hash::Hasher,
     marker::PhantomData,
@@ -837,7 +834,7 @@ impl Ui {
         return self.chain_ref()
     }
 
-    pub fn add_anonymous<V: View + Default + 'static>(&mut self, view: V, id: Id) -> ChainedMethodUi {
+    pub fn add_anonymous<V: View + 'static>(&mut self, view: V, id: Id) -> ChainedMethodUi {
         self.tree_trace.push(TreeTraceEntry::Node(id));
         self.tree_trace_defaults.push(Some(smallbox!(view)));
         
