@@ -640,7 +640,7 @@ impl Ui {
         // because this is an epic chain method, this may work
         let id = match self.tree_trace.last().unwrap() {
             TreeTraceEntry::Node(id) => id,
-            TreeTraceEntry::SetParent(id) => panic!(),
+            TreeTraceEntry::SetParent(_) => panic!(),
         };
         let defaults = self.tree_trace_defaults.last().unwrap().as_ref().unwrap().defaults();
         let key = NodeKey::new(defaults, *id);
@@ -1230,7 +1230,7 @@ impl Ui {
             return false;
         }
         if let Some(clicked_id) = &self.clicked {
-            let id = view_type_id_gemmy::<V>();
+            let id = view_type_id(&view);
             return *clicked_id == id;
         }
         return false;
@@ -1830,13 +1830,7 @@ pub trait View {
     fn defaults(&self) -> NodeParams;
 }
 
-pub fn view_type_id<V: View + 'static>(view: &V) -> Id {
-    let id = TypeId::of::<V>();
-    let id: u128 = unsafe{ transmute(id) };
-    return Id(id as u64);
-}
-
-pub fn view_type_id_gemmy<V: View + 'static>() -> Id {
+pub fn view_type_id<V: View + 'static>(_: &V) -> Id {
     let id = TypeId::of::<V>();
     let id: u128 = unsafe{ transmute(id) };
     return Id(id as u64);
