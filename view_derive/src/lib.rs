@@ -1,7 +1,7 @@
 extern crate proc_macro;
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, Expr, ItemStruct};
+use syn::{parse_macro_input, Expr, Fields, ItemStruct};
 
 #[proc_macro_attribute]
 pub fn view(attr: TokenStream, item: TokenStream) -> TokenStream {
@@ -10,8 +10,13 @@ pub fn view(attr: TokenStream, item: TokenStream) -> TokenStream {
     
     let expr: Expr = parse_macro_input!(attr as Expr);
 
-    let expanded = quote! {
+    if ! is_zero_sized(&item_struct) {
+        return TokenStream::from(quote! {
+            compile_error!("Only zero-sized structs should be Views.");
+        });
+    }
 
+    let expanded = quote! {
         impl View for #name {
             fn defaults(&self) -> NodeParams {
                 #expr
@@ -23,4 +28,12 @@ pub fn view(attr: TokenStream, item: TokenStream) -> TokenStream {
     };
 
     TokenStream::from(expanded)
+}
+
+fn is_zero_sized(item_struct: &ItemStruct) -> bool {
+    match &item_struct.fields {
+        Fields::Named(fields) => fields.named.is_empty(),
+        Fields::Unnamed(fields) => fields.unnamed.is_empty(),
+        Fields::Unit => true,
+    }
 }
