@@ -5,11 +5,8 @@ use helper::{
     base_color_attachment, base_render_pass_desc, configure_surface, init_winit_and_wgpu,
     WgpuWindow, ENC_DESC,
 };
-
 use view_derive::view;
-
 pub use ui::Id;
-
 use ui::{Arrange, Axis::Y, Color, NodeParams, Ui, View};
 use wgpu::TextureViewDescriptor;
 use winit::{
@@ -162,29 +159,29 @@ pub fn count_color(count: i32) -> Color {
     return Color::rgba(red, 0.1, 0.2, 0.8);
 }
 
-#[view(NodeParams::H_STACK.with_color(Color::BLUE))]
+#[view(NodeParams::H_STACK.color(Color::BLUE))]
 pub struct CenterRow;
 
-#[view(NodeParams::BUTTON.with_text("Increase").with_color(Color::BLUE))]
+#[view(NodeParams::BUTTON.text("Increase").color(Color::GREEN))]
 pub struct IncreaseButton;
 
-#[view(NodeParams::BUTTON.with_text("Decrease").with_color(Color::RED))]
+#[view(NodeParams::BUTTON.text("Decrease").color(Color::RED))]
 pub struct DecreaseButton;
 
-#[view(NodeParams::BUTTON.with_text("Show Counter").with_color(Color::rgba(0.5, 0.1, 0.7, 0.7)))]
+#[view(NodeParams::BUTTON.text("Show Counter").color(Color::rgba(0.5, 0.1, 0.7, 0.7)))]
 pub struct ShowCounterButton;
 
-#[view(NodeParams::LABEL)]
+#[view]
 pub struct CountLabel;
 
 #[view(
     NodeParams::H_STACK
-    .with_size_y(0.95)
-    .with_size_x(0.8)
-    .with_stack(Y, Arrange::End)
-    .with_color(Color::BLUE)
+    .size_y(0.95)
+    .size_x(0.8)
+    .stack(Y, Arrange::End)
+    .color(Color::BLUE)
 )]
 pub struct CommandLineRow;
 
-#[view(NodeParams::BUTTON.with_text("Uuuu高38道ょつ準傷に債健の🤦🏼‍♂️🚵🏻‍♀️").with_size_y(0.1))]
+#[view(NodeParams::BUTTON.text("Uuuu高38道ょつ準傷に債健の🤦🏼‍♂️🚵🏻‍♀️").size_y(0.1))]
 pub struct CommandLine;

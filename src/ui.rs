@@ -123,17 +123,7 @@ pub struct NodeParams {
 
 impl Default for NodeParams {
     fn default() -> Self {
-        Self {
-            debug_name: "DEFAULT",
-            static_text: None,
-            clickable: false,
-            visible_rect: false,
-            color: Color::BLUE,
-            size: Xy::new_symm(Size::PercentOfAvailable(0.5)),
-            position: Xy::new_symm(Position::Start),
-            is_stack: None,
-            editable: false,
-        }
+        Self::DEFAULT
     }
 }
 
@@ -152,54 +142,66 @@ impl NodeParams {
         }
     }
 
-    pub const fn with_size_x(mut self, size: f32) -> Self {
+    pub const fn size_x(mut self, size: f32) -> Self {
         self.size.0[IX] = Size::PercentOfAvailable(size);
         return self;
     }
-    pub const fn with_size_y(mut self, size: f32) -> Self {
+    pub const fn size_y(mut self, size: f32) -> Self {
         self.size.0[IY] = Size::PercentOfAvailable(size);
         return self;
     }
-    pub const fn with_size_symm(mut self, size: f32) -> Self {
+    pub const fn size_symm(mut self, size: f32) -> Self {
         self.size = Xy::new_symm(Size::PercentOfAvailable(size));
         return self;
     }
 
-    pub const fn with_position_x(mut self, position: Position) -> Self {
+    pub const fn position_x(mut self, position: Position) -> Self {
         self.position.0[IX] = position;
         return self;
     }
-    pub const fn with_position_y(mut self, position: Position) -> Self {
+    pub const fn position_y(mut self, position: Position) -> Self {
         self.position.0[IY] = position;
         return self;
     }
-    pub const fn with_position_symm(mut self, position: Position) -> Self {
+    pub const fn position_symm(mut self, position: Position) -> Self {
         self.position = Xy::new_symm(position);
         return self;
     }
 
-    pub const fn with_text(mut self, text: &'static str) -> Self {
+    pub const fn text(mut self, text: &'static str) -> Self {
         self.static_text = Some(text);
         return self;
     }
 
-    pub const fn with_debug_name(mut self, text: &'static str) -> Self {
+    pub const fn debug_name(mut self, text: &'static str) -> Self {
         self.debug_name = text;
         return self;
     }
 
-    pub const fn with_color(mut self, color: Color) -> Self {
+    pub const fn color(mut self, color: Color) -> Self {
         self.color = color;
         return self;
     }
 
-    pub const fn with_stack(mut self, axis: Axis, arrange: Arrange) -> Self {
+    pub const fn stack(mut self, axis: Axis, arrange: Arrange) -> Self {
         self.is_stack = Some(Stack {
             arrange,
             axis,
         });
         return self;
     }
+
+    pub const DEFAULT: Self = Self {
+        debug_name: "DEFAULT",
+        static_text: None,
+        clickable: false,
+        visible_rect: true,
+        color: Color::BLUE,
+        size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
+        position: Xy::new_symm(Position::Center),
+        is_stack: None,
+        editable: false,
+    };
 
     pub const V_STACK: Self = Self {
         debug_name: "Column",
@@ -480,6 +482,7 @@ impl Color {
 
     pub const BLUE: Self = Self::rgba(0.1, 0.1, 1.0, 0.6);
     pub const RED: Self = Self::rgba(1.0, 0.1, 0.1, 0.6);
+    pub const GREEN: Self = Self::rgba(0.1, 1.0, 0.1, 0.6);
 
     pub const LIGHT_BLUE: Self = Self {
         r: 0.9,
@@ -861,15 +864,6 @@ impl Ui {
 
         return self.chain_ref()
     }
-
-    // pub fn add2<V: View + Default + 'static>(&mut self) -> ChainedMethodUi {
-    //     let view = V::default();
-    //     let id = view_type_id(&view);
-    //     self.tree_trace.push(TreeTraceEntry::Node(id));
-    //     self.tree_trace_defaults.push(Some(smallbox!(view)));
-
-    //     return self.chain_ref()
-    // }
 
     pub fn add_anonymous<V: View + Default + 'static>(&mut self, view: V, id: Id) -> ChainedMethodUi {
         self.tree_trace.push(TreeTraceEntry::Node(id));
