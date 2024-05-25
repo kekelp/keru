@@ -92,8 +92,7 @@ impl<'window> State<'window> {
                 v_stack!(ui, {
                     if self.counter_state.counter_mode {
                         let new_color = count_color(self.counter_state.count);
-                        // ui.add(IncreaseButton).set_color(new_color);
-                        ui.add(IncreaseButton);
+                        ui.add(IncreaseButton).set_color(new_color);
 
                         let count = &self.counter_state.count.to_string();
                         ui.add(CountLabel).set_text(count);

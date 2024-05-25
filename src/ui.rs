@@ -5,6 +5,7 @@ use rustc_hash::{FxHashMap, FxHasher};
 use smallbox::{smallbox, SmallBox};
 use view_derive::derive_view;
 
+use std::default;
 use std::{
     hash::Hasher,
     marker::PhantomData,
@@ -393,9 +394,9 @@ pub struct ChainedMethodUi<'a> {
 }
 
 impl<'a> ChainedMethodUi<'a> {
-    // pub fn set_color(&mut self, color: Color) {
-    //     self.ui.set_color(color)
-    // }
+    pub fn set_color(&mut self, color: Color) {
+        self.ui.chained_set_color(color);
+    }
 
     pub fn set_text(&mut self, text: &str) {
         self.ui.chained_set_text(text)
@@ -459,6 +460,14 @@ pub enum TreeTraceEntry {
     Node(Id),
     SetParent(Id),
 }
+impl TreeTraceEntry {
+    pub fn unwrap_node(&self) -> Id {
+        return match self {
+            TreeTraceEntry::Node(id) => *id,
+            TreeTraceEntry::SetParent(_) => panic!("Met SetParent in tree trace when Node was expected"),
+        }
+    }
+}
 
 // A stack allocated dynamic dispatch box, for types up to zero bytes wide.
 // Only zero-sized structs will actually end up on the stack, but the plan is to use zero-sized Views only.
@@ -483,6 +492,61 @@ type ViewBox = SmallBox<dyn View, [u8; 0]>;
 // In this library the dynamic types get built very often, but the functions are called very rarely.
 // So I imagine that it should give basically the same performance as an hypotetical enum based solution.
 
+// another stupid sub struct for dodging partial borrows
+pub struct Text {
+    pub font_system: FontSystem,
+    pub cache: SwashCache,
+    pub atlas: TextAtlas,
+    pub text_renderer: TextRenderer,
+    pub text_areas: Vec<TextArea>,
+}
+impl Text {
+    pub fn new_text_area(&mut self, text: Option<&str>, current_frame: u64) -> Option<usize> {
+        let text = text?;
+
+        let mut buffer = Buffer::new(&mut self.font_system, Metrics::new(42.0, 42.0));
+        buffer.set_size(&mut self.font_system, 100000., 100000.);
+
+        let mut hasher = FxHasher::default();
+        text.hash(&mut hasher);
+        let hash = hasher.finish();
+
+        buffer.set_text(
+            &mut self.font_system,
+            text,
+            Attrs::new().family(Family::SansSerif),
+            Shaping::Advanced,
+        );
+
+        let text_area = TextArea {
+            buffer,
+            left: 10.0,
+            top: 10.0,
+            scale: 1.0,
+            bounds: TextBounds {
+                left: 0,
+                top: 0,
+                right: 10000,
+                bottom: 10000,
+            },
+            default_color: GlyphonColor::rgb(255, 255, 255),
+            depth: 0.0,
+            last_frame_touched: current_frame,
+            last_hash: hash,
+        };
+        self.text_areas.push(text_area);
+        let text_id = self.text_areas.len() - 1;
+        
+        return Some(text_id);
+    }
+
+    fn refresh(&mut self, text_id: Option<usize>, current_frame: u64) {
+        if let Some(text_id) = text_id {
+            self.text_areas[text_id].last_frame_touched = current_frame;
+        }
+    }
+}
+
 pub struct Ui {
     pub key_modifiers: ModifiersState,
 
@@ -492,13 +556,9 @@ pub struct Ui {
     pub uniform_buffer: wgpu::Buffer,
     pub bind_group: BindGroup,
 
-    pub font_system: FontSystem,
-    pub cache: SwashCache,
-    pub atlas: TextAtlas,
-    pub text_renderer: TextRenderer,
+    pub text: Text,
 
     pub rects: Vec<Rectangle>,
-    pub text_areas: Vec<TextArea>,
     pub node_map: FxHashMap<Id, Node>,
 
     // stack for traversing
@@ -531,76 +591,70 @@ pub struct Ui {
 }
 impl Ui {
     fn chained_set_text(&mut self, text: &str) {
-        let hash = fx_hash(&text);
+        // let hash = fx_hash(&text);
 
-        // because this is an epic chain method, this may work
-        let id = match self.tree_trace.last().unwrap() {
-            TreeTraceEntry::Node(id) => *id,
-            TreeTraceEntry::SetParent(_) => panic!(),
-        };
-        let defaults = self.tree_trace_defaults.last().unwrap().as_ref().unwrap().defaults();
+        // // because this is an epic chain method, this may work
+        // let id = match self.tree_trace.last().unwrap() {
+        //     TreeTraceEntry::Node(id) => *id,
+        //     TreeTraceEntry::SetParent(_) => panic!(),
+        // };
+        // let defaults = self.tree_trace_defaults.last().unwrap().as_ref().unwrap().defaults();
 
-        if let None = self.node_map.get(&id) {
-            //todo: call a fake_add that doesn't set parent and children, and remove the whole Option(parent_id) trash everywhere
-            self.update_node(id, &defaults, None);
-        }
-        let text_id = self.node_map.get(&id).unwrap().text_id;
-        let text_id = match text_id {
-            Some(text_id) => {
-                if hash == self.text_areas[text_id].last_hash {
-                    // todo: I shouldn't have to do this, I don't think, it's visible as long as the node is visible??
-                    self.text_areas[text_id].last_frame_touched = self.part.current_frame;
-                    return;
-                }
-                self.text_areas[text_id].last_hash = hash;
+        // if let None = self.node_map.get(&id) {
+        //     //todo: call a fake_add that doesn't set parent and children, and remove the whole Option(parent_id) trash everywhere
+        //     self.add_or_refresh_node(id, &defaults, None);
+        // }
+        // let text_id = self.node_map.get(&id).unwrap().text_id;
+        // let text_id = match text_id {
+        //     Some(text_id) => {
+        //         if hash == self.text.text_areas[text_id].last_hash {
+        //             // todo: I shouldn't have to do this, I don't think, it's visible as long as the node is visible??
+        //             self.text.text_areas[text_id].last_frame_touched = self.part.current_frame;
+        //             return;
+        //         }
+        //         self.text.text_areas[text_id].last_hash = hash;
 
-                text_id
-            }
-            None => {
-                let mut buffer = Buffer::new(&mut self.font_system, Metrics::new(42.0, 42.0));
-                buffer.set_size(&mut self.font_system, 100000., 100000.);
+        //         text_id
+        //     }
+        //     None => {
+        //         let mut buffer = Buffer::new(&mut self.text.font_system, Metrics::new(42.0, 42.0));
+        //         buffer.set_size(&mut self.text.font_system, 100000., 100000.);
 
-                let text_area = TextArea {
-                    buffer,
-                    left: 10.0,
-                    top: 10.0,
-                    scale: 1.0,
-                    bounds: TextBounds {
-                        left: 0,
-                        top: 0,
-                        right: 10000,
-                        bottom: 10000,
-                    },
-                    default_color: GlyphonColor::rgb(255, 255, 255),
-                    depth: 0.0,
-                    last_frame_touched: self.part.current_frame,
-                    last_hash: hash,
-                };
+        //         let text_area = TextArea {
+        //             buffer,
+        //             left: 10.0,
+        //             top: 10.0,
+        //             scale: 1.0,
+        //             bounds: TextBounds {
+        //                 left: 0,
+        //                 top: 0,
+        //                 right: 10000,
+        //                 bottom: 10000,
+        //             },
+        //             default_color: GlyphonColor::rgb(255, 255, 255),
+        //             depth: 0.0,
+        //             last_frame_touched: self.part.current_frame,
+        //             last_hash: hash,
+        //         };
 
-                self.text_areas.push(text_area);
-                let text_id = Some(self.text_areas.len() - 1);
-                self.node_map.get_mut(&id).unwrap().text_id = text_id;
-                text_id.unwrap()
-            }
-        };
-        self.text_areas[text_id].buffer.set_text(
-            &mut self.font_system,
-            &text,
-            Attrs::new().family(Family::SansSerif),
-            Shaping::Advanced,
-        );
-        self.text_areas[text_id].last_frame_touched = self.part.current_frame;
+        //         self.text.text_areas.push(text_area);
+        //         let text_id = Some(self.text.text_areas.len() - 1);
+        //         self.node_map.get_mut(&id).unwrap().text_id = text_id;
+        //         text_id.unwrap()
+        //     }
+        // };
+        // self.text.text_areas[text_id].buffer.set_text(
+        //     &mut self.text.font_system,
+        //     &text,
+        //     Attrs::new().family(Family::SansSerif),
+        //     Shaping::Advanced,
+        // );
+        // self.text.text_areas[text_id].last_frame_touched = self.part.current_frame;
     }
 
-    pub fn set_color(&mut self, id: Id, color: Color) {
-        // todo: dont return, add, etc
-        if let Some(node) = self.node_map.get_mut(&id) {
-            if node.params.color == color {
-                return;
-            } else {
-                node.params.color = color;
-            }
-        }
+    pub fn chained_set_color(&mut self, color: Color) {
+        let last_node = self.add_or_get_last_node_early();
+        last_node.params.color = color;
     }
 
     pub fn new(device: &Device, config: &SurfaceConfiguration, queue: &Queue) -> Self {
@@ -709,12 +763,16 @@ impl Ui {
 
         Self {
             key_modifiers: ModifiersState::default(),
-            cache,
+
+            text: Text {
+                cache,
+                atlas,
+                text_renderer,
+                font_system,
+                text_areas,
+            },
+            
             render_pipeline,
-            atlas,
-            text_renderer,
-            font_system,
-            text_areas,
             rects: Vec::with_capacity(20),
             node_map: nodes,
             gpu_vertex_buffer: vertex_buffer,
@@ -760,7 +818,7 @@ impl Ui {
         // check that the smallbox optimization is still working
         debug_assert!(
             self.tree_trace_defaults.last().unwrap().as_ref().unwrap().is_heap() == false,
-            "Smallboxed view ended up n the heap. The optimization no longer works."
+            "Smallboxed View ended up on the heap. The optimization no longer works."
         );
 
         return self.chain_ref()
@@ -773,81 +831,142 @@ impl Ui {
         return self.chain_ref()
     }
 
-    // todo: deduplicate with refresh (maybe)
-    pub fn update_node(&mut self, id: Id, defaults: &NodeParams, parent_id: Option<Id>) {
-        let old_node = self.node_map.get_mut(&id);
-        if old_node.is_none() {
-            let mut text_id = None;
-            if let Some(text) = defaults.static_text {
-                // text size
-                let mut buffer = Buffer::new(&mut self.font_system, Metrics::new(42.0, 42.0));
-                buffer.set_size(&mut self.font_system, 100000., 100000.);
+    // todo: add back the "sibling" stuff
 
-                let mut hasher = FxHasher::default();
-                text.hash(&mut hasher);
-                let hash = hasher.finish();
+    // this function gets called in the middle of the declarative tree-building part. 
+    // If the node hasn't been added yet, we have to add it on the fly, so that we can store the new color value.
+    // We add it without the parent information. When passing through the tree trace, the parent info will be set normally.
+    pub fn add_or_get_last_node_early(&mut self) -> &mut Node {
+        let last_i = self.tree_trace.len() - 1;
+        let last_id = self.tree_trace[last_i].unwrap_node();
+        let last_view = self.tree_trace_defaults[last_i].as_ref().unwrap();
 
-                buffer.set_text(
-                    &mut self.font_system,
-                    text,
-                    Attrs::new().family(Family::SansSerif),
-                    Shaping::Advanced,
-                );
+        let node = match self.node_map.entry(last_id) {
+            std::collections::hash_map::Entry::Vacant(v) => {
+                let defaults = last_view.defaults();
+                let frame = self.part.current_frame;
+                let text_id = self.text.new_text_area(defaults.static_text, frame);
+                let new_node = Self::build_new_node(&defaults, text_id, frame);
+                let new_node_ref = v.insert(new_node);
+                new_node_ref
+            },
+            std::collections::hash_map::Entry::Occupied(o) => {
+                let old_node_ref = o.into_mut();
+                old_node_ref
+            },
+        };
 
-                let text_area = TextArea {
-                    buffer,
-                    left: 10.0,
-                    top: 10.0,
-                    scale: 1.0,
-                    bounds: TextBounds {
-                        left: 0,
-                        top: 0,
-                        right: 10000,
-                        bottom: 10000,
-                    },
-                    default_color: GlyphonColor::rgb(255, 255, 255),
-                    depth: 0.0,
-                    last_frame_touched: self.part.current_frame,
-                    last_hash: hash,
-                };
-                self.text_areas.push(text_area);
-                text_id = Some(self.text_areas.len() - 1);
-            }
-
-            let new_node = self.new_node(defaults, parent_id, text_id);
-            self.node_map.insert(id, new_node);
-        } else {
-            let old_node = old_node.unwrap();
-            if let Some(text_id) = old_node.text_id {
-                self.text_areas[text_id].last_frame_touched = self.part.current_frame;
-            }
-            old_node.last_frame_touched = self.part.current_frame;
-            old_node.children_ids.clear();
-        }
-
-
-        if let Some(parent_id) = parent_id {
-            self.node_map
-            .get_mut(&parent_id)
-            .unwrap()
-            .children_ids
-            .push(id);
-        }
+        return node;
     }
 
-    pub fn new_node(&self, defaults: &NodeParams, parent_id: Option<Id>, text_id: Option<usize>) -> Node {
-        let parent_id = match parent_id {
-            Some(parent_id) => parent_id,
-            None => Id(999999),
+    pub fn add_or_refresh_node(&mut self, id: Id, defaults: &NodeParams, parent_id: Id) -> &mut Node {
+        self.add_child_to_parent(id, parent_id);
+
+        let frame = self.part.current_frame;
+
+        let node = match self.node_map.entry(id) {
+            std::collections::hash_map::Entry::Vacant(v) => {
+                let text_id = self.text.new_text_area(defaults.static_text, frame);
+                let new_node = Self::build_new_node(defaults, text_id, frame);
+                let new_node_ref = v.insert(new_node);
+                new_node_ref
+            },
+            std::collections::hash_map::Entry::Occupied(o) => {
+                let old_node_ref = o.into_mut();
+                // clear children from old frames
+                old_node_ref.children_ids.clear();
+                // refresh
+                old_node_ref.refresh(frame);
+                // old_node_ref.parent_id = parent_id;
+                self.text.refresh(old_node_ref.text_id, frame);
+
+                old_node_ref
+            },
         };
+
+        return node;
+    }
+
+    pub fn add_child_to_parent(&mut self, id: Id, parent_id: Id) {
+        self.node_map
+        .get_mut(&parent_id)
+        .unwrap()
+        .children_ids
+        .push(id);
+    }
+
+    // // todo: deduplicate with refresh (maybe)
+    // pub fn update_node2(&mut self, id: Id, defaults: &NodeParams, parent_id: Option<Id>) {
+    //     let old_node = self.node_map.get_mut(&id);
+    //     if old_node.is_none() {
+    //         let mut text_id = None;
+    //         if let Some(text) = defaults.static_text {
+    //             // text size
+    //             let mut buffer = Buffer::new(&mut self.text.font_system, Metrics::new(42.0, 42.0));
+    //             buffer.set_size(&mut self.text.font_system, 100000., 100000.);
+
+    //             let mut hasher = FxHasher::default();
+    //             text.hash(&mut hasher);
+    //             let hash = hasher.finish();
+
+    //             buffer.set_text(
+    //                 &mut self.text.font_system,
+    //                 text,
+    //                 Attrs::new().family(Family::SansSerif),
+    //                 Shaping::Advanced,
+    //             );
+
+    //             let text_area = TextArea {
+    //                 buffer,
+    //                 left: 10.0,
+    //                 top: 10.0,
+    //                 scale: 1.0,
+    //                 bounds: TextBounds {
+    //                     left: 0,
+    //                     top: 0,
+    //                     right: 10000,
+    //                     bottom: 10000,
+    //                 },
+    //                 default_color: GlyphonColor::rgb(255, 255, 255),
+    //                 depth: 0.0,
+    //                 last_frame_touched: self.part.current_frame,
+    //                 last_hash: hash,
+    //             };
+    //             self.text.text_areas.push(text_area);
+    //             text_id = Some(self.text.text_areas.len() - 1);
+    //         }
+
+    //         let new_node = Self::build_new_node(defaults, text_id, self.part.current_frame);
+    //         self.node_map.insert(id, new_node);
+    //     } else {
+    //         let old_node = old_node.unwrap();
+    //         if let Some(text_id) = old_node.text_id {
+    //             self.text.text_areas[text_id].last_frame_touched = self.part.current_frame;
+    //         }
+    //         old_node.last_frame_touched = self.part.current_frame;
+    //         old_node.children_ids.clear();
+    //     }
+
+
+    //     if let Some(parent_id) = parent_id {
+    //         self.node_map
+    //         .get_mut(&parent_id)
+    //         .unwrap()
+    //         .children_ids
+    //         .push(id);
+    //     }
+    // }
+
+    // Build a new node with dummy values for current_frame and parent_id.
+    pub fn build_new_node(defaults: &NodeParams, text_id: Option<usize>, current_frame: u64) -> Node {
         Node {
             rect_id: None,
             rect: Xy::new_symm([0.0, 1.0]),
             text_id,
-            parent_id,
+            parent_id: Id(999999),
             children_ids: Vec::new(),
             params: *defaults,
-            last_frame_touched: self.part.current_frame,
+            last_frame_touched: current_frame,
             last_frame_status: LastFrameStatus::Nothing,
             last_hover: f32::MIN,
             last_click: f32::MIN,
@@ -862,7 +981,7 @@ impl Ui {
         // println!(" {:#?}\n", event);
 
         if event.state.is_pressed() {
-            let buffer = &mut self.text_areas[text_id].buffer;
+            let buffer = &mut self.text.text_areas[text_id].buffer;
 
             match &event.logical_key {
                 winit::keyboard::Key::Named(named_key) => {
@@ -1110,11 +1229,11 @@ impl Ui {
 
     pub fn layout_text(&mut self, text_id: Option<usize>, rect: Rect) {
         if let Some(text_id) = text_id {
-            self.text_areas[text_id].left = rect[X][0] * self.part.unifs.size[X];
-            self.text_areas[text_id].top = (1.0 - rect[Y][1]) * self.part.unifs.size[Y];
-            self.text_areas[text_id]
+            self.text.text_areas[text_id].left = rect[X][0] * self.part.unifs.size[X];
+            self.text.text_areas[text_id].top = (1.0 - rect[Y][1]) * self.part.unifs.size[Y];
+            self.text.text_areas[text_id]
                 .buffer
-                .shape_until_scroll(&mut self.font_system, false);
+                .shape_until_scroll(&mut self.text.font_system, false);
         }
     }
 
@@ -1204,7 +1323,7 @@ impl Ui {
         let focused_id = &self.focused?;
         let focused_node = self.node_map.get(focused_id)?;
         let text_id = focused_node.text_id?;
-        let focused_text_area = self.text_areas.get(text_id)?;
+        let focused_text_area = self.text.text_areas.get(text_id)?;
 
         match focused_text_area.buffer.lines[0].text.cursor() {
             StringCursor::Point(cursor) => {
@@ -1301,24 +1420,24 @@ impl Ui {
             render_pass.draw(0..6, 0..n);
         }
 
-        self.text_renderer.render(&self.atlas, render_pass).unwrap();
+        self.text.text_renderer.render(&self.text.atlas, render_pass).unwrap();
     }
 
     pub fn prepare(&mut self, device: &Device, queue: &Queue) {
         self.gpu_vertex_buffer.queue_write(&self.rects[..], queue);
 
-        self.text_renderer
+        self.text.text_renderer
             .prepare(
                 device,
                 queue,
-                &mut self.font_system,
-                &mut self.atlas,
+                &mut self.text.font_system,
+                &mut self.text.atlas,
                 GlyphonResolution {
                     width: self.part.unifs.size[X] as u32,
                     height: self.part.unifs.size[Y] as u32,
                 },
-                &mut self.text_areas,
-                &mut self.cache,
+                &mut self.text.text_areas,
+                &mut self.text.cache,
                 self.part.current_frame,
             )
             .unwrap();
@@ -1401,7 +1520,7 @@ impl Ui {
             }
 
             if let Some(id) = node.text_id {
-                let text_area = &mut self.text_areas[id];
+                let text_area = &mut self.text.text_areas[id];
                 let (x, y) = (
                     self.part.mouse_pos.x - text_area.left,
                     self.part.mouse_pos.y - text_area.top,
@@ -1441,7 +1560,7 @@ impl Ui {
             match &self.tree_trace[i] {
                 TreeTraceEntry::Node(id) => {
                     let defaults = self.tree_trace_defaults[i].as_ref().unwrap().defaults();
-                    self.update_node(*id, &defaults, Some(current_parent_id));
+                    self.add_or_refresh_node(*id, &defaults, current_parent_id);
                 },
                 TreeTraceEntry::SetParent(id) => {
                     current_parent_id = *id;
@@ -1495,6 +1614,7 @@ pub struct Node {
     // also for invisible rects, used for layout
     pub rect: Xy<[f32; 2]>,
 
+    // this is actually completely useless
     pub last_frame_touched: u64,
     pub last_frame_status: LastFrameStatus,
 
@@ -1508,6 +1628,12 @@ pub struct Node {
     pub last_hover: f32,
     pub last_click: f32,
     pub z: f32,
+}
+impl Node {
+    fn refresh(&mut self, current_frame: u64) {
+        self.last_frame_touched = current_frame;
+        self.children_ids.clear();
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
