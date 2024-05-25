@@ -23,6 +23,8 @@ pub fn derive_view(attr: TokenStream, item: TokenStream) -> TokenStream {
     let random_id: u64 = rand::thread_rng().gen();
 
     let expanded = quote! {
+        #item_struct
+        
         impl View for #name {
             fn defaults(&self) -> NodeParams {
                 return #expr;
@@ -32,8 +34,6 @@ pub fn derive_view(attr: TokenStream, item: TokenStream) -> TokenStream {
                 return Id(#random_id);
             }
         }
-
-        #item_struct
     };
 
     TokenStream::from(expanded)

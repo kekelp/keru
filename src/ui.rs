@@ -2,7 +2,7 @@ use glyphon::cosmic_text::StringCursor;
 use glyphon::Cursor as GlyphonCursor;
 use glyphon::{Affinity, Resolution as GlyphonResolution};
 use rustc_hash::{FxHashMap, FxHasher};
-use smallbox::space::S8;
+use smallbox::space::{S4, S8};
 use smallbox::{smallbox, SmallBox};
 use view_derive::derive_view;
 
@@ -554,7 +554,28 @@ pub enum TreeTraceEntry {
     SetParent(Id),
 }
 
-type ViewBox = SmallBox<dyn View, S8>;
+// A stack allocated dynamic dispatch box, for types up to zero bytes wide.
+// Only zero-sized structs will actually end up on the stack, but the plan is to use zero-sized Views only.
+// It's just about the dynamic method dispatch.
+type ViewBox = SmallBox<dyn View, [u8; 0]>;
+// An "enum dispatch" style approach might have been less messy, if Rust (or any language) had built-in support for it.
+// A fully built-in solution would mean 
+// - somehow, extend Sized into Sized<const usize N>, automatically implemented for all sized structs up to size N. This will never happen.
+// - allow vectors and other containers to store dynamic types, as long as they are Sized<N> for a certain N: Vec<dyn View + Sized(7)>
+// - implicitly, implement that by generating an enum of all the types that implement View. The element of the vector would be instances of that enum, so something like N+1 bytes wide.
+// - do "dynamic dispatch" by simply matching of the enum and calling the variation's trait implementation.
+
+// The idea came up multiple times, but I haven't seen anyone suggest the Sized<N> solution to the size problem.
+// (https://internals.rust-lang.org/t/trait-based-enum-variants/19825, https://internals.rust-lang.org/t/representing-closed-trait-objects-as-enums/3981/18)
+// Some of the discussions are from before const generics were even added, so maybe that explains it.
+// But maybe it's just impossible to have a Sized<N> trait like that for some technical reason.
+
+// "enum_dispatch" and "enum_delegate" can help, but with no language support the ergonomics aren't as good as they could be. You have to build the enum yourself.
+// Also, they can only work because of some pretty advanced macro tricks. (interestingly, the 2 crates use equally crazy but completely different tricks). It's not something that you're "supposed" to be able to do with macros, because of their local nature.
+
+// In terms of performance, the Smallbox solution avoids the heap allocation, but not the indirect function call.
+// In this library the dynamic types get built very often, but the functions are called very rarely.
+// So I imagine that it should give basically the same performance as an hypotetical enum based solution.
 
 pub struct Ui {
     pub key_modifiers: ModifiersState,
@@ -830,6 +851,12 @@ impl Ui {
     pub fn add<V: View + 'static>(&mut self, view: V) -> ChainedMethodUi {
         self.tree_trace.push(TreeTraceEntry::Node(view.id()));
         self.tree_trace_defaults.push(Some(smallbox!(view)));
+  
+        // check that the smallbox optimization is still working
+        debug_assert!(
+            self.tree_trace_defaults.last().unwrap().as_ref().unwrap().is_heap() == false,
+            "Smallboxed view ended up n the heap. The optimization no longer works."
+        );
 
         return self.chain_ref()
     }
@@ -1703,6 +1730,8 @@ pub const fn callsite_hash(
     return hash;
 }
 
+// rust-analyzer's macro expansion shows that line!(), column!() etc aren't working. but they must be, or we'd get collisions.
+// this could be a proc macro calculating compile time random numbers, like in derive_view.
 #[macro_export]
 macro_rules! new_id {
     () => {{
