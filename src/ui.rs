@@ -5,7 +5,6 @@ use rustc_hash::{FxHashMap, FxHasher};
 use smallbox::{smallbox, SmallBox};
 use view_derive::derive_view;
 
-use std::default;
 use std::{
     hash::Hasher,
     marker::PhantomData,
@@ -502,7 +501,6 @@ pub struct Text {
 }
 impl Text {
     pub fn new_text_area(&mut self, text: Option<&str>, current_frame: u64) -> Option<usize> {
-        // todo: remove these options, what a shit idea lol
         let text = text?;
 
         let mut buffer = Buffer::new(&mut self.font_system, Metrics::new(42.0, 42.0));
@@ -547,7 +545,8 @@ impl Text {
         }
     }
 
-    fn set_text(&mut self, text_id: usize, text: &str, hash: u64) {
+    fn set_text(&mut self, text_id: usize, text: &str) {
+        let hash = fx_hash(&text);
         let area = &mut self.text_areas[text_id];
         if hash != area.last_hash {
             area.last_hash = hash;
@@ -619,9 +618,6 @@ pub struct Ui {
 impl Ui {
 
     fn chained_set_text(&mut self, text: &str) {
-        let hash = fx_hash(&text);
-        let frame = self.part.current_frame;
-
         let (last_id, last_view) = self.trace.last();
 
         match self.node_map.entry(last_id) {
@@ -639,7 +635,7 @@ impl Ui {
                         panic!("This probably never happens but I don't really know 2bh")
                     },
                     Some(text_id) => {
-                        self.text.set_text(text_id, text, hash);
+                        self.text.set_text(text_id, text);
                     },
                 }
                 
@@ -647,9 +643,33 @@ impl Ui {
         };
     }
 
+    // Slightly sloppier (the color gets set to default then changed) for no real benefit so far since nobody else uses the func lol
     pub fn chained_set_color(&mut self, color: Color) {
         let last_node = self.add_or_get_last_node_early();
         last_node.params.color = color;
+    }
+
+    pub fn add_or_get_last_node_early(&mut self) -> &mut Node {
+        let last_i = self.trace.ids.len() - 1;
+        let last_id = self.trace.ids[last_i].unwrap_node();
+        let last_view = self.trace.views[last_i].as_ref().unwrap();
+
+        let node = match self.node_map.entry(last_id) {
+            std::collections::hash_map::Entry::Vacant(v) => {
+                let defaults = last_view.defaults();
+                let frame = self.part.current_frame;
+                let text_id = self.text.new_text_area(defaults.static_text, frame);
+                let new_node = Self::build_new_node(&defaults, text_id, frame);
+                let new_node_ref = v.insert(new_node);
+                new_node_ref
+            },
+            std::collections::hash_map::Entry::Occupied(o) => {
+                let old_node_ref = o.into_mut();
+                old_node_ref
+            },
+        };
+
+        return node;
     }
 
     pub fn new(device: &Device, config: &SurfaceConfiguration, queue: &Queue) -> Self {
@@ -826,32 +846,6 @@ impl Ui {
     }
 
     // todo: add back the "sibling" stuff
-
-    // this function gets called in the middle of the declarative tree-building part. 
-    // If the node hasn't been added yet, we have to add it on the fly, so that we can store the new color value.
-    // We add it without the parent information. When passing through the tree trace, the parent info will be set normally.
-    pub fn add_or_get_last_node_early(&mut self) -> &mut Node {
-        let last_i = self.trace.ids.len() - 1;
-        let last_id = self.trace.ids[last_i].unwrap_node();
-        let last_view = self.trace.views[last_i].as_ref().unwrap();
-
-        let node = match self.node_map.entry(last_id) {
-            std::collections::hash_map::Entry::Vacant(v) => {
-                let defaults = last_view.defaults();
-                let frame = self.part.current_frame;
-                let text_id = self.text.new_text_area(defaults.static_text, frame);
-                let new_node = Self::build_new_node(&defaults, text_id, frame);
-                let new_node_ref = v.insert(new_node);
-                new_node_ref
-            },
-            std::collections::hash_map::Entry::Occupied(o) => {
-                let old_node_ref = o.into_mut();
-                old_node_ref
-            },
-        };
-
-        return node;
-    }
 
     pub fn add_or_refresh_node(&mut self, id: Id, defaults: &NodeParams, parent_id: Id) -> &mut Node {
         self.add_child_to_parent(id, parent_id);
