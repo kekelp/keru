@@ -183,10 +183,7 @@ impl NodeParams {
     }
 
     pub const fn stack(mut self, axis: Axis, arrange: Arrange) -> Self {
-        self.is_stack = Some(Stack {
-            arrange,
-            axis,
-        });
+        self.is_stack = Some(Stack { arrange, axis });
         return self;
     }
 
@@ -412,7 +409,7 @@ pub struct PartialBorrowStuff {
 }
 impl PartialBorrowStuff {
     pub fn is_rect_clicked_or_hovered(&self, rect: &Rectangle) -> (bool, bool) {
-        // rects are rebuilt from scratch every render, so this isn't needed, for now. 
+        // rects are rebuilt from scratch every render, so this isn't needed, for now.
         // if rect.last_frame_touched != self.current_frame {
         //     return (false, false);
         // }
@@ -463,8 +460,10 @@ impl TreeTraceEntry {
     pub fn unwrap_node(&self) -> Id {
         return match self {
             TreeTraceEntry::Node(id) => *id,
-            TreeTraceEntry::SetParent(_) => panic!("Met SetParent in tree trace when Node was expected"),
-        }
+            TreeTraceEntry::SetParent(_) => {
+                panic!("Met SetParent in tree trace when Node was expected")
+            }
+        };
     }
 }
 
@@ -473,7 +472,7 @@ impl TreeTraceEntry {
 // It's just about the dynamic method dispatch.
 type ViewBox = SmallBox<dyn View, [u8; 0]>;
 // An "enum dispatch" style approach might have been less messy, if Rust (or any language) had built-in support for it.
-// A fully built-in solution would mean 
+// A fully built-in solution would mean
 // - somehow, extend Sized into Sized<const usize N>, automatically implemented for all sized structs up to size N. This will never happen.
 // - allow vectors and other containers to store dynamic types, as long as they are Sized<N> for a certain N: Vec<dyn View + Sized(7)>
 // - implicitly, implement that by generating an enum of all the types that implement View. The element of the vector would be instances of that enum, so something like N+1 bytes wide.
@@ -535,7 +534,7 @@ impl Text {
         };
         self.text_areas.push(text_area);
         let text_id = self.text_areas.len() - 1;
-        
+
         return Some(text_id);
     }
 
@@ -607,16 +606,13 @@ pub struct Ui {
     // // remember about animations (surely there will be)
     // pub content_changed: bool,
     // pub tree_changed: bool,
-
     pub t: f32,
 
     // todo: add this
     // pub last_tree_trace: Vec<TreeTraceEntry>,
-    
     pub trace: TreeTrace,
 }
 impl Ui {
-
     fn chained_set_text(&mut self, text: &str) {
         let (last_id, last_view) = self.trace.last();
 
@@ -627,19 +623,18 @@ impl Ui {
                 let text_id = self.text.new_text_area(Some(text), frame);
                 let new_node = Self::build_new_node(&defaults, text_id, frame);
                 v.insert(new_node);
-            },
+            }
             std::collections::hash_map::Entry::Occupied(o) => {
                 let old_node = o.into_mut();
                 match old_node.text_id {
                     None => {
                         panic!("This probably never happens but I don't really know 2bh")
-                    },
+                    }
                     Some(text_id) => {
                         self.text.set_text(text_id, text);
-                    },
+                    }
                 }
-                
-            },
+            }
         };
     }
 
@@ -662,11 +657,11 @@ impl Ui {
                 let new_node = Self::build_new_node(&defaults, text_id, frame);
                 let new_node_ref = v.insert(new_node);
                 new_node_ref
-            },
+            }
             std::collections::hash_map::Entry::Occupied(o) => {
                 let old_node_ref = o.into_mut();
                 old_node_ref
-            },
+            }
         };
 
         return node;
@@ -786,7 +781,7 @@ impl Ui {
                 font_system,
                 text_areas,
             },
-            
+
             render_pipeline,
             rects: Vec::with_capacity(20),
             node_map: nodes,
@@ -820,34 +815,37 @@ impl Ui {
     }
 
     pub fn chain_ref(&mut self) -> ChainedMethodUi {
-        return ChainedMethodUi {
-            ui: self,
-        };
-    }   
+        return ChainedMethodUi { ui: self };
+    }
 
     pub fn add<V: View + 'static>(&mut self, view: V) -> ChainedMethodUi {
         self.trace.ids.push(TreeTraceEntry::Node(view.id()));
         self.trace.views.push(Some(smallbox!(view)));
-  
+
         // check that the smallbox optimization is still working
         debug_assert!(
             self.trace.views.last().unwrap().as_ref().unwrap().is_heap() == false,
             "Smallboxed View ended up on the heap. The optimization no longer works."
         );
 
-        return self.chain_ref()
+        return self.chain_ref();
     }
 
     pub fn add_anonymous<V: View + 'static>(&mut self, view: V, id: Id) -> ChainedMethodUi {
         self.trace.ids.push(TreeTraceEntry::Node(id));
         self.trace.views.push(Some(smallbox!(view)));
-        
-        return self.chain_ref()
+
+        return self.chain_ref();
     }
 
     // todo: add back the "sibling" stuff
 
-    pub fn add_or_refresh_node(&mut self, id: Id, defaults: &NodeParams, parent_id: Id) -> &mut Node {
+    pub fn add_or_refresh_node(
+        &mut self,
+        id: Id,
+        defaults: &NodeParams,
+        parent_id: Id,
+    ) -> &mut Node {
         self.add_child_to_parent(id, parent_id);
 
         let frame = self.part.current_frame;
@@ -858,7 +856,7 @@ impl Ui {
                 let new_node = Self::build_new_node(defaults, text_id, frame);
                 let new_node_ref = v.insert(new_node);
                 new_node_ref
-            },
+            }
             std::collections::hash_map::Entry::Occupied(o) => {
                 let old_node_ref = o.into_mut();
                 // clear children from old frames
@@ -869,7 +867,7 @@ impl Ui {
                 self.text.refresh_last_frame(old_node_ref.text_id, frame);
 
                 old_node_ref
-            },
+            }
         };
 
         return node;
@@ -877,10 +875,10 @@ impl Ui {
 
     pub fn add_child_to_parent(&mut self, id: Id, parent_id: Id) {
         self.node_map
-        .get_mut(&parent_id)
-        .unwrap()
-        .children_ids
-        .push(id);
+            .get_mut(&parent_id)
+            .unwrap()
+            .children_ids
+            .push(id);
     }
 
     // // todo: deduplicate with refresh (maybe)
@@ -935,7 +933,6 @@ impl Ui {
     //         old_node.children_ids.clear();
     //     }
 
-
     //     if let Some(parent_id) = parent_id {
     //         self.node_map
     //         .get_mut(&parent_id)
@@ -946,7 +943,11 @@ impl Ui {
     // }
 
     // Build a new node with dummy values for current_frame and parent_id.
-    pub fn build_new_node(defaults: &NodeParams, text_id: Option<usize>, current_frame: u64) -> Node {
+    pub fn build_new_node(
+        defaults: &NodeParams,
+        text_id: Option<usize>,
+        current_frame: u64,
+    ) -> Node {
         Node {
             rect_id: None,
             rect: Xy::new_symm([0.0, 1.0]),
@@ -1139,8 +1140,7 @@ impl Ui {
                         match child.params.position[cross_axis] {
                             Position::Start => match child.params.size[cross_axis] {
                                 Size::PercentOfAvailable(percent) => {
-                                    let cross_0 = parent_rect[cross_axis][0]
-                                        + spacing_f;
+                                    let cross_0 = parent_rect[cross_axis][0] + spacing_f;
                                     let cross_1 = cross_0 + parent_size[cross_axis] * percent;
                                     child.rect[cross_axis] = [cross_0, cross_1];
                                 }
@@ -1256,7 +1256,6 @@ impl Ui {
     }
 
     pub fn build_buffers(&mut self) {
-
         self.rects.clear();
         self.stack.clear();
 
@@ -1408,13 +1407,17 @@ impl Ui {
             render_pass.draw(0..6, 0..n);
         }
 
-        self.text.text_renderer.render(&self.text.atlas, render_pass).unwrap();
+        self.text
+            .text_renderer
+            .render(&self.text.atlas, render_pass)
+            .unwrap();
     }
 
     pub fn prepare(&mut self, device: &Device, queue: &Queue) {
         self.gpu_vertex_buffer.queue_write(&self.rects[..], queue);
 
-        self.text.text_renderer
+        self.text
+            .text_renderer
             .prepare(
                 device,
                 queue,
@@ -1450,7 +1453,6 @@ impl Ui {
         self.update_nodes();
         self.layout();
         self.resolve_mouse_input();
-        
     }
 
     // todo: skip this if there has been no new mouse movement and no new clicks.
@@ -1538,7 +1540,9 @@ impl Ui {
     pub fn end_layer(&mut self) {
         self.parent_stack.pop();
         let new_parent = self.parent_stack.last().unwrap();
-        self.trace.ids.push(crate::ui::TreeTraceEntry::SetParent(*new_parent));
+        self.trace
+            .ids
+            .push(crate::ui::TreeTraceEntry::SetParent(*new_parent));
         self.trace.views.push(None);
     }
 
@@ -1549,16 +1553,16 @@ impl Ui {
                 TreeTraceEntry::Node(id) => {
                     let defaults = self.trace.views[i].as_ref().unwrap().defaults();
                     self.add_or_refresh_node(*id, &defaults, current_parent_id);
-                },
+                }
                 TreeTraceEntry::SetParent(id) => {
                     current_parent_id = *id;
-                },               
+                }
             }
         }
     }
 }
 
-// todo: since macros = le bad, maybe make separate functions so that it's possible to do 
+// todo: since macros = le bad, maybe make separate functions so that it's possible to do
 // ui.begin_hstack()
 // ui.add(children)
 // ui.end_hstack()
@@ -1572,9 +1576,9 @@ macro_rules! create_layer_macro {
                 $ui.add_anonymous($node_params_name, anonymous_id);
 
                 $ui.start_layer(anonymous_id);
-                
+
                 $code;
-                
+
                 $ui.end_layer();
             };
             // named
@@ -1582,9 +1586,9 @@ macro_rules! create_layer_macro {
                 $ui.add($node_key);
 
                 $ui.start_layer($node_key.id());
-                
+
                 $code;
-                
+
                 $ui.end_layer();
             };
         }

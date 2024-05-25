@@ -5,9 +5,9 @@ use helper::{
     base_color_attachment, base_render_pass_desc, configure_surface, init_winit_and_wgpu,
     WgpuWindow, ENC_DESC,
 };
-use view_derive::derive_view;
 pub use ui::Id;
 use ui::{Arrange, Axis::Y, Color, NodeParams, Ui, View};
+use view_derive::derive_view;
 use wgpu::TextureViewDescriptor;
 use winit::{
     event::{Event, WindowEvent},
