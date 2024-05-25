@@ -2,7 +2,6 @@ use glyphon::cosmic_text::StringCursor;
 use glyphon::Cursor as GlyphonCursor;
 use glyphon::{Affinity, Resolution as GlyphonResolution};
 use rustc_hash::{FxHashMap, FxHasher};
-use smallbox::space::{S4, S8};
 use smallbox::{smallbox, SmallBox};
 use view_derive::derive_view;
 
@@ -298,99 +297,6 @@ pub struct Label;
 #[derive_view(NodeParams::TEXT_INPUT)]
 pub struct TextInput;
 
-
-#[derive(Debug, Clone, Copy)]
-pub struct NodeKey {
-    pub id: Id,
-    pub defaults: NodeParams,
-}
-
-use std::hash::Hash;
-
-impl NodeKey {
-    pub const fn new(defaults: NodeParams, id: Id) -> Self {
-        return Self { defaults, id };
-    }
-
-    pub fn id(&self) -> Id {
-        return self.id;
-    }
-
-    pub fn with_id(mut self, id: Id) -> Self {
-        self.id = id;
-        return self;
-    }
-
-    // todo: make const?
-    // are they really all siblings? the base one is different from all the derived ones.
-    pub fn sibling<H: Hash>(&self, value: H) -> Self {
-        let mut hasher = FxHasher::default();
-        self.id.hash(&mut hasher);
-        value.hash(&mut hasher);
-        let new_id = hasher.finish();
-
-        return Self {
-            id: Id(new_id),
-            defaults: self.defaults.clone(),
-        };
-    }
-
-    pub const fn with_defaults(mut self, defaults: NodeParams) -> Self {
-        self.defaults = defaults;
-        return self;
-    }
-
-    // can't use the [X] syntax in const functions: functions in trait impls cannot be declared const
-    pub const fn with_size_x(mut self, size: f32) -> Self {
-        self.defaults.size.0[IX] = Size::PercentOfAvailable(size);
-        return self;
-    }
-    pub const fn with_size_y(mut self, size: f32) -> Self {
-        self.defaults.size.0[IY] = Size::PercentOfAvailable(size);
-        return self;
-    }
-    pub const fn with_size_symm(mut self, size: f32) -> Self {
-        self.defaults.size = Xy::new_symm(Size::PercentOfAvailable(size));
-        return self;
-    }
-
-    pub const fn with_position_x(mut self, position: Position) -> Self {
-        self.defaults.position.0[IX] = position;
-        return self;
-    }
-    pub const fn with_position_y(mut self, position: Position) -> Self {
-        self.defaults.position.0[IY] = position;
-        return self;
-    }
-    pub const fn with_position_symm(mut self, position: Position) -> Self {
-        self.defaults.position = Xy::new_symm(position);
-        return self;
-    }
-
-    pub const fn with_static_text(mut self, text: &'static str) -> Self {
-        self.defaults.static_text = Some(text);
-        return self;
-    }
-
-    pub const fn with_debug_name(mut self, text: &'static str) -> Self {
-        self.defaults.debug_name = text;
-        return self;
-    }
-
-    pub const fn with_color(mut self, color: Color) -> Self {
-        self.defaults.color = color;
-        return self;
-    }
-
-    pub const fn with_stack(mut self, axis: Axis, arrange: Arrange) -> Self {
-        self.defaults.is_stack = Some(Stack {
-            arrange,
-            axis,
-        });
-        return self;
-    }
-}
-
 #[derive(Default, Debug, Pod, Copy, Clone, Zeroable)]
 #[repr(C)]
 // Layout has to match the one in the shader.
@@ -629,17 +535,16 @@ impl Ui {
 
         // because this is an epic chain method, this may work
         let id = match self.tree_trace.last().unwrap() {
-            TreeTraceEntry::Node(id) => id,
+            TreeTraceEntry::Node(id) => *id,
             TreeTraceEntry::SetParent(_) => panic!(),
         };
         let defaults = self.tree_trace_defaults.last().unwrap().as_ref().unwrap().defaults();
-        let key = NodeKey::new(defaults, *id);
 
-        if let None = self.node_map.get(&key.id) {
+        if let None = self.node_map.get(&id) {
             //todo: call a fake_add that doesn't set parent and children, and remove the whole Option(parent_id) trash everywhere
-            self.update_node(&key, None);
+            self.update_node(id, &defaults, None);
         }
-        let text_id = self.node_map.get(&key.id).unwrap().text_id;
+        let text_id = self.node_map.get(&id).unwrap().text_id;
         let text_id = match text_id {
             Some(text_id) => {
                 if hash == self.text_areas[text_id].last_hash {
@@ -674,7 +579,7 @@ impl Ui {
 
                 self.text_areas.push(text_area);
                 let text_id = Some(self.text_areas.len() - 1);
-                self.node_map.get_mut(&key.id).unwrap().text_id = text_id;
+                self.node_map.get_mut(&id).unwrap().text_id = text_id;
                 text_id.unwrap()
             }
         };
@@ -869,13 +774,11 @@ impl Ui {
     }
 
     // todo: deduplicate with refresh (maybe)
-    pub fn update_node<'b>(&mut self, node_key: &'b NodeKey, parent_id: Option<Id>) {
-        let node_key_id = node_key.id;
-
-        let old_node = self.node_map.get_mut(&node_key_id);
+    pub fn update_node(&mut self, id: Id, defaults: &NodeParams, parent_id: Option<Id>) {
+        let old_node = self.node_map.get_mut(&id);
         if old_node.is_none() {
             let mut text_id = None;
-            if let Some(text) = node_key.defaults.static_text {
+            if let Some(text) = defaults.static_text {
                 // text size
                 let mut buffer = Buffer::new(&mut self.font_system, Metrics::new(42.0, 42.0));
                 buffer.set_size(&mut self.font_system, 100000., 100000.);
@@ -911,8 +814,8 @@ impl Ui {
                 text_id = Some(self.text_areas.len() - 1);
             }
 
-            let new_node = self.new_node(node_key, parent_id, text_id);
-            self.node_map.insert(node_key_id, new_node);
+            let new_node = self.new_node(defaults, parent_id, text_id);
+            self.node_map.insert(id, new_node);
         } else {
             let old_node = old_node.unwrap();
             if let Some(text_id) = old_node.text_id {
@@ -928,16 +831,11 @@ impl Ui {
             .get_mut(&parent_id)
             .unwrap()
             .children_ids
-            .push(node_key_id);
+            .push(id);
         }
-
-        // return UiWithView {
-        //     ui: self,
-        //     key: &node_key,
-        // };
     }
 
-    pub fn new_node(&self, node_key: &NodeKey, parent_id: Option<Id>, text_id: Option<usize>) -> Node {
+    pub fn new_node(&self, defaults: &NodeParams, parent_id: Option<Id>, text_id: Option<usize>) -> Node {
         let parent_id = match parent_id {
             Some(parent_id) => parent_id,
             None => Id(999999),
@@ -948,7 +846,7 @@ impl Ui {
             text_id,
             parent_id,
             children_ids: Vec::new(),
-            params: node_key.defaults,
+            params: *defaults,
             last_frame_touched: self.part.current_frame,
             last_frame_status: LastFrameStatus::Nothing,
             last_hover: f32::MIN,
@@ -1542,15 +1440,12 @@ impl Ui {
         for i in 0..self.tree_trace.len() {
             match &self.tree_trace[i] {
                 TreeTraceEntry::Node(id) => {
-
-                    // todo: don't create a key. pass the view directly.
                     let defaults = self.tree_trace_defaults[i].as_ref().unwrap().defaults();
-                    let key = NodeKey::new(defaults, *id);
-                    self.update_node(&key, Some(current_parent_id));
+                    self.update_node(*id, &defaults, Some(current_parent_id));
                 },
                 TreeTraceEntry::SetParent(id) => {
                     current_parent_id = *id;
-                },
+                },               
             }
         }
     }
@@ -1672,11 +1567,6 @@ pub enum Arrange {
     SpaceAround,
     SpaceEvenly,
 }
-
-pub const NODE_ROOT_KEY: NodeKey = NodeKey {
-    id: NODE_ROOT_ID,
-    defaults: NODE_ROOT_PARAMS,
-};
 
 pub const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     debug_name: "ROOT",
@@ -1816,6 +1706,7 @@ pub fn cursor_pos_from_byte_offset(buffer: &Buffer, byte_offset: usize) -> (f32,
     return (0.0, 0.0);
 }
 
+use std::hash::Hash;
 fn fx_hash<T: Hash>(value: &T) -> u64 {
     let mut hasher = FxHasher::default();
     value.hash(&mut hasher);
