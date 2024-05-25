@@ -502,6 +502,7 @@ pub struct Text {
 }
 impl Text {
     pub fn new_text_area(&mut self, text: Option<&str>, current_frame: u64) -> Option<usize> {
+        // todo: remove these options, what a shit idea lol
         let text = text?;
 
         let mut buffer = Buffer::new(&mut self.font_system, Metrics::new(42.0, 42.0));
@@ -540,10 +541,37 @@ impl Text {
         return Some(text_id);
     }
 
-    fn refresh(&mut self, text_id: Option<usize>, current_frame: u64) {
+    fn refresh_last_frame(&mut self, text_id: Option<usize>, current_frame: u64) {
         if let Some(text_id) = text_id {
             self.text_areas[text_id].last_frame_touched = current_frame;
         }
+    }
+
+    fn set_text(&mut self, text_id: usize, text: &str, hash: u64) {
+        let area = &mut self.text_areas[text_id];
+        if hash != area.last_hash {
+            area.last_hash = hash;
+            area.buffer.set_text(
+                &mut self.font_system,
+                &text,
+                Attrs::new().family(Family::SansSerif),
+                Shaping::Advanced,
+            );
+        }
+    }
+}
+
+#[derive(Default)]
+pub struct TreeTrace {
+    pub ids: Vec<TreeTraceEntry>,
+    pub views: Vec<Option<ViewBox>>,
+}
+impl TreeTrace {
+    fn last(&self) -> (Id, &ViewBox) {
+        let last_i = self.ids.len() - 1;
+        let last_id = self.ids[last_i].unwrap_node();
+        let last_view = self.views[last_i].as_ref().unwrap();
+        return (last_id, last_view);
     }
 }
 
@@ -586,70 +614,37 @@ pub struct Ui {
     // todo: add this
     // pub last_tree_trace: Vec<TreeTraceEntry>,
     
-    pub tree_trace: Vec<TreeTraceEntry>,
-    pub tree_trace_defaults: Vec<Option<ViewBox>>,
+    pub trace: TreeTrace,
 }
 impl Ui {
+
     fn chained_set_text(&mut self, text: &str) {
-        // let hash = fx_hash(&text);
+        let hash = fx_hash(&text);
+        let frame = self.part.current_frame;
 
-        // // because this is an epic chain method, this may work
-        // let id = match self.tree_trace.last().unwrap() {
-        //     TreeTraceEntry::Node(id) => *id,
-        //     TreeTraceEntry::SetParent(_) => panic!(),
-        // };
-        // let defaults = self.tree_trace_defaults.last().unwrap().as_ref().unwrap().defaults();
+        let (last_id, last_view) = self.trace.last();
 
-        // if let None = self.node_map.get(&id) {
-        //     //todo: call a fake_add that doesn't set parent and children, and remove the whole Option(parent_id) trash everywhere
-        //     self.add_or_refresh_node(id, &defaults, None);
-        // }
-        // let text_id = self.node_map.get(&id).unwrap().text_id;
-        // let text_id = match text_id {
-        //     Some(text_id) => {
-        //         if hash == self.text.text_areas[text_id].last_hash {
-        //             // todo: I shouldn't have to do this, I don't think, it's visible as long as the node is visible??
-        //             self.text.text_areas[text_id].last_frame_touched = self.part.current_frame;
-        //             return;
-        //         }
-        //         self.text.text_areas[text_id].last_hash = hash;
-
-        //         text_id
-        //     }
-        //     None => {
-        //         let mut buffer = Buffer::new(&mut self.text.font_system, Metrics::new(42.0, 42.0));
-        //         buffer.set_size(&mut self.text.font_system, 100000., 100000.);
-
-        //         let text_area = TextArea {
-        //             buffer,
-        //             left: 10.0,
-        //             top: 10.0,
-        //             scale: 1.0,
-        //             bounds: TextBounds {
-        //                 left: 0,
-        //                 top: 0,
-        //                 right: 10000,
-        //                 bottom: 10000,
-        //             },
-        //             default_color: GlyphonColor::rgb(255, 255, 255),
-        //             depth: 0.0,
-        //             last_frame_touched: self.part.current_frame,
-        //             last_hash: hash,
-        //         };
-
-        //         self.text.text_areas.push(text_area);
-        //         let text_id = Some(self.text.text_areas.len() - 1);
-        //         self.node_map.get_mut(&id).unwrap().text_id = text_id;
-        //         text_id.unwrap()
-        //     }
-        // };
-        // self.text.text_areas[text_id].buffer.set_text(
-        //     &mut self.text.font_system,
-        //     &text,
-        //     Attrs::new().family(Family::SansSerif),
-        //     Shaping::Advanced,
-        // );
-        // self.text.text_areas[text_id].last_frame_touched = self.part.current_frame;
+        match self.node_map.entry(last_id) {
+            std::collections::hash_map::Entry::Vacant(v) => {
+                let defaults = last_view.defaults();
+                let frame = self.part.current_frame;
+                let text_id = self.text.new_text_area(Some(text), frame);
+                let new_node = Self::build_new_node(&defaults, text_id, frame);
+                v.insert(new_node);
+            },
+            std::collections::hash_map::Entry::Occupied(o) => {
+                let old_node = o.into_mut();
+                match old_node.text_id {
+                    None => {
+                        panic!("This probably never happens but I don't really know 2bh")
+                    },
+                    Some(text_id) => {
+                        self.text.set_text(text_id, text, hash);
+                    },
+                }
+                
+            },
+        };
     }
 
     pub fn chained_set_color(&mut self, color: Color) {
@@ -800,8 +795,7 @@ impl Ui {
 
             t: 0.0,
 
-            tree_trace: Vec::new(),
-            tree_trace_defaults: Vec::new(),
+            trace: TreeTrace::default(),
         }
     }
 
@@ -809,15 +803,15 @@ impl Ui {
         return ChainedMethodUi {
             ui: self,
         };
-    }
+    }   
 
     pub fn add<V: View + 'static>(&mut self, view: V) -> ChainedMethodUi {
-        self.tree_trace.push(TreeTraceEntry::Node(view.id()));
-        self.tree_trace_defaults.push(Some(smallbox!(view)));
+        self.trace.ids.push(TreeTraceEntry::Node(view.id()));
+        self.trace.views.push(Some(smallbox!(view)));
   
         // check that the smallbox optimization is still working
         debug_assert!(
-            self.tree_trace_defaults.last().unwrap().as_ref().unwrap().is_heap() == false,
+            self.trace.views.last().unwrap().as_ref().unwrap().is_heap() == false,
             "Smallboxed View ended up on the heap. The optimization no longer works."
         );
 
@@ -825,8 +819,8 @@ impl Ui {
     }
 
     pub fn add_anonymous<V: View + 'static>(&mut self, view: V, id: Id) -> ChainedMethodUi {
-        self.tree_trace.push(TreeTraceEntry::Node(id));
-        self.tree_trace_defaults.push(Some(smallbox!(view)));
+        self.trace.ids.push(TreeTraceEntry::Node(id));
+        self.trace.views.push(Some(smallbox!(view)));
         
         return self.chain_ref()
     }
@@ -837,9 +831,9 @@ impl Ui {
     // If the node hasn't been added yet, we have to add it on the fly, so that we can store the new color value.
     // We add it without the parent information. When passing through the tree trace, the parent info will be set normally.
     pub fn add_or_get_last_node_early(&mut self) -> &mut Node {
-        let last_i = self.tree_trace.len() - 1;
-        let last_id = self.tree_trace[last_i].unwrap_node();
-        let last_view = self.tree_trace_defaults[last_i].as_ref().unwrap();
+        let last_i = self.trace.ids.len() - 1;
+        let last_id = self.trace.ids[last_i].unwrap_node();
+        let last_view = self.trace.views[last_i].as_ref().unwrap();
 
         let node = match self.node_map.entry(last_id) {
             std::collections::hash_map::Entry::Vacant(v) => {
@@ -878,7 +872,7 @@ impl Ui {
                 // refresh
                 old_node_ref.refresh(frame);
                 // old_node_ref.parent_id = parent_id;
-                self.text.refresh(old_node_ref.text_id, frame);
+                self.text.refresh_last_frame(old_node_ref.text_id, frame);
 
                 old_node_ref
             },
@@ -1446,8 +1440,8 @@ impl Ui {
     pub fn begin_tree(&mut self) {
         self.update_time();
 
-        self.tree_trace.clear();
-        self.tree_trace_defaults.clear();
+        self.trace.ids.clear();
+        self.trace.views.clear();
 
         self.node_map
             .get_mut(&NODE_ROOT_ID)
@@ -1543,23 +1537,23 @@ impl Ui {
 
     pub fn start_layer(&mut self, parent_id: Id) {
         self.parent_stack.push(parent_id);
-        self.tree_trace.push(TreeTraceEntry::SetParent(parent_id));
-        self.tree_trace_defaults.push(None);
+        self.trace.ids.push(TreeTraceEntry::SetParent(parent_id));
+        self.trace.views.push(None);
     }
 
     pub fn end_layer(&mut self) {
         self.parent_stack.pop();
         let new_parent = self.parent_stack.last().unwrap();
-        self.tree_trace.push(crate::ui::TreeTraceEntry::SetParent(*new_parent));
-        self.tree_trace_defaults.push(None);
+        self.trace.ids.push(crate::ui::TreeTraceEntry::SetParent(*new_parent));
+        self.trace.views.push(None);
     }
 
     pub(crate) fn update_nodes(&mut self) {
         let mut current_parent_id = NODE_ROOT_ID;
-        for i in 0..self.tree_trace.len() {
-            match &self.tree_trace[i] {
+        for i in 0..self.trace.ids.len() {
+            match &self.trace.ids[i] {
                 TreeTraceEntry::Node(id) => {
-                    let defaults = self.tree_trace_defaults[i].as_ref().unwrap().defaults();
+                    let defaults = self.trace.views[i].as_ref().unwrap().defaults();
                     self.add_or_refresh_node(*id, &defaults, current_parent_id);
                 },
                 TreeTraceEntry::SetParent(id) => {
