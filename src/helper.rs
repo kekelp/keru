@@ -127,3 +127,11 @@ pub fn base_color_attachment(view: &TextureView) -> [Option<RenderPassColorAttac
 }
 
 pub const ENC_DESC: CommandEncoderDescriptor = CommandEncoderDescriptor { label: None };
+
+pub fn is_redraw_requested(event: &Event<()>) -> bool {
+    if let Event::WindowEvent { event: WindowEvent::RedrawRequested, .. } = event {
+        return true;
+    } else {
+        return false;
+    }
+}

@@ -1,16 +1,13 @@
 pub mod helper;
 pub mod ui;
 
-use helper::{
-    base_color_attachment, base_render_pass_desc, configure_surface, init_winit_and_wgpu,
-    WgpuWindow, ENC_DESC,
-};
+use helper::*;
 pub use ui::Id;
 use ui::{Arrange, Axis::Y, Color, NodeParams, Ui, View};
 use view_derive::derive_view;
 use wgpu::TextureViewDescriptor;
 use winit::{
-    event::{Event, WindowEvent},
+    event::Event,
     event_loop::{EventLoop, EventLoopWindowTarget},
 };
 
@@ -73,10 +70,8 @@ impl<'window> State<'window> {
         self.window.handle_events(event, target);
         self.ui.handle_events(event, &self.window.queue);
 
-        if let Event::WindowEvent { event, .. } = event {
-            if let WindowEvent::RedrawRequested = event {
-                self.update();
-            }
+        if is_redraw_requested(event) {
+            self.update();
         }
     }
 
