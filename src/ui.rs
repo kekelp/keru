@@ -621,7 +621,7 @@ impl Ui {
                 let defaults = last_view.defaults();
                 let frame = self.part.current_frame;
                 let text_id = self.text.new_text_area(Some(text), frame);
-                let new_node = Self::build_new_node(&defaults, text_id, frame);
+                let new_node = Self::build_new_node(&defaults, None, text_id, frame);
                 v.insert(new_node);
             }
             std::collections::hash_map::Entry::Occupied(o) => {
@@ -654,7 +654,7 @@ impl Ui {
                 let defaults = last_view.defaults();
                 let frame = self.part.current_frame;
                 let text_id = self.text.new_text_area(defaults.static_text, frame);
-                let new_node = Self::build_new_node(&defaults, text_id, frame);
+                let new_node = Self::build_new_node(&defaults, None, text_id, frame);
                 let new_node_ref = v.insert(new_node);
                 new_node_ref
             }
@@ -853,7 +853,7 @@ impl Ui {
         let node = match self.node_map.entry(id) {
             std::collections::hash_map::Entry::Vacant(v) => {
                 let text_id = self.text.new_text_area(defaults.static_text, frame);
-                let new_node = Self::build_new_node(defaults, text_id, frame);
+                let new_node = Self::build_new_node(defaults, Some(parent_id), text_id, frame);
                 let new_node_ref = v.insert(new_node);
                 new_node_ref
             }
@@ -863,7 +863,7 @@ impl Ui {
                 old_node_ref.children_ids.clear();
                 // refresh
                 old_node_ref.refresh(frame);
-                // old_node_ref.parent_id = parent_id;
+                old_node_ref.parent_id = parent_id;
                 self.text.refresh_last_frame(old_node_ref.text_id, frame);
 
                 old_node_ref
@@ -942,17 +942,21 @@ impl Ui {
     //     }
     // }
 
-    // Build a new node with dummy values for current_frame and parent_id.
     pub fn build_new_node(
         defaults: &NodeParams,
+        parent_id: Option<Id>,
         text_id: Option<usize>,
         current_frame: u64,
     ) -> Node {
+        let parent_id = match parent_id {
+            Some(parent_id) => parent_id,
+            None => Id(0),
+        };
         Node {
             rect_id: None,
             rect: Xy::new_symm([0.0, 1.0]),
             text_id,
-            parent_id: Id(999999),
+            parent_id,
             children_ids: Vec::new(),
             params: *defaults,
             last_frame_touched: current_frame,
