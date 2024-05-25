@@ -1610,7 +1610,6 @@ pub struct Node {
     // also for invisible rects, used for layout
     pub rect: Xy<[f32; 2]>,
 
-    // this is actually completely useless
     pub last_frame_touched: u64,
     pub last_frame_status: LastFrameStatus,
 
