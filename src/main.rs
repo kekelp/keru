@@ -63,6 +63,10 @@ impl CounterState {
         };
     }
 }
+pub fn count_color(count: i32) -> Color {
+    let red = 0.1 * (count as f32);
+    return Color::rgba(red, 0.1, 0.2, 0.8);
+}
 
 impl<'window> State<'window> {
     pub fn handle_event(&mut self, event: &Event<()>, target: &EventLoopWindowTarget<()>) {
@@ -152,11 +156,6 @@ impl<'window> State<'window> {
         self.window.queue.submit(Some(encoder.finish()));
         frame.present();
     }
-}
-
-pub fn count_color(count: i32) -> Color {
-    let red = 0.1 * (count as f32);
-    return Color::rgba(red, 0.1, 0.2, 0.8);
 }
 
 #[derive_view(NodeParams::H_STACK.color(Color::BLUE))]

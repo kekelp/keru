@@ -626,14 +626,8 @@ impl Ui {
             }
             std::collections::hash_map::Entry::Occupied(o) => {
                 let old_node = o.into_mut();
-                match old_node.text_id {
-                    None => {
-                        panic!("This probably never happens but I don't really know 2bh")
-                    }
-                    Some(text_id) => {
-                        self.text.set_text(text_id, text);
-                    }
-                }
+                let text_id = old_node.text_id.unwrap();
+                self.text.set_text(text_id, text);
             }
         };
     }
