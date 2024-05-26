@@ -5,6 +5,7 @@ use rustc_hash::{FxHashMap, FxHasher};
 use smallbox::{smallbox, SmallBox};
 use view_derive::derive_view;
 
+use std::ops::{Add, Mul, Sub};
 use std::{
     hash::Hasher,
     marker::PhantomData,
@@ -67,7 +68,8 @@ impl Axis {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy)]
+#[repr(C)]
 pub struct Xy<T>([T; 2]);
 impl<T> Index<Axis> for Xy<T> {
     type Output = T;
@@ -88,6 +90,8 @@ impl<T> IndexMut<Axis> for Xy<T> {
 }
 unsafe impl Zeroable for Xy<f32> {}
 unsafe impl Pod for Xy<f32> {}
+unsafe impl Zeroable for Xy<[f32; 2]> {}
+unsafe impl Pod for Xy<[f32; 2]> {}
 
 impl<T: Copy> Xy<T> {
     pub const fn new(x: T, y: T) -> Self {
@@ -99,14 +103,42 @@ impl<T: Copy> Xy<T> {
     }
 }
 
+type Rect = Xy<[f32; 2]>;
+
 impl Rect {
     pub fn size(&self) -> Xy<f32> {
         return Xy::new(self[X][1] - self[X][0], self[Y][1] - self[Y][0]);
     }
 }
+impl Add<f32> for Rect {
+    type Output = Self;
+    fn add(self, rhs: f32) -> Self::Output {
+        return Self::new(
+            [self[X][0] + rhs, self[X][1] + rhs],
+            [self[Y][0] + rhs, self[Y][1] + rhs],
+        );
+    }
+}
+impl Sub<f32> for Rect {
+    type Output = Self;
+    fn sub(self, rhs: f32) -> Self::Output {
+        return Self::new(
+            [self[X][0] - rhs, self[X][1] - rhs],
+            [self[Y][0] - rhs, self[Y][1] - rhs],
+        );
+    }
+}
+impl Mul<f32> for Rect {
+    type Output = Self;
+    fn mul(self, rhs: f32) -> Self::Output {
+        return Self::new(
+            [self[X][0] * rhs, self[X][1] * rhs],
+            [self[Y][0] * rhs, self[Y][1] * rhs],
+        );
+    }
+}
 
 // todo: compress some fields... for example, stacks can never be clickable or editable
-// maybe remove z as well. nodoby uses that.
 #[derive(Debug, Copy, Clone)]
 pub struct NodeParams {
     pub debug_name: &'static str,
@@ -297,12 +329,8 @@ pub struct TextInput;
 #[derive(Default, Debug, Pod, Copy, Clone, Zeroable)]
 #[repr(C)]
 // Layout has to match the one in the shader.
-pub struct Rectangle {
-    // todo: switch to Xy<[f32; 2]>
-    pub x0: f32,
-    pub x1: f32,
-    pub y0: f32,
-    pub y1: f32,
+pub struct RenderRect {
+    pub rect: Rect,
 
     pub r: f32,
     pub g: f32,
@@ -316,11 +344,11 @@ pub struct Rectangle {
 
     pub radius: f32,
 
-    // -- useless for shader
+    // -- not used in shader
     pub _padding: f32,
     pub id: Id,
 }
-impl Rectangle {
+impl RenderRect {
     pub fn buffer_desc() -> [VertexAttribute; 8] {
         return vertex_attr_array![
             0 => Float32x2,
@@ -408,7 +436,7 @@ pub struct PartialBorrowStuff {
     pub t0: Instant,
 }
 impl PartialBorrowStuff {
-    pub fn is_rect_clicked_or_hovered(&self, rect: &Rectangle) -> (bool, bool) {
+    pub fn is_rect_clicked_or_hovered(&self, rect: &RenderRect) -> (bool, bool) {
         // rects are rebuilt from scratch every render, so this isn't needed, for now.
         // if rect.last_frame_touched != self.current_frame {
         //     return (false, false);
@@ -423,10 +451,10 @@ impl PartialBorrowStuff {
         mouse_pos.0 = (mouse_pos.0 * 2.0) - 1.0;
         mouse_pos.1 = (mouse_pos.1 * 2.0) - 1.0;
 
-        let hovered = rect.x0 < mouse_pos.0
-            && mouse_pos.0 < rect.x1
-            && rect.y0 < mouse_pos.1
-            && mouse_pos.1 < rect.y1;
+        let hovered = rect.rect[X][0] < mouse_pos.0
+            && mouse_pos.0 < rect.rect[X][1]
+            && rect.rect[Y][0] < mouse_pos.1
+            && mouse_pos.1 < rect.rect[Y][1];
 
         if hovered == false {
             return (false, false);
@@ -448,8 +476,6 @@ pub enum Cursor {
     BlinkyLine(BlinkyLine),
     Selection((GlyphonCursor, GlyphonCursor)),
 }
-
-type Rect = Xy<[f32; 2]>;
 
 #[derive(Debug, Clone, Copy)]
 pub enum TreeTraceEntry {
@@ -576,7 +602,7 @@ impl TreeTrace {
 pub struct Ui {
     pub key_modifiers: ModifiersState,
 
-    pub gpu_vertex_buffer: TypedGpuBuffer<Rectangle>,
+    pub gpu_vertex_buffer: TypedGpuBuffer<RenderRect>,
     pub render_pipeline: RenderPipeline,
 
     pub uniform_buffer: wgpu::Buffer,
@@ -584,7 +610,7 @@ pub struct Ui {
 
     pub text: Text,
 
-    pub rects: Vec<Rectangle>,
+    pub rects: Vec<RenderRect>,
     pub node_map: FxHashMap<Id, Node>,
 
     // stack for traversing
@@ -670,9 +696,9 @@ impl Ui {
 
         let vertex_buffer = TypedGpuBuffer::new(vertex_buffer);
         let vert_buff_layout = VertexBufferLayout {
-            array_stride: mem::size_of::<Rectangle>() as BufferAddress,
+            array_stride: mem::size_of::<RenderRect>() as BufferAddress,
             step_mode: VertexStepMode::Instance,
-            attributes: &Rectangle::buffer_desc(),
+            attributes: &RenderRect::buffer_desc(),
         };
 
         let uniforms = Uniforms {
@@ -875,67 +901,6 @@ impl Ui {
             .push(id);
     }
 
-    // // todo: deduplicate with refresh (maybe)
-    // pub fn update_node2(&mut self, id: Id, defaults: &NodeParams, parent_id: Option<Id>) {
-    //     let old_node = self.node_map.get_mut(&id);
-    //     if old_node.is_none() {
-    //         let mut text_id = None;
-    //         if let Some(text) = defaults.static_text {
-    //             // text size
-    //             let mut buffer = Buffer::new(&mut self.text.font_system, Metrics::new(42.0, 42.0));
-    //             buffer.set_size(&mut self.text.font_system, 100000., 100000.);
-
-    //             let mut hasher = FxHasher::default();
-    //             text.hash(&mut hasher);
-    //             let hash = hasher.finish();
-
-    //             buffer.set_text(
-    //                 &mut self.text.font_system,
-    //                 text,
-    //                 Attrs::new().family(Family::SansSerif),
-    //                 Shaping::Advanced,
-    //             );
-
-    //             let text_area = TextArea {
-    //                 buffer,
-    //                 left: 10.0,
-    //                 top: 10.0,
-    //                 scale: 1.0,
-    //                 bounds: TextBounds {
-    //                     left: 0,
-    //                     top: 0,
-    //                     right: 10000,
-    //                     bottom: 10000,
-    //                 },
-    //                 default_color: GlyphonColor::rgb(255, 255, 255),
-    //                 depth: 0.0,
-    //                 last_frame_touched: self.part.current_frame,
-    //                 last_hash: hash,
-    //             };
-    //             self.text.text_areas.push(text_area);
-    //             text_id = Some(self.text.text_areas.len() - 1);
-    //         }
-
-    //         let new_node = Self::build_new_node(defaults, text_id, self.part.current_frame);
-    //         self.node_map.insert(id, new_node);
-    //     } else {
-    //         let old_node = old_node.unwrap();
-    //         if let Some(text_id) = old_node.text_id {
-    //             self.text.text_areas[text_id].last_frame_touched = self.part.current_frame;
-    //         }
-    //         old_node.last_frame_touched = self.part.current_frame;
-    //         old_node.children_ids.clear();
-    //     }
-
-    //     if let Some(parent_id) = parent_id {
-    //         self.node_map
-    //         .get_mut(&parent_id)
-    //         .unwrap()
-    //         .children_ids
-    //         .push(id);
-    //     }
-    // }
-
     pub fn build_new_node(
         defaults: &NodeParams,
         parent_id: Option<Id>,
@@ -1085,6 +1050,7 @@ impl Ui {
         // start processing a parent
         while let Some(current_node_id) = self.stack.pop() {
             // todo: garbage
+            // to fix, just write a function "self.get_info_about_node_by_value_without_borrowing(id)"
             let parent_rect: Rect;
             let children: Vec<Id>;
             let is_stack: Option<Stack>;
@@ -1270,11 +1236,9 @@ impl Ui {
             if current_node.params.visible_rect
                 && current_node.last_frame_touched == self.part.current_frame
             {
-                self.rects.push(Rectangle {
-                    x0: current_node.rect[X][0] * 2. - 1.,
-                    x1: current_node.rect[X][1] * 2. - 1.,
-                    y0: current_node.rect[Y][0] * 2. - 1.,
-                    y1: current_node.rect[Y][1] * 2. - 1.,
+                self.rects.push(RenderRect {
+                    rect: current_node.rect * 2. - 1.,
+
                     r: current_node.params.color.r,
                     g: current_node.params.color.g,
                     b: current_node.params.color.b,
@@ -1330,11 +1294,8 @@ impl Ui {
                 let y0 = y0 + (rect_y1 * 2. - 1.);
                 let y1 = y1 + (rect_y1 * 2. - 1.);
 
-                let cursor_rect = Rectangle {
-                    x0,
-                    x1,
-                    y0,
-                    y1,
+                let cursor_rect = RenderRect {
+                    rect: Rect::new([x0, x1], [y0, y1]),
                     r: 0.5,
                     g: 0.3,
                     b: 0.5,
@@ -1371,11 +1332,9 @@ impl Ui {
                 let y0 = y0 + (rect_y1 * 2. - 1.);
                 let y1 = y1 + (rect_y1 * 2. - 1.);
 
-                let cursor_rect = Rectangle {
-                    x0,
-                    x1,
-                    y0,
-                    y1,
+                let cursor_rect = RenderRect {
+                    rect: Rect::new([x0, x1], [y0, y1]),
+
                     r: 0.5,
                     g: 0.3,
                     b: 0.5,
@@ -1570,7 +1529,7 @@ macro_rules! create_layer_macro {
         #[macro_export]
         macro_rules! $macro_name {
             ($ui:expr, $code:block) => {
-                let anonymous_id = new_id!();
+                let anonymous_id = call_site_id!();
                 $ui.add_anonymous($node_params_name, anonymous_id);
 
                 $ui.start_layer(anonymous_id);
@@ -1602,7 +1561,7 @@ pub struct Node {
     // visible rect only
     pub rect_id: Option<usize>,
     // also for invisible rects, used for layout
-    pub rect: Xy<[f32; 2]>,
+    pub rect: Rect,
 
     pub last_frame_touched: u64,
     pub last_frame_status: LastFrameStatus,
@@ -1738,7 +1697,7 @@ pub const fn callsite_hash(
 // rust-analyzer's macro expansion shows that line!(), column!() etc aren't working. but they must be, or we'd get collisions.
 // this could be a proc macro calculating compile time random numbers, like in derive_view.
 #[macro_export]
-macro_rules! new_id {
+macro_rules! call_site_id {
     () => {{
         $crate::Id($crate::ui::callsite_hash(
             std::module_path!(),
@@ -1746,22 +1705,6 @@ macro_rules! new_id {
             std::line!(),
             std::column!(),
         ))
-    }};
-}
-
-#[macro_export]
-macro_rules! unique_node_key {
-    () => {{
-        let id = $crate::Id($crate::ui::callsite_hash(
-            std::module_path!(),
-            std::file!(),
-            std::line!(),
-            std::column!(),
-        ));
-        NodeKey {
-            defaults: NodeParams::const_default(),
-            id,
-        }
     }};
 }
 
