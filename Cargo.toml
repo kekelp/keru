@@ -22,6 +22,7 @@ rustc-hash = "1.1.0"
 unicode-segmentation = "1.11.0"
 smallbox = "0.8.2"
 view_derive = { path = "view_derive" }
+copypasta = "0.10.1"
 
 [lints.clippy]
 needless_return = { level = "allow" } 

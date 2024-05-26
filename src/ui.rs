@@ -1,3 +1,4 @@
+use copypasta::{ClipboardContext, ClipboardProvider};
 use glyphon::cosmic_text::StringCursor;
 use glyphon::Cursor as GlyphonCursor;
 use glyphon::{Affinity, Resolution as GlyphonResolution};
@@ -600,6 +601,8 @@ impl TreeTrace {
 }
 
 pub struct Ui {
+    pub clipboard: ClipboardContext,
+
     pub key_modifiers: ModifiersState,
 
     pub gpu_vertex_buffer: TypedGpuBuffer<RenderRect>,
@@ -792,6 +795,7 @@ impl Ui {
         parent_stack.push(NODE_ROOT_ID);
 
         Self {
+            clipboard: ClipboardContext::new().unwrap(),
             key_modifiers: ModifiersState::default(),
 
             text: Text {
@@ -934,6 +938,7 @@ impl Ui {
 
         if event.state.is_pressed() {
             let buffer = &mut self.text.text_areas[text_id].buffer;
+            let line = &mut buffer.lines[0];
 
             match &event.logical_key {
                 winit::keyboard::Key::Named(named_key) => {
@@ -944,10 +949,10 @@ impl Ui {
                                 self.key_modifiers.shift_key(),
                                 self.key_modifiers.control_key(),
                             ) {
-                                (true, true) => buffer.lines[0].text.control_shift_left_arrow(),
-                                (true, false) => buffer.lines[0].text.shift_left_arrow(),
-                                (false, true) => buffer.lines[0].text.control_left_arrow(),
-                                (false, false) => buffer.lines[0].text.left_arrow(),
+                                (true, true) => line.text.control_shift_left_arrow(),
+                                (true, false) => line.text.shift_left_arrow(),
+                                (false, true) => line.text.control_left_arrow(),
+                                (false, false) => line.text.left_arrow(),
                             }
                         }
                         NamedKey::ArrowRight => {
@@ -955,52 +960,72 @@ impl Ui {
                                 self.key_modifiers.shift_key(),
                                 self.key_modifiers.control_key(),
                             ) {
-                                (true, true) => buffer.lines[0].text.control_shift_right_arrow(),
-                                (true, false) => buffer.lines[0].text.shift_right_arrow(),
-                                (false, true) => buffer.lines[0].text.control_right_arrow(),
-                                (false, false) => buffer.lines[0].text.right_arrow(),
+                                (true, true) => line.text.control_shift_right_arrow(),
+                                (true, false) => line.text.shift_right_arrow(),
+                                (false, true) => line.text.control_right_arrow(),
+                                (false, false) => line.text.right_arrow(),
                             }
                         }
                         NamedKey::Backspace => {
                             if self.key_modifiers.control_key() {
-                                buffer.lines[0].text.ctrl_backspace();
+                                line.text.ctrl_backspace();
                             } else {
-                                buffer.lines[0].text.backspace();
+                                line.text.backspace();
                             }
-                            buffer.lines[0].reset();
+                            line.reset();
                         }
                         NamedKey::End => {
                             match self.key_modifiers.shift_key() {
-                                true => buffer.lines[0].text.shift_end(),
-                                false => buffer.lines[0].text.go_to_end(),
+                                true => line.text.shift_end(),
+                                false => line.text.go_to_end(),
                             }
-                            buffer.lines[0].reset();
+                            line.reset();
                         }
                         NamedKey::Home => {
                             match self.key_modifiers.shift_key() {
-                                false => buffer.lines[0].text.go_to_start(),
-                                true => buffer.lines[0].text.shift_home(),
+                                false => line.text.go_to_start(),
+                                true => line.text.shift_home(),
                             }
-                            buffer.lines[0].reset();
+                            line.reset();
                         }
                         NamedKey::Delete => {
                             if self.key_modifiers.control_key() {
-                                buffer.lines[0].text.ctrl_delete();
+                                line.text.ctrl_delete();
                             } else {
-                                buffer.lines[0].text.delete();
+                                line.text.delete();
                             }
-                            buffer.lines[0].reset();
+                            line.reset();
                         }
                         NamedKey::Space => {
-                            buffer.lines[0].text.insert_str_at_cursor(" ");
-                            buffer.lines[0].reset();
+                            line.text.insert_str_at_cursor(" ");
+                            line.reset();
                         }
                         _ => {}
                     }
                 }
                 winit::keyboard::Key::Character(new_char) => {
-                    buffer.lines[0].text.insert_str_at_cursor(&new_char);
-                    buffer.lines[0].reset();
+                    if ! self.key_modifiers.control_key() &&
+                       ! self.key_modifiers.alt_key() &&
+                       ! self.key_modifiers.super_key() {
+                        // line.text.insert_str_at_cursor(&new_char);
+                        // line.reset();
+                    } else if self.key_modifiers.control_key() {
+                        match new_char.as_str() {
+                            "c" => {
+                                let selected_text = line.text.selected_text().to_owned();
+                                if let Some(text) = selected_text {
+                                    let _ = self.clipboard.set_contents(text.to_string());
+                                }
+                            },
+                            "v" => {
+                                if let Ok(pasted_text) = self.clipboard.get_contents() {
+                                    line.text.insert_str_at_cursor(&pasted_text);
+                                    line.reset();
+                                }
+                            },
+                            _ => {},
+                        }
+                    }
                 }
                 winit::keyboard::Key::Unidentified(_) => {}
                 winit::keyboard::Key::Dead(_) => {}
