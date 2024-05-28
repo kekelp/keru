@@ -603,7 +603,7 @@ impl TreeTrace {
 pub struct Ui {
     pub clipboard: ClipboardContext,
 
-    pub key_modifiers: ModifiersState,
+    pub key_mods: ModifiersState,
 
     pub gpu_vertex_buffer: TypedGpuBuffer<RenderRect>,
     pub render_pipeline: RenderPipeline,
@@ -796,7 +796,7 @@ impl Ui {
 
         Self {
             clipboard: ClipboardContext::new().unwrap(),
-            key_modifiers: ModifiersState::default(),
+            key_mods: ModifiersState::default(),
 
             text: Text {
                 cache,
@@ -934,7 +934,8 @@ impl Ui {
         let id = self.focused?;
         let node = self.node_map.get(&id)?;
         let text_id = node.text_id?;
-        // println!(" {:#?}\n", event);
+        println!("event {:?}", event);
+        println!("modifiers {:?}\n\n", self.key_mods);
 
         if event.state.is_pressed() {
             let buffer = &mut self.text.text_areas[text_id].buffer;
@@ -946,8 +947,8 @@ impl Ui {
                     match named_key {
                         NamedKey::ArrowLeft => {
                             match (
-                                self.key_modifiers.shift_key(),
-                                self.key_modifiers.control_key(),
+                                self.key_mods.shift_key(),
+                                self.key_mods.control_key(),
                             ) {
                                 (true, true) => line.text.control_shift_left_arrow(),
                                 (true, false) => line.text.shift_left_arrow(),
@@ -957,8 +958,8 @@ impl Ui {
                         }
                         NamedKey::ArrowRight => {
                             match (
-                                self.key_modifiers.shift_key(),
-                                self.key_modifiers.control_key(),
+                                self.key_mods.shift_key(),
+                                self.key_mods.control_key(),
                             ) {
                                 (true, true) => line.text.control_shift_right_arrow(),
                                 (true, false) => line.text.shift_right_arrow(),
@@ -967,7 +968,7 @@ impl Ui {
                             }
                         }
                         NamedKey::Backspace => {
-                            if self.key_modifiers.control_key() {
+                            if self.key_mods.control_key() {
                                 line.text.ctrl_backspace();
                             } else {
                                 line.text.backspace();
@@ -975,21 +976,21 @@ impl Ui {
                             line.reset();
                         }
                         NamedKey::End => {
-                            match self.key_modifiers.shift_key() {
+                            match self.key_mods.shift_key() {
                                 true => line.text.shift_end(),
                                 false => line.text.go_to_end(),
                             }
                             line.reset();
                         }
                         NamedKey::Home => {
-                            match self.key_modifiers.shift_key() {
+                            match self.key_mods.shift_key() {
                                 false => line.text.go_to_start(),
                                 true => line.text.shift_home(),
                             }
                             line.reset();
                         }
                         NamedKey::Delete => {
-                            if self.key_modifiers.control_key() {
+                            if self.key_mods.control_key() {
                                 line.text.ctrl_delete();
                             } else {
                                 line.text.delete();
@@ -1004,12 +1005,14 @@ impl Ui {
                     }
                 }
                 winit::keyboard::Key::Character(new_char) => {
-                    if ! self.key_modifiers.control_key() &&
-                       ! self.key_modifiers.alt_key() &&
-                       ! self.key_modifiers.super_key() {
-                        // line.text.insert_str_at_cursor(&new_char);
-                        // line.reset();
-                    } else if self.key_modifiers.control_key() {
+                    if ! self.key_mods.control_key() &&
+                       ! self.key_mods.alt_key() &&
+                       ! self.key_mods.super_key() {
+
+                        line.text.insert_str_at_cursor(&new_char);
+                        line.reset();
+
+                    } else if self.key_mods.control_key() {
                         match new_char.as_str() {
                             "c" => {
                                 let selected_text = line.text.selected_text().to_owned();
@@ -1055,7 +1058,8 @@ impl Ui {
                     }
                 }
                 WindowEvent::ModifiersChanged(modifiers) => {
-                    self.key_modifiers = modifiers.state();
+                    // println!("modifiers {:?}", modifiers);
+                    self.key_mods = modifiers.state();
                 }
                 WindowEvent::KeyboardInput { event, .. } => {
                     self.handle_keyboard_event(&event);
