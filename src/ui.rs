@@ -931,11 +931,10 @@ impl Ui {
     }
 
     pub fn handle_keyboard_event(&mut self, event: &KeyEvent) -> Option<()> {
+        
         let id = self.focused?;
         let node = self.node_map.get(&id)?;
         let text_id = node.text_id?;
-        println!("event {:?}", event);
-        println!("modifiers {:?}\n\n", self.key_mods);
 
         if event.state.is_pressed() {
             let buffer = &mut self.text.text_areas[text_id].buffer;
@@ -943,7 +942,6 @@ impl Ui {
 
             match &event.logical_key {
                 winit::keyboard::Key::Named(named_key) => {
-                    // todo: when holding control all key events arrive duplicated??
                     match named_key {
                         NamedKey::ArrowLeft => {
                             match (
@@ -1058,11 +1056,12 @@ impl Ui {
                     }
                 }
                 WindowEvent::ModifiersChanged(modifiers) => {
-                    // println!("modifiers {:?}", modifiers);
                     self.key_mods = modifiers.state();
                 }
-                WindowEvent::KeyboardInput { event, .. } => {
-                    self.handle_keyboard_event(&event);
+                WindowEvent::KeyboardInput { event, is_synthetic, .. } => {
+                    if ! is_synthetic {
+                        self.handle_keyboard_event(&event);
+                    }
                 }
                 WindowEvent::Resized(size) => self.resize(size, queue),
                 _ => {}
