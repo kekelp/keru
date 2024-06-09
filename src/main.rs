@@ -76,6 +76,8 @@ impl<'window> State<'window> {
         self.window.handle_events(event, target);
         self.ui.handle_events(event, &self.window.queue);
 
+        self.canvas.handle_events(event);
+
         if is_redraw_requested(event) {
             self.update();
         }
@@ -90,30 +92,6 @@ impl<'window> State<'window> {
 
         h_stack!(ui, CommandLineRow, {
             ui.add(CommandLine);
-        });
-
-        margin!(ui, {
-            h_stack!(ui, CenterRow, {
-                v_stack!(ui, {
-                    if self.counter_state.counter_mode {
-                        let new_color = count_color(self.counter_state.count);
-                        ui.add(IncreaseButton).set_color(new_color);
-
-                        let count = &self.counter_state.count.to_string();
-                        ui.add(CountLabel).set_text(count);
-
-                        ui.add(DecreaseButton);
-                    }
-                });
-
-                v_stack!(ui, {
-                    let text = match self.counter_state.counter_mode {
-                        true => "Hide counter",
-                        false => "Show counter",
-                    };
-                    ui.add(ShowCounterButton).set_text(text);
-                });
-            });
         });
 
         ui.finish_tree();
@@ -188,3 +166,30 @@ pub struct CommandLineRow;
 
 #[derive_view(NodeParams::TEXT_INPUT.text("高38道ょつヽ༼ຈل͜ຈ༽ﾉ準傷に債健の🤦🏼‍♂️🚵🏻‍♀️").size_y(0.1))]
 pub struct CommandLine;
+
+#[allow(dead_code)]
+pub fn useless_counter(ui: &mut Ui, counter_state: &mut CounterState) {
+    margin!(ui, {
+        h_stack!(ui, CenterRow, {
+            v_stack!(ui, {
+                if counter_state.counter_mode {
+                    let new_color = count_color(counter_state.count);
+                    ui.add(IncreaseButton).set_color(new_color);
+
+                    let count = &counter_state.count.to_string();
+                    ui.add(CountLabel).set_text(count);
+
+                    ui.add(DecreaseButton);
+                }
+            });
+
+            v_stack!(ui, {
+                let text = match counter_state.counter_mode {
+                    true => "Hide counter",
+                    false => "Show counter",
+                };
+                ui.add(ShowCounterButton).set_text(text);
+            });
+        });
+    });
+}

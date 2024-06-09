@@ -1,5 +1,6 @@
 use bytemuck::{Pod, Zeroable};
 use wgpu::{BindGroup, ColorTargetState, Device, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
+use winit::event::{ElementState, Event, MouseButton, WindowEvent};
 
 use crate::{BASE_HEIGHT, BASE_WIDTH, SWAPCHAIN_FORMAT};
 
@@ -29,9 +30,14 @@ pub struct Canvas {
     height: usize,
     pixels: Vec<Pixel>,
 
+    needs_sync: bool,
+    needs_render: bool,
+
     texture: Texture,
     render_pipeline: RenderPipeline,
     texture_bind_group: BindGroup,
+
+    is_drawing: bool,
 }
 
 impl Canvas {
@@ -141,15 +147,19 @@ impl Canvas {
             texture,
             render_pipeline,
             texture_bind_group,
+
+            needs_sync: true,
+            needs_render: true,
+            is_drawing: false,
         }
     }
 
     // Set a pixel to a specific color
     pub fn set_pixel(&mut self, x: usize, y: usize, color: Pixel) {
-        if x < self.width && y < self.height {
-            let index = y * self.width + x;
-            self.pixels[index] = color;
-        }
+        // if x < self.width && y < self.height {
+        // }
+        let index = y * self.width + x;
+        self.pixels[index] = color;
     }
 
     // Get the color of a specific pixel
@@ -168,44 +178,60 @@ impl Canvas {
             *pixel = color;
         }
     }
-}
 
-impl Canvas {
-    // Draw a rectangle
-    pub fn draw_rectangle(&mut self, x: usize, y: usize, width: usize, height: usize, color: Pixel) {
-        for dx in 0..width {
-            for dy in 0..height {
-                if x + dx < self.width && y + dy < self.height {
-                    self.set_pixel(x + dx, y + dy, color);
-                }
+    pub fn render<'pass>(&'pass mut self, render_pass: &mut RenderPass<'pass>, queue: &Queue, ) {
+        // if self.needs_sync {
+            let data = bytemuck::cast_slice(&self.pixels[..]);
+            queue.write_texture(
+                ImageCopyTexture {
+                    texture: &self.texture,
+                    mip_level: 0,
+                    origin: Origin3d::ZERO,
+                    aspect: TextureAspect::All,
+                },
+                data,
+                ImageDataLayout {
+                    offset: 0,
+                    bytes_per_row: Some(self.width as u32 * 4),
+                    rows_per_image: Some(self.height as u32),
+                },
+                Extent3d {
+                    width: BASE_WIDTH as u32,
+                    height: BASE_HEIGHT as u32,
+                    depth_or_array_layers: 1,
+                },
+            );
+            self.needs_sync = false;
+        // }
+
+        // if self.needs_render {
+            render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.set_bind_group(0, &self.texture_bind_group, &[]);
+            render_pass.draw(0..3, 0..1);
+            
+            self.needs_render = false;
+        // }
+    }
+
+    pub fn handle_events(&mut self, full_event: &winit::event::Event<()>) {
+        if let Event::WindowEvent { event, .. } = full_event {
+            match event {
+                WindowEvent::MouseInput { state, button, .. } => {
+                    if *button == MouseButton::Left {
+                        self.is_drawing = *state == ElementState::Pressed;
+                    }
+                },
+                WindowEvent::CursorMoved { position, .. } => {
+                    if self.is_drawing {
+                        let x = position.x as usize;
+                        let y = self.height - (position.y as usize);
+                        self.set_pixel(x, y, Pixel::rgba_u8(0, 0, 0, 255));
+                    }
+                },
+            _ => {}
             }
         }
     }
 
-    pub fn render<'pass>(&'pass self, render_pass: &mut RenderPass<'pass>, queue: &Queue, ) {
-        let data = bytemuck::cast_slice(&self.pixels[..]);
-        queue.write_texture(
-            ImageCopyTexture {
-                texture: &self.texture,
-                mip_level: 0,
-                origin: Origin3d::ZERO,
-                aspect: TextureAspect::All,
-            },
-            data,
-            ImageDataLayout {
-                offset: 0,
-                bytes_per_row: Some(self.width as u32 * 4),
-                rows_per_image: Some(self.height as u32),
-            },
-            Extent3d {
-                width: BASE_WIDTH as u32,
-                height: BASE_HEIGHT as u32,
-                depth_or_array_layers: 1,
-            },
-        );
-    
-        render_pass.set_pipeline(&self.render_pipeline);
-        render_pass.set_bind_group(0, &self.texture_bind_group, &[]);
-        render_pass.draw(0..3, 0..1);
-    }
+
 }
