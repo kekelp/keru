@@ -931,7 +931,7 @@ impl Ui {
     }
 
     pub fn handle_keyboard_event(&mut self, event: &KeyEvent) -> Option<()> {
-        
+        // todo: remove line.reset(); and do it only once per frame via change watcher guy
         let id = self.focused?;
         let node = self.node_map.get(&id)?;
         let text_id = node.text_id?;

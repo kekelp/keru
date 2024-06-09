@@ -1,6 +1,8 @@
 pub mod helper;
 pub mod ui;
+pub mod canvas;
 
+use canvas::Canvas;
 use helper::*;
 pub use ui::Id;
 use ui::{Arrange, Axis::Y, Color, NodeParams, Ui, View};
@@ -31,11 +33,14 @@ fn init() -> (EventLoop<()>, State<'static>) {
     let config = configure_surface(&surface, &window, &device);
 
     let ui = Ui::new(&device, &config, &queue);
+    let canvas = Canvas::new(BASE_WIDTH as usize, BASE_HEIGHT as usize, &device);
+    let window = WgpuWindow::new(window, surface, config, device, queue);
 
     let state = State {
-        window: WgpuWindow::new(window, surface, config, device, queue),
+        window,
         ui,
         counter_state: CounterState::new(),
+        canvas,
     };
 
     return (event_loop, state);
@@ -46,6 +51,7 @@ pub struct State<'window> {
     pub ui: Ui,
     // app state
     pub counter_state: CounterState,
+    pub canvas: Canvas,
 }
 
 pub struct CounterState {
@@ -145,7 +151,10 @@ impl<'window> State<'window> {
             let render_pass_desc = &base_render_pass_desc(&color_att);
             let mut render_pass = encoder.begin_render_pass(render_pass_desc);
 
+            self.canvas.render(&mut render_pass, &mut self.window.queue);
+            
             self.ui.render(&mut render_pass);
+
         }
 
         self.window.queue.submit(Some(encoder.finish()));
@@ -177,5 +186,5 @@ pub struct CountLabel;
 )]
 pub struct CommandLineRow;
 
-#[derive_view(NodeParams::TEXT_INPUT.text("Uuuu高38道ょつ準傷に債健の🤦🏼‍♂️🚵🏻‍♀️").size_y(0.1))]
+#[derive_view(NodeParams::TEXT_INPUT.text("高38道ょつヽ༼ຈل͜ຈ༽ﾉ準傷に債健の🤦🏼‍♂️🚵🏻‍♀️").size_y(0.1))]
 pub struct CommandLine;
