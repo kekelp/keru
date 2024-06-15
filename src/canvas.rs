@@ -204,12 +204,16 @@ impl Canvas {
             let center_pixel = Xy::new(first_dot.x as usize, self.height - (first_dot.y as usize));
             // let second_dot = Xy::new(second_dot.x as usize, self.height - (second_dot.y as usize));
 
-            let diameter: isize = 200;
-            let radius = (diameter - 1) / 2;
-            let radius_squared = radius * radius;
+            // let diameter: isize = 200;
+            // let radius = (diameter - 1) / 2;
+            // let radius_squared = radius * radius;
 
-            for dx in (-radius)..radius {
-                for dy in (-radius)..radius {
+            let radius: f64 = 200.0;
+            let radius_squared = radius.powi(2);
+            let pixel_radius = (radius as isize) + 1;
+
+            for dx in (-pixel_radius)..pixel_radius {
+                for dy in (-pixel_radius)..pixel_radius {
                     let pixel_x = max(center_pixel.x as isize - dx, 0) as usize;
                     let pixel_y = max(center_pixel.y as isize - dy, 0) as usize;
                     let pixel = Xy::new(pixel_x, pixel_y);
@@ -217,7 +221,7 @@ impl Canvas {
                     let pos = center + (dx as f64, dy as f64);
 
                     // huh
-                    if (center - pos).x * (center - pos).x + (center - pos).y * (center - pos).y < radius_squared as f64 {
+                    if (center - pos).x.powi(2) + (center - pos).y.powi(2) < radius_squared as f64 {
                         self.set_pixel(pixel.x, pixel.y, Pixel::rgba_u8(0, 0, 0, 255))
                     }
                 }
