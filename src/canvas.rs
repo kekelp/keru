@@ -1,8 +1,11 @@
+use std::cmp::max;
+
 use bytemuck::{Pod, Zeroable};
 use wgpu::{BindGroup, ColorTargetState, Device, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
 use winit::{dpi::PhysicalPosition, event::{ElementState, Event, MouseButton, WindowEvent}};
 
-use crate::{BASE_HEIGHT, BASE_WIDTH, SWAPCHAIN_FORMAT};
+use crate::{ui::Xy, BASE_HEIGHT, BASE_WIDTH, SWAPCHAIN_FORMAT};
+use crate::ui::Axis::{X, Y};
 
 #[derive(Clone, Copy, Debug)]
 #[derive(Zeroable, Pod)]
@@ -31,6 +34,9 @@ pub struct Canvas {
     pixels: Vec<Pixel>,
 
     mouse_dots: Vec<PhysicalPosition<f64>>,
+
+    // todo: doesn't UI also keep this? maybe its good to keep them separately doe
+    last_position: PhysicalPosition<f64>,
 
     needs_sync: bool,
     needs_render: bool,
@@ -150,6 +156,8 @@ impl Canvas {
             render_pipeline,
             texture_bind_group,
 
+            last_position: PhysicalPosition::default(),
+
             mouse_dots: Vec::new(),
 
             needs_sync: true,
@@ -184,13 +192,31 @@ impl Canvas {
     }
 
     pub fn update(&mut self) {
+        // todo: might be stupid
+        // if self.mouse_dots.len() == 1 {
+        //     self.mouse_dots.push(self.mouse_dots[0])
+        // }
         for i in 0..self.mouse_dots.len() {
-            let dot = self.mouse_dots[i];
+            let first_dot = self.mouse_dots[i];
+            // let second_dot = self.mouse_dots[i];
 
-            let x = dot.x as usize;
-            let y = self.height - (dot.y as usize);
+            let first_dot = Xy::new(first_dot.x as usize, self.height - (first_dot.y as usize));
+            // let second_dot = Xy::new(second_dot.x as usize, self.height - (second_dot.y as usize));
 
-            self.set_pixel(x, y, Pixel::rgba_u8(0, 0, 0, 255))
+            let diameter: isize = 20;
+            let radius = (diameter - 1)/2;
+            let radius_squared = radius * radius;
+
+            let (x, y) = (first_dot[X] as isize, first_dot[Y] as isize);
+            for dx in (-radius)..radius {
+                for dy in (-radius)..radius {
+                    if dx * dx + dy * dy <= radius_squared {
+                        let x = max(x - dx, 0) as usize;
+                        let y = max(y - dy, 0) as usize;
+                        self.set_pixel(x, y, Pixel::rgba_u8(0, 0, 0, 255))
+                    }
+                }
+            }
         }
 
         self.mouse_dots.clear();
@@ -236,12 +262,14 @@ impl Canvas {
                 WindowEvent::MouseInput { state, button, .. } => {
                     if *button == MouseButton::Left {
                         self.is_drawing = *state == ElementState::Pressed;
+                        self.mouse_dots.push(self.last_position);
                     }
                 },
                 WindowEvent::CursorMoved { position, .. } => {
-                    if self.is_drawing {
+                    self.last_position = *position;
 
-                        self.mouse_dots.push(position.clone());
+                    if self.is_drawing {
+                        self.mouse_dots.push(*position);
                     }
                 },
             _ => {}
