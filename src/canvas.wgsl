@@ -8,6 +8,7 @@ struct VertexOutput {
 
 @vertex
 fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {
+    // triangle
     var positions = array<vec4<f32>, 3>(
         vec4<f32>(-1.0, -1.0, 0.0, 1.0),
         vec4<f32>( 3.0, -1.0, 0.0, 1.0),

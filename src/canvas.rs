@@ -26,25 +26,12 @@ impl PixelColor {
         return Self::rgba_u8((r * 255.0) as u8, (g * 255.0) as u8, (b * 255.0) as u8, (a * 255.0) as u8,);
     }
 
-    fn blend(old_color: PixelColor, new_color: PixelColor) -> PixelColor {
-        let old_color = old_color.to_f32s();
-        let new_color = new_color.to_f32s();
-
-        let new_a = new_color.a + old_color.a * (new_color.a - 1.0);
-        return PixelColorF32 {
-            r: old_color.r * (1.0 - new_a) + new_color.r * new_a,
-            g: old_color.g * (1.0 - new_a) + new_color.g * new_a,
-            b: old_color.b * (1.0 - new_a) + new_color.b * new_a,
-            a: new_a,
-        }.to_u8s()
-    }
-
     pub fn to_f32s(self) -> PixelColorF32 {
         return PixelColorF32 {
             r: self.r as f32 / 255.0,
-            g: self.r as f32 / 255.0,
-            b: self.r as f32 / 255.0,
-            a: self.r as f32 / 255.0,
+            g: self.g as f32 / 255.0,
+            b: self.b as f32 / 255.0,
+            a: self.a as f32 / 255.0,
         }
     }
 }
@@ -59,9 +46,18 @@ impl PixelColorF32 {
     pub fn to_u8s(self) -> PixelColor {
         return PixelColor {
             r: (self.r * 255.0) as u8,
-            g: (self.r * 255.0) as u8,
-            b: (self.r * 255.0) as u8,
-            a: (self.r * 255.0) as u8,
+            g: (self.g * 255.0) as u8,
+            b: (self.b * 255.0) as u8,
+            a: (self.a * 255.0) as u8,
+        }
+    }
+
+    fn new(r: f32, g: f32, b: f32, a: f32) -> Self {
+        return PixelColorF32 {
+            r,
+            g,
+            b,
+            a,
         }
     }
 }
@@ -206,14 +202,29 @@ impl Canvas {
     }
 
     // Set a pixel to a specific color
-    pub fn paint_pixel(&mut self, x: usize, y: usize, color: PixelColor) {
+    pub fn paint_pixel(&mut self, x: usize, y: usize, brush_alpha: f32) {
+
+        let paint_color = PixelColorF32::new(0.8, 0.2, 0.8, 1.0);
         // if x < self.width && y < self.height {
         // }
         let index = y * self.width + x;
-        let old_color = self.pixels[index];
+        let old_color = self.pixels[index].to_f32s();
 
-        let new_color = PixelColor::blend(old_color, color);
-        self.pixels[index] = color;
+        if brush_alpha > 0.0 {
+
+            
+            let new_color = PixelColorF32 {
+               
+                r: old_color.r * (1.0 - brush_alpha) + paint_color.r * (brush_alpha),
+                g: old_color.g * (1.0 - brush_alpha) + paint_color.g * (brush_alpha),
+                b: old_color.b * (1.0 - brush_alpha) + paint_color.b * (brush_alpha),
+                
+                a: 1.0,
+            };
+            
+            
+            self.pixels[index] = new_color.to_u8s();
+        }
     }
 
     // Get the color of a specific pixel
@@ -259,8 +270,8 @@ impl Canvas {
                     let pos = center + (dx as f64, dy as f64);
 
                     let alpha = radius as f64 - ((center - pos).x.powi(2) + (center - pos).y.powi(2)).sqrt();
-                    let alpha = (alpha * 255.) as u8;
-                    self.paint_pixel(pixel.x, pixel.y, PixelColor::rgba_u8(alpha, 0, 0, 1));
+                    let alpha = alpha.clamp(0.0, 1.0);
+                    self.paint_pixel(pixel.x, pixel.y, alpha as f32);
                     // let alpha = (alpha).clamp(0.0, 1.0);
                     // println!("  {:?}", alpha);
                     // let alpha = (alpha * 255.0) as u8;
