@@ -10,14 +10,14 @@ use crate::ui::Axis::{X, Y};
 #[derive(Clone, Copy, Debug)]
 #[derive(Zeroable, Pod)]
 #[repr(C)]
-pub struct Pixel {
+pub struct PixelColor {
     r: u8,
     g: u8,
     b: u8,
     a: u8,
 }
 
-impl Pixel {
+impl PixelColor {
     pub fn rgba_u8(r: u8, g: u8, b: u8, a: u8) -> Self {
         return Self { r, g, b, a }
     }
@@ -25,13 +25,52 @@ impl Pixel {
     pub fn rgba_f32(r: f32, g: f32, b: f32, a: f32) -> Self {
         return Self::rgba_u8((r * 255.0) as u8, (g * 255.0) as u8, (b * 255.0) as u8, (a * 255.0) as u8,);
     }
+
+    fn blend(old_color: PixelColor, new_color: PixelColor) -> PixelColor {
+        let old_color = old_color.to_f32s();
+        let new_color = new_color.to_f32s();
+
+        let new_a = new_color.a + old_color.a * (new_color.a - 1.0);
+        return PixelColorF32 {
+            r: old_color.r * (1.0 - new_a) + new_color.r * new_a,
+            g: old_color.g * (1.0 - new_a) + new_color.g * new_a,
+            b: old_color.b * (1.0 - new_a) + new_color.b * new_a,
+            a: new_a,
+        }.to_u8s()
+    }
+
+    pub fn to_f32s(self) -> PixelColorF32 {
+        return PixelColorF32 {
+            r: self.r as f32 / 255.0,
+            g: self.r as f32 / 255.0,
+            b: self.r as f32 / 255.0,
+            a: self.r as f32 / 255.0,
+        }
+    }
+}
+
+pub struct PixelColorF32 {
+    r: f32,
+    g: f32,
+    b: f32,
+    a: f32,
+}
+impl PixelColorF32 {
+    pub fn to_u8s(self) -> PixelColor {
+        return PixelColor {
+            r: (self.r * 255.0) as u8,
+            g: (self.r * 255.0) as u8,
+            b: (self.r * 255.0) as u8,
+            a: (self.r * 255.0) as u8,
+        }
+    }
 }
 
 #[derive(Debug)]
 pub struct Canvas {
     width: usize,
     height: usize,
-    pixels: Vec<Pixel>,
+    pixels: Vec<PixelColor>,
 
     mouse_dots: Vec<PhysicalPosition<f64>>,
 
@@ -151,7 +190,7 @@ impl Canvas {
         Canvas {
             width,
             height,
-            pixels: vec![Pixel::rgba_f32(1.0, 1.0, 1.0, 1.0); width * height],
+            pixels: vec![PixelColor::rgba_f32(1.0, 1.0, 1.0, 1.0); width * height],
             texture,
             render_pipeline,
             texture_bind_group,
@@ -167,15 +206,18 @@ impl Canvas {
     }
 
     // Set a pixel to a specific color
-    pub fn set_pixel(&mut self, x: usize, y: usize, color: Pixel) {
+    pub fn paint_pixel(&mut self, x: usize, y: usize, color: PixelColor) {
         // if x < self.width && y < self.height {
         // }
         let index = y * self.width + x;
+        let old_color = self.pixels[index];
+
+        let new_color = PixelColor::blend(old_color, color);
         self.pixels[index] = color;
     }
 
     // Get the color of a specific pixel
-    pub fn get_pixel(&self, x: usize, y: usize) -> Option<Pixel> {
+    pub fn get_pixel(&self, x: usize, y: usize) -> Option<PixelColor> {
         if x < self.width && y < self.height {
             let index = y * self.width + x;
             Some(self.pixels[index])
@@ -185,7 +227,7 @@ impl Canvas {
     }
 
     // Fill the canvas with a specific color
-    pub fn fill(&mut self, color: Pixel) {
+    pub fn fill(&mut self, color: PixelColor) {
         for pixel in self.pixels.iter_mut() {
             *pixel = color;
         }
@@ -204,13 +246,9 @@ impl Canvas {
             let center_pixel = Xy::new(first_dot.x as usize, self.height - (first_dot.y as usize));
             // let second_dot = Xy::new(second_dot.x as usize, self.height - (second_dot.y as usize));
 
-            // let diameter: isize = 200;
-            // let radius = (diameter - 1) / 2;
-            // let radius_squared = radius * radius;
-
-            let radius: f64 = 200.0;
+            let radius: f64 = 80.0;
             let radius_squared = radius.powi(2);
-            let pixel_radius = (radius as isize) + 1;
+            let pixel_radius = (radius as isize) + 2; // some more pixels for antialiasing? 
 
             for dx in (-pixel_radius)..pixel_radius {
                 for dy in (-pixel_radius)..pixel_radius {
@@ -220,10 +258,14 @@ impl Canvas {
 
                     let pos = center + (dx as f64, dy as f64);
 
-                    // huh
-                    if (center - pos).x.powi(2) + (center - pos).y.powi(2) < radius_squared as f64 {
-                        self.set_pixel(pixel.x, pixel.y, Pixel::rgba_u8(0, 0, 0, 255))
-                    }
+                    let alpha = radius as f64 - ((center - pos).x.powi(2) + (center - pos).y.powi(2)).sqrt();
+                    let alpha = (alpha * 255.) as u8;
+                    self.paint_pixel(pixel.x, pixel.y, PixelColor::rgba_u8(alpha, 0, 0, 1));
+                    // let alpha = (alpha).clamp(0.0, 1.0);
+                    // println!("  {:?}", alpha);
+                    // let alpha = (alpha * 255.0) as u8;
+                    // if alpha > 0 {
+                    // }
                 }
             }
         }
