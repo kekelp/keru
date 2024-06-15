@@ -53,9 +53,6 @@ pub const NODE_ROOT: Node = Node {
     z: -10000.0,
 };
 
-const IX: usize = 0;
-const IY: usize = 1;
-
 #[derive(Debug, Clone, Copy)]
 pub enum Axis {
     X,
@@ -72,21 +69,50 @@ impl Axis {
 
 #[derive(Debug, Default, Clone, Copy)]
 #[repr(C)]
-pub struct Xy<T>([T; 2]);
+pub struct Xy<T> {
+    pub x: T,
+    pub y: T
+}
+
+impl<T: Add<Output = T> + Copy> Add<Xy<T>> for Xy<T> {
+    type Output = Self;
+    fn add(self, rhs: Xy<T>) -> Self::Output {
+        let new_x = self.x + rhs.x;
+        let new_y = self.y + rhs.y;
+        return Self::new(new_x, new_y);
+    }
+}
+impl<T: Sub<Output = T> + Copy> Sub<Xy<T>> for Xy<T> {
+    type Output = Self;
+    fn sub(self, rhs: Xy<T>) -> Self::Output {
+        let new_x = self.x - rhs.x;
+        let new_y = self.y - rhs.y;
+        return Self::new(new_x, new_y);
+    }
+}
+impl<T: Add<Output = T> + Copy> Add<(T, T)> for Xy<T> {
+    type Output = Self;
+    fn add(self, rhs: (T, T)) -> Self::Output {
+        let new_x = self.x + rhs.0;
+        let new_y = self.y + rhs.1;
+        return Self::new(new_x, new_y);
+    }
+}
+
 impl<T> Index<Axis> for Xy<T> {
     type Output = T;
     fn index(&self, axis: Axis) -> &Self::Output {
         match axis {
-            Axis::X => return &self.0[0],
-            Axis::Y => return &self.0[1],
+            Axis::X => return &self.x,
+            Axis::Y => return &self.y,
         }
     }
 }
 impl<T> IndexMut<Axis> for Xy<T> {
     fn index_mut(&mut self, axis: Axis) -> &mut Self::Output {
         match axis {
-            Axis::X => return &mut self.0[0],
-            Axis::Y => return &mut self.0[1],
+            Axis::X => return &mut self.x,
+            Axis::Y => return &mut self.y,
         }
     }
 }
@@ -97,11 +123,11 @@ unsafe impl Pod for Xy<[f32; 2]> {}
 
 impl<T: Copy> Xy<T> {
     pub const fn new(x: T, y: T) -> Self {
-        return Self([x, y]);
+        return Self { x, y };
     }
 
     pub const fn new_symm(v: T) -> Self {
-        return Self([v, v]);
+        return Self { x: v, y: v };
     }
 }
 
@@ -176,11 +202,11 @@ impl NodeParams {
     }
 
     pub const fn size_x(mut self, size: f32) -> Self {
-        self.size.0[IX] = Size::PercentOfAvailable(size);
+        self.size.x = Size::PercentOfAvailable(size);
         return self;
     }
     pub const fn size_y(mut self, size: f32) -> Self {
-        self.size.0[IY] = Size::PercentOfAvailable(size);
+        self.size.y = Size::PercentOfAvailable(size);
         return self;
     }
     pub const fn size_symm(mut self, size: f32) -> Self {
@@ -189,11 +215,11 @@ impl NodeParams {
     }
 
     pub const fn position_x(mut self, position: Position) -> Self {
-        self.position.0[IX] = position;
+        self.position.x = position;
         return self;
     }
     pub const fn position_y(mut self, position: Position) -> Self {
-        self.position.0[IY] = position;
+        self.position.y = position;
         return self;
     }
     pub const fn position_symm(mut self, position: Position) -> Self {
