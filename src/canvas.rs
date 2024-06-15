@@ -200,23 +200,23 @@ impl Canvas {
             let first_dot = self.mouse_dots[i];
             // let second_dot = self.mouse_dots[i];
 
-            let first_dot = Xy::new(first_dot.x as usize, self.height - (first_dot.y as usize));
+            // let first_dot = Xy::new(first_dot.x as usize, self.height - (first_dot.y as usize));
             // let second_dot = Xy::new(second_dot.x as usize, self.height - (second_dot.y as usize));
 
-            let diameter: isize = 20;
-            let radius = (diameter - 1)/2;
-            let radius_squared = radius * radius;
+            // let diameter: f64 = 20.0;
+            // let radius = (diameter - 1.0) / 2.0;
+            // let radius_squared = radius * radius;
 
-            let (x, y) = (first_dot[X] as isize, first_dot[Y] as isize);
-            for dx in (-radius)..radius {
-                for dy in (-radius)..radius {
-                    if dx * dx + dy * dy <= radius_squared {
-                        let x = max(x - dx, 0) as usize;
-                        let y = max(y - dy, 0) as usize;
-                        self.set_pixel(x, y, Pixel::rgba_u8(0, 0, 0, 255))
-                    }
-                }
-            }
+            // let (x, y) = (first_dot.x, first_dot.y);
+            // for dx in (-radius)..radius {
+            //     for dy in (-radius)..radius {
+            //         if dx * dx + dy * dy <= radius_squared {
+            //             let x = max(x - dx, 0) as usize;
+            //             let y = max(y - dy, 0) as usize;
+            //             self.set_pixel(x, y, Pixel::rgba_u8(0, 0, 0, 255))
+            //         }
+            //     }
+            // }
         }
 
         self.mouse_dots.clear();
