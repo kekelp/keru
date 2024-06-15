@@ -110,6 +110,8 @@ impl<'window> State<'window> {
 
         self.ui.build_buffers();
 
+        self.canvas.update();
+        
         self.render();
 
         // todo: why does this have to be here again?

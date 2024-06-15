@@ -1,6 +1,6 @@
 use bytemuck::{Pod, Zeroable};
 use wgpu::{BindGroup, ColorTargetState, Device, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
-use winit::event::{ElementState, Event, MouseButton, WindowEvent};
+use winit::{dpi::PhysicalPosition, event::{ElementState, Event, MouseButton, WindowEvent}};
 
 use crate::{BASE_HEIGHT, BASE_WIDTH, SWAPCHAIN_FORMAT};
 
@@ -29,6 +29,8 @@ pub struct Canvas {
     width: usize,
     height: usize,
     pixels: Vec<Pixel>,
+
+    mouse_dots: Vec<PhysicalPosition<f64>>,
 
     needs_sync: bool,
     needs_render: bool,
@@ -148,6 +150,8 @@ impl Canvas {
             render_pipeline,
             texture_bind_group,
 
+            mouse_dots: Vec::new(),
+
             needs_sync: true,
             needs_render: true,
             is_drawing: false,
@@ -177,6 +181,19 @@ impl Canvas {
         for pixel in self.pixels.iter_mut() {
             *pixel = color;
         }
+    }
+
+    pub fn update(&mut self) {
+        for i in 0..self.mouse_dots.len() {
+            let dot = self.mouse_dots[i];
+
+            let x = dot.x as usize;
+            let y = self.height - (dot.y as usize);
+
+            self.set_pixel(x, y, Pixel::rgba_u8(0, 0, 0, 255))
+        }
+
+        self.mouse_dots.clear();
     }
 
     pub fn render<'pass>(&'pass mut self, render_pass: &mut RenderPass<'pass>, queue: &Queue, ) {
@@ -223,9 +240,8 @@ impl Canvas {
                 },
                 WindowEvent::CursorMoved { position, .. } => {
                     if self.is_drawing {
-                        let x = position.x as usize;
-                        let y = self.height - (position.y as usize);
-                        self.set_pixel(x, y, Pixel::rgba_u8(0, 0, 0, 255));
+
+                        self.mouse_dots.push(position.clone());
                     }
                 },
             _ => {}
