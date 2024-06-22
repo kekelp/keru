@@ -183,7 +183,7 @@ impl Canvas {
             multiview: None,
         });
         
-        Canvas {
+        let mut canvas = Canvas {
             width,
             height,
             pixels: vec![PixelColor::rgba_f32(1.0, 1.0, 1.0, 1.0); width * height],
@@ -198,7 +198,15 @@ impl Canvas {
             needs_sync: true,
             needs_render: true,
             is_drawing: false,
+        };
+
+        for x in 0..width {
+            for y in 0..height {
+                *canvas.pixel(x, y) = PixelColor::rgba_f32(x as f32 / width as f32, 0.0, y as f32 / height as f32, 1.0);
+            }
         }
+
+        return canvas;
     }
 
     // Set a pixel to a specific color
@@ -326,7 +334,7 @@ impl Canvas {
                 let alpha = radius as f64 - ((center - pos).x.powi(2) + (center - pos).y.powi(2)).sqrt();
                 let alpha = alpha.clamp(0.0, 1.0);
 
-                let paint_color = PixelColorF32::new(0.8, 0.2, 0.8, 1.0);
+                let paint_color = PixelColorF32::new(0.2, 0.8, 0.2, 1.0);
                 self.paint_pixel(pixel.x, pixel.y, paint_color, alpha as f32);
             }
         }
@@ -387,6 +395,9 @@ impl Canvas {
         }
     }
 
+    pub fn pixel(&mut self, x: usize, y: usize) -> &mut PixelColor {
+        return &mut self.pixels[y * self.width + x];
+    }
 
 }
 
