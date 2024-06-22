@@ -202,9 +202,9 @@ impl Canvas {
     }
 
     // Set a pixel to a specific color
-    pub fn paint_pixel(&mut self, x: usize, y: usize, brush_alpha: f32) {
+    pub fn paint_pixel(&mut self, x: usize, y: usize, paint_color: PixelColorF32, brush_alpha: f32) {
 
-        let paint_color = PixelColorF32::new(0.8, 0.2, 0.8, 1.0);
+        
         // if x < self.width && y < self.height {
         // }
         let index = y * self.width + x;
@@ -245,43 +245,91 @@ impl Canvas {
     }
 
     pub fn update(&mut self) {
-        // todo: might be stupid
-        // if self.mouse_dots.len() == 1 {
-        //     self.mouse_dots.push(self.mouse_dots[0])
-        // }
-        for i in 0..self.mouse_dots.len() {
-            let first_dot = self.mouse_dots[i];
-            // let second_dot = self.mouse_dots[i];
+        self.draw_dots();
+    }
 
-            let center = Xy::new(first_dot.x, (self.height as f64) - first_dot.y);
-            let center_pixel = Xy::new(first_dot.x as usize, self.height - (first_dot.y as usize));
-            // let second_dot = Xy::new(second_dot.x as usize, self.height - (second_dot.y as usize));
-
-            let radius: f64 = 80.0;
-            let radius_squared = radius.powi(2);
-            let pixel_radius = (radius as isize) + 2; // some more pixels for antialiasing? 
-
-            for dx in (-pixel_radius)..pixel_radius {
-                for dy in (-pixel_radius)..pixel_radius {
-                    let pixel_x = max(center_pixel.x as isize - dx, 0) as usize;
-                    let pixel_y = max(center_pixel.y as isize - dy, 0) as usize;
-                    let pixel = Xy::new(pixel_x, pixel_y);
-
-                    let pos = center + (dx as f64, dy as f64);
-
-                    let alpha = radius as f64 - ((center - pos).x.powi(2) + (center - pos).y.powi(2)).sqrt();
-                    let alpha = alpha.clamp(0.0, 1.0);
-                    self.paint_pixel(pixel.x, pixel.y, alpha as f32);
-                    // let alpha = (alpha).clamp(0.0, 1.0);
-                    // println!("  {:?}", alpha);
-                    // let alpha = (alpha * 255.0) as u8;
-                    // if alpha > 0 {
-                    // }
-                }
-            }
+    pub fn draw_dots(&mut self) {
+        if self.mouse_dots.len() == 0 {
+            return;
         }
 
+        if self.mouse_dots.len() == 1 {
+            let first_dot = self.mouse_dots[0];
+            let center = Xy::new(first_dot.x, (self.height as f64) - first_dot.y);
+            self.draw_circle(center.x as isize, center.y as isize);
+
+            self.mouse_dots.clear();
+            return;
+        }
+
+        for i in 0..(self.mouse_dots.len() - 1) {
+        // for i in 0..self.mouse_dots.len() {
+            let first_dot = self.mouse_dots[i];
+            let second_dot = self.mouse_dots[i + 1];
+
+            let first_center = Xy::new(first_dot.x, (self.height as f64) - first_dot.y);
+            let second_center = Xy::new(second_dot.x, (self.height as f64) - (second_dot.y));
+            
+            let mut x0 = first_center.x as isize;
+            let mut y0 = first_center.y as isize;
+            let x1 = second_center.x as isize;
+            let y1 = second_center.y as isize;
+
+            let dx = (x1 - x0).abs();
+            let dy = -(y1 - y0).abs();
+            let sx = if x0 < x1 { 1 } else { -1 };
+            let sy = if y0 < y1 { 1 } else { -1 };
+            let mut err = dx + dy;
+        
+            // loop uses isize only, maybe could be more precise or something
+            loop {
+                // draw           
+                self.draw_circle(x0, y0);
+                
+                // line alg
+                if x0 == x1 && y0 == y1 { break; }
+                
+                let e2 = 2 * err;
+                
+                if e2 >= dy {
+                    err += dy;
+                    x0 += sx;
+                }
+                
+                if e2 <= dx {
+                    err += dx;
+                    y0 += sy;
+                }
+            }
+
+
+        }
+
+        let last_element = self.mouse_dots.pop().unwrap();
         self.mouse_dots.clear();
+        self.mouse_dots.push(last_element);
+    }
+
+    pub fn draw_circle(&mut self, x0: isize, y0: isize) {
+        let radius: f64 = 5.0;
+        let pixel_radius = (radius as isize) + 2; // some more pixels for antialiasing? 
+
+        for dx in (-pixel_radius)..pixel_radius {
+            for dy in (-pixel_radius)..pixel_radius {
+                let pixel_x = max(x0 - dx, 0) as usize;
+                let pixel_y = max(y0 - dy, 0) as usize;
+                let pixel = Xy::new(pixel_x, pixel_y);
+                let center = Xy::new(pixel_x as f64, pixel_y as f64);
+
+                let pos = center + (dx as f64, dy as f64);
+
+                let alpha = radius as f64 - ((center - pos).x.powi(2) + (center - pos).y.powi(2)).sqrt();
+                let alpha = alpha.clamp(0.0, 1.0);
+
+                let paint_color = PixelColorF32::new(0.8, 0.2, 0.8, 1.0);
+                self.paint_pixel(pixel.x, pixel.y, paint_color, alpha as f32);
+            }
+        }
     }
 
     pub fn render<'pass>(&'pass mut self, render_pass: &mut RenderPass<'pass>, queue: &Queue, ) {
@@ -341,3 +389,5 @@ impl Canvas {
 
 
 }
+
+
