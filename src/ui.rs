@@ -6,6 +6,8 @@ use rustc_hash::{FxHashMap, FxHasher};
 use smallbox::{smallbox, SmallBox};
 use view_derive::derive_view;
 use winit::event::MouseScrollDelta;
+use winit::keyboard::Key;
+use crate::unwrap_or_return;
 
 use std::ops::{Add, Mul, Sub};
 use std::{
@@ -959,18 +961,21 @@ impl Ui {
         }
     }
 
-    pub fn handle_keyboard_event(&mut self, event: &KeyEvent) -> Option<()> {
+    pub fn handle_keyboard_event(&mut self, event: &KeyEvent) -> bool {
         // todo: remove line.reset(); and do it only once per frame via change watcher guy
-        let id = self.focused?;
-        let node = self.node_map.get(&id)?;
-        let text_id = node.text_id?;
 
+        // if there is no focused text node, return consumed: false
+        let id = unwrap_or_return!(self.focused, false);
+        let node = unwrap_or_return!(self.node_map.get(&id), false);
+        let text_id = unwrap_or_return!(node.text_id, false);
+
+        // return consumed: true in each of these cases. Still don't consume keys that the UI doesn't use.
         if event.state.is_pressed() {
             let buffer = &mut self.text.text_areas[text_id].buffer;
             let line = &mut buffer.lines[0];
 
             match &event.logical_key {
-                winit::keyboard::Key::Named(named_key) => {
+                Key::Named(named_key) => {
                     match named_key {
                         NamedKey::ArrowLeft => {
                             match (
@@ -982,6 +987,7 @@ impl Ui {
                                 (false, true) => line.text.control_left_arrow(),
                                 (false, false) => line.text.left_arrow(),
                             }
+                            return true;
                         }
                         NamedKey::ArrowRight => {
                             match (
@@ -993,6 +999,7 @@ impl Ui {
                                 (false, true) => line.text.control_right_arrow(),
                                 (false, false) => line.text.right_arrow(),
                             }
+                            return true;
                         }
                         NamedKey::Backspace => {
                             if self.key_mods.control_key() {
@@ -1001,6 +1008,7 @@ impl Ui {
                                 line.text.backspace();
                             }
                             line.reset();
+                            return true;
                         }
                         NamedKey::End => {
                             match self.key_mods.shift_key() {
@@ -1008,6 +1016,7 @@ impl Ui {
                                 false => line.text.go_to_end(),
                             }
                             line.reset();
+                            return true;
                         }
                         NamedKey::Home => {
                             match self.key_mods.shift_key() {
@@ -1015,6 +1024,7 @@ impl Ui {
                                 true => line.text.shift_home(),
                             }
                             line.reset();
+                            return true;
                         }
                         NamedKey::Delete => {
                             if self.key_mods.control_key() {
@@ -1023,21 +1033,24 @@ impl Ui {
                                 line.text.delete();
                             }
                             line.reset();
+                            return true;
                         }
                         NamedKey::Space => {
                             line.text.insert_str_at_cursor(" ");
                             line.reset();
+                            return true;
                         }
                         _ => {}
                     }
                 }
-                winit::keyboard::Key::Character(new_char) => {
+                Key::Character(new_char) => {
                     if ! self.key_mods.control_key() &&
                        ! self.key_mods.alt_key() &&
                        ! self.key_mods.super_key() {
 
                         line.text.insert_str_at_cursor(&new_char);
                         line.reset();
+                        return true;
 
                     } else if self.key_mods.control_key() {
                         match new_char.as_str() {
@@ -1046,26 +1059,28 @@ impl Ui {
                                 if let Some(text) = selected_text {
                                     let _ = self.clipboard.set_contents(text.to_string());
                                 }
+                                return true;
                             },
                             "v" => {
                                 if let Ok(pasted_text) = self.clipboard.get_contents() {
                                     line.text.insert_str_at_cursor(&pasted_text);
                                     line.reset();
                                 }
+                                return true;
                             },
                             _ => {},
                         }
                     }
                 }
-                winit::keyboard::Key::Unidentified(_) => {}
-                winit::keyboard::Key::Dead(_) => {}
+                Key::Unidentified(_) => {}
+                Key::Dead(_) => {}
             };
         }
 
-        return Some(());
+        return false;
     }
 
-    pub fn handle_events(&mut self, full_event: &Event<()>, queue: &Queue) {
+    pub fn handle_events<'a>(&mut self, full_event: &'a Event<()>, queue: &Queue) -> Option<&'a Event<()>> {
         if let Event::WindowEvent { event, .. } = full_event {
             match event {
                 WindowEvent::CursorMoved { position, .. } => {
@@ -1078,6 +1093,7 @@ impl Ui {
                             self.part.mouse_left_clicked = true;
                             if !self.part.mouse_left_just_clicked {
                                 self.part.mouse_left_just_clicked = true;
+                                // todo: somehow check if the events are consumed and return None
                             }
                         } else {
                             self.part.mouse_left_clicked = false;
@@ -1089,13 +1105,18 @@ impl Ui {
                 }
                 WindowEvent::KeyboardInput { event, is_synthetic, .. } => {
                     if ! is_synthetic {
-                        self.handle_keyboard_event(&event);
+                        let consumed = self.handle_keyboard_event(&event);
+                        if consumed {
+                            return None;
+                        }
                     }
                 }
                 WindowEvent::Resized(size) => self.resize(size, queue),
                 _ => {}
             }
         }
+
+        return Some(full_event);
     }
 
     pub fn layout(&mut self) {
@@ -1938,3 +1959,14 @@ impl FilteredMouseInput {
 
 //     println!("{:?}", mouse_input);
 // }
+
+
+#[macro_export]
+macro_rules! unwrap_or_return {
+    ($expression:expr, $return_value:tt $(,)?) => {{
+        match $expression {
+            None => return $return_value,
+            Some(val) => val,
+        }
+    }};
+}

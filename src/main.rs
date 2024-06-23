@@ -74,9 +74,11 @@ pub fn count_color(count: i32) -> Color {
 impl<'window> State<'window> {
     pub fn handle_event(&mut self, event: &Event<()>, target: &EventLoopWindowTarget<()>) {
         self.window.handle_events(event, target);
-        self.ui.handle_events(event, &self.window.queue);
+        let filtered_event = self.ui.handle_events(event, &self.window.queue);
 
-        self.canvas.handle_events(event);
+        if let Some(filtered_event) = filtered_event {
+            self.canvas.handle_events(filtered_event, &self.ui.key_mods);
+        }
 
         if is_redraw_requested(event) {
             self.update();

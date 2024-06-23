@@ -2,7 +2,7 @@ use std::cmp::max;
 
 use bytemuck::{Pod, Zeroable};
 use wgpu::{BindGroup, ColorTargetState, Device, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
-use winit::{dpi::PhysicalPosition, event::{ElementState, Event, MouseButton, WindowEvent}};
+use winit::{dpi::PhysicalPosition, event::{ElementState, Event, MouseButton, WindowEvent}, keyboard::{Key, ModifiersState}};
 
 use crate::{ui::Xy, BASE_HEIGHT, BASE_WIDTH, SWAPCHAIN_FORMAT};
 use crate::ui::Axis::{X, Y};
@@ -68,6 +68,9 @@ pub struct Canvas {
     height: usize,
     pixels: Vec<PixelColor>,
 
+    backups: Vec<Vec<PixelColor>>,
+    need_backup: bool,
+
     mouse_dots: Vec<PhysicalPosition<f64>>,
 
     // todo: doesn't UI also keep this? maybe its good to keep them separately doe
@@ -108,7 +111,7 @@ impl Canvas {
                     binding: 0,
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Texture {
-                        sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
                         view_dimension: wgpu::TextureViewDimension::D2,
                         multisampled: false,
                     },
@@ -129,7 +132,7 @@ impl Canvas {
             address_mode_v: wgpu::AddressMode::ClampToEdge,
             address_mode_w: wgpu::AddressMode::ClampToEdge,
             mag_filter: wgpu::FilterMode::Nearest,
-            min_filter: wgpu::FilterMode::Nearest,
+            min_filter: wgpu::FilterMode::Linear,
             mipmap_filter: wgpu::FilterMode::Nearest,
             ..Default::default()
         });
@@ -187,9 +190,11 @@ impl Canvas {
             width,
             height,
             pixels: vec![PixelColor::rgba_f32(1.0, 1.0, 1.0, 1.0); width * height],
+            backups: Vec::new(),
             texture,
             render_pipeline,
             texture_bind_group,
+            need_backup: true,
 
             last_position: PhysicalPosition::default(),
 
@@ -254,6 +259,10 @@ impl Canvas {
 
     pub fn update(&mut self) {
         self.draw_dots();
+        if self.need_backup {
+            self.push_backup();
+            self.need_backup = false;
+        }
     }
 
     pub fn draw_dots(&mut self) {
@@ -374,13 +383,18 @@ impl Canvas {
         // }
     }
 
-    pub fn handle_events(&mut self, full_event: &winit::event::Event<()>) {
+    pub fn handle_events(&mut self, full_event: &winit::event::Event<()>, key_mods: &ModifiersState) {
         if let Event::WindowEvent { event, .. } = full_event {
             match event {
                 WindowEvent::MouseInput { state, button, .. } => {
                     if *button == MouseButton::Left {
                         self.is_drawing = *state == ElementState::Pressed;
                         self.mouse_dots.push(self.last_position);
+
+                        // do this on release so that it doesn't get in the way computationally speaking
+                        if *state == ElementState::Released {
+                            self.need_backup = true;
+                        }
                     }
                 },
                 WindowEvent::CursorMoved { position, .. } => {
@@ -390,13 +404,42 @@ impl Canvas {
                         self.mouse_dots.push(*position);
                     }
                 },
-            _ => {}
+                WindowEvent::KeyboardInput { event, is_synthetic, .. } => {
+                    if ! is_synthetic && event.state.is_pressed()  {
+                        if key_mods.control_key() {
+                            match &event.logical_key {
+                                Key::Character(new_char) => {
+                                    match new_char.as_str() {
+                                        "z" => {
+                                            self.undo();
+                                        },
+                                        _ => {},
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+
+                _ => {}
             }
         }
     }
 
     pub fn pixel(&mut self, x: usize, y: usize) -> &mut PixelColor {
         return &mut self.pixels[y * self.width + x];
+    }
+
+    pub fn push_backup(&mut self) {
+        self.backups.push(self.pixels.clone());
+    }
+
+    pub fn undo(&mut self) {
+        if self.backups.len() >= 2 {
+            self.backups.pop().unwrap();
+            self.pixels = self.backups.last().unwrap().clone();
+        }
     }
 
 }
