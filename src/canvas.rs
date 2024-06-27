@@ -76,7 +76,7 @@ pub struct Canvas {
     end_stroke: bool,
 
     // todo: doesn't UI also keep this? maybe its good to keep them separately doe
-    last_position: PhysicalPosition<f64>,
+    last_mouse_pos: PhysicalPosition<f64>,
 
     needs_sync: bool,
     needs_render: bool,
@@ -200,7 +200,7 @@ impl Canvas {
             texture_bind_group,
             need_backup: true,
 
-            last_position: PhysicalPosition::default(),
+            last_mouse_pos: PhysicalPosition::default(),
 
             mouse_dots: Vec::new(),
             end_stroke: false,
@@ -399,7 +399,7 @@ impl Canvas {
                 WindowEvent::MouseInput { state, button, .. } => {
                     if *button == MouseButton::Left {
                         self.is_drawing = *state == ElementState::Pressed;
-                        self.mouse_dots.push(self.last_position);
+                        self.mouse_dots.push(self.last_mouse_pos);
 
                         // do this on release so that it doesn't get in the way computationally speaking
                         if *state == ElementState::Released {
@@ -409,7 +409,7 @@ impl Canvas {
                     }
                 },
                 WindowEvent::CursorMoved { position, .. } => {
-                    self.last_position = *position;
+                    self.last_mouse_pos = *position;
 
                     if self.is_drawing {
                         self.mouse_dots.push(*position);
