@@ -1080,7 +1080,8 @@ impl Ui {
         return false;
     }
 
-    pub fn handle_events<'a>(&mut self, full_event: &'a Event<()>, queue: &Queue) -> Option<&'a Event<()>> {
+    // returns: is the event consumed?
+    pub fn handle_events(&mut self, full_event: &Event<()>, queue: &Queue) -> bool {
         if let Event::WindowEvent { event, .. } = full_event {
             match event {
                 WindowEvent::CursorMoved { position, .. } => {
@@ -1106,9 +1107,7 @@ impl Ui {
                 WindowEvent::KeyboardInput { event, is_synthetic, .. } => {
                     if ! is_synthetic {
                         let consumed = self.handle_keyboard_event(&event);
-                        if consumed {
-                            return None;
-                        }
+                        return consumed;
                     }
                 }
                 WindowEvent::Resized(size) => self.resize(size, queue),
@@ -1116,7 +1115,7 @@ impl Ui {
             }
         }
 
-        return Some(full_event);
+        return false;
     }
 
     pub fn layout(&mut self) {

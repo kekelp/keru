@@ -69,9 +69,11 @@ pub struct Canvas {
     pixels: Vec<PixelColor>,
 
     backups: Vec<Vec<PixelColor>>,
+    backups_i: usize,
     need_backup: bool,
 
     mouse_dots: Vec<PhysicalPosition<f64>>,
+    end_stroke: bool,
 
     // todo: doesn't UI also keep this? maybe its good to keep them separately doe
     last_position: PhysicalPosition<f64>,
@@ -191,6 +193,8 @@ impl Canvas {
             height,
             pixels: vec![PixelColor::rgba_f32(1.0, 1.0, 1.0, 1.0); width * height],
             backups: Vec::new(),
+            backups_i: 0,
+
             texture,
             render_pipeline,
             texture_bind_group,
@@ -199,6 +203,7 @@ impl Canvas {
             last_position: PhysicalPosition::default(),
 
             mouse_dots: Vec::new(),
+            end_stroke: false,
 
             needs_sync: true,
             needs_render: true,
@@ -259,6 +264,12 @@ impl Canvas {
 
     pub fn update(&mut self) {
         self.draw_dots();
+
+        if self.end_stroke {
+            self.mouse_dots.clear();
+            self.end_stroke = false;
+        }
+
         if self.need_backup {
             self.push_backup();
             self.need_backup = false;
@@ -269,18 +280,17 @@ impl Canvas {
         if self.mouse_dots.len() == 0 {
             return;
         }
-
+        // println!("  {:?}", self.mouse_dots);
         if self.mouse_dots.len() == 1 {
             let first_dot = self.mouse_dots[0];
             let center = Xy::new(first_dot.x, (self.height as f64) - first_dot.y);
             self.draw_circle(center.x as isize, center.y as isize);
-
-            self.mouse_dots.clear();
+            
+            // self.mouse_dots.clear();
             return;
         }
-
+        
         for i in 0..(self.mouse_dots.len() - 1) {
-        // for i in 0..self.mouse_dots.len() {
             let first_dot = self.mouse_dots[i];
             let second_dot = self.mouse_dots[i + 1];
 
@@ -393,6 +403,7 @@ impl Canvas {
 
                         // do this on release so that it doesn't get in the way computationally speaking
                         if *state == ElementState::Released {
+                            self.end_stroke = true;
                             self.need_backup = true;
                         }
                     }
@@ -405,20 +416,26 @@ impl Canvas {
                     }
                 },
                 WindowEvent::KeyboardInput { event, is_synthetic, .. } => {
-                    if ! is_synthetic && event.state.is_pressed()  {
-                        if key_mods.control_key() {
-                            match &event.logical_key {
-                                Key::Character(new_char) => {
-                                    match new_char.as_str() {
-                                        "z" => {
+                    // println!("  {:?}", event );
+                    if ! is_synthetic && event.state.is_pressed() {
+                        match &event.logical_key {
+                            Key::Character(new_char) => {
+                                match new_char.as_str() {
+                                    "z" => {
+                                        if key_mods.control_key() {
                                             self.undo();
-                                        },
+                                        }
+                                    },
+                                    "Z" => {
+                                        if key_mods.control_key() {
+                                            self.redo();
+                                        }
+                                    },
                                         _ => {},
                                     }
                                 }
                                 _ => {}
                             }
-                        }
                     }
                 }
 
@@ -432,13 +449,24 @@ impl Canvas {
     }
 
     pub fn push_backup(&mut self) {
+        self.backups.truncate(self.backups_i);
         self.backups.push(self.pixels.clone());
+
+        self.backups_i += 1;
     }
 
     pub fn undo(&mut self) {
-        if self.backups.len() >= 2 {
-            self.backups.pop().unwrap();
-            self.pixels = self.backups.last().unwrap().clone();
+        if self.backups_i >= 2 {
+            self.backups_i -= 1;
+            self.pixels = self.backups[self.backups_i - 1].clone();
+
+        }
+    }
+
+    pub fn redo(&mut self) {
+        if self.backups_i < self.backups.len() {
+            self.backups_i += 1;
+            self.pixels = self.backups[self.backups_i - 1].clone();
         }
     }
 
