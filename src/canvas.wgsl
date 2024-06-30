@@ -25,18 +25,19 @@ var<uniform> unif: Uniforms;
 
 @vertex
 fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {
-    // quad formed by two triangles
 
-    let w = (unif.image_size.x / base_unif.screen_size.x);
-    let h = (unif.image_size.y / base_unif.screen_size.y);
+    let w =              unif.image_size.x / base_unif.screen_size.x;
+    // let h_times_aspect = unif.image_size.y / base_unif.screen_size.y * (base_unif.screen_size.x / base_unif.screen_size.y);
+    let h_times_aspect = unif.image_size.y / base_unif.screen_size.x;
+
 
     var positions = array<vec4<f32>, 6>(
-        vec4<f32>(-w, -h, 0.0, 1.0),
-        vec4<f32>( w, -h, 0.0, 1.0),
-        vec4<f32>(-w,  h, 0.0, 1.0),
-        vec4<f32>( w, -h, 0.0, 1.0),
-        vec4<f32>( w,  h, 0.0, 1.0),
-        vec4<f32>(-w,  h, 0.0, 1.0) 
+        vec4<f32>(-w, -h_times_aspect, 0.0, 1.0),
+        vec4<f32>( w, -h_times_aspect, 0.0, 1.0),
+        vec4<f32>(-w,  h_times_aspect, 0.0, 1.0),
+        vec4<f32>( w, -h_times_aspect, 0.0, 1.0),
+        vec4<f32>( w,  h_times_aspect, 0.0, 1.0),
+        vec4<f32>(-w,  h_times_aspect, 0.0, 1.0) 
     );
     
     var tex_coords = array<vec2<f32>, 6>(
@@ -50,6 +51,12 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {
 
     var output: VertexOutput;
     output.position = unif.transform * positions[vertex_index];
+
+
+    let aspect = base_unif.screen_size.y / base_unif.screen_size.x;
+    output.position.y = output.position.y / aspect;
+
+
     output.tex_coords = tex_coords[vertex_index];
     return output;
 }

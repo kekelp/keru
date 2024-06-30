@@ -77,7 +77,7 @@ impl<'window> State<'window> {
         let consumed = self.ui.handle_events(event, &self.window.queue);
 
         if ! consumed {
-            self.canvas.handle_events(event, &self.ui.key_mods);
+            self.canvas.handle_events(event, &self.ui.key_mods, &self.window.queue);
         }
 
         if is_redraw_requested(event) {

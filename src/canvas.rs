@@ -2,7 +2,7 @@ use std::{cmp::max, mem::size_of};
 use wgpu::*;
 
 use bytemuck::{Pod, Zeroable};
-use glam::{vec3, Mat4, Vec3};
+use glam::{vec2, vec3, Mat4, Vec2, Vec3};
 
 use {util::DeviceExt, BindGroup, BindGroupEntry, BindGroupLayoutEntry, BindingResource, Buffer, ColorTargetState, Device, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
 use winit::{dpi::PhysicalPosition, event::{ElementState, Event, MouseButton, WindowEvent}, keyboard::{Key, ModifiersState}};
@@ -69,6 +69,9 @@ impl PixelColorF32 {
 pub struct Canvas {
     width: usize,
     height: usize,
+
+    image_width: usize,
+    image_height: usize,
     pixels: Vec<PixelColor>,
 
     transform: Mat4,
@@ -173,31 +176,27 @@ impl Canvas {
         }
 
 
-        let aspect_ratio = (width as f32) / (height as f32);
-
         // Define transformations
-        let scale = 1.0;
+        let scale = 0.6;
         let scale = Mat4::from_scale(vec3(scale, scale, 1.0));
-        let rotation = Mat4::from_rotation_z(-135.0_f32.to_radians());
+        let rotation = Mat4::from_rotation_z(-45.0_f32.to_radians());
         let translation = Mat4::from_translation(Vec3::new(0.0, 0.0, 0.0));
         
-        // Correct for aspect ratio
-        let aspect_correction = Mat4::from_scale(Vec3::new(aspect_ratio, 1.0, 1.0));
-        
         let transform = translation * rotation * scale;
-        let clip_transform = aspect_correction.inverse() * transform * aspect_correction;
-        // let clip_transform = transform;
+
+        let clip_transform = transform;
         
         let (image_width, image_height) = (width, height);
+        
+        // todo, remember to update this uniform in the far future when image_size will change
         let canvas_uniforms = CanvasUniforms {
             transform: clip_transform.to_cols_array_2d(),
             image_size: [image_width as f32, image_height as f32, 0.0, 0.0]
-            // image_size: [1.0, 1.0, 0.0, 0.0]
         };
 
         let canvas_uniform_buffer = device.create_buffer_init(
             &util::BufferInitDescriptor {
-                label: Some("Uniform Buffer"),
+                label: Some("Canvas Uniform Buffer"),
                 contents: bytemuck::cast_slice(&[canvas_uniforms]),
                 usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
             }
@@ -263,6 +262,8 @@ impl Canvas {
         let mut canvas = Canvas {
             width,
             height,
+            image_width,
+            image_height,
             pixels: vec![PixelColor::rgba_f32(1.0, 1.0, 1.0, 1.0); image_width * image_height],
             backups: Vec::new(),
             backups_i: 0,
@@ -286,7 +287,10 @@ impl Canvas {
 
         for x in 0..width {
             for y in 0..height {
-                *canvas.pixel(x, y) = PixelColor::rgba_f32(x as f32 / width as f32, 0.0, y as f32 / height as f32, 1.0);
+                if let Some(pixel) = canvas.get_pixel(x, y) {
+                    *pixel = PixelColor::rgba_f32(x as f32 / width as f32, 0.0, y as f32 / height as f32, 1.0);
+                }
+                
             }
         }
 
@@ -297,9 +301,8 @@ impl Canvas {
     pub fn paint_pixel(&mut self, x: usize, y: usize, paint_color: PixelColorF32, brush_alpha: f32) {
 
         
-        // if x < self.width && y < self.height {
-        // }
-        let index = y * self.width + x;
+        // todo, use get_pixel obviously
+        let index = y * self.image_width + x;
         if let Some(old_color) = self.pixels.get(index) {
             let old_color = old_color.to_f32s();
             
@@ -324,10 +327,10 @@ impl Canvas {
     }
 
     // Get the color of a specific pixel
-    pub fn get_pixel(&self, x: usize, y: usize) -> Option<PixelColor> {
-        if x < self.width && y < self.height {
-            let index = y * self.width + x;
-            Some(self.pixels[index])
+    pub fn get_pixel(&mut self, x: usize, y: usize) -> Option<&mut PixelColor> {
+        if x < self.image_width && y < self.image_height {
+            let index = y * self.image_width + x;
+            Some(&mut self.pixels[index])
         } else {
             None
         }
@@ -357,28 +360,34 @@ impl Canvas {
     pub fn mouse_to_image_or_something(&self, x: f64, y: f64) -> (f32, f32) {
         let w = self.width as f64;
         let h = self.height as f64;
+
+        dbg!(w, h);
+
         println!("before  x {:?} y {:?}", x, y);
         
         let norm_x = x - w/2.0;
-        let norm_y = (y) - h/2.0;
+        let norm_y = y - h/2.0;
         println!("centered  x {:?} y {:?}", norm_x, norm_y);
         
-        let vec4 = glam::vec4(norm_x as f32, norm_y as f32, 0.0, 1.0);
-    
-        let scale = 1.0;
-        let scale = Mat4::from_scale(vec3(scale, scale, 1.0));
-        let rotation = Mat4::from_rotation_z(135.0_f32.to_radians());
-        let _translation = Mat4::from_translation(Vec3::new(0.0, 0.0, 0.0));
+        let mut muhvec = glam::vec4(norm_x as f32, norm_y as f32, 0.0, 1.0);
 
-        let norm = (rotation * scale).inverse() * vec4;
+        muhvec.x /= 0.6;
+        muhvec.y /= 0.6;
 
-        let w = self.width as f32;
-        let h = self.height as f32;
+        let a = vec2(muhvec.x, muhvec.y).rotate(Vec2::from_angle(-45f32.to_radians()));
+        muhvec.x = a.x;
+        muhvec.y = a.y;
+
+        let norm = muhvec;
+
+        // todo s????
+        let w = self.image_width as f32;
+        let h = self.image_height as f32;
     
         let denorm_x = norm.x + w/2.0 as f32;
-        let denorm_y = (norm.y) + h/2.0 as f32;
+        let denorm_y = norm.y + h/2.0 as f32;
         // todo: this awful y invert shit is probably scattered somewhere else too. 
-        let denorm_y = self.height as f32 - denorm_y;
+        let denorm_y = self.image_height as f32 - denorm_y;
 
         println!("after  x {:?} y {:?}\n", denorm_x, denorm_y);
 
@@ -484,8 +493,8 @@ impl Canvas {
                 data,
                 ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: Some(self.width as u32 * 4),
-                    rows_per_image: Some(self.height as u32),
+                    bytes_per_row: Some(self.image_width as u32 * 4),
+                    rows_per_image: None,
                 },
                 Extent3d {
                     width: BASE_WIDTH as u32,
@@ -505,7 +514,7 @@ impl Canvas {
         // }
     }
 
-    pub fn handle_events(&mut self, full_event: &winit::event::Event<()>, key_mods: &ModifiersState) {
+    pub fn handle_events(&mut self, full_event: &winit::event::Event<()>, key_mods: &ModifiersState, queue: &Queue) {
         if let Event::WindowEvent { event, .. } = full_event {
             match event {
                 WindowEvent::MouseInput { state, button, .. } => {
@@ -549,15 +558,16 @@ impl Canvas {
                                 _ => {}
                             }
                     }
-                }
+                },
+                // todo, this sucks actually.
+                WindowEvent::Resized(size) => {
+                    self.width = size.width as usize;
+                    self.height = size.height as usize;
+                },
 
                 _ => {}
             }
         }
-    }
-
-    pub fn pixel(&mut self, x: usize, y: usize) -> &mut PixelColor {
-        return &mut self.pixels[y * self.width + x];
     }
 
     pub fn push_backup(&mut self) {
