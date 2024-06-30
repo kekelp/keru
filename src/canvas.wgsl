@@ -1,15 +1,26 @@
+struct BaseUniforms {
+    @location(1) screen_resolution: vec2f,
+    @location(0) t: f32,
+};
+
+@group(0) @binding(0)
+var<uniform> base_unif: BaseUniforms;
+
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
     @location(0) tex_coords: vec2<f32>,
 };
 
-@group(0) @binding(0) var my_texture: texture_2d<f32>;
-@group(0) @binding(1) var my_sampler: sampler;
+@group(0) @binding(1)
+var my_texture: texture_2d<f32>;
+@group(0) @binding(2)
+var my_sampler: sampler;
 
 struct Uniforms {
     transform: mat4x4<f32>,
 };
-@group(0) @binding(2) var<uniform> uniforms: Uniforms;
+@group(0) @binding(3)
+var<uniform> uniforms: Uniforms;
 
 @vertex
 fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {

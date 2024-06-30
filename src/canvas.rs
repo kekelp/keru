@@ -3,7 +3,7 @@ use std::cmp::max;
 use bytemuck::{Pod, Zeroable};
 use glam::{vec3, DVec4, Mat4, Vec3, Vec4};
 use glyphon::cosmic_text::rustybuzz::ttf_parser::NormalizedCoordinate;
-use wgpu::{util::DeviceExt, BindGroup, BindGroupEntry, BindingResource, ColorTargetState, Device, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
+use wgpu::{util::DeviceExt, BindGroup, BindGroupEntry, BindGroupLayoutEntry, BindingResource, Buffer, ColorTargetState, Device, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
 use winit::{dpi::PhysicalPosition, event::{ElementState, Event, MouseButton, WindowEvent}, keyboard::{Key, ModifiersState}};
 
 use crate::{ui::Xy, BASE_HEIGHT, BASE_WIDTH, SWAPCHAIN_FORMAT};
@@ -94,7 +94,7 @@ pub struct Canvas {
 
 impl Canvas {
     // Create a new canvas with the given width and height, initialized to a background color
-    pub fn new(width: usize, height: usize, device: &Device) -> Self {
+    pub fn new(width: usize, height: usize, device: &Device, base_uniforms: &Buffer) -> Self {
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("Canvas Texture"),
             size: Extent3d {
@@ -113,8 +113,18 @@ impl Canvas {
         let canvas_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Texture Bind Group Layout"),
             entries: &[
-                wgpu::BindGroupLayoutEntry {
+                BindGroupLayoutEntry {
                     binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Texture {
                         sample_type: wgpu::TextureSampleType::Float { filterable: true },
@@ -124,13 +134,13 @@ impl Canvas {
                     count: None,
                 },
                 wgpu::BindGroupLayoutEntry {
-                    binding: 1,
+                    binding: 2,
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                     count: None,
                 },
                 wgpu::BindGroupLayoutEntry {
-                    binding: 2,
+                    binding: 3,
                     visibility: wgpu::ShaderStages::VERTEX,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
@@ -163,9 +173,9 @@ impl Canvas {
         let aspect_ratio = (width as f32) / (height as f32);
 
         // Define transformations
-        let scale = 1.0;
+        let scale = 0.5;
         let scale = Mat4::from_scale(vec3(scale, scale, 1.0));
-        let rotation = Mat4::from_rotation_z(135.0_f32.to_radians());
+        let rotation = Mat4::from_rotation_z(-135.0_f32.to_radians());
         let translation = Mat4::from_translation(Vec3::new(0.0, 0.0, 0.0));
         
         // Correct for aspect ratio
@@ -191,14 +201,18 @@ impl Canvas {
             entries: &[
                 BindGroupEntry {
                     binding: 0,
-                    resource: BindingResource::TextureView(&texture_view),
+                    resource: base_uniforms.as_entire_binding(),
                 },
                 BindGroupEntry {
                     binding: 1,
-                    resource: BindingResource::Sampler(&sampler),
+                    resource: BindingResource::TextureView(&texture_view),
                 },
                 BindGroupEntry {
                     binding: 2,
+                    resource: BindingResource::Sampler(&sampler),
+                },
+                BindGroupEntry {
+                    binding: 3,
                     resource: uniform_buffer.as_entire_binding(),
                 },
             ],
@@ -344,8 +358,13 @@ impl Canvas {
         
         let vec4 = glam::vec4(norm_x as f32, norm_y as f32, 0.0, 1.0);
     
-        let norm = self.transform * vec4;
-    
+        let scale = 0.5;
+        let scale = Mat4::from_scale(vec3(scale, scale, 1.0));
+        let rotation = Mat4::from_rotation_z(135.0_f32.to_radians());
+        let translation = Mat4::from_translation(Vec3::new(0.0, 0.0, 0.0));
+
+        let norm = (rotation * scale).inverse() * vec4;
+
         let w = self.width as f32;
         let h = self.height as f32;
     
