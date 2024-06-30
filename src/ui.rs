@@ -20,7 +20,7 @@ use std::{
 
 use bytemuck::{Pod, Zeroable};
 use glyphon::{
-    Attrs, Buffer, Color as GlyphonColor, Family, FontSystem, Metrics, Shaping, SwashCache,
+    Attrs, Buffer as GlyphonBuffer, Color as GlyphonColor, Family, FontSystem, Metrics, Shaping, SwashCache,
     TextArea, TextAtlas, TextBounds, TextRenderer,
 };
 use {
