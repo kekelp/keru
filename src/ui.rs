@@ -5,6 +5,7 @@ use glyphon::{Affinity, Resolution as GlyphonResolution};
 use rustc_hash::{FxHashMap, FxHasher};
 use smallbox::{smallbox, SmallBox};
 use view_derive::derive_view;
+use wgpu::*;
 use winit::event::MouseScrollDelta;
 use winit::keyboard::Key;
 use crate::unwrap_or_return;
@@ -20,10 +21,10 @@ use std::{
 
 use bytemuck::{Pod, Zeroable};
 use glyphon::{
-    Attrs, Buffer, Color as GlyphonColor, Family, FontSystem, Metrics, Shaping, SwashCache,
+    Attrs, Buffer as GlyphonBuffer, Color as GlyphonColor, Family, FontSystem, Metrics, Shaping, SwashCache,
     TextArea, TextAtlas, TextBounds, TextRenderer,
 };
-use wgpu::{
+use {
     util::{self, DeviceExt},
     vertex_attr_array, BindGroup, BufferAddress, BufferUsages, ColorTargetState, Device,
     MultisampleState, Queue, RenderPass, RenderPipeline, SurfaceConfiguration, VertexAttribute,
@@ -558,7 +559,7 @@ impl Text {
     pub fn new_text_area(&mut self, text: Option<&str>, current_frame: u64) -> Option<usize> {
         let text = text?;
 
-        let mut buffer = Buffer::new(&mut self.font_system, Metrics::new(42.0, 42.0));
+        let mut buffer = GlyphonBuffer::new(&mut self.font_system, Metrics::new(42.0, 42.0));
         buffer.set_size(&mut self.font_system, 100000., 100000.);
 
         let mut hasher = FxHasher::default();
@@ -637,7 +638,7 @@ pub struct Ui {
     pub gpu_vertex_buffer: TypedGpuBuffer<RenderRect>,
     pub render_pipeline: RenderPipeline,
 
-    pub uniform_buffer: wgpu::Buffer,
+    pub uniform_buffer: Buffer,
     pub bind_group: BindGroup,
 
     pub text: Text,
@@ -742,15 +743,15 @@ impl Ui {
         let resolution_buffer = device.create_buffer_init(&util::BufferInitDescriptor {
             label: Some("Resolution Uniform Buffer"),
             contents: bytemuck::bytes_of(&uniforms),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
         });
 
         let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            entries: &[wgpu::BindGroupLayoutEntry {
+            entries: &[BindGroupLayoutEntry {
                 binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
+                visibility: ShaderStages::VERTEX,
+                ty: BindingType::Buffer {
+                    ty: BufferBindingType::Uniform,
                     has_dynamic_offset: false,
                     min_binding_size: None,
                 },
@@ -760,49 +761,49 @@ impl Ui {
         });
 
         // Create the bind group
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        let bind_group = device.create_bind_group(&BindGroupDescriptor {
             layout: &bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
+            entries: &[BindGroupEntry {
                 binding: 0,
                 resource: resolution_buffer.as_entire_binding(),
             }],
             label: Some("Resolution Bind Group"),
         });
 
-        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: None,
             bind_group_layouts: &[&bind_group_layout],
             push_constant_ranges: &[],
         });
 
-        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        let shader = device.create_shader_module(ShaderModuleDescriptor {
             label: None,
-            source: wgpu::ShaderSource::Wgsl(include_str!("box.wgsl").into()),
+            source: ShaderSource::Wgsl(include_str!("box.wgsl").into()),
         });
 
-        let mut primitive = wgpu::PrimitiveState::default();
+        let mut primitive = PrimitiveState::default();
         primitive.cull_mode = None;
 
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        let render_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
             label: None,
             layout: Some(&pipeline_layout),
-            vertex: wgpu::VertexState {
+            vertex: VertexState {
                 module: &shader,
                 entry_point: "vs_main",
                 buffers: &[vert_buff_layout],
             },
-            fragment: Some(wgpu::FragmentState {
+            fragment: Some(FragmentState {
                 module: &shader,
                 entry_point: "fs_main",
                 targets: &[Some(ColorTargetState {
                     format: config.format,
-                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
-                    write_mask: wgpu::ColorWrites::ALL,
+                    blend: Some(BlendState::ALPHA_BLENDING),
+                    write_mask: ColorWrites::ALL,
                 })],
             }),
             primitive,
             depth_stencil: None,
-            multisample: wgpu::MultisampleState::default(),
+            multisample: MultisampleState::default(),
             multiview: None,
         });
 
@@ -1795,11 +1796,11 @@ pub struct Uniforms {
 
 #[derive(Debug)]
 pub struct TypedGpuBuffer<T: Pod> {
-    pub buffer: wgpu::Buffer,
+    pub buffer: Buffer,
     pub marker: std::marker::PhantomData<T>,
 }
 impl<T: Pod> TypedGpuBuffer<T> {
-    pub fn new(buffer: wgpu::Buffer) -> Self {
+    pub fn new(buffer: Buffer) -> Self {
         Self {
             buffer,
             marker: PhantomData::<T>,
@@ -1810,7 +1811,7 @@ impl<T: Pod> TypedGpuBuffer<T> {
         mem::size_of::<T>() as u64
     }
 
-    pub fn slice<N: Into<u64>>(&self, n: N) -> wgpu::BufferSlice {
+    pub fn slice<N: Into<u64>>(&self, n: N) -> BufferSlice {
         let bytes = n.into() * (mem::size_of::<T>()) as u64;
         return self.buffer.slice(..bytes);
     }
@@ -1821,7 +1822,7 @@ impl<T: Pod> TypedGpuBuffer<T> {
     }
 }
 
-pub fn cursor_pos_from_byte_offset(buffer: &Buffer, byte_offset: usize) -> (f32, f32) {
+pub fn cursor_pos_from_byte_offset(buffer: &GlyphonBuffer, byte_offset: usize) -> (f32, f32) {
     let line = &buffer.lines[0];
     let buffer_line = line.layout_opt().as_ref().unwrap();
     let glyphs = &buffer_line[0].glyphs;

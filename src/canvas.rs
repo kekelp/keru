@@ -1,9 +1,10 @@
-use std::cmp::max;
+use std::{cmp::max, mem::size_of};
+use wgpu::*;
 
 use bytemuck::{Pod, Zeroable};
 use glam::{vec3, Mat4, Vec3};
 
-use wgpu::{util::DeviceExt, BindGroup, BindGroupEntry, BindGroupLayoutEntry, BindingResource, Buffer, ColorTargetState, Device, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
+use {util::DeviceExt, BindGroup, BindGroupEntry, BindGroupLayoutEntry, BindingResource, Buffer, ColorTargetState, Device, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
 use winit::{dpi::PhysicalPosition, event::{ElementState, Event, MouseButton, WindowEvent}, keyboard::{Key, ModifiersState}};
 
 use crate::{ui::Xy, BASE_HEIGHT, BASE_WIDTH, SWAPCHAIN_FORMAT};
@@ -87,7 +88,7 @@ pub struct Canvas {
 
     texture: Texture,
     render_pipeline: RenderPipeline,
-    texture_bind_group: BindGroup,
+    canvas_bind_group: BindGroup,
 
     is_drawing: bool,
 }
@@ -95,7 +96,7 @@ pub struct Canvas {
 impl Canvas {
     // Create a new canvas with the given width and height, initialized to a background color
     pub fn new(width: usize, height: usize, device: &Device, base_uniforms: &Buffer) -> Self {
-        let texture = device.create_texture(&wgpu::TextureDescriptor {
+        let texture = device.create_texture(&TextureDescriptor {
             label: Some("Canvas Texture"),
             size: Extent3d {
                 width: width as u32,
@@ -104,76 +105,78 @@ impl Canvas {
             },
             mip_level_count: 1,
             sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba8UnormSrgb,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            dimension: TextureDimension::D2,
+            format: TextureFormat::Rgba8UnormSrgb,
+            usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
             view_formats: &[],
         });
 
-        let canvas_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        let canvas_bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: Some("Texture Bind Group Layout"),
             entries: &[
                 BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
+                    visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
                         has_dynamic_offset: false,
                         min_binding_size: None,
                     },
                     count: None,
                 },
-                wgpu::BindGroupLayoutEntry {
+                BindGroupLayoutEntry {
                     binding: 1,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Texture {
-                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                        view_dimension: wgpu::TextureViewDimension::D2,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Texture {
+                        sample_type: TextureSampleType::Float { filterable: true },
+                        view_dimension: TextureViewDimension::D2,
                         multisampled: false,
                     },
                     count: None,
                 },
-                wgpu::BindGroupLayoutEntry {
+                BindGroupLayoutEntry {
                     binding: 2,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Sampler(SamplerBindingType::Filtering),
                     count: None,
                 },
-                wgpu::BindGroupLayoutEntry {
+                BindGroupLayoutEntry {
                     binding: 3,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
+                    visibility: ShaderStages::VERTEX,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
                         has_dynamic_offset: false,
-                        min_binding_size: wgpu::BufferSize::new(std::mem::size_of::<Uniforms>() as u64),
+                        min_binding_size: BufferSize::new(size_of::<CanvasUniforms>() as u64),
                     },
                     count: None,
                 }
             ],
         });
         
-        let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Nearest,
-            min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::FilterMode::Nearest,
+        let texture_view = texture.create_view(&TextureViewDescriptor::default());
+        let sampler = device.create_sampler(&SamplerDescriptor {
+            address_mode_u: AddressMode::ClampToEdge,
+            address_mode_v: AddressMode::ClampToEdge,
+            address_mode_w: AddressMode::ClampToEdge,
+            mag_filter: FilterMode::Nearest,
+            min_filter: FilterMode::Linear,
+            mipmap_filter: FilterMode::Nearest,
             ..Default::default()
         });
         
         #[repr(C)]
         #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-        struct Uniforms {
+        struct CanvasUniforms {
             transform: [[f32; 4]; 4],
+            image_size: [f32; 4],
+            // padding: [u32; 18],
         }
 
 
         let aspect_ratio = (width as f32) / (height as f32);
 
         // Define transformations
-        let scale = 0.5;
+        let scale = 1.0;
         let scale = Mat4::from_scale(vec3(scale, scale, 1.0));
         let rotation = Mat4::from_rotation_z(-135.0_f32.to_radians());
         let translation = Mat4::from_translation(Vec3::new(0.0, 0.0, 0.0));
@@ -183,20 +186,24 @@ impl Canvas {
         
         let transform = translation * rotation * scale;
         let clip_transform = aspect_correction.inverse() * transform * aspect_correction;
+        // let clip_transform = transform;
         
-        let uniforms = Uniforms {
+        let (image_width, image_height) = (width, height);
+        let canvas_uniforms = CanvasUniforms {
             transform: clip_transform.to_cols_array_2d(),
+            image_size: [image_width as f32, image_height as f32, 0.0, 0.0]
+            // image_size: [1.0, 1.0, 0.0, 0.0]
         };
 
-        let uniform_buffer = device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
+        let canvas_uniform_buffer = device.create_buffer_init(
+            &util::BufferInitDescriptor {
                 label: Some("Uniform Buffer"),
-                contents: bytemuck::cast_slice(&[uniforms]),
-                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                contents: bytemuck::cast_slice(&[canvas_uniforms]),
+                usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
             }
         );
 
-        let canvas_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        let canvas_bind_group = device.create_bind_group(&BindGroupDescriptor {
             layout: &canvas_bind_group_layout,
             entries: &[
                 BindGroupEntry {
@@ -213,50 +220,50 @@ impl Canvas {
                 },
                 BindGroupEntry {
                     binding: 3,
-                    resource: uniform_buffer.as_entire_binding(),
+                    resource: canvas_uniform_buffer.as_entire_binding(),
                 },
             ],
             label: Some("Canvas Bind Group"),
         });
 
-        let render_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("Render Pipeline Layout"),
             bind_group_layouts: &[&canvas_bind_group_layout],
             push_constant_ranges: &[],
         });
     
-        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        let shader = device.create_shader_module(ShaderModuleDescriptor {
             label: None,
-            source: wgpu::ShaderSource::Wgsl(include_str!("canvas.wgsl").into()),
+            source: ShaderSource::Wgsl(include_str!("canvas.wgsl").into()),
         });
 
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        let render_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
             label: Some("Render Pipeline"),
             layout: Some(&render_pipeline_layout),
-            vertex: wgpu::VertexState {
+            vertex: VertexState {
                 module: &shader,
                 entry_point: "vs_main",
                 buffers: &[],
             },
-            fragment: Some(wgpu::FragmentState {
+            fragment: Some(FragmentState {
                 module: &shader,
                 entry_point: "fs_main",
                 targets: &[Some(ColorTargetState {
                     format: SWAPCHAIN_FORMAT,
-                    blend: Some(wgpu::BlendState::REPLACE),
-                    write_mask: wgpu::ColorWrites::ALL,
+                    blend: Some(BlendState::REPLACE),
+                    write_mask: ColorWrites::ALL,
                 })],
             }),
-            primitive: wgpu::PrimitiveState::default(),
+            primitive: PrimitiveState::default(),
             depth_stencil: None,
-            multisample: wgpu::MultisampleState::default(),
+            multisample: MultisampleState::default(),
             multiview: None,
         });
         
         let mut canvas = Canvas {
             width,
             height,
-            pixels: vec![PixelColor::rgba_f32(1.0, 1.0, 1.0, 1.0); width * height],
+            pixels: vec![PixelColor::rgba_f32(1.0, 1.0, 1.0, 1.0); image_width * image_height],
             backups: Vec::new(),
             backups_i: 0,
 
@@ -264,7 +271,7 @@ impl Canvas {
 
             texture,
             render_pipeline,
-            texture_bind_group: canvas_bind_group,
+            canvas_bind_group,
             need_backup: true,
 
             last_mouse_pos: PhysicalPosition::default(),
@@ -358,7 +365,7 @@ impl Canvas {
         
         let vec4 = glam::vec4(norm_x as f32, norm_y as f32, 0.0, 1.0);
     
-        let scale = 0.5;
+        let scale = 1.0;
         let scale = Mat4::from_scale(vec3(scale, scale, 1.0));
         let rotation = Mat4::from_rotation_z(135.0_f32.to_radians());
         let _translation = Mat4::from_translation(Vec3::new(0.0, 0.0, 0.0));
@@ -491,7 +498,7 @@ impl Canvas {
 
         // if self.needs_render {
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_bind_group(0, &self.texture_bind_group, &[]);
+            render_pass.set_bind_group(0, &self.canvas_bind_group, &[]);
             render_pass.draw(0..6, 0..1);
             
             self.needs_render = false;
