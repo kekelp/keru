@@ -20,10 +20,10 @@ use std::{
 
 use bytemuck::{Pod, Zeroable};
 use glyphon::{
-    Attrs, Buffer as GlyphonBuffer, Color as GlyphonColor, Family, FontSystem, Metrics, Shaping, SwashCache,
+    Attrs, Buffer, Color as GlyphonColor, Family, FontSystem, Metrics, Shaping, SwashCache,
     TextArea, TextAtlas, TextBounds, TextRenderer,
 };
-use {
+use wgpu::{
     util::{self, DeviceExt},
     vertex_attr_array, BindGroup, BufferAddress, BufferUsages, ColorTargetState, Device,
     MultisampleState, Queue, RenderPass, RenderPipeline, SurfaceConfiguration, VertexAttribute,
@@ -637,7 +637,7 @@ pub struct Ui {
     pub gpu_vertex_buffer: TypedGpuBuffer<RenderRect>,
     pub render_pipeline: RenderPipeline,
 
-    pub uniform_buffer: Buffer,
+    pub uniform_buffer: wgpu::Buffer,
     pub bind_group: BindGroup,
 
     pub text: Text,
@@ -742,15 +742,15 @@ impl Ui {
         let resolution_buffer = device.create_buffer_init(&util::BufferInitDescriptor {
             label: Some("Resolution Uniform Buffer"),
             contents: bytemuck::bytes_of(&uniforms),
-            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
-        let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            entries: &[BindGroupLayoutEntry {
+        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            entries: &[wgpu::BindGroupLayoutEntry {
                 binding: 0,
-                visibility: ShaderStages::VERTEX,
-                ty: BindingType::Buffer {
-                    ty: BufferBindingType::Uniform,
+                visibility: wgpu::ShaderStages::VERTEX,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
                     has_dynamic_offset: false,
                     min_binding_size: None,
                 },
@@ -760,49 +760,49 @@ impl Ui {
         });
 
         // Create the bind group
-        let bind_group = device.create_bind_group(&BindGroupDescriptor {
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &bind_group_layout,
-            entries: &[BindGroupEntry {
+            entries: &[wgpu::BindGroupEntry {
                 binding: 0,
                 resource: resolution_buffer.as_entire_binding(),
             }],
             label: Some("Resolution Bind Group"),
         });
 
-        let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: None,
             bind_group_layouts: &[&bind_group_layout],
             push_constant_ranges: &[],
         });
 
-        let shader = device.create_shader_module(ShaderModuleDescriptor {
+        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: None,
-            source: ShaderSource::Wgsl(include_str!("box.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!("box.wgsl").into()),
         });
 
-        let mut primitive = PrimitiveState::default();
+        let mut primitive = wgpu::PrimitiveState::default();
         primitive.cull_mode = None;
 
-        let render_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
+        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: None,
             layout: Some(&pipeline_layout),
-            vertex: VertexState {
+            vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
                 buffers: &[vert_buff_layout],
             },
-            fragment: Some(FragmentState {
+            fragment: Some(wgpu::FragmentState {
                 module: &shader,
                 entry_point: "fs_main",
                 targets: &[Some(ColorTargetState {
                     format: config.format,
-                    blend: Some(BlendState::ALPHA_BLENDING),
-                    write_mask: ColorWrites::ALL,
+                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                    write_mask: wgpu::ColorWrites::ALL,
                 })],
             }),
             primitive,
             depth_stencil: None,
-            multisample: MultisampleState::default(),
+            multisample: wgpu::MultisampleState::default(),
             multiview: None,
         });
 
@@ -1795,11 +1795,11 @@ pub struct Uniforms {
 
 #[derive(Debug)]
 pub struct TypedGpuBuffer<T: Pod> {
-    pub buffer: Buffer,
+    pub buffer: wgpu::Buffer,
     pub marker: std::marker::PhantomData<T>,
 }
 impl<T: Pod> TypedGpuBuffer<T> {
-    pub fn new(buffer: Buffer) -> Self {
+    pub fn new(buffer: wgpu::Buffer) -> Self {
         Self {
             buffer,
             marker: PhantomData::<T>,
@@ -1810,7 +1810,7 @@ impl<T: Pod> TypedGpuBuffer<T> {
         mem::size_of::<T>() as u64
     }
 
-    pub fn slice<N: Into<u64>>(&self, n: N) -> BufferSlice {
+    pub fn slice<N: Into<u64>>(&self, n: N) -> wgpu::BufferSlice {
         let bytes = n.into() * (mem::size_of::<T>()) as u64;
         return self.buffer.slice(..bytes);
     }
