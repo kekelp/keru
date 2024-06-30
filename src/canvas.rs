@@ -1,13 +1,13 @@
 use std::cmp::max;
 
 use bytemuck::{Pod, Zeroable};
-use glam::{vec3, DVec4, Mat4, Vec3, Vec4};
-use glyphon::cosmic_text::rustybuzz::ttf_parser::NormalizedCoordinate;
+use glam::{vec3, Mat4, Vec3};
+
 use wgpu::{util::DeviceExt, BindGroup, BindGroupEntry, BindGroupLayoutEntry, BindingResource, Buffer, ColorTargetState, Device, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
 use winit::{dpi::PhysicalPosition, event::{ElementState, Event, MouseButton, WindowEvent}, keyboard::{Key, ModifiersState}};
 
 use crate::{ui::Xy, BASE_HEIGHT, BASE_WIDTH, SWAPCHAIN_FORMAT};
-use crate::ui::Axis::{X, Y};
+
 
 #[derive(Clone, Copy, Debug)]
 #[derive(Zeroable, Pod)]
@@ -361,7 +361,7 @@ impl Canvas {
         let scale = 0.5;
         let scale = Mat4::from_scale(vec3(scale, scale, 1.0));
         let rotation = Mat4::from_rotation_z(135.0_f32.to_radians());
-        let translation = Mat4::from_translation(Vec3::new(0.0, 0.0, 0.0));
+        let _translation = Mat4::from_translation(Vec3::new(0.0, 0.0, 0.0));
 
         let norm = (rotation * scale).inverse() * vec4;
 
