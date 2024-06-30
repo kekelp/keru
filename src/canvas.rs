@@ -1,7 +1,9 @@
 use std::cmp::max;
 
 use bytemuck::{Pod, Zeroable};
-use wgpu::{BindGroup, ColorTargetState, Device, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
+use glam::{vec3, DVec4, Mat4, Vec3, Vec4};
+use glyphon::cosmic_text::rustybuzz::ttf_parser::NormalizedCoordinate;
+use wgpu::{util::DeviceExt, BindGroup, BindGroupEntry, BindingResource, ColorTargetState, Device, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
 use winit::{dpi::PhysicalPosition, event::{ElementState, Event, MouseButton, WindowEvent}, keyboard::{Key, ModifiersState}};
 
 use crate::{ui::Xy, BASE_HEIGHT, BASE_WIDTH, SWAPCHAIN_FORMAT};
@@ -68,6 +70,8 @@ pub struct Canvas {
     height: usize,
     pixels: Vec<PixelColor>,
 
+    transform: Mat4,
+
     backups: Vec<Vec<PixelColor>>,
     backups_i: usize,
     need_backup: bool,
@@ -106,7 +110,7 @@ impl Canvas {
             view_formats: &[],
         });
 
-        let texture_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        let canvas_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Texture Bind Group Layout"),
             entries: &[
                 wgpu::BindGroupLayoutEntry {
@@ -125,6 +129,16 @@ impl Canvas {
                     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                     count: None,
                 },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: wgpu::BufferSize::new(std::mem::size_of::<Uniforms>() as u64),
+                    },
+                    count: None,
+                }
             ],
         });
         
@@ -139,24 +153,61 @@ impl Canvas {
             ..Default::default()
         });
         
-        let texture_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &texture_bind_group_layout,
+        #[repr(C)]
+        #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+        struct Uniforms {
+            transform: [[f32; 4]; 4],
+        }
+
+
+        let aspect_ratio = (width as f32) / (height as f32);
+
+        // Define transformations
+        let scale = 1.0;
+        let scale = Mat4::from_scale(vec3(scale, scale, 1.0));
+        let rotation = Mat4::from_rotation_z(135.0_f32.to_radians());
+        let translation = Mat4::from_translation(Vec3::new(0.0, 0.0, 0.0));
+        
+        // Correct for aspect ratio
+        let aspect_correction = Mat4::from_scale(Vec3::new(aspect_ratio, 1.0, 1.0));
+        
+        let transform = translation * rotation * scale;
+        let clip_transform = aspect_correction.inverse() * transform * aspect_correction;
+        
+        let uniforms = Uniforms {
+            transform: clip_transform.to_cols_array_2d(),
+        };
+
+        let uniform_buffer = device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("Uniform Buffer"),
+                contents: bytemuck::cast_slice(&[uniforms]),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            }
+        );
+
+        let canvas_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &canvas_bind_group_layout,
             entries: &[
-                wgpu::BindGroupEntry {
+                BindGroupEntry {
                     binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&texture_view),
+                    resource: BindingResource::TextureView(&texture_view),
                 },
-                wgpu::BindGroupEntry {
+                BindGroupEntry {
                     binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&sampler),
+                    resource: BindingResource::Sampler(&sampler),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: uniform_buffer.as_entire_binding(),
                 },
             ],
-            label: Some("Texture Bind Group"),
+            label: Some("Canvas Bind Group"),
         });
 
         let render_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Render Pipeline Layout"),
-            bind_group_layouts: &[&texture_bind_group_layout],
+            bind_group_layouts: &[&canvas_bind_group_layout],
             push_constant_ranges: &[],
         });
     
@@ -195,9 +246,11 @@ impl Canvas {
             backups: Vec::new(),
             backups_i: 0,
 
+            transform,
+
             texture,
             render_pipeline,
-            texture_bind_group,
+            texture_bind_group: canvas_bind_group,
             need_backup: true,
 
             last_mouse_pos: PhysicalPosition::default(),
@@ -226,22 +279,26 @@ impl Canvas {
         // if x < self.width && y < self.height {
         // }
         let index = y * self.width + x;
-        let old_color = self.pixels[index].to_f32s();
-
-        if brush_alpha > 0.0 {
-
+        if let Some(old_color) = self.pixels.get(index) {
+            let old_color = old_color.to_f32s();
             
-            let new_color = PixelColorF32 {
-               
-                r: old_color.r * (1.0 - brush_alpha) + paint_color.r * (brush_alpha),
-                g: old_color.g * (1.0 - brush_alpha) + paint_color.g * (brush_alpha),
-                b: old_color.b * (1.0 - brush_alpha) + paint_color.b * (brush_alpha),
+            if brush_alpha > 0.0 {
                 
-                a: 1.0,
-            };
-            
-            
-            self.pixels[index] = new_color.to_u8s();
+                
+                let new_color = PixelColorF32 {
+                    
+                    r: old_color.r * (1.0 - brush_alpha) + paint_color.r * (brush_alpha),
+                    g: old_color.g * (1.0 - brush_alpha) + paint_color.g * (brush_alpha),
+                    b: old_color.b * (1.0 - brush_alpha) + paint_color.b * (brush_alpha),
+                    
+                    a: 1.0,
+                };
+                
+                
+                self.pixels[index] = new_color.to_u8s();
+            }
+        } else {
+            // println!(" Geg {:?} {:?}", x, y);
         }
     }
 
@@ -276,26 +333,55 @@ impl Canvas {
         }
     }
 
+    pub fn mouse_to_image_or_something(&self, x: f64, y: f64) -> (f32, f32) {
+        let w = self.width as f64;
+        let h = self.height as f64;
+        println!("before  x {:?} y {:?}", x, y);
+        
+        let norm_x = x - w/2.0;
+        let norm_y = (y) - h/2.0;
+        println!("centered  x {:?} y {:?}", norm_x, norm_y);
+        
+        let vec4 = glam::vec4(norm_x as f32, norm_y as f32, 0.0, 1.0);
+    
+        let norm = self.transform * vec4;
+    
+        let w = self.width as f32;
+        let h = self.height as f32;
+    
+        let denorm_x = norm.x + w/2.0 as f32;
+        let denorm_y = (norm.y) + h/2.0 as f32;
+        // todo: this awful y invert shit is probably scattered somewhere else too. 
+        let denorm_y = self.height as f32 - denorm_y;
+
+        println!("after  x {:?} y {:?}\n", denorm_x, denorm_y);
+
+        return (denorm_x, denorm_y);
+    }
+
     pub fn draw_dots(&mut self) {
         if self.mouse_dots.len() == 0 {
             return;
         }
-        // println!("  {:?}", self.mouse_dots);
+
         if self.mouse_dots.len() == 1 {
-            let first_dot = self.mouse_dots[0];
-            let center = Xy::new(first_dot.x, (self.height as f64) - first_dot.y);
-            self.draw_circle(center.x as isize, center.y as isize);
+            let (x,y) = self.mouse_to_image_or_something(self.mouse_dots[0].x, self.mouse_dots[0].y);
+
+            self.draw_circle(x as isize, y as isize);
             
-            // self.mouse_dots.clear();
             return;
         }
         
         for i in 0..(self.mouse_dots.len() - 1) {
-            let first_dot = self.mouse_dots[i];
-            let second_dot = self.mouse_dots[i + 1];
 
-            let first_center = Xy::new(first_dot.x, (self.height as f64) - first_dot.y);
-            let second_center = Xy::new(second_dot.x, (self.height as f64) - (second_dot.y));
+            let (x,y) = self.mouse_to_image_or_something(self.mouse_dots[i].x, self.mouse_dots[i].y);
+            let first_dot = Xy::new(x as f64,y as f64);
+
+            let (x,y) = self.mouse_to_image_or_something(self.mouse_dots[i + 1].x, self.mouse_dots[i + 1].y);
+            let second_dot = Xy::new(x as f64,y as f64);
+
+            let first_center = Xy::new(first_dot.x, first_dot.y);
+            let second_center = Xy::new(second_dot.x, second_dot.y);
             
             let mut x0 = first_center.x as isize;
             let mut y0 = first_center.y as isize;
@@ -387,7 +473,7 @@ impl Canvas {
         // if self.needs_render {
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_bind_group(0, &self.texture_bind_group, &[]);
-            render_pass.draw(0..3, 0..1);
+            render_pass.draw(0..6, 0..1);
             
             self.needs_render = false;
         // }
