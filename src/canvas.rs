@@ -2,7 +2,7 @@ use std::{cmp::max, mem::size_of};
 use wgpu::*;
 
 use bytemuck::{Pod, Zeroable};
-use glam::{vec2, vec3, Mat4, Vec2, Vec3};
+use glam::{dvec2, vec2, vec3, DVec2, Mat4, Vec2, Vec3};
 
 use {util::DeviceExt, BindGroup, BindGroupEntry, BindGroupLayoutEntry, BindingResource, Buffer, ColorTargetState, Device, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
 use winit::{dpi::PhysicalPosition, event::{ElementState, Event, MouseButton, WindowEvent}, keyboard::{Key, ModifiersState}};
@@ -74,7 +74,9 @@ pub struct Canvas {
     image_height: usize,
     pixels: Vec<PixelColor>,
 
-    transform: Mat4,
+    scale: DVec2,
+    rotation: (f64, DVec2),
+    translation: DVec2,
 
     backups: Vec<Vec<PixelColor>>,
     backups_i: usize,
@@ -177,20 +179,22 @@ impl Canvas {
 
 
         // Define transformations
-        let scale = 0.6;
-        let scale = Mat4::from_scale(vec3(scale, scale, 1.0));
-        let rotation = Mat4::from_rotation_z(-45.0_f32.to_radians());
-        let translation = Mat4::from_translation(Vec3::new(0.0, 0.0, 0.0));
-        
-        let transform = translation * rotation * scale;
+        let scale = dvec2(0.6, 0.6);
+        let rotation = epic_rotation(-45.0_f64.to_radians());
+        let translation = dvec2(0.0, 0.0);
 
-        let clip_transform = transform;
+        // todo, make fn to load this
+        let mat_scale = Mat4::from_scale(vec3(scale.x as f32, scale.y as f32, 1.0));
+        let mat_rotation = Mat4::from_rotation_z(rotation.0 as f32);
+        let mat_translation = Mat4::from_translation(vec3(translation.x as f32, translation.y as f32, 1.0));
         
+        let transform = mat_translation * mat_rotation * mat_scale;
+       
         let (image_width, image_height) = (width, height);
         
         // todo, remember to update this uniform in the far future when image_size will change
         let canvas_uniforms = CanvasUniforms {
-            transform: clip_transform.to_cols_array_2d(),
+            transform: transform.to_cols_array_2d(),
             image_size: [image_width as f32, image_height as f32, 0.0, 0.0]
         };
 
@@ -268,7 +272,9 @@ impl Canvas {
             backups: Vec::new(),
             backups_i: 0,
 
-            transform,
+            scale,
+            rotation,
+            translation,
 
             texture,
             render_pipeline,
@@ -358,38 +364,31 @@ impl Canvas {
     }
 
     pub fn mouse_to_image_or_something(&self, x: f64, y: f64) -> (f32, f32) {
+        let p = dvec2(x, y);
+
         let w = self.width as f64;
         let h = self.height as f64;
+        let screen = dvec2(w, h);
 
         dbg!(w, h);
-
-        println!("before  x {:?} y {:?}", x, y);
         
-        let norm_x = x - w/2.0;
-        let norm_y = y - h/2.0;
-        println!("centered  x {:?} y {:?}", norm_x, norm_y);
-        
-        let mut muhvec = glam::vec4(norm_x as f32, norm_y as f32, 0.0, 1.0);
+        // convert to centered screen coordinates (pixels)
+        let p = p - screen/2.0;
 
-        muhvec.x /= 0.6;
-        muhvec.y /= 0.6;
+        let p = p / self.scale;
 
-        let a = vec2(muhvec.x, muhvec.y).rotate(Vec2::from_angle(-45f32.to_radians()));
-        muhvec.x = a.x;
-        muhvec.y = a.y;
-
-        let norm = muhvec;
+        let p = p.rotate(self.rotation.1);
+ 
+        let norm = p;
 
         // todo s????
         let w = self.image_width as f32;
         let h = self.image_height as f32;
     
-        let denorm_x = norm.x + w/2.0 as f32;
-        let denorm_y = norm.y + h/2.0 as f32;
+        let denorm_x = norm.x as f32 + w/2.0 as f32;
+        let denorm_y = norm.y as f32 + h/2.0 as f32;
         // todo: this awful y invert shit is probably scattered somewhere else too. 
         let denorm_y = self.image_height as f32 - denorm_y;
-
-        println!("after  x {:?} y {:?}\n", denorm_x, denorm_y);
 
         return (denorm_x, denorm_y);
     }
@@ -595,3 +594,22 @@ impl Canvas {
 }
 
 
+pub trait ReasonableRotation {
+    fn rotated(self, rhs: f64) -> Self;
+}
+
+impl ReasonableRotation for DVec2 {
+    fn rotated(self, rhs: f64) -> Self {
+        let cos = rhs.cos();
+        let sin = rhs.sin();
+        return Self {
+            x: self.x * cos - self.y * sin,
+            y: self.y * cos + self.x * sin,
+        }
+    }
+}
+
+// todo, make a struct maybe (autism)
+pub fn epic_rotation(angle_radians: f64) -> (f64, DVec2) {
+    return (angle_radians, dvec2(angle_radians.cos(), angle_radians.sin()));
+}
