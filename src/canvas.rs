@@ -180,14 +180,16 @@ impl Canvas {
 
         // Define transformations
         let scale = dvec2(0.6, 0.6);
-        let rotation = EpicRotation::new(-45.0_f64.to_radians());
+        let rotation = EpicRotation::new(-0.0_f64.to_radians());
         // todo, this translation is wrong, its interpreted as clip coords in the shader and as pixels in the mouse transform
-        let translation = dvec2(0.0, 0.0);
+        let translation = dvec2(0.0, 100.0);
 
         // todo, make fn to load this
         let mat_scale = Mat4::from_scale(vec3(scale.x as f32, scale.y as f32, 1.0));
-        let mat_rotation = Mat4::from_rotation_z(rotation.angle as f32);
-        let mat_translation = Mat4::from_translation(vec3(translation.x as f32, translation.y as f32, 1.0));
+        let mat_rotation = Mat4::from_rotation_z(rotation.angle() as f32);
+
+        let scaled_translation = translation / dvec2(width as f64, height as f64);
+        let mat_translation = Mat4::from_translation(vec3(scaled_translation.x as f32, scaled_translation.y as f32, 1.0));
         
         let transform = mat_translation * mat_rotation * mat_scale;
        
@@ -292,14 +294,14 @@ impl Canvas {
             is_drawing: false,
         };
 
-        for x in 0..width {
-            for y in 0..height {
-                if let Some(pixel) = canvas.get_pixel(x, y) {
-                    *pixel = PixelColor::rgba_f32(x as f32 / width as f32, 0.0, y as f32 / height as f32, 1.0);
-                }
+        // for x in 0..width {
+        //     for y in 0..height {
+        //         if let Some(pixel) = canvas.get_pixel(x, y) {
+        //             *pixel = PixelColor::rgba_f32(x as f32 / width as f32, 0.0, y as f32 / height as f32, 1.0);
+        //         }
                 
-            }
-        }
+        //     }
+        // }
 
         return canvas;
     }
@@ -333,20 +335,12 @@ impl Canvas {
         }
     }
 
-    // Get the color of a specific pixel
     pub fn get_pixel(&mut self, x: usize, y: usize) -> Option<&mut PixelColor> {
         if x < self.image_width && y < self.image_height {
             let index = y * self.image_width + x;
             Some(&mut self.pixels[index])
         } else {
             None
-        }
-    }
-
-    // Fill the canvas with a specific color
-    pub fn fill(&mut self, color: PixelColor) {
-        for pixel in self.pixels.iter_mut() {
-            *pixel = color;
         }
     }
 
@@ -381,7 +375,7 @@ impl Canvas {
         // from centered screen pixels
         //   to centered image pixels
         let p = p / self.scale;
-        let p = p.rotate(self.rotation.vec);
+        let p = p.rotate(self.rotation.vec());
         let p = p - self.translation;
 
         // convert from centered image pixels
