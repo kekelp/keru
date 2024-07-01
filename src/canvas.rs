@@ -2,7 +2,7 @@ use std::{cmp::max, mem::size_of};
 use wgpu::*;
 
 use bytemuck::{Pod, Zeroable};
-use glam::{dvec2, vec2, vec3, DVec2, Mat4, Vec2, Vec3};
+use glam::*;
 
 use {util::DeviceExt, BindGroup, BindGroupEntry, BindGroupLayoutEntry, BindingResource, Buffer, ColorTargetState, Device, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
 use winit::{dpi::PhysicalPosition, event::{ElementState, Event, MouseButton, WindowEvent}, keyboard::{Key, ModifiersState}};
@@ -75,7 +75,7 @@ pub struct Canvas {
     pixels: Vec<PixelColor>,
 
     scale: DVec2,
-    rotation: (f64, DVec2),
+    rotation: EpicRotation,
     translation: DVec2,
 
     backups: Vec<Vec<PixelColor>>,
@@ -180,12 +180,13 @@ impl Canvas {
 
         // Define transformations
         let scale = dvec2(0.6, 0.6);
-        let rotation = epic_rotation(-45.0_f64.to_radians());
+        let rotation = EpicRotation::new(-45.0_f64.to_radians());
+        // todo, this translation is wrong, its interpreted as clip coords in the shader and as pixels in the mouse transform
         let translation = dvec2(0.0, 0.0);
 
         // todo, make fn to load this
         let mat_scale = Mat4::from_scale(vec3(scale.x as f32, scale.y as f32, 1.0));
-        let mat_rotation = Mat4::from_rotation_z(rotation.0 as f32);
+        let mat_rotation = Mat4::from_rotation_z(rotation.angle as f32);
         let mat_translation = Mat4::from_translation(vec3(translation.x as f32, translation.y as f32, 1.0));
         
         let transform = mat_translation * mat_rotation * mat_scale;
@@ -363,34 +364,39 @@ impl Canvas {
         }
     }
 
-    pub fn mouse_to_image_or_something(&self, x: f64, y: f64) -> (f32, f32) {
+    pub fn mouse_to_image(&self, x: f64, y: f64) -> (f64, f64) {
         let p = dvec2(x, y);
 
         let w = self.width as f64;
         let h = self.height as f64;
-        let screen = dvec2(w, h);
+        let screen_size = dvec2(w, h);
 
         dbg!(w, h);
         
-        // convert to centered screen coordinates (pixels)
-        let p = p - screen/2.0;
+        // convert from non-centered screen pixels (winit mouse input)
+        // to centered screen pixels (for rotation and scale)
+        let p = p - screen_size/2.0;
 
+        // apply the canvas transforms to convert
+        // from centered screen pixels
+        //   to centered image pixels
         let p = p / self.scale;
+        let p = p.rotate(self.rotation.vec);
+        let p = p - self.translation;
 
-        let p = p.rotate(self.rotation.1);
- 
-        let norm = p;
+        // convert from centered image pixels
+        // to non-centered image pixels (for indexing)
+        let w = self.image_width as f64;
+        let h = self.image_height as f64;
+        let image_size = dvec2(w, h);
 
-        // todo s????
-        let w = self.image_width as f32;
-        let h = self.image_height as f32;
+        let p = p + image_size/2.0;
     
-        let denorm_x = norm.x as f32 + w/2.0 as f32;
-        let denorm_y = norm.y as f32 + h/2.0 as f32;
-        // todo: this awful y invert shit is probably scattered somewhere else too. 
-        let denorm_y = self.image_height as f32 - denorm_y;
+        // todo: this awful y invert shit is probably scattered somewhere else too
+        let mut p = p;
+        p.y = image_size.y - p.y;
 
-        return (denorm_x, denorm_y);
+        return (p.x, p.y);
     }
 
     pub fn draw_dots(&mut self) {
@@ -399,7 +405,7 @@ impl Canvas {
         }
 
         if self.mouse_dots.len() == 1 {
-            let (x,y) = self.mouse_to_image_or_something(self.mouse_dots[0].x, self.mouse_dots[0].y);
+            let (x,y) = self.mouse_to_image(self.mouse_dots[0].x, self.mouse_dots[0].y);
 
             self.draw_circle(x as isize, y as isize);
             
@@ -408,10 +414,10 @@ impl Canvas {
         
         for i in 0..(self.mouse_dots.len() - 1) {
 
-            let (x,y) = self.mouse_to_image_or_something(self.mouse_dots[i].x, self.mouse_dots[i].y);
+            let (x,y) = self.mouse_to_image(self.mouse_dots[i].x, self.mouse_dots[i].y);
             let first_dot = Xy::new(x as f64,y as f64);
 
-            let (x,y) = self.mouse_to_image_or_something(self.mouse_dots[i + 1].x, self.mouse_dots[i + 1].y);
+            let (x,y) = self.mouse_to_image(self.mouse_dots[i + 1].x, self.mouse_dots[i + 1].y);
             let second_dot = Xy::new(x as f64,y as f64);
 
             let first_center = Xy::new(first_dot.x, first_dot.y);
@@ -609,7 +615,22 @@ impl ReasonableRotation for DVec2 {
     }
 }
 
-// todo, make a struct maybe (autism)
-pub fn epic_rotation(angle_radians: f64) -> (f64, DVec2) {
-    return (angle_radians, dvec2(angle_radians.cos(), angle_radians.sin()));
+#[derive(Clone, Copy, Debug, Default)]
+struct EpicRotation {
+    angle: f64,
+    vec: DVec2,
+}
+impl EpicRotation {
+    pub fn new(angle_radians: f64) -> Self {
+        return Self {
+            angle: angle_radians,
+            vec: dvec2(angle_radians.cos(), angle_radians.sin()),
+        }
+    }
+    pub fn angle(&self) -> f64 {
+        return self.angle;
+    }
+    pub fn vec(&self) -> DVec2 {
+        return self.vec;
+    }
 }
