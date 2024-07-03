@@ -92,9 +92,9 @@ impl<'window> State<'window> {
 
         ui.update_gpu_time(&self.window.queue);
 
-        h_stack!(ui, CommandLineRow, {
-            ui.add(CommandLine);
-        });
+        // h_stack!(ui, CommandLineRow, {
+        //     ui.add(CommandLine);
+        // });
 
         ui.finish_tree();
 
