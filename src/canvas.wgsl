@@ -68,7 +68,7 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {
     output.position.y = originalX * unif.sin + originalY * unif.cos;
 
 
-    output.position.x = output.position.x - unif.translation.x;
+    output.position.x = output.position.x + unif.translation.x;
     output.position.y = output.position.y - (unif.translation.y) * aspect;
 
     output.position.y = output.position.y / aspect;
@@ -76,7 +76,6 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {
     output.tex_coords = tex_coords[vertex_index];
     return output;
 }
-
 
 @fragment
 fn fs_main(@location(0) tex_coords: vec2<f32>) -> @location(0) vec4<f32> {
