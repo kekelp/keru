@@ -183,6 +183,7 @@ impl Canvas {
             sin: f32,
             translation: [f32; 2],
             image_size: [f32; 2],
+            transform: [[f32; 4]; 4],
         }
 
         // Define transformations
@@ -190,17 +191,27 @@ impl Canvas {
         let rotation = EpicRotation::new(-56.0_f64.to_radians());
 
 
-        let translation = dvec2(0.0, 100.0);
+        let translation = dvec2(278.0, 123.0);
 
         // todo, make fn to load this
         let mat_scale = Mat4::from_scale(vec3(scale.x as f32, scale.y as f32, 1.0));
         let mat_rotation = Mat4::from_rotation_z(rotation.angle() as f32);
 
-        let scaled_translation = translation / dvec2(width as f64, height as f64) * 2.0;
-        let mat_translation = Mat4::from_translation(vec3(scaled_translation.x as f32, scaled_translation.y as f32, 1.0));
+        // scale with the weird aspect or something
+        let scaled_translation = translation / dvec2(width as f64, width as f64) * 2.0;
+        let mat_translation = Mat4::from_translation(
+            vec3(
+                scaled_translation.x as f32,
+                -scaled_translation.y as f32,
+            1.0
+            )
+        );
                
         let (image_width, image_height) = (width, height);
         
+        let transform = mat_translation * mat_rotation * mat_scale;
+        
+
         // // todo, remember to update this uniform in the far future when image_size will change
         // let canvas_uniforms = CanvasUniforms {
         //     transform: transform.to_cols_array_2d(),
@@ -211,7 +222,8 @@ impl Canvas {
             cos: rotation.cos() as f32,
             sin: rotation.sin() as f32,
             translation: [scaled_translation.x as f32, scaled_translation.y as f32],
-            image_size: [image_width as f32, image_height as f32]
+            image_size: [image_width as f32, image_height as f32],
+            transform: transform.to_cols_array_2d(),
         };
 
         let canvas_uniform_buffer = device.create_buffer_init(

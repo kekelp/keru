@@ -22,6 +22,7 @@ struct Uniforms {
     @location(2) sin: f32,
     @location(3) translation: vec2f,
     @location(4) image_size: vec2f,
+    @location(5) transform: mat4x4<f32>,
 };
 @group(0) @binding(3)
 var<uniform> unif: Uniforms;
@@ -56,20 +57,22 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {
     
     let aspect = base_unif.screen_size.y / base_unif.screen_size.x;
 
-    output.position = positions[vertex_index];
-    output.position.x = output.position.x * unif.scale.x;
-    output.position.y = output.position.y * unif.scale.y;
+    // output.position = positions[vertex_index];
+    // output.position.x = output.position.x * unif.scale.x;
+    // output.position.y = output.position.y * unif.scale.y;
 
 
-    let originalX = output.position.x;
-    let originalY = output.position.y;
+    // let originalX = output.position.x;
+    // let originalY = output.position.y;
 
-    output.position.x = originalX * unif.cos - originalY * unif.sin; 
-    output.position.y = originalX * unif.sin + originalY * unif.cos;
+    // output.position.x = originalX * unif.cos - originalY * unif.sin; 
+    // output.position.y = originalX * unif.sin + originalY * unif.cos;
 
 
-    output.position.x = output.position.x + unif.translation.x;
-    output.position.y = output.position.y - (unif.translation.y) * aspect;
+    // output.position.x = output.position.x + unif.translation.x;
+    // output.position.y = output.position.y - (unif.translation.y) * aspect;
+
+    output.position = unif.transform * positions[vertex_index];
 
     output.position.y = output.position.y / aspect;
 
