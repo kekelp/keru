@@ -33,7 +33,7 @@ fn init() -> (EventLoop<()>, State<'static>) {
     let config = configure_surface(&surface, &window, &device);
 
     let ui = Ui::new(&device, &config, &queue);
-    let canvas = Canvas::new(BASE_WIDTH as usize, BASE_HEIGHT as usize, &device, &ui.uniform_buffer);
+    let canvas = Canvas::new(BASE_WIDTH as usize, BASE_HEIGHT as usize, &device, &queue, &ui.uniform_buffer);
     let window = WgpuWindow::new(window, surface, config, device, queue);
 
     let state = State {

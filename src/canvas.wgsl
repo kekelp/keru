@@ -82,6 +82,6 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {
 
 @fragment
 fn fs_main(@location(0) tex_coords: vec2<f32>) -> @location(0) vec4<f32> {
-    // return vec4(1.0, 0.0, base_unif.t, 1.0);
+    // return vec4(tex_coords.x, 0.0, tex_coords.y, 1.0);
     return textureSample(my_texture, my_sampler, tex_coords);
 }

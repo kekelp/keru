@@ -1,11 +1,11 @@
 use std::{cmp::max, mem::size_of};
-use wgpu::*;
+use wgpu::{hal::auxil::db, *};
 
 use bytemuck::{Pod, Zeroable};
 use glam::*;
 
 use {util::DeviceExt, BindGroup, BindGroupEntry, BindGroupLayoutEntry, BindingResource, Buffer, ColorTargetState, Device, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
-use winit::{dpi::PhysicalPosition, event::{ElementState, Event, MouseButton, WindowEvent}, keyboard::{Key, ModifiersState}};
+use winit::{dpi::PhysicalPosition, event::{ElementState, Event, MouseButton, MouseScrollDelta, WindowEvent}, keyboard::{Key, ModifiersState}};
 
 use crate::{ui::Xy, BASE_HEIGHT, BASE_WIDTH, SWAPCHAIN_FORMAT};
 
@@ -94,13 +94,28 @@ pub struct Canvas {
     texture: Texture,
     render_pipeline: RenderPipeline,
     canvas_bind_group: BindGroup,
+    canvas_uniform_buffer: Buffer,
 
     is_drawing: bool,
+
+    h_scroll: f64,
+    v_scroll: f64,
+}
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+struct CanvasUniforms {
+    scale: [f32; 2],
+    cos: f32,
+    sin: f32,
+    translation: [f32; 2],
+    image_size: [f32; 2],
+    transform: [[f32; 4]; 4],
 }
 
 impl Canvas {
     // Create a new canvas with the given width and height, initialized to a background color
-    pub fn new(width: usize, height: usize, device: &Device, base_uniforms: &Buffer) -> Self {
+    pub fn new(width: usize, height: usize, device: &Device, queue: &Queue, base_uniforms: &Buffer) -> Self {
         let texture = device.create_texture(&TextureDescriptor {
             label: Some("Canvas Texture"),
             size: Extent3d {
@@ -169,22 +184,6 @@ impl Canvas {
             ..Default::default()
         });
         
-        // #[repr(C)]
-        // #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-        // struct CanvasUniforms {
-        //     transform: [[f32; 4]; 4],
-        //     image_size: [f32; 4],
-        // }
-        #[repr(C)]
-        #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-        struct CanvasUniforms {
-            scale: [f32; 2],
-            cos: f32,
-            sin: f32,
-            translation: [f32; 2],
-            image_size: [f32; 2],
-            transform: [[f32; 4]; 4],
-        }
 
         // Define transformations
         let scale = dvec2(0.6, 0.6);
@@ -195,44 +194,14 @@ impl Canvas {
         // let rotation = EpicRotation::new(-0.0_f64.to_radians());
         // let translation = dvec2(0.0, 0.0);
 
-        // todo, make fn to load this
-        let mat_scale = Mat4::from_scale(vec3(scale.x as f32, scale.y as f32, 1.0));
-        let mat_rotation = Mat4::from_rotation_z(rotation.angle() as f32);
-
-        // scale with the weird aspect or something
-        let scaled_translation = translation / width as f64 * 2.0;
-        let mat_translation = Mat4::from_translation(
-            vec3(
-                scaled_translation.x as f32,
-                - scaled_translation.y as f32,
-                1.0
-            )
-        );
-               
         let (image_width, image_height) = (width, height);
         
-        let transform = mat_translation * mat_rotation * mat_scale;
-        // let transform = mat_scale * mat_rotation * mat_translation;
-
-        // // todo, remember to update this uniform in the far future when image_size will change
-        // let canvas_uniforms = CanvasUniforms {
-        //     transform: transform.to_cols_array_2d(),
-        //     image_size: [image_width as f32, image_height as f32, 0.0, 0.0]
-        // };
-        let canvas_uniforms = CanvasUniforms {
-            scale: [scale.x as f32, scale.y as f32],
-            cos: rotation.cos() as f32,
-            sin: rotation.sin() as f32,
-            translation: [scaled_translation.x as f32, scaled_translation.y as f32],
-            image_size: [image_width as f32, image_height as f32],
-            transform: transform.to_cols_array_2d(),
-        };
-
-        let canvas_uniform_buffer = device.create_buffer_init(
-            &util::BufferInitDescriptor {
+        let canvas_uniform_buffer = device.create_buffer(
+            &BufferDescriptor {
                 label: Some("Canvas Uniform Buffer"),
-                contents: bytemuck::cast_slice(&[canvas_uniforms]),
                 usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+                size: size_of::<CanvasUniforms>() as u64,
+                mapped_at_creation: false,
             }
         );
 
@@ -294,6 +263,9 @@ impl Canvas {
         });
         
         let mut canvas = Canvas {
+            h_scroll: 0.0,
+            v_scroll: 0.0,
+
             width,
             height,
             image_width,
@@ -305,6 +277,7 @@ impl Canvas {
             scale,
             rotation,
             translation,
+            canvas_uniform_buffer,
 
             texture,
             render_pipeline,
@@ -330,7 +303,43 @@ impl Canvas {
             }
         }
 
+        canvas.update_shader_transform(queue);
+
         return canvas;
+    }
+
+    pub fn update_shader_transform(&mut self, queue: &Queue) {
+        let mat_scale = Mat4::from_scale(vec3(self.scale.x as f32, self.scale.y as f32, 1.0));
+        let mat_rotation = Mat4::from_rotation_z(self.rotation.angle() as f32);
+
+        // scale with the weird aspect or something
+        let scaled_translation = self.translation / self.width as f64 * 2.0;
+        let mat_translation = Mat4::from_translation(
+            vec3(
+                scaled_translation.x as f32,
+                - scaled_translation.y as f32,
+                1.0
+            )
+        );
+               
+        let (image_width, image_height) = (self.width, self.height);
+        
+        let transform = mat_translation * mat_rotation * mat_scale;
+
+        let canvas_uniforms = CanvasUniforms {
+            scale: [self.scale.x as f32, self.scale.y as f32],
+            cos: self.rotation.cos() as f32,
+            sin: self.rotation.sin() as f32,
+            translation: [scaled_translation.x as f32, scaled_translation.y as f32],
+            image_size: [image_width as f32, image_height as f32],
+            transform: transform.to_cols_array_2d(),
+        };
+
+        queue.write_buffer(
+            &self.canvas_uniform_buffer,
+            0,
+            &bytemuck::bytes_of(&canvas_uniforms)[..size_of::<CanvasUniforms>()],
+        );
     }
 
     // Set a pixel to a specific color
@@ -390,8 +399,6 @@ impl Canvas {
         let w = self.width as f64;
         let h = self.height as f64;
         let screen_size = dvec2(w, h);
-
-        dbg!(w, h);
         
         // convert from non-centered screen pixels (winit mouse input)
         // to centered screen pixels (for rotation and scale)
@@ -588,6 +595,30 @@ impl Canvas {
                             }
                     }
                 },
+                WindowEvent::MouseWheel { delta, .. } => {
+                    const SCROLL_LINE_TO_PIXELS: f64 = 0.2;
+                    let (x, y) = match delta {
+                        MouseScrollDelta::PixelDelta(winit::dpi::PhysicalPosition { x, y }) => {
+                            (*x, *y)
+                        }
+                        MouseScrollDelta::LineDelta(x, y) => {
+                            let ratio = 0.1 + 0.2 * self.scale.x;
+                            ((*x as f64) * ratio, (*y as f64) * ratio)
+                        }
+                    };
+
+
+                    self.scale += y;
+                    if self.scale.y < 0.0 {
+                        self.scale.y = 0.0;
+                    }
+                    if self.scale.x < 0.0 {
+                        self.scale.x = 0.0;
+                    }
+
+                    dbg!(self.scale);
+                    self.update_shader_transform(&queue);
+                }
                 // todo, this sucks actually.
                 WindowEvent::Resized(size) => {
                     self.width = size.width as usize;
