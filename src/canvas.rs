@@ -334,26 +334,23 @@ impl Canvas {
     // Set a pixel to a specific color
     pub fn paint_pixel(&mut self, x: usize, y: usize, paint_color: PixelColorF32, brush_alpha: f32) {
 
-        
-        // todo, use get_pixel obviously
-        let index = y * self.image_width + x;
-        if let Some(old_color) = self.pixels.get(index) {
-            let old_color = old_color.to_f32s();
+        if let Some(old_color) = self.get_pixel(x, y) {
+            let old_color_f32 = old_color.to_f32s();
             
             if brush_alpha > 0.0 {
                 
                 
                 let new_color = PixelColorF32 {
                     
-                    r: old_color.r * (1.0 - brush_alpha) + paint_color.r * (brush_alpha),
-                    g: old_color.g * (1.0 - brush_alpha) + paint_color.g * (brush_alpha),
-                    b: old_color.b * (1.0 - brush_alpha) + paint_color.b * (brush_alpha),
+                    r: old_color_f32.r * (1.0 - brush_alpha) + paint_color.r * (brush_alpha),
+                    g: old_color_f32.g * (1.0 - brush_alpha) + paint_color.g * (brush_alpha),
+                    b: old_color_f32.b * (1.0 - brush_alpha) + paint_color.b * (brush_alpha),
                     
                     a: 1.0,
                 };
                 
                 
-                self.pixels[index] = new_color.to_u8s();
+                *old_color = new_color.to_u8s();
             }
         } else {
             // println!(" Geg {:?} {:?}", x, y);
