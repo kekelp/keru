@@ -188,10 +188,12 @@ impl Canvas {
 
         // Define transformations
         let scale = dvec2(0.6, 0.6);
-        let rotation = EpicRotation::new(-56.0_f64.to_radians());
+        let rotation = EpicRotation::new(-75.0_f64.to_radians());
+        let translation = dvec2(45.0, 150.0);
 
-
-        let translation = dvec2(278.0, 123.0);
+        // let scale = dvec2(1.0, 1.0);
+        // let rotation = EpicRotation::new(-0.0_f64.to_radians());
+        // let translation = dvec2(0.0, 0.0);
 
         // todo, make fn to load this
         let mat_scale = Mat4::from_scale(vec3(scale.x as f32, scale.y as f32, 1.0));
@@ -202,15 +204,15 @@ impl Canvas {
         let mat_translation = Mat4::from_translation(
             vec3(
                 scaled_translation.x as f32,
-                -scaled_translation.y as f32,
-            1.0
+                - scaled_translation.y as f32,
+                1.0
             )
         );
                
         let (image_width, image_height) = (width, height);
         
         let transform = mat_translation * mat_rotation * mat_scale;
-        
+        // let transform = mat_scale * mat_rotation * mat_translation;
 
         // // todo, remember to update this uniform in the far future when image_size will change
         // let canvas_uniforms = CanvasUniforms {
@@ -319,14 +321,14 @@ impl Canvas {
             is_drawing: false,
         };
 
-        // for x in 0..width {
-        //     for y in 0..height {
-        //         if let Some(pixel) = canvas.get_pixel(x, y) {
-        //             *pixel = PixelColor::rgba_f32(x as f32 / width as f32, 0.0, y as f32 / height as f32, 1.0);
-        //         }
+        for x in 0..width {
+            for y in 0..height {
+                if let Some(pixel) = canvas.get_pixel(x, y) {
+                    *pixel = PixelColor::rgba_f32(x as f32 / width as f32, 0.0, y as f32 / height as f32, 1.0);
+                }
                 
-        //     }
-        // }
+            }
+        }
 
         return canvas;
     }
@@ -358,6 +360,8 @@ impl Canvas {
     }
 
     pub fn get_pixel(&mut self, x: usize, y: usize) -> Option<&mut PixelColor> {
+        // let y = self.image_height - y;
+
         if x < self.image_width && y < self.image_height {
             let index = y * self.image_width + x;
             Some(&mut self.pixels[index])
@@ -400,17 +404,21 @@ impl Canvas {
         let p = p / self.scale;
         let p = p.rotate(self.rotation.vec());
 
+
+
+        // todo: this awful y invert shit is probably scattered somewhere else too
+        let mut p = p;
+        p.y = - p.y;
+
+
+        // convert from centered image pixels
+        // to non-centered image pixels (for indexing)
         let w = self.image_width as f64;
         let h = self.image_height as f64;
         let image_size = dvec2(w, h);
 
-        // convert from centered image pixels
-        // to non-centered image pixels (for indexing)
         let p = p + image_size/2.0;
     
-        // todo: this awful y invert shit is probably scattered somewhere else too
-        let mut p = p;
-        p.y = image_size.y - p.y;
 
         return (p.x, p.y);
     }
