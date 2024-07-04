@@ -200,7 +200,7 @@ impl Canvas {
         let mat_rotation = Mat4::from_rotation_z(rotation.angle() as f32);
 
         // scale with the weird aspect or something
-        let scaled_translation = translation / dvec2(width as f64, width as f64) * 2.0;
+        let scaled_translation = translation / width as f64 * 2.0;
         let mat_translation = Mat4::from_translation(
             vec3(
                 scaled_translation.x as f32,
