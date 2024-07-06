@@ -192,9 +192,9 @@ impl Canvas {
         let rotation = EpicRotation::new(-75.0_f64.to_radians());
         let translation = dvec2(45.0, 150.0);
 
-        let scale = dvec2(1.0, 1.0);
-        let rotation = EpicRotation::new(-0.0_f64.to_radians());
-        let translation = dvec2(0.0, 0.0);
+        // let scale = dvec2(1.0, 1.0);
+        // let rotation = EpicRotation::new(-0.0_f64.to_radians());
+        // let translation = dvec2(0.0, 0.0);
 
         let (image_width, image_height) = (width, height);
         
@@ -395,42 +395,76 @@ impl Canvas {
         }
     }
 
-    pub fn mouse_to_image(&self, x: f64, y: f64) -> (f64, f64) {
-        let p = dvec2(x, y);
-
+    pub fn center_screen_coords(&self, p: DVec2) -> DVec2 {
+        // todo, use a dvec2 directly in self?
         let w = self.width as f64;
         let h = self.height as f64;
         let screen_size = dvec2(w, h);
         
-        // convert from non-centered screen pixels (winit mouse input)
-        // to centered screen pixels (for rotation and scale)
-        let p = p - screen_size/2.0;
+        return p - screen_size / 2.0;
+    }
 
-        // apply the canvas transforms to convert
-        // from centered screen pixels
-        //   to centered image pixels
-        let p = p / self.scale;
-        let p = p - self.translation;
-        let p = p.rotate(self.rotation.vec());
+    pub fn decenter_screen_coords(&self, p: DVec2) -> DVec2 {
+        // todo, use a dvec2 directly in self?
+        let w = self.width as f64;
+        let h = self.height as f64;
+        let screen_size = dvec2(w, h);
+        
+        return p + screen_size / 2.0;
+    }
 
-
-
-        // todo: this awful y invert shit is probably scattered somewhere else too
-        let mut p = p;
-        p.y = - p.y;
-
-
-        // convert from centered image pixels
-        // to non-centered image pixels (for indexing)
+    pub fn center_image_coords(&self, p: DVec2) -> DVec2 {
         let w = self.image_width as f64;
         let h = self.image_height as f64;
         let image_size = dvec2(w, h);
 
-        let p = p + image_size/2.0;
-    
+        return p - image_size/2.0;
+    }
+
+    pub fn decenter_image_coords(&self, p: DVec2) -> DVec2 {
+        let w = self.image_width as f64;
+        let h = self.image_height as f64;
+        let image_size = dvec2(w, h);
+
+        return p + image_size/2.0;
+    }
+
+    pub fn screen_to_image(&self, x: f64, y: f64) -> (f64, f64) {
+        let p = dvec2(x, y);
+
+        let p = self.center_screen_coords(p);
+
+        // apply the canvas transforms to convert from centered screen pixels to centered image pixels
+        let p = p / self.scale;
+        let p = p - self.translation;
+        let mut p = p.rotate(self.rotation.vec());
+
+        // invert y
+        p.y = - p.y;
+
+        let p = self.decenter_image_coords(p);
 
         return (p.x, p.y);
     }
+
+    pub fn image_to_screen(&self, x: f64, y: f64) -> DVec2 {
+        let mut p = dvec2(x, y);
+    
+        p = self.center_image_coords(p);
+    
+        // invert y
+        p.y = -p.y;
+    
+        p = p.rotate(-self.rotation.vec());
+        p = p + self.translation;
+        p = p * self.scale;
+    
+        p = self.decenter_screen_coords(p);
+    
+        return p;
+    }
+    
+
 
     pub fn draw_dots(&mut self) {
         if self.mouse_dots.len() == 0 {
@@ -438,7 +472,7 @@ impl Canvas {
         }
 
         if self.mouse_dots.len() == 1 {
-            let (x,y) = self.mouse_to_image(self.mouse_dots[0].x, self.mouse_dots[0].y);
+            let (x,y) = self.screen_to_image(self.mouse_dots[0].x, self.mouse_dots[0].y);
 
             self.draw_circle(x as isize, y as isize);
             
@@ -447,10 +481,10 @@ impl Canvas {
         
         for i in 0..(self.mouse_dots.len() - 1) {
 
-            let (x,y) = self.mouse_to_image(self.mouse_dots[i].x, self.mouse_dots[i].y);
+            let (x,y) = self.screen_to_image(self.mouse_dots[i].x, self.mouse_dots[i].y);
             let first_dot = Xy::new(x as f64,y as f64);
 
-            let (x,y) = self.mouse_to_image(self.mouse_dots[i + 1].x, self.mouse_dots[i + 1].y);
+            let (x,y) = self.screen_to_image(self.mouse_dots[i + 1].x, self.mouse_dots[i + 1].y);
             let second_dot = Xy::new(x as f64,y as f64);
 
             let first_center = Xy::new(first_dot.x, first_dot.y);
@@ -609,7 +643,7 @@ impl Canvas {
                     };
 
                     // todo, might be better to keep the last mouse pos *before the scrolling started*
-                    let mouse_before = self.mouse_to_image(self.last_mouse_pos.x, self.last_mouse_pos.y);
+                    let mouse_before = self.screen_to_image(self.last_mouse_pos.x, self.last_mouse_pos.y);
                     let mouse_before = dvec2(mouse_before.0, mouse_before.1);
 
                     let min_zoom = 0.01;
@@ -623,7 +657,7 @@ impl Canvas {
                     }
 
 
-                    let mouse_after = self.mouse_to_image(self.last_mouse_pos.x, self.last_mouse_pos.y);
+                    let mouse_after = self.screen_to_image(self.last_mouse_pos.x, self.last_mouse_pos.y);
                     let mouse_after = dvec2(mouse_after.0, mouse_after.1);
 
                     // let w = self.width as f64;
@@ -634,9 +668,12 @@ impl Canvas {
                     let diff = mouse_after - mouse_before;
                     let diff = dvec2(diff.x, -diff.y);
 
+                    let huh = self.rotation.inverse_vec();
+                    let diff = diff.rotate(huh);
+
                     self.translation += diff;
                     
-                    let mouse_final = self.mouse_to_image(self.last_mouse_pos.x, self.last_mouse_pos.y);
+                    let mouse_final = self.screen_to_image(self.last_mouse_pos.x, self.last_mouse_pos.y);
                     let mouse_final = dvec2(mouse_final.0, mouse_final.1);
 
 
@@ -716,6 +753,11 @@ impl EpicRotation {
     pub fn vec(&self) -> DVec2 {
         return self.vec;
     }
+
+    pub fn inverse_vec(&self) -> DVec2 {
+        return dvec2(self.vec.x, -self.vec.y);
+    }
+
     pub fn cos(&self) -> f64 {
         return self.vec.x;
     }
