@@ -76,6 +76,8 @@ pub struct Canvas {
 
     scale: DVec2,
     rotation: EpicRotation,
+
+    // this translation is in screen pixels right now I think
     translation: DVec2,
 
     backups: Vec<Vec<PixelColor>>,
@@ -190,9 +192,9 @@ impl Canvas {
         let rotation = EpicRotation::new(-75.0_f64.to_radians());
         let translation = dvec2(45.0, 150.0);
 
-        // let scale = dvec2(1.0, 1.0);
-        // let rotation = EpicRotation::new(-0.0_f64.to_radians());
-        // let translation = dvec2(0.0, 0.0);
+        let scale = dvec2(1.0, 1.0);
+        let rotation = EpicRotation::new(-0.0_f64.to_radians());
+        let translation = dvec2(0.0, 0.0);
 
         let (image_width, image_height) = (width, height);
         
@@ -596,8 +598,7 @@ impl Canvas {
                     }
                 },
                 WindowEvent::MouseWheel { delta, .. } => {
-                    const SCROLL_LINE_TO_PIXELS: f64 = 0.2;
-                    let (x, y) = match delta {
+                    let (_x, y) = match delta {
                         MouseScrollDelta::PixelDelta(winit::dpi::PhysicalPosition { x, y }) => {
                             (*x, *y)
                         }
@@ -607,16 +608,42 @@ impl Canvas {
                         }
                     };
 
+                    let mouse_before = self.mouse_to_image(self.last_mouse_pos.x, self.last_mouse_pos.y);
+                    let mouse_before = dvec2(mouse_before.0, mouse_before.1);
 
-                    self.scale += y;
-                    if self.scale.y < 0.0 {
-                        self.scale.y = 0.0;
+                    let min_zoom = 0.01;
+                    let delta = y * 0.2;
+                    self.scale += delta ;
+                    if self.scale.y < min_zoom {
+                        self.scale.y = min_zoom;
                     }
-                    if self.scale.x < 0.0 {
-                        self.scale.x = 0.0;
+                    if self.scale.x < min_zoom {
+                        self.scale.x = min_zoom;
                     }
 
-                    dbg!(self.scale);
+
+                    let mouse_after = self.mouse_to_image(self.last_mouse_pos.x, self.last_mouse_pos.y);
+                    let mouse_after = dvec2(mouse_after.0, mouse_after.1);
+
+                    // let w = self.width as f64;
+                    // let h = self.height as f64;
+                    // let screen_size = dvec2(w, h);
+                    // let mouse = mouse - screen_size/2.0;
+
+                    let diff = mouse_after - mouse_before;
+                    let diff = dvec2(diff.x, -diff.y);
+
+                    self.translation += diff * self.scale;
+                    
+                    let mouse_final = self.mouse_to_image(self.last_mouse_pos.x, self.last_mouse_pos.y);
+                    let mouse_final = dvec2(mouse_final.0, mouse_final.1);
+
+
+                    dbg!(mouse_before);
+                    dbg!(mouse_after);
+                    dbg!(mouse_final);
+                    dbg!(" ");
+
                     self.update_shader_transform(&queue);
                 }
                 // todo, this sucks actually.
