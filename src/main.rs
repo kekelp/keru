@@ -3,6 +3,7 @@ pub mod ui;
 pub mod canvas;
 
 use canvas::Canvas;
+use glam::dvec2;
 use helper::*;
 pub use ui::Id;
 use ui::{Arrange, Axis::Y, Color, NodeParams, Ui, View};
@@ -112,7 +113,7 @@ impl<'window> State<'window> {
 
         self.ui.build_buffers();
 
-        self.canvas.update();
+        self.update_canvas();
         
         self.render();
 
@@ -141,6 +142,57 @@ impl<'window> State<'window> {
 
         self.window.queue.submit(Some(encoder.finish()));
         frame.present();
+    }
+
+    pub fn update_canvas(&mut self) {
+        self.canvas.draw_dots();
+
+        self.zoom();
+
+        if self.canvas.end_stroke {
+            self.canvas.mouse_dots.clear();
+            self.canvas.end_stroke = false;
+        }
+
+        if self.canvas.need_backup {
+            self.canvas.push_backup();
+            self.canvas.need_backup = false;
+        }
+
+    }
+
+    pub fn zoom(&mut self) {
+        // todo, what about moving all this in update()? events are cringe
+        // todo, might be better to keep the last mouse pos *before the scrolling started*
+        let mouse_before = self.canvas.screen_to_image(self.canvas.last_mouse_pos.x, self.canvas.last_mouse_pos.y);
+        let mouse_before = dvec2(mouse_before.0, mouse_before.1);
+
+        let (_x, y) = self.window.input.scroll_diff();
+
+        let min_zoom = 0.01;
+        let delta = y as f64 * 0.2;
+        self.canvas.scale += delta ;
+        if self.canvas.scale.y < min_zoom {
+            self.canvas.scale.y = min_zoom;
+        }
+        if self.canvas.scale.x < min_zoom {
+            self.canvas.scale.x = min_zoom;
+        }
+
+        let mouse_after = self.canvas.screen_to_image(self.canvas.last_mouse_pos.x, self.canvas.last_mouse_pos.y);
+        let mouse_after = dvec2(mouse_after.0, mouse_after.1);
+
+        let diff = mouse_after - mouse_before;
+        
+        // convert the mouse position diff (screen space) to image space.
+        // --> only rotation and y invert
+        let diff = dvec2(diff.x, -diff.y);
+        let huh = self.canvas.rotation.inverse_vec();
+        let diff = diff.rotate(huh);
+
+        self.canvas.translation += diff;
+
+        self.canvas.update_shader_transform(&self.window.queue);
     }
 }
 

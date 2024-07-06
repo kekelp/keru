@@ -24,7 +24,8 @@ smallbox = "0.8.2"
 view_derive = { path = "view_derive" }
 copypasta = "0.10.1"
 glam = "0.28.0"
-uom = "0.36.0"
+winit_input_helper = "0.16.0"
+
 
 [lints.clippy]
 needless_return = { level = "allow" } 

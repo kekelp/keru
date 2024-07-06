@@ -5,7 +5,7 @@ use bytemuck::{Pod, Zeroable};
 use glam::*;
 
 use {util::DeviceExt, BindGroup, BindGroupEntry, BindGroupLayoutEntry, BindingResource, Buffer, ColorTargetState, Device, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
-use winit::{dpi::PhysicalPosition, event::{ElementState, Event, MouseButton, MouseScrollDelta, WindowEvent}, keyboard::{Key, ModifiersState}};
+use winit::{dpi::PhysicalPosition, event::{ElementState, Event, MouseButton, MouseScrollDelta, WindowEvent}, keyboard::{Key, ModifiersState, NamedKey}};
 
 use crate::{ui::Xy, BASE_HEIGHT, BASE_WIDTH, SWAPCHAIN_FORMAT};
 
@@ -67,38 +67,41 @@ impl PixelColorF32 {
 
 #[derive(Debug)]
 pub struct Canvas {
-    width: usize,
-    height: usize,
+    pub width: usize,
+    pub height: usize,
 
-    image_width: usize,
-    image_height: usize,
-    pixels: Vec<PixelColor>,
+    pub image_width: usize,
+    pub image_height: usize,
+    pub pixels: Vec<PixelColor>,
 
-    scale: DVec2,
-    rotation: EpicRotation,
+    pub scale: DVec2,
+    pub rotation: EpicRotation,
 
     // this translation is in screen pixels right now I think
-    translation: DVec2,
+    pub translation: DVec2,
 
-    backups: Vec<Vec<PixelColor>>,
-    backups_i: usize,
-    need_backup: bool,
+    pub backups: Vec<Vec<PixelColor>>,
+    pub backups_i: usize,
+    pub need_backup: bool,
 
-    mouse_dots: Vec<PhysicalPosition<f64>>,
-    end_stroke: bool,
+    pub space: bool,
+    pub clicking: bool,
+
+    pub mouse_dots: Vec<PhysicalPosition<f64>>,
+    pub end_stroke: bool,
 
     // todo: doesn't UI also keep this? maybe its good to keep them separately doe
-    last_mouse_pos: PhysicalPosition<f64>,
+    pub last_mouse_pos: PhysicalPosition<f64>,
 
-    needs_sync: bool,
-    needs_render: bool,
+    pub needs_sync: bool,
+    pub needs_render: bool,
 
-    texture: Texture,
-    render_pipeline: RenderPipeline,
-    canvas_bind_group: BindGroup,
-    canvas_uniform_buffer: Buffer,
+    pub texture: Texture,
+    pub render_pipeline: RenderPipeline,
+    pub canvas_bind_group: BindGroup,
+    pub canvas_uniform_buffer: Buffer,
 
-    is_drawing: bool,
+    pub is_drawing: bool,
 
     h_scroll: f64,
     v_scroll: f64,
@@ -285,6 +288,8 @@ impl Canvas {
             render_pipeline,
             canvas_bind_group,
             need_backup: true,
+            space: false,
+            clicking: false,
 
             last_mouse_pos: PhysicalPosition::default(),
 
@@ -378,20 +383,6 @@ impl Canvas {
             Some(&mut self.pixels[index])
         } else {
             None
-        }
-    }
-
-    pub fn update(&mut self) {
-        self.draw_dots();
-
-        if self.end_stroke {
-            self.mouse_dots.clear();
-            self.end_stroke = false;
-        }
-
-        if self.need_backup {
-            self.push_backup();
-            self.need_backup = false;
         }
     }
 
@@ -591,21 +582,31 @@ impl Canvas {
             match event {
                 WindowEvent::MouseInput { state, button, .. } => {
                     if *button == MouseButton::Left {
-                        self.is_drawing = *state == ElementState::Pressed;
-                        self.mouse_dots.push(self.last_mouse_pos);
 
-                        // do this on release so that it doesn't get in the way computationally speaking
-                        if *state == ElementState::Released {
-                            self.end_stroke = true;
-                            self.need_backup = true;
+                        self.is_drawing = *state == ElementState::Pressed;
+                        if ! self.space {
+
+                            self.mouse_dots.push(self.last_mouse_pos);
+                            
+                            // do this on release so that it doesn't get in the way computationally speaking
+                            if *state == ElementState::Released {
+                                self.end_stroke = true;
+                                self.need_backup = true;
+                            }
                         }
                     }
                 },
                 WindowEvent::CursorMoved { position, .. } => {
+                    let delta = dvec2(position.x, position.y) - dvec2(self.last_mouse_pos.x, self.last_mouse_pos.y);
                     self.last_mouse_pos = *position;
 
-                    if self.is_drawing {
+                    if self.is_drawing && ! self.space {
                         self.mouse_dots.push(*position);
+                    }
+
+                    if self.space && self.is_drawing {
+                        self.translation += delta / self.scale;
+                        self.update_shader_transform(&queue);
                     }
                 },
                 WindowEvent::KeyboardInput { event, is_synthetic, .. } => {
@@ -630,6 +631,15 @@ impl Canvas {
                                 _ => {}
                             }
                     }
+
+                    if ! is_synthetic {
+                        match &event.logical_key {
+                            Key::Named(NamedKey::Space) => {
+                                self.space = event.state.is_pressed();
+                            }
+                            _ => {},
+                        }
+                    }
                 },
                 WindowEvent::MouseWheel { delta, .. } => {
                     let (_x, y) = match delta {
@@ -642,6 +652,7 @@ impl Canvas {
                         }
                     };
 
+                    // todo, what about moving all this in update()? events are cringe
                     // todo, might be better to keep the last mouse pos *before the scrolling started*
                     let mouse_before = self.screen_to_image(self.last_mouse_pos.x, self.last_mouse_pos.y);
                     let mouse_before = dvec2(mouse_before.0, mouse_before.1);
@@ -656,38 +667,27 @@ impl Canvas {
                         self.scale.x = min_zoom;
                     }
 
-
                     let mouse_after = self.screen_to_image(self.last_mouse_pos.x, self.last_mouse_pos.y);
                     let mouse_after = dvec2(mouse_after.0, mouse_after.1);
 
-                    // let w = self.width as f64;
-                    // let h = self.height as f64;
-                    // let screen_size = dvec2(w, h);
-                    // let mouse = mouse - screen_size/2.0;
-
                     let diff = mouse_after - mouse_before;
+                    
+                    // convert the mouse position diff (screen space) to image space.
+                    // --> only rotation and y invert
                     let diff = dvec2(diff.x, -diff.y);
-
                     let huh = self.rotation.inverse_vec();
                     let diff = diff.rotate(huh);
 
                     self.translation += diff;
-                    
-                    let mouse_final = self.screen_to_image(self.last_mouse_pos.x, self.last_mouse_pos.y);
-                    let mouse_final = dvec2(mouse_final.0, mouse_final.1);
-
-
-                    dbg!(mouse_before);
-                    dbg!(mouse_after);
-                    dbg!(mouse_final);
-                    dbg!(" ");
 
                     self.update_shader_transform(&queue);
+
                 }
                 // todo, this sucks actually.
                 WindowEvent::Resized(size) => {
                     self.width = size.width as usize;
                     self.height = size.height as usize;
+                    self.update_shader_transform(&queue);
                 },
 
                 _ => {}
@@ -736,7 +736,7 @@ impl ReasonableRotation for DVec2 {
 }
 
 #[derive(Clone, Copy, Debug, Default)]
-struct EpicRotation {
+pub struct EpicRotation {
     angle: f64,
     vec: DVec2,
 }

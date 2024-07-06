@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use winit_input_helper::WinitInputHelper;
+
 use wgpu::{
     SurfaceConfiguration, CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance, InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue, RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, Surface, TextureFormat, TextureUsages, TextureView
 };
@@ -19,6 +21,8 @@ pub fn configure_surface(surface: &Surface, window: &Window, device: &Device) ->
 pub struct WgpuWindow<'window> {
     pub window: Arc<Window>,
     pub surface: Surface<'window>,
+    pub input: WinitInputHelper,
+    
     pub config: SurfaceConfiguration,
     pub device: Device,
     pub queue: Queue,
@@ -31,10 +35,14 @@ impl<'window> WgpuWindow<'window> {
             config,
             device,
             queue,
+            input: WinitInputHelper::new(),
         };
     }
 
     pub fn handle_events(&mut self, event: &Event<()>, target: &EventLoopWindowTarget<()>) {
+
+        self.input.update(&event);
+        
         match event {
             Event::WindowEvent {
                 event: WindowEvent::Resized(size),
