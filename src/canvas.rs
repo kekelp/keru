@@ -193,7 +193,7 @@ impl Canvas {
         let translation = dvec2(45.0, 150.0);
 
         let scale = dvec2(1.0, 1.0);
-        let rotation = EpicRotation::new(-0.0_f64.to_radians());
+        // let rotation = EpicRotation::new(-0.0_f64.to_radians());
         let translation = dvec2(0.0, 0.0);
 
         let (image_width, image_height) = (width, height);
