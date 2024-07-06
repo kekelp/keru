@@ -193,7 +193,7 @@ impl Canvas {
         let translation = dvec2(45.0, 150.0);
 
         let scale = dvec2(1.0, 1.0);
-        // let rotation = EpicRotation::new(-0.0_f64.to_radians());
+        let rotation = EpicRotation::new(-0.0_f64.to_radians());
         let translation = dvec2(0.0, 0.0);
 
         let (image_width, image_height) = (width, height);
@@ -326,7 +326,7 @@ impl Canvas {
                
         let (image_width, image_height) = (self.width, self.height);
         
-        let transform = mat_translation * mat_rotation * mat_scale;
+        let transform = mat_scale * mat_translation * mat_rotation;
 
         let canvas_uniforms = CanvasUniforms {
             scale: [self.scale.x as f32, self.scale.y as f32],
@@ -409,8 +409,8 @@ impl Canvas {
         // apply the canvas transforms to convert
         // from centered screen pixels
         //   to centered image pixels
-        let p = p - self.translation;
         let p = p / self.scale;
+        let p = p - self.translation;
         let p = p.rotate(self.rotation.vec());
 
 
@@ -608,6 +608,7 @@ impl Canvas {
                         }
                     };
 
+                    // todo, might be better to keep the last mouse pos *before the scrolling started*
                     let mouse_before = self.mouse_to_image(self.last_mouse_pos.x, self.last_mouse_pos.y);
                     let mouse_before = dvec2(mouse_before.0, mouse_before.1);
 
@@ -633,7 +634,7 @@ impl Canvas {
                     let diff = mouse_after - mouse_before;
                     let diff = dvec2(diff.x, -diff.y);
 
-                    self.translation += diff * self.scale;
+                    self.translation += diff;
                     
                     let mouse_final = self.mouse_to_image(self.last_mouse_pos.x, self.last_mouse_pos.y);
                     let mouse_final = dvec2(mouse_final.0, mouse_final.1);
