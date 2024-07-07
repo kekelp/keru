@@ -10,8 +10,7 @@ use ui::{Arrange, Axis::Y, Color, NodeParams, Ui, View};
 use view_derive::derive_view;
 use wgpu::TextureViewDescriptor;
 use winit::{
-    event::Event,
-    event_loop::{EventLoop, EventLoopWindowTarget},
+    event::{Event, MouseButton}, event_loop::{EventLoop, EventLoopWindowTarget}, keyboard::KeyCode
 };
 
 fn main() {
@@ -148,7 +147,7 @@ impl State {
         self.canvas.draw_dots();
 
         self.zoom();
-        self.rotate();
+        self.rotate_and_pan();
 
         if self.canvas.end_stroke {
             self.canvas.mouse_dots.clear();
@@ -195,9 +194,25 @@ impl State {
         self.canvas.update_shader_transform(&self.ctx.queue);
     }
 
-    pub fn rotate(&mut self) {
-        let new_angle = self.canvas.rotation.angle() + 0.06;
-        self.canvas.rotation = EpicRotation::new(new_angle);
+    pub fn rotate_and_pan(&mut self) {
+        if self.ctx.input.mouse_held(MouseButton::Left) && self.ctx.input.key_held(KeyCode::Space) {
+
+            let (x, y) = self.ctx.input.cursor_diff();
+            if self.ctx.input.held_shift() {
+
+                
+                let new_angle = self.canvas.rotation.angle() + (y as f64 * 0.01);
+                self.canvas.rotation = EpicRotation::new(new_angle);
+            } else {
+
+                let delta = dvec2(x as f64, y as f64);
+                self.canvas.translation += delta / self.canvas.scale;
+
+                self.canvas.update_shader_transform(&self.ctx.queue);
+            }
+
+            
+        }
     }
 }
 

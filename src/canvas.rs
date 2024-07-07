@@ -597,11 +597,6 @@ impl Canvas {
                     if self.is_drawing && ! self.space {
                         self.mouse_dots.push(*position);
                     }
-
-                    if self.space && self.is_drawing {
-                        self.translation += delta / self.scale;
-                        self.update_shader_transform(&queue);
-                    }
                 },
                 WindowEvent::KeyboardInput { event, is_synthetic, .. } => {
                     // println!("  {:?}", event );
