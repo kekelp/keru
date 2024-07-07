@@ -2,7 +2,7 @@ pub mod helper;
 pub mod ui;
 pub mod canvas;
 
-use canvas::Canvas;
+use canvas::{Canvas, EpicRotation};
 use glam::dvec2;
 use helper::*;
 pub use ui::Id;
@@ -148,6 +148,7 @@ impl State {
         self.canvas.draw_dots();
 
         self.zoom();
+        self.rotate();
 
         if self.canvas.end_stroke {
             self.canvas.mouse_dots.clear();
@@ -162,7 +163,6 @@ impl State {
     }
 
     pub fn zoom(&mut self) {
-        // todo, what about moving all this in update()? events are cringe
         // todo, might be better to keep the last mouse pos *before the scrolling started*
         let mouse_before = self.canvas.screen_to_image(self.canvas.last_mouse_pos.x, self.canvas.last_mouse_pos.y);
         let mouse_before = dvec2(mouse_before.0, mouse_before.1);
@@ -193,6 +193,11 @@ impl State {
         self.canvas.translation += diff;
 
         self.canvas.update_shader_transform(&self.ctx.queue);
+    }
+
+    pub fn rotate(&mut self) {
+        let new_angle = self.canvas.rotation.angle() + 0.06;
+        self.canvas.rotation = EpicRotation::new(new_angle);
     }
 }
 
