@@ -456,6 +456,10 @@ impl<'a> ChainedMethodUi<'a> {
     pub fn set_text(&mut self, text: &str) {
         self.ui.chained_set_text(text)
     }
+
+    pub fn get_text(&mut self) -> Option<String> {
+        return self.ui.chained_get_text();
+    }
 }
 
 pub struct PartialBorrowStuff {
@@ -688,6 +692,23 @@ impl Ui {
                 let old_node = o.into_mut();
                 let text_id = old_node.text_id.unwrap();
                 self.text.set_text(text_id, text);
+            }
+        };
+    }
+
+    pub fn chained_get_text(&mut self) -> Option<String> {
+        let (last_id, last_view) = self.trace.last();
+
+        match self.node_map.entry(last_id) {
+            std::collections::hash_map::Entry::Vacant(v) => {
+                return None;
+            }
+            std::collections::hash_map::Entry::Occupied(o) => {
+                let old_node = o.into_mut();
+                let text_id = old_node.text_id.unwrap();
+
+                let text = self.text.text_areas[text_id].buffer.lines[0].text.text().to_string();
+                return Some(text);
             }
         };
     }

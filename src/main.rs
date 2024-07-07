@@ -3,6 +3,7 @@ pub mod ui;
 pub mod canvas;
 
 use canvas::{Canvas, EpicRotation};
+use geometric_algebra::{epga2d::{Point, Rotor}, GeometricProduct};
 use glam::dvec2;
 use helper::*;
 pub use ui::Id;
@@ -92,9 +93,24 @@ impl State {
 
         ui.update_gpu_time(&self.ctx.queue);
 
-        // h_stack!(ui, CommandLineRow, {
-        //     ui.add(CommandLine);
-        // });
+        h_stack!(ui, CommandLineRow, {
+            
+            let scalar = ui.add(ScalarInput).get_text().unwrap_or("1.0".to_string());
+            let e12 = ui.add(E12Input).get_text().unwrap_or("1.0".to_string());
+
+            let scalar_f32: f32 = scalar.parse::<f32>().unwrap_or(1.0);
+            let e12_f32: f32 = e12.parse::<f32>().unwrap_or(1.0);
+
+            let r = Rotor::new(scalar_f32, e12_f32);
+            let text = format!("{:?}", r); 
+            ui.add(CommandLine).set_text(&text);
+
+            
+            
+            let p = Point::new(3.0, 5.0, 7.0);
+            let text = format!("{:?}", p.geometric_product(r) ); 
+            ui.add(Label234).set_text(&text);
+        });
 
         ui.finish_tree();
 
@@ -191,6 +207,8 @@ impl State {
 
         self.canvas.translation += diff;
 
+
+
         self.canvas.update_shader_transform(&self.ctx.queue);
     }
 
@@ -260,8 +278,17 @@ pub struct CountLabel;
 )]
 pub struct CommandLineRow;
 
-#[derive_view(NodeParams::TEXT_INPUT.text("高38道ょつヽ༼ຈل͜ຈ༽ﾉ準傷に債健の🤦🏼‍♂️🚵🏻‍♀️").size_y(0.1))]
+#[derive_view(NodeParams::TEXT_INPUT.text("scalar"))]
+pub struct ScalarInput;
+
+#[derive_view(NodeParams::TEXT_INPUT.text("e12"))]
+pub struct E12Input;
+
+#[derive_view(NodeParams::TEXT_INPUT.text("RERER"))]
 pub struct CommandLine;
+
+#[derive_view(NodeParams::LABEL)]
+pub struct Label234;
 
 #[allow(dead_code)]
 pub fn useless_counter(ui: &mut Ui, counter_state: &mut CounterState) {
