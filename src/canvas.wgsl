@@ -55,8 +55,6 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {
 
     var output: VertexOutput;
     
-    let aspect = base_unif.screen_size.y / base_unif.screen_size.x;
-
     output.position = unif.transform * positions[vertex_index];
 
     output.tex_coords = tex_coords[vertex_index];

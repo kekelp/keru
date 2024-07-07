@@ -171,6 +171,7 @@ dependencies = [
  "bitflags 2.5.0",
  "bytemuck",
  "copypasta",
+ "geometric_algebra",
  "glam",
  "glyphon",
  "lazy_static",
@@ -550,6 +551,12 @@ name = "foreign-types-shared"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aa9a19cbb55df58761df49b23516a86d432839add4af60fc256da840f66ed35b"
+
+[[package]]
+name = "geometric_algebra"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dea41acf362984b8642ed6bd9278c4dc2919703d80f3e63d935b315e9ad20959"
 
 [[package]]
 name = "gethostname"

@@ -10,6 +10,8 @@ use winit::{dpi::PhysicalPosition, event::{ElementState, Event, MouseButton, Mou
 use crate::{ui::Xy, BASE_HEIGHT, BASE_WIDTH, SWAPCHAIN_FORMAT};
 
 
+use geometric_algebra::epga2d::*;
+
 #[derive(Clone, Copy, Debug)]
 #[derive(Zeroable, Pod)]
 #[repr(C)]
@@ -312,7 +314,7 @@ impl Canvas {
         let aspect = self.height as f32 / self.width as f32;
         let scale_x = self.scale.x as f32; 
         let scale_y = self.scale.y as f32 / aspect; 
-        let mat_scale = Mat4::from_scale(vec3(scale_x, scale_y as f32, 1.0));
+        let mat_scale = Mat4::from_scale(vec3(scale_x, scale_y, 1.0));
         let mat_rotation = Mat4::from_rotation_z(self.rotation.angle() as f32);
 
         // scale with the weird aspect or something
