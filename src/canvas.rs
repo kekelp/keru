@@ -102,9 +102,6 @@ pub struct Canvas {
     pub canvas_uniform_buffer: Buffer,
 
     pub is_drawing: bool,
-
-    h_scroll: f64,
-    v_scroll: f64,
 }
 
 #[repr(C)]
@@ -268,9 +265,6 @@ impl Canvas {
         });
         
         let mut canvas = Canvas {
-            h_scroll: 0.0,
-            v_scroll: 0.0,
-
             width,
             height,
             image_width,
