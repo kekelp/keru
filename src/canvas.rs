@@ -316,7 +316,10 @@ impl Canvas {
     }
 
     pub fn update_shader_transform(&mut self, queue: &Queue) {
-        let mat_scale = Mat4::from_scale(vec3(self.scale.x as f32, self.scale.y as f32, 1.0));
+        let aspect = self.height as f32 / self.width as f32;
+        let scale_x = self.scale.x as f32; 
+        let scale_y = self.scale.y as f32 / aspect; 
+        let mat_scale = Mat4::from_scale(vec3(scale_x, scale_y as f32, 1.0));
         let mat_rotation = Mat4::from_rotation_z(self.rotation.angle() as f32);
 
         // scale with the weird aspect or something
@@ -328,9 +331,7 @@ impl Canvas {
                 1.0
             )
         );
-               
-        let (image_width, image_height) = (self.width, self.height);
-        
+                       
         let transform = mat_scale * mat_translation * mat_rotation;
 
         let canvas_uniforms = CanvasUniforms {
@@ -338,7 +339,7 @@ impl Canvas {
             cos: self.rotation.cos() as f32,
             sin: self.rotation.sin() as f32,
             translation: [scaled_translation.x as f32, scaled_translation.y as f32],
-            image_size: [image_width as f32, image_height as f32],
+            image_size: [self.image_width as f32, self.image_height as f32],
             transform: transform.to_cols_array_2d(),
         };
 
