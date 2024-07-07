@@ -18,17 +18,17 @@ pub fn configure_surface(surface: &Surface, window: &Window, device: &Device) ->
     return config;
 }
 
-pub struct Context<'window> {
+pub struct Context {
     pub window: Arc<Window>,
-    pub surface: Surface<'window>,
+    pub surface: Surface<'static>,
     pub input: WinitInputHelper,
     
     pub surface_config: SurfaceConfiguration,
     pub device: Device,
     pub queue: Queue,
 }
-impl<'window> Context<'window> {
-    pub fn new(window: Arc<Window>, surface: Surface<'window>, config: SurfaceConfiguration, device: Device, queue: Queue) -> Self {
+impl Context {
+    pub fn new(window: Arc<Window>, surface: Surface<'static>, config: SurfaceConfiguration, device: Device, queue: Queue) -> Self {
         return Context {
             window,
             surface,

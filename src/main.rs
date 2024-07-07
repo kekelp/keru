@@ -27,7 +27,7 @@ fn main() {
 pub const BASE_WIDTH: f64 = 1200.0;
 pub const BASE_HEIGHT: f64 = 800.0;
 
-fn init() -> (EventLoop<()>, State<'static>) {
+fn init() -> (EventLoop<()>, State) {
     let (event_loop, window, instance, device, queue) =
         init_winit_and_wgpu(BASE_WIDTH, BASE_HEIGHT);
     let surface = instance.create_surface(window.clone()).unwrap();
@@ -35,10 +35,10 @@ fn init() -> (EventLoop<()>, State<'static>) {
 
     let ui = Ui::new(&device, &config, &queue);
     let canvas = Canvas::new(BASE_WIDTH as usize, BASE_HEIGHT as usize, &device, &queue, &ui.uniform_buffer);
-    let window = Context::new(window, surface, config, device, queue);
+    let ctx = Context::new(window, surface, config, device, queue);
 
     let state = State {
-        ctx: window,
+        ctx,
         ui,
         counter_state: CounterState::new(),
         canvas,
@@ -47,8 +47,8 @@ fn init() -> (EventLoop<()>, State<'static>) {
     return (event_loop, state);
 }
 
-pub struct State<'window> {
-    pub ctx: Context<'window>,
+pub struct State {
+    pub ctx: Context,
     pub ui: Ui,
     // app state
     pub counter_state: CounterState,
@@ -72,7 +72,7 @@ pub fn count_color(count: i32) -> Color {
     return Color::rgba(red, 0.1, 0.2, 0.8);
 }
 
-impl<'window> State<'window> {
+impl State {
     pub fn handle_event(&mut self, event: &Event<()>, target: &EventLoopWindowTarget<()>) {
         self.ctx.handle_events(event, target);
         let consumed = self.ui.handle_events(event, &self.ctx.queue);
