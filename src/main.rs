@@ -194,25 +194,45 @@ impl State {
         self.canvas.update_shader_transform(&self.ctx.queue);
     }
 
-    pub fn rotate_and_pan(&mut self) {
-        if self.ctx.input.mouse_held(MouseButton::Left) && self.ctx.input.key_held(KeyCode::Space) {
+    pub fn rotate_and_pan(&mut self) -> Option<()> {
+        let pan = (self.ctx.input.key_held(KeyCode::Space) && self.ctx.input.mouse_held(MouseButton::Left)) 
+        || self.ctx.input.mouse_held(MouseButton::Middle);
+
+        println!("  {:?}", self.ctx.input.mouse_held(MouseButton::Middle));
+
+        if pan {
 
             let (x, y) = self.ctx.input.cursor_diff();
+            let delta = dvec2(x as f64, y as f64);
             if self.ctx.input.held_shift() {
 
+                let before = self.ctx.input.cursor()?;
                 
-                let new_angle = self.canvas.rotation.angle() + (y as f64 * 0.01);
+                let before = dvec2(before.0 as f64, before.1 as f64);
+                let before = self.canvas.center_screen_coords(before);
+                
+                let after = before + delta;
+
+
+                let angle = after.angle_to(before);
+
+
+                // println!("  {:?}", h);
+
+                let new_angle = self.canvas.rotation.angle() + angle;
                 self.canvas.rotation = EpicRotation::new(new_angle);
+
+
             } else {
 
-                let delta = dvec2(x as f64, y as f64);
                 self.canvas.translation += delta / self.canvas.scale;
 
                 self.canvas.update_shader_transform(&self.ctx.queue);
             }
 
-            
         }
+
+        return Some(());
     }
 }
 
