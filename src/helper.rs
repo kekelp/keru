@@ -18,21 +18,21 @@ pub fn configure_surface(surface: &Surface, window: &Window, device: &Device) ->
     return config;
 }
 
-pub struct WgpuWindow<'window> {
+pub struct Context<'window> {
     pub window: Arc<Window>,
     pub surface: Surface<'window>,
     pub input: WinitInputHelper,
     
-    pub config: SurfaceConfiguration,
+    pub surface_config: SurfaceConfiguration,
     pub device: Device,
     pub queue: Queue,
 }
-impl<'window> WgpuWindow<'window> {
+impl<'window> Context<'window> {
     pub fn new(window: Arc<Window>, surface: Surface<'window>, config: SurfaceConfiguration, device: Device, queue: Queue) -> Self {
-        return WgpuWindow {
+        return Context {
             window,
             surface,
-            config,
+            surface_config: config,
             device,
             queue,
             input: WinitInputHelper::new(),
@@ -60,9 +60,9 @@ impl<'window> WgpuWindow<'window> {
     }
 
     pub fn resize(&mut self, size: &PhysicalSize<u32>) {
-        self.config.width = size.width;
-        self.config.height = size.height;
-        self.surface.configure(&self.device, &self.config);
+        self.surface_config.width = size.width;
+        self.surface_config.height = size.height;
+        self.surface.configure(&self.device, &self.surface_config);
         self.window.request_redraw();
     }
 }

@@ -1,13 +1,13 @@
 use std::{cmp::max, mem::size_of};
-use wgpu::{hal::auxil::db, *};
+use wgpu::*;
 
 use bytemuck::{Pod, Zeroable};
 use glam::*;
 
-use {util::DeviceExt, BindGroup, BindGroupEntry, BindGroupLayoutEntry, BindingResource, Buffer, ColorTargetState, Device, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
+use {BindGroup, BindGroupEntry, BindGroupLayoutEntry, BindingResource, Buffer, ColorTargetState, Device, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
 use winit::{dpi::PhysicalPosition, event::{ElementState, Event, MouseButton, MouseScrollDelta, WindowEvent}, keyboard::{Key, ModifiersState, NamedKey}};
 
-use crate::{ui::Xy, BASE_HEIGHT, BASE_WIDTH, SWAPCHAIN_FORMAT};
+use crate::{ui::Xy, Context, BASE_HEIGHT, BASE_WIDTH, SWAPCHAIN_FORMAT};
 
 
 #[derive(Clone, Copy, Debug)]
@@ -65,7 +65,6 @@ impl PixelColorF32 {
     }
 }
 
-#[derive(Debug)]
 pub struct Canvas {
     pub width: usize,
     pub height: usize,

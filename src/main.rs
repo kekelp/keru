@@ -35,10 +35,10 @@ fn init() -> (EventLoop<()>, State<'static>) {
 
     let ui = Ui::new(&device, &config, &queue);
     let canvas = Canvas::new(BASE_WIDTH as usize, BASE_HEIGHT as usize, &device, &queue, &ui.uniform_buffer);
-    let window = WgpuWindow::new(window, surface, config, device, queue);
+    let window = Context::new(window, surface, config, device, queue);
 
     let state = State {
-        window,
+        ctx: window,
         ui,
         counter_state: CounterState::new(),
         canvas,
@@ -48,7 +48,7 @@ fn init() -> (EventLoop<()>, State<'static>) {
 }
 
 pub struct State<'window> {
-    pub window: WgpuWindow<'window>,
+    pub ctx: Context<'window>,
     pub ui: Ui,
     // app state
     pub counter_state: CounterState,
@@ -74,11 +74,11 @@ pub fn count_color(count: i32) -> Color {
 
 impl<'window> State<'window> {
     pub fn handle_event(&mut self, event: &Event<()>, target: &EventLoopWindowTarget<()>) {
-        self.window.handle_events(event, target);
-        let consumed = self.ui.handle_events(event, &self.window.queue);
+        self.ctx.handle_events(event, target);
+        let consumed = self.ui.handle_events(event, &self.ctx.queue);
 
         if ! consumed {
-            self.canvas.handle_events(event, &self.ui.key_mods, &self.window.queue);
+            self.canvas.handle_events(event, &self.ui.key_mods, &self.ctx.queue);
         }
 
         if is_redraw_requested(event) {
@@ -91,7 +91,7 @@ impl<'window> State<'window> {
 
         ui.begin_tree();
 
-        ui.update_gpu_time(&self.window.queue);
+        ui.update_gpu_time(&self.ctx.queue);
 
         // h_stack!(ui, CommandLineRow, {
         //     ui.add(CommandLine);
@@ -122,25 +122,25 @@ impl<'window> State<'window> {
     }
 
     pub fn render(&mut self) {
-        self.ui.prepare(&self.window.device, &self.window.queue);
+        self.ui.prepare(&self.ctx.device, &self.ctx.queue);
 
-        let frame = self.window.surface.get_current_texture().unwrap();
+        let frame = self.ctx.surface.get_current_texture().unwrap();
 
         let view = frame.texture.create_view(&TextureViewDescriptor::default());
-        let mut encoder = self.window.device.create_command_encoder(&ENC_DESC);
+        let mut encoder = self.ctx.device.create_command_encoder(&ENC_DESC);
 
         {
             let color_att = base_color_attachment(&view);
             let render_pass_desc = &base_render_pass_desc(&color_att);
             let mut render_pass = encoder.begin_render_pass(render_pass_desc);
 
-            self.canvas.render(&mut render_pass, &mut self.window.queue);
+            self.canvas.render(&mut render_pass, &mut self.ctx.queue);
             
             self.ui.render(&mut render_pass);
 
         }
 
-        self.window.queue.submit(Some(encoder.finish()));
+        self.ctx.queue.submit(Some(encoder.finish()));
         frame.present();
     }
 
@@ -167,7 +167,7 @@ impl<'window> State<'window> {
         let mouse_before = self.canvas.screen_to_image(self.canvas.last_mouse_pos.x, self.canvas.last_mouse_pos.y);
         let mouse_before = dvec2(mouse_before.0, mouse_before.1);
 
-        let (_x, y) = self.window.input.scroll_diff();
+        let (_x, y) = self.ctx.input.scroll_diff();
 
         let min_zoom = 0.01;
         let delta = y as f64 * 0.2;
@@ -192,7 +192,7 @@ impl<'window> State<'window> {
 
         self.canvas.translation += diff;
 
-        self.canvas.update_shader_transform(&self.window.queue);
+        self.canvas.update_shader_transform(&self.ctx.queue);
     }
 }
 
