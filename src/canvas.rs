@@ -358,8 +358,6 @@ impl Canvas {
                 
                 *old_color = new_color.to_u8s();
             }
-        } else {
-            // println!(" Geg {:?} {:?}", x, y);
         }
     }
 

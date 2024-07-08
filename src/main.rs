@@ -9,7 +9,7 @@ use geometric_algebra::{epga2d::{Point, Rotor}, GeometricProduct};
 use glam::dvec2;
 use helper::*;
 pub use ui::Id;
-use ui::{Arrange, Axis::Y, Color, NodeParams, Ui, View};
+use ui::{Arrange, Axis::Y, Color, NodeParams, Position, Ui, View};
 use view_derive::derive_view;
 use wgpu::TextureViewDescriptor;
 use winit::{
@@ -113,6 +113,8 @@ impl State {
         //     let text = format!("{:?}", p.geometric_product(r) ); 
         //     ui.add(Label234).set_text(&text);
         // });
+
+        useless_counter(ui, &mut self.counter_state);
 
         ui.finish_tree();
 
@@ -218,8 +220,6 @@ impl State {
         let pan = (self.ctx.input.key_held(KeyCode::Space) && self.ctx.input.mouse_held(MouseButton::Left)) 
         || self.ctx.input.mouse_held(MouseButton::Middle);
 
-        println!("  {:?}", self.ctx.input.mouse_held(MouseButton::Middle));
-
         if pan {
 
             let (x, y) = self.ctx.input.cursor_diff();
@@ -229,15 +229,15 @@ impl State {
                 let before = self.ctx.input.cursor()?;
                 
                 let before = dvec2(before.0 as f64, before.1 as f64);
+
+                // todo, I think in some cases it should be centered around image coordinates.
+                // for example when the whole image is zoomed out and it's in the right half of the viewport.
                 let before = self.canvas.center_screen_coords(before);
                 
                 let after = before + delta;
 
 
                 let angle = after.angle_to(before);
-
-
-                // println!("  {:?}", h);
 
                 let new_angle = self.canvas.rotation.angle() + angle;
                 self.canvas.rotation = EpicRotation::new(new_angle);
@@ -256,7 +256,7 @@ impl State {
     }
 }
 
-#[derive_view(NodeParams::H_STACK.color(Color::BLUE))]
+#[derive_view(NodeParams::H_STACK.color(Color::BLUE).size_x(0.5).position_x(Position::Start))]
 pub struct CenterRow;
 
 #[derive_view(NodeParams::BUTTON.text("Increase").color(Color::GREEN))]
