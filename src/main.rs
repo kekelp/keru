@@ -2,6 +2,8 @@ pub mod helper;
 pub mod ui;
 pub mod canvas;
 
+use std::error::Error;
+
 use canvas::{Canvas, EpicRotation};
 use geometric_algebra::{epga2d::{Point, Rotor}, GeometricProduct};
 use glam::dvec2;
@@ -11,17 +13,17 @@ use ui::{Arrange, Axis::Y, Color, NodeParams, Ui, View};
 use view_derive::derive_view;
 use wgpu::TextureViewDescriptor;
 use winit::{
-    event::{Event, MouseButton}, event_loop::{EventLoop, EventLoopWindowTarget}, keyboard::KeyCode
+    error::EventLoopError, event::{Event, MouseButton}, event_loop::{EventLoop, EventLoopWindowTarget}, keyboard::KeyCode
 };
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     let (event_loop, mut state) = init();
 
-    event_loop
-        .run(move |event, target| {
-            state.handle_event(&event, target);
-        })
-        .unwrap();
+    event_loop.run(move |event, target| {
+        state.handle_event(&event, target);
+    })?;
+
+    Ok(())
 }
 
 pub const BASE_WIDTH: f64 = 1200.0;
@@ -93,24 +95,24 @@ impl State {
 
         ui.update_gpu_time(&self.ctx.queue);
 
-        h_stack!(ui, CommandLineRow, {
+        // h_stack!(ui, CommandLineRow, {
             
-            let scalar = ui.add(ScalarInput).get_text().unwrap_or("1.0".to_string());
-            let e12 = ui.add(E12Input).get_text().unwrap_or("1.0".to_string());
+        //     let scalar = ui.add(ScalarInput).get_text().unwrap_or("1.0".to_string());
+        //     let e12 = ui.add(E12Input).get_text().unwrap_or("1.0".to_string());
 
-            let scalar_f32: f32 = scalar.parse::<f32>().unwrap_or(1.0);
-            let e12_f32: f32 = e12.parse::<f32>().unwrap_or(1.0);
+        //     let scalar_f32: f32 = scalar.parse::<f32>().unwrap_or(1.0);
+        //     let e12_f32: f32 = e12.parse::<f32>().unwrap_or(1.0);
 
-            let r = Rotor::new(scalar_f32, e12_f32);
-            let text = format!("{:?}", r); 
-            ui.add(CommandLine).set_text(&text);
+        //     let r = Rotor::new(scalar_f32, e12_f32);
+        //     let text = format!("{:?}", r); 
+        //     ui.add(CommandLine).set_text(&text);
 
             
             
-            let p = Point::new(3.0, 5.0, 7.0);
-            let text = format!("{:?}", p.geometric_product(r) ); 
-            ui.add(Label234).set_text(&text);
-        });
+        //     let p = Point::new(3.0, 5.0, 7.0);
+        //     let text = format!("{:?}", p.geometric_product(r) ); 
+        //     ui.add(Label234).set_text(&text);
+        // });
 
         ui.finish_tree();
 

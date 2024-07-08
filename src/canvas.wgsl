@@ -17,12 +17,8 @@ var my_texture: texture_2d<f32>;
 var my_sampler: sampler;
 
 struct Uniforms {
-    @location(0) scale: vec2f,
-    @location(1) cos: f32,
-    @location(2) sin: f32,
-    @location(3) translation: vec2f,
-    @location(4) image_size: vec2f,
-    @location(5) transform: mat4x4<f32>,
+    image_size: vec2f,
+    transform: mat4x4<f32>,
 };
 @group(0) @binding(3)
 var<uniform> unif: Uniforms;

@@ -108,11 +108,7 @@ pub struct Canvas {
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 struct CanvasUniforms {
-    scale: [f32; 2],
-    cos: f32,
-    sin: f32,
-    translation: [f32; 2],
-    image_size: [f32; 2],
+    image_size: [f32; 4],
     transform: [[f32; 4]; 4],
 }
 
@@ -330,11 +326,7 @@ impl Canvas {
         let transform = mat_scale * mat_translation * mat_rotation;
 
         let canvas_uniforms = CanvasUniforms {
-            scale: [self.scale.x as f32, self.scale.y as f32],
-            cos: self.rotation.cos() as f32,
-            sin: self.rotation.sin() as f32,
-            translation: [scaled_translation.x as f32, scaled_translation.y as f32],
-            image_size: [self.image_width as f32, self.image_height as f32],
+            image_size: [self.image_width as f32, self.image_height as f32, 0.0, 0.0],
             transform: transform.to_cols_array_2d(),
         };
 
