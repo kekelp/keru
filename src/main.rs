@@ -11,7 +11,7 @@ use helper::*;
 pub use ui::Id;
 use ui::{Arrange, Axis::Y, Color, NodeParams, Position, Ui, View};
 use view_derive::derive_view;
-use wgpu::TextureViewDescriptor;
+use wgpu::{hal::auxil::db, TextureViewDescriptor};
 use winit::{
     error::EventLoopError, event::{Event, MouseButton}, event_loop::{EventLoop, EventLoopWindowTarget}, keyboard::KeyCode
 };
@@ -189,13 +189,15 @@ impl State {
         let (_x, y) = self.ctx.input.scroll_diff();
 
         let min_zoom = 0.01;
-        let delta = y as f64 * 0.2;
-        self.canvas.scale += delta ;
-        if self.canvas.scale.y < min_zoom {
-            self.canvas.scale.y = min_zoom;
-        }
-        if self.canvas.scale.x < min_zoom {
-            self.canvas.scale.x = min_zoom;
+        let max_zoom = 1000.0;
+        let delta = y as f64 * 0.4;
+
+        let curve_factor = 0.3 * ((0.01 + self.canvas.scale.x).powf(1.1) - 0.01).abs();
+
+        let new_val = self.canvas.scale.x + delta * curve_factor;
+
+        if new_val > min_zoom && new_val < max_zoom && ! new_val.is_infinite() && ! new_val.is_nan() {
+            self.canvas.scale = dvec2(new_val, new_val);
         }
 
         let mouse_after = self.canvas.screen_to_image(self.canvas.last_mouse_pos.x, self.canvas.last_mouse_pos.y);
@@ -210,7 +212,6 @@ impl State {
         let diff = diff.rotate(huh);
 
         self.canvas.translation += diff;
-
 
 
         self.canvas.update_shader_transform(&self.ctx.queue);

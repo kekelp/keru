@@ -622,48 +622,6 @@ impl Canvas {
                         }
                     }
                 },
-                WindowEvent::MouseWheel { delta, .. } => {
-                    let (_x, y) = match delta {
-                        MouseScrollDelta::PixelDelta(winit::dpi::PhysicalPosition { x, y }) => {
-                            (*x, *y)
-                        }
-                        MouseScrollDelta::LineDelta(x, y) => {
-                            let ratio = 0.1 + 0.2 * self.scale.x;
-                            ((*x as f64) * ratio, (*y as f64) * ratio)
-                        }
-                    };
-
-                    // todo, what about moving all this in update()? events are cringe
-                    // todo, might be better to keep the last mouse pos *before the scrolling started*
-                    let mouse_before = self.screen_to_image(self.last_mouse_pos.x, self.last_mouse_pos.y);
-                    let mouse_before = dvec2(mouse_before.0, mouse_before.1);
-
-                    let min_zoom = 0.01;
-                    let delta = y * 0.2;
-                    self.scale += delta ;
-                    if self.scale.y < min_zoom {
-                        self.scale.y = min_zoom;
-                    }
-                    if self.scale.x < min_zoom {
-                        self.scale.x = min_zoom;
-                    }
-
-                    let mouse_after = self.screen_to_image(self.last_mouse_pos.x, self.last_mouse_pos.y);
-                    let mouse_after = dvec2(mouse_after.0, mouse_after.1);
-
-                    let diff = mouse_after - mouse_before;
-                    
-                    // convert the mouse position diff (screen space) to image space.
-                    // --> only rotation and y invert
-                    let diff = dvec2(diff.x, -diff.y);
-                    let huh = self.rotation.inverse_vec();
-                    let diff = diff.rotate(huh);
-
-                    self.translation += diff;
-
-                    self.update_shader_transform(&queue);
-
-                }
                 // todo, this sucks actually.
                 WindowEvent::Resized(size) => {
                     self.width = size.width as usize;
