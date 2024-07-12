@@ -1,15 +1,10 @@
-use crate::canvas::{EpicRotation};
-use glam::dvec2;
-use crate::helper::*;
-
 // this is needed to fix some crap with macros: https://github.com/rust-lang/rust/pull/52234#issuecomment-894851497
 // when ui will be in its own crate, this won't happen anymore
 use crate::*;
-
-
-
+use crate::canvas::EpicRotation;
+use glam::dvec2;
 use winit::{
-    event::{MouseButton}, keyboard::KeyCode
+    event::MouseButton, keyboard::KeyCode
 };
 
 impl State {

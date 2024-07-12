@@ -428,17 +428,17 @@ impl Color {
     }
 
     pub fn darken(&mut self, amount: f32) {
-        self.r = self.r * (1.0 - amount);
-        self.g = self.g * (1.0 - amount);
-        self.b = self.b * (1.0 - amount);
-        self.a = self.a * (1.0 - amount);
+        self.r *= 1.0 - amount;
+        self.g *= 1.0 - amount;
+        self.b *= 1.0 - amount;
+        self.a *= 1.0 - amount;
     }
 
     pub fn lighten(&mut self, amount: f32) {
-        self.r = self.r * (1.0 + amount);
-        self.g = self.g * (1.0 + amount);
-        self.b = self.b * (1.0 + amount);
-        self.a = self.a * (1.0 + amount);
+        self.r *= 1.0 + amount;
+        self.g *= 1.0 + amount;
+        self.b *= 1.0 + amount;
+        self.a *= 1.0 + amount;
     }
 }
 
@@ -612,7 +612,7 @@ impl Text {
             area.last_hash = hash;
             area.buffer.set_text(
                 &mut self.font_system,
-                &text,
+                text,
                 Attrs::new().family(Family::SansSerif),
                 Shaping::Advanced,
             );
@@ -1070,7 +1070,7 @@ impl Ui {
                        ! self.key_mods.alt_key() &&
                        ! self.key_mods.super_key() {
 
-                        line.text.insert_str_at_cursor(&new_char);
+                        line.text.insert_str_at_cursor(new_char);
                         line.reset();
                         return true;
 
@@ -1128,7 +1128,7 @@ impl Ui {
                 }
                 WindowEvent::KeyboardInput { event, is_synthetic, .. } => {
                     if ! is_synthetic {
-                        let consumed = self.handle_keyboard_event(&event);
+                        let consumed = self.handle_keyboard_event(event);
                         return consumed;
                     }
                 }
@@ -1183,7 +1183,7 @@ impl Ui {
                     let n = children.len() as f32;
                     let spacing_pixels = 7;
                     let spacing_f = spacing_pixels as f32 / self.part.unifs.size[main_axis];
-                    let main_width = (parent_size[main_axis] - (n - 1.0) * spacing_f as f32) / n;
+                    let main_width = (parent_size[main_axis] - (n - 1.0) * spacing_f) / n;
 
                     let mut walker = parent_rect[main_axis][i0];
 
@@ -1520,7 +1520,7 @@ impl Ui {
 
         for rect in &self.rects {
             if rect.clickable != 0 {
-                let (clicked, hovered) = self.part.is_rect_clicked_or_hovered(&rect);
+                let (clicked, hovered) = self.part.is_rect_clicked_or_hovered(rect);
                 if clicked {
                     self.clicked_stack.push((rect.id, rect.z));
                 } else if hovered {
@@ -1700,7 +1700,7 @@ impl Len {
     pub fn to_pixels(&self, parent_pixels: u32) -> u32 {
         match self {
             Len::PercentOfParent(percent) => return (parent_pixels as f32 * percent) as u32,
-            Len::Pixels(pixels) => return pixels.clone(),
+            Len::Pixels(pixels) => return *pixels,
         }
     }
 }

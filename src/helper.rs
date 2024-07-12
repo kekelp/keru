@@ -17,7 +17,7 @@ pub const SWAPCHAIN_FORMAT: TextureFormat = TextureFormat::Bgra8UnormSrgb;
 pub fn configure_surface(surface: &Surface, window: &Window, device: &Device) -> SurfaceConfiguration {
     let size = window.inner_size();
     let config = base_surface_config(size.width, size.height, SWAPCHAIN_FORMAT);
-    surface.configure(&device, &config);
+    surface.configure(device, &config);
 
     return config;
 }
@@ -45,7 +45,7 @@ impl Context {
 
     pub fn handle_events(&mut self, event: &Event<()>, target: &EventLoopWindowTarget<()>) {
 
-        self.input.update(&event);
+        self.input.update(event);
         
         match event {
             Event::WindowEvent {
@@ -90,7 +90,7 @@ pub struct RenderFrame {
     pub view: TextureView,
 }
 impl RenderFrame {
-    pub fn begin_render_pass<'pass>(&'pass mut self) -> RenderPass<'pass> {
+    pub fn begin_render_pass(&mut self) -> RenderPass<'_> {
         let color_att = base_color_attachment(&self.view);
         let render_pass_desc = &base_render_pass_desc(&color_att);
         let render_pass = self.encoder.begin_render_pass(render_pass_desc);

@@ -125,6 +125,12 @@ pub struct CounterState {
     pub count: i32,
     pub counter_mode: bool,
 }
+impl Default for CounterState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CounterState {
     pub fn new() -> Self {
         return CounterState {

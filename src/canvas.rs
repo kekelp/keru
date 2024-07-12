@@ -426,8 +426,8 @@ impl Canvas {
         p.y = -p.y;
     
         p = p.rotate(-self.rotation.vec());
-        p = p + self.translation;
-        p = p * self.scale;
+        p += self.translation;
+        p *= self.scale;
     
         p = self.decenter_screen_coords(p);
     
@@ -437,7 +437,7 @@ impl Canvas {
 
 
     pub fn draw_dots(&mut self) {
-        if self.mouse_dots.len() == 0 {
+        if self.mouse_dots.is_empty() {
             return;
         }
 
@@ -452,10 +452,10 @@ impl Canvas {
         for i in 0..(self.mouse_dots.len() - 1) {
 
             let (x,y) = self.screen_to_image(self.mouse_dots[i].x, self.mouse_dots[i].y);
-            let first_dot = Xy::new(x as f64,y as f64);
+            let first_dot = Xy::new(x,y);
 
             let (x,y) = self.screen_to_image(self.mouse_dots[i + 1].x, self.mouse_dots[i + 1].y);
-            let second_dot = Xy::new(x as f64,y as f64);
+            let second_dot = Xy::new(x,y);
 
             let first_center = Xy::new(first_dot.x, first_dot.y);
             let second_center = Xy::new(second_dot.x, second_dot.y);
@@ -513,7 +513,7 @@ impl Canvas {
 
                 let pos = center + (dx as f64, dy as f64);
 
-                let alpha = radius as f64 - ((center - pos).x.powi(2) + (center - pos).y.powi(2)).sqrt();
+                let alpha = radius - ((center - pos).x.powi(2) + (center - pos).y.powi(2)).sqrt();
                 let alpha = alpha.clamp(0.0, 1.0);
 
                 let paint_color = PixelColorF32::new(0.2, 0.8, 0.2, 1.0);
@@ -618,7 +618,7 @@ impl Canvas {
                 WindowEvent::Resized(size) => {
                     self.width = size.width as usize;
                     self.height = size.height as usize;
-                    self.update_shader_transform(&queue);
+                    self.update_shader_transform(queue);
                 },
 
                 _ => {}
