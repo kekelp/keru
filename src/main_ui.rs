@@ -1,6 +1,6 @@
-use crate::{canvas::{Canvas, EpicRotation}};
-use glam::dvec2;
-use crate::helper::*;
+
+
+
 
 // this is needed to fix some crap with macros: https://github.com/rust-lang/rust/pull/52234#issuecomment-894851497
 // when ui will be in its own crate, this won't happen anymore
@@ -8,9 +8,7 @@ use crate::*;
 use crate::ui::*;
 use crate::ui::Axis::Y;
 use view_derive::derive_view;
-use winit::{
-    event::{Event, MouseButton}, event_loop::EventLoopWindowTarget, keyboard::KeyCode
-};
+
 
 
 impl State {
