@@ -1,7 +1,3 @@
-
-
-
-
 // this is needed to fix some crap with macros: https://github.com/rust-lang/rust/pull/52234#issuecomment-894851497
 // when ui will be in its own crate, this won't happen anymore
 use crate::*;
@@ -10,32 +6,10 @@ use crate::ui::Axis::Y;
 use view_derive::derive_view;
 
 
-
 impl State {
     pub fn update_ui(&mut self) {
         let ui = &mut self.ui;
         ui.begin_tree();
-
-        ui.update_gpu_time(&self.ctx.queue);
-
-        // h_stack!(ui, CommandLineRow, {
-            
-        //     let scalar = ui.add(ScalarInput).get_text().unwrap_or("1.0".to_string());
-        //     let e12 = ui.add(E12Input).get_text().unwrap_or("1.0".to_string());
-
-        //     let scalar_f32: f32 = scalar.parse::<f32>().unwrap_or(1.0);
-        //     let e12_f32: f32 = e12.parse::<f32>().unwrap_or(1.0);
-
-        //     let r = Rotor::new(scalar_f32, e12_f32);
-        //     let text = format!("{:?}", r); 
-        //     ui.add(CommandLine).set_text(&text);
-
-            
-            
-        //     let p = Point::new(3.0, 5.0, 7.0);
-        //     let text = format!("{:?}", p.geometric_product(r) ); 
-        //     ui.add(Label234).set_text(&text);
-        // });
 
         useless_counter(ui, &mut self.counter_state);
 
@@ -53,7 +27,6 @@ impl State {
             self.counter_state.counter_mode = !self.counter_state.counter_mode;
         }
 
-        self.ui.build_buffers();
     }
 }
 

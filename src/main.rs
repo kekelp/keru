@@ -40,6 +40,8 @@ fn init() -> (EventLoop<()>, State) {
         ui,
         counter_state: CounterState::new(),
         canvas,
+
+        info_visible: true,
     };
 
     return (event_loop, state);
@@ -50,6 +52,8 @@ pub struct State {
     pub ui: Ui,
     pub counter_state: CounterState,
     pub canvas: Canvas,
+
+    pub info_visible: bool,
 }
 
 

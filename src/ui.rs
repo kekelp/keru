@@ -1309,11 +1309,6 @@ impl Ui {
         );
     }
 
-    pub fn update_gpu_time(&mut self, queue: &Queue) {
-        // magical offset...
-        queue.write_buffer(&self.uniform_buffer, 8, bytemuck::bytes_of(&self.t));
-    }
-
     pub fn update_time(&mut self) {
         self.t = self.part.t0.elapsed().as_secs_f32();
     }
@@ -1472,6 +1467,12 @@ impl Ui {
     pub fn prepare(&mut self, device: &Device, queue: &Queue) {
         self.gpu_vertex_buffer.queue_write(&self.rects[..], queue);
 
+        // update gpu time
+        // magical offset...
+        queue.write_buffer(&self.uniform_buffer, 8, bytemuck::bytes_of(&self.t));
+        
+        self.build_buffers();
+        
         self.text
             .text_renderer
             .prepare(
