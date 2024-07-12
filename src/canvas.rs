@@ -522,38 +522,34 @@ impl Canvas {
         }
     }
 
-    pub fn render<'pass>(&'pass mut self, render_pass: &mut RenderPass<'pass>, queue: &Queue, ) {
-        // if self.needs_sync {
-            let data = bytemuck::cast_slice(&self.pixels[..]);
-            queue.write_texture(
-                ImageCopyTexture {
-                    texture: &self.texture,
-                    mip_level: 0,
-                    origin: Origin3d::ZERO,
-                    aspect: TextureAspect::All,
-                },
-                data,
-                ImageDataLayout {
-                    offset: 0,
-                    bytes_per_row: Some(self.image_width as u32 * 4),
-                    rows_per_image: None,
-                },
-                Extent3d {
-                    width: self.image_width as u32,
-                    height: self.image_height as u32,
-                    depth_or_array_layers: 1,
-                },
-            );
-            self.needs_sync = false;
-        // }
+    // todo, do we really believe in this prepare/render stuff? canvas was writing the texture in its render() and it was fine.
+    pub fn prepare(&mut self, queue: &Queue, ) {
+        let data = bytemuck::cast_slice(&self.pixels[..]);
+        queue.write_texture(
+            ImageCopyTexture {
+                texture: &self.texture,
+                mip_level: 0,
+                origin: Origin3d::ZERO,
+                aspect: TextureAspect::All,
+            },
+            data,
+            ImageDataLayout {
+                offset: 0,
+                bytes_per_row: Some(self.image_width as u32 * 4),
+                rows_per_image: None,
+            },
+            Extent3d {
+                width: self.image_width as u32,
+                height: self.image_height as u32,
+                depth_or_array_layers: 1,
+            },
+        );
+    }
 
-        // if self.needs_render {
-            render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_bind_group(0, &self.canvas_bind_group, &[]);
-            render_pass.draw(0..6, 0..1);
-            
-            self.needs_render = false;
-        // }
+    pub fn render<'pass>(&'pass mut self, render_pass: &mut RenderPass<'pass>) {
+        render_pass.set_pipeline(&self.render_pipeline);
+        render_pass.set_bind_group(0, &self.canvas_bind_group, &[]);
+        render_pass.draw(0..6, 0..1);
     }
 
     pub fn handle_events(&mut self, full_event: &winit::event::Event<()>, key_mods: &ModifiersState, queue: &Queue) {

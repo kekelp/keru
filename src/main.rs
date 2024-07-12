@@ -79,18 +79,17 @@ impl State {
     }
 
     pub fn render(&mut self) {
+        self.canvas.prepare(&mut self.ctx.queue);
         self.ui.prepare(&self.ctx.device, &self.ctx.queue);
 
         let mut frame = self.ctx.begin_frame();
 
         {
             let mut render_pass = frame.begin_render_pass();
-
-            self.canvas.render(&mut render_pass, &mut self.ctx.queue);
+            self.canvas.render(&mut render_pass);
             self.ui.render(&mut render_pass);
         }
-
+        
         frame.finish(&self.ctx.queue);
- 
     }
 }
