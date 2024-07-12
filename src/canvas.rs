@@ -5,12 +5,9 @@ use bytemuck::{Pod, Zeroable};
 use glam::*;
 
 use {BindGroup, BindGroupEntry, BindGroupLayoutEntry, BindingResource, Buffer, ColorTargetState, Device, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
-use winit::{dpi::PhysicalPosition, event::{ElementState, Event, MouseButton, MouseScrollDelta, WindowEvent}, keyboard::{Key, ModifiersState, NamedKey}};
+use winit::{dpi::PhysicalPosition, event::{ElementState, Event, MouseButton, WindowEvent}, keyboard::{Key, ModifiersState, NamedKey}};
 
 use crate::{ui::Xy, BASE_HEIGHT, BASE_WIDTH, SWAPCHAIN_FORMAT};
-
-
-use geometric_algebra::epga2d::*;
 
 #[derive(Clone, Copy, Debug)]
 #[derive(Zeroable, Pod)]
@@ -183,15 +180,10 @@ impl Canvas {
             ..Default::default()
         });
         
-
-        // Define transformations
-        let scale = dvec2(0.6, 0.6);
-        let rotation = EpicRotation::new(-75.0_f64.to_radians());
-        let translation = dvec2(45.0, 150.0);
-
-        // let scale = dvec2(1.0, 1.0);
-        // let rotation = EpicRotation::new(-0.0_f64.to_radians());
-        // let translation = dvec2(0.0, 0.0);
+        // default transformations
+        let scale = dvec2(0.8, 0.8);
+        let rotation = EpicRotation::new(-0.0_f64.to_radians());
+        let translation = dvec2(0.0, 0.0);
 
         let (image_width, image_height) = (width, height);
         
@@ -292,14 +284,15 @@ impl Canvas {
             is_drawing: false,
         };
 
-        for x in 0..width {
-            for y in 0..height {
-                if let Some(pixel) = canvas.get_pixel(x, y) {
-                    *pixel = PixelColor::rgba_f32(x as f32 / width as f32, 0.0, y as f32 / height as f32, 1.0);
-                }
+        // fill with test colors
+        // for x in 0..width {
+        //     for y in 0..height {
+        //         if let Some(pixel) = canvas.get_pixel(x, y) {
+        //             *pixel = PixelColor::rgba_f32(x as f32 / width as f32, 0.0, y as f32 / height as f32, 1.0);
+        //         }
                 
-            }
-        }
+        //     }
+        // }
 
         canvas.update_shader_transform(queue);
 

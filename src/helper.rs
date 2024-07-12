@@ -3,7 +3,7 @@ use std::sync::Arc;
 use winit_input_helper::WinitInputHelper;
 
 use wgpu::{
-    SurfaceConfiguration, CommandEncoderDescriptor, CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance, InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue, RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, Surface, TextureFormat, TextureUsages, TextureView
+    SurfaceConfiguration, CommandEncoderDescriptor, CompositeAlphaMode, Color, Device, DeviceDescriptor, Features, Instance, InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue, RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, Surface, TextureFormat, TextureUsages, TextureView
 };
 use winit::{
     dpi::{LogicalSize, PhysicalSize}, event::{Event, WindowEvent}, event_loop::{EventLoop, EventLoopWindowTarget}, window::{Window, WindowBuilder}
@@ -128,7 +128,7 @@ pub fn base_color_attachment(view: &TextureView) -> [Option<RenderPassColorAttac
         view,
         resolve_target: None,
         ops: Operations {
-            load: LoadOp::Load,
+            load: LoadOp::Clear(Color { r: 0.007, g: 0.007, b: 0.013, a: 0.007 }),
             store: wgpu::StoreOp::Store,
         },
     })];
