@@ -697,10 +697,10 @@ impl Ui {
     }
 
     pub fn chained_get_text(&mut self) -> Option<String> {
-        let (last_id, last_view) = self.trace.last();
+        let (last_id, _last_view) = self.trace.last();
 
         match self.node_map.entry(last_id) {
-            std::collections::hash_map::Entry::Vacant(v) => {
+            std::collections::hash_map::Entry::Vacant(_v) => {
                 return None;
             }
             std::collections::hash_map::Entry::Occupied(o) => {

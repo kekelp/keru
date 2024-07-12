@@ -7,7 +7,7 @@ use glam::*;
 use {BindGroup, BindGroupEntry, BindGroupLayoutEntry, BindingResource, Buffer, ColorTargetState, Device, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
 use winit::{dpi::PhysicalPosition, event::{ElementState, Event, MouseButton, WindowEvent}, keyboard::{Key, ModifiersState, NamedKey}};
 
-use crate::{ui::Xy, BASE_HEIGHT, BASE_WIDTH, SWAPCHAIN_FORMAT};
+use crate::{ui::Xy, Scale, BASE_HEIGHT, BASE_WIDTH, SWAPCHAIN_FORMAT};
 
 #[derive(Clone, Copy, Debug)]
 #[derive(Zeroable, Pod)]
@@ -112,11 +112,18 @@ struct CanvasUniforms {
 impl Canvas {
     // Create a new canvas with the given width and height, initialized to a background color
     pub fn new(width: usize, height: usize, device: &Device, queue: &Queue, base_uniforms: &Buffer) -> Self {
+        // default transformations
+        let scale = dvec2(1.0, 1.0);
+        let rotation = EpicRotation::new(-0.0_f64.to_radians());
+        let translation = dvec2(0.0, 0.0);
+
+        let (image_width, image_height) = (width.scale(0.8), height.scale(0.8));
+        
         let texture = device.create_texture(&TextureDescriptor {
             label: Some("Canvas Texture"),
             size: Extent3d {
-                width: width as u32,
-                height: height as u32,
+                width: image_width as u32,
+                height: image_height as u32,
                 depth_or_array_layers: 1,
             },
             mip_level_count: 1,
@@ -179,13 +186,6 @@ impl Canvas {
             mipmap_filter: FilterMode::Nearest,
             ..Default::default()
         });
-        
-        // default transformations
-        let scale = dvec2(0.8, 0.8);
-        let rotation = EpicRotation::new(-0.0_f64.to_radians());
-        let translation = dvec2(0.0, 0.0);
-
-        let (image_width, image_height) = (width, height);
         
         let canvas_uniform_buffer = device.create_buffer(
             &BufferDescriptor {
@@ -539,8 +539,8 @@ impl Canvas {
                     rows_per_image: None,
                 },
                 Extent3d {
-                    width: BASE_WIDTH as u32,
-                    height: BASE_HEIGHT as u32,
+                    width: self.image_width as u32,
+                    height: self.image_height as u32,
                     depth_or_array_layers: 1,
                 },
             );

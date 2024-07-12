@@ -143,3 +143,12 @@ pub fn is_redraw_requested(event: &Event<()>) -> bool {
         return false;
     }
 }
+
+pub trait Scale {
+    fn scale(self, scale: f32) -> Self;
+}
+impl Scale for usize {
+    fn scale(self, scale: f32) -> Self {
+        return (self as f32 * scale) as Self;
+    }
+}
