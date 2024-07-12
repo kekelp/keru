@@ -7,7 +7,7 @@ use glam::*;
 use {BindGroup, BindGroupEntry, BindGroupLayoutEntry, BindingResource, Buffer, ColorTargetState, Device, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
 use winit::{dpi::PhysicalPosition, event::{ElementState, Event, MouseButton, WindowEvent}, keyboard::{Key, ModifiersState, NamedKey}};
 
-use crate::{ui::Xy, Scale, BASE_HEIGHT, BASE_WIDTH, SWAPCHAIN_FORMAT};
+use crate::{ui::Xy, Scale, SWAPCHAIN_FORMAT};
 
 #[derive(Clone, Copy, Debug)]
 #[derive(Zeroable, Pod)]
@@ -576,7 +576,6 @@ impl Canvas {
                     }
                 },
                 WindowEvent::CursorMoved { position, .. } => {
-                    let delta = dvec2(position.x, position.y) - dvec2(self.last_mouse_pos.x, self.last_mouse_pos.y);
                     self.last_mouse_pos = *position;
 
                     if self.is_drawing && ! self.space {

@@ -2,21 +2,17 @@ pub mod helper;
 pub mod ui;
 pub mod canvas;
 
-use std::error::Error;
-
 use canvas::{Canvas, EpicRotation};
-use geometric_algebra::{epga2d::{Point, Rotor}, GeometricProduct};
 use glam::dvec2;
 use helper::*;
 pub use ui::Id;
 use ui::{Arrange, Axis::Y, Color, NodeParams, Position, Ui, View};
 use view_derive::derive_view;
-use wgpu::{hal::auxil::db, TextureViewDescriptor};
 use winit::{
     error::EventLoopError, event::{Event, MouseButton}, event_loop::{EventLoop, EventLoopWindowTarget}, keyboard::KeyCode
 };
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<(), EventLoopError> {
     let (event_loop, mut state) = init();
 
     event_loop.run(move |event, target| {
@@ -26,8 +22,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub const BASE_WIDTH: f64 = 1200.0;
-pub const BASE_HEIGHT: f64 = 800.0;
+pub const BASE_WIDTH: f64 = 1350.0;
+pub const BASE_HEIGHT: f64 = 850.0;
 
 fn init() -> (EventLoop<()>, State) {
     let (event_loop, window, instance, device, queue) =
@@ -90,7 +86,6 @@ impl State {
 
     pub fn update(&mut self) {
         let ui = &mut self.ui;
-
         ui.begin_tree();
 
         ui.update_gpu_time(&self.ctx.queue);
@@ -143,24 +138,18 @@ impl State {
     pub fn render(&mut self) {
         self.ui.prepare(&self.ctx.device, &self.ctx.queue);
 
-        let frame = self.ctx.surface.get_current_texture().unwrap();
-
-        let view = frame.texture.create_view(&TextureViewDescriptor::default());
-        let mut encoder = self.ctx.device.create_command_encoder(&ENC_DESC);
+        let mut frame = self.ctx.begin_frame();
 
         {
-            let color_att = base_color_attachment(&view);
-            let render_pass_desc = &base_render_pass_desc(&color_att);
-            let mut render_pass = encoder.begin_render_pass(render_pass_desc);
+            let mut render_pass = frame.begin_render_pass();
 
             self.canvas.render(&mut render_pass, &mut self.ctx.queue);
             
             self.ui.render(&mut render_pass);
-
         }
 
-        self.ctx.queue.submit(Some(encoder.finish()));
-        frame.present();
+        frame.finish(&self.ctx.queue);
+ 
     }
 
     pub fn update_canvas(&mut self) {

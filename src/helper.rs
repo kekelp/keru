@@ -1,9 +1,11 @@
+pub use wgpu::{CommandEncoderDescriptor, TextureViewDescriptor};
+
 use std::sync::Arc;
 
 use winit_input_helper::WinitInputHelper;
 
 use wgpu::{
-    SurfaceConfiguration, CommandEncoderDescriptor, CompositeAlphaMode, Color, Device, DeviceDescriptor, Features, Instance, InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue, RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, Surface, TextureFormat, TextureUsages, TextureView
+    Color, CommandEncoder, CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance, InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue, RenderPass, RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, Surface, SurfaceConfiguration, SurfaceTexture, TextureFormat, TextureUsages, TextureView
 };
 use winit::{
     dpi::{LogicalSize, PhysicalSize}, event::{Event, WindowEvent}, event_loop::{EventLoop, EventLoopWindowTarget}, window::{Window, WindowBuilder}
@@ -64,6 +66,38 @@ impl Context {
         self.surface_config.height = size.height;
         self.surface.configure(&self.device, &self.surface_config);
         self.window.request_redraw();
+    }
+
+    pub fn begin_frame(&mut self) -> RenderFrame {        
+        let encoder = self.device.create_command_encoder(&CommandEncoderDescriptor::default());
+
+        let frame = self.surface.get_current_texture().unwrap();
+        let view = frame.texture.create_view(&TextureViewDescriptor::default());
+
+        return RenderFrame {
+            encoder,
+            frame,
+            view
+        };
+    }
+}
+
+pub struct RenderFrame {
+    pub encoder: CommandEncoder,
+    pub frame: SurfaceTexture,
+    pub view: TextureView,
+}
+impl RenderFrame {
+    pub fn begin_render_pass<'pass>(&'pass mut self) -> RenderPass<'pass> {
+        let color_att = base_color_attachment(&self.view);
+        let render_pass_desc = &base_render_pass_desc(&color_att);
+        let render_pass = self.encoder.begin_render_pass(render_pass_desc);
+        return render_pass;
+    }
+
+    pub fn finish(self, queue: &Queue) {
+        queue.submit(Some(self.encoder.finish()));
+        self.frame.present();
     }
 }
 
@@ -128,13 +162,11 @@ pub fn base_color_attachment(view: &TextureView) -> [Option<RenderPassColorAttac
         view,
         resolve_target: None,
         ops: Operations {
-            load: LoadOp::Clear(Color { r: 0.007, g: 0.007, b: 0.013, a: 0.007 }),
+            load: LoadOp::Clear(Color { r: 0.0014, g: 0.0014, b: 0.015, a: 1.0 }),
             store: wgpu::StoreOp::Store,
         },
     })];
 }
-
-pub const ENC_DESC: CommandEncoderDescriptor = CommandEncoderDescriptor { label: None };
 
 pub fn is_redraw_requested(event: &Event<()>) -> bool {
     if let Event::WindowEvent { event: WindowEvent::RedrawRequested, .. } = event {
