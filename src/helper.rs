@@ -1,5 +1,7 @@
 pub use wgpu::{CommandEncoderDescriptor, TextureViewDescriptor};
-
+pub use winit::{
+    error::EventLoopError, event_loop::EventLoop
+};
 use std::sync::Arc;
 
 use winit_input_helper::WinitInputHelper;
@@ -8,7 +10,7 @@ use wgpu::{
     Color, CommandEncoder, CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance, InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue, RenderPass, RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, Surface, SurfaceConfiguration, SurfaceTexture, TextureFormat, TextureUsages, TextureView
 };
 use winit::{
-    dpi::{LogicalSize, PhysicalSize}, event::{Event, WindowEvent}, event_loop::{EventLoop, EventLoopWindowTarget}, window::{Window, WindowBuilder}
+    dpi::{LogicalSize, PhysicalSize}, event::{Event, WindowEvent}, event_loop::EventLoopWindowTarget, window::{Window, WindowBuilder}
 };
 
 pub const SWAPCHAIN_FORMAT: TextureFormat = TextureFormat::Bgra8UnormSrgb;
