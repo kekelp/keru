@@ -9,17 +9,26 @@ use helper::*;
 use main_ui::CounterState;
 pub use ui::Id;
 use ui::Ui;
-use winit::{event::Event, event_loop::{self, EventLoopWindowTarget}};
+use winit::{event::Event, event_loop::EventLoopWindowTarget};
 
+pub const BASE_WIDTH: u32 = 1350;
+pub const BASE_HEIGHT: u32 = 850;
+pub const BACKGROUND_COLOR: wgpu::Color = wgpu::Color {
+    r: 0.014,
+    g: 0.014 + 0.002,
+    b: 0.014,
+    a: 1.0,
+};
+pub const WINDOW_NAME: &str = "BLUE";
 
 fn main() -> Result<(), EventLoopError> {
-    let (ctx, event_loop) = Context::new2(BASE_WIDTH as u32, BASE_HEIGHT as u32);
+    let (window, event_loop) = Window::init(BASE_WIDTH, BASE_HEIGHT, WINDOW_NAME);
 
-    let ui = Ui::new(&ctx.device, &ctx.queue, &ctx.surface_config);
-    let canvas = Canvas::new(&ctx, &ui.base_uniform_buffer);
+    let ui = Ui::new(&window.device, &window.queue, &window.surface_config);
+    let canvas = Canvas::new(&window, &ui.base_uniform_buffer);
     
     let mut state = State {
-        ctx,
+        ctx: window,
         ui,
         counter_state: CounterState::new(),
         canvas,
@@ -34,17 +43,8 @@ fn main() -> Result<(), EventLoopError> {
     Ok(())
 }
 
-pub const BASE_WIDTH: f64 = 1350.0;
-pub const BASE_HEIGHT: f64 = 850.0;
-pub const BACKGROUND_COLOR: wgpu::Color = wgpu::Color {
-    r: 0.014,
-    g: 0.014 + 0.002,
-    b: 0.014,
-    a: 1.0,
-};
-
 pub struct State {
-    pub ctx: Context,
+    pub ctx: Window,
     pub ui: Ui,
     pub counter_state: CounterState,
     pub canvas: Canvas,

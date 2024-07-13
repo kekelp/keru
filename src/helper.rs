@@ -10,13 +10,40 @@ use wgpu::{
     Color, CommandEncoder, CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance, InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue, RenderPass, RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, Surface, SurfaceConfiguration, SurfaceTexture, TextureFormat, TextureUsages, TextureView
 };
 use winit::{
-    dpi::{LogicalSize, PhysicalSize}, event::{Event, WindowEvent}, event_loop::EventLoopWindowTarget, window::{Window, WindowBuilder}
+    dpi::{LogicalSize, PhysicalSize}, event::{Event, WindowEvent}, event_loop::EventLoopWindowTarget, window::{Window as WinitWindow, WindowBuilder}
 };
 
-pub const SWAPCHAIN_FORMAT: TextureFormat = TextureFormat::Bgra8UnormSrgb;
+pub fn basic_wgpu_init() -> (Instance, Device, Queue) {
+    let instance = Instance::new(InstanceDescriptor::default());
 
-pub struct Context {
-    pub window: Arc<Window>,
+    let adapter_options = &RequestAdapterOptions::default();
+    let adapter = pollster::block_on(instance.request_adapter(adapter_options)).unwrap();
+
+    let device_desc = &DeviceDescriptor {
+        label: None,
+        required_features: Features::empty(),
+        required_limits: Limits::default(),
+    };
+    let (device, queue) = pollster::block_on(adapter.request_device(device_desc, None)).unwrap();
+
+    return (instance, device, queue);
+}
+
+pub fn basic_surface_config(width: u32, height: u32) -> SurfaceConfiguration {
+    return SurfaceConfiguration {
+        usage: TextureUsages::RENDER_ATTACHMENT,
+        format: TextureFormat::Bgra8UnormSrgb,
+        width,
+        height,
+        present_mode: PresentMode::Fifo,
+        alpha_mode: CompositeAlphaMode::Opaque,
+        view_formats: vec![],
+        desired_maximum_frame_latency: 2,
+    };
+}
+
+pub struct Window {
+    pub window: Arc<WinitWindow>,
     pub surface: Surface<'static>,
     pub input: WinitInputHelper,
     
@@ -24,31 +51,22 @@ pub struct Context {
     pub device: Device,
     pub queue: Queue,
 }
-impl Context {
-    pub fn new2(width: u32, height: u32) -> (Self, EventLoop<()>) {
+impl Window {
+    pub fn init(width: u32, height: u32, title: &str) -> (Self, EventLoop<()>) {
         let event_loop = EventLoop::new().unwrap();
         let window = Arc::new(
             WindowBuilder::new()
                 .with_inner_size(LogicalSize::new(width, height))
-                .with_title("BLUE")
+                .with_title(title)
                 .build(&event_loop)
                 .unwrap(),
         );
     
-        let (instance, device, queue) = init_wgpu();
+        let (instance, device, queue) = basic_wgpu_init();
 
         let surface = instance.create_surface(window.clone()).unwrap();
 
-        let config =  SurfaceConfiguration {
-            usage: TextureUsages::RENDER_ATTACHMENT,
-            format: TextureFormat::Bgra8UnormSrgb,
-            width,
-            height,
-            present_mode: PresentMode::Fifo,
-            alpha_mode: CompositeAlphaMode::Opaque,
-            view_formats: vec![],
-            desired_maximum_frame_latency: 2,
-        };
+        let config = basic_surface_config(width, height);
         surface.configure(&device, &config);
 
         let ctx = Self {
@@ -117,10 +135,11 @@ pub struct RenderFrame {
     pub frame: SurfaceTexture,
     pub view: TextureView,
 }
+
 impl RenderFrame {
     pub fn begin_render_pass(&mut self, bg_color: Color) -> RenderPass<'_> {
-        let color_att = base_color_attachment(&self.view, bg_color);
-        let render_pass_desc = &base_render_pass_desc(&color_att);
+        let color_att = basic_color_attachment(&self.view, bg_color);
+        let render_pass_desc = &basic_render_pass_desc(&color_att);
         let render_pass = self.encoder.begin_render_pass(render_pass_desc);
         return render_pass;
     }
@@ -131,23 +150,7 @@ impl RenderFrame {
     }
 }
 
-pub fn init_wgpu() -> (Instance, Device, Queue) {
-    let instance = Instance::new(InstanceDescriptor::default());
-
-    let adapter_options = &RequestAdapterOptions::default();
-    let adapter = pollster::block_on(instance.request_adapter(adapter_options)).unwrap();
-
-    let device_desc = &DeviceDescriptor {
-        label: None,
-        required_features: Features::empty(),
-        required_limits: Limits::default(),
-    };
-    let (device, queue) = pollster::block_on(adapter.request_device(device_desc, None)).unwrap();
-
-    return (instance, device, queue);
-}
-
-pub fn base_render_pass_desc<'tex, 'desc>(
+pub fn basic_render_pass_desc<'tex, 'desc>(
     color_att: &'desc [Option<RenderPassColorAttachment<'tex>>; 1],
 ) -> RenderPassDescriptor<'tex, 'desc> {
     return RenderPassDescriptor {
@@ -159,7 +162,7 @@ pub fn base_render_pass_desc<'tex, 'desc>(
     };
 }
 
-pub fn base_color_attachment(view: &TextureView, bg_color: Color) -> [Option<RenderPassColorAttachment<'_>>; 1] {
+pub fn basic_color_attachment(view: &TextureView, bg_color: Color) -> [Option<RenderPassColorAttachment<'_>>; 1] {
     return [Some(RenderPassColorAttachment {
         view,
         resolve_target: None,
