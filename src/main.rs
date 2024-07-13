@@ -9,7 +9,7 @@ use helper::*;
 use main_ui::CounterState;
 pub use ui::Id;
 use ui::Ui;
-use winit::{event::Event, event_loop::EventLoopWindowTarget};
+use winit::{event::Event, event_loop::{self, EventLoopWindowTarget}};
 
 
 fn main() -> Result<(), EventLoopError> {
@@ -24,17 +24,19 @@ fn main() -> Result<(), EventLoopError> {
 
 pub const BASE_WIDTH: f64 = 1350.0;
 pub const BASE_HEIGHT: f64 = 850.0;
+pub const BACKGROUND_COLOR: wgpu::Color = wgpu::Color {
+    r: 0.014,
+    g: 0.014 + 0.002,
+    b: 0.014,
+    a: 1.0,
+};
 
 fn init() -> (EventLoop<()>, State) {
-    let (event_loop, window, instance, device, queue) =
-        init_winit_and_wgpu(BASE_WIDTH, BASE_HEIGHT);
-    let surface = instance.create_surface(window.clone()).unwrap();
-    let config = configure_surface(&surface, &window, &device);
+    let (ctx, event_loop) = Context::new2(BASE_WIDTH, BASE_HEIGHT);
 
-    let ui = Ui::new(&device, &config, &queue);
-    let canvas = Canvas::new(BASE_WIDTH as usize, BASE_HEIGHT as usize, &device, &queue, &ui.uniform_buffer);
-    let ctx = Context::new(window, surface, config, device, queue);
-
+    let ui = Ui::new(&ctx.device, &ctx.surface_config, &ctx.queue);
+    let canvas = Canvas::new(BASE_WIDTH as usize, BASE_HEIGHT as usize, &ctx.device, &ctx.queue, &ui.uniform_buffer);
+    
     let state = State {
         ctx,
         ui,
@@ -89,7 +91,7 @@ impl State {
         let mut frame = self.ctx.begin_frame();
 
         {
-            let mut render_pass = frame.begin_render_pass();
+            let mut render_pass = frame.begin_render_pass(BACKGROUND_COLOR);
             self.canvas.render(&mut render_pass);
             self.ui.render(&mut render_pass);
         }

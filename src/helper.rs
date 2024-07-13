@@ -32,6 +32,25 @@ pub struct Context {
     pub queue: Queue,
 }
 impl Context {
+    pub fn new2(width: f64, height: f64) -> (Self, EventLoop<()>) {
+        let (event_loop, window, instance, device, queue) =
+        init_winit_and_wgpu(width, height);
+        let surface = instance.create_surface(window.clone()).unwrap();
+        let config = configure_surface(&surface, &window, &device);
+
+        let ctx = Self {
+            window,
+            surface,
+            surface_config: config,
+            device,
+            queue,
+            input: WinitInputHelper::new(),
+        };
+
+        return (ctx, event_loop);
+    }
+    
+    
     pub fn new(window: Arc<Window>, surface: Surface<'static>, config: SurfaceConfiguration, device: Device, queue: Queue) -> Self {
         return Context {
             window,
@@ -90,8 +109,8 @@ pub struct RenderFrame {
     pub view: TextureView,
 }
 impl RenderFrame {
-    pub fn begin_render_pass(&mut self) -> RenderPass<'_> {
-        let color_att = base_color_attachment(&self.view);
+    pub fn begin_render_pass(&mut self, bg_color: Color) -> RenderPass<'_> {
+        let color_att = base_color_attachment(&self.view, bg_color);
         let render_pass_desc = &base_render_pass_desc(&color_att);
         let render_pass = self.encoder.begin_render_pass(render_pass_desc);
         return render_pass;
@@ -159,12 +178,12 @@ pub fn base_render_pass_desc<'tex, 'desc>(
     };
 }
 
-pub fn base_color_attachment(view: &TextureView) -> [Option<RenderPassColorAttachment<'_>>; 1] {
+pub fn base_color_attachment(view: &TextureView, bg_color: Color) -> [Option<RenderPassColorAttachment<'_>>; 1] {
     return [Some(RenderPassColorAttachment {
         view,
         resolve_target: None,
         ops: Operations {
-            load: LoadOp::Clear(Color { r: 0.0014, g: 0.0014, b: 0.015, a: 1.0 }),
+            load: LoadOp::Clear(bg_color),
             store: wgpu::StoreOp::Store,
         },
     })];
