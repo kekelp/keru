@@ -1,15 +1,13 @@
-pub mod helper;
+pub mod pixels_on_screen;
 pub mod ui;
 pub mod canvas;
 pub mod main_canvas;
 pub mod main_ui;
 
+use pixels_on_screen::*;
 use canvas::*;
-use helper::*;
+use ui::*;
 use main_ui::CounterState;
-pub use ui::Id;
-use ui::Ui;
-use winit::{event::Event, event_loop::EventLoopWindowTarget};
 
 pub const BASE_WIDTH: u32 = 1350;
 pub const BASE_HEIGHT: u32 = 850;
@@ -22,13 +20,13 @@ pub const BACKGROUND_COLOR: wgpu::Color = wgpu::Color {
 pub const WINDOW_NAME: &str = "BLUE";
 
 fn main() -> Result<(), EventLoopError> {
-    let (window, event_loop) = Window::init(BASE_WIDTH, BASE_HEIGHT, WINDOW_NAME);
+    let (ctx, event_loop) = Context::init(BASE_WIDTH, BASE_HEIGHT, WINDOW_NAME);
 
-    let ui = Ui::new(&window.device, &window.queue, &window.surface_config);
-    let canvas = Canvas::new(&window, &ui.base_uniform_buffer);
+    let ui = Ui::new(&ctx.device, &ctx.queue, &ctx.surface_config);
+    let canvas = Canvas::new(&ctx, &ui.base_uniform_buffer);
     
     let mut state = State {
-        ctx: window,
+        ctx,
         ui,
         counter_state: CounterState::new(),
         canvas,
@@ -44,7 +42,7 @@ fn main() -> Result<(), EventLoopError> {
 }
 
 pub struct State {
-    pub ctx: Window,
+    pub ctx: Context,
     pub ui: Ui,
     pub counter_state: CounterState,
     pub canvas: Canvas,

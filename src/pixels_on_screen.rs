@@ -1,7 +1,8 @@
 pub use wgpu::{CommandEncoderDescriptor, TextureViewDescriptor};
 pub use winit::{
-    error::EventLoopError, event_loop::EventLoop
+    error::EventLoopError, event_loop::EventLoop, event::Event, event_loop::EventLoopWindowTarget
 };
+
 use std::sync::Arc;
 
 use winit_input_helper::WinitInputHelper;
@@ -10,7 +11,7 @@ use wgpu::{
     Color, CommandEncoder, CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance, InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue, RenderPass, RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, Surface, SurfaceConfiguration, SurfaceTexture, TextureFormat, TextureUsages, TextureView
 };
 use winit::{
-    dpi::{LogicalSize, PhysicalSize}, event::{Event, WindowEvent}, event_loop::EventLoopWindowTarget, window::{Window as WinitWindow, WindowBuilder}
+    dpi::{LogicalSize, PhysicalSize}, event::WindowEvent, window::{Window as WinitWindow, WindowBuilder}
 };
 
 pub fn basic_wgpu_init() -> (Instance, Device, Queue) {
@@ -42,7 +43,7 @@ pub fn basic_surface_config(width: u32, height: u32) -> SurfaceConfiguration {
     };
 }
 
-pub struct Window {
+pub struct Context {
     pub window: Arc<WinitWindow>,
     pub surface: Surface<'static>,
     pub input: WinitInputHelper,
@@ -51,7 +52,7 @@ pub struct Window {
     pub device: Device,
     pub queue: Queue,
 }
-impl Window {
+impl Context {
     pub fn init(width: u32, height: u32, title: &str) -> (Self, EventLoop<()>) {
         let event_loop = EventLoop::new().unwrap();
         let window = Arc::new(

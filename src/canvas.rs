@@ -7,7 +7,7 @@ use glam::*;
 use {BindGroup, BindGroupEntry, BindGroupLayoutEntry, BindingResource, Buffer, ColorTargetState, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
 use winit::{dpi::PhysicalPosition, event::{ElementState, Event, MouseButton, WindowEvent}, keyboard::{Key, ModifiersState, NamedKey}};
 
-use crate::{ui::Xy, Window, Scale};
+use crate::{ui::Xy, Context, Scale};
 
 #[derive(Clone, Copy, Debug)]
 #[derive(Zeroable, Pod)]
@@ -110,8 +110,7 @@ struct CanvasUniforms {
 }
 
 impl Canvas {
-    // Create a new canvas with the given width and height, initialized to a background color
-    pub fn new(ctx: &Window, base_uniforms: &Buffer) -> Self {
+    pub fn new(ctx: &Context, base_uniforms: &Buffer) -> Self {
         // default transformations
         let scale = dvec2(1.0, 1.0);
         let rotation = EpicRotation::new(-0.0_f64.to_radians());
