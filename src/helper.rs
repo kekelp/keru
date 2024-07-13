@@ -14,13 +14,6 @@ use winit::{
 };
 
 pub const SWAPCHAIN_FORMAT: TextureFormat = TextureFormat::Bgra8UnormSrgb;
-pub fn configure_surface(surface: &Surface, window: &Window, device: &Device) -> SurfaceConfiguration {
-    let size = window.inner_size();
-    let config = base_surface_config(size.width, size.height, SWAPCHAIN_FORMAT);
-    surface.configure(device, &config);
-
-    return config;
-}
 
 pub struct Context {
     pub window: Arc<Window>,
@@ -32,11 +25,31 @@ pub struct Context {
     pub queue: Queue,
 }
 impl Context {
-    pub fn new2(width: f64, height: f64) -> (Self, EventLoop<()>) {
-        let (event_loop, window, instance, device, queue) =
-        init_winit_and_wgpu(width, height);
+    pub fn new2(width: u32, height: u32) -> (Self, EventLoop<()>) {
+        let event_loop = EventLoop::new().unwrap();
+        let window = Arc::new(
+            WindowBuilder::new()
+                .with_inner_size(LogicalSize::new(width, height))
+                .with_title("BLUE")
+                .build(&event_loop)
+                .unwrap(),
+        );
+    
+        let (instance, device, queue) = init_wgpu();
+
         let surface = instance.create_surface(window.clone()).unwrap();
-        let config = configure_surface(&surface, &window, &device);
+
+        let config =  SurfaceConfiguration {
+            usage: TextureUsages::RENDER_ATTACHMENT,
+            format: TextureFormat::Bgra8UnormSrgb,
+            width,
+            height,
+            present_mode: PresentMode::Fifo,
+            alpha_mode: CompositeAlphaMode::Opaque,
+            view_formats: vec![],
+            desired_maximum_frame_latency: 2,
+        };
+        surface.configure(&device, &config);
 
         let ctx = Self {
             window,
@@ -48,18 +61,6 @@ impl Context {
         };
 
         return (ctx, event_loop);
-    }
-    
-    
-    pub fn new(window: Arc<Window>, surface: Surface<'static>, config: SurfaceConfiguration, device: Device, queue: Queue) -> Self {
-        return Context {
-            window,
-            surface,
-            surface_config: config,
-            device,
-            queue,
-            input: WinitInputHelper::new(),
-        };
     }
 
     pub fn handle_events(&mut self, event: &Event<()>, target: &EventLoopWindowTarget<()>) {
@@ -130,21 +131,6 @@ impl RenderFrame {
     }
 }
 
-pub fn init_winit_and_wgpu(width: f64, height: f64) -> (EventLoop<()>, Arc<Window>, Instance, Device, Queue) {
-    let event_loop = EventLoop::new().unwrap();
-    let window = Arc::new(
-        WindowBuilder::new()
-            .with_inner_size(LogicalSize::new(width, height))
-            .with_title("BLUE")
-            .build(&event_loop)
-            .unwrap(),
-    );
-
-    let (instance, device, queue) = init_wgpu();
-
-    return (event_loop, window, instance, device, queue);
-}
-
 pub fn init_wgpu() -> (Instance, Device, Queue) {
     let instance = Instance::new(InstanceDescriptor::default());
 
@@ -159,19 +145,6 @@ pub fn init_wgpu() -> (Instance, Device, Queue) {
     let (device, queue) = pollster::block_on(adapter.request_device(device_desc, None)).unwrap();
 
     return (instance, device, queue);
-}
-
-pub fn base_surface_config(width: u32, height: u32, format: TextureFormat) -> SurfaceConfiguration {
-    return SurfaceConfiguration {
-        usage: TextureUsages::RENDER_ATTACHMENT,
-        format,
-        width,
-        height,
-        present_mode: PresentMode::Fifo,
-        alpha_mode: CompositeAlphaMode::Opaque,
-        view_formats: vec![],
-        desired_maximum_frame_latency: 2,
-    };
 }
 
 pub fn base_render_pass_desc<'tex, 'desc>(

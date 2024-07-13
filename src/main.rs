@@ -13,7 +13,7 @@ use winit::{event::Event, event_loop::{self, EventLoopWindowTarget}};
 
 
 fn main() -> Result<(), EventLoopError> {
-    let (ctx, event_loop) = Context::new2(BASE_WIDTH, BASE_HEIGHT);
+    let (ctx, event_loop) = Context::new2(BASE_WIDTH as u32, BASE_HEIGHT as u32);
 
     let ui = Ui::new(&ctx.device, &ctx.queue, &ctx.surface_config);
     let canvas = Canvas::new(&ctx, &ui.base_uniform_buffer);
