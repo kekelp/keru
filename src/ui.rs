@@ -642,7 +642,7 @@ pub struct Ui {
     pub gpu_vertex_buffer: TypedGpuBuffer<RenderRect>,
     pub render_pipeline: RenderPipeline,
 
-    pub uniform_buffer: Buffer,
+    pub base_uniform_buffer: Buffer,
     pub bind_group: BindGroup,
 
     pub text: Text,
@@ -742,7 +742,7 @@ impl Ui {
         return node;
     }
 
-    pub fn new(device: &Device, config: &SurfaceConfiguration, queue: &Queue) -> Self {
+    pub fn new(device: &Device, queue: &Queue, config: &SurfaceConfiguration) -> Self {
         let vertex_buffer = device.create_buffer_init(&util::BufferInitDescriptor {
             label: Some("player bullet pos buffer"),
             contents: bytemuck::cast_slice(&[0.0; 9000]),
@@ -862,7 +862,7 @@ impl Ui {
             rects: Vec::with_capacity(20),
             node_map: nodes,
             gpu_vertex_buffer: vertex_buffer,
-            uniform_buffer: resolution_buffer,
+            base_uniform_buffer: resolution_buffer,
             bind_group,
 
             stack: Vec::new(),
@@ -1303,7 +1303,7 @@ impl Ui {
         self.part.unifs.size[Y] = size.height as f32;
 
         queue.write_buffer(
-            &self.uniform_buffer,
+            &self.base_uniform_buffer,
             0,
             &bytemuck::bytes_of(&self.part.unifs)[..16],
         );
@@ -1469,7 +1469,7 @@ impl Ui {
 
         // update gpu time
         // magical offset...
-        queue.write_buffer(&self.uniform_buffer, 8, bytemuck::bytes_of(&self.t));
+        queue.write_buffer(&self.base_uniform_buffer, 8, bytemuck::bytes_of(&self.t));
         
         self.build_buffers();
         

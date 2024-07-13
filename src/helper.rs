@@ -89,6 +89,14 @@ impl Context {
         self.window.request_redraw();
     }
 
+    pub fn width(&self) -> u32 {
+        self.surface_config.width
+    }
+
+    pub fn height(&self) -> u32 {
+        self.surface_config.height
+    }
+
     pub fn begin_frame(&mut self) -> RenderFrame {        
         let encoder = self.device.create_command_encoder(&CommandEncoderDescriptor::default());
 
@@ -201,6 +209,11 @@ pub trait Scale {
     fn scale(self, scale: f32) -> Self;
 }
 impl Scale for usize {
+    fn scale(self, scale: f32) -> Self {
+        return (self as f32 * scale) as Self;
+    }
+}
+impl Scale for u32 {
     fn scale(self, scale: f32) -> Self {
         return (self as f32 * scale) as Self;
     }

@@ -7,7 +7,7 @@ use glam::*;
 use {BindGroup, BindGroupEntry, BindGroupLayoutEntry, BindingResource, Buffer, ColorTargetState, Device, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
 use winit::{dpi::PhysicalPosition, event::{ElementState, Event, MouseButton, WindowEvent}, keyboard::{Key, ModifiersState, NamedKey}};
 
-use crate::{ui::Xy, Scale, SWAPCHAIN_FORMAT};
+use crate::{ui::Xy, Context, Scale, SWAPCHAIN_FORMAT};
 
 #[derive(Clone, Copy, Debug)]
 #[derive(Zeroable, Pod)]
@@ -111,15 +111,16 @@ struct CanvasUniforms {
 
 impl Canvas {
     // Create a new canvas with the given width and height, initialized to a background color
-    pub fn new(width: usize, height: usize, device: &Device, queue: &Queue, base_uniforms: &Buffer) -> Self {
+    pub fn new(ctx: &Context, base_uniforms: &Buffer) -> Self {
         // default transformations
         let scale = dvec2(1.0, 1.0);
         let rotation = EpicRotation::new(-0.0_f64.to_radians());
         let translation = dvec2(0.0, 0.0);
 
+        let (width, height) = (ctx.width() as usize, ctx.height() as usize);
         let (image_width, image_height) = (width.scale(0.8), height.scale(0.8));
         
-        let texture = device.create_texture(&TextureDescriptor {
+        let texture = ctx.device.create_texture(&TextureDescriptor {
             label: Some("Canvas Texture"),
             size: Extent3d {
                 width: image_width as u32,
@@ -134,7 +135,7 @@ impl Canvas {
             view_formats: &[],
         });
 
-        let canvas_bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+        let canvas_bind_group_layout = ctx.device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: Some("Texture Bind Group Layout"),
             entries: &[
                 BindGroupLayoutEntry {
@@ -177,7 +178,7 @@ impl Canvas {
         });
         
         let texture_view = texture.create_view(&TextureViewDescriptor::default());
-        let sampler = device.create_sampler(&SamplerDescriptor {
+        let sampler = ctx.device.create_sampler(&SamplerDescriptor {
             address_mode_u: AddressMode::ClampToEdge,
             address_mode_v: AddressMode::ClampToEdge,
             address_mode_w: AddressMode::ClampToEdge,
@@ -187,7 +188,7 @@ impl Canvas {
             ..Default::default()
         });
         
-        let canvas_uniform_buffer = device.create_buffer(
+        let canvas_uniform_buffer = ctx.device.create_buffer(
             &BufferDescriptor {
                 label: Some("Canvas Uniform Buffer"),
                 usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
@@ -196,7 +197,7 @@ impl Canvas {
             }
         );
 
-        let canvas_bind_group = device.create_bind_group(&BindGroupDescriptor {
+        let canvas_bind_group = ctx.device.create_bind_group(&BindGroupDescriptor {
             layout: &canvas_bind_group_layout,
             entries: &[
                 BindGroupEntry {
@@ -219,18 +220,18 @@ impl Canvas {
             label: Some("Canvas Bind Group"),
         });
 
-        let render_pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
+        let render_pipeline_layout = ctx.device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("Render Pipeline Layout"),
             bind_group_layouts: &[&canvas_bind_group_layout],
             push_constant_ranges: &[],
         });
     
-        let shader = device.create_shader_module(ShaderModuleDescriptor {
+        let shader = ctx.device.create_shader_module(ShaderModuleDescriptor {
             label: None,
             source: ShaderSource::Wgsl(include_str!("canvas.wgsl").into()),
         });
 
-        let render_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
+        let render_pipeline = ctx.device.create_render_pipeline(&RenderPipelineDescriptor {
             label: Some("Render Pipeline"),
             layout: Some(&render_pipeline_layout),
             vertex: VertexState {
@@ -294,7 +295,7 @@ impl Canvas {
         //     }
         // }
 
-        canvas.update_shader_transform(queue);
+        canvas.update_shader_transform(&ctx.queue);
 
         return canvas;
     }

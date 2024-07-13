@@ -13,7 +13,19 @@ use winit::{event::Event, event_loop::{self, EventLoopWindowTarget}};
 
 
 fn main() -> Result<(), EventLoopError> {
-    let (event_loop, mut state) = init();
+    let (ctx, event_loop) = Context::new2(BASE_WIDTH, BASE_HEIGHT);
+
+    let ui = Ui::new(&ctx.device, &ctx.queue, &ctx.surface_config);
+    let canvas = Canvas::new(&ctx, &ui.base_uniform_buffer);
+    
+    let mut state = State {
+        ctx,
+        ui,
+        counter_state: CounterState::new(),
+        canvas,
+
+        info_visible: true,
+    };
 
     event_loop.run(move |event, target| {
         state.handle_event(&event, target);
@@ -30,24 +42,6 @@ pub const BACKGROUND_COLOR: wgpu::Color = wgpu::Color {
     b: 0.014,
     a: 1.0,
 };
-
-fn init() -> (EventLoop<()>, State) {
-    let (ctx, event_loop) = Context::new2(BASE_WIDTH, BASE_HEIGHT);
-
-    let ui = Ui::new(&ctx.device, &ctx.surface_config, &ctx.queue);
-    let canvas = Canvas::new(BASE_WIDTH as usize, BASE_HEIGHT as usize, &ctx.device, &ctx.queue, &ui.uniform_buffer);
-    
-    let state = State {
-        ctx,
-        ui,
-        counter_state: CounterState::new(),
-        canvas,
-
-        info_visible: true,
-    };
-
-    return (event_loop, state);
-}
 
 pub struct State {
     pub ctx: Context,
