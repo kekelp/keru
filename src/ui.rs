@@ -179,11 +179,11 @@ pub struct NodeParams {
     pub visible_rect: bool,
     pub clickable: bool,
     pub editable: bool,
+    pub filled: bool,
     pub color: Color,
     pub size: Xy<Size>,
     pub position: Xy<Position>,
     pub is_stack: Option<Stack>,
-    pub filled: bool,
 }
 
 impl Default for NodeParams {
@@ -672,7 +672,6 @@ pub struct Ui {
     pub parent_stack: Vec<Id>,
 
     pub part: PartialBorrowStuff,
-    pub filtered_mouse_input: FilteredMouseInput,
 
     pub clicked_stack: Vec<(Id, f32)>,
     pub hovered_stack: Vec<(Id, f32)>,
@@ -893,7 +892,6 @@ impl Ui {
                 unifs: uniforms,
                 t0: Instant::now(),
             },
-            filtered_mouse_input: FilteredMouseInput::default(),
 
             clicked_stack: Vec::new(),
             clicked: None,
@@ -1931,111 +1929,89 @@ pub trait View {
 }
 
 
-#[derive(Debug, Default)]
-pub struct MouseButtons {
-    pub left: bool,
-    pub right: bool,
-    pub middle: bool,
-    pub back: bool,
-    pub forward: bool,
-    pub other: u16, // 16-bit field for other buttons
-}
-impl MouseButtons {
-    pub fn is_other_button_pressed(&self, id: u16) -> bool {
-        if id < 16 {
-            return self.other & (1 << id) != 0;
-        } else {
-            panic!("Mouse button id must be between 0 and 15")
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct FilteredMouseInput {
-    pub position: PhysicalPosition<f64>,
-    pub buttons: MouseButtons,
-    pub scroll_delta: (f32, f32),
-}
-
-impl Default for FilteredMouseInput {
-    fn default() -> Self {
-        return Self {
-            position: PhysicalPosition::new(0.0, 0.0),
-            buttons: MouseButtons::default(),
-            scroll_delta: (0.0, 0.0),
-        };
-    }
-}
-
-impl FilteredMouseInput {
-
-    
-    pub fn update(&mut self, event: &WindowEvent) {
-        match event {
-            WindowEvent::CursorMoved { position, .. } => {
-                self.position = *position;
-            }
-            WindowEvent::MouseInput { state, button, .. } => {
-                let pressed = *state == ElementState::Pressed;
-                match button {
-                    MouseButton::Left => self.buttons.left = pressed,
-                    MouseButton::Right => self.buttons.right = pressed,
-                    MouseButton::Middle => self.buttons.middle = pressed,
-                    MouseButton::Back => self.buttons.back = pressed,
-                    MouseButton::Forward => self.buttons.forward = pressed,
-                    MouseButton::Other(id) => {
-                        if *id < 16 {
-                            if pressed {
-                                self.buttons.other |= 1 << id;
-                            } else {
-                                self.buttons.other &= !(1 << id);
-                            }
-                        }
-                    }
-                }
-            }
-            WindowEvent::MouseWheel { delta, .. } => {
-                match delta {
-                    MouseScrollDelta::LineDelta(x, y) => {
-                        self.scroll_delta.0 += x;
-                        self.scroll_delta.1 += y;
-                    }
-                    MouseScrollDelta::PixelDelta(pos) => {
-                        self.scroll_delta.0 += pos.x as f32;
-                        self.scroll_delta.1 += pos.y as f32;
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-
-    pub fn reset_scroll(&mut self) {
-        self.scroll_delta = (0.0, 0.0);
-    }
-}
-
-// fn main() {
-//     // Example usage:
-//     let mut mouse_input = MouseInput::new();
-
-//     // This is where you would normally handle events in a loop:
-//     // (Replace `event` with your actual event variable)
-//     // if let Event::WindowEvent { event, .. } = event {
-//     //     mouse_input.update(&event);
-//     // }
-
-//     // For demonstration, let's create a mock event:
-//     let event = WindowEvent::CursorMoved {
-//         device_id: winit::event::DeviceId(0),
-//         position: PhysicalPosition::new(100.0, 200.0),
-//         modifiers: winit::event::ModifiersState::empty(),
-//     };
-//     mouse_input.update(&event);
-
-//     println!("{:?}", mouse_input);
+// #[derive(Debug, Default)]
+// pub struct MouseButtons {
+//     pub left: bool,
+//     pub right: bool,
+//     pub middle: bool,
+//     pub back: bool,
+//     pub forward: bool,
+//     pub other: u16, // 16-bit field for other buttons
+// }
+// impl MouseButtons {
+//     pub fn is_other_button_pressed(&self, id: u16) -> bool {
+//         if id < 16 {
+//             return self.other & (1 << id) != 0;
+//         } else {
+//             panic!("Mouse button id must be between 0 and 15")
+//         }
+//     }
 // }
 
+// #[derive(Debug)]
+// pub struct FilteredMouseInput {
+//     pub position: PhysicalPosition<f64>,
+//     pub buttons: MouseButtons,
+//     pub scroll_delta: (f32, f32),
+// }
+
+// impl Default for FilteredMouseInput {
+//     fn default() -> Self {
+//         return Self {
+//             position: PhysicalPosition::new(0.0, 0.0),
+//             buttons: MouseButtons::default(),
+//             scroll_delta: (0.0, 0.0),
+//         };
+//     }
+// }
+
+// impl FilteredMouseInput {
+
+    
+//     pub fn update(&mut self, event: &WindowEvent) {
+//         match event {
+//             WindowEvent::CursorMoved { position, .. } => {
+//                 self.position = *position;
+//             }
+//             WindowEvent::MouseInput { state, button, .. } => {
+//                 let pressed = *state == ElementState::Pressed;
+//                 match button {
+//                     MouseButton::Left => self.buttons.left = pressed,
+//                     MouseButton::Right => self.buttons.right = pressed,
+//                     MouseButton::Middle => self.buttons.middle = pressed,
+//                     MouseButton::Back => self.buttons.back = pressed,
+//                     MouseButton::Forward => self.buttons.forward = pressed,
+//                     MouseButton::Other(id) => {
+//                         if *id < 16 {
+//                             if pressed {
+//                                 self.buttons.other |= 1 << id;
+//                             } else {
+//                                 self.buttons.other &= !(1 << id);
+//                             }
+//                         }
+//                     }
+//                 }
+//             }
+//             WindowEvent::MouseWheel { delta, .. } => {
+//                 match delta {
+//                     MouseScrollDelta::LineDelta(x, y) => {
+//                         self.scroll_delta.0 += x;
+//                         self.scroll_delta.1 += y;
+//                     }
+//                     MouseScrollDelta::PixelDelta(pos) => {
+//                         self.scroll_delta.0 += pos.x as f32;
+//                         self.scroll_delta.1 += pos.y as f32;
+//                     }
+//                 }
+//             }
+//             _ => {}
+//         }
+//     }
+
+//     pub fn reset_scroll(&mut self) {
+//         self.scroll_delta = (0.0, 0.0);
+//     }
+// }
 
 #[macro_export]
 macro_rules! unwrap_or_return {

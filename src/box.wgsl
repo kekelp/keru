@@ -75,7 +75,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var dist = length(max(q, vec2(0.0, 0.0))) - in.radius;
 
     var inside = (1.0 - smoothstep(-1.0, 1.0, dist));
-
     var outside = (1.0 - smoothstep(1.0, -1.0, dist + 8.0));
 
     var filled = f32(in.filled);
