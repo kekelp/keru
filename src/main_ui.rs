@@ -4,7 +4,7 @@ use crate::*;
 use crate::ui::*;
 use crate::ui::Axis::*;
 use view_derive::derive_view;
-
+use crate::ui::Position::*;
 
 impl State {
     pub fn update_ui(&mut self) {
@@ -13,12 +13,26 @@ impl State {
 
 
         add!(ui, AnonMargin, {
+            // need anonymous params!!
             add!(ui, SideBar, {
 
-            // need anonymous params!!
+                let mut color = ui.add(PaintColor).get_text();
 
-                ui.add(FinnaCringe);
-                ui.add(FinnaCringe2);
+                if let Some(color) = &mut color {
+                    color.make_ascii_lowercase();
+                    match color.as_str() {
+                        "blue" => {
+                            self.canvas.paint_color = PixelColorF32::BLUE;
+                        },
+                        "red" => {
+                            self.canvas.paint_color = PixelColorF32::RED;
+                        },
+                        "green" => {
+                            self.canvas.paint_color = PixelColorF32::GREEN;
+                        },
+                        _ => {}
+                    }
+                } 
 
             });
         });
@@ -77,11 +91,8 @@ pub struct CountLabel;
 )]
 pub struct CommandLineRow;
 
-#[derive_view(NodeParams::TEXT_INPUT.text("scalar"))]
-pub struct ScalarInput;
-
-#[derive_view(NodeParams::TEXT_INPUT.text("e12"))]
-pub struct E12Input;
+#[derive_view(NodeParams::TEXT_INPUT.text("Color").size_y(0.2).position_y(Start))]
+pub struct PaintColor;
 
 #[derive_view(NodeParams::TEXT_INPUT.text("RERER"))]
 pub struct CommandLine;

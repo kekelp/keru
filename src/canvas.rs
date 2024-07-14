@@ -38,6 +38,7 @@ impl PixelColor {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct PixelColorF32 {
     r: f32,
     g: f32,
@@ -62,6 +63,25 @@ impl PixelColorF32 {
             a,
         }
     }
+
+    pub const BLUE: Self = Self {
+        r: 0.0,
+        g: 0.0,
+        b: 1.0,
+        a: 1.0,
+    };
+    pub const RED: Self = Self {
+        r: 1.0,
+        g: 0.0,
+        b: 0.0,
+        a: 1.0,
+    };
+    pub const GREEN: Self = Self {
+        r: 0.0,
+        g: 1.0,
+        b: 0.0,
+        a: 1.0,
+    };
 }
 
 pub struct Canvas {
@@ -100,6 +120,8 @@ pub struct Canvas {
     pub canvas_uniform_buffer: Buffer,
 
     pub is_drawing: bool,
+
+    pub paint_color: PixelColorF32,
 }
 
 #[repr(C)]
@@ -282,6 +304,9 @@ impl Canvas {
             needs_sync: true,
             needs_render: true,
             is_drawing: false,
+
+            paint_color: PixelColorF32::new(0.2, 0.8, 0.2, 1.0),
+
         };
 
         // fill with test colors
@@ -516,8 +541,7 @@ impl Canvas {
                 let alpha = radius - ((center - pos).x.powi(2) + (center - pos).y.powi(2)).sqrt();
                 let alpha = alpha.clamp(0.0, 1.0);
 
-                let paint_color = PixelColorF32::new(0.2, 0.8, 0.2, 1.0);
-                self.paint_pixel(pixel.x, pixel.y, paint_color, alpha as f32);
+                self.paint_pixel(pixel.x, pixel.y, self.paint_color, alpha as f32);
             }
         }
     }
