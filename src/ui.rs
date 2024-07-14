@@ -41,6 +41,8 @@ use Axis::{X, Y};
 #[repr(C)]
 pub struct Id(pub(crate) u64);
 
+pub const DEBUG_RED: Color = Color::rgba(1.0, 0.0, 0.0, 0.3);
+
 pub const NODE_ROOT_ID: Id = Id(0);
 pub const NODE_ROOT: Node = Node {
     rect: Xy::new_symm([0.0, 1.0]),
@@ -181,6 +183,7 @@ pub struct NodeParams {
     pub size: Xy<Size>,
     pub position: Xy<Position>,
     pub is_stack: Option<Stack>,
+    pub filled: bool,
 }
 
 impl Default for NodeParams {
@@ -201,6 +204,7 @@ impl NodeParams {
             position: Xy::new_symm(Position::Start),
             is_stack: None,
             editable: false,
+            filled: true,
         }
     }
 
@@ -260,6 +264,7 @@ impl NodeParams {
         position: Xy::new_symm(Position::Center),
         is_stack: None,
         editable: false,
+        filled: true,
     };
 
     pub const V_STACK: Self = Self {
@@ -267,7 +272,7 @@ impl NodeParams {
         static_text: None,
         clickable: true,
         visible_rect: false,
-        color: Color::rgba(0.0, 0.0, 0.0, 0.0),
+        color: DEBUG_RED,
         size: Xy::new(Size::PercentOfAvailable(1.0), Size::PercentOfAvailable(1.0)),
         position: Xy::new_symm(Position::Center),
         is_stack: Some(Stack {
@@ -275,13 +280,14 @@ impl NodeParams {
             axis: Axis::Y,
         }),
         editable: false,
+        filled: false,
     };
     pub const H_STACK: Self = Self {
         debug_name: "Column",
         static_text: None,
         visible_rect: false,
-        clickable: true,
-        color: Color::rgba(0.0, 0.0, 0.0, 0.0),
+        clickable: false,
+        color: DEBUG_RED,
         size: Xy::new(Size::PercentOfAvailable(1.0), Size::PercentOfAvailable(1.0)),
         position: Xy::new_symm(Position::Center),
         is_stack: Some(Stack {
@@ -289,17 +295,19 @@ impl NodeParams {
             axis: Axis::X,
         }),
         editable: false,
+        filled: false,
     };
-    pub const FRAME: Self = Self {
-        debug_name: "FRAME",
+    pub const MARGIN: Self = Self {
+        debug_name: "MARGIN",
         static_text: None,
-        clickable: true,
+        clickable: false,
         visible_rect: false,
-        color: Color::rgba(0.0, 0.0, 0.0, 0.0),
+        color: DEBUG_RED,
         size: Xy::new_symm(Size::PercentOfAvailable(0.7)),
         position: Xy::new_symm(Position::Center),
         is_stack: None,
         editable: false,
+        filled: false,
     };
 
     pub const BUTTON: Self = Self {
@@ -312,6 +320,7 @@ impl NodeParams {
         position: Xy::new_symm(Position::Center),
         is_stack: None,
         editable: false,
+        filled: true,
     };
 
     pub const LABEL: Self = Self {
@@ -324,6 +333,7 @@ impl NodeParams {
         position: Xy::new_symm(Position::Center),
         is_stack: None,
         editable: false,
+        filled: true,
     };
 
     pub const TEXT_INPUT: Self = Self {
@@ -336,6 +346,7 @@ impl NodeParams {
         position: Xy::new_symm(Position::Start),
         is_stack: None,
         editable: true,
+        filled: true,
     };
 }
 
@@ -345,8 +356,8 @@ pub struct VStack;
 #[derive_view(NodeParams::H_STACK)]
 pub struct HStack;
 
-#[derive_view(NodeParams::FRAME)]
-pub struct Frame;
+#[derive_view(NodeParams::MARGIN)]
+pub struct Margin;
 
 #[derive_view(NodeParams::BUTTON)]
 pub struct Button;
@@ -375,12 +386,13 @@ pub struct RenderRect {
 
     pub radius: f32,
 
+    
     // -- not used in shader
-    pub _padding: f32,
+    pub filled: u32,
     pub id: Id,
 }
 impl RenderRect {
-    pub fn buffer_desc() -> [VertexAttribute; 8] {
+    pub fn buffer_desc() -> [VertexAttribute; 9] {
         return vertex_attr_array![
             0 => Float32x2,
             1 => Float32x2,
@@ -390,6 +402,7 @@ impl RenderRect {
             5 => Uint32,
             6 => Float32,
             7 => Float32,
+            8 => Uint32,
         ];
     }
 }
@@ -635,6 +648,8 @@ impl TreeTrace {
 }
 
 pub struct Ui {
+    pub debug_mode: bool,
+    
     pub clipboard: ClipboardContext,
 
     pub key_mods: ModifiersState,
@@ -847,6 +862,7 @@ impl Ui {
         parent_stack.push(NODE_ROOT_ID);
 
         Self {
+            debug_mode: true,
             clipboard: ClipboardContext::new().unwrap(),
             key_mods: ModifiersState::default(),
 
@@ -985,6 +1001,19 @@ impl Ui {
 
     pub fn handle_keyboard_event(&mut self, event: &KeyEvent) -> bool {
         // todo: remove line.reset(); and do it only once per frame via change watcher guy
+
+        match &event.logical_key {
+            Key::Named(named_key) => {
+                match named_key {
+                    NamedKey::F1 => {
+                        println!("test");
+                    },
+                    _ => {},
+                }
+            },
+            _ => {},
+        }
+
 
         // if there is no focused text node, return consumed: false
         let id = unwrap_or_return!(self.focused, false);
@@ -1327,8 +1356,8 @@ impl Ui {
         while let Some(current_node_id) = self.stack.pop() {
             let current_node = self.node_map.get_mut(&current_node_id).unwrap();
 
-            if current_node.params.visible_rect
-                && current_node.last_frame_touched == self.part.current_frame
+            if (current_node.params.visible_rect
+                && current_node.last_frame_touched == self.part.current_frame) || self.debug_mode
             {
                 self.rects.push(RenderRect {
                     rect: current_node.rect * 2. - 1.,
@@ -1343,7 +1372,7 @@ impl Ui {
                     id: current_node_id,
                     z: 0.0,
                     radius: 30.0,
-                    _padding: 0.0,
+                    filled: current_node.params.filled as u32,
                 });
             }
 
@@ -1399,7 +1428,7 @@ impl Ui {
                     clickable: 0,
                     z: 0.0,
                     id: Id(0),
-                    _padding: 0.0,
+                    filled: 1,
                     radius: 0.0,
                 };
 
@@ -1438,7 +1467,7 @@ impl Ui {
                     clickable: 0,
                     z: 0.0,
                     id: Id(0),
-                    _padding: 0.0,
+                    filled: 1,
                     radius: 0.0,
                 };
 
@@ -1655,7 +1684,30 @@ macro_rules! create_layer_macro {
 
 create_layer_macro!(h_stack, crate::ui::Hstack);
 create_layer_macro!(v_stack, crate::ui::VStack);
-create_layer_macro!(margin, crate::ui::Frame);
+create_layer_macro!(margin, crate::ui::Margin);
+
+// named only add
+#[macro_export]
+macro_rules! add {
+    ($ui:expr, $node_key:expr, $code:block) => {
+        $ui.add($node_key);
+        $ui.start_layer($node_key.id());
+        $code;
+        $ui.end_layer();
+    };
+}
+
+// add anonymous with params?
+#[macro_export]
+macro_rules! add2 {
+    ($ui:expr, $node_key:expr, $code:block) => {
+        $ui.add($node_key);
+        $ui.start_layer($node_key.id());
+        $code;
+        $ui.end_layer();
+    };
+}
+
 
 #[derive(Debug)]
 pub struct Node {
@@ -1758,6 +1810,7 @@ pub const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     position: Xy::new_symm(Position::Start),
     is_stack: None,
     editable: false,
+    filled: true,
 };
 
 // todo: change

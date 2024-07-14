@@ -1,8 +1,8 @@
-// this is needed to fix some crap with macros: https://github.com/rust-lang/rust/pull/52234#issuecomment-894851497
+// crate::* is needed to fix some crap with macros: https://github.com/rust-lang/rust/pull/52234#issuecomment-894851497
 // when ui will be in its own crate, this won't happen anymore
 use crate::*;
 use crate::ui::*;
-use crate::ui::Axis::Y;
+use crate::ui::Axis::*;
 use view_derive::derive_view;
 
 
@@ -11,7 +11,18 @@ impl State {
         let ui = &mut self.ui;
         ui.begin_tree();
 
-        useless_counter(ui, &mut self.counter_state);
+
+        add!(ui, AnonMargin, {
+            add!(ui, SideBar, {
+
+            // need anonymous params!!
+
+                ui.add(FinnaCringe);
+                ui.add(FinnaCringe2);
+
+            });
+        });
+
 
         ui.finish_tree();
 
@@ -30,6 +41,17 @@ impl State {
     }
 }
 
+#[derive_view(NodeParams::MARGIN.size_y(0.95).size_x(1.0).position_x(Position::Center))]
+pub struct AnonMargin;
+
+#[derive_view(NodeParams::V_STACK.size_x(0.3).position_x(Position::End))]
+pub struct SideBar;
+
+#[derive_view(NodeParams::BUTTON.size_y(0.2).position_x(Position::Center))]
+pub struct FinnaCringe;
+
+#[derive_view(NodeParams::BUTTON.size_y(0.2).position_x(Position::Center))]
+pub struct FinnaCringe2;
 
 #[derive_view(NodeParams::H_STACK.color(Color::BLUE).size_x(0.5).position_x(Position::Start))]
 pub struct CenterRow;

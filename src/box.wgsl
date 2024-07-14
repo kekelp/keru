@@ -6,7 +6,7 @@ struct Uniforms {
 @group(0) @binding(0)
 var<uniform> unif: Uniforms;
 
-// has to match Rectangle
+// has to match RenderRect
 struct VertexInput {
     @builtin(vertex_index) index: u32,
     @location(0) xs: vec2f,
@@ -17,6 +17,7 @@ struct VertexInput {
     @location(5) clickable: u32,
     @location(6) z: f32,
     @location(7) radius: f32,
+    @location(8) filled: u32,
 };
 
 struct VertexOutput {
@@ -26,6 +27,7 @@ struct VertexOutput {
     @location(2) color: vec4<f32>,
     @location(3) dark: f32,
     @location(4) radius: f32,
+    @location(5) filled: u32,
 }
 
 @vertex
@@ -58,7 +60,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     var dark_click = 1.0 - click * 0.78;
 
     var dark = min(dark_click, dark_hover);
-    return VertexOutput(clip_position, uv, half_size, in.color, dark, in.radius);
+    return VertexOutput(clip_position, uv, half_size, in.color, dark, in.radius, in.filled);
 }
 
 @fragment
@@ -72,7 +74,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     var dist = length(max(q, vec2(0.0, 0.0))) - in.radius;
 
-    var alpha = in.color.a * (1.0 - smoothstep(-1.0, 1.0, dist));
+    var inside = (1.0 - smoothstep(-1.0, 1.0, dist));
+
+    var outside = (1.0 - smoothstep(1.0, -1.0, dist + 8.0));
+
+    var filled = f32(in.filled);
+    var alpha = in.color.a * (inside * max(filled, outside));
 
     return vec4(in.color.rgb * in.dark, alpha);
 }
