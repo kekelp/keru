@@ -188,7 +188,7 @@ pub struct NodeParams {
 
 impl Default for NodeParams {
     fn default() -> Self {
-        Self::DEFAULT
+        DEFAULT
     }
 }
 
@@ -253,119 +253,120 @@ impl NodeParams {
         self.is_stack = Some(Stack { arrange, axis });
         return self;
     }
-
-    pub const DEFAULT: Self = Self {
-        debug_name: "DEFAULT",
-        static_text: Some("Default"),
-        clickable: false,
-        visible_rect: true,
-        color: Color::BLUE,
-        size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
-        position: Xy::new_symm(Position::Center),
-        is_stack: None,
-        editable: false,
-        filled: true,
-    };
-
-    pub const V_STACK: Self = Self {
-        debug_name: "Column",
-        static_text: None,
-        clickable: true,
-        visible_rect: false,
-        color: DEBUG_RED,
-        size: Xy::new(Size::PercentOfAvailable(1.0), Size::PercentOfAvailable(1.0)),
-        position: Xy::new_symm(Position::Center),
-        is_stack: Some(Stack {
-            arrange: Arrange::Start,
-            axis: Axis::Y,
-        }),
-        editable: false,
-        filled: false,
-    };
-    pub const H_STACK: Self = Self {
-        debug_name: "Column",
-        static_text: None,
-        visible_rect: false,
-        clickable: false,
-        color: DEBUG_RED,
-        size: Xy::new(Size::PercentOfAvailable(1.0), Size::PercentOfAvailable(1.0)),
-        position: Xy::new_symm(Position::Center),
-        is_stack: Some(Stack {
-            arrange: Arrange::Start,
-            axis: Axis::X,
-        }),
-        editable: false,
-        filled: false,
-    };
-    pub const MARGIN: Self = Self {
-        debug_name: "MARGIN",
-        static_text: None,
-        clickable: false,
-        visible_rect: false,
-        color: DEBUG_RED,
-        size: Xy::new_symm(Size::PercentOfAvailable(0.7)),
-        position: Xy::new_symm(Position::Center),
-        is_stack: None,
-        editable: false,
-        filled: false,
-    };
-
-    pub const BUTTON: Self = Self {
-        debug_name: "Button",
-        static_text: None,
-        clickable: true,
-        visible_rect: true,
-        color: Color::rgba(0.0, 0.1, 0.1, 0.9),
-        size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
-        position: Xy::new_symm(Position::Center),
-        is_stack: None,
-        editable: false,
-        filled: true,
-    };
-
-    pub const LABEL: Self = Self {
-        debug_name: "label",
-        static_text: None,
-        clickable: false,
-        visible_rect: true,
-        color: Color::BLUE,
-        size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
-        position: Xy::new_symm(Position::Center),
-        is_stack: None,
-        editable: false,
-        filled: true,
-    };
-
-    pub const TEXT_INPUT: Self = Self {
-        debug_name: "label",
-        static_text: None,
-        clickable: true,
-        visible_rect: true,
-        color: Color::rgba(0.1, 0.0, 0.1, 0.9),
-        size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
-        position: Xy::new_symm(Position::Start),
-        is_stack: None,
-        editable: true,
-        filled: true,
-    };
 }
 
-#[derive_view(NodeParams::V_STACK)]
+
+pub const DEFAULT: NodeParams = NodeParams {
+    debug_name: "DEFAULT",
+    static_text: Some("Default"),
+    clickable: false,
+    visible_rect: true,
+    color: Color::BLUE,
+    size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
+    position: Xy::new_symm(Position::Center),
+    is_stack: None,
+    editable: false,
+    filled: true,
+};
+
+pub const V_STACK: NodeParams = NodeParams {
+    debug_name: "Column",
+    static_text: None,
+    clickable: true,
+    visible_rect: false,
+    color: DEBUG_RED,
+    size: Xy::new(Size::PercentOfAvailable(1.0), Size::PercentOfAvailable(1.0)),
+    position: Xy::new_symm(Position::Center),
+    is_stack: Some(Stack {
+        arrange: Arrange::Start,
+        axis: Axis::Y,
+    }),
+    editable: false,
+    filled: false,
+};
+pub const H_STACK: NodeParams = NodeParams {
+    debug_name: "Column",
+    static_text: None,
+    visible_rect: false,
+    clickable: false,
+    color: DEBUG_RED,
+    size: Xy::new(Size::PercentOfAvailable(1.0), Size::PercentOfAvailable(1.0)),
+    position: Xy::new_symm(Position::Center),
+    is_stack: Some(Stack {
+        arrange: Arrange::Start,
+        axis: Axis::X,
+    }),
+    editable: false,
+    filled: false,
+};
+pub const MARGIN: NodeParams = NodeParams {
+    debug_name: "MARGIN",
+    static_text: None,
+    clickable: false,
+    visible_rect: false,
+    color: DEBUG_RED,
+    size: Xy::new_symm(Size::PercentOfAvailable(0.7)),
+    position: Xy::new_symm(Position::Center),
+    is_stack: None,
+    editable: false,
+    filled: false,
+};
+
+pub const BUTTON: NodeParams = NodeParams {
+    debug_name: "Button",
+    static_text: None,
+    clickable: true,
+    visible_rect: true,
+    color: Color::rgba(0.0, 0.1, 0.1, 0.9),
+    size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
+    position: Xy::new_symm(Position::Center),
+    is_stack: None,
+    editable: false,
+    filled: true,
+};
+
+pub const LABEL: NodeParams = NodeParams {
+    debug_name: "label",
+    static_text: None,
+    clickable: false,
+    visible_rect: true,
+    color: Color::BLUE,
+    size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
+    position: Xy::new_symm(Position::Center),
+    is_stack: None,
+    editable: false,
+    filled: true,
+};
+
+pub const TEXT_INPUT: NodeParams = NodeParams {
+    debug_name: "label",
+    static_text: None,
+    clickable: true,
+    visible_rect: true,
+    color: Color::rgba(0.1, 0.0, 0.1, 0.9),
+    size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
+    position: Xy::new_symm(Position::Start),
+    is_stack: None,
+    editable: true,
+    filled: true,
+};
+
+#[derive_view(V_STACK)]
 pub struct VStack;
 
-#[derive_view(NodeParams::H_STACK)]
+#[derive_view(H_STACK)]
 pub struct HStack;
 
-#[derive_view(NodeParams::MARGIN)]
+#[derive_view(MARGIN)]
 pub struct Margin;
 
-#[derive_view(NodeParams::BUTTON)]
+#[derive_view(BUTTON)]
 pub struct Button;
 
-#[derive_view(NodeParams::LABEL)]
+#[derive_view(LABEL)]
 pub struct Label;
 
-#[derive_view(NodeParams::TEXT_INPUT)]
+#[derive_view(TEXT_INPUT)]
 pub struct TextInput;
 
 #[derive(Default, Debug, Pod, Copy, Clone, Zeroable)]
@@ -1694,18 +1695,6 @@ macro_rules! add {
         $ui.end_layer();
     };
 }
-
-// add anonymous with params?
-#[macro_export]
-macro_rules! add2 {
-    ($ui:expr, $node_key:expr, $code:block) => {
-        $ui.add($node_key);
-        $ui.start_layer($node_key.id());
-        $code;
-        $ui.end_layer();
-    };
-}
-
 
 #[derive(Debug)]
 pub struct Node {

@@ -3,7 +3,7 @@
 use crate::*;
 use crate::ui::*;
 use crate::ui::Axis::*;
-use view_derive::derive_view;
+use view_derive::{add_anon, derive_view};
 use crate::ui::Position::*;
 
 impl State {
@@ -12,9 +12,18 @@ impl State {
         ui.begin_tree();
 
 
-        add!(ui, AnonMargin, {
-            // need anonymous params!!
-            add!(ui, SideBar, {
+        #[derive_view(MARGIN.size_y(0.95).size_x(1.0).position_x(Position::Center))]
+        pub struct Margin;
+
+        add!(ui, Margin, {
+
+            // #[derive_view(V_STACK.size_x(0.3).position_x(Position::End))]
+            // pub struct SideBar;
+            // add!(ui, SideBar, {
+
+            // let SIDEBAR = V_STACK.size_x(0.3).position_x(Position::End);
+            const SIDEBAR: NodeParams = V_STACK.size_x(0.3).position_x(Position::End);
+            add_anon!(ui, SIDEBAR, {
 
                 let mut color = ui.add(PaintColor).get_text();
 
@@ -55,35 +64,25 @@ impl State {
     }
 }
 
-#[derive_view(NodeParams::MARGIN.size_y(0.95).size_x(1.0).position_x(Position::Center))]
-pub struct AnonMargin;
 
-#[derive_view(NodeParams::V_STACK.size_x(0.3).position_x(Position::End))]
-pub struct SideBar;
 
-#[derive_view(NodeParams::BUTTON.size_y(0.2).position_x(Position::Center))]
-pub struct FinnaCringe;
-
-#[derive_view(NodeParams::BUTTON.size_y(0.2).position_x(Position::Center))]
-pub struct FinnaCringe2;
-
-#[derive_view(NodeParams::H_STACK.color(Color::BLUE).size_x(0.5).position_x(Position::Start))]
+#[derive_view(H_STACK.color(Color::BLUE).size_x(0.5).position_x(Position::Start))]
 pub struct CenterRow;
 
-#[derive_view(NodeParams::BUTTON.text("Increase").color(Color::GREEN))]
+#[derive_view(BUTTON.text("Increase").color(Color::GREEN))]
 pub struct IncreaseButton;
 
-#[derive_view(NodeParams::BUTTON.text("Decrease").color(Color::RED))]
+#[derive_view(BUTTON.text("Decrease").color(Color::RED))]
 pub struct DecreaseButton;
 
-#[derive_view(NodeParams::BUTTON.text("Show Counter").color(Color::rgba(0.5, 0.1, 0.7, 0.7)))]
+#[derive_view(BUTTON.text("Show Counter").color(Color::rgba(0.5, 0.1, 0.7, 0.7)))]
 pub struct ShowCounterButton;
 
-#[derive_view(NodeParams::LABEL)]
+#[derive_view(LABEL)]
 pub struct CountLabel;
 
 #[derive_view(
-    NodeParams::H_STACK
+    H_STACK
     .size_y(0.95)
     .size_x(0.8)
     .stack(Y, Arrange::End)
@@ -91,13 +90,13 @@ pub struct CountLabel;
 )]
 pub struct CommandLineRow;
 
-#[derive_view(NodeParams::TEXT_INPUT.text("Color").size_y(0.2).position_y(Start))]
+#[derive_view(TEXT_INPUT.text("Color").size_y(0.2).position_y(Start))]
 pub struct PaintColor;
 
-#[derive_view(NodeParams::TEXT_INPUT.text("RERER"))]
+#[derive_view(TEXT_INPUT.text("RERER"))]
 pub struct CommandLine;
 
-#[derive_view(NodeParams::LABEL)]
+#[derive_view(LABEL)]
 pub struct Label234;
 
 #[allow(dead_code)]
