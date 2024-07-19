@@ -138,7 +138,7 @@ pub fn add_anon(input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn derive_key2(attr: TokenStream, item: TokenStream) -> TokenStream {
     // Parse the attribute and the item
-    let default_params = parse_macro_input!(attr as Expr);
+    let default_params_expr = parse_macro_input!(attr as Expr);
     let input = parse_macro_input!(item as ItemConstNoEq);
     
     // Extract the identifier of the original constant
@@ -148,13 +148,13 @@ pub fn derive_key2(attr: TokenStream, item: TokenStream) -> TokenStream {
     let random_number: u64 = rand::thread_rng().gen();
 
     // Generate a unique identifier for the params constant
-    let params_ident = syn::Ident::new(&format!("__UI_{}_PARAMS_{}", ident, random_number), ident.span());
+    let random_number_ident = syn::LitInt::new(&format!("{}", random_number), ident.span());
 
     // Generate the output tokens
     let expanded = quote! {
-        const #params_ident: NodeParams = #default_params;
-        const #ident: Id2 = Id2 {
-            params: &#params_ident,
+        const #ident: NodeKey = NodeKey {
+            params: &#default_params_expr,
+            id: Id(#random_number_ident),
         };
     };
 
@@ -166,25 +166,28 @@ pub fn derive_key2(attr: TokenStream, item: TokenStream) -> TokenStream {
 
 // Define a struct to represent the custom parsed constant item
 struct ItemConstNoEq {
-    attrs: Vec<syn::Attribute>,
-    vis: syn::Visibility,
-    const_token: Token![const],
+    _attrs: Vec<syn::Attribute>,
+    _vis: syn::Visibility,
+    _const_token: Token![const],
     ident: Ident,
-    colon_token: Token![:],
-    ty: Box<Type>,
-    semi_token: Token![;],
+    _colon_token: Token![:],
+    _ty: Box<Type>,
+    _semi_token: Token![;],
 }
 
 impl Parse for ItemConstNoEq {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         Ok(ItemConstNoEq {
-            attrs: input.call(syn::Attribute::parse_outer)?,
-            vis: input.parse()?,
-            const_token: input.parse()?,
+            _attrs: input.call(syn::Attribute::parse_outer)?,
+            _vis: input.parse()?,
+            _const_token: input.parse()?,
             ident: input.parse()?,
-            colon_token: input.parse()?,
-            ty: input.parse()?,
-            semi_token: input.parse()?,
+            _colon_token: input.parse()?,
+
+            _ty: input.parse()?,
+            // todo, check that the type is right?
+            // but it could be renamed (use NodeKey as SomethingElse)
+            _semi_token: input.parse()?,
         })
     }
 }

@@ -2015,18 +2015,20 @@ macro_rules! unwrap_or_return {
 }
 
 #[derive(Clone, Copy, Debug)]
-struct Id2 {
+struct NodeKey {
     params: &'static NodeParams,
+    id: Id,
 }
 
-impl Id2 {
-    fn id(&self) -> usize {
-        let raw_pointer = self.params as *const NodeParams;
-        let bits = raw_pointer as usize;
-        return bits;
+impl NodeKey {
+    fn id(&self) -> Id {
+        return self.id;
+    }
+    fn params(&self) -> NodeParams {
+        return *self.params;
     }
 }
 
 #[derive_key2(BUTTON.size_x(0.999999))]
-const AMONG_US: Id2;
+const AMONG_US: NodeKey;
 
