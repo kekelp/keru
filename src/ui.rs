@@ -350,24 +350,6 @@ pub const TEXT_INPUT: NodeParams = NodeParams {
     filled: true,
 };
 
-#[derive_view(V_STACK)]
-pub struct VStack;
-
-#[derive_view(H_STACK)]
-pub struct HStack;
-
-#[derive_view(MARGIN)]
-pub struct Margin;
-
-#[derive_view(BUTTON)]
-pub struct Button;
-
-#[derive_view(LABEL)]
-pub struct Label;
-
-#[derive_view(TEXT_INPUT)]
-pub struct TextInput;
-
 #[derive(Default, Debug, Pod, Copy, Clone, Zeroable)]
 #[repr(C)]
 // Layout has to match the one in the shader.
@@ -527,11 +509,11 @@ pub enum Cursor {
 
 #[derive(Debug, Clone, Copy)]
 pub enum TreeTraceEntry {
-    Node(Id),
+    Node(NodeKey),
     SetParent(Id),
 }
 impl TreeTraceEntry {
-    pub fn unwrap_node(&self) -> Id {
+    pub fn unwrap_node(&self) -> NodeKey {
         return match self {
             TreeTraceEntry::Node(id) => *id,
             TreeTraceEntry::SetParent(_) => {
@@ -540,29 +522,6 @@ impl TreeTraceEntry {
         };
     }
 }
-
-// A stack allocated dynamic dispatch box, for types up to zero bytes wide.
-// Only zero-sized structs will actually end up on the stack, but the plan is to use zero-sized Views only.
-// It's just about the dynamic method dispatch.
-type ViewBox = SmallBox<dyn View, [u8; 0]>;
-// An "enum dispatch" style approach might have been less messy, if Rust (or any language) had built-in support for it.
-// A fully built-in solution would mean
-// - somehow, extend Sized into Sized<const usize N>, automatically implemented for all sized structs up to size N. This will never happen.
-// - allow vectors and other containers to store dynamic types, as long as they are Sized<N> for a certain N: Vec<dyn View + Sized(7)>
-// - implicitly, implement that by generating an enum of all the types that implement View. The element of the vector would be instances of that enum, so something like N+1 bytes wide.
-// - do "dynamic dispatch" by simply matching of the enum and calling the variation's trait implementation.
-
-// The idea came up multiple times, but I haven't seen anyone suggest the Sized<N> solution to the size problem.
-// (https://internals.rust-lang.org/t/trait-based-enum-variants/19825, https://internals.rust-lang.org/t/representing-closed-trait-objects-as-enums/3981/18)
-// Some of the discussions are from before const generics were even added, so maybe that explains it.
-// But maybe it's just impossible to have a Sized<N> trait like that for some technical reason.
-
-// "enum_dispatch" and "enum_delegate" can help, but with no language support the ergonomics aren't as good as they could be. You have to build the enum yourself.
-// Also, they can only work because of some pretty advanced macro tricks. (interestingly, the 2 crates use equally crazy but completely different tricks). It's not something that you're "supposed" to be able to do with macros, because of their local nature.
-
-// In terms of performance, the Smallbox solution avoids the heap allocation, but not the indirect function call.
-// In this library the dynamic types get built very often, but the functions are called very rarely.
-// So I imagine that it should give basically the same performance as an hypotetical enum based solution.
 
 // another stupid sub struct for dodging partial borrows
 pub struct Text {
@@ -635,15 +594,13 @@ impl Text {
 
 #[derive(Default)]
 pub struct TreeTrace {
-    pub ids: Vec<TreeTraceEntry>,
-    pub views: Vec<Option<ViewBox>>,
+    pub keys: Vec<TreeTraceEntry>,
 }
 impl TreeTrace {
-    fn last(&self) -> (Id, &ViewBox) {
-        let last_i = self.ids.len() - 1;
-        let last_id = self.ids[last_i].unwrap_node();
-        let last_view = self.views[last_i].as_ref().unwrap();
-        return (last_id, last_view);
+    fn last(&self) -> NodeKey {
+        let last_i = self.keys.len() - 1;
+        let last_key = self.keys[last_i].unwrap_node();
+        return last_key;
     }
 }
 
@@ -692,11 +649,11 @@ pub struct Ui {
 }
 impl Ui {
     fn chained_set_text(&mut self, text: &str) {
-        let (last_id, last_view) = self.trace.last();
+        let last_key = self.trace.last();
 
-        match self.node_map.entry(last_id) {
+        match self.node_map.entry(last_key.id()) {
             std::collections::hash_map::Entry::Vacant(v) => {
-                let defaults = last_view.defaults();
+                let defaults = last_key.defaults();
                 let frame = self.part.current_frame;
                 let text_id = self.text.new_text_area(Some(text), frame);
                 let new_node = Self::build_new_node(&defaults, None, text_id, frame);
@@ -711,9 +668,9 @@ impl Ui {
     }
 
     pub fn chained_get_text(&mut self) -> Option<String> {
-        let (last_id, _last_view) = self.trace.last();
+        let last_key = self.trace.last();
 
-        match self.node_map.entry(last_id) {
+        match self.node_map.entry(last_key.id()) {
             std::collections::hash_map::Entry::Vacant(_v) => {
                 return None;
             }
@@ -734,13 +691,12 @@ impl Ui {
     }
 
     pub fn add_or_get_last_node_early(&mut self) -> &mut Node {
-        let last_i = self.trace.ids.len() - 1;
-        let last_id = self.trace.ids[last_i].unwrap_node();
-        let last_view = self.trace.views[last_i].as_ref().unwrap();
+        let last_i = self.trace.keys.len() - 1;
+        let last_key = self.trace.keys[last_i].unwrap_node();
 
-        let node = match self.node_map.entry(last_id) {
+        let node = match self.node_map.entry(last_key.id()) {
             std::collections::hash_map::Entry::Vacant(v) => {
-                let defaults = last_view.defaults();
+                let defaults = last_key.defaults();
                 let frame = self.part.current_frame;
                 let text_id = self.text.new_text_area(defaults.static_text, frame);
                 let new_node = Self::build_new_node(&defaults, None, text_id, frame);
@@ -909,23 +865,14 @@ impl Ui {
         return ChainedMethodUi { ui: self };
     }
 
-    pub fn add<V: View + 'static>(&mut self, view: V) -> ChainedMethodUi {
-        self.trace.ids.push(TreeTraceEntry::Node(view.id()));
-        self.trace.views.push(Some(smallbox!(view)));
-
-        // check that the smallbox optimization is still working
-        debug_assert!(
-            self.trace.views.last().unwrap().as_ref().unwrap().is_heap() == false,
-            "Smallboxed View ended up on the heap. The optimization no longer works."
-        );
-
+    pub fn add(&mut self, key: NodeKey) -> ChainedMethodUi {
+        self.trace.keys.push(TreeTraceEntry::Node(key));
         return self.chain_ref();
     }
 
-    pub fn add_anonymous<V: View + 'static>(&mut self, view: V, id: Id) -> ChainedMethodUi {
-        self.trace.ids.push(TreeTraceEntry::Node(id));
-        self.trace.views.push(Some(smallbox!(view)));
-
+    pub fn add_anonymous(&mut self, params: &'static NodeParams, random_id: Id) -> ChainedMethodUi {
+        let key = NodeKey { params, id: random_id };
+        self.trace.keys.push(TreeTraceEntry::Node(key));
         return self.chain_ref();
     }
 
@@ -1315,12 +1262,12 @@ impl Ui {
         }
     }
 
-    pub fn is_clicked<V: View + 'static>(&self, view: V) -> bool {
+    pub fn is_clicked(&self, node_key: NodeKey) -> bool {
         if !self.part.mouse_left_just_clicked {
             return false;
         }
         if let Some(clicked_id) = &self.clicked {
-            return *clicked_id == view.id();
+            return *clicked_id == node_key.id();
         }
         return false;
     }
@@ -1337,9 +1284,6 @@ impl Ui {
     }
 
     pub fn update_time(&mut self) {
-        let a = AMONG_US;
-        println!(" among sus: {:?}", a);
-
         self.t = self.part.t0.elapsed().as_secs_f32();
     }
 
@@ -1524,8 +1468,7 @@ impl Ui {
     pub fn begin_tree(&mut self) {
         self.update_time();
 
-        self.trace.ids.clear();
-        self.trace.views.clear();
+        self.trace.keys.clear();
 
         self.node_map
             .get_mut(&NODE_ROOT_ID)
@@ -1620,26 +1563,24 @@ impl Ui {
 
     pub fn start_layer(&mut self, parent_id: Id) {
         self.parent_stack.push(parent_id);
-        self.trace.ids.push(TreeTraceEntry::SetParent(parent_id));
-        self.trace.views.push(None);
+        self.trace.keys.push(TreeTraceEntry::SetParent(parent_id));
     }
 
     pub fn end_layer(&mut self) {
         self.parent_stack.pop();
         let new_parent = self.parent_stack.last().unwrap();
         self.trace
-            .ids
+            .keys
             .push(crate::ui::TreeTraceEntry::SetParent(*new_parent));
-        self.trace.views.push(None);
     }
 
     pub(crate) fn update_nodes(&mut self) {
         let mut current_parent_id = NODE_ROOT_ID;
-        for i in 0..self.trace.ids.len() {
-            match &self.trace.ids[i] {
-                TreeTraceEntry::Node(id) => {
-                    let defaults = self.trace.views[i].as_ref().unwrap().defaults();
-                    self.add_or_refresh_node(*id, &defaults, current_parent_id);
+        for i in 0..self.trace.keys.len() {
+            match &self.trace.keys[i] {
+                TreeTraceEntry::Node(key) => {
+                    let defaults = key.defaults();
+                    self.add_or_refresh_node(key.id(), &key.defaults(), current_parent_id);
                 }
                 TreeTraceEntry::SetParent(id) => {
                     current_parent_id = *id;
@@ -1683,9 +1624,9 @@ macro_rules! create_layer_macro {
     };
 }
 
-create_layer_macro!(h_stack, crate::ui::Hstack);
-create_layer_macro!(v_stack, crate::ui::VStack);
-create_layer_macro!(margin, crate::ui::Margin);
+create_layer_macro!(h_stack, &crate::ui::H_STACK);
+create_layer_macro!(v_stack, &crate::ui::V_STACK);
+create_layer_macro!(margin, &crate::ui::MARGIN);
 
 // named only add
 #[macro_export]
@@ -1914,12 +1855,6 @@ fn fx_hash<T: Hash>(value: &T) -> u64 {
     hasher.finish()
 }
 
-pub trait View {
-    fn defaults(&self) -> NodeParams;
-    fn id(&self) -> Id;
-}
-
-
 // #[derive(Debug, Default)]
 // pub struct MouseButtons {
 //     pub left: bool,
@@ -2015,20 +1950,19 @@ macro_rules! unwrap_or_return {
 }
 
 #[derive(Clone, Copy, Debug)]
-struct NodeKey {
+pub struct NodeKey {
     params: &'static NodeParams,
     id: Id,
 }
 
 impl NodeKey {
-    fn id(&self) -> Id {
+    pub fn id(&self) -> Id {
         return self.id;
     }
-    fn params(&self) -> NodeParams {
+    pub fn defaults(&self) -> NodeParams {
         return *self.params;
     }
+    pub const fn new(params: &'static NodeParams, id: Id) -> Self {
+        return Self { params, id };
+    }
 }
-
-#[derive_key2(BUTTON.size_x(0.999999))]
-const AMONG_US: NodeKey;
-

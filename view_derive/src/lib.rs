@@ -152,10 +152,7 @@ pub fn derive_key2(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     // Generate the output tokens
     let expanded = quote! {
-        const #ident: NodeKey = NodeKey {
-            params: &#default_params_expr,
-            id: Id(#random_number_ident),
-        };
+        const #ident: NodeKey = NodeKey::new( &#default_params_expr, Id(#random_number_ident));
     };
 
     TokenStream::from(expanded)
