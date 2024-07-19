@@ -3,8 +3,6 @@ use glyphon::cosmic_text::StringCursor;
 use glyphon::Cursor as GlyphonCursor;
 use glyphon::{Affinity, Resolution as GlyphonResolution};
 use rustc_hash::{FxHashMap, FxHasher};
-use smallbox::{smallbox, SmallBox};
-use view_derive::{derive_key2, derive_view};
 use wgpu::*;
 use winit::keyboard::Key;
 use crate::unwrap_or_return;
@@ -597,7 +595,7 @@ pub struct TreeTrace {
     pub keys: Vec<TreeTraceEntry>,
 }
 impl TreeTrace {
-    fn last(&self) -> NodeKey {
+    fn last_node(&self) -> NodeKey {
         let last_i = self.keys.len() - 1;
         let last_key = self.keys[last_i].unwrap_node();
         return last_key;
@@ -649,7 +647,7 @@ pub struct Ui {
 }
 impl Ui {
     fn chained_set_text(&mut self, text: &str) {
-        let last_key = self.trace.last();
+        let last_key = self.trace.last_node();
 
         match self.node_map.entry(last_key.id()) {
             std::collections::hash_map::Entry::Vacant(v) => {
@@ -668,7 +666,7 @@ impl Ui {
     }
 
     pub fn chained_get_text(&mut self) -> Option<String> {
-        let last_key = self.trace.last();
+        let last_key = self.trace.last_node();
 
         match self.node_map.entry(last_key.id()) {
             std::collections::hash_map::Entry::Vacant(_v) => {
@@ -865,7 +863,7 @@ impl Ui {
         return ChainedMethodUi { ui: self };
     }
 
-    pub fn add(&mut self, key: NodeKey) -> ChainedMethodUi {
+    pub fn add_to_trace(&mut self, key: NodeKey) -> ChainedMethodUi {
         self.trace.keys.push(TreeTraceEntry::Node(key));
         return self.chain_ref();
     }
@@ -880,10 +878,12 @@ impl Ui {
 
     pub fn add_or_refresh_node(
         &mut self,
-        id: Id,
-        defaults: &NodeParams,
+        key: NodeKey,
         parent_id: Id,
     ) -> &mut Node {
+        let id = key.id();
+        let defaults = &key.defaults();
+
         self.add_child_to_parent(id, parent_id);
 
         let frame = self.part.current_frame;
@@ -1577,13 +1577,13 @@ impl Ui {
     pub(crate) fn update_nodes(&mut self) {
         let mut current_parent_id = NODE_ROOT_ID;
         for i in 0..self.trace.keys.len() {
-            match &self.trace.keys[i] {
+            match self.trace.keys[i] {
                 TreeTraceEntry::Node(key) => {
-                    let defaults = key.defaults();
-                    self.add_or_refresh_node(key.id(), &key.defaults(), current_parent_id);
+                    // todo, why pass by value albeit
+                    self.add_or_refresh_node(key, current_parent_id);
                 }
                 TreeTraceEntry::SetParent(id) => {
-                    current_parent_id = *id;
+                    current_parent_id = id;
                 }
             }
         }
@@ -1611,7 +1611,7 @@ macro_rules! create_layer_macro {
             };
             // named
             ($ui:expr, $node_key:expr, $code:block) => {
-                $ui.add($node_key);
+                $ui.add_to_trace($node_key);
 
                 $ui.start_layer($node_key.id());
 

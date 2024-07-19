@@ -3,7 +3,7 @@
 use crate::*;
 use crate::ui::*;
 use crate::ui::Axis::*;
-use view_derive::{add_anon, derive_key2, derive_view};
+use view_derive::node_key;
 use crate::ui::Position::*;
 
 impl State {
@@ -67,19 +67,19 @@ impl State {
 
 
 
-#[derive_key2(H_STACK.color(Color::BLUE).size_x(0.5).position_x(Position::Start))]
+#[node_key(H_STACK.color(Color::BLUE).size_x(0.5).position_x(Position::Start))]
 pub const CENTER_ROW: NodeKey;
 
-#[derive_key2(BUTTON.text("Increase").color(Color::GREEN))]
+#[node_key(BUTTON.text("Increase").color(Color::GREEN))]
 pub const INCREASE_BUTTON: NodeKey;
 
-#[derive_key2(BUTTON.text("Decrease").color(Color::RED))]
+#[node_key(BUTTON.text("Decrease").color(Color::RED))]
 pub const DECREASE_BUTTON: NodeKey;
 
-#[derive_key2(BUTTON.text("Show Counter").color(Color::rgba(0.5, 0.1, 0.7, 0.7)))]
+#[node_key(BUTTON.text("Show Counter").color(Color::rgba(0.5, 0.1, 0.7, 0.7)))]
 pub const SHOW_COUNTER_BUTTON: NodeKey;
 
-#[derive_key2(LABEL)]
+#[node_key(LABEL)]
 pub const COUNT_LABEL: NodeKey;
 
 // #[derive_view(
@@ -107,12 +107,12 @@ pub fn useless_counter(ui: &mut Ui, counter_state: &mut CounterState) {
             v_stack!(ui, {
                 if counter_state.counter_mode {
                     let new_color = count_color(counter_state.count);
-                    ui.add(INCREASE_BUTTON).set_color(new_color);
+                    ui.add_to_trace(INCREASE_BUTTON).set_color(new_color);
 
                     let count = &counter_state.count.to_string();
-                    ui.add(COUNT_LABEL).set_text(count);
+                    ui.add_to_trace(COUNT_LABEL).set_text(count);
 
-                    ui.add(DECREASE_BUTTON);
+                    ui.add_to_trace(DECREASE_BUTTON);
                 }
             });
 
@@ -121,7 +121,7 @@ pub fn useless_counter(ui: &mut Ui, counter_state: &mut CounterState) {
                     true => "Hide counter",
                     false => "Show counter",
                 };
-                ui.add(SHOW_COUNTER_BUTTON).set_text(text);
+                ui.add_to_trace(SHOW_COUNTER_BUTTON).set_text(text);
             });
         });
     });
