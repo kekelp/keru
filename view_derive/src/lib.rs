@@ -1,7 +1,8 @@
 extern crate proc_macro;
 use proc_macro::TokenStream;
+use proc_macro2::Ident;
 use quote::quote;
-use syn::{parse::{Parse, ParseStream}, parse_macro_input, Block, Expr, ExprBlock, Fields, ItemStruct, Token};
+use syn::{parse::{Parse, ParseStream}, parse_macro_input, spanned::Spanned, Block, DeriveInput, Expr, ExprBlock, Fields, ItemConst, ItemStruct, LitStr, Token, Type};
 use rand::Rng;
 
 // using an attribute macro instead of a derive macro seems to work better with rust-analyzer, for some reason.
@@ -131,4 +132,59 @@ pub fn add_anon(input: TokenStream) -> TokenStream {
 
     // Convert the generated code back into a TokenStream and return it
     TokenStream::from(expanded)
+}
+
+
+#[proc_macro_attribute]
+pub fn derive_key2(attr: TokenStream, item: TokenStream) -> TokenStream {
+    // Parse the attribute and the item
+    let default_params = parse_macro_input!(attr as Expr);
+    let input = parse_macro_input!(item as ItemConstNoEq);
+    
+    // Extract the identifier of the original constant
+    let ident = &input.ident;
+
+    // Generate a random number
+    let random_number: u64 = rand::thread_rng().gen();
+
+    // Generate a unique identifier for the params constant
+    let params_ident = syn::Ident::new(&format!("{}_PARAMS_{}", ident, random_number), ident.span());
+
+    // Generate the output tokens
+    let expanded = quote! {
+        const #params_ident: NodeParams = #default_params;
+        const #ident: Id2 = Id2 {
+            params: &#params_ident,
+        };
+    };
+
+    TokenStream::from(expanded)
+}
+
+
+
+
+// Define a struct to represent the custom parsed constant item
+struct ItemConstNoEq {
+    attrs: Vec<syn::Attribute>,
+    vis: syn::Visibility,
+    const_token: Token![const],
+    ident: Ident,
+    colon_token: Token![:],
+    ty: Box<Type>,
+    semi_token: Token![;],
+}
+
+impl Parse for ItemConstNoEq {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        Ok(ItemConstNoEq {
+            attrs: input.call(syn::Attribute::parse_outer)?,
+            vis: input.parse()?,
+            const_token: input.parse()?,
+            ident: input.parse()?,
+            colon_token: input.parse()?,
+            ty: input.parse()?,
+            semi_token: input.parse()?,
+        })
+    }
 }

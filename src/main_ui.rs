@@ -11,7 +11,6 @@ impl State {
         let ui = &mut self.ui;
         ui.begin_tree();
 
-
         #[derive_view(MARGIN.size_y(0.95).size_x(1.0).position_x(Position::Center))]
         pub struct Margin;
 

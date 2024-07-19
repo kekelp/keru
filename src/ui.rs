@@ -4,9 +4,8 @@ use glyphon::Cursor as GlyphonCursor;
 use glyphon::{Affinity, Resolution as GlyphonResolution};
 use rustc_hash::{FxHashMap, FxHasher};
 use smallbox::{smallbox, SmallBox};
-use view_derive::derive_view;
+use view_derive::{derive_key2, derive_view};
 use wgpu::*;
-use winit::event::MouseScrollDelta;
 use winit::keyboard::Key;
 use crate::unwrap_or_return;
 
@@ -1338,6 +1337,9 @@ impl Ui {
     }
 
     pub fn update_time(&mut self) {
+        let a = AMONG_US;
+        println!(" among sus: {:?}", a);
+
         self.t = self.part.t0.elapsed().as_secs_f32();
     }
 
@@ -2011,3 +2013,12 @@ macro_rules! unwrap_or_return {
         }
     }};
 }
+
+#[derive(Clone, Copy, Debug)]
+struct Id2 {
+    params: &'static NodeParams,
+}
+
+#[derive_key2(BUTTON.size_x(0.999999))]
+const AMONG_US: Id2;
+
