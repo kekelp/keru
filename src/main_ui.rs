@@ -11,39 +11,37 @@ impl State {
         let ui = &mut self.ui;
         ui.begin_tree();
 
-        // #[derive_view(MARGIN.size_y(0.95).size_x(1.0).position_x(Position::Center))]
-        // pub struct Margin;
+        const MARGIN2: NodeParams = MARGIN.size_y(0.95).size_x(1.0).position_x(Position::Center);
+        add_anon!(ui, MARGIN2, {
 
-        // add!(ui, Margin, {
+            // #[derive_view(V_STACK.size_x(0.3).position_x(Position::End))]
+            // pub struct SideBar;
+            // add!(ui, SideBar, {
 
-        //     // #[derive_view(V_STACK.size_x(0.3).position_x(Position::End))]
-        //     // pub struct SideBar;
-        //     // add!(ui, SideBar, {
+            // let SIDEBAR = V_STACK.size_x(0.3).position_x(Position::End);
+            const SIDEBAR: NodeParams = V_STACK.size_x(0.3).position_x(Position::End);
+            add_anon!(ui, SIDEBAR, {
 
-        //     // let SIDEBAR = V_STACK.size_x(0.3).position_x(Position::End);
-        //     const SIDEBAR: NodeParams = V_STACK.size_x(0.3).position_x(Position::End);
-        //     add_anon!(ui, SIDEBAR, {
+                let mut color = ui.add(PAINT_COLOR).get_text();
 
-        //         let mut color = ui.add(PaintColor).get_text();
+                if let Some(color) = &mut color {
+                    color.make_ascii_lowercase();
+                    match color.as_str() {
+                        "blue" => {
+                            self.canvas.paint_color = PixelColorF32::BLUE;
+                        },
+                        "red" => {
+                            self.canvas.paint_color = PixelColorF32::RED;
+                        },
+                        "green" => {
+                            self.canvas.paint_color = PixelColorF32::GREEN;
+                        },
+                        _ => {}
+                    }
+                } 
 
-        //         if let Some(color) = &mut color {
-        //             color.make_ascii_lowercase();
-        //             match color.as_str() {
-        //                 "blue" => {
-        //                     self.canvas.paint_color = PixelColorF32::BLUE;
-        //                 },
-        //                 "red" => {
-        //                     self.canvas.paint_color = PixelColorF32::RED;
-        //                 },
-        //                 "green" => {
-        //                     self.canvas.paint_color = PixelColorF32::GREEN;
-        //                 },
-        //                 _ => {}
-        //             }
-        //         } 
-
-        //     });
-        // });
+            });
+        });
 
         useless_counter(ui, &mut self.counter_state);
 
@@ -67,9 +65,6 @@ impl State {
 
 
 
-#[node_key(H_STACK.color(Color::BLUE).size_x(0.5).position_x(Position::Start))]
-pub const CENTER_ROW: NodeKey;
-
 #[node_key(BUTTON.text("Increase").color(Color::GREEN))]
 pub const INCREASE_BUTTON: NodeKey;
 
@@ -91,8 +86,8 @@ pub const COUNT_LABEL: NodeKey;
 // )]
 // pub struct CommandLineRow;
 
-// #[derive_view(TEXT_INPUT.text("Color").size_y(0.2).position_y(Start))]
-// pub struct PaintColor;
+#[node_key(TEXT_INPUT.text("Color").size_y(0.2).position_y(Start))]
+pub const PAINT_COLOR: NodeKey;
 
 // #[derive_view(TEXT_INPUT.text("RERER"))]
 // pub struct CommandLine;
@@ -103,16 +98,18 @@ pub const COUNT_LABEL: NodeKey;
 #[allow(dead_code)]
 pub fn useless_counter(ui: &mut Ui, counter_state: &mut CounterState) {
     margin!(ui, {
-        h_stack!(ui, CENTER_ROW, {
+        
+        pub const CENTER_ROW: NodeParams = H_STACK.size_x(0.5).position_x(Position::Start);
+        add_anon!(ui, CENTER_ROW, {
             v_stack!(ui, {
                 if counter_state.counter_mode {
                     let new_color = count_color(counter_state.count);
-                    ui.add_to_trace(INCREASE_BUTTON).set_color(new_color);
+                    ui.add(INCREASE_BUTTON).set_color(new_color);
 
                     let count = &counter_state.count.to_string();
-                    ui.add_to_trace(COUNT_LABEL).set_text(count);
+                    ui.add(COUNT_LABEL).set_text(count);
 
-                    ui.add_to_trace(DECREASE_BUTTON);
+                    ui.add(DECREASE_BUTTON);
                 }
             });
 
@@ -121,7 +118,7 @@ pub fn useless_counter(ui: &mut Ui, counter_state: &mut CounterState) {
                     true => "Hide counter",
                     false => "Show counter",
                 };
-                ui.add_to_trace(SHOW_COUNTER_BUTTON).set_text(text);
+                ui.add(SHOW_COUNTER_BUTTON).set_text(text);
             });
         });
     });

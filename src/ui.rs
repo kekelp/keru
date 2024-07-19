@@ -864,16 +864,13 @@ impl Ui {
         return ChainedMethodUi { ui: self };
     }
 
-    pub fn add_to_trace(&mut self, key: NodeKey) -> ChainedMethodUi {
+    pub fn add(&mut self, key: NodeKey) -> ChainedMethodUi {
         self.trace.keys.push(TreeTraceEntry::Node(key));
         return self.chain_ref();
     }
 
     pub fn add_anonymous(&mut self, params: &'static NodeParams, random_id: Id) -> ChainedMethodUi {
-        let key = NodeKey {
-            params,
-            id: random_id,
-        };
+        let key = NodeKey::new(params, random_id);
         self.trace.keys.push(TreeTraceEntry::Node(key));
         return self.chain_ref();
     }
@@ -1583,6 +1580,30 @@ impl Ui {
     }
 }
 
+#[macro_export]
+macro_rules! add {
+    ($ui:expr, $node_key:expr, $code:block) => {
+        $ui.add($node_key);
+        $ui.start_layer($node_key.id());
+        $code;
+        $ui.end_layer();
+    };
+}
+
+#[macro_export]
+macro_rules! add_anon {
+    ($ui:expr, $node_params:expr, $code:block) => {
+        let anonymous_id = call_site_id!();
+        $ui.add_anonymous(&$node_params, anonymous_id);
+
+        $ui.start_layer(anonymous_id);
+
+        $code;
+
+        $ui.end_layer();
+    };
+}
+
 // todo: since macros = le bad, maybe make separate functions so that it's possible to do
 // ui.begin_hstack()
 // ui.add(children)
@@ -1602,16 +1623,6 @@ macro_rules! create_layer_macro {
 
                 $ui.end_layer();
             };
-            // named
-            ($ui:expr, $node_key:expr, $code:block) => {
-                $ui.add_to_trace($node_key);
-
-                $ui.start_layer($node_key.id());
-
-                $code;
-
-                $ui.end_layer();
-            };
         }
     };
 }
@@ -1619,17 +1630,6 @@ macro_rules! create_layer_macro {
 create_layer_macro!(h_stack, &crate::ui::H_STACK);
 create_layer_macro!(v_stack, &crate::ui::V_STACK);
 create_layer_macro!(margin, &crate::ui::MARGIN);
-
-// named only add
-#[macro_export]
-macro_rules! add {
-    ($ui:expr, $node_key:expr, $code:block) => {
-        $ui.add($node_key);
-        $ui.start_layer($node_key.id());
-        $code;
-        $ui.end_layer();
-    };
-}
 
 #[derive(Debug)]
 pub struct Node {
