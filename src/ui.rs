@@ -1588,19 +1588,8 @@ macro_rules! add {
         $code;
         $ui.end_layer();
     };
-}
-
-#[macro_export]
-macro_rules! add_anon {
-    ($ui:expr, $node_params:expr, $code:block) => {
-        let anonymous_id = call_site_id!();
-        $ui.add_anonymous(&$node_params, anonymous_id);
-
-        $ui.start_layer(anonymous_id);
-
-        $code;
-
-        $ui.end_layer();
+    ($ui:expr, $node_key:expr) => {
+        $ui.add($node_key)
     };
 }
 

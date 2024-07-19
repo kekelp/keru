@@ -2,7 +2,6 @@
 // when ui will be in its own crate, this won't happen anymore
 use crate::*;
 use crate::ui::*;
-use crate::ui::Axis::*;
 use view_derive::node_key;
 use crate::ui::Position::*;
 
@@ -11,18 +10,15 @@ impl State {
         let ui = &mut self.ui;
         ui.begin_tree();
 
-        const MARGIN2: NodeParams = MARGIN.size_y(0.95).size_x(1.0).position_x(Position::Center);
-        add_anon!(ui, MARGIN2, {
+        #[node_key(MARGIN.size_y(0.95).size_x(1.0).position_x(Position::Center))]
+        const MARGIN2: Nodekey;
+        add!(ui, MARGIN2, {
 
-            // #[derive_view(V_STACK.size_x(0.3).position_x(Position::End))]
-            // pub struct SideBar;
-            // add!(ui, SideBar, {
+            #[node_key(V_STACK.size_x(0.3).position_x(Position::End))]            
+            const SIDEBAR: Nodekey;
+            add!(ui, SIDEBAR, {
 
-            // let SIDEBAR = V_STACK.size_x(0.3).position_x(Position::End);
-            const SIDEBAR: NodeParams = V_STACK.size_x(0.3).position_x(Position::End);
-            add_anon!(ui, SIDEBAR, {
-
-                let mut color = ui.add(PAINT_COLOR).get_text();
+                let mut color = add!(ui, PAINT_COLOR).get_text();
 
                 if let Some(color) = &mut color {
                     color.make_ascii_lowercase();
@@ -43,39 +39,19 @@ impl State {
             });
         });
 
-        useless_counter(ui, &mut self.counter_state);
-
-
+        self.counter_state.add(ui);
+        
+        
         ui.finish_tree();
-
-        if ui.is_clicked(INCREASE_BUTTON) {
-            self.counter_state.count += 1;
-        }
-
-        if ui.is_clicked(DECREASE_BUTTON) {
-            self.counter_state.count -= 1;
-        }
-
-        if ui.is_clicked(SHOW_COUNTER_BUTTON) {
-            self.counter_state.counter_mode = !self.counter_state.counter_mode;
-        }
+        
+        
+        self.counter_state.interact(ui);
 
     }
 }
 
 
 
-#[node_key(BUTTON.text("Increase").color(Color::GREEN))]
-pub const INCREASE_BUTTON: NodeKey;
-
-#[node_key(BUTTON.text("Decrease").color(Color::RED))]
-pub const DECREASE_BUTTON: NodeKey;
-
-#[node_key(BUTTON.text("Show Counter").color(Color::rgba(0.5, 0.1, 0.7, 0.7)))]
-pub const SHOW_COUNTER_BUTTON: NodeKey;
-
-#[node_key(LABEL)]
-pub const COUNT_LABEL: NodeKey;
 
 // #[derive_view(
 //     H_STACK
@@ -95,35 +71,6 @@ pub const PAINT_COLOR: NodeKey;
 // #[derive_view(LABEL)]
 // pub struct Label234;
 
-#[allow(dead_code)]
-pub fn useless_counter(ui: &mut Ui, counter_state: &mut CounterState) {
-    margin!(ui, {
-        
-        pub const CENTER_ROW: NodeParams = H_STACK.size_x(0.5).position_x(Position::Start);
-        add_anon!(ui, CENTER_ROW, {
-            v_stack!(ui, {
-                if counter_state.counter_mode {
-                    let new_color = count_color(counter_state.count);
-                    ui.add(INCREASE_BUTTON).set_color(new_color);
-
-                    let count = &counter_state.count.to_string();
-                    ui.add(COUNT_LABEL).set_text(count);
-
-                    ui.add(DECREASE_BUTTON);
-                }
-            });
-
-            v_stack!(ui, {
-                let text = match counter_state.counter_mode {
-                    true => "Hide counter",
-                    false => "Show counter",
-                };
-                ui.add(SHOW_COUNTER_BUTTON).set_text(text);
-            });
-        });
-    });
-}
-
 pub struct CounterState {
     pub count: i32,
     pub counter_mode: bool,
@@ -140,6 +87,62 @@ impl CounterState {
             count: 0,
             counter_mode: true,
         };
+    }
+
+    #[node_key(BUTTON.text("Increase").color(Color::GREEN))]
+    pub const INCREASE_BUTTON: NodeKey;
+
+    #[node_key(BUTTON.text("Decrease").color(Color::RED))]
+    pub const DECREASE_BUTTON: NodeKey;
+
+    #[node_key(BUTTON.text("Show Counter").color(Color::rgba(0.5, 0.1, 0.7, 0.7)))]
+    pub const SHOW_COUNTER_BUTTON: NodeKey;
+
+    #[node_key(LABEL)]
+    pub const COUNT_LABEL: NodeKey;
+
+
+    pub fn add(&mut self, ui: &mut Ui) {
+        margin!(ui, {
+            
+            #[node_key(H_STACK.size_x(0.5).position_x(Position::Start))]
+            pub const CENTER_ROW: NodeKey;
+            add!(ui, CENTER_ROW, {
+                v_stack!(ui, {
+                    if self.counter_mode {
+                        let new_color = count_color(self.count);
+                        ui.add(Self::INCREASE_BUTTON).set_color(new_color);
+    
+                        let count = &self.count.to_string();
+                        ui.add(Self::COUNT_LABEL).set_text(count);
+    
+                        ui.add(Self::DECREASE_BUTTON);
+                    }
+                });
+    
+                v_stack!(ui, {
+                    let text = match self.counter_mode {
+                        true => "Hide counter",
+                        false => "Show counter",
+                    };
+                    ui.add(Self::SHOW_COUNTER_BUTTON).set_text(text);
+                });
+            });
+        });
+    }
+
+    pub fn interact(&mut self, ui: &mut Ui) {
+        if ui.is_clicked(Self::INCREASE_BUTTON) {
+            self.count += 1;
+        }
+
+        if ui.is_clicked(Self::DECREASE_BUTTON) {
+            self.count -= 1;
+        }
+
+        if ui.is_clicked(Self::SHOW_COUNTER_BUTTON) {
+            self.counter_mode = !self.counter_mode;
+        }
     }
 }
 pub fn count_color(count: i32) -> Color {
