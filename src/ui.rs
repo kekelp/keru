@@ -2019,6 +2019,14 @@ struct Id2 {
     params: &'static NodeParams,
 }
 
+impl Id2 {
+    fn id(&self) -> usize {
+        let raw_pointer = self.params as *const NodeParams;
+        let bits = raw_pointer as usize;
+        return bits;
+    }
+}
+
 #[derive_key2(BUTTON.size_x(0.999999))]
 const AMONG_US: Id2;
 

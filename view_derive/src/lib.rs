@@ -148,7 +148,7 @@ pub fn derive_key2(attr: TokenStream, item: TokenStream) -> TokenStream {
     let random_number: u64 = rand::thread_rng().gen();
 
     // Generate a unique identifier for the params constant
-    let params_ident = syn::Ident::new(&format!("{}_PARAMS_{}", ident, random_number), ident.span());
+    let params_ident = syn::Ident::new(&format!("__UI_{}_PARAMS_{}", ident, random_number), ident.span());
 
     // Generate the output tokens
     let expanded = quote! {
