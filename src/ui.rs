@@ -1,3 +1,4 @@
+use crate::unwrap_or_return;
 use copypasta::{ClipboardContext, ClipboardProvider};
 use glyphon::cosmic_text::StringCursor;
 use glyphon::Cursor as GlyphonCursor;
@@ -5,7 +6,6 @@ use glyphon::{Affinity, Resolution as GlyphonResolution};
 use rustc_hash::{FxHashMap, FxHasher};
 use wgpu::*;
 use winit::keyboard::Key;
-use crate::unwrap_or_return;
 
 use std::ops::{Add, Mul, Sub};
 use std::{
@@ -18,14 +18,8 @@ use std::{
 
 use bytemuck::{Pod, Zeroable};
 use glyphon::{
-    Attrs, Buffer as GlyphonBuffer, Color as GlyphonColor, Family, FontSystem, Metrics, Shaping, SwashCache,
-    TextArea, TextAtlas, TextBounds, TextRenderer,
-};
-use {
-    util::{self, DeviceExt},
-    vertex_attr_array, BindGroup, BufferAddress, BufferUsages, ColorTargetState, Device,
-    MultisampleState, Queue, RenderPass, RenderPipeline, SurfaceConfiguration, VertexAttribute,
-    VertexBufferLayout, VertexStepMode,
+    Attrs, Buffer as GlyphonBuffer, Color as GlyphonColor, Family, FontSystem, Metrics, Shaping,
+    SwashCache, TextArea, TextAtlas, TextBounds, TextRenderer,
 };
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
@@ -33,6 +27,12 @@ use winit::{
     keyboard::{ModifiersState, NamedKey},
 };
 use Axis::{X, Y};
+use {
+    util::{self, DeviceExt},
+    vertex_attr_array, BindGroup, BufferAddress, BufferUsages, ColorTargetState, Device,
+    MultisampleState, Queue, RenderPass, RenderPipeline, SurfaceConfiguration, VertexAttribute,
+    VertexBufferLayout, VertexStepMode,
+};
 
 #[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, Pod, Zeroable)]
 #[repr(C)]
@@ -73,7 +73,7 @@ impl Axis {
 #[repr(C)]
 pub struct Xy<T> {
     pub x: T,
-    pub y: T
+    pub y: T,
 }
 
 impl<T: Add<Output = T> + Copy> Add<Xy<T>> for Xy<T> {
@@ -252,7 +252,6 @@ impl NodeParams {
     }
 }
 
-
 pub const DEFAULT: NodeParams = NodeParams {
     debug_name: "DEFAULT",
     static_text: Some("Default"),
@@ -366,7 +365,6 @@ pub struct RenderRect {
 
     pub radius: f32,
 
-    
     // -- not used in shader
     pub filled: u32,
     pub id: Id,
@@ -604,7 +602,7 @@ impl TreeTrace {
 
 pub struct Ui {
     pub debug_mode: bool,
-    
+
     pub clipboard: ClipboardContext,
 
     pub key_mods: ModifiersState,
@@ -676,7 +674,10 @@ impl Ui {
                 let old_node = o.into_mut();
                 let text_id = old_node.text_id.unwrap();
 
-                let text = self.text.text_areas[text_id].buffer.lines[0].text.text().to_string();
+                let text = self.text.text_areas[text_id].buffer.lines[0]
+                    .text
+                    .text()
+                    .to_string();
                 return Some(text);
             }
         };
@@ -869,18 +870,17 @@ impl Ui {
     }
 
     pub fn add_anonymous(&mut self, params: &'static NodeParams, random_id: Id) -> ChainedMethodUi {
-        let key = NodeKey { params, id: random_id };
+        let key = NodeKey {
+            params,
+            id: random_id,
+        };
         self.trace.keys.push(TreeTraceEntry::Node(key));
         return self.chain_ref();
     }
 
     // todo: add back the "sibling" stuff
 
-    pub fn add_or_refresh_node(
-        &mut self,
-        key: NodeKey,
-        parent_id: Id,
-    ) -> &mut Node {
+    pub fn add_or_refresh_node(&mut self, key: NodeKey, parent_id: Id) -> &mut Node {
         let id = key.id();
         let defaults = &key.defaults();
 
@@ -948,17 +948,14 @@ impl Ui {
         // todo: remove line.reset(); and do it only once per frame via change watcher guy
 
         match &event.logical_key {
-            Key::Named(named_key) => {
-                match named_key {
-                    NamedKey::F1 => {
-                        println!("test");
-                    },
-                    _ => {},
+            Key::Named(named_key) => match named_key {
+                NamedKey::F1 => {
+                    println!("test");
                 }
+                _ => {}
             },
-            _ => {},
+            _ => {}
         }
-
 
         // if there is no focused text node, return consumed: false
         let id = unwrap_or_return!(self.focused, false);
@@ -971,83 +968,74 @@ impl Ui {
             let line = &mut buffer.lines[0];
 
             match &event.logical_key {
-                Key::Named(named_key) => {
-                    match named_key {
-                        NamedKey::ArrowLeft => {
-                            match (
-                                self.key_mods.shift_key(),
-                                self.key_mods.control_key(),
-                            ) {
-                                (true, true) => line.text.control_shift_left_arrow(),
-                                (true, false) => line.text.shift_left_arrow(),
-                                (false, true) => line.text.control_left_arrow(),
-                                (false, false) => line.text.left_arrow(),
-                            }
-                            return true;
+                Key::Named(named_key) => match named_key {
+                    NamedKey::ArrowLeft => {
+                        match (self.key_mods.shift_key(), self.key_mods.control_key()) {
+                            (true, true) => line.text.control_shift_left_arrow(),
+                            (true, false) => line.text.shift_left_arrow(),
+                            (false, true) => line.text.control_left_arrow(),
+                            (false, false) => line.text.left_arrow(),
                         }
-                        NamedKey::ArrowRight => {
-                            match (
-                                self.key_mods.shift_key(),
-                                self.key_mods.control_key(),
-                            ) {
-                                (true, true) => line.text.control_shift_right_arrow(),
-                                (true, false) => line.text.shift_right_arrow(),
-                                (false, true) => line.text.control_right_arrow(),
-                                (false, false) => line.text.right_arrow(),
-                            }
-                            return true;
-                        }
-                        NamedKey::Backspace => {
-                            if self.key_mods.control_key() {
-                                line.text.ctrl_backspace();
-                            } else {
-                                line.text.backspace();
-                            }
-                            line.reset();
-                            return true;
-                        }
-                        NamedKey::End => {
-                            match self.key_mods.shift_key() {
-                                true => line.text.shift_end(),
-                                false => line.text.go_to_end(),
-                            }
-                            line.reset();
-                            return true;
-                        }
-                        NamedKey::Home => {
-                            match self.key_mods.shift_key() {
-                                false => line.text.go_to_start(),
-                                true => line.text.shift_home(),
-                            }
-                            line.reset();
-                            return true;
-                        }
-                        NamedKey::Delete => {
-                            if self.key_mods.control_key() {
-                                line.text.ctrl_delete();
-                            } else {
-                                line.text.delete();
-                            }
-                            line.reset();
-                            return true;
-                        }
-                        NamedKey::Space => {
-                            line.text.insert_str_at_cursor(" ");
-                            line.reset();
-                            return true;
-                        }
-                        _ => {}
+                        return true;
                     }
-                }
+                    NamedKey::ArrowRight => {
+                        match (self.key_mods.shift_key(), self.key_mods.control_key()) {
+                            (true, true) => line.text.control_shift_right_arrow(),
+                            (true, false) => line.text.shift_right_arrow(),
+                            (false, true) => line.text.control_right_arrow(),
+                            (false, false) => line.text.right_arrow(),
+                        }
+                        return true;
+                    }
+                    NamedKey::Backspace => {
+                        if self.key_mods.control_key() {
+                            line.text.ctrl_backspace();
+                        } else {
+                            line.text.backspace();
+                        }
+                        line.reset();
+                        return true;
+                    }
+                    NamedKey::End => {
+                        match self.key_mods.shift_key() {
+                            true => line.text.shift_end(),
+                            false => line.text.go_to_end(),
+                        }
+                        line.reset();
+                        return true;
+                    }
+                    NamedKey::Home => {
+                        match self.key_mods.shift_key() {
+                            false => line.text.go_to_start(),
+                            true => line.text.shift_home(),
+                        }
+                        line.reset();
+                        return true;
+                    }
+                    NamedKey::Delete => {
+                        if self.key_mods.control_key() {
+                            line.text.ctrl_delete();
+                        } else {
+                            line.text.delete();
+                        }
+                        line.reset();
+                        return true;
+                    }
+                    NamedKey::Space => {
+                        line.text.insert_str_at_cursor(" ");
+                        line.reset();
+                        return true;
+                    }
+                    _ => {}
+                },
                 Key::Character(new_char) => {
-                    if ! self.key_mods.control_key() &&
-                       ! self.key_mods.alt_key() &&
-                       ! self.key_mods.super_key() {
-
+                    if !self.key_mods.control_key()
+                        && !self.key_mods.alt_key()
+                        && !self.key_mods.super_key()
+                    {
                         line.text.insert_str_at_cursor(new_char);
                         line.reset();
                         return true;
-
                     } else if self.key_mods.control_key() {
                         match new_char.as_str() {
                             "c" => {
@@ -1056,15 +1044,15 @@ impl Ui {
                                     let _ = self.clipboard.set_contents(text.to_string());
                                 }
                                 return true;
-                            },
+                            }
                             "v" => {
                                 if let Ok(pasted_text) = self.clipboard.get_contents() {
                                     line.text.insert_str_at_cursor(&pasted_text);
                                     line.reset();
                                 }
                                 return true;
-                            },
-                            _ => {},
+                            }
+                            _ => {}
                         }
                     }
                 }
@@ -1100,8 +1088,12 @@ impl Ui {
                 WindowEvent::ModifiersChanged(modifiers) => {
                     self.key_mods = modifiers.state();
                 }
-                WindowEvent::KeyboardInput { event, is_synthetic, .. } => {
-                    if ! is_synthetic {
+                WindowEvent::KeyboardInput {
+                    event,
+                    is_synthetic,
+                    ..
+                } => {
+                    if !is_synthetic {
                         let consumed = self.handle_keyboard_event(event);
                         return consumed;
                     }
@@ -1302,7 +1294,8 @@ impl Ui {
             let current_node = self.node_map.get_mut(&current_node_id).unwrap();
 
             if (current_node.params.visible_rect
-                && current_node.last_frame_touched == self.part.current_frame) || self.debug_mode
+                && current_node.last_frame_touched == self.part.current_frame)
+                || self.debug_mode
             {
                 self.rects.push(RenderRect {
                     rect: current_node.rect * 2. - 1.,
@@ -1444,9 +1437,9 @@ impl Ui {
         // update gpu time
         // magical offset...
         queue.write_buffer(&self.base_uniform_buffer, 8, bytemuck::bytes_of(&self.t));
-        
+
         self.build_buffers();
-        
+
         self.text
             .text_renderer
             .prepare(
@@ -1619,7 +1612,6 @@ macro_rules! create_layer_macro {
 
                 $ui.end_layer();
             };
-
         }
     };
 }
@@ -1893,7 +1885,6 @@ fn fx_hash<T: Hash>(value: &T) -> u64 {
 
 // impl FilteredMouseInput {
 
-    
 //     pub fn update(&mut self, event: &WindowEvent) {
 //         match event {
 //             WindowEvent::CursorMoved { position, .. } => {
