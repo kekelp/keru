@@ -1,4 +1,5 @@
 extern crate proc_macro;
+
 use proc_macro::TokenStream;
 use proc_macro2::Ident;
 use quote::quote;
@@ -13,13 +14,18 @@ pub fn node_key(attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as ItemConstNoEq);
     
     let key_ident = &input.ident;
+    let debug_name = format!("{}", key_ident);
 
     // todo, use a hash of ident instead of a random number?
     let random_number: u64 = rand::thread_rng().gen();
     let random_number_ident = syn::LitInt::new(&format!("{}", random_number), key_ident.span());
 
+
     let expanded = quote! {
-        const #key_ident: NodeKey = NodeKey::new( &#default_params_expr, Id(#random_number_ident));
+        const #key_ident: NodeKey = NodeKey::new(
+            &#default_params_expr.debug_name(#debug_name),
+            Id(#random_number_ident)
+        );
     };
 
     TokenStream::from(expanded)

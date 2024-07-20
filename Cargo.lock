@@ -171,13 +171,11 @@ dependencies = [
  "bitflags 2.5.0",
  "bytemuck",
  "copypasta",
- "geometric_algebra",
  "glam",
  "glyphon",
  "lazy_static",
  "pollster",
  "rustc-hash",
- "smallbox",
  "smart-default",
  "unicode-segmentation",
  "view_derive",
@@ -551,12 +549,6 @@ name = "foreign-types-shared"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aa9a19cbb55df58761df49b23516a86d432839add4af60fc256da840f66ed35b"
-
-[[package]]
-name = "geometric_algebra"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dea41acf362984b8642ed6bd9278c4dc2919703d80f3e63d935b315e9ad20959"
 
 [[package]]
 name = "gethostname"
@@ -1413,12 +1405,6 @@ checksum = "dbff4acf519f630b3a3ddcfaea6c06b42174d9a44bc70c620e9ed1649d58b82a"
 dependencies = [
  "version_check",
 ]
-
-[[package]]
-name = "smallbox"
-version = "0.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d92359f97e6b417da4328a970cf04a044db104fbd57f7d72cb7ff665bb8806af"
 
 [[package]]
 name = "smallvec"

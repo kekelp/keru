@@ -602,6 +602,7 @@ impl TreeTrace {
 
 pub struct Ui {
     pub debug_mode: bool,
+    pub debug_key_pressed: bool,
 
     pub clipboard: ClipboardContext,
 
@@ -816,7 +817,8 @@ impl Ui {
         parent_stack.push(NODE_ROOT_ID);
 
         Self {
-            debug_mode: true,
+            debug_mode: false,
+            debug_key_pressed: false,
             clipboard: ClipboardContext::new().unwrap(),
             key_mods: ModifiersState::default(),
 
@@ -947,7 +949,22 @@ impl Ui {
         match &event.logical_key {
             Key::Named(named_key) => match named_key {
                 NamedKey::F1 => {
-                    println!("test");
+
+                    if event.state.is_pressed() {
+                        if self.debug_key_pressed == false {
+
+                            // todo: some kind of flicker when doing this
+                            #[cfg(debug_assertions)] {
+                                self.debug_mode = ! self.debug_mode;
+                            }
+                        }
+                    }
+                    
+                    self.debug_key_pressed = event.state.is_pressed();
+                    // if ! self.debug_key_just_pressed {
+                    //     self.debug_mode = ! self.debug_mode;
+                    // }
+
                 }
                 _ => {}
             },
@@ -1456,6 +1473,9 @@ impl Ui {
     }
 
     pub fn begin_tree(&mut self) {
+        
+        // do cleanup here??
+        
         self.update_time();
 
         self.trace.keys.clear();
@@ -1470,9 +1490,11 @@ impl Ui {
     }
 
     pub fn finish_tree(&mut self) {
-        self.update_nodes();
+        self.apply_node_trace();
         self.layout();
         self.resolve_mouse_input();
+
+        
     }
 
     // todo: skip this if there has been no new mouse movement and no new clicks.
@@ -1564,7 +1586,7 @@ impl Ui {
             .push(crate::ui::TreeTraceEntry::SetParent(*new_parent));
     }
 
-    pub(crate) fn update_nodes(&mut self) {
+    pub(crate) fn apply_node_trace(&mut self) {
         let mut current_parent_id = NODE_ROOT_ID;
         for i in 0..self.trace.keys.len() {
             match self.trace.keys[i] {

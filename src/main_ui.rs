@@ -7,20 +7,18 @@ use crate::ui::Position::*;
 
 impl State {
     pub fn update_ui(&mut self) {
-        let ui = &mut self.ui;
-
-        tree!(ui, {
-
+        
+        tree!(self.ui, {
 
             #[node_key(MARGIN.size_y(0.95).size_x(1.0).position_x(Position::Center))]
             const MARGIN2: Nodekey;
-            add!(ui, MARGIN2, {
+            add!(self.ui, MARGIN2, {
     
                 #[node_key(V_STACK.size_x(0.3).position_x(Position::End))]            
                 const SIDEBAR: Nodekey;
-                add!(ui, SIDEBAR, {
+                add!(self.ui, SIDEBAR, {
     
-                    let mut color = add!(ui, PAINT_COLOR).get_text();
+                    let mut color = add!(self.ui, PAINT_COLOR).get_text();
     
                     if let Some(color) = &mut color {
                         color.make_ascii_lowercase();
@@ -41,15 +39,12 @@ impl State {
                 });
             });
     
-            self.counter_state.add(ui);    
-
+            self.counter_state.add_counter(&mut self.ui);    
 
         });
+        
+        self.counter_state.interact(&mut self.ui);
 
-        
-        
-        
-        self.counter_state.interact(ui);
 
     }
 }
@@ -88,7 +83,7 @@ impl CounterState {
     pub const COUNT_LABEL: NodeKey;
 
 
-    pub fn add(&mut self, ui: &mut Ui) {
+    pub fn add_counter(&mut self, ui: &mut Ui) {
         margin!(ui, {
             
             #[node_key(H_STACK.size_x(0.5).position_x(Position::Start))]

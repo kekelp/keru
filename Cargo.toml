@@ -20,12 +20,10 @@ lazy_static = "1.4.0"
 smart-default = "0.7.1"
 rustc-hash = "1.1.0"
 unicode-segmentation = "1.11.0"
-smallbox = "0.8.2"
 view_derive = { path = "view_derive" }
 copypasta = "0.10.1"
 glam = "0.28.0"
 winit_input_helper = "0.16.0"
-geometric_algebra = "0.3.0"
 
 
 [lints.clippy]
