@@ -1629,6 +1629,17 @@ create_layer_macro!(h_stack, &crate::ui::H_STACK);
 create_layer_macro!(v_stack, &crate::ui::V_STACK);
 create_layer_macro!(margin, &crate::ui::MARGIN);
 
+
+#[macro_export]
+macro_rules! tree {
+    ($ui:expr, $code:block) => {{
+        $ui.begin_tree();
+        $code;
+        $ui.finish_tree();
+    }};
+}
+
+
 #[derive(Debug)]
 pub struct Node {
     // visible rect only

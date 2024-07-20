@@ -8,41 +8,45 @@ use crate::ui::Position::*;
 impl State {
     pub fn update_ui(&mut self) {
         let ui = &mut self.ui;
-        ui.begin_tree();
 
-        #[node_key(MARGIN.size_y(0.95).size_x(1.0).position_x(Position::Center))]
-        const MARGIN2: Nodekey;
-        add!(ui, MARGIN2, {
+        tree!(ui, {
 
-            #[node_key(V_STACK.size_x(0.3).position_x(Position::End))]            
-            const SIDEBAR: Nodekey;
-            add!(ui, SIDEBAR, {
 
-                let mut color = add!(ui, PAINT_COLOR).get_text();
-
-                if let Some(color) = &mut color {
-                    color.make_ascii_lowercase();
-                    match color.as_str() {
-                        "blue" => {
-                            self.canvas.paint_color = PixelColorF32::BLUE;
-                        },
-                        "red" => {
-                            self.canvas.paint_color = PixelColorF32::RED;
-                        },
-                        "green" => {
-                            self.canvas.paint_color = PixelColorF32::GREEN;
-                        },
-                        _ => {}
-                    }
-                } 
-
+            #[node_key(MARGIN.size_y(0.95).size_x(1.0).position_x(Position::Center))]
+            const MARGIN2: Nodekey;
+            add!(ui, MARGIN2, {
+    
+                #[node_key(V_STACK.size_x(0.3).position_x(Position::End))]            
+                const SIDEBAR: Nodekey;
+                add!(ui, SIDEBAR, {
+    
+                    let mut color = add!(ui, PAINT_COLOR).get_text();
+    
+                    if let Some(color) = &mut color {
+                        color.make_ascii_lowercase();
+                        match color.as_str() {
+                            "blue" => {
+                                self.canvas.paint_color = PixelColorF32::BLUE;
+                            },
+                            "red" => {
+                                self.canvas.paint_color = PixelColorF32::RED;
+                            },
+                            "green" => {
+                                self.canvas.paint_color = PixelColorF32::GREEN;
+                            },
+                            _ => {}
+                        }
+                    } 
+    
+                });
             });
+    
+            self.counter_state.add(ui);    
+
+
         });
 
-        self.counter_state.add(ui);
         
-        
-        ui.finish_tree();
         
         
         self.counter_state.interact(ui);
