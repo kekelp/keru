@@ -50,26 +50,8 @@ impl State {
     }
 }
 
-
-
-
-// #[derive_view(
-//     H_STACK
-//     .size_y(0.95)
-//     .size_x(0.8)
-//     .stack(Y, Arrange::End)
-//     .color(Color::BLUE)
-// )]
-// pub struct CommandLineRow;
-
 #[node_key(TEXT_INPUT.text("Color").size_y(0.2).position_y(Start))]
 pub const PAINT_COLOR: NodeKey;
-
-// #[derive_view(TEXT_INPUT.text("RERER"))]
-// pub struct CommandLine;
-
-// #[derive_view(LABEL)]
-// pub struct Label234;
 
 pub struct CounterState {
     pub count: i32,
@@ -111,12 +93,12 @@ impl CounterState {
                 v_stack!(ui, {
                     if self.counter_mode {
                         let new_color = count_color(self.count);
-                        ui.add(Self::INCREASE_BUTTON).set_color(new_color);
+                        add!(ui, Self::INCREASE_BUTTON).set_color(new_color);
     
                         let count = &self.count.to_string();
-                        ui.add(Self::COUNT_LABEL).set_text(count);
+                        add!(ui, Self::COUNT_LABEL).set_text(count);
     
-                        ui.add(Self::DECREASE_BUTTON);
+                        add!(ui, Self::DECREASE_BUTTON);
                     }
                 });
     
@@ -125,7 +107,7 @@ impl CounterState {
                         true => "Hide counter",
                         false => "Show counter",
                     };
-                    ui.add(Self::SHOW_COUNTER_BUTTON).set_text(text);
+                    add!(ui, Self::SHOW_COUNTER_BUTTON).set_text(text);
                 });
             });
         });

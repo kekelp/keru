@@ -14,6 +14,7 @@ pub fn node_key(attr: TokenStream, item: TokenStream) -> TokenStream {
     
     let key_ident = &input.ident;
 
+    // todo, use a hash of ident instead of a random number?
     let random_number: u64 = rand::thread_rng().gen();
     let random_number_ident = syn::LitInt::new(&format!("{}", random_number), key_ident.span());
 
