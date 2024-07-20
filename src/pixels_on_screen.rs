@@ -46,7 +46,6 @@ pub fn basic_surface_config(width: u32, height: u32) -> SurfaceConfiguration {
 pub struct Context {
     pub window: Arc<WinitWindow>,
     pub surface: Surface<'static>,
-    pub input: WinitInputHelper,
     
     pub surface_config: SurfaceConfiguration,
     pub device: Device,
@@ -76,16 +75,12 @@ impl Context {
             surface_config: config,
             device,
             queue,
-            input: WinitInputHelper::new(),
         };
 
         return (ctx, event_loop);
     }
 
-    pub fn handle_events(&mut self, event: &Event<()>, target: &EventLoopWindowTarget<()>) {
-
-        self.input.update(event);
-        
+    pub fn handle_events(&mut self, event: &Event<()>, target: &EventLoopWindowTarget<()>) {        
         match event {
             Event::WindowEvent {
                 event: WindowEvent::Resized(size),

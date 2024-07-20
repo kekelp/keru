@@ -3,6 +3,7 @@ use wgpu::*;
 
 use bytemuck::{Pod, Zeroable};
 use glam::*;
+use winit_input_helper::WinitInputHelper;
 
 use {BindGroup, BindGroupEntry, BindGroupLayoutEntry, BindingResource, Buffer, ColorTargetState, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
 use winit::{dpi::PhysicalPosition, event::{ElementState, Event, MouseButton, WindowEvent}, keyboard::{Key, ModifiersState, NamedKey}};
@@ -85,6 +86,8 @@ impl PixelColorF32 {
 }
 
 pub struct Canvas {
+    pub input: WinitInputHelper,
+
     pub width: usize,
     pub height: usize,
 
@@ -276,6 +279,7 @@ impl Canvas {
         });
         
         let mut canvas = Canvas {
+            input: WinitInputHelper::new(),
             width,
             height,
             image_width,
@@ -577,6 +581,8 @@ impl Canvas {
     }
 
     pub fn handle_events(&mut self, full_event: &winit::event::Event<()>, key_mods: &ModifiersState, queue: &Queue) {
+        self.input.update(full_event);
+        
         if let Event::WindowEvent { event, .. } = full_event {
             match event {
                 WindowEvent::MouseInput { state, button, .. } => {

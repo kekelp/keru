@@ -32,7 +32,7 @@ impl State {
         let mouse_before = self.canvas.screen_to_image(self.canvas.last_mouse_pos.x, self.canvas.last_mouse_pos.y);
         let mouse_before = dvec2(mouse_before.0, mouse_before.1);
 
-        let (_x, y) = self.ctx.input.scroll_diff();
+        let (_x, y) = self.canvas.input.scroll_diff();
 
         let min_zoom = 0.01;
         let max_zoom = 1000.0;
@@ -64,16 +64,16 @@ impl State {
     }
 
     pub fn rotate_and_pan(&mut self) -> Option<()> {
-        let pan = (self.ctx.input.key_held(KeyCode::Space) && self.ctx.input.mouse_held(MouseButton::Left)) 
-        || self.ctx.input.mouse_held(MouseButton::Middle);
+        let pan = (self.canvas.input.key_held(KeyCode::Space) && self.canvas.input.mouse_held(MouseButton::Left)) 
+        || self.canvas.input.mouse_held(MouseButton::Middle);
 
         if pan {
 
-            let (x, y) = self.ctx.input.cursor_diff();
+            let (x, y) = self.canvas.input.cursor_diff();
             let delta = dvec2(x as f64, y as f64);
-            if self.ctx.input.held_shift() {
+            if self.canvas.input.held_shift() {
 
-                let before = self.ctx.input.cursor()?;
+                let before = self.canvas.input.cursor()?;
                 
                 let before = dvec2(before.0 as f64, before.1 as f64);
 

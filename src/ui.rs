@@ -455,14 +455,12 @@ impl<'a> ChainedMethodUi<'a> {
 
 pub struct PartialBorrowStuff {
     pub mouse_pos: PhysicalPosition<f32>,
-    pub mouse_left_clicked: bool,
-    pub mouse_left_just_clicked: bool,
     pub unifs: Uniforms,
     pub current_frame: u64,
     pub t0: Instant,
 }
 impl PartialBorrowStuff {
-    pub fn is_rect_clicked_or_hovered(&self, rect: &RenderRect) -> (bool, bool) {
+    pub fn is_rect_hovered(&self, rect: &RenderRect) -> bool {
         // rects are rebuilt from scratch every render, so this isn't needed, for now.
         // if rect.last_frame_touched != self.current_frame {
         //     return (false, false);
@@ -482,12 +480,7 @@ impl PartialBorrowStuff {
             && rect.rect[Y][0] < mouse_pos.1
             && mouse_pos.1 < rect.rect[Y][1];
 
-        if hovered == false {
-            return (false, false);
-        };
-
-        let clicked = self.mouse_left_just_clicked;
-        return (clicked, hovered);
+        return hovered;
     }
 }
 
@@ -843,8 +836,6 @@ impl Ui {
 
             part: PartialBorrowStuff {
                 mouse_pos: PhysicalPosition { x: 0., y: 0. },
-                mouse_left_clicked: false,
-                mouse_left_just_clicked: false,
                 current_frame: 0,
                 unifs: uniforms,
                 t0: Instant::now(),
@@ -961,9 +952,6 @@ impl Ui {
                     }
                     
                     self.debug_key_pressed = event.state.is_pressed();
-                    // if ! self.debug_key_just_pressed {
-                    //     self.debug_mode = ! self.debug_mode;
-                    // }
 
                 }
                 _ => {}
@@ -1088,15 +1076,11 @@ impl Ui {
                 }
                 WindowEvent::MouseInput { button, state, .. } => {
                     if *button == MouseButton::Left {
-                        if *state == ElementState::Pressed {
-                            self.part.mouse_left_clicked = true;
-                            if !self.part.mouse_left_just_clicked {
-                                self.part.mouse_left_just_clicked = true;
-                                // todo: somehow check if the events are consumed and return None
-                            }
-                        } else {
-                            self.part.mouse_left_clicked = false;
-                        }
+                        
+                        let click = state.is_pressed();
+                        let consumed = self.resolve_mouse_input(click);
+                        
+                        return consumed;
                     }
                 }
                 WindowEvent::ModifiersChanged(modifiers) => {
@@ -1269,9 +1253,6 @@ impl Ui {
     }
 
     pub fn is_clicked(&self, node_key: NodeKey) -> bool {
-        if !self.part.mouse_left_just_clicked {
-            return false;
-        }
         if let Some(clicked_id) = &self.clicked {
             return *clicked_id == node_key.id();
         }
@@ -1307,6 +1288,8 @@ impl Ui {
         while let Some(current_node_id) = self.stack.pop() {
             let current_node = self.node_map.get_mut(&current_node_id).unwrap();
 
+            // in debug mode, draw invisible rects as well.
+            // usually these have filled = false (just the outline), but this is not enforced. 
             if (current_node.params.visible_rect
                 && current_node.last_frame_touched == self.part.current_frame)
                 || self.debug_mode
@@ -1492,22 +1475,31 @@ impl Ui {
     pub fn finish_tree(&mut self) {
         self.apply_node_trace();
         self.layout();
-        self.resolve_mouse_input();
+        self.resolve_mouse_input(false);
 
         
     }
 
     // todo: skip this if there has been no new mouse movement and no new clicks.
-    pub fn resolve_mouse_input(&mut self) {
+    pub fn resolve_mouse_input(&mut self, click: bool) -> bool {
+        // todo: clicked stack could be a private field of some click manager factory singleton struct
         self.clicked_stack.clear();
         self.hovered_stack.clear();
         self.hovered = None;
         self.clicked = None;
 
+        // this gets called for presses and releases
+        let mut consumed = false;
+
         for rect in &self.rects {
             if rect.clickable != 0 {
-                let (clicked, hovered) = self.part.is_rect_clicked_or_hovered(rect);
-                if clicked {
+                let hovered = self.part.is_rect_hovered(rect);
+
+                if hovered {
+                    consumed = true;
+                }
+
+                if click && hovered {
                     self.clicked_stack.push((rect.id, rect.z));
                 } else if hovered {
                     self.hovered_stack.push((rect.id, rect.z));
@@ -1568,9 +1560,11 @@ impl Ui {
         }
 
         // defocus when use clicked anywhere else
-        if self.part.mouse_left_just_clicked && focused_anything == false {
+        if click && focused_anything == false {
             self.focused = None;
         }
+
+        return consumed;
     }
 
     pub fn start_layer(&mut self, parent_id: Id) {

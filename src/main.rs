@@ -8,6 +8,7 @@ use pixels_on_screen::*;
 use canvas::*;
 use ui::*;
 use main_ui::CounterState;
+use wgpu::hal::auxil::db;
 
 pub const BASE_WIDTH: u32 = 1350;
 pub const BASE_HEIGHT: u32 = 850;
@@ -72,8 +73,6 @@ impl State {
         
         self.render();
 
-        // todo: why does this have to be here again?
-        self.ui.part.mouse_left_just_clicked = false;
     }
 
     pub fn render(&mut self) {

@@ -40,10 +40,10 @@ impl State {
             });
     
             self.counter_state.add_counter(&mut self.ui);    
-
+            
+            self.counter_state.interact(&mut self.ui);
         });
         
-        self.counter_state.interact(&mut self.ui);
 
 
     }
