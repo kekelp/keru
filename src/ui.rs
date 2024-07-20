@@ -1612,6 +1612,15 @@ macro_rules! create_layer_macro {
 
                 $ui.end_layer();
             };
+
+            // named version. it's basically the same as add!, not sure if it's even worth having.
+            // especially with no checks that what you pass to h_stack! is actually a h_stack.
+            ($ui:expr, $node_key:expr, $code:block) => {
+                $ui.add($node_key);
+                $ui.start_layer($node_key.id());
+                $code;
+                $ui.end_layer();
+            };
         }
     };
 }

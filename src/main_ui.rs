@@ -89,7 +89,7 @@ impl CounterState {
             
             #[node_key(H_STACK.size_x(0.5).position_x(Position::Start))]
             pub const CENTER_ROW: NodeKey;
-            add!(ui, CENTER_ROW, {
+            h_stack!(ui, CENTER_ROW, {
                 v_stack!(ui, {
                     if self.counter_mode {
                         let new_color = count_color(self.count);
@@ -102,13 +102,11 @@ impl CounterState {
                     }
                 });
     
-                v_stack!(ui, {
-                    let text = match self.counter_mode {
-                        true => "Hide counter",
-                        false => "Show counter",
-                    };
-                    add!(ui, Self::SHOW_COUNTER_BUTTON).set_text(text);
-                });
+                let text = match self.counter_mode {
+                    true => "Hide counter",
+                    false => "Show counter",
+                };
+                add!(ui, Self::SHOW_COUNTER_BUTTON).set_text(text);
             });
         });
     }
