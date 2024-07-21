@@ -377,6 +377,8 @@ pub const PANEL: NodeParams = NodeParams {
 
 #[derive(Default, Debug, Pod, Copy, Clone, Zeroable)]
 #[repr(C)]
+// todo: could do some epic SOA stuff to make resolve_mouse_input and friends faster
+//   could also store the pre-transformed coordinates
 // Layout has to match the one in the shader.
 pub struct RenderRect {
     pub rect: Rect,
@@ -489,7 +491,7 @@ pub struct PartialBorrowStuff {
     pub t0: Instant,
 }
 impl PartialBorrowStuff {
-    pub fn is_rect_hovered(&self, rect: &RenderRect) -> bool {
+    pub fn mouse_hit_rect(&self, rect: &RenderRect) -> bool {
         // rects are rebuilt from scratch every render, so this isn't needed, for now.
         // if rect.last_frame_touched != self.current_frame {
         //     return (false, false);
@@ -627,6 +629,8 @@ pub struct Ui {
     pub debug_mode: bool,
     pub debug_key_pressed: bool,
 
+    pub waiting_for_click_release: bool,
+
     pub clipboard: ClipboardContext,
 
     pub key_mods: ModifiersState,
@@ -651,9 +655,9 @@ pub struct Ui {
     pub part: PartialBorrowStuff,
 
     pub clicked_stack: Vec<(Id, f32)>,
-    pub hovered_stack: Vec<(Id, f32)>,
-    pub clicked: Option<Id>,
-    pub hovered: Option<Id>,
+    pub mouse_hit_stack: Vec<(Id, f32)>,
+    pub clicked: Vec<Id>,
+    pub hovered: Vec<Id>,
 
     pub focused: Option<Id>,
 
@@ -668,16 +672,19 @@ pub struct Ui {
     pub trace: TreeTrace,
 }
 impl Ui {
+    fn instant_t(&self) -> f32 {
+        return self.part.t0.elapsed().as_secs_f32();
+    }
+
     fn chained_set_text(&mut self, text: &str) {
         let last_node = self.add_or_get_last_node_early();
-        
+
         if let Some(text_id) = last_node.text_id {
             self.text.set_text(text_id, text);
         } else {
             // todo: log a warning or something
             // or make these things type safe somehow
         }
-
     }
 
     pub fn chained_get_text(&mut self) -> Option<String> {
@@ -714,7 +721,7 @@ impl Ui {
                 let defaults = last_key.defaults();
 
                 // when doing these "early add" things, we do this to pretend that it was already there from last frame. otherwise, the sibling stuff would get very confused.
-                // it's not nice to have this behavior in many points. 
+                // it's not nice to have this behavior in many points.
                 let frame = self.part.current_frame - 1;
                 let text_id = self.text.new_text_area(defaults.text, frame);
                 let new_node = Self::build_new_node(&defaults, None, text_id, frame);
@@ -835,6 +842,7 @@ impl Ui {
         parent_stack.push(NODE_ROOT_ID);
 
         Self {
+            waiting_for_click_release: false,
             debug_mode: false,
             debug_key_pressed: false,
             clipboard: ClipboardContext::new().unwrap(),
@@ -867,9 +875,9 @@ impl Ui {
             },
 
             clicked_stack: Vec::with_capacity(50),
-            clicked: None,
-            hovered_stack: Vec::with_capacity(50),
-            hovered: None,
+            mouse_hit_stack: Vec::with_capacity(50),
+            clicked: Vec::with_capacity(15),
+            hovered: Vec::with_capacity(15),
             focused: None,
 
             t: 0.0,
@@ -915,7 +923,7 @@ impl Ui {
             }
             std::collections::hash_map::Entry::Occupied(o) => {
                 let old_node_ref = o.into_mut();
-                
+
                 match refresh_or_clone(frame, old_node_ref.last_frame_touched) {
                     Refresh => {
                         // clear children from old frames
@@ -924,13 +932,13 @@ impl Ui {
                         old_node_ref.refresh(frame);
                         old_node_ref.parent_id = parent_id;
                         self.text.refresh_last_frame(old_node_ref.text_id, frame);
-                    },
+                    }
                     AddSibling => {
                         dbg!(key);
                         dbg!(frame);
                         dbg!(old_node_ref.last_frame_touched);
                         panic!();
-                    },
+                    }
                 }
 
                 old_node_ref
@@ -1110,13 +1118,21 @@ impl Ui {
                 WindowEvent::CursorMoved { position, .. } => {
                     self.part.mouse_pos.x = position.x as f32;
                     self.part.mouse_pos.y = position.y as f32;
+                    self.resolve_hover();
+                    // cursormoved is never consumed
                 }
                 WindowEvent::MouseInput { button, state, .. } => {
                     if *button == MouseButton::Left {
-                        let click = state.is_pressed();
-                        let consumed = self.resolve_mouse_input(click);
-
-                        return consumed;
+                        let is_pressed = state.is_pressed();
+                        if is_pressed {
+                            let consumed = self.resolve_click();
+                            return consumed;
+                        } else {
+                            let waiting_for_click_release = self.waiting_for_click_release;
+                            let on_rect = self.resolve_click_release();
+                            let consumed = on_rect && waiting_for_click_release;
+                            return consumed;
+                        }
                     }
                 }
                 WindowEvent::ModifiersChanged(modifiers) => {
@@ -1289,11 +1305,16 @@ impl Ui {
     }
 
     pub fn is_clicked(&self, node_key: NodeKey) -> bool {
-        if let Some(clicked_id) = &self.clicked {
-            return *clicked_id == node_key.id();
-        }
-        return false;
+        return self.clicked.contains(&node_key.id);
     }
+
+    // todo: is_clicked_advanced
+
+    pub fn is_hovered(&self, node_key: NodeKey) -> bool {
+        return self.hovered.last() != Some(&node_key.id);
+    }
+
+    // todo: is_hovered_advanced
 
     pub fn resize(&mut self, size: &PhysicalSize<u32>, queue: &Queue) {
         self.part.unifs.size[X] = size.width as f32;
@@ -1489,6 +1510,10 @@ impl Ui {
                 self.part.current_frame,
             )
             .unwrap();
+
+        // do cleanup here????
+        self.hovered.clear();
+        self.clicked.clear()
     }
 
     pub fn begin_tree(&mut self) {
@@ -1510,90 +1535,93 @@ impl Ui {
     pub fn finish_tree(&mut self) {
         self.apply_node_trace();
         self.layout();
-        self.resolve_mouse_input(false);
+        self.resolve_hover();
     }
 
-    // todo: skip this if there has been no new mouse movement and no new clicks.
-    pub fn resolve_mouse_input(&mut self, click: bool) -> bool {
-        // todo: clicked stack could be a private field of some click manager factory singleton struct
-        self.clicked_stack.clear();
-        self.hovered_stack.clear();
-        self.hovered = None;
-        self.clicked = None;
-
-        // this gets called for presses and releases
-        let mut consumed = false;
+    pub fn scan_mouse_hits(&mut self) -> Option<Id> {
+        self.mouse_hit_stack.clear();
 
         for rect in &self.rects {
-            if rect.clickable == 0 {
-                continue;
+            if rect.clickable != 0 {
+                if self.part.mouse_hit_rect(rect) {
+                    self.mouse_hit_stack.push((rect.id, rect.z));
+                }
             }
-
-            let hovered = self.part.is_rect_hovered(rect);
-
-            if hovered {
-                consumed = true;
-            }
-
-            if hovered {
-                self.hovered_stack.push((rect.id, rect.z));
-            }
-            
         }
 
         // only the one with the highest z is actually clicked.
         // in practice, nobody ever sets the Z. it depends on the order.
-        // there may be exceptions.
+        let mut topmost_hit = None;
+
         let mut max_z = f32::MAX;
-        for (id, z) in self.hovered_stack.iter().rev() {
+        for (id, z) in self.mouse_hit_stack.iter().rev() {
             if *z < max_z {
                 max_z = *z;
-                self.hovered = Some(*id);
-            }
-        }
-        if click {
-            self.clicked = self.hovered;
-        }
-
-        
-        let mut focused_anything = false;
-        // this goes on the node because the rect isn't a real entity. it's rebuilt every frame
-        if let Some(id) = self.hovered {
-            let node = self.node_map.get_mut(&id).unwrap();
-            node.last_hover = self.t;
-
-            if click {
-                let node = self.node_map.get_mut(&id).unwrap();
-                node.last_click = self.t;
-
-                if node.params.editable {
-                    self.focused = self.clicked;
-                    focused_anything = true;
-                }
-
-                if let Some(id) = node.text_id {
-                    let text_area = &mut self.text.text_areas[id];
-                    let (x, y) = (
-                        self.part.mouse_pos.x - text_area.left,
-                        self.part.mouse_pos.y - text_area.top,
-                    );
-
-                    // todo: with how I'm misusing cosmic-text, this might become "unsafe" soon (as in, might be incorrect or cause panics, not actually unsafe).
-                    // I think in general, there should be a safe version of hit() that just forces a rerender just to be sure that the offset is safe to use.
-                    // But in this case, calling this in resolve_mouse_input() and not on every winit mouse event probably means it's safe
-
-                    // actually, the enlightened way is that cosmic_text exposes an "unsafe" hit(), but we only ever see the string + cursor + buffer struct, and call that hit(), which doesn't return an offset but just mutates the one inside.
-                    text_area.buffer.hit(x, y);
-                }
+                topmost_hit = Some(*id);
             }
         }
 
+        return topmost_hit;
+    }
 
-        // defocus when use clicked anywhere else
-        if click && focused_anything == false {
-            self.focused = None;
+    // called on every mouse movement AND on every frame.
+    pub fn resolve_hover(&mut self) {
+        let topmost_mouse_hit = self.scan_mouse_hits();
+
+        if let Some(hovered_id) = topmost_mouse_hit {
+            self.hovered.push(hovered_id);
+            // this goes on the node because the rect isn't a real entity. it's rebuilt every frame
+            // todo: if that ever changes, this could skip the hashmap access and get faster, I think.
+            let t = self.instant_t();
+            let node = self.node_map.get_mut(&hovered_id).unwrap();
+            node.last_hover = t;
+        }
+    }
+
+    pub fn resolve_click(&mut self) -> bool {
+        let topmost_mouse_hit = self.scan_mouse_hits();
+
+        // defocus when use clicking anywhere outside.
+        self.focused = None;
+
+        if let Some(clicked_id) = topmost_mouse_hit {
+            self.waiting_for_click_release = true;
+
+            self.clicked.push(clicked_id);
+            // this goes on the node because the rect isn't a real entity. it's rebuilt every frame
+            // todo: if that ever changes, this could skip the hashmap access and get faster, I think.
+            let t = self.instant_t();
+            let node = self.node_map.get_mut(&clicked_id).unwrap();
+            node.last_click = t;
+
+            if node.params.editable {
+                self.focused = Some(clicked_id);
+            }
+
+            if let Some(id) = node.text_id {
+                let text_area = &mut self.text.text_areas[id];
+                let (x, y) = (
+                    self.part.mouse_pos.x - text_area.left,
+                    self.part.mouse_pos.y - text_area.top,
+                );
+
+                // todo: with how I'm misusing cosmic-text, this might become "unsafe" soon (as in, might be incorrect or cause panics, not actually unsafe).
+                // I think in general, there should be a safe version of hit() that just forces a rerender just to be sure that the offset is safe to use.
+                // But in this case, calling this in resolve_mouse_input() and not on every winit mouse event probably means it's safe
+
+                // actually, the enlightened way is that cosmic_text exposes an "unsafe" hit(), but we only ever see the string + cursor + buffer struct, and call that hit(), which doesn't return an offset but just mutates the one inside.
+                text_area.buffer.hit(x, y);
+            }
         }
 
+        let consumed = topmost_mouse_hit.is_some();
+        return consumed;
+    }
+
+    pub fn resolve_click_release(&mut self) -> bool {
+        self.waiting_for_click_release = false;
+        let topmost_mouse_hit = self.scan_mouse_hits();
+        let consumed = topmost_mouse_hit.is_some();
         return consumed;
     }
 
@@ -1645,34 +1673,34 @@ macro_rules! create_layer_macro {
     ($macro_name:ident, $node_params_name:expr) => {
         #[macro_export]
         macro_rules! $macro_name {
-            ($ui:expr, $code:block) => {
-                // the anonymous keys are all called "anonymous_key" and they do end up in the same scope, but they just shadow each other and it works fine.
-                // if we tried to use the
-                //     #[node_key($node_params_name)]
-                //     pub const ANON_KEY: NodeKey;
-                // syntax, that would work only on constants, and it would lead to conflicts.
-                // a syntax like
-                //     pub const ANON_KEY: NodeKey = node_key!(params);
-                // would work in both contexts, and it also uses one less line,
-                // but it can't fill in the debug name based on the const name,
-                // and it looked like rust-analyzer can't see through the argument as well as it sees through the attribute macro attr, for some reason.
-                let random_id = call_site_id!();
-                // todo: add debug name inside params
-                let anonymous_key = NodeKey::new($node_params_name, random_id);
-                $ui.add_layer(anonymous_key);
-                $code;
-                $ui.end_layer();
-            };
+                            ($ui:expr, $code:block) => {
+                                // the anonymous keys are all called "anonymous_key" and they do end up in the same scope, but they just shadow each other and it works fine.
+                                // if we tried to use the
+                                //     #[node_key($node_params_name)]
+                                //     pub const ANON_KEY: NodeKey;
+                                // syntax, that would work only on constants, and it would lead to conflicts.
+                                // a syntax like
+                                //     pub const ANON_KEY: NodeKey = node_key!(params);
+                                // would work in both contexts, and it also uses one less line,
+                                // but it can't fill in the debug name based on the const name,
+                                // and it looked like rust-analyzer can't see through the argument as well as it sees through the attribute macro attr, for some reason.
+                                let random_id = call_site_id!();
+                                // todo: add debug name inside params
+                                let anonymous_key = NodeKey::new($node_params_name, random_id);
+                                $ui.add_layer(anonymous_key);
+                                $code;
+                                $ui.end_layer();
+                            };
 
-            // named version. allows writing this: h_stack!(ui, CUSTOM_H_STACK, { ... })
-            // it's basically the same as add!, not sure if it's even worth having.
-            // especially with no checks that CUSTOM_H_STACK is actually a h_stack.
-            ($ui:expr, $node_key:expr, $code:block) => {
-                $ui.add_layer($node_key);
-                $code;
-                $ui.end_layer();
-            };
-        }
+                            // named version. allows writing this: h_stack!(ui, CUSTOM_H_STACK, { ... })
+                            // it's basically the same as add!, not sure if it's even worth having.
+                            // especially with no checks that CUSTOM_H_STACK is actually a h_stack.
+                            ($ui:expr, $node_key:expr, $code:block) => {
+                                $ui.add_layer($node_key);
+                                $code;
+                                $ui.end_layer();
+                            };
+                        }
     };
 }
 
@@ -1693,7 +1721,7 @@ macro_rules! create_layer_macro_leaf {
                 $ui.add(anonymous_key)
             };
         }
-    }
+    };
 }
 
 #[macro_export]
@@ -2052,7 +2080,7 @@ pub fn refresh_or_clone(current_frame: u64, old_node_last_frame_touched: u64) ->
         // re-adding something that got added in the same frame: making a clone
         return RefreshOrClone::AddSibling;
     } else {
-        // re-adding something that was added in an old frame: just a normal refresh 
+        // re-adding something that was added in an old frame: just a normal refresh
         return RefreshOrClone::Refresh;
     }
 }
