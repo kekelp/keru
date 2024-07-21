@@ -675,7 +675,8 @@ impl Ui {
             std::collections::hash_map::Entry::Vacant(v) => {
                 let defaults = last_key.defaults();
 
-                // huh...
+                // when doing these "early add" things, we do this to pretend that it was already there from last frame. otherwise, the sibling stuff would get very confused.
+                // it's not nice to have this behavior in many points. 
                 let frame = self.part.current_frame - 1;
                 let text_id = self.text.new_text_area(Some(text), frame);
                 let new_node = Self::build_new_node(&defaults, None, text_id, frame);
@@ -716,13 +717,14 @@ impl Ui {
     }
 
     pub fn add_or_get_last_node_early(&mut self) -> &mut Node {
-        let last_i = self.trace.keys.len() - 1;
-        let last_key = self.trace.keys[last_i].unwrap_node();
+        let last_key = self.trace.last_node();
 
         let node = match self.node_map.entry(last_key.id()) {
             std::collections::hash_map::Entry::Vacant(v) => {
                 let defaults = last_key.defaults();
-                // huhhhhhhh.........
+
+                // when doing these "early add" things, we do this to pretend that it was already there from last frame. otherwise, the sibling stuff would get very confused.
+                // it's not nice to have this behavior in many points. 
                 let frame = self.part.current_frame - 1;
                 let text_id = self.text.new_text_area(defaults.static_text, frame);
                 let new_node = Self::build_new_node(&defaults, None, text_id, frame);
