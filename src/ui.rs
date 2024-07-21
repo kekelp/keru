@@ -862,6 +862,15 @@ impl Ui {
         return self.chain_ref();
     }
 
+    pub fn add_layer(&mut self, key: NodeKey) -> ChainedMethodUi {
+        self.trace.keys.push(TreeTraceEntry::Node(key));
+        
+        self.parent_stack.push(key.id());
+        self.trace.keys.push(TreeTraceEntry::SetParent(key.id()));    
+        
+        return self.chain_ref();
+    }
+
     pub fn add_anonymous(&mut self, params: &'static NodeParams, random_id: Id) -> ChainedMethodUi {
         let key = NodeKey::new(params, random_id);
         self.trace.keys.push(TreeTraceEntry::Node(key));
@@ -1567,11 +1576,6 @@ impl Ui {
         return consumed;
     }
 
-    pub fn start_layer(&mut self, parent_id: Id) {
-        self.parent_stack.push(parent_id);
-        self.trace.keys.push(TreeTraceEntry::SetParent(parent_id));
-    }
-
     pub fn end_layer(&mut self) {
         self.parent_stack.pop();
         let new_parent = self.parent_stack.last().unwrap();
@@ -1599,8 +1603,7 @@ impl Ui {
 #[macro_export]
 macro_rules! add {
     ($ui:expr, $node_key:expr, $code:block) => {
-        $ui.add($node_key);
-        $ui.start_layer($node_key.id());
+        $ui.add_layer($node_key);
         $code;
         $ui.end_layer();
     };
@@ -1609,31 +1612,24 @@ macro_rules! add {
     };
 }
 
-// todo: since macros = le bad, maybe make separate functions so that it's possible to do
-// ui.begin_hstack()
-// ui.add(children)
-// ui.end_hstack()
 // multiple ways to do the same thing = also le bad albeit
 macro_rules! create_layer_macro {
     ($macro_name:ident, $node_params_name:expr) => {
         #[macro_export]
         macro_rules! $macro_name {
             ($ui:expr, $code:block) => {
-                let anonymous_id = call_site_id!();
-                $ui.add_anonymous($node_params_name, anonymous_id);
-
-                $ui.start_layer(anonymous_id);
-
+                let random_id = call_site_id!();
+                let key = NodeKey::new($node_params_name, random_id);
+                $ui.add_layer(key);
                 $code;
-
                 $ui.end_layer();
             };
 
-            // named version. it's basically the same as add!, not sure if it's even worth having.
-            // especially with no checks that what you pass to h_stack! is actually a h_stack.
+            // named version. allows writing this: h_stack!(ui, CUSTOM_H_STACK, { ... })
+            // it's basically the same as add!, not sure if it's even worth having.
+            // especially with no checks that CUSTOM_H_STACK is actually a h_stack.
             ($ui:expr, $node_key:expr, $code:block) => {
-                $ui.add($node_key);
-                $ui.start_layer($node_key.id());
+                $ui.add_layer($node_key);
                 $code;
                 $ui.end_layer();
             };
