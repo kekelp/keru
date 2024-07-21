@@ -1618,9 +1618,20 @@ macro_rules! create_layer_macro {
         #[macro_export]
         macro_rules! $macro_name {
             ($ui:expr, $code:block) => {
+                // the anonymous keys are all called "anonymous_key" and they do end up in the same scope, but they just shadow each other and it works fine.
+                // if we tried to use the 
+                //     #[node_key($node_params_name)]
+                //     pub const ANON_KEY: NodeKey;
+                // syntax, that would work only on constants, and it would lead to conflicts.
+                // a syntax like 
+                //     pub const ANON_KEY: NodeKey = node_key!(params);
+                // would work in both contexts, and it also uses one less line, 
+                // but it can't fill in the debug name based on the const name,
+                // and it looked like rust-analyzer can't see through the argument as well as it sees through the attribute macro attr, for some reason.
                 let random_id = call_site_id!();
-                let key = NodeKey::new($node_params_name, random_id);
-                $ui.add_layer(key);
+                // todo: add debug name inside params
+                let anonymous_key = NodeKey::new($node_params_name, random_id);
+                $ui.add_layer(anonymous_key);
                 $code;
                 $ui.end_layer();
             };

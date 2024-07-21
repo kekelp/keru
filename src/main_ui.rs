@@ -82,6 +82,12 @@ impl CounterState {
     #[node_key(LABEL)]
     pub const COUNT_LABEL: NodeKey;
 
+    #[node_key(LABEL)]
+    pub const COUNT_LABEL_2: NodeKey;
+
+    #[node_key(LABEL)]
+    pub const COUNT_LABEL_3: NodeKey;
+
 
     pub fn add_counter(&mut self, ui: &mut Ui) {
         margin!(ui, {
@@ -108,6 +114,7 @@ impl CounterState {
                 add!(ui, Self::SHOW_COUNTER_BUTTON).set_text(text);
             });
         });
+
     }
 
     pub fn interact(&mut self, ui: &mut Ui) {
