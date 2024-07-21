@@ -23,7 +23,7 @@ use glyphon::{
 };
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
-    event::{ElementState, Event, KeyEvent, MouseButton, WindowEvent},
+    event::{Event, KeyEvent, MouseButton, WindowEvent},
     keyboard::{ModifiersState, NamedKey},
 };
 use Axis::{X, Y};
@@ -301,7 +301,7 @@ pub const MARGIN: NodeParams = NodeParams {
     clickable: false,
     visible_rect: false,
     color: DEBUG_RED,
-    size: Xy::new_symm(Size::PercentOfAvailable(0.7)),
+    size: Xy::new_symm(Size::PercentOfAvailable(0.9)),
     position: Xy::new_symm(Position::Center),
     is_stack: None,
     editable: false,
@@ -864,10 +864,10 @@ impl Ui {
 
     pub fn add_layer(&mut self, key: NodeKey) -> ChainedMethodUi {
         self.trace.keys.push(TreeTraceEntry::Node(key));
-        
+
         self.parent_stack.push(key.id());
-        self.trace.keys.push(TreeTraceEntry::SetParent(key.id()));    
-        
+        self.trace.keys.push(TreeTraceEntry::SetParent(key.id()));
+
         return self.chain_ref();
     }
 
@@ -949,19 +949,17 @@ impl Ui {
         match &event.logical_key {
             Key::Named(named_key) => match named_key {
                 NamedKey::F1 => {
-
                     if event.state.is_pressed() {
                         if self.debug_key_pressed == false {
-
                             // todo: some kind of flicker when doing this
-                            #[cfg(debug_assertions)] {
-                                self.debug_mode = ! self.debug_mode;
+                            #[cfg(debug_assertions)]
+                            {
+                                self.debug_mode = !self.debug_mode;
                             }
                         }
                     }
-                    
-                    self.debug_key_pressed = event.state.is_pressed();
 
+                    self.debug_key_pressed = event.state.is_pressed();
                 }
                 _ => {}
             },
@@ -1085,10 +1083,9 @@ impl Ui {
                 }
                 WindowEvent::MouseInput { button, state, .. } => {
                     if *button == MouseButton::Left {
-                        
                         let click = state.is_pressed();
                         let consumed = self.resolve_mouse_input(click);
-                        
+
                         return consumed;
                     }
                 }
@@ -1298,7 +1295,7 @@ impl Ui {
             let current_node = self.node_map.get_mut(&current_node_id).unwrap();
 
             // in debug mode, draw invisible rects as well.
-            // usually these have filled = false (just the outline), but this is not enforced. 
+            // usually these have filled = false (just the outline), but this is not enforced.
             if (current_node.params.visible_rect
                 && current_node.last_frame_touched == self.part.current_frame)
                 || self.debug_mode
@@ -1465,9 +1462,8 @@ impl Ui {
     }
 
     pub fn begin_tree(&mut self) {
-        
         // do cleanup here??
-        
+
         self.update_time();
 
         self.trace.keys.clear();
@@ -1485,8 +1481,6 @@ impl Ui {
         self.apply_node_trace();
         self.layout();
         self.resolve_mouse_input(false);
-
-        
     }
 
     // todo: skip this if there has been no new mouse movement and no new clicks.
@@ -1617,41 +1611,40 @@ macro_rules! create_layer_macro {
     ($macro_name:ident, $node_params_name:expr) => {
         #[macro_export]
         macro_rules! $macro_name {
-            ($ui:expr, $code:block) => {
-                // the anonymous keys are all called "anonymous_key" and they do end up in the same scope, but they just shadow each other and it works fine.
-                // if we tried to use the 
-                //     #[node_key($node_params_name)]
-                //     pub const ANON_KEY: NodeKey;
-                // syntax, that would work only on constants, and it would lead to conflicts.
-                // a syntax like 
-                //     pub const ANON_KEY: NodeKey = node_key!(params);
-                // would work in both contexts, and it also uses one less line, 
-                // but it can't fill in the debug name based on the const name,
-                // and it looked like rust-analyzer can't see through the argument as well as it sees through the attribute macro attr, for some reason.
-                let random_id = call_site_id!();
-                // todo: add debug name inside params
-                let anonymous_key = NodeKey::new($node_params_name, random_id);
-                $ui.add_layer(anonymous_key);
-                $code;
-                $ui.end_layer();
-            };
+                    ($ui:expr, $code:block) => {
+                        // the anonymous keys are all called "anonymous_key" and they do end up in the same scope, but they just shadow each other and it works fine.
+                        // if we tried to use the
+                        //     #[node_key($node_params_name)]
+                        //     pub const ANON_KEY: NodeKey;
+                        // syntax, that would work only on constants, and it would lead to conflicts.
+                        // a syntax like
+                        //     pub const ANON_KEY: NodeKey = node_key!(params);
+                        // would work in both contexts, and it also uses one less line,
+                        // but it can't fill in the debug name based on the const name,
+                        // and it looked like rust-analyzer can't see through the argument as well as it sees through the attribute macro attr, for some reason.
+                        let random_id = call_site_id!();
+                        // todo: add debug name inside params
+                        let anonymous_key = NodeKey::new($node_params_name, random_id);
+                        $ui.add_layer(anonymous_key);
+                        $code;
+                        $ui.end_layer();
+                    };
 
-            // named version. allows writing this: h_stack!(ui, CUSTOM_H_STACK, { ... })
-            // it's basically the same as add!, not sure if it's even worth having.
-            // especially with no checks that CUSTOM_H_STACK is actually a h_stack.
-            ($ui:expr, $node_key:expr, $code:block) => {
-                $ui.add_layer($node_key);
-                $code;
-                $ui.end_layer();
-            };
-        }
+                    // named version. allows writing this: h_stack!(ui, CUSTOM_H_STACK, { ... })
+                    // it's basically the same as add!, not sure if it's even worth having.
+                    // especially with no checks that CUSTOM_H_STACK is actually a h_stack.
+                    ($ui:expr, $node_key:expr, $code:block) => {
+                        $ui.add_layer($node_key);
+                        $code;
+                        $ui.end_layer();
+                    };
+                }
     };
 }
 
 create_layer_macro!(h_stack, &crate::ui::H_STACK);
 create_layer_macro!(v_stack, &crate::ui::V_STACK);
 create_layer_macro!(margin, &crate::ui::MARGIN);
-
 
 #[macro_export]
 macro_rules! tree {
@@ -1661,7 +1654,6 @@ macro_rules! tree {
         $ui.finish_tree();
     }};
 }
-
 
 #[derive(Debug)]
 pub struct Node {
