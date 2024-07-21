@@ -1535,9 +1535,7 @@ impl Ui {
                 consumed = true;
             }
 
-            if click && hovered {
-                self.clicked_stack.push((rect.id, rect.z));
-            } else if hovered {
+            if hovered {
                 self.hovered_stack.push((rect.id, rect.z));
             }
             
@@ -1546,17 +1544,6 @@ impl Ui {
         // only the one with the highest z is actually clicked.
         // in practice, nobody ever sets the Z. it depends on the order.
         // there may be exceptions.
-
-        // todo: having two stacks is useless. its fine to traverse just once to get hovered, then do
-        // if click: self.clicked = self.hovered
-        let mut max_z = f32::MAX;
-        for (id, z) in self.clicked_stack.iter().rev() {
-            if *z < max_z {
-                max_z = *z;
-                self.clicked = Some(*id);
-            }
-        }
-
         let mut max_z = f32::MAX;
         for (id, z) in self.hovered_stack.iter().rev() {
             if *z < max_z {
@@ -1564,38 +1551,43 @@ impl Ui {
                 self.hovered = Some(*id);
             }
         }
+        if click {
+            self.clicked = self.hovered;
+        }
 
+        
+        let mut focused_anything = false;
         // this goes on the node because the rect isn't a real entity. it's rebuilt every frame
         if let Some(id) = self.hovered {
             let node = self.node_map.get_mut(&id).unwrap();
             node.last_hover = self.t;
+
+            if click {
+                let node = self.node_map.get_mut(&id).unwrap();
+                node.last_click = self.t;
+
+                if node.params.editable {
+                    self.focused = self.clicked;
+                    focused_anything = true;
+                }
+
+                if let Some(id) = node.text_id {
+                    let text_area = &mut self.text.text_areas[id];
+                    let (x, y) = (
+                        self.part.mouse_pos.x - text_area.left,
+                        self.part.mouse_pos.y - text_area.top,
+                    );
+
+                    // todo: with how I'm misusing cosmic-text, this might become "unsafe" soon (as in, might be incorrect or cause panics, not actually unsafe).
+                    // I think in general, there should be a safe version of hit() that just forces a rerender just to be sure that the offset is safe to use.
+                    // But in this case, calling this in resolve_mouse_input() and not on every winit mouse event probably means it's safe
+
+                    // actually, the enlightened way is that cosmic_text exposes an "unsafe" hit(), but we only ever see the string + cursor + buffer struct, and call that hit(), which doesn't return an offset but just mutates the one inside.
+                    text_area.buffer.hit(x, y);
+                }
+            }
         }
 
-        let mut focused_anything = false;
-        if let Some(id) = self.clicked {
-            let node = self.node_map.get_mut(&id).unwrap();
-            node.last_click = self.t;
-
-            if node.params.editable {
-                self.focused = self.clicked;
-                focused_anything = true;
-            }
-
-            if let Some(id) = node.text_id {
-                let text_area = &mut self.text.text_areas[id];
-                let (x, y) = (
-                    self.part.mouse_pos.x - text_area.left,
-                    self.part.mouse_pos.y - text_area.top,
-                );
-
-                // todo: with how I'm misusing cosmic-text, this might become "unsafe" soon (as in, might be incorrect or cause panics, not actually unsafe).
-                // I think in general, there should be a safe version of hit() that just forces a rerender just to be sure that the offset is safe to use.
-                // But in this case, calling this in resolve_mouse_input() and not on every winit mouse event probably means it's safe
-
-                // actually, the enlightened way is that cosmic_text exposes an "unsafe" hit(), but we only ever see the string + cursor + buffer struct, and call that hit(), which doesn't return an offset but just mutates the one inside.
-                text_area.buffer.hit(x, y);
-            }
-        }
 
         // defocus when use clicked anywhere else
         if click && focused_anything == false {
