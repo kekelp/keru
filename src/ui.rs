@@ -797,7 +797,7 @@ impl Ui {
         let text_renderer =
             TextRenderer::new(&mut atlas, device, MultisampleState::default(), None);
 
-        let text_areas = Vec::new();
+        let text_areas = Vec::with_capacity(50);
 
         let mut nodes = FxHashMap::default();
 
@@ -830,7 +830,7 @@ impl Ui {
             base_uniform_buffer: resolution_buffer,
             bind_group,
 
-            stack: Vec::new(),
+            stack: Vec::with_capacity(50),
 
             parent_stack,
 
@@ -841,9 +841,9 @@ impl Ui {
                 t0: Instant::now(),
             },
 
-            clicked_stack: Vec::new(),
+            clicked_stack: Vec::with_capacity(50),
             clicked: None,
-            hovered_stack: Vec::new(),
+            hovered_stack: Vec::with_capacity(50),
             hovered: None,
             focused: None,
 

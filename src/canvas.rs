@@ -285,7 +285,7 @@ impl Canvas {
             image_width,
             image_height,
             pixels: vec![PixelColor::rgba_f32(1.0, 1.0, 1.0, 1.0); image_width * image_height],
-            backups: Vec::new(),
+            backups: Vec::with_capacity(20),
             backups_i: 0,
 
             scale,
@@ -302,7 +302,7 @@ impl Canvas {
 
             last_mouse_pos: PhysicalPosition::default(),
 
-            mouse_dots: Vec::new(),
+            mouse_dots: Vec::with_capacity(100),
             end_stroke: false,
 
             needs_sync: true,
