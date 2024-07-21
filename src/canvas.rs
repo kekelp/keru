@@ -384,8 +384,6 @@ impl Canvas {
     }
 
     pub fn get_pixel(&mut self, x: usize, y: usize) -> Option<&mut PixelColor> {
-        // let y = self.image_height - y;
-
         if x < self.image_width && y < self.image_height {
             let index = y * self.image_width + x;
             Some(&mut self.pixels[index])
@@ -393,6 +391,15 @@ impl Canvas {
             None
         }
     }
+    pub fn get_pixel_nonmut(&self, x: usize, y: usize) -> Option<&PixelColor> {
+        if x < self.image_width && y < self.image_height {
+            let index = y * self.image_width + x;
+            Some(&self.pixels[index])
+        } else {
+            None
+        }
+    }
+
 
     pub fn center_screen_coords(&self, p: DVec2) -> DVec2 {
         // todo, use a dvec2 directly in self?
@@ -548,6 +555,13 @@ impl Canvas {
                 self.paint_pixel(pixel.x, pixel.y, self.paint_color, alpha as f32);
             }
         }
+    }
+
+    pub fn pixel_info(&self) -> Option<PixelInfo> {
+        let (x,y) = (self.last_mouse_pos.x, self.last_mouse_pos.y);
+        let color = self.get_pixel_nonmut(x as usize, y as usize)?.to_f32s();
+    
+        return Some(PixelInfo { x, y, color }); 
     }
 
     // todo, do we really believe in this prepare/render stuff? canvas was writing the texture in its render() and it was fine.
@@ -721,4 +735,11 @@ impl EpicRotation {
     pub fn sin(&self) -> f64 {
         return self.vec.y;
     }
+}
+
+
+pub struct PixelInfo {
+    pub x: f64,
+    pub y: f64,
+    pub color: PixelColorF32,
 }

@@ -7,6 +7,8 @@ use rustc_hash::{FxHashMap, FxHasher};
 use wgpu::*;
 use winit::keyboard::Key;
 
+use RefreshOrClone::*;
+
 use std::ops::{Add, Mul, Sub};
 use std::{
     hash::Hasher,
@@ -48,7 +50,7 @@ pub const NODE_ROOT: Node = Node {
     parent_id: NODE_ROOT_ID,
     children_ids: Vec::new(),
     params: NODE_ROOT_PARAMS,
-    last_frame_touched: 0,
+    last_frame_touched: 1,
     last_frame_status: LastFrameStatus::Nothing,
     last_hover: f32::MIN,
     last_click: f32::MIN,
@@ -334,6 +336,19 @@ pub const LABEL: NodeParams = NodeParams {
     filled: true,
 };
 
+pub const TEXT: NodeParams = NodeParams {
+    debug_name: "text",
+    static_text: Some("Text"),
+    clickable: false,
+    visible_rect: false,
+    color: Color::BLUE,
+    size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
+    position: Xy::new_symm(Position::Center),
+    is_stack: None,
+    editable: false,
+    filled: true,
+};
+
 pub const TEXT_INPUT: NodeParams = NodeParams {
     debug_name: "label",
     static_text: None,
@@ -341,9 +356,22 @@ pub const TEXT_INPUT: NodeParams = NodeParams {
     visible_rect: true,
     color: Color::rgba(0.1, 0.0, 0.1, 0.9),
     size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
-    position: Xy::new_symm(Position::Start),
+    position: Xy::new_symm(Position::Center),
     is_stack: None,
     editable: true,
+    filled: true,
+};
+
+pub const PANEL: NodeParams = NodeParams {
+    debug_name: "panel",
+    static_text: None,
+    clickable: true,
+    visible_rect: true,
+    color: Color::rgba(0.1, 0.0, 0.1, 0.9),
+    size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
+    position: Xy::new_symm(Position::Center),
+    is_stack: None,
+    editable: false,
     filled: true,
 };
 
@@ -439,6 +467,7 @@ pub struct ChainedMethodUi<'a> {
     ui: &'a mut Ui,
 }
 
+// why can't you just do it separately?
 impl<'a> ChainedMethodUi<'a> {
     pub fn set_color(&mut self, color: Color) {
         self.ui.chained_set_color(color);
@@ -520,11 +549,12 @@ pub struct Text {
     pub text_renderer: TextRenderer,
     pub text_areas: Vec<TextArea>,
 }
+const GLOBAL_TEXT_METRICS: Metrics = Metrics::new(36.0, 36.0);
 impl Text {
     pub fn new_text_area(&mut self, text: Option<&str>, current_frame: u64) -> Option<usize> {
         let text = text?;
 
-        let mut buffer = GlyphonBuffer::new(&mut self.font_system, Metrics::new(42.0, 42.0));
+        let mut buffer = GlyphonBuffer::new(&mut self.font_system, GLOBAL_TEXT_METRICS);
         buffer.set_size(&mut self.font_system, 100000., 100000.);
 
         let mut hasher = FxHasher::default();
@@ -644,7 +674,9 @@ impl Ui {
         match self.node_map.entry(last_key.id()) {
             std::collections::hash_map::Entry::Vacant(v) => {
                 let defaults = last_key.defaults();
-                let frame = self.part.current_frame;
+
+                // huh...
+                let frame = self.part.current_frame - 1;
                 let text_id = self.text.new_text_area(Some(text), frame);
                 let new_node = Self::build_new_node(&defaults, None, text_id, frame);
                 v.insert(new_node);
@@ -690,7 +722,8 @@ impl Ui {
         let node = match self.node_map.entry(last_key.id()) {
             std::collections::hash_map::Entry::Vacant(v) => {
                 let defaults = last_key.defaults();
-                let frame = self.part.current_frame;
+                // huhhhhhhh.........
+                let frame = self.part.current_frame - 1;
                 let text_id = self.text.new_text_area(defaults.static_text, frame);
                 let new_node = Self::build_new_node(&defaults, None, text_id, frame);
                 let new_node_ref = v.insert(new_node);
@@ -836,7 +869,7 @@ impl Ui {
 
             part: PartialBorrowStuff {
                 mouse_pos: PhysicalPosition { x: 0., y: 0. },
-                current_frame: 0,
+                current_frame: 1,
                 unifs: uniforms,
                 t0: Instant::now(),
             },
@@ -871,12 +904,6 @@ impl Ui {
         return self.chain_ref();
     }
 
-    pub fn add_anonymous(&mut self, params: &'static NodeParams, random_id: Id) -> ChainedMethodUi {
-        let key = NodeKey::new(params, random_id);
-        self.trace.keys.push(TreeTraceEntry::Node(key));
-        return self.chain_ref();
-    }
-
     // todo: add back the "sibling" stuff
 
     pub fn add_or_refresh_node(&mut self, key: NodeKey, parent_id: Id) -> &mut Node {
@@ -896,12 +923,23 @@ impl Ui {
             }
             std::collections::hash_map::Entry::Occupied(o) => {
                 let old_node_ref = o.into_mut();
-                // clear children from old frames
-                old_node_ref.children_ids.clear();
-                // refresh
-                old_node_ref.refresh(frame);
-                old_node_ref.parent_id = parent_id;
-                self.text.refresh_last_frame(old_node_ref.text_id, frame);
+                
+                match refresh_or_clone(frame, old_node_ref.last_frame_touched) {
+                    Refresh => {
+                        // clear children from old frames
+                        old_node_ref.children_ids.clear();
+                        // refresh
+                        old_node_ref.refresh(frame);
+                        old_node_ref.parent_id = parent_id;
+                        self.text.refresh_last_frame(old_node_ref.text_id, frame);
+                    },
+                    AddSibling => {
+                        dbg!(key);
+                        dbg!(frame);
+                        dbg!(old_node_ref.last_frame_touched);
+                        panic!();
+                    },
+                }
 
                 old_node_ref
             }
@@ -1495,25 +1533,30 @@ impl Ui {
         let mut consumed = false;
 
         for rect in &self.rects {
-            if rect.clickable != 0 {
-                let hovered = self.part.is_rect_hovered(rect);
-
-                if hovered {
-                    consumed = true;
-                }
-
-                if click && hovered {
-                    self.clicked_stack.push((rect.id, rect.z));
-                } else if hovered {
-                    self.hovered_stack.push((rect.id, rect.z));
-                }
+            if rect.clickable == 0 {
+                continue;
             }
+
+            let hovered = self.part.is_rect_hovered(rect);
+
+            if hovered {
+                consumed = true;
+            }
+
+            if click && hovered {
+                self.clicked_stack.push((rect.id, rect.z));
+            } else if hovered {
+                self.hovered_stack.push((rect.id, rect.z));
+            }
+            
         }
 
         // only the one with the highest z is actually clicked.
         // in practice, nobody ever sets the Z. it depends on the order.
         // there may be exceptions.
 
+        // todo: having two stacks is useless. its fine to traverse just once to get hovered, then do
+        // if click: self.clicked = self.hovered
         let mut max_z = f32::MAX;
         for (id, z) in self.clicked_stack.iter().rev() {
             if *z < max_z {
@@ -1592,6 +1635,13 @@ impl Ui {
             }
         }
     }
+
+    pub fn set_text(&mut self, key: NodeKey, text: &str) {
+        if let Some(node) = self.node_map.get(&key.id()) {
+            let text_id = node.text_id.unwrap();
+            self.text.set_text(text_id, text);
+        }
+    }
 }
 
 #[macro_export]
@@ -1611,40 +1661,65 @@ macro_rules! create_layer_macro {
     ($macro_name:ident, $node_params_name:expr) => {
         #[macro_export]
         macro_rules! $macro_name {
-                    ($ui:expr, $code:block) => {
-                        // the anonymous keys are all called "anonymous_key" and they do end up in the same scope, but they just shadow each other and it works fine.
-                        // if we tried to use the
-                        //     #[node_key($node_params_name)]
-                        //     pub const ANON_KEY: NodeKey;
-                        // syntax, that would work only on constants, and it would lead to conflicts.
-                        // a syntax like
-                        //     pub const ANON_KEY: NodeKey = node_key!(params);
-                        // would work in both contexts, and it also uses one less line,
-                        // but it can't fill in the debug name based on the const name,
-                        // and it looked like rust-analyzer can't see through the argument as well as it sees through the attribute macro attr, for some reason.
-                        let random_id = call_site_id!();
-                        // todo: add debug name inside params
-                        let anonymous_key = NodeKey::new($node_params_name, random_id);
-                        $ui.add_layer(anonymous_key);
-                        $code;
-                        $ui.end_layer();
-                    };
+            ($ui:expr, $code:block) => {
+                // the anonymous keys are all called "anonymous_key" and they do end up in the same scope, but they just shadow each other and it works fine.
+                // if we tried to use the
+                //     #[node_key($node_params_name)]
+                //     pub const ANON_KEY: NodeKey;
+                // syntax, that would work only on constants, and it would lead to conflicts.
+                // a syntax like
+                //     pub const ANON_KEY: NodeKey = node_key!(params);
+                // would work in both contexts, and it also uses one less line,
+                // but it can't fill in the debug name based on the const name,
+                // and it looked like rust-analyzer can't see through the argument as well as it sees through the attribute macro attr, for some reason.
+                let random_id = call_site_id!();
+                // todo: add debug name inside params
+                let anonymous_key = NodeKey::new($node_params_name, random_id);
+                $ui.add_layer(anonymous_key);
+                $code;
+                $ui.end_layer();
+            };
 
-                    // named version. allows writing this: h_stack!(ui, CUSTOM_H_STACK, { ... })
-                    // it's basically the same as add!, not sure if it's even worth having.
-                    // especially with no checks that CUSTOM_H_STACK is actually a h_stack.
-                    ($ui:expr, $node_key:expr, $code:block) => {
-                        $ui.add_layer($node_key);
-                        $code;
-                        $ui.end_layer();
-                    };
-                }
+            // named version. allows writing this: h_stack!(ui, CUSTOM_H_STACK, { ... })
+            // it's basically the same as add!, not sure if it's even worth having.
+            // especially with no checks that CUSTOM_H_STACK is actually a h_stack.
+            ($ui:expr, $node_key:expr, $code:block) => {
+                $ui.add_layer($node_key);
+                $code;
+                $ui.end_layer();
+            };
+        }
     };
 }
 
 create_layer_macro!(h_stack, &crate::ui::H_STACK);
 create_layer_macro!(v_stack, &crate::ui::V_STACK);
 create_layer_macro!(margin, &crate::ui::MARGIN);
+create_layer_macro!(panel, &crate::ui::PANEL);
+
+// multiple ways to do the same thing = also le bad albeit
+macro_rules! create_layer_macro_leaf {
+    ($macro_name:ident, $node_params_name:expr) => {
+        #[macro_export]
+        macro_rules! $macro_name {
+            ($ui:expr) => {
+                let random_id = call_site_id!();
+                // todo: add debug name inside params
+                let anonymous_key = NodeKey::new($node_params_name, random_id);
+                $ui.add(anonymous_key)
+            };
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! text {
+    ($ui:expr, $text:expr) => {
+        let random_id = call_site_id!();
+        let anonymous_key = NodeKey::new(&TEXT, random_id);
+        $ui.add(anonymous_key).set_text($text);
+    };
+}
 
 #[macro_export]
 macro_rules! tree {
@@ -1655,6 +1730,8 @@ macro_rules! tree {
     }};
 }
 
+// todo: a lot of the stuff in NodeParams isn't really needed again after creating the node.
+// probably only the layout stuff is needed.
 #[derive(Debug)]
 pub struct Node {
     // visible rect only
@@ -1979,5 +2056,19 @@ impl NodeKey {
     }
     pub const fn new(params: &'static NodeParams, id: Id) -> Self {
         return Self { params, id };
+    }
+}
+
+pub enum RefreshOrClone {
+    Refresh,
+    AddSibling,
+}
+pub fn refresh_or_clone(current_frame: u64, old_node_last_frame_touched: u64) -> RefreshOrClone {
+    if current_frame == old_node_last_frame_touched {
+        // re-adding something that got added in the same frame: making a clone
+        return RefreshOrClone::AddSibling;
+    } else {
+        // re-adding something that was added in an old frame: just a normal refresh 
+        return RefreshOrClone::Refresh;
     }
 }
