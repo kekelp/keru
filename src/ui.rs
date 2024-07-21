@@ -174,7 +174,7 @@ impl Mul<f32> for Rect {
 #[derive(Debug, Copy, Clone)]
 pub struct NodeParams {
     pub debug_name: &'static str,
-    pub static_text: Option<&'static str>,
+    pub text: Option<&'static str>,
     pub visible_rect: bool,
     pub clickable: bool,
     pub editable: bool,
@@ -195,7 +195,7 @@ impl NodeParams {
     pub const fn const_default() -> Self {
         Self {
             debug_name: "Default Button",
-            static_text: Some("Button"),
+            text: Some("Button"),
             clickable: true,
             visible_rect: true,
             color: Color::BLUE,
@@ -234,7 +234,7 @@ impl NodeParams {
     }
 
     pub const fn text(mut self, text: &'static str) -> Self {
-        self.static_text = Some(text);
+        self.text = Some(text);
         return self;
     }
 
@@ -256,7 +256,7 @@ impl NodeParams {
 
 pub const DEFAULT: NodeParams = NodeParams {
     debug_name: "DEFAULT",
-    static_text: Some("Default"),
+    text: Some("Default"),
     clickable: false,
     visible_rect: true,
     color: Color::BLUE,
@@ -269,7 +269,7 @@ pub const DEFAULT: NodeParams = NodeParams {
 
 pub const V_STACK: NodeParams = NodeParams {
     debug_name: "Column",
-    static_text: None,
+    text: None,
     clickable: true,
     visible_rect: false,
     color: DEBUG_RED,
@@ -284,7 +284,7 @@ pub const V_STACK: NodeParams = NodeParams {
 };
 pub const H_STACK: NodeParams = NodeParams {
     debug_name: "Column",
-    static_text: None,
+    text: None,
     visible_rect: false,
     clickable: false,
     color: DEBUG_RED,
@@ -299,7 +299,7 @@ pub const H_STACK: NodeParams = NodeParams {
 };
 pub const MARGIN: NodeParams = NodeParams {
     debug_name: "MARGIN",
-    static_text: None,
+    text: None,
     clickable: false,
     visible_rect: false,
     color: DEBUG_RED,
@@ -312,7 +312,7 @@ pub const MARGIN: NodeParams = NodeParams {
 
 pub const BUTTON: NodeParams = NodeParams {
     debug_name: "Button",
-    static_text: None,
+    text: None,
     clickable: true,
     visible_rect: true,
     color: Color::rgba(0.0, 0.1, 0.1, 0.9),
@@ -325,7 +325,7 @@ pub const BUTTON: NodeParams = NodeParams {
 
 pub const LABEL: NodeParams = NodeParams {
     debug_name: "label",
-    static_text: None,
+    text: Some("Label"),
     clickable: false,
     visible_rect: true,
     color: Color::BLUE,
@@ -338,7 +338,7 @@ pub const LABEL: NodeParams = NodeParams {
 
 pub const TEXT: NodeParams = NodeParams {
     debug_name: "text",
-    static_text: Some("Text"),
+    text: Some("Text"),
     clickable: false,
     visible_rect: false,
     color: Color::BLUE,
@@ -351,7 +351,7 @@ pub const TEXT: NodeParams = NodeParams {
 
 pub const TEXT_INPUT: NodeParams = NodeParams {
     debug_name: "label",
-    static_text: None,
+    text: None,
     clickable: true,
     visible_rect: true,
     color: Color::rgba(0.1, 0.0, 0.1, 0.9),
@@ -364,7 +364,7 @@ pub const TEXT_INPUT: NodeParams = NodeParams {
 
 pub const PANEL: NodeParams = NodeParams {
     debug_name: "panel",
-    static_text: None,
+    text: None,
     clickable: true,
     visible_rect: true,
     color: Color::rgba(0.1, 0.0, 0.1, 0.9),
@@ -669,25 +669,15 @@ pub struct Ui {
 }
 impl Ui {
     fn chained_set_text(&mut self, text: &str) {
-        let last_key = self.trace.last_node();
+        let last_node = self.add_or_get_last_node_early();
+        
+        if let Some(text_id) = last_node.text_id {
+            self.text.set_text(text_id, text);
+        } else {
+            // todo: log a warning or something
+            // or make these things type safe somehow
+        }
 
-        match self.node_map.entry(last_key.id()) {
-            std::collections::hash_map::Entry::Vacant(v) => {
-                let defaults = last_key.defaults();
-
-                // when doing these "early add" things, we do this to pretend that it was already there from last frame. otherwise, the sibling stuff would get very confused.
-                // it's not nice to have this behavior in many points. 
-                let frame = self.part.current_frame - 1;
-                let text_id = self.text.new_text_area(Some(text), frame);
-                let new_node = Self::build_new_node(&defaults, None, text_id, frame);
-                v.insert(new_node);
-            }
-            std::collections::hash_map::Entry::Occupied(o) => {
-                let old_node = o.into_mut();
-                let text_id = old_node.text_id.unwrap();
-                self.text.set_text(text_id, text);
-            }
-        };
     }
 
     pub fn chained_get_text(&mut self) -> Option<String> {
@@ -726,7 +716,7 @@ impl Ui {
                 // when doing these "early add" things, we do this to pretend that it was already there from last frame. otherwise, the sibling stuff would get very confused.
                 // it's not nice to have this behavior in many points. 
                 let frame = self.part.current_frame - 1;
-                let text_id = self.text.new_text_area(defaults.static_text, frame);
+                let text_id = self.text.new_text_area(defaults.text, frame);
                 let new_node = Self::build_new_node(&defaults, None, text_id, frame);
                 let new_node_ref = v.insert(new_node);
                 new_node_ref
@@ -918,7 +908,7 @@ impl Ui {
 
         let node = match self.node_map.entry(id) {
             std::collections::hash_map::Entry::Vacant(v) => {
-                let text_id = self.text.new_text_area(defaults.static_text, frame);
+                let text_id = self.text.new_text_area(defaults.text, frame);
                 let new_node = Self::build_new_node(defaults, Some(parent_id), text_id, frame);
                 let new_node_ref = v.insert(new_node);
                 new_node_ref
@@ -1822,7 +1812,7 @@ pub enum Arrange {
 
 pub const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     debug_name: "ROOT",
-    static_text: None,
+    text: None,
     visible_rect: false,
     clickable: false,
     color: Color {
