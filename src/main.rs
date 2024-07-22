@@ -76,7 +76,7 @@ impl State {
     }
 
     pub fn render(&mut self) {
-        self.canvas.prepare(&mut self.ctx.queue);
+        self.canvas.prepare(&self.ctx.queue);
         self.ui.prepare(&self.ctx.device, &self.ctx.queue);
 
         let mut frame = self.ctx.begin_frame();

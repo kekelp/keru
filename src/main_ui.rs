@@ -139,11 +139,11 @@ pub fn count_color(count: i32) -> Color {
 pub fn add_pixel_info(ui: &mut Ui, pixel_info: &Option<PixelInfo>) {
     panel!(ui, {
         v_stack!(ui, {
-            // text!(ui, "asdasd");
-            // for _ in 0..3 {
-            // }
+            for i in 0..15 {
+                let t = format!("seethe {}", i);
+                text!(ui, &t);
+            }
         });
-        
     });
 
     // #[node_key(H_STACK.size_x(0.5).position_x(Position::Start))]

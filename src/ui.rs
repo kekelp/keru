@@ -55,6 +55,7 @@ pub const NODE_ROOT: Node = Node {
     last_hover: f32::MIN,
     last_click: f32::MIN,
     z: -10000.0,
+    n_twins: 0,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -713,30 +714,6 @@ impl Ui {
         last_node.params.color = color;
     }
 
-    pub fn add_or_get_last_node_early(&mut self) -> &mut Node {
-        let last_key = self.trace.last_node();
-
-        let node = match self.node_map.entry(last_key.id()) {
-            std::collections::hash_map::Entry::Vacant(v) => {
-                let defaults = last_key.defaults();
-
-                // when doing these "early add" things, we do this to pretend that it was already there from last frame. otherwise, the sibling stuff would get very confused.
-                // it's not nice to have this behavior in many points.
-                let frame = self.part.current_frame - 1;
-                let text_id = self.text.new_text_area(defaults.text, frame);
-                let new_node = Self::build_new_node(&defaults, None, text_id, frame);
-                let new_node_ref = v.insert(new_node);
-                new_node_ref
-            }
-            std::collections::hash_map::Entry::Occupied(o) => {
-                let old_node_ref = o.into_mut();
-                old_node_ref
-            }
-        };
-
-        return node;
-    }
-
     pub fn new(device: &Device, queue: &Queue, config: &SurfaceConfiguration) -> Self {
         let vertex_buffer = device.create_buffer_init(&util::BufferInitDescriptor {
             label: Some("player bullet pos buffer"),
@@ -904,43 +881,57 @@ impl Ui {
         return self.chain_ref();
     }
 
-    // todo: add back the "sibling" stuff
-
-    pub fn add_or_refresh_node(&mut self, key: NodeKey, parent_id: Id) -> &mut Node {
+    pub fn add_or_refresh_node(&mut self, key: NodeKey, parent_id: Id) {
         let id = key.id();
-        let defaults = &key.defaults();
 
         self.add_child_to_parent(id, parent_id);
 
         let frame = self.part.current_frame;
 
-        let node = match self.node_map.entry(id) {
+        match self.node_map.entry(id) {
             std::collections::hash_map::Entry::Vacant(v) => {
+                let defaults = &key.defaults();
                 let text_id = self.text.new_text_area(defaults.text, frame);
                 let new_node = Self::build_new_node(defaults, Some(parent_id), text_id, frame);
+                v.insert(new_node);
+            }
+            std::collections::hash_map::Entry::Occupied(o) => {
+                let old_node = o.into_mut();
+
+                match refresh_or_clone(frame, old_node.last_frame_touched) {
+                    Refresh => {
+                        old_node.refresh(frame);
+                        old_node.parent_id = parent_id;
+                        self.text.refresh_last_frame(old_node.text_id, frame);
+                    }
+                    AddTwin => {
+                        old_node.n_twins += 1;
+                        let twin_key = key.sibling(old_node.n_twins);
+                        // not infinite recursion because the id changed                  
+                        self.add_or_refresh_node(twin_key, parent_id);
+                    }
+                }
+            }
+        };
+    }
+
+    pub fn add_or_get_last_node_early(&mut self) -> &mut Node {
+        let last_key = self.trace.last_node();
+
+        let node = match self.node_map.entry(last_key.id()) {
+            std::collections::hash_map::Entry::Vacant(v) => {
+                let defaults = last_key.defaults();
+
+                // when doing these "early add" things, we do this to pretend that it was already there from last frame. otherwise, the sibling stuff would get very confused.
+                // it's not nice to have this behavior in many points.
+                let frame = self.part.current_frame - 1;
+                let text_id = self.text.new_text_area(defaults.text, frame);
+                let new_node = Self::build_new_node(&defaults, None, text_id, frame);
                 let new_node_ref = v.insert(new_node);
                 new_node_ref
             }
             std::collections::hash_map::Entry::Occupied(o) => {
                 let old_node_ref = o.into_mut();
-
-                match refresh_or_clone(frame, old_node_ref.last_frame_touched) {
-                    Refresh => {
-                        // clear children from old frames
-                        old_node_ref.children_ids.clear();
-                        // refresh
-                        old_node_ref.refresh(frame);
-                        old_node_ref.parent_id = parent_id;
-                        self.text.refresh_last_frame(old_node_ref.text_id, frame);
-                    }
-                    AddSibling => {
-                        dbg!(key);
-                        dbg!(frame);
-                        dbg!(old_node_ref.last_frame_touched);
-                        panic!();
-                    }
-                }
-
                 old_node_ref
             }
         };
@@ -978,6 +969,7 @@ impl Ui {
             last_hover: f32::MIN,
             last_click: f32::MIN,
             z: 0.0,
+            n_twins: 0,
         }
     }
 
@@ -1761,6 +1753,8 @@ pub struct Node {
     pub children_ids: Vec<Id>,
     pub params: NodeParams,
 
+    pub n_twins: u32,
+
     pub last_hover: f32,
     pub last_click: f32,
     pub z: f32,
@@ -1769,6 +1763,7 @@ impl Node {
     fn refresh(&mut self, current_frame: u64) {
         self.last_frame_touched = current_frame;
         self.children_ids.clear();
+        self.n_twins = 0;
     }
 }
 
@@ -2069,16 +2064,28 @@ impl NodeKey {
     pub const fn new(params: &'static NodeParams, id: Id) -> Self {
         return Self { params, id };
     }
+    pub fn sibling<T: Hash>(self, value: T) -> Self {
+        let mut hasher = FxHasher::default();            
+        self.id.0.hash(&mut hasher);
+        value.hash(&mut hasher);
+        let new_id = hasher.finish();
+        
+        return NodeKey {
+            params: self.params,
+            id: Id(new_id),
+        };
+    }    
+    
 }
 
 pub enum RefreshOrClone {
     Refresh,
-    AddSibling,
+    AddTwin,
 }
 pub fn refresh_or_clone(current_frame: u64, old_node_last_frame_touched: u64) -> RefreshOrClone {
     if current_frame == old_node_last_frame_touched {
         // re-adding something that got added in the same frame: making a clone
-        return RefreshOrClone::AddSibling;
+        return RefreshOrClone::AddTwin;
     } else {
         // re-adding something that was added in an old frame: just a normal refresh
         return RefreshOrClone::Refresh;
