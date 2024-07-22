@@ -464,24 +464,24 @@ impl Color {
     }
 }
 
-// with the trace system, this doesn't need to hold any information. Calls to ChainedMethodUi can just do tree_trace.last() to see the Id that they're supposed to use.
 // it's still somewhat useful to have this wrapper type, so that the chained_set_text can be kept private, and set_text can *only* be called right after an ui.add().
-pub struct ChainedMethodUi<'a> {
+pub struct ChainUi<'a> {
     ui: &'a mut Ui,
+    key: NodeKey,
 }
 
 // why can't you just do it separately?
-impl<'a> ChainedMethodUi<'a> {
+impl<'a> ChainUi<'a> {
     pub fn set_color(&mut self, color: Color) {
-        self.ui.chained_set_color(color);
+        self.ui.chained_set_color(&self.key, color);
     }
 
     pub fn set_text(&mut self, text: &str) {
-        self.ui.chained_set_text(text)
+        self.ui.chained_set_text(&self.key, text)
     }
 
     pub fn get_text(&mut self) -> Option<String> {
-        return self.ui.chained_get_text();
+        return self.ui.chained_get_text(self.key);
     }
 }
 
@@ -526,22 +526,6 @@ pub struct BlinkyLine {
 pub enum Cursor {
     BlinkyLine(BlinkyLine),
     Selection((GlyphonCursor, GlyphonCursor)),
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum TreeTraceEntry {
-    Node(NodeKey),
-    SetParent(Id),
-}
-impl TreeTraceEntry {
-    pub fn unwrap_node(&self) -> NodeKey {
-        return match self {
-            TreeTraceEntry::Node(id) => *id,
-            TreeTraceEntry::SetParent(_) => {
-                panic!("Met SetParent in tree trace when Node was expected")
-            }
-        };
-    }
 }
 
 // another stupid sub struct for dodging partial borrows
@@ -614,18 +598,6 @@ impl Text {
     }
 }
 
-#[derive(Default)]
-pub struct TreeTrace {
-    pub keys: Vec<TreeTraceEntry>,
-}
-impl TreeTrace {
-    fn last_node(&self) -> NodeKey {
-        let last_i = self.keys.len() - 1;
-        let last_key = self.keys[last_i].unwrap_node();
-        return last_key;
-    }
-}
-
 pub struct Ui {
     pub debug_mode: bool,
     pub debug_key_pressed: bool,
@@ -667,18 +639,14 @@ pub struct Ui {
     // pub content_changed: bool,
     // pub tree_changed: bool,
     pub t: f32,
-
-    // todo: add this
-    // pub last_tree_trace: Vec<TreeTraceEntry>,
-    pub trace: TreeTrace,
 }
 impl Ui {
     fn instant_t(&self) -> f32 {
         return self.part.t0.elapsed().as_secs_f32();
     }
 
-    fn chained_set_text(&mut self, text: &str) {
-        let last_node = self.add_or_get_last_node_early();
+    fn chained_set_text(&mut self, key: &NodeKey, text: &str) {
+        let last_node = self.node_map.get_mut(&key.id()).unwrap();
 
         if let Some(text_id) = last_node.text_id {
             self.text.set_text(text_id, text);
@@ -688,10 +656,8 @@ impl Ui {
         }
     }
 
-    pub fn chained_get_text(&mut self) -> Option<String> {
-        let last_key = self.trace.last_node();
-
-        match self.node_map.entry(last_key.id()) {
+    pub fn chained_get_text(&mut self, key: NodeKey) -> Option<String> {
+        match self.node_map.entry(key.id()) {
             std::collections::hash_map::Entry::Vacant(_v) => {
                 return None;
             }
@@ -709,8 +675,8 @@ impl Ui {
     }
 
     // Slightly sloppier (the color gets set to default then changed) for no real benefit so far since nobody else uses the func lol
-    pub fn chained_set_color(&mut self, color: Color) {
-        let last_node = self.add_or_get_last_node_early();
+    pub fn chained_set_color(&mut self, key: &NodeKey, color: Color) {
+        let last_node = self.node_map.get_mut(&key.id()).unwrap();
         last_node.params.color = color;
     }
 
@@ -858,30 +824,27 @@ impl Ui {
             focused: None,
 
             t: 0.0,
-
-            trace: TreeTrace::default(),
         }
     }
 
-    pub fn chain_ref(&mut self) -> ChainedMethodUi {
-        return ChainedMethodUi { ui: self };
+    pub fn chain_ref(&mut self, key: NodeKey) -> ChainUi {
+        return ChainUi { ui: self, key };
     }
 
-    pub fn add(&mut self, key: NodeKey) -> ChainedMethodUi {
-        self.trace.keys.push(TreeTraceEntry::Node(key));
-        return self.chain_ref();
+    pub fn add(&mut self, key: NodeKey) -> ChainUi {
+        let parent_id = self.parent_stack.last().unwrap();
+        let real_key = self.add_or_refresh_node(key, *parent_id);
+        return self.chain_ref(real_key);
     }
 
-    pub fn add_layer(&mut self, key: NodeKey) -> ChainedMethodUi {
-        self.trace.keys.push(TreeTraceEntry::Node(key));
-
+    pub fn add_layer(&mut self, key: NodeKey) -> ChainUi {
+        let parent_id = self.parent_stack.last().unwrap();
+        let real_key = self.add_or_refresh_node(key, *parent_id);
         self.parent_stack.push(key.id());
-        self.trace.keys.push(TreeTraceEntry::SetParent(key.id()));
-
-        return self.chain_ref();
+        return self.chain_ref(real_key);
     }
 
-    pub fn add_or_refresh_node(&mut self, key: NodeKey, parent_id: Id) {
+    pub fn add_or_refresh_node(&mut self, key: NodeKey, parent_id: Id) -> NodeKey {
         let id = key.id();
 
         self.add_child_to_parent(id, parent_id);
@@ -894,6 +857,7 @@ impl Ui {
                 let text_id = self.text.new_text_area(defaults.text, frame);
                 let new_node = Self::build_new_node(defaults, Some(parent_id), text_id, frame);
                 v.insert(new_node);
+                return key;
             }
             std::collections::hash_map::Entry::Occupied(o) => {
                 let old_node = o.into_mut();
@@ -903,40 +867,17 @@ impl Ui {
                         old_node.refresh(frame);
                         old_node.parent_id = parent_id;
                         self.text.refresh_last_frame(old_node.text_id, frame);
+                        return key;
                     }
                     AddTwin => {
                         old_node.n_twins += 1;
                         let twin_key = key.sibling(old_node.n_twins);
                         // not infinite recursion because the id changed                  
-                        self.add_or_refresh_node(twin_key, parent_id);
+                        return self.add_or_refresh_node(twin_key, parent_id);
                     }
                 }
             }
         };
-    }
-
-    pub fn add_or_get_last_node_early(&mut self) -> &mut Node {
-        let last_key = self.trace.last_node();
-
-        let node = match self.node_map.entry(last_key.id()) {
-            std::collections::hash_map::Entry::Vacant(v) => {
-                let defaults = last_key.defaults();
-
-                // when doing these "early add" things, we do this to pretend that it was already there from last frame. otherwise, the sibling stuff would get very confused.
-                // it's not nice to have this behavior in many points.
-                let frame = self.part.current_frame - 1;
-                let text_id = self.text.new_text_area(defaults.text, frame);
-                let new_node = Self::build_new_node(&defaults, None, text_id, frame);
-                let new_node_ref = v.insert(new_node);
-                new_node_ref
-            }
-            std::collections::hash_map::Entry::Occupied(o) => {
-                let old_node_ref = o.into_mut();
-                old_node_ref
-            }
-        };
-
-        return node;
     }
 
     pub fn add_child_to_parent(&mut self, id: Id, parent_id: Id) {
@@ -1513,8 +1454,6 @@ impl Ui {
 
         self.update_time();
 
-        self.trace.keys.clear();
-
         self.node_map
             .get_mut(&NODE_ROOT_ID)
             .unwrap()
@@ -1525,7 +1464,6 @@ impl Ui {
     }
 
     pub fn finish_tree(&mut self) {
-        self.apply_node_trace();
         self.layout();
         self.resolve_hover();
     }
@@ -1619,25 +1557,6 @@ impl Ui {
 
     pub fn end_layer(&mut self) {
         self.parent_stack.pop();
-        let new_parent = self.parent_stack.last().unwrap();
-        self.trace
-            .keys
-            .push(crate::ui::TreeTraceEntry::SetParent(*new_parent));
-    }
-
-    pub(crate) fn apply_node_trace(&mut self) {
-        let mut current_parent_id = NODE_ROOT_ID;
-        for i in 0..self.trace.keys.len() {
-            match self.trace.keys[i] {
-                TreeTraceEntry::Node(key) => {
-                    // todo, why pass by value albeit
-                    self.add_or_refresh_node(key, current_parent_id);
-                }
-                TreeTraceEntry::SetParent(id) => {
-                    current_parent_id = id;
-                }
-            }
-        }
     }
 
     pub fn set_text(&mut self, key: NodeKey, text: &str) {

@@ -8,6 +8,7 @@ use crate::ui::Position::*;
 impl State {
     pub fn update_ui(&mut self) {
         
+        dbg!(self.ui.text.text_areas.len());
         tree!(self.ui, {
 
             margin!(self.ui, {
@@ -139,10 +140,12 @@ pub fn count_color(count: i32) -> Color {
 pub fn add_pixel_info(ui: &mut Ui, pixel_info: &Option<PixelInfo>) {
     panel!(ui, {
         v_stack!(ui, {
-            for i in 0..15 {
-                let t = format!("seethe {}", i);
-                text!(ui, &t);
-            }
+            text!(ui,"和製漢字, حديث مرادف, ( ͡° ͜ʖ ͡°)");
+
+            // for i in 0..15 {
+            //     let t = format!("seethe {}", i);
+            //     text!(ui, &t);
+            // }
         });
     });
 
