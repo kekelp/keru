@@ -9,6 +9,7 @@ use winit::keyboard::Key;
 
 use RefreshOrClone::*;
 
+use std::cell::Cell;
 use std::ops::{Add, Mul, Sub};
 use std::{
     hash::Hasher,
@@ -464,24 +465,35 @@ impl Color {
     }
 }
 
-// it's still somewhat useful to have this wrapper type, so that the chained_set_text can be kept private, and set_text can *only* be called right after an ui.add().
-pub struct ChainUi<'a> {
-    ui: &'a mut Ui,
-    key: NodeKey,
+pub struct NodeWithStuff<'a> {
+    node: &'a mut Node,
+    text: &'a mut Text,
 }
 
 // why can't you just do it separately?
-impl<'a> ChainUi<'a> {
+impl<'a> NodeWithStuff<'a> {
     pub fn set_color(&mut self, color: Color) {
-        self.ui.chained_set_color(&self.key, color);
+        self.node.params.color = color;
+        
     }
 
     pub fn set_text(&mut self, text: &str) {
-        self.ui.chained_set_text(&self.key, text)
+        if let Some(text_id) = self.node.text_id {
+            self.text.set_text(text_id, text);
+        } else {
+            // todo: log a warning or something
+            // or make these things type safe somehow
+        }
     }
 
     pub fn get_text(&mut self) -> Option<String> {
-        return self.ui.chained_get_text(self.key);
+        let text_id = self.node.text_id.unwrap();
+
+        let text = self.text.text_areas[text_id].buffer.lines[0]
+            .text
+            .text()
+            .to_string();
+        return Some(text);
     }
 }
 
@@ -645,41 +657,6 @@ impl Ui {
         return self.part.t0.elapsed().as_secs_f32();
     }
 
-    fn chained_set_text(&mut self, key: &NodeKey, text: &str) {
-        let last_node = self.node_map.get_mut(&key.id()).unwrap();
-
-        if let Some(text_id) = last_node.text_id {
-            self.text.set_text(text_id, text);
-        } else {
-            // todo: log a warning or something
-            // or make these things type safe somehow
-        }
-    }
-
-    pub fn chained_get_text(&mut self, key: NodeKey) -> Option<String> {
-        match self.node_map.entry(key.id()) {
-            std::collections::hash_map::Entry::Vacant(_v) => {
-                return None;
-            }
-            std::collections::hash_map::Entry::Occupied(o) => {
-                let old_node = o.into_mut();
-                let text_id = old_node.text_id.unwrap();
-
-                let text = self.text.text_areas[text_id].buffer.lines[0]
-                    .text
-                    .text()
-                    .to_string();
-                return Some(text);
-            }
-        };
-    }
-
-    // Slightly sloppier (the color gets set to default then changed) for no real benefit so far since nobody else uses the func lol
-    pub fn chained_set_color(&mut self, key: &NodeKey, color: Color) {
-        let last_node = self.node_map.get_mut(&key.id()).unwrap();
-        last_node.params.color = color;
-    }
-
     pub fn new(device: &Device, queue: &Queue, config: &SurfaceConfiguration) -> Self {
         let vertex_buffer = device.create_buffer_init(&util::BufferInitDescriptor {
             label: Some("player bullet pos buffer"),
@@ -827,24 +804,18 @@ impl Ui {
         }
     }
 
-    pub fn chain_ref(&mut self, key: NodeKey) -> ChainUi {
-        return ChainUi { ui: self, key };
+    pub fn add(&mut self, key: NodeKey) -> NodeWithStuff {
+        let parent_id = self.parent_stack.last().unwrap();
+        return self.add_or_refresh_node(key, *parent_id);
     }
 
-    pub fn add(&mut self, key: NodeKey) -> ChainUi {
-        let parent_id = self.parent_stack.last().unwrap();
-        let real_key = self.add_or_refresh_node(key, *parent_id);
-        return self.chain_ref(real_key);
-    }
-
-    pub fn add_layer(&mut self, key: NodeKey) -> ChainUi {
-        let parent_id = self.parent_stack.last().unwrap();
-        let real_key = self.add_or_refresh_node(key, *parent_id);
+    pub fn add_layer(&mut self, key: NodeKey) -> NodeWithStuff {
+        let parent_id = self.parent_stack.last().unwrap().clone();
         self.parent_stack.push(key.id());
-        return self.chain_ref(real_key);
+        return self.add_or_refresh_node(key, parent_id);
     }
 
-    pub fn add_or_refresh_node(&mut self, key: NodeKey, parent_id: Id) -> &mut Node {
+    pub fn add_or_refresh_node(&mut self, key: NodeKey, parent_id: Id) -> NodeWithStuff {
         let id = key.id();
         let self_ptr = self as *mut Self;
         let twin_key;
@@ -858,7 +829,10 @@ impl Ui {
                 let defaults = &key.defaults();
                 let text_id = self.text.new_text_area(defaults.text, frame);
                 let new_node = Self::build_new_node(defaults, Some(parent_id), text_id, frame);
-                return v.insert(new_node);
+                return NodeWithStuff {
+                    node: v.insert(new_node),
+                    text: &mut self.text,
+                }
             }
             std::collections::hash_map::Entry::Occupied(o) => {
                 let old_node = o.into_mut();
@@ -868,7 +842,10 @@ impl Ui {
                         old_node.refresh(frame);
                         old_node.parent_id = parent_id;
                         self.text.refresh_last_frame(old_node.text_id, frame);
-                        return old_node;
+                        return NodeWithStuff {
+                            node: old_node,
+                            text: &mut self.text,
+                        }
                     }
                     AddTwin => {
                         old_node.n_twins += 1;
@@ -882,7 +859,7 @@ impl Ui {
         // safety: the reference to old_node is not used, but returning a reference means that `self` stays borrowed everywhere. 
         // this is rust's fault (https://github.com/rust-lang/rfcs/blob/master/text/2094-nll.md#problem-case-3-conditional-control-flow-across-functions)
         unsafe {
-            return &mut *(*self_ptr).add_or_refresh_node(twin_key, parent_id)
+            return (*self_ptr).add_or_refresh_node(twin_key, parent_id)
         }    
     }
 
