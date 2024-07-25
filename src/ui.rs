@@ -855,7 +855,7 @@ impl Ui {
             }
         };
 
-        // not infinite recursion because the id changed 
+        // not infinite recursion because the id changed.
         // safety: the reference to old_node is not used, but returning a reference means that `self` stays borrowed everywhere. 
         // this is rust's fault (https://github.com/rust-lang/rfcs/blob/master/text/2094-nll.md#problem-case-3-conditional-control-flow-across-functions)
         unsafe {
