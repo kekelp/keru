@@ -22,7 +22,7 @@ pub fn node_key(attr: TokenStream, item: TokenStream) -> TokenStream {
 
 
     let expanded = quote! {
-        const #key_ident: NodeKey = NodeKey::new(
+        pub const #key_ident: NodeKey = NodeKey::new(
             &#default_params_expr.debug_name(#debug_name),
             Id(#random_number_ident)
         );

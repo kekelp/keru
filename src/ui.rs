@@ -4,6 +4,7 @@ use glyphon::cosmic_text::StringCursor;
 use glyphon::Cursor as GlyphonCursor;
 use glyphon::{Affinity, Resolution as GlyphonResolution};
 use rustc_hash::{FxHashMap, FxHasher};
+use view_derive::node_key;
 use wgpu::*;
 use winit::keyboard::Key;
 
@@ -350,6 +351,9 @@ pub const TEXT: NodeParams = NodeParams {
     editable: false,
     filled: true,
 };
+
+#[node_key(TEXT)]
+pub const TEXT2: NodeKey;
 
 pub const TEXT_INPUT: NodeParams = NodeParams {
     debug_name: "label",

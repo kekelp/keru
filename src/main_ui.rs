@@ -19,7 +19,7 @@ impl State {
                     let mut color = add!(self.ui, PAINT_COLOR).get_text();
     
                     let pixel_info = self.canvas.pixel_info();
-                    add_pixel_info(&mut self.ui, &pixel_info);
+                    self.ui.add_pixel_info(&pixel_info);
 
 
                     if let Some(color) = &mut color {
@@ -134,42 +134,52 @@ pub fn count_color(count: i32) -> Color {
     return Color::rgba(red, 0.1, 0.2, 0.8);
 }
 
+impl Ui {
 
-pub fn add_pixel_info(ui: &mut Ui, pixel_info: &Option<PixelInfo>) {
-    panel!(ui, {
-        v_stack!(ui, {
+    pub fn add_pixel_info(&mut self, pixel_info: &Option<PixelInfo>) {
+        if let Some(pixel_info) = pixel_info {
 
-            for i in 0..9 {
-                let t = format!("seethe {}", i);
-                text!(ui, &t);
-            }
-        });
-    });
+            panel!(self, {
+                v_stack!(self, {
+                    
+                    let x = &format!("x: {}", pixel_info.x as u32);
+                    self.add(TEXT2).set_text(x);
 
-    // #[node_key(H_STACK.size_x(0.5).position_x(Position::Start))]
-    // pub const CENTER_ROW: NodeKey;
-    // margin!(ui, {
-        
-    //     #[node_key(H_STACK.size_x(0.5).position_x(Position::Start))]
-    //     pub const CENTER_ROW: NodeKey;
-    //     h_stack!(ui, CENTER_ROW, {
-    //         v_stack!(ui, {
-    //             if self.counter_mode {
-    //                 let new_color = count_color(self.count);
-    //                 add!(ui, Self::INCREASE_BUTTON).set_color(new_color);
+                    // text!(self, &format!("x: {}", pixel_info.x as u32));
+                    text!(self, &format!("y: {}", pixel_info.y as u32));
+                    text!(self, &format!("color: {:?}", pixel_info.color));
+                    
+                    
+                });
+            });
+        }
+            
+        // #[node_key(H_STACK.size_x(0.5).position_x(Position::Start))]
+        // pub const CENTER_ROW: NodeKey;
+        // margin!(ui, {
+            
+        //     #[node_key(H_STACK.size_x(0.5).position_x(Position::Start))]
+        //     pub const CENTER_ROW: NodeKey;
+        //     h_stack!(ui, CENTER_ROW, {
+        //         v_stack!(ui, {
+        //             if self.counter_mode {
+        //                 let new_color = count_color(self.count);
+        //                 add!(ui, Self::INCREASE_BUTTON).set_color(new_color);
 
-    //                 let count = &self.count.to_string();
-    //                 add!(ui, Self::COUNT_LABEL).set_text(count);
+        //                 let count = &self.count.to_string();
+        //                 add!(ui, Self::COUNT_LABEL).set_text(count);
 
-    //                 add!(ui, Self::DECREASE_BUTTON);
-    //             }
-    //         });
+        //                 add!(ui, Self::DECREASE_BUTTON);
+        //             }
+        //         });
 
-    //         let text = match self.counter_mode {
-    //             true => "Hide counter",
-    //             false => "Show counter",
-    //         };
-    //         add!(ui, Self::SHOW_COUNTER_BUTTON).set_text(text);
-    //     });
-    // });
+        //         let text = match self.counter_mode {
+        //             true => "Hide counter",
+        //             false => "Show counter",
+        //         };
+        //         add!(ui, Self::SHOW_COUNTER_BUTTON).set_text(text);
+        //     });
+        // });
+    }
+    
 }

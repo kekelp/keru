@@ -39,7 +39,7 @@ impl PixelColor {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct PixelColorF32 {
     r: f32,
     g: f32,
@@ -558,7 +558,8 @@ impl Canvas {
     }
 
     pub fn pixel_info(&self) -> Option<PixelInfo> {
-        let (x,y) = (self.last_mouse_pos.x, self.last_mouse_pos.y);
+        let (x, y) = (self.last_mouse_pos.x, self.last_mouse_pos.y);
+        let (x, y) = self.screen_to_image(x, y);
         let color = self.get_pixel_nonmut(x as usize, y as usize)?.to_f32s();
     
         return Some(PixelInfo { x, y, color }); 
