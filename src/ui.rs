@@ -844,8 +844,10 @@ impl Ui {
         return self.chain_ref(real_key);
     }
 
-    pub fn add_or_refresh_node(&mut self, key: NodeKey, parent_id: Id) -> NodeKey {
+    pub fn add_or_refresh_node(&mut self, key: NodeKey, parent_id: Id) -> &mut Node {
         let id = key.id();
+        let self_ptr = self as *mut Self;
+        let twin_key;
 
         self.add_child_to_parent(id, parent_id);
 
@@ -856,8 +858,7 @@ impl Ui {
                 let defaults = &key.defaults();
                 let text_id = self.text.new_text_area(defaults.text, frame);
                 let new_node = Self::build_new_node(defaults, Some(parent_id), text_id, frame);
-                v.insert(new_node);
-                return key;
+                return v.insert(new_node);
             }
             std::collections::hash_map::Entry::Occupied(o) => {
                 let old_node = o.into_mut();
@@ -867,17 +868,22 @@ impl Ui {
                         old_node.refresh(frame);
                         old_node.parent_id = parent_id;
                         self.text.refresh_last_frame(old_node.text_id, frame);
-                        return key;
+                        return old_node;
                     }
                     AddTwin => {
                         old_node.n_twins += 1;
-                        let twin_key = key.sibling(old_node.n_twins);
-                        // not infinite recursion because the id changed                  
-                        return self.add_or_refresh_node(twin_key, parent_id);
+                        twin_key = key.sibling(old_node.n_twins);           
                     }
                 }
             }
         };
+
+        // not infinite recursion because the id changed 
+        // safety: the reference to old_node is not used, but returning a reference means that `self` stays borrowed everywhere. 
+        // this is rust's fault (https://github.com/rust-lang/rfcs/blob/master/text/2094-nll.md#problem-case-3-conditional-control-flow-across-functions)
+        unsafe {
+            return &mut *(*self_ptr).add_or_refresh_node(twin_key, parent_id)
+        }    
     }
 
     pub fn add_child_to_parent(&mut self, id: Id, parent_id: Id) {
