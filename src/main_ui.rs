@@ -138,21 +138,48 @@ pub fn count_color(count: i32) -> Color {
 impl Ui {
 
     pub fn add_pixel_info(&mut self, pixel_info: &Option<PixelInfo>) {
-        if let Some(pixel_info) = pixel_info {
 
-            panel!(self, {
-                v_stack!(self, {
-                    h_stack!(self, {
-                        text!(self, "x:");
-                        text!(self, &format!("{}", pixel_info.x));
-                        text!(self, "y:");
-                        text!(self, &format!("{}", pixel_info.y));
-                    });
-                    text!(self, &format!("color: {:?}", pixel_info.color));
-                    
-                    
+        let (x, y) = match pixel_info {
+            Some(pixel_info) => (format!("{}", pixel_info.x), format!("{}", pixel_info.y)),
+            None => ("".to_owned(), "".to_owned()),
+        };
+
+        let (r, g, b, a) = match pixel_info {
+            Some(pixel_info) => (
+                format!("{:.2}", pixel_info.color.r),
+                format!("{:.2}", pixel_info.color.g),
+                format!("{:.2}", pixel_info.color.b),
+                format!("{:.2}", pixel_info.color.a),
+            ),
+            None => ("".to_owned(), "".to_owned(), "".to_owned(), "".to_owned()),
+        };
+
+        // todo:::::: I don't want strings, I want to write!() directly into the buffer 
+
+        panel!(self, {
+            v_stack!(self, {
+                h_stack!(self, {
+                    text!(self, "x:");
+                    text!(self, &x);
+                    text!(self, "y:");
+                    text!(self, &y);
                 });
+                
+                h_stack!(self, {
+                    text!(self, "r:");
+                    text!(self, &r);
+                    text!(self, "g:");
+                    text!(self, &g);
+                });
+                h_stack!(self, {
+                    text!(self, "b:");
+                    text!(self, &b);
+                    text!(self, "a:");
+                    text!(self, &a);
+                });
+
             });
-        }
+        });
+        
     }
 }
