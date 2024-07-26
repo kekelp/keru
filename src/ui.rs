@@ -250,6 +250,11 @@ impl NodeParams {
         return self;
     }
 
+    pub const fn filled(mut self, filled: bool) -> Self {
+        self.filled = filled;
+        return self;
+    }
+
     pub const fn stack(mut self, axis: Axis, arrange: Arrange) -> Self {
         self.is_stack = Some(Stack { arrange, axis });
         return self;
@@ -293,7 +298,7 @@ pub const H_STACK: NodeParams = NodeParams {
     size: Xy::new(Size::PercentOfAvailable(1.0), Size::PercentOfAvailable(1.0)),
     position: Xy::new_symm(Position::Center),
     is_stack: Some(Stack {
-        arrange: Arrange::Start,
+        arrange: Arrange::End,
         axis: Axis::X,
     }),
     editable: false,
@@ -343,16 +348,13 @@ pub const TEXT: NodeParams = NodeParams {
     text: Some("Text"),
     clickable: false,
     visible_rect: false,
-    color: Color::BLUE,
+    color: Color::RED,
     size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
     position: Xy::new_symm(Position::Center),
     is_stack: None,
     editable: false,
-    filled: true,
+    filled: false,
 };
-
-#[node_key(TEXT)]
-pub const TEXT2: NodeKey;
 
 pub const TEXT_INPUT: NodeParams = NodeParams {
     debug_name: "label",
@@ -871,6 +873,7 @@ impl Ui {
             .push(id);
     }
 
+    // todo: why like this
     pub fn build_new_node(
         defaults: &NodeParams,
         parent_id: Option<Id>,
@@ -905,7 +908,6 @@ impl Ui {
                 NamedKey::F1 => {
                     if event.state.is_pressed() {
                         if self.debug_key_pressed == false {
-                            // todo: some kind of flicker when doing this
                             #[cfg(debug_assertions)]
                             {
                                 self.debug_mode = !self.debug_mode;
@@ -931,6 +933,7 @@ impl Ui {
             let line = &mut buffer.lines[0];
 
             match &event.logical_key {
+                // todo: ctrl + Z
                 Key::Named(named_key) => match named_key {
                     NamedKey::ArrowLeft => {
                         match (self.key_mods.shift_key(), self.key_mods.control_key()) {
@@ -1401,14 +1404,16 @@ impl Ui {
             .unwrap();
     }
 
-    pub fn prepare(&mut self, device: &Device, queue: &Queue) {
+    pub fn prepare(&mut self, device: &Device, queue: &Queue) {       
+        self.build_buffers();
+        
         self.gpu_vertex_buffer.queue_write(&self.rects[..], queue);
 
         // update gpu time
         // magical offset...
         queue.write_buffer(&self.base_uniform_buffer, 8, bytemuck::bytes_of(&self.t));
 
-        self.build_buffers();
+        
 
         self.text
             .text_renderer

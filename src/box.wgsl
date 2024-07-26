@@ -32,34 +32,34 @@ struct VertexOutput {
 
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
-    var i_x = u32( in.index == 0 || in.index >= 4 );
-    var i_y = u32( in.index % 2 );
+    let i_x = u32( in.index == 0 || in.index >= 4 );
+    let i_y = u32( in.index % 2 );
 
     // 0 <--> -1
-    var x = in.xs[i_x];
-    var y = in.ys[i_y];
+    let x = in.xs[i_x];
+    let y = in.ys[i_y];
 
-    var clip_position = vec4(x, y, in.z, 1.0);
+    let clip_position = vec4(x, y, in.z, 1.0);
 
-    var half_size = vec2f( 
+    let half_size = vec2f( 
         (in.xs[1] - in.xs[0]) * unif.screen_resolution.x / 2.0, 
         (in.ys[1] - in.ys[0]) * unif.screen_resolution.y / 2.0, 
     );
 
     // calculate for corners, will be interpolated.
     // interpolation after the abs() won't work.
-    var corner = 2.0 * vec2f(vec2u(i_x, i_y)) - 1.0;    
-    var uv = corner * half_size;
+    let corner = 2.0 * vec2f(vec2u(i_x, i_y)) - 1.0;    
+    let uv = corner * half_size;
 
-    var t_since_hover = (unif.t - in.last_hover) * 4.5;
-    var hover = (1.0 - clamp(t_since_hover, 0.0, 1.0)) * f32(t_since_hover < 1.0) * f32(in.clickable);
-    var t_since_click = (unif.t - in.last_click) * 4.1;
-    var click = (1.0 - clamp(t_since_click, 0.0, 1.0)) * f32(t_since_click < 1.0) * f32(in.clickable);
+    let t_since_hover = (unif.t - in.last_hover) * 4.5;
+    let hover = (1.0 - clamp(t_since_hover, 0.0, 1.0)) * f32(t_since_hover < 1.0) * f32(in.clickable);
+    let t_since_click = (unif.t - in.last_click) * 4.1;
+    let click = (1.0 - clamp(t_since_click, 0.0, 1.0)) * f32(t_since_click < 1.0) * f32(in.clickable);
 
-    var dark_hover = 1.0 - hover * 0.32;
-    var dark_click = 1.0 - click * 0.78;
+    let dark_hover = 1.0 - hover * 0.32;
+    let dark_click = 1.0 - click * 0.78;
 
-    var dark = min(dark_click, dark_hover);
+    let dark = min(dark_click, dark_hover);
     return VertexOutput(clip_position, uv, half_size, in.color, dark, in.radius, in.filled);
 }
 
@@ -70,15 +70,15 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // where L = rect_half_size (pixels)
 
     // todo: what the fuck is a q?
-    var q = abs(in.uv) - in.half_size + in.radius;
+    let q = abs(in.uv) - in.half_size + in.radius;
 
-    var dist = length(max(q, vec2(0.0, 0.0))) - in.radius;
+    let dist = length(max(q, vec2(0.0, 0.0))) - in.radius;
 
-    var inside = (1.0 - smoothstep(-1.0, 1.0, dist));
-    var outside = (1.0 - smoothstep(1.0, -1.0, dist + 8.0));
+    let inside = (1.0 - smoothstep(-1.0, 1.0, dist));
+    let outside = (1.0 - smoothstep(1.0, -1.0, dist + 8.0));
 
-    var filled = f32(in.filled);
-    var alpha = in.color.a * (inside * max(filled, outside));
+    let filled = f32(in.filled);
+    let alpha = in.color.a * (inside * max(filled, outside));
 
     return vec4(in.color.rgb * in.dark, alpha);
 }

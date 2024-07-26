@@ -43,11 +43,12 @@ impl State {
     
             self.counter_state.add_counter(&mut self.ui); 
             
-            // todo...... this cant go below the finish_tree now
-            self.counter_state.interact(&mut self.ui);
         });
-        
 
+
+        // effects
+        self.counter_state.on_click(&mut self.ui);
+        
     }
 }
 
@@ -81,7 +82,7 @@ impl CounterState {
     #[node_key(BUTTON.text("Decrease").color(Color::RED))]
     pub const DECREASE_BUTTON: NodeKey;
 
-    #[node_key(BUTTON.text("Show Counter").color(Color::rgba(0.5, 0.1, 0.7, 0.7)))]
+    #[node_key(BUTTON.text("Show Counter").color(Color::rgba(0.5, 0.1, 0.7, 0.4)))]
     pub const SHOW_COUNTER_BUTTON: NodeKey;
 
     #[node_key(LABEL)]
@@ -115,7 +116,7 @@ impl CounterState {
         });
     }
 
-    pub fn interact(&mut self, ui: &mut Ui) {
+    pub fn on_click(&mut self, ui: &mut Ui) {
         if ui.is_clicked(Self::INCREASE_BUTTON) {
             self.count += 1;
         }
@@ -141,45 +142,17 @@ impl Ui {
 
             panel!(self, {
                 v_stack!(self, {
-                    
-                    let x = &format!("x: {}", pixel_info.x as u32);
-                    self.add(TEXT2).set_text(x);
-
-                    // text!(self, &format!("x: {}", pixel_info.x as u32));
-                    text!(self, &format!("y: {}", pixel_info.y as u32));
+                    h_stack!(self, {
+                        text!(self, "x:");
+                        text!(self, &format!("{}", pixel_info.x));
+                        text!(self, "y:");
+                        text!(self, &format!("{}", pixel_info.y));
+                    });
                     text!(self, &format!("color: {:?}", pixel_info.color));
                     
                     
                 });
             });
         }
-            
-        // #[node_key(H_STACK.size_x(0.5).position_x(Position::Start))]
-        // pub const CENTER_ROW: NodeKey;
-        // margin!(ui, {
-            
-        //     #[node_key(H_STACK.size_x(0.5).position_x(Position::Start))]
-        //     pub const CENTER_ROW: NodeKey;
-        //     h_stack!(ui, CENTER_ROW, {
-        //         v_stack!(ui, {
-        //             if self.counter_mode {
-        //                 let new_color = count_color(self.count);
-        //                 add!(ui, Self::INCREASE_BUTTON).set_color(new_color);
-
-        //                 let count = &self.count.to_string();
-        //                 add!(ui, Self::COUNT_LABEL).set_text(count);
-
-        //                 add!(ui, Self::DECREASE_BUTTON);
-        //             }
-        //         });
-
-        //         let text = match self.counter_mode {
-        //             true => "Hide counter",
-        //             false => "Show counter",
-        //         };
-        //         add!(ui, Self::SHOW_COUNTER_BUTTON).set_text(text);
-        //     });
-        // });
     }
-    
 }
