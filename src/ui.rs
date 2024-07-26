@@ -10,7 +10,6 @@ use winit::keyboard::Key;
 
 use RefreshOrClone::*;
 
-use std::cell::Cell;
 use std::ops::{Add, Mul, Sub};
 use std::{
     hash::Hasher,
@@ -478,7 +477,6 @@ pub struct NodeWithStuff<'a> {
 impl<'a> NodeWithStuff<'a> {
     pub fn set_color(&mut self, color: Color) {
         self.node.params.color = color;
-        
     }
 
     pub fn set_text(&mut self, text: &str) {
@@ -836,7 +834,7 @@ impl Ui {
                 return NodeWithStuff {
                     node: v.insert(new_node),
                     text: &mut self.text,
-                }
+                };
             }
             std::collections::hash_map::Entry::Occupied(o) => {
                 let old_node = o.into_mut();
@@ -849,22 +847,20 @@ impl Ui {
                         return NodeWithStuff {
                             node: old_node,
                             text: &mut self.text,
-                        }
+                        };
                     }
                     AddTwin => {
                         old_node.n_twins += 1;
-                        twin_key = key.sibling(old_node.n_twins);           
+                        twin_key = key.sibling(old_node.n_twins);
                     }
                 }
             }
         };
 
         // not infinite recursion because the id changed.
-        // safety: the reference to old_node is not used, but returning a reference means that `self` stays borrowed everywhere. 
+        // safety: the reference to old_node is not used, but returning a reference means that `self` stays borrowed everywhere.
         // this is rust's fault (https://github.com/rust-lang/rfcs/blob/master/text/2094-nll.md#problem-case-3-conditional-control-flow-across-functions)
-        unsafe {
-            return (*self_ptr).add_or_refresh_node(twin_key, parent_id)
-        }    
+        unsafe { return (*self_ptr).add_or_refresh_node(twin_key, parent_id) }
     }
 
     pub fn add_child_to_parent(&mut self, id: Id, parent_id: Id) {
@@ -1607,21 +1603,6 @@ create_layer_macro!(v_stack, &crate::ui::V_STACK);
 create_layer_macro!(margin, &crate::ui::MARGIN);
 create_layer_macro!(panel, &crate::ui::PANEL);
 
-// multiple ways to do the same thing = also le bad albeit
-macro_rules! create_layer_macro_leaf {
-    ($macro_name:ident, $node_params_name:expr) => {
-        #[macro_export]
-        macro_rules! $macro_name {
-            ($ui:expr) => {
-                let random_id = call_site_id!();
-                // todo: add debug name inside params
-                let anonymous_key = NodeKey::new($node_params_name, random_id);
-                $ui.add(anonymous_key)
-            };
-        }
-    };
-}
-
 #[macro_export]
 macro_rules! text {
     ($ui:expr, $text:expr) => {
@@ -1971,17 +1952,16 @@ impl NodeKey {
         return Self { params, id };
     }
     pub fn sibling<T: Hash>(self, value: T) -> Self {
-        let mut hasher = FxHasher::default();            
+        let mut hasher = FxHasher::default();
         self.id.0.hash(&mut hasher);
         value.hash(&mut hasher);
         let new_id = hasher.finish();
-        
+
         return NodeKey {
             params: self.params,
             id: Id(new_id),
         };
-    }    
-    
+    }
 }
 
 pub enum RefreshOrClone {
