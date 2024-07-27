@@ -4,12 +4,12 @@ use glyphon::cosmic_text::StringCursor;
 use glyphon::Cursor as GlyphonCursor;
 use glyphon::{Affinity, Resolution as GlyphonResolution};
 use rustc_hash::{FxHashMap, FxHasher};
-use view_derive::node_key;
 use wgpu::*;
 use winit::keyboard::Key;
 
 use RefreshOrClone::*;
 
+use std::collections::hash_map::Entry;
 use std::ops::{Add, Mul, Sub};
 use std::{
     hash::Hasher,
@@ -810,59 +810,77 @@ impl Ui {
 
     pub fn add(&mut self, key: NodeKey) -> NodeWithStuff {
         let parent_id = self.parent_stack.last().unwrap();
-        return self.add_or_refresh_node(key, *parent_id);
+        return self.add_or_refresh_node_simple(key, *parent_id, false);
     }
 
     pub fn add_layer(&mut self, key: NodeKey) -> NodeWithStuff {
         let parent_id = self.parent_stack.last().unwrap().clone();
-        self.parent_stack.push(key.id());
-        return self.add_or_refresh_node(key, parent_id);
+        return self.add_or_refresh_node_simple(key, parent_id, true);
     }
 
-    pub fn add_or_refresh_node(&mut self, key: NodeKey, parent_id: Id) -> NodeWithStuff {
-        let id = key.id();
-        let self_ptr = self as *mut Self;
-        let twin_key;
+    // consider the following:
+    // right now, the nodes stay in the hashmap with an old frame count and they get ignored in build_buffers
+    // it's good to not do a cleanup pass, but the memory is "wasted"
+    // however, the way I understand hashmaps, the memory isn't really wasted, because it's not used for anything else until a hash collision happens and some other node would like to be written into that same bucket.
+    // in an ideal world, I would be able to add a custom check when a collision happens. if the node has a last_frame_touched older than 100 frames or something, then the new node overwrites instead of chaining into another node or whatever.
+    // probably any get()-like functions should do some sort of check on last_frame_touched as well.
+    // ANYWAY, I don't think you can do any of this with the builtin rust hashmap. The collision stuff is completely hidden. 
 
-        self.add_child_to_parent(id, parent_id);
-
+    // this version probably does a handful of unneeded hash lookups and stuff.
+    pub fn add_or_refresh_node_simple(&mut self, key: NodeKey, parent_id: Id, make_new_layer: bool) -> NodeWithStuff {
         let frame = self.part.current_frame;
+        let final_added_id;
+        let mut twin = false;
 
-        match self.node_map.entry(id) {
-            std::collections::hash_map::Entry::Vacant(v) => {
+        match self.node_map.entry(key.id()) {
+            Entry::Vacant(v) => {
                 let defaults = &key.defaults();
                 let text_id = self.text.new_text_area(defaults.text, frame);
                 let new_node = Self::build_new_node(defaults, Some(parent_id), text_id, frame);
-                return NodeWithStuff {
-                    node: v.insert(new_node),
-                    text: &mut self.text,
-                };
-            }
-            std::collections::hash_map::Entry::Occupied(o) => {
-                let old_node = o.into_mut();
 
-                match refresh_or_clone(frame, old_node.last_frame_touched) {
+                v.insert(new_node);
+                final_added_id = key.id();
+            },
+            Entry::Occupied(o) => {
+                let old_node = o.into_mut();
+                match refresh_or_add_twin(frame, old_node.last_frame_touched) {
                     Refresh => {
                         old_node.refresh(frame);
                         old_node.parent_id = parent_id;
                         self.text.refresh_last_frame(old_node.text_id, frame);
-                        return NodeWithStuff {
-                            node: old_node,
-                            text: &mut self.text,
-                        };
+                        final_added_id = key.id();
                     }
                     AddTwin => {
                         old_node.n_twins += 1;
-                        twin_key = key.sibling(old_node.n_twins);
+                        let twin_key = key.sibling(old_node.n_twins);
+                        final_added_id = twin_key.id();
+                        twin = true;
+                        // let the old node borrow die and continue to the twin part
                     }
                 }
-            }
+
+            },
+        }
+
+        // twin part
+        if twin {
+            let defaults = &key.defaults();
+            let text_id = self.text.new_text_area(defaults.text, frame);
+            let new_twin_node = Self::build_new_node(defaults, Some(parent_id), text_id, frame);
+
+            self.node_map.insert(final_added_id, new_twin_node);
+        }
+
+        self.add_child_to_parent(final_added_id, parent_id);
+        if make_new_layer {
+            self.parent_stack.push(final_added_id);           
+        }
+
+        return NodeWithStuff {
+            node: self.node_map.get_mut(&final_added_id).unwrap(),
+            text: &mut self.text,
         };
 
-        // not infinite recursion because the id changed.
-        // safety: the reference to old_node is not used, but returning a reference means that `self` stays borrowed everywhere.
-        // this is rust's fault (https://github.com/rust-lang/rfcs/blob/master/text/2094-nll.md#problem-case-3-conditional-control-flow-across-functions)
-        unsafe { return (*self_ptr).add_or_refresh_node(twin_key, parent_id) }
     }
 
     pub fn add_child_to_parent(&mut self, id: Id, parent_id: Id) {
@@ -1405,15 +1423,13 @@ impl Ui {
     }
 
     pub fn prepare(&mut self, device: &Device, queue: &Queue) {       
-        self.build_buffers();
         
+        self.build_buffers();
         self.gpu_vertex_buffer.queue_write(&self.rects[..], queue);
-
+        
         // update gpu time
         // magical offset...
         queue.write_buffer(&self.base_uniform_buffer, 8, bytemuck::bytes_of(&self.t));
-
-        
 
         self.text
             .text_renderer
@@ -1572,34 +1588,34 @@ macro_rules! create_layer_macro {
     ($macro_name:ident, $node_params_name:expr) => {
         #[macro_export]
         macro_rules! $macro_name {
-                            ($ui:expr, $code:block) => {
-                                // the anonymous keys are all called "anonymous_key" and they do end up in the same scope, but they just shadow each other and it works fine.
-                                // if we tried to use the
-                                //     #[node_key($node_params_name)]
-                                //     pub const ANON_KEY: NodeKey;
-                                // syntax, that would work only on constants, and it would lead to conflicts.
-                                // a syntax like
-                                //     pub const ANON_KEY: NodeKey = node_key!(params);
-                                // would work in both contexts, and it also uses one less line,
-                                // but it can't fill in the debug name based on the const name,
-                                // and it looked like rust-analyzer can't see through the argument as well as it sees through the attribute macro attr, for some reason.
-                                let random_id = call_site_id!();
-                                // todo: add debug name inside params
-                                let anonymous_key = NodeKey::new($node_params_name, random_id);
-                                $ui.add_layer(anonymous_key);
-                                $code;
-                                $ui.end_layer();
-                            };
+            ($ui:expr, $code:block) => {
+                // the anonymous keys are all called "anonymous_key" and they do end up in the same scope, but they just shadow each other and it works fine.
+                // if we tried to use the
+                //     #[node_key($node_params_name)]
+                //     pub const ANON_KEY: NodeKey;
+                // syntax, that would work only on constants, and it would lead to conflicts.
+                // a syntax like
+                //     pub const ANON_KEY: NodeKey = node_key!(params);
+                // would work in both contexts, and it also uses one less line,
+                // but it can't fill in the debug name based on the const name,
+                // and it looked like rust-analyzer can't see through the argument as well as it sees through the attribute macro attr, for some reason.
+                let random_id = call_site_id!();
+                // todo: add debug name inside params
+                let anonymous_key = NodeKey::new($node_params_name, random_id);
+                $ui.add_layer(anonymous_key);
+                $code;
+                $ui.end_layer();
+            };
 
-                            // named version. allows writing this: h_stack!(ui, CUSTOM_H_STACK, { ... })
-                            // it's basically the same as add!, not sure if it's even worth having.
-                            // especially with no checks that CUSTOM_H_STACK is actually a h_stack.
-                            ($ui:expr, $node_key:expr, $code:block) => {
-                                $ui.add_layer($node_key);
-                                $code;
-                                $ui.end_layer();
-                            };
-                        }
+            // named version. allows writing this: h_stack!(ui, CUSTOM_H_STACK, { ... })
+            // it's basically the same as add!, not sure if it's even worth having.
+            // especially with no checks that CUSTOM_H_STACK is actually a h_stack.
+            ($ui:expr, $node_key:expr, $code:block) => {
+                $ui.add_layer($node_key);
+                $code;
+                $ui.end_layer();
+            };
+        }
     };
 }
 
@@ -1645,6 +1661,11 @@ pub struct Node {
     pub children_ids: Vec<Id>,
     pub params: NodeParams,
 
+    // keeping track of the twin situation.
+    // for the 0-th twin of a family, this will be the total number of clones of itself around. (not including itself, so starts at zero).
+    // the actual twins ARE twins, but they don't HAVE twins, so this is zero.
+    // for this reason, "clones" or "copies" would be better names, but those words are loaded in rust
+    // reproduction? replica? imitation? duplicate? version? dupe? replication? mock? carbon?    
     pub n_twins: u32,
 
     pub last_hover: f32,
@@ -1942,7 +1963,7 @@ macro_rules! unwrap_or_return {
 
 #[derive(Clone, Copy, Debug)]
 pub struct NodeKey {
-    params: &'static NodeParams,
+    defaults: &'static NodeParams,
     id: Id,
 }
 
@@ -1951,10 +1972,10 @@ impl NodeKey {
         return self.id;
     }
     pub fn defaults(&self) -> NodeParams {
-        return *self.params;
+        return *self.defaults;
     }
     pub const fn new(params: &'static NodeParams, id: Id) -> Self {
-        return Self { params, id };
+        return Self { defaults: params, id };
     }
     pub fn sibling<T: Hash>(self, value: T) -> Self {
         let mut hasher = FxHasher::default();
@@ -1963,7 +1984,7 @@ impl NodeKey {
         let new_id = hasher.finish();
 
         return NodeKey {
-            params: self.params,
+            defaults: self.defaults,
             id: Id(new_id),
         };
     }
@@ -1973,7 +1994,7 @@ pub enum RefreshOrClone {
     Refresh,
     AddTwin,
 }
-pub fn refresh_or_clone(current_frame: u64, old_node_last_frame_touched: u64) -> RefreshOrClone {
+pub fn refresh_or_add_twin(current_frame: u64, old_node_last_frame_touched: u64) -> RefreshOrClone {
     if current_frame == old_node_last_frame_touched {
         // re-adding something that got added in the same frame: making a clone
         return RefreshOrClone::AddTwin;
