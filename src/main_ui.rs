@@ -2,11 +2,16 @@
 // when ui will be in its own crate, this won't happen anymore
 use crate::*;
 use crate::ui::*;
-use view_derive::node_key;
+use view_derive::{anon_node_key, node_key};
 use crate::ui::Position::*;
 
 impl State {
     pub fn update_ui(&mut self) {        
+
+        let a = anon_node_key!(LABEL);
+        dbg!(a.defaults());
+
+        // does_cfg_release_work!();
 
         tree!(self.ui, {
 
@@ -57,8 +62,6 @@ impl State {
 
 #[node_key(TEXT_INPUT.text("Color").size_y(0.2).position_y(Start))]
 pub const PAINT_COLOR: NodeKey;
-
-
 
 
 pub struct CounterState {

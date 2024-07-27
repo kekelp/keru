@@ -48,9 +48,17 @@ pub fn node_key(attr: TokenStream, item: TokenStream) -> TokenStream {
     let random_number: u64 = rand::thread_rng().gen();
     let random_number_lit = syn::LitInt::new(&format!("{}", random_number), key_ident.span());
 
+    #[cfg(debug_assertions)]
     let expanded = quote! {
         pub const #key_ident: NodeKey = NodeKey::new(
             &#default_params_expr.debug_name(#debug_name),
+            Id(#random_number_lit)
+        );
+    };
+    #[cfg(not(debug_assertions))]
+    let expanded = quote! {
+        pub const #key_ident: NodeKey = NodeKey::new(
+            &#default_params_expr,           
             Id(#random_number_lit)
         );
     };
@@ -68,11 +76,21 @@ pub fn anon_node_key(input: TokenStream) -> TokenStream {
     let random_number: u64 = rand::thread_rng().gen();
     let random_number_lit = syn::LitInt::new(&format!("{}", random_number), default_params_expr.span());
     
+    #[cfg(debug_assertions)]
     let expanded = quote! {
         {
-            // todo: skip all this in release mode
             const DEBUG_NAME: &str = &const_format::formatcp!("Anon {} ({}:{}:{})",  #default_params_expr.debug_name, std::file!(), std::line!(), std::column!() );
             const PARAMS: NodeParams = #default_params_expr.debug_name(DEBUG_NAME);
+            NodeKey::new(
+                &PARAMS,
+                Id(#random_number_lit),
+            )
+        }
+    };
+    #[cfg(not(debug_assertions))]
+    let expanded = quote! {
+        {
+            const PARAMS: NodeParams = #default_params_expr;
             NodeKey::new(
                 &PARAMS,
                 Id(#random_number_lit),

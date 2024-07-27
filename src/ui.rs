@@ -175,7 +175,6 @@ impl Mul<f32> for Rect {
 // todo: compress some fields... for example, stacks can never be clickable or editable
 #[derive(Debug, Copy, Clone)]
 pub struct NodeParams {
-    pub debug_name: &'static str,
     pub text: Option<&'static str>,
     pub visible_rect: bool,
     pub clickable: bool,
@@ -185,28 +184,13 @@ pub struct NodeParams {
     pub size: Xy<Size>,
     pub position: Xy<Position>,
     pub is_stack: Option<Stack>,
-}
-
-impl Default for NodeParams {
-    fn default() -> Self {
-        DEFAULT
-    }
+    #[cfg(debug_assertions)]
+    pub debug_name: &'static str,
 }
 
 impl NodeParams {
     pub const fn const_default() -> Self {
-        Self {
-            debug_name: "Default Button",
-            text: Some("Button"),
-            clickable: true,
-            visible_rect: true,
-            color: Color::BLUE,
-            size: Xy::new_symm(Size::PercentOfAvailable(0.5)),
-            position: Xy::new_symm(Position::Start),
-            is_stack: None,
-            editable: false,
-            filled: true,
-        }
+        DEFAULT
     }
 
     pub const fn size_x(mut self, size: f32) -> Self {
@@ -240,6 +224,7 @@ impl NodeParams {
         return self;
     }
 
+    #[cfg(debug_assertions)]
     pub const fn debug_name(mut self, text: &'static str) -> Self {
         self.debug_name = text;
         return self;
@@ -262,6 +247,7 @@ impl NodeParams {
 }
 
 pub const DEFAULT: NodeParams = NodeParams {
+    #[cfg(debug_assertions)]
     debug_name: "DEFAULT",
     text: Some("Default"),
     clickable: false,
@@ -275,6 +261,7 @@ pub const DEFAULT: NodeParams = NodeParams {
 };
 
 pub const V_STACK: NodeParams = NodeParams {
+    #[cfg(debug_assertions)]
     debug_name: "VStack",
     text: None,
     clickable: true,
@@ -290,6 +277,7 @@ pub const V_STACK: NodeParams = NodeParams {
     filled: false,
 };
 pub const H_STACK: NodeParams = NodeParams {
+    #[cfg(debug_assertions)]
     debug_name: "HStack",
     text: None,
     visible_rect: false,
@@ -305,6 +293,7 @@ pub const H_STACK: NodeParams = NodeParams {
     filled: false,
 };
 pub const MARGIN: NodeParams = NodeParams {
+    #[cfg(debug_assertions)]
     debug_name: "Margin",
     text: None,
     clickable: false,
@@ -318,6 +307,7 @@ pub const MARGIN: NodeParams = NodeParams {
 };
 
 pub const BUTTON: NodeParams = NodeParams {
+    #[cfg(debug_assertions)]
     debug_name: "Button",
     text: None,
     clickable: true,
@@ -331,6 +321,7 @@ pub const BUTTON: NodeParams = NodeParams {
 };
 
 pub const LABEL: NodeParams = NodeParams {
+    #[cfg(debug_assertions)]
     debug_name: "Label",
     text: Some("Label"),
     clickable: false,
@@ -344,6 +335,7 @@ pub const LABEL: NodeParams = NodeParams {
 };
 
 pub const TEXT: NodeParams = NodeParams {
+    #[cfg(debug_assertions)]
     debug_name: "Text",
     text: Some("Text"),
     clickable: false,
@@ -357,6 +349,7 @@ pub const TEXT: NodeParams = NodeParams {
 };
 
 pub const TEXT_INPUT: NodeParams = NodeParams {
+    #[cfg(debug_assertions)]
     debug_name: "Text input",
     text: None,
     clickable: true,
@@ -370,6 +363,7 @@ pub const TEXT_INPUT: NodeParams = NodeParams {
 };
 
 pub const PANEL: NodeParams = NodeParams {
+    #[cfg(debug_assertions)]
     debug_name: "Panel",
     text: None,
     clickable: false,
@@ -1726,6 +1720,7 @@ pub enum Arrange {
 }
 
 pub const NODE_ROOT_PARAMS: NodeParams = NodeParams {
+    #[cfg(debug_assertions)]
     debug_name: "ROOT",
     text: None,
     visible_rect: false,
