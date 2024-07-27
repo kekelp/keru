@@ -11,43 +11,42 @@ impl State {
         // println!("");
         tree!(self.ui, {
 
-            let pixel_info = self.canvas.pixel_info();
-                    
-            h_stack!(self.ui, {
-                self.ui.add_pixel_info(&pixel_info);
-                self.ui.add_pixel_info(&pixel_info);
+            margin!(self.ui, {
+    
+                #[node_key(V_STACK.size_x(0.3).position_x(Position::End))]            
+                const SIDEBAR: Nodekey;
+                add!(self.ui, SIDEBAR, {
+    
+                    // todo: function for doing get_text from other places
+                    let mut color = add!(self.ui, PAINT_COLOR).get_text();
+    
+
+
+
+                    if let Some(color) = &mut color {
+                        color.make_ascii_lowercase();
+                        match color.as_str() {
+                            "blue" => {
+                                self.canvas.paint_color = PixelColorF32::BLUE;
+                            },
+                            "red" => {
+                                self.canvas.paint_color = PixelColorF32::RED;
+                            },
+                            "green" => {
+                                self.canvas.paint_color = PixelColorF32::GREEN;
+                            },
+                            _ => {}
+                        }
+                    } 
+    
+                    let pixel_info = self.canvas.pixel_info();
+                    v_stack!(self.ui, {
+                        self.ui.add_pixel_info(&pixel_info);
+                        self.ui.add_pixel_info(&pixel_info);
+                    });
+
+                });
             });
-
-            // margin!(self.ui, {
-    
-            //     #[node_key(V_STACK.size_x(0.3).position_x(Position::End))]            
-            //     const SIDEBAR: Nodekey;
-            //     add!(self.ui, SIDEBAR, {
-    
-            //         // todo: function for doing get_text from other places
-            //         let mut color = add!(self.ui, PAINT_COLOR).get_text();
-    
-
-
-
-            //         if let Some(color) = &mut color {
-            //             color.make_ascii_lowercase();
-            //             match color.as_str() {
-            //                 "blue" => {
-            //                     self.canvas.paint_color = PixelColorF32::BLUE;
-            //                 },
-            //                 "red" => {
-            //                     self.canvas.paint_color = PixelColorF32::RED;
-            //                 },
-            //                 "green" => {
-            //                     self.canvas.paint_color = PixelColorF32::GREEN;
-            //                 },
-            //                 _ => {}
-            //             }
-            //         } 
-    
-            //     });
-            // });
     
             self.counter_state.add_counter(&mut self.ui); 
             
@@ -163,37 +162,35 @@ impl Ui {
         };
 
         // todo:::::: I don't want strings, I want to write!() directly into the buffer 
-        // #[node_key(PANEL.size_y(0.3).position_x(Position::Start))]            
-        // const PIXEL_PANEL: Nodekey;
-        // add!(self, PIXEL_PANEL, {
+        #[node_key(PANEL.size_y(0.5).position_x(Position::Start))]            
+        const PIXEL_PANEL: Nodekey;
+        add!(self, PIXEL_PANEL, {
         // panel!(self, {
-        //     v_stack!(self, {
-        //         h_stack!(self, {
-        //             text!(self, "x:");
-                    // text!(self, &x);
-                    // text!(self, "y:");
-                    // text!(self, &y);
-                // });
+            v_stack!(self, {
+                h_stack!(self, {
+                    text!(self, "x:");
+                    text!(self, &x);
+                    text!(self, "y:");
+                    text!(self, &y);
+                });
                 
-                // h_stack!(self, {
-                //     text!(self, "r:");
-                //     text!(self, &r);
-                //     text!(self, "g:");
-                //     text!(self, &g);
-                // });
-                // h_stack!(self, {
-                //     text!(self, "b:");
-                //     text!(self, &b);
-                //     text!(self, "a:");
-                //     text!(self, &a);
-                // });
+                h_stack!(self, {
+                    text!(self, "r:");
+                    text!(self, &r);
+                    text!(self, "g:");
+                    text!(self, &g);
+                });
+                h_stack!(self, {
+                    text!(self, "b:");
+                    text!(self, &b);
+                    text!(self, "a:");
+                    text!(self, &a);
+                });
 
-        //     });
-        // });
+            });
         
-        panel!(self, {
-            text!(self, "x:");
-        });
+        
+    });
 
     }
 }

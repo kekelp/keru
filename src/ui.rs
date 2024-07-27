@@ -372,7 +372,7 @@ pub const TEXT_INPUT: NodeParams = NodeParams {
 pub const PANEL: NodeParams = NodeParams {
     debug_name: "panel",
     text: None,
-    clickable: true,
+    clickable: false,
     visible_rect: true,
     color: Color::rgba(0.1, 0.0, 0.1, 0.9),
     size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
@@ -809,13 +809,11 @@ impl Ui {
     }
 
     pub fn add(&mut self, key: NodeKey) -> NodeWithStuff {
-        let parent_id = self.parent_stack.last().unwrap();
-        return self.add_or_refresh_node_simple(key, *parent_id, false);
+        return self.add_or_refresh_node_simple(key, false);
     }
 
     pub fn add_layer(&mut self, key: NodeKey) -> NodeWithStuff {
-        let parent_id = self.parent_stack.last().unwrap().clone();
-        return self.add_or_refresh_node_simple(key, parent_id, true);
+        return self.add_or_refresh_node_simple(key, true);
     }
 
     // consider the following:
@@ -826,8 +824,10 @@ impl Ui {
     // probably any get()-like functions should do some sort of check on last_frame_touched as well.
     // ANYWAY, I don't think you can do any of this with the builtin rust hashmap. The collision stuff is completely hidden. 
 
-    // this version probably does a handful of unneeded hash lookups and stuff.
-    pub fn add_or_refresh_node_simple(&mut self, key: NodeKey, parent_id: Id, make_new_layer: bool) -> NodeWithStuff {
+    // this version probably does some extra hash lookups and stuff.
+    pub fn add_or_refresh_node_simple(&mut self, key: NodeKey, make_new_layer: bool) -> NodeWithStuff {
+        let parent_id = self.parent_stack.last().unwrap().clone();
+
         let frame = self.part.current_frame;
         let final_added_id;
         let mut twin = false;
