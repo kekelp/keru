@@ -1577,7 +1577,6 @@ macro_rules! add {
     };
 }
 
-// multiple ways to do the same thing = also le bad albeit
 macro_rules! create_layer_macro {
     ($macro_name:ident, $node_params_name:expr) => {
         #[macro_export]
