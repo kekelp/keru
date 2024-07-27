@@ -1,5 +1,6 @@
 pub mod pixels_on_screen;
 pub mod ui;
+pub mod node_params;
 pub mod canvas;
 pub mod main_canvas;
 pub mod main_ui;

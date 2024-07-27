@@ -2,6 +2,7 @@
 // when ui will be in its own crate, this won't happen anymore
 use crate::*;
 use crate::ui::*;
+use crate::node_params::*;
 use view_derive::{anon_node_key, node_key};
 use crate::ui::Position::*;
 

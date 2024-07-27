@@ -1,3 +1,4 @@
+use crate::node_params::{DEFAULT, NODE_ROOT_PARAMS};
 use crate::unwrap_or_return;
 use copypasta::{ClipboardContext, ClipboardProvider};
 use glyphon::cosmic_text::StringCursor;
@@ -40,8 +41,6 @@ use {
 #[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, Pod, Zeroable)]
 #[repr(C)]
 pub struct Id(pub(crate) u64);
-
-pub const DEBUG_RED: Color = Color::rgba(1.0, 0.0, 0.0, 0.3);
 
 pub const NODE_ROOT_ID: Id = Id(0);
 pub const NODE_ROOT: Node = Node {
@@ -245,136 +244,6 @@ impl NodeParams {
         return self;
     }
 }
-
-pub const DEFAULT: NodeParams = NodeParams {
-    #[cfg(debug_assertions)]
-    debug_name: "DEFAULT",
-    text: Some("Default"),
-    clickable: false,
-    visible_rect: true,
-    color: Color::BLUE,
-    size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
-    position: Xy::new_symm(Position::Center),
-    is_stack: None,
-    editable: false,
-    filled: true,
-};
-
-pub const V_STACK: NodeParams = NodeParams {
-    #[cfg(debug_assertions)]
-    debug_name: "VStack",
-    text: None,
-    clickable: true,
-    visible_rect: false,
-    color: DEBUG_RED,
-    size: Xy::new(Size::PercentOfAvailable(1.0), Size::PercentOfAvailable(1.0)),
-    position: Xy::new_symm(Position::Center),
-    is_stack: Some(Stack {
-        arrange: Arrange::Start,
-        axis: Axis::Y,
-    }),
-    editable: false,
-    filled: false,
-};
-pub const H_STACK: NodeParams = NodeParams {
-    #[cfg(debug_assertions)]
-    debug_name: "HStack",
-    text: None,
-    visible_rect: false,
-    clickable: false,
-    color: DEBUG_RED,
-    size: Xy::new(Size::PercentOfAvailable(1.0), Size::PercentOfAvailable(1.0)),
-    position: Xy::new_symm(Position::Center),
-    is_stack: Some(Stack {
-        arrange: Arrange::End,
-        axis: Axis::X,
-    }),
-    editable: false,
-    filled: false,
-};
-pub const MARGIN: NodeParams = NodeParams {
-    #[cfg(debug_assertions)]
-    debug_name: "Margin",
-    text: None,
-    clickable: false,
-    visible_rect: false,
-    color: DEBUG_RED,
-    size: Xy::new_symm(Size::PercentOfAvailable(0.9)),
-    position: Xy::new_symm(Position::Center),
-    is_stack: None,
-    editable: false,
-    filled: false,
-};
-
-pub const BUTTON: NodeParams = NodeParams {
-    #[cfg(debug_assertions)]
-    debug_name: "Button",
-    text: None,
-    clickable: true,
-    visible_rect: true,
-    color: Color::rgba(0.0, 0.1, 0.1, 0.9),
-    size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
-    position: Xy::new_symm(Position::Center),
-    is_stack: None,
-    editable: false,
-    filled: true,
-};
-
-pub const LABEL: NodeParams = NodeParams {
-    #[cfg(debug_assertions)]
-    debug_name: "Label",
-    text: Some("Label"),
-    clickable: false,
-    visible_rect: true,
-    color: Color::BLUE,
-    size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
-    position: Xy::new_symm(Position::Center),
-    is_stack: None,
-    editable: false,
-    filled: true,
-};
-
-pub const TEXT: NodeParams = NodeParams {
-    #[cfg(debug_assertions)]
-    debug_name: "Text",
-    text: Some("Text"),
-    clickable: false,
-    visible_rect: false,
-    color: Color::RED,
-    size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
-    position: Xy::new_symm(Position::Center),
-    is_stack: None,
-    editable: false,
-    filled: false,
-};
-
-pub const TEXT_INPUT: NodeParams = NodeParams {
-    #[cfg(debug_assertions)]
-    debug_name: "Text input",
-    text: None,
-    clickable: true,
-    visible_rect: true,
-    color: Color::rgba(0.1, 0.0, 0.1, 0.9),
-    size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
-    position: Xy::new_symm(Position::Center),
-    is_stack: None,
-    editable: true,
-    filled: true,
-};
-
-pub const PANEL: NodeParams = NodeParams {
-    #[cfg(debug_assertions)]
-    debug_name: "Panel",
-    text: None,
-    clickable: false,
-    visible_rect: true,
-    color: Color::rgba(0.1, 0.0, 0.1, 0.9),
-    size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
-    position: Xy::new_symm(Position::Center),
-    is_stack: None,
-    editable: false,
-    filled: true,
-};
 
 #[derive(Default, Debug, Pod, Copy, Clone, Zeroable)]
 #[repr(C)]
@@ -1600,15 +1469,15 @@ macro_rules! create_layer_macro {
     };
 }
 
-create_layer_macro!(h_stack, crate::ui::H_STACK);
-create_layer_macro!(v_stack, crate::ui::V_STACK);
-create_layer_macro!(margin, crate::ui::MARGIN);
-create_layer_macro!(panel, crate::ui::PANEL);
+create_layer_macro!(h_stack, crate::node_params::H_STACK);
+create_layer_macro!(v_stack, crate::node_params::V_STACK);
+create_layer_macro!(margin, crate::node_params::MARGIN);
+create_layer_macro!(panel, crate::node_params::PANEL);
 
 #[macro_export]
 macro_rules! text {
     ($ui:expr, $text:expr) => {
-        let anonymous_key = view_derive::anon_node_key!(TEXT);
+        let anonymous_key = view_derive::anon_node_key!(crate::node_params::TEXT);
         $ui.add(anonymous_key).set_text($text);
     };
 }
@@ -1704,8 +1573,8 @@ pub enum Position {
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
 pub struct Stack {
-    arrange: Arrange,
-    axis: Axis,
+    pub arrange: Arrange,
+    pub axis: Axis,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1717,25 +1586,6 @@ pub enum Arrange {
     SpaceAround,
     SpaceEvenly,
 }
-
-pub const NODE_ROOT_PARAMS: NodeParams = NodeParams {
-    #[cfg(debug_assertions)]
-    debug_name: "ROOT",
-    text: None,
-    visible_rect: false,
-    clickable: false,
-    color: Color {
-        r: 1.0,
-        g: 1.0,
-        b: 1.0,
-        a: 0.0,
-    },
-    size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
-    position: Xy::new_symm(Position::Start),
-    is_stack: None,
-    editable: false,
-    filled: true,
-};
 
 #[repr(C)]
 #[derive(Debug, Pod, Copy, Clone, Zeroable)]
