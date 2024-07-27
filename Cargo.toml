@@ -24,6 +24,7 @@ view_derive = { path = "view_derive" }
 copypasta = "0.10.1"
 glam = "0.28.0"
 winit_input_helper = "0.16.0"
+const_format = "0.2.32"
 
 
 [lints.clippy]

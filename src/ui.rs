@@ -275,7 +275,7 @@ pub const DEFAULT: NodeParams = NodeParams {
 };
 
 pub const V_STACK: NodeParams = NodeParams {
-    debug_name: "Column",
+    debug_name: "VStack",
     text: None,
     clickable: true,
     visible_rect: false,
@@ -290,7 +290,7 @@ pub const V_STACK: NodeParams = NodeParams {
     filled: false,
 };
 pub const H_STACK: NodeParams = NodeParams {
-    debug_name: "Column",
+    debug_name: "HStack",
     text: None,
     visible_rect: false,
     clickable: false,
@@ -305,7 +305,7 @@ pub const H_STACK: NodeParams = NodeParams {
     filled: false,
 };
 pub const MARGIN: NodeParams = NodeParams {
-    debug_name: "MARGIN",
+    debug_name: "Margin",
     text: None,
     clickable: false,
     visible_rect: false,
@@ -331,7 +331,7 @@ pub const BUTTON: NodeParams = NodeParams {
 };
 
 pub const LABEL: NodeParams = NodeParams {
-    debug_name: "label",
+    debug_name: "Label",
     text: Some("Label"),
     clickable: false,
     visible_rect: true,
@@ -344,7 +344,7 @@ pub const LABEL: NodeParams = NodeParams {
 };
 
 pub const TEXT: NodeParams = NodeParams {
-    debug_name: "text",
+    debug_name: "Text",
     text: Some("Text"),
     clickable: false,
     visible_rect: false,
@@ -357,7 +357,7 @@ pub const TEXT: NodeParams = NodeParams {
 };
 
 pub const TEXT_INPUT: NodeParams = NodeParams {
-    debug_name: "label",
+    debug_name: "Text input",
     text: None,
     clickable: true,
     visible_rect: true,
@@ -370,7 +370,7 @@ pub const TEXT_INPUT: NodeParams = NodeParams {
 };
 
 pub const PANEL: NodeParams = NodeParams {
-    debug_name: "panel",
+    debug_name: "Panel",
     text: None,
     clickable: false,
     visible_rect: true,
@@ -1589,19 +1589,7 @@ macro_rules! create_layer_macro {
         #[macro_export]
         macro_rules! $macro_name {
             ($ui:expr, $code:block) => {
-                // the anonymous keys are all called "anonymous_key" and they do end up in the same scope, but they just shadow each other and it works fine.
-                // if we tried to use the
-                //     #[node_key($node_params_name)]
-                //     pub const ANON_KEY: NodeKey;
-                // syntax, that would work only on constants, and it would lead to conflicts.
-                // a syntax like
-                //     pub const ANON_KEY: NodeKey = node_key!(params);
-                // would work in both contexts, and it also uses one less line,
-                // but it can't fill in the debug name based on the const name,
-                // and it looked like rust-analyzer can't see through the argument as well as it sees through the attribute macro attr, for some reason.
-                let random_id = call_site_id!();
-                // todo: add debug name inside params
-                let anonymous_key = NodeKey::new($node_params_name, random_id);
+                let anonymous_key = view_derive::anon_node_key!($node_params_name);
                 $ui.add_layer(anonymous_key);
                 $code;
                 $ui.end_layer();
@@ -1619,16 +1607,15 @@ macro_rules! create_layer_macro {
     };
 }
 
-create_layer_macro!(h_stack, &crate::ui::H_STACK);
-create_layer_macro!(v_stack, &crate::ui::V_STACK);
-create_layer_macro!(margin, &crate::ui::MARGIN);
-create_layer_macro!(panel, &crate::ui::PANEL);
+create_layer_macro!(h_stack, crate::ui::H_STACK);
+create_layer_macro!(v_stack, crate::ui::V_STACK);
+create_layer_macro!(margin, crate::ui::MARGIN);
+create_layer_macro!(panel, crate::ui::PANEL);
 
 #[macro_export]
 macro_rules! text {
     ($ui:expr, $text:expr) => {
-        let random_id = call_site_id!();
-        let anonymous_key = NodeKey::new(&TEXT, random_id);
+        let anonymous_key = view_derive::anon_node_key!(TEXT);
         $ui.add(anonymous_key).set_text($text);
     };
 }
@@ -1755,55 +1742,6 @@ pub const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     editable: false,
     filled: true,
 };
-
-// todo: change
-// copied from stackoverflow: https://stackoverflow.com/questions/71463576/
-pub const fn callsite_hash(
-    module_path: &'static str,
-    filename: &'static str,
-    line: u32,
-    column: u32,
-) -> u64 {
-    let mut hash = 0xcbf29ce484222325;
-    let prime = 0x00000100000001B3;
-
-    let mut i = 0;
-
-    let mut bytes = module_path.as_bytes();
-    while i < bytes.len() {
-        hash ^= bytes[i] as u64;
-        hash = hash.wrapping_mul(prime);
-        i += 1;
-    }
-
-    bytes = filename.as_bytes();
-    i = 0;
-    while i < bytes.len() {
-        hash ^= bytes[i] as u64;
-        hash = hash.wrapping_mul(prime);
-        i += 1;
-    }
-
-    hash ^= line as u64;
-    hash = hash.wrapping_mul(prime);
-    hash ^= column as u64;
-    hash = hash.wrapping_mul(prime);
-    return hash;
-}
-
-// rust-analyzer's macro expansion shows that line!(), column!() etc aren't working. but they must be, or we'd get collisions.
-// this could be a proc macro calculating compile time random numbers, like in derive_view.
-#[macro_export]
-macro_rules! call_site_id {
-    () => {{
-        $crate::Id($crate::ui::callsite_hash(
-            std::module_path!(),
-            std::file!(),
-            std::line!(),
-            std::column!(),
-        ))
-    }};
-}
 
 #[repr(C)]
 #[derive(Debug, Pod, Copy, Clone, Zeroable)]

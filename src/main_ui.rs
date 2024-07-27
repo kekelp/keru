@@ -6,9 +6,8 @@ use view_derive::node_key;
 use crate::ui::Position::*;
 
 impl State {
-    pub fn update_ui(&mut self) {
+    pub fn update_ui(&mut self) {        
 
-        // println!("");
         tree!(self.ui, {
 
             margin!(self.ui, {
@@ -20,9 +19,6 @@ impl State {
                     // todo: function for doing get_text from other places
                     let mut color = add!(self.ui, PAINT_COLOR).get_text();
     
-
-
-
                     if let Some(color) = &mut color {
                         color.make_ascii_lowercase();
                         match color.as_str() {

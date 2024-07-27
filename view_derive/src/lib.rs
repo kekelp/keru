@@ -3,33 +3,8 @@ extern crate proc_macro;
 use proc_macro::TokenStream;
 use proc_macro2::Ident;
 use quote::quote;
-use syn::{parse::{Parse, ParseStream}, parse_macro_input, Expr, Token, Type};
+use syn::{parse::{Parse, ParseStream}, parse_macro_input, spanned::Spanned, Expr, Token, Type};
 use rand::Rng;
-
-// using an attribute macro instead of a derive macro seems to work better with rust-analyzer, for some reason.
-// this way, it fully understands the stuff inside the #[derive_view(...)]
-#[proc_macro_attribute]
-pub fn node_key(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let default_params_expr = parse_macro_input!(attr as Expr);
-    let input = parse_macro_input!(item as ItemConstNoEq);
-    
-    let key_ident = &input.ident;
-    let debug_name = format!("{}", key_ident);
-
-    // todo, use a hash of ident instead of a random number?
-    let random_number: u64 = rand::thread_rng().gen();
-    let random_number_ident = syn::LitInt::new(&format!("{}", random_number), key_ident.span());
-
-
-    let expanded = quote! {
-        pub const #key_ident: NodeKey = NodeKey::new(
-            &#default_params_expr.debug_name(#debug_name),
-            Id(#random_number_ident)
-        );
-    };
-
-    TokenStream::from(expanded)
-}
 
 struct ItemConstNoEq {
     _attrs: Vec<syn::Attribute>,
@@ -55,4 +30,55 @@ impl Parse for ItemConstNoEq {
             _semi_token: input.parse()?,
         })
     }
+}
+
+// using an attribute macro instead of a derive macro seems to work better with rust-analyzer, for some reason.
+// this way, it fully understands the stuff inside the #[derive_view(...)]
+// also, a plain proc macro (const KEY: NodeKey = node_key!(PARAMS);) wouldn't have access to the "KEY" ident.
+// currently we're putting that into debug_name
+#[proc_macro_attribute]
+pub fn node_key(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let default_params_expr = parse_macro_input!(attr as Expr);
+    let input = parse_macro_input!(item as ItemConstNoEq);
+    
+    let key_ident = &input.ident;
+    let debug_name = format!("{}", key_ident);
+
+    // todo, use a hash of ident instead of a random number?
+    let random_number: u64 = rand::thread_rng().gen();
+    let random_number_lit = syn::LitInt::new(&format!("{}", random_number), key_ident.span());
+
+    let expanded = quote! {
+        pub const #key_ident: NodeKey = NodeKey::new(
+            &#default_params_expr.debug_name(#debug_name),
+            Id(#random_number_lit)
+        );
+    };
+
+    TokenStream::from(expanded)
+}
+
+
+
+
+#[proc_macro]
+pub fn anon_node_key(input: TokenStream) -> TokenStream {
+    let default_params_expr = parse_macro_input!(input as Expr);
+
+    let random_number: u64 = rand::thread_rng().gen();
+    let random_number_lit = syn::LitInt::new(&format!("{}", random_number), default_params_expr.span());
+    
+    let expanded = quote! {
+        {
+            // todo: skip all this in release mode
+            const DEBUG_NAME: &str = &const_format::formatcp!("Anon {} ({}:{}:{})",  #default_params_expr.debug_name, std::file!(), std::line!(), std::column!() );
+            const PARAMS: NodeParams = #default_params_expr.debug_name(DEBUG_NAME);
+            NodeKey::new(
+                &PARAMS,
+                Id(#random_number_lit),
+            )
+        }
+    };
+
+    TokenStream::from(expanded)
 }
