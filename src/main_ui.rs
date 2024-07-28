@@ -7,10 +7,7 @@ use view_derive::{anon_node_key, node_key};
 use crate::ui::Position::*;
 
 impl State {
-    pub fn update_ui(&mut self) {        
-
-        let a = anon_node_key!(LABEL);
-        dbg!(a.defaults());
+    pub fn update_ui(&mut self) {
 
         tree!(self.ui, {
 
