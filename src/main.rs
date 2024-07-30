@@ -1,3 +1,5 @@
+// #![windows_subsystem = "windows"]
+
 pub mod pixels_on_screen;
 pub mod ui;
 pub mod node_params;
@@ -5,6 +7,7 @@ pub mod canvas;
 pub mod main_canvas;
 pub mod main_ui;
 
+use glam::dvec2;
 use pixels_on_screen::*;
 use canvas::*;
 use ui::*;
@@ -53,7 +56,7 @@ pub struct State {
 
 
 impl State {
-    pub fn handle_event(&mut self, event: &Event<()>, target: &EventLoopWindowTarget<()>) {
+    pub fn handle_event(&mut self, event: &Event<()>, target: &EventLoopWindowTarget<()>) {        
         self.ctx.handle_events(event, target);
         
         let consumed = self.ui.handle_events(event, &self.ctx.queue);
@@ -71,8 +74,8 @@ impl State {
         self.update_ui();
         self.update_canvas();
         
+        self.canvas.scroll = dvec2(0.0, 0.0);
         self.render();
-
     }
 
     pub fn render(&mut self) {

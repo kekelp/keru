@@ -3,7 +3,7 @@
 use crate::*;
 use crate::ui::*;
 use crate::node_params::*;
-use view_derive::{anon_node_key, node_key};
+use view_derive::node_key;
 use crate::ui::Position::*;
 
 impl State {
@@ -45,13 +45,13 @@ impl State {
                 });
             });
     
-            self.counter_state.add_counter(&mut self.ui); 
+            // self.counter_state.add_counter(&mut self.ui); 
             
         });
 
 
         // effects
-        self.counter_state.on_click(&mut self.ui);
+        // self.counter_state.on_click(&mut self.ui);
         
     }
 }

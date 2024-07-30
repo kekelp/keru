@@ -86,6 +86,8 @@ impl PixelColorF32 {
 }
 
 pub struct Canvas {
+    pub scroll: DVec2,
+
     pub input: WinitInputHelper,
 
     pub width: usize,
@@ -279,6 +281,8 @@ impl Canvas {
         });
         
         let mut canvas = Canvas {
+            scroll: dvec2(0.0, 0.0),
+            
             input: WinitInputHelper::new(),
             width,
             height,
@@ -662,6 +666,17 @@ impl Canvas {
                     self.height = size.height as usize;
                     self.update_shader_transform(queue);
                 },
+
+                WindowEvent::MouseWheel { device_id: _, delta, phase: _ } => {
+                    match delta {
+                        winit::event::MouseScrollDelta::LineDelta(_x, y) => {
+                            self.scroll.y += *y as f64;
+                        },
+                        winit::event::MouseScrollDelta::PixelDelta(pos) => {
+                            self.scroll += dvec2(pos.x, pos.y);
+                        },
+                    }
+                }
 
                 _ => {}
             }

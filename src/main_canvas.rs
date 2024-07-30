@@ -32,7 +32,7 @@ impl State {
         let mouse_before = self.canvas.screen_to_image(self.canvas.last_mouse_pos.x, self.canvas.last_mouse_pos.y);
         let mouse_before = dvec2(mouse_before.0, mouse_before.1);
 
-        let (_x, y) = self.canvas.input.scroll_diff();
+        let (_x, y) = ((), self.canvas.scroll.y);
 
         let min_zoom = 0.01;
         let max_zoom = 1000.0;
