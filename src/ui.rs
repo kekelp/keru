@@ -353,6 +353,15 @@ impl<'a> NodeWithStuff<'a> {
         }
     }
 
+    pub fn set_text_attrs(&mut self, attrs: Attrs) {
+        if let Some(text_id) = self.node.text_id {
+            self.text.set_text_attrs(text_id, attrs);
+        } else {
+            // todo: log a warning or something
+            // or make these things type safe somehow
+        }
+    }
+
     pub fn get_text(&mut self) -> Option<String> {
         let text_id = self.node.text_id.unwrap();
 
@@ -415,7 +424,7 @@ pub struct Text {
     pub text_renderer: TextRenderer,
     pub text_areas: Vec<TextArea>,
 }
-const GLOBAL_TEXT_METRICS: Metrics = Metrics::new(36.0, 36.0);
+const GLOBAL_TEXT_METRICS: Metrics = Metrics::new(24.0, 24.0);
 impl Text {
     pub fn new_text_area(&mut self, text: Option<&str>, current_frame: u64) -> Option<usize> {
         let text = text?;
@@ -433,6 +442,8 @@ impl Text {
             Attrs::new().family(Family::SansSerif),
             Shaping::Advanced,
         );
+
+        buffer.lines[0].set_align(Some(glyphon::cosmic_text::Align::Center));
 
         let text_area = TextArea {
             buffer,
@@ -474,6 +485,18 @@ impl Text {
                 Shaping::Advanced,
             );
         }
+    }
+
+    fn set_text_attrs(&mut self, text_id: usize, attrs: Attrs) {
+
+        let area = &mut self.text_areas[text_id];
+
+        area.buffer.set_text(
+            &mut self.font_system,
+            &"Test9438",
+            attrs,
+            Shaping::Advanced,
+        );    
     }
 }
 
@@ -1096,8 +1119,21 @@ impl Ui {
 
     pub fn layout_text(&mut self, text_id: Option<usize>, rect: Rect) {
         if let Some(text_id) = text_id {
-            self.text.text_areas[text_id].left = rect[X][0] * self.part.unifs.size[X];
-            self.text.text_areas[text_id].top = (1.0 - rect[Y][1]) * self.part.unifs.size[Y];
+            let left = rect[X][0] * self.part.unifs.size[X];
+            let top = (1.0 - rect[Y][1]) * self.part.unifs.size[Y];
+
+            let right = rect[X][1] * self.part.unifs.size[X];
+            let bottom = (1.0 - rect[Y][0]) * self.part.unifs.size[Y];
+
+            self.text.text_areas[text_id].left = left;
+            self.text.text_areas[text_id].top = top;
+           
+            self.text.text_areas[text_id].bounds.left = left as i32;
+            self.text.text_areas[text_id].bounds.top = top as i32;
+
+            self.text.text_areas[text_id].bounds.right = right as i32;
+            self.text.text_areas[text_id].bounds.bottom = bottom as i32;
+           
             self.text.text_areas[text_id]
                 .buffer
                 .shape_until_scroll(&mut self.text.font_system, false);

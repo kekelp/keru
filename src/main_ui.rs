@@ -1,64 +1,56 @@
 // crate::* is needed to fix some crap with macros: https://github.com/rust-lang/rust/pull/52234#issuecomment-894851497
 // when ui will be in its own crate, this won't happen anymore
-use crate::*;
-use crate::ui::*;
 use crate::node_params::*;
-use view_derive::node_key;
 use crate::ui::Position::*;
+use crate::ui::*;
+use crate::*;
+use glyphon::{Attrs, Color as GlyphonColor, Family, Weight};
+use view_derive::node_key;
 
 impl State {
     pub fn update_ui(&mut self) {
-
         tree!(self.ui, {
-
             margin!(self.ui, {
-    
-                #[node_key(V_STACK.size_x(0.3).position_x(Position::End))]            
+                #[node_key(V_STACK.size_x(0.3).position_x(Position::End))]
                 const SIDEBAR: Nodekey;
                 add!(self.ui, SIDEBAR, {
-    
                     // todo: function for doing get_text from other places
                     let mut color = add!(self.ui, PAINT_COLOR).get_text();
-    
+
                     if let Some(color) = &mut color {
                         color.make_ascii_lowercase();
                         match color.as_str() {
                             "blue" => {
                                 self.canvas.paint_color = PixelColorF32::BLUE;
-                            },
+                            }
                             "red" => {
                                 self.canvas.paint_color = PixelColorF32::RED;
-                            },
+                            }
                             "green" => {
                                 self.canvas.paint_color = PixelColorF32::GREEN;
-                            },
+                            }
                             _ => {}
                         }
-                    } 
-    
+                    }
+
                     let pixel_info = self.canvas.pixel_info();
                     v_stack!(self.ui, {
                         self.ui.add_pixel_info(&pixel_info);
                         self.ui.add_pixel_info(&pixel_info);
                     });
-
                 });
             });
-    
-            // self.counter_state.add_counter(&mut self.ui); 
-            
+
+            self.counter_state.add_counter(&mut self.ui);
         });
 
-
         // effects
-        // self.counter_state.on_click(&mut self.ui);
-        
+        self.counter_state.on_click(&mut self.ui);
     }
 }
 
 #[node_key(TEXT_INPUT.text("Color").size_y(0.2).position_y(Start))]
 pub const PAINT_COLOR: NodeKey;
-
 
 pub struct CounterState {
     pub count: i32,
@@ -90,10 +82,8 @@ impl CounterState {
     #[node_key(LABEL)]
     pub const COUNT_LABEL: NodeKey;
 
-
     pub fn add_counter(&mut self, ui: &mut Ui) {
         margin!(ui, {
-
             #[node_key(H_STACK.size_x(0.23).position_x(Position::Start))]
             pub const CENTER_ROW: NodeKey;
             h_stack!(ui, CENTER_ROW, {
@@ -101,10 +91,14 @@ impl CounterState {
                     if self.counter_mode {
                         let new_color = count_color(self.count);
                         add!(ui, Self::INCREASE_BUTTON).set_color(new_color);
-    
+
                         let count = &self.count.to_string();
                         add!(ui, Self::COUNT_LABEL).set_text(count);
-    
+                        add!(ui, Self::COUNT_LABEL).set_text_attrs(
+                            Attrs::new().family(Family::SansSerif).color(GlyphonColor::rgb(86, 76, 128)).weight(Weight::EXTRA_BOLD)
+
+                        );
+
                         add!(ui, Self::DECREASE_BUTTON);
                     }
                 });
@@ -138,9 +132,7 @@ pub fn count_color(count: i32) -> Color {
 }
 
 impl Ui {
-
     pub fn add_pixel_info(&mut self, pixel_info: &Option<PixelInfo>) {
-
         let (x, y) = match pixel_info {
             Some(pixel_info) => (format!("{}", pixel_info.x), format!("{}", pixel_info.y)),
             None => ("".to_owned(), "".to_owned()),
@@ -156,11 +148,11 @@ impl Ui {
             None => ("".to_owned(), "".to_owned(), "".to_owned(), "".to_owned()),
         };
 
-        // todo:::::: I don't want strings, I want to write!() directly into the buffer 
-        #[node_key(PANEL.size_y(0.5).position_x(Position::Start))]            
+        // todo:::::: I don't want strings, I want to write!() directly into the buffer
+        #[node_key(PANEL.size_y(0.5).position_x(Position::Start))]
         const PIXEL_PANEL: Nodekey;
         add!(self, PIXEL_PANEL, {
-        // panel!(self, {
+            // panel!(self, {
             v_stack!(self, {
                 h_stack!(self, {
                     text!(self, "x:");
@@ -168,7 +160,7 @@ impl Ui {
                     text!(self, "y:");
                     text!(self, &y);
                 });
-                
+
                 h_stack!(self, {
                     text!(self, "r:");
                     text!(self, &r);
@@ -181,11 +173,7 @@ impl Ui {
                     text!(self, "a:");
                     text!(self, &a);
                 });
-
             });
-        
-        
-    });
-
+        });
     }
 }
