@@ -51,7 +51,6 @@ pub const NODE_ROOT: Node = Node {
     parent_id: NODE_ROOT_ID,
     children_ids: Vec::new(),
     params: NODE_ROOT_PARAMS,
-    last_frame_touched: 1,
     last_frame_status: LastFrameStatus::Nothing,
     last_hover: f32::MIN,
     last_click: f32::MIN,
@@ -530,6 +529,7 @@ new_key_type! {
     pub struct NodeSlotmapKey;
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct NodeFront {
     pub last_parent: Id,
     pub last_frame_touched: u64,
@@ -711,7 +711,7 @@ impl Ui {
         let root_slotkey = nodes.insert(NODE_ROOT);
         let root_nodefront = NodeFront {
             last_parent: NODE_ROOT_ID,
-            last_frame_touched: 1,
+            last_frame_touched: u64::MAX,
             slotkey: root_slotkey,
         };
         
@@ -810,7 +810,10 @@ impl Ui {
                     Refresh => {
 
                         // todo2: check the nodefront values and maybe skip reaching into the node
+                        // note that refresh() was also setting n_twins = 0. I think n_twins needs to be moved to the nodefront when that happens.
                         final_slotkey = old_nodefront.slotkey;
+
+                        old_nodefront.last_frame_touched = frame;
                         let old_node = self.nodes.nodes.get_mut(final_slotkey).unwrap();
 
                         old_node.refresh(frame);
@@ -885,7 +888,6 @@ impl Ui {
             parent_id,
             children_ids: Vec::new(),
             params: *defaults,
-            last_frame_touched: current_frame,
             last_frame_status: LastFrameStatus::Nothing,
             last_hover: f32::MIN,
             last_click: f32::MIN,
@@ -1083,7 +1085,7 @@ impl Ui {
             let children: Vec<Id>;
             let is_stack: Option<Stack>;
             {
-                let parent_node = self.nodes.get(&current_node_id).unwrap();
+                let parent_node = self.nodes.get(&current_node_id).unwrap();                
                 children = parent_node.children_ids.clone();
                 parent_rect = parent_node.rect;
                 is_stack = parent_node.params.is_stack;
@@ -1277,9 +1279,7 @@ impl Ui {
 
             // in debug mode, draw invisible rects as well.
             // usually these have filled = false (just the outline), but this is not enforced.
-            if (current_node.params.visible_rect
-                && current_node.last_frame_touched == self.part.current_frame)
-                || self.debug_mode
+            if current_node.params.visible_rect || self.debug_mode
             {
                 self.rects.push(RenderRect {
                     rect: current_node.rect * 2. - 1.,
@@ -1417,6 +1417,7 @@ impl Ui {
 
     pub fn prepare(&mut self, device: &Device, queue: &Queue) {       
         
+        // self.prune();
         self.build_buffers();
         self.gpu_vertex_buffer.queue_write(&self.rects[..], queue);
         
@@ -1561,6 +1562,22 @@ impl Ui {
             self.text.set_text(text_id, text);
         }
     }
+
+    pub fn prune(&mut self) {
+        self.nodes.fronts.retain( |k, v| {
+            // side effect happens inside this closure... weird
+            // the > is to always keep the root node without having to refresh it 
+            let should_retain = v.last_frame_touched >= self.part.current_frame;
+            // dbg!(k, v.clone());
+            // dbg!(to_prune, v.last_frame_touched, self.part.current_frame);
+            // println!(" " );
+            if ! should_retain {
+                self.nodes.nodes.remove(v.slotkey);
+                println!(" PRUNING {:?} {:?}", k, v);
+            }
+            should_retain
+        });
+    }
 }
 
 #[macro_export]
@@ -1629,7 +1646,6 @@ pub struct Node {
     // also for invisible rects, used for layout
     pub rect: Rect,
 
-    pub last_frame_touched: u64,
     pub last_frame_status: LastFrameStatus,
 
     pub text_id: Option<usize>,
@@ -1652,7 +1668,6 @@ pub struct Node {
 }
 impl Node {
     fn refresh(&mut self, current_frame: u64) {
-        self.last_frame_touched = current_frame;
         self.children_ids.clear();
         self.n_twins = 0;
     }
