@@ -796,7 +796,7 @@ impl Ui {
             Entry::Vacant(v) => {
                 let defaults = &key.defaults();
                 let text_id = self.text.new_text_area(defaults.text, frame);
-                let new_node = Self::build_new_node(defaults, Some(parent_id), text_id, frame);
+                let new_node = Self::build_new_node(defaults, Some(parent_id), text_id);
                 
                 final_slotkey = self.nodes.nodes.insert(new_node);
                 
@@ -816,7 +816,7 @@ impl Ui {
                         old_nodefront.last_frame_touched = frame;
                         let old_node = self.nodes.nodes.get_mut(final_slotkey).unwrap();
 
-                        old_node.refresh(frame);
+                        old_node.refresh();
                         old_node.parent_id = parent_id;
                         self.text.refresh_last_frame(old_node.text_id, frame);
                         final_added_id = key.id();
@@ -840,7 +840,7 @@ impl Ui {
         if twin {
             let defaults = &key.defaults();
             let text_id = self.text.new_text_area(defaults.text, frame);
-            let new_twin_node = Self::build_new_node(defaults, Some(parent_id), text_id, frame);
+            let new_twin_node = Self::build_new_node(defaults, Some(parent_id), text_id);
 
             let slotmap_key = self.nodes.nodes.insert(new_twin_node);
                 
@@ -875,7 +875,6 @@ impl Ui {
         defaults: &NodeParams,
         parent_id: Option<Id>,
         text_id: Option<usize>,
-        current_frame: u64,
     ) -> Node {
         let parent_id = match parent_id {
             Some(parent_id) => parent_id,
@@ -1667,7 +1666,7 @@ pub struct Node {
     pub z: f32,
 }
 impl Node {
-    fn refresh(&mut self, current_frame: u64) {
+    fn refresh(&mut self) {
         self.children_ids.clear();
         self.n_twins = 0;
     }
