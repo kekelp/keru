@@ -611,7 +611,7 @@ pub struct Ui {
     pub nodes: Nodes,
     
     // stack for traversing
-    pub traversal_stack: Vec<NodeSlotkey>,
+    pub traverse_stack: Vec<NodeSlotkey>,
 
     // stack for adding
     pub parent_stack: Vec<NodeSlotkey>,
@@ -781,7 +781,7 @@ impl Ui {
             base_uniform_buffer: resolution_buffer,
             bind_group,
 
-            traversal_stack: Vec::with_capacity(50),
+            traverse_stack: Vec::with_capacity(50),
 
             parent_stack,
 
@@ -1120,13 +1120,13 @@ impl Ui {
     }
 
     pub fn layout(&mut self) {
-        self.traversal_stack.clear();
+        self.traverse_stack.clear();
 
         // push the root
-        self.traversal_stack.push(self.root_slotkey);
+        self.traverse_stack.push(self.root_slotkey);
 
         // start processing a parent
-        while let Some(current_node_id) = self.traversal_stack.pop() {
+        while let Some(current_node_id) = self.traverse_stack.pop() {
             // todo: garbage
             // to fix, just write a function "self.get_info_about_node_by_value_without_borrowing(id)"
             let parent_rect: Rect;
@@ -1204,7 +1204,7 @@ impl Ui {
                         let text_id = child.text_id;
                         self.layout_text(text_id, rect);
 
-                        self.traversal_stack.push(child_id);
+                        self.traverse_stack.push(child_id);
                     }
                 }
                 None => {
@@ -1250,7 +1250,7 @@ impl Ui {
                         let text_id = child.text_id;
                         self.layout_text(text_id, rect);
 
-                        self.traversal_stack.push(child_id);
+                        self.traverse_stack.push(child_id);
                     }
                 }
             }
@@ -1313,16 +1313,16 @@ impl Ui {
 
     pub fn build_buffers(&mut self) {
         self.rects.clear();
-        self.traversal_stack.clear();
+        self.traverse_stack.clear();
 
         // push the ui.direct children of the root without processing the root
         if let Some(root) = self.nodes.get_by_id(&NODE_ROOT_ID) {
             for &child_id in root.children.iter().rev() {
-                self.traversal_stack.push(child_id);
+                self.traverse_stack.push(child_id);
             }
         }
 
-        while let Some(current_node_id) = self.traversal_stack.pop() {
+        while let Some(current_node_id) = self.traverse_stack.pop() {
             let current_node = self.nodes.nodes.get(current_node_id).unwrap();
 
             // in debug mode, draw invisible rects as well.
@@ -1347,7 +1347,7 @@ impl Ui {
             }
 
             for &child_id in current_node.children.iter() {
-                self.traversal_stack.push(child_id);
+                self.traverse_stack.push(child_id);
             }
         }
 
