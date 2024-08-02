@@ -55,7 +55,6 @@ pub const NODE_ROOT: Node = Node {
     last_hover: f32::MIN,
     last_click: f32::MIN,
     z: -10000.0,
-    n_twins: 0,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -533,6 +532,12 @@ new_key_type! {
 pub struct NodeFront {
     pub last_parent: Id,
     pub last_frame_touched: u64,
+        // keeping track of the twin situation.
+    // for the 0-th twin of a family, this will be the total number of clones of itself around. (not including itself, so starts at zero).
+    // the actual twins ARE twins, but they don't HAVE twins, so this is zero.
+    // for this reason, "clones" or "copies" would be better names, but those words are loaded in rust
+    // reproduction? replica? imitation? duplicate? version? dupe? replication? mock? carbon?    
+    pub n_twins: u32,
     pub slotkey: NodeSlotmapKey,
 }
 impl NodeFront {
@@ -540,6 +545,7 @@ impl NodeFront {
         return Self {
             last_parent: parent_id,
             last_frame_touched: frame,
+            n_twins: 0,
             slotkey: new_slotkey,
         }
     }
@@ -713,6 +719,7 @@ impl Ui {
             last_parent: NODE_ROOT_ID,
             last_frame_touched: u64::MAX,
             slotkey: root_slotkey,
+            n_twins: 0,
         };
         
         node_fronts.insert(NODE_ROOT_ID, root_nodefront);
@@ -789,7 +796,7 @@ impl Ui {
 
         let frame = self.part.current_frame;
         let final_added_id;
-        let final_slotkey;
+        let mut final_slotkey;
         let mut twin = false;
 
         match self.nodes.fronts.entry(key.id()) {
@@ -816,6 +823,7 @@ impl Ui {
                         old_nodefront.last_frame_touched = frame;
                         let old_node = self.nodes.nodes.get_mut(final_slotkey).unwrap();
 
+                        old_nodefront.n_twins = 0;
                         old_node.refresh();
                         old_node.parent_id = parent_id;
                         self.text.refresh_last_frame(old_node.text_id, frame);
@@ -823,10 +831,9 @@ impl Ui {
                     }
                     AddTwin => {
                         final_slotkey = old_nodefront.slotkey;
-                        let old_node = self.nodes.nodes.get_mut(final_slotkey).unwrap();
 
-                        old_node.n_twins += 1;
-                        let twin_key = key.sibling(old_node.n_twins);
+                        old_nodefront.n_twins += 1;
+                        let twin_key = key.sibling(old_nodefront.n_twins);
                         final_added_id = twin_key.id();
                         twin = true;
                         // let the old node borrow die and continue to the twin part
@@ -838,14 +845,40 @@ impl Ui {
 
         // twin part
         if twin {
-            let defaults = &key.defaults();
-            let text_id = self.text.new_text_area(defaults.text, frame);
-            let new_twin_node = Self::build_new_node(defaults, Some(parent_id), text_id);
+            let twin_id = final_added_id;
+            match self.nodes.fronts.entry(twin_id) {
+                Entry::Occupied(o) => {
+                    let old_twin_nodefront = o.into_mut();
+                    // refresh twin
 
-            let slotmap_key = self.nodes.nodes.insert(new_twin_node);
-                
-            let new_nodefront = NodeFront::new(final_added_id, frame, slotmap_key);
-            self.nodes.fronts.insert(final_added_id, new_nodefront);
+                    // todo2: check the nodefront values and maybe skip reaching into the node
+                    // note that refresh() was also setting n_twins = 0. I think n_twins needs to be moved to the nodefront when that happens.
+                    final_slotkey = old_twin_nodefront.slotkey;
+
+                    old_twin_nodefront.last_frame_touched = frame;
+                    let old_node = self.nodes.nodes.get_mut(final_slotkey).unwrap();
+
+                    old_node.refresh();
+                    old_node.parent_id = parent_id;
+                    self.text.refresh_last_frame(old_node.text_id, frame);
+                    println!("  refreshing twins o algo");
+                },
+                Entry::Vacant(v) => {
+                    
+                    let defaults = &key.defaults();
+                    let text_id = self.text.new_text_area(defaults.text, frame);
+                    let new_twin_node = Self::build_new_node(defaults, Some(parent_id), text_id);
+
+                    let slotmap_key = self.nodes.nodes.insert(new_twin_node);
+                        
+                    let new_nodefront = NodeFront::new(final_added_id, frame, slotmap_key);
+                    v.insert(new_nodefront);
+                    println!("  ADDING NEW TWIN o algo {:?}", final_added_id);
+                    dbg!(self.nodes.nodes.len());
+                },
+            }
+
+
         }
 
         // this always runs: refresh, new, normal, twin 
@@ -891,7 +924,6 @@ impl Ui {
             last_hover: f32::MIN,
             last_click: f32::MIN,
             z: 0.0,
-            n_twins: 0,
         }
     }
 
@@ -1654,13 +1686,6 @@ pub struct Node {
     pub children_ids: Vec<Id>,
     pub params: NodeParams,
 
-    // keeping track of the twin situation.
-    // for the 0-th twin of a family, this will be the total number of clones of itself around. (not including itself, so starts at zero).
-    // the actual twins ARE twins, but they don't HAVE twins, so this is zero.
-    // for this reason, "clones" or "copies" would be better names, but those words are loaded in rust
-    // reproduction? replica? imitation? duplicate? version? dupe? replication? mock? carbon?    
-    pub n_twins: u32,
-
     pub last_hover: f32,
     pub last_click: f32,
     pub z: f32,
@@ -1668,7 +1693,6 @@ pub struct Node {
 impl Node {
     fn refresh(&mut self) {
         self.children_ids.clear();
-        self.n_twins = 0;
     }
 }
 
