@@ -11,7 +11,7 @@ use winit::keyboard::Key;
 
 use RefreshOrClone::*;
 
-use std::collections::hash_map::Entry;
+use std::collections::hash_map::{Entry, VacantEntry};
 use std::ops::{Add, Mul, Sub};
 use std::{
     hash::Hasher,
@@ -800,10 +800,10 @@ impl Ui {
         let mut twin = false;
 
         match self.nodes.fronts.entry(key.id()) {
+            // add new, no twin
             Entry::Vacant(v) => {
-                let defaults = &key.defaults();
-                let text_id = self.text.new_text_area(defaults.text, frame);
-                let new_node = Self::build_new_node(defaults, Some(parent_id), text_id);
+                let text_id = self.text.new_text_area(key.defaults().text, frame);
+                let new_node = Self::build_new_node(&key.defaults(), Some(parent_id), text_id);
                 
                 final_slotkey = self.nodes.nodes.insert(new_node);
                 
@@ -814,8 +814,8 @@ impl Ui {
             Entry::Occupied(o) => {
                 let old_nodefront = o.into_mut();
                 match refresh_or_add_twin(frame, old_nodefront.last_frame_touched) {
+                    // refresh, no twin
                     Refresh => {
-
                         // todo2: check the nodefront values and maybe skip reaching into the node
                         // note that refresh() was also setting n_twins = 0. I think n_twins needs to be moved to the nodefront when that happens.
                         final_slotkey = old_nodefront.slotkey;
@@ -829,6 +829,7 @@ impl Ui {
                         self.text.refresh_last_frame(old_node.text_id, frame);
                         final_added_id = key.id();
                     }
+                    // do nothing, store some values, go to twin part below
                     AddTwin => {
                         final_slotkey = old_nodefront.slotkey;
 
@@ -836,7 +837,6 @@ impl Ui {
                         let twin_key = key.sibling(old_nodefront.n_twins);
                         final_added_id = twin_key.id();
                         twin = true;
-                        // let the old node borrow die and continue to the twin part
                     }
                 }
 
@@ -847,9 +847,21 @@ impl Ui {
         if twin {
             let twin_id = final_added_id;
             match self.nodes.fronts.entry(twin_id) {
+                // add new twin
+                Entry::Vacant(v) => {
+    
+                    let text_id = self.text.new_text_area(key.defaults().text, frame);
+                    let new_twin_node = Self::build_new_node(&key.defaults(), Some(parent_id), text_id);
+
+                    let slotmap_key = self.nodes.nodes.insert(new_twin_node);
+                        
+                    let new_nodefront = NodeFront::new(final_added_id, frame, slotmap_key);
+                    v.insert(new_nodefront);
+                    dbg!(self.nodes.nodes.len());
+                },
+                // refresh twin
                 Entry::Occupied(o) => {
                     let old_twin_nodefront = o.into_mut();
-                    // refresh twin
 
                     // todo2: check the nodefront values and maybe skip reaching into the node
                     // note that refresh() was also setting n_twins = 0. I think n_twins needs to be moved to the nodefront when that happens.
@@ -861,21 +873,8 @@ impl Ui {
                     old_node.refresh();
                     old_node.parent_id = parent_id;
                     self.text.refresh_last_frame(old_node.text_id, frame);
-                    println!("  refreshing twins o algo");
                 },
-                Entry::Vacant(v) => {
-                    
-                    let defaults = &key.defaults();
-                    let text_id = self.text.new_text_area(defaults.text, frame);
-                    let new_twin_node = Self::build_new_node(defaults, Some(parent_id), text_id);
 
-                    let slotmap_key = self.nodes.nodes.insert(new_twin_node);
-                        
-                    let new_nodefront = NodeFront::new(final_added_id, frame, slotmap_key);
-                    v.insert(new_nodefront);
-                    println!("  ADDING NEW TWIN o algo {:?}", final_added_id);
-                    dbg!(self.nodes.nodes.len());
-                },
             }
 
 
