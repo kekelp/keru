@@ -823,16 +823,15 @@ impl Ui {
                     // refresh, no twin
                     Refresh => {
                         old_nodefront.refresh(parent_id, frame);
-                        
+
                         // todo2: check the nodefront values and maybe skip reaching into the node
-                        // note that refresh() was also setting n_twins = 0. I think n_twins needs to be moved to the nodefront when that happens.
                         final_slotkey = old_nodefront.slotkey;
-
+                        
                         let old_node = self.nodes.nodes.get_mut(final_slotkey).unwrap();
-
-                        old_node.update_parent_and_children(parent_id);
+                        
+                        old_node.refresh(parent_id);
                         self.text.refresh_last_frame(old_node.text_id, frame);
-                        final_added_id = key.id();
+                        final_added_id = key.id();                        
                     }
                     // do nothing, store some values, go to twin part below
                     AddTwin => {
@@ -866,16 +865,13 @@ impl Ui {
                     let old_twin_nodefront = o.into_mut();
 
                     // todo2: check the nodefront values and maybe skip reaching into the node
-                    // note that refresh() was also setting n_twins = 0. I think n_twins needs to be moved to the nodefront when that happens.
                     old_twin_nodefront.refresh(parent_id, frame);
 
-                    
                     final_slotkey = old_twin_nodefront.slotkey;
-
 
                     let old_node = self.nodes.nodes.get_mut(final_slotkey).unwrap();
 
-                    old_node.update_parent_and_children(parent_id);
+                    old_node.refresh(parent_id);
                     self.text.refresh_last_frame(old_node.text_id, frame);
                 },
 
@@ -886,6 +882,7 @@ impl Ui {
 
         // this always runs: refresh, new, normal, twin 
         // in a better world, we could totally have a pointer or index to the parent instead of a parent_id.
+        // todo: move this in better places o algo
         self.add_child_to_parent(final_added_id, parent_id);
         if make_new_layer {
             self.parent_stack.push(final_added_id);           
@@ -1694,9 +1691,8 @@ pub struct Node {
     pub z: f32,
 }
 impl Node {
-    fn update_parent_and_children(&mut self, parent_id: Id) {
+    fn refresh(&mut self, parent_id: Id) {
         self.parent_id = parent_id;
-
         self.children_ids.clear();
     }
 }
