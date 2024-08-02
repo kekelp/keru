@@ -5,7 +5,7 @@ use glyphon::cosmic_text::{Align, StringCursor};
 use glyphon::{AttrsList, Cursor as GlyphonCursor};
 use glyphon::{Affinity, Resolution as GlyphonResolution};
 use rustc_hash::{FxHashMap, FxHasher};
-use slotmap::{new_key_type, DefaultKey, SlotMap};
+use slotmap::{new_key_type, SlotMap};
 use wgpu::*;
 use winit::keyboard::Key;
 
@@ -533,7 +533,28 @@ new_key_type! {
 pub struct NodeFront {
     pub last_parent: Id,
     pub last_frame_touched: u64,
-    pub slotmap_key: NodeSlotmapKey,
+    pub slotkey: NodeSlotmapKey,
+}
+impl NodeFront {
+    pub fn new(parent_id: Id, frame: u64, new_slotkey: NodeSlotmapKey) -> Self {
+        return Self {
+            last_parent: parent_id,
+            last_frame_touched: frame,
+            slotkey: new_slotkey,
+        }
+    }
+}
+
+pub struct Nodes {
+    // todo: make faster o algo
+    pub fronts: FxHashMap<Id, NodeFront>,
+    pub nodes: SlotMap<NodeSlotmapKey, Node>,
+}
+impl Nodes {
+    pub fn get(&mut self, id: &Id) -> Option<&mut Node> {
+        let slotkey = self.fronts.get(&id).unwrap().slotkey;
+        return self.nodes.get_mut(slotkey);
+    }
 }
 
 pub struct Ui {
@@ -556,9 +577,7 @@ pub struct Ui {
 
     pub rects: Vec<RenderRect>,
 
-    // todo: make faster o algo
-    pub node_fronts: FxHashMap<Id, NodeFront>,
-    pub nodes: SlotMap<NodeSlotmapKey, Node>,
+    pub nodes: Nodes,
     
     // stack for traversing
     pub stack: Vec<Id>,
@@ -693,11 +712,15 @@ impl Ui {
         let root_nodefront = NodeFront {
             last_parent: NODE_ROOT_ID,
             last_frame_touched: 1,
-            slotmap_key: root_slotkey,
+            slotkey: root_slotkey,
         };
         
         node_fronts.insert(NODE_ROOT_ID, root_nodefront);
 
+        let nodes = Nodes {
+            fronts: node_fronts,
+            nodes,
+        };
 
         Self {
             waiting_for_click_release: false,
@@ -717,8 +740,8 @@ impl Ui {
             render_pipeline,
             rects: Vec::with_capacity(20),
 
-            node_fronts,
             nodes,
+
             gpu_vertex_buffer: vertex_buffer,
             base_uniform_buffer: resolution_buffer,
             bind_group,
@@ -766,27 +789,39 @@ impl Ui {
 
         let frame = self.part.current_frame;
         let final_added_id;
+        let final_slotkey;
         let mut twin = false;
 
-        match self.node_map.entry(key.id()) {
+        match self.nodes.fronts.entry(key.id()) {
             Entry::Vacant(v) => {
                 let defaults = &key.defaults();
                 let text_id = self.text.new_text_area(defaults.text, frame);
                 let new_node = Self::build_new_node(defaults, Some(parent_id), text_id, frame);
-
-                v.insert(new_node);
+                
+                final_slotkey = self.nodes.nodes.insert(new_node);
+                
+                let new_nodefront = NodeFront::new(key.id(), frame, final_slotkey);
+                v.insert(new_nodefront);
                 final_added_id = key.id();
             },
             Entry::Occupied(o) => {
-                let old_node = o.into_mut();
-                match refresh_or_add_twin(frame, old_node.last_frame_touched) {
+                let old_nodefront = o.into_mut();
+                match refresh_or_add_twin(frame, old_nodefront.last_frame_touched) {
                     Refresh => {
+
+                        // todo2: check the nodefront values and maybe skip reaching into the node
+                        final_slotkey = old_nodefront.slotkey;
+                        let old_node = self.nodes.nodes.get_mut(final_slotkey).unwrap();
+
                         old_node.refresh(frame);
                         old_node.parent_id = parent_id;
                         self.text.refresh_last_frame(old_node.text_id, frame);
                         final_added_id = key.id();
                     }
                     AddTwin => {
+                        final_slotkey = old_nodefront.slotkey;
+                        let old_node = self.nodes.nodes.get_mut(final_slotkey).unwrap();
+
                         old_node.n_twins += 1;
                         let twin_key = key.sibling(old_node.n_twins);
                         final_added_id = twin_key.id();
@@ -804,7 +839,10 @@ impl Ui {
             let text_id = self.text.new_text_area(defaults.text, frame);
             let new_twin_node = Self::build_new_node(defaults, Some(parent_id), text_id, frame);
 
-            self.node_map.insert(final_added_id, new_twin_node);
+            let slotmap_key = self.nodes.nodes.insert(new_twin_node);
+                
+            let new_nodefront = NodeFront::new(final_added_id, frame, slotmap_key);
+            self.nodes.fronts.insert(final_added_id, new_nodefront);
         }
 
         // this always runs: refresh, new, normal, twin 
@@ -815,15 +853,15 @@ impl Ui {
         }
 
         return NodeWithStuff {
-            node: self.node_map.get_mut(&final_added_id).unwrap(),
+            node: self.nodes.nodes.get_mut(final_slotkey).unwrap(),
             text: &mut self.text,
         };
 
     }
 
     pub fn add_child_to_parent(&mut self, id: Id, parent_id: Id) {
-        self.node_map
-            .get_mut(&parent_id)
+        // todo2: change
+        self.nodes.get(&parent_id)
             .unwrap()
             .children_ids
             .push(id);
@@ -880,7 +918,7 @@ impl Ui {
 
         // if there is no focused text node, return consumed: false
         let id = unwrap_or_return!(self.focused, false);
-        let node = unwrap_or_return!(self.node_map.get(&id), false);
+        let node = unwrap_or_return!(self.nodes.get(&id), false);
         let text_id = unwrap_or_return!(node.text_id, false);
 
         // return consumed: true in each of these cases. Still don't consume keys that the UI doesn't use.
@@ -1045,7 +1083,7 @@ impl Ui {
             let children: Vec<Id>;
             let is_stack: Option<Stack>;
             {
-                let parent_node = self.node_map.get(&current_node_id).unwrap();
+                let parent_node = self.nodes.get(&current_node_id).unwrap();
                 children = parent_node.children_ids.clone();
                 parent_rect = parent_node.rect;
                 is_stack = parent_node.params.is_stack;
@@ -1079,7 +1117,7 @@ impl Ui {
                     let mut walker = parent_rect[main_axis][i0];
 
                     for &child_id in children.iter().rev() {
-                        let child = self.node_map.get_mut(&child_id).unwrap();
+                        let child = self.nodes.get(&child_id).unwrap();
                         child.rect[main_axis][i0] = walker;
 
                         match child.params.size[main_axis] {
@@ -1121,7 +1159,7 @@ impl Ui {
                 }
                 None => {
                     for &child_id in children.iter().rev() {
-                        let child = self.node_map.get_mut(&child_id).unwrap();
+                        let child = self.nodes.get(&child_id).unwrap();
 
                         for axis in [X, Y] {
                             match child.params.position[axis] {
@@ -1228,14 +1266,14 @@ impl Ui {
         self.stack.clear();
 
         // push the ui.direct children of the root without processing the root
-        if let Some(root) = self.node_map.get(&NODE_ROOT_ID) {
+        if let Some(root) = self.nodes.get(&NODE_ROOT_ID) {
             for &child_id in root.children_ids.iter().rev() {
                 self.stack.push(child_id);
             }
         }
 
         while let Some(current_node_id) = self.stack.pop() {
-            let current_node = self.node_map.get_mut(&current_node_id).unwrap();
+            let current_node = self.nodes.get(&current_node_id).unwrap();
 
             // in debug mode, draw invisible rects as well.
             // usually these have filled = false (just the outline), but this is not enforced.
@@ -1277,7 +1315,7 @@ impl Ui {
         // it's a specific choice by me to keep cursors for every string at all times, but only display (and use) the one on the currently focused ui node.
         // someone might want multi-cursor in the same node, multi-cursor on different nodes, etc.
         let focused_id = &self.focused?;
-        let focused_node = self.node_map.get(focused_id)?;
+        let focused_node = self.nodes.get(focused_id)?;
         let text_id = focused_node.text_id?;
         let focused_text_area = self.text.text_areas.get(text_id)?;
 
@@ -1413,8 +1451,7 @@ impl Ui {
 
         self.update_time();
 
-        self.node_map
-            .get_mut(&NODE_ROOT_ID)
+        self.nodes.get(&NODE_ROOT_ID)
             .unwrap()
             .children_ids
             .clear();
@@ -1462,7 +1499,7 @@ impl Ui {
             // this goes on the node because the rect isn't a real entity. it's rebuilt every frame
             // todo: if that ever changes, this could skip the hashmap access and get faster, I think.
             let t = self.instant_t();
-            let node = self.node_map.get_mut(&hovered_id).unwrap();
+            let node = self.nodes.get(&hovered_id).unwrap();
             node.last_hover = t;
         }
     }
@@ -1480,7 +1517,7 @@ impl Ui {
             // this goes on the node because the rect isn't a real entity. it's rebuilt every frame
             // todo: if that ever changes, this could skip the hashmap access and get faster, I think.
             let t = self.instant_t();
-            let node = self.node_map.get_mut(&clicked_id).unwrap();
+            let node = self.nodes.get(&clicked_id).unwrap();
             node.last_click = t;
 
             if node.params.editable {
@@ -1519,7 +1556,7 @@ impl Ui {
     }
 
     pub fn set_text(&mut self, key: NodeKey, text: &str) {
-        if let Some(node) = self.node_map.get(&key.id()) {
+        if let Some(node) = self.nodes.get(&key.id()) {
             let text_id = node.text_id.unwrap();
             self.text.set_text(text_id, text);
         }
