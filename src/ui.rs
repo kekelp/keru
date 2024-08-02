@@ -568,9 +568,22 @@ pub struct Nodes {
     pub nodes: SlotMap<NodeSlotkey, Node>,
 }
 impl Nodes {
-    pub fn get(&mut self, id: &Id) -> Option<&mut Node> {
+    pub fn get_by_id(&mut self, id: &Id) -> Option<&mut Node> {
         let slotkey = self.fronts.get(&id).unwrap().slotkey;
         return self.nodes.get_mut(slotkey);
+    }
+}
+impl Index<NodeSlotkey> for Nodes {
+    type Output = Node;
+    fn index(&self, slotkey: NodeSlotkey) -> &Self::Output {
+        return self.nodes.get(slotkey)
+            .unwrap_or_else(|| panic!("No entry at index {:?}", slotkey))
+    }
+}
+impl IndexMut<NodeSlotkey> for Nodes {
+    fn index_mut(&mut self, slotkey: NodeSlotkey) -> &mut Self::Output {
+        return self.nodes.get_mut(slotkey)
+            .unwrap_or_else(|| panic!("No entry at index {:?}", slotkey))
     }
 }
 
@@ -834,7 +847,7 @@ impl Ui {
                         // todo2: check the nodefront values and maybe skip reaching into the node
                         final_slotkey = old_nodefront.slotkey;
                         
-                        let old_node = self.nodes.nodes.get_mut(final_slotkey).unwrap();
+                        let old_node = &mut self.nodes[final_slotkey];
                         
                         old_node.refresh(parent_id);
                         self.text.refresh_last_frame(old_node.text_id, frame);
@@ -874,7 +887,7 @@ impl Ui {
 
                     final_slotkey = old_twin_nodefront.slotkey;
 
-                    let old_node = self.nodes.nodes.get_mut(final_slotkey).unwrap();
+                    let old_node = &mut self.nodes[final_slotkey];
 
                     old_node.refresh(parent_id);
                     self.text.refresh_last_frame(old_node.text_id, frame);
@@ -894,7 +907,7 @@ impl Ui {
         }
 
         return NodeWithStuff {
-            node: self.nodes.nodes.get_mut(final_slotkey).unwrap(),
+            node: &mut self.nodes[final_slotkey],
             text: &mut self.text,
         };
 
@@ -902,9 +915,7 @@ impl Ui {
 
     pub fn add_child_to_parent(&mut self, id: NodeSlotkey, parent_id: NodeSlotkey) {
         // todo2: change
-        self.nodes.nodes.get_mut(parent_id)
-            .unwrap()
-            .children
+        self.nodes[parent_id]           .children
             .push(id);
     }
 
@@ -957,7 +968,7 @@ impl Ui {
 
         // if there is no focused text node, return consumed: false
         let id = unwrap_or_return!(self.focused, false);
-        let node = unwrap_or_return!(self.nodes.get(&id), false);
+        let node = unwrap_or_return!(self.nodes.get_by_id(&id), false);
         let text_id = unwrap_or_return!(node.text_id, false);
 
         // return consumed: true in each of these cases. Still don't consume keys that the UI doesn't use.
@@ -1156,7 +1167,7 @@ impl Ui {
                     let mut walker = parent_rect[main_axis][i0];
 
                     for &child_id in children.iter().rev() {
-                        let child = self.nodes.nodes.get_mut(child_id).unwrap();
+                        let child = &mut self.nodes[child_id];
                         child.rect[main_axis][i0] = walker;
 
                         match child.params.size[main_axis] {
@@ -1198,7 +1209,7 @@ impl Ui {
                 }
                 None => {
                     for &child_id in children.iter().rev() {
-                        let child = self.nodes.nodes.get_mut(child_id).unwrap();
+                        let child = &mut self.nodes[child_id];
 
                         for axis in [X, Y] {
                             match child.params.position[axis] {
@@ -1305,7 +1316,7 @@ impl Ui {
         self.traversal_stack.clear();
 
         // push the ui.direct children of the root without processing the root
-        if let Some(root) = self.nodes.get(&NODE_ROOT_ID) {
+        if let Some(root) = self.nodes.get_by_id(&NODE_ROOT_ID) {
             for &child_id in root.children.iter().rev() {
                 self.traversal_stack.push(child_id);
             }
@@ -1352,7 +1363,7 @@ impl Ui {
         // it's a specific choice by me to keep cursors for every string at all times, but only display (and use) the one on the currently focused ui node.
         // someone might want multi-cursor in the same node, multi-cursor on different nodes, etc.
         let focused_id = &self.focused?;
-        let focused_node = self.nodes.get(focused_id)?;
+        let focused_node = self.nodes.get_by_id(focused_id)?;
         let text_id = focused_node.text_id?;
         let focused_text_area = self.text.text_areas.get(text_id)?;
 
@@ -1489,7 +1500,7 @@ impl Ui {
 
         self.update_time();
 
-        self.nodes.get(&NODE_ROOT_ID)
+        self.nodes.get_by_id(&NODE_ROOT_ID)
             .unwrap()
             .children
             .clear();
@@ -1537,7 +1548,7 @@ impl Ui {
             // this goes on the node because the rect isn't a real entity. it's rebuilt every frame
             // todo: if that ever changes, this could skip the hashmap access and get faster, I think.
             let t = self.instant_t();
-            let node = self.nodes.get(&hovered_id).unwrap();
+            let node = self.nodes.get_by_id(&hovered_id).unwrap();
             node.last_hover = t;
         }
     }
@@ -1555,7 +1566,7 @@ impl Ui {
             // this goes on the node because the rect isn't a real entity. it's rebuilt every frame
             // todo: if that ever changes, this could skip the hashmap access and get faster, I think.
             let t = self.instant_t();
-            let node = self.nodes.get(&clicked_id).unwrap();
+            let node = self.nodes.get_by_id(&clicked_id).unwrap();
             node.last_click = t;
 
             if node.params.editable {
@@ -1594,7 +1605,7 @@ impl Ui {
     }
 
     pub fn set_text(&mut self, key: NodeKey, text: &str) {
-        if let Some(node) = self.nodes.get(&key.id()) {
+        if let Some(node) = self.nodes.get_by_id(&key.id()) {
             let text_id = node.text_id.unwrap();
             self.text.set_text(text_id, text);
         }
