@@ -4,7 +4,7 @@ use crate::node_params::*;
 use crate::ui::Position::*;
 use crate::ui::*;
 use crate::*;
-use glyphon::{Attrs, Color as GlyphonColor, Family, Weight};
+use glyphon::{cosmic_text::Align, Attrs, Color as GlyphonColor, Family, Weight};
 use view_derive::node_key;
 
 impl State {
@@ -93,11 +93,11 @@ impl CounterState {
                         add!(ui, Self::INCREASE_BUTTON).set_color(new_color);
 
                         let count = &self.count.to_string();
-                        add!(ui, Self::COUNT_LABEL).set_text(count);
-                        add!(ui, Self::COUNT_LABEL).set_text_attrs(
-                            Attrs::new().family(Family::SansSerif).color(GlyphonColor::rgb(86, 76, 128)).weight(Weight::EXTRA_BOLD)
+                        add!(ui, Self::COUNT_LABEL).set_text(count).set_text_attrs(
+                            Attrs::new().family(Family::SansSerif).color(GlyphonColor::rgb(255, 76, 23)).weight(Weight::EXTRA_BOLD)
 
-                        );
+                        )
+                        .set_text_align(Align::Center);
 
                         add!(ui, Self::DECREASE_BUTTON);
                     }

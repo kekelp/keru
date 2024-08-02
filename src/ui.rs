@@ -1,8 +1,8 @@
 use crate::node_params::{DEFAULT, NODE_ROOT_PARAMS};
 use crate::unwrap_or_return;
 use copypasta::{ClipboardContext, ClipboardProvider};
-use glyphon::cosmic_text::StringCursor;
-use glyphon::Cursor as GlyphonCursor;
+use glyphon::cosmic_text::{Align, StringCursor};
+use glyphon::{AttrsList, Cursor as GlyphonCursor};
 use glyphon::{Affinity, Resolution as GlyphonResolution};
 use rustc_hash::{FxHashMap, FxHasher};
 use wgpu::*;
@@ -340,26 +340,40 @@ pub struct NodeWithStuff<'a> {
 
 // why can't you just do it separately?
 impl<'a> NodeWithStuff<'a> {
-    pub fn set_color(&mut self, color: Color) {
+    pub fn set_color(&mut self, color: Color)  -> &mut Self {
         self.node.params.color = color;
+        return self;
     }
 
-    pub fn set_text(&mut self, text: &str) {
+    pub fn set_text(&mut self, text: &str) -> &mut Self {
         if let Some(text_id) = self.node.text_id {
             self.text.set_text(text_id, text);
         } else {
             // todo: log a warning or something
             // or make these things type safe somehow
         }
+
+        return self;
     }
 
-    pub fn set_text_attrs(&mut self, attrs: Attrs) {
+    pub fn set_text_attrs(&mut self, attrs: Attrs)  -> &mut Self {
         if let Some(text_id) = self.node.text_id {
             self.text.set_text_attrs(text_id, attrs);
         } else {
             // todo: log a warning or something
             // or make these things type safe somehow
         }
+        return self;
+    }
+
+    pub fn set_text_align(&mut self, align: Align)  -> &mut Self {
+        if let Some(text_id) = self.node.text_id {
+            self.text.set_text_align(text_id, align);
+        } else {
+            // todo: log a warning or something
+            // or make these things type safe somehow
+        }
+        return self;
     }
 
     pub fn get_text(&mut self) -> Option<String> {
@@ -430,7 +444,7 @@ impl Text {
         let text = text?;
 
         let mut buffer = GlyphonBuffer::new(&mut self.font_system, GLOBAL_TEXT_METRICS);
-        buffer.set_size(&mut self.font_system, 100000., 100000.);
+        buffer.set_size(&mut self.font_system, 500., 500.);
 
         let mut hasher = FxHasher::default();
         text.hash(&mut hasher);
@@ -443,7 +457,10 @@ impl Text {
             Shaping::Advanced,
         );
 
-        buffer.lines[0].set_align(Some(glyphon::cosmic_text::Align::Center));
+
+        for line in &mut buffer.lines {
+            line.set_align(Some(glyphon::cosmic_text::Align::Center));
+        }
 
         let text_area = TextArea {
             buffer,
@@ -491,12 +508,20 @@ impl Text {
 
         let area = &mut self.text_areas[text_id];
 
-        area.buffer.set_text(
-            &mut self.font_system,
-            &"Test9438",
-            attrs,
-            Shaping::Advanced,
-        );    
+        // Define new attributes
+        // Apply new attributes to the entire text
+        for line in &mut area.buffer.lines {
+            line.set_attrs_list(AttrsList::new(attrs));
+        }
+
+    }
+
+    fn set_text_align(&mut self, text_id: usize, align: Align) {
+
+        for line in &mut self.text_areas[text_id].buffer.lines {
+            line.set_align(Some(align));
+        }
+
     }
 }
 
@@ -757,6 +782,8 @@ impl Ui {
             self.node_map.insert(final_added_id, new_twin_node);
         }
 
+        // this always runs: refresh, new, normal, twin 
+        // in a better world, we could totally have a pointer or index to the parent instead of a parent_id.
         self.add_child_to_parent(final_added_id, parent_id);
         if make_new_layer {
             self.parent_stack.push(final_added_id);           
@@ -1133,6 +1160,10 @@ impl Ui {
 
             self.text.text_areas[text_id].bounds.right = right as i32;
             self.text.text_areas[text_id].bounds.bottom = bottom as i32;
+
+            let w = right - left;
+            let h = bottom - top;
+            self.text.text_areas[text_id].buffer.set_size(&mut self.text.font_system, w, h);
            
             self.text.text_areas[text_id]
                 .buffer
@@ -1821,3 +1852,5 @@ pub fn refresh_or_add_twin(current_frame: u64, old_node_last_frame_touched: u64)
         return RefreshOrClone::Refresh;
     }
 }
+
+
