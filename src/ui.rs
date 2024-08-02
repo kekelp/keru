@@ -810,10 +810,9 @@ impl Ui {
         let parent_id = self.parent_stack.last().unwrap().clone();
 
         let frame = self.part.current_frame;
-        // todo: check if this bevcame useless
-        let final_added_id;
+
         let mut final_slotkey;
-        let mut twin = false;
+        let mut twin_key: Option<NodeKey> = None;
 
         match self.nodes.fronts.entry(key.id()) {
             // add new, no twin
@@ -824,7 +823,6 @@ impl Ui {
                 final_slotkey = self.nodes.nodes.insert(new_node);
                 
                 v.insert(NodeFront::new(parent_id, frame, final_slotkey));
-                final_added_id = key.id();
             },
             Entry::Occupied(o) => {
                 let old_nodefront = o.into_mut();
@@ -840,31 +838,29 @@ impl Ui {
                         
                         old_node.refresh(parent_id);
                         self.text.refresh_last_frame(old_node.text_id, frame);
-                        final_added_id = key.id();                        
                     }
-                    // do nothing, store some values, go to twin part below
+                    // do nothing, just calculate the twin key and go to twin part below
                     AddTwin => {
-                        final_slotkey = old_nodefront.slotkey;
-
                         old_nodefront.n_twins += 1;
-                        let twin_key = key.sibling(old_nodefront.n_twins);
-                        final_added_id = twin_key.id();
-                        twin = true;
+                        twin_key = Some(key.sibling(old_nodefront.n_twins));
+
+                        // I have to write put a wrong value here to shut up the compiler. it has to be overwritten later.
+                        // this sucks but whatever.
+                        final_slotkey = old_nodefront.slotkey;
                     }
                 }
 
             },
         }
 
-        // twin part
-        if twin {
-            let twin_id = final_added_id;
-            match self.nodes.fronts.entry(twin_id) {
+        // twin part. Key has been mutated to the twin_key. Not very good code.
+        if let Some(twin_key) = twin_key {
+            match self.nodes.fronts.entry(twin_key.id()) {
                 // add new twin
                 Entry::Vacant(v) => {
     
-                    let text_id = self.text.new_text_area(key.defaults().text, frame);
-                    let new_twin_node = Self::build_new_node(&key, Some(parent_id), text_id);
+                    let text_id = self.text.new_text_area(twin_key.defaults().text, frame);
+                    let new_twin_node = Self::build_new_node(&twin_key, Some(parent_id), text_id);
 
                     final_slotkey = self.nodes.nodes.insert(new_twin_node);
                     v.insert(NodeFront::new(parent_id, frame, final_slotkey));
