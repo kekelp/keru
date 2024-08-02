@@ -11,7 +11,7 @@ use winit::keyboard::Key;
 
 use RefreshOrClone::*;
 
-use std::collections::hash_map::{Entry, VacantEntry};
+use std::collections::hash_map::Entry;
 use std::ops::{Add, Mul, Sub};
 use std::{
     hash::Hasher,
@@ -549,6 +549,13 @@ impl NodeFront {
             slotkey: new_slotkey,
         }
     }
+
+    pub fn refresh(&mut self, parent_id: Id, frame: u64) {
+        self.last_frame_touched = frame;
+        self.last_parent = parent_id;
+    }
+
+
 }
 
 pub struct Nodes {
@@ -807,8 +814,7 @@ impl Ui {
                 
                 final_slotkey = self.nodes.nodes.insert(new_node);
                 
-                let new_nodefront = NodeFront::new(key.id(), frame, final_slotkey);
-                v.insert(new_nodefront);
+                v.insert(NodeFront::new(key.id(), frame, final_slotkey));
                 final_added_id = key.id();
             },
             Entry::Occupied(o) => {
@@ -816,16 +822,15 @@ impl Ui {
                 match refresh_or_add_twin(frame, old_nodefront.last_frame_touched) {
                     // refresh, no twin
                     Refresh => {
+                        old_nodefront.refresh(parent_id, frame);
+                        
                         // todo2: check the nodefront values and maybe skip reaching into the node
                         // note that refresh() was also setting n_twins = 0. I think n_twins needs to be moved to the nodefront when that happens.
                         final_slotkey = old_nodefront.slotkey;
 
-                        old_nodefront.last_frame_touched = frame;
                         let old_node = self.nodes.nodes.get_mut(final_slotkey).unwrap();
 
-                        old_nodefront.n_twins = 0;
-                        old_node.refresh();
-                        old_node.parent_id = parent_id;
+                        old_node.update_parent_and_children(parent_id);
                         self.text.refresh_last_frame(old_node.text_id, frame);
                         final_added_id = key.id();
                     }
@@ -853,11 +858,8 @@ impl Ui {
                     let text_id = self.text.new_text_area(key.defaults().text, frame);
                     let new_twin_node = Self::build_new_node(&key.defaults(), Some(parent_id), text_id);
 
-                    let slotmap_key = self.nodes.nodes.insert(new_twin_node);
-                        
-                    let new_nodefront = NodeFront::new(final_added_id, frame, slotmap_key);
-                    v.insert(new_nodefront);
-                    dbg!(self.nodes.nodes.len());
+                    let slotmap_key = self.nodes.nodes.insert(new_twin_node);                        
+                    v.insert(NodeFront::new(final_added_id, frame, slotmap_key));
                 },
                 // refresh twin
                 Entry::Occupied(o) => {
@@ -865,13 +867,15 @@ impl Ui {
 
                     // todo2: check the nodefront values and maybe skip reaching into the node
                     // note that refresh() was also setting n_twins = 0. I think n_twins needs to be moved to the nodefront when that happens.
+                    old_twin_nodefront.refresh(parent_id, frame);
+
+                    
                     final_slotkey = old_twin_nodefront.slotkey;
 
-                    old_twin_nodefront.last_frame_touched = frame;
+
                     let old_node = self.nodes.nodes.get_mut(final_slotkey).unwrap();
 
-                    old_node.refresh();
-                    old_node.parent_id = parent_id;
+                    old_node.update_parent_and_children(parent_id);
                     self.text.refresh_last_frame(old_node.text_id, frame);
                 },
 
@@ -1690,7 +1694,9 @@ pub struct Node {
     pub z: f32,
 }
 impl Node {
-    fn refresh(&mut self) {
+    fn update_parent_and_children(&mut self, parent_id: Id) {
+        self.parent_id = parent_id;
+
         self.children_ids.clear();
     }
 }
