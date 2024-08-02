@@ -45,11 +45,15 @@ pub struct Id(pub(crate) u64);
 
 pub const NODE_ROOT_ID: Id = Id(0);
 pub const NODE_ROOT: Node = Node {
+    id: NODE_ROOT_ID,
     rect: Xy::new_symm([0.0, 1.0]),
     rect_id: None,
     text_id: None,
-    parent_id: NODE_ROOT_ID,
-    children_ids: Vec::new(),
+    // geeeeeeeeeeeeg wtf
+    parent: unsafe {
+        std::mem::transmute(9213432846u64)
+    },
+    children: Vec::new(),
     params: NODE_ROOT_PARAMS,
     last_frame_status: LastFrameStatus::Nothing,
     last_hover: f32::MIN,
@@ -525,12 +529,12 @@ impl Text {
 }
 
 new_key_type! {
-    pub struct NodeSlotmapKey;
+    pub struct NodeSlotkey;
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct NodeFront {
-    pub last_parent: Id,
+    pub last_parent: NodeSlotkey,
     pub last_frame_touched: u64,
         // keeping track of the twin situation.
     // for the 0-th twin of a family, this will be the total number of clones of itself around. (not including itself, so starts at zero).
@@ -538,10 +542,10 @@ pub struct NodeFront {
     // for this reason, "clones" or "copies" would be better names, but those words are loaded in rust
     // reproduction? replica? imitation? duplicate? version? dupe? replication? mock? carbon?    
     pub n_twins: u32,
-    pub slotkey: NodeSlotmapKey,
+    pub slotkey: NodeSlotkey,
 }
 impl NodeFront {
-    pub fn new(parent_id: Id, frame: u64, new_slotkey: NodeSlotmapKey) -> Self {
+    pub fn new(parent_id: NodeSlotkey, frame: u64, new_slotkey: NodeSlotkey) -> Self {
         return Self {
             last_parent: parent_id,
             last_frame_touched: frame,
@@ -550,7 +554,7 @@ impl NodeFront {
         }
     }
 
-    pub fn refresh(&mut self, parent_id: Id, frame: u64) {
+    pub fn refresh(&mut self, parent_id: NodeSlotkey, frame: u64) {
         self.last_frame_touched = frame;
         self.last_parent = parent_id;
     }
@@ -561,7 +565,7 @@ impl NodeFront {
 pub struct Nodes {
     // todo: make faster o algo
     pub fronts: FxHashMap<Id, NodeFront>,
-    pub nodes: SlotMap<NodeSlotmapKey, Node>,
+    pub nodes: SlotMap<NodeSlotkey, Node>,
 }
 impl Nodes {
     pub fn get(&mut self, id: &Id) -> Option<&mut Node> {
@@ -571,6 +575,7 @@ impl Nodes {
 }
 
 pub struct Ui {
+    pub root_slotkey: NodeSlotkey,
     pub debug_mode: bool,
     pub debug_key_pressed: bool,
 
@@ -593,10 +598,10 @@ pub struct Ui {
     pub nodes: Nodes,
     
     // stack for traversing
-    pub stack: Vec<Id>,
+    pub traversal_stack: Vec<NodeSlotkey>,
 
     // stack for adding
-    pub parent_stack: Vec<Id>,
+    pub parent_stack: Vec<NodeSlotkey>,
 
     pub part: PartialBorrowStuff,
 
@@ -714,21 +719,23 @@ impl Ui {
 
         let mut node_fronts = FxHashMap::with_capacity_and_hasher(100, Default::default());
         
-        let mut stack = Vec::with_capacity(7);
-        stack.push(NODE_ROOT_ID);
-        
-        let mut parent_stack = Vec::with_capacity(7);
-        parent_stack.push(NODE_ROOT_ID);
+
         
         let mut nodes = SlotMap::with_capacity_and_key(100);
         let root_slotkey = nodes.insert(NODE_ROOT);
         let root_nodefront = NodeFront {
-            last_parent: NODE_ROOT_ID,
+            last_parent: NodeSlotkey::default(),
             last_frame_touched: u64::MAX,
             slotkey: root_slotkey,
             n_twins: 0,
         };
         
+        let mut stack = Vec::with_capacity(7);
+        stack.push(root_slotkey);
+        
+        let mut parent_stack = Vec::with_capacity(7);
+        parent_stack.push(root_slotkey);
+
         node_fronts.insert(NODE_ROOT_ID, root_nodefront);
 
         let nodes = Nodes {
@@ -737,6 +744,7 @@ impl Ui {
         };
 
         Self {
+            root_slotkey,
             waiting_for_click_release: false,
             debug_mode: false,
             debug_key_pressed: false,
@@ -760,7 +768,7 @@ impl Ui {
             base_uniform_buffer: resolution_buffer,
             bind_group,
 
-            stack: Vec::with_capacity(50),
+            traversal_stack: Vec::with_capacity(50),
 
             parent_stack,
 
@@ -802,6 +810,7 @@ impl Ui {
         let parent_id = self.parent_stack.last().unwrap().clone();
 
         let frame = self.part.current_frame;
+        // todo: check if this bevcame useless
         let final_added_id;
         let mut final_slotkey;
         let mut twin = false;
@@ -810,11 +819,11 @@ impl Ui {
             // add new, no twin
             Entry::Vacant(v) => {
                 let text_id = self.text.new_text_area(key.defaults().text, frame);
-                let new_node = Self::build_new_node(&key.defaults(), Some(parent_id), text_id);
+                let new_node = Self::build_new_node(&key, Some(parent_id), text_id);
                 
                 final_slotkey = self.nodes.nodes.insert(new_node);
                 
-                v.insert(NodeFront::new(key.id(), frame, final_slotkey));
+                v.insert(NodeFront::new(parent_id, frame, final_slotkey));
                 final_added_id = key.id();
             },
             Entry::Occupied(o) => {
@@ -855,10 +864,10 @@ impl Ui {
                 Entry::Vacant(v) => {
     
                     let text_id = self.text.new_text_area(key.defaults().text, frame);
-                    let new_twin_node = Self::build_new_node(&key.defaults(), Some(parent_id), text_id);
+                    let new_twin_node = Self::build_new_node(&key, Some(parent_id), text_id);
 
-                    let slotmap_key = self.nodes.nodes.insert(new_twin_node);                        
-                    v.insert(NodeFront::new(final_added_id, frame, slotmap_key));
+                    final_slotkey = self.nodes.nodes.insert(new_twin_node);
+                    v.insert(NodeFront::new(parent_id, frame, final_slotkey));
                 },
                 // refresh twin
                 Entry::Occupied(o) => {
@@ -883,9 +892,9 @@ impl Ui {
         // this always runs: refresh, new, normal, twin 
         // in a better world, we could totally have a pointer or index to the parent instead of a parent_id.
         // todo: move this in better places o algo
-        self.add_child_to_parent(final_added_id, parent_id);
+        self.add_child_to_parent(final_slotkey, parent_id);
         if make_new_layer {
-            self.parent_stack.push(final_added_id);           
+            self.parent_stack.push(final_slotkey);           
         }
 
         return NodeWithStuff {
@@ -895,31 +904,32 @@ impl Ui {
 
     }
 
-    pub fn add_child_to_parent(&mut self, id: Id, parent_id: Id) {
+    pub fn add_child_to_parent(&mut self, id: NodeSlotkey, parent_id: NodeSlotkey) {
         // todo2: change
-        self.nodes.get(&parent_id)
+        self.nodes.nodes.get_mut(parent_id)
             .unwrap()
-            .children_ids
+            .children
             .push(id);
     }
 
     // todo: why like this
     pub fn build_new_node(
-        defaults: &NodeParams,
-        parent_id: Option<Id>,
+        key: &NodeKey,
+        parent_id: Option<NodeSlotkey>,
         text_id: Option<usize>,
     ) -> Node {
         let parent_id = match parent_id {
             Some(parent_id) => parent_id,
-            None => Id(0),
+            None => NodeSlotkey::default(),
         };
         Node {
+            id: key.id(),
             rect_id: None,
             rect: Xy::new_symm([0.0, 1.0]),
             text_id,
-            parent_id,
-            children_ids: Vec::new(),
-            params: *defaults,
+            parent: parent_id,
+            children: Vec::new(),
+            params: key.defaults(),
             last_frame_status: LastFrameStatus::Nothing,
             last_hover: f32::MIN,
             last_click: f32::MIN,
@@ -1103,21 +1113,21 @@ impl Ui {
     }
 
     pub fn layout(&mut self) {
-        self.stack.clear();
+        self.traversal_stack.clear();
 
         // push the root
-        self.stack.push(NODE_ROOT_ID);
+        self.traversal_stack.push(self.root_slotkey);
 
         // start processing a parent
-        while let Some(current_node_id) = self.stack.pop() {
+        while let Some(current_node_id) = self.traversal_stack.pop() {
             // todo: garbage
             // to fix, just write a function "self.get_info_about_node_by_value_without_borrowing(id)"
             let parent_rect: Rect;
-            let children: Vec<Id>;
+            let children: Vec<NodeSlotkey>;
             let is_stack: Option<Stack>;
             {
-                let parent_node = self.nodes.get(&current_node_id).unwrap();                
-                children = parent_node.children_ids.clone();
+                let parent_node = self.nodes.nodes.get(current_node_id).unwrap();                
+                children = parent_node.children.clone();
                 parent_rect = parent_node.rect;
                 is_stack = parent_node.params.is_stack;
             }
@@ -1150,7 +1160,7 @@ impl Ui {
                     let mut walker = parent_rect[main_axis][i0];
 
                     for &child_id in children.iter().rev() {
-                        let child = self.nodes.get(&child_id).unwrap();
+                        let child = self.nodes.nodes.get_mut(child_id).unwrap();
                         child.rect[main_axis][i0] = walker;
 
                         match child.params.size[main_axis] {
@@ -1187,12 +1197,12 @@ impl Ui {
                         let text_id = child.text_id;
                         self.layout_text(text_id, rect);
 
-                        self.stack.push(child_id);
+                        self.traversal_stack.push(child_id);
                     }
                 }
                 None => {
                     for &child_id in children.iter().rev() {
-                        let child = self.nodes.get(&child_id).unwrap();
+                        let child = self.nodes.nodes.get_mut(child_id).unwrap();
 
                         for axis in [X, Y] {
                             match child.params.position[axis] {
@@ -1233,7 +1243,7 @@ impl Ui {
                         let text_id = child.text_id;
                         self.layout_text(text_id, rect);
 
-                        self.stack.push(child_id);
+                        self.traversal_stack.push(child_id);
                     }
                 }
             }
@@ -1296,17 +1306,17 @@ impl Ui {
 
     pub fn build_buffers(&mut self) {
         self.rects.clear();
-        self.stack.clear();
+        self.traversal_stack.clear();
 
         // push the ui.direct children of the root without processing the root
         if let Some(root) = self.nodes.get(&NODE_ROOT_ID) {
-            for &child_id in root.children_ids.iter().rev() {
-                self.stack.push(child_id);
+            for &child_id in root.children.iter().rev() {
+                self.traversal_stack.push(child_id);
             }
         }
 
-        while let Some(current_node_id) = self.stack.pop() {
-            let current_node = self.nodes.get(&current_node_id).unwrap();
+        while let Some(current_node_id) = self.traversal_stack.pop() {
+            let current_node = self.nodes.nodes.get(current_node_id).unwrap();
 
             // in debug mode, draw invisible rects as well.
             // usually these have filled = false (just the outline), but this is not enforced.
@@ -1322,15 +1332,15 @@ impl Ui {
                     last_hover: current_node.last_hover,
                     last_click: current_node.last_click,
                     clickable: current_node.params.clickable.into(),
-                    id: current_node_id,
+                    id: current_node.id,
                     z: 0.0,
                     radius: 30.0,
                     filled: current_node.params.filled as u32,
                 });
             }
 
-            for &child_id in current_node.children_ids.iter() {
-                self.stack.push(child_id);
+            for &child_id in current_node.children.iter() {
+                self.traversal_stack.push(child_id);
             }
         }
 
@@ -1485,7 +1495,7 @@ impl Ui {
 
         self.nodes.get(&NODE_ROOT_ID)
             .unwrap()
-            .children_ids
+            .children
             .clear();
 
         self.part.current_frame += 1;
@@ -1672,6 +1682,7 @@ macro_rules! tree {
 // probably only the layout stuff is needed.
 #[derive(Debug)]
 pub struct Node {
+    pub id: Id,
     // visible rect only
     pub rect_id: Option<usize>,
     // also for invisible rects, used for layout
@@ -1681,9 +1692,9 @@ pub struct Node {
 
     pub text_id: Option<usize>,
 
-    pub parent_id: Id,
+    pub parent: NodeSlotkey,
     // todo: maybe switch with that prev/next thing
-    pub children_ids: Vec<Id>,
+    pub children: Vec<NodeSlotkey>,
     pub params: NodeParams,
 
     pub last_hover: f32,
@@ -1691,9 +1702,9 @@ pub struct Node {
     pub z: f32,
 }
 impl Node {
-    fn refresh(&mut self, parent_id: Id) {
-        self.parent_id = parent_id;
-        self.children_ids.clear();
+    fn refresh(&mut self, parent_id: NodeSlotkey) {
+        self.parent = parent_id;
+        self.children.clear();
     }
 }
 
