@@ -5,6 +5,7 @@ use glyphon::cosmic_text::{Align, StringCursor};
 use glyphon::{AttrsList, Cursor as GlyphonCursor};
 use glyphon::{Affinity, Resolution as GlyphonResolution};
 use rustc_hash::{FxHashMap, FxHasher};
+use slotmap::{new_key_type, DefaultKey, SlotMap};
 use wgpu::*;
 use winit::keyboard::Key;
 
@@ -525,6 +526,16 @@ impl Text {
     }
 }
 
+new_key_type! {
+    pub struct NodeSlotmapKey;
+}
+
+pub struct NodeFront {
+    pub last_parent: Id,
+    pub last_frame_touched: u64,
+    pub slotmap_key: NodeSlotmapKey,
+}
+
 pub struct Ui {
     pub debug_mode: bool,
     pub debug_key_pressed: bool,
@@ -544,8 +555,11 @@ pub struct Ui {
     pub text: Text,
 
     pub rects: Vec<RenderRect>,
-    pub node_map: FxHashMap<Id, Node>,
 
+    // todo: make faster o algo
+    pub node_fronts: FxHashMap<Id, NodeFront>,
+    pub nodes: SlotMap<NodeSlotmapKey, Node>,
+    
     // stack for traversing
     pub stack: Vec<Id>,
 
@@ -666,15 +680,24 @@ impl Ui {
 
         let text_areas = Vec::with_capacity(50);
 
-        let mut nodes = FxHashMap::default();
-
-        nodes.insert(NODE_ROOT_ID, NODE_ROOT);
-
+        let mut node_fronts = FxHashMap::with_capacity_and_hasher(100, Default::default());
+        
         let mut stack = Vec::with_capacity(7);
         stack.push(NODE_ROOT_ID);
-
+        
         let mut parent_stack = Vec::with_capacity(7);
         parent_stack.push(NODE_ROOT_ID);
+        
+        let mut nodes = SlotMap::with_capacity_and_key(100);
+        let root_slotkey = nodes.insert(NODE_ROOT);
+        let root_nodefront = NodeFront {
+            last_parent: NODE_ROOT_ID,
+            last_frame_touched: 1,
+            slotmap_key: root_slotkey,
+        };
+        
+        node_fronts.insert(NODE_ROOT_ID, root_nodefront);
+
 
         Self {
             waiting_for_click_release: false,
@@ -693,7 +716,9 @@ impl Ui {
 
             render_pipeline,
             rects: Vec::with_capacity(20),
-            node_map: nodes,
+
+            node_fronts,
+            nodes,
             gpu_vertex_buffer: vertex_buffer,
             base_uniform_buffer: resolution_buffer,
             bind_group,
@@ -1852,5 +1877,7 @@ pub fn refresh_or_add_twin(current_frame: u64, old_node_last_frame_touched: u64)
         return RefreshOrClone::Refresh;
     }
 }
+
+
 
 
