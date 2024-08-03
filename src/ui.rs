@@ -822,7 +822,7 @@ impl Ui {
 
         let frame = self.part.current_frame;
 
-        let mut final_i;
+        let mut final_i: Option<usize>;
         let mut twin_key: Option<NodeKey> = None;
 
         match self.nodes.fronts.entry(key.id()) {
@@ -831,9 +831,9 @@ impl Ui {
                 let text_id = self.text.new_text_area(key.defaults().text, frame);
                 let new_node = Self::build_new_node(&key, Some(parent_id), text_id);
                 
-                final_i = self.nodes.nodes.insert(new_node);
+                final_i = Some(self.nodes.nodes.insert(new_node));
                 
-                v.insert(NodeFront::new(parent_id, frame, final_i));
+                v.insert(NodeFront::new(parent_id, frame, final_i.unwrap()));
             },
             Entry::Occupied(o) => {
                 let old_nodefront = o.into_mut();
@@ -843,9 +843,9 @@ impl Ui {
                         old_nodefront.refresh(parent_id, frame);
 
                         // todo2: check the nodefront values and maybe skip reaching into the node
-                        final_i = old_nodefront.slab_i;
+                        final_i = Some(old_nodefront.slab_i);
                         
-                        let old_node = &mut self.nodes[final_i];
+                        let old_node = &mut self.nodes[final_i.unwrap()];
                         
                         old_node.refresh(parent_id);
                         self.text.refresh_last_frame(old_node.text_id, frame);
@@ -854,10 +854,8 @@ impl Ui {
                     AddTwin => {
                         old_nodefront.n_twins += 1;
                         twin_key = Some(key.sibling(old_nodefront.n_twins));
-
-                        // I have to write put a wrong value here to shut up the compiler. it has to be overwritten later.
-                        // this sucks but whatever.
-                        final_i = old_nodefront.slab_i;
+                        // I have to write put a wrong value here to shut the compiler up. it has to be overwritten later.
+                        final_i = None;
                     }
                 }
 
@@ -873,8 +871,8 @@ impl Ui {
                     let text_id = self.text.new_text_area(twin_key.defaults().text, frame);
                     let new_twin_node = Self::build_new_node(&twin_key, Some(parent_id), text_id);
 
-                    final_i = self.nodes.nodes.insert(new_twin_node);
-                    v.insert(NodeFront::new(parent_id, frame, final_i));
+                    final_i = Some(self.nodes.nodes.insert(new_twin_node));
+                    v.insert(NodeFront::new(parent_id, frame, final_i.unwrap()));
                 },
                 // refresh twin
                 Entry::Occupied(o) => {
@@ -883,9 +881,9 @@ impl Ui {
                     // todo2: check the nodefront values and maybe skip reaching into the node
                     old_twin_nodefront.refresh(parent_id, frame);
 
-                    final_i = old_twin_nodefront.slab_i;
+                    final_i = Some(old_twin_nodefront.slab_i);
 
-                    let old_node = &mut self.nodes[final_i];
+                    let old_node = &mut self.nodes[final_i.unwrap()];
 
                     old_node.refresh(parent_id);
                     self.text.refresh_last_frame(old_node.text_id, frame);
@@ -896,6 +894,8 @@ impl Ui {
 
         }
 
+        // final_i is Some in all branches, but the compiler can't really see it.
+        let final_i = final_i.unwrap();
         // this always runs: refresh, new, normal, twin 
         // in a better world, we could totally have a pointer or index to the parent instead of a parent_id.
         // todo: move this in better places o algo
@@ -913,7 +913,7 @@ impl Ui {
 
     pub fn add_child_to_parent(&mut self, id: usize, parent_id: usize) {
         // todo2: change
-        self.nodes[parent_id]           .children
+        self.nodes[parent_id].children
             .push(id);
     }
 
