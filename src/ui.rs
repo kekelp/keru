@@ -5,7 +5,7 @@ use glyphon::cosmic_text::{Align, StringCursor};
 use glyphon::{AttrsList, Cursor as GlyphonCursor};
 use glyphon::{Affinity, Resolution as GlyphonResolution};
 use rustc_hash::{FxHashMap, FxHasher};
-use slotmap::{new_key_type, SlotMap};
+use slab::Slab;
 use wgpu::*;
 use winit::keyboard::Key;
 
@@ -528,13 +528,13 @@ impl Text {
     }
 }
 
-new_key_type! {
-    pub struct NodeSlotkey;
-}
+#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, Pod, Zeroable)]
+#[repr(C)]
+pub struct Idx(pub(crate) u64);
 
 #[derive(Debug, Clone, Copy)]
 pub struct NodeFront {
-    pub last_parent: NodeSlotkey,
+    pub last_parent: usize,
     pub last_frame_touched: u64,
         // keeping track of the twin situation.
     // for the 0-th twin of a family, this will be the total number of clones of itself around. (not including itself, so starts at zero).
@@ -542,19 +542,19 @@ pub struct NodeFront {
     // for this reason, "clones" or "copies" would be better names, but those words are loaded in rust
     // reproduction? replica? imitation? duplicate? version? dupe? replication? mock? carbon?    
     pub n_twins: u32,
-    pub slotkey: NodeSlotkey,
+    pub slab_i: usize,
 }
 impl NodeFront {
-    pub fn new(parent_id: NodeSlotkey, frame: u64, new_slotkey: NodeSlotkey) -> Self {
+    pub fn new(parent_id: usize, frame: u64, new_i: usize) -> Self {
         return Self {
             last_parent: parent_id,
             last_frame_touched: frame,
             n_twins: 0,
-            slotkey: new_slotkey,
+            slab_i: new_i,
         }
     }
 
-    pub fn refresh(&mut self, parent_id: NodeSlotkey, frame: u64) {
+    pub fn refresh(&mut self, parent_id: usize, frame: u64) {
         self.last_frame_touched = frame;
         self.last_parent = parent_id;
     }
@@ -565,30 +565,28 @@ impl NodeFront {
 pub struct Nodes {
     // todo: make faster o algo
     pub fronts: FxHashMap<Id, NodeFront>,
-    pub nodes: SlotMap<NodeSlotkey, Node>,
+    pub nodes: Slab<Node>,
 }
 impl Nodes {
     pub fn get_by_id(&mut self, id: &Id) -> Option<&mut Node> {
-        let slotkey = self.fronts.get(&id).unwrap().slotkey;
-        return self.nodes.get_mut(slotkey);
+        let i = self.fronts.get(&id).unwrap().slab_i;
+        return self.nodes.get_mut(i);
     }
 }
-impl Index<NodeSlotkey> for Nodes {
+impl Index<usize> for Nodes {
     type Output = Node;
-    fn index(&self, slotkey: NodeSlotkey) -> &Self::Output {
-        return self.nodes.get(slotkey)
-            .unwrap_or_else(|| panic!("No entry at index {:?}", slotkey))
+    fn index(&self, i: usize) -> &Self::Output {
+        return &self.nodes[i];
     }
 }
-impl IndexMut<NodeSlotkey> for Nodes {
-    fn index_mut(&mut self, slotkey: NodeSlotkey) -> &mut Self::Output {
-        return self.nodes.get_mut(slotkey)
-            .unwrap_or_else(|| panic!("No entry at index {:?}", slotkey))
+impl IndexMut<usize> for Nodes {
+    fn index_mut(&mut self, i: usize) -> &mut Self::Output {
+        return &mut self.nodes[i];
     }
 }
 
 pub struct Ui {
-    pub root_slotkey: NodeSlotkey,
+    pub root_i: usize,
     pub debug_mode: bool,
     pub debug_key_pressed: bool,
 
@@ -611,10 +609,10 @@ pub struct Ui {
     pub nodes: Nodes,
     
     // stack for traversing
-    pub traverse_stack: Vec<NodeSlotkey>,
+    pub traverse_stack: Vec<usize>,
 
     // stack for adding
-    pub parent_stack: Vec<NodeSlotkey>,
+    pub parent_stack: Vec<usize>,
 
     pub part: PartialBorrowStuff,
 
@@ -734,20 +732,20 @@ impl Ui {
         
 
         
-        let mut nodes = SlotMap::with_capacity_and_key(100);
-        let root_slotkey = nodes.insert(NODE_ROOT);
+        let mut nodes = Slab::with_capacity(100);
+        let root_i = nodes.insert(NODE_ROOT);
         let root_nodefront = NodeFront {
-            last_parent: NodeSlotkey::default(),
+            last_parent: usize::default(),
             last_frame_touched: u64::MAX,
-            slotkey: root_slotkey,
+            slab_i: root_i,
             n_twins: 0,
         };
         
         let mut stack = Vec::with_capacity(7);
-        stack.push(root_slotkey);
+        stack.push(root_i);
         
         let mut parent_stack = Vec::with_capacity(7);
-        parent_stack.push(root_slotkey);
+        parent_stack.push(root_i);
 
         node_fronts.insert(NODE_ROOT_ID, root_nodefront);
 
@@ -757,7 +755,7 @@ impl Ui {
         };
 
         Self {
-            root_slotkey,
+            root_i,
             waiting_for_click_release: false,
             debug_mode: false,
             debug_key_pressed: false,
@@ -824,7 +822,7 @@ impl Ui {
 
         let frame = self.part.current_frame;
 
-        let mut final_slotkey;
+        let mut final_i;
         let mut twin_key: Option<NodeKey> = None;
 
         match self.nodes.fronts.entry(key.id()) {
@@ -833,9 +831,9 @@ impl Ui {
                 let text_id = self.text.new_text_area(key.defaults().text, frame);
                 let new_node = Self::build_new_node(&key, Some(parent_id), text_id);
                 
-                final_slotkey = self.nodes.nodes.insert(new_node);
+                final_i = self.nodes.nodes.insert(new_node);
                 
-                v.insert(NodeFront::new(parent_id, frame, final_slotkey));
+                v.insert(NodeFront::new(parent_id, frame, final_i));
             },
             Entry::Occupied(o) => {
                 let old_nodefront = o.into_mut();
@@ -845,9 +843,9 @@ impl Ui {
                         old_nodefront.refresh(parent_id, frame);
 
                         // todo2: check the nodefront values and maybe skip reaching into the node
-                        final_slotkey = old_nodefront.slotkey;
+                        final_i = old_nodefront.slab_i;
                         
-                        let old_node = &mut self.nodes[final_slotkey];
+                        let old_node = &mut self.nodes[final_i];
                         
                         old_node.refresh(parent_id);
                         self.text.refresh_last_frame(old_node.text_id, frame);
@@ -859,7 +857,7 @@ impl Ui {
 
                         // I have to write put a wrong value here to shut up the compiler. it has to be overwritten later.
                         // this sucks but whatever.
-                        final_slotkey = old_nodefront.slotkey;
+                        final_i = old_nodefront.slab_i;
                     }
                 }
 
@@ -875,8 +873,8 @@ impl Ui {
                     let text_id = self.text.new_text_area(twin_key.defaults().text, frame);
                     let new_twin_node = Self::build_new_node(&twin_key, Some(parent_id), text_id);
 
-                    final_slotkey = self.nodes.nodes.insert(new_twin_node);
-                    v.insert(NodeFront::new(parent_id, frame, final_slotkey));
+                    final_i = self.nodes.nodes.insert(new_twin_node);
+                    v.insert(NodeFront::new(parent_id, frame, final_i));
                 },
                 // refresh twin
                 Entry::Occupied(o) => {
@@ -885,9 +883,9 @@ impl Ui {
                     // todo2: check the nodefront values and maybe skip reaching into the node
                     old_twin_nodefront.refresh(parent_id, frame);
 
-                    final_slotkey = old_twin_nodefront.slotkey;
+                    final_i = old_twin_nodefront.slab_i;
 
-                    let old_node = &mut self.nodes[final_slotkey];
+                    let old_node = &mut self.nodes[final_i];
 
                     old_node.refresh(parent_id);
                     self.text.refresh_last_frame(old_node.text_id, frame);
@@ -901,19 +899,19 @@ impl Ui {
         // this always runs: refresh, new, normal, twin 
         // in a better world, we could totally have a pointer or index to the parent instead of a parent_id.
         // todo: move this in better places o algo
-        self.add_child_to_parent(final_slotkey, parent_id);
+        self.add_child_to_parent(final_i, parent_id);
         if make_new_layer {
-            self.parent_stack.push(final_slotkey);           
+            self.parent_stack.push(final_i);           
         }
 
         return NodeWithStuff {
-            node: &mut self.nodes[final_slotkey],
+            node: &mut self.nodes[final_i],
             text: &mut self.text,
         };
 
     }
 
-    pub fn add_child_to_parent(&mut self, id: NodeSlotkey, parent_id: NodeSlotkey) {
+    pub fn add_child_to_parent(&mut self, id: usize, parent_id: usize) {
         // todo2: change
         self.nodes[parent_id]           .children
             .push(id);
@@ -922,12 +920,12 @@ impl Ui {
     // todo: why like this
     pub fn build_new_node(
         key: &NodeKey,
-        parent_id: Option<NodeSlotkey>,
+        parent_id: Option<usize>,
         text_id: Option<usize>,
     ) -> Node {
         let parent_id = match parent_id {
             Some(parent_id) => parent_id,
-            None => NodeSlotkey::default(),
+            None => usize::default(),
         };
         Node {
             id: key.id(),
@@ -1123,14 +1121,14 @@ impl Ui {
         self.traverse_stack.clear();
 
         // push the root
-        self.traverse_stack.push(self.root_slotkey);
+        self.traverse_stack.push(self.root_i);
 
         // start processing a parent
         while let Some(current_node_id) = self.traverse_stack.pop() {
             // todo: garbage
             // to fix, just write a function "self.get_info_about_node_by_value_without_borrowing(id)"
             let parent_rect: Rect;
-            let children: Vec<NodeSlotkey>;
+            let children: Vec<usize>;
             let is_stack: Option<Stack>;
             {
                 let parent_node = self.nodes.nodes.get(current_node_id).unwrap();                
@@ -1620,7 +1618,7 @@ impl Ui {
             // dbg!(to_prune, v.last_frame_touched, self.part.current_frame);
             // println!(" " );
             if ! should_retain {
-                self.nodes.nodes.remove(v.slotkey);
+                self.nodes.nodes.remove(v.slab_i);
                 println!(" PRUNING {:?} {:?}", k, v);
             }
             should_retain
@@ -1699,9 +1697,9 @@ pub struct Node {
 
     pub text_id: Option<usize>,
 
-    pub parent: NodeSlotkey,
+    pub parent: usize,
     // todo: maybe switch with that prev/next thing
-    pub children: Vec<NodeSlotkey>,
+    pub children: Vec<usize>,
     pub params: NodeParams,
 
     pub last_hover: f32,
@@ -1709,7 +1707,7 @@ pub struct Node {
     pub z: f32,
 }
 impl Node {
-    fn refresh(&mut self, parent_id: NodeSlotkey) {
+    fn refresh(&mut self, parent_id: usize) {
         self.parent = parent_id;
         self.children.clear();
     }

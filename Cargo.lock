@@ -177,7 +177,7 @@ dependencies = [
  "lazy_static",
  "pollster",
  "rustc-hash",
- "slotmap",
+ "slab",
  "smart-default",
  "unicode-segmentation",
  "view_derive",
