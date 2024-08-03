@@ -9,8 +9,6 @@ use slab::Slab;
 use wgpu::*;
 use winit::keyboard::Key;
 
-use RefreshOrClone::*;
-
 use std::collections::hash_map::Entry;
 use std::ops::{Add, Mul, Sub};
 use std::{
@@ -814,11 +812,11 @@ impl Ui {
     }
 
     pub fn add(&mut self, key: NodeKey) -> NodeWithStuff {
-        return self.add_or_refresh_node(key, false);
+        return self.update_node(key, false);
     }
 
     pub fn add_layer(&mut self, key: NodeKey) -> NodeWithStuff {
-        return self.add_or_refresh_node(key, true);
+        return self.update_node(key, true);
     }
 
     pub fn end_layer(&mut self) {
@@ -826,7 +824,7 @@ impl Ui {
         self.last_child_stack.pop();
     }
 
-    pub fn add_or_refresh_node(&mut self, key: NodeKey, make_new_layer: bool) -> NodeWithStuff {
+    pub fn update_node(&mut self, key: NodeKey, make_new_layer: bool) -> NodeWithStuff {
         let parent_id = self.parent_stack.last().unwrap().clone();
 
         let frame = self.part.current_frame;
@@ -844,7 +842,7 @@ impl Ui {
                 let final_i = self.nodes.nodes.insert(new_node);
                 v.insert(NodeFront::new(parent_id, frame, final_i));
 
-                AddedNormal{ final_i }
+                UpdatedNormal{ final_i }
             },
             Entry::Occupied(o) => {
                 let old_nodefront = o.into_mut();
@@ -856,13 +854,13 @@ impl Ui {
                         // todo2: check the nodefront values and maybe skip reaching into the node
                         let final_i = old_nodefront.slab_i;
                         self.refresh_node(final_i, parent_id, frame);
-                        AddedNormal{ final_i }
+                        UpdatedNormal{ final_i }
                     }
                     // do nothing, just calculate the twin key and go to twin part below
                     AddTwin => {
                         old_nodefront.n_twins += 1;
                         let twin_key = key.sibling(old_nodefront.n_twins);
-                        NeedToAddTwin { twin_key }
+                        NeedToUpdateTwin { twin_key }
                     }
                 }
 
@@ -873,8 +871,8 @@ impl Ui {
         //      and there's nothing to do regarding twins, so we just confirm final_i.
         // If it's NeedToAddTwin, we repeat the same thing with the new twin_key.
         let real_final_i = match twin_check_result {
-            AddedNormal { final_i } => final_i,
-            NeedToAddTwin { twin_key } => {
+            UpdatedNormal { final_i } => final_i,
+            NeedToUpdateTwin { twin_key } => {
                 match self.nodes.fronts.entry(twin_key.id()) {
                     // Add new twin.
                     Entry::Vacant(v) => {
@@ -1366,9 +1364,7 @@ impl Ui {
             }
         }
 
-        println!("");
         println!("len {:?}", self.nodes.nodes.len());
-        println!("");
         self.push_cursor_rect();
     }
 
@@ -1986,6 +1982,7 @@ impl NodeKey {
     }
 }
 
+use RefreshOrClone::*;
 pub enum RefreshOrClone {
     Refresh,
     AddTwin,
@@ -2000,15 +1997,15 @@ pub fn refresh_or_add_twin(current_frame: u64, old_node_last_frame_touched: u64)
     }
 }
 
+use TwinCheckResult::*;
 enum TwinCheckResult {
-    AddedNormal {
+    UpdatedNormal {
         final_i: usize,
     },
-    NeedToAddTwin {
+    NeedToUpdateTwin {
         twin_key: NodeKey,
     }
 }
-use TwinCheckResult::*;
 
 // #[macro_export]
 // macro_rules! for_each_child {
