@@ -834,9 +834,8 @@ impl Ui {
         // We might find that the key has already been used in this same frame: 
         //      in this case, we take note, and calculate a twin key to use to add a "twin" in the next section
         // Otherwise, we add or refresh normally, and take note of the final i.
-        let twin_check_result: TwinCheckResult;
-        match self.nodes.fronts.entry(key.id()) {
-            // add new, no twin
+        let twin_check_result = match self.nodes.fronts.entry(key.id()) {
+            // Add a normal node (no twins).
             Entry::Vacant(v) => {
                 let text_id = self.text.new_text_area(key.defaults().text, frame);
                 let new_node = Self::build_new_node(&key, Some(parent_id), text_id);
@@ -844,63 +843,62 @@ impl Ui {
                 let final_i = self.nodes.nodes.insert(new_node);
                 v.insert(NodeFront::new(parent_id, frame, final_i));
 
-                twin_check_result = Normal{ final_i };
+                AddedNormal{ final_i }
             },
             Entry::Occupied(o) => {
                 let old_nodefront = o.into_mut();
                 
                 match refresh_or_add_twin(frame, old_nodefront.last_frame_touched) {
-                    // refresh, no twin
+                    // Refresh a normal node from the previous frame (no twins).
                     Refresh => {
                         old_nodefront.refresh(parent_id, frame);
                         // todo2: check the nodefront values and maybe skip reaching into the node
                         let final_i = old_nodefront.slab_i;
-
                         self.refresh_node(final_i, parent_id, frame);
-
-                        twin_check_result = Normal{ final_i };
+                        AddedNormal{ final_i }
                     }
                     // do nothing, just calculate the twin key and go to twin part below
                     AddTwin => {
                         old_nodefront.n_twins += 1;
                         let twin_key = key.sibling(old_nodefront.n_twins);
-                        twin_check_result = NeedToAddTwin { twin_key };
+                        NeedToAddTwin { twin_key }
                     }
                 }
 
             },
-        }
+        };
 
-        let real_final_i;
-        match twin_check_result {
-            Normal { final_i } => {
-                real_final_i = final_i;
-            },
+        // If twin_check_result is AddedNormal, the node was added in the section before, 
+        //      and there's nothing to do regarding twins, so we just confirm final_i.
+        // If it's NeedToAddTwin, we repeat the same thing with the new twin_key.
+        let real_final_i = match twin_check_result {
+            AddedNormal { final_i } => final_i,
             NeedToAddTwin { twin_key } => {
                 match self.nodes.fronts.entry(twin_key.id()) {
-                    // add new twin
+                    // Add new twin.
                     Entry::Vacant(v) => {
                         let text_id = self.text.new_text_area(twin_key.defaults().text, frame);
                         let new_twin_node = Self::build_new_node(&twin_key, Some(parent_id), text_id);
     
-                        real_final_i = self.nodes.nodes.insert(new_twin_node);
+                        let real_final_i = self.nodes.nodes.insert(new_twin_node);
                         v.insert(NodeFront::new(parent_id, frame, real_final_i));
+                        real_final_i
                     },
-                    // refresh twin
+                    // Refresh a twin from the previous frame.
                     Entry::Occupied(o) => {
                         let old_twin_nodefront = o.into_mut();
     
                         // todo2: check the nodefront values and maybe skip reaching into the node
                         old_twin_nodefront.refresh(parent_id, frame);
     
-                        real_final_i = old_twin_nodefront.slab_i;
-    
+                        let real_final_i = old_twin_nodefront.slab_i;
                         self.refresh_node(real_final_i, parent_id, frame);
+                        real_final_i
                     },
     
                 }
             },
-        }
+        };
 
         self.add_child_to_parent(real_final_i, parent_id);
         if make_new_layer {
@@ -2002,7 +2000,7 @@ pub fn refresh_or_add_twin(current_frame: u64, old_node_last_frame_touched: u64)
 }
 
 enum TwinCheckResult {
-    Normal {
+    AddedNormal {
         final_i: usize,
     },
     NeedToAddTwin {
