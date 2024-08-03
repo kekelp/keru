@@ -830,18 +830,21 @@ impl Ui {
 
         let frame = self.part.current_frame;
 
-        let mut final_i: Option<usize>;
-        let mut twin_key: Option<NodeKey> = None;
-
+        // Check the node corresponding to the key's id.
+        // We might find that the key has already been used in this same frame: 
+        //      in this case, we take note, and calculate a twin key to use to add a "twin" in the next section
+        // Otherwise, we add or refresh normally, and take note of the final i.
+        let twin_check_result: TwinCheckResult;
         match self.nodes.fronts.entry(key.id()) {
             // add new, no twin
             Entry::Vacant(v) => {
                 let text_id = self.text.new_text_area(key.defaults().text, frame);
                 let new_node = Self::build_new_node(&key, Some(parent_id), text_id);
                 
-                final_i = Some(self.nodes.nodes.insert(new_node));
-                
-                v.insert(NodeFront::new(parent_id, frame, final_i.unwrap()));
+                let final_i = self.nodes.nodes.insert(new_node);
+                v.insert(NodeFront::new(parent_id, frame, final_i));
+
+                twin_check_result = Normal{ final_i };
             },
             Entry::Occupied(o) => {
                 let old_nodefront = o.into_mut();
@@ -850,72 +853,62 @@ impl Ui {
                     // refresh, no twin
                     Refresh => {
                         old_nodefront.refresh(parent_id, frame);
-
                         // todo2: check the nodefront values and maybe skip reaching into the node
-                        final_i = Some(old_nodefront.slab_i);
-                        
-                        let old_node = &mut self.nodes[final_i.unwrap()];
-                        
-                        old_node.refresh(parent_id);
-                        self.text.refresh_last_frame(old_node.text_id, frame);
+                        let final_i = old_nodefront.slab_i;
+
+                        self.refresh_node(final_i, parent_id, frame);
+
+                        twin_check_result = Normal{ final_i };
                     }
                     // do nothing, just calculate the twin key and go to twin part below
                     AddTwin => {
                         old_nodefront.n_twins += 1;
-                        println!("  twin moment  {:?}", old_nodefront.n_twins);
-                        twin_key = Some(key.sibling(old_nodefront.n_twins));
-                        // I have to write put a wrong value here to shut the compiler up. but it will be overwritten later.
-                        final_i = None;
+                        let twin_key = key.sibling(old_nodefront.n_twins);
+                        twin_check_result = NeedToAddTwin { twin_key };
                     }
                 }
 
             },
         }
 
-        // twin part. Key has been mutated to the twin_key. Not very good code.
-        if let Some(twin_key) = twin_key {
-            match self.nodes.fronts.entry(twin_key.id()) {
-                // add new twin
-                Entry::Vacant(v) => {
-                    let text_id = self.text.new_text_area(twin_key.defaults().text, frame);
-                    let new_twin_node = Self::build_new_node(&twin_key, Some(parent_id), text_id);
-                    println!(" **NEW** TWIN {:?}",  new_twin_node.params.debug_name);
-                    println!("        id {:?}",  twin_key.id());
-
-                    final_i = Some(self.nodes.nodes.insert(new_twin_node));
-                    v.insert(NodeFront::new(parent_id, frame, final_i.unwrap()));
-                },
-                // refresh twin
-                Entry::Occupied(o) => {
-                    let old_twin_nodefront = o.into_mut();
-
-                    // todo2: check the nodefront values and maybe skip reaching into the node
-                    old_twin_nodefront.refresh(parent_id, frame);
-
-                    final_i = Some(old_twin_nodefront.slab_i);
-
-                    let old_node = &mut self.nodes[final_i.unwrap()];
-
-                    old_node.refresh(parent_id);
-                    self.text.refresh_last_frame(old_node.text_id, frame);
-                },
-
-            }
-
-
+        let real_final_i;
+        match twin_check_result {
+            Normal { final_i } => {
+                real_final_i = final_i;
+            },
+            NeedToAddTwin { twin_key } => {
+                match self.nodes.fronts.entry(twin_key.id()) {
+                    // add new twin
+                    Entry::Vacant(v) => {
+                        let text_id = self.text.new_text_area(twin_key.defaults().text, frame);
+                        let new_twin_node = Self::build_new_node(&twin_key, Some(parent_id), text_id);
+    
+                        real_final_i = self.nodes.nodes.insert(new_twin_node);
+                        v.insert(NodeFront::new(parent_id, frame, real_final_i));
+                    },
+                    // refresh twin
+                    Entry::Occupied(o) => {
+                        let old_twin_nodefront = o.into_mut();
+    
+                        // todo2: check the nodefront values and maybe skip reaching into the node
+                        old_twin_nodefront.refresh(parent_id, frame);
+    
+                        real_final_i = old_twin_nodefront.slab_i;
+    
+                        self.refresh_node(real_final_i, parent_id, frame);
+                    },
+    
+                }
+            },
         }
 
-        // final_i is Some in all branches, but the compiler can't really see it.
-        let final_i = final_i.unwrap();
-        // this always runs: refresh, new, normal, twin 
-
-        self.add_child_to_parent(final_i, parent_id);
+        self.add_child_to_parent(real_final_i, parent_id);
         if make_new_layer {
-            self.parent_stack.push(final_i);           
+            self.parent_stack.push(real_final_i);           
         }
 
         return NodeWithStuff {
-            node: &mut self.nodes[final_i],
+            node: &mut self.nodes[real_final_i],
             text: &mut self.text,
         };
 
@@ -1645,6 +1638,13 @@ impl Ui {
             should_retain
         });
     }
+
+    fn refresh_node(&mut self, final_i: usize, parent_id: usize, frame: u64) {
+        let old_node = &mut self.nodes[final_i];
+                        
+        old_node.refresh(parent_id);
+        self.text.refresh_last_frame(old_node.text_id, frame);
+    }
 }
 
 #[macro_export]
@@ -2001,6 +2001,27 @@ pub fn refresh_or_add_twin(current_frame: u64, old_node_last_frame_touched: u64)
     }
 }
 
+enum TwinCheckResult {
+    Normal {
+        final_i: usize,
+    },
+    NeedToAddTwin {
+        twin_key: NodeKey,
+    }
+}
+use TwinCheckResult::*;
 
-
-
+// #[macro_export]
+// macro_rules! for_each_child {
+//     ($ui:expr, $start:expr, $child:ident, $body:block) => {
+//         {
+//             let mut current_child = $start;
+//             while let Some($child) = current_child {
+//                 // The body of the loop is inserted here
+//                 $body
+//                 // Move to the next sibling
+//                 current_child = $ui.nodes[$child].next_sibling;
+//             }
+//         }
+//     };
+// }
