@@ -562,6 +562,7 @@ impl NodeFront {
     pub fn refresh(&mut self, parent_id: usize, frame: u64) {
         self.last_frame_touched = frame;
         self.last_parent = parent_id;
+        self.n_twins = 0;
     }
 
 
@@ -853,6 +854,7 @@ impl Ui {
             },
             Entry::Occupied(o) => {
                 let old_nodefront = o.into_mut();
+                
                 match refresh_or_add_twin(frame, old_nodefront.last_frame_touched) {
                     // refresh, no twin
                     Refresh => {
@@ -870,7 +872,7 @@ impl Ui {
                     AddTwin => {
                         old_nodefront.n_twins += 1;
                         twin_key = Some(key.sibling(old_nodefront.n_twins));
-                        // I have to write put a wrong value here to shut the compiler up. it has to be overwritten later.
+                        // I have to write put a wrong value here to shut the compiler up. but it will be overwritten later.
                         final_i = None;
                     }
                 }
@@ -883,15 +885,18 @@ impl Ui {
             match self.nodes.fronts.entry(twin_key.id()) {
                 // add new twin
                 Entry::Vacant(v) => {
-    
                     let text_id = self.text.new_text_area(twin_key.defaults().text, frame);
                     let new_twin_node = Self::build_new_node(&twin_key, Some(parent_id), text_id);
+                    println!(" **NEW** TWIN {:?}",  new_twin_node.params.debug_name);
+                    println!("        id {:?}",  twin_key.id());
 
                     final_i = Some(self.nodes.nodes.insert(new_twin_node));
                     v.insert(NodeFront::new(parent_id, frame, final_i.unwrap()));
                 },
                 // refresh twin
                 Entry::Occupied(o) => {
+                    println!(" REFRESH TWIN" );
+
                     let old_twin_nodefront = o.into_mut();
 
                     // todo2: check the nodefront values and maybe skip reaching into the node
