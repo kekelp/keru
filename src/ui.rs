@@ -541,7 +541,8 @@ pub struct Idx(pub(crate) u64);
 pub struct NodeFront {
     pub last_parent: usize,
     pub last_frame_touched: u64,
-        // keeping track of the twin situation.
+    
+    // keeping track of the twin situation. This is the number of twins of a node that showed up SO FAR in the current frame. it gets reset every frame (on refresh().)
     // for the 0-th twin of a family, this will be the total number of clones of itself around. (not including itself, so starts at zero).
     // the actual twins ARE twins, but they don't HAVE twins, so this is zero.
     // for this reason, "clones" or "copies" would be better names, but those words are loaded in rust
@@ -832,7 +833,7 @@ impl Ui {
 
         // Check the node corresponding to the key's id.
         // We might find that the key has already been used in this same frame: 
-        //      in this case, we take note, and calculate a twin key to use to add a "twin" in the next section
+        //      in this case, we take note, and calculate a twin key to use to add a "twin" in the next section.
         // Otherwise, we add or refresh normally, and take note of the final i.
         let twin_check_result = match self.nodes.fronts.entry(key.id()) {
             // Add a normal node (no twins).

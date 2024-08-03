@@ -34,22 +34,21 @@ impl State {
                     }
 
                     let pixel_info = self.canvas.pixel_info();
-                    self.ui.add_pixel_info(&pixel_info);
-                    self.ui.add_pixel_info(&pixel_info);
-                    self.ui.add_pixel_info(&pixel_info);
+                    self.add_pixel_info_ui(&pixel_info);
+                    self.add_pixel_info_ui(&pixel_info);
+                    self.add_pixel_info_ui(&pixel_info);
 
-
-                    self.add_twin_thing();
-                    self.add_twin_thing();
-                    self.add_twin_thing();
+                    self.add_twin_thing_ui();
+                    self.add_twin_thing_ui();
+                    self.add_twin_thing_ui();
                 });
             });
 
-            self.counter_state.add_counter(&mut self.ui);
+            self.add_counter_ui();
         });
 
         // effects
-        self.counter_state.on_click(&mut self.ui);
+        self.counter_on_click();
     }
 }
 
@@ -85,50 +84,6 @@ impl CounterState {
 
     #[node_key(LABEL)]
     pub const COUNT_LABEL: NodeKey;
-
-    pub fn add_counter(&mut self, ui: &mut Ui) {
-        margin!(ui, {
-            #[node_key(H_STACK.size_x(0.23).position_x(Position::Start))]
-            pub const CENTER_ROW: NodeKey;
-            h_stack!(ui, CENTER_ROW, {
-                v_stack!(ui, {
-                    if self.counter_mode {
-                        let new_color = count_color(self.count);
-                        add!(ui, Self::INCREASE_BUTTON).set_color(new_color);
-
-                        let count = &self.count.to_string();
-                        add!(ui, Self::COUNT_LABEL).set_text(count).set_text_attrs(
-                            Attrs::new().family(Family::SansSerif).color(GlyphonColor::rgb(255, 76, 23)).weight(Weight::EXTRA_BOLD)
-
-                        )
-                        .set_text_align(Align::Center);
-
-                        add!(ui, Self::DECREASE_BUTTON);
-                    }
-                });
-
-                let text = match self.counter_mode {
-                    true => "Hide counter",
-                    false => "Show counter",
-                };
-                add!(ui, Self::SHOW_COUNTER_BUTTON).set_text(text);
-            });
-        });
-    }
-
-    pub fn on_click(&mut self, ui: &mut Ui) {
-        if ui.is_clicked(Self::INCREASE_BUTTON) {
-            self.count += 1;
-        }
-
-        if ui.is_clicked(Self::DECREASE_BUTTON) {
-            self.count -= 1;
-        }
-
-        if ui.is_clicked(Self::SHOW_COUNTER_BUTTON) {
-            self.counter_mode = !self.counter_mode;
-        }
-    }
 }
 pub fn count_color(count: i32) -> Color {
     let red = 0.1 * (count as f32);
@@ -137,7 +92,7 @@ pub fn count_color(count: i32) -> Color {
 
 
 impl State {
-    pub fn add_twin_thing(&mut self) {
+    pub fn add_twin_thing_ui(&mut self) {
         #[node_key(PANEL.size_y(0.5).position_x(Position::Start))]
         const PIXEL_PANEL: Nodekey;
         add!(self.ui, PIXEL_PANEL, {
@@ -151,10 +106,53 @@ impl State {
     }
 }
 
-impl Ui {
+impl State {
 
+    pub fn add_counter_ui(&mut self) {
+        margin!(self.ui, {
+            #[node_key(H_STACK.size_x(0.23).position_x(Position::Start))]
+            pub const CENTER_ROW: NodeKey;
+            h_stack!(self.ui, CENTER_ROW, {
+                v_stack!(self.ui, {
+                    if self.counter_state.counter_mode {
+                        let new_color = count_color(self.counter_state.count);
+                        add!(self.ui, CounterState::INCREASE_BUTTON).set_color(new_color);
 
-    pub fn add_pixel_info(&mut self, pixel_info: &Option<PixelInfo>) {
+                        let count = &self.counter_state.count.to_string();
+                        add!(self.ui, CounterState::COUNT_LABEL).set_text(count).set_text_attrs(
+                            Attrs::new().family(Family::SansSerif).color(GlyphonColor::rgb(255, 76, 23)).weight(Weight::EXTRA_BOLD)
+
+                        )
+                        .set_text_align(Align::Center);
+
+                        add!(self.ui, CounterState::DECREASE_BUTTON);
+                    }
+                });
+
+                let text = match self.counter_state.counter_mode {
+                    true => "Hide counter",
+                    false => "Show counter",
+                };
+                add!(self.ui, CounterState::SHOW_COUNTER_BUTTON).set_text(text);
+            });
+        });
+    }
+
+    pub fn counter_on_click(&mut self) {
+        if self.ui.is_clicked(CounterState::INCREASE_BUTTON) {
+            self.counter_state.count += 1;
+        }
+
+        if self.ui.is_clicked(CounterState::DECREASE_BUTTON) {
+            self.counter_state.count -= 1;
+        }
+
+        if self.ui.is_clicked(CounterState::SHOW_COUNTER_BUTTON) {
+            self.counter_state.counter_mode = !self.counter_state.counter_mode;
+        }
+    }
+
+    pub fn add_pixel_info_ui(&mut self, pixel_info: &Option<PixelInfo>) {
         let (x, y) = match pixel_info {
             Some(pixel_info) => (format!("{}", pixel_info.x), format!("{}", pixel_info.y)),
             None => ("".to_owned(), "".to_owned()),
@@ -173,26 +171,26 @@ impl Ui {
         // todo:::::: I don't want strings, I want to write!() directly into the buffer
         #[node_key(PANEL.size_y(0.5).position_x(Position::Start))]
         const PIXEL_PANEL: Nodekey;
-        add!(self, PIXEL_PANEL, {
-            v_stack!(self, {
-                h_stack!(self, {
-                    text!(self, "x:");
-                    text!(self, &x);
-                    text!(self, "y:");
-                    text!(self, &y);
+        add!(self.ui, PIXEL_PANEL, {
+            v_stack!(self.ui, {
+                h_stack!(self.ui, {
+                    text!(self.ui, "x:");
+                    text!(self.ui, &x);
+                    text!(self.ui, "y:");
+                    text!(self.ui, &y);
                 });
 
-                h_stack!(self, {
-                    text!(self, "r:");
-                    text!(self, &r);
-                    text!(self, "g:");
-                    text!(self, &g);
+                h_stack!(self.ui, {
+                    text!(self.ui, "r:");
+                    text!(self.ui, &r);
+                    text!(self.ui, "g:");
+                    text!(self.ui, &g);
                 });
-                h_stack!(self, {
-                    text!(self, "b:");
-                    text!(self, &b);
-                    text!(self, "a:");
-                    text!(self, &a);
+                h_stack!(self.ui, {
+                    text!(self.ui, "b:");
+                    text!(self.ui, &b);
+                    text!(self.ui, "a:");
+                    text!(self.ui, &a);
                 });
             });
         });
