@@ -34,10 +34,14 @@ impl State {
                     }
 
                     let pixel_info = self.canvas.pixel_info();
-                    v_stack!(self.ui, {
-                        self.ui.add_pixel_info(&pixel_info);
-                        self.ui.add_pixel_info(&pixel_info);
-                    });
+                    self.ui.add_pixel_info(&pixel_info);
+                    self.ui.add_pixel_info(&pixel_info);
+                    self.ui.add_pixel_info(&pixel_info);
+
+
+                    self.add_twin_thing();
+                    self.add_twin_thing();
+                    self.add_twin_thing();
                 });
             });
 
@@ -131,7 +135,25 @@ pub fn count_color(count: i32) -> Color {
     return Color::rgba(red, 0.1, 0.2, 0.8);
 }
 
+
+impl State {
+    pub fn add_twin_thing(&mut self) {
+        #[node_key(PANEL.size_y(0.5).position_x(Position::Start))]
+        const PIXEL_PANEL: Nodekey;
+        add!(self.ui, PIXEL_PANEL, {
+
+            v_stack!(self.ui, {
+                for _ in 0..3 {
+                    text!(self.ui, "Identical");
+                }
+            });
+        });
+    }
+}
+
 impl Ui {
+
+
     pub fn add_pixel_info(&mut self, pixel_info: &Option<PixelInfo>) {
         let (x, y) = match pixel_info {
             Some(pixel_info) => (format!("{}", pixel_info.x), format!("{}", pixel_info.y)),
@@ -152,7 +174,6 @@ impl Ui {
         #[node_key(PANEL.size_y(0.5).position_x(Position::Start))]
         const PIXEL_PANEL: Nodekey;
         add!(self, PIXEL_PANEL, {
-            // panel!(self, {
             v_stack!(self, {
                 h_stack!(self, {
                     text!(self, "x:");

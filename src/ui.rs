@@ -813,11 +813,11 @@ impl Ui {
     }
 
     pub fn add(&mut self, key: NodeKey) -> NodeWithStuff {
-        return self.add_or_refresh_node_simple(key, false);
+        return self.add_or_refresh_node(key, false);
     }
 
     pub fn add_layer(&mut self, key: NodeKey) -> NodeWithStuff {
-        return self.add_or_refresh_node_simple(key, true);
+        return self.add_or_refresh_node(key, true);
     }
 
     pub fn end_layer(&mut self) {
@@ -825,16 +825,7 @@ impl Ui {
         self.last_child_stack.pop();
     }
 
-    // consider the following:
-    // right now, the nodes stay in the hashmap with an old frame count and they get ignored in build_buffers
-    // it's good to not do a cleanup pass, but the memory is "wasted"
-    // however, the way I understand hashmaps, the memory isn't really wasted, because it's not used for anything else until a hash collision happens and some other node would like to be written into that same bucket.
-    // in an ideal world, I would be able to add a custom check when a collision happens. if the node has a last_frame_touched older than 100 frames or something, then the new node overwrites instead of chaining into another node or whatever.
-    // probably any get()-like functions should do some sort of check on last_frame_touched as well.
-    // ANYWAY, I don't think you can do any of this with the builtin rust hashmap. The collision stuff is completely hidden. 
-
-    // this version probably does some extra hash lookups and stuff.
-    pub fn add_or_refresh_node_simple(&mut self, key: NodeKey, make_new_layer: bool) -> NodeWithStuff {
+    pub fn add_or_refresh_node(&mut self, key: NodeKey, make_new_layer: bool) -> NodeWithStuff {
         let parent_id = self.parent_stack.last().unwrap().clone();
 
         let frame = self.part.current_frame;
@@ -871,6 +862,7 @@ impl Ui {
                     // do nothing, just calculate the twin key and go to twin part below
                     AddTwin => {
                         old_nodefront.n_twins += 1;
+                        println!("  twin moment  {:?}", old_nodefront.n_twins);
                         twin_key = Some(key.sibling(old_nodefront.n_twins));
                         // I have to write put a wrong value here to shut the compiler up. but it will be overwritten later.
                         final_i = None;
@@ -895,8 +887,6 @@ impl Ui {
                 },
                 // refresh twin
                 Entry::Occupied(o) => {
-                    println!(" REFRESH TWIN" );
-
                     let old_twin_nodefront = o.into_mut();
 
                     // todo2: check the nodefront values and maybe skip reaching into the node
@@ -918,12 +908,9 @@ impl Ui {
         // final_i is Some in all branches, but the compiler can't really see it.
         let final_i = final_i.unwrap();
         // this always runs: refresh, new, normal, twin 
-        // in a better world, we could totally have a pointer or index to the parent instead of a parent_id.
-        // todo: move this in better places o algo
+
         self.add_child_to_parent(final_i, parent_id);
         if make_new_layer {
-            // maybe it would be clearer to push a None here
-            // self.last_child_stack.push(None);
             self.parent_stack.push(final_i);           
         }
 
