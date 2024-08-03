@@ -53,7 +53,12 @@ pub const NODE_ROOT: Node = Node {
     parent: unsafe {
         std::mem::transmute(9213432846u64)
     },
-    children: Vec::new(),
+
+    n_children: 0,
+    first_child: None,
+    prev_sibling: None,
+    next_sibling: None,
+
     params: NODE_ROOT_PARAMS,
     last_frame_status: LastFrameStatus::Nothing,
     last_hover: f32::MIN,
@@ -614,6 +619,10 @@ pub struct Ui {
     // stack for adding
     pub parent_stack: Vec<usize>,
 
+    // head of the sibling linked list or somehting
+    // todo2: check if this always get unwrapped, maybe remove the option
+    pub last_child_stack: Vec<usize>,
+
     pub part: PartialBorrowStuff,
 
     pub clicked_stack: Vec<(Id, f32)>,
@@ -783,6 +792,8 @@ impl Ui {
 
             parent_stack,
 
+            last_child_stack: Vec::with_capacity(20),
+
             part: PartialBorrowStuff {
                 mouse_pos: PhysicalPosition { x: 0., y: 0. },
                 current_frame: 1,
@@ -806,6 +817,11 @@ impl Ui {
 
     pub fn add_layer(&mut self, key: NodeKey) -> NodeWithStuff {
         return self.add_or_refresh_node_simple(key, true);
+    }
+
+    pub fn end_layer(&mut self) {
+        self.parent_stack.pop();
+        self.last_child_stack.pop();
     }
 
     // consider the following:
@@ -901,6 +917,8 @@ impl Ui {
         // todo: move this in better places o algo
         self.add_child_to_parent(final_i, parent_id);
         if make_new_layer {
+            // maybe it would be clearer to push a None here
+            // self.last_child_stack.push(None);
             self.parent_stack.push(final_i);           
         }
 
@@ -912,9 +930,21 @@ impl Ui {
     }
 
     pub fn add_child_to_parent(&mut self, id: usize, parent_id: usize) {
-        // todo2: change
-        self.nodes[parent_id].children
-            .push(id);
+        self.nodes[parent_id].n_children += 1;
+
+        if self.nodes[parent_id].first_child == None {
+            self.nodes[parent_id].first_child = Some(id);
+
+            self.last_child_stack.push(id);
+
+        } else {
+            let prev_sibling = *self.last_child_stack.last().unwrap();
+            self.nodes[id].prev_sibling = Some(prev_sibling);
+            self.nodes[prev_sibling].next_sibling = Some(id);
+            *self.last_child_stack.last_mut().unwrap() = id;
+        }
+
+
     }
 
     // todo: why like this
@@ -933,7 +963,12 @@ impl Ui {
             rect: Xy::new_symm([0.0, 1.0]),
             text_id,
             parent: parent_id,
-            children: Vec::new(),
+
+            n_children: 0,
+            first_child: None,
+            prev_sibling: None,
+            next_sibling: None,
+        
             params: key.defaults(),
             last_frame_status: LastFrameStatus::Nothing,
             last_hover: f32::MIN,
@@ -1119,26 +1154,16 @@ impl Ui {
 
     pub fn layout(&mut self) {
         self.traverse_stack.clear();
-
         // push the root
         self.traverse_stack.push(self.root_i);
 
         // start processing a parent
-        while let Some(current_node_id) = self.traverse_stack.pop() {
-            // todo: garbage
-            // to fix, just write a function "self.get_info_about_node_by_value_without_borrowing(id)"
-            let parent_rect: Rect;
-            let children: Vec<usize>;
-            let is_stack: Option<Stack>;
-            {
-                let parent_node = self.nodes.nodes.get(current_node_id).unwrap();                
-                children = parent_node.children.clone();
-                parent_rect = parent_node.rect;
-                is_stack = parent_node.params.is_stack;
-            }
-            let parent_size = parent_rect.size();
+        while let Some(parent) = self.traverse_stack.pop() {
+            
+            let n = self.nodes[parent].n_children as f32;
+            let parent_rect = self.nodes[parent].rect;
 
-            match is_stack {
+            match self.nodes[parent].params.is_stack {
                 Some(stack) => {
                     let main_axis = stack.axis;
                     let sign = match stack.arrange {
@@ -1157,15 +1182,16 @@ impl Ui {
                         _ => todo!(),
                     };
                     // space for each child on the main axis
-                    let n = children.len() as f32;
                     let spacing_pixels = 7;
                     let spacing_f = spacing_pixels as f32 / self.part.unifs.size[main_axis];
-                    let main_width = (parent_size[main_axis] - (n - 1.0) * spacing_f) / n;
+                    let main_width = (parent_rect.size()[main_axis] - (n - 1.0) * spacing_f) / n;
 
                     let mut walker = parent_rect[main_axis][i0];
 
-                    for &child_id in children.iter().rev() {
-                        let child = &mut self.nodes[child_id];
+                    let mut current_child_i = self.nodes[parent].first_child;
+                    while let Some(child_i) = current_child_i {
+
+                        let child = &mut self.nodes[child_i];
                         child.rect[main_axis][i0] = walker;
 
                         match child.params.size[main_axis] {
@@ -1181,15 +1207,15 @@ impl Ui {
                             Position::Start => match child.params.size[cross_axis] {
                                 Size::PercentOfAvailable(percent) => {
                                     let cross_0 = parent_rect[cross_axis][0] + spacing_f;
-                                    let cross_1 = cross_0 + parent_size[cross_axis] * percent;
+                                    let cross_1 = cross_0 + parent_rect.size()[cross_axis] * percent;
                                     child.rect[cross_axis] = [cross_0, cross_1];
                                 }
                             },
                             Position::Center => match child.params.size[cross_axis] {
                                 Size::PercentOfAvailable(percent) => {
                                     let center =
-                                        parent_rect[cross_axis][0] + parent_size[cross_axis] / 2.0;
-                                    let width = parent_size[cross_axis] * percent;
+                                        parent_rect[cross_axis][0] + parent_rect.size()[cross_axis] / 2.0;
+                                    let width = parent_rect.size()[cross_axis] * percent;
                                     let x0 = center - width / 2.0;
                                     let x1 = center + width / 2.0;
                                     child.rect[cross_axis] = [x0, x1];
@@ -1202,12 +1228,15 @@ impl Ui {
                         let text_id = child.text_id;
                         self.layout_text(text_id, rect);
 
-                        self.traverse_stack.push(child_id);
+                        self.traverse_stack.push(child_i);
+                        current_child_i = self.nodes[child_i].next_sibling;
                     }
                 }
                 None => {
-                    for &child_id in children.iter().rev() {
-                        let child = &mut self.nodes[child_id];
+                    let mut current_child_i = self.nodes[parent].first_child;
+                    while let Some(child_i) = current_child_i {
+
+                        let child = &mut self.nodes[child_i];
 
                         for axis in [X, Y] {
                             match child.params.position[axis] {
@@ -1215,7 +1244,7 @@ impl Ui {
                                     let x0 = parent_rect[axis][0];
                                     match child.params.size[axis] {
                                         Size::PercentOfAvailable(percent) => {
-                                            let x1 = x0 + parent_size[axis] * percent;
+                                            let x1 = x0 + parent_rect.size()[axis] * percent;
                                             child.rect[axis] = [x0, x1];
                                         }
                                     }
@@ -1224,16 +1253,16 @@ impl Ui {
                                     let x1 = parent_rect[axis][1];
                                     match child.params.size[axis] {
                                         Size::PercentOfAvailable(percent) => {
-                                            let x0 = x1 - parent_size[axis] * percent;
+                                            let x0 = x1 - parent_rect.size()[axis] * percent;
                                             child.rect[axis] = [x0, x1];
                                         }
                                     }
                                 }
                                 Position::Center => {
-                                    let center = parent_rect[axis][0] + parent_size[axis] / 2.0;
+                                    let center = parent_rect[axis][0] + parent_rect.size()[axis] / 2.0;
                                     match child.params.size[axis] {
                                         Size::PercentOfAvailable(percent) => {
-                                            let width = parent_size[axis] * percent;
+                                            let width = parent_rect.size()[axis] * percent;
                                             let x0 = center - width / 2.0;
                                             let x1 = center + width / 2.0;
                                             child.rect[axis] = [x0, x1];
@@ -1248,7 +1277,9 @@ impl Ui {
                         let text_id = child.text_id;
                         self.layout_text(text_id, rect);
 
-                        self.traverse_stack.push(child_id);
+                        self.traverse_stack.push(child_i);
+                        current_child_i = self.nodes[child_i].next_sibling;
+
                     }
                 }
             }
@@ -1314,19 +1345,18 @@ impl Ui {
         self.traverse_stack.clear();
 
         // push the ui.direct children of the root without processing the root
-        if let Some(root) = self.nodes.get_by_id(&NODE_ROOT_ID) {
-            for &child_id in root.children.iter().rev() {
-                self.traverse_stack.push(child_id);
-            }
+        let mut current_child = self.nodes[self.root_i].first_child;
+        while let Some(child) = current_child {
+            self.traverse_stack.push(child);
+            current_child = self.nodes[child].next_sibling;
         }
 
-        while let Some(current_node_id) = self.traverse_stack.pop() {
-            let current_node = self.nodes.nodes.get(current_node_id).unwrap();
+        while let Some(node) = self.traverse_stack.pop() {
+            let current_node = self.nodes.nodes.get(node).unwrap();
 
             // in debug mode, draw invisible rects as well.
             // usually these have filled = false (just the outline), but this is not enforced.
-            if current_node.params.visible_rect || self.debug_mode
-            {
+            if current_node.params.visible_rect || self.debug_mode {
                 self.rects.push(RenderRect {
                     rect: current_node.rect * 2. - 1.,
 
@@ -1344,11 +1374,17 @@ impl Ui {
                 });
             }
 
-            for &child_id in current_node.children.iter() {
-                self.traverse_stack.push(child_id);
+
+            let mut current_child = current_node.first_child;
+            while let Some(child) = current_child {
+                self.traverse_stack.push(child);
+                current_child = self.nodes[child].next_sibling;
             }
         }
 
+        println!("");
+        println!("len {:?}", self.nodes.nodes.len());
+        println!("");
         self.push_cursor_rect();
     }
 
@@ -1498,10 +1534,7 @@ impl Ui {
 
         self.update_time();
 
-        self.nodes.get_by_id(&NODE_ROOT_ID)
-            .unwrap()
-            .children
-            .clear();
+        self.nodes[self.root_i].reset_children();
 
         self.part.current_frame += 1;
     }
@@ -1596,10 +1629,6 @@ impl Ui {
         let topmost_mouse_hit = self.scan_mouse_hits();
         let consumed = topmost_mouse_hit.is_some();
         return consumed;
-    }
-
-    pub fn end_layer(&mut self) {
-        self.parent_stack.pop();
     }
 
     pub fn set_text(&mut self, key: NodeKey, text: &str) {
@@ -1698,8 +1727,13 @@ pub struct Node {
     pub text_id: Option<usize>,
 
     pub parent: usize,
-    // todo: maybe switch with that prev/next thing
-    pub children: Vec<usize>,
+
+    // le epic inline linked list instead of a random Vec somewhere else on the heap
+    pub n_children: u16,
+    pub first_child: Option<usize>,
+    pub prev_sibling: Option<usize>,
+    pub next_sibling: Option<usize>,
+
     pub params: NodeParams,
 
     pub last_hover: f32,
@@ -1707,9 +1741,14 @@ pub struct Node {
     pub z: f32,
 }
 impl Node {
+    fn reset_children(&mut self) {
+        self.first_child = None;
+        self.n_children = 0;
+    }
+
     fn refresh(&mut self, parent_id: usize) {
         self.parent = parent_id;
-        self.children.clear();
+        self.reset_children();
     }
 }
 
