@@ -1,8 +1,13 @@
-use crate::{Arrange, Axis, Color, NodeParams, Position, Size, Stack, Xy};
+use crate::{Arrange, Axis, Color, Len, NodeParams, Position, Size, Stack, Xy};
 
 pub const DEBUG_RED: Color = Color::rgba(1.0, 0.0, 0.0, 0.3);
 
-pub const NODE_ROOT_PARAMS: NodeParams = NodeParams {
+
+use Len::*;
+use Size::*;
+use Position::*;
+
+pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     #[cfg(debug_assertions)]
     debug_name: "ROOT",
     static_text: None,
@@ -14,8 +19,8 @@ pub const NODE_ROOT_PARAMS: NodeParams = NodeParams {
         b: 1.0,
         a: 0.0,
     },
-    size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
-    position: Xy::new_symm(Position::Start),
+    size: Xy::new_symm(Fixed(Frac(1.0))),
+    position: Xy::new_symm(Start),
     stack: None,
     editable: false,
     filled: true,
@@ -29,8 +34,8 @@ pub const DEFAULT: NodeParams = NodeParams {
     clickable: false,
     visible_rect: true,
     color: Color::BLUE,
-    size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
-    position: Xy::new_symm(Position::Center),
+    size: Xy::new_symm(Fixed(Frac(1.0))),
+    position: Xy::new_symm(Center),
     stack: None,
     editable: false,
     filled: true,
@@ -43,8 +48,8 @@ pub const V_STACK: NodeParams = NodeParams {
     clickable: true,
     visible_rect: false,
     color: DEBUG_RED,
-    size: Xy::new(Size::PercentOfAvailable(1.0), Size::PercentOfAvailable(1.0)),
-    position: Xy::new_symm(Position::Center),
+    size: Xy::new(Fixed(Len::Frac(1.0)), Fixed(Len::Frac(1.0))),
+    position: Xy::new_symm(Center),
     stack: Some(Stack {
         arrange: Arrange::Start,
         axis: Axis::Y,
@@ -59,8 +64,8 @@ pub const H_STACK: NodeParams = NodeParams {
     visible_rect: false,
     clickable: false,
     color: DEBUG_RED,
-    size: Xy::new(Size::PercentOfAvailable(1.0), Size::PercentOfAvailable(1.0)),
-    position: Xy::new_symm(Position::Center),
+    size: Xy::new(Fixed(Len::Frac(1.0)), Fixed(Len::Frac(1.0))),
+    position: Xy::new_symm(Center),
     stack: Some(Stack {
         arrange: Arrange::End,
         axis: Axis::X,
@@ -75,8 +80,8 @@ pub const MARGIN: NodeParams = NodeParams {
     clickable: false,
     visible_rect: false,
     color: DEBUG_RED,
-    size: Xy::new_symm(Size::PercentOfAvailable(0.9)),
-    position: Xy::new_symm(Position::Center),
+    size: Xy::new_symm(Fixed(Len::Frac(0.9))),
+    position: Xy::new_symm(Center),
     stack: None,
     editable: false,
     filled: false,
@@ -89,8 +94,8 @@ pub const BUTTON: NodeParams = NodeParams {
     clickable: true,
     visible_rect: true,
     color: Color::rgba(0.0, 0.1, 0.1, 0.9),
-    size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
-    position: Xy::new_symm(Position::Center),
+    size: Xy::new_symm(TextContent { padding: Pixels(10) }),
+    position: Xy::new_symm(Center),
     stack: None,
     editable: false,
     filled: true,
@@ -103,8 +108,8 @@ pub const LABEL: NodeParams = NodeParams {
     clickable: false,
     visible_rect: true,
     color: Color::BLUE,
-    size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
-    position: Xy::new_symm(Position::Center),
+    size: Xy::new_symm(TextContent { padding: Pixels(0) }),
+    position: Xy::new_symm(Center),
     stack: None,
     editable: false,
     filled: true,
@@ -117,8 +122,8 @@ pub const TEXT: NodeParams = NodeParams {
     clickable: false,
     visible_rect: false,
     color: Color::RED,
-    size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
-    position: Xy::new_symm(Position::Center),
+    size: Xy::new_symm(TextContent { padding: Pixels(1) }),
+    position: Xy::new_symm(Center),
     stack: None,
     editable: false,
     filled: false,
@@ -131,8 +136,8 @@ pub const TEXT_INPUT: NodeParams = NodeParams {
     clickable: true,
     visible_rect: true,
     color: Color::rgba(0.1, 0.0, 0.1, 0.9),
-    size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
-    position: Xy::new_symm(Position::Center),
+    size: Xy::new_symm(TextContent { padding: Pixels(5) }),
+    position: Xy::new_symm(Center),
     stack: None,
     editable: true,
     filled: true,
@@ -145,8 +150,8 @@ pub const PANEL: NodeParams = NodeParams {
     clickable: false,
     visible_rect: true,
     color: Color::rgba(0.1, 0.0, 0.1, 0.9),
-    size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
-    position: Xy::new_symm(Position::Center),
+    size: Xy::new_symm(Fixed(Len::Frac(1.0))),
+    position: Xy::new_symm(Center),
     stack: None,
     editable: false,
     filled: true,

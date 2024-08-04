@@ -9,6 +9,8 @@ use slab::Slab;
 use wgpu::*;
 use winit::keyboard::Key;
 
+use crate::for_each_child;
+
 use std::collections::hash_map::Entry;
 use std::ops::{Add, Mul, Sub};
 use std::{
@@ -199,16 +201,16 @@ impl NodeParams {
         DEFAULT
     }
 
-    pub const fn size_x(mut self, size: f32) -> Self {
-        self.size.x = Size::PercentOfAvailable(size);
+    pub const fn size_x(mut self, size: Len) -> Self {
+        self.size.x = Size::Fixed(size);
         return self;
     }
-    pub const fn size_y(mut self, size: f32) -> Self {
-        self.size.y = Size::PercentOfAvailable(size);
+    pub const fn size_y(mut self, size: Len) -> Self {
+        self.size.y = Size::Fixed(size);
         return self;
     }
-    pub const fn size_symm(mut self, size: f32) -> Self {
-        self.size = Xy::new_symm(Size::PercentOfAvailable(size));
+    pub const fn size_symm(mut self, size: Len) -> Self {
+        self.size = Xy::new_symm(Size::Fixed(size));
         return self;
     }
 
@@ -640,6 +642,21 @@ pub struct Ui {
     pub t: f32,
 }
 impl Ui {
+
+    pub fn len_to_pixels(&self, len: Len) -> u32 {
+        match len {
+            Len::Pixels(pixels) => return pixels,
+            Len::Frac(frac) => return (frac * self.part.unifs.size.x) as u32,
+        }
+    }
+
+    pub fn len_to_frac(&self, len: Len) -> f32 {
+        match len {
+            Len::Pixels(pixels) => return (pixels as f32) / self.part.unifs.size.x,
+            Len::Frac(frac) => return frac,
+        }
+    }
+
     fn instant_t(&self) -> f32 {
         return self.part.t0.elapsed().as_secs_f32();
     }
@@ -1142,15 +1159,36 @@ impl Ui {
     }
 
     fn determine_size(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
-        if let Some(_text_id) = self.nodes[node].text_id {
-            self.nodes[node].size = Xy::new(0.25, 0.15);
-        } else if let Some(_stack) = self.nodes[node].params.stack {
+        if let Some(_stack) = self.nodes[node].params.stack {
             self.determine_size_stack(node, proposed_size);
         } else {
-            self.determine_size_stack(node, proposed_size);
+            let mut biggest_child_size = Xy::new(0.0, 0.0);
+            for_each_child!(self, self.nodes[node], child, {
+                self.determine_size(child, proposed_size);
+                for axis in [X, Y] {
+                    if self.nodes[child].size[axis] > biggest_child_size[axis] {
+                        biggest_child_size[axis] = self.nodes[child].size[axis];
+                    }
+                }
+            });
+
+            for axis in [X, Y] {
+                match self.nodes[node].params.size[axis] {
+                    Size::JustAsBigAsBiggestChild { .. } => {
+                        // dumb double loop
+                        self.nodes[node].size[axis] = biggest_child_size[axis];
+                    },
+                    Size::Fixed(len) => {
+                        self.nodes[node].size[axis] = self.len_to_frac(len);
+                    },
+                    Size::TextContent { .. } => {
+                        const TEXT_SIZE_LOL: Xy<f32> = Xy::new(0.15, 0.066);
+                        self.nodes[node].size[axis] = TEXT_SIZE_LOL[axis];
+                    },
+                }
+            }
         }
 
-        println!(" det size: {:?} = {:?}", self.nodes[node].params.debug_name, self.nodes[node].size);
         return self.nodes[node].size;
     }
 
@@ -1205,139 +1243,139 @@ impl Ui {
 
     }
 
-    pub fn layout(&mut self) {
-        self.traverse_stack.clear();
-        // push the root
-        self.traverse_stack.push(self.root_i);
+    // pub fn layout(&mut self) {
+    //     self.traverse_stack.clear();
+    //     // push the root
+    //     self.traverse_stack.push(self.root_i);
 
-        // start processing a parent
-        while let Some(parent) = self.traverse_stack.pop() {
+    //     // start processing a parent
+    //     while let Some(parent) = self.traverse_stack.pop() {
             
-            let n = self.nodes[parent].n_children as f32;
-            let parent_rect = self.nodes[parent].rect;
+    //         let n = self.nodes[parent].n_children as f32;
+    //         let parent_rect = self.nodes[parent].rect;
 
-            match self.nodes[parent].params.stack {
-                Some(stack) => {
-                    let main_axis = stack.axis;
-                    let sign = match stack.arrange {
-                        Arrange::Start => 1.0,
-                        Arrange::End => -1.0,
-                        _ => todo!(),
-                    };
-                    let i0 = match stack.arrange {
-                        Arrange::Start => 0,
-                        Arrange::End => 1,
-                        _ => todo!(),
-                    };
-                    let i1 = match stack.arrange {
-                        Arrange::Start => 1,
-                        Arrange::End => 0,
-                        _ => todo!(),
-                    };
-                    // space for each child on the main axis
-                    let spacing_pixels = 7;
-                    let spacing_f = spacing_pixels as f32 / self.part.unifs.size[main_axis];
-                    let main_width = (parent_rect.size()[main_axis] - (n - 1.0) * spacing_f) / n;
+    //         match self.nodes[parent].params.stack {
+    //             Some(stack) => {
+    //                 let main_axis = stack.axis;
+    //                 let sign = match stack.arrange {
+    //                     Arrange::Start => 1.0,
+    //                     Arrange::End => -1.0,
+    //                     _ => todo!(),
+    //                 };
+    //                 let i0 = match stack.arrange {
+    //                     Arrange::Start => 0,
+    //                     Arrange::End => 1,
+    //                     _ => todo!(),
+    //                 };
+    //                 let i1 = match stack.arrange {
+    //                     Arrange::Start => 1,
+    //                     Arrange::End => 0,
+    //                     _ => todo!(),
+    //                 };
+    //                 // space for each child on the main axis
+    //                 let spacing_pixels = 7;
+    //                 let spacing_f = spacing_pixels as f32 / self.part.unifs.size[main_axis];
+    //                 let main_width = (parent_rect.size()[main_axis] - (n - 1.0) * spacing_f) / n;
 
-                    let mut walker = parent_rect[main_axis][i0];
+    //                 let mut walker = parent_rect[main_axis][i0];
 
-                    let mut current_child_i = self.nodes[parent].first_child;
-                    while let Some(child_i) = current_child_i {
+    //                 let mut current_child_i = self.nodes[parent].first_child;
+    //                 while let Some(child_i) = current_child_i {
 
-                        let child = &mut self.nodes[child_i];
-                        child.rect[main_axis][i0] = walker;
+    //                     let child = &mut self.nodes[child_i];
+    //                     child.rect[main_axis][i0] = walker;
 
-                        match child.params.size[main_axis] {
-                            Size::PercentOfAvailable(percent) => {
-                                let other_corner = walker + sign * main_width * percent;
-                                child.rect[main_axis][i1] = other_corner;
-                                walker = other_corner + sign * spacing_f;
-                            }
-                        }
+    //                     match child.params.size[main_axis] {
+    //                         Size::PercentOfAvailable(percent) => {
+    //                             let other_corner = walker + sign * main_width * percent;
+    //                             child.rect[main_axis][i1] = other_corner;
+    //                             walker = other_corner + sign * spacing_f;
+    //                         }
+    //                     }
 
-                        let cross_axis = main_axis.other();
-                        match child.params.position[cross_axis] {
-                            Position::Start => match child.params.size[cross_axis] {
-                                Size::PercentOfAvailable(percent) => {
-                                    let cross_0 = parent_rect[cross_axis][0] + spacing_f;
-                                    let cross_1 = cross_0 + parent_rect.size()[cross_axis] * percent;
-                                    child.rect[cross_axis] = [cross_0, cross_1];
-                                }
-                            },
-                            Position::Center => match child.params.size[cross_axis] {
-                                Size::PercentOfAvailable(percent) => {
-                                    let center =
-                                        parent_rect[cross_axis][0] + parent_rect.size()[cross_axis] / 2.0;
-                                    let width = parent_rect.size()[cross_axis] * percent;
-                                    let x0 = center - width / 2.0;
-                                    let x1 = center + width / 2.0;
-                                    child.rect[cross_axis] = [x0, x1];
-                                }
-                            },
-                            Position::End => todo!(),
-                        }
+    //                     let cross_axis = main_axis.other();
+    //                     match child.params.position[cross_axis] {
+    //                         Position::Start => match child.params.size[cross_axis] {
+    //                             Size::PercentOfAvailable(percent) => {
+    //                                 let cross_0 = parent_rect[cross_axis][0] + spacing_f;
+    //                                 let cross_1 = cross_0 + parent_rect.size()[cross_axis] * percent;
+    //                                 child.rect[cross_axis] = [cross_0, cross_1];
+    //                             }
+    //                         },
+    //                         Position::Center => match child.params.size[cross_axis] {
+    //                             Size::PercentOfAvailable(percent) => {
+    //                                 let center =
+    //                                     parent_rect[cross_axis][0] + parent_rect.size()[cross_axis] / 2.0;
+    //                                 let width = parent_rect.size()[cross_axis] * percent;
+    //                                 let x0 = center - width / 2.0;
+    //                                 let x1 = center + width / 2.0;
+    //                                 child.rect[cross_axis] = [x0, x1];
+    //                             }
+    //                         },
+    //                         Position::End => todo!(),
+    //                     }
 
-                        let rect = child.rect;
-                        let text_id = child.text_id;
-                        self.layout_text(text_id, rect);
+    //                     let rect = child.rect;
+    //                     let text_id = child.text_id;
+    //                     self.layout_text(text_id, rect);
 
-                        self.traverse_stack.push(child_i);
-                        current_child_i = self.nodes[child_i].next_sibling;
-                    }
-                }
-                None => {
-                    let mut current_child_i = self.nodes[parent].first_child;
-                    while let Some(child_i) = current_child_i {
+    //                     self.traverse_stack.push(child_i);
+    //                     current_child_i = self.nodes[child_i].next_sibling;
+    //                 }
+    //             }
+    //             None => {
+    //                 let mut current_child_i = self.nodes[parent].first_child;
+    //                 while let Some(child_i) = current_child_i {
 
-                        let child = &mut self.nodes[child_i];
+    //                     let child = &mut self.nodes[child_i];
 
-                        for axis in [X, Y] {
-                            match child.params.position[axis] {
-                                Position::Start => {
-                                    let x0 = parent_rect[axis][0];
-                                    match child.params.size[axis] {
-                                        Size::PercentOfAvailable(percent) => {
-                                            let x1 = x0 + parent_rect.size()[axis] * percent;
-                                            child.rect[axis] = [x0, x1];
-                                        }
-                                    }
-                                }
-                                Position::End => {
-                                    let x1 = parent_rect[axis][1];
-                                    match child.params.size[axis] {
-                                        Size::PercentOfAvailable(percent) => {
-                                            let x0 = x1 - parent_rect.size()[axis] * percent;
-                                            child.rect[axis] = [x0, x1];
-                                        }
-                                    }
-                                }
-                                Position::Center => {
-                                    let center = parent_rect[axis][0] + parent_rect.size()[axis] / 2.0;
-                                    match child.params.size[axis] {
-                                        Size::PercentOfAvailable(percent) => {
-                                            let width = parent_rect.size()[axis] * percent;
-                                            let x0 = center - width / 2.0;
-                                            let x1 = center + width / 2.0;
-                                            child.rect[axis] = [x0, x1];
-                                        }
-                                    }
-                                }
-                            }
-                        }
+    //                     for axis in [X, Y] {
+    //                         match child.params.position[axis] {
+    //                             Position::Start => {
+    //                                 let x0 = parent_rect[axis][0];
+    //                                 match child.params.size[axis] {
+    //                                     Size::PercentOfAvailable(percent) => {
+    //                                         let x1 = x0 + parent_rect.size()[axis] * percent;
+    //                                         child.rect[axis] = [x0, x1];
+    //                                     }
+    //                                 }
+    //                             }
+    //                             Position::End => {
+    //                                 let x1 = parent_rect[axis][1];
+    //                                 match child.params.size[axis] {
+    //                                     Size::PercentOfAvailable(percent) => {
+    //                                         let x0 = x1 - parent_rect.size()[axis] * percent;
+    //                                         child.rect[axis] = [x0, x1];
+    //                                     }
+    //                                 }
+    //                             }
+    //                             Position::Center => {
+    //                                 let center = parent_rect[axis][0] + parent_rect.size()[axis] / 2.0;
+    //                                 match child.params.size[axis] {
+    //                                     Size::PercentOfAvailable(percent) => {
+    //                                         let width = parent_rect.size()[axis] * percent;
+    //                                         let x0 = center - width / 2.0;
+    //                                         let x1 = center + width / 2.0;
+    //                                         child.rect[axis] = [x0, x1];
+    //                                     }
+    //                                 }
+    //                             }
+    //                         }
+    //                     }
 
-                        // trash language
-                        let rect = child.rect;
-                        let text_id = child.text_id;
-                        self.layout_text(text_id, rect);
+    //                     // trash language
+    //                     let rect = child.rect;
+    //                     let text_id = child.text_id;
+    //                     self.layout_text(text_id, rect);
 
-                        self.traverse_stack.push(child_i);
-                        current_child_i = self.nodes[child_i].next_sibling;
+    //                     self.traverse_stack.push(child_i);
+    //                     current_child_i = self.nodes[child_i].next_sibling;
 
-                    }
-                }
-            }
-        }
-    }
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
 
     pub fn layout_text(&mut self, text_id: Option<usize>, rect: Rect) {
         if let Some(text_id) = text_id {
@@ -1821,29 +1859,23 @@ pub enum LastFrameStatus {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum Len {
-    PercentOfParent(f32),
-    Pixels(u32),
-}
-impl Len {
-    pub fn to_pixels(&self, parent_pixels: u32) -> u32 {
-        match self {
-            Len::PercentOfParent(percent) => return (parent_pixels as f32 * percent) as u32,
-            Len::Pixels(pixels) => return *pixels,
-        }
+pub enum Size {
+    Fixed(Len),
+    TextContent {
+        padding: Len
+        // something like "strictness":
+        //  with the "proposed" thing, a TextContent can either insist to get the minimum size it wants,
+        // or be okay with whatever (and clip it, show some "..."'s, etc) 
+    },
+    JustAsBigAsBiggestChild {
+        padding: Len,
     }
 }
 
-// textorimagecontent is more of a "min size" thing, I think.
-#[derive(Debug, Clone, Copy)]
-pub enum Size {
-    PercentOfAvailable(f32),
-    // Pixels(u32),
-    // TextOrImageContent { padding: u32 },
-    // // ImageContent { padding: u32 },
-    // FillParent { padding: u32 },
-    // // SumOfChildren { padding: u32 },
-    // TrustParent,
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Len {
+    Pixels(u32),
+    Frac(f32),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -2081,17 +2113,16 @@ enum TwinCheckResult {
     }
 }
 
-// #[macro_export]
-// macro_rules! for_each_child {
-//     ($ui:expr, $start:expr, $child:ident, $body:block) => {
-//         {
-//             let mut current_child = $start;
-//             while let Some($child) = current_child {
-//                 // The body of the loop is inserted here
-//                 $body
-//                 // Move to the next sibling
-//                 current_child = $ui.nodes[$child].next_sibling;
-//             }
-//         }
-//     };
-// }
+#[macro_export]
+// todo: use this macro everywhere else
+macro_rules! for_each_child {
+    ($ui:expr, $start:expr, $child:ident, $body:block) => {
+        {
+            let mut current_child = $start.first_child;
+            while let Some($child) = current_child {
+                $body
+                current_child = $ui.nodes[$child].next_sibling;
+            }
+        }
+    };
+}

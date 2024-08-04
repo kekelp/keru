@@ -63,7 +63,9 @@ impl State {
     }
 }
 
-#[node_key(TEXT_INPUT.text("Color").size_y(0.2).position_y(Start))]
+use crate::Len::Frac;
+
+#[node_key(TEXT_INPUT.text("Color").size_y(Frac(0.2)).position_y(Start))]
 pub const PAINT_COLOR: NodeKey;
 
 pub struct CounterState {
@@ -104,7 +106,7 @@ pub fn count_color(count: i32) -> Color {
 
 impl State {
     pub fn add_twin_thing_ui(&mut self) {
-        #[node_key(PANEL.size_y(0.5).position_x(Position::Start))]
+        #[node_key(PANEL.size_y(Frac(0.5)).position_x(Position::Start))]
         const PIXEL_PANEL: Nodekey;
         add!(self.ui, PIXEL_PANEL, {
 
@@ -121,7 +123,7 @@ impl State {
 
     pub fn add_counter_ui(&mut self) {
         margin!(self.ui, {
-            #[node_key(H_STACK.size_x(0.23).position_x(Position::Start))]
+            #[node_key(H_STACK.size_x(Frac(0.23)).position_x(Position::Start))]
             pub const CENTER_ROW: NodeKey;
             h_stack!(self.ui, CENTER_ROW, {
                 v_stack!(self.ui, {
@@ -182,7 +184,7 @@ impl State {
         };
 
         // todo:::::: I don't want strings, I want to write!() directly into the buffer
-        #[node_key(PANEL.size_y(0.5).position_x(Position::Start))]
+        #[node_key(PANEL.size_y(Frac(0.5)).position_x(Position::Start))]
         const PIXEL_PANEL: Nodekey;
         add!(self.ui, PIXEL_PANEL, {
             v_stack!(self.ui, {
