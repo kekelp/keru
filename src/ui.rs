@@ -189,7 +189,7 @@ pub struct NodeParams {
     pub color: Color,
     pub size: Xy<Size>,
     pub position: Xy<Position>,
-    pub is_stack: Option<Stack>,
+    pub stack: Option<Stack>,
     #[cfg(debug_assertions)]
     pub debug_name: &'static str,
 }
@@ -247,7 +247,7 @@ impl NodeParams {
     }
 
     pub const fn stack(mut self, axis: Axis, arrange: Arrange) -> Self {
-        self.is_stack = Some(Stack { arrange, axis });
+        self.stack = Some(Stack { arrange, axis });
         return self;
     }
 }
@@ -1144,31 +1144,37 @@ impl Ui {
     fn determine_size(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
         if let Some(_text_id) = self.nodes[node].text_id {
             self.nodes[node].size = Xy::new(0.25, 0.15);
+        } else if let Some(_stack) = self.nodes[node].params.stack {
+            self.determine_size_stack(node, proposed_size);
         } else {
-            // container. this should look a lot different: the size_per_child can decrease or increase if the first child ends up taking more/less than proposed
-            let size_per_child_x = proposed_size.x / (self.nodes[node].n_children as f32);
-
-            let child_proposed_size = Xy::new(size_per_child_x, proposed_size.y);
-
-            let mut final_self_size = proposed_size.clone();
-
-            let mut current_child = self.nodes[node].first_child;
-            while let Some(child) = current_child {
-                let child_size = self.determine_size(child, child_proposed_size);
-                
-                final_self_size.x += child_size.x;
-                if child_size.y > final_self_size.y {
-                    final_self_size.y = child_size.y;
-                }
-
-                current_child = self.nodes[child].next_sibling;
-            }
-
-            self.nodes[node].size = final_self_size;
+            self.determine_size_stack(node, proposed_size);
         }
 
         println!(" det size: {:?} = {:?}", self.nodes[node].params.debug_name, self.nodes[node].size);
         return self.nodes[node].size;
+    }
+
+    fn determine_size_stack(&mut self, node: usize, proposed_size: Xy<f32>) {
+        // container. this should look a lot different: the size_per_child can decrease or increase if the first child ends up taking more/less than proposed
+        let size_per_child_x = proposed_size.x / (self.nodes[node].n_children as f32);
+
+        let child_proposed_size = Xy::new(size_per_child_x, proposed_size.y);
+
+        let mut final_self_size = proposed_size.clone();
+
+        let mut current_child = self.nodes[node].first_child;
+        while let Some(child) = current_child {
+            let child_size = self.determine_size(child, child_proposed_size);
+            
+            final_self_size.x += child_size.x;
+            if child_size.y > final_self_size.y {
+                final_self_size.y = child_size.y;
+            }
+
+            current_child = self.nodes[child].next_sibling;
+        }
+
+        self.nodes[node].size = final_self_size;
     }
 
     fn place_children(&mut self, node: usize, origin: Xy<f32>) {
@@ -1210,7 +1216,7 @@ impl Ui {
             let n = self.nodes[parent].n_children as f32;
             let parent_rect = self.nodes[parent].rect;
 
-            match self.nodes[parent].params.is_stack {
+            match self.nodes[parent].params.stack {
                 Some(stack) => {
                     let main_axis = stack.axis;
                     let sign = match stack.arrange {
@@ -1685,13 +1691,13 @@ impl Ui {
 
     pub fn prune(&mut self) {
         self.nodes.fronts.retain( |k, v| {
-            // side effect happens inside this closure... weird
             // the > is to always keep the root node without having to refresh it 
             let should_retain = v.last_frame_touched >= self.part.current_frame;
             // dbg!(k, v.clone());
             // dbg!(to_prune, v.last_frame_touched, self.part.current_frame);
             // println!(" " );
             if ! should_retain {
+                // side effect happens inside this closure... weird
                 self.nodes.nodes.remove(v.slab_i);
                 println!(" PRUNING {:?} {:?}", k, v);
             }

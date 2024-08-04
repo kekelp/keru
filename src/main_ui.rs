@@ -20,6 +20,7 @@ impl State {
                 add!(self.ui, BUTTON_A);
             });
 
+            // self.add_pixel_info_ui();
 
             // margin!(self.ui, {
             //     #[node_key(V_STACK.size_x(0.3).position_x(Position::End))]
@@ -44,10 +45,9 @@ impl State {
             //             }
             //         }
 
-            //         let pixel_info = self.canvas.pixel_info();
-            //         self.add_pixel_info_ui(&pixel_info);
-            //         self.add_pixel_info_ui(&pixel_info);
-            //         self.add_pixel_info_ui(&pixel_info);
+            //         self.add_pixel_info_ui();
+            //         self.add_pixel_info_ui();
+            //         self.add_pixel_info_ui();
 
             //         self.add_twin_thing_ui();
             //         self.add_twin_thing_ui();
@@ -163,7 +163,9 @@ impl State {
         }
     }
 
-    pub fn add_pixel_info_ui(&mut self, pixel_info: &Option<PixelInfo>) {
+    pub fn add_pixel_info_ui(&mut self) {
+        let pixel_info = &self.canvas.pixel_info();
+
         let (x, y) = match pixel_info {
             Some(pixel_info) => (format!("{}", pixel_info.x), format!("{}", pixel_info.y)),
             None => ("".to_owned(), "".to_owned()),

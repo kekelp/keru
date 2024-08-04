@@ -16,7 +16,7 @@ pub const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     },
     size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
     position: Xy::new_symm(Position::Start),
-    is_stack: None,
+    stack: None,
     editable: false,
     filled: true,
 };
@@ -31,7 +31,7 @@ pub const DEFAULT: NodeParams = NodeParams {
     color: Color::BLUE,
     size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
     position: Xy::new_symm(Position::Center),
-    is_stack: None,
+    stack: None,
     editable: false,
     filled: true,
 };
@@ -45,7 +45,7 @@ pub const V_STACK: NodeParams = NodeParams {
     color: DEBUG_RED,
     size: Xy::new(Size::PercentOfAvailable(1.0), Size::PercentOfAvailable(1.0)),
     position: Xy::new_symm(Position::Center),
-    is_stack: Some(Stack {
+    stack: Some(Stack {
         arrange: Arrange::Start,
         axis: Axis::Y,
     }),
@@ -61,7 +61,7 @@ pub const H_STACK: NodeParams = NodeParams {
     color: DEBUG_RED,
     size: Xy::new(Size::PercentOfAvailable(1.0), Size::PercentOfAvailable(1.0)),
     position: Xy::new_symm(Position::Center),
-    is_stack: Some(Stack {
+    stack: Some(Stack {
         arrange: Arrange::End,
         axis: Axis::X,
     }),
@@ -77,7 +77,7 @@ pub const MARGIN: NodeParams = NodeParams {
     color: DEBUG_RED,
     size: Xy::new_symm(Size::PercentOfAvailable(0.9)),
     position: Xy::new_symm(Position::Center),
-    is_stack: None,
+    stack: None,
     editable: false,
     filled: false,
 };
@@ -91,7 +91,7 @@ pub const BUTTON: NodeParams = NodeParams {
     color: Color::rgba(0.0, 0.1, 0.1, 0.9),
     size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
     position: Xy::new_symm(Position::Center),
-    is_stack: None,
+    stack: None,
     editable: false,
     filled: true,
 };
@@ -105,7 +105,7 @@ pub const LABEL: NodeParams = NodeParams {
     color: Color::BLUE,
     size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
     position: Xy::new_symm(Position::Center),
-    is_stack: None,
+    stack: None,
     editable: false,
     filled: true,
 };
@@ -119,7 +119,7 @@ pub const TEXT: NodeParams = NodeParams {
     color: Color::RED,
     size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
     position: Xy::new_symm(Position::Center),
-    is_stack: None,
+    stack: None,
     editable: false,
     filled: false,
 };
@@ -133,7 +133,7 @@ pub const TEXT_INPUT: NodeParams = NodeParams {
     color: Color::rgba(0.1, 0.0, 0.1, 0.9),
     size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
     position: Xy::new_symm(Position::Center),
-    is_stack: None,
+    stack: None,
     editable: true,
     filled: true,
 };
@@ -147,7 +147,7 @@ pub const PANEL: NodeParams = NodeParams {
     color: Color::rgba(0.1, 0.0, 0.1, 0.9),
     size: Xy::new_symm(Size::PercentOfAvailable(1.0)),
     position: Xy::new_symm(Position::Center),
-    is_stack: None,
+    stack: None,
     editable: false,
     filled: true,
 };
