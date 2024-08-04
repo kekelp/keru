@@ -1189,57 +1189,75 @@ impl Ui {
             }
         }
 
+        println!(" size  : {:?} = {:?}", self.nodes[node].params.debug_name, self.nodes[node].size);
+
         return self.nodes[node].size;
     }
 
     fn determine_size_stack(&mut self, node: usize, proposed_size: Xy<f32>) {
+        let stack = self.nodes[node].params.stack.unwrap();
+        let (main, cross) = (stack.axis, stack.axis.other());
         // container. this should look a lot different: the size_per_child can decrease or increase if the first child ends up taking more/less than proposed
-        let size_per_child_x = proposed_size.x / (self.nodes[node].n_children as f32);
+        
+        let mut child_proposed_size = Xy::new(0.0, 0.0);
+        child_proposed_size[main] = proposed_size[main] / (self.nodes[node].n_children as f32);
+        child_proposed_size[cross] = proposed_size[cross];
 
-        let child_proposed_size = Xy::new(size_per_child_x, proposed_size.y);
+        // println!("Even albeit {}", self.nodes[node].n_children);
 
-        let mut final_self_size = proposed_size.clone();
+        let mut final_self_size = Xy::new(0.0, 0.0);
 
-        let mut current_child = self.nodes[node].first_child;
-        while let Some(child) = current_child {
+        for_each_child!(self, self.nodes[node], child, {
             let child_size = self.determine_size(child, child_proposed_size);
             
-            final_self_size.x += child_size.x;
-            if child_size.y > final_self_size.y {
-                final_self_size.y = child_size.y;
+            final_self_size[main] += child_size[main];
+            if child_size[cross] > final_self_size[cross] {
+                final_self_size[cross] = child_size[cross];
             }
-
-            current_child = self.nodes[child].next_sibling;
-        }
+        });
 
         self.nodes[node].size = final_self_size;
     }
 
     fn place_children(&mut self, node: usize, origin: Xy<f32>) {
-        let size = self.nodes[node].size;
-        if let Some(_text_id) = self.nodes[node].text_id {
-            self.nodes[node].rect = Rect::new(
-                [origin.x, origin.x + size.x],
-                [origin.y, origin.y + size.y]
-            );
-        } else {
-            let mut current_origin = origin;
-            let mut current_child = self.nodes[node].first_child;
-            while let Some(child) = current_child {
-                self.place_children(child, current_origin);
-                current_origin.y += self.nodes[child].size.y;
 
-                current_child = self.nodes[child].next_sibling;
-            }
-            self.nodes[node].rect = Rect::new(
-                [current_origin.x, current_origin.x + size.x],
-                [current_origin.y, current_origin.y + size.y]
-            );
+        if let Some(stack) = self.nodes[node].params.stack {
+
+            let main = stack.axis;
+
+            let mut current_origin = origin;
+            
+            for_each_child!(self, self.nodes[node], child, {
+
+                let size = self.nodes[child].size;
+
+                self.nodes[child].rect = Rect::new(
+                    [current_origin.x, current_origin.x + size.x],
+                    [current_origin.y, current_origin.y + size.y]
+                );
+
+                self.place_children(child, current_origin);
+                current_origin[main] += self.nodes[child].size[main];
+
+            });
+
+        } else {
+            for_each_child!(self, self.nodes[node], child, {
+
+                let size = self.nodes[child].size;
+
+                self.nodes[child].rect = Rect::new(
+                    [origin.x, origin.x + size.x],
+                    [origin.y, origin.y + size.y]
+                );
+
+                self.place_children(child, origin);
+            });
         }
 
         self.layout_text(self.nodes[node].text_id, self.nodes[node].rect);
 
-        println!(" place   : {:?} = {:?}", self.nodes[node].params.debug_name, self.nodes[node].rect);
+        println!(" place  : {:?} = {:?}", self.nodes[node].params.debug_name, self.nodes[node].rect);
 
     }
 

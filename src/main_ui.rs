@@ -14,13 +14,25 @@ impl State {
             #[node_key(BUTTON.text("Increase").color(Color::GREEN))]
             pub const BUTTON_A: NodeKey;
 
+            #[node_key(PANEL.position_x(Position::Start))]
+            const PIXEL_PANEL: Nodekey;
+            add!(self.ui, PIXEL_PANEL, {
+
+                v_stack!(self.ui, {
+                        add!(self.ui, BUTTON_A);
+                        add!(self.ui, BUTTON_A);
+                        add!(self.ui, BUTTON_A);
+                });
+            });
+
             // h_stack!(self.ui, {
             //     add!(self.ui, BUTTON_A);
             //     add!(self.ui, BUTTON_A);
             //     add!(self.ui, BUTTON_A);
             // });
 
-            self.add_pixel_info_ui();
+
+            // self.add_pixel_info_ui();
 
             // margin!(self.ui, {
             //     #[node_key(V_STACK.size_x(0.3).position_x(Position::End))]
