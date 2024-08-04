@@ -45,6 +45,7 @@ pub const NODE_ROOT_ID: Id = Id(0);
 pub const NODE_ROOT: Node = Node {
     id: NODE_ROOT_ID,
     rect: Xy::new_symm([0.0, 1.0]),
+    size: Xy::new_symm(10.0),
     rect_id: None,
     text_id: None,
     // geeeeeeeeeeeeg wtf
@@ -180,7 +181,7 @@ impl Mul<f32> for Rect {
 // todo: compress some fields... for example, stacks can never be clickable or editable
 #[derive(Debug, Copy, Clone)]
 pub struct NodeParams {
-    pub text: Option<&'static str>,
+    pub static_text: Option<&'static str>,
     pub visible_rect: bool,
     pub clickable: bool,
     pub editable: bool,
@@ -225,7 +226,7 @@ impl NodeParams {
     }
 
     pub const fn text(mut self, text: &'static str) -> Self {
-        self.text = Some(text);
+        self.static_text = Some(text);
         return self;
     }
 
@@ -836,8 +837,8 @@ impl Ui {
         let twin_check_result = match self.nodes.fronts.entry(key.id()) {
             // Add a normal node (no twins).
             Entry::Vacant(v) => {
-                let text_id = self.text.new_text_area(key.defaults().text, frame);
-                let new_node = Self::build_new_node(&key, Some(parent_id), text_id);
+                let text_id = self.text.new_text_area(key.defaults().static_text, frame);
+                let new_node = Self::new_node(&key, Some(parent_id), text_id);
                 
                 let final_i = self.nodes.nodes.insert(new_node);
                 v.insert(NodeFront::new(parent_id, frame, final_i));
@@ -876,8 +877,8 @@ impl Ui {
                 match self.nodes.fronts.entry(twin_key.id()) {
                     // Add new twin.
                     Entry::Vacant(v) => {
-                        let text_id = self.text.new_text_area(twin_key.defaults().text, frame);
-                        let new_twin_node = Self::build_new_node(&twin_key, Some(parent_id), text_id);
+                        let text_id = self.text.new_text_area(twin_key.defaults().static_text, frame);
+                        let new_twin_node = Self::new_node(&twin_key, Some(parent_id), text_id);
     
                         let real_final_i = self.nodes.nodes.insert(new_twin_node);
                         v.insert(NodeFront::new(parent_id, frame, real_final_i));
@@ -930,7 +931,7 @@ impl Ui {
     }
 
     // todo: why like this
-    pub fn build_new_node(
+    pub fn new_node(
         key: &NodeKey,
         parent_id: Option<usize>,
         text_id: Option<usize>,
@@ -943,6 +944,7 @@ impl Ui {
             id: key.id(),
             rect_id: None,
             rect: Xy::new_symm([0.0, 1.0]),
+            size: Xy::new_symm(10.0),
             text_id,
             parent: parent_id,
 
@@ -1132,6 +1134,69 @@ impl Ui {
         }
 
         return false;
+    }
+
+    pub fn layout2(&mut self) {
+        self.determine_size(self.root_i, Xy::new(1.0, 1.0));
+        self.place_children(self.root_i, Xy::new(0.0, 0.0));
+    }
+
+    fn determine_size(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
+        if let Some(_text_id) = self.nodes[node].text_id {
+            self.nodes[node].size = Xy::new(0.25, 0.15);
+        } else {
+            // container. this should look a lot different: the size_per_child can decrease or increase if the first child ends up taking more/less than proposed
+            let size_per_child_x = proposed_size.x / (self.nodes[node].n_children as f32);
+
+            let child_proposed_size = Xy::new(size_per_child_x, proposed_size.y);
+
+            let mut final_self_size = proposed_size.clone();
+
+            let mut current_child = self.nodes[node].first_child;
+            while let Some(child) = current_child {
+                let child_size = self.determine_size(child, child_proposed_size);
+                
+                final_self_size.x += child_size.x;
+                if child_size.y > final_self_size.y {
+                    final_self_size.y = child_size.y;
+                }
+
+                current_child = self.nodes[child].next_sibling;
+            }
+
+            self.nodes[node].size = final_self_size;
+        }
+
+        println!(" det size: {:?} = {:?}", self.nodes[node].params.debug_name, self.nodes[node].size);
+        return self.nodes[node].size;
+    }
+
+    fn place_children(&mut self, node: usize, origin: Xy<f32>) {
+        let size = self.nodes[node].size;
+        if let Some(_text_id) = self.nodes[node].text_id {
+            self.nodes[node].rect = Rect::new(
+                [origin.x, origin.x + size.x],
+                [origin.y, origin.y + size.y]
+            );
+        } else {
+            let mut current_origin = origin;
+            let mut current_child = self.nodes[node].first_child;
+            while let Some(child) = current_child {
+                self.place_children(child, current_origin);
+                current_origin.y += self.nodes[child].size.y;
+
+                current_child = self.nodes[child].next_sibling;
+            }
+            self.nodes[node].rect = Rect::new(
+                [current_origin.x, current_origin.x + size.x],
+                [current_origin.y, current_origin.y + size.y]
+            );
+        }
+
+        self.layout_text(self.nodes[node].text_id, self.nodes[node].rect);
+
+        println!(" place   : {:?} = {:?}", self.nodes[node].params.debug_name, self.nodes[node].rect);
+
     }
 
     pub fn layout(&mut self) {
@@ -1520,7 +1585,7 @@ impl Ui {
     }
 
     pub fn finish_tree(&mut self) {
-        self.layout();
+        self.layout2();
         self.resolve_hover();
     }
 
@@ -1708,6 +1773,9 @@ pub struct Node {
     pub rect_id: Option<usize>,
     // also for invisible rects, used for layout
     pub rect: Rect,
+
+    // partial result when layouting?
+    pub size: Xy<f32>,
 
     pub last_frame_status: LastFrameStatus,
 

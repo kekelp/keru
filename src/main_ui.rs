@@ -10,45 +10,56 @@ use view_derive::node_key;
 impl State {
     pub fn update_ui(&mut self) {
         tree!(self.ui, {
-            margin!(self.ui, {
-                #[node_key(V_STACK.size_x(0.3).position_x(Position::End))]
-                const SIDEBAR: Nodekey;
-                add!(self.ui, SIDEBAR, {
-                    // todo: function for doing get_text from other places
-                    let mut color = add!(self.ui, PAINT_COLOR).get_text();
 
-                    if let Some(color) = &mut color {
-                        color.make_ascii_lowercase();
-                        match color.as_str() {
-                            "blue" => {
-                                self.canvas.paint_color = PixelColorF32::BLUE;
-                            }
-                            "red" => {
-                                self.canvas.paint_color = PixelColorF32::RED;
-                            }
-                            "green" => {
-                                self.canvas.paint_color = PixelColorF32::GREEN;
-                            }
-                            _ => {}
-                        }
-                    }
+            #[node_key(BUTTON.text("Increase").color(Color::GREEN))]
+            pub const BUTTON_A: NodeKey;
 
-                    let pixel_info = self.canvas.pixel_info();
-                    self.add_pixel_info_ui(&pixel_info);
-                    self.add_pixel_info_ui(&pixel_info);
-                    self.add_pixel_info_ui(&pixel_info);
-
-                    self.add_twin_thing_ui();
-                    self.add_twin_thing_ui();
-                    self.add_twin_thing_ui();
-                });
+            h_stack!(self.ui, {
+                add!(self.ui, BUTTON_A);
+                add!(self.ui, BUTTON_A);
+                add!(self.ui, BUTTON_A);
             });
 
-            self.add_counter_ui();
+
+            // margin!(self.ui, {
+            //     #[node_key(V_STACK.size_x(0.3).position_x(Position::End))]
+            //     const SIDEBAR: Nodekey;
+            //     add!(self.ui, SIDEBAR, {
+            //         // todo: function for doing get_text from other places
+            //         let mut color = add!(self.ui, PAINT_COLOR).get_text();
+
+            //         if let Some(color) = &mut color {
+            //             color.make_ascii_lowercase();
+            //             match color.as_str() {
+            //                 "blue" => {
+            //                     self.canvas.paint_color = PixelColorF32::BLUE;
+            //                 }
+            //                 "red" => {
+            //                     self.canvas.paint_color = PixelColorF32::RED;
+            //                 }
+            //                 "green" => {
+            //                     self.canvas.paint_color = PixelColorF32::GREEN;
+            //                 }
+            //                 _ => {}
+            //             }
+            //         }
+
+            //         let pixel_info = self.canvas.pixel_info();
+            //         self.add_pixel_info_ui(&pixel_info);
+            //         self.add_pixel_info_ui(&pixel_info);
+            //         self.add_pixel_info_ui(&pixel_info);
+
+            //         self.add_twin_thing_ui();
+            //         self.add_twin_thing_ui();
+            //         self.add_twin_thing_ui();
+            //     });
+            // });
+
+            // self.add_counter_ui();
         });
 
         // effects
-        self.counter_on_click();
+        // self.counter_on_click();
     }
 }
 

@@ -23,15 +23,15 @@ def layoutTree(root, rootProposedSize):
     placeChildren(root, (0, 0))
 
 def calculateContainerSize(childSizes):
-    // Example for vertical stack
+    # Example for vertical stack
     width = max(childSizes.widths)
     height = sum(childSizes.heights)
     return (width, height)
 
 def updateOriginForNextChild(currentOrigin, childSize):
-    // Example for vertical stack
+    # Example for vertical stack
     return (currentOrigin.x, currentOrigin.y + childSize.height)
 
-// Example usage
+# Example usage
 root = createNodeTree()
 layoutT ree(root, (500, 500))
