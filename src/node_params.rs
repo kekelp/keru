@@ -150,7 +150,7 @@ pub const PANEL: NodeParams = NodeParams {
     clickable: false,
     visible_rect: true,
     color: Color::rgba(0.1, 0.0, 0.1, 0.9),
-    size: Xy::new_symm(JustAsBigAsBiggestChild { padding: Pixels(50) }),
+    size: Xy::new_symm(JustAsBigAsBiggestChild { padding: Pixels(10) }),
     position: Xy::new_symm(Center),
     stack: None,
     editable: false,

@@ -11,21 +11,18 @@ impl State {
     pub fn update_ui(&mut self) {
         tree!(self.ui, {
 
-            #[node_key(BUTTON.text("Increase").color(Color::GREEN))]
+            #[node_key(BUTTON.text("Increase").color(Color::GREEN) .size2_x(Size::Fill { padding: Len::ZERO})  )]
             pub const BUTTON_A: NodeKey;
 
-            #[node_key(PANEL.position_x(Position::Start))]
-            const PIXEL_PANEL: Nodekey;
-            add!(self.ui, PIXEL_PANEL, {
-
-                // add!(self.ui, BUTTON_A);
-                
-                v_stack!(self.ui, {
-                    add!(self.ui, BUTTON_A);
-                    add!(self.ui, BUTTON_A);
-                    add!(self.ui, BUTTON_A);
-                });
-            });
+            // #[node_key(PANEL.position_x(Position::Start))]
+            // const PIXEL_PANEL: Nodekey;
+            // add!(self.ui, PIXEL_PANEL, {                
+            //     v_stack!(self.ui, {
+            //         add!(self.ui, BUTTON_A);
+            //         add!(self.ui, BUTTON_A);
+            //         add!(self.ui, BUTTON_A);
+            //     });
+            // });
 
             // h_stack!(self.ui, {
             //     add!(self.ui, BUTTON_A);
@@ -69,11 +66,11 @@ impl State {
             //     });
             // });
 
-            // self.add_counter_ui();
+            self.add_counter_ui();
         });
 
         // effects
-        // self.counter_on_click();
+        self.counter_on_click();
     }
 }
 
@@ -137,9 +134,9 @@ impl State {
 
     pub fn add_counter_ui(&mut self) {
         margin!(self.ui, {
-            #[node_key(H_STACK.size_x(Frac(0.23)).position_x(Position::Start))]
-            pub const CENTER_ROW: NodeKey;
-            h_stack!(self.ui, CENTER_ROW, {
+            // #[node_key(H_STACK.size_x(Frac(0.23)).position_x(Position::Start))]
+            // pub const CENTER_ROW: NodeKey;
+            h_stack!(self.ui, {
                 v_stack!(self.ui, {
                     if self.counter_state.counter_mode {
                         let new_color = count_color(self.counter_state.count);
@@ -198,9 +195,9 @@ impl State {
         };
 
         // todo:::::: I don't want strings, I want to write!() directly into the buffer
-        #[node_key(PANEL.size_y(Frac(0.5)).position_x(Position::Start))]
-        const PIXEL_PANEL: Nodekey;
-        add!(self.ui, PIXEL_PANEL, {
+        #[node_key(PANEL.position_x(Position::Start))]
+        const PIXEL_PANEL2: Nodekey;
+        add!(self.ui, PIXEL_PANEL2, {
             v_stack!(self.ui, {
                 h_stack!(self.ui, {
                     text!(self.ui, "x:");

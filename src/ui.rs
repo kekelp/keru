@@ -113,6 +113,7 @@ impl<T: Add<Output = T> + Copy> Add<(T, T)> for Xy<T> {
     }
 }
 
+
 impl<T> Index<Axis> for Xy<T> {
     type Output = T;
     fn index(&self, axis: Axis) -> &Self::Output {
@@ -214,6 +215,14 @@ impl NodeParams {
     }
     pub const fn size_y(mut self, size: Len) -> Self {
         self.size.y = Size::Fixed(size);
+        return self;
+    }
+    pub const fn size2_x(mut self, size: Size) -> Self {
+        self.size.x = size;
+        return self;
+    }
+    pub const fn size2_y(mut self, size: Size) -> Self {
+        self.size.y = size;
         return self;
     }
     pub const fn size_symm(mut self, size: Len) -> Self {
@@ -1181,20 +1190,22 @@ impl Ui {
                 self.determine_size_normal(node, proposed_size)
             }
         };
+        println!(" size   : {:?} = {:?}", self.nodes[node].params.debug_name, self.nodes[node].size);
+
         return self.nodes[node].size;
     }
 
     fn determine_size_stack(&mut self, node: usize, proposed_size: Xy<f32>, stack: Stack) -> Xy<f32> {
         let (main, cross) = (stack.axis, stack.axis.other());
-        // container. this should look a lot different: the size_per_child can decrease or increase if the first child ends up taking more/less than proposed
         
         let mut child_proposed_size = Xy::new(0.0, 0.0);
         let n_children = self.nodes[node].n_children as f32;
         child_proposed_size[main] = proposed_size[main] / n_children;
         child_proposed_size[cross] = proposed_size[cross];
-
+        
         let padding = self.to_frac2(self.nodes[node].params.size.padding());
         child_proposed_size[main] += 2.0 * padding[main] * n_children;
+        child_proposed_size[cross] -= 2.0 * padding[cross];
 
         let mut final_self_size = Xy::new(0.0, 0.0);
 
@@ -1212,6 +1223,12 @@ impl Ui {
 
     fn determine_size_normal(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
         let mut final_size = proposed_size;
+
+        let padding = self.to_frac2(self.nodes[node].params.size.padding());
+        let mut proposed_size = proposed_size;
+        for axis in [X, Y] {
+            proposed_size[axis] = proposed_size[axis] - 2.0 * padding[axis];
+        }
         let mut biggest_child_size = Xy::new(0.0, 0.0);
         for_each_child!(self, self.nodes[node], child, {
             self.determine_size(child, proposed_size);
@@ -1224,16 +1241,21 @@ impl Ui {
 
         for axis in [X, Y] {
             match self.nodes[node].params.size[axis] {
-                Size::Fill { .. } => {
-                    // leave proposed_size 
-                },
+                Size::Fill { .. } => {}, // accept the whole proposed_size
                 Size::JustAsBigAsBiggestChild { padding } => {
-                    // dumb double loop
                     let padding = self.to_frac_axis(padding, axis);
                     final_size[axis] = biggest_child_size[axis] + 2.0 * padding;
                 },
                 Size::Fixed(len) => {
-                    final_size[axis] = self.to_frac_axis(len, axis);
+                    match len {
+                        Len::Pixels(_pixels) => {
+                            final_size[axis] = self.to_frac_axis(len, axis);
+                        },
+                        Len::Frac(frac) => {
+                            final_size[axis] *= frac;
+                        },
+                    }
+                    
                 },
                 Size::TextContent { .. } => {
                     const TEXT_SIZE_LOL: Xy<f32> = Xy::new(0.15, 0.066);
@@ -1883,6 +1905,8 @@ pub struct Node {
 impl Node {
     fn reset_children(&mut self) {
         self.first_child = None;
+        self.next_sibling = None;
+        self.prev_sibling = None;
         self.n_children = 0;
     }
 
