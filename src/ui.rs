@@ -47,7 +47,7 @@ pub const NODE_ROOT_ID: Id = Id(0);
 pub const NODE_ROOT: Node = Node {
     id: NODE_ROOT_ID,
     rect: Xy::new_symm([0.0, 1.0]),
-    size: Xy::new_symm(10.0),
+    size: Xy::new_symm(1.0),
     rect_id: None,
     text_id: None,
     // geeeeeeeeeeeeg wtf
@@ -57,7 +57,6 @@ pub const NODE_ROOT: Node = Node {
 
     n_children: 0,
     first_child: None,
-    prev_sibling: None,
     next_sibling: None,
 
     params: NODE_ROOT_PARAMS,
@@ -153,10 +152,24 @@ impl Rect {
         return Xy::new(self[X][1] - self[X][0], self[Y][1] - self[Y][0]);
     }
 
-    pub fn new2(origin: Xy<f32>, size: Xy<f32>) -> Self {
+    pub fn rightward(origin: Xy<f32>, size: Xy<f32>) -> Self {
         return Self {
             x: [origin.x, origin.x + size.x],
             y: [origin.y, origin.y + size.y]
+        }
+    }
+
+    pub fn leftward(origin: Xy<f32>, size: Xy<f32>) -> Self {
+        return Self {
+            x: [origin.x - size.x, origin.x],
+            y: [origin.y - size.y, origin.y]
+        }
+    }
+
+    pub fn from_center(origin: Xy<f32>, size: Xy<f32>) -> Self {
+        return Self {
+            x: [origin.x - size.x / 2.0, origin.x + size.x / 2.0],
+            y: [origin.y - size.y / 2.0, origin.y + size.y / 2.0]
         }
     }
 }
@@ -198,6 +211,7 @@ pub struct NodeParams {
     pub filled: bool,
     pub color: Color,
     pub size: Xy<Size>,
+    pub padding: Xy<Len>,
     pub position: Xy<Position>,
     pub stack: Option<Stack>,
     #[cfg(debug_assertions)]
@@ -962,7 +976,7 @@ impl Ui {
 
         } else {
             let prev_sibling = *self.last_child_stack.last().unwrap();
-            self.nodes[id].prev_sibling = Some(prev_sibling);
+            // self.nodes[id].prev_sibling = Some(prev_sibling);
             self.nodes[prev_sibling].next_sibling = Some(id);
             *self.last_child_stack.last_mut().unwrap() = id;
         }
@@ -990,7 +1004,6 @@ impl Ui {
 
             n_children: 0,
             first_child: None,
-            prev_sibling: None,
             next_sibling: None,
         
             params: key.defaults(),
@@ -1178,7 +1191,7 @@ impl Ui {
 
     pub fn layout2(&mut self) {
         self.determine_size(self.root_i, Xy::new(1.0, 1.0));
-        self.place_children(self.root_i, Xy::new(0.0, 0.0));
+        self.place_children(self.root_i);
     }
 
     fn determine_size(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
@@ -1203,7 +1216,7 @@ impl Ui {
         child_proposed_size[main] = proposed_size[main] / n_children;
         child_proposed_size[cross] = proposed_size[cross];
         
-        let padding = self.to_frac2(self.nodes[node].params.size.padding());
+        let padding = self.to_frac2(self.nodes[node].params.padding);
         child_proposed_size[main] += 2.0 * padding[main] * n_children;
         child_proposed_size[cross] -= 2.0 * padding[cross];
 
@@ -1224,7 +1237,7 @@ impl Ui {
     fn determine_size_normal(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
         let mut final_size = proposed_size;
 
-        let padding = self.to_frac2(self.nodes[node].params.size.padding());
+        let padding = self.to_frac2(self.nodes[node].params.padding);
         let mut proposed_size = proposed_size;
         for axis in [X, Y] {
             proposed_size[axis] = proposed_size[axis] - 2.0 * padding[axis];
@@ -1242,9 +1255,8 @@ impl Ui {
         for axis in [X, Y] {
             match self.nodes[node].params.size[axis] {
                 Size::Fill { .. } => {}, // accept the whole proposed_size
-                Size::JustAsBigAsBiggestChild { padding } => {
-                    let padding = self.to_frac_axis(padding, axis);
-                    final_size[axis] = biggest_child_size[axis] + 2.0 * padding;
+                Size::JustAsBigAsBiggestChild => {
+                    final_size[axis] = biggest_child_size[axis] + 2.0 * padding[axis];
                 },
                 Size::Fixed(len) => {
                     match len {
@@ -1267,23 +1279,24 @@ impl Ui {
         return final_size;
     }
 
-    fn place_children(&mut self, node: usize, origin: Xy<f32>) {
+    fn place_children(&mut self, node: usize) {
+        let rect = self.nodes[node].rect;
+        let padding = self.to_frac2(self.nodes[node].params.padding);
 
         if let Some(stack) = self.nodes[node].params.stack {
 
             let main = stack.axis;
-
+            
+            let origin = Xy::new(rect[X][0], rect[Y][0]);
             let mut current_origin = origin;
             
             for_each_child!(self, self.nodes[node], child, {
                 let size = self.nodes[child].size;
-                let padding = self.nodes[node].params.size.padding();
-                let padding = self.to_frac2(padding);
                 let child_origin = current_origin + padding;
                 
-                self.nodes[child].rect = Rect::new2(child_origin, size);
+                self.nodes[child].rect = Rect::rightward(child_origin, size);
 
-                self.place_children(child, child_origin);
+                self.place_children(child);
 
                 current_origin[main] += self.nodes[child].size[main] + padding[main];
             });
@@ -1291,18 +1304,35 @@ impl Ui {
         } else {
             for_each_child!(self, self.nodes[node], child, {
                 let size = self.nodes[child].size;
-                let padding = self.to_frac2(self.nodes[node].params.size.padding());
-                let child_origin = origin + padding;
 
-                self.nodes[child].rect = Rect::new2(child_origin, size);
+                let mut child_origin: Xy<f32> = Xy::new(1.0, 1.0);
+                for ax in [X, Y] {
+                    match self.nodes[child].params.position[ax] {
+                        Position::Start => {
+                            let origin = rect[ax][0] + padding[ax];
+                            self.nodes[child].rect[ax] = [origin, origin + size[ax]];         
+                        },
+                        Position::End => {
+                            let origin = rect[ax][1] - padding[ax];
+                            self.nodes[child].rect[ax] = [origin - size[ax], origin];                        },
+                        Position::Center => {
+                            let origin = (rect[ax][1] + rect[ax][0]) / 2.0;
+                            self.nodes[child].rect[ax] = [
+                                origin - size[ax] / 2.0 ,
+                                origin + size[ax] / 2.0 ,
+                            ];           
+                        },
+                    }
+                }
 
-                self.place_children(child, child_origin);
+                
+                self.place_children(child);
             });
         }
+        println!(" place  : {:?} = {:?}", self.nodes[node].params.debug_name, self.nodes[node].rect);
 
         self.layout_text(self.nodes[node].text_id, self.nodes[node].rect);
 
-        println!(" place  : {:?} = {:?}", self.nodes[node].params.debug_name, self.nodes[node].rect);
 
     }
 
@@ -1891,10 +1921,13 @@ pub struct Node {
     pub parent: usize,
 
     // le epic inline linked list instead of a random Vec somewhere else on the heap
+    // todo: Option<usize> is 128 bits, which is ridicolous. Use a NonMaxU32 or something
     pub n_children: u16,
     pub first_child: Option<usize>,
-    pub prev_sibling: Option<usize>,
     pub next_sibling: Option<usize>,
+    // prev_sibling is never used so far.
+    // at some point I was iterating the children in reverse for z ordering purposes, but I don't think that actually makes any difference.  
+    // pub prev_sibling: Option<usize>,
 
     pub params: NodeParams,
 
@@ -1906,7 +1939,7 @@ impl Node {
     fn reset_children(&mut self) {
         self.first_child = None;
         self.next_sibling = None;
-        self.prev_sibling = None;
+        // self.prev_sibling = None;
         self.n_children = 0;
     }
 
@@ -1926,38 +1959,15 @@ pub enum LastFrameStatus {
 #[derive(Debug, Clone, Copy)]
 pub enum Size {
     Fixed(Len),
-    Fill {
-        padding: Len,
-    },
-    TextContent {
-        padding: Len
+    Fill,
+    TextContent,
         // something like "strictness":
         //  with the "proposed" thing, a TextContent can either insist to get the minimum size it wants,
         // or be okay with whatever (and clip it, show some "..."'s, etc) 
-    },
-    JustAsBigAsBiggestChild {
-        padding: Len,
-    }
+    JustAsBigAsBiggestChild,
     // todo: add JustAsBigAsBiggestChildInitiallyButNeverResizeAfter 
 }
-impl Size {
-    pub fn padding(&self) -> Len {
-        match self {
-            Size::Fixed(_) => Len::ZERO,
-            Size::Fill { padding } => *padding,
-            Size::TextContent { padding } => *padding,
-            Size::JustAsBigAsBiggestChild { padding } => *padding,
-        }
-    }
-}
-impl Xy<Size> {
-    pub fn padding(&self) -> Xy<Len> {
-        return Xy::new(
-            self.x.padding(),
-            self.y.padding(),
-        )
-    }
-}
+
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Len {
@@ -1965,7 +1975,7 @@ pub enum Len {
     Frac(f32),
 }
 impl Len {
-    pub const ZERO: Self = Self::Frac(0.0);
+    pub const ZERO: Self = Self::Pixels(0);
 }
 
 #[derive(Debug, Clone, Copy)]

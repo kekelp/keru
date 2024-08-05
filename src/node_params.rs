@@ -24,6 +24,7 @@ pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     stack: None,
     editable: false,
     filled: true,
+    padding: Xy::new_symm(Len::ZERO),
 };
 
 
@@ -39,6 +40,7 @@ pub const DEFAULT: NodeParams = NodeParams {
     stack: None,
     editable: false,
     filled: true,
+    padding: Xy::new_symm(Len::ZERO),
 };
 
 pub const V_STACK: NodeParams = NodeParams {
@@ -56,6 +58,7 @@ pub const V_STACK: NodeParams = NodeParams {
     }),
     editable: false,
     filled: false,
+    padding: Xy::new_symm(Len::ZERO),
 };
 pub const H_STACK: NodeParams = NodeParams {
     #[cfg(debug_assertions)]
@@ -72,6 +75,7 @@ pub const H_STACK: NodeParams = NodeParams {
     }),
     editable: false,
     filled: false,
+    padding: Xy::new_symm(Len::ZERO),
 };
 pub const MARGIN: NodeParams = NodeParams {
     #[cfg(debug_assertions)]
@@ -85,6 +89,7 @@ pub const MARGIN: NodeParams = NodeParams {
     stack: None,
     editable: false,
     filled: false,
+    padding: Xy::new_symm(Len::Pixels(5)),
 };
 
 pub const BUTTON: NodeParams = NodeParams {
@@ -94,11 +99,12 @@ pub const BUTTON: NodeParams = NodeParams {
     clickable: true,
     visible_rect: true,
     color: Color::rgba(0.0, 0.1, 0.1, 0.9),
-    size: Xy::new_symm(TextContent { padding: Pixels(10) }),
+    size: Xy::new_symm(TextContent),
     position: Xy::new_symm(Center),
     stack: None,
     editable: false,
     filled: true,
+    padding: Xy::new_symm(Len::Pixels(10)),
 };
 
 pub const LABEL: NodeParams = NodeParams {
@@ -108,11 +114,12 @@ pub const LABEL: NodeParams = NodeParams {
     clickable: false,
     visible_rect: true,
     color: Color::BLUE,
-    size: Xy::new_symm(TextContent { padding: Pixels(0) }),
+    size: Xy::new_symm(TextContent),
     position: Xy::new_symm(Center),
     stack: None,
     editable: false,
     filled: true,
+    padding: Xy::new_symm(Len::Pixels(10)),
 };
 
 pub const TEXT: NodeParams = NodeParams {
@@ -122,11 +129,12 @@ pub const TEXT: NodeParams = NodeParams {
     clickable: false,
     visible_rect: false,
     color: Color::RED,
-    size: Xy::new_symm(TextContent { padding: Pixels(1) }),
+    size: Xy::new_symm(TextContent),
     position: Xy::new_symm(Center),
     stack: None,
     editable: false,
     filled: false,
+    padding: Xy::new_symm(Len::Pixels(2)),
 };
 
 pub const TEXT_INPUT: NodeParams = NodeParams {
@@ -136,11 +144,12 @@ pub const TEXT_INPUT: NodeParams = NodeParams {
     clickable: true,
     visible_rect: true,
     color: Color::rgba(0.1, 0.0, 0.1, 0.9),
-    size: Xy::new_symm(TextContent { padding: Pixels(5) }),
+    size: Xy::new_symm(TextContent),
     position: Xy::new_symm(Center),
     stack: None,
     editable: true,
     filled: true,
+    padding: Xy::new_symm(Len::Pixels(5)),
 };
 
 pub const PANEL: NodeParams = NodeParams {
@@ -150,9 +159,10 @@ pub const PANEL: NodeParams = NodeParams {
     clickable: false,
     visible_rect: true,
     color: Color::rgba(0.1, 0.0, 0.1, 0.9),
-    size: Xy::new_symm(JustAsBigAsBiggestChild { padding: Pixels(10) }),
+    size: Xy::new_symm(JustAsBigAsBiggestChild),
     position: Xy::new_symm(Center),
     stack: None,
     editable: false,
     filled: true,
+    padding: Xy::new_symm(Len::Pixels(10)),
 };
