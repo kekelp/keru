@@ -1305,7 +1305,6 @@ impl Ui {
             for_each_child!(self, self.nodes[node], child, {
                 let size = self.nodes[child].size;
 
-                let mut child_origin: Xy<f32> = Xy::new(1.0, 1.0);
                 for ax in [X, Y] {
                     match self.nodes[child].params.position[ax] {
                         Position::Start => {
