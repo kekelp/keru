@@ -66,11 +66,11 @@ impl State {
             //     });
             // });
 
-            // self.add_counter_ui();
+            self.add_counter_ui();
         });
 
         // effects
-        // self.counter_on_click();
+        self.counter_on_click();
     }
 }
 
