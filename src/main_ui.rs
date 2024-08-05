@@ -18,10 +18,12 @@ impl State {
             const PIXEL_PANEL: Nodekey;
             add!(self.ui, PIXEL_PANEL, {
 
+                // add!(self.ui, BUTTON_A);
+                
                 v_stack!(self.ui, {
-                        add!(self.ui, BUTTON_A);
-                        add!(self.ui, BUTTON_A);
-                        add!(self.ui, BUTTON_A);
+                    add!(self.ui, BUTTON_A);
+                    add!(self.ui, BUTTON_A);
+                    add!(self.ui, BUTTON_A);
                 });
             });
 

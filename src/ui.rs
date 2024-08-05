@@ -151,6 +151,13 @@ impl Rect {
     pub fn size(&self) -> Xy<f32> {
         return Xy::new(self[X][1] - self[X][0], self[Y][1] - self[Y][0]);
     }
+
+    pub fn new2(origin: Xy<f32>, size: Xy<f32>) -> Self {
+        return Self {
+            x: [origin.x, origin.x + size.x],
+            y: [origin.y, origin.y + size.y]
+        }
+    }
 }
 impl Add<f32> for Rect {
     type Output = Self;
@@ -643,18 +650,25 @@ pub struct Ui {
 }
 impl Ui {
 
-    pub fn len_to_pixels(&self, len: Len) -> u32 {
+    pub fn to_pixels_axis(&self, len: Len) -> u32 {
         match len {
             Len::Pixels(pixels) => return pixels,
             Len::Frac(frac) => return (frac * self.part.unifs.size.x) as u32,
         }
     }
 
-    pub fn len_to_frac(&self, len: Len) -> f32 {
+    pub fn to_frac_axis(&self, len: Len, axis: Axis) -> f32 {
         match len {
-            Len::Pixels(pixels) => return (pixels as f32) / self.part.unifs.size.x,
+            Len::Pixels(pixels) => return (pixels as f32) / self.part.unifs.size[axis],
             Len::Frac(frac) => return frac,
         }
+    }
+
+    pub fn to_frac2(&self, len: Xy<Len>) -> Xy<f32> {
+        return Xy::new(
+            self.to_frac_axis(len.x, X),
+            self.to_frac_axis(len.y, Y),
+        );
     }
 
     fn instant_t(&self) -> f32 {
@@ -1159,51 +1173,28 @@ impl Ui {
     }
 
     fn determine_size(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
-        if let Some(_stack) = self.nodes[node].params.stack {
-            self.determine_size_stack(node, proposed_size);
-        } else {
-            let mut biggest_child_size = Xy::new(0.0, 0.0);
-            for_each_child!(self, self.nodes[node], child, {
-                self.determine_size(child, proposed_size);
-                for axis in [X, Y] {
-                    if self.nodes[child].size[axis] > biggest_child_size[axis] {
-                        biggest_child_size[axis] = self.nodes[child].size[axis];
-                    }
-                }
-            });
-
-            for axis in [X, Y] {
-                match self.nodes[node].params.size[axis] {
-                    Size::JustAsBigAsBiggestChild { .. } => {
-                        // dumb double loop
-                        self.nodes[node].size[axis] = biggest_child_size[axis];
-                    },
-                    Size::Fixed(len) => {
-                        self.nodes[node].size[axis] = self.len_to_frac(len);
-                    },
-                    Size::TextContent { .. } => {
-                        const TEXT_SIZE_LOL: Xy<f32> = Xy::new(0.15, 0.066);
-                        self.nodes[node].size[axis] = TEXT_SIZE_LOL[axis];
-                    },
-                }
+        self.nodes[node].size = match self.nodes[node].params.stack {
+            Some(stack) => {
+                self.determine_size_stack(node, proposed_size, stack)
             }
-        }
-
-        println!(" size  : {:?} = {:?}", self.nodes[node].params.debug_name, self.nodes[node].size);
-
+            None => {
+                self.determine_size_normal(node, proposed_size)
+            }
+        };
         return self.nodes[node].size;
     }
 
-    fn determine_size_stack(&mut self, node: usize, proposed_size: Xy<f32>) {
-        let stack = self.nodes[node].params.stack.unwrap();
+    fn determine_size_stack(&mut self, node: usize, proposed_size: Xy<f32>, stack: Stack) -> Xy<f32> {
         let (main, cross) = (stack.axis, stack.axis.other());
         // container. this should look a lot different: the size_per_child can decrease or increase if the first child ends up taking more/less than proposed
         
         let mut child_proposed_size = Xy::new(0.0, 0.0);
-        child_proposed_size[main] = proposed_size[main] / (self.nodes[node].n_children as f32);
+        let n_children = self.nodes[node].n_children as f32;
+        child_proposed_size[main] = proposed_size[main] / n_children;
         child_proposed_size[cross] = proposed_size[cross];
 
-        // println!("Even albeit {}", self.nodes[node].n_children);
+        let padding = self.to_frac2(self.nodes[node].params.size.padding());
+        child_proposed_size[main] += 2.0 * padding[main] * n_children;
 
         let mut final_self_size = Xy::new(0.0, 0.0);
 
@@ -1216,7 +1207,42 @@ impl Ui {
             }
         });
 
-        self.nodes[node].size = final_self_size;
+        return final_self_size;
+    }
+
+    fn determine_size_normal(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
+        let mut final_size = proposed_size;
+        let mut biggest_child_size = Xy::new(0.0, 0.0);
+        for_each_child!(self, self.nodes[node], child, {
+            self.determine_size(child, proposed_size);
+            for axis in [X, Y] {
+                if self.nodes[child].size[axis] > biggest_child_size[axis] {
+                    biggest_child_size[axis] = self.nodes[child].size[axis];
+                }
+            }
+        });
+
+        for axis in [X, Y] {
+            match self.nodes[node].params.size[axis] {
+                Size::Fill { .. } => {
+                    // leave proposed_size 
+                },
+                Size::JustAsBigAsBiggestChild { padding } => {
+                    // dumb double loop
+                    let padding = self.to_frac_axis(padding, axis);
+                    final_size[axis] = biggest_child_size[axis] + 2.0 * padding;
+                },
+                Size::Fixed(len) => {
+                    final_size[axis] = self.to_frac_axis(len, axis);
+                },
+                Size::TextContent { .. } => {
+                    const TEXT_SIZE_LOL: Xy<f32> = Xy::new(0.15, 0.066);
+                    final_size[axis] = TEXT_SIZE_LOL[axis];
+                },
+            }
+        }
+
+        return final_size;
     }
 
     fn place_children(&mut self, node: usize, origin: Xy<f32>) {
@@ -1228,30 +1254,27 @@ impl Ui {
             let mut current_origin = origin;
             
             for_each_child!(self, self.nodes[node], child, {
-
                 let size = self.nodes[child].size;
+                let padding = self.nodes[node].params.size.padding();
+                let padding = self.to_frac2(padding);
+                let child_origin = current_origin + padding;
+                
+                self.nodes[child].rect = Rect::new2(child_origin, size);
 
-                self.nodes[child].rect = Rect::new(
-                    [current_origin.x, current_origin.x + size.x],
-                    [current_origin.y, current_origin.y + size.y]
-                );
+                self.place_children(child, child_origin);
 
-                self.place_children(child, current_origin);
-                current_origin[main] += self.nodes[child].size[main];
-
+                current_origin[main] += self.nodes[child].size[main] + padding[main];
             });
 
         } else {
             for_each_child!(self, self.nodes[node], child, {
-
                 let size = self.nodes[child].size;
+                let padding = self.to_frac2(self.nodes[node].params.size.padding());
+                let child_origin = origin + padding;
 
-                self.nodes[child].rect = Rect::new(
-                    [origin.x, origin.x + size.x],
-                    [origin.y, origin.y + size.y]
-                );
+                self.nodes[child].rect = Rect::new2(child_origin, size);
 
-                self.place_children(child, origin);
+                self.place_children(child, child_origin);
             });
         }
 
@@ -1879,6 +1902,9 @@ pub enum LastFrameStatus {
 #[derive(Debug, Clone, Copy)]
 pub enum Size {
     Fixed(Len),
+    Fill {
+        padding: Len,
+    },
     TextContent {
         padding: Len
         // something like "strictness":
@@ -1888,12 +1914,34 @@ pub enum Size {
     JustAsBigAsBiggestChild {
         padding: Len,
     }
+    // todo: add JustAsBigAsBiggestChildInitiallyButNeverResizeAfter 
+}
+impl Size {
+    pub fn padding(&self) -> Len {
+        match self {
+            Size::Fixed(_) => Len::ZERO,
+            Size::Fill { padding } => *padding,
+            Size::TextContent { padding } => *padding,
+            Size::JustAsBigAsBiggestChild { padding } => *padding,
+        }
+    }
+}
+impl Xy<Size> {
+    pub fn padding(&self) -> Xy<Len> {
+        return Xy::new(
+            self.x.padding(),
+            self.y.padding(),
+        )
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Len {
     Pixels(u32),
     Frac(f32),
+}
+impl Len {
+    pub const ZERO: Self = Self::Frac(0.0);
 }
 
 #[derive(Debug, Clone, Copy)]
