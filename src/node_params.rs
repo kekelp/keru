@@ -50,7 +50,7 @@ pub const V_STACK: NodeParams = NodeParams {
     clickable: true,
     visible_rect: false,
     color: DEBUG_RED,
-    size: Xy::new(Size::AsBigAsChildren, Size::Fill),
+    size: Xy::new(Size::AsBigAsChildren, Size::AsBigAsChildren),
     position: Xy::new_symm(Center),
     stack: Some(Stack {
         arrange: Arrange::Start,
@@ -68,10 +68,10 @@ pub const H_STACK: NodeParams = NodeParams {
     visible_rect: false,
     clickable: false,
     color: DEBUG_RED,
-    size: Xy::new(Size::Fill, Size::AsBigAsChildren),
+    size: Xy::new(Size::AsBigAsChildren, Size::AsBigAsChildren),
     position: Xy::new_symm(Center),
     stack: Some(Stack {
-        arrange: Arrange::End,
+        arrange: Arrange::Start,
         axis: Axis::X,
         spacing: Len::Pixels(5),
     }),

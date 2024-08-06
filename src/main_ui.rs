@@ -19,25 +19,18 @@ impl State {
 
             #[node_key(PANEL.position_x(Position::End).size2_y(Size::Fill).size2_x(Size::AsBigAsChildren))]
             const PIXEL_PANEL: Nodekey;
-            add!(self.ui, PIXEL_PANEL, {                
-                v_stack!(self.ui, {
-                    add!(self.ui, BUTTON_A);
-                    add!(self.ui, BUTTON_A);
-                    add!(self.ui, BUTTON_A);
-                });
-            });
-
-            // h_stack!(self.ui, {
-            //     add!(self.ui, BUTTON_A);
-            //     add!(self.ui, BUTTON_A);
-            //     add!(self.ui, BUTTON_A);
+            // add!(self.ui, PIXEL_PANEL, {                
+            //     v_stack!(self.ui, {
+            //         add!(self.ui, BUTTON_A);
+            //         add!(self.ui, BUTTON_A);
+            //         add!(self.ui, BUTTON_A);
+            //     });
             // });
 
-
-            // self.add_pixel_info_ui();
+            self.add_pixel_info_ui();
 
             // margin!(self.ui, {
-            //     #[node_key(V_STACK.size_x(Len::Frac(0.3)).position_x(Position::End))]
+            //     #[node_key(V_STACK.size_x(0.3).position_x(Position::End))]
             //     const SIDEBAR: Nodekey;
             //     add!(self.ui, SIDEBAR, {
             //         // todo: function for doing get_text from other places

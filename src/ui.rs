@@ -1214,17 +1214,20 @@ impl Ui {
 
     fn determine_size_stack(&mut self, node: usize, proposed_size: Xy<f32>, stack: Stack) -> Xy<f32> {
         let mut proposed_size = proposed_size;
+        
+        let (main, cross) = (stack.axis, stack.axis.other());
         let padding = self.to_frac2(self.nodes[node].params.padding);
         let spacing = self.to_frac(stack.spacing, stack.axis);
-        let n_children = self.nodes[node].n_children;
+        let n_children = self.nodes[node].n_children as f32;
         
-        for axis in [X, Y] {
-            // adjust proposed size based on padding and spacing
-            proposed_size[axis] -= 2.0 * padding[axis];
+        // adjust proposed size based on spacing
+        if n_children > 1.5 {
+            proposed_size[main] -= spacing * (n_children - 1.0);
+        }
 
-            if n_children >= 2 {
-                proposed_size[axis] -= spacing * (n_children - 1) as f32;
-            }
+        for axis in [X, Y] {
+            // adjust proposed size based on padding
+            proposed_size[axis] -= 2.0 * padding[axis];
 
             // adjust proposed size based on our own size
             match self.nodes[node].params.size[axis] {
@@ -1243,10 +1246,7 @@ impl Ui {
             }
         }        
         
-        let (main, cross) = (stack.axis, stack.axis.other());
-        
         let mut child_proposed_size = Xy::new(0.0, 0.0);
-        let n_children = self.nodes[node].n_children as f32;
         child_proposed_size[main] = proposed_size[main] / n_children;
         child_proposed_size[cross] = proposed_size[cross];
         
@@ -1277,6 +1277,9 @@ impl Ui {
         // uhh re-add the padding or something (weird)
         for axis in [X, Y] {
             final_size[axis] += 2.0 * padding[axis];
+        }
+        if n_children > 1.0 {
+            final_size[main] += spacing * (n_children - 1.0);
         }
 
         self.nodes[node].size = final_size;
