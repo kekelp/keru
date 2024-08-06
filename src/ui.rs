@@ -1214,15 +1214,13 @@ impl Ui {
 
     fn determine_size_stack(&mut self, node: usize, proposed_size: Xy<f32>, stack: Stack) -> Xy<f32> {
         let mut proposed_size = proposed_size;
-
-        // adjust proposed size based on padding
         let padding = self.to_frac2(self.nodes[node].params.padding);
-        for axis in [X, Y] {
-            proposed_size[axis] -= 2.0 * padding[axis];
-        }
         
-        // adjust proposed size based on our own size
         for axis in [X, Y] {
+            // adjust proposed size based on padding
+            proposed_size[axis] -= 2.0 * padding[axis];
+
+            // adjust proposed size based on our own size
             match self.nodes[node].params.size[axis] {
                 Size::AsBigAsChildren => {}, // propose the whole size. We will shrink our own final size later if they end up using less or more 
                 Size::Fill => {}, // keep the whole proposed_size
@@ -1284,13 +1282,11 @@ impl Ui {
         let padding = self.to_frac2(self.nodes[node].params.padding);
         let mut proposed_size = proposed_size;
         
-        // adjust the size we propose to children based on padding
         for axis in [X, Y] {
+            // adjust the size we propose to children based on padding
             proposed_size[axis] -= 2.0 * padding[axis];
-        }
 
-        // adjust the size we propose to children based on our own size    
-        for axis in [X, Y] {
+            // adjust the size we propose to children based on our own size    
             match self.nodes[node].params.size[axis] {
                 Size::AsBigAsChildren => {}, // propose the whole size. We will shrink our own final size later if they end up using less or more 
                 Size::Fill => {}, // keep the whole proposed_size
