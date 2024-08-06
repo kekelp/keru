@@ -55,6 +55,7 @@ pub const V_STACK: NodeParams = NodeParams {
     stack: Some(Stack {
         arrange: Arrange::Start,
         axis: Axis::Y,
+        spacing: Len::Pixels(5),
     }),
     editable: false,
     filled: false,
@@ -72,6 +73,7 @@ pub const H_STACK: NodeParams = NodeParams {
     stack: Some(Stack {
         arrange: Arrange::End,
         axis: Axis::X,
+        spacing: Len::Pixels(5),
     }),
     editable: false,
     filled: false,

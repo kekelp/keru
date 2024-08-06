@@ -278,8 +278,8 @@ impl NodeParams {
         return self;
     }
 
-    pub const fn stack(mut self, axis: Axis, arrange: Arrange) -> Self {
-        self.stack = Some(Stack { arrange, axis });
+    pub const fn stack(mut self, axis: Axis, arrange: Arrange, spacing: Len) -> Self {
+        self.stack = Some(Stack { arrange, axis, spacing });
         return self;
     }
 }
@@ -673,14 +673,14 @@ pub struct Ui {
 }
 impl Ui {
 
-    pub fn to_pixels_axis(&self, len: Len) -> u32 {
+    pub fn to_pixels(&self, len: Len) -> u32 {
         match len {
             Len::Pixels(pixels) => return pixels,
             Len::Frac(frac) => return (frac * self.part.unifs.size.x) as u32,
         }
     }
 
-    pub fn to_frac_axis(&self, len: Len, axis: Axis) -> f32 {
+    pub fn to_frac(&self, len: Len, axis: Axis) -> f32 {
         match len {
             Len::Pixels(pixels) => return (pixels as f32) / self.part.unifs.size[axis],
             Len::Frac(frac) => return frac,
@@ -693,8 +693,8 @@ impl Ui {
 
     pub fn to_frac2(&self, len: Xy<Len>) -> Xy<f32> {
         return Xy::new(
-            self.to_frac_axis(len.x, X),
-            self.to_frac_axis(len.y, Y),
+            self.to_frac(len.x, X),
+            self.to_frac(len.y, Y),
         );
     }
 
@@ -1215,10 +1215,16 @@ impl Ui {
     fn determine_size_stack(&mut self, node: usize, proposed_size: Xy<f32>, stack: Stack) -> Xy<f32> {
         let mut proposed_size = proposed_size;
         let padding = self.to_frac2(self.nodes[node].params.padding);
+        let spacing = self.to_frac(stack.spacing, stack.axis);
+        let n_children = self.nodes[node].n_children;
         
         for axis in [X, Y] {
-            // adjust proposed size based on padding
+            // adjust proposed size based on padding and spacing
             proposed_size[axis] -= 2.0 * padding[axis];
+
+            if n_children >= 2 {
+                proposed_size[axis] -= spacing * (n_children - 1) as f32;
+            }
 
             // adjust proposed size based on our own size
             match self.nodes[node].params.size[axis] {
@@ -1244,7 +1250,6 @@ impl Ui {
         child_proposed_size[main] = proposed_size[main] / n_children;
         child_proposed_size[cross] = proposed_size[cross];
         
-        let padding = self.to_frac2(self.nodes[node].params.padding);
         child_proposed_size[main] += 2.0 * padding[main] * n_children;
         child_proposed_size[cross] -= 2.0 * padding[cross];
 
@@ -1347,9 +1352,10 @@ impl Ui {
     fn place_children_stack(&mut self, node: usize, stack: Stack) {
         let (main, cross) = (stack.axis, stack.axis.other());
         let padding = self.to_frac2(self.nodes[node].params.padding);
+        let spacing = self.to_frac(stack.spacing, stack.axis);
         
         // Totally ignore the children's chosen Position's and place them according to our own Stack::Arrange value.
-
+        // todo: actually, we should only ignore the main direction. The cross direction is good. 
         let side = match stack.arrange {
             Arrange::Start => 0,
             Arrange::End => 1,
@@ -1370,7 +1376,7 @@ impl Ui {
 
             self.place_children(child);
 
-            main_origin += self.nodes[child].size[main] + padding[main];
+            main_origin += self.nodes[child].size[main] + padding[main] + spacing;
         });
     }
 
@@ -2065,6 +2071,7 @@ pub enum Position {
 pub struct Stack {
     pub arrange: Arrange,
     pub axis: Axis,
+    pub spacing: Len,
 }
 
 #[derive(Debug, Clone, Copy)]
