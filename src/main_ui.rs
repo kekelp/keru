@@ -11,18 +11,22 @@ impl State {
     pub fn update_ui(&mut self) {
         tree!(self.ui, {
 
+            #[node_key(V_STACK.size_x(Len::Frac(0.3)).position_x(Position::End))]
+            const RIGHT_BAR: Nodekey;
+
+
             #[node_key(BUTTON.text("Increase").color(Color::GREEN))]
             pub const BUTTON_A: NodeKey;
 
             #[node_key(PANEL.position_x(Position::End))]
             const PIXEL_PANEL: Nodekey;
-            // add!(self.ui, PIXEL_PANEL, {                
-            //     v_stack!(self.ui, {
-            //         add!(self.ui, BUTTON_A);
-            //         add!(self.ui, BUTTON_A);
-            //         add!(self.ui, BUTTON_A);
-            //     });
-            // });
+            add!(self.ui, PIXEL_PANEL, {                
+                v_stack!(self.ui, {
+                    add!(self.ui, BUTTON_A);
+                    add!(self.ui, BUTTON_A);
+                    add!(self.ui, BUTTON_A);
+                });
+            });
 
             // h_stack!(self.ui, {
             //     add!(self.ui, BUTTON_A);
@@ -66,7 +70,7 @@ impl State {
             //     });
             // });
 
-            self.add_counter_ui();
+            // self.add_counter_ui();
         });
 
         // effects
@@ -93,7 +97,7 @@ impl CounterState {
     pub fn new() -> Self {
         return CounterState {
             count: 0,
-            counter_mode: true,
+            counter_mode: false,
         };
     }
 

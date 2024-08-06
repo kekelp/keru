@@ -1209,52 +1209,26 @@ impl Ui {
     }
 
     fn determine_size_stack(&mut self, node: usize, proposed_size: Xy<f32>, stack: Stack) -> Xy<f32> {
-        let mut final_size = proposed_size;
+        let mut proposed_size = proposed_size;
 
+        // adjust proposed size based on padding
         let padding = self.to_frac2(self.nodes[node].params.padding);
-        let mut inner_size = proposed_size;
         for axis in [X, Y] {
-            inner_size[axis] = inner_size[axis] - 2.0 * padding[axis];
+            proposed_size[axis] = proposed_size[axis] - 2.0 * padding[axis];
         }
-        let (main, cross) = (stack.axis, stack.axis.other());
         
-        let mut child_proposed_size = Xy::new(0.0, 0.0);
-        let n_children = self.nodes[node].n_children as f32;
-        child_proposed_size[main] = inner_size[main] / n_children;
-        child_proposed_size[cross] = inner_size[cross];
-        
-        let padding = self.to_frac2(self.nodes[node].params.padding);
-        child_proposed_size[main] += 2.0 * padding[main] * n_children;
-        child_proposed_size[cross] -= 2.0 * padding[cross];
-
-        let mut shrunk_size = Xy::new(0.0, 0.0);
-
-        for_each_child!(self, self.nodes[node], child, {
-            let child_size = self.determine_size(child, child_proposed_size);
-            
-            shrunk_size[main] += child_size[main];
-            if child_size[cross] > shrunk_size[cross] {
-                shrunk_size[cross] = child_size[cross];
-            }
-        });
-
-
+        // adjust proposed size based on our own size, if it's not AsBigAsChildren
         for axis in [X, Y] {
             match self.nodes[node].params.size[axis] {
-                Size::Fill { .. } => {
-                    println!(" muh shrunk {:?} ({:?})", proposed_size, self.nodes[node].debug_name());
-
-                }, // accept the whole proposed_size
-                Size::AsBigAsChildren => {
-                    final_size[axis] = shrunk_size[axis] + 2.0 * padding[axis];
-                },
+                Size::AsBigAsChildren => {}, // do nothing here, but we'll change our mind after seeing children
+                Size::Fill => {}, // keep the whole proposed_size
                 Size::Fixed(len) => {
                     match len {
                         Len::Pixels(_pixels) => {
-                            final_size[axis] = self.to_frac_axis(len, axis);
+                            proposed_size[axis] = self.to_frac_axis(len, axis);
                         },
                         Len::Frac(frac) => {
-                            final_size[axis] *= frac;
+                            proposed_size[axis] *= frac;
                         },
                     }
                 },
@@ -1263,10 +1237,43 @@ impl Ui {
                     panic!("geg");
                 },
             }
+        }        
+        
+        let (main, cross) = (stack.axis, stack.axis.other());
+        
+        let mut child_proposed_size = Xy::new(0.0, 0.0);
+        let n_children = self.nodes[node].n_children as f32;
+        child_proposed_size[main] = proposed_size[main] / n_children;
+        child_proposed_size[cross] = proposed_size[cross];
+        
+        let padding = self.to_frac2(self.nodes[node].params.padding);
+        child_proposed_size[main] += 2.0 * padding[main] * n_children;
+        child_proposed_size[cross] -= 2.0 * padding[cross];
+
+        let mut summed_children_size = Xy::new(0.0, 0.0);
+
+        for_each_child!(self, self.nodes[node], child, {
+            let child_size = self.determine_size(child, child_proposed_size);
+            
+            summed_children_size[main] += child_size[main];
+            if child_size[cross] > summed_children_size[cross] {
+                summed_children_size[cross] = child_size[cross];
+            }
+        });
+
+
+        // Decide our own size. 
+        //   We either keep what we decided before when calculating proposed size,
+        //   or we change our mind to fit all children.
+        let mut final_size = proposed_size;
+        for axis in [X, Y] {
+            if self.nodes[node].params.size[axis] == Size::AsBigAsChildren {
+                final_size[axis] = summed_children_size[axis] + 2.0 * padding[axis];
+            }
         }
 
         self.nodes[node].size = final_size;
-        return self.nodes[node].size;
+        return final_size;
     }
 
     fn determine_size_normal(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
@@ -1278,11 +1285,11 @@ impl Ui {
             proposed_size[axis] = proposed_size[axis] - 2.0 * padding[axis];
         }
 
-        // adjust the size we propose to children based or own size
+        // adjust the size we propose to children based on our own size, if it's not AsBigAsChildren    
         for axis in [X, Y] {
             match self.nodes[node].params.size[axis] {
-                Size::Fill => {}, // keep the whole proposed_size
                 Size::AsBigAsChildren => {}, // do nothing here, but we'll change our mind after seeing children
+                Size::Fill => {}, // keep the whole proposed_size
                 Size::Fixed(len) => {
                     match len {
                         Len::Pixels(_pixels) => {
@@ -1321,6 +1328,7 @@ impl Ui {
             }
         }
 
+        self.nodes[node].size = final_size;
         return final_size;
     }
 
