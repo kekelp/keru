@@ -1214,7 +1214,7 @@ impl Ui {
 
     fn determine_size_stack(&mut self, node: usize, proposed_size: Xy<f32>, stack: Stack) -> Xy<f32> {
         let mut proposed_size = proposed_size;
-        
+
         let (main, cross) = (stack.axis, stack.axis.other());
         let padding = self.to_frac2(self.nodes[node].params.padding);
         let spacing = self.to_frac(stack.spacing, stack.axis);
@@ -1367,6 +1367,7 @@ impl Ui {
             Arrange::SpaceAround => todo!(),
             Arrange::SpaceEvenly => todo!(),
         };
+        let dir = - (side as f32 * 2.0 - 1.0);
 
         let cross_origin = self.nodes[node].rect[cross][side];
         let mut main_origin = self.nodes[node].rect[main][side];
@@ -1379,7 +1380,7 @@ impl Ui {
 
             self.place_children(child);
 
-            main_origin += self.nodes[child].size[main] + padding[main] + spacing;
+            main_origin += dir * (self.nodes[child].size[main] + padding[main] + spacing);
         });
     }
 

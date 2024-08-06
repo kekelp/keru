@@ -70,8 +70,6 @@ impl State {
     }
 }
 
-use crate::Len::Frac;
-
 #[node_key(TEXT_INPUT.text("Color").size_y(0.2).position_y(Start))]
 pub const PAINT_COLOR: NodeKey;
 

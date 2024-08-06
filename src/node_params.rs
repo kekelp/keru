@@ -2,8 +2,6 @@ use crate::{Arrange, Axis, Color, Len, NodeParams, Position, Size, Stack, Xy};
 
 pub const DEBUG_RED: Color = Color::rgba(1.0, 0.0, 0.0, 0.3);
 
-
-use Len::*;
 use Size::*;
 use Position::*;
 
