@@ -1218,13 +1218,13 @@ impl Ui {
         // adjust proposed size based on padding
         let padding = self.to_frac2(self.nodes[node].params.padding);
         for axis in [X, Y] {
-            proposed_size[axis] = proposed_size[axis] - 2.0 * padding[axis];
+            proposed_size[axis] -= 2.0 * padding[axis];
         }
         
-        // adjust proposed size based on our own size, if it's not AsBigAsChildren
+        // adjust proposed size based on our own size
         for axis in [X, Y] {
             match self.nodes[node].params.size[axis] {
-                Size::AsBigAsChildren => {}, // do nothing here, but we'll change our mind after seeing children
+                Size::AsBigAsChildren => {}, // propose the whole size. We will shrink our own final size later if they end up using less or more 
                 Size::Fill => {}, // keep the whole proposed_size
                 Size::Pixels(pixels) => {
                     proposed_size[axis] = self.pixels_to_frac(pixels, axis);
@@ -1232,7 +1232,7 @@ impl Ui {
                 Size::Fraction(frac) => {
                     proposed_size[axis] *= frac;
                 },
-                Size::TextContent { .. } => {
+                Size::TextContent => {
                     // this should never happen? maybe make it non-representable? muh impossible states and such
                     panic!("geg");
                 },
@@ -1261,15 +1261,19 @@ impl Ui {
             }
         });
 
-
         // Decide our own size. 
-        //   We either keep what we decided before when calculating proposed size,
-        //   or we change our mind to fit all children.
+        //   We either use the proposed_size that we proposed to the children,
+        //   or we change our mind to based on children.
         let mut final_size = proposed_size;
         for axis in [X, Y] {
             if self.nodes[node].params.size[axis] == Size::AsBigAsChildren {
-                final_size[axis] = summed_children_size[axis] + 2.0 * padding[axis];
+                final_size[axis] = summed_children_size[axis];
             }
+        }
+
+        // uhh re-add the padding or something (weird)
+        for axis in [X, Y] {
+            final_size[axis] += 2.0 * padding[axis];
         }
 
         self.nodes[node].size = final_size;
@@ -1282,13 +1286,13 @@ impl Ui {
         
         // adjust the size we propose to children based on padding
         for axis in [X, Y] {
-            proposed_size[axis] = proposed_size[axis] - 2.0 * padding[axis];
+            proposed_size[axis] -= 2.0 * padding[axis];
         }
 
-        // adjust the size we propose to children based on our own size, if it's not AsBigAsChildren    
+        // adjust the size we propose to children based on our own size    
         for axis in [X, Y] {
             match self.nodes[node].params.size[axis] {
-                Size::AsBigAsChildren => {}, // do nothing here, but we'll change our mind after seeing children
+                Size::AsBigAsChildren => {}, // propose the whole size. We will shrink our own final size later if they end up using less or more 
                 Size::Fill => {}, // keep the whole proposed_size
                 Size::Pixels(pixels) => {
                     proposed_size[axis] = self.pixels_to_frac(pixels, axis);
@@ -1296,7 +1300,7 @@ impl Ui {
                 Size::Fraction(frac) => {
                     proposed_size[axis] *= frac;
                 },
-                Size::TextContent { .. } => {
+                Size::TextContent => {
                     const TEXT_SIZE_LOL: Xy<f32> = Xy::new(0.15, 0.066);
                     proposed_size[axis] = TEXT_SIZE_LOL[axis];
                 },
@@ -1315,13 +1319,18 @@ impl Ui {
         });
 
         // Decide our own size. 
-        //   We either keep what we decided before when calculating proposed size,
-        //   or we change our mind to fit all children.
+        //   We either use the proposed_size that we proposed to the children,
+        //   or we change our mind to based on children.
         let mut final_size = proposed_size;
         for axis in [X, Y] {
             if self.nodes[node].params.size[axis] == Size::AsBigAsChildren {
                 final_size[axis] = biggest_child_size[axis] + 2.0 * padding[axis];
             }
+        }
+
+        // uhh re-add the padding or something (weird)
+        for axis in [X, Y] {
+            final_size[axis] += 2.0 * padding[axis];
         }
 
         self.nodes[node].size = final_size;
@@ -1340,22 +1349,32 @@ impl Ui {
     }
 
     fn place_children_stack(&mut self, node: usize, stack: Stack) {
-        let main = stack.axis;
-        let rect = self.nodes[node].rect;
+        let (main, cross) = (stack.axis, stack.axis.other());
         let padding = self.to_frac2(self.nodes[node].params.padding);
-            
-        let origin = Xy::new(rect[X][0], rect[Y][0]);
-        let mut current_origin = origin;
         
+        // Totally ignore the children's chosen Position's and place them according to our own Stack::Arrange value.
+
+        let side = match stack.arrange {
+            Arrange::Start => 0,
+            Arrange::End => 1,
+            Arrange::Center => todo!(),
+            Arrange::SpaceBetween => todo!(),
+            Arrange::SpaceAround => todo!(),
+            Arrange::SpaceEvenly => todo!(),
+        };
+
+        let cross_origin = self.nodes[node].rect[cross][side];
+        let mut main_origin = self.nodes[node].rect[main][side];
+
         for_each_child!(self, self.nodes[node], child, {
             let size = self.nodes[child].size;
-            let child_origin = current_origin + padding;
-            
-            self.nodes[child].rect = Rect::rightward(child_origin, size);
+
+            self.nodes[child].rect[cross] = epic_segment(cross_origin, size[cross], side);
+            self.nodes[child].rect[main] = epic_segment(main_origin, size[main], side);
 
             self.place_children(child);
 
-            current_origin[main] += self.nodes[child].size[main] + padding[main];
+            main_origin += self.nodes[child].size[main] + padding[main];
         });
     }
 
@@ -1366,6 +1385,7 @@ impl Ui {
         for_each_child!(self, self.nodes[node], child, {
             let size = self.nodes[child].size;
 
+            // check the children's chosen Position's and place them.
             for ax in [X, Y] {
                 match self.nodes[child].params.position[ax] {
                     Position::Start => {
@@ -1989,7 +2009,7 @@ pub struct Node {
     pub z: f32,
 }
 impl Node {
-    fn debug_name(&self) -> &str {
+    pub fn debug_name(&self) -> &str {
         return self.params.debug_name;
     }
 
@@ -2283,4 +2303,19 @@ macro_rules! for_each_child {
             }
         }
     };
+}
+
+pub fn epic_segment(origin: f32, size: f32, direction: usize) -> [f32; 2] {
+    match direction {
+        0 => {
+            return [origin, origin + size];
+        },
+        1 => {
+            return [origin - size, origin];
+        },
+        _ => {
+            panic!("Geg3");
+        }
+    }
+
 }

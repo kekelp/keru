@@ -14,11 +14,10 @@ impl State {
             #[node_key(V_STACK.size_x(0.3).position_x(Position::End))]
             const RIGHT_BAR: Nodekey;
 
-
             #[node_key(BUTTON.text("Increase").color(Color::GREEN))]
             pub const BUTTON_A: NodeKey;
 
-            #[node_key(PANEL.position_x(Position::End))]
+            #[node_key(PANEL.position_x(Position::End).size2_y(Size::Fill).size2_x(Size::Fraction(0.2)))]
             const PIXEL_PANEL: Nodekey;
             add!(self.ui, PIXEL_PANEL, {                
                 v_stack!(self.ui, {

@@ -50,8 +50,8 @@ pub const V_STACK: NodeParams = NodeParams {
     clickable: true,
     visible_rect: false,
     color: DEBUG_RED,
-    size: Xy::new_symm(Size::AsBigAsChildren),
-    position: Xy::new_symm(Start),
+    size: Xy::new(Size::AsBigAsChildren, Size::Fill),
+    position: Xy::new_symm(Center),
     stack: Some(Stack {
         arrange: Arrange::Start,
         axis: Axis::Y,
@@ -67,8 +67,8 @@ pub const H_STACK: NodeParams = NodeParams {
     visible_rect: false,
     clickable: false,
     color: DEBUG_RED,
-    size: Xy::new_symm(Size::AsBigAsChildren),
-    position: Xy::new_symm(Start),
+    size: Xy::new(Size::Fill, Size::AsBigAsChildren),
+    position: Xy::new_symm(Center),
     stack: Some(Stack {
         arrange: Arrange::End,
         axis: Axis::X,
@@ -164,5 +164,5 @@ pub const PANEL: NodeParams = NodeParams {
     stack: None,
     editable: false,
     filled: true,
-    padding: Xy::new_symm(Len::Pixels(10)),
+    padding: Xy::new_symm(Len::Pixels(20)),
 };
