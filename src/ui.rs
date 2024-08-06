@@ -223,12 +223,12 @@ impl NodeParams {
         DEFAULT
     }
 
-    pub const fn size_x(mut self, size: Len) -> Self {
-        self.size.x = Size::Fixed(size);
+    pub const fn size_x(mut self, size: f32) -> Self {
+        self.size.x = Size::Fraction(size);
         return self;
     }
-    pub const fn size_y(mut self, size: Len) -> Self {
-        self.size.y = Size::Fixed(size);
+    pub const fn size_y(mut self, size: f32) -> Self {
+        self.size.y = Size::Fraction(size);
         return self;
     }
     pub const fn size2_x(mut self, size: Size) -> Self {
@@ -239,8 +239,8 @@ impl NodeParams {
         self.size.y = size;
         return self;
     }
-    pub const fn size_symm(mut self, size: Len) -> Self {
-        self.size = Xy::new_symm(Size::Fixed(size));
+    pub const fn size_symm(mut self, size: f32) -> Self {
+        self.size = Xy::new_symm(Size::Fraction(size));
         return self;
     }
 
@@ -685,6 +685,10 @@ impl Ui {
             Len::Pixels(pixels) => return (pixels as f32) / self.part.unifs.size[axis],
             Len::Frac(frac) => return frac,
         }
+    }
+
+    pub fn pixels_to_frac(&self, pixels: u32, axis: Axis) -> f32 {
+        return (pixels as f32) / self.part.unifs.size[axis];
     }
 
     pub fn to_frac2(&self, len: Xy<Len>) -> Xy<f32> {
@@ -1222,15 +1226,11 @@ impl Ui {
             match self.nodes[node].params.size[axis] {
                 Size::AsBigAsChildren => {}, // do nothing here, but we'll change our mind after seeing children
                 Size::Fill => {}, // keep the whole proposed_size
-                Size::Fixed(len) => {
-                    match len {
-                        Len::Pixels(_pixels) => {
-                            proposed_size[axis] = self.to_frac_axis(len, axis);
-                        },
-                        Len::Frac(frac) => {
-                            proposed_size[axis] *= frac;
-                        },
-                    }
+                Size::Pixels(pixels) => {
+                    proposed_size[axis] = self.pixels_to_frac(pixels, axis);
+                },
+                Size::Fraction(frac) => {
+                    proposed_size[axis] *= frac;
                 },
                 Size::TextContent { .. } => {
                     // this should never happen? maybe make it non-representable? muh impossible states and such
@@ -1290,15 +1290,11 @@ impl Ui {
             match self.nodes[node].params.size[axis] {
                 Size::AsBigAsChildren => {}, // do nothing here, but we'll change our mind after seeing children
                 Size::Fill => {}, // keep the whole proposed_size
-                Size::Fixed(len) => {
-                    match len {
-                        Len::Pixels(_pixels) => {
-                            proposed_size[axis] = self.to_frac_axis(len, axis);
-                        },
-                        Len::Frac(frac) => {
-                            proposed_size[axis] *= frac;
-                        },
-                    } 
+                Size::Pixels(pixels) => {
+                    proposed_size[axis] = self.pixels_to_frac(pixels, axis);
+                },
+                Size::Fraction(frac) => {
+                    proposed_size[axis] *= frac;
                 },
                 Size::TextContent { .. } => {
                     const TEXT_SIZE_LOL: Xy<f32> = Xy::new(0.15, 0.066);
@@ -2019,8 +2015,8 @@ pub enum LastFrameStatus {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Size {
-    // todo: this is bad right now. When Len is frac, it's "fraction of parent", but that's not what "Fixed" means.
-    Fixed(Len),
+    Pixels(u32),
+    Fraction(f32),
     Fill,
     TextContent,
         // something like "strictness":
