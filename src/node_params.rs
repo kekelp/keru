@@ -50,8 +50,8 @@ pub const V_STACK: NodeParams = NodeParams {
     clickable: true,
     visible_rect: false,
     color: DEBUG_RED,
-    size: Xy::new(Fixed(Len::Frac(1.0)), Fixed(Len::Frac(1.0))),
-    position: Xy::new_symm(Center),
+    size: Xy::new_symm(Size::AsBigAsChildren),
+    position: Xy::new_symm(Start),
     stack: Some(Stack {
         arrange: Arrange::Start,
         axis: Axis::Y,
@@ -67,8 +67,8 @@ pub const H_STACK: NodeParams = NodeParams {
     visible_rect: false,
     clickable: false,
     color: DEBUG_RED,
-    size: Xy::new(Fixed(Len::Frac(1.0)), Fixed(Len::Frac(1.0))),
-    position: Xy::new_symm(Center),
+    size: Xy::new_symm(Size::AsBigAsChildren),
+    position: Xy::new_symm(Start),
     stack: Some(Stack {
         arrange: Arrange::End,
         axis: Axis::X,
@@ -89,7 +89,7 @@ pub const MARGIN: NodeParams = NodeParams {
     stack: None,
     editable: false,
     filled: false,
-    padding: Xy::new_symm(Len::Pixels(5)),
+    padding: Xy::new_symm(Len::ZERO),
 };
 
 pub const BUTTON: NodeParams = NodeParams {
@@ -159,7 +159,7 @@ pub const PANEL: NodeParams = NodeParams {
     clickable: false,
     visible_rect: true,
     color: Color::rgba(0.1, 0.0, 0.1, 0.9),
-    size: Xy::new_symm(JustAsBigAsBiggestChild),
+    size: Xy::new_symm(AsBigAsChildren),
     position: Xy::new_symm(Center),
     stack: None,
     editable: false,

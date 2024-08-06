@@ -16,13 +16,13 @@ impl State {
 
             #[node_key(PANEL.position_x(Position::End))]
             const PIXEL_PANEL: Nodekey;
-            add!(self.ui, PIXEL_PANEL, {                
-                v_stack!(self.ui, {
-                    add!(self.ui, BUTTON_A);
-                    add!(self.ui, BUTTON_A);
-                    add!(self.ui, BUTTON_A);
-                });
-            });
+            // add!(self.ui, PIXEL_PANEL, {                
+            //     v_stack!(self.ui, {
+            //         add!(self.ui, BUTTON_A);
+            //         add!(self.ui, BUTTON_A);
+            //         add!(self.ui, BUTTON_A);
+            //     });
+            // });
 
             // h_stack!(self.ui, {
             //     add!(self.ui, BUTTON_A);
@@ -34,7 +34,7 @@ impl State {
             // self.add_pixel_info_ui();
 
             // margin!(self.ui, {
-            //     #[node_key(V_STACK.size_x(0.3).position_x(Position::End))]
+            //     #[node_key(V_STACK.size_x(Len::Frac(0.3)).position_x(Position::End))]
             //     const SIDEBAR: Nodekey;
             //     add!(self.ui, SIDEBAR, {
             //         // todo: function for doing get_text from other places
@@ -56,13 +56,13 @@ impl State {
             //             }
             //         }
 
-            //         self.add_pixel_info_ui();
-            //         self.add_pixel_info_ui();
-            //         self.add_pixel_info_ui();
+            //         // self.add_pixel_info_ui();
+            //         // self.add_pixel_info_ui();
+            //         // self.add_pixel_info_ui();
 
-            //         self.add_twin_thing_ui();
-            //         self.add_twin_thing_ui();
-            //         self.add_twin_thing_ui();
+            //         // self.add_twin_thing_ui();
+            //         // self.add_twin_thing_ui();
+            //         // self.add_twin_thing_ui();
             //     });
             // });
 
@@ -134,9 +134,9 @@ impl State {
 
     pub fn add_counter_ui(&mut self) {
         margin!(self.ui, {
-            // #[node_key(H_STACK.size_x(Frac(0.23)).position_x(Position::Start))]
-            // pub const CENTER_ROW: NodeKey;
-            h_stack!(self.ui, {
+            #[node_key(H_STACK.position_x(Position::Center))]
+            pub const CENTER_ROW: NodeKey;
+            h_stack!(self.ui, CENTER_ROW, {
                 v_stack!(self.ui, {
                     if self.counter_state.counter_mode {
                         let new_color = count_color(self.counter_state.count);
@@ -195,7 +195,7 @@ impl State {
         };
 
         // todo:::::: I don't want strings, I want to write!() directly into the buffer
-        #[node_key(PANEL.position_x(Position::Start))]
+        #[node_key(PANEL.position_x(Position::End).position_y(Position::Start))]
         const PIXEL_PANEL2: Nodekey;
         add!(self.ui, PIXEL_PANEL2, {
             v_stack!(self.ui, {

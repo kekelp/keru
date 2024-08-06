@@ -1209,54 +1209,44 @@ impl Ui {
     }
 
     fn determine_size_stack(&mut self, node: usize, proposed_size: Xy<f32>, stack: Stack) -> Xy<f32> {
+        let mut final_size = proposed_size;
+
+        let padding = self.to_frac2(self.nodes[node].params.padding);
+        let mut inner_size = proposed_size;
+        for axis in [X, Y] {
+            inner_size[axis] = inner_size[axis] - 2.0 * padding[axis];
+        }
         let (main, cross) = (stack.axis, stack.axis.other());
         
         let mut child_proposed_size = Xy::new(0.0, 0.0);
         let n_children = self.nodes[node].n_children as f32;
-        child_proposed_size[main] = proposed_size[main] / n_children;
-        child_proposed_size[cross] = proposed_size[cross];
+        child_proposed_size[main] = inner_size[main] / n_children;
+        child_proposed_size[cross] = inner_size[cross];
         
         let padding = self.to_frac2(self.nodes[node].params.padding);
         child_proposed_size[main] += 2.0 * padding[main] * n_children;
         child_proposed_size[cross] -= 2.0 * padding[cross];
 
-        let mut final_self_size = Xy::new(0.0, 0.0);
+        let mut shrunk_size = Xy::new(0.0, 0.0);
 
         for_each_child!(self, self.nodes[node], child, {
             let child_size = self.determine_size(child, child_proposed_size);
             
-            final_self_size[main] += child_size[main];
-            if child_size[cross] > final_self_size[cross] {
-                final_self_size[cross] = child_size[cross];
+            shrunk_size[main] += child_size[main];
+            if child_size[cross] > shrunk_size[cross] {
+                shrunk_size[cross] = child_size[cross];
             }
         });
 
-        return final_self_size;
-    }
-
-    fn determine_size_normal(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
-        let mut final_size = proposed_size;
-
-        let padding = self.to_frac2(self.nodes[node].params.padding);
-        let mut proposed_size = proposed_size;
-        for axis in [X, Y] {
-            proposed_size[axis] = proposed_size[axis] - 2.0 * padding[axis];
-        }
-        let mut biggest_child_size = Xy::new(0.0, 0.0);
-        for_each_child!(self, self.nodes[node], child, {
-            self.determine_size(child, proposed_size);
-            for axis in [X, Y] {
-                if self.nodes[child].size[axis] > biggest_child_size[axis] {
-                    biggest_child_size[axis] = self.nodes[child].size[axis];
-                }
-            }
-        });
 
         for axis in [X, Y] {
             match self.nodes[node].params.size[axis] {
-                Size::Fill { .. } => {}, // accept the whole proposed_size
-                Size::JustAsBigAsBiggestChild => {
-                    final_size[axis] = biggest_child_size[axis] + 2.0 * padding[axis];
+                Size::Fill { .. } => {
+                    println!(" muh shrunk {:?} ({:?})", proposed_size, self.nodes[node].debug_name());
+
+                }, // accept the whole proposed_size
+                Size::AsBigAsChildren => {
+                    final_size[axis] = shrunk_size[axis] + 2.0 * padding[axis];
                 },
                 Size::Fixed(len) => {
                     match len {
@@ -1267,12 +1257,67 @@ impl Ui {
                             final_size[axis] *= frac;
                         },
                     }
-                    
+                },
+                Size::TextContent { .. } => {
+                    // this should never happen? maybe make it non-representable? muh impossible states and such
+                    panic!("geg");
+                },
+            }
+        }
+
+        self.nodes[node].size = final_size;
+        return self.nodes[node].size;
+    }
+
+    fn determine_size_normal(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
+        let padding = self.to_frac2(self.nodes[node].params.padding);
+        let mut proposed_size = proposed_size;
+        
+        // adjust the size we propose to children based on padding
+        for axis in [X, Y] {
+            proposed_size[axis] = proposed_size[axis] - 2.0 * padding[axis];
+        }
+
+        // adjust the size we propose to children based or own size
+        for axis in [X, Y] {
+            match self.nodes[node].params.size[axis] {
+                Size::Fill => {}, // keep the whole proposed_size
+                Size::AsBigAsChildren => {}, // do nothing here, but we'll change our mind after seeing children
+                Size::Fixed(len) => {
+                    match len {
+                        Len::Pixels(_pixels) => {
+                            proposed_size[axis] = self.to_frac_axis(len, axis);
+                        },
+                        Len::Frac(frac) => {
+                            proposed_size[axis] *= frac;
+                        },
+                    } 
                 },
                 Size::TextContent { .. } => {
                     const TEXT_SIZE_LOL: Xy<f32> = Xy::new(0.15, 0.066);
-                    final_size[axis] = TEXT_SIZE_LOL[axis];
+                    proposed_size[axis] = TEXT_SIZE_LOL[axis];
                 },
+            }
+        }
+
+        // Propose a size to the children and let them decide 
+        let mut biggest_child_size = Xy::new(0.0, 0.0);
+        for_each_child!(self, self.nodes[node], child, {
+            self.determine_size(child, proposed_size);
+            for axis in [X, Y] {
+                if self.nodes[child].size[axis] > biggest_child_size[axis] {
+                    biggest_child_size[axis] = self.nodes[child].size[axis];
+                }
+            }
+        });
+
+        // Decide our own size. 
+        //   We either keep what we decided before when calculating proposed size,
+        //   or we change our mind to fit all children.
+        let mut final_size = proposed_size;
+        for axis in [X, Y] {
+            if self.nodes[node].params.size[axis] == Size::AsBigAsChildren {
+                final_size[axis] = biggest_child_size[axis] + 2.0 * padding[axis];
             }
         }
 
@@ -1280,59 +1325,64 @@ impl Ui {
     }
 
     fn place_children(&mut self, node: usize) {
-        let rect = self.nodes[node].rect;
-        let padding = self.to_frac2(self.nodes[node].params.padding);
-
         if let Some(stack) = self.nodes[node].params.stack {
-
-            let main = stack.axis;
-            
-            let origin = Xy::new(rect[X][0], rect[Y][0]);
-            let mut current_origin = origin;
-            
-            for_each_child!(self, self.nodes[node], child, {
-                let size = self.nodes[child].size;
-                let child_origin = current_origin + padding;
-                
-                self.nodes[child].rect = Rect::rightward(child_origin, size);
-
-                self.place_children(child);
-
-                current_origin[main] += self.nodes[child].size[main] + padding[main];
-            });
-
+            self.place_children_stack(node, stack);
         } else {
-            for_each_child!(self, self.nodes[node], child, {
-                let size = self.nodes[child].size;
-
-                for ax in [X, Y] {
-                    match self.nodes[child].params.position[ax] {
-                        Position::Start => {
-                            let origin = rect[ax][0] + padding[ax];
-                            self.nodes[child].rect[ax] = [origin, origin + size[ax]];         
-                        },
-                        Position::End => {
-                            let origin = rect[ax][1] - padding[ax];
-                            self.nodes[child].rect[ax] = [origin - size[ax], origin];                        },
-                        Position::Center => {
-                            let origin = (rect[ax][1] + rect[ax][0]) / 2.0;
-                            self.nodes[child].rect[ax] = [
-                                origin - size[ax] / 2.0 ,
-                                origin + size[ax] / 2.0 ,
-                            ];           
-                        },
-                    }
-                }
-
-                
-                self.place_children(child);
-            });
+            self.place_children_normal(node)
         }
         println!(" place  : {:?} = {:?}", self.nodes[node].params.debug_name, self.nodes[node].rect);
 
         self.layout_text(self.nodes[node].text_id, self.nodes[node].rect);
+    }
 
+    fn place_children_stack(&mut self, node: usize, stack: Stack) {
+        let main = stack.axis;
+        let rect = self.nodes[node].rect;
+        let padding = self.to_frac2(self.nodes[node].params.padding);
+            
+        let origin = Xy::new(rect[X][0], rect[Y][0]);
+        let mut current_origin = origin;
+        
+        for_each_child!(self, self.nodes[node], child, {
+            let size = self.nodes[child].size;
+            let child_origin = current_origin + padding;
+            
+            self.nodes[child].rect = Rect::rightward(child_origin, size);
 
+            self.place_children(child);
+
+            current_origin[main] += self.nodes[child].size[main] + padding[main];
+        });
+    }
+
+    fn place_children_normal(&mut self, node: usize) {
+        let rect = self.nodes[node].rect;
+        let padding = self.to_frac2(self.nodes[node].params.padding);
+
+        for_each_child!(self, self.nodes[node], child, {
+            let size = self.nodes[child].size;
+
+            for ax in [X, Y] {
+                match self.nodes[child].params.position[ax] {
+                    Position::Start => {
+                        let origin = rect[ax][0] + padding[ax];
+                        self.nodes[child].rect[ax] = [origin, origin + size[ax]];         
+                    },
+                    Position::End => {
+                        let origin = rect[ax][1] - padding[ax];
+                        self.nodes[child].rect[ax] = [origin - size[ax], origin];                        },
+                    Position::Center => {
+                        let origin = (rect[ax][1] + rect[ax][0]) / 2.0;
+                        self.nodes[child].rect[ax] = [
+                            origin - size[ax] / 2.0 ,
+                            origin + size[ax] / 2.0 ,
+                        ];           
+                    },
+                }
+            }
+
+            self.place_children(child);
+        });
     }
 
     // pub fn layout(&mut self) {
@@ -1935,6 +1985,10 @@ pub struct Node {
     pub z: f32,
 }
 impl Node {
+    fn debug_name(&self) -> &str {
+        return self.params.debug_name;
+    }
+
     fn reset_children(&mut self) {
         self.first_child = None;
         self.next_sibling = None;
@@ -1955,15 +2009,16 @@ pub enum LastFrameStatus {
     Nothing,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Size {
+    // todo: this is bad right now. When Len is frac, it's "fraction of parent", but that's not what "Fixed" means.
     Fixed(Len),
     Fill,
     TextContent,
         // something like "strictness":
         //  with the "proposed" thing, a TextContent can either insist to get the minimum size it wants,
         // or be okay with whatever (and clip it, show some "..."'s, etc) 
-    JustAsBigAsBiggestChild,
+    AsBigAsChildren,
     // todo: add JustAsBigAsBiggestChildInitiallyButNeverResizeAfter 
 }
 
