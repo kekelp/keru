@@ -1320,7 +1320,7 @@ impl Ui {
         let mut final_size = proposed_size;
         for axis in [X, Y] {
             if self.nodes[node].params.size[axis] == Size::AsBigAsChildren {
-                final_size[axis] = biggest_child_size[axis] + 2.0 * padding[axis];
+                final_size[axis] = biggest_child_size[axis];
             }
         }
 

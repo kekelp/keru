@@ -164,5 +164,5 @@ pub const PANEL: NodeParams = NodeParams {
     stack: None,
     editable: false,
     filled: true,
-    padding: Xy::new_symm(Len::Pixels(20)),
+    padding: Xy::new_symm(Len::Pixels(10)),
 };
