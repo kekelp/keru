@@ -1193,20 +1193,17 @@ impl Ui {
         return false;
     }
 
-    pub fn layout2(&mut self) {
+    pub fn layout(&mut self) {
         self.determine_size(self.root_i, Xy::new(1.0, 1.0));
         self.place_children(self.root_i);
     }
 
     fn determine_size(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
-        self.nodes[node].size = match self.nodes[node].params.stack {
-            Some(stack) => {
-                self.determine_size_stack(node, proposed_size, stack)
-            }
-            None => {
-                self.determine_size_normal(node, proposed_size)
-            }
-        };
+        if let Some(stack) = self.nodes[node].params.stack {
+            self.determine_size_stack(node, proposed_size, stack);
+        } else {
+            self.determine_size_normal(node, proposed_size);
+        }
         println!(" size   : {:?} = {:?}", self.nodes[node].params.debug_name, self.nodes[node].size);
 
         return self.nodes[node].size;
@@ -1231,7 +1228,7 @@ impl Ui {
 
             // adjust proposed size based on our own size
             match self.nodes[node].params.size[axis] {
-                Size::AsBigAsChildren => {}, // propose the whole size. We will shrink our own final size later if they end up using less or more 
+                Size::FitToChildren => {}, // propose the whole size. We will shrink our own final size later if they end up using less or more 
                 Size::Fill => {}, // keep the whole proposed_size
                 Size::Pixels(pixels) => {
                     proposed_size[axis] = self.pixels_to_frac(pixels, axis);
@@ -1269,7 +1266,7 @@ impl Ui {
         //   or we change our mind to based on children.
         let mut final_size = proposed_size;
         for axis in [X, Y] {
-            if self.nodes[node].params.size[axis] == Size::AsBigAsChildren {
+            if self.nodes[node].params.size[axis] == Size::FitToChildren {
                 final_size[axis] = summed_children_size[axis];
             }
         }
@@ -1296,7 +1293,7 @@ impl Ui {
 
             // adjust the size we propose to children based on our own size    
             match self.nodes[node].params.size[axis] {
-                Size::AsBigAsChildren => {}, // propose the whole size. We will shrink our own final size later if they end up using less or more 
+                Size::FitToChildren => {}, // propose the whole size. We will shrink our own final size later if they end up using less or more 
                 Size::Fill => {}, // keep the whole proposed_size
                 Size::Pixels(pixels) => {
                     proposed_size[axis] = self.pixels_to_frac(pixels, axis);
@@ -1305,7 +1302,7 @@ impl Ui {
                     proposed_size[axis] *= frac;
                 },
                 Size::TextContent => {
-                    const TEXT_SIZE_LOL: Xy<f32> = Xy::new(0.15, 0.066);
+                    const TEXT_SIZE_LOL: Xy<f32> = Xy::new(0.15, 0.016);
                     proposed_size[axis] = TEXT_SIZE_LOL[axis];
                 },
             }
@@ -1327,7 +1324,7 @@ impl Ui {
         //   or we change our mind to based on children.
         let mut final_size = proposed_size;
         for axis in [X, Y] {
-            if self.nodes[node].params.size[axis] == Size::AsBigAsChildren {
+            if self.nodes[node].params.size[axis] == Size::FitToChildren {
                 final_size[axis] = biggest_child_size[axis];
             }
         }
@@ -1667,7 +1664,7 @@ impl Ui {
     }
 
     pub fn finish_tree(&mut self) {
-        self.layout2();
+        self.layout();
         self.resolve_hover();
     }
 
@@ -1914,8 +1911,8 @@ pub enum Size {
         // something like "strictness":
         //  with the "proposed" thing, a TextContent can either insist to get the minimum size it wants,
         // or be okay with whatever (and clip it, show some "..."'s, etc) 
-    AsBigAsChildren,
-    // todo: add JustAsBigAsBiggestChildInitiallyButNeverResizeAfter 
+    FitToChildren,
+    // todo: add FitToChildrenInitiallyButNeverResizeAfter 
 }
 
 
