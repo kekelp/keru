@@ -13,6 +13,7 @@ use crate::for_each_child;
 
 use std::collections::hash_map::Entry;
 use std::ops::{Add, Mul, Sub};
+use std::sync::LazyLock;
 use std::{
     hash::Hasher,
     marker::PhantomData,
@@ -38,6 +39,11 @@ use {
     MultisampleState, Queue, RenderPass, RenderPipeline, SurfaceConfiguration, VertexAttribute,
     VertexBufferLayout, VertexStepMode,
 };
+
+static T0: LazyLock<Instant> = LazyLock::new(|| Instant::now());
+fn time_f32() -> f32 {
+    return T0.elapsed().as_secs_f32();
+}
 
 #[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, Pod, Zeroable)]
 #[repr(C)]
@@ -430,7 +436,6 @@ pub struct PartialBorrowStuff {
     pub mouse_pos: PhysicalPosition<f32>,
     pub unifs: Uniforms,
     pub current_frame: u64,
-    pub t0: Instant,
 }
 impl PartialBorrowStuff {
     pub fn mouse_hit_rect(&self, rect: &RenderRect) -> bool {
@@ -573,7 +578,8 @@ pub struct NodeFront {
     pub last_parent: usize,
     pub last_frame_touched: u64,
     
-    // keeping track of the twin situation. This is the number of twins of a node that showed up SO FAR in the current frame. it gets reset every frame (on refresh().)
+    // keeping track of the twin situation. 
+    // This is the number of twins of a node that showed up SO FAR in the current frame. it gets reset every frame (on refresh().)
     // for the 0-th twin of a family, this will be the total number of clones of itself around. (not including itself, so starts at zero).
     // the actual twins ARE twins, but they don't HAVE twins, so this is zero.
     // for this reason, "clones" or "copies" would be better names, but those words are loaded in rust
@@ -669,7 +675,7 @@ pub struct Ui {
     // // remember about animations (surely there will be)
     // pub content_changed: bool,
     // pub tree_changed: bool,
-    pub t: f32,
+    pub frame_t: f32,
 }
 impl Ui {
 
@@ -696,10 +702,6 @@ impl Ui {
             self.to_frac(len.x, X),
             self.to_frac(len.y, Y),
         );
-    }
-
-    fn instant_t(&self) -> f32 {
-        return self.part.t0.elapsed().as_secs_f32();
     }
 
     pub fn new(device: &Device, queue: &Queue, config: &SurfaceConfiguration) -> Self {
@@ -857,7 +859,6 @@ impl Ui {
                 mouse_pos: PhysicalPosition { x: 0., y: 0. },
                 current_frame: 1,
                 unifs: uniforms,
-                t0: Instant::now(),
             },
 
             clicked_stack: Vec::with_capacity(50),
@@ -866,7 +867,7 @@ impl Ui {
             hovered: Vec::with_capacity(15),
             focused: None,
 
-            t: 0.0,
+            frame_t: 0.0,
         }
     }
 
@@ -1463,7 +1464,7 @@ impl Ui {
     }
 
     pub fn update_time(&mut self) {
-        self.t = self.part.t0.elapsed().as_secs_f32();
+        self.frame_t = time_f32();
     }
 
     pub fn build_buffers(&mut self) {
@@ -1629,7 +1630,7 @@ impl Ui {
         
         // update gpu time
         // magical offset...
-        queue.write_buffer(&self.base_uniform_buffer, 8, bytemuck::bytes_of(&self.t));
+        queue.write_buffer(&self.base_uniform_buffer, 8, bytemuck::bytes_of(&self.frame_t));
 
         self.text
             .text_renderer
@@ -1702,7 +1703,7 @@ impl Ui {
             self.hovered.push(hovered_id);
             // this goes on the node because the rect isn't a real entity. it's rebuilt every frame
             // todo: if that ever changes, this could skip the hashmap access and get faster, I think.
-            let t = self.instant_t();
+            let t = time_f32();
             let node = self.nodes.get_by_id(&hovered_id).unwrap();
             node.last_hover = t;
         }
@@ -1720,7 +1721,7 @@ impl Ui {
             self.clicked.push(clicked_id);
             // this goes on the node because the rect isn't a real entity. it's rebuilt every frame
             // todo: if that ever changes, this could skip the hashmap access and get faster, I think.
-            let t = self.instant_t();
+            let t = time_f32();
             let node = self.nodes.get_by_id(&clicked_id).unwrap();
             node.last_click = t;
 
