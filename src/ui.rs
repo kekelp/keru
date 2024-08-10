@@ -1245,9 +1245,13 @@ impl Ui {
         return false;
     }
 
-    pub fn layout(&mut self) {
+    pub fn layout_and_build_rects(&mut self) {
+        self.rects.clear();
+        
         self.determine_size(self.root_i, Xy::new(1.0, 1.0));
-        self.place_children(self.root_i);
+        self.build_rect_and_place_children(self.root_i);
+
+        self.push_cursor_rect();
     }
 
     fn determine_size(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
@@ -1390,18 +1394,20 @@ impl Ui {
         return final_size;
     }
 
-    fn place_children(&mut self, node: usize) {
+    fn build_rect_and_place_children(&mut self, node: usize) {
+        self.build_rect(node);
+        
         if let Some(stack) = self.nodes[node].params.stack {
-            self.place_children_stack(node, stack);
+            self.build_rect_and_place_children_stack(node, stack);
         } else {
-            self.place_children_normal(node)
+            self.build_rect_and_place_children_normal(node)
         }
         println!(" place  : {:?} = {:?}", self.nodes[node].params.debug_name, self.nodes[node].rect);
 
         self.layout_text(self.nodes[node].text_id, self.nodes[node].rect);
     }
 
-    fn place_children_stack(&mut self, node: usize, stack: Stack) {
+    fn build_rect_and_place_children_stack(&mut self, node: usize, stack: Stack) {
         let (main, cross) = (stack.axis, stack.axis.other());
         let padding = self.to_frac2(self.nodes[node].params.padding);
         let spacing = self.to_frac(stack.spacing, stack.axis);
@@ -1427,13 +1433,13 @@ impl Ui {
             self.nodes[child].rect[cross] = epic_segment(cross_origin, size[cross], side);
             self.nodes[child].rect[main] = epic_segment(main_origin, size[main], side);
 
-            self.place_children(child);
+            self.build_rect_and_place_children(child);
 
             main_origin += dir * (self.nodes[child].size[main] + padding[main] + spacing);
         });
     }
 
-    fn place_children_normal(&mut self, node: usize) {
+    fn build_rect_and_place_children_normal(&mut self, node: usize) {
         let rect = self.nodes[node].rect;
         let padding = self.to_frac2(self.nodes[node].params.padding);
 
@@ -1460,7 +1466,7 @@ impl Ui {
                 }
             }
 
-            self.place_children(child);
+            self.build_rect_and_place_children(child);
         });
     }
 
@@ -1516,32 +1522,6 @@ impl Ui {
 
     pub fn update_time(&mut self) {
         self.frame_t = time_f32();
-    }
-
-    pub fn build_buffers(&mut self) {
-        self.rects.clear();
-        self.traverse_stack.clear();
-
-        // push the ui.direct children of the root without processing the root
-        let mut current_child = self.nodes[self.root_i].first_child;
-        while let Some(child) = current_child {
-            self.traverse_stack.push(child);
-            current_child = self.nodes[child].next_sibling;
-        }
-
-        while let Some(node) = self.traverse_stack.pop() {
-            
-            self.build_rect(node);
-
-            let mut current_child = self.nodes.nodes[node].first_child;
-            while let Some(child) = current_child {
-                self.traverse_stack.push(child);
-                current_child = self.nodes[child].next_sibling;
-            }
-        }
-
-        println!("len {:?}", self.nodes.nodes.len());
-        self.push_cursor_rect();
     }
 
     pub fn build_rect(&mut self, node: usize) {
@@ -1680,7 +1660,7 @@ impl Ui {
     pub fn prepare(&mut self, device: &Device, queue: &Queue) {       
         
         // self.prune();
-        self.build_buffers();
+        // self.build_buffers();
         self.gpu_vertex_buffer.queue_write(&self.rects[..], queue);
         
         // update gpu time
@@ -1720,7 +1700,7 @@ impl Ui {
     }
 
     pub fn finish_tree(&mut self) {
-        self.layout();
+        self.layout_and_build_rects();
         self.resolve_hover();
     }
 
