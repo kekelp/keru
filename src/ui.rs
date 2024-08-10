@@ -1530,30 +1530,10 @@ impl Ui {
         }
 
         while let Some(node) = self.traverse_stack.pop() {
-            let current_node = self.nodes.nodes.get(node).unwrap();
+            
+            self.build_rect(node);
 
-            // in debug mode, draw invisible rects as well.
-            // usually these have filled = false (just the outline), but this is not enforced.
-            if current_node.params.visible_rect || self.debug_mode {
-                self.rects.push(RenderRect {
-                    rect: current_node.rect * 2. - 1.,
-
-                    r: current_node.params.color.r,
-                    g: current_node.params.color.g,
-                    b: current_node.params.color.b,
-                    a: current_node.params.color.a,
-                    last_hover: current_node.last_hover,
-                    last_click: current_node.last_click,
-                    clickable: current_node.params.clickable.into(),
-                    id: current_node.id,
-                    z: 0.0,
-                    radius: 30.0,
-                    filled: current_node.params.filled as u32,
-                });
-            }
-
-
-            let mut current_child = current_node.first_child;
+            let mut current_child = self.nodes.nodes[node].first_child;
             while let Some(child) = current_child {
                 self.traverse_stack.push(child);
                 current_child = self.nodes[child].next_sibling;
@@ -1562,6 +1542,30 @@ impl Ui {
 
         println!("len {:?}", self.nodes.nodes.len());
         self.push_cursor_rect();
+    }
+
+    pub fn build_rect(&mut self, node: usize) {
+        let current_node = &self.nodes.nodes[node];
+
+        // in debug mode, draw invisible rects as well.
+        // usually these have filled = false (just the outline), but this is not enforced.
+        if current_node.params.visible_rect || self.debug_mode {
+            self.rects.push(RenderRect {
+                rect: current_node.rect * 2. - 1.,
+
+                r: current_node.params.color.r,
+                g: current_node.params.color.g,
+                b: current_node.params.color.b,
+                a: current_node.params.color.a,
+                last_hover: current_node.last_hover,
+                last_click: current_node.last_click,
+                clickable: current_node.params.clickable.into(),
+                id: current_node.id,
+                z: 0.0,
+                radius: 30.0,
+                filled: current_node.params.filled as u32,
+            });
+        }
     }
 
     pub fn push_cursor_rect(&mut self) -> Option<()> {
