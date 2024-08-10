@@ -8,7 +8,7 @@ use Position::*;
 pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     #[cfg(debug_assertions)]
     debug_name: "ROOT",
-    static_text: None,
+    default_text: None,
     visible_rect: false,
     clickable: false,
     color: Color {
@@ -29,7 +29,7 @@ pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
 pub const DEFAULT: NodeParams = NodeParams {
     #[cfg(debug_assertions)]
     debug_name: "DEFAULT",
-    static_text: Some("Default"),
+    default_text: Some("Default"),
     clickable: false,
     visible_rect: true,
     color: Color::BLUE,
@@ -44,7 +44,7 @@ pub const DEFAULT: NodeParams = NodeParams {
 pub const V_STACK: NodeParams = NodeParams {
     #[cfg(debug_assertions)]
     debug_name: "VStack",
-    static_text: None,
+    default_text: None,
     clickable: true,
     visible_rect: false,
     color: DEBUG_RED,
@@ -62,7 +62,7 @@ pub const V_STACK: NodeParams = NodeParams {
 pub const H_STACK: NodeParams = NodeParams {
     #[cfg(debug_assertions)]
     debug_name: "HStack",
-    static_text: None,
+    default_text: None,
     visible_rect: false,
     clickable: false,
     color: DEBUG_RED,
@@ -80,7 +80,7 @@ pub const H_STACK: NodeParams = NodeParams {
 pub const MARGIN: NodeParams = NodeParams {
     #[cfg(debug_assertions)]
     debug_name: "Margin",
-    static_text: None,
+    default_text: None,
     clickable: false,
     visible_rect: false,
     color: DEBUG_RED,
@@ -95,7 +95,7 @@ pub const MARGIN: NodeParams = NodeParams {
 pub const BUTTON: NodeParams = NodeParams {
     #[cfg(debug_assertions)]
     debug_name: "Button",
-    static_text: None,
+    default_text: None,
     clickable: true,
     visible_rect: true,
     color: Color::rgba(0.0, 0.1, 0.1, 0.9),
@@ -110,7 +110,7 @@ pub const BUTTON: NodeParams = NodeParams {
 pub const LABEL: NodeParams = NodeParams {
     #[cfg(debug_assertions)]
     debug_name: "Label",
-    static_text: Some("Label"),
+    default_text: Some("Label"),
     clickable: false,
     visible_rect: true,
     color: Color::BLUE,
@@ -125,7 +125,7 @@ pub const LABEL: NodeParams = NodeParams {
 pub const TEXT: NodeParams = NodeParams {
     #[cfg(debug_assertions)]
     debug_name: "Text",
-    static_text: Some("Text"),
+    default_text: Some("Text"),
     clickable: false,
     visible_rect: false,
     color: Color::RED,
@@ -140,7 +140,7 @@ pub const TEXT: NodeParams = NodeParams {
 pub const TEXT_INPUT: NodeParams = NodeParams {
     #[cfg(debug_assertions)]
     debug_name: "Text input",
-    static_text: None,
+    default_text: None,
     clickable: true,
     visible_rect: true,
     color: Color::rgba(0.1, 0.0, 0.1, 0.9),
@@ -155,7 +155,7 @@ pub const TEXT_INPUT: NodeParams = NodeParams {
 pub const PANEL: NodeParams = NodeParams {
     #[cfg(debug_assertions)]
     debug_name: "Panel",
-    static_text: None,
+    default_text: None,
     clickable: false,
     visible_rect: true,
     color: Color::rgba(0.1, 0.0, 0.1, 0.9),

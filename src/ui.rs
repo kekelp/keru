@@ -210,7 +210,7 @@ impl Mul<f32> for Rect {
 // todo: compress some fields... for example, stacks can never be clickable or editable
 #[derive(Debug, Copy, Clone)]
 pub struct NodeParams {
-    pub static_text: Option<&'static str>,
+    pub default_text: Option<&'static str>,
     pub visible_rect: bool,
     pub clickable: bool,
     pub editable: bool,
@@ -222,6 +222,57 @@ pub struct NodeParams {
     pub stack: Option<Stack>,
     #[cfg(debug_assertions)]
     pub debug_name: &'static str,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct NodeParams2 {
+    pub nodetype: NodeType,
+    pub rect: Rectangle,
+    pub interact: Interact,
+    pub layout: Layout,
+    
+    #[cfg(debug_assertions)]
+    pub debug_name: &'static str,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum NodeType {
+    Stack {
+        stack: Option<Stack>,
+    },
+    JustChildren {
+        // no data, but I still want to match it, right? 
+    },
+    Text {
+        default_text: &'static str,
+        dynamic_text: bool, // maybe???
+        editable: bool,
+        // now for the real problem: TextLayout is different from Layout.
+        // but I think we can reuse it, maybe. Just merge TextContent and FitToChildren.
+    },
+    // Image { ... }
+    // Icon { ... }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct Interact {
+    pub clickable: bool,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct Layout {
+    pub size: Xy<Size>,
+    pub padding: Xy<Len>,
+    pub position: Xy<Position>,
+}
+
+
+#[derive(Debug, Copy, Clone)]
+pub struct Rectangle {
+    pub visible_rect: bool,
+    pub filled: bool,
+    pub color: Color,
+    // ... crazy stuff like texture and NinePatchRect
 }
 
 impl NodeParams {
@@ -264,7 +315,7 @@ impl NodeParams {
     }
 
     pub const fn text(mut self, text: &'static str) -> Self {
-        self.static_text = Some(text);
+        self.default_text = Some(text);
         return self;
     }
 
@@ -896,7 +947,7 @@ impl Ui {
         let twin_check_result = match self.nodes.fronts.entry(key.id()) {
             // Add a normal node (no twins).
             Entry::Vacant(v) => {
-                let text_id = self.text.new_text_area(key.defaults().static_text, frame);
+                let text_id = self.text.new_text_area(key.defaults().default_text, frame);
                 let new_node = Self::new_node(&key, Some(parent_id), text_id);
                 
                 let final_i = self.nodes.nodes.insert(new_node);
@@ -936,7 +987,7 @@ impl Ui {
                 match self.nodes.fronts.entry(twin_key.id()) {
                     // Add new twin.
                     Entry::Vacant(v) => {
-                        let text_id = self.text.new_text_area(twin_key.defaults().static_text, frame);
+                        let text_id = self.text.new_text_area(twin_key.defaults().default_text, frame);
                         let new_twin_node = Self::new_node(&twin_key, Some(parent_id), text_id);
     
                         let real_final_i = self.nodes.nodes.insert(new_twin_node);
@@ -1303,7 +1354,7 @@ impl Ui {
                     proposed_size[axis] *= frac;
                 },
                 Size::TextContent => {
-                    const TEXT_SIZE_LOL: Xy<f32> = Xy::new(0.15, 0.016);
+                    const TEXT_SIZE_LOL: Xy<f32> = Xy::new(0.10, 0.016);
                     proposed_size[axis] = TEXT_SIZE_LOL[axis];
                 },
             }
@@ -1844,8 +1895,6 @@ macro_rules! tree {
     }};
 }
 
-// todo: a lot of the stuff in NodeParams isn't really needed again after creating the node.
-// probably only the layout stuff is needed.
 #[derive(Debug)]
 pub struct Node {
     pub id: Id,
@@ -1931,7 +1980,6 @@ pub enum Position {
     Center,
     Start,
     End,
-    // TrustParent,
 }
 
 #[allow(dead_code)]
