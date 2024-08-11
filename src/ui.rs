@@ -151,9 +151,10 @@ impl<T: Copy> Xy<T> {
     }
 }
 
-type Rect = Xy<[f32; 2]>;
+// todo: better name for this guy. "Rect" got stolen by the NodeParams field
+type XyRect = Xy<[f32; 2]>;
 
-impl Rect {
+impl XyRect {
     pub fn size(&self) -> Xy<f32> {
         return Xy::new(self[X][1] - self[X][0], self[Y][1] - self[Y][0]);
     }
@@ -179,7 +180,7 @@ impl Rect {
         }
     }
 }
-impl Add<f32> for Rect {
+impl Add<f32> for XyRect {
     type Output = Self;
     fn add(self, rhs: f32) -> Self::Output {
         return Self::new(
@@ -188,7 +189,7 @@ impl Add<f32> for Rect {
         );
     }
 }
-impl Sub<f32> for Rect {
+impl Sub<f32> for XyRect {
     type Output = Self;
     fn sub(self, rhs: f32) -> Self::Output {
         return Self::new(
@@ -197,7 +198,7 @@ impl Sub<f32> for Rect {
         );
     }
 }
-impl Mul<f32> for Rect {
+impl Mul<f32> for XyRect {
     type Output = Self;
     fn mul(self, rhs: f32) -> Self::Output {
         return Self::new(
@@ -227,7 +228,7 @@ pub struct NodeParams {
 #[derive(Debug, Copy, Clone)]
 pub struct NodeParams2 {
     pub nodetype: NodeType,
-    pub rect: Rectangle,
+    pub rect: Rect,
     pub interact: Interact,
     pub layout: Layout,
     
@@ -245,10 +246,10 @@ pub enum NodeType {
     },
     Text {
         default_text: &'static str,
-        dynamic_text: bool, // maybe???
         editable: bool,
         // now for the real problem: TextLayout is different from Layout.
         // but I think we can reuse it, maybe. Just merge TextContent and FitToChildren.
+        // any text-layout-specific stuff can go here, I guess.
     },
     // Image { ... }
     // Icon { ... }
@@ -268,7 +269,7 @@ pub struct Layout {
 
 
 #[derive(Debug, Copy, Clone)]
-pub struct Rectangle {
+pub struct Rect {
     pub visible_rect: bool,
     pub filled: bool,
     pub color: Color,
@@ -347,7 +348,7 @@ impl NodeParams {
 //   could also store the pre-transformed coordinates
 // Layout has to match the one in the shader.
 pub struct RenderRect {
-    pub rect: Rect,
+    pub rect: XyRect,
 
     pub r: f32,
     pub g: f32,
@@ -1470,7 +1471,7 @@ impl Ui {
         });
     }
 
-    pub fn layout_text(&mut self, text_id: Option<usize>, rect: Rect) {
+    pub fn layout_text(&mut self, text_id: Option<usize>, rect: XyRect) {
         if let Some(text_id) = text_id {
             let left = rect[X][0] * self.part.unifs.size[X];
             let top = (1.0 - rect[Y][1]) * self.part.unifs.size[Y];
@@ -1582,7 +1583,7 @@ impl Ui {
                 let y1 = y1 + (rect_y1 * 2. - 1.);
 
                 let cursor_rect = RenderRect {
-                    rect: Rect::new([x0, x1], [y0, y1]),
+                    rect: XyRect::new([x0, x1], [y0, y1]),
                     r: 0.5,
                     g: 0.3,
                     b: 0.5,
@@ -1620,8 +1621,7 @@ impl Ui {
                 let y1 = y1 + (rect_y1 * 2. - 1.);
 
                 let cursor_rect = RenderRect {
-                    rect: Rect::new([x0, x1], [y0, y1]),
-
+                    rect: XyRect::new([x0, x1], [y0, y1]),
                     r: 0.5,
                     g: 0.3,
                     b: 0.5,
@@ -1798,6 +1798,7 @@ impl Ui {
         }
     }
 
+    // todo: actually call this once in a while
     pub fn prune(&mut self) {
         self.nodes.fronts.retain( |k, v| {
             // the > is to always keep the root node without having to refresh it 
@@ -1885,7 +1886,7 @@ pub struct Node {
     // visible rect only
     pub rect_id: Option<usize>,
     // also for invisible rects, used for layout
-    pub rect: Rect,
+    pub rect: XyRect,
 
     // partial result when layouting?
     pub size: Xy<f32>,
