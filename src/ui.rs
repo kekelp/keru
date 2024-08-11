@@ -210,7 +210,7 @@ impl Mul<f32> for XyRect {
 
 // todo: compress some fields... for example, stacks can never be clickable or editable
 #[derive(Debug, Copy, Clone)]
-pub struct NodeParams {
+pub struct NodeParamsOld {
     pub default_text: Option<&'static str>,
     pub visible_rect: bool,
     pub clickable: bool,
@@ -223,36 +223,6 @@ pub struct NodeParams {
     pub stack: Option<Stack>,
     #[cfg(debug_assertions)]
     pub debug_name: &'static str,
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct NodeParams2 {
-    pub nodetype: NodeType,
-    pub rect: Rect,
-    pub interact: Interact,
-    pub layout: Layout,
-    
-    #[cfg(debug_assertions)]
-    pub debug_name: &'static str,
-}
-
-#[derive(Debug, Copy, Clone)]
-pub enum NodeType {
-    Stack {
-        stack: Option<Stack>,
-    },
-    JustChildren {
-        // no data, but I still want to match it, right? 
-    },
-    Text {
-        default_text: &'static str,
-        editable: bool,
-        // now for the real problem: TextLayout is different from Layout.
-        // but I think we can reuse it, maybe. Just merge TextContent and FitToChildren.
-        // any text-layout-specific stuff can go here, I guess.
-    },
-    // Image { ... }
-    // Icon { ... }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -276,47 +246,93 @@ pub struct Rect {
     // ... crazy stuff like texture and NinePatchRect
 }
 
+#[derive(Debug, Copy, Clone)]
+pub enum NodeType {
+    Text {
+        default_text: &'static str,
+        editable: bool,
+        // any text-layout-specific stuff can go here, I guess.
+    },
+    // Image { ... }
+    // Icon { ... }
+    Stack {
+        stack: Stack,
+    },
+    Container,
+    // CustomRect,
+}
+// mirror of the enum variation. Rust moment
+pub(crate) struct NodeParamsText {
+    pub(crate) default_text: &'static str,
+    pub(crate) editable: bool,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct NodeParams {
+    pub nodetype: NodeType,
+    pub rect: Rect,
+    pub interact: Interact,
+    pub layout: Layout,
+    
+    #[cfg(debug_assertions)]
+    pub debug_name: &'static str,
+}
+
 impl NodeParams {
+    fn maybe_text(&self) -> Option<NodeParamsText> {
+        if let NodeType::Text { default_text, editable } = self.nodetype {
+            return Some(NodeParamsText {
+                default_text,
+                editable,
+            });
+        } else {
+            return None;
+        }
+    }
+
     pub const fn const_default() -> Self {
-        DEFAULT
+        return DEFAULT;
     }
 
     pub const fn size_x(mut self, size: f32) -> Self {
-        self.size.x = Size::Fraction(size);
+        self.layout.size.x = Size::Fraction(size);
         return self;
     }
     pub const fn size_y(mut self, size: f32) -> Self {
-        self.size.y = Size::Fraction(size);
+        self.layout.size.y = Size::Fraction(size);
         return self;
     }
     pub const fn size2_x(mut self, size: Size) -> Self {
-        self.size.x = size;
+        self.layout.size.x = size;
         return self;
     }
     pub const fn size2_y(mut self, size: Size) -> Self {
-        self.size.y = size;
+        self.layout.size.y = size;
         return self;
     }
     pub const fn size_symm(mut self, size: f32) -> Self {
-        self.size = Xy::new_symm(Size::Fraction(size));
+        self.layout.size = Xy::new_symm(Size::Fraction(size));
         return self;
     }
 
     pub const fn position_x(mut self, position: Position) -> Self {
-        self.position.x = position;
+        self.layout.position.x = position;
         return self;
     }
     pub const fn position_y(mut self, position: Position) -> Self {
-        self.position.y = position;
+        self.layout.position.y = position;
         return self;
     }
     pub const fn position_symm(mut self, position: Position) -> Self {
-        self.position = Xy::new_symm(position);
+        self.layout.position = Xy::new_symm(position);
         return self;
     }
 
     pub const fn text(mut self, text: &'static str) -> Self {
-        self.default_text = Some(text);
+        self.nodetype = NodeType::Text {
+            default_text: text,
+            editable: false
+        };
         return self;
     }
 
@@ -327,17 +343,19 @@ impl NodeParams {
     }
 
     pub const fn color(mut self, color: Color) -> Self {
-        self.color = color;
+        self.rect.color = color;
         return self;
     }
 
     pub const fn filled(mut self, filled: bool) -> Self {
-        self.filled = filled;
+        self.rect.filled = filled;
         return self;
     }
 
     pub const fn stack(mut self, axis: Axis, arrange: Arrange, spacing: Len) -> Self {
-        self.stack = Some(Stack { arrange, axis, spacing });
+        self.nodetype = NodeType::Stack {
+            stack: Stack { arrange, axis, spacing },
+        };
         return self;
     }
 }
@@ -399,6 +417,7 @@ impl Color {
     };
 
     pub const WHITE: Self = Self::rgba(1.0, 1.0, 1.0, 1.0);
+    pub const TRANSPARENT: Self = Self::rgba(1.0, 1.0, 1.0, 0.0);
 
     pub const BLUE: Self = Self::rgba(0.1, 0.1, 1.0, 0.6);
     pub const RED: Self = Self::rgba(1.0, 0.1, 0.1, 0.6);
@@ -432,13 +451,13 @@ impl Color {
 
 pub struct NodeWithStuff<'a> {
     node: &'a mut Node,
-    text: &'a mut Text,
+    text: &'a mut TextSystem,
 }
 
 // why can't you just do it separately?
 impl<'a> NodeWithStuff<'a> {
     pub fn set_color(&mut self, color: Color)  -> &mut Self {
-        self.node.params.color = color;
+        self.node.params.rect.color = color;
         return self;
     }
 
@@ -527,7 +546,7 @@ pub enum Cursor {
 }
 
 // another stupid sub struct for dodging partial borrows
-pub struct Text {
+pub struct TextSystem {
     pub font_system: FontSystem,
     pub cache: SwashCache,
     pub atlas: TextAtlas,
@@ -535,9 +554,9 @@ pub struct Text {
     pub text_areas: Vec<TextArea>,
 }
 const GLOBAL_TEXT_METRICS: Metrics = Metrics::new(24.0, 24.0);
-impl Text {
-    pub fn new_text_area(&mut self, text: Option<&str>, current_frame: u64) -> Option<usize> {
-        let text = text?;
+impl TextSystem {
+    pub(crate) fn new_text_area(&mut self, text: Option<NodeParamsText>, current_frame: u64) -> Option<usize> {
+        let text = text?.default_text;
 
         let mut buffer = GlyphonBuffer::new(&mut self.font_system, GLOBAL_TEXT_METRICS);
         buffer.set_size(&mut self.font_system, 500., 500.);
@@ -698,7 +717,7 @@ pub struct Ui {
     pub base_uniform_buffer: Buffer,
     pub bind_group: BindGroup,
 
-    pub text: Text,
+    pub text: TextSystem,
 
     pub rects: Vec<RenderRect>,
 
@@ -884,7 +903,7 @@ impl Ui {
             clipboard: ClipboardContext::new().unwrap(),
             key_mods: ModifiersState::default(),
 
-            text: Text {
+            text: TextSystem {
                 cache,
                 atlas,
                 text_renderer,
@@ -948,7 +967,8 @@ impl Ui {
         let twin_check_result = match self.nodes.fronts.entry(key.id()) {
             // Add a normal node (no twins).
             Entry::Vacant(v) => {
-                let text_id = self.text.new_text_area(key.defaults().default_text, frame);
+                let text = key.defaults().maybe_text();
+                let text_id = self.text.new_text_area(text, frame);
                 let new_node = Self::new_node(&key, Some(parent_id), text_id);
                 
                 let final_i = self.nodes.nodes.insert(new_node);
@@ -988,7 +1008,8 @@ impl Ui {
                 match self.nodes.fronts.entry(twin_key.id()) {
                     // Add new twin.
                     Entry::Vacant(v) => {
-                        let text_id = self.text.new_text_area(twin_key.defaults().default_text, frame);
+                        let text = key.defaults().maybe_text();
+                        let text_id = self.text.new_text_area(text, frame);
                         let new_twin_node = Self::new_node(&twin_key, Some(parent_id), text_id);
     
                         let real_final_i = self.nodes.nodes.insert(new_twin_node);
@@ -1256,21 +1277,31 @@ impl Ui {
     }
 
     fn determine_size(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
-        if let Some(stack) = self.nodes[node].params.stack {
-            self.determine_size_stack(node, proposed_size, stack);
-        } else {
-            self.determine_size_normal(node, proposed_size);
-        }
+        match self.nodes[node].params.nodetype {
+            NodeType::Text { .. } => self.determine_size_text(node, proposed_size),
+            NodeType::Stack { stack } => self.determine_size_stack(node, proposed_size, stack),
+            NodeType::Container => self.determine_size_container(node, proposed_size),
+        };
+
         println!(" size   : {:?} = {:?}", self.nodes[node].params.debug_name, self.nodes[node].size);
 
         return self.nodes[node].size;
+    }
+
+    fn determine_size_text(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
+        let mut proposed_size = proposed_size;
+
+        let mut final_size = proposed_size;
+
+        self.nodes[node].size = final_size;
+        return final_size;
     }
 
     fn determine_size_stack(&mut self, node: usize, proposed_size: Xy<f32>, stack: Stack) -> Xy<f32> {
         let mut proposed_size = proposed_size;
 
         let (main, cross) = (stack.axis, stack.axis.other());
-        let padding = self.to_frac2(self.nodes[node].params.padding);
+        let padding = self.to_frac2(self.nodes[node].params.layout.padding);
         let spacing = self.to_frac(stack.spacing, stack.axis);
         let n_children = self.nodes[node].n_children as f32;
         
@@ -1284,18 +1315,14 @@ impl Ui {
             proposed_size[axis] -= 2.0 * padding[axis];
 
             // adjust proposed size based on our own size
-            match self.nodes[node].params.size[axis] {
-                Size::FitToChildren => {}, // propose the whole size. We will shrink our own final size later if they end up using less or more 
+            match self.nodes[node].params.layout.size[axis] {
+                Size::FitContent => {}, // propose the whole size. We will shrink our own final size later if they end up using less or more 
                 Size::Fill => {}, // keep the whole proposed_size
                 Size::Pixels(pixels) => {
                     proposed_size[axis] = self.pixels_to_frac(pixels, axis);
                 },
                 Size::Fraction(frac) => {
                     proposed_size[axis] *= frac;
-                },
-                Size::TextContent => {
-                    // this should never happen? maybe make it non-representable? muh impossible states and such
-                    panic!("geg");
                 },
             }
         }        
@@ -1323,7 +1350,7 @@ impl Ui {
         //   or we change our mind to based on children.
         let mut final_size = proposed_size;
         for axis in [X, Y] {
-            if self.nodes[node].params.size[axis] == Size::FitToChildren {
+            if self.nodes[node].params.layout.size[axis] == Size::FitContent {
                 final_size[axis] = summed_children_size[axis];
             }
         }
@@ -1340,8 +1367,8 @@ impl Ui {
         return final_size;
     }
 
-    fn determine_size_normal(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
-        let padding = self.to_frac2(self.nodes[node].params.padding);
+    fn determine_size_container(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
+        let padding = self.to_frac2(self.nodes[node].params.layout.padding);
         let mut proposed_size = proposed_size;
         
         for axis in [X, Y] {
@@ -1349,18 +1376,14 @@ impl Ui {
             proposed_size[axis] -= 2.0 * padding[axis];
 
             // adjust the size we propose to children based on our own size    
-            match self.nodes[node].params.size[axis] {
-                Size::FitToChildren => {}, // propose the whole size. We will shrink our own final size later if they end up using less or more 
+            match self.nodes[node].params.layout.size[axis] {
+                Size::FitContent => {}, // propose the whole size. We will shrink our own final size later if they end up using less or more 
                 Size::Fill => {}, // keep the whole proposed_size
                 Size::Pixels(pixels) => {
                     proposed_size[axis] = self.pixels_to_frac(pixels, axis);
                 },
                 Size::Fraction(frac) => {
                     proposed_size[axis] *= frac;
-                },
-                Size::TextContent => {
-                    const TEXT_SIZE_LOL: Xy<f32> = Xy::new(0.10, 0.016);
-                    proposed_size[axis] = TEXT_SIZE_LOL[axis];
                 },
             }
         }
@@ -1381,7 +1404,7 @@ impl Ui {
         //   or we change our mind to based on children.
         let mut final_size = proposed_size;
         for axis in [X, Y] {
-            if self.nodes[node].params.size[axis] == Size::FitToChildren {
+            if self.nodes[node].params.layout.size[axis] == Size::FitContent {
                 final_size[axis] = biggest_child_size[axis];
             }
         }
@@ -1398,19 +1421,24 @@ impl Ui {
     fn build_rect_and_place_children(&mut self, node: usize) {
         self.build_rect(node);
         
-        if let Some(stack) = self.nodes[node].params.stack {
-            self.build_rect_and_place_children_stack(node, stack);
-        } else {
-            self.build_rect_and_place_children_normal(node)
-        }
+        match self.nodes[node].params.nodetype {
+            NodeType::Text { .. } => self.build_rect_and_place_children_text(node),
+            NodeType::Stack { stack } => self.build_rect_and_place_children_stack(node, stack),
+            NodeType::Container => self.build_rect_and_place_children_container(node),
+        };
+
         println!(" place  : {:?} = {:?}", self.nodes[node].params.debug_name, self.nodes[node].rect);
 
         self.layout_text(self.nodes[node].text_id, self.nodes[node].rect);
     }
 
+    fn build_rect_and_place_children_text(&mut self, node: usize) {
+
+    }
+
     fn build_rect_and_place_children_stack(&mut self, node: usize, stack: Stack) {
         let (main, cross) = (stack.axis, stack.axis.other());
-        let padding = self.to_frac2(self.nodes[node].params.padding);
+        let padding = self.to_frac2(self.nodes[node].params.layout.padding);
         let spacing = self.to_frac(stack.spacing, stack.axis);
         
         // Totally ignore the children's chosen Position's and place them according to our own Stack::Arrange value.
@@ -1418,10 +1446,7 @@ impl Ui {
         let side = match stack.arrange {
             Arrange::Start => 0,
             Arrange::End => 1,
-            Arrange::Center => todo!(),
-            Arrange::SpaceBetween => todo!(),
-            Arrange::SpaceAround => todo!(),
-            Arrange::SpaceEvenly => todo!(),
+            _ => todo!(),
         };
         let dir = - (side as f32 * 2.0 - 1.0);
 
@@ -1440,16 +1465,16 @@ impl Ui {
         });
     }
 
-    fn build_rect_and_place_children_normal(&mut self, node: usize) {
+    fn build_rect_and_place_children_container(&mut self, node: usize) {
         let rect = self.nodes[node].rect;
-        let padding = self.to_frac2(self.nodes[node].params.padding);
+        let padding = self.to_frac2(self.nodes[node].params.layout.padding);
 
         for_each_child!(self, self.nodes[node], child, {
             let size = self.nodes[child].size;
 
             // check the children's chosen Position's and place them.
             for ax in [X, Y] {
-                match self.nodes[child].params.position[ax] {
+                match self.nodes[child].params.layout.position[ax] {
                     Position::Start => {
                         let origin = rect[ax][0] + padding[ax];
                         self.nodes[child].rect[ax] = [origin, origin + size[ax]];         
@@ -1530,21 +1555,21 @@ impl Ui {
 
         // in debug mode, draw invisible rects as well.
         // usually these have filled = false (just the outline), but this is not enforced.
-        if current_node.params.visible_rect || self.debug_mode {
+        if current_node.params.rect.visible_rect || self.debug_mode {
             self.rects.push(RenderRect {
                 rect: current_node.rect * 2. - 1.,
 
-                r: current_node.params.color.r,
-                g: current_node.params.color.g,
-                b: current_node.params.color.b,
-                a: current_node.params.color.a,
+                r: current_node.params.rect.color.r,
+                g: current_node.params.rect.color.g,
+                b: current_node.params.rect.color.b,
+                a: current_node.params.rect.color.a,
                 last_hover: current_node.last_hover,
                 last_click: current_node.last_click,
-                clickable: current_node.params.clickable.into(),
+                clickable: current_node.params.interact.clickable.into(),
                 id: current_node.id,
                 z: 0.0,
                 radius: 30.0,
-                filled: current_node.params.filled as u32,
+                filled: current_node.params.rect.filled as u32,
             });
         }
     }
@@ -1760,8 +1785,10 @@ impl Ui {
             let node = self.nodes.get_by_id(&clicked_id).unwrap();
             node.last_click = t;
 
-            if node.params.editable {
-                self.focused = Some(clicked_id);
+            if let Some(text) = node.params.maybe_text() {
+                if text.editable {
+                    self.focused = Some(clicked_id);
+                }
             }
 
             if let Some(id) = node.text_id {
@@ -1942,11 +1969,13 @@ pub enum Size {
     Pixels(u32),
     Fraction(f32),
     Fill,
-    TextContent,
-        // something like "strictness":
-        //  with the "proposed" thing, a TextContent can either insist to get the minimum size it wants,
-        // or be okay with whatever (and clip it, show some "..."'s, etc) 
-    FitToChildren,
+    // "Content" can refer to the children if the node is a Stack or Container, or the inner text if it's a Text node, etc.
+    // There will probably be some other size-related settings specific to some node types: for example "strictness" below. I guess those go into the Text enum variation.
+    // I still don't like the name either.
+    FitContent,
+    // ... something like "strictness":
+    //  with the "proposed" thing, a TextContent can either insist to get the minimum size it wants,
+    // or be okay with whatever (and clip it, show some "..."'s, etc) 
     // todo: add FitToChildrenInitiallyButNeverResizeAfter 
 }
 
