@@ -196,7 +196,7 @@ pub const V_STACK: NodeParams = NodeParams {
     stack: Some(Stack {
         arrange: Arrange::Start,
         axis: Axis::Y,
-        spacing: Len::Pixels(5),
+        spacing: Len::Pixels(0),
     }),
     text: None,
     rect: Rect {
@@ -210,7 +210,7 @@ pub const V_STACK: NodeParams = NodeParams {
     layout: Layout {
         size: Xy::new(Size::FitContent, Size::FitContent),
         position: Xy::new_symm(Center),
-        padding: Xy::new_symm(Len::ZERO),
+        padding: Xy::new_symm(Len::Pixels(20)),
     },
     
     #[cfg(debug_assertions)]

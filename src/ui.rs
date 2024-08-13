@@ -1262,30 +1262,9 @@ impl Ui {
         self.push_cursor_rect();
     }
 
-    fn determine_size(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
-        if let Some(stack) = self.nodes[node].params.stack {
-            self.determine_size_stack(node, proposed_size, stack);
-        } else {
-            self.determine_size_container(node, proposed_size);
-        };
-
-        println!(" size   : {:?} = {:?}", self.nodes[node].params.debug_name, self.nodes[node].size);
-
-        return self.nodes[node].size;
-    }
-
-    fn determine_size_stack(&mut self, node: usize, proposed_size: Xy<f32>, stack: Stack) -> Xy<f32> {
-        let mut proposed_size = proposed_size;
-
-        let (main, cross) = (stack.axis, stack.axis.other());
+    fn get_proposed_size(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
         let padding = self.to_frac2(self.nodes[node].params.layout.padding);
-        let spacing = self.to_frac(stack.spacing, stack.axis);
-        let n_children = self.nodes[node].n_children as f32;
-        
-        // adjust proposed size based on spacing
-        if n_children > 1.5 {
-            proposed_size[main] -= spacing * (n_children - 1.0);
-        }
+        let mut proposed_size = proposed_size;
 
         for axis in [X, Y] {
             // adjust proposed size based on padding
@@ -1302,24 +1281,41 @@ impl Ui {
                     proposed_size[axis] *= frac;
                 },
             }
-        }        
-        
-        let mut child_proposed_size = Xy::new(0.0, 0.0);
-        child_proposed_size[main] = proposed_size[main] / n_children;
-        child_proposed_size[cross] = proposed_size[cross];
-        
-        child_proposed_size[main] += 2.0 * padding[main] * n_children;
-        child_proposed_size[cross] -= 2.0 * padding[cross];
+        }
 
-        let mut summed_children_size = Xy::new(0.0, 0.0);
+        return proposed_size;
+    }
 
+    fn get_children_proposed_size(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
+        let mut child_proposed_size = proposed_size;
+
+        if let Some(stack) = self.nodes[node].params.stack {
+            let main = stack.axis;
+            let n_children = self.nodes[node].n_children as f32;
+            let spacing = self.to_frac(stack.spacing, stack.axis);
+
+            // adjust proposed size based on spacing
+            if n_children > 1.5 {
+                child_proposed_size[main] -= spacing * (n_children - 1.0);
+            }
+            // divide between children
+            child_proposed_size[main] = child_proposed_size[main] / n_children;
+        }
+        return child_proposed_size
+    }
+
+    fn determine_size(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
+        // calculate the total size to propose to children
+        let proposed_size = self.get_proposed_size(node, proposed_size);
+        // divide it across children (if Stack)
+        let child_proposed_size = self.get_children_proposed_size(node, proposed_size);
+
+        // Propose a size to the children and let them decide
+        let stack = self.nodes[node].params.stack;
+        let mut updating_size = Xy::new(0.0, 0.0);
         for_each_child!(self, self.nodes[node], child, {
             let child_size = self.determine_size(child, child_proposed_size);
-            
-            summed_children_size[main] += child_size[main];
-            if child_size[cross] > summed_children_size[cross] {
-                summed_children_size[cross] = child_size[cross];
-            }
+            updating_size.update_for_child(child_size, stack);
         });
 
         // Decide our own size. 
@@ -1328,70 +1324,41 @@ impl Ui {
         let mut final_size = proposed_size;
         for axis in [X, Y] {
             if self.nodes[node].params.layout.size[axis] == Size::FitContent {
-                final_size[axis] = summed_children_size[axis];
+                final_size[axis] = updating_size[axis];
+
+                // todo: definitely not like this
+                if let Some(_text) = self.nodes[node].params.text {
+                    final_size = Xy::new(0.16, 0.06);
+                }
             }
         }
 
-        // uhh re-add the padding or something (weird)
-        for axis in [X, Y] {
-            final_size[axis] += 2.0 * padding[axis];
-        }
-        if n_children > 1.0 {
-            final_size[main] += spacing * (n_children - 1.0);
-        }
+        // add back padding and spacing to get the real final size
+        final_size = self.adjust_final_size(node, final_size);
 
         self.nodes[node].size = final_size;
         return final_size;
     }
 
-    fn determine_size_container(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
+    fn adjust_final_size(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
         let padding = self.to_frac2(self.nodes[node].params.layout.padding);
-        let mut proposed_size = proposed_size;
-        
-        for axis in [X, Y] {
-            // adjust the size we propose to children based on padding
-            proposed_size[axis] -= 2.0 * padding[axis];
 
-            // adjust the size we propose to children based on our own size    
-            match self.nodes[node].params.layout.size[axis] {
-                Size::FitContent => {}, // propose the whole size. We will shrink our own final size later if they end up using less or more 
-                Size::Fill => {}, // keep the whole proposed_size
-                Size::Pixels(pixels) => {
-                    proposed_size[axis] = self.pixels_to_frac(pixels, axis);
-                },
-                Size::Fraction(frac) => {
-                    proposed_size[axis] *= frac;
-                },
-            }
-        }
-
-        // Propose a size to the children and let them decide 
-        let mut biggest_child_size = Xy::new(0.0, 0.0);
-        for_each_child!(self, self.nodes[node], child, {
-            self.determine_size(child, proposed_size);
-            for axis in [X, Y] {
-                if self.nodes[child].size[axis] > biggest_child_size[axis] {
-                    biggest_child_size[axis] = self.nodes[child].size[axis];
-                }
-            }
-        });
-
-        // Decide our own size. 
-        //   We either use the proposed_size that we proposed to the children,
-        //   or we change our mind to based on children.
         let mut final_size = proposed_size;
-        for axis in [X, Y] {
-            if self.nodes[node].params.layout.size[axis] == Size::FitContent {
-                final_size[axis] = biggest_child_size[axis];
-            }
-        }
-
-        // uhh re-add the padding or something (weird)
+        // re-add spacing and padding to the proposed size we calculated
         for axis in [X, Y] {
             final_size[axis] += 2.0 * padding[axis];
         }
 
-        self.nodes[node].size = final_size;
+        if let Some(stack) = self.nodes[node].params.stack {
+            let spacing = self.to_frac(stack.spacing, stack.axis);
+            let n_children = self.nodes[node].n_children as f32;
+            let main = stack.axis;
+
+            if n_children > 1.0 {
+                final_size[main] += spacing * (n_children - 1.0);
+            }
+        }
+
         return final_size;
     }
 
@@ -1454,7 +1421,8 @@ impl Ui {
                     },
                     Position::End => {
                         let origin = rect[ax][1] - padding[ax];
-                        self.nodes[child].rect[ax] = [origin - size[ax], origin];                        },
+                        self.nodes[child].rect[ax] = [origin - size[ax], origin];
+                    },
                     Position::Center => {
                         let origin = (rect[ax][1] + rect[ax][0]) / 2.0;
                         self.nodes[child].rect[ax] = [
@@ -2225,3 +2193,26 @@ pub fn epic_segment(origin: f32, size: f32, direction: usize) -> [f32; 2] {
     }
 
 }
+
+impl Xy<f32> {
+    pub fn update_for_child(&mut self, child_size: Xy<f32>, stack: Option<Stack>) {
+        match stack {
+            None => {
+                for axis in [X, Y] {
+                    if child_size[axis] > self[axis] {
+                        self[axis] = child_size[axis];
+                    }
+                }
+            },
+            Some(stack) => {
+                let (main, cross) = (stack.axis, stack.axis.other());
+
+                self[main] += child_size[main];
+                if child_size[cross] > self[cross] {
+                    self[cross] = child_size[cross];
+                }
+            },
+        }
+    }
+}
+
