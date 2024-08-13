@@ -1305,31 +1305,34 @@ impl Ui {
     }
 
     fn determine_size(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
+        let stack = self.nodes[node].params.stack;
+        
         // calculate the total size to propose to children
         let proposed_size = self.get_proposed_size(node, proposed_size);
         // divide it across children (if Stack)
         let child_proposed_size = self.get_children_proposed_size(node, proposed_size);
 
         // Propose a size to the children and let them decide
-        let stack = self.nodes[node].params.stack;
         let mut updating_size = Xy::new(0.0, 0.0);
         for_each_child!(self, self.nodes[node], child, {
             let child_size = self.determine_size(child, child_proposed_size);
             updating_size.update_for_child(child_size, stack);
         });
 
+        // Propose the whole proposed_size (regardless of stack) to the contents, and let them decide.
+        if let Some(text) = self.nodes[node].params.text {
+            let text_size = self.determine_text_size(text, proposed_size);
+            updating_size.update_for_content(text_size, stack);
+        }
+
         // Decide our own size. 
         //   We either use the proposed_size that we proposed to the children,
         //   or we change our mind to based on children.
+        // todo: is we're not fitcontenting, we can skip the update_for_* calls instead, and then remove this, I guess.
         let mut final_size = proposed_size;
         for axis in [X, Y] {
             if self.nodes[node].params.layout.size[axis] == Size::FitContent {
                 final_size[axis] = updating_size[axis];
-
-                // todo: definitely not like this
-                if let Some(_text) = self.nodes[node].params.text {
-                    final_size = Xy::new(0.16, 0.06);
-                }
             }
         }
 
@@ -1340,9 +1343,13 @@ impl Ui {
         return final_size;
     }
 
-    fn adjust_final_size(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
-        // re-add spacing and padding to the proposed size we calculated
-        let mut final_size = proposed_size;
+    fn determine_text_size(&mut self, _text: Text, _proposed_size: Xy<f32>) -> Xy<f32> {
+        return Xy::new(0.16, 0.06);
+    }
+
+    fn adjust_final_size(&mut self, node: usize, final_size: Xy<f32>) -> Xy<f32> {
+        // re-add spacing and padding to the final size we calculated
+        let mut final_size = final_size;
         
         let padding = self.to_frac2(self.nodes[node].params.layout.padding);
         for axis in [X, Y] {
@@ -2195,7 +2202,7 @@ pub fn epic_segment(origin: f32, size: f32, direction: usize) -> [f32; 2] {
 }
 
 impl Xy<f32> {
-    pub fn update_for_child(&mut self, child_size: Xy<f32>, stack: Option<Stack>) {
+    fn update_for_child(&mut self, child_size: Xy<f32>, stack: Option<Stack>) {
         match stack {
             None => {
                 for axis in [X, Y] {
@@ -2214,5 +2221,13 @@ impl Xy<f32> {
             },
         }
     }
+    fn update_for_content(&mut self, child_size: Xy<f32>, _stack: Option<Stack>) {
+        for axis in [X, Y] {
+            if child_size[axis] > self[axis] {
+                self[axis] = child_size[axis];
+            }
+        }
+    }
+
 }
 
