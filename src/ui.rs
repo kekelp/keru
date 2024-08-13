@@ -1339,6 +1339,8 @@ impl Ui {
         // add back padding and spacing to get the real final size
         final_size = self.adjust_final_size(node, final_size);
 
+        println!(" size   : {:?} = {:?}", self.nodes[node].params.debug_name, final_size);
+
         self.nodes[node].size = final_size;
         return final_size;
     }
