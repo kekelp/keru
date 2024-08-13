@@ -1,4 +1,4 @@
-use crate::{Arrange, Axis, Color, Interact, Layout, Len, NodeParams, NodeType, Position, Rect, Size, Stack, Xy};
+use crate::{Arrange, Axis, Color, Interact, Layout, Len, NodeParams, Text, Position, Rect, Size, Stack, Xy};
 
 pub const DEBUG_RED: Color = Color::rgba(1.0, 0.0, 0.0, 0.3);
 
@@ -6,7 +6,8 @@ use Size::*;
 use Position::*;
 
 pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
-    nodetype: NodeType::Container,
+    stack: None,
+    text: None,
     rect: Rect {
         visible_rect: false,
         filled: false,
@@ -168,10 +169,11 @@ pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
 // };
 
 pub const DEFAULT: NodeParams = NodeParams {
-    nodetype: NodeType::Text {
+    stack: None,
+    text: Some(Text {
         default_text: "Default",
         editable: false,
-    },
+    }),
     rect: Rect {
         visible_rect: true,
         filled: true,
@@ -191,13 +193,12 @@ pub const DEFAULT: NodeParams = NodeParams {
 };
 
 pub const V_STACK: NodeParams = NodeParams {
-    nodetype: NodeType::Stack {
-        stack: Stack {
-            arrange: Arrange::Start,
-            axis: Axis::Y,
-            spacing: Len::Pixels(5),
-        },
-    },
+    stack: Some(Stack {
+        arrange: Arrange::Start,
+        axis: Axis::Y,
+        spacing: Len::Pixels(5),
+    }),
+    text: None,
     rect: Rect {
         visible_rect: false,
         filled: false,
@@ -217,13 +218,12 @@ pub const V_STACK: NodeParams = NodeParams {
 };
 
 pub const H_STACK: NodeParams = NodeParams {
-    nodetype: NodeType::Stack {
-        stack: Stack {
-            arrange: Arrange::Start,
-            axis: Axis::X,
-            spacing: Len::Pixels(5),
-        },
-    },
+    stack: Some(Stack {
+        arrange: Arrange::Start,
+        axis: Axis::X,
+        spacing: Len::Pixels(5),
+    }),
+    text: None,
     rect: Rect {
         visible_rect: false,
         filled: false,
@@ -243,7 +243,8 @@ pub const H_STACK: NodeParams = NodeParams {
 };
 
 pub const MARGIN: NodeParams = NodeParams {
-    nodetype: NodeType::Container,
+    stack: None,
+    text: None,
     rect: Rect {
         visible_rect: false,
         filled: false,
@@ -263,7 +264,8 @@ pub const MARGIN: NodeParams = NodeParams {
 };
 
 pub const BUTTON: NodeParams = NodeParams {
-    nodetype: NodeType::Container,
+    stack: None,
+    text: None,
     rect: Rect {
         visible_rect: true,
         filled: true,
@@ -283,10 +285,11 @@ pub const BUTTON: NodeParams = NodeParams {
 };
 
 pub const LABEL: NodeParams = NodeParams {
-    nodetype: NodeType::Text {
+    stack: None,
+    text: Some(Text {
         default_text: "Label",
         editable: false,
-    },
+    }),
     rect: Rect {
         visible_rect: true,
         filled: true,
@@ -306,10 +309,11 @@ pub const LABEL: NodeParams = NodeParams {
 };
 
 pub const TEXT: NodeParams = NodeParams {
-    nodetype: NodeType::Text {
+    stack: None,
+    text: Some(Text {
         default_text: "Text",
         editable: false,
-    },
+    }),
     rect: Rect {
         visible_rect: false,
         filled: false,
@@ -329,10 +333,11 @@ pub const TEXT: NodeParams = NodeParams {
 };
 
 pub const TEXT_INPUT: NodeParams = NodeParams {
-    nodetype: NodeType::Text {
+    stack: None,
+    text: Some(Text {
         default_text: "",
         editable: true,
-    },
+    }),
     rect: Rect {
         visible_rect: true,
         filled: true,
@@ -352,7 +357,8 @@ pub const TEXT_INPUT: NodeParams = NodeParams {
 };
 
 pub const PANEL: NodeParams = NodeParams {
-    nodetype: NodeType::Container,
+    stack: None,
+    text: None,
     rect: Rect {
         visible_rect: true,
         filled: true,

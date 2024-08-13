@@ -208,23 +208,6 @@ impl Mul<f32> for XyRect {
     }
 }
 
-// todo: compress some fields... for example, stacks can never be clickable or editable
-#[derive(Debug, Copy, Clone)]
-pub struct NodeParamsOld {
-    pub default_text: Option<&'static str>,
-    pub visible_rect: bool,
-    pub clickable: bool,
-    pub editable: bool,
-    pub filled: bool,
-    pub color: Color,
-    pub size: Xy<Size>,
-    pub padding: Xy<Len>,
-    pub position: Xy<Position>,
-    pub stack: Option<Stack>,
-    #[cfg(debug_assertions)]
-    pub debug_name: &'static str,
-}
-
 #[derive(Debug, Copy, Clone)]
 pub struct Interact {
     pub clickable: bool,
@@ -246,30 +229,18 @@ pub struct Rect {
     // ... crazy stuff like texture and NinePatchRect
 }
 
+// rename
+// todo: add greyed text for textinput
 #[derive(Debug, Copy, Clone)]
-pub enum NodeType {
-    Text {
-        default_text: &'static str,
-        editable: bool,
-        // any text-layout-specific stuff can go here, I guess.
-    },
-    // Image { ... }
-    // Icon { ... }
-    Stack {
-        stack: Stack,
-    },
-    Container,
-    // CustomRect,
-}
-// mirror of the enum variation. Rust moment
-pub(crate) struct NodeParamsText {
-    pub(crate) default_text: &'static str,
-    pub(crate) editable: bool,
+pub struct Text {
+    pub default_text: &'static str,
+    pub editable: bool,
 }
 
 #[derive(Debug, Copy, Clone)]
 pub struct NodeParams {
-    pub nodetype: NodeType,
+    pub stack: Option<Stack>,
+    pub text: Option<Text>,
     pub rect: Rect,
     pub interact: Interact,
     pub layout: Layout,
@@ -279,15 +250,9 @@ pub struct NodeParams {
 }
 
 impl NodeParams {
-    fn maybe_text(&self) -> Option<NodeParamsText> {
-        if let NodeType::Text { default_text, editable } = self.nodetype {
-            return Some(NodeParamsText {
-                default_text,
-                editable,
-            });
-        } else {
-            return None;
-        }
+    // todo: remove
+    fn maybe_text(&self) -> Option<Text> {
+        return self.text;
     }
 
     pub const fn const_default() -> Self {
@@ -329,10 +294,31 @@ impl NodeParams {
     }
 
     pub const fn text(mut self, text: &'static str) -> Self {
-        self.nodetype = NodeType::Text {
-            default_text: text,
-            editable: false
-        };
+        match self.text {
+            Some(mut text_sys) => {
+                text_sys.default_text = text;
+            },
+            None => {
+                self.text = Some( Text {
+                    default_text: text,
+                    editable: false,
+                });
+            },
+        }
+        return self;
+    }
+    pub const fn editable(mut self, editable: bool) -> Self {
+        match self.text {
+            Some(mut text) => {
+                text.editable = editable;
+            },
+            None => {
+                self.text = Some( Text {
+                    default_text: "Insert...",
+                    editable,
+                });
+            },
+        }
         return self;
     }
 
@@ -353,9 +339,9 @@ impl NodeParams {
     }
 
     pub const fn stack(mut self, axis: Axis, arrange: Arrange, spacing: Len) -> Self {
-        self.nodetype = NodeType::Stack {
-            stack: Stack { arrange, axis, spacing },
-        };
+        self.stack = Some(Stack {
+            arrange, axis, spacing,
+        });
         return self;
     }
 }
@@ -555,7 +541,7 @@ pub struct TextSystem {
 }
 const GLOBAL_TEXT_METRICS: Metrics = Metrics::new(24.0, 24.0);
 impl TextSystem {
-    pub(crate) fn new_text_area(&mut self, text: Option<NodeParamsText>, current_frame: u64) -> Option<usize> {
+    pub(crate) fn new_text_area(&mut self, text: Option<Text>, current_frame: u64) -> Option<usize> {
         let text = text?.default_text;
 
         let mut buffer = GlyphonBuffer::new(&mut self.font_system, GLOBAL_TEXT_METRICS);
@@ -1277,24 +1263,15 @@ impl Ui {
     }
 
     fn determine_size(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
-        match self.nodes[node].params.nodetype {
-            NodeType::Text { .. } => self.determine_size_text(node, proposed_size),
-            NodeType::Stack { stack } => self.determine_size_stack(node, proposed_size, stack),
-            NodeType::Container => self.determine_size_container(node, proposed_size),
+        if let Some(stack) = self.nodes[node].params.stack {
+            self.determine_size_stack(node, proposed_size, stack);
+        } else {
+            self.determine_size_container(node, proposed_size);
         };
 
         println!(" size   : {:?} = {:?}", self.nodes[node].params.debug_name, self.nodes[node].size);
 
         return self.nodes[node].size;
-    }
-
-    fn determine_size_text(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
-        let mut proposed_size = proposed_size;
-
-        let mut final_size = proposed_size;
-
-        self.nodes[node].size = final_size;
-        return final_size;
     }
 
     fn determine_size_stack(&mut self, node: usize, proposed_size: Xy<f32>, stack: Stack) -> Xy<f32> {
@@ -1421,19 +1398,15 @@ impl Ui {
     fn build_rect_and_place_children(&mut self, node: usize) {
         self.build_rect(node);
         
-        match self.nodes[node].params.nodetype {
-            NodeType::Text { .. } => self.build_rect_and_place_children_text(node),
-            NodeType::Stack { stack } => self.build_rect_and_place_children_stack(node, stack),
-            NodeType::Container => self.build_rect_and_place_children_container(node),
+        if let Some(stack) = self.nodes[node].params.stack {
+            self.build_rect_and_place_children_stack(node, stack);
+        } else {
+            self.build_rect_and_place_children_container(node);
         };
 
         println!(" place  : {:?} = {:?}", self.nodes[node].params.debug_name, self.nodes[node].rect);
 
         self.layout_text(self.nodes[node].text_id, self.nodes[node].rect);
-    }
-
-    fn build_rect_and_place_children_text(&mut self, node: usize) {
-
     }
 
     fn build_rect_and_place_children_stack(&mut self, node: usize, stack: Stack) {
