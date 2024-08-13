@@ -1341,10 +1341,10 @@ impl Ui {
     }
 
     fn adjust_final_size(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
-        let padding = self.to_frac2(self.nodes[node].params.layout.padding);
-
-        let mut final_size = proposed_size;
         // re-add spacing and padding to the proposed size we calculated
+        let mut final_size = proposed_size;
+        
+        let padding = self.to_frac2(self.nodes[node].params.layout.padding);
         for axis in [X, Y] {
             final_size[axis] += 2.0 * padding[axis];
         }
@@ -1390,8 +1390,8 @@ impl Ui {
         };
         let dir = - (side as f32 * 2.0 - 1.0);
 
-        let cross_origin = self.nodes[node].rect[cross][side];
-        let mut main_origin = self.nodes[node].rect[main][side];
+        let cross_origin = self.nodes[node].rect[cross][side] + dir * padding[cross];
+        let mut main_origin = self.nodes[node].rect[main][side] + dir * padding[main];
 
         for_each_child!(self, self.nodes[node], child, {
             let size = self.nodes[child].size;
@@ -1401,7 +1401,7 @@ impl Ui {
 
             self.build_rect_and_place_children(child);
 
-            main_origin += dir * (self.nodes[child].size[main] + padding[main] + spacing);
+            main_origin += dir * (self.nodes[child].size[main] + spacing);
         });
     }
 
