@@ -1355,7 +1355,6 @@ impl Ui {
         }
 
         // add back padding and spacing to get the real final size
-        println!(" size   : {:?} = {:?}", self.nodes[node].params.debug_name, final_size);
         final_size = self.adjust_final_size(node, final_size);
 
 
@@ -1369,9 +1368,6 @@ impl Ui {
 
         let w = proposed_size.x * self.part.unifs.size[X];
         let h = proposed_size.y * self.part.unifs.size[Y];
-        println!("muh proposed size  {:?}", proposed_size);
-
-
 
         for line in &mut buffer.lines {
             line.set_align(Some(glyphon::cosmic_text::Align::Left));
@@ -1381,7 +1377,6 @@ impl Ui {
         buffer.shape_until_scroll(&mut self.text.font_system, false);
 
         let trimmed_size = buffer.measure_text_pixels();
-        println!("muh trimmed size  {:?}", trimmed_size);
 
         // self.text.text_areas[text_id].buffer.set_size(&mut self.text.font_system, trimmed_size.x, trimmed_size.y);
         // self.text.text_areas[text_id]
@@ -1429,8 +1424,6 @@ impl Ui {
         } else {
             self.build_rect_and_place_children_container(node);
         };
-
-        // println!(" place  : {:?} = {:?}", self.nodes[node].params.debug_name, self.nodes[node].rect);
 
         self.place_text(node, self.nodes[node].rect);
     }
@@ -1826,12 +1819,10 @@ impl Ui {
         self.nodes.fronts.retain( |k, v| {
             // the > is to always keep the root node without having to refresh it 
             let should_retain = v.last_frame_touched >= self.part.current_frame;
-            // dbg!(k, v.clone());
-            // dbg!(to_prune, v.last_frame_touched, self.part.current_frame);
-            // println!(" " );
             if ! should_retain {
                 // side effect happens inside this closure... weird
                 self.nodes.nodes.remove(v.slab_i);
+                // remember to remove text areas and such ...
                 println!(" PRUNING {:?} {:?}", k, v);
             }
             should_retain
@@ -2291,7 +2282,6 @@ impl MeasureText for GlyphonBuffer {
         for run in layout_runs {
             // Take the max. width of all lines.
             run_width = run_width.max(run.line_w);
-            println!(" chud much?? {:?}", run_width);
         }
         return Xy::new(run_width.ceil(), line_height)
     }
