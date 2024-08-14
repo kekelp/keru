@@ -551,6 +551,7 @@ impl TextSystem {
         text.hash(&mut hasher);
         let hash = hasher.finish();
 
+        // buffer.set_wrap(&mut self.font_system, glyphon::Wrap::Word);
         buffer.set_text(
             &mut self.font_system,
             text,
@@ -736,11 +737,18 @@ pub struct Ui {
 }
 impl Ui {
 
-    pub fn to_pixels(&self, len: Len) -> u32 {
+    pub fn to_pixels(&self, len: Len, axis: Axis) -> u32 {
         match len {
             Len::Pixels(pixels) => return pixels,
-            Len::Frac(frac) => return (frac * self.part.unifs.size.x) as u32,
+            Len::Frac(frac) => return (frac * self.part.unifs.size[axis]) as u32,
         }
+    }
+
+    pub fn to_pixels2(&self, len: Xy<Len>) -> Xy<u32> {
+        return Xy::new(
+            self.to_pixels(len.x, X),
+            self.to_pixels(len.y, Y),
+        );
     }
 
     pub fn to_frac(&self, len: Len, axis: Axis) -> f32 {
@@ -752,6 +760,16 @@ impl Ui {
 
     pub fn pixels_to_frac(&self, pixels: u32, axis: Axis) -> f32 {
         return (pixels as f32) / self.part.unifs.size[axis];
+    }
+    pub fn f32_pixels_to_frac(&self, pixels: f32, axis: Axis) -> f32 {
+        return pixels / self.part.unifs.size[axis];
+    }
+
+    pub fn f32_pixels_to_frac2(&self, pixels: Xy<f32>) -> Xy<f32> {
+        return Xy::new(
+            self.f32_pixels_to_frac(pixels.x, X),
+            self.f32_pixels_to_frac(pixels.y, Y),
+        );
     }
 
     pub fn to_frac2(&self, len: Xy<Len>) -> Xy<f32> {
@@ -1320,8 +1338,8 @@ impl Ui {
         });
 
         // Propose the whole proposed_size (regardless of stack) to the contents, and let them decide.
-        if let Some(text) = self.nodes[node].params.text {
-            let text_size = self.determine_text_size(text, proposed_size);
+        if let Some(_) = self.nodes[node].params.text {
+            let text_size = self.determine_text_size(node, proposed_size);
             updating_size.update_for_content(text_size, stack);
         }
 
@@ -1337,17 +1355,49 @@ impl Ui {
         }
 
         // add back padding and spacing to get the real final size
+        println!(" size   : {:?} = {:?}", self.nodes[node].params.debug_name, final_size);
         final_size = self.adjust_final_size(node, final_size);
 
-        println!(" size   : {:?} = {:?}", self.nodes[node].params.debug_name, final_size);
 
         self.nodes[node].size = final_size;
         return final_size;
     }
 
-    fn determine_text_size(&mut self, _text: Text, _proposed_size: Xy<f32>) -> Xy<f32> {
-        return Xy::new(0.16, 0.06);
+    fn determine_text_size(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
+        let text_id = self.nodes[node].text_id.unwrap();
+        let buffer = &mut self.text.text_areas[text_id].buffer;
+
+        let w = proposed_size.x * self.part.unifs.size[X];
+        let h = proposed_size.y * self.part.unifs.size[Y];
+        println!("muh proposed size  {:?}", proposed_size);
+
+
+
+        for line in &mut buffer.lines {
+            line.set_align(Some(glyphon::cosmic_text::Align::Left));
+        }
+
+        buffer.set_size(&mut self.text.font_system, w, h);
+        buffer.shape_until_scroll(&mut self.text.font_system, false);
+
+        let trimmed_size = buffer.measure_text_pixels();
+        println!("muh trimmed size  {:?}", trimmed_size);
+
+        // self.text.text_areas[text_id].buffer.set_size(&mut self.text.font_system, trimmed_size.x, trimmed_size.y);
+        // self.text.text_areas[text_id]
+        //     .buffer
+        //     .shape_until_scroll(&mut self.text.font_system, false);
+
+        // for axis in [X, Y] {
+        //     trimmed_size[axis] *= 2.0;
+        // }
+
+        // return proposed_size;
+        return self.f32_pixels_to_frac2(trimmed_size);
     }
+
+
+
 
     fn adjust_final_size(&mut self, node: usize, final_size: Xy<f32>) -> Xy<f32> {
         // re-add spacing and padding to the final size we calculated
@@ -1380,9 +1430,9 @@ impl Ui {
             self.build_rect_and_place_children_container(node);
         };
 
-        println!(" place  : {:?} = {:?}", self.nodes[node].params.debug_name, self.nodes[node].rect);
+        // println!(" place  : {:?} = {:?}", self.nodes[node].params.debug_name, self.nodes[node].rect);
 
-        self.layout_text(self.nodes[node].text_id, self.nodes[node].rect);
+        self.place_text(node, self.nodes[node].rect);
     }
 
     fn build_rect_and_place_children_stack(&mut self, node: usize, stack: Stack) {
@@ -1446,7 +1496,11 @@ impl Ui {
         });
     }
 
-    pub fn layout_text(&mut self, text_id: Option<usize>, rect: XyRect) {
+    pub fn place_text(&mut self, node: usize, rect: XyRect) {
+        let padding = self.to_pixels2(self.nodes[node].params.layout.padding);
+        let node = &mut self.nodes[node];
+        let text_id = node.text_id;
+
         if let Some(text_id) = text_id {
             let left = rect[X][0] * self.part.unifs.size[X];
             let top = (1.0 - rect[Y][1]) * self.part.unifs.size[Y];
@@ -1454,22 +1508,14 @@ impl Ui {
             let right = rect[X][1] * self.part.unifs.size[X];
             let bottom = (1.0 - rect[Y][0]) * self.part.unifs.size[Y];
 
-            self.text.text_areas[text_id].left = left;
-            self.text.text_areas[text_id].top = top;
+            self.text.text_areas[text_id].left = left + padding[X] as f32;
+            self.text.text_areas[text_id].top = top + padding[Y] as f32;
            
-            self.text.text_areas[text_id].bounds.left = left as i32;
-            self.text.text_areas[text_id].bounds.top = top as i32;
+            self.text.text_areas[text_id].bounds.left = left as i32 + padding[X] as i32;
+            self.text.text_areas[text_id].bounds.top = top as i32 + padding[Y] as i32;
 
             self.text.text_areas[text_id].bounds.right = right as i32;
             self.text.text_areas[text_id].bounds.bottom = bottom as i32;
-
-            let w = right - left;
-            let h = bottom - top;
-            self.text.text_areas[text_id].buffer.set_size(&mut self.text.font_system, w, h);
-           
-            self.text.text_areas[text_id]
-                .buffer
-                .shape_until_scroll(&mut self.text.font_system, false);
         }
     }
 
@@ -2233,3 +2279,20 @@ impl Xy<f32> {
 
 }
 
+pub trait MeasureText {
+    fn measure_text_pixels(&self) -> Xy<f32>;
+}
+impl MeasureText for GlyphonBuffer {
+    fn measure_text_pixels(&self) -> Xy<f32> {
+        let layout_runs = self.layout_runs();
+        let mut run_width: f32 = 0.;
+        let line_height = self.lines.len() as f32 * self.metrics().line_height;
+        // dbg!(layout_runs);
+        for run in layout_runs {
+            // Take the max. width of all lines.
+            run_width = run_width.max(run.line_w);
+            println!(" chud much?? {:?}", run_width);
+        }
+        return Xy::new(run_width.ceil(), line_height)
+    }
+}

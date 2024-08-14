@@ -24,45 +24,48 @@ impl State {
                     add!(self.ui, BUTTON_A);
                     add!(self.ui, BUTTON_A);
                     add!(self.ui, BUTTON_A);
+
+                    self.add_pixel_info_ui();
+                    
+                });
+            });
+            
+
+
+            margin!(self.ui, {
+                #[node_key(V_STACK.size_x(0.3).position_x(Position::End))]
+                const SIDEBAR: Nodekey;
+                add!(self.ui, SIDEBAR, {
+                    // todo: function for doing get_text from other places
+                    let mut color = add!(self.ui, PAINT_COLOR).get_text();
+
+                    if let Some(color) = &mut color {
+                        color.make_ascii_lowercase();
+                        match color.as_str() {
+                            "blue" => {
+                                self.canvas.paint_color = PixelColorF32::BLUE;
+                            }
+                            "red" => {
+                                self.canvas.paint_color = PixelColorF32::RED;
+                            }
+                            "green" => {
+                                self.canvas.paint_color = PixelColorF32::GREEN;
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    // self.add_pixel_info_ui();
+                    // self.add_pixel_info_ui();
+                    // self.add_pixel_info_ui();
+
+                    // self.add_twin_thing_ui();
+                    // self.add_twin_thing_ui();
+                    // self.add_twin_thing_ui();
                 });
             });
 
-            // self.add_pixel_info_ui();
-
-            // margin!(self.ui, {
-            //     #[node_key(V_STACK.size_x(0.3).position_x(Position::End))]
-            //     const SIDEBAR: Nodekey;
-            //     add!(self.ui, SIDEBAR, {
-            //         // todo: function for doing get_text from other places
-            //         let mut color = add!(self.ui, PAINT_COLOR).get_text();
-
-            //         if let Some(color) = &mut color {
-            //             color.make_ascii_lowercase();
-            //             match color.as_str() {
-            //                 "blue" => {
-            //                     self.canvas.paint_color = PixelColorF32::BLUE;
-            //                 }
-            //                 "red" => {
-            //                     self.canvas.paint_color = PixelColorF32::RED;
-            //                 }
-            //                 "green" => {
-            //                     self.canvas.paint_color = PixelColorF32::GREEN;
-            //                 }
-            //                 _ => {}
-            //             }
-            //         }
-
-            //         // self.add_pixel_info_ui();
-            //         // self.add_pixel_info_ui();
-            //         // self.add_pixel_info_ui();
-
-            //         // self.add_twin_thing_ui();
-            //         // self.add_twin_thing_ui();
-            //         // self.add_twin_thing_ui();
-            //     });
-            // });
-
-            // self.add_counter_ui();
+            self.add_counter_ui();
         });
 
         // effects
