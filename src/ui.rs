@@ -754,11 +754,10 @@ pub struct Ui {
     // stack for traversing
     pub traverse_stack: Vec<usize>,
 
-    // stack for adding
+    // stack for keeping track of parents when adding
     pub parent_stack: Vec<usize>,
-
-    // head of the sibling linked list or somehting
-    // todo2: check if this always get unwrapped, maybe remove the option
+    
+    // stack for keeping track of siblings when adding
     pub last_child_stack: Vec<usize>,
 
     pub part: PartialBorrowStuff,
@@ -769,6 +768,8 @@ pub struct Ui {
     pub hovered: Vec<Id>,
 
     pub focused: Option<Id>,
+
+    pub size_scratch: Vec<f32>,
 
     // todo: add these back sometime. probably better to have relayout_needed, rerender_needed, etc instead of some vaguely named trash
     // // remember about animations (surely there will be)
@@ -970,6 +971,8 @@ impl Ui {
             parent_stack,
 
             last_child_stack: Vec::with_capacity(20),
+
+            size_scratch: Vec::with_capacity(15),
 
             part: PartialBorrowStuff {
                 mouse_pos: PhysicalPosition { x: 0., y: 0. },
@@ -1372,16 +1375,16 @@ impl Ui {
         let child_proposed_size = self.get_children_proposed_size(node, proposed_size);
 
         // Propose a size to the children and let them decide
-        let mut updating_size = Xy::new(0.0, 0.0);
+        let mut minimum_size = Xy::new(0.0, 0.0);
         for_each_child!(self, self.nodes[node], child, {
             let child_size = self.determine_size(child, child_proposed_size);
-            updating_size.update_for_child(child_size, stack);
+            minimum_size.update_for_child(child_size, stack);
         });
 
         // Propose the whole proposed_size (regardless of stack) to the contents, and let them decide.
         if let Some(_) = self.nodes[node].params.text {
             let text_size = self.determine_text_size(node, proposed_size);
-            updating_size.update_for_content(text_size, stack);
+            minimum_size.update_for_content(text_size, stack);
         }
 
         // Decide our own size. 
@@ -1391,7 +1394,7 @@ impl Ui {
         let mut final_size = proposed_size;
         for axis in [X, Y] {
             if self.nodes[node].params.layout.size[axis] == Size::FitContent {
-                final_size[axis] = updating_size[axis];
+                final_size[axis] = minimum_size[axis];
             }
         }
 
@@ -1476,15 +1479,14 @@ impl Ui {
         let spacing = self.to_frac(stack.spacing, stack.axis);
         
         // Totally ignore the children's chosen Position's and place them according to our own Stack::Arrange value.
-        // todo: actually, we should only ignore the main direction. The cross direction is good. 
-        let side = match stack.arrange {
-            Arrange::Start => 0,
-            Arrange::End => 1,
+        let main_side = match stack.arrange {
+            Arrange::Start => Dir::Right,
+            Arrange::End => Dir::Left,
             _ => todo!(),
         };
-        let dir = - (side as f32 * 2.0 - 1.0);
+        let sign = main_side.sign();
 
-        let mut main_origin = parent_rect[main][side] + dir * padding[main];
+        let mut main_origin = parent_rect[main][main_side.index()] + sign * padding[main];
 
         for_each_child!(self, self.nodes[node], child, {
             let size = self.nodes[child].size;
@@ -1507,11 +1509,11 @@ impl Ui {
                 },
             }
 
-            self.nodes[child].rect[main] = epic_segment(main_origin, size[main], side);
+            self.nodes[child].rect[main] = epic_segment(main_origin, size[main], main_side);
 
             self.build_rect_and_place_children(child);
 
-            main_origin += dir * (self.nodes[child].size[main] + spacing);
+            main_origin += sign * (self.nodes[child].size[main] + spacing);
         });
     }
 
@@ -2301,19 +2303,35 @@ macro_rules! for_each_child {
     };
 }
 
-pub fn epic_segment(origin: f32, size: f32, direction: usize) -> [f32; 2] {
-    match direction {
-        0 => {
-            return [origin, origin + size];
-        },
-        1 => {
-            return [origin - size, origin];
-        },
-        _ => {
-            panic!("Geg3");
+#[derive(Debug, Clone, Copy)]
+enum Dir {
+    Left,
+    Right,
+}
+impl Dir {
+    fn sign(&self) -> f32 {
+        match self {
+            Dir::Left => return -1.0,
+            Dir::Right => return 1.0,
         }
     }
+    fn index(&self) -> usize {
+        match self {
+            Dir::Left => return 1,
+            Dir::Right => return 0,
+        }
+    }
+}
 
+fn epic_segment(origin: f32, size: f32, direction: Dir) -> [f32; 2] {
+    match direction {
+        Dir::Right => {
+            return [origin, origin + size];
+        },
+        Dir::Left => {
+            return [origin - size, origin];
+        },
+    }
 }
 
 impl Xy<f32> {
@@ -2354,9 +2372,7 @@ impl MeasureText for GlyphonBuffer {
         let layout_runs = self.layout_runs();
         let mut run_width: f32 = 0.;
         let line_height = self.lines.len() as f32 * self.metrics().line_height;
-        // dbg!(layout_runs);
         for run in layout_runs {
-            // Take the max. width of all lines.
             run_width = run_width.max(run.line_w);
         }
         return Xy::new(run_width.ceil(), line_height)
