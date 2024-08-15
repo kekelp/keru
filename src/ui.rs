@@ -1480,13 +1480,38 @@ impl Ui {
         
         // Totally ignore the children's chosen Position's and place them according to our own Stack::Arrange value.
         let main_side = match stack.arrange {
-            Arrange::Start => Dir::Right,
-            Arrange::End => Dir::Left,
+            Arrange::Start => Dir::Forward,
+            Arrange::End => Dir::Backwards,
+            Arrange::Center => Dir::Forward,
             _ => todo!(),
         };
         let sign = main_side.sign();
 
-        let mut main_origin = parent_rect[main][main_side.index()] + sign * padding[main];
+        // // collect all the children sizes in a vec
+        // let n = self.nodes[node].n_children;
+        // self.size_scratch.clear();
+        // for_each_child!(self, self.nodes[node], child, {
+        //     self.size_scratch.push(self.nodes[child].size[main]);
+        // });
+
+        // let mut total_size = 0.0;
+        // for s in &self.size_scratch {
+        //     total_size += s;
+        // }
+        // if n > 0 {
+        //     total_size += spacing * (n - 1) as f32;
+        // }
+
+        // let mut main_origin = match stack.arrange {
+        //     Arrange::End | Arrange::Start => parent_rect[main][main_side.index()] + sign * padding[main],
+        //     Arrange::Center => {
+        //         let center = parent_rect[main][1] - parent_rect[main][0] - 2.0 * padding[main];
+        //         center - total_size / 2.0
+        //     },
+        //     _ => todo!(),
+        // };
+
+        let mut main_origin = parent_rect[main][main_side.origin_idx()] + sign * padding[main];
 
         for_each_child!(self, self.nodes[node], child, {
             let size = self.nodes[child].size;
@@ -2305,30 +2330,30 @@ macro_rules! for_each_child {
 
 #[derive(Debug, Clone, Copy)]
 enum Dir {
-    Left,
-    Right,
+    Backwards,
+    Forward,
 }
 impl Dir {
     fn sign(&self) -> f32 {
         match self {
-            Dir::Left => return -1.0,
-            Dir::Right => return 1.0,
+            Dir::Backwards => return -1.0,
+            Dir::Forward => return 1.0,
         }
     }
-    fn index(&self) -> usize {
+    fn origin_idx(&self) -> usize {
         match self {
-            Dir::Left => return 1,
-            Dir::Right => return 0,
+            Dir::Backwards => return 1,
+            Dir::Forward => return 0,
         }
     }
 }
 
 fn epic_segment(origin: f32, size: f32, direction: Dir) -> [f32; 2] {
     match direction {
-        Dir::Right => {
+        Dir::Forward => {
             return [origin, origin + size];
         },
-        Dir::Left => {
+        Dir::Backwards => {
             return [origin - size, origin];
         },
     }
