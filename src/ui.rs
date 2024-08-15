@@ -228,6 +228,13 @@ pub struct Rect {
     pub color: Color,
     // ... crazy stuff like texture and NinePatchRect
 }
+impl Rect {
+    pub const DEFAULT: Self = Self {
+        visible: true,
+        filled: true,
+        color: Color::BLUE,
+    };
+}
 
 // rename
 // todo: add greyed text for textinput
@@ -309,14 +316,14 @@ impl NodeParams {
         return self;
     }
 
-    #[cfg(debug_assertions)]
-    pub const fn debug_name(mut self, text: &'static str) -> Self {
-        self.debug_name = text;
+    pub const fn visible(mut self) -> Self {
+        self.rect.visible = true;
         return self;
     }
-
-    pub const fn color(mut self, color: Color) -> Self {
-        self.rect.color = color;
+    pub const fn invisible(mut self) -> Self {
+        self.rect.visible = false;
+        self.rect.filled = false;
+        self.rect.color = Color::DEBUG_RED;
         return self;
     }
 
@@ -324,11 +331,56 @@ impl NodeParams {
         self.rect.filled = filled;
         return self;
     }
+    
+    pub const fn color(mut self, color: Color) -> Self {
+        self.rect.color = color;
+        return self;
+    }
+
+    #[cfg(debug_assertions)]
+    pub const fn debug_name(mut self, text: &'static str) -> Self {
+        self.debug_name = text;
+        return self;
+    }
 
     pub const fn stack(mut self, axis: Axis, arrange: Arrange, spacing: Len) -> Self {
         self.stack = Some(Stack {
             arrange, axis, spacing,
         });
+        return self;
+    }
+
+    pub const fn stack_arrange(mut self, arrange: Arrange) -> Self {
+        match self.stack {
+            Some(stack) => {
+                stack.arrange(arrange);
+            },
+            None => {
+                self.stack = Some(Stack::DEFAULT.arrange(arrange));
+            }
+        }
+        return self;
+    }
+    pub const fn stack_spacing(mut self, spacing: Len) -> Self {
+        match self.stack {
+            Some(stack) => {
+                stack.spacing(spacing);
+            },
+            None => {
+                self.stack = Some(Stack::DEFAULT.spacing(spacing));
+            }
+        }
+        return self;
+    }
+    pub const fn stack_axis(mut self, axis: Axis) -> Self {
+        match self.stack {
+            Some(stack) => {
+                stack.axis(axis);
+            },
+            None => {
+                self.stack = Some(Stack::DEFAULT.axis(axis));
+            }
+        }
         return self;
     }
 }
@@ -382,29 +434,31 @@ pub struct Color {
 }
 
 impl Color {
-    pub const BLACK: Self = Self {
+    pub const BLACK: Color = Color {
         r: 0.6,
         g: 0.3,
         b: 0.6,
         a: 0.6,
     };
 
-    pub const WHITE: Self = Self::rgba(1.0, 1.0, 1.0, 1.0);
-    pub const TRANSPARENT: Self = Self::rgba(1.0, 1.0, 1.0, 0.0);
+    pub const DEBUG_RED: Color = Color::rgba(1.0, 0.0, 0.0, 0.3);
 
-    pub const BLUE: Self = Self::rgba(0.1, 0.1, 1.0, 0.6);
-    pub const RED: Self = Self::rgba(1.0, 0.1, 0.1, 0.6);
-    pub const GREEN: Self = Self::rgba(0.1, 1.0, 0.1, 0.6);
+    pub const WHITE: Color = Color::rgba(1.0, 1.0, 1.0, 1.0);
+    pub const TRANSPARENT: Color = Color::rgba(1.0, 1.0, 1.0, 0.0);
 
-    pub const LIGHT_BLUE: Self = Self {
+    pub const BLUE: Color = Color::rgba(0.1, 0.1, 1.0, 0.6);
+    pub const RED: Color = Color::rgba(1.0, 0.1, 0.1, 0.6);
+    pub const GREEN: Color = Color::rgba(0.1, 1.0, 0.1, 0.6);
+
+    pub const LIGHT_BLUE: Color = Color {
         r: 0.9,
         g: 0.7,
         b: 1.0,
         a: 0.6,
     };
 
-    pub const fn rgba(r: f32, g: f32, b: f32, a: f32) -> Self {
-        Self { r, g, b, a }
+    pub const fn rgba(r: f32, g: f32, b: f32, a: f32) -> Color {
+        Color { r, g, b, a }
     }
 
     pub fn darken(&mut self, amount: f32) {
@@ -1417,6 +1471,7 @@ impl Ui {
 
     fn build_rect_and_place_children_stack(&mut self, node: usize, stack: Stack) {
         let (main, cross) = (stack.axis, stack.axis.other());
+        let parent_rect = self.nodes[node].rect;
         let padding = self.to_frac2(self.nodes[node].params.layout.padding);
         let spacing = self.to_frac(stack.spacing, stack.axis);
         
@@ -1429,13 +1484,29 @@ impl Ui {
         };
         let dir = - (side as f32 * 2.0 - 1.0);
 
-        let cross_origin = self.nodes[node].rect[cross][side] + dir * padding[cross];
-        let mut main_origin = self.nodes[node].rect[main][side] + dir * padding[main];
+        let mut main_origin = parent_rect[main][side] + dir * padding[main];
 
         for_each_child!(self, self.nodes[node], child, {
             let size = self.nodes[child].size;
 
-            self.nodes[child].rect[cross] = epic_segment(cross_origin, size[cross], side);
+            match self.nodes[child].params.layout.position[cross] {
+                Position::Center => {
+                    let origin = (parent_rect[cross][1] + parent_rect[cross][0]) / 2.0;
+                    self.nodes[child].rect[cross] = [
+                        origin - size[cross] / 2.0 ,
+                        origin + size[cross] / 2.0 ,
+                    ];  
+                },
+                Position::Start => {
+                    let origin = parent_rect[cross][0] + padding[cross];
+                    self.nodes[child].rect[cross] = [origin, origin + size[cross]];         
+                },
+                Position::End => {
+                    let origin = parent_rect[cross][1] - padding[cross];
+                    self.nodes[child].rect[cross] = [origin - size[cross], origin];
+                },
+            }
+
             self.nodes[child].rect[main] = epic_segment(main_origin, size[main], side);
 
             self.build_rect_and_place_children(child);
@@ -1445,7 +1516,7 @@ impl Ui {
     }
 
     fn build_rect_and_place_children_container(&mut self, node: usize) {
-        let rect = self.nodes[node].rect;
+        let parent_rect = self.nodes[node].rect;
         let padding = self.to_frac2(self.nodes[node].params.layout.padding);
 
         for_each_child!(self, self.nodes[node], child, {
@@ -1455,15 +1526,15 @@ impl Ui {
             for ax in [X, Y] {
                 match self.nodes[child].params.layout.position[ax] {
                     Position::Start => {
-                        let origin = rect[ax][0] + padding[ax];
+                        let origin = parent_rect[ax][0] + padding[ax];
                         self.nodes[child].rect[ax] = [origin, origin + size[ax]];         
                     },
                     Position::End => {
-                        let origin = rect[ax][1] - padding[ax];
+                        let origin = parent_rect[ax][1] - padding[ax];
                         self.nodes[child].rect[ax] = [origin - size[ax], origin];
                     },
                     Position::Center => {
-                        let origin = (rect[ax][1] + rect[ax][0]) / 2.0;
+                        let origin = (parent_rect[ax][1] + parent_rect[ax][0]) / 2.0;
                         self.nodes[child].rect[ax] = [
                             origin - size[ax] / 2.0 ,
                             origin + size[ax] / 2.0 ,
@@ -1975,6 +2046,25 @@ pub struct Stack {
     pub arrange: Arrange,
     pub axis: Axis,
     pub spacing: Len,
+}
+impl Stack {
+    pub const DEFAULT: Stack = Stack {
+        arrange: Arrange::Center,
+        axis: Axis::Y,
+        spacing: Len::Pixels(5),
+    };
+    pub const fn arrange(mut self, arrange: Arrange) -> Self {
+        self.arrange = arrange;
+        return self;
+    }
+    pub const fn spacing(mut self, spacing: Len) -> Self {
+        self.spacing = spacing;
+        return self;
+    }
+    pub const fn axis(mut self, axis: Axis) -> Self {
+        self.axis = axis;
+        return self;
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

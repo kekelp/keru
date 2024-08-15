@@ -12,15 +12,12 @@ impl State {
     pub fn update_ui(&mut self) {
         tree!(self.ui, {
 
-            #[node_key(V_STACK.size_x(Frac(0.3)).size_y(FitContent).position_x(Position::End))]
-            const RIGHT_BAR: Nodekey;
-
-            #[node_key(BUTTON.text("Increase").color(Color::GREEN))]
+            #[node_key(BUTTON.text("Increase").color(Color::GREEN).position_x(End))]
             pub const BUTTON_A: NodeKey;
 
-            #[node_key(PANEL.position_x(Position::End).size_y(Fill).size_x(FitContent))]
-            const PIXEL_PANEL: Nodekey;
-            add!(self.ui, PIXEL_PANEL, {                
+            #[node_key(PANEL.position_x(Position::End).size_y(Fill).size_x(Frac(0.2)))]
+            const SIDEBAR: NodeKey;
+            add!(self.ui, SIDEBAR, {                
                 v_stack!(self.ui, {
                     add!(self.ui, BUTTON_A);
                     add!(self.ui, BUTTON_A);
@@ -33,40 +30,40 @@ impl State {
             
 
 
-            margin!(self.ui, {
-                #[node_key(V_STACK.size_x(Frac(0.7)).size_y(Frac(0.5)).position_x(Center).position_y(Start))]
-                const SIDEBAR: Nodekey;
-                #[node_key(TEXT_INPUT.text("Color").size_y(Frac(0.2)).position_y(Start))]
-                pub const PAINT_COLOR: NodeKey;
-                add!(self.ui, SIDEBAR, {
-                    // todo: function for doing get_text from other places
-                    let mut color = add!(self.ui, PAINT_COLOR).get_text();
+            // margin!(self.ui, {
+            //     #[node_key(V_STACK.size_x(Frac(0.7)).size_y(Frac(0.5)).position_x(Center).position_y(Start))]
+            //     const SIDEBAR2: NodeKey;
+            //     #[node_key(TEXT_INPUT.text("Color").size_y(Frac(0.2)).position_y(Start))]
+            //     pub const PAINT_COLOR: NodeKey;
+            //     add!(self.ui, SIDEBAR2, {
+            //         // todo: function for doing get_text from other places
+            //         let mut color = add!(self.ui, PAINT_COLOR).get_text();
 
-                    if let Some(color) = &mut color {
-                        color.make_ascii_lowercase();
-                        match color.as_str() {
-                            "blue" => {
-                                self.canvas.paint_color = PixelColorF32::BLUE;
-                            }
-                            "red" => {
-                                self.canvas.paint_color = PixelColorF32::RED;
-                            }
-                            "green" => {
-                                self.canvas.paint_color = PixelColorF32::GREEN;
-                            }
-                            _ => {}
-                        }
-                    }
+            //         if let Some(color) = &mut color {
+            //             color.make_ascii_lowercase();
+            //             match color.as_str() {
+            //                 "blue" => {
+            //                     self.canvas.paint_color = PixelColorF32::BLUE;
+            //                 }
+            //                 "red" => {
+            //                     self.canvas.paint_color = PixelColorF32::RED;
+            //                 }
+            //                 "green" => {
+            //                     self.canvas.paint_color = PixelColorF32::GREEN;
+            //                 }
+            //                 _ => {}
+            //             }
+            //         }
 
-                    // self.add_pixel_info_ui();
-                    // self.add_pixel_info_ui();
-                    // self.add_pixel_info_ui();
+            //         // self.add_pixel_info_ui();
+            //         // self.add_pixel_info_ui();
+            //         // self.add_pixel_info_ui();
 
-                    // self.add_twin_thing_ui();
-                    // self.add_twin_thing_ui();
-                    // self.add_twin_thing_ui();
-                });
-            });
+            //         // self.add_twin_thing_ui();
+            //         // self.add_twin_thing_ui();
+            //         // self.add_twin_thing_ui();
+            //     });
+            // });
 
             self.add_counter_ui();
         });

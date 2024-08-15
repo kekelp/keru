@@ -1,7 +1,4 @@
 use crate::{Arrange, Axis, Color, Interact, Layout, Len, NodeParams, Text, Position, Rect, Size, Stack, Xy};
-
-pub const DEBUG_RED: Color = Color::rgba(1.0, 0.0, 0.0, 0.3);
-
 use Size::*;
 use Position::*;
 
@@ -60,7 +57,7 @@ pub const V_STACK: NodeParams = NodeParams {
     rect: Rect {
         visible: false,
         filled: false,
-        color: DEBUG_RED,
+        color: Color::DEBUG_RED,
     },
     interact: Interact {
         clickable: true,
@@ -85,7 +82,7 @@ pub const H_STACK: NodeParams = NodeParams {
     rect: Rect {
         visible: false,
         filled: false,
-        color: DEBUG_RED,
+        color: Color::DEBUG_RED,
     },
     interact: Interact {
         clickable: false,
@@ -106,7 +103,7 @@ pub const MARGIN: NodeParams = NodeParams {
     rect: Rect {
         visible: false,
         filled: false,
-        color: DEBUG_RED,
+        color: Color::DEBUG_RED,
     },
     interact: Interact {
         clickable: false,
