@@ -225,7 +225,7 @@ pub const PANEL: NodeParams = NodeParams {
     layout: Layout {
         size: Xy::new_symm(FitContent),
         position: Xy::new_symm(Center),
-        padding: Xy::new_symm(Len::Pixels(10)),
+        padding: Xy::new_symm(Len::Pixels(2)),
     },
     
     #[cfg(debug_assertions)]

@@ -275,8 +275,8 @@ impl NodeParams {
         self.layout.size.y = size;
         return self;
     }
-    pub const fn size_symm(mut self, size: f32) -> Self {
-        self.layout.size = Xy::new_symm(Size::Frac(size));
+    pub const fn size_symm(mut self, size: Size) -> Self {
+        self.layout.size = Xy::new_symm(size);
         return self;
     }
 
@@ -1413,16 +1413,18 @@ impl Ui {
         return final_size;
     }
 
-    fn determine_text_size(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
+    fn determine_text_size(&mut self, node: usize, _proposed_size: Xy<f32>) -> Xy<f32> {
         let text_id = self.nodes[node].text_id.unwrap();
         let buffer = &mut self.text.text_areas[text_id].buffer;
-
-        let w = proposed_size.x * self.part.unifs.size[X];
-        let h = proposed_size.y * self.part.unifs.size[Y];
 
         // this is for FitContent on both directions, basically.
         // todo: the rest.
         // also, note: the set_align trick might not be good if we expose the ability to set whatever align the user wants.
+
+        // let w = proposed_size.x * self.part.unifs.size[X];
+        // let h = proposed_size.y * self.part.unifs.size[Y];
+        let w = 999999.0;
+        let h = 999999.0;
 
         for line in &mut buffer.lines {
             line.set_align(Some(glyphon::cosmic_text::Align::Left));

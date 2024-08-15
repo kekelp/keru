@@ -564,6 +564,9 @@ impl Canvas {
     pub fn pixel_info(&self) -> Option<PixelInfo> {
         let (x, y) = (self.last_mouse_pos.x, self.last_mouse_pos.y);
         let (x, y) = self.screen_to_image(x, y);
+        if x < 0.0 || y < 0.0 {
+            return None;
+        }
         let (x, y) = (x as u32, y as u32);
         let color = self.get_pixel_nonmut(x as usize, y as usize)?.to_f32s();
     

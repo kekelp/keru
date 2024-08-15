@@ -15,17 +15,16 @@ impl State {
             #[node_key(BUTTON.text("Increase").color(Color::GREEN).position_x(End))]
             pub const BUTTON_A: NodeKey;
 
-            #[node_key(V_STACK.position_x(Position::End).size_y(Fill).size_x(Frac(0.2)).stack_arrange(Arrange::Center))]
+            #[node_key(V_STACK.position_x(Position::End).size_y(Fill).size_x(FitContent).stack_arrange(Arrange::Center))]
             const SIDEBAR: NodeKey;
             add!(self.ui, SIDEBAR, {                
-                // v_stack!(self.ui, {
+
                     add!(self.ui, BUTTON_A);
                     add!(self.ui, BUTTON_A);
                     add!(self.ui, BUTTON_A);
 
                     self.add_pixel_info_ui();
-                    
-                // });
+
             });
             
 
@@ -178,41 +177,35 @@ impl State {
             None => ("".to_owned(), "".to_owned()),
         };
 
-        let (r, g, b, a) = match pixel_info {
-            Some(pixel_info) => (
-                format!("{:.2}", pixel_info.color.r),
-                format!("{:.2}", pixel_info.color.g),
-                format!("{:.2}", pixel_info.color.b),
-                format!("{:.2}", pixel_info.color.a),
-            ),
-            None => ("".to_owned(), "".to_owned(), "".to_owned(), "".to_owned()),
-        };
+        // let (r, g, b, a) = match pixel_info {
+        //     Some(pixel_info) => (
+        //         format!("{:.2}", pixel_info.color.r),
+        //         format!("{:.2}", pixel_info.color.g),
+        //         format!("{:.2}", pixel_info.color.b),
+        //         format!("{:.2}", pixel_info.color.a),
+        //     ),
+        //     None => ("".to_owned(), "".to_owned(), "".to_owned(), "".to_owned()),
+        // };
 
         // todo:::::: I don't want strings, I want to write!() directly into the buffer
-        #[node_key(PANEL.position_x(Position::End).position_y(Position::Start))]
+        #[node_key(PANEL.position_x(End).position_y(Start).size_x(FitContent))]
         const PIXEL_PANEL2: Nodekey;
         add!(self.ui, PIXEL_PANEL2, {
-            v_stack!(self.ui, {
-                h_stack!(self.ui, {
+            
+            h_stack!(self.ui, {
+
+                // #[node_key(H_STACK.size_symm(FitContent))]
+                // const HALF: NodeKey;
+                // add!(self.ui, HALF, {
                     text!(self.ui, "x:");
                     text!(self.ui, &x);
+                // });
+                // add!(self.ui, HALF, {
                     text!(self.ui, "y:");
                     text!(self.ui, &y);
-                });
-
-                h_stack!(self.ui, {
-                    text!(self.ui, "r:");
-                    text!(self.ui, &r);
-                    text!(self.ui, "g:");
-                    text!(self.ui, &g);
-                });
-                h_stack!(self.ui, {
-                    text!(self.ui, "b:");
-                    text!(self.ui, &b);
-                    text!(self.ui, "a:");
-                    text!(self.ui, &a);
-                });
+                // });
             });
+
         });
     }
 }
