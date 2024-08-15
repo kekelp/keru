@@ -15,17 +15,17 @@ impl State {
             #[node_key(BUTTON.text("Increase").color(Color::GREEN).position_x(End))]
             pub const BUTTON_A: NodeKey;
 
-            #[node_key(PANEL.position_x(Position::End).size_y(Fill).size_x(Frac(0.2)))]
+            #[node_key(V_STACK.position_x(Position::End).size_y(Fill).size_x(Frac(0.2)).stack_arrange(Arrange::Center))]
             const SIDEBAR: NodeKey;
             add!(self.ui, SIDEBAR, {                
-                v_stack!(self.ui, {
+                // v_stack!(self.ui, {
                     add!(self.ui, BUTTON_A);
                     add!(self.ui, BUTTON_A);
                     add!(self.ui, BUTTON_A);
 
                     self.add_pixel_info_ui();
                     
-                });
+                // });
             });
             
 
@@ -65,7 +65,7 @@ impl State {
             //     });
             // });
 
-            self.add_counter_ui();
+            // self.add_counter_ui();
         });
 
         // effects

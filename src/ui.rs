@@ -1345,6 +1345,18 @@ impl Ui {
             }
         }
 
+        // just moved this from get_children_proposed_size(), haven't thought about it that hard, but it seems right.
+        if let Some(stack) = self.nodes[node].params.stack {
+            let main = stack.axis;
+            let n_children = self.nodes[node].n_children as f32;
+            let spacing = self.to_frac(stack.spacing, stack.axis);
+
+            // adjust proposed size based on spacing
+            if n_children > 1.5 {
+                proposed_size[main] -= spacing * (n_children - 1.0);
+            }
+        }
+
         return proposed_size;
     }
 
@@ -1354,12 +1366,7 @@ impl Ui {
         if let Some(stack) = self.nodes[node].params.stack {
             let main = stack.axis;
             let n_children = self.nodes[node].n_children as f32;
-            let spacing = self.to_frac(stack.spacing, stack.axis);
 
-            // adjust proposed size based on spacing
-            if n_children > 1.5 {
-                child_proposed_size[main] -= spacing * (n_children - 1.0);
-            }
             // divide between children
             child_proposed_size[main] = child_proposed_size[main] / n_children;
         }
@@ -1398,7 +1405,7 @@ impl Ui {
             }
         }
 
-        // add back padding and spacing to get the real final size
+        // add back padding to get the real final size
         final_size = self.adjust_final_size(node, final_size);
 
 
@@ -1412,6 +1419,10 @@ impl Ui {
 
         let w = proposed_size.x * self.part.unifs.size[X];
         let h = proposed_size.y * self.part.unifs.size[Y];
+
+        // this is for FitContent on both directions, basically.
+        // todo: the rest.
+        // also, note: the set_align trick might not be good if we expose the ability to set whatever align the user wants.
 
         for line in &mut buffer.lines {
             line.set_align(Some(glyphon::cosmic_text::Align::Left));
@@ -1441,7 +1452,7 @@ impl Ui {
     fn adjust_final_size(&mut self, node: usize, final_size: Xy<f32>) -> Xy<f32> {
         // re-add spacing and padding to the final size we calculated
         let mut final_size = final_size;
-        
+
         let padding = self.to_frac2(self.nodes[node].params.layout.padding);
         for axis in [X, Y] {
             final_size[axis] += 2.0 * padding[axis];
@@ -1487,31 +1498,31 @@ impl Ui {
         };
         let sign = main_side.sign();
 
-        // // collect all the children sizes in a vec
-        // let n = self.nodes[node].n_children;
-        // self.size_scratch.clear();
-        // for_each_child!(self, self.nodes[node], child, {
-        //     self.size_scratch.push(self.nodes[child].size[main]);
-        // });
+        // collect all the children sizes in a vec
+        let n = self.nodes[node].n_children;
+        self.size_scratch.clear();
+        for_each_child!(self, self.nodes[node], child, {
+            self.size_scratch.push(self.nodes[child].size[main]);
+        });
 
-        // let mut total_size = 0.0;
-        // for s in &self.size_scratch {
-        //     total_size += s;
-        // }
-        // if n > 0 {
-        //     total_size += spacing * (n - 1) as f32;
-        // }
+        let mut total_size = 0.0;
+        for s in &self.size_scratch {
+            total_size += s;
+        }
+        if n > 0 {
+            total_size += spacing * (n - 1) as f32;
+        }
 
-        // let mut main_origin = match stack.arrange {
-        //     Arrange::End | Arrange::Start => parent_rect[main][main_side.index()] + sign * padding[main],
-        //     Arrange::Center => {
-        //         let center = parent_rect[main][1] - parent_rect[main][0] - 2.0 * padding[main];
-        //         center - total_size / 2.0
-        //     },
-        //     _ => todo!(),
-        // };
+        let mut main_origin = match stack.arrange {
+            Arrange::Start | Arrange::End => parent_rect[main][main_side.origin_idx()] + sign * padding[main],
+            Arrange::Center => {
+                let center = (parent_rect[main][1] + parent_rect[main][0]) / 2.0 - 2.0 * padding[main];
+                center - total_size / 2.0
+            },
+            _ => todo!(),
+        };
 
-        let mut main_origin = parent_rect[main][main_side.origin_idx()] + sign * padding[main];
+        // let mut main_origin = parent_rect[main][main_side.origin_idx()] + sign * padding[main];
 
         for_each_child!(self, self.nodes[node], child, {
             let size = self.nodes[child].size;
