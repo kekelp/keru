@@ -2,6 +2,7 @@
 // when ui will be in its own crate, this won't happen anymore
 use crate::node_params::*;
 use crate::ui::Position::*;
+use crate::ui::Size::*;
 use crate::ui::*;
 use crate::*;
 use glyphon::{cosmic_text::Align, Attrs, Color as GlyphonColor, Family, Weight};
@@ -11,13 +12,13 @@ impl State {
     pub fn update_ui(&mut self) {
         tree!(self.ui, {
 
-            #[node_key(V_STACK.size_x(0.3).position_x(Position::End))]
+            #[node_key(V_STACK.size_x(Frac(0.3)).size_y(FitContent).position_x(Position::End))]
             const RIGHT_BAR: Nodekey;
 
             #[node_key(BUTTON.text("Increase").color(Color::GREEN))]
             pub const BUTTON_A: NodeKey;
 
-            #[node_key(PANEL.position_x(Position::End).size2_y(Size::Fill).size2_x(Size::FitContent))]
+            #[node_key(PANEL.position_x(Position::End).size_y(Fill).size_x(FitContent))]
             const PIXEL_PANEL: Nodekey;
             add!(self.ui, PIXEL_PANEL, {                
                 v_stack!(self.ui, {
@@ -33,8 +34,10 @@ impl State {
 
 
             margin!(self.ui, {
-                #[node_key(V_STACK.size_x(0.3).position_x(Position::End))]
+                #[node_key(V_STACK.size_x(Frac(0.7)).size_y(Frac(0.5)).position_x(Center).position_y(Start))]
                 const SIDEBAR: Nodekey;
+                #[node_key(TEXT_INPUT.text("Color").size_y(Frac(0.2)).position_y(Start))]
+                pub const PAINT_COLOR: NodeKey;
                 add!(self.ui, SIDEBAR, {
                     // todo: function for doing get_text from other places
                     let mut color = add!(self.ui, PAINT_COLOR).get_text();
@@ -72,9 +75,6 @@ impl State {
         self.counter_on_click();
     }
 }
-
-#[node_key(TEXT_INPUT.text("Color").size_y(0.2).position_y(Start))]
-pub const PAINT_COLOR: NodeKey;
 
 pub struct CounterState {
     pub count: i32,
@@ -114,7 +114,7 @@ pub fn count_color(count: i32) -> Color {
 
 impl State {
     pub fn add_twin_thing_ui(&mut self) {
-        #[node_key(PANEL.size_y(0.5).position_x(Position::Start))]
+        #[node_key(PANEL.size_y(Frac(0.5)).position_x(Position::Start))]
         const PIXEL_PANEL: Nodekey;
         add!(self.ui, PIXEL_PANEL, {
 

@@ -9,7 +9,7 @@ pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     stack: None,
     text: None,
     rect: Rect {
-        visible_rect: false,
+        visible: false,
         filled: false,
         color: Color::TRANSPARENT
     },
@@ -17,7 +17,7 @@ pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
         clickable: false,
     },
     layout: Layout {
-        size: Xy::new_symm(Fraction(1.0)),
+        size: Xy::new_symm(Frac(1.0)),
         position: Xy::new_symm(Start),
         padding: Xy::new_symm(Len::ZERO),
     },
@@ -33,7 +33,7 @@ pub const DEFAULT: NodeParams = NodeParams {
         editable: false,
     }),
     rect: Rect {
-        visible_rect: true,
+        visible: true,
         filled: true,
         color: Color::BLUE,
     },
@@ -41,7 +41,7 @@ pub const DEFAULT: NodeParams = NodeParams {
         clickable: false,
     },
     layout: Layout {
-        size: Xy::new_symm(Fraction(1.0)),
+        size: Xy::new_symm(Frac(1.0)),
         position: Xy::new_symm(Center),
         padding: Xy::new_symm(Len::ZERO),
     },
@@ -58,7 +58,7 @@ pub const V_STACK: NodeParams = NodeParams {
     }),
     text: None,
     rect: Rect {
-        visible_rect: false,
+        visible: false,
         filled: false,
         color: DEBUG_RED,
     },
@@ -83,7 +83,7 @@ pub const H_STACK: NodeParams = NodeParams {
     }),
     text: None,
     rect: Rect {
-        visible_rect: false,
+        visible: false,
         filled: false,
         color: DEBUG_RED,
     },
@@ -104,7 +104,7 @@ pub const MARGIN: NodeParams = NodeParams {
     stack: None,
     text: None,
     rect: Rect {
-        visible_rect: false,
+        visible: false,
         filled: false,
         color: DEBUG_RED,
     },
@@ -112,7 +112,7 @@ pub const MARGIN: NodeParams = NodeParams {
         clickable: false,
     },
     layout: Layout {
-        size: Xy::new_symm(Fraction(0.9)),
+        size: Xy::new_symm(Frac(0.9)),
         position: Xy::new_symm(Center),
         padding: Xy::new_symm(Len::ZERO),
     },
@@ -125,7 +125,7 @@ pub const BUTTON: NodeParams = NodeParams {
     stack: None,
     text: None,
     rect: Rect {
-        visible_rect: true,
+        visible: true,
         filled: true,
         color: Color::rgba(0.0, 0.1, 0.1, 0.9),
     },
@@ -149,7 +149,7 @@ pub const LABEL: NodeParams = NodeParams {
         editable: false,
     }),
     rect: Rect {
-        visible_rect: true,
+        visible: true,
         filled: true,
         color: Color::BLUE,
     },
@@ -173,7 +173,7 @@ pub const TEXT: NodeParams = NodeParams {
         editable: false,
     }),
     rect: Rect {
-        visible_rect: false,
+        visible: false,
         filled: false,
         color: Color::RED,
     },
@@ -197,7 +197,7 @@ pub const TEXT_INPUT: NodeParams = NodeParams {
         editable: true,
     }),
     rect: Rect {
-        visible_rect: true,
+        visible: true,
         filled: true,
         color: Color::rgba(0.1, 0.0, 0.1, 0.9),
     },
@@ -205,7 +205,7 @@ pub const TEXT_INPUT: NodeParams = NodeParams {
         clickable: true,
     },
     layout: Layout {
-        size: Xy::new_symm(FitContent),
+        size: Xy::new_symm(Fill),
         position: Xy::new_symm(Center),
         padding: Xy::new_symm(Len::Pixels(5)),
     },
@@ -218,7 +218,7 @@ pub const PANEL: NodeParams = NodeParams {
     stack: None,
     text: None,
     rect: Rect {
-        visible_rect: true,
+        visible: true,
         filled: true,
         color: Color::rgba(0.1, 0.0, 0.1, 0.9),
     },

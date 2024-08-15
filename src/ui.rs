@@ -223,7 +223,7 @@ pub struct Layout {
 
 #[derive(Debug, Copy, Clone)]
 pub struct Rect {
-    pub visible_rect: bool,
+    pub visible: bool,
     pub filled: bool,
     pub color: Color,
     // ... crazy stuff like texture and NinePatchRect
@@ -259,24 +259,17 @@ impl NodeParams {
         return DEFAULT;
     }
 
-    pub const fn size_x(mut self, size: f32) -> Self {
-        self.layout.size.x = Size::Fraction(size);
-        return self;
-    }
-    pub const fn size_y(mut self, size: f32) -> Self {
-        self.layout.size.y = Size::Fraction(size);
-        return self;
-    }
-    pub const fn size2_x(mut self, size: Size) -> Self {
+    // todo: in a future version of Rust that allows it, change these to take a generic Into<Size>
+    pub const fn size_x(mut self, size: Size) -> Self {
         self.layout.size.x = size;
         return self;
     }
-    pub const fn size2_y(mut self, size: Size) -> Self {
+    pub const fn size_y(mut self, size: Size) -> Self {
         self.layout.size.y = size;
         return self;
     }
     pub const fn size_symm(mut self, size: f32) -> Self {
-        self.layout.size = Xy::new_symm(Size::Fraction(size));
+        self.layout.size = Xy::new_symm(Size::Frac(size));
         return self;
     }
 
@@ -294,31 +287,25 @@ impl NodeParams {
     }
 
     pub const fn text(mut self, text: &'static str) -> Self {
-        match self.text {
-            Some(mut text_sys) => {
-                text_sys.default_text = text;
-            },
-            None => {
-                self.text = Some( Text {
-                    default_text: text,
-                    editable: false,
-                });
-            },
-        }
+        let old_editable = match self.text {
+            Some(text) => text.editable,
+            None => false,
+        };
+        self.text = Some(Text {
+            default_text: text,
+            editable: old_editable,
+        });
         return self;
     }
     pub const fn editable(mut self, editable: bool) -> Self {
-        match self.text {
-            Some(mut text) => {
-                text.editable = editable;
-            },
-            None => {
-                self.text = Some( Text {
-                    default_text: "Insert...",
-                    editable,
-                });
-            },
-        }
+        let old_default_text = match self.text {
+            Some(text) => text.default_text,
+            None => "Insert...",
+        };
+        self.text = Some(Text {
+            default_text: old_default_text,
+            editable,
+        });
         return self;
     }
 
@@ -1295,7 +1282,7 @@ impl Ui {
                 Size::Pixels(pixels) => {
                     proposed_size[axis] = self.pixels_to_frac(pixels, axis);
                 },
-                Size::Fraction(frac) => {
+                Size::Frac(frac) => {
                     proposed_size[axis] *= frac;
                 },
             }
@@ -1544,7 +1531,7 @@ impl Ui {
 
         // in debug mode, draw invisible rects as well.
         // usually these have filled = false (just the outline), but this is not enforced.
-        if current_node.params.rect.visible_rect || self.debug_mode {
+        if current_node.params.rect.visible || self.debug_mode {
             self.rects.push(RenderRect {
                 rect: current_node.rect * 2. - 1.,
 
@@ -1954,7 +1941,7 @@ pub enum LastFrameStatus {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Size {
     Pixels(u32),
-    Fraction(f32),
+    Frac(f32),
     Fill,
     // "Content" can refer to the children if the node is a Stack or Container, or the inner text if it's a Text node, etc.
     // There will probably be some other size-related settings specific to some node types: for example "strictness" below. I guess those go into the Text enum variation.
@@ -1965,7 +1952,6 @@ pub enum Size {
     // or be okay with whatever (and clip it, show some "..."'s, etc) 
     // todo: add FitToChildrenInitiallyButNeverResizeAfter 
 }
-
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Len {
