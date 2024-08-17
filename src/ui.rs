@@ -175,6 +175,10 @@ impl XyRect {
             y: [origin.y - size.y / 2.0, origin.y + size.y / 2.0]
         }
     }
+
+    pub fn to_graphics_space(self) -> Self {
+        return self * 2. - 1.;
+    }
 }
 impl Add<f32> for XyRect {
     type Output = Self;
@@ -1506,7 +1510,7 @@ impl Ui {
         let main_side = match stack.arrange {
             Arrange::Start => Dir::Forward,
             Arrange::End => Dir::Backwards,
-            Arrange::Center => Dir::Forward,
+            Arrange::Center => Dir::Backwards,
             _ => todo!(),
         };
         let sign = main_side.sign();
@@ -1530,12 +1534,10 @@ impl Ui {
             Arrange::Start | Arrange::End => parent_rect[main][main_side.origin_idx()] + sign * padding[main],
             Arrange::Center => {
                 let center = (parent_rect[main][1] + parent_rect[main][0]) / 2.0 - 2.0 * padding[main];
-                center - total_size / 2.0
+                center - sign * total_size / 2.0
             },
             _ => todo!(),
         };
-
-        // let mut main_origin = parent_rect[main][main_side.origin_idx()] + sign * padding[main];
 
         for_each_child!(self, self.nodes[node], child, {
             let size = self.nodes[child].size;
@@ -1655,7 +1657,7 @@ impl Ui {
         // usually these have filled = false (just the outline), but this is not enforced.
         if current_node.params.rect.visible || self.debug_mode {
             self.rects.push(RenderRect {
-                rect: current_node.rect * 2. - 1.,
+                rect: current_node.rect.to_graphics_space(),
 
                 r: current_node.params.rect.color.r,
                 g: current_node.params.rect.color.g,
@@ -2362,13 +2364,13 @@ impl Dir {
         match self {
             Dir::Backwards => return -1.0,
             Dir::Forward => return 1.0,
-        }
+        }  
     }
     fn origin_idx(&self) -> usize {
         match self {
             Dir::Backwards => return 1,
             Dir::Forward => return 0,
-        }
+        }               
     }
 }
 

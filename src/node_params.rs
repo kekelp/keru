@@ -50,7 +50,7 @@ pub const DEFAULT: NodeParams = NodeParams {
 
 pub const V_STACK: NodeParams = NodeParams {
     stack: Some(Stack {
-        arrange: Arrange::Center,
+        arrange: Arrange::Start,
         axis: Axis::Y,
         spacing: Len::Pixels(10),
     }),
