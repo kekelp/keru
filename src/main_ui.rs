@@ -64,7 +64,7 @@ impl State {
             //     });
             // });
 
-            // self.add_counter_ui();
+            self.add_counter_ui();
         });
 
         // effects
@@ -111,7 +111,7 @@ pub fn count_color(count: i32) -> Color {
 impl State {
     pub fn add_twin_thing_ui(&mut self) {
         #[node_key(PANEL.size_y(Frac(0.5)).position_x(Position::Start))]
-        const PIXEL_PANEL: Nodekey;
+        const PIXEL_PANEL: NodeKey;
         add!(self.ui, PIXEL_PANEL, {
 
             v_stack!(self.ui, {
@@ -173,8 +173,8 @@ impl State {
         let pixel_info = &self.canvas.pixel_info();
 
         let (x, y) = match pixel_info {
-            Some(pixel_info) => (format!("{}", pixel_info.x), format!("{}", pixel_info.y)),
-            None => ("".to_owned(), "".to_owned()),
+            Some(pixel_info) => (format!("x: {}", pixel_info.x), format!("y: {}", pixel_info.y)),
+            None => ("x:  ".to_owned(), "y:  ".to_owned()),
         };
 
         // let (r, g, b, a) = match pixel_info {
@@ -188,22 +188,13 @@ impl State {
         // };
 
         // todo:::::: I don't want strings, I want to write!() directly into the buffer
-        #[node_key(PANEL.position_x(End).position_y(Start).size_x(FitContent))]
-        const PIXEL_PANEL2: Nodekey;
+        #[node_key(PANEL.position_x(End).position_y(Start).size_x(FitContentOrMinimum(BasicSize::Pixels(100))))]
+        const PIXEL_PANEL2: NodeKey;
         add!(self.ui, PIXEL_PANEL2, {
             
-            h_stack!(self.ui, {
-
-                // #[node_key(H_STACK.size_symm(FitContent))]
-                // const HALF: NodeKey;
-                // add!(self.ui, HALF, {
-                    text!(self.ui, "x:");
-                    text!(self.ui, &x);
-                // });
-                // add!(self.ui, HALF, {
-                    text!(self.ui, "y:");
-                    text!(self.ui, &y);
-                // });
+            v_stack!(self.ui, {
+                text!(self.ui, &x);
+                text!(self.ui, &y);
             });
 
         });

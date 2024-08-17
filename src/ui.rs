@@ -446,9 +446,9 @@ impl Color {
     pub const WHITE: Color = Color::rgba(1.0, 1.0, 1.0, 1.0);
     pub const TRANSPARENT: Color = Color::rgba(1.0, 1.0, 1.0, 0.0);
 
-    pub const BLUE: Color = Color::rgba(0.1, 0.1, 1.0, 0.6);
-    pub const RED: Color = Color::rgba(1.0, 0.1, 0.1, 0.6);
-    pub const GREEN: Color = Color::rgba(0.1, 1.0, 0.1, 0.6);
+    pub const BLUE: Color = Color::rgba(0.1, 0.1, 1.0, 0.9);
+    pub const RED: Color = Color::rgba(1.0, 0.1, 0.1, 0.9);
+    pub const GREEN: Color = Color::rgba(0.1, 1.0, 0.1, 0.9);
 
     pub const LIGHT_BLUE: Color = Color {
         r: 0.9,
@@ -1334,7 +1334,7 @@ impl Ui {
 
             // adjust proposed size based on our own size
             match self.nodes[node].params.layout.size[axis] {
-                Size::FitContent => {}, // propose the whole size. We will shrink our own final size later if they end up using less or more 
+                Size::FitContent | Size::FitContentOrMinimum(_) => {}, // propose the whole size. We will shrink our own final size later if they end up using less or more 
                 Size::Fill => {}, // keep the whole proposed_size
                 Size::Pixels(pixels) => {
                     proposed_size[axis] = self.pixels_to_frac(pixels, axis);
@@ -1382,16 +1382,16 @@ impl Ui {
         let child_proposed_size = self.get_children_proposed_size(node, proposed_size);
 
         // Propose a size to the children and let them decide
-        let mut minimum_size = Xy::new(0.0, 0.0);
+        let mut content_size = Xy::new(0.0, 0.0);
         for_each_child!(self, self.nodes[node], child, {
             let child_size = self.determine_size(child, child_proposed_size);
-            minimum_size.update_for_child(child_size, stack);
+            content_size.update_for_child(child_size, stack);
         });
 
         // Propose the whole proposed_size (regardless of stack) to the contents, and let them decide.
         if let Some(_) = self.nodes[node].params.text {
             let text_size = self.determine_text_size(node, proposed_size);
-            minimum_size.update_for_content(text_size, stack);
+            content_size.update_for_content(text_size, stack);
         }
 
         // Decide our own size. 
@@ -1400,8 +1400,20 @@ impl Ui {
         // todo: is we're not fitcontenting, we can skip the update_for_* calls instead, and then remove this, I guess.
         let mut final_size = proposed_size;
         for axis in [X, Y] {
-            if self.nodes[node].params.layout.size[axis] == Size::FitContent {
-                final_size[axis] = minimum_size[axis];
+            match self.nodes[node].params.layout.size[axis] {
+                Size::FitContent => {
+                    final_size[axis] = content_size[axis];
+                }
+                Size::FitContentOrMinimum(min_size) => {
+                    let min_size = match min_size {
+                        BasicSize::Pixels(pixels) => self.pixels_to_frac(pixels, axis),
+                        BasicSize::Frac(frac) => proposed_size[axis] * frac,
+                        BasicSize::Fill => proposed_size[axis],
+                    };
+
+                    final_size[axis] = content_size[axis].max(min_size);
+                }
+                _ => {},
             }
         }
 
@@ -2050,6 +2062,13 @@ pub enum LastFrameStatus {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+pub enum BasicSize {
+    Pixels(u32),
+    Frac(f32),
+    Fill,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Size {
     Pixels(u32),
     Frac(f32),
@@ -2058,6 +2077,7 @@ pub enum Size {
     // There will probably be some other size-related settings specific to some node types: for example "strictness" below. I guess those go into the Text enum variation.
     // I still don't like the name either.
     FitContent,
+    FitContentOrMinimum(BasicSize),
     // ... something like "strictness":
     //  with the "proposed" thing, a TextContent can either insist to get the minimum size it wants,
     // or be okay with whatever (and clip it, show some "..."'s, etc) 

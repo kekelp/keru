@@ -613,13 +613,15 @@ impl Canvas {
 
                         self.is_drawing = *state == ElementState::Pressed;
                         if ! self.space {
-
-                            self.mouse_dots.push(self.last_mouse_pos);
-                            
-                            // do this on release so that it doesn't get in the way computationally speaking
-                            if *state == ElementState::Released {
-                                self.end_stroke = true;
-                                self.need_backup = true;
+                            match state {
+                                ElementState::Pressed => {
+                                    self.mouse_dots.push(self.last_mouse_pos);
+                                },
+                                ElementState::Released => {
+                                    // do the backup on release so that it doesn't get in the way computationally speaking
+                                    self.end_stroke = true;
+                                    self.need_backup = true;
+                                },
                             }
                         }
                     }

@@ -217,7 +217,7 @@ pub const PANEL: NodeParams = NodeParams {
     rect: Rect {
         visible: true,
         filled: true,
-        color: Color::rgba(0.1, 0.0, 0.1, 0.9),
+        color: Color::BLUE,
     },
     interact: Interact {
         clickable: false,
