@@ -15,4 +15,6 @@
 
 -- Expose the cosmic_text buffer and make sure it's not too crazy. remember about the align trick
 
+-- that thing about the siblings subtrees or whatever
+
 
