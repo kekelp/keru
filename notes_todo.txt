@@ -1,0 +1,18 @@
+-- the rest of the text sizing cases
+-- the advanced stack cases like SpaceEvenly or whatever 
+-- the entire typed keys thing.
+
+-- Size::AspectRatio. If both X and Y are AspectRatio, figure something out.
+
+-- images:
+  - renderer (muh bindless)
+  - Size::ImageContent
+  - loading them from images, at compile time and runtime
+
+-- custom render rects
+
+-- slotmap or slab for textareas
+
+-- Expose the cosmic_text buffer and make sure it's not too crazy. remember about the align trick
+
+

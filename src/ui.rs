@@ -1607,17 +1607,17 @@ impl Ui {
             let left = rect[X][0] * self.part.unifs.size[X];
             let top = (1.0 - rect[Y][1]) * self.part.unifs.size[Y];
 
-            let right = rect[X][1] * self.part.unifs.size[X];
-            let bottom = (1.0 - rect[Y][0]) * self.part.unifs.size[Y];
+            // let right = rect[X][1] * self.part.unifs.size[X];
+            // let bottom = (1.0 - rect[Y][0]) * self.part.unifs.size[Y];
 
             self.text.text_areas[text_id].left = left + padding[X] as f32;
             self.text.text_areas[text_id].top = top + padding[Y] as f32;
            
-            self.text.text_areas[text_id].bounds.left = left as i32 + padding[X] as i32;
-            self.text.text_areas[text_id].bounds.top = top as i32 + padding[Y] as i32;
+            // self.text.text_areas[text_id].bounds.left = left as i32 + padding[X] as i32;
+            // self.text.text_areas[text_id].bounds.top = top as i32 + padding[Y] as i32;
 
-            self.text.text_areas[text_id].bounds.right = right as i32;
-            self.text.text_areas[text_id].bounds.bottom = bottom as i32;
+            // self.text.text_areas[text_id].bounds.right = right as i32;
+            // self.text.text_areas[text_id].bounds.bottom = bottom as i32;
         }
     }
 
