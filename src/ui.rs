@@ -56,10 +56,7 @@ pub const NODE_ROOT: Node = Node {
     size: Xy::new_symm(1.0),
     rect_id: None,
     text_id: None,
-    // geeeeeeeeeeeeg wtf
-    parent: unsafe {
-        std::mem::transmute(9213432846u64)
-    },
+    parent: usize::MAX,
 
     n_children: 0,
     first_child: None,
@@ -151,7 +148,6 @@ impl<T: Copy> Xy<T> {
     }
 }
 
-// todo: better name for this guy. "Rect" got stolen by the NodeParams field
 type XyRect = Xy<[f32; 2]>;
 
 impl XyRect {
