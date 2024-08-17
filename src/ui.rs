@@ -1336,12 +1336,14 @@ impl Ui {
             match self.nodes[node].params.layout.size[axis] {
                 Size::FitContent | Size::FitContentOrMinimum(_) => {}, // propose the whole size. We will shrink our own final size later if they end up using less or more 
                 Size::Fill => {}, // keep the whole proposed_size
-                Size::Pixels(pixels) => {
-                    proposed_size[axis] = self.pixels_to_frac(pixels, axis);
-                },
-                Size::Frac(frac) => {
-                    proposed_size[axis] *= frac;
-                },
+                Size::Fixed(len) => match len {
+                    Len::Pixels(pixels) => {
+                        proposed_size[axis] = self.pixels_to_frac(pixels, axis);
+                    },
+                    Len::Frac(frac) => {
+                        proposed_size[axis] *= frac;
+                    },
+                }
             }
         }
 
@@ -1406,9 +1408,10 @@ impl Ui {
                 }
                 Size::FitContentOrMinimum(min_size) => {
                     let min_size = match min_size {
-                        BasicSize::Pixels(pixels) => self.pixels_to_frac(pixels, axis),
-                        BasicSize::Frac(frac) => proposed_size[axis] * frac,
-                        BasicSize::Fill => proposed_size[axis],
+                        Len::Pixels(pixels) => {
+                            self.pixels_to_frac(pixels, axis)
+                        },
+                        Len::Frac(frac) => proposed_size[axis] * frac
                     };
 
                     final_size[axis] = content_size[axis].max(min_size);
@@ -1990,7 +1993,7 @@ create_layer_macro!(panel, crate::node_params::PANEL);
 #[macro_export]
 macro_rules! text {
     ($ui:expr, $text:expr) => {
-        let anonymous_key = view_derive::anon_node_key!(crate::node_params::TEXT);
+        let anonymous_key = view_derive::anon_node_key!(crate::node_params::EMPTY_TEXT);
         $ui.add(anonymous_key).set_text($text);
     };
 }
@@ -2062,22 +2065,14 @@ pub enum LastFrameStatus {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum BasicSize {
-    Pixels(u32),
-    Frac(f32),
-    Fill,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Size {
-    Pixels(u32),
-    Frac(f32),
+    Fixed(Len),
     Fill,
     // "Content" can refer to the children if the node is a Stack or Container, or the inner text if it's a Text node, etc.
     // There will probably be some other size-related settings specific to some node types: for example "strictness" below. I guess those go into the Text enum variation.
     // I still don't like the name either.
     FitContent,
-    FitContentOrMinimum(BasicSize),
+    FitContentOrMinimum(Len),
     // ... something like "strictness":
     //  with the "proposed" thing, a TextContent can either insist to get the minimum size it wants,
     // or be okay with whatever (and clip it, show some "..."'s, etc) 

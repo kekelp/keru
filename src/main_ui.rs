@@ -3,6 +3,7 @@
 use crate::node_params::*;
 use crate::ui::Position::*;
 use crate::ui::Size::*;
+use crate::ui::Len::*;
 use crate::ui::*;
 use crate::*;
 use glyphon::{cosmic_text::Align, Attrs, Color as GlyphonColor, Family, Weight};
@@ -110,7 +111,7 @@ pub fn count_color(count: i32) -> Color {
 
 impl State {
     pub fn add_twin_thing_ui(&mut self) {
-        #[node_key(PANEL.size_y(Frac(0.5)).position_x(Position::Start))]
+        #[node_key(PANEL.size_y(Fixed(Frac(0.5))).position_x(Position::Start))]
         const PIXEL_PANEL: NodeKey;
         add!(self.ui, PIXEL_PANEL, {
 
@@ -188,7 +189,7 @@ impl State {
         // };
 
         // todo:::::: I don't want strings, I want to write!() directly into the buffer
-        #[node_key(PANEL.position_x(End).position_y(Start).size_x(FitContentOrMinimum(BasicSize::Pixels(100))))]
+        #[node_key(PANEL.position_x(End).position_y(Start).size_x(FitContentOrMinimum(Pixels(100))))]
         const PIXEL_PANEL2: NodeKey;
         add!(self.ui, PIXEL_PANEL2, {
             

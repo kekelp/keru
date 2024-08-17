@@ -1,6 +1,7 @@
 use crate::{Arrange, Axis, Color, Interact, Layout, Len, NodeParams, Text, Position, Rect, Size, Stack, Xy};
 use Size::*;
 use Position::*;
+use Len::*;
 
 pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     stack: None,
@@ -14,7 +15,7 @@ pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
         clickable: false,
     },
     layout: Layout {
-        size: Xy::new_symm(Frac(1.0)),
+        size: Xy::new_symm(Fixed(Frac(1.0))),
         position: Xy::new_symm(Start),
         padding: Xy::new_symm(Len::ZERO),
     },
@@ -38,7 +39,7 @@ pub const DEFAULT: NodeParams = NodeParams {
         clickable: false,
     },
     layout: Layout {
-        size: Xy::new_symm(Frac(1.0)),
+        size: Xy::new_symm(Fixed(Frac(1.0))),
         position: Xy::new_symm(Center),
         padding: Xy::new_symm(Len::ZERO),
     },
@@ -109,7 +110,7 @@ pub const MARGIN: NodeParams = NodeParams {
         clickable: false,
     },
     layout: Layout {
-        size: Xy::new_symm(Frac(0.9)),
+        size: Xy::new_symm(Fixed(Frac(0.9))),
         position: Xy::new_symm(Center),
         padding: Xy::new_symm(Len::ZERO),
     },
@@ -172,7 +173,7 @@ pub const TEXT: NodeParams = NodeParams {
     rect: Rect {
         visible: false,
         filled: false,
-        color: Color::RED,
+        color: Color::DEBUG_RED,
     },
     interact: Interact {
         clickable: false,
@@ -186,6 +187,31 @@ pub const TEXT: NodeParams = NodeParams {
     #[cfg(debug_assertions)]
     debug_name: "Text",
 };
+
+pub const EMPTY_TEXT: NodeParams = NodeParams {
+    stack: None,
+    text: Some(Text {
+        default_text: "",
+        editable: false,
+    }),
+    rect: Rect {
+        visible: false,
+        filled: false,
+        color: Color::DEBUG_RED,
+    },
+    interact: Interact {
+        clickable: false,
+    },
+    layout: Layout {
+        size: Xy::new_symm(FitContent),
+        position: Xy::new_symm(Center),
+        padding: Xy::new_symm(Len::Pixels(2)),
+    },
+    
+    #[cfg(debug_assertions)]
+    debug_name: "Text",
+};
+
 
 pub const TEXT_INPUT: NodeParams = NodeParams {
     stack: None,
