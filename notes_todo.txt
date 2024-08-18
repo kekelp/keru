@@ -1,12 +1,10 @@
--- deinvert y
+XXXXXXXX deinvert y
 
 -- the rest of the text sizing cases
 
 -- the advanced stack cases like SpaceEvenly or whatever 
 
 -- the entire typed keys thing.
-
--- Size::AspectRatio. If both X and Y are AspectRatio, figure something out.
 
 -- images:
   - renderer (muh bindless)
@@ -51,3 +49,5 @@ Optional stuff:
 - muh mspaint
 
 - some random widgets
+
+- Size::AspectRatio?

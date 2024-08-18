@@ -177,7 +177,11 @@ impl XyRect {
     }
 
     pub fn to_graphics_space(self) -> Self {
-        return self * 2. - 1.;
+        let a = self * 2. - 1.;
+        return Self::new(
+            [a.x[0], a.x[1]],
+            [-a.y[1], -a.y[0]],
+        );
     }
 }
 impl Add<f32> for XyRect {
@@ -351,36 +355,30 @@ impl NodeParams {
     }
 
     pub const fn stack_arrange(mut self, arrange: Arrange) -> Self {
-        match self.stack {
-            Some(stack) => {
-                stack.arrange(arrange);
-            },
-            None => {
-                self.stack = Some(Stack::DEFAULT.arrange(arrange));
-            }
-        }
+        let stack = match self.stack {
+            Some(stack) => stack,
+            None => Stack::DEFAULT,
+        };
+        self.stack = Some(stack.arrange(arrange));
         return self;
     }
+    
     pub const fn stack_spacing(mut self, spacing: Len) -> Self {
-        match self.stack {
-            Some(stack) => {
-                stack.spacing(spacing);
-            },
-            None => {
-                self.stack = Some(Stack::DEFAULT.spacing(spacing));
-            }
-        }
+        let stack = match self.stack {
+            Some(stack) => stack,
+            None => Stack::DEFAULT,
+        };
+        self.stack = Some(stack.spacing(spacing));
         return self;
     }
+
+    // todo: if we don't mind sacrificing symmetry, it could make sense to just remove this one. 
     pub const fn stack_axis(mut self, axis: Axis) -> Self {
-        match self.stack {
-            Some(stack) => {
-                stack.axis(axis);
-            },
-            None => {
-                self.stack = Some(Stack::DEFAULT.axis(axis));
-            }
-        }
+        let stack = match self.stack {
+            Some(stack) => stack,
+            None => Stack::DEFAULT,
+        };
+        self.stack = Some(stack.axis(axis));
         return self;
     }
 }
@@ -1507,13 +1505,6 @@ impl Ui {
         let spacing = self.to_frac(stack.spacing, stack.axis);
         
         // Totally ignore the children's chosen Position's and place them according to our own Stack::Arrange value.
-        let main_side = match stack.arrange {
-            Arrange::Start => Dir::Forward,
-            Arrange::End => Dir::Backwards,
-            Arrange::Center => Dir::Backwards,
-            _ => todo!(),
-        };
-        let sign = main_side.sign();
 
         // collect all the children sizes in a vec
         let n = self.nodes[node].n_children;
@@ -1531,10 +1522,11 @@ impl Ui {
         }
 
         let mut main_origin = match stack.arrange {
-            Arrange::Start | Arrange::End => parent_rect[main][main_side.origin_idx()] + sign * padding[main],
+            Arrange::Start => parent_rect[main][0] + padding[main],
+            Arrange::End => parent_rect[main][1] + padding[main] - total_size,
             Arrange::Center => {
                 let center = (parent_rect[main][1] + parent_rect[main][0]) / 2.0 - 2.0 * padding[main];
-                center - sign * total_size / 2.0
+                center - total_size / 2.0
             },
             _ => todo!(),
         };
@@ -1560,11 +1552,11 @@ impl Ui {
                 },
             }
 
-            self.nodes[child].rect[main] = epic_segment(main_origin, size[main], main_side);
+            self.nodes[child].rect[main] = [main_origin, main_origin + size[main]];
 
             self.build_rect_and_place_children(child);
 
-            main_origin += sign * (self.nodes[child].size[main] + spacing);
+            main_origin += self.nodes[child].size[main] + spacing;
         });
     }
 
@@ -1607,10 +1599,10 @@ impl Ui {
 
         if let Some(text_id) = text_id {
             let left = rect[X][0] * self.part.unifs.size[X];
-            let top = (1.0 - rect[Y][1]) * self.part.unifs.size[Y];
+            let top = rect[Y][0] * self.part.unifs.size[Y];
 
             // let right = rect[X][1] * self.part.unifs.size[X];
-            // let bottom = (1.0 - rect[Y][0]) * self.part.unifs.size[Y];
+            // let bottom =     rect[Y][1] * self.part.unifs.size[Y];
 
             self.text.text_areas[text_id].left = left + padding[X] as f32;
             self.text.text_areas[text_id].top = top + padding[Y] as f32;
@@ -2352,37 +2344,6 @@ macro_rules! for_each_child {
             }
         }
     };
-}
-
-#[derive(Debug, Clone, Copy)]
-enum Dir {
-    Backwards,
-    Forward,
-}
-impl Dir {
-    fn sign(&self) -> f32 {
-        match self {
-            Dir::Backwards => return -1.0,
-            Dir::Forward => return 1.0,
-        }  
-    }
-    fn origin_idx(&self) -> usize {
-        match self {
-            Dir::Backwards => return 1,
-            Dir::Forward => return 0,
-        }               
-    }
-}
-
-fn epic_segment(origin: f32, size: f32, direction: Dir) -> [f32; 2] {
-    match direction {
-        Dir::Forward => {
-            return [origin, origin + size];
-        },
-        Dir::Backwards => {
-            return [origin - size, origin];
-        },
-    }
 }
 
 impl Xy<f32> {

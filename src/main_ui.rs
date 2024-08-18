@@ -13,72 +13,7 @@ impl State {
     pub fn update_ui(&mut self) {
         tree!(self.ui, {
 
-            #[node_key(H_STACK.stack_arrange(Arrange::Start))]
-            const HSTACK1: NodeKey;
-            add!(self.ui, HSTACK1, {                
-            
-                #[node_key(LABEL)]
-                const PANEL7: NodeKey;
-
-                #[node_key(V_STACK.stack_arrange(Arrange::Start))]
-                const VSTACK_A: NodeKey;
-                add!(self.ui, VSTACK_A, {
-                    add!(self.ui, PANEL7).set_text("a1");
-                    add!(self.ui, PANEL7).set_text("a2");
-                    add!(self.ui, PANEL7).set_text("a3");
-                });
-
-                #[node_key(V_STACK.stack_arrange(Arrange::Center))]
-                const VSTACK_B: NodeKey;
-                add!(self.ui, VSTACK_B, {
-                    add!(self.ui, PANEL7).set_text("b1");
-                    add!(self.ui, PANEL7).set_text("b2");
-                    add!(self.ui, PANEL7).set_text("b3");
-                });
-
-                #[node_key(V_STACK.stack_arrange(Arrange::End))]
-                const VSTACK_C: NodeKey;
-                add!(self.ui, VSTACK_C, {
-                    add!(self.ui, PANEL7).set_text("c1");
-                    add!(self.ui, PANEL7).set_text("c2");
-                    add!(self.ui, PANEL7).set_text("c3");
-                });
-
-
-
-                #[node_key(V_STACK.stack_arrange(Arrange::Start))]
-                const VSTACKNIGGA: NodeKey;
-                add!(self.ui, VSTACKNIGGA, {
-
-                    #[node_key(H_STACK.stack_arrange(Arrange::Start))]
-                    const HSTACK_A: NodeKey;
-                    add!(self.ui, HSTACK_A, {
-                        add!(self.ui, PANEL7).set_text("x1");
-                        add!(self.ui, PANEL7).set_text("x2");
-                        add!(self.ui, PANEL7).set_text("x3");
-                    });
-    
-                    #[node_key(H_STACK.stack_arrange(Arrange::Center))]
-                    const HSTACK_B: NodeKey;
-                    add!(self.ui, HSTACK_B, {
-                        add!(self.ui, PANEL7).set_text("y1");
-                        add!(self.ui, PANEL7).set_text("y2");
-                        add!(self.ui, PANEL7).set_text("y3");
-                    });
-    
-                    #[node_key(H_STACK.stack_arrange(Arrange::End))]
-                    const HSTACK_C: NodeKey;
-                    add!(self.ui, HSTACK_C, {
-                        add!(self.ui, PANEL7).set_text("z1");
-                        add!(self.ui, PANEL7).set_text("z2");
-                        add!(self.ui, PANEL7).set_text("z3");
-                    });
-
-                });
-
-
-
-            });
+            // self.add_stacks_test();
 
             #[node_key(BUTTON.text("Increase").color(Color::GREEN).position_x(End))]
             pub const BUTTON_A: NodeKey;
@@ -265,6 +200,72 @@ impl State {
                 text!(self.ui, &y);
             });
 
+        });
+    }
+
+    pub fn add_stacks_test(&mut self) {
+
+        #[node_key(H_STACK.stack_arrange(Arrange::Start))]
+        const HSTACK1: NodeKey;
+        add!(self.ui, HSTACK1, {                
+        
+            #[node_key(LABEL)]
+            const LABEL7: NodeKey;
+
+            #[node_key(V_STACK.stack_arrange(Arrange::Start))]
+            const VSTACK_A: NodeKey;
+            add!(self.ui, VSTACK_A, {
+                add!(self.ui, LABEL7).set_text("a1");
+                add!(self.ui, LABEL7).set_text("a2");
+                add!(self.ui, LABEL7).set_text("a3");
+            });
+
+            #[node_key(V_STACK.stack_arrange(Arrange::Center))]
+            const VSTACK_B: NodeKey;
+            add!(self.ui, VSTACK_B, {
+                add!(self.ui, LABEL7).set_text("b1");
+                add!(self.ui, LABEL7).set_text("b2");
+                add!(self.ui, LABEL7).set_text("b3");
+            });
+
+            #[node_key(V_STACK.stack_arrange(Arrange::End))]
+            const VSTACK_C: NodeKey;
+
+            add!(self.ui, VSTACK_C, {
+                add!(self.ui, LABEL7).set_text("c1");
+                add!(self.ui, LABEL7).set_text("c2");
+                add!(self.ui, LABEL7).set_text("c3");
+            });
+
+            #[node_key(V_STACK.stack_arrange(Arrange::Start))]
+            const VSTACK5567: NodeKey;
+            add!(self.ui, VSTACK5567, {
+
+                #[node_key(H_STACK.stack_arrange(Arrange::Start))]
+                const HSTACK_A: NodeKey;
+                add!(self.ui, HSTACK_A, {
+                    add!(self.ui, LABEL7).set_text("x1");
+                    add!(self.ui, LABEL7).set_text("x2");
+                    add!(self.ui, LABEL7).set_text("x3");
+                });
+
+                #[node_key(H_STACK.stack_arrange(Arrange::Center))]
+                const HSTACK_B: NodeKey;
+                add!(self.ui, HSTACK_B, {
+                    add!(self.ui, LABEL7).set_text("y1");
+                    add!(self.ui, LABEL7).set_text("y2");
+                    add!(self.ui, LABEL7).set_text("y3");
+                });
+
+                #[node_key(H_STACK.stack_arrange(Arrange::End))]
+                const HSTACK_C: NodeKey;
+                add!(self.ui, HSTACK_C, {
+                    add!(self.ui, LABEL7).set_text("z1");
+                    add!(self.ui, LABEL7).set_text("z2");
+                    add!(self.ui, LABEL7).set_text("z3");
+                });
+
+            });
         });
     }
 }
