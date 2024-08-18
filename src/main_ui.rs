@@ -13,26 +13,18 @@ impl State {
     pub fn update_ui(&mut self) {
         tree!(self.ui, {
 
-            // self.add_stacks_test();
-
             #[node_key(BUTTON.text("Increase").color(Color::GREEN).position_x(End))]
             pub const BUTTON_A: NodeKey;
 
             #[node_key(V_STACK.position_x(Position::End).size_y(Fill).size_x(FitContent).stack_arrange(Arrange::Center))]
             const SIDEBAR: TypedKey<Stack>;
             add!(self.ui, SIDEBAR, {            
-
-
-                // add!(self.ui, SIDEBAR).set_text("olasd");
-
                     add!(self.ui, BUTTON_A);
                     add!(self.ui, BUTTON_A);
                     add!(self.ui, BUTTON_A);
 
                     self.add_pixel_info_ui();
-
             });
-            
 
             self.add_counter_ui();
         });

@@ -5,7 +5,6 @@ use proc_macro2::Ident;
 use quote::quote;
 use syn::{parse::{Parse, ParseStream}, parse_macro_input, spanned::Spanned, Expr, Token, Type};
 use rand::Rng;
-use syn::{Path, TypePath, PathArguments, AngleBracketedGenericArguments, GenericArgument};
 
 
 struct ItemConstNoEq {
@@ -32,23 +31,6 @@ impl Parse for ItemConstNoEq {
             _semi_token: input.parse()?,
         })
     }
-}
-
-fn extract_base_type_and_generics(ty: &Type) -> Option<(&Path, Option<&AngleBracketedGenericArguments>)> {
-    if let Type::Path(TypePath { path, .. }) = ty {
-        // Look for the last segment in the path
-        if let Some(last_segment) = path.segments.last() {
-            match &last_segment.arguments {
-                PathArguments::AngleBracketed(generic_args) => {
-                    return Some((path, Some(generic_args)));
-                }
-                _ => {
-                    return Some((path, None));
-                }
-            }
-        }
-    }
-    None
 }
 
 // using an attribute macro instead of a derive macro seems to work better with rust-analyzer, for some reason.
