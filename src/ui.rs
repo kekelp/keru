@@ -988,7 +988,7 @@ impl Ui {
         }
     }
 
-    pub fn add(&mut self, key: NodeKey) -> NodeWithStuff {
+    pub fn add(&mut self, key: TypedKey<impl NodeType>) -> NodeWithStuff {
         return self.update_node(key, false);
     }
 
@@ -1001,7 +1001,7 @@ impl Ui {
         self.last_child_stack.pop();
     }
 
-    pub fn update_node(&mut self, key: NodeKey, make_new_layer: bool) -> NodeWithStuff {
+    pub fn update_node(&mut self, key: TypedKey<impl NodeType>, make_new_layer: bool) -> NodeWithStuff {
         let parent_id = self.parent_stack.last().unwrap().clone();
 
         let frame = self.part.current_frame;
@@ -1110,7 +1110,7 @@ impl Ui {
 
     // todo: why like this
     pub fn new_node(
-        key: &NodeKey,
+        key: &TypedKey<impl NodeType>,
         parent_id: Option<usize>,
         text_id: Option<usize>,
     ) -> Node {
@@ -2278,34 +2278,97 @@ macro_rules! unwrap_or_return {
     }};
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct NodeKey {
-    defaults: &'static NodeParams,
-    id: Id,
-}
+// #[derive(Clone, Copy, Debug)]
+// pub struct NodeKey {
+//     defaults: &'static NodeParams,
+//     id: Id,
+// }
+// impl TextTrait for NodeKey {}
 
-impl NodeKey {
-    pub fn id(&self) -> Id {
+// pub trait NodeKeyTrait: Copy {
+//     fn id(&self) -> Id;
+//     fn defaults(&self) -> NodeParams;
+//     fn sibling<T: Hash>(self, value: T) -> Self;
+// }
+
+// impl NodeKeyTrait for NodeKey {
+//     fn id(&self) -> Id {
+//         return self.id;
+//     }
+//     fn defaults(&self) -> NodeParams {
+//         return *self.defaults;
+//     }
+//     fn sibling<T: Hash>(self, value: T) -> Self {
+//         let mut hasher = FxHasher::default();
+//         self.id.0.hash(&mut hasher);
+//         value.hash(&mut hasher);
+//         let new_id = hasher.finish();
+
+//         return NodeKey {
+//             defaults: self.defaults,
+//             id: Id(new_id),
+//         };
+//     }
+// }
+// impl NodeKey {
+//     pub const fn new(params: &'static NodeParams, id: Id) -> Self {
+//         return Self { defaults: params, id };
+//     }
+// }
+
+pub type NodeKey = TypedKey<()>;
+impl TextTrait for NodeKey {}
+
+
+#[derive(Clone, Copy, Debug)]
+pub struct TypedKey<T: NodeType> {
+    pub defaults: &'static NodeParams,
+    pub id: Id,
+    pub nodetype_marker: PhantomData<T>
+}
+impl<T: NodeType> TypedKey<T> {
+    fn id(&self) -> Id {
         return self.id;
     }
-    pub fn defaults(&self) -> NodeParams {
+    fn defaults(&self) -> NodeParams {
         return *self.defaults;
     }
-    pub const fn new(params: &'static NodeParams, id: Id) -> Self {
-        return Self { defaults: params, id };
-    }
-    pub fn sibling<T: Hash>(self, value: T) -> Self {
+    fn sibling<H: Hash>(self, value: H) -> Self {
         let mut hasher = FxHasher::default();
         self.id.0.hash(&mut hasher);
         value.hash(&mut hasher);
         let new_id = hasher.finish();
 
-        return NodeKey {
+        return Self {
             defaults: self.defaults,
             id: Id(new_id),
+            nodetype_marker: PhantomData::<T>,
         };
     }
 }
+impl<T: NodeType> TypedKey<T> {
+    pub const fn new(params: &'static NodeParams, id: Id) -> Self {
+        return Self { defaults: params, id, nodetype_marker: PhantomData::<T> };
+    }
+}
+
+
+pub trait NodeType: Copy {}
+
+impl NodeType for () {}
+
+pub trait TextTrait {}
+
+#[derive(Clone, Copy, Debug)]
+pub struct TextNode;
+impl NodeType for TextNode {}
+impl TextTrait for TypedKey<TextNode> {}
+
+#[derive(Clone, Copy, Debug)]
+pub struct StackNode;
+impl NodeType for StackNode {}
+
+
 
 use RefreshOrClone::*;
 pub enum RefreshOrClone {
@@ -2323,12 +2386,12 @@ pub fn refresh_or_add_twin(current_frame: u64, old_node_last_frame_touched: u64)
 }
 
 use TwinCheckResult::*;
-enum TwinCheckResult {
+enum TwinCheckResult<T: NodeType> {
     UpdatedNormal {
         final_i: usize,
     },
     NeedToUpdateTwin {
-        twin_key: NodeKey,
+        twin_key: TypedKey<T>,
     }
 }
 
@@ -2388,5 +2451,33 @@ impl MeasureText for GlyphonBuffer {
             run_width = run_width.max(run.line_w);
         }
         return Xy::new(run_width.ceil(), line_height)
+    }
+}
+
+
+impl NodeKey {
+    pub const fn validate(self) -> Self {
+        return self;
+    }
+}
+
+impl TypedKey<TextNode> {
+    pub const fn validate(self) -> Self {
+        
+        if self.defaults.text.is_none() {
+            panic!("
+            Blue Gui ran into an error when constructing a `TypedKey<TextNode>`.
+            Typed keys can only be constructed with NodeParams compatible with their purpose. 
+            
+            TypedKey<TextNode> should have the following content:
+            text: Some
+            stack: None
+            image: None
+            
+            If that's not what you want, consider using the general-purpose `NodeKey`, which will give you the maximum flexibility.
+            ");
+        }
+        
+        return self;
     }
 }

@@ -31,43 +31,7 @@ impl State {
             });
             
 
-
-            // margin!(self.ui, {
-            //     #[node_key(V_STACK.size_x(Frac(0.7)).size_y(Frac(0.5)).position_x(Center).position_y(Start))]
-            //     const SIDEBAR2: NodeKey;
-            //     #[node_key(TEXT_INPUT.text("Color").size_y(Frac(0.2)).position_y(Start))]
-            //     pub const PAINT_COLOR: NodeKey;
-            //     add!(self.ui, SIDEBAR2, {
-            //         // todo: function for doing get_text from other places
-            //         let mut color = add!(self.ui, PAINT_COLOR).get_text();
-
-            //         if let Some(color) = &mut color {
-            //             color.make_ascii_lowercase();
-            //             match color.as_str() {
-            //                 "blue" => {
-            //                     self.canvas.paint_color = PixelColorF32::BLUE;
-            //                 }
-            //                 "red" => {
-            //                     self.canvas.paint_color = PixelColorF32::RED;
-            //                 }
-            //                 "green" => {
-            //                     self.canvas.paint_color = PixelColorF32::GREEN;
-            //                 }
-            //                 _ => {}
-            //             }
-            //         }
-
-            //         // self.add_pixel_info_ui();
-            //         // self.add_pixel_info_ui();
-            //         // self.add_pixel_info_ui();
-
-            //         // self.add_twin_thing_ui();
-            //         // self.add_twin_thing_ui();
-            //         // self.add_twin_thing_ui();
-            //     });
-            // });
-
-            // self.add_counter_ui();
+            self.add_counter_ui();
         });
 
         // effects
@@ -103,8 +67,21 @@ impl CounterState {
     pub const SHOW_COUNTER_BUTTON: NodeKey;
 
     #[node_key(LABEL)]
-    pub const COUNT_LABEL: NodeKey;
+    pub const COUNT_LABEL: TypedKey<TextNode>;
+
+    #[node_key(LABEL)]
+    pub const COUNT_LABEL_2: NodeKey;
+
+
+    // pub const COUNT_LABEL: TypedKey<TextNode> =
+    // TypedKey::<TextNode>::new(&LABEL.debug_name("COUNT_LABEL"), Id(8379459943087886814)).validate();
+
+
+    // pub const COUNT_LABEL: TypedKey<TextNode> = TypedKey::new(&LABEL.debug_name("COUNT_LABEL"), Id(4286411996384850605)).validate();
+
+    // pub const COUNT_LABEL: TypedKey<TextNode> = TypedKey::new(&H_STACK.debug_name("COUNT_LABEL56"), Id(4286411996384850605)).validate();
 }
+
 pub fn count_color(count: i32) -> Color {
     let red = 0.1 * (count as f32);
     return Color::rgba(red, 0.1, 0.2, 0.8);
@@ -268,4 +245,34 @@ impl State {
             });
         });
     }
+
+    pub fn color_box_or_something(&mut self) {
+        margin!(self.ui, {
+            #[node_key(V_STACK.size_x(Fixed(Frac(0.7))).size_y(Fixed(Frac(0.5))).position_x(Center).position_y(Start))]
+            const SIDEBAR2: NodeKey;
+            #[node_key(TEXT_INPUT.text("Color").size_y(Fixed(Frac(0.2))).position_y(Start))]
+            pub const PAINT_COLOR: NodeKey;
+            add!(self.ui, SIDEBAR2, {
+                // todo: function for doing get_text from other places
+                let mut color = add!(self.ui, PAINT_COLOR).get_text();
+
+                if let Some(color) = &mut color {
+                    color.make_ascii_lowercase();
+                    match color.as_str() {
+                        "blue" => {
+                            self.canvas.paint_color = PixelColorF32::BLUE;
+                        }
+                        "red" => {
+                            self.canvas.paint_color = PixelColorF32::RED;
+                        }
+                        "green" => {
+                            self.canvas.paint_color = PixelColorF32::GREEN;
+                        }
+                        _ => {}
+                    }
+                }
+            });
+        });
+    }
+
 }
