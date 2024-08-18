@@ -2437,7 +2437,7 @@ impl NodeKey {
 
 impl TypedKey<Text> {
     pub const fn validate(self) -> Self {
-        if self.defaults.text.is_none() {
+        if self.defaults.stack.is_some() || self.defaults.text.is_none()  {
             panic!("
             Blue Gui ran into an error when constructing a `TypedKey<Text>`.
             Typed keys can only be constructed with NodeParams compatible with their purpose. 
