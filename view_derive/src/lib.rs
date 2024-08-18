@@ -57,7 +57,7 @@ fn extract_base_type_and_generics(ty: &Type) -> Option<(&Path, Option<&AngleBrac
 // currently we're putting that into debug_name
 #[proc_macro_attribute]
 pub fn node_key(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let default_params_expr = parse_macro_input!(attr as Expr);
+    let params_expr = parse_macro_input!(attr as Expr);
     let input = parse_macro_input!(item as ItemConstNoEq);
     
     let key_ident = &input.ident;
@@ -68,17 +68,16 @@ pub fn node_key(attr: TokenStream, item: TokenStream) -> TokenStream {
     let random_number: u64 = rand::thread_rng().gen();
     let random_number_lit = syn::LitInt::new(&format!("{}", random_number), key_ident.span());
 
-    #[cfg(debug_assertions)]
+    let params = quote! {
+        #[cfg(debug_assertions)]
+        &#params_expr.debug_name(#debug_name),
+        #[cfg(not(debug_assertions))]
+        &#params_expr,
+    };
+
     let expanded = quote! {
         pub const #key_ident: #key_type = <#key_type>::new(
-            &#default_params_expr.debug_name(#debug_name),
-            Id(#random_number_lit)
-        ).validate();
-    };
-    #[cfg(not(debug_assertions))]
-    let expanded = quote! {
-        pub const #key_ident: #key_type = <key_type>::new(
-            &#default_params_expr,           
+            #params
             Id(#random_number_lit)
         ).validate();
     };
@@ -88,35 +87,63 @@ pub fn node_key(attr: TokenStream, item: TokenStream) -> TokenStream {
 
 
 
+/// Struct to represent the two input parameters: an expression and a type.
+struct Input {
+    expr: Expr,
+    ty: Type,
+}
+
+impl Parse for Input {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let expr = input.parse::<Expr>()?;
+        input.parse::<Token![,]>()?;
+        let ty = input.parse::<Type>()?;
+        Ok(Input { expr, ty })
+    }
+}
 
 #[proc_macro]
 pub fn anon_node_key(input: TokenStream) -> TokenStream {
-    let default_params_expr = parse_macro_input!(input as Expr);
+    // Parse the input token stream into the `Input` struct.
+    let Input {
+        expr: default_params_expr,
+        ty,
+    } = parse_macro_input!(input as Input);
 
+    // Generate a random number for the ID.
     let random_number: u64 = rand::thread_rng().gen();
-    let random_number_lit = syn::LitInt::new(&format!("{}", random_number), default_params_expr.span());
-    
-    #[cfg(debug_assertions)]
+    let random_number_lit =
+        syn::LitInt::new(&format!("{}", random_number), default_params_expr.span());
+
+    // Generate the expanded code.
     let expanded = quote! {
         {
-            const DEBUG_NAME: &str = &const_format::formatcp!("Anon {} ({}:{}:{})",  #default_params_expr.debug_name, std::file!(), std::line!(), std::column!() );
-            const PARAMS: NodeParams = #default_params_expr.debug_name(DEBUG_NAME);
-            NodeKey::new(
-                &PARAMS,
-                Id(#random_number_lit),
-            )
-        }
-    };
-    #[cfg(not(debug_assertions))]
-    let expanded = quote! {
-        {
-            const PARAMS: NodeParams = #default_params_expr;
-            NodeKey::new(
-                &PARAMS,
-                Id(#random_number_lit),
-            )
+            #[cfg(debug_assertions)]
+            {
+                const DEBUG_NAME: &str = &const_format::formatcp!(
+                    "Anon {} ({}:{}:{})",
+                    #default_params_expr.debug_name,
+                    std::file!(),
+                    std::line!(),
+                    std::column!()
+                );
+                const PARAMS: NodeParams = #default_params_expr.debug_name(DEBUG_NAME);
+                <#ty>::new(
+                    &PARAMS,
+                    Id(#random_number_lit),
+                )
+            }
+            #[cfg(not(debug_assertions))]
+            {
+                const PARAMS: NodeParams = #default_params_expr;
+                <#ty>::new(
+                    &PARAMS,
+                    Id(#random_number_lit),
+                )
+            }
         }
     };
 
+    // Return the generated code as a TokenStream.
     TokenStream::from(expanded)
 }

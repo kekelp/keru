@@ -474,17 +474,22 @@ impl Color {
     }
 }
 
-pub struct NodeWithStuff<'a> {
+pub struct NodeWithStuff<'a, T: NodeType> {
     node: &'a mut Node,
     text: &'a mut TextSystem,
+    nodetype_marker: PhantomData<T>,
 }
 
 // why can't you just do it separately?
-impl<'a> NodeWithStuff<'a> {
+impl<'a,  T: NodeType> NodeWithStuff<'a, T> {
     pub fn set_color(&mut self, color: Color)  -> &mut Self {
         self.node.params.rect.color = color;
         return self;
     }
+
+}
+
+impl<'a, T: NodeType + TextTrait> NodeWithStuff<'a, T> {
 
     pub fn set_text(&mut self, text: &str) -> &mut Self {
         if let Some(text_id) = self.node.text_id {
@@ -988,11 +993,11 @@ impl Ui {
         }
     }
 
-    pub fn add(&mut self, key: TypedKey<impl NodeType>) -> NodeWithStuff {
+    pub fn add<T: NodeType>(&mut self, key: TypedKey<T>) -> NodeWithStuff<T> {
         return self.update_node(key, false);
     }
 
-    pub fn add_layer(&mut self, key: NodeKey) -> NodeWithStuff {
+    pub fn add_layer<T: NodeType>(&mut self, key: TypedKey<T>) -> NodeWithStuff<T> {
         return self.update_node(key, true);
     }
 
@@ -1001,7 +1006,7 @@ impl Ui {
         self.last_child_stack.pop();
     }
 
-    pub fn update_node(&mut self, key: TypedKey<impl NodeType>, make_new_layer: bool) -> NodeWithStuff {
+    pub fn update_node<T: NodeType>(&mut self, key: TypedKey<T>, make_new_layer: bool) -> NodeWithStuff<T> {
         let parent_id = self.parent_stack.last().unwrap().clone();
 
         let frame = self.part.current_frame;
@@ -1086,6 +1091,7 @@ impl Ui {
         return NodeWithStuff {
             node: &mut self.nodes[real_final_i],
             text: &mut self.text,
+            nodetype_marker: PhantomData::<T>,
         };
 
     }
@@ -1957,7 +1963,7 @@ macro_rules! create_layer_macro {
         #[macro_export]
         macro_rules! $macro_name {
             ($ui:expr, $code:block) => {
-                let anonymous_key = view_derive::anon_node_key!($node_params_name);
+                let anonymous_key = view_derive::anon_node_key!($node_params_name, NodeKey);
                 $ui.add_layer(anonymous_key);
                 $code;
                 $ui.end_layer();
@@ -1983,7 +1989,7 @@ create_layer_macro!(panel, crate::node_params::PANEL);
 #[macro_export]
 macro_rules! text {
     ($ui:expr, $text:expr) => {
-        let anonymous_key = view_derive::anon_node_key!(crate::node_params::EMPTY_TEXT);
+        let anonymous_key = view_derive::anon_node_key!(crate::node_params::EMPTY_TEXT, TypedKey<TextNode>);
         $ui.add(anonymous_key).set_text($text);
     };
 }
@@ -2318,6 +2324,7 @@ macro_rules! unwrap_or_return {
 
 pub type NodeKey = TypedKey<()>;
 impl TextTrait for NodeKey {}
+impl TextTrait for () {}
 
 
 #[derive(Clone, Copy, Debug)]
@@ -2362,6 +2369,7 @@ pub trait TextTrait {}
 #[derive(Clone, Copy, Debug)]
 pub struct TextNode;
 impl NodeType for TextNode {}
+impl TextTrait for TextNode {}
 impl TextTrait for TypedKey<TextNode> {}
 
 #[derive(Clone, Copy, Debug)]
@@ -2463,7 +2471,6 @@ impl NodeKey {
 
 impl TypedKey<TextNode> {
     pub const fn validate(self) -> Self {
-        
         if self.defaults.text.is_none() {
             panic!("
             Blue Gui ran into an error when constructing a `TypedKey<TextNode>`.

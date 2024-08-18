@@ -187,7 +187,7 @@ impl State {
         add!(self.ui, HSTACK1, {                
         
             #[node_key(LABEL)]
-            const LABEL7: NodeKey;
+            const LABEL7: TypedKey<TextNode>;
 
             #[node_key(V_STACK.stack_arrange(Arrange::Start))]
             const VSTACK_A: NodeKey;
