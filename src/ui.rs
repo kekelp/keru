@@ -2323,7 +2323,6 @@ macro_rules! unwrap_or_return {
 // }
 
 pub type NodeKey = TypedKey<()>;
-impl TextTrait for NodeKey {}
 impl TextTrait for () {}
 
 
@@ -2364,13 +2363,12 @@ pub trait NodeType: Copy {}
 
 impl NodeType for () {}
 
-pub trait TextTrait {}
+pub trait TextTrait: NodeType {}
 
 #[derive(Clone, Copy, Debug)]
 pub struct TextNode;
 impl NodeType for TextNode {}
 impl TextTrait for TextNode {}
-impl TextTrait for TypedKey<TextNode> {}
 
 #[derive(Clone, Copy, Debug)]
 pub struct StackNode;
