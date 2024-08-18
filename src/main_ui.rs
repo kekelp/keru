@@ -19,8 +19,11 @@ impl State {
             pub const BUTTON_A: NodeKey;
 
             #[node_key(V_STACK.position_x(Position::End).size_y(Fill).size_x(FitContent).stack_arrange(Arrange::Center))]
-            const SIDEBAR: NodeKey;
-            add!(self.ui, SIDEBAR, {                
+            const SIDEBAR: TypedKey<Stack>;
+            add!(self.ui, SIDEBAR, {            
+
+
+                // add!(self.ui, SIDEBAR).set_text("olasd");
 
                     add!(self.ui, BUTTON_A);
                     add!(self.ui, BUTTON_A);
@@ -67,19 +70,19 @@ impl CounterState {
     pub const SHOW_COUNTER_BUTTON: NodeKey;
 
     #[node_key(LABEL)]
-    pub const COUNT_LABEL: TypedKey<TextNode>;
+    pub const COUNT_LABEL: TypedKey<Text>;
 
     #[node_key(LABEL)]
     pub const COUNT_LABEL_2: NodeKey;
 
 
-    // pub const COUNT_LABEL: TypedKey<TextNode> =
-    // TypedKey::<TextNode>::new(&LABEL.debug_name("COUNT_LABEL"), Id(8379459943087886814)).validate();
+    // pub const COUNT_LABEL: TypedKey<Text> =
+    // TypedKey::<Text>::new(&LABEL.debug_name("COUNT_LABEL"), Id(8379459943087886814)).validate();
 
 
-    // pub const COUNT_LABEL: TypedKey<TextNode> = TypedKey::new(&LABEL.debug_name("COUNT_LABEL"), Id(4286411996384850605)).validate();
+    // pub const COUNT_LABEL: TypedKey<Text> = TypedKey::new(&LABEL.debug_name("COUNT_LABEL"), Id(4286411996384850605)).validate();
 
-    // pub const COUNT_LABEL: TypedKey<TextNode> = TypedKey::new(&H_STACK.debug_name("COUNT_LABEL56"), Id(4286411996384850605)).validate();
+    // pub const COUNT_LABEL: TypedKey<Text> = TypedKey::new(&H_STACK.debug_name("COUNT_LABEL56"), Id(4286411996384850605)).validate();
 }
 
 pub fn count_color(count: i32) -> Color {
@@ -187,7 +190,7 @@ impl State {
         add!(self.ui, HSTACK1, {                
         
             #[node_key(LABEL)]
-            const LABEL7: TypedKey<TextNode>;
+            const LABEL7: TypedKey<Text>;
 
             #[node_key(V_STACK.stack_arrange(Arrange::Start))]
             const VSTACK_A: NodeKey;

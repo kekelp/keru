@@ -489,7 +489,7 @@ impl<'a,  T: NodeType> NodeWithStuff<'a, T> {
 
 }
 
-impl<'a, T: NodeType + TextTrait> NodeWithStuff<'a, T> {
+impl<'a, T: TextTrait> NodeWithStuff<'a, T> {
 
     pub fn set_text(&mut self, text: &str) -> &mut Self {
         if let Some(text_id) = self.node.text_id {
@@ -997,7 +997,7 @@ impl Ui {
         return self.update_node(key, false);
     }
 
-    pub fn add_layer<T: NodeType>(&mut self, key: TypedKey<T>) -> NodeWithStuff<T> {
+    pub fn add_as_parent<T: ParentTrait>(&mut self, key: TypedKey<T>) -> NodeWithStuff<T> {
         return self.update_node(key, true);
     }
 
@@ -1949,7 +1949,7 @@ impl Ui {
 #[macro_export]
 macro_rules! add {
     ($ui:expr, $node_key:expr, $code:block) => {
-        $ui.add_layer($node_key);
+        $ui.add_as_parent($node_key);
         $code;
         $ui.end_layer();
     };
@@ -1964,7 +1964,7 @@ macro_rules! create_layer_macro {
         macro_rules! $macro_name {
             ($ui:expr, $code:block) => {
                 let anonymous_key = view_derive::anon_node_key!($node_params_name, NodeKey);
-                $ui.add_layer(anonymous_key);
+                $ui.add_as_parent(anonymous_key);
                 $code;
                 $ui.end_layer();
             };
@@ -1973,7 +1973,7 @@ macro_rules! create_layer_macro {
             // it's basically the same as add!, not sure if it's even worth having.
             // especially with no checks that CUSTOM_H_STACK is actually a h_stack.
             ($ui:expr, $node_key:expr, $code:block) => {
-                $ui.add_layer($node_key);
+                $ui.add_as_parent($node_key);
                 $code;
                 $ui.end_layer();
             };
@@ -1989,7 +1989,7 @@ create_layer_macro!(panel, crate::node_params::PANEL);
 #[macro_export]
 macro_rules! text {
     ($ui:expr, $text:expr) => {
-        let anonymous_key = view_derive::anon_node_key!(crate::node_params::EMPTY_TEXT, TypedKey<TextNode>);
+        let anonymous_key = view_derive::anon_node_key!(crate::node_params::EMPTY_TEXT, TypedKey<Text>);
         $ui.add(anonymous_key).set_text($text);
     };
 }
@@ -2284,48 +2284,6 @@ macro_rules! unwrap_or_return {
     }};
 }
 
-// #[derive(Clone, Copy, Debug)]
-// pub struct NodeKey {
-//     defaults: &'static NodeParams,
-//     id: Id,
-// }
-// impl TextTrait for NodeKey {}
-
-// pub trait NodeKeyTrait: Copy {
-//     fn id(&self) -> Id;
-//     fn defaults(&self) -> NodeParams;
-//     fn sibling<T: Hash>(self, value: T) -> Self;
-// }
-
-// impl NodeKeyTrait for NodeKey {
-//     fn id(&self) -> Id {
-//         return self.id;
-//     }
-//     fn defaults(&self) -> NodeParams {
-//         return *self.defaults;
-//     }
-//     fn sibling<T: Hash>(self, value: T) -> Self {
-//         let mut hasher = FxHasher::default();
-//         self.id.0.hash(&mut hasher);
-//         value.hash(&mut hasher);
-//         let new_id = hasher.finish();
-
-//         return NodeKey {
-//             defaults: self.defaults,
-//             id: Id(new_id),
-//         };
-//     }
-// }
-// impl NodeKey {
-//     pub const fn new(params: &'static NodeParams, id: Id) -> Self {
-//         return Self { defaults: params, id };
-//     }
-// }
-
-pub type NodeKey = TypedKey<()>;
-impl TextTrait for () {}
-
-
 #[derive(Clone, Copy, Debug)]
 pub struct TypedKey<T: NodeType> {
     pub defaults: &'static NodeParams,
@@ -2358,21 +2316,31 @@ impl<T: NodeType> TypedKey<T> {
     }
 }
 
+pub type NodeKey = TypedKey<Any>;
 
 pub trait NodeType: Copy {}
 
-impl NodeType for () {}
+#[derive(Clone, Copy, Debug)]
+pub struct Any {}
+
+impl NodeType for Any {}
+impl TextTrait for Any {}
+impl ParentTrait for Any {}
 
 pub trait TextTrait: NodeType {}
 
-#[derive(Clone, Copy, Debug)]
-pub struct TextNode;
-impl NodeType for TextNode {}
-impl TextTrait for TextNode {}
+pub trait ParentTrait: NodeType {}
+
+impl NodeType for Text {}
+impl TextTrait for Text {}
+
+impl NodeType for Stack {}
+impl ParentTrait for Stack {}
 
 #[derive(Clone, Copy, Debug)]
-pub struct StackNode;
-impl NodeType for StackNode {}
+pub struct Container {}
+impl NodeType for Container {}
+impl ParentTrait for Container {}
 
 
 
@@ -2467,14 +2435,34 @@ impl NodeKey {
     }
 }
 
-impl TypedKey<TextNode> {
+impl TypedKey<Text> {
     pub const fn validate(self) -> Self {
         if self.defaults.text.is_none() {
             panic!("
-            Blue Gui ran into an error when constructing a `TypedKey<TextNode>`.
+            Blue Gui ran into an error when constructing a `TypedKey<Text>`.
             Typed keys can only be constructed with NodeParams compatible with their purpose. 
             
-            TypedKey<TextNode> should have the following content:
+            TypedKey<Text> should have the following content:
+            text: Some
+            stack: None
+            image: None
+            
+            If that's not what you want, consider using the general-purpose `NodeKey`, which will give you the maximum flexibility.
+            ");
+        }
+        
+        return self;
+    }
+}
+
+impl TypedKey<Stack> {
+    pub const fn validate(self) -> Self {
+        if self.defaults.stack.is_none() {
+            panic!("
+            Blue Gui ran into an error when constructing a `TypedKey<Text>`.
+            Typed keys can only be constructed with NodeParams compatible with their purpose. 
+            
+            TypedKey<Text> should have the following content:
             text: Some
             stack: None
             image: None
