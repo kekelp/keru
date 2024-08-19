@@ -416,10 +416,10 @@ impl RenderRect {
             0 => Float32x2,
             1 => Float32x2,
             // colors
-            2 => Float32x4,
-            3 => Float32x4,
-            4 => Float32x4,
-            5 => Float32x4,
+            2 => Uint8x4,
+            3 => Uint8x4,
+            4 => Uint8x4,
+            5 => Uint8x4,
             // other stuff
             6 => Float32,
             7 => Float32,
@@ -434,10 +434,10 @@ impl RenderRect {
 #[derive(Default, Debug, Clone, Copy, PartialEq, Zeroable, Pod)]
 #[repr(C)]
 pub struct Color {
-    pub r: f32,
-    pub g: f32,
-    pub b: f32,
-    pub a: f32,
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+    pub a: u8,
 }
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Zeroable, Pod)]
@@ -450,10 +450,10 @@ pub struct VertexColors {
 }
 impl VertexColors {
     pub const TEST: Self = Self {
-        top_left: Color::rgba(1.0, 0.0, 0.0, 1.0),
-        top_right: Color::rgba(0.0, 1.0, 0.0, 1.0),
-        bottom_left: Color::rgba(0.0, 0.0, 1.0, 1.0),
-        bottom_right: Color::rgba(1.0, 1.0, 1.0, 1.0),
+        top_left: Color::rgba(255, 0, 0, 255),
+        top_right: Color::rgba(0, 255, 0, 255),
+        bottom_left: Color::rgba(0, 0, 255, 255),
+        bottom_right: Color::rgba(255, 255, 255, 255),
     };
     pub const TEST2: Self = Self {
         top_left: Color::WHITE,
@@ -482,82 +482,78 @@ impl VertexColors {
         return VertexColors::new(top, top, bottom, bottom)
     }
 
-    // pub const fn diagonal_slash_gradient(bottom_left: Color, top_right: Color) -> VertexColors {
-    //     let middle = bottom_left.blend(top_right, 0.5);
-    //     return VertexColors {
-    //         top_left: middle,
-    //         top_right,
-    //         bottom_left,
-    //         bottom_right: middle,
-    //     }
-    // }
+    pub const fn diagonal_gradient_forward_slash(bottom_left: Color, top_right: Color) -> VertexColors {
+        let blended = bottom_left.blend(top_right, 127);
+        return VertexColors {
+            top_left: blended,
+            top_right,
+            bottom_left,
+            bottom_right: blended,
+        }
+    }
+
+    pub const fn diagonal_gradient_backslash(top_left: Color, bottom_right: Color) -> VertexColors {
+        let blended = top_left.blend(bottom_right, 127);
+        return VertexColors {
+            top_left,
+            top_right: blended,
+            bottom_left: blended,
+            bottom_right,
+        }
+    }
+
 }
 
 impl Color {
     pub const FLGR_BLACK: Color = Color {
-        r: 0.6,
-        g: 0.3,
-        b: 0.6,
-        a: 0.6,
+        r: (0.6 * 255.0) as u8,
+        g: (0.3 * 255.0) as u8,
+        b: (0.6 * 255.0) as u8,
+        a: (0.6 * 255.0) as u8,
     };
 
-    pub const FLGR_DEBUG_RED: Color = Color::rgba(1.0, 0.0, 0.0, 0.3);
+    pub const FLGR_DEBUG_RED: Color = Color::rgba(255, 0, 0, 77);
 
-    pub const RED: Color = Color::rgba(1.0, 0.0, 0.0, 1.0);
-    pub const GREEN: Color = Color::rgba(0.0, 1.0, 0.0, 1.0);
-    pub const BLUE: Color = Color::rgba(0.0, 0.0, 1.0, 1.0);
-    pub const BLACK: Color = Color::rgba(0.0, 0.0, 0.0, 1.0);
-
-    pub const WHITE: Color = Color::rgba(1.0, 1.0, 1.0, 1.0);
-    pub const TRANSPARENT: Color = Color::rgba(1.0, 1.0, 1.0, 0.0);
-
-    pub const FLGR_BLUE: Color = Color::rgba(0.1, 0.1, 1.0, 0.9);
-    pub const FLGR_RED: Color = Color::rgba(1.0, 0.1, 0.1, 0.9);
-    pub const FLGR_GREEN: Color = Color::rgba(0.1, 1.0, 0.1, 0.9);
+    pub const RED: Color = Color::rgba(255, 0, 0, 255);
+    pub const GREEN: Color = Color::rgba(0, 255, 0, 255);
+    pub const BLUE: Color = Color::rgba(0, 0, 255, 255);
+    pub const BLACK: Color = Color::rgba(0, 0, 0, 255);
+    
+    pub const WHITE: Color = Color::rgba(255, 255, 255, 255);
+    pub const TRANSPARENT: Color = Color::rgba(255, 255, 255, 0);
+    
+    pub const FLGR_BLUE: Color = Color::rgba(26, 26, 255, 240);
+    pub const FLGR_RED: Color = Color::rgba(255, 26, 26, 240);
+    pub const FLGR_GREEN: Color = Color::rgba(26, 255, 26, 240);
+    
 
     pub const LIGHT_BLUE: Color = Color {
-        r: 0.9,
-        g: 0.7,
-        b: 1.0,
-        a: 0.6,
+        r: (0.9 * 255.0) as u8,
+        g: (0.7 * 255.0) as u8,
+        b: (1.0 * 255.0) as u8,
+        a: (0.6 * 255.0) as u8,
     };
 
-    pub const fn rgba(r: f32, g: f32, b: f32, a: f32) -> Color {
+    pub const fn rgba(r: u8, g: u8, b: u8, a: u8) -> Color {
         Color { r, g, b, a }
     }
 
-    pub fn darken(&mut self, amount: f32) {
-        self.r *= 1.0 - amount;
-        self.g *= 1.0 - amount;
-        self.b *= 1.0 - amount;
-        self.a *= 1.0 - amount;
+    pub const fn blend_channel(c1: u8, c2: u8, factor: u8) -> u8 {
+        let inv_factor = 255 - factor;
+        let res = (c1 as u16 * inv_factor as u16 + c2 as u16 * factor as u16) / 255;
+        res as u8
     }
-
-    pub fn lighten(&mut self, amount: f32) {
-        self.r *= 1.0 + amount;
-        self.g *= 1.0 + amount;
-        self.b *= 1.0 + amount;
-        self.a *= 1.0 + amount;
+    
+    // todo: in a future version of rust, rewrite with float factor
+    // (can't use floats in const functions in current stable rust)
+    pub const fn blend(self, other: Color, factor: u8) -> Color {
+        Color {
+            r: Color::blend_channel(self.r, other.r, factor),
+            g: Color::blend_channel(self.g, other.g, factor),
+            b: Color::blend_channel(self.b, other.b, factor),
+            a: Color::blend_channel(self.a, other.a, factor),
+        }
     }
-
-    // pub const fn blend_channel(c1: f32, c2: f32, factor: f32) -> f32 {
-    //     let res = (c1 * (1.0 - factor)) + (c2 * factor);
-    //     res.clamp(0.0, 1.0)
-    // }    
-
-    // pub const fn blend(self, other: Color, factor: f32) -> Color {
-    //     let blend_channel = |c1: f32, c2: f32, factor: f32| -> f32 {
-    //         let res = (c1 * (1.0 - factor)) + (c2 * factor);
-    //         res.clamp(0.0, 1.0)
-    //     };
-
-    //     Color {
-    //         r: blend_channel(self.r, other.r, factor),
-    //         g: blend_channel(self.g, other.g, factor),
-    //         b: blend_channel(self.b, other.b, factor),
-    //         a: blend_channel(self.a, other.a, factor),
-    //     }
-    // }
 }
 
 pub struct NodeWithStuff<'a, T: NodeType> {
@@ -1793,7 +1789,7 @@ impl Ui {
 
                 let cursor_rect = RenderRect {
                     rect: XyRect::new([x0, x1], [y0, y1]),
-                    vertex_colors: VertexColors::flat(Color::rgba(0.5, 0.3, 0.5, 0.9)),
+                    vertex_colors: VertexColors::flat(Color::rgba(128, 77, 128, 230)),
                     last_hover: 0.0,
                     last_click: 0.0,
                     clickable: 0,
@@ -1828,7 +1824,7 @@ impl Ui {
 
                 let cursor_rect = RenderRect {
                     rect: XyRect::new([x0, x1], [y0, y1]),
-                    vertex_colors: VertexColors::flat(Color::rgba(0.5, 0.3, 0.5, 0.9)),
+                    vertex_colors: VertexColors::flat(Color::rgba(128, 77, 128, 230)),
                     last_hover: 0.0,
                     last_click: 0.0,
                     clickable: 0,

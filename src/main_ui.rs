@@ -58,7 +58,7 @@ impl CounterState {
     #[node_key(BUTTON.text("Decrease").color(Color::FLGR_RED))]
     pub const DECREASE_BUTTON: NodeKey;
 
-    #[node_key(BUTTON.text("Show Counter").color(Color::rgba(0.5, 0.1, 0.7, 0.4)))]
+    #[node_key(BUTTON.text("Show Counter").color(Color::rgba(128, 26, 179, 102)))]
     pub const SHOW_COUNTER_BUTTON: NodeKey;
 
     #[node_key(LABEL)]
@@ -78,8 +78,8 @@ impl CounterState {
 }
 
 pub fn count_color(count: i32) -> Color {
-    let red = 0.1 * (count as f32);
-    return Color::rgba(red, 0.1, 0.2, 0.8);
+    let red = (0.1 * (count as f32) * 255.0) as u8;
+    return Color::rgba(red, 26, 52, 205);
 }
 
 

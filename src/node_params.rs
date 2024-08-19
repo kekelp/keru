@@ -126,7 +126,7 @@ pub const BUTTON: NodeParams = NodeParams {
         visible: true,
         filled: true,
         // vertex_colors: VertexColors::TEST,
-        vertex_colors: VertexColors::v_gradient(Color::FLGR_BLUE, Color::FLGR_RED),
+        vertex_colors: VertexColors::diagonal_gradient_backslash(Color::FLGR_BLUE, Color::FLGR_RED),
     },
     interact: Interact {
         clickable: true,
@@ -223,7 +223,7 @@ pub const TEXT_INPUT: NodeParams = NodeParams {
     rect: Rect {
         visible: true,
         filled: true,
-        vertex_colors: VertexColors::flat(Color::rgba(0.1, 0.0, 0.1, 0.9)),
+        vertex_colors: VertexColors::flat(Color::rgba(26, 0, 26, 230)),
     },
     interact: Interact {
         clickable: true,

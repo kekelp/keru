@@ -11,10 +11,10 @@ struct VertexInput {
     @builtin(vertex_index) index: u32,
     @location(0) xs: vec2f,
     @location(1) ys: vec2f,
-    @location(2) vertex_colors_tl: vec4f,
-    @location(3) vertex_colors_tr: vec4f,
-    @location(4) vertex_colors_bl: vec4f,
-    @location(5) vertex_colors_br: vec4f,
+    @location(2) vertex_colors_tl: vec4u,
+    @location(3) vertex_colors_tr: vec4u,
+    @location(4) vertex_colors_bl: vec4u,
+    @location(5) vertex_colors_br: vec4u,
     @location(6) last_hover: f32,
     @location(7) last_click: f32,
     @location(8) clickable: u32,
@@ -44,7 +44,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 
     var vertex_colors = array(in.vertex_colors_bl, in.vertex_colors_tl, in.vertex_colors_br, in.vertex_colors_tr);
     let i_1234 = i_y + 2 * i_x;
-    let color = vertex_colors[i_1234];
+    let color = vec4f(vertex_colors[i_1234]) / 255.0;
 
     let clip_position = vec4(x, y, in.z, 1.0);
 
