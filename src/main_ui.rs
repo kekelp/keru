@@ -13,7 +13,7 @@ impl State {
     pub fn update_ui(&mut self) {
         tree!(self.ui, {
 
-            #[node_key(BUTTON.text("Increase").color(Color::GREEN).position_x(End))]
+            #[node_key(BUTTON.text("Increase").position_x(End))]
             pub const BUTTON_A: NodeKey;
 
             #[node_key(V_STACK.position_x(Position::End).size_y(Fill).size_x(FitContent).stack_arrange(Arrange::Center))]
@@ -52,10 +52,10 @@ impl CounterState {
         };
     }
 
-    #[node_key(BUTTON.text("Increase").color(Color::GREEN))]
+    #[node_key(BUTTON.text("Increase").color(Color::FLGR_GREEN))]
     pub const INCREASE_BUTTON: NodeKey;
 
-    #[node_key(BUTTON.text("Decrease").color(Color::RED))]
+    #[node_key(BUTTON.text("Decrease").color(Color::FLGR_RED))]
     pub const DECREASE_BUTTON: NodeKey;
 
     #[node_key(BUTTON.text("Show Counter").color(Color::rgba(0.5, 0.1, 0.7, 0.4)))]

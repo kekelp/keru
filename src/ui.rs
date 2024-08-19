@@ -229,14 +229,14 @@ pub struct Layout {
 pub struct Rect {
     pub visible: bool,
     pub filled: bool,
-    pub color: Color,
+    pub vertex_colors: VertexColors,
     // ... crazy stuff like texture and NinePatchRect
 }
 impl Rect {
     pub const DEFAULT: Self = Self {
         visible: true,
         filled: true,
-        color: Color::BLUE,
+        vertex_colors: VertexColors::flat(Color::FLGR_BLUE),
     };
 }
 
@@ -327,7 +327,7 @@ impl NodeParams {
     pub const fn invisible(mut self) -> Self {
         self.rect.visible = false;
         self.rect.filled = false;
-        self.rect.color = Color::DEBUG_RED;
+        self.rect.vertex_colors = VertexColors::flat(Color::FLGR_DEBUG_RED);
         return self;
     }
 
@@ -337,7 +337,12 @@ impl NodeParams {
     }
     
     pub const fn color(mut self, color: Color) -> Self {
-        self.rect.color = color;
+        self.rect.vertex_colors = VertexColors::flat(color);
+        return self;
+    }
+
+    pub const fn vertex_colors(mut self, colors: VertexColors) -> Self {
+        self.rect.vertex_colors = colors;
         return self;
     }
 
@@ -391,10 +396,7 @@ impl NodeParams {
 pub struct RenderRect {
     pub rect: XyRect,
 
-    pub r: f32,
-    pub g: f32,
-    pub b: f32,
-    pub a: f32,
+    pub vertex_colors: VertexColors,
 
     pub last_hover: f32,
     pub last_click: f32,
@@ -408,22 +410,29 @@ pub struct RenderRect {
     pub id: Id,
 }
 impl RenderRect {
-    pub fn buffer_desc() -> [VertexAttribute; 9] {
+    pub fn buffer_desc() -> [VertexAttribute; 12] {
         return vertex_attr_array![
+            // xyrect
             0 => Float32x2,
             1 => Float32x2,
+            // colors
             2 => Float32x4,
-            3 => Float32,
-            4 => Float32,
-            5 => Uint32,
+            3 => Float32x4,
+            4 => Float32x4,
+            5 => Float32x4,
+            // other stuff
             6 => Float32,
             7 => Float32,
             8 => Uint32,
+            9 => Float32,
+            10 => Float32,
+            11 => Uint32,
         ];
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Zeroable, Pod)]
+#[repr(C)]
 pub struct Color {
     pub r: f32,
     pub g: f32,
@@ -431,22 +440,70 @@ pub struct Color {
     pub a: f32,
 }
 
+#[derive(Default, Debug, Clone, Copy, PartialEq, Zeroable, Pod)]
+#[repr(C)]
+pub struct VertexColors {
+    top_left: Color,
+    top_right: Color,
+    bottom_left: Color,
+    bottom_right: Color,
+}
+impl VertexColors {
+    pub const TEST: Self = Self {
+        top_left: Color::rgba(1.0, 0.0, 0.0, 1.0),
+        top_right: Color::rgba(0.0, 1.0, 0.0, 1.0),
+        bottom_left: Color::rgba(0.0, 0.0, 1.0, 1.0),
+        bottom_right: Color::rgba(1.0, 1.0, 1.0, 1.0),
+    };
+    pub const TEST2: Self = Self {
+        top_left: Color::WHITE,
+        top_right: Color::RED,
+        bottom_left: Color::WHITE,
+        bottom_right: Color::WHITE,
+    };
+    pub const fn new(tl: Color, tr: Color, bl: Color, br: Color) -> VertexColors {
+        return VertexColors {
+            top_left: tl,
+            top_right: tr,
+            bottom_left: bl,
+            bottom_right: br,
+        }
+    }
+
+    pub const fn flat(color: Color) -> VertexColors {
+        return VertexColors::new(color, color, color, color)
+    }
+
+    pub const fn h_gradient(left: Color, right: Color) -> VertexColors {
+        return VertexColors::new(left, right, left, right)
+    }
+
+    pub const fn v_gradient(top: Color, bottom: Color) -> VertexColors {
+        return VertexColors::new(top, top, bottom, bottom)
+    }
+}
+
 impl Color {
-    pub const BLACK: Color = Color {
+    pub const FLGR_BLACK: Color = Color {
         r: 0.6,
         g: 0.3,
         b: 0.6,
         a: 0.6,
     };
 
-    pub const DEBUG_RED: Color = Color::rgba(1.0, 0.0, 0.0, 0.3);
+    pub const FLGR_DEBUG_RED: Color = Color::rgba(1.0, 0.0, 0.0, 0.3);
+
+    pub const RED: Color = Color::rgba(1.0, 0.0, 0.0, 1.0);
+    pub const GREEN: Color = Color::rgba(0.0, 1.0, 0.0, 1.0);
+    pub const BLUE: Color = Color::rgba(0.0, 0.0, 1.0, 1.0);
+    pub const BLACK: Color = Color::rgba(0.0, 0.0, 0.0, 1.0);
 
     pub const WHITE: Color = Color::rgba(1.0, 1.0, 1.0, 1.0);
     pub const TRANSPARENT: Color = Color::rgba(1.0, 1.0, 1.0, 0.0);
 
-    pub const BLUE: Color = Color::rgba(0.1, 0.1, 1.0, 0.9);
-    pub const RED: Color = Color::rgba(1.0, 0.1, 0.1, 0.9);
-    pub const GREEN: Color = Color::rgba(0.1, 1.0, 0.1, 0.9);
+    pub const FLGR_BLUE: Color = Color::rgba(0.1, 0.1, 1.0, 0.9);
+    pub const FLGR_RED: Color = Color::rgba(1.0, 0.1, 0.1, 0.9);
+    pub const FLGR_GREEN: Color = Color::rgba(0.1, 1.0, 0.1, 0.9);
 
     pub const LIGHT_BLUE: Color = Color {
         r: 0.9,
@@ -483,10 +540,14 @@ pub struct NodeWithStuff<'a, T: NodeType> {
 // why can't you just do it separately?
 impl<'a,  T: NodeType> NodeWithStuff<'a, T> {
     pub fn set_color(&mut self, color: Color)  -> &mut Self {
-        self.node.params.rect.color = color;
+        self.node.params.rect.vertex_colors = VertexColors::flat(color);
         return self;
     }
 
+    pub fn set_vertex_colors(&mut self, colors: VertexColors)  -> &mut Self {
+        self.node.params.rect.vertex_colors = colors;
+        return self;
+    }
 }
 
 impl<'a, T: TextTrait> NodeWithStuff<'a, T> {
@@ -1656,11 +1717,7 @@ impl Ui {
         if current_node.params.rect.visible || self.debug_mode {
             self.rects.push(RenderRect {
                 rect: current_node.rect.to_graphics_space(),
-
-                r: current_node.params.rect.color.r,
-                g: current_node.params.rect.color.g,
-                b: current_node.params.rect.color.b,
-                a: current_node.params.rect.color.a,
+                vertex_colors: current_node.params.rect.vertex_colors,
                 last_hover: current_node.last_hover,
                 last_click: current_node.last_click,
                 clickable: current_node.params.interact.clickable.into(),
@@ -1707,10 +1764,7 @@ impl Ui {
 
                 let cursor_rect = RenderRect {
                     rect: XyRect::new([x0, x1], [y0, y1]),
-                    r: 0.5,
-                    g: 0.3,
-                    b: 0.5,
-                    a: 0.9,
+                    vertex_colors: VertexColors::flat(Color::rgba(0.5, 0.3, 0.5, 0.9)),
                     last_hover: 0.0,
                     last_click: 0.0,
                     clickable: 0,
@@ -1745,10 +1799,7 @@ impl Ui {
 
                 let cursor_rect = RenderRect {
                     rect: XyRect::new([x0, x1], [y0, y1]),
-                    r: 0.5,
-                    g: 0.3,
-                    b: 0.5,
-                    a: 0.9,
+                    vertex_colors: VertexColors::flat(Color::rgba(0.5, 0.3, 0.5, 0.9)),
                     last_hover: 0.0,
                     last_click: 0.0,
                     clickable: 0,

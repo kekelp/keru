@@ -1,4 +1,4 @@
-use crate::{Arrange, Axis, Color, Interact, Layout, Len, NodeParams, Text, Position, Rect, Size, Stack, Xy};
+use crate::{Arrange, Axis, Color, Interact, Layout, Len, NodeParams, Position, Rect, Size, Stack, Text, VertexColors, Xy};
 use Size::*;
 use Position::*;
 use Len::*;
@@ -9,7 +9,7 @@ pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     rect: Rect {
         visible: false,
         filled: false,
-        color: Color::TRANSPARENT
+        vertex_colors: VertexColors::flat(Color::TRANSPARENT)
     },
     interact: Interact {
         clickable: false,
@@ -33,7 +33,7 @@ pub const DEFAULT: NodeParams = NodeParams {
     rect: Rect {
         visible: true,
         filled: true,
-        color: Color::BLUE,
+        vertex_colors: VertexColors::flat(Color::FLGR_BLUE),
     },
     interact: Interact {
         clickable: false,
@@ -58,7 +58,7 @@ pub const V_STACK: NodeParams = NodeParams {
     rect: Rect {
         visible: false,
         filled: false,
-        color: Color::DEBUG_RED,
+        vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
     },
     interact: Interact {
         clickable: true,
@@ -83,7 +83,7 @@ pub const H_STACK: NodeParams = NodeParams {
     rect: Rect {
         visible: false,
         filled: false,
-        color: Color::DEBUG_RED,
+        vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
     },
     interact: Interact {
         clickable: false,
@@ -104,7 +104,7 @@ pub const MARGIN: NodeParams = NodeParams {
     rect: Rect {
         visible: false,
         filled: false,
-        color: Color::DEBUG_RED,
+        vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
     },
     interact: Interact {
         clickable: false,
@@ -125,7 +125,8 @@ pub const BUTTON: NodeParams = NodeParams {
     rect: Rect {
         visible: true,
         filled: true,
-        color: Color::rgba(0.0, 0.1, 0.1, 0.9),
+        // vertex_colors: VertexColors::TEST,
+        vertex_colors: VertexColors::v_gradient(Color::FLGR_BLUE, Color::FLGR_RED),
     },
     interact: Interact {
         clickable: true,
@@ -149,7 +150,7 @@ pub const LABEL: NodeParams = NodeParams {
     rect: Rect {
         visible: true,
         filled: true,
-        color: Color::BLUE,
+        vertex_colors: VertexColors::flat(Color::FLGR_BLUE),
     },
     interact: Interact {
         clickable: false,
@@ -173,7 +174,7 @@ pub const TEXT: NodeParams = NodeParams {
     rect: Rect {
         visible: false,
         filled: false,
-        color: Color::DEBUG_RED,
+        vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
     },
     interact: Interact {
         clickable: false,
@@ -197,7 +198,7 @@ pub const EMPTY_TEXT: NodeParams = NodeParams {
     rect: Rect {
         visible: false,
         filled: false,
-        color: Color::DEBUG_RED,
+        vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
     },
     interact: Interact {
         clickable: false,
@@ -222,7 +223,7 @@ pub const TEXT_INPUT: NodeParams = NodeParams {
     rect: Rect {
         visible: true,
         filled: true,
-        color: Color::rgba(0.1, 0.0, 0.1, 0.9),
+        vertex_colors: VertexColors::flat(Color::rgba(0.1, 0.0, 0.1, 0.9)),
     },
     interact: Interact {
         clickable: true,
@@ -243,7 +244,7 @@ pub const PANEL: NodeParams = NodeParams {
     rect: Rect {
         visible: true,
         filled: true,
-        color: Color::BLUE,
+        vertex_colors: VertexColors::flat(Color::FLGR_BLUE),
     },
     interact: Interact {
         clickable: false,

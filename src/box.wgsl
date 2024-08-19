@@ -11,13 +11,16 @@ struct VertexInput {
     @builtin(vertex_index) index: u32,
     @location(0) xs: vec2f,
     @location(1) ys: vec2f,
-    @location(2) color: vec4f,
-    @location(3) last_hover: f32,
-    @location(4) last_click: f32,
-    @location(5) clickable: u32,
-    @location(6) z: f32,
-    @location(7) radius: f32,
-    @location(8) filled: u32,
+    @location(2) vertex_colors_tl: vec4f,
+    @location(3) vertex_colors_tr: vec4f,
+    @location(4) vertex_colors_bl: vec4f,
+    @location(5) vertex_colors_br: vec4f,
+    @location(6) last_hover: f32,
+    @location(7) last_click: f32,
+    @location(8) clickable: u32,
+    @location(9) z: f32,
+    @location(10) radius: f32,
+    @location(11) filled: u32,
 };
 
 struct VertexOutput {
@@ -38,6 +41,10 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     // 0 <--> -1
     let x = in.xs[i_x];
     let y = in.ys[i_y];
+
+    var vertex_colors = array(in.vertex_colors_bl, in.vertex_colors_tl, in.vertex_colors_br, in.vertex_colors_tr);
+    let i_1234 = i_y + 2 * i_x;
+    let color = vertex_colors[i_1234];
 
     let clip_position = vec4(x, y, in.z, 1.0);
 
@@ -60,7 +67,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     let dark_click = 1.0 - click * 0.78;
 
     let dark = min(dark_click, dark_hover);
-    return VertexOutput(clip_position, uv, half_size, in.color, dark, in.radius, in.filled);
+    return VertexOutput(clip_position, uv, half_size, color, dark, in.radius, in.filled);
 }
 
 @fragment
