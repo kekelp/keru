@@ -1,5 +1,7 @@
 XXXXXXXX deinvert y
 
+-- drag events and sliders
+
 -- the rest of the text sizing cases
 
 -- the advanced stack cases like SpaceEvenly or whatever 
