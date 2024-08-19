@@ -481,6 +481,16 @@ impl VertexColors {
     pub const fn v_gradient(top: Color, bottom: Color) -> VertexColors {
         return VertexColors::new(top, top, bottom, bottom)
     }
+
+    // pub const fn diagonal_slash_gradient(bottom_left: Color, top_right: Color) -> VertexColors {
+    //     let middle = bottom_left.blend(top_right, 0.5);
+    //     return VertexColors {
+    //         top_left: middle,
+    //         top_right,
+    //         bottom_left,
+    //         bottom_right: middle,
+    //     }
+    // }
 }
 
 impl Color {
@@ -529,6 +539,25 @@ impl Color {
         self.b *= 1.0 + amount;
         self.a *= 1.0 + amount;
     }
+
+    // pub const fn blend_channel(c1: f32, c2: f32, factor: f32) -> f32 {
+    //     let res = (c1 * (1.0 - factor)) + (c2 * factor);
+    //     res.clamp(0.0, 1.0)
+    // }    
+
+    // pub const fn blend(self, other: Color, factor: f32) -> Color {
+    //     let blend_channel = |c1: f32, c2: f32, factor: f32| -> f32 {
+    //         let res = (c1 * (1.0 - factor)) + (c2 * factor);
+    //         res.clamp(0.0, 1.0)
+    //     };
+
+    //     Color {
+    //         r: blend_channel(self.r, other.r, factor),
+    //         g: blend_channel(self.g, other.g, factor),
+    //         b: blend_channel(self.b, other.b, factor),
+    //         a: blend_channel(self.a, other.a, factor),
+    //     }
+    // }
 }
 
 pub struct NodeWithStuff<'a, T: NodeType> {
