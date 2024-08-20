@@ -123,7 +123,7 @@ impl State {
 
                 let text = match self.counter_state.counter_mode {
                     true => "Hide counter",
-                    false => "Show counter",
+                    false => "Show Counter\nl\nl\nl\nl\nl\nllllllllllllllllllllÞÞÞÞÞÞÞÞÞÞÞÞÞÞÞÞÞÞÞÞØØ↑ı¥§",
                 };
                 add!(self.ui, CounterState::SHOW_COUNTER_BUTTON).set_text(text);
             });

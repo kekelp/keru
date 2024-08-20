@@ -5,6 +5,10 @@ struct Uniforms {
 
 @group(0) @binding(0)
 var<uniform> unif: Uniforms;
+@group(0) @binding(1)
+var my_texture: texture_2d<f32>;
+@group(0) @binding(2)
+var my_sampler: sampler;
 
 // has to match RenderRect
 struct VertexInput {
@@ -31,6 +35,7 @@ struct VertexOutput {
     @location(3) dark: f32,
     @location(4) radius: f32,
     @location(5) filled: u32,
+    @location(6) tex_coords: vec2<f32>,
 }
 
 @vertex
@@ -53,6 +58,8 @@ fn vs_main(in: VertexInput) -> VertexOutput {
         (in.ys[1] - in.ys[0]) * unif.screen_resolution.y / 2.0, 
     );
 
+    let tex_coords = vec2<f32>(f32(i_x), f32(i_y ^ 1));
+
     // calculate for corners, will be interpolated.
     // interpolation after the abs() won't work.
     let corner = 2.0 * vec2f(vec2u(i_x, i_y)) - 1.0;    
@@ -67,7 +74,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     let dark_click = 1.0 - click * 0.78;
 
     let dark = min(dark_click, dark_hover);
-    return VertexOutput(clip_position, uv, half_size, color, dark, in.radius, in.filled);
+    return VertexOutput(clip_position, uv, half_size, color, dark, in.radius, in.filled, tex_coords);
 }
 
 @fragment
@@ -87,5 +94,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let filled = f32(in.filled);
     let alpha = in.color.a * (inside * max(filled, outside));
 
-    return vec4(in.color.rgb * in.dark, alpha);
+    // return vec4(in.color.rgb * in.dark, alpha);
+
+    return textureSample(my_texture, my_sampler, in.tex_coords);
+
 }

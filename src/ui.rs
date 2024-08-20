@@ -936,28 +936,118 @@ impl Ui {
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
         });
 
-        let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            entries: &[BindGroupLayoutEntry {
-                binding: 0,
-                visibility: ShaderStages::VERTEX,
-                ty: BindingType::Buffer {
-                    ty: BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+        let sampler = device.create_sampler(&SamplerDescriptor {
+            label: Some("glyphon sampler"),
+            min_filter: FilterMode::Linear,
+            mag_filter: FilterMode::Linear,
+            mipmap_filter: FilterMode::Nearest,
+            lod_min_clamp: 0f32,
+            lod_max_clamp: 0f32,
+            ..Default::default()
+        });
+
+
+        let sprite_texture = device.create_texture(&TextureDescriptor {
+            label: Some("glyphon atlas"),
+            size: Extent3d {
+                width: 1024,
+                height: 1024,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: TextureDimension::D2,
+            format: TextureFormat::Rgba8UnormSrgb,
+            usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+
+        let sprite_texture_view = sprite_texture.create_view(&TextureViewDescriptor::default());
+
+        let png_bytes = include_bytes!("texture.png");
+    
+        // Decode the PNG image
+        let img = image::load_from_memory(png_bytes).unwrap();
+        
+        // Convert image to RGBA8 format
+        let img = img.to_rgba8();
+        let (width, height) = img.dimensions();
+        let image_data = img.into_raw();
+
+        queue.write_texture(
+            ImageCopyTexture {
+                texture: &sprite_texture,
+                mip_level: 0,
+                origin: Origin3d {
+                    x: 0 as u32,
+                    y: 0 as u32,
+                    z: 0,
                 },
-                count: None,
-            }],
-            label: Some("Resolution Bind Group Layout"),
+                aspect: TextureAspect::All,
+            },
+            &image_data,
+            ImageDataLayout {
+                offset: 0,
+                bytes_per_row: Some(width as u32 * 4 as u32),
+                rows_per_image: None,
+            },
+            Extent3d {
+                width: width as u32,
+                height: height as u32,
+                depth_or_array_layers: 1,
+            },
+        );
+
+        let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+            entries: &[
+                BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStages::VERTEX,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Texture {
+                        multisampled: false,
+                        view_dimension: TextureViewDimension::D2,
+                        sample_type: TextureSampleType::Float { filterable: true },
+                    },
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Sampler(SamplerBindingType::Filtering),
+                    count: None,
+                },
+            ],
+            label: Some("Fulgur Bind Group Layout"),
         });
 
         // Create the bind group
         let bind_group = device.create_bind_group(&BindGroupDescriptor {
             layout: &bind_group_layout,
-            entries: &[BindGroupEntry {
-                binding: 0,
-                resource: resolution_buffer.as_entire_binding(),
-            }],
-            label: Some("Resolution Bind Group"),
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: resolution_buffer.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&sprite_texture_view),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::Sampler(&sampler),
+                },
+            ],
+            label: Some("Fulgur Bind Group"),
         });
 
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
