@@ -15,16 +15,21 @@ struct VertexInput {
     @builtin(vertex_index) index: u32,
     @location(0) xs: vec2f,
     @location(1) ys: vec2f,
-    @location(2) vertex_colors_tl: vec4u,
-    @location(3) vertex_colors_tr: vec4u,
-    @location(4) vertex_colors_bl: vec4u,
-    @location(5) vertex_colors_br: vec4u,
-    @location(6) last_hover: f32,
-    @location(7) last_click: f32,
-    @location(8) clickable: u32,
-    @location(9) z: f32,
-    @location(10) radius: f32,
-    @location(11) filled: u32,
+
+    @location(2) tex_coord_xs: vec2f,
+    @location(3) tex_coord_ys: vec2f,
+
+    @location(4) vertex_colors_tl: vec4u,
+    @location(5) vertex_colors_tr: vec4u,
+    @location(6) vertex_colors_bl: vec4u,
+    @location(7) vertex_colors_br: vec4u,
+    @location(8) last_hover: f32,
+    @location(9) last_click: f32,
+    @location(10) clickable: u32,
+    @location(11) z: f32,
+    @location(12) radius: f32,
+    @location(13) filled: u32,
+
 };
 
 struct VertexOutput {
@@ -58,7 +63,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
         (in.ys[1] - in.ys[0]) * unif.screen_resolution.y / 2.0, 
     );
 
-    let tex_coords = vec2<f32>(f32(i_x), f32(i_y ^ 1));
+    let tex_coords = vec2<f32>(in.tex_coord_xs[i_x], in.tex_coord_ys[i_y]);
 
     // calculate for corners, will be interpolated.
     // interpolation after the abs() won't work.

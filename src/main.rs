@@ -6,6 +6,7 @@ pub mod node_params;
 pub mod canvas;
 pub mod main_canvas;
 pub mod main_ui;
+pub mod texture_atlas;
 
 use glam::dvec2;
 use pixels_on_screen::*;

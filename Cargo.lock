@@ -242,6 +242,7 @@ dependencies = [
  "bytemuck",
  "const_format",
  "copypasta",
+ "etagere",
  "glam",
  "glyphon",
  "image",
@@ -638,9 +639,9 @@ dependencies = [
 
 [[package]]
 name = "etagere"
-version = "0.2.10"
+version = "0.2.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "306960881d6c46bd0dd6b7f07442a441418c08d0d3e63d8d080b0f64c6343e4e"
+checksum = "0e2f1e3be19fb10f549be8c1bf013e8675b4066c445e36eb76d2ebb2f54ee495"
 dependencies = [
  "euclid",
  "svg_fmt",

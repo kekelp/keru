@@ -1,4 +1,5 @@
 use crate::node_params::{DEFAULT, NODE_ROOT_PARAMS};
+use crate::texture_atlas::TextureAtlas;
 use crate::unwrap_or_return;
 use copypasta::{ClipboardContext, ClipboardProvider};
 use glyphon::cosmic_text::{Align, StringCursor};
@@ -395,6 +396,7 @@ impl NodeParams {
 // Layout has to match the one in the shader.
 pub struct RenderRect {
     pub rect: XyRect,
+    pub tex_coords: XyRect,
 
     pub vertex_colors: VertexColors,
 
@@ -405,28 +407,32 @@ pub struct RenderRect {
 
     pub radius: f32,
 
-    // -- not used in shader
     pub filled: u32,
     pub id: Id,
+
+
 }
 impl RenderRect {
-    pub fn buffer_desc() -> [VertexAttribute; 12] {
+    pub fn buffer_desc() -> [VertexAttribute; 14] {
         return vertex_attr_array![
             // xyrect
             0 => Float32x2,
             1 => Float32x2,
+            // tex coords
+            2 => Float32x2,
+            3 => Float32x2,
             // colors
-            2 => Uint8x4,
-            3 => Uint8x4,
             4 => Uint8x4,
             5 => Uint8x4,
+            6 => Uint8x4,
+            7 => Uint8x4,
             // other stuff
-            6 => Float32,
-            7 => Float32,
-            8 => Uint32,
+            8 => Float32,
             9 => Float32,
-            10 => Float32,
-            11 => Uint32,
+            10 => Uint32,
+            11 => Float32,
+            12 => Float32,
+            13 => Uint32,
         ];
     }
 }
@@ -936,67 +942,9 @@ impl Ui {
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
         });
 
-        let sampler = device.create_sampler(&SamplerDescriptor {
-            label: Some("glyphon sampler"),
-            min_filter: FilterMode::Linear,
-            mag_filter: FilterMode::Linear,
-            mipmap_filter: FilterMode::Nearest,
-            lod_min_clamp: 0f32,
-            lod_max_clamp: 0f32,
-            ..Default::default()
-        });
-
-
-        let sprite_texture = device.create_texture(&TextureDescriptor {
-            label: Some("glyphon atlas"),
-            size: Extent3d {
-                width: 1024,
-                height: 1024,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: TextureDimension::D2,
-            format: TextureFormat::Rgba8UnormSrgb,
-            usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
-            view_formats: &[],
-        });
-
-        let sprite_texture_view = sprite_texture.create_view(&TextureViewDescriptor::default());
-
-        let png_bytes = include_bytes!("texture.png");
-    
-        // Decode the PNG image
-        let img = image::load_from_memory(png_bytes).unwrap();
-        
-        // Convert image to RGBA8 format
-        let img = img.to_rgba8();
-        let (width, height) = img.dimensions();
-        let image_data = img.into_raw();
-
-        queue.write_texture(
-            ImageCopyTexture {
-                texture: &sprite_texture,
-                mip_level: 0,
-                origin: Origin3d {
-                    x: 0 as u32,
-                    y: 0 as u32,
-                    z: 0,
-                },
-                aspect: TextureAspect::All,
-            },
-            &image_data,
-            ImageDataLayout {
-                offset: 0,
-                bytes_per_row: Some(width as u32 * 4 as u32),
-                rows_per_image: None,
-            },
-            Extent3d {
-                width: width as u32,
-                height: height as u32,
-                depth_or_array_layers: 1,
-            },
-        );
+        let mut texture_atlas = TextureAtlas::new(&device, &queue);
+        let tex_coords = texture_atlas.load_texture(&queue, 200, 234, 30);
+        println!("  {:?}", tex_coords);
 
         let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             entries: &[
@@ -1040,11 +988,11 @@ impl Ui {
                 },
                 BindGroupEntry {
                     binding: 1,
-                    resource: BindingResource::TextureView(&sprite_texture_view),
+                    resource: BindingResource::TextureView(texture_atlas.texture_view()),
                 },
                 BindGroupEntry {
                     binding: 2,
-                    resource: BindingResource::Sampler(&sampler),
+                    resource: BindingResource::Sampler(texture_atlas.sampler()),
                 },
             ],
             label: Some("Fulgur Bind Group"),
@@ -1841,6 +1789,8 @@ impl Ui {
                 z: 0.0,
                 radius: 30.0,
                 filled: current_node.params.rect.filled as u32,
+
+                tex_coords: Xy::new([0.5, 0.59765625], [0.109375, 0.0]),
             });
         }
     }
@@ -1888,6 +1838,8 @@ impl Ui {
                     id: Id(0),
                     filled: 1,
                     radius: 0.0,
+                    tex_coords: Xy::new([0.0, 0.0], [0.0, 0.0]),
+
                 };
 
                 self.rects.push(cursor_rect);
@@ -1923,6 +1875,8 @@ impl Ui {
                     id: Id(0),
                     filled: 1,
                     radius: 0.0,
+
+                    tex_coords: Xy::new([0.0, 0.0], [0.0, 0.0]),
                 };
 
                 self.rects.push(cursor_rect);
