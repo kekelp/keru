@@ -392,10 +392,10 @@ impl NodeParams {
 #[derive(Default, Debug, Pod, Copy, Clone, Zeroable)]
 #[repr(C)]
 // todo: could do some epic SOA stuff to make resolve_mouse_input and friends faster
-//   could also store the pre-transformed coordinates
 // Layout has to match the one in the shader.
 pub struct RenderRect {
     pub rect: XyRect,
+    // this isn't it for images, but i'll keep it for future tiling textures and ninepatchrects
     pub tex_coords: XyRect,
 
     pub vertex_colors: VertexColors,
@@ -942,9 +942,18 @@ impl Ui {
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
         });
 
-        let mut texture_atlas = TextureAtlas::new(&device, &queue);
-        let tex_coords = texture_atlas.load_texture(&queue, 200, 234, 30);
-        println!("  {:?}", tex_coords);
+        let mut texture_atlas = TextureAtlas::new(&device);
+        let _ = texture_atlas.load_texture(&queue, 200, 234, 30);
+
+        let texture_sampler = device.create_sampler(&SamplerDescriptor {
+            label: Some("Fulgur texture sampler"),
+            min_filter: FilterMode::Linear,
+            mag_filter: FilterMode::Linear,
+            mipmap_filter: FilterMode::Nearest,
+            lod_min_clamp: 0f32,
+            lod_max_clamp: 0f32,
+            ..Default::default()
+        });
 
         let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             entries: &[
@@ -992,7 +1001,7 @@ impl Ui {
                 },
                 BindGroupEntry {
                     binding: 2,
-                    resource: BindingResource::Sampler(texture_atlas.sampler()),
+                    resource: BindingResource::Sampler(&texture_sampler),
                 },
             ],
             label: Some("Fulgur Bind Group"),

@@ -1,10 +1,7 @@
 use etagere::{size2, Allocation, AllocId, BucketedAtlasAllocator};
-use image::{ImageBuffer, Rgba};
 use wgpu::*;
 
-
 pub struct TextureAtlas {
-    pub sampler: Sampler,
     pub atlas_texture: Texture,
     pub atlas_texture_view: TextureView,
     pub packer: BucketedAtlasAllocator,
@@ -30,25 +27,15 @@ impl TextureAtlas {
         }
     } 
 
-    pub fn new(device: &Device, queue: &Queue) -> Self {
+    pub fn new(device: &Device) -> Self {
         // let max_texture_dimension_2d = device.limits().max_texture_dimension_2d;
         // let atlas_size = max_texture_dimension_2d;
         let atlas_size = 2048;
 
         let packer = BucketedAtlasAllocator::new(size2(atlas_size as i32, atlas_size as i32));
 
-        let sampler = device.create_sampler(&SamplerDescriptor {
-            label: Some("glyphon sampler"),
-            min_filter: FilterMode::Linear,
-            mag_filter: FilterMode::Linear,
-            mipmap_filter: FilterMode::Nearest,
-            lod_min_clamp: 0f32,
-            lod_max_clamp: 0f32,
-            ..Default::default()
-        });
-
         let atlas_texture = device.create_texture(&TextureDescriptor {
-            label: Some("glyphon atlas"),
+            label: Some("Fulgur texture atlas"),
             size: Extent3d {
                 width: atlas_size,
                 height: atlas_size,
@@ -103,7 +90,6 @@ impl TextureAtlas {
 
         return Self {
             packer,
-            sampler,
             atlas_texture,
             atlas_texture_view,
         }
@@ -165,9 +151,5 @@ impl TextureAtlas {
 
     pub fn texture_view(&self) -> &TextureView {
         return &self.atlas_texture_view
-    }
-
-    pub fn sampler(&self) -> &Sampler {
-        return &self.sampler
     }
 }
