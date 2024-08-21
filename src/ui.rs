@@ -250,9 +250,20 @@ pub struct Text {
 }
 
 #[derive(Debug, Copy, Clone)]
+pub struct Image {
+    pub default_image_source: ImageSource,
+}
+#[derive(Debug, Copy, Clone)]
+pub enum ImageSource {
+    Png(&'static [u8])
+}
+
+
+#[derive(Debug, Copy, Clone)]
 pub struct NodeParams {
     pub stack: Option<Stack>,
     pub text: Option<Text>,
+    pub image: Option<Image>,
     pub rect: Rect,
     pub interact: Interact,
     pub layout: Layout,
@@ -1135,7 +1146,7 @@ impl Ui {
         return self.update_node(key, true);
     }
 
-    pub fn end_layer(&mut self) {
+    pub fn end_parent(&mut self) {
         self.parent_stack.pop();
         self.last_child_stack.pop();
     }
@@ -2081,7 +2092,7 @@ macro_rules! add {
     ($ui:expr, $node_key:expr, $code:block) => {
         $ui.add_as_parent($node_key);
         $code;
-        $ui.end_layer();
+        $ui.end_parent();
     };
     ($ui:expr, $node_key:expr) => {
         $ui.add($node_key)
@@ -2096,7 +2107,7 @@ macro_rules! create_layer_macro {
                 let anonymous_key = view_derive::anon_node_key!($node_params_name, NodeKey);
                 $ui.add_as_parent(anonymous_key);
                 $code;
-                $ui.end_layer();
+                $ui.end_parent();
             };
 
             // named version. allows writing this: h_stack!(ui, CUSTOM_H_STACK, { ... })
@@ -2105,7 +2116,7 @@ macro_rules! create_layer_macro {
             ($ui:expr, $node_key:expr, $code:block) => {
                 $ui.add_as_parent($node_key);
                 $code;
-                $ui.end_layer();
+                $ui.end_parent();
             };
         }
     };

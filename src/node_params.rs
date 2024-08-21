@@ -1,4 +1,4 @@
-use crate::{Arrange, Axis, Color, Interact, Layout, Len, NodeParams, Position, Rect, Size, Stack, Text, VertexColors, Xy};
+use crate::{Arrange, Axis, Color, Image, ImageSource, Interact, Layout, Len, NodeParams, Position, Rect, Size, Stack, Text, VertexColors, Xy};
 use Size::*;
 use Position::*;
 use Len::*;
@@ -6,6 +6,7 @@ use Len::*;
 pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     stack: None,
     text: None,
+    image: None,
     rect: Rect {
         visible: false,
         filled: false,
@@ -30,6 +31,7 @@ pub const DEFAULT: NodeParams = NodeParams {
         default_text: "Default",
         editable: false,
     }),
+    image: None,
     rect: Rect {
         visible: true,
         filled: true,
@@ -55,6 +57,7 @@ pub const V_STACK: NodeParams = NodeParams {
         spacing: Len::Pixels(10),
     }),
     text: None,
+    image: None,
     rect: Rect {
         visible: false,
         filled: false,
@@ -80,6 +83,7 @@ pub const H_STACK: NodeParams = NodeParams {
         spacing: Len::Pixels(5),
     }),
     text: None,
+    image: None,
     rect: Rect {
         visible: false,
         filled: false,
@@ -101,6 +105,31 @@ pub const H_STACK: NodeParams = NodeParams {
 pub const MARGIN: NodeParams = NodeParams {
     stack: None,
     text: None,
+    image: None,
+    rect: Rect {
+        visible: false,
+        filled: false,
+        vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
+    },
+    interact: Interact {
+        clickable: false,
+    },
+    layout: Layout {
+        size: Xy::new_symm(Fixed(Frac(0.9))),
+        position: Xy::new_symm(Center),
+        padding: Xy::new_symm(Len::ZERO),
+    },
+    
+    #[cfg(debug_assertions)]
+    debug_name: "Margin",
+};
+
+pub const ICON: NodeParams = NodeParams {
+    stack: None,
+    text: None,
+    image: Some(Image {
+        default_image_source: ImageSource::Png(include_bytes!("texture_small.png"))
+    }),
     rect: Rect {
         visible: false,
         filled: false,
@@ -122,6 +151,7 @@ pub const MARGIN: NodeParams = NodeParams {
 pub const BUTTON: NodeParams = NodeParams {
     stack: None,
     text: None,
+    image: None,
     rect: Rect {
         visible: true,
         filled: true,
@@ -147,6 +177,7 @@ pub const LABEL: NodeParams = NodeParams {
         default_text: "Label",
         editable: false,
     }),
+    image: None,
     rect: Rect {
         visible: true,
         filled: true,
@@ -171,6 +202,7 @@ pub const TEXT: NodeParams = NodeParams {
         default_text: "Text",
         editable: false,
     }),
+    image: None,
     rect: Rect {
         visible: false,
         filled: false,
@@ -195,6 +227,7 @@ pub const EMPTY_TEXT: NodeParams = NodeParams {
         default_text: "",
         editable: false,
     }),
+    image: None,
     rect: Rect {
         visible: false,
         filled: false,
@@ -220,6 +253,7 @@ pub const TEXT_INPUT: NodeParams = NodeParams {
         default_text: "",
         editable: true,
     }),
+    image: None,
     rect: Rect {
         visible: true,
         filled: true,
@@ -241,6 +275,7 @@ pub const TEXT_INPUT: NodeParams = NodeParams {
 pub const PANEL: NodeParams = NodeParams {
     stack: None,
     text: None,
+    image: None,
     rect: Rect {
         visible: true,
         filled: true,

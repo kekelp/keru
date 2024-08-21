@@ -144,8 +144,6 @@ impl TextureAtlas {
             },
         );
 
-        println!("  {:?}", allocation);
-
         return self.tex_coords(allocation);
     } 
 
