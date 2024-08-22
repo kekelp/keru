@@ -472,6 +472,8 @@ pub struct VertexColors {
     bottom_right: Color,
 }
 impl VertexColors {
+    pub const FLGR_SOVL_GRAD: Self = VertexColors::diagonal_gradient_backslash(Color::FLGR_BLUE, Color::FLGR_RED);
+
     pub const TEST: Self = Self {
         top_left: Color::rgba(255, 0, 0, 255),
         top_right: Color::rgba(0, 255, 0, 255),
@@ -962,8 +964,7 @@ impl Ui {
 
         let mut texture_atlas = TextureAtlas::new(&device);
 
-        let white_alloc = texture_atlas.allocate_image(include_bytes!("white.png"));
-        println!("  {:?}", white_alloc);
+        let _white_alloc = texture_atlas.allocate_image(include_bytes!("white.png"));
 
         let texture_sampler = device.create_sampler(&SamplerDescriptor {
             label: Some("Fulgur texture sampler"),

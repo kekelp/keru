@@ -133,7 +133,7 @@ pub const ICON_BUTTON: NodeParams = NodeParams {
     rect: Rect {
         visible: true,
         filled: true,
-        vertex_colors: VertexColors::flat(Color::BLUE),
+        vertex_colors: VertexColors::FLGR_SOVL_GRAD,
     },
     interact: Interact {
         clickable: true,
@@ -287,7 +287,7 @@ pub const PANEL: NodeParams = NodeParams {
     layout: Layout {
         size: Xy::new_symm(FitContent),
         position: Xy::new_symm(Center),
-        padding: Xy::new_symm(Len::Pixels(5)),
+        padding: Xy::new_symm(Len::Pixels(10)),
     },
     
     #[cfg(debug_assertions)]
