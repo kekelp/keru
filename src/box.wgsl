@@ -29,6 +29,7 @@ struct VertexInput {
     @location(11) z: f32,
     @location(12) radius: f32,
     @location(13) filled: u32,
+    @location(14) _id: u32,
 
 };
 

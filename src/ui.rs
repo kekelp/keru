@@ -1,5 +1,5 @@
 use crate::node_params::{DEFAULT, NODE_ROOT_PARAMS};
-use crate::texture_atlas::{TexCoords, TextureAtlas};
+use crate::texture_atlas::{ImageRef, TextureAtlas};
 use crate::unwrap_or_return;
 use copypasta::{ClipboardContext, ClipboardProvider};
 use glyphon::cosmic_text::{Align, StringCursor};
@@ -424,7 +424,7 @@ pub struct RenderRect {
     pub id: Id,
 }
 impl RenderRect {
-    pub fn buffer_desc() -> [VertexAttribute; 14] {
+    pub fn buffer_desc() -> [VertexAttribute; 15] {
         return vertex_attr_array![
             // xyrect
             0 => Float32x2,
@@ -437,13 +437,19 @@ impl RenderRect {
             5 => Uint8x4,
             6 => Uint8x4,
             7 => Uint8x4,
-            // other stuff
+            // last hover
             8 => Float32,
+            // last click
             9 => Float32,
+            // clickable
             10 => Uint32,
+            // z
             11 => Float32,
             12 => Float32,
+            // filled
             13 => Uint32,
+            // radius
+            14 => Uint32,
         ];
     }
 }
@@ -689,7 +695,7 @@ pub struct TextSystem {
 }
 const GLOBAL_TEXT_METRICS: Metrics = Metrics::new(24.0, 24.0);
 impl TextSystem {
-    pub(crate) fn new_text_area(&mut self, text: Option<Text>, current_frame: u64) -> Option<usize> {
+    pub(crate) fn maybe_new_text_area(&mut self, text: Option<Text>, current_frame: u64) -> Option<usize> {
         let text = text?.default_text;
 
         let mut buffer = GlyphonBuffer::new(&mut self.font_system, GLOBAL_TEXT_METRICS);
@@ -1168,8 +1174,11 @@ impl Ui {
         let twin_check_result = match self.nodes.fronts.entry(key.id()) {
             // Add a normal node (no twins).
             Entry::Vacant(v) => {
+
+                // we need some big partial borrow refactoring before this can become good.
+                // I guess self.text, self.texture_atlas and self.nodes could go into "self.storage" or "self.arenas" or something.
                 let text = key.defaults().maybe_text();
-                let text_id = self.text.new_text_area(text, frame);
+                let text_id = self.text.maybe_new_text_area(text, frame);
 
                 let image = match key.defaults.image {
                     Some(image) => {
@@ -1218,7 +1227,7 @@ impl Ui {
                     // Add new twin.
                     Entry::Vacant(v) => {
                         let text = key.defaults().maybe_text();
-                        let text_id = self.text.new_text_area(text, frame);
+                        let text_id = self.text.maybe_new_text_area(text, frame);
 
                         let image = match key.defaults.image {
                             Some(image) => {
@@ -1285,7 +1294,7 @@ impl Ui {
         key: &TypedKey<impl NodeType>,
         parent_id: Option<usize>,
         text_id: Option<usize>,
-        image: Option<TexCoords>,
+        image: Option<ImageRef>,
     ) -> Node {
         let parent_id = match parent_id {
             Some(parent_id) => parent_id,
@@ -1568,8 +1577,7 @@ impl Ui {
             content_size.update_for_content(text_size, stack);
         }
         if let Some(_) = self.nodes[node].params.image {
-            // let image_size = self.determine_image_size(node, proposed_size);
-            let image_size = self.f32_pixels_to_frac2(Xy::new_symm(64.0));
+            let image_size = self.determine_image_size(node, proposed_size);
             content_size.update_for_content(image_size, stack);
         }
 
@@ -1603,6 +1611,13 @@ impl Ui {
 
         self.nodes[node].size = final_size;
         return final_size;
+    }
+
+    fn determine_image_size(&mut self, node: usize, _proposed_size: Xy<f32>) -> Xy<f32> {
+        let image_ref = self.nodes[node].image.unwrap();
+        let size = image_ref.original_size;
+        // todo: add options for stretch, maybe
+        return self.f32_pixels_to_frac2(size);
     }
 
     fn determine_text_size(&mut self, node: usize, _proposed_size: Xy<f32>) -> Xy<f32> {
@@ -1790,7 +1805,7 @@ impl Ui {
                     radius: 30.0,
                     filled: node.params.rect.filled as u32,
 
-                    tex_coords: image.coords,
+                    tex_coords: image.tex_coords,
                 });
             }
         }
@@ -2216,7 +2231,7 @@ pub struct Node {
 
     pub text_id: Option<usize>,
 
-    pub image: Option<TexCoords>,
+    pub image: Option<ImageRef>,
 
     pub parent: usize,
 

@@ -133,7 +133,7 @@ pub const ICON_BUTTON: NodeParams = NodeParams {
     rect: Rect {
         visible: true,
         filled: true,
-        vertex_colors: VertexColors::flat(Color::WHITE),
+        vertex_colors: VertexColors::flat(Color::BLUE),
     },
     interact: Interact {
         clickable: true,

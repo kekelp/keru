@@ -18,25 +18,23 @@ pub struct DataToLoad {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct TexCoords {
-    pub coords: Xy<[f32; 2]>,
+pub struct ImageRef {
+    pub tex_coords: Xy<[f32; 2]>,
+    pub original_size: Xy<f32>,
     pub id: AllocId,
 }
 
 impl TextureAtlas {
-    pub fn tex_coords(&self, allocation: Allocation) -> TexCoords {
+    pub fn tex_coords(&self, allocation: Allocation) -> Xy<[f32; 2]> {
         let size = self.packer.size();
-        return TexCoords {
-            coords: Xy::new([
-                allocation.rectangle.min.x as f32 / size.width as f32, 
-                allocation.rectangle.max.x as f32 / size.width as f32,
-            ],
-            [
-                allocation.rectangle.max.y as f32 / size.height as f32, 
-                allocation.rectangle.min.y as f32 / size.height as f32, 
-            ]),
-            id: allocation.id,
-        }
+        return Xy::new([
+            allocation.rectangle.min.x as f32 / size.width as f32, 
+            allocation.rectangle.max.x as f32 / size.width as f32,
+        ],
+        [
+            allocation.rectangle.max.y as f32 / size.height as f32, 
+            allocation.rectangle.min.y as f32 / size.height as f32, 
+        ]);
     } 
 
     pub fn new(device: &Device) -> Self {
@@ -106,7 +104,7 @@ impl TextureAtlas {
         }
     }
 
-    pub fn allocate_image(&mut self, image_bytes: &[u8]) -> TexCoords {    
+    pub fn allocate_image(&mut self, image_bytes: &[u8]) -> ImageRef {    
         let img = image::load_from_memory(image_bytes).unwrap();
 
         // convert to RGBA8 format
@@ -116,7 +114,7 @@ impl TextureAtlas {
         return self.allocate_raw(img.into_raw(), width, height)
     }
 
-    pub fn allocate_raw(&mut self, image_data: Vec<u8>, width: u32, height: u32) -> TexCoords {
+    pub fn allocate_raw(&mut self, image_data: Vec<u8>, width: u32, height: u32) -> ImageRef {
 
         let size = size2(width as i32, height as i32);
 
@@ -126,7 +124,13 @@ impl TextureAtlas {
 
         self.data_to_load.push(DataToLoad { allocation, image_data, width, height });
 
-        return self.tex_coords(allocation);
+        let tex_coords = self.tex_coords(allocation);
+
+        return ImageRef {
+            tex_coords,
+            original_size: Xy::new(width as f32, height as f32),
+            id: allocation.id,
+        }
     }
 
     pub fn load_to_gpu(&mut self, queue: &Queue) {
