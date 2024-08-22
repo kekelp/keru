@@ -1,5 +1,5 @@
 use crate::node_params::{DEFAULT, NODE_ROOT_PARAMS};
-use crate::texture_atlas::TextureAtlas;
+use crate::texture_atlas::{TexCoords, TextureAtlas};
 use crate::unwrap_or_return;
 use copypasta::{ClipboardContext, ClipboardProvider};
 use glyphon::cosmic_text::{Align, StringCursor};
@@ -57,6 +57,8 @@ pub const NODE_ROOT: Node = Node {
     size: Xy::new_symm(1.0),
     rect_id: None,
     text_id: None,
+    image: None,
+
     parent: usize::MAX,
 
     n_children: 0,
@@ -251,13 +253,8 @@ pub struct Text {
 
 #[derive(Debug, Copy, Clone)]
 pub struct Image {
-    pub default_image_source: ImageSource,
+    pub data: &'static [u8],
 }
-#[derive(Debug, Copy, Clone)]
-pub enum ImageSource {
-    Png(&'static [u8])
-}
-
 
 #[derive(Debug, Copy, Clone)]
 pub struct NodeParams {
@@ -306,6 +303,11 @@ impl NodeParams {
     }
     pub const fn position_symm(mut self, position: Position) -> Self {
         self.layout.position = Xy::new_symm(position);
+        return self;
+    }
+
+    pub const fn image(mut self, image_data: &'static [u8]) -> Self {
+        self.image = Some(Image { data: image_data });
         return self;
     }
 
@@ -420,8 +422,6 @@ pub struct RenderRect {
 
     pub filled: u32,
     pub id: Id,
-
-
 }
 impl RenderRect {
     pub fn buffer_desc() -> [VertexAttribute; 14] {
@@ -853,6 +853,7 @@ pub struct Ui {
     pub bind_group: BindGroup,
 
     pub text: TextSystem,
+    pub texture_atlas: TextureAtlas,
 
     pub rects: Vec<RenderRect>,
 
@@ -954,12 +955,14 @@ impl Ui {
         });
 
         let mut texture_atlas = TextureAtlas::new(&device);
-        let _ = texture_atlas.load_texture(&queue, 200, 234, 30);
+
+        let white_alloc = texture_atlas.allocate_texture(include_bytes!("white.png"));
+        println!("  {:?}", white_alloc);
 
         let texture_sampler = device.create_sampler(&SamplerDescriptor {
             label: Some("Fulgur texture sampler"),
-            min_filter: FilterMode::Linear,
-            mag_filter: FilterMode::Linear,
+            min_filter: FilterMode::Nearest,
+            mag_filter: FilterMode::Nearest,
             mipmap_filter: FilterMode::Nearest,
             lod_min_clamp: 0f32,
             lod_max_clamp: 0f32,
@@ -1105,6 +1108,8 @@ impl Ui {
                 text_areas,
             },
 
+            texture_atlas,
+
             render_pipeline,
             rects: Vec::with_capacity(20),
 
@@ -1165,8 +1170,16 @@ impl Ui {
             Entry::Vacant(v) => {
                 let text = key.defaults().maybe_text();
                 let text_id = self.text.new_text_area(text, frame);
-                let new_node = Self::new_node(&key, Some(parent_id), text_id);
-                
+
+                let image = match key.defaults.image {
+                    Some(image) => {
+                        Some(self.texture_atlas.allocate_texture(image.data))
+                    },
+                    None => None,
+                };
+
+                let new_node = Self::new_node(&key, Some(parent_id), text_id, image);
+
                 let final_i = self.nodes.nodes.insert(new_node);
                 v.insert(NodeFront::new(parent_id, frame, final_i));
 
@@ -1206,7 +1219,15 @@ impl Ui {
                     Entry::Vacant(v) => {
                         let text = key.defaults().maybe_text();
                         let text_id = self.text.new_text_area(text, frame);
-                        let new_twin_node = Self::new_node(&twin_key, Some(parent_id), text_id);
+
+                        let image = match key.defaults.image {
+                            Some(image) => {
+                                Some(self.texture_atlas.allocate_texture(image.data))
+                            },
+                            None => None,
+                        };
+
+                        let new_twin_node = Self::new_node(&twin_key, Some(parent_id), text_id, image);
     
                         let real_final_i = self.nodes.nodes.insert(new_twin_node);
                         v.insert(NodeFront::new(parent_id, frame, real_final_i));
@@ -1264,6 +1285,7 @@ impl Ui {
         key: &TypedKey<impl NodeType>,
         parent_id: Option<usize>,
         text_id: Option<usize>,
+        image: Option<TexCoords>,
     ) -> Node {
         let parent_id = match parent_id {
             Some(parent_id) => parent_id,
@@ -1275,6 +1297,7 @@ impl Ui {
             rect: Xy::new_symm([0.0, 1.0]),
             size: Xy::new_symm(10.0),
             text_id,
+            image,
             parent: parent_id,
 
             n_children: 0,
@@ -1544,6 +1567,11 @@ impl Ui {
             let text_size = self.determine_text_size(node, proposed_size);
             content_size.update_for_content(text_size, stack);
         }
+        if let Some(_) = self.nodes[node].params.image {
+            // let image_size = self.determine_image_size(node, proposed_size);
+            let image_size = self.f32_pixels_to_frac2(Xy::new_symm(64.0));
+            content_size.update_for_content(image_size, stack);
+        }
 
         // Decide our own size. 
         //   We either use the proposed_size that we proposed to the children,
@@ -1646,6 +1674,7 @@ impl Ui {
             self.build_rect_and_place_children_container(node);
         };
 
+        self.build_and_place_image(node);
         self.place_text(node, self.nodes[node].rect);
     }
 
@@ -1743,6 +1772,30 @@ impl Ui {
         });
     }
 
+    pub fn build_and_place_image(&mut self, node: usize) {
+        let node = &mut self.nodes.nodes[node];
+        
+        if let Some(image) = node.image {
+            // in debug mode, draw invisible rects as well.
+            // usually these have filled = false (just the outline), but this is not enforced.
+            if node.params.rect.visible || self.debug_mode {
+                self.rects.push(RenderRect {
+                    rect: node.rect.to_graphics_space(),
+                    vertex_colors: node.params.rect.vertex_colors,
+                    last_hover: node.last_hover,
+                    last_click: node.last_click,
+                    clickable: node.params.interact.clickable.into(),
+                    id: node.id,
+                    z: 0.0,
+                    radius: 30.0,
+                    filled: node.params.rect.filled as u32,
+
+                    tex_coords: image.coords,
+                });
+            }
+        }
+    }
+
     pub fn place_text(&mut self, node: usize, rect: XyRect) {
         let padding = self.to_pixels2(self.nodes[node].params.layout.padding);
         let node = &mut self.nodes[node];
@@ -1810,7 +1863,9 @@ impl Ui {
                 radius: 30.0,
                 filled: current_node.params.rect.filled as u32,
 
-                tex_coords: Xy::new([0.5, 0.59765625], [0.109375, 0.0]),
+                // magic coords
+                // todo: demagic
+                tex_coords: Xy { x: [0.9375, 0.9394531], y: [0.00390625 / 2.0, 0.0] },
             });
         }
     }
@@ -1927,6 +1982,8 @@ impl Ui {
         // self.build_buffers();
         self.gpu_vertex_buffer.queue_write(&self.rects[..], queue);
         
+        self.texture_atlas.load_to_gpu(&queue);
+
         // update gpu time
         // magical offset...
         queue.write_buffer(&self.base_uniform_buffer, 8, bytemuck::bytes_of(&self.frame_t));
@@ -2158,6 +2215,8 @@ pub struct Node {
     pub last_frame_status: LastFrameStatus,
 
     pub text_id: Option<usize>,
+
+    pub image: Option<TexCoords>,
 
     pub parent: usize,
 

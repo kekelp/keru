@@ -19,6 +19,10 @@ impl State {
             #[node_key(V_STACK.position_x(Position::End).size_y(Fill).size_x(FitContent).stack_arrange(Arrange::Center))]
             const SIDEBAR: TypedKey<Stack>;
             add!(self.ui, SIDEBAR, {            
+
+                    self.add_tools();
+
+
                     add!(self.ui, BUTTON_A);
                     add!(self.ui, BUTTON_A);
                     add!(self.ui, BUTTON_A);
@@ -26,7 +30,7 @@ impl State {
                     self.add_pixel_info_ui();
             });
 
-            self.add_counter_ui();
+            // self.add_counter_ui();
         });
 
         // effects
@@ -170,6 +174,31 @@ impl State {
             v_stack!(self.ui, {
                 text!(self.ui, &x);
                 text!(self.ui, &y);
+            });
+
+        });
+    }
+
+    pub fn add_tools(&mut self) {
+        #[node_key(ICON_BUTTON.image(include_bytes!("icons/brush.png")))]
+        const BRUSH_ICON: NodeKey;
+
+        #[node_key(ICON_BUTTON.image(include_bytes!("icons/eraser.png")))]
+        const ERASER_ICON: NodeKey;
+
+        
+        #[node_key(PANEL.position_x(End).position_y(Start).size_x(FitContent))]
+        const TOOLS_PANEL: NodeKey;
+
+        add!(self.ui, TOOLS_PANEL, {
+
+            h_stack!(self.ui, {
+
+                v_stack!(self.ui, {
+                    add!(self.ui, BRUSH_ICON);
+                    add!(self.ui, ERASER_ICON);
+                });
+
             });
 
         });

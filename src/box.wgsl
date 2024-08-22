@@ -99,7 +99,11 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let filled = f32(in.filled);
     let alpha = in.color.a * (inside * max(filled, outside));
 
+    let tex_color = textureSample(my_texture, my_sampler, in.tex_coords);
+    let rect_color = vec4(in.color.rgb * in.dark, alpha);
+    // return tex_color;
     // return vec4(in.color.rgb * in.dark, alpha);
-    return textureSample(my_texture, my_sampler, in.tex_coords);
+    return rect_color * tex_color;
+
 
 }

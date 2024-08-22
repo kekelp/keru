@@ -250,6 +250,7 @@ dependencies = [
  "pollster",
  "rustc-hash",
  "slab",
+ "slotmap",
  "smart-default",
  "unicode-segmentation",
  "view_derive",

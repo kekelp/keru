@@ -1,15 +1,25 @@
 use etagere::{size2, Allocation, AllocId, BucketedAtlasAllocator};
 use wgpu::*;
 
+use crate::Xy;
+
 pub struct TextureAtlas {
     pub atlas_texture: Texture,
     pub atlas_texture_view: TextureView,
     pub packer: BucketedAtlasAllocator,
+    pub data_to_load: Vec<DataToLoad>,
+}
+
+pub struct DataToLoad {
+    allocation: Allocation,
+    image_data: Vec<u8>,
+    width: u32,
+    height: u32,
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct TexCoords {
-    pub coords: [f32; 4],
+    pub coords: Xy<[f32; 2]>,
     pub id: AllocId,
 }
 
@@ -17,19 +27,19 @@ impl TextureAtlas {
     pub fn tex_coords(&self, allocation: Allocation) -> TexCoords {
         let size = self.packer.size();
         return TexCoords {
-            coords: [
+            coords: Xy::new([
                 allocation.rectangle.min.x as f32 / size.width as f32, 
-                allocation.rectangle.max.x as f32 / size.width as f32, 
-                allocation.rectangle.min.y as f32 / size.height as f32, 
-                allocation.rectangle.max.y as f32 / size.height as f32, 
+                allocation.rectangle.max.x as f32 / size.width as f32,
             ],
+            [
+                allocation.rectangle.max.y as f32 / size.height as f32, 
+                allocation.rectangle.min.y as f32 / size.height as f32, 
+            ]),
             id: allocation.id,
         }
     } 
 
     pub fn new(device: &Device) -> Self {
-        // let max_texture_dimension_2d = device.limits().max_texture_dimension_2d;
-        // let atlas_size = max_texture_dimension_2d;
         let atlas_size = 2048;
 
         let packer = BucketedAtlasAllocator::new(size2(atlas_size as i32, atlas_size as i32));
@@ -89,22 +99,19 @@ impl TextureAtlas {
         // );
 
         return Self {
+            data_to_load: Vec::with_capacity(20),
             packer,
             atlas_texture,
             atlas_texture_view,
         }
     }
 
-    pub fn load_texture(&mut self, queue: &Queue, nwidth: u32, nheight: u32, hue: i32) -> TexCoords {
+    pub fn allocate_texture(&mut self, data: &[u8]) -> TexCoords {
 
-        let png_bytes = include_bytes!("texture_small.png");
+        let png_bytes = data;
     
         // Decode the PNG image
         let img = image::load_from_memory(png_bytes).unwrap();
-        
-        // let random_number: u64 = rand::thread_rng().gen();
-        let img = img.huerotate(hue);
-        let img = img.resize(nwidth, nheight, image::imageops::FilterType::CatmullRom);
 
         // Convert image to RGBA8 format
         let img = img.to_rgba8();
@@ -116,36 +123,44 @@ impl TextureAtlas {
             "No more room in texture atlas. Don't use this for anything serious btw"
         );
 
-        let atlas_min = allocation.rectangle.min;
-
         let image_data = img.into_raw();
 
-        queue.write_texture(
-            ImageCopyTexture {
-                texture: &self.atlas_texture,
-                mip_level: 0,
-                origin: Origin3d {
-                    x: atlas_min.x as u32,
-                    y: atlas_min.y as u32,
-                    z: 0,
-                },
-                aspect: TextureAspect::All,
-            },
-            &image_data,
-            ImageDataLayout {
-                offset: 0,
-                bytes_per_row: Some(width as u32 * 4 as u32),
-                rows_per_image: None,
-            },
-            Extent3d {
-                width: width as u32,
-                height: height as u32,
-                depth_or_array_layers: 1,
-            },
-        );
+        self.data_to_load.push(DataToLoad { allocation, image_data, width, height });
 
         return self.tex_coords(allocation);
-    } 
+    }
+
+    pub fn load_to_gpu(&mut self, queue: &Queue) {
+        for data in &self.data_to_load {
+            let atlas_min = data.allocation.rectangle.min;
+
+            queue.write_texture(
+                ImageCopyTexture {
+                    texture: &self.atlas_texture,
+                    mip_level: 0,
+                    origin: Origin3d {
+                        x: atlas_min.x as u32,
+                        y: atlas_min.y as u32,
+                        z: 0,
+                    },
+                    aspect: TextureAspect::All,
+                },
+                &data.image_data,
+                ImageDataLayout {
+                    offset: 0,
+                    bytes_per_row: Some(data.width as u32 * 4 as u32),
+                    rows_per_image: None,
+                },
+                Extent3d {
+                    width: data.width as u32,
+                    height: data.height as u32,
+                    depth_or_array_layers: 1,
+                },
+            );
+        }
+
+        self.data_to_load.clear();
+    }
 
     pub fn texture_view(&self) -> &TextureView {
         return &self.atlas_texture_view

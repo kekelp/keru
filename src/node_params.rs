@@ -1,4 +1,4 @@
-use crate::{Arrange, Axis, Color, Image, ImageSource, Interact, Layout, Len, NodeParams, Position, Rect, Size, Stack, Text, VertexColors, Xy};
+use crate::{Arrange, Axis, Color, Image, Interact, Layout, Len, NodeParams, Position, Rect, Size, Stack, Text, VertexColors, Xy};
 use Size::*;
 use Position::*;
 use Len::*;
@@ -124,22 +124,22 @@ pub const MARGIN: NodeParams = NodeParams {
     debug_name: "Margin",
 };
 
-pub const ICON: NodeParams = NodeParams {
+pub const ICON_BUTTON: NodeParams = NodeParams {
     stack: None,
     text: None,
     image: Some(Image {
-        default_image_source: ImageSource::Png(include_bytes!("texture_small.png"))
+        data: include_bytes!("texture_small.png")
     }),
     rect: Rect {
-        visible: false,
-        filled: false,
-        vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
+        visible: true,
+        filled: true,
+        vertex_colors: VertexColors::flat(Color::WHITE),
     },
     interact: Interact {
-        clickable: false,
+        clickable: true,
     },
     layout: Layout {
-        size: Xy::new_symm(Fixed(Frac(0.9))),
+        size: Xy::new_symm(FitContent),
         position: Xy::new_symm(Center),
         padding: Xy::new_symm(Len::ZERO),
     },
@@ -287,7 +287,7 @@ pub const PANEL: NodeParams = NodeParams {
     layout: Layout {
         size: Xy::new_symm(FitContent),
         position: Xy::new_symm(Center),
-        padding: Xy::new_symm(Len::Pixels(2)),
+        padding: Xy::new_symm(Len::Pixels(5)),
     },
     
     #[cfg(debug_assertions)]
