@@ -956,7 +956,7 @@ impl Ui {
 
         let mut texture_atlas = TextureAtlas::new(&device);
 
-        let white_alloc = texture_atlas.allocate_texture(include_bytes!("white.png"));
+        let white_alloc = texture_atlas.allocate_image(include_bytes!("white.png"));
         println!("  {:?}", white_alloc);
 
         let texture_sampler = device.create_sampler(&SamplerDescriptor {
@@ -1173,7 +1173,7 @@ impl Ui {
 
                 let image = match key.defaults.image {
                     Some(image) => {
-                        Some(self.texture_atlas.allocate_texture(image.data))
+                        Some(self.texture_atlas.allocate_image(image.data))
                     },
                     None => None,
                 };
@@ -1222,7 +1222,7 @@ impl Ui {
 
                         let image = match key.defaults.image {
                             Some(image) => {
-                                Some(self.texture_atlas.allocate_texture(image.data))
+                                Some(self.texture_atlas.allocate_image(image.data))
                             },
                             None => None,
                         };
@@ -2236,6 +2236,7 @@ pub struct Node {
     pub z: f32,
 }
 impl Node {
+    #[cfg(debug_assertions)]
     pub fn debug_name(&self) -> &str {
         return self.params.debug_name;
     }

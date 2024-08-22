@@ -106,24 +106,23 @@ impl TextureAtlas {
         }
     }
 
-    pub fn allocate_texture(&mut self, data: &[u8]) -> TexCoords {
+    pub fn allocate_image(&mut self, image_bytes: &[u8]) -> TexCoords {    
+        let img = image::load_from_memory(image_bytes).unwrap();
 
-        let png_bytes = data;
-    
-        // Decode the PNG image
-        let img = image::load_from_memory(png_bytes).unwrap();
-
-        // Convert image to RGBA8 format
+        // convert to RGBA8 format
         let img = img.to_rgba8();
         let (width, height) = img.dimensions();
+
+        return self.allocate_raw(img.into_raw(), width, height)
+    }
+
+    pub fn allocate_raw(&mut self, image_data: Vec<u8>, width: u32, height: u32) -> TexCoords {
 
         let size = size2(width as i32, height as i32);
 
         let allocation = self.packer.allocate(size).expect(
             "No more room in texture atlas. Don't use this for anything serious btw"
         );
-
-        let image_data = img.into_raw();
 
         self.data_to_load.push(DataToLoad { allocation, image_data, width, height });
 
