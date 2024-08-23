@@ -462,6 +462,12 @@ pub struct Color {
     pub b: u8,
     pub a: u8,
 }
+impl Color {
+    pub const fn alpha(mut self, alpha: u8) -> Self {
+        self.a = alpha;
+        return self;
+    }
+}
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Zeroable, Pod)]
 #[repr(C)]
@@ -535,7 +541,7 @@ impl Color {
         r: (0.6 * 255.0) as u8,
         g: (0.3 * 255.0) as u8,
         b: (0.6 * 255.0) as u8,
-        a: (0.6 * 255.0) as u8,
+        a: 255 as u8,
     };
 
     pub const FLGR_DEBUG_RED: Color = Color::rgba(255, 0, 0, 77);
@@ -548,9 +554,9 @@ impl Color {
     pub const WHITE: Color = Color::rgba(255, 255, 255, 255);
     pub const TRANSPARENT: Color = Color::rgba(255, 255, 255, 0);
     
-    pub const FLGR_BLUE: Color = Color::rgba(26, 26, 255, 240);
-    pub const FLGR_RED: Color = Color::rgba(255, 26, 26, 240);
-    pub const FLGR_GREEN: Color = Color::rgba(26, 255, 26, 240);
+    pub const FLGR_BLUE: Color = Color::rgba(26, 26, 255, 255);
+    pub const FLGR_RED: Color = Color::rgba(255, 26, 26, 255);
+    pub const FLGR_GREEN: Color = Color::rgba(26, 255, 26, 255);
     
 
     pub const LIGHT_BLUE: Color = Color {
@@ -1617,7 +1623,6 @@ impl Ui {
     fn determine_image_size(&mut self, node: usize, _proposed_size: Xy<f32>) -> Xy<f32> {
         let image_ref = self.nodes[node].image.unwrap();
         let size = image_ref.original_size;
-        // todo: add options for stretch, maybe
         return self.f32_pixels_to_frac2(size);
     }
 

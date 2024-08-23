@@ -56,7 +56,7 @@ impl PixelColorF32 {
         }
     }
 
-    fn new(r: f32, g: f32, b: f32, a: f32) -> Self {
+    pub fn new(r: f32, g: f32, b: f32, a: f32) -> Self {
         return PixelColorF32 {
             r,
             g,

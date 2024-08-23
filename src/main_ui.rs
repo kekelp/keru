@@ -9,25 +9,23 @@ use crate::*;
 use glyphon::{cosmic_text::Align, Attrs, Color as GlyphonColor, Family, Weight};
 use view_derive::node_key;
 
+const COLOR1: Color =  Color::rgba(50, 13, 100, 240);
+const COLOR2: Color =  Color::rgba(100, 13, 50, 240);
+const GRAD1: VertexColors = VertexColors::diagonal_gradient_forward_slash(COLOR1, COLOR2);
+const FLGR_PANEL: NodeParams = PANEL.vertex_colors(GRAD1);
+
+
 impl State {
     pub fn update_ui(&mut self) {
         tree!(self.ui, {
-
-            #[node_key(BUTTON.text("Increase").position_x(End))]
-            pub const BUTTON_A: NodeKey;
 
             #[node_key(V_STACK.position_x(Position::End).size_y(Fill).size_x(FitContent).stack_arrange(Arrange::Center))]
             const SIDEBAR: TypedKey<Stack>;
             add!(self.ui, SIDEBAR, {            
 
-                    self.add_tools();
+                self.add_tools();
 
-
-                    add!(self.ui, BUTTON_A);
-                    add!(self.ui, BUTTON_A);
-                    add!(self.ui, BUTTON_A);
-
-                    self.add_pixel_info_ui();
+                self.add_pixel_info_ui();
             });
 
             // self.add_counter_ui();
@@ -89,7 +87,7 @@ pub fn count_color(count: i32) -> Color {
 
 impl State {
     pub fn add_twin_thing_ui(&mut self) {
-        #[node_key(PANEL.size_y(Fixed(Frac(0.5))).position_x(Position::Start))]
+        #[node_key(FLGR_PANEL.size_y(Fixed(Frac(0.5))).position_x(Position::Start))]
         const PIXEL_PANEL: NodeKey;
         add!(self.ui, PIXEL_PANEL, {
 
@@ -167,7 +165,7 @@ impl State {
         // };
 
         // todo:::::: I don't want strings, I want to write!() directly into the buffer
-        #[node_key(PANEL.position_x(End).position_y(Start).size_x(FitContentOrMinimum(Pixels(100))))]
+        #[node_key(FLGR_PANEL.position_x(End).position_y(Start).size_x(FitContentOrMinimum(Pixels(100))))]
         const PIXEL_PANEL2: NodeKey;
         add!(self.ui, PIXEL_PANEL2, {
             
@@ -187,7 +185,7 @@ impl State {
         const ERASER_ICON: NodeKey;
 
         
-        #[node_key(PANEL.position_x(End).position_y(Start).size_x(FitContent))]
+        #[node_key(FLGR_PANEL.position_x(End).position_y(Start).size_x(FitContent))]
         const TOOLS_PANEL: NodeKey;
 
         add!(self.ui, TOOLS_PANEL, {
@@ -202,6 +200,14 @@ impl State {
             });
 
         });
+
+        if self.ui.is_clicked(BRUSH_ICON) {
+            self.canvas.paint_color = PixelColorF32::new(0.2, 0.8, 0.2, 1.0);
+        }
+
+        if self.ui.is_clicked(ERASER_ICON) {
+            self.canvas.paint_color = PixelColorF32::new(1.0, 1.0, 1.0, 0.0);
+        }
     }
 
     pub fn add_stacks_test(&mut self) {

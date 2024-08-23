@@ -104,7 +104,9 @@ impl TextureAtlas {
         }
     }
 
-    pub fn allocate_image(&mut self, image_bytes: &[u8]) -> ImageRef {    
+    pub fn allocate_image(&mut self, image_bytes: &[u8]) -> ImageRef {
+
+        println!("  allocating an image"); 
         let img = image::load_from_memory(image_bytes).unwrap();
 
         // convert to RGBA8 format
