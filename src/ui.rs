@@ -1164,13 +1164,23 @@ impl Ui {
         return self.update_node(key, true);
     }
 
-    pub fn end_parent(&mut self) {
+    pub fn end_parent_unchecked(&mut self) {
         self.parent_stack.pop();
         self.last_child_stack.pop();
     }
 
+    // todo: I wanted to add this checked version, but there is a twin-related problem here.
+    // if the key got twinned, ended_parent will lead to the node with the twinned id, but the key will have the non-twinned id.
+    // sounds stupid to store the non-twinned id just for this stupid check. 
+    // pub fn end_parent<T: NodeType>(&mut self, key: TypedKey<T>) {
+    //     let ended_parent = self.parent_stack.pop().unwrap();
+    //     let ended_parent_id = self.nodes[ended_parent].id;
+    //     debug_assert!(ended_parent_id == key.id());
+    //     self.last_child_stack.pop();
+    // }
+
     pub fn update_node<T: NodeType>(&mut self, key: TypedKey<T>, make_new_layer: bool) -> NodeWithStuff<T> {
-        let parent_id = self.parent_stack.last().unwrap().clone();
+        let parent_i = self.parent_stack.last().unwrap().clone();
 
         let frame = self.part.current_frame;
 
@@ -1194,10 +1204,10 @@ impl Ui {
                     None => None,
                 };
 
-                let new_node = Self::new_node(&key, Some(parent_id), text_id, image);
+                let new_node = Self::new_node(&key, Some(parent_i), text_id, image);
 
                 let final_i = self.nodes.nodes.insert(new_node);
-                v.insert(NodeFront::new(parent_id, frame, final_i));
+                v.insert(NodeFront::new(parent_i, frame, final_i));
 
                 UpdatedNormal{ final_i }
             },
@@ -1207,10 +1217,10 @@ impl Ui {
                 match refresh_or_add_twin(frame, old_nodefront.last_frame_touched) {
                     // Refresh a normal node from the previous frame (no twins).
                     Refresh => {
-                        old_nodefront.refresh(parent_id, frame);
+                        old_nodefront.refresh(parent_i, frame);
                         // todo2: check the nodefront values and maybe skip reaching into the node
                         let final_i = old_nodefront.slab_i;
-                        self.refresh_node(final_i, parent_id, frame);
+                        self.refresh_node(final_i, parent_i, frame);
                         UpdatedNormal{ final_i }
                     }
                     // do nothing, just calculate the twin key and go to twin part below
@@ -1243,10 +1253,10 @@ impl Ui {
                             None => None,
                         };
 
-                        let new_twin_node = Self::new_node(&twin_key, Some(parent_id), text_id, image);
+                        let new_twin_node = Self::new_node(&twin_key, Some(parent_i), text_id, image);
     
                         let real_final_i = self.nodes.nodes.insert(new_twin_node);
-                        v.insert(NodeFront::new(parent_id, frame, real_final_i));
+                        v.insert(NodeFront::new(parent_i, frame, real_final_i));
                         real_final_i
                     },
                     // Refresh a twin from the previous frame.
@@ -1254,10 +1264,10 @@ impl Ui {
                         let old_twin_nodefront = o.into_mut();
     
                         // todo2: check the nodefront values and maybe skip reaching into the node
-                        old_twin_nodefront.refresh(parent_id, frame);
+                        old_twin_nodefront.refresh(parent_i, frame);
     
                         let real_final_i = old_twin_nodefront.slab_i;
-                        self.refresh_node(real_final_i, parent_id, frame);
+                        self.refresh_node(real_final_i, parent_i, frame);
                         real_final_i
                     },
     
@@ -1265,7 +1275,7 @@ impl Ui {
             },
         };
 
-        self.add_child_to_parent(real_final_i, parent_id);
+        self.add_child_to_parent(real_final_i, parent_i);
         if make_new_layer {
             self.parent_stack.push(real_final_i);           
         }
@@ -2170,7 +2180,7 @@ macro_rules! add {
     ($ui:expr, $node_key:expr, $code:block) => {
         $ui.add_as_parent($node_key);
         $code;
-        $ui.end_parent();
+        $ui.end_parent_unchecked();
     };
     ($ui:expr, $node_key:expr) => {
         $ui.add($node_key)
@@ -2185,7 +2195,7 @@ macro_rules! create_layer_macro {
                 let anonymous_key = view_derive::anon_node_key!($node_params_name, NodeKey);
                 $ui.add_as_parent(anonymous_key);
                 $code;
-                $ui.end_parent();
+                $ui.end_parent_unchecked();
             };
 
             // named version. allows writing this: h_stack!(ui, CUSTOM_H_STACK, { ... })
@@ -2194,7 +2204,7 @@ macro_rules! create_layer_macro {
             ($ui:expr, $node_key:expr, $code:block) => {
                 $ui.add_as_parent($node_key);
                 $code;
-                $ui.end_parent();
+                $ui.end_parent_unchecked();
             };
         }
     };
