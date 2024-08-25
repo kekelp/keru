@@ -1180,11 +1180,17 @@ impl Ui {
     }
 
     pub fn add<T: NodeType>(&mut self, key: TypedKey<T>) -> NodeRef<T> {
-        return self.update_node(key, false);
+        let i = self.update_node(key, false);
+        return NodeRef {
+            node: &mut self.nodes[i],
+            text: &mut self.text,
+            nodetype_marker: PhantomData::<T>,
+        };
     }
 
-    pub fn add_as_parent<T: ParentTrait>(&mut self, key: TypedKey<T>) -> NodeRef<T> {
-        return self.update_node(key, true);
+    pub fn add_as_parent<T: ParentTrait>(&mut self, key: TypedKey<T>) -> usize {
+        let i = self.update_node(key, true);
+        return i;
     }
 
     pub fn end_parent_unchecked(&mut self) {
@@ -1202,7 +1208,7 @@ impl Ui {
     //     self.last_child_stack.pop();
     // }
 
-    // this will almost surely have problems with twins, as above
+    // don't expect this to give you twin nodes automatically
     pub fn get_ref<T: NodeType>(&mut self, key: TypedKey<T>) -> NodeRef<T> {
         
         let node_i = self.nodes.fronts.get(&key.id()).unwrap().slab_i;
@@ -1213,7 +1219,16 @@ impl Ui {
         };
     }
 
-    pub fn update_node<T: NodeType>(&mut self, key: TypedKey<T>, make_new_layer: bool) -> NodeRef<T> {
+    // only for the macro, use get_ref 
+    pub fn get_ref_unchecked<T: NodeType>(&mut self, i: usize, _key: TypedKey<T>) -> NodeRef<T> {        
+        return NodeRef {
+            node: &mut self.nodes[i],
+            text: &mut self.text,
+            nodetype_marker: PhantomData::<T>,
+        };
+    }
+
+    pub fn update_node<T: NodeType>(&mut self, key: TypedKey<T>, make_new_layer: bool) -> usize {
         let parent_i = self.parent_stack.last().unwrap().clone();
 
         let frame = self.part.current_frame;
@@ -1314,12 +1329,7 @@ impl Ui {
             self.parent_stack.push(real_final_i);           
         }
 
-        return NodeRef {
-            node: &mut self.nodes[real_final_i],
-            text: &mut self.text,
-            nodetype_marker: PhantomData::<T>,
-        };
-
+        return real_final_i;
     }
 
     pub fn add_child_to_parent(&mut self, id: usize, parent_id: usize) {
@@ -2223,10 +2233,10 @@ impl Ui {
 macro_rules! add {
     ($ui:expr, $node_key:expr, $code:block) => {
         {
-            $ui.add_as_parent($node_key);
+            let i = $ui.add_as_parent($node_key);
             $code;
             $ui.end_parent_unchecked();
-            $ui.get_ref($node_key)
+            $ui.get_ref_unchecked(i, $node_key)
         }
     };
     ($ui:expr, $node_key:expr) => {
