@@ -13,7 +13,7 @@ pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::TRANSPARENT)
     },
     interact: Interact {
-        clickable: false,
+        click_animation: false,
     },
     layout: Layout {
         size: Xy::new_symm(Fixed(Frac(1.0))),
@@ -38,7 +38,7 @@ pub const DEFAULT: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::FLGR_BLUE),
     },
     interact: Interact {
-        clickable: false,
+        click_animation: false,
     },
     layout: Layout {
         size: Xy::new_symm(Fixed(Frac(1.0))),
@@ -64,7 +64,7 @@ pub const V_STACK: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
     },
     interact: Interact {
-        clickable: true,
+        click_animation: true,
     },
     layout: Layout {
         size: Xy::new(Size::FitContent, Size::FitContent),
@@ -90,7 +90,7 @@ pub const H_STACK: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
     },
     interact: Interact {
-        clickable: false,
+        click_animation: false,
     },
     layout: Layout {
         size: Xy::new(Size::FitContent, Size::FitContent),
@@ -112,7 +112,7 @@ pub const MARGIN: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
     },
     interact: Interact {
-        clickable: false,
+        click_animation: false,
     },
     layout: Layout {
         size: Xy::new_symm(Fixed(Frac(0.9))),
@@ -136,7 +136,7 @@ pub const ICON_BUTTON: NodeParams = NodeParams {
         vertex_colors: VertexColors::FLGR_SOVL_GRAD,
     },
     interact: Interact {
-        clickable: true,
+        click_animation: true,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -150,7 +150,10 @@ pub const ICON_BUTTON: NodeParams = NodeParams {
 
 pub const BUTTON: NodeParams = NodeParams {
     stack: None,
-    text: None,
+    text: Some(Text {
+        default_text: "Click",
+        editable: false,
+    }),
     image: None,
     rect: Rect {
         visible: true,
@@ -159,7 +162,7 @@ pub const BUTTON: NodeParams = NodeParams {
         vertex_colors: VertexColors::diagonal_gradient_backslash(Color::FLGR_BLUE, Color::FLGR_RED),
     },
     interact: Interact {
-        clickable: true,
+        click_animation: true,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -184,7 +187,7 @@ pub const LABEL: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::FLGR_BLUE),
     },
     interact: Interact {
-        clickable: false,
+        click_animation: false,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -209,7 +212,7 @@ pub const TEXT: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
     },
     interact: Interact {
-        clickable: false,
+        click_animation: false,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -234,7 +237,7 @@ pub const EMPTY_TEXT: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
     },
     interact: Interact {
-        clickable: false,
+        click_animation: false,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -260,7 +263,7 @@ pub const TEXT_INPUT: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::rgba(26, 0, 26, 230)),
     },
     interact: Interact {
-        clickable: true,
+        click_animation: true,
     },
     layout: Layout {
         size: Xy::new_symm(Fill),
@@ -282,7 +285,7 @@ pub const PANEL: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::FLGR_BLUE),
     },
     interact: Interact {
-        clickable: false,
+        click_animation: false,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),

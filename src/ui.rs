@@ -216,9 +216,10 @@ impl Mul<f32> for XyRect {
     }
 }
 
+// might as well move to Rect? but maybe there's issues with non-clickable stuff absorbing the clicks.
 #[derive(Debug, Copy, Clone)]
 pub struct Interact {
-    pub clickable: bool,
+    pub click_animation: bool,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -589,14 +590,14 @@ impl Color {
     }
 }
 
-pub struct NodeWithStuff<'a, T: NodeType> {
+pub struct NodeRef<'a, T: NodeType> {
     node: &'a mut Node,
     text: &'a mut TextSystem,
     nodetype_marker: PhantomData<T>,
 }
 
 // why can't you just do it separately?
-impl<'a,  T: NodeType> NodeWithStuff<'a, T> {
+impl<'a,  T: NodeType> NodeRef<'a, T> {
     pub fn set_color(&mut self, color: Color)  -> &mut Self {
         self.node.params.rect.vertex_colors = VertexColors::flat(color);
         return self;
@@ -606,9 +607,19 @@ impl<'a,  T: NodeType> NodeWithStuff<'a, T> {
         self.node.params.rect.vertex_colors = colors;
         return self;
     }
+
+    pub fn set_position_x(&mut self, position: Position)  -> &mut Self {
+        self.node.params.layout.position.x = position;
+        return self;
+    }
+
+    pub fn set_position_y(&mut self, position: Position)  -> &mut Self {
+        self.node.params.layout.position.y = position;
+        return self;
+    }
 }
 
-impl<'a, T: TextTrait> NodeWithStuff<'a, T> {
+impl<'a, T: TextTrait> NodeRef<'a, T> {
 
     pub fn set_text(&mut self, text: &str) -> &mut Self {
         if let Some(text_id) = self.node.text_id {
@@ -1162,11 +1173,11 @@ impl Ui {
         }
     }
 
-    pub fn add<T: NodeType>(&mut self, key: TypedKey<T>) -> NodeWithStuff<T> {
+    pub fn add<T: NodeType>(&mut self, key: TypedKey<T>) -> NodeRef<T> {
         return self.update_node(key, false);
     }
 
-    pub fn add_as_parent<T: ParentTrait>(&mut self, key: TypedKey<T>) -> NodeWithStuff<T> {
+    pub fn add_as_parent<T: ParentTrait>(&mut self, key: TypedKey<T>) -> NodeRef<T> {
         return self.update_node(key, true);
     }
 
@@ -1185,7 +1196,18 @@ impl Ui {
     //     self.last_child_stack.pop();
     // }
 
-    pub fn update_node<T: NodeType>(&mut self, key: TypedKey<T>, make_new_layer: bool) -> NodeWithStuff<T> {
+    // this will almost surely have problems with twins, as above
+    pub fn get_ref<T: NodeType>(&mut self, key: TypedKey<T>) -> NodeRef<T> {
+        
+        let node_i = self.nodes.fronts.get(&key.id()).unwrap().slab_i;
+        return NodeRef {
+            node: &mut self.nodes[node_i],
+            text: &mut self.text,
+            nodetype_marker: PhantomData::<T>,
+        };
+    }
+
+    pub fn update_node<T: NodeType>(&mut self, key: TypedKey<T>, make_new_layer: bool) -> NodeRef<T> {
         let parent_i = self.parent_stack.last().unwrap().clone();
 
         let frame = self.part.current_frame;
@@ -1286,7 +1308,7 @@ impl Ui {
             self.parent_stack.push(real_final_i);           
         }
 
-        return NodeWithStuff {
+        return NodeRef {
             node: &mut self.nodes[real_final_i],
             text: &mut self.text,
             nodetype_marker: PhantomData::<T>,
@@ -1774,6 +1796,11 @@ impl Ui {
                     let origin = parent_rect[cross][0] + padding[cross];
                     self.nodes[child].rect[cross] = [origin, origin + size[cross]];         
                 },
+                Position::Static(len) => {
+                    let static_pos = self.to_frac(len, cross);
+                    let origin = parent_rect[cross][0] + padding[cross] + static_pos;
+                    self.nodes[child].rect[cross] = [origin, origin + size[cross]];         
+                },
                 Position::End => {
                     let origin = parent_rect[cross][1] - padding[cross];
                     self.nodes[child].rect[cross] = [origin - size[cross], origin];
@@ -1802,6 +1829,11 @@ impl Ui {
                         let origin = parent_rect[ax][0] + padding[ax];
                         self.nodes[child].rect[ax] = [origin, origin + size[ax]];         
                     },
+                    Position::Static(len) => {
+                        let static_pos = self.to_frac(len, ax);
+                        let origin = parent_rect[ax][0] + padding[ax] + static_pos;
+                        self.nodes[child].rect[ax] = [origin, origin + size[ax]];
+                    }
                     Position::End => {
                         let origin = parent_rect[ax][1] - padding[ax];
                         self.nodes[child].rect[ax] = [origin - size[ax], origin];
@@ -1832,7 +1864,7 @@ impl Ui {
                     vertex_colors: node.params.rect.vertex_colors,
                     last_hover: node.last_hover,
                     last_click: node.last_click,
-                    clickable: node.params.interact.clickable.into(),
+                    clickable: node.params.interact.click_animation.into(),
                     id: node.id,
                     z: 0.0,
                     radius: 30.0,
@@ -1913,7 +1945,7 @@ impl Ui {
                 vertex_colors: current_node.params.rect.vertex_colors,
                 last_hover: current_node.last_hover,
                 last_click: current_node.last_click,
-                clickable: current_node.params.interact.clickable.into(),
+                clickable: current_node.params.interact.click_animation.into(),
                 id: current_node.id,
                 z: 0.0,
                 radius: 30.0,
@@ -2063,17 +2095,15 @@ impl Ui {
 
         // do cleanup here????
         self.hovered.clear();
-        self.clicked.clear()
+        // self.clicked.clear()
     }
 
     pub fn scan_mouse_hits(&mut self) -> Option<Id> {
         self.mouse_hit_stack.clear();
 
         for rect in &self.rects {
-            if rect.clickable != 0 {
-                if self.part.mouse_hit_rect(rect) {
-                    self.mouse_hit_stack.push((rect.id, rect.z));
-                }
+            if self.part.mouse_hit_rect(rect) {
+                self.mouse_hit_stack.push((rect.id, rect.z));
             }
         }
 
@@ -2149,6 +2179,7 @@ impl Ui {
         self.waiting_for_click_release = false;
         let topmost_mouse_hit = self.scan_mouse_hits();
         let consumed = topmost_mouse_hit.is_some();
+        self.clicked.clear();
         return consumed;
     }
 
@@ -2185,9 +2216,12 @@ impl Ui {
 #[macro_export]
 macro_rules! add {
     ($ui:expr, $node_key:expr, $code:block) => {
-        $ui.add_as_parent($node_key);
-        $code;
-        $ui.end_parent_unchecked();
+        {
+            $ui.add_as_parent($node_key);
+            $code;
+            $ui.end_parent_unchecked();
+            $ui.get_ref($node_key)
+        }
     };
     ($ui:expr, $node_key:expr) => {
         $ui.add($node_key)
@@ -2344,6 +2378,7 @@ pub enum Position {
     Center,
     Start,
     End,
+    Static(Len),
 }
 
 #[allow(dead_code)]

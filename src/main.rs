@@ -37,6 +37,7 @@ fn main() -> Result<(), EventLoopError> {
         canvas,
 
         info_visible: true,
+        slider_value: 500.0,
     };
 
     event_loop.run(move |event, target| {
@@ -53,6 +54,7 @@ pub struct State {
     pub canvas: Canvas,
 
     pub info_visible: bool,
+    pub slider_value: f32,
 }
 
 

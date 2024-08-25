@@ -17,13 +17,26 @@ const FLGR_PANEL: NodeParams = PANEL.vertex_colors(GRAD1);
 
 impl State {
     pub fn update_ui(&mut self) {       
+
         tree!(self.ui, {
             
             #[node_key(PANEL)]
             const DUGONG: NodeKey;
+
+            if let Some((x, _y)) = self.ui.is_dragged(DUGONG) {
+                self.slider_value -= x as f32;
+                // self.slider_value += y as f32;
+            }
+    
             add!(self.ui, DUGONG, {
                 text!(self.ui, "Dugong Nikon");
-            });
+            }).set_position_x(Position::Static(Pixels(self.slider_value as u32)));
+
+            // #[node_key(BUTTON)]
+            // const DUGONG2: NodeKey;
+
+            // self.ui.add(DUGONG2).set_position_x(Position::Static(Pixels(pos as u32)));
+
 
             #[node_key(V_STACK.position_x(Position::End).size_y(Fill).size_x(FitContent).stack_arrange(Arrange::Center))]
             const SIDEBAR: TypedKey<Stack>;
@@ -130,7 +143,7 @@ impl State {
                 });
 
                 let text = match self.counter_state.counter_mode {
-                    true => "Hide counter",
+                    true => "Hide useless counter",
                     false => "Show Counter\nl\nl\nl\nl\nl\nllllllllllllllllllllÞÞÞÞÞÞÞÞÞÞÞÞÞÞÞÞÞÞÞÞØØ↑ı¥§",
                 };
                 add!(self.ui, CounterState::SHOW_COUNTER_BUTTON).set_text(text);
