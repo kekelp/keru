@@ -2,10 +2,6 @@ XXXXXXXX deinvert y
 
 -- drag events and sliders
 
--- the rest of the text sizing cases
-
--- the advanced stack cases like SpaceEvenly or whatever 
-
 XXXXXXXX the entire typed keys thing.
 
 -- images:
@@ -37,6 +33,9 @@ XXXXXXXX the entire typed keys thing.
 -- scrolling
 -- virtual lists or something
 
+-- the rest of the text sizing cases
+
+-- the advanced stack cases like SpaceEvenly or whatever 
 
 Optional stuff:
 

@@ -16,8 +16,14 @@ const FLGR_PANEL: NodeParams = PANEL.vertex_colors(GRAD1);
 
 
 impl State {
-    pub fn update_ui(&mut self) {
+    pub fn update_ui(&mut self) {       
         tree!(self.ui, {
+            
+            #[node_key(PANEL)]
+            const DUGONG: NodeKey;
+            add!(self.ui, DUGONG, {
+                text!(self.ui, "Dugong Nikon");
+            });
 
             #[node_key(V_STACK.position_x(Position::End).size_y(Fill).size_x(FitContent).stack_arrange(Arrange::Center))]
             const SIDEBAR: TypedKey<Stack>;

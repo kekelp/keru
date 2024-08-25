@@ -8,6 +8,7 @@ use glyphon::{Affinity, Resolution as GlyphonResolution};
 use rustc_hash::{FxHashMap, FxHasher};
 use slab::Slab;
 use wgpu::*;
+use winit::event::{ElementState, MouseScrollDelta};
 use winit::keyboard::Key;
 
 use crate::for_each_child;
@@ -854,6 +855,8 @@ pub struct Ui {
     pub debug_mode: bool,
     pub debug_key_pressed: bool,
 
+    pub mouse_status: MouseInputState,
+
     pub waiting_for_click_release: bool,
 
     pub clipboard: ClipboardContext,
@@ -1110,6 +1113,9 @@ impl Ui {
             waiting_for_click_release: false,
             debug_mode: false,
             debug_key_pressed: false,
+
+            mouse_status: MouseInputState::default(),
+
             clipboard: ClipboardContext::new().unwrap(),
             key_mods: ModifiersState::default(),
 
@@ -1470,6 +1476,14 @@ impl Ui {
 
     // returns: is the event consumed?
     pub fn handle_events(&mut self, full_event: &Event<()>, queue: &Queue) -> bool {
+        match full_event {
+            Event::NewEvents(_) => {
+                self.mouse_status.clear_frame();
+            },
+            _ => {}
+        }
+
+
         if let Event::WindowEvent { event, .. } = full_event {
             match event {
                 WindowEvent::CursorMoved { position, .. } => {
@@ -1508,6 +1522,9 @@ impl Ui {
                 WindowEvent::Resized(size) => self.resize(size, queue),
                 _ => {}
             }
+
+            self.mouse_status.update(event);
+
         }
 
         return false;
@@ -1854,6 +1871,14 @@ impl Ui {
         return self.clicked.contains(&node_key.id);
     }
 
+    pub fn is_dragged(&self, node_key: NodeKey) -> Option<(f64, f64)> {
+        if self.is_clicked(node_key) {
+            return Some(self.mouse_status.cursor_diff())
+        } else {
+            return None;
+        }
+    }
+
     // todo: is_clicked_advanced
 
     pub fn is_hovered(&self, node_key: NodeKey) -> bool {
@@ -2041,21 +2066,6 @@ impl Ui {
         self.clicked.clear()
     }
 
-    pub fn begin_tree(&mut self) {
-        // do cleanup here??
-
-        self.update_time();
-
-        self.nodes[self.root_i].reset_children();
-
-        self.part.current_frame += 1;
-    }
-
-    pub fn finish_tree(&mut self) {
-        self.layout_and_build_rects();
-        self.resolve_hover();
-    }
-
     pub fn scan_mouse_hits(&mut self) -> Option<Id> {
         self.mouse_hit_stack.clear();
 
@@ -2083,13 +2093,12 @@ impl Ui {
     }
 
     // called on every mouse movement AND on every frame.
+    // todo: think if it's really worth it to do this on every mouse movement.
     pub fn resolve_hover(&mut self) {
         let topmost_mouse_hit = self.scan_mouse_hits();
 
         if let Some(hovered_id) = topmost_mouse_hit {
             self.hovered.push(hovered_id);
-            // this goes on the node because the rect isn't a real entity. it's rebuilt every frame
-            // todo: if that ever changes, this could skip the hashmap access and get faster, I think.
             let t = time_f32();
             let node = self.nodes.get_by_id(&hovered_id).unwrap();
             node.last_hover = t;
@@ -2106,8 +2115,6 @@ impl Ui {
             self.waiting_for_click_release = true;
 
             self.clicked.push(clicked_id);
-            // this goes on the node because the rect isn't a real entity. it's rebuilt every frame
-            // todo: if that ever changes, this could skip the hashmap access and get faster, I think.
             let t = time_f32();
             let node = self.nodes.get_by_id(&clicked_id).unwrap();
             node.last_click = t;
@@ -2221,6 +2228,22 @@ macro_rules! text {
         let anonymous_key = view_derive::anon_node_key!(crate::node_params::EMPTY_TEXT, TypedKey<Text>);
         $ui.add(anonymous_key).set_text($text);
     };
+}
+
+impl Ui {
+    pub fn begin_tree(&mut self) {
+        // do cleanup here??
+        self.part.current_frame += 1;
+    }
+    
+    pub fn finish_tree(&mut self) {
+        self.layout_and_build_rects();
+        self.resolve_hover();
+        
+        // ...maybe it's better to put this stuff in end() rather than begin()?
+        self.update_time();
+        self.nodes[self.root_i].reset_children();
+    }
 }
 
 #[macro_export]
@@ -2423,88 +2446,104 @@ fn fx_hash<T: Hash>(value: &T) -> u64 {
     hasher.finish()
 }
 
-// #[derive(Debug, Default)]
-// pub struct MouseButtons {
-//     pub left: bool,
-//     pub right: bool,
-//     pub middle: bool,
-//     pub back: bool,
-//     pub forward: bool,
-//     pub other: u16, // 16-bit field for other buttons
-// }
-// impl MouseButtons {
-//     pub fn is_other_button_pressed(&self, id: u16) -> bool {
-//         if id < 16 {
-//             return self.other & (1 << id) != 0;
-//         } else {
-//             panic!("Mouse button id must be between 0 and 15")
-//         }
-//     }
-// }
+#[derive(Debug, Default)]
+pub struct MouseButtons {
+    pub left: bool,
+    pub right: bool,
+    pub middle: bool,
+    pub back: bool,
+    pub forward: bool,
+    pub other: u16, // 16-bit field for other buttons
+}
+impl MouseButtons {
+    pub fn is_other_button_pressed(&self, id: u16) -> bool {
+        if id < 16 {
+            return self.other & (1 << id) != 0;
+        } else {
+            panic!("Mouse button id must be between 0 and 15")
+        }
+    }
+}
 
-// #[derive(Debug)]
-// pub struct FilteredMouseInput {
-//     pub position: PhysicalPosition<f64>,
-//     pub buttons: MouseButtons,
-//     pub scroll_delta: (f32, f32),
-// }
+#[derive(Debug)]
+pub struct MouseInputState {
+    pub position: PhysicalPosition<f64>,
+    pub buttons: MouseButtons,
+    pub scroll_delta: (f32, f32),
+    
+    // previous for diffs
+    pub prev_position: PhysicalPosition<f64>,
+}
 
-// impl Default for FilteredMouseInput {
-//     fn default() -> Self {
-//         return Self {
-//             position: PhysicalPosition::new(0.0, 0.0),
-//             buttons: MouseButtons::default(),
-//             scroll_delta: (0.0, 0.0),
-//         };
-//     }
-// }
+impl Default for MouseInputState {
+    fn default() -> Self {
+        return Self {
+            position: PhysicalPosition::new(0.0, 0.0),
+            buttons: MouseButtons::default(),
+            scroll_delta: (0.0, 0.0),
 
-// impl FilteredMouseInput {
+            prev_position: PhysicalPosition::new(0.0, 0.0),
+        };
+    }
+}
 
-//     pub fn update(&mut self, event: &WindowEvent) {
-//         match event {
-//             WindowEvent::CursorMoved { position, .. } => {
-//                 self.position = *position;
-//             }
-//             WindowEvent::MouseInput { state, button, .. } => {
-//                 let pressed = *state == ElementState::Pressed;
-//                 match button {
-//                     MouseButton::Left => self.buttons.left = pressed,
-//                     MouseButton::Right => self.buttons.right = pressed,
-//                     MouseButton::Middle => self.buttons.middle = pressed,
-//                     MouseButton::Back => self.buttons.back = pressed,
-//                     MouseButton::Forward => self.buttons.forward = pressed,
-//                     MouseButton::Other(id) => {
-//                         if *id < 16 {
-//                             if pressed {
-//                                 self.buttons.other |= 1 << id;
-//                             } else {
-//                                 self.buttons.other &= !(1 << id);
-//                             }
-//                         }
-//                     }
-//                 }
-//             }
-//             WindowEvent::MouseWheel { delta, .. } => {
-//                 match delta {
-//                     MouseScrollDelta::LineDelta(x, y) => {
-//                         self.scroll_delta.0 += x;
-//                         self.scroll_delta.1 += y;
-//                     }
-//                     MouseScrollDelta::PixelDelta(pos) => {
-//                         self.scroll_delta.0 += pos.x as f32;
-//                         self.scroll_delta.1 += pos.y as f32;
-//                     }
-//                 }
-//             }
-//             _ => {}
-//         }
-//     }
+impl MouseInputState {
 
-//     pub fn reset_scroll(&mut self) {
-//         self.scroll_delta = (0.0, 0.0);
-//     }
-// }
+    pub fn update(&mut self, event: &WindowEvent) {
+        match event {
+            WindowEvent::CursorMoved { position, .. } => {
+                self.position = *position;
+            }
+            WindowEvent::MouseInput { state, button, .. } => {
+                let pressed = *state == ElementState::Pressed;
+                match button {
+                    MouseButton::Left => self.buttons.left = pressed,
+                    MouseButton::Right => self.buttons.right = pressed,
+                    MouseButton::Middle => self.buttons.middle = pressed,
+                    MouseButton::Back => self.buttons.back = pressed,
+                    MouseButton::Forward => self.buttons.forward = pressed,
+                    MouseButton::Other(id) => {
+                        if *id < 16 {
+                            if pressed {
+                                self.buttons.other |= 1 << id;
+                            } else {
+                                self.buttons.other &= !(1 << id);
+                            }
+                        }
+                    }
+                }
+            }
+            WindowEvent::MouseWheel { delta, .. } => {
+                match delta {
+                    MouseScrollDelta::LineDelta(x, y) => {
+                        self.scroll_delta.0 += x;
+                        self.scroll_delta.1 += y;
+                    }
+                    MouseScrollDelta::PixelDelta(pos) => {
+                        self.scroll_delta.0 += pos.x as f32;
+                        self.scroll_delta.1 += pos.y as f32;
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    pub fn clear_frame(&mut self) {
+        self.prev_position = self.position;
+    }
+
+    pub fn cursor_diff(&self) -> (f64, f64) {
+        return (
+            self.prev_position.x - self.position.x,
+            self.prev_position.y - self.position.y, 
+        );
+    }
+
+    pub fn reset_scroll(&mut self) {
+        self.scroll_delta = (0.0, 0.0);
+    }
+}
 
 #[macro_export]
 macro_rules! unwrap_or_return {
@@ -2550,7 +2589,8 @@ impl<T: NodeType> TypedKey<T> {
 
 pub type NodeKey = TypedKey<Any>;
 
-pub trait NodeType: Copy {}
+use std::fmt::Debug;
+pub trait NodeType: Copy + Debug {}
 
 #[derive(Clone, Copy, Debug)]
 pub struct Any {}
