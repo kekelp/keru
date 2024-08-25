@@ -19,24 +19,17 @@ impl State {
     pub fn update_ui(&mut self) {       
 
         tree!(self.ui, {
-            
+
             #[node_key(PANEL)]
-            const DUGONG: NodeKey;
-
-            if let Some((x, _y)) = self.ui.is_dragged(DUGONG) {
+            const SLIDER: NodeKey;
+            
+            if let Some((x, _y)) = self.ui.is_dragged(SLIDER) {
                 self.slider_value -= x as f32;
-                // self.slider_value += y as f32;
             }
-    
-            add!(self.ui, DUGONG, {
-                text!(self.ui, "Dugong Nikon");
+
+            add!(self.ui, SLIDER, {
+                text!(self.ui, "Slider");
             }).set_position_x(Position::Static(Pixels(self.slider_value as u32)));
-
-            // #[node_key(BUTTON)]
-            // const DUGONG2: NodeKey;
-
-            // self.ui.add(DUGONG2).set_position_x(Position::Static(Pixels(pos as u32)));
-
 
             #[node_key(V_STACK.position_x(Position::End).size_y(Fill).size_x(FitContent).stack_arrange(Arrange::Center))]
             const SIDEBAR: TypedKey<Stack>;
