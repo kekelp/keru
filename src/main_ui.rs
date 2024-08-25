@@ -17,17 +17,8 @@ const FLGR_PANEL: NodeParams = PANEL.vertex_colors(GRAD1);
 impl State {
     pub fn update_ui(&mut self) {
         tree!(self.ui, {
-            #[node_key(PANEL)]
-            const SLIDER: NodeKey;
 
-            if let Some((x, _y)) = self.ui.is_dragged(SLIDER) {
-                self.slider_value -= x as f32;
-            }
-
-            add!(self.ui, SLIDER, {
-                text!(self.ui, "Slider");
-            })
-            .set_position_x(Position::Static(Pixels(self.slider_value as u32)));
+            self.ui.add_widget(add_slider, &mut self.slider_value);
 
             #[node_key(V_STACK.position_x(Position::End).size_y(Fill).size_x(FitContent).stack_arrange(Arrange::Center))]
             const SIDEBAR: TypedKey<Stack>;
@@ -133,7 +124,7 @@ impl State {
 
                 let text = match self.counter_state.counter_mode {
                     true => "Hide useless counter",
-                    false => "Show Counter\nl\nl\nl\nl\nl\nllllllllllllllllllllÞÞÞÞÞÞÞÞÞÞÞÞÞÞÞÞÞÞÞÞØØ↑ı¥§",
+                    false => "Show Counter\nl\nl\nl\nl\nl\nllllll[{{{}}}}ẞ↑ªĦẞı¥↑ẞªŊẞª‘ªẞŊª‘ŊllllÞÞÞÞÞÞØØ↑ı¥§",
                 };
                 add!(self.ui, CounterState::SHOW_COUNTER_BUTTON).set_text(text);
             });
@@ -304,4 +295,18 @@ impl State {
             });
         });
     }
+}
+
+pub fn add_slider(ui: &mut Ui, value: &mut f32) {
+    #[node_key(PANEL)]
+    const SLIDER: NodeKey;
+
+    if let Some((x, _y)) = ui.is_dragged(SLIDER) {
+        *value -= x as f32;
+    }
+
+    add!(ui, SLIDER, {
+        text!(ui, "Slider");
+    })
+    .set_position_x(Position::Static(Pixels(*value as u32)));
 }

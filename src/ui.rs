@@ -915,6 +915,12 @@ pub struct Ui {
 }
 impl Ui {
 
+    // todo: variadic args lol
+    pub fn add_widget<T>(&mut self, widget_function: fn(&mut Ui, &mut T) -> (), arg: &mut T) {
+        widget_function(self, arg);
+    }
+
+
     pub fn to_pixels(&self, len: Len, axis: Axis) -> u32 {
         match len {
             Len::Pixels(pixels) => return pixels,
