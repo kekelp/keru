@@ -305,6 +305,9 @@ pub fn add_slider(ui: &mut Ui, value: &mut f32) {
     #[node_key(PANEL.size_y(Fill).size_x(Fixed(Frac(0.4))).color(Color::FLGR_RED).position_x(Start).padding_x(Pixels(2)) )]
     const SLIDER_FILL: NodeKey;
 
+    #[node_key(PANEL)]
+    const SLIDER_FILL2: NodeKey;
+
     if let Some((x, _y)) = ui.is_dragged(SLIDER_CONTAINER) {
         *value -= x as f32;
         *value = value.clamp(0.0, f32::MAX);
