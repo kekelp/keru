@@ -402,6 +402,16 @@ impl NodeParams {
         self.stack = Some(stack.axis(axis));
         return self;
     }
+
+    pub const fn padding_x(mut self, padding: Len) -> Self {
+        self.layout.padding.x = padding;
+        return self;
+    }
+
+    pub const fn padding_y(mut self, padding: Len) -> Self {
+        self.layout.padding.x = padding;
+        return self;
+    }
 }
 
 #[derive(Default, Debug, Pod, Copy, Clone, Zeroable)]
@@ -615,6 +625,16 @@ impl<'a,  T: NodeType> NodeRef<'a, T> {
 
     pub fn set_position_y(&mut self, position: Position)  -> &mut Self {
         self.node.params.layout.position.y = position;
+        return self;
+    }
+
+    pub fn set_size_x(&mut self, size: Size)  -> &mut Self {
+        self.node.params.layout.size.x = size;
+        return self;
+    }
+
+    pub fn set_size_y(&mut self, size: Size)  -> &mut Self {
+        self.node.params.layout.size.y = size;
         return self;
     }
 }

@@ -18,7 +18,8 @@ impl State {
     pub fn update_ui(&mut self) {
         tree!(self.ui, {
 
-            self.ui.add_widget(add_slider, &mut self.slider_value);
+            // self.ui.add_widget(add_slider, &mut self.slider_value);
+            add_slider(&mut self.ui, &mut self.slider_value);
 
             #[node_key(V_STACK.position_x(Position::End).size_y(Fill).size_x(FitContent).stack_arrange(Arrange::Center))]
             const SIDEBAR: TypedKey<Stack>;
@@ -298,15 +299,19 @@ impl State {
 }
 
 pub fn add_slider(ui: &mut Ui, value: &mut f32) {
-    #[node_key(PANEL)]
-    const SLIDER: NodeKey;
 
-    if let Some((x, _y)) = ui.is_dragged(SLIDER) {
+    #[node_key(PANEL.size_x(Fixed(Pixels(500))).size_y(Fixed(Pixels(200))) )]
+    const SLIDER_CONTAINER: NodeKey;
+    #[node_key(PANEL.size_y(Fill).size_x(Fixed(Frac(0.4))).color(Color::FLGR_RED).position_x(Start).padding_x(Pixels(2)) )]
+    const SLIDER_FILL: NodeKey;
+
+    if let Some((x, _y)) = ui.is_dragged(SLIDER_CONTAINER) {
         *value -= x as f32;
+        *value = value.clamp(0.0, f32::MAX);
     }
 
-    add!(ui, SLIDER, {
-        text!(ui, "Slider");
-    })
-    .set_position_x(Position::Static(Pixels(*value as u32)));
+    add!(ui, SLIDER_CONTAINER, {
+        ui.add(SLIDER_FILL).set_size_x(Fixed(Pixels(*value as u32)));
+    });
+    
 }
