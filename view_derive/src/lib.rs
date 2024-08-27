@@ -3,9 +3,13 @@ extern crate proc_macro;
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
 use quote::quote;
-use syn::{parse::{Parse, ParseStream}, parse_macro_input, spanned::Spanned, Expr, LitStr, Token, Type};
 use rand::Rng;
-
+use syn::{
+    parse::{Parse, ParseStream},
+    parse_macro_input,
+    spanned::Spanned,
+    Expr, LitStr, Token, Type,
+};
 
 struct ItemConstNoEq {
     _attrs: Vec<syn::Attribute>,
@@ -42,7 +46,7 @@ pub fn node_key(_attr: TokenStream, item: TokenStream) -> TokenStream {
     // todo: make sure that attr is empty now
     // let params_expr = parse_macro_input!(attr as Expr);
     let input = parse_macro_input!(item as ItemConstNoEq);
-    
+
     let key_ident = &input.ident;
     let key_type = &input.ty;
     let debug_name = format!("{}", key_ident);
@@ -50,7 +54,6 @@ pub fn node_key(_attr: TokenStream, item: TokenStream) -> TokenStream {
     // todo, use a hash of ident instead of a random number?
     let random_number: u64 = rand::thread_rng().gen();
     let random_number_lit = syn::LitInt::new(&format!("{}", random_number), key_ident.span());
-
 
     let expanded = quote! {
         pub const #key_ident: #key_type = <#key_type>::new(
@@ -61,8 +64,6 @@ pub fn node_key(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
     TokenStream::from(expanded)
 }
-
-
 
 /// Struct to represent the two input parameters: an expression and a type.
 struct Input {
@@ -78,7 +79,11 @@ impl Parse for Input {
         let ty = input.parse::<Type>()?;
         input.parse::<Token![,]>()?;
         let debug_name = input.parse::<LitStr>()?;
-        Ok(Input { expr, ty, debug_name })
+        Ok(Input {
+            expr,
+            ty,
+            debug_name,
+        })
     }
 }
 
@@ -88,7 +93,7 @@ pub fn anon_node_key(input: TokenStream) -> TokenStream {
     let Input {
         expr: default_params_expr,
         ty,
-        debug_name
+        debug_name,
     } = parse_macro_input!(input as Input);
 
     // Generate a random number for the ID.
@@ -96,11 +101,13 @@ pub fn anon_node_key(input: TokenStream) -> TokenStream {
     let random_number_lit =
         syn::LitInt::new(&format!("{}", random_number), default_params_expr.span());
 
-    let debug_name = format!("Anon {:?} ({}:{}:{})",
-    debug_name,
-    std::file!(),
-    std::line!(),
-    std::column!());
+    let debug_name = format!(
+        "Anon {:?} ({}:{}:{})",
+        debug_name,
+        std::file!(),
+        std::line!(),
+        std::column!()
+    );
     let debug_name_lit = syn::LitStr::new(&debug_name, Span::call_site());
 
     // Generate the expanded code.
@@ -134,8 +141,7 @@ pub fn node_key_2(_input: TokenStream) -> TokenStream {
 
     // Generate a random number for the ID.
     let random_number: u64 = rand::thread_rng().gen();
-    let random_number_lit =
-        syn::LitInt::new(&format!("{}", random_number), Span::call_site());
+    let random_number_lit = syn::LitInt::new(&format!("{}", random_number), Span::call_site());
 
     // Generate the expanded code.
     let expanded = quote! {
