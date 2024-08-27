@@ -28,7 +28,7 @@ pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
 pub const DEFAULT: NodeParams = NodeParams {
     stack: None,
     text: Some(Text {
-        default_text: "Default",
+        text: "Default",
         editable: false,
     }),
     image: None,
@@ -151,7 +151,7 @@ pub const ICON_BUTTON: NodeParams = NodeParams {
 pub const BUTTON: NodeParams = NodeParams {
     stack: None,
     text: Some(Text {
-        default_text: "Click",
+        text: "Click",
         editable: false,
     }),
     image: None,
@@ -177,7 +177,7 @@ pub const BUTTON: NodeParams = NodeParams {
 pub const LABEL: NodeParams = NodeParams {
     stack: None,
     text: Some(Text {
-        default_text: "Label",
+        text: "Label",
         editable: false,
     }),
     image: None,
@@ -202,7 +202,7 @@ pub const LABEL: NodeParams = NodeParams {
 pub const TEXT: NodeParams = NodeParams {
     stack: None,
     text: Some(Text {
-        default_text: "Text",
+        text: "Text",
         editable: false,
     }),
     image: None,
@@ -227,7 +227,7 @@ pub const TEXT: NodeParams = NodeParams {
 pub const EMPTY_TEXT: NodeParams = NodeParams {
     stack: None,
     text: Some(Text {
-        default_text: "",
+        text: "",
         editable: false,
     }),
     image: None,
@@ -253,7 +253,7 @@ pub const EMPTY_TEXT: NodeParams = NodeParams {
 pub const TEXT_INPUT: NodeParams = NodeParams {
     stack: None,
     text: Some(Text {
-        default_text: "",
+        text: "",
         editable: true,
     }),
     image: None,

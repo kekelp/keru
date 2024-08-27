@@ -19,17 +19,19 @@ impl State {
         tree!(self.ui, {
 
             // self.ui.add_widget(add_slider, &mut self.slider_value);
-            add_slider(&mut self.ui, &mut self.slider_value);
+            // add_slider(&mut self.ui, &mut self.slider_value);
 
-            #[node_key(V_STACK.position_x(Position::End).size_y(Fill).size_x(FitContent).stack_arrange(Arrange::Center))]
-            const SIDEBAR: TypedKey<Stack>;
-            add!(self.ui, SIDEBAR, {
-                self.add_tools();
+            // #[node_key]
+            // const SIDEBAR: TypedKey<Stack>;
+            // let sidebar_params = V_STACK.position_x(Position::End).size_y(Fill).size_x(FitContent).stack_arrange(Arrange::Center); 
 
-                self.add_pixel_info_ui();
-            });
+            // add!(self.ui, SIDEBAR, sidebar_params, {
+                // self.add_tools();
 
-            // self.add_counter_ui();
+                // self.add_pixel_info_ui();
+            // });
+
+            self.add_counter_ui();
         });
 
         // effects
@@ -55,13 +57,13 @@ impl CounterState {
         };
     }
 
-    #[node_key(BUTTON.text("Increase").color(Color::FLGR_GREEN))]
+    #[node_key]
     pub const INCREASE_BUTTON: NodeKey;
 
-    #[node_key(BUTTON.text("Decrease").color(Color::FLGR_RED))]
+    #[node_key]
     pub const DECREASE_BUTTON: NodeKey;
 
-    #[node_key(BUTTON.text("Show Counter").color(Color::rgba(128, 26, 179, 102)))]
+    #[node_key]
     pub const SHOW_COUNTER_BUTTON: NodeKey;
 
     #[node_key(LABEL)]
@@ -85,9 +87,10 @@ pub fn count_color(count: i32) -> Color {
 
 impl State {
     pub fn add_twin_thing_ui(&mut self) {
-        #[node_key(FLGR_PANEL.size_y(Fixed(Frac(0.5))).position_x(Position::Start))]
+        #[node_key]
         const PIXEL_PANEL: NodeKey;
-        add!(self.ui, PIXEL_PANEL, {
+        let pixel_panel_params = FLGR_PANEL.size_y(Fixed(Frac(0.5))).position_x(Position::Start);
+        add!(self.ui, PIXEL_PANEL, pixel_panel_params, {
             v_stack!(self.ui, {
                 for _ in 0..3 {
                     text!(self.ui, "Identical");
@@ -100,16 +103,16 @@ impl State {
 impl State {
     pub fn add_counter_ui(&mut self) {
         margin!(self.ui, {
-            #[node_key(H_STACK.position_x(Position::Center))]
+            #[node_key]
             pub const CENTER_ROW: NodeKey;
-            h_stack!(self.ui, CENTER_ROW, {
+            h_stack!(self.ui, {
                 v_stack!(self.ui, {
                     if self.counter_state.counter_mode {
                         let new_color = count_color(self.counter_state.count);
-                        add!(self.ui, CounterState::INCREASE_BUTTON).set_color(new_color);
+                        self.ui.add(CounterState::INCREASE_BUTTON, &BUTTON.text("Increase").color(Color::FLGR_GREEN)).set_color(new_color);
 
                         let count = &self.counter_state.count.to_string();
-                        add!(self.ui, CounterState::COUNT_LABEL)
+                        self.ui.add(CounterState::COUNT_LABEL, &LABEL)
                             .set_text(count)
                             .set_text_attrs(
                                 Attrs::new()
@@ -119,7 +122,7 @@ impl State {
                             )
                             .set_text_align(Align::Center);
 
-                        add!(self.ui, CounterState::DECREASE_BUTTON);
+                        self.ui.add(CounterState::DECREASE_BUTTON, &BUTTON.text("Decrease").color(Color::FLGR_RED));
                     }
                 });
 
@@ -127,7 +130,7 @@ impl State {
                     true => "Hide useless counter",
                     false => "Show Counter\nl\nl\nl\nl\nl\nllllll[{{{}}}}ẞ↑ªĦẞı¥↑ẞªŊẞª‘ªẞŊª‘ŊllllÞÞÞÞÞÞØØ↑ı¥§",
                 };
-                add!(self.ui, CounterState::SHOW_COUNTER_BUTTON).set_text(text);
+                self.ui.add(CounterState::SHOW_COUNTER_BUTTON, &BUTTON.text("Show Counter").color(Color::rgba(128, 26, 179, 102))).set_text(text);
             });
         });
     }
@@ -146,156 +149,156 @@ impl State {
         }
     }
 
-    pub fn add_pixel_info_ui(&mut self) {
-        let pixel_info = &self.canvas.pixel_info();
+    // pub fn add_pixel_info_ui(&mut self) {
+    //     let pixel_info = &self.canvas.pixel_info();
 
-        let (x, y) = match pixel_info {
-            Some(pixel_info) => (
-                format!("x: {}", pixel_info.x),
-                format!("y: {}", pixel_info.y),
-            ),
-            None => ("x:  ".to_owned(), "y:  ".to_owned()),
-        };
+    //     let (x, y) = match pixel_info {
+    //         Some(pixel_info) => (
+    //             format!("x: {}", pixel_info.x),
+    //             format!("y: {}", pixel_info.y),
+    //         ),
+    //         None => ("x:  ".to_owned(), "y:  ".to_owned()),
+    //     };
 
-        // let (r, g, b, a) = match pixel_info {
-        //     Some(pixel_info) => (
-        //         format!("{:.2}", pixel_info.color.r),
-        //         format!("{:.2}", pixel_info.color.g),
-        //         format!("{:.2}", pixel_info.color.b),
-        //         format!("{:.2}", pixel_info.color.a),
-        //     ),
-        //     None => ("".to_owned(), "".to_owned(), "".to_owned(), "".to_owned()),
-        // };
+    //     // let (r, g, b, a) = match pixel_info {
+    //     //     Some(pixel_info) => (
+    //     //         format!("{:.2}", pixel_info.color.r),
+    //     //         format!("{:.2}", pixel_info.color.g),
+    //     //         format!("{:.2}", pixel_info.color.b),
+    //     //         format!("{:.2}", pixel_info.color.a),
+    //     //     ),
+    //     //     None => ("".to_owned(), "".to_owned(), "".to_owned(), "".to_owned()),
+    //     // };
 
-        // todo:::::: I don't want strings, I want to write!() directly into the buffer
-        #[node_key(FLGR_PANEL.position_x(End).position_y(Start).size_x(FitContentOrMinimum(Pixels(100))))]
-        const PIXEL_PANEL2: NodeKey;
-        add!(self.ui, PIXEL_PANEL2, {
-            v_stack!(self.ui, {
-                text!(self.ui, &x);
-                text!(self.ui, &y);
-            });
-        });
-    }
+    //     // todo:::::: I don't want strings, I want to write!() directly into the buffer
+    //     #[node_key(FLGR_PANEL.position_x(End).position_y(Start).size_x(FitContentOrMinimum(Pixels(100))))]
+    //     const PIXEL_PANEL2: NodeKey;
+    //     add!(self.ui, PIXEL_PANEL2, {
+    //         v_stack!(self.ui, {
+    //             text!(self.ui, &x);
+    //             text!(self.ui, &y);
+    //         });
+    //     });
+    // }
 
-    pub fn add_tools(&mut self) {
-        #[node_key(ICON_BUTTON.image(include_bytes!("icons/brush.png")))]
-        const BRUSH_ICON: NodeKey;
+    // pub fn add_tools(&mut self) {
+    //     #[node_key(ICON_BUTTON.image(include_bytes!("icons/brush.png")))]
+    //     const BRUSH_ICON: NodeKey;
 
-        #[node_key(ICON_BUTTON.image(include_bytes!("icons/eraser.png")))]
-        const ERASER_ICON: NodeKey;
+    //     #[node_key(ICON_BUTTON.image(include_bytes!("icons/eraser.png")))]
+    //     const ERASER_ICON: NodeKey;
 
-        #[node_key(FLGR_PANEL.position_x(End).position_y(Start).size_x(FitContent))]
-        const TOOLS_PANEL: NodeKey;
+    //     #[node_key(FLGR_PANEL.position_x(End).position_y(Start).size_x(FitContent))]
+    //     const TOOLS_PANEL: NodeKey;
 
-        add!(self.ui, TOOLS_PANEL, {
-            h_stack!(self.ui, {
-                v_stack!(self.ui, {
-                    add!(self.ui, BRUSH_ICON);
-                    add!(self.ui, ERASER_ICON);
-                });
-            });
-        });
+    //     add!(self.ui, TOOLS_PANEL, {
+    //         h_stack!(self.ui, {
+    //             v_stack!(self.ui, {
+    //                 add!(self.ui, BRUSH_ICON);
+    //                 add!(self.ui, ERASER_ICON);
+    //             });
+    //         });
+    //     });
 
-        if self.ui.is_clicked(BRUSH_ICON) {
-            self.canvas.paint_color = PixelColorF32::new(0.2, 0.8, 0.2, 1.0);
-        }
+    //     if self.ui.is_clicked(BRUSH_ICON) {
+    //         self.canvas.paint_color = PixelColorF32::new(0.2, 0.8, 0.2, 1.0);
+    //     }
 
-        if self.ui.is_clicked(ERASER_ICON) {
-            self.canvas.paint_color = PixelColorF32::new(1.0, 1.0, 1.0, 0.0);
-        }
-    }
+    //     if self.ui.is_clicked(ERASER_ICON) {
+    //         self.canvas.paint_color = PixelColorF32::new(1.0, 1.0, 1.0, 0.0);
+    //     }
+    // }
 
-    pub fn add_stacks_test(&mut self) {
-        #[node_key(H_STACK.stack_arrange(Arrange::Start))]
-        const HSTACK1: NodeKey;
-        add!(self.ui, HSTACK1, {
-            #[node_key(LABEL)]
-            const LABEL7: TypedKey<Text>;
+    // pub fn add_stacks_test(&mut self) {
+    //     #[node_key(H_STACK.stack_arrange(Arrange::Start))]
+    //     const HSTACK1: NodeKey;
+    //     add!(self.ui, HSTACK1, {
+    //         #[node_key(LABEL)]
+    //         const LABEL7: TypedKey<Text>;
 
-            #[node_key(V_STACK.stack_arrange(Arrange::Start))]
-            const VSTACK_A: NodeKey;
-            add!(self.ui, VSTACK_A, {
-                add!(self.ui, LABEL7).set_text("a1");
-                add!(self.ui, LABEL7).set_text("a2");
-                add!(self.ui, LABEL7).set_text("a3");
-            });
+    //         #[node_key(V_STACK.stack_arrange(Arrange::Start))]
+    //         const VSTACK_A: NodeKey;
+    //         add!(self.ui, VSTACK_A, {
+    //             add!(self.ui, LABEL7).set_text("a1");
+    //             add!(self.ui, LABEL7).set_text("a2");
+    //             add!(self.ui, LABEL7).set_text("a3");
+    //         });
 
-            #[node_key(V_STACK.stack_arrange(Arrange::Center))]
-            const VSTACK_B: NodeKey;
-            add!(self.ui, VSTACK_B, {
-                add!(self.ui, LABEL7).set_text("b1");
-                add!(self.ui, LABEL7).set_text("b2");
-                add!(self.ui, LABEL7).set_text("b3");
-            });
+    //         #[node_key(V_STACK.stack_arrange(Arrange::Center))]
+    //         const VSTACK_B: NodeKey;
+    //         add!(self.ui, VSTACK_B, {
+    //             add!(self.ui, LABEL7).set_text("b1");
+    //             add!(self.ui, LABEL7).set_text("b2");
+    //             add!(self.ui, LABEL7).set_text("b3");
+    //         });
 
-            #[node_key(V_STACK.stack_arrange(Arrange::End))]
-            const VSTACK_C: NodeKey;
+    //         #[node_key(V_STACK.stack_arrange(Arrange::End))]
+    //         const VSTACK_C: NodeKey;
 
-            add!(self.ui, VSTACK_C, {
-                add!(self.ui, LABEL7).set_text("c1");
-                add!(self.ui, LABEL7).set_text("c2");
-                add!(self.ui, LABEL7).set_text("c3");
-            });
+    //         add!(self.ui, VSTACK_C, {
+    //             add!(self.ui, LABEL7).set_text("c1");
+    //             add!(self.ui, LABEL7).set_text("c2");
+    //             add!(self.ui, LABEL7).set_text("c3");
+    //         });
 
-            #[node_key(V_STACK.stack_arrange(Arrange::Start))]
-            const VSTACK5567: NodeKey;
-            add!(self.ui, VSTACK5567, {
-                #[node_key(H_STACK.stack_arrange(Arrange::Start))]
-                const HSTACK_A: NodeKey;
-                add!(self.ui, HSTACK_A, {
-                    add!(self.ui, LABEL7).set_text("x1");
-                    add!(self.ui, LABEL7).set_text("x2");
-                    add!(self.ui, LABEL7).set_text("x3");
-                });
+    //         #[node_key(V_STACK.stack_arrange(Arrange::Start))]
+    //         const VSTACK5567: NodeKey;
+    //         add!(self.ui, VSTACK5567, {
+    //             #[node_key(H_STACK.stack_arrange(Arrange::Start))]
+    //             const HSTACK_A: NodeKey;
+    //             add!(self.ui, HSTACK_A, {
+    //                 add!(self.ui, LABEL7).set_text("x1");
+    //                 add!(self.ui, LABEL7).set_text("x2");
+    //                 add!(self.ui, LABEL7).set_text("x3");
+    //             });
 
-                #[node_key(H_STACK.stack_arrange(Arrange::Center))]
-                const HSTACK_B: NodeKey;
-                add!(self.ui, HSTACK_B, {
-                    add!(self.ui, LABEL7).set_text("y1");
-                    add!(self.ui, LABEL7).set_text("y2");
-                    add!(self.ui, LABEL7).set_text("y3");
-                });
+    //             #[node_key(H_STACK.stack_arrange(Arrange::Center))]
+    //             const HSTACK_B: NodeKey;
+    //             add!(self.ui, HSTACK_B, {
+    //                 add!(self.ui, LABEL7).set_text("y1");
+    //                 add!(self.ui, LABEL7).set_text("y2");
+    //                 add!(self.ui, LABEL7).set_text("y3");
+    //             });
 
-                #[node_key(H_STACK.stack_arrange(Arrange::End))]
-                const HSTACK_C: NodeKey;
-                add!(self.ui, HSTACK_C, {
-                    add!(self.ui, LABEL7).set_text("z1");
-                    add!(self.ui, LABEL7).set_text("z2");
-                    add!(self.ui, LABEL7).set_text("z3");
-                });
-            });
-        });
-    }
+    //             #[node_key(H_STACK.stack_arrange(Arrange::End))]
+    //             const HSTACK_C: NodeKey;
+    //             add!(self.ui, HSTACK_C, {
+    //                 add!(self.ui, LABEL7).set_text("z1");
+    //                 add!(self.ui, LABEL7).set_text("z2");
+    //                 add!(self.ui, LABEL7).set_text("z3");
+    //             });
+    //         });
+    //     });
+    // }
 
-    pub fn color_box_or_something(&mut self) {
-        margin!(self.ui, {
-            #[node_key(V_STACK.size_x(Fixed(Frac(0.7))).size_y(Fixed(Frac(0.5))).position_x(Center).position_y(Start))]
-            const SIDEBAR2: NodeKey;
-            #[node_key(TEXT_INPUT.text("Color").size_y(Fixed(Frac(0.2))).position_y(Start))]
-            pub const PAINT_COLOR: NodeKey;
-            add!(self.ui, SIDEBAR2, {
-                // todo: function for doing get_text from other places
-                let mut color = add!(self.ui, PAINT_COLOR).get_text();
+    // pub fn color_box_or_something(&mut self) {
+    //     margin!(self.ui, {
+    //         #[node_key(V_STACK.size_x(Fixed(Frac(0.7))).size_y(Fixed(Frac(0.5))).position_x(Center).position_y(Start))]
+    //         const SIDEBAR2: NodeKey;
+    //         #[node_key(TEXT_INPUT.text("Color").size_y(Fixed(Frac(0.2))).position_y(Start))]
+    //         pub const PAINT_COLOR: NodeKey;
+    //         add!(self.ui, SIDEBAR2, {
+    //             // todo: function for doing get_text from other places
+    //             let mut color = add!(self.ui, PAINT_COLOR).get_text();
 
-                if let Some(color) = &mut color {
-                    color.make_ascii_lowercase();
-                    match color.as_str() {
-                        "blue" => {
-                            self.canvas.paint_color = PixelColorF32::BLUE;
-                        }
-                        "red" => {
-                            self.canvas.paint_color = PixelColorF32::RED;
-                        }
-                        "green" => {
-                            self.canvas.paint_color = PixelColorF32::GREEN;
-                        }
-                        _ => {}
-                    }
-                }
-            });
-        });
-    }
+    //             if let Some(color) = &mut color {
+    //                 color.make_ascii_lowercase();
+    //                 match color.as_str() {
+    //                     "blue" => {
+    //                         self.canvas.paint_color = PixelColorF32::BLUE;
+    //                     }
+    //                     "red" => {
+    //                         self.canvas.paint_color = PixelColorF32::RED;
+    //                     }
+    //                     "green" => {
+    //                         self.canvas.paint_color = PixelColorF32::GREEN;
+    //                     }
+    //                     _ => {}
+    //                 }
+    //             }
+    //         });
+    //     });
+    // }
 }
 
 pub fn add_slider(ui: &mut Ui, value: &mut f32) {
@@ -305,7 +308,7 @@ pub fn add_slider(ui: &mut Ui, value: &mut f32) {
     #[node_key(PANEL.size_y(Fill).size_x(Fixed(Frac(0.4))).color(Color::FLGR_RED).position_x(Start).padding_x(Pixels(2)) )]
     const SLIDER_FILL: NodeKey;
 
-    #[node_key(PANEL)]
+    #[node_key]
     const SLIDER_FILL2: NodeKey;
 
     if let Some((x, _y)) = ui.is_dragged(SLIDER_CONTAINER) {
@@ -313,8 +316,8 @@ pub fn add_slider(ui: &mut Ui, value: &mut f32) {
         *value = value.clamp(0.0, f32::MAX);
     }
 
-    add!(ui, SLIDER_CONTAINER, {
-        ui.add(SLIDER_FILL).set_size_x(Fixed(Pixels(*value as u32)));
-    });
+    // add!(ui, SLIDER_CONTAINER, {
+    //     ui.add(SLIDER_FILL).set_size_x(Fixed(Pixels(*value as u32)));
+    // });
     
 }

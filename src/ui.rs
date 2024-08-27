@@ -249,7 +249,7 @@ impl Rect {
 // todo: add greyed text for textinput
 #[derive(Debug, Copy, Clone)]
 pub struct Text {
-    pub default_text: &'static str,
+    pub text: &'static str,
     pub editable: bool,
 }
 
@@ -258,6 +258,7 @@ pub struct Image {
     pub data: &'static [u8],
 }
 
+// todo: rename to NodeDefaults 
 #[derive(Debug, Copy, Clone)]
 pub struct NodeParams {
     pub stack: Option<Stack>,
@@ -267,11 +268,13 @@ pub struct NodeParams {
     pub interact: Interact,
     pub layout: Layout,
     
+    // todo2: remove
     #[cfg(debug_assertions)]
     pub debug_name: &'static str,
 }
 
 impl NodeParams {
+
     // todo: remove
     fn maybe_text(&self) -> Option<Text> {
         return self.text;
@@ -319,18 +322,18 @@ impl NodeParams {
             None => false,
         };
         self.text = Some(Text {
-            default_text: text,
+            text,
             editable: old_editable,
         });
         return self;
     }
     pub const fn editable(mut self, editable: bool) -> Self {
         let old_default_text = match self.text {
-            Some(text) => text.default_text,
+            Some(text) => text.text,
             None => "Insert...",
         };
         self.text = Some(Text {
-            default_text: old_default_text,
+            text: old_default_text,
             editable,
         });
         return self;
@@ -736,7 +739,7 @@ pub struct TextSystem {
 const GLOBAL_TEXT_METRICS: Metrics = Metrics::new(24.0, 24.0);
 impl TextSystem {
     pub(crate) fn maybe_new_text_area(&mut self, text: Option<Text>, current_frame: u64) -> Option<usize> {
-        let text = text?.default_text;
+        let text = text?.text;
 
         let mut buffer = GlyphonBuffer::new(&mut self.font_system, GLOBAL_TEXT_METRICS);
         buffer.set_size(&mut self.font_system, 500., 500.);
@@ -1199,8 +1202,8 @@ impl Ui {
         }
     }
 
-    pub fn add<T: NodeType>(&mut self, key: TypedKey<T>) -> NodeRef<T> {
-        let i = self.update_node(key, false);
+    pub fn add<T: NodeType>(&mut self, key: TypedKey<T>, defaults: &NodeParams) -> NodeRef<T> {
+        let i = self.update_node(key, defaults, false);
         return NodeRef {
             node: &mut self.nodes[i],
             text: &mut self.text,
@@ -1208,8 +1211,8 @@ impl Ui {
         };
     }
 
-    pub fn add_as_parent<T: ParentTrait>(&mut self, key: TypedKey<T>) -> usize {
-        let i = self.update_node(key, true);
+    pub fn add_as_parent<T: ParentTrait>(&mut self, key: TypedKey<T>, defaults: &NodeParams) -> usize {
+        let i = self.update_node(key, defaults, true);
         return i;
     }
 
@@ -1248,7 +1251,7 @@ impl Ui {
         };
     }
 
-    pub fn update_node<T: NodeType>(&mut self, key: TypedKey<T>, make_new_layer: bool) -> usize {
+    pub fn update_node<T: NodeType>(&mut self, key: TypedKey<T>, defaults: &NodeParams, make_new_layer: bool) -> usize {
         let parent_i = self.parent_stack.last().unwrap().clone();
 
         let frame = self.part.current_frame;
@@ -1263,17 +1266,17 @@ impl Ui {
 
                 // we need some big partial borrow refactoring before this can become good.
                 // I guess self.text, self.texture_atlas and self.nodes could go into "self.storage" or "self.arenas" or something.
-                let text = key.defaults().maybe_text();
+                let text = defaults.maybe_text();
                 let text_id = self.text.maybe_new_text_area(text, frame);
 
-                let image = match key.defaults.image {
+                let image = match defaults.image {
                     Some(image) => {
                         Some(self.texture_atlas.allocate_image(image.data))
                     },
                     None => None,
                 };
 
-                let new_node = Self::new_node(&key, Some(parent_i), text_id, image);
+                let new_node = Self::new_node(&key, *defaults, Some(parent_i), text_id, image);
 
                 let final_i = self.nodes.nodes.insert(new_node);
                 v.insert(NodeFront::new(parent_i, frame, final_i));
@@ -1312,17 +1315,17 @@ impl Ui {
                 match self.nodes.fronts.entry(twin_key.id()) {
                     // Add new twin.
                     Entry::Vacant(v) => {
-                        let text = key.defaults().maybe_text();
+                        let text = defaults.maybe_text();
                         let text_id = self.text.maybe_new_text_area(text, frame);
 
-                        let image = match key.defaults.image {
+                        let image = match defaults.image {
                             Some(image) => {
                                 Some(self.texture_atlas.allocate_image(image.data))
                             },
                             None => None,
                         };
 
-                        let new_twin_node = Self::new_node(&twin_key, Some(parent_i), text_id, image);
+                        let new_twin_node = Self::new_node(&twin_key, *defaults, Some(parent_i), text_id, image);
     
                         let real_final_i = self.nodes.nodes.insert(new_twin_node);
                         v.insert(NodeFront::new(parent_i, frame, real_final_i));
@@ -1373,6 +1376,7 @@ impl Ui {
     // todo: why like this
     pub fn new_node(
         key: &TypedKey<impl NodeType>,
+        params: NodeParams,
         parent_id: Option<usize>,
         text_id: Option<usize>,
         image: Option<ImageRef>,
@@ -1394,7 +1398,7 @@ impl Ui {
             first_child: None,
             next_sibling: None,
         
-            params: key.defaults(),
+            params,
             last_frame_status: LastFrameStatus::Nothing,
             last_hover: f32::MIN,
             last_click: f32::MIN,
@@ -2251,26 +2255,26 @@ impl Ui {
 
 #[macro_export]
 macro_rules! add {
-    ($ui:expr, $node_key:expr, $code:block) => {
+    ($ui:expr, $key:expr, $defaults:expr, $code:block) => {
         {
-            let i = $ui.add_as_parent($node_key);
+            let i = $ui.add_as_parent($key, &$defaults);
             $code;
             $ui.end_parent_unchecked();
-            $ui.get_ref_unchecked(i, $node_key)
+            $ui.get_ref_unchecked(i, $key)
         }
     };
-    ($ui:expr, $node_key:expr) => {
-        $ui.add($node_key)
+    ($ui:expr, $key:expr, $defaults:expr) => {
+        $ui.add($key, $defaults)
     };
 }
 
 macro_rules! create_layer_macro {
-    ($macro_name:ident, $node_params_name:expr) => {
+    ($macro_name:ident, $defaults_name:expr) => {
         #[macro_export]
         macro_rules! $macro_name {
             ($ui:expr, $code:block) => {
-                let anonymous_key = view_derive::anon_node_key!($node_params_name, NodeKey);
-                $ui.add_as_parent(anonymous_key);
+                let anonymous_key = view_derive::anon_node_key!($defaults_name, NodeKey);
+                $ui.add_as_parent(anonymous_key, &$defaults_name);
                 $code;
                 $ui.end_parent_unchecked();
             };
@@ -2279,7 +2283,7 @@ macro_rules! create_layer_macro {
             // it's basically the same as add!, not sure if it's even worth having.
             // especially with no checks that CUSTOM_H_STACK is actually a h_stack.
             ($ui:expr, $node_key:expr, $code:block) => {
-                $ui.add_as_parent($node_key);
+                $ui.add_as_parent($node_key, &$defaults_name);
                 $code;
                 $ui.end_parent_unchecked();
             };
@@ -2296,7 +2300,7 @@ create_layer_macro!(panel, crate::node_params::PANEL);
 macro_rules! text {
     ($ui:expr, $text:expr) => {
         let anonymous_key = view_derive::anon_node_key!(crate::node_params::EMPTY_TEXT, TypedKey<Text>);
-        $ui.add(anonymous_key).set_text($text);
+        $ui.add(anonymous_key, &TEXT).set_text($text);
     };
 }
 
@@ -2628,16 +2632,13 @@ macro_rules! unwrap_or_return {
 
 #[derive(Clone, Copy, Debug)]
 pub struct TypedKey<T: NodeType> {
-    pub defaults: &'static NodeParams,
     pub id: Id,
-    pub nodetype_marker: PhantomData<T>
+    pub debug_name: &'static str,
+    pub nodetype_marker: PhantomData<T>,
 }
 impl<T: NodeType> TypedKey<T> {
     fn id(&self) -> Id {
         return self.id;
-    }
-    fn defaults(&self) -> NodeParams {
-        return *self.defaults;
     }
     fn sibling<H: Hash>(self, value: H) -> Self {
         let mut hasher = FxHasher::default();
@@ -2646,15 +2647,15 @@ impl<T: NodeType> TypedKey<T> {
         let new_id = hasher.finish();
 
         return Self {
-            defaults: self.defaults,
             id: Id(new_id),
+            debug_name: self.debug_name,
             nodetype_marker: PhantomData::<T>,
         };
     }
 }
 impl<T: NodeType> TypedKey<T> {
-    pub const fn new(params: &'static NodeParams, id: Id) -> Self {
-        return Self { defaults: params, id, nodetype_marker: PhantomData::<T> };
+    pub const fn new(debug_name: &'static str, id: Id) -> Self {
+        return Self { debug_name, id, nodetype_marker: PhantomData::<T> };
     }
 }
 
@@ -2772,48 +2773,48 @@ impl MeasureText for GlyphonBuffer {
 }
 
 
-impl NodeKey {
-    pub const fn validate(self) -> Self {
-        return self;
-    }
-}
+// impl NodeKey {
+//     pub const fn validate(self) -> Self {
+//         return self;
+//     }
+// }
 
-impl TypedKey<Text> {
-    pub const fn validate(self) -> Self {
-        if self.defaults.stack.is_some() || self.defaults.text.is_none()  {
-            panic!("
-            Blue Gui ran into an error when constructing a `TypedKey<Text>`.
-            Typed keys can only be constructed with NodeParams compatible with their purpose. 
+// impl TypedKey<Text> {
+//     pub const fn validate(self) -> Self {
+//         if self.defaults.stack.is_some() || self.defaults.text.is_none()  {
+//             panic!("
+//             Blue Gui ran into an error when constructing a `TypedKey<Text>`.
+//             Typed keys can only be constructed with NodeParams compatible with their purpose. 
             
-            TypedKey<Text> should have the following content:
-            text: Some
-            stack: None
-            image: None
+//             TypedKey<Text> should have the following content:
+//             text: Some
+//             stack: None
+//             image: None
             
-            If that's not what you want, consider using the general-purpose `NodeKey`, which will give you the maximum flexibility.
-            ");
-        }
+//             If that's not what you want, consider using the general-purpose `NodeKey`, which will give you the maximum flexibility.
+//             ");
+//         }
         
-        return self;
-    }
-}
+//         return self;
+//     }
+// }
 
-impl TypedKey<Stack> {
-    pub const fn validate(self) -> Self {
-        if self.defaults.stack.is_none() || self.defaults.text.is_some() {
-            panic!("
-            Blue Gui ran into an error when constructing a `TypedKey<Text>`.
-            Typed keys can only be constructed with NodeParams compatible with their purpose. 
+// impl TypedKey<Stack> {
+//     pub const fn validate(self) -> Self {
+//         if self.defaults.stack.is_none() || self.defaults.text.is_some() {
+//             panic!("
+//             Blue Gui ran into an error when constructing a `TypedKey<Text>`.
+//             Typed keys can only be constructed with NodeParams compatible with their purpose. 
             
-            TypedKey<Text> should have the following content:
-            text: Some
-            stack: None
-            image: None
+//             TypedKey<Text> should have the following content:
+//             text: Some
+//             stack: None
+//             image: None
             
-            If that's not what you want, consider using the general-purpose `NodeKey`, which will give you the maximum flexibility.
-            ");
-        }
+//             If that's not what you want, consider using the general-purpose `NodeKey`, which will give you the maximum flexibility.
+//             ");
+//         }
         
-        return self;
-    }
-}
+//         return self;
+//     }
+// }
