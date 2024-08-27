@@ -2272,7 +2272,7 @@ macro_rules! create_layer_macro {
         #[macro_export]
         macro_rules! $macro_name {
             ($ui:expr, $code:block) => {
-                let anonymous_key = view_derive::anon_node_key!($defaults_name, NodeKey, $debug_name);
+                let anonymous_key = view_derive::anon_node_key!(NodeKey, $debug_name);
                 $ui.add_as_parent(anonymous_key, &$defaults_name);
                 $code;
                 $ui.end_parent_unchecked();
@@ -2298,7 +2298,7 @@ create_layer_macro!(panel, crate::node_params::PANEL, "Panel");
 #[macro_export]
 macro_rules! text {
     ($ui:expr, $text:expr) => {
-        let anonymous_key = view_derive::anon_node_key!(crate::node_params::EMPTY_TEXT, TypedKey<Text>, "Text");
+        let anonymous_key = view_derive::anon_node_key!(TypedKey<Text>, "Text");
         $ui.add(anonymous_key, &TEXT).set_text($text);
     };
 }
@@ -2629,6 +2629,7 @@ macro_rules! unwrap_or_return {
     }};
 }
 
+// todo: possibly split debug_name into debug_name and source_code_location, and maybe put back cfg(debug) for source_code_loc or both
 #[derive(Clone, Copy, Debug)]
 pub struct TypedKey<T: NodeType> {
     pub id: Id,
@@ -2653,8 +2654,8 @@ impl<T: NodeType> TypedKey<T> {
     }
 }
 impl<T: NodeType> TypedKey<T> {
-    pub const fn new(debug_name: &'static str, id: Id) -> Self {
-        return Self { debug_name, id, nodetype_marker: PhantomData::<T> };
+    pub const fn new(id: Id, debug_name: &'static str) -> Self {
+        return Self { id, debug_name, nodetype_marker: PhantomData::<T> };
     }
 }
 
