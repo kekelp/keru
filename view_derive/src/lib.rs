@@ -1,9 +1,9 @@
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
-use proc_macro2::Ident;
+use proc_macro2::{Ident, Span};
 use quote::quote;
-use syn::{parse::{Parse, ParseStream}, parse_macro_input, spanned::Spanned, Expr, Token, Type};
+use syn::{parse::{Parse, ParseStream}, parse_macro_input, spanned::Spanned, Expr, LitStr, Token, Type};
 use rand::Rng;
 
 
@@ -38,7 +38,7 @@ impl Parse for ItemConstNoEq {
 // also, a plain proc macro (const KEY: NodeKey = node_key!(PARAMS);) wouldn't have access to the "KEY" ident.
 // currently we're putting that into debug_name
 #[proc_macro_attribute]
-pub fn node_key(attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn node_key(_attr: TokenStream, item: TokenStream) -> TokenStream {
     // todo: make sure that attr is empty now
     // let params_expr = parse_macro_input!(attr as Expr);
     let input = parse_macro_input!(item as ItemConstNoEq);
@@ -68,6 +68,7 @@ pub fn node_key(attr: TokenStream, item: TokenStream) -> TokenStream {
 struct Input {
     expr: Expr,
     ty: Type,
+    debug_name: LitStr,
 }
 
 impl Parse for Input {
@@ -75,7 +76,9 @@ impl Parse for Input {
         let expr = input.parse::<Expr>()?;
         input.parse::<Token![,]>()?;
         let ty = input.parse::<Type>()?;
-        Ok(Input { expr, ty })
+        input.parse::<Token![,]>()?;
+        let debug_name = input.parse::<LitStr>()?;
+        Ok(Input { expr, ty, debug_name })
     }
 }
 
@@ -85,6 +88,7 @@ pub fn anon_node_key(input: TokenStream) -> TokenStream {
     let Input {
         expr: default_params_expr,
         ty,
+        debug_name
     } = parse_macro_input!(input as Input);
 
     // Generate a random number for the ID.
@@ -92,17 +96,18 @@ pub fn anon_node_key(input: TokenStream) -> TokenStream {
     let random_number_lit =
         syn::LitInt::new(&format!("{}", random_number), default_params_expr.span());
 
+    let debug_name = format!("Anon {:?} ({}:{}:{})",
+    debug_name,
+    std::file!(),
+    std::line!(),
+    std::column!());
+    let debug_name_lit = syn::LitStr::new(&debug_name, Span::call_site());
+
     // Generate the expanded code.
     let expanded = quote! {
         {
             {
-                const DEBUG_NAME: &str = &const_format::formatcp!(
-                    "Anon {} ({}:{}:{})",
-                    #default_params_expr.debug_name,
-                    std::file!(),
-                    std::line!(),
-                    std::column!()
-                );
+                const DEBUG_NAME: &str = #debug_name_lit;
                 // const DEBUG_NAME: &str = "Nobody cares";
 
                 const PARAMS: NodeParams = #default_params_expr;
@@ -113,6 +118,31 @@ pub fn anon_node_key(input: TokenStream) -> TokenStream {
             }
 
         }
+    };
+
+    // Return the generated code as a TokenStream.
+    TokenStream::from(expanded)
+}
+
+#[proc_macro]
+pub fn node_key_2(_input: TokenStream) -> TokenStream {
+    // Parse the input token stream into the `Input` struct.
+    // let input = parse_macro_input!(input as Input);
+
+    // let key_type = &input.ty;
+    // let default_params_expr = &input.expr;
+
+    // Generate a random number for the ID.
+    let random_number: u64 = rand::thread_rng().gen();
+    let random_number_lit =
+        syn::LitInt::new(&format!("{}", random_number), Span::call_site());
+
+    // Generate the expanded code.
+    let expanded = quote! {
+        NodeKey::new(
+            &"Anonymous <todo>",
+            Id(#random_number_lit),
+        )
     };
 
     // Return the generated code as a TokenStream.

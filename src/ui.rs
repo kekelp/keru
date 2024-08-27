@@ -268,7 +268,6 @@ pub struct NodeParams {
     pub interact: Interact,
     pub layout: Layout,
     
-    // todo2: remove
     #[cfg(debug_assertions)]
     pub debug_name: &'static str,
 }
@@ -939,8 +938,8 @@ pub struct Ui {
 impl Ui {
 
     // todo: variadic args lol
-    pub fn add_widget<T>(&mut self, widget_function: fn(&mut Ui, &mut T) -> (), arg: &mut T) {
-        widget_function(self, arg);
+    pub fn add_widget<T, S>(&mut self, widget_function: fn(&mut Ui, &mut T) -> S, arg: &mut T) -> S {
+        return widget_function(self, arg);
     }
 
 
@@ -2269,11 +2268,11 @@ macro_rules! add {
 }
 
 macro_rules! create_layer_macro {
-    ($macro_name:ident, $defaults_name:expr) => {
+    ($macro_name:ident, $defaults_name:expr, $debug_name:expr) => {
         #[macro_export]
         macro_rules! $macro_name {
             ($ui:expr, $code:block) => {
-                let anonymous_key = view_derive::anon_node_key!($defaults_name, NodeKey);
+                let anonymous_key = view_derive::anon_node_key!($defaults_name, NodeKey, $debug_name);
                 $ui.add_as_parent(anonymous_key, &$defaults_name);
                 $code;
                 $ui.end_parent_unchecked();
@@ -2291,15 +2290,15 @@ macro_rules! create_layer_macro {
     };
 }
 
-create_layer_macro!(h_stack, crate::node_params::H_STACK);
-create_layer_macro!(v_stack, crate::node_params::V_STACK);
-create_layer_macro!(margin, crate::node_params::MARGIN);
-create_layer_macro!(panel, crate::node_params::PANEL);
+create_layer_macro!(h_stack, crate::node_params::H_STACK, "HStack");
+create_layer_macro!(v_stack, crate::node_params::V_STACK, "HStack");
+create_layer_macro!(margin, crate::node_params::MARGIN, "Margin");
+create_layer_macro!(panel, crate::node_params::PANEL, "Panel");
 
 #[macro_export]
 macro_rules! text {
     ($ui:expr, $text:expr) => {
-        let anonymous_key = view_derive::anon_node_key!(crate::node_params::EMPTY_TEXT, TypedKey<Text>);
+        let anonymous_key = view_derive::anon_node_key!(crate::node_params::EMPTY_TEXT, TypedKey<Text>, "Text");
         $ui.add(anonymous_key, &TEXT).set_text($text);
     };
 }

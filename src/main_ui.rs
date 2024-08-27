@@ -8,6 +8,7 @@ use crate::ui::*;
 use crate::*;
 use glyphon::{cosmic_text::Align, Attrs, Color as GlyphonColor, Family, Weight};
 use view_derive::node_key;
+use view_derive::node_key_2;
 
 const COLOR1: Color = Color::rgba(50, 13, 100, 240);
 const COLOR2: Color = Color::rgba(100, 13, 50, 240);
@@ -77,12 +78,14 @@ impl State {
 
 impl State {
     pub fn add_counter_ui(&mut self) {
-        #[node_key]
-        pub const INCREASE_BUTTON: NodeKey;
-        let incr_defaults = &BUTTON.text("Increase").color(Color::FLGR_GREEN);
+        
+        mod increase_button {
+            use super::*;
+            pub const KEY: NodeKey = node_key_2!();
+            pub const PARAMS: &NodeParams = &BUTTON.text("Increase").color(Color::FLGR_GREEN);
+        }
     
-        #[node_key]
-        pub const DECREASE_BUTTON: NodeKey;
+        #[node_key] pub const DECREASE_BUTTON: NodeKey;
         let decrease_button_defaults = &BUTTON.text("Decrease").color(Color::FLGR_RED);
     
         #[node_key]
@@ -93,7 +96,7 @@ impl State {
         pub const COUNT_LABEL: TypedKey<Text>;
         
         
-        if self.ui.is_clicked(INCREASE_BUTTON) {
+        if self.ui.is_clicked(increase_button::KEY) {
             self.counter_state.count += 1;
         }
 
@@ -111,7 +114,7 @@ impl State {
                 v_stack!(self.ui, {
                     if self.counter_state.counter_mode {
                         let new_color = count_color(self.counter_state.count);
-                        self.ui.add(INCREASE_BUTTON, incr_defaults).set_color(new_color);
+                        self.ui.add(increase_button::KEY, increase_button::PARAMS).set_color(new_color);
 
                         let count = &self.counter_state.count.to_string();
                         self.ui.add(COUNT_LABEL, &LABEL)
