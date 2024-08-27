@@ -118,27 +118,3 @@ pub fn anon_node_key(input: TokenStream) -> TokenStream {
 
     return TokenStream::from(expanded);
 }
-
-#[proc_macro]
-pub fn node_key_2(_input: TokenStream) -> TokenStream {
-    // Parse the input token stream into the `Input` struct.
-    // let input = parse_macro_input!(input as Input);
-
-    // let key_type = &input.ty;
-    // let default_params_expr = &input.expr;
-
-    // Generate a random number for the ID.
-    let random_number: u64 = rand::thread_rng().gen();
-    let random_number_lit = syn::LitInt::new(&format!("{}", random_number), Span::call_site());
-
-    // Generate the expanded code.
-    let expanded = quote! {
-        NodeKey::new(
-            Id(#random_number_lit),
-            &"Anonymous <todo>",
-        )
-    };
-
-    // Return the generated code as a TokenStream.
-    TokenStream::from(expanded)
-}
