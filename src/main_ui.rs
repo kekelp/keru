@@ -33,9 +33,6 @@ impl State {
 
             self.add_counter_ui();
         });
-
-        // effects
-        self.counter_on_click();
     }
 }
 
@@ -56,28 +53,6 @@ impl CounterState {
             counter_mode: false,
         };
     }
-
-    #[node_key]
-    pub const INCREASE_BUTTON: NodeKey;
-
-    #[node_key]
-    pub const DECREASE_BUTTON: NodeKey;
-
-    #[node_key]
-    pub const SHOW_COUNTER_BUTTON: NodeKey;
-
-    #[node_key(LABEL)]
-    pub const COUNT_LABEL: TypedKey<Text>;
-
-    #[node_key(LABEL)]
-    pub const COUNT_LABEL_2: NodeKey;
-
-    // pub const COUNT_LABEL: TypedKey<Text> =
-    // TypedKey::<Text>::new(&LABEL.debug_name("COUNT_LABEL"), Id(8379459943087886814)).validate();
-
-    // pub const COUNT_LABEL: TypedKey<Text> = TypedKey::new(&LABEL.debug_name("COUNT_LABEL"), Id(4286411996384850605)).validate();
-
-    // pub const COUNT_LABEL: TypedKey<Text> = TypedKey::new(&H_STACK.debug_name("COUNT_LABEL56"), Id(4286411996384850605)).validate();
 }
 
 pub fn count_color(count: i32) -> Color {
@@ -102,17 +77,44 @@ impl State {
 
 impl State {
     pub fn add_counter_ui(&mut self) {
+        #[node_key]
+        pub const INCREASE_BUTTON: NodeKey;
+        let incr_defaults = &BUTTON.text("Increase").color(Color::FLGR_GREEN);
+    
+        #[node_key]
+        pub const DECREASE_BUTTON: NodeKey;
+        let decrease_button_defaults = &BUTTON.text("Decrease").color(Color::FLGR_RED);
+    
+        #[node_key]
+        pub const SHOW_COUNTER_BUTTON: NodeKey;
+        let show_defaults = &BUTTON.text("Show Counter").color(Color::rgba(128, 26, 179, 102));
+    
+        #[node_key]
+        pub const COUNT_LABEL: TypedKey<Text>;
+        
+        
+        if self.ui.is_clicked(INCREASE_BUTTON) {
+            self.counter_state.count += 1;
+        }
+
+        if self.ui.is_clicked(DECREASE_BUTTON) {
+            self.counter_state.count -= 1;
+        }
+
+        if self.ui.is_clicked(SHOW_COUNTER_BUTTON) {
+            self.counter_state.counter_mode = !self.counter_state.counter_mode;
+        }
+
         margin!(self.ui, {
-            #[node_key]
-            pub const CENTER_ROW: NodeKey;
+
             h_stack!(self.ui, {
                 v_stack!(self.ui, {
                     if self.counter_state.counter_mode {
                         let new_color = count_color(self.counter_state.count);
-                        self.ui.add(CounterState::INCREASE_BUTTON, &BUTTON.text("Increase").color(Color::FLGR_GREEN)).set_color(new_color);
+                        self.ui.add(INCREASE_BUTTON, incr_defaults).set_color(new_color);
 
                         let count = &self.counter_state.count.to_string();
-                        self.ui.add(CounterState::COUNT_LABEL, &LABEL)
+                        self.ui.add(COUNT_LABEL, &LABEL)
                             .set_text(count)
                             .set_text_attrs(
                                 Attrs::new()
@@ -122,7 +124,7 @@ impl State {
                             )
                             .set_text_align(Align::Center);
 
-                        self.ui.add(CounterState::DECREASE_BUTTON, &BUTTON.text("Decrease").color(Color::FLGR_RED));
+                        self.ui.add(DECREASE_BUTTON, decrease_button_defaults);
                     }
                 });
 
@@ -130,24 +132,11 @@ impl State {
                     true => "Hide useless counter",
                     false => "Show Counter\nl\nl\nl\nl\nl\nllllll[{{{}}}}ẞ↑ªĦẞı¥↑ẞªŊẞª‘ªẞŊª‘ŊllllÞÞÞÞÞÞØØ↑ı¥§",
                 };
-                self.ui.add(CounterState::SHOW_COUNTER_BUTTON, &BUTTON.text("Show Counter").color(Color::rgba(128, 26, 179, 102))).set_text(text);
+                self.ui.add(SHOW_COUNTER_BUTTON, show_defaults).set_text(text);
             });
         });
     }
 
-    pub fn counter_on_click(&mut self) {
-        if self.ui.is_clicked(CounterState::INCREASE_BUTTON) {
-            self.counter_state.count += 1;
-        }
-
-        if self.ui.is_clicked(CounterState::DECREASE_BUTTON) {
-            self.counter_state.count -= 1;
-        }
-
-        if self.ui.is_clicked(CounterState::SHOW_COUNTER_BUTTON) {
-            self.counter_state.counter_mode = !self.counter_state.counter_mode;
-        }
-    }
 
     // pub fn add_pixel_info_ui(&mut self) {
     //     let pixel_info = &self.canvas.pixel_info();

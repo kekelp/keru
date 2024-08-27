@@ -96,14 +96,14 @@ pub fn anon_node_key(input: TokenStream) -> TokenStream {
     let expanded = quote! {
         {
             {
-                // const DEBUG_NAME: &str = &const_format::formatcp!(
-                //     "Anon {} ({}:{}:{})",
-                //     #default_params_expr.debug_name,
-                //     std::file!(),
-                //     std::line!(),
-                //     std::column!()
-                // );
-                const DEBUG_NAME: &str = "Nobody cares";
+                const DEBUG_NAME: &str = &const_format::formatcp!(
+                    "Anon {} ({}:{}:{})",
+                    #default_params_expr.debug_name,
+                    std::file!(),
+                    std::line!(),
+                    std::column!()
+                );
+                // const DEBUG_NAME: &str = "Nobody cares";
 
                 const PARAMS: NodeParams = #default_params_expr;
                 <#ty>::new(
