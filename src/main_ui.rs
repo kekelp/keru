@@ -8,7 +8,6 @@ use crate::ui::*;
 use crate::*;
 use glyphon::{cosmic_text::Align, Attrs, Color as GlyphonColor, Family, Weight};
 use view_derive::node_key;
-use view_derive::node_key_2;
 
 const COLOR1: Color = Color::rgba(50, 13, 100, 240);
 const COLOR2: Color = Color::rgba(100, 13, 50, 240);
@@ -19,20 +18,27 @@ impl State {
     pub fn update_ui(&mut self) {
         tree!(self.ui, {
 
-            self.ui.add_widget(add_slider, &mut self.slider_value);
-            // add_slider(&mut self.ui, &mut self.slider_value);
-
-            #[node_key]
-            const SIDEBAR: TypedKey<Stack>;
-            let sidebar_params = V_STACK.position_x(Position::End).size_y(Fill).size_x(FitContent).stack_arrange(Arrange::Center); 
-
-            add!(self.ui, SIDEBAR, sidebar_params, {
-                self.add_tools();
-
-                // self.add_pixel_info_ui();
+            v_stack!(self.ui, {
+                self.slider_value = self.ui.add_widget(add_slider, self.slider_value);
+                // self.slider_value = add_slider(&mut self.ui, self.slider_value);
+                
+                self.slider_value2 = add_slider(&mut self.ui, self.slider_value2);
+                self.slider_value3 = add_slider(&mut self.ui, self.slider_value3);
+                self.slider_value4 = add_slider(&mut self.ui, self.slider_value4);
+                self.slider_value5 = add_slider(&mut self.ui, self.slider_value5);
             });
 
-            // self.add_counter_ui();
+            // #[node_key]
+            // const SIDEBAR: TypedKey<Stack>;
+            // let sidebar_params = V_STACK.position_x(Position::End).size_y(Fill).size_x(FitContent).stack_arrange(Arrange::Center); 
+
+            // add!(self.ui, SIDEBAR, sidebar_params, {
+            //     // self.add_tools();
+
+            //     // self.add_pixel_info_ui();
+            // });
+
+            // // self.add_counter_ui();
         });
     }
 }
@@ -133,37 +139,38 @@ impl State {
     }
 
 
-    // pub fn add_pixel_info_ui(&mut self) {
-    //     let pixel_info = &self.canvas.pixel_info();
+    pub fn add_pixel_info_ui(&mut self) {
+        let pixel_info = &self.canvas.pixel_info();
 
-    //     let (x, y) = match pixel_info {
-    //         Some(pixel_info) => (
-    //             format!("x: {}", pixel_info.x),
-    //             format!("y: {}", pixel_info.y),
-    //         ),
-    //         None => ("x:  ".to_owned(), "y:  ".to_owned()),
-    //     };
+        let (x, y) = match pixel_info {
+            Some(pixel_info) => (
+                format!("x: {}", pixel_info.x),
+                format!("y: {}", pixel_info.y),
+            ),
+            None => ("x:  ".to_owned(), "y:  ".to_owned()),
+        };
 
-    //     // let (r, g, b, a) = match pixel_info {
-    //     //     Some(pixel_info) => (
-    //     //         format!("{:.2}", pixel_info.color.r),
-    //     //         format!("{:.2}", pixel_info.color.g),
-    //     //         format!("{:.2}", pixel_info.color.b),
-    //     //         format!("{:.2}", pixel_info.color.a),
-    //     //     ),
-    //     //     None => ("".to_owned(), "".to_owned(), "".to_owned(), "".to_owned()),
-    //     // };
+        // let (r, g, b, a) = match pixel_info {
+        //     Some(pixel_info) => (
+        //         format!("{:.2}", pixel_info.color.r),
+        //         format!("{:.2}", pixel_info.color.g),
+        //         format!("{:.2}", pixel_info.color.b),
+        //         format!("{:.2}", pixel_info.color.a),
+        //     ),
+        //     None => ("".to_owned(), "".to_owned(), "".to_owned(), "".to_owned()),
+        // };
 
-    //     // todo:::::: I don't want strings, I want to write!() directly into the buffer
-    //     #[node_key(FLGR_PANEL.position_x(End).position_y(Start).size_x(FitContentOrMinimum(Pixels(100))))]
-    //     const PIXEL_PANEL2: NodeKey;
-    //     add!(self.ui, PIXEL_PANEL2, {
-    //         v_stack!(self.ui, {
-    //             text!(self.ui, &x);
-    //             text!(self.ui, &y);
-    //         });
-    //     });
-    // }
+        // todo:::::: I don't want strings, I want to write!() directly into the buffer
+        #[node_key] const PIXEL_PANEL2: NodeKey;
+        let pixel_panel_params = FLGR_PANEL.position_x(End).position_y(Start).size_x(FitContentOrMinimum(Pixels(100)));
+
+        add!(self.ui, PIXEL_PANEL2, pixel_panel_params, {
+            v_stack!(self.ui, {
+                text!(self.ui, &x);
+                text!(self.ui, &y);
+            });
+        });
+    }
 
     pub fn add_tools(&mut self) {
         
@@ -286,23 +293,24 @@ impl State {
     // }
 }
 
-pub fn add_slider(ui: &mut Ui, value: &mut f32) {
-
-    #[node_key] const SLIDER_CONTAINER: NodeKey;
-    let slider_container_params = PANEL.size_x(Fixed(Pixels(500))).size_y(Fixed(Pixels(200)));
-
-    // node_key_2!(SLIDER_FILL);
-    #[node_key] const SLIDER_FILL: NodeKey;
+pub fn add_slider(ui: &mut Ui, value: f32) -> f32 {
+    #[node_key] pub const SLIDER_CONTAINER: NodeKey;
+    let slider_container_params = PANEL.size_x(Fixed(Pixels(500))).size_y(Fixed(Pixels(100)));
+    
+    #[node_key] pub const SLIDER_FILL: NodeKey;
     let slider_fill_params = PANEL.size_y(Fill).size_x(Fixed(Frac(0.4))).color(Color::FLGR_RED).position_x(Start).padding_x(Pixels(2));
-
-    if let Some((x, _y)) = ui.is_dragged(SLIDER_CONTAINER) {
-        *value -= x as f32;
-        *value = value.clamp(0.0, f32::MAX);
-    }
+    
+    let mut value = value;
 
     add!(ui, SLIDER_CONTAINER, &slider_container_params, {
-        ui.add(SLIDER_FILL, &slider_fill_params).set_size_x(Fixed(Pixels(*value as u32)));
+        ui.add(SLIDER_FILL, &slider_fill_params).set_size_x(Fixed(Pixels(value as u32)));
     });
+
+    if let Some((x, _y)) = ui.is_dragged(SLIDER_CONTAINER) {
+        value -= x as f32;
+        value = value.clamp(0.0, f32::MAX);
+    }
     
+    return value;
 }
 

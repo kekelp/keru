@@ -38,6 +38,10 @@ fn main() -> Result<(), EventLoopError> {
 
         info_visible: true,
         slider_value: 500.0,
+        slider_value2: 450.0,
+        slider_value3: 450.0,
+        slider_value4: 450.0,
+        slider_value5: 450.0,
     };
 
     event_loop.run(move |event, target| {
@@ -55,6 +59,10 @@ pub struct State {
 
     pub info_visible: bool,
     pub slider_value: f32,
+    pub slider_value2: f32,
+    pub slider_value3: f32,
+    pub slider_value4: f32,
+    pub slider_value5: f32,
 }
 
 

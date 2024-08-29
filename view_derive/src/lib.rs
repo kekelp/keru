@@ -49,21 +49,14 @@ pub fn node_key(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let key_ident = &input.ident;
     let key_type = &input.ty;
 
-    let debug_name = format!(
-        "{} ({}:{}:{})",
-        key_ident,
-        std::file!(),
-        std::line!(),
-        std::column!()
-    );
+    let debug_name = format!("{}", key_ident);
 
     // todo, use a hash of ident instead of a random number?
-    let random_number: u64 = rand::thread_rng().gen();
-    let random_number_lit = syn::LitInt::new(&format!("{}", random_number), key_ident.span());
+    let random_id: u64 = rand::thread_rng().gen();
 
     let expanded = quote! {
         pub const #key_ident: #key_type = <#key_type>::new(
-            Id(#random_number_lit),
+            Id(#random_id),
             #debug_name,
         );
     };
@@ -123,7 +116,6 @@ pub fn anon_node_key(input: TokenStream) -> TokenStream {
 
 #[proc_macro]
 pub fn node_key_2(input: TokenStream) -> TokenStream {
-    // Parse the input (should be an identifier like SLIDER_FILL)
     let input_ident = parse_macro_input!(input as Ident);
     let ident_str = input_ident.to_string();
 
@@ -132,10 +124,29 @@ pub fn node_key_2(input: TokenStream) -> TokenStream {
 
     // Generate the output token stream
     let expanded = quote! {
-        pub const #input_ident: NodeKey = <NodeKey>::new(
+        <NodeKey>::new(
             Id(#id),
             #ident_str,
-        );
+        )
+    };
+
+    // Convert into a TokenStream and return
+    TokenStream::from(expanded)
+}
+
+
+#[proc_macro]
+pub fn anon_key(_input: TokenStream) -> TokenStream {
+
+    // Generate a random u64 ID
+    let id = rand::thread_rng().gen::<u64>();
+    let debug_name = format!(
+        "Anon Key ({})",
+        id,
+    );
+    // Generate the output token stream
+    let expanded = quote! {
+        <NodeKey>::new(Id(#id), #debug_name)
     };
 
     // Convert into a TokenStream and return

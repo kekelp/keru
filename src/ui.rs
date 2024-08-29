@@ -867,7 +867,7 @@ pub struct Nodes {
 }
 impl Nodes {
     pub fn get_by_id(&mut self, id: &Id) -> Option<&mut Node> {
-        let i = self.fronts.get(&id).unwrap().slab_i;
+        let i = self.fronts.get(&id)?.slab_i;
         return self.nodes.get_mut(i);
     }
 }
@@ -938,7 +938,7 @@ pub struct Ui {
 impl Ui {
 
     // todo: variadic args lol
-    pub fn add_widget<T, S>(&mut self, widget_function: fn(&mut Ui, &mut T) -> S, arg: &mut T) -> S {
+    pub fn add_widget<T, S>(&mut self, widget_function: fn(&mut Ui, T) -> S, arg: T) -> S {
         return widget_function(self, arg);
     }
 
@@ -1354,6 +1354,21 @@ impl Ui {
         return real_final_i;
     }
 
+    fn get_latest_twin_key<T: NodeType>(&self, key: TypedKey<T>) -> Option<TypedKey<T>> {
+
+        let nodefront = self.nodes.fronts.get(&key.id())?;
+        
+        if nodefront.n_twins == 0 {
+            return Some(key);
+        }
+
+        // todo: yell a very loud warning here. latest_twin is more like a best-effort way to deal with dumb code. 
+        // the proper way is to just use unique keys. 
+        let twin_key = key.sibling(nodefront.n_twins);
+
+        return Some(twin_key);
+    }
+
     pub fn add_child_to_parent(&mut self, id: usize, parent_id: usize) {
         self.nodes[parent_id].n_children += 1;
 
@@ -1368,7 +1383,6 @@ impl Ui {
             self.nodes[prev_sibling].next_sibling = Some(id);
             *self.last_child_stack.last_mut().unwrap() = id;
         }
-
 
     }
 
@@ -1939,7 +1953,13 @@ impl Ui {
     }
 
     pub fn is_clicked(&self, node_key: NodeKey) -> bool {
-        return self.clicked.contains(&node_key.id);
+        let real_key = self.get_latest_twin_key(node_key);
+        if let Some(real_key) = real_key {
+            return self.clicked.contains(&real_key.id);
+        } else {
+            return false;
+        }
+        
     }
 
     pub fn is_dragged(&self, node_key: NodeKey) -> Option<(f64, f64)> {
