@@ -8,6 +8,7 @@ use crate::ui::*;
 use crate::*;
 use glyphon::{cosmic_text::Align, Attrs, Color as GlyphonColor, Family, Weight};
 use view_derive::node_key;
+use view_derive::node_key_2;
 
 const COLOR1: Color = Color::rgba(50, 13, 100, 240);
 const COLOR2: Color = Color::rgba(100, 13, 50, 240);
@@ -288,19 +289,20 @@ impl State {
 pub fn add_slider(ui: &mut Ui, value: &mut f32) {
 
     #[node_key] const SLIDER_CONTAINER: NodeKey;
-    let slider_container_defaults = PANEL.size_x(Fixed(Pixels(500))).size_y(Fixed(Pixels(200)));
+    let slider_container_params = PANEL.size_x(Fixed(Pixels(500))).size_y(Fixed(Pixels(200)));
 
-    #[node_key]
-    const SLIDER_FILL: NodeKey;
-    let slider_fill_defaults = PANEL.size_y(Fill).size_x(Fixed(Frac(0.4))).color(Color::FLGR_RED).position_x(Start).padding_x(Pixels(2));
+    // node_key_2!(SLIDER_FILL);
+    #[node_key] const SLIDER_FILL: NodeKey;
+    let slider_fill_params = PANEL.size_y(Fill).size_x(Fixed(Frac(0.4))).color(Color::FLGR_RED).position_x(Start).padding_x(Pixels(2));
 
     if let Some((x, _y)) = ui.is_dragged(SLIDER_CONTAINER) {
         *value -= x as f32;
         *value = value.clamp(0.0, f32::MAX);
     }
 
-    add!(ui, SLIDER_CONTAINER, &slider_container_defaults, {
-        ui.add(SLIDER_FILL, &slider_fill_defaults).set_size_x(Fixed(Pixels(*value as u32)));
+    add!(ui, SLIDER_CONTAINER, &slider_container_params, {
+        ui.add(SLIDER_FILL, &slider_fill_params).set_size_x(Fixed(Pixels(*value as u32)));
     });
     
 }
+

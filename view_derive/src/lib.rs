@@ -118,3 +118,26 @@ pub fn anon_node_key(input: TokenStream) -> TokenStream {
 
     return TokenStream::from(expanded);
 }
+
+
+
+#[proc_macro]
+pub fn node_key_2(input: TokenStream) -> TokenStream {
+    // Parse the input (should be an identifier like SLIDER_FILL)
+    let input_ident = parse_macro_input!(input as Ident);
+    let ident_str = input_ident.to_string();
+
+    // Generate a random u64 ID
+    let id = rand::thread_rng().gen::<u64>();
+
+    // Generate the output token stream
+    let expanded = quote! {
+        pub const #input_ident: NodeKey = <NodeKey>::new(
+            Id(#id),
+            #ident_str,
+        );
+    };
+
+    // Convert into a TokenStream and return
+    TokenStream::from(expanded)
+}
