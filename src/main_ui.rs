@@ -6,6 +6,7 @@ use crate::ui::Position::*;
 use crate::ui::Size::*;
 use crate::ui::*;
 use crate::*;
+
 use glyphon::{cosmic_text::Align, Attrs, Color as GlyphonColor, Family, Weight};
 use view_derive::node_key;
 
@@ -35,7 +36,7 @@ impl State {
             // add!(self.ui, SIDEBAR, sidebar_params, {
             //     // self.add_tools();
 
-            //     // self.add_pixel_info_ui();
+                self.add_pixel_info_ui();
             // });
 
             // // self.add_counter_ui();
@@ -164,12 +165,27 @@ impl State {
         #[node_key] const PIXEL_PANEL2: NodeKey;
         let pixel_panel_params = FLGR_PANEL.position_x(End).position_y(Start).size_x(FitContentOrMinimum(Pixels(100)));
 
-        add!(self.ui, PIXEL_PANEL2, pixel_panel_params, {
-            v_stack!(self.ui, {
-                text!(self.ui, &x);
-                text!(self.ui, &y);
+        #[node_key] const TEXT77: NodeKey;
+        #[node_key] const VSSTACK77: NodeKey;
+
+        // add!(self.ui, PIXEL_PANEL2, pixel_panel_params, {
+        //     v_stack!(self.ui, {
+        //         text!(self.ui, &x);
+        //         text!(self.ui, &y);
+        //     });
+        // });
+   
+        use add_parent_closure::AddParentClosure;
+
+        self.ui.add_parent(PIXEL_PANEL2, &pixel_panel_params, |ui| {
+            ui.add_parent(VSSTACK77, &V_STACK, |ui| {
+
+                ui.add(TEXT77, &TEXT).set_text(&x);
+                ui.add(TEXT77, &TEXT).set_text(&y);
+
             });
         });
+   
     }
 
     pub fn add_tools(&mut self) {
@@ -302,13 +318,21 @@ pub fn add_slider(ui: &mut Ui, value: f32) -> f32 {
     
     let mut value = value;
 
-    ui.add(SLIDER_CONTAINER, &slider_container_params);
+    use add_parent_manual::AddParentManual;
+
+    ui.add_parent(SLIDER_CONTAINER, &slider_container_params);
     {
 
         ui.add(SLIDER_FILL, &slider_fill_params).set_size_x(Fixed(Pixels(value as u32)));
         
     }  
     ui.end_parent(SLIDER_CONTAINER);
+
+    // use add_parent_closure::AddParentClosure;
+
+    // ui.add_parent(SLIDER_CONTAINER, &slider_container_params, |ui| {
+    //     ui.add(SLIDER_FILL, &slider_fill_params).set_size_x(Fixed(Pixels(value as u32)));
+    // });
 
     if let Some((x, _y)) = ui.is_dragged(SLIDER_CONTAINER) {
         value -= x as f32;

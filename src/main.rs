@@ -7,6 +7,8 @@ pub mod canvas;
 pub mod main_canvas;
 pub mod main_ui;
 pub mod texture_atlas;
+pub mod add_parent_manual;
+pub mod add_parent_closure;
 
 use glam::dvec2;
 use pixels_on_screen::*;

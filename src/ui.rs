@@ -603,9 +603,9 @@ impl Color {
 }
 
 pub struct NodeRef<'a, T: NodeType> {
-    node: &'a mut Node,
-    text: &'a mut TextSystem,
-    nodetype_marker: PhantomData<T>,
+    pub(crate) node: &'a mut Node,
+    pub(crate) text: &'a mut TextSystem,
+    pub(crate) nodetype_marker: PhantomData<T>,
 }
 
 // why can't you just do it separately?
@@ -1224,16 +1224,6 @@ impl Ui {
             nodetype_marker: PhantomData::<T>,
         };
     }
-
-    pub fn add_parent<T: NodeType>(&mut self, key: TypedKey<T>, defaults: &NodeParams) -> NodeRef<T> {
-        let i = self.update_node(key, defaults, true);
-        return NodeRef {
-            node: &mut self.nodes[i],
-            text: &mut self.text,
-            nodetype_marker: PhantomData::<T>,
-        };
-    }
-
 
     pub fn add_as_parent_unchecked<T: ParentTrait>(&mut self, key: TypedKey<T>, defaults: &NodeParams) -> usize {
         let i = self.update_node(key, defaults, true);
