@@ -65,8 +65,10 @@ pub const NODE_ROOT: Node = Node {
     n_children: 0,
     first_child: None,
     next_sibling: None,
+    is_twin: None,
 
     params: NODE_ROOT_PARAMS,
+    debug_name: "Root",
     last_frame_status: LastFrameStatus::Nothing,
     last_hover: f32::MIN,
     last_click: f32::MIN,
@@ -267,9 +269,6 @@ pub struct NodeParams {
     pub rect: Rect,
     pub interact: Interact,
     pub layout: Layout,
-    
-    #[cfg(debug_assertions)]
-    pub debug_name: &'static str,
 }
 
 impl NodeParams {
@@ -361,12 +360,6 @@ impl NodeParams {
 
     pub const fn vertex_colors(mut self, colors: VertexColors) -> Self {
         self.rect.vertex_colors = colors;
-        return self;
-    }
-
-    #[cfg(debug_assertions)]
-    pub const fn debug_name(mut self, text: &'static str) -> Self {
-        self.debug_name = text;
         return self;
     }
 
@@ -1302,7 +1295,7 @@ impl Ui {
                     None => None,
                 };
 
-                let new_node = Self::new_node(&key, *defaults, Some(parent_i), text_id, image);
+                let new_node = Self::new_node(&key, *defaults, Some(parent_i), text_id, image, None);
 
                 let final_i = self.nodes.nodes.insert(new_node);
                 v.insert(NodeFront::new(parent_i, frame, final_i));
@@ -1325,7 +1318,7 @@ impl Ui {
                     AddTwin => {
                         old_nodefront.n_twins += 1;
                         let twin_key = key.sibling(old_nodefront.n_twins);
-                        NeedToUpdateTwin { twin_key }
+                        NeedToUpdateTwin { twin_key, twin_n: old_nodefront.n_twins }
                     }
                 }
 
@@ -1337,7 +1330,7 @@ impl Ui {
         // If it's NeedToAddTwin, we repeat the same thing with the new twin_key.
         let real_final_i = match twin_check_result {
             UpdatedNormal { final_i } => final_i,
-            NeedToUpdateTwin { twin_key } => {
+            NeedToUpdateTwin { twin_key, twin_n } => {
                 match self.nodes.fronts.entry(twin_key.id()) {
                     // Add new twin.
                     Entry::Vacant(v) => {
@@ -1351,7 +1344,7 @@ impl Ui {
                             None => None,
                         };
 
-                        let new_twin_node = Self::new_node(&twin_key, *defaults, Some(parent_i), text_id, image);
+                        let new_twin_node = Self::new_node(&twin_key, *defaults, Some(parent_i), text_id, image, Some(twin_n));
     
                         let real_final_i = self.nodes.nodes.insert(new_twin_node);
                         v.insert(NodeFront::new(parent_i, frame, real_final_i));
@@ -1420,6 +1413,7 @@ impl Ui {
         parent_id: Option<usize>,
         text_id: Option<usize>,
         image: Option<ImageRef>,
+        is_twin: Option<u32>,
     ) -> Node {
         let parent_id = match parent_id {
             Some(parent_id) => parent_id,
@@ -1437,8 +1431,9 @@ impl Ui {
             n_children: 0,
             first_child: None,
             next_sibling: None,
-        
+            is_twin,
             params,
+            debug_name: key.debug_name,
             last_frame_status: LastFrameStatus::Nothing,
             last_hover: f32::MIN,
             last_click: f32::MIN,
@@ -2405,14 +2400,21 @@ pub struct Node {
 
     pub params: NodeParams,
 
+    pub debug_name: &'static str,
+
+    pub is_twin: Option<u32>,
+
     pub last_hover: f32,
     pub last_click: f32,
     pub z: f32,
 }
 impl Node {
-    #[cfg(debug_assertions)]
-    pub fn debug_name(&self) -> &str {
-        return self.params.debug_name;
+    pub fn debug_name(&self) -> String {
+        let debug_name = match self.is_twin {
+            Some(n) => format!("{} (twin #{}", self.debug_name, n),
+            None => format!("{}", self.debug_name),
+        };
+        return debug_name;
     }
 
     fn reset_children(&mut self) {
@@ -2756,6 +2758,7 @@ enum TwinCheckResult<T: NodeType> {
         final_i: usize,
     },
     NeedToUpdateTwin {
+        twin_n: u32,
         twin_key: TypedKey<T>,
     }
 }

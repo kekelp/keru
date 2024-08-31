@@ -19,10 +19,7 @@ pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
         size: Xy::new_symm(Fixed(Frac(1.0))),
         position: Xy::new_symm(Start),
         padding: Xy::new_symm(Len::ZERO),
-    },
-    
-    #[cfg(debug_assertions)]
-    debug_name: "ROOT",
+    },    
 };
 
 pub const DEFAULT: NodeParams = NodeParams {
@@ -44,10 +41,7 @@ pub const DEFAULT: NodeParams = NodeParams {
         size: Xy::new_symm(Fixed(Frac(1.0))),
         position: Xy::new_symm(Center),
         padding: Xy::new_symm(Len::ZERO),
-    },
-    
-    #[cfg(debug_assertions)]
-    debug_name: "DEFAULT",
+    },    
 };
 
 pub const V_STACK: NodeParams = NodeParams {
@@ -70,10 +64,7 @@ pub const V_STACK: NodeParams = NodeParams {
         size: Xy::new(Size::FitContent, Size::FitContent),
         position: Xy::new_symm(Center),
         padding: Xy::new_symm(Len::ZERO),
-    },
-    
-    #[cfg(debug_assertions)]
-    debug_name: "VStack",
+    },    
 };
 
 pub const H_STACK: NodeParams = NodeParams {
@@ -96,10 +87,7 @@ pub const H_STACK: NodeParams = NodeParams {
         size: Xy::new(Size::FitContent, Size::FitContent),
         position: Xy::new_symm(Center),
         padding: Xy::new_symm(Len::ZERO),
-    },
-    
-    #[cfg(debug_assertions)]
-    debug_name: "HStack",
+    },    
 };
 
 pub const MARGIN: NodeParams = NodeParams {
@@ -118,10 +106,7 @@ pub const MARGIN: NodeParams = NodeParams {
         size: Xy::new_symm(Fixed(Frac(0.9))),
         position: Xy::new_symm(Center),
         padding: Xy::new_symm(Len::ZERO),
-    },
-    
-    #[cfg(debug_assertions)]
-    debug_name: "Margin",
+    },    
 };
 
 pub const ICON_BUTTON: NodeParams = NodeParams {
@@ -142,10 +127,7 @@ pub const ICON_BUTTON: NodeParams = NodeParams {
         size: Xy::new_symm(FitContent),
         position: Xy::new_symm(Center),
         padding: Xy::new_symm(Len::ZERO),
-    },
-    
-    #[cfg(debug_assertions)]
-    debug_name: "Margin",
+    },    
 };
 
 pub const BUTTON: NodeParams = NodeParams {
@@ -168,10 +150,7 @@ pub const BUTTON: NodeParams = NodeParams {
         size: Xy::new_symm(FitContent),
         position: Xy::new_symm(Center),
         padding: Xy::new_symm(Len::Pixels(10)),
-    },
-    
-    #[cfg(debug_assertions)]
-    debug_name: "Button",
+    },    
 };
 
 pub const LABEL: NodeParams = NodeParams {
@@ -193,10 +172,7 @@ pub const LABEL: NodeParams = NodeParams {
         size: Xy::new_symm(FitContent),
         position: Xy::new_symm(Center),
         padding: Xy::new_symm(Len::Pixels(10)),
-    },
-    
-    #[cfg(debug_assertions)]
-    debug_name: "Label",
+    },    
 };
 
 pub const TEXT: NodeParams = NodeParams {
@@ -218,10 +194,7 @@ pub const TEXT: NodeParams = NodeParams {
         size: Xy::new_symm(FitContent),
         position: Xy::new_symm(Center),
         padding: Xy::new_symm(Len::Pixels(2)),
-    },
-    
-    #[cfg(debug_assertions)]
-    debug_name: "Text",
+    },    
 };
 
 pub const EMPTY_TEXT: NodeParams = NodeParams {
@@ -243,10 +216,7 @@ pub const EMPTY_TEXT: NodeParams = NodeParams {
         size: Xy::new_symm(FitContent),
         position: Xy::new_symm(Center),
         padding: Xy::new_symm(Len::Pixels(2)),
-    },
-    
-    #[cfg(debug_assertions)]
-    debug_name: "Text",
+    },    
 };
 
 
@@ -269,10 +239,7 @@ pub const TEXT_INPUT: NodeParams = NodeParams {
         size: Xy::new_symm(Fill),
         position: Xy::new_symm(Center),
         padding: Xy::new_symm(Len::Pixels(5)),
-    },
-    
-    #[cfg(debug_assertions)]
-    debug_name: "Text input",
+    },    
 };
 
 pub const PANEL: NodeParams = NodeParams {
@@ -291,8 +258,5 @@ pub const PANEL: NodeParams = NodeParams {
         size: Xy::new_symm(FitContent),
         position: Xy::new_symm(Center),
         padding: Xy::new_symm(Len::Pixels(10)),
-    },
-    
-    #[cfg(debug_assertions)]
-    debug_name: "Panel",
+    },    
 };
