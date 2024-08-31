@@ -19,13 +19,13 @@ impl State {
         tree!(self.ui, {
 
             v_stack!(self.ui, {
-                self.slider_value = self.ui.add_widget(add_slider, self.slider_value);
-                // self.slider_value = add_slider(&mut self.ui, self.slider_value);
+                // self.slider_value = self.ui.add_widget(add_slider, self.slider_value);
+                self.slider_value = add_slider(&mut self.ui, self.slider_value);
                 
-                self.slider_value2 = add_slider(&mut self.ui, self.slider_value2);
-                self.slider_value3 = add_slider(&mut self.ui, self.slider_value3);
-                self.slider_value4 = add_slider(&mut self.ui, self.slider_value4);
-                self.slider_value5 = add_slider(&mut self.ui, self.slider_value5);
+                // self.slider_value2 = add_slider(&mut self.ui, self.slider_value2);
+                // self.slider_value3 = add_slider(&mut self.ui, self.slider_value3);
+                // self.slider_value4 = add_slider(&mut self.ui, self.slider_value4);
+                // self.slider_value5 = add_slider(&mut self.ui, self.slider_value5);
             });
 
             // #[node_key]
@@ -302,9 +302,13 @@ pub fn add_slider(ui: &mut Ui, value: f32) -> f32 {
     
     let mut value = value;
 
-    add!(ui, SLIDER_CONTAINER, &slider_container_params, {
+    ui.add(SLIDER_CONTAINER, &slider_container_params);
+    {
+
         ui.add(SLIDER_FILL, &slider_fill_params).set_size_x(Fixed(Pixels(value as u32)));
-    });
+        
+    }  
+    ui.end_parent(SLIDER_CONTAINER);
 
     if let Some((x, _y)) = ui.is_dragged(SLIDER_CONTAINER) {
         value -= x as f32;

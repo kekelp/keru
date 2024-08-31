@@ -610,6 +610,21 @@ pub struct NodeRef<'a, T: NodeType> {
 
 // why can't you just do it separately?
 impl<'a,  T: NodeType> NodeRef<'a, T> {
+
+    // pub fn is_clicked(&self) -> bool {
+    //     let id = self.node.id;
+    //     return self.clicked.contains(&real_key.id);
+        
+    // }
+
+    // pub fn is_dragged(&self) -> Option<(f64, f64)> {
+    //     if self.is_clicked(node_key) {
+    //         return Some(self.mouse_status.cursor_diff())
+    //     } else {
+    //         return None;
+    //     }
+    // }
+
     pub fn set_color(&mut self, color: Color)  -> &mut Self {
         self.node.params.rect.vertex_colors = VertexColors::flat(color);
         return self;
@@ -1210,7 +1225,17 @@ impl Ui {
         };
     }
 
-    pub fn add_as_parent<T: ParentTrait>(&mut self, key: TypedKey<T>, defaults: &NodeParams) -> usize {
+    pub fn add_parent<T: NodeType>(&mut self, key: TypedKey<T>, defaults: &NodeParams) -> NodeRef<T> {
+        let i = self.update_node(key, defaults, true);
+        return NodeRef {
+            node: &mut self.nodes[i],
+            text: &mut self.text,
+            nodetype_marker: PhantomData::<T>,
+        };
+    }
+
+
+    pub fn add_as_parent_unchecked<T: ParentTrait>(&mut self, key: TypedKey<T>, defaults: &NodeParams) -> usize {
         let i = self.update_node(key, defaults, true);
         return i;
     }
@@ -1222,13 +1247,25 @@ impl Ui {
 
     // todo: I wanted to add this checked version, but there is a twin-related problem here.
     // if the key got twinned, ended_parent will lead to the node with the twinned id, but the key will have the non-twinned id.
-    // sounds stupid to store the non-twinned id just for this stupid check. 
-    // pub fn end_parent<T: NodeType>(&mut self, key: TypedKey<T>) {
-    //     let ended_parent = self.parent_stack.pop().unwrap();
-    //     let ended_parent_id = self.nodes[ended_parent].id;
-    //     debug_assert!(ended_parent_id == key.id());
-    //     self.last_child_stack.pop();
-    // }
+    // sounds stupid to store the non-twinned id just for this stupid check.
+
+    // I think what we want is the still the Latest Twin Id, but should think some more about it.  
+    pub fn end_parent<T: NodeType>(&mut self, key: TypedKey<T>) {
+        let ended_parent = self.parent_stack.pop();
+
+        #[cfg(debug_assertions)] {
+            let ended_parent = ended_parent.expect(&format!("Misplaced end_parent: {}", key.debug_name));
+            let ended_parent_id = self.nodes[ended_parent].id;
+
+            let twin_key = self.get_latest_twin_key(key).unwrap();
+            debug_assert!(ended_parent_id == twin_key.id(),
+            "Misplaced end_parent: tried to end {:?}, but {:?} was the latest parent", self.nodes[ended_parent].debug_name(), twin_key.debug_name
+            );
+        }
+
+
+        self.last_child_stack.pop();
+    }
 
     // don't expect this to give you twin nodes automatically
     pub fn get_ref<T: NodeType>(&mut self, key: TypedKey<T>) -> NodeRef<T> {
@@ -1357,13 +1394,13 @@ impl Ui {
     fn get_latest_twin_key<T: NodeType>(&self, key: TypedKey<T>) -> Option<TypedKey<T>> {
 
         let nodefront = self.nodes.fronts.get(&key.id())?;
-        
+
         if nodefront.n_twins == 0 {
             return Some(key);
         }
 
         // todo: yell a very loud warning here. latest_twin is more like a best-effort way to deal with dumb code. 
-        // the proper way is to just use unique keys. 
+        // the proper way is to just use unique keys, or to use the returned noderef, if that becomes a thing.
         let twin_key = key.sibling(nodefront.n_twins);
 
         return Some(twin_key);
@@ -2276,7 +2313,7 @@ impl Ui {
 macro_rules! add {
     ($ui:expr, $key:expr, $defaults:expr, $code:block) => {
         {
-            let i = $ui.add_as_parent($key, &$defaults);
+            let i = $ui.add_as_parent_unchecked($key, &$defaults);
             $code;
             $ui.end_parent_unchecked();
             $ui.get_ref_unchecked(i, $key)
@@ -2293,7 +2330,7 @@ macro_rules! create_layer_macro {
         macro_rules! $macro_name {
             ($ui:expr, $code:block) => {
                 let anonymous_key = view_derive::anon_node_key!(NodeKey, $debug_name);
-                $ui.add_as_parent(anonymous_key, &$defaults_name);
+                $ui.add_as_parent_unchecked(anonymous_key, &$defaults_name);
                 $code;
                 $ui.end_parent_unchecked();
             };
@@ -2302,7 +2339,7 @@ macro_rules! create_layer_macro {
             // it's basically the same as add!, not sure if it's even worth having.
             // especially with no checks that CUSTOM_H_STACK is actually a h_stack.
             ($ui:expr, $node_key:expr, $code:block) => {
-                $ui.add_as_parent($node_key, &$defaults_name);
+                $ui.add_as_parent_unchecked($node_key, &$defaults_name);
                 $code;
                 $ui.end_parent_unchecked();
             };
