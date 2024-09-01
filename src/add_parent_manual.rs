@@ -10,7 +10,7 @@ impl AddParentManual for Ui {
         let i = self.update_node(key, defaults, true);
         return NodeRef {
             node: &mut self.nodes[i],
-            text: &mut self.text,
+            text: &mut self.sys.text,
             nodetype_marker: PhantomData::<T>,
         };
     }

@@ -30,7 +30,7 @@ fn main() -> Result<(), EventLoopError> {
     let (ctx, event_loop) = Context::init(BASE_WIDTH, BASE_HEIGHT, WINDOW_NAME);
 
     let ui = Ui::new(&ctx.device, &ctx.queue, &ctx.surface_config);
-    let canvas = Canvas::new(&ctx, &ui.base_uniform_buffer);
+    let canvas = Canvas::new(&ctx, &ui.sys.base_uniform_buffer);
     
     let mut state = State {
         ctx,
@@ -75,7 +75,7 @@ impl State {
         let consumed = self.ui.handle_events(event, &self.ctx.queue);
 
         if ! consumed {
-            self.canvas.handle_events(event, &self.ui.key_mods, &self.ctx.queue);
+            self.canvas.handle_events(event, &self.ui.sys.key_mods, &self.ctx.queue);
         }
 
         if is_redraw_requested(event) {

@@ -15,7 +15,7 @@ impl AddParentClosure for Ui {
 
         return NodeRef {
             node: &mut self.nodes[i],
-            text: &mut self.text,
+            text: &mut self.sys.text,
             nodetype_marker: PhantomData::<T>,
         };
     }
