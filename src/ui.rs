@@ -891,6 +891,26 @@ impl IndexMut<usize> for Nodes {
     }
 }
 
+impl System {
+    pub fn build_new_node<T: NodeType>(&mut self, key: &TypedKey<T>, params: &NodeParams, twin_n: Option<u32>) -> Node {
+        let frame = self.part.current_frame;
+        let parent_i = self.parent_stack.last().unwrap().clone();
+
+        let text = params.maybe_text();
+        let text_id = self.text.maybe_new_text_area(text, frame);
+
+        let image = match params.image {
+            Some(image) => {
+                Some(self.texture_atlas.allocate_image(image.data))
+            },
+            None => None,
+        };
+
+        let new_node = Node::new(&key, *params, Some(parent_i), text_id, image, twin_n);
+        return new_node;
+    }
+}
+
 pub struct Ui {
     pub nodes: Nodes,
     pub sys: System,
@@ -1293,19 +1313,7 @@ impl Ui {
             // Add a normal node (no twins).
             Entry::Vacant(v) => {
 
-                // we need some big partial borrow refactoring before this can become good.
-                // I guess self.sys.text, self.sys.texture_atlas and self.nodes could go into "self.storage" or "self.arenas" or something.
-                let text = defaults.maybe_text();
-                let text_id = self.sys.text.maybe_new_text_area(text, frame);
-
-                let image = match defaults.image {
-                    Some(image) => {
-                        Some(self.sys.texture_atlas.allocate_image(image.data))
-                    },
-                    None => None,
-                };
-
-                let new_node = Self::new_node(&key, *defaults, Some(parent_i), text_id, image, None);
+                let new_node = self.sys.build_new_node(&key, defaults, None);
 
                 let final_i = self.nodes.nodes.insert(new_node);
                 v.insert(NodeFront::new(parent_i, frame, final_i));
@@ -1344,18 +1352,7 @@ impl Ui {
                 match self.nodes.fronts.entry(twin_key.id()) {
                     // Add new twin.
                     Entry::Vacant(v) => {
-                        let text = defaults.maybe_text();
-                        let text_id = self.sys.text.maybe_new_text_area(text, frame);
-
-                        let image = match defaults.image {
-                            Some(image) => {
-                                Some(self.sys.texture_atlas.allocate_image(image.data))
-                            },
-                            None => None,
-                        };
-
-                        let new_twin_node = Self::new_node(&twin_key, *defaults, Some(parent_i), text_id, image, Some(twin_n));
-    
+                        let new_twin_node = self.sys.build_new_node(&twin_key, defaults, Some(twin_n));
                         let real_final_i = self.nodes.nodes.insert(new_twin_node);
                         v.insert(NodeFront::new(parent_i, frame, real_final_i));
                         real_final_i
@@ -1414,41 +1411,6 @@ impl Ui {
             *self.sys.last_child_stack.last_mut().unwrap() = id;
         }
 
-    }
-
-    // todo: why like this
-    pub fn new_node(
-        key: &TypedKey<impl NodeType>,
-        params: NodeParams,
-        parent_id: Option<usize>,
-        text_id: Option<usize>,
-        image: Option<ImageRef>,
-        is_twin: Option<u32>,
-    ) -> Node {
-        let parent_id = match parent_id {
-            Some(parent_id) => parent_id,
-            None => usize::default(),
-        };
-        Node {
-            id: key.id(),
-            rect_id: None,
-            rect: Xy::new_symm([0.0, 1.0]),
-            size: Xy::new_symm(10.0),
-            text_id,
-            image,
-            parent: parent_id,
-
-            n_children: 0,
-            first_child: None,
-            next_sibling: None,
-            is_twin,
-            params,
-            debug_name: key.debug_name,
-            last_frame_status: LastFrameStatus::Nothing,
-            last_hover: f32::MIN,
-            last_click: f32::MIN,
-            z: 0.0,
-        }
     }
 
     pub fn handle_keyboard_event(&mut self, event: &KeyEvent) -> bool {
@@ -2437,6 +2399,40 @@ impl Node {
     fn refresh(&mut self, parent_id: usize) {
         self.parent = parent_id;
         self.reset_children();
+    }
+
+    pub fn new(
+        key: &TypedKey<impl NodeType>,
+        params: NodeParams,
+        parent_id: Option<usize>,
+        text_id: Option<usize>,
+        image: Option<ImageRef>,
+        is_twin: Option<u32>,
+    ) -> Node {
+        let parent_id = match parent_id {
+            Some(parent_id) => parent_id,
+            None => usize::default(),
+        };
+        Node {
+            id: key.id(),
+            rect_id: None,
+            rect: Xy::new_symm([0.0, 1.0]),
+            size: Xy::new_symm(10.0),
+            text_id,
+            image,
+            parent: parent_id,
+
+            n_children: 0,
+            first_child: None,
+            next_sibling: None,
+            is_twin,
+            params,
+            debug_name: key.debug_name,
+            last_frame_status: LastFrameStatus::Nothing,
+            last_hover: f32::MIN,
+            last_click: f32::MIN,
+            z: 0.0,
+        }
     }
 }
 
