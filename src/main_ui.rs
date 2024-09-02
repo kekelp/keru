@@ -180,8 +180,8 @@ impl State {
         self.ui.add_parent(PIXEL_PANEL2, &pixel_panel_params, |ui| {
             ui.add_parent(VSSTACK77, &V_STACK, |ui| {
 
-                ui.add(TEXT77, &TEXT).set_text(&x);
-                ui.add(TEXT77, &TEXT).set_text(&y);
+                ui.add(TEXT77, &TEXT.text(&x));
+                ui.add(TEXT77, &TEXT.text(&y));
 
             });
         });

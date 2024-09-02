@@ -111,6 +111,17 @@ pub struct Text<'data> {
     pub text: &'data str,
     pub editable: bool,
 }
+impl<'text> Text<'text> {
+    pub const DEFAULT: Text<'static> = Text {
+        text: &"",
+        editable: false,
+    };
+
+    pub const fn text<'a: 'text>(mut self, text: &'a str) -> Self {
+        self.text = text;
+        return self;
+    }
+}
 
 #[derive(Debug, Copy, Clone)]
 pub struct Image<'data> {
@@ -133,7 +144,7 @@ type StaticParams = NodeParams<'static, 'static>;
 impl<'text, 'image> NodeParams<'text, 'image> {
     
     // maybe a separate struct with no Text and no Image would be better.
-    fn lifetimeless(&self) -> StaticParams {
+    fn strip_references(&self) -> StaticParams {
         return StaticParams {
             text: None,
             image: None,
@@ -185,15 +196,12 @@ impl<'text, 'image> NodeParams<'text, 'image> {
         return self;
     }
 
-    pub const fn text(mut self, text: &'static str) -> Self {
-        let old_editable = match self.text {
-            Some(text) => text.editable,
-            None => false,
+    pub const fn text<'a: 'text>(mut self, text: &'a str) -> Self {
+        let textstruct = match self.text {
+            Some(textstruct) => textstruct,
+            None => Text::DEFAULT,
         };
-        self.text = Some(Text {
-            text,
-            editable: old_editable,
-        });
+        self.text = Some(textstruct.text(text));
         return self;
     }
     pub const fn editable(mut self, editable: bool) -> Self {
@@ -790,7 +798,7 @@ impl System {
             first_child: None,
             next_sibling: None,
             is_twin: twin_n,
-            params: params.lifetimeless(),
+            params: params.strip_references(),
             debug_name: key.debug_name,
             last_frame_status: LastFrameStatus::Nothing,
             last_hover: f32::MIN,
@@ -1131,11 +1139,7 @@ impl Ui {
 
     pub fn add<T: NodeType>(&mut self, key: TypedKey<T>, defaults: &NodeParams) -> NodeRef<T> {
         let i = self.update_node(key, defaults, false);
-        return NodeRef {
-            node: &mut self.nodes[i],
-            sys: &mut self.sys,
-            nodetype_marker: PhantomData::<T>,
-        };
+        return self.get_ref_unchecked(i, &key)
     }
 
     pub fn add_as_parent_unchecked<T: ParentTrait>(&mut self, key: TypedKey<T>, defaults: &NodeParams) -> usize {
@@ -1216,7 +1220,13 @@ impl Ui {
                         let final_i = old_nodefront.slab_i;
                         self.refresh_node(final_i, parent_i, frame);
                         
-                        self.nodes[final_i].params = defaults.lifetimeless();
+                        self.nodes[final_i].params = defaults.strip_references();
+                        if let Some(text) = defaults.text {
+                            // todo: if there's no text_id, it should be made
+                            if let Some(text_id) = self.nodes[final_i].text_id {
+                                self.sys.text.set_text(text_id, text.text);
+                            }
+                        }
 
                         UpdatedNormal{ final_i }
                     }
@@ -1255,7 +1265,14 @@ impl Ui {
                         
                         let real_final_i = old_twin_nodefront.slab_i;
 
-                        self.nodes[real_final_i].params = defaults.lifetimeless();
+                        self.nodes[real_final_i].params = defaults.strip_references();
+
+                        if let Some(text) = defaults.text {
+                            // todo: if there's no text_id, it should be made
+                            if let Some(text_id) = self.nodes[real_final_i].text_id {
+                                self.sys.text.set_text(text_id, text.text);
+                            }
+                        }
                         
                         self.refresh_node(real_final_i, parent_i, frame);
                         real_final_i
