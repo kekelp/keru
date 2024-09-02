@@ -323,7 +323,7 @@ pub fn add_slider(ui: &mut Ui, value: f32) -> f32 {
     ui.add_parent(SLIDER_CONTAINER, &slider_container_params);
     {
 
-        ui.add(SLIDER_FILL, &slider_fill_params).set_size_x(Fixed(Pixels(value as u32)));
+        ui.add(SLIDER_FILL, &slider_fill_params.size_x(Fixed(Pixels(value as u32))));
         
     }  
     ui.end_parent(SLIDER_CONTAINER);

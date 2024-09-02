@@ -132,6 +132,7 @@ type StaticParams = NodeParams<'static, 'static>;
 
 impl<'text, 'image> NodeParams<'text, 'image> {
     
+    // maybe a separate struct with no Text and no Image would be better.
     fn lifetimeless(&self) -> StaticParams {
         return StaticParams {
             text: None,
@@ -1214,6 +1215,9 @@ impl Ui {
                         // todo2: check the nodefront values and maybe skip reaching into the node
                         let final_i = old_nodefront.slab_i;
                         self.refresh_node(final_i, parent_i, frame);
+                        
+                        self.nodes[final_i].params = defaults.lifetimeless();
+
                         UpdatedNormal{ final_i }
                     }
                     // do nothing, just calculate the twin key and go to twin part below
@@ -1245,10 +1249,14 @@ impl Ui {
                     Entry::Occupied(o) => {
                         let old_twin_nodefront = o.into_mut();
     
+                        
                         // todo2: check the nodefront values and maybe skip reaching into the node
                         old_twin_nodefront.refresh(parent_i, frame);
-    
+                        
                         let real_final_i = old_twin_nodefront.slab_i;
+
+                        self.nodes[real_final_i].params = defaults.lifetimeless();
+                        
                         self.refresh_node(real_final_i, parent_i, frame);
                         real_final_i
                     },
