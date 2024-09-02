@@ -107,28 +107,41 @@ impl Rect {
 // rename
 // todo: add greyed text for textinput
 #[derive(Debug, Copy, Clone)]
-pub struct Text {
-    pub text: &'static str,
+pub struct Text<'data> {
+    pub text: &'data str,
     pub editable: bool,
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct Image {
-    pub data: &'static [u8],
+pub struct Image<'data> {
+    pub data: &'data [u8],
 }
 
 // todo: rename to NodeDefaults 
 #[derive(Debug, Copy, Clone)]
-pub struct NodeParams {
+pub struct NodeParams<'text, 'image> {
+    pub text: Option<Text<'text>>,
+    pub image: Option<Image<'image>>,
     pub stack: Option<Stack>,
-    pub text: Option<Text>,
-    pub image: Option<Image>,
     pub rect: Rect,
     pub interact: Interact,
     pub layout: Layout,
 }
 
-impl NodeParams {
+type StaticParams = NodeParams<'static, 'static>;
+
+impl<'text, 'image> NodeParams<'text, 'image> {
+    
+    fn lifetimeless(&self) -> StaticParams {
+        return StaticParams {
+            text: None,
+            image: None,
+            stack: self.stack.clone(),
+            rect: self.rect.clone(),
+            interact: self.interact.clone(),
+            layout: self.layout.clone(),
+        };
+    }
 
     // todo: remove
     fn maybe_text(&self) -> Option<Text> {
@@ -776,7 +789,7 @@ impl System {
             first_child: None,
             next_sibling: None,
             is_twin: twin_n,
-            params: params.clone(),
+            params: params.lifetimeless(),
             debug_name: key.debug_name,
             last_frame_status: LastFrameStatus::Nothing,
             last_hover: f32::MIN,
@@ -1546,11 +1559,11 @@ impl Ui {
         });
 
         // Propose the whole proposed_size (regardless of stack) to the contents, and let them decide.
-        if let Some(_) = self.nodes[node].params.text {
+        if let Some(_) = self.nodes[node].text_id {
             let text_size = self.determine_text_size(node, proposed_size);
             content_size.update_for_content(text_size, stack);
         }
-        if let Some(_) = self.nodes[node].params.image {
+        if let Some(_) = self.nodes[node].image {
             let image_size = self.determine_image_size(node, proposed_size);
             content_size.update_for_content(image_size, stack);
         }
@@ -2241,7 +2254,7 @@ pub struct Node {
     // at some point I was iterating the children in reverse for z ordering purposes, but I don't think that actually makes any difference.  
     // pub prev_sibling: Option<usize>,
 
-    pub params: NodeParams,
+    pub params: NodeParams<'static, 'static>,
 
     pub debug_name: &'static str,
 
@@ -2567,8 +2580,8 @@ pub trait TextTrait: NodeType {}
 
 pub trait ParentTrait: NodeType {}
 
-impl NodeType for Text {}
-impl TextTrait for Text {}
+impl<'a> NodeType for Text<'a> {}
+impl<'a> TextTrait for Text<'a> {}
 
 impl NodeType for Stack {}
 impl ParentTrait for Stack {}

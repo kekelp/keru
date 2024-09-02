@@ -29,15 +29,15 @@ impl State {
                 // self.slider_value5 = add_slider(&mut self.ui, self.slider_value5);
             });
 
-            // #[node_key]
-            // const SIDEBAR: TypedKey<Stack>;
-            // let sidebar_params = V_STACK.position_x(Position::End).size_y(Fill).size_x(FitContent).stack_arrange(Arrange::Center); 
+            #[node_key]
+            const SIDEBAR: TypedKey<Stack>;
+            let sidebar_params = V_STACK.position_x(Position::End).size_y(Fill).size_x(FitContent).stack_arrange(Arrange::Center); 
 
-            // add!(self.ui, SIDEBAR, sidebar_params, {
-            //     // self.add_tools();
+            add!(self.ui, SIDEBAR, sidebar_params, {
+                self.add_tools();
 
                 self.add_pixel_info_ui();
-            // });
+            });
 
             // // self.add_counter_ui();
         });
