@@ -15,7 +15,6 @@ use crate::math::{Axis, Xy, XyRect};
 use crate::for_each_child;
 
 use std::collections::hash_map::Entry;
-use std::ops::{Add, Mul, Sub};
 use std::sync::LazyLock;
 use std::{
     hash::Hasher,
@@ -763,9 +762,28 @@ impl System {
             },
             None => None,
         };
+        
+        return Node {
+            id: key.id(),
+            rect_id: None,
+            rect: Xy::new_symm([0.0, 1.0]),
+            size: Xy::new_symm(10.0),
+            text_id,
+            image,
+            parent: parent_i,
 
-        let new_node = Node::new(&key, *params, Some(parent_i), text_id, image, twin_n);
-        return new_node;
+            n_children: 0,
+            first_child: None,
+            next_sibling: None,
+            is_twin: twin_n,
+            params: params.clone(),
+            debug_name: key.debug_name,
+            last_frame_status: LastFrameStatus::Nothing,
+            last_hover: f32::MIN,
+            last_click: f32::MIN,
+            z: 0.0,
+        }
+    
     }
 }
 
@@ -2257,40 +2275,6 @@ impl Node {
     fn refresh(&mut self, parent_id: usize) {
         self.parent = parent_id;
         self.reset_children();
-    }
-
-    pub fn new(
-        key: &TypedKey<impl NodeType>,
-        params: NodeParams,
-        parent_id: Option<usize>,
-        text_id: Option<usize>,
-        image: Option<ImageRef>,
-        is_twin: Option<u32>,
-    ) -> Node {
-        let parent_id = match parent_id {
-            Some(parent_id) => parent_id,
-            None => usize::default(),
-        };
-        Node {
-            id: key.id(),
-            rect_id: None,
-            rect: Xy::new_symm([0.0, 1.0]),
-            size: Xy::new_symm(10.0),
-            text_id,
-            image,
-            parent: parent_id,
-
-            n_children: 0,
-            first_child: None,
-            next_sibling: None,
-            is_twin,
-            params,
-            debug_name: key.debug_name,
-            last_frame_status: LastFrameStatus::Nothing,
-            last_hover: f32::MIN,
-            last_click: f32::MIN,
-            z: 0.0,
-        }
     }
 }
 
