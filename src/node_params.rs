@@ -1,4 +1,5 @@
-use crate::{Arrange, Axis, Color, Image, Interact, Layout, Len, NodeParams, Position, Rect, Size, Stack, Text, VertexColors, Xy};
+use crate::{Arrange, Color, Image, Interact, Layout, Len, NodeParams, Position, Rect, Size, Stack, Text, VertexColors};
+use crate::math::{Axis, Xy};
 use Size::*;
 use Position::*;
 use Len::*;

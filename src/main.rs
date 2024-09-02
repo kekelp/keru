@@ -9,6 +9,7 @@ pub mod main_ui;
 pub mod texture_atlas;
 pub mod add_parent_manual;
 pub mod add_parent_closure;
+pub mod math;
 
 use glam::dvec2;
 use pixels_on_screen::*;
