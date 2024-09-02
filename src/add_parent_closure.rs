@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use crate::{NodeParams, NodeRef, NodeType, TypedKey, Ui};
 
 pub trait AddParentClosure {
@@ -13,10 +11,6 @@ impl AddParentClosure for Ui {
 
         self.end_parent_unchecked();
 
-        return NodeRef {
-            node: &mut self.nodes[i],
-            text: &mut self.sys.text,
-            nodetype_marker: PhantomData::<T>,
-        };
+        return self.get_ref_unchecked(i, &key)
     }
 }

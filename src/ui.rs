@@ -454,8 +454,8 @@ impl Color {
 
 pub struct NodeRef<'a, T: NodeType> {
     pub(crate) node: &'a mut Node,
-    pub(crate) text: &'a mut TextSystem,
     pub(crate) nodetype_marker: PhantomData<T>,
+    pub(crate) sys: &'a mut System,
 }
 
 // why can't you just do it separately?
@@ -510,7 +510,7 @@ impl<'a, T: TextTrait> NodeRef<'a, T> {
 
     pub fn set_text(&mut self, text: &str) -> &mut Self {
         if let Some(text_id) = self.node.text_id {
-            self.text.set_text(text_id, text);
+            self.sys.text.set_text(text_id, text);
         } else {
             // todo: log a warning or something
             // or make these things type safe somehow
@@ -521,7 +521,7 @@ impl<'a, T: TextTrait> NodeRef<'a, T> {
 
     pub fn set_text_attrs(&mut self, attrs: Attrs)  -> &mut Self {
         if let Some(text_id) = self.node.text_id {
-            self.text.set_text_attrs(text_id, attrs);
+            self.sys.text.set_text_attrs(text_id, attrs);
         } else {
             // todo: log a warning or something
             // or make these things type safe somehow
@@ -531,7 +531,7 @@ impl<'a, T: TextTrait> NodeRef<'a, T> {
 
     pub fn set_text_align(&mut self, align: Align)  -> &mut Self {
         if let Some(text_id) = self.node.text_id {
-            self.text.set_text_align(text_id, align);
+            self.sys.text.set_text_align(text_id, align);
         } else {
             // todo: log a warning or something
             // or make these things type safe somehow
@@ -542,7 +542,7 @@ impl<'a, T: TextTrait> NodeRef<'a, T> {
     pub fn get_text(&mut self) -> Option<String> {
         let text_id = self.node.text_id.unwrap();
 
-        let text = self.text.text_areas[text_id].buffer.lines[0]
+        let text = self.sys.text.text_areas[text_id].buffer.lines[0]
             .text
             .text()
             .to_string();
@@ -1119,7 +1119,7 @@ impl Ui {
         let i = self.update_node(key, defaults, false);
         return NodeRef {
             node: &mut self.nodes[i],
-            text: &mut self.sys.text,
+            sys: &mut self.sys,
             nodetype_marker: PhantomData::<T>,
         };
     }
@@ -1158,20 +1158,15 @@ impl Ui {
 
     // don't expect this to give you twin nodes automatically
     pub fn get_ref<T: NodeType>(&mut self, key: TypedKey<T>) -> NodeRef<T> {
-        
         let node_i = self.nodes.fronts.get(&key.id()).unwrap().slab_i;
-        return NodeRef {
-            node: &mut self.nodes[node_i],
-            text: &mut self.sys.text,
-            nodetype_marker: PhantomData::<T>,
-        };
+        return self.get_ref_unchecked(node_i, &key)
     }
 
     // only for the macro, use get_ref 
-    pub fn get_ref_unchecked<T: NodeType>(&mut self, i: usize, _key: TypedKey<T>) -> NodeRef<T> {        
+    pub fn get_ref_unchecked<T: NodeType>(&mut self, i: usize, _key: &TypedKey<T>) -> NodeRef<T> {        
         return NodeRef {
             node: &mut self.nodes[i],
-            text: &mut self.sys.text,
+            sys: &mut self.sys,
             nodetype_marker: PhantomData::<T>,
         };
     }
@@ -2149,7 +2144,7 @@ macro_rules! add {
             let i = $ui.add_as_parent_unchecked($key, &$defaults);
             $code;
             $ui.end_parent_unchecked();
-            $ui.get_ref_unchecked(i, $key)
+            $ui.get_ref_unchecked(i, &$key)
         }
     };
     ($ui:expr, $key:expr, $defaults:expr) => {
