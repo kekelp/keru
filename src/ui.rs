@@ -749,12 +749,12 @@ impl NodeFront {
 
 pub struct Nodes {
     // todo: make faster o algo
-    pub fronts: FxHashMap<Id, NodeFront>,
+    pub node_hashmap: FxHashMap<Id, NodeFront>,
     pub nodes: Slab<Node>,
 }
 impl Nodes {
     pub fn get_by_id(&mut self, id: &Id) -> Option<&mut Node> {
-        let i = self.fronts.get(&id)?.slab_i;
+        let i = self.node_hashmap.get(&id)?.slab_i;
         return self.nodes.get_mut(i);
     }
 }
@@ -1072,7 +1072,7 @@ impl Ui {
         node_fronts.insert(NODE_ROOT_ID, root_nodefront);
 
         let nodes = Nodes {
-            fronts: node_fronts,
+            node_hashmap: node_fronts,
             nodes,
         };
 
@@ -1176,7 +1176,7 @@ impl Ui {
 
     // don't expect this to give you twin nodes automatically
     pub fn get_ref<T: NodeType>(&mut self, key: TypedKey<T>) -> NodeRef<T> {
-        let node_i = self.nodes.fronts.get(&key.id()).unwrap().slab_i;
+        let node_i = self.nodes.node_hashmap.get(&key.id()).unwrap().slab_i;
         return self.get_ref_unchecked(node_i, &key)
     }
 
@@ -1198,7 +1198,7 @@ impl Ui {
         // We might find that the key has already been used in this same frame: 
         //      in this case, we take note, and calculate a twin key to use to add a "twin" in the next section.
         // Otherwise, we add or refresh normally, and take note of the final i.
-        let twin_check_result = match self.nodes.fronts.entry(key.id()) {
+        let twin_check_result = match self.nodes.node_hashmap.entry(key.id()) {
             // Add a normal node (no twins).
             Entry::Vacant(v) => {
 
@@ -1247,7 +1247,7 @@ impl Ui {
         let real_final_i = match twin_check_result {
             UpdatedNormal { final_i } => final_i,
             NeedToUpdateTwin { twin_key, twin_n } => {
-                match self.nodes.fronts.entry(twin_key.id()) {
+                match self.nodes.node_hashmap.entry(twin_key.id()) {
                     // Add new twin.
                     Entry::Vacant(v) => {
                         let new_twin_node = self.sys.build_new_node(&twin_key, defaults, Some(twin_n));
@@ -1292,7 +1292,7 @@ impl Ui {
 
     fn get_latest_twin_key<T: NodeType>(&self, key: TypedKey<T>) -> Option<TypedKey<T>> {
 
-        let nodefront = self.nodes.fronts.get(&key.id())?;
+        let nodefront = self.nodes.node_hashmap.get(&key.id())?;
 
         if nodefront.n_twins == 0 {
             return Some(key);
@@ -2154,7 +2154,7 @@ impl Ui {
 
     // todo: actually call this once in a while
     pub fn prune(&mut self) {
-        self.nodes.fronts.retain( |k, v| {
+        self.nodes.node_hashmap.retain( |k, v| {
             // the > is to always keep the root node without having to refresh it 
             let should_retain = v.last_frame_touched >= self.sys.part.current_frame;
             if ! should_retain {
