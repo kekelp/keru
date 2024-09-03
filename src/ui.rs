@@ -561,7 +561,7 @@ impl<'a, T: TextTrait> NodeRef<'a, T> {
         return self;
     }
 
-    pub fn get_text(&mut self) -> Option<String> {
+    pub fn get_text(&self) -> Option<String> {
         let text_id = self.node.text_id.unwrap();
 
         let text = self.sys.text.text_areas[text_id].buffer.lines[0]
@@ -1137,13 +1137,13 @@ impl Ui {
         }
     }
 
-    pub fn add<T: NodeType>(&mut self, key: TypedKey<T>, defaults: &NodeParams) -> NodeRef<T> {
-        let i = self.update_node(key, defaults, false);
+    pub fn add<T: NodeType>(&mut self, key: TypedKey<T>, params: &NodeParams) -> NodeRef<T> {
+        let i = self.update_node(key, params, false);
         return self.get_ref_unchecked(i, &key)
     }
 
-    pub fn add_as_parent_unchecked<T: ParentTrait>(&mut self, key: TypedKey<T>, defaults: &NodeParams) -> usize {
-        let i = self.update_node(key, defaults, true);
+    pub fn add_as_parent_unchecked<T: ParentTrait>(&mut self, key: TypedKey<T>, params: &NodeParams) -> usize {
+        let i = self.update_node(key, params, true);
         return i;
     }
 
@@ -1189,7 +1189,7 @@ impl Ui {
         };
     }
 
-    pub fn update_node<T: NodeType>(&mut self, key: TypedKey<T>, defaults: &NodeParams, make_new_layer: bool) -> usize {
+    pub fn update_node<T: NodeType>(&mut self, key: TypedKey<T>, params: &NodeParams, make_new_layer: bool) -> usize {
         let parent_i = self.sys.parent_stack.last().unwrap().clone();
 
         let frame = self.sys.part.current_frame;
@@ -1202,7 +1202,7 @@ impl Ui {
             // Add a normal node (no twins).
             Entry::Vacant(v) => {
 
-                let new_node = self.sys.build_new_node(&key, defaults, None);
+                let new_node = self.sys.build_new_node(&key, params, None);
 
                 let final_i = self.nodes.nodes.insert(new_node);
                 v.insert(NodeFront::new(parent_i, frame, final_i));
@@ -1220,8 +1220,8 @@ impl Ui {
                         let final_i = old_nodefront.slab_i;
                         self.refresh_node(final_i, parent_i, frame);
                         
-                        self.nodes[final_i].params = defaults.strip_references();
-                        if let Some(text) = defaults.text {
+                        self.nodes[final_i].params = params.strip_references();
+                        if let Some(text) = params.text {
                             // todo: if there's no text_id, it should be made
                             if let Some(text_id) = self.nodes[final_i].text_id {
                                 self.sys.text.set_text(text_id, text.text);
@@ -1250,7 +1250,7 @@ impl Ui {
                 match self.nodes.node_hashmap.entry(twin_key.id()) {
                     // Add new twin.
                     Entry::Vacant(v) => {
-                        let new_twin_node = self.sys.build_new_node(&twin_key, defaults, Some(twin_n));
+                        let new_twin_node = self.sys.build_new_node(&twin_key, params, Some(twin_n));
                         let real_final_i = self.nodes.nodes.insert(new_twin_node);
                         v.insert(NodeFront::new(parent_i, frame, real_final_i));
                         real_final_i
@@ -1265,9 +1265,9 @@ impl Ui {
                         
                         let real_final_i = old_twin_nodefront.slab_i;
 
-                        self.nodes[real_final_i].params = defaults.strip_references();
+                        self.nodes[real_final_i].params = params.strip_references();
 
-                        if let Some(text) = defaults.text {
+                        if let Some(text) = params.text {
                             // todo: if there's no text_id, it should be made
                             if let Some(text_id) = self.nodes[real_final_i].text_id {
                                 self.sys.text.set_text(text_id, text.text);

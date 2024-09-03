@@ -151,30 +151,12 @@ impl State {
             None => ("x:  ".to_owned(), "y:  ".to_owned()),
         };
 
-        // let (r, g, b, a) = match pixel_info {
-        //     Some(pixel_info) => (
-        //         format!("{:.2}", pixel_info.color.r),
-        //         format!("{:.2}", pixel_info.color.g),
-        //         format!("{:.2}", pixel_info.color.b),
-        //         format!("{:.2}", pixel_info.color.a),
-        //     ),
-        //     None => ("".to_owned(), "".to_owned(), "".to_owned(), "".to_owned()),
-        // };
-
-        // todo:::::: I don't want strings, I want to write!() directly into the buffer
         #[node_key] const PIXEL_PANEL2: NodeKey;
         let pixel_panel_params = FLGR_PANEL.position_x(End).position_y(Start).size_x(FitContentOrMinimum(Pixels(100)));
 
         #[node_key] const TEXT77: NodeKey;
         #[node_key] const VSSTACK77: NodeKey;
 
-        // add!(self.ui, PIXEL_PANEL2, pixel_panel_params, {
-        //     v_stack!(self.ui, {
-        //         text!(self.ui, &x);
-        //         text!(self.ui, &y);
-        //     });
-        // });
-   
         use add_parent_closure::AddParentClosure;
 
         self.ui.add_parent(PIXEL_PANEL2, &pixel_panel_params, |ui| {
@@ -318,21 +300,21 @@ pub fn add_slider(ui: &mut Ui, value: f32) -> f32 {
     
     let mut value = value;
 
-    use add_parent_manual::AddParentManual;
+    // use add_parent_manual::AddParentManual;
+    // ui.add_parent(SLIDER_CONTAINER, &slider_container_params);
+    // {
 
-    ui.add_parent(SLIDER_CONTAINER, &slider_container_params);
-    {
-
-        ui.add(SLIDER_FILL, &slider_fill_params.size_x(Fixed(Pixels(value as u32))));
+    //     ui.add(SLIDER_FILL, &slider_fill_params.size_x(Fixed(Pixels(value as u32))));
         
-    }  
-    ui.end_parent(SLIDER_CONTAINER);
+    // }  
+    // ui.end_parent(SLIDER_CONTAINER);
 
-    // use add_parent_closure::AddParentClosure;
 
-    // ui.add_parent(SLIDER_CONTAINER, &slider_container_params, |ui| {
-    //     ui.add(SLIDER_FILL, &slider_fill_params).set_size_x(Fixed(Pixels(value as u32)));
-    // });
+    use add_parent_closure::AddParentClosure;
+    ui.add_parent(SLIDER_CONTAINER, &slider_container_params, |ui| {
+        ui.add(SLIDER_FILL, &slider_fill_params.size_x(Fixed(Pixels(value as u32))) );
+    });
+
 
     if let Some((x, _y)) = ui.is_dragged(SLIDER_CONTAINER) {
         value -= x as f32;
@@ -341,4 +323,19 @@ pub fn add_slider(ui: &mut Ui, value: f32) -> f32 {
     
     return value;
 }
+
+// // // this is what you cannot do in lifetime soup mode
+// fn text_params(pixel_info: Option<&PixelInfo>) -> NodeParams {
+
+//     let (x, y) = match pixel_info {
+//         Some(pixel_info) => (
+//             format!("x: {}", pixel_info.x),
+//             format!("y: {}", pixel_info.y),
+//         ),
+//         None => ("x:  ".to_owned(), "y:  ".to_owned()),
+//     };
+
+
+//     return TEXT.text(&x);
+// }
 
