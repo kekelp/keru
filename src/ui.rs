@@ -634,6 +634,7 @@ impl TextSystem {
         text.hash(&mut hasher);
         let hash = hasher.finish();
 
+        // todo: maybe remove duplication with set_text_hashed (the branch in refresh_node that updates the text without creating a new entry here)
         // buffer.set_wrap(&mut self.font_system, glyphon::Wrap::Word);
         buffer.set_text(
             &mut self.font_system,
@@ -715,7 +716,7 @@ impl TextSystem {
 pub struct Idx(pub(crate) u64);
 
 #[derive(Debug, Clone, Copy)]
-pub struct NodeFront {
+pub struct NodeMapEntry {
     pub last_parent: usize,
     pub last_frame_touched: u64,
     
@@ -728,7 +729,7 @@ pub struct NodeFront {
     pub n_twins: u32,
     pub slab_i: usize,
 }
-impl NodeFront {
+impl NodeMapEntry {
     pub fn new(parent_id: usize, frame: u64, new_i: usize) -> Self {
         return Self {
             last_parent: parent_id,
@@ -750,7 +751,7 @@ impl NodeFront {
 
 pub struct Nodes {
     // todo: make faster o algo
-    pub node_hashmap: FxHashMap<Id, NodeFront>,
+    pub node_hashmap: FxHashMap<Id, NodeMapEntry>,
     pub nodes: Slab<Node>,
 }
 impl Nodes {
@@ -1051,13 +1052,11 @@ impl Ui {
 
         let text_areas = Vec::with_capacity(50);
 
-        let mut node_fronts = FxHashMap::with_capacity_and_hasher(100, Default::default());
-        
-
+        let mut node_hashmap = FxHashMap::with_capacity_and_hasher(100, Default::default());
         
         let mut nodes = Slab::with_capacity(100);
         let root_i = nodes.insert(NODE_ROOT);
-        let root_nodefront = NodeFront {
+        let root_map_entry = NodeMapEntry {
             last_parent: usize::default(),
             last_frame_touched: u64::MAX,
             slab_i: root_i,
@@ -1070,10 +1069,10 @@ impl Ui {
         let mut parent_stack = Vec::with_capacity(7);
         parent_stack.push(root_i);
 
-        node_fronts.insert(NODE_ROOT_ID, root_nodefront);
+        node_hashmap.insert(NODE_ROOT_ID, root_map_entry);
 
         let nodes = Nodes {
-            node_hashmap: node_fronts,
+            node_hashmap,
             nodes,
         };
 
@@ -1204,32 +1203,29 @@ impl Ui {
             Entry::Vacant(v) => {
 
                 let new_node = self.sys.build_new_node(&key, params, None);
-
                 let final_i = self.nodes.nodes.insert(new_node);
-                v.insert(NodeFront::new(parent_i, frame, final_i));
+                v.insert(NodeMapEntry::new(parent_i, frame, final_i));
 
                 UpdatedNormal{ final_i }
             },
             Entry::Occupied(o) => {
-                let old_nodefront = o.into_mut();
+                let old_map_entry = o.into_mut();
                 
-                match refresh_or_add_twin(frame, old_nodefront.last_frame_touched) {
+                match refresh_or_add_twin(frame, old_map_entry.last_frame_touched) {
                     // Refresh a normal node from the previous frame (no twins).
                     Refresh => {
-                        old_nodefront.refresh(parent_i, frame);
-                        // todo2: check the nodefront values and maybe skip reaching into the node
-                        let final_i = old_nodefront.slab_i;
+                        old_map_entry.refresh(parent_i, frame);
+                        // todo2: check the map_entry values and maybe skip reaching into the node
+                        let final_i = old_map_entry.slab_i;
                         self.refresh_node(params, final_i, parent_i, frame);
                         
-
-
                         UpdatedNormal{ final_i }
                     }
                     // do nothing, just calculate the twin key and go to twin part below
                     AddTwin => {
-                        old_nodefront.n_twins += 1;
-                        let twin_key = key.sibling(old_nodefront.n_twins);
-                        NeedToUpdateTwin { twin_key, twin_n: old_nodefront.n_twins }
+                        old_map_entry.n_twins += 1;
+                        let twin_key = key.sibling(old_map_entry.n_twins);
+                        NeedToUpdateTwin { twin_key, twin_n: old_map_entry.n_twins }
                     }
                 }
 
@@ -1247,16 +1243,15 @@ impl Ui {
                     Entry::Vacant(v) => {
                         let new_twin_node = self.sys.build_new_node(&twin_key, params, Some(twin_n));
                         let real_final_i = self.nodes.nodes.insert(new_twin_node);
-                        v.insert(NodeFront::new(parent_i, frame, real_final_i));
+                        v.insert(NodeMapEntry::new(parent_i, frame, real_final_i));
                         real_final_i
                     },
                     // Refresh a twin from the previous frame.
                     Entry::Occupied(o) => {
-                        let old_twin_nodefront = o.into_mut();
+                        let old_twin_map_entry = o.into_mut();
     
-                        
-                        // todo2: check the nodefront values and maybe skip reaching into the node
-                        let real_final_i = old_twin_nodefront.refresh(parent_i, frame);
+                        // todo2: check the map_entry values and maybe skip reaching into the node
+                        let real_final_i = old_twin_map_entry.refresh(parent_i, frame);
                         
                         self.refresh_node(&params, real_final_i, parent_i, frame);
                         real_final_i
@@ -1276,15 +1271,15 @@ impl Ui {
 
     fn get_latest_twin_key<T: NodeType>(&self, key: TypedKey<T>) -> Option<TypedKey<T>> {
 
-        let nodefront = self.nodes.node_hashmap.get(&key.id())?;
+        let map_entry = self.nodes.node_hashmap.get(&key.id())?;
 
-        if nodefront.n_twins == 0 {
+        if map_entry.n_twins == 0 {
             return Some(key);
         }
 
         // todo: yell a very loud warning here. latest_twin is more like a best-effort way to deal with dumb code. 
         // the proper way is to just use unique keys, or to use the returned noderef, if that becomes a thing.
-        let twin_key = key.sibling(nodefront.n_twins);
+        let twin_key = key.sibling(map_entry.n_twins);
 
         return Some(twin_key);
     }
@@ -2129,13 +2124,6 @@ impl Ui {
         return consumed;
     }
 
-    pub fn set_text(&mut self, key: NodeKey, text: &str) {
-        if let Some(node) = self.nodes.get_by_id(&key.id()) {
-            let text_id = node.text_id.unwrap();
-            self.sys.text.set_text_hashed(text_id, text);
-        }
-    }
-
     // todo: actually call this once in a while
     pub fn prune(&mut self) {
         self.nodes.node_hashmap.retain( |k, v| {
@@ -2151,9 +2139,9 @@ impl Ui {
         });
     }
 
-    fn refresh_node(&mut self, params: &NodeParams, final_i: usize, parent_id: usize, frame: u64) {
+    fn refresh_node(&mut self, params: &NodeParams, i: usize, parent_id: usize, frame: u64) {
         
-        let node = &mut self.nodes[final_i];
+        let node = &mut self.nodes[i];
 
         node.params = params.strip_references();
 
