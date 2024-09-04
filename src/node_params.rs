@@ -264,5 +264,6 @@ pub const PANEL: NodeParams = NodeParams {
 };
 
 #[node_key] pub(crate) const ANON_NODE: NodeKey;
+#[node_key] pub(crate) const ANON_TEXT: TypedKey<Text>;
 #[node_key] pub(crate) const ANON_VSTACK: TypedKey<Stack>;
 #[node_key] pub(crate) const ANON_HSTACK: TypedKey<Stack>;

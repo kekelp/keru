@@ -145,17 +145,12 @@ impl State {
             .position_y(Start)
             .size_x(FitContentOrMinimum(Pixels(100)));
 
-        #[node_key]
-        const TEXT77: NodeKey;
-        #[node_key]
-        const VSSTACK77: NodeKey;
-
         use add_parent_closure::AddParentClosure;
 
         self.ui.add_parent(PIXEL_PANEL2, &pixel_panel_params, |ui| {
-            ui.add_parent(VSSTACK77, &V_STACK, |ui| {
-                ui.add(TEXT77, &TEXT.text(&x));
-                ui.add(TEXT77, &TEXT.text(&y));
+            ui.v_stack(|ui| {
+                ui.text(&x);
+                ui.text(&y);
             });
         });
     }

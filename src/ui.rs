@@ -1,4 +1,4 @@
-use crate::node_params::{DEFAULT, NODE_ROOT_PARAMS};
+use crate::node_params::{ANON_TEXT, DEFAULT, NODE_ROOT_PARAMS, TEXT};
 use crate::render::TypedGpuBuffer;
 use crate::texture_atlas::{ImageRef, TextureAtlas};
 use crate::unwrap_or_return;
@@ -1277,6 +1277,10 @@ impl Ui {
             *self.sys.last_child_stack.last_mut().unwrap() = id;
         }
 
+    }
+
+    pub fn text(&mut self, text: &str) {
+        self.add(ANON_TEXT, &TEXT.text(text));
     }
 
     pub fn handle_keyboard_event(&mut self, event: &KeyEvent) -> bool {
