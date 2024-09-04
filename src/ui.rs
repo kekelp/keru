@@ -532,7 +532,7 @@ impl<'a, T: TextTrait> NodeRef<'a, T> {
 
     pub fn set_text(&mut self, text: &str) -> &mut Self {
         if let Some(text_id) = self.node.text_id {
-            self.sys.text.set_text(text_id, text);
+            self.sys.text.set_text_hashed(text_id, text);
         } else {
             // todo: log a warning or something
             // or make these things type safe somehow
@@ -675,7 +675,7 @@ impl TextSystem {
         }
     }
 
-    fn set_text(&mut self, text_id: usize, text: &str) {
+    fn set_text_hashed(&mut self, text_id: usize, text: &str) {
         let hash = fx_hash(&text);
         let area = &mut self.text_areas[text_id];
         if hash != area.last_hash {
@@ -738,10 +738,11 @@ impl NodeFront {
         }
     }
 
-    pub fn refresh(&mut self, parent_id: usize, frame: u64) {
+    pub fn refresh(&mut self, parent_id: usize, frame: u64) -> usize {
         self.last_frame_touched = frame;
         self.last_parent = parent_id;
         self.n_twins = 0;
+        return self.slab_i;
     }
 
 
@@ -1218,15 +1219,9 @@ impl Ui {
                         old_nodefront.refresh(parent_i, frame);
                         // todo2: check the nodefront values and maybe skip reaching into the node
                         let final_i = old_nodefront.slab_i;
-                        self.refresh_node(final_i, parent_i, frame);
+                        self.refresh_node(params, final_i, parent_i, frame);
                         
-                        self.nodes[final_i].params = params.strip_references();
-                        if let Some(text) = params.text {
-                            // todo: if there's no text_id, it should be made
-                            if let Some(text_id) = self.nodes[final_i].text_id {
-                                self.sys.text.set_text(text_id, text.text);
-                            }
-                        }
+
 
                         UpdatedNormal{ final_i }
                     }
@@ -1261,20 +1256,9 @@ impl Ui {
     
                         
                         // todo2: check the nodefront values and maybe skip reaching into the node
-                        old_twin_nodefront.refresh(parent_i, frame);
+                        let real_final_i = old_twin_nodefront.refresh(parent_i, frame);
                         
-                        let real_final_i = old_twin_nodefront.slab_i;
-
-                        self.nodes[real_final_i].params = params.strip_references();
-
-                        if let Some(text) = params.text {
-                            // todo: if there's no text_id, it should be made
-                            if let Some(text_id) = self.nodes[real_final_i].text_id {
-                                self.sys.text.set_text(text_id, text.text);
-                            }
-                        }
-                        
-                        self.refresh_node(real_final_i, parent_i, frame);
+                        self.refresh_node(&params, real_final_i, parent_i, frame);
                         real_final_i
                     },
     
@@ -2148,7 +2132,7 @@ impl Ui {
     pub fn set_text(&mut self, key: NodeKey, text: &str) {
         if let Some(node) = self.nodes.get_by_id(&key.id()) {
             let text_id = node.text_id.unwrap();
-            self.sys.text.set_text(text_id, text);
+            self.sys.text.set_text_hashed(text_id, text);
         }
     }
 
@@ -2167,11 +2151,25 @@ impl Ui {
         });
     }
 
-    fn refresh_node(&mut self, final_i: usize, parent_id: usize, frame: u64) {
-        let old_node = &mut self.nodes[final_i];
-                        
-        old_node.refresh(parent_id);
-        self.sys.text.refresh_last_frame(old_node.text_id, frame);
+    fn refresh_node(&mut self, params: &NodeParams, final_i: usize, parent_id: usize, frame: u64) {
+        
+        let node = &mut self.nodes[final_i];
+
+        node.params = params.strip_references();
+
+        if let Some(text) = params.text {
+            match node.text_id {
+                Some(text_id) => {
+                    self.sys.text.set_text_hashed(text_id, text.text);
+                },
+                None => {
+                    self.sys.text.maybe_new_text_area(Some(text), frame);
+                },
+            };
+        }
+        
+        node.refresh(parent_id);
+        self.sys.text.refresh_last_frame(node.text_id, frame);
     }
 }
 
