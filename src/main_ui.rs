@@ -7,7 +7,6 @@ use crate::ui::Size::*;
 use crate::ui::*;
 use crate::*;
 
-use glyphon::{cosmic_text::Align, Attrs, Color as GlyphonColor, Family, Weight};
 use view_derive::node_key;
 
 const COLOR1: Color = Color::rgba(50, 13, 100, 240);
@@ -18,11 +17,11 @@ const FLGR_PANEL: NodeParams = PANEL.vertex_colors(GRAD1);
 impl State {
     pub fn update_ui(&mut self) {
         tree!(self.ui, {
-
-            v_stack!(self.ui, {
+            use add_parent_closure::AddParentClosure;
+            self.ui.v_stack(|ui| {
                 // self.slider_value = self.ui.add_widget(add_slider, self.slider_value);
-                self.slider_value = add_slider(&mut self.ui, self.slider_value);
-                
+                self.slider_value = add_slider(ui, self.slider_value);
+
                 // self.slider_value2 = add_slider(&mut self.ui, self.slider_value2);
                 // self.slider_value3 = add_slider(&mut self.ui, self.slider_value3);
                 // self.slider_value4 = add_slider(&mut self.ui, self.slider_value4);
@@ -31,7 +30,11 @@ impl State {
 
             #[node_key]
             const SIDEBAR: TypedKey<Stack>;
-            let sidebar_params = V_STACK.position_x(Position::End).size_y(Fill).size_x(FitContent).stack_arrange(Arrange::Center); 
+            let sidebar_params = V_STACK
+                .position_x(Position::End)
+                .size_y(Fill)
+                .size_x(FitContent)
+                .stack_arrange(Arrange::Center);
 
             add!(self.ui, SIDEBAR, sidebar_params, {
                 self.add_tools();
@@ -69,76 +72,60 @@ pub fn count_color(count: i32) -> Color {
 }
 
 impl State {
-    pub fn add_twin_thing_ui(&mut self) {
-        #[node_key]
-        const PIXEL_PANEL: NodeKey;
-        let pixel_panel_params = FLGR_PANEL.size_y(Fixed(Frac(0.5))).position_x(Position::Start);
-        add!(self.ui, PIXEL_PANEL, pixel_panel_params, {
-            v_stack!(self.ui, {
-                for _ in 0..3 {
-                    text!(self.ui, "Identical");
-                }
-            });
-        });
-    }
-}
+    // pub fn add_counter_ui(&mut self) {
 
-impl State {
-    pub fn add_counter_ui(&mut self) {
+    //     #[node_key] pub const INCREASE_BUTTON_KEY: NodeKey;
+    //     #[node_key] pub const DECREASE_BUTTON: NodeKey;
+    //     #[node_key] pub const SHOW_COUNTER_BUTTON: NodeKey;
+    //     #[node_key] pub const COUNT_LABEL: TypedKey<Text>;
 
-        #[node_key] pub const INCREASE_BUTTON_KEY: NodeKey;
-        #[node_key] pub const DECREASE_BUTTON: NodeKey;
-        #[node_key] pub const SHOW_COUNTER_BUTTON: NodeKey;
-        #[node_key] pub const COUNT_LABEL: TypedKey<Text>;
-        
-        pub const INCREASE_BUTTON_PARAMS: &NodeParams = &BUTTON.text("Increase").color(Color::FLGR_GREEN);
-        pub const DECREASE_BUTTON_PARAMS: &NodeParams = &BUTTON.text("Decrease").color(Color::FLGR_RED);
-        pub const SHOW_COUNTER_BUTTON_DEFAULTS: &NodeParams = &BUTTON.text("Show Counter").color(Color::rgba(128, 26, 179, 102));
-        
-        if self.ui.is_clicked(INCREASE_BUTTON_KEY) {
-            self.counter_state.count += 1;
-        }
+    //     pub const INCREASE_BUTTON_PARAMS: &NodeParams = &BUTTON.text("Increase").color(Color::FLGR_GREEN);
+    //     pub const DECREASE_BUTTON_PARAMS: &NodeParams = &BUTTON.text("Decrease").color(Color::FLGR_RED);
+    //     pub const SHOW_COUNTER_BUTTON_DEFAULTS: &NodeParams = &BUTTON.text("Show Counter").color(Color::rgba(128, 26, 179, 102));
 
-        if self.ui.is_clicked(DECREASE_BUTTON) {
-            self.counter_state.count -= 1;
-        }
+    //     if self.ui.is_clicked(INCREASE_BUTTON_KEY) {
+    //         self.counter_state.count += 1;
+    //     }
 
-        if self.ui.is_clicked(SHOW_COUNTER_BUTTON) {
-            self.counter_state.counter_mode = !self.counter_state.counter_mode;
-        }
+    //     if self.ui.is_clicked(DECREASE_BUTTON) {
+    //         self.counter_state.count -= 1;
+    //     }
 
-        margin!(self.ui, {
+    //     if self.ui.is_clicked(SHOW_COUNTER_BUTTON) {
+    //         self.counter_state.counter_mode = !self.counter_state.counter_mode;
+    //     }
 
-            h_stack!(self.ui, {
-                v_stack!(self.ui, {
-                    if self.counter_state.counter_mode {
-                        let new_color = count_color(self.counter_state.count);
-                        self.ui.add(INCREASE_BUTTON_KEY, INCREASE_BUTTON_PARAMS).set_color(new_color);
+    //     margin!(self.ui, {
 
-                        let count = &self.counter_state.count.to_string();
-                        self.ui.add(COUNT_LABEL, &LABEL)
-                            .set_text(count)
-                            .set_text_attrs(
-                                Attrs::new()
-                                    .family(Family::SansSerif)
-                                    .color(GlyphonColor::rgb(255, 76, 23))
-                                    .weight(Weight::EXTRA_BOLD),
-                            )
-                            .set_text_align(Align::Center);
+    //         h_stack!(self.ui, {
+    //             v_stack!(self.ui, {
+    //                 if self.counter_state.counter_mode {
+    //                     let new_color = count_color(self.counter_state.count);
+    //                     self.ui.add(INCREASE_BUTTON_KEY, INCREASE_BUTTON_PARAMS).set_color(new_color);
 
-                        self.ui.add(DECREASE_BUTTON, DECREASE_BUTTON_PARAMS);
-                    }
-                });
+    //                     let count = &self.counter_state.count.to_string();
+    //                     self.ui.add(COUNT_LABEL, &LABEL)
+    //                         .set_text(count)
+    //                         .set_text_attrs(
+    //                             Attrs::new()
+    //                                 .family(Family::SansSerif)
+    //                                 .color(GlyphonColor::rgb(255, 76, 23))
+    //                                 .weight(Weight::EXTRA_BOLD),
+    //                         )
+    //                         .set_text_align(Align::Center);
 
-                let text = match self.counter_state.counter_mode {
-                    true => "Hide useless counter",
-                    false => "Show Counter\nl\nl\nl\nl\nl\nllllll[{{{}}}}ẞ↑ªĦẞı¥↑ẞªŊẞª‘ªẞŊª‘ŊllllÞÞÞÞÞÞØØ↑ı¥§",
-                };
-                self.ui.add(SHOW_COUNTER_BUTTON, SHOW_COUNTER_BUTTON_DEFAULTS).set_text(text);
-            });
-        });
-    }
+    //                     self.ui.add(DECREASE_BUTTON, DECREASE_BUTTON_PARAMS);
+    //                 }
+    //             });
 
+    //             let text = match self.counter_state.counter_mode {
+    //                 true => "Hide useless counter",
+    //                 false => "Show Counter\nl\nl\nl\nl\nl\nllllll[{{{}}}}ẞ↑ªĦẞı¥↑ẞªŊẞª‘ªẞŊª‘ŊllllÞÞÞÞÞÞØØ↑ı¥§",
+    //             };
+    //             self.ui.add(SHOW_COUNTER_BUTTON, SHOW_COUNTER_BUTTON_DEFAULTS).set_text(text);
+    //         });
+    //     });
+    // }
 
     pub fn add_pixel_info_ui(&mut self) {
         let pixel_info = &self.canvas.pixel_info();
@@ -151,44 +138,60 @@ impl State {
             None => ("x:  ".to_owned(), "y:  ".to_owned()),
         };
 
-        #[node_key] const PIXEL_PANEL2: NodeKey;
-        let pixel_panel_params = FLGR_PANEL.position_x(End).position_y(Start).size_x(FitContentOrMinimum(Pixels(100)));
+        #[node_key]
+        const PIXEL_PANEL2: NodeKey;
+        let pixel_panel_params = FLGR_PANEL
+            .position_x(End)
+            .position_y(Start)
+            .size_x(FitContentOrMinimum(Pixels(100)));
 
-        #[node_key] const TEXT77: NodeKey;
-        #[node_key] const VSSTACK77: NodeKey;
+        #[node_key]
+        const TEXT77: NodeKey;
+        #[node_key]
+        const VSSTACK77: NodeKey;
 
         use add_parent_closure::AddParentClosure;
 
         self.ui.add_parent(PIXEL_PANEL2, &pixel_panel_params, |ui| {
             ui.add_parent(VSSTACK77, &V_STACK, |ui| {
-
                 ui.add(TEXT77, &TEXT.text(&x));
                 ui.add(TEXT77, &TEXT.text(&y));
-
             });
         });
-   
     }
 
     pub fn add_tools(&mut self) {
-        
-        #[node_key] const BRUSH: NodeKey;
+        #[node_key]
+        const BRUSH: NodeKey;
         let brush_params = ICON_BUTTON.image(include_bytes!("icons/brush.png"));
-        
-        #[node_key] const ERASER: NodeKey;
+
+        #[node_key]
+        const ERASER: NodeKey;
         let eraser_params = ICON_BUTTON.image(include_bytes!("icons/eraser.png"));
 
-        #[node_key] const TOOLS_PANEL: NodeKey;
-        let tools_params = FLGR_PANEL.position_x(End).position_y(Start).size_x(FitContent);
+        #[node_key]
+        const TOOLS_PANEL: NodeKey;
+        let tools_params = FLGR_PANEL
+            .position_x(End)
+            .position_y(Start)
+            .size_x(FitContent);
 
-        add!(self.ui, TOOLS_PANEL, tools_params, {
-            h_stack!(self.ui, {
-                v_stack!(self.ui, {
+
+        use add_parent_manual::AddParentManual;
+        self.ui.add_parent(TOOLS_PANEL, &tools_params);
+        {
+            self.ui.h_stack();
+            {
+                self.ui.v_stack();
+                {
                     add!(self.ui, BRUSH, &brush_params);
                     add!(self.ui, ERASER, &eraser_params);
-                });
-            });
-        });
+                }
+                self.ui.end_v_stack();
+            }
+            self.ui.end_h_stack();
+        }
+        self.ui.end_parent(TOOLS_PANEL);
 
         if self.ui.is_clicked(BRUSH) {
             self.canvas.paint_color = PixelColorF32::new(0.2, 0.8, 0.2, 1.0);
@@ -292,35 +295,41 @@ impl State {
 }
 
 pub fn add_slider(ui: &mut Ui, value: f32) -> f32 {
-    #[node_key] pub const SLIDER_CONTAINER: NodeKey;
+    #[node_key]
+    pub const SLIDER_CONTAINER: NodeKey;
     let slider_container_params = PANEL.size_x(Fixed(Pixels(500))).size_y(Fixed(Pixels(100)));
-    
-    #[node_key] pub const SLIDER_FILL: NodeKey;
-    let slider_fill_params = PANEL.size_y(Fill).size_x(Fixed(Frac(0.4))).color(Color::FLGR_RED).position_x(Start).padding_x(Pixels(2));
-    
+
+    #[node_key]
+    pub const SLIDER_FILL: NodeKey;
+    let slider_fill_params = PANEL
+        .size_y(Fill)
+        .size_x(Fixed(Frac(0.4)))
+        .color(Color::FLGR_RED)
+        .position_x(Start)
+        .padding_x(Pixels(2));
+
     let mut value = value;
 
-    // use add_parent_manual::AddParentManual;
-    // ui.add_parent(SLIDER_CONTAINER, &slider_container_params);
-    // {
+    use add_parent_manual::AddParentManual;
+    ui.add_parent(SLIDER_CONTAINER, &slider_container_params);
+    {
+        ui.add(
+            SLIDER_FILL,
+            &slider_fill_params.size_x(Fixed(Pixels(value as u32))),
+        );
+    }
+    ui.end_parent(SLIDER_CONTAINER);
 
-    //     ui.add(SLIDER_FILL, &slider_fill_params.size_x(Fixed(Pixels(value as u32))));
-        
-    // }  
-    // ui.end_parent(SLIDER_CONTAINER);
-
-
-    use add_parent_closure::AddParentClosure;
-    ui.add_parent(SLIDER_CONTAINER, &slider_container_params, |ui| {
-        ui.add(SLIDER_FILL, &slider_fill_params.size_x(Fixed(Pixels(value as u32))) );
-    });
-
+    // use add_parent_closure::AddParentClosure;
+    // ui.add_parent(SLIDER_CONTAINER, &slider_container_params, |ui| {
+    //     ui.add(SLIDER_FILL, &slider_fill_params.size_x(Fixed(Pixels(value as u32))) );
+    // });
 
     if let Some((x, _y)) = ui.is_dragged(SLIDER_CONTAINER) {
         value -= x as f32;
         value = value.clamp(0.0, f32::MAX);
     }
-    
+
     return value;
 }
 
@@ -335,7 +344,5 @@ pub fn add_slider(ui: &mut Ui, value: f32) -> f32 {
 //         None => ("x:  ".to_owned(), "y:  ".to_owned()),
 //     };
 
-
 //     return TEXT.text(&x);
 // }
-

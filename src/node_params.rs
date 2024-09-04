@@ -1,5 +1,6 @@
-use crate::{Arrange, Color, Image, Interact, Layout, Len, NodeParams, Position, Rect, Size, Stack, Text, VertexColors};
+use crate::{Arrange, Color, Image, Interact, Layout, Len, NodeKey, NodeParams, Position, Rect, Size, Stack, Text, TypedKey, VertexColors};
 use crate::math::{Axis, Xy};
+use view_derive::node_key;
 use Size::*;
 use Position::*;
 use Len::*;
@@ -261,3 +262,7 @@ pub const PANEL: NodeParams = NodeParams {
         padding: Xy::new_symm(Len::Pixels(10)),
     },    
 };
+
+#[node_key] pub(crate) const ANON_NODE: NodeKey;
+#[node_key] pub(crate) const ANON_VSTACK: TypedKey<Stack>;
+#[node_key] pub(crate) const ANON_HSTACK: TypedKey<Stack>;

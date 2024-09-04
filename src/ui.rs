@@ -1152,28 +1152,6 @@ impl Ui {
         self.sys.last_child_stack.pop();
     }
 
-    // todo: I wanted to add this checked version, but there is a twin-related problem here.
-    // if the key got twinned, ended_parent will lead to the node with the twinned id, but the key will have the non-twinned id.
-    // sounds stupid to store the non-twinned id just for this stupid check.
-
-    // I think what we want is the still the Latest Twin Id, but should think some more about it.  
-    pub fn end_parent<T: NodeType>(&mut self, key: TypedKey<T>) {
-        let ended_parent = self.sys.parent_stack.pop();
-
-        #[cfg(debug_assertions)] {
-            let ended_parent = ended_parent.expect(&format!("Misplaced end_parent: {}", key.debug_name));
-            let ended_parent_id = self.nodes[ended_parent].id;
-
-            let twin_key = self.get_latest_twin_key(key).unwrap();
-            debug_assert!(ended_parent_id == twin_key.id(),
-            "Misplaced end_parent: tried to end {:?}, but {:?} was the latest parent", self.nodes[ended_parent].debug_name(), twin_key.debug_name
-            );
-        }
-
-
-        self.sys.last_child_stack.pop();
-    }
-
     // don't expect this to give you twin nodes automatically
     pub fn get_ref<T: NodeType>(&mut self, key: TypedKey<T>) -> NodeRef<T> {
         let node_i = self.nodes.node_hashmap.get(&key.id()).unwrap().slab_i;
@@ -1269,7 +1247,7 @@ impl Ui {
         return real_final_i;
     }
 
-    fn get_latest_twin_key<T: NodeType>(&self, key: TypedKey<T>) -> Option<TypedKey<T>> {
+    pub(crate) fn get_latest_twin_key<T: NodeType>(&self, key: TypedKey<T>) -> Option<TypedKey<T>> {
 
         let map_entry = self.nodes.node_hashmap.get(&key.id())?;
 
@@ -2127,42 +2105,6 @@ macro_rules! add {
     };
 }
 
-macro_rules! create_layer_macro {
-    ($macro_name:ident, $defaults_name:expr, $debug_name:expr) => {
-        #[macro_export]
-        macro_rules! $macro_name {
-            ($ui:expr, $code:block) => {
-                let anonymous_key = view_derive::anon_node_key!(NodeKey, $debug_name);
-                $ui.add_as_parent_unchecked(anonymous_key, &$defaults_name);
-                $code;
-                $ui.end_parent_unchecked();
-            };
-
-            // named version. allows writing this: h_stack!(ui, CUSTOM_H_STACK, { ... })
-            // it's basically the same as add!, not sure if it's even worth having.
-            // especially with no checks that CUSTOM_H_STACK is actually a h_stack.
-            ($ui:expr, $node_key:expr, $code:block) => {
-                $ui.add_as_parent_unchecked($node_key, &$defaults_name);
-                $code;
-                $ui.end_parent_unchecked();
-            };
-        }
-    };
-}
-
-create_layer_macro!(h_stack, crate::node_params::H_STACK, "HStack");
-create_layer_macro!(v_stack, crate::node_params::V_STACK, "HStack");
-create_layer_macro!(margin, crate::node_params::MARGIN, "Margin");
-create_layer_macro!(panel, crate::node_params::PANEL, "Panel");
-
-#[macro_export]
-macro_rules! text {
-    ($ui:expr, $text:expr) => {
-        let anonymous_key = view_derive::anon_node_key!(TypedKey<Text>, "Text");
-        $ui.add(anonymous_key, &TEXT).set_text($text);
-    };
-}
-
 impl Ui {
     pub fn begin_tree(&mut self) {
         // do cleanup here??
@@ -2476,10 +2418,10 @@ pub struct TypedKey<T: NodeType> {
     pub nodetype_marker: PhantomData<T>,
 }
 impl<T: NodeType> TypedKey<T> {
-    fn id(&self) -> Id {
+    pub(crate) fn id(&self) -> Id {
         return self.id;
     }
-    fn sibling<H: Hash>(self, value: H) -> Self {
+    pub(crate) fn sibling<H: Hash>(self, value: H) -> Self {
         let mut hasher = FxHasher::default();
         self.id.0.hash(&mut hasher);
         value.hash(&mut hasher);
