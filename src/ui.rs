@@ -128,7 +128,6 @@ pub struct Image<'data> {
     pub data: &'data [u8],
 }
 
-// todo: rename to NodeDefaults 
 #[derive(Debug, Copy, Clone)]
 pub struct NodeParams<'text, 'image> {
     pub text: Option<Text<'text>>,
