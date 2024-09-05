@@ -17,28 +17,30 @@ const FLGR_PANEL: NodeParams = PANEL.vertex_colors(GRAD1);
 impl State {
     pub fn update_ui(&mut self) {
         tree!(self.ui, {
-            use add_parent_closure::AddParentClosure;
-            self.ui.v_stack(|ui| {
-                // self.slider_value = self.ui.add_widget(add_slider, self.slider_value);
-                self.slider_value = add_slider(ui, self.slider_value);
-
-                // self.slider_value2 = add_slider(&mut self.ui, self.slider_value2);
-                // self.slider_value3 = add_slider(&mut self.ui, self.slider_value3);
-                // self.slider_value4 = add_slider(&mut self.ui, self.slider_value4);
-                // self.slider_value5 = add_slider(&mut self.ui, self.slider_value5);
-            });
 
             #[node_key]
-            const SIDEBAR: TypedKey<Stack>;
+            const RIGHT_BAR: TypedKey<Stack>;
             let sidebar_params = V_STACK
                 .position_x(Position::End)
                 .size_y(Fill)
                 .size_x(FitContent)
                 .stack_arrange(Arrange::Center);
 
-            add!(self.ui, SIDEBAR, sidebar_params, {
-                self.add_tools();
+            add!(self.ui, RIGHT_BAR, sidebar_params, {
 
+                self.slider_value = self.ui.add_slider(self.slider_value);
+
+            });
+
+
+            let left_bar_params = V_STACK
+                .position_x(Position::Start)
+                .size_y(Fill)
+                .size_x(FitContent)
+                .stack_arrange(Arrange::Center);
+
+            add_anon!(self.ui, left_bar_params, {
+                self.add_tools();
                 self.add_pixel_info_ui();
             });
 
@@ -72,61 +74,6 @@ pub fn count_color(count: i32) -> Color {
 }
 
 impl State {
-    // pub fn add_counter_ui(&mut self) {
-
-    //     #[node_key] pub const INCREASE_BUTTON_KEY: NodeKey;
-    //     #[node_key] pub const DECREASE_BUTTON: NodeKey;
-    //     #[node_key] pub const SHOW_COUNTER_BUTTON: NodeKey;
-    //     #[node_key] pub const COUNT_LABEL: TypedKey<Text>;
-
-    //     pub const INCREASE_BUTTON_PARAMS: &NodeParams = &BUTTON.text("Increase").color(Color::FLGR_GREEN);
-    //     pub const DECREASE_BUTTON_PARAMS: &NodeParams = &BUTTON.text("Decrease").color(Color::FLGR_RED);
-    //     pub const SHOW_COUNTER_BUTTON_DEFAULTS: &NodeParams = &BUTTON.text("Show Counter").color(Color::rgba(128, 26, 179, 102));
-
-    //     if self.ui.is_clicked(INCREASE_BUTTON_KEY) {
-    //         self.counter_state.count += 1;
-    //     }
-
-    //     if self.ui.is_clicked(DECREASE_BUTTON) {
-    //         self.counter_state.count -= 1;
-    //     }
-
-    //     if self.ui.is_clicked(SHOW_COUNTER_BUTTON) {
-    //         self.counter_state.counter_mode = !self.counter_state.counter_mode;
-    //     }
-
-    //     margin!(self.ui, {
-
-    //         h_stack!(self.ui, {
-    //             v_stack!(self.ui, {
-    //                 if self.counter_state.counter_mode {
-    //                     let new_color = count_color(self.counter_state.count);
-    //                     self.ui.add(INCREASE_BUTTON_KEY, INCREASE_BUTTON_PARAMS).set_color(new_color);
-
-    //                     let count = &self.counter_state.count.to_string();
-    //                     self.ui.add(COUNT_LABEL, &LABEL)
-    //                         .set_text(count)
-    //                         .set_text_attrs(
-    //                             Attrs::new()
-    //                                 .family(Family::SansSerif)
-    //                                 .color(GlyphonColor::rgb(255, 76, 23))
-    //                                 .weight(Weight::EXTRA_BOLD),
-    //                         )
-    //                         .set_text_align(Align::Center);
-
-    //                     self.ui.add(DECREASE_BUTTON, DECREASE_BUTTON_PARAMS);
-    //                 }
-    //             });
-
-    //             let text = match self.counter_state.counter_mode {
-    //                 true => "Hide useless counter",
-    //                 false => "Show Counter\nl\nl\nl\nl\nl\nllllll[{{{}}}}ẞ↑ªĦẞı¥↑ẞªŊẞª‘ªẞŊª‘ŊllllÞÞÞÞÞÞØØ↑ı¥§",
-    //             };
-    //             self.ui.add(SHOW_COUNTER_BUTTON, SHOW_COUNTER_BUTTON_DEFAULTS).set_text(text);
-    //         });
-    //     });
-    // }
-
     pub fn add_pixel_info_ui(&mut self) {
         let pixel_info = &self.canvas.pixel_info();
 
@@ -141,7 +88,7 @@ impl State {
         #[node_key]
         const PIXEL_PANEL2: NodeKey;
         let pixel_panel_params = FLGR_PANEL
-            .position_x(End)
+            .position_x(Start)
             .position_y(Start)
             .size_x(FitContentOrMinimum(Pixels(100)));
 
@@ -167,7 +114,7 @@ impl State {
         #[node_key]
         const TOOLS_PANEL: NodeKey;
         let tools_params = FLGR_PANEL
-            .position_x(End)
+            .position_x(Start)
             .position_y(Start)
             .size_x(FitContent);
 
@@ -179,8 +126,8 @@ impl State {
             {
                 self.ui.v_stack();
                 {
-                    add!(self.ui, BRUSH, &brush_params);
-                    add!(self.ui, ERASER, &eraser_params);
+                    self.ui.add(BRUSH, &brush_params);
+                    self.ui.add(ERASER, &eraser_params);
                 }
                 self.ui.end_v_stack();
             }
@@ -196,136 +143,43 @@ impl State {
             self.canvas.paint_color = PixelColorF32::new(1.0, 1.0, 1.0, 0.0);
         }
     }
-
-    // pub fn add_stacks_test(&mut self) {
-    //     #[node_key(H_STACK.stack_arrange(Arrange::Start))]
-    //     const HSTACK1: NodeKey;
-    //     add!(self.ui, HSTACK1, {
-    //         #[node_key(LABEL)]
-    //         const LABEL7: TypedKey<Text>;
-
-    //         #[node_key(V_STACK.stack_arrange(Arrange::Start))]
-    //         const VSTACK_A: NodeKey;
-    //         add!(self.ui, VSTACK_A, {
-    //             add!(self.ui, LABEL7).set_text("a1");
-    //             add!(self.ui, LABEL7).set_text("a2");
-    //             add!(self.ui, LABEL7).set_text("a3");
-    //         });
-
-    //         #[node_key(V_STACK.stack_arrange(Arrange::Center))]
-    //         const VSTACK_B: NodeKey;
-    //         add!(self.ui, VSTACK_B, {
-    //             add!(self.ui, LABEL7).set_text("b1");
-    //             add!(self.ui, LABEL7).set_text("b2");
-    //             add!(self.ui, LABEL7).set_text("b3");
-    //         });
-
-    //         #[node_key(V_STACK.stack_arrange(Arrange::End))]
-    //         const VSTACK_C: NodeKey;
-
-    //         add!(self.ui, VSTACK_C, {
-    //             add!(self.ui, LABEL7).set_text("c1");
-    //             add!(self.ui, LABEL7).set_text("c2");
-    //             add!(self.ui, LABEL7).set_text("c3");
-    //         });
-
-    //         #[node_key(V_STACK.stack_arrange(Arrange::Start))]
-    //         const VSTACK5567: NodeKey;
-    //         add!(self.ui, VSTACK5567, {
-    //             #[node_key(H_STACK.stack_arrange(Arrange::Start))]
-    //             const HSTACK_A: NodeKey;
-    //             add!(self.ui, HSTACK_A, {
-    //                 add!(self.ui, LABEL7).set_text("x1");
-    //                 add!(self.ui, LABEL7).set_text("x2");
-    //                 add!(self.ui, LABEL7).set_text("x3");
-    //             });
-
-    //             #[node_key(H_STACK.stack_arrange(Arrange::Center))]
-    //             const HSTACK_B: NodeKey;
-    //             add!(self.ui, HSTACK_B, {
-    //                 add!(self.ui, LABEL7).set_text("y1");
-    //                 add!(self.ui, LABEL7).set_text("y2");
-    //                 add!(self.ui, LABEL7).set_text("y3");
-    //             });
-
-    //             #[node_key(H_STACK.stack_arrange(Arrange::End))]
-    //             const HSTACK_C: NodeKey;
-    //             add!(self.ui, HSTACK_C, {
-    //                 add!(self.ui, LABEL7).set_text("z1");
-    //                 add!(self.ui, LABEL7).set_text("z2");
-    //                 add!(self.ui, LABEL7).set_text("z3");
-    //             });
-    //         });
-    //     });
-    // }
-
-    // pub fn color_box_or_something(&mut self) {
-    //     margin!(self.ui, {
-    //         #[node_key(V_STACK.size_x(Fixed(Frac(0.7))).size_y(Fixed(Frac(0.5))).position_x(Center).position_y(Start))]
-    //         const SIDEBAR2: NodeKey;
-    //         #[node_key(TEXT_INPUT.text("Color").size_y(Fixed(Frac(0.2))).position_y(Start))]
-    //         pub const PAINT_COLOR: NodeKey;
-    //         add!(self.ui, SIDEBAR2, {
-    //             // todo: function for doing get_text from other places
-    //             let mut color = add!(self.ui, PAINT_COLOR).get_text();
-
-    //             if let Some(color) = &mut color {
-    //                 color.make_ascii_lowercase();
-    //                 match color.as_str() {
-    //                     "blue" => {
-    //                         self.canvas.paint_color = PixelColorF32::BLUE;
-    //                     }
-    //                     "red" => {
-    //                         self.canvas.paint_color = PixelColorF32::RED;
-    //                     }
-    //                     "green" => {
-    //                         self.canvas.paint_color = PixelColorF32::GREEN;
-    //                     }
-    //                     _ => {}
-    //                 }
-    //             }
-    //         });
-    //     });
-    // }
 }
 
-pub fn add_slider(ui: &mut Ui, value: f32) -> f32 {
-    #[node_key]
-    pub const SLIDER_CONTAINER: NodeKey;
-    let slider_container_params = PANEL.size_x(Fixed(Pixels(500))).size_y(Fixed(Pixels(100)));
+impl Ui {
 
-    #[node_key]
-    pub const SLIDER_FILL: NodeKey;
-    let slider_fill_params = PANEL
-        .size_y(Fill)
-        .size_x(Fixed(Frac(0.4)))
+    pub fn add_slider(&mut self, value: f32) -> f32 {
+        #[node_key]
+        pub const SLIDER_CONTAINER: NodeKey;
+        let slider_container_params = FLGR_PANEL.size_y(Fixed(Pixels(200))).size_x(Fixed(Pixels(50)));
+        
+        #[node_key]
+        pub const SLIDER_FILL: NodeKey;
+        let slider_fill_params = FLGR_PANEL
+        .size_x(Fill)
+        .size_y(Fixed(Frac(0.4)))
         .color(Color::FLGR_RED)
-        .position_x(Start)
-        .padding_x(Pixels(2));
-
-    let mut value = value;
-
-    use add_parent_manual::AddParentManual;
-    ui.add_parent(SLIDER_CONTAINER, &slider_container_params);
-    {
-        ui.add(
-            SLIDER_FILL,
-            &slider_fill_params.size_x(Fixed(Pixels(value as u32))),
-        );
+        .position_y(End)
+        .padding_y(Pixels(2));
+    
+        let mut value = value;
+        
+        use add_parent_manual::AddParentManual;
+        self.add_parent(SLIDER_CONTAINER, &slider_container_params);
+        {
+            self.add(
+                SLIDER_FILL,
+                &slider_fill_params.size_y(Fixed(Pixels(value as u32))),
+            );
+        }
+        self.end_parent(SLIDER_CONTAINER);
+        
+        if let Some((_x, y)) = self.is_dragged(SLIDER_CONTAINER) {
+            value += y as f32;
+            value = value.clamp(0.0, f32::MAX);
+        }
+        
+        return value;
     }
-    ui.end_parent(SLIDER_CONTAINER);
-
-    // use add_parent_closure::AddParentClosure;
-    // ui.add_parent(SLIDER_CONTAINER, &slider_container_params, |ui| {
-    //     ui.add(SLIDER_FILL, &slider_fill_params.size_x(Fixed(Pixels(value as u32))) );
-    // });
-
-    if let Some((x, _y)) = ui.is_dragged(SLIDER_CONTAINER) {
-        value -= x as f32;
-        value = value.clamp(0.0, f32::MAX);
-    }
-
-    return value;
 }
 
 // // // this is what you cannot do in lifetime soup mode

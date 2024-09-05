@@ -15,6 +15,7 @@ pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::TRANSPARENT)
     },
     interact: Interact {
+        absorbs_clicks: false,
         click_animation: false,
     },
     layout: Layout {
@@ -37,6 +38,7 @@ pub const DEFAULT: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::FLGR_BLUE),
     },
     interact: Interact {
+        absorbs_clicks: false,
         click_animation: false,
     },
     layout: Layout {
@@ -60,6 +62,7 @@ pub const V_STACK: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
     },
     interact: Interact {
+        absorbs_clicks: false,
         click_animation: true,
     },
     layout: Layout {
@@ -83,6 +86,7 @@ pub const H_STACK: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
     },
     interact: Interact {
+        absorbs_clicks: false,
         click_animation: false,
     },
     layout: Layout {
@@ -102,6 +106,7 @@ pub const MARGIN: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
     },
     interact: Interact {
+        absorbs_clicks: false,
         click_animation: false,
     },
     layout: Layout {
@@ -123,6 +128,7 @@ pub const ICON_BUTTON: NodeParams = NodeParams {
         vertex_colors: VertexColors::FLGR_SOVL_GRAD,
     },
     interact: Interact {
+        absorbs_clicks: true,
         click_animation: true,
     },
     layout: Layout {
@@ -146,6 +152,7 @@ pub const BUTTON: NodeParams = NodeParams {
         vertex_colors: VertexColors::diagonal_gradient_backslash(Color::FLGR_BLUE, Color::FLGR_RED),
     },
     interact: Interact {
+        absorbs_clicks: true,
         click_animation: true,
     },
     layout: Layout {
@@ -168,6 +175,7 @@ pub const LABEL: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::FLGR_BLUE),
     },
     interact: Interact {
+        absorbs_clicks: false,
         click_animation: false,
     },
     layout: Layout {
@@ -190,6 +198,7 @@ pub const TEXT: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
     },
     interact: Interact {
+        absorbs_clicks: false,
         click_animation: false,
     },
     layout: Layout {
@@ -212,6 +221,7 @@ pub const EMPTY_TEXT: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
     },
     interact: Interact {
+        absorbs_clicks: false,
         click_animation: false,
     },
     layout: Layout {
@@ -235,6 +245,7 @@ pub const TEXT_INPUT: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::rgba(26, 0, 26, 230)),
     },
     interact: Interact {
+        absorbs_clicks: false,
         click_animation: true,
     },
     layout: Layout {
@@ -254,6 +265,7 @@ pub const PANEL: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::FLGR_BLUE),
     },
     interact: Interact {
+        absorbs_clicks: false,
         click_animation: false,
     },
     layout: Layout {

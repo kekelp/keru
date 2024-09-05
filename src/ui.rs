@@ -80,6 +80,7 @@ pub const NODE_ROOT: Node = Node {
 #[derive(Debug, Copy, Clone)]
 pub struct Interact {
     pub click_animation: bool,
+    pub absorbs_clicks: bool,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -277,6 +278,11 @@ impl<'text, 'image> NodeParams<'text, 'image> {
         return self;
     }
 
+    pub const fn padding(mut self, padding: Len) -> Self {
+        self.layout.padding = Xy::new_symm(padding);
+        return self;
+    }
+
     pub const fn padding_x(mut self, padding: Len) -> Self {
         self.layout.padding.x = padding;
         return self;
@@ -284,6 +290,11 @@ impl<'text, 'image> NodeParams<'text, 'image> {
 
     pub const fn padding_y(mut self, padding: Len) -> Self {
         self.layout.padding.x = padding;
+        return self;
+    }
+
+    pub const fn absorbs_clicks(mut self, absorbs_clicks: bool) -> Self {
+        self.interact.absorbs_clicks = absorbs_clicks;
         return self;
     }
 }
@@ -301,7 +312,7 @@ pub struct RenderRect {
 
     pub last_hover: f32,
     pub last_click: f32,
-    pub clickable: u32,
+    pub click_animation: u32,
     pub z: f32,
 
     pub radius: f32,
@@ -1781,7 +1792,7 @@ impl Ui {
                     vertex_colors: node.params.rect.vertex_colors,
                     last_hover: node.last_hover,
                     last_click: node.last_click,
-                    clickable: node.params.interact.click_animation.into(),
+                    click_animation: node.params.interact.click_animation.into(),
                     id: node.id,
                     z: 0.0,
                     radius: 30.0,
@@ -1868,7 +1879,7 @@ impl Ui {
                 vertex_colors: current_node.params.rect.vertex_colors,
                 last_hover: current_node.last_hover,
                 last_click: current_node.last_click,
-                clickable: current_node.params.interact.click_animation.into(),
+                click_animation: current_node.params.interact.click_animation.into(),
                 id: current_node.id,
                 z: 0.0,
                 radius: 30.0,
@@ -1919,7 +1930,7 @@ impl Ui {
                     vertex_colors: VertexColors::flat(Color::rgba(128, 77, 128, 230)),
                     last_hover: 0.0,
                     last_click: 0.0,
-                    clickable: 0,
+                    click_animation: 0,
                     z: 0.0,
                     id: Id(0),
                     filled: 1,
@@ -1956,7 +1967,7 @@ impl Ui {
                     vertex_colors: VertexColors::flat(Color::rgba(128, 77, 128, 230)),
                     last_hover: 0.0,
                     last_click: 0.0,
-                    clickable: 0,
+                    click_animation: 0,
                     z: 0.0,
                     id: Id(0),
                     filled: 1,
@@ -2106,6 +2117,21 @@ macro_rules! add {
     };
     ($ui:expr, $key:expr, $defaults:expr) => {
         $ui.add($key, $defaults)
+    };
+}
+
+#[macro_export]
+macro_rules! add_anon {
+    ($ui:expr, $defaults:expr, $code:block) => {
+        {
+            let i = $ui.add_as_parent_unchecked(ANON_NODE, &$defaults);
+            $code;
+            $ui.end_parent_unchecked();
+            $ui.get_ref_unchecked(i, &ANON_NODE)
+        }
+    };
+    ($ui:expr, $defaults:expr) => {
+        $ui.add(ANON_NODE, $defaults)
     };
 }
 

@@ -21,9 +21,9 @@ use main_ui::CounterState;
 pub const BASE_WIDTH: u32 = 1350;
 pub const BASE_HEIGHT: u32 = 850;
 pub const BACKGROUND_COLOR: wgpu::Color = wgpu::Color {
-    r: 0.014,
-    g: 0.014 + 0.002,
-    b: 0.014,
+    r: 0.037,
+    g: 0.037 + 0.002,
+    b: 0.037,
     a: 1.0,
 };
 pub const WINDOW_NAME: &str = "BLUE";
