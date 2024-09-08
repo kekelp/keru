@@ -57,7 +57,6 @@ pub const NODE_ROOT: Node = Node {
     id: NODE_ROOT_ID,
     rect: Xy::new_symm([0.0, 1.0]),
     size: Xy::new_symm(1.0),
-    rect_id: None,
     text_id: None,
     image: None,
 
@@ -80,7 +79,7 @@ pub const NODE_ROOT: Node = Node {
 #[derive(Debug, Copy, Clone)]
 pub struct Interact {
     pub click_animation: bool,
-    pub absorbs_clicks: bool,
+    pub absorbs_mouse_events: bool,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -294,7 +293,7 @@ impl<'text, 'image> NodeParams<'text, 'image> {
     }
 
     pub const fn absorbs_clicks(mut self, absorbs_clicks: bool) -> Self {
-        self.interact.absorbs_clicks = absorbs_clicks;
+        self.interact.absorbs_mouse_events = absorbs_clicks;
         return self;
     }
 }
@@ -800,7 +799,6 @@ impl System {
         
         return Node {
             id: key.id(),
-            rect_id: None,
             rect: Xy::new_symm([0.0, 1.0]),
             size: Xy::new_symm(10.0),
             text_id,
@@ -2163,8 +2161,7 @@ macro_rules! tree {
 #[derive(Debug)]
 pub struct Node {
     pub id: Id,
-    // visible rect only
-    pub rect_id: Option<usize>,
+
     // also for invisible rects, used for layout
     pub rect: XyRect,
 

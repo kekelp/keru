@@ -148,9 +148,11 @@ impl State {
 impl Ui {
 
     pub fn add_slider(&mut self, value: f32) -> f32 {
+        const FIXED_LEN: u32 = 200;
+
         #[node_key]
         pub const SLIDER_CONTAINER: NodeKey;
-        let slider_container_params = FLGR_PANEL.size_y(Fixed(Pixels(200))).size_x(Fixed(Pixels(50)));
+        let slider_container_params = FLGR_PANEL.size_y(Fixed(Pixels(FIXED_LEN))).size_x(Fixed(Pixels(50)));
         
         #[node_key]
         pub const SLIDER_FILL: NodeKey;
@@ -175,7 +177,11 @@ impl Ui {
         
         if let Some((_x, y)) = self.is_dragged(SLIDER_CONTAINER) {
             value += y as f32;
-            value = value.clamp(0.0, f32::MAX);
+            value = value.clamp(0.0, FIXED_LEN as f32);
+        }
+        if let Some((_x, y)) = self.is_dragged(SLIDER_FILL) {
+            value += y as f32;
+            value = value.clamp(0.0, FIXED_LEN as f32);
         }
         
         return value;
