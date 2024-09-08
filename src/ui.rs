@@ -139,6 +139,8 @@ pub struct NodeParams<'text, 'image> {
     pub layout: Layout,
 }
 
+const RADIUS: f32 = 20.0;
+
 type StaticParams = NodeParams<'static, 'static>;
 
 impl<'text, 'image> NodeParams<'text, 'image> {
@@ -1793,7 +1795,7 @@ impl Ui {
                     click_animation: node.params.interact.click_animation.into(),
                     id: node.id,
                     z: 0.0,
-                    radius: 30.0,
+                    radius: RADIUS,
                     filled: node.params.rect.filled as u32,
 
                     tex_coords: image.tex_coords,
@@ -1880,7 +1882,7 @@ impl Ui {
                 click_animation: current_node.params.interact.click_animation.into(),
                 id: current_node.id,
                 z: 0.0,
-                radius: 30.0,
+                radius: RADIUS,
                 filled: current_node.params.rect.filled as u32,
 
                 // magic coords

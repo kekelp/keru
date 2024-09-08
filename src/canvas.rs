@@ -10,8 +10,7 @@ use winit::{dpi::PhysicalPosition, event::{ElementState, Event, MouseButton, Win
 
 use crate::{math::Xy, Context, Scale};
 
-#[derive(Clone, Copy, Debug)]
-#[derive(Zeroable, Pod)]
+#[derive(Clone, Copy, Debug, Zeroable, Pod)]
 #[repr(C)]
 pub struct PixelColor {
     r: u8,
