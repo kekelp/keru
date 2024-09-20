@@ -12,6 +12,7 @@ pub mod add_parent_closure;
 pub mod math;
 pub mod render;
 pub mod layout;
+pub mod interact;
 
 use glam::dvec2;
 use pixels_on_screen::*;
