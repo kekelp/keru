@@ -13,6 +13,7 @@ pub mod math;
 pub mod render;
 pub mod layout;
 pub mod interact;
+pub mod text_edit;
 
 use glam::dvec2;
 use pixels_on_screen::*;
