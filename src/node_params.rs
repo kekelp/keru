@@ -1,4 +1,4 @@
-use crate::{Arrange, Color, Image, Interact, Layout, Len, NodeKey, NodeParams, Position, Rect, Size, Stack, Text, TypedKey, VertexColors};
+use crate::{Arrange, Color, Image, Interact, Layout, Len, NodeKey, NodeParams, Position, Rect, Size, Stack, TextNodeType, TextOptions, TypedKey, VertexColors};
 use crate::math::{Axis, Xy};
 use view_derive::node_key;
 use Size::*;
@@ -7,8 +7,7 @@ use Len::*;
 
 pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     stack: None,
-    text: None,
-    image: None,
+    text_params: None,
     rect: Rect {
         visible: false,
         filled: false,
@@ -27,11 +26,9 @@ pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
 
 pub const DEFAULT: NodeParams = NodeParams {
     stack: None,
-    text: Some(Text {
-        text: "Default",
+    text_params: Some(TextOptions {
         editable: false,
     }),
-    image: None,
     rect: Rect {
         visible: true,
         filled: true,
@@ -54,8 +51,7 @@ pub const V_STACK: NodeParams = NodeParams {
         axis: Axis::Y,
         spacing: Len::Pixels(10),
     }),
-    text: None,
-    image: None,
+    text_params: None,
     rect: Rect {
         visible: false,
         filled: false,
@@ -78,8 +74,7 @@ pub const H_STACK: NodeParams = NodeParams {
         axis: Axis::X,
         spacing: Len::Pixels(5),
     }),
-    text: None,
-    image: None,
+    text_params: None,
     rect: Rect {
         visible: false,
         filled: false,
@@ -98,8 +93,7 @@ pub const H_STACK: NodeParams = NodeParams {
 
 pub const MARGIN: NodeParams = NodeParams {
     stack: None,
-    text: None,
-    image: None,
+    text_params: None,
     rect: Rect {
         visible: false,
         filled: false,
@@ -118,10 +112,7 @@ pub const MARGIN: NodeParams = NodeParams {
 
 pub const ICON_BUTTON: NodeParams = NodeParams {
     stack: None,
-    text: None,
-    image: Some(Image {
-        data: include_bytes!("texture_small.png")
-    }),
+    text_params: None,
     rect: Rect {
         visible: true,
         filled: true,
@@ -140,11 +131,9 @@ pub const ICON_BUTTON: NodeParams = NodeParams {
 
 pub const BUTTON: NodeParams = NodeParams {
     stack: None,
-    text: Some(Text {
-        text: "Click",
+    text_params: Some(TextOptions {
         editable: false,
     }),
-    image: None,
     rect: Rect {
         visible: true,
         filled: true,
@@ -164,11 +153,9 @@ pub const BUTTON: NodeParams = NodeParams {
 
 pub const LABEL: NodeParams = NodeParams {
     stack: None,
-    text: Some(Text {
-        text: "Label",
+    text_params: Some(TextOptions {
         editable: false,
     }),
-    image: None,
     rect: Rect {
         visible: true,
         filled: true,
@@ -187,11 +174,9 @@ pub const LABEL: NodeParams = NodeParams {
 
 pub const TEXT: NodeParams = NodeParams {
     stack: None,
-    text: Some(Text {
-        text: "Text",
+    text_params: Some(TextOptions {
         editable: false,
     }),
-    image: None,
     rect: Rect {
         visible: false,
         filled: false,
@@ -210,11 +195,9 @@ pub const TEXT: NodeParams = NodeParams {
 
 pub const EMPTY_TEXT: NodeParams = NodeParams {
     stack: None,
-    text: Some(Text {
-        text: "",
+    text_params: Some(TextOptions {
         editable: false,
     }),
-    image: None,
     rect: Rect {
         visible: false,
         filled: false,
@@ -234,11 +217,9 @@ pub const EMPTY_TEXT: NodeParams = NodeParams {
 
 pub const TEXT_INPUT: NodeParams = NodeParams {
     stack: None,
-    text: Some(Text {
-        text: "",
+    text_params: Some(TextOptions {
         editable: true,
     }),
-    image: None,
     rect: Rect {
         visible: true,
         filled: true,
@@ -257,8 +238,7 @@ pub const TEXT_INPUT: NodeParams = NodeParams {
 
 pub const PANEL: NodeParams = NodeParams {
     stack: None,
-    text: None,
-    image: None,
+    text_params: None,
     rect: Rect {
         visible: true,
         filled: true,
@@ -276,6 +256,6 @@ pub const PANEL: NodeParams = NodeParams {
 };
 
 #[node_key] pub(crate) const ANON_NODE: NodeKey;
-#[node_key] pub(crate) const ANON_TEXT: TypedKey<Text>;
+#[node_key] pub(crate) const ANON_TEXT: TypedKey<TextNodeType>;
 #[node_key] pub(crate) const ANON_VSTACK: TypedKey<Stack>;
 #[node_key] pub(crate) const ANON_HSTACK: TypedKey<Stack>;

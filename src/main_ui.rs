@@ -105,11 +105,11 @@ impl State {
     pub fn add_tools(&mut self) {
         #[node_key]
         const BRUSH: NodeKey;
-        let brush_params = ICON_BUTTON.image(include_bytes!("icons/brush.png"));
+        let brush_params = ICON_BUTTON;
 
         #[node_key]
         const ERASER: NodeKey;
-        let eraser_params = ICON_BUTTON.image(include_bytes!("icons/eraser.png"));
+        let eraser_params = ICON_BUTTON;
 
         #[node_key]
         const TOOLS_PANEL: NodeKey;
@@ -126,8 +126,8 @@ impl State {
             {
                 self.ui.v_stack();
                 {
-                    self.ui.add(BRUSH, &brush_params);
-                    self.ui.add(ERASER, &eraser_params);
+                    self.ui.add(BRUSH, &brush_params).image(include_bytes!("icons/brush.png"));
+                    self.ui.add(ERASER, &eraser_params).image(include_bytes!("icons/eraser.png"));
                 }
                 self.ui.end_v_stack();
             }

@@ -58,7 +58,7 @@ pub const NODE_ROOT: Node = Node {
     rect: Xy::new_symm([0.0, 1.0]),
     size: Xy::new_symm(1.0),
     text_id: None,
-    image: None,
+    imageref: None,
 
     parent: usize::MAX,
 
@@ -108,20 +108,8 @@ impl Rect {
 // rename
 // todo: add greyed text for textinput
 #[derive(Debug, Copy, Clone)]
-pub struct Text<'data> {
-    pub text: &'data str,
+pub struct TextOptions {
     pub editable: bool,
-}
-impl<'text> Text<'text> {
-    pub const DEFAULT: Text<'static> = Text {
-        text: &"",
-        editable: false,
-    };
-
-    pub const fn text<'a: 'text>(mut self, text: &'a str) -> Self {
-        self.text = text;
-        return self;
-    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -130,9 +118,8 @@ pub struct Image<'data> {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct NodeParams<'text, 'image> {
-    pub text: Option<Text<'text>>,
-    pub image: Option<Image<'image>>,
+pub struct NodeParams {
+    pub text_params: Option<TextOptions>,
     pub stack: Option<Stack>,
     pub rect: Rect,
     pub interact: Interact,
@@ -141,27 +128,7 @@ pub struct NodeParams<'text, 'image> {
 
 const RADIUS: f32 = 20.0;
 
-type StaticParams = NodeParams<'static, 'static>;
-
-impl<'text, 'image> NodeParams<'text, 'image> {
-    
-    // maybe a separate struct with no Text and no Image would be better.
-    fn strip_references(&self) -> StaticParams {
-        return StaticParams {
-            text: None,
-            image: None,
-            stack: self.stack.clone(),
-            rect: self.rect.clone(),
-            interact: self.interact.clone(),
-            layout: self.layout.clone(),
-        };
-    }
-
-    // todo: remove
-    fn maybe_text(&self) -> Option<Text> {
-        return self.text;
-    }
-
+impl NodeParams {
     pub const fn const_default() -> Self {
         return DEFAULT;
     }
@@ -190,31 +157,6 @@ impl<'text, 'image> NodeParams<'text, 'image> {
     }
     pub const fn position_symm(mut self, position: Position) -> Self {
         self.layout.position = Xy::new_symm(position);
-        return self;
-    }
-
-    pub const fn image(mut self, image_data: &'static [u8]) -> Self {
-        self.image = Some(Image { data: image_data });
-        return self;
-    }
-
-    pub const fn text<'a: 'text>(mut self, text: &'a str) -> Self {
-        let textstruct = match self.text {
-            Some(textstruct) => textstruct,
-            None => Text::DEFAULT,
-        };
-        self.text = Some(textstruct.text(text));
-        return self;
-    }
-    pub const fn editable(mut self, editable: bool) -> Self {
-        let old_default_text = match self.text {
-            Some(text) => text.text,
-            None => "Insert...",
-        };
-        self.text = Some(Text {
-            text: old_default_text,
-            editable,
-        });
         return self;
     }
 
@@ -486,14 +428,19 @@ impl Color {
     }
 }
 
-pub struct NodeRef<'a, T: NodeType> {
+pub struct UiNode<'a, T: NodeType> {
     pub(crate) node: &'a mut Node,
     pub(crate) nodetype_marker: PhantomData<T>,
     pub(crate) sys: &'a mut System,
 }
 
 // why can't you just do it separately?
-impl<'a,  T: NodeType> NodeRef<'a, T> {
+impl<'a,  T: NodeType> UiNode<'a, T> {
+
+    pub fn image(&mut self, image: &[u8]) {
+        let image = self.sys.texture_atlas.allocate_image(image);
+        self.node.imageref = Some(image);
+    }
 
     // pub fn is_clicked(&self) -> bool {
     //     let id = self.node.id;
@@ -540,9 +487,9 @@ impl<'a,  T: NodeType> NodeRef<'a, T> {
     }
 }
 
-impl<'a, T: TextTrait> NodeRef<'a, T> {
+impl<'a, T: TextTrait> UiNode<'a, T> {
 
-    pub fn set_text(&mut self, text: &str) -> &mut Self {
+    pub fn text(&mut self, text: &str) -> &mut Self {
         if let Some(text_id) = self.node.text_id {
             self.sys.text.set_text_hashed(text_id, text);
         } else {
@@ -636,50 +583,51 @@ pub struct TextSystem {
 }
 const GLOBAL_TEXT_METRICS: Metrics = Metrics::new(24.0, 24.0);
 impl TextSystem {
-    pub(crate) fn maybe_new_text_area(&mut self, text: Option<Text>, current_frame: u64) -> Option<usize> {
-        let text = text?.text;
+    pub(crate) fn maybe_new_text_area(&mut self, text: Option<TextOptions>, current_frame: u64) -> Option<usize> {
+        todo!();
 
-        let mut buffer = GlyphonBuffer::new(&mut self.font_system, GLOBAL_TEXT_METRICS);
-        buffer.set_size(&mut self.font_system, 500., 500.);
+        // let mut buffer = GlyphonBuffer::new(&mut self.font_system, GLOBAL_TEXT_METRICS);
+        // buffer.set_size(&mut self.font_system, 500., 500.);
 
-        let mut hasher = FxHasher::default();
-        text.hash(&mut hasher);
-        let hash = hasher.finish();
+        // let mut hasher = FxHasher::default();
+        // text.hash(&mut hasher);
+        // let hash = hasher.finish();
 
-        // todo: maybe remove duplication with set_text_hashed (the branch in refresh_node that updates the text without creating a new entry here)
-        // buffer.set_wrap(&mut self.font_system, glyphon::Wrap::Word);
-        buffer.set_text(
-            &mut self.font_system,
-            text,
-            Attrs::new().family(Family::SansSerif),
-            Shaping::Advanced,
-        );
+        // // todo: maybe remove duplication with set_text_hashed (the branch in refresh_node that updates the text without creating a new entry here)
+        // // buffer.set_wrap(&mut self.font_system, glyphon::Wrap::Word);
+        // buffer.set_text(
+        //     &mut self.font_system,
+        //     text,
+        //     Attrs::new().family(Family::SansSerif),
+        //     Shaping::Advanced,
+        // );
 
 
-        for line in &mut buffer.lines {
-            line.set_align(Some(glyphon::cosmic_text::Align::Center));
-        }
+        // for line in &mut buffer.lines {
+        //     line.set_align(Some(glyphon::cosmic_text::Align::Center));
+        // }
 
-        let text_area = TextArea {
-            buffer,
-            left: 10.0,
-            top: 10.0,
-            scale: 1.0,
-            bounds: TextBounds {
-                left: 0,
-                top: 0,
-                right: 10000,
-                bottom: 10000,
-            },
-            default_color: GlyphonColor::rgb(255, 255, 255),
-            depth: 0.0,
-            last_frame_touched: current_frame,
-            last_hash: hash,
-        };
-        self.text_areas.push(text_area);
-        let text_id = self.text_areas.len() - 1;
+        // let text_area = TextArea {
+        //     buffer,
+        //     left: 10.0,
+        //     top: 10.0,
+        //     scale: 1.0,
+        //     bounds: TextBounds {
+        //         left: 0,
+        //         top: 0,
+        //         right: 10000,
+        //         bottom: 10000,
+        //     },
+        //     default_color: GlyphonColor::rgb(255, 255, 255),
+        //     depth: 0.0,
+        //     last_frame_touched: current_frame,
+        //     last_hash: hash,
+        // };
+        // self.text_areas.push(text_area);
+        // let text_id = self.text_areas.len() - 1;
 
-        return Some(text_id);
+        // return Some(text_id);
+        return None;
     }
 
     fn refresh_last_frame(&mut self, text_id: Option<usize>, current_frame: u64) {
@@ -789,29 +737,22 @@ impl System {
         let frame = self.part.current_frame;
         let parent_i = self.parent_stack.last().unwrap().clone();
 
-        let text = params.maybe_text();
-        let text_id = self.text.maybe_new_text_area(text, frame);
+        // add back somewhere
 
-        let image = match params.image {
-            Some(image) => {
-                Some(self.texture_atlas.allocate_image(image.data))
-            },
-            None => None,
-        };
-        
+
         return Node {
             id: key.id(),
             rect: Xy::new_symm([0.0, 1.0]),
             size: Xy::new_symm(10.0),
-            text_id,
-            image,
+            text_id: None,
+            imageref: None,
             parent: parent_i,
 
             n_children: 0,
             first_child: None,
             next_sibling: None,
             is_twin: twin_n,
-            params: params.strip_references(),
+            params: params.clone(),
             debug_name: key.debug_name,
             last_frame_status: LastFrameStatus::Nothing,
             last_hover: f32::MIN,
@@ -1148,7 +1089,7 @@ impl Ui {
         }
     }
 
-    pub fn add<T: NodeType>(&mut self, key: TypedKey<T>, params: &NodeParams) -> NodeRef<T> {
+    pub fn add<T: NodeType>(&mut self, key: TypedKey<T>, params: &NodeParams) -> UiNode<T> {
         let i = self.update_node(key, params, false);
         return self.get_ref_unchecked(i, &key)
     }
@@ -1164,14 +1105,14 @@ impl Ui {
     }
 
     // don't expect this to give you twin nodes automatically
-    pub fn get_ref<T: NodeType>(&mut self, key: TypedKey<T>) -> NodeRef<T> {
+    pub fn get_ref<T: NodeType>(&mut self, key: TypedKey<T>) -> UiNode<T> {
         let node_i = self.nodes.node_hashmap.get(&key.id()).unwrap().slab_i;
         return self.get_ref_unchecked(node_i, &key)
     }
 
     // only for the macro, use get_ref 
-    pub fn get_ref_unchecked<T: NodeType>(&mut self, i: usize, _key: &TypedKey<T>) -> NodeRef<T> {        
-        return NodeRef {
+    pub fn get_ref_unchecked<T: NodeType>(&mut self, i: usize, _key: &TypedKey<T>) -> UiNode<T> {        
+        return UiNode {
             node: &mut self.nodes[i],
             sys: &mut self.sys,
             nodetype_marker: PhantomData::<T>,
@@ -1291,7 +1232,7 @@ impl Ui {
     }
 
     pub fn text(&mut self, text: &str) {
-        self.add(ANON_TEXT, &TEXT.text(text));
+        self.add(ANON_TEXT, &TEXT).text(text);
     }
 
     pub fn handle_keyboard_event(&mut self, event: &KeyEvent) -> bool {
@@ -1560,7 +1501,7 @@ impl Ui {
             let text_size = self.determine_text_size(node, proposed_size);
             content_size.update_for_content(text_size, stack);
         }
-        if let Some(_) = self.nodes[node].image {
+        if let Some(_) = self.nodes[node].imageref {
             let image_size = self.determine_image_size(node, proposed_size);
             content_size.update_for_content(image_size, stack);
         }
@@ -1598,7 +1539,7 @@ impl Ui {
     }
 
     fn determine_image_size(&mut self, node: usize, _proposed_size: Xy<f32>) -> Xy<f32> {
-        let image_ref = self.nodes[node].image.unwrap();
+        let image_ref = self.nodes[node].imageref.unwrap();
         let size = image_ref.original_size;
         return self.f32_pixels_to_frac2(size);
     }
@@ -1783,7 +1724,7 @@ impl Ui {
     pub fn build_and_place_image(&mut self, node: usize) {
         let node = &mut self.nodes.nodes[node];
         
-        if let Some(image) = node.image {
+        if let Some(image) = node.imageref {
             // in debug mode, draw invisible rects as well.
             // usually these have filled = false (just the outline), but this is not enforced.
             if node.params.rect.visible || self.sys.debug_mode {
@@ -2034,9 +1975,11 @@ impl Ui {
             let node = self.nodes.get_by_id(&clicked_id).unwrap();
             node.last_click = t;
 
-            if let Some(text) = node.params.maybe_text() {
-                if text.editable {
-                    self.sys.focused = Some(clicked_id);
+            if let Some(_) = node.text_id {
+                if let Some(text) = node.params.text_params{
+                    if text.editable {
+                        self.sys.focused = Some(clicked_id);
+                    }
                 }
             }
 
@@ -2087,18 +2030,9 @@ impl Ui {
         
         let node = &mut self.nodes[i];
 
-        node.params = params.strip_references();
+        node.params = params.clone();
 
-        if let Some(text) = params.text {
-            match node.text_id {
-                Some(text_id) => {
-                    self.sys.text.set_text_hashed(text_id, text.text);
-                },
-                None => {
-                    self.sys.text.maybe_new_text_area(Some(text), frame);
-                },
-            };
-        }
+        // add back somewhere
         
         node.refresh(parent_id);
         self.sys.text.refresh_last_frame(node.text_id, frame);
@@ -2174,7 +2108,7 @@ pub struct Node {
 
     pub text_id: Option<usize>,
 
-    pub image: Option<ImageRef>,
+    pub imageref: Option<ImageRef>,
 
     pub parent: usize,
 
@@ -2187,7 +2121,7 @@ pub struct Node {
     // at some point I was iterating the children in reverse for z ordering purposes, but I don't think that actually makes any difference.  
     // pub prev_sibling: Option<usize>,
 
-    pub params: NodeParams<'static, 'static>,
+    pub params: NodeParams,
 
     pub debug_name: &'static str,
 
@@ -2485,11 +2419,16 @@ pub trait TextTrait: NodeType {}
 
 pub trait ParentTrait: NodeType {}
 
-impl<'a> NodeType for Text<'a> {}
-impl<'a> TextTrait for Text<'a> {}
+
 
 impl NodeType for Stack {}
 impl ParentTrait for Stack {}
+
+#[derive(Clone, Copy, Debug)]
+pub struct TextNodeType {}
+
+impl NodeType for TextNodeType {}
+impl TextTrait for TextNodeType {}
 
 #[derive(Clone, Copy, Debug)]
 pub struct Container {}

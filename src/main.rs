@@ -30,23 +30,8 @@ pub const WINDOW_NAME: &str = "BLUE";
 
 fn main() -> Result<(), EventLoopError> {
     let (ctx, event_loop) = Context::init(BASE_WIDTH, BASE_HEIGHT, WINDOW_NAME);
-
-    let ui = Ui::new(&ctx.device, &ctx.queue, &ctx.surface_config);
-    let canvas = Canvas::new(&ctx, &ui.sys.base_uniform_buffer);
     
-    let mut state = State {
-        ctx,
-        ui,
-        counter_state: CounterState::new(),
-        canvas,
-
-        info_visible: true,
-        slider_value: 500.0,
-        slider_value2: 450.0,
-        slider_value3: 450.0,
-        slider_value4: 450.0,
-        slider_value5: 450.0,
-    };
+    let mut state = State::new(ctx);
 
     event_loop.run(move |event, target| {
         state.handle_event(&event, target);
@@ -106,5 +91,24 @@ impl State {
         }
         
         frame.finish(&self.ctx.queue);
+    }
+
+    fn new(ctx: Context) -> Self {
+        let ui = Ui::new(&ctx.device, &ctx.queue, &ctx.surface_config);
+        let canvas = Canvas::new(&ctx, &ui.sys.base_uniform_buffer);
+        
+        return State {
+            ctx,
+            ui,
+            counter_state: CounterState::new(),
+            canvas,
+    
+            info_visible: true,
+            slider_value: 500.0,
+            slider_value2: 450.0,
+            slider_value3: 450.0,
+            slider_value4: 450.0,
+            slider_value5: 450.0,
+        };
     }
 }
