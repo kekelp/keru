@@ -1,6 +1,6 @@
 use crate::*;
 
-use crate::math::{Axis, Xy, XyRect};
+use crate::math::*;
 
 use crate::for_each_child;
 

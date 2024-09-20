@@ -8,7 +8,7 @@ use rustc_hash::{FxHashMap, FxHasher};
 use slab::Slab;
 use wgpu::*;
 use winit::event::{ElementState, MouseScrollDelta};
-use crate::math::{Axis, Xy, XyRect};
+use crate::math::*;
 
 use std::collections::hash_map::Entry;
 use std::sync::LazyLock;
@@ -423,6 +423,7 @@ impl Color {
     }
 }
 
+// todo: hold a slotmap key instead
 pub struct UiNode<'a, T: NodeType> {
     pub(crate) node: &'a mut Node,
     pub(crate) nodetype_marker: PhantomData<T>,
@@ -804,49 +805,6 @@ impl Ui {
     // todo: variadic args lol
     pub fn add_widget<T, S>(&mut self, widget_function: fn(&mut Ui, T) -> S, arg: T) -> S {
         return widget_function(self, arg);
-    }
-
-
-    pub fn to_pixels(&self, len: Len, axis: Axis) -> u32 {
-        match len {
-            Len::Pixels(pixels) => return pixels,
-            Len::Frac(frac) => return (frac * self.sys.part.unifs.size[axis]) as u32,
-        }
-    }
-
-    pub fn to_pixels2(&self, len: Xy<Len>) -> Xy<u32> {
-        return Xy::new(
-            self.to_pixels(len.x, X),
-            self.to_pixels(len.y, Y),
-        );
-    }
-
-    pub fn to_frac(&self, len: Len, axis: Axis) -> f32 {
-        match len {
-            Len::Pixels(pixels) => return (pixels as f32) / self.sys.part.unifs.size[axis],
-            Len::Frac(frac) => return frac,
-        }
-    }
-
-    pub fn pixels_to_frac(&self, pixels: u32, axis: Axis) -> f32 {
-        return (pixels as f32) / self.sys.part.unifs.size[axis];
-    }
-    pub fn f32_pixels_to_frac(&self, pixels: f32, axis: Axis) -> f32 {
-        return pixels / self.sys.part.unifs.size[axis];
-    }
-
-    pub fn f32_pixels_to_frac2(&self, pixels: Xy<f32>) -> Xy<f32> {
-        return Xy::new(
-            self.f32_pixels_to_frac(pixels.x, X),
-            self.f32_pixels_to_frac(pixels.y, Y),
-        );
-    }
-
-    pub fn to_frac2(&self, len: Xy<Len>) -> Xy<f32> {
-        return Xy::new(
-            self.to_frac(len.x, X),
-            self.to_frac(len.y, Y),
-        );
     }
 
     pub fn new(device: &Device, queue: &Queue, config: &SurfaceConfiguration) -> Self {
@@ -1509,15 +1467,6 @@ pub enum Size {
     //  with the "proposed" thing, a TextContent can either insist to get the minimum size it wants,
     // or be okay with whatever (and clip it, show some "..."'s, etc) 
     // todo: add FitToChildrenInitiallyButNeverResizeAfter 
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Len {
-    Pixels(u32),
-    Frac(f32),
-}
-impl Len {
-    pub const ZERO: Self = Self::Pixels(0);
 }
 
 #[derive(Debug, Clone, Copy)]

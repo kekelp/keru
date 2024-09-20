@@ -3,6 +3,63 @@ use Axis::*;
 use bytemuck::{Pod, Zeroable};
 
 
+use crate::Ui;
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Len {
+    Pixels(u32),
+    Frac(f32),
+}
+impl Len {
+    pub const ZERO: Self = Self::Pixels(0);
+}
+
+impl Ui {
+
+    pub fn to_pixels(&self, len: Len, axis: Axis) -> u32 {
+        match len {
+            Len::Pixels(pixels) => return pixels,
+            Len::Frac(frac) => return (frac * self.sys.part.unifs.size[axis]) as u32,
+        }
+    }
+
+    pub fn to_pixels2(&self, len: Xy<Len>) -> Xy<u32> {
+        return Xy::new(
+            self.to_pixels(len.x, X),
+            self.to_pixels(len.y, Y),
+        );
+    }
+
+    pub fn to_frac(&self, len: Len, axis: Axis) -> f32 {
+        match len {
+            Len::Pixels(pixels) => return (pixels as f32) / self.sys.part.unifs.size[axis],
+            Len::Frac(frac) => return frac,
+        }
+    }
+
+    pub fn pixels_to_frac(&self, pixels: u32, axis: Axis) -> f32 {
+        return (pixels as f32) / self.sys.part.unifs.size[axis];
+    }
+    pub fn f32_pixels_to_frac(&self, pixels: f32, axis: Axis) -> f32 {
+        return pixels / self.sys.part.unifs.size[axis];
+    }
+
+    pub fn f32_pixels_to_frac2(&self, pixels: Xy<f32>) -> Xy<f32> {
+        return Xy::new(
+            self.f32_pixels_to_frac(pixels.x, X),
+            self.f32_pixels_to_frac(pixels.y, Y),
+        );
+    }
+
+    pub fn to_frac2(&self, len: Xy<Len>) -> Xy<f32> {
+        return Xy::new(
+            self.to_frac(len.x, X),
+            self.to_frac(len.y, Y),
+        );
+    }
+
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum Axis {
     X,
