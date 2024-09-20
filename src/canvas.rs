@@ -253,7 +253,7 @@ impl Canvas {
     
         let shader = ctx.device.create_shader_module(ShaderModuleDescriptor {
             label: None,
-            source: ShaderSource::Wgsl(include_str!("canvas.wgsl").into()),
+            source: ShaderSource::Wgsl(include_str!("shaders/canvas.wgsl").into()),
         });
 
         let render_pipeline = ctx.device.create_render_pipeline(&RenderPipelineDescriptor {

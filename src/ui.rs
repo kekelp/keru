@@ -967,7 +967,7 @@ impl Ui {
 
         let shader = device.create_shader_module(ShaderModuleDescriptor {
             label: None,
-            source: ShaderSource::Wgsl(include_str!("box.wgsl").into()),
+            source: ShaderSource::Wgsl(include_str!("shaders/box.wgsl").into()),
         });
 
         let mut primitive = PrimitiveState::default();
