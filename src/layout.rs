@@ -1,45 +1,12 @@
 use crate::*;
 
-use crate::unwrap_or_return;
-use glyphon::cosmic_text::{Align, StringCursor};
-use glyphon::{AttrsList, Cursor as GlyphonCursor};
-use glyphon::Affinity;
-use rustc_hash::{FxHashMap, FxHasher};
-use slab::Slab;
-use wgpu::*;
-use winit::event::{ElementState, MouseScrollDelta};
-use winit::keyboard::Key;
 use crate::math::{Axis, Xy, XyRect};
 
 use crate::for_each_child;
 
-use std::collections::hash_map::Entry;
-use std::sync::LazyLock;
-use std::{
-    hash::Hasher,
-    marker::PhantomData,
-    mem,
-    ops::{Index, IndexMut},
-    time::Instant,
-};
 
-use bytemuck::{Pod, Zeroable};
-use glyphon::{
-    Attrs, Buffer as GlyphonBuffer, Color as GlyphonColor, Family, FontSystem, Metrics, Shaping,
-    SwashCache, TextArea, TextAtlas, TextBounds, TextRenderer,
-};
-use winit::{
-    dpi::{PhysicalPosition, PhysicalSize},
-    event::{Event, KeyEvent, MouseButton, WindowEvent},
-    keyboard::{ModifiersState, NamedKey},
-};
+use glyphon::Buffer as GlyphonBuffer;
 use Axis::{X, Y};
-use {
-    util::{self, DeviceExt},
-    vertex_attr_array, BindGroup, BufferAddress, BufferUsages, ColorTargetState, Device,
-    MultisampleState, Queue, RenderPipeline, SurfaceConfiguration, VertexAttribute,
-    VertexBufferLayout, VertexStepMode,
-};
 
 impl Ui {
 
