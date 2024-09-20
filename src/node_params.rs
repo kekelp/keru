@@ -1,4 +1,4 @@
-use crate::{Arrange, Color, Image, Interact, Layout, Len, NodeKey, NodeParams, Position, Rect, Size, Stack, TextNodeType, TextOptions, TypedKey, VertexColors};
+use crate::{Arrange, Color, Interact, Layout, Len, NodeKey, NodeParams, Position, Rect, Size, Stack, TextNodeType, TextOptions, TypedKey, VertexColors};
 use crate::math::{Axis, Xy};
 use view_derive::node_key;
 use Size::*;

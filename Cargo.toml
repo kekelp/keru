@@ -34,3 +34,4 @@ slotmap = "1.0.7"
 [lints.clippy]
 needless_return = { level = "allow" } 
 bool_comparison = { level = "allow" }
+non_snake_case = { level = 'allow'}
