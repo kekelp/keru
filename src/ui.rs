@@ -53,7 +53,9 @@ pub const NODE_ROOT: Node = Node {
     rect: Xy::new_symm([0.0, 1.0]),
     size: Xy::new_symm(1.0),
     text_id: None,
+
     imageref: None,
+    last_static_image_ptr: None,
 
     parent: usize::MAX,
 
@@ -439,9 +441,28 @@ impl<'a,  T: NodeType> UiNode<'a, T> {
         return &self.ui.nodes.nodes[self.node];
     }
 
-    pub fn image(&mut self, image: &[u8]) {
+    pub fn static_image(&mut self, image: &'static [u8]) {
+        let image_pointer: *const u8 = image.as_ptr();
+
+        if let Some(last_pointer) = self.node().last_static_image_ptr {
+            if image_pointer == last_pointer {
+                return;
+            }
+        }
+
         let image = self.ui.sys.texture_atlas.allocate_image(image);
         self.node_mut().imageref = Some(image);
+        self.node_mut().last_static_image_ptr = Some(image_pointer);
+    }
+
+    pub fn dynamic_image(&mut self, image: &[u8], changed: bool) {
+        if self.node_mut().imageref.is_some() && changed == false {
+            return;
+        }
+
+        let image = self.ui.sys.texture_atlas.allocate_image(image);
+        self.node_mut().imageref = Some(image);
+        self.node_mut().last_static_image_ptr = None;
     }
 
     // pub fn is_clicked(&self) -> bool {
@@ -733,7 +754,10 @@ impl System {
             rect: Xy::new_symm([0.0, 1.0]),
             size: Xy::new_symm(10.0),
             text_id: None,
+
             imageref: None,
+            last_static_image_ptr: None,
+            
             parent: parent_i,
 
             n_children: 0,
@@ -1410,6 +1434,7 @@ pub struct Node {
     pub text_id: Option<usize>,
 
     pub imageref: Option<ImageRef>,
+    pub last_static_image_ptr: Option<*const u8>,
 
     pub parent: usize,
 

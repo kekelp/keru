@@ -126,8 +126,8 @@ impl State {
             {
                 self.ui.v_stack();
                 {
-                    self.ui.add(BRUSH, &brush_params).image(include_bytes!("icons/brush.png"));
-                    self.ui.add(ERASER, &eraser_params).image(include_bytes!("icons/eraser.png"));
+                    self.ui.add(BRUSH, &brush_params).static_image(include_bytes!("icons/brush.png"));
+                    self.ui.add(ERASER, &eraser_params).static_image(include_bytes!("icons/eraser.png"));
                 }
                 self.ui.end_v_stack();
             }
