@@ -423,19 +423,25 @@ impl Color {
     }
 }
 
-// todo: hold a slotmap key instead
 pub struct UiNode<'a, T: NodeType> {
-    pub(crate) node: &'a mut Node,
+    pub(crate) node: usize,
+    pub(crate) ui: &'a mut Ui,
     pub(crate) nodetype_marker: PhantomData<T>,
-    pub(crate) sys: &'a mut System,
 }
 
 // why can't you just do it separately?
 impl<'a,  T: NodeType> UiNode<'a, T> {
 
+    pub fn node_mut(&mut self) -> &mut Node {
+        return &mut self.ui.nodes.nodes[self.node];
+    }
+    pub fn node(&self) -> &Node {
+        return &self.ui.nodes.nodes[self.node];
+    }
+
     pub fn image(&mut self, image: &[u8]) {
-        let image = self.sys.texture_atlas.allocate_image(image);
-        self.node.imageref = Some(image);
+        let image = self.ui.sys.texture_atlas.allocate_image(image);
+        self.node_mut().imageref = Some(image);
     }
 
     // pub fn is_clicked(&self) -> bool {
@@ -453,32 +459,32 @@ impl<'a,  T: NodeType> UiNode<'a, T> {
     // }
 
     pub fn set_color(&mut self, color: Color)  -> &mut Self {
-        self.node.params.rect.vertex_colors = VertexColors::flat(color);
+        self.node_mut().params.rect.vertex_colors = VertexColors::flat(color);
         return self;
     }
 
     pub fn set_vertex_colors(&mut self, colors: VertexColors)  -> &mut Self {
-        self.node.params.rect.vertex_colors = colors;
+        self.node_mut().params.rect.vertex_colors = colors;
         return self;
     }
 
     pub fn set_position_x(&mut self, position: Position)  -> &mut Self {
-        self.node.params.layout.position.x = position;
+        self.node_mut().params.layout.position.x = position;
         return self;
     }
 
     pub fn set_position_y(&mut self, position: Position)  -> &mut Self {
-        self.node.params.layout.position.y = position;
+        self.node_mut().params.layout.position.y = position;
         return self;
     }
 
     pub fn set_size_x(&mut self, size: Size)  -> &mut Self {
-        self.node.params.layout.size.x = size;
+        self.node_mut().params.layout.size.x = size;
         return self;
     }
 
     pub fn set_size_y(&mut self, size: Size)  -> &mut Self {
-        self.node.params.layout.size.y = size;
+        self.node_mut().params.layout.size.y = size;
         return self;
     }
 }
@@ -486,8 +492,8 @@ impl<'a,  T: NodeType> UiNode<'a, T> {
 impl<'a, T: TextTrait> UiNode<'a, T> {
 
     pub fn text(&mut self, text: &str) -> &mut Self {
-        if let Some(text_id) = self.node.text_id {
-            self.sys.text.set_text_hashed(text_id, text);
+        if let Some(text_id) = self.node_mut().text_id {
+            self.ui.sys.text.set_text_hashed(text_id, text);
         } else {
             // todo: log a warning or something
             // or make these things type safe somehow
@@ -497,8 +503,8 @@ impl<'a, T: TextTrait> UiNode<'a, T> {
     }
 
     pub fn set_text_attrs(&mut self, attrs: Attrs)  -> &mut Self {
-        if let Some(text_id) = self.node.text_id {
-            self.sys.text.set_text_attrs(text_id, attrs);
+        if let Some(text_id) = self.node_mut().text_id {
+            self.ui.sys.text.set_text_attrs(text_id, attrs);
         } else {
             // todo: log a warning or something
             // or make these things type safe somehow
@@ -507,8 +513,8 @@ impl<'a, T: TextTrait> UiNode<'a, T> {
     }
 
     pub fn set_text_align(&mut self, align: Align)  -> &mut Self {
-        if let Some(text_id) = self.node.text_id {
-            self.sys.text.set_text_align(text_id, align);
+        if let Some(text_id) = self.node_mut().text_id {
+            self.ui.sys.text.set_text_align(text_id, align);
         } else {
             // todo: log a warning or something
             // or make these things type safe somehow
@@ -517,9 +523,9 @@ impl<'a, T: TextTrait> UiNode<'a, T> {
     }
 
     pub fn get_text(&self) -> Option<String> {
-        let text_id = self.node.text_id.unwrap();
+        let text_id = self.node().text_id.unwrap();
 
-        let text = self.sys.text.text_areas[text_id].buffer.lines[0]
+        let text = self.ui.sys.text.text_areas[text_id].buffer.lines[0]
             .text
             .text()
             .to_string();
@@ -745,6 +751,7 @@ impl System {
     }
 }
 
+// todo: the sys split is no longer needed, lol.
 pub struct Ui {
     pub nodes: Nodes,
     pub sys: System,
@@ -1052,8 +1059,8 @@ impl Ui {
     // only for the macro, use get_ref 
     pub fn get_ref_unchecked<T: NodeType>(&mut self, i: usize, _key: &TypedKey<T>) -> UiNode<T> {        
         return UiNode {
-            node: &mut self.nodes[i],
-            sys: &mut self.sys,
+            node: i,
+            ui: self,
             nodetype_marker: PhantomData::<T>,
         };
     }
