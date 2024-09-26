@@ -15,6 +15,15 @@ const GRAD1: VertexColors = VertexColors::diagonal_gradient_forward_slash(COLOR1
 const FLGR_PANEL: NodeParams = PANEL.vertex_colors(GRAD1);
 
 impl State {
+    pub fn update_ui_new(&mut self) {
+        self.ui.begin_tree();
+
+
+
+
+        self.ui.finish_tree();
+    }
+
     pub fn update_ui(&mut self) {
         tree!(self.ui, {
 
