@@ -1,19 +1,19 @@
-use crate::{node_params::{ANON_HSTACK, ANON_VSTACK, H_STACK, V_STACK}, NodeParams, UiNode, NodeType, Stack, TypedKey, Ui};
+use crate::{node_params::{ANON_HSTACK, ANON_VSTACK, H_STACK, V_STACK}, Any, NodeParams, Ui, UiNode};
 
 pub trait AddParentManual {
-    fn add_parent<T: NodeType>(&mut self, key: TypedKey<T>, params: &NodeParams) -> UiNode<T>;
-    fn end_parent<T: NodeType>(&mut self, key: TypedKey<T>);
+    fn add_parent(&mut self, params: &NodeParams) -> UiNode<Any>;
+    fn end_parent(&mut self, params: &NodeParams);
     // fn add_anon_parent(&mut self, params: &NodeParams, content_code: impl FnOnce(&mut Self)) -> NodeRef<Any>;
-    fn v_stack(&mut self) -> UiNode<Stack>;
+    fn v_stack(&mut self) -> UiNode<Any>;
     fn end_v_stack(&mut self);
 
-    fn h_stack(&mut self) -> UiNode<Stack>;
+    fn h_stack(&mut self) -> UiNode<Any>;
     fn end_h_stack(&mut self);
 }
 impl AddParentManual for Ui {
-    fn add_parent<T: NodeType>(&mut self, key: TypedKey<T>, params: &NodeParams) -> UiNode<T> {
-        let i = self.update_node(key, params, true);
-        return self.get_ref_unchecked(i, &key)
+    fn add_parent(&mut self, params: &NodeParams) -> UiNode<Any> {
+        let i = self.update_node(params.key, params, true, false);
+        return self.get_ref_unchecked(i, &params.key)
     }
 
     // todo: I wanted to add this checked version, but there is a twin-related problem here.
@@ -21,14 +21,14 @@ impl AddParentManual for Ui {
     // sounds stupid to store the non-twinned id just for this stupid check.
 
     // I think what we want is the still the Latest Twin Id, but should think some more about it.  
-    fn end_parent<T: NodeType>(&mut self, key: TypedKey<T>) {
+    fn end_parent(&mut self, params: &NodeParams) {
         let ended_parent = self.sys.parent_stack.pop();
 
         #[cfg(debug_assertions)] {
-            let ended_parent = ended_parent.expect(&format!("Misplaced end_parent: {}", key.debug_name));
+            let ended_parent = ended_parent.expect(&format!("Misplaced end_parent: {}", params.key.debug_name));
             let ended_parent_id = self.nodes[ended_parent].id;
 
-            let twin_key = self.get_latest_twin_key(key).unwrap();
+            let twin_key = self.get_latest_twin_key(params.key).unwrap();
             debug_assert!(ended_parent_id == twin_key.id(),
             "Misplaced end_parent: tried to end {:?}, but {:?} was the latest parent", self.nodes[ended_parent].debug_name(), twin_key.debug_name
             );
@@ -37,8 +37,8 @@ impl AddParentManual for Ui {
         self.sys.last_child_stack.pop();
     }
 
-    fn v_stack(&mut self) -> UiNode<Stack> {
-        let i = self.update_node(ANON_VSTACK, &V_STACK, true);
+    fn v_stack(&mut self) -> UiNode<Any> {
+        let i = self.update_node(ANON_VSTACK, &V_STACK, true, false);
         return self.get_ref_unchecked(i, &ANON_VSTACK)
     }
 
@@ -58,8 +58,8 @@ impl AddParentManual for Ui {
         self.sys.last_child_stack.pop();
     }
 
-    fn h_stack(&mut self) -> UiNode<Stack> {
-        let i = self.update_node(ANON_HSTACK, &H_STACK, true);
+    fn h_stack(&mut self) -> UiNode<Any> {
+        let i = self.update_node(ANON_HSTACK, &H_STACK, true, false);
         return self.get_ref_unchecked(i, &ANON_HSTACK)
     }
 

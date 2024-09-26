@@ -46,7 +46,7 @@ fn main() -> Result<(), EventLoopError> {
 pub struct State {
     pub ctx: Context,
     pub ui: Ui,
-    pub counter_state: CounterState,
+    pub count_state: CounterState,
     pub canvas: Canvas,
 
     pub info_visible: bool,
@@ -103,7 +103,7 @@ impl State {
         return State {
             ctx,
             ui,
-            counter_state: CounterState::new(),
+            count_state: CounterState::new(),
             canvas,
     
             info_visible: true,

@@ -1,4 +1,4 @@
-use crate::node_params::{ANON_TEXT, DEFAULT, NODE_ROOT_PARAMS, TEXT};
+use crate::node_params::{DEFAULT, NODE_ROOT_PARAMS, TEXT};
 use crate::render::TypedGpuBuffer;
 use crate::texture_atlas::{ImageRef, TextureAtlas};
 use copypasta::ClipboardContext;
@@ -121,6 +121,7 @@ pub struct NodeParams {
     pub rect: Rect,
     pub interact: Interact,
     pub layout: Layout,
+    pub key: NodeKey,
 }
 
 pub const RADIUS: f32 = 20.0;
@@ -128,6 +129,11 @@ pub const RADIUS: f32 = 20.0;
 impl NodeParams {
     pub const fn const_default() -> Self {
         return DEFAULT;
+    }
+
+    pub const fn key(mut self, key: NodeKey) -> Self {
+        self.key = key;
+        return self;
     }
 
     // todo: in a future version of Rust that allows it, change these to take a generic Into<Size>
@@ -434,6 +440,14 @@ pub struct UiNode<'a, T: NodeType> {
 // why can't you just do it separately?
 impl<'a,  T: NodeType> UiNode<'a, T> {
 
+    pub fn children(&mut self, content_block: impl FnOnce(&mut Ui)) {
+        self.ui.sys.parent_stack.push(self.node);           
+
+        content_block(self.ui);
+
+        self.ui.end_parent_unchecked();
+    }
+
     pub fn node_mut(&mut self) -> &mut Node {
         return &mut self.ui.nodes.nodes[self.node];
     }
@@ -518,11 +532,7 @@ impl<'a, T: TextTrait> UiNode<'a, T> {
             self.ui.sys.text.set_text_hashed(text_id, text);
         } else {
             let text_id = self.ui.sys.text.maybe_new_text_area(Some(text), self.ui.sys.part.current_frame);
-
             self.node_mut().text_id = text_id;
-            // todo: log a warning or something
-            // or make these things type safe somehow
-            // ...or create the textarea now
         }
 
         return self;
@@ -727,6 +737,7 @@ impl NodeMapEntry {
 
 }
 
+#[derive(Debug)]
 pub struct Nodes {
     // todo: make faster o algo
     pub node_hashmap: FxHashMap<Id, NodeMapEntry>,
@@ -1066,13 +1077,13 @@ impl Ui {
         }
     }
 
-    pub fn add<T: NodeType>(&mut self, key: TypedKey<T>, params: &NodeParams) -> UiNode<T> {
-        let i = self.update_node(key, params, false);
-        return self.get_ref_unchecked(i, &key)
+    pub fn add(&mut self, params: &NodeParams) -> UiNode<Any> {
+        let i = self.update_node(params.key, params, false, false);
+        return self.get_ref_unchecked(i, &params.key)
     }
 
     pub fn add_as_parent_unchecked<T: ParentTrait>(&mut self, key: TypedKey<T>, params: &NodeParams) -> usize {
-        let i = self.update_node(key, params, true);
+        let i = self.update_node(key, params, true, false);
         return i;
     }
 
@@ -1082,21 +1093,21 @@ impl Ui {
     }
 
     // don't expect this to give you twin nodes automatically
-    pub fn get_ref<T: NodeType>(&mut self, key: TypedKey<T>) -> UiNode<T> {
+    pub fn get_ref<T: NodeType>(&mut self, key: TypedKey<T>) -> UiNode<Any> {
         let node_i = self.nodes.node_hashmap.get(&key.id()).unwrap().slab_i;
         return self.get_ref_unchecked(node_i, &key)
     }
 
     // only for the macro, use get_ref 
-    pub fn get_ref_unchecked<T: NodeType>(&mut self, i: usize, _key: &TypedKey<T>) -> UiNode<T> {        
+    pub fn get_ref_unchecked<T: NodeType>(&mut self, i: usize, _key: &TypedKey<T>) -> UiNode<Any> {        
         return UiNode {
             node: i,
             ui: self,
-            nodetype_marker: PhantomData::<T>,
+            nodetype_marker: PhantomData::<Any>,
         };
     }
 
-    pub fn update_node<T: NodeType>(&mut self, key: TypedKey<T>, params: &NodeParams, make_new_layer: bool) -> usize {
+    pub fn update_node<T: NodeType>(&mut self, key: TypedKey<T>, params: &NodeParams, make_new_layer: bool, helix_mode: bool) -> usize {
         let parent_i = self.sys.parent_stack.last().unwrap().clone();
 
         let frame = self.sys.part.current_frame;
@@ -1168,9 +1179,11 @@ impl Ui {
             },
         };
 
-        self.add_child_to_parent(real_final_i, parent_i);
-        if make_new_layer {
-            self.sys.parent_stack.push(real_final_i);           
+        if ! helix_mode {
+            self.add_child_to_parent(real_final_i, parent_i);
+            if make_new_layer {
+                self.sys.parent_stack.push(real_final_i);           
+            }
         }
 
         return real_final_i;
@@ -1208,8 +1221,8 @@ impl Ui {
 
     }
 
-    pub fn text(&mut self, text: &str) -> UiNode<TextNodeType> {
-        self.add(ANON_TEXT, &TEXT).text(text)
+    pub fn text(&mut self, text: &str) -> UiNode<Any> {
+        self.add(&TEXT).text(text)
     }
 
 
@@ -1373,31 +1386,16 @@ impl Ui {
 
 #[macro_export]
 macro_rules! add {
-    ($ui:expr, $key:expr, $defaults:expr, $code:block) => {
+    ($ui:expr, $params:expr, $code:block) => {
         {
-            let i = $ui.add_as_parent_unchecked($key, &$defaults);
+            let i = $ui.add_as_parent_unchecked($params.key, &$params);
             $code;
             $ui.end_parent_unchecked();
-            $ui.get_ref_unchecked(i, &$key)
+            $ui.get_ref_unchecked(i, &$params.key)
         }
     };
-    ($ui:expr, $key:expr, $defaults:expr) => {
-        $ui.add($key, $defaults)
-    };
-}
-
-#[macro_export]
-macro_rules! add_anon {
-    ($ui:expr, $defaults:expr, $code:block) => {
-        {
-            let i = $ui.add_as_parent_unchecked(ANON_NODE, &$defaults);
-            $code;
-            $ui.end_parent_unchecked();
-            $ui.get_ref_unchecked(i, &ANON_NODE)
-        }
-    };
-    ($ui:expr, $defaults:expr) => {
-        $ui.add(ANON_NODE, $defaults)
+    ($ui:expr, $params:expr) => {
+        $ui.add($params.key, $params)
     };
 }
 
@@ -1848,3 +1846,89 @@ macro_rules! for_each_child {
 //         return self;
 //     }
 // }
+
+#[derive(Debug)]
+pub struct TreeBuilder<'a> {
+    node: usize,
+    children: &'a [TreeBuilder<'a>],
+}
+
+impl Ui {
+    pub fn print_from_i(&self, i: usize) {
+        println!("  {:?} ({:?})", self.nodes.nodes[i].debug_name, i);
+    }
+}
+
+impl TreeBuilder<'_> {
+    pub fn build(&self, ui: &mut Ui) {
+
+        ui.add_child_to_parent(self.node, ui.sys.root_i);
+
+        // traverse the helixtree
+        self.traverse(ui);
+    }
+
+    pub fn traverse(&self, ui: &mut Ui) {
+        let current = self.node;
+
+        for child in self.children {
+            ui.nodes.nodes[child.node].parent = current;
+        }
+
+        // todo: please rewrite
+        if let Some((first, rest)) = self.children.split_first() {
+
+            ui.nodes.nodes[current].first_child = Some(first.node);
+            ui.nodes.nodes[current].n_children = self.children.len() as u16;
+                        
+            let mut last_child = first.node;
+            for child in rest {
+                ui.nodes.nodes[last_child].next_sibling = Some(child.node);
+                last_child = child.node;
+            }
+        }
+
+        for child in self.children {
+            child.traverse(ui);
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ChildrenBuilder(usize);
+
+impl Ui {
+    pub fn add2<'a>(&mut self, params: &NodeParams, text: & str) -> TreeBuilder<'a> {
+        let slab_i = self.update_node(params.key, params, false, true);
+        
+
+        // ...let's be patient here for a bit
+        if let Some(text_id) = self.nodes.nodes[slab_i].text_id {
+            self.sys.text.set_text_hashed(text_id, text);
+        } else {
+            let text_id = self.sys.text.maybe_new_text_area(Some(text), self.sys.part.current_frame);
+            self.nodes.nodes[slab_i].text_id = text_id;
+        }
+        
+        return TreeBuilder { 
+            node: slab_i,
+            children: &[]
+        }
+
+    }
+
+    pub fn parent<'a>(&mut self, params: &NodeParams) -> ChildrenBuilder {
+        let slab_i = self.update_node(params.key, params, false, true);
+
+        return ChildrenBuilder(slab_i);
+    }
+}
+
+impl ChildrenBuilder {   
+    pub fn children<'a>(self, children: &'a [TreeBuilder<'a>]) -> TreeBuilder<'a> {
+        TreeBuilder {
+            node: self.0,
+            children
+        }
+    }
+}
