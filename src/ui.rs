@@ -3,7 +3,7 @@ use crate::render::TypedGpuBuffer;
 use crate::texture_atlas::{ImageRef, TextureAtlas};
 use copypasta::ClipboardContext;
 use glyphon::cosmic_text::{Align, StringCursor};
-use glyphon::AttrsList;
+use glyphon::{AttrsList, Color as GlyphonColor, TextBounds};
 use rustc_hash::{FxHashMap, FxHasher};
 use slab::Slab;
 use wgpu::*;
@@ -512,12 +512,17 @@ impl<'a,  T: NodeType> UiNode<'a, T> {
 
 impl<'a, T: TextTrait> UiNode<'a, T> {
 
-    pub fn text(&mut self, text: &str) -> &mut Self {
+    pub fn text(mut self, text: &str) -> Self {
+        
         if let Some(text_id) = self.node_mut().text_id {
             self.ui.sys.text.set_text_hashed(text_id, text);
         } else {
+            let text_id = self.ui.sys.text.maybe_new_text_area(Some(text), self.ui.sys.part.current_frame);
+
+            self.node_mut().text_id = text_id;
             // todo: log a warning or something
             // or make these things type safe somehow
+            // ...or create the textarea now
         }
 
         return self;
@@ -594,51 +599,53 @@ pub struct TextSystem {
 }
 const GLOBAL_TEXT_METRICS: Metrics = Metrics::new(24.0, 24.0);
 impl TextSystem {
-    pub(crate) fn maybe_new_text_area(&mut self, text: Option<TextOptions>, current_frame: u64) -> Option<usize> {
-        todo!();
+    pub(crate) fn maybe_new_text_area(&mut self, text: Option<&str>, current_frame: u64) -> Option<usize> {
+        let text = match text {
+            Some(text) => text,
+            None => return None,
+        };
 
-        // let mut buffer = GlyphonBuffer::new(&mut self.font_system, GLOBAL_TEXT_METRICS);
-        // buffer.set_size(&mut self.font_system, 500., 500.);
+        let mut buffer = GlyphonBuffer::new(&mut self.font_system, GLOBAL_TEXT_METRICS);
+        buffer.set_size(&mut self.font_system, 500., 500.);
 
-        // let mut hasher = FxHasher::default();
-        // text.hash(&mut hasher);
-        // let hash = hasher.finish();
+        let mut hasher = FxHasher::default();
+        text.hash(&mut hasher);
+        let hash = hasher.finish();
 
-        // // todo: maybe remove duplication with set_text_hashed (the branch in refresh_node that updates the text without creating a new entry here)
-        // // buffer.set_wrap(&mut self.font_system, glyphon::Wrap::Word);
-        // buffer.set_text(
-        //     &mut self.font_system,
-        //     text,
-        //     Attrs::new().family(Family::SansSerif),
-        //     Shaping::Advanced,
-        // );
+        // todo: maybe remove duplication with set_text_hashed (the branch in refresh_node that updates the text without creating a new entry here)
+        // buffer.set_wrap(&mut self.font_system, glyphon::Wrap::Word);
+        buffer.set_text(
+            &mut self.font_system,
+            text,
+            Attrs::new().family(Family::SansSerif),
+            Shaping::Advanced,
+        );
 
 
-        // for line in &mut buffer.lines {
-        //     line.set_align(Some(glyphon::cosmic_text::Align::Center));
-        // }
+        for line in &mut buffer.lines {
+            line.set_align(Some(glyphon::cosmic_text::Align::Center));
+        }
 
-        // let text_area = TextArea {
-        //     buffer,
-        //     left: 10.0,
-        //     top: 10.0,
-        //     scale: 1.0,
-        //     bounds: TextBounds {
-        //         left: 0,
-        //         top: 0,
-        //         right: 10000,
-        //         bottom: 10000,
-        //     },
-        //     default_color: GlyphonColor::rgb(255, 255, 255),
-        //     depth: 0.0,
-        //     last_frame_touched: current_frame,
-        //     last_hash: hash,
-        // };
-        // self.text_areas.push(text_area);
-        // let text_id = self.text_areas.len() - 1;
+        let text_area = TextArea {
+            buffer,
+            left: 10.0,
+            top: 10.0,
+            scale: 1.0,
+            bounds: TextBounds {
+                left: 0,
+                top: 0,
+                right: 10000,
+                bottom: 10000,
+            },
+            default_color: GlyphonColor::rgb(255, 255, 255),
+            depth: 0.0,
+            last_frame_touched: current_frame,
+            last_hash: hash,
+        };
+        self.text_areas.push(text_area);
+        let text_id = self.text_areas.len() - 1;
 
-        // return Some(text_id);
-        return None;
+        return Some(text_id);
     }
 
     fn refresh_last_frame(&mut self, text_id: Option<usize>, current_frame: u64) {
@@ -1201,8 +1208,8 @@ impl Ui {
 
     }
 
-    pub fn text(&mut self, text: &str) {
-        self.add(ANON_TEXT, &TEXT).text(text);
+    pub fn text(&mut self, text: &str) -> UiNode<TextNodeType> {
+        self.add(ANON_TEXT, &TEXT).text(text)
     }
 
 
