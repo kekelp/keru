@@ -196,6 +196,21 @@ impl Ui {
     fn build_rect_and_place_children(&mut self, node: usize) {
         self.build_rect(node);
         
+        // println!(" visiting      {:?}", self.nodes[node].debug_name);
+
+        // if let Some(i) = self.nodes[node].next_sibling {
+        //     println!("    next_child {:?}", self.nodes[i].debug_name);
+        // } else {
+        //     println!("    next_child None");
+        // }
+
+        // if let Some(i) = self.nodes[node].first_child {
+        //     println!("      first_child {:?}", self.nodes[i].debug_name);
+        // } else {
+        //     println!("      first_child None");
+        // }
+
+
         if let Some(stack) = self.nodes[node].params.stack {
             self.build_rect_and_place_children_stack(node, stack);
         } else {

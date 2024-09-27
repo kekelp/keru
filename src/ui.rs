@@ -1,4 +1,4 @@
-use crate::node_params::{ANON_VSTACK, DEFAULT, NODE_ROOT_PARAMS, TEXT, V_STACK};
+use crate::node_params::{ANON_HSTACK, ANON_VSTACK, DEFAULT, H_STACK, NODE_ROOT_PARAMS, TEXT, V_STACK};
 use crate::render::TypedGpuBuffer;
 use crate::texture_atlas::{ImageRef, TextureAtlas};
 use copypasta::ClipboardContext;
@@ -10,8 +10,8 @@ use wgpu::*;
 use winit::event::{ElementState, MouseScrollDelta};
 use crate::math::*;
 
+use std::cell::RefCell;
 use std::collections::hash_map::Entry;
-use std::mem::forget;
 use std::sync::LazyLock;
 use std::{
     hash::Hasher,
@@ -441,26 +441,6 @@ pub struct UiNode<'a, T: NodeType> {
 // why can't you just do it separately?
 impl<'a,  T: NodeType> UiNode<'a, T> {
 
-    // for closure mode
-    pub fn children(&mut self, content_block: impl FnOnce(&mut Ui)) {
-        self.ui.sys.parent_stack.push(self.node);           
-
-        content_block(self.ui);
-
-        self.ui.end_parent_unchecked();
-    }
-    
-    pub fn children2(&self, mut content_block: impl FnMut()) {
-
-        content_block();
-
-    }
-
-    // for manual mode
-    pub fn start_parent(&mut self) {
-        self.ui.sys.parent_stack.push(self.node);           
-    }
-
     pub fn node_mut(&mut self) -> &mut Node {
         return &mut self.ui.nodes.nodes[self.node];
     }
@@ -776,7 +756,7 @@ impl IndexMut<usize> for Nodes {
 
 impl System {
     pub fn build_new_node<T: NodeType>(&mut self, key: &TypedKey<T>, params: &NodeParams, twin_n: Option<u32>) -> Node {
-        let parent_i = self.parent_stack.last().unwrap().clone();
+        let parent_i = thread_local_last_parent();
 
         // add back somewhere
 
@@ -838,12 +818,6 @@ pub struct System {
     
     // stack for traversing
     pub traverse_stack: Vec<usize>,
-
-    // stack for keeping track of parents when adding
-    pub parent_stack: Vec<usize>,
-    
-    // stack for keeping track of siblings when adding
-    pub last_child_stack: Vec<usize>,
 
     pub part: PartialBorrowStuff,
 
@@ -1016,11 +990,7 @@ impl Ui {
             n_twins: 0,
         };
         
-        let mut stack = Vec::with_capacity(7);
-        stack.push(root_i);
-        
-        let mut parent_stack = Vec::with_capacity(7);
-        parent_stack.push(root_i);
+        thread_local_push_parent(root_i);
 
         node_hashmap.insert(NODE_ROOT_ID, root_map_entry);
 
@@ -1066,10 +1036,6 @@ impl Ui {
 
                 traverse_stack: Vec::with_capacity(50),
 
-                parent_stack,
-
-                last_child_stack: Vec::with_capacity(20),
-
                 size_scratch: Vec::with_capacity(15),
 
                 part: PartialBorrowStuff {
@@ -1090,21 +1056,6 @@ impl Ui {
         }
     }
 
-    pub fn add7(&mut self, params: &NodeParams) -> UiNode<Any> {
-        let i = self.update_node(params.key, params, false, false);
-        return self.get_ref_unchecked(i, &params.key)
-    }
-
-    pub fn add_as_parent_unchecked<T: ParentTrait>(&mut self, key: TypedKey<T>, params: &NodeParams) -> usize {
-        let i = self.update_node(key, params, true, false);
-        return i;
-    }
-
-    pub fn end_parent_unchecked(&mut self) {
-        self.sys.parent_stack.pop();
-        self.sys.last_child_stack.pop();
-    }
-
     // don't expect this to give you twin nodes automatically
     pub fn get_ref<T: NodeType>(&mut self, key: TypedKey<T>) -> UiNode<Any> {
         let node_i = self.nodes.node_hashmap.get(&key.id()).unwrap().slab_i;
@@ -1120,8 +1071,8 @@ impl Ui {
         };
     }
 
-    pub fn update_node<T: NodeType>(&mut self, key: TypedKey<T>, params: &NodeParams, make_new_layer: bool, helix_mode: bool) -> usize {
-        let parent_i = self.sys.parent_stack.last().unwrap().clone();
+    pub fn update_node<T: NodeType>(&mut self, key: TypedKey<T>, params: &NodeParams) -> usize {
+        let parent_i = thread_local_last_parent();
 
         let frame = self.sys.part.current_frame;
 
@@ -1192,12 +1143,7 @@ impl Ui {
             },
         };
 
-        if ! helix_mode {
-            self.add_child_to_parent(real_final_i, parent_i);
-            if make_new_layer {
-                self.sys.parent_stack.push(real_final_i);           
-            }
-        }
+        self.add_child_to_parent(real_final_i, parent_i);
 
         return real_final_i;
     }
@@ -1223,19 +1169,18 @@ impl Ui {
         if self.nodes[parent_id].first_child == None {
             self.nodes[parent_id].first_child = Some(id);
 
-            self.sys.last_child_stack.push(id);
+            thread_local_push_sibling(id);
 
         } else {
-            let prev_sibling = *self.sys.last_child_stack.last().unwrap();
-            // self.nodes[id].prev_sibling = Some(prev_sibling);
+            let prev_sibling = thread_local_pop_sibling();
             self.nodes[prev_sibling].next_sibling = Some(id);
-            *self.sys.last_child_stack.last_mut().unwrap() = id;
+            thread_local_push_sibling(id);
         }
 
     }
 
     pub fn text(&mut self, text: &str) -> UiNode<Any> {
-        self.add7(&TEXT).text(text)
+        self.add(&TEXT).text(text)
     }
 
 
@@ -1419,6 +1364,7 @@ impl Ui {
     }
     
     pub fn finish_tree(&mut self) {
+        thread_local_clear_siblings();
         self.layout_and_build_rects();
         self.resolve_hover();
         
@@ -1478,7 +1424,7 @@ pub struct Node {
 impl Node {
     pub fn debug_name(&self) -> String {
         let debug_name = match self.is_twin {
-            Some(n) => format!("{} (twin #{}", self.debug_name, n),
+            Some(n) => format!("{} (twin #{})", self.debug_name, n),
             None => format!("{}", self.debug_name),
         };
         return debug_name;
@@ -1860,159 +1806,107 @@ macro_rules! for_each_child {
 //     }
 // }
 
-#[derive(Debug)]
-pub struct TreeBuilder<'a> {
-    node: usize,
-    children: &'a [TreeBuilder<'a>],
-}
-
-impl Ui {
-    pub fn print_from_i(&self, i: usize) {
-        println!("  {:?} ({:?})", self.nodes.nodes[i].debug_name, i);
-    }
-}
-
-impl TreeBuilder<'_> {
-    pub fn build(&self, ui: &mut Ui) {
-
-        ui.add_child_to_parent(self.node, ui.sys.root_i);
-
-        // traverse the helixtree
-        self.traverse(ui);
-    }
-
-    pub fn traverse(&self, ui: &mut Ui) {
-        let current = self.node;
-
-        for child in self.children {
-            ui.nodes.nodes[child.node].parent = current;
-        }
-
-        // todo: please rewrite
-        if let Some((first, rest)) = self.children.split_first() {
-
-            ui.nodes.nodes[current].first_child = Some(first.node);
-            ui.nodes.nodes[current].n_children = self.children.len() as u16;
-                        
-            let mut last_child = first.node;
-            for child in rest {
-                ui.nodes.nodes[last_child].next_sibling = Some(child.node);
-                last_child = child.node;
-            }
-        }
-
-        for child in self.children {
-            child.traverse(ui);
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct ChildrenBuilder(usize);
-
-impl Ui {
-    pub fn add2<'a>(&mut self, params: &NodeParams, text: & str) -> TreeBuilder<'a> {
-        let slab_i = self.update_node(params.key, params, false, true);
-        
-
-        // ...let's be patient here for a bit
-        if let Some(text_id) = self.nodes.nodes[slab_i].text_id {
-            self.sys.text.set_text_hashed(text_id, text);
-        } else {
-            let text_id = self.sys.text.maybe_new_text_area(Some(text), self.sys.part.current_frame);
-            self.nodes.nodes[slab_i].text_id = text_id;
-        }
-        
-        return TreeBuilder { 
-            node: slab_i,
-            children: &[]
-        }
-
-    }
-
-    pub fn parent_657768<'a>(&mut self, params: &NodeParams) -> ChildrenBuilder {
-        let slab_i = self.update_node(params.key, params, false, true);
-
-        return ChildrenBuilder(slab_i);
-    }
-}
-
-impl ChildrenBuilder {   
-    pub fn children<'a>(self, children: &'a [TreeBuilder<'a>]) -> TreeBuilder<'a> {
-        TreeBuilder {
-            node: self.0,
-            children
-        }
-    }
-}
-
-
 pub struct Parent {
-    // add the usize here... but it shouldn't be an issue
+    node: usize
 }
 impl Parent {
-    // for ghost closure mode
     pub fn nest(&self, children_block: impl FnOnce()) {
-        // self.ui.sys.parent_stack.push(self.node);           
-        println!("  {:?}", "magic push");
+        thread_local_push_parent(self.node);
         
         children_block();
         
-        println!("  {:?}", "magic pop");
-        // self.ui.end_parent_unchecked();
+        thread_local_pop_parent();
+        thread_local_pop_sibling();
     }
 }
 
 impl<'a,  T: NodeType> UiNode<'a, T> {
     pub fn parent(&self) -> Parent {
-        return Parent {};
+        return Parent {
+            node: self.node
+        };
     }    
 }
 
-pub trait BuilderCringe<'a> {
-    fn create(node: usize, ui: &'a mut Ui) -> Self;
-}
-
-impl<'a> BuilderCringe<'a> for Parent {
-    fn create(_node: usize, _ui: &mut Ui) -> Self {
-        return Parent {};
-    }
-}
-impl<'a> BuilderCringe<'a> for UiNode<'a, Any> {
-    fn create(node: usize, ui: &'a mut Ui) -> Self {
-        return UiNode {
-            node,
-            ui,
-            nodetype_marker: PhantomData::<Any>,
-        };
-    }
-}
-
 impl Ui {
-
-    pub fn add3<'a, R: BuilderCringe<'a>>(&'a mut self, params: &'a NodeParams) -> R  {
-        let node = self.update_node(params.key, params, false, false);
-        return R::create(node, self)
-    }
-
-    // same as the classic add()
     pub fn add(&mut self, params: &NodeParams) -> UiNode<Any> {
-        let i = self.update_node(params.key, params, false, false);
+        let i = self.update_node(params.key, params);
         return self.get_ref_unchecked(i, &params.key)
     }
 
-
     pub fn add_parent(&mut self, params: &NodeParams) -> Parent {
-        let _i = self.update_node(params.key, params, false, false);
+        let node = self.update_node(params.key, params);
         return Parent {
-
+            node
         }
     }
 
     pub fn v_stack2(&mut self) -> Parent {
-        let _i = self.update_node(ANON_VSTACK, &V_STACK, true, false);
+        let node = self.update_node(ANON_VSTACK, &V_STACK);
         return Parent {
+            node
+        }
+    }
 
+    pub fn h_stack2(&mut self) -> Parent {
+        let node = self.update_node(ANON_HSTACK, &H_STACK);
+        return Parent {
+            node
         }
     }
 }
+
+#[derive(Default, Debug, Clone)]
+pub(crate) struct Stacks {
+    parents: Vec<usize>,
+    siblings: Vec<usize>,
+}
+
+// Global stacks
+thread_local! {
+    static THREAD_STACKS: RefCell<Stacks> = RefCell::new(Stacks::default());
+}
+
+pub(crate) fn thread_local_push_parent(new_parent: usize) {
+    THREAD_STACKS.with(|stack| {
+        stack.borrow_mut().parents.push(new_parent);
+    });
+}
+
+pub(crate) fn thread_local_pop_parent() {
+    THREAD_STACKS.with(|stack| {
+        stack.borrow_mut().parents.pop().unwrap();
+    })
+}
+
+pub(crate) fn thread_local_last_parent() -> usize {
+    THREAD_STACKS.with(|stack| {
+        stack.borrow().parents.last().unwrap().clone()
+    })
+}
+
+pub(crate) fn thread_local_push_sibling(new_siblings: usize) {
+    THREAD_STACKS.with(|stack| {
+        stack.borrow_mut().siblings.push(new_siblings);
+    });
+}
+
+pub(crate) fn thread_local_pop_sibling() -> usize {
+    THREAD_STACKS.with(|stack| {
+        let a = stack.borrow_mut().siblings.pop().unwrap();
+        return a;
+    })
+}
+
+pub(crate) fn thread_local_clear_siblings() {
+    THREAD_STACKS.with(|stack| {
+        return stack.borrow_mut().siblings.clear();
+    })
+}
+
+// pub(crate) fn clone_thread_local_stack() -> Stacks {
+//     THREAD_STACKS.with(|stack| {
+//         let a = stack.borrow_mut().clone();
+//         return a;
+//     })
+// }

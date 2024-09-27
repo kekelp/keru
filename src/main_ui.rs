@@ -16,7 +16,7 @@ const FLGR_PANEL: NodeParams = PANEL.vertex_colors(GRAD1);
 
 impl State {
     #[rustfmt::skip]
-    pub fn update_ui(&mut self) {
+    pub fn update_ui_8787(&mut self) {
         self.ui.begin_tree();
 
         #[node_key] const INCREASE: NodeKey;
@@ -27,11 +27,11 @@ impl State {
 
         let count_str = &self.count_state.count.to_string();
 
-        self.ui.parent_657768(&V_STACK).children(&[
-            self.ui.add2(&increase, "Increase"),
-            self.ui.add2(&count_label, count_str),
-            self.ui.add2(&decrease, "Decrease"),
-        ]).build(&mut self.ui);
+        self.ui.add_parent(&V_STACK).nest(|| {
+            self.ui.add(&increase).text("Increase");
+            self.ui.add(&count_label).text(count_str);
+            self.ui.add(&decrease).text("Decrease");
+        });
 
         if self.ui.is_clicked(INCREASE) {
             self.count_state.count += 1;
@@ -43,13 +43,10 @@ impl State {
         self.ui.finish_tree();
     }
 
-    pub fn update_ui_old(&mut self) {
+    pub fn update_ui(&mut self) {
         tree!(self.ui, {
 
-            println!("  {:?}", "Among us");
-
             #[node_key] const RIGHT_BAR: NodeKey;
-
             let sidebar = V_STACK
                 .key(RIGHT_BAR)
                 .position_x(Position::End)
@@ -57,20 +54,21 @@ impl State {
                 .size_x(FitContent)
                 .stack_arrange(Arrange::Center);
 
-            add!(self.ui, sidebar, {
-                self.slider_value = self.ui.add_slider(self.slider_value);
-            });
-
-
+            #[node_key] const LEFT_BAR: NodeKey;
             let left_bar = V_STACK
+                .key(LEFT_BAR)
                 .position_x(Position::Start)
                 .size_y(Fill)
                 .size_x(FitContent)
                 .stack_arrange(Arrange::Center);
 
-            add!(self.ui, left_bar, {
-                self.add_tools();
+            self.ui.add_parent(&sidebar).nest(|| {
+                self.slider_value = self.ui.add_slider(self.slider_value);
+            });
+
+            self.ui.add_parent(&left_bar).nest(|| {
                 self.add_pixel_info_ui();
+                self.add_tools();
             });
 
         });
@@ -143,22 +141,14 @@ impl State {
             .position_y(Start)
             .size_x(FitContent);
 
-
-        use add_parent_manual::AddParentManual;
-        self.ui.add7(&tools_panel).start_parent();
-        {
-            self.ui.h_stack();
-            {
-                self.ui.v_stack();
-                {
-                    self.ui.add7(&brush).static_image(include_bytes!("icons/brush.png"));
-                    self.ui.add7(&eraser).static_image(include_bytes!("icons/eraser.png"));
-                }
-                self.ui.end_v_stack();
-            }
-            self.ui.end_h_stack();
-        }
-        self.ui.end_parent(&tools_panel);
+        self.ui.add_parent(&tools_panel).nest(|| {
+            self.ui.h_stack2().nest(|| {
+                self.ui.v_stack2().nest(|| {
+                    self.ui.add(&brush).static_image(include_bytes!("icons/brush.png"));
+                    self.ui.add(&eraser).static_image(include_bytes!("icons/eraser.png"));
+                });
+            });
+        });
 
         if self.ui.is_clicked(BRUSH) {
             self.canvas.paint_color = PixelColorF32::new(0.2, 0.8, 0.2, 1.0);
@@ -193,12 +183,9 @@ impl Ui {
         .padding_y(Pixels(2));
     
         
-        use add_parent_manual::AddParentManual;
-        self.add_parent(&slider_container);
-        {
-            self.add7(&slider_fill);
-        }
-        self.end_parent(&slider_container);
+        self.add_parent(&slider_container).nest(|| {
+            self.add(&slider_fill);
+        });
         
         if let Some((_x, y)) = self.is_dragged(SLIDER_CONTAINER) {
             value += y as f32;
@@ -212,17 +199,3 @@ impl Ui {
         return value;
     }
 }
-
-// // // this is what you cannot do in lifetime soup mode
-// fn text(pixel_info: Option<&PixelInfo>) -> NodeParams {
-
-//     let (x, y) = match pixel_info {
-//         Some(pixel_info) => (
-//             format!("x: {}", pixel_info.x),
-//             format!("y: {}", pixel_info.y),
-//         ),
-//         None => ("x:  ".to_owned(), "y:  ".to_owned()),
-//     };
-
-//     return TEXT.text(&x);
-// }
