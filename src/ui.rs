@@ -1,4 +1,4 @@
-use crate::node_params::{DEFAULT, NODE_ROOT_PARAMS, TEXT};
+use crate::node_params::{ANON_VSTACK, DEFAULT, NODE_ROOT_PARAMS, TEXT, V_STACK};
 use crate::render::TypedGpuBuffer;
 use crate::texture_atlas::{ImageRef, TextureAtlas};
 use copypasta::ClipboardContext;
@@ -11,6 +11,7 @@ use winit::event::{ElementState, MouseScrollDelta};
 use crate::math::*;
 
 use std::collections::hash_map::Entry;
+use std::mem::forget;
 use std::sync::LazyLock;
 use std::{
     hash::Hasher,
@@ -440,12 +441,24 @@ pub struct UiNode<'a, T: NodeType> {
 // why can't you just do it separately?
 impl<'a,  T: NodeType> UiNode<'a, T> {
 
+    // for closure mode
     pub fn children(&mut self, content_block: impl FnOnce(&mut Ui)) {
         self.ui.sys.parent_stack.push(self.node);           
 
         content_block(self.ui);
 
         self.ui.end_parent_unchecked();
+    }
+    
+    pub fn children2(&self, mut content_block: impl FnMut()) {
+
+        content_block();
+
+    }
+
+    // for manual mode
+    pub fn start_parent(&mut self) {
+        self.ui.sys.parent_stack.push(self.node);           
     }
 
     pub fn node_mut(&mut self) -> &mut Node {
@@ -1077,7 +1090,7 @@ impl Ui {
         }
     }
 
-    pub fn add(&mut self, params: &NodeParams) -> UiNode<Any> {
+    pub fn add7(&mut self, params: &NodeParams) -> UiNode<Any> {
         let i = self.update_node(params.key, params, false, false);
         return self.get_ref_unchecked(i, &params.key)
     }
@@ -1222,7 +1235,7 @@ impl Ui {
     }
 
     pub fn text(&mut self, text: &str) -> UiNode<Any> {
-        self.add(&TEXT).text(text)
+        self.add7(&TEXT).text(text)
     }
 
 
@@ -1917,7 +1930,7 @@ impl Ui {
 
     }
 
-    pub fn parent<'a>(&mut self, params: &NodeParams) -> ChildrenBuilder {
+    pub fn parent_657768<'a>(&mut self, params: &NodeParams) -> ChildrenBuilder {
         let slab_i = self.update_node(params.key, params, false, true);
 
         return ChildrenBuilder(slab_i);
@@ -1929,6 +1942,77 @@ impl ChildrenBuilder {
         TreeBuilder {
             node: self.0,
             children
+        }
+    }
+}
+
+
+pub struct Parent {
+    // add the usize here... but it shouldn't be an issue
+}
+impl Parent {
+    // for ghost closure mode
+    pub fn nest(&self, children_block: impl FnOnce()) {
+        // self.ui.sys.parent_stack.push(self.node);           
+        println!("  {:?}", "magic push");
+        
+        children_block();
+        
+        println!("  {:?}", "magic pop");
+        // self.ui.end_parent_unchecked();
+    }
+}
+
+impl<'a,  T: NodeType> UiNode<'a, T> {
+    pub fn parent(&self) -> Parent {
+        return Parent {};
+    }    
+}
+
+pub trait BuilderCringe<'a> {
+    fn create(node: usize, ui: &'a mut Ui) -> Self;
+}
+
+impl<'a> BuilderCringe<'a> for Parent {
+    fn create(_node: usize, _ui: &mut Ui) -> Self {
+        return Parent {};
+    }
+}
+impl<'a> BuilderCringe<'a> for UiNode<'a, Any> {
+    fn create(node: usize, ui: &'a mut Ui) -> Self {
+        return UiNode {
+            node,
+            ui,
+            nodetype_marker: PhantomData::<Any>,
+        };
+    }
+}
+
+impl Ui {
+
+    pub fn add3<'a, R: BuilderCringe<'a>>(&'a mut self, params: &'a NodeParams) -> R  {
+        let node = self.update_node(params.key, params, false, false);
+        return R::create(node, self)
+    }
+
+    // same as the classic add()
+    pub fn add(&mut self, params: &NodeParams) -> UiNode<Any> {
+        let i = self.update_node(params.key, params, false, false);
+        return self.get_ref_unchecked(i, &params.key)
+    }
+
+
+    pub fn add_parent(&mut self, params: &NodeParams) -> Parent {
+        let _i = self.update_node(params.key, params, false, false);
+        return Parent {
+
+        }
+    }
+
+    pub fn v_stack2(&mut self) -> Parent {
+        let _i = self.update_node(ANON_VSTACK, &V_STACK, true, false);
+        return Parent {
+
         }
     }
 }

@@ -27,7 +27,7 @@ impl State {
 
         let count_str = &self.count_state.count.to_string();
 
-        self.ui.parent(&V_STACK).children(&[
+        self.ui.parent_657768(&V_STACK).children(&[
             self.ui.add2(&increase, "Increase"),
             self.ui.add2(&count_label, count_str),
             self.ui.add2(&decrease, "Decrease"),
@@ -120,12 +120,11 @@ impl State {
             .position_y(Start)
             .size_x(FitContentOrMinimum(Pixels(100)));
 
-        use add_parent_closure::AddParentClosure;
 
-        self.ui.add(&pixel_panel).children(|ui| {
-            ui.v_stack(|ui| {
-                ui.text(&x);
-                ui.text(&y);
+        self.ui.add_parent(&pixel_panel).nest(|| {
+            self.ui.v_stack2().nest(|| {
+                self.ui.text(&x);
+                self.ui.text(&y);
             });
         });
     }
@@ -138,7 +137,7 @@ impl State {
         let eraser = ICON_BUTTON.key(ERASER);
 
         #[node_key] const TOOLS_PANEL: NodeKey;
-        let tools = FLGR_PANEL
+        let tools_panel = FLGR_PANEL
             .key(TOOLS_PANEL)
             .position_x(Start)
             .position_y(Start)
@@ -146,20 +145,20 @@ impl State {
 
 
         use add_parent_manual::AddParentManual;
-        self.ui.add_parent(&tools);
+        self.ui.add7(&tools_panel).start_parent();
         {
             self.ui.h_stack();
             {
                 self.ui.v_stack();
                 {
-                    self.ui.add(&brush).static_image(include_bytes!("icons/brush.png"));
-                    self.ui.add(&eraser).static_image(include_bytes!("icons/eraser.png"));
+                    self.ui.add7(&brush).static_image(include_bytes!("icons/brush.png"));
+                    self.ui.add7(&eraser).static_image(include_bytes!("icons/eraser.png"));
                 }
                 self.ui.end_v_stack();
             }
             self.ui.end_h_stack();
         }
-        self.ui.end_parent(&tools);
+        self.ui.end_parent(&tools_panel);
 
         if self.ui.is_clicked(BRUSH) {
             self.canvas.paint_color = PixelColorF32::new(0.2, 0.8, 0.2, 1.0);
@@ -197,7 +196,7 @@ impl Ui {
         use add_parent_manual::AddParentManual;
         self.add_parent(&slider_container);
         {
-            self.add(&slider_fill);
+            self.add7(&slider_fill);
         }
         self.end_parent(&slider_container);
         
