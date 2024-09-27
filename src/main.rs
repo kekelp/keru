@@ -1,17 +1,16 @@
 // #![windows_subsystem = "windows"]
 
 pub mod pixels_on_screen;
-pub mod ui;
-pub mod node_params;
+pub mod ui_node_params;
 pub mod canvas;
 pub mod main_canvas;
 pub mod main_ui;
-pub mod texture_atlas;
-pub mod math;
-pub mod render;
-pub mod layout;
-pub mod interact;
-pub mod euclid;
+pub mod ui_texture_atlas;
+pub mod ui_math;
+pub mod ui;
+pub mod ui_render;
+pub mod ui_layout;
+pub mod ui_interact;
 
 use glam::dvec2;
 use pixels_on_screen::*;

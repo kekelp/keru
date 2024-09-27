@@ -8,7 +8,7 @@ use winit_input_helper::WinitInputHelper;
 use {BindGroup, BindGroupEntry, BindGroupLayoutEntry, BindingResource, Buffer, ColorTargetState, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
 use winit::{dpi::PhysicalPosition, event::{ElementState, Event, MouseButton, WindowEvent}, keyboard::{Key, ModifiersState, NamedKey}};
 
-use crate::{math::Xy, Context, Scale};
+use crate::{ui_math::Xy, Context, Scale};
 
 #[derive(Clone, Copy, Debug, Zeroable, Pod)]
 #[repr(C)]

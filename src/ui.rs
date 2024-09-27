@@ -1,6 +1,6 @@
-use crate::node_params::{ANON_HSTACK, ANON_VSTACK, DEFAULT, H_STACK, NODE_ROOT_PARAMS, TEXT, V_STACK};
-use crate::render::TypedGpuBuffer;
-use crate::texture_atlas::{ImageRef, TextureAtlas};
+use crate::ui_node_params::{ANON_HSTACK, ANON_VSTACK, DEFAULT, H_STACK, NODE_ROOT_PARAMS, TEXT, V_STACK};
+use crate::ui_render::TypedGpuBuffer;
+use crate::ui_texture_atlas::{ImageRef, TextureAtlas};
 use copypasta::ClipboardContext;
 use glyphon::cosmic_text::{Align, StringCursor};
 use glyphon::{AttrsList, Color as GlyphonColor, TextBounds};
@@ -8,7 +8,7 @@ use rustc_hash::{FxHashMap, FxHasher};
 use slab::Slab;
 use wgpu::*;
 use winit::event::{ElementState, MouseScrollDelta};
-use crate::math::*;
+use crate::ui_math::*;
 
 use std::cell::RefCell;
 use std::collections::hash_map::Entry;
@@ -1364,11 +1364,10 @@ impl Ui {
     }
     
     pub fn finish_tree(&mut self) {
-        thread_local_clear_siblings();
+        clear_thread_local_stacks();
         self.layout_and_build_rects();
         self.resolve_hover();
         
-        // ...maybe it's better to put this stuff in end() rather than begin()?
         self.update_time();
         self.nodes[self.sys.root_i].reset_children();
     }
@@ -1898,9 +1897,11 @@ pub(crate) fn thread_local_pop_sibling() -> usize {
     })
 }
 
-pub(crate) fn thread_local_clear_siblings() {
+pub(crate) fn clear_thread_local_stacks() {
     THREAD_STACKS.with(|stack| {
-        return stack.borrow_mut().siblings.clear();
+        let mut stack = stack.borrow_mut();
+        stack.parents.clear();
+        stack.siblings.clear();
     })
 }
 

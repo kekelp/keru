@@ -1,7 +1,7 @@
 // crate::* is needed to fix some crap with macros: https://github.com/rust-lang/rust/pull/52234#issuecomment-894851497
 // when ui will be in its own crate, this won't happen anymore
-use crate::node_params::*;
-use crate::math::Len::*;
+use crate::ui_node_params::*;
+use crate::ui_math::Len::*;
 use crate::ui::Position::*;
 use crate::ui::Size::*;
 use crate::ui::*;

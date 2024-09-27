@@ -1,5 +1,5 @@
 use crate::{Arrange, Color, Interact, Layout, NodeKey, NodeParams, Position, Rect, Size, Stack, TextOptions, TypedKey, VertexColors};
-use crate::math::*;
+use crate::ui_math::*;
 use view_derive::node_key;
 use Size::*;
 use Position::*;

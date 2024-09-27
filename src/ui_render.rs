@@ -5,7 +5,7 @@ use glyphon::Resolution as GlyphonResolution;
 use wgpu::{Buffer, BufferSlice, Device, Queue, RenderPass};
 
 use crate::Ui;
-use crate::math::Axis::*;
+use crate::ui_math::Axis::*;
 
 impl Ui {
     
