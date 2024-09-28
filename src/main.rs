@@ -100,7 +100,7 @@ impl State {
         return State {
             ctx,
             ui,
-            count_state: CounterState::new(),
+            count_state: CounterState::default(),
             canvas,
     
             info_visible: true,

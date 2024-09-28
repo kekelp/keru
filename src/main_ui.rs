@@ -14,11 +14,8 @@ const COLOR2: Color = Color::rgba(100, 13, 50, 240);
 const GRAD1: VertexColors = VertexColors::diagonal_gradient_forward_slash(COLOR1, COLOR2);
 const FLGR_PANEL: NodeParams = PANEL.vertex_colors(GRAD1);
 
-impl State {
-    #[rustfmt::skip]
-    pub fn update_ui_8787(&mut self) {
-        self.ui.begin_tree();
-
+impl State { 
+    pub fn counter(&mut self) {
         #[node_key] const INCREASE: NodeKey;
         #[node_key] const DECREASE: NodeKey;
         let increase = BUTTON.key(INCREASE);
@@ -39,12 +36,12 @@ impl State {
         if self.ui.is_clicked(DECREASE) {
             self.count_state.count -= 1;
         }
-
-        self.ui.finish_tree();
     }
 
     pub fn update_ui(&mut self) {
         tree!(self.ui, {
+
+            self.counter();
 
             #[node_key] const RIGHT_BAR: NodeKey;
             let sidebar = V_STACK
@@ -81,12 +78,6 @@ pub struct CounterState {
 }
 impl Default for CounterState {
     fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl CounterState {
-    pub fn new() -> Self {
         return CounterState {
             count: 0,
             counter_mode: false,
