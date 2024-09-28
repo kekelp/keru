@@ -1169,7 +1169,7 @@ impl Ui {
         if self.nodes[parent_id].first_child == None {
             self.nodes[parent_id].first_child = Some(id);
 
-            thread_local_push_sibling(id);
+            thread_local_push_last_sibling(id);
 
         } else {
             let prev_sibling = thread_local_cycle_last_sibling(id);
@@ -1813,8 +1813,7 @@ impl Parent {
         
         children_block();
         
-        thread_local_pop_parent();
-        thread_local_pop_sibling();
+        thread_local_pop_parent_and_sibling();
     }
 }
 
@@ -1871,9 +1870,11 @@ pub(crate) fn thread_local_push_parent(new_parent: usize) {
     });
 }
 
-pub(crate) fn thread_local_pop_parent() {
+pub(crate) fn thread_local_pop_parent_and_sibling() {
     THREAD_STACKS.with(|stack| {
-        stack.borrow_mut().parents.pop().unwrap();
+        let mut stack = stack.borrow_mut();
+        stack.parents.pop().unwrap();
+        stack.siblings.pop().unwrap();
     })
 }
 
@@ -1883,18 +1884,13 @@ pub(crate) fn thread_local_last_parent() -> usize {
     })
 }
 
-pub(crate) fn thread_local_push_sibling(new_siblings: usize) {
+pub(crate) fn thread_local_push_last_sibling(new_siblings: usize) {
     THREAD_STACKS.with(|stack| {
         stack.borrow_mut().siblings.push(new_siblings);
     });
 }
 
-pub(crate) fn thread_local_pop_sibling() -> usize {
-    THREAD_STACKS.with(|stack| {
-        let a = stack.borrow_mut().siblings.pop().unwrap();
-        return a;
-    })
-}
+
 
 pub(crate) fn thread_local_cycle_last_sibling(new_sibling: usize) -> usize {
     THREAD_STACKS.with(|stack| {
