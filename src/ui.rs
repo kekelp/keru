@@ -1172,9 +1172,8 @@ impl Ui {
             thread_local_push_sibling(id);
 
         } else {
-            let prev_sibling = thread_local_pop_sibling();
+            let prev_sibling = thread_local_cycle_last_sibling(id);
             self.nodes[prev_sibling].next_sibling = Some(id);
-            thread_local_push_sibling(id);
         }
 
     }
@@ -1897,11 +1896,25 @@ pub(crate) fn thread_local_pop_sibling() -> usize {
     })
 }
 
+pub(crate) fn thread_local_cycle_last_sibling(new_sibling: usize) -> usize {
+    THREAD_STACKS.with(|stack| {
+        let mut stack = stack.borrow_mut();
+
+        let last_ref = stack.siblings.last_mut().unwrap();
+        let previous = *last_ref;
+        *last_ref = new_sibling;
+
+        return previous;
+    })
+}
+
 pub(crate) fn clear_thread_local_stacks() {
     THREAD_STACKS.with(|stack| {
         let mut stack = stack.borrow_mut();
-        stack.parents.clear();
         stack.siblings.clear();
+        stack.parents.clear();
+        // this should be `root_i`, but whatever
+        stack.parents.push(0);
     })
 }
 
