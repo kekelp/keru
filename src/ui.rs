@@ -39,7 +39,7 @@ use {
     VertexBufferLayout, VertexStepMode,
 };
 
-static T0: LazyLock<Instant> = LazyLock::new(|| Instant::now());
+static T0: LazyLock<Instant> = LazyLock::new(Instant::now);
 pub fn ui_time_f32() -> f32 {
     return T0.elapsed().as_secs_f32();
 }
@@ -385,7 +385,7 @@ impl Color {
         r: (0.6 * 255.0) as u8,
         g: (0.3 * 255.0) as u8,
         b: (0.6 * 255.0) as u8,
-        a: 255 as u8,
+        a: 255_u8,
     };
 
     pub const FLGR_DEBUG_RED: Color = Color::rgba(255, 0, 0, 77);
@@ -738,7 +738,7 @@ pub struct Nodes {
 }
 impl Nodes {
     pub fn get_by_id(&mut self, id: &Id) -> Option<&mut Node> {
-        let i = self.node_hashmap.get(&id)?.slab_i;
+        let i = self.node_hashmap.get(id)?.slab_i;
         return self.nodes.get_mut(i);
     }
 }
@@ -775,7 +775,7 @@ impl System {
             first_child: None,
             next_sibling: None,
             is_twin: twin_n,
-            params: params.clone(),
+            params: *params,
             debug_name: key.debug_name,
             last_frame_status: LastFrameStatus::Nothing,
             last_hover: f32::MIN,
@@ -868,7 +868,7 @@ impl Ui {
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
         });
 
-        let mut texture_atlas = TextureAtlas::new(&device);
+        let mut texture_atlas = TextureAtlas::new(device);
 
         let _white_alloc = texture_atlas.allocate_image(include_bytes!("white.png"));
 
@@ -1135,7 +1135,7 @@ impl Ui {
                         // todo2: check the map_entry values and maybe skip reaching into the node
                         let real_final_i = old_twin_map_entry.refresh(parent_i, frame);
                         
-                        self.refresh_node(&params, real_final_i, parent_i, frame);
+                        self.refresh_node(params, real_final_i, parent_i, frame);
                         real_final_i
                     },
     
@@ -1166,7 +1166,7 @@ impl Ui {
     pub fn add_child_to_parent(&mut self, id: usize, parent_id: usize) {
         self.nodes[parent_id].n_children += 1;
 
-        if self.nodes[parent_id].first_child == None {
+        if self.nodes[parent_id].first_child.is_none() {
             self.nodes[parent_id].first_child = Some(id);
 
             thread_local_push_last_sibling(id);
@@ -1332,7 +1332,7 @@ impl Ui {
         
         let node = &mut self.nodes[i];
 
-        node.params = params.clone();
+        node.params = *params;
 
         // add back somewhere
         
@@ -1423,7 +1423,7 @@ impl Node {
     pub fn debug_name(&self) -> String {
         let debug_name = match self.is_twin {
             Some(n) => format!("{} (twin #{})", self.debug_name, n),
-            None => format!("{}", self.debug_name),
+            None => self.debug_name.to_string(),
         };
         return debug_name;
     }
@@ -1880,7 +1880,7 @@ pub(crate) fn thread_local_pop_parent_and_sibling() {
 
 pub(crate) fn thread_local_last_parent() -> usize {
     THREAD_STACKS.with(|stack| {
-        stack.borrow().parents.last().unwrap().clone()
+        *stack.borrow().parents.last().unwrap()
     })
 }
 

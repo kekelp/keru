@@ -65,7 +65,7 @@ impl Ui {
             let n_children = self.nodes[node].n_children as f32;
 
             // divide between children
-            child_proposed_size[main] = child_proposed_size[main] / n_children;
+            child_proposed_size[main] /= n_children;
         }
         return child_proposed_size
     }
@@ -86,11 +86,11 @@ impl Ui {
         });
 
         // Propose the whole proposed_size (regardless of stack) to the contents, and let them decide.
-        if let Some(_) = self.nodes[node].text_id {
+        if self.nodes[node].text_id.is_some() {
             let text_size = self.determine_text_size(node, proposed_size);
             content_size.update_for_content(text_size, stack);
         }
-        if let Some(_) = self.nodes[node].imageref {
+        if self.nodes[node].imageref.is_some() {
             let image_size = self.determine_image_size(node, proposed_size);
             content_size.update_for_content(image_size, stack);
         }

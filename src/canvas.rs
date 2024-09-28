@@ -635,32 +635,26 @@ impl Canvas {
                 WindowEvent::KeyboardInput { event, is_synthetic, .. } => {
                     // println!("  {:?}", event );
                     if ! is_synthetic && event.state.is_pressed() {
-                        match &event.logical_key {
-                            Key::Character(new_char) => {
-                                match new_char.as_str() {
-                                    "z" => {
-                                        if key_mods.control_key() {
-                                            self.undo();
-                                        }
-                                    },
-                                    "Z" => {
-                                        if key_mods.control_key() {
-                                            self.redo();
-                                        }
-                                    },
-                                        _ => {},
-                                    }
+                        if let Key::Character(new_char) = &event.logical_key {
+                        match new_char.as_str() {
+                            "z" => {
+                                if key_mods.control_key() {
+                                    self.undo();
                                 }
-                                _ => {}
+                            },
+                            "Z" => {
+                                if key_mods.control_key() {
+                                    self.redo();
+                                }
+                            },
+                                _ => {},
                             }
+                        }
                     }
 
                     if ! is_synthetic {
-                        match &event.logical_key {
-                            Key::Named(NamedKey::Space) => {
-                                self.space = event.state.is_pressed();
-                            }
-                            _ => {},
+                        if let Key::Named(NamedKey::Space) = &event.logical_key {
+                            self.space = event.state.is_pressed();
                         }
                     }
                 },

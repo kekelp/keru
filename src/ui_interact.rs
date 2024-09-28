@@ -49,7 +49,7 @@ impl Ui {
             let node = self.nodes.get_by_id(&clicked_id).unwrap();
             node.last_click = t;
 
-            if let Some(_) = node.text_id {
+            if node.text_id.is_some() {
                 if let Some(text) = node.params.text_params{
                     if text.editable {
                         self.sys.focused = Some(clicked_id);
@@ -112,11 +112,8 @@ impl Ui {
 
     // returns: is the event consumed?
     pub fn handle_events(&mut self, full_event: &Event<()>, queue: &Queue) -> bool {
-        match full_event {
-            Event::NewEvents(_) => {
-                self.sys.mouse_status.clear_frame();
-            },
-            _ => {}
+        if let Event::NewEvents(_) = full_event {
+            self.sys.mouse_status.clear_frame();
         }
 
 
@@ -198,24 +195,16 @@ impl Ui {
     pub fn handle_keyboard_event(&mut self, event: &KeyEvent) -> bool {
         // todo: remove line.reset(); and do it only once per frame via change watcher guy
 
-        match &event.logical_key {
-            Key::Named(named_key) => match named_key {
-                NamedKey::F1 => {
-                    if event.state.is_pressed() {
-                        if self.sys.debug_key_pressed == false {
-                            #[cfg(debug_assertions)]
-                            {
-                                self.sys.debug_mode = !self.sys.debug_mode;
-                            }
-                        }
-                    }
-
-                    self.sys.debug_key_pressed = event.state.is_pressed();
+        if let Key::Named(named_key) = &event.logical_key { if named_key == &NamedKey::F1 {
+            if event.state.is_pressed() && self.sys.debug_key_pressed == false {
+                #[cfg(debug_assertions)]
+                {
+                    self.sys.debug_mode = !self.sys.debug_mode;
                 }
-                _ => {}
-            },
-            _ => {}
-        }
+            }
+
+            self.sys.debug_key_pressed = event.state.is_pressed();
+        } }
 
         // if there is no focused text node, return consumed: false
         let id = unwrap_or_return!(self.sys.focused, false);

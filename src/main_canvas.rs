@@ -36,7 +36,7 @@ impl State {
 
         let min_zoom = 0.01;
         let max_zoom = 1000.0;
-        let delta = y as f64 * 0.4;
+        let delta = y * 0.4;
 
         let curve_factor = 0.3 * ((0.01 + self.canvas.scale.x).powf(1.1) - 0.01).abs();
 

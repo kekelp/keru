@@ -30,7 +30,7 @@ impl Ui {
         // self.build_buffers();
         self.sys.gpu_vertex_buffer.queue_write(&self.sys.rects[..], queue);
         
-        self.sys.texture_atlas.load_to_gpu(&queue);
+        self.sys.texture_atlas.load_to_gpu(queue);
 
         // update gpu time
         // magical offset...

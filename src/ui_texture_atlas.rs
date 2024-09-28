@@ -153,12 +153,12 @@ impl TextureAtlas {
                 &data.image_data,
                 ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: Some(data.width as u32 * 4 as u32),
+                    bytes_per_row: Some(data.width * 4_u32),
                     rows_per_image: None,
                 },
                 Extent3d {
-                    width: data.width as u32,
-                    height: data.height as u32,
+                    width: data.width,
+                    height: data.height,
                     depth_or_array_layers: 1,
                 },
             );
