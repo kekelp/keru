@@ -945,8 +945,7 @@ impl Ui {
             source: ShaderSource::Wgsl(include_str!("shaders/box.wgsl").into()),
         });
 
-        let mut primitive = PrimitiveState::default();
-        primitive.cull_mode = None;
+        let primitive = PrimitiveState::default();
 
         let render_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
             label: None,
