@@ -1,4 +1,7 @@
-use crate::ui_node_params::{ANON_HSTACK, ANON_VSTACK, DEFAULT, H_STACK, NODE_ROOT_PARAMS, TEXT, V_STACK};
+use crate::ui_math::*;
+use crate::ui_node_params::{
+    ANON_HSTACK, ANON_VSTACK, DEFAULT, H_STACK, NODE_ROOT_PARAMS, TEXT, V_STACK,
+};
 use crate::ui_render::TypedGpuBuffer;
 use crate::ui_texture_atlas::{ImageRef, TextureAtlas};
 use copypasta::ClipboardContext;
@@ -8,7 +11,6 @@ use rustc_hash::{FxHashMap, FxHasher};
 use slab::Slab;
 use wgpu::*;
 use winit::event::{ElementState, MouseScrollDelta};
-use crate::ui_math::*;
 
 use std::cell::RefCell;
 use std::collections::hash_map::Entry;
@@ -23,8 +25,8 @@ use std::{
 
 use bytemuck::{Pod, Zeroable};
 use glyphon::{
-    Attrs, Buffer as GlyphonBuffer, Family, FontSystem, Metrics, Shaping,
-    SwashCache, TextArea, TextAtlas, TextRenderer,
+    Attrs, Buffer as GlyphonBuffer, Family, FontSystem, Metrics, Shaping, SwashCache, TextArea,
+    TextAtlas, TextRenderer,
 };
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
@@ -86,7 +88,6 @@ pub struct Layout {
     pub padding: Xy<Len>,
     pub position: Xy<Position>,
 }
-
 
 #[derive(Debug, Copy, Clone)]
 pub struct Rect {
@@ -179,7 +180,7 @@ impl NodeParams {
         self.rect.filled = filled;
         return self;
     }
-    
+
     pub const fn color(mut self, color: Color) -> Self {
         self.rect.vertex_colors = VertexColors::flat(color);
         return self;
@@ -192,7 +193,9 @@ impl NodeParams {
 
     pub const fn stack(mut self, axis: Axis, arrange: Arrange, spacing: Len) -> Self {
         self.stack = Some(Stack {
-            arrange, axis, spacing,
+            arrange,
+            axis,
+            spacing,
         });
         return self;
     }
@@ -205,7 +208,7 @@ impl NodeParams {
         self.stack = Some(stack.arrange(arrange));
         return self;
     }
-    
+
     pub const fn stack_spacing(mut self, spacing: Len) -> Self {
         let stack = match self.stack {
             Some(stack) => stack,
@@ -215,7 +218,7 @@ impl NodeParams {
         return self;
     }
 
-    // todo: if we don't mind sacrificing symmetry, it could make sense to just remove this one. 
+    // todo: if we don't mind sacrificing symmetry, it could make sense to just remove this one.
     pub const fn stack_axis(mut self, axis: Axis) -> Self {
         let stack = match self.stack {
             Some(stack) => stack,
@@ -322,7 +325,8 @@ pub struct VertexColors {
     bottom_right: Color,
 }
 impl VertexColors {
-    pub const FLGR_SOVL_GRAD: Self = VertexColors::diagonal_gradient_backslash(Color::FLGR_BLUE, Color::FLGR_RED);
+    pub const FLGR_SOVL_GRAD: Self =
+        VertexColors::diagonal_gradient_backslash(Color::FLGR_BLUE, Color::FLGR_RED);
 
     pub const TEST: Self = Self {
         top_left: Color::rgba(255, 0, 0, 255),
@@ -342,30 +346,33 @@ impl VertexColors {
             top_right: tr,
             bottom_left: bl,
             bottom_right: br,
-        }
+        };
     }
 
     pub const fn flat(color: Color) -> VertexColors {
-        return VertexColors::new(color, color, color, color)
+        return VertexColors::new(color, color, color, color);
     }
 
     pub const fn h_gradient(left: Color, right: Color) -> VertexColors {
-        return VertexColors::new(left, right, left, right)
+        return VertexColors::new(left, right, left, right);
     }
 
     pub const fn v_gradient(top: Color, bottom: Color) -> VertexColors {
-        return VertexColors::new(top, top, bottom, bottom)
+        return VertexColors::new(top, top, bottom, bottom);
     }
 
-    // techinically, the blended corners shouldn't be blended with weight 0.5. The weight should depend on the aspect ratio, I think. I don't think that's practical though, and it looks okay like this. 
-    pub const fn diagonal_gradient_forward_slash(bottom_left: Color, top_right: Color) -> VertexColors {
+    // techinically, the blended corners shouldn't be blended with weight 0.5. The weight should depend on the aspect ratio, I think. I don't think that's practical though, and it looks okay like this.
+    pub const fn diagonal_gradient_forward_slash(
+        bottom_left: Color,
+        top_right: Color,
+    ) -> VertexColors {
         let blended = bottom_left.blend(top_right, 255 / 2);
         return VertexColors {
             top_left: blended,
             top_right,
             bottom_left,
             bottom_right: blended,
-        }
+        };
     }
 
     pub const fn diagonal_gradient_backslash(top_left: Color, bottom_right: Color) -> VertexColors {
@@ -375,9 +382,8 @@ impl VertexColors {
             top_right: blended,
             bottom_left: blended,
             bottom_right,
-        }
+        };
     }
-
 }
 
 impl Color {
@@ -394,14 +400,13 @@ impl Color {
     pub const GREEN: Color = Color::rgba(0, 255, 0, 255);
     pub const BLUE: Color = Color::rgba(0, 0, 255, 255);
     pub const BLACK: Color = Color::rgba(0, 0, 0, 255);
-    
+
     pub const WHITE: Color = Color::rgba(255, 255, 255, 255);
     pub const TRANSPARENT: Color = Color::rgba(255, 255, 255, 0);
-    
+
     pub const FLGR_BLUE: Color = Color::rgba(26, 26, 255, 255);
     pub const FLGR_RED: Color = Color::rgba(255, 26, 26, 255);
     pub const FLGR_GREEN: Color = Color::rgba(26, 255, 26, 255);
-    
 
     pub const LIGHT_BLUE: Color = Color {
         r: (0.9 * 255.0) as u8,
@@ -419,7 +424,7 @@ impl Color {
         let res = (c1 as u16 * inv_factor as u16 + c2 as u16 * factor as u16) / 255;
         res as u8
     }
-    
+
     // todo: in a future version of rust, rewrite with float factor
     // (can't use floats in const functions in current stable rust)
     pub const fn blend(self, other: Color, factor: u8) -> Color {
@@ -439,8 +444,7 @@ pub struct UiNode<'a, T: NodeType> {
 }
 
 // why can't you just do it separately?
-impl<'a,  T: NodeType> UiNode<'a, T> {
-
+impl<'a, T: NodeType> UiNode<'a, T> {
     pub fn node_mut(&mut self) -> &mut Node {
         return &mut self.ui.nodes.nodes[self.node];
     }
@@ -475,7 +479,7 @@ impl<'a,  T: NodeType> UiNode<'a, T> {
     // pub fn is_clicked(&self) -> bool {
     //     let id = self.node.id;
     //     return self.sys.clicked.contains(&real_key.id);
-        
+
     // }
 
     // pub fn is_dragged(&self) -> Option<(f64, f64)> {
@@ -486,52 +490,54 @@ impl<'a,  T: NodeType> UiNode<'a, T> {
     //     }
     // }
 
-    pub fn set_color(&mut self, color: Color)  -> &mut Self {
+    pub fn set_color(&mut self, color: Color) -> &mut Self {
         self.node_mut().params.rect.vertex_colors = VertexColors::flat(color);
         return self;
     }
 
-    pub fn set_vertex_colors(&mut self, colors: VertexColors)  -> &mut Self {
+    pub fn set_vertex_colors(&mut self, colors: VertexColors) -> &mut Self {
         self.node_mut().params.rect.vertex_colors = colors;
         return self;
     }
 
-    pub fn set_position_x(&mut self, position: Position)  -> &mut Self {
+    pub fn set_position_x(&mut self, position: Position) -> &mut Self {
         self.node_mut().params.layout.position.x = position;
         return self;
     }
 
-    pub fn set_position_y(&mut self, position: Position)  -> &mut Self {
+    pub fn set_position_y(&mut self, position: Position) -> &mut Self {
         self.node_mut().params.layout.position.y = position;
         return self;
     }
 
-    pub fn set_size_x(&mut self, size: Size)  -> &mut Self {
+    pub fn set_size_x(&mut self, size: Size) -> &mut Self {
         self.node_mut().params.layout.size.x = size;
         return self;
     }
 
-    pub fn set_size_y(&mut self, size: Size)  -> &mut Self {
+    pub fn set_size_y(&mut self, size: Size) -> &mut Self {
         self.node_mut().params.layout.size.y = size;
         return self;
     }
 }
 
 impl<'a, T: TextTrait> UiNode<'a, T> {
-
     pub fn text(mut self, text: &str) -> Self {
-        
         if let Some(text_id) = self.node_mut().text_id {
             self.ui.sys.text.set_text_hashed(text_id, text);
         } else {
-            let text_id = self.ui.sys.text.maybe_new_text_area(Some(text), self.ui.sys.part.current_frame);
+            let text_id = self
+                .ui
+                .sys
+                .text
+                .maybe_new_text_area(Some(text), self.ui.sys.part.current_frame);
             self.node_mut().text_id = text_id;
         }
 
         return self;
     }
 
-    pub fn set_text_attrs(&mut self, attrs: Attrs)  -> &mut Self {
+    pub fn set_text_attrs(&mut self, attrs: Attrs) -> &mut Self {
         if let Some(text_id) = self.node_mut().text_id {
             self.ui.sys.text.set_text_attrs(text_id, attrs);
         } else {
@@ -541,7 +547,7 @@ impl<'a, T: TextTrait> UiNode<'a, T> {
         return self;
     }
 
-    pub fn set_text_align(&mut self, align: Align)  -> &mut Self {
+    pub fn set_text_align(&mut self, align: Align) -> &mut Self {
         if let Some(text_id) = self.node_mut().text_id {
             self.ui.sys.text.set_text_align(text_id, align);
         } else {
@@ -602,7 +608,11 @@ pub struct TextSystem {
 }
 const GLOBAL_TEXT_METRICS: Metrics = Metrics::new(24.0, 24.0);
 impl TextSystem {
-    pub(crate) fn maybe_new_text_area(&mut self, text: Option<&str>, current_frame: u64) -> Option<usize> {
+    pub(crate) fn maybe_new_text_area(
+        &mut self,
+        text: Option<&str>,
+        current_frame: u64,
+    ) -> Option<usize> {
         let text = match text {
             Some(text) => text,
             None => return None,
@@ -623,7 +633,6 @@ impl TextSystem {
             Attrs::new().family(Family::SansSerif),
             Shaping::Advanced,
         );
-
 
         for line in &mut buffer.lines {
             line.set_align(Some(glyphon::cosmic_text::Align::Center));
@@ -672,7 +681,6 @@ impl TextSystem {
     }
 
     fn set_text_attrs(&mut self, text_id: usize, attrs: Attrs) {
-
         let area = &mut self.text_areas[text_id];
 
         // Define new attributes
@@ -680,15 +688,12 @@ impl TextSystem {
         for line in &mut area.buffer.lines {
             line.set_attrs_list(AttrsList::new(attrs));
         }
-
     }
 
     fn set_text_align(&mut self, text_id: usize, align: Align) {
-
         for line in &mut self.text_areas[text_id].buffer.lines {
             line.set_align(Some(align));
         }
-
     }
 }
 
@@ -700,13 +705,13 @@ pub struct Idx(pub(crate) u64);
 pub struct NodeMapEntry {
     pub last_parent: usize,
     pub last_frame_touched: u64,
-    
-    // keeping track of the twin situation. 
+
+    // keeping track of the twin situation.
     // This is the number of twins of a node that showed up SO FAR in the current frame. it gets reset every frame (on refresh().)
     // for the 0-th twin of a family, this will be the total number of clones of itself around. (not including itself, so starts at zero).
     // the actual twins ARE twins, but they don't HAVE twins, so this is zero.
     // for this reason, "clones" or "copies" would be better names, but those words are loaded in rust
-    // reproduction? replica? imitation? duplicate? version? dupe? replication? mock? carbon?    
+    // reproduction? replica? imitation? duplicate? version? dupe? replication? mock? carbon?
     pub n_twins: u32,
     pub slab_i: usize,
 }
@@ -717,7 +722,7 @@ impl NodeMapEntry {
             last_frame_touched: frame,
             n_twins: 0,
             slab_i: new_i,
-        }
+        };
     }
 
     pub fn refresh(&mut self, parent_id: usize, frame: u64) -> usize {
@@ -726,8 +731,6 @@ impl NodeMapEntry {
         self.n_twins = 0;
         return self.slab_i;
     }
-
-
 }
 
 #[derive(Debug)]
@@ -755,7 +758,12 @@ impl IndexMut<usize> for Nodes {
 }
 
 impl System {
-    pub fn build_new_node<T: NodeType>(&mut self, key: &TypedKey<T>, params: &NodeParams, twin_n: Option<u32>) -> Node {
+    pub fn build_new_node<T: NodeType>(
+        &mut self,
+        key: &TypedKey<T>,
+        params: &NodeParams,
+        twin_n: Option<u32>,
+    ) -> Node {
         let parent_i = thread_local_last_parent();
 
         // add back somewhere
@@ -768,7 +776,7 @@ impl System {
 
             imageref: None,
             last_static_image_ptr: None,
-            
+
             parent: parent_i,
 
             n_children: 0,
@@ -781,8 +789,7 @@ impl System {
             last_hover: f32::MIN,
             last_click: f32::MIN,
             z: 0.0,
-        }
-    
+        };
     }
 }
 
@@ -815,7 +822,7 @@ pub struct System {
     pub texture_atlas: TextureAtlas,
 
     pub rects: Vec<RenderRect>,
-    
+
     // stack for traversing
     pub traverse_stack: Vec<usize>,
 
@@ -837,7 +844,6 @@ pub struct System {
     pub frame_t: f32,
 }
 impl Ui {
-
     // todo: variadic args lol
     pub fn add_widget<T, S>(&mut self, widget_function: fn(&mut Ui, T) -> S, arg: T) -> S {
         return widget_function(self, arg);
@@ -979,7 +985,7 @@ impl Ui {
         let text_areas = Vec::with_capacity(50);
 
         let mut node_hashmap = FxHashMap::with_capacity_and_hasher(100, Default::default());
-        
+
         let mut nodes = Slab::with_capacity(100);
         let root_i = nodes.insert(NODE_ROOT);
         let root_map_entry = NodeMapEntry {
@@ -988,7 +994,7 @@ impl Ui {
             slab_i: root_i,
             n_twins: 0,
         };
-        
+
         thread_local_push_parent(root_i);
 
         node_hashmap.insert(NODE_ROOT_ID, root_map_entry);
@@ -999,11 +1005,9 @@ impl Ui {
         };
 
         Self {
-
             nodes,
 
             sys: System {
-
                 root_i,
                 waiting_for_click_release: false,
                 debug_mode: false,
@@ -1027,8 +1031,6 @@ impl Ui {
                 render_pipeline,
                 rects: Vec::with_capacity(20),
 
-
-
                 gpu_vertex_buffer: vertex_buffer,
                 base_uniform_buffer: resolution_buffer,
                 bind_group,
@@ -1050,19 +1052,18 @@ impl Ui {
                 focused: None,
 
                 frame_t: 0.0,
-            }
-
+            },
         }
     }
 
     // don't expect this to give you twin nodes automatically
     pub fn get_ref<T: NodeType>(&mut self, key: TypedKey<T>) -> UiNode<Any> {
         let node_i = self.nodes.node_hashmap.get(&key.id()).unwrap().slab_i;
-        return self.get_ref_unchecked(node_i, &key)
+        return self.get_ref_unchecked(node_i, &key);
     }
 
-    // only for the macro, use get_ref 
-    pub fn get_ref_unchecked<T: NodeType>(&mut self, i: usize, _key: &TypedKey<T>) -> UiNode<Any> {        
+    // only for the macro, use get_ref
+    pub fn get_ref_unchecked<T: NodeType>(&mut self, i: usize, _key: &TypedKey<T>) -> UiNode<Any> {
         return UiNode {
             node: i,
             ui: self,
@@ -1076,22 +1077,21 @@ impl Ui {
         let frame = self.sys.part.current_frame;
 
         // Check the node corresponding to the key's id.
-        // We might find that the key has already been used in this same frame: 
+        // We might find that the key has already been used in this same frame:
         //      in this case, we take note, and calculate a twin key to use to add a "twin" in the next section.
         // Otherwise, we add or refresh normally, and take note of the final i.
         let twin_check_result = match self.nodes.node_hashmap.entry(key.id()) {
             // Add a normal node (no twins).
             Entry::Vacant(v) => {
-
                 let new_node = self.sys.build_new_node(&key, params, None);
                 let final_i = self.nodes.nodes.insert(new_node);
                 v.insert(NodeMapEntry::new(parent_i, frame, final_i));
 
-                UpdatedNormal{ final_i }
-            },
+                UpdatedNormal { final_i }
+            }
             Entry::Occupied(o) => {
                 let old_map_entry = o.into_mut();
-                
+
                 match refresh_or_add_twin(frame, old_map_entry.last_frame_touched) {
                     // Refresh a normal node from the previous frame (no twins).
                     Refresh => {
@@ -1099,21 +1099,23 @@ impl Ui {
                         // todo2: check the map_entry values and maybe skip reaching into the node
                         let final_i = old_map_entry.slab_i;
                         self.refresh_node(params, final_i, parent_i, frame);
-                        
-                        UpdatedNormal{ final_i }
+
+                        UpdatedNormal { final_i }
                     }
                     // do nothing, just calculate the twin key and go to twin part below
                     AddTwin => {
                         old_map_entry.n_twins += 1;
                         let twin_key = key.sibling(old_map_entry.n_twins);
-                        NeedToUpdateTwin { twin_key, twin_n: old_map_entry.n_twins }
+                        NeedToUpdateTwin {
+                            twin_key,
+                            twin_n: old_map_entry.n_twins,
+                        }
                     }
                 }
-
-            },
+            }
         };
 
-        // If twin_check_result is AddedNormal, the node was added in the section before, 
+        // If twin_check_result is AddedNormal, the node was added in the section before,
         //      and there's nothing to do regarding twins, so we just confirm final_i.
         // If it's NeedToAddTwin, we repeat the same thing with the new twin_key.
         let real_final_i = match twin_check_result {
@@ -1122,24 +1124,24 @@ impl Ui {
                 match self.nodes.node_hashmap.entry(twin_key.id()) {
                     // Add new twin.
                     Entry::Vacant(v) => {
-                        let new_twin_node = self.sys.build_new_node(&twin_key, params, Some(twin_n));
+                        let new_twin_node =
+                            self.sys.build_new_node(&twin_key, params, Some(twin_n));
                         let real_final_i = self.nodes.nodes.insert(new_twin_node);
                         v.insert(NodeMapEntry::new(parent_i, frame, real_final_i));
                         real_final_i
-                    },
+                    }
                     // Refresh a twin from the previous frame.
                     Entry::Occupied(o) => {
                         let old_twin_map_entry = o.into_mut();
-    
+
                         // todo2: check the map_entry values and maybe skip reaching into the node
                         let real_final_i = old_twin_map_entry.refresh(parent_i, frame);
-                        
+
                         self.refresh_node(params, real_final_i, parent_i, frame);
                         real_final_i
-                    },
-    
+                    }
                 }
-            },
+            }
         };
 
         self.add_child_to_parent(real_final_i, parent_i);
@@ -1148,14 +1150,13 @@ impl Ui {
     }
 
     pub(crate) fn get_latest_twin_key<T: NodeType>(&self, key: TypedKey<T>) -> Option<TypedKey<T>> {
-
         let map_entry = self.nodes.node_hashmap.get(&key.id())?;
 
         if map_entry.n_twins == 0 {
             return Some(key);
         }
 
-        // todo: yell a very loud warning here. latest_twin is more like a best-effort way to deal with dumb code. 
+        // todo: yell a very loud warning here. latest_twin is more like a best-effort way to deal with dumb code.
         // the proper way is to just use unique keys, or to use the returned noderef, if that becomes a thing.
         let twin_key = key.sibling(map_entry.n_twins);
 
@@ -1169,18 +1170,15 @@ impl Ui {
             self.nodes[parent_id].first_child = Some(id);
 
             thread_local_push_last_sibling(id);
-
         } else {
             let prev_sibling = thread_local_cycle_last_sibling(id);
             self.nodes[prev_sibling].next_sibling = Some(id);
         }
-
     }
 
     pub fn text(&mut self, text: &str) -> UiNode<Any> {
         self.add(&TEXT).text(text)
     }
-
 
     pub fn resize(&mut self, size: &PhysicalSize<u32>, queue: &Queue) {
         self.sys.part.unifs.size[X] = size.width as f32;
@@ -1216,7 +1214,10 @@ impl Ui {
 
                 // magic coords
                 // todo: demagic
-                tex_coords: Xy { x: [0.9375, 0.9394531], y: [0.00390625 / 2.0, 0.0] },
+                tex_coords: Xy {
+                    x: [0.9375, 0.9394531],
+                    y: [0.00390625 / 2.0, 0.0],
+                },
             });
         }
     }
@@ -1265,7 +1266,6 @@ impl Ui {
                     filled: 1,
                     radius: 0.0,
                     tex_coords: Xy::new([0.0, 0.0], [0.0, 0.0]),
-
                 };
 
                 self.sys.rects.push(cursor_rect);
@@ -1314,10 +1314,10 @@ impl Ui {
 
     // todo: actually call this once in a while
     pub fn prune(&mut self) {
-        self.nodes.node_hashmap.retain( |k, v| {
-            // the > is to always keep the root node without having to refresh it 
+        self.nodes.node_hashmap.retain(|k, v| {
+            // the > is to always keep the root node without having to refresh it
             let should_retain = v.last_frame_touched >= self.sys.part.current_frame;
-            if ! should_retain {
+            if !should_retain {
                 // side effect happens inside this closure... weird
                 self.nodes.nodes.remove(v.slab_i);
                 // remember to remove text areas and such ...
@@ -1328,13 +1328,12 @@ impl Ui {
     }
 
     fn refresh_node(&mut self, params: &NodeParams, i: usize, parent_id: usize, frame: u64) {
-        
         let node = &mut self.nodes[i];
 
         node.params = *params;
 
         // add back somewhere
-        
+
         node.refresh(parent_id);
         self.sys.text.refresh_last_frame(node.text_id, frame);
     }
@@ -1342,14 +1341,12 @@ impl Ui {
 
 #[macro_export]
 macro_rules! add {
-    ($ui:expr, $params:expr, $code:block) => {
-        {
-            let i = $ui.add_as_parent_unchecked($params.key, &$params);
-            $code;
-            $ui.end_parent_unchecked();
-            $ui.get_ref_unchecked(i, &$params.key)
-        }
-    };
+    ($ui:expr, $params:expr, $code:block) => {{
+        let i = $ui.add_as_parent_unchecked($params.key, &$params);
+        $code;
+        $ui.end_parent_unchecked();
+        $ui.get_ref_unchecked(i, &$params.key)
+    }};
     ($ui:expr, $params:expr) => {
         $ui.add($params.key, $params)
     };
@@ -1360,12 +1357,12 @@ impl Ui {
         // do cleanup here??
         self.sys.part.current_frame += 1;
     }
-    
+
     pub fn finish_tree(&mut self) {
         clear_thread_local_stacks();
         self.layout_and_build_rects();
         self.resolve_hover();
-        
+
         self.update_time();
         self.nodes[self.sys.root_i].reset_children();
     }
@@ -1405,9 +1402,8 @@ pub struct Node {
     pub first_child: Option<usize>,
     pub next_sibling: Option<usize>,
     // prev_sibling is never used so far.
-    // at some point I was iterating the children in reverse for z ordering purposes, but I don't think that actually makes any difference.  
+    // at some point I was iterating the children in reverse for z ordering purposes, but I don't think that actually makes any difference.
     // pub prev_sibling: Option<usize>,
-
     pub params: NodeParams,
 
     pub debug_name: &'static str,
@@ -1458,8 +1454,8 @@ pub enum Size {
     FitContentOrMinimum(Len),
     // ... something like "strictness":
     //  with the "proposed" thing, a TextContent can either insist to get the minimum size it wants,
-    // or be okay with whatever (and clip it, show some "..."'s, etc) 
-    // todo: add FitToChildrenInitiallyButNeverResizeAfter 
+    // or be okay with whatever (and clip it, show some "..."'s, etc)
+    // todo: add FitToChildrenInitiallyButNeverResizeAfter
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1566,7 +1562,7 @@ pub struct MouseInputState {
     pub position: PhysicalPosition<f64>,
     pub buttons: MouseButtons,
     pub scroll_delta: (f32, f32),
-    
+
     // previous for diffs
     pub prev_position: PhysicalPosition<f64>,
 }
@@ -1584,7 +1580,6 @@ impl Default for MouseInputState {
 }
 
 impl MouseInputState {
-
     pub fn update(&mut self, event: &WindowEvent) {
         match event {
             WindowEvent::CursorMoved { position, .. } => {
@@ -1609,18 +1604,16 @@ impl MouseInputState {
                     }
                 }
             }
-            WindowEvent::MouseWheel { delta, .. } => {
-                match delta {
-                    MouseScrollDelta::LineDelta(x, y) => {
-                        self.scroll_delta.0 += x;
-                        self.scroll_delta.1 += y;
-                    }
-                    MouseScrollDelta::PixelDelta(pos) => {
-                        self.scroll_delta.0 += pos.x as f32;
-                        self.scroll_delta.1 += pos.y as f32;
-                    }
+            WindowEvent::MouseWheel { delta, .. } => match delta {
+                MouseScrollDelta::LineDelta(x, y) => {
+                    self.scroll_delta.0 += x;
+                    self.scroll_delta.1 += y;
                 }
-            }
+                MouseScrollDelta::PixelDelta(pos) => {
+                    self.scroll_delta.0 += pos.x as f32;
+                    self.scroll_delta.1 += pos.y as f32;
+                }
+            },
             _ => {}
         }
     }
@@ -1632,7 +1625,7 @@ impl MouseInputState {
     pub fn cursor_diff(&self) -> (f64, f64) {
         return (
             self.prev_position.x - self.position.x,
-            self.prev_position.y - self.position.y, 
+            self.prev_position.y - self.position.y,
         );
     }
 
@@ -1677,7 +1670,11 @@ impl<T: NodeType> TypedKey<T> {
 }
 impl<T: NodeType> TypedKey<T> {
     pub const fn new(id: Id, debug_name: &'static str) -> Self {
-        return Self { id, debug_name, nodetype_marker: PhantomData::<T> };
+        return Self {
+            id,
+            debug_name,
+            nodetype_marker: PhantomData::<T>,
+        };
     }
 }
 
@@ -1697,8 +1694,6 @@ pub trait TextTrait: NodeType {}
 
 pub trait ParentTrait: NodeType {}
 
-
-
 impl NodeType for Stack {}
 impl ParentTrait for Stack {}
 
@@ -1712,8 +1707,6 @@ impl TextTrait for TextNodeType {}
 pub struct Container {}
 impl NodeType for Container {}
 impl ParentTrait for Container {}
-
-
 
 use RefreshOrClone::*;
 pub enum RefreshOrClone {
@@ -1732,13 +1725,8 @@ pub fn refresh_or_add_twin(current_frame: u64, old_node_last_frame_touched: u64)
 
 use TwinCheckResult::*;
 enum TwinCheckResult<T: NodeType> {
-    UpdatedNormal {
-        final_i: usize,
-    },
-    NeedToUpdateTwin {
-        twin_n: u32,
-        twin_key: TypedKey<T>,
-    }
+    UpdatedNormal { final_i: usize },
+    NeedToUpdateTwin { twin_n: u32, twin_key: TypedKey<T> },
 }
 
 #[macro_export]
@@ -1755,8 +1743,6 @@ macro_rules! for_each_child {
     };
 }
 
-
-
 // impl NodeKey {
 //     pub const fn validate(self) -> Self {
 //         return self;
@@ -1768,17 +1754,17 @@ macro_rules! for_each_child {
 //         if self.defaults.stack.is_some() || self.defaults.text.is_none()  {
 //             panic!("
 //             Blue Gui ran into an error when constructing a `TypedKey<Text>`.
-//             Typed keys can only be constructed with NodeParams compatible with their purpose. 
-            
+//             Typed keys can only be constructed with NodeParams compatible with their purpose.
+
 //             TypedKey<Text> should have the following content:
 //             text: Some
 //             stack: None
 //             image: None
-            
+
 //             If that's not what you want, consider using the general-purpose `NodeKey`, which will give you the maximum flexibility.
 //             ");
 //         }
-        
+
 //         return self;
 //     }
 // }
@@ -1788,67 +1774,59 @@ macro_rules! for_each_child {
 //         if self.defaults.stack.is_none() || self.defaults.text.is_some() {
 //             panic!("
 //             Blue Gui ran into an error when constructing a `TypedKey<Text>`.
-//             Typed keys can only be constructed with NodeParams compatible with their purpose. 
-            
+//             Typed keys can only be constructed with NodeParams compatible with their purpose.
+
 //             TypedKey<Text> should have the following content:
 //             text: Some
 //             stack: None
 //             image: None
-            
+
 //             If that's not what you want, consider using the general-purpose `NodeKey`, which will give you the maximum flexibility.
 //             ");
 //         }
-        
+
 //         return self;
 //     }
 // }
 
 pub struct Parent {
-    node: usize
+    node: usize,
 }
 impl Parent {
     pub fn nest(&self, children_block: impl FnOnce()) {
         thread_local_push_parent(self.node);
-        
+
         children_block();
-        
+
         thread_local_pop_parent_and_sibling();
     }
 }
 
-impl<'a,  T: NodeType> UiNode<'a, T> {
+impl<'a, T: NodeType> UiNode<'a, T> {
     pub fn parent(&self) -> Parent {
-        return Parent {
-            node: self.node
-        };
-    }    
+        return Parent { node: self.node };
+    }
 }
 
 impl Ui {
     pub fn add(&mut self, params: &NodeParams) -> UiNode<Any> {
         let i = self.update_node(params.key, params);
-        return self.get_ref_unchecked(i, &params.key)
+        return self.get_ref_unchecked(i, &params.key);
     }
 
     pub fn add_parent(&mut self, params: &NodeParams) -> Parent {
         let node = self.update_node(params.key, params);
-        return Parent {
-            node
-        }
+        return Parent { node };
     }
 
     pub fn v_stack2(&mut self) -> Parent {
         let node = self.update_node(ANON_VSTACK, &V_STACK);
-        return Parent {
-            node
-        }
+        return Parent { node };
     }
 
     pub fn h_stack2(&mut self) -> Parent {
         let node = self.update_node(ANON_HSTACK, &H_STACK);
-        return Parent {
-            node
-        }
+        return Parent { node };
     }
 }
 
@@ -1878,9 +1856,7 @@ pub(crate) fn thread_local_pop_parent_and_sibling() {
 }
 
 pub(crate) fn thread_local_last_parent() -> usize {
-    THREAD_STACKS.with(|stack| {
-        *stack.borrow().parents.last().unwrap()
-    })
+    THREAD_STACKS.with(|stack| *stack.borrow().parents.last().unwrap())
 }
 
 pub(crate) fn thread_local_push_last_sibling(new_siblings: usize) {
@@ -1888,8 +1864,6 @@ pub(crate) fn thread_local_push_last_sibling(new_siblings: usize) {
         stack.borrow_mut().siblings.push(new_siblings);
     });
 }
-
-
 
 pub(crate) fn thread_local_cycle_last_sibling(new_sibling: usize) -> usize {
     THREAD_STACKS.with(|stack| {
