@@ -102,7 +102,6 @@ impl State {
             ui,
             count_state: CounterState::default(),
             canvas,
-    
             info_visible: true,
             slider_value: 500.0,
             slider_value2: 450.0,

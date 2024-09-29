@@ -7,6 +7,7 @@ use crate::ui::Size::*;
 use crate::ui::*;
 use crate::*;
 
+use change_watcher::Watcher;
 use view_derive::node_key;
 
 const COLOR1: Color = Color::rgba(50, 13, 100, 240);
@@ -15,33 +16,40 @@ const GRAD1: VertexColors = VertexColors::diagonal_gradient_forward_slash(COLOR1
 const FLGR_PANEL: NodeParams = PANEL.vertex_colors(GRAD1);
 
 impl State { 
-    pub fn counter(&mut self) {
+    pub fn perfect_counter(&mut self) {
         #[node_key] const INCREASE: NodeKey;
         #[node_key] const DECREASE: NodeKey;
+        #[node_key] const SHOW: NodeKey;
         let increase = BUTTON.key(INCREASE);
         let decrease = BUTTON.key(DECREASE);
+        let show = BUTTON.color(Color::RED).key(SHOW);
         let count_label = LABEL;
 
-        let count_str = &self.count_state.count.to_string();
-
         self.ui.add_parent(&V_STACK).nest(|| {
-            self.ui.add(&increase).static_text("Increase");
-            self.ui.add(&count_label).text(count_str);
-            self.ui.add(&decrease).static_text("Decrease");
+            if self.count_state.show {
+                self.ui.add(&increase).static_text("Increase");
+                self.ui.add(&count_label).smart_text(self.count_state.count.sync());
+                self.ui.add(&decrease).static_text("Decrease");
+            } else {
+                self.ui.add(&show).static_text("Show Counter");
+            }
         });
 
+        if self.ui.is_clicked(SHOW) {
+            self.count_state.show = !self.count_state.show;
+        }
         if self.ui.is_clicked(INCREASE) {
-            self.count_state.count += 1;
+            *self.count_state.count += 1;
         }
         if self.ui.is_clicked(DECREASE) {
-            self.count_state.count -= 1;
+            *self.count_state.count -= 1;
         }
     }
 
     pub fn update_ui(&mut self) {
         tree!(self.ui, {
 
-            self.counter();
+            self.perfect_counter();
 
             // #[node_key] const RIGHT_BAR: NodeKey;
             // let sidebar = V_STACK
@@ -73,14 +81,14 @@ impl State {
 }
 
 pub struct CounterState {
-    pub count: i32,
-    pub counter_mode: bool,
+    pub count: Watcher<i32>,
+    pub show: bool,
 }
 impl Default for CounterState {
     fn default() -> Self {
         return CounterState {
-            count: 0,
-            counter_mode: false,
+            count: Watcher::new(0),
+            show: false,
         };
     }
 }

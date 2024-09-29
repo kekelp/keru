@@ -25,6 +25,7 @@ slab = "0.4.9"
 image = "0.25.2"
 etagere = "0.2.13"
 slotmap = "1.0.7"
+change_watcher = { path = "../change_watcher" }
 
 [lints.clippy]
 needless_return = { level = "allow" } 

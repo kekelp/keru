@@ -46,6 +46,8 @@ pub fn ui_time_f32() -> f32 {
     return T0.elapsed().as_secs_f32();
 }
 
+use std::fmt::Write;
+
 #[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, Pod, Zeroable)]
 #[repr(C)]
 pub struct Id(pub(crate) u64);
@@ -533,7 +535,7 @@ impl<'a, T: TextTrait> UiNode<'a, T> {
         }
 
         if let Some(text_id) = self.node_mut().text_id {
-            self.ui.sys.text.set_text_hashed(text_id, text);
+            self.ui.sys.text.set_text_unchecked(text_id, text);
         } else {
             let text_id = self
                 .ui
@@ -556,6 +558,27 @@ impl<'a, T: TextTrait> UiNode<'a, T> {
                 .sys
                 .text
                 .maybe_new_text_area(Some(text), self.ui.sys.part.current_frame);
+            self.node_mut().text_id = text_id;
+        }
+
+        return self;
+    }
+
+    pub fn smart_text(mut self, into_text: Option<impl Display>) -> Self {
+        let Some(into_text) = into_text else {
+            return self;
+        };
+
+        self.ui.format(into_text);
+
+        if let Some(text_id) = self.node_mut().text_id {
+            self.ui.sys.text.set_text_unchecked(text_id, &self.ui.format_scratch);
+        } else {
+            let text_id = self
+                .ui
+                .sys
+                .text
+                .maybe_new_text_area(Some(&self.ui.format_scratch), self.ui.sys.part.current_frame);
             self.node_mut().text_id = text_id;
         }
 
@@ -705,6 +728,16 @@ impl TextSystem {
         }
     }
 
+    fn set_text_unchecked(&mut self, text_id: usize, text: &str) {
+        let area = &mut self.text_areas[text_id];
+        area.buffer.set_text(
+            &mut self.font_system,
+            text,
+            Attrs::new().family(Family::SansSerif),
+            Shaping::Advanced,
+        );
+    }
+
     fn set_text_attrs(&mut self, text_id: usize, attrs: Attrs) {
         let area = &mut self.text_areas[text_id];
 
@@ -823,6 +856,8 @@ impl System {
 pub struct Ui {
     pub nodes: Nodes,
     pub sys: System,
+    format_scratch: String,
+
 }
 
 pub struct System {
@@ -1032,6 +1067,7 @@ impl Ui {
 
         Self {
             nodes,
+            format_scratch: String::with_capacity(1024),
 
             sys: System {
                 root_i,
@@ -1080,6 +1116,11 @@ impl Ui {
                 frame_t: 0.0,
             },
         }
+    }
+
+    pub fn format(&mut self, value: impl Display) {
+        self.format_scratch.clear();
+        let _ = write!(self.format_scratch, "{}", value);
     }
 
     // don't expect this to give you twin nodes automatically
@@ -1707,7 +1748,7 @@ impl<T: NodeType> TypedKey<T> {
 
 pub type NodeKey = TypedKey<Any>;
 
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 pub trait NodeType: Copy + Debug {}
 
 #[derive(Clone, Copy, Debug)]
