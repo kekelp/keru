@@ -59,6 +59,7 @@ pub const NODE_ROOT: Node = Node {
 
     imageref: None,
     last_static_image_ptr: None,
+    last_static_text_ptr: None,
 
     parent: usize::MAX,
 
@@ -522,6 +523,30 @@ impl<'a, T: NodeType> UiNode<'a, T> {
 }
 
 impl<'a, T: TextTrait> UiNode<'a, T> {
+    pub fn static_text(&mut self, text: &'static str) {
+        let text_pointer: *const u8 = text.as_ptr();
+
+        if let Some(last_pointer) = self.node().last_static_text_ptr {
+            if text_pointer == last_pointer {
+                return;
+            }
+        }
+
+        if let Some(text_id) = self.node_mut().text_id {
+            self.ui.sys.text.set_text_hashed(text_id, text);
+        } else {
+            let text_id = self
+                .ui
+                .sys
+                .text
+                .maybe_new_text_area(Some(text), self.ui.sys.part.current_frame);
+            self.node_mut().text_id = text_id;
+        }
+
+        self.node_mut().last_static_text_ptr = Some(text_pointer);
+
+    }
+
     pub fn text(mut self, text: &str) -> Self {
         if let Some(text_id) = self.node_mut().text_id {
             self.ui.sys.text.set_text_hashed(text_id, text);
@@ -776,6 +801,7 @@ impl System {
 
             imageref: None,
             last_static_image_ptr: None,
+            last_static_text_ptr: None,
 
             parent: parent_i,
 
@@ -1393,6 +1419,7 @@ pub struct Node {
 
     pub imageref: Option<ImageRef>,
     pub last_static_image_ptr: Option<*const u8>,
+    pub last_static_text_ptr: Option<*const u8>,
 
     pub parent: usize,
 

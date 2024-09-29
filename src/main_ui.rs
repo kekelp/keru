@@ -25,9 +25,9 @@ impl State {
         let count_str = &self.count_state.count.to_string();
 
         self.ui.add_parent(&V_STACK).nest(|| {
-            self.ui.add(&increase).text("Increase");
+            self.ui.add(&increase).static_text("Increase");
             self.ui.add(&count_label).text(count_str);
-            self.ui.add(&decrease).text("Decrease");
+            self.ui.add(&decrease).static_text("Decrease");
         });
 
         if self.ui.is_clicked(INCREASE) {
@@ -43,30 +43,30 @@ impl State {
 
             self.counter();
 
-            #[node_key] const RIGHT_BAR: NodeKey;
-            let sidebar = V_STACK
-                .key(RIGHT_BAR)
-                .position_x(Position::End)
-                .size_y(Fill)
-                .size_x(FitContent)
-                .stack_arrange(Arrange::Center);
+            // #[node_key] const RIGHT_BAR: NodeKey;
+            // let sidebar = V_STACK
+            //     .key(RIGHT_BAR)
+            //     .position_x(Position::End)
+            //     .size_y(Fill)
+            //     .size_x(FitContent)
+            //     .stack_arrange(Arrange::Center);
 
-            #[node_key] const LEFT_BAR: NodeKey;
-            let left_bar = V_STACK
-                .key(LEFT_BAR)
-                .position_x(Position::Start)
-                .size_y(Fill)
-                .size_x(FitContent)
-                .stack_arrange(Arrange::Center);
+            // #[node_key] const LEFT_BAR: NodeKey;
+            // let left_bar = V_STACK
+            //     .key(LEFT_BAR)
+            //     .position_x(Position::Start)
+            //     .size_y(Fill)
+            //     .size_x(FitContent)
+            //     .stack_arrange(Arrange::Center);
 
-            self.ui.add_parent(&sidebar).nest(|| {
-                self.slider_value = self.ui.add_slider(self.slider_value);
-            });
+            // self.ui.add_parent(&sidebar).nest(|| {
+            //     self.slider_value = self.ui.add_slider(self.slider_value);
+            // });
 
-            self.ui.add_parent(&left_bar).nest(|| {
-                self.add_pixel_info_ui();
-                self.add_tools();
-            });
+            // self.ui.add_parent(&left_bar).nest(|| {
+            //     self.add_pixel_info_ui();
+            //     self.add_tools();
+            // });
 
         });
     }
