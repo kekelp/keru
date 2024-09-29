@@ -564,7 +564,7 @@ impl<'a, T: TextTrait> UiNode<'a, T> {
         return self;
     }
 
-    pub fn smart_text(mut self, into_text: Option<impl Display>) -> Self {
+    pub fn dyn_text(mut self, into_text: Option<impl Display>) -> Self {
         let Some(into_text) = into_text else {
             return self;
         };
