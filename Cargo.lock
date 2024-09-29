@@ -238,20 +238,16 @@ dependencies = [
 name = "blue"
 version = "0.1.0"
 dependencies = [
- "bitflags 2.5.0",
  "bytemuck",
- "const_format",
  "copypasta",
  "etagere",
  "glam",
  "glyphon",
  "image",
- "lazy_static",
  "pollster",
  "rustc-hash",
  "slab",
  "slotmap",
- "smart-default",
  "unicode-segmentation",
  "view_derive",
  "wgpu",
@@ -1089,12 +1085,6 @@ name = "lazy-bytes-cast"
 version = "5.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "10257499f089cd156ad82d0a9cd57d9501fa2c989068992a97eb3c27836f206b"
-
-[[package]]
-name = "lazy_static"
-version = "1.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "lebe"
@@ -1968,17 +1958,6 @@ name = "smallvec"
 version = "1.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3c5e1a9a646d36c3599cd173a41282daf47c44583ad367b8e6837255952e5c67"
-
-[[package]]
-name = "smart-default"
-version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0eb01866308440fc64d6c44d9e86c5cc17adfe33c4d6eed55da9145044d0ffc1"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.57",
-]
 
 [[package]]
 name = "smithay-client-toolkit"

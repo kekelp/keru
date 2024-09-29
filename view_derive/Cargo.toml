@@ -12,3 +12,7 @@ quote = "1.0"
 proc-macro2 = "1.0"
 rand = "0.8.5"
 const_format = "0.2.32"
+
+[lints.clippy]
+needless_return = { level = "allow" } 
+bool_comparison = { level = "allow" }
