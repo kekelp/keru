@@ -28,7 +28,7 @@ impl State {
         self.ui.add_parent(&V_STACK).nest(|| {
             if self.count_state.show {
                 self.ui.add(&increase).static_text("Increase");
-                self.ui.add(&count_label).dyn_text(self.count_state.count.sync());
+                self.ui.add(&count_label).dyn_text(self.count_state.count.if_changed());
                 self.ui.add(&decrease).static_text("Decrease");
             } else {
                 self.ui.add(&show).static_text("Show Counter");
