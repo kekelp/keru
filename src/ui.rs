@@ -572,9 +572,9 @@ impl<'a, T: TextTrait> UiNode<'a, T> {
         let Some(into_text) = into_text else {
             return self;
         };
-
+        
         self.ui.format(into_text);
-
+        
         if let Some(text_id) = self.node_mut().text_id {
             self.ui.sys.text.set_text_unchecked(text_id, &self.ui.format_scratch);
         } else {
