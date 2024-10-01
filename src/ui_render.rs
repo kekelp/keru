@@ -43,7 +43,7 @@ impl Ui {
                 &mut self.sys.text.font_system,
                 &mut self.sys.text.atlas,
                 &self.sys.text.glyphon_viewport,
-                render_iter(&mut self.sys.text.text_areas),
+                render_iter(&mut self.sys.text.text_areas, self.sys.part.current_frame),
                 &mut self.sys.text.cache,
             )
             .unwrap();

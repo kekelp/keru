@@ -21,13 +21,15 @@ pub struct FullText {
 
 pub struct TextAreaIter<'a> {
     data: &'a [FullText],
+    frame: u64,
     current_index: usize,
 }
 
 impl<'a> TextAreaIter<'a> {
-    fn new(data: &'a [FullText]) -> Self {
+    fn new(data: &'a [FullText], frame: u64) -> Self {
         Self {
             data,
+            frame,
             current_index: 0,
         }
     }
@@ -37,27 +39,32 @@ impl<'a> Iterator for TextAreaIter<'a> {
     type Item = TextArea<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current_index >= self.data.len() {
-            return None;
+        loop {           
+            if self.current_index >= self.data.len() {
+                return None;
+            }
+                
+            let item = &self.data[self.current_index];
+            self.current_index += 1;
+            
+            if item.params.last_frame_touched == self.frame {
+
+                let text_area = TextArea {
+                    buffer: &item.buffer,
+                    left: item.params.left,
+                    top: item.params.top,
+                    scale: item.params.scale,
+                    bounds: item.params.bounds,
+                    default_color: item.params.default_color,
+                    custom_glyphs: &[],
+                };
+                
+                return Some(text_area);
+            }
         }
-
-        let item = &self.data[self.current_index];
-
-        let text_area = TextArea {
-            buffer: &item.buffer,
-            left: item.params.left,
-            top: item.params.top,
-            scale: item.params.scale,
-            bounds: item.params.bounds,
-            default_color: item.params.default_color,
-            custom_glyphs: &[],
-        };
-
-        self.current_index += 1;
-        return Some(text_area);
     }
 }
 
-pub fn render_iter<'a>(data: &'a Vec<FullText>) -> TextAreaIter<'a> {
-    return TextAreaIter::new(data);
+pub fn render_iter<'a>(data: &'a Vec<FullText>, frame: u64) -> TextAreaIter<'a> {
+    return TextAreaIter::new(data, frame);
 }
