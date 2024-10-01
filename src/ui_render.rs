@@ -1,11 +1,10 @@
 use std::{marker::PhantomData, mem};
 
 use bytemuck::Pod;
-use glyphon::Resolution as GlyphonResolution;
 use wgpu::{Buffer, BufferSlice, Device, Queue, RenderPass};
 
+use crate::ui_text::render_iter;
 use crate::Ui;
-use crate::ui_math::Axis::*;
 
 impl Ui {
     
@@ -20,7 +19,7 @@ impl Ui {
 
         self.sys.text
             .text_renderer
-            .render(&self.sys.text.atlas, render_pass)
+            .render(&self.sys.text.atlas, &self.sys.text.glyphon_viewport, render_pass)
             .unwrap();
     }
 
@@ -43,13 +42,9 @@ impl Ui {
                 queue,
                 &mut self.sys.text.font_system,
                 &mut self.sys.text.atlas,
-                GlyphonResolution {
-                    width: self.sys.part.unifs.size[X] as u32,
-                    height: self.sys.part.unifs.size[Y] as u32,
-                },
-                &mut self.sys.text.text_areas,
+                &self.sys.text.glyphon_viewport,
+                render_iter(&mut self.sys.text.text_areas),
                 &mut self.sys.text.cache,
-                self.sys.part.current_frame,
             )
             .unwrap();
 

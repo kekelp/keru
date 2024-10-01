@@ -1,8 +1,7 @@
-use copypasta::ClipboardProvider;
 use wgpu::Queue;
-use winit::{event::{Event, KeyEvent, MouseButton, WindowEvent}, keyboard::{Key, NamedKey}};
+use winit::event::{Event, KeyEvent, MouseButton, WindowEvent};
 
-use crate::{ui_time_f32, unwrap_or_return, Id, NodeKey, Ui};
+use crate::{ui_time_f32, Id, NodeKey, Ui};
 
 use glyphon::{Affinity, Cursor as GlyphonCursor};
 
@@ -60,8 +59,8 @@ impl Ui {
             if let Some(id) = node.text_id {
                 let text_area = &mut self.sys.text.text_areas[id];
                 let (x, y) = (
-                    self.sys.part.mouse_pos.x - text_area.left,
-                    self.sys.part.mouse_pos.y - text_area.top,
+                    self.sys.part.mouse_pos.x - text_area.params.left,
+                    self.sys.part.mouse_pos.y - text_area.params.top,
                 );
 
                 // todo: with how I'm misusing cosmic-text, this might become "unsafe" soon (as in, might be incorrect or cause panics, not actually unsafe).
@@ -192,124 +191,124 @@ impl Ui {
 
 
 
-    pub fn handle_keyboard_event(&mut self, event: &KeyEvent) -> bool {
+    pub fn handle_keyboard_event(&mut self, _event: &KeyEvent) -> bool {
         // todo: remove line.reset(); and do it only once per frame via change watcher guy
 
-        if let Key::Named(named_key) = &event.logical_key { if named_key == &NamedKey::F1 {
-            if event.state.is_pressed() && self.sys.debug_key_pressed == false {
-                #[cfg(debug_assertions)]
-                {
-                    self.sys.debug_mode = !self.sys.debug_mode;
-                }
-            }
+        // if let Key::Named(named_key) = &event.logical_key { if named_key == &NamedKey::F1 {
+        //     if event.state.is_pressed() && self.sys.debug_key_pressed == false {
+        //         #[cfg(debug_assertions)]
+        //         {
+        //             self.sys.debug_mode = !self.sys.debug_mode;
+        //         }
+        //     }
 
-            self.sys.debug_key_pressed = event.state.is_pressed();
-        } }
+        //     self.sys.debug_key_pressed = event.state.is_pressed();
+        // } }
 
-        // if there is no focused text node, return consumed: false
-        let id = unwrap_or_return!(self.sys.focused, false);
-        let node = unwrap_or_return!(self.nodes.get_by_id(&id), false);
-        let text_id = unwrap_or_return!(node.text_id, false);
+        // // if there is no focused text node, return consumed: false
+        // let id = unwrap_or_return!(self.sys.focused, false);
+        // let node = unwrap_or_return!(self.nodes.get_by_id(&id), false);
+        // let text_id = unwrap_or_return!(node.text_id, false);
 
-        // return consumed: true in each of these cases. Still don't consume keys that the UI doesn't use.
-        if event.state.is_pressed() {
-            let buffer = &mut self.sys.text.text_areas[text_id].buffer;
-            let line = &mut buffer.lines[0];
+        // // return consumed: true in each of these cases. Still don't consume keys that the UI doesn't use.
+        // if event.state.is_pressed() {
+        //     let buffer = &mut self.sys.text.text_areas[text_id].buffer;
+        //     let line = &mut buffer.lines[0];
 
-            match &event.logical_key {
-                // todo: ctrl + Z
-                Key::Named(named_key) => match named_key {
-                    NamedKey::ArrowLeft => {
-                        match (self.sys.key_mods.shift_key(), self.sys.key_mods.control_key()) {
-                            (true, true) => line.text.control_shift_left_arrow(),
-                            (true, false) => line.text.shift_left_arrow(),
-                            (false, true) => line.text.control_left_arrow(),
-                            (false, false) => line.text.left_arrow(),
-                        }
-                        return true;
-                    }
-                    NamedKey::ArrowRight => {
-                        match (self.sys.key_mods.shift_key(), self.sys.key_mods.control_key()) {
-                            (true, true) => line.text.control_shift_right_arrow(),
-                            (true, false) => line.text.shift_right_arrow(),
-                            (false, true) => line.text.control_right_arrow(),
-                            (false, false) => line.text.right_arrow(),
-                        }
-                        return true;
-                    }
-                    NamedKey::Backspace => {
-                        if self.sys.key_mods.control_key() {
-                            line.text.ctrl_backspace();
-                        } else {
-                            line.text.backspace();
-                        }
-                        line.reset();
-                        return true;
-                    }
-                    NamedKey::End => {
-                        match self.sys.key_mods.shift_key() {
-                            true => line.text.shift_end(),
-                            false => line.text.go_to_end(),
-                        }
-                        line.reset();
-                        return true;
-                    }
-                    NamedKey::Home => {
-                        match self.sys.key_mods.shift_key() {
-                            false => line.text.go_to_start(),
-                            true => line.text.shift_home(),
-                        }
-                        line.reset();
-                        return true;
-                    }
-                    NamedKey::Delete => {
-                        if self.sys.key_mods.control_key() {
-                            line.text.ctrl_delete();
-                        } else {
-                            line.text.delete();
-                        }
-                        line.reset();
-                        return true;
-                    }
-                    NamedKey::Space => {
-                        line.text.insert_str_at_cursor(" ");
-                        line.reset();
-                        return true;
-                    }
-                    _ => {}
-                },
-                Key::Character(new_char) => {
-                    if !self.sys.key_mods.control_key()
-                        && !self.sys.key_mods.alt_key()
-                        && !self.sys.key_mods.super_key()
-                    {
-                        line.text.insert_str_at_cursor(new_char);
-                        line.reset();
-                        return true;
-                    } else if self.sys.key_mods.control_key() {
-                        match new_char.as_str() {
-                            "c" => {
-                                let selected_text = line.text.selected_text().to_owned();
-                                if let Some(text) = selected_text {
-                                    let _ = self.sys.clipboard.set_contents(text.to_string());
-                                }
-                                return true;
-                            }
-                            "v" => {
-                                if let Ok(pasted_text) = self.sys.clipboard.get_contents() {
-                                    line.text.insert_str_at_cursor(&pasted_text);
-                                    line.reset();
-                                }
-                                return true;
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-                Key::Unidentified(_) => {}
-                Key::Dead(_) => {}
-            };
-        }
+        //     match &event.logical_key {
+        //         // todo: ctrl + Z
+        //         Key::Named(named_key) => match named_key {
+        //             NamedKey::ArrowLeft => {
+        //                 match (self.sys.key_mods.shift_key(), self.sys.key_mods.control_key()) {
+        //                     (true, true) => line.text.control_shift_left_arrow(),
+        //                     (true, false) => line.text.shift_left_arrow(),
+        //                     (false, true) => line.text.control_left_arrow(),
+        //                     (false, false) => line.text.left_arrow(),
+        //                 }
+        //                 return true;
+        //             }
+        //             NamedKey::ArrowRight => {
+        //                 match (self.sys.key_mods.shift_key(), self.sys.key_mods.control_key()) {
+        //                     (true, true) => line.text.control_shift_right_arrow(),
+        //                     (true, false) => line.text.shift_right_arrow(),
+        //                     (false, true) => line.text.control_right_arrow(),
+        //                     (false, false) => line.text.right_arrow(),
+        //                 }
+        //                 return true;
+        //             }
+        //             NamedKey::Backspace => {
+        //                 if self.sys.key_mods.control_key() {
+        //                     line.text.ctrl_backspace();
+        //                 } else {
+        //                     line.text.backspace();
+        //                 }
+        //                 line.reset();
+        //                 return true;
+        //             }
+        //             NamedKey::End => {
+        //                 match self.sys.key_mods.shift_key() {
+        //                     true => line.text.shift_end(),
+        //                     false => line.text.go_to_end(),
+        //                 }
+        //                 line.reset();
+        //                 return true;
+        //             }
+        //             NamedKey::Home => {
+        //                 match self.sys.key_mods.shift_key() {
+        //                     false => line.text.go_to_start(),
+        //                     true => line.text.shift_home(),
+        //                 }
+        //                 line.reset();
+        //                 return true;
+        //             }
+        //             NamedKey::Delete => {
+        //                 if self.sys.key_mods.control_key() {
+        //                     line.text.ctrl_delete();
+        //                 } else {
+        //                     line.text.delete();
+        //                 }
+        //                 line.reset();
+        //                 return true;
+        //             }
+        //             NamedKey::Space => {
+        //                 line.text.insert_str_at_cursor(" ");
+        //                 line.reset();
+        //                 return true;
+        //             }
+        //             _ => {}
+        //         },
+        //         Key::Character(new_char) => {
+        //             if !self.sys.key_mods.control_key()
+        //                 && !self.sys.key_mods.alt_key()
+        //                 && !self.sys.key_mods.super_key()
+        //             {
+        //                 line.text.insert_str_at_cursor(new_char);
+        //                 line.reset();
+        //                 return true;
+        //             } else if self.sys.key_mods.control_key() {
+        //                 match new_char.as_str() {
+        //                     "c" => {
+        //                         let selected_text = line.text.selected_text().to_owned();
+        //                         if let Some(text) = selected_text {
+        //                             let _ = self.sys.clipboard.set_contents(text.to_string());
+        //                         }
+        //                         return true;
+        //                     }
+        //                     "v" => {
+        //                         if let Ok(pasted_text) = self.sys.clipboard.get_contents() {
+        //                             line.text.insert_str_at_cursor(&pasted_text);
+        //                             line.reset();
+        //                         }
+        //                         return true;
+        //                     }
+        //                     _ => {}
+        //                 }
+        //             }
+        //         }
+        //         Key::Unidentified(_) => {}
+        //         Key::Dead(_) => {}
+        //     };
+        // }
 
         return false;
     }

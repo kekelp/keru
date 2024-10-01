@@ -263,6 +263,7 @@ impl Canvas {
                 module: &shader,
                 entry_point: "vs_main",
                 buffers: &[],
+                compilation_options: Default::default(),
             },
             fragment: Some(FragmentState {
                 module: &shader,
@@ -272,11 +273,13 @@ impl Canvas {
                     blend: Some(BlendState::REPLACE),
                     write_mask: ColorWrites::ALL,
                 })],
+                compilation_options: Default::default(),
             }),
             primitive: PrimitiveState::default(),
             depth_stencil: None,
             multisample: MultisampleState::default(),
             multiview: None,
+            cache: None,
         });
         
         let mut canvas = Canvas {

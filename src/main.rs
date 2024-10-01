@@ -11,6 +11,7 @@ pub mod ui;
 pub mod ui_render;
 pub mod ui_layout;
 pub mod ui_interact;
+pub mod ui_text;
 
 use glam::dvec2;
 use pixels_on_screen::*;

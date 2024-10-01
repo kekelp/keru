@@ -150,7 +150,7 @@ impl Ui {
             line.set_align(Some(glyphon::cosmic_text::Align::Left));
         }
 
-        buffer.set_size(&mut self.sys.text.font_system, w, h);
+        buffer.set_size(&mut self.sys.text.font_system, Some(w), Some(h));
         buffer.shape_until_scroll(&mut self.sys.text.font_system, false);
 
         let trimmed_size = buffer.measure_text_pixels();
@@ -361,8 +361,8 @@ impl Ui {
             // let right = rect[X][1] * self.sys.part.unifs.size[X];
             // let bottom =     rect[Y][1] * self.sys.part.unifs.size[Y];
 
-            self.sys.text.text_areas[text_id].left = left + padding[X] as f32;
-            self.sys.text.text_areas[text_id].top = top + padding[Y] as f32;
+            self.sys.text.text_areas[text_id].params.left = left + padding[X] as f32;
+            self.sys.text.text_areas[text_id].params.top = top + padding[Y] as f32;
            
             // self.sys.text.text_areas[text_id].bounds.left = left as i32 + padding[X] as i32;
             // self.sys.text.text_areas[text_id].bounds.top = top as i32 + padding[Y] as i32;

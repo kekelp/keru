@@ -3,10 +3,14 @@ use crate::ui_node_params::{
     ANON_HSTACK, ANON_VSTACK, DEFAULT, H_STACK, NODE_ROOT_PARAMS, TEXT, V_STACK,
 };
 use crate::ui_render::TypedGpuBuffer;
+use crate::ui_text::{FullText, TextAreaParams};
 use crate::ui_texture_atlas::{ImageRef, TextureAtlas};
 use copypasta::ClipboardContext;
-use glyphon::cosmic_text::{Align, StringCursor};
-use glyphon::{AttrsList, Color as GlyphonColor, TextBounds};
+use glyphon::cosmic_text::Align;
+use glyphon::{AttrsList, Color as GlyphonColor, TextBounds, Viewport};
+
+use glyphon::Cache as GlyphonCache;
+
 use rustc_hash::{FxHashMap, FxHasher};
 use slab::Slab;
 use wgpu::*;
@@ -25,7 +29,7 @@ use std::{
 
 use bytemuck::{Pod, Zeroable};
 use glyphon::{
-    Attrs, Buffer as GlyphonBuffer, Family, FontSystem, Metrics, Shaping, SwashCache, TextArea,
+    Attrs, Buffer as GlyphonBuffer, Family, FontSystem, Metrics, Shaping, SwashCache,
     TextAtlas, TextRenderer,
 };
 use winit::{
@@ -605,14 +609,15 @@ impl<'a, T: TextTrait> UiNode<'a, T> {
         return self;
     }
 
+    // todo: in a sane world, this wouldn't allocate.
     pub fn get_text(&self) -> Option<String> {
-        let text_id = self.node().text_id.unwrap();
+        // let text_id = self.node().text_id.unwrap();
 
-        let text = self.ui.sys.text.text_areas[text_id].buffer.lines[0]
-            .text
-            .text()
-            .to_string();
-        return Some(text);
+        // let lines = self.ui.sys.text.text_areas[text_id].buffer.lines;
+        
+        // let text = lines.into_iter().map(|l| l.text()).collect();
+        // return Some(text);
+        return None;
     }
 }
 
@@ -652,7 +657,9 @@ pub struct TextSystem {
     pub cache: SwashCache,
     pub atlas: TextAtlas,
     pub text_renderer: TextRenderer,
-    pub text_areas: Vec<TextArea>,
+    pub text_areas: Vec<FullText>,
+    pub glyphon_viewport: Viewport,
+    pub glyphon_cache: GlyphonCache,
 }
 const GLOBAL_TEXT_METRICS: Metrics = Metrics::new(24.0, 24.0);
 impl TextSystem {
@@ -667,7 +674,7 @@ impl TextSystem {
         };
 
         let mut buffer = GlyphonBuffer::new(&mut self.font_system, GLOBAL_TEXT_METRICS);
-        buffer.set_size(&mut self.font_system, 500., 500.);
+        buffer.set_size(&mut self.font_system, Some(500.), Some(500.));
 
         let mut hasher = FxHasher::default();
         text.hash(&mut hasher);
@@ -686,8 +693,7 @@ impl TextSystem {
             line.set_align(Some(glyphon::cosmic_text::Align::Center));
         }
 
-        let text_area = TextArea {
-            buffer,
+        let params = TextAreaParams {
             left: 10.0,
             top: 10.0,
             scale: 1.0,
@@ -698,11 +704,10 @@ impl TextSystem {
                 bottom: 10000,
             },
             default_color: GlyphonColor::rgb(255, 255, 255),
-            depth: 0.0,
             last_frame_touched: current_frame,
             last_hash: hash,
         };
-        self.text_areas.push(text_area);
+        self.text_areas.push(FullText { buffer, params });
         let text_id = self.text_areas.len() - 1;
 
         return Some(text_id);
@@ -710,15 +715,15 @@ impl TextSystem {
 
     fn refresh_last_frame(&mut self, text_id: Option<usize>, current_frame: u64) {
         if let Some(text_id) = text_id {
-            self.text_areas[text_id].last_frame_touched = current_frame;
+            self.text_areas[text_id].params.last_frame_touched = current_frame;
         }
     }
 
     fn set_text_hashed(&mut self, text_id: usize, text: &str) {
         let hash = fx_hash(&text);
         let area = &mut self.text_areas[text_id];
-        if hash != area.last_hash {
-            area.last_hash = hash;
+        if hash != area.params.last_hash {
+            area.params.last_hash = hash;
             area.buffer.set_text(
                 &mut self.font_system,
                 text,
@@ -1021,6 +1026,7 @@ impl Ui {
                 module: &shader,
                 entry_point: "vs_main",
                 buffers: &[vert_buff_layout],
+                compilation_options: Default::default(),
             },
             fragment: Some(FragmentState {
                 module: &shader,
@@ -1030,20 +1036,27 @@ impl Ui {
                     blend: Some(BlendState::ALPHA_BLENDING),
                     write_mask: ColorWrites::ALL,
                 })],
+                compilation_options: Default::default(),
             }),
             primitive,
             depth_stencil: None,
             multisample: MultisampleState::default(),
             multiview: None,
+            cache: None,
         });
 
         let font_system = FontSystem::new();
         let cache = SwashCache::new();
-        let mut atlas = TextAtlas::new(device, queue, config.format);
+        let glyphon_cache = GlyphonCache::new(&device);
+        let glyphon_viewport = Viewport::new(&device, &glyphon_cache);
+
+
+        let mut atlas = TextAtlas::new(device, queue, &glyphon_cache, config.format);
         let text_renderer =
             TextRenderer::new(&mut atlas, device, MultisampleState::default(), None);
 
         let text_areas = Vec::with_capacity(50);
+
 
         let mut node_hashmap = FxHashMap::with_capacity_and_hasher(100, Default::default());
 
@@ -1086,6 +1099,8 @@ impl Ui {
                     text_renderer,
                     font_system,
                     text_areas,
+                    glyphon_cache,
+                    glyphon_viewport,
                 },
 
                 texture_atlas,
@@ -1251,6 +1266,14 @@ impl Ui {
         self.sys.part.unifs.size[X] = size.width as f32;
         self.sys.part.unifs.size[Y] = size.height as f32;
 
+        self.sys.text.glyphon_viewport.update(
+            queue,
+            glyphon::Resolution {
+                width: self.sys.part.unifs.size.x as u32,
+                height: self.sys.part.unifs.size.y as u32,
+            },
+        );
+
         queue.write_buffer(
             &self.sys.base_uniform_buffer,
             0,
@@ -1297,84 +1320,84 @@ impl Ui {
 
         // it's a specific choice by me to keep cursors for every string at all times, but only display (and use) the one on the currently focused ui node.
         // someone might want multi-cursor in the same node, multi-cursor on different nodes, etc.
-        let focused_id = &self.sys.focused?;
-        let focused_node = self.nodes.get_by_id(focused_id)?;
-        let text_id = focused_node.text_id?;
-        let focused_text_area = self.sys.text.text_areas.get(text_id)?;
+        // let focused_id = &self.sys.focused?;
+        // let focused_node = self.nodes.get_by_id(focused_id)?;
+        // let text_id = focused_node.text_id?;
+        // let focused_text_area = self.sys.text.text_areas.get(text_id)?;
 
-        match focused_text_area.buffer.lines[0].text.cursor() {
-            StringCursor::Point(cursor) => {
-                let rect_x0 = focused_node.rect[X][0];
-                let rect_y1 = focused_node.rect[Y][1];
+        // match focused_text_area.buffer.lines[0].text.cursor() {
+        //     StringCursor::Point(cursor) => {
+        //         let rect_x0 = focused_node.rect[X][0];
+        //         let rect_y1 = focused_node.rect[Y][1];
 
-                let (x, y) = cursor_pos_from_byte_offset(&focused_text_area.buffer, *cursor);
+        //         let (x, y) = cursor_pos_from_byte_offset(&focused_text_area.buffer, *cursor);
 
-                let cursor_width = focused_text_area.buffer.metrics().font_size / 20.0;
-                let cursor_height = focused_text_area.buffer.metrics().font_size;
-                // we're counting on this always happening after layout. which should be safe.
-                let x0 = ((x - 1.0) / self.sys.part.unifs.size[X]) * 2.0;
-                let x1 = ((x + cursor_width) / self.sys.part.unifs.size[X]) * 2.0;
-                let x0 = x0 + (rect_x0 * 2. - 1.);
-                let x1 = x1 + (rect_x0 * 2. - 1.);
+        //         let cursor_width = focused_text_area.buffer.metrics().font_size / 20.0;
+        //         let cursor_height = focused_text_area.buffer.metrics().font_size;
+        //         // we're counting on this always happening after layout. which should be safe.
+        //         let x0 = ((x - 1.0) / self.sys.part.unifs.size[X]) * 2.0;
+        //         let x1 = ((x + cursor_width) / self.sys.part.unifs.size[X]) * 2.0;
+        //         let x0 = x0 + (rect_x0 * 2. - 1.);
+        //         let x1 = x1 + (rect_x0 * 2. - 1.);
 
-                let y0 = ((-y - cursor_height) / self.sys.part.unifs.size[Y]) * 2.0;
-                let y1 = ((-y) / self.sys.part.unifs.size[Y]) * 2.0;
-                let y0 = y0 + (rect_y1 * 2. - 1.);
-                let y1 = y1 + (rect_y1 * 2. - 1.);
+        //         let y0 = ((-y - cursor_height) / self.sys.part.unifs.size[Y]) * 2.0;
+        //         let y1 = ((-y) / self.sys.part.unifs.size[Y]) * 2.0;
+        //         let y0 = y0 + (rect_y1 * 2. - 1.);
+        //         let y1 = y1 + (rect_y1 * 2. - 1.);
 
-                let cursor_rect = RenderRect {
-                    rect: XyRect::new([x0, x1], [y0, y1]),
-                    vertex_colors: VertexColors::flat(Color::rgba(128, 77, 128, 230)),
-                    last_hover: 0.0,
-                    last_click: 0.0,
-                    click_animation: 0,
-                    z: 0.0,
-                    id: Id(0),
-                    filled: 1,
-                    radius: 0.0,
-                    tex_coords: Xy::new([0.0, 0.0], [0.0, 0.0]),
-                };
+        //         let cursor_rect = RenderRect {
+        //             rect: XyRect::new([x0, x1], [y0, y1]),
+        //             vertex_colors: VertexColors::flat(Color::rgba(128, 77, 128, 230)),
+        //             last_hover: 0.0,
+        //             last_click: 0.0,
+        //             click_animation: 0,
+        //             z: 0.0,
+        //             id: Id(0),
+        //             filled: 1,
+        //             radius: 0.0,
+        //             tex_coords: Xy::new([0.0, 0.0], [0.0, 0.0]),
+        //         };
 
-                self.sys.rects.push(cursor_rect);
-            }
-            StringCursor::Selection(selection) => {
-                let rect_x0 = focused_node.rect[X][0];
-                let rect_y1 = focused_node.rect[Y][1];
+        //         self.sys.rects.push(cursor_rect);
+        //     }
+        //     StringCursor::Selection(selection) => {
+        //         let rect_x0 = focused_node.rect[X][0];
+        //         let rect_y1 = focused_node.rect[Y][1];
 
-                let (x0, y0) =
-                    cursor_pos_from_byte_offset(&focused_text_area.buffer, selection.start);
-                let (x1, y1) =
-                    cursor_pos_from_byte_offset(&focused_text_area.buffer, selection.end);
+        //         let (x0, y0) =
+        //             cursor_pos_from_byte_offset(&focused_text_area.buffer, selection.start);
+        //         let (x1, y1) =
+        //             cursor_pos_from_byte_offset(&focused_text_area.buffer, selection.end);
 
-                // let cursor_width = focused_text_area.buffer.metrics().font_size / 20.0;
-                let cursor_height = focused_text_area.buffer.metrics().font_size;
-                let x0 = ((x0 - 1.0) / self.sys.part.unifs.size[X]) * 2.0;
-                let x1 = ((x1 + 1.0) / self.sys.part.unifs.size[X]) * 2.0;
-                let x0 = x0 + (rect_x0 * 2. - 1.);
-                let x1 = x1 + (rect_x0 * 2. - 1.);
+        //         // let cursor_width = focused_text_area.buffer.metrics().font_size / 20.0;
+        //         let cursor_height = focused_text_area.buffer.metrics().font_size;
+        //         let x0 = ((x0 - 1.0) / self.sys.part.unifs.size[X]) * 2.0;
+        //         let x1 = ((x1 + 1.0) / self.sys.part.unifs.size[X]) * 2.0;
+        //         let x0 = x0 + (rect_x0 * 2. - 1.);
+        //         let x1 = x1 + (rect_x0 * 2. - 1.);
 
-                let y0 = ((-y0 - cursor_height) / self.sys.part.unifs.size[Y]) * 2.0;
-                let y1 = ((-y1) / self.sys.part.unifs.size[Y]) * 2.0;
-                let y0 = y0 + (rect_y1 * 2. - 1.);
-                let y1 = y1 + (rect_y1 * 2. - 1.);
+        //         let y0 = ((-y0 - cursor_height) / self.sys.part.unifs.size[Y]) * 2.0;
+        //         let y1 = ((-y1) / self.sys.part.unifs.size[Y]) * 2.0;
+        //         let y0 = y0 + (rect_y1 * 2. - 1.);
+        //         let y1 = y1 + (rect_y1 * 2. - 1.);
 
-                let cursor_rect = RenderRect {
-                    rect: XyRect::new([x0, x1], [y0, y1]),
-                    vertex_colors: VertexColors::flat(Color::rgba(128, 77, 128, 230)),
-                    last_hover: 0.0,
-                    last_click: 0.0,
-                    click_animation: 0,
-                    z: 0.0,
-                    id: Id(0),
-                    filled: 1,
-                    radius: 0.0,
+        //         let cursor_rect = RenderRect {
+        //             rect: XyRect::new([x0, x1], [y0, y1]),
+        //             vertex_colors: VertexColors::flat(Color::rgba(128, 77, 128, 230)),
+        //             last_hover: 0.0,
+        //             last_click: 0.0,
+        //             click_animation: 0,
+        //             z: 0.0,
+        //             id: Id(0),
+        //             filled: 1,
+        //             radius: 0.0,
 
-                    tex_coords: Xy::new([0.0, 0.0], [0.0, 0.0]),
-                };
+        //             tex_coords: Xy::new([0.0, 0.0], [0.0, 0.0]),
+        //         };
 
-                self.sys.rects.push(cursor_rect);
-            }
-        }
+        //         self.sys.rects.push(cursor_rect);
+        //     }
+        // }
 
         return Some(());
     }

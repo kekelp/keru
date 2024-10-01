@@ -10,14 +10,15 @@ opt-level = 1
 opt-level = 1
 
 [dependencies]
+change_watcher = { path = "../change_watcher" }
+view_derive = { path = "view_derive" }
 winit = { version = "0.29.14", features = ["rwh_05"] }
-wgpu = { version = "0.19.3", default-features = true }
-glyphon = { path = "../glyphon" }
+wgpu = { version = "22", default-features = true }
+glyphon = { version = "0.6.0" }
 pollster = "0.3.0"
 bytemuck = { version = "1.15.0", features = [ "derive" ] }
 rustc-hash = "1.1.0"
 unicode-segmentation = "1.11.0"
-view_derive = { path = "view_derive" }
 copypasta = "0.10.1"
 glam = "0.28.0"
 winit_input_helper = "0.16.0"
@@ -25,7 +26,6 @@ slab = "0.4.9"
 image = "0.25.2"
 etagere = "0.2.13"
 slotmap = "1.0.7"
-change_watcher = { path = "../change_watcher" }
 
 [lints.clippy]
 needless_return = { level = "allow" } 

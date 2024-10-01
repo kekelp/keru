@@ -51,30 +51,30 @@ impl State {
 
             self.perfect_counter();
 
-            // #[node_key] const RIGHT_BAR: NodeKey;
-            // let sidebar = V_STACK
-            //     .key(RIGHT_BAR)
-            //     .position_x(Position::End)
-            //     .size_y(Fill)
-            //     .size_x(FitContent)
-            //     .stack_arrange(Arrange::Center);
+            #[node_key] const RIGHT_BAR: NodeKey;
+            let sidebar = V_STACK
+                .key(RIGHT_BAR)
+                .position_x(Position::End)
+                .size_y(Fill)
+                .size_x(FitContent)
+                .stack_arrange(Arrange::Center);
 
-            // #[node_key] const LEFT_BAR: NodeKey;
-            // let left_bar = V_STACK
-            //     .key(LEFT_BAR)
-            //     .position_x(Position::Start)
-            //     .size_y(Fill)
-            //     .size_x(FitContent)
-            //     .stack_arrange(Arrange::Center);
+            #[node_key] const LEFT_BAR: NodeKey;
+            let left_bar = V_STACK
+                .key(LEFT_BAR)
+                .position_x(Position::Start)
+                .size_y(Fill)
+                .size_x(FitContent)
+                .stack_arrange(Arrange::Center);
 
-            // self.ui.add_parent(&sidebar).nest(|| {
-            //     self.slider_value = self.ui.add_slider(self.slider_value);
-            // });
+            self.ui.add_parent(&sidebar).nest(|| {
+                self.slider_value = self.ui.add_slider(self.slider_value);
+            });
 
-            // self.ui.add_parent(&left_bar).nest(|| {
-            //     self.add_pixel_info_ui();
-            //     self.add_tools();
-            // });
+            self.ui.add_parent(&left_bar).nest(|| {
+                self.add_pixel_info_ui();
+                self.add_tools();
+            });
 
         });
     }

@@ -22,6 +22,7 @@ pub fn basic_wgpu_init() -> (Instance, Device, Queue) {
         label: None,
         required_features: Features::empty(),
         required_limits: Limits::downlevel_webgl2_defaults(),
+        memory_hints: wgpu::MemoryHints::MemoryUsage,
     };
     let (device, queue) = pollster::block_on(adapter.request_device(device_desc, None)).unwrap();
 
@@ -144,9 +145,9 @@ impl RenderFrame {
     }
 }
 
-pub fn basic_render_pass_desc<'tex, 'desc>(
-    color_att: &'desc [Option<RenderPassColorAttachment<'tex>>; 1],
-) -> RenderPassDescriptor<'tex, 'desc> {
+pub fn basic_render_pass_desc<'a>(
+    color_att: &'a [Option<RenderPassColorAttachment<'a>>; 1],
+) -> RenderPassDescriptor<'a> {
     return RenderPassDescriptor {
         label: None,
         color_attachments: color_att,
