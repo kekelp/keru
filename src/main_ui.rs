@@ -49,7 +49,7 @@ impl State {
     pub fn update_ui(&mut self) {
         tree!(self.ui, {
 
-            // self.perfect_counter();
+            self.perfect_counter();
 
             #[node_key] const RIGHT_BAR: NodeKey;
             let sidebar = V_STACK
