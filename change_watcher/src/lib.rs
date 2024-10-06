@@ -45,7 +45,7 @@ impl <T> Watcher<T> {
         }
     }
 
-    /// Read the value, only if it has changed, and mark the watcher as synced.
+    /// Return an `Option` containing a reference to the value if it has changed since the last call, or `None` if it hasn't. Then, mark the watcher as synced (`changed = false`).
     /// Subsequent calls to `if_changed()` will return `None` until the value is changed again.
     pub fn if_changed(&mut self) -> Option<&T> {
         match self.changed {

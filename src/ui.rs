@@ -1,3 +1,4 @@
+use crate::ui_interact::{Clicked, MouseInputState};
 use crate::ui_math::*;
 use crate::ui_node_params::{
     ANON_HSTACK, ANON_VSTACK, DEFAULT, H_STACK, NODE_ROOT_PARAMS, TEXT, V_STACK,
@@ -14,7 +15,6 @@ use glyphon::Cache as GlyphonCache;
 use rustc_hash::{FxHashMap, FxHasher};
 use slab::Slab;
 use wgpu::*;
-use winit::event::{ElementState, MouseScrollDelta};
 
 use std::cell::RefCell;
 use std::collections::hash_map::Entry;
@@ -34,7 +34,6 @@ use glyphon::{
 };
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
-    event::{MouseButton, WindowEvent},
     keyboard::ModifiersState,
 };
 use Axis::{X, Y};
@@ -45,7 +44,7 @@ use {
     VertexBufferLayout, VertexStepMode,
 };
 
-static T0: LazyLock<Instant> = LazyLock::new(Instant::now);
+pub(crate) static T0: LazyLock<Instant> = LazyLock::new(Instant::now);
 pub fn ui_time_f32() -> f32 {
     return T0.elapsed().as_secs_f32();
 }
@@ -896,7 +895,7 @@ pub struct System {
 
     pub clicked_stack: Vec<(Id, f32)>,
     pub mouse_hit_stack: Vec<(Id, f32)>,
-    pub clicked: Vec<Id>,
+    pub clicked: Clicked,
     pub hovered: Vec<Id>,
 
     pub focused: Option<Id>,
@@ -1124,7 +1123,7 @@ impl Ui {
 
                 clicked_stack: Vec::with_capacity(50),
                 mouse_hit_stack: Vec::with_capacity(50),
-                clicked: Vec::with_capacity(15),
+                clicked: Clicked::new(),
                 hovered: Vec::with_capacity(15),
                 focused: None,
 
@@ -1627,102 +1626,6 @@ fn fx_hash<T: Hash>(value: &T) -> u64 {
     let mut hasher = FxHasher::default();
     value.hash(&mut hasher);
     hasher.finish()
-}
-
-#[derive(Debug, Default)]
-pub struct MouseButtons {
-    pub left: bool,
-    pub right: bool,
-    pub middle: bool,
-    pub back: bool,
-    pub forward: bool,
-    pub other: u16, // 16-bit field for other buttons
-}
-impl MouseButtons {
-    pub fn is_other_button_pressed(&self, id: u16) -> bool {
-        if id < 16 {
-            return self.other & (1 << id) != 0;
-        } else {
-            panic!("Mouse button id must be between 0 and 15")
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct MouseInputState {
-    pub position: PhysicalPosition<f64>,
-    pub buttons: MouseButtons,
-    pub scroll_delta: (f32, f32),
-
-    // previous for diffs
-    pub prev_position: PhysicalPosition<f64>,
-}
-
-impl Default for MouseInputState {
-    fn default() -> Self {
-        return Self {
-            position: PhysicalPosition::new(0.0, 0.0),
-            buttons: MouseButtons::default(),
-            scroll_delta: (0.0, 0.0),
-
-            prev_position: PhysicalPosition::new(0.0, 0.0),
-        };
-    }
-}
-
-impl MouseInputState {
-    pub fn update(&mut self, event: &WindowEvent) {
-        match event {
-            WindowEvent::CursorMoved { position, .. } => {
-                self.position = *position;
-            }
-            WindowEvent::MouseInput { state, button, .. } => {
-                let pressed = *state == ElementState::Pressed;
-                match button {
-                    MouseButton::Left => self.buttons.left = pressed,
-                    MouseButton::Right => self.buttons.right = pressed,
-                    MouseButton::Middle => self.buttons.middle = pressed,
-                    MouseButton::Back => self.buttons.back = pressed,
-                    MouseButton::Forward => self.buttons.forward = pressed,
-                    MouseButton::Other(id) => {
-                        if *id < 16 {
-                            if pressed {
-                                self.buttons.other |= 1 << id;
-                            } else {
-                                self.buttons.other &= !(1 << id);
-                            }
-                        }
-                    }
-                }
-            }
-            WindowEvent::MouseWheel { delta, .. } => match delta {
-                MouseScrollDelta::LineDelta(x, y) => {
-                    self.scroll_delta.0 += x;
-                    self.scroll_delta.1 += y;
-                }
-                MouseScrollDelta::PixelDelta(pos) => {
-                    self.scroll_delta.0 += pos.x as f32;
-                    self.scroll_delta.1 += pos.y as f32;
-                }
-            },
-            _ => {}
-        }
-    }
-
-    pub fn clear_frame(&mut self) {
-        self.prev_position = self.position;
-    }
-
-    pub fn cursor_diff(&self) -> (f64, f64) {
-        return (
-            self.prev_position.x - self.position.x,
-            self.prev_position.y - self.position.y,
-        );
-    }
-
-    pub fn reset_scroll(&mut self) {
-        self.scroll_delta = (0.0, 0.0);
-    }
 }
 
 #[macro_export]

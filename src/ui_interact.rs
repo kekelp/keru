@@ -1,7 +1,9 @@
-use wgpu::Queue;
-use winit::event::{Event, KeyEvent, MouseButton, WindowEvent};
+use std::time::Instant;
 
-use crate::{ui_time_f32, Id, NodeKey, Ui};
+use wgpu::Queue;
+use winit::{dpi::PhysicalPosition, event::{ElementState, Event, KeyEvent, MouseButton, MouseScrollDelta, WindowEvent}};
+
+use crate::{ui_time_f32, Id, NodeKey, Ui, T0};
 
 use glyphon::{Affinity, Cursor as GlyphonCursor};
 
@@ -34,7 +36,7 @@ impl Ui {
         }
     }
 
-    pub fn resolve_click(&mut self) -> bool {
+    pub fn resolve_click(&mut self, button: MouseButton) -> bool {
         let topmost_mouse_hit = self.scan_mouse_hits();
 
         // defocus when use clicking anywhere outside.
@@ -43,10 +45,17 @@ impl Ui {
         if let Some(clicked_id) = topmost_mouse_hit {
             self.sys.waiting_for_click_release = true;
 
-            self.sys.clicked.push(clicked_id);
-            let t = ui_time_f32();
+            
+            
+            let t = T0.elapsed();
             let node = self.nodes.get_by_id(&clicked_id).unwrap();
-            node.last_click = t;
+            node.last_click = t.as_secs_f32();
+            
+            self.sys.clicked.push(ClickInfo {
+                id: clicked_id,
+                button,
+                timestamp: Instant::now(),
+            });
 
             if node.text_id.is_some() {
                 if let Some(text) = node.params.text_params{
@@ -128,7 +137,7 @@ impl Ui {
                     if *button == MouseButton::Left {
                         let is_pressed = state.is_pressed();
                         if is_pressed {
-                            let consumed = self.resolve_click();
+                            let consumed = self.resolve_click(*button);
                             return consumed;
                         } else {
                             let waiting_for_click_release = self.sys.waiting_for_click_release;
@@ -173,12 +182,17 @@ impl Ui {
         
     }
 
-    pub fn is_dragged(&self, node_key: NodeKey) -> Option<(f64, f64)> {
+    pub fn is_dragged_abs(&self, node_key: NodeKey) -> Option<(f64, f64)> {
         if self.is_clicked(node_key) {
             return Some(self.sys.mouse_status.cursor_diff())
         } else {
             return None;
         }
+    }
+
+    pub fn is_dragged(&self, node_key: NodeKey) -> Option<(f64, f64)> {
+        let diff = self.is_dragged_abs(node_key)?;
+        return Some(diff);
     }
 
     // todo: is_clicked_advanced
@@ -313,4 +327,136 @@ impl Ui {
         return false;
     }
 
+}
+
+
+#[derive(Debug, Default)]
+pub struct MouseButtons {
+    pub left: bool,
+    pub right: bool,
+    pub middle: bool,
+    pub back: bool,
+    pub forward: bool,
+    pub other: u16, // 16-bit field for other buttons
+}
+impl MouseButtons {
+    pub fn is_other_button_pressed(&self, id: u16) -> bool {
+        if id < 16 {
+            return self.other & (1 << id) != 0;
+        } else {
+            panic!("Mouse button id must be between 0 and 15")
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct MouseInputState {
+    pub position: PhysicalPosition<f64>,
+    pub buttons: MouseButtons,
+    pub scroll_delta: (f32, f32),
+
+    // previous for diffs
+    pub prev_position: PhysicalPosition<f64>,
+}
+
+impl Default for MouseInputState {
+    fn default() -> Self {
+        return Self {
+            position: PhysicalPosition::new(0.0, 0.0),
+            buttons: MouseButtons::default(),
+            scroll_delta: (0.0, 0.0),
+
+            prev_position: PhysicalPosition::new(0.0, 0.0),
+        };
+    }
+}
+
+impl MouseInputState {
+    pub fn update(&mut self, event: &WindowEvent) {
+        match event {
+            WindowEvent::CursorMoved { position, .. } => {
+                self.position = *position;
+            }
+            WindowEvent::MouseInput { state, button, .. } => {
+                let pressed = *state == ElementState::Pressed;
+                match button {
+                    MouseButton::Left => self.buttons.left = pressed,
+                    MouseButton::Right => self.buttons.right = pressed,
+                    MouseButton::Middle => self.buttons.middle = pressed,
+                    MouseButton::Back => self.buttons.back = pressed,
+                    MouseButton::Forward => self.buttons.forward = pressed,
+                    MouseButton::Other(id) => {
+                        if *id < 16 {
+                            if pressed {
+                                self.buttons.other |= 1 << id;
+                            } else {
+                                self.buttons.other &= !(1 << id);
+                            }
+                        }
+                    }
+                }
+            }
+            WindowEvent::MouseWheel { delta, .. } => match delta {
+                MouseScrollDelta::LineDelta(x, y) => {
+                    self.scroll_delta.0 += x;
+                    self.scroll_delta.1 += y;
+                }
+                MouseScrollDelta::PixelDelta(pos) => {
+                    self.scroll_delta.0 += pos.x as f32;
+                    self.scroll_delta.1 += pos.y as f32;
+                }
+            },
+            _ => {}
+        }
+    }
+
+    pub fn clear_frame(&mut self) {
+        self.prev_position = self.position;
+    }
+
+    pub fn cursor_diff(&self) -> (f64, f64) {
+        return (
+            self.prev_position.x - self.position.x,
+            self.prev_position.y - self.position.y,
+        );
+    }
+
+    pub fn reset_scroll(&mut self) {
+        self.scroll_delta = (0.0, 0.0);
+    }
+}
+
+
+
+pub struct ClickInfo {
+    pub id: Id,
+    pub button: MouseButton,
+    pub timestamp: Instant,
+}
+
+pub struct Clicked {
+    pub ids: Vec<Id>,
+    pub info: Vec<ClickInfo>,
+}
+impl Clicked {
+    pub fn new() -> Clicked {
+        return Clicked {
+            ids: Vec::with_capacity(20),
+            info: Vec::with_capacity(20),
+        }
+    }
+
+    fn push(&mut self, info: ClickInfo) {
+        self.ids.push(info.id);
+        self.info.push(info);
+    }
+
+    fn clear(&mut self) {
+        self.ids.clear();
+        self.info.clear();
+    }
+
+    fn contains(&self, id: &Id) -> bool {
+        return self.ids.contains(id);
+    }
 }
