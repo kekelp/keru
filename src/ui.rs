@@ -1,4 +1,4 @@
-use crate::ui_interact::{Clicked, MouseInputState};
+use crate::ui_interact::{LastFrameClicks, MouseInputState, StoredClick};
 use crate::ui_math::*;
 use crate::ui_node_params::{
     ANON_HSTACK, ANON_VSTACK, DEFAULT, H_STACK, NODE_ROOT_PARAMS, TEXT, V_STACK,
@@ -895,7 +895,7 @@ pub struct System {
 
     pub clicked_stack: Vec<(Id, f32)>,
     pub mouse_hit_stack: Vec<(Id, f32)>,
-    pub clicked: Clicked,
+    pub last_frame_clicks: LastFrameClicks,
     pub hovered: Vec<Id>,
 
     pub focused: Option<Id>,
@@ -1123,7 +1123,7 @@ impl Ui {
 
                 clicked_stack: Vec::with_capacity(50),
                 mouse_hit_stack: Vec::with_capacity(50),
-                clicked: Clicked::new(),
+                last_frame_clicks: LastFrameClicks::new(),
                 hovered: Vec::with_capacity(15),
                 focused: None,
 
@@ -1423,7 +1423,7 @@ impl Ui {
 
         // add back somewhere
 
-        node.refresh(parent_id);
+        node.refresh(parent_id, frame);
         self.sys.text.refresh_last_frame(node.text_id, frame);
     }
 }
@@ -1451,6 +1451,8 @@ impl Ui {
         clear_thread_local_stacks();
         self.layout_and_build_rects();
         self.resolve_hover();
+
+        self.sys.last_frame_clicks.clear();
 
         self.update_time();
         self.nodes[self.sys.root_i].reset_children();
@@ -1520,8 +1522,9 @@ impl Node {
         self.n_children = 0;
     }
 
-    fn refresh(&mut self, parent_id: usize) {
+    fn refresh(&mut self, parent_id: usize, frame: u64) {
         self.parent = parent_id;
+        // self.last_frame_touched = frame;
         self.reset_children();
     }
 }

@@ -3,7 +3,7 @@ use std::time::Instant;
 use wgpu::Queue;
 use winit::{dpi::PhysicalPosition, event::{ElementState, Event, KeyEvent, MouseButton, MouseScrollDelta, WindowEvent}};
 
-use crate::{ui_time_f32, Id, NodeKey, Ui, T0};
+use crate::{ui_math::Xy, ui_time_f32, Id, NodeKey, Ui, T0};
 
 use glyphon::{Affinity, Cursor as GlyphonCursor};
 
@@ -36,51 +36,54 @@ impl Ui {
         }
     }
 
-    pub fn resolve_click(&mut self, button: MouseButton) -> bool {
+    pub fn resolve_click(&mut self, button: MouseButton, state: ElementState) -> bool {
         let topmost_mouse_hit = self.scan_mouse_hits();
-
+        
         // defocus when use clicking anywhere outside.
         self.sys.focused = None;
+        
+        let Some(clicked_id) = topmost_mouse_hit else {
+            return false;
+        };
 
-        if let Some(clicked_id) = topmost_mouse_hit {
-            self.sys.waiting_for_click_release = true;
+        self.sys.waiting_for_click_release = true;
 
-            
-            
-            let t = T0.elapsed();
-            let node = self.nodes.get_by_id(&clicked_id).unwrap();
-            node.last_click = t.as_secs_f32();
-            
-            self.sys.clicked.push(ClickInfo {
-                id: clicked_id,
-                button,
-                timestamp: Instant::now(),
-            });
+        let t = T0.elapsed();
+        let node = self.nodes.get_by_id(&clicked_id).unwrap();
+        node.last_click = t.as_secs_f32();
+        
+        self.sys.last_frame_clicks.push(StoredClick {
+            hit_node: clicked_id,
 
-            if node.text_id.is_some() {
-                if let Some(text) = node.params.text_params{
-                    if text.editable {
-                        self.sys.focused = Some(clicked_id);
-                    }
+            button,
+            timestamp: Instant::now(),
+            position: Xy::new(self.sys.part.mouse_pos.x, self.sys.part.mouse_pos.y),
+            state,
+        });
+
+        if node.text_id.is_some() {
+            if let Some(text) = node.params.text_params{
+                if text.editable {
+                    self.sys.focused = Some(clicked_id);
                 }
-            }
-
-            if let Some(id) = node.text_id {
-                let text_area = &mut self.sys.text.text_areas[id];
-                let (x, y) = (
-                    self.sys.part.mouse_pos.x - text_area.params.left,
-                    self.sys.part.mouse_pos.y - text_area.params.top,
-                );
-
-                // todo: with how I'm misusing cosmic-text, this might become "unsafe" soon (as in, might be incorrect or cause panics, not actually unsafe).
-                // I think in general, there should be a safe version of hit() that just forces a rerender just to be sure that the offset is safe to use.
-                // But in this case, calling this in resolve_mouse_input() and not on every winit mouse event probably means it's safe
-
-                // actually, the enlightened way is that cosmic_text exposes an "unsafe" hit(), but we only ever see the string + cursor + buffer struct, and call that hit(), which doesn't return an offset but just mutates the one inside.
-                text_area.buffer.hit(x, y);
             }
         }
 
+        if let Some(id) = node.text_id {
+            let text_area = &mut self.sys.text.text_areas[id];
+            let (x, y) = (
+                self.sys.part.mouse_pos.x - text_area.params.left,
+                self.sys.part.mouse_pos.y - text_area.params.top,
+            );
+
+            // todo: with how I'm misusing cosmic-text, this might become "unsafe" soon (as in, might be incorrect or cause panics, not actually unsafe).
+            // I think in general, there should be a safe version of hit() that just forces a rerender just to be sure that the offset is safe to use.
+            // But in this case, calling this in resolve_mouse_input() and not on every winit mouse event probably means it's safe
+
+            // actually, the enlightened way is that cosmic_text exposes an "unsafe" hit(), but we only ever see the string + cursor + buffer struct, and call that hit(), which doesn't return an offset but just mutates the one inside.
+            text_area.buffer.hit(x, y);
+        }
+    
         let consumed = topmost_mouse_hit.is_some();
         return consumed;
     }
@@ -89,7 +92,7 @@ impl Ui {
         self.sys.waiting_for_click_release = false;
         let topmost_mouse_hit = self.scan_mouse_hits();
         let consumed = topmost_mouse_hit.is_some();
-        self.sys.clicked.clear();
+        self.sys.last_frame_clicks.clear();
         return consumed;
     }
 
@@ -117,7 +120,6 @@ impl Ui {
         return topmost_hit;
     }
 
-
     // returns: is the event consumed?
     pub fn handle_events(&mut self, full_event: &Event<()>, queue: &Queue) -> bool {
         if let Event::NewEvents(_) = full_event {
@@ -137,7 +139,7 @@ impl Ui {
                     if *button == MouseButton::Left {
                         let is_pressed = state.is_pressed();
                         if is_pressed {
-                            let consumed = self.resolve_click(*button);
+                            let consumed = self.resolve_click(*button, *state);
                             return consumed;
                         } else {
                             let waiting_for_click_release = self.sys.waiting_for_click_release;
@@ -171,18 +173,15 @@ impl Ui {
         return false;
     }
 
-
     pub fn is_clicked(&self, node_key: NodeKey) -> bool {
         let real_key = self.get_latest_twin_key(node_key);
-        if let Some(real_key) = real_key {
-            return self.sys.clicked.contains(&real_key.id);
-        } else {
+        let Some(real_key) = real_key else {
             return false;
-        }
-        
+        };
+        return self.sys.last_frame_clicks.ids.contains(&real_key.id);
     }
 
-    pub fn is_dragged_abs(&self, node_key: NodeKey) -> Option<(f64, f64)> {
+    pub fn is_dragged_abs(&mut self, node_key: NodeKey) -> Option<(f64, f64)> {
         if self.is_clicked(node_key) {
             return Some(self.sys.mouse_status.cursor_diff())
         } else {
@@ -190,7 +189,7 @@ impl Ui {
         }
     }
 
-    pub fn is_dragged(&self, node_key: NodeKey) -> Option<(f64, f64)> {
+    pub fn is_dragged(&mut self, node_key: NodeKey) -> Option<(f64, f64)> {
         let diff = self.is_dragged_abs(node_key)?;
         return Some(diff);
     }
@@ -427,36 +426,34 @@ impl MouseInputState {
 }
 
 
-
-pub struct ClickInfo {
-    pub id: Id,
+#[derive(Clone, Copy, Debug)]
+pub struct StoredClick {
     pub button: MouseButton,
     pub timestamp: Instant,
+    pub position: Xy<f32>,
+    pub state: ElementState,
+    pub hit_node: Id,
 }
 
-pub struct Clicked {
+pub struct LastFrameClicks {
     pub ids: Vec<Id>,
-    pub info: Vec<ClickInfo>,
+    pub clicks: Vec<StoredClick>,
 }
-impl Clicked {
-    pub fn new() -> Clicked {
-        return Clicked {
+impl LastFrameClicks {
+    pub fn new() -> LastFrameClicks {
+        return LastFrameClicks {
             ids: Vec::with_capacity(20),
-            info: Vec::with_capacity(20),
+            clicks: Vec::with_capacity(20),
         }
     }
 
-    fn push(&mut self, info: ClickInfo) {
-        self.ids.push(info.id);
-        self.info.push(info);
+    fn push(&mut self, info: StoredClick) {
+        self.ids.push(info.hit_node);
+        self.clicks.push(info);
     }
 
-    fn clear(&mut self) {
+    pub fn clear(&mut self) {
         self.ids.clear();
-        self.info.clear();
-    }
-
-    fn contains(&self, id: &Id) -> bool {
-        return self.ids.contains(id);
+        self.clicks.clear();
     }
 }
