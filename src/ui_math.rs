@@ -1,7 +1,6 @@
+use bytemuck::{Pod, Zeroable};
 use std::ops::{Add, Index, IndexMut, Mul, Sub};
 use Axis::*;
-use bytemuck::{Pod, Zeroable};
-
 
 use crate::Ui;
 
@@ -15,7 +14,6 @@ impl Len {
 }
 
 impl Ui {
-
     pub fn to_pixels(&self, len: Len, axis: Axis) -> u32 {
         match len {
             Len::Pixels(pixels) => return pixels,
@@ -24,10 +22,7 @@ impl Ui {
     }
 
     pub fn to_pixels2(&self, len: Xy<Len>) -> Xy<u32> {
-        return Xy::new(
-            self.to_pixels(len.x, X),
-            self.to_pixels(len.y, Y),
-        );
+        return Xy::new(self.to_pixels(len.x, X), self.to_pixels(len.y, Y));
     }
 
     pub fn to_frac(&self, len: Len, axis: Axis) -> f32 {
@@ -52,12 +47,8 @@ impl Ui {
     }
 
     pub fn to_frac2(&self, len: Xy<Len>) -> Xy<f32> {
-        return Xy::new(
-            self.to_frac(len.x, X),
-            self.to_frac(len.y, Y),
-        );
+        return Xy::new(self.to_frac(len.x, X), self.to_frac(len.y, Y));
     }
-
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -106,7 +97,6 @@ impl<T: Add<Output = T> + Copy> Add<(T, T)> for Xy<T> {
     }
 }
 
-
 impl<T> Index<Axis> for Xy<T> {
     type Output = T;
     fn index(&self, axis: Axis) -> &Self::Output {
@@ -149,30 +139,27 @@ impl XyRect {
     pub fn rightward(origin: Xy<f32>, size: Xy<f32>) -> Self {
         return Self {
             x: [origin.x, origin.x + size.x],
-            y: [origin.y, origin.y + size.y]
-        }
+            y: [origin.y, origin.y + size.y],
+        };
     }
 
     pub fn leftward(origin: Xy<f32>, size: Xy<f32>) -> Self {
         return Self {
             x: [origin.x - size.x, origin.x],
-            y: [origin.y - size.y, origin.y]
-        }
+            y: [origin.y - size.y, origin.y],
+        };
     }
 
     pub fn from_center(origin: Xy<f32>, size: Xy<f32>) -> Self {
         return Self {
             x: [origin.x - size.x / 2.0, origin.x + size.x / 2.0],
-            y: [origin.y - size.y / 2.0, origin.y + size.y / 2.0]
-        }
+            y: [origin.y - size.y / 2.0, origin.y + size.y / 2.0],
+        };
     }
 
     pub fn to_graphics_space(self) -> Self {
         let a = self * 2. - 1.;
-        return Self::new(
-            [a.x[0], a.x[1]],
-            [-a.y[1], -a.y[0]],
-        );
+        return Self::new([a.x[0], a.x[1]], [-a.y[1], -a.y[0]]);
     }
 }
 impl Add<f32> for XyRect {
