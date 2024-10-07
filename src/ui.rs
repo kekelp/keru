@@ -887,6 +887,7 @@ pub struct System {
     pub texture_atlas: TextureAtlas,
 
     pub rects: Vec<RenderRect>,
+    // todo: keep a separate vec with the bounding boxes for faster mouse hit scans
 
     // stack for traversing
     pub traverse_stack: Vec<usize>,
@@ -909,11 +910,6 @@ pub struct System {
     pub frame_t: f32,
 }
 impl Ui {
-    // todo: variadic args lol
-    pub fn add_widget<T, S>(&mut self, widget_function: fn(&mut Ui, T) -> S, arg: T) -> S {
-        return widget_function(self, arg);
-    }
-
     pub fn new(device: &Device, queue: &Queue, config: &SurfaceConfiguration) -> Self {
         let vertex_buffer = device.create_buffer_init(&util::BufferInitDescriptor {
             label: Some("player bullet pos buffer"),
@@ -1450,7 +1446,7 @@ impl Ui {
     pub fn finish_tree(&mut self) {
         clear_thread_local_stacks();
         self.layout_and_build_rects();
-        self.resolve_hover();
+        self.end_frame_check_inputs();
 
         self.sys.last_frame_clicks.clear();
 

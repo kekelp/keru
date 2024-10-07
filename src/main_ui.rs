@@ -40,7 +40,7 @@ impl State {
             }
         });
 
-        if self.ui.is_clicked(SHOW) {
+        if self.ui.is_click_released(SHOW) {
             self.count_state.show = !self.count_state.show;
         }
         if self.ui.is_clicked(INCREASE) {

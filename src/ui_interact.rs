@@ -23,6 +23,11 @@ pub enum Cursor {
 
 impl Ui {
 
+    pub fn end_frame_check_inputs(&mut self) {
+        self.resolve_hover();
+    
+        
+    }
     // called on every mouse movement AND on every frame.
     // todo: think if it's really worth it to do this on every mouse movement.
     pub fn resolve_hover(&mut self) {
@@ -47,43 +52,44 @@ impl Ui {
         };
 
         self.sys.waiting_for_click_release = true;
-
-        let t = T0.elapsed();
-        let node = self.nodes.get_by_id(&clicked_id).unwrap();
-        node.last_click = t.as_secs_f32();
         
         self.sys.last_frame_clicks.push(StoredClick {
-            hit_node: clicked_id,
-
             button,
+            state,
+            hit_node: clicked_id,
             timestamp: Instant::now(),
             position: Xy::new(self.sys.part.mouse_pos.x, self.sys.part.mouse_pos.y),
-            state,
         });
 
-        if node.text_id.is_some() {
-            if let Some(text) = node.params.text_params{
-                if text.editable {
-                    self.sys.focused = Some(clicked_id);
+        if state.is_pressed() && button == MouseButton::Left {
+            let t = T0.elapsed();
+            let node = self.nodes.get_by_id(&clicked_id).unwrap();
+            node.last_click = t.as_secs_f32();
+
+            if node.text_id.is_some() {
+                if let Some(text) = node.params.text_params{
+                    if text.editable {
+                        self.sys.focused = Some(clicked_id);
+                    }
                 }
+            }
+
+            if let Some(id) = node.text_id {
+                let text_area = &mut self.sys.text.text_areas[id];
+                let (x, y) = (
+                    self.sys.part.mouse_pos.x - text_area.params.left,
+                    self.sys.part.mouse_pos.y - text_area.params.top,
+                );
+
+                // todo: with how I'm misusing cosmic-text, this might become "unsafe" soon (as in, might be incorrect or cause panics, not actually unsafe).
+                // I think in general, there should be a safe version of hit() that just forces a rerender just to be sure that the offset is safe to use.
+                // But in this case, calling this in resolve_mouse_input() and not on every winit mouse event probably means it's safe
+
+                // actually, the enlightened way is that cosmic_text exposes an "unsafe" hit(), but we only ever see the string + cursor + buffer struct, and call that hit(), which doesn't return an offset but just mutates the one inside.
+                text_area.buffer.hit(x, y);
             }
         }
 
-        if let Some(id) = node.text_id {
-            let text_area = &mut self.sys.text.text_areas[id];
-            let (x, y) = (
-                self.sys.part.mouse_pos.x - text_area.params.left,
-                self.sys.part.mouse_pos.y - text_area.params.top,
-            );
-
-            // todo: with how I'm misusing cosmic-text, this might become "unsafe" soon (as in, might be incorrect or cause panics, not actually unsafe).
-            // I think in general, there should be a safe version of hit() that just forces a rerender just to be sure that the offset is safe to use.
-            // But in this case, calling this in resolve_mouse_input() and not on every winit mouse event probably means it's safe
-
-            // actually, the enlightened way is that cosmic_text exposes an "unsafe" hit(), but we only ever see the string + cursor + buffer struct, and call that hit(), which doesn't return an offset but just mutates the one inside.
-            text_area.buffer.hit(x, y);
-        }
-    
         let consumed = topmost_mouse_hit.is_some();
         return consumed;
     }
@@ -136,18 +142,26 @@ impl Ui {
                     // cursormoved is never consumed
                 }
                 WindowEvent::MouseInput { button, state, .. } => {
-                    if *button == MouseButton::Left {
-                        let is_pressed = state.is_pressed();
-                        if is_pressed {
-                            let consumed = self.resolve_click(*button, *state);
-                            return consumed;
-                        } else {
-                            let waiting_for_click_release = self.sys.waiting_for_click_release;
-                            let on_rect = self.resolve_click_release();
-                            let consumed = on_rect && waiting_for_click_release;
-                            return consumed;
-                        }
+                    // We have to test against all clickable rectangles immediately to know if the input is consumed or not  
+                    let consumed = self.resolve_click(*button, *state);
+
+                    // Consuming mouse releases can very easily mess things up for whoever is below us.
+                    // Some unexpected mouse releases probably won't be too annoying.
+                    if ! state.is_pressed() {
+                        return false;
                     }
+                    return consumed;
+                    
+                    // let is_pressed = state.is_pressed();
+                    // if is_pressed {
+                    //     let consumed = self.resolve_click(*button, *state);
+                    //     return consumed;
+                    // } else {
+                    //     let waiting_for_click_release = self.sys.waiting_for_click_release;
+                    //     let on_rect = self.resolve_click_release();
+                    //     let consumed = on_rect && waiting_for_click_release;
+                    //     return consumed;
+                    // }
                 }
                 WindowEvent::ModifiersChanged(modifiers) => {
                     self.sys.key_mods = modifiers.state();
@@ -178,7 +192,32 @@ impl Ui {
         let Some(real_key) = real_key else {
             return false;
         };
-        return self.sys.last_frame_clicks.ids.contains(&real_key.id);
+        return self
+            .sys
+            .last_frame_clicks
+            .clicks
+            .iter()
+            .any(|c| c.hit_node == real_key.id && c.state.is_pressed() && c.button == MouseButton::Left);
+    }
+
+    pub fn is_click_released(&self, node_key: NodeKey) -> bool {
+        let real_key = self.get_latest_twin_key(node_key);
+        let Some(real_key) = real_key else {
+            return false;
+        };
+        let clicked = self.sys
+            .last_frame_clicks
+            .clicks
+            .iter()
+            .any(|c| c.hit_node == real_key.id && c.state.is_pressed() && c.button == MouseButton::Left);
+        let released = self.sys
+            .last_frame_clicks
+            .clicks
+            .iter()
+            .any(|c| c.hit_node == real_key.id && ! c.state.is_pressed() && c.button == MouseButton::Left);
+        println!("  {:?}", clicked);
+        println!("  {:?}\n", released);
+        return clicked && released;
     }
 
     pub fn is_dragged_abs(&mut self, node_key: NodeKey) -> Option<(f64, f64)> {
