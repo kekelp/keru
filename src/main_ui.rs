@@ -35,9 +35,13 @@ impl State {
                     .add(&count_label)
                     .dyn_text(self.count_state.count.if_changed());
                 self.ui.add(&decrease).static_text("Decrease");
-            } else {
-                self.ui.add(&show).static_text("Show Counter");
             }
+            let show_hide = match self.count_state.show {
+                true => "Hide Counter",
+                false => "Show Counter",
+            };
+            self.ui.add(&show).static_text(&show_hide);
+            
         });
 
         if self.ui.is_click_released(SHOW) {

@@ -23,11 +23,36 @@ pub enum Cursor {
 
 impl Ui {
 
+    pub fn is_clicked(&self, node_key: NodeKey) -> bool {
+        let real_key = self.get_latest_twin_key(node_key);
+        let Some(real_key) = real_key else {
+            return false;
+        };
+        return self
+            .sys
+            .last_frame_clicks
+            .clicks
+            .iter()
+            .any(|c| c.hit_node_id == real_key.id && c.state.is_pressed() && c.button == MouseButton::Left);
+    }
+
+    pub fn is_click_released(&self, node_key: NodeKey) -> bool {
+        let real_key = self.get_latest_twin_key(node_key);
+        let Some(real_key) = real_key else {
+            return false;
+        };
+        return self
+            .sys
+            .last_frame_click_released
+            .iter()
+            .any(|c| c.hit_node_id == real_key.id && c.button == MouseButton::Left);
+    }
+
     pub fn end_frame_check_inputs(&mut self) {
         self.resolve_hover();
-    
-        
+        self.sys.last_frame_click_released.clear();
     }
+
     // called on every mouse movement AND on every frame.
     // todo: think if it's really worth it to do this on every mouse movement.
     pub fn resolve_hover(&mut self) {
@@ -53,13 +78,14 @@ impl Ui {
 
         self.sys.waiting_for_click_release = true;
         
-        self.sys.last_frame_clicks.push(StoredClick {
+        let stored_click = StoredClick {
             button,
             state,
-            hit_node: clicked_id,
+            hit_node_id: clicked_id,
             timestamp: Instant::now(),
             position: Xy::new(self.sys.part.mouse_pos.x, self.sys.part.mouse_pos.y),
-        });
+        };
+        self.sys.last_frame_clicks.push(stored_click);
 
         if state.is_pressed() && button == MouseButton::Left {
             let t = T0.elapsed();
@@ -88,17 +114,23 @@ impl Ui {
                 // actually, the enlightened way is that cosmic_text exposes an "unsafe" hit(), but we only ever see the string + cursor + buffer struct, and call that hit(), which doesn't return an offset but just mutates the one inside.
                 text_area.buffer.hit(x, y);
             }
+
+            // for le holding
+            self.sys.held_stack.push(stored_click);
+
+        } else {
+            if let Some(held_click) = self.sys.held_stack.first() {
+                if let Some(topmost_mouse_hit) = topmost_mouse_hit {
+                    if held_click.hit_node_id == topmost_mouse_hit {
+                        self.sys.last_frame_click_released.push(stored_click);
+                    } else {
+                        self.sys.held_stack.clear();
+                    }
+                }
+            }
         }
 
         let consumed = topmost_mouse_hit.is_some();
-        return consumed;
-    }
-
-    pub fn resolve_click_release(&mut self) -> bool {
-        self.sys.waiting_for_click_release = false;
-        let topmost_mouse_hit = self.scan_mouse_hits();
-        let consumed = topmost_mouse_hit.is_some();
-        self.sys.last_frame_clicks.clear();
         return consumed;
     }
 
@@ -186,39 +218,7 @@ impl Ui {
 
         return false;
     }
-
-    pub fn is_clicked(&self, node_key: NodeKey) -> bool {
-        let real_key = self.get_latest_twin_key(node_key);
-        let Some(real_key) = real_key else {
-            return false;
-        };
-        return self
-            .sys
-            .last_frame_clicks
-            .clicks
-            .iter()
-            .any(|c| c.hit_node == real_key.id && c.state.is_pressed() && c.button == MouseButton::Left);
-    }
-
-    pub fn is_click_released(&self, node_key: NodeKey) -> bool {
-        let real_key = self.get_latest_twin_key(node_key);
-        let Some(real_key) = real_key else {
-            return false;
-        };
-        let clicked = self.sys
-            .last_frame_clicks
-            .clicks
-            .iter()
-            .any(|c| c.hit_node == real_key.id && c.state.is_pressed() && c.button == MouseButton::Left);
-        let released = self.sys
-            .last_frame_clicks
-            .clicks
-            .iter()
-            .any(|c| c.hit_node == real_key.id && ! c.state.is_pressed() && c.button == MouseButton::Left);
-        println!("  {:?}", clicked);
-        println!("  {:?}\n", released);
-        return clicked && released;
-    }
+   
 
     pub fn is_dragged_abs(&mut self, node_key: NodeKey) -> Option<(f64, f64)> {
         if self.is_clicked(node_key) {
@@ -471,7 +471,7 @@ pub struct StoredClick {
     pub timestamp: Instant,
     pub position: Xy<f32>,
     pub state: ElementState,
-    pub hit_node: Id,
+    pub hit_node_id: Id,
 }
 
 pub struct LastFrameClicks {
@@ -487,7 +487,7 @@ impl LastFrameClicks {
     }
 
     fn push(&mut self, info: StoredClick) {
-        self.ids.push(info.hit_node);
+        self.ids.push(info.hit_node_id);
         self.clicks.push(info);
     }
 
