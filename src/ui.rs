@@ -1523,7 +1523,7 @@ impl Node {
         self.n_children = 0;
     }
 
-    fn refresh(&mut self, parent_id: usize, frame: u64) {
+    fn refresh(&mut self, parent_id: usize, _frame: u64) {
         self.parent = parent_id;
         // self.last_frame_touched = frame;
         self.reset_children();
@@ -1817,12 +1817,12 @@ impl Ui {
         return Parent { node };
     }
 
-    pub fn v_stack2(&mut self) -> Parent {
+    pub fn v_stack(&mut self) -> Parent {
         let node = self.update_node(ANON_VSTACK, &V_STACK);
         return Parent { node };
     }
 
-    pub fn h_stack2(&mut self) -> Parent {
+    pub fn h_stack(&mut self) -> Parent {
         let node = self.update_node(ANON_HSTACK, &H_STACK);
         return Parent { node };
     }

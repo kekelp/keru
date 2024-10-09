@@ -17,37 +17,33 @@ const FLGR_PANEL: NodeParams = PANEL.vertex_colors(GRAD1);
 
 impl State {
     pub fn perfect_counter(&mut self) {
-        #[node_key]
-        const INCREASE: NodeKey;
-        #[node_key]
-        const DECREASE: NodeKey;
-        #[node_key]
-        const SHOW: NodeKey;
+        #[node_key] const INCREASE: NodeKey;
         let increase = BUTTON.key(INCREASE);
-        let decrease = BUTTON.key(DECREASE);
-        let show = BUTTON.color(Color::RED).key(SHOW);
-        let count_label = LABEL;
 
-        self.ui.add_parent(&V_STACK).nest(|| {
-            if self.count_state.show {
-                self.ui.add(&increase).static_text("Increase");
-                self.ui
-                    .add(&count_label)
-                    .dyn_text(self.count_state.count.if_changed());
-                self.ui.add(&decrease).static_text("Decrease");
-            }
+        #[node_key] const DECREASE: NodeKey;
+        let decrease = BUTTON.key(DECREASE);
+        
+        #[node_key] const SHOW: NodeKey;
+        let show = BUTTON.color(Color::RED).key(SHOW);
+
+        self.ui.v_stack().nest(|| {
             let show_hide = match self.count_state.show {
                 true => "Hide Counter",
                 false => "Show Counter",
             };
             self.ui.add(&show).static_text(&show_hide);
-            
+
+            if self.count_state.show {
+                self.ui.add(&increase).static_text("Increase");
+                self.ui.add(&LABEL).dyn_text(self.count_state.count.if_changed());
+                self.ui.add(&decrease).static_text("Decrease");
+            }
         });
 
-        if self.ui.is_click_released(SHOW) {
+        if self.ui.is_clicked(SHOW) {
             self.count_state.show = !self.count_state.show;
         }
-        if self.ui.is_clicked(INCREASE) {
+        if self.ui.is_held(INCREASE) {
             *self.count_state.count += 1;
         }
         if self.ui.is_clicked(DECREASE) {
@@ -128,7 +124,7 @@ impl State {
             .size_x(FitContentOrMinimum(Pixels(100)));
 
         self.ui.add_parent(&pixel_panel).nest(|| {
-            self.ui.v_stack2().nest(|| {
+            self.ui.v_stack().nest(|| {
                 self.ui.text(&x);
                 self.ui.text(&y);
             });
@@ -153,8 +149,8 @@ impl State {
             .size_x(FitContent);
 
         self.ui.add_parent(&tools_panel).nest(|| {
-            self.ui.h_stack2().nest(|| {
-                self.ui.v_stack2().nest(|| {
+            self.ui.h_stack().nest(|| {
+                self.ui.v_stack().nest(|| {
                     self.ui
                         .add(&brush)
                         .static_image(include_bytes!("icons/brush.png"));

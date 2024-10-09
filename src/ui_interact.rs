@@ -48,12 +48,54 @@ impl Ui {
             .any(|c| c.hit_node_id == real_key.id && c.button == MouseButton::Left);
     }
 
+    pub fn is_held(&self, node_key: NodeKey) -> bool {
+        let real_key = self.get_latest_twin_key(node_key);
+        let Some(real_key) = real_key else {
+            return false;
+        };
+        return self
+            .sys
+            .held_stack
+            .iter()
+            .any(|c| c.hit_node_id == real_key.id && c.state.is_pressed() && c.button == MouseButton::Left);
+    }
+
     pub fn end_frame_check_inputs(&mut self) {
         self.resolve_hover();
         self.sys.last_frame_click_released.clear();
+        self.end_frame_resolve_hover_and_clear_hold();
     }
 
-    // called on every mouse movement AND on every frame.
+    pub fn end_frame_resolve_hover_and_clear_hold(&mut self) {
+        let topmost_mouse_hit = self.scan_mouse_hits();
+
+        let mut clear_stack = false;
+        if ! self.sys.mouse_status.buttons.left {
+            clear_stack = true;
+        }
+
+        if let Some(hovered_id) = topmost_mouse_hit {
+            for h in &self.sys.held_stack {
+                if hovered_id != h.hit_node_id {
+                    clear_stack = true;
+                    break;
+                }
+            }
+            if clear_stack {
+                self.sys.held_stack.clear();
+            }
+        } else {
+            self.sys.held_stack.clear();
+        }
+
+        if let Some(hovered_id) = topmost_mouse_hit {
+            self.sys.hovered.push(hovered_id);
+            let t = ui_time_f32();
+            let node = self.nodes.get_by_id(&hovered_id).unwrap();
+            node.last_hover = t;
+        }
+    }
+
     // todo: think if it's really worth it to do this on every mouse movement.
     pub fn resolve_hover(&mut self) {
         let topmost_mouse_hit = self.scan_mouse_hits();
@@ -166,6 +208,8 @@ impl Ui {
 
 
         if let Event::WindowEvent { event, .. } = full_event {
+            self.sys.mouse_status.update(event);
+
             match event {
                 WindowEvent::CursorMoved { position, .. } => {
                     self.sys.part.mouse_pos.x = position.x as f32;
@@ -211,9 +255,6 @@ impl Ui {
                 WindowEvent::Resized(size) => self.resize(size, queue),
                 _ => {}
             }
-
-            self.sys.mouse_status.update(event);
-
         }
 
         return false;
