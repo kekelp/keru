@@ -896,7 +896,8 @@ pub struct System {
     pub mouse_hit_stack: Vec<(Id, f32)>,
     pub last_frame_clicks: LastFrameClicks,
     
-    pub held_stack: HeldNodes,
+    pub held_store: HeldNodes,
+    pub dragged_store: HeldNodes,
     
     pub last_frame_click_released: Vec<StoredClick>,
     pub hovered: Vec<Id>,
@@ -1121,7 +1122,10 @@ impl Ui {
                 clicked_stack: Vec::with_capacity(50),
                 mouse_hit_stack: Vec::with_capacity(50),
                 last_frame_clicks: LastFrameClicks::new(),
-                held_stack: HeldNodes::default(),
+
+                held_store: HeldNodes::default(),
+                dragged_store: HeldNodes::default(),
+
                 last_frame_click_released: Vec::with_capacity(5),
 
                 hovered: Vec::with_capacity(15),

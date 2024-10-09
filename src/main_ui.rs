@@ -199,7 +199,7 @@ impl Ui {
             self.add(&slider_fill);
         });
 
-        if let Some((_x, y)) = self.is_dragged(SLIDER_CONTAINER) {
+        if let Some((_x, y)) = self.is_mouse_button_dragged(MouseButton::Right, SLIDER_CONTAINER) {
             value += y as f32;
             value = value.clamp(0.0, FIXED_LEN as f32);
         }

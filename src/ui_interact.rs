@@ -22,7 +22,6 @@ pub enum Cursor {
 
 
 impl Ui {
-
     pub fn is_clicked(&self, node_key: NodeKey) -> bool {
         return self.is_mouse_button_clicked(MouseButton::Left, node_key);
     }
@@ -75,8 +74,8 @@ impl Ui {
             println!("We currently don't support that mouse button being held ({:?})", mouse_button);
             return false;
         }
-        
-        if let Some(node) = self.sys.held_stack.by_button(mouse_button) {
+
+        if let Some(node) = self.sys.held_store.by_button(mouse_button) {
             return node.hit_node_id == real_key.id;
         } else {
             return false;
@@ -86,6 +85,35 @@ impl Ui {
     pub fn is_held(&self, node_key: NodeKey) -> bool {
         return self.is_mouse_button_held(MouseButton::Left, node_key);
     }
+
+    pub fn is_mouse_button_dragged(&self, mouse_button: MouseButton, node_key: NodeKey) -> Option<(f64, f64)> {
+        let real_key = self.get_latest_twin_key(node_key);
+        let Some(real_key) = real_key else {
+            return None;
+        };
+
+        // todo: reconsider
+        if let MouseButton::Other(_) = mouse_button {
+            println!("We currently don't support that mouse button being dragged ({:?})", mouse_button);
+            return None;
+        }
+
+        if let Some(node) = self.sys.dragged_store.by_button(mouse_button) {
+            if node.hit_node_id == real_key.id {
+                return Some(self.sys.mouse_status.cursor_diff());
+            } else {
+                return None;
+            }
+        } else {
+            return None;
+        }
+    }
+
+    pub fn is_dragged(&mut self, node_key: NodeKey) -> Option<(f64, f64)> {
+        let diff = self.is_mouse_button_dragged(MouseButton::Left, node_key)?;
+        return Some(diff);
+    }
+
 
     pub fn end_frame_check_inputs(&mut self) {
         self.resolve_hover();
@@ -98,51 +126,12 @@ impl Ui {
 
         if let Some(hovered_id) = topmost_mouse_hit {
 
-            if ! self.sys.mouse_status.buttons.left {
-                self.sys.held_stack.left = None;
-            }
-            if ! self.sys.mouse_status.buttons.right {
-                self.sys.held_stack.right = None;
-            }
-            if ! self.sys.mouse_status.buttons.middle {
-                self.sys.held_stack.middle = None;
-            }
-            if ! self.sys.mouse_status.buttons.back {
-                self.sys.held_stack.back = None;
-            }
-            if ! self.sys.mouse_status.buttons.forward {
-                self.sys.held_stack.forward = None;
-            }
-
-            if let Some(ref left) = self.sys.held_stack.left {
-                if left.hit_node_id != hovered_id {
-                    self.sys.held_stack.left = None;
-                }
-            };
-            if let Some(ref right) = self.sys.held_stack.right {
-                if right.hit_node_id != hovered_id {
-                    self.sys.held_stack.right = None;
-                }
-            };
-            if let Some(ref middle) = self.sys.held_stack.middle {
-                if middle.hit_node_id != hovered_id {
-                    self.sys.held_stack.middle = None;
-                }
-            };
-            if let Some(ref back) = self.sys.held_stack.back {
-                if back.hit_node_id != hovered_id {
-                    self.sys.held_stack.back = None;
-                }
-            };
-            if let Some(ref forward) = self.sys.held_stack.forward {
-                if forward.hit_node_id != hovered_id {
-                    self.sys.held_stack.forward = None;
-                }
-            };
-
+            self.sys.held_store.check_end(&self.sys.mouse_status.buttons, hovered_id, true);
+            self.sys.dragged_store.check_end(&self.sys.mouse_status.buttons, hovered_id, false);
 
         } else {
-            self.sys.held_stack.clear_all();
+            self.sys.held_store.clear_all();
+            // don't clear drags
         }
 
         if let Some(hovered_id) = topmost_mouse_hit {
@@ -174,8 +163,9 @@ impl Ui {
         // check for hits.
         let topmost_mouse_hit = self.scan_mouse_hits();
         
-        // if nothing is hit, we're done. 
+        // if nothing is hit, we're done, except for this stupid shit. would be nice to reorganize.
         let Some(clicked_id) = topmost_mouse_hit else {
+            *self.sys.dragged_store.by_button_mut(button) = None;
             return false;
         };
 
@@ -220,16 +210,28 @@ impl Ui {
             }
 
             // for le holding
-            *self.sys.held_stack.by_button_mut(button) = Some(stored_click);
+            *self.sys.held_store.by_button_mut(button) = Some(stored_click);
+            *self.sys.dragged_store.by_button_mut(button) = Some(stored_click);
 
         } else {
-            if let Some(held_click) = self.sys.held_stack.by_button(button) {
+            // click release generates a click-release, and ends holding. is this duplicated?? 
+            if let Some(held_click) = self.sys.held_store.by_button(button) {
                 if let Some(topmost_mouse_hit) = topmost_mouse_hit {
                     if held_click.hit_node_id == topmost_mouse_hit {
                         self.sys.last_frame_click_released.push(stored_click);
                     } else {
-                        *self.sys.held_stack.by_button_mut(button) = None;
+                        *self.sys.held_store.by_button_mut(button) = None;
                     }
+                }
+            }
+
+            if let Some(dragged_click) = self.sys.dragged_store.by_button(button) {
+                if let Some(topmost_mouse_hit) = topmost_mouse_hit {
+                    if dragged_click.hit_node_id != topmost_mouse_hit {
+                        *self.sys.dragged_store.by_button_mut(button) = None;
+                    }
+                } else {
+                    *self.sys.dragged_store.by_button_mut(button) = None;
                 }
             }
         }
@@ -320,20 +322,6 @@ impl Ui {
         }
 
         return false;
-    }
-   
-
-    pub fn is_dragged_abs(&mut self, node_key: NodeKey) -> Option<(f64, f64)> {
-        if self.is_clicked(node_key) {
-            return Some(self.sys.mouse_status.cursor_diff())
-        } else {
-            return None;
-        }
-    }
-
-    pub fn is_dragged(&mut self, node_key: NodeKey) -> Option<(f64, f64)> {
-        let diff = self.is_dragged_abs(node_key)?;
-        return Some(diff);
     }
 
     // todo: is_clicked_advanced
@@ -615,6 +603,53 @@ impl HeldNodes {
         self.middle = None;
         self.back = None;
         self.forward = None;
+    }
+
+    fn check_end(&mut self, mouse_status: &MouseButtons, hovered_id: Id, end_if_mouse_exits: bool) {
+        if ! mouse_status.left {
+            self.left = None;
+        }
+        if ! mouse_status.right {
+            self.right = None;
+        }
+        if ! mouse_status.middle {
+            self.middle = None;
+        }
+        if ! mouse_status.back {
+            self.back = None;
+        }
+        if ! mouse_status.forward {
+            self.forward = None;
+        }
+
+        if end_if_mouse_exits {
+
+            if let Some(left) = self.left {
+                if left.hit_node_id != hovered_id {
+                    self.left = None;
+                }
+            };
+            if let Some(right) = self.right {
+                if right.hit_node_id != hovered_id {
+                    self.right = None;
+                }
+            };
+            if let Some(middle) = self.middle {
+                if middle.hit_node_id != hovered_id {
+                    self.middle = None;
+                }
+            };
+            if let Some(back) = self.back {
+                if back.hit_node_id != hovered_id {
+                    self.back = None;
+                }
+            };
+            if let Some(forward) = self.forward {
+                if forward.hit_node_id != hovered_id {
+                    self.forward = None;
+                }
+            }
+        };
     }
 }
 
