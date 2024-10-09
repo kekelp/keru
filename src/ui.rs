@@ -1,4 +1,4 @@
-use crate::ui_interact::{LastFrameClicks, MouseInputState, StoredClick};
+use crate::ui_interact::{HeldNodes, LastFrameClicks, MouseInputState, StoredClick};
 use crate::ui_math::*;
 use crate::ui_node_params::{
     ANON_HSTACK, ANON_VSTACK, DEFAULT, H_STACK, NODE_ROOT_PARAMS, TEXT, V_STACK,
@@ -871,8 +871,6 @@ pub struct System {
 
     pub mouse_status: MouseInputState,
 
-    pub waiting_for_click_release: bool,
-
     pub clipboard: ClipboardContext,
 
     pub key_mods: ModifiersState,
@@ -897,7 +895,9 @@ pub struct System {
     pub clicked_stack: Vec<(Id, f32)>,
     pub mouse_hit_stack: Vec<(Id, f32)>,
     pub last_frame_clicks: LastFrameClicks,
-    pub held_stack: Vec<StoredClick>,
+    
+    pub held_stack: HeldNodes,
+    
     pub last_frame_click_released: Vec<StoredClick>,
     pub hovered: Vec<Id>,
 
@@ -1081,7 +1081,6 @@ impl Ui {
 
             sys: System {
                 root_i,
-                waiting_for_click_release: false,
                 debug_mode: false,
                 debug_key_pressed: false,
 
@@ -1122,7 +1121,7 @@ impl Ui {
                 clicked_stack: Vec::with_capacity(50),
                 mouse_hit_stack: Vec::with_capacity(50),
                 last_frame_clicks: LastFrameClicks::new(),
-                held_stack: Vec::with_capacity(5),
+                held_stack: HeldNodes::default(),
                 last_frame_click_released: Vec::with_capacity(5),
 
                 hovered: Vec::with_capacity(15),

@@ -24,6 +24,10 @@ pub enum Cursor {
 impl Ui {
 
     pub fn is_clicked(&self, node_key: NodeKey) -> bool {
+        return self.is_mouse_button_clicked(MouseButton::Left, node_key);
+    }
+
+    pub fn is_mouse_button_clicked(&self, mouse_button: MouseButton, node_key: NodeKey) -> bool {
         let real_key = self.get_latest_twin_key(node_key);
         let Some(real_key) = real_key else {
             return false;
@@ -33,7 +37,7 @@ impl Ui {
             .last_frame_clicks
             .clicks
             .iter()
-            .any(|c| c.hit_node_id == real_key.id && c.state.is_pressed() && c.button == MouseButton::Left);
+            .any(|c| c.hit_node_id == real_key.id && c.state.is_pressed() && c.button == mouse_button);
     }
 
     pub fn is_click_released(&self, node_key: NodeKey) -> bool {
@@ -48,16 +52,39 @@ impl Ui {
             .any(|c| c.hit_node_id == real_key.id && c.button == MouseButton::Left);
     }
 
-    pub fn is_held(&self, node_key: NodeKey) -> bool {
+    pub fn is_mouse_button_click_released(&self, mouse_button: MouseButton, node_key: NodeKey) -> bool {
         let real_key = self.get_latest_twin_key(node_key);
         let Some(real_key) = real_key else {
             return false;
         };
         return self
             .sys
-            .held_stack
+            .last_frame_click_released
             .iter()
-            .any(|c| c.hit_node_id == real_key.id && c.state.is_pressed() && c.button == MouseButton::Left);
+            .any(|c| c.hit_node_id == real_key.id && c.button == mouse_button);
+    }
+
+    pub fn is_mouse_button_held(&self, mouse_button: MouseButton, node_key: NodeKey) -> bool {
+        let real_key = self.get_latest_twin_key(node_key);
+        let Some(real_key) = real_key else {
+            return false;
+        };
+
+        // todo: reconsider
+        if let MouseButton::Other(_) = mouse_button {
+            println!("We currently don't support that mouse button being held ({:?})", mouse_button);
+            return false;
+        }
+        
+        if let Some(node) = self.sys.held_stack.by_button(mouse_button) {
+            return node.hit_node_id == real_key.id;
+        } else {
+            return false;
+        }
+    }
+
+    pub fn is_held(&self, node_key: NodeKey) -> bool {
+        return self.is_mouse_button_held(MouseButton::Left, node_key);
     }
 
     pub fn end_frame_check_inputs(&mut self) {
@@ -69,23 +96,53 @@ impl Ui {
     pub fn end_frame_resolve_hover_and_clear_hold(&mut self) {
         let topmost_mouse_hit = self.scan_mouse_hits();
 
-        let mut clear_stack = false;
-        if ! self.sys.mouse_status.buttons.left {
-            clear_stack = true;
-        }
-
         if let Some(hovered_id) = topmost_mouse_hit {
-            for h in &self.sys.held_stack {
-                if hovered_id != h.hit_node_id {
-                    clear_stack = true;
-                    break;
+
+            if ! self.sys.mouse_status.buttons.left {
+                self.sys.held_stack.left = None;
+            }
+            if ! self.sys.mouse_status.buttons.right {
+                self.sys.held_stack.right = None;
+            }
+            if ! self.sys.mouse_status.buttons.middle {
+                self.sys.held_stack.middle = None;
+            }
+            if ! self.sys.mouse_status.buttons.back {
+                self.sys.held_stack.back = None;
+            }
+            if ! self.sys.mouse_status.buttons.forward {
+                self.sys.held_stack.forward = None;
+            }
+
+            if let Some(ref left) = self.sys.held_stack.left {
+                if left.hit_node_id != hovered_id {
+                    self.sys.held_stack.left = None;
                 }
-            }
-            if clear_stack {
-                self.sys.held_stack.clear();
-            }
+            };
+            if let Some(ref right) = self.sys.held_stack.right {
+                if right.hit_node_id != hovered_id {
+                    self.sys.held_stack.right = None;
+                }
+            };
+            if let Some(ref middle) = self.sys.held_stack.middle {
+                if middle.hit_node_id != hovered_id {
+                    self.sys.held_stack.middle = None;
+                }
+            };
+            if let Some(ref back) = self.sys.held_stack.back {
+                if back.hit_node_id != hovered_id {
+                    self.sys.held_stack.back = None;
+                }
+            };
+            if let Some(ref forward) = self.sys.held_stack.forward {
+                if forward.hit_node_id != hovered_id {
+                    self.sys.held_stack.forward = None;
+                }
+            };
+
+
         } else {
-            self.sys.held_stack.clear();
+            self.sys.held_stack.clear_all();
         }
 
         if let Some(hovered_id) = topmost_mouse_hit {
@@ -108,18 +165,20 @@ impl Ui {
         }
     }
 
-    pub fn resolve_click(&mut self, button: MouseButton, state: ElementState) -> bool {
+    pub fn resolve_click(&mut self, button: MouseButton, state: ElementState) -> bool {       
+        // defocus when clicking anywhere outside.
+        if state.is_pressed() {
+            self.sys.focused = None;
+        }
+        
+        // check for hits.
         let topmost_mouse_hit = self.scan_mouse_hits();
         
-        // defocus when use clicking anywhere outside.
-        self.sys.focused = None;
-        
+        // if nothing is hit, we're done. 
         let Some(clicked_id) = topmost_mouse_hit else {
             return false;
         };
 
-        self.sys.waiting_for_click_release = true;
-        
         let stored_click = StoredClick {
             button,
             state,
@@ -129,44 +188,47 @@ impl Ui {
         };
         self.sys.last_frame_clicks.push(stored_click);
 
-        if state.is_pressed() && button == MouseButton::Left {
-            let t = T0.elapsed();
-            let node = self.nodes.get_by_id(&clicked_id).unwrap();
-            node.last_click = t.as_secs_f32();
-
-            if node.text_id.is_some() {
-                if let Some(text) = node.params.text_params{
-                    if text.editable {
-                        self.sys.focused = Some(clicked_id);
+        if state.is_pressed() {
+            if button == MouseButton::Left {
+                // the default animation and the "focused" flag are hardcoded to work on left click only, I guess.
+                let t = T0.elapsed();
+                let node = self.nodes.get_by_id(&clicked_id).unwrap();
+                node.last_click = t.as_secs_f32();
+    
+                if node.text_id.is_some() {
+                    if let Some(text) = node.params.text_params{
+                        if text.editable {
+                            self.sys.focused = Some(clicked_id);
+                        }
                     }
                 }
-            }
-
-            if let Some(id) = node.text_id {
-                let text_area = &mut self.sys.text.text_areas[id];
-                let (x, y) = (
-                    self.sys.part.mouse_pos.x - text_area.params.left,
-                    self.sys.part.mouse_pos.y - text_area.params.top,
-                );
-
-                // todo: with how I'm misusing cosmic-text, this might become "unsafe" soon (as in, might be incorrect or cause panics, not actually unsafe).
-                // I think in general, there should be a safe version of hit() that just forces a rerender just to be sure that the offset is safe to use.
-                // But in this case, calling this in resolve_mouse_input() and not on every winit mouse event probably means it's safe
-
-                // actually, the enlightened way is that cosmic_text exposes an "unsafe" hit(), but we only ever see the string + cursor + buffer struct, and call that hit(), which doesn't return an offset but just mutates the one inside.
-                text_area.buffer.hit(x, y);
+    
+                if let Some(id) = node.text_id {
+                    let text_area = &mut self.sys.text.text_areas[id];
+                    let (x, y) = (
+                        self.sys.part.mouse_pos.x - text_area.params.left,
+                        self.sys.part.mouse_pos.y - text_area.params.top,
+                    );
+    
+                    // todo: with how I'm misusing cosmic-text, this might become "unsafe" soon (as in, might be incorrect or cause panics, not actually unsafe).
+                    // I think in general, there should be a safe version of hit() that just forces a rerender just to be sure that the offset is safe to use.
+                    // But in this case, calling this in resolve_mouse_input() and not on every winit mouse event probably means it's safe
+                    // actually, the enlightened way is that cosmic_text exposes an "unsafe" hit(), but we only ever see the string + cursor + buffer struct, and call that hit(), which doesn't return an offset but just mutates the one inside.
+                    text_area.buffer.hit(x, y);
+                }
+    
             }
 
             // for le holding
-            self.sys.held_stack.push(stored_click);
+            *self.sys.held_stack.by_button_mut(button) = Some(stored_click);
 
         } else {
-            if let Some(held_click) = self.sys.held_stack.first() {
+            if let Some(held_click) = self.sys.held_stack.by_button(button) {
                 if let Some(topmost_mouse_hit) = topmost_mouse_hit {
                     if held_click.hit_node_id == topmost_mouse_hit {
                         self.sys.last_frame_click_released.push(stored_click);
                     } else {
-                        self.sys.held_stack.clear();
+                        *self.sys.held_stack.by_button_mut(button) = None;
                     }
                 }
             }
@@ -513,6 +575,47 @@ pub struct StoredClick {
     pub position: Xy<f32>,
     pub state: ElementState,
     pub hit_node_id: Id,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct HeldNodes {
+    pub left: Option<StoredClick>,
+    pub right: Option<StoredClick>,
+    pub middle: Option<StoredClick>,
+    pub back: Option<StoredClick>,
+    pub forward: Option<StoredClick>,
+    // todo: disregard the Other buttons for now
+}
+impl HeldNodes {
+    pub(crate) fn by_button(&self, button: MouseButton) -> &Option<StoredClick> {
+        match button {
+            MouseButton::Left => return &self.left,
+            MouseButton::Right => return &self.right,
+            MouseButton::Middle => return &self.middle,
+            MouseButton::Back => return &self.back,
+            MouseButton::Forward => return &self.forward,
+            MouseButton::Other(_) => panic!(),
+        }
+    }
+
+    pub(crate) fn by_button_mut(&mut self, button: MouseButton) -> &mut Option<StoredClick> {
+        match button {
+            MouseButton::Left => return &mut self.left,
+            MouseButton::Right => return &mut self.right,
+            MouseButton::Middle => return &mut self.middle,
+            MouseButton::Back => return &mut self.back,
+            MouseButton::Forward => return &mut self.forward,
+            MouseButton::Other(_) => panic!(),
+        }
+    }
+
+    fn clear_all(&mut self) {
+        self.left = None;
+        self.right = None;
+        self.middle = None;
+        self.back = None;
+        self.forward = None;
+    }
 }
 
 pub struct LastFrameClicks {

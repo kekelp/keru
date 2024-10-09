@@ -9,6 +9,7 @@ use crate::*;
 
 use change_watcher::Watcher;
 use view_derive::node_key;
+use winit::event::MouseButton;
 
 const COLOR1: Color = Color::rgba(50, 13, 100, 240);
 const COLOR2: Color = Color::rgba(100, 13, 50, 240);
@@ -40,10 +41,10 @@ impl State {
             }
         });
 
-        if self.ui.is_clicked(SHOW) {
+        if self.ui.is_mouse_button_click_released(MouseButton::Right, SHOW) {
             self.count_state.show = !self.count_state.show;
         }
-        if self.ui.is_held(INCREASE) {
+        if self.ui.is_mouse_button_held(MouseButton::Middle, INCREASE) {
             *self.count_state.count += 1;
         }
         if self.ui.is_clicked(DECREASE) {
