@@ -21,6 +21,13 @@ impl Ui {
         }
     }
 
+    pub fn f32_size_to_pixels2(&self, size: Xy<f32>) -> Xy<u32> {
+        return Xy::new(
+            (size.x * self.sys.part.unifs.size[X]) as u32,
+            (size.y * self.sys.part.unifs.size[Y]) as u32
+        );
+    }
+
     pub fn to_pixels2(&self, len: Xy<Len>) -> Xy<u32> {
         return Xy::new(self.to_pixels(len.x, X), self.to_pixels(len.y, Y));
     }

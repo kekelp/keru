@@ -525,6 +525,16 @@ impl<'a, T: NodeType> UiNode<'a, T> {
         self.node_mut().params.layout.size.y = size;
         return self;
     }
+
+    pub(crate) fn inner_size(&self) -> Xy<u32> {
+        let padding = self.node().params.layout.padding;
+        let padding = self.ui.to_pixels2(padding);
+        
+        let size = self.node().size;
+        let size = self.ui.f32_size_to_pixels2(size);
+
+        return size - padding;
+    }
 }
 
 impl<'a, T: TextTrait> UiNode<'a, T> {
@@ -1142,9 +1152,9 @@ impl Ui {
     }
 
     // don't expect this to give you twin nodes automatically
-    pub fn get_ref<T: NodeType>(&mut self, key: TypedKey<T>) -> UiNode<Any> {
-        let node_i = self.nodes.node_hashmap.get(&key.id()).unwrap().slab_i;
-        return self.get_ref_unchecked(node_i, &key);
+    pub fn get_ref<T: NodeType>(&mut self, key: TypedKey<T>) -> Option<UiNode<Any>> {
+        let node_i = self.nodes.node_hashmap.get(&key.id())?.slab_i;
+        return Some(self.get_ref_unchecked(node_i, &key));
     }
 
     // only for the macro, use get_ref
@@ -1430,6 +1440,11 @@ impl Ui {
         node.refresh(parent_id, frame);
         self.sys.text.refresh_last_frame(node.text_id, frame);
     }
+
+    pub fn get_node(&mut self, key: TypedKey<Any>) -> Option<UiNode<Any>> {
+        let real_key = self.get_latest_twin_key(key)?;
+        return self.get_ref(real_key);
+    }
 }
 
 #[macro_export]
@@ -1480,6 +1495,7 @@ pub struct Node {
     pub rect: XyRect,
 
     // partial result when layouting?
+    // in probably in fraction of screen units or some trash 
     pub size: Xy<f32>,
 
     pub last_frame_status: LastFrameStatus,

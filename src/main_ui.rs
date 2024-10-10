@@ -176,12 +176,10 @@ impl Ui {
     pub fn add_slider(&mut self, value: f32) -> f32 {
         let mut value = value;
 
-        const FIXED_LEN: u32 = 200;
-
         #[node_key]
         pub const SLIDER_CONTAINER: NodeKey;
         let slider_container = FLGR_PANEL
-            .size_y(Fixed(Pixels(FIXED_LEN)))
+            .size_y(Size::Fixed(Frac(0.7)))
             .size_x(Fixed(Pixels(50)))
             .key(SLIDER_CONTAINER);
 
@@ -190,22 +188,26 @@ impl Ui {
         let slider_fill = FLGR_PANEL
             .key(SLIDER_FILL)
             .size_x(Fill)
-            .size_y(Fixed(Pixels(value as u32)))
+            .size_y(Fixed(Frac(value)))
             .color(Color::FLGR_RED)
             .position_y(End)
-            .padding_y(Pixels(2));
+            .padding_y(Pixels(0));
 
         self.add_parent(&slider_container).nest(|| {
             self.add(&slider_fill);
         });
 
-        if let Some((_x, y)) = self.is_mouse_button_dragged(MouseButton::Right, SLIDER_CONTAINER) {
-            value += y as f32;
-            value = value.clamp(0.0, FIXED_LEN as f32);
+        // unwrap feels bad, but what else would you do here?
+        // add_parent() above means that it exists for sure, but the return channel isn't available to return the UiNode. Both for aesthetics and borrowing reasons (if Parent had a reference to Ui, you'd be limited on how you can use Ui within the closure)
+        let size = self.get_node(SLIDER_CONTAINER).unwrap().inner_size().y as f32;
+
+        if let Some((_x, y)) = self.is_dragged(SLIDER_CONTAINER) {
+            value += (y as f32) / size;
+            value = value.clamp(0.0, 1.0);
         }
         if let Some((_x, y)) = self.is_dragged(SLIDER_FILL) {
-            value += y as f32;
-            value = value.clamp(0.0, FIXED_LEN as f32);
+            value += (y as f32) / size;
+            value = value.clamp(0.0, 1.0);
         }
 
         return value;

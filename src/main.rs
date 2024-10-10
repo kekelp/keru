@@ -104,7 +104,7 @@ impl State {
             count_state: CounterState::default(),
             canvas,
             info_visible: true,
-            slider_value: 500.0,
+            slider_value: 0.4,
             slider_value2: 450.0,
             slider_value3: 450.0,
             slider_value4: 450.0,
