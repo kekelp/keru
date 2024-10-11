@@ -39,6 +39,23 @@ impl Ui {
             .any(|c| c.hit_node_id == real_key.id && c.state.is_pressed() && c.button == mouse_button);
     }
 
+    pub fn click_info(
+        &self, 
+        mouse_button: MouseButton, 
+        node_key: NodeKey
+    ) -> impl Iterator<Item = &StoredClick> {
+        // if there is no such node, we make up a random fake key that won't match anything => empty iterator
+        let match_key = self.get_latest_twin_key(node_key).unwrap_or(NodeKey::new(Id(83262734), "fake key"));
+
+        return self.sys
+            .last_frame_clicks
+            .clicks
+            .iter()
+            .filter(move |c| c.hit_node_id == match_key.id && c.state.is_pressed() && c.button == mouse_button);
+    }
+    
+    
+
     pub fn is_click_released(&self, node_key: NodeKey) -> bool {
         let real_key = self.get_latest_twin_key(node_key);
         let Some(real_key) = real_key else {

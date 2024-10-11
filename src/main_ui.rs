@@ -9,7 +9,6 @@ use crate::*;
 
 use change_watcher::Watcher;
 use view_derive::node_key;
-use winit::event::MouseButton;
 
 const COLOR1: Color = Color::rgba(50, 13, 100, 240);
 const COLOR2: Color = Color::rgba(100, 13, 50, 240);
@@ -41,10 +40,10 @@ impl State {
             }
         });
 
-        if self.ui.is_mouse_button_click_released(MouseButton::Right, SHOW) {
+        if self.ui.is_clicked(SHOW) {
             self.count_state.show = !self.count_state.show;
         }
-        if self.ui.is_mouse_button_held(MouseButton::Middle, INCREASE) {
+        if self.ui.is_clicked(INCREASE) {
             *self.count_state.count += 1;
         }
         if self.ui.is_clicked(DECREASE) {
@@ -200,12 +199,18 @@ impl Ui {
         // unwrap feels bad, but what else would you do here?
         // add_parent() above means that it exists for sure, but the return channel isn't available to return the UiNode. Both for aesthetics and borrowing reasons (if Parent had a reference to Ui, you'd be limited on how you can use Ui within the closure)
         let size = self.get_node(SLIDER_CONTAINER).unwrap().inner_size().y as f32;
+        // this is the idiomatic panic-safe way to do it, unsurprisingly it's awful
+        // let size = self.get_node(SLIDER_CONTAINER).map_or(0.0, |n| n.inner_size().y as f32);
+        
+        // le epic trait
+        // let size = self.get_node(SLIDER_CONTAINER).inner_size().unwrap_or(Xy::new(0, 0)).y;
+        // let size = self.get_node(SLIDER_CONTAINER).inner_size_y().unwrap_or(1) as f32;
 
-        if let Some((_x, y)) = self.is_dragged(SLIDER_CONTAINER) {
+        if let Some((_, y)) = self.is_dragged(SLIDER_CONTAINER) {
             value += (y as f32) / size;
             value = value.clamp(0.0, 1.0);
         }
-        if let Some((_x, y)) = self.is_dragged(SLIDER_FILL) {
+        if let Some((_, y)) = self.is_dragged(SLIDER_FILL) {
             value += (y as f32) / size;
             value = value.clamp(0.0, 1.0);
         }

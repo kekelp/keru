@@ -535,6 +535,14 @@ impl<'a, T: NodeType> UiNode<'a, T> {
 
         return size - padding;
     }
+
+    pub(crate) fn inner_size_y(&self) -> u32 {
+        return self.inner_size().y;
+    }
+
+    pub(crate) fn inner_size_x(&self) -> u32 {
+        return self.inner_size().x;
+    }
 }
 
 impl<'a, T: TextTrait> UiNode<'a, T> {
@@ -1910,3 +1918,20 @@ pub(crate) fn clear_thread_local_stacks() {
 //         return a;
 //     })
 // }
+
+pub trait UiNodeOptionFunctions {
+    fn inner_size(&self) -> Option<Xy<u32>>;
+    fn inner_size_x(&self) -> Option<u32>;
+    fn inner_size_y(&self) -> Option<u32>;
+}
+impl<'a, T: NodeType> UiNodeOptionFunctions for Option<UiNode<'a, T>> {
+    fn inner_size(&self) -> Option<Xy<u32>> {
+        self.as_ref().map(|ui_node| ui_node.inner_size())
+    }
+    fn inner_size_x(&self) -> Option<u32> {
+        self.as_ref().map(|ui_node| ui_node.inner_size_x())
+    }
+    fn inner_size_y(&self) -> Option<u32> {
+        self.as_ref().map(|ui_node| ui_node.inner_size_y())
+    }
+}
