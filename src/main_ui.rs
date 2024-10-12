@@ -190,7 +190,7 @@ impl Ui {
             .size_y(Fixed(Frac(value)))
             .color(Color::FLGR_RED)
             .position_y(End)
-            .padding_y(Pixels(0));
+            .padding_y(Pixels(1));
 
         self.add_parent(&slider_container).nest(|| {
             self.add(&slider_fill);

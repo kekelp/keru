@@ -245,7 +245,7 @@ impl NodeParams {
     }
 
     pub const fn padding_y(mut self, padding: Len) -> Self {
-        self.layout.padding.x = padding;
+        self.layout.padding.y = padding;
         return self;
     }
 
