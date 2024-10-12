@@ -21,7 +21,8 @@ pub fn basic_wgpu_init() -> (Instance, Device, Queue) {
     let device_desc = &DeviceDescriptor {
         label: None,
         required_features: Features::empty(),
-        required_limits: Limits::downlevel_webgl2_defaults(),
+        // Downlevel defaults are really bad. Maximum texture size = 2048 means you can't even maximize a window on a 1440p screen.
+        required_limits: Limits::default(),
         memory_hints: wgpu::MemoryHints::MemoryUsage,
     };
     let (device, queue) = pollster::block_on(adapter.request_device(device_desc, None)).unwrap();
