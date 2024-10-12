@@ -13,7 +13,6 @@ pub mod ui_layout;
 pub mod ui_interact;
 pub mod ui_text;
 
-use glam::dvec2;
 use pixels_on_screen::*;
 use canvas::*;
 use ui::*;
@@ -69,9 +68,8 @@ impl State {
 
     pub fn update(&mut self) {
         self.update_ui();
-        self.update_canvas();
+        // self.update_canvas();
         
-        self.canvas.scroll = dvec2(0.0, 0.0);
         self.render();
     }
 

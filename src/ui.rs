@@ -926,8 +926,8 @@ pub struct System {
 
     // todo: add these back sometime. probably better to have relayout_needed, rerender_needed, etc instead of some vaguely named trash
     // // remember about animations (surely there will be)
-    // pub content_changed: bool,
-    // pub tree_changed: bool,
+    pub rerender_needed: bool,
+    
     pub frame_t: f32,
 }
 impl Ui {
@@ -1150,6 +1150,7 @@ impl Ui {
                 focused: None,
 
                 frame_t: 0.0,
+                rerender_needed: true,
             },
         }
     }

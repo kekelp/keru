@@ -8,7 +8,7 @@ use crate::Ui;
 
 impl Ui {
     
-    pub fn render<'pass>(&'pass self, render_pass: &mut RenderPass<'pass>) {
+    pub fn render<'pass>(&'pass mut self, render_pass: &mut RenderPass<'pass>) {
         let n = self.sys.rects.len() as u32;
         if n > 0 {
             render_pass.set_pipeline(&self.sys.render_pipeline);
@@ -21,6 +21,8 @@ impl Ui {
             .text_renderer
             .render(&self.sys.text.atlas, &self.sys.text.glyphon_viewport, render_pass)
             .unwrap();
+
+        self.sys.rerender_needed = false;
     }
 
     /// Load the UI state onto the GPU

@@ -36,7 +36,7 @@ pub fn basic_surface_config(width: u32, height: u32) -> SurfaceConfiguration {
         format: TextureFormat::Bgra8UnormSrgb,
         width,
         height,
-        present_mode: PresentMode::Fifo,
+        present_mode: PresentMode::AutoVsync,
         alpha_mode: CompositeAlphaMode::Opaque,
         view_formats: vec![],
         desired_maximum_frame_latency: 2,
@@ -101,7 +101,7 @@ impl Context {
         self.surface_config.width = size.width;
         self.surface_config.height = size.height;
         self.surface.configure(&self.device, &self.surface_config);
-        self.window.request_redraw();
+        // self.window.request_redraw();
     }
 
     pub fn width(&self) -> u32 {

@@ -25,6 +25,7 @@ impl State {
             self.canvas.need_backup = false;
         }
 
+        self.canvas.scroll = dvec2(0.0, 0.0);
     }
 
     pub fn zoom(&mut self) {
@@ -59,7 +60,7 @@ impl State {
 
         self.canvas.translation += diff;
 
-
+        // I think the point was that there kind of things would go in canvas.prepare()?
         self.canvas.update_shader_transform(&self.ctx.queue);
     }
 
