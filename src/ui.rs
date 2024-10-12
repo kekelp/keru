@@ -1469,8 +1469,8 @@ macro_rules! add {
 }
 
 impl Ui {
+    // in case of partial declarative stuff, think of another name
     pub fn begin_tree(&mut self) {
-        // do cleanup here??
         self.sys.part.current_frame += 1;
     }
 

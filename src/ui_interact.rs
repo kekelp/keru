@@ -136,6 +136,7 @@ impl Ui {
         self.resolve_hover();
         self.sys.last_frame_click_released.clear();
         self.end_frame_resolve_hover_and_clear_hold();
+        self.sys.hovered.clear();
     }
 
     pub fn end_frame_resolve_hover_and_clear_hold(&mut self) {
@@ -344,7 +345,7 @@ impl Ui {
     // todo: is_clicked_advanced
 
     pub fn is_hovered(&self, node_key: NodeKey) -> bool {
-        return self.sys.hovered.last() != Some(&node_key.id);
+        return self.sys.hovered.last() == Some(&node_key.id);
     }
 
     // todo: is_hovered_advanced

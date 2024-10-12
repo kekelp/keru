@@ -23,10 +23,9 @@ impl Ui {
             .unwrap();
     }
 
+    /// Load the UI state onto the GPU
     pub fn prepare(&mut self, device: &Device, queue: &Queue) {       
         
-        // self.prune();
-        // self.build_buffers();
         self.sys.gpu_vertex_buffer.queue_write(&self.sys.rects[..], queue);
         
         self.sys.texture_atlas.load_to_gpu(queue);
@@ -47,10 +46,6 @@ impl Ui {
                 &mut self.sys.text.cache,
             )
             .unwrap();
-
-        // do cleanup here????
-        self.sys.hovered.clear();
-        // self.sys.clicked.clear()
     }
 }
 
