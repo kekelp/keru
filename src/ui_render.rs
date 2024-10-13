@@ -16,13 +16,13 @@ impl Ui {
             render_pass.set_vertex_buffer(0, self.sys.gpu_vertex_buffer.slice(n));
             render_pass.draw(0..6, 0..n);
         }
-
+        
         self.sys.text
-            .text_renderer
-            .render(&self.sys.text.atlas, &self.sys.text.glyphon_viewport, render_pass)
-            .unwrap();
-
-        self.sys.rerender_needed = false;
+        .text_renderer
+        .render(&self.sys.text.atlas, &self.sys.text.glyphon_viewport, render_pass)
+        .unwrap();
+        
+        self.sys.need_rerender = false;
     }
 
     /// Load the UI state onto the GPU

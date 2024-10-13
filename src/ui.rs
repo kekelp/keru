@@ -924,9 +924,15 @@ pub struct System {
 
     pub size_scratch: Vec<f32>,
 
-    // todo: add these back sometime. probably better to have relayout_needed, rerender_needed, etc instead of some vaguely named trash
     // // remember about animations (surely there will be)
-    pub rerender_needed: bool,
+    pub need_relayout: bool,
+    pub need_rerender: bool,
+
+    pub params_changed: bool,
+    pub text_changed: bool,
+
+    pub last_tree_hash: u64,
+    pub tree_hash: FxHasher,
     
     pub frame_t: f32,
 }
@@ -1150,9 +1156,21 @@ impl Ui {
                 focused: None,
 
                 frame_t: 0.0,
-                rerender_needed: true,
+
+                need_relayout: true,
+                need_rerender: true,
+
+                params_changed: true,
+                text_changed: true,
+                tree_hash: FxHasher::default(),
+                last_tree_hash: 0,
+
             },
         }
+    }
+
+    pub fn tree_changed(&self) -> bool {
+        return self.sys.tree_hash.finish() != self.sys.last_tree_hash;
     }
 
     pub fn format(&mut self, value: impl Display) {
@@ -1222,8 +1240,8 @@ impl Ui {
         // If twin_check_result is AddedNormal, the node was added in the section before,
         //      and there's nothing to do regarding twins, so we just confirm final_i.
         // If it's NeedToAddTwin, we repeat the same thing with the new twin_key.
-        let real_final_i = match twin_check_result {
-            UpdatedNormal { final_i } => final_i,
+        let (real_final_i, real_final_id) = match twin_check_result {
+            UpdatedNormal { final_i } => (final_i, key.id()),
             NeedToUpdateTwin { twin_key, twin_n } => {
                 match self.nodes.node_hashmap.entry(twin_key.id()) {
                     // Add new twin.
@@ -1232,7 +1250,7 @@ impl Ui {
                             self.sys.build_new_node(&twin_key, params, Some(twin_n));
                         let real_final_i = self.nodes.nodes.insert(new_twin_node);
                         v.insert(NodeMapEntry::new(parent_i, frame, real_final_i));
-                        real_final_i
+                        (real_final_i, twin_key.id())
                     }
                     // Refresh a twin from the previous frame.
                     Entry::Occupied(o) => {
@@ -1242,11 +1260,13 @@ impl Ui {
                         let real_final_i = old_twin_map_entry.refresh(parent_i, frame);
 
                         self.refresh_node(params, real_final_i, parent_i, frame);
-                        real_final_i
+                        (real_final_i, twin_key.id())
                     }
                 }
             }
         };
+
+        self.sys.tree_hash.write_u64(real_final_id.0);
 
         self.add_child_to_parent(real_final_i, parent_i);
 
@@ -1454,46 +1474,46 @@ impl Ui {
         let real_key = self.get_latest_twin_key(key)?;
         return self.get_ref(real_key);
     }
+
+    pub fn need_rerender(&self) -> bool {
+        return self.sys.need_rerender;
+    }
 }
 
-#[macro_export]
-macro_rules! add {
-    ($ui:expr, $params:expr, $code:block) => {{
-        let i = $ui.add_as_parent_unchecked($params.key, &$params);
-        $code;
-        $ui.end_parent_unchecked();
-        $ui.get_ref_unchecked(i, &$params.key)
-    }};
-    ($ui:expr, $params:expr) => {
-        $ui.add($params.key, $params)
-    };
-}
 
 impl Ui {
     // in case of partial declarative stuff, think of another name
     pub fn begin_tree(&mut self) {
         self.sys.part.current_frame += 1;
+        
+        // reset hashes
+        self.sys.last_tree_hash = self.sys.tree_hash.finish();
+        self.sys.tree_hash = FxHasher::default();
+
+        clear_thread_local_stacks();
     }
 
     pub fn finish_tree(&mut self) {
-        clear_thread_local_stacks();
-        self.layout_and_build_rects();
+        if self.tree_changed() {
+            self.sys.need_relayout = true;
+            self.sys.need_rerender = true;
+        }
+
+        if self.sys.need_relayout {
+            println!("Layout + build");
+            self.layout_and_build_rects();
+            self.sys.need_relayout = false;
+        }
+        
         self.end_frame_check_inputs();
 
         self.sys.last_frame_clicks.clear();
 
         self.update_time();
         self.nodes[self.sys.root_i].reset_children();
-    }
-}
 
-#[macro_export]
-macro_rules! tree {
-    ($ui:expr, $code:block) => {{
-        $ui.begin_tree();
-        $code;
-        $ui.finish_tree();
-    }};
+
+    }
 }
 
 #[derive(Debug)]

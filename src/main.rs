@@ -68,17 +68,23 @@ impl State {
 
     pub fn update(&mut self) {
         self.update_ui();
-        // self.update_canvas();
+        self.update_canvas();
         
         self.render();
     }
 
     pub fn render(&mut self) {
+        if ! self.ui.need_rerender() {
+            return;
+        }
+
+        println!("Render");
+            
         self.canvas.prepare(&self.ctx.queue);
         self.ui.prepare(&self.ctx.device, &self.ctx.queue);
-
+        
         let mut frame = self.ctx.begin_frame();
-
+        
         {
             let mut render_pass = frame.begin_render_pass(BACKGROUND_COLOR);
             self.canvas.render(&mut render_pass);
