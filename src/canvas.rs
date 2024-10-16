@@ -8,7 +8,7 @@ use winit_input_helper::WinitInputHelper;
 use {BindGroup, BindGroupEntry, BindGroupLayoutEntry, BindingResource, Buffer, ColorTargetState, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
 use winit::{dpi::PhysicalPosition, event::{ElementState, Event, MouseButton, WindowEvent}, keyboard::{Key, ModifiersState, NamedKey}};
 
-use crate::{ui_math::Xy, Context, Scale};
+use crate::{ui_math::Xy, Context};
 
 #[derive(Clone, Copy, Debug, Zeroable, Pod)]
 #[repr(C)]
@@ -760,4 +760,18 @@ pub struct PixelInfo {
     pub x: u32,
     pub y: u32,
     pub color: PixelColorF32,
+}
+
+pub trait Scale {
+    fn scale(self, scale: f32) -> Self;
+}
+impl Scale for usize {
+    fn scale(self, scale: f32) -> Self {
+        return (self as f32 * scale) as Self;
+    }
+}
+impl Scale for u32 {
+    fn scale(self, scale: f32) -> Self {
+        return (self as f32 * scale) as Self;
+    }
 }

@@ -567,7 +567,8 @@ impl<'a, T: TextTrait> UiNode<'a, T> {
         }
 
         self.node_mut().last_static_text_ptr = Some(text_pointer);
-
+        self.ui.sys.need_relayout = true;
+        self.ui.sys.need_rerender = true;
     }
 
     pub fn text(mut self, text: &str) -> Self {
@@ -602,6 +603,9 @@ impl<'a, T: TextTrait> UiNode<'a, T> {
                 .maybe_new_text_area(Some(&self.ui.format_scratch), self.ui.sys.part.current_frame);
             self.node_mut().text_id = text_id;
         }
+
+        self.ui.sys.need_relayout = true;
+        self.ui.sys.need_rerender = true;
 
         return self;
     }
@@ -924,9 +928,9 @@ pub struct System {
 
     pub size_scratch: Vec<f32>,
 
-    // // remember about animations (surely there will be)
     pub need_relayout: bool,
     pub need_rerender: bool,
+    pub rerender_time: Option<f32>,
 
     pub params_changed: bool,
     pub text_changed: bool,
@@ -935,6 +939,7 @@ pub struct System {
     pub tree_hash: FxHasher,
     
     pub frame_t: f32,
+    pub last_frame_timestamp: Instant,
 }
 impl Ui {
     pub fn new(device: &Device, queue: &Queue, config: &SurfaceConfiguration) -> Self {
@@ -1159,12 +1164,14 @@ impl Ui {
 
                 need_relayout: true,
                 need_rerender: true,
+                rerender_time: None,
 
                 params_changed: true,
                 text_changed: true,
                 tree_hash: FxHasher::default(),
                 last_tree_hash: 0,
-
+                
+                last_frame_timestamp: Instant::now()
             },
         }
     }
@@ -1325,6 +1332,19 @@ impl Ui {
 
     pub fn update_time(&mut self) {
         self.sys.frame_t = ui_time_f32();
+        
+        let frame_time = self.sys.last_frame_timestamp.elapsed();
+
+        if let Some(time) = &mut self.sys.rerender_time {
+            *time = *time - frame_time.as_secs_f32();
+        }
+        if let Some(time) = self.sys.rerender_time {
+            if time < 0.0 {
+                self.sys.rerender_time = None;
+            }
+        }
+
+        self.sys.last_frame_timestamp = Instant::now();
     }
 
     pub fn build_rect(&mut self, node: usize) {
@@ -1476,7 +1496,7 @@ impl Ui {
     }
 
     pub fn need_rerender(&self) -> bool {
-        return self.sys.need_rerender;
+        return self.sys.need_rerender || self.sys.rerender_time.is_some();
     }
 }
 
@@ -1510,6 +1530,7 @@ impl Ui {
         self.sys.last_frame_clicks.clear();
 
         self.update_time();
+
         self.nodes[self.sys.root_i].reset_children();
 
 

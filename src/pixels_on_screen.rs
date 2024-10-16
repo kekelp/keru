@@ -3,13 +3,20 @@ pub use winit::{
     error::EventLoopError, event_loop::EventLoop, event::Event, event_loop::EventLoopWindowTarget
 };
 
-use std::sync::Arc;
+use std::{sync::Arc, thread, time::{Duration, Instant}};
 
 use wgpu::{
     Color, CommandEncoder, CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance, InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue, RenderPass, RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, Surface, SurfaceConfiguration, SurfaceTexture, TextureFormat, TextureUsages, TextureView
 };
 use winit::{
     dpi::{LogicalSize, PhysicalSize}, event::WindowEvent, window::{Window as WinitWindow, WindowBuilder}
+};
+
+pub const BACKGROUND_GREY: wgpu::Color = wgpu::Color {
+    r: 0.037,
+    g: 0.039,
+    b: 0.037,
+    a: 1.0,
 };
 
 pub fn basic_wgpu_init() -> (Instance, Device, Queue) {
@@ -36,7 +43,7 @@ pub fn basic_surface_config(width: u32, height: u32) -> SurfaceConfiguration {
         format: TextureFormat::Bgra8UnormSrgb,
         width,
         height,
-        present_mode: PresentMode::AutoVsync,
+        present_mode: PresentMode::Fifo,
         alpha_mode: CompositeAlphaMode::Opaque,
         view_formats: vec![],
         desired_maximum_frame_latency: 2,
@@ -50,6 +57,9 @@ pub struct Context {
     pub surface_config: SurfaceConfiguration,
     pub device: Device,
     pub queue: Queue,
+
+    pub last_frame_timestamp: Instant,
+    pub current_frame_timestamp: Instant,
 }
 impl Context {
     pub fn init(width: u32, height: u32, title: &str) -> (Self, EventLoop<()>) {
@@ -75,6 +85,8 @@ impl Context {
             surface_config: config,
             device,
             queue,
+            last_frame_timestamp: Instant::now(),
+            current_frame_timestamp: Instant::now(),
         };
 
         return (ctx, event_loop);
@@ -86,13 +98,17 @@ impl Context {
                 event: WindowEvent::Resized(size),
                 ..
             } => self.resize(size),
-            Event::AboutToWait => {
-                self.window.request_redraw();
-            }
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
             } => target.exit(),
+            Event::WindowEvent {
+                event: WindowEvent::RedrawRequested,
+                ..
+            } => {
+                self.last_frame_timestamp = self.current_frame_timestamp;
+                self.current_frame_timestamp = Instant::now();
+            },
             _ => {}
         }
     }
@@ -112,7 +128,7 @@ impl Context {
         self.surface_config.height
     }
 
-    pub fn begin_frame(&mut self) -> RenderFrame {        
+    pub fn begin_frame(&mut self) -> RenderFrame {
         let encoder = self.device.create_command_encoder(&CommandEncoderDescriptor::default());
 
         let frame = self.surface.get_current_texture().unwrap();
@@ -123,6 +139,14 @@ impl Context {
             frame,
             view
         };
+    }
+
+    pub fn sleep_until_next_frame(&mut self) {
+        let refresh_rate = self.window.current_monitor().unwrap().video_modes().next().unwrap().refresh_rate_millihertz();        
+        let frame_time_micros = (1_000_000_000 / refresh_rate) as u64;
+        let sleep_time = Duration::from_micros(frame_time_micros - 100);
+
+        thread::sleep(sleep_time);
     }
 }
 
@@ -174,19 +198,5 @@ pub fn is_redraw_requested(event: &Event<()>) -> bool {
         return true;
     } else {
         return false;
-    }
-}
-
-pub trait Scale {
-    fn scale(self, scale: f32) -> Self;
-}
-impl Scale for usize {
-    fn scale(self, scale: f32) -> Self {
-        return (self as f32 * scale) as Self;
-    }
-}
-impl Scale for u32 {
-    fn scale(self, scale: f32) -> Self {
-        return (self as f32 * scale) as Self;
     }
 }

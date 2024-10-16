@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 use wgpu::Queue;
 use winit::{dpi::PhysicalPosition, event::{ElementState, Event, KeyEvent, MouseButton, MouseScrollDelta, WindowEvent}};
 
@@ -191,7 +189,6 @@ impl Ui {
             button,
             state,
             hit_node_id: clicked_id,
-            timestamp: Instant::now(),
             position: Xy::new(self.sys.part.mouse_pos.x, self.sys.part.mouse_pos.y),
         };
         self.sys.last_frame_clicks.push(stored_click);
@@ -202,6 +199,8 @@ impl Ui {
                 let t = T0.elapsed();
                 let node = self.nodes.get_by_id(&clicked_id).unwrap();
                 node.last_click = t.as_secs_f32();
+
+                self.sys.rerender_time = Some(1.0);
     
                 if node.text_id.is_some() {
                     if let Some(text) = node.params.text_params{
@@ -577,7 +576,6 @@ impl MouseInputState {
 #[derive(Clone, Copy, Debug)]
 pub struct StoredClick {
     pub button: MouseButton,
-    pub timestamp: Instant,
     pub position: Xy<f32>,
     pub state: ElementState,
     pub hit_node_id: Id,

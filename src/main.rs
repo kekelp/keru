@@ -18,18 +18,10 @@ use canvas::*;
 use ui::*;
 use main_ui::CounterState;
 
-pub const BASE_WIDTH: u32 = 1350;
-pub const BASE_HEIGHT: u32 = 850;
-pub const BACKGROUND_COLOR: wgpu::Color = wgpu::Color {
-    r: 0.037,
-    g: 0.037 + 0.002,
-    b: 0.037,
-    a: 1.0,
-};
 pub const WINDOW_NAME: &str = "BLUE";
 
 fn main() -> Result<(), EventLoopError> {
-    let (ctx, event_loop) = Context::init(BASE_WIDTH, BASE_HEIGHT, WINDOW_NAME);
+    let (ctx, event_loop) = Context::init(1350, 850, "BLUE");
     
     let mut state = State::new(ctx);
 
@@ -52,32 +44,31 @@ pub struct State {
 
 
 impl State {
-    pub fn handle_event(&mut self, event: &Event<()>, target: &EventLoopWindowTarget<()>) {        
+    pub fn handle_event(&mut self, event: &Event<()>, target: &EventLoopWindowTarget<()>) {
         self.ctx.handle_events(event, target);
-        
         let consumed = self.ui.handle_events(event, &self.ctx.queue);
-
         if ! consumed {
             self.canvas.handle_events(event, &self.ui.sys.key_mods, &self.ctx.queue);
         }
 
         if is_redraw_requested(event) {
             self.update();
+            self.ctx.window.request_redraw();
         }
     }
 
     pub fn update(&mut self) {
         self.update_ui();
-        self.update_canvas();
+        // self.update_canvas();
         
-        self.render();
+        if self.ui.need_rerender() {
+            self.render();
+        } else {
+            self.ctx.sleep_until_next_frame();
+        }
     }
 
     pub fn render(&mut self) {
-        if ! self.ui.need_rerender() {
-            return;
-        }
-
         println!("Render");
             
         self.canvas.prepare(&self.ctx.queue);
@@ -86,7 +77,7 @@ impl State {
         let mut frame = self.ctx.begin_frame();
         
         {
-            let mut render_pass = frame.begin_render_pass(BACKGROUND_COLOR);
+            let mut render_pass = frame.begin_render_pass(BACKGROUND_GREY);
             self.canvas.render(&mut render_pass);
             self.ui.render(&mut render_pass);
         }
