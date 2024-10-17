@@ -72,7 +72,7 @@ impl Axis {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
 #[repr(C)]
 pub struct Xy<T> {
     pub x: T,

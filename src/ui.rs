@@ -88,14 +88,14 @@ pub struct Interact {
     pub absorbs_mouse_events: bool,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Layout {
     pub size: Xy<Size>,
     pub padding: Xy<Len>,
     pub position: Xy<Position>,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Rect {
     pub visible: bool,
     pub filled: bool,
@@ -1176,6 +1176,19 @@ impl Ui {
         }
     }
 
+    /// Determine if the params change means that the Ui needs to be relayouted and/or rerendered
+    fn watch_params_change(&mut self, old: NodeParams, new: NodeParams) {
+        // todo: maybe improve with hashes and stuff?
+        if old.layout != new.layout {
+            self.sys.need_relayout = true;
+            self.sys.need_rerender = true;
+        }
+
+        if old.rect != new.rect {
+            self.sys.need_rerender = true;
+        }
+    }
+
     pub fn tree_changed(&self) -> bool {
         return self.sys.tree_hash.finish() != self.sys.last_tree_hash;
     }
@@ -1200,7 +1213,7 @@ impl Ui {
         };
     }
 
-    pub fn update_node<T: NodeType>(&mut self, key: TypedKey<T>, params: &NodeParams) -> usize {
+    pub fn add_or_update_node<T: NodeType>(&mut self, key: TypedKey<T>, params: &NodeParams) -> usize {
         let parent_i = thread_local_last_parent();
 
         let frame = self.sys.part.current_frame;
@@ -1480,11 +1493,11 @@ impl Ui {
     }
 
     fn refresh_node(&mut self, params: &NodeParams, i: usize, parent_id: usize, frame: u64) {
+        self.watch_params_change(self.nodes[i].params, *params);
+        
         let node = &mut self.nodes[i];
 
         node.params = *params;
-
-        // add back somewhere
 
         node.refresh(parent_id, frame);
         self.sys.text.refresh_last_frame(node.text_id, frame);
@@ -1621,7 +1634,7 @@ pub enum Size {
     // todo: add FitToChildrenInitiallyButNeverResizeAfter
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Position {
     Center,
     Start,
@@ -1877,22 +1890,22 @@ impl<'a, T: NodeType> UiNode<'a, T> {
 
 impl Ui {
     pub fn add(&mut self, params: &NodeParams) -> UiNode<Any> {
-        let i = self.update_node(params.key, params);
+        let i = self.add_or_update_node(params.key, params);
         return self.get_ref_unchecked(i, &params.key);
     }
 
     pub fn add_parent(&mut self, params: &NodeParams) -> Parent {
-        let node = self.update_node(params.key, params);
+        let node = self.add_or_update_node(params.key, params);
         return Parent { node };
     }
 
     pub fn v_stack(&mut self) -> Parent {
-        let node = self.update_node(ANON_VSTACK, &V_STACK);
+        let node = self.add_or_update_node(ANON_VSTACK, &V_STACK);
         return Parent { node };
     }
 
     pub fn h_stack(&mut self) -> Parent {
-        let node = self.update_node(ANON_HSTACK, &H_STACK);
+        let node = self.add_or_update_node(ANON_HSTACK, &H_STACK);
         return Parent { node };
     }
 }
@@ -1949,7 +1962,7 @@ pub(crate) fn clear_thread_local_stacks() {
         let mut stack = stack.borrow_mut();
         stack.siblings.clear();
         stack.parents.clear();
-        // this should be `root_i`, but whatever
+        // todo: this should be `root_i`, but whatever
         stack.parents.push(0);
     })
 }
