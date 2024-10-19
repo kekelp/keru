@@ -178,13 +178,13 @@ impl Ui {
         
         // check for hits.
         let topmost_mouse_hit = self.scan_mouse_hits();
-        
+
         // if nothing is hit, we're done, except for this stupid shit. would be nice to reorganize.
         let Some(clicked_id) = topmost_mouse_hit else {
             *self.sys.dragged_store.by_button_mut(button) = None;
             return false;
         };
-
+        
         let stored_click = StoredClick {
             button,
             state,
@@ -192,14 +192,17 @@ impl Ui {
             position: Xy::new(self.sys.part.mouse_pos.x, self.sys.part.mouse_pos.y),
         };
         self.sys.last_frame_clicks.push(stored_click);
-
+        
         if state.is_pressed() {
             if button == MouseButton::Left {
                 // the default animation and the "focused" flag are hardcoded to work on left click only, I guess.
                 let t = T0.elapsed();
                 let node = self.nodes.get_by_id(&clicked_id).unwrap();
                 node.last_click = t.as_secs_f32();
-
+                
+                println!("  {:?}", node.debug_name);
+                // need relayout to build rects again and get the new last_click t ont o the gpu
+                self.sys.need_relayout = true;
                 self.sys.rerender_time = Some(1.0);
     
                 if node.text_id.is_some() {

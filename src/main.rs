@@ -59,7 +59,7 @@ impl State {
 
     pub fn update(&mut self) {
         self.update_ui();
-        // self.update_canvas();
+        self.update_canvas();
         
         if self.ui.need_rerender() {
             self.render();
@@ -68,9 +68,7 @@ impl State {
         }
     }
 
-    pub fn render(&mut self) {
-        println!("Render");
-            
+    pub fn render(&mut self) {           
         self.canvas.prepare(&self.ctx.queue);
         self.ui.prepare(&self.ctx.device, &self.ctx.queue);
         
