@@ -80,6 +80,7 @@ pub const NODE_ROOT: Node = Node {
     last_click: f32::MIN,
     z: -10000.0,
     cached_rect_i: RectIndex::none(),
+    relayout_chain_root: None,
 };
 
 // might as well move to Rect? but maybe there's issues with non-clickable stuff absorbing the clicks.
@@ -254,6 +255,11 @@ impl NodeParams {
         self.interact.absorbs_mouse_events = absorbs_clicks;
         return self;
     }
+
+    pub fn is_fit_content(&self) -> bool {
+        let Xy { x, y } = self.layout.size;
+        return x == Size::FitContent || y == Size::FitContent
+    }   
 }
 
 #[derive(Default, Debug, Pod, Copy, Clone, Zeroable)]
@@ -446,6 +452,7 @@ impl Color {
 
 pub struct UiNode<'a, T: NodeType> {
     pub(crate) node_i: usize,
+    pub(crate) is_fit_content: bool,
     pub(crate) ui: &'a mut Ui,
     pub(crate) nodetype_marker: PhantomData<T>,
 }
@@ -849,7 +856,9 @@ impl System {
         params: &NodeParams,
         twin_n: Option<u32>,
     ) -> Node {
-        let parent_i = thread_local_last_parent();
+        // todo: I dont like calling this twice... but maybe its ok
+        let parent_i = thread_local_peek_parent();
+        let relayout_chain_root = thread_local_peek_relayout_chain_root();
 
         // add back somewhere
 
@@ -876,6 +885,7 @@ impl System {
             last_click: f32::MIN,
             z: 0.0,
             cached_rect_i: RectIndex::none(),
+            relayout_chain_root: relayout_chain_root.as_option(),
         };
     }
 }
@@ -1100,7 +1110,8 @@ impl Ui {
             n_twins: 0,
         };
 
-        thread_local_push_parent(root_i);
+        let root_parent = Parent::new(root_i, false);
+        thread_local_push(&root_parent);
 
         node_hashmap.insert(NODE_ROOT_ID, root_map_entry);
 
@@ -1213,13 +1224,17 @@ impl Ui {
     pub fn get_ref_unchecked<T: NodeType>(&mut self, i: usize, _key: &TypedKey<T>) -> UiNode<Any> {
         return UiNode {
             node_i: i,
+            is_fit_content: self.nodes[i].params.is_fit_content(),
             ui: self,
             nodetype_marker: PhantomData::<Any>,
         };
     }
 
     pub fn add_or_update_node<T: NodeType>(&mut self, key: TypedKey<T>, params: &NodeParams) -> usize {
-        let parent_i = thread_local_last_parent();
+        let parent_i = thread_local_peek_parent();
+        let relayout_chain_root = thread_local_peek_relayout_chain_root().as_option();
+
+        // todo: make build_new_node and update_node take the same params and pack it together
 
         let frame = self.sys.part.current_frame;
 
@@ -1245,7 +1260,7 @@ impl Ui {
                         old_map_entry.refresh(parent_i, frame);
                         // todo2: check the map_entry values and maybe skip reaching into the node
                         let final_i = old_map_entry.slab_i;
-                        self.refresh_node(params, final_i, parent_i, frame);
+                        self.update_node(params, final_i, parent_i, frame, relayout_chain_root);
 
                         UpdatedNormal { final_i }
                     }
@@ -1284,7 +1299,7 @@ impl Ui {
                         // todo2: check the map_entry values and maybe skip reaching into the node
                         let real_final_i = old_twin_map_entry.refresh(parent_i, frame);
 
-                        self.refresh_node(params, real_final_i, parent_i, frame);
+                        self.update_node(params, real_final_i, parent_i, frame, relayout_chain_root);
                         (real_final_i, twin_key.id())
                     }
                 }
@@ -1497,14 +1512,18 @@ impl Ui {
         });
     }
 
-    fn refresh_node(&mut self, params: &NodeParams, i: usize, parent_id: usize, frame: u64) {
+    fn update_node(&mut self, params: &NodeParams, i: usize, parent_id: usize, frame: u64, relayout_chain_root: Option<usize>) {
         self.watch_params_change(self.nodes[i].params, *params);
         
         let node = &mut self.nodes[i];
 
         node.params = *params;
 
-        node.refresh(parent_id, frame);
+        node.parent = parent_id;
+        node.relayout_chain_root = relayout_chain_root;
+        // self.last_frame_touched = frame;
+        node.reset_children();
+
         self.sys.text.refresh_last_frame(node.text_id, frame);
     }
 
@@ -1566,6 +1585,8 @@ pub struct Node {
     // in probably in fraction of screen units or some trash 
     pub size: Xy<f32>,
 
+    relayout_chain_root: Option<usize>,
+
     pub(crate) cached_rect_i: RectIndex,
 
     pub last_frame_status: LastFrameStatus,
@@ -1610,12 +1631,6 @@ impl Node {
         self.next_sibling = None;
         // self.prev_sibling = None;
         self.n_children = 0;
-    }
-
-    fn refresh(&mut self, parent_id: usize, _frame: u64) {
-        self.parent = parent_id;
-        // self.last_frame_touched = frame;
-        self.reset_children();
     }
 }
 
@@ -1878,20 +1893,30 @@ macro_rules! for_each_child {
 
 pub struct Parent {
     node_i: usize,
+    is_fitcontent: bool,
 }
 impl Parent {
+    pub(crate) fn new(node_i: usize, is_fitcontent: bool) -> Parent {
+        return Parent {
+            node_i,
+            is_fitcontent,
+        }
+    }
+
     pub fn nest(&self, children_block: impl FnOnce()) {
-        thread_local_push_parent(self.node_i);
+        thread_local_push(self);
 
         children_block();
 
-        thread_local_pop_parent_and_sibling();
+        thread_local_pop();
     }
 }
 
 impl<'a, T: NodeType> UiNode<'a, T> {
     pub fn parent(&self) -> Parent {
-        return Parent { node_i: self.node_i };
+        // return Parent { node_i: self.node_i };
+        return Parent::new(self.node_i, self.is_fit_content);
+
     }
 }
 
@@ -1903,56 +1928,87 @@ impl Ui {
 
     pub fn add_parent(&mut self, params: &NodeParams) -> Parent {
         let node = self.add_or_update_node(params.key, params);
-        return Parent { node_i: node };
+        return Parent::new(node, params.is_fit_content());
     }
 
     pub fn v_stack(&mut self) -> Parent {
         let node = self.add_or_update_node(ANON_VSTACK, &V_STACK);
-        return Parent { node_i: node };
+        return Parent::new(node, V_STACK.is_fit_content());
     }
 
     pub fn h_stack(&mut self) -> Parent {
         let node = self.add_or_update_node(ANON_HSTACK, &H_STACK);
-        return Parent { node_i: node };
+        return Parent::new(node, H_STACK.is_fit_content());
     }
 }
 
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub(crate) struct Stacks {
     parents: Vec<usize>,
     siblings: Vec<usize>,
+    relayout_chain: Vec<Chain>,
+}
+impl Stacks {
+    pub fn initialize() -> Stacks {
+        let mut stacks = Stacks {
+            parents: Vec::with_capacity(25),
+            siblings: Vec::with_capacity(25),
+            relayout_chain: Vec::with_capacity(25),
+        };
+        stacks.relayout_chain.push(Chain::Break(0));
+        return stacks;
+    }
 }
 
 // Global stacks
 thread_local! {
-    static THREAD_STACKS: RefCell<Stacks> = RefCell::new(Stacks::default());
+    static THREAD_STACKS: RefCell<Stacks> = RefCell::new(Stacks::initialize());
 }
 
-pub(crate) fn thread_local_push_parent(new_parent: usize) {
+fn thread_local_push(new_parent: &Parent) {
     THREAD_STACKS.with(|stack| {
-        stack.borrow_mut().parents.push(new_parent);
+        let mut stack = stack.borrow_mut();
+
+        stack.parents.push(new_parent.node_i);
+
+        if new_parent.is_fitcontent {
+            // if there is no chain, start one
+            if let Chain::Break(_) = stack.relayout_chain.last().unwrap() {
+                stack.relayout_chain.push(Chain::Chain(new_parent.node_i))
+            } else {
+                // if there is already a chain, don't do anything (keep the root of the chain valid)
+            }
+        } else {
+            // break the chain if there is one
+            if let Chain::Chain(_) = stack.relayout_chain.last().unwrap() {
+                stack.relayout_chain.push(Chain::Break(new_parent.node_i))
+            } else {
+                // if there is no chain, do nothing (keep the Break valid)
+            }
+        }
+        
     });
 }
 
-pub(crate) fn thread_local_pop_parent_and_sibling() {
+fn thread_local_pop() {
     THREAD_STACKS.with(|stack| {
         let mut stack = stack.borrow_mut();
-        stack.parents.pop().unwrap();
+        let popped_parent = stack.parents.pop().unwrap();
         stack.siblings.pop().unwrap();
+
+        if stack.relayout_chain.last().unwrap().id() == popped_parent {
+            stack.relayout_chain.pop().unwrap();
+        }
     })
 }
 
-pub(crate) fn thread_local_last_parent() -> usize {
-    THREAD_STACKS.with(|stack| *stack.borrow().parents.last().unwrap())
-}
-
-pub(crate) fn thread_local_push_last_sibling(new_siblings: usize) {
+fn thread_local_push_last_sibling(new_siblings: usize) {
     THREAD_STACKS.with(|stack| {
         stack.borrow_mut().siblings.push(new_siblings);
     });
 }
 
-pub(crate) fn thread_local_cycle_last_sibling(new_sibling: usize) -> usize {
+fn thread_local_cycle_last_sibling(new_sibling: usize) -> usize {
     THREAD_STACKS.with(|stack| {
         let mut stack = stack.borrow_mut();
 
@@ -1964,7 +2020,15 @@ pub(crate) fn thread_local_cycle_last_sibling(new_sibling: usize) -> usize {
     })
 }
 
-pub(crate) fn clear_thread_local_stacks() {
+fn thread_local_peek_parent() -> usize {
+    THREAD_STACKS.with(|stack| *stack.borrow().parents.last().unwrap())
+}
+
+fn thread_local_peek_relayout_chain_root() -> Chain {
+    THREAD_STACKS.with(|stack| *stack.borrow().relayout_chain.last().unwrap())
+}
+
+fn clear_thread_local_stacks() {
     THREAD_STACKS.with(|stack| {
         let mut stack = stack.borrow_mut();
         stack.siblings.clear();
@@ -1974,7 +2038,7 @@ pub(crate) fn clear_thread_local_stacks() {
     })
 }
 
-// pub(crate) fn clone_thread_local_stack() -> Stacks {
+// fn clone_thread_local_stack() -> Stacks {
 //     THREAD_STACKS.with(|stack| {
 //         let a = stack.borrow_mut().clone();
 //         return a;
@@ -2009,6 +2073,27 @@ impl RectIndex {
         return RectIndex {
             i: 0,
             rect_generation: 0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+enum Chain {
+    Chain(usize),
+    Break(usize),
+}
+impl Chain {
+    fn id(&self) -> usize {
+        return match self {
+            Chain::Chain(id) => *id,
+            Chain::Break(id) => *id,
+        }
+    }
+
+    fn as_option(&self) -> Option<usize> {
+        return match self {
+            Chain::Chain(i) => Some(*i),
+            Chain::Break(_) => None,
         }
     }
 }
