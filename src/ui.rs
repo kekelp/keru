@@ -946,6 +946,10 @@ pub struct System {
     pub need_rerender: bool,
     pub animation_rerender_time: Option<f32>,
 
+    // new
+    pub(crate) relayout_hits: Vec<usize>,
+    pub(crate) cosmetic_rect_update_hits: Vec<usize>,
+
     pub params_changed: bool,
     pub text_changed: bool,
 
@@ -1188,6 +1192,9 @@ impl Ui {
                 
                 last_frame_timestamp: Instant::now(),
                 rects_generation: 1,
+
+                relayout_hits: Vec::with_capacity(15),
+                cosmetic_rect_update_hits: Vec::with_capacity(15),
             },
         }
     }
@@ -1914,9 +1921,7 @@ impl Parent {
 
 impl<'a, T: NodeType> UiNode<'a, T> {
     pub fn parent(&self) -> Parent {
-        // return Parent { node_i: self.node_i };
         return Parent::new(self.node_i, self.is_fit_content);
-
     }
 }
 
@@ -1969,8 +1974,10 @@ fn thread_local_push(new_parent: &Parent) {
     THREAD_STACKS.with(|stack| {
         let mut stack = stack.borrow_mut();
 
+        // regular parents
         stack.parents.push(new_parent.node_i);
 
+        // relayout chains
         if new_parent.is_fitcontent {
             // if there is no chain, start one
             if let Chain::Break(_) = stack.relayout_chain.last().unwrap() {
