@@ -944,7 +944,7 @@ pub struct System {
 
     pub need_relayout: bool,
     pub need_rerender: bool,
-    pub rerender_time: Option<f32>,
+    pub animation_rerender_time: Option<f32>,
 
     pub params_changed: bool,
     pub text_changed: bool,
@@ -1179,7 +1179,7 @@ impl Ui {
 
                 need_relayout: true,
                 need_rerender: true,
-                rerender_time: None,
+                animation_rerender_time: None,
 
                 params_changed: true,
                 text_changed: true,
@@ -1368,12 +1368,12 @@ impl Ui {
         
         let frame_time = self.sys.last_frame_timestamp.elapsed();
 
-        if let Some(time) = &mut self.sys.rerender_time {
+        if let Some(time) = &mut self.sys.animation_rerender_time {
             *time = *time - frame_time.as_secs_f32();
         }
-        if let Some(time) = self.sys.rerender_time {
+        if let Some(time) = self.sys.animation_rerender_time {
             if time < 0.0 {
-                self.sys.rerender_time = None;
+                self.sys.animation_rerender_time = None;
             }
         }
 
@@ -1533,7 +1533,7 @@ impl Ui {
     }
 
     pub fn need_rerender(&self) -> bool {
-        return self.sys.need_rerender || self.sys.rerender_time.is_some();
+        return self.sys.need_rerender || self.sys.animation_rerender_time.is_some();
     }
 }
 
