@@ -79,6 +79,7 @@ pub const NODE_ROOT: Node = Node {
     last_hover: f32::MIN,
     last_click: f32::MIN,
     z: -10000.0,
+    cached_rect_i: RectIndex::none(),
 };
 
 // might as well move to Rect? but maybe there's issues with non-clickable stuff absorbing the clicks.
@@ -444,7 +445,7 @@ impl Color {
 }
 
 pub struct UiNode<'a, T: NodeType> {
-    pub(crate) node: usize,
+    pub(crate) node_i: usize,
     pub(crate) ui: &'a mut Ui,
     pub(crate) nodetype_marker: PhantomData<T>,
 }
@@ -452,10 +453,10 @@ pub struct UiNode<'a, T: NodeType> {
 // why can't you just do it separately?
 impl<'a, T: NodeType> UiNode<'a, T> {
     pub fn node_mut(&mut self) -> &mut Node {
-        return &mut self.ui.nodes.nodes[self.node];
+        return &mut self.ui.nodes.nodes[self.node_i];
     }
     pub fn node(&self) -> &Node {
-        return &self.ui.nodes.nodes[self.node];
+        return &self.ui.nodes.nodes[self.node_i];
     }
 
     pub fn static_image(&mut self, image: &'static [u8]) {
@@ -874,6 +875,7 @@ impl System {
             last_hover: f32::MIN,
             last_click: f32::MIN,
             z: 0.0,
+            cached_rect_i: RectIndex::none(),
         };
     }
 }
@@ -889,6 +891,8 @@ pub struct Ui {
 pub struct System {
     pub root_i: usize,
     pub debug_mode: bool,
+
+    pub rects_generation: u32,
     pub debug_key_pressed: bool,
 
     pub mouse_status: MouseInputState,
@@ -1171,7 +1175,8 @@ impl Ui {
                 tree_hash: FxHasher::default(),
                 last_tree_hash: 0,
                 
-                last_frame_timestamp: Instant::now()
+                last_frame_timestamp: Instant::now(),
+                rects_generation: 1,
             },
         }
     }
@@ -1207,7 +1212,7 @@ impl Ui {
     // only for the macro, use get_ref
     pub fn get_ref_unchecked<T: NodeType>(&mut self, i: usize, _key: &TypedKey<T>) -> UiNode<Any> {
         return UiNode {
-            node: i,
+            node_i: i,
             ui: self,
             nodetype_marker: PhantomData::<Any>,
         };
@@ -1561,6 +1566,8 @@ pub struct Node {
     // in probably in fraction of screen units or some trash 
     pub size: Xy<f32>,
 
+    pub(crate) cached_rect_i: RectIndex,
+
     pub last_frame_status: LastFrameStatus,
 
     pub text_id: Option<usize>,
@@ -1870,11 +1877,11 @@ macro_rules! for_each_child {
 // }
 
 pub struct Parent {
-    node: usize,
+    node_i: usize,
 }
 impl Parent {
     pub fn nest(&self, children_block: impl FnOnce()) {
-        thread_local_push_parent(self.node);
+        thread_local_push_parent(self.node_i);
 
         children_block();
 
@@ -1884,7 +1891,7 @@ impl Parent {
 
 impl<'a, T: NodeType> UiNode<'a, T> {
     pub fn parent(&self) -> Parent {
-        return Parent { node: self.node };
+        return Parent { node_i: self.node_i };
     }
 }
 
@@ -1896,17 +1903,17 @@ impl Ui {
 
     pub fn add_parent(&mut self, params: &NodeParams) -> Parent {
         let node = self.add_or_update_node(params.key, params);
-        return Parent { node };
+        return Parent { node_i: node };
     }
 
     pub fn v_stack(&mut self) -> Parent {
         let node = self.add_or_update_node(ANON_VSTACK, &V_STACK);
-        return Parent { node };
+        return Parent { node_i: node };
     }
 
     pub fn h_stack(&mut self) -> Parent {
         let node = self.add_or_update_node(ANON_HSTACK, &H_STACK);
-        return Parent { node };
+        return Parent { node_i: node };
     }
 }
 
@@ -1988,5 +1995,20 @@ impl<'a, T: NodeType> UiNodeOptionFunctions for Option<UiNode<'a, T>> {
     }
     fn inner_size_y(&self) -> Option<u32> {
         self.as_ref().map(|ui_node| ui_node.inner_size_y())
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct RectIndex {
+    pub i: usize,
+    pub rect_generation: u16,
+}
+impl RectIndex {
+    // returns an index with generation 0, which by convention is never the current one.
+    pub const fn none() -> RectIndex {
+        return RectIndex {
+            i: 0,
+            rect_generation: 0,
+        }
     }
 }
