@@ -578,7 +578,7 @@ impl<'a, T: TextTrait> UiNode<'a, T> {
 
         self.node_mut().last_static_text_ptr = Some(text_pointer);
 
-        self.ui.sys.partial_relayouts_needed.push(self.node_i);
+        self.ui.push_partial_relayout(self.node_i);
     }
 
     pub fn text(mut self, text: &str) -> Self {
@@ -614,7 +614,7 @@ impl<'a, T: TextTrait> UiNode<'a, T> {
             self.node_mut().text_id = text_id;
         }
 
-        self.ui.sys.partial_relayouts_needed.push(self.node_i);
+        self.ui.push_partial_relayout(self.node_i);
 
         return self;
     }
@@ -949,9 +949,7 @@ pub struct System {
     // pub need_rerender: bool,
     pub animation_rerender_time: Option<f32>,
 
-    // new
-    pub(crate) partial_relayouts_needed: Vec<usize>,
-    pub(crate) cosmetic_rect_updates_needed: Vec<usize>,
+    changes: PartialChanges,
 
     pub params_changed: bool,
     pub text_changed: bool,
@@ -1196,8 +1194,7 @@ impl Ui {
                 last_frame_timestamp: Instant::now(),
                 rects_generation: 1,
 
-                partial_relayouts_needed: Vec::with_capacity(15),
-                cosmetic_rect_updates_needed: Vec::with_capacity(15),
+                changes: PartialChanges::new(),
             },
         }
     }
@@ -1206,11 +1203,11 @@ impl Ui {
     fn watch_params_change(&mut self, node_i: usize, old: NodeParams, new: NodeParams) {
         // todo: maybe improve with hashes and stuff?
         if old.layout != new.layout {
-            self.sys.partial_relayouts_needed.push(node_i);
+            self.push_partial_relayout(node_i);
         }
 
         if old.rect != new.rect {
-            self.sys.cosmetic_rect_updates_needed.push(node_i);
+            self.push_cosmetic_rect_update(node_i);
         }
     }
 
@@ -1339,10 +1336,11 @@ impl Ui {
     pub fn add_child_to_parent(&mut self, id: usize, parent_id: usize) {
         self.nodes[parent_id].n_children += 1;
 
+        // todo: maybe merge reset_children with this to get big premature optimization points 
         if self.nodes[parent_id].first_child.is_none() {
             if self.nodes[parent_id].old_first_child != Some(id) {
                 // children changed!
-                self.sys.partial_relayouts_needed.push(parent_id);
+                self.push_partial_relayout(parent_id);
             }
             self.nodes[parent_id].first_child = Some(id);
             
@@ -1351,7 +1349,7 @@ impl Ui {
             let prev_sibling = thread_local_cycle_last_sibling(id);
             if self.nodes[prev_sibling].old_next_sibling != Some(id) {
                 // children changed!
-                self.sys.partial_relayouts_needed.push(parent_id);
+                self.push_partial_relayout(parent_id);
             }
             self.nodes[prev_sibling].next_sibling = Some(id);
         }
@@ -1565,6 +1563,19 @@ impl Ui {
                 false => self.nodes[new_node_i].relayout_chain_root = None, // do nothing
             },
         };
+    }
+
+    fn push_partial_relayout(&mut self, node_i: usize) {
+        let relayout_target = match self.nodes[node_i].relayout_chain_root {
+            Some(root) => root,
+            None => node_i,
+        };
+        self.sys.changes.partial_relayouts_needed.push(relayout_target);
+    }
+
+    fn push_cosmetic_rect_update(&mut self, node_i: usize) {
+        // no chains here.
+        self.sys.changes.cosmetic_rect_updates_needed.push(node_i);
     }
 }
 
@@ -2080,6 +2091,20 @@ impl RectIndex {
         return RectIndex {
             i: 0,
             rect_generation: 0,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct PartialChanges {
+    pub(crate) partial_relayouts_needed: Vec<usize>,
+    pub(crate) cosmetic_rect_updates_needed: Vec<usize>,
+}
+impl PartialChanges {
+    fn new() -> PartialChanges {
+        return PartialChanges { 
+            partial_relayouts_needed: Vec::with_capacity(15),
+            cosmetic_rect_updates_needed: Vec::with_capacity(15),
         }
     }
 }
