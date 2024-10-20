@@ -79,7 +79,7 @@ pub const NODE_ROOT: Node = Node {
     last_hover: f32::MIN,
     last_click: f32::MIN,
     z: -10000.0,
-    cached_rect_i: RectIndex::none(),
+    Yellow_cached_rect_i: RectIndex::none(),
     relayout_chain_root: None,
 };
 
@@ -574,8 +574,8 @@ impl<'a, T: TextTrait> UiNode<'a, T> {
         }
 
         self.node_mut().last_static_text_ptr = Some(text_pointer);
-        self.ui.sys.need_relayout = true;
-        self.ui.sys.need_rerender = true;
+
+        self.ui.sys.partial_relayouts_needed.push(self.node_i);
     }
 
     pub fn text(mut self, text: &str) -> Self {
@@ -611,8 +611,7 @@ impl<'a, T: TextTrait> UiNode<'a, T> {
             self.node_mut().text_id = text_id;
         }
 
-        self.ui.sys.need_relayout = true;
-        self.ui.sys.need_rerender = true;
+        self.ui.sys.partial_relayouts_needed.push(self.node_i);
 
         return self;
     }
@@ -873,8 +872,8 @@ impl System {
             parent: parent_i,
 
             n_children: 0,
-            first_child: None,
-            next_sibling: None,
+            first_child: None, // will be overwritten later... not the cleanest
+            next_sibling: None, // will be overwritten later... not the cleanest
             is_twin: twin_n,
             params: *params,
             debug_name: key.debug_name,
@@ -882,7 +881,7 @@ impl System {
             last_hover: f32::MIN,
             last_click: f32::MIN,
             z: 0.0,
-            cached_rect_i: RectIndex::none(),
+            Yellow_cached_rect_i: RectIndex::none(),
             relayout_chain_root: None, // will be overwritten later... not the cleanest
         };
     }
@@ -940,13 +939,13 @@ pub struct System {
 
     pub size_scratch: Vec<f32>,
 
-    pub need_relayout: bool,
-    pub need_rerender: bool,
+    // pub need_relayout: bool,
+    // pub need_rerender: bool,
     pub animation_rerender_time: Option<f32>,
 
     // new
-    pub(crate) relayout_hits: Vec<usize>,
-    pub(crate) cosmetic_rect_update_hits: Vec<usize>,
+    pub(crate) partial_relayouts_needed: Vec<usize>,
+    pub(crate) cosmetic_rect_updates_needed: Vec<usize>,
 
     pub params_changed: bool,
     pub text_changed: bool,
@@ -1179,8 +1178,8 @@ impl Ui {
 
                 frame_t: 0.0,
 
-                need_relayout: true,
-                need_rerender: true,
+                // need_relayout: true,
+                // need_rerender: true,
                 animation_rerender_time: None,
 
                 params_changed: true,
@@ -1191,22 +1190,21 @@ impl Ui {
                 last_frame_timestamp: Instant::now(),
                 rects_generation: 1,
 
-                relayout_hits: Vec::with_capacity(15),
-                cosmetic_rect_update_hits: Vec::with_capacity(15),
+                partial_relayouts_needed: Vec::with_capacity(15),
+                cosmetic_rect_updates_needed: Vec::with_capacity(15),
             },
         }
     }
 
     /// Determine if the params change means that the Ui needs to be relayouted and/or rerendered
-    fn watch_params_change(&mut self, old: NodeParams, new: NodeParams) {
+    fn watch_params_change(&mut self, node_i: usize, old: NodeParams, new: NodeParams) {
         // todo: maybe improve with hashes and stuff?
         if old.layout != new.layout {
-            self.sys.need_relayout = true;
-            self.sys.need_rerender = true;
+            self.sys.partial_relayouts_needed.push(node_i);
         }
 
         if old.rect != new.rect {
-            self.sys.need_rerender = true;
+            self.sys.cosmetic_rect_updates_needed.push(node_i);
         }
     }
 
@@ -1517,10 +1515,10 @@ impl Ui {
         });
     }
 
-    fn update_node(&mut self, params: &NodeParams, i: usize, parent_id: usize, frame: u64) {
-        self.watch_params_change(self.nodes[i].params, *params);
+    fn update_node(&mut self, params: &NodeParams, node_i: usize, parent_id: usize, frame: u64) {
+        self.watch_params_change(node_i, self.nodes[node_i].params, *params);
         
-        let node = &mut self.nodes[i];
+        let node = &mut self.nodes[node_i];
 
         node.params = *params;
 
@@ -1537,7 +1535,9 @@ impl Ui {
     }
 
     pub fn need_rerender(&self) -> bool {
-        return self.sys.need_rerender || self.sys.animation_rerender_time.is_some();
+        let yellow = 15;
+        return true;
+        // return self.sys.need_rerender || self.sys.animation_rerender_time.is_some();
     }
 
     fn set_relayout_chain_root(&mut self, new_node_params: &NodeParams, new_node_i: usize, parent_i: usize) {
@@ -1568,17 +1568,20 @@ impl Ui {
     }
 
     pub fn finish_tree(&mut self) {
-        if self.tree_changed() {
-            self.sys.need_relayout = true;
-            self.sys.need_rerender = true;
-        }
+        let yellow = 17;
+        // if self.tree_changed() {
+        //     self.sys.need_relayout = true;
+        //     self.sys.need_rerender = true;
+        // }
 
-        if self.sys.need_relayout {
-            println!("Layout + build");
-            self.layout_and_build_rects();
-            self.sys.need_relayout = false;
-        }
-        
+        // if self.sys.need_relayout {
+        //     println!("Layout + build");
+        //     self.layout_and_build_rects();
+        //     self.sys.need_relayout = false;
+        // }
+
+        self.layout_and_build_rects();
+
         self.end_frame_check_inputs();
 
         self.sys.last_frame_clicks.clear();
@@ -1604,7 +1607,7 @@ pub struct Node {
 
     relayout_chain_root: Option<usize>,
 
-    pub(crate) cached_rect_i: RectIndex,
+    pub(crate) Yellow_cached_rect_i: RectIndex,
 
     pub last_frame_status: LastFrameStatus,
 
