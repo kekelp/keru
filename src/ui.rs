@@ -1314,7 +1314,7 @@ impl Ui {
 
         self.set_relayout_chain_root(params, real_final_i, parent_i);
 
-        self.add_child_to_parent(real_final_i, parent_i);
+        self.add_child(real_final_i, parent_i);
 
         return real_final_i;
     }
@@ -1333,30 +1333,36 @@ impl Ui {
         return Some(twin_key);
     }
 
-    pub fn add_child_to_parent(&mut self, id: usize, parent_id: usize) {
+    pub fn add_child(&mut self, id: usize, parent_id: usize) {
         self.nodes[parent_id].n_children += 1;
 
         // todo: maybe merge reset_children into this to get big premature optimization points 
         match self.nodes[parent_id].first_child {
             None => {
-                // if self.nodes[parent_id].old_first_child != Some(id) {
-                //     // children changed!
-                //     self.push_partial_relayout(parent_id);
-                // }
-    
-                self.nodes[parent_id].first_child = Some(id);
+                self.add_first_child(id, parent_id)
             },
             Some(last_child) => {
                 let prev_sibling = last_child;
-                // if self.nodes[prev_sibling].old_next_sibling != Some(id) {
-                //     // children changed!
-                //     self.push_partial_relayout(parent_id);
-                // }
-                self.nodes[id].next_sibling = Some(prev_sibling);
-                self.nodes[parent_id].first_child = Some(id);
-    
+                self.add_sibling(id, prev_sibling, parent_id)
             },
         };
+    }
+
+    pub fn add_first_child(&mut self, id: usize, parent_id: usize) {
+        if self.nodes[parent_id].old_first_child != Some(id) {
+            self.push_partial_relayout(parent_id);
+        }
+
+        self.nodes[parent_id].first_child = Some(id);
+    }
+
+    pub fn add_sibling(&mut self, id: usize, prev_sibling: usize, parent_id: usize) {
+        if self.nodes[prev_sibling].old_next_sibling != Some(id) {
+            self.push_partial_relayout(parent_id);
+        }
+
+        self.nodes[id].next_sibling = Some(prev_sibling);
+        self.nodes[parent_id].first_child = Some(id);
     }
 
     pub fn text(&mut self, text: &str) -> UiNode<Any> {
@@ -1994,6 +2000,7 @@ impl Ui {
     }
 }
 
+// now there's a single stack here. but now that I wrote the struct I might as well leave it.
 #[derive(Debug, Clone)]
 pub(crate) struct Stacks {
     parents: Vec<usize>,
@@ -2038,13 +2045,6 @@ fn clear_thread_local_stacks() {
         stack.parents.push(0);
     })
 }
-
-// fn clone_thread_local_stack() -> Stacks {
-//     THREAD_STACKS.with(|stack| {
-//         let a = stack.borrow_mut().clone();
-//         return a;
-//     })
-// }
 
 pub trait UiNodeOptionFunctions {
     fn inner_size(&self) -> Option<Xy<u32>>;
