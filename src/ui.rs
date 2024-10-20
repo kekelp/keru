@@ -55,6 +55,9 @@ use std::fmt::Write;
 #[repr(C)]
 pub struct Id(pub(crate) u64);
 
+// this is what you get from FxHasher::default().finish()
+const EMPTY_HASH: u64 = 0;
+
 pub const NODE_ROOT_ID: Id = Id(0);
 pub const NODE_ROOT: Node = Node {
     id: NODE_ROOT_ID,
@@ -85,6 +88,7 @@ pub const NODE_ROOT: Node = Node {
     z: -10000.0,
     Yellow_cached_rect_i: RectIndex::none(),
     relayout_chain_root: None,
+    old_children_hash: EMPTY_HASH,
 };
 
 // might as well move to Rect? but maybe there's issues with non-clickable stuff absorbing the clicks.
@@ -889,6 +893,7 @@ impl System {
             z: 0.0,
             Yellow_cached_rect_i: RectIndex::none(),
             relayout_chain_root: None, // will be overwritten later... not the cleanest
+            old_children_hash: EMPTY_HASH,
         };
     }
 }
@@ -1116,7 +1121,7 @@ impl Ui {
             n_twins: 0,
         };
 
-        let root_parent = Parent::new(root_i);
+        let root_parent = Parent::new(root_i, EMPTY_HASH);
         thread_local_push(&root_parent);
 
         node_hashmap.insert(NODE_ROOT_ID, root_map_entry);
@@ -1316,6 +1321,9 @@ impl Ui {
 
         self.sys.tree_hash.write_u64(real_final_id.0);
 
+        let children_hash_so_far = thread_local_hash_new_child(real_final_i);
+        self.nodes[parent_i].old_children_hash = children_hash_so_far;
+
         self.set_relayout_chain_root(params, real_final_i, parent_i);
 
         self.set_tree_links(real_final_i, parent_i);
@@ -1337,44 +1345,30 @@ impl Ui {
         return Some(twin_key);
     }
 
-    fn set_tree_links(&mut self, new_node_id: usize, parent_i: usize) {
-        self.nodes[new_node_id].parent = parent_i;
+    fn set_tree_links(&mut self, new_node_i: usize, parent_i: usize) {
+        self.nodes[new_node_i].parent = parent_i;
 
         self.nodes[parent_i].n_children += 1;
 
         // todo: maybe merge reset_children into this to get big premature optimization points 
         match self.nodes[parent_i].last_child {
             None => {
-                self.add_first_child(new_node_id, parent_i)
+                self.add_first_child(new_node_i, parent_i)
             },
             Some(last_child) => {
                 let old_last_child = last_child;
-                self.add_sibling(new_node_id, old_last_child, parent_i)
+                self.add_sibling(new_node_i, old_last_child, parent_i)
             },
         };
     }
 
-    fn add_first_child(&mut self, new_node_id: usize, parent_i: usize) {
-        // according to some calculations, it's fine to do it just here.
-        // the idea is that if a node is added to a different parent, it will also fuck up its siblings, if it has at least one.
-        if self.nodes[new_node_id].old_parent != parent_i {
-            self.push_partial_relayout(parent_i);
-            self.sys.tree_changed = true;
-            println!("  {:?}", "add 1st shild change");
-        }
-        self.nodes[parent_i].last_child = Some(new_node_id);
+    fn add_first_child(&mut self, new_node_i: usize, parent_i: usize) {
+        self.nodes[parent_i].last_child = Some(new_node_i);
     }
 
-    fn add_sibling(&mut self, new_node_id: usize, old_last_child: usize, parent_i: usize) {
-        if self.nodes[new_node_id].old_prev_sibling != Some(old_last_child) {
-            self.push_partial_relayout(parent_i);
-            self.sys.tree_changed = true;
-            println!("  {:?}", "add sibling change");
-
-        }
-
-        self.nodes[new_node_id].prev_sibling = Some(old_last_child);
-        self.nodes[parent_i].last_child = Some(new_node_id);
+    fn add_sibling(&mut self, new_node_i: usize, old_last_child: usize, parent_i: usize) {
+        self.nodes[new_node_i].prev_sibling = Some(old_last_child);
+        self.nodes[parent_i].last_child = Some(new_node_i);
     }
 
     pub fn text(&mut self, text: &str) -> UiNode<Any> {
@@ -1615,7 +1609,7 @@ impl Ui {
         self.sys.last_tree_hash = self.sys.tree_hash.finish();
         self.sys.tree_hash = FxHasher::default();
 
-        clear_thread_local_stacks();
+        clear_thread_local_parent_stack();
     }
 
     pub fn finish_tree(&mut self) {
@@ -1643,6 +1637,11 @@ impl Ui {
         //     println!("     new {:?}", new_tree_changed);
         // }
         self.sys.tree_changed = false;
+
+
+        for ch in self.sys.changes.take_thread_local_tree_changes() {
+            println!("Tree change: {:?}", ch);          
+        }
 
         self.layout_and_build_rects();
 
@@ -1698,6 +1697,8 @@ pub struct Node {
     pub params: NodeParams,
 
     pub debug_name: &'static str,
+
+    pub old_children_hash: u64,
 
     pub is_twin: Option<u32>,
 
@@ -1988,11 +1989,13 @@ macro_rules! for_each_child {
 
 pub struct Parent {
     node_i: usize,
+    old_children_hash: u64,
 }
 impl Parent {
-    pub(crate) fn new(node_i: usize) -> Parent {
+    pub(crate) fn new(node_i: usize, old_children_hash: u64) -> Parent {
         return Parent {
             node_i,
+            old_children_hash,
         }
     }
 
@@ -2007,7 +2010,8 @@ impl Parent {
 
 impl<'a, T: NodeType> UiNode<'a, T> {
     pub fn parent(&self) -> Parent {
-        return Parent::new(self.node_i);
+        let old_children_hash = self.node().old_children_hash;
+        return Parent::new(self.node_i, old_children_hash);
     }
 }
 
@@ -2019,29 +2023,48 @@ impl Ui {
 
     pub fn add_parent(&mut self, params: &NodeParams) -> Parent {
         let node = self.add_or_update_node(params.key, params);
-        return Parent::new(node);
+        let old_children_hash = self.nodes[node].old_children_hash;
+        return Parent::new(node, old_children_hash);
     }
 
     pub fn v_stack(&mut self) -> Parent {
         let node = self.add_or_update_node(ANON_VSTACK, &V_STACK);
-        return Parent::new(node);
+        let old_children_hash = self.nodes[node].old_children_hash;
+        return Parent::new(node, old_children_hash);
     }
 
     pub fn h_stack(&mut self) -> Parent {
         let node = self.add_or_update_node(ANON_HSTACK, &H_STACK);
-        return Parent::new(node);
+        let old_children_hash = self.nodes[node].old_children_hash;
+        return Parent::new(node, old_children_hash);
+    }
+}
+
+struct StackParent {
+    i: usize,
+    old_children_hash: u64,
+    children_hash: FxHasher,
+}
+impl StackParent {
+    fn new(i: usize, old_children_hash: u64) -> StackParent {
+        return StackParent {
+            i,
+            old_children_hash,
+            children_hash: FxHasher::default(),
+        }
     }
 }
 
 // now there's a single stack here. but now that I wrote the struct I might as well leave it.
-#[derive(Debug, Clone)]
 pub(crate) struct Stacks {
-    parents: Vec<usize>,
+    parents: Vec<StackParent>,
+    tree_changes: Vec<usize>,
 }
 impl Stacks {
     pub fn initialize() -> Stacks {
         return Stacks {
             parents: Vec::with_capacity(25),
+            tree_changes: Vec::with_capacity(25),
         };
     }
 }
@@ -2054,28 +2077,41 @@ thread_local! {
 fn thread_local_push(new_parent: &Parent) {
     THREAD_STACKS.with(|stack| {
         let mut stack = stack.borrow_mut();
-        stack.parents.push(new_parent.node_i);       
+        stack.parents.push(StackParent::new(new_parent.node_i, new_parent.old_children_hash));       
     });
 }
 
 fn thread_local_pop() {
     THREAD_STACKS.with(|stack| {
         let mut stack = stack.borrow_mut();
-        stack.parents.pop().unwrap();
+        let parent = stack.parents.pop().unwrap();
+        if parent.children_hash.finish() != parent.old_children_hash {
+            stack.tree_changes.push(parent.i);
+        }
+    })
+}
+
+fn thread_local_hash_new_child(child_i: usize) -> u64 {
+    THREAD_STACKS.with(|stack| {
+        let mut stack = stack.borrow_mut();
+        let children_hash = &mut stack.parents.last_mut().unwrap().children_hash;
+        children_hash.write_usize(child_i);
+        // For this hasher, `finish()` just returns the current value. It doesn't actually finish anything. We can continue using it.
+        return children_hash.finish()
     })
 }
 
 
 fn thread_local_peek_parent() -> usize {
-    THREAD_STACKS.with(|stack| *stack.borrow().parents.last().unwrap())
+    THREAD_STACKS.with(|stack| stack.borrow().parents.last().unwrap().i)
 }
 
-fn clear_thread_local_stacks() {
+fn clear_thread_local_parent_stack() {
     THREAD_STACKS.with(|stack| {
         let mut stack = stack.borrow_mut();
         stack.parents.clear();
         // todo: this should be `root_i`, but whatever
-        stack.parents.push(0);
+        stack.parents.push(StackParent::new(0, EMPTY_HASH));
     })
 }
 
@@ -2115,12 +2151,26 @@ impl RectIndex {
 pub(crate) struct PartialChanges {
     pub(crate) partial_relayouts_needed: Vec<usize>,
     pub(crate) cosmetic_rect_updates_needed: Vec<usize>,
+    non_thread_local_tree_changes: Vec<usize>,
 }
 impl PartialChanges {
     fn new() -> PartialChanges {
         return PartialChanges { 
             partial_relayouts_needed: Vec::with_capacity(15),
             cosmetic_rect_updates_needed: Vec::with_capacity(15),
+            non_thread_local_tree_changes: Vec::with_capacity(15),
         }
+    }
+    fn take_thread_local_tree_changes(&mut self) -> impl Iterator<Item = &usize> {
+        THREAD_STACKS.with(|stack| {
+            let mut stack = stack.borrow_mut();
+            
+            // Leet mem::swap trick to get the tree changes out of the thread_local without cloning and without leaking dangerous refcelled references.
+            std::mem::swap(&mut self.non_thread_local_tree_changes, &mut stack.tree_changes);
+
+            stack.tree_changes.clear();
+
+            return self.non_thread_local_tree_changes.iter();
+        })
     }
 }
