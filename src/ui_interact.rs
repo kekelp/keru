@@ -200,7 +200,6 @@ impl Ui {
                 let node = self.nodes.get_by_id(&clicked_id).unwrap();
                 node.last_click = t.as_secs_f32();
                 
-                println!("  {:?}", node.debug_name);
                 // need relayout to build rects again and get the new last_click t ont o the gpu
                 let yellow = 123;
                 // self.sys.need_relayout = true;

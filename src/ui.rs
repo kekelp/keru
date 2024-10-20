@@ -67,12 +67,13 @@ pub const NODE_ROOT: Node = Node {
     last_static_text_ptr: None,
 
     parent: usize::MAX,
+    old_parent: usize::MAX,
 
     n_children: 0,
-    first_child: None,
-    next_sibling: None,
+    last_child: None,
+    prev_sibling: None,
     old_first_child: None,
-    old_next_sibling: None,
+    old_prev_sibling: None,
 
     is_twin: None,
 
@@ -857,9 +858,6 @@ impl System {
         params: &NodeParams,
         twin_n: Option<u32>,
     ) -> Node {
-        // todo: I dont like calling this twice... but maybe its ok
-        let parent_i = thread_local_peek_parent();
-
         // add back somewhere
 
         return Node {
@@ -872,13 +870,15 @@ impl System {
             last_static_image_ptr: None,
             last_static_text_ptr: None,
 
-            parent: parent_i,
+            parent: 0, // just a wrong value which will be overwritten. it's even worse here.
+            // but it's for symmetry with update_node, where all these values are old and are reset.
+            old_parent: 0,
 
             n_children: 0,
-            first_child: None, // will be overwritten later... not the cleanest
-            next_sibling: None, // will be overwritten later... not the cleanest
+            last_child: None, // will be overwritten later... not the cleanest
+            prev_sibling: None, // will be overwritten later... not the cleanest
             old_first_child: None, // same here
-            old_next_sibling: None, // same
+            old_prev_sibling: None, // same
 
             is_twin: twin_n,
             params: *params,
@@ -947,6 +947,7 @@ pub struct System {
 
     // pub need_relayout: bool,
     // pub need_rerender: bool,
+    pub tree_changed: bool,
     pub animation_rerender_time: Option<f32>,
 
     changes: PartialChanges,
@@ -1184,6 +1185,9 @@ impl Ui {
 
                 // need_relayout: true,
                 // need_rerender: true,
+
+                tree_changed: true,
+
                 animation_rerender_time: None,
 
                 params_changed: true,
@@ -1264,7 +1268,7 @@ impl Ui {
                         old_map_entry.refresh(parent_i, frame);
                         // todo2: check the map_entry values and maybe skip reaching into the node
                         let final_i = old_map_entry.slab_i;
-                        self.update_node(params, final_i, parent_i, frame);
+                        self.update_node(params, final_i, frame);
 
                         UpdatedNormal { final_i }
                     }
@@ -1303,7 +1307,7 @@ impl Ui {
                         // todo2: check the map_entry values and maybe skip reaching into the node
                         let real_final_i = old_twin_map_entry.refresh(parent_i, frame);
 
-                        self.update_node(params, real_final_i, parent_i, frame);
+                        self.update_node(params, real_final_i, frame);
                         (real_final_i, twin_key.id())
                     }
                 }
@@ -1314,7 +1318,7 @@ impl Ui {
 
         self.set_relayout_chain_root(params, real_final_i, parent_i);
 
-        self.add_child(real_final_i, parent_i);
+        self.set_tree_links(real_final_i, parent_i);
 
         return real_final_i;
     }
@@ -1333,36 +1337,44 @@ impl Ui {
         return Some(twin_key);
     }
 
-    pub fn add_child(&mut self, id: usize, parent_id: usize) {
-        self.nodes[parent_id].n_children += 1;
+    fn set_tree_links(&mut self, new_node_id: usize, parent_i: usize) {
+        self.nodes[new_node_id].parent = parent_i;
+
+        self.nodes[parent_i].n_children += 1;
 
         // todo: maybe merge reset_children into this to get big premature optimization points 
-        match self.nodes[parent_id].first_child {
+        match self.nodes[parent_i].last_child {
             None => {
-                self.add_first_child(id, parent_id)
+                self.add_first_child(new_node_id, parent_i)
             },
             Some(last_child) => {
-                let prev_sibling = last_child;
-                self.add_sibling(id, prev_sibling, parent_id)
+                let old_last_child = last_child;
+                self.add_sibling(new_node_id, old_last_child, parent_i)
             },
         };
     }
 
-    pub fn add_first_child(&mut self, id: usize, parent_id: usize) {
-        if self.nodes[parent_id].old_first_child != Some(id) {
-            self.push_partial_relayout(parent_id);
+    fn add_first_child(&mut self, new_node_id: usize, parent_i: usize) {
+        // according to some calculations, it's fine to do it just here.
+        // the idea is that if a node is added to a different parent, it will also fuck up its siblings, if it has at least one.
+        if self.nodes[new_node_id].old_parent != parent_i {
+            self.push_partial_relayout(parent_i);
+            self.sys.tree_changed = true;
+            println!("  {:?}", "add 1st shild change");
         }
-
-        self.nodes[parent_id].first_child = Some(id);
+        self.nodes[parent_i].last_child = Some(new_node_id);
     }
 
-    pub fn add_sibling(&mut self, id: usize, prev_sibling: usize, parent_id: usize) {
-        if self.nodes[prev_sibling].old_next_sibling != Some(id) {
-            self.push_partial_relayout(parent_id);
+    fn add_sibling(&mut self, new_node_id: usize, old_last_child: usize, parent_i: usize) {
+        if self.nodes[new_node_id].old_prev_sibling != Some(old_last_child) {
+            self.push_partial_relayout(parent_i);
+            self.sys.tree_changed = true;
+            println!("  {:?}", "add sibling change");
+
         }
 
-        self.nodes[id].next_sibling = Some(prev_sibling);
-        self.nodes[parent_id].first_child = Some(id);
+        self.nodes[new_node_id].prev_sibling = Some(old_last_child);
+        self.nodes[parent_i].last_child = Some(new_node_id);
     }
 
     pub fn text(&mut self, text: &str) -> UiNode<Any> {
@@ -1537,15 +1549,19 @@ impl Ui {
         });
     }
 
-    fn update_node(&mut self, params: &NodeParams, node_i: usize, parent_id: usize, frame: u64) {
+    fn update_node(&mut self, params: &NodeParams, node_i: usize, frame: u64) {
         self.watch_params_change(node_i, self.nodes[node_i].params, *params);
         
         let node = &mut self.nodes[node_i];
 
         node.params = *params;
 
-        node.parent = parent_id;
+        // we don't do this anymore, cuz we do it in set_tree_links
+        // node.parent = parent_id;
+
+        // dunno why this is commented now, I guess it's done somewhere else
         // self.last_frame_touched = frame;
+        
         node.reset_children();
 
         self.sys.text.refresh_last_frame(node.text_id, frame);
@@ -1615,6 +1631,19 @@ impl Ui {
         //     self.sys.need_relayout = false;
         // }
 
+        let old_tree_changed = self.tree_changed();
+        let new_tree_changed = self.sys.tree_changed;
+
+        if new_tree_changed {
+            println!("Partial relayout haa");
+        }
+        // if old_tree_changed != new_tree_changed {
+        //     println!("  {:?}", old_tree_changed == new_tree_changed, );
+        //     println!("     old {:?}", old_tree_changed);
+        //     println!("     new {:?}", new_tree_changed);
+        // }
+        self.sys.tree_changed = false;
+
         self.layout_and_build_rects();
 
         self.end_frame_check_inputs();
@@ -1653,15 +1682,16 @@ pub struct Node {
     pub last_static_text_ptr: Option<*const u8>,
 
     pub parent: usize,
+    pub old_parent: usize,
 
     // le epic inline linked list instead of a random Vec somewhere else on the heap
     // todo: Option<usize> is 128 bits, which is ridicolous. Use a NonMaxU32 or something
     pub n_children: u16,
 
     pub old_first_child: Option<usize>,
-    pub old_next_sibling: Option<usize>,
-    pub first_child: Option<usize>,
-    pub next_sibling: Option<usize>,
+    pub old_prev_sibling: Option<usize>,
+    pub last_child: Option<usize>,
+    pub prev_sibling: Option<usize>,
     // prev_sibling is never used so far.
     // at some point I was iterating the children in reverse for z ordering purposes, but I don't think that actually makes any difference.
     // pub prev_sibling: Option<usize>,
@@ -1686,11 +1716,12 @@ impl Node {
 
     fn reset_children(&mut self) {
         // keep these ones so we can detect changes
-        self.old_first_child = self.first_child;
-        self.old_next_sibling = self.next_sibling;
+        self.old_parent = self.parent;
+        self.old_first_child = self.last_child;
+        self.old_prev_sibling = self.prev_sibling;
 
-        self.first_child = None;
-        self.next_sibling = None;
+        self.last_child = None;
+        self.prev_sibling = None;
         // self.prev_sibling = None;
         self.n_children = 0;
     }
@@ -1895,13 +1926,15 @@ enum TwinCheckResult<T: NodeType> {
 
 #[macro_export]
 // todo: use this macro everywhere else
+/// Iterate on the children linked list.
+/// The iteration goes backwards. It's more consistent this way, trust me bro.
 macro_rules! for_each_child {
     ($ui:expr, $start:expr, $child:ident, $body:block) => {
         {
-            let mut current_child = $start.first_child;
+            let mut current_child = $start.last_child;
             while let Some($child) = current_child {
                 $body
-                current_child = $ui.nodes[$child].next_sibling;
+                current_child = $ui.nodes[$child].prev_sibling;
             }
         }
     };
