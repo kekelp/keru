@@ -452,7 +452,6 @@ impl Color {
 
 pub struct UiNode<'a, T: NodeType> {
     pub(crate) node_i: usize,
-    pub(crate) is_fit_content: bool,
     pub(crate) ui: &'a mut Ui,
     pub(crate) nodetype_marker: PhantomData<T>,
 }
@@ -858,7 +857,6 @@ impl System {
     ) -> Node {
         // todo: I dont like calling this twice... but maybe its ok
         let parent_i = thread_local_peek_parent();
-        let relayout_chain_root = thread_local_peek_relayout_chain_root();
 
         // add back somewhere
 
@@ -885,7 +883,7 @@ impl System {
             last_click: f32::MIN,
             z: 0.0,
             cached_rect_i: RectIndex::none(),
-            relayout_chain_root: relayout_chain_root.as_option(),
+            relayout_chain_root: None, // will be overwritten later... not the cleanest
         };
     }
 }
@@ -1114,7 +1112,7 @@ impl Ui {
             n_twins: 0,
         };
 
-        let root_parent = Parent::new(root_i, false);
+        let root_parent = Parent::new(root_i);
         thread_local_push(&root_parent);
 
         node_hashmap.insert(NODE_ROOT_ID, root_map_entry);
@@ -1231,7 +1229,6 @@ impl Ui {
     pub fn get_ref_unchecked<T: NodeType>(&mut self, i: usize, _key: &TypedKey<T>) -> UiNode<Any> {
         return UiNode {
             node_i: i,
-            is_fit_content: self.nodes[i].params.is_fit_content(),
             ui: self,
             nodetype_marker: PhantomData::<Any>,
         };
@@ -1239,7 +1236,6 @@ impl Ui {
 
     pub fn add_or_update_node<T: NodeType>(&mut self, key: TypedKey<T>, params: &NodeParams) -> usize {
         let parent_i = thread_local_peek_parent();
-        let relayout_chain_root = thread_local_peek_relayout_chain_root().as_option();
 
         // todo: make build_new_node and update_node take the same params and pack it together
 
@@ -1267,7 +1263,7 @@ impl Ui {
                         old_map_entry.refresh(parent_i, frame);
                         // todo2: check the map_entry values and maybe skip reaching into the node
                         let final_i = old_map_entry.slab_i;
-                        self.update_node(params, final_i, parent_i, frame, relayout_chain_root);
+                        self.update_node(params, final_i, parent_i, frame);
 
                         UpdatedNormal { final_i }
                     }
@@ -1306,7 +1302,7 @@ impl Ui {
                         // todo2: check the map_entry values and maybe skip reaching into the node
                         let real_final_i = old_twin_map_entry.refresh(parent_i, frame);
 
-                        self.update_node(params, real_final_i, parent_i, frame, relayout_chain_root);
+                        self.update_node(params, real_final_i, parent_i, frame);
                         (real_final_i, twin_key.id())
                     }
                 }
@@ -1314,6 +1310,8 @@ impl Ui {
         };
 
         self.sys.tree_hash.write_u64(real_final_id.0);
+
+        self.set_relayout_chain_root(params, real_final_i, parent_i);
 
         self.add_child_to_parent(real_final_i, parent_i);
 
@@ -1519,7 +1517,7 @@ impl Ui {
         });
     }
 
-    fn update_node(&mut self, params: &NodeParams, i: usize, parent_id: usize, frame: u64, relayout_chain_root: Option<usize>) {
+    fn update_node(&mut self, params: &NodeParams, i: usize, parent_id: usize, frame: u64) {
         self.watch_params_change(self.nodes[i].params, *params);
         
         let node = &mut self.nodes[i];
@@ -1527,7 +1525,6 @@ impl Ui {
         node.params = *params;
 
         node.parent = parent_id;
-        node.relayout_chain_root = relayout_chain_root;
         // self.last_frame_touched = frame;
         node.reset_children();
 
@@ -1541,6 +1538,19 @@ impl Ui {
 
     pub fn need_rerender(&self) -> bool {
         return self.sys.need_rerender || self.sys.animation_rerender_time.is_some();
+    }
+
+    fn set_relayout_chain_root(&mut self, new_node_params: &NodeParams, new_node_i: usize, parent_i: usize) {
+        match self.nodes[parent_i].relayout_chain_root {
+            Some(root_of_parent) => match new_node_params.is_fit_content() {
+                true => self.nodes[new_node_i].relayout_chain_root = Some(root_of_parent), // continue chain
+                false => self.nodes[new_node_i].relayout_chain_root = None, // break chain
+            },
+            None => match new_node_params.is_fit_content() {
+                true => self.nodes[new_node_i].relayout_chain_root = Some(new_node_i), // start chain
+                false => self.nodes[new_node_i].relayout_chain_root = None, // do nothing
+            },
+        };
     }
 }
 
@@ -1900,13 +1910,11 @@ macro_rules! for_each_child {
 
 pub struct Parent {
     node_i: usize,
-    is_fitcontent: bool,
 }
 impl Parent {
-    pub(crate) fn new(node_i: usize, is_fitcontent: bool) -> Parent {
+    pub(crate) fn new(node_i: usize) -> Parent {
         return Parent {
             node_i,
-            is_fitcontent,
         }
     }
 
@@ -1921,7 +1929,7 @@ impl Parent {
 
 impl<'a, T: NodeType> UiNode<'a, T> {
     pub fn parent(&self) -> Parent {
-        return Parent::new(self.node_i, self.is_fit_content);
+        return Parent::new(self.node_i);
     }
 }
 
@@ -1933,17 +1941,17 @@ impl Ui {
 
     pub fn add_parent(&mut self, params: &NodeParams) -> Parent {
         let node = self.add_or_update_node(params.key, params);
-        return Parent::new(node, params.is_fit_content());
+        return Parent::new(node);
     }
 
     pub fn v_stack(&mut self) -> Parent {
         let node = self.add_or_update_node(ANON_VSTACK, &V_STACK);
-        return Parent::new(node, V_STACK.is_fit_content());
+        return Parent::new(node);
     }
 
     pub fn h_stack(&mut self) -> Parent {
         let node = self.add_or_update_node(ANON_HSTACK, &H_STACK);
-        return Parent::new(node, H_STACK.is_fit_content());
+        return Parent::new(node);
     }
 }
 
@@ -1951,17 +1959,13 @@ impl Ui {
 pub(crate) struct Stacks {
     parents: Vec<usize>,
     siblings: Vec<usize>,
-    relayout_chain: Vec<Chain>,
 }
 impl Stacks {
     pub fn initialize() -> Stacks {
-        let mut stacks = Stacks {
+        return Stacks {
             parents: Vec::with_capacity(25),
             siblings: Vec::with_capacity(25),
-            relayout_chain: Vec::with_capacity(25),
         };
-        stacks.relayout_chain.push(Chain::Break(0));
-        return stacks;
     }
 }
 
@@ -1973,39 +1977,15 @@ thread_local! {
 fn thread_local_push(new_parent: &Parent) {
     THREAD_STACKS.with(|stack| {
         let mut stack = stack.borrow_mut();
-
-        // regular parents
-        stack.parents.push(new_parent.node_i);
-
-        // relayout chains
-        if new_parent.is_fitcontent {
-            // if there is no chain, start one
-            if let Chain::Break(_) = stack.relayout_chain.last().unwrap() {
-                stack.relayout_chain.push(Chain::Chain(new_parent.node_i))
-            } else {
-                // if there is already a chain, don't do anything (keep the root of the chain valid)
-            }
-        } else {
-            // break the chain if there is one
-            if let Chain::Chain(_) = stack.relayout_chain.last().unwrap() {
-                stack.relayout_chain.push(Chain::Break(new_parent.node_i))
-            } else {
-                // if there is no chain, do nothing (keep the Break valid)
-            }
-        }
-        
+        stack.parents.push(new_parent.node_i);       
     });
 }
 
 fn thread_local_pop() {
     THREAD_STACKS.with(|stack| {
         let mut stack = stack.borrow_mut();
-        let popped_parent = stack.parents.pop().unwrap();
+        stack.parents.pop().unwrap();
         stack.siblings.pop().unwrap();
-
-        if stack.relayout_chain.last().unwrap().id() == popped_parent {
-            stack.relayout_chain.pop().unwrap();
-        }
     })
 }
 
@@ -2029,10 +2009,6 @@ fn thread_local_cycle_last_sibling(new_sibling: usize) -> usize {
 
 fn thread_local_peek_parent() -> usize {
     THREAD_STACKS.with(|stack| *stack.borrow().parents.last().unwrap())
-}
-
-fn thread_local_peek_relayout_chain_root() -> Chain {
-    THREAD_STACKS.with(|stack| *stack.borrow().relayout_chain.last().unwrap())
 }
 
 fn clear_thread_local_stacks() {
@@ -2080,27 +2056,6 @@ impl RectIndex {
         return RectIndex {
             i: 0,
             rect_generation: 0,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-enum Chain {
-    Chain(usize),
-    Break(usize),
-}
-impl Chain {
-    fn id(&self) -> usize {
-        return match self {
-            Chain::Chain(id) => *id,
-            Chain::Break(id) => *id,
-        }
-    }
-
-    fn as_option(&self) -> Option<usize> {
-        return match self {
-            Chain::Chain(i) => Some(*i),
-            Chain::Break(_) => None,
         }
     }
 }
