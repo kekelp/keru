@@ -71,6 +71,9 @@ pub const NODE_ROOT: Node = Node {
     n_children: 0,
     first_child: None,
     next_sibling: None,
+    old_first_child: None,
+    old_next_sibling: None,
+
     is_twin: None,
 
     params: NODE_ROOT_PARAMS,
@@ -874,6 +877,9 @@ impl System {
             n_children: 0,
             first_child: None, // will be overwritten later... not the cleanest
             next_sibling: None, // will be overwritten later... not the cleanest
+            old_first_child: None, // same here
+            old_next_sibling: None, // same
+
             is_twin: twin_n,
             params: *params,
             debug_name: key.debug_name,
@@ -1334,11 +1340,19 @@ impl Ui {
         self.nodes[parent_id].n_children += 1;
 
         if self.nodes[parent_id].first_child.is_none() {
+            if self.nodes[parent_id].old_first_child != Some(id) {
+                // children changed!
+                self.sys.partial_relayouts_needed.push(parent_id);
+            }
             self.nodes[parent_id].first_child = Some(id);
-
+            
             thread_local_push_last_sibling(id);
         } else {
             let prev_sibling = thread_local_cycle_last_sibling(id);
+            if self.nodes[prev_sibling].old_next_sibling != Some(id) {
+                // children changed!
+                self.sys.partial_relayouts_needed.push(parent_id);
+            }
             self.nodes[prev_sibling].next_sibling = Some(id);
         }
     }
@@ -1622,6 +1636,9 @@ pub struct Node {
     // le epic inline linked list instead of a random Vec somewhere else on the heap
     // todo: Option<usize> is 128 bits, which is ridicolous. Use a NonMaxU32 or something
     pub n_children: u16,
+
+    pub old_first_child: Option<usize>,
+    pub old_next_sibling: Option<usize>,
     pub first_child: Option<usize>,
     pub next_sibling: Option<usize>,
     // prev_sibling is never used so far.
@@ -1647,6 +1664,10 @@ impl Node {
     }
 
     fn reset_children(&mut self) {
+        // keep these ones so we can detect changes
+        self.old_first_child = self.first_child;
+        self.old_next_sibling = self.next_sibling;
+
         self.first_child = None;
         self.next_sibling = None;
         // self.prev_sibling = None;

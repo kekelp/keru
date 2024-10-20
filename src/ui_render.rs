@@ -22,7 +22,8 @@ impl Ui {
         .render(&self.sys.text.atlas, &self.sys.text.glyphon_viewport, render_pass)
         .unwrap();
         
-        self.sys.need_rerender = false;
+        let yellow = 1234;
+        // self.sys.need_rerender = false;
     }
 
     /// Load the UI state onto the GPU

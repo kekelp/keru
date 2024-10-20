@@ -202,7 +202,8 @@ impl Ui {
                 
                 println!("  {:?}", node.debug_name);
                 // need relayout to build rects again and get the new last_click t ont o the gpu
-                self.sys.need_relayout = true;
+                let yellow = 123;
+                // self.sys.need_relayout = true;
                 self.sys.animation_rerender_time = Some(1.0);
     
                 if node.text_id.is_some() {
