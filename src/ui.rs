@@ -1336,23 +1336,27 @@ impl Ui {
     pub fn add_child_to_parent(&mut self, id: usize, parent_id: usize) {
         self.nodes[parent_id].n_children += 1;
 
-        // todo: maybe merge reset_children with this to get big premature optimization points 
-        if self.nodes[parent_id].first_child.is_none() {
-            if self.nodes[parent_id].old_first_child != Some(id) {
-                // children changed!
-                self.push_partial_relayout(parent_id);
-            }
-            self.nodes[parent_id].first_child = Some(id);
-            
-            thread_local_push_last_sibling(id);
-        } else {
-            let prev_sibling = thread_local_cycle_last_sibling(id);
-            if self.nodes[prev_sibling].old_next_sibling != Some(id) {
-                // children changed!
-                self.push_partial_relayout(parent_id);
-            }
-            self.nodes[prev_sibling].next_sibling = Some(id);
-        }
+        // todo: maybe merge reset_children into this to get big premature optimization points 
+        match self.nodes[parent_id].first_child {
+            None => {
+                // if self.nodes[parent_id].old_first_child != Some(id) {
+                //     // children changed!
+                //     self.push_partial_relayout(parent_id);
+                // }
+    
+                self.nodes[parent_id].first_child = Some(id);
+            },
+            Some(last_child) => {
+                let prev_sibling = last_child;
+                // if self.nodes[prev_sibling].old_next_sibling != Some(id) {
+                //     // children changed!
+                //     self.push_partial_relayout(parent_id);
+                // }
+                self.nodes[id].next_sibling = Some(prev_sibling);
+                self.nodes[parent_id].first_child = Some(id);
+    
+            },
+        };
     }
 
     pub fn text(&mut self, text: &str) -> UiNode<Any> {
@@ -1993,13 +1997,11 @@ impl Ui {
 #[derive(Debug, Clone)]
 pub(crate) struct Stacks {
     parents: Vec<usize>,
-    siblings: Vec<usize>,
 }
 impl Stacks {
     pub fn initialize() -> Stacks {
         return Stacks {
             parents: Vec::with_capacity(25),
-            siblings: Vec::with_capacity(25),
         };
     }
 }
@@ -2020,27 +2022,9 @@ fn thread_local_pop() {
     THREAD_STACKS.with(|stack| {
         let mut stack = stack.borrow_mut();
         stack.parents.pop().unwrap();
-        stack.siblings.pop().unwrap();
     })
 }
 
-fn thread_local_push_last_sibling(new_siblings: usize) {
-    THREAD_STACKS.with(|stack| {
-        stack.borrow_mut().siblings.push(new_siblings);
-    });
-}
-
-fn thread_local_cycle_last_sibling(new_sibling: usize) -> usize {
-    THREAD_STACKS.with(|stack| {
-        let mut stack = stack.borrow_mut();
-
-        let last_ref = stack.siblings.last_mut().unwrap();
-        let previous = *last_ref;
-        *last_ref = new_sibling;
-
-        return previous;
-    })
-}
 
 fn thread_local_peek_parent() -> usize {
     THREAD_STACKS.with(|stack| *stack.borrow().parents.last().unwrap())
@@ -2049,7 +2033,6 @@ fn thread_local_peek_parent() -> usize {
 fn clear_thread_local_stacks() {
     THREAD_STACKS.with(|stack| {
         let mut stack = stack.borrow_mut();
-        stack.siblings.clear();
         stack.parents.clear();
         // todo: this should be `root_i`, but whatever
         stack.parents.push(0);
