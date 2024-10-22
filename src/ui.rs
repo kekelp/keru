@@ -959,9 +959,6 @@ pub struct System {
 
     pub params_changed: bool,
     pub text_changed: bool,
-
-    pub last_tree_hash: u64,
-    pub tree_hash: FxHasher,
     
     pub frame_t: f32,
     pub last_frame_timestamp: Instant,
@@ -1197,9 +1194,7 @@ impl Ui {
 
                 params_changed: true,
                 text_changed: true,
-                tree_hash: FxHasher::default(),
-                last_tree_hash: 0,
-                
+
                 last_frame_timestamp: Instant::now(),
                 rects_generation: 1,
 
@@ -1218,10 +1213,6 @@ impl Ui {
         if old.rect != new.rect {
             self.push_cosmetic_rect_update(node_i);
         }
-    }
-
-    pub fn tree_changed(&self) -> bool {
-        return self.sys.tree_hash.finish() != self.sys.last_tree_hash;
     }
 
     pub fn format(&mut self, value: impl Display) {
@@ -1318,8 +1309,6 @@ impl Ui {
                 }
             }
         };
-
-        self.sys.tree_hash.write_u64(real_final_id.0);
 
         let children_hash_so_far = thread_local_hash_new_child(real_final_i);
         self.nodes[parent_i].old_children_hash = children_hash_so_far;
@@ -1604,10 +1593,6 @@ impl Ui {
     // in case of partial declarative stuff, think of another name
     pub fn begin_tree(&mut self) {
         self.sys.part.current_frame += 1;
-        
-        // reset hashes
-        self.sys.last_tree_hash = self.sys.tree_hash.finish();
-        self.sys.tree_hash = FxHasher::default();
 
         clear_thread_local_parent_stack();
     }
@@ -1625,17 +1610,12 @@ impl Ui {
         //     self.sys.need_relayout = false;
         // }
 
-        let old_tree_changed = self.tree_changed();
         let new_tree_changed = self.sys.tree_changed;
 
         if new_tree_changed {
             println!("Partial relayout haa");
         }
-        // if old_tree_changed != new_tree_changed {
-        //     println!("  {:?}", old_tree_changed == new_tree_changed, );
-        //     println!("     old {:?}", old_tree_changed);
-        //     println!("     new {:?}", new_tree_changed);
-        // }
+
         self.sys.tree_changed = false;
 
 
