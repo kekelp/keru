@@ -2,8 +2,6 @@
 
 use crate::Watcher;
 
-
-
 #[test]
 fn example() {
     // A value representing some state in our program. This gets changed and updated according to various complicated rules, and then gets displayed to the user on the screen. 
