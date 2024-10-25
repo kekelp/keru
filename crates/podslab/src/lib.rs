@@ -1,63 +1,63 @@
 use std::mem;
 use bytemuck::Pod;
 
-pub enum PodSlabMetadata {
+pub enum Metadata {
     Filled,
     Vacant { next_free: usize },
 }
 
 /// The user will also have to implement part of this trait in his shader code.
 /// For example, the shader will skip rendering all entries that would return PodSlabMetadata::Vacant.
-pub trait PodSlabEntry: Pod {
-    fn metadata(&self) -> PodSlabMetadata;
-    fn set_metadata(&mut self, metadata: PodSlabMetadata);
+pub trait Entry: Pod {
+    fn metadata(&self) -> Metadata;
+    fn set_metadata(&mut self, metadata: Metadata);
 }
 
-fn dummy_vacant_entry<T: PodSlabEntry>(next_free: usize) -> T {
+fn dummy_vacant_entry<T: Entry>(next_free: usize) -> T {
     let mut value = T::zeroed();
-    value.set_metadata(PodSlabMetadata::Vacant { next_free });
+    value.set_metadata(Metadata::Vacant { next_free });
     value
 }
 
-pub struct PodSlab<T: PodSlabEntry> {
+pub struct PodSlab<T: Entry> {
     entries: Vec<T>,
-    next: usize,
-    n_filled_entries: usize,
+    first_free: usize,
+    filled_count: usize,
 }
 
-impl<T: PodSlabEntry> PodSlab<T> {
+impl<T: Entry> PodSlab<T> {
     fn push_filled_entry(&mut self, mut value: T) {
-        value.set_metadata(PodSlabMetadata::Filled);
+        value.set_metadata(Metadata::Filled);
         self.entries.push(value);
     }
 
     fn set_filled_entry(&mut self, i: usize, mut value: T) {
-        value.set_metadata(PodSlabMetadata::Filled);
+        value.set_metadata(Metadata::Filled);
         self.entries[i] = value;
     }
 
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             entries: Vec::with_capacity(capacity),
-            next: 0,
-            n_filled_entries: 0,
+            first_free: 0,
+            filled_count: 0,
         }
     }
 
     pub fn insert(&mut self, val: T) -> usize {
-        self.n_filled_entries += 1;
+        self.filled_count += 1;
 
         // grab head of the freelist
-        let key = self.next;
+        let key = self.first_free;
 
         if key == self.entries.len() {
             self.push_filled_entry(val);
-            self.next = key + 1;
+            self.first_free = key + 1;
         } else {
             // set the new freelist head
-            self.next = match self.entries[key].metadata() {
-                PodSlabMetadata::Vacant { next_free } => next_free,
-                PodSlabMetadata::Filled => unreachable!(),
+            self.first_free = match self.entries[key].metadata() {
+                Metadata::Vacant { next_free } => next_free,
+                Metadata::Filled => unreachable!(),
             };
             // write the value
             self.set_filled_entry(key, val);
@@ -68,13 +68,13 @@ impl<T: PodSlabEntry> PodSlab<T> {
 
     pub fn try_remove(&mut self, key: usize) -> Option<T> {
         if let Some(entry) = self.entries.get_mut(key) {
-            let dummy_value = dummy_vacant_entry(self.next);
+            let dummy_value = dummy_vacant_entry(self.first_free);
             let prev = mem::replace(entry, dummy_value);
 
             match prev.metadata() {
-                PodSlabMetadata::Filled => {
-                    self.n_filled_entries -= 1;
-                    self.next = key;
+                Metadata::Filled => {
+                    self.filled_count -= 1;
+                    self.first_free = key;
                     return Some(prev);
                 }
                 _ => {
@@ -95,8 +95,8 @@ impl<T: PodSlabEntry> PodSlab<T> {
         self.entries
             .get(index)
             .and_then(|element| match element.metadata() {
-                PodSlabMetadata::Filled => Some(element),
-                PodSlabMetadata::Vacant { .. } => None,
+                Metadata::Filled => Some(element),
+                Metadata::Vacant { .. } => None,
             })
     }
 
@@ -104,8 +104,8 @@ impl<T: PodSlabEntry> PodSlab<T> {
         self.entries
             .get_mut(index)
             .and_then(|element| match element.metadata() {
-                PodSlabMetadata::Filled => Some(element),
-                PodSlabMetadata::Vacant { .. } => None,
+                Metadata::Filled => Some(element),
+                Metadata::Vacant { .. } => None,
             })
     }
 
@@ -113,14 +113,14 @@ impl<T: PodSlabEntry> PodSlab<T> {
     pub fn iter(&self) -> impl Iterator<Item = &T> {
         self.entries
             .iter()
-            .filter(|element| matches!(element.metadata(), PodSlabMetadata::Filled))
+            .filter(|element| matches!(element.metadata(), Metadata::Filled))
     }
 
     /// Iterates over all filled entries mutably
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
         self.entries
             .iter_mut()
-            .filter(|element| matches!(element.metadata(), PodSlabMetadata::Filled))
+            .filter(|element| matches!(element.metadata(), Metadata::Filled))
     }
 
     /// Iterates over all entries mutably, including vacant entries.
@@ -144,51 +144,80 @@ mod tests {
     use super::*;
     use bytemuck::Zeroable;
 
-    // Start with a custom Pod datastructure that we want a slab of.
-    // For Pod friendliness and ease of use, we stick the metadata directly into the struct.
-    // Since this is all done manually by the user of the library, they can still get creative with layout and bit-packing, if they want.
-    // The user will also have to write their shaders to be aware of this metadata, so that they can skip rendering vacant entries.
-    #[derive(Copy, Clone, Debug, Zeroable, Pod)]
-    #[repr(C)]
-    struct Vertex {
-        position: [f32; 4],
-        normal: [f32; 4],
-        color: [f32; 4],
-        filled: usize,
-        next_free: usize,
-    }
 
-    // Tell PodSlab how the basic slab functions are implemented on top of the custom metadata.
-    impl PodSlabEntry for Vertex {
-        fn metadata(&self) -> PodSlabMetadata {
-            if self.filled == 0 {
-                return PodSlabMetadata::Vacant {
-                    next_free: self.next_free,
-                };
-            } else {
-                return PodSlabMetadata::Filled;
+    mod slab_vertex {
+        use super::*;
+        
+        // Start with a custom Pod datastructure that we want a slab of.
+        // We will insert some metadata in addition to the real data. The metadata will have to be enough to implement the Entry trait below.
+        // That is, it has to be able to hold a representation of the PodSlab::Metadata struct.
+        #[derive(Copy, Clone, Debug, Zeroable, Pod)]
+        #[repr(C)]
+        pub struct Vertex {
+            pub position: [f32; 4],
+            pub normal: [f32; 4],
+            pub color: [f32; 4],
+            // For the sake of memory usage, we stick all the slab metadata into a single u32.
+            // We will use u32::MAX to denote a filled entry. Any other value means vacant, with the value being the freelist index.
+            // This means that a PodSlab<Vertex> won't work properly if we push more than u32::MAX entries into it.
+            // Since we are in control of the representation, we can make this compromise.
+            // If we don't want to, we can just add some bytes and get a lossless representation.
+            //
+            // The slab will overwrite this value with the `set_metadata` function according to its internal logic.
+            // If this field was public, it would be up to our own common sense to not reach inside the slab and change the metadata of the entries.
+            // For this reason, it's probably wise to make it private.
+            slab_metadata: u32,
+        }
+
+        // Tell PodSlab how the basic slab functions are implemented on top of the custom metadata.
+        // If this implementation is inconsistent, the slab won't work properly. However, it's really simple.
+        // We just need to convert the PodSlab::Metadata into any kind of 
+        impl Entry for Vertex {
+            fn metadata(&self) -> Metadata {
+                if self.slab_metadata == u32::MAX {
+                    Metadata::Filled
+                } else {
+                    Metadata::Vacant {
+                        // casting the u32 to usize is probably fine, unless the architecture is weird AND the slab has a ton of entries.
+                        next_free: self.slab_metadata as usize,
+                    }
+                }
+            }
+
+            fn set_metadata(&mut self, metadata: Metadata) {
+                match metadata {
+                    Metadata::Filled => self.slab_metadata = u32::MAX,
+                    Metadata::Vacant { next_free } => {
+                        // casting the usize to u32 is probably fine, unless the slab has a ton of entries.
+                        self.slab_metadata = next_free as u32;
+                    }
+                }
             }
         }
 
-        fn set_metadata(&mut self, metadata: PodSlabMetadata) {
-            match metadata {
-                PodSlabMetadata::Filled => self.filled = 1,
-                PodSlabMetadata::Vacant { next_free } => {
-                    self.filled = 0;
-                    self.next_free = next_free;
+        impl Vertex {
+            // Since we made the `slab_metadata` field private, we won't be able to even construct the struct outside of this module.
+            // So we have to provide a constructor method.
+            // A valid alternative is to keep everything public and just use common sense.
+            pub fn new(position: [f32; 4], normal: [f32; 4], color: [f32; 4]) -> Self {
+                Self {
+                    position,
+                    normal,
+                    color,
+                    slab_metadata: 0, // Any value is fine, because the slab will overwrite it.
                 }
             }
         }
     }
 
+    use slab_vertex::Vertex;
+
     fn create_test_vertex(pos: f32) -> Vertex {
-        Vertex {
-            position: [pos, 0.0, 0.0, 1.0],
-            normal: [0.0, 1.0, 0.0, 0.0],
-            color: [1.0, 1.0, 1.0, 1.0],
-            filled: 0,
-            next_free: 0,
-        }
+        Vertex::new(
+            [pos, 0.0, 0.0, 1.0],
+            [0.0, 1.0, 0.0, 0.0],
+            [1.0, 1.0, 1.0, 1.0],
+        )
     }
 
     #[test]
