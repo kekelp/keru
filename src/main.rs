@@ -12,6 +12,7 @@ pub mod ui_render;
 pub mod ui_layout;
 pub mod ui_interact;
 pub mod ui_text;
+pub mod podslab;
 
 use pixels_on_screen::*;
 use canvas::*;
