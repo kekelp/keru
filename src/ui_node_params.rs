@@ -10,7 +10,7 @@ pub const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     text_params: None,
     rect: Rect {
         visible: false,
-        filled: false,
+        outline_only: true,
         vertex_colors: VertexColors::flat(Color::TRANSPARENT)
     },
     interact: Interact {
@@ -32,7 +32,7 @@ pub const DEFAULT: NodeParams = NodeParams {
     }),
     rect: Rect {
         visible: true,
-        filled: true,
+        outline_only: false,
         vertex_colors: VertexColors::flat(Color::FLGR_BLUE),
     },
     interact: Interact {
@@ -56,12 +56,12 @@ pub const V_STACK: NodeParams = NodeParams {
     text_params: None,
     rect: Rect {
         visible: false,
-        filled: false,
+        outline_only: true,
         vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
     },
     interact: Interact {
         absorbs_mouse_events: false,
-        click_animation: true,
+        click_animation: false,
     },
     layout: Layout {
         size: Xy::new(Size::FitContent, Size::FitContent),
@@ -80,7 +80,7 @@ pub const H_STACK: NodeParams = NodeParams {
     text_params: None,
     rect: Rect {
         visible: false,
-        filled: false,
+        outline_only: true,
         vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
     },
     interact: Interact {
@@ -100,7 +100,7 @@ pub const MARGIN: NodeParams = NodeParams {
     text_params: None,
     rect: Rect {
         visible: false,
-        filled: false,
+        outline_only: true,
         vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
     },
     interact: Interact {
@@ -120,7 +120,7 @@ pub const ICON_BUTTON: NodeParams = NodeParams {
     text_params: None,
     rect: Rect {
         visible: true,
-        filled: true,
+        outline_only: false,
         vertex_colors: VertexColors::FLGR_SOVL_GRAD,
     },
     interact: Interact {
@@ -142,7 +142,7 @@ pub const BUTTON: NodeParams = NodeParams {
     }),
     rect: Rect {
         visible: true,
-        filled: true,
+        outline_only: false,
         // vertex_colors: VertexColors::TEST,
         vertex_colors: VertexColors::diagonal_gradient_backslash(Color::FLGR_BLUE, Color::FLGR_RED),
     },
@@ -165,7 +165,7 @@ pub const LABEL: NodeParams = NodeParams {
     }),
     rect: Rect {
         visible: true,
-        filled: true,
+        outline_only: false,
         vertex_colors: VertexColors::flat(Color::FLGR_BLUE),
     },
     interact: Interact {
@@ -187,7 +187,7 @@ pub const TEXT: NodeParams = NodeParams {
     }),
     rect: Rect {
         visible: false,
-        filled: false,
+        outline_only: true,
         vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
     },
     interact: Interact {
@@ -209,7 +209,7 @@ pub const EMPTY_TEXT: NodeParams = NodeParams {
     }),
     rect: Rect {
         visible: false,
-        filled: false,
+        outline_only: true,
         vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
     },
     interact: Interact {
@@ -232,7 +232,7 @@ pub const TEXT_INPUT: NodeParams = NodeParams {
     }),
     rect: Rect {
         visible: true,
-        filled: true,
+        outline_only: false,
         vertex_colors: VertexColors::flat(Color::rgba(26, 0, 26, 230)),
     },
     interact: Interact {
@@ -253,7 +253,7 @@ pub const PANEL: NodeParams = NodeParams {
     text_params: None,
     rect: Rect {
         visible: true,
-        filled: true,
+        outline_only: false,
         vertex_colors: VertexColors::flat(Color::FLGR_BLUE),
     },
     interact: Interact {

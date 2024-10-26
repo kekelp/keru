@@ -11,6 +11,7 @@ var my_texture: texture_2d<f32>;
 var my_sampler: sampler;
 
 const CLICK_ANIMATION_FLAG: u32 = u32(1) << u32(0);
+const OUTLINE_ONLY_FLAG: u32    = u32(1) << u32(1);
 
 struct RenderRect {
     @builtin(vertex_index) index: u32,
@@ -47,6 +48,10 @@ struct VertexOutput {
     @location(6) tex_coords: vec2<f32>,
 }
 
+fn read_flag(value: u32, flag: u32) -> bool {
+    return (value & flag) != 0u;
+}
+
 @vertex
 fn vs_main(in: RenderRect) -> VertexOutput {
     let i_x = u32( in.index == 0 || in.index >= 4 );
@@ -74,9 +79,8 @@ fn vs_main(in: RenderRect) -> VertexOutput {
     let corner = 2.0 * vec2f(vec2u(i_x, i_y)) - 1.0;    
     let uv = corner * half_size;
 
-    let clickable = f32(in.flags & CLICK_ANIMATION_FLAG);
-    // todo: just remove? or maybe it can be useful to avoid rect rebuilds? probably not
-    let filled = f32(1.0);
+    let clickable = f32(read_flag(in.flags, CLICK_ANIMATION_FLAG));
+    let filled = f32( ! read_flag(in.flags, OUTLINE_ONLY_FLAG));
 
     let t_since_hover = (unif.t - in.last_hover) * 4.5;
     let hover = (1.0 - clamp(t_since_hover, 0.0, 1.0)) * f32(t_since_hover < 1.0) * clickable;

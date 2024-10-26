@@ -108,14 +108,14 @@ pub struct Layout {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Rect {
     pub visible: bool,
-    pub filled: bool,
+    pub outline_only: bool,
     pub vertex_colors: VertexColors,
     // ... crazy stuff like texture and NinePatchRect
 }
 impl Rect {
     pub const DEFAULT: Self = Self {
         visible: true,
-        filled: true,
+        outline_only: true,
         vertex_colors: VertexColors::flat(Color::FLGR_BLUE),
     };
 }
@@ -187,13 +187,13 @@ impl NodeParams {
     }
     pub const fn invisible(mut self) -> Self {
         self.rect.visible = false;
-        self.rect.filled = false;
+        self.rect.outline_only = false;
         self.rect.vertex_colors = VertexColors::flat(Color::FLGR_DEBUG_RED);
         return self;
     }
 
     pub const fn filled(mut self, filled: bool) -> Self {
-        self.rect.filled = filled;
+        self.rect.outline_only = filled;
         return self;
     }
 
@@ -320,8 +320,10 @@ impl RenderRect {
     }
 }
 
+#[rustfmt::skip]
 impl RenderRect {
     pub const CLICK_ANIMATION: u32 = 1 << 0;
+    pub const OUTLINE_ONLY:    u32 = 1 << 1;
 
     pub const EMPTY_FLAGS: u32 = 0;
 }
@@ -1411,6 +1413,12 @@ impl Ui {
         if current_node.params.interact.click_animation {
             flags |= RenderRect::CLICK_ANIMATION;
         }
+        if current_node.params.rect.outline_only {
+            flags |= RenderRect::OUTLINE_ONLY;
+        }
+
+        let real_filled = ( (flags & RenderRect::OUTLINE_ONLY) ^ 1) as f32;
+        println!("outline only  {:?} {:?} real filled {:?}", current_node.params.rect.outline_only, current_node.debug_name(), real_filled);
 
         // in debug mode, draw invisible rects as well.
         // usually these have filled = false (just the outline), but this is not enforced.
@@ -1435,6 +1443,11 @@ impl Ui {
             });
         }
 
+        let mut image_flags = RenderRect::EMPTY_FLAGS;
+        if current_node.params.interact.click_animation {
+            image_flags |= RenderRect::CLICK_ANIMATION;
+        }
+
         if let Some(image) = current_node.imageref {
             // in debug mode, draw invisible rects as well.
             // usually these have filled = false (just the outline), but this is not enforced.
@@ -1449,7 +1462,7 @@ impl Ui {
                     radius: RADIUS,
 
                     tex_coords: image.tex_coords,
-                    flags,
+                    flags: image_flags,
                     _padding: 0,
                 });
             }

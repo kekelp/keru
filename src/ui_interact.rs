@@ -1,5 +1,5 @@
 use wgpu::Queue;
-use winit::{dpi::PhysicalPosition, event::{ElementState, Event, KeyEvent, MouseButton, MouseScrollDelta, WindowEvent}};
+use winit::{dpi::PhysicalPosition, event::{ElementState, Event, KeyEvent, MouseButton, MouseScrollDelta, WindowEvent}, keyboard::{Key, NamedKey}};
 
 use crate::{ui_math::Xy, ui_time_f32, Id, NodeKey, Ui, T0};
 
@@ -354,19 +354,20 @@ impl Ui {
 
 
 
-    pub fn handle_keyboard_event(&mut self, _event: &KeyEvent) -> bool {
+    pub fn handle_keyboard_event(&mut self, event: &KeyEvent) -> bool {
         // todo: remove line.reset(); and do it only once per frame via change watcher guy
 
-        // if let Key::Named(named_key) = &event.logical_key { if named_key == &NamedKey::F1 {
-        //     if event.state.is_pressed() && self.sys.debug_key_pressed == false {
-        //         #[cfg(debug_assertions)]
-        //         {
-        //             self.sys.debug_mode = !self.sys.debug_mode;
-        //         }
-        //     }
+        if let Key::Named(named_key) = &event.logical_key { if named_key == &NamedKey::F1 {
+            if event.state.is_pressed() && self.sys.debug_key_pressed == false {
+                #[cfg(debug_assertions)]
+                {
+                    let yellow = "ask for a full rect rebuild here to add all those outline-only debug rects";
+                    self.sys.debug_mode = !self.sys.debug_mode;
+                }
+            }
 
-        //     self.sys.debug_key_pressed = event.state.is_pressed();
-        // } }
+            self.sys.debug_key_pressed = event.state.is_pressed();
+        } }
 
         // // if there is no focused text node, return consumed: false
         // let id = unwrap_or_return!(self.sys.focused, false);
