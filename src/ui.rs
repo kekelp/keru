@@ -1417,9 +1417,6 @@ impl Ui {
             flags |= RenderRect::OUTLINE_ONLY;
         }
 
-        let real_filled = ( (flags & RenderRect::OUTLINE_ONLY) ^ 1) as f32;
-        println!("outline only  {:?} {:?} real filled {:?}", current_node.params.rect.outline_only, current_node.debug_name(), real_filled);
-
         // in debug mode, draw invisible rects as well.
         // usually these have filled = false (just the outline), but this is not enforced.
         if current_node.params.rect.visible || self.sys.debug_mode {
