@@ -270,56 +270,60 @@ impl NodeParams {
     }   
 }
 
-#[derive(Default, Debug, Pod, Copy, Clone, Zeroable)]
 #[repr(C)]
-// todo: could do some epic SOA stuff to make resolve_mouse_input and friends faster
-// Layout has to match the one in the shader.
+#[derive(Default, Debug, Pod, Copy, Clone, Zeroable)]
 pub struct RenderRect {
-    pub rect: XyRect,
-    // this isn't it for images, but i'll keep it for future tiling textures and ninepatchrects
-    pub tex_coords: XyRect,
+    pub rect: XyRect,               // (f32, f32) for each corner
+    pub tex_coords: XyRect,         // (f32, f32) for texture coordinates
+    pub vertex_colors: VertexColors, // (u8, u8, u8, u8) colors
+    
+    pub z: f32,                     // (f32) depth information
+    pub last_hover: f32,            // (f32) hover timestamp
+    pub last_click: f32,            // (f32) click timestamp
+    pub radius: f32,                // (f32) radius
+    
+    pub flags: u32,                 // (u32) bitfield flags
+    pub _padding: u32,        // (u32) next free block index
 
-    pub vertex_colors: VertexColors,
-
-    pub last_hover: f32,
-    pub last_click: f32,
-    pub click_animation: u32,
-    pub z: f32,
-
-    pub radius: f32,
-
-    pub filled: u32,
+    // this is currently used for click resolution, but it's not used for anything on the gpu.
+    // in the future, I would like to have a separate structure for click resolution, and remove the Id from this structure.
     pub id: Id,
 }
+
 impl RenderRect {
     pub fn buffer_desc() -> [VertexAttribute; 15] {
-        return vertex_attr_array![
-            // xyrect
-            0 => Float32x2,
-            1 => Float32x2,
-            // tex coords
-            2 => Float32x2,
-            3 => Float32x2,
-            // colors
-            4 => Uint8x4,
-            5 => Uint8x4,
-            6 => Uint8x4,
-            7 => Uint8x4,
-            // last hover
-            8 => Float32,
-            // last click
-            9 => Float32,
-            // clickable
-            10 => Uint32,
-            // z
-            11 => Float32,
-            12 => Float32,
-            // filled
-            13 => Uint32,
-            // radius
-            14 => Uint32,
-        ];
+        vertex_attr_array![
+            // rect (XyRect): 2 x Float32x2
+            0 => Float32x2, // rect.x_min, rect.y_min
+            1 => Float32x2, // rect.x_max, rect.y_max
+
+            // tex_coords (XyRect): 2 x Float32x2
+            2 => Float32x2, // tex_coords.x_min, tex_coords.y_min
+            3 => Float32x2, // tex_coords.x_max, tex_coords.y_max
+
+            // vertex_colors (VertexColors): 4 x Uint8x4
+            4 => Uint8x4, // vertex_colors[0]
+            5 => Uint8x4, // vertex_colors[1]
+            6 => Uint8x4, // vertex_colors[2]
+            7 => Uint8x4, // vertex_colors[3]
+
+            8 => Float32,  // z
+            9 => Float32,  // last_hover
+            10 => Float32, // last_click
+            11 => Float32, // radius
+
+            12 => Uint32, // flags
+            13 => Uint32, // slab_next_free
+            
+            14 => Uint32x2, // id. it's actually a u64, but it doesn't look like wgpu understands u64s.
+        ]
     }
+}
+
+impl RenderRect {
+    pub const CLICK_ANIMATION: u32 = 1 << 0;
+
+    pub const EMPTY_FLAGS: u32 = 0;
 }
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, Zeroable, Pod)]
@@ -1403,6 +1407,11 @@ impl Ui {
     pub fn build_rect(&mut self, node: usize) {
         let current_node = &self.nodes.nodes[node];
 
+        let mut flags = RenderRect::EMPTY_FLAGS;
+        if current_node.params.interact.click_animation {
+            flags |= RenderRect::CLICK_ANIMATION;
+        }
+
         // in debug mode, draw invisible rects as well.
         // usually these have filled = false (just the outline), but this is not enforced.
         if current_node.params.rect.visible || self.sys.debug_mode {
@@ -1411,11 +1420,9 @@ impl Ui {
                 vertex_colors: current_node.params.rect.vertex_colors,
                 last_hover: current_node.last_hover,
                 last_click: current_node.last_click,
-                click_animation: current_node.params.interact.click_animation.into(),
                 id: current_node.id,
                 z: 0.0,
                 radius: RADIUS,
-                filled: current_node.params.rect.filled as u32,
 
                 // magic coords
                 // todo: demagic
@@ -1423,6 +1430,8 @@ impl Ui {
                     x: [0.9375, 0.9394531],
                     y: [0.00390625 / 2.0, 0.0],
                 },
+                flags,
+                _padding: 0,
             });
         }
     }

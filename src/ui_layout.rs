@@ -328,6 +328,11 @@ impl Ui {
     pub fn build_and_place_image(&mut self, node: usize) {
         let node = &mut self.nodes.nodes[node];
         
+        let mut flags = RenderRect::EMPTY_FLAGS;
+        if node.params.interact.click_animation {
+            flags |= RenderRect::CLICK_ANIMATION;
+        }
+
         if let Some(image) = node.imageref {
             // in debug mode, draw invisible rects as well.
             // usually these have filled = false (just the outline), but this is not enforced.
@@ -337,13 +342,13 @@ impl Ui {
                     vertex_colors: node.params.rect.vertex_colors,
                     last_hover: node.last_hover,
                     last_click: node.last_click,
-                    click_animation: node.params.interact.click_animation.into(),
                     id: node.id,
                     z: 0.0,
                     radius: RADIUS,
-                    filled: node.params.rect.filled as u32,
 
                     tex_coords: image.tex_coords,
+                    flags,
+                    _padding: 0,
                 });
             }
         }

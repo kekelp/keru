@@ -10,27 +10,30 @@ var my_texture: texture_2d<f32>;
 @group(0) @binding(2)
 var my_sampler: sampler;
 
-// has to match RenderRect
-struct VertexInput {
+const CLICK_ANIMATION_FLAG: u32 = u32(1) << u32(0);
+
+struct RenderRect {
     @builtin(vertex_index) index: u32,
-    @location(0) xs: vec2f,
-    @location(1) ys: vec2f,
 
-    @location(2) tex_coord_xs: vec2f,
-    @location(3) tex_coord_ys: vec2f,
+    @location(0) xs: vec2<f32>,               // Corresponds to rect.x_min, rect.y_min
+    @location(1) ys: vec2<f32>,               // Corresponds to rect.x_max, rect.y_max
+    @location(2) tex_coord_xs: vec2<f32>,     // Corresponds to tex_coords.x_min, tex_coords.y_min
+    @location(3) tex_coord_ys: vec2<f32>,     // Corresponds to tex_coords.x_max, tex_coords.y_max
 
-    @location(4) vertex_colors_tl: vec4u,
-    @location(5) vertex_colors_tr: vec4u,
-    @location(6) vertex_colors_bl: vec4u,
-    @location(7) vertex_colors_br: vec4u,
-    @location(8) last_hover: f32,
-    @location(9) last_click: f32,
-    @location(10) clickable: u32,
-    @location(11) z: f32,
-    @location(12) radius: f32,
-    @location(13) filled: u32,
-    @location(14) _id: u32,
+    @location(4) vertex_colors_tl: vec4<u32>, // Corresponds to vertex_colors[0]
+    @location(5) vertex_colors_tr: vec4<u32>, // Corresponds to vertex_colors[1]
+    @location(6) vertex_colors_bl: vec4<u32>, // Corresponds to vertex_colors[2]
+    @location(7) vertex_colors_br: vec4<u32>, // Corresponds to vertex_colors[3]
 
+    @location(8) z: f32,                      // Corresponds to z
+    @location(9) last_hover: f32,             // Corresponds to last_hover
+    @location(10) last_click: f32,            // Corresponds to last_click
+    @location(11) radius: f32,                // Corresponds to radius
+
+    @location(12) flags: u32,                 // Corresponds to flags
+    @location(13) _padding: u32,              // Corresponds to _padding
+
+    @location(14) id: vec2<u32>,              // Corresponds to id. Don't use this. It's originally a u64.
 };
 
 struct VertexOutput {
@@ -40,12 +43,12 @@ struct VertexOutput {
     @location(2) color: vec4<f32>,
     @location(3) dark: f32,
     @location(4) radius: f32,
-    @location(5) filled: u32,
+    @location(5) filled: f32,
     @location(6) tex_coords: vec2<f32>,
 }
 
 @vertex
-fn vs_main(in: VertexInput) -> VertexOutput {
+fn vs_main(in: RenderRect) -> VertexOutput {
     let i_x = u32( in.index == 0 || in.index >= 4 );
     let i_y = u32( in.index % 2 );
 
@@ -71,16 +74,20 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     let corner = 2.0 * vec2f(vec2u(i_x, i_y)) - 1.0;    
     let uv = corner * half_size;
 
+    let clickable = f32(in.flags & CLICK_ANIMATION_FLAG);
+    // todo: just remove? or maybe it can be useful to avoid rect rebuilds? probably not
+    let filled = f32(1.0);
+
     let t_since_hover = (unif.t - in.last_hover) * 4.5;
-    let hover = (1.0 - clamp(t_since_hover, 0.0, 1.0)) * f32(t_since_hover < 1.0) * f32(in.clickable);
+    let hover = (1.0 - clamp(t_since_hover, 0.0, 1.0)) * f32(t_since_hover < 1.0) * clickable;
     let t_since_click = (unif.t - in.last_click) * 4.1;
-    let click = (1.0 - clamp(t_since_click, 0.0, 1.0)) * f32(t_since_click < 1.0) * f32(in.clickable);
+    let click = (1.0 - clamp(t_since_click, 0.0, 1.0)) * f32(t_since_click < 1.0) * clickable;
 
     let dark_hover = 1.0 - hover * 0.32;
     let dark_click = 1.0 - click * 0.78;
 
     let dark = min(dark_click, dark_hover);
-    return VertexOutput(clip_position, uv, half_size, color, dark, in.radius, in.filled, tex_coords);
+    return VertexOutput(clip_position, uv, half_size, color, dark, in.radius, filled, tex_coords);
 }
 
 @fragment
@@ -97,15 +104,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let inside = (1.0 - smoothstep(-1.0, 1.0, dist));
     let outside = (1.0 - smoothstep(1.0, -1.0, dist + 8.0));
 
-    let filled = f32(in.filled);
-    let alpha = in.color.a * (inside * max(filled, outside));
+    let alpha = in.color.a * (inside * max(in.filled, outside));
 
     var tex_color = textureSample(my_texture, my_sampler, in.tex_coords);
     var rect_color = vec4(in.color.rgb * in.dark, alpha);
 
     var final_color = tex_color * rect_color;
-    
-    // return vec4(0.0, 0.0, tex_color.a, tex_color.a);
 
     return final_color;
 }
