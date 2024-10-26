@@ -10,11 +10,18 @@ use Axis::{X, Y};
 
 impl Ui {
 
-    pub fn layout_and_build_rects(&mut self) {
+    pub fn full_relayout(&mut self) {
         self.sys.rects.clear();
         
-        self.determine_size(self.sys.root_i, Xy::new(1.0, 1.0));
-        self.build_rect_and_place_children(self.sys.root_i);
+        // 1st recursive tree traversal: start from the root and recursively determine the size of all nodes
+        let proposed_size = Xy::new(1.0, 1.0); // For the root, propose the full window
+        self.recursive_determine_size(self.sys.root_i, proposed_size);
+
+        // 2nd recursive tree traversal: now that all nodes have a calculated size, place them.
+        self.recursive_place_children(self.sys.root_i);
+
+        // 3nd recursive tree traversal: now that all nodes have a calculated size, place them.
+        self.recursive_push_rects(self.sys.root_i);
 
         self.push_cursor_rect();
     }
@@ -70,7 +77,7 @@ impl Ui {
         return child_proposed_size
     }
 
-    fn determine_size(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
+    fn recursive_determine_size(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
         let stack = self.nodes[node].params.stack;
         
         // calculate the total size to propose to children
@@ -81,7 +88,7 @@ impl Ui {
         // Propose a size to the children and let them decide
         let mut content_size = Xy::new(0.0, 0.0);
         for_each_child!(self, self.nodes[node], child, {
-            let child_size = self.determine_size(child, child_proposed_size);
+            let child_size = self.recursive_determine_size(child, child_proposed_size);
             content_size.update_for_child(child_size, stack);
         });
 
@@ -193,35 +200,18 @@ impl Ui {
         return final_size;
     }
 
-    fn build_rect_and_place_children(&mut self, node: usize) {
-        self.build_rect(node);
-        
-        // println!(" visiting      {:?}", self.nodes[node].debug_name);
-
-        // if let Some(i) = self.nodes[node].next_sibling {
-        //     println!("    next_child {:?}", self.nodes[i].debug_name);
-        // } else {
-        //     println!("    next_child None");
-        // }
-
-        // if let Some(i) = self.nodes[node].first_child {
-        //     println!("      first_child {:?}", self.nodes[i].debug_name);
-        // } else {
-        //     println!("      first_child None");
-        // }
-
-
+    fn recursive_place_children(&mut self, node: usize) {
         if let Some(stack) = self.nodes[node].params.stack {
-            self.build_rect_and_place_children_stack(node, stack);
+            self.place_children_stack(node, stack);
         } else {
-            self.build_rect_and_place_children_container(node);
+            self.place_children_container(node);
         };
 
-        self.build_and_place_image(node);
+        // self.place_image(node); // I think there's nothing to place? right now it's always the full rect
         self.place_text(node, self.nodes[node].rect);
     }
 
-    fn build_rect_and_place_children_stack(&mut self, node: usize, stack: Stack) {
+    fn place_children_stack(&mut self, node: usize, stack: Stack) {
         let (main, cross) = (stack.axis, stack.axis.other());
         let parent_rect = self.nodes[node].rect;
         let padding = self.to_frac2(self.nodes[node].params.layout.padding);
@@ -282,13 +272,13 @@ impl Ui {
 
             self.nodes[child].rect[main] = [main_origin, main_origin + size[main]];
 
-            self.build_rect_and_place_children(child);
+            self.recursive_place_children(child);
 
             main_origin += self.nodes[child].size[main] + spacing;
         });
     }
 
-    fn build_rect_and_place_children_container(&mut self, node: usize) {
+    fn place_children_container(&mut self, node: usize) {
         let parent_rect = self.nodes[node].rect;
         let padding = self.to_frac2(self.nodes[node].params.layout.padding);
 
@@ -321,37 +311,13 @@ impl Ui {
                 }
             }
 
-            self.build_rect_and_place_children(child);
+            self.recursive_place_children(child);
         });
     }
 
-    pub fn build_and_place_image(&mut self, node: usize) {
-        let node = &mut self.nodes.nodes[node];
-        
-        let mut flags = RenderRect::EMPTY_FLAGS;
-        if node.params.interact.click_animation {
-            flags |= RenderRect::CLICK_ANIMATION;
-        }
-
-        if let Some(image) = node.imageref {
-            // in debug mode, draw invisible rects as well.
-            // usually these have filled = false (just the outline), but this is not enforced.
-            if node.params.rect.visible || self.sys.debug_mode {
-                self.sys.rects.push(RenderRect {
-                    rect: node.rect.to_graphics_space(),
-                    vertex_colors: node.params.rect.vertex_colors,
-                    last_hover: node.last_hover,
-                    last_click: node.last_click,
-                    id: node.id,
-                    z: 0.0,
-                    radius: RADIUS,
-
-                    tex_coords: image.tex_coords,
-                    flags,
-                    _padding: 0,
-                });
-            }
-        }
+    #[allow(dead_code)]
+    pub fn place_image(&mut self, _node: usize) {     
+        // might be something here in the future
     }
 
     pub fn place_text(&mut self, node: usize, rect: XyRect) {
@@ -375,6 +341,15 @@ impl Ui {
             // self.sys.text.text_areas[text_id].bounds.right = right as i32;
             // self.sys.text.text_areas[text_id].bounds.bottom = bottom as i32;
         }
+    }
+
+
+    fn recursive_push_rects(&mut self, node: usize) {
+        self.push_rect(node);
+
+        for_each_child!(self, self.nodes[node], child, {
+            self.recursive_push_rects(child);
+        });
     }
 }
 

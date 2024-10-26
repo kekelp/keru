@@ -1404,7 +1404,7 @@ impl Ui {
         self.sys.last_frame_timestamp = Instant::now();
     }
 
-    pub fn build_rect(&mut self, node: usize) {
+    pub fn push_rect(&mut self, node: usize) {
         let current_node = &self.nodes.nodes[node];
 
         let mut flags = RenderRect::EMPTY_FLAGS;
@@ -1433,6 +1433,26 @@ impl Ui {
                 flags,
                 _padding: 0,
             });
+        }
+
+        if let Some(image) = current_node.imageref {
+            // in debug mode, draw invisible rects as well.
+            // usually these have filled = false (just the outline), but this is not enforced.
+            if current_node.params.rect.visible || self.sys.debug_mode {
+                self.sys.rects.push(RenderRect {
+                    rect: current_node.rect.to_graphics_space(),
+                    vertex_colors: current_node.params.rect.vertex_colors,
+                    last_hover: current_node.last_hover,
+                    last_click: current_node.last_click,
+                    id: current_node.id,
+                    z: 0.0,
+                    radius: RADIUS,
+
+                    tex_coords: image.tex_coords,
+                    flags,
+                    _padding: 0,
+                });
+            }
         }
     }
 
@@ -1632,7 +1652,7 @@ impl Ui {
             println!("Tree change: {:?}", ch);          
         }
 
-        self.layout_and_build_rects();
+        self.full_relayout();
 
         self.end_frame_check_inputs();
 
