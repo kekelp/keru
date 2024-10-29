@@ -58,9 +58,15 @@ pub struct Id(pub(crate) u64);
 // this is what you get from FxHasher::default().finish()
 const EMPTY_HASH: u64 = 0;
 
+pub const FIRST_FRAME: u64 = 1;
+
+// ...because it will be added first?
+pub const ROOT_I: usize = 0;
+
 pub const NODE_ROOT_ID: Id = Id(0);
 pub const NODE_ROOT: Node = Node {
     id: NODE_ROOT_ID,
+    depth: 0,
     rect: Xy::new_symm([0.0, 1.0]),
     size: Xy::new_symm(1.0),
     text_id: None,
@@ -82,13 +88,13 @@ pub const NODE_ROOT: Node = Node {
 
     params: NODE_ROOT_PARAMS,
     debug_name: "Root",
-    last_frame_status: LastFrameStatus::Nothing,
     last_hover: f32::MIN,
     last_click: f32::MIN,
     z: -10000.0,
     Yellow_cached_rect_i: RectIndex::none(),
     relayout_chain_root: None,
     old_children_hash: EMPTY_HASH,
+    last_layout_frame: 0,
 };
 
 // might as well move to Rect? but maybe there's issues with non-clickable stuff absorbing the clicks.
@@ -589,6 +595,7 @@ impl<'a, T: TextTrait> UiNode<'a, T> {
 
         self.node_mut().last_static_text_ptr = Some(text_pointer);
 
+        println!("  {:?}", "Pushing relayout (static text change)");
         self.ui.push_partial_relayout(self.node_i);
     }
 
@@ -608,11 +615,12 @@ impl<'a, T: TextTrait> UiNode<'a, T> {
     }
 
     pub fn dyn_text(mut self, into_text: Option<impl Display>) -> Self {
+        // if the text is None, return.
         let Some(into_text) = into_text else {
             return self;
         };
         
-        self.ui.format(into_text);
+        self.ui.format_into_scratch(into_text);
         
         if let Some(text_id) = self.node_mut().text_id {
             self.ui.sys.text.set_text_unchecked(text_id, &self.ui.format_scratch);
@@ -625,6 +633,7 @@ impl<'a, T: TextTrait> UiNode<'a, T> {
             self.node_mut().text_id = text_id;
         }
 
+        println!("  {:?}", "Pushing relayout (dyn text change)");
         self.ui.push_partial_relayout(self.node_i);
 
         return self;
@@ -771,6 +780,8 @@ impl TextSystem {
                 Attrs::new().family(Family::SansSerif),
                 Shaping::Advanced,
             );
+
+            let yellow = "this path should be pushing a relayout change, but we're not in the main Ui struct (note how modularity lost again)";
         }
     }
 
@@ -867,11 +878,13 @@ impl System {
         key: &TypedKey<T>,
         params: &NodeParams,
         twin_n: Option<u32>,
+        depth: usize,
     ) -> Node {
         // add back somewhere
 
         return Node {
             id: key.id(),
+            depth,
             rect: Xy::new_symm([0.0, 1.0]),
             size: Xy::new_symm(10.0),
             text_id: None,
@@ -893,13 +906,13 @@ impl System {
             is_twin: twin_n,
             params: *params,
             debug_name: key.debug_name,
-            last_frame_status: LastFrameStatus::Nothing,
             last_hover: f32::MIN,
             last_click: f32::MIN,
             z: 0.0,
             Yellow_cached_rect_i: RectIndex::none(),
             relayout_chain_root: None, // will be overwritten later... not the cleanest
             old_children_hash: EMPTY_HASH,
+            last_layout_frame: 0,
         };
     }
 }
@@ -913,6 +926,7 @@ pub struct Ui {
 }
 
 pub struct System {
+    // todo: just put ROOT_I everywhere.
     pub root_i: usize,
     pub debug_mode: bool,
 
@@ -955,13 +969,14 @@ pub struct System {
     pub focused: Option<Id>,
 
     pub size_scratch: Vec<f32>,
+    pub(crate) relayouts_scrath: Vec<NodeWithDepth>,
 
     // pub need_relayout: bool,
     // pub need_rerender: bool,
-    pub tree_changed: bool,
+    pub OLD_tree_changed: bool,
     pub animation_rerender_time: Option<f32>,
 
-    changes: PartialChanges,
+    pub(crate) changes: PartialChanges,
 
     pub params_changed: bool,
     pub text_changed: bool,
@@ -1170,10 +1185,11 @@ impl Ui {
                 traverse_stack: Vec::with_capacity(50),
 
                 size_scratch: Vec::with_capacity(15),
+                relayouts_scrath: Vec::with_capacity(15),
 
                 part: PartialBorrowStuff {
                     mouse_pos: PhysicalPosition { x: 0., y: 0. },
-                    current_frame: 1,
+                    current_frame: FIRST_FRAME,
                     unifs: uniforms,
                 },
 
@@ -1194,7 +1210,7 @@ impl Ui {
                 // need_relayout: true,
                 // need_rerender: true,
 
-                tree_changed: true,
+                OLD_tree_changed: true,
 
                 animation_rerender_time: None,
 
@@ -1213,6 +1229,7 @@ impl Ui {
     fn watch_params_change(&mut self, node_i: usize, old: NodeParams, new: NodeParams) {
         // todo: maybe improve with hashes and stuff?
         if old.layout != new.layout {
+            println!("  {:?}", "Pushing relayout (params.layout change)");
             self.push_partial_relayout(node_i);
         }
 
@@ -1221,7 +1238,7 @@ impl Ui {
         }
     }
 
-    pub fn format(&mut self, value: impl Display) {
+    pub fn format_into_scratch(&mut self, value: impl Display) {
         self.format_scratch.clear();
         let _ = write!(self.format_scratch, "{}", value);
     }
@@ -1242,7 +1259,7 @@ impl Ui {
     }
 
     pub fn add_or_update_node<T: NodeType>(&mut self, key: TypedKey<T>, params: &NodeParams) -> usize {
-        let parent_i = thread_local_peek_parent();
+        let NodeWithDepth { i: parent_i, depth } = thread_local_peek_parent();
 
         // todo: make build_new_node and update_node take the same params and pack it together
 
@@ -1255,7 +1272,7 @@ impl Ui {
         let twin_check_result = match self.nodes.node_hashmap.entry(key.id()) {
             // Add a normal node (no twins).
             Entry::Vacant(v) => {
-                let new_node = self.sys.build_new_node(&key, params, None);
+                let new_node = self.sys.build_new_node(&key, params, None, depth);
                 let final_i = self.nodes.nodes.insert(new_node);
                 v.insert(NodeMapEntry::new(parent_i, frame, final_i));
 
@@ -1290,14 +1307,14 @@ impl Ui {
         // If twin_check_result is AddedNormal, the node was added in the section before,
         //      and there's nothing to do regarding twins, so we just confirm final_i.
         // If it's NeedToAddTwin, we repeat the same thing with the new twin_key.
-        let (real_final_i, real_final_id) = match twin_check_result {
+        let (real_final_i, _real_final_id) = match twin_check_result {
             UpdatedNormal { final_i } => (final_i, key.id()),
             NeedToUpdateTwin { twin_key, twin_n } => {
                 match self.nodes.node_hashmap.entry(twin_key.id()) {
                     // Add new twin.
                     Entry::Vacant(v) => {
                         let new_twin_node =
-                            self.sys.build_new_node(&twin_key, params, Some(twin_n));
+                            self.sys.build_new_node(&twin_key, params, Some(twin_n), depth);
                         let real_final_i = self.nodes.nodes.insert(new_twin_node);
                         v.insert(NodeMapEntry::new(parent_i, frame, real_final_i));
                         (real_final_i, twin_key.id())
@@ -1371,6 +1388,8 @@ impl Ui {
     }
 
     pub fn resize(&mut self, size: &PhysicalSize<u32>, queue: &Queue) {
+        self.sys.changes.full_relayout = true;
+        
         self.sys.part.unifs.size[X] = size.width as f32;
         self.sys.part.unifs.size[Y] = size.height as f32;
 
@@ -1614,16 +1633,25 @@ impl Ui {
     }
 
     fn push_partial_relayout(&mut self, node_i: usize) {
-        let relayout_target = match self.nodes[node_i].relayout_chain_root {
+        let relayout_target_i = match self.nodes[node_i].relayout_chain_root {
             Some(root) => root,
             None => node_i,
         };
-        self.sys.changes.partial_relayouts_needed.push(relayout_target);
+
+        // even after the chain, we still have to go one layer up, because a different sized child probably means that the parent wants to place the node differently, and maybe pick a different size and position for the other children as well
+        // In practice, the first half of that is basically always true, but the second half is only true for Stacks. I don't really feel like adding a distinction for that right now.
+        let relayout_target_parent = self.nodes[relayout_target_i].parent;
+
+        let relayout_entry = NodeWithDepth {
+            i: relayout_target_parent,
+            depth: self.nodes[relayout_target_parent].depth,
+        };
+        self.sys.changes.partial_relayouts.push(relayout_entry);
     }
 
     fn push_cosmetic_rect_update(&mut self, node_i: usize) {
         // no chains here.
-        self.sys.changes.cosmetic_rect_updates_needed.push(node_i);
+        self.sys.changes.cosmetic_rect_updates.push(node_i);
     }
 }
 
@@ -1632,7 +1660,9 @@ impl Ui {
     // in case of partial declarative stuff, think of another name
     pub fn begin_tree(&mut self) {
         self.sys.part.current_frame += 1;
-
+        // println!(" before 1 {:?}", self.sys.changes.partial_relayouts);
+        self.sys.changes.reset();
+        // println!(" after 1  {:?}", self.sys.changes.partial_relayouts);
         clear_thread_local_parent_stack();
     }
 
@@ -1644,25 +1674,21 @@ impl Ui {
         // }
 
         // if self.sys.need_relayout {
-        //     println!("Layout + build");
+            // println!("Layout + build");
         //     self.layout_and_build_rects();
         //     self.sys.need_relayout = false;
         // }
 
-        let new_tree_changed = self.sys.tree_changed;
+        let new_tree_changed = self.sys.OLD_tree_changed;
 
         if new_tree_changed {
-            println!("Partial relayout haa");
+            // println!("Partial relayout haa");
         }
 
-        self.sys.tree_changed = false;
+        self.sys.OLD_tree_changed = false;
 
-
-        for ch in self.sys.changes.take_thread_local_tree_changes() {
-            println!("Tree change: {:?}", ch);          
-        }
-
-        self.full_relayout();
+        self.relayout_and_rebuild();
+        // self.full_relayout();
 
         self.end_frame_check_inputs();
 
@@ -1679,6 +1705,9 @@ impl Ui {
 #[derive(Debug)]
 pub struct Node {
     pub id: Id,
+    pub depth: usize,
+
+    pub last_layout_frame: u64,
 
     // also for invisible rects, used for layout
     pub rect: XyRect,
@@ -1690,8 +1719,6 @@ pub struct Node {
     relayout_chain_root: Option<usize>,
 
     pub(crate) Yellow_cached_rect_i: RectIndex,
-
-    pub last_frame_status: LastFrameStatus,
 
     pub text_id: Option<usize>,
 
@@ -1745,13 +1772,6 @@ impl Node {
         // self.prev_sibling = None;
         self.n_children = 0;
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LastFrameStatus {
-    Clicked,
-    Hovered,
-    Nothing,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -2077,7 +2097,7 @@ impl StackParent {
 // now there's a single stack here. but now that I wrote the struct I might as well leave it.
 pub(crate) struct Stacks {
     parents: Vec<StackParent>,
-    tree_changes: Vec<usize>,
+    tree_changes: Vec<NodeWithDepth>,
 }
 impl Stacks {
     pub fn initialize() -> Stacks {
@@ -2103,9 +2123,18 @@ fn thread_local_push(new_parent: &Parent) {
 fn thread_local_pop() {
     THREAD_STACKS.with(|stack| {
         let mut stack = stack.borrow_mut();
+        
         let parent = stack.parents.pop().unwrap();
+
         if parent.children_hash.finish() != parent.old_children_hash {
-            stack.tree_changes.push(parent.i);
+            // we just popped the parent, so its real depth was +1, I think
+            let current_depth = stack.parents.len() + 1; 
+
+            println!("  {:?}", "Pushing tree change");
+            stack.tree_changes.push(NodeWithDepth {
+                i: parent.i,
+                depth: current_depth,
+            });
         }
     })
 }
@@ -2120,9 +2149,33 @@ fn thread_local_hash_new_child(child_i: usize) -> u64 {
     })
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub(crate) struct NodeWithDepth {
+    pub(crate) i: usize,
+    pub(crate) depth: usize,
+}
 
-fn thread_local_peek_parent() -> usize {
-    THREAD_STACKS.with(|stack| stack.borrow().parents.last().unwrap().i)
+impl Ord for NodeWithDepth {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.depth.cmp(&other.depth)
+    }
+}
+
+impl PartialOrd for NodeWithDepth {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+// get the last parent slab i and the current depth ()
+fn thread_local_peek_parent() -> NodeWithDepth {
+    THREAD_STACKS.with(
+        |stack| {
+            let parent_i = stack.borrow().parents.last().unwrap().i;
+            let depth = stack.borrow().parents.len();
+            return NodeWithDepth{ i: parent_i, depth };
+        }
+    )
 }
 
 fn clear_thread_local_parent_stack() {
@@ -2168,28 +2221,41 @@ impl RectIndex {
 
 #[derive(Debug)]
 pub(crate) struct PartialChanges {
-    pub(crate) partial_relayouts_needed: Vec<usize>,
-    pub(crate) cosmetic_rect_updates_needed: Vec<usize>,
-    non_thread_local_tree_changes: Vec<usize>,
+    pub(crate) cosmetic_rect_updates: Vec<usize>,
+    pub(crate) partial_relayouts: Vec<NodeWithDepth>,
+    pub(crate) swapped_tree_changes: Vec<NodeWithDepth>,
+    pub(crate) rebuild_all_rects: bool,
+    pub(crate) full_relayout: bool,
 }
 impl PartialChanges {
     fn new() -> PartialChanges {
         return PartialChanges { 
-            partial_relayouts_needed: Vec::with_capacity(15),
-            cosmetic_rect_updates_needed: Vec::with_capacity(15),
-            non_thread_local_tree_changes: Vec::with_capacity(15),
+            partial_relayouts: Vec::with_capacity(15),
+            cosmetic_rect_updates: Vec::with_capacity(15),
+            swapped_tree_changes: Vec::with_capacity(15),
+            rebuild_all_rects: false,
+            full_relayout: true,
         }
     }
-    fn take_thread_local_tree_changes(&mut self) -> impl Iterator<Item = &usize> {
+
+    pub fn reset(&mut self) {
+        self.partial_relayouts.clear();
+        self.cosmetic_rect_updates.clear();
+        // self.full_relayout = false; // we reset this in full_relayout instead of here? I guess?
+        // self.rebuild_all_rects = false; // same???
+        // ... and the thread local stuff gets automatically reset by take_thread_local_tree_changes
+    }
+
+    pub(crate) fn swap_thread_local_tree_changes(&mut self) {
         THREAD_STACKS.with(|stack| {
             let mut stack = stack.borrow_mut();
             
             // Leet mem::swap trick to get the tree changes out of the thread_local without cloning and without leaking dangerous refcelled references.
-            std::mem::swap(&mut self.non_thread_local_tree_changes, &mut stack.tree_changes);
+            std::mem::swap(&mut self.swapped_tree_changes, &mut stack.tree_changes);
 
             stack.tree_changes.clear();
 
-            return self.non_thread_local_tree_changes.iter();
+            // after this, the tree changes are stored in `swapped_tree_changes`, until they are swapped again.
         })
     }
 }

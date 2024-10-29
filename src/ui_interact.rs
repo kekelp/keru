@@ -361,8 +361,8 @@ impl Ui {
             if event.state.is_pressed() && self.sys.debug_key_pressed == false {
                 #[cfg(debug_assertions)]
                 {
-                    let yellow = "ask for a full rect rebuild here to add all those outline-only debug rects";
                     self.sys.debug_mode = !self.sys.debug_mode;
+                    self.sys.changes.rebuild_all_rects = true;
                 }
             }
 

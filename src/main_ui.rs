@@ -204,7 +204,7 @@ impl Ui {
         // this is the idiomatic panic-safe way to do it, unsurprisingly it's awful
         // let size = self.get_node(SLIDER_CONTAINER).map_or(0.0, |n| n.inner_size().y as f32);
         
-        // le epic trait
+        // le epic option trait. since we have to unwrap anyway, it's useless.
         // let size = self.get_node(SLIDER_CONTAINER).inner_size().unwrap_or(Xy::new(0, 0)).y;
         // let size = self.get_node(SLIDER_CONTAINER).inner_size_y().unwrap_or(1) as f32;
 

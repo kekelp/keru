@@ -10,20 +10,111 @@ use Axis::{X, Y};
 
 impl Ui {
 
-    pub fn full_relayout(&mut self) {
+    pub fn relayout_and_rebuild(&mut self) {
+        
+        // after calling this, the changes are swapped into `self.sys.changes.swapped_tree_changes`
+        self.sys.changes.swap_thread_local_tree_changes();
+        
+        let nothing_to_do = self.sys.changes.swapped_tree_changes.len() == 0
+            && self.sys.changes.partial_relayouts.len() == 0
+            && self.sys.changes.cosmetic_rect_updates.len() == 0
+            && self.sys.changes.full_relayout == false
+            && self.sys.changes.rebuild_all_rects == false;
+
+        if nothing_to_do {
+            return;
+        }
+
+
+        // if there's a lot of tree changes and/or partial relayouts, it's probably cheaper to just do a full relayout rather than going through all of them. 
+        let score = self.sys.changes.swapped_tree_changes.len() * 2 + self.sys.changes.partial_relayouts.len();
+        const MAX_RELAYOUT_SCORE: usize = 30;
+        if score > MAX_RELAYOUT_SCORE || self.sys.part.current_frame == FIRST_FRAME || self.sys.changes.full_relayout {
+            println!("  Full relayout (score: {:?})", score);
+            self.full_relayout_and_rebuild();
+            return;
+        }
+
+        // if there are any tree changes, the rects are all invalidated.
+        let tree_changed = ! self.sys.changes.swapped_tree_changes.is_empty();
+        let rebuild_all_rects = tree_changed || self.sys.changes.rebuild_all_rects;
+
+
+        self.sys.relayouts_scrath.clear();
+        for n in &self.sys.changes.swapped_tree_changes {
+            self.sys.relayouts_scrath.push(*n);
+        }
+        for n in &self.sys.changes.partial_relayouts {
+            self.sys.relayouts_scrath.push(*n);
+        }
+
+        // sort by depth
+        // todo: there was something about it being close to already sorted, except in reverse
+        // the plan was to sort it in reverse and then use it in reverse
+        self.sys.relayouts_scrath.sort();
+
+        for idx in 0..self.sys.relayouts_scrath.len() {
+            // in partial_relayout(), we will check for overlaps.
+            // todo: is that works as expected, maybe we can skip the limit/full relayout thing, or at least raise the limit by a lot.
+            let relayout = self.sys.relayouts_scrath[idx];
+            println!(" Starting partial relayout at {:?}", self.nodes[relayout.i].debug_name());
+
+            self.partial_relayout(relayout.i)
+        }
+
+        // just rebuild everything o algo
+        self.sys.rects.clear();
+        self.recursive_push_rects(ROOT_I);
+    }
+
+    pub fn full_relayout_and_rebuild(&mut self) {
         self.sys.rects.clear();
         
-        // 1st recursive tree traversal: start from the root and recursively determine the size of all nodes
-        let proposed_size = Xy::new(1.0, 1.0); // For the root, propose the full window
-        self.recursive_determine_size(self.sys.root_i, proposed_size);
+        self.relayout_from_root();
 
-        // 2nd recursive tree traversal: now that all nodes have a calculated size, place them.
-        self.recursive_place_children(self.sys.root_i);
-
-        // 3nd recursive tree traversal: now that all nodes have a calculated size, place them.
-        self.recursive_push_rects(self.sys.root_i);
+        self.recursive_push_rects(ROOT_I);
 
         self.push_cursor_rect();
+
+        self.sys.changes.full_relayout = false;
+    }
+
+    pub fn relayout_from_root(&mut self) {
+        // 1st recursive tree traversal: start from the root and recursively determine the size of all nodes
+        // For the first node, assume that the proposed size that we got from the parent last frame is valid. (except for root, in which case just use the whole screen. todo: should just make full_relayout a separate function.)
+        let starting_proposed_size = Xy::new(1.0, 1.0);
+        self.recursive_determine_size(ROOT_I, starting_proposed_size);
+        
+        // 2nd recursive tree traversal: now that all nodes have a calculated size, place them.
+        self.recursive_place_children(ROOT_I);
+        
+        self.nodes[ROOT_I].last_layout_frame = self.sys.part.current_frame;
+    }
+
+    pub fn partial_relayout(&mut self, node: usize) {
+        // if the node has already been layouted on the current frame, stop immediately, and don't even recurse.
+        // when doing partial layouts, this avoids overlap, but it means that we have to sort the partial relayouts cleanly from least depth to highest depth in order to get it right. This is done in `relayout()`.
+        let current_frame = self.sys.part.current_frame;
+        if self.nodes[node].last_layout_frame >= current_frame {
+            println!("any skipping  {:?} : {:?}", self.nodes[node].debug_name(), self.nodes[node].params.layout);
+            return;
+        }
+
+        // 1st recursive tree traversal: start from the root and recursively determine the size of all nodes
+        // For the first node, assume that the proposed size that we got from the parent last frame is valid. (except for root, in which case just use the whole screen. todo: should just make full_relayout a separate function.)
+        let starting_proposed_size = match node {
+            ROOT_I => Xy::new(1.0, 1.0),
+            _ => {
+                let parent = self.nodes[node].parent;
+                self.nodes[parent].size
+            } 
+        };
+        self.recursive_determine_size(node, starting_proposed_size);
+        
+        // 2nd recursive tree traversal: now that all nodes have a calculated size, place them.
+        self.recursive_place_children(node);
+        
+        self.nodes[node].last_layout_frame = current_frame;
     }
 
     fn get_proposed_size(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
@@ -78,6 +169,8 @@ impl Ui {
     }
 
     fn recursive_determine_size(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
+        println!("doing layout  {:?} : {:?}", self.nodes[node].debug_name(), self.nodes[node].params.layout);
+
         let stack = self.nodes[node].params.stack;
         
         // calculate the total size to propose to children
@@ -343,13 +436,16 @@ impl Ui {
         }
     }
 
-
+    
     fn recursive_push_rects(&mut self, node: usize) {
+        // 3nd recursive tree traversal: now that all nodes have a calculated size, place them.
         self.push_rect(node);
 
         for_each_child!(self, self.nodes[node], child, {
             self.recursive_push_rects(child);
         });
+
+        self.sys.changes.rebuild_all_rects = false;
     }
 }
 
