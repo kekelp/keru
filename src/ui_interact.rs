@@ -197,23 +197,27 @@ impl Ui {
             if button == MouseButton::Left {
                 // the default animation and the "focused" flag are hardcoded to work on left click only, I guess.
                 let t = T0.elapsed();
-                let node = self.nodes.get_by_id(&clicked_id).unwrap();
-                node.last_click = t.as_secs_f32();
+
+                // todo: yuck
+                let clicked_node_i = self.nodes.node_hashmap.get(&clicked_id).unwrap().slab_i;
+                let clicked_node = self.nodes.nodes.get_mut(clicked_node_i).unwrap();
+
+                clicked_node.last_click = t.as_secs_f32();
                 
-                // need relayout to build rects again and get the new last_click t ont o the gpu
-                let yellow = 123;
-                // self.sys.need_relayout = true;
-                self.sys.animation_rerender_time = Some(1.0);
+                self.sys.changes.cosmetic_rect_updates.push(clicked_node_i);
+
+                // todo: maybe cleaner to make this pass through the cosmetic updates
+                self.sys.changes.animation_rerender_time = Some(1.0);
     
-                if node.text_id.is_some() {
-                    if let Some(text) = node.params.text_params{
+                if clicked_node.text_id.is_some() {
+                    if let Some(text) = clicked_node.params.text_params{
                         if text.editable {
                             self.sys.focused = Some(clicked_id);
                         }
                     }
                 }
     
-                if let Some(id) = node.text_id {
+                if let Some(id) = clicked_node.text_id {
                     let text_area = &mut self.sys.text.text_areas[id];
                     let (x, y) = (
                         self.sys.part.mouse_pos.x - text_area.params.left,

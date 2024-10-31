@@ -10,11 +10,10 @@ use Axis::{X, Y};
 
 impl Ui {
 
-    pub fn relayout_and_rebuild(&mut self) {
-        
+    pub fn relayout(&mut self) {        
         // after calling this, the changes are swapped into `self.sys.changes.swapped_tree_changes`
         self.sys.changes.swap_thread_local_tree_changes();
-        
+
         let nothing_to_do = self.sys.changes.swapped_tree_changes.len() == 0
             && self.sys.changes.partial_relayouts.len() == 0
             && self.sys.changes.cosmetic_rect_updates.len() == 0
@@ -25,13 +24,16 @@ impl Ui {
             return;
         }
 
+        self.sys.changes.need_rerender = true;
+
 
         // if there's a lot of tree changes and/or partial relayouts, it's probably cheaper to just do a full relayout rather than going through all of them. 
         let score = self.sys.changes.swapped_tree_changes.len() * 2 + self.sys.changes.partial_relayouts.len();
         const MAX_RELAYOUT_SCORE: usize = 30;
         if score > MAX_RELAYOUT_SCORE || self.sys.part.current_frame == FIRST_FRAME || self.sys.changes.full_relayout {
-            println!("  Full relayout (score: {:?})", score);
+            // println!("  Full relayout (score: {:?})", score);
             self.full_relayout_and_rebuild();
+            self.sys.changes.reset();
             return;
         }
 
@@ -53,18 +55,33 @@ impl Ui {
         // the plan was to sort it in reverse and then use it in reverse
         self.sys.relayouts_scrath.sort();
 
+        let update_rects_while_relayouting = ! rebuild_all_rects;
+
         for idx in 0..self.sys.relayouts_scrath.len() {
             // in partial_relayout(), we will check for overlaps.
             // todo: is that works as expected, maybe we can skip the limit/full relayout thing, or at least raise the limit by a lot.
             let relayout = self.sys.relayouts_scrath[idx];
-            println!(" Starting partial relayout at {:?}", self.nodes[relayout.i].debug_name());
+            
+            self.partial_relayout(relayout.i, update_rects_while_relayouting);
 
-            self.partial_relayout(relayout.i)
+            println!("[{:?}]  partial relayout ({:?})", T0.elapsed(), self.nodes[relayout.i].debug_name());
         }
 
-        // just rebuild everything o algo
-        self.sys.rects.clear();
-        self.recursive_push_rects(ROOT_I);
+        // rect updates
+        if rebuild_all_rects {
+            self.sys.rects.clear();
+            self.rebuild_all_rects();
+            println!("[{:?}]  rebuild all rects", T0.elapsed());
+        } else {
+            // cosmetic atomic rect updates
+            for idx in 0..self.sys.changes.cosmetic_rect_updates.len() {
+                let update = self.sys.changes.cosmetic_rect_updates[idx];
+                self.update_rect(update);
+                println!("[{:?}]  cosmetic update ({:?})", T0.elapsed(), self.nodes[update].debug_name());
+            }
+        }
+
+        self.sys.changes.reset();
     }
 
     pub fn full_relayout_and_rebuild(&mut self) {
@@ -75,8 +92,6 @@ impl Ui {
         self.recursive_push_rects(ROOT_I);
 
         self.push_cursor_rect();
-
-        self.sys.changes.full_relayout = false;
     }
 
     pub fn relayout_from_root(&mut self) {
@@ -86,17 +101,17 @@ impl Ui {
         self.recursive_determine_size(ROOT_I, starting_proposed_size);
         
         // 2nd recursive tree traversal: now that all nodes have a calculated size, place them.
-        self.recursive_place_children(ROOT_I);
+        // we don't do update_rects here because the first frame you can't update... but maybe just special-case the first frame, then should be faster
+        self.recursive_place_children(ROOT_I, false);
         
         self.nodes[ROOT_I].last_layout_frame = self.sys.part.current_frame;
     }
 
-    pub fn partial_relayout(&mut self, node: usize) {
+    pub fn partial_relayout(&mut self, node: usize, update_rects: bool) {
         // if the node has already been layouted on the current frame, stop immediately, and don't even recurse.
         // when doing partial layouts, this avoids overlap, but it means that we have to sort the partial relayouts cleanly from least depth to highest depth in order to get it right. This is done in `relayout()`.
         let current_frame = self.sys.part.current_frame;
         if self.nodes[node].last_layout_frame >= current_frame {
-            println!("any skipping  {:?} : {:?}", self.nodes[node].debug_name(), self.nodes[node].params.layout);
             return;
         }
 
@@ -112,9 +127,7 @@ impl Ui {
         self.recursive_determine_size(node, starting_proposed_size);
         
         // 2nd recursive tree traversal: now that all nodes have a calculated size, place them.
-        self.recursive_place_children(node);
-        
-        self.nodes[node].last_layout_frame = current_frame;
+        self.recursive_place_children(node, update_rects);
     }
 
     fn get_proposed_size(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
@@ -169,8 +182,6 @@ impl Ui {
     }
 
     fn recursive_determine_size(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
-        println!("doing layout  {:?} : {:?}", self.nodes[node].debug_name(), self.nodes[node].params.layout);
-
         let stack = self.nodes[node].params.stack;
         
         // calculate the total size to propose to children
@@ -293,18 +304,25 @@ impl Ui {
         return final_size;
     }
 
-    fn recursive_place_children(&mut self, node: usize) {
+    fn recursive_place_children(&mut self, node: usize, update_rects: bool) {
         if let Some(stack) = self.nodes[node].params.stack {
-            self.place_children_stack(node, stack);
+            self.place_children_stack(node, stack, update_rects);
         } else {
-            self.place_children_container(node);
+            self.place_children_container(node, update_rects);
         };
 
         // self.place_image(node); // I think there's nothing to place? right now it's always the full rect
         self.place_text(node, self.nodes[node].rect);
+    
+        if update_rects {
+            self.update_rect(node);
+            println!("[{:?}] update rect while layouting {:?}", T0.elapsed(), self.nodes[node].debug_name());
+        }
+
+        self.nodes[node].last_layout_frame = self.sys.part.current_frame;
     }
 
-    fn place_children_stack(&mut self, node: usize, stack: Stack) {
+    fn place_children_stack(&mut self, node: usize, stack: Stack, update_rects: bool) {
         let (main, cross) = (stack.axis, stack.axis.other());
         let parent_rect = self.nodes[node].rect;
         let padding = self.to_frac2(self.nodes[node].params.layout.padding);
@@ -365,13 +383,13 @@ impl Ui {
 
             self.nodes[child].rect[main] = [main_origin, main_origin + size[main]];
 
-            self.recursive_place_children(child);
+            self.recursive_place_children(child, update_rects);
 
             main_origin += self.nodes[child].size[main] + spacing;
         });
     }
 
-    fn place_children_container(&mut self, node: usize) {
+    fn place_children_container(&mut self, node: usize, update_rects: bool) {
         let parent_rect = self.nodes[node].rect;
         let padding = self.to_frac2(self.nodes[node].params.layout.padding);
 
@@ -404,7 +422,7 @@ impl Ui {
                 }
             }
 
-            self.recursive_place_children(child);
+            self.recursive_place_children(child, update_rects);
         });
     }
 
@@ -436,7 +454,10 @@ impl Ui {
         }
     }
 
-    
+    fn rebuild_all_rects(&mut self) {
+        self.recursive_push_rects(ROOT_I);
+    }
+
     fn recursive_push_rects(&mut self, node: usize) {
         // 3nd recursive tree traversal: now that all nodes have a calculated size, place them.
         self.push_rect(node);
@@ -444,8 +465,6 @@ impl Ui {
         for_each_child!(self, self.nodes[node], child, {
             self.recursive_push_rects(child);
         });
-
-        self.sys.changes.rebuild_all_rects = false;
     }
 }
 

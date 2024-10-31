@@ -91,7 +91,7 @@ pub const NODE_ROOT: Node = Node {
     last_hover: f32::MIN,
     last_click: f32::MIN,
     z: -10000.0,
-    Yellow_cached_rect_i: RectIndex::none(),
+    last_cached_rect_i: 0,
     relayout_chain_root: None,
     old_children_hash: EMPTY_HASH,
     last_layout_frame: 0,
@@ -595,7 +595,6 @@ impl<'a, T: TextTrait> UiNode<'a, T> {
 
         self.node_mut().last_static_text_ptr = Some(text_pointer);
 
-        println!("  {:?}", "Pushing relayout (static text change)");
         self.ui.push_partial_relayout(self.node_i);
     }
 
@@ -633,7 +632,6 @@ impl<'a, T: TextTrait> UiNode<'a, T> {
             self.node_mut().text_id = text_id;
         }
 
-        println!("  {:?}", "Pushing relayout (dyn text change)");
         self.ui.push_partial_relayout(self.node_i);
 
         return self;
@@ -909,7 +907,7 @@ impl System {
             last_hover: f32::MIN,
             last_click: f32::MIN,
             z: 0.0,
-            Yellow_cached_rect_i: RectIndex::none(),
+            last_cached_rect_i: 0,
             relayout_chain_root: None, // will be overwritten later... not the cleanest
             old_children_hash: EMPTY_HASH,
             last_layout_frame: 0,
@@ -970,11 +968,6 @@ pub struct System {
 
     pub size_scratch: Vec<f32>,
     pub(crate) relayouts_scrath: Vec<NodeWithDepth>,
-
-    // pub need_relayout: bool,
-    // pub need_rerender: bool,
-    pub OLD_tree_changed: bool,
-    pub animation_rerender_time: Option<f32>,
 
     pub(crate) changes: PartialChanges,
 
@@ -1207,13 +1200,6 @@ impl Ui {
 
                 frame_t: 0.0,
 
-                // need_relayout: true,
-                // need_rerender: true,
-
-                OLD_tree_changed: true,
-
-                animation_rerender_time: None,
-
                 params_changed: true,
                 text_changed: true,
 
@@ -1229,7 +1215,6 @@ impl Ui {
     fn watch_params_change(&mut self, node_i: usize, old: NodeParams, new: NodeParams) {
         // todo: maybe improve with hashes and stuff?
         if old.layout != new.layout {
-            println!("  {:?}", "Pushing relayout (params.layout change)");
             self.push_partial_relayout(node_i);
         }
 
@@ -1413,12 +1398,12 @@ impl Ui {
         
         let frame_time = self.sys.last_frame_timestamp.elapsed();
 
-        if let Some(time) = &mut self.sys.animation_rerender_time {
+        if let Some(time) = &mut self.sys.changes.animation_rerender_time {
             *time = *time - frame_time.as_secs_f32();
         }
-        if let Some(time) = self.sys.animation_rerender_time {
+        if let Some(time) = self.sys.changes.animation_rerender_time {
             if time < 0.0 {
-                self.sys.animation_rerender_time = None;
+                self.sys.changes.animation_rerender_time = None;
             }
         }
 
@@ -1426,7 +1411,7 @@ impl Ui {
     }
 
     pub fn push_rect(&mut self, node: usize) {
-        let current_node = &self.nodes.nodes[node];
+        let current_node = &mut self.nodes.nodes[node];
 
         let mut flags = RenderRect::EMPTY_FLAGS;
         if current_node.params.interact.click_animation {
@@ -1457,7 +1442,12 @@ impl Ui {
                 flags,
                 _padding: 0,
             });
+
+            current_node.last_cached_rect_i = self.sys.rects.len() - 1;
         }
+
+        // set the reference, this is used for atomic rect updates, with many asterisks for now
+
 
         let mut image_flags = RenderRect::EMPTY_FLAGS;
         if current_node.params.interact.click_animation {
@@ -1483,6 +1473,45 @@ impl Ui {
                 });
             }
         }
+    }
+
+    pub fn need_rerender(&self) -> bool {
+        return self.sys.changes.need_rerender || self.sys.changes.animation_rerender_time.is_some();
+    }
+
+    pub fn update_rect(&mut self, node: usize) {
+        let current_node = &mut self.nodes.nodes[node];
+
+        let mut flags = RenderRect::EMPTY_FLAGS;
+        if current_node.params.interact.click_animation {
+            flags |= RenderRect::CLICK_ANIMATION;
+        }
+        if current_node.params.rect.outline_only {
+            flags |= RenderRect::OUTLINE_ONLY;
+        }
+
+        let old_i = current_node.last_cached_rect_i;
+
+        self.sys.rects[old_i] = RenderRect {
+            rect: current_node.rect.to_graphics_space(),
+            vertex_colors: current_node.params.rect.vertex_colors,
+            last_hover: current_node.last_hover,
+            last_click: current_node.last_click,
+            id: current_node.id,
+            z: 0.0,
+            radius: RADIUS,
+
+            // magic coords
+            // todo: demagic
+            tex_coords: Xy {
+                x: [0.9375, 0.9394531],
+                y: [0.00390625 / 2.0, 0.0],
+            },
+            flags,
+            _padding: 0,
+        };
+        
+        // what about images? let's TODO that for now
     }
 
     pub fn push_cursor_rect(&mut self) -> Option<()> {
@@ -1613,12 +1642,6 @@ impl Ui {
         return self.get_ref(real_key);
     }
 
-    pub fn need_rerender(&self) -> bool {
-        let yellow = 15;
-        return true;
-        // return self.sys.need_rerender || self.sys.animation_rerender_time.is_some();
-    }
-
     fn set_relayout_chain_root(&mut self, new_node_params: &NodeParams, new_node_i: usize, parent_i: usize) {
         match self.nodes[parent_i].relayout_chain_root {
             Some(root_of_parent) => match new_node_params.is_fit_content() {
@@ -1661,34 +1684,13 @@ impl Ui {
     pub fn begin_tree(&mut self) {
         self.sys.part.current_frame += 1;
         // println!(" before 1 {:?}", self.sys.changes.partial_relayouts);
-        self.sys.changes.reset();
+        // self.sys.changes.reset();
         // println!(" after 1  {:?}", self.sys.changes.partial_relayouts);
         clear_thread_local_parent_stack();
     }
 
     pub fn finish_tree(&mut self) {
-        let yellow = 17;
-        // if self.tree_changed() {
-        //     self.sys.need_relayout = true;
-        //     self.sys.need_rerender = true;
-        // }
-
-        // if self.sys.need_relayout {
-            // println!("Layout + build");
-        //     self.layout_and_build_rects();
-        //     self.sys.need_relayout = false;
-        // }
-
-        let new_tree_changed = self.sys.OLD_tree_changed;
-
-        if new_tree_changed {
-            // println!("Partial relayout haa");
-        }
-
-        self.sys.OLD_tree_changed = false;
-
-        self.relayout_and_rebuild();
-        // self.full_relayout();
+        self.relayout();
 
         self.end_frame_check_inputs();
 
@@ -1697,8 +1699,6 @@ impl Ui {
         self.update_time();
 
         self.nodes[self.sys.root_i].reset_children();
-
-
     }
 }
 
@@ -1718,7 +1718,7 @@ pub struct Node {
 
     relayout_chain_root: Option<usize>,
 
-    pub(crate) Yellow_cached_rect_i: RectIndex,
+    pub(crate) last_cached_rect_i: usize,
 
     pub text_id: Option<usize>,
 
@@ -2130,7 +2130,6 @@ fn thread_local_pop() {
             // we just popped the parent, so its real depth was +1, I think
             let current_depth = stack.parents.len() + 1; 
 
-            println!("  {:?}", "Pushing tree change");
             stack.tree_changes.push(NodeWithDepth {
                 i: parent.i,
                 depth: current_depth,
@@ -2205,27 +2204,15 @@ impl<'a, T: NodeType> UiNodeOptionFunctions for Option<UiNode<'a, T>> {
 }
 
 #[derive(Debug)]
-pub(crate) struct RectIndex {
-    pub i: usize,
-    pub rect_generation: u16,
-}
-impl RectIndex {
-    // returns an index with generation 0, which by convention is never the current one.
-    pub const fn none() -> RectIndex {
-        return RectIndex {
-            i: 0,
-            rect_generation: 0,
-        }
-    }
-}
-
-#[derive(Debug)]
 pub(crate) struct PartialChanges {
     pub(crate) cosmetic_rect_updates: Vec<usize>,
     pub(crate) partial_relayouts: Vec<NodeWithDepth>,
     pub(crate) swapped_tree_changes: Vec<NodeWithDepth>,
     pub(crate) rebuild_all_rects: bool,
     pub(crate) full_relayout: bool,
+
+    pub(crate) need_rerender: bool,
+    pub(crate) animation_rerender_time: Option<f32>,
 }
 impl PartialChanges {
     fn new() -> PartialChanges {
@@ -2235,14 +2222,18 @@ impl PartialChanges {
             swapped_tree_changes: Vec::with_capacity(15),
             rebuild_all_rects: false,
             full_relayout: true,
+
+            need_rerender: false,
+            animation_rerender_time: None,
         }
     }
 
     pub fn reset(&mut self) {
         self.partial_relayouts.clear();
         self.cosmetic_rect_updates.clear();
-        // self.full_relayout = false; // we reset this in full_relayout instead of here? I guess?
-        // self.rebuild_all_rects = false; // same???
+        self.full_relayout = false;
+        self.rebuild_all_rects = false;
+
         // ... and the thread local stuff gets automatically reset by take_thread_local_tree_changes
     }
 
