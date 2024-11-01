@@ -305,9 +305,9 @@ impl Ui {
 
     fn recursive_place_children(&mut self, node: usize, also_update_rects: bool) {
         if let Some(stack) = self.nodes[node].params.stack {
-            self.place_children_stack(node, stack, also_update_rects);
+            self.place_children_stack(node, stack);
         } else {
-            self.place_children_container(node, also_update_rects);
+            self.place_children_container(node);
         };
 
         // self.place_image(node); // I think there's nothing to place? right now it's always the full rect
@@ -318,9 +318,13 @@ impl Ui {
         }
 
         self.nodes[node].last_layout_frame = self.sys.part.current_frame;
+
+        for_each_child!(self, self.nodes[node], child, {
+            self.recursive_place_children(child, also_update_rects);
+        });
     }
 
-    fn place_children_stack(&mut self, node: usize, stack: Stack, update_rects: bool) {
+    fn place_children_stack(&mut self, node: usize, stack: Stack) {
         let (main, cross) = (stack.axis, stack.axis.other());
         let parent_rect = self.nodes[node].rect;
         let padding = self.to_frac2(self.nodes[node].params.layout.padding);
@@ -381,13 +385,11 @@ impl Ui {
 
             self.nodes[child].rect[main] = [main_origin, main_origin + size[main]];
 
-            self.recursive_place_children(child, update_rects);
-
             main_origin += self.nodes[child].size[main] + spacing;
         });
     }
 
-    fn place_children_container(&mut self, node: usize, update_rects: bool) {
+    fn place_children_container(&mut self, node: usize) {
         let parent_rect = self.nodes[node].rect;
         let padding = self.to_frac2(self.nodes[node].params.layout.padding);
 
@@ -419,8 +421,6 @@ impl Ui {
                     },
                 }
             }
-
-            self.recursive_place_children(child, update_rects);
         });
     }
 
