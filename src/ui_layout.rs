@@ -31,7 +31,6 @@ impl Ui {
         let score = self.sys.changes.swapped_tree_changes.len() * 2 + self.sys.changes.partial_relayouts.len();
         const MAX_RELAYOUT_SCORE: usize = 30;
         if score > MAX_RELAYOUT_SCORE || self.sys.part.current_frame == FIRST_FRAME || self.sys.changes.full_relayout {
-            // println!("  Full relayout (score: {:?})", score);
             self.full_relayout_and_rebuild();
             self.sys.changes.reset();
             return;
@@ -63,8 +62,6 @@ impl Ui {
             let relayout = self.sys.relayouts_scrath[idx];
             
             self.partial_relayout(relayout.i, update_rects_while_relayouting);
-
-            println!("[{:?}]  partial relayout ({:?})", T0.elapsed(), self.nodes[relayout.i].debug_name());
         }
 
         // rect updates
@@ -114,6 +111,8 @@ impl Ui {
         if self.nodes[node].last_layout_frame >= current_frame {
             return;
         }
+        
+        println!("[{:?}]  partial relayout ({:?})", T0.elapsed(), self.nodes[node].debug_name());
 
         // 1st recursive tree traversal: start from the root and recursively determine the size of all nodes
         // For the first node, assume that the proposed size that we got from the parent last frame is valid. (except for root, in which case just use the whole screen. todo: should just make full_relayout a separate function.)
@@ -304,19 +303,18 @@ impl Ui {
         return final_size;
     }
 
-    fn recursive_place_children(&mut self, node: usize, update_rects: bool) {
+    fn recursive_place_children(&mut self, node: usize, also_update_rects: bool) {
         if let Some(stack) = self.nodes[node].params.stack {
-            self.place_children_stack(node, stack, update_rects);
+            self.place_children_stack(node, stack, also_update_rects);
         } else {
-            self.place_children_container(node, update_rects);
+            self.place_children_container(node, also_update_rects);
         };
 
         // self.place_image(node); // I think there's nothing to place? right now it's always the full rect
         self.place_text(node, self.nodes[node].rect);
     
-        if update_rects {
+        if also_update_rects {
             self.update_rect(node);
-            println!("[{:?}] update rect while layouting {:?}", T0.elapsed(), self.nodes[node].debug_name());
         }
 
         self.nodes[node].last_layout_frame = self.sys.part.current_frame;

@@ -91,7 +91,7 @@ pub const NODE_ROOT: Node = Node {
     last_hover: f32::MIN,
     last_click: f32::MIN,
     z: -10000.0,
-    last_cached_rect_i: 0,
+    last_rect_i: 0,
     relayout_chain_root: None,
     old_children_hash: EMPTY_HASH,
     last_layout_frame: 0,
@@ -907,7 +907,7 @@ impl System {
             last_hover: f32::MIN,
             last_click: f32::MIN,
             z: 0.0,
-            last_cached_rect_i: 0,
+            last_rect_i: 0,
             relayout_chain_root: None, // will be overwritten later... not the cleanest
             old_children_hash: EMPTY_HASH,
             last_layout_frame: 0,
@@ -926,6 +926,9 @@ pub struct Ui {
 pub struct System {
     // todo: just put ROOT_I everywhere.
     pub root_i: usize,
+    
+    // in debug mode, draw invisible rects as well, for example V_STACKs.
+    // usually these have filled = false (just the outline), but this is not enforced.
     pub debug_mode: bool,
 
     pub rects_generation: u32,
@@ -1410,108 +1413,34 @@ impl Ui {
         self.sys.last_frame_timestamp = Instant::now();
     }
 
-    pub fn push_rect(&mut self, node: usize) {
-        let current_node = &mut self.nodes.nodes[node];
-
-        let mut flags = RenderRect::EMPTY_FLAGS;
-        if current_node.params.interact.click_animation {
-            flags |= RenderRect::CLICK_ANIMATION;
-        }
-        if current_node.params.rect.outline_only {
-            flags |= RenderRect::OUTLINE_ONLY;
-        }
-
-        // in debug mode, draw invisible rects as well.
-        // usually these have filled = false (just the outline), but this is not enforced.
-        if current_node.params.rect.visible || self.sys.debug_mode {
-            self.sys.rects.push(RenderRect {
-                rect: current_node.rect.to_graphics_space(),
-                vertex_colors: current_node.params.rect.vertex_colors,
-                last_hover: current_node.last_hover,
-                last_click: current_node.last_click,
-                id: current_node.id,
-                z: 0.0,
-                radius: RADIUS,
-
-                // magic coords
-                // todo: demagic
-                tex_coords: Xy {
-                    x: [0.9375, 0.9394531],
-                    y: [0.00390625 / 2.0, 0.0],
-                },
-                flags,
-                _padding: 0,
-            });
-
-            current_node.last_cached_rect_i = self.sys.rects.len() - 1;
-        }
-
-        // set the reference, this is used for atomic rect updates, with many asterisks for now
-
-
-        let mut image_flags = RenderRect::EMPTY_FLAGS;
-        if current_node.params.interact.click_animation {
-            image_flags |= RenderRect::CLICK_ANIMATION;
-        }
-
-        if let Some(image) = current_node.imageref {
-            // in debug mode, draw invisible rects as well.
-            // usually these have filled = false (just the outline), but this is not enforced.
-            if current_node.params.rect.visible || self.sys.debug_mode {
-                self.sys.rects.push(RenderRect {
-                    rect: current_node.rect.to_graphics_space(),
-                    vertex_colors: current_node.params.rect.vertex_colors,
-                    last_hover: current_node.last_hover,
-                    last_click: current_node.last_click,
-                    id: current_node.id,
-                    z: 0.0,
-                    radius: RADIUS,
-
-                    tex_coords: image.tex_coords,
-                    flags: image_flags,
-                    _padding: 0,
-                });
-            }
-        }
-    }
-
     pub fn needs_rerender(&self) -> bool {
         return self.sys.changes.need_rerender || self.sys.changes.animation_rerender_time.is_some();
     }
 
+    pub fn push_rect(&mut self, node: usize) {
+        let node = &mut self.nodes.nodes[node];
+
+        let draw_even_if_invisible = self.sys.debug_mode;
+        if let Some(rect) = node.render_rect(draw_even_if_invisible) {
+            self.sys.rects.push(rect);
+            node.last_rect_i = self.sys.rects.len() - 1;
+        }
+
+        if let Some(image_rect) = node.image_rect() {
+            self.sys.rects.push(image_rect);
+        }
+    }
+
     pub fn update_rect(&mut self, node: usize) {
-        let current_node = &mut self.nodes.nodes[node];
+        let node = &mut self.nodes.nodes[node];
 
-        let mut flags = RenderRect::EMPTY_FLAGS;
-        if current_node.params.interact.click_animation {
-            flags |= RenderRect::CLICK_ANIMATION;
+        let draw_even_if_invisible = self.sys.debug_mode;
+        if let Some(rect) = node.render_rect(draw_even_if_invisible) {
+            let old_i = node.last_rect_i;
+            self.sys.rects[old_i] = rect;
         }
-        if current_node.params.rect.outline_only {
-            flags |= RenderRect::OUTLINE_ONLY;
-        }
-
-        let old_i = current_node.last_cached_rect_i;
-
-        self.sys.rects[old_i] = RenderRect {
-            rect: current_node.rect.to_graphics_space(),
-            vertex_colors: current_node.params.rect.vertex_colors,
-            last_hover: current_node.last_hover,
-            last_click: current_node.last_click,
-            id: current_node.id,
-            z: 0.0,
-            radius: RADIUS,
-
-            // magic coords
-            // todo: demagic
-            tex_coords: Xy {
-                x: [0.9375, 0.9394531],
-                y: [0.00390625 / 2.0, 0.0],
-            },
-            flags,
-            _padding: 0,
-        };
-        
-        // what about images? let's TODO that for now
+            
+        // todo: update images?
     }
 
     pub fn push_cursor_rect(&mut self) -> Option<()> {
@@ -1718,7 +1647,7 @@ pub struct Node {
 
     relayout_chain_root: Option<usize>,
 
-    pub(crate) last_cached_rect_i: usize,
+    pub(crate) last_rect_i: usize,
 
     pub text_id: Option<usize>,
 
@@ -1772,6 +1701,68 @@ impl Node {
         // self.prev_sibling = None;
         self.n_children = 0;
     }
+
+    pub fn render_rect(&self, draw_even_if_invisible: bool) -> Option<RenderRect> {
+        if ! draw_even_if_invisible && ! self.params.rect.visible {
+            return None;
+        }
+
+        let mut flags = RenderRect::EMPTY_FLAGS;
+        if self.params.interact.click_animation {
+            flags |= RenderRect::CLICK_ANIMATION;
+        }
+        if self.params.rect.outline_only {
+            flags |= RenderRect::OUTLINE_ONLY;
+        }
+
+        return Some(RenderRect {
+            rect: self.rect.to_graphics_space(),
+            vertex_colors: self.params.rect.vertex_colors,
+            last_hover: self.last_hover,
+            last_click: self.last_click,
+            id: self.id,
+            z: 0.0,
+            radius: RADIUS,
+
+            // magic coords
+            // todo: demagic
+            tex_coords: Xy {
+                x: [0.9375, 0.9394531],
+                y: [0.00390625 / 2.0, 0.0],
+            },
+            flags,
+            _padding: 0,
+        })
+    }
+
+    pub fn image_rect(&self) -> Option<RenderRect> {
+        let mut image_flags = RenderRect::EMPTY_FLAGS;
+        if self.params.interact.click_animation {
+            image_flags |= RenderRect::CLICK_ANIMATION;
+        }
+
+        if let Some(image) = self.imageref {
+            // in debug mode, draw invisible rects as well.
+            // usually these have filled = false (just the outline), but this is not enforced.
+
+            return Some(RenderRect {
+                rect: self.rect.to_graphics_space(),
+                vertex_colors: self.params.rect.vertex_colors,
+                last_hover: self.last_hover,
+                last_click: self.last_click,
+                id: self.id,
+                z: 0.0,
+                radius: RADIUS,
+
+                tex_coords: image.tex_coords,
+                flags: image_flags,
+                _padding: 0,
+            });
+        }
+
+        return None;
+    }
+
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
