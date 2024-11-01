@@ -2,7 +2,7 @@
 // when ui will be in its own crate, this won't happen anymore
 use crate::*;
 use crate::canvas::EpicRotation;
-use glam::{dvec2, DVec2};
+use glam::dvec2;
 use winit::{
     event::MouseButton, keyboard::KeyCode
 };
