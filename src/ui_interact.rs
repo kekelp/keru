@@ -155,6 +155,7 @@ impl Ui {
             let t = ui_time_f32();
             let node = self.nodes.get_by_id(&hovered_id).unwrap();
             node.last_hover = t;
+
         }
     }
 
@@ -165,8 +166,19 @@ impl Ui {
         if let Some(hovered_id) = topmost_mouse_hit {
             self.sys.hovered.push(hovered_id);
             let t = ui_time_f32();
-            let node = self.nodes.get_by_id(&hovered_id).unwrap();
-            node.last_hover = t;
+            
+            // todo: yuck
+            let hovered_node_i = self.nodes.node_hashmap.get(&hovered_id).unwrap().slab_i;
+            let hovered_node = &mut self.nodes.nodes[hovered_node_i];
+
+            if hovered_node.params.interact.click_animation {
+                hovered_node.last_hover = t;
+                
+                self.sys.changes.cosmetic_rect_updates.push(hovered_node_i);
+                
+                // todo: maybe cleaner to make this pass through the cosmetic updates
+                self.sys.changes.animation_rerender_time = Some(1.0);
+            }
         }
     }
 
@@ -200,15 +212,18 @@ impl Ui {
 
                 // todo: yuck
                 let clicked_node_i = self.nodes.node_hashmap.get(&clicked_id).unwrap().slab_i;
-                let clicked_node = self.nodes.nodes.get_mut(clicked_node_i).unwrap();
+                let clicked_node = &mut self.nodes.nodes[clicked_node_i];
 
-                clicked_node.last_click = t.as_secs_f32();
-                
-                self.sys.changes.cosmetic_rect_updates.push(clicked_node_i);
+                if clicked_node.params.interact.click_animation {
 
-                // todo: maybe cleaner to make this pass through the cosmetic updates
-                self.sys.changes.animation_rerender_time = Some(1.0);
-    
+                    clicked_node.last_click = t.as_secs_f32();
+                    
+                    self.sys.changes.cosmetic_rect_updates.push(clicked_node_i);
+                    
+                    // todo: maybe cleaner to make this pass through the cosmetic updates
+                    self.sys.changes.animation_rerender_time = Some(1.0);
+                }
+                    
                 if clicked_node.text_id.is_some() {
                     if let Some(text) = clicked_node.params.text_params{
                         if text.editable {

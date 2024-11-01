@@ -68,13 +68,13 @@ impl Ui {
         if rebuild_all_rects {
             self.sys.rects.clear();
             self.rebuild_all_rects();
-            println!("[{:?}]  rebuild all rects", T0.elapsed());
+            // println!("[{:?}]  rebuild all rects", T0.elapsed());
         } else {
             // cosmetic atomic rect updates
             for idx in 0..self.sys.changes.cosmetic_rect_updates.len() {
                 let update = self.sys.changes.cosmetic_rect_updates[idx];
                 self.update_rect(update);
-                println!("[{:?}]  cosmetic update ({:?})", T0.elapsed(), self.nodes[update].debug_name());
+                // println!("[{:?}]  cosmetic update ({:?})", T0.elapsed(), self.nodes[update].debug_name());
             }
         }
 
@@ -112,7 +112,7 @@ impl Ui {
             return;
         }
         
-        println!("[{:?}]  partial relayout ({:?})", T0.elapsed(), self.nodes[node].debug_name());
+        // println!("[{:?}]  partial relayout ({:?})", T0.elapsed(), self.nodes[node].debug_name());
 
         // 1st recursive tree traversal: start from the root and recursively determine the size of all nodes
         // For the first node, assume that the proposed size that we got from the parent last frame is valid. (except for root, in which case just use the whole screen. todo: should just make full_relayout a separate function.)

@@ -966,6 +966,7 @@ pub struct System {
     
     pub last_frame_click_released: Vec<StoredClick>,
     pub hovered: Vec<Id>,
+    pub last_hovered: Id,
 
     pub focused: Option<Id>,
 
@@ -1199,6 +1200,7 @@ impl Ui {
                 last_frame_click_released: Vec::with_capacity(5),
 
                 hovered: Vec::with_capacity(15),
+                last_hovered: Id(0),
                 focused: None,
 
                 frame_t: 0.0,
