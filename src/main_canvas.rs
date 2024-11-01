@@ -2,7 +2,7 @@
 // when ui will be in its own crate, this won't happen anymore
 use crate::*;
 use crate::canvas::EpicRotation;
-use glam::dvec2;
+use glam::{dvec2, DVec2};
 use winit::{
     event::MouseButton, keyboard::KeyCode
 };
@@ -62,6 +62,10 @@ impl State {
 
         // I think the point was that there kind of things would go in canvas.prepare()?
         self.canvas.update_shader_transform(&self.ctx.queue);
+
+        if diff != dvec2(0.0, 0.0) {
+            self.canvas.need_rerender = true;
+        }
     }
 
     pub fn rotate_and_pan(&mut self) -> Option<()> {
@@ -72,6 +76,11 @@ impl State {
 
             let (x, y) = self.canvas.input.cursor_diff();
             let delta = dvec2(x as f64, y as f64);
+
+            if delta != dvec2(0.0, 0.0) {
+                self.canvas.need_rerender = true;
+            }
+
             if self.canvas.input.held_shift() {
 
                 let before = self.canvas.input.cursor()?;

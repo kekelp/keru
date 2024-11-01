@@ -1475,7 +1475,7 @@ impl Ui {
         }
     }
 
-    pub fn need_rerender(&self) -> bool {
+    pub fn needs_rerender(&self) -> bool {
         return self.sys.changes.need_rerender || self.sys.changes.animation_rerender_time.is_some();
     }
 

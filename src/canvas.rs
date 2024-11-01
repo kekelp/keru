@@ -116,7 +116,7 @@ pub struct Canvas {
     pub last_mouse_pos: PhysicalPosition<f64>,
 
     pub needs_sync: bool,
-    pub needs_render: bool,
+    pub need_rerender: bool,
 
     pub texture: Texture,
     pub render_pipeline: RenderPipeline,
@@ -312,7 +312,7 @@ impl Canvas {
             end_stroke: false,
 
             needs_sync: true,
-            needs_render: true,
+            need_rerender: true,
             is_drawing: false,
 
             paint_color: PixelColorF32::new(0.2, 0.8, 0.2, 1.0),
@@ -387,6 +387,8 @@ impl Canvas {
                 *old_color = new_color.to_u8s();
             }
         }
+
+        self.need_rerender = true;
     }
 
     pub fn get_pixel(&mut self, x: usize, y: usize) -> Option<&mut PixelColor> {
@@ -603,6 +605,12 @@ impl Canvas {
         render_pass.set_pipeline(&self.render_pipeline);
         render_pass.set_bind_group(0, &self.canvas_bind_group, &[]);
         render_pass.draw(0..6, 0..1);
+
+        self.need_rerender = false;
+    }
+
+    pub fn needs_rerender(&self) -> bool {
+        return self.need_rerender
     }
 
     pub fn handle_events(&mut self, full_event: &winit::event::Event<()>, key_mods: &ModifiersState, queue: &Queue) {
@@ -695,7 +703,8 @@ impl Canvas {
         if self.backups_i >= 2 {
             self.backups_i -= 1;
             self.pixels = self.backups[self.backups_i - 1].clone();
-
+            
+            self.need_rerender = true;
         }
     }
 

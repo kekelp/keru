@@ -61,7 +61,7 @@ impl State {
         self.update_ui();
         self.update_canvas();
         
-        if self.ui.need_rerender() {
+        if self.ui.needs_rerender() || self.canvas.needs_rerender() {
             self.render();
         } else {
             self.ctx.sleep_until_next_frame();
