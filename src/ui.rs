@@ -53,7 +53,7 @@ use std::fmt::Write;
 
 #[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, Pod, Zeroable)]
 #[repr(C)]
-pub struct Id(pub(crate) u64);
+pub struct Id(pub u64);
 
 // this is what you get from FxHasher::default().finish()
 const EMPTY_HASH: u64 = 0;

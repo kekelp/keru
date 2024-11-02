@@ -245,7 +245,6 @@ dependencies = [
  "glam",
  "glyphon",
  "image",
- "podslab",
  "pollster",
  "rustc-hash 1.1.0",
  "slab",
@@ -1545,13 +1544,6 @@ dependencies = [
  "fdeflate",
  "flate2",
  "miniz_oxide",
-]
-
-[[package]]
-name = "podslab"
-version = "0.1.0"
-dependencies = [
- "bytemuck",
 ]
 
 [[package]]

@@ -1,7 +1,6 @@
 workspace = { members = [
-    "crates/podslab",
     "crates/view_derive",
-    "crates/change_watcher"
+    "crates/change_watcher",
 ]}
 [package]
 name = "blue"
@@ -14,7 +13,6 @@ opt-level = 1
 opt-level = 1
 
 [dependencies]
-podslab = { path = "crates/podslab" }
 view_derive = { path = "crates/view_derive" }
 change_watcher = { path = "crates/change_watcher" }
 

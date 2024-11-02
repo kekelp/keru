@@ -1,10 +1,13 @@
-use crate::{Arrange, Color, Interact, Layout, NodeKey, NodeParams, Position, Rect, Size, Stack, TextOptions, TypedKey, VertexColors};
+use crate::{Arrange, Color, Id, Interact, Layout, NodeKey, NodeParams, Position, Rect, Size, Stack, TextOptions, TypedKey, VertexColors};
 use crate::ui_math::*;
 use view_derive::node_key;
 use Size::*;
 use Position::*;
 use Len::*;
-#[node_key] pub const ANON_NODE_ROOT_PARAMS: NodeKey;
+
+
+
+pub const ANON_NODE_ROOT_PARAMS: NodeKey = <NodeKey>::new(Id(0), "ANON_NODE_ROOT_PARAMS");
 pub const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     stack: None,
     text_params: None,
@@ -24,7 +27,7 @@ pub const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     },
     key: ANON_NODE_ROOT_PARAMS,
 };
-#[node_key] pub const ANON_DEFAULT: NodeKey;
+pub const ANON_DEFAULT: NodeKey = <NodeKey>::new(Id(1), "ANON_DEFAULT");
 pub const DEFAULT: NodeParams = NodeParams {
     stack: None,
     text_params: Some(TextOptions {
@@ -46,7 +49,7 @@ pub const DEFAULT: NodeParams = NodeParams {
     },
     key: ANON_DEFAULT,
 };
-#[node_key] pub const ANON_V_STACK: NodeKey;
+pub const ANON_V_STACK: NodeKey = <NodeKey>::new(Id(2), "ANON_V_STACK");
 pub const V_STACK: NodeParams = NodeParams {
     stack: Some(Stack {
         arrange: Arrange::Center,
@@ -70,7 +73,7 @@ pub const V_STACK: NodeParams = NodeParams {
     },
     key: ANON_V_STACK,
 };
-#[node_key] pub const ANON_H_STACK: NodeKey;
+pub const ANON_H_STACK: NodeKey = <NodeKey>::new(Id(3), "ANON_H_STACK");
 pub const H_STACK: NodeParams = NodeParams {
     stack: Some(Stack {
         arrange: Arrange::Start,
@@ -94,7 +97,7 @@ pub const H_STACK: NodeParams = NodeParams {
     },
     key: ANON_H_STACK,
 };
-#[node_key] pub const ANON_MARGIN: NodeKey;
+pub const ANON_MARGIN: NodeKey = <NodeKey>::new(Id(4), "ANON_MARGIN");
 pub const MARGIN: NodeParams = NodeParams {
     stack: None,
     text_params: None,
@@ -114,7 +117,7 @@ pub const MARGIN: NodeParams = NodeParams {
     },
     key: ANON_MARGIN,  
 };
-#[node_key] pub const ANON_ICON_BUTTON: NodeKey;
+pub const ANON_ICON_BUTTON: NodeKey = <NodeKey>::new(Id(5), "ANON_ICON_BUTTON");
 pub const ICON_BUTTON: NodeParams = NodeParams {
     stack: None,
     text_params: None,
@@ -134,7 +137,7 @@ pub const ICON_BUTTON: NodeParams = NodeParams {
     },
     key: ANON_ICON_BUTTON,
 };
-#[node_key] pub const ANON_BUTTON: NodeKey;
+pub const ANON_BUTTON: NodeKey = <NodeKey>::new(Id(6), "ANON_BUTTON");
 pub const BUTTON: NodeParams = NodeParams {
     stack: None,
     text_params: Some(TextOptions {
@@ -157,7 +160,7 @@ pub const BUTTON: NodeParams = NodeParams {
     },
     key: ANON_BUTTON,   
 };
-#[node_key] pub const ANON_LABEL: NodeKey;
+pub const ANON_LABEL: NodeKey = <NodeKey>::new(Id(7), "ANON_LABEL");
 pub const LABEL: NodeParams = NodeParams {
     stack: None,
     text_params: Some(TextOptions {
@@ -179,7 +182,7 @@ pub const LABEL: NodeParams = NodeParams {
     },
     key: ANON_LABEL,
 };
-#[node_key] pub const ANON_TEXT: NodeKey;
+pub const ANON_TEXT: NodeKey = <NodeKey>::new(Id(8), "ANON_TEXT");
 pub const TEXT: NodeParams = NodeParams {
     stack: None,
     text_params: Some(TextOptions {
@@ -201,7 +204,7 @@ pub const TEXT: NodeParams = NodeParams {
     },
     key: ANON_TEXT,
 };
-#[node_key] pub const ANON_EMPTY_TEXT: NodeKey;
+pub const ANON_EMPTY_TEXT: NodeKey = <NodeKey>::new(Id(9), "ANON_EMPTY_TEXT");
 pub const EMPTY_TEXT: NodeParams = NodeParams {
     stack: None,
     text_params: Some(TextOptions {
@@ -224,7 +227,7 @@ pub const EMPTY_TEXT: NodeParams = NodeParams {
     key: ANON_EMPTY_TEXT,
 };
 
-#[node_key] pub const ANON_TEXT_INPUT: NodeKey;
+pub const ANON_TEXT_INPUT: NodeKey = <NodeKey>::new(Id(10), "ANON_TEXT_INPUT");
 pub const TEXT_INPUT: NodeParams = NodeParams {
     stack: None,
     text_params: Some(TextOptions {
@@ -247,7 +250,7 @@ pub const TEXT_INPUT: NodeParams = NodeParams {
     key: ANON_TEXT_INPUT,
 };
 
-#[node_key] pub(crate) const ANON_PANEL: NodeKey;
+pub(crate) const ANON_PANEL: NodeKey = <NodeKey>::new(Id(11), "ANON_PANEL");
 pub const PANEL: NodeParams = NodeParams {
     stack: None,
     text_params: None,
@@ -268,7 +271,7 @@ pub const PANEL: NodeParams = NodeParams {
     key: ANON_PANEL,
 };
 
-#[node_key] pub(crate) const ANON_NODE: NodeKey;
-// #[node_key] pub(crate) const ANON_TEXT: TypedKey<TextNodeType>;
-#[node_key] pub(crate) const ANON_VSTACK: TypedKey<Stack>;
-#[node_key] pub(crate) const ANON_HSTACK: TypedKey<Stack>;
+pub(crate) const ANON_NODE: NodeKey = <NodeKey>::new(Id(12), "ANON_NODE");
+// pub(crate) const ANON_TEXT: TypedKey<TextNodeType> = <NodeKey>::new(Id(13), "ANON_TEXT");
+pub(crate) const ANON_VSTACK: TypedKey<Stack> = <TypedKey<Stack>>::new(Id(14), "ANON_VSTACK");
+pub(crate) const ANON_HSTACK: TypedKey<Stack> = <TypedKey<Stack>>::new(Id(15), "ANON_HSTACK");
