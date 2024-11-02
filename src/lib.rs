@@ -11,3 +11,5 @@ pub mod ui_text;
 pub mod example_window_loop;
 
 pub use crate::ui::*;
+
+pub use view_derive::node_key;

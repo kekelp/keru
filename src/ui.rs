@@ -553,7 +553,7 @@ impl<'a, T: NodeType> UiNode<'a, T> {
         return self;
     }
 
-    pub(crate) fn inner_size(&self) -> Xy<u32> {
+    pub fn inner_size(&self) -> Xy<u32> {
         let padding = self.node().params.layout.padding;
         let padding = self.ui.to_pixels2(padding);
         
@@ -2177,23 +2177,6 @@ fn clear_thread_local_parent_stack() {
         // todo: this should be `root_i`, but whatever
         stack.parents.push(StackParent::new(0, EMPTY_HASH));
     })
-}
-
-pub trait UiNodeOptionFunctions {
-    fn inner_size(&self) -> Option<Xy<u32>>;
-    fn inner_size_x(&self) -> Option<u32>;
-    fn inner_size_y(&self) -> Option<u32>;
-}
-impl<'a, T: NodeType> UiNodeOptionFunctions for Option<UiNode<'a, T>> {
-    fn inner_size(&self) -> Option<Xy<u32>> {
-        self.as_ref().map(|ui_node| ui_node.inner_size())
-    }
-    fn inner_size_x(&self) -> Option<u32> {
-        self.as_ref().map(|ui_node| ui_node.inner_size_x())
-    }
-    fn inner_size_y(&self) -> Option<u32> {
-        self.as_ref().map(|ui_node| ui_node.inner_size_y())
-    }
 }
 
 #[derive(Debug)]

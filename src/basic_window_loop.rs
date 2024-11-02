@@ -193,6 +193,7 @@ pub fn basic_color_attachment(view: &TextureView, bg_color: Color) -> [Option<Re
     })];
 }
 
+// todo: maybe stick this into a trait to get method syntax
 pub fn is_redraw_requested(event: &Event<()>) -> bool {
     if let Event::WindowEvent { event: WindowEvent::RedrawRequested, .. } = event {
         return true;

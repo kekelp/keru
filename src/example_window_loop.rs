@@ -2,11 +2,11 @@ use winit::{error::EventLoopError, event::Event, event_loop::EventLoopWindowTarg
 
 use crate::{basic_window_loop::{is_redraw_requested, Context, BACKGROUND_GREY}, Ui};
 
-pub trait ExampleLoopState: Default {
+pub trait ExampleLoop: Default {
     fn declare_ui(&mut self, ui: &mut Ui);
 }
 
-pub fn run_with_example_loop<S: ExampleLoopState>() -> Result<(), EventLoopError> {
+pub fn run_with_example_loop<S: ExampleLoop>() -> Result<(), EventLoopError> {
     let (ctx, event_loop) = Context::init(1350, 850, "BLUE");
     
     let ui = Ui::new(&ctx.device, &ctx.queue, &ctx.surface_config);
@@ -30,7 +30,7 @@ struct State<S> {
     ui: Ui,
 }
 
-impl<S: ExampleLoopState> State<S> {
+impl<S: ExampleLoop> State<S> {
     pub fn handle_event(&mut self, event: &Event<()>, target: &EventLoopWindowTarget<()>) {
         self.ctx.handle_events(event, target);
         let _consumed = self.ui.handle_events(event, &self.ctx.queue);

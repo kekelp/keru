@@ -1,5 +1,5 @@
 use blue::{
-    example_window_loop::{self, ExampleLoopState},
+    example_window_loop::{run_with_example_loop, ExampleLoop},
     ui_node_params::{BUTTON, LABEL},
     Color, NodeKey, Ui,
 };
@@ -13,7 +13,7 @@ pub struct State {
     pub show: bool,
 }
 
-impl ExampleLoopState for State {
+impl ExampleLoop for State {
     fn declare_ui(&mut self, ui: &mut Ui) {
         #[node_key] const INCREASE: NodeKey;
         let increase = BUTTON.key(INCREASE);
@@ -50,8 +50,6 @@ impl ExampleLoopState for State {
     }
 }
 
-pub const WINDOW_NAME: &str = "BLUE";
-
 fn main() -> Result<(), EventLoopError> {
-    example_window_loop::run_with_example_loop::<State>()
+    run_with_example_loop::<State>()
 }
