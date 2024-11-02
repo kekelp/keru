@@ -38,7 +38,7 @@ pub struct Ui {
     pub(crate) format_scratch: String,
 }
 
-pub struct System {
+pub(crate) struct System {
     // todo: just put ROOT_I everywhere.
     pub root_i: usize,
 
@@ -86,9 +86,9 @@ pub struct System {
     pub focused: Option<Id>,
 
     pub size_scratch: Vec<f32>,
-    pub(crate) relayouts_scrath: Vec<NodeWithDepth>,
+    pub relayouts_scrath: Vec<NodeWithDepth>,
 
-    pub(crate) changes: PartialChanges,
+    pub changes: PartialChanges,
 
     pub params_changed: bool,
     pub text_changed: bool,
@@ -97,7 +97,7 @@ pub struct System {
     pub last_frame_timestamp: Instant,
 }
 
-pub struct PartialBorrowStuff {
+pub(crate) struct PartialBorrowStuff {
     pub mouse_pos: PhysicalPosition<f32>,
     pub unifs: Uniforms,
     pub current_frame: u64,
@@ -105,7 +105,7 @@ pub struct PartialBorrowStuff {
 
 #[repr(C)]
 #[derive(Debug, Pod, Copy, Clone, Zeroable)]
-pub struct Uniforms {
+pub(crate) struct Uniforms {
     pub size: Xy<f32>,
     pub t: f32,
     pub _padding: f32,
