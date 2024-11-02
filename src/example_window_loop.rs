@@ -1,6 +1,5 @@
-use winit::{error::EventLoopError, event::Event, event_loop::EventLoopWindowTarget};
-
-use crate::{basic_window_loop::{is_redraw_requested, Context, BACKGROUND_GREY}, Color, Ui};
+use winit::*;
+use crate::basic_window_loop::*;
 
 pub trait ExampleLoop: Default {
     fn declare_ui(&mut self, ui: &mut Ui);
