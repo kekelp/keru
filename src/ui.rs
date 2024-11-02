@@ -344,4 +344,12 @@ impl Ui {
             },
         }
     }
+
+    pub fn key_mods(&self) -> &ModifiersState {
+        return &self.sys.key_mods;
+    }
+
+    pub fn base_uniform_buffer(&self) -> &Buffer {
+        return &self.sys.base_uniform_buffer;
+    }
 }

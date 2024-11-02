@@ -29,7 +29,6 @@ winit_input_helper = "0.16.0"
 slab = "0.4.9"
 image = "0.25.2"
 etagere = "0.2.13"
-slotmap = "1.0.7"
 
 [lints.clippy]
 needless_return = { level = "allow" } 

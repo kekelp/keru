@@ -1,4 +1,4 @@
-use winit::*;
+use crate::*;
 use crate::basic_window_loop::*;
 
 pub trait ExampleLoop: Default {
