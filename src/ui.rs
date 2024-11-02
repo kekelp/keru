@@ -573,12 +573,12 @@ impl<'a, T: NodeType> UiNode<'a, T> {
 }
 
 impl<'a, T: TextTrait> UiNode<'a, T> {
-    pub fn static_text(&mut self, text: &'static str) {
+    pub fn static_text(mut self, text: &'static str) -> Self {
         let text_pointer: *const u8 = text.as_ptr();
 
         if let Some(last_pointer) = self.node().last_static_text_ptr {
             if text_pointer == last_pointer {
-                return;
+                return self;
             }
         }
 
@@ -596,6 +596,8 @@ impl<'a, T: TextTrait> UiNode<'a, T> {
         self.node_mut().last_static_text_ptr = Some(text_pointer);
 
         self.ui.push_partial_relayout(self.node_i);
+
+        return self;
     }
 
     pub fn text(mut self, text: &str) -> Self {

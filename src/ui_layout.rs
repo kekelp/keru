@@ -40,7 +40,6 @@ impl Ui {
         let tree_changed = ! self.sys.changes.swapped_tree_changes.is_empty();
         let rebuild_all_rects = tree_changed || self.sys.changes.rebuild_all_rects;
 
-
         self.sys.relayouts_scrath.clear();
         for n in &self.sys.changes.swapped_tree_changes {
             self.sys.relayouts_scrath.push(*n);
@@ -139,8 +138,8 @@ impl Ui {
 
             // adjust proposed size based on our own size
             match self.nodes[node].params.layout.size[axis] {
-                Size::FitContent | Size::FitContentOrMinimum(_) => {}, // propose the whole size. We will shrink our own final size later if they end up using less or more 
-                Size::Fill => {}, // keep the whole proposed_size
+                Size::FitContent | Size::FitContentOrMinimum(_) => {}, // propose the whole available size. We will shrink our final size later if they end up using less or more 
+                Size::Fill => {}, // propose the whole available size
                 Size::Fixed(len) => match len {
                     Len::Pixels(pixels) => {
                         proposed_size[axis] = self.pixels_to_frac(pixels, axis);
@@ -152,7 +151,6 @@ impl Ui {
             }
         }
 
-        // just moved this from get_children_proposed_size(), haven't thought about it that hard, but it seems right.
         if let Some(stack) = self.nodes[node].params.stack {
             let main = stack.axis;
             let n_children = self.nodes[node].n_children as f32;
@@ -330,7 +328,7 @@ impl Ui {
         let padding = self.to_frac2(self.nodes[node].params.layout.padding);
         let spacing = self.to_frac(stack.spacing, stack.axis);
         
-        // Totally ignore the children's chosen Position's and place them according to our own Stack::Arrange value.
+        // On the main axis, totally ignore the children's chosen Position's and place them according to our own Stack::Arrange value.
 
         // collect all the children sizes in a vec
         let n = self.nodes[node].n_children;

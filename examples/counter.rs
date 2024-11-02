@@ -24,18 +24,24 @@ impl ExampleLoop for State {
         #[node_key] const SHOW: NodeKey;
         let show = BUTTON.color(Color::RED).key(SHOW);
 
-        ui.v_stack().nest(|| {
-            let show_hide = match self.show {
-                true => "Hide Counter",
-                false => "Show Counter",
-            };
-            ui.add(&show).static_text(&show_hide);
+        fn count_color(count: i32) -> Color {
+            let red = (0.1 * (count as f32) * 255.0) as u8;
+            return Color::rgba(red, 26, 52, 205);
+        }
+        let color = count_color(*self.count);
 
+        let show_button_text = match self.show {
+            true => "Hide Counter",
+            false => "Show Counter",
+        };
+
+        ui.v_stack().nest(|| {
             if self.show {
-                ui.add(&increase).static_text("Increase");
+                ui.add(&increase).static_text("Increase").set_color(color);
                 ui.add(&LABEL).dyn_text(self.count.if_changed());
                 ui.add(&decrease).static_text("Decrease");
             }
+            ui.add(&show).static_text(&show_button_text);
         });
 
         if ui.is_clicked(SHOW) {
