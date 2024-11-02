@@ -1,11 +1,8 @@
 use crate::{Arrange, Color, Id, Interact, Layout, NodeKey, NodeParams, Position, Rect, Size, Stack, TextOptions, TypedKey, VertexColors};
-use crate::ui_math::*;
-use view_derive::node_key;
+use crate::math::*;
 use Size::*;
 use Position::*;
 use Len::*;
-
-
 
 pub const ANON_NODE_ROOT_PARAMS: NodeKey = <NodeKey>::new(Id(0), "ANON_NODE_ROOT_PARAMS");
 pub const NODE_ROOT_PARAMS: NodeParams = NodeParams {
@@ -271,7 +268,6 @@ pub const PANEL: NodeParams = NodeParams {
     key: ANON_PANEL,
 };
 
-pub(crate) const ANON_NODE: NodeKey = <NodeKey>::new(Id(12), "ANON_NODE");
 // pub(crate) const ANON_TEXT: TypedKey<TextNodeType> = <NodeKey>::new(Id(13), "ANON_TEXT");
 pub(crate) const ANON_VSTACK: TypedKey<Stack> = <TypedKey<Stack>>::new(Id(14), "ANON_VSTACK");
 pub(crate) const ANON_HSTACK: TypedKey<Stack> = <TypedKey<Stack>>::new(Id(15), "ANON_HSTACK");

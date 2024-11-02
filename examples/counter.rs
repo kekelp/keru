@@ -1,10 +1,7 @@
-use blue::{
-    example_window_loop::{run_with_example_loop, ExampleLoop},
-    ui_node_params::{BUTTON, LABEL},
-    Color, NodeKey, Ui,
-};
+use blue::example_window_loop::*;
+use blue::{Color, NodeKey, Ui, BUTTON, LABEL};
+use blue::node_key;
 use change_watcher::Watcher;
-use view_derive::node_key;
 use winit::error::EventLoopError;
 
 #[derive(Default)]
@@ -14,7 +11,7 @@ pub struct State {
 }
 
 impl ExampleLoop for State {
-    fn declare_ui(&mut self, ui: &mut Ui) {
+    fn declare_ui(&mut self, ui: &mut Ui) {    
         #[node_key] const INCREASE: NodeKey;
         let increase = BUTTON.key(INCREASE);
 

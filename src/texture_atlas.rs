@@ -1,7 +1,7 @@
 use etagere::{size2, Allocation, AllocId, BucketedAtlasAllocator};
 use wgpu::*;
 
-use crate::ui_math::Xy;
+use crate::math::Xy;
 
 pub struct TextureAtlas {
     pub atlas_texture: Texture,

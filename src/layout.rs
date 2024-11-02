@@ -1,12 +1,23 @@
 use crate::*;
 
-use crate::ui_math::*;
-
-use crate::for_each_child;
-
-
 use glyphon::Buffer as GlyphonBuffer;
 use Axis::{X, Y};
+
+#[macro_export]
+// todo: use this macro everywhere else
+/// Iterate on the children linked list.
+/// The iteration goes backwards. It's more consistent this way, trust me bro.
+macro_rules! for_each_child {
+    ($ui:expr, $start:expr, $child:ident, $body:block) => {
+        {
+            let mut current_child = $start.last_child;
+            while let Some($child) = current_child {
+                $body
+                current_child = $ui.nodes[$child].prev_sibling;
+            }
+        }
+    };
+}
 
 impl Ui {
 

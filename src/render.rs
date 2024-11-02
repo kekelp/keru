@@ -3,7 +3,7 @@ use std::{marker::PhantomData, mem};
 use bytemuck::Pod;
 use wgpu::{Buffer, BufferSlice, Device, Queue, RenderPass};
 
-use crate::ui_text::render_iter;
+use crate::text::render_iter;
 use crate::Ui;
 
 impl Ui {

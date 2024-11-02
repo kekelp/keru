@@ -1,9 +1,9 @@
 use wgpu::Queue;
 use winit::{dpi::PhysicalPosition, event::{ElementState, Event, KeyEvent, MouseButton, MouseScrollDelta, WindowEvent}, keyboard::{Key, NamedKey}};
 
-use crate::{ui_math::Xy, ui_time_f32, Id, NodeKey, Ui, T0};
+use crate::*;
 
-use glyphon::{Affinity, Cursor as GlyphonCursor};
+use glyphon::{Affinity, Buffer as GlyphonBuffer, Cursor as GlyphonCursor};
 
 
 #[derive(Debug, Copy, Clone)]
@@ -713,4 +713,25 @@ impl LastFrameClicks {
         self.ids.clear();
         self.clicks.clear();
     }
+}
+
+
+pub fn cursor_pos_from_byte_offset(buffer: &GlyphonBuffer, byte_offset: usize) -> (f32, f32) {
+    let line = &buffer.lines[0];
+    let buffer_line = line.layout_opt().as_ref().unwrap();
+    let glyphs = &buffer_line[0].glyphs;
+
+    // todo: binary search? lol. maybe vec has it built in
+    for g in glyphs {
+        if g.start >= byte_offset {
+            return (g.x, g.y);
+        }
+    }
+
+    if let Some(glyph) = glyphs.last() {
+        return (glyph.x + glyph.w, glyph.y);
+    }
+
+    // string is empty
+    return (0.0, 0.0);
 }
