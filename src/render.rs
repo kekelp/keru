@@ -13,7 +13,7 @@ impl Ui {
         if n > 0 {
             render_pass.set_pipeline(&self.sys.render_pipeline);
             render_pass.set_bind_group(0, &self.sys.bind_group, &[]);
-            render_pass.set_vertex_buffer(0, self.sys.gpu_vertex_buffer.slice(n));
+            render_pass.set_vertex_buffer(0, self.sys.gpu_rect_buffer.slice(n));
             render_pass.draw(0..6, 0..n);
         }
         
@@ -28,7 +28,7 @@ impl Ui {
     /// Load the UI state onto the GPU
     pub fn prepare(&mut self, device: &Device, queue: &Queue) {       
         
-        self.sys.gpu_vertex_buffer.queue_write(&self.sys.rects[..], queue);
+        self.sys.gpu_rect_buffer.queue_write(&self.sys.rects[..], queue);
         
         self.sys.texture_atlas.load_to_gpu(queue);
 

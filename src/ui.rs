@@ -1,36 +1,35 @@
 use crate::changes::{NodeWithDepth, PartialChanges};
 use crate::interact::{HeldNodes, LastFrameClicks, MouseInputState, StoredClick};
-use crate::*;
 use crate::math::*;
 use crate::render::TypedGpuBuffer;
 use crate::texture_atlas::*;
 use crate::thread_local::thread_local_push;
+use crate::*;
 use copypasta::ClipboardContext;
-use glyphon::Viewport;
 use glyphon::Cache as GlyphonCache;
+use glyphon::Viewport;
 
 use rustc_hash::FxHashMap;
 use slab::Slab;
 
-use wgpu::{BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, BlendState, Buffer, BufferBindingType, ColorWrites, FilterMode, FragmentState, PipelineLayoutDescriptor, PrimitiveState, RenderPipelineDescriptor, SamplerBindingType, SamplerDescriptor, ShaderModuleDescriptor, ShaderSource, ShaderStages, TextureSampleType, TextureViewDimension, VertexState};
-
+use wgpu::{
+    BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
+    BindingResource, BindingType, BlendState, Buffer, BufferBindingType, ColorWrites, FilterMode,
+    FragmentState, PipelineLayoutDescriptor, PrimitiveState, RenderPipelineDescriptor,
+    SamplerBindingType, SamplerDescriptor, ShaderModuleDescriptor, ShaderSource, ShaderStages,
+    TextureSampleType, TextureViewDimension, VertexState,
+};
 
 use std::{mem, time::Instant};
 
 use bytemuck::{Pod, Zeroable};
-use glyphon::{
-    FontSystem, SwashCache,
-    TextAtlas, TextRenderer,
-};
-use winit::{
-    dpi::PhysicalPosition,
-    keyboard::ModifiersState,
-};
+use glyphon::{FontSystem, SwashCache, TextAtlas, TextRenderer};
 use wgpu::{
     util::{self, DeviceExt},
-    BindGroup, BufferAddress, BufferUsages, ColorTargetState, Device,
-    MultisampleState, Queue, RenderPipeline, SurfaceConfiguration, VertexBufferLayout, VertexStepMode,
+    BindGroup, BufferAddress, BufferUsages, ColorTargetState, Device, MultisampleState, Queue,
+    RenderPipeline, SurfaceConfiguration, VertexBufferLayout, VertexStepMode,
 };
+use winit::{dpi::PhysicalPosition, keyboard::ModifiersState};
 
 // todo: the sys split is no longer needed, lol.
 pub struct Ui {
@@ -42,7 +41,7 @@ pub struct Ui {
 pub struct System {
     // todo: just put ROOT_I everywhere.
     pub root_i: usize,
-    
+
     // in debug mode, draw invisible rects as well, for example V_STACKs.
     // usually these have filled = false (just the outline), but this is not enforced.
     pub debug_mode: bool,
@@ -56,7 +55,7 @@ pub struct System {
 
     pub key_mods: ModifiersState,
 
-    pub gpu_vertex_buffer: TypedGpuBuffer<RenderRect>,
+    pub gpu_rect_buffer: TypedGpuBuffer<RenderRect>,
     pub render_pipeline: RenderPipeline,
 
     pub base_uniform_buffer: Buffer,
@@ -76,10 +75,10 @@ pub struct System {
     pub clicked_stack: Vec<(Id, f32)>,
     pub mouse_hit_stack: Vec<(Id, f32)>,
     pub last_frame_clicks: LastFrameClicks,
-    
+
     pub held_store: HeldNodes,
     pub dragged_store: HeldNodes,
-    
+
     pub last_frame_click_released: Vec<StoredClick>,
     pub hovered: Vec<Id>,
     pub last_hovered: Id,
@@ -93,7 +92,7 @@ pub struct System {
 
     pub params_changed: bool,
     pub text_changed: bool,
-    
+
     pub frame_t: f32,
     pub last_frame_timestamp: Instant,
 }
@@ -114,13 +113,14 @@ pub struct Uniforms {
 
 impl Ui {
     pub fn new(device: &Device, queue: &Queue, config: &SurfaceConfiguration) -> Self {
-        let vertex_buffer = device.create_buffer_init(&util::BufferInitDescriptor {
+        let gpu_rect_buffer = device.create_buffer_init(&util::BufferInitDescriptor {
             label: Some("player bullet pos buffer"),
-            contents: bytemuck::cast_slice(&[0.0; 9000]),
+            // todo: I guess this should be growable
+            contents: bytemuck::cast_slice(&[0.0; 2048]),
             usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
         });
 
-        let vertex_buffer = TypedGpuBuffer::new(vertex_buffer);
+        let gpu_rect_buffer = TypedGpuBuffer::new(gpu_rect_buffer);
         let vert_buff_layout = VertexBufferLayout {
             array_stride: mem::size_of::<RenderRect>() as BufferAddress,
             step_mode: VertexStepMode::Instance,
@@ -143,7 +143,7 @@ impl Ui {
         let _white_alloc = texture_atlas.allocate_image(include_bytes!("white.png"));
 
         let texture_sampler = device.create_sampler(&SamplerDescriptor {
-            label: Some("Fulgur texture sampler"),
+            label: Some("Texture sampler"),
             min_filter: FilterMode::Nearest,
             mag_filter: FilterMode::Nearest,
             mipmap_filter: FilterMode::Nearest,
@@ -248,13 +248,11 @@ impl Ui {
         let glyphon_cache = GlyphonCache::new(&device);
         let glyphon_viewport = Viewport::new(&device, &glyphon_cache);
 
-
         let mut atlas = TextAtlas::new(device, queue, &glyphon_cache, config.format);
         let text_renderer =
             TextRenderer::new(&mut atlas, device, MultisampleState::default(), None);
 
         let text_areas = Vec::with_capacity(50);
-
 
         let mut node_hashmap = FxHashMap::with_capacity_and_hasher(100, Default::default());
 
@@ -306,7 +304,7 @@ impl Ui {
                 render_pipeline,
                 rects: Vec::with_capacity(20),
 
-                gpu_vertex_buffer: vertex_buffer,
+                gpu_rect_buffer,
                 base_uniform_buffer: resolution_buffer,
                 bind_group,
 
