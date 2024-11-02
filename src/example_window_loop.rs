@@ -1,6 +1,6 @@
 use winit::{error::EventLoopError, event::Event, event_loop::EventLoopWindowTarget};
 
-use crate::{basic_window_loop::{is_redraw_requested, Context, BACKGROUND_GREY}, Ui};
+use crate::{basic_window_loop::{is_redraw_requested, Context, BACKGROUND_GREY}, Color, Ui};
 
 pub trait ExampleLoop: Default {
     fn declare_ui(&mut self, ui: &mut Ui);
@@ -59,7 +59,7 @@ impl<S: ExampleLoop> State<S> {
         let mut frame = self.ctx.begin_frame();
         
         {
-            let mut render_pass = frame.begin_render_pass(BACKGROUND_GREY);
+            let mut render_pass = frame.begin_render_pass(wgpu::Color::WHITE);
             self.ui.render(&mut render_pass);
         }
         
