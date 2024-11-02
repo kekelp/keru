@@ -1,59 +1,36 @@
 use crate::changes::{NodeWithDepth, PartialChanges};
 use crate::interact::{HeldNodes, LastFrameClicks, MouseInputState, StoredClick};
 use crate::*;
-use crate::keys::*;
 use crate::math::*;
-use crate::param_library::{
-    ANON_HSTACK, ANON_VSTACK, DEFAULT, H_STACK, NODE_ROOT_PARAMS, TEXT, V_STACK,
-};
 use crate::render::TypedGpuBuffer;
-use crate::text::{FullText, TextAreaParams};
-use crate::texture_atlas::{ImageRef, TextureAtlas};
-use crate::thread_local::{clear_thread_local_parent_stack, thread_local_hash_new_child, thread_local_peek_parent, thread_local_pop, thread_local_push};
+use crate::texture_atlas::*;
+use crate::thread_local::thread_local_push;
 use copypasta::ClipboardContext;
-use glyphon::cosmic_text::Align;
-use glyphon::{AttrsList, Color as GlyphonColor, TextBounds, Viewport};
+use glyphon::Viewport;
 use glyphon::Cache as GlyphonCache;
 
-use rustc_hash::{FxHashMap, FxHasher};
+use rustc_hash::FxHashMap;
 use slab::Slab;
 
 use wgpu::{BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, BlendState, Buffer, BufferBindingType, ColorWrites, FilterMode, FragmentState, PipelineLayoutDescriptor, PrimitiveState, RenderPipelineDescriptor, SamplerBindingType, SamplerDescriptor, ShaderModuleDescriptor, ShaderSource, ShaderStages, TextureSampleType, TextureViewDimension, VertexState};
 
 
-use std::collections::hash_map::Entry;
-use std::sync::LazyLock;
-use std::{
-    hash::Hasher,
-    marker::PhantomData,
-    mem,
-    ops::{Index, IndexMut},
-    time::Instant,
-};
+use std::{mem, time::Instant};
 
 use bytemuck::{Pod, Zeroable};
 use glyphon::{
-    Attrs, Buffer as GlyphonBuffer, Family, FontSystem, Metrics, Shaping, SwashCache,
+    FontSystem, SwashCache,
     TextAtlas, TextRenderer,
 };
 use winit::{
-    dpi::{PhysicalPosition, PhysicalSize},
+    dpi::PhysicalPosition,
     keyboard::ModifiersState,
 };
-use Axis::{X, Y};
 use wgpu::{
     util::{self, DeviceExt},
-    vertex_attr_array, BindGroup, BufferAddress, BufferUsages, ColorTargetState, Device,
-    MultisampleState, Queue, RenderPipeline, SurfaceConfiguration, VertexAttribute,
-    VertexBufferLayout, VertexStepMode,
+    BindGroup, BufferAddress, BufferUsages, ColorTargetState, Device,
+    MultisampleState, Queue, RenderPipeline, SurfaceConfiguration, VertexBufferLayout, VertexStepMode,
 };
-
-
-use crate::*;
-use crate::interact::*;
-use crate::texture_atlas::*;
-use crate::render::*;
-use crate::changes::*;
 
 // todo: the sys split is no longer needed, lol.
 pub struct Ui {
