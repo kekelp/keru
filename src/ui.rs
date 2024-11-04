@@ -46,7 +46,6 @@ pub(crate) struct System {
     // usually these have filled = false (just the outline), but this is not enforced.
     pub debug_mode: bool,
 
-    pub rects_generation: u32,
     pub debug_key_pressed: bool,
 
     pub mouse_status: MouseInputState,
@@ -67,12 +66,8 @@ pub(crate) struct System {
     pub rects: Vec<RenderRect>,
     // todo: keep a separate vec with the bounding boxes for faster mouse hit scans
 
-    // stack for traversing
-    pub traverse_stack: Vec<usize>,
-
     pub part: PartialBorrowStuff,
 
-    pub clicked_stack: Vec<(Id, f32)>,
     pub mouse_hit_stack: Vec<(Id, f32)>,
     pub last_frame_clicks: LastFrameClicks,
 
@@ -89,9 +84,6 @@ pub(crate) struct System {
     pub relayouts_scrath: Vec<NodeWithDepth>,
 
     pub changes: PartialChanges,
-
-    pub params_changed: bool,
-    pub text_changed: bool,
 
     pub frame_t: f32,
     pub last_frame_timestamp: Instant,
@@ -308,8 +300,6 @@ impl Ui {
                 base_uniform_buffer: resolution_buffer,
                 bind_group,
 
-                traverse_stack: Vec::with_capacity(50),
-
                 size_scratch: Vec::with_capacity(15),
                 relayouts_scrath: Vec::with_capacity(15),
 
@@ -319,7 +309,6 @@ impl Ui {
                     unifs: uniforms,
                 },
 
-                clicked_stack: Vec::with_capacity(50),
                 mouse_hit_stack: Vec::with_capacity(50),
                 last_frame_clicks: LastFrameClicks::new(),
 
@@ -334,11 +323,7 @@ impl Ui {
 
                 frame_t: 0.0,
 
-                params_changed: true,
-                text_changed: true,
-
                 last_frame_timestamp: Instant::now(),
-                rects_generation: 1,
 
                 changes: PartialChanges::new(),
             },
