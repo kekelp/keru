@@ -34,7 +34,7 @@ impl<S: ExampleLoop> State<S> {
         self.ctx.handle_events(event, target);
         let _consumed = self.ui.handle_events(event, &self.ctx.queue);
 
-        if is_redraw_requested(event) {
+        if event.is_redraw_requested() {
             self.update();
             self.ctx.window.request_redraw();
         }

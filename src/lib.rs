@@ -13,6 +13,7 @@ pub use node_params::*;
 
 pub mod basic_window_loop;
 pub mod example_window_loop;
+pub use basic_window_loop::EventIsRedrawRequested;
 
 mod changes;
 mod twin_nodes;
