@@ -36,7 +36,6 @@ impl<S: ExampleLoop> State<S> {
 
         if event.is_redraw_requested() {
             self.update();
-            self.ctx.window.request_redraw();
         }
     }
 

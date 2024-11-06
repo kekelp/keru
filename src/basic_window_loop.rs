@@ -108,6 +108,7 @@ impl Context {
             } => {
                 self.last_frame_timestamp = self.current_frame_timestamp;
                 self.current_frame_timestamp = Instant::now();
+                self.window.request_redraw();
             },
             _ => {}
         }
@@ -117,7 +118,7 @@ impl Context {
         self.surface_config.width = size.width;
         self.surface_config.height = size.height;
         self.surface.configure(&self.device, &self.surface_config);
-        // self.window.request_redraw();
+        self.window.request_redraw();
     }
 
     pub fn width(&self) -> u32 {
