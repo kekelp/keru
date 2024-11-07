@@ -28,7 +28,7 @@ impl ExampleLoop for State {
         // We're mostly just using the default params in BUTTON here.
         // Using a NodeKey to assign a stable identity to each element is almost always a good idea, but it's not always necessary.
         #[node_key] const INCREASE: NodeKey;
-        let increase = BUTTON.key(INCREASE);
+        let increase = BUTTON.key(INCREASE).color(color);
         
         #[node_key] const DECREASE: NodeKey;
         let decrease = BUTTON.key(DECREASE);
@@ -36,11 +36,15 @@ impl ExampleLoop for State {
         #[node_key] const SHOW: NodeKey;
         let show = BUTTON.key(SHOW).color(Color::RED);
 
+        #[node_key] const LABEL2: NodeKey;
+        let label2 = LABEL.key(LABEL2).color(Color::BLACK);
+
         // Declare the layout.
         ui.v_stack().nest(|| {
             if self.show {
-                ui.add(&increase).static_text("Increase").set_color(color);
+                ui.add(&increase).static_text("Increase");
                 ui.add(&LABEL).dyn_text(self.count.if_changed()); // We're using an anonymouse LABEL here, without assigning it an identity.
+                ui.add(&label2).dyn_text(self.count.if_changed());
                 ui.add(&decrease).static_text("Decrease");
             }
             ui.add(&show).static_text(&show_button_text);

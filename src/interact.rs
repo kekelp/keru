@@ -1,3 +1,5 @@
+use std::mem;
+
 use wgpu::Queue;
 use winit::{dpi::PhysicalPosition, event::{ElementState, Event, KeyEvent, MouseButton, MouseScrollDelta, WindowEvent}, keyboard::{Key, NamedKey}};
 
@@ -131,10 +133,20 @@ impl Ui {
 
 
     pub fn end_frame_check_inputs(&mut self) {
-        self.resolve_hover();
+        // self.resolve_hover();
         self.sys.last_frame_click_released.clear();
         self.end_frame_resolve_hover_and_clear_hold();
-        self.sys.hovered.clear();
+
+
+        // check for exits
+        for id in &self.sys.last_frame_hovered {
+            if ! self.sys.hovered.contains(&id) {
+                println!("[{:.8?}] le exit", T0.elapsed())
+            }
+        }
+
+        self.sys.last_frame_hovered.clear();
+        mem::swap(&mut self.sys.last_frame_hovered, &mut self.sys.hovered);
     }
 
     pub fn end_frame_resolve_hover_and_clear_hold(&mut self) {
@@ -164,6 +176,15 @@ impl Ui {
         let topmost_mouse_hit = self.scan_mouse_hits();
 
         if let Some(hovered_id) = topmost_mouse_hit {
+
+            if self.sys.last_frame_hovered.contains(&hovered_id) {
+
+            } else {
+                println!("[{:.8?}] le enter", T0.elapsed());
+                // take it out so multiple calls to resolve_hover don't ruin anything?
+                self.sys.last_frame_hovered.retain(|&x| x != hovered_id);
+            }
+
             self.sys.hovered.push(hovered_id);
             let t = ui_time_f32();
             
