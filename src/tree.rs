@@ -1226,7 +1226,7 @@ impl Node {
             last_click: self.last_click,
             id: self.id,
             z: 0.0,
-            radius: RADIUS,
+            radius: BASE_RADIUS,
 
             // magic coords
             // todo: demagic
@@ -1256,7 +1256,7 @@ impl Node {
                 last_click: self.last_click,
                 id: self.id,
                 z: 0.0,
-                radius: RADIUS,
+                radius: BASE_RADIUS,
 
                 tex_coords: image.tex_coords,
                 flags: image_flags,

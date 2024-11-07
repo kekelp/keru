@@ -1,5 +1,14 @@
 use crate::*;
 
+#[derive(Debug, Copy, Clone)]
+pub struct NodeParams {
+    pub text_params: Option<TextOptions>,
+    pub stack: Option<Stack>,
+    pub rect: Rect,
+    pub interact: Interact,
+    pub layout: Layout,
+    pub key: NodeKey,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Size {
@@ -14,6 +23,7 @@ pub enum Size {
     //  with the "proposed" thing, a TextContent can either insist to get the minimum size it wants,
     // or be okay with whatever (and clip it, show some "..."'s, etc)
     // todo: add FitToChildrenInitiallyButNeverResizeAfter
+    // todo: add AspectRatio
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -102,17 +112,7 @@ pub struct Image<'data> {
     pub data: &'data [u8],
 }
 
-#[derive(Debug, Copy, Clone)]
-pub struct NodeParams {
-    pub text_params: Option<TextOptions>,
-    pub stack: Option<Stack>,
-    pub rect: Rect,
-    pub interact: Interact,
-    pub layout: Layout,
-    pub key: NodeKey,
-}
-
-pub const RADIUS: f32 = 20.0;
+pub(crate) const BASE_RADIUS: f32 = 20.0;
 
 impl NodeParams {
     pub const fn const_default() -> Self {
