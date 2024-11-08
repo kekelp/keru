@@ -141,7 +141,7 @@ impl Ui {
         // check for exits
         for id in &self.sys.last_frame_hovered {
             if ! self.sys.hovered.contains(&id) {
-                println!("[{:.8?}] le exit", T0.elapsed())
+                // println!("[{:.8?}] le exit", T0.elapsed())
             }
         }
 
@@ -180,7 +180,7 @@ impl Ui {
             if self.sys.last_frame_hovered.contains(&hovered_id) {
 
             } else {
-                println!("[{:.8?}] le enter", T0.elapsed());
+                // println!("[{:.8?}] le enter", T0.elapsed());
                 // take it out so multiple calls to resolve_hover don't ruin anything?
                 self.sys.last_frame_hovered.retain(|&x| x != hovered_id);
             }
