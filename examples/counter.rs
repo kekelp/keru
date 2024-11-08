@@ -1,12 +1,11 @@
 use blue::example_window_loop::*;
 use blue::{Color, NodeKey, Ui, BUTTON, LABEL};
 use blue::node_key;
-use change_watcher::Watcher;
 use winit::error::EventLoopError;
 
 #[derive(Default)]
 pub struct State {
-    pub count: Watcher<i32>,
+    pub count: i32,
     pub show: bool,
 }
 
@@ -17,7 +16,7 @@ impl ExampleLoop for State {
             let red = (0.1 * (count as f32) * 255.0) as u8;
             return Color::rgba(red, 26, 52, 205);
         }
-        let color = count_color(*self.count);
+        let color = count_color(self.count);
 
         let show_button_text = match self.show {
             true => "Hide Counter",
@@ -36,15 +35,12 @@ impl ExampleLoop for State {
         #[node_key] const SHOW: NodeKey;
         let show = BUTTON.key(SHOW).color(Color::RED);
 
-        #[node_key] const LABEL2: NodeKey;
-        let label2 = LABEL.key(LABEL2).color(Color::BLACK);
-
         // Declare the layout.
         ui.v_stack().nest(|| {
             if self.show {
                 ui.add(&increase).static_text("Increase");
-                ui.add(&LABEL).dyn_text(self.count.if_changed()); // We're using an anonymouse LABEL here, without assigning it an identity.
-                ui.add(&label2).dyn_text(self.count.if_changed());
+                // We're using an anonymous LABEL here, without assigning it an identity.
+                ui.add(&LABEL).text(self.count); 
                 ui.add(&decrease).static_text("Decrease");
             }
             ui.add(&show).static_text(&show_button_text);
@@ -54,15 +50,15 @@ impl ExampleLoop for State {
 
         // Change our state according to the Ui events.
         // Since we use the unique stable identities provided by the node_key constants, we could run this same code from wherever we want.
-        // This is also true of the #[node_key] consts themselves.
+        // This is also true of the definitions of the #[node_key] consts themselves.
         if ui.is_clicked(SHOW) {
             self.show = !self.show;
         }
         if ui.is_clicked(INCREASE) {
-            *self.count += 1;
+            self.count += 1;
         }
         if ui.is_clicked(DECREASE) {
-            *self.count -= 1;
+            self.count -= 1;
         }
     }
 }

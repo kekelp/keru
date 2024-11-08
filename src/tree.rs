@@ -406,15 +406,18 @@ impl<'a, T: TextTrait> UiNode<'a, T> {
         return self;
     }
 
-    pub fn text(mut self, text: &str) -> Self {
+    pub fn text(mut self, into_text: impl Display + Hash) -> Self {
+        // todo: hash into_text instead of the text to skip the formatting??
+        self.ui.format_into_scratch(into_text);
+
         if let Some(text_id) = self.node_mut().text_id {
-            self.ui.sys.text.set_text_hashed(text_id, text);
+            self.ui.sys.text.set_text_hashed(text_id, &self.ui.format_scratch);
         } else {
             let text_id = self
                 .ui
                 .sys
                 .text
-                .maybe_new_text_area(Some(text), self.ui.sys.part.current_frame);
+                .maybe_new_text_area(Some(&self.ui.format_scratch), self.ui.sys.part.current_frame);
             self.node_mut().text_id = text_id;
         }
 
