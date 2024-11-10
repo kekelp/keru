@@ -1,4 +1,4 @@
-use blue::example_window_loop::*;
+use blue::{example_window_loop::*, V_STACK};
 use blue::{Color, NodeKey, Ui, BUTTON, LABEL};
 use blue::node_key;
 use winit::error::EventLoopError;
@@ -27,26 +27,47 @@ impl ExampleLoop for State {
         // We're mostly just using the default params in BUTTON here.
         // Using a NodeKey to assign a stable identity to each element is almost always a good idea, but it's not always necessary.
         #[node_key] const INCREASE: NodeKey;
-        let increase = BUTTON.key(INCREASE).color(color);
-        
-        #[node_key] const DECREASE: NodeKey;
-        let decrease = BUTTON.key(DECREASE);
-
+        // #[node_key] const DECREASE: NodeKey;
+        #[node_key] const LABELKEY: NodeKey;
         #[node_key] const SHOW: NodeKey;
-        let show = BUTTON.key(SHOW).color(Color::RED);
+
+        #[node_key] const VSTACKKEY: NodeKey;
+
+        // ui.add(DECREASE).params(BUTTON).static_text("Decrease");
+        ui.add(INCREASE)
+            .params(BUTTON)
+            .color(color)
+            .on_click(|| { self.count += 1 })
+            .static_text("Increase");
+        ui.add(LABELKEY)
+            .params(LABEL)
+            .color(Color::RED)
+            .text(self.count);
+        ui.add(SHOW)
+            .params(BUTTON)
+            .color(Color::RED)
+            .static_text(show_button_text);
+
+        ui.add(VSTACKKEY).params(V_STACK);
+
+
+        // ui.place(SHOW);
 
         // Declare the layout.
+
+        // ui.place(VSTACKKEY).nest(|| {
         ui.v_stack().nest(|| {
             if self.show {
-                ui.add(&increase).static_text("Increase");
-                // We're using an anonymous LABEL here, without assigning it an identity.
-                ui.add(&LABEL).text(self.count); 
-                ui.add(&decrease).static_text("Decrease");
+                ui.place(INCREASE);
+                ui.place(LABELKEY); 
+
+                // this one is all in one line cuz we're quirky like that
+                #[node_key] const DECREASE: NodeKey;
+                ui.add(DECREASE).params(BUTTON).static_text("Decrease").on_click(|| { self.count -= 1 }).place();
+
             }
-            ui.add(&show).static_text(&show_button_text);
+            ui.place(SHOW);
         });
-        // Note that the text goes through a different flow compared to Color, Size, etc. This is so the NodeParams struct doesn't become a mess of lifetimes.
-        // This will probably change in the future, somehow.
 
         // Change our state according to the Ui events.
         // Since we use the unique stable identities provided by the node_key constants, we could run this same code from wherever we want.
@@ -54,12 +75,12 @@ impl ExampleLoop for State {
         if ui.is_clicked(SHOW) {
             self.show = !self.show;
         }
-        if ui.is_clicked(INCREASE) {
-            self.count += 1;
-        }
-        if ui.is_clicked(DECREASE) {
-            self.count -= 1;
-        }
+        // if ui.is_clicked(INCREASE) {
+        //     self.count += 1;
+        // }
+        // if ui.is_clicked(DECREASE) {
+        //     self.count -= 1;
+        // }
     }
 }
 

@@ -5,20 +5,20 @@ use winit::{dpi::PhysicalPosition, event::{ElementState, Event, KeyEvent, MouseB
 
 use crate::*;
 
-use glyphon::{Affinity, Buffer as GlyphonBuffer, Cursor as GlyphonCursor};
+// use glyphon::{Affinity, Buffer as GlyphonBuffer, Cursor as GlyphonCursor};
 
 
-#[derive(Debug, Copy, Clone)]
-pub struct BlinkyLine {
-    pub index: usize,
-    pub affinity: Affinity,
-}
+// #[derive(Debug, Copy, Clone)]
+// pub struct BlinkyLine {
+//     pub index: usize,
+//     pub affinity: Affinity,
+// }
 
-#[derive(Debug, Copy, Clone)]
-pub enum Cursor {
-    BlinkyLine(BlinkyLine),
-    Selection((GlyphonCursor, GlyphonCursor)),
-}
+// #[derive(Debug, Copy, Clone)]
+// pub enum Cursor {
+//     BlinkyLine(BlinkyLine),
+//     Selection((GlyphonCursor, GlyphonCursor)),
+// }
 
 
 impl Ui {
@@ -737,22 +737,22 @@ impl LastFrameClicks {
 }
 
 
-pub fn cursor_pos_from_byte_offset(buffer: &GlyphonBuffer, byte_offset: usize) -> (f32, f32) {
-    let line = &buffer.lines[0];
-    let buffer_line = line.layout_opt().as_ref().unwrap();
-    let glyphs = &buffer_line[0].glyphs;
+// pub fn cursor_pos_from_byte_offset(buffer: &GlyphonBuffer, byte_offset: usize) -> (f32, f32) {
+//     let line = &buffer.lines[0];
+//     let buffer_line = line.layout_opt().as_ref().unwrap();
+//     let glyphs = &buffer_line[0].glyphs;
 
-    // todo: binary search? lol. maybe vec has it built in
-    for g in glyphs {
-        if g.start >= byte_offset {
-            return (g.x, g.y);
-        }
-    }
+//     // todo: binary search? lol. maybe vec has it built in
+//     for g in glyphs {
+//         if g.start >= byte_offset {
+//             return (g.x, g.y);
+//         }
+//     }
 
-    if let Some(glyph) = glyphs.last() {
-        return (glyph.x + glyph.w, glyph.y);
-    }
+//     if let Some(glyph) = glyphs.last() {
+//         return (glyph.x + glyph.w, glyph.y);
+//     }
 
-    // string is empty
-    return (0.0, 0.0);
-}
+//     // string is empty
+//     return (0.0, 0.0);
+// }

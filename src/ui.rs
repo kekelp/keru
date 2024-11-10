@@ -50,7 +50,7 @@ pub(crate) struct System {
 
     pub mouse_status: MouseInputState,
 
-    pub clipboard: ClipboardContext,
+    pub _clipboard: ClipboardContext,
 
     pub key_mods: ModifiersState,
 
@@ -77,7 +77,6 @@ pub(crate) struct System {
     pub last_frame_click_released: Vec<StoredClick>,
     pub hovered: Vec<Id>,
     pub last_frame_hovered: Vec<Id>,
-    pub last_hovered: Id,
 
     pub focused: Option<Id>,
 
@@ -252,13 +251,12 @@ impl Ui {
         let mut nodes = Slab::with_capacity(100);
         let root_i = nodes.insert(NODE_ROOT);
         let root_map_entry = NodeMapEntry {
-            last_parent: usize::default(),
             last_frame_touched: u64::MAX,
             slab_i: root_i,
             n_twins: 0,
         };
 
-        let root_parent = Parent::new(root_i, EMPTY_HASH);
+        let root_parent = UiPlacedNode::new(root_i, EMPTY_HASH);
         thread_local_push(&root_parent);
 
         node_hashmap.insert(NODE_ROOT_ID, root_map_entry);
@@ -279,7 +277,7 @@ impl Ui {
 
                 mouse_status: MouseInputState::default(),
 
-                clipboard: ClipboardContext::new().unwrap(),
+                _clipboard: ClipboardContext::new().unwrap(),
                 key_mods: ModifiersState::default(),
 
                 text: TextSystem {
@@ -320,7 +318,6 @@ impl Ui {
 
                 hovered: Vec::with_capacity(15),
                 last_frame_hovered: Vec::with_capacity(15),
-                last_hovered: Id(0),
                 focused: None,
 
                 frame_t: 0.0,

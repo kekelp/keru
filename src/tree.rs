@@ -14,6 +14,7 @@ use glyphon::Cache as GlyphonCache;
 use rustc_hash::{FxHashMap, FxHasher};
 use slab::Slab;
 use wgpu::*;
+use winit::event::MouseButton;
 
 use std::collections::hash_map::Entry;
 use std::sync::LazyLock;
@@ -68,13 +69,10 @@ pub const NODE_ROOT: Node = Node {
     last_static_text_ptr: None,
 
     parent: usize::MAX,
-    old_parent: usize::MAX,
 
     n_children: 0,
     last_child: None,
     prev_sibling: None,
-    old_first_child: None,
-    old_prev_sibling: None,
 
     is_twin: None,
 
@@ -87,6 +85,9 @@ pub const NODE_ROOT: Node = Node {
     relayout_chain_root: None,
     old_children_hash: EMPTY_HASH,
     last_layout_frame: 0,
+
+    needs_cosmetic_update: false,
+    needs_partial_relayout: false,
 };
 
 // Despite the name, these are also used for hit-testing mouse clicks.
@@ -290,12 +291,11 @@ pub struct UiNode<'a, T: NodeType> {
     pub(crate) nodetype_marker: PhantomData<T>,
 }
 
-// why can't you just do it separately?
 impl<'a, T: NodeType> UiNode<'a, T> {
-    pub fn node_mut(&mut self) -> &mut Node {
+    pub(crate) fn node_mut(&mut self) -> &mut Node {
         return &mut self.ui.nodes.nodes[self.node_i];
     }
-    pub fn node(&self) -> &Node {
+    pub(crate) fn node(&self) -> &Node {
         return &self.ui.nodes.nodes[self.node_i];
     }
 
@@ -323,11 +323,25 @@ impl<'a, T: NodeType> UiNode<'a, T> {
         self.node_mut().last_static_image_ptr = None;
     }
 
-    // pub fn is_clicked(&self) -> bool {
-    //     let id = self.node.id;
-    //     return self.sys.clicked.contains(&real_key.id);
+    /// This is not a callback, the effect is executed immediately (or never if not clicked)
+    /// It's this way just for easier builder-style composition
+    /// You can also do ui.is_clicked(KEY) 
+    pub fn on_click(&mut self, effect: impl FnOnce()) -> &mut Self {
+        let id = self.node().id;
 
-    // }
+        let is_clicked = self.ui
+        .sys
+        .last_frame_clicks
+        .clicks
+        .iter()
+        .any(|c| c.hit_node_id == id && c.state.is_pressed() && c.button == MouseButton::Left); 
+
+        if is_clicked {
+            effect();
+        }
+
+        return self;
+    }
 
     // pub fn is_dragged(&self) -> Option<(f64, f64)> {
     //     if self.is_clicked(node_key) {
@@ -337,37 +351,43 @@ impl<'a, T: NodeType> UiNode<'a, T> {
     //     }
     // }
 
-    pub fn set_color(&mut self, color: Color) -> &mut Self {
+    pub fn color(&mut self, color: Color) -> &mut Self {
         self.node_mut().params.rect.vertex_colors = VertexColors::flat(color);
         return self;
     }
 
-    pub fn set_vertex_colors(&mut self, colors: VertexColors) -> &mut Self {
+    pub fn vertex_colors(&mut self, colors: VertexColors) -> &mut Self {
         self.node_mut().params.rect.vertex_colors = colors;
         return self;
     }
 
-    pub fn set_position_x(&mut self, position: Position) -> &mut Self {
+    pub fn position_x(&mut self, position: Position) -> &mut Self {
         self.node_mut().params.layout.position.x = position;
         return self;
     }
 
-    pub fn set_position_y(&mut self, position: Position) -> &mut Self {
+    pub fn position_y(&mut self, position: Position) -> &mut Self {
         self.node_mut().params.layout.position.y = position;
         return self;
     }
 
-    pub fn set_size_x(&mut self, size: Size) -> &mut Self {
+    pub fn size_x(&mut self, size: Size) -> &mut Self {
         self.node_mut().params.layout.size.x = size;
         return self;
     }
 
-    pub fn set_size_y(&mut self, size: Size) -> &mut Self {
+    pub fn size_y(&mut self, size: Size) -> &mut Self {
         self.node_mut().params.layout.size.y = size;
         return self;
     }
 
-    pub fn inner_size(&self) -> Xy<u32> {
+    pub fn params(&mut self, params: NodeParams) -> &mut Self {
+        self.ui.watch_params_change(self.node_i, self.node().params, params);
+        self.node_mut().params = params;
+        return self;
+    }
+
+    pub fn get_inner_size(&self) -> Xy<u32> {
         let padding = self.node().params.layout.padding;
         let padding = self.ui.to_pixels2(padding);
         
@@ -379,7 +399,7 @@ impl<'a, T: NodeType> UiNode<'a, T> {
 }
 
 impl<'a, T: TextTrait> UiNode<'a, T> {
-    pub fn static_text(mut self, text: &'static str) -> Self {
+    pub fn static_text(&mut self, text: &'static str) -> &mut Self {
         let text_pointer: *const u8 = text.as_ptr();
 
         if let Some(last_pointer) = self.node().last_static_text_ptr {
@@ -401,12 +421,12 @@ impl<'a, T: TextTrait> UiNode<'a, T> {
 
         self.node_mut().last_static_text_ptr = Some(text_pointer);
 
-        self.ui.push_partial_relayout(self.node_i);
+        self.ui.set_partial_relayout_flag(self.node_i);
 
         return self;
     }
 
-    pub fn text(mut self, into_text: impl Display + Hash) -> Self {
+    pub fn text(&mut self, into_text: impl Display + Hash) -> &mut Self {
         // todo: hash into_text instead of the text to skip the formatting??
         self.ui.format_into_scratch(into_text);
 
@@ -443,7 +463,7 @@ impl<'a, T: TextTrait> UiNode<'a, T> {
             self.node_mut().text_id = text_id;
         }
 
-        self.ui.push_partial_relayout(self.node_i);
+        self.ui.set_partial_relayout_flag(self.node_i);
 
         return self;
     }
@@ -451,6 +471,9 @@ impl<'a, T: TextTrait> UiNode<'a, T> {
     pub fn set_text_attrs(&mut self, attrs: Attrs) -> &mut Self {
         if let Some(text_id) = self.node_mut().text_id {
             self.ui.sys.text.set_text_attrs(text_id, attrs);
+
+            self.ui.set_partial_relayout_flag(self.node_i);
+
         } else {
             // todo: log a warning or something
             // or make these things type safe somehow
@@ -623,7 +646,6 @@ pub struct Idx(pub(crate) u64);
 
 #[derive(Debug, Clone, Copy)]
 pub struct NodeMapEntry {
-    pub last_parent: usize,
     pub last_frame_touched: u64,
 
     // keeping track of the twin situation.
@@ -636,18 +658,16 @@ pub struct NodeMapEntry {
     pub slab_i: usize,
 }
 impl NodeMapEntry {
-    pub fn new(parent_id: usize, frame: u64, new_i: usize) -> Self {
+    pub fn new(frame: u64, new_i: usize) -> Self {
         return Self {
-            last_parent: parent_id,
             last_frame_touched: frame,
             n_twins: 0,
             slab_i: new_i,
         };
     }
 
-    pub fn refresh(&mut self, parent_id: usize, frame: u64) -> usize {
+    pub fn refresh(&mut self, frame: u64) -> usize {
         self.last_frame_touched = frame;
-        self.last_parent = parent_id;
         self.n_twins = 0;
         return self.slab_i;
     }
@@ -678,18 +698,16 @@ impl IndexMut<usize> for Nodes {
 }
 
 impl System {
-    pub fn build_new_node<T: NodeType>(
+    pub fn build_new_node(
         &mut self,
-        key: &TypedKey<T>,
-        params: &NodeParams,
+        key: &NodeKey,
         twin_n: Option<u32>,
-        depth: usize,
     ) -> Node {
         // add back somewhere
 
         return Node {
             id: key.id(),
-            depth,
+            depth: 0,
             rect: Xy::new_symm([0.0, 1.0]),
             size: Xy::new_symm(10.0),
             text_id: None,
@@ -700,24 +718,24 @@ impl System {
 
             parent: 0, // just a wrong value which will be overwritten. it's even worse here.
             // but it's for symmetry with update_node, where all these values are old and are reset.
-            old_parent: 0,
 
             n_children: 0,
-            last_child: None, // will be overwritten later... not the cleanest
-            prev_sibling: None, // will be overwritten later... not the cleanest
-            old_first_child: None, // same here
-            old_prev_sibling: None, // same
+            last_child: None,
+            prev_sibling: None,
 
             is_twin: twin_n,
-            params: *params,
+            params: NodeParams::const_default(),
             debug_name: key.debug_name,
             last_hover: f32::MIN,
             last_click: f32::MIN,
             z: 0.0,
             last_rect_i: 0,
-            relayout_chain_root: None, // will be overwritten later... not the cleanest
+            relayout_chain_root: None,
             old_children_hash: EMPTY_HASH,
             last_layout_frame: 0,
+
+            needs_cosmetic_update: false,
+            needs_partial_relayout: false,        
         };
     }
 }
@@ -727,11 +745,11 @@ impl Ui {
     fn watch_params_change(&mut self, node_i: usize, old: NodeParams, new: NodeParams) {
         // todo: maybe improve with hashes and stuff?
         if old.layout != new.layout {
-            self.push_partial_relayout(node_i);
+            self.set_partial_relayout_flag(node_i);
         }
 
         if old.rect != new.rect {
-            self.push_cosmetic_rect_update(node_i);
+            self.set_cosmetic_update_flag(node_i);
         }
     }
 
@@ -755,11 +773,7 @@ impl Ui {
         };
     }
 
-    pub fn add_or_update_node<T: NodeType>(&mut self, key: TypedKey<T>, params: &NodeParams) -> usize {
-        let NodeWithDepth { i: parent_i, depth } = thread_local_peek_parent();
-
-        // todo: make build_new_node and update_node take the same params and pack it together
-
+    pub fn add_or_update_node(&mut self, key: NodeKey) -> usize {
         let frame = self.sys.part.current_frame;
 
         // Check the node corresponding to the key's id.
@@ -769,9 +783,9 @@ impl Ui {
         let twin_check_result = match self.nodes.node_hashmap.entry(key.id()) {
             // Add a normal node (no twins).
             Entry::Vacant(v) => {
-                let new_node = self.sys.build_new_node(&key, params, None, depth);
+                let new_node = self.sys.build_new_node(&key, None);
                 let final_i = self.nodes.nodes.insert(new_node);
-                v.insert(NodeMapEntry::new(parent_i, frame, final_i));
+                v.insert(NodeMapEntry::new(frame, final_i));
 
                 UpdatedNormal { final_i }
             }
@@ -781,10 +795,10 @@ impl Ui {
                 match refresh_or_add_twin(frame, old_map_entry.last_frame_touched) {
                     // Refresh a normal node from the previous frame (no twins).
                     Refresh => {
-                        old_map_entry.refresh(parent_i, frame);
-                        // todo2: check the map_entry values and maybe skip reaching into the node
+                        let yellow = "refresh should be in place(), not here";
+                        old_map_entry.refresh(frame);
+                        // in this branch we don't really do anything now. there will be a separate thing for updating params
                         let final_i = old_map_entry.slab_i;
-                        self.update_node(params, final_i, frame);
 
                         UpdatedNormal { final_i }
                     }
@@ -792,6 +806,7 @@ impl Ui {
                     AddTwin => {
                         old_map_entry.n_twins += 1;
                         let twin_key = key.sibling(old_map_entry.n_twins);
+
                         NeedToUpdateTwin {
                             twin_key,
                             twin_n: old_map_entry.n_twins,
@@ -810,34 +825,70 @@ impl Ui {
                 match self.nodes.node_hashmap.entry(twin_key.id()) {
                     // Add new twin.
                     Entry::Vacant(v) => {
-                        let new_twin_node =
-                            self.sys.build_new_node(&twin_key, params, Some(twin_n), depth);
+                        let new_twin_node = self.sys.build_new_node(&twin_key, Some(twin_n));
                         let real_final_i = self.nodes.nodes.insert(new_twin_node);
-                        v.insert(NodeMapEntry::new(parent_i, frame, real_final_i));
+                        v.insert(NodeMapEntry::new(frame, real_final_i));
                         (real_final_i, twin_key.id())
                     }
                     // Refresh a twin from the previous frame.
                     Entry::Occupied(o) => {
                         let old_twin_map_entry = o.into_mut();
 
-                        // todo2: check the map_entry values and maybe skip reaching into the node
-                        let real_final_i = old_twin_map_entry.refresh(parent_i, frame);
+                        let yellow = "refresh should be in place(), not here";
+                        let real_final_i = old_twin_map_entry.refresh(frame);
 
-                        self.update_node(params, real_final_i, frame);
                         (real_final_i, twin_key.id())
                     }
                 }
             }
         };
 
-        let children_hash_so_far = thread_local_hash_new_child(real_final_i);
+        return real_final_i;
+    }
+
+    pub fn place(&mut self, key: NodeKey) -> UiPlacedNode {
+        let yellow = "don't unwrap here! Just return an empty UiPlacedNode or something. Figure something out";
+        let real_key = self.get_latest_twin_key(key).unwrap();
+        let node_i = self.nodes.node_hashmap.get(&real_key.id()).unwrap().slab_i;
+
+        return self.place_by_i(node_i);
+    }
+
+    pub fn place_by_i(&mut self, node_i: usize) -> UiPlacedNode {
+        // refresh last_frame_touched. 
+        // refreshing the node should go here as well.
+        // but maybe not? the point was always that untouched nodes stay out of the tree and they get skipped automatically.
+        // unless we still need the frame for things like pruning?
+        let frame = self.sys.part.current_frame;
+        self.sys.text.refresh_last_frame(self.nodes[node_i].text_id, frame);
+
+        // update the in-tree links and the thread-local state based on the current parent.
+        let NodeWithDepth { i: parent_i, depth } = thread_local_peek_parent();
+        self.set_tree_links(node_i, parent_i, depth);
+        let children_hash_so_far = thread_local_hash_new_child(node_i);
         self.nodes[parent_i].old_children_hash = children_hash_so_far;
 
-        self.set_relayout_chain_root(params, real_final_i, parent_i);
+        // todo: write some comments for this hash stuff please
+        let old_children_hash = self.nodes[node_i].old_children_hash;
 
-        self.set_tree_links(real_final_i, parent_i);
+        // push partial relayouts. (the chain resolution stuff has already been done when setting the flag)
+        if self.nodes[node_i].needs_partial_relayout {
+            let relayout_entry = NodeWithDepth {
+                i: node_i,
+                depth: self.nodes[node_i].depth,
+            };
+            self.sys.changes.partial_relayouts.push(relayout_entry);
 
-        return real_final_i;
+            self.nodes[node_i].needs_partial_relayout = false;
+        }
+
+        // push cosmetic updates
+        if self.nodes[node_i].needs_cosmetic_update {
+            self.sys.changes.cosmetic_rect_updates.push(node_i);
+            self.nodes[node_i].needs_cosmetic_update = false;
+        }
+
+        return UiPlacedNode::new(node_i, old_children_hash);
     }
 
     pub(crate) fn get_latest_twin_key<T: NodeType>(&self, key: TypedKey<T>) -> Option<TypedKey<T>> {
@@ -854,12 +905,20 @@ impl Ui {
         return Some(twin_key);
     }
 
-    fn set_tree_links(&mut self, new_node_i: usize, parent_i: usize) {
+    fn set_tree_links(&mut self, new_node_i: usize, parent_i: usize, depth: usize) {
+        // clean old state
+        self.nodes[new_node_i].last_child = None;
+        self.nodes[new_node_i].prev_sibling = None;
+        // self.nodes[new_node_i].prev_sibling = None;
+        self.nodes[new_node_i].n_children = 0;
+
+        self.nodes[new_node_i].depth = depth;
         self.nodes[new_node_i].parent = parent_i;
+
+        self.set_relayout_chain_root(new_node_i, parent_i);
 
         self.nodes[parent_i].n_children += 1;
 
-        // todo: maybe merge reset_children into this to get big premature optimization points 
         match self.nodes[parent_i].last_child {
             None => {
                 self.add_first_child(new_node_i, parent_i)
@@ -878,10 +937,6 @@ impl Ui {
     fn add_sibling(&mut self, new_node_i: usize, old_last_child: usize, parent_i: usize) {
         self.nodes[new_node_i].prev_sibling = Some(old_last_child);
         self.nodes[parent_i].last_child = Some(new_node_i);
-    }
-
-    pub fn text(&mut self, text: &str) -> UiNode<Any> {
-        self.add(&TEXT).text(text)
     }
 
     pub fn resize(&mut self, size: &PhysicalSize<u32>, queue: &Queue) {
@@ -957,7 +1012,7 @@ impl Ui {
         // cursor
         // how to make it appear at the right z? might be impossible if there are overlapping rects at the same z.
         // one epic way could be to increase the z sequentially when rendering, so that all rects have different z's, so the cursor can have the z of its rect plus 0.0001.
-        // would definitely be very cringe for anyone doing custom rendering. but not really. nobody will ever want to stick his custom rendered stuff between a rectangle and another. when custom rendering INSIDE a rectangle, the user can get the z every time. might be annoying (very annoying even) but not deal breaking.
+        // anyone doing custom rendering won't mind having to fetch a dynamic Z since they're fetching dynamic x's and y's all the time.
 
         // it's a specific choice by me to keep cursors for every string at all times, but only display (and use) the one on the currently focused ui node.
         // someone might want multi-cursor in the same node, multi-cursor on different nodes, etc.
@@ -1058,7 +1113,7 @@ impl Ui {
         });
     }
 
-    fn update_node(&mut self, params: &NodeParams, node_i: usize, frame: u64) {
+    fn update_node_params(&mut self, params: &NodeParams, node_i: usize, frame: u64) {
         self.watch_params_change(node_i, self.nodes[node_i].params, *params);
         
         let node = &mut self.nodes[node_i];
@@ -1070,10 +1125,8 @@ impl Ui {
 
         // dunno why this is commented now, I guess it's done somewhere else
         // self.last_frame_touched = frame;
-        
-        node.reset_children();
 
-        self.sys.text.refresh_last_frame(node.text_id, frame);
+        
     }
 
     pub fn get_node(&mut self, key: TypedKey<Any>) -> Option<UiNode<Any>> {
@@ -1081,39 +1134,35 @@ impl Ui {
         return self.get_ref(real_key);
     }
 
-    fn set_relayout_chain_root(&mut self, new_node_params: &NodeParams, new_node_i: usize, parent_i: usize) {
+    fn set_relayout_chain_root(&mut self, new_node_i: usize, parent_i: usize) {
+        let is_fit_content = self.nodes[new_node_i].params.is_fit_content();
         match self.nodes[parent_i].relayout_chain_root {
-            Some(root_of_parent) => match new_node_params.is_fit_content() {
+            Some(root_of_parent) => match is_fit_content {
                 true => self.nodes[new_node_i].relayout_chain_root = Some(root_of_parent), // continue chain
                 false => self.nodes[new_node_i].relayout_chain_root = None, // break chain
             },
-            None => match new_node_params.is_fit_content() {
+            None => match is_fit_content {
                 true => self.nodes[new_node_i].relayout_chain_root = Some(new_node_i), // start chain
                 false => self.nodes[new_node_i].relayout_chain_root = None, // do nothing
             },
         };
     }
 
-    fn push_partial_relayout(&mut self, node_i: usize) {
-        let relayout_target_i = match self.nodes[node_i].relayout_chain_root {
+    fn set_partial_relayout_flag(&mut self, node_i: usize) {
+        let relayout_chain_root = match self.nodes[node_i].relayout_chain_root {
             Some(root) => root,
             None => node_i,
         };
 
         // even after the chain, we still have to go one layer up, because a different sized child probably means that the parent wants to place the node differently, and maybe pick a different size and position for the other children as well
         // In practice, the first half of that is basically always true, but the second half is only true for Stacks. I don't really feel like adding a distinction for that right now.
-        let relayout_target_parent = self.nodes[relayout_target_i].parent;
+        let relayout_target = self.nodes[relayout_chain_root].parent;
 
-        let relayout_entry = NodeWithDepth {
-            i: relayout_target_parent,
-            depth: self.nodes[relayout_target_parent].depth,
-        };
-        self.sys.changes.partial_relayouts.push(relayout_entry);
+        self.nodes[relayout_target].needs_partial_relayout = true;
     }
 
-    fn push_cosmetic_rect_update(&mut self, node_i: usize) {
-        // no chains here.
-        self.sys.changes.cosmetic_rect_updates.push(node_i);
+    fn set_cosmetic_update_flag(&mut self, node_i: usize) {
+        self.nodes[node_i].needs_cosmetic_update = true;
     }
 }
 
@@ -1134,7 +1183,8 @@ impl Ui {
 
         self.update_time();
 
-        self.nodes[self.sys.root_i].reset_children();
+        // .......
+        self.nodes[self.sys.root_i].last_child = None;
     }
 }
 
@@ -1163,18 +1213,15 @@ pub struct Node {
     pub last_static_text_ptr: Option<*const u8>,
 
     pub parent: usize,
-    pub old_parent: usize,
 
     // le epic inline linked list instead of a random Vec somewhere else on the heap
     // todo: Option<usize> is 128 bits, which is ridicolous. Use a NonMaxU32 or something
     pub n_children: u16,
 
-    pub old_first_child: Option<usize>,
-    pub old_prev_sibling: Option<usize>,
     pub last_child: Option<usize>,
     pub prev_sibling: Option<usize>,
     // prev_sibling is never used so far.
-    // at some point I was iterating the children in reverse for z ordering purposes, but I don't think that actually makes any difference.
+    // at some point I was iterating the children in reverse for z ordering purposes, but I don't think that makes any difference.
     // pub prev_sibling: Option<usize>,
     pub params: NodeParams,
 
@@ -1187,6 +1234,9 @@ pub struct Node {
     pub last_hover: f32,
     pub last_click: f32,
     pub z: f32,
+
+    pub needs_cosmetic_update: bool,
+    pub needs_partial_relayout: bool,
 }
 impl Node {
     pub fn debug_name(&self) -> String {
@@ -1195,18 +1245,6 @@ impl Node {
             None => self.debug_name.to_string(),
         };
         return debug_name;
-    }
-
-    fn reset_children(&mut self) {
-        // keep these ones so we can detect changes
-        self.old_parent = self.parent;
-        self.old_first_child = self.last_child;
-        self.old_prev_sibling = self.prev_sibling;
-
-        self.last_child = None;
-        self.prev_sibling = None;
-        // self.prev_sibling = None;
-        self.n_children = 0;
     }
 
     pub fn render_rect(&self, draw_even_if_invisible: bool) -> Option<RenderRect> {
@@ -1279,13 +1317,13 @@ fn fx_hash<T: Hash>(value: &T) -> u64 {
     hasher.finish()
 }
 
-pub struct Parent {
+pub struct UiPlacedNode {
     pub(crate) node_i: usize,
     pub(crate) old_children_hash: u64,
 }
-impl Parent {
-    pub(crate) fn new(node_i: usize, old_children_hash: u64) -> Parent {
-        return Parent {
+impl UiPlacedNode {
+    pub(crate) fn new(node_i: usize, old_children_hash: u64) -> UiPlacedNode {
+        return UiPlacedNode {
             node_i,
             old_children_hash,
         }
@@ -1301,33 +1339,26 @@ impl Parent {
 }
 
 impl<'a, T: NodeType> UiNode<'a, T> {
-    pub fn parent(&self) -> Parent {
+    pub fn place(&mut self) -> UiPlacedNode {
+        self.ui.place_by_i(self.node_i);
         let old_children_hash = self.node().old_children_hash;
-        return Parent::new(self.node_i, old_children_hash);
+        return UiPlacedNode::new(self.node_i, old_children_hash);
     }
 }
 
 impl Ui {
-    pub fn add(&mut self, params: &NodeParams) -> UiNode<Any> {
-        let i = self.add_or_update_node(params.key, params);
-        return self.get_ref_unchecked(i, &params.key);
+    pub fn add(&mut self, key: NodeKey) -> UiNode<Any> {
+        let i = self.add_or_update_node(key);
+        return self.get_ref_unchecked(i, &key);
     }
 
-    pub fn add_parent(&mut self, params: &NodeParams) -> Parent {
-        let node = self.add_or_update_node(params.key, params);
-        let old_children_hash = self.nodes[node].old_children_hash;
-        return Parent::new(node, old_children_hash);
+    pub fn v_stack(&mut self) -> UiPlacedNode {
+        self.add(ANON_VSTACK).params(V_STACK);
+        return self.place(ANON_VSTACK);
     }
 
-    pub fn v_stack(&mut self) -> Parent {
-        let node = self.add_or_update_node(ANON_VSTACK, &V_STACK);
-        let old_children_hash = self.nodes[node].old_children_hash;
-        return Parent::new(node, old_children_hash);
-    }
-
-    pub fn h_stack(&mut self) -> Parent {
-        let node = self.add_or_update_node(ANON_HSTACK, &H_STACK);
-        let old_children_hash = self.nodes[node].old_children_hash;
-        return Parent::new(node, old_children_hash);
+    pub fn h_stack(&mut self) -> UiPlacedNode {
+        self.add(ANON_HSTACK).params(H_STACK);
+        return self.place(ANON_HSTACK);
     }
 }

@@ -56,7 +56,7 @@ impl PartialChanges {
         THREAD_STACKS.with(|stack| {
             let mut stack = stack.borrow_mut();
             
-            // Leet mem::swap trick to get the tree changes out of the thread_local without cloning and without leaking dangerous refcelled references.
+            // mem::swap the tree changes out of the thread_local into a normal vec.
             std::mem::swap(&mut self.swapped_tree_changes, &mut stack.tree_changes);
 
             stack.tree_changes.clear();

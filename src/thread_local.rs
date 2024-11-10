@@ -2,7 +2,7 @@ use std::{cell::RefCell, hash::Hasher};
 
 use rustc_hash::FxHasher;
 
-use crate::{changes::NodeWithDepth, Parent, EMPTY_HASH};
+use crate::{changes::NodeWithDepth, UiPlacedNode, EMPTY_HASH};
 
 pub struct StackParent {
     i: usize,
@@ -38,7 +38,7 @@ thread_local! {
     pub static THREAD_STACKS: RefCell<Stacks> = RefCell::new(Stacks::initialize());
 }
 
-pub fn thread_local_push(new_parent: &Parent) {
+pub fn thread_local_push(new_parent: &UiPlacedNode) {
     THREAD_STACKS.with(|stack| {
         let mut stack = stack.borrow_mut();
         stack.parents.push(StackParent::new(new_parent.node_i, new_parent.old_children_hash));       
