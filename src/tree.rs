@@ -5,7 +5,7 @@ use crate::math::*;
 use crate::param_library::*;
 use crate::text::*;
 use crate::texture_atlas::*;
-use crate::thread_local::{clear_thread_local_parent_stack, thread_local_hash_new_child, thread_local_peek_parent, thread_local_pop, thread_local_push};
+use crate::thread_local::{clear_thread_local_parent_stack, thread_local_hash_new_child, thread_local_peek_parent, thread_local_pop_parent, thread_local_push_parent};
 use glyphon::cosmic_text::Align;
 use glyphon::{AttrsList, Color as GlyphonColor, TextBounds, Viewport};
 
@@ -13,6 +13,7 @@ use glyphon::Cache as GlyphonCache;
 
 use rustc_hash::{FxHashMap, FxHasher};
 use slab::Slab;
+use thread_local::thread_local_peek_tree_position_hash;
 use wgpu::*;
 use winit::event::MouseButton;
 
@@ -382,6 +383,7 @@ impl<'a, T: NodeType> UiNode<'a, T> {
     }
 
     pub fn params(&mut self, params: NodeParams) -> &mut Self {
+        let yellow = "all the setter functions above should also set the relayout/update flags";
         self.ui.watch_params_change(self.node_i, self.node().params, params);
         self.node_mut().params = params;
         return self;
@@ -1330,11 +1332,11 @@ impl UiPlacedNode {
     }
 
     pub fn nest(&self, children_block: impl FnOnce()) {
-        thread_local_push(self);
+        thread_local_push_parent(self);
 
         children_block();
 
-        thread_local_pop();
+        thread_local_pop_parent();
     }
 }
 
@@ -1350,6 +1352,18 @@ impl Ui {
     pub fn add(&mut self, key: NodeKey) -> UiNode<Any> {
         let i = self.add_or_update_node(key);
         return self.get_ref_unchecked(i, &key);
+    }
+
+    pub fn add_anon(&mut self, params: NodeParams) -> UiNode<Any> {
+        let id_from_tree_position = thread_local_peek_tree_position_hash();
+        // the params usually change after the add(), so no point in trying to get a debug name from the params
+        let anonymous_key = NodeKey::new(Id(id_from_tree_position), "");
+        
+        let i = self.add_or_update_node(anonymous_key);
+
+        let mut uinode = self.get_ref_unchecked(i, &anonymous_key);
+        uinode.params(params);
+        return uinode; 
     }
 
     pub fn v_stack(&mut self) -> UiPlacedNode {

@@ -55,15 +55,13 @@ impl ExampleLoop for State {
 
         // Declare the layout.
 
-        // ui.place(VSTACKKEY).nest(|| {
         ui.v_stack().nest(|| {
             if self.show {
                 ui.place(INCREASE);
                 ui.place(LABELKEY); 
 
                 // this one is all in one line cuz we're quirky like that
-                #[node_key] const DECREASE: NodeKey;
-                ui.add(DECREASE).params(BUTTON).static_text("Decrease").on_click(|| { self.count -= 1 }).place();
+                ui.add_anon(BUTTON).static_text("Decrease").on_click(|| { self.count -= 1 }).place();
 
             }
             ui.place(SHOW);

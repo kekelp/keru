@@ -1,4 +1,4 @@
-use std::{cell::RefCell, hash::Hasher};
+use std::{cell::RefCell, hash::{Hash, Hasher}};
 
 use rustc_hash::FxHasher;
 
@@ -38,14 +38,14 @@ thread_local! {
     pub static THREAD_STACKS: RefCell<Stacks> = RefCell::new(Stacks::initialize());
 }
 
-pub fn thread_local_push(new_parent: &UiPlacedNode) {
+pub fn thread_local_push_parent(new_parent: &UiPlacedNode) {
     THREAD_STACKS.with(|stack| {
         let mut stack = stack.borrow_mut();
         stack.parents.push(StackParent::new(new_parent.node_i, new_parent.old_children_hash));       
     });
 }
 
-pub fn thread_local_pop() {
+pub fn thread_local_pop_parent() {
     THREAD_STACKS.with(|stack| {
         let mut stack = stack.borrow_mut();
         
@@ -80,6 +80,22 @@ pub fn thread_local_peek_parent() -> NodeWithDepth {
             let parent_i = stack.borrow().parents.last().unwrap().i;
             let depth = stack.borrow().parents.len();
             return NodeWithDepth{ i: parent_i, depth };
+        }
+    )
+}
+
+pub fn thread_local_peek_tree_position_hash() -> u64 {
+    THREAD_STACKS.with(
+        |stack| {
+            let parent_stack = &stack.borrow().parents;
+
+            let mut hasher = FxHasher::default();
+        
+            for ancestor in parent_stack {
+                ancestor.i.hash(&mut hasher); // Write each element into the same hasher
+            }
+        
+            return hasher.finish();
         }
     )
 }

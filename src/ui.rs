@@ -3,7 +3,7 @@ use crate::interact::{HeldNodes, LastFrameClicks, MouseInputState, StoredClick};
 use crate::math::*;
 use crate::render::TypedGpuBuffer;
 use crate::texture_atlas::*;
-use crate::thread_local::thread_local_push;
+use crate::thread_local::thread_local_push_parent;
 use crate::*;
 use copypasta::ClipboardContext;
 use glyphon::Cache as GlyphonCache;
@@ -257,7 +257,7 @@ impl Ui {
         };
 
         let root_parent = UiPlacedNode::new(root_i, EMPTY_HASH);
-        thread_local_push(&root_parent);
+        thread_local_push_parent(&root_parent);
 
         node_hashmap.insert(NODE_ROOT_ID, root_map_entry);
 
