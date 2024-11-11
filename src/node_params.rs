@@ -1,3 +1,7 @@
+use std::hash::{Hash, Hasher};
+
+use rustc_hash::FxHasher;
+
 use crate::*;
 
 #[derive(Debug, Copy, Clone)]
@@ -10,7 +14,7 @@ pub struct NodeParams {
     pub key: NodeKey,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Hash)]
 pub enum Size {
     Fixed(Len),
     Fill,
@@ -26,7 +30,7 @@ pub enum Size {
     // todo: add AspectRatio
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Hash)]
 pub enum Position {
     Center,
     Start,
@@ -35,7 +39,7 @@ pub enum Position {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Hash)]
 pub struct Stack {
     pub arrange: Arrange,
     pub axis: Axis,
@@ -61,7 +65,7 @@ impl Stack {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Hash)]
 pub enum Arrange {
     Start,
     End,
@@ -72,20 +76,20 @@ pub enum Arrange {
 }
 
 // might as well move to Rect? but maybe there's issues with non-clickable stuff absorbing the clicks.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Hash)]
 pub struct Interact {
     pub click_animation: bool,
     pub absorbs_mouse_events: bool,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Hash)]
 pub struct Layout {
     pub size: Xy<Size>,
     pub padding: Xy<Len>,
     pub position: Xy<Position>,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Hash)]
 pub struct Rect {
     pub visible: bool,
     pub outline_only: bool,
@@ -102,7 +106,7 @@ impl Rect {
 
 // rename
 // todo: add greyed text for textinput
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Hash)]
 pub struct TextOptions {
     pub editable: bool,
 }
@@ -115,6 +119,20 @@ pub struct Image<'data> {
 pub(crate) const BASE_RADIUS: f32 = 20.0;
 
 impl NodeParams {
+    pub(crate) fn cosmetic_update_hash(&self) -> u64 {
+        let mut hasher = FxHasher::default();
+        self.rect.hash(&mut hasher);
+        return hasher.finish();
+    }
+
+    pub(crate) fn partial_relayout_hash(&self) -> u64 {
+        let mut hasher = FxHasher::default();
+        self.layout.hash(&mut hasher);
+        self.stack.hash(&mut hasher);
+        self.text_params.hash(&mut hasher);
+        return hasher.finish();
+    }
+
     pub const fn const_default() -> Self {
         return DEFAULT;
     }

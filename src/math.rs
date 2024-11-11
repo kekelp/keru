@@ -1,5 +1,5 @@
 use bytemuck::{Pod, Zeroable};
-use std::ops::{Add, Index, IndexMut, Mul, Sub};
+use std::{hash::{Hash, Hasher}, ops::{Add, Index, IndexMut, Mul, Sub}};
 use Axis::*;
 
 use crate::Ui;
@@ -11,6 +11,15 @@ pub enum Len {
 }
 impl Len {
     pub const ZERO: Self = Self::Pixels(0);
+}
+// This is fine for our case
+impl Hash for Len {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            Len::Pixels(p) => p.hash(state),
+            Len::Frac(f) => f.to_bits().hash(state),
+        }
+    }
 }
 
 impl Ui {
@@ -58,7 +67,7 @@ impl Ui {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Hash)]
 pub enum Axis {
     X,
     Y,
@@ -77,6 +86,13 @@ impl Axis {
 pub struct Xy<T> {
     pub x: T,
     pub y: T,
+}
+
+impl<T: Hash> Hash for Xy<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.x.hash(state);
+        self.y.hash(state);
+    }
 }
 
 impl<T: Add<Output = T> + Copy> Add<Xy<T>> for Xy<T> {

@@ -89,6 +89,8 @@ pub const NODE_ROOT: Node = Node {
 
     needs_cosmetic_update: false,
     needs_partial_relayout: false,
+    last_cosmetic_params_hash: 0,
+    last_layout_params_hash: 0,
 };
 
 // Despite the name, these are also used for hit-testing mouse clicks.
@@ -150,7 +152,7 @@ impl RenderRect {
     pub const EMPTY_FLAGS: u32 = 0;
 }
 
-#[derive(Default, Debug, Clone, Copy, PartialEq, Zeroable, Pod)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Zeroable, Pod, Hash)]
 #[repr(C)]
 pub struct Color {
     pub r: u8,
@@ -165,7 +167,7 @@ impl Color {
     }
 }
 
-#[derive(Default, Debug, Clone, Copy, PartialEq, Zeroable, Pod)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Zeroable, Pod, Hash)]
 #[repr(C)]
 pub struct VertexColors {
     top_left: Color,
@@ -383,8 +385,6 @@ impl<'a, T: NodeType> UiNode<'a, T> {
     }
 
     pub fn params(&mut self, params: NodeParams) -> &mut Self {
-        let yellow = "all the setter functions above should also set the relayout/update flags";
-        self.ui.watch_params_change(self.node_i, self.node().params, params);
         self.node_mut().params = params;
         return self;
     }
@@ -736,6 +736,8 @@ impl System {
             old_children_hash: EMPTY_HASH,
             last_layout_frame: 0,
 
+            last_cosmetic_params_hash: 0,
+            last_layout_params_hash: 0,
             needs_cosmetic_update: false,
             needs_partial_relayout: false,        
         };
@@ -743,18 +745,6 @@ impl System {
 }
 
 impl Ui {
-    /// Determine if the params change means that the Ui needs to be relayouted and/or rerendered
-    fn watch_params_change(&mut self, node_i: usize, old: NodeParams, new: NodeParams) {
-        // todo: maybe improve with hashes and stuff?
-        if old.layout != new.layout {
-            self.set_partial_relayout_flag(node_i);
-        }
-
-        if old.rect != new.rect {
-            self.set_cosmetic_update_flag(node_i);
-        }
-    }
-
     pub fn format_into_scratch(&mut self, value: impl Display) {
         self.format_scratch.clear();
         let _ = write!(self.format_scratch, "{}", value);
@@ -848,7 +838,9 @@ impl Ui {
         return real_final_i;
     }
 
+    // #[track_caller]
     pub fn place(&mut self, key: NodeKey) -> UiPlacedNode {
+        // println!("Albeit {}", std::panic::Location::caller());
         let yellow = "don't unwrap here! Just return an empty UiPlacedNode or something. Figure something out";
         let real_key = self.get_latest_twin_key(key).unwrap();
         let node_i = self.nodes.node_hashmap.get(&real_key.id()).unwrap().slab_i;
@@ -856,41 +848,45 @@ impl Ui {
         return self.place_by_i(node_i);
     }
 
-    pub fn place_by_i(&mut self, node_i: usize) -> UiPlacedNode {
+    pub fn place_by_i(&mut self, i: usize) -> UiPlacedNode {
+
         // refresh last_frame_touched. 
         // refreshing the node should go here as well.
         // but maybe not? the point was always that untouched nodes stay out of the tree and they get skipped automatically.
         // unless we still need the frame for things like pruning?
         let frame = self.sys.part.current_frame;
-        self.sys.text.refresh_last_frame(self.nodes[node_i].text_id, frame);
+        self.sys.text.refresh_last_frame(self.nodes[i].text_id, frame);
 
         // update the in-tree links and the thread-local state based on the current parent.
         let NodeWithDepth { i: parent_i, depth } = thread_local_peek_parent();
-        self.set_tree_links(node_i, parent_i, depth);
-        let children_hash_so_far = thread_local_hash_new_child(node_i);
+        self.set_tree_links(i, parent_i, depth);
+        let children_hash_so_far = thread_local_hash_new_child(i);
         self.nodes[parent_i].old_children_hash = children_hash_so_far;
 
-        // todo: write some comments for this hash stuff please
-        let old_children_hash = self.nodes[node_i].old_children_hash;
+        let old_children_hash = self.nodes[i].old_children_hash;
 
-        // push partial relayouts. (the chain resolution stuff has already been done when setting the flag)
-        if self.nodes[node_i].needs_partial_relayout {
-            let relayout_entry = NodeWithDepth {
-                i: node_i,
-                depth: self.nodes[node_i].depth,
-            };
-            self.sys.changes.partial_relayouts.push(relayout_entry);
 
-            self.nodes[node_i].needs_partial_relayout = false;
+        let cosmetic_params_hash = self.nodes[i].params.cosmetic_update_hash();
+        let layout_params_hash = self.nodes[i].params.partial_relayout_hash();
+
+        let param_cosmetic_update = cosmetic_params_hash != self.nodes[i].last_cosmetic_params_hash;
+        let param_partial_relayout = layout_params_hash != self.nodes[i].last_layout_params_hash;
+
+        
+        if self.nodes[i].needs_partial_relayout | param_partial_relayout {
+            self.push_partial_relayout(i);
+            self.nodes[i].last_layout_params_hash = layout_params_hash;
+            self.nodes[i].needs_partial_relayout = false;
         }
-
+        
         // push cosmetic updates
-        if self.nodes[node_i].needs_cosmetic_update {
-            self.sys.changes.cosmetic_rect_updates.push(node_i);
-            self.nodes[node_i].needs_cosmetic_update = false;
+        if self.nodes[i].needs_cosmetic_update | param_cosmetic_update{
+            self.push_cosmetic_update(i);
+            self.nodes[i].last_cosmetic_params_hash = cosmetic_params_hash;
+            self.nodes[i].needs_cosmetic_update = false;
         }
 
-        return UiPlacedNode::new(node_i, old_children_hash);
+        return UiPlacedNode::new(i, old_children_hash);
     }
 
     pub(crate) fn get_latest_twin_key<T: NodeType>(&self, key: TypedKey<T>) -> Option<TypedKey<T>> {
@@ -1115,22 +1111,6 @@ impl Ui {
         });
     }
 
-    fn update_node_params(&mut self, params: &NodeParams, node_i: usize, frame: u64) {
-        self.watch_params_change(node_i, self.nodes[node_i].params, *params);
-        
-        let node = &mut self.nodes[node_i];
-
-        node.params = *params;
-
-        // we don't do this anymore, cuz we do it in set_tree_links
-        // node.parent = parent_id;
-
-        // dunno why this is commented now, I guess it's done somewhere else
-        // self.last_frame_touched = frame;
-
-        
-    }
-
     pub fn get_node(&mut self, key: TypedKey<Any>) -> Option<UiNode<Any>> {
         let real_key = self.get_latest_twin_key(key)?;
         return self.get_ref(real_key);
@@ -1151,20 +1131,33 @@ impl Ui {
     }
 
     fn set_partial_relayout_flag(&mut self, node_i: usize) {
-        let relayout_chain_root = match self.nodes[node_i].relayout_chain_root {
+        self.nodes[node_i].needs_partial_relayout = true;
+    }
+
+    fn push_partial_relayout(&mut self, i: usize) {
+        let relayout_chain_root = match self.nodes[i].relayout_chain_root {
             Some(root) => root,
-            None => node_i,
+            None => i,
         };
 
         // even after the chain, we still have to go one layer up, because a different sized child probably means that the parent wants to place the node differently, and maybe pick a different size and position for the other children as well
         // In practice, the first half of that is basically always true, but the second half is only true for Stacks. I don't really feel like adding a distinction for that right now.
         let relayout_target = self.nodes[relayout_chain_root].parent;
 
-        self.nodes[relayout_target].needs_partial_relayout = true;
+        let relayout_entry = NodeWithDepth {
+            i: relayout_target,
+            depth: self.nodes[relayout_target].depth,
+        };
+        self.sys.changes.partial_relayouts.push(relayout_entry);
     }
 
-    fn set_cosmetic_update_flag(&mut self, node_i: usize) {
+    // this will be still needed for things like image/texture updates, I think. 
+    fn _set_cosmetic_update_flag(&mut self, node_i: usize) {
         self.nodes[node_i].needs_cosmetic_update = true;
+    }
+
+    fn push_cosmetic_update(&mut self, i: usize) {
+        self.sys.changes.cosmetic_rect_updates.push(i);
     }
 }
 
@@ -1239,6 +1232,8 @@ pub struct Node {
 
     pub needs_cosmetic_update: bool,
     pub needs_partial_relayout: bool,
+    pub last_cosmetic_params_hash: u64,
+    pub last_layout_params_hash: u64,
 }
 impl Node {
     pub fn debug_name(&self) -> String {
