@@ -1,0 +1,5 @@
+{
+    "rust-analyzer.linkedProjects": [
+        "./crates/blue_paint/Cargo.toml"
+    ]
+}

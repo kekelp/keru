@@ -51,7 +51,7 @@ impl ExampleLoop for State {
                 ui.place(INCREASE);
                 // this one sets its appearance and place()s itself into the tree in the same line, just for fun.
                 // since we don't need to check its clicks either, this means that we can do it without a key.
-                ui.add_anon(LABEL).text(self.count).place();
+                ui.text(self.count);
                 ui.place(DECREASE);
 
             }

@@ -320,7 +320,7 @@ impl Ui {
         };
 
         // self.place_image(node); // I think there's nothing to place? right now it's always the full rect
-        self.place_text(node, self.nodes[node].rect);
+        self.place_text_inside(node, self.nodes[node].rect);
     
         if also_update_rects {
             self.update_rect(node);
@@ -438,7 +438,7 @@ impl Ui {
         // might be something here in the future
     }
 
-    pub fn place_text(&mut self, node: usize, rect: XyRect) {
+    fn place_text_inside(&mut self, node: usize, rect: XyRect) {
         let padding = self.to_pixels2(self.nodes[node].params.layout.padding);
         let node = &mut self.nodes[node];
         let text_id = node.text_id;

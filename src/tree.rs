@@ -398,6 +398,39 @@ impl<'a, T: NodeType> UiNode<'a, T> {
 
         return size - padding;
     }
+
+    pub fn stack_arrange(&mut self, arrange: Arrange) -> &mut Self {
+        let stack = match self.node().params.stack {
+            Some(stack) => stack,
+            None => Stack::DEFAULT,
+        };
+        self.node_mut().params.stack = Some(stack.arrange(arrange));
+        return self;
+    }
+
+    pub fn stack_spacing(&mut self, spacing: Len) -> &mut Self {
+        let stack = match self.node().params.stack {
+            Some(stack) => stack,
+            None => Stack::DEFAULT,
+        };
+        self.node_mut().params.stack = Some(stack.spacing(spacing));
+        return self;
+    }
+
+    pub fn padding(&mut self, padding: Len) -> &mut Self {
+        self.node_mut().params.layout.padding = Xy::new_symm(padding);
+        return self;
+    }
+
+    pub fn padding_x(&mut self, padding: Len) -> &mut Self {
+        self.node_mut().params.layout.padding.x = padding;
+        return self;
+    }
+
+    pub fn padding_y(&mut self, padding: Len) -> &mut Self {
+        self.node_mut().params.layout.padding.y = padding;
+        return self;
+    }
 }
 
 impl<'a, T: TextTrait> UiNode<'a, T> {
@@ -1366,8 +1399,12 @@ impl Ui {
         return self.place(ANON_VSTACK);
     }
 
-    pub fn h_stack(&mut self) -> UiPlacedNode {
+    pub fn place_h_stack(&mut self) -> UiPlacedNode {
         self.add(ANON_HSTACK).params(H_STACK);
         return self.place(ANON_HSTACK);
+    }
+
+    pub fn text(&mut self, text: impl Display + Hash) -> UiPlacedNode {
+        return self.add_anon(TEXT).text(text).place();
     }
 }
