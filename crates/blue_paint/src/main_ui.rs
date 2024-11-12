@@ -1,11 +1,7 @@
-// crate::* is needed to fix some crap with macros: https://github.com/rust-lang/rust/pull/52234#issuecomment-894851497
-// when ui will be in its own crate, this won't happen anymore
+use blue::*;
 use blue::Position::*;
 use blue::Size::*;
-use blue::*;
 use blue::Len::*;
-
-use blue::node_key;
 
 use crate::PixelColorF32;
 use crate::State;

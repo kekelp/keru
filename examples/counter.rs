@@ -21,16 +21,12 @@ impl ExampleLoop for State {
             false => "Show Counter",
         };
 
-        // Declare our Ui elements and set their params: color, size, position, ...
-        // We're mostly just using the default params in BUTTON here.
+        // Declare unique identities for out Ui elements with #[node_key]
         // Using a NodeKey to assign a stable identity to each element is almost always a good idea, but it's not always necessary.
         #[node_key] const INCREASE: NodeKey;
         #[node_key] const DECREASE: NodeKey;
-        #[node_key] const LABELKEY: NodeKey;
         #[node_key] const SHOW: NodeKey;
-        #[node_key] const VSTACKKEY: NodeKey;
 
-        // ui.add(DECREASE).params(BUTTON).static_text("Decrease");
         ui.add(INCREASE)
             .params(BUTTON)
             .color(count_color(self.count))
@@ -49,8 +45,6 @@ impl ExampleLoop for State {
         ui.v_stack().nest(|| {
             if self.show {
                 ui.place(INCREASE);
-                // this one sets its appearance and place()s itself into the tree in the same line, just for fun.
-                // since we don't need to check its clicks either, this means that we can do it without a key.
                 ui.label(self.count);
                 ui.place(DECREASE);
 
