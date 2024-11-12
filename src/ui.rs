@@ -6,6 +6,8 @@ use crate::texture_atlas::*;
 use crate::thread_local::thread_local_push_parent;
 use crate::*;
 use crate::node::*;
+use crate::render_rect::*;
+
 use copypasta::ClipboardContext;
 use glyphon::Cache as GlyphonCache;
 use glyphon::Viewport;

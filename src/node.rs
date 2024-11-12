@@ -1,6 +1,8 @@
+use crate::*;
+use crate::render_rect::*;
+
 use texture_atlas::ImageRef;
 
-use crate::*;
 
 #[derive(Debug)]
 pub struct Node {
@@ -106,7 +108,7 @@ impl Node {
         return debug_name;
     }
 
-    pub fn render_rect(&self, draw_even_if_invisible: bool) -> Option<RenderRect> {
+    pub(crate) fn render_rect(&self, draw_even_if_invisible: bool) -> Option<RenderRect> {
         if ! draw_even_if_invisible && ! self.params.rect.visible {
             return None;
         }
@@ -139,7 +141,7 @@ impl Node {
         })
     }
 
-    pub fn image_rect(&self) -> Option<RenderRect> {
+    pub(crate) fn image_rect(&self) -> Option<RenderRect> {
         let mut image_flags = RenderRect::EMPTY_FLAGS;
         if self.params.interact.click_animation {
             image_flags |= RenderRect::CLICK_ANIMATION;
