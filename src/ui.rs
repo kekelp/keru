@@ -8,6 +8,8 @@ use crate::*;
 use crate::node::*;
 use crate::render_rect::*;
 
+use crate::math::Axis::*;
+
 use copypasta::ClipboardContext;
 use glyphon::Cache as GlyphonCache;
 use glyphon::Viewport;
@@ -395,5 +397,30 @@ impl Index<usize> for Nodes {
 impl IndexMut<usize> for Nodes {
     fn index_mut(&mut self, i: usize) -> &mut Self::Output {
         return &mut self.nodes[i];
+    }
+}
+
+impl PartialBorrowStuff {
+    pub fn mouse_hit_rect(&self, rect: &RenderRect) -> bool {
+        // rects are rebuilt from scratch every render, so this isn't needed, for now.
+        // if rect.last_frame_touched != self.current_frame {
+        //     return (false, false);
+        // }
+
+        let mut mouse_pos = (
+            self.mouse_pos.x / self.unifs.size[X],
+            1.0 - (self.mouse_pos.y / self.unifs.size[Y]),
+        );
+
+        // transform mouse_pos into "opengl" centered coordinates
+        mouse_pos.0 = (mouse_pos.0 * 2.0) - 1.0;
+        mouse_pos.1 = (mouse_pos.1 * 2.0) - 1.0;
+
+        let hovered = rect.rect[X][0] < mouse_pos.0
+            && mouse_pos.0 < rect.rect[X][1]
+            && rect.rect[Y][0] < mouse_pos.1
+            && mouse_pos.1 < rect.rect[Y][1];
+
+        return hovered;
     }
 }

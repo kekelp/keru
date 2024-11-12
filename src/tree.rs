@@ -1,3 +1,4 @@
+// todo: move some more stuff out of this file
 use crate::changes::NodeWithDepth;
 use crate::*;
 use crate::keys::*;
@@ -5,8 +6,6 @@ use crate::math::*;
 use crate::param_library::*;
 use crate::text::*;
 use crate::node::*;
-use crate::color::*;
-use crate::render_rect::*;
 use crate::thread_local::{clear_thread_local_parent_stack, thread_local_hash_new_child, thread_local_peek_parent, thread_local_pop_parent, thread_local_push_parent};
 use glyphon::cosmic_text::Align;
 use glyphon::{AttrsList, Color as GlyphonColor, TextBounds, Viewport};
@@ -16,7 +15,6 @@ use glyphon::Cache as GlyphonCache;
 use rustc_hash::FxHasher;
 use thread_local::thread_local_peek_tree_position_hash;
 use wgpu::*;
-use winit::event::MouseButton;
 
 use std::collections::hash_map::Entry;
 use std::sync::LazyLock;
@@ -54,33 +52,6 @@ pub(crate) const EMPTY_HASH: u64 = 0;
 
 pub const FIRST_FRAME: u64 = 1;
 
-
-
-
-impl PartialBorrowStuff {
-    pub fn mouse_hit_rect(&self, rect: &RenderRect) -> bool {
-        // rects are rebuilt from scratch every render, so this isn't needed, for now.
-        // if rect.last_frame_touched != self.current_frame {
-        //     return (false, false);
-        // }
-
-        let mut mouse_pos = (
-            self.mouse_pos.x / self.unifs.size[X],
-            1.0 - (self.mouse_pos.y / self.unifs.size[Y]),
-        );
-
-        // transform mouse_pos into "opengl" centered coordinates
-        mouse_pos.0 = (mouse_pos.0 * 2.0) - 1.0;
-        mouse_pos.1 = (mouse_pos.1 * 2.0) - 1.0;
-
-        let hovered = rect.rect[X][0] < mouse_pos.0
-            && mouse_pos.0 < rect.rect[X][1]
-            && rect.rect[Y][0] < mouse_pos.1
-            && mouse_pos.1 < rect.rect[Y][1];
-
-        return hovered;
-    }
-}
 
 // another stupid sub struct for dodging partial borrows
 pub struct TextSystem {
