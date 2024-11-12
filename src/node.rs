@@ -2,47 +2,6 @@ use texture_atlas::ImageRef;
 
 use crate::*;
 
-
-// ...because it will be added first?
-pub const ROOT_I: usize = 0;
-
-pub const NODE_ROOT_ID: Id = Id(0);
-pub const NODE_ROOT: Node = Node {
-    id: NODE_ROOT_ID,
-    depth: 0,
-    rect: Xy::new_symm([0.0, 1.0]),
-    size: Xy::new_symm(1.0),
-    text_id: None,
-
-    imageref: None,
-    last_static_image_ptr: None,
-    last_static_text_ptr: None,
-
-    parent: usize::MAX,
-
-    n_children: 0,
-    last_child: None,
-    prev_sibling: None,
-
-    is_twin: None,
-
-    params: NODE_ROOT_PARAMS,
-    debug_name: "Root",
-    last_hover: f32::MIN,
-    last_click: f32::MIN,
-    z: -10000.0,
-    last_rect_i: 0,
-    relayout_chain_root: None,
-    old_children_hash: EMPTY_HASH,
-    last_layout_frame: 0,
-
-    needs_cosmetic_update: false,
-    needs_partial_relayout: false,
-    last_cosmetic_params_hash: 0,
-    last_layout_params_hash: 0,
-};
-
-
 #[derive(Debug)]
 pub struct Node {
     pub id: Id,
@@ -95,7 +54,50 @@ pub struct Node {
     pub last_cosmetic_params_hash: u64,
     pub last_layout_params_hash: u64,
 }
+
 impl Node {
+    pub fn new(
+        key: &NodeKey,
+        twin_n: Option<u32>,
+    ) -> Node {
+        // add back somewhere
+
+        return Node {
+            id: key.id(),
+            depth: 0,
+            rect: Xy::new_symm([0.0, 1.0]),
+            size: Xy::new_symm(10.0),
+            text_id: None,
+
+            imageref: None,
+            last_static_image_ptr: None,
+            last_static_text_ptr: None,
+
+            parent: 0, // just a wrong value which will be overwritten. it's even worse here.
+            // but it's for symmetry with update_node, where all these values are old and are reset.
+
+            n_children: 0,
+            last_child: None,
+            prev_sibling: None,
+
+            is_twin: twin_n,
+            params: NodeParams::const_default(),
+            debug_name: key.debug_name,
+            last_hover: f32::MIN,
+            last_click: f32::MIN,
+            z: 0.0,
+            last_rect_i: 0,
+            relayout_chain_root: None,
+            old_children_hash: EMPTY_HASH,
+            last_layout_frame: 0,
+
+            last_cosmetic_params_hash: 0,
+            last_layout_params_hash: 0,
+            needs_cosmetic_update: false,
+            needs_partial_relayout: false,        
+        };
+    }
+
     pub fn debug_name(&self) -> String {
         let debug_name = match self.is_twin {
             Some(n) => format!("{} (twin #{})", self.debug_name, n),
@@ -166,3 +168,43 @@ impl Node {
     }
 
 }
+
+
+// ...because it will be added first?
+pub const ROOT_I: usize = 0;
+
+pub const NODE_ROOT_ID: Id = Id(0);
+pub const NODE_ROOT: Node = Node {
+    id: NODE_ROOT_ID,
+    depth: 0,
+    rect: Xy::new_symm([0.0, 1.0]),
+    size: Xy::new_symm(1.0),
+    text_id: None,
+
+    imageref: None,
+    last_static_image_ptr: None,
+    last_static_text_ptr: None,
+
+    parent: usize::MAX,
+
+    n_children: 0,
+    last_child: None,
+    prev_sibling: None,
+
+    is_twin: None,
+
+    params: NODE_ROOT_PARAMS,
+    debug_name: "Root",
+    last_hover: f32::MIN,
+    last_click: f32::MIN,
+    z: -10000.0,
+    last_rect_i: 0,
+    relayout_chain_root: None,
+    old_children_hash: EMPTY_HASH,
+    last_layout_frame: 0,
+
+    needs_cosmetic_update: false,
+    needs_partial_relayout: false,
+    last_cosmetic_params_hash: 0,
+    last_layout_params_hash: 0,
+};

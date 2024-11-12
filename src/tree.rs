@@ -670,7 +670,7 @@ impl Ui {
         let twin_check_result = match self.nodes.node_hashmap.entry(key.id()) {
             // Add a normal node (no twins).
             Entry::Vacant(v) => {
-                let new_node = self.sys.build_new_node(&key, None);
+                let new_node = Node::new(&key, None);
                 let final_i = self.nodes.nodes.insert(new_node);
                 v.insert(NodeMapEntry::new(frame, final_i));
 
@@ -712,7 +712,7 @@ impl Ui {
                 match self.nodes.node_hashmap.entry(twin_key.id()) {
                     // Add new twin.
                     Entry::Vacant(v) => {
-                        let new_twin_node = self.sys.build_new_node(&twin_key, Some(twin_n));
+                        let new_twin_node = Node::new(&twin_key, Some(twin_n));
                         let real_final_i = self.nodes.nodes.insert(new_twin_node);
                         v.insert(NodeMapEntry::new(frame, real_final_i));
                         (real_final_i, twin_key.id())
