@@ -1,4 +1,5 @@
 use crate::*;
+use crate::node::*;
 
 use glyphon::Buffer as GlyphonBuffer;
 use Axis::{X, Y};

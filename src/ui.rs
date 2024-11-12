@@ -5,10 +5,12 @@ use crate::render::TypedGpuBuffer;
 use crate::texture_atlas::*;
 use crate::thread_local::thread_local_push_parent;
 use crate::*;
+use crate::node::*;
 use copypasta::ClipboardContext;
 use glyphon::Cache as GlyphonCache;
 use glyphon::Viewport;
 
+use node::Node;
 use rustc_hash::FxHashMap;
 use slab::Slab;
 
@@ -20,6 +22,7 @@ use wgpu::{
     TextureSampleType, TextureViewDimension, VertexState,
 };
 
+use std::ops::{Index, IndexMut};
 use std::{mem, time::Instant};
 
 use bytemuck::{Pod, Zeroable};
@@ -335,5 +338,105 @@ impl Ui {
 
     pub fn base_uniform_buffer(&self) -> &Buffer {
         return &self.sys.base_uniform_buffer;
+    }
+}
+
+
+
+#[derive(Debug, Clone, Copy)]
+pub struct NodeMapEntry {
+    pub last_frame_touched: u64,
+
+    // keeping track of the twin situation.
+    // This is the number of twins of a node that showed up SO FAR in the current frame. it gets reset every frame (on refresh().)
+    // for the 0-th twin of a family, this will be the total number of clones of itself around. (not including itself, so starts at zero).
+    // the actual twins ARE twins, but they don't HAVE twins, so this is zero.
+    // for this reason, "clones" or "copies" would be better names, but those words are loaded in rust
+    // reproduction? replica? imitation? duplicate? version? dupe? replication? mock? carbon?
+    pub n_twins: u32,
+    pub slab_i: usize,
+}
+impl NodeMapEntry {
+    pub fn new(frame: u64, new_i: usize) -> Self {
+        return Self {
+            last_frame_touched: frame,
+            n_twins: 0,
+            slab_i: new_i,
+        };
+    }
+
+    pub fn refresh(&mut self, frame: u64) -> usize {
+        self.last_frame_touched = frame;
+        self.n_twins = 0;
+        return self.slab_i;
+    }
+}
+
+#[derive(Debug)]
+pub struct Nodes {
+    // todo: make faster o algo
+    pub node_hashmap: FxHashMap<Id, NodeMapEntry>,
+    pub nodes: Slab<Node>,
+}
+impl Nodes {
+    pub fn get_by_id(&mut self, id: &Id) -> Option<&mut Node> {
+        let i = self.node_hashmap.get(id)?.slab_i;
+        return self.nodes.get_mut(i);
+    }
+}
+impl Index<usize> for Nodes {
+    type Output = Node;
+    fn index(&self, i: usize) -> &Self::Output {
+        return &self.nodes[i];
+    }
+}
+impl IndexMut<usize> for Nodes {
+    fn index_mut(&mut self, i: usize) -> &mut Self::Output {
+        return &mut self.nodes[i];
+    }
+}
+
+impl System {
+    pub fn build_new_node(
+        &mut self,
+        key: &NodeKey,
+        twin_n: Option<u32>,
+    ) -> Node {
+        // add back somewhere
+
+        return Node {
+            id: key.id(),
+            depth: 0,
+            rect: Xy::new_symm([0.0, 1.0]),
+            size: Xy::new_symm(10.0),
+            text_id: None,
+
+            imageref: None,
+            last_static_image_ptr: None,
+            last_static_text_ptr: None,
+
+            parent: 0, // just a wrong value which will be overwritten. it's even worse here.
+            // but it's for symmetry with update_node, where all these values are old and are reset.
+
+            n_children: 0,
+            last_child: None,
+            prev_sibling: None,
+
+            is_twin: twin_n,
+            params: NodeParams::const_default(),
+            debug_name: key.debug_name,
+            last_hover: f32::MIN,
+            last_click: f32::MIN,
+            z: 0.0,
+            last_rect_i: 0,
+            relayout_chain_root: None,
+            old_children_hash: EMPTY_HASH,
+            last_layout_frame: 0,
+
+            last_cosmetic_params_hash: 0,
+            last_layout_params_hash: 0,
+            needs_cosmetic_update: false,
+            needs_partial_relayout: false,        
+        };
     }
 }

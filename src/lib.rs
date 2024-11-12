@@ -22,6 +22,7 @@ mod render;
 mod layout;
 mod interact;
 mod text;
+mod node;
 
 mod texture_atlas;
 
