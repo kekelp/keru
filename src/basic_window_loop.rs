@@ -145,7 +145,7 @@ impl Context {
     pub fn sleep_until_next_frame(&mut self) {
         let refresh_rate = self.window.current_monitor().unwrap().video_modes().next().unwrap().refresh_rate_millihertz();        
         let frame_time_micros = (1_000_000_000 / refresh_rate) as u64;
-        let sleep_time = Duration::from_micros(frame_time_micros - 100);
+        let sleep_time = Duration::from_micros(frame_time_micros);
 
         thread::sleep(sleep_time);
     }
