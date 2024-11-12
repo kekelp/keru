@@ -24,16 +24,14 @@ impl State {
             .params(V_STACK)
             .position_x(Position::End)
             .size_y(Fill)
-            .size_x(FitContent)
-            .stack_arrange(Arrange::Center);
+            .size_x(FitContent);
 
         #[node_key] const LEFT_BAR: NodeKey;
         self.ui.add(LEFT_BAR)
             .params(V_STACK)
             .position_x(Position::Start)
             .size_y(Fill)
-            .size_x(FitContent)
-            .stack_arrange(Arrange::Center);
+            .size_x(FitContent);
 
         self.ui.begin_tree();
         
