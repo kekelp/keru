@@ -1,5 +1,5 @@
 use blue::example_window_loop::*;
-use blue::{Color, NodeKey, Ui, BUTTON, LABEL};
+use blue::{Color, NodeKey, Ui, BUTTON};
 use blue::node_key;
 use winit::error::EventLoopError;
 
@@ -51,7 +51,7 @@ impl ExampleLoop for State {
                 ui.place(INCREASE);
                 // this one sets its appearance and place()s itself into the tree in the same line, just for fun.
                 // since we don't need to check its clicks either, this means that we can do it without a key.
-                ui.text(self.count);
+                ui.label(self.count);
                 ui.place(DECREASE);
 
             }

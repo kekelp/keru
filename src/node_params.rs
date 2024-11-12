@@ -1,8 +1,7 @@
-use std::hash::{Hash, Hasher};
-
-use rustc_hash::FxHasher;
-
 use crate::*;
+use crate::color::*;
+use std::hash::{Hash, Hasher};
+use rustc_hash::FxHasher;
 
 #[derive(Debug, Copy, Clone)]
 pub struct NodeParams {

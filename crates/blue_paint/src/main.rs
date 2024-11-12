@@ -3,8 +3,6 @@ pub mod canvas;
 pub mod main_canvas;
 pub mod main_ui;
 
-use std::time::Instant;
-
 use canvas::*;
 use winit::{error::EventLoopError, event::Event, event_loop::EventLoopWindowTarget};
 use blue::Ui;

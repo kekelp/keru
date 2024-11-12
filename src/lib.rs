@@ -10,6 +10,8 @@ mod keys;
 pub use keys::*;
 mod node_params;
 pub use node_params::*;
+mod color;
+pub use color::*;
 
 pub mod basic_window_loop;
 pub mod example_window_loop;
