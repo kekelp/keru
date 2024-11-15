@@ -84,6 +84,7 @@ impl State {
 
         {
             let mut render_pass = frame.begin_render_pass(BACKGROUND_GREY);
+
             self.canvas.render(&mut render_pass);
             self.color_picker.render(&mut render_pass);
             self.ui.render(&mut render_pass);
