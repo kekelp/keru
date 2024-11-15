@@ -1,7 +1,8 @@
 #![windows_subsystem = "windows"]
-pub mod canvas;
-pub mod main_canvas;
-pub mod main_ui;
+mod canvas;
+mod main_canvas;
+mod main_ui;
+mod color_picker;
 
 use canvas::*;
 use winit::{error::EventLoopError, event::Event, event_loop::EventLoopWindowTarget};
@@ -72,6 +73,7 @@ impl State {
         // todo: if only the canvas needed rerender, we can skip ui.prepare(), and viceversa
         self.canvas.prepare(&self.ctx.queue);
         self.ui.prepare(&self.ctx.device, &self.ctx.queue);
+        self.canvas.color_picker.update_coordinates(&self.ctx.queue);
 
         let mut frame = self.ctx.begin_frame();
 

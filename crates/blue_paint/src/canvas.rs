@@ -5,6 +5,8 @@ use bytemuck::{Pod, Zeroable};
 use glam::*;
 use winit_input_helper::WinitInputHelper;
 
+use crate::color_picker::ColorPicker;
+
 use {BindGroup, BindGroupEntry, BindGroupLayoutEntry, BindingResource, Buffer, ColorTargetState, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
 use winit::{dpi::PhysicalPosition, event::{ElementState, Event, MouseButton, WindowEvent}, keyboard::{Key, ModifiersState, NamedKey}};
 
@@ -85,6 +87,8 @@ impl PixelColorF32 {
 }
 
 pub struct Canvas {
+    pub color_picker: ColorPicker,
+
     pub scroll: DVec2,
 
     pub input: WinitInputHelper,
@@ -283,6 +287,7 @@ impl Canvas {
         });
         
         let mut canvas = Canvas {
+            color_picker: ColorPicker::new(&ctx.device),
             scroll: dvec2(0.0, 0.0),
             
             input: WinitInputHelper::new(),
@@ -605,6 +610,9 @@ impl Canvas {
         render_pass.set_pipeline(&self.render_pipeline);
         render_pass.set_bind_group(0, &self.canvas_bind_group, &[]);
         render_pass.draw(0..6, 0..1);
+
+        self.color_picker.render(render_pass);
+
 
         self.need_rerender = false;
     }
