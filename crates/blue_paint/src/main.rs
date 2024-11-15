@@ -5,6 +5,7 @@ mod main_ui;
 mod color_picker;
 
 use canvas::*;
+use color_picker::ColorPicker;
 use winit::{error::EventLoopError, event::Event, event_loop::EventLoopWindowTarget};
 use blue::Ui;
 use blue::basic_window_loop::*;
@@ -26,6 +27,7 @@ fn main() -> Result<(), EventLoopError> {
 pub struct State {
     pub ctx: Context,
     pub ui: Ui,
+    pub color_picker: ColorPicker,
     pub canvas: Canvas,
 
     pub info_visible: bool,
@@ -36,11 +38,14 @@ impl State {
     fn new(ctx: Context) -> Self {
         let ui = Ui::new(&ctx.device, &ctx.queue, &ctx.surface_config);
         let canvas = Canvas::new(&ctx, ui.base_uniform_buffer());
+        let color_picker = ColorPicker::new(&ctx.device);
+
 
         return State {
             ctx,
             ui,
             canvas,
+            color_picker,
             info_visible: true,
             slider_value: 0.4,
         };
@@ -73,13 +78,14 @@ impl State {
         // todo: if only the canvas needed rerender, we can skip ui.prepare(), and viceversa
         self.canvas.prepare(&self.ctx.queue);
         self.ui.prepare(&self.ctx.device, &self.ctx.queue);
-        self.canvas.color_picker.update_coordinates(&self.ctx.queue);
+        self.color_picker.update_coordinates(&self.ctx.queue);
 
         let mut frame = self.ctx.begin_frame();
 
         {
             let mut render_pass = frame.begin_render_pass(BACKGROUND_GREY);
             self.canvas.render(&mut render_pass);
+            self.color_picker.render(&mut render_pass);
             self.ui.render(&mut render_pass);
         }
 

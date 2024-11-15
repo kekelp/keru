@@ -16,7 +16,7 @@ impl ColorPicker {
         
         // Vertex buf
         let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("Color Picker Rectangle Vertex Buffer"),
+            label: Some("Color Picker     Rectangle Vertex Buffer"),
             contents: bytemuck::cast_slice(&Self::vertices_from_coords(coords)),
             usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
         });
