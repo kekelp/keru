@@ -589,6 +589,10 @@ impl Ui {
 impl Ui {
     // in case of partial declarative stuff, think of another name
     pub fn begin_tree(&mut self) {
+        // clear root
+        self.nodes[self.sys.root_i].last_child = None;
+        self.nodes[self.sys.root_i].n_children = 0;
+
         self.sys.part.current_frame += 1;
         clear_thread_local_parent_stack();
     }
@@ -601,9 +605,6 @@ impl Ui {
         self.sys.last_frame_clicks.clear();
 
         self.update_time();
-
-        // .......
-        self.nodes[self.sys.root_i].last_child = None;
     }
 }
 
