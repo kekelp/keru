@@ -12,7 +12,7 @@ impl ColorPicker {
     pub fn new(device: &Device) -> Self {
         // Define the rectangle's vertices based on the input coordinates
         // This will define the four corners of the rectangle
-        let coords = [0.0, 0.0, 0.2, 0.2];
+        let coords = [0.0, 0.0, 0.9, 0.9];
         
         // Vertex buf
         let vertex_buffer = device.create_buffer_init(&BufferInitDescriptor {

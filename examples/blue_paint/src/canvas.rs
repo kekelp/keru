@@ -5,8 +5,6 @@ use bytemuck::{Pod, Zeroable};
 use glam::*;
 use winit_input_helper::WinitInputHelper;
 
-use crate::color_picker::ColorPicker;
-
 use {BindGroup, BindGroupEntry, BindGroupLayoutEntry, BindingResource, Buffer, ColorTargetState, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
 use winit::{dpi::PhysicalPosition, event::{ElementState, Event, MouseButton, WindowEvent}, keyboard::{Key, ModifiersState, NamedKey}};
 
