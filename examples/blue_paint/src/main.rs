@@ -38,8 +38,7 @@ impl State {
     fn new(ctx: Context) -> Self {
         let ui = Ui::new(&ctx.device, &ctx.queue, &ctx.surface_config);
         let canvas = Canvas::new(&ctx, ui.base_uniform_buffer());
-        let color_picker = ColorPicker::new(&ctx.device);
-
+        let color_picker = ColorPicker::new(&ctx, ui.base_uniform_buffer());
 
         return State {
             ctx,
