@@ -160,8 +160,36 @@ impl Ui {
                         proposed_size[axis] *= frac;
                     },
                 }
+                Size::AspectRatio(_aspect) => {
+                    const ASPECT_RATIO_DEFAULT: f32 = 0.5;
+                    proposed_size[axis] *= ASPECT_RATIO_DEFAULT;
+                },
             }
         }
+
+        // apply AspectRatio
+        for axis in [X, Y] {
+            match self.nodes[node].params.layout.size[axis] {
+                Size::AspectRatio(aspect) => {
+                    match self.nodes[node].params.layout.size[axis.other()] {
+                        Size::AspectRatio(_second_aspect) => {
+                            let debug_name = self.nodes[node].debug_name();
+                            println!("A Size shouldn't be AspectRatio in both dimensions. ({:?})", debug_name);
+                        }
+                        _ => {
+                            let window_aspect = self.sys.part.unifs.size.x / self.sys.part.unifs.size.y;
+                            let mult = match axis {
+                                X => 1.0 / (window_aspect * aspect),
+                                Y => window_aspect * aspect,
+                            };
+                            proposed_size[axis] = proposed_size[axis.other()] * mult;
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
 
         if let Some(stack) = self.nodes[node].params.stack {
             let main = stack.axis;

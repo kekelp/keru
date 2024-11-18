@@ -1,4 +1,5 @@
 use blue::basic_window_loop::Context;
+use blue::XyRect;
 use wgpu::*;
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 
@@ -7,28 +8,27 @@ pub struct ColorPicker {
     vertex_buffer: Buffer,
     render_pipeline: RenderPipeline,
     bind_group: BindGroup,
-    coords: [f32; 4],
+    pub coords: [XyRect; 1],
 }
 
 impl ColorPicker {
     pub fn new(ctx: &Context, base_uniforms: &Buffer) -> Self {
         // Define the rectangle's vertices based on the input coordinates
         // This will define the four corners of the rectangle
-        let coords = [0.0, 0.0, 0.9, 0.9];
-        
-        // Vertex buf
-        let vertex_buffer = ctx.device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("Color Picker     Rectangle Vertex Buffer"),
-            contents: bytemuck::cast_slice(&Self::vertices_from_coords(coords)),
-            usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
-        });
+        let coords = [XyRect::new_symm([0.0, 0.9])];
 
         let vertex_layout = VertexBufferLayout {
-            array_stride: std::mem::size_of::<[f32; 2]>() as BufferAddress,
-            step_mode: VertexStepMode::Vertex,
-            attributes: &vertex_attr_array!( 0 => Float32x2 ),
+            array_stride: std::mem::size_of::<[f32; 4]>() as BufferAddress,
+            step_mode: VertexStepMode::Instance,
+            attributes: &vertex_attr_array!( 0 => Float32x2, 1 => Float32x2 ),
         };
 
+        // Vertex buf
+        let vertex_buffer = ctx.device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("Color Picker Rectangle Vertex Buffer"),
+            contents: &bytemuck::cast_slice(&[0.0; 4]),
+            usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
+        });
 
         let bind_group_layout = ctx.device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: Some("Texture Bind Group Layout"),
@@ -118,17 +118,7 @@ impl ColorPicker {
         render_pass.draw(0..4, 0..1);
     }
 
-    fn vertices_from_coords(coords: [f32; 4]) -> [[f32; 2]; 4] {
-        return [
-            [coords[0], coords[1]], // Bottom-left
-            [coords[2], coords[1]], // Bottom-right
-            [coords[0], coords[3]], // Top-left
-            [coords[2], coords[3]], // Top-right
-        ];
-    }
-
     pub fn update_coordinates(&self, queue: &Queue) {
-        let vertices = Self::vertices_from_coords(self.coords);
-        queue.write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&vertices));
+        queue.write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&self.coords));
     }
 }

@@ -120,6 +120,16 @@ impl<'a, T: NodeType> UiNode<'a, T> {
         return size - padding;
     }
 
+    pub fn get_inner_rect(&self) -> XyRect {
+        // let padding = self.node().params.layout.padding;
+        // let padding = self.ui.to_pixels2(padding);
+        
+        // let size = self.node().size;
+        // let size = self.ui.f32_size_to_pixels2(size);
+
+        return self.node().rect.to_graphics_space();
+    }
+
     pub fn stack_arrange(&mut self, arrange: Arrange) -> &mut Self {
         let stack = match self.node().params.stack {
             Some(stack) => stack,

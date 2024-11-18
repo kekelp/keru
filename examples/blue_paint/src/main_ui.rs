@@ -33,6 +33,7 @@ impl State {
         
         self.ui.place(RIGHT_BAR).nest(|| {
             self.slider_value = self.add_slider(self.slider_value);
+            self.add_color_picker();
         });
 
         self.ui.place(LEFT_BAR).nest(|| {
@@ -44,7 +45,22 @@ impl State {
     }
 }
 
+#[node_key] pub const COLOR_PICKER_SQUARE: NodeKey;
 impl State {
+    pub fn add_color_picker(&mut self) {
+        #[node_key] const COLOR_PICKER_CONTAINER: NodeKey;
+
+        self.ui.add(COLOR_PICKER_CONTAINER).params(PANEL);
+        self.ui.add(COLOR_PICKER_SQUARE).params(EMPTY_PANEL)
+            .vertex_colors(VertexColors::FLGR_SOVL_GRAD_FW)
+            .size_x(Size::Fixed(Frac(0.18)))
+            .size_y(Size::AspectRatio(1.0));
+
+        self.ui.place(COLOR_PICKER_CONTAINER).nest(|| {
+            self.ui.place(COLOR_PICKER_SQUARE);
+        })
+    }
+
     pub fn add_pixel_info_ui(&mut self) {
         let pixel_info = &self.canvas.pixel_info();
 
@@ -109,6 +125,7 @@ impl State {
         #[node_key] pub const SLIDER_CONTAINER: NodeKey;
         self.ui.add(SLIDER_CONTAINER)
             .params(FLGR_PANEL)
+            .position_x(End)
             .size_y(Size::Fixed(Frac(0.7)))
             .size_x(Fixed(Pixels(50)));
 

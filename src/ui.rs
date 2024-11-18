@@ -115,7 +115,10 @@ impl Ui {
         let gpu_rect_buffer = device.create_buffer_init(&util::BufferInitDescriptor {
             label: Some("player bullet pos buffer"),
             // todo: I guess this should be growable
-            contents: bytemuck::cast_slice(&[0.0; 2048]),
+            contents: {
+                let yellow = "make this growable oalgo";
+                bytemuck::cast_slice(&[0.0; 2048])
+            },
             usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
         });
 

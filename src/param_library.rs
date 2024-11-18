@@ -255,7 +255,27 @@ pub const PANEL: NodeParams = NodeParams {
     rect: Rect {
         visible: true,
         outline_only: false,
-        vertex_colors: VertexColors::flat(Color::FLGR_BLUE),
+        vertex_colors: VertexColors::FLGR_SOVL_GRAD,
+    },
+    interact: Interact {
+        absorbs_mouse_events: false,
+        click_animation: false,
+    },
+    layout: Layout {
+        size: Xy::new_symm(FitContent),
+        position: Xy::new_symm(Center),
+        padding: Xy::new_symm(Len::Pixels(10)),
+    },
+    key: ANON_PANEL,
+};
+
+pub const EMPTY_PANEL: NodeParams = NodeParams {
+    stack: None,
+    text_params: None,
+    rect: Rect {
+        visible: true,
+        outline_only: true,
+        vertex_colors: VertexColors::FLGR_SOVL_GRAD,
     },
     interact: Interact {
         absorbs_mouse_events: false,

@@ -27,6 +27,10 @@ impl VertexColors {
     pub const FLGR_SOVL_GRAD: Self =
         VertexColors::diagonal_gradient_backslash(Color::FLGR_BLUE, Color::FLGR_RED);
 
+    pub const FLGR_SOVL_GRAD_FW: Self =
+        VertexColors::diagonal_gradient_forward_slash(Color::FLGR_BLUE, Color::FLGR_RED);
+
+
     pub const TEST: Self = Self {
         top_left: Color::rgba(255, 0, 0, 255),
         top_right: Color::rgba(0, 255, 0, 255),

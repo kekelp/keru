@@ -11,7 +11,8 @@ var<uniform> base_unif: BaseUniforms;
 
 struct VertexInput {
     @builtin(vertex_index) index: u32,
-    @location(0) pos: vec2f
+    @location(0) xs: vec2<f32>,
+    @location(1) ys: vec2<f32>,
 }
 
 struct VertexOutput {
@@ -21,19 +22,38 @@ struct VertexOutput {
 
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
-    let clip_position = vec4<f32>(in.pos, 0.0, 1.0);
-    
-    let aspect_ratio = base_unif.window_size.x / base_unif.window_size.y;
+    // triangle strip indexes
+    let i_x = u32(in.index % 2);
+    let i_y = u32(in.index >= 2);
 
-    let i_x = f32(in.index % 2);
-    let i_y = f32(in.index >= 2);
+    let x = in.xs[i_x];
+    let y = in.ys[i_y];
+    let clip_position = vec4f(x, y, 0.0, 1.0);
 
-    let uv = vec2f(i_x * aspect_ratio, i_y);
+    let rect = vec2f(in.xs[1] - in.xs[0], in.ys[1] - in.ys[0]);
+
+    let width = rect.x * base_unif.window_size.x;
+    let height = rect.y * base_unif.window_size.y;
+    let aspect = width / height;
+
+    // let u = f32(i_x) * aspect - (((width - height)) / base_unif.window_size.x );
+    let u = f32(i_x);
+    let v = f32(i_y);
+
+    let uv = vec2f(u, v);
 
     return VertexOutput(clip_position, uv);
 }
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    return vec4<f32>(in.uv.x, 0.0, in.uv.y, 1.0);
+
+    var x = in.uv.x;
+    if x < 0.0 || x > 1.0 {
+        return vec4f(0.5, 0.5, 0.5, 1.0);
+    }
+
+    var y = in.uv.y;
+
+    return vec4f(x, 0.0, y, 1.0);
 }

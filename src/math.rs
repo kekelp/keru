@@ -12,12 +12,11 @@ pub enum Len {
 impl Len {
     pub const ZERO: Self = Self::Pixels(0);
 }
-// This is fine for our case
 impl Hash for Len {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
-            Len::Pixels(p) => p.hash(state),
-            Len::Frac(f) => f.to_bits().hash(state),
+            Len::Pixels(p) => (0u8, p).hash(state),
+            Len::Frac(f) => (1u8, f.to_bits()).hash(state),
         }
     }
 }

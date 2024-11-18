@@ -13,20 +13,27 @@ pub struct NodeParams {
     pub key: NodeKey,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Size {
     Fixed(Len),
     Fill,
-    // "Content" can refer to the children if the node is a Stack or Container, or the inner text if it's a Text node, etc.
-    // There will probably be some other size-related settings specific to some node types: for example "strictness" below. I guess those go into the Text enum variation.
-    // I still don't like the name either.
     FitContent,
     FitContentOrMinimum(Len),
-    // ... something like "strictness":
-    //  with the "proposed" thing, a TextContent can either insist to get the minimum size it wants,
-    // or be okay with whatever (and clip it, show some "..."'s, etc)
-    // todo: add FitToChildrenInitiallyButNeverResizeAfter
-    // todo: add AspectRatio
+    AspectRatio(f32),
+}
+
+// Get a load of this dogshit that I have to write
+impl Hash for Size {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        use Size::*;
+        match self {
+            Fixed(len) => (0u8, len).hash(state),
+            Fill => 1u8.hash(state),
+            FitContent => 2u8.hash(state),
+            FitContentOrMinimum(len) => (3u8, len).hash(state),
+            AspectRatio(ratio) => (4u8, ratio.to_bits()).hash(state),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Hash)]
