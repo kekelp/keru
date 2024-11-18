@@ -36,7 +36,6 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     let height = rect.y * base_unif.window_size.y;
     let aspect = width / height;
 
-    // let u = f32(i_x) * aspect - (((width - height)) / base_unif.window_size.x );
     let u = f32(i_x);
     let v = f32(i_y);
 
@@ -47,13 +46,32 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-
     var x = in.uv.x;
-    if x < 0.0 || x > 1.0 {
-        return vec4f(0.5, 0.5, 0.5, 1.0);
-    }
-
     var y = in.uv.y;
 
-    return vec4f(x, 0.0, y, 1.0);
+    // Calculate the distance from the center of the UV space
+    let center = vec2<f32>(0.5, 0.5);
+    let uv = vec2<f32>(x, y);
+    let distance = length(uv - center);
+
+    // Define the inner and outer radius of the ring
+    let innerRadius = 0.4;
+    let outerRadius = 0.5;
+
+    // Define the smoothing range for antialiasing
+    let smoothness = 0.005;
+
+    // Compute the smooth transition for the ring's alpha
+    let ringAlpha = smoothstep(innerRadius, innerRadius + smoothness, distance) * 
+                    (1.0 - smoothstep(outerRadius - smoothness, outerRadius, distance));
+
+    // Base colors
+    let ringColor = vec4<f32>(x, 0.0, y, 1.0);   // Inside the ring
+    let greyColor = vec4<f32>(0.1, 0.1, 0.1, 1.0); // Outside the ring
+
+    // Blend colors based on ringAlpha
+    let color = mix(greyColor, ringColor, ringAlpha);
+
+    return color;
 }
+
