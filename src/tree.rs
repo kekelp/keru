@@ -408,13 +408,15 @@ impl Ui {
         let node = &mut self.nodes.nodes[node];
 
         let draw_even_if_invisible = self.sys.debug_mode;
-        if let Some(rect) = node.render_rect(draw_even_if_invisible) {
+        if let Some(rect) = node.render_rect(draw_even_if_invisible, None) {
             self.sys.rects.push(rect);
             node.last_rect_i = self.sys.rects.len() - 1;
         }
 
-        if let Some(image_rect) = node.image_rect() {
-            self.sys.rects.push(image_rect);
+        if let Some(image) = node.imageref {
+            if let Some(image_rect) = node.render_rect(draw_even_if_invisible, Some(image.tex_coords)) {
+                self.sys.rects.push(image_rect);
+            }
         }
     }
 
@@ -422,7 +424,7 @@ impl Ui {
         let node = &mut self.nodes.nodes[node];
 
         let draw_even_if_invisible = self.sys.debug_mode;
-        if let Some(rect) = node.render_rect(draw_even_if_invisible) {
+        if let Some(rect) = node.render_rect(draw_even_if_invisible, None) {
             let old_i = node.last_rect_i;
             self.sys.rects[old_i] = rect;
         }

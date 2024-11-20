@@ -95,8 +95,39 @@ pub struct Layout {
     pub position: Xy<Position>,
 }
 
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum Shape {
+    Rectangle {
+        corner_radius: f32,
+    },
+    Circle,
+    Ring {
+        width: f32,
+    }
+}
+
+impl Hash for Shape {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        use Shape::*;
+        match self {
+            Rectangle { corner_radius } => {
+                0u8.hash(state); // Unique tag for Rectangle
+                corner_radius.to_bits().hash(state); // Convert f32 to bits for hashing
+            }
+            Circle => {
+                1u8.hash(state); // Unique tag for Circle
+            }
+            Ring { width } => {
+                2u8.hash(state); // Unique tag for Ring
+                width.to_bits().hash(state); // Convert f32 to bits for hashing
+            }
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Hash)]
 pub struct Rect {
+    pub shape: Shape,
     pub visible: bool,
     pub outline_only: bool,
     pub vertex_colors: VertexColors,
@@ -104,6 +135,7 @@ pub struct Rect {
 }
 impl Rect {
     pub const DEFAULT: Self = Self {
+        shape: Shape::Rectangle { corner_radius: BASE_RADIUS }, 
         visible: true,
         outline_only: true,
         vertex_colors: VertexColors::flat(Color::FLGR_BLUE),
@@ -193,6 +225,11 @@ impl NodeParams {
 
     pub const fn color(mut self, color: Color) -> Self {
         self.rect.vertex_colors = VertexColors::flat(color);
+        return self;
+    }
+
+    pub const fn circle(mut self) -> Self {
+        self.rect.shape = Shape::Circle;
         return self;
     }
 

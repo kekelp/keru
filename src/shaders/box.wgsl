@@ -13,6 +13,10 @@ var my_sampler: sampler;
 const CLICK_ANIMATION_FLAG: u32 = u32(1) << u32(0);
 const OUTLINE_ONLY_FLAG: u32    = u32(1) << u32(1);
 
+const SHAPE_RECT:   u32 = u32(0);
+const SHAPE_CIRCLE: u32 = u32(1);
+const SHAPE_RING:   u32 = u32(2);
+
 struct RenderRect {
     @builtin(vertex_index) index: u32,
 
@@ -46,10 +50,15 @@ struct VertexOutput {
     @location(4) radius: f32,
     @location(5) filled: f32,
     @location(6) tex_coords: vec2<f32>,
+    @location(7) shape: u32,
 }
 
 fn read_flag(value: u32, flag: u32) -> bool {
     return (value & flag) != 0u;
+}
+
+fn read_shape(flags: u32) -> u32 {
+    return flags & 0xFF; // Mask the last 8 bits
 }
 
 @vertex
@@ -82,6 +91,8 @@ fn vs_main(in: RenderRect) -> VertexOutput {
     let clickable = f32(read_flag(in.flags, CLICK_ANIMATION_FLAG));
     let filled = f32( ! read_flag(in.flags, OUTLINE_ONLY_FLAG));
 
+    let shape = read_shape(in.flags);
+
     let t_since_hover = (unif.t - in.last_hover) * 4.5;
     let hover = (1.0 - clamp(t_since_hover, 0.0, 1.0)) * f32(t_since_hover < 1.0) * clickable;
     let t_since_click = (unif.t - in.last_click) * 4.1;
@@ -91,7 +102,7 @@ fn vs_main(in: RenderRect) -> VertexOutput {
     let dark_click = 1.0 - click * 0.78;
 
     let dark = min(dark_click, dark_hover);
-    return VertexOutput(clip_position, uv, half_size, color, dark, in.radius, filled, tex_coords);
+    return VertexOutput(clip_position, uv, half_size, color, dark, in.radius, filled, tex_coords, shape);
 }
 
 @fragment
@@ -108,7 +119,21 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let inside = (1.0 - smoothstep(-1.0, 1.0, dist));
     let outside = (1.0 - smoothstep(1.0, -1.0, dist + 8.0));
 
-    let alpha = in.color.a * (inside * max(in.filled, outside));
+    var alpha = in.color.a * (inside * max(in.filled, outside));
+
+
+    var circle_uv = in.uv;
+    circle_uv.y *= (in.half_size.x / in.half_size.y);
+    let circle_alpha = in.half_size.x - length(circle_uv);
+
+    if (in.shape == SHAPE_CIRCLE ) {
+        let inner_radius = 50.0;
+        let inner_ring_alpha = length(circle_uv) - inner_radius;
+
+        let ring_alpha = min(inner_ring_alpha, circle_alpha);
+        alpha = 0.0;
+        alpha = clamp(ring_alpha, 0.0, 1.0);
+    }
 
     var tex_color = textureSample(my_texture, my_sampler, in.tex_coords);
     var rect_color = vec4(in.color.rgb * in.dark, alpha);

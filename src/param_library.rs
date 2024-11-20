@@ -1,15 +1,16 @@
-use crate::color::*;
-use crate::{Arrange, Id, Interact, Layout, NodeKey, NodeParams, Position, Rect, Size, Stack, TextOptions};
-use crate::math::*;
+use crate::{color::*, Shape, BASE_RADIUS};
+use crate::*;
 use Size::*;
 use Position::*;
 use Len::*;
+use Shape::*;
 
 pub const ANON_NODE_ROOT_PARAMS: NodeKey = <NodeKey>::new(Id(0), "ANON_NODE_ROOT_PARAMS");
 pub const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     stack: None,
     text_params: None,
     rect: Rect {
+        shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
         outline_only: true,
         vertex_colors: VertexColors::flat(Color::TRANSPARENT)
@@ -32,6 +33,7 @@ pub const DEFAULT: NodeParams = NodeParams {
         editable: false,
     }),
     rect: Rect {
+        shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
         outline_only: false,
         vertex_colors: VertexColors::flat(Color::FLGR_BLUE),
@@ -56,6 +58,7 @@ pub const V_STACK: NodeParams = NodeParams {
     }),
     text_params: None,
     rect: Rect {
+        shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
         outline_only: true,
         vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
@@ -80,6 +83,7 @@ pub const H_STACK: NodeParams = NodeParams {
     }),
     text_params: None,
     rect: Rect {
+        shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
         outline_only: true,
         vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
@@ -100,6 +104,7 @@ pub const MARGIN: NodeParams = NodeParams {
     stack: None,
     text_params: None,
     rect: Rect {
+        shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
         outline_only: true,
         vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
@@ -120,6 +125,7 @@ pub const ICON_BUTTON: NodeParams = NodeParams {
     stack: None,
     text_params: None,
     rect: Rect {
+        shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
         outline_only: false,
         vertex_colors: VertexColors::FLGR_SOVL_GRAD,
@@ -142,6 +148,7 @@ pub const BUTTON: NodeParams = NodeParams {
         editable: false,
     }),
     rect: Rect {
+        shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
         outline_only: false,
         // vertex_colors: VertexColors::TEST,
@@ -165,6 +172,7 @@ pub const LABEL: NodeParams = NodeParams {
         editable: false,
     }),
     rect: Rect {
+        shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
         outline_only: false,
         vertex_colors: VertexColors::flat(Color::FLGR_BLUE),
@@ -187,6 +195,7 @@ pub const TEXT: NodeParams = NodeParams {
         editable: false,
     }),
     rect: Rect {
+        shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
         outline_only: true,
         vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
@@ -209,6 +218,7 @@ pub const EMPTY_TEXT: NodeParams = NodeParams {
         editable: false,
     }),
     rect: Rect {
+        shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
         outline_only: true,
         vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
@@ -232,6 +242,7 @@ pub const TEXT_INPUT: NodeParams = NodeParams {
         editable: true,
     }),
     rect: Rect {
+        shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
         outline_only: false,
         vertex_colors: VertexColors::flat(Color::rgba(26, 0, 26, 230)),
@@ -253,6 +264,7 @@ pub const PANEL: NodeParams = NodeParams {
     stack: None,
     text_params: None,
     rect: Rect {
+        shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
         outline_only: false,
         vertex_colors: VertexColors::FLGR_SOVL_GRAD,
@@ -273,6 +285,7 @@ pub const EMPTY_PANEL: NodeParams = NodeParams {
     stack: None,
     text_params: None,
     rect: Rect {
+        shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
         outline_only: true,
         vertex_colors: VertexColors::FLGR_SOVL_GRAD,

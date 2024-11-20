@@ -99,6 +99,7 @@ impl State {
             .params(FLGR_PANEL)
             .position_x(Start)
             .position_y(Start)
+            .circle()
             .size_x(FitContent);
 
         self.ui.place(TOOLS_PANEL).nest(|| {

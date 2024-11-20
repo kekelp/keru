@@ -162,6 +162,11 @@ impl<'a, T: NodeType> UiNode<'a, T> {
         self.node_mut().params.layout.padding.y = padding;
         return self;
     }
+
+    pub fn circle(&mut self) -> &mut Self {
+        self.node_mut().params.rect.shape = Shape::Circle;
+        return self;
+    }
 }
 
 impl<'a, T: TextTrait> UiNode<'a, T> {

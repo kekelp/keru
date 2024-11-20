@@ -107,68 +107,6 @@ impl Node {
         };
         return debug_name;
     }
-
-    pub(crate) fn render_rect(&self, draw_even_if_invisible: bool) -> Option<RenderRect> {
-        if ! draw_even_if_invisible && ! self.params.rect.visible {
-            return None;
-        }
-
-        let mut flags = RenderRect::EMPTY_FLAGS;
-        if self.params.interact.click_animation {
-            flags |= RenderRect::CLICK_ANIMATION;
-        }
-        if self.params.rect.outline_only {
-            flags |= RenderRect::OUTLINE_ONLY;
-        }
-
-        return Some(RenderRect {
-            rect: self.rect.to_graphics_space(),
-            vertex_colors: self.params.rect.vertex_colors,
-            last_hover: self.last_hover,
-            last_click: self.last_click,
-            id: self.id,
-            z: 0.0,
-            radius: BASE_RADIUS,
-
-            // magic coords
-            // todo: demagic
-            tex_coords: Xy {
-                x: [0.9375, 0.9394531],
-                y: [0.00390625 / 2.0, 0.0],
-            },
-            flags,
-            _padding: 0,
-        })
-    }
-
-    pub(crate) fn image_rect(&self) -> Option<RenderRect> {
-        let mut image_flags = RenderRect::EMPTY_FLAGS;
-        if self.params.interact.click_animation {
-            image_flags |= RenderRect::CLICK_ANIMATION;
-        }
-
-        if let Some(image) = self.imageref {
-            // in debug mode, draw invisible rects as well.
-            // usually these have filled = false (just the outline), but this is not enforced.
-
-            return Some(RenderRect {
-                rect: self.rect.to_graphics_space(),
-                vertex_colors: self.params.rect.vertex_colors,
-                last_hover: self.last_hover,
-                last_click: self.last_click,
-                id: self.id,
-                z: 0.0,
-                radius: BASE_RADIUS,
-
-                tex_coords: image.tex_coords,
-                flags: image_flags,
-                _padding: 0,
-            });
-        }
-
-        return None;
-    }
-
 }
 
 
