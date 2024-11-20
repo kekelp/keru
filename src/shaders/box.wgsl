@@ -33,6 +33,7 @@ struct RenderRect {
     @location(8) z: f32,                      // Corresponds to z
     @location(9) last_hover: f32,             // Corresponds to last_hover
     @location(10) last_click: f32,            // Corresponds to last_click
+    // todo: rename to shape_data and hope we never need more than one float
     @location(11) radius: f32,                // Corresponds to radius
 
     @location(12) flags: u32,                 // Corresponds to flags
@@ -127,11 +128,11 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let circle_alpha = in.half_size.x - length(circle_uv);
 
     if (in.shape == SHAPE_CIRCLE ) {
-        let inner_radius = 50.0;
-        let inner_ring_alpha = length(circle_uv) - inner_radius;
+        alpha = clamp(circle_alpha, 0.0, 1.0);
+    } else if (in.shape == SHAPE_RING ) {
+        let inner_ring_alpha = length(circle_uv) - (in.half_size.x - in.radius);
 
         let ring_alpha = min(inner_ring_alpha, circle_alpha);
-        alpha = 0.0;
         alpha = clamp(ring_alpha, 0.0, 1.0);
     }
 

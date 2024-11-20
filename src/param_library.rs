@@ -281,14 +281,14 @@ pub const PANEL: NodeParams = NodeParams {
     key: ANON_PANEL,
 };
 
-pub const EMPTY_PANEL: NodeParams = NodeParams {
+pub const CUSTOM_RENDERED_PANEL: NodeParams = NodeParams {
     stack: None,
     text_params: None,
     rect: Rect {
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
         outline_only: true,
-        vertex_colors: VertexColors::FLGR_SOVL_GRAD,
+        vertex_colors: VertexColors::flat(Color::rgba_f(0.0, 1.0, 0.0, 1.0)),
     },
     interact: Interact {
         absorbs_mouse_events: false,

@@ -143,6 +143,7 @@ impl Ui {
         let mut texture_atlas = TextureAtlas::new(device);
 
         let _white_alloc = texture_atlas.allocate_image(include_bytes!("white.png"));
+        // let _debug_alloc = texture_atlas.allocate_image(include_bytes!("debug.png"));
 
         let texture_sampler = device.create_sampler(&SamplerDescriptor {
             label: Some("Texture sampler"),

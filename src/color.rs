@@ -122,6 +122,10 @@ impl Color {
         Color { r, g, b, a }
     }
 
+    pub const fn rgba_f(r: f32, g: f32, b: f32, a: f32) -> Color {
+        Color { r: (r * 255.0) as u8, g: (g * 255.0) as u8, b: (b * 255.0) as u8, a: (a * 255.0) as u8 }
+    }
+
     pub const fn blend_channel(c1: u8, c2: u8, factor: u8) -> u8 {
         let inv_factor = 255 - factor;
         let res = (c1 as u16 * inv_factor as u16 + c2 as u16 * factor as u16) / 255;

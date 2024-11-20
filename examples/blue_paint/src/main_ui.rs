@@ -45,19 +45,20 @@ impl State {
     }
 }
 
-#[node_key] pub const COLOR_PICKER_SQUARE: NodeKey;
+#[node_key] pub const COLOR_PICKER_HUE_WHEEL: NodeKey;
 impl State {
     pub fn add_color_picker(&mut self) {
-        #[node_key] const COLOR_PICKER_CONTAINER: NodeKey;
+        #[node_key] const COLOR_PICKER_PANEL: NodeKey;
 
-        self.ui.add(COLOR_PICKER_CONTAINER).params(PANEL);
-        self.ui.add(COLOR_PICKER_SQUARE).params(EMPTY_PANEL)
+        self.ui.add(COLOR_PICKER_PANEL).params(PANEL);
+        self.ui.add(COLOR_PICKER_HUE_WHEEL).params(CUSTOM_RENDERED_PANEL)
             .vertex_colors(VertexColors::FLGR_SOVL_GRAD_FW)
             .size_x(Size::Fixed(Frac(0.18)))
-            .size_y(Size::AspectRatio(1.0));
+            .size_y(Size::AspectRatio(1.0))
+            .shape(Shape::Ring { width: 60.0 });
 
-        self.ui.place(COLOR_PICKER_CONTAINER).nest(|| {
-            self.ui.place(COLOR_PICKER_SQUARE);
+        self.ui.place(COLOR_PICKER_PANEL).nest(|| {
+            self.ui.place(COLOR_PICKER_HUE_WHEEL);
         })
     }
 
