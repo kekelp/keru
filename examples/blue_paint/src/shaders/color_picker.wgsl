@@ -18,6 +18,8 @@ struct VertexInput {
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) uv: vec2f,
+    @location(1) pixel_uv: vec2f,
+    @location(2) half_size: vec2f,
 }
 
 @vertex
@@ -36,12 +38,21 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     let height = rect.y * base_unif.window_size.y;
     let aspect = width / height;
 
-    let u = f32(i_x);
-    let v = f32(i_y);
+    // get the corners' coordinates in reasonable units.
+    // -L/2 <-- 0 --> +L/2
+    // where L = length of the rect side in real pixels
+    let half_size = vec2f( 
+        (in.xs[1] - in.xs[0]) * base_unif.window_size.x / 2.0, 
+        (in.ys[1] - in.ys[0]) * base_unif.window_size.y / 2.0, 
+    );
+    let pixel_uv = (2.0 * vec2f(vec2u(i_x, i_y)) - 1.0) * half_size;    
 
+    let u = f32(i_x) * 2.0 - 1.0;
+    let v = f32(i_y) * 2.0 - 1.0;
     let uv = vec2f(u, v);
 
-    return VertexOutput(clip_position, uv);
+
+    return VertexOutput(clip_position, uv, pixel_uv, half_size);
 }
 
 // Transfer function for gamma correction
@@ -103,14 +114,16 @@ fn hcl2rgb(hcl: vec3<f32>) -> vec3<f32> {
 }
 
 // Antialiased ring
-fn ring(uv: vec2<f32>) -> f32 {
-    let innerRadius = 0.8;
-    let outerRadius = 1.0;
-    let smoothness = 0.002;
+fn ring(pixel_uv: vec2<f32>, half_size: vec2<f32>) -> f32 {
+    const WIDTH: f32 = 60.0; // pixels
+    
+    let outer_radius = half_size.x;
+    let inner_radius = half_size.x - WIDTH;
+    let smoothness = 1.0;
 
-    let r = length(uv);
-    let inner = smoothstep(innerRadius - smoothness, innerRadius + smoothness, r);
-    let outer = 1.0 - smoothstep(outerRadius - smoothness, outerRadius + smoothness, r);
+    let r = length(pixel_uv);
+    let inner = smoothstep(inner_radius - smoothness, inner_radius + smoothness, r);
+    let outer = 1.0 - smoothstep(outer_radius - smoothness, outer_radius + smoothness, r);
     return inner * outer;
 }
 
@@ -143,6 +156,10 @@ fn square(xy: vec2<f32>) -> SquareRes {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    let u = in.uv.x;
+    let v = in.uv.y;
+
+    let ring_mask = ring(in.pixel_uv, in.half_size);
 
     // UV coordinate and center
     let uv = in.uv * 2.0 - 1.0; // Convert to range [-1, 1]
@@ -153,35 +170,37 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // let lightness = 0.1; // Fixed lightness
 
 
-    // Calculate ring and square masks
-    let ringMask = ring(uv);
     let squareMask = square(uv);
     let sq_ab = squareMask.ab;
 
-    // default color that doesn't matter
-    var hcl = vec3f(1.0, 0.0, 0.0);
 
-    if (ringMask > 0.0) {
-        hcl.x = atan2(uv.y, uv.x) / (2.0 * PI) - 0.25;
+
+    if (ring_mask > 0.0) {
+        let hcl_x = atan2(u, v) / (2.0 * PI) - 0.25;
         // need to pick magic values so that the whole wheel stays inside the rgb gamut
-        hcl.y = 0.38;
-        hcl.z = 0.75;
+        
+        let hcl = vec3f(hcl_x, 0.38, 0.75);
+
+        let color = hcl2rgb(hcl);
+        return vec4f(color, ring_mask);
     }
 
-    if (squareMask.isIn > 0.0) {
-        // dot
-        if (distance(sq_ab, hcl.zy) < 0.02){
-            hcl = vec3(0.0, 0.0, 1.0);
-        }
-        hcl = vec3(hcl.x, sq_ab.yx);
-    }
+    return vec4f(0.0, 0.0, 0.0, 0.0);
 
-    let grey = vec3(0.1, 0.1, 0.1);
-    let alpha = max(ringMask, squareMask.isIn);
+    // if (squareMask.isIn > 0.0) {
+    //     // dot
+    //     if (distance(sq_ab, hcl.zy) < 0.02){
+    //         hcl = vec3(0.0, 0.0, 1.0);
+    //     }
+    //     hcl = vec3(hcl.x, sq_ab.yx);
+    // }
 
-    // Convert HCL to RGB and output the color
-    let color = hcl2rgb(hcl);
-    let result = mix(grey, color, alpha);
+    // let grey = vec3(0.1, 0.1, 0.1);
+    // let alpha = max(ring_mask, squareMask.isIn);
 
-    return vec4<f32>(result, ringMask);
+    // // Convert HCL to RGB and output the color
+    // let color = hcl2rgb(hcl);
+    // let result = mix(grey, color, alpha);
+
+    // return vec4<f32>(color, ring_mask);
 }

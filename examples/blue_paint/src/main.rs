@@ -80,8 +80,7 @@ impl State {
         self.canvas.prepare(&self.ctx.queue);
         self.ui.prepare(&self.ctx.device, &self.ctx.queue);
         
-        self.color_picker.coords = [self.ui.get_node(ColorPicker::HUE_WHEEL).unwrap().get_inner_rect()];        
-        self.color_picker.update_coordinates(&self.ctx.queue);
+        self.color_picker.prepare(&mut self.ui, &self.ctx.queue);
 
         let mut frame = self.ctx.begin_frame();
 

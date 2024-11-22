@@ -309,8 +309,8 @@ pub const CUSTOM_RENDERED_PANEL: NodeParams = NodeParams {
     rect: Rect {
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
-        outline_only: true,
-        vertex_colors: VertexColors::flat(Color::rgba_f(0.0, 1.0, 0.0, 1.0)),
+        outline_only: false,
+        vertex_colors: VertexColors::GREENSCREEN,
     },
     interact: Interact {
         absorbs_mouse_events: false,

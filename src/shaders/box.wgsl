@@ -13,7 +13,7 @@ var my_sampler: sampler;
 const CLICK_ANIMATION_FLAG: u32 = u32(1) << u32(8);
 const OUTLINE_ONLY_FLAG: u32    = u32(1) << u32(9);
 
-const SHAPE_RECT:   u32 = u32(0);
+const SHAPE_RECTANGLE:   u32 = u32(0);
 const SHAPE_CIRCLE: u32 = u32(1);
 const SHAPE_RING:   u32 = u32(2);
 
@@ -134,6 +134,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
         let ring_alpha = min(inner_ring_alpha, circle_alpha);
         alpha = clamp(ring_alpha, 0.0, 1.0);
+    } else if (in.shape == SHAPE_RECTANGLE) {
+        
     }
 
     var tex_color = textureSample(my_texture, my_sampler, in.tex_coords);

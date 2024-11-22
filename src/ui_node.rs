@@ -126,13 +126,7 @@ impl<'a, T: NodeType> UiNode<'a, T> {
         return size - padding;
     }
 
-    pub fn get_inner_rect(&self) -> XyRect {
-        // let padding = self.node().params.layout.padding;
-        // let padding = self.ui.to_pixels2(padding);
-        
-        // let size = self.node().size;
-        // let size = self.ui.f32_size_to_pixels2(size);
-
+    pub fn get_bounding_rect(&self) -> XyRect {
         return self.node().rect.to_graphics_space();
     }
 

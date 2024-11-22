@@ -108,14 +108,18 @@ impl ColorPicker {
         }
     }
 
-    pub fn render<'pass>(&'pass mut self, render_pass: &mut RenderPass<'pass>) {
+    pub fn render<'pass>(&mut self, render_pass: &mut RenderPass<'pass>) {
         render_pass.set_pipeline(&self.render_pipeline);
         render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
         render_pass.set_bind_group(0, &self.bind_group, &[]);
         render_pass.draw(0..4, 0..1);
     }
 
-    pub fn update_coordinates(&self, queue: &Queue) {
-        queue.write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&self.coords));
+    pub fn prepare(&self, ui: &mut Ui, queue: &wgpu::Queue) {
+        if let Some(node) = ui.get_node(ColorPicker::HUE_WHEEL) {
+            
+            let coords = [node.get_bounding_rect()];        
+            queue.write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&coords));
+        }
     }
 }

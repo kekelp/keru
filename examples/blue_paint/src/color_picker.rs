@@ -27,25 +27,27 @@ pub trait ColorPickerUi {
 }
 impl ColorPickerUi for Ui {
     fn add_color_picker(&mut self, _color_picker: &mut ColorPicker) {
-        self.add(ColorPicker::PANEL).params(PANEL)
+        self.add(ColorPicker::PANEL)
+            .params(PANEL)
             .size_x(Size::Fixed(Frac(0.18)))
             .size_y(Size::AspectRatio(1.0));
         
-        self.add(ColorPicker::HUE_WHEEL).params(CUSTOM_RENDERED_PANEL)
-            .vertex_colors(VertexColors::flat(Color::rgba_f(0.0, 1.0, 0.0, 1.0)))
+        self.add(ColorPicker::HUE_WHEEL)
+            .params(CUSTOM_RENDERED_PANEL)
             .size_symm(Fill)
             .shape(Shape::Ring { width: 60.0 });
     
-        self.add(ColorPicker::PADDING_SQUARE).params(CONTAINER)
-            .vertex_colors(VertexColors::flat(Color::rgba_f(0.0, 1.0, 0.0, 1.0)))
+        self.add(ColorPicker::PADDING_SQUARE)
+            .params(PANEL)
+            // .color(Color::rgba_f(1.0, 1.0, 1.0, 1.0))
             .size_symm(Fill)
-            .padding(Pixels((60.0 * 2.0f32.sqrt() / 2.0) as u32))
-            .shape(Shape::Rectangle { corner_radius: 0.0 });
-        
-        self.add(ColorPicker::SQUARE).params(CUSTOM_RENDERED_PANEL)
-            .vertex_colors(VertexColors::flat(Color::rgba_f(0.0, 1.0, 0.0, 1.0)))
-            .size_symm(Fixed(Frac(0.7071)))
-            .shape(Shape::Rectangle { corner_radius: 0.0 });
+            // .shape(Shape::Rectangle { corner_radius: 0.5 })
+            .padding(Pixels((60.0 * 2.0f32.sqrt() / 2.0) as u32));
+
+        self.add(ColorPicker::SQUARE)
+            .params(CUSTOM_RENDERED_PANEL)
+            // .shape(Shape::Rectangle { corner_radius: 0.0 })
+            .size_symm(Fixed(Frac(0.7071)));
     
         self.place(ColorPicker::PANEL).nest(|| {
             self.place(ColorPicker::HUE_WHEEL);
