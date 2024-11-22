@@ -12,6 +12,7 @@ use crate::*;
 pub(crate) struct RenderRect {
     pub rect: XyRect,               // (f32, f32) for each corner
     pub tex_coords: XyRect,         // (f32, f32) for texture coordinates
+
     pub vertex_colors: VertexColors, // (u8, u8, u8, u8) colors
     
     pub z: f32,                     // (f32) depth information
@@ -47,7 +48,7 @@ impl RenderRect {
             8 => Float32,  // z
             9 => Float32,  // last_hover
             10 => Float32, // last_click
-            11 => Float32, // radius
+            11 => Float32, // shape_data (rect radius/ring width)
 
             12 => Uint32, // flags
             13 => Uint32, // slab_next_free
