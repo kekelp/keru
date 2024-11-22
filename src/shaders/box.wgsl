@@ -10,8 +10,8 @@ var my_texture: texture_2d<f32>;
 @group(0) @binding(2)
 var my_sampler: sampler;
 
-const CLICK_ANIMATION_FLAG: u32 = u32(1) << u32(0);
-const OUTLINE_ONLY_FLAG: u32    = u32(1) << u32(1);
+const CLICK_ANIMATION_FLAG: u32 = u32(1) << u32(8);
+const OUTLINE_ONLY_FLAG: u32    = u32(1) << u32(9);
 
 const SHAPE_RECT:   u32 = u32(0);
 const SHAPE_CIRCLE: u32 = u32(1);
@@ -59,7 +59,7 @@ fn read_flag(value: u32, flag: u32) -> bool {
 }
 
 fn read_shape(flags: u32) -> u32 {
-    return flags & 0xFF; // Mask the last 8 bits
+    return flags & 0x000000FF;
 }
 
 @vertex

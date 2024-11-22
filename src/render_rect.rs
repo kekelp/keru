@@ -60,10 +60,10 @@ impl RenderRect {
 
 #[rustfmt::skip]
 impl RenderRect {
-    pub const CLICK_ANIMATION: u32 = 1 << 0;
-    pub const OUTLINE_ONLY:    u32 = 1 << 1;
-
-    // the last 4 bits are for RenderShape
+    // the first 8 bits are for RenderShape
+    
+    pub const CLICK_ANIMATION: u32 = 1 << 8; // 0b00000000_00000000_00000001_00000000
+    pub const OUTLINE_ONLY:    u32 = 1 << 9; // 0b00000000_00000000_00000010_00000000 
 
     pub const EMPTY_FLAGS: u32 = 0;
 }
@@ -76,9 +76,11 @@ pub(crate) enum RenderShape {
 }
 
 impl RenderShape {
-    fn write_into_last_8_bits(&self, value: &mut u32) {
-        // Clear the last 8 bits and insert the Shape value
-        *value = (*value & !0xFF) | (*self as u8 as u32);
+    fn write_into_least_significant_8_bits(flags: u32, shape: u8) -> u32 {
+    // Clear the first 8 bits (bits 0–7)
+    let cleared = flags & 0b11111111_11111111_11111111_00000000;
+    // Insert the u8 value into the first 8 bits
+    cleared | (shape as u32)
     }
 }
 
@@ -115,7 +117,8 @@ impl Node {
             flags |= RenderRect::OUTLINE_ONLY;
         }
 
-        self.params.rect.shape.render_shape().write_into_last_8_bits(&mut flags);
+
+        flags = RenderShape::write_into_least_significant_8_bits(flags, self.params.rect.shape.render_shape() as u8);
 
         let tex_coords = if let Some(image_texcoords) = image_texcoords {
             image_texcoords
