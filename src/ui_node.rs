@@ -169,11 +169,6 @@ impl<'a, T: NodeType> UiNode<'a, T> {
         return self;
     }
 
-    pub fn circle(&mut self) -> &mut Self {
-        self.node_mut().params.rect.shape = Shape::Circle;
-        return self;
-    }
-
     pub fn shape(&mut self, shape: Shape) -> &mut Self {
         self.node_mut().params.rect.shape = shape;
         return self;
