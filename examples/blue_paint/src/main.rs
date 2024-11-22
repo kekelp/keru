@@ -3,10 +3,11 @@ mod canvas;
 mod main_canvas;
 mod main_ui;
 mod color_picker;
+mod color_picker_render;
 
 use canvas::*;
 use color_picker::ColorPicker;
-use main_ui::COLOR_PICKER_HUE_WHEEL;
+use color_picker_render::*;
 use winit::{error::EventLoopError, event::Event, event_loop::EventLoopWindowTarget};
 use blue::Ui;
 use blue::basic_window_loop::*;
@@ -79,8 +80,7 @@ impl State {
         self.canvas.prepare(&self.ctx.queue);
         self.ui.prepare(&self.ctx.device, &self.ctx.queue);
         
-        // self.color_picker.coords = [self.ui.get_node(COLOR_PICKER_SQUARE).unwrap().get_inner_rect()];
-
+        self.color_picker.coords = [self.ui.get_node(ColorPicker::HUE_WHEEL).unwrap().get_inner_rect()];        
         self.color_picker.update_coordinates(&self.ctx.queue);
 
         let mut frame = self.ctx.begin_frame();
@@ -90,7 +90,12 @@ impl State {
 
             self.canvas.render(&mut render_pass);
             self.ui.render(&mut render_pass);
-            // self.color_picker.render(&mut render_pass);
+            
+            if ! self.ui.debug_mode() {
+                self.color_picker.render(&mut render_pass);
+            }
+            
+
         }
 
         self.ctx.window.pre_present_notify();

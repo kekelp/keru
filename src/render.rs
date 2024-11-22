@@ -8,7 +8,7 @@ use crate::Ui;
 
 impl Ui {
     
-    pub fn render<'pass>(&'pass mut self, render_pass: &mut RenderPass<'pass>) {
+    pub fn render<'pass>(&mut self, render_pass: &mut RenderPass<'pass>) {
         let n = self.sys.rects.len() as u32;
         if n > 0 {
             render_pass.set_pipeline(&self.sys.render_pipeline);

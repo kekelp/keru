@@ -225,13 +225,13 @@ impl Ui {
             layout: Some(&pipeline_layout),
             vertex: VertexState {
                 module: &shader,
-                entry_point: "vs_main",
+                entry_point: Some("vs_main"),
                 buffers: &[vert_buff_layout],
                 compilation_options: Default::default(),
             },
             fragment: Some(FragmentState {
                 module: &shader,
-                entry_point: "fs_main",
+                entry_point: Some("fs_main"),
                 targets: &[Some(ColorTargetState {
                     format: config.format,
                     blend: Some(BlendState::ALPHA_BLENDING),
@@ -426,5 +426,11 @@ impl PartialBorrowStuff {
             && mouse_pos.1 < rect.rect[Y][1];
 
         return hovered;
+    }
+}
+
+impl Ui {
+    pub fn debug_mode(&self) -> bool {
+        return self.sys.debug_mode;
     }
 }

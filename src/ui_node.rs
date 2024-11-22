@@ -95,6 +95,12 @@ impl<'a, T: NodeType> UiNode<'a, T> {
         return self;
     }
 
+    pub fn size_symm(&mut self, size: Size) -> &mut Self {
+        self.node_mut().params.layout.size.x = size;
+        self.node_mut().params.layout.size.y = size;
+        return self;
+    }    
+    
     pub fn size_x(&mut self, size: Size) -> &mut Self {
         self.node_mut().params.layout.size.x = size;
         return self;

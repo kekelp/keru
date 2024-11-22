@@ -281,12 +281,34 @@ pub const PANEL: NodeParams = NodeParams {
     key: ANON_PANEL,
 };
 
+pub(crate) const ANON_CONTAINER: NodeKey = <NodeKey>::new(Id(1242345), "ANON_CONTAINER");
+pub const CONTAINER: NodeParams = NodeParams {
+    stack: None,
+    text_params: None,
+    rect: Rect {
+        shape: Rectangle { corner_radius: BASE_RADIUS },
+        visible: false,
+        outline_only: true,
+        vertex_colors: VertexColors::FLGR_SOVL_GRAD,
+    },
+    interact: Interact {
+        absorbs_mouse_events: false,
+        click_animation: false,
+    },
+    layout: Layout {
+        size: Xy::new_symm(FitContent),
+        position: Xy::new_symm(Center),
+        padding: Xy::new_symm(Len::Pixels(10)),
+    },
+    key: ANON_PANEL,
+};
+
 pub const CUSTOM_RENDERED_PANEL: NodeParams = NodeParams {
     stack: None,
     text_params: None,
     rect: Rect {
         shape: Rectangle { corner_radius: BASE_RADIUS },
-        visible: true,
+        visible: false,
         outline_only: true,
         vertex_colors: VertexColors::flat(Color::rgba_f(0.0, 1.0, 0.0, 1.0)),
     },

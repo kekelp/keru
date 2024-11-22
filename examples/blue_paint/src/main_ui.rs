@@ -3,6 +3,7 @@ use blue::Position::*;
 use blue::Size::*;
 use blue::Len::*;
 
+use crate::color_picker::ColorPickerUi;
 use crate::PixelColorF32;
 use crate::State;
 
@@ -13,7 +14,7 @@ const FLGR_PANEL: NodeParams = PANEL.vertex_colors(GRAD1);
 
 impl State {
 
-    pub fn declare_ui(&mut self) {        
+    pub fn declare_ui(&mut self) {
 
         #[node_key] const RIGHT_BAR: NodeKey;
         self.ui.add(RIGHT_BAR)
@@ -30,38 +31,22 @@ impl State {
             .size_x(FitContent);
 
         self.ui.begin_tree();
-        
+
         self.ui.place(RIGHT_BAR).nest(|| {
             self.slider_value = self.add_slider(self.slider_value);
-            self.add_color_picker();
+            self.ui.add_color_picker(&mut self.color_picker);
         });
 
         self.ui.place(LEFT_BAR).nest(|| {
             self.add_pixel_info_ui();
             self.add_tools();
         });
-        
+
         self.ui.finish_tree();
     }
 }
 
-#[node_key] pub const COLOR_PICKER_HUE_WHEEL: NodeKey;
 impl State {
-    pub fn add_color_picker(&mut self) {
-        #[node_key] const COLOR_PICKER_PANEL: NodeKey;
-
-        self.ui.add(COLOR_PICKER_PANEL).params(PANEL);
-        self.ui.add(COLOR_PICKER_HUE_WHEEL).params(CUSTOM_RENDERED_PANEL)
-            .vertex_colors(VertexColors::FLGR_SOVL_GRAD_FW)
-            .size_x(Size::Fixed(Frac(0.18)))
-            .size_y(Size::AspectRatio(1.0))
-            .shape(Shape::Ring { width: 60.0 });
-
-        self.ui.place(COLOR_PICKER_PANEL).nest(|| {
-            self.ui.place(COLOR_PICKER_HUE_WHEEL);
-        })
-    }
-
     pub fn add_pixel_info_ui(&mut self) {
         let pixel_info = &self.canvas.pixel_info();
 
@@ -91,7 +76,7 @@ impl State {
     pub fn add_tools(&mut self) {
         #[node_key] const BRUSH: NodeKey;
         self.ui.add(BRUSH).params(ICON_BUTTON).static_image(include_bytes!("icons/brush.png"));
-        
+
         #[node_key] const ERASER: NodeKey;
         self.ui.add(ERASER).params(ICON_BUTTON).static_image(include_bytes!("icons/eraser.png"));
 
@@ -144,7 +129,6 @@ impl State {
         self.ui.place(SLIDER_CONTAINER).nest(|| {
             self.ui.place(SLIDER_FILL);
         });
-
 
         let size = self.ui.get_node(SLIDER_CONTAINER).unwrap().get_inner_size().y as f32;
 

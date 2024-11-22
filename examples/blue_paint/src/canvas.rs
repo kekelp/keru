@@ -261,13 +261,13 @@ impl Canvas {
             layout: Some(&render_pipeline_layout),
             vertex: VertexState {
                 module: &shader,
-                entry_point: "vs_main",
+                entry_point: Some("vs_main"),
                 buffers: &[],
                 compilation_options: Default::default(),
             },
             fragment: Some(FragmentState {
                 module: &shader,
-                entry_point: "fs_main",
+                entry_point: Some("fs_main"),
                 targets: &[Some(ColorTargetState {
                     format: ctx.surface_config.format,
                     blend: Some(BlendState::REPLACE),
