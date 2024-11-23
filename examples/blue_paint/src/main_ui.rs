@@ -10,7 +10,7 @@ use crate::State;
 const COLOR1: Color = Color::rgba(50, 13, 100, 240);
 const COLOR2: Color = Color::rgba(100, 13, 50, 240);
 const GRAD1: VertexColors = VertexColors::diagonal_gradient_forward_slash(COLOR1, COLOR2);
-const FLGR_PANEL: NodeParams = PANEL.vertex_colors(GRAD1);
+pub const FLGR_PANEL: NodeParams = PANEL.vertex_colors(GRAD1);
 
 impl State {
 

@@ -77,7 +77,6 @@ impl Ui {
 
         // rect updates
         if rebuild_all_rects {
-            self.sys.rects.clear();
             self.rebuild_all_rects();
             // println!("[{:?}]  rebuild all rects", T0.elapsed());
         } else {
@@ -92,12 +91,10 @@ impl Ui {
         self.sys.changes.reset();
     }
 
-    pub fn full_relayout_and_rebuild(&mut self) {
-        self.sys.rects.clear();
-        
+    pub fn full_relayout_and_rebuild(&mut self) {       
         self.relayout_from_root();
 
-        self.recursive_push_rects(ROOT_I);
+        self.rebuild_all_rects();
 
         self.push_cursor_rect();
     }
@@ -491,6 +488,8 @@ impl Ui {
     }
 
     fn rebuild_all_rects(&mut self) {
+        self.sys.rects.clear();
+        self.sys.invisible_but_clickable_rects.clear();
         self.recursive_push_rects(ROOT_I);
     }
 

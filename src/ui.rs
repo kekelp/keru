@@ -71,6 +71,7 @@ pub(crate) struct System {
     pub texture_atlas: TextureAtlas,
 
     pub rects: Vec<RenderRect>,
+    pub invisible_but_clickable_rects: Vec<RenderRect>,
     // todo: keep a separate vec with the bounding boxes for faster mouse hit scans
 
     pub part: PartialBorrowStuff,
@@ -304,7 +305,8 @@ impl Ui {
                 texture_atlas,
 
                 render_pipeline,
-                rects: Vec::with_capacity(20),
+                rects: Vec::with_capacity(50),
+                invisible_but_clickable_rects: Vec::with_capacity(20),
 
                 gpu_rect_buffer,
                 base_uniform_buffer: resolution_buffer,
@@ -406,10 +408,8 @@ impl IndexMut<usize> for Nodes {
 
 impl PartialBorrowStuff {
     pub fn mouse_hit_rect(&self, rect: &RenderRect) -> bool {
-        // rects are rebuilt from scratch every render, so this isn't needed, for now.
-        // if rect.last_frame_touched != self.current_frame {
-        //     return (false, false);
-        // }
+        // rects are rebuilt whenever they change, they don't have to be skipped based on a timestamp or anything like that.
+        // in the future if we do a click detection specific datastructure it might use a timestamp, maybe? probably not.
 
         let mut mouse_pos = (
             self.mouse_pos.x / self.unifs.size[X],
@@ -420,12 +420,52 @@ impl PartialBorrowStuff {
         mouse_pos.0 = (mouse_pos.0 * 2.0) - 1.0;
         mouse_pos.1 = (mouse_pos.1 * 2.0) - 1.0;
 
-        let hovered = rect.rect[X][0] < mouse_pos.0
+        let aabb_hit = rect.rect[X][0] < mouse_pos.0
             && mouse_pos.0 < rect.rect[X][1]
             && rect.rect[Y][0] < mouse_pos.1
             && mouse_pos.1 < rect.rect[Y][1];
 
-        return hovered;
+        if !aabb_hit {
+            return false;
+        }
+
+        match rect.read_shape() {
+            Shape::Rectangle { corner_radius: _ } => {
+                return aabb_hit;
+            }
+            Shape::Circle => {
+                // Calculate the circle center and radius
+                let center_x = (rect.rect[X][0] + rect.rect[X][1]) / 2.0;
+                let center_y = (rect.rect[Y][0] + rect.rect[Y][1]) / 2.0;
+                let radius = (rect.rect[X][1] - rect.rect[X][0]) / 2.0;
+    
+                // Check if the mouse is within the circle
+                let dx = mouse_pos.0 - center_x;
+                let dy = mouse_pos.1 - center_y;
+                return dx * dx + dy * dy <= radius * radius;
+            }
+            Shape::Ring { width } => {
+                // scale to correct coordinates
+                // width should have been a Len anyway so this will have to change
+                let width = width / self.unifs.size[X];
+
+                let aspect = self.unifs.size[X] / self.unifs.size[Y];
+                 // Calculate the ring's center and radii
+                let center_x = (rect.rect[X][0] + rect.rect[X][1]) / 2.0;
+                let center_y = (rect.rect[Y][0] + rect.rect[Y][1]) / 2.0;
+                let outer_radius = (rect.rect[X][1] - rect.rect[X][0]) / 2.0;
+                let inner_radius = outer_radius - width;
+    
+                // Check if the mouse is within the ring
+                let dx = mouse_pos.0 - center_x;
+                let dy = (mouse_pos.1 - center_y) / aspect;
+                let distance_squared = dx * dx + dy * dy;
+                return distance_squared <= outer_radius * outer_radius
+                    && distance_squared >= inner_radius * inner_radius;
+
+                // in case there's any doubts, this was awful, it would be a lot better to have the click specific datastruct so that everything there can be in pixels
+            }
+        }
     }
 }
 

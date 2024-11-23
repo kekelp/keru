@@ -39,13 +39,16 @@ impl Ui {
             .any(|c| c.hit_node_id == real_key.id && c.state.is_pressed() && c.button == mouse_button);
     }
 
-    pub fn click_info(
+    pub fn get_clicks(
         &self, 
         mouse_button: MouseButton, 
         node_key: NodeKey
     ) -> impl Iterator<Item = &StoredClick> {
         // if there is no such node, we make up a random fake key that won't match anything => empty iterator
         let match_key = self.get_latest_twin_key(node_key).unwrap_or(NodeKey::new(Id(83262734), "fake key"));
+
+        // println!("  {:?}", match_key);
+        // println!("  {:?}", self.sys.last_frame_clicks.clicks);
 
         return self.sys
             .last_frame_clicks
@@ -304,6 +307,12 @@ impl Ui {
         self.sys.mouse_hit_stack.clear();
 
         for rect in &self.sys.rects {
+            if self.sys.part.mouse_hit_rect(rect) {
+                self.sys.mouse_hit_stack.push((rect.id, rect.z));
+            }
+        }
+
+        for rect in &self.sys.invisible_but_clickable_rects {
             if self.sys.part.mouse_hit_rect(rect) {
                 self.sys.mouse_hit_stack.push((rect.id, rect.z));
             }

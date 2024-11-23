@@ -313,7 +313,7 @@ pub const CUSTOM_RENDERED_PANEL: NodeParams = NodeParams {
         vertex_colors: VertexColors::GREENSCREEN,
     },
     interact: Interact {
-        absorbs_mouse_events: false,
+        absorbs_mouse_events: true,
         click_animation: false,
     },
     layout: Layout {

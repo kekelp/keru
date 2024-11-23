@@ -411,6 +411,12 @@ impl Ui {
         if let Some(rect) = node.render_rect(draw_even_if_invisible, None) {
             self.sys.rects.push(rect);
             node.last_rect_i = self.sys.rects.len() - 1;
+        } else if node.params.interact.absorbs_mouse_events {
+            // if it wasn't added to the regular rects but still needs to be clickable, add it to the lidl rects
+            let just_give_me_a_rect = true;
+            if let Some(rect) = node.render_rect(just_give_me_a_rect, None) {
+                self.sys.invisible_but_clickable_rects.push(rect);
+            }
         }
 
         if let Some(image) = node.imageref {
