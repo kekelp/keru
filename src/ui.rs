@@ -81,7 +81,7 @@ pub(crate) struct System {
     pub unresolved_click_presses: Vec<PendingMousePress>,
     // A vec keeping just the click pressed events from last frame, to make it easier for is_just_clicked() (aka click on press, aka checking just the click pressed without waiting for release or anything)
     pub last_frame_click_presses: Vec<PendingMousePress>,
-    pub last_frame_drag_hold_clickrelease_events: Vec<MouseFrameHappening>,
+    pub last_frame_drag_hold_clickrelease_events: Vec<MouseEvent>,
 
 
     pub hovered: Vec<Id>,

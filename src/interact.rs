@@ -39,21 +39,30 @@ impl Ui {
     }
 
     // todo: there should be a full info function that returns the whole thing with positions, timestamps, etc. The dumbed down version should be on top of that.
-    pub fn is_mouse_button_dragged(&self, mouse_button: MouseButton, node_key: NodeKey) -> Option<(f64, f64)> {
-        let real_key = self.get_latest_twin_key(node_key);
-        let Some(real_key) = real_key else {
-            return None;
-        };
-        if let Some(drag_event) = self
-            .sys
+    pub fn mouse_events(&self, mouse_button: MouseButton, node_key: NodeKey) -> impl DoubleEndedIterator<Item = &MouseEvent> {
+        return self.sys
             .last_frame_drag_hold_clickrelease_events
             .iter()
-            .rfind(|c| c.originally_pressed.hit_node_id == Some(real_key.id) && c.button == mouse_button) {
-                let drag_distance = drag_event.drag_distance();
-                return Some((drag_distance.x.into(), drag_distance.y.into()));
-            } else {
-                return None;
-            }
+            .filter(move |c| c.originally_pressed.hit_node_id == Some(node_key.id) && c.button == mouse_button);
+    }
+
+    // todo: there should be a full info function that returns the whole thing with positions, timestamps, etc. The dumbed down version should be on top of that.
+    pub fn is_mouse_button_dragged(&self, mouse_button: MouseButton, node_key: NodeKey) -> Option<(f64, f64)> {
+        let all_events = self.mouse_events(mouse_button, node_key);
+        
+        // I doubt anyone cares, but in the case the user dragged, released, and redragged, all in one frame, let's find all the distances and sum them
+        let mut dist = Xy::new_symm(0.0);
+        
+        for e in all_events {
+            dist = dist + e.drag_distance();
+        }
+
+        if dist == Xy::new_symm(0.0) {
+            return None;
+        } else {
+            return Some((dist.x as f64, dist.y as f64));
+        }
+        // or just return the (0.0, 0.0)
     }
 
     pub fn is_dragged(&self, node_key: NodeKey) -> Option<(f64, f64)> {
@@ -103,7 +112,7 @@ impl Ui {
 
         for click_pressed in self.sys.unresolved_click_presses.iter_mut().rev() {
 
-            let mouse_happening = MouseFrameHappening {
+            let mouse_happening = MouseEvent {
                 button: click_pressed.button,
                 originally_pressed: click_pressed.pressed_at,
                 last_seen: click_pressed.last_seen,
@@ -133,7 +142,7 @@ impl Ui {
             // check for hits.
             let released_at = self.scan_current_mouse_status();
 
-            let full_mouse_event = MouseFrameHappening {
+            let full_mouse_event = MouseEvent {
                 button,
                 originally_pressed: matched.pressed_at,
                 last_seen: matched.last_seen,
@@ -469,14 +478,14 @@ pub enum MouseCurrentStatus {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct MouseFrameHappening {
+pub struct MouseEvent {
     pub button: MouseButton,
     pub originally_pressed: MouseState,
     pub last_seen: MouseState,
     pub currently_at: MouseState,
     pub kind: MouseCurrentStatus,
 }
-impl MouseFrameHappening {
+impl MouseEvent {
     pub fn is_click_release(&self) -> bool {
         return self.originally_pressed.hit_node_id == self.currently_at.hit_node_id;
     }
