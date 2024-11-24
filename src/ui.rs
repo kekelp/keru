@@ -77,11 +77,8 @@ pub(crate) struct System {
 
     pub mouse_hit_stack: Vec<(Id, f32)>,
 
-    // a vec keeping all "recent" click pressed events for the purpose of tracking drag, hold and click-release events.
     pub unresolved_click_presses: Vec<PendingMousePress>,
-    // A vec keeping just the click pressed events from last frame, to make it easier for is_just_clicked() (aka click on press, aka checking just the click pressed without waiting for release or anything)
-    pub last_frame_click_presses: Vec<PendingMousePress>,
-    pub last_frame_drag_hold_clickrelease_events: Vec<MouseEvent>,
+    pub last_frame_mouse_events: Vec<MouseEvent>,
 
 
     pub hovered: Vec<Id>,
@@ -323,8 +320,7 @@ impl Ui {
                 mouse_hit_stack: Vec::with_capacity(50),
 
                 unresolved_click_presses: Vec::with_capacity(20),
-                last_frame_click_presses: Vec::with_capacity(20),
-                last_frame_drag_hold_clickrelease_events: Vec::with_capacity(20),
+                last_frame_mouse_events: Vec::with_capacity(20),
 
                 hovered: Vec::with_capacity(15),
                 last_frame_hovered: Vec::with_capacity(15),

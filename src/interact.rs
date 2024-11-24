@@ -22,35 +22,41 @@ use crate::*;
 
 
 impl Ui {
-    pub fn is_clicked(&self, node_key: NodeKey) -> bool {
-        return self.is_mouse_button_clicked(MouseButton::Left, node_key);
+
+    pub fn all_mouse_events(&self) -> impl DoubleEndedIterator<Item = &MouseEvent> {
+        return self.sys.last_frame_mouse_events.iter();
     }
 
-    pub fn is_mouse_button_clicked(&self, mouse_button: MouseButton, node_key: NodeKey) -> bool {
-        let real_key = self.get_latest_twin_key(node_key);
-        let Some(real_key) = real_key else {
-            return false;
-        };
-        return self
-            .sys
-            .last_frame_click_presses
-            .iter()
-            .any(|c| c.pressed_at.hit_node_id == Some(real_key.id) && c.button == mouse_button);
-    }
-
-    // todo: there should be a full info function that returns the whole thing with positions, timestamps, etc. The dumbed down version should be on top of that.
     pub fn mouse_events(&self, mouse_button: MouseButton, node_key: NodeKey) -> impl DoubleEndedIterator<Item = &MouseEvent> {
-        return self.sys
-            .last_frame_drag_hold_clickrelease_events
-            .iter()
+        return self
+            .all_mouse_events()
             .filter(move |c| c.originally_pressed.hit_node_id == Some(node_key.id) && c.button == mouse_button);
     }
 
-    // todo: there should be a full info function that returns the whole thing with positions, timestamps, etc. The dumbed down version should be on top of that.
+    pub fn is_clicked(&self, node_key: NodeKey) -> bool {
+        let clicked_times = self.is_mouse_button_clicked(MouseButton::Left, node_key);
+        return clicked_times > 0;
+    }
+
+    pub fn is_mouse_button_clicked(&self, mouse_button: MouseButton, node_key: NodeKey) -> usize {
+        let all_events = self.mouse_events(mouse_button, node_key);
+        return all_events.filter(|c| c.is_just_clicked()).count();
+    }
+
+    pub fn is_click_released(&self, node_key: NodeKey) -> bool {
+        let clicked_times = self.is_mouse_button_click_released(MouseButton::Left, node_key);
+        return clicked_times > 0;
+    }
+
+    pub fn is_mouse_button_click_released(&self, mouse_button: MouseButton, node_key: NodeKey) -> usize {
+        let all_events = self.mouse_events(mouse_button, node_key);
+        return all_events.filter(|c| c.is_click_release()).count();
+    }
+
     pub fn is_mouse_button_dragged(&self, mouse_button: MouseButton, node_key: NodeKey) -> Option<(f64, f64)> {
         let all_events = self.mouse_events(mouse_button, node_key);
         
-        // I doubt anyone cares, but in the case the user dragged, released, and redragged, all in one frame, let's find all the distances and sum them
+        // I doubt anyone cares, but in the case the user dragged, released, and redragged, all in one frame, let's find all the distances and sum them.
         let mut dist = Xy::new_symm(0.0);
         
         for e in all_events {
@@ -62,12 +68,33 @@ impl Ui {
         } else {
             return Some((dist.x as f64, dist.y as f64));
         }
-        // or just return the (0.0, 0.0)
+        // or just return the (0.0, 0.0)?
     }
 
     pub fn is_dragged(&self, node_key: NodeKey) -> Option<(f64, f64)> {
         return self.is_mouse_button_dragged(MouseButton::Left, node_key);
     }
+
+    pub fn is_mouse_button_held(&self, mouse_button: MouseButton, node_key: NodeKey) -> Option<Duration> {
+        let all_events = self.mouse_events(mouse_button, node_key);
+        
+        let mut time_held = Duration::ZERO;
+        
+        for e in all_events {
+            time_held += e.time_held();
+        }
+
+        if time_held == Duration::ZERO {
+            return None;
+        } else {
+            return Some(time_held);
+        }
+    }
+
+    pub fn is_held(&self, node_key: NodeKey) -> Option<Duration> {
+        return self.is_mouse_button_held(MouseButton::Left, node_key);
+    }
+
 
     // todo: think if it's really worth it to do this on every mouse movement.
     pub fn resolve_hover(&mut self) {
@@ -102,8 +129,7 @@ impl Ui {
     }
 
     pub(crate) fn end_frame_resolve_inputs(&mut self) {
-        self.sys.last_frame_click_presses.clear();
-        self.sys.last_frame_drag_hold_clickrelease_events.clear();
+        self.sys.last_frame_mouse_events.clear();
 
         self.sys.unresolved_click_presses.retain(|click| click.already_released == false);
 
@@ -117,10 +143,10 @@ impl Ui {
                 originally_pressed: click_pressed.pressed_at,
                 last_seen: click_pressed.last_seen,
                 currently_at: mouse_current_status,
-                kind: MouseCurrentStatus::StillDownButFrameEnded,
+                kind: IsMouseReleased::StillDownButFrameEnded,
             };
 
-            self.sys.last_frame_drag_hold_clickrelease_events.push(mouse_happening);
+            self.sys.last_frame_mouse_events.push(mouse_happening);
 
             click_pressed.last_seen = mouse_current_status;
         }
@@ -147,10 +173,10 @@ impl Ui {
                 originally_pressed: matched.pressed_at,
                 last_seen: matched.last_seen,
                 currently_at: released_at,
-                kind: MouseCurrentStatus::MouseReleased,
+                kind: IsMouseReleased::MouseReleased,
             };
 
-            self.sys.last_frame_drag_hold_clickrelease_events.push(full_mouse_event);
+            self.sys.last_frame_mouse_events.push(full_mouse_event);
         }
     }
 
@@ -172,8 +198,6 @@ impl Ui {
         let pending_press = PendingMousePress::new(current_mouse_status, button);
 
         self.sys.unresolved_click_presses.push(pending_press);
-        // todo...... this one can probably track less oalgo
-        self.sys.last_frame_click_presses.push(pending_press);
         
         // hardcoded stuff with animations, focusing nodes, spawning cursors, etc
         if button == MouseButton::Left {
@@ -471,11 +495,12 @@ impl PendingMousePress {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-pub enum MouseCurrentStatus {
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum IsMouseReleased {
     MouseReleased,
     StillDownButFrameEnded,
 }
+
 
 #[derive(Clone, Copy, Debug)]
 pub struct MouseEvent {
@@ -483,11 +508,19 @@ pub struct MouseEvent {
     pub originally_pressed: MouseState,
     pub last_seen: MouseState,
     pub currently_at: MouseState,
-    pub kind: MouseCurrentStatus,
+    pub kind: IsMouseReleased,
 }
 impl MouseEvent {
+    // maybe a bit stupid compared to storing it explicitly, but should work.
+    // if it stays there for more than 1 frame, the last_seen timestamp gets updated to the end of the frame.
+    pub fn is_just_clicked(&self) -> bool {
+        return self.originally_pressed.timestamp == self.last_seen.timestamp;
+    }
+
     pub fn is_click_release(&self) -> bool {
-        return self.originally_pressed.hit_node_id == self.currently_at.hit_node_id;
+        let is_click_release = self.kind == IsMouseReleased::MouseReleased;
+        let is_on_same_node = self.originally_pressed.hit_node_id == self.currently_at.hit_node_id;
+        return is_click_release && is_on_same_node;
     }
 
     pub fn drag_distance(&self) -> Xy<f32> {
