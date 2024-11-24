@@ -1,5 +1,4 @@
 use crate::*;
-use crate::render_rect::*;
 
 use texture_atlas::ImageRef;
 

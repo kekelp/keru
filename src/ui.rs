@@ -56,8 +56,6 @@ pub(crate) struct System {
 
     pub debug_key_pressed: bool,
 
-    pub mouse_status: MouseInputState,
-
     pub _clipboard: ClipboardContext,
 
     pub key_mods: ModifiersState,
@@ -289,8 +287,6 @@ impl Ui {
                 root_i,
                 debug_mode: false,
                 debug_key_pressed: false,
-
-                mouse_status: MouseInputState::default(),
 
                 _clipboard: ClipboardContext::new().unwrap(),
                 key_mods: ModifiersState::default(),

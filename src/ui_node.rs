@@ -4,7 +4,6 @@ use std::marker::PhantomData;
 
 use glyphon::cosmic_text::Align;
 use glyphon::Attrs;
-use winit::event::MouseButton;
 
 use crate::*;
 use crate::node::*;

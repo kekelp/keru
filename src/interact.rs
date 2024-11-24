@@ -1,7 +1,7 @@
 use std::time::{Duration, Instant};
 
 use wgpu::Queue;
-use winit::{dpi::PhysicalPosition, event::{ElementState, Event, KeyEvent, MouseButton, MouseScrollDelta, WindowEvent}, keyboard::{Key, NamedKey}};
+use winit::{event::{ElementState, Event, KeyEvent, MouseButton, WindowEvent}, keyboard::{Key, NamedKey}};
 
 use crate::*;
 
@@ -255,14 +255,7 @@ impl Ui {
 
     // returns: is the event consumed?
     pub fn handle_events(&mut self, full_event: &Event<()>, queue: &Queue) -> bool {
-        if let Event::NewEvents(_) = full_event {
-            self.sys.mouse_status.clear_frame();
-        }
-
-
         if let Event::WindowEvent { event, .. } = full_event {
-            self.sys.mouse_status.update(event);
-
             match event {
                 WindowEvent::CursorMoved { position, .. } => {
                     self.sys.part.mouse_pos.x = position.x as f32;
@@ -284,18 +277,6 @@ impl Ui {
                             return false
                         },
                     }
-
-                    
-                    // let is_pressed = state.is_pressed();
-                    // if is_pressed {
-                    //     let consumed = self.resolve_click(*button, *state);
-                    //     return consumed;
-                    // } else {
-                    //     let waiting_for_click_release = self.sys.waiting_for_click_release;
-                    //     let on_rect = self.resolve_click_release();
-                    //     let consumed = on_rect && waiting_for_click_release;
-                    //     return consumed;
-                    // }
                 }
                 WindowEvent::ModifiersChanged(modifiers) => {
                     self.sys.key_mods = modifiers.state();
@@ -452,104 +433,6 @@ impl Ui {
     }
 
 }
-
-
-#[derive(Debug, Default)]
-pub struct MouseButtons {
-    pub left: bool,
-    pub right: bool,
-    pub middle: bool,
-    pub back: bool,
-    pub forward: bool,
-    pub other: u16, // 16-bit field for other buttons
-}
-impl MouseButtons {
-    pub fn is_other_button_pressed(&self, id: u16) -> bool {
-        if id < 16 {
-            return self.other & (1 << id) != 0;
-        } else {
-            panic!("Mouse button id must be between 0 and 15")
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct MouseInputState {
-    pub position: PhysicalPosition<f64>,
-    pub buttons: MouseButtons,
-    pub scroll_delta: (f32, f32),
-
-    // previous for diffs
-    pub prev_position: PhysicalPosition<f64>,
-}
-
-impl Default for MouseInputState {
-    fn default() -> Self {
-        return Self {
-            position: PhysicalPosition::new(0.0, 0.0),
-            buttons: MouseButtons::default(),
-            scroll_delta: (0.0, 0.0),
-
-            prev_position: PhysicalPosition::new(0.0, 0.0),
-        };
-    }
-}
-
-impl MouseInputState {
-    pub fn update(&mut self, event: &WindowEvent) {
-        match event {
-            WindowEvent::CursorMoved { position, .. } => {
-                self.position = *position;
-            }
-            WindowEvent::MouseInput { state, button, .. } => {
-                let pressed = *state == ElementState::Pressed;
-                match button {
-                    MouseButton::Left => self.buttons.left = pressed,
-                    MouseButton::Right => self.buttons.right = pressed,
-                    MouseButton::Middle => self.buttons.middle = pressed,
-                    MouseButton::Back => self.buttons.back = pressed,
-                    MouseButton::Forward => self.buttons.forward = pressed,
-                    MouseButton::Other(id) => {
-                        if *id < 16 {
-                            if pressed {
-                                self.buttons.other |= 1 << id;
-                            } else {
-                                self.buttons.other &= !(1 << id);
-                            }
-                        }
-                    }
-                }
-            }
-            WindowEvent::MouseWheel { delta, .. } => match delta {
-                MouseScrollDelta::LineDelta(x, y) => {
-                    self.scroll_delta.0 += x;
-                    self.scroll_delta.1 += y;
-                }
-                MouseScrollDelta::PixelDelta(pos) => {
-                    self.scroll_delta.0 += pos.x as f32;
-                    self.scroll_delta.1 += pos.y as f32;
-                }
-            },
-            _ => {}
-        }
-    }
-
-    pub fn clear_frame(&mut self) {
-        self.prev_position = self.position;
-    }
-
-    pub fn cursor_diff(&self) -> (f64, f64) {
-        return (
-            self.prev_position.x - self.position.x,
-            self.prev_position.y - self.position.y,
-        );
-    }
-
-    pub fn reset_scroll(&mut self) {
-        self.scroll_delta = (0.0, 0.0);
-    }
-}
-
 
 // this gets used for both presses and releases, but it doesn't keep a field to distinguish them, because it's always clear from the context.
 // hit_node_id will always we Some for click presses, because otherwise they're fully ignored.

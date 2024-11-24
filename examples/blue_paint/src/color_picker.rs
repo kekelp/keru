@@ -6,7 +6,6 @@ use blue::{Ui, XyRect};
 use wgpu::BindGroup;
 use wgpu::Buffer;
 use wgpu::RenderPipeline;
-use winit::event::MouseButton;
 
 use crate::main_ui::FLGR_PANEL;
 

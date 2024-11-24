@@ -719,22 +719,6 @@ impl Canvas {
 
 }
 
-
-pub trait ReasonableRotation {
-    fn rotated(self, rhs: f64) -> Self;
-}
-
-impl ReasonableRotation for DVec2 {
-    fn rotated(self, rhs: f64) -> Self {
-        let cos = rhs.cos();
-        let sin = rhs.sin();
-        return Self {
-            x: self.x * cos - self.y * sin,
-            y: self.y * cos + self.x * sin,
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug, Default)]
 pub struct EpicRotation {
     angle: f64,

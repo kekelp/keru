@@ -281,7 +281,6 @@ pub const PANEL: NodeParams = NodeParams {
     key: ANON_PANEL,
 };
 
-pub(crate) const ANON_CONTAINER: NodeKey = <NodeKey>::new(Id(1242345), "ANON_CONTAINER");
 pub const CONTAINER: NodeParams = NodeParams {
     stack: None,
     text_params: None,

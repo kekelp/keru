@@ -7,7 +7,6 @@ mod color_picker_render;
 
 use canvas::*;
 use color_picker::ColorPicker;
-use color_picker_render::*;
 use winit::{error::EventLoopError, event::Event, event_loop::EventLoopWindowTarget};
 use blue::Ui;
 use blue::basic_window_loop::*;
