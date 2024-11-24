@@ -1,11 +1,11 @@
 use crate::changes::{NodeWithDepth, PartialChanges};
-use crate::interact::{HeldNodes, LastFrameClicks, MouseInputState, MouseEvent};
 use crate::math::*;
 use crate::render::TypedGpuBuffer;
 use crate::texture_atlas::*;
 use crate::thread_local::thread_local_push_parent;
 use crate::*;
 use crate::node::*;
+use crate::interact::*;
 use crate::render_rect::*;
 
 use crate::math::Axis::*;
@@ -14,6 +14,7 @@ use copypasta::ClipboardContext;
 use glyphon::Cache as GlyphonCache;
 use glyphon::Viewport;
 
+use interact::PendingMousePress;
 use node::Node;
 use rustc_hash::FxHashMap;
 use slab::Slab;
@@ -78,13 +79,13 @@ pub(crate) struct System {
 
     pub mouse_hit_stack: Vec<(Id, f32)>,
 
-    
-    pub last_frame_clicks: LastFrameClicks,
+    // a vec keeping all "recent" click pressed events for the purpose of tracking drag, hold and click-release events.
+    pub unresolved_click_presses: Vec<PendingMousePress>,
+    // A vec keeping just the click pressed events from last frame, to make it easier for is_just_clicked() (aka click on press, aka checking just the click pressed without waiting for release or anything)
+    pub last_frame_click_presses: Vec<PendingMousePress>,
+    pub last_frame_drag_hold_clickrelease_events: Vec<MouseFrameHappening>,
 
-    pub held_store: HeldNodes,
-    pub dragged_store: HeldNodes,
 
-    pub last_frame_click_released: Vec<MouseEvent>,
     pub hovered: Vec<Id>,
     pub last_frame_hovered: Vec<Id>,
 
@@ -324,12 +325,10 @@ impl Ui {
                 },
 
                 mouse_hit_stack: Vec::with_capacity(50),
-                last_frame_clicks: LastFrameClicks::new(),
 
-                held_store: HeldNodes::default(),
-                dragged_store: HeldNodes::default(),
-
-                last_frame_click_released: Vec::with_capacity(5),
+                unresolved_click_presses: Vec::with_capacity(20),
+                last_frame_click_presses: Vec::with_capacity(20),
+                last_frame_drag_hold_clickrelease_events: Vec::with_capacity(20),
 
                 hovered: Vec::with_capacity(15),
                 last_frame_hovered: Vec::with_capacity(15),

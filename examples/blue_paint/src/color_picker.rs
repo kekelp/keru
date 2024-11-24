@@ -61,9 +61,9 @@ impl ColorPickerUi for Ui {
             });
         });
 
-        let clicks = self.get_clicks(MouseButton::Left, ColorPicker::OKLAB_HUE_WHEEL);
-        for c in clicks {
-            println!(" {:?}", c);
-        }
+        // let clicks = self.get_clicks(MouseButton::Left, ColorPicker::OKLAB_HUE_WHEEL);
+        // for c in clicks {
+        //     println!(" {:?}", c);
+        // }
     }
 }

@@ -605,14 +605,12 @@ impl Ui {
         self.sys.part.current_frame += 1;
         clear_thread_local_parent_stack();
     }
-
+    
     pub fn finish_tree(&mut self) {
         self.relayout();
-
-        self.end_frame_check_inputs();
-
-        self.sys.last_frame_clicks.clear();
-
+        
+        self.end_frame_resolve_inputs();
+        
         self.update_time();
     }
 }

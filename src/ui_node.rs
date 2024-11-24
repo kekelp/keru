@@ -50,22 +50,22 @@ impl<'a, T: NodeType> UiNode<'a, T> {
     /// This is not a callback, the effect is executed immediately (or never if not clicked)
     /// It's this way just for easier builder-style composition
     /// You can also do ui.is_clicked(KEY) 
-    pub fn on_click(&mut self, effect: impl FnOnce()) -> &mut Self {
-        let id = self.node().id;
+    // pub fn on_click(&mut self, effect: impl FnOnce()) -> &mut Self {
+    //     let id = self.node().id;
 
-        let is_clicked = self.ui
-        .sys
-        .last_frame_clicks
-        .clicks
-        .iter()
-        .any(|c| c.hit_node_id == id && c.state.is_pressed() && c.button == MouseButton::Left); 
+    //     let is_clicked = self.ui
+    //     .sys
+    //     .last_frame_clicks
+    //     .clicks
+    //     .iter()
+    //     .any(|c| c.hit_node_id == id && c.state.is_pressed() && c.button == MouseButton::Left); 
 
-        if is_clicked {
-            effect();
-        }
+    //     if is_clicked {
+    //         effect();
+    //     }
 
-        return self;
-    }
+    //     return self;
+    // }
 
     // pub fn is_dragged(&self) -> Option<(f64, f64)> {
     //     if self.is_clicked(node_key) {
