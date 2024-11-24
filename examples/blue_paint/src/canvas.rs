@@ -712,6 +712,8 @@ impl Canvas {
         if self.backups_i < self.backups.len() {
             self.backups_i += 1;
             self.pixels = self.backups[self.backups_i - 1].clone();
+
+            self.need_rerender = true;
         }
     }
 

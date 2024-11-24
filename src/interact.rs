@@ -1,4 +1,4 @@
-use std::mem;
+use std::{mem, time::Instant};
 
 use wgpu::Queue;
 use winit::{dpi::PhysicalPosition, event::{ElementState, Event, KeyEvent, MouseButton, MouseScrollDelta, WindowEvent}, keyboard::{Key, NamedKey}};
@@ -43,7 +43,7 @@ impl Ui {
         &self, 
         mouse_button: MouseButton, 
         node_key: NodeKey
-    ) -> impl Iterator<Item = &StoredClick> {
+    ) -> impl Iterator<Item = &MouseEvent> {
         // if there is no such node, we make up a random fake key that won't match anything => empty iterator
         let match_key = self.get_latest_twin_key(node_key).unwrap_or(NodeKey::new(Id(83262734), "fake key"));
 
@@ -221,10 +221,11 @@ impl Ui {
             return false;
         };
         
-        let stored_click = StoredClick {
+        let stored_click = MouseEvent {
             button,
             state,
             hit_node_id: clicked_id,
+            timestamp: Instant::now(),
             position: Xy::new(self.sys.part.mouse_pos.x, self.sys.part.mouse_pos.y),
         };
         self.sys.last_frame_clicks.push(stored_click);
@@ -627,24 +628,25 @@ impl MouseInputState {
 
 
 #[derive(Clone, Copy, Debug)]
-pub struct StoredClick {
+pub struct MouseEvent {
     pub button: MouseButton,
     pub position: Xy<f32>,
     pub state: ElementState,
+    pub timestamp: Instant,
     pub hit_node_id: Id,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct HeldNodes {
-    pub left: Option<StoredClick>,
-    pub right: Option<StoredClick>,
-    pub middle: Option<StoredClick>,
-    pub back: Option<StoredClick>,
-    pub forward: Option<StoredClick>,
+    pub left: Option<MouseEvent>,
+    pub right: Option<MouseEvent>,
+    pub middle: Option<MouseEvent>,
+    pub back: Option<MouseEvent>,
+    pub forward: Option<MouseEvent>,
     // todo: disregard the Other buttons for now
 }
 impl HeldNodes {
-    pub(crate) fn by_button(&self, button: MouseButton) -> &Option<StoredClick> {
+    pub(crate) fn by_button(&self, button: MouseButton) -> &Option<MouseEvent> {
         match button {
             MouseButton::Left => return &self.left,
             MouseButton::Right => return &self.right,
@@ -655,7 +657,7 @@ impl HeldNodes {
         }
     }
 
-    pub(crate) fn by_button_mut(&mut self, button: MouseButton) -> &mut Option<StoredClick> {
+    pub(crate) fn by_button_mut(&mut self, button: MouseButton) -> &mut Option<MouseEvent> {
         match button {
             MouseButton::Left => return &mut self.left,
             MouseButton::Right => return &mut self.right,
@@ -724,7 +726,7 @@ impl HeldNodes {
 
 pub struct LastFrameClicks {
     pub ids: Vec<Id>,
-    pub clicks: Vec<StoredClick>,
+    pub clicks: Vec<MouseEvent>,
 }
 impl LastFrameClicks {
     pub fn new() -> LastFrameClicks {
@@ -734,7 +736,7 @@ impl LastFrameClicks {
         }
     }
 
-    fn push(&mut self, info: StoredClick) {
+    fn push(&mut self, info: MouseEvent) {
         self.ids.push(info.hit_node_id);
         self.clicks.push(info);
     }

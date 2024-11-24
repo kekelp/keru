@@ -1,5 +1,5 @@
 use crate::changes::{NodeWithDepth, PartialChanges};
-use crate::interact::{HeldNodes, LastFrameClicks, MouseInputState, StoredClick};
+use crate::interact::{HeldNodes, LastFrameClicks, MouseInputState, MouseEvent};
 use crate::math::*;
 use crate::render::TypedGpuBuffer;
 use crate::texture_atlas::*;
@@ -77,12 +77,14 @@ pub(crate) struct System {
     pub part: PartialBorrowStuff,
 
     pub mouse_hit_stack: Vec<(Id, f32)>,
+
+    
     pub last_frame_clicks: LastFrameClicks,
 
     pub held_store: HeldNodes,
     pub dragged_store: HeldNodes,
 
-    pub last_frame_click_released: Vec<StoredClick>,
+    pub last_frame_click_released: Vec<MouseEvent>,
     pub hovered: Vec<Id>,
     pub last_frame_hovered: Vec<Id>,
 
