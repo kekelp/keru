@@ -116,9 +116,9 @@ impl ColorPicker {
     }
 
     pub fn prepare(&self, ui: &mut Ui, queue: &wgpu::Queue) {
-        if let Some(node) = ui.get_node(ColorPicker::OKLAB_HUE_WHEEL) {
+        if let Some(node) = ui.get_node(OKLAB_HUE_WHEEL) {
             
-            let coords = [node.get_bounding_rect()];        
+            let coords = [node.render_rect()];        
             queue.write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&coords));
         }
     }

@@ -211,3 +211,13 @@ impl Mul<f32> for XyRect {
         );
     }
 }
+
+impl Mul<Xy<f32>> for XyRect {
+    type Output = Self;
+    fn mul(self, rhs: Xy<f32>) -> Self::Output {
+        return Self::new(
+            [self[X][0] * rhs.x, self[X][1] * rhs.x],
+            [self[Y][0] * rhs.y, self[Y][1] * rhs.y],
+        );
+    }
+}

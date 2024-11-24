@@ -129,7 +129,7 @@ impl State {
             self.ui.place(SLIDER_FILL);
         });
 
-        let size = self.ui.get_node(SLIDER_CONTAINER).unwrap().get_inner_size().y as f32;
+        let size = self.ui.get_node(SLIDER_CONTAINER).unwrap().inner_size().y as f32;
 
         if let Some((_, y)) = self.ui.is_dragged(SLIDER_CONTAINER) {
             value += (y as f32) / size;

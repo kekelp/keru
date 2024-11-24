@@ -11,6 +11,7 @@ pub struct Node {
     pub last_layout_frame: u64,
 
     // also for invisible rects, used for layout
+    // Coordinates: who knows???
     pub rect: XyRect,
 
     // partial result when layouting?

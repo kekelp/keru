@@ -75,23 +75,26 @@ impl Ui {
         return self.is_mouse_button_dragged(MouseButton::Left, node_key);
     }
 
-    pub fn is_mouse_button_held(&self, mouse_button: MouseButton, node_key: NodeKey) -> Option<Duration> {
+    pub fn is_mouse_button_held(&self, mouse_button: MouseButton, node_key: NodeKey) -> Option<(Duration, Xy<f32>)> {
         let all_events = self.mouse_events(mouse_button, node_key);
         
         let mut time_held = Duration::ZERO;
-        
+        let mut last_pos = Xy::new(0.0, 0.0);
+
         for e in all_events {
             time_held += e.time_held();
+            // todo: this is not good... but iterators are hard
+            last_pos = e.currently_at.position;
         }
 
         if time_held == Duration::ZERO {
             return None;
         } else {
-            return Some(time_held);
+            return Some((time_held, last_pos));
         }
     }
 
-    pub fn is_held(&self, node_key: NodeKey) -> Option<Duration> {
+    pub fn is_held(&self, node_key: NodeKey) -> Option<(Duration, Xy<f32>)> {
         return self.is_mouse_button_held(MouseButton::Left, node_key);
     }
 

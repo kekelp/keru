@@ -1,7 +1,7 @@
 #![windows_subsystem = "windows"]
 mod canvas;
 mod main_canvas;
-mod main_ui;
+mod paint_ui;
 mod color_picker;
 mod color_picker_render;
 

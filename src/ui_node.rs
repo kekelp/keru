@@ -7,6 +7,7 @@ use glyphon::Attrs;
 
 use crate::*;
 use crate::node::*;
+use crate::Axis::*;
 
 pub struct UiNode<'a, T: NodeType> {
     pub(crate) node_i: usize,
@@ -115,7 +116,7 @@ impl<'a, T: NodeType> UiNode<'a, T> {
         return self;
     }
 
-    pub fn get_inner_size(&self) -> Xy<u32> {
+    pub fn inner_size(&self) -> Xy<u32> {
         let padding = self.node().params.layout.padding;
         let padding = self.ui.to_pixels2(padding);
         
@@ -125,7 +126,19 @@ impl<'a, T: NodeType> UiNode<'a, T> {
         return size - padding;
     }
 
-    pub fn get_bounding_rect(&self) -> XyRect {
+    pub fn center(&self) -> Xy<f32> {
+        let rect = self.node().rect;
+        let rect = rect * self.ui.sys.part.unifs.size;
+
+        let center = Xy::new(
+            (rect[X][1] + rect[X][0]) / 2.0,
+            (rect[Y][1] + rect[Y][0]) / 2.0,
+        );
+
+        return center;
+    }
+
+    pub fn render_rect(&self) -> XyRect {
         return self.node().rect.to_graphics_space();
     }
 
