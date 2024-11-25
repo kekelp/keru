@@ -1,20 +1,32 @@
+use std::borrow::BorrowMut;
+
 use blue::*;
 use blue::Size::*;
 use blue::Len::*;
 
-use blue::{Ui, XyRect};
 use wgpu::BindGroup;
 use wgpu::Buffer;
 use wgpu::RenderPipeline;
 
 use crate::paint_ui::FLGR_PANEL;
 
-// Struct that holds the render pipeline and a buffer for rectangle vertices
+#[derive(Copy, Clone, Debug)]
+pub(crate) struct HclColor {
+    pub(crate) hue: f32,
+    pub(crate) saturation: f32,
+    pub(crate) brightness: f32,
+}
+impl Into<[f32; 3]> for HclColor {
+    fn into(self) -> [f32; 3] {
+        return [self.hue, self.saturation, self.brightness];
+    }
+}
+
 pub struct ColorPicker {
     pub(crate) vertex_buffer: Buffer,
     pub(crate) render_pipeline: RenderPipeline,
     pub(crate) bind_group: BindGroup,
-    pub coords: [XyRect; 1],
+    pub(crate) hcl_color: HclColor,
 }
 
 const NEUTRAL_GREY: Color = Color::rgba_f(0.09, 0.09, 0.09, 1.0);

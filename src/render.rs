@@ -18,9 +18,9 @@ impl Ui {
         }
         
         self.sys.text
-        .text_renderer
-        .render(&self.sys.text.atlas, &self.sys.text.glyphon_viewport, render_pass)
-        .unwrap();
+            .text_renderer
+            .render(&self.sys.text.atlas, &self.sys.text.glyphon_viewport, render_pass)
+            .unwrap();
         
         self.sys.changes.need_rerender = false;
     }

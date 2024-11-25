@@ -11,8 +11,11 @@ var<uniform> base_unif: BaseUniforms;
 
 struct VertexInput {
     @builtin(vertex_index) index: u32,
+    @builtin(instance_index) instance_index: u32,
     @location(0) xs: vec2<f32>,
     @location(1) ys: vec2<f32>,
+    @location(2) z: f32,
+    @location(3) hcl_color: vec3<f32>,
 }
 
 struct VertexOutput {
@@ -20,6 +23,7 @@ struct VertexOutput {
     @location(0) uv: vec2f,
     @location(1) pixel_uv: vec2f,
     @location(2) half_size: vec2f,
+    @location(3) instance_index: u32,
 }
 
 @vertex
@@ -51,8 +55,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     let v = f32(i_y) * 2.0 - 1.0;
     let uv = vec2f(u, v);
 
-
-    return VertexOutput(clip_position, uv, pixel_uv, half_size);
+    return VertexOutput(clip_position, uv, pixel_uv, half_size, in.instance_index);
 }
 
 // Transfer function for gamma correction
@@ -103,7 +106,7 @@ fn hcl2rgb(hcl: vec3<f32>) -> vec3<f32> {
 
     // Handle out-of-gamut colors
     if (any(rgb < vec3f(0.0)) || any(rgb > vec3f(1.0))) {
-        rgb = vec3f(0.25, 0.25, 0.25);
+        rgb = vec3f(0.17, 0.17, 0.17);
     }
     // if (any(lessThan(rgb, vec3(0.0))) || any(greaterThan(rgb, vec3(1.0)))) {
     //     rgb = vec3(0.9);
@@ -132,75 +135,40 @@ struct SquareRes {
     ab: vec2<f32>,
 } 
 
-
-fn square(xy: vec2<f32>) -> SquareRes {
-
-    let size = 0.75;
-
-    // Transform the input coordinates
-    var ab = xy / (size / sqrt(2.0));
-    ab = (ab + vec2<f32>(1.0)) / 2.0;
-
-    // Check if the point is within the square bounds
-    let isIn = f32(all(ab > vec2<f32>(0.0)) && all(ab < vec2<f32>(1.0)));
-
-    // Clamp the values of ab to the square boundaries
-    ab = clamp(ab, vec2<f32>(0.0), vec2<f32>(1.0));
-
-    return SquareRes(
-        isIn,
-        ab,
-    );
-}
-
-
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let u = in.uv.x;
     let v = in.uv.y;
 
-    let ring_mask = ring(in.pixel_uv, in.half_size);
+    if (in.instance_index == 0) {
+        // UV coordinate and center
+        let uv = in.uv * 2.0 - 1.0; // Convert to range [-1, 1]
 
-    // UV coordinate and center
-    let uv = in.uv * 2.0 - 1.0; // Convert to range [-1, 1]
+        let ring_mask = ring(in.pixel_uv, in.half_size);
 
-    // Define fixed OKLCH values
-    // let hue = 0.3;     // Fixed hue
-    // let chroma = 0.1;  // Fixed chroma
-    // let lightness = 0.1; // Fixed lightness
+        if (ring_mask > 0.0) {
+            let hcl_x = atan2(u, v) / (2.0 * PI) - 0.25;
+            
+            // need to pick magic values so that the whole wheel stays inside the rgb gamut
+            let hcl = vec3f(hcl_x, 0.38, 0.75);
 
+            let color = hcl2rgb(hcl);
+            return vec4f(color, ring_mask);
+        }
 
-    let squareMask = square(uv);
-    let sq_ab = squareMask.ab;
+        return vec4f(0.0, 0.0, 0.0, 0.0);
 
+    } else if (in.instance_index == 1) {
+        let uv = (in.uv + 1.0) / 2.0;
 
-
-    if (ring_mask > 0.0) {
-        let hcl_x = atan2(u, v) / (2.0 * PI) - 0.25;
-        // need to pick magic values so that the whole wheel stays inside the rgb gamut
-        
-        let hcl = vec3f(hcl_x, 0.38, 0.75);
+        let hue = 0.1;
+        let hcl_x = hue / (2.0 * PI) - 0.25;
+        let hcl = vec3(hcl_x, uv.yx);
 
         let color = hcl2rgb(hcl);
-        return vec4f(color, ring_mask);
+
+        return vec4<f32>(color, 1.0);
     }
 
     return vec4f(0.0, 0.0, 0.0, 0.0);
-
-    // if (squareMask.isIn > 0.0) {
-    //     // dot
-    //     if (distance(sq_ab, hcl.zy) < 0.02){
-    //         hcl = vec3(0.0, 0.0, 1.0);
-    //     }
-    //     hcl = vec3(hcl.x, sq_ab.yx);
-    // }
-
-    // let grey = vec3(0.1, 0.1, 0.1);
-    // let alpha = max(ring_mask, squareMask.isIn);
-
-    // // Convert HCL to RGB and output the color
-    // let color = hcl2rgb(hcl);
-    // let result = mix(grey, color, alpha);
-
-    // return vec4<f32>(color, ring_mask);
 }
