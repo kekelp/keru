@@ -138,7 +138,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         let ring_mask = ring(in.pixel_uv, in.half_size);
 
         if (ring_mask > 0.0) {
-            let hcl_hue = atan2(u, v) / (2.0 * PI) - 0.25;
+            let hcl_hue = atan2(u, -v) / (2.0 * PI);
             
             // need to pick magic values so that the whole wheel stays inside the rgb gamut
             let hcl = vec3f(hcl_hue, 0.38, 0.75);
@@ -156,7 +156,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         let uv = (in.uv + 1.0) / 2.0;
 
         let hue = in.hcl_color.x;
-        let hcl_x = hue / (2.0 * PI) - 0.25;
+        let hcl_x = hue / (2.0 * PI);
         let hcl = vec3(hcl_x, uv.yx);
 
         let color = hcl2rgb(hcl);

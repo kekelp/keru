@@ -13,7 +13,7 @@ pub struct ColorPicker {
     pub(crate) vertex_buffer: Buffer,
     pub(crate) render_pipeline: RenderPipeline,
     pub(crate) bind_group: BindGroup,
-    pub(crate) hcl_color: OkLchColor,
+    pub(crate) oklch_color: OkLchColor,
 }
 
 const NEUTRAL_GREY: Color = Color::rgba_f(0.09, 0.09, 0.09, 1.0);
@@ -27,7 +27,7 @@ pub trait ColorPickerUi {
 #[node_key] const CONTAINER: NodeKey;
 
 impl ColorPickerUi for Ui {
-    fn add_color_picker(&mut self, _color_picker: &mut ColorPicker) {
+    fn add_color_picker(&mut self, color_picker: &mut ColorPicker) {
 
         self.add(CONTAINER)
             .params(FLGR_PANEL)
@@ -63,7 +63,8 @@ impl ColorPickerUi for Ui {
             let center = self.get_node(OKLAB_HUE_WHEEL).unwrap().center();
             let pos = abs_pos - center;
             let angle = pos.x.atan2(pos.y);
-            println!("pos {:?}", angle);
+            
+            color_picker.oklch_color.hue = angle;
         }
     }
 }

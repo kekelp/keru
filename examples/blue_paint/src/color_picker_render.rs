@@ -124,7 +124,7 @@ impl ColorPicker {
             vertex_buffer,
             bind_group,
             render_pipeline,
-            hcl_color: OkLchColor {
+            oklch_color: OkLchColor {
                 lightness: 0.5,
                 chroma: 0.5,
                 hue: 0.3,
@@ -143,13 +143,13 @@ impl ColorPicker {
         let wheel_rect = ColorPickerRenderRect {
             rect: ui.get_node(OKLAB_HUE_WHEEL)?.render_rect(),
             z: 0.0,
-            hcl_color: self.hcl_color.into(),
+            hcl_color: self.oklch_color.into(),
         };
 
         let square_rect = ColorPickerRenderRect {
             rect: ui.get_node(OKLAB_SQUARE)?.render_rect(),
             z: 0.0,
-            hcl_color: self.hcl_color.into(),
+            hcl_color: self.oklch_color.into(),
         };
 
         // to keep the rust-side boilerplate to a minimum, we use the same pipeline for all rects (wheel and main square) and have the shader do different things based on the instance index.

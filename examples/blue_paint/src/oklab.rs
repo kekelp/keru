@@ -4,9 +4,10 @@ pub(crate) struct OkLchColor {
     pub(crate) hue: f32,
     pub(crate) chroma: f32,
 }
+
 impl Into<[f32; 3]> for OkLchColor {
     fn into(self) -> [f32; 3] {
-        return [self.hue, self.chroma, self.lightness];
+        [self.hue, self.chroma, self.lightness]
     }
 }
 
@@ -52,4 +53,35 @@ fn oklab_to_linear_srgb(c: OkLabColor) -> RgbColor {
         g: -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
         b: -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s,
     }
+}
+
+fn oklab_to_oklch(c: OkLabColor) -> OkLchColor {
+    let chroma = (c.a * c.a + c.b * c.b).sqrt();
+    let hue = c.b.atan2(c.a).to_degrees();
+    let hue = if hue < 0.0 { hue + 360.0 } else { hue };
+
+    OkLchColor {
+        lightness: c.l,
+        hue,
+        chroma,
+    }
+}
+
+fn oklch_to_oklab(c: OkLchColor) -> OkLabColor {
+    let angle = c.hue.to_radians();
+    OkLabColor {
+        l: c.lightness,
+        a: c.chroma * angle.cos(),
+        b: c.chroma * angle.sin(),
+    }
+}
+
+fn linear_srgb_to_oklch(c: RgbColor) -> OkLchColor {
+    let oklab = linear_srgb_to_oklab(c);
+    oklab_to_oklch(oklab)
+}
+
+fn oklch_to_linear_srgb(c: OkLchColor) -> RgbColor {
+    let oklab = oklch_to_oklab(c);
+    oklab_to_linear_srgb(oklab)
 }
