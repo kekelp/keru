@@ -4,6 +4,7 @@ mod main_canvas;
 mod paint_ui;
 mod color_picker;
 mod color_picker_render;
+mod oklab;
 
 use canvas::*;
 use color_picker::ColorPicker;

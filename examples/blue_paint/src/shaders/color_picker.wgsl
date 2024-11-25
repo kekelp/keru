@@ -24,6 +24,7 @@ struct VertexOutput {
     @location(1) pixel_uv: vec2f,
     @location(2) half_size: vec2f,
     @location(3) instance_index: u32,
+    @location(4) hcl_color: vec3<f32>,
 }
 
 @vertex
@@ -55,7 +56,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     let v = f32(i_y) * 2.0 - 1.0;
     let uv = vec2f(u, v);
 
-    return VertexOutput(clip_position, uv, pixel_uv, half_size, in.instance_index);
+    return VertexOutput(clip_position, uv, pixel_uv, half_size, in.instance_index, in.hcl_color);
 }
 
 // Transfer function for gamma correction
@@ -70,25 +71,21 @@ fn transfer_vec3(v: vec3<f32>) -> vec3<f32> {
 // Convert OKLCH to RGB
 fn hcl2rgb(hcl: vec3<f32>) -> vec3<f32> {
     let h = hcl.x * 2.0 * PI;
-    let c = hcl.y * 0.33; // Adjust chroma
+    let c = hcl.y * 0.33;
     let l = hcl.z;
 
-    // Convert HCL to Lab
     let lab = vec3f(
         l,
         c * cos(h),
         c * sin(h)
     );
 
-    // Convert Lab to LMS
     var lms = vec3f(
         lab.x + 0.3963377774 * lab.y + 0.2158037573 * lab.z,
         lab.x - 0.1055613458 * lab.y - 0.0638541728 * lab.z,
         lab.x - 0.0894841775 * lab.y - 1.2914855480 * lab.z
     );
 
-    // Apply non-linearity
-    // lms = pow(max(lms, vec3<f32>(0.0)), vec3<f32>(1.0/3.0));
     lms.x = pow(max(lms.x, 0.0), 3.0);
     lms.y = pow(max(lms.y, 0.0), 3.0);
     lms.z = pow(max(lms.z, 0.0), 3.0);
@@ -100,18 +97,11 @@ fn hcl2rgb(hcl: vec3<f32>) -> vec3<f32> {
         - 0.0041960863 * lms.x - 0.7034186147 * lms.y + 1.7076147010 * lms.z
     );
 
-    // Gamma correction and clamping
-    // rgb = transfer_vec3(clamp(rgb, vec3<f32>(0.0), vec3<f32>(1.0)));
-    // rgb = transfer_vec3(rgb);
-
     // Handle out-of-gamut colors
+    // todo: antialiasing
     if (any(rgb < vec3f(0.0)) || any(rgb > vec3f(1.0))) {
         rgb = vec3f(0.17, 0.17, 0.17);
     }
-    // if (any(lessThan(rgb, vec3(0.0))) || any(greaterThan(rgb, vec3(1.0)))) {
-    //     rgb = vec3(0.9);
-    // }
-
 
     return rgb;
 }
@@ -140,17 +130,18 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let u = in.uv.x;
     let v = in.uv.y;
 
+    // hue wheel
     if (in.instance_index == 0) {
-        // UV coordinate and center
-        let uv = in.uv * 2.0 - 1.0; // Convert to range [-1, 1]
+        // convert to range [-1, 1]
+        let uv = in.uv * 2.0 - 1.0;
 
         let ring_mask = ring(in.pixel_uv, in.half_size);
 
         if (ring_mask > 0.0) {
-            let hcl_x = atan2(u, v) / (2.0 * PI) - 0.25;
+            let hcl_hue = atan2(u, v) / (2.0 * PI) - 0.25;
             
             // need to pick magic values so that the whole wheel stays inside the rgb gamut
-            let hcl = vec3f(hcl_x, 0.38, 0.75);
+            let hcl = vec3f(hcl_hue, 0.38, 0.75);
 
             let color = hcl2rgb(hcl);
             return vec4f(color, ring_mask);
@@ -158,10 +149,13 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
         return vec4f(0.0, 0.0, 0.0, 0.0);
 
-    } else if (in.instance_index == 1) {
+    }
+    // main square
+    else if (in.instance_index == 1) {
+        // convert back to range [0, 1] ...
         let uv = (in.uv + 1.0) / 2.0;
 
-        let hue = 0.1;
+        let hue = in.hcl_color.x;
         let hcl_x = hue / (2.0 * PI) - 0.25;
         let hcl = vec3(hcl_x, uv.yx);
 
@@ -170,5 +164,5 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         return vec4<f32>(color, 1.0);
     }
 
-    return vec4f(0.0, 0.0, 0.0, 0.0);
+    return vec4f(0.0, 1.0, 0.0, 0.8);
 }

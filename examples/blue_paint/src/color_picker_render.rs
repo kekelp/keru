@@ -7,6 +7,7 @@ use bytemuck::{Pod, Zeroable};
 use wgpu::*;
 
 use crate::color_picker::*;
+use crate::oklab::*;
 
 /// A struct with the information needed to render an ui rectangle on the screen.
 /// Despite the name, it is also used for checking for click resolution.
@@ -32,8 +33,6 @@ impl ColorPickerRenderRect {
 
 impl ColorPicker {
     pub fn new(ctx: &Context, base_uniforms: &Buffer) -> Self {
-        // Define the rectangle's vertices based on the input coordinates
-        // This will define the four corners of the rectangle
         let vertex_layout = VertexBufferLayout {
             array_stride: size_of::<ColorPickerRenderRect>() as BufferAddress,
             step_mode: VertexStepMode::Instance,
@@ -125,10 +124,10 @@ impl ColorPicker {
             vertex_buffer,
             bind_group,
             render_pipeline,
-            hcl_color: HclColor {
+            hcl_color: OkLchColor {
+                lightness: 0.5,
+                chroma: 0.5,
                 hue: 0.3,
-                saturation: 0.5,
-                brightness: 0.5,
             }
         }
     }
