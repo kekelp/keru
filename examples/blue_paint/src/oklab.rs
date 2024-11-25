@@ -11,19 +11,21 @@ impl Into<[f32; 3]> for OkLchColor {
     }
 }
 
-struct OkLabColor {
-    l: f32,
-    a: f32,
-    b: f32,
+#[derive(Debug, Copy, Clone)]
+pub struct OkLabColor {
+    pub l: f32,
+    pub a: f32,
+    pub b: f32,
 }
 
-struct RgbColor {
-    r: f32,
-    g: f32,
-    b: f32,
+#[derive(Debug, Copy, Clone)]
+pub struct RgbColor {
+    pub r: f32,
+    pub g: f32,
+    pub b: f32,
 }
 
-fn linear_srgb_to_oklab(c: RgbColor) -> OkLabColor {
+pub fn linear_srgb_to_oklab(c: RgbColor) -> OkLabColor {
     let l = 0.4122214708 * c.r + 0.5363325363 * c.g + 0.0514459929 * c.b;
     let m = 0.2119034982 * c.r + 0.6806995451 * c.g + 0.1073969566 * c.b;
     let s = 0.0883024619 * c.r + 0.2817188376 * c.g + 0.6299787005 * c.b;
@@ -39,7 +41,7 @@ fn linear_srgb_to_oklab(c: RgbColor) -> OkLabColor {
     }
 }
 
-fn oklab_to_linear_srgb(c: OkLabColor) -> RgbColor {
+pub fn oklab_to_linear_srgb(c: OkLabColor) -> RgbColor {
     let l_ = c.l + 0.3963377774 * c.a + 0.2158037573 * c.b;
     let m_ = c.l - 0.1055613458 * c.a - 0.0638541728 * c.b;
     let s_ = c.l - 0.0894841775 * c.a - 1.2914855480 * c.b;
@@ -55,7 +57,7 @@ fn oklab_to_linear_srgb(c: OkLabColor) -> RgbColor {
     }
 }
 
-fn oklab_to_oklch(c: OkLabColor) -> OkLchColor {
+pub fn oklab_to_oklch(c: OkLabColor) -> OkLchColor {
     let chroma = (c.a * c.a + c.b * c.b).sqrt();
     let hue = c.b.atan2(c.a).to_degrees();
     let hue = if hue < 0.0 { hue + 360.0 } else { hue };
@@ -67,7 +69,7 @@ fn oklab_to_oklch(c: OkLabColor) -> OkLchColor {
     }
 }
 
-fn oklch_to_oklab(c: OkLchColor) -> OkLabColor {
+pub fn oklch_to_oklab(c: OkLchColor) -> OkLabColor {
     let angle = c.hue.to_radians();
     OkLabColor {
         l: c.lightness,
@@ -76,12 +78,12 @@ fn oklch_to_oklab(c: OkLchColor) -> OkLabColor {
     }
 }
 
-fn linear_srgb_to_oklch(c: RgbColor) -> OkLchColor {
+pub fn linear_srgb_to_oklch(c: RgbColor) -> OkLchColor {
     let oklab = linear_srgb_to_oklab(c);
     oklab_to_oklch(oklab)
 }
 
-fn oklch_to_linear_srgb(c: OkLchColor) -> RgbColor {
+pub fn oklch_to_linear_srgb(c: OkLchColor) -> RgbColor {
     let oklab = oklch_to_oklab(c);
     oklab_to_linear_srgb(oklab)
 }

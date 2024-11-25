@@ -18,14 +18,14 @@ pub struct ColorPicker {
 
 const NEUTRAL_GREY: Color = Color::rgba_f(0.09, 0.09, 0.09, 1.0);
 
-pub trait ColorPickerUi {
-    fn add_color_picker(&mut self, color_picker: &mut ColorPicker); 
-}
 #[node_key] pub const OKLAB_HUE_WHEEL: NodeKey;
 #[node_key] pub const OKLAB_SQUARE: NodeKey;
 #[node_key] pub const PADDING_SQUARE: NodeKey;
 #[node_key] const CONTAINER: NodeKey;
 
+pub trait ColorPickerUi {
+    fn add_color_picker(&mut self, color_picker: &mut ColorPicker); 
+}
 impl ColorPickerUi for Ui {
     fn add_color_picker(&mut self, color_picker: &mut ColorPicker) {
 
@@ -65,6 +65,6 @@ impl ColorPickerUi for Ui {
             let angle = pos.x.atan2(pos.y);
             
             color_picker.oklch_color.hue = angle;
-        }
+        };
     }
 }

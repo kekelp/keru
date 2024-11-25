@@ -74,12 +74,14 @@ fn hcl2rgb(hcl: vec3<f32>) -> vec3<f32> {
     let c = hcl.y * 0.33;
     let l = hcl.z;
 
+    // Convert HCL to Lab
     let lab = vec3f(
         l,
         c * cos(h),
         c * sin(h)
     );
 
+    // Convert Lab to LMS
     var lms = vec3f(
         lab.x + 0.3963377774 * lab.y + 0.2158037573 * lab.z,
         lab.x - 0.1055613458 * lab.y - 0.0638541728 * lab.z,

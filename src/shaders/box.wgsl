@@ -112,32 +112,38 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // +L <-- 0 --> +L
     // where L = rect_half_size (pixels)
 
-    // todo: what the fuck is a q?
-    let q = abs(in.uv) - in.half_size + in.radius;
-
-    let dist = length(max(q, vec2(0.0, 0.0))) - in.radius;
-
-    let inside = (1.0 - smoothstep(-1.0, 1.0, dist));
-    let outside = (1.0 - smoothstep(1.0, -1.0, dist + 8.0));
-
-    var alpha = in.color.a * (inside * max(in.filled, outside));
 
 
     var circle_uv = in.uv;
     circle_uv.y *= (in.half_size.x / in.half_size.y);
-    let circle_alpha = in.half_size.x - length(circle_uv);
 
-    if (in.shape == SHAPE_CIRCLE ) {
-        alpha = clamp(circle_alpha, 0.0, 1.0);
-    } else if (in.shape == SHAPE_RING ) {
-        let inner_ring_alpha = length(circle_uv) - (in.half_size.x - in.radius);
+    var alpha = in.color.a;
 
-        let ring_alpha = min(inner_ring_alpha, circle_alpha);
-        alpha = clamp(ring_alpha, 0.0, 1.0);
-    } else if (in.shape == SHAPE_RECTANGLE) {
-        
+    if (in.shape == SHAPE_RECTANGLE) {
+        // todo: better name?
+        let q = abs(in.uv) - in.half_size + in.radius;
+
+        let dist = length(max(q, vec2(0.0, 0.0))) - in.radius;
+
+        let inside = (1.0 - smoothstep(-1.0, 1.0, dist));
+        let outside = (1.0 - smoothstep(1.0, -1.0, dist + 8.0));
+
+        alpha = alpha * (inside * max(in.filled, outside));
     }
 
+    else if (in.shape == SHAPE_CIRCLE) {
+        let circle_alpha = in.half_size.x - length(circle_uv);
+        alpha = alpha * clamp(circle_alpha, 0.0, 1.0);
+    }
+    
+    else if (in.shape == SHAPE_RING ) {
+        let circle_alpha = in.half_size.x - length(circle_uv);
+        let inner_ring_alpha = length(circle_uv) - (in.half_size.x - in.radius);
+        let ring_alpha = min(inner_ring_alpha, circle_alpha);
+        
+        alpha = alpha * clamp(ring_alpha, 0.0, 1.0);
+    }
+ 
     var tex_color = textureSample(my_texture, my_sampler, in.tex_coords);
     var rect_color = vec4(in.color.rgb * in.dark, alpha);
 

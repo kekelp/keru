@@ -125,8 +125,8 @@ impl ColorPicker {
             bind_group,
             render_pipeline,
             oklch_color: OkLchColor {
-                lightness: 0.5,
-                chroma: 0.5,
+                lightness: 0.75,
+                chroma: 0.38,
                 hue: 0.3,
             }
         }

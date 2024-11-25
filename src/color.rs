@@ -24,7 +24,7 @@ pub struct VertexColors {
     bottom_right: Color,
 }
 impl VertexColors {
-    pub const GREENSCREEN: Self = VertexColors::flat(Color::rgba_f(0.0, 1.0, 0.0, 1.0));
+    pub const GREENSCREEN: Self = VertexColors::flat(Color::rgba_f(0.0, 1.0, 0.0, 0.7));
 
     pub const FLGR_SOVL_GRAD: Self =
         VertexColors::diagonal_gradient_backslash(Color::FLGR_BLUE, Color::FLGR_RED);

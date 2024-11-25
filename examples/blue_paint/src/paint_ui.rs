@@ -4,6 +4,7 @@ use blue::Size::*;
 use blue::Len::*;
 
 use crate::color_picker::ColorPickerUi;
+use crate::oklab::*;
 use crate::PixelColorF32;
 use crate::State;
 
@@ -43,6 +44,15 @@ impl State {
         });
 
         self.ui.finish_tree();
+
+        let picked_color = oklch_to_linear_srgb(self.color_picker.oklch_color);
+        println!("  {:?}", picked_color);
+        self.canvas.paint_color = PixelColorF32 {
+            r: picked_color.r,
+            g: picked_color.g,
+            b: picked_color.b,
+            a: 1.0,
+        }
     }
 }
 
