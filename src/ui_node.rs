@@ -144,12 +144,16 @@ impl<'a, T: NodeType> UiNode<'a, T> {
         
         let center = Xy::new(
             rect[X][0],
-            rect[Y][0],
+            rect[Y][1],
         );
 
         let center = center * self.ui.sys.part.unifs.size;
         
         return center;
+    }
+
+    pub fn rect(&self) -> XyRect {
+        return self.node().rect * self.ui.sys.part.unifs.size;
     }
 
     pub fn render_rect(&self) -> XyRect {

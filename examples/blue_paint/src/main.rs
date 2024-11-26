@@ -48,7 +48,7 @@ impl State {
             canvas,
             color_picker,
             info_visible: true,
-            slider_value: 0.4,
+            slider_value: 0.2,
         };
     }
 

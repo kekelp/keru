@@ -20,6 +20,7 @@ const NEUTRAL_GREY: Color = Color::rgba_f(0.09, 0.09, 0.09, 1.0);
 
 #[node_key] pub const OKLAB_HUE_WHEEL: NodeKey;
 #[node_key] pub const OKLAB_SQUARE: NodeKey;
+#[node_key] pub const SMALL_RING: NodeKey;
 #[node_key] pub const PADDING_SQUARE: NodeKey;
 #[node_key] const CONTAINER: NodeKey;
 
@@ -48,18 +49,33 @@ impl ColorPickerUi for Ui {
 
         self.add(OKLAB_SQUARE)
             .params(CUSTOM_RENDERED_PANEL)
-            // .shape(Shape::Rectangle { corner_radius: 0.0 })
+            .shape(Shape::Rectangle { corner_radius: 0.0 })
             .size_symm(Fixed(Frac(0.7071)));
-    
+
+        // let ring_y = color_picker.oklch_color.chroma / 0.33;
+        // let ring_x = color_picker.oklch_color.lightness;
+        // println!("  {:?}", ring_x);
+        // println!("  {:?}", ring_y);
+
+        // self.add(SMALL_RING)
+        //     .params(PANEL)
+        //     .size_symm(Size::Fixed(Pixels(300)))
+        //     .color(Color::BLACK)
+        //     .shape(Shape::Circle)
+        //     .position_x(Position::Static(Frac(ring_x)))
+        //     .position_y(Position::Static(Frac(ring_y)));
+
+        // layout
         self.place(CONTAINER).nest(|| {
             self.place(OKLAB_HUE_WHEEL);
             self.place(PADDING_SQUARE).nest(|| {
-                self.place(OKLAB_SQUARE);
+                self.place(OKLAB_SQUARE).nest(|| {
+                    // self.place(SMALL_RING);
+                });
             });
         });
 
         if let Some((_time_held, abs_pos)) = self.is_held(OKLAB_HUE_WHEEL) {
-            
             let center = self.get_node(OKLAB_HUE_WHEEL).unwrap().center();
             let pos = abs_pos - center;
             let angle = pos.x.atan2(pos.y);
@@ -68,12 +84,14 @@ impl ColorPickerUi for Ui {
         };
 
         if let Some((_time_held, abs_pos)) = self.is_held(OKLAB_SQUARE) {
+            let size_pixels = self.get_node(OKLAB_SQUARE).unwrap().rect().size();
+            let bottom_left = self.get_node(OKLAB_SQUARE).unwrap().bottom_left();
+            let mut pos = abs_pos - bottom_left;
+            pos.y = - pos.y;
+            let pos = pos / size_pixels;
             
-            // let center = self.get_node(OKLAB_HUE_WHEEL).unwrap().center();
-            // let pos = abs_pos - center;
-            // let angle = pos.x.atan2(pos.y);
-            
-            // color_picker.oklch_color.hue = angle;
+            color_picker.oklch_color.chroma = pos.y * 0.33;
+            color_picker.oklch_color.lightness = pos.x;
         };
     }
 }

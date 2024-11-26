@@ -1,5 +1,5 @@
 use bytemuck::{Pod, Zeroable};
-use std::{hash::{Hash, Hasher}, ops::{Add, Index, IndexMut, Mul, Sub}};
+use std::{hash::{Hash, Hasher}, ops::{Add, Div, Index, IndexMut, Mul, Sub}};
 use Axis::*;
 
 use crate::Ui;
@@ -238,6 +238,16 @@ impl Mul<Xy<f32>> for Xy<f32> {
         return Self::new(
             self[X] * rhs[X],
             self[Y] * rhs[Y],
+        );
+    }
+}
+
+impl Div<Xy<f32>> for Xy<f32> {
+    type Output = Self;
+    fn div(self, rhs: Xy<f32>) -> Self::Output {
+        return Self::new(
+            self[X] / rhs[X],
+            self[Y] / rhs[Y],
         );
     }
 }
