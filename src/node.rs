@@ -17,6 +17,7 @@ pub struct Node {
     // partial result when layouting?
     // in probably in fraction of screen units or some trash 
     pub size: Xy<f32>,
+    pub last_proposed_size: Xy<f32>,
 
     pub(crate) relayout_chain_root: Option<usize>,
 
@@ -68,7 +69,8 @@ impl Node {
             id: key.id(),
             depth: 0,
             rect: Xy::new_symm([0.0, 1.0]),
-            size: Xy::new_symm(10.0),
+            size: Xy::new_symm(0.5),
+            last_proposed_size: Xy::new_symm(0.5),
             text_id: None,
 
             imageref: None,
@@ -119,6 +121,8 @@ pub const NODE_ROOT: Node = Node {
     depth: 0,
     rect: Xy::new_symm([0.0, 1.0]),
     size: Xy::new_symm(1.0),
+    last_proposed_size: Xy::new_symm(1.0),
+
     text_id: None,
 
     imageref: None,

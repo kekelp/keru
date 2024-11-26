@@ -124,13 +124,7 @@ impl Ui {
 
         // 1st recursive tree traversal: start from the root and recursively determine the size of all nodes
         // For the first node, assume that the proposed size that we got from the parent last frame is valid. (except for root, in which case just use the whole screen. todo: should just make full_relayout a separate function.)
-        let starting_proposed_size = match node {
-            ROOT_I => Xy::new(1.0, 1.0),
-            _ => {
-                let parent = self.nodes[node].parent;
-                self.nodes[parent].size
-            } 
-        };
+        let starting_proposed_size = self.nodes[node].last_proposed_size;
         self.recursive_determine_size(node, starting_proposed_size);
         
         // 2nd recursive tree traversal: now that all nodes have a calculated size, place them.
@@ -216,6 +210,8 @@ impl Ui {
     }
 
     fn recursive_determine_size(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
+        self.nodes[node].last_proposed_size = proposed_size;
+
         let stack = self.nodes[node].params.stack;
         
         // calculate the total size to propose to children
