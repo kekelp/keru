@@ -66,5 +66,14 @@ impl ColorPickerUi for Ui {
             
             color_picker.oklch_color.hue = angle;
         };
+
+        if let Some((_time_held, abs_pos)) = self.is_held(OKLAB_SQUARE) {
+            
+            // let center = self.get_node(OKLAB_HUE_WHEEL).unwrap().center();
+            // let pos = abs_pos - center;
+            // let angle = pos.x.atan2(pos.y);
+            
+            // color_picker.oklch_color.hue = angle;
+        };
     }
 }

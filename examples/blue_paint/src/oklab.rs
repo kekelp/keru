@@ -70,20 +70,24 @@ pub fn oklab_to_oklch(c: OkLabColor) -> OkLchColor {
 }
 
 pub fn oklch_to_oklab(c: OkLchColor) -> OkLabColor {
-    let angle = c.hue.to_radians();
+    let hue = c.hue;
+    let chroma = c.chroma;
+    let lightness = c.lightness;
+
+
     OkLabColor {
-        l: c.lightness,
-        a: c.chroma * angle.cos(),
-        b: c.chroma * angle.sin(),
+        l: lightness,
+        a: chroma * hue.cos(),
+        b: chroma * hue.sin(),
     }
 }
 
 pub fn linear_srgb_to_oklch(c: RgbColor) -> OkLchColor {
     let oklab = linear_srgb_to_oklab(c);
-    oklab_to_oklch(oklab)
+    return oklab_to_oklch(oklab);
 }
 
 pub fn oklch_to_linear_srgb(c: OkLchColor) -> RgbColor {
     let oklab = oklch_to_oklab(c);
-    oklab_to_linear_srgb(oklab)
+    return oklab_to_linear_srgb(oklab);
 }

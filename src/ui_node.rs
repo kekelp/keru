@@ -128,13 +128,27 @@ impl<'a, T: NodeType> UiNode<'a, T> {
 
     pub fn center(&self) -> Xy<f32> {
         let rect = self.node().rect;
-        let rect = rect * self.ui.sys.part.unifs.size;
-
+        
         let center = Xy::new(
             (rect[X][1] + rect[X][0]) / 2.0,
             (rect[Y][1] + rect[Y][0]) / 2.0,
         );
 
+        let center = center * self.ui.sys.part.unifs.size;
+
+        return center;
+    }
+
+    pub fn bottom_left(&self) -> Xy<f32> {
+        let rect = self.node().rect;
+        
+        let center = Xy::new(
+            rect[X][0],
+            rect[Y][0],
+        );
+
+        let center = center * self.ui.sys.part.unifs.size;
+        
         return center;
     }
 

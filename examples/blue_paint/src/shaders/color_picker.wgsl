@@ -71,7 +71,7 @@ fn transfer_vec3(v: vec3<f32>) -> vec3<f32> {
 // Convert OKLCH to RGB
 fn hcl2rgb(hcl: vec3<f32>) -> vec3<f32> {
     let h = hcl.x * 2.0 * PI;
-    let c = hcl.y * 0.33;
+    let c = hcl.y;
     let l = hcl.z;
 
     // Convert HCL to Lab
@@ -88,9 +88,9 @@ fn hcl2rgb(hcl: vec3<f32>) -> vec3<f32> {
         lab.x - 0.0894841775 * lab.y - 1.2914855480 * lab.z
     );
 
-    lms.x = pow(max(lms.x, 0.0), 3.0);
-    lms.y = pow(max(lms.y, 0.0), 3.0);
-    lms.z = pow(max(lms.z, 0.0), 3.0);
+    lms.x = pow(lms.x, 3.0);
+    lms.y = pow(lms.y, 3.0);
+    lms.z = pow(lms.z, 3.0);
 
     // Convert LMS to RGB
     var rgb = vec3f(
@@ -140,10 +140,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         let ring_mask = ring(in.pixel_uv, in.half_size);
 
         if (ring_mask > 0.0) {
-            let hcl_hue = atan2(u, -v) / (2.0 * PI);
+            let hue = atan2(u, -v) / (2.0 * PI);
             
             // need to pick magic values so that the whole wheel stays inside the rgb gamut
-            let hcl = vec3f(hcl_hue, 0.38, 0.75);
+            let hcl = vec3f(hue, 0.1254, 0.75);
 
             let color = hcl2rgb(hcl);
             return vec4f(color, ring_mask);
@@ -157,9 +157,11 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         // convert back to range [0, 1] ...
         let uv = (in.uv + 1.0) / 2.0;
 
-        let hue = in.hcl_color.x;
-        let hcl_x = hue / (2.0 * PI);
-        let hcl = vec3(hcl_x, uv.yx);
+        let hue = in.hcl_color.x / (2.0 * PI);
+        let chroma = uv.y * 0.33;
+        let lightness = uv.x;
+
+        let hcl = vec3(hue, chroma, lightness);
 
         let color = hcl2rgb(hcl);
 
