@@ -149,7 +149,6 @@ impl State {
             value = value.clamp(0.0, 1.0);
         }
 
-        println!("  {:?}", value);
         return value;
     }
 }
