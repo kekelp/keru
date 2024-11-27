@@ -54,15 +54,17 @@ impl ColorPickerUi for Ui {
 
         let ring_y = 1.0 - color_picker.oklch_color.chroma / 0.33;
         let ring_x = color_picker.oklch_color.lightness;
+        let ring_y = ring_y.clamp(0.0, 1.0);
+        let ring_x = ring_x.clamp(0.0, 1.0);
         // println!(" x {:?}", ring_x);
         // println!(" y {:?}", ring_y);
         // println!("");
 
         self.add(SMALL_RING)
             .params(PANEL)
-            .size_symm(Size::Fixed(Pixels(30)))
-            .color(Color::BLACK)
-            .shape(Shape::Circle)
+            .size_symm(Size::Fixed(Pixels(4)))
+            .color(Color::WHITE)
+            .shape(Shape::Ring { width: 4.0 })
             .position_x(Position::Static(Frac(ring_x)))
             .position_y(Position::Static(Frac(ring_y)));
 
