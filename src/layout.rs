@@ -143,13 +143,8 @@ impl Ui {
             match self.nodes[node].params.layout.size[axis] {
                 Size::FitContent | Size::FitContentOrMinimum(_) => {}, // propose the whole available size. We will shrink our final size later if they end up using less or more 
                 Size::Fill => {}, // propose the whole available size
-                Size::Fixed(len) => match len {
-                    Len::Pixels(pixels) => {
-                        proposed_size[axis] = self.pixels_to_frac(pixels, axis);
-                    },
-                    Len::Frac(frac) => {
-                        proposed_size[axis] *= frac;
-                    },
+                Size::Fixed(len) => {
+                    proposed_size[axis] = self.len_to_frac_of_size(len, proposed_size, axis);
                 }
                 Size::AspectRatio(_aspect) => {
                     const ASPECT_RATIO_DEFAULT: f32 = 0.5;
@@ -247,13 +242,7 @@ impl Ui {
                     final_size[axis] = content_size[axis];
                 }
                 Size::FitContentOrMinimum(min_size) => {
-                    let min_size = match min_size {
-                        Len::Pixels(pixels) => {
-                            self.pixels_to_frac(pixels, axis)
-                        },
-                        Len::Frac(frac) => proposed_size[axis] * frac
-                    };
-
+                    let min_size = self.len_to_frac_of_size(min_size, proposed_size, axis);
                     final_size[axis] = content_size[axis].max(min_size);
                 }
                 _ => {},
@@ -389,32 +378,32 @@ impl Ui {
         };
 
         for_each_child!(self, self.nodes[node], child, {
-            let size = self.nodes[child].size;
+            let child_size = self.nodes[child].size;
 
             match self.nodes[child].params.layout.position[cross] {
                 Position::Center => {
                     let origin = (parent_rect[cross][1] + parent_rect[cross][0]) / 2.0;
                     self.nodes[child].rect[cross] = [
-                        origin - size[cross] / 2.0 ,
-                        origin + size[cross] / 2.0 ,
+                        origin - child_size[cross] / 2.0 ,
+                        origin + child_size[cross] / 2.0 ,
                     ];  
                 },
                 Position::Start => {
                     let origin = parent_rect[cross][0] + padding[cross];
-                    self.nodes[child].rect[cross] = [origin, origin + size[cross]];         
+                    self.nodes[child].rect[cross] = [origin, origin + child_size[cross]];         
                 },
                 Position::Static(len) => {
-                    let static_pos = self.to_frac(len, cross);
+                    let static_pos = self.len_to_frac_of_size(len, parent_rect.size(), cross);
                     let origin = parent_rect[cross][0] + padding[cross] + static_pos;
-                    self.nodes[child].rect[cross] = [origin, origin + size[cross]];         
+                    self.nodes[child].rect[cross] = [origin, origin + child_size[cross]];  
                 },
                 Position::End => {
                     let origin = parent_rect[cross][1] - padding[cross];
-                    self.nodes[child].rect[cross] = [origin - size[cross], origin];
+                    self.nodes[child].rect[cross] = [origin - child_size[cross], origin];
                 },
             }
 
-            self.nodes[child].rect[main] = [main_origin, main_origin + size[main]];
+            self.nodes[child].rect[main] = [main_origin, main_origin + child_size[main]];
 
             main_origin += self.nodes[child].size[main] + spacing;
         });
@@ -425,29 +414,29 @@ impl Ui {
         let padding = self.to_frac2(self.nodes[node].params.layout.padding);
 
         for_each_child!(self, self.nodes[node], child, {
-            let size = self.nodes[child].size;
+            let child_size = self.nodes[child].size;
 
             // check the children's chosen Position's and place them.
             for ax in [X, Y] {
                 match self.nodes[child].params.layout.position[ax] {
                     Position::Start => {
                         let origin = parent_rect[ax][0] + padding[ax];
-                        self.nodes[child].rect[ax] = [origin, origin + size[ax]];         
+                        self.nodes[child].rect[ax] = [origin, origin + child_size[ax]];         
                     },
                     Position::Static(len) => {
-                        let static_pos = self.to_frac(len, ax);
+                        let static_pos = self.len_to_frac_of_size(len, parent_rect.size(), ax);
                         let origin = parent_rect[ax][0] + padding[ax] + static_pos;
-                        self.nodes[child].rect[ax] = [origin, origin + size[ax]];
+                        self.nodes[child].rect[ax] = [origin, origin + child_size[ax]];
                     }
                     Position::End => {
                         let origin = parent_rect[ax][1] - padding[ax];
-                        self.nodes[child].rect[ax] = [origin - size[ax], origin];
+                        self.nodes[child].rect[ax] = [origin - child_size[ax], origin];
                     },
                     Position::Center => {
                         let origin = (parent_rect[ax][1] + parent_rect[ax][0]) / 2.0;
                         self.nodes[child].rect[ax] = [
-                            origin - size[ax] / 2.0 ,
-                            origin + size[ax] / 2.0 ,
+                            origin - child_size[ax] / 2.0 ,
+                            origin + child_size[ax] / 2.0 ,
                         ];           
                     },
                 }

@@ -318,7 +318,7 @@ pub const CUSTOM_RENDERED_PANEL: NodeParams = NodeParams {
     layout: Layout {
         size: Xy::new_symm(FitContent),
         position: Xy::new_symm(Center),
-        padding: Xy::new_symm(Len::Pixels(10)),
+        padding: Xy::new_symm(Len::Pixels(0)),
     },
     key: ANON_PANEL,
 };
