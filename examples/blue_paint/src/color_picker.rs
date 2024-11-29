@@ -136,14 +136,14 @@ impl ColorPicker {
         let wheel_rect = ColorPickerRenderRect {
             rect: wheel_info.rect,
             z: wheel_info.z,
-            hcl_color: self.oklch_color.into(),
+            oklch_color: self.oklch_color.into(),
         };
 
         let square_info = ui.get_node(OKLAB_SQUARE)?.render_rect();
         let square_rect = ColorPickerRenderRect {
             rect: square_info.rect,
             z: square_info.z,
-            hcl_color: self.oklch_color.into(),
+            oklch_color: self.oklch_color.into(),
         };
 
         // to keep the rust-side boilerplate to a minimum, we use the same pipeline for all rects (wheel and main square) and have the shader do different things based on the instance index.
