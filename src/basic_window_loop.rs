@@ -51,6 +51,23 @@ pub fn basic_surface_config(width: u32, height: u32) -> SurfaceConfiguration {
     };
 }
 
+pub fn basic_depth_texture_descriptor(width: u32, height: u32) -> wgpu::TextureDescriptor<'static> {
+    return wgpu::TextureDescriptor {
+        label: Some("Depth Stencil"),
+        size: wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Depth32Float,
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+        view_formats: &[],
+    }
+}
+
 pub struct Context {
     pub window: Arc<WinitWindow>,
     pub surface: Surface<'static>,
@@ -82,20 +99,8 @@ impl Context {
         let config = basic_surface_config(width, height);
         surface.configure(&device, &config);
 
-        let depth_stencil_texture = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("Shared Depth Stencil"),
-            size: wgpu::Extent3d {
-                width,
-                height,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Depth32Float, // or Depth32Float
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            view_formats: &[],
-        });
+        let depth_tex_desc = basic_depth_texture_descriptor(width, height);
+        let depth_stencil_texture = device.create_texture(&depth_tex_desc);
 
         let ctx = Self {
             window,
@@ -138,21 +143,8 @@ impl Context {
         self.surface_config.height = size.height;
         self.surface.configure(&self.device, &self.surface_config);
 
-        // todo: deduplicate
-        self.depth_stencil_texture = self.device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("Depth Stencil"),
-            size: wgpu::Extent3d {
-                width: size.width,
-                height: size.height,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Depth32Float,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            view_formats: &[],
-        });
+        let depth_tex_desc = basic_depth_texture_descriptor(size.width, size.height);
+        self.depth_stencil_texture = self.device.create_texture(&depth_tex_desc);
 
         self.window.request_redraw();
     }
