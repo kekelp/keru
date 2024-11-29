@@ -8,11 +8,7 @@ use bytemuck::{Pod, Zeroable};
 use wgpu::*;
 
 use crate::color_picker::*;
-use crate::oklab::*;
 
-/// A struct with the information needed to render an ui rectangle on the screen.
-/// Despite the name, it is also used for checking for click resolution.
-/// The Ui state keeps a Vec of these.
 #[repr(C)]
 #[derive(Default, Debug, Pod, Zeroable, Copy, Clone)]
 pub(crate) struct ColorPickerRenderRect {
@@ -32,7 +28,7 @@ impl ColorPickerRenderRect {
     }
 }
 
-impl ColorPicker {
+impl ColorPickerRenderer {
     pub fn new(ctx: &Context, base_uniforms: &Buffer) -> Self {
         let vertex_layout = VertexBufferLayout {
             array_stride: size_of::<ColorPickerRenderRect>() as BufferAddress,
@@ -125,42 +121,8 @@ impl ColorPicker {
             vertex_buffer,
             bind_group,
             render_pipeline,
-            oklch_color: OkLchColor {
-                lightness: 0.75,
-                chroma: 0.1254,
-                hue: 0.3,
-            }
         }
     }
 
-    pub fn render<'pass>(&mut self, render_pass: &mut RenderPass<'pass>) {
-        render_pass.set_pipeline(&self.render_pipeline);
-        render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-        render_pass.set_bind_group(0, &self.bind_group, &[]);
-        render_pass.draw(0..4, 0..2);
-    }
-
-    pub fn prepare(&self, ui: &mut Ui, queue: &wgpu::Queue) -> Option<()> {
-        let wheel_info = ui.get_node(OKLAB_HUE_WHEEL)?.render_rect();
-        let wheel_rect = ColorPickerRenderRect {
-            rect: wheel_info.rect,
-            z: wheel_info.z,
-            hcl_color: self.oklch_color.into(),
-        };
-
-        let square_info = ui.get_node(OKLAB_SQUARE)?.render_rect();
-        let square_rect = ColorPickerRenderRect {
-            rect: square_info.rect,
-            z: square_info.z,
-            hcl_color: self.oklch_color.into(),
-        };
-
-        // to keep the rust-side boilerplate to a minimum, we use the same pipeline for all rects (wheel and main square) and have the shader do different things based on the instance index.
-        // this means that the order here matters.
-        let coords = [wheel_rect, square_rect];
-
-        queue.write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&coords));
-
-        return Some(());
-    }
 }
+

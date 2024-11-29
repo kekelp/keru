@@ -1,6 +1,9 @@
+use basic_window_loop::Context;
 use blue::*;
 use blue::Size::*;
 use blue::Len::*;
+use wgpu::RenderPass;
+use crate::color_picker_render::ColorPickerRenderRect;
 use crate::oklab::*;
 
 use wgpu::BindGroup;
@@ -9,11 +12,15 @@ use wgpu::RenderPipeline;
 
 use crate::paint_ui::FLGR_PANEL;
 
-pub struct ColorPicker {
+pub struct ColorPickerRenderer {
     pub(crate) vertex_buffer: Buffer,
     pub(crate) render_pipeline: RenderPipeline,
     pub(crate) bind_group: BindGroup,
+}
+
+pub struct ColorPicker {
     pub(crate) oklch_color: OkLchColor,
+    pub(crate) renderer: ColorPickerRenderer,
 }
 
 const NEUTRAL_GREY: Color = Color::rgba_f(0.09, 0.09, 0.09, 1.0);
@@ -56,9 +63,6 @@ impl ColorPickerUi for Ui {
         let ring_x = color_picker.oklch_color.lightness;
         let ring_y = ring_y.clamp(0.0, 1.0);
         let ring_x = ring_x.clamp(0.0, 1.0);
-        // println!(" x {:?}", ring_x);
-        // println!(" y {:?}", ring_y);
-        // println!("");
 
         self.add(SMALL_RING)
             .params(PANEL)
@@ -98,5 +102,50 @@ impl ColorPickerUi for Ui {
             color_picker.oklch_color.chroma = pos.y * 0.33;
             color_picker.oklch_color.lightness = pos.x;
         };
+    }
+}
+
+
+impl ColorPicker {
+    pub fn new(ctx: &Context, base_uniforms: &Buffer) -> ColorPicker {
+        return ColorPicker {
+            oklch_color: OkLchColor {
+                lightness: 0.75,
+                chroma: 0.1254,
+                hue: 0.3,
+            },
+            renderer: ColorPickerRenderer::new(ctx, base_uniforms),
+        }
+    }
+
+    pub fn render<'pass>(&mut self, render_pass: &mut RenderPass<'pass>) {
+        render_pass.set_pipeline(&self.renderer.render_pipeline);
+        render_pass.set_vertex_buffer(0, self.renderer.vertex_buffer.slice(..));
+        render_pass.set_bind_group(0, &self.renderer.bind_group, &[]);
+        render_pass.draw(0..4, 0..2);
+    }
+
+    pub fn prepare(&self, ui: &mut Ui, queue: &wgpu::Queue) -> Option<()> {
+        let wheel_info = ui.get_node(OKLAB_HUE_WHEEL)?.render_rect();
+        let wheel_rect = ColorPickerRenderRect {
+            rect: wheel_info.rect,
+            z: wheel_info.z,
+            hcl_color: self.oklch_color.into(),
+        };
+
+        let square_info = ui.get_node(OKLAB_SQUARE)?.render_rect();
+        let square_rect = ColorPickerRenderRect {
+            rect: square_info.rect,
+            z: square_info.z,
+            hcl_color: self.oklch_color.into(),
+        };
+
+        // to keep the rust-side boilerplate to a minimum, we use the same pipeline for all rects (wheel and main square) and have the shader do different things based on the instance index.
+        // this means that the order here matters.
+        let coords = [wheel_rect, square_rect];
+
+        queue.write_buffer(&self.renderer.vertex_buffer, 0, bytemuck::cast_slice(&coords));
+
+        return Some(());
     }
 }
