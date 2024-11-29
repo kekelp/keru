@@ -3,10 +3,11 @@ pub use winit::{
     error::EventLoopError, event_loop::EventLoop, event::Event, event_loop::EventLoopWindowTarget
 };
 
+use core::f32;
 use std::{sync::Arc, thread, time::{Duration, Instant}};
 
 use wgpu::{
-    Color, CommandEncoder, CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance, InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue, RenderPass, RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, Surface, SurfaceConfiguration, SurfaceTexture, TextureFormat, TextureUsages, TextureView
+    Color, CommandEncoder, CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance, InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue, RenderPass, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor, RequestAdapterOptions, Surface, SurfaceConfiguration, SurfaceTexture, Texture, TextureFormat, TextureUsages, TextureView
 };
 use winit::{
     dpi::{LogicalSize, PhysicalSize}, event::WindowEvent, window::{Window as WinitWindow, WindowBuilder}
@@ -58,6 +59,8 @@ pub struct Context {
     pub device: Device,
     pub queue: Queue,
 
+    pub depth_stencil_texture: Texture,
+
     pub last_frame_timestamp: Instant,
     pub current_frame_timestamp: Instant,
 }
@@ -79,12 +82,28 @@ impl Context {
         let config = basic_surface_config(width, height);
         surface.configure(&device, &config);
 
+        let depth_stencil_texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("Shared Depth Stencil"),
+            size: wgpu::Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Depth32Float, // or Depth32Float
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            view_formats: &[],
+        });
+
         let ctx = Self {
             window,
             surface,
             surface_config: config,
             device,
             queue,
+            depth_stencil_texture,
             last_frame_timestamp: Instant::now(),
             current_frame_timestamp: Instant::now(),
         };
@@ -118,6 +137,23 @@ impl Context {
         self.surface_config.width = size.width;
         self.surface_config.height = size.height;
         self.surface.configure(&self.device, &self.surface_config);
+
+        // todo: deduplicate
+        self.depth_stencil_texture = self.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("Depth Stencil"),
+            size: wgpu::Extent3d {
+                width: size.width,
+                height: size.height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Depth32Float,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            view_formats: &[],
+        });
+
         self.window.request_redraw();
     }
 
@@ -133,12 +169,16 @@ impl Context {
         let encoder = self.device.create_command_encoder(&CommandEncoderDescriptor::default());
 
         let frame = self.surface.get_current_texture().unwrap();
+
+        // todo: why recreate the views on every frame
         let view = frame.texture.create_view(&TextureViewDescriptor::default());
+        let depth_stencil_view = self.depth_stencil_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         return RenderFrame {
             encoder,
             frame,
-            view
+            view,
+            depth_stencil_view,
         };
     }
 
@@ -155,13 +195,23 @@ pub struct RenderFrame {
     pub encoder: CommandEncoder,
     pub frame: SurfaceTexture,
     pub view: TextureView,
+    pub depth_stencil_view: TextureView,
 }
 
 impl RenderFrame {
     pub fn begin_render_pass(&mut self, bg_color: Color) -> RenderPass<'_> {
         let color_att = basic_color_attachment(&self.view, bg_color);
-        let render_pass_desc = &basic_render_pass_desc(&color_att);
-        let render_pass = self.encoder.begin_render_pass(render_pass_desc);
+        let depth_att = basic_depth_stencil_attachment(&self.depth_stencil_view);
+        
+        let render_pass_desc = RenderPassDescriptor {
+            label: None,
+            color_attachments: &color_att,
+            depth_stencil_attachment: depth_att,
+            // depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        };
+        let render_pass = self.encoder.begin_render_pass(&render_pass_desc);
         return render_pass;
     }
 
@@ -169,18 +219,6 @@ impl RenderFrame {
         queue.submit(Some(self.encoder.finish()));
         self.frame.present();
     }
-}
-
-pub fn basic_render_pass_desc<'a>(
-    color_att: &'a [Option<RenderPassColorAttachment<'a>>; 1],
-) -> RenderPassDescriptor<'a> {
-    return RenderPassDescriptor {
-        label: None,
-        color_attachments: color_att,
-        depth_stencil_attachment: None,
-        timestamp_writes: None,
-        occlusion_query_set: None,
-    };
 }
 
 pub fn basic_color_attachment(view: &TextureView, bg_color: Color) -> [Option<RenderPassColorAttachment<'_>>; 1] {
@@ -192,6 +230,27 @@ pub fn basic_color_attachment(view: &TextureView, bg_color: Color) -> [Option<Re
             store: wgpu::StoreOp::Store,
         },
     })];
+}
+
+pub fn basic_depth_stencil_attachment(depth_stencil_view: &TextureView) -> Option<RenderPassDepthStencilAttachment<'_>> {
+    return Some(wgpu::RenderPassDepthStencilAttachment {
+        view: &depth_stencil_view,
+        depth_ops: Some(wgpu::Operations {
+            load: wgpu::LoadOp::Clear(f32::MAX),
+            store: wgpu::StoreOp::Store,
+        }),
+        stencil_ops: None,
+    });
+}
+
+pub fn basic_depth_stencil_state() -> wgpu::DepthStencilState {
+    return wgpu::DepthStencilState {
+        format: wgpu::TextureFormat::Depth32Float,
+        depth_write_enabled: true,
+        depth_compare: wgpu::CompareFunction::LessEqual,
+        stencil: wgpu::StencilState::default(),
+        bias: wgpu::DepthBiasState::default(),
+    };
 }
 
 pub trait EventIsRedrawRequested {

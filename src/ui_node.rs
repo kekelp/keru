@@ -156,8 +156,11 @@ impl<'a, T: NodeType> UiNode<'a, T> {
         return self.node().rect * self.ui.sys.part.unifs.size;
     }
 
-    pub fn render_rect(&self) -> XyRect {
-        return self.node().rect.to_graphics_space();
+    pub fn render_rect(&self) -> RenderInfo {
+        return RenderInfo {
+            rect: self.node().rect.to_graphics_space(),
+            z: self.node().z + Z_STEP / 2.0,
+        };
     }
 
     pub fn stack_arrange(&mut self, arrange: Arrange) -> &mut Self {
@@ -302,4 +305,10 @@ impl<'a, T: TextTrait> UiNode<'a, T> {
         // return Some(text);
         return None;
     }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct RenderInfo {
+    pub rect: XyRect,
+    pub z: f32,
 }

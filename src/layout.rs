@@ -475,6 +475,7 @@ impl Ui {
     fn rebuild_all_rects(&mut self) {
         self.sys.rects.clear();
         self.sys.invisible_but_clickable_rects.clear();
+        self.sys.z_cursor = Z_BACKDROP;
         self.recursive_push_rects(ROOT_I);
     }
 

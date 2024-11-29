@@ -32,12 +32,12 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {
 
 
     var positions = array<vec4<f32>, 6>(
-        vec4<f32>(-w, -h_times_aspect, 0.0, 1.0),
-        vec4<f32>( w, -h_times_aspect, 0.0, 1.0),
-        vec4<f32>(-w,  h_times_aspect, 0.0, 1.0),
-        vec4<f32>( w, -h_times_aspect, 0.0, 1.0),
-        vec4<f32>( w,  h_times_aspect, 0.0, 1.0),
-        vec4<f32>(-w,  h_times_aspect, 0.0, 1.0),
+        vec4<f32>(-w, -h_times_aspect, -0.5, 1.0),
+        vec4<f32>( w, -h_times_aspect, -0.5, 1.0),
+        vec4<f32>(-w,  h_times_aspect, -0.5, 1.0),
+        vec4<f32>( w, -h_times_aspect, -0.5, 1.0),
+        vec4<f32>( w,  h_times_aspect, -0.5, 1.0),
+        vec4<f32>(-w,  h_times_aspect, -0.5, 1.0),
     );
     
     var tex_coords = array<vec2<f32>, 6>(
@@ -60,5 +60,6 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {
 @fragment
 fn fs_main(@location(0) tex_coords: vec2<f32>) -> @location(0) vec4<f32> {
     // return vec4(tex_coords.x, 0.0, tex_coords.y, 1.0);
-    return textureSample(my_texture, my_sampler, tex_coords);
+    let color = textureSample(my_texture, my_sampler, tex_coords);
+    return color;
 }

@@ -35,7 +35,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 
     let x = in.xs[i_x];
     let y = in.ys[i_y];
-    let clip_position = vec4f(x, y, 0.0, 1.0);
+    let clip_position = vec4f(x, y, in.z, 1.0);
 
     let rect = vec2f(in.xs[1] - in.xs[0], in.ys[1] - in.ys[0]);
 
@@ -149,8 +149,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             return vec4f(color, ring_mask);
         }
 
-        return vec4f(0.0, 0.0, 0.0, 0.0);
-
+        discard;
     }
     // main square
     else if (in.instance_index == 1) {
@@ -168,5 +167,5 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         return vec4<f32>(color, 1.0);
     }
 
-    return vec4f(0.0, 1.0, 0.0, 0.8);
+    discard;
 }

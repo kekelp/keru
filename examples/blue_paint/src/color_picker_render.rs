@@ -1,3 +1,4 @@
+use basic_window_loop::basic_depth_stencil_state;
 use basic_window_loop::Context;
 use blue::*;
 
@@ -114,7 +115,7 @@ impl ColorPicker {
                 unclipped_depth: false,
                 conservative: false,
             },
-            depth_stencil: None,
+            depth_stencil: Some(basic_depth_stencil_state()),
             multisample: MultisampleState::default(),
             multiview: None,
             cache: None,
@@ -140,15 +141,17 @@ impl ColorPicker {
     }
 
     pub fn prepare(&self, ui: &mut Ui, queue: &wgpu::Queue) -> Option<()> {
+        let wheel_info = ui.get_node(OKLAB_HUE_WHEEL)?.render_rect();
         let wheel_rect = ColorPickerRenderRect {
-            rect: ui.get_node(OKLAB_HUE_WHEEL)?.render_rect(),
-            z: 0.0,
+            rect: wheel_info.rect,
+            z: wheel_info.z,
             hcl_color: self.oklch_color.into(),
         };
 
+        let square_info = ui.get_node(OKLAB_SQUARE)?.render_rect();
         let square_rect = ColorPickerRenderRect {
-            rect: ui.get_node(OKLAB_SQUARE)?.render_rect(),
-            z: 0.0,
+            rect: square_info.rect,
+            z: square_info.z,
             hcl_color: self.oklch_color.into(),
         };
 

@@ -52,6 +52,11 @@ pub(crate) const EMPTY_HASH: u64 = 0;
 
 pub const FIRST_FRAME: u64 = 1;
 
+// todo: make this stuff configurable
+pub(crate) const Z_BACKDROP: f32 = 0.5;
+// This one has to be small, but not small enough to get precision issues.
+// And I think it's probably good if it's a rounded binary number (0x38000000)? Not sure.
+pub(crate) const Z_STEP: f32 = -0.000030517578125;
 
 // another stupid sub struct for dodging partial borrows
 pub struct TextSystem {
@@ -406,7 +411,12 @@ impl Ui {
 
     pub fn push_rect(&mut self, node: usize) {
         let node = &mut self.nodes.nodes[node];
+        
+        // really only need to do this whenever a custom-rendered rect shows up. But there's no real disadvantage to just always do it.
+        self.sys.z_cursor += Z_STEP;
+        node.z = self.sys.z_cursor;
 
+        println!("{:?}: {:?}", node.debug_name(), node.z);
         let draw_even_if_invisible = self.sys.debug_mode;
         if let Some(rect) = node.render_rect(draw_even_if_invisible, None) {
             self.sys.rects.push(rect);

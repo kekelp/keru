@@ -8,7 +8,7 @@ use winit_input_helper::WinitInputHelper;
 use {BindGroup, BindGroupEntry, BindGroupLayoutEntry, BindingResource, Buffer, ColorTargetState, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
 use winit::{dpi::PhysicalPosition, event::{ElementState, Event, MouseButton, WindowEvent}, keyboard::{Key, ModifiersState, NamedKey}};
 
-use blue::{Xy, basic_window_loop::Context};
+use blue::{basic_window_loop::{basic_depth_stencil_state, Context}, Xy};
 
 #[derive(Clone, Copy, Debug, Zeroable, Pod)]
 #[repr(C)]
@@ -246,7 +246,7 @@ impl Canvas {
         });
 
         let render_pipeline_layout = ctx.device.create_pipeline_layout(&PipelineLayoutDescriptor {
-            label: Some("Render Pipeline Layout"),
+            label: Some("Canvas Render Pipeline Layout"),
             bind_group_layouts: &[&canvas_bind_group_layout],
             push_constant_ranges: &[],
         });
@@ -257,7 +257,7 @@ impl Canvas {
         });
 
         let render_pipeline = ctx.device.create_render_pipeline(&RenderPipelineDescriptor {
-            label: Some("Render Pipeline"),
+            label: Some("Canvas Render Pipeline"),
             layout: Some(&render_pipeline_layout),
             vertex: VertexState {
                 module: &shader,
@@ -276,7 +276,7 @@ impl Canvas {
                 compilation_options: Default::default(),
             }),
             primitive: PrimitiveState::default(),
-            depth_stencil: None,
+            depth_stencil: Some(basic_depth_stencil_state()),
             multisample: MultisampleState::default(),
             multiview: None,
             cache: None,

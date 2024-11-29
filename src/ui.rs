@@ -10,6 +10,7 @@ use crate::render_rect::*;
 
 use crate::math::Axis::*;
 
+use basic_window_loop::basic_depth_stencil_state;
 use copypasta::ClipboardContext;
 use glyphon::Cache as GlyphonCache;
 use glyphon::Viewport;
@@ -69,6 +70,7 @@ pub(crate) struct System {
     pub text: TextSystem,
     pub texture_atlas: TextureAtlas,
 
+    pub z_cursor: f32,
     pub rects: Vec<RenderRect>,
     pub invisible_but_clickable_rects: Vec<RenderRect>,
     // todo: keep a separate vec with the bounding boxes for faster mouse hit scans
@@ -239,7 +241,7 @@ impl Ui {
                 compilation_options: Default::default(),
             }),
             primitive,
-            depth_stencil: None,
+            depth_stencil: Some(basic_depth_stencil_state()),
             multisample: MultisampleState::default(),
             multiview: None,
             cache: None,
@@ -252,7 +254,7 @@ impl Ui {
 
         let mut atlas = TextAtlas::new(device, queue, &glyphon_cache, config.format);
         let text_renderer =
-            TextRenderer::new(&mut atlas, device, MultisampleState::default(), None);
+            TextRenderer::new(&mut atlas, device, MultisampleState::default(), Some(basic_depth_stencil_state()));
 
         let text_areas = Vec::with_capacity(50);
 
@@ -281,6 +283,7 @@ impl Ui {
             format_scratch: String::with_capacity(1024),
 
             sys: System {
+                z_cursor: 0.0,
                 root_i,
                 debug_mode: false,
                 debug_key_pressed: false,

@@ -13,7 +13,7 @@ pub(crate) struct RenderRect {
     pub rect: XyRect,               // (f32, f32) for each corner
     pub tex_coords: XyRect,         // (f32, f32) for texture coordinates
 
-    pub vertex_colors: VertexColors, // (u8, u8, u8, u8) colors
+    pub vertex_colors: VertexColors, 
     
     pub z: f32,                     // (f32) depth information
     pub last_hover: f32,            // (f32) hover timestamp
@@ -162,7 +162,7 @@ impl Node {
             last_hover: self.last_hover,
             last_click: self.last_click,
             id: self.id,
-            z: 0.0,
+            z: self.z,
             shape_data: self.params.rect.shape.shape_data(),
             tex_coords,
             flags,
