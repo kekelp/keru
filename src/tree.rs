@@ -412,11 +412,10 @@ impl Ui {
     pub fn push_rect(&mut self, node: usize) {
         let node = &mut self.nodes.nodes[node];
         
-        // really only need to do this whenever a custom-rendered rect shows up. But there's no real disadvantage to just always do it.
+        // really only need to do this whenever a custom-rendered rect shows up. But that would require custom rendered rects to be specifically marked, as opposed to just being the same as any other visible-only-in-debug rect, which means that you can forget to mark it and mess everything up. There's no real disadvantage to just always doing it.
         self.sys.z_cursor += Z_STEP;
         node.z = self.sys.z_cursor;
 
-        println!("{:?}: {:?}", node.debug_name(), node.z);
         let draw_even_if_invisible = self.sys.debug_mode;
         if let Some(rect) = node.render_rect(draw_even_if_invisible, None) {
             self.sys.rects.push(rect);
