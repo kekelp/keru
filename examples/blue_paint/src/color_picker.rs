@@ -122,7 +122,7 @@ impl ColorPicker {
         }
     }
 
-    pub fn render<'pass>(&mut self, render_pass: &mut RenderPass<'pass>) {
+    pub fn render(&mut self, render_pass: &mut RenderPass) {
         render_pass.set_pipeline(&self.renderer.render_pipeline);
         render_pass.set_vertex_buffer(0, self.renderer.vertex_buffer.slice(..));
         render_pass.set_bind_group(0, &self.renderer.bind_group, &[]);

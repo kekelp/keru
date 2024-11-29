@@ -601,7 +601,7 @@ impl Canvas {
         );
     }
 
-    pub fn render<'pass>(&'pass mut self, render_pass: &mut RenderPass<'pass>) {
+    pub fn render(&mut self, render_pass: &mut RenderPass) {
         render_pass.set_pipeline(&self.render_pipeline);
         render_pass.set_bind_group(0, &self.canvas_bind_group, &[]);
         render_pass.draw(0..6, 0..1);

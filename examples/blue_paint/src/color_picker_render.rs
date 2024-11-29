@@ -14,7 +14,7 @@ use crate::color_picker::*;
 pub(crate) struct ColorPickerRenderRect {
     pub rect: XyRect,
     pub z: f32,
-    pub hcl_color: [f32; 3],
+    pub oklch_color: [f32; 3],
 }
 
 impl ColorPickerRenderRect {
