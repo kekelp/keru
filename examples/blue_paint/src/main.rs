@@ -68,11 +68,15 @@ impl State {
         self.declare_ui();
         self.update_canvas();
 
-        self.render();
-        // if self.ui.needs_rerender() || self.canvas.needs_rerender() {
-        // } else {
-        //     self.ctx.sleep_until_next_frame();
-        // }
+        let need_rerender = self.ui.needs_rerender()
+            || self.canvas.needs_rerender()
+            || self.color_picker.needs_rerender();
+
+        if need_rerender {
+            self.render();
+        } else {
+            self.ctx.sleep_until_next_frame();
+        }
     }
 
     pub fn render(&mut self) {

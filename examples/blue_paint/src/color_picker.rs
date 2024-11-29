@@ -13,14 +13,15 @@ use wgpu::RenderPipeline;
 use crate::paint_ui::FLGR_PANEL;
 
 pub struct ColorPickerRenderer {
-    pub(crate) vertex_buffer: Buffer,
-    pub(crate) render_pipeline: RenderPipeline,
-    pub(crate) bind_group: BindGroup,
+    pub vertex_buffer: Buffer,
+    pub render_pipeline: RenderPipeline,
+    pub bind_group: BindGroup,
 }
 
 pub struct ColorPicker {
-    pub(crate) oklch_color: OkLchColor,
-    pub(crate) renderer: ColorPickerRenderer,
+    pub oklch_color: OkLchColor,
+    pub renderer: ColorPickerRenderer,
+    pub need_rerender: bool,
 }
 
 const NEUTRAL_GREY: Color = Color::rgba_f(0.09, 0.09, 0.09, 1.0);
@@ -90,6 +91,7 @@ impl ColorPickerUi for Ui {
             let angle = pos.x.atan2(pos.y);
             
             color_picker.oklch_color.hue = angle;
+            color_picker.need_rerender = true;
         };
 
         if let Some((_time_held, abs_pos)) = self.is_held(OKLAB_SQUARE) {
@@ -101,6 +103,7 @@ impl ColorPickerUi for Ui {
             
             color_picker.oklch_color.chroma = pos.y * 0.33;
             color_picker.oklch_color.lightness = pos.x;
+            color_picker.need_rerender = true;
         };
     }
 }
@@ -114,6 +117,7 @@ impl ColorPicker {
                 chroma: 0.1254,
                 hue: 0.3,
             },
+            need_rerender: true,
             renderer: ColorPickerRenderer::new(ctx, base_uniforms),
         }
     }
@@ -123,6 +127,8 @@ impl ColorPicker {
         render_pass.set_vertex_buffer(0, self.renderer.vertex_buffer.slice(..));
         render_pass.set_bind_group(0, &self.renderer.bind_group, &[]);
         render_pass.draw(0..4, 0..2);
+
+        self.need_rerender = false;
     }
 
     pub fn prepare(&self, ui: &mut Ui, queue: &wgpu::Queue) -> Option<()> {
@@ -147,5 +153,9 @@ impl ColorPicker {
         queue.write_buffer(&self.renderer.vertex_buffer, 0, bytemuck::cast_slice(&coords));
 
         return Some(());
+    }
+
+    pub fn needs_rerender(&self) -> bool {
+        return self.need_rerender;
     }
 }
