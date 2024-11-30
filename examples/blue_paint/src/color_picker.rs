@@ -38,6 +38,32 @@ pub trait ColorPickerUi {
 impl ColorPickerUi for Ui {
     fn add_color_picker(&mut self, color_picker: &mut ColorPicker) {
 
+        if let Some((_time_held, abs_pos)) = self.is_held(OKLAB_HUE_WHEEL) {
+            let center = self.get_node(OKLAB_HUE_WHEEL).unwrap().center();
+            let pos = abs_pos - center;
+            let angle = pos.x.atan2(pos.y);
+            
+            color_picker.oklch_color.hue = angle;
+            color_picker.need_rerender = true;
+        };
+
+        if let Some((_time_held, abs_pos)) = self.is_held(OKLAB_SQUARE) {
+            let size_pixels = self.get_node(OKLAB_SQUARE).unwrap().rect().size();
+            let bottom_left = self.get_node(OKLAB_SQUARE).unwrap().bottom_left();
+            let mut pos = abs_pos - bottom_left;
+            pos.y = - pos.y;
+            let pos = pos / size_pixels;
+            
+            color_picker.oklch_color.chroma = pos.y * 0.33;
+            color_picker.oklch_color.lightness = pos.x;
+            color_picker.need_rerender = true;
+        };
+
+        // if ! color_picker.need_rerender {
+        //     self.assume_unchanged(CONTAINER);
+        //     return;
+        // }
+
         self.add(CONTAINER)
             .params(FLGR_PANEL)
             .size_x(Size::Fixed(Frac(0.18)))
@@ -85,26 +111,6 @@ impl ColorPickerUi for Ui {
             });
         });
 
-        if let Some((_time_held, abs_pos)) = self.is_held(OKLAB_HUE_WHEEL) {
-            let center = self.get_node(OKLAB_HUE_WHEEL).unwrap().center();
-            let pos = abs_pos - center;
-            let angle = pos.x.atan2(pos.y);
-            
-            color_picker.oklch_color.hue = angle;
-            color_picker.need_rerender = true;
-        };
-
-        if let Some((_time_held, abs_pos)) = self.is_held(OKLAB_SQUARE) {
-            let size_pixels = self.get_node(OKLAB_SQUARE).unwrap().rect().size();
-            let bottom_left = self.get_node(OKLAB_SQUARE).unwrap().bottom_left();
-            let mut pos = abs_pos - bottom_left;
-            pos.y = - pos.y;
-            let pos = pos / size_pixels;
-            
-            color_picker.oklch_color.chroma = pos.y * 0.33;
-            color_picker.oklch_color.lightness = pos.x;
-            color_picker.need_rerender = true;
-        };
     }
 }
 

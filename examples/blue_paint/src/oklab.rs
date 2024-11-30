@@ -1,5 +1,5 @@
 #[derive(Copy, Clone, Debug)]
-pub(crate) struct OkLchColor {
+pub struct OkLchColor {
     pub(crate) lightness: f32,
     pub(crate) hue: f32,
     pub(crate) chroma: f32,
