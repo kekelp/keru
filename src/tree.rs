@@ -441,6 +441,8 @@ impl Ui {
         let draw_even_if_invisible = self.sys.debug_mode;
         if let Some(rect) = node.render_rect(draw_even_if_invisible, None) {
             let old_i = node.last_rect_i;
+            // if someone tries to update a rect that's no longer there, we could just ignore that instead of panicking.
+            // however, it's probably a bug that we should fix.
             self.sys.rects[old_i] = rect;
         }
             

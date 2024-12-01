@@ -85,8 +85,9 @@ impl RenderRect {
 impl RenderRect {
     // the first 8 bits are for RenderShape
     
-    pub const CLICK_ANIMATION: u32 = 1 << 8; // 0b00000000_00000000_00000001_00000000
-    pub const OUTLINE_ONLY:    u32 = 1 << 9; // 0b00000000_00000000_00000010_00000000 
+    pub const CLICK_ANIMATION: u32 = 1 << 8;  // 0b00000000_00000000_00000001_00000000
+    pub const OUTLINE_ONLY:    u32 = 1 << 9;  // 0b00000000_00000000_00000010_00000000 
+    pub const HOVERED:         u32 = 1 << 10; // 0b00000000_00000000_00000100_00000000 
 
     pub const EMPTY_FLAGS: u32 = 0;
 }
@@ -141,6 +142,9 @@ impl Node {
         if self.params.rect.outline_only {
             flags |= RenderRect::OUTLINE_ONLY;
         }
+        if self.hovered {
+            flags |= RenderRect::HOVERED;
+        }
 
 
         flags = RenderShape::write_into_least_significant_8_bits(flags, self.params.rect.shape.render_shape() as u8);
@@ -159,7 +163,7 @@ impl Node {
         return Some(RenderRect {
             rect: self.rect.to_graphics_space(),
             vertex_colors: self.params.rect.vertex_colors,
-            last_hover: self.last_hover,
+            last_hover: self.hover_timestamp,
             last_click: self.last_click,
             id: self.id,
             z: self.z,

@@ -48,8 +48,9 @@ pub struct Node {
 
     pub is_twin: Option<u32>,
 
-    pub last_hover: f32,
     pub last_click: f32,
+    pub hovered: bool,
+    pub hover_timestamp: f32,
     pub z: f32,
 
     pub needs_cosmetic_update: bool,
@@ -87,7 +88,8 @@ impl Node {
             is_twin: twin_n,
             params: NodeParams::const_default(),
             debug_name: key.debug_name,
-            last_hover: f32::MIN,
+            hover_timestamp: f32::MIN,
+            hovered: false,
             last_click: f32::MIN,
             z: 0.0,
             last_rect_i: 0,
@@ -139,7 +141,9 @@ pub const NODE_ROOT: Node = Node {
 
     params: NODE_ROOT_PARAMS,
     debug_name: "Root",
-    last_hover: f32::MIN,
+    hover_timestamp: f32::MIN,
+    hovered: false,
+
     last_click: f32::MIN,
     z: -10000.0,
     last_rect_i: 0,

@@ -5,21 +5,6 @@ use winit::{event::{ElementState, Event, KeyEvent, MouseButton, WindowEvent}, ke
 
 use crate::*;
 
-// use glyphon::{Affinity, Buffer as GlyphonBuffer, Cursor as GlyphonCursor};
-
-
-// #[derive(Debug, Copy, Clone)]
-// pub struct BlinkyLine {
-//     pub index: usize,
-//     pub affinity: Affinity,
-// }
-
-// #[derive(Debug, Copy, Clone)]
-// pub enum Cursor {
-//     BlinkyLine(BlinkyLine),
-//     Selection((GlyphonCursor, GlyphonCursor)),
-// }
-
 
 impl Ui {
 
@@ -104,34 +89,64 @@ impl Ui {
         let topmost_mouse_hit = self.scan_mouse_hits();
 
         if let Some(hovered_id) = topmost_mouse_hit {
-
-            if self.sys.last_frame_hovered.contains(&hovered_id) {
-
+            if self.sys.hovered.contains(&hovered_id) {
+                // nothing changed, do nothing
             } else {
-                // println!("[{:.8?}] le enter", T0.elapsed());
-                // take it out so multiple calls to resolve_hover don't ruin anything?
-                self.sys.last_frame_hovered.retain(|&x| x != hovered_id);
+                // newly entered
+                self.end_all_hovering();
+                self.start_hovering(hovered_id);
             }
 
-            self.sys.hovered.push(hovered_id);
-            let t = ui_time_f32();
-            
-            // todo: yuck
-            let hovered_node_i = self.nodes.node_hashmap.get(&hovered_id).unwrap().slab_i;
-            let hovered_node = &mut self.nodes.nodes[hovered_node_i];
+        } else {
+            self.end_all_hovering();
+        }
 
-            if hovered_node.params.interact.click_animation {
-                hovered_node.last_hover = t;
-                
-                self.sys.changes.cosmetic_rect_updates.push(hovered_node_i);
-                
-                // todo: maybe cleaner to make this pass through the cosmetic updates
-                self.sys.changes.animation_rerender_time = Some(1.0);
+    }
+
+    pub fn start_hovering(&mut self, hovered_id: Id) {
+        self.sys.hovered.push(hovered_id);
+        
+        // todo: yuck
+        let hovered_node_i = self.nodes.node_hashmap.get(&hovered_id).unwrap().slab_i;
+        let hovered_node = &mut self.nodes.nodes[hovered_node_i];
+
+        if hovered_node.params.interact.click_animation {
+            hovered_node.hovered = true;
+            hovered_node.hover_timestamp = ui_time_f32();
+            
+            self.sys.changes.cosmetic_rect_updates.push(hovered_node_i);
+            // todo: maybe cleaner to make this pass through the cosmetic updates
+            self.sys.changes.animation_rerender_time = Some(1.0);
+        }
+
+    }
+
+    pub fn end_all_hovering(&mut self) {
+        for hovered_id in &self.sys.hovered {
+            let hovered_nodemap_entry = self.nodes.node_hashmap.get(&hovered_id);
+            
+            if let Some(entry) = hovered_nodemap_entry {
+                // check that the node is currently part of the tree...
+                // this is a bit scary, and it will need to change with `assume_unchanged` and friends
+                if entry.last_frame_touched == self.sys.part.current_frame {
+
+                    let hovered_node_i = entry.slab_i;
+                    let hovered_node = &mut self.nodes.nodes[hovered_node_i];
+                    
+                    if hovered_node.params.interact.click_animation {
+                        hovered_node.hovered = false;
+                        hovered_node.hover_timestamp = ui_time_f32();
+                        self.sys.changes.cosmetic_rect_updates.push(hovered_node_i);
+                        self.sys.changes.animation_rerender_time = Some(1.0);
+                    }
+                }
             }
         }
+        self.sys.hovered.clear();
     }
 
     pub(crate) fn end_frame_resolve_inputs(&mut self) {
+        // clicks
         self.sys.last_frame_mouse_events.clear();
 
         self.sys.unresolved_click_presses.retain(|click| click.already_released == false);

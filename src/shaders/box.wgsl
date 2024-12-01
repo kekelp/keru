@@ -12,6 +12,7 @@ var my_sampler: sampler;
 
 const CLICK_ANIMATION_FLAG: u32 = u32(1) << u32(8);
 const OUTLINE_ONLY_FLAG: u32    = u32(1) << u32(9);
+const HOVERED_FLAG: u32         = u32(1) << u32(10);
 
 const SHAPE_RECTANGLE:   u32 = u32(0);
 const SHAPE_CIRCLE: u32 = u32(1);
@@ -94,8 +95,15 @@ fn vs_main(in: RenderRect) -> VertexOutput {
 
     let shape = read_shape(in.flags);
 
-    let t_since_hover = (unif.t - in.last_hover) * 4.5;
-    let hover = (1.0 - clamp(t_since_hover, 0.0, 1.0)) * f32(t_since_hover < 1.0) * clickable;
+    let t_since_hover = (unif.t - in.last_hover) * 10.0;
+    var hover: f32;
+    let hover_bool = read_flag(in.flags, HOVERED_FLAG);
+    if hover_bool {
+        hover = clamp(t_since_hover, 0.0, 1.0) * clickable;
+    } else {
+        hover = (1.0 - clamp(t_since_hover, 0.0, 1.0)) * f32(t_since_hover < 1.0) * clickable;
+    }
+
     let t_since_click = (unif.t - in.last_click) * 4.1;
     let click = (1.0 - clamp(t_since_click, 0.0, 1.0)) * f32(t_since_click < 1.0) * clickable;
 

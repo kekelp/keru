@@ -89,6 +89,12 @@ impl Ui {
         }
 
         self.sys.changes.reset();
+
+        if self.sys.changes.partial_relayouts.len() != 0 &&
+        self.sys.changes.full_relayout == false {
+            // we might be moving the hovered node away from the cursor
+            self.resolve_hover();
+        }
     }
 
     pub fn full_relayout_and_rebuild(&mut self) {       

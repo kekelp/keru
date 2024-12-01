@@ -84,7 +84,6 @@ pub(crate) struct System {
 
 
     pub hovered: Vec<Id>,
-    pub last_frame_hovered: Vec<Id>,
 
     pub focused: Option<Id>,
 
@@ -326,7 +325,6 @@ impl Ui {
                 last_frame_mouse_events: Vec::with_capacity(20),
 
                 hovered: Vec::with_capacity(15),
-                last_frame_hovered: Vec::with_capacity(15),
                 focused: None,
 
                 frame_t: 0.0,
