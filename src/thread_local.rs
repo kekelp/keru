@@ -53,7 +53,7 @@ pub fn thread_local_pop_parent() {
 
         if parent.children_hash.finish() != parent.old_children_hash {
             // we just popped the parent, so its real depth was +1, I think
-            let current_depth = stack.parents.len() + 1; 
+            let current_depth = stack.parents.len() + 1;
 
             stack.tree_changes.push(NodeWithDepth {
                 i: parent.i,

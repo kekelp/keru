@@ -22,35 +22,16 @@ macro_rules! for_each_child {
 
 impl Ui {
 
-    pub fn relayout(&mut self) {        
-        // after calling this, the changes are swapped into `self.sys.changes.swapped_tree_changes`
-        self.sys.changes.swap_thread_local_tree_changes();
-
-        let nothing_to_do = self.sys.changes.swapped_tree_changes.len() == 0
-            && self.sys.changes.partial_relayouts.len() == 0
-            && self.sys.changes.cosmetic_rect_updates.len() == 0
-            && self.sys.changes.full_relayout == false
-            && self.sys.changes.rebuild_all_rects == false;
-
-        if nothing_to_do {
-            return;
+    pub fn do_atomic_rect_updates(&mut self) {
+        for idx in 0..self.sys.changes.cosmetic_rect_updates.len() {
+            let update = self.sys.changes.cosmetic_rect_updates[idx];
+            self.update_rect(update);
+            println!("[{:?}]  cosmetic update ({:?})", T0.elapsed(), self.nodes[update].debug_name());
         }
+    }
 
-        self.sys.changes.need_rerender = true;
 
-
-        // if there's a lot of tree changes and/or partial relayouts, it's probably cheaper to just do a full relayout rather than going through all of them. 
-        let score = self.sys.changes.swapped_tree_changes.len() * 2 + self.sys.changes.partial_relayouts.len();
-        const MAX_RELAYOUT_SCORE: usize = 30;
-        if score > MAX_RELAYOUT_SCORE || self.sys.part.current_frame == FIRST_FRAME || self.sys.changes.full_relayout {
-            self.full_relayout_and_rebuild();
-            self.sys.changes.reset();
-            return;
-        }
-
-        // if there are any tree changes, the rects are all invalidated.
-        let tree_changed = ! self.sys.changes.swapped_tree_changes.is_empty();
-        let rebuild_all_rects = tree_changed || self.sys.changes.rebuild_all_rects;
+    pub fn do_partial_relayouts(&mut self, update_rects_while_relayouting: bool) {
 
         self.sys.relayouts_scrath.clear();
         for n in &self.sys.changes.swapped_tree_changes {
@@ -65,8 +46,6 @@ impl Ui {
         // the plan was to sort it in reverse and then use it in reverse
         self.sys.relayouts_scrath.sort();
 
-        let update_rects_while_relayouting = ! rebuild_all_rects;
-
         for idx in 0..self.sys.relayouts_scrath.len() {
             // in partial_relayout(), we will check for overlaps.
             // todo: is that works as expected, maybe we can skip the limit/full relayout thing, or at least raise the limit by a lot.
@@ -74,27 +53,52 @@ impl Ui {
             
             self.partial_relayout(relayout.i, update_rects_while_relayouting);
         }
+    }
 
-        // rect updates
+    pub fn relayout(&mut self) {        
+        // after calling this, the changes are swapped into `self.sys.changes.swapped_tree_changes`
+        self.sys.changes.swap_thread_local_tree_changes();
+
+        // if there are any tree changes, the rects are all invalidated.
+        let tree_changed = ! self.sys.changes.swapped_tree_changes.is_empty();
+        
+        let rebuild_all_rects = tree_changed || self.sys.changes.rebuild_all_rects;
+        let partial_relayouts = ! self.sys.changes.partial_relayouts.is_empty();
+        let rect_updates = ! self.sys.changes.cosmetic_rect_updates.is_empty();
+        let full_relayout = self.sys.changes.full_relayout;
+
+        let nothing_to_do = ! tree_changed
+            && ! partial_relayouts
+            && ! rect_updates
+            && ! full_relayout
+            && ! rebuild_all_rects;
+        if nothing_to_do {
+            return;
+        }
+
+        // if anything happened at all, we'll need to rerender.
+        self.sys.changes.need_rerender = true;
+
+        let update_rects_while_relayouting = ! rebuild_all_rects;
+        self.do_partial_relayouts(update_rects_while_relayouting);
+
         if rebuild_all_rects {
             self.rebuild_all_rects();
-            // println!("[{:?}]  rebuild all rects", T0.elapsed());
         } else {
-            // cosmetic atomic rect updates
-            for idx in 0..self.sys.changes.cosmetic_rect_updates.len() {
-                let update = self.sys.changes.cosmetic_rect_updates[idx];
-                self.update_rect(update);
-                // println!("[{:?}]  cosmetic update ({:?})", T0.elapsed(), self.nodes[update].debug_name());
-            }
+            self.do_atomic_rect_updates();
         }
 
         self.sys.changes.reset();
 
-        if self.sys.changes.partial_relayouts.len() != 0 &&
-        self.sys.changes.full_relayout == false {
-            // we might be moving the hovered node away from the cursor
+        let layout_changed = tree_changed || partial_relayouts || full_relayout;
+        if layout_changed {
+            // we might be moving the hovered node away from the cursor.
+            // this has to happen after `changes.reset()` for obvious reasons.
             self.resolve_hover();
+            // pruning here sounded like an ok idea, but I think that with anonymous nodes it doesn't work as intended (it thinks something is always changed oalgo)
+            // self.prune();
         }
+
     }
 
     pub fn full_relayout_and_rebuild(&mut self) {       
@@ -479,6 +483,7 @@ impl Ui {
     }
 
     fn rebuild_all_rects(&mut self) {
+        println!("[{:?}]  rebuild all rects", T0.elapsed());
         self.sys.rects.clear();
         self.sys.invisible_but_clickable_rects.clear();
         self.sys.z_cursor = Z_BACKDROP;
