@@ -16,6 +16,7 @@ pub const FLGR_PANEL: NodeParams = PANEL.vertex_colors(GRAD1);
 impl State {
 
     pub fn declare_ui(&mut self) {
+        self.ui.begin_tree();
 
         #[node_key] const RIGHT_BAR: NodeKey;
         self.ui.add(RIGHT_BAR)
@@ -31,7 +32,7 @@ impl State {
             .size_y(Fill)
             .size_x(FitContent);
 
-        self.ui.begin_tree();
+        // self.ui.begin_tree(); having it here is le problematic
 
         self.ui.place(RIGHT_BAR).nest(|| {
             self.slider_value = self.add_slider(self.slider_value);
@@ -42,9 +43,7 @@ impl State {
             self.add_pixel_info_ui();
             self.add_tools();
         });
-
-        self.ui.finish_tree();
-
+        
         let picked_color = oklch_to_linear_srgb(self.color_picker.oklch_color);
         self.canvas.paint_color = PixelColorF32 {
             r: picked_color.r,
@@ -52,6 +51,8 @@ impl State {
             b: picked_color.b,
             a: 1.0,
         };
+
+        self.ui.finish_tree();
     }
 }
 

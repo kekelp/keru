@@ -100,7 +100,8 @@ impl Ui {
         }
 
         if tree_changed {
-            // pruning here sounded like an ok idea, but I think that with anonymous nodes it doesn't work as intended (it thinks something is always changed oalgo)
+            // pruning here seems like an ok idea, but I haven't thought about it super hard yet.
+            // in general, we could use info in tree_changes to do better pruning.
             // self.prune();
         }
     }

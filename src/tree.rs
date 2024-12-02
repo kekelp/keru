@@ -540,15 +540,15 @@ impl Ui {
 
     // todo: actually call this once in a while
     pub fn prune(&mut self) {
-        self.nodes.node_hashmap.retain(|k, v| {
+        self.nodes.node_hashmap.retain(|_k, v| {
             // the > is to always keep the root node without having to refresh it
             let should_retain = v.last_frame_touched >= self.sys.part.current_frame;
             if !should_retain {
                 let name = self.nodes.nodes[v.slab_i].debug_name();
-                // side effect happens inside this closure... weird
+                // side effect happens inside this closure? idk if this even works
                 self.nodes.nodes.remove(v.slab_i);
                 // remember to remove text areas and such ...
-                println!(" PRUNING {:?} {:?} {:?} (current frame: {:?})", k, v, name, self.sys.part.current_frame);
+                println!("[{:?}] PRUNING {:?}", T0.elapsed(), name);
             }
             should_retain
         });
