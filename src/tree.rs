@@ -269,7 +269,6 @@ impl Ui {
 
     // #[track_caller]
     pub fn place(&mut self, key: NodeKey) -> UiPlacedNode {
-        // println!("Albeit {}", std::panic::Location::caller());
         let yellow = "don't unwrap here! Just return an empty UiPlacedNode or something. Figure something out";
         let real_key = self.get_latest_twin_key(key).unwrap();
         let node_i = self.nodes.node_hashmap.get(&real_key.id()).unwrap().slab_i;
@@ -545,10 +544,11 @@ impl Ui {
             // the > is to always keep the root node without having to refresh it
             let should_retain = v.last_frame_touched >= self.sys.part.current_frame;
             if !should_retain {
+                let name = self.nodes.nodes[v.slab_i].debug_name();
                 // side effect happens inside this closure... weird
                 self.nodes.nodes.remove(v.slab_i);
                 // remember to remove text areas and such ...
-                println!(" PRUNING {:?} {:?}", k, v);
+                println!(" PRUNING {:?} {:?} {:?} (current frame: {:?})", k, v, name, self.sys.part.current_frame);
             }
             should_retain
         });

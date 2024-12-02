@@ -79,22 +79,29 @@ impl Ui {
         // if anything happened at all, we'll need to rerender.
         self.sys.changes.need_rerender = true;
 
-        let update_rects_while_relayouting = ! rebuild_all_rects;
-        self.do_partial_relayouts(update_rects_while_relayouting);
-
-        if rebuild_all_rects {
-            self.rebuild_all_rects();
-        } else {
-            self.do_atomic_rect_updates();
+        if full_relayout {
+            self.full_relayout_and_rebuild()
+        } else {    
+            let update_rects_while_relayouting = ! rebuild_all_rects;
+            self.do_partial_relayouts(update_rects_while_relayouting);
+            
+            if rebuild_all_rects {
+                self.rebuild_all_rects();
+            } else {
+                self.do_atomic_rect_updates();
+            }    
         }
-
+        
         self.sys.changes.reset();
-
+            
         let layout_changed = tree_changed || partial_relayouts || full_relayout;
         if layout_changed {
             // we might be moving the hovered node away from the cursor.
             // this has to happen after `changes.reset()` for obvious reasons.
             self.resolve_hover();
+        }
+
+        if tree_changed {
             // pruning here sounded like an ok idea, but I think that with anonymous nodes it doesn't work as intended (it thinks something is always changed oalgo)
             // self.prune();
         }
