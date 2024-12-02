@@ -22,7 +22,7 @@ macro_rules! for_each_child {
 
 impl Ui {
 
-    pub fn do_atomic_rect_updates(&mut self) {
+    pub fn do_cosmetic_rect_updates(&mut self) {
         for idx in 0..self.sys.changes.cosmetic_rect_updates.len() {
             let update = self.sys.changes.cosmetic_rect_updates[idx];
             self.update_rect(update);
@@ -32,7 +32,6 @@ impl Ui {
 
 
     pub fn do_partial_relayouts(&mut self, update_rects_while_relayouting: bool) {
-
         self.sys.relayouts_scrath.clear();
         for n in &self.sys.changes.swapped_tree_changes {
             self.sys.relayouts_scrath.push(*n);
@@ -45,6 +44,7 @@ impl Ui {
         // todo: there was something about it being close to already sorted, except in reverse
         // the plan was to sort it in reverse and then use it in reverse
         self.sys.relayouts_scrath.sort();
+        self.sys.partial_relayout_count = 0;
 
         for idx in 0..self.sys.relayouts_scrath.len() {
             // in partial_relayout(), we will check for overlaps.
@@ -53,15 +53,15 @@ impl Ui {
             
             self.partial_relayout(relayout.i, update_rects_while_relayouting);
         }
+
+        println!("[{:?}]  partial relayout ({:?} node/s)", T0.elapsed(), self.sys.partial_relayout_count);
+        self.sys.partial_relayout_count = 0;
     }
 
     pub fn relayout(&mut self) {        
-        // after calling this, the changes are swapped into `self.sys.changes.swapped_tree_changes`
         self.sys.changes.swap_thread_local_tree_changes();
 
-        // if there are any tree changes, the rects are all invalidated.
         let tree_changed = ! self.sys.changes.swapped_tree_changes.is_empty();
-        
         let rebuild_all_rects = tree_changed || self.sys.changes.rebuild_all_rects;
         let partial_relayouts = ! self.sys.changes.partial_relayouts.is_empty();
         let rect_updates = ! self.sys.changes.cosmetic_rect_updates.is_empty();
@@ -80,24 +80,22 @@ impl Ui {
         self.sys.changes.need_rerender = true;
 
         if full_relayout {
-            self.full_relayout_and_rebuild()
-        } else {    
-            let update_rects_while_relayouting = ! rebuild_all_rects;
-            self.do_partial_relayouts(update_rects_while_relayouting);
-            
+            self.relayout_from_root();
+            self.rebuild_all_rects();
+        } else {           
             if rebuild_all_rects {
+                self.do_partial_relayouts(false);
                 self.rebuild_all_rects();
             } else {
-                self.do_atomic_rect_updates();
+                self.do_partial_relayouts(true);
+                self.do_cosmetic_rect_updates();
             }    
         }
         
         self.sys.changes.reset();
             
-        let layout_changed = tree_changed || partial_relayouts || full_relayout;
-        if layout_changed {
+        if tree_changed || partial_relayouts || full_relayout {
             // we might be moving the hovered node away from the cursor.
-            // this has to happen after `changes.reset()` for obvious reasons.
             self.resolve_hover();
         }
 
@@ -105,15 +103,6 @@ impl Ui {
             // pruning here sounded like an ok idea, but I think that with anonymous nodes it doesn't work as intended (it thinks something is always changed oalgo)
             // self.prune();
         }
-
-    }
-
-    pub fn full_relayout_and_rebuild(&mut self) {       
-        self.relayout_from_root();
-
-        self.rebuild_all_rects();
-
-        self.push_cursor_rect();
     }
 
     pub fn relayout_from_root(&mut self) {
@@ -136,8 +125,6 @@ impl Ui {
         if self.nodes[node].last_layout_frame >= current_frame {
             return;
         }
-        
-        // println!("[{:?}]  partial relayout ({:?})", T0.elapsed(), self.nodes[node].debug_name());
 
         // 1st recursive tree traversal: start from the root and recursively determine the size of all nodes
         // For the first node, assume that the proposed size that we got from the parent last frame is valid. (except for root, in which case just use the whole screen. todo: should just make full_relayout a separate function.)
@@ -341,6 +328,7 @@ impl Ui {
     }
 
     fn recursive_place_children(&mut self, node: usize, also_update_rects: bool) {
+        self.sys.partial_relayout_count += 1;
         if let Some(stack) = self.nodes[node].params.stack {
             self.place_children_stack(node, stack);
         } else {

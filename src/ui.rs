@@ -89,6 +89,7 @@ pub(crate) struct System {
 
     pub size_scratch: Vec<f32>,
     pub relayouts_scrath: Vec<NodeWithDepth>,
+    pub partial_relayout_count: u32,
 
     pub changes: PartialChanges,
 
@@ -312,6 +313,7 @@ impl Ui {
 
                 size_scratch: Vec::with_capacity(15),
                 relayouts_scrath: Vec::with_capacity(15),
+                partial_relayout_count: 0,
 
                 part: PartialBorrowStuff {
                     mouse_pos: PhysicalPosition { x: 0., y: 0. },
