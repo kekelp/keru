@@ -59,10 +59,15 @@ impl ColorPickerUi for Ui {
             color_picker.need_rerender = true;
         };
 
-        // if ! color_picker.need_rerender {
-        //     self.assume_unchanged(CONTAINER);
+        // Wanted reactivity anyway for a laugh?
+        // let changed = color_picker.need_rerender;
+        // Tell the ui that if `changed` is false, then the whole subtree starting from `CONTAINER` will stay the same as it was before
+        // self.get_node(CONTAINER).assume_unchanged_if(!changed);
+        // Now we can literally skip the rest of the function (but not the input handling: that's the main reason why we write it above)
+        // if ! changed {
         //     return;
         // }
+        // todo: actually implement this, and pair it with a nicer signal thing for the example
 
         self.add(CONTAINER)
             .params(FLGR_PANEL)
