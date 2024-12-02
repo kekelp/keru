@@ -91,18 +91,17 @@ impl ColorPickerUi for Ui {
             .shape(Shape::Rectangle { corner_radius: 0.0 })
             .size_symm(Fixed(Frac(0.7071)));
 
-        let ring_y = 1.0 - color_picker.oklch_color.chroma / 0.33;
-        let ring_x = color_picker.oklch_color.lightness;
-        let ring_y = ring_y.clamp(0.0, 1.0);
-        let ring_x = ring_x.clamp(0.0, 1.0);
-
-        self.add(SMALL_RING)
-            .params(PANEL)
-            .size_symm(Size::Fixed(Pixels(4)))
-            .color(Color::WHITE)
-            .shape(Shape::Ring { width: 4.0 })
-            .position_x(Position::Static(Frac(ring_x)))
-            .position_y(Position::Static(Frac(ring_y)));
+        // let ring_y = 1.0 - color_picker.oklch_color.chroma / 0.33;
+        // let ring_x = color_picker.oklch_color.lightness;
+        // let ring_y = ring_y.clamp(0.0, 1.0);
+        // let ring_x = ring_x.clamp(0.0, 1.0);
+        // self.add(SMALL_RING)
+        //     .params(PANEL)
+        //     .size_symm(Size::Fixed(Pixels(4)))
+        //     .color(Color::WHITE)
+        //     .shape(Shape::Ring { width: 4.0 })
+        //     .position_x(Position::Static(Frac(ring_x)))
+        //     .position_y(Position::Static(Frac(ring_y)));
 
         // layout
         self.place(CONTAINER).nest(|| {
@@ -111,7 +110,7 @@ impl ColorPickerUi for Ui {
             self.place(OKLAB_HUE_WHEEL);
             self.place(PADDING_SQUARE).nest(|| {
                 self.place(OKLAB_SQUARE).nest(|| {
-                    self.place(SMALL_RING);
+                    // self.place(SMALL_RING);
                 });
             });
         });
