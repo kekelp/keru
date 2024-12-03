@@ -58,7 +58,7 @@ impl Ui {
         self.sys.partial_relayout_count = 0;
     }
 
-    pub fn relayout(&mut self) {        
+    pub fn relayout(&mut self) {
         self.sys.changes.swap_thread_local_tree_changes();
 
         let tree_changed = ! self.sys.changes.swapped_tree_changes.is_empty();

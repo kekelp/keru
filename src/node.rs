@@ -44,7 +44,7 @@ pub struct Node {
 
     pub debug_name: &'static str,
 
-    pub old_children_hash: u64,
+    pub children_hash: u64,
 
     pub is_twin: Option<u32>,
 
@@ -94,7 +94,7 @@ impl Node {
             z: 0.0,
             last_rect_i: 0,
             relayout_chain_root: None,
-            old_children_hash: EMPTY_HASH,
+            children_hash: EMPTY_HASH,
             last_layout_frame: 0,
 
             last_cosmetic_params_hash: 0,
@@ -148,7 +148,7 @@ pub const NODE_ROOT: Node = Node {
     z: -10000.0,
     last_rect_i: 0,
     relayout_chain_root: None,
-    old_children_hash: EMPTY_HASH,
+    children_hash: EMPTY_HASH,
     last_layout_frame: 0,
 
     needs_cosmetic_update: false,

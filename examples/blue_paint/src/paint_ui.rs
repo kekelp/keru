@@ -17,9 +17,7 @@ pub const FLGR_PANEL: NodeParams = PANEL.vertex_colors(GRAD1);
 
 impl State {
 
-    pub fn declare_ui(&mut self) {
-        self.ui.begin_tree();
-
+    pub fn update_ui(&mut self) {
         #[node_key] const RIGHT_BAR: NodeKey;
         self.ui.add(RIGHT_BAR)
             .params(V_STACK)
@@ -40,7 +38,7 @@ impl State {
             self.slider_value = self.add_slider(self.slider_value);
             self.ui.add_color_picker(&mut self.color_picker);
         });
-
+            
         self.ui.place(LEFT_BAR).nest(|| {
             self.add_pixel_info_ui();
             self.add_tools();
@@ -53,8 +51,6 @@ impl State {
             b: picked_color.b,
             a: 1.0,
         };
-
-        self.ui.finish_tree();
     }
 }
 
@@ -86,13 +82,28 @@ impl State {
     }
 
     pub fn add_tools(&mut self) {
+        #[node_key] const TOOLS_PANEL: NodeKey;
         #[node_key] const BRUSH: NodeKey;
-        self.ui.add(BRUSH).params(ICON_BUTTON).static_image(include_bytes!("icons/brush.png"));
-
         #[node_key] const ERASER: NodeKey;
+
+        // This never changes
+        let changed = false;
+        if self.ui.is_in_tree(TOOLS_PANEL) && ! changed {
+            self.ui.keep_whole_subtree_unchanged(TOOLS_PANEL);
+            return;
+        }
+
+        if self.ui.is_clicked(BRUSH) {
+            self.canvas.paint_color = PixelColorF32::new(0.2, 0.8, 0.2, 1.0);
+        }
+
+        if self.ui.is_clicked(ERASER) {
+            self.canvas.paint_color = PixelColorF32::new(1.0, 1.0, 1.0, 0.0);
+        }
+        
+        self.ui.add(BRUSH).params(ICON_BUTTON).static_image(include_bytes!("icons/brush.png"));
         self.ui.add(ERASER).params(ICON_BUTTON).static_image(include_bytes!("icons/eraser.png"));
 
-        #[node_key] const TOOLS_PANEL: NodeKey;
         self.ui.add(TOOLS_PANEL)
             .params(FLGR_PANEL)
             .position_x(Start)
@@ -107,14 +118,6 @@ impl State {
                 });
             });
         });
-
-        if self.ui.is_clicked(BRUSH) {
-            self.canvas.paint_color = PixelColorF32::new(0.2, 0.8, 0.2, 1.0);
-        }
-
-        if self.ui.is_clicked(ERASER) {
-            self.canvas.paint_color = PixelColorF32::new(1.0, 1.0, 1.0, 0.0);
-        }
     }
 
     pub fn add_slider(&mut self, value: f32) -> f32 {

@@ -2,7 +2,6 @@ use crate::changes::{NodeWithDepth, PartialChanges};
 use crate::math::*;
 use crate::render::TypedGpuBuffer;
 use crate::texture_atlas::*;
-use crate::thread_local::thread_local_push_parent;
 use crate::*;
 use crate::node::*;
 use crate::interact::*;
@@ -267,9 +266,6 @@ impl Ui {
             slab_i: root_i,
             n_twins: 0,
         };
-
-        let root_parent = UiPlacedNode::new(root_i, EMPTY_HASH);
-        thread_local_push_parent(&root_parent);
 
         node_hashmap.insert(NODE_ROOT_ID, root_map_entry);
 

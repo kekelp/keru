@@ -37,7 +37,7 @@ use crate::twin_nodes::TwinCheckResult::*;
 use crate::twin_nodes::*;
 use std::fmt::{Display, Write};
 
-pub(crate) static T0: LazyLock<Instant> = LazyLock::new(Instant::now);
+pub static T0: LazyLock<Instant> = LazyLock::new(Instant::now);
 pub fn ui_time_f32() -> f32 {
     return T0.elapsed().as_secs_f32();
 }
@@ -269,14 +269,19 @@ impl Ui {
         let frame = self.sys.part.current_frame;
         self.sys.text.refresh_last_frame(self.nodes[i].text_id, frame);
 
+
+        let old_children_hash = self.nodes[i].children_hash;
+        // reset the children hash to keep it in sync with the thread local one (which will be created new in push_parent)
+        self.nodes[i].children_hash = EMPTY_HASH;
+
         // update the in-tree links and the thread-local state based on the current parent.
         let NodeWithDepth { i: parent_i, depth } = thread_local_peek_parent();
         self.set_tree_links(i, parent_i, depth);
+
+        // update the parent's **THREAD_LOCAL** children_hash with ourselves. (when the parent gets popped, it will be compared to the old one, which we passed to nest() before starting to add children)
+        // AND THEN, sync the thread local hash value with the one on the node as well, so that we'll be able to use it for the old value next frame
         let children_hash_so_far = thread_local_hash_new_child(i);
-        self.nodes[parent_i].old_children_hash = children_hash_so_far;
-
-        let old_children_hash = self.nodes[i].old_children_hash;
-
+        self.nodes[parent_i].children_hash = children_hash_so_far;
 
         let cosmetic_params_hash = self.nodes[i].params.cosmetic_update_hash();
         let layout_params_hash = self.nodes[i].params.partial_relayout_hash();
@@ -298,6 +303,7 @@ impl Ui {
             self.nodes[i].needs_cosmetic_update = false;
         }
 
+        // return the child_hash that this node had in the last frame, so that can new children can check against it.
         return UiPlacedNode::new(i, old_children_hash);
     }
 
@@ -539,6 +545,7 @@ impl Ui {
     }
 
     // todo: non-mut version of this?
+    // todo: this should only give the node if it's currently in tree
     pub fn get_node(&mut self, key: TypedKey<Any>) -> Option<UiNode<Any>> {
         let real_key = self.get_latest_twin_key(key)?;
         return self.get_ref(real_key);
@@ -606,13 +613,24 @@ impl Ui {
         // clear root
         self.nodes[self.sys.root_i].last_child = None;
         self.nodes[self.sys.root_i].n_children = 0;
+        // self.nodes[self.sys.root_i].old_children_hash = EMPTY_HASH;
 
         self.sys.part.current_frame += 1;
         clear_thread_local_parent_stack();
         self.format_scratch.clear();
+
+        // messy manual equivalent of what we'd do when place()ing the root
+        let old_root_hash = self.nodes[ROOT_I].children_hash;
+        let root_parent = UiPlacedNode::new(ROOT_I, old_root_hash);
+        self.nodes[ROOT_I].children_hash = EMPTY_HASH;
+
+        thread_local_push_parent(&root_parent);
     }
     
     pub fn finish_tree(&mut self) {
+        // pop the root node
+        thread_local_pop_parent();
+        
         self.relayout();
         
         self.end_frame_resolve_inputs();
@@ -653,7 +671,7 @@ impl UiPlacedNode {
 impl<'a, T: NodeType> UiNode<'a, T> {
     pub fn place(&mut self) -> UiPlacedNode {
         self.ui.place_by_i(self.node_i);
-        let old_children_hash = self.node().old_children_hash;
+        let old_children_hash = self.node().children_hash;
         return UiPlacedNode::new(self.node_i, old_children_hash);
     }
 }
@@ -692,5 +710,23 @@ impl Ui {
 
     pub fn label(&mut self, text: impl Display + Hash) -> UiPlacedNode {
         return self.add_anon(LABEL).text(text).place();
+    }
+
+    pub fn is_in_tree(&self, key: NodeKey) -> bool {
+        let node_i = self.nodes.node_hashmap.get(&key.id());
+        if let Some(entry) = node_i {
+            // todo: also return true if it's retained
+            return entry.last_frame_touched == self.sys.part.current_frame;
+        } else {
+            return false;
+        }
+    }
+
+    pub fn keep_whole_subtree_unchanged(&mut self, key: NodeKey) {
+        let node_i = self.nodes.node_hashmap.get(&key.id());
+        if let Some(entry) = node_i {
+            // also set a retained flag
+            self.place_by_i(entry.slab_i);
+        }
     }
 }
