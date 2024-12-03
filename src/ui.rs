@@ -88,6 +88,7 @@ pub(crate) struct System {
 
     pub size_scratch: Vec<f32>,
     pub relayouts_scrath: Vec<NodeWithDepth>,
+    // this is used exclusively for debug messages
     pub partial_relayout_count: u32,
 
     pub changes: PartialChanges,

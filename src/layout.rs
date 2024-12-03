@@ -30,7 +30,7 @@ impl Ui {
         }
     }
 
-
+    // this gets called even when zero relayouts are needed. in that case it just does nothing. I guess it's to make the layout() logic more readable
     pub fn do_partial_relayouts(&mut self, update_rects_while_relayouting: bool) {
         self.sys.relayouts_scrath.clear();
         for n in &self.sys.changes.swapped_tree_changes {
@@ -54,7 +54,10 @@ impl Ui {
             self.partial_relayout(relayout.i, update_rects_while_relayouting);
         }
 
-        println!("[{:?}]  partial relayout ({:?} node/s)", T0.elapsed(), self.sys.partial_relayout_count);
+        if self.sys.partial_relayout_count != 0 {
+            println!("[{:?}]  partial relayout ({:?} node/s)", T0.elapsed(), self.sys.partial_relayout_count);
+        }
+
         self.sys.partial_relayout_count = 0;
     }
 
