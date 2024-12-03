@@ -1,3 +1,5 @@
+use std::fmt::Write;
+
 use blue::*;
 use blue::Position::*;
 use blue::Size::*;
@@ -30,7 +32,7 @@ impl State {
             .params(V_STACK)
             .position_x(Position::Start)
             .size_y(Fill)
-            .size_x(FitContent);
+            .size_x(Fixed(Frac(0.1)));
 
         // self.ui.begin_tree(); having it here is le problematic
 
@@ -58,27 +60,27 @@ impl State {
 
 impl State {
     pub fn add_pixel_info_ui(&mut self) {
-        let pixel_info = &self.canvas.pixel_info();
-
-        let (x, y) = match pixel_info {
-            Some(pixel_info) => (
-                format!("x: {}", pixel_info.x),
-                format!("y: {}", pixel_info.y),
-            ),
-            None => ("x:  ".to_owned(), "y:  ".to_owned()),
-        };
-
+        // todo: think of a lazier way that's still zero-allocation but doesn't require the user to keep his own format_scratch
+        // one way is impl'ing Display, maybe
+        self.format_scratch.clear();
+        if let Some(pixel_info) = &self.canvas.pixel_info() {
+            let _ = write!(&mut self.format_scratch, "{}:{}", pixel_info.x, pixel_info.y);
+        } else {
+            let _ = write!(&mut self.format_scratch, "  :  ");
+        }
+        
         #[node_key] const PIXEL_PANEL2: NodeKey;
         self.ui.add(PIXEL_PANEL2)
             .params(FLGR_PANEL)
             .position_x(Start)
             .position_y(Start)
-            .size_x(FitContentOrMinimum(Pixels(100)));
+            // without a fixed size here, we get way too much partial relayouting to do on every frame
+            .size_x(Fixed(Pixels(100)))
+            .size_y(Fixed(Pixels(50)));
 
         self.ui.place(PIXEL_PANEL2).nest(|| {
             self.ui.v_stack().nest(|| {
-                self.ui.text(&x);
-                self.ui.text(&y);
+                self.ui.text(&self.format_scratch);
             });
         });
     }

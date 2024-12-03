@@ -126,22 +126,6 @@ impl TextSystem {
         }
     }
 
-    pub(crate) fn set_text_hashed(&mut self, text_id: usize, text: &str) {
-        let hash = fx_hash(&text);
-        let area = &mut self.text_areas[text_id];
-        if hash != area.params.last_hash {
-            area.params.last_hash = hash;
-            area.buffer.set_text(
-                &mut self.font_system,
-                text,
-                Attrs::new().family(Family::SansSerif),
-                Shaping::Advanced,
-            );
-
-            let yellow = "this path should be pushing a relayout change, but we're not in the main Ui struct (note how modularity lost again)";
-        }
-    }
-
     pub(crate) fn set_text_unchecked(&mut self, text_id: usize, text: &str) {
         let area = &mut self.text_areas[text_id];
         area.buffer.set_text(
@@ -603,6 +587,16 @@ impl Ui {
     pub(crate) fn push_cosmetic_update(&mut self, i: usize) {
         self.sys.changes.cosmetic_rect_updates.push(i);
     }
+
+    // todo: need_rerender should be on a flag too, not instant, right?
+    // because the text might change on a node that ends up not being place()d
+    pub(crate) fn push_text_change(&mut self, i: usize) {
+        if self.nodes[i].params.is_fit_content() {
+            self.set_partial_relayout_flag(i);
+        } else {
+            self.sys.changes.need_rerender = true;
+        }
+    }
 }
 
 
@@ -615,6 +609,7 @@ impl Ui {
 
         self.sys.part.current_frame += 1;
         clear_thread_local_parent_stack();
+        self.format_scratch.clear();
     }
     
     pub fn finish_tree(&mut self) {
@@ -628,7 +623,7 @@ impl Ui {
 
 
 use std::hash::Hash;
-fn fx_hash<T: Hash>(value: &T) -> u64 {
+pub(crate) fn fx_hash<T: Hash>(value: &T) -> u64 {
     let mut hasher = FxHasher::default();
     value.hash(&mut hasher);
     hasher.finish()

@@ -32,6 +32,8 @@ pub struct State {
     pub color_picker: ColorPicker,
     pub canvas: Canvas,
 
+    pub format_scratch: String,
+
     pub info_visible: bool,
     pub slider_value: f32,
 }
@@ -49,6 +51,7 @@ impl State {
             color_picker,
             info_visible: true,
             slider_value: 0.2,
+            format_scratch: String::with_capacity(100),
         };
     }
 

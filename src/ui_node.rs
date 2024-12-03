@@ -4,6 +4,8 @@ use std::marker::PhantomData;
 
 use glyphon::cosmic_text::Align;
 use glyphon::Attrs;
+use glyphon::Family;
+use glyphon::Shaping;
 
 use crate::*;
 use crate::node::*;
@@ -225,7 +227,7 @@ impl<'a, T: TextTrait> UiNode<'a, T> {
 
         self.node_mut().last_static_text_ptr = Some(text_pointer);
 
-        self.ui.set_partial_relayout_flag(self.node_i);
+        self.ui.push_text_change(self.node_i);
 
         return self;
     }
@@ -235,7 +237,19 @@ impl<'a, T: TextTrait> UiNode<'a, T> {
         self.ui.format_into_scratch(into_text);
 
         if let Some(text_id) = self.node_mut().text_id {
-            self.ui.sys.text.set_text_hashed(text_id, &self.ui.format_scratch);
+            let hash = fx_hash(&self.ui.format_scratch);
+            let area = &mut self.ui.sys.text.text_areas[text_id];
+            if hash != area.params.last_hash {
+                area.params.last_hash = hash;
+                area.buffer.set_text(
+                    &mut self.ui.sys.text.font_system,
+                    &self.ui.format_scratch,
+                    Attrs::new().family(Family::SansSerif),
+                    Shaping::Advanced,
+                );
+
+                self.ui.push_text_change(self.node_i);
+            }
         } else {
             let text_id = self
                 .ui
@@ -243,6 +257,7 @@ impl<'a, T: TextTrait> UiNode<'a, T> {
                 .text
                 .maybe_new_text_area(Some(&self.ui.format_scratch), self.ui.sys.part.current_frame);
             self.node_mut().text_id = text_id;
+            self.ui.push_text_change(self.node_i);
         }
 
         return self;
@@ -267,7 +282,7 @@ impl<'a, T: TextTrait> UiNode<'a, T> {
             self.node_mut().text_id = text_id;
         }
 
-        self.ui.set_partial_relayout_flag(self.node_i);
+        self.ui.push_text_change(self.node_i);
 
         return self;
     }
