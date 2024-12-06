@@ -712,7 +712,7 @@ impl Ui {
         return self.add_anon(LABEL).text(text).place();
     }
 
-    pub fn is_in_tree(&self, key: NodeKey) -> bool {
+    pub fn already_exists(&self, key: NodeKey) -> bool {
         let node_i = self.nodes.node_hashmap.get(&key.id());
         if let Some(entry) = node_i {
             // todo: also return true if it's retained
@@ -722,7 +722,7 @@ impl Ui {
         }
     }
 
-    pub fn keep_whole_subtree_unchanged(&mut self, key: NodeKey) {
+    pub fn place_and_assume_unchanged(&mut self, key: NodeKey) {
         let node_i = self.nodes.node_hashmap.get(&key.id());
         if let Some(entry) = node_i {
             // also set a retained flag

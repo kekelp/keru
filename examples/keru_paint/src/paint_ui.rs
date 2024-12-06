@@ -86,8 +86,8 @@ impl State {
 
         // This never changes
         let changed = false;
-        if self.ui.is_in_tree(TOOLS_PANEL) && ! changed {
-            self.ui.keep_whole_subtree_unchanged(TOOLS_PANEL);
+        if self.ui.already_exists(TOOLS_PANEL) && ! changed {
+            self.ui.place_and_assume_unchanged(TOOLS_PANEL);
             return;
         }
 
