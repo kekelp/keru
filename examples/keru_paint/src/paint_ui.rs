@@ -32,8 +32,6 @@ impl State {
             .size_y(Fill)
             .size_x(Fixed(Frac(0.1)));
 
-        // self.ui.begin_tree(); having it here is le problematic
-
         self.ui.place(RIGHT_BAR).nest(|| {
             self.slider_value = self.add_slider(self.slider_value);
             self.ui.add_color_picker(&mut self.color_picker);
