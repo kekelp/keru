@@ -61,9 +61,9 @@ impl ColorPickerUi for Ui {
 
         // Wanted reactivity anyway for a laugh?
         // let changed = color_picker.need_rerender;
-        // Tell the ui that if `changed` is false, then the whole subtree starting from `CONTAINER` will stay the same as it was before
+        // // Tell the ui that if `changed` is false, then the whole subtree starting from `CONTAINER` will stay the same as it was before
         // self.get_node(CONTAINER).assume_unchanged_if(!changed);
-        // Now we can literally skip the rest of the function (but not the input handling: that's the main reason why we write it above)
+        // // Now we can literally skip the rest of the function (but not the input handling: that's the main reason why we write it above)
         // if ! changed {
         //     return;
         // }
