@@ -1,8 +1,8 @@
 use basic_window_loop::basic_depth_stencil_state;
 use basic_window_loop::Context;
-use blue::*;
+use keru::*;
 
-use blue::XyRect;
+use keru::XyRect;
 
 use bytemuck::{Pod, Zeroable};
 use wgpu::*;

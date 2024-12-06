@@ -1,9 +1,9 @@
 use std::fmt::Write;
 
-use blue::*;
-use blue::Position::*;
-use blue::Size::*;
-use blue::Len::*;
+use keru::*;
+use keru::Position::*;
+use keru::Size::*;
+use keru::Len::*;
 
 use crate::color_picker::ColorPickerUi;
 use crate::oklab::*;

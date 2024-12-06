@@ -6,13 +6,13 @@ mod color_picker;
 mod color_picker_render;
 mod oklab;
 
-use blue::T0;
+use keru::T0;
 use canvas::*;
 use color_picker::ColorPicker;
 use glam::dvec2;
 use winit::{error::EventLoopError, event::Event, event_loop::EventLoopWindowTarget};
-use blue::Ui;
-use blue::basic_window_loop::*;
+use keru::Ui;
+use keru::basic_window_loop::*;
 use winit::event::*;
 use winit::keyboard::*;
 

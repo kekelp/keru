@@ -50,7 +50,7 @@ pub fn node_key(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let expanded = quote! {
         pub const #key_ident: #key_type = <#key_type>::new(
-            blue::Id(#random_id),
+            keru::Id(#random_id),
             #debug_name,
         );
     };

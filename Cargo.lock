@@ -235,39 +235,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "blue"
-version = "0.1.0"
-dependencies = [
- "bytemuck",
- "change_watcher",
- "copypasta",
- "etagere",
- "glam",
- "glyphon",
- "image",
- "pollster",
- "rustc-hash 1.1.0",
- "slab",
- "unicode-segmentation",
- "view_derive",
- "wgpu",
- "winit",
- "winit_input_helper",
-]
-
-[[package]]
-name = "blue_paint"
-version = "0.1.0"
-dependencies = [
- "blue",
- "bytemuck",
- "glam",
- "wgpu",
- "winit",
- "winit_input_helper",
-]
-
-[[package]]
 name = "built"
 version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1036,6 +1003,39 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a88f1bda2bd75b0452a14784937d796722fdebfe50df998aeb3f0b7603019a9"
 dependencies = [
  "wasm-bindgen",
+]
+
+[[package]]
+name = "keru"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "change_watcher",
+ "copypasta",
+ "etagere",
+ "glam",
+ "glyphon",
+ "image",
+ "pollster",
+ "rustc-hash 1.1.0",
+ "slab",
+ "unicode-segmentation",
+ "view_derive",
+ "wgpu",
+ "winit",
+ "winit_input_helper",
+]
+
+[[package]]
+name = "keru_paint"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "glam",
+ "keru",
+ "wgpu",
+ "winit",
+ "winit_input_helper",
 ]
 
 [[package]]

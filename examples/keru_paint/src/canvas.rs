@@ -6,9 +6,9 @@ use glam::*;
 use winit_input_helper::WinitInputHelper;
 
 use {BindGroup, BindGroupEntry, BindGroupLayoutEntry, BindingResource, Buffer, ColorTargetState, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
-use winit::{dpi::PhysicalPosition, event::{ElementState, Event, MouseButton, WindowEvent}, keyboard::{Key, ModifiersState, NamedKey}};
+use winit::dpi::PhysicalPosition;
 
-use blue::{basic_window_loop::{basic_depth_stencil_state, Context}, Xy};
+use keru::{basic_window_loop::{basic_depth_stencil_state, Context}, Xy};
 
 #[derive(Clone, Copy, Debug, Zeroable, Pod)]
 #[repr(C)]

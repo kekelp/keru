@@ -1,7 +1,7 @@
 use basic_window_loop::Context;
-use blue::*;
-use blue::Size::*;
-use blue::Len::*;
+use keru::*;
+use keru::Size::*;
+use keru::Len::*;
 use wgpu::RenderPass;
 use crate::color_picker_render::ColorPickerRenderRect;
 use crate::oklab::*;

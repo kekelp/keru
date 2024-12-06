@@ -1,6 +1,6 @@
-use blue::example_window_loop::*;
-use blue::{Color, NodeKey, Ui, BUTTON};
-use blue::node_key;
+use keru::example_window_loop::*;
+use keru::{Color, NodeKey, Ui, BUTTON};
+use keru::node_key;
 use winit::error::EventLoopError;
 
 #[derive(Default)]

@@ -1,10 +1,10 @@
 workspace = { members = [
     "crates/view_derive",
     "crates/change_watcher",
-    "examples/blue_paint",
+    "examples/keru_paint",
 ]}
 [package]
-name = "blue"
+name = "keru"
 version = "0.1.0"
 edition = "2021"
 
