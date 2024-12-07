@@ -5,16 +5,14 @@ use glyphon::Buffer as GlyphonBuffer;
 use Axis::{X, Y};
 
 #[macro_export]
-// todo: use this macro everywhere else
 /// Iterate on the children linked list.
-/// The iteration goes backwards for some reason.
 macro_rules! for_each_child {
     ($ui:expr, $start:expr, $child:ident, $body:block) => {
         {
-            let mut current_child = $start.last_child;
+            let mut current_child = $start.first_child;
             while let Some($child) = current_child {
                 $body
-                current_child = $ui.nodes[$child].prev_sibling;
+                current_child = $ui.nodes[$child].next_sibling;
             }
         }
     };

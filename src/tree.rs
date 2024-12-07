@@ -322,9 +322,11 @@ impl Ui {
     }
 
     fn set_tree_links(&mut self, new_node_i: usize, parent_i: usize, depth: usize) {
-        // clean old state
+        // clear old tree links
         self.nodes[new_node_i].last_child = None;
+        self.nodes[new_node_i].first_child = None;
         self.nodes[new_node_i].prev_sibling = None;
+        self.nodes[new_node_i].next_sibling = None;
         // self.nodes[new_node_i].prev_sibling = None;
         self.nodes[new_node_i].n_children = 0;
 
@@ -348,10 +350,12 @@ impl Ui {
 
     fn add_first_child(&mut self, new_node_i: usize, parent_i: usize) {
         self.nodes[parent_i].last_child = Some(new_node_i);
+        self.nodes[parent_i].first_child = Some(new_node_i);
     }
-
+    
     fn add_sibling(&mut self, new_node_i: usize, old_last_child: usize, parent_i: usize) {
         self.nodes[new_node_i].prev_sibling = Some(old_last_child);
+        self.nodes[old_last_child].next_sibling = Some(new_node_i);
         self.nodes[parent_i].last_child = Some(new_node_i);
     }
 
@@ -611,8 +615,9 @@ impl Ui {
     // in case of partial declarative stuff, think of another name
     pub fn begin_tree(&mut self) {
         // clear root
-        self.nodes[self.sys.root_i].last_child = None;
-        self.nodes[self.sys.root_i].n_children = 0;
+        self.nodes[ROOT_I].last_child = None;
+        self.nodes[ROOT_I].first_child = None;        
+        self.nodes[ROOT_I].n_children = 0;
         // self.nodes[self.sys.root_i].old_children_hash = EMPTY_HASH;
 
         self.sys.part.current_frame += 1;

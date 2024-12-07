@@ -37,9 +37,10 @@ pub struct Node {
 
     pub last_child: Option<usize>,
     pub prev_sibling: Option<usize>,
-    // prev_sibling is never used so far.
-    // at some point I was iterating the children in reverse for z ordering purposes, but I don't think that makes any difference.
-    // pub prev_sibling: Option<usize>,
+    
+    pub first_child: Option<usize>,
+    pub next_sibling: Option<usize>,
+
     pub params: NodeParams,
 
     pub debug_name: &'static str,
@@ -83,7 +84,9 @@ impl Node {
 
             n_children: 0,
             last_child: None,
+            first_child: None,
             prev_sibling: None,
+            next_sibling: None,
 
             is_twin: twin_n,
             params: NodeParams::const_default(),
@@ -135,7 +138,9 @@ pub const NODE_ROOT: Node = Node {
 
     n_children: 0,
     last_child: None,
+    first_child: None,
     prev_sibling: None,
+    next_sibling: None,
 
     is_twin: None,
 

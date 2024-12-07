@@ -33,18 +33,17 @@ impl State {
             .size_x(Fixed(Frac(0.1)));
 
         self.ui.place(RIGHT_BAR).nest(|| {
+            self.ui.add_color_picker(&mut self.color_picker);
+            
             let min_radius = 1.0;
             let max_radius = 100.0;
- 
             let slider_val = self.add_log_slider(self.canvas.radius as f32, min_radius, max_radius);
             self.canvas.radius = slider_val as f64;
-
-            self.ui.add_color_picker(&mut self.color_picker);
         });
             
         self.ui.place(LEFT_BAR).nest(|| {
-            self.add_pixel_info_ui();
             self.add_tools();
+            self.add_pixel_info_ui();
         });
         
         let picked_color = oklch_to_linear_srgb(self.color_picker.oklch_color);

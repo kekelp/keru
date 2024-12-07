@@ -105,14 +105,12 @@ impl ColorPickerUi for Ui {
 
         // layout
         self.place(CONTAINER).nest(|| {
-            // order ???
-            // this seems like a child ordering issue
-            self.place(OKLAB_HUE_WHEEL);
             self.place(PADDING_SQUARE).nest(|| {
                 self.place(OKLAB_SQUARE).nest(|| {
                     // self.place(SMALL_RING);
                 });
             });
+            self.place(OKLAB_HUE_WHEEL);
         });
 
     }
