@@ -1,12 +1,11 @@
 #![windows_subsystem = "windows"]
 mod canvas;
-mod main_canvas;
+mod update_canvas;
 mod paint_ui;
 mod color_picker;
 mod color_picker_render;
 mod oklab;
 
-use keru::T0;
 use canvas::*;
 use color_picker::ColorPicker;
 use glam::dvec2;

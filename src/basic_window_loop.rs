@@ -162,7 +162,7 @@ impl Context {
 
         let frame = self.surface.get_current_texture().unwrap();
 
-        // todo: why recreate the views on every frame
+        // todo: why recreate the views on every frame?
         let view = frame.texture.create_view(&TextureViewDescriptor::default());
         let depth_stencil_view = self.depth_stencil_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
@@ -174,6 +174,10 @@ impl Context {
         };
     }
 
+    // todo: is this really the only way?
+    // If we don't need to rerender, we still want to run the update code at approximately the same rate as the screen vsync,
+    // but we can't use wgpu's get_current_texture() to block until the next vblank.
+    // This should be an ok solution, but it definitely feels weird.
     pub fn sleep_until_next_frame(&mut self) {
         let refresh_rate = self.window.current_monitor().unwrap().video_modes().next().unwrap().refresh_rate_millihertz();        
         let frame_time_micros = (1_000_000_000 / refresh_rate) as u64;

@@ -20,15 +20,15 @@ pub struct PixelColor {
 }
 
 impl PixelColor {
-    pub fn rgba_u8(r: u8, g: u8, b: u8, a: u8) -> Self {
+    pub const fn rgba_u8(r: u8, g: u8, b: u8, a: u8) -> Self {
         return Self { r, g, b, a }
     }
 
-    pub fn rgba_f32(r: f32, g: f32, b: f32, a: f32) -> Self {
+    pub const fn rgba_f32(r: f32, g: f32, b: f32, a: f32) -> Self {
         return Self::rgba_u8((r * 255.0) as u8, (g * 255.0) as u8, (b * 255.0) as u8, (a * 255.0) as u8,);
     }
 
-    pub fn to_f32s(self) -> PixelColorF32 {
+    pub const fn to_f32s(self) -> PixelColorF32 {
         return PixelColorF32 {
             r: self.r as f32 / 255.0,
             g: self.g as f32 / 255.0,
@@ -82,6 +82,12 @@ impl PixelColorF32 {
         b: 0.0,
         a: 1.0,
     };
+    pub const WHITE: Self = Self {
+        r: 1.0,
+        g: 1.0,
+        b: 1.0,
+        a: 1.0,
+    };
 }
 
 pub struct Canvas {
@@ -125,6 +131,7 @@ pub struct Canvas {
 
     pub is_drawing: bool,
 
+    pub eraser_mode: bool,
     pub paint_color: PixelColorF32,
 }
 
@@ -315,6 +322,7 @@ impl Canvas {
             need_rerender: true,
             is_drawing: false,
 
+            eraser_mode: false,
             paint_color: PixelColorF32::new(0.2, 0.8, 0.2, 1.0),
 
         };
@@ -368,23 +376,28 @@ impl Canvas {
     // Set a pixel to a specific color
     pub fn paint_pixel(&mut self, x: usize, y: usize, paint_color: PixelColorF32, brush_alpha: f32) {
 
+        let erase = self.eraser_mode;
+
         if let Some(old_color) = self.get_pixel(x, y) {
             let old_color_f32 = old_color.to_f32s();
             
             if brush_alpha > 0.0 {
                 
-                
-                let new_color = PixelColorF32 {
+                if ! erase {
+
+                    let new_color = PixelColorF32 {
+                        
+                        r: old_color_f32.r * (1.0 - brush_alpha) + paint_color.r * (brush_alpha),
+                        g: old_color_f32.g * (1.0 - brush_alpha) + paint_color.g * (brush_alpha),
+                        b: old_color_f32.b * (1.0 - brush_alpha) + paint_color.b * (brush_alpha),
+                        
+                        a: 1.0,
+                    };
                     
-                    r: old_color_f32.r * (1.0 - brush_alpha) + paint_color.r * (brush_alpha),
-                    g: old_color_f32.g * (1.0 - brush_alpha) + paint_color.g * (brush_alpha),
-                    b: old_color_f32.b * (1.0 - brush_alpha) + paint_color.b * (brush_alpha),
-                    
-                    a: 1.0,
-                };
-                
-                
-                *old_color = new_color.to_u8s();
+                    *old_color = new_color.to_u8s();   
+                } else {
+                    *old_color = PixelColor::rgba_f32(1.0, 1.0, 1.0, 1.0);
+                }
             }
         }
 

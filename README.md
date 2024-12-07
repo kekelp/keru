@@ -157,7 +157,7 @@ This is a list of advantages that I think Keru's approach gives over other UI fr
     If you look at the examples in the repos for `gpui`, `floem` and others, you'll see that the layout is derived from the order and nesting of the functions that create the elements.
     But you also have to specify the style and the effect right after that call by chaining builder functions to it.
 
-    The resulting code is very strange and hard to read, in my opinion. In particular, it's very hard to follow the nesting structure that defines the layout, since it's mixed with so much other stuff. Most of the power of the "nested calls -> layout" approach is lost.
+    The resulting code is very strange and hard to read, in my opinion. In particular, it's very hard to follow the nesting structure that defines the layout, since it's mixed with so much other stuff. Most of the clarity of the "nested calls -> layout" approach is lost.
 
 
 - **Own your state**

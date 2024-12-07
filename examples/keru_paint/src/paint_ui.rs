@@ -84,19 +84,19 @@ impl State {
         #[node_key] const BRUSH: NodeKey;
         #[node_key] const ERASER: NodeKey;
 
+        if self.ui.is_clicked(BRUSH) {
+            self.canvas.eraser_mode = false;
+        }
+
+        if self.ui.is_clicked(ERASER) {
+            self.canvas.eraser_mode = true;
+        }
+
         // This never changes
         let changed = false;
         if self.ui.already_exists(TOOLS_PANEL) && ! changed {
             self.ui.place_and_assume_unchanged(TOOLS_PANEL);
             return;
-        }
-
-        if self.ui.is_clicked(BRUSH) {
-            self.canvas.paint_color = PixelColorF32::new(0.2, 0.8, 0.2, 1.0);
-        }
-
-        if self.ui.is_clicked(ERASER) {
-            self.canvas.paint_color = PixelColorF32::new(1.0, 1.0, 1.0, 0.0);
         }
         
         self.ui.add(BRUSH).params(ICON_BUTTON).static_image(include_bytes!("icons/brush.png"));
