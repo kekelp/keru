@@ -130,6 +130,7 @@ pub struct Canvas {
     pub canvas_uniform_buffer: Buffer,
 
     pub is_drawing: bool,
+    pub radius: f64,
 
     pub eraser_mode: bool,
     pub paint_color: PixelColorF32,
@@ -322,6 +323,7 @@ impl Canvas {
             need_rerender: true,
             is_drawing: false,
 
+            radius: 5.0,
             eraser_mode: false,
             paint_color: PixelColorF32::new(0.2, 0.8, 0.2, 1.0),
 
@@ -558,7 +560,7 @@ impl Canvas {
     }
 
     pub fn draw_circle(&mut self, x0: isize, y0: isize) {
-        let radius: f64 = 5.0;
+        let radius = self.radius;
         let pixel_radius = (radius as isize) + 2; // some more pixels for antialiasing? 
 
         for dx in (-pixel_radius)..pixel_radius {

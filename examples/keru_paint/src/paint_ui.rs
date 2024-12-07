@@ -33,7 +33,12 @@ impl State {
             .size_x(Fixed(Frac(0.1)));
 
         self.ui.place(RIGHT_BAR).nest(|| {
-            self.slider_value = self.add_slider(self.slider_value);
+            let min_radius = 1.0;
+            let max_radius = 100.0;
+ 
+            let slider_val = self.add_log_slider(self.canvas.radius as f32, min_radius, max_radius);
+            self.canvas.radius = slider_val as f64;
+
             self.ui.add_color_picker(&mut self.color_picker);
         });
             
@@ -117,9 +122,14 @@ impl State {
             });
         });
     }
+    
+    pub fn add_log_slider(&mut self, linear_value: f32, min: f32, max: f32) -> f32 {
+        assert!(min > 0.0 && max > min, "Log sliders require positive min and max values");
 
-    pub fn add_slider(&mut self, value: f32) -> f32 {
-        let mut value = value;
+        // Convert linear value to logarithmic for slider representation
+        let log_min = min.log10();
+        let log_max = max.log10();
+        let mut log_value = linear_value.log10();
 
         #[node_key] pub const SLIDER_CONTAINER: NodeKey;
         self.ui.add(SLIDER_CONTAINER)
@@ -132,27 +142,33 @@ impl State {
         self.ui.add(SLIDER_FILL)
             .params(FLGR_PANEL)
             .size_x(Fill)
-            .size_y(Fixed(Frac(value)))
+            .size_y(Fixed(Frac((log_value - log_min) / (log_max - log_min))))
             .color(Color::FLGR_RED)
             .position_y(End)
             .padding_y(Pixels(1));
 
 
-        self.ui.place(SLIDER_CONTAINER).nest(|| {
-            self.ui.place(SLIDER_FILL);
-        });
-
-        let size = self.ui.get_node(SLIDER_CONTAINER).unwrap().inner_size().y as f32;
+        let slider_height = self.ui.get_node(SLIDER_CONTAINER).unwrap().inner_size().y as f32;
 
         if let Some((_, y)) = self.ui.is_dragged(SLIDER_CONTAINER) {
-            value += (y as f32) / size;
-            value = value.clamp(0.0, 1.0);
+            log_value += (y as f32) / slider_height * (log_max - log_min);
         }
         if let Some((_, y)) = self.ui.is_dragged(SLIDER_FILL) {
-            value += (y as f32) / size;
-            value = value.clamp(0.0, 1.0);
+            log_value += (y as f32) / slider_height * (log_max - log_min);
         }
 
-        return value;
+        log_value = log_value.clamp(log_min, log_max);
+        log_value = 10f32.powf(log_value);
+
+        // todo: allocation
+        let log_value_string = format!("{:.2}", log_value);
+
+        self.ui.place(SLIDER_CONTAINER).nest(|| {
+            self.ui.place(SLIDER_FILL);
+            self.ui.text(log_value_string);
+        });
+
+        return log_value;
+
     }
 }
