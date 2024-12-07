@@ -172,9 +172,9 @@ This is a list of advantages that I think Keru's approach gives over other UI fr
 
 - Try out the sibling key system for dynamic/runtime keys with an example
 
-- Subtrees: for reusing UI functions ("widgets") without key collisions
+- "Subtrees" for reusing UI functions ("widgets") without key collisions
 
-- Mundane stuff like text input, scroll areas, ...
+- Mundane stuff like text input, scroll areas, more built-in widgets, ...
 
 
 ## Open questions and unsolved issues
