@@ -71,7 +71,7 @@ impl VertexColors {
         bottom_left: Color,
         top_right: Color,
     ) -> VertexColors {
-        let blended = bottom_left.blend(top_right, 255 / 2);
+        let blended = bottom_left.blend(top_right, 0.5);
         return VertexColors {
             top_left: blended,
             top_right,
@@ -81,7 +81,7 @@ impl VertexColors {
     }
 
     pub const fn diagonal_gradient_backslash(top_left: Color, bottom_right: Color) -> VertexColors {
-        let blended = top_left.blend(bottom_right, 255 / 2);
+        let blended = top_left.blend(bottom_right, 0.5);
         return VertexColors {
             top_left,
             top_right: blended,
@@ -128,15 +128,23 @@ impl Color {
         Color { r: (r * 255.0) as u8, g: (g * 255.0) as u8, b: (b * 255.0) as u8, a: (a * 255.0) as u8 }
     }
 
-    pub const fn blend_channel(c1: u8, c2: u8, factor: u8) -> u8 {
-        let inv_factor = 255 - factor;
-        let res = (c1 as u16 * inv_factor as u16 + c2 as u16 * factor as u16) / 255;
-        res as u8
+    pub const fn blend_channel(c1: u8, c2: u8, factor: f32) -> u8 {
+        // Ensure factor is clamped between 0.0 and 1.0
+        let clamped_factor = if factor < 0.0 {
+            0.0
+        } else if factor > 1.0 {
+            1.0
+        } else {
+            factor
+        };
+
+        let res = (c1 as f32 * (1.0 - clamped_factor)) + (c2 as f32 * clamped_factor);
+        // manual round (f32::round not const yet apparently)
+        // todo: check this in future rust
+        return (res + 0.5) as u8;
     }
 
-    // todo: in a future version of rust, rewrite with float factor
-    // (can't use floats in const functions in current stable rust)
-    pub const fn blend(self, other: Color, factor: u8) -> Color {
+    pub const fn blend(self, other: Color, factor: f32) -> Color {
         Color {
             r: Color::blend_channel(self.r, other.r, factor),
             g: Color::blend_channel(self.g, other.g, factor),

@@ -200,7 +200,7 @@ impl Ui {
                 match refresh_or_add_twin(frame, old_map_entry.last_frame_touched) {
                     // Refresh a normal node from the previous frame (no twins).
                     Refresh => {
-                        let yellow = "refresh should be in place(), not here";
+                        let warning = "todo: refresh should be in place(), not here";
                         old_map_entry.refresh(frame);
                         // in this branch we don't really do anything now. there will be a separate thing for updating params
                         let final_i = old_map_entry.slab_i;
@@ -239,7 +239,7 @@ impl Ui {
                     Entry::Occupied(o) => {
                         let old_twin_map_entry = o.into_mut();
 
-                        let yellow = "refresh should be in place(), not here";
+                        let warning = "todo: refresh should be in place(), not here";
                         let real_final_i = old_twin_map_entry.refresh(frame);
 
                         (real_final_i, twin_key.id())
@@ -253,8 +253,8 @@ impl Ui {
 
     // #[track_caller]
     pub fn place(&mut self, key: NodeKey) -> UiPlacedNode {
-        let yellow = "don't unwrap here! Just return an empty UiPlacedNode or something. Figure something out";
-        let real_key = self.get_latest_twin_key(key).unwrap();
+        // todo: panic bad
+        let real_key = self.get_latest_twin_key(key).expect("Error: `place()`ing a node that was never `add()`ed");
         let node_i = self.nodes.node_hashmap.get(&real_key.id()).unwrap().slab_i;
 
         return self.place_by_i(node_i);
@@ -369,7 +369,7 @@ impl Ui {
             },
         );
 
-        let yellow = "change this";
+        let warning = "todo: change this";
         queue.write_buffer(
             &self.sys.base_uniform_buffer,
             0,

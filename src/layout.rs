@@ -7,7 +7,7 @@ use Axis::{X, Y};
 #[macro_export]
 // todo: use this macro everywhere else
 /// Iterate on the children linked list.
-/// The iteration goes backwards. It's more consistent this way, trust me bro.
+/// The iteration goes backwards for some reason.
 macro_rules! for_each_child {
     ($ui:expr, $start:expr, $child:ident, $body:block) => {
         {

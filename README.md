@@ -120,15 +120,15 @@ It's also important to remember that this has nothing to do with the performance
 
 ### Reactivity at home
 
-From this starting point, there's still *some* room for true reactivity. After all, the only difference between the system we described and a true reactive system is the redeclaration code that we run every frame. It doesn't do that much work, but it does have to hash many `NodeParams` and strings to watch for changes.
+From this starting point, there's still some room for "reactivity". After all, the only difference between what Keru does and a true reactive system (see footnote [^2]) is the redeclaration code that we run every frame/cycle. It doesn't do that much work, but it does have to hash a fair amount of `NodeParams` and strings to watch for changes.
 
 The user could still optionally wrap or annotate some of his state with something that keeps track of when it changes, and pass that information to the library.
 
-Then the library could skip all the hashing/diffing operations, or just skip running the redeclaration code completely. I am currently trying out a few different approaches to this.
+Then the library could either skip all the hashing/diffing operations, or maybe skip running the redeclaration code completely. I am currently trying out a few different approaches to this.
 
 ## Advantages
 
-This is a list of advantages that I think Keru's approach gives over other UI frameworks that I've seen show up in the Rust space.
+This is a list of advantages that I think Keru's approach gives over other UI frameworks that I've seen show up lately.
 
 - **Own your window loop and rendering**
 
@@ -164,7 +164,7 @@ This is a list of advantages that I think Keru's approach gives over other UI fr
 
     Your UI can depend on any variable that you can get a reference to, i.e. anything. You don't have to structure your state in any particular way.
     - You don't have to pair the state with its UI display logic (unless you want to!)
-    - You don't have to wrap your state into observer structs or signal handlers (unless you want to)
+    - You don't have to wrap your state into observer structs or signal handlers (unless you want to, see the "Reactivity at home" section)
     - You shouldn't get any extra borrowing or lifetime issues (unlike in closure-heavy and callback-heavy systems)
 
 

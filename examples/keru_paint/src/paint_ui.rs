@@ -160,15 +160,18 @@ impl State {
         log_value = log_value.clamp(log_min, log_max);
         log_value = 10f32.powf(log_value);
 
-        // todo: allocation
-        let log_value_string = format!("{:.2}", log_value);
+        // There's 2 reasons why can can't just pass the f32 and let the UI format it:
+        // - we're using a custom format. This could be solved by making a text!() macro. but it wouldn't be nice.
+        // - f32 doesn't implement Hash!!!!!!!!!!!!! So we still couldn't skip the formatting when it's unchanged
+        self.format_scratch.clear();
+        let _ = write!(&mut self.format_scratch, "{:.2}", log_value);
 
         self.ui.place(SLIDER_CONTAINER).nest(|| {
             self.ui.place(SLIDER_FILL);
-            self.ui.text(log_value_string);
+            self.ui.text(&self.format_scratch);
         });
 
+        self.format_scratch.clear();
         return log_value;
-
     }
 }

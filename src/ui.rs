@@ -117,7 +117,7 @@ impl Ui {
             label: Some("player bullet pos buffer"),
             // todo: I guess this should be growable
             contents: {
-                let yellow = "make this growable oalgo";
+                let warning = "todo: make this growable";
                 bytemuck::cast_slice(&[0.0; 2048])
             },
             usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
@@ -377,7 +377,7 @@ impl NodeMapEntry {
 
 #[derive(Debug)]
 pub struct Nodes {
-    // todo: make faster o algo
+    // todo: make faster or something
     pub node_hashmap: FxHashMap<Id, NodeMapEntry>,
     pub nodes: Slab<Node>,
 }

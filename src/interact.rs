@@ -85,6 +85,7 @@ impl Ui {
 
 
     // todo: think if it's really worth it to do this on every mouse movement.
+    // maybe add a global setting to do it just once per frame
     pub fn resolve_hover(&mut self) {
         let topmost_mouse_hit = self.scan_mouse_hits();
 
@@ -251,10 +252,6 @@ impl Ui {
                     self.sys.part.mouse_pos.y - text_area.params.top,
                 );
 
-                // todo: with how I'm misusing cosmic-text, this might become "unsafe" soon (as in, might be incorrect or cause panics, not actually unsafe).
-                // I think in general, there should be a safe version of hit() that just forces a rerender just to be sure that the offset is safe to use.
-                // But in this case, calling this in resolve_mouse_input() and not on every winit mouse event probably means it's safe
-                // actually, the enlightened way is that cosmic_text exposes an "unsafe" hit(), but we only ever see the string + cursor + buffer struct, and call that hit(), which doesn't return an offset but just mutates the one inside.
                 text_area.buffer.hit(x, y);
             }
 
@@ -350,14 +347,9 @@ impl Ui {
         return false;
     }
 
-    // todo: is_clicked_advanced
-
     pub fn is_hovered(&self, node_key: NodeKey) -> bool {
         return self.sys.hovered.last() == Some(&node_key.id);
     }
-
-    // todo: is_hovered_advanced
-
 
 
     pub fn handle_keyboard_event(&mut self, event: &KeyEvent) -> bool {
@@ -556,7 +548,7 @@ impl MouseEvent {
 //     let buffer_line = line.layout_opt().as_ref().unwrap();
 //     let glyphs = &buffer_line[0].glyphs;
 
-//     // todo: binary search? lol. maybe vec has it built in
+//     // todo: faster?
 //     for g in glyphs {
 //         if g.start >= byte_offset {
 //             return (g.x, g.y);
