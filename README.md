@@ -122,10 +122,9 @@ It's also important to remember that this has nothing to do with the performance
 
 From this starting point, there's still *some* room for true reactivity. After all, the only difference between the system we described and a true reactive system is the redeclaration code that we run every frame. It doesn't do that much work, but it does have to hash many `NodeParams` and strings to watch for changes.
 
-The user could still choose to wrap or annotate some of his state with observer-pattern style things, and use that to tell the library which parts of the underlying state have changed.
+The user could still optionally wrap or annotate some of his state with something that keeps track of when it changes, and pass that information to the library.
 
-Then we could skip all the hashing/diffing operations, or just skip running the redeclaration code completely. I am currently trying out a few different approaches to this.
-
+Then the library could skip all the hashing/diffing operations, or just skip running the redeclaration code completely. I am currently trying out a few different approaches to this.
 
 ## Advantages
 
