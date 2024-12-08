@@ -166,8 +166,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             // need to pick magic values so that the whole wheel stays inside the rgb gamut
             let hcl = vec3f(hue, 0.1254, 0.75);
 
+            let marker_dist = abs(selected_hue - hue) * 150.0;
+            let marker_strength = smoothstep(0.0, 1.0, marker_dist);
+
             let color = hcl_rgb_with_alpha(hcl);
-            return vec4f(color.rgb, ring_mask);
+            let color2 = mix(vec3f(1.0), color.rgb, marker_strength);
+            return vec4f(color2.rgb, ring_mask);
         }
 
         discard;
