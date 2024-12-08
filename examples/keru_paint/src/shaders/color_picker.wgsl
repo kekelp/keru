@@ -69,7 +69,7 @@ fn transfer_vec3(v: vec3<f32>) -> vec3<f32> {
 }
 
 // Convert OKLCH to RGB
-fn hcl2rgb(hcl: vec3<f32>) -> vec3<f32> {
+fn hcl2rgb(hcl: vec3<f32>) -> vec4<f32> {
     let h = hcl.x * 2.0 * PI;
     let c = hcl.y;
     let l = hcl.z;
@@ -99,14 +99,33 @@ fn hcl2rgb(hcl: vec3<f32>) -> vec3<f32> {
         - 0.0041960863 * lms.x - 0.7034186147 * lms.y + 1.7076147010 * lms.z
     );
 
-    // Handle out-of-gamut colors
-    // todo: antialiasing
-    if (any(rgb < vec3f(0.0)) || any(rgb > vec3f(1.0))) {
-        rgb = vec3f(0.17, 0.17, 0.17);
+    // Calculate alpha for antialiasing
+    let dx = dpdx(rgb);
+    let dy = dpdy(rgb);
+    let gradient_magnitude = length(dx) + length(dy);
+    
+    let pixel_size = 2.0 / base_unif.window_size;
+
+    let margin = pixel_size.x * gradient_magnitude;
+
+    let diff = rgb - vec3f(0.0);
+
+    let min_diff = min(min(diff.r, diff.g), diff.b);
+
+    // let alpha = smoothstep(0.0, 1.0, min_diff / margin);
+    var alpha = 1.0;
+    if (abs(min_diff) < margin) {
+        rgb = vec3f(1.0, 0.0, 0.0);
     }
 
-    return rgb;
+    // Out-of-gamut colors have zero alpha
+    if (any(rgb < vec3f(0.0)) || any(rgb > vec3f(1.0))) {
+        return vec4f(rgb, 0.0);
+    }
+
+    return vec4f(clamp(rgb, vec3f(0.0), vec3f(1.0)), clamp(alpha, 0.0, 1.0));
 }
+
 
 // Antialiased ring
 fn ring(pixel_uv: vec2<f32>, half_size: vec2<f32>) -> f32 {
@@ -146,7 +165,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             let hcl = vec3f(hue, 0.1254, 0.75);
 
             let color = hcl2rgb(hcl);
-            return vec4f(color, ring_mask);
+            return vec4f(color.rgb, ring_mask);
         }
 
         discard;
@@ -164,7 +183,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
         let color = hcl2rgb(hcl);
 
-        return vec4<f32>(color, 1.0);
+        return color;
     }
 
     discard;

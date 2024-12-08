@@ -108,8 +108,6 @@ impl State {
             if ! self.ui.debug_mode() && self.show_ui {
                 self.color_picker.render(&mut render_pass);
             }
-            
-
         }
 
         self.ctx.window.pre_present_notify();
