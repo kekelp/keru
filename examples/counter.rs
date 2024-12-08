@@ -39,6 +39,7 @@ impl ExampleLoop for State {
             false => "Show Counter",
         };
 
+        // Add nodes to the UI and set their parameters
         ui.add(INCREASE)
             .params(BUTTON)
             .color(count_color(self.count))
@@ -53,7 +54,7 @@ impl ExampleLoop for State {
             .params(BUTTON)
             .static_text("Decrease");
 
-
+        // Place the nodes into the tree. The nesting and order of these calls define the layout.
         ui.v_stack().nest(|| {
             if self.show {
                 ui.place(INCREASE);
