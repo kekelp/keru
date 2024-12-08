@@ -69,7 +69,7 @@ fn transfer_vec3(v: vec3<f32>) -> vec3<f32> {
 }
 
 // Convert OKLCH to RGB
-fn hcl2rgb(hcl: vec3<f32>) -> vec4<f32> {
+fn hcl_rgb_with_alpha(hcl: vec3<f32>) -> vec4<f32> {
     let h = hcl.x * 2.0 * PI;
     let c = hcl.y;
     let l = hcl.z;
@@ -103,20 +103,17 @@ fn hcl2rgb(hcl: vec3<f32>) -> vec4<f32> {
     let dx = dpdx(rgb);
     let dy = dpdy(rgb);
     let gradient_magnitude = length(dx) + length(dy);
-    
-    let pixel_size = 2.0 / base_unif.window_size;
 
-    let margin = pixel_size.x * gradient_magnitude;
+    // the factors here are too complicated for me to keep track of, but it looks right
+    let feathering_radius = 1.5;
+    let margin = feathering_radius * 0.25 * gradient_magnitude;
 
-    let diff = rgb - vec3f(0.0);
+    // let diff = rgb - vec3f(0.0);
+    let diff = vec3f(1.0) - rgb;
 
     let min_diff = min(min(diff.r, diff.g), diff.b);
 
-    // let alpha = smoothstep(0.0, 1.0, min_diff / margin);
-    var alpha = 1.0;
-    if (abs(min_diff) < margin) {
-        rgb = vec3f(1.0, 0.0, 0.0);
-    }
+    let alpha = smoothstep(0.0, 1.0, min_diff / margin);
 
     // Out-of-gamut colors have zero alpha
     if (any(rgb < vec3f(0.0)) || any(rgb > vec3f(1.0))) {
@@ -164,7 +161,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             // need to pick magic values so that the whole wheel stays inside the rgb gamut
             let hcl = vec3f(hue, 0.1254, 0.75);
 
-            let color = hcl2rgb(hcl);
+            let color = hcl_rgb_with_alpha(hcl);
             return vec4f(color.rgb, ring_mask);
         }
 
@@ -181,7 +178,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
         let hcl = vec3(hue, chroma, lightness);
 
-        let color = hcl2rgb(hcl);
+        let color = hcl_rgb_with_alpha(hcl);
 
         return color;
     }
