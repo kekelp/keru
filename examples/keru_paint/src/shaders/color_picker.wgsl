@@ -151,6 +151,7 @@ struct SquareRes {
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let u = in.uv.x;
     let v = in.uv.y;
+    let selected_hue = in.hcl_color.x / (2.0 * PI);
 
     // hue wheel
     if (in.instance_index == 0) {
@@ -176,11 +177,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         // convert back to range [0, 1] ...
         let uv = (in.uv + 1.0) / 2.0;
 
-        let hue = in.hcl_color.x / (2.0 * PI);
         let chroma = uv.y * 0.33;
         let lightness = uv.x;
 
-        let hcl = vec3(hue, chroma, lightness);
+        let hcl = vec3(selected_hue, chroma, lightness);
 
         let color = hcl_rgb_with_alpha(hcl);
 
