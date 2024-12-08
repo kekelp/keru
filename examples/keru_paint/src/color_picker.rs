@@ -112,7 +112,6 @@ impl ColorPickerUi for Ui {
             });
             self.place(OKLAB_HUE_WHEEL);
         });
-
     }
 }
 

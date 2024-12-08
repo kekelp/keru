@@ -99,19 +99,23 @@ fn hcl_rgb_with_alpha(hcl: vec3<f32>) -> vec4<f32> {
         - 0.0041960863 * lms.x - 0.7034186147 * lms.y + 1.7076147010 * lms.z
     );
 
+    let cursed_blue_hue = -1.664; 
+
     // Calculate alpha for antialiasing
     let dx = dpdx(rgb);
     let dy = dpdy(rgb);
-    let gradient_magnitude = length(dx) + length(dy);
+    let raw_gradient_magnitude = length(dx) + length(dy);
+    let gradient_magnitude = clamp(raw_gradient_magnitude, 0.0, 0.1);
 
     // the factors here are too complicated for me to keep track of, but it looks right
-    let feathering_radius = 1.5;
-    let margin = feathering_radius * 0.25 * gradient_magnitude;
+    let feathering_pixels = 1.0;
+    var margin = feathering_pixels * 0.25 * gradient_magnitude;
 
-    // let diff = rgb - vec3f(0.0);
-    let diff = vec3f(1.0) - rgb;
+    let lower_bound_diff = abs(rgb - vec3f(0.0));
+    let upper_bound_diff = abs(vec3f(1.0) - rgb);
 
-    let min_diff = min(min(diff.r, diff.g), diff.b);
+    let min_diff_1 = min(lower_bound_diff, upper_bound_diff);
+    let min_diff = min(min(min_diff_1.r, min_diff_1.g), min_diff_1.b);
 
     let alpha = smoothstep(0.0, 1.0, min_diff / margin);
 
