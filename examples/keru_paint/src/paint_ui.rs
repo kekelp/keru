@@ -47,12 +47,18 @@ impl State {
         });
         
         let picked_color = oklch_to_linear_srgb(self.color_picker.oklch_color);
-        self.canvas.paint_color = PixelColorF32 {
+
+        let paint_color = PixelColorF32 {
             r: picked_color.r,
             g: picked_color.g,
             b: picked_color.b,
             a: 1.0,
         };
+
+        if paint_color != self.canvas.paint_color {
+            self.canvas.eraser_mode = false;
+        }
+        self.canvas.paint_color = paint_color;
     }
 }
 

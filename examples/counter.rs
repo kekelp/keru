@@ -66,5 +66,8 @@ impl ExampleLoop for State {
 }
 
 fn main() -> Result<(), EventLoopError> {
+    // This one-line render loop is only intended for examples.
+    // The library is meant to be used within a custom `winit`/`wgpu` loop.
+    // See the `keru_paint` package for an example.
     run_with_example_loop::<State>()
 }

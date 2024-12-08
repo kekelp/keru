@@ -6,12 +6,12 @@ It is in active development and it's probably not ready for any kind of use.
 There are currently two examples:
 - a simple counter example (`cargo run --example counter`) which illustrates the basic use of the library.
 
-- a more complex painter example (`cargo run --package keru_paint`) which illustrates how to integrate with a custom `winit` loop and custom `wgpu` rendering (for the canvas and the color picker).
+- a more complex painter example (`cargo run --package keru_paint`), which uses a user-controlled `winit` loop with custom `wgpu` rendering (for the canvas and color picker).
 
 
 ## About
 
-Keru offers a declarative API similar to immediate mode GUI libraries. However, it is not immediate mode.
+Keru has a declarative API similar to immediate mode GUI libraries. However, it is not immediate mode.
 
 I will try to explain how it works with an example:
 
