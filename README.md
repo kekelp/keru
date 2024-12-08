@@ -176,14 +176,15 @@ This is a list of advantages that I think Keru's approach gives over other UI fr
 
 - Mundane stuff like text input, scroll areas, more built-in widgets, ...
 
+- And much more
+
 
 ## Open questions and unsolved issues
 
 - "Reactivity": skipping the redeclaration code or part of it when the underlying state is known to be unchanged
 
-- Less room for mistakes: forgetting `add()` or `place()` for a node, or using the same "unique" key multiple times by mistake. There are solutions for most things like this, but they come with their own downsides
+- Less room for mistakes: forgetting `add()` or `place()` for a node, or using the same "unique" key multiple times by mistake. There are solutions for most of these issues, but they come with their own downsides
 
 - The current way of doing custom rendered UI elements can result in some alpha blending problems
 
-- Problems with winit/wgpu: takes forever to start up, resizing isn't smooth on linux/X11, ... 
-
+- Problems with winit/wgpu: takes forever to start up, resizing the window isn't smooth on some platforms ... 
