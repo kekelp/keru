@@ -105,7 +105,7 @@ impl State {
             self.canvas.render(&mut render_pass);
             self.ui.render(&mut render_pass);
             
-            if ! self.ui.debug_mode() {
+            if ! self.ui.debug_mode() && self.show_ui {
                 self.color_picker.render(&mut render_pass);
             }
             
