@@ -6,7 +6,7 @@ pub trait ExampleLoop: Default {
 }
 
 pub fn run_with_example_loop<S: ExampleLoop>() -> Result<(), EventLoopError> {
-    let (ctx, event_loop) = Context::init(1350, 850, "BLUE");
+    let (ctx, event_loop) = Context::init(1350, 850, "Keru Example");
     
     let ui = Ui::new(&ctx.device, &ctx.queue, &ctx.surface_config);
     

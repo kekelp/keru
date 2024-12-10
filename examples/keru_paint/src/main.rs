@@ -15,10 +15,10 @@ use keru::basic_window_loop::*;
 use winit::event::*;
 use winit::keyboard::*;
 
-pub const WINDOW_NAME: &str = "BLUE";
+pub const WINDOW_NAME: &str = "Keru Paint Example";
 
 fn main() -> Result<(), EventLoopError> {
-    let (ctx, event_loop) = Context::init(1350, 850, "BLUE");
+    let (ctx, event_loop) = Context::init(1350, 850, "Keru Paint Example");
 
     let mut state = State::new(ctx);
 
