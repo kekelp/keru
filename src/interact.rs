@@ -6,37 +6,46 @@ use crate::*;
 
 
 impl Ui {
-
+    /// Returns all [`MouseEvent`]s from the last frame.
     pub fn all_mouse_events(&self) -> impl DoubleEndedIterator<Item = &MouseEvent> {
         return self.sys.last_frame_mouse_events.iter();
     }
 
+    /// Returns all [`MouseEvent`]s for a specific button on the node corresponding to `node_key`, or an empty iterator if the node is currently not part of the tree or if it doesn't exist.
     pub fn mouse_events(&self, mouse_button: MouseButton, node_key: NodeKey) -> impl DoubleEndedIterator<Item = &MouseEvent> {
         return self
             .all_mouse_events()
             .filter(move |c| c.originally_pressed.hit_node_id == Some(node_key.id) && c.button == mouse_button);
     }
 
+    /// Returns `true` if the left mouse button was clicked on the node corresponding to `node_key`, or `false` if the node is currently not part of the tree or if it doesn't exist.
     pub fn is_clicked(&self, node_key: NodeKey) -> bool {
         let clicked_times = self.is_mouse_button_clicked(MouseButton::Left, node_key);
         return clicked_times > 0;
     }
 
+    /// Returns the number of times `mouse_button` was clicked on the node corresponding to `node_key`, or `0` if the node is currently not part of the tree or if it doesn't exist.
     pub fn is_mouse_button_clicked(&self, mouse_button: MouseButton, node_key: NodeKey) -> usize {
         let all_events = self.mouse_events(mouse_button, node_key);
         return all_events.filter(|c| c.is_just_clicked()).count();
     }
 
+    /// Returns `true` if a left mouse button click was released on the node corresponding to `node_key`, or `false` if the node is currently not part of the tree or if it doesn't exist.
     pub fn is_click_released(&self, node_key: NodeKey) -> bool {
         let clicked_times = self.is_mouse_button_click_released(MouseButton::Left, node_key);
         return clicked_times > 0;
     }
 
+    /// Returns the number of times a click of `mouse_button` was released on the node corresponding to `node_key`, or `0` if the node is currently not part of the tree or if it doesn't exist.
     pub fn is_mouse_button_click_released(&self, mouse_button: MouseButton, node_key: NodeKey) -> usize {
         let all_events = self.mouse_events(mouse_button, node_key);
         return all_events.filter(|c| c.is_click_release()).count();
     }
 
+    /// Returns the drag distance for a mouse button on a node, or None if there was no drag.
+    ///
+    /// In the case where the user dragged, released, and redragged all in one frame,
+    /// this sums the distances.
     pub fn is_mouse_button_dragged(&self, mouse_button: MouseButton, node_key: NodeKey) -> Option<(f64, f64)> {
         let all_events = self.mouse_events(mouse_button, node_key);
         
@@ -55,13 +64,15 @@ impl Ui {
         // or just return the (0.0, 0.0)?
     }
 
+    /// Returns the drag distance for the left mouse button on a node, or `None` if there was no drag.
     pub fn is_dragged(&self, node_key: NodeKey) -> Option<(f64, f64)> {
         return self.is_mouse_button_dragged(MouseButton::Left, node_key);
     }
 
+    /// Returns the time a mouse button was held on a node and its last position, or `None` if it wasn’t held.
     pub fn is_mouse_button_held(&self, mouse_button: MouseButton, node_key: NodeKey) -> Option<(Duration, Xy<f32>)> {
         let all_events = self.mouse_events(mouse_button, node_key);
-        
+
         let mut time_held = Duration::ZERO;
         let mut last_pos = Xy::new(0.0, 0.0);
 
@@ -78,10 +89,12 @@ impl Ui {
         }
     }
 
+    /// Returns the time the left mouse button was held on a node and its last position, or `None` if it wasn’t held.
     pub fn is_held(&self, node_key: NodeKey) -> Option<(Duration, Xy<f32>)> {
         return self.is_mouse_button_held(MouseButton::Left, node_key);
     }
 
+    /// Returns `true` if a node is currently hovered by the cursor.
     pub fn is_hovered(&self, node_key: NodeKey) -> bool {
         return self.sys.hovered.last() == Some(&node_key.id);
     }
@@ -480,6 +493,9 @@ impl Ui {
 
 }
 
+/// 
+/// 
+
 // this gets used for both presses and releases, but it doesn't keep a field to distinguish them, because it's always clear from the context.
 // hit_node_id will always we Some for click presses, because otherwise they're fully ignored.
 // Splitting them would probably be clearer.
@@ -515,6 +531,7 @@ pub enum IsMouseReleased {
 }
 
 
+/// A full description of a mouse event, from click to release.
 #[derive(Clone, Copy, Debug)]
 pub struct MouseEvent {
     pub button: MouseButton,

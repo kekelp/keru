@@ -101,6 +101,8 @@ pub use color::*;
 mod ui_node;
 pub use ui_node::*;
 
+pub mod interact;
+
 pub mod basic_window_loop;
 pub mod example_window_loop;
 
@@ -109,7 +111,6 @@ mod twin_nodes;
 mod thread_local;
 mod render;
 mod layout;
-mod interact;
 mod text;
 mod node;
 mod render_rect;
