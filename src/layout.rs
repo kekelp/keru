@@ -4,7 +4,6 @@ use crate::node::*;
 use glyphon::Buffer as GlyphonBuffer;
 use Axis::{X, Y};
 
-#[macro_export]
 /// Iterate on the children linked list.
 macro_rules! for_each_child {
     ($ui:expr, $start:expr, $child:ident, $body:block) => {

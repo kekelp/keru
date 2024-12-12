@@ -5,7 +5,7 @@ use Position::*;
 use Len::*;
 use Shape::*;
 
-pub const ANON_NODE_ROOT_PARAMS: NodeKey = <NodeKey>::new(Id(0), "ANON_NODE_ROOT_PARAMS");
+const ANON_NODE_ROOT_PARAMS: NodeKey = <NodeKey>::new(Id(0), "ANON_NODE_ROOT_PARAMS");
 pub const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     stack: None,
     text_params: None,
@@ -26,7 +26,7 @@ pub const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     },
     key: ANON_NODE_ROOT_PARAMS,
 };
-pub const ANON_DEFAULT: NodeKey = <NodeKey>::new(Id(1), "ANON_DEFAULT");
+const ANON_DEFAULT: NodeKey = <NodeKey>::new(Id(1), "ANON_DEFAULT");
 pub const DEFAULT: NodeParams = NodeParams {
     stack: None,
     text_params: Some(TextOptions {
@@ -49,7 +49,7 @@ pub const DEFAULT: NodeParams = NodeParams {
     },
     key: ANON_DEFAULT,
 };
-pub const ANON_V_STACK: NodeKey = <NodeKey>::new(Id(2), "ANON_V_STACK");
+const ANON_V_STACK: NodeKey = <NodeKey>::new(Id(2), "ANON_V_STACK");
 pub const V_STACK: NodeParams = NodeParams {
     stack: Some(Stack {
         arrange: Arrange::Center,
@@ -74,7 +74,7 @@ pub const V_STACK: NodeParams = NodeParams {
     },
     key: ANON_V_STACK,
 };
-pub const ANON_H_STACK: NodeKey = <NodeKey>::new(Id(3), "ANON_H_STACK");
+const ANON_H_STACK: NodeKey = <NodeKey>::new(Id(3), "ANON_H_STACK");
 pub const H_STACK: NodeParams = NodeParams {
     stack: Some(Stack {
         arrange: Arrange::Start,
@@ -99,7 +99,7 @@ pub const H_STACK: NodeParams = NodeParams {
     },
     key: ANON_H_STACK,
 };
-pub const ANON_MARGIN: NodeKey = <NodeKey>::new(Id(4), "ANON_MARGIN");
+const ANON_MARGIN: NodeKey = <NodeKey>::new(Id(4), "ANON_MARGIN");
 pub const MARGIN: NodeParams = NodeParams {
     stack: None,
     text_params: None,
@@ -120,7 +120,7 @@ pub const MARGIN: NodeParams = NodeParams {
     },
     key: ANON_MARGIN,  
 };
-pub const ANON_ICON_BUTTON: NodeKey = <NodeKey>::new(Id(5), "ANON_ICON_BUTTON");
+const ANON_ICON_BUTTON: NodeKey = <NodeKey>::new(Id(5), "ANON_ICON_BUTTON");
 pub const ICON_BUTTON: NodeParams = NodeParams {
     stack: None,
     text_params: None,
@@ -141,7 +141,9 @@ pub const ICON_BUTTON: NodeParams = NodeParams {
     },
     key: ANON_ICON_BUTTON,
 };
-pub const ANON_BUTTON: NodeKey = <NodeKey>::new(Id(6), "ANON_BUTTON");
+const ANON_BUTTON: NodeKey = <NodeKey>::new(Id(6), "ANON_BUTTON");
+/// [`NodeParams`] for a button.
+/// 
 pub const BUTTON: NodeParams = NodeParams {
     stack: None,
     text_params: Some(TextOptions {
@@ -165,7 +167,7 @@ pub const BUTTON: NodeParams = NodeParams {
     },
     key: ANON_BUTTON,   
 };
-pub const ANON_LABEL: NodeKey = <NodeKey>::new(Id(7), "ANON_LABEL");
+const ANON_LABEL: NodeKey = <NodeKey>::new(Id(7), "ANON_LABEL");
 pub const LABEL: NodeParams = NodeParams {
     stack: None,
     text_params: Some(TextOptions {
@@ -188,7 +190,7 @@ pub const LABEL: NodeParams = NodeParams {
     },
     key: ANON_LABEL,
 };
-pub const ANON_TEXT: NodeKey = <NodeKey>::new(Id(8), "ANON_TEXT");
+const ANON_TEXT: NodeKey = <NodeKey>::new(Id(8), "ANON_TEXT");
 pub const TEXT: NodeParams = NodeParams {
     stack: None,
     text_params: Some(TextOptions {
@@ -211,7 +213,7 @@ pub const TEXT: NodeParams = NodeParams {
     },
     key: ANON_TEXT,
 };
-pub const ANON_EMPTY_TEXT: NodeKey = <NodeKey>::new(Id(9), "ANON_EMPTY_TEXT");
+const ANON_EMPTY_TEXT: NodeKey = <NodeKey>::new(Id(9), "ANON_EMPTY_TEXT");
 pub const EMPTY_TEXT: NodeParams = NodeParams {
     stack: None,
     text_params: Some(TextOptions {
@@ -235,7 +237,7 @@ pub const EMPTY_TEXT: NodeParams = NodeParams {
     key: ANON_EMPTY_TEXT,
 };
 
-pub const ANON_TEXT_INPUT: NodeKey = <NodeKey>::new(Id(10), "ANON_TEXT_INPUT");
+const ANON_TEXT_INPUT: NodeKey = <NodeKey>::new(Id(10), "ANON_TEXT_INPUT");
 pub const TEXT_INPUT: NodeParams = NodeParams {
     stack: None,
     text_params: Some(TextOptions {

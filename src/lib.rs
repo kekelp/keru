@@ -1,3 +1,65 @@
+//! Keru is a Graphical User Interface library.
+//! 
+//! It offers a declarative API similar to immediate mode GUI libraries, but it is not immediate mode.
+//! 
+//! See [About](about) for more information about the API design, the internals, performance considerations, and more.
+//! 
+//! ### Basic Example
+//! 
+//! ```rust
+//! // Define an unique identity for this button
+//! #[node_key] const INCREASE: NodeKey;
+//! 
+//! // Run code in response to events
+//! if ui.is_clicked(INCREASE) {
+//!     self.count += 1;
+//! }
+//! 
+//! // Add nodes to the UI and set their parameters
+//! ui.add(INCREASE)
+//!     .params(BUTTON)
+//!     .color(Color::RED)
+//!     .static_text("Increase");
+//! 
+//! // Place the nodes into the tree and define the layout
+//! ui.v_stack().nest(|| {
+//!     if self.show {
+//!         ui.place(INCREASE);
+//!         ui.label(self.count); // This one doesn't need an unique key.
+//!     }
+//! });
+//! ```
+//! 
+//! ### Window Loop
+//! 
+//! Keru is intended to be used as part of a regular `winit`/`wgpu` window loop, managed by the library user. This makes it very simple to combine it with any kind of custom rendering (as long as it uses `wgpu`).
+//! 
+//! If you just want to try out some GUI building code, you can use the one-line loop in [`example_window_loop`]. See the Counter example. 
+//! 
+//! When building your own loop, you can still use the helper functions in the [`basic_window_loop`] module to avoid most of the `winit` and `wgpu` boilerplate.
+//! 
+//! ### Usage
+//! 
+//! To start, create an [`Ui`] struct and store it in your main program state.
+//! 
+//! To integrate with the window loop, you only need to do three things:
+//! 
+//! - When you receive a `winit` event, pass it to [`Ui::handle_events`].
+//! - When you want to render, call [`Ui::prepare`] to load the GUI data onto the GPU, then call [`Ui::render`].
+//! - When you want to update the GUI, call [`Ui::begin_tree`], then rerun your GUI declaration code, then call [`Ui::finish_tree`]. 
+//! 
+//! For a full integration example, see the Painter example. Another simpler integration example will be added in the future.
+//! 
+//! ### GUI Declaration Code
+//! 
+//! Refer to the counter example or the `paint_ui.rs` file to see examples of how to declare your GUI.
+//! 
+//! The [`Ui`] struct is the central API of the library. All operations start by calling a method of [`Ui`]. 
+//! 
+//! 
+
+
+
 mod tree;
 pub use tree::*;
 
@@ -24,7 +86,6 @@ pub use ui_node::*;
 
 pub mod basic_window_loop;
 pub mod example_window_loop;
-pub use basic_window_loop::EventIsRedrawRequested;
 
 mod changes;
 mod twin_nodes;
@@ -39,3 +100,5 @@ mod render_rect;
 mod texture_atlas;
 
 pub use view_derive::node_key;
+
+pub mod about;

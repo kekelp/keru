@@ -4,6 +4,23 @@ use std::hash::{Hash, Hasher};
 use rustc_hash::FxHasher;
 
 #[derive(Debug, Copy, Clone)]
+/// A small struct describing the params of an ui node.
+/// You can start with one of the associated constants, then use the builder methods to customize it:
+/// 
+/// ```rust
+/// const MY_BUTTON = NodeParams::BUTTON
+///     .color(Color::RED)
+///     .size(Shape::Circle); 
+/// ```
+/// After adding a node to the [`Ui`] with [`Ui::add`], use the [`UiNode::params`] function to set its params.
+/// ```rust
+/// ui.add(INCREASE).params(MY_BUTTON);
+/// ```
+/// You can also call [`UiNode`]'s builder methods to customize it *after* you add it:
+/// ```rust
+/// ui.add(INCREASE).params(MY_BUTTON).size(Size::Fill);
+/// ```
+/// To see it show up, use [`UiNode::place`] or [`Ui::place`] to place it in the ui tree.
 pub struct NodeParams {
     pub text_params: Option<TextOptions>,
     pub stack: Option<Stack>,
@@ -225,6 +242,11 @@ impl NodeParams {
 
     pub const fn color(mut self, color: Color) -> Self {
         self.rect.vertex_colors = VertexColors::flat(color);
+        return self;
+    }
+
+    pub const fn shape(mut self, shape: Shape) -> Self {
+        self.rect.shape = shape;
         return self;
     }
 

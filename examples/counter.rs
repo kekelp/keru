@@ -1,7 +1,6 @@
 use keru::example_window_loop::*;
 use keru::{Color, NodeKey, Ui, BUTTON};
 use keru::node_key;
-use winit::error::EventLoopError;
 
 #[derive(Default)]
 pub struct State {
@@ -66,7 +65,7 @@ impl ExampleLoop for State {
     }
 }
 
-fn main() -> Result<(), EventLoopError> {
+fn main() -> Result<(), WinitEventLoopError> {
     // This one-line render loop is only intended for examples.
     // The library is meant to be used within a custom `winit`/`wgpu` loop.
     // See the `keru_paint` package for an example.

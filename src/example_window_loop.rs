@@ -1,5 +1,37 @@
+//! A single-line window + render loop, for experimentation and examples.
+//! 
+//! See the Counter example for a working demonstration,
+//! 
+//! The intended way to use Keru is with user-managed window loop and rendering. See the Painter example.
+//! 
+//! ### Example
+//! 
+//! ```rust
+//! use keru::example_window_loop::*;
+//! use keru::Ui;
+//! 
+//! #[derive(Default)]
+//! pub struct State {
+//!     // Custom program state
+//! }
+//! 
+//! impl ExampleLoop for State {
+//!     fn declare_ui(&mut self, ui: &mut Ui) {
+//!         // Custom GUI building logic, with access to your custom state (`self`) and the `Ui` object
+//!     }
+//! }
+//! 
+//! fn main() -> Result<(), WinitEventLoopError> {
+//!     // One-line window + render loop
+//!     run_with_example_loop::<State>()
+//! }
+//! 
+//! ```
+//! 
+
 use crate::*;
 use crate::basic_window_loop::*;
+pub use winit::error::EventLoopError as WinitEventLoopError;
 
 pub trait ExampleLoop: Default {
     fn declare_ui(&mut self, ui: &mut Ui);
