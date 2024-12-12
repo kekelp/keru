@@ -28,6 +28,8 @@ pub struct PartialChanges {
 
     pub need_rerender: bool,
     pub animation_rerender_time: Option<f32>,
+
+    pub resize: bool,
 }
 impl PartialChanges {
     pub fn new() -> PartialChanges {
@@ -40,6 +42,8 @@ impl PartialChanges {
 
             need_rerender: false,
             animation_rerender_time: None,
+
+            resize: false,
         }
     }
 

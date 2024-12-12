@@ -316,7 +316,7 @@ impl Ui {
     /// ```
     ///
     /// Returns `true` if the event was "consumed" by the `Ui`, e.g. if a mouse click hit an opaque panel.
-    pub fn handle_events(&mut self, full_event: &Event<()>, queue: &Queue) -> bool {
+    pub fn handle_events(&mut self, full_event: &Event<()>) -> bool {
         if let Event::WindowEvent { event, .. } = full_event {
             match event {
                 WindowEvent::CursorMoved { position, .. } => {
@@ -354,7 +354,7 @@ impl Ui {
                     }
                 }
                 // todo: 
-                WindowEvent::Resized(size) => self.resize(size, queue),
+                WindowEvent::Resized(size) => self.resize(size),
                 _ => {}
             }
         }

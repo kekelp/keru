@@ -28,6 +28,24 @@ impl Ui {
     /// Load the UI state onto the GPU
     pub fn prepare(&mut self, device: &Device, queue: &Queue) {       
         
+        if self.sys.changes.resize {
+            self.sys.text.glyphon_viewport.update(
+                queue,
+                glyphon::Resolution {
+                    width: self.sys.part.unifs.size.x as u32,
+                    height: self.sys.part.unifs.size.y as u32,
+                },
+            );
+            let warning = "todo: change this";
+            queue.write_buffer(
+                &self.sys.base_uniform_buffer,
+                0,
+                &bytemuck::bytes_of(&self.sys.part.unifs)[..16],
+            );
+
+            self.sys.changes.resize = false;
+        }
+
         self.sys.gpu_rect_buffer.queue_write(&self.sys.rects[..], queue);
         
         self.sys.texture_atlas.load_to_gpu(queue);

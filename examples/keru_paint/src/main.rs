@@ -60,7 +60,7 @@ impl State {
 
     pub fn handle_event(&mut self, event: &Event<()>, target: &EventLoopWindowTarget<()>) {
         self.ctx.handle_events(event, target);
-        let consumed = self.ui.handle_events(event, &self.ctx.queue);
+        let consumed = self.ui.handle_events(event);
         if !consumed {
             self.handle_events(event);
         }

@@ -376,26 +376,13 @@ impl Ui {
     /// Resize the `Ui`. 
     /// Updates the `Ui`'s internal state, and schedules a full relayout to adapt to the new size.
     /// Called by [`Ui::handle_events`].
-    pub(crate) fn resize(&mut self, size: &PhysicalSize<u32>, queue: &Queue) {
+    pub(crate) fn resize(&mut self, size: &PhysicalSize<u32>) {
         self.sys.changes.full_relayout = true;
         
         self.sys.part.unifs.size[X] = size.width as f32;
         self.sys.part.unifs.size[Y] = size.height as f32;
 
-        self.sys.text.glyphon_viewport.update(
-            queue,
-            glyphon::Resolution {
-                width: self.sys.part.unifs.size.x as u32,
-                height: self.sys.part.unifs.size.y as u32,
-            },
-        );
-
-        let warning = "todo: change this";
-        queue.write_buffer(
-            &self.sys.base_uniform_buffer,
-            0,
-            &bytemuck::bytes_of(&self.sys.part.unifs)[..16],
-        );
+        self.sys.changes.resize = true;
     }
 
     pub(crate) fn update_time(&mut self) {
@@ -568,7 +555,9 @@ impl Ui {
         });
     }
 
-    /// Returns an [`UiNode`] corresponding to `key`, if it exists, and if it is currently part of the tree.
+    /// Returns an [`UiNode`] corresponding to `key`, if it exists.
+    /// 
+    /// This function ignores whether the node is currently inside the tree or not.
     /// 
     /// The returned [`UiNode`] can be used to get information about the node, through functions like [`UiNode::inner_size`] or [`UiNode::render_rect`]
     /// 
@@ -576,10 +565,6 @@ impl Ui {
 
     // todo: non-mut version of this?
     pub fn get_node(&mut self, key: TypedKey<Any>) -> Option<UiNode<Any>> {
-        // todo: use less partial methods
-        if self.is_in_tree(key) {
-            return None;
-        }
         let real_key = self.get_latest_twin_key(key)?;
         return self.get_ref(real_key);
     }

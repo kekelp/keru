@@ -64,7 +64,7 @@ struct State<S> {
 impl<S: ExampleLoop> State<S> {
     pub fn handle_event(&mut self, event: &Event<()>, target: &EventLoopWindowTarget<()>) {
         self.ctx.handle_events(event, target);
-        let _consumed = self.ui.handle_events(event, &self.ctx.queue);
+        let _consumed = self.ui.handle_events(event);
 
         if event.is_redraw_requested() {
             self.update();
