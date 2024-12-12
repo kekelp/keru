@@ -6,7 +6,7 @@ use crate::math::*;
 use crate::param_library::*;
 use crate::text::*;
 use crate::node::*;
-use crate::thread_local::{clear_thread_local_parent_stack, thread_local_hash_new_child, thread_local_peek_parent, thread_local_pop_parent, thread_local_push_parent};
+use crate::thread_local::*;
 use glyphon::cosmic_text::Align;
 use glyphon::{AttrsList, Color as GlyphonColor, TextBounds, Viewport};
 
@@ -17,7 +17,6 @@ use thread_local::thread_local_peek_tree_position_hash;
 use wgpu::*;
 
 use std::collections::hash_map::Entry;
-use std::sync::LazyLock;
 use std::{
     hash::Hasher,
     marker::PhantomData,
@@ -37,11 +36,6 @@ use crate::twin_nodes::TwinCheckResult::*;
 use crate::twin_nodes::*;
 use std::fmt::{Display, Write};
 
-pub static T0: LazyLock<Instant> = LazyLock::new(Instant::now);
-pub fn ui_time_f32() -> f32 {
-    return T0.elapsed().as_secs_f32();
-}
-
 
 #[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, Pod, Zeroable)]
 #[repr(C)]
@@ -50,7 +44,7 @@ pub struct Id(pub u64);
 // this is what you get from FxHasher::default().finish()
 pub(crate) const EMPTY_HASH: u64 = 0;
 
-pub const FIRST_FRAME: u64 = 1;
+pub(crate) const FIRST_FRAME: u64 = 1;
 
 // todo: make this stuff configurable
 pub(crate) const Z_BACKDROP: f32 = 0.5;
@@ -158,19 +152,19 @@ impl TextSystem {
 pub struct Idx(pub(crate) u64);
 
 impl Ui {
-    pub fn format_into_scratch(&mut self, value: impl Display) {
+    pub(crate) fn format_into_scratch(&mut self, value: impl Display) {
         self.format_scratch.clear();
         let _ = write!(self.format_scratch, "{}", value);
     }
 
     // don't expect this to give you twin nodes automatically
-    pub fn get_ref<T: NodeType>(&mut self, key: TypedKey<T>) -> Option<UiNode<Any>> {
+    pub(crate) fn get_ref<T: NodeType>(&mut self, key: TypedKey<T>) -> Option<UiNode<Any>> {
         let node_i = self.nodes.node_hashmap.get(&key.id())?.slab_i;
         return Some(self.get_ref_unchecked(node_i, &key));
     }
 
     // only for the macro, use get_ref
-    pub fn get_ref_unchecked<T: NodeType>(&mut self, i: usize, _key: &TypedKey<T>) -> UiNode<Any> {
+    pub(crate) fn get_ref_unchecked<T: NodeType>(&mut self, i: usize, _key: &TypedKey<T>) -> UiNode<Any> {
         return UiNode {
             node_i: i,
             ui: self,
@@ -178,7 +172,7 @@ impl Ui {
         };
     }
 
-    pub fn add_or_update_node(&mut self, key: NodeKey) -> usize {
+    pub(crate) fn add_or_update_node(&mut self, key: NodeKey) -> usize {
         let frame = self.sys.part.current_frame;
 
         // Check the node corresponding to the key's id.
@@ -251,16 +245,35 @@ impl Ui {
         return real_final_i;
     }
 
+    /// Place the node corresponding to `key` at a specific point in the Ui tree.
+    /// 
+    /// The point is defined by the position of the `place` call relative to [`nest`](UiPlacedNode::nest) calls.
+    /// 
+    /// Panics if it is called with a key that doesn't correspond to any previously (`added)[Ui::add] node.
+    /// 
+    /// ```rust
+    /// ui.add(PARENT).params(CONTAINER);
+    /// ui.add(CHILD).params(BUTTON);
+    /// 
+    /// ui.place(PARENT).nest(|| {
+    ///     ui.place(CHILD);
+    /// });
+    /// ```
+    /// 
+    /// [`UiNode::place`] does the same thing. It is called instead directly on an [`UiNode`], so it doesn't need a `NodeKey` argument to identify the node.
+    /// 
+    /// Compared to [`UiNode::place`], this function allows separating the code that adds the node and sets the params from the `place` code. This usually makes the tree layout much easier to read.
+
     // #[track_caller]
     pub fn place(&mut self, key: NodeKey) -> UiPlacedNode {
         // todo: panic bad
-        let real_key = self.get_latest_twin_key(key).expect("Error: `place()`ing a node that was never `add()`ed");
+        let real_key = self.get_latest_twin_key(key).expect("Error: `place()`ing a node that was never `add()`ed.");
         let node_i = self.nodes.node_hashmap.get(&real_key.id()).unwrap().slab_i;
 
         return self.place_by_i(node_i);
     }
 
-    pub fn place_by_i(&mut self, i: usize) -> UiPlacedNode {
+    pub(crate) fn place_by_i(&mut self, i: usize) -> UiPlacedNode {
 
         // refresh last_frame_touched. 
         // refreshing the node should go here as well.
@@ -307,6 +320,7 @@ impl Ui {
         return UiPlacedNode::new(i, old_children_hash);
     }
 
+    // todo: probably remove
     pub(crate) fn get_latest_twin_key<T: NodeType>(&self, key: TypedKey<T>) -> Option<TypedKey<T>> {
         let map_entry = self.nodes.node_hashmap.get(&key.id())?;
 
@@ -359,7 +373,10 @@ impl Ui {
         self.nodes[parent_i].last_child = Some(new_node_i);
     }
 
-    pub fn resize(&mut self, size: &PhysicalSize<u32>, queue: &Queue) {
+    /// Resize the `Ui`. 
+    /// Updates the `Ui`'s internal state, and schedules a full relayout to adapt to the new size.
+    /// Called by [`Ui::handle_events`].
+    pub(crate) fn resize(&mut self, size: &PhysicalSize<u32>, queue: &Queue) {
         self.sys.changes.full_relayout = true;
         
         self.sys.part.unifs.size[X] = size.width as f32;
@@ -381,7 +398,7 @@ impl Ui {
         );
     }
 
-    pub fn update_time(&mut self) {
+    pub(crate) fn update_time(&mut self) {
         self.sys.frame_t = ui_time_f32();
         
         let frame_time = self.sys.last_frame_timestamp.elapsed();
@@ -398,11 +415,14 @@ impl Ui {
         self.sys.last_frame_timestamp = Instant::now();
     }
 
+    /// Returns `true` if the `Ui` needs to be rerendered.
+    /// 
+    /// If this is true, you should call [`Ui::prepare`] and [`Ui::render`] as soon as possible to display the updated GUI state on the screen.
     pub fn needs_rerender(&self) -> bool {
         return self.sys.changes.need_rerender || self.sys.changes.animation_rerender_time.is_some();
     }
 
-    pub fn push_rect(&mut self, node: usize) {
+    pub(crate) fn push_rect(&mut self, node: usize) {
         let node = &mut self.nodes.nodes[node];
         
         // really only need to do this whenever a custom-rendered rect shows up. But that would require custom rendered rects to be specifically marked, as opposed to just being the same as any other visible-only-in-debug rect, which means that you can forget to mark it and mess everything up. There's no real disadvantage to just always doing it.
@@ -428,7 +448,7 @@ impl Ui {
         }
     }
 
-    pub fn update_rect(&mut self, node: usize) {
+    pub(crate) fn update_rect(&mut self, node: usize) {
         let node = &mut self.nodes.nodes[node];
 
         let draw_even_if_invisible = self.sys.debug_mode;
@@ -442,7 +462,7 @@ impl Ui {
         // todo: update images?
     }
 
-    pub fn push_cursor_rect(&mut self) -> Option<()> {
+    pub(crate) fn push_cursor_rect(&mut self) -> Option<()> {
         // cursor
         // how to make it appear at the right z? might be impossible if there are overlapping rects at the same z.
         // one epic way could be to increase the z sequentially when rendering, so that all rects have different z's, so the cursor can have the z of its rect plus 0.0001.
@@ -533,7 +553,7 @@ impl Ui {
     }
 
     // todo: actually call this once in a while
-    pub fn prune(&mut self) {
+    pub(crate) fn prune(&mut self) {
         self.nodes.node_hashmap.retain(|_k, v| {
             // the > is to always keep the root node without having to refresh it
             let should_retain = v.last_frame_touched >= self.sys.part.current_frame;
@@ -548,9 +568,18 @@ impl Ui {
         });
     }
 
+    /// Returns an [`UiNode`] corresponding to `key`, if it exists, and if it is currently part of the tree.
+    /// 
+    /// The returned [`UiNode`] can be used to get information about the node, through functions like [`UiNode::inner_size`] or [`UiNode::render_rect`]
+    /// 
+    /// To see if a node was clicked, use [`Ui::is_clicked`] and friends. In the future, those functions might be moved to [`UiNode`] as well.
+
     // todo: non-mut version of this?
-    // todo: this should only give the node if it's currently in tree
     pub fn get_node(&mut self, key: TypedKey<Any>) -> Option<UiNode<Any>> {
+        // todo: use less partial methods
+        if self.is_in_tree(key) {
+            return None;
+        }
         let real_key = self.get_latest_twin_key(key)?;
         return self.get_ref(real_key);
     }
@@ -608,17 +637,21 @@ impl Ui {
             self.sys.changes.need_rerender = true;
         }
     }
-}
 
-
-impl Ui {
-    // in case of partial declarative stuff, think of another name
+    /// Clear the old GUI tree and start declaring another one.
+    /// 
+    /// Use together with [`Ui::finish_tree()`], at most once per frame.
+    /// 
+    /// ```rust
+    /// self.ui.begin_tree();
+    /// // declare the GUI and update state
+    /// self.ui.finish_tree();
+    /// ```
     pub fn begin_tree(&mut self) {
         // clear root
         self.nodes[ROOT_I].last_child = None;
         self.nodes[ROOT_I].first_child = None;        
         self.nodes[ROOT_I].n_children = 0;
-        // self.nodes[self.sys.root_i].old_children_hash = EMPTY_HASH;
 
         self.sys.part.current_frame += 1;
         clear_thread_local_parent_stack();
@@ -632,6 +665,11 @@ impl Ui {
         thread_local_push_parent(&root_parent);
     }
     
+    /// Finish declaring the current GUI tree.
+    /// 
+    /// This function will also relayout the nodes that need it, and do some bookkeeping.
+    /// 
+    /// Use at most once per frame, after calling [`Ui::begin_tree()`] and running your tree declaration code.
     pub fn finish_tree(&mut self) {
         // pop the root node
         thread_local_pop_parent();
@@ -642,46 +680,7 @@ impl Ui {
         
         self.update_time();
     }
-}
 
-
-use std::hash::Hash;
-pub(crate) fn fx_hash<T: Hash>(value: &T) -> u64 {
-    let mut hasher = FxHasher::default();
-    value.hash(&mut hasher);
-    hasher.finish()
-}
-
-pub struct UiPlacedNode {
-    pub(crate) node_i: usize,
-    pub(crate) old_children_hash: u64,
-}
-impl UiPlacedNode {
-    pub(crate) fn new(node_i: usize, old_children_hash: u64) -> UiPlacedNode {
-        return UiPlacedNode {
-            node_i,
-            old_children_hash,
-        }
-    }
-
-    pub fn nest(&self, content: impl FnOnce()) {
-        thread_local_push_parent(self);
-
-        content();
-
-        thread_local_pop_parent();
-    }
-}
-
-impl<'a, T: NodeType> UiNode<'a, T> {
-    pub fn place(&mut self) -> UiPlacedNode {
-        self.ui.place_by_i(self.node_i);
-        let old_children_hash = self.node().children_hash;
-        return UiPlacedNode::new(self.node_i, old_children_hash);
-    }
-}
-
-impl Ui {
     pub fn add(&mut self, key: NodeKey) -> UiNode<Any> {
         let i = self.add_or_update_node(key);
         return self.get_ref_unchecked(i, &key);
@@ -717,7 +716,7 @@ impl Ui {
         return self.add_anon(LABEL).text(text).place();
     }
 
-    pub fn already_exists(&self, key: NodeKey) -> bool {
+    pub fn is_in_tree(&self, key: NodeKey) -> bool {
         let node_i = self.nodes.node_hashmap.get(&key.id());
         if let Some(entry) = node_i {
             // todo: also return true if it's retained
@@ -727,6 +726,7 @@ impl Ui {
         }
     }
 
+    /// Experimental function for skipping declaration code when the underlying state is unchanged.
     pub fn place_and_assume_unchanged(&mut self, key: NodeKey) {
         let node_i = self.nodes.node_hashmap.get(&key.id());
         if let Some(entry) = node_i {
@@ -735,3 +735,65 @@ impl Ui {
         }
     }
 }
+
+
+use std::hash::Hash;
+pub(crate) fn fx_hash<T: Hash>(value: &T) -> u64 {
+    let mut hasher = FxHasher::default();
+    value.hash(&mut hasher);
+    hasher.finish()
+}
+
+/// The result of [placing](UiNode::place) a node.
+/// 
+/// Can be used to call [nest](UiPlacedNode::nest) and add more nodes as a parent of this one.
+/// 
+/// The nesting mechanism uses a bit of magic to avoid having to pass a [`Ui`] parameter into the closure.
+/// Because of this, `UiPlacedNode` is actually a plain-old-data struct and doesn't contain a reference to the main [`Ui`] object, so it can technically be freely assigned to a variable and stored.
+/// 
+/// While there's nothing unsafe about that, I doubt that anything good can come out of it, either. The intended use is to just call [nest](UiPlacedNode::nest) immediately after getting this struct from [UiNode::place].
+/// 
+/// 
+pub struct UiPlacedNode {
+    pub(crate) node_i: usize,
+    pub(crate) old_children_hash: u64,
+}
+impl UiPlacedNode {
+    pub(crate) fn new(node_i: usize, old_children_hash: u64) -> UiPlacedNode {
+        return UiPlacedNode {
+            node_i,
+            old_children_hash,
+        }
+    }
+
+    ///
+    pub fn nest(&self, content: impl FnOnce()) {
+        thread_local_push_parent(self);
+
+        content();
+
+        thread_local_pop_parent();
+    }
+}
+
+impl<'a, T: NodeType> UiNode<'a, T> {
+    /// Place the node at a specific point in the Ui tree.
+    /// 
+    /// The point is defined by the position of the `place` call relative to [`nest`](UiPlacedNode::nest) calls.
+    /// 
+    /// ```rust  
+    /// ui.add_anon(PANEL).place().nest(|| {
+    ///     ui.add(BUTTON_KEY)..place();
+    /// });
+    /// ```
+    /// 
+    /// [`Ui::place`] does the same thing, using a `NodeKey` argument to identify the node to place instead of being called directly on an [`UiNode`].
+    /// 
+    /// Compared to [`Ui::place`], this function allows adding, setting the params and placing the node all in the same place, and it is also safe from panics. 
+    pub fn place(&mut self) -> UiPlacedNode {
+        self.ui.place_by_i(self.node_i);
+        let old_children_hash = self.node().children_hash;
+        return UiPlacedNode::new(self.node_i, old_children_hash);
+    }
+}
+

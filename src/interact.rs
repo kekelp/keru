@@ -359,8 +359,8 @@ impl Ui {
             if event.state.is_pressed() && self.sys.debug_key_pressed == false {
                 #[cfg(debug_assertions)]
                 {
-                    self.sys.debug_mode = !self.sys.debug_mode;
-                    self.sys.changes.rebuild_all_rects = true;
+
+                    self.set_debug_mode(! self.debug_mode());
                 }
             }
 

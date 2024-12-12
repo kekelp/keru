@@ -6,7 +6,10 @@ use Len::*;
 use Shape::*;
 
 const ANON_NODE_ROOT_PARAMS: NodeKey = <NodeKey>::new(Id(0), "ANON_NODE_ROOT_PARAMS");
-pub const NODE_ROOT_PARAMS: NodeParams = NodeParams {
+/// Preset [`NodeParams`] for a node_root_params. 
+///
+/// You can use the "source" link to inspect the param values. 
+pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     stack: None,
     text_params: None,
     rect: Rect {
@@ -27,6 +30,9 @@ pub const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     key: ANON_NODE_ROOT_PARAMS,
 };
 const ANON_DEFAULT: NodeKey = <NodeKey>::new(Id(1), "ANON_DEFAULT");
+/// Preset [`NodeParams`] for a default. 
+///
+/// You can use the "source" link to inspect the param values. 
 pub const DEFAULT: NodeParams = NodeParams {
     stack: None,
     text_params: Some(TextOptions {
@@ -50,6 +56,9 @@ pub const DEFAULT: NodeParams = NodeParams {
     key: ANON_DEFAULT,
 };
 const ANON_V_STACK: NodeKey = <NodeKey>::new(Id(2), "ANON_V_STACK");
+/// Preset [`NodeParams`] for a vertical stack. 
+///
+/// You can use the "source" link to inspect the param values. 
 pub const V_STACK: NodeParams = NodeParams {
     stack: Some(Stack {
         arrange: Arrange::Center,
@@ -75,6 +84,9 @@ pub const V_STACK: NodeParams = NodeParams {
     key: ANON_V_STACK,
 };
 const ANON_H_STACK: NodeKey = <NodeKey>::new(Id(3), "ANON_H_STACK");
+/// Preset [`NodeParams`] for a horizontal stack. 
+///
+/// You can use the "source" link to inspect the param values. 
 pub const H_STACK: NodeParams = NodeParams {
     stack: Some(Stack {
         arrange: Arrange::Start,
@@ -100,6 +112,9 @@ pub const H_STACK: NodeParams = NodeParams {
     key: ANON_H_STACK,
 };
 const ANON_MARGIN: NodeKey = <NodeKey>::new(Id(4), "ANON_MARGIN");
+/// Preset [`NodeParams`] for a margin. 
+///
+/// You can use the "source" link to inspect the param values. 
 pub const MARGIN: NodeParams = NodeParams {
     stack: None,
     text_params: None,
@@ -121,6 +136,9 @@ pub const MARGIN: NodeParams = NodeParams {
     key: ANON_MARGIN,  
 };
 const ANON_ICON_BUTTON: NodeKey = <NodeKey>::new(Id(5), "ANON_ICON_BUTTON");
+/// Preset [`NodeParams`] for an icon button. 
+///
+/// You can use the "source" link to inspect the param values. 
 pub const ICON_BUTTON: NodeParams = NodeParams {
     stack: None,
     text_params: None,
@@ -142,8 +160,9 @@ pub const ICON_BUTTON: NodeParams = NodeParams {
     key: ANON_ICON_BUTTON,
 };
 const ANON_BUTTON: NodeKey = <NodeKey>::new(Id(6), "ANON_BUTTON");
-/// [`NodeParams`] for a button.
-/// 
+/// Preset [`NodeParams`] for a button. 
+///
+/// You can use the "source" link to inspect the param values. 
 pub const BUTTON: NodeParams = NodeParams {
     stack: None,
     text_params: Some(TextOptions {
@@ -168,6 +187,9 @@ pub const BUTTON: NodeParams = NodeParams {
     key: ANON_BUTTON,   
 };
 const ANON_LABEL: NodeKey = <NodeKey>::new(Id(7), "ANON_LABEL");
+/// Preset [`NodeParams`] for a label. 
+///
+/// You can use the "source" link to inspect the param values. 
 pub const LABEL: NodeParams = NodeParams {
     stack: None,
     text_params: Some(TextOptions {
@@ -191,6 +213,9 @@ pub const LABEL: NodeParams = NodeParams {
     key: ANON_LABEL,
 };
 const ANON_TEXT: NodeKey = <NodeKey>::new(Id(8), "ANON_TEXT");
+/// Preset [`NodeParams`] for a text element. 
+///
+/// You can use the "source" link to inspect the param values. 
 pub const TEXT: NodeParams = NodeParams {
     stack: None,
     text_params: Some(TextOptions {
@@ -213,55 +238,38 @@ pub const TEXT: NodeParams = NodeParams {
     },
     key: ANON_TEXT,
 };
-const ANON_EMPTY_TEXT: NodeKey = <NodeKey>::new(Id(9), "ANON_EMPTY_TEXT");
-pub const EMPTY_TEXT: NodeParams = NodeParams {
-    stack: None,
-    text_params: Some(TextOptions {
-        editable: false,
-    }),
-    rect: Rect {
-        shape: Rectangle { corner_radius: BASE_RADIUS },
-        visible: false,
-        outline_only: true,
-        vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
-    },
-    interact: Interact {
-        absorbs_mouse_events: false,
-        click_animation: false,
-    },
-    layout: Layout {
-        size: Xy::new_symm(FitContent),
-        position: Xy::new_symm(Center),
-        padding: Xy::new_symm(Len::Pixels(2)),
-    },
-    key: ANON_EMPTY_TEXT,
-};
 
-const ANON_TEXT_INPUT: NodeKey = <NodeKey>::new(Id(10), "ANON_TEXT_INPUT");
-pub const TEXT_INPUT: NodeParams = NodeParams {
-    stack: None,
-    text_params: Some(TextOptions {
-        editable: true,
-    }),
-    rect: Rect {
-        shape: Rectangle { corner_radius: BASE_RADIUS },
-        visible: true,
-        outline_only: false,
-        vertex_colors: VertexColors::flat(Color::rgba(26, 0, 26, 230)),
-    },
-    interact: Interact {
-        absorbs_mouse_events: true,
-        click_animation: true,
-    },
-    layout: Layout {
-        size: Xy::new_symm(Fill),
-        position: Xy::new_symm(Center),
-        padding: Xy::new_symm(Len::Pixels(5)),
-    },
-    key: ANON_TEXT_INPUT,
-};
+// const ANON_TEXT_INPUT: NodeKey = <NodeKey>::new(Id(10), "ANON_TEXT_INPUT");
+// /// Preset [`NodeParams`] for a text_input. 
+// ///
+// /// You can use the "source" link to inspect the param values. 
+// pub const TEXT_INPUT: NodeParams = NodeParams {
+//     stack: None,
+//     text_params: Some(TextOptions {
+//         editable: true,
+//     }),
+//     rect: Rect {
+//         shape: Rectangle { corner_radius: BASE_RADIUS },
+//         visible: true,
+//         outline_only: false,
+//         vertex_colors: VertexColors::flat(Color::rgba(26, 0, 26, 230)),
+//     },
+//     interact: Interact {
+//         absorbs_mouse_events: true,
+//         click_animation: true,
+//     },
+//     layout: Layout {
+//         size: Xy::new_symm(Fill),
+//         position: Xy::new_symm(Center),
+//         padding: Xy::new_symm(Len::Pixels(5)),
+//     },
+//     key: ANON_TEXT_INPUT,
+// };
 
 pub(crate) const ANON_PANEL: NodeKey = <NodeKey>::new(Id(11), "ANON_PANEL");
+/// Preset [`NodeParams`] for a panel. 
+///
+/// You can use the "source" link to inspect the param values. 
 pub const PANEL: NodeParams = NodeParams {
     stack: None,
     text_params: None,
@@ -283,6 +291,9 @@ pub const PANEL: NodeParams = NodeParams {
     key: ANON_PANEL,
 };
 
+/// Preset [`NodeParams`] for a container. 
+///
+/// You can use the "source" link to inspect the param values. 
 pub const CONTAINER: NodeParams = NodeParams {
     stack: None,
     text_params: None,
@@ -304,6 +315,15 @@ pub const CONTAINER: NodeParams = NodeParams {
     key: ANON_PANEL,
 };
 
+/// Preset [`NodeParams`] for a custom rendered panel.
+///
+/// You can use the "source" link to inspect the param values. 
+/// 
+/// Use [`UiNode::render_rect`] to get the render data for your node, then render it in a separate draw call.
+/// ```rust
+/// let render_data = ui.get_node(OKLAB_HUE_WHEEL)?.render_rect();
+/// ```
+/// See the color picker in the painter example.
 pub const CUSTOM_RENDERED_PANEL: NodeParams = NodeParams {
     stack: None,
     text_params: None,

@@ -1,4 +1,4 @@
-//! A single-line window + render loop, for experimentation and examples.
+//! A single-line window/render loop, for experimentation and examples.
 //! 
 //! See the Counter example for a working demonstration,
 //! 

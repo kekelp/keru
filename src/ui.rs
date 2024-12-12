@@ -28,6 +28,7 @@ use wgpu::{
 };
 
 use std::ops::{Index, IndexMut};
+use std::sync::LazyLock;
 use std::{mem, time::Instant};
 
 use bytemuck::{Pod, Zeroable};
@@ -39,6 +40,24 @@ use wgpu::{
 };
 use winit::{dpi::PhysicalPosition, keyboard::ModifiersState};
 
+pub(crate) static T0: LazyLock<Instant> = LazyLock::new(Instant::now);
+
+pub(crate) fn ui_time_f32() -> f32 {
+    return T0.elapsed().as_secs_f32();
+}
+
+/// The central struct of the library, representing the whole GUI state.
+/// 
+/// To create a new [`Ui`] instance, use [`Ui::new`].
+/// 
+/// To build a GUI, add nodes to the [`Ui`] by calling [`Ui::add`] and then [`Ui::place`].
+/// 
+/// To react to mouse clicks and other node events, call [`Ui::is_clicked`] and similar methods.
+/// 
+/// To integrate [`Ui`] with your `winit` event loop, pass all your `winit` events to [`Ui::handle_events`].
+/// 
+/// To render the GUI to the screen, call [`Ui::prepare`] and [`Ui::render`]
+/// 
 // todo: the sys split is no longer needed, lol.
 pub struct Ui {
     pub(crate) nodes: Nodes,
@@ -47,9 +66,6 @@ pub struct Ui {
 }
 
 pub(crate) struct System {
-    // todo: just put ROOT_I everywhere.
-    pub root_i: usize,
-
     // in debug mode, draw invisible rects as well, for example V_STACKs.
     // usually these have filled = false (just the outline), but this is not enforced.
     pub debug_mode: bool,
@@ -113,6 +129,9 @@ pub(crate) struct Uniforms {
 
 impl Ui {
     pub fn new(device: &Device, queue: &Queue, config: &SurfaceConfiguration) -> Self {
+        // initialize the static T0
+        LazyLock::force(&T0);
+        
         let gpu_rect_buffer = device.create_buffer_init(&util::BufferInitDescriptor {
             label: Some("player bullet pos buffer"),
             // todo: I guess this should be growable
@@ -281,7 +300,6 @@ impl Ui {
 
             sys: System {
                 z_cursor: 0.0,
-                root_i,
                 debug_mode: false,
                 debug_key_pressed: false,
 
@@ -347,7 +365,7 @@ impl Ui {
 
 
 #[derive(Debug, Clone, Copy)]
-pub struct NodeMapEntry {
+pub(crate) struct NodeMapEntry {
     pub last_frame_touched: u64,
 
     // keeping track of the twin situation.
@@ -463,6 +481,19 @@ impl PartialBorrowStuff {
 }
 
 impl Ui {
+    /// Set debug mode.
+    /// 
+    /// When debug mode is active, all nodes will be shown, including stacks and containers. 
+    pub fn set_debug_mode(&mut self, debug_mode: bool) {
+        if self.debug_mode() != debug_mode {
+            self.sys.changes.rebuild_all_rects = true;
+        }
+        self.sys.debug_mode = debug_mode;
+    }
+
+    /// Get the current debug mode state.
+    /// 
+    /// When debug mode is active, all nodes will be shown, including stacks and containers.
     pub fn debug_mode(&self) -> bool {
         return self.sys.debug_mode;
     }

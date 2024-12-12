@@ -1,3 +1,6 @@
+//! Helper functions for `winit` and `wgpu`.
+
+
 pub use wgpu::{CommandEncoderDescriptor, TextureViewDescriptor};
 pub use winit::{
     error::EventLoopError, event_loop::EventLoop, event::Event, event_loop::EventLoopWindowTarget

@@ -15,7 +15,16 @@ impl<T: NodeType> TypedKey<T> {
     pub(crate) fn id(&self) -> Id {
         return self.id;
     }
-    pub(crate) fn sibling<H: Hash>(self, value: H) -> Self {
+    /// Create "siblings" of a key dynamically at runtime, based on a hashable value. See [`NodeKey::sibling`].
+    ///
+    /// ```rust
+    /// #[node_key] const COLOR_NODE: NodeKey;
+    /// let strings = ["blue", "green", "violet"];
+    /// for s in strings {
+    ///     let key = COLOR_NODE.sibling(s);
+    /// }
+    /// ```
+    pub fn sibling<H: Hash>(self, value: H) -> Self {
         let mut hasher = FxHasher::default();
         self.id.0.hash(&mut hasher);
         value.hash(&mut hasher);

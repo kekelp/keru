@@ -104,7 +104,7 @@ impl State {
 
         // This never changes
         let changed = false;
-        if self.ui.already_exists(TOOLS_PANEL) && ! changed {
+        if self.ui.is_in_tree(TOOLS_PANEL) && ! changed {
             self.ui.place_and_assume_unchanged(TOOLS_PANEL);
             return;
         }
@@ -129,6 +129,12 @@ impl State {
     }
     
     pub fn add_log_slider(&mut self, linear_value: f32, min: f32, max: f32) -> f32 {
+        #[node_key] const COLOR_NODE: NodeKey;
+        let strings = ["blue", "green", "violet"];
+        for s in strings {
+            let key = COLOR_NODE.sibling(s);
+        }
+
         assert!(min > 0.0 && max > min, "Log sliders require positive min and max values");
 
         // Convert linear value to logarithmic for slider representation

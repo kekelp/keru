@@ -1,4 +1,4 @@
-//! Some extra Information about the library.
+//! Some extra information about the library.
 //! 
 //! Keru is an experimental graphical user interface library.
 //! It is in active development and it's probably not ready for any kind of use.
