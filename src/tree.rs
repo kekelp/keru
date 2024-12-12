@@ -37,6 +37,10 @@ use crate::twin_nodes::*;
 use std::fmt::{Display, Write};
 
 
+/// An `u64` identifier for a GUI node.
+/// 
+/// Usually this is only used as part of [`NodeKey`] structs, which are created with the [`node_key`] macro or with [`NodeKey::sibling`].
+#[doc(hidden)]
 #[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, Pod, Zeroable)]
 #[repr(C)]
 pub struct Id(pub u64);
@@ -147,10 +151,6 @@ impl TextSystem {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, Pod, Zeroable)]
-#[repr(C)]
-pub struct Idx(pub(crate) u64);
-
 impl Ui {
     pub(crate) fn format_into_scratch(&mut self, value: impl Display) {
         self.format_scratch.clear();
@@ -245,9 +245,46 @@ impl Ui {
         return real_final_i;
     }
 
-    /// Place the node corresponding to `key` at a specific point in the Ui tree.
+    /// Add a node to the `Ui` corresponding to `key` and returns an [`UiNode`] pointing to it.
     /// 
-    /// The point is defined by the position of the `place` call relative to [`nest`](UiPlacedNode::nest) calls.
+    /// Adding the node creates it in `Ui`, but it won't be part of the tree until it is `place`d into it. You can do this by calling [`Ui::place`] with the same key, or by calling [`place()`](UiNode::place) on the returned [`UiNode`] (possibly after calling other builder methods).
+    /// 
+    /// If a node corresponding to `key` was already added in a previous frame, then it will return a [`UiNode`] pointing to the same one.
+    /// 
+    /// If one or more nodes corresponding to `key` were already added in the *same* frame, then it will create a "twin" node.
+    /// It's usually clearer to use different keys, or to create sibling keys explicitely with [`NodeKey::sibling`], rather than to rely on this behavior.
+    /// 
+    /// The returned [`UiNode`] can be used to set the appearance, size, text, etc. of the node, using [`UiNode`]'s builder methods.
+    /// 
+    /// ```rust
+    /// #[node_key] const RED_BUTTON: NodeKey;
+    /// ui.add(RED_BUTTON)
+    ///     .params(BUTTON)
+    ///     .color(Color::RED)
+    ///     .text("Increase");
+    /// ```
+    /// 
+    pub fn add(&mut self, key: NodeKey) -> UiNode<Any> {
+        let i = self.add_or_update_node(key);
+        return self.get_ref_unchecked(i, &key);
+    }
+
+    /// Exactly ike [`Ui::add`], but without a key.
+    /// 
+    /// The added node will be anonymous, and it won't be reachable by methods like [`Ui::place`] or [`Ui::get_node`] that use a key.
+    pub fn add_anon_node(&mut self) -> UiNode<Any> {
+        let id_from_tree_position = thread_local_peek_tree_position_hash();
+        let anonymous_key = NodeKey::new(Id(id_from_tree_position), "");
+        
+        let i = self.add_or_update_node(anonymous_key);
+
+        let uinode = self.get_ref_unchecked(i, &anonymous_key);
+        return uinode; 
+    }
+
+    /// Place the node corresponding to `key` at a specific position in the Ui tree.
+    /// 
+    /// The position is defined by the position of the [`place`](Ui::place) call relative to [`nest`](UiPlacedNode::nest) calls.
     /// 
     /// Panics if it is called with a key that doesn't correspond to any previously (`added)[Ui::add] node.
     /// 
@@ -263,6 +300,14 @@ impl Ui {
     /// [`UiNode::place`] does the same thing. It is called instead directly on an [`UiNode`], so it doesn't need a `NodeKey` argument to identify the node.
     /// 
     /// Compared to [`UiNode::place`], this function allows separating the code that adds the node and sets the params from the `place` code. This usually makes the tree layout much easier to read.
+    ///
+    /// # Meta
+    ///  
+    /// Separating "add" and "place" has many disadvantages, but it also makes the API simpler in some aspects.
+    /// 
+    /// The alternative would be making [`Ui::add`] return a "`UnplacedNode`" struct that ends up on the stack, and passing that to [`Ui::place`] instead of just the key. However, to keep the rest of the API as it is, this object would have be a big mess of generic parameters, both lifetime and type.
+    /// I wouldn't feel very good about exposing it in the public API.  
+    /// This might be changed soon. 
 
     // #[track_caller]
     pub fn place(&mut self, key: NodeKey) -> UiPlacedNode {
@@ -666,41 +711,6 @@ impl Ui {
         self.update_time();
     }
 
-    /// Add a note to the `Ui` corresponding to `key` and returns an [`UiNode`] pointing to it.
-    /// 
-    /// Adding the node creates it in `Ui`, but it won't be part of the tree until it is `place`d into it. You can do this by calling [`Ui::place`] with the same key, or by calling [`place()`](UiNode::place) on the returned [`UiNode`] (possibly after calling other builder methods).
-    /// 
-    /// If a node corresponding to `key` was already added in a previous frame, then it will return a [`UiNode`] pointing to the same one.
-    /// 
-    /// If one or more nodes corresponding to `key` were already added in the *same* frame, then it will create a "twin" node.
-    /// It's usually clearer to use different keys or to create sibling keys explicitely with [`NodeKey::sibling`] rather than to rely on this behavior.
-    /// 
-    /// The returned [`UiNode`] can be used to set the appearance, size, text, etc. of the node, using [`UiNode`]'s builder methods.
-    /// 
-    /// ```rust
-    /// #[node_key] const RED_BUTTON: NodeKey;
-    /// ui.add(RED_BUTTON)
-    ///     .params(BUTTON)
-    ///     .color(Color::RED)
-    ///     .text("Increase");
-    /// ```
-    /// 
-    pub fn add(&mut self, key: NodeKey) -> UiNode<Any> {
-        let i = self.add_or_update_node(key);
-        return self.get_ref_unchecked(i, &key);
-    }
-
-    /// Like [`Ui::add`], but without a key.
-    pub fn add_anon_node(&mut self) -> UiNode<Any> {
-        let id_from_tree_position = thread_local_peek_tree_position_hash();
-        let anonymous_key = NodeKey::new(Id(id_from_tree_position), "");
-        
-        let i = self.add_or_update_node(anonymous_key);
-
-        let uinode = self.get_ref_unchecked(i, &anonymous_key);
-        return uinode; 
-    }
-
     /// Add and place an anonymous vertical stack container.
     pub fn v_stack(&mut self) -> UiPlacedNode {
         self.add(ANON_VSTACK).params(V_STACK);
@@ -785,9 +795,9 @@ impl UiPlacedNode {
 }
 
 impl<'a, T: NodeType> UiNode<'a, T> {
-    /// Place the node at a specific point in the Ui tree.
+    /// Place the node at a specific position in the Ui tree.
     /// 
-    /// The point is defined by the position of the `place` call relative to [`nest`](UiPlacedNode::nest) calls.
+    /// The position is defined by the position of the [`place`](UiNode::place) call relative to [`nest`](UiPlacedNode::nest) calls.
     /// 
     /// ```rust  
     /// ui.add_anon(PANEL).place().nest(|| {

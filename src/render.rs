@@ -7,7 +7,7 @@ use crate::text::render_iter;
 use crate::Ui;
 
 impl Ui {
-    
+    /// Renders the GUI render data that were previously loaded on the GPU with [`Ui::prepare`].
     pub fn render(&mut self, render_pass: &mut RenderPass) {
         let n = self.sys.rects.len() as u32;
         if n > 0 {
@@ -25,7 +25,7 @@ impl Ui {
         self.sys.changes.need_rerender = false;
     }
 
-    /// Load the UI state onto the GPU
+    /// Load the GUI render data onto the GPU. To render it, start a render pass, then call [`Ui::render`].
     pub fn prepare(&mut self, device: &Device, queue: &Queue) {       
         
         if self.sys.changes.resize {

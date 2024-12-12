@@ -7,12 +7,12 @@ use crate::*;
 
 impl Ui {
     /// Returns all [`MouseEvent`]s from the last frame.
-    pub fn all_mouse_events(&self) -> impl DoubleEndedIterator<Item = &MouseEvent> {
+    pub fn all_mouse_events(&self) -> impl DoubleEndedIterator<Item = &FullMouseEvent> {
         return self.sys.last_frame_mouse_events.iter();
     }
 
     /// Returns all [`MouseEvent`]s for a specific button on the node corresponding to `node_key`, or an empty iterator if the node is currently not part of the tree or if it doesn't exist.
-    pub fn mouse_events(&self, mouse_button: MouseButton, node_key: NodeKey) -> impl DoubleEndedIterator<Item = &MouseEvent> {
+    pub fn mouse_events(&self, mouse_button: MouseButton, node_key: NodeKey) -> impl DoubleEndedIterator<Item = &FullMouseEvent> {
         return self
             .all_mouse_events()
             .filter(move |c| c.originally_pressed.hit_node_id == Some(node_key.id) && c.button == mouse_button);
@@ -172,7 +172,7 @@ impl Ui {
 
         for click_pressed in self.sys.unresolved_click_presses.iter_mut().rev() {
 
-            let mouse_happening = MouseEvent {
+            let mouse_happening = FullMouseEvent {
                 button: click_pressed.button,
                 originally_pressed: click_pressed.pressed_at,
                 last_seen: click_pressed.last_seen,
@@ -202,7 +202,7 @@ impl Ui {
             // check for hits.
             let released_at = self.scan_current_mouse_status();
 
-            let full_mouse_event = MouseEvent {
+            let full_mouse_event = FullMouseEvent {
                 button,
                 originally_pressed: matched.pressed_at,
                 last_seen: matched.last_seen,
@@ -276,10 +276,10 @@ impl Ui {
         return consumed;
     }
 
-    pub(crate) fn scan_current_mouse_status(&mut self) -> MouseState {
+    pub(crate) fn scan_current_mouse_status(&mut self) -> MouseEvent {
         let topmost_mouse_hit = self.scan_mouse_hits();
 
-        return MouseState {
+        return MouseEvent {
             hit_node_id: topmost_mouse_hit,
             timestamp: Instant::now(),
             position: Xy::new(self.sys.part.mouse_pos.x, self.sys.part.mouse_pos.y),
@@ -493,14 +493,14 @@ impl Ui {
 
 }
 
+/// A mouse event.
 /// 
-/// 
+/// This can represent either a mouse click or a mouse release. This is only used inside `FullMouseEvent`, where this is always clear from the context.
 
-// this gets used for both presses and releases, but it doesn't keep a field to distinguish them, because it's always clear from the context.
 // hit_node_id will always we Some for click presses, because otherwise they're fully ignored.
 // Splitting them would probably be clearer.
 #[derive(Clone, Copy, Debug)]
-pub struct MouseState {
+pub struct MouseEvent {
     pub position: Xy<f32>,
     pub timestamp: Instant,
     pub hit_node_id: Option<Id>,
@@ -509,12 +509,12 @@ pub struct MouseState {
 #[derive(Clone, Copy, Debug)]
 pub struct PendingMousePress {
     pub button: MouseButton,
-    pub pressed_at: MouseState,
-    pub last_seen: MouseState,
+    pub pressed_at: MouseEvent,
+    pub last_seen: MouseEvent,
     pub already_released: bool,
 }
 impl PendingMousePress {
-    pub fn new(event: MouseState, button: MouseButton) -> Self {
+    pub fn new(event: MouseEvent, button: MouseButton) -> Self {
         return Self {
             button,
             pressed_at: event,
@@ -531,16 +531,16 @@ pub enum IsMouseReleased {
 }
 
 
-/// A full description of a mouse event, from click to release.
+/// A full description of a mouse event tracked for multiple frames, from click to release.
 #[derive(Clone, Copy, Debug)]
-pub struct MouseEvent {
+pub struct FullMouseEvent {
     pub button: MouseButton,
-    pub originally_pressed: MouseState,
-    pub last_seen: MouseState,
-    pub currently_at: MouseState,
+    pub originally_pressed: MouseEvent,
+    pub last_seen: MouseEvent,
+    pub currently_at: MouseEvent,
     pub kind: IsMouseReleased,
 }
-impl MouseEvent {
+impl FullMouseEvent {
     // maybe a bit stupid compared to storing it explicitly, but should work.
     // if it stays there for more than 1 frame, the last_seen timestamp gets updated to the end of the frame.
     pub fn is_just_clicked(&self) -> bool {

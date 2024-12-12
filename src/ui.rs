@@ -95,7 +95,7 @@ pub(crate) struct System {
     pub mouse_hit_stack: Vec<(Id, f32)>,
 
     pub unresolved_click_presses: Vec<PendingMousePress>,
-    pub last_frame_mouse_events: Vec<MouseEvent>,
+    pub last_frame_mouse_events: Vec<FullMouseEvent>,
 
 
     pub hovered: Vec<Id>,
@@ -353,12 +353,40 @@ impl Ui {
         }
     }
 
+    /// Returns a reference the `winit::ModifiersState` instance that the `Ui` stores and updates.
+    /// 
+    /// At the cost of some coupling, this can be reused in the rest of the program.
     pub fn key_mods(&self) -> &ModifiersState {
         return &self.sys.key_mods;
     }
 
+    /// Returns a reference to a GPU buffer holding basic information.
+    /// 
+    /// At the cost of some coupling, this can be reused in other rendering jobs.
+    /// 
+    /// Example usage in shader:
+    /// ```wgpu
+    /// struct Uniforms {
+    ///     @location(1) screen_resolution: vec2f,
+    ///     @location(0) t: f32,
+    /// };
+    /// ```
     pub fn base_uniform_buffer(&self) -> &Buffer {
         return &self.sys.base_uniform_buffer;
+    }
+
+    /// Set debug mode. When debug mode is active, all nodes will be shown, including stacks and containers. 
+    pub fn set_debug_mode(&mut self, debug_mode: bool) {
+        if self.debug_mode() != debug_mode {
+            self.sys.changes.rebuild_all_rects = true;
+        }
+        self.sys.debug_mode = debug_mode;
+    }
+
+    /// Get the current debug mode state.
+    /// When debug mode is active, all nodes will be shown, including stacks and containers.
+    pub fn debug_mode(&self) -> bool {
+        return self.sys.debug_mode;
     }
 }
 
@@ -477,24 +505,5 @@ impl PartialBorrowStuff {
                 // in case there's any doubts, this was awful, it would be a lot better to have the click specific datastruct so that everything there can be in pixels
             }
         }
-    }
-}
-
-impl Ui {
-    /// Set debug mode.
-    /// 
-    /// When debug mode is active, all nodes will be shown, including stacks and containers. 
-    pub fn set_debug_mode(&mut self, debug_mode: bool) {
-        if self.debug_mode() != debug_mode {
-            self.sys.changes.rebuild_all_rects = true;
-        }
-        self.sys.debug_mode = debug_mode;
-    }
-
-    /// Get the current debug mode state.
-    /// 
-    /// When debug mode is active, all nodes will be shown, including stacks and containers.
-    pub fn debug_mode(&self) -> bool {
-        return self.sys.debug_mode;
     }
 }
