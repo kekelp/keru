@@ -1,6 +1,5 @@
 use std::time::{Duration, Instant};
 
-use wgpu::Queue;
 use winit::{event::{ElementState, Event, KeyEvent, MouseButton, WindowEvent}, keyboard::{Key, NamedKey}};
 
 use crate::*;
@@ -83,10 +82,13 @@ impl Ui {
         return self.is_mouse_button_held(MouseButton::Left, node_key);
     }
 
+    pub fn is_hovered(&self, node_key: NodeKey) -> bool {
+        return self.sys.hovered.last() == Some(&node_key.id);
+    }
 
     // todo: think if it's really worth it to do this on every mouse movement.
     // maybe add a global setting to do it just once per frame
-    pub fn resolve_hover(&mut self) {
+    pub(crate) fn resolve_hover(&mut self) {
         let topmost_mouse_hit = self.scan_mouse_hits();
 
         if let Some(hovered_id) = topmost_mouse_hit {
@@ -104,7 +106,7 @@ impl Ui {
 
     }
 
-    pub fn start_hovering(&mut self, hovered_id: Id) {
+    pub(crate) fn start_hovering(&mut self, hovered_id: Id) {
         self.sys.hovered.push(hovered_id);
         
         // todo: yuck
@@ -122,7 +124,7 @@ impl Ui {
 
     }
 
-    pub fn end_all_hovering(&mut self) {
+    pub(crate) fn end_all_hovering(&mut self) {
         for hovered_id in &self.sys.hovered {
             let hovered_nodemap_entry = self.nodes.node_hashmap.get(&hovered_id);
             
@@ -171,7 +173,7 @@ impl Ui {
         }
     }
 
-    pub fn resolve_click_release(&mut self, button: MouseButton) {
+    pub(crate) fn resolve_click_release(&mut self, button: MouseButton) {
         // look for a mouse press to match and resolve
         let mut matched = None;
         for click_pressed in self.sys.unresolved_click_presses.iter_mut().rev() {
@@ -200,7 +202,7 @@ impl Ui {
     }
 
     // returns if the ui consumed the mouse press, or if it should be passed down.   
-    pub fn resolve_click_press(&mut self, button: MouseButton) -> bool {
+    pub(crate) fn resolve_click_press(&mut self, button: MouseButton) -> bool {
         // defocus, so that we defocus when clicking anywhere outside.
         // if we're clicking something we'll re-focus below.
         self.sys.focused = None;
@@ -261,7 +263,7 @@ impl Ui {
         return consumed;
     }
 
-    pub fn scan_current_mouse_status(&mut self) -> MouseState {
+    pub(crate) fn scan_current_mouse_status(&mut self) -> MouseState {
         let topmost_mouse_hit = self.scan_mouse_hits();
 
         return MouseState {
@@ -269,10 +271,6 @@ impl Ui {
             timestamp: Instant::now(),
             position: Xy::new(self.sys.part.mouse_pos.x, self.sys.part.mouse_pos.y),
         };
-    }
-
-    pub fn is_hovered(&self, node_key: NodeKey) -> bool {
-        return self.sys.hovered.last() == Some(&node_key.id);
     }
 
     pub(crate) fn scan_mouse_hits(&mut self) -> Option<Id> {
@@ -307,15 +305,10 @@ impl Ui {
 
     /// Handles window events and updates the UI state.
     ///
-    /// You should pass *all* winit events to this method.
-    /// 
-    /// ```rust
-    ///     event_loop.run(move |event, target| {
-    ///         state.handle_event(&event, target);
-    ///     })?;
-    /// ```
+    /// You should pass all events from winit to this method, unless they are "consumed" by something "above" the GUI.
     ///
     /// Returns `true` if the event was "consumed" by the `Ui`, e.g. if a mouse click hit an opaque panel.
+    /// 
     pub fn handle_events(&mut self, full_event: &Event<()>) -> bool {
         if let Event::WindowEvent { event, .. } = full_event {
             match event {
