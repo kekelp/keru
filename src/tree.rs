@@ -158,17 +158,16 @@ impl Ui {
     }
 
     // don't expect this to give you twin nodes automatically
-    pub(crate) fn get_ref<T: NodeType>(&mut self, key: TypedKey<T>) -> Option<UiNode<Any>> {
+    pub(crate) fn get_ref(&mut self, key: NodeKey) -> Option<UiNode> {
         let node_i = self.nodes.node_hashmap.get(&key.id())?.slab_i;
         return Some(self.get_ref_unchecked(node_i, &key));
     }
 
     // only for the macro, use get_ref
-    pub(crate) fn get_ref_unchecked<T: NodeType>(&mut self, i: usize, _key: &TypedKey<T>) -> UiNode<Any> {
+    pub(crate) fn get_ref_unchecked(&mut self, i: usize, _key: &NodeKey) -> UiNode {
         return UiNode {
             node_i: i,
             ui: self,
-            nodetype_marker: PhantomData::<Any>,
         };
     }
 
@@ -264,7 +263,7 @@ impl Ui {
     ///     .text("Increase");
     /// ```
     /// 
-    pub fn add(&mut self, key: NodeKey) -> UiNode<Any> {
+    pub fn add(&mut self, key: NodeKey) -> UiNode {
         let i = self.add_or_update_node(key);
         return self.get_ref_unchecked(i, &key);
     }
@@ -272,7 +271,7 @@ impl Ui {
     /// Exactly ike [`Ui::add`], but without a key.
     /// 
     /// The added node will be anonymous, and it won't be reachable by methods like [`Ui::place`] or [`Ui::get_node`] that use a key.
-    pub fn add_anon_node(&mut self) -> UiNode<Any> {
+    pub fn add_anon_node(&mut self) -> UiNode {
         let id_from_tree_position = thread_local_peek_tree_position_hash();
         let anonymous_key = NodeKey::new(Id(id_from_tree_position), "");
         
@@ -366,7 +365,7 @@ impl Ui {
     }
 
     // todo: probably remove
-    pub(crate) fn get_latest_twin_key<T: NodeType>(&self, key: TypedKey<T>) -> Option<TypedKey<T>> {
+    pub(crate) fn get_latest_twin_key(&self, key: NodeKey) -> Option<NodeKey> {
         let map_entry = self.nodes.node_hashmap.get(&key.id())?;
 
         if map_entry.n_twins == 0 {
@@ -609,7 +608,7 @@ impl Ui {
     /// To see if a node was clicked, use [`Ui::is_clicked`] and friends. In the future, those functions might be moved to [`UiNode`] as well.
 
     // todo: non-mut version of this?
-    pub fn get_node(&mut self, key: TypedKey<Any>) -> Option<UiNode<Any>> {
+    pub fn get_node(&mut self, key: NodeKey) -> Option<UiNode> {
         let real_key = self.get_latest_twin_key(key)?;
         return self.get_ref(real_key);
     }
@@ -794,7 +793,7 @@ impl UiPlacedNode {
     }
 }
 
-impl<'a, T: NodeType> UiNode<'a, T> {
+impl<'a> UiNode<'a> {
     /// Place the node at a specific position in the Ui tree.
     /// 
     /// The position is defined by the position of the [`place`](UiNode::place) call relative to [`nest`](UiPlacedNode::nest) calls.

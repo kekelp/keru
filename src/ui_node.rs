@@ -1,6 +1,5 @@
 use std::fmt::Display;
 use std::hash::Hash;
-use std::marker::PhantomData;
 
 use glyphon::cosmic_text::Align;
 use glyphon::Attrs;
@@ -11,13 +10,12 @@ use crate::*;
 use crate::node::*;
 use crate::Axis::*;
 
-pub struct UiNode<'a, T: NodeType> {
+pub struct UiNode<'a> {
     pub(crate) node_i: usize,
     pub(crate) ui: &'a mut Ui,
-    pub(crate) nodetype_marker: PhantomData<T>,
 }
 
-impl<'a, T: NodeType> UiNode<'a, T> {
+impl<'a> UiNode<'a> {
     pub(crate) fn node_mut(&mut self) -> &mut Node {
         return &mut self.ui.nodes.nodes[self.node_i];
     }
@@ -204,7 +202,7 @@ impl<'a, T: NodeType> UiNode<'a, T> {
     }
 }
 
-impl<'a, T: TextTrait> UiNode<'a, T> {
+impl<'a> UiNode<'a> {
     pub fn static_text(&mut self, text: &'static str) -> &mut Self {
         let text_pointer: *const u8 = text.as_ptr();
 

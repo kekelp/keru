@@ -1,4 +1,4 @@
-use crate::{NodeType, TypedKey};
+use crate::*;
 
 pub enum RefreshOrClone {
     Refresh,
@@ -14,7 +14,7 @@ pub fn refresh_or_add_twin(current_frame: u64, old_node_last_frame_touched: u64)
     }
 }
 
-pub enum TwinCheckResult<T: NodeType> {
+pub enum TwinCheckResult {
     UpdatedNormal { final_i: usize },
-    NeedToUpdateTwin { twin_n: u32, twin_key: TypedKey<T> },
+    NeedToUpdateTwin { twin_n: u32, twin_key: NodeKey },
 }
