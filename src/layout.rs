@@ -19,7 +19,7 @@ macro_rules! for_each_child {
 
 impl Ui {
 
-    pub fn do_cosmetic_rect_updates(&mut self) {
+    pub(crate) fn do_cosmetic_rect_updates(&mut self) {
         for idx in 0..self.sys.changes.cosmetic_rect_updates.len() {
             let update = self.sys.changes.cosmetic_rect_updates[idx];
             self.update_rect(update);
@@ -28,7 +28,7 @@ impl Ui {
     }
 
     // this gets called even when zero relayouts are needed. in that case it just does nothing. I guess it's to make the layout() logic more readable
-    pub fn do_partial_relayouts(&mut self, update_rects_while_relayouting: bool) {
+    pub(crate) fn do_partial_relayouts(&mut self, update_rects_while_relayouting: bool) {
         self.sys.relayouts_scrath.clear();
         for n in &self.sys.changes.swapped_tree_changes {
             self.sys.relayouts_scrath.push(*n);
@@ -58,7 +58,7 @@ impl Ui {
         self.sys.partial_relayout_count = 0;
     }
 
-    pub fn relayout(&mut self) {
+    pub(crate) fn relayout(&mut self) {
         self.sys.changes.swap_thread_local_tree_changes();
 
         let tree_changed = ! self.sys.changes.swapped_tree_changes.is_empty();
@@ -106,7 +106,7 @@ impl Ui {
         }
     }
 
-    pub fn relayout_from_root(&mut self) {
+    pub(crate) fn relayout_from_root(&mut self) {
         // 1st recursive tree traversal: start from the root and recursively determine the size of all nodes
         // For the first node, assume that the proposed size that we got from the parent last frame is valid. (except for root, in which case just use the whole screen. todo: should just make full_relayout a separate function.)
         let starting_proposed_size = Xy::new(1.0, 1.0);
@@ -119,7 +119,7 @@ impl Ui {
         self.nodes[ROOT_I].last_layout_frame = self.sys.part.current_frame;
     }
 
-    pub fn partial_relayout(&mut self, node: usize, update_rects: bool) {
+    pub(crate) fn partial_relayout(&mut self, node: usize, update_rects: bool) {
         // if the node has already been layouted on the current frame, stop immediately, and don't even recurse.
         // when doing partial layouts, this avoids overlap, but it means that we have to sort the partial relayouts cleanly from least depth to highest depth in order to get it right. This is done in `relayout()`.
         let current_frame = self.sys.part.current_frame;
@@ -451,7 +451,7 @@ impl Ui {
     }
 
     #[allow(dead_code)]
-    pub fn place_image(&mut self, _node: usize) {     
+    pub(crate) fn place_image(&mut self, _node: usize) {     
         // might be something here in the future
     }
 

@@ -681,41 +681,64 @@ impl Ui {
         self.update_time();
     }
 
+    /// Add a note to the `Ui` corresponding to `key` and returns an [`UiNode`] pointing to it.
+    /// 
+    /// Adding the node creates it in `Ui`, but it won't be part of the tree until it is `place`d into it. You can do this by calling [`Ui::place`] with the same key, or by calling [`place()`](UiNode::place) on the returned [`UiNode`] (possibly after calling other builder methods).
+    /// 
+    /// If a node corresponding to `key` was already added in a previous frame, then it will return a [`UiNode`] pointing to the same one.
+    /// 
+    /// If one or more nodes corresponding to `key` were already added in the *same* frame, then it will create a "twin" node.
+    /// It's usually clearer to use different keys or to create sibling keys explicitely with [`NodeKey::sibling`] rather than to rely on this behavior.
+    /// 
+    /// The returned [`UiNode`] can be used to set the appearance, size, text, etc. of the node, using [`UiNode`]'s builder methods.
+    /// 
+    /// ```rust
+    /// #[node_key] const RED_BUTTON: NodeKey;
+    /// ui.add(RED_BUTTON)
+    ///     .params(BUTTON)
+    ///     .color(Color::RED)
+    ///     .text("Increase");
+    /// ```
+    /// 
     pub fn add(&mut self, key: NodeKey) -> UiNode<Any> {
         let i = self.add_or_update_node(key);
         return self.get_ref_unchecked(i, &key);
     }
 
-    pub fn add_anon(&mut self, params: NodeParams) -> UiNode<Any> {
+    /// Like [`Ui::add`], but without a key.
+    pub fn add_anon_node(&mut self) -> UiNode<Any> {
         let id_from_tree_position = thread_local_peek_tree_position_hash();
-        // the params usually change after the add(), so no point in trying to get a debug name from the params
         let anonymous_key = NodeKey::new(Id(id_from_tree_position), "");
         
         let i = self.add_or_update_node(anonymous_key);
 
-        let mut uinode = self.get_ref_unchecked(i, &anonymous_key);
-        uinode.params(params);
+        let uinode = self.get_ref_unchecked(i, &anonymous_key);
         return uinode; 
     }
 
+    /// Add and place an anonymous vertical stack container.
     pub fn v_stack(&mut self) -> UiPlacedNode {
         self.add(ANON_VSTACK).params(V_STACK);
         return self.place(ANON_VSTACK);
     }
-
+    
+    /// Add and place an anonymous horizontal stack container.
     pub fn place_h_stack(&mut self) -> UiPlacedNode {
         self.add(ANON_HSTACK).params(H_STACK);
         return self.place(ANON_HSTACK);
     }
 
+    /// Add and place an anonymous text element.
     pub fn text(&mut self, text: impl Display + Hash) -> UiPlacedNode {
-        return self.add_anon(TEXT).text(text).place();
+        return self.add_anon_node().params(TEXT).text(text).place();
     }
 
+    /// Add and place an anonymous label.
     pub fn label(&mut self, text: impl Display + Hash) -> UiPlacedNode {
-        return self.add_anon(LABEL).text(text).place();
+        return self.add_anon_node().params(LABEL).text(text).place();
     }
 
+    /// Returns `true` if a node corresponding to `key` exists and if it is currently part of the GUI tree. 
     pub fn is_in_tree(&self, key: NodeKey) -> bool {
         let node_i = self.nodes.node_hashmap.get(&key.id());
         if let Some(entry) = node_i {

@@ -271,7 +271,11 @@ impl Ui {
         };
     }
 
-    pub fn scan_mouse_hits(&mut self) -> Option<Id> {
+    pub fn is_hovered(&self, node_key: NodeKey) -> bool {
+        return self.sys.hovered.last() == Some(&node_key.id);
+    }
+
+    pub(crate) fn scan_mouse_hits(&mut self) -> Option<Id> {
         self.sys.mouse_hit_stack.clear();
 
         for rect in &self.sys.rects {
@@ -301,7 +305,17 @@ impl Ui {
         return topmost_hit;
     }
 
-    // returns: is the event consumed?
+    /// Handles window events and updates the UI state.
+    ///
+    /// You should pass *all* winit events to this method.
+    /// 
+    /// ```rust
+    ///     event_loop.run(move |event, target| {
+    ///         state.handle_event(&event, target);
+    ///     })?;
+    /// ```
+    ///
+    /// Returns `true` if the event was "consumed" by the `Ui`, e.g. if a mouse click hit an opaque panel.
     pub fn handle_events(&mut self, full_event: &Event<()>, queue: &Queue) -> bool {
         if let Event::WindowEvent { event, .. } = full_event {
             match event {
@@ -339,6 +353,7 @@ impl Ui {
                         return consumed;
                     }
                 }
+                // todo: 
                 WindowEvent::Resized(size) => self.resize(size, queue),
                 _ => {}
             }
@@ -347,12 +362,7 @@ impl Ui {
         return false;
     }
 
-    pub fn is_hovered(&self, node_key: NodeKey) -> bool {
-        return self.sys.hovered.last() == Some(&node_key.id);
-    }
-
-
-    pub fn handle_keyboard_event(&mut self, event: &KeyEvent) -> bool {
+    pub(crate) fn handle_keyboard_event(&mut self, event: &KeyEvent) -> bool {
         // todo: remove line.reset(); and do it only once per frame via change watcher guy
 
         if let Key::Named(named_key) = &event.logical_key { if named_key == &NamedKey::F1 {
