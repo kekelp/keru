@@ -67,6 +67,13 @@ impl Ui {
             )
             .unwrap();
     }
+
+    /// Returns `true` if the `Ui` needs to be rerendered.
+    /// 
+    /// If this is true, you should call [`Ui::prepare`] and [`Ui::render`] as soon as possible to display the updated GUI state on the screen.
+    pub fn needs_rerender(&self) -> bool {
+        return self.sys.changes.need_rerender || self.sys.changes.animation_rerender_time.is_some();
+    }
 }
 
 

@@ -119,7 +119,7 @@ impl State {
             .size_x(FitContent);
 
         self.ui.place(TOOLS_PANEL).nest(|| {
-            self.ui.place_h_stack().nest(|| {
+            self.ui.h_stack().nest(|| {
                 self.ui.v_stack().nest(|| {
                     self.ui.place(BRUSH);
                     self.ui.place(ERASER);

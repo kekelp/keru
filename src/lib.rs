@@ -37,7 +37,7 @@
 //! 
 //! However, Keru is intended to be used as part of a regular `winit`/`wgpu` window loop managed by the library user. This makes it very simple to combine it with any kind of custom rendering (as long as it uses `wgpu`), spares the library from having to re-expose a ton of window/rendering configuration options, and is generally a simpler and cleaner approach, in my opinion.
 //! 
-//! When building your own loop, you can still use the helper functions in the [`basic_window_loop`] module to avoid most of the `winit` and `wgpu` boilerplate. The Painter example uses this method. 
+//! When building your own loop, you can still use the helper functions in the [`basic_window_loop`] module to skip most of the `winit` and `wgpu` boilerplate. The Painter example uses this method. 
 //! 
 //! Once you have a window loop, you can create a [`Ui`] struct and store it in your main program state.
 //! The [`Ui`] struct is the central API of the library. All operations start by calling a method of [`Ui`].
@@ -66,14 +66,23 @@
 //! 
 //! To see how the GUI declaration code works, you can check the basic example above, the Counter example, or the `paint_ui.rs` file in the painter example.
 //! 
-//! You can see the documentation for each method used for the details and reasoning behind the API.
+//! To summarize, for each element in the GUI, you have to perform some of these conceptual steps:
 //! 
-//! The most important ones are:
-//! - [`node_key`]
-//! - [`Ui::add`]
-//! - [`UiNode::place`]
-//! - [`UiPlacedNode::nest`]
-//! - [`Ui::is_clicked`]
+//! - optionally, define a [`NodeKey`] for the node
+//! - [**add**](`Ui::add`) the node to the `Ui`
+//! - set its parameters ([**color**](`UiNode::color`), [**size**](`UiNode::size`), [**text**](`UiNode::text`), ...)
+//! - [**place**](Ui::place) it in the tree
+//! - optionally, start a [nested](`UiPlacedNode::nest`) block
+//! - optionally, [check for input](`Ui::is_clicked`) on the nodes and run code as a consequence
+//! 
+//! You can do these things by either calling methods directly on the main [`Ui`] struct, or by calling chained methods on the result of a previous method.
+//! 
+//! Non-chained methods take a [`NodeKey`] argument in order to refer to the specific node.
+//! 
+//! 
+//! ```rust
+//! ui.add_anon().params(BUTTON).text("Click Here").
+//! ```
 //!
 
 
@@ -89,8 +98,8 @@ pub use math::*;
 mod param_library;
 pub use param_library::*;
 
-mod keys;
-pub use keys::*;
+mod node_key;
+pub use node_key::*;
 
 mod node_params;
 pub use node_params::*;
@@ -101,7 +110,8 @@ pub use color::*;
 mod ui_node;
 pub use ui_node::*;
 
-pub mod interact;
+mod interact;
+pub use interact::*;
 
 pub mod basic_window_loop;
 pub mod example_window_loop;

@@ -4,7 +4,7 @@ use std::hash::{Hash, Hasher};
 use rustc_hash::FxHasher;
 
 #[derive(Debug, Copy, Clone)]
-/// A lightweight struct describing the params of an ui node.
+/// A lightweight struct describing the params of a GUI node.
 /// 
 /// You can start with one of the associated constants, then use the builder methods to customize it:
 /// 

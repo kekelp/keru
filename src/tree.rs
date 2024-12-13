@@ -1,7 +1,7 @@
 // todo: move some more stuff out of this file
 use crate::changes::NodeWithDepth;
 use crate::*;
-use crate::keys::*;
+use crate::node_key::*;
 use crate::math::*;
 use crate::param_library::*;
 use crate::text::*;
@@ -57,7 +57,7 @@ pub(crate) const Z_BACKDROP: f32 = 0.5;
 pub(crate) const Z_STEP: f32 = -0.000030517578125;
 
 // another stupid sub struct for dodging partial borrows
-pub struct TextSystem {
+pub(crate) struct TextSystem {
     pub font_system: FontSystem,
     pub cache: SwashCache,
     pub atlas: TextAtlas,
@@ -246,14 +246,9 @@ impl Ui {
 
     /// Add a node to the `Ui` corresponding to `key` and returns an [`UiNode`] pointing to it.
     /// 
-    /// Adding the node creates it in `Ui`, but it won't be part of the tree until it is `place`d into it. You can do this by calling [`Ui::place`] with the same key, or by calling [`place()`](UiNode::place) on the returned [`UiNode`] (possibly after calling other builder methods).
+    /// Adding the node adds it to the `Ui`, but it won't be visible until it is "placed" in the tree. You can do this by calling [`Ui::place`] with the same key, or by calling [`place()`](UiNode::place) directly on the returned [`UiNode`].
     /// 
-    /// If a node corresponding to `key` was already added in a previous frame, then it will return a [`UiNode`] pointing to the same one.
-    /// 
-    /// If one or more nodes corresponding to `key` were already added in the *same* frame, then it will create a "twin" node.
-    /// It's usually clearer to use different keys, or to create sibling keys explicitely with [`NodeKey::sibling`], rather than to rely on this behavior.
-    /// 
-    /// The returned [`UiNode`] can be used to set the appearance, size, text, etc. of the node, using [`UiNode`]'s builder methods.
+    /// The returned [`UiNode`] can also be used to set the appearance, size, text, etc. of the node, using [`UiNode`]'s builder methods.
     /// 
     /// ```rust
     /// #[node_key] const RED_BUTTON: NodeKey;
@@ -263,6 +258,19 @@ impl Ui {
     ///     .text("Increase");
     /// ```
     /// 
+    /// # Details
+    ///  
+    /// - If a node corresponding to `key` was already added in a previous frame, then it will return a [`UiNode`] pointing to the old one.
+    /// 
+    /// - If one or more nodes corresponding to `key` were already added in the *same* frame, then it will create a "twin" node.
+    /// It's usually clearer to use different keys, or to create sibling keys explicitely with [`NodeKey::sibling`], rather than to rely on this behavior.
+    /// 
+    /// # Similar Functions
+    /// 
+    /// - [`Ui::add_anon`] can also add a node, but without requiring a key.
+    /// 
+    /// - Shorthand functions like [`Ui::text`] and [`Ui::label`] can `add` and [place](`Ui::place`) simple nodes all in once without requiring a key.
+    /// 
     pub fn add(&mut self, key: NodeKey) -> UiNode {
         let i = self.add_or_update_node(key);
         return self.get_ref_unchecked(i, &key);
@@ -271,7 +279,16 @@ impl Ui {
     /// Exactly ike [`Ui::add`], but without a key.
     /// 
     /// The added node will be anonymous, and it won't be reachable by methods like [`Ui::place`] or [`Ui::get_node`] that use a key.
-    pub fn add_anon_node(&mut self) -> UiNode {
+    /// 
+    /// ```rust
+    /// ui.add_anon()
+    ///     .params(LABEL)
+    ///     .color(Color::RED)
+    ///     .text("Hello World")
+    ///     .place();
+    /// ```
+    /// 
+    pub fn add_anon(&mut self) -> UiNode {
         let id_from_tree_position = thread_local_peek_tree_position_hash();
         let anonymous_key = NodeKey::new(Id(id_from_tree_position), "");
         
@@ -281,11 +298,11 @@ impl Ui {
         return uinode; 
     }
 
-    /// Place the node corresponding to `key` at a specific position in the Ui tree.
+    /// Place the node corresponding to `key` at a specific position in the GUI tree.
     /// 
     /// The position is defined by the position of the [`place`](Ui::place) call relative to [`nest`](UiPlacedNode::nest) calls.
     /// 
-    /// Panics if it is called with a key that doesn't correspond to any previously (`added)[Ui::add] node.
+    /// Panics if it is called with a key that doesn't correspond to any previously added node, through either [Ui::add], [Ui::add_anon], or [Ui::text] or similar functions.
     /// 
     /// ```rust
     /// ui.add(PARENT).params(CONTAINER);
@@ -444,13 +461,6 @@ impl Ui {
         }
 
         self.sys.last_frame_timestamp = Instant::now();
-    }
-
-    /// Returns `true` if the `Ui` needs to be rerendered.
-    /// 
-    /// If this is true, you should call [`Ui::prepare`] and [`Ui::render`] as soon as possible to display the updated GUI state on the screen.
-    pub fn needs_rerender(&self) -> bool {
-        return self.sys.changes.need_rerender || self.sys.changes.animation_rerender_time.is_some();
     }
 
     pub(crate) fn push_rect(&mut self, node: usize) {
@@ -717,19 +727,19 @@ impl Ui {
     }
     
     /// Add and place an anonymous horizontal stack container.
-    pub fn place_h_stack(&mut self) -> UiPlacedNode {
+    pub fn h_stack(&mut self) -> UiPlacedNode {
         self.add(ANON_HSTACK).params(H_STACK);
         return self.place(ANON_HSTACK);
     }
 
     /// Add and place an anonymous text element.
     pub fn text(&mut self, text: impl Display + Hash) -> UiPlacedNode {
-        return self.add_anon_node().params(TEXT).text(text).place();
+        return self.add_anon().params(TEXT).text(text).place();
     }
 
     /// Add and place an anonymous label.
     pub fn label(&mut self, text: impl Display + Hash) -> UiPlacedNode {
-        return self.add_anon_node().params(LABEL).text(text).place();
+        return self.add_anon().params(LABEL).text(text).place();
     }
 
     /// Returns `true` if a node corresponding to `key` exists and if it is currently part of the GUI tree. 
@@ -761,15 +771,21 @@ pub(crate) fn fx_hash<T: Hash>(value: &T) -> u64 {
     hasher.finish()
 }
 
-/// The result of [placing](UiNode::place) a node.
-/// 
+/// A struct referring to a node that was [placed](Ui::place) on the tree. Allows adding nested children.
+///  
 /// Can be used to call [nest](UiPlacedNode::nest) and add more nodes as a parent of this one.
+/// 
+/// ```rust
+///              // ↓ returns a `UiPlacedNode`
+/// ui.place(PARENT).nest(|| {
+///     ui.place(CHILD);
+/// });
+/// ```
 /// 
 /// The nesting mechanism uses a bit of magic to avoid having to pass a [`Ui`] parameter into the closure.
 /// Because of this, `UiPlacedNode` is actually a plain-old-data struct and doesn't contain a reference to the main [`Ui`] object, so it can technically be freely assigned to a variable and stored.
 /// 
-/// While there's nothing unsafe about that, I doubt that anything good can come out of it, either. The intended use is to just call [nest](UiPlacedNode::nest) immediately after getting this struct from [UiNode::place].
-/// 
+/// While there's nothing unsafe about that, it will almost surely lead to weird unreadable code. The intended use is to just call [nest](UiPlacedNode::nest) immediately after getting this struct from [`UiNode::place`], like in the example.
 /// 
 pub struct UiPlacedNode {
     pub(crate) node_i: usize,
@@ -783,7 +799,19 @@ impl UiPlacedNode {
         }
     }
 
-    ///
+    /// Start a nested block in the GUI tree.
+    /// 
+    /// Inside the nested block, new nodes will be added as a child of the node that `self` refers to.
+    /// 
+    /// ```rust
+    /// ui.place(PARENT).nest(|| {
+    ///     ui.place(CHILD);
+    /// });
+    /// ```
+    /// 
+    /// Since the `content` closure doesn't borrow or move anything, it sets no restrictions at all on what code can be ran inside it.
+    /// You can keep access and mutate both the `Ui` object and the rest of the program state freely, as you'd outside of the closure. 
+    ///  
     pub fn nest(&self, content: impl FnOnce()) {
         thread_local_push_parent(self);
 

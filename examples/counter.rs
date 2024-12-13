@@ -59,6 +59,7 @@ impl ExampleLoop for State {
                 ui.place(INCREASE);
                 ui.label(self.count);
                 ui.place(DECREASE);
+                ui.place(INCREASE);
             }
             ui.place(SHOW);
         });

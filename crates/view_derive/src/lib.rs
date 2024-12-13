@@ -35,6 +35,22 @@ impl Parse for ItemConstNoEq {
     }
 }
 
+/// A macro that creates an unique [`NodeKey`](../keru/node_key/struct.NodeKey.html) struct.
+/// 
+/// The `id` field is obtained by rolling a random `u64` at compile time, while `debug_name` is obtained from the identifier.
+/// 
+/// ### Example
+/// 
+/// ```rust
+/// #[node_key] const UNIQUE_KEY: NodeKey;
+/// ```
+/// 
+/// ### Expands To
+/// 
+/// ```rust
+/// pub const INCREASE: UNIQUE_KEY = <NodeKey>::new(keru::Id(13624446487038443998u64), "UNIQUE_KEY");
+/// ```
+/// 
 #[proc_macro_attribute]
 pub fn node_key(_attr: TokenStream, item: TokenStream) -> TokenStream {
     // todo: make sure that attr is empty now
