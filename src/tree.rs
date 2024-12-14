@@ -268,7 +268,6 @@ impl Ui {
     /// - [`Ui::add_anon`] can also add a node, but without requiring a key.
     /// 
     /// - Shorthand functions like [`Ui::text`] and [`Ui::label`] can `add` and [place](`Ui::place`) simple nodes all in once without requiring a key.
-    /// 
     pub fn add(&mut self, key: NodeKey) -> UiNode {
         let i = self.add_or_update_node(key);
         return self.get_ref_unchecked(i, &key);
@@ -285,7 +284,6 @@ impl Ui {
     ///     .text("Hello World")
     ///     .place();
     /// ```
-    /// 
     pub fn add_anon(&mut self) -> UiNode {
         let id_from_tree_position = thread_local_peek_tree_position_hash();
         let anonymous_key = NodeKey::new(Id(id_from_tree_position), "");
@@ -500,96 +498,6 @@ impl Ui {
             
         // todo: update images?
     }
-
-    // pub(crate) fn push_cursor_rect(&mut self) -> Option<()> {
-        // cursor
-        // how to make it appear at the right z? might be impossible if there are overlapping rects at the same z.
-        // one epic way could be to increase the z sequentially when rendering, so that all rects have different z's, so the cursor can have the z of its rect plus 0.0001.
-        // anyone doing custom rendering won't mind having to fetch a dynamic Z since they're fetching dynamic x's and y's all the time.
-
-        // it's a specific choice by me to keep cursors for every string at all times, but only display (and use) the one on the currently focused ui node.
-        // someone might want multi-cursor in the same node, multi-cursor on different nodes, etc.
-        // let focused_id = &self.sys.focused?;
-        // let focused_node = self.nodes.get_by_id(focused_id)?;
-        // let text_id = focused_node.text_id?;
-        // let focused_text_area = self.sys.text.text_areas.get(text_id)?;
-
-        // match focused_text_area.buffer.lines[0].text.cursor() {
-        //     StringCursor::Point(cursor) => {
-        //         let rect_x0 = focused_node.rect[X][0];
-        //         let rect_y1 = focused_node.rect[Y][1];
-
-        //         let (x, y) = cursor_pos_from_byte_offset(&focused_text_area.buffer, *cursor);
-
-        //         let cursor_width = focused_text_area.buffer.metrics().font_size / 20.0;
-        //         let cursor_height = focused_text_area.buffer.metrics().font_size;
-        //         // we're counting on this always happening after layout. which should be safe.
-        //         let x0 = ((x - 1.0) / self.sys.part.unifs.size[X]) * 2.0;
-        //         let x1 = ((x + cursor_width) / self.sys.part.unifs.size[X]) * 2.0;
-        //         let x0 = x0 + (rect_x0 * 2. - 1.);
-        //         let x1 = x1 + (rect_x0 * 2. - 1.);
-
-        //         let y0 = ((-y - cursor_height) / self.sys.part.unifs.size[Y]) * 2.0;
-        //         let y1 = ((-y) / self.sys.part.unifs.size[Y]) * 2.0;
-        //         let y0 = y0 + (rect_y1 * 2. - 1.);
-        //         let y1 = y1 + (rect_y1 * 2. - 1.);
-
-        //         let cursor_rect = RenderRect {
-        //             rect: XyRect::new([x0, x1], [y0, y1]),
-        //             vertex_colors: VertexColors::flat(Color::rgba(128, 77, 128, 230)),
-        //             last_hover: 0.0,
-        //             last_click: 0.0,
-        //             click_animation: 0,
-        //             z: 0.0,
-        //             id: Id(0),
-        //             filled: 1,
-        //             radius: 0.0,
-        //             tex_coords: Xy::new([0.0, 0.0], [0.0, 0.0]),
-        //         };
-
-        //         self.sys.rects.push(cursor_rect);
-        //     }
-        //     StringCursor::Selection(selection) => {
-        //         let rect_x0 = focused_node.rect[X][0];
-        //         let rect_y1 = focused_node.rect[Y][1];
-
-        //         let (x0, y0) =
-        //             cursor_pos_from_byte_offset(&focused_text_area.buffer, selection.start);
-        //         let (x1, y1) =
-        //             cursor_pos_from_byte_offset(&focused_text_area.buffer, selection.end);
-
-        //         // let cursor_width = focused_text_area.buffer.metrics().font_size / 20.0;
-        //         let cursor_height = focused_text_area.buffer.metrics().font_size;
-        //         let x0 = ((x0 - 1.0) / self.sys.part.unifs.size[X]) * 2.0;
-        //         let x1 = ((x1 + 1.0) / self.sys.part.unifs.size[X]) * 2.0;
-        //         let x0 = x0 + (rect_x0 * 2. - 1.);
-        //         let x1 = x1 + (rect_x0 * 2. - 1.);
-
-        //         let y0 = ((-y0 - cursor_height) / self.sys.part.unifs.size[Y]) * 2.0;
-        //         let y1 = ((-y1) / self.sys.part.unifs.size[Y]) * 2.0;
-        //         let y0 = y0 + (rect_y1 * 2. - 1.);
-        //         let y1 = y1 + (rect_y1 * 2. - 1.);
-
-        //         let cursor_rect = RenderRect {
-        //             rect: XyRect::new([x0, x1], [y0, y1]),
-        //             vertex_colors: VertexColors::flat(Color::rgba(128, 77, 128, 230)),
-        //             last_hover: 0.0,
-        //             last_click: 0.0,
-        //             click_animation: 0,
-        //             z: 0.0,
-        //             id: Id(0),
-        //             filled: 1,
-        //             radius: 0.0,
-
-        //             tex_coords: Xy::new([0.0, 0.0], [0.0, 0.0]),
-        //         };
-
-        //         self.sys.rects.push(cursor_rect);
-        //     }
-        // }
-
-    //     return Some(());
-    // }
 
     // todo: actually call this once in a while
     pub(crate) fn prune(&mut self) {
