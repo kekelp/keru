@@ -312,7 +312,6 @@ impl Ui {
                     text_renderer,
                     font_system,
                     text_areas,
-                    glyphon_cache,
                     glyphon_viewport,
                 },
 

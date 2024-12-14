@@ -62,7 +62,6 @@ pub(crate) struct TextSystem {
     pub text_renderer: TextRenderer,
     pub text_areas: Vec<FullText>,
     pub glyphon_viewport: Viewport,
-    pub glyphon_cache: GlyphonCache,
 }
 const GLOBAL_TEXT_METRICS: Metrics = Metrics::new(24.0, 24.0);
 impl TextSystem {

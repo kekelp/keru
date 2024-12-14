@@ -319,23 +319,21 @@ impl Ui {
     pub(crate) fn handle_keyboard_event(&mut self, event: &KeyEvent) -> bool {
         // todo: remove line.reset(); and do it only once per frame via change watcher guy
 
-        if let Key::Named(named_key) = &event.logical_key { if named_key == &NamedKey::F1 {
-            if event.state.is_pressed() && self.sys.debug_key_pressed == false {
-                #[cfg(debug_assertions)]
-                {
-
-                    self.set_debug_mode(! self.debug_mode());
+        if let Key::Named(named_key) = &event.logical_key {
+            if named_key == &NamedKey::F1 {
+                if event.state.is_pressed() && self.sys.debug_key_pressed == false {
+                    #[cfg(debug_assertions)]
+                    {
+                        self.set_debug_mode(!self.debug_mode());
+                    }
                 }
+
+                self.sys.debug_key_pressed = event.state.is_pressed();
             }
-
-            self.sys.debug_key_pressed = event.state.is_pressed();
-        } 
-    }
-
+        }
 
         return false;
     }
-
 }
 
 /// A mouse event.
