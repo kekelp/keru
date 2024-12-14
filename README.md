@@ -4,7 +4,7 @@ It is in active development and it's not ready for any kind of use.
 
 It offers a declarative API similar to immediate mode GUI libraries, but it is not immediate mode.
 
-See the docs.rs for more information.
+See the docs.rs page for more information.
 
 ## Example
 
