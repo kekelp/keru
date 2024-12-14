@@ -2,11 +2,66 @@ use std::{marker::PhantomData, mem};
 
 use bytemuck::Pod;
 use wgpu::{Buffer, BufferSlice, Device, Queue, RenderPass};
+use winit::event::*;
 
 use crate::text::render_iter;
 use crate::Ui;
 
 impl Ui {
+    /// Handles window events and updates the `Ui`'s internal state accordingly.
+    /// 
+    /// You can then check for input events on specific nodes with [`Ui::is_clicked`] and similar functions.
+    ///
+    /// You should pass all events from winit to this method, unless they are "consumed" by something "above" the GUI.
+    ///
+    /// Returns `true` if the event was "consumed" by the `Ui`, e.g. if a mouse click hit an opaque panel.
+    /// 
+    pub fn handle_events(&mut self, full_event: &Event<()>) -> bool {
+        if let Event::WindowEvent { event, .. } = full_event {
+            match event {
+                WindowEvent::CursorMoved { position, .. } => {
+                    self.sys.part.mouse_pos.x = position.x as f32;
+                    self.sys.part.mouse_pos.y = position.y as f32;
+                    self.resolve_hover();
+                    // cursormoved is never consumed
+                }
+                WindowEvent::MouseInput { button, state, .. } => {
+                    // We have to test against all clickable rectangles immediately to know if the input is consumed or not
+                    match state {
+                        ElementState::Pressed => {
+                            let consumed = self.resolve_click_press(*button);
+                            return consumed;
+                        },
+                        ElementState::Released => {
+                            self.resolve_click_release(*button);
+                            // Consuming mouse releases can very easily mess things up for whoever is below us.
+                            // Some unexpected mouse releases probably won't be too annoying.
+                            return false
+                        },
+                    }
+                }
+                WindowEvent::ModifiersChanged(modifiers) => {
+                    self.sys.key_mods = modifiers.state();
+                }
+                WindowEvent::KeyboardInput {
+                    event,
+                    is_synthetic,
+                    ..
+                } => {
+                    if !is_synthetic {
+                        let consumed = self.handle_keyboard_event(event);
+                        return consumed;
+                    }
+                }
+                // todo: 
+                WindowEvent::Resized(size) => self.resize(size),
+                _ => {}
+            }
+        }
+
+        return false;
+    }
+
     /// Renders the GUI render data that were previously loaded on the GPU with [`Ui::prepare`].
     pub fn render(&mut self, render_pass: &mut RenderPass) {
         let n = self.sys.rects.len() as u32;

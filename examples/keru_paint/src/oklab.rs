@@ -25,6 +25,7 @@ pub struct RgbColor {
     pub b: f32,
 }
 
+#[allow(dead_code)]
 pub fn linear_srgb_to_oklab(c: RgbColor) -> OkLabColor {
     let l = 0.4122214708 * c.r + 0.5363325363 * c.g + 0.0514459929 * c.b;
     let m = 0.2119034982 * c.r + 0.6806995451 * c.g + 0.1073969566 * c.b;
@@ -57,6 +58,7 @@ pub fn oklab_to_linear_srgb(c: OkLabColor) -> RgbColor {
     }
 }
 
+#[allow(dead_code)]
 pub fn oklab_to_oklch(c: OkLabColor) -> OkLchColor {
     let chroma = (c.a * c.a + c.b * c.b).sqrt();
     let hue = c.b.atan2(c.a).to_degrees();
@@ -82,6 +84,7 @@ pub fn oklch_to_oklab(c: OkLchColor) -> OkLabColor {
     }
 }
 
+#[allow(dead_code)]
 pub fn linear_srgb_to_oklch(c: RgbColor) -> OkLchColor {
     let oklab = linear_srgb_to_oklab(c);
     return oklab_to_oklch(oklab);

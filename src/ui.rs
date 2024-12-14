@@ -422,7 +422,7 @@ impl NodeMapEntry {
 }
 
 #[derive(Debug)]
-pub struct Nodes {
+pub(crate) struct Nodes {
     // todo: make faster or something
     pub node_hashmap: FxHashMap<Id, NodeMapEntry>,
     pub nodes: Slab<Node>,

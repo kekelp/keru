@@ -14,12 +14,10 @@ use glyphon::Cache as GlyphonCache;
 
 use rustc_hash::FxHasher;
 use thread_local::thread_local_peek_tree_position_hash;
-use wgpu::*;
 
 use std::collections::hash_map::Entry;
 use std::{
     hash::Hasher,
-    marker::PhantomData,
     time::Instant,
 };
 
@@ -503,7 +501,7 @@ impl Ui {
         // todo: update images?
     }
 
-    pub(crate) fn push_cursor_rect(&mut self) -> Option<()> {
+    // pub(crate) fn push_cursor_rect(&mut self) -> Option<()> {
         // cursor
         // how to make it appear at the right z? might be impossible if there are overlapping rects at the same z.
         // one epic way could be to increase the z sequentially when rendering, so that all rects have different z's, so the cursor can have the z of its rect plus 0.0001.
@@ -590,8 +588,8 @@ impl Ui {
         //     }
         // }
 
-        return Some(());
-    }
+    //     return Some(());
+    // }
 
     // todo: actually call this once in a while
     pub(crate) fn prune(&mut self) {
@@ -828,13 +826,15 @@ impl<'a> UiNode<'a> {
     /// 
     /// ```rust  
     /// ui.add_anon(PANEL).place().nest(|| {
-    ///     ui.add(BUTTON_KEY)..place();
+    ///     ui.add(BUTTON_KEY).place();
     /// });
     /// ```
     /// 
-    /// [`Ui::place`] does the same thing, using a `NodeKey` argument to identify the node to place instead of being called directly on an [`UiNode`].
+    /// [`Ui::place`] does the same thing, using a `NodeKey` argument to identify the node to place.
     /// 
-    /// Compared to [`Ui::place`], this function allows adding, setting the params and placing the node all in the same place, and it is also safe from panics. 
+    /// Compared to [`Ui::place`], this function doesn't allow separating the code that `add`s the node and sets the [`NodeParams`] and the code that defines the layout. 
+    /// 
+    /// However, it is fully panic-safe. 
     pub fn place(&mut self) -> UiPlacedNode {
         self.ui.place_by_i(self.node_i);
         let old_children_hash = self.node().children_hash;

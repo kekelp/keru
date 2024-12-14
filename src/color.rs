@@ -15,6 +15,7 @@ impl Color {
     }
 }
 
+/// A node's vertex colors.
 #[derive(Default, Debug, Clone, Copy, PartialEq, Zeroable, Pod, Hash)]
 #[repr(C)]
 pub struct VertexColors {

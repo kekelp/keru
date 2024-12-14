@@ -1,17 +1,17 @@
 use std::time::{Duration, Instant};
 
-use winit::{event::{ElementState, Event, KeyEvent, MouseButton, WindowEvent}, keyboard::{Key, NamedKey}};
+use winit::{event::{KeyEvent, MouseButton}, keyboard::{Key, NamedKey}};
 
 use crate::*;
 
 
 impl Ui {
-    /// Returns all [`MouseEvent`]s from the last frame.
+    /// Returns all [`FullMouseEvent`]s from the last frame.
     pub fn all_mouse_events(&self) -> impl DoubleEndedIterator<Item = &FullMouseEvent> {
         return self.sys.last_frame_mouse_events.iter();
     }
 
-    /// Returns all [`MouseEvent`]s for a specific button on the node corresponding to `node_key`, or an empty iterator if the node is currently not part of the tree or if it doesn't exist.
+    /// Returns all [`FullMouseEvent`]s for a specific button on the node corresponding to `node_key`, or an empty iterator if the node is currently not part of the tree or if it doesn't exist.
     pub fn mouse_events(&self, mouse_button: MouseButton, node_key: NodeKey) -> impl DoubleEndedIterator<Item = &FullMouseEvent> {
         return self
             .all_mouse_events()
@@ -316,58 +316,6 @@ impl Ui {
         return topmost_hit;
     }
 
-    /// Handles window events and updates the UI state.
-    ///
-    /// You should pass all events from winit to this method, unless they are "consumed" by something "above" the GUI.
-    ///
-    /// Returns `true` if the event was "consumed" by the `Ui`, e.g. if a mouse click hit an opaque panel.
-    /// 
-    pub fn handle_events(&mut self, full_event: &Event<()>) -> bool {
-        if let Event::WindowEvent { event, .. } = full_event {
-            match event {
-                WindowEvent::CursorMoved { position, .. } => {
-                    self.sys.part.mouse_pos.x = position.x as f32;
-                    self.sys.part.mouse_pos.y = position.y as f32;
-                    self.resolve_hover();
-                    // cursormoved is never consumed
-                }
-                WindowEvent::MouseInput { button, state, .. } => {
-                    // We have to test against all clickable rectangles immediately to know if the input is consumed or not
-                    match state {
-                        ElementState::Pressed => {
-                            let consumed = self.resolve_click_press(*button);
-                            return consumed;
-                        },
-                        ElementState::Released => {
-                            self.resolve_click_release(*button);
-                            // Consuming mouse releases can very easily mess things up for whoever is below us.
-                            // Some unexpected mouse releases probably won't be too annoying.
-                            return false
-                        },
-                    }
-                }
-                WindowEvent::ModifiersChanged(modifiers) => {
-                    self.sys.key_mods = modifiers.state();
-                }
-                WindowEvent::KeyboardInput {
-                    event,
-                    is_synthetic,
-                    ..
-                } => {
-                    if !is_synthetic {
-                        let consumed = self.handle_keyboard_event(event);
-                        return consumed;
-                    }
-                }
-                // todo: 
-                WindowEvent::Resized(size) => self.resize(size),
-                _ => {}
-            }
-        }
-
-        return false;
-    }
-
     pub(crate) fn handle_keyboard_event(&mut self, event: &KeyEvent) -> bool {
         // todo: remove line.reset(); and do it only once per frame via change watcher guy
 
@@ -506,8 +454,11 @@ pub struct MouseEvent {
     pub hit_node_id: Option<Id>,
 }
 
+/// A mouse press that has to be matched to a future mouse release.
+/// 
+/// Not part of the public API.
 #[derive(Clone, Copy, Debug)]
-pub struct PendingMousePress {
+pub(crate) struct PendingMousePress {
     pub button: MouseButton,
     pub pressed_at: MouseEvent,
     pub last_seen: MouseEvent,
@@ -524,14 +475,21 @@ impl PendingMousePress {
     }
 }
 
+/// Information about a [`FullMouseEvent`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum IsMouseReleased {
+    /// The mouse was released, and this event will be reported for the last time on this frame.
     MouseReleased,
+    /// The mouse is still being held down, and it was reported at the end of the frame.
     StillDownButFrameEnded,
 }
 
 
 /// A full description of a mouse event tracked for multiple frames, from click to release.
+/// 
+/// Usually there's no need to use this struct directly, as you can use [`Ui::is_clicked`] and similar methods. But for advanced uses, you can obtain an iterator of `FullMouseEvent`s from [`Ui::all_mouse_events`] or [`Ui::mouse_events`].
+/// 
+/// You can use the [`FullMouseEvent::is_just_clicked`] and the other methods to map these events into more familiar concepts.
 #[derive(Clone, Copy, Debug)]
 pub struct FullMouseEvent {
     pub button: MouseButton,

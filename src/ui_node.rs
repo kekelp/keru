@@ -1,5 +1,4 @@
 use std::fmt::Display;
-use std::hash::Hash;
 
 use glyphon::cosmic_text::Align;
 use glyphon::Attrs;
@@ -28,6 +27,15 @@ impl<'a> UiNode<'a> {
         return &self.ui.nodes.nodes[self.node_i];
     }
 
+    /// Add an image to the node.
+    /// 
+    /// Uses pointer comparison to tell if the image has changed since the last call on the same node..
+    /// 
+    /// ```rust
+    /// ui.add(BRUSH).params(ICON_BUTTON).static_image(include_bytes!("icons/brush.png"));
+    /// ```
+    /// 
+    /// Panics if the byte slice in `image` can't be interpreted as an image.
     pub fn static_image(&mut self, image: &'static [u8]) {
         let image_pointer: *const u8 = image.as_ptr();
 
@@ -42,7 +50,14 @@ impl<'a> UiNode<'a> {
         self.node_mut().last_static_image_ptr = Some(image_pointer);
     }
 
-    pub fn dynamic_image(&mut self, image: &[u8], changed: bool) {
+    /// Add an image to the node.
+    /// 
+    /// If `changed` is `false`, it will assume that the same image as the last frame is being passed, and won't do anything.
+    /// 
+    /// Otherwise, it will assume that it has changed.
+    /// 
+    /// Panics if the byte slice in `image` can't be interpreted as an image.
+    pub fn dyn_image(&mut self, image: &[u8], changed: bool) {
         if self.node_mut().imageref.is_some() && changed == false {
             return;
         }
@@ -52,9 +67,9 @@ impl<'a> UiNode<'a> {
         self.node_mut().last_static_image_ptr = None;
     }
 
-    /// This is not a callback, the effect is executed immediately (or never if not clicked)
-    /// It's this way just for easier builder-style composition
-    /// You can also do ui.is_clicked(KEY) 
+    // This is not a callback, the effect is executed immediately (or never if not clicked)
+    // It's this way just for easier builder-style composition
+    // You can also do ui.is_clicked(KEY) 
     // pub fn on_click(&mut self, effect: impl FnOnce()) -> &mut Self {
     //     let id = self.node().id;
 
@@ -90,6 +105,18 @@ impl<'a> UiNode<'a> {
         return self;
     }
 
+    pub fn position(&mut self, position_x: Position, position_y: Position) -> &mut Self {
+        self.node_mut().params.layout.position.x = position_x;
+        self.node_mut().params.layout.position.y = position_y;
+        return self;
+    }
+
+    pub fn position_symm(&mut self, position: Position) -> &mut Self {
+        self.node_mut().params.layout.position.x = position;
+        self.node_mut().params.layout.position.y = position;
+        return self;
+    }
+
     pub fn position_x(&mut self, position: Position) -> &mut Self {
         self.node_mut().params.layout.position.x = position;
         return self;
@@ -100,11 +127,17 @@ impl<'a> UiNode<'a> {
         return self;
     }
 
+    pub fn size(&mut self, size_x: Size, size_y: Size) -> &mut Self {
+        self.node_mut().params.layout.size.x = size_x;
+        self.node_mut().params.layout.size.y = size_y;
+        return self;
+    }
+
     pub fn size_symm(&mut self, size: Size) -> &mut Self {
         self.node_mut().params.layout.size.x = size;
         self.node_mut().params.layout.size.y = size;
         return self;
-    }    
+    }
     
     pub fn size_x(&mut self, size: Size) -> &mut Self {
         self.node_mut().params.layout.size.x = size;
@@ -208,6 +241,20 @@ impl<'a> UiNode<'a> {
 }
 
 impl<'a> UiNode<'a> {
+    
+    /// Add some text to the node.
+    /// 
+    /// Uses pointer equality to check if the text has changed since the last call on the same node.
+    /// 
+    /// ```rust
+    /// let button_text = match self.show {
+    ///     true => "Hide Counter",
+    ///     false => "Show Counter",
+    /// };
+    /// ui.add(SHOW)
+    ///     .params(BUTTON)
+    ///     .static_text(button_text);
+    /// ```
     pub fn static_text(&mut self, text: &'static str) -> &mut Self {
         let text_pointer: *const u8 = text.as_ptr();
 
@@ -235,8 +282,18 @@ impl<'a> UiNode<'a> {
         return self;
     }
 
-    pub fn text(&mut self, into_text: impl Display + Hash) -> &mut Self {
+    /// Add some text to the node.
+    /// 
+    /// Will hash the provided text to determine if has changed since the last call on the same node.
+    /// 
+    /// ```rust
+    /// ui.add(SHOW)
+    ///     .params(BUTTON)
+    ///     .text(variable_text);
+    /// ```
+    pub fn text(&mut self, into_text: impl Display) -> &mut Self {
         // todo: hash into_text instead of the text to skip the formatting??
+        // note that many exotic types like "f32" can be formatted but not hashed 
         self.ui.format_into_scratch(into_text);
 
         if let Some(text_id) = self.node_mut().text_id {
@@ -266,6 +323,11 @@ impl<'a> UiNode<'a> {
         return self;
     }
 
+    /// Add some text to the node.
+    /// 
+    /// If `into_text` is `None`, the function will assume that the text hasn't changed since the last call, and won't do anything.
+    /// 
+    /// Otherwise, it will assume that it has changed.
     pub fn dyn_text(mut self, into_text: Option<impl Display>) -> Self {
         // if the text is None, return.
         let Some(into_text) = into_text else {
@@ -290,25 +352,29 @@ impl<'a> UiNode<'a> {
         return self;
     }
 
-    pub fn set_text_attrs(&mut self, attrs: Attrs) -> &mut Self {
+    /// Set the node's text attrs to `attrs`.
+    /// 
+    /// `attrs` is a `cosmic_text::Attrs` object. 
+    pub fn text_attrs(&mut self, attrs: Attrs) -> &mut Self {
         if let Some(text_id) = self.node_mut().text_id {
             self.ui.sys.text.set_text_attrs(text_id, attrs);
 
             self.ui.set_partial_relayout_flag(self.node_i);
 
         } else {
-            // todo: log a warning or something
-            // or make these things type safe somehow
+            // todo: add the text area
         }
         return self;
     }
 
-    pub fn set_text_align(&mut self, align: Align) -> &mut Self {
+    /// Set the node's text align to `align`.
+    /// 
+    /// `align` is a `cosmic_text::Align` object. 
+    pub fn text_align(&mut self, align: Align) -> &mut Self {
         if let Some(text_id) = self.node_mut().text_id {
             self.ui.sys.text.set_text_align(text_id, align);
         } else {
-            // todo: log a warning or something
-            // or make these things type safe somehow
+            // todo: add the text area
         }
         return self;
     }
@@ -325,6 +391,33 @@ impl<'a> UiNode<'a> {
     }
 }
 
+/// The data needed for rendering a node with custom code.
+/// 
+/// Obtained from a [`UiNode`] through [`UiNode::render_rect`]
+/// 
+/// The data is ready to be used in a shader like this:
+/// 
+/// ```wgsl
+/// struct Rect {
+///     @location(0) xs: vec2<f32>,
+///     @location(1) ys: vec2<f32>,
+///     @location(2) z: f32,
+/// }
+/// ```
+/// 
+/// With these vertex attributes:
+/// 
+/// ```rust
+/// vertex_attr_array![
+///     0 => Float32x2,
+///     1 => Float32x2,
+///     2 => Float32,
+/// ]
+/// ```
+/// 
+/// The format might be changed to something more familiar in the future.
+/// 
+/// This doesn't include the information about the `Shape`, because it's harder to interpret, and it's usually static.
 #[derive(Copy, Clone, Debug)]
 pub struct RenderInfo {
     pub rect: XyRect,

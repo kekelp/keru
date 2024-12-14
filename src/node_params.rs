@@ -31,8 +31,10 @@ pub struct NodeParams {
     pub key: NodeKey,
 }
 
+/// A node's size.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Size {
+    // todo: use two variants instead of Len?
     Fixed(Len),
     Fill,
     FitContent,
@@ -54,14 +56,19 @@ impl Hash for Size {
     }
 }
 
+/// A node's position relative to its parent.
 #[derive(Debug, Clone, Copy, PartialEq, Hash)]
 pub enum Position {
     Center,
     Start,
     End,
+    // todo: this should be named "Fixed", but the name conflicts with Size when exporting everything together...
+    // FixedPos and FixedSize??
+    // besides, this is missing anchors and the "self center" 
     Static(Len),
 }
 
+/// Options for stack container nodes.
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, Hash)]
 pub struct Stack {
@@ -89,6 +96,7 @@ impl Stack {
     }
 }
 
+/// Options for the arrangement of child nodes within a stack node.
 #[derive(Debug, Clone, Copy, Hash)]
 pub enum Arrange {
     Start,
@@ -100,12 +108,16 @@ pub enum Arrange {
 }
 
 // might as well move to Rect? but maybe there's issues with non-clickable stuff absorbing the clicks.
+/// The node's interact behavior.
 #[derive(Debug, Copy, Clone, Hash)]
 pub struct Interact {
+    /// Whether the node displays the default animation when clicked and hovered.
     pub click_animation: bool,
+    /// Whether the node consumes mouse events, or is transparent to them.
     pub absorbs_mouse_events: bool,
 }
 
+/// The node's layout, size and position.
 #[derive(Debug, Copy, Clone, PartialEq, Hash)]
 pub struct Layout {
     pub size: Xy<Size>,
@@ -113,6 +125,7 @@ pub struct Layout {
     pub position: Xy<Position>,
 }
 
+/// The node's shape.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Shape {
     Rectangle {
@@ -143,6 +156,7 @@ impl Hash for Shape {
     }
 }
 
+/// The node's visual appearance.
 #[derive(Debug, Copy, Clone, PartialEq, Hash)]
 pub struct Rect {
     pub shape: Shape,
@@ -162,14 +176,10 @@ impl Rect {
 
 // rename
 // todo: add greyed text for textinput
+/// Options for text nodes.
 #[derive(Debug, Copy, Clone, Hash)]
 pub struct TextOptions {
     pub editable: bool,
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct Image<'data> {
-    pub data: &'data [u8],
 }
 
 pub(crate) const BASE_RADIUS: f32 = 20.0;

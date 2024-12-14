@@ -21,7 +21,7 @@ pub struct DataToLoad {
 pub struct ImageRef {
     pub tex_coords: Xy<[f32; 2]>,
     pub original_size: Xy<f32>,
-    pub id: AllocId,
+    pub _id: AllocId,
 }
 
 impl TextureAtlas {
@@ -131,7 +131,7 @@ impl TextureAtlas {
         return ImageRef {
             tex_coords,
             original_size: Xy::new(width as f32, height as f32),
-            id: allocation.id,
+            _id: allocation.id,
         }
     }
 

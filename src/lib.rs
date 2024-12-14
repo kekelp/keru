@@ -1,5 +1,7 @@
 //! Keru is a Graphical User Interface library.
 //! 
+//! It is in active development and it's not ready for any kind of use.
+//! 
 //! It offers a declarative API similar to immediate mode GUI libraries, but it is not immediate mode.
 //! 
 //! See the [`about`] page for more information about the API design, the internals, performance considerations, and more.
@@ -41,6 +43,7 @@
 //! 
 //! Once you have a window loop, you can create a [`Ui`] struct and store it in your main program state.
 //! The [`Ui`] struct is the central API of the library. All operations start by calling a method of [`Ui`].
+//! 
 //! To integrate it with the window loop, you only need to do two things:
 //! 
 //! - When you receive a `winit` event, pass it to [`Ui::handle_events`].
@@ -69,22 +72,17 @@
 //! To summarize, for each element in the GUI, you have to perform some of these conceptual steps:
 //! 
 //! - optionally, define a [`NodeKey`] for the node
-//! - [**add**](`Ui::add`) the node to the `Ui`
-//! - set its parameters ([**color**](`UiNode::color`), [**size**](`UiNode::size`), [**text**](`UiNode::text`), ...)
-//! - [**place**](Ui::place) it in the tree
+//! - [add](`Ui::add`) the node to the `Ui`
+//! - set its parameters ([color](`UiNode::color`), [size](`UiNode::size`), [text](`UiNode::text`), ...)
+//! - [place](Ui::place) it in the tree
 //! - optionally, start a [nested](`UiPlacedNode::nest`) block
 //! - optionally, [check for input](`Ui::is_clicked`) on the nodes and run code as a consequence
 //! 
 //! You can do these things by either calling methods directly on the main [`Ui`] struct, or by calling chained methods on the result of a previous method.
 //! 
-//! Non-chained methods take a [`NodeKey`] argument in order to refer to the specific node.
+//! Methods on the [`Ui`] struct usually take a [`NodeKey`] argument in order to refer to a specific node.
 //! 
 //! 
-//! ```rust
-//! ui.add_anon().params(BUTTON).text("Click Here").
-//! ```
-//!
-
 
 mod tree;
 pub use tree::*;

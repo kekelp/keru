@@ -2,8 +2,9 @@ use bytemuck::{Pod, Zeroable};
 use std::{hash::{Hash, Hasher}, ops::{Add, Div, Index, IndexMut, Mul, Sub}};
 use Axis::*;
 
-use crate::Ui;
+use crate::*;
 
+/// A length on the screen, expressed either as pixels or as a fraction of a parent rectangle.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Len {
     Pixels(u32),
@@ -77,6 +78,7 @@ impl Ui {
     }
 }
 
+/// The X or Y axes.
 #[derive(Debug, Clone, Copy, Hash)]
 pub enum Axis {
     X,
@@ -91,6 +93,10 @@ impl Axis {
     }
 }
 
+
+/// A generic container for two-dimensional data.
+///
+/// Used in [`Layout`], [`RenderInfo`] and other places.
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 #[repr(C)]
 pub struct Xy<T> {
@@ -162,32 +168,21 @@ impl<T: Copy> Xy<T> {
     }
 }
 
+/// A two-dimensional rectangle.
+/// 
+/// Alias for [`Xy`]<[f32; 2]>.
+/// 
+/// ```rust
+/// let rect = XyRect {
+///     x: [x0, x1],
+///     y: [y0, y1],
+/// };
+/// ``` 
 pub type XyRect = Xy<[f32; 2]>;
 
 impl XyRect {
     pub fn size(&self) -> Xy<f32> {
         return Xy::new(self[X][1] - self[X][0], self[Y][1] - self[Y][0]);
-    }
-
-    pub fn rightward(origin: Xy<f32>, size: Xy<f32>) -> Self {
-        return Self {
-            x: [origin.x, origin.x + size.x],
-            y: [origin.y, origin.y + size.y],
-        };
-    }
-
-    pub fn leftward(origin: Xy<f32>, size: Xy<f32>) -> Self {
-        return Self {
-            x: [origin.x - size.x, origin.x],
-            y: [origin.y - size.y, origin.y],
-        };
-    }
-
-    pub fn from_center(origin: Xy<f32>, size: Xy<f32>) -> Self {
-        return Self {
-            x: [origin.x - size.x / 2.0, origin.x + size.x / 2.0],
-            y: [origin.y - size.y / 2.0, origin.y + size.y / 2.0],
-        };
     }
 
     pub fn to_graphics_space(self) -> Self {
