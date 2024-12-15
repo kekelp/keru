@@ -92,7 +92,7 @@ impl Ui {
             }    
         }
         
-        self.sys.changes.reset();
+        self.sys.changes.reset_layout_changes();
             
         if tree_changed || partial_relayouts || full_relayout {
             // we might be moving the hovered node away from the cursor.

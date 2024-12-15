@@ -470,23 +470,6 @@ impl Ui {
         self.sys.changes.resize = true;
     }
 
-    pub(crate) fn update_time(&mut self) {
-        self.sys.frame_t = ui_time_f32();
-        
-        let frame_time = self.sys.last_frame_timestamp.elapsed();
-
-        if let Some(time) = &mut self.sys.changes.animation_rerender_time {
-            *time = *time - frame_time.as_secs_f32();
-        }
-        if let Some(time) = self.sys.changes.animation_rerender_time {
-            if time < 0.0 {
-                self.sys.changes.animation_rerender_time = None;
-            }
-        }
-
-        self.sys.last_frame_timestamp = Instant::now();
-    }
-
     pub(crate) fn push_rect(&mut self, node: usize) {
         let node = &mut self.nodes.nodes[node];
         
@@ -659,12 +642,13 @@ impl Ui {
     pub fn finish_tree(&mut self) {
         // pop the root node
         thread_local_pop_parent();
-        
+ 
         self.relayout();
-        
+
         self.end_frame_resolve_inputs();
-        
-        self.update_time();
+
+        self.sys.new_input = false;
+        self.sys.new_external_events = false;
     }
 
     /// Add and place an anonymous vertical stack container.

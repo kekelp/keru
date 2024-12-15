@@ -27,7 +27,6 @@ pub struct PartialChanges {
     pub full_relayout: bool,
 
     pub need_rerender: bool,
-    pub animation_rerender_time: Option<f32>,
 
     pub resize: bool,
 }
@@ -40,14 +39,13 @@ impl PartialChanges {
             rebuild_all_rects: false,
             full_relayout: true,
 
-            need_rerender: false,
-            animation_rerender_time: None,
+            need_rerender: true,
 
             resize: false,
         }
     }
 
-    pub fn reset(&mut self) {
+    pub fn reset_layout_changes(&mut self) {
         self.partial_relayouts.clear();
         self.cosmetic_rect_updates.clear();
         self.full_relayout = false;

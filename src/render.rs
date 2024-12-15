@@ -5,7 +5,7 @@ use wgpu::{Buffer, BufferSlice, Device, Queue, RenderPass};
 use winit::event::*;
 
 use crate::text::render_iter;
-use crate::Ui;
+use crate::*;
 
 impl Ui {
     /// Handles window events and updates the `Ui`'s internal state accordingly.
@@ -63,7 +63,7 @@ impl Ui {
     }
 
     /// Renders the GUI render data that were previously loaded on the GPU with [`Ui::prepare`].
-    pub fn render(&mut self, render_pass: &mut RenderPass) {
+    pub fn render(&mut self, render_pass: &mut RenderPass) {        
         let n = self.sys.rects.len() as u32;
         if n > 0 {
             render_pass.set_pipeline(&self.sys.render_pipeline);
@@ -71,7 +71,7 @@ impl Ui {
             render_pass.set_vertex_buffer(0, self.sys.gpu_rect_buffer.slice(n));
             render_pass.draw(0..6, 0..n);
         }
-        
+
         self.sys.text
             .text_renderer
             .render(&self.sys.text.atlas, &self.sys.text.glyphon_viewport, render_pass)
@@ -82,7 +82,18 @@ impl Ui {
 
     /// Load the GUI render data onto the GPU. To render it, start a render pass, then call [`Ui::render`].
     pub fn prepare(&mut self, device: &Device, queue: &Queue) {       
-        
+        // update time + resolution        
+        // since we have to update the time anyway, we also update the screen resolution all the time
+        self.sys.part.unifs.t = ui_time_f32();
+
+        let warning = "todo: change this";
+        queue.write_buffer(
+            &self.sys.base_uniform_buffer,
+            0,
+            &bytemuck::bytes_of(&self.sys.part.unifs),
+        );
+
+        // update glyphon size info
         if self.sys.changes.resize {
             self.sys.text.glyphon_viewport.update(
                 queue,
@@ -91,23 +102,16 @@ impl Ui {
                     height: self.sys.part.unifs.size.y as u32,
                 },
             );
-            let warning = "todo: change this";
-            queue.write_buffer(
-                &self.sys.base_uniform_buffer,
-                0,
-                &bytemuck::bytes_of(&self.sys.part.unifs)[..16],
-            );
-
             self.sys.changes.resize = false;
         }
 
+        // update rects
+        // todo: don't do this all the time
         self.sys.gpu_rect_buffer.queue_write(&self.sys.rects[..], queue);
         
+        // texture atlas
+        // todo: don't do this all the time
         self.sys.texture_atlas.load_to_gpu(queue);
-
-        // update gpu time
-        // magical offset...
-        queue.write_buffer(&self.sys.base_uniform_buffer, 8, bytemuck::bytes_of(&self.sys.frame_t));
 
         self.sys.text
             .text_renderer
@@ -127,7 +131,7 @@ impl Ui {
     /// 
     /// If this is true, you should call [`Ui::prepare`] and [`Ui::render`] as soon as possible to display the updated GUI state on the screen.
     pub fn needs_rerender(&self) -> bool {
-        return self.sys.changes.need_rerender || self.sys.changes.animation_rerender_time.is_some();
+        return self.sys.changes.need_rerender || self.sys.anim_render_timer.is_live()
     }
 }
 

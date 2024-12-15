@@ -4,6 +4,7 @@ use winit::{event::{KeyEvent, MouseButton}, keyboard::{Key, NamedKey}};
 
 use crate::*;
 
+pub(crate) const ANIMATION_RERENDER_TIME: f32 = 0.5;
 
 impl Ui {
     /// Returns all [`FullMouseEvent`]s from the last frame.
@@ -131,13 +132,16 @@ impl Ui {
             hovered_node.hover_timestamp = ui_time_f32();
             
             self.sys.changes.cosmetic_rect_updates.push(hovered_node_i);
-            // todo: maybe cleaner to make this pass through the cosmetic updates
-            self.sys.changes.animation_rerender_time = Some(1.0);
+            self.sys.anim_render_timer.push_new(Duration::from_secs_f32(ANIMATION_RERENDER_TIME));
         }
 
     }
 
     pub(crate) fn end_all_hovering(&mut self) {
+        if ! self.sys.hovered.is_empty() {
+            self.sys.anim_render_timer.push_new(Duration::from_secs_f32(ANIMATION_RERENDER_TIME));
+        }
+
         for hovered_id in &self.sys.hovered {
             let hovered_nodemap_entry = self.nodes.node_hashmap.get(&hovered_id);
             
@@ -153,7 +157,6 @@ impl Ui {
                         hovered_node.hovered = false;
                         hovered_node.hover_timestamp = ui_time_f32();
                         self.sys.changes.cosmetic_rect_updates.push(hovered_node_i);
-                        self.sys.changes.animation_rerender_time = Some(1.0);
                     }
                 }
             }
@@ -198,6 +201,8 @@ impl Ui {
             }
         };
 
+        self.sys.new_input = true;
+
         if let Some(matched) = matched {
             // check for hits.
             let released_at = self.scan_current_mouse_status();
@@ -216,6 +221,8 @@ impl Ui {
 
     // returns if the ui consumed the mouse press, or if it should be passed down.   
     pub(crate) fn resolve_click_press(&mut self, button: MouseButton) -> bool {
+        self.sys.new_input = true;
+
         // defocus, so that we defocus when clicking anywhere outside.
         // if we're clicking something we'll re-focus below.
         self.sys.focused = None;
@@ -248,8 +255,7 @@ impl Ui {
                 
                 self.sys.changes.cosmetic_rect_updates.push(clicked_node_i);
                 
-                // todo: maybe cleaner to make this pass through the cosmetic updates
-                self.sys.changes.animation_rerender_time = Some(1.0);
+                self.sys.anim_render_timer.push_new(Duration::from_secs_f32(ANIMATION_RERENDER_TIME));
             }
                 
             if clicked_node.text_id.is_some() {
@@ -325,6 +331,7 @@ impl Ui {
                     #[cfg(debug_assertions)]
                     {
                         self.set_debug_mode(!self.debug_mode());
+                        self.sys.new_input = true;
                     }
                 }
 

@@ -29,6 +29,7 @@ use wgpu::{
 
 use std::ops::{Index, IndexMut};
 use std::sync::LazyLock;
+use std::time::Duration;
 use std::{mem, time::Instant};
 
 use bytemuck::{Pod, Zeroable};
@@ -72,6 +73,9 @@ pub(crate) struct System {
 
     pub debug_key_pressed: bool,
 
+    pub new_input: bool,
+    pub new_external_events: bool,
+
     pub clipboard: ClipboardContext,
 
     pub key_mods: ModifiersState,
@@ -110,7 +114,42 @@ pub(crate) struct System {
     pub changes: PartialChanges,
 
     pub frame_t: f32,
-    pub last_frame_timestamp: Instant,
+    
+    // move to changes oalgo
+    pub anim_render_timer: AnimationRenderTimer,
+}
+
+pub(crate) struct AnimationRenderTimer {
+    pub event: Instant,
+    pub duration: Duration,
+    end: Instant, // precalculated animation end
+}
+
+impl AnimationRenderTimer {
+    fn default() -> Self {
+        let now = Instant::now();
+        Self {
+            event: now,
+            duration: Duration::ZERO,
+            end: now,
+        }
+    }
+
+    pub(crate) fn push_new(&mut self, duration: Duration) {
+        let now = Instant::now();
+        let new_end = now + duration;
+        if new_end > self.end {
+            *self = AnimationRenderTimer {
+                event: now,
+                duration,
+                end: new_end,
+            }
+        }
+    }
+
+    pub(crate) fn is_live(&self) -> bool {
+        return Instant::now() < self.end;
+    }
 }
 
 pub(crate) struct PartialBorrowStuff {
@@ -303,6 +342,9 @@ impl Ui {
                 debug_mode: false,
                 debug_key_pressed: false,
 
+                new_input: true,
+                new_external_events: true,
+
                 clipboard: ClipboardContext::new().unwrap(),
                 key_mods: ModifiersState::default(),
 
@@ -345,7 +387,7 @@ impl Ui {
 
                 frame_t: 0.0,
 
-                last_frame_timestamp: Instant::now(),
+                anim_render_timer: AnimationRenderTimer::default(),
 
                 changes: PartialChanges::new(),
             },
@@ -386,6 +428,24 @@ impl Ui {
     /// When debug mode is active, all nodes will be shown, including stacks and containers.
     pub fn debug_mode(&self) -> bool {
         return self.sys.debug_mode;
+    }
+
+    pub fn push_external_event(&mut self) {
+        self.sys.new_external_events = true;
+    }
+
+    pub fn new_external_events(&mut self) -> bool {
+        return self.sys.new_external_events;
+    }
+
+    pub fn new_input(&mut self) -> bool {
+        return self.sys.new_input;
+    }
+
+    pub fn needs_update(&mut self) -> bool {
+        return self.sys.new_input ||
+            self.sys.new_external_events ||
+            self.sys.changes.resize;
     }
 }
 
