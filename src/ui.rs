@@ -120,29 +120,43 @@ pub(crate) struct System {
 }
 
 pub(crate) struct AnimationRenderTimer {
-    end: Instant,
+    end: Option<Instant>,
 }
 
 impl AnimationRenderTimer {
     fn default() -> Self {
-        let now = Instant::now();
         Self {
-            end: now,
+            end: None,
         }
     }
 
     pub(crate) fn push_new(&mut self, duration: Duration) {
         let now = Instant::now();
         let new_end = now + duration;
-        if new_end > self.end {
-            *self = AnimationRenderTimer {
-                end: new_end,
+
+        if let Some(end) = self.end {
+            if new_end > end {
+                *self = AnimationRenderTimer {
+                    end: Some(new_end),
+                };
             }
+        } else {
+            *self = AnimationRenderTimer {
+                end: Some(new_end),
+            };
         }
     }
 
-    pub(crate) fn is_live(&self) -> bool {
-        return Instant::now() < self.end;
+    pub(crate) fn is_live(&mut self) -> bool {
+        if let Some(end) = self.end {
+            let is_live = Instant::now() < end;
+            if ! is_live {
+                self.end = None;
+            }
+            return is_live;
+        } else {
+            return false;
+        }
     }
 }
 
