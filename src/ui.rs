@@ -119,46 +119,38 @@ pub(crate) struct System {
     pub anim_render_timer: AnimationRenderTimer,
 }
 
-pub(crate) struct AnimationRenderTimer {
-    end: Option<Instant>,
-}
+pub(crate) struct AnimationRenderTimer(Option<Instant>);
 
 impl AnimationRenderTimer {
     fn default() -> Self {
-        Self {
-            end: None,
-        }
+        Self(None)
     }
 
     pub(crate) fn push_new(&mut self, duration: Duration) {
         let now = Instant::now();
         let new_end = now + duration;
 
-        if let Some(end) = self.end {
+        if let Some(end) = self.0 {
             if new_end > end {
-                *self = AnimationRenderTimer {
-                    end: Some(new_end),
-                };
+                *self = AnimationRenderTimer(Some(new_end));
             }
         } else {
-            *self = AnimationRenderTimer {
-                end: Some(new_end),
-            };
+            *self = AnimationRenderTimer(Some(new_end));
         }
     }
 
     pub(crate) fn is_live(&mut self) -> bool {
-        if let Some(end) = self.end {
+        if let Some(end) = self.0 {
             let is_live = Instant::now() < end;
-            if ! is_live {
-                self.end = None;
+            if !is_live {
+                *self = AnimationRenderTimer(None);
             }
             return is_live;
-        } else {
-            return false;
         }
+        false
     }
 }
+
 
 pub(crate) struct PartialBorrowStuff {
     pub mouse_pos: PhysicalPosition<f32>,

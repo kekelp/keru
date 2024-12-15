@@ -130,7 +130,7 @@ impl Ui {
     /// Returns `true` if the `Ui` needs to be rerendered.
     /// 
     /// If this is true, you should call [`Ui::prepare`] and [`Ui::render`] as soon as possible to display the updated GUI state on the screen.
-    pub fn needs_rerender(&self) -> bool {
+    pub fn needs_rerender(&mut self) -> bool {
         return self.sys.changes.need_rerender || self.sys.anim_render_timer.is_live()
     }
 }
