@@ -2,7 +2,7 @@ workspace = { members = [
     "crates/view_derive",
     "crates/change_watcher",
     "examples/keru_paint",
-]}
+] }
 [package]
 name = "keru"
 version = "0.1.0"
@@ -21,7 +21,7 @@ winit = { version = "0.29.14", features = ["rwh_05"] }
 wgpu = { version = "23", default-features = true }
 glyphon = { version = "0.7.0" }
 pollster = "0.3.0"
-bytemuck = { version = "1.19.0", features = [ "derive" ] }
+bytemuck = { version = "1.19.0", features = ["derive"] }
 rustc-hash = "1.1.0"
 unicode-segmentation = "1.11.0"
 copypasta = "0.10.1"
@@ -32,5 +32,5 @@ image = "0.25.2"
 etagere = "0.2.13"
 
 [lints.clippy]
-needless_return = { level = "allow" } 
+needless_return = { level = "allow" }
 bool_comparison = { level = "allow" }
