@@ -73,11 +73,11 @@ impl<S: ExampleLoop> State<S> {
     }
 
     pub fn update(&mut self) {
-        if self.ui.needs_update() {
+        // if self.ui.needs_update() {
             self.ui.begin_tree();
             self.user_state.declare_ui(&mut self.ui);
             self.ui.finish_tree();
-        }
+        // }
         
         if self.ui.needs_rerender() {
             println!("[{:?}] render", T0.elapsed());

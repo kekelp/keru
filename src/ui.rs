@@ -120,17 +120,13 @@ pub(crate) struct System {
 }
 
 pub(crate) struct AnimationRenderTimer {
-    pub event: Instant,
-    pub duration: Duration,
-    end: Instant, // precalculated animation end
+    end: Instant,
 }
 
 impl AnimationRenderTimer {
     fn default() -> Self {
         let now = Instant::now();
         Self {
-            event: now,
-            duration: Duration::ZERO,
             end: now,
         }
     }
@@ -140,8 +136,6 @@ impl AnimationRenderTimer {
         let new_end = now + duration;
         if new_end > self.end {
             *self = AnimationRenderTimer {
-                event: now,
-                duration,
                 end: new_end,
             }
         }
