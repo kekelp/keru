@@ -32,7 +32,21 @@ impl<'a> UiNode<'a> {
     /// Uses pointer comparison to tell if the image has changed since the last call on the same node..
     /// 
     /// ```rust
-    /// ui.add(BRUSH).params(ICON_BUTTON).static_image(include_bytes!("icons/brush.png"));
+    /// # use keru::*;
+    /// # pub struct State {
+    /// #     pub ui: Ui,
+    /// # }
+    /// #
+    /// # impl State {
+    /// #    fn declare_ui(&mut self) {
+    /// #    let ui = &mut self.ui; 
+    /// #
+    /// # #[node_key] pub const MY_BUTTON: NodeKey;
+    /// #
+    /// ui.add(MY_BUTTON).params(ICON_BUTTON).static_image(include_bytes!("textures/debug.png"));
+    /// #
+    /// #   }
+    /// # }
     /// ```
     /// 
     /// Panics if the byte slice in `image` can't be interpreted as an image.
@@ -247,6 +261,17 @@ impl<'a> UiNode<'a> {
     /// Uses pointer equality to check if the text has changed since the last call on the same node.
     /// 
     /// ```rust
+    /// # use keru::*;
+    /// # pub struct State {
+    /// #     pub ui: Ui,
+    /// #     pub show: bool,
+    /// # }
+    /// #
+    /// # impl State {
+    /// #    fn declare_ui(&mut self) {
+    /// #    let ui = &mut self.ui; 
+    /// #
+    /// # #[node_key] pub const SHOW: NodeKey;
     /// let button_text = match self.show {
     ///     true => "Hide Counter",
     ///     false => "Show Counter",
@@ -254,6 +279,9 @@ impl<'a> UiNode<'a> {
     /// ui.add(SHOW)
     ///     .params(BUTTON)
     ///     .static_text(button_text);
+    /// #
+    /// #   }
+    /// # }
     /// ```
     pub fn static_text(&mut self, text: &'static str) -> &mut Self {
         let text_pointer: *const u8 = text.as_ptr();
@@ -287,10 +315,29 @@ impl<'a> UiNode<'a> {
     /// Will hash the provided text to determine if has changed since the last call on the same node.
     /// 
     /// ```rust
-    /// ui.add(SHOW)
+    /// # use keru::*;
+    /// # pub struct State {
+    /// #     pub ui: Ui,
+    /// # }
+    /// #
+    /// # impl State {
+    /// #    fn declare_ui(&mut self) {
+    /// #    let ui = &mut self.ui; 
+    /// #
+    /// # #[node_key] pub const MY_BUTTON: NodeKey;
+    /// #
+    /// 
+    /// # use std::time::Instant;
+    /// let variable_text = format!("{:?}", Instant::now());
+    /// 
+    /// ui.add(MY_BUTTON)
     ///     .params(BUTTON)
     ///     .text(variable_text);
+    /// #
+    /// #   }
+    /// # }
     /// ```
+
     pub fn text(&mut self, into_text: impl Display) -> &mut Self {
         // todo: hash into_text instead of the text to skip the formatting??
         // note that many exotic types like "f32" can be formatted but not hashed 
@@ -408,11 +455,12 @@ impl<'a> UiNode<'a> {
 /// With these vertex attributes:
 /// 
 /// ```rust
-/// vertex_attr_array![
+/// # use keru::*;
+/// wgpu::vertex_attr_array![
 ///     0 => Float32x2,
 ///     1 => Float32x2,
 ///     2 => Float32,
-/// ]
+/// ];
 /// ```
 /// 
 /// The format might be changed to something more familiar in the future.

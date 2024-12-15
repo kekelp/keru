@@ -5,6 +5,8 @@ use Position::*;
 use Len::*;
 use Shape::*;
 
+// todo: not very discoverable from docs. there's a list of constants on the main page, maybe that's good? link to that or something?
+
 const ANON_NODE_ROOT_PARAMS: NodeKey = <NodeKey>::new(Id(0), "ANON_NODE_ROOT_PARAMS");
 /// Preset [`NodeParams`] for a node_root_params. 
 ///
@@ -321,7 +323,22 @@ pub const CONTAINER: NodeParams = NodeParams {
 /// 
 /// Use [`UiNode::render_rect`] to get the render data for your node, then render it in a separate draw call.
 /// ```rust
-/// let render_data = ui.get_node(OKLAB_HUE_WHEEL)?.render_rect();
+/// # use keru::*;
+/// # pub struct State {
+/// #     pub ui: Ui,
+/// # }
+/// # 
+/// # impl State {
+/// #   fn declare_ui(&mut self) {
+/// #
+/// # let ui = &mut self.ui;
+/// #
+/// # #[node_key] pub const HUE_WHEEL: NodeKey;
+/// #
+/// let render_data = ui.get_node(HUE_WHEEL).unwrap().render_rect();
+/// #
+/// #   }
+/// # }
 /// ```
 /// See the color picker in the painter example.
 pub const CUSTOM_RENDERED_PANEL: NodeParams = NodeParams {

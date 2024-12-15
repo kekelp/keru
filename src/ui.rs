@@ -72,7 +72,7 @@ pub(crate) struct System {
 
     pub debug_key_pressed: bool,
 
-    pub _clipboard: ClipboardContext,
+    pub clipboard: ClipboardContext,
 
     pub key_mods: ModifiersState,
 
@@ -303,7 +303,7 @@ impl Ui {
                 debug_mode: false,
                 debug_key_pressed: false,
 
-                _clipboard: ClipboardContext::new().unwrap(),
+                clipboard: ClipboardContext::new().unwrap(),
                 key_mods: ModifiersState::default(),
 
                 text: TextSystem {

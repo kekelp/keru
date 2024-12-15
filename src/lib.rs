@@ -9,27 +9,40 @@
 //! ## Example
 //! 
 //! ```rust
+//! # use keru::*;
+//! # 
+//! # pub struct State {
+//! #     pub ui: Ui,
+//! #     pub count: u32,
+//! #     pub show: bool,
+//! # }
+//! # 
+//! # impl State {
+//! #   fn declare_ui(&mut self) {
+//! # 
 //! // Define an unique identity for this button
 //! #[node_key] const INCREASE: NodeKey;
 //! 
 //! // Run code in response to events
-//! if ui.is_clicked(INCREASE) {
+//! if self.ui.is_clicked(INCREASE) {
 //!     self.count += 1;
 //! }
 //! 
 //! // Add nodes to the UI and set their parameters
-//! ui.add(INCREASE)
+//! self.ui.add(INCREASE)
 //!     .params(BUTTON)
 //!     .color(Color::RED)
 //!     .text("Increase");
 //! 
 //! // Place the nodes into the tree and define the layout
-//! ui.v_stack().nest(|| {
+//! self.ui.v_stack().nest(|| {
 //!     if self.show {
-//!         ui.place(INCREASE);
-//!         ui.label(self.count); // This one doesn't need an unique key.
+//!         self.ui.place(INCREASE);
+//!         self.ui.label(self.count); // This one doesn't need an unique key.
 //!     }
 //! });
+//! #   }
+//! # }
 //! ```
 //! 
 //! ## Window Loop
@@ -37,7 +50,7 @@
 //! If you just want to try out some GUI building code, you can use the one-line loop in [`example_window_loop`]. The Counter example uses this method. 
 //! If you do this, you can skip the rest of this section, for now.
 //! 
-//! However, Keru is intended to be used as part of a regular `winit`/`wgpu` window loop managed by the library user. This makes it very simple to combine it with any kind of custom rendering (as long as it uses `wgpu`), spares the library from having to re-expose a ton of window/rendering configuration options, and is generally a simpler and cleaner approach, in my opinion.
+//! However, Keru is intended to be used as part of a regular `winit`/`wgpu` window loop managed by the library user. This makes it very simple to combine it with any kind of custom rendering (as long as it uses `wgpu`).
 //! 
 //! When building your own loop, you can still use the helper functions in the [`basic_window_loop`] module to skip most of the `winit` and `wgpu` boilerplate. The Painter example uses this method. 
 //! 
@@ -60,9 +73,20 @@
 //! Whenever you want to update your GUI, you have to start a new GUI "tree", rerun all your GUI declaration code, then finish the tree.
 //! 
 //! ```rust
+//! # use keru::*;
+//! # pub struct State {
+//! #     pub ui: Ui,
+//! # }
+//! #
+//! # impl State {
+//! #   fn declare_ui(&mut self) {
+//! #
 //! self.ui.begin_tree();
 //! // declare the GUI and update state
 //! self.ui.finish_tree();
+//! #
+//! #   }
+//! # }
 //! ```
 //! 
 //! Note that even if you do this every frame, it doesn't mean that the GUI is re-rendering every frame, doing a full relayout on every frame, or anything like that. See the [`about`] page for more information on this point.

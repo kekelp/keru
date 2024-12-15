@@ -9,43 +9,57 @@
 //! The code to build the GUI looks like this:
 //! 
 //! ```rust
+//! # use keru::*;
+//! # pub struct State {
+//! #     pub ui: Ui,
+//! #     pub count: u32,
+//! #     pub show: bool,
+//! # }
+//! # 
+//! # impl State {
+//! #   fn declare_ui(&mut self) {
+//! # 
 //! // Define unique keys/ids for  ui elements
 //! #[node_key] const INCREASE: NodeKey;
 //! #[node_key] const DECREASE: NodeKey;
 //! #[node_key] const SHOW: NodeKey;
 //! 
-//! ui.add(INCREASE) // Create an element
+//! self.ui.add(INCREASE) // Create an element
 //!     .params(BUTTON) // Set style and properties
 //!     .static_text("Increase"); // Set text
 //! 
-//! ui.add(SHOW)
+//! self.ui.add(SHOW)
 //!     .params(BUTTON)
 //!     .static_text("Show Counter");
 //! 
-//! ui.add(DECREASE)
+//! self.ui.add(DECREASE)
 //!     .params(BUTTON)
 //!     .static_text("Decrease");
 //! 
 //! // Place the nodes in the ui tree.
 //! // The nesting of these calls will define the layout.
-//! ui.v_stack().nest(|| { 
-//!     ui.place(SHOW);
+//! self.ui.v_stack().nest(|| { 
+//!     self.ui.place(SHOW);
 //!     if self.show {
-//!         ui.place(INCREASE);
-//!         ui.label(self.count); // This one doesn't need an id, we can use a shorthand
-//!         ui.place(DECREASE);
+//!         self.ui.place(INCREASE);
+//!         self.ui.label(self.count); // This one doesn't need an id, we can use a shorthand
+//!         self.ui.place(DECREASE);
 //!     }
 //! });
 //! 
-//! if ui.is_clicked(SHOW) { // Use the unique key to refer to a specific node
+//! if self.ui.is_clicked(SHOW) { // Use the unique key to refer to a specific node
 //!     self.show = !self.show; // Update the state
 //! }
-//! if ui.is_clicked(INCREASE) {
+//! if self.ui.is_clicked(INCREASE) {
 //!     self.count += 1;
 //! }
-//! if ui.is_clicked(DECREASE) {
+//! if self.ui.is_clicked(DECREASE) {
 //!     self.count -= 1;
 //! }
+//! # 
+//! #   }
+//! # }
+//! # 
 //! ```
 //! 
 //! This code is run either on every frame or on every "cycle" (user interaction/external event) [^1].
@@ -59,21 +73,35 @@
 //! To be more precise:
 //! 
 //! ```rust
+//! # use keru::*;
+//! # pub struct State {
+//! #     pub ui: Ui,
+//! #     pub count: u32,
+//! #     pub show: bool,
+//! # }
+//! # 
+//! # #[node_key] const INCREASE: NodeKey;
+//! # #[node_key] const DECREASE: NodeKey;
+//! # #[node_key] const SHOW: NodeKey;
+//! # 
+//! # impl State {
+//! #   fn declare_ui(&mut self) {
+//! # 
 //! // If they are called with different arguments than in the last frame,
 //! //  these calls will change the node's parameters (size, color, text, etc)
-//! ui.add(DECREASE)
+//! self.ui.add(DECREASE)
 //!     .params(BUTTON)
 //!     .static_text("Decrease");
 //! 
 //! // when a node is placed onto the tree,
 //! //  the library will compare the new params to the ones from last frame.
-//! ui.v_stack().nest(|| {
+//! self.ui.v_stack().nest(|| {
 //!     // For example, if the SHOW node's size has changed, 
 //!     //  it will schedule a **partial** relayout
 //!     //  starting at this position in the tree.
 //!     // If the color has changed, 
 //!     //  it will schedule to update the render data for that **single** rectangle.
-//!     ui.place(SHOW);
+//!     self.ui.place(SHOW);
 //!     // Here, depending on `self.show`, some nodes 
 //!     //  might be included or excluded from the tree.
 //!     // If the value of `self.show` is different from last frame, 
@@ -81,13 +109,16 @@
 //!     //  the parent will notice that its children changed.
 //!     // In that case, it will schedule a partial relayout.
 //!     if self.show {
-//!         ui.place(INCREASE);
-//!         ui.label(self.count);
-//!         ui.place(DECREASE);
+//!         self.ui.place(INCREASE);
+//!         self.ui.label(self.count);
+//!         self.ui.place(DECREASE);
 //!     }
 //! });
 //! 
 //! // At the end, the library will do all the partial relayouts and updates needed.
+//! # 
+//! #   }
+//! # }
 //! ```
 //! 
 //! ### Isn't this still like immediate mode?
@@ -179,7 +210,13 @@
 //! 
 //! - Improve the text and image API
 //! 
-//! - Text input, scroll areas, more geometric shapes, more built-in widgets, ...
+//! - A way to create a [`Ui`] without linking it to a window loop
+//! 
+//! - Software renderer? Probably not happening for a while
+//! 
+//! - Other utilities for testing
+//! 
+//! - Text input, scroll areas, animations, more geometric shapes, more built-in widgets, ...
 //! 
 //! 
 //! ## Open questions and unsolved issues

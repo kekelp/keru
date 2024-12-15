@@ -11,6 +11,7 @@ use crate::*;
 /// Usually created with the [`macro@node_key`] macro or with [`NodeKey::sibling`].
 /// 
 /// ```rust
+/// # use keru::*;
 /// #[node_key] const UNIQUE_KEY: NodeKey;
 /// ```
 /// 
@@ -27,6 +28,7 @@ impl NodeKey {
     /// Create "siblings" of a key dynamically at runtime, based on a hashable value.
     ///
     /// ```rust
+    /// # use keru::*;
     /// #[node_key] const COLOR_NODE: NodeKey;
     /// let strings = ["blue", "green", "violet"];
     /// for s in strings {

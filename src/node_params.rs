@@ -6,20 +6,53 @@ use rustc_hash::FxHasher;
 #[derive(Debug, Copy, Clone)]
 /// A lightweight struct describing the params of a GUI node.
 /// 
-/// You can start with one of the associated constants, then use the builder methods to customize it:
+/// You can start with one of the preset constants ([`BUTTON`], [`LABEL`], [`TEXT`], ...), then use the builder methods to customize it:
 /// 
 /// ```rust
-/// const MY_BUTTON = NodeParams::BUTTON
+/// # use keru::*;
+/// const MY_BUTTON: NodeParams = keru::BUTTON
 ///     .color(Color::RED)
-///     .size(Shape::Circle); 
+///     .shape(Shape::Circle); 
 /// ```
-/// After adding a node to the [`Ui`] with [`Ui::add`], use the [`UiNode::params`] function to set its params.
+/// After adding a node to the [`Ui`] with [`Ui::add`], you can call the [`UiNode::params`] method on it to set its params.
 /// ```rust
+/// # use keru::*;
+/// # pub struct State {
+/// #     pub ui: Ui,
+/// # }
+/// #
+/// # impl State {
+/// #    fn declare_ui(&mut self) {
+/// #    let ui = &mut self.ui; 
+/// #
+/// # #[node_key] pub const INCREASE: NodeKey;
+/// # const MY_BUTTON: NodeParams = keru::BUTTON
+/// #     .color(Color::RED)
+/// #     .shape(Shape::Circle); 
 /// ui.add(INCREASE).params(MY_BUTTON);
+/// #
+/// #   }
+/// # }
 /// ```
-/// You can also call [`UiNode`]'s builder methods to customize it *after* you add it:
+/// You can also call [`UiNode`]'s other builder methods to change the node's params it *after* you add it:
 /// ```rust
-/// ui.add(INCREASE).params(MY_BUTTON).size(Size::Fill);
+/// # use keru::*;
+/// # pub struct State {
+/// #     pub ui: Ui,
+/// # }
+/// #
+/// # impl State {
+/// #    fn declare_ui(&mut self) {
+/// #    let ui = &mut self.ui; 
+/// #
+/// # #[node_key] pub const INCREASE: NodeKey;
+/// # const MY_BUTTON: NodeParams = keru::BUTTON
+/// #     .color(Color::RED)
+/// #     .shape(Shape::Circle); 
+/// ui.add(INCREASE).params(MY_BUTTON).size_x(Size::Fill);
+/// #
+/// #   }
+/// # }
 /// ```
 /// To see it show up, use [`UiNode::place`] or [`Ui::place`] to place it in the ui tree.
 pub struct NodeParams {
@@ -209,29 +242,37 @@ impl NodeParams {
     }
 
     // todo: in a future version of Rust that allows it, change these to take a generic Into<Size>
-    pub const fn size_x(mut self, size: Size) -> Self {
-        self.layout.size.x = size;
-        return self;
-    }
-    pub const fn size_y(mut self, size: Size) -> Self {
-        self.layout.size.y = size;
-        return self;
-    }
-    pub const fn size_symm(mut self, size: Size) -> Self {
-        self.layout.size = Xy::new_symm(size);
+    pub fn position(mut self, position_x: Position, position_y: Position) -> Self {
+        self.layout.position.x = position_x;
+        self.layout.position.y = position_y;
         return self;
     }
 
-    pub const fn position_x(mut self, position: Position) -> Self {
+    pub fn position_symm(mut self, position: Position) -> Self {
         self.layout.position.x = position;
-        return self;
-    }
-    pub const fn position_y(mut self, position: Position) -> Self {
         self.layout.position.y = position;
         return self;
     }
-    pub const fn position_symm(mut self, position: Position) -> Self {
-        self.layout.position = Xy::new_symm(position);
+
+    pub fn position_x(mut self, position: Position) -> Self {
+        self.layout.position.x = position;
+        return self;
+    }
+
+    pub fn position_y(mut self, position: Position) -> Self {
+        self.layout.position.y = position;
+        return self;
+    }
+
+    pub fn size(mut self, size_x: Size, size_y: Size) -> Self {
+        self.layout.size.x = size_x;
+        self.layout.size.y = size_y;
+        return self;
+    }
+
+    pub fn size_symm(mut self, size: Size) -> Self {
+        self.layout.size.x = size;
+        self.layout.size.y = size;
         return self;
     }
 

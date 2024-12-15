@@ -7,6 +7,7 @@
 //! ### Example
 //! 
 //! ```rust
+//! # use keru::*;
 //! use keru::example_window_loop::*;
 //! use keru::Ui;
 //! 

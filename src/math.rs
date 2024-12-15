@@ -173,6 +173,11 @@ impl<T: Copy> Xy<T> {
 /// Alias for [`Xy`]<[f32; 2]>.
 /// 
 /// ```rust
+/// # use keru::*;
+/// # let x0 = -1.0;
+/// # let x1 =  1.0;
+/// # let y0 = -1.0;
+/// # let y1 =  1.0;
 /// let rect = XyRect {
 ///     x: [x0, x1],
 ///     y: [y0, y1],

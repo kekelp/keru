@@ -10,8 +10,6 @@ use crate::thread_local::*;
 use glyphon::cosmic_text::Align;
 use glyphon::{AttrsList, Color as GlyphonColor, TextBounds, Viewport};
 
-use glyphon::Cache as GlyphonCache;
-
 use rustc_hash::FxHasher;
 use thread_local::thread_local_peek_tree_position_hash;
 
@@ -248,11 +246,23 @@ impl Ui {
     /// The returned [`UiNode`] can also be used to set the appearance, size, text, etc. of the node, using [`UiNode`]'s builder methods.
     /// 
     /// ```rust
+    /// # use keru::*;
+    /// # pub struct State {
+    /// #     pub ui: Ui,
+    /// # }
+    /// #
+    /// # impl State {
+    /// #    fn declare_ui(&mut self) {
+    /// #    let ui = &mut self.ui; 
+    /// #
     /// #[node_key] const RED_BUTTON: NodeKey;
     /// ui.add(RED_BUTTON)
     ///     .params(BUTTON)
     ///     .color(Color::RED)
     ///     .text("Increase");
+    /// #
+    /// #   }
+    /// # }
     /// ```
     /// 
     /// # Details
@@ -272,16 +282,28 @@ impl Ui {
         return self.get_ref_unchecked(i, &key);
     }
 
-    /// Exactly ike [`Ui::add`], but without a key.
+    /// Exactly like [`Ui::add`], but without a key.
     /// 
     /// The added node will be anonymous, and it won't be reachable by methods like [`Ui::place`] or [`Ui::get_node`] that use a key.
     /// 
     /// ```rust
+    /// # use keru::*;
+    /// # pub struct State {
+    /// #     pub ui: Ui,
+    /// # }
+    /// #
+    /// # impl State {
+    /// #    fn declare_ui(&mut self) {
+    /// #    let ui = &mut self.ui; 
+    /// #
     /// ui.add_anon()
     ///     .params(LABEL)
     ///     .color(Color::RED)
     ///     .text("Hello World")
     ///     .place();
+    /// #
+    /// #   }
+    /// # }    
     /// ```
     pub fn add_anon(&mut self) -> UiNode {
         let id_from_tree_position = thread_local_peek_tree_position_hash();
@@ -300,26 +322,33 @@ impl Ui {
     /// Panics if it is called with a key that doesn't correspond to any previously added node, through either [Ui::add], [Ui::add_anon], or [Ui::text] or similar functions.
     /// 
     /// ```rust
+    /// # use keru::*;
+    /// # pub struct State {
+    /// #     pub ui: Ui,
+    /// # }
+    /// #
+    /// # impl State {
+    /// #    fn declare_ui(&mut self) {
+    /// #    let ui = &mut self.ui; 
+    /// #
+    /// # #[node_key] pub const PARENT: NodeKey;
+    /// # #[node_key] pub const CHILD: NodeKey;
+    /// #
     /// ui.add(PARENT).params(CONTAINER);
     /// ui.add(CHILD).params(BUTTON);
     /// 
     /// ui.place(PARENT).nest(|| {
     ///     ui.place(CHILD);
     /// });
+    /// #
+    /// #   }
+    /// # }
     /// ```
     /// 
     /// [`UiNode::place`] does the same thing. It is called instead directly on an [`UiNode`], so it doesn't need a `NodeKey` argument to identify the node.
     /// 
     /// Compared to [`UiNode::place`], this function allows separating the code that adds the node and sets the params from the `place` code. This usually makes the tree layout much easier to read.
     ///
-    /// # Meta
-    ///  
-    /// Separating "add" and "place" has many disadvantages, but it also makes the API simpler in some aspects.
-    /// 
-    /// The alternative would be making [`Ui::add`] return a "`UnplacedNode`" struct that ends up on the stack, and passing that to [`Ui::place`] instead of just the key. However, to keep the rest of the API as it is, this object would have be a big mess of generic parameters, both lifetime and type.
-    /// I wouldn't feel very good about exposing it in the public API.  
-    /// This might be changed soon. 
-
     // #[track_caller]
     pub fn place(&mut self, key: NodeKey) -> UiPlacedNode {
         // todo: panic bad
@@ -587,9 +616,22 @@ impl Ui {
     /// Use together with [`Ui::finish_tree()`], at most once per frame.
     /// 
     /// ```rust
+    /// # use keru::*;
+    /// # use keru::*;
+    /// 
+    /// # pub struct State {
+    /// #     pub ui: Ui,
+    /// # }
+    /// 
+    /// # impl State {
+    /// #   fn declare_ui(&mut self) {
     /// self.ui.begin_tree();
     /// // declare the GUI and update state
     /// self.ui.finish_tree();
+    /// 
+    /// #   }
+    /// # }
+    /// 
     /// ```
     pub fn begin_tree(&mut self) {
         // clear root
@@ -681,10 +723,26 @@ pub(crate) fn fx_hash<T: Hash>(value: &T) -> u64 {
 /// Can be used to call [nest](UiPlacedNode::nest) and add more nodes as a parent of this one.
 /// 
 /// ```rust
-///              // ↓ returns a `UiPlacedNode`
+/// # use keru::*;
+/// # use keru::*;
+/// # pub struct State {
+/// #     pub ui: Ui,
+/// # }
+/// #
+/// # impl State {
+/// #    fn declare_ui(&mut self) {
+/// #    let ui = &mut self.ui; 
+/// #
+/// # #[node_key] pub const PARENT: NodeKey;
+/// # #[node_key] pub const CHILD: NodeKey;
+/// #
+///             // ↓ returns a `UiPlacedNode`
 /// ui.place(PARENT).nest(|| {
 ///     ui.place(CHILD);
 /// });
+/// #
+/// #   }
+/// # }
 /// ```
 /// 
 /// The nesting mechanism uses a bit of magic to avoid having to pass a [`Ui`] parameter into the closure.
@@ -709,9 +767,24 @@ impl UiPlacedNode {
     /// Inside the nested block, new nodes will be added as a child of the node that `self` refers to.
     /// 
     /// ```rust
+    /// # use keru::*;
+    /// # pub struct State {
+    /// #     pub ui: Ui,
+    /// # }
+    /// #
+    /// # impl State {
+    /// #    fn declare_ui(&mut self) {
+    /// #    let ui = &mut self.ui; 
+    /// #
+    /// # #[node_key] pub const PARENT: NodeKey;
+    /// # #[node_key] pub const CHILD: NodeKey;
+    /// #
     /// ui.place(PARENT).nest(|| {
     ///     ui.place(CHILD);
     /// });
+    /// #
+    /// #   }
+    /// # }
     /// ```
     /// 
     /// Since the `content` closure doesn't borrow or move anything, it sets no restrictions at all on what code can be ran inside it.
@@ -731,10 +804,23 @@ impl<'a> UiNode<'a> {
     /// 
     /// The position is defined by the position of the [`place`](UiNode::place) call relative to [`nest`](UiPlacedNode::nest) calls.
     /// 
-    /// ```rust  
-    /// ui.add_anon(PANEL).place().nest(|| {
+    /// ```rust
+    /// # use keru::*;
+    /// # pub struct State {
+    /// #     pub ui: Ui,
+    /// # }
+    /// #
+    /// # impl State {
+    /// #    fn declare_ui(&mut self) {
+    /// #    let ui = &mut self.ui; 
+    /// #
+    /// # #[node_key] pub const BUTTON_KEY: NodeKey;
+    /// ui.add_anon().params(PANEL).place().nest(|| {
     ///     ui.add(BUTTON_KEY).place();
     /// });
+    /// #
+    /// #   }
+    /// # }
     /// ```
     /// 
     /// [`Ui::place`] does the same thing, using a `NodeKey` argument to identify the node to place.
