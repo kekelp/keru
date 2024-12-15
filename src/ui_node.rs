@@ -326,10 +326,8 @@ impl<'a> UiNode<'a> {
     /// #
     /// # #[node_key] pub const MY_BUTTON: NodeKey;
     /// #
-    /// 
     /// # use std::time::Instant;
     /// let variable_text = format!("{:?}", Instant::now());
-    /// 
     /// ui.add(MY_BUTTON)
     ///     .params(BUTTON)
     ///     .text(variable_text);

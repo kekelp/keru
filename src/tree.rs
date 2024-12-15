@@ -601,20 +601,19 @@ impl Ui {
     /// ```rust
     /// # use keru::*;
     /// # use keru::*;
-    /// 
+    /// #
     /// # pub struct State {
     /// #     pub ui: Ui,
     /// # }
-    /// 
+    /// #
     /// # impl State {
     /// #   fn declare_ui(&mut self) {
     /// self.ui.begin_tree();
     /// // declare the GUI and update state
     /// self.ui.finish_tree();
-    /// 
+    /// #
     /// #   }
     /// # }
-    /// 
     /// ```
     pub fn begin_tree(&mut self) {
         // clear root

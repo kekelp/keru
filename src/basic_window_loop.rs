@@ -13,7 +13,7 @@ use wgpu::{
     Color, CommandEncoder, CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance, InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue, RenderPass, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor, RequestAdapterOptions, Surface, SurfaceConfiguration, SurfaceTexture, Texture, TextureFormat, TextureUsages, TextureView
 };
 use winit::{
-    dpi::{LogicalSize, PhysicalSize}, event::WindowEvent, window::{Window as WinitWindow, WindowBuilder}
+    dpi::{LogicalSize, PhysicalSize}, event::WindowEvent, event_loop::ControlFlow, window::{Window as WinitWindow, WindowBuilder}
 };
 
 pub const BACKGROUND_GREY: wgpu::Color = wgpu::Color {
@@ -87,6 +87,7 @@ pub struct Context {
 impl Context {
     pub fn init(width: u32, height: u32, title: &str) -> (Self, EventLoop<()>) {
         let event_loop = EventLoop::new().unwrap();
+        event_loop.set_control_flow(ControlFlow::Wait);
         let window = Arc::new(
             WindowBuilder::new()
                 .with_inner_size(LogicalSize::new(width, height))

@@ -57,7 +57,8 @@ impl ExampleLoop for State {
         ui.v_stack().nest(|| {
             if self.show {
                 ui.place(INCREASE);
-                ui.label(self.count);
+                let variable_text = format!("{:?}", std::time::Instant::now());
+                ui.label(variable_text);
                 ui.place(DECREASE);
             }
             ui.place(SHOW);
