@@ -3,8 +3,10 @@
 
 pub use wgpu::{CommandEncoderDescriptor, TextureViewDescriptor};
 pub use winit::{
-    error::EventLoopError, event_loop::EventLoop, event::Event, event_loop::EventLoopWindowTarget
+    error::EventLoopError, event_loop::EventLoop, event::Event
 };
+use winit::window::*;
+
 
 use core::f32;
 use std::{sync::Arc, thread, time::{Duration, Instant}};
@@ -13,7 +15,7 @@ use wgpu::{
     Color, CommandEncoder, CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance, InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue, RenderPass, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor, RequestAdapterOptions, Surface, SurfaceConfiguration, SurfaceTexture, Texture, TextureFormat, TextureUsages, TextureView
 };
 use winit::{
-    dpi::{LogicalSize, PhysicalSize}, event::WindowEvent, event_loop::ControlFlow, window::{Window as WinitWindow, WindowBuilder}
+    dpi::{LogicalSize, PhysicalSize}, event::WindowEvent, event_loop::ControlFlow, window::{self, Window as WinitWindow}
 };
 
 pub const BACKGROUND_GREY: wgpu::Color = wgpu::Color {
@@ -85,16 +87,7 @@ pub struct Context {
     pub current_frame_timestamp: Instant,
 }
 impl Context {
-    pub fn init(width: u32, height: u32, title: &str) -> (Self, EventLoop<()>) {
-        let event_loop = EventLoop::new().unwrap();
-        event_loop.set_control_flow(ControlFlow::Wait);
-        let window = Arc::new(
-            WindowBuilder::new()
-                .with_inner_size(LogicalSize::new(width, height))
-                .with_title(title)
-                .build(&event_loop)
-                .unwrap(),
-        );
+    pub fn init(width: u32, height: u32, window: Arc<Window>) -> Self {
     
         let (instance, device, queue) = basic_wgpu_init();
 
@@ -117,32 +110,33 @@ impl Context {
             current_frame_timestamp: Instant::now(),
         };
 
-        return (ctx, event_loop);
+        return ctx;
     }
 
-    pub fn handle_events(&mut self, event: &Event<()>, target: &EventLoopWindowTarget<()>) {        
+    pub fn handle_window_event(
+        &mut self,
+        event_loop: &winit::event_loop::ActiveEventLoop,
+        window_id: winit::window::WindowId,
+        event: &winit::event::WindowEvent,
+    ) {
+        let _ = window_id;
         match event {
-            Event::WindowEvent {
-                event: WindowEvent::Resized(size),
-                ..
-            } => self.resize(size),
-            Event::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                ..
-            } => target.exit(),
-            Event::WindowEvent {
-                event: WindowEvent::RedrawRequested,
-                ..
-            } => {
+            WindowEvent::CloseRequested => {
+                event_loop.exit();
+            },
+            WindowEvent::Resized(size) => {
+                self.resize(*size);
+            }
+            WindowEvent::RedrawRequested => {                
                 self.last_frame_timestamp = self.current_frame_timestamp;
                 self.current_frame_timestamp = Instant::now();
-                self.window.request_redraw();
-            },
-            _ => {}
+                // self.window.request_redraw();
+            }
+            _ => (),
         }
     }
 
-    pub fn resize(&mut self, size: &PhysicalSize<u32>) {
+    pub fn resize(&mut self, size: PhysicalSize<u32>) {
         self.surface_config.width = size.width;
         self.surface_config.height = size.height;
         self.surface.configure(&self.device, &self.surface_config);
@@ -215,8 +209,9 @@ impl RenderFrame {
         return render_pass;
     }
 
-    pub fn finish(self, queue: &Queue) {
-        queue.submit(Some(self.encoder.finish()));
+    pub fn finish(self, ctx: &Context) {
+        ctx.queue.submit(Some(self.encoder.finish()));
+        ctx.window.pre_present_notify();
         self.frame.present();
     }
 }

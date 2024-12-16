@@ -16,8 +16,8 @@ impl Ui {
     ///
     /// Returns `true` if the event was "consumed" by the `Ui`, e.g. if a mouse click hit an opaque panel.
     /// 
-    pub fn handle_events(&mut self, full_event: &Event<()>) -> bool {
-        if let Event::WindowEvent { event, .. } = full_event {
+    pub fn handle_events(&mut self, event: &WindowEvent) -> bool {
+        // if let Event::WindowEvent { event, .. } = full_event {
             match event {
                 WindowEvent::CursorMoved { position, .. } => {
                     self.sys.part.mouse_pos.x = position.x as f32;
@@ -49,15 +49,15 @@ impl Ui {
                     ..
                 } => {
                     if !is_synthetic {
-                        let consumed = self.handle_keyboard_event(event);
+                        let consumed = self.handle_keyboard_event(&event);
                         return consumed;
                     }
                 }
                 // todo: 
-                WindowEvent::Resized(size) => self.resize(size),
+                WindowEvent::Resized(size) => self.resize(&size),
                 _ => {}
             }
-        }
+        // }
 
         return false;
     }

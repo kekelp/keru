@@ -1,6 +1,5 @@
+use keru::*;
 use keru::example_window_loop::*;
-use keru::{Color, NodeKey, Ui, BUTTON};
-use keru::node_key;
 
 #[derive(Default)]
 pub struct State {
@@ -57,8 +56,9 @@ impl ExampleLoop for State {
         ui.v_stack().nest(|| {
             if self.show {
                 ui.place(INCREASE);
-                let variable_text = format!("{:?}", std::time::Instant::now());
-                ui.label(variable_text);
+                // let variable_text = format!("{:?}", std::time::Instant::now());
+                // ui.label(variable_text);
+                ui.label(self.count);
                 ui.place(DECREASE);
             }
             ui.place(SHOW);
@@ -66,9 +66,7 @@ impl ExampleLoop for State {
     }
 }
 
-fn main() -> Result<(), WinitEventLoopError> {
-    // This one-line render loop is only intended for examples.
-    // The library is meant to be used within a custom `winit`/`wgpu` loop.
-    // See the `keru_paint` package for an example.
-    run_with_example_loop::<State>()
+fn main() {
+    let state = State::default();
+    run_with_example_loop(state);
 }
