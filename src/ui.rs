@@ -113,8 +113,6 @@ pub(crate) struct System {
 
     pub changes: PartialChanges,
 
-    pub frame_t: f32,
-    
     // move to changes oalgo
     pub anim_render_timer: AnimationRenderTimer,
 }
@@ -385,8 +383,6 @@ impl Ui {
                 hovered: Vec::with_capacity(15),
                 focused: None,
 
-                frame_t: 0.0,
-
                 anim_render_timer: AnimationRenderTimer::default(),
 
                 changes: PartialChanges::new(),
@@ -486,12 +482,6 @@ pub(crate) struct Nodes {
     // todo: make faster or something
     pub node_hashmap: FxHashMap<Id, NodeMapEntry>,
     pub nodes: Slab<Node>,
-}
-impl Nodes {
-    pub fn get_by_id(&mut self, id: &Id) -> Option<&mut Node> {
-        let i = self.node_hashmap.get(id)?.slab_i;
-        return self.nodes.get_mut(i);
-    }
 }
 impl Index<usize> for Nodes {
     type Output = Node;

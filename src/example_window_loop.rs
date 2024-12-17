@@ -16,15 +16,15 @@
 //!     // Custom program state
 //! }
 //! 
-//! impl ExampleLoop for State {
+//! impl PureGuiLoop for State {
 //!     fn declare_ui(&mut self, ui: &mut Ui) {
 //!         // Custom GUI building logic, with access to your custom state (`self`) and the `Ui` object
 //!     }
 //! }
 //! 
-//! fn main() -> Result<(), WinitEventLoopError> {
-//!     // One-line window + render loop
-//!     run_with_example_loop::<State>()
+//! fn main() {
+//!     let state = State::default();
+//!     run_pure_gui_loop(state);
 //! }
 //! 
 //! ```
