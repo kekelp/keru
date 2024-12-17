@@ -631,6 +631,8 @@ impl Ui {
         self.nodes[ROOT_I].children_hash = EMPTY_HASH;
 
         thread_local_push_parent(&root_parent);
+
+        self.begin_frame_resolve_inputs();
     }
     
     /// Finish declaring the current GUI tree.
@@ -644,7 +646,6 @@ impl Ui {
  
         self.relayout();
 
-        self.end_frame_resolve_inputs();
 
         self.sys.new_input = false;
         self.sys.new_external_events = false;

@@ -439,7 +439,8 @@ impl Ui {
     }
 
     pub fn new_input(&mut self) -> bool {
-        return self.sys.new_input;
+        return self.sys.new_input ||
+        self.sys.changes.resize;
     }
 
     pub fn needs_update(&mut self) -> bool {

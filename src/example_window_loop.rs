@@ -31,23 +31,24 @@
 //! 
 
 use std::sync::Arc;
-use std::time::{Duration, Instant};
 
 use crate::*;
 use crate::basic_window_loop::*;
 use winit::application::ApplicationHandler;
 pub use winit::error::EventLoopError as WinitEventLoopError;
-use winit::event::{StartCause, WindowEvent};
+use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow};
 use winit::window::{Window, WindowId};
 
-pub trait ExampleLoop: Default {
+pub trait PureGuiLoop: Default {
     fn declare_ui(&mut self, ui: &mut Ui);
 }
 
-pub fn run_with_example_loop<S: ExampleLoop>(state: S) {
+pub fn run_pure_gui_loop<S: PureGuiLoop>(state: S) {
     let event_loop = EventLoop::new().unwrap();
-        
+
+    event_loop.set_control_flow(ControlFlow::Wait);
+
     let mut full_state = State {
         user_state: state,
         ctx: None,
@@ -63,7 +64,7 @@ struct State<S> {
     ui: Option<Ui>,
 }
 
-impl<S: ExampleLoop> ApplicationHandler for State<S> {
+impl<S: PureGuiLoop> ApplicationHandler for State<S> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let window = Arc::new(event_loop.create_window(Window::default_attributes()).unwrap());
         
@@ -80,55 +81,51 @@ impl<S: ExampleLoop> ApplicationHandler for State<S> {
         _window_id: WindowId,
         event: WindowEvent,
     ) {
-        let _consumed = self.ui.as_mut().unwrap().handle_events(&event);
-
         self.ctx.as_mut().unwrap().handle_window_event(event_loop, _window_id, &event);
 
         if let WindowEvent::RedrawRequested = &event {
-            self.tick(&event_loop);
+            
+            if self.ui.as_mut().unwrap().new_input() {
+                println!("[{:?}] update", T0.elapsed());
+                self.update();
+            }
+
+            if self.ui.as_mut().unwrap().needs_rerender() {
+                println!("[{:?}] render", T0.elapsed());
+                self.render();
+            }
+
+            // for some animations, we'll need to rerender several frames in a row without updating.
+            if self.ui.as_mut().unwrap().needs_rerender() {
+                self.ctx.as_mut().unwrap().window.request_redraw();
+            }
+
+        } else {
+            
+            let _consumed = self.ui.as_mut().unwrap().handle_events(&event);
+            
+            if self.ui.as_mut().unwrap().new_input() {
+                self.ctx.as_mut().unwrap().window.request_redraw();
+            }
+
         }
-
-        // if self.ui.as_mut().unwrap().needs_rerender() {
-        //     println!("  {:?}", event);
-        //     self.ctx.as_mut().unwrap().window.request_redraw();
-        // }
     }
 
-    fn new_events(&mut self, _event_loop: &ActiveEventLoop, cause: StartCause) {
-        if let StartCause::ResumeTimeReached { .. } = cause {
-            self.ctx.as_mut().unwrap().window.request_redraw();
-        };
-    }
+    // fn new_events(&mut self, _event_loop: &ActiveEventLoop, cause: StartCause) {
+    //     // This will never get called if self.tick_mode is not TickAtScreenFps
+    //     if let StartCause::ResumeTimeReached { .. } = cause {
+    //         self.ctx.as_mut().unwrap().window.request_redraw();
+    //     };
+    // }
 }
 
-impl<S: ExampleLoop> State<S> {
-    pub fn tick(&mut self, event_loop: &ActiveEventLoop) {
+impl<S: PureGuiLoop> State<S> {
+    pub fn update(&mut self) {
         let ui = self.ui.as_mut().unwrap();
 
-        
-        println!("[{:?}] update", T0.elapsed());
-        
-        // if self.ui.needs_update() {
-            ui.begin_tree();
-            self.user_state.declare_ui(ui);
-            ui.finish_tree();
-        // }
-
-        
-        if ui.needs_rerender() {
-            println!("[{:?}] render", T0.elapsed());
-            self.render();
-            event_loop.set_control_flow(ControlFlow::Poll);
-            self.ctx.as_mut().unwrap().window.request_redraw();
-        }
-        else {
-            let refresh_rate = self.ctx.as_mut().unwrap().window.current_monitor().unwrap().video_modes().next().unwrap().refresh_rate_millihertz();        
-            let frame_time_micros = (1_000_000_000 / refresh_rate) as u64;
-            let sleep_time = Duration::from_micros(frame_time_micros);
-            let wake_time = Instant::now() + sleep_time;
-            event_loop.set_control_flow(ControlFlow::WaitUntil(wake_time));
-        }
-
+        ui.begin_tree();
+        self.user_state.declare_ui(ui);
+        ui.finish_tree();
     }
 
     pub fn render(&mut self) {

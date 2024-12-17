@@ -112,6 +112,7 @@ impl Ui {
                 // newly entered
                 self.end_all_hovering();
                 self.start_hovering(hovered_id);
+                self.sys.new_input = true;
             }
 
         } else {
@@ -158,13 +159,15 @@ impl Ui {
                         hovered_node.hover_timestamp = ui_time_f32();
                         self.sys.changes.cosmetic_rect_updates.push(hovered_node_i);
                     }
+
+                    self.sys.new_input = true;
                 }
             }
         }
         self.sys.hovered.clear();
     }
 
-    pub(crate) fn end_frame_resolve_inputs(&mut self) {
+    pub(crate) fn begin_frame_resolve_inputs(&mut self) {
         // clicks
         self.sys.last_frame_mouse_events.clear();
 
@@ -219,7 +222,7 @@ impl Ui {
         }
     }
 
-    // returns if the ui consumed the mouse press, or if it should be passed down.   
+    // returns if the ui consumed the mouse press, or if it should be passed down. 
     pub(crate) fn resolve_click_press(&mut self, button: MouseButton) -> bool {
         self.sys.new_input = true;
 

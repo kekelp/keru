@@ -1,6 +1,5 @@
 //! Helper functions for `winit` and `wgpu`.
 
-
 pub use wgpu::{CommandEncoderDescriptor, TextureViewDescriptor};
 pub use winit::{
     error::EventLoopError, event_loop::EventLoop, event::Event
@@ -9,13 +8,13 @@ use winit::window::*;
 
 
 use core::f32;
-use std::{sync::Arc, thread, time::{Duration, Instant}};
+use std::{sync::Arc, thread, time::Duration};
 
 use wgpu::{
     Color, CommandEncoder, CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance, InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue, RenderPass, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor, RequestAdapterOptions, Surface, SurfaceConfiguration, SurfaceTexture, Texture, TextureFormat, TextureUsages, TextureView
 };
 use winit::{
-    dpi::{LogicalSize, PhysicalSize}, event::WindowEvent, event_loop::ControlFlow, window::{self, Window as WinitWindow}
+    dpi::PhysicalSize, event::WindowEvent, window::Window as WinitWindow
 };
 
 pub const BACKGROUND_GREY: wgpu::Color = wgpu::Color {
@@ -82,9 +81,6 @@ pub struct Context {
     pub queue: Queue,
 
     pub depth_stencil_texture: Texture,
-
-    pub last_frame_timestamp: Instant,
-    pub current_frame_timestamp: Instant,
 }
 impl Context {
     pub fn init(width: u32, height: u32, window: Arc<Window>) -> Self {
@@ -106,8 +102,6 @@ impl Context {
             device,
             queue,
             depth_stencil_texture,
-            last_frame_timestamp: Instant::now(),
-            current_frame_timestamp: Instant::now(),
         };
 
         return ctx;
@@ -126,11 +120,6 @@ impl Context {
             },
             WindowEvent::Resized(size) => {
                 self.resize(*size);
-            }
-            WindowEvent::RedrawRequested => {                
-                self.last_frame_timestamp = self.current_frame_timestamp;
-                self.current_frame_timestamp = Instant::now();
-                // self.window.request_redraw();
             }
             _ => (),
         }
