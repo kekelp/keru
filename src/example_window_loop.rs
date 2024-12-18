@@ -49,7 +49,7 @@ pub fn run_pure_gui_loop<S: PureGuiLoop>(state: S) {
 
     event_loop.set_control_flow(ControlFlow::Wait);
 
-    let mut full_state = State {
+    let mut full_state = WinitFriendlyState {
         user_state: state,
         ctx: None,
         ui: None,
@@ -58,13 +58,29 @@ pub fn run_pure_gui_loop<S: PureGuiLoop>(state: S) {
     let _ = event_loop.run_app(&mut full_state);
 }
 
-struct State<S> {
+struct WinitFriendlyState<S> {
     user_state: S,
     ctx: Option<Context>,
     ui: Option<Ui>,
 }
 
-impl<S: PureGuiLoop> ApplicationHandler for State<S> {
+struct State<'a, S> {
+    user_state: &'a mut S,
+    ctx: &'a mut Context,
+    ui: &'a mut Ui,
+}
+
+impl<S> WinitFriendlyState<S> {
+    fn unwrap<'a>(&'a mut self) -> State<'a, S> {
+        return State {
+            user_state: &mut self.user_state,
+            ctx: self.ctx.as_mut().unwrap(),
+            ui: self.ui.as_mut().unwrap(),
+        }
+    }
+} 
+
+impl<S: PureGuiLoop> ApplicationHandler for WinitFriendlyState<S> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let window = Arc::new(event_loop.create_window(Window::default_attributes()).unwrap());
         
@@ -81,31 +97,32 @@ impl<S: PureGuiLoop> ApplicationHandler for State<S> {
         _window_id: WindowId,
         event: WindowEvent,
     ) {
-        self.ctx.as_mut().unwrap().handle_window_event(event_loop, _window_id, &event);
+        let mut _self = self.unwrap();
+        _self.ctx.handle_window_event(event_loop, _window_id, &event);
 
         if let WindowEvent::RedrawRequested = &event {
             
-            if self.ui.as_mut().unwrap().new_input() {
+            if _self.ui.new_input() {
                 println!("[{:?}] update", T0.elapsed());
-                self.update();
+                _self.update();
             }
 
-            if self.ui.as_mut().unwrap().needs_rerender() {
+            if _self.ui.needs_rerender() {
                 println!("[{:?}] render", T0.elapsed());
-                self.render();
+                _self.render();
             }
 
             // for some animations, we'll need to rerender several frames in a row without updating.
-            if self.ui.as_mut().unwrap().needs_rerender() {
-                self.ctx.as_mut().unwrap().window.request_redraw();
+            if _self.ui.needs_rerender() {
+                _self.ctx.window.request_redraw();
             }
 
         } else {
             
-            let _consumed = self.ui.as_mut().unwrap().handle_events(&event);
+            let _consumed = _self.ui.handle_events(&event);
             
-            if self.ui.as_mut().unwrap().new_input() {
-                self.ctx.as_mut().unwrap().window.request_redraw();
+            if _self.ui.new_input() {
+                _self.ctx.window.request_redraw();
             }
 
         }
@@ -119,28 +136,23 @@ impl<S: PureGuiLoop> ApplicationHandler for State<S> {
     // }
 }
 
-impl<S: PureGuiLoop> State<S> {
+impl<'a, S: PureGuiLoop> State<'a, S> {
     pub fn update(&mut self) {
-        let ui = self.ui.as_mut().unwrap();
-
-        ui.begin_tree();
-        self.user_state.declare_ui(ui);
-        ui.finish_tree();
+        self.ui.begin_tree();
+        self.user_state.declare_ui(self.ui);
+        self.ui.finish_tree();
     }
 
     pub fn render(&mut self) {
-        let ctx = self.ctx.as_mut().unwrap();
-        let ui = self.ui.as_mut().unwrap();
-
-        ui.prepare(&ctx.device, &ctx.queue);
+        self.ui.prepare(&self.ctx.device, &self.ctx.queue);
         
-        let mut frame = ctx.begin_frame();
+        let mut frame = self.ctx.begin_frame();
         
         {
             let mut render_pass = frame.begin_render_pass(wgpu::Color::WHITE);
-            ui.render(&mut render_pass);
+            self.ui.render(&mut render_pass);
         }
         
-        frame.finish(&ctx);
+        frame.finish(&self.ctx);
     }
 }
