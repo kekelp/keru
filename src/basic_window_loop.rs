@@ -8,7 +8,7 @@ use winit::{event_loop::ActiveEventLoop, window::*};
 
 
 use core::f32;
-use std::{sync::Arc, thread, time::Duration};
+use std::sync::Arc;
 
 use wgpu::{
     Color, CommandEncoder, CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance, InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue, RenderPass, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor, RequestAdapterOptions, Surface, SurfaceConfiguration, SurfaceTexture, Texture, TextureFormat, TextureUsages, TextureView
@@ -97,8 +97,14 @@ pub struct UnwrappedContext<'a> {
 }
 
 impl Context {
+    pub fn request_redraw(&mut self) {
+        self.window.as_ref().unwrap().request_redraw();
+    }
+
     pub fn init() -> Self {
         // just garbage numbers because of the weird winit loop
+        // at this point we don't even have a window
+        // the correct size will be set on the first resize event
         let (width, height) = (1920, 1080);
 
         let (instance, device, queue) = basic_wgpu_init();
@@ -184,18 +190,6 @@ impl Context {
             view,
             depth_stencil_view,
         };
-    }
-
-    // todo: is this really the only way?
-    // If we don't need to rerender, we still want to run the update code at approximately the same rate as the screen vsync,
-    // but we can't use wgpu's get_current_texture() to block until the next vblank.
-    // This should be an ok solution, but it definitely feels weird.
-    pub fn sleep_until_next_frame(&mut self) {
-        let refresh_rate = self.window.as_mut().unwrap().current_monitor().unwrap().video_modes().next().unwrap().refresh_rate_millihertz();        
-        let frame_time_micros = (1_000_000_000 / refresh_rate) as u64;
-        let sleep_time = Duration::from_micros(frame_time_micros);
-
-        thread::sleep(sleep_time);
     }
 }
 

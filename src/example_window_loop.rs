@@ -30,16 +30,13 @@
 //! ```
 //! 
 
-use std::sync::Arc;
 
 use crate::*;
 use crate::basic_window_loop::*;
 use winit::application::ApplicationHandler;
-use winit::dpi::{PhysicalPosition, PhysicalSize};
-pub use winit::error::EventLoopError as WinitEventLoopError;
 use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow};
-use winit::window::{Window, WindowId};
+use winit::window::WindowId;
 
 pub trait PureGuiLoop: Default {
     fn declare_ui(&mut self, ui: &mut Ui);
@@ -95,7 +92,7 @@ impl<S: PureGuiLoop> ApplicationHandler for State<S> {
 
             // for some animations, we'll need to rerender several frames in a row without updating.
             if self.ui.needs_rerender() {
-                self.ctx.window.as_mut().unwrap().request_redraw();
+                self.ctx.request_redraw();
             }
 
         } else {
@@ -103,7 +100,7 @@ impl<S: PureGuiLoop> ApplicationHandler for State<S> {
             let _consumed = self.ui.handle_events(&event);
             
             if self.ui.new_input() {
-                self.ctx.window.as_mut().unwrap().request_redraw();
+                self.ctx.request_redraw();
             }
 
         }
