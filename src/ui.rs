@@ -14,7 +14,6 @@ use copypasta::ClipboardContext;
 use glyphon::Cache as GlyphonCache;
 use glyphon::Viewport;
 
-use interact::PendingMousePress;
 use node::Node;
 use rustc_hash::FxHashMap;
 use slab::Slab;
@@ -26,6 +25,7 @@ use wgpu::{
     SamplerBindingType, SamplerDescriptor, ShaderModuleDescriptor, ShaderSource, ShaderStages,
     TextureSampleType, TextureViewDimension, VertexState,
 };
+use winit_mouse_events::MouseInput;
 
 use std::ops::{Index, IndexMut};
 use std::sync::LazyLock;
@@ -78,6 +78,7 @@ pub(crate) struct System {
 
     pub clipboard: ClipboardContext,
 
+    // todo: remove and put in mouse_input
     pub key_mods: ModifiersState,
 
     pub gpu_rect_buffer: TypedGpuBuffer<RenderRect>,
@@ -98,12 +99,10 @@ pub(crate) struct System {
 
     pub mouse_hit_stack: Vec<(Id, f32)>,
 
-    pub unresolved_click_presses: Vec<PendingMousePress>,
-    pub last_frame_mouse_events: Vec<FullMouseEvent>,
+    pub mouse_input: MouseInput<Id>,
 
     pub unresolved_key_presses: Vec<PendingKeyPress>,
     pub last_frame_key_events: Vec<FullKeyEvent>,
-
 
     pub hovered: Vec<Id>,
 
@@ -156,6 +155,7 @@ impl AnimationRenderTimer {
 
 
 pub(crate) struct PartialBorrowStuff {
+    // todo: remove and use the one in mouse_input
     pub mouse_pos: PhysicalPosition<f32>,
     pub unifs: Uniforms,
     pub current_frame: u64,
@@ -382,8 +382,7 @@ impl Ui {
 
                 mouse_hit_stack: Vec::with_capacity(50),
 
-                unresolved_click_presses: Vec::with_capacity(20),
-                last_frame_mouse_events: Vec::with_capacity(20),
+                mouse_input: MouseInput::default(),
 
                 unresolved_key_presses: Vec::with_capacity(20),
                 last_frame_key_events: Vec::with_capacity(20),
