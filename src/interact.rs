@@ -109,7 +109,7 @@ impl Ui {
             if let Some(entry) = hovered_nodemap_entry {
                 // check that the node is currently part of the tree...
                 // this is a bit scary, and it will need to change with `assume_unchanged` and friends
-                if entry.last_frame_touched == self.sys.part.current_frame {
+                if entry.last_frame_touched == self.sys.current_frame {
 
                     let hovered_node_i = entry.slab_i;
                     let hovered_node = &mut self.nodes.nodes[hovered_node_i];
@@ -201,13 +201,13 @@ impl Ui {
         self.sys.mouse_hit_stack.clear();
 
         for rect in &self.sys.rects {
-            if mouse_hit_rect(rect, &self.sys.part.unifs.size, self.cursor_position()) {
+            if mouse_hit_rect(rect, &self.sys.unifs.size, self.cursor_position()) {
                 self.sys.mouse_hit_stack.push((rect.id, rect.z));
             }
         }
 
         for rect in &self.sys.invisible_but_clickable_rects {
-            if mouse_hit_rect(rect, &self.sys.part.unifs.size, self.cursor_position()) {
+            if mouse_hit_rect(rect, &self.sys.unifs.size, self.cursor_position()) {
                 self.sys.mouse_hit_stack.push((rect.id, rect.z));
             }
         }

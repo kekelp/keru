@@ -186,7 +186,7 @@ impl<'a> UiNode<'a> {
             (rect[Y][1] + rect[Y][0]) / 2.0,
         );
 
-        let center = center * self.ui.sys.part.unifs.size;
+        let center = center * self.ui.sys.unifs.size;
 
         return center;
     }
@@ -199,13 +199,13 @@ impl<'a> UiNode<'a> {
             rect[Y][1],
         );
 
-        let center = center * self.ui.sys.part.unifs.size;
+        let center = center * self.ui.sys.unifs.size;
         
         return center;
     }
 
     pub fn rect(&self) -> XyRect {
-        return self.node().rect * self.ui.sys.part.unifs.size;
+        return self.node().rect * self.ui.sys.unifs.size;
     }
 
     pub fn render_rect(&self) -> RenderInfo {
@@ -299,7 +299,7 @@ impl<'a> UiNode<'a> {
                 .ui
                 .sys
                 .text
-                .maybe_new_text_area(Some(text), self.ui.sys.part.current_frame);
+                .maybe_new_text_area(Some(text), self.ui.sys.current_frame);
             self.node_mut().text_id = text_id;
         }
 
@@ -360,7 +360,7 @@ impl<'a> UiNode<'a> {
                 .ui
                 .sys
                 .text
-                .maybe_new_text_area(Some(&self.ui.format_scratch), self.ui.sys.part.current_frame);
+                .maybe_new_text_area(Some(&self.ui.format_scratch), self.ui.sys.current_frame);
             self.node_mut().text_id = text_id;
             self.ui.push_text_change(self.node_i);
         }
@@ -388,7 +388,7 @@ impl<'a> UiNode<'a> {
                 .ui
                 .sys
                 .text
-                .maybe_new_text_area(Some(&self.ui.format_scratch), self.ui.sys.part.current_frame);
+                .maybe_new_text_area(Some(&self.ui.format_scratch), self.ui.sys.current_frame);
             self.node_mut().text_id = text_id;
         }
 

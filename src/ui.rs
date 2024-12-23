@@ -96,7 +96,8 @@ pub(crate) struct System {
     pub invisible_but_clickable_rects: Vec<RenderRect>,
     // todo: keep a separate vec with the bounding boxes for faster mouse hit scans
 
-    pub part: PartialBorrowStuff,
+    pub unifs: Uniforms,
+    pub current_frame: u64,
 
     pub mouse_hit_stack: Vec<(Id, f32)>,
 
@@ -152,12 +153,6 @@ impl AnimationRenderTimer {
         }
         false
     }
-}
-
-
-pub(crate) struct PartialBorrowStuff {
-    pub unifs: Uniforms,
-    pub current_frame: u64,
 }
 
 #[repr(C)]
@@ -373,10 +368,8 @@ impl Ui {
                 relayouts_scrath: Vec::with_capacity(15),
                 partial_relayout_count: 0,
 
-                part: PartialBorrowStuff {
-                    current_frame: FIRST_FRAME,
-                    unifs: uniforms,
-                },
+                current_frame: FIRST_FRAME,
+                unifs: uniforms,
 
                 mouse_hit_stack: Vec::with_capacity(50),
 

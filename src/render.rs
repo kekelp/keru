@@ -86,13 +86,13 @@ impl Ui {
     pub fn prepare(&mut self, device: &Device, queue: &Queue) {       
         // update time + resolution        
         // since we have to update the time anyway, we also update the screen resolution all the time
-        self.sys.part.unifs.t = ui_time_f32();
+        self.sys.unifs.t = ui_time_f32();
 
         let warning = "todo: change this";
         queue.write_buffer(
             &self.sys.base_uniform_buffer,
             0,
-            &bytemuck::bytes_of(&self.sys.part.unifs),
+            &bytemuck::bytes_of(&self.sys.unifs),
         );
 
         // update glyphon size info
@@ -100,8 +100,8 @@ impl Ui {
             self.sys.text.glyphon_viewport.update(
                 queue,
                 glyphon::Resolution {
-                    width: self.sys.part.unifs.size.x as u32,
-                    height: self.sys.part.unifs.size.y as u32,
+                    width: self.sys.unifs.size.x as u32,
+                    height: self.sys.unifs.size.y as u32,
                 },
             );
             self.sys.changes.resize = false;
@@ -123,7 +123,7 @@ impl Ui {
                 &mut self.sys.text.font_system,
                 &mut self.sys.text.atlas,
                 &self.sys.text.glyphon_viewport,
-                render_iter(&mut self.sys.text.text_areas, self.sys.part.current_frame),
+                render_iter(&mut self.sys.text.text_areas, self.sys.current_frame),
                 &mut self.sys.text.cache,
             )
             .unwrap();

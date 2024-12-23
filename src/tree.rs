@@ -167,7 +167,7 @@ impl Ui {
     }
 
     pub(crate) fn add_or_update_node(&mut self, key: NodeKey) -> usize {
-        let frame = self.sys.part.current_frame;
+        let frame = self.sys.current_frame;
 
         // Check the node corresponding to the key's id.
         // We might find that the key has already been used in this same frame:
@@ -364,7 +364,7 @@ impl Ui {
         // refreshing the node should go here as well.
         // but maybe not? the point was always that untouched nodes stay out of the tree and they get skipped automatically.
         // unless we still need the frame for things like pruning?
-        let frame = self.sys.part.current_frame;
+        let frame = self.sys.current_frame;
         self.sys.text.refresh_last_frame(self.nodes[i].text_id, frame);
 
 
@@ -464,8 +464,8 @@ impl Ui {
     pub(crate) fn resize(&mut self, size: &PhysicalSize<u32>) {
         self.sys.changes.full_relayout = true;
         
-        self.sys.part.unifs.size[X] = size.width as f32;
-        self.sys.part.unifs.size[Y] = size.height as f32;
+        self.sys.unifs.size[X] = size.width as f32;
+        self.sys.unifs.size[Y] = size.height as f32;
 
         self.sys.changes.resize = true;
     }
@@ -514,7 +514,7 @@ impl Ui {
     pub(crate) fn prune(&mut self) {
         self.nodes.node_hashmap.retain(|_k, v| {
             // the > is to always keep the root node without having to refresh it
-            let should_retain = v.last_frame_touched >= self.sys.part.current_frame;
+            let should_retain = v.last_frame_touched >= self.sys.current_frame;
             if !should_retain {
                 let name = self.nodes.nodes[v.slab_i].debug_name();
                 // side effect happens inside this closure? idk if this even works
@@ -621,7 +621,7 @@ impl Ui {
         self.nodes[ROOT_I].first_child = None;        
         self.nodes[ROOT_I].n_children = 0;
 
-        self.sys.part.current_frame += 1;
+        self.sys.current_frame += 1;
         clear_thread_local_parent_stack();
         self.format_scratch.clear();
 
@@ -678,7 +678,7 @@ impl Ui {
         let node_i = self.nodes.node_hashmap.get(&key.id());
         if let Some(entry) = node_i {
             // todo: also return true if it's retained
-            return entry.last_frame_touched == self.sys.part.current_frame;
+            return entry.last_frame_touched == self.sys.current_frame;
         } else {
             return false;
         }

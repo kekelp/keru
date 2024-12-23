@@ -116,13 +116,13 @@ impl Ui {
         // we don't do update_rects here because the first frame you can't update... but maybe just special-case the first frame, then should be faster
         self.recursive_place_children(ROOT_I, false);
         
-        self.nodes[ROOT_I].last_layout_frame = self.sys.part.current_frame;
+        self.nodes[ROOT_I].last_layout_frame = self.sys.current_frame;
     }
 
     pub(crate) fn partial_relayout(&mut self, node: usize, update_rects: bool) {
         // if the node has already been layouted on the current frame, stop immediately, and don't even recurse.
         // when doing partial layouts, this avoids overlap, but it means that we have to sort the partial relayouts cleanly from least depth to highest depth in order to get it right. This is done in `relayout()`.
-        let current_frame = self.sys.part.current_frame;
+        let current_frame = self.sys.current_frame;
         if self.nodes[node].last_layout_frame >= current_frame {
             return;
         }
@@ -168,7 +168,7 @@ impl Ui {
                             println!("A Size shouldn't be AspectRatio in both dimensions. ({:?})", debug_name);
                         }
                         _ => {
-                            let window_aspect = self.sys.part.unifs.size.x / self.sys.part.unifs.size.y;
+                            let window_aspect = self.sys.unifs.size.x / self.sys.unifs.size.y;
                             let mult = match axis {
                                 X => 1.0 / (window_aspect * aspect),
                                 Y => window_aspect * aspect,
@@ -276,8 +276,8 @@ impl Ui {
         // todo: the rest.
         // also, note: the set_align trick might not be good if we expose the ability to set whatever align the user wants.
 
-        // let w = proposed_size.x * self.sys.part.unifs.size[X];
-        // let h = proposed_size.y * self.sys.part.unifs.size[Y];
+        // let w = proposed_size.x * self.sys.unifs.size[X];
+        // let h = proposed_size.y * self.sys.unifs.size[Y];
         let w = 999999.0;
         let h = 999999.0;
 
@@ -343,7 +343,7 @@ impl Ui {
             self.update_rect(node);
         }
 
-        self.nodes[node].last_layout_frame = self.sys.part.current_frame;
+        self.nodes[node].last_layout_frame = self.sys.current_frame;
 
         for_each_child!(self, self.nodes[node], child, {
             self.recursive_place_children(child, also_update_rects);
@@ -461,11 +461,11 @@ impl Ui {
         let text_id = node.text_id;
 
         if let Some(text_id) = text_id {
-            let left = rect[X][0] * self.sys.part.unifs.size[X];
-            let top = rect[Y][0] * self.sys.part.unifs.size[Y];
+            let left = rect[X][0] * self.sys.unifs.size[X];
+            let top = rect[Y][0] * self.sys.unifs.size[Y];
 
-            // let right = rect[X][1] * self.sys.part.unifs.size[X];
-            // let bottom =     rect[Y][1] * self.sys.part.unifs.size[Y];
+            // let right = rect[X][1] * self.sys.unifs.size[X];
+            // let bottom =     rect[Y][1] * self.sys.unifs.size[Y];
 
             self.sys.text.text_areas[text_id].params.left = left + padding[X] as f32;
             self.sys.text.text_areas[text_id].params.top = top + padding[Y] as f32;
