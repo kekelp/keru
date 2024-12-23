@@ -76,6 +76,7 @@ impl<S: PureGuiLoop> ApplicationHandler for State<S> {
         event: WindowEvent,
     ) {
         self.ctx.handle_window_event(event_loop, _window_id, &event);
+        self.ui.handle_events(&event);
 
         if let WindowEvent::RedrawRequested = &event {
             if self.ui.new_input() {
@@ -93,9 +94,7 @@ impl<S: PureGuiLoop> ApplicationHandler for State<S> {
                 self.ctx.window.request_redraw();
             }
 
-        } else {
-            self.ui.handle_events(&event);
-            
+        } else {            
             if self.ui.new_input() {
                 self.ctx.window.request_redraw();
             }
