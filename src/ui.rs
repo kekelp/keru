@@ -11,6 +11,7 @@ use crate::math::Axis::*;
 
 use basic_window_loop::basic_depth_stencil_state;
 use copypasta::ClipboardContext;
+use glam::DVec2;
 use glyphon::Cache as GlyphonCache;
 use glyphon::Viewport;
 
@@ -155,8 +156,6 @@ impl AnimationRenderTimer {
 
 
 pub(crate) struct PartialBorrowStuff {
-    // todo: remove and use the one in mouse_input
-    pub mouse_pos: PhysicalPosition<f32>,
     pub unifs: Uniforms,
     pub current_frame: u64,
 }
@@ -375,7 +374,6 @@ impl Ui {
                 partial_relayout_count: 0,
 
                 part: PartialBorrowStuff {
-                    mouse_pos: PhysicalPosition { x: 0., y: 0. },
                     current_frame: FIRST_FRAME,
                     unifs: uniforms,
                 },
@@ -465,8 +463,8 @@ impl Ui {
         self.needs_rerender();
     }
 
-    pub fn mouse_cursor(&self) -> PhysicalPosition<f32> {
-        return self.sys.part.mouse_pos;
+    pub fn cursor_position(&self) -> DVec2 {
+        return self.sys.mouse_input.cursor_position();
     }
 }
 
@@ -519,65 +517,63 @@ impl IndexMut<usize> for Nodes {
     }
 }
 
-impl PartialBorrowStuff {
-    pub fn mouse_hit_rect(&self, rect: &RenderRect) -> bool {
-        // rects are rebuilt whenever they change, they don't have to be skipped based on a timestamp or anything like that.
-        // in the future if we do a click detection specific datastructure it might use a timestamp, maybe? probably not.
+pub fn mouse_hit_rect(rect: &RenderRect, size: &Xy<f32>, cursor_pos: DVec2) -> bool {
+    // rects are rebuilt whenever they change, they don't have to be skipped based on a timestamp or anything like that.
+    // in the future if we do a click detection specific datastructure it might use a timestamp, maybe? probably not.
 
-        let mut mouse_pos = (
-            self.mouse_pos.x / self.unifs.size[X],
-            1.0 - (self.mouse_pos.y / self.unifs.size[Y]),
-        );
+    let mut cursor_pos = (
+        cursor_pos.x as f32 / size[X],
+        1.0 - (cursor_pos.y as f32 / size[Y]),
+    );
 
-        // transform mouse_pos into "opengl" centered coordinates
-        mouse_pos.0 = (mouse_pos.0 * 2.0) - 1.0;
-        mouse_pos.1 = (mouse_pos.1 * 2.0) - 1.0;
+    // transform mouse_pos into "opengl" centered coordinates
+    cursor_pos.0 = (cursor_pos.0 * 2.0) - 1.0;
+    cursor_pos.1 = (cursor_pos.1 * 2.0) - 1.0;
 
-        let aabb_hit = rect.rect[X][0] < mouse_pos.0
-            && mouse_pos.0 < rect.rect[X][1]
-            && rect.rect[Y][0] < mouse_pos.1
-            && mouse_pos.1 < rect.rect[Y][1];
+    let aabb_hit = rect.rect[X][0] < cursor_pos.0
+        && cursor_pos.0 < rect.rect[X][1]
+        && rect.rect[Y][0] < cursor_pos.1
+        && cursor_pos.1 < rect.rect[Y][1];
 
-        if !aabb_hit {
-            return false;
+    if !aabb_hit {
+        return false;
+    }
+
+    match rect.read_shape() {
+        Shape::Rectangle { corner_radius: _ } => {
+            return aabb_hit;
         }
+        Shape::Circle => {
+            // Calculate the circle center and radius
+            let center_x = (rect.rect[X][0] + rect.rect[X][1]) / 2.0;
+            let center_y = (rect.rect[Y][0] + rect.rect[Y][1]) / 2.0;
+            let radius = (rect.rect[X][1] - rect.rect[X][0]) / 2.0;
 
-        match rect.read_shape() {
-            Shape::Rectangle { corner_radius: _ } => {
-                return aabb_hit;
-            }
-            Shape::Circle => {
-                // Calculate the circle center and radius
-                let center_x = (rect.rect[X][0] + rect.rect[X][1]) / 2.0;
-                let center_y = (rect.rect[Y][0] + rect.rect[Y][1]) / 2.0;
-                let radius = (rect.rect[X][1] - rect.rect[X][0]) / 2.0;
-    
-                // Check if the mouse is within the circle
-                let dx = mouse_pos.0 - center_x;
-                let dy = mouse_pos.1 - center_y;
-                return dx * dx + dy * dy <= radius * radius;
-            }
-            Shape::Ring { width } => {
-                // scale to correct coordinates
-                // width should have been a Len anyway so this will have to change
-                let width = width / self.unifs.size[X];
+            // Check if the mouse is within the circle
+            let dx = cursor_pos.0 - center_x;
+            let dy = cursor_pos.1 - center_y;
+            return dx * dx + dy * dy <= radius * radius;
+        }
+        Shape::Ring { width } => {
+            // scale to correct coordinates
+            // width should have been a Len anyway so this will have to change
+            let width = width / size[X];
 
-                let aspect = self.unifs.size[X] / self.unifs.size[Y];
-                 // Calculate the ring's center and radii
-                let center_x = (rect.rect[X][0] + rect.rect[X][1]) / 2.0;
-                let center_y = (rect.rect[Y][0] + rect.rect[Y][1]) / 2.0;
-                let outer_radius = (rect.rect[X][1] - rect.rect[X][0]) / 2.0;
-                let inner_radius = outer_radius - width;
-    
-                // Check if the mouse is within the ring
-                let dx = mouse_pos.0 - center_x;
-                let dy = (mouse_pos.1 - center_y) / aspect;
-                let distance_squared = dx * dx + dy * dy;
-                return distance_squared <= outer_radius * outer_radius
-                    && distance_squared >= inner_radius * inner_radius;
+            let aspect = size[X] / size[Y];
+                // Calculate the ring's center and radii
+            let center_x = (rect.rect[X][0] + rect.rect[X][1]) / 2.0;
+            let center_y = (rect.rect[Y][0] + rect.rect[Y][1]) / 2.0;
+            let outer_radius = (rect.rect[X][1] - rect.rect[X][0]) / 2.0;
+            let inner_radius = outer_radius - width;
 
-                // in case there's any doubts, this was awful, it would be a lot better to have the click specific datastruct so that everything there can be in pixels
-            }
+            // Check if the mouse is within the ring
+            let dx = cursor_pos.0 - center_x;
+            let dy = (cursor_pos.1 - center_y) / aspect;
+            let distance_squared = dx * dx + dy * dy;
+            return distance_squared <= outer_radius * outer_radius
+                && distance_squared >= inner_radius * inner_radius;
+
+            // in case there's any doubts, this was awful, it would be a lot better to have the click specific datastruct so that everything there can be in pixels
         }
     }
 }

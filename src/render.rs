@@ -21,10 +21,7 @@ impl Ui {
         self.sys.mouse_input.handle_event(&event);
 
         match event {
-            WindowEvent::CursorMoved { position, .. } => {
-                self.sys.part.mouse_pos.x = position.x as f32;
-                self.sys.part.mouse_pos.y = position.y as f32;
-                
+            WindowEvent::CursorMoved { .. } => {              
                 let hovered_node_id = self.scan_mouse_hits();
                 self.sys.mouse_input.update_current_tag(hovered_node_id);
                 println!("  {:?}", self.sys.mouse_input.current_tag());

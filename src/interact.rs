@@ -182,9 +182,10 @@ impl Ui {
 
             if let Some(id) = clicked_node.text_id {
                 let text_area = &mut self.sys.text.text_areas[id];
+                let cursor_pos = self.sys.mouse_input.cursor_position();
                 let (x, y) = (
-                    self.sys.part.mouse_pos.x - text_area.params.left,
-                    self.sys.part.mouse_pos.y - text_area.params.top,
+                    cursor_pos.x as f32 - text_area.params.left,
+                    cursor_pos.y as f32 - text_area.params.top,
                 );
 
                 text_area.buffer.hit(x, y);
@@ -200,13 +201,13 @@ impl Ui {
         self.sys.mouse_hit_stack.clear();
 
         for rect in &self.sys.rects {
-            if self.sys.part.mouse_hit_rect(rect) {
+            if mouse_hit_rect(rect, &self.sys.part.unifs.size, self.cursor_position()) {
                 self.sys.mouse_hit_stack.push((rect.id, rect.z));
             }
         }
 
         for rect in &self.sys.invisible_but_clickable_rects {
-            if self.sys.part.mouse_hit_rect(rect) {
+            if mouse_hit_rect(rect, &self.sys.part.unifs.size, self.cursor_position()) {
                 self.sys.mouse_hit_stack.push((rect.id, rect.z));
             }
         }

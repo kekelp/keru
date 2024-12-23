@@ -82,7 +82,7 @@ impl State {
 
             if self.ui.key_mods().shift_key() {
 
-                let before = self.ui.mouse_cursor();
+                let before = self.ui.cursor_position();
                 
                 let before = dvec2(before.x as f64, before.y as f64);
 

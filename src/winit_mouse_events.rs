@@ -81,11 +81,11 @@ impl<T: Tag> MouseInput<T> {
         self.current_tag = new_tag;
     }
 
-    pub fn current_tag(&mut self) -> Option<T> {
+    pub fn current_tag(&self) -> Option<T> {
         return self.current_tag;
     }
 
-    pub fn cursor_position(&mut self) -> DVec2 {
+    pub fn cursor_position(&self) -> DVec2 {
         return self.cursor_position;
     }
 
