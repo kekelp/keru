@@ -6,7 +6,7 @@
 //! 
 //! ### Example
 //! 
-//! ```rust
+//! ```no_run
 //! # use keru::*;
 //! use keru::example_window_loop::*;
 //! use keru::Ui;
@@ -24,9 +24,8 @@
 //! 
 //! fn main() {
 //!     let state = State::default();
-//!     run_pure_gui_loop(state);
+//!     run_example_loop(state);
 //! }
-//! 
 //! ```
 use crate::*;
 use crate::basic_window_loop::*;
