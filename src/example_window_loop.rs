@@ -90,9 +90,6 @@ impl<S: ExampleLoop> ApplicationHandler for FullState<S> {
 
             // If there is an animation playing, ui.needs_rerender() will return true even if we just rendered.
             // In that case, call request_redraw and go for another iteration of the loop.
-            // This works right only thanks to render_ui() waiting for vsync. 
-            // Doing a similar thing for multiple update()s in a row without rendering wouldn't be as simple, and would need to use winit's ControlFlow::WaitUntil. 
-            // (Is it even correct in the rendering-only case? It probably goes to the next iteration, and immediately starts sleeping waiting for vsync. That's "real sleep" in which, if new input events arrive, the loop won't be able to wake up and handle it, right? That's significantly dumber than WaitUntil.)
             if self.ui.needs_rerender() {
                 self.ctx.window.request_redraw();
             }
@@ -103,11 +100,4 @@ impl<S: ExampleLoop> ApplicationHandler for FullState<S> {
             }
         }
     }
-
-    // fn new_events(&mut self, _event_loop: &ActiveEventLoop, cause: StartCause) {
-    //     // This will never get called if self.tick_mode is not TickAtScreenFps
-    //     if let StartCause::ResumeTimeReached { .. } = cause {
-    //         self.ctx.as_mut().unwrap().window.request_redraw();
-    //     };
-    // }
 }
