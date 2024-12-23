@@ -44,7 +44,6 @@ pub trait PureGuiLoop: Default {
 
 pub fn run_pure_gui_loop<S: PureGuiLoop>(state: S) {
     let event_loop = EventLoop::new().unwrap();
-
     event_loop.set_control_flow(ControlFlow::Wait);
 
     let ctx = Context::init();
@@ -66,7 +65,7 @@ struct State<S> {
 }
 
 impl<S: PureGuiLoop> ApplicationHandler for State<S> {
-    fn resumed(&mut self, event_loop: &ActiveEventLoop) {       
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {  
         self.ctx.resume(event_loop);
     }
 
@@ -79,7 +78,6 @@ impl<S: PureGuiLoop> ApplicationHandler for State<S> {
         self.ctx.handle_window_event(event_loop, _window_id, &event);
 
         if let WindowEvent::RedrawRequested = &event {
-            
             if self.ui.new_input() {
                 println!("[{:?}] update", T0.elapsed());
                 self.update();
@@ -92,17 +90,15 @@ impl<S: PureGuiLoop> ApplicationHandler for State<S> {
 
             // for some animations, we'll need to rerender several frames in a row without updating.
             if self.ui.needs_rerender() {
-                self.ctx.request_redraw();
+                self.ctx.window.request_redraw();
             }
 
         } else {
-            
-            let _consumed = self.ui.handle_events(&event);
+            self.ui.handle_events(&event);
             
             if self.ui.new_input() {
-                self.ctx.request_redraw();
+                self.ctx.window.request_redraw();
             }
-
         }
     }
 

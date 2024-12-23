@@ -1,14 +1,12 @@
 //! Helper functions for `winit` and `wgpu`.
-
 pub use wgpu::{CommandEncoderDescriptor, TextureViewDescriptor};
 pub use winit::{
     error::EventLoopError, event_loop::EventLoop, event::Event
 };
 use winit::{event_loop::ActiveEventLoop, window::*};
 
-
 use core::f32;
-use std::sync::Arc;
+use std::{ops::{Deref, DerefMut}, sync::Arc};
 
 use wgpu::{
     Color, CommandEncoder, CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance, InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue, RenderPass, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor, RequestAdapterOptions, Surface, SurfaceConfiguration, SurfaceTexture, Texture, TextureFormat, TextureUsages, TextureView
@@ -72,9 +70,24 @@ pub fn basic_depth_texture_descriptor(width: u32, height: u32) -> wgpu::TextureD
     }
 }
 
+pub struct AutoUnwrap<T>(Option<T>);
+impl<T> Deref for AutoUnwrap<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        return self.0.as_ref().unwrap();
+    }
+}
+impl<T> DerefMut for AutoUnwrap<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        return self.0.as_mut().unwrap();
+    }
+}
+
 pub struct Context {
-    pub window: Option<Arc<WinitWindow>>,
-    pub surface: Option<Surface<'static>>,
+    // To avoid panics, just do the same thing as you'd do anyway: initialize the window in `resumed()`, and never set it to None
+    pub window: AutoUnwrap<Arc<WinitWindow>>,
+    pub surface: AutoUnwrap<Surface<'static>>,
     
     pub surface_config: SurfaceConfiguration,
     pub device: Device,
@@ -84,23 +97,7 @@ pub struct Context {
     pub depth_stencil_texture: Texture,
 }
 
-pub struct UnwrappedContext<'a> {
-    pub window: &'a mut Arc<WinitWindow>,
-    pub surface: &'a mut Surface<'static>,
-    
-    pub surface_config: &'a mut SurfaceConfiguration,
-    pub device: &'a mut Device,
-    pub queue: &'a mut Queue,
-    pub instance: &'a mut Instance,
-
-    pub depth_stencil_texture: Texture,
-}
-
 impl Context {
-    pub fn request_redraw(&mut self) {
-        self.window.as_ref().unwrap().request_redraw();
-    }
-
     pub fn init() -> Self {
         // just garbage numbers because of the weird winit loop
         // at this point we don't even have a window
@@ -115,8 +112,8 @@ impl Context {
         let depth_stencil_texture = device.create_texture(&depth_tex_desc);
 
         let ctx = Self {
-            window: None,
-            surface: None,
+            window: AutoUnwrap(None),
+            surface: AutoUnwrap(None),
             surface_config: config,
             device,
             queue,
@@ -128,14 +125,13 @@ impl Context {
     }
 
     pub fn resume(&mut self, event_loop: &ActiveEventLoop) {
-
         let window = Arc::new(event_loop.create_window(Window::default_attributes()).unwrap());
 
         let surface = self.instance.create_surface(window.clone()).unwrap();
         surface.configure(&self.device, &self.surface_config);
         
-        self.surface = Some(surface);
-        self.window = Some(window);
+        self.surface = AutoUnwrap(Some(surface));
+        self.window = AutoUnwrap(Some(window));
     }
 
     pub fn handle_window_event(
@@ -159,12 +155,12 @@ impl Context {
     pub fn resize(&mut self, size: PhysicalSize<u32>) {
         self.surface_config.width = size.width;
         self.surface_config.height = size.height;
-        self.surface.as_mut().unwrap().configure(&self.device, &self.surface_config);
+        self.surface.configure(&self.device, &self.surface_config);
 
         let depth_tex_desc = basic_depth_texture_descriptor(size.width, size.height);
         self.depth_stencil_texture = self.device.create_texture(&depth_tex_desc);
 
-        self.window.as_mut().unwrap().request_redraw();
+        self.window.request_redraw();
     }
 
     pub fn width(&self) -> u32 {
@@ -178,7 +174,7 @@ impl Context {
     pub fn begin_frame(&mut self) -> RenderFrame {
         let encoder = self.device.create_command_encoder(&CommandEncoderDescriptor::default());
 
-        let frame = self.surface.as_mut().unwrap().get_current_texture().unwrap();
+        let frame = self.surface.get_current_texture().unwrap();
 
         // todo: why recreate the views on every frame?
         let view = frame.texture.create_view(&TextureViewDescriptor::default());
@@ -219,7 +215,7 @@ impl RenderFrame {
 
     pub fn finish(self, ctx: &Context) {
         ctx.queue.submit(Some(self.encoder.finish()));
-        ctx.window.as_ref().unwrap().pre_present_notify();
+        ctx.window.pre_present_notify();
         self.frame.present();
     }
 }
