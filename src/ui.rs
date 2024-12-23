@@ -378,6 +378,7 @@ impl Ui {
                 unresolved_key_presses: Vec::with_capacity(20),
                 last_frame_key_events: Vec::with_capacity(20),
 
+                // todo: maybe remove and use mouse_input.current_tag()? There was never a point in having multiple hovereds
                 hovered: Vec::with_capacity(15),
                 focused: None,
 

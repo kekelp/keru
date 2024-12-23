@@ -22,9 +22,6 @@ impl Ui {
 
         match event {
             WindowEvent::CursorMoved { .. } => {              
-                let hovered_node_id = self.scan_mouse_hits();
-                self.sys.mouse_input.update_current_tag(hovered_node_id);
-                println!("  {:?}", self.sys.mouse_input.current_tag());
                 self.resolve_hover();
                 // cursormoved is never consumed
             }

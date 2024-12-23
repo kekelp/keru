@@ -61,6 +61,8 @@ impl Ui {
     // todo: think if it's really worth it to do this on every mouse movement.
     // maybe add a global setting to do it just once per frame
     pub(crate) fn resolve_hover(&mut self) {
+        let hovered_node_id = self.scan_mouse_hits();
+        self.sys.mouse_input.update_current_tag(hovered_node_id);
 
         if let Some(hovered_id) = self.sys.mouse_input.current_tag() {
             if self.sys.hovered.contains(&hovered_id) {
@@ -137,7 +139,7 @@ impl Ui {
         }
     }
 
-    pub(crate) fn resolve_click_release(&mut self, button: MouseButton) {
+    pub(crate) fn resolve_click_release(&mut self, _button: MouseButton) {
         self.sys.new_ui_input = true;
     }
 

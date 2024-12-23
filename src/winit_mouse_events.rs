@@ -66,10 +66,10 @@ impl<T: Tag> MouseInput<T> {
                 let tag = self.current_tag;
                 match state {
                     ElementState::Pressed => {
-                        self.record_click_press(*button, tag)
+                        self.push_click_press(*button, tag)
                     },
                     ElementState::Released => {
-                        self.record_click_release(*button, tag);
+                        self.push_click_release(*button, tag);
                     },
                 }
             }
@@ -89,7 +89,7 @@ impl<T: Tag> MouseInput<T> {
         return self.cursor_position;
     }
 
-    fn record_click_press(&mut self, button: MouseButton, current_tag: Option<T>) {
+    fn push_click_press(&mut self, button: MouseButton, current_tag: Option<T>) {
         let current_mouse_status = MouseRecord {
             position: self.cursor_position,
             timestamp: Instant::now(),
@@ -99,7 +99,7 @@ impl<T: Tag> MouseInput<T> {
         self.unresolved_click_presses.push(pending_press);
     }
 
-    fn record_click_release(&mut self, button: MouseButton, current_tag: Option<T>) {
+    fn push_click_release(&mut self, button: MouseButton, current_tag: Option<T>) {
         // look for a mouse press to match and resolve
         let mut matched = None;
         for click_pressed in self.unresolved_click_presses.iter_mut().rev() {
