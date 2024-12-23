@@ -15,6 +15,8 @@ use winit::{
     dpi::PhysicalSize, event::WindowEvent, window::Window as WinitWindow
 };
 
+use crate::Ui;
+
 pub const BACKGROUND_GREY: wgpu::Color = wgpu::Color {
     r: 0.037,
     g: 0.039,
@@ -186,6 +188,19 @@ impl Context {
             view,
             depth_stencil_view,
         };
+    }
+
+    pub fn render_ui(&mut self, ui: &mut Ui) {
+        ui.prepare(&self.device, &self.queue);
+        
+        let mut frame = self.begin_frame();
+        
+        {
+            let mut render_pass = frame.begin_render_pass(wgpu::Color::WHITE);
+            ui.render(&mut render_pass);
+        }
+        
+        frame.finish(&self);
     }
 }
 

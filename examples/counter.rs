@@ -7,8 +7,8 @@ pub struct State {
     pub show: bool,
 }
 
-impl PureGuiLoop for State {
-    fn declare_ui(&mut self, ui: &mut Ui) {
+impl ExampleLoop for State {
+    fn update_ui(&mut self, ui: &mut Ui) {
         // Declare unique identities for out Ui elements with #[node_key]
         // Using a NodeKey to assign a stable identity to each element is almost always a good idea, but it's not always necessary.
         #[node_key] const INCREASE: NodeKey;
@@ -68,5 +68,5 @@ impl PureGuiLoop for State {
 
 fn main() {
     let state = State::default();
-    run_pure_gui_loop(state);
+    run_example_loop(state);
 }

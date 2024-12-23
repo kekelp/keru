@@ -16,8 +16,8 @@
 //!     // Custom program state
 //! }
 //! 
-//! impl PureGuiLoop for State {
-//!     fn declare_ui(&mut self, ui: &mut Ui) {
+//! impl ExampleLoop for State {
+//!     fn update_ui(&mut self, ui: &mut Ui) {
 //!         // Custom GUI building logic, with access to your custom state (`self`) and the `Ui` object
 //!     }
 //! }
@@ -28,9 +28,6 @@
 //! }
 //! 
 //! ```
-//! 
-
-
 use crate::*;
 use crate::basic_window_loop::*;
 use winit::application::ApplicationHandler;
@@ -38,18 +35,24 @@ use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow};
 use winit::window::WindowId;
 
-pub trait PureGuiLoop: Default {
-    fn declare_ui(&mut self, ui: &mut Ui);
+pub trait ExampleLoop: Default {
+    fn update_ui(&mut self, ui: &mut Ui);
 }
 
-pub fn run_pure_gui_loop<S: PureGuiLoop>(state: S) {
+struct FullState<S> {
+    user_state: S,
+    ctx: Context,
+    ui: Ui,
+}
+
+pub fn run_example_loop<S: ExampleLoop>(state: S) {
     let event_loop = EventLoop::new().unwrap();
     event_loop.set_control_flow(ControlFlow::Wait);
 
     let ctx = Context::init();
     let ui = Ui::new(&ctx.device, &ctx.queue, &ctx.surface_config);
 
-    let mut full_state = State {
+    let mut full_state = FullState {
         user_state: state,
         ctx,
         ui,
@@ -58,13 +61,7 @@ pub fn run_pure_gui_loop<S: PureGuiLoop>(state: S) {
     let _ = event_loop.run_app(&mut full_state);
 }
 
-struct State<S> {
-    user_state: S,
-    ctx: Context,
-    ui: Ui,
-}
-
-impl<S: PureGuiLoop> ApplicationHandler for State<S> {
+impl<S: ExampleLoop> ApplicationHandler for FullState<S> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {  
         self.ctx.resume(event_loop);
     }
@@ -81,15 +78,21 @@ impl<S: PureGuiLoop> ApplicationHandler for State<S> {
         if let WindowEvent::RedrawRequested = &event {
             if self.ui.new_input() {
                 println!("[{:?}] update", T0.elapsed());
-                self.update();
+                self.ui.begin_tree();
+                self.user_state.update_ui(&mut self.ui);
+                self.ui.finish_tree();
             }
 
             if self.ui.needs_rerender() {
                 println!("[{:?}] render", T0.elapsed());
-                self.render();
+                self.ctx.render_ui(&mut self.ui);
             }
 
-            // for some animations, we'll need to rerender several frames in a row without updating.
+            // If there is an animation playing, ui.needs_rerender() will return true even if we just rendered.
+            // In that case, call request_redraw and go for another iteration of the loop.
+            // This works right only thanks to render_ui() waiting for vsync. 
+            // Doing a similar thing for multiple update()s in a row without rendering wouldn't be as simple, and would need to use winit's ControlFlow::WaitUntil. 
+            // (Is it even correct in the rendering-only case? It probably goes to the next iteration, and immediately starts sleeping waiting for vsync. That's "real sleep" in which, if new input events arrive, the loop won't be able to wake up and handle it, right? That's significantly dumber than WaitUntil.)
             if self.ui.needs_rerender() {
                 self.ctx.window.request_redraw();
             }
@@ -107,25 +110,4 @@ impl<S: PureGuiLoop> ApplicationHandler for State<S> {
     //         self.ctx.as_mut().unwrap().window.request_redraw();
     //     };
     // }
-}
-
-impl<S: PureGuiLoop> State<S> {
-    pub fn update(&mut self) {
-        self.ui.begin_tree();
-        self.user_state.declare_ui(&mut self.ui);
-        self.ui.finish_tree();
-    }
-
-    pub fn render(&mut self) {
-        self.ui.prepare(&self.ctx.device, &self.ctx.queue);
-        
-        let mut frame = self.ctx.begin_frame();
-        
-        {
-            let mut render_pass = frame.begin_render_pass(wgpu::Color::WHITE);
-            self.ui.render(&mut render_pass);
-        }
-        
-        frame.finish(&self.ctx);
-    }
 }
