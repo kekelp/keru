@@ -126,7 +126,7 @@ impl Context {
         return ctx;
     }
 
-    pub fn resume(&mut self, event_loop: &ActiveEventLoop) {
+    pub fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let window = Arc::new(event_loop.create_window(Window::default_attributes()).unwrap());
 
         let surface = self.instance.create_surface(window.clone()).unwrap();
@@ -136,7 +136,7 @@ impl Context {
         self.window = AutoUnwrap(Some(window));
     }
 
-    pub fn handle_window_event(
+    pub fn window_event(
         &mut self,
         event_loop: &winit::event_loop::ActiveEventLoop,
         window_id: winit::window::WindowId,

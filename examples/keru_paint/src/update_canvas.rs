@@ -1,7 +1,7 @@
 use crate::{canvas::EpicRotation, State};
 use glam::dvec2;
 use winit::{
-    event::MouseButton, keyboard::KeyCode
+    event::MouseButton, keyboard::{Key, KeyCode, NamedKey}
 };
 
 impl State {
@@ -66,23 +66,25 @@ impl State {
     }
 
     pub fn rotate_and_pan(&mut self) -> Option<()> {
-        let pan = (self.canvas.input.key_held(KeyCode::Space) && self.canvas.input.mouse_held(MouseButton::Left)) 
-        || self.canvas.input.mouse_held(MouseButton::Middle);
+        let pan = (self.ui.key_held(Key::Named(NamedKey::Space)) && self.ui.mouse_held_in_general(MouseButton::Left)) 
+        || self.ui.mouse_held_in_general(MouseButton::Middle);
+
+        println!("PAN  {:?}", pan);
 
         if pan {
 
-            let (x, y) = self.canvas.input.cursor_diff();
+            let (x, y) = self.ui.is_mouse_button_dragged_in_general(MouseButton::Left);
             let delta = dvec2(x as f64, y as f64);
 
             if delta != dvec2(0.0, 0.0) {
                 self.canvas.need_rerender = true;
             }
 
-            if self.canvas.input.held_shift() {
+            if self.ui.key_mods().shift_key() {
 
-                let before = self.canvas.input.cursor()?;
+                let before = self.ui.mouse_cursor();
                 
-                let before = dvec2(before.0 as f64, before.1 as f64);
+                let before = dvec2(before.x as f64, before.y as f64);
 
                 // todo, I think in some cases it should be centered around image coordinates.
                 // for example when the whole image is zoomed out and it's in the right half of the viewport.

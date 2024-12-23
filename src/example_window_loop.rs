@@ -62,7 +62,7 @@ pub fn run_example_loop<S: ExampleLoop>(state: S) {
 
 impl<S: ExampleLoop> ApplicationHandler for FullState<S> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {  
-        self.ctx.resume(event_loop);
+        self.ctx.resumed(event_loop);
     }
 
     fn window_event(
@@ -71,32 +71,23 @@ impl<S: ExampleLoop> ApplicationHandler for FullState<S> {
         _window_id: WindowId,
         event: WindowEvent,
     ) {
-        self.ctx.handle_window_event(event_loop, _window_id, &event);
-        self.ui.handle_events(&event);
+        self.ctx.window_event(event_loop, _window_id, &event);
+        self.ui.handle_event(&event);
 
-        if let WindowEvent::RedrawRequested = &event {
-            if self.ui.new_input() {
-                println!("[{:?}] update", T0.elapsed());
+        if event == WindowEvent::RedrawRequested {
+            if self.ui.needs_update() {
                 self.ui.begin_tree();
                 self.user_state.update_ui(&mut self.ui);
                 self.ui.finish_tree();
             }
 
             if self.ui.needs_rerender() {
-                println!("[{:?}] render", T0.elapsed());
                 self.ctx.render_ui(&mut self.ui);
             }
-
-            // If there is an animation playing, ui.needs_rerender() will return true even if we just rendered.
-            // In that case, call request_redraw and go for another iteration of the loop.
-            if self.ui.needs_rerender() {
-                self.ctx.window.request_redraw();
-            }
-
-        } else {            
-            if self.ui.new_input() {
-                self.ctx.window.request_redraw();
-            }
+        }
+                
+        if self.ui.event_loop_needs_to_wake() {
+            self.ctx.window.request_redraw();
         }
     }
 }

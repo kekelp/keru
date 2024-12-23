@@ -73,7 +73,7 @@ pub(crate) struct System {
 
     pub debug_key_pressed: bool,
 
-    pub new_input: bool,
+    pub new_ui_input: bool,
     pub new_external_events: bool,
 
     pub clipboard: ClipboardContext,
@@ -101,6 +101,9 @@ pub(crate) struct System {
     pub unresolved_click_presses: Vec<PendingMousePress>,
     pub last_frame_mouse_events: Vec<FullMouseEvent>,
 
+    pub unresolved_key_presses: Vec<PendingKeyPress>,
+    pub last_frame_key_events: Vec<FullKeyEvent>,
+
 
     pub hovered: Vec<Id>,
 
@@ -115,6 +118,8 @@ pub(crate) struct System {
 
     // move to changes oalgo
     pub anim_render_timer: AnimationRenderTimer,
+
+    pub is_anything_dragged: bool,
 }
 
 pub(crate) struct AnimationRenderTimer(Option<Instant>);
@@ -340,7 +345,7 @@ impl Ui {
                 debug_mode: false,
                 debug_key_pressed: false,
 
-                new_input: true,
+                new_ui_input: true,
                 new_external_events: true,
 
                 clipboard: ClipboardContext::new().unwrap(),
@@ -380,19 +385,24 @@ impl Ui {
                 unresolved_click_presses: Vec::with_capacity(20),
                 last_frame_mouse_events: Vec::with_capacity(20),
 
+                unresolved_key_presses: Vec::with_capacity(20),
+                last_frame_key_events: Vec::with_capacity(20),
+
                 hovered: Vec::with_capacity(15),
                 focused: None,
 
                 anim_render_timer: AnimationRenderTimer::default(),
 
                 changes: PartialChanges::new(),
+
+                is_anything_dragged: false,
             },
         }
     }
 
     /// Returns a reference the `winit::ModifiersState` instance that the `Ui` stores and updates.
     /// 
-    /// At the cost of some coupling, this can be reused in the rest of the program.
+    /// At the cost of some coupling, this can be reused in other parts of the program.
     pub fn key_mods(&self) -> &ModifiersState {
         return &self.sys.key_mods;
     }
@@ -434,15 +444,30 @@ impl Ui {
         return self.sys.new_external_events;
     }
 
-    pub fn new_input(&mut self) -> bool {
-        return self.sys.new_input ||
+    pub fn new_ui_input(&mut self) -> bool {
+        return self.sys.new_ui_input ||
         self.sys.changes.resize;
     }
 
     pub fn needs_update(&mut self) -> bool {
-        return self.sys.new_input ||
+        return self.sys.new_ui_input ||
             self.sys.new_external_events ||
             self.sys.changes.resize;
+    }
+
+    /// A common sense method that tracks when the UI needs the event loop to wake up **in most common cases**.
+    /// 
+    /// Depending on the situation, this might have both false positives and false negatives.
+    /// 
+    /// For advanced uses, you should decide when to wake the loop yourself. Future versions of the library will try to make that easier.
+    pub fn event_loop_needs_to_wake(&mut self) -> bool {
+        return self.sys.new_ui_input ||
+        self.sys.changes.resize ||
+        self.needs_rerender();
+    }
+
+    pub fn mouse_cursor(&self) -> PhysicalPosition<f32> {
+        return self.sys.part.mouse_pos;
     }
 }
 

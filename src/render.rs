@@ -10,14 +10,14 @@ use crate::*;
 impl Ui {
     /// Handles window events and updates the `Ui`'s internal state accordingly.
     /// 
-    /// You can then check for input events on specific nodes with [`Ui::is_clicked`] and similar functions.
+    /// You can then check for input on specific nodes with [`Ui::is_clicked`] and similar functions.
     ///
     /// You should pass all events from winit to this method, unless they are "consumed" by something "above" the GUI.
     ///
     /// Returns `true` if the event was "consumed" by the `Ui`, e.g. if a mouse click hit an opaque panel.
     /// 
     // todo: move or rename the file
-    pub fn handle_events(&mut self, event: &WindowEvent) -> bool {
+    pub fn handle_event(&mut self, event: &WindowEvent) -> bool {
         match event {
             WindowEvent::CursorMoved { position, .. } => {
                 self.sys.part.mouse_pos.x = position.x as f32;

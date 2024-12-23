@@ -3,7 +3,6 @@ use wgpu::*;
 
 use bytemuck::{Pod, Zeroable};
 use glam::*;
-use winit_input_helper::WinitInputHelper;
 
 use {BindGroup, BindGroupEntry, BindGroupLayoutEntry, BindingResource, Buffer, ColorTargetState, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
 use winit::dpi::PhysicalPosition;
@@ -93,7 +92,7 @@ impl PixelColorF32 {
 pub struct Canvas {
     pub scroll: DVec2,
 
-    pub input: WinitInputHelper,
+    // pub input: WinitInputHelper,
 
     pub width: usize,
     pub height: usize,
@@ -293,7 +292,7 @@ impl Canvas {
         let mut canvas = Canvas {
             scroll: dvec2(0.0, 0.0),
             
-            input: WinitInputHelper::new(),
+            // input: WinitInputHelper::new(),
             width,
             height,
             image_width,

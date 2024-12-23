@@ -9,24 +9,25 @@ mod oklab;
 use canvas::*;
 use color_picker::ColorPicker;
 use glam::dvec2;
-use winit::{error::EventLoopError, event::Event, event_loop::EventLoopWindowTarget};
-use keru::Ui;
+use winit::application::ApplicationHandler;
+use winit::event_loop::{ActiveEventLoop, ControlFlow};
+use winit::window::WindowId;
+use keru::*;
 use keru::basic_window_loop::*;
 use winit::event::*;
 use winit::keyboard::*;
 
 pub const WINDOW_NAME: &str = "Keru Paint Example";
 
-fn main() -> Result<(), EventLoopError> {
-    let (ctx, event_loop) = Context::init(1350, 850, "Keru Paint Example");
+fn main() {
+    let event_loop = EventLoop::new().unwrap();
+    event_loop.set_control_flow(ControlFlow::Wait);
+
+    let ctx = Context::init();
 
     let mut state = State::new(ctx);
 
-    event_loop.run(move |event, target| {
-        state.handle_event(&event, target);
-    })?;
-
-    Ok(())
+    let _ = event_loop.run_app(&mut state);
 }
 
 pub struct State {
@@ -40,6 +41,36 @@ pub struct State {
     pub show_ui: bool,
     pub slider_value: f32,
 }
+
+impl ApplicationHandler for State {
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        self.ctx.resumed(event_loop);
+    }
+
+    fn window_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        _window_id: WindowId,
+        event: WindowEvent,
+    ) {
+        self.ctx.window_event(event_loop, _window_id, &event);
+        let consumed = self.ui.handle_event(&event);
+        if !consumed {
+            self.handle_canvas_event(&event);
+        }
+
+        if event == WindowEvent::RedrawRequested {
+            self.update_and_render();
+        }
+
+        // In the paint program, input events almost always cause an update/rerender (update hovered pixel info, ...)
+        // Instead of bothering to track if the canvas absorbs the event, we do this unconditionally.
+        if event != WindowEvent::RedrawRequested || self.ui.needs_rerender() {
+            self.ctx.window.request_redraw();
+        }
+    }
+}
+
 
 impl State {
     fn new(ctx: Context) -> Self {
@@ -58,19 +89,7 @@ impl State {
         };
     }
 
-    pub fn handle_event(&mut self, event: &Event<()>, target: &EventLoopWindowTarget<()>) {
-        self.ctx.handle_events(event, target);
-        let consumed = self.ui.handle_events(event);
-        if !consumed {
-            self.handle_events(event);
-        }
-
-        if event.is_redraw_requested() {
-            self.update();
-        }
-    }
-
-    pub fn update(&mut self) {
+    pub fn update_and_render(&mut self) {
         self.ui.begin_tree();
         if self.show_ui {    
             self.update_ui();
@@ -85,8 +104,6 @@ impl State {
 
         if need_rerender {
             self.render();
-        } else {
-            self.ctx.sleep_until_next_frame();
         }
     }
 
@@ -111,94 +128,93 @@ impl State {
         }
 
         self.ctx.window.pre_present_notify();
-        frame.finish(&self.ctx.queue);
+        frame.finish(&self.ctx);
     }
 
 
 
-    pub fn handle_events(&mut self, full_event: &winit::event::Event<()>) {
+    pub fn handle_canvas_event(&mut self, event: &WindowEvent) {
 
-        self.canvas.input.update(full_event);
+        // self.canvas.input.update(event);
         
-        if let Event::WindowEvent { event, .. } = full_event {
-            match event {
-                WindowEvent::MouseInput { state, button, .. } => {
-                    if *button == MouseButton::Left {
+        match event {
+            WindowEvent::MouseInput { state, button, .. } => {
+                if *button == MouseButton::Left {
 
-                        self.canvas.is_drawing = *state == ElementState::Pressed;
-                        if ! self.canvas.space {
-                            match state {
-                                ElementState::Pressed => {
-                                    self.canvas.mouse_dots.push(self.canvas.last_mouse_pos);
-                                },
-                                ElementState::Released => {
-                                    // do the backup on release so that it doesn't get in the way computationally speaking
-                                    self.canvas.end_stroke = true;
-                                    self.canvas.need_backup = true;
-                                },
-                            }
-                        }
-                    }
-                },
-                WindowEvent::CursorMoved { position, .. } => {
-                    self.canvas.last_mouse_pos = *position;
-
-                    if self.canvas.is_drawing && ! self.canvas.space {
-                        self.canvas.mouse_dots.push(*position);
-                    }
-                },
-                WindowEvent::KeyboardInput { event, is_synthetic, .. } => {
-                    // println!("  {:?}", event );
-                    if ! is_synthetic && event.state.is_pressed() {
-                        if let Key::Character(new_char) = &event.logical_key {
-                        match new_char.as_str() {
-                            "z" => {
-                                if self.ui.key_mods().control_key() {
-                                    self.canvas.undo();
-                                }
+                    self.canvas.is_drawing = *state == ElementState::Pressed;
+                    if ! self.canvas.space {
+                        match state {
+                            ElementState::Pressed => {
+                                self.canvas.mouse_dots.push(self.canvas.last_mouse_pos);
                             },
-                            "Z" => {
-                                if self.ui.key_mods().control_key() {
-                                    self.canvas.redo();
-                                }
+                            ElementState::Released => {
+                                // do the backup on release so that it doesn't get in the way computationally speaking
+                                self.canvas.end_stroke = true;
+                                self.canvas.need_backup = true;
                             },
-                                _ => {},
-                            }
                         }
                     }
+                }
+            },
+            WindowEvent::CursorMoved { position, .. } => {
+                self.canvas.last_mouse_pos = *position;
 
-                    if ! is_synthetic {
-                        if let Key::Named(NamedKey::Space) = &event.logical_key {
-                            self.canvas.space = event.state.is_pressed();
-                        }
-                        if let Key::Named(NamedKey::Tab) = &event.logical_key {
-                            if event.state.is_pressed() {
-                                self.show_ui = ! self.show_ui;
+                if self.canvas.is_drawing && ! self.canvas.space {
+                    self.canvas.mouse_dots.push(*position);
+                }
+            },
+            WindowEvent::KeyboardInput { event, is_synthetic, .. } => {
+                // println!("  {:?}", event );
+                if ! is_synthetic && event.state.is_pressed() {
+                    if let Key::Character(new_char) = &event.logical_key {
+                    match new_char.as_str() {
+                        "z" => {
+                            if self.ui.key_mods().control_key() {
+                                self.canvas.undo();
                             }
+                        },
+                        "Z" => {
+                            if self.ui.key_mods().control_key() {
+                                self.canvas.redo();
+                            }
+                        },
+                            _ => {},
                         }
-                    }
-                },
-                // todo, this sucks actually.
-                WindowEvent::Resized(size) => {
-                    self.canvas.width = size.width as usize;
-                    self.canvas.height = size.height as usize;
-                    self.canvas.update_shader_transform(&mut self.ctx.queue);
-                },
-
-                WindowEvent::MouseWheel { device_id: _, delta, phase: _ } => {
-                    match delta {
-                        winit::event::MouseScrollDelta::LineDelta(_x, y) => {
-                            self.canvas.scroll.y += *y as f64;
-                        },
-                        winit::event::MouseScrollDelta::PixelDelta(pos) => {
-                            self.canvas.scroll += dvec2(pos.x, pos.y);
-                        },
                     }
                 }
 
-                _ => {}
+                if ! is_synthetic {
+                    if let Key::Named(NamedKey::Space) = &event.logical_key {
+                        self.canvas.space = event.state.is_pressed();
+                    }
+                    if let Key::Named(NamedKey::Tab) = &event.logical_key {
+                        if event.state.is_pressed() {
+                            self.show_ui = ! self.show_ui;
+                        }
+                    }
+                }
+            },
+            // todo, this sucks actually.
+            WindowEvent::Resized(size) => {
+                self.canvas.width = size.width as usize;
+                self.canvas.height = size.height as usize;
+                self.canvas.update_shader_transform(&mut self.ctx.queue);
+            },
+
+            WindowEvent::MouseWheel { device_id: _, delta, phase: _ } => {
+                match delta {
+                    winit::event::MouseScrollDelta::LineDelta(_x, y) => {
+                        self.canvas.scroll.y += *y as f64;
+                    },
+                    winit::event::MouseScrollDelta::PixelDelta(pos) => {
+                        self.canvas.scroll += dvec2(pos.x, pos.y);
+                    },
+                }
             }
+
+            _ => {}
         }
+        
     }
 
 }

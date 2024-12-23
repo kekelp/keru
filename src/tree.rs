@@ -647,7 +647,7 @@ impl Ui {
         self.relayout();
 
 
-        self.sys.new_input = false;
+        self.sys.new_ui_input = false;
         self.sys.new_external_events = false;
     }
 

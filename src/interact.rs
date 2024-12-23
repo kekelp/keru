@@ -7,6 +7,43 @@ use crate::*;
 pub(crate) const ANIMATION_RERENDER_TIME: f32 = 0.5;
 
 impl Ui {
+    pub fn all_key_events(&self) -> impl DoubleEndedIterator<Item = &FullKeyEvent> {
+        return self.sys.last_frame_key_events.iter();
+    }
+
+    pub fn key_events(&self, key: Key) -> impl DoubleEndedIterator<Item = &FullKeyEvent> {
+        return self
+            .all_key_events()
+            .filter(move |c| c.key == key);    }
+
+    pub fn key_pressed(&self, key: Key) -> bool {
+        let all_events = self.key_events(key);
+        let count = all_events.filter(|c| c.is_just_pressed()).count();
+        return count > 0;
+    }
+
+    pub fn time_key_held(&self, key: Key) -> Option<Duration> {
+        let all_events = self.key_events(key);
+
+        let mut time_held = Duration::ZERO;
+
+        for e in all_events {
+            time_held += e.time_held();
+        }
+
+        if time_held == Duration::ZERO {
+            return None;
+        } else {
+            return Some(time_held);
+        }
+    }
+
+    // todo: could simplify
+    pub fn key_held(&self, key: Key) -> bool {
+        let duration = self.time_key_held(key);
+        return duration > Some(Duration::ZERO);
+    }
+
     /// Returns all [`FullMouseEvent`]s from the last frame.
     pub fn all_mouse_events(&self) -> impl DoubleEndedIterator<Item = &FullMouseEvent> {
         return self.sys.last_frame_mouse_events.iter();
@@ -65,6 +102,23 @@ impl Ui {
         // or just return the (0.0, 0.0)?
     }
 
+    pub fn is_anything_dragged(&self) -> bool {
+        let all_events = self.all_mouse_events();
+        
+        // I doubt anyone cares, but in the case the user dragged, released, and redragged, all in one frame, let's find all the distances and sum them.
+        let mut dist = Xy::new_symm(0.0);
+        
+        for e in all_events {
+            dist = dist + e.drag_distance();
+        }
+
+        if dist == Xy::new_symm(0.0) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
     /// Returns the drag distance for the left mouse button on a node, or `None` if there was no drag.
     pub fn is_dragged(&self, node_key: NodeKey) -> Option<(f64, f64)> {
         return self.is_mouse_button_dragged(MouseButton::Left, node_key);
@@ -90,6 +144,46 @@ impl Ui {
         }
     }
 
+    pub fn mouse_held_in_general(&self, mouse_button: MouseButton) -> bool {
+        let all_events = self
+            .all_mouse_events();
+            // .filter(move |c| c.button == mouse_button);
+
+        
+        let mut time_held = Duration::ZERO;
+        
+        println!("  We wuz panning");
+        for e in all_events {
+            println!("  {:?}", e);
+            time_held += e.time_held();
+        }
+
+        if time_held == Duration::ZERO {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    pub fn is_mouse_button_dragged_in_general(&self, mouse_button: MouseButton) -> (f64, f64) {
+        let all_events = self
+        .all_mouse_events()
+        .filter(move |c| c.button == mouse_button);
+        
+        // I doubt anyone cares, but in the case the user dragged, released, and redragged, all in one frame, let's find all the distances and sum them.
+        let mut dist = Xy::new_symm(0.0);
+        
+        for e in all_events {
+            dist = dist + e.drag_distance();
+        }
+
+        if dist == Xy::new_symm(0.0) {
+            return (0.0, 0.0);
+        } else {
+            return (dist.x as f64, dist.y as f64);
+        }
+    }
+
     /// Returns the time the left mouse button was held on a node and its last position, or `None` if it wasn’t held.
     pub fn is_held(&self, node_key: NodeKey) -> Option<(Duration, Xy<f32>)> {
         return self.is_mouse_button_held(MouseButton::Left, node_key);
@@ -112,13 +206,16 @@ impl Ui {
                 // newly entered
                 self.end_all_hovering();
                 self.start_hovering(hovered_id);
-                self.sys.new_input = true;
+                self.sys.new_ui_input = true;
             }
 
         } else {
             self.end_all_hovering();
         }
 
+        if self.sys.is_anything_dragged {
+            self.sys.new_ui_input = true;
+        }
     }
 
     pub(crate) fn start_hovering(&mut self, hovered_id: Id) {
@@ -160,7 +257,7 @@ impl Ui {
                         self.sys.changes.cosmetic_rect_updates.push(hovered_node_i);
                     }
 
-                    self.sys.new_input = true;
+                    self.sys.new_ui_input = true;
                 }
             }
         }
@@ -190,6 +287,12 @@ impl Ui {
 
             click_pressed.last_seen = mouse_current_status;
         }
+
+        if self.is_anything_dragged() {
+            self.sys.is_anything_dragged = true;
+        } else {
+            self.sys.is_anything_dragged = false;
+        }
     }
 
     pub(crate) fn resolve_click_release(&mut self, button: MouseButton) {
@@ -204,7 +307,7 @@ impl Ui {
             }
         };
 
-        self.sys.new_input = true;
+        self.sys.new_ui_input = true;
 
         if let Some(matched) = matched {
             // check for hits.
@@ -224,7 +327,7 @@ impl Ui {
 
     // returns if the ui consumed the mouse press, or if it should be passed down. 
     pub(crate) fn resolve_click_press(&mut self, button: MouseButton) -> bool {
-        self.sys.new_input = true;
+        self.sys.new_ui_input = true;
 
         // defocus, so that we defocus when clicking anywhere outside.
         // if we're clicking something we'll re-focus below.
@@ -326,7 +429,35 @@ impl Ui {
     }
 
     pub(crate) fn handle_keyboard_event(&mut self, event: &KeyEvent) -> bool {
-        // todo: remove line.reset(); and do it only once per frame via change watcher guy
+        let now = Instant::now();
+        if event.state.is_pressed() {
+            let pending_press = PendingKeyPress::new(now, &event);
+            self.sys.unresolved_key_presses.push(pending_press);
+        } else {
+            // look for a mouse press to match and resolve
+            let mut matched = None;
+            for key_pressed in self.sys.unresolved_key_presses.iter_mut().rev() {
+                if key_pressed.key == event.logical_key {
+                    key_pressed.already_released = true;
+                    matched = Some(key_pressed.clone());
+                    break;
+                }
+            };
+
+            self.sys.new_ui_input = true;
+
+            if let Some(matched) = matched {
+                let full_key_event = FullKeyEvent {
+                    key: event.logical_key.clone(),
+                    originally_pressed: matched.pressed_at,
+                    last_seen: matched.last_seen,
+                    currently_at: now,
+                    kind: IsKeyReleased::KeyReleased,
+                };
+
+                self.sys.last_frame_key_events.push(full_key_event);
+            }
+        }
 
         if let Key::Named(named_key) = &event.logical_key {
             if named_key == &NamedKey::F1 {
@@ -334,7 +465,7 @@ impl Ui {
                     #[cfg(debug_assertions)]
                     {
                         self.set_debug_mode(!self.debug_mode());
-                        self.sys.new_input = true;
+                        self.sys.new_ui_input = true;
                     }
                 }
 
@@ -426,22 +557,58 @@ impl FullMouseEvent {
 }
 
 
-// pub fn cursor_pos_from_byte_offset(buffer: &GlyphonBuffer, byte_offset: usize) -> (f32, f32) {
-//     let line = &buffer.lines[0];
-//     let buffer_line = line.layout_opt().as_ref().unwrap();
-//     let glyphs = &buffer_line[0].glyphs;
 
-//     // todo: faster?
-//     for g in glyphs {
-//         if g.start >= byte_offset {
-//             return (g.x, g.y);
-//         }
-//     }
 
-//     if let Some(glyph) = glyphs.last() {
-//         return (glyph.x + glyph.w, glyph.y);
-//     }
+#[derive(Clone, Debug)]
+pub(crate) struct PendingKeyPress {
+    pub key: Key,
+    pub pressed_at: Instant,
+    pub last_seen: Instant,
+    pub already_released: bool,
+}
+impl PendingKeyPress {
+    pub fn new(timestamp: Instant, key: &KeyEvent) -> Self {
+        return Self {
+            key: key.logical_key.clone(),
+            pressed_at: timestamp,
+            last_seen: timestamp,
+            already_released: false,
+        }
+    }
+}
 
-//     // string is empty
-//     return (0.0, 0.0);
-// }
+// todo: merge with the mouse one??
+/// Information about a [`FullKeyEvent`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum IsKeyReleased {
+    /// The key was released, and this event will be reported for the last time on this frame.
+    KeyReleased,
+    /// The key is still being held down, and it was reported at the end of the frame.
+    StillDownButFrameEnded,
+}
+
+
+#[derive(Clone, Debug)]
+pub struct FullKeyEvent {
+    pub key: Key,
+    pub originally_pressed: Instant,
+    pub last_seen: Instant,
+    // rename to current_time or something, or maybe remove?
+    pub currently_at: Instant,
+    pub kind: IsKeyReleased,
+}
+impl FullKeyEvent {
+    // if it stays there for more than 1 frame, the last_seen timestamp gets updated to the end of the frame.
+    pub fn is_just_pressed(&self) -> bool {
+        return self.originally_pressed == self.last_seen;
+    }
+
+    pub fn is_pressed_release(&self) -> bool {
+        let is_pressed_release = self.kind == IsKeyReleased::KeyReleased;
+        return is_pressed_release;
+    }
+
+    pub fn time_held(&self) -> Duration {
+        return self.currently_at.duration_since(self.last_seen);
+    }
+}
