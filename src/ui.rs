@@ -453,8 +453,8 @@ impl Ui {
     /// For advanced uses, you should decide when to wake the loop yourself. Future versions of the library will try to make that easier.
     pub fn event_loop_needs_to_wake(&mut self) -> bool {
         return self.sys.new_ui_input ||
-        self.sys.changes.resize ||
-        self.needs_rerender();
+            self.sys.changes.resize ||
+            self.needs_rerender();
     }
 
     pub fn cursor_position(&self) -> DVec2 {

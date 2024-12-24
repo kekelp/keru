@@ -64,7 +64,7 @@ impl Ui {
         let hovered_node_id = self.scan_mouse_hits();
         self.sys.mouse_input.update_current_tag(hovered_node_id);
 
-        if let Some(hovered_id) = self.sys.mouse_input.current_tag() {
+        if let Some(hovered_id) = hovered_node_id {
             if self.sys.hovered.contains(&hovered_id) {
                 // nothing changed, do nothing
             } else {
@@ -73,7 +73,7 @@ impl Ui {
                 self.start_hovering(hovered_id);
                 self.sys.new_ui_input = true;
             }
-
+            
         } else {
             self.end_all_hovering();
         }
@@ -122,6 +122,7 @@ impl Ui {
                         self.sys.changes.cosmetic_rect_updates.push(hovered_node_i);
                     }
 
+                    println!("  {:?}", "Huh");
                     self.sys.new_ui_input = true;
                 }
             }

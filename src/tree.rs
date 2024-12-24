@@ -645,10 +645,6 @@ impl Ui {
         thread_local_pop_parent();
  
         self.relayout();
-
-
-        self.sys.new_ui_input = false;
-        self.sys.new_external_events = false;
     }
 
     /// Add and place an anonymous vertical stack container.

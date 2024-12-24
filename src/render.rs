@@ -53,8 +53,11 @@ impl Ui {
                     return consumed;
                 }
             }
-            // todo: 
+            WindowEvent::Moved(..) => {
+                self.resolve_hover();
+            }
             WindowEvent::Resized(size) => self.resize(&size),
+            
             _ => {}
         }
 
