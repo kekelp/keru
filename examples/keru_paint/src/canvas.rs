@@ -7,7 +7,7 @@ use glam::*;
 use {BindGroup, BindGroupEntry, BindGroupLayoutEntry, BindingResource, Buffer, ColorTargetState, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
 use winit::dpi::PhysicalPosition;
 
-use keru::{basic_window_loop::{basic_depth_stencil_state, Context}, winit_mouse_events::MouseInput, Xy};
+use keru::{basic_window_loop::{basic_depth_stencil_state, Context}, winit_key_events::KeyInput, winit_mouse_events::MouseInput, Xy};
 
 #[derive(Clone, Copy, Debug, Zeroable, Pod)]
 #[repr(C)]
@@ -93,6 +93,7 @@ pub struct Canvas {
     pub scroll: DVec2,
 
     pub mouse_input: MouseInput<()>,
+    pub key_input: KeyInput,
 
     pub width: usize,
     pub height: usize,
@@ -291,6 +292,7 @@ impl Canvas {
         
         let mut canvas = Canvas {
             mouse_input: MouseInput::default(),
+            key_input: KeyInput::default(),
 
             scroll: dvec2(0.0, 0.0),
             

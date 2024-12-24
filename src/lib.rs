@@ -138,6 +138,7 @@ pub use interact::*;
 pub mod basic_window_loop;
 pub mod example_window_loop;
 pub mod winit_mouse_events;
+pub mod winit_key_events;
 pub mod loop2;
 
 mod changes;

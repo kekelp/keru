@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use crate::{canvas::EpicRotation, State};
 use glam::dvec2;
 use winit::{
@@ -8,6 +10,7 @@ impl State {
 
     pub fn update_canvas(&mut self) {
         self.canvas.mouse_input.begin_new_frame();
+        self.canvas.key_input.begin_new_frame();
         self.canvas.draw_dots();
 
         self.zoom();
@@ -67,19 +70,16 @@ impl State {
     }
 
     pub fn rotate_and_pan(&mut self) -> Option<()> {
-        
-        let (x1, y1) = self.canvas.mouse_input.dragged(Some(MouseButton::Left), None);
-        let (x2, y2) = self.canvas.mouse_input.dragged(Some(MouseButton::Middle), None);
+        let (x, y);
+        if self.canvas.key_input.key_held(&Key::Named(NamedKey::Space)) {
+            (x, y) = self.canvas.mouse_input.dragged(Some(MouseButton::Left), None);
+        } else {
 
-        // let pan = (self.ui.key_held(Key::Named(NamedKey::Space)) && self.canvas.mouse_input.held(Some(MouseButton::Left), None)) 
-        // || self.ui.mouse_held_in_general(MouseButton::Middle);
-        let pan = true;
+            (x, y) = self.canvas.mouse_input.dragged(Some(MouseButton::Middle), None);
+        }
 
-        if pan {
-
-            // let (x, y) = self.ui.is_mouse_button_dragged_in_general(MouseButton::Left);
-            // dont actually do this
-            let delta = - dvec2(x1 + x2, y1 + y2);
+        if (x, y) != (0.0, 0.0) {
+            let delta = - dvec2(x, y);
 
             if delta != dvec2(0.0, 0.0) {
                 self.canvas.need_rerender = true;

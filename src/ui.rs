@@ -103,9 +103,6 @@ pub(crate) struct System {
 
     pub mouse_input: MouseInput<Id>,
 
-    pub unresolved_key_presses: Vec<PendingKeyPress>,
-    pub last_frame_key_events: Vec<FullKeyEvent>,
-
     pub hovered: Vec<Id>,
 
     pub focused: Option<Id>,
@@ -374,9 +371,6 @@ impl Ui {
                 mouse_hit_stack: Vec::with_capacity(50),
 
                 mouse_input: MouseInput::default(),
-
-                unresolved_key_presses: Vec::with_capacity(20),
-                last_frame_key_events: Vec::with_capacity(20),
 
                 // todo: maybe remove and use mouse_input.current_tag()? There was never a point in having multiple hovereds
                 hovered: Vec::with_capacity(15),

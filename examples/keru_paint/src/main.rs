@@ -65,6 +65,7 @@ impl ApplicationHandler for State {
 
         // In the paint program, input events almost always cause an update/rerender (update hovered pixel info, ...)
         // Instead of bothering to track if the canvas absorbs the event, we do this unconditionally.
+        // Should still track it, tbh.
         if event != WindowEvent::RedrawRequested || self.ui.needs_rerender() {
             self.ctx.window.request_redraw();
         }
@@ -136,6 +137,7 @@ impl State {
     pub fn handle_canvas_event(&mut self, event: &WindowEvent) {
 
         self.canvas.mouse_input.handle_event(event);
+        self.canvas.key_input.handle_event(event);
         
         match event {
             WindowEvent::MouseInput { state, button, .. } => {
@@ -164,7 +166,6 @@ impl State {
                 }
             },
             WindowEvent::KeyboardInput { event, is_synthetic, .. } => {
-                // println!("  {:?}", event );
                 if ! is_synthetic && event.state.is_pressed() {
                     if let Key::Character(new_char) = &event.logical_key {
                     match new_char.as_str() {

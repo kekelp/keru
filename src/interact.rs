@@ -24,43 +24,6 @@ impl Ui {
         return self.sys.mouse_input.dragged(Some(MouseButton::Left), Some(node_key.id));
     }
 
-    pub fn all_key_events(&self) -> impl DoubleEndedIterator<Item = &FullKeyEvent> {
-        return self.sys.last_frame_key_events.iter();
-    }
-
-    pub fn key_events(&self, key: Key) -> impl DoubleEndedIterator<Item = &FullKeyEvent> {
-        return self
-            .all_key_events()
-            .filter(move |c| c.key == key);    }
-
-    pub fn key_pressed(&self, key: Key) -> bool {
-        let all_events = self.key_events(key);
-        let count = all_events.filter(|c| c.is_just_pressed()).count();
-        return count > 0;
-    }
-
-    pub fn time_key_held(&self, key: Key) -> Option<Duration> {
-        let all_events = self.key_events(key);
-
-        let mut time_held = Duration::ZERO;
-
-        for e in all_events {
-            time_held += e.time_held();
-        }
-
-        if time_held == Duration::ZERO {
-            return None;
-        } else {
-            return Some(time_held);
-        }
-    }
-
-    // todo: could simplify
-    pub fn key_held(&self, key: Key) -> bool {
-        let duration = self.time_key_held(key);
-        return duration > Some(Duration::ZERO);
-    }
-
     /// Returns `true` if a node is currently hovered by the cursor.
     pub fn is_hovered(&self, node_key: NodeKey) -> bool {
         return self.sys.hovered.last() == Some(&node_key.id);
@@ -239,35 +202,7 @@ impl Ui {
     }
 
     pub(crate) fn handle_keyboard_event(&mut self, event: &KeyEvent) -> bool {
-        let now = Instant::now();
-        if event.state.is_pressed() {
-            let pending_press = PendingKeyPress::new(now, &event);
-            self.sys.unresolved_key_presses.push(pending_press);
-        } else {
-            // look for a mouse press to match and resolve
-            let mut matched = None;
-            for key_pressed in self.sys.unresolved_key_presses.iter_mut().rev() {
-                if key_pressed.key == event.logical_key {
-                    key_pressed.already_released = true;
-                    matched = Some(key_pressed.clone());
-                    break;
-                }
-            };
-
-            self.sys.new_ui_input = true;
-
-            if let Some(matched) = matched {
-                let full_key_event = FullKeyEvent {
-                    key: event.logical_key.clone(),
-                    originally_pressed: matched.pressed_at,
-                    last_seen: matched.last_seen,
-                    currently_at: now,
-                    kind: IsKeyReleased::KeyReleased,
-                };
-
-                self.sys.last_frame_key_events.push(full_key_event);
-            }
-        }
+                
 
         if let Key::Named(named_key) = &event.logical_key {
             if named_key == &NamedKey::F1 {
@@ -288,57 +223,3 @@ impl Ui {
 }
 
 
-
-#[derive(Clone, Debug)]
-pub(crate) struct PendingKeyPress {
-    pub key: Key,
-    pub pressed_at: Instant,
-    pub last_seen: Instant,
-    pub already_released: bool,
-}
-impl PendingKeyPress {
-    pub fn new(timestamp: Instant, key: &KeyEvent) -> Self {
-        return Self {
-            key: key.logical_key.clone(),
-            pressed_at: timestamp,
-            last_seen: timestamp,
-            already_released: false,
-        }
-    }
-}
-
-// todo: merge with the mouse one??
-/// Information about a [`FullKeyEvent`].
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum IsKeyReleased {
-    /// The key was released, and this event will be reported for the last time on this frame.
-    KeyReleased,
-    /// The key is still being held down, and it was reported at the end of the frame.
-    StillDownButFrameEnded,
-}
-
-
-#[derive(Clone, Debug)]
-pub struct FullKeyEvent {
-    pub key: Key,
-    pub originally_pressed: Instant,
-    pub last_seen: Instant,
-    // rename to current_time or something, or maybe remove?
-    pub currently_at: Instant,
-    pub kind: IsKeyReleased,
-}
-impl FullKeyEvent {
-    // if it stays there for more than 1 frame, the last_seen timestamp gets updated to the end of the frame.
-    pub fn is_just_pressed(&self) -> bool {
-        return self.originally_pressed == self.last_seen;
-    }
-
-    pub fn is_pressed_release(&self) -> bool {
-        let is_pressed_release = self.kind == IsKeyReleased::KeyReleased;
-        return is_pressed_release;
-    }
-
-    pub fn time_held(&self) -> Duration {
-        return self.currently_at.duration_since(self.last_seen);
-    }
-}
