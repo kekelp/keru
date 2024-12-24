@@ -135,7 +135,7 @@ impl State {
 
     pub fn handle_canvas_event(&mut self, event: &WindowEvent) {
 
-        // self.canvas.input.update(event);
+        self.canvas.mouse_input.handle_event(event);
         
         match event {
             WindowEvent::MouseInput { state, button, .. } => {

@@ -1,12 +1,13 @@
 use std::time::{Duration, Instant};
+use std::fmt::Debug;
 
 use glam::{dvec2, DVec2};
 use winit::event::{ElementState, MouseButton, WindowEvent};
 
 // todo: rewrite all doc comments
 
-pub trait Tag: Clone + Copy + PartialEq {}
-impl<T: Clone + Copy + PartialEq> Tag for T {}
+pub trait Tag: Clone + Copy + PartialEq + Debug {}
+impl<T: Clone + Copy + PartialEq + Debug> Tag for T {}
 
 pub struct MouseInput<T: Tag> {
     unresolved_click_presses: Vec<PendingMousePress<T>>,

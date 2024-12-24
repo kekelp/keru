@@ -1,12 +1,13 @@
 use crate::{canvas::EpicRotation, State};
 use glam::dvec2;
 use winit::{
-    event::MouseButton, keyboard::{Key, KeyCode, NamedKey}
+    event::MouseButton, keyboard::{Key, NamedKey}
 };
 
 impl State {
 
     pub fn update_canvas(&mut self) {
+        self.canvas.mouse_input.begin_new_frame();
         self.canvas.draw_dots();
 
         self.zoom();
@@ -66,15 +67,19 @@ impl State {
     }
 
     pub fn rotate_and_pan(&mut self) -> Option<()> {
-        let pan = (self.ui.key_held(Key::Named(NamedKey::Space)) && self.ui.mouse_held_in_general(MouseButton::Left)) 
-        || self.ui.mouse_held_in_general(MouseButton::Middle);
+        
+        let (x1, y1) = self.canvas.mouse_input.dragged(Some(MouseButton::Left), None);
+        let (x2, y2) = self.canvas.mouse_input.dragged(Some(MouseButton::Middle), None);
 
-        println!("PAN  {:?}", pan);
+        // let pan = (self.ui.key_held(Key::Named(NamedKey::Space)) && self.canvas.mouse_input.held(Some(MouseButton::Left), None)) 
+        // || self.ui.mouse_held_in_general(MouseButton::Middle);
+        let pan = true;
 
         if pan {
 
-            let (x, y) = self.ui.is_mouse_button_dragged_in_general(MouseButton::Left);
-            let delta = dvec2(x as f64, y as f64);
+            // let (x, y) = self.ui.is_mouse_button_dragged_in_general(MouseButton::Left);
+            // dont actually do this
+            let delta = - dvec2(x1 + x2, y1 + y2);
 
             if delta != dvec2(0.0, 0.0) {
                 self.canvas.need_rerender = true;
@@ -102,7 +107,6 @@ impl State {
             } else {
 
                 self.canvas.translation += delta / self.canvas.scale;
-
                 self.canvas.update_shader_transform(&self.ctx.queue);
             }
 
