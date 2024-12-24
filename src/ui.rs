@@ -4,7 +4,6 @@ use crate::render::TypedGpuBuffer;
 use crate::texture_atlas::*;
 use crate::*;
 use crate::node::*;
-use crate::interact::*;
 use crate::render_rect::*;
 
 use crate::math::Axis::*;
@@ -40,7 +39,7 @@ use wgpu::{
     BindGroup, BufferAddress, BufferUsages, ColorTargetState, Device, MultisampleState, Queue,
     RenderPipeline, SurfaceConfiguration, VertexBufferLayout, VertexStepMode,
 };
-use winit::{dpi::PhysicalPosition, keyboard::ModifiersState};
+use winit::keyboard::ModifiersState;
 
 pub(crate) static T0: LazyLock<Instant> = LazyLock::new(Instant::now);
 

@@ -64,8 +64,10 @@ impl Ui {
         return false;
     }
 
-    /// Renders the GUI render data that were previously loaded on the GPU with [`Ui::prepare`].
-    pub fn render(&mut self, render_pass: &mut RenderPass) {        
+    /// Updates the GUI data on the GPU and renders it. 
+    pub fn render(&mut self, render_pass: &mut RenderPass, device: &Device, queue: &Queue) {  
+        self.prepare(device, queue);
+
         let n = self.sys.rects.len() as u32;
         if n > 0 {
             render_pass.set_pipeline(&self.sys.render_pipeline);
@@ -82,13 +84,10 @@ impl Ui {
         self.sys.changes.need_rerender = false;
     }
 
-    /// Load the GUI render data onto the GPU. To render it, start a render pass, then call [`Ui::render`].
-    pub fn prepare(&mut self, device: &Device, queue: &Queue) {       
-        // update time + resolution        
-        // since we have to update the time anyway, we also update the screen resolution all the time
+    /// Load the GUI render data that has changed onto the GPU.
+    fn prepare(&mut self, device: &Device, queue: &Queue) {
+        // update time + resolution. since we have to update the time anyway, we also update the screen resolution all the time
         self.sys.unifs.t = ui_time_f32();
-
-        let warning = "todo: change this";
         queue.write_buffer(
             &self.sys.base_uniform_buffer,
             0,
@@ -108,8 +107,10 @@ impl Ui {
         }
 
         // update rects
-        // todo: don't do this all the time
-        self.sys.gpu_rect_buffer.queue_write(&self.sys.rects[..], queue);
+        if self.sys.changes.need_gpu_rect_update {
+            self.sys.gpu_rect_buffer.queue_write(&self.sys.rects[..], queue);
+            self.sys.changes.need_gpu_rect_update = false;
+        }
         
         // texture atlas
         // todo: don't do this all the time

@@ -93,7 +93,6 @@ impl Ui {
                         self.sys.changes.cosmetic_rect_updates.push(hovered_node_i);
                     }
 
-                    println!("  {:?}", "Huh");
                     self.sys.new_ui_input = true;
                 }
             }

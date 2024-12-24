@@ -26,6 +26,8 @@ pub struct PartialChanges {
     pub rebuild_all_rects: bool,
     pub full_relayout: bool,
 
+    pub need_gpu_rect_update: bool,
+
     pub need_rerender: bool,
 
     pub resize: bool,
@@ -40,6 +42,7 @@ impl PartialChanges {
             full_relayout: true,
 
             need_rerender: true,
+            need_gpu_rect_update: true,
 
             resize: false,
         }

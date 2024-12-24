@@ -191,13 +191,11 @@ impl Context {
     }
 
     pub fn render_ui(&mut self, ui: &mut Ui) {
-        ui.prepare(&self.device, &self.queue);
-        
         let mut frame = self.begin_frame();
         
         {
             let mut render_pass = frame.begin_render_pass(wgpu::Color::WHITE);
-            ui.render(&mut render_pass);
+            ui.render(&mut render_pass, &self.device, &self.queue);
         }
         
         frame.finish(&self);

@@ -77,6 +77,7 @@ impl Ui {
         }
 
         // if anything happened at all, we'll need to rerender.
+        self.sys.changes.need_gpu_rect_update = true;
         self.sys.changes.need_rerender = true;
 
         if full_relayout {

@@ -111,7 +111,6 @@ impl State {
     pub fn render(&mut self) {
         // todo: if only the canvas needed rerender, we can skip ui.prepare(), and viceversa
         self.canvas.prepare(&self.ctx.queue);
-        self.ui.prepare(&self.ctx.device, &self.ctx.queue);
         
         self.color_picker.prepare(&mut self.ui, &self.ctx.queue);
 
@@ -121,7 +120,7 @@ impl State {
             let mut render_pass = frame.begin_render_pass(BACKGROUND_GREY);
 
             self.canvas.render(&mut render_pass);
-            self.ui.render(&mut render_pass);
+            self.ui.render(&mut render_pass, &self.ctx.device, &self.ctx.queue);
             
             if ! self.ui.debug_mode() && self.show_ui {
                 self.color_picker.render(&mut render_pass);
