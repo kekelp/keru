@@ -1,4 +1,5 @@
 use bytemuck::{Pod, Zeroable};
+use glam::{vec2, Vec2};
 use std::{hash::{Hash, Hasher}, ops::{Add, Div, Index, IndexMut, Mul, Sub}};
 use Axis::*;
 
@@ -260,5 +261,11 @@ impl Div<Xy<f32>> for Xy<f32> {
             self[X] / rhs[X],
             self[Y] / rhs[Y],
         );
+    }
+}
+
+impl Into<Vec2> for Xy<f32> {
+    fn into(self) -> Vec2 {
+        return vec2(self.x, self.y);
     }
 }

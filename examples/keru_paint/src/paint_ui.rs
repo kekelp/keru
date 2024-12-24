@@ -155,12 +155,12 @@ impl State {
 
         let slider_height = self.ui.get_node(SLIDER_CONTAINER).unwrap().inner_size().y as f32;
 
-        if let Some((_, y)) = self.ui.is_dragged(SLIDER_CONTAINER) {
-            log_value += (y as f32) / slider_height * (log_max - log_min);
-        }
-        if let Some((_, y)) = self.ui.is_dragged(SLIDER_FILL) {
-            log_value += (y as f32) / slider_height * (log_max - log_min);
-        }
+        let (_, y) = self.ui.is_dragged(SLIDER_CONTAINER);
+        log_value += (y as f32) / slider_height * (log_max - log_min);
+        
+        let (_, y) = self.ui.is_dragged(SLIDER_FILL);
+        log_value += (y as f32) / slider_height * (log_max - log_min);
+        
 
         log_value = log_value.clamp(log_min, log_max);
         log_value = 10f32.powf(log_value);

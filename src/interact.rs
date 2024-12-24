@@ -16,6 +16,14 @@ impl Ui {
         return self.sys.mouse_input.clicked(Some(MouseButton::Left), Some(node_key.id));
     }
 
+    pub fn is_held(&self, node_key: NodeKey) -> Option<(Duration, glam::DVec2)> {
+        return self.sys.mouse_input.held(Some(MouseButton::Left), Some(node_key.id));
+    }
+
+    pub fn is_dragged(&self, node_key: NodeKey) -> (f64, f64) {
+        return self.sys.mouse_input.dragged(Some(MouseButton::Left), Some(node_key.id));
+    }
+
     pub fn all_key_events(&self) -> impl DoubleEndedIterator<Item = &FullKeyEvent> {
         return self.sys.last_frame_key_events.iter();
     }

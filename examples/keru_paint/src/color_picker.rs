@@ -1,4 +1,6 @@
 use basic_window_loop::Context;
+use glam::vec2;
+use glam::Vec2;
 use keru::*;
 use keru::Size::*;
 use keru::Len::*;
@@ -37,10 +39,11 @@ pub trait ColorPickerUi {
 }
 impl ColorPickerUi for Ui {
     fn add_color_picker(&mut self, color_picker: &mut ColorPicker) {
-
+        // DVec2 hell
         if let Some((_time_held, abs_pos)) = self.is_held(OKLAB_HUE_WHEEL) {
-            let center = self.get_node(OKLAB_HUE_WHEEL).unwrap().center();
-            let pos = abs_pos - center;
+            let abs_pos: Vec2 = vec2(abs_pos.x as f32, abs_pos.y as f32);
+            let center: Vec2 = self.get_node(OKLAB_HUE_WHEEL).unwrap().center().into();
+            let pos: Vec2 = abs_pos - center;
             let angle = pos.x.atan2(pos.y);
             
             color_picker.oklch_color.hue = angle;
@@ -48,11 +51,12 @@ impl ColorPickerUi for Ui {
         };
 
         if let Some((_time_held, abs_pos)) = self.is_held(OKLAB_SQUARE) {
-            let size_pixels = self.get_node(OKLAB_SQUARE).unwrap().rect().size();
-            let bottom_left = self.get_node(OKLAB_SQUARE).unwrap().bottom_left();
-            let mut pos = abs_pos - bottom_left;
+            let abs_pos: Vec2 = vec2(abs_pos.x as f32, abs_pos.y as f32);
+            let size_pixels: Vec2 = self.get_node(OKLAB_SQUARE).unwrap().rect().size().into();
+            let bottom_left: Vec2 = self.get_node(OKLAB_SQUARE).unwrap().bottom_left().into();
+            let mut pos: Vec2 = abs_pos - bottom_left;
             pos.y = - pos.y;
-            let pos = pos / size_pixels;
+            let pos: Vec2 = pos / size_pixels;
             
             color_picker.oklch_color.chroma = pos.y * 0.33;
             color_picker.oklch_color.lightness = pos.x;
