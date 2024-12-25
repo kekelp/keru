@@ -2,7 +2,7 @@ use crate::*;
 use crate::node::*;
 
 use glyphon::Buffer as GlyphonBuffer;
-use log::trace;
+use log::info;
 use Axis::{X, Y};
 
 /// Iterate on the children linked list.
@@ -62,6 +62,12 @@ impl Ui {
     pub(crate) fn relayout(&mut self) {
         self.sys.changes.swap_thread_local_tree_changes();
 
+        let warning = "remove this";
+        info!("swapped_tree_changes {:?}", self.sys.changes.swapped_tree_changes);
+        for i in &self.sys.changes.swapped_tree_changes {
+            info!("i {:?}", self.nodes[i.i].debug_name);
+        }
+
         let tree_changed = ! self.sys.changes.swapped_tree_changes.is_empty();
         let rebuild_all_rects = tree_changed || self.sys.changes.rebuild_all_rects;
         let partial_relayouts = ! self.sys.changes.partial_relayouts.is_empty();
@@ -82,16 +88,12 @@ impl Ui {
         self.sys.changes.need_rerender = true;
 
         if full_relayout {
-            trace!("relayout_from_root... any time");
             self.relayout_from_root();
-            trace!("relayout_from_root");
         } else {           
             if rebuild_all_rects {
                 self.do_partial_relayouts(false);
-                trace!("do_partial_relayouts(false)")
             } else {
                 self.do_partial_relayouts(true);
-                trace!("do_partial_relayouts(true)")
             }    
         }
         
@@ -103,13 +105,11 @@ impl Ui {
         // So we run resolve_hover again, possibly causing another relayout next frame
         if tree_changed || partial_relayouts || full_relayout {
             self.resolve_hover();
-            trace!("resolve_hover")
         }
 
         // these ones are after the second-order-effect resolve_hover, just do have less latency un the update.
         if full_relayout || rebuild_all_rects {
             self.rebuild_all_rects();
-            trace!("rebuild_all_rects")
 
         } else {
             self.do_cosmetic_rect_updates();
@@ -128,19 +128,15 @@ impl Ui {
         // 1st recursive tree traversal: start from the root and recursively determine the size of all nodes
         // For the first node, assume that the proposed size that we got from the parent last frame is valid. (except for root, in which case just use the whole screen. todo: should just make full_relayout a separate function.)
         let starting_proposed_size = Xy::new(1.0, 1.0);
-        log::trace!("Full relayout");
 
-        log::trace!("recursive_determine_size");
         self.recursive_determine_size(ROOT_I, starting_proposed_size);
         
         // 2nd recursive tree traversal: now that all nodes have a calculated size, place them.
         // we don't do update_rects here because the first frame you can't update... but maybe just special-case the first frame, then should be faster
-        log::trace!("recursive_place_children...");
         self.recursive_place_children(ROOT_I, false);
         
         self.nodes[ROOT_I].last_layout_frame = self.sys.current_frame;
 
-        log::trace!("Full relayout");
     }
 
     pub(crate) fn partial_relayout(&mut self, node: usize, update_rects: bool) {
@@ -234,11 +230,6 @@ impl Ui {
     }
 
     fn recursive_determine_size(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
-        trace!("recursive_determine_size: {:?}", self.nodes[node].debug_name);
-        if let Some(first_child) = self.nodes[node].first_child {
-            trace!("child: {:?}", self.nodes[first_child].debug_name);
-        }
-
         self.nodes[node].last_proposed_size = proposed_size;
 
         let stack = self.nodes[node].params.stack;

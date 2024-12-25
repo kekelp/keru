@@ -13,6 +13,7 @@ use rustc_hash::FxHasher;
 
 use std::collections::hash_map::Entry;
 use std::hash::Hasher;
+use std::panic::Location;
 
 use bytemuck::{Pod, Zeroable};
 use glyphon::{
@@ -289,6 +290,8 @@ impl Ui {
     /// 
     /// The added node will be anonymous, and it won't be reachable by methods like [`Ui::place`] or [`Ui::get_node`] that use a key.
     /// 
+    /// You can still perform most operations by calling functionss directly on the returned [`UiNode`].
+    /// 
     /// ```rust
     /// # use keru::*;
     /// # pub struct State {
@@ -308,15 +311,26 @@ impl Ui {
     /// #   }
     /// # }    
     /// ```
+    #[track_caller]
     pub fn add_anon(&mut self) -> UiNode {
-        let id_from_tree_position = thread_local::current_tree_hash();
-        let anonymous_key = NodeKey::new(Id(id_from_tree_position), "");
+        return self.add_anon_with_name("Anon Node");
+    }
+    
+    /// This function is private, if you want a name for your node, just make a key for it!
+    #[track_caller]
+    pub(crate) fn add_anon_with_name(&mut self, debug_name: &'static str) -> UiNode {
+        let location = Location::caller();
+        let caller_location_hash = fx_hash(location);
+        
+        // NodeKey
+        let anonymous_key = NodeKey::new(Id(caller_location_hash), debug_name);
         
         let i = self.add_or_update_node(anonymous_key);
 
         let uinode = self.get_ref_unchecked(i, &anonymous_key);
         return uinode; 
     }
+
 
     /// Place the node corresponding to `key` at a specific position in the GUI tree.
     /// 
@@ -413,7 +427,7 @@ impl Ui {
     }
 
     fn set_tree_links(&mut self, new_node_i: usize, parent_i: usize, depth: usize) {
-        assert!(new_node_i != parent_i, "Tried to add a node as child of itself ({})", self.nodes[new_node_i].debug_name);
+        assert!(new_node_i != parent_i, "Internal error: tried to add a node as child of itself ({}).", self.nodes[new_node_i].debug_name);
 
         // clear old tree links
         self.nodes[new_node_i].last_child = None;
@@ -628,23 +642,27 @@ impl Ui {
     }
 
     /// Add and place an anonymous vertical stack container.
+    #[track_caller]
     pub fn v_stack(&mut self) -> UiPlacedNode {
-        return self.add_anon().params(V_STACK).place();
+        return self.add_anon_with_name("Anon v_stack").params(V_STACK).place();
     }
     
     /// Add and place an anonymous horizontal stack container.
+    #[track_caller]
     pub fn h_stack(&mut self) -> UiPlacedNode {
-        return self.add_anon().params(H_STACK).place();
+        return self.add_anon_with_name("Anon h_stack").params(H_STACK).place();
     }
 
     /// Add and place an anonymous text element.
+    #[track_caller]
     pub fn text(&mut self, text: impl Display + Hash) -> UiPlacedNode {
-        return self.add_anon().params(TEXT).text(text).place();
+        return self.add_anon_with_name("Anon text").params(TEXT).text(text).place();
     }
 
     /// Add and place an anonymous label.
+    #[track_caller]
     pub fn label(&mut self, text: impl Display + Hash) -> UiPlacedNode {
-        return self.add_anon().params(LABEL).text(text).place();
+        return self.add_anon_with_name("Anon label").params(LABEL).text(text).place();
     }
 
     /// Returns `true` if a node corresponding to `key` exists and if it is currently part of the GUI tree. 
@@ -668,6 +686,7 @@ impl Ui {
     }
 
     pub fn anon_subtree<T>(subtree: impl FnOnce() -> T) -> T {
+        // todo: use track caller, or something else
         let subtree_id = Id(thread_local::current_tree_hash());
         
         thread_local::push_subtree(subtree_id);

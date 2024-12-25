@@ -1,5 +1,5 @@
 //! Helper functions for `winit` and `wgpu`.
-use log::info;
+use log::{info, warn};
 pub use wgpu::{CommandEncoderDescriptor, TextureViewDescriptor};
 pub use winit::{
     error::EventLoopError, event_loop::EventLoop, event::Event
@@ -77,11 +77,13 @@ pub struct AutoUnwrap<T>(Option<T>);
 impl<T> Deref for AutoUnwrap<T> {
     type Target = T;
 
+    #[track_caller]
     fn deref(&self) -> &Self::Target {
         return self.0.as_ref().unwrap();
     }
 }
 impl<T> DerefMut for AutoUnwrap<T> {
+    #[track_caller]
     fn deref_mut(&mut self) -> &mut Self::Target {
         return self.0.as_mut().unwrap();
     }
@@ -131,10 +133,11 @@ impl Context {
         let window = Arc::new(event_loop.create_window(Window::default_attributes()).unwrap());
 
         let surface = self.instance.create_surface(window.clone()).unwrap();
-        surface.configure(&self.device, &self.surface_config);
         
         self.surface = AutoUnwrap(Some(surface));
         self.window = AutoUnwrap(Some(window));
+
+        self.resize(self.window.inner_size());
     }
 
     pub fn window_event(
@@ -155,7 +158,9 @@ impl Context {
         }
     }
 
-    pub fn resize(&mut self, size: PhysicalSize<u32>) {
+    pub fn resize(&mut self, _size: PhysicalSize<u32>) {
+        // Should use the size argument, but this seems to work better.
+        let size = self.window.inner_size();
         self.surface_config.width = size.width;
         self.surface_config.height = size.height;
         self.surface.configure(&self.device, &self.surface_config);
@@ -282,6 +287,6 @@ impl EventIsRedrawRequested for Event<()> {
 pub fn basic_env_logger_init() {
     env_logger::Builder::new()
         .filter_level(log::LevelFilter::Warn)
-        .filter_module("keru::", log::LevelFilter::Trace)
+        .filter_module("keru::", log::LevelFilter::Info)
         .init();
 }

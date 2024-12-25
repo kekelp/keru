@@ -82,7 +82,7 @@ impl Ui {
             .unwrap();
         
         self.sys.changes.need_rerender = false;
-        log::info!("Render");
+        log::trace!("Render");
     }
 
     /// Load the GUI render data that has changed onto the GPU.

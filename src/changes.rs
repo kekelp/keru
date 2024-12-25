@@ -53,8 +53,6 @@ impl PartialChanges {
         self.cosmetic_rect_updates.clear();
         self.full_relayout = false;
         self.rebuild_all_rects = false;
-
-        // ... and the thread local stuff gets automatically reset by take_thread_local_tree_changes
     }
 
     pub fn swap_thread_local_tree_changes(&mut self) {

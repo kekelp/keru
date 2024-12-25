@@ -2,7 +2,7 @@ use std::{cell::RefCell, hash::{Hash, Hasher}};
 
 use rustc_hash::FxHasher;
 
-use crate::{changes::NodeWithDepth, Id, UiPlacedNode, EMPTY_HASH};
+use crate::{changes::NodeWithDepth, Id, UiPlacedNode};
 
 pub struct StackParent {
     i: usize,
@@ -23,7 +23,6 @@ pub struct Stacks {
     pub parents: Vec<StackParent>,
     pub tree_changes: Vec<NodeWithDepth>,
     pub subtrees: Vec<Id>,
-    pub current_subtree_hash: u64,
 }
 impl Stacks {
     pub fn initialize() -> Stacks {
@@ -31,7 +30,6 @@ impl Stacks {
             parents: Vec::with_capacity(25),
             subtrees: Vec::with_capacity(10),
             tree_changes: Vec::with_capacity(25),
-            current_subtree_hash: EMPTY_HASH,
         };
     }
 }
