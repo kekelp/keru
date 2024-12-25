@@ -147,8 +147,16 @@ impl Ui {
         let _ = write!(self.format_scratch, "{}", value);
     }
 
-    // don't expect this to give you twin nodes automatically
-    pub(crate) fn get_ref(&mut self, key: NodeKey) -> Option<UiNode> {
+    /// Returns an [`UiNode`] corresponding to `key`, if it exists.
+    /// 
+    /// This function ignores whether the node is currently inside the tree or not.
+    /// 
+    /// The returned [`UiNode`] can be used to get information about the node, through functions like [`UiNode::inner_size`] or [`UiNode::render_rect`]
+    /// 
+    /// To see if a node was clicked, use [`Ui::is_clicked`] and friends. In the future, those functions might be moved to [`UiNode`] as well.
+
+    // todo: non-mut version of this?
+    pub fn get_node(&mut self, key: NodeKey) -> Option<UiNode> {
         let node_i = self.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
         return Some(self.get_ref_unchecked(node_i, &key));
     }
@@ -508,19 +516,6 @@ impl Ui {
             }
             should_retain
         });
-    }
-
-    /// Returns an [`UiNode`] corresponding to `key`, if it exists.
-    /// 
-    /// This function ignores whether the node is currently inside the tree or not.
-    /// 
-    /// The returned [`UiNode`] can be used to get information about the node, through functions like [`UiNode::inner_size`] or [`UiNode::render_rect`]
-    /// 
-    /// To see if a node was clicked, use [`Ui::is_clicked`] and friends. In the future, those functions might be moved to [`UiNode`] as well.
-
-    // todo: non-mut version of this?
-    pub fn get_node(&mut self, key: NodeKey) -> Option<UiNode> {
-        return self.get_ref(key);
     }
 
     fn set_relayout_chain_root(&mut self, new_node_i: usize, parent_i: usize) {
