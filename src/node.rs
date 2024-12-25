@@ -68,7 +68,7 @@ impl Node {
         // add back somewhere
 
         return Node {
-            id: key.id(),
+            id: key.id_with_subtree(),
             depth: 0,
             rect: Xy::new_symm([0.0, 1.0]),
             size: Xy::new_symm(0.5),

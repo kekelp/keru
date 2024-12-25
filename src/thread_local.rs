@@ -34,16 +34,6 @@ impl Stacks {
             current_subtree_hash: EMPTY_HASH,
         };
     }
-
-    pub fn recompute_subtree_hash(&mut self) {
-        let mut hasher = FxHasher::default();
-
-        for s in &self.subtrees {
-            s.hash(&mut hasher);
-        }
-
-        self.current_subtree_hash = hasher.finish();
-    } 
 }
 
 // Global stacks
@@ -97,6 +87,7 @@ pub fn peek_parent() -> NodeWithDepth {
     );
 }
 
+// this could be calculated on push/pop instead of every time
 pub fn current_tree_hash() -> u64 {
     return THREAD_STACKS.with(
         |stack| {
@@ -125,27 +116,17 @@ pub fn push_subtree(subtree_id: Id) {
     THREAD_STACKS.with(|stack| {
         let mut stack = stack.borrow_mut();
         stack.subtrees.push(subtree_id);
-        // todo: this could be a single hash instead of a recompute? (but the pop() couldn't)
-        stack.recompute_subtree_hash();
     });
 }
 
 pub fn pop_subtree() {
     THREAD_STACKS.with(|stack| {
-        let mut stack = stack.borrow_mut();
-        stack.subtrees.pop();
-        stack.recompute_subtree_hash();
+        stack.borrow_mut().subtrees.pop();
     });
 }
 
-pub(crate) fn last_subtree() -> Option<Id> {
+pub fn last_subtree() -> Option<Id> {
     return THREAD_STACKS.with(|stack| {
         return stack.borrow_mut().subtrees.last().copied();
-    });
-}
-
-pub fn current_subtree_hash() -> u64 {
-    return THREAD_STACKS.with(|stack| {
-        return stack.borrow_mut().current_subtree_hash;
     });
 }

@@ -33,7 +33,7 @@ impl State {
             .size_x(Fixed(Frac(0.1)));
 
         self.ui.place(RIGHT_BAR).nest(|| {
-            self.ui.add_color_picker(&mut self.color_picker);
+            self.ui.place_color_picker(&mut self.color_picker);
             
             let min_radius = 1.0;
             let max_radius = 100.0;
@@ -42,8 +42,8 @@ impl State {
         });
             
         self.ui.place(LEFT_BAR).nest(|| {
-            self.add_tools();
-            self.add_pixel_info_ui();
+            self.place_tools();
+            self.place_pixel_info_ui();
         });
         
         let picked_color = oklch_to_linear_srgb(self.color_picker.oklch_color);
@@ -63,7 +63,7 @@ impl State {
 }
 
 impl State {
-    pub fn add_pixel_info_ui(&mut self) {
+    pub fn place_pixel_info_ui(&mut self) {
         // todo: think of a lazier way that's still zero-allocation but doesn't require the user to keep his own format_scratch
         // one way is impl'ing Display, maybe
         self.format_scratch.clear();
@@ -89,7 +89,7 @@ impl State {
         });
     }
 
-    pub fn add_tools(&mut self) {
+    pub fn place_tools(&mut self) {
         #[node_key] const TOOLS_PANEL: NodeKey;
         #[node_key] const BRUSH: NodeKey;
         #[node_key] const ERASER: NodeKey;
@@ -103,11 +103,11 @@ impl State {
         }
 
         // This never changes
-        let changed = false;
-        if self.ui.is_in_tree(TOOLS_PANEL) && ! changed {
-            self.ui.place_and_assume_unchanged(TOOLS_PANEL);
-            return;
-        }
+        // let changed = false;
+        // if self.ui.is_in_tree(TOOLS_PANEL) && ! changed {
+        //     self.ui.place_and_assume_unchanged(TOOLS_PANEL);
+        //     return;
+        // }
         
         self.ui.add(BRUSH).params(ICON_BUTTON).static_image(include_bytes!("icons/brush.png"));
         self.ui.add(ERASER).params(ICON_BUTTON).static_image(include_bytes!("icons/eraser.png"));
@@ -117,6 +117,8 @@ impl State {
             .position_x(Start)
             .position_y(Start)
             .size_x(FitContent);
+
+        println!("  {:?}", "huh??");
 
         self.ui.place(TOOLS_PANEL).nest(|| {
             self.ui.h_stack().nest(|| {
@@ -129,7 +131,7 @@ impl State {
     }
     
     pub fn add_log_slider(&mut self, linear_value: f32, min: f32, max: f32) -> f32 {
-        assert!(min > 0.0 && max > min, "Log sliders require positive min and max values");
+        debug_assert!(min > 0.0 && max > min, "Log sliders require positive min and max values");
 
         // Convert linear value to logarithmic for slider representation
         let log_min = min.log10();

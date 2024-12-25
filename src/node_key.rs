@@ -18,13 +18,22 @@ use crate::*;
 /// Used in many [`Ui`] methods to add nodes to the GUI ([`Ui::add`]) or to refer to already added ones ([`Ui::place`], [`Ui::get_node`], [`Ui::is_clicked`], ...)
 #[derive(Clone, Copy, Debug)]
 pub struct NodeKey {
-    pub id: Id,
+    id: Id,
     pub debug_name: &'static str,
 }
 impl NodeKey {
-    pub(crate) fn id(&self) -> Id {
-        return self.id;
+    pub fn id_with_subtree(&self) -> Id {
+        
+        if let Some(subtree_id) = thread_local::last_subtree() {
+            let mut hasher = FxHasher::default();
+            subtree_id.hash(&mut hasher);
+            self.id.hash(&mut hasher);
+            return Id(hasher.finish());
+        } else {
+            return self.id;
+        } 
     }
+
     /// Create "siblings" of a key dynamically at runtime, based on a hashable value.
     ///
     /// ```rust

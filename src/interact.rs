@@ -13,20 +13,20 @@ impl Ui {
     }
 
     pub fn is_clicked(&self, node_key: NodeKey) -> bool {
-        return self.sys.mouse_input.clicked(Some(MouseButton::Left), Some(node_key.id));
+        return self.sys.mouse_input.clicked(Some(MouseButton::Left), Some(node_key.id_with_subtree()));
     }
 
     pub fn is_held(&self, node_key: NodeKey) -> Option<(Duration, glam::DVec2)> {
-        return self.sys.mouse_input.held(Some(MouseButton::Left), Some(node_key.id));
+        return self.sys.mouse_input.held(Some(MouseButton::Left), Some(node_key.id_with_subtree()));
     }
 
     pub fn is_dragged(&self, node_key: NodeKey) -> (f64, f64) {
-        return self.sys.mouse_input.dragged(Some(MouseButton::Left), Some(node_key.id));
+        return self.sys.mouse_input.dragged(Some(MouseButton::Left), Some(node_key.id_with_subtree()));
     }
 
     /// Returns `true` if a node is currently hovered by the cursor.
     pub fn is_hovered(&self, node_key: NodeKey) -> bool {
-        return self.sys.hovered.last() == Some(&node_key.id);
+        return self.sys.hovered.last() == Some(&node_key.id_with_subtree());
     }
 
     // todo: think if it's really worth it to do this on every mouse movement.

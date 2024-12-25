@@ -149,7 +149,7 @@ impl Ui {
 
     // don't expect this to give you twin nodes automatically
     pub(crate) fn get_ref(&mut self, key: NodeKey) -> Option<UiNode> {
-        let node_i = self.nodes.node_hashmap.get(&key.id())?.slab_i;
+        let node_i = self.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
         return Some(self.get_ref_unchecked(node_i, &key));
     }
 
@@ -168,7 +168,7 @@ impl Ui {
         // We might find that the key has already been used in this same frame:
         //      in this case, we take note, and calculate a twin key to use to add a "twin" in the next section.
         // Otherwise, we add or refresh normally, and take note of the final i.
-        let twin_check_result = match self.nodes.node_hashmap.entry(key.id()) {
+        let twin_check_result = match self.nodes.node_hashmap.entry(key.id_with_subtree()) {
             // Add a normal node (no twins).
             Entry::Vacant(v) => {
                 let new_node = Node::new(&key, None);
@@ -208,15 +208,15 @@ impl Ui {
         //      and there's nothing to do regarding twins, so we just confirm final_i.
         // If it's NeedToAddTwin, we repeat the same thing with the new twin_key.
         let (real_final_i, _real_final_id) = match twin_check_result {
-            UpdatedNormal { final_i } => (final_i, key.id()),
+            UpdatedNormal { final_i } => (final_i, key.id_with_subtree()),
             NeedToUpdateTwin { twin_key, twin_n } => {
-                match self.nodes.node_hashmap.entry(twin_key.id()) {
+                match self.nodes.node_hashmap.entry(twin_key.id_with_subtree()) {
                     // Add new twin.
                     Entry::Vacant(v) => {
                         let new_twin_node = Node::new(&twin_key, Some(twin_n));
                         let real_final_i = self.nodes.nodes.insert(new_twin_node);
                         v.insert(NodeMapEntry::new(frame, real_final_i));
-                        (real_final_i, twin_key.id())
+                        (real_final_i, twin_key.id_with_subtree())
                     }
                     // Refresh a twin from the previous frame.
                     Entry::Occupied(o) => {
@@ -225,7 +225,7 @@ impl Ui {
                         let warning = "todo: refresh should be in place(), not here";
                         let real_final_i = old_twin_map_entry.refresh(frame);
 
-                        (real_final_i, twin_key.id())
+                        (real_final_i, twin_key.id_with_subtree())
                     }
                 }
             }
@@ -346,9 +346,13 @@ impl Ui {
     ///
     // #[track_caller]
     pub fn place(&mut self, key: NodeKey) -> UiPlacedNode {
-        // todo: panic bad
-        let real_key = self.get_latest_twin_key(key).expect("Error: `place()`ing a node that was never `add()`ed.");
-        let node_i = self.nodes.node_hashmap.get(&real_key.id()).unwrap().slab_i;
+        // twin key resolver thing removed recently. hopefully its ok.
+        let node_i = self
+            .nodes
+            .node_hashmap
+            .get(&key.id_with_subtree())
+            .expect("Error: `place()`ing a node that was never `add()`ed.")
+            .slab_i;
 
         return self.place_by_i(node_i);
     }
@@ -398,21 +402,6 @@ impl Ui {
 
         // return the child_hash that this node had in the last frame, so that can new children can check against it.
         return UiPlacedNode::new(i, old_children_hash);
-    }
-
-    // todo: probably remove
-    pub(crate) fn get_latest_twin_key(&self, key: NodeKey) -> Option<NodeKey> {
-        let map_entry = self.nodes.node_hashmap.get(&key.id())?;
-
-        if map_entry.n_twins == 0 {
-            return Some(key);
-        }
-
-        // todo: yell a very loud warning here. latest_twin is more like a best-effort way to deal with dumb code.
-        // the proper way is to just use unique keys, or to use the returned noderef, if that becomes a thing.
-        let twin_key = key.sibling(map_entry.n_twins);
-
-        return Some(twin_key);
     }
 
     fn set_tree_links(&mut self, new_node_i: usize, parent_i: usize, depth: usize) {
@@ -531,8 +520,7 @@ impl Ui {
 
     // todo: non-mut version of this?
     pub fn get_node(&mut self, key: NodeKey) -> Option<UiNode> {
-        let real_key = self.get_latest_twin_key(key)?;
-        return self.get_ref(real_key);
+        return self.get_ref(key);
     }
 
     fn set_relayout_chain_root(&mut self, new_node_i: usize, parent_i: usize) {
@@ -644,14 +632,12 @@ impl Ui {
 
     /// Add and place an anonymous vertical stack container.
     pub fn v_stack(&mut self) -> UiPlacedNode {
-        self.add(ANON_VSTACK).params(V_STACK);
-        return self.place(ANON_VSTACK);
+        return self.add_anon().params(V_STACK).place();
     }
     
     /// Add and place an anonymous horizontal stack container.
     pub fn h_stack(&mut self) -> UiPlacedNode {
-        self.add(ANON_HSTACK).params(H_STACK);
-        return self.place(ANON_HSTACK);
+        return self.add_anon().params(H_STACK).place();
     }
 
     /// Add and place an anonymous text element.
@@ -666,7 +652,7 @@ impl Ui {
 
     /// Returns `true` if a node corresponding to `key` exists and if it is currently part of the GUI tree. 
     pub fn is_in_tree(&self, key: NodeKey) -> bool {
-        let node_i = self.nodes.node_hashmap.get(&key.id());
+        let node_i = self.nodes.node_hashmap.get(&key.id_with_subtree());
         if let Some(entry) = node_i {
             // todo: also return true if it's retained
             return entry.last_frame_touched == self.sys.current_frame;
@@ -677,33 +663,51 @@ impl Ui {
 
     /// Experimental function for skipping declaration code when the underlying state is unchanged.
     pub fn place_and_assume_unchanged(&mut self, key: NodeKey) {
-        let node_i = self.nodes.node_hashmap.get(&key.id());
+        let node_i = self.nodes.node_hashmap.get(&key.id_with_subtree());
         if let Some(entry) = node_i {
             // also set a retained flag
             self.place_by_i(entry.slab_i);
         }
     }
 
-    pub fn enter_private_subtree(subtree: impl FnOnce()) {
+    pub fn anon_subtree<T>(subtree: impl FnOnce() -> T) -> T {
         let subtree_id = Id(thread_local::current_tree_hash());
         
         thread_local::push_subtree(subtree_id);
         
-        subtree();
+        let result = subtree();
 
         thread_local::pop_subtree();
+
+        return result;
+    }
+
+    pub fn subtree<T>(key: NodeKey, subtree: impl FnOnce() -> T) -> T {
+        let subtree_id = key.id_with_subtree();
+        
+        thread_local::push_subtree(subtree_id);
+        
+        let result = subtree();
+
+        thread_local::pop_subtree();
+
+        return result;
     }
 
     pub fn exit_private_subtree(subtree: impl FnOnce()) {       
-        let Some(last_subtree_id) = thread_local::last_subtree() else {
-            panic!("No subtree to exit!")
+        if let Some(last_subtree_id) = thread_local::last_subtree() {
+            thread_local::pop_subtree();
+        
+            subtree();
+            
+            thread_local::push_subtree(last_subtree_id);
+
+        } else {
+            subtree();
+            // todo: warning: No subtree to exit
         };
 
-        thread_local::pop_subtree();
-        
-        subtree();
-        
-        thread_local::push_subtree(last_subtree_id);
+
     }
 }
 
