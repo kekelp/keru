@@ -6,18 +6,13 @@ use crate::math::*;
 use crate::param_library::*;
 use crate::text::*;
 use crate::node::*;
-use crate::thread_local::*;
 use glyphon::cosmic_text::Align;
 use glyphon::{AttrsList, Color as GlyphonColor, TextBounds, Viewport};
 
 use rustc_hash::FxHasher;
-use thread_local::thread_local_peek_tree_position_hash;
 
 use std::collections::hash_map::Entry;
-use std::{
-    hash::Hasher,
-    time::Instant,
-};
+use std::hash::Hasher;
 
 use bytemuck::{Pod, Zeroable};
 use glyphon::{
@@ -306,7 +301,7 @@ impl Ui {
     /// # }    
     /// ```
     pub fn add_anon(&mut self) -> UiNode {
-        let id_from_tree_position = thread_local_peek_tree_position_hash();
+        let id_from_tree_position = thread_local::current_tree_hash();
         let anonymous_key = NodeKey::new(Id(id_from_tree_position), "");
         
         let i = self.add_or_update_node(anonymous_key);
@@ -373,12 +368,12 @@ impl Ui {
         self.nodes[i].children_hash = EMPTY_HASH;
 
         // update the in-tree links and the thread-local state based on the current parent.
-        let NodeWithDepth { i: parent_i, depth } = thread_local_peek_parent();
+        let NodeWithDepth { i: parent_i, depth } = thread_local::peek_parent();
         self.set_tree_links(i, parent_i, depth);
 
         // update the parent's **THREAD_LOCAL** children_hash with ourselves. (when the parent gets popped, it will be compared to the old one, which we passed to nest() before starting to add children)
         // AND THEN, sync the thread local hash value with the one on the node as well, so that we'll be able to use it for the old value next frame
-        let children_hash_so_far = thread_local_hash_new_child(i);
+        let children_hash_so_far = thread_local::hash_new_child(i);
         self.nodes[parent_i].children_hash = children_hash_so_far;
 
         let cosmetic_params_hash = self.nodes[i].params.cosmetic_update_hash();
@@ -622,7 +617,7 @@ impl Ui {
         self.nodes[ROOT_I].n_children = 0;
 
         self.sys.current_frame += 1;
-        clear_thread_local_parent_stack();
+        thread_local::clear_parent_stack();
         self.format_scratch.clear();
 
         // messy manual equivalent of what we'd do when place()ing the root
@@ -630,7 +625,7 @@ impl Ui {
         let root_parent = UiPlacedNode::new(ROOT_I, old_root_hash);
         self.nodes[ROOT_I].children_hash = EMPTY_HASH;
 
-        thread_local_push_parent(&root_parent);
+        thread_local::push_parent(&root_parent);
 
         self.begin_frame_resolve_inputs();
     }
@@ -642,7 +637,7 @@ impl Ui {
     /// Use at most once per frame, after calling [`Ui::begin_tree()`] and running your tree declaration code.
     pub fn finish_tree(&mut self) {
         // pop the root node
-        thread_local_pop_parent();
+        thread_local::pop_parent();
  
         self.relayout();
     }
@@ -687,6 +682,28 @@ impl Ui {
             // also set a retained flag
             self.place_by_i(entry.slab_i);
         }
+    }
+
+    pub fn enter_private_subtree(subtree: impl FnOnce()) {
+        let subtree_id = Id(thread_local::current_tree_hash());
+        
+        thread_local::push_subtree(subtree_id);
+        
+        subtree();
+
+        thread_local::pop_subtree();
+    }
+
+    pub fn exit_private_subtree(subtree: impl FnOnce()) {       
+        let Some(last_subtree_id) = thread_local::last_subtree() else {
+            panic!("No subtree to exit!")
+        };
+
+        thread_local::pop_subtree();
+        
+        subtree();
+        
+        thread_local::push_subtree(last_subtree_id);
     }
 }
 
@@ -771,11 +788,11 @@ impl UiPlacedNode {
     /// You can keep access and mutate both the `Ui` object and the rest of the program state freely, as you'd outside of the closure. 
     ///  
     pub fn nest(&self, content: impl FnOnce()) {
-        thread_local_push_parent(self);
+        thread_local::push_parent(self);
 
         content();
 
-        thread_local_pop_parent();
+        thread_local::pop_parent();
     }
 }
 

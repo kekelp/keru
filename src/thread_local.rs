@@ -2,7 +2,7 @@ use std::{cell::RefCell, hash::{Hash, Hasher}};
 
 use rustc_hash::FxHasher;
 
-use crate::{changes::NodeWithDepth, UiPlacedNode};
+use crate::{changes::NodeWithDepth, Id, UiPlacedNode, EMPTY_HASH};
 
 pub struct StackParent {
     i: usize,
@@ -19,18 +19,31 @@ impl StackParent {
     }
 }
 
-// now there's a single stack here. but now that I wrote the struct I might as well leave it.
 pub struct Stacks {
     pub parents: Vec<StackParent>,
     pub tree_changes: Vec<NodeWithDepth>,
+    pub subtrees: Vec<Id>,
+    pub current_subtree_hash: u64,
 }
 impl Stacks {
     pub fn initialize() -> Stacks {
         return Stacks {
             parents: Vec::with_capacity(25),
+            subtrees: Vec::with_capacity(10),
             tree_changes: Vec::with_capacity(25),
+            current_subtree_hash: EMPTY_HASH,
         };
     }
+
+    pub fn recompute_subtree_hash(&mut self) {
+        let mut hasher = FxHasher::default();
+
+        for s in &self.subtrees {
+            s.hash(&mut hasher);
+        }
+
+        self.current_subtree_hash = hasher.finish();
+    } 
 }
 
 // Global stacks
@@ -38,14 +51,14 @@ thread_local! {
     pub static THREAD_STACKS: RefCell<Stacks> = RefCell::new(Stacks::initialize());
 }
 
-pub fn thread_local_push_parent(new_parent: &UiPlacedNode) {
+pub fn push_parent(new_parent: &UiPlacedNode) {
     THREAD_STACKS.with(|stack| {
         let mut stack = stack.borrow_mut();
         stack.parents.push(StackParent::new(new_parent.node_i, new_parent.old_children_hash));       
     });
 }
 
-pub fn thread_local_pop_parent() {
+pub fn pop_parent() {
     THREAD_STACKS.with(|stack| {
         let mut stack = stack.borrow_mut();
         
@@ -63,29 +76,29 @@ pub fn thread_local_pop_parent() {
     })
 }
 
-pub fn thread_local_hash_new_child(child_i: usize) -> u64 {
-    THREAD_STACKS.with(|stack| {
+pub fn hash_new_child(child_i: usize) -> u64 {
+    return THREAD_STACKS.with(|stack| {
         let mut stack = stack.borrow_mut();
         let children_hash = &mut stack.parents.last_mut().unwrap().children_hash;
         children_hash.write_usize(child_i);
         // For this hasher, `finish()` just returns the current value. It doesn't actually finish anything. We can continue using it.
         return children_hash.finish()
-    })
+    });
 }
 
 // get the last parent slab i and the current depth ()
-pub fn thread_local_peek_parent() -> NodeWithDepth {
-    THREAD_STACKS.with(
+pub fn peek_parent() -> NodeWithDepth {
+    return THREAD_STACKS.with(
         |stack| {
             let parent_i = stack.borrow().parents.last().unwrap().i;
             let depth = stack.borrow().parents.len();
             return NodeWithDepth{ i: parent_i, depth };
         }
-    )
+    );
 }
 
-pub fn thread_local_peek_tree_position_hash() -> u64 {
-    THREAD_STACKS.with(
+pub fn current_tree_hash() -> u64 {
+    return THREAD_STACKS.with(
         |stack| {
             let parent_stack = &stack.borrow().parents;
 
@@ -97,14 +110,42 @@ pub fn thread_local_peek_tree_position_hash() -> u64 {
         
             return hasher.finish();
         }
-    )
+    );
 }
 
-pub fn clear_thread_local_parent_stack() {
+pub fn clear_parent_stack() {
     THREAD_STACKS.with(|stack| {
         let mut stack = stack.borrow_mut();
         stack.parents.clear();
-        // todo: this should be `root_i`, but whatever
-        // stack.parents.push(StackParent::new(ROOT_I, EMPTY_HASH));
-    })
+    });
+}
+
+
+pub fn push_subtree(subtree_id: Id) {
+    THREAD_STACKS.with(|stack| {
+        let mut stack = stack.borrow_mut();
+        stack.subtrees.push(subtree_id);
+        // todo: this could be a single hash instead of a recompute? (but the pop() couldn't)
+        stack.recompute_subtree_hash();
+    });
+}
+
+pub fn pop_subtree() {
+    THREAD_STACKS.with(|stack| {
+        let mut stack = stack.borrow_mut();
+        stack.subtrees.pop();
+        stack.recompute_subtree_hash();
+    });
+}
+
+pub(crate) fn last_subtree() -> Option<Id> {
+    return THREAD_STACKS.with(|stack| {
+        return stack.borrow_mut().subtrees.last().copied();
+    });
+}
+
+pub fn current_subtree_hash() -> u64 {
+    return THREAD_STACKS.with(|stack| {
+        return stack.borrow_mut().current_subtree_hash;
+    });
 }

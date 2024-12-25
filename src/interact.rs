@@ -1,4 +1,4 @@
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use winit::{event::{KeyEvent, MouseButton}, keyboard::{Key, NamedKey}};
 use winit_mouse_events::MouseInput;

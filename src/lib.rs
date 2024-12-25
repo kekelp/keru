@@ -133,7 +133,6 @@ mod ui_node;
 pub use ui_node::*;
 
 mod interact;
-pub use interact::*;
 
 pub mod basic_window_loop;
 pub mod example_window_loop;
