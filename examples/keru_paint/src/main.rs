@@ -20,6 +20,11 @@ use winit::keyboard::*;
 pub const WINDOW_NAME: &str = "Keru Paint Example";
 
 fn main() {
+    env_logger::Builder::new()
+        .filter_level(log::LevelFilter::Warn)
+        .filter_module("keru::", log::LevelFilter::Info)
+        .init();
+
     let event_loop = EventLoop::new().unwrap();
     event_loop.set_control_flow(ControlFlow::Wait);
 

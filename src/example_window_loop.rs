@@ -34,6 +34,8 @@ use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow};
 use winit::window::WindowId;
 
+pub use basic_window_loop::basic_env_logger_init;
+
 pub trait ExampleLoop: Default {
     fn update_ui(&mut self, ui: &mut Ui);
 }

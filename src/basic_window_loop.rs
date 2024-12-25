@@ -1,4 +1,5 @@
 //! Helper functions for `winit` and `wgpu`.
+use log::info;
 pub use wgpu::{CommandEncoderDescriptor, TextureViewDescriptor};
 pub use winit::{
     error::EventLoopError, event_loop::EventLoop, event::Event
@@ -248,7 +249,7 @@ pub fn basic_depth_stencil_attachment(depth_stencil_view: &TextureView) -> Optio
     return Some(wgpu::RenderPassDepthStencilAttachment {
         view: &depth_stencil_view,
         depth_ops: Some(wgpu::Operations {
-            load: wgpu::LoadOp::Clear(f32::MAX),
+            load: wgpu::LoadOp::Clear(1.0),
             store: wgpu::StoreOp::Store,
         }),
         stencil_ops: None,
@@ -276,4 +277,11 @@ impl EventIsRedrawRequested for Event<()> {
             return false;
         }
     }
+}
+
+pub fn basic_env_logger_init() {
+    env_logger::Builder::new()
+        .filter_level(log::LevelFilter::Warn)
+        .filter_module("keru::", log::LevelFilter::Trace)
+        .init();
 }

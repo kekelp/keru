@@ -67,6 +67,7 @@ impl ExampleLoop for State {
 }
 
 fn main() {
+    basic_env_logger_init();
     let state = State::default();
     run_example_loop(state);
 }

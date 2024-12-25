@@ -413,12 +413,13 @@ impl Ui {
     }
 
     fn set_tree_links(&mut self, new_node_i: usize, parent_i: usize, depth: usize) {
+        assert!(new_node_i != parent_i, "Tried to add a node as child of itself ({})", self.nodes[new_node_i].debug_name);
+
         // clear old tree links
         self.nodes[new_node_i].last_child = None;
         self.nodes[new_node_i].first_child = None;
         self.nodes[new_node_i].prev_sibling = None;
         self.nodes[new_node_i].next_sibling = None;
-        // self.nodes[new_node_i].prev_sibling = None;
         self.nodes[new_node_i].n_children = 0;
 
         self.nodes[new_node_i].depth = depth;
@@ -512,7 +513,7 @@ impl Ui {
                 // side effect happens inside this closure? idk if this even works
                 self.nodes.nodes.remove(v.slab_i);
                 // remember to remove text areas and such ...
-                println!("[{:?}] PRUNING {:?}", T0.elapsed(), name);
+                log::info!("pruning node {:?}", name);
             }
             should_retain
         });
@@ -619,9 +620,10 @@ impl Ui {
     /// 
     /// Use at most once per frame, after calling [`Ui::begin_tree()`] and running your tree declaration code.
     pub fn finish_tree(&mut self) {
+        log::info!("Finished Ui update");
         // pop the root node
         thread_local::pop_parent();
- 
+        
         self.relayout();
     }
 
@@ -689,7 +691,7 @@ impl Ui {
         return result;
     }
 
-    pub fn exit_private_subtree(subtree: impl FnOnce()) {       
+    pub fn exit_subtree(subtree: impl FnOnce()) {       
         if let Some(last_subtree_id) = thread_local::last_subtree() {
             thread_local::pop_subtree();
         
@@ -698,8 +700,8 @@ impl Ui {
             thread_local::push_subtree(last_subtree_id);
 
         } else {
+            log::warn!("exit_subtree, was called, but no subtree was ever entered!");
             subtree();
-            // todo: warning: No subtree to exit
         };
 
 

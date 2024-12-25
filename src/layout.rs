@@ -2,6 +2,7 @@ use crate::*;
 use crate::node::*;
 
 use glyphon::Buffer as GlyphonBuffer;
+use log::trace;
 use Axis::{X, Y};
 
 /// Iterate on the children linked list.
@@ -23,7 +24,7 @@ impl Ui {
         for idx in 0..self.sys.changes.cosmetic_rect_updates.len() {
             let update = self.sys.changes.cosmetic_rect_updates[idx];
             self.update_rect(update);
-            println!("[{:?}]  cosmetic update ({:?})", T0.elapsed(), self.nodes[update].debug_name());
+            log::info!("Visual rectangle update ({:?})", self.nodes[update].debug_name());
         }
     }
 
@@ -52,7 +53,7 @@ impl Ui {
         }
 
         if self.sys.partial_relayout_count != 0 {
-            println!("[{:?}]  partial relayout ({:?} node/s)", T0.elapsed(), self.sys.partial_relayout_count);
+            log::info!("Partial relayout ({:?} node/s)", self.sys.partial_relayout_count);
         }
 
         self.sys.partial_relayout_count = 0;
@@ -81,12 +82,16 @@ impl Ui {
         self.sys.changes.need_rerender = true;
 
         if full_relayout {
+            trace!("relayout_from_root... any time");
             self.relayout_from_root();
+            trace!("relayout_from_root");
         } else {           
             if rebuild_all_rects {
                 self.do_partial_relayouts(false);
+                trace!("do_partial_relayouts(false)")
             } else {
                 self.do_partial_relayouts(true);
+                trace!("do_partial_relayouts(true)")
             }    
         }
         
@@ -98,11 +103,14 @@ impl Ui {
         // So we run resolve_hover again, possibly causing another relayout next frame
         if tree_changed || partial_relayouts || full_relayout {
             self.resolve_hover();
+            trace!("resolve_hover")
         }
 
         // these ones are after the second-order-effect resolve_hover, just do have less latency un the update.
         if full_relayout || rebuild_all_rects {
             self.rebuild_all_rects();
+            trace!("rebuild_all_rects")
+
         } else {
             self.do_cosmetic_rect_updates();
         }
@@ -120,13 +128,19 @@ impl Ui {
         // 1st recursive tree traversal: start from the root and recursively determine the size of all nodes
         // For the first node, assume that the proposed size that we got from the parent last frame is valid. (except for root, in which case just use the whole screen. todo: should just make full_relayout a separate function.)
         let starting_proposed_size = Xy::new(1.0, 1.0);
+        log::trace!("Full relayout");
+
+        log::trace!("recursive_determine_size");
         self.recursive_determine_size(ROOT_I, starting_proposed_size);
         
         // 2nd recursive tree traversal: now that all nodes have a calculated size, place them.
         // we don't do update_rects here because the first frame you can't update... but maybe just special-case the first frame, then should be faster
+        log::trace!("recursive_place_children...");
         self.recursive_place_children(ROOT_I, false);
         
         self.nodes[ROOT_I].last_layout_frame = self.sys.current_frame;
+
+        log::trace!("Full relayout");
     }
 
     pub(crate) fn partial_relayout(&mut self, node: usize, update_rects: bool) {
@@ -175,7 +189,7 @@ impl Ui {
                     match self.nodes[node].params.layout.size[axis.other()] {
                         Size::AspectRatio(_second_aspect) => {
                             let debug_name = self.nodes[node].debug_name();
-                            println!("A Size shouldn't be AspectRatio in both dimensions. ({:?})", debug_name);
+                            log::warn!("A Size shouldn't be AspectRatio in both dimensions. (node: {:?})", debug_name);
                         }
                         _ => {
                             let window_aspect = self.sys.unifs.size.x / self.sys.unifs.size.y;
@@ -220,6 +234,11 @@ impl Ui {
     }
 
     fn recursive_determine_size(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
+        trace!("recursive_determine_size: {:?}", self.nodes[node].debug_name);
+        if let Some(first_child) = self.nodes[node].first_child {
+            trace!("child: {:?}", self.nodes[first_child].debug_name);
+        }
+
         self.nodes[node].last_proposed_size = proposed_size;
 
         let stack = self.nodes[node].params.stack;
@@ -489,7 +508,7 @@ impl Ui {
     }
 
     fn rebuild_all_rects(&mut self) {
-        println!("[{:?}]  rebuild all rects", T0.elapsed());
+        log::info!("Rebuilding all rectangles");
         self.sys.rects.clear();
         self.sys.invisible_but_clickable_rects.clear();
         self.sys.z_cursor = Z_BACKDROP;
