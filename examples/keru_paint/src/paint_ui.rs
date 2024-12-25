@@ -103,11 +103,11 @@ impl State {
         }
 
         // This never changes
-        // let changed = false;
-        // if self.ui.is_in_tree(TOOLS_PANEL) && ! changed {
-        //     self.ui.place_and_assume_unchanged(TOOLS_PANEL);
-        //     return;
-        // }
+        let changed = false;
+        if self.ui.is_in_tree(TOOLS_PANEL) && ! changed {
+            self.ui.place_and_assume_unchanged(TOOLS_PANEL);
+            return;
+        }
         
         self.ui.add(BRUSH).params(ICON_BUTTON).static_image(include_bytes!("icons/brush.png"));
         self.ui.add(ERASER).params(ICON_BUTTON).static_image(include_bytes!("icons/eraser.png"));
@@ -117,8 +117,6 @@ impl State {
             .position_x(Start)
             .position_y(Start)
             .size_x(FitContent);
-
-        println!("  {:?}", "huh??");
 
         self.ui.place(TOOLS_PANEL).nest(|| {
             self.ui.h_stack().nest(|| {
