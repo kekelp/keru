@@ -633,7 +633,7 @@ impl Ui {
     /// 
     /// Use at most once per frame, after calling [`Ui::begin_tree()`] and running your tree declaration code.
     pub fn finish_tree(&mut self) {
-        log::info!("Finished Ui update");
+        log::trace!("Finished Ui update");
         // pop the root node
         thread_local::pop_parent();
         
@@ -845,9 +845,7 @@ impl<'a> UiNode<'a> {
     /// 
     /// However, it is fully panic-safe. 
     pub fn place(&mut self) -> UiPlacedNode {
-        self.ui.place_by_i(self.node_i);
-        let old_children_hash = self.node().children_hash;
-        return UiPlacedNode::new(self.node_i, old_children_hash);
+        return self.ui.place_by_i(self.node_i);
     }
 }
 

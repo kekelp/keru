@@ -2,7 +2,6 @@ use crate::*;
 use crate::node::*;
 
 use glyphon::Buffer as GlyphonBuffer;
-use log::info;
 use Axis::{X, Y};
 
 /// Iterate on the children linked list.
@@ -61,12 +60,6 @@ impl Ui {
 
     pub(crate) fn relayout(&mut self) {
         self.sys.changes.swap_thread_local_tree_changes();
-
-        let warning = "remove this";
-        info!("swapped_tree_changes {:?}", self.sys.changes.swapped_tree_changes);
-        for i in &self.sys.changes.swapped_tree_changes {
-            info!("i {:?}", self.nodes[i.i].debug_name);
-        }
 
         let tree_changed = ! self.sys.changes.swapped_tree_changes.is_empty();
         let rebuild_all_rects = tree_changed || self.sys.changes.rebuild_all_rects;

@@ -50,12 +50,12 @@ pub fn pop_parent() {
     THREAD_STACKS.with(|stack| {
         let mut stack = stack.borrow_mut();
         
+        // todo: say something
         let parent = stack.parents.pop().unwrap();
 
         if parent.children_hash.finish() != parent.old_children_hash {
             // we just popped the parent, so its real depth was +1, I think
             let current_depth = stack.parents.len() + 1;
-
             stack.tree_changes.push(NodeWithDepth {
                 i: parent.i,
                 depth: current_depth,
