@@ -34,8 +34,8 @@ impl Stacks {
     }
 }
 
-// Global stacks
 thread_local! {
+    /// Thread local stacks
     pub static THREAD_STACKS: RefCell<Stacks> = RefCell::new(Stacks::initialize());
 }
 
@@ -75,7 +75,7 @@ pub fn hash_new_child(child_i: usize) -> u64 {
 }
 
 // get the last parent slab i and the current depth ()
-pub fn peek_parent() -> NodeWithDepth {
+pub fn current_parent() -> NodeWithDepth {
     return THREAD_STACKS.with(
         |stack| {
             let parent_i = stack.borrow().parents.last().unwrap().i;

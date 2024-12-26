@@ -316,7 +316,6 @@ impl Ui {
         return self.add_anon_with_name("Anon Node");
     }
     
-    /// This function is private, if you want a name for your node, just make a key for it!
     #[track_caller]
     pub(crate) fn add_anon_with_name(&mut self, debug_name: &'static str) -> UiNode {
         let location = Location::caller();
@@ -394,7 +393,7 @@ impl Ui {
         self.nodes[i].children_hash = EMPTY_HASH;
 
         // update the in-tree links and the thread-local state based on the current parent.
-        let NodeWithDepth { i: parent_i, depth } = thread_local::peek_parent();
+        let NodeWithDepth { i: parent_i, depth } = thread_local::current_parent();
         self.set_tree_links(i, parent_i, depth);
 
         // update the parent's **THREAD_LOCAL** children_hash with ourselves. (when the parent gets popped, it will be compared to the old one, which we passed to nest() before starting to add children)
