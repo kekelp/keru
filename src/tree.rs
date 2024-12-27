@@ -642,6 +642,12 @@ impl Ui {
 
     /// Add and place an anonymous vertical stack container.
     #[track_caller]
+    pub fn panel(&mut self) -> UiPlacedNode {
+        return self.add_anon_with_name("Anon panel").params(PANEL).place();
+    }
+
+    /// Add and place an anonymous vertical stack container.
+    #[track_caller]
     pub fn v_stack(&mut self) -> UiPlacedNode {
         return self.add_anon_with_name("Anon v_stack").params(V_STACK).place();
     }
@@ -656,6 +662,12 @@ impl Ui {
     #[track_caller]
     pub fn text(&mut self, text: impl Display + Hash) -> UiPlacedNode {
         return self.add_anon_with_name("Anon text").params(TEXT).text(text).place();
+    }
+
+    /// Add and place an anonymous text element.
+    #[track_caller]
+    pub fn multiline_text(&mut self, text: impl Display + Hash) -> UiPlacedNode {
+        return self.add_anon_with_name("Anon text").params(TEXT_PARAGRAPH).text(text).place();
     }
 
     /// Add and place an anonymous label.

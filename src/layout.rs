@@ -232,8 +232,8 @@ impl Ui {
         // divide it across children (if Stack)
         let child_proposed_size = self.get_children_proposed_size(node, proposed_size);
 
-        // Propose a size to the children and let them decide
         let mut content_size = Xy::new(0.0, 0.0);
+        // Propose a size to the children and let them decide
         for_each_child!(self, self.nodes[node], child, {
             let child_size = self.recursive_determine_size(child, child_proposed_size);
             content_size.update_for_child(child_size, stack);
@@ -242,11 +242,11 @@ impl Ui {
         // Propose the whole proposed_size (regardless of stack) to the contents, and let them decide.
         if self.nodes[node].text_id.is_some() {
             let text_size = self.determine_text_size(node, proposed_size);
-            content_size.update_for_content(text_size, stack);
+            content_size.update_for_content(text_size);
         }
         if self.nodes[node].imageref.is_some() {
             let image_size = self.determine_image_size(node, proposed_size);
-            content_size.update_for_content(image_size, stack);
+            content_size.update_for_content(image_size);
         }
 
         // Decide our own size. 
@@ -281,7 +281,7 @@ impl Ui {
         return self.f32_pixels_to_frac2(size);
     }
 
-    fn determine_text_size(&mut self, node: usize, _proposed_size: Xy<f32>) -> Xy<f32> {
+    fn determine_text_size(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
         let text_id = self.nodes[node].text_id.unwrap();
         let buffer = &mut self.sys.text.text_areas[text_id].buffer;
 
@@ -289,10 +289,22 @@ impl Ui {
         // todo: the rest.
         // also, note: the set_align trick might not be good if we expose the ability to set whatever align the user wants.
 
-        // let w = proposed_size.x * self.sys.unifs.size[X];
-        // let h = proposed_size.y * self.sys.unifs.size[Y];
-        let w = 999999.0;
-        let h = 999999.0;
+        let h = match self.nodes[node].params.layout.size[Y] {
+            Size::FitContent => 99999999.0,
+            Size::FitContentOrMinimum(_min_size) => todo!("Who cares"),
+            _ => proposed_size.x * self.sys.unifs.size[X],
+        };
+
+        let w = match self.nodes[node].params.layout.size[X] {
+            Size::FitContent => {
+                match self.nodes[node].params.text_params.unwrap().single_line {
+                    true => 99999999.0,
+                    false => proposed_size.x * self.sys.unifs.size[X],
+                }
+            },
+            Size::FitContentOrMinimum(_min_size) => todo!("Who cares"),
+            _ => proposed_size.x * self.sys.unifs.size[X],
+        };
 
         for line in &mut buffer.lines {
             line.set_align(Some(glyphon::cosmic_text::Align::Left));
@@ -303,6 +315,10 @@ impl Ui {
 
         let trimmed_size = buffer.measure_text_pixels();
 
+
+        // idk if this line is needed
+        buffer.set_size(&mut self.sys.text.font_system, Some(trimmed_size.x), Some(trimmed_size.y));
+
         // self.sys.text.text_areas[text_id].buffer.set_size(&mut self.sys.text.font_system, trimmed_size.x, trimmed_size.y);
         // self.sys.text.text_areas[text_id]
         //     .buffer
@@ -312,7 +328,6 @@ impl Ui {
         //     trimmed_size[axis] *= 2.0;
         // }
 
-        // return proposed_size;
         return self.f32_pixels_to_frac2(trimmed_size);
     }
 
@@ -531,10 +546,10 @@ impl Xy<f32> {
             },
         }
     }
-    pub(crate) fn update_for_content(&mut self, child_size: Xy<f32>, _stack: Option<Stack>) {
+    pub(crate) fn update_for_content(&mut self, content_size: Xy<f32>) {
         for axis in [X, Y] {
-            if child_size[axis] > self[axis] {
-                self[axis] = child_size[axis];
+            if content_size[axis] > self[axis] {
+                self[axis] = content_size[axis];
             }
         }
     }
@@ -548,11 +563,13 @@ pub trait MeasureText {
 impl MeasureText for GlyphonBuffer {
     fn measure_text_pixels(&self) -> Xy<f32> {
         let layout_runs = self.layout_runs();
-        let mut run_width: f32 = 0.;
-        let line_height = self.lines.len() as f32 * self.metrics().line_height;
+        let mut total_width: f32 = 0.;
+        let mut total_height: f32 = 0.;
         for run in layout_runs {
-            run_width = run_width.max(run.line_w);
+            total_width = total_width.max(run.line_w);
+            total_height += run.line_height;
+
         }
-        return Xy::new(run_width.ceil(), line_height)
+        return Xy::new(total_width.ceil(), total_height)
     }
 }

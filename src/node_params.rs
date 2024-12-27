@@ -61,7 +61,6 @@ pub struct NodeParams {
     pub rect: Rect,
     pub interact: Interact,
     pub layout: Layout,
-    pub key: NodeKey,
 }
 
 /// A node's size.
@@ -156,6 +155,7 @@ pub struct Layout {
     pub size: Xy<Size>,
     pub padding: Xy<Len>,
     pub position: Xy<Position>,
+    pub scrollable: Xy<bool>,
 }
 
 /// The node's shape.
@@ -213,6 +213,7 @@ impl Rect {
 #[derive(Debug, Copy, Clone, Hash)]
 pub struct TextOptions {
     pub editable: bool,
+    pub single_line: bool,
 }
 
 pub(crate) const BASE_RADIUS: f32 = 20.0;
@@ -234,11 +235,6 @@ impl NodeParams {
 
     pub const fn const_default() -> Self {
         return DEFAULT;
-    }
-
-    pub const fn key(mut self, key: NodeKey) -> Self {
-        self.key = key;
-        return self;
     }
 
     // todo: in a future version of Rust that allows it, change these to take a generic Into<Size>
