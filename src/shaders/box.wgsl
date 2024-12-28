@@ -83,12 +83,11 @@ fn vs_main(in: RenderRect) -> VertexOutput {
         (in.ys[1] - in.ys[0]) * unif.screen_resolution.y / 2.0, 
     );
 
+    let uv_01 = vec2f(vec2u(i_x, i_y));
     let tex_coords = vec2<f32>(in.tex_coord_xs[i_x], in.tex_coord_ys[i_y]);
 
-    // calculate for corners, will be interpolated.
-    // interpolation after the abs() won't work.
-    let corner = 2.0 * vec2f(vec2u(i_x, i_y)) - 1.0;    
-    let uv = corner * half_size;
+    let uv = uv_01 * half_size * 2.0;
+    // let uv = uv_01 * half_size * 2.0 - clip_uv_diff;
 
     let clickable = f32(read_flag(in.flags, CLICK_ANIMATION_FLAG));
     let filled = f32( ! read_flag(in.flags, OUTLINE_ONLY_FLAG));
@@ -121,15 +120,17 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // where L = rect_half_size (pixels)
 
 
+    var centered_uv = abs(in.uv - (in.half_size));
+    // var centered_uv = in.uv;
 
-    var circle_uv = in.uv;
+    var circle_uv = centered_uv;
     circle_uv.y *= (in.half_size.x / in.half_size.y);
 
     var alpha = in.color.a;
 
     if (in.shape == SHAPE_RECTANGLE) {
         // todo: better name?
-        let q = abs(in.uv) - in.half_size + in.radius;
+        let q = abs(centered_uv) - in.half_size + in.radius;
 
         let dist = length(max(q, vec2(0.0, 0.0))) - in.radius;
 
