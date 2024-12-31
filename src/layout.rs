@@ -496,7 +496,7 @@ impl Ui {
     }
 
     fn set_clip_rect(&mut self, node: usize) {
-        let mut parent_clip_rect;
+        let parent_clip_rect;
         if node == ROOT_I {
             parent_clip_rect = Xy::new_symm([0.0, 1.0]);
         } else {
@@ -504,21 +504,20 @@ impl Ui {
             parent_clip_rect = self.nodes[parent].clip_rect;
         }
 
-        // todo: should intersect only on the axis where it's scrollable        
-        let clip_rect;
-        if self.nodes[node].params.is_scrollable() {
-            let own_rect = self.nodes[node].rect;
-            clip_rect = parent_clip_rect.intersect(&own_rect);
-        } else {
-            clip_rect = parent_clip_rect;
+        let own_rect = self.nodes[node].rect;
+        for axis in [X, Y] {
+            if self.nodes[node].params.layout.scrollable[axis] {
+                self.nodes[node].clip_rect[axis] = intersect(own_rect[axis], parent_clip_rect[axis])
+            } else {
+                self.nodes[node].clip_rect = parent_clip_rect;
+            }
         }
 
-        self.nodes[node].clip_rect = clip_rect;
-
-        let left = clip_rect[X][0] * self.sys.unifs.size[X];
-        let right = clip_rect[X][1] * self.sys.unifs.size[X];
-        let top = clip_rect[Y][0] * self.sys.unifs.size[Y];
-        let bottom = clip_rect[Y][1] * self.sys.unifs.size[Y];
+        // text
+        let left = self.nodes[node].clip_rect[X][0] * self.sys.unifs.size[X];
+        let right = self.nodes[node].clip_rect[X][1] * self.sys.unifs.size[X];
+        let top = self.nodes[node].clip_rect[Y][0] * self.sys.unifs.size[Y];
+        let bottom = self.nodes[node].clip_rect[Y][1] * self.sys.unifs.size[Y];
 
         if let Some(text_id) = self.nodes[node].text_id {
             self.sys.text.text_areas[text_id].params.bounds.left = left as i32;
