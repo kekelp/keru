@@ -21,6 +21,10 @@ pub struct Node {
     // partial result when layouting?
     // in probably in fraction of screen units or some trash 
     pub size: Xy<f32>,
+
+    // partial result when layouting, useful to keep it for setting max scroll
+    pub content_size: Xy<f32>,
+
     pub last_proposed_size: Xy<f32>,
 
     pub(crate) relayout_chain_root: Option<usize>,
@@ -78,6 +82,7 @@ impl Node {
             clip_rect: Xy::new_symm([0.0, 1.0]),
 
             size: Xy::new_symm(0.5),
+            content_size: Xy::new_symm(0.5),
             last_proposed_size: Xy::new_symm(0.5),
             text_id: None,
 
@@ -136,6 +141,7 @@ pub const NODE_ROOT: Node = Node {
     clip_rect: Xy::new_symm([0.0, 1.0]),
 
     size: Xy::new_symm(1.0),
+    content_size: Xy::new_symm(1.0),
     last_proposed_size: Xy::new_symm(1.0),
 
     scroll_offset: Xy::new(0.0, 0.0),

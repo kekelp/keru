@@ -251,6 +251,8 @@ impl Ui {
             content_size.update_for_content(image_size);
         }
 
+        self.nodes[node].content_size = content_size;
+
         // Decide our own size. 
         //   We either use the proposed_size that we proposed to the children,
         //   or we change our mind to based on children.

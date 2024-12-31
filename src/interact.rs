@@ -272,13 +272,28 @@ impl Ui {
             MouseScrollDelta::LineDelta(x, y) => (x * 0.1, y * 0.1),
             MouseScrollDelta::PixelDelta(PhysicalPosition {x, y}) => (*x as f32, *y as f32),
         };
-        
-        if self.nodes[i].params.layout.scrollable[X] {
-            self.nodes[i].scroll_offset.x += x;
-        };
-        if self.nodes[i].params.layout.scrollable[Y] {
-            self.nodes[i].scroll_offset.y += y;
-        };
+        let delta = Xy::new(x, y);
+
+        for axis in [X, Y] {
+            if self.nodes[i].params.layout.scrollable[axis] {
+                self.nodes[i].scroll_offset[axis] += delta[axis];
+
+                let clip_area_size = self.nodes[i].clip_rect[axis][1] - self.nodes[i].clip_rect[axis][0];
+                let content_size = self.nodes[i].content_size[axis];
+
+                const SCROLL_TOLERANCE: f32 = 0.05;
+                let spread = f32::abs(content_size - clip_area_size) + SCROLL_TOLERANCE;
+                dbg!(content_size, clip_area_size);
+                let min_scroll = - spread;
+                let max_scroll = spread;
+
+                if min_scroll < max_scroll {
+                    let scroll = &mut self.nodes[i].scroll_offset[axis];
+                    *scroll = scroll.clamp(min_scroll, max_scroll);
+                }
+            };
+        }
+
         if self.nodes[i].params.is_scrollable() {
             // todo: this is a bit wasteful maybe? idk, maybe not
             self.push_partial_relayout(i);
