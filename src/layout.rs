@@ -4,6 +4,8 @@ use crate::node::*;
 use glyphon::Buffer as GlyphonBuffer;
 use Axis::{X, Y};
 
+const BIG_FLOAT: f32 = 1000.0;
+
 /// Iterate on the children linked list.
 macro_rules! for_each_child {
     ($ui:expr, $start:expr, $child:ident, $body:block) => {
@@ -141,7 +143,7 @@ impl Ui {
         }
 
         // 1st recursive tree traversal: start from the root and recursively determine the size of all nodes
-        // For the first node, assume that the proposed size that we got from the parent last frame is valid. (except for root, in which case just use the whole screen. todo: should just make full_relayout a separate function.)
+        // For the first node, use the proposed size that we got from the parent last frame.
         let starting_proposed_size = self.nodes[node].last_proposed_size;
         self.recursive_determine_size(node, starting_proposed_size);
         
@@ -290,19 +292,19 @@ impl Ui {
         // also, note: the set_align trick might not be good if we expose the ability to set whatever align the user wants.
 
         let h = match self.nodes[node].params.layout.size[Y] {
-            Size::FitContent => 99999999.0,
-            Size::FitContentOrMinimum(_min_size) => todo!("Who cares"),
+            Size::FitContent => BIG_FLOAT,
+            Size::FitContentOrMinimum(_min_size) => todo!(""),
             _ => proposed_size.x * self.sys.unifs.size[X],
         };
 
         let w = match self.nodes[node].params.layout.size[X] {
             Size::FitContent => {
-                match self.nodes[node].params.text_params.unwrap().single_line {
-                    true => 99999999.0,
+                match self.nodes[node].params.text_params.unwrap_or(TextOptions::default()).single_line {
+                    true => BIG_FLOAT,
                     false => proposed_size.x * self.sys.unifs.size[X],
                 }
             },
-            Size::FitContentOrMinimum(_min_size) => todo!("Who cares"),
+            Size::FitContentOrMinimum(_min_size) => todo!(""),
             _ => proposed_size.x * self.sys.unifs.size[X],
         };
 
@@ -371,6 +373,8 @@ impl Ui {
             self.update_rect(node);
         }
 
+        self.set_clip_rect(node);
+
         self.nodes[node].last_layout_frame = self.sys.current_frame;
 
         for_each_child!(self, self.nodes[node], child, {
@@ -380,7 +384,14 @@ impl Ui {
 
     fn place_children_stack(&mut self, node: usize, stack: Stack) {
         let (main, cross) = (stack.axis, stack.axis.other());
-        let parent_rect = self.nodes[node].rect;
+        let mut parent_rect = self.nodes[node].rect;
+
+        for axis in [X, Y] {
+            if self.nodes[node].params.layout.scrollable[axis] {
+                parent_rect[axis][0] += self.nodes[node].scroll_offset[axis];
+            }
+        }
+
         let padding = self.to_frac2(self.nodes[node].params.layout.padding);
         let spacing = self.to_frac(stack.spacing, stack.axis);
         
@@ -444,8 +455,14 @@ impl Ui {
     }
 
     fn place_children_container(&mut self, node: usize) {
-        let parent_rect = self.nodes[node].rect;
+        let mut parent_rect = self.nodes[node].rect;
         let padding = self.to_frac2(self.nodes[node].params.layout.padding);
+
+        for axis in [X, Y] {
+            if self.nodes[node].params.layout.scrollable[axis] {
+                parent_rect[axis][0] += self.nodes[node].scroll_offset[axis];
+            }
+        }
 
         for_each_child!(self, self.nodes[node], child, {
             let child_size = self.nodes[child].size;
@@ -478,6 +495,39 @@ impl Ui {
         });
     }
 
+    fn set_clip_rect(&mut self, node: usize) {
+        let mut parent_clip_rect;
+        if node == ROOT_I {
+            parent_clip_rect = Xy::new_symm([0.0, 1.0]);
+        } else {
+            let parent = self.nodes[node].parent;
+            parent_clip_rect = self.nodes[parent].clip_rect;
+        }
+
+        // todo: should intersect only on the axis where it's scrollable        
+        let clip_rect;
+        if self.nodes[node].params.is_scrollable() {
+            let own_rect = self.nodes[node].rect;
+            clip_rect = parent_clip_rect.intersect(&own_rect);
+        } else {
+            clip_rect = parent_clip_rect;
+        }
+
+        self.nodes[node].clip_rect = clip_rect;
+
+        let left = clip_rect[X][0] * self.sys.unifs.size[X];
+        let right = clip_rect[X][1] * self.sys.unifs.size[X];
+        let top = clip_rect[Y][0] * self.sys.unifs.size[Y];
+        let bottom = clip_rect[Y][1] * self.sys.unifs.size[Y];
+
+        if let Some(text_id) = self.nodes[node].text_id {
+            self.sys.text.text_areas[text_id].params.bounds.left = left as i32;
+            self.sys.text.text_areas[text_id].params.bounds.top = top as i32;
+            self.sys.text.text_areas[text_id].params.bounds.right = right as i32;
+            self.sys.text.text_areas[text_id].params.bounds.bottom = bottom as i32;
+        }
+    }
+
     #[allow(dead_code)]
     pub(crate) fn place_image(&mut self, _node: usize) {     
         // might be something here in the future
@@ -487,6 +537,14 @@ impl Ui {
         let padding = self.to_pixels2(self.nodes[node].params.layout.padding);
         let node = &mut self.nodes[node];
         let text_id = node.text_id;
+
+        let mut rect = rect;
+
+        for axis in [X, Y] {
+            if node.params.layout.scrollable[axis] {
+                rect[axis][0] += node.scroll_offset[axis];
+            }
+        }
 
         if let Some(text_id) = text_id {
             let left = rect[X][0] * self.sys.unifs.size[X];
@@ -510,6 +568,7 @@ impl Ui {
         log::info!("Rebuilding all rectangles");
         self.sys.rects.clear();
         self.sys.invisible_but_clickable_rects.clear();
+        self.sys.scroll_rects.clear();
         self.sys.z_cursor = Z_BACKDROP;
         self.recursive_push_rects(ROOT_I);
     }

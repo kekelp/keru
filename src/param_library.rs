@@ -126,7 +126,7 @@ pub const V_SCROLL_AREA: NodeParams = NodeParams {
             click_animation: false,
         },
         layout: Layout {
-            size: Xy::new(Size::FitContent, Size::FitContent),
+            size: Xy::new(Size::FitContent, Size::Fill),
             position: Xy::new_symm(Center),
             padding: Xy::new_symm(Len::ZERO),
             scrollable: Xy::new(false, true),
@@ -179,6 +179,29 @@ pub const ICON_BUTTON: NodeParams = NodeParams {
         scrollable: Xy::new(false, false),
     },
 };
+/// Preset [`NodeParams`] for an icon button. 
+///
+/// You can use the "source" link to inspect the param values. 
+pub const IMAGE: NodeParams = NodeParams {
+    stack: None,
+    text_params: None,
+    rect: Rect {
+        shape: Rectangle { corner_radius: BASE_RADIUS },
+        visible: true,
+        outline_only: false,
+        vertex_colors: VertexColors::flat(Color::WHITE),
+    },
+    interact: Interact {
+        absorbs_mouse_events: true,
+        click_animation: true,
+    },
+    layout: Layout {
+        size: Xy::new_symm(FitContent),
+        position: Xy::new_symm(Center),
+        padding: Xy::new_symm(Len::ZERO),
+        scrollable: Xy::new(false, false),
+    },
+};
 /// Preset [`NodeParams`] for a button. 
 ///
 /// You can use the "source" link to inspect the param values. 
@@ -219,7 +242,7 @@ pub const LABEL: NodeParams = NodeParams {
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
         outline_only: false,
-        vertex_colors: VertexColors::flat(Color::FLGR_BLUE),
+        vertex_colors: VertexColors::FLGR_SOVL_GRAD,
     },
     interact: Interact {
         absorbs_mouse_events: false,
@@ -246,7 +269,7 @@ pub const MULTILINE_LABEL: NodeParams = NodeParams {
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
         outline_only: false,
-        vertex_colors: VertexColors::flat(Color::FLGR_BLUE),
+        vertex_colors: VertexColors::FLGR_SOVL_GRAD,
     },
     interact: Interact {
         absorbs_mouse_events: false,
@@ -352,7 +375,7 @@ pub const PANEL: NodeParams = NodeParams {
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
         outline_only: false,
-        vertex_colors: VertexColors::FLGR_SOVL_GRAD,
+        vertex_colors: VertexColors::FLGR_SOVL_GRAD_FW,
     },
     interact: Interact {
         absorbs_mouse_events: false,

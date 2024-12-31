@@ -10,9 +10,13 @@ pub struct Node {
 
     pub last_layout_frame: u64,
 
+    pub scroll_offset: Xy<f32>,
+
     // also for invisible rects, used for layout
     // Coordinates: who knows???
     pub rect: XyRect,
+
+    pub clip_rect: XyRect,
 
     // partial result when layouting?
     // in probably in fraction of screen units or some trash 
@@ -71,9 +75,13 @@ impl Node {
             id: key.id_with_subtree(),
             depth: 0,
             rect: Xy::new_symm([0.0, 1.0]),
+            clip_rect: Xy::new_symm([0.0, 1.0]),
+
             size: Xy::new_symm(0.5),
             last_proposed_size: Xy::new_symm(0.5),
             text_id: None,
+
+            scroll_offset: Xy::new(0.0, 0.0),
 
             imageref: None,
             last_static_image_ptr: None,
@@ -125,8 +133,12 @@ pub const NODE_ROOT: Node = Node {
     id: NODE_ROOT_ID,
     depth: 0,
     rect: Xy::new_symm([0.0, 1.0]),
+    clip_rect: Xy::new_symm([0.0, 1.0]),
+
     size: Xy::new_symm(1.0),
     last_proposed_size: Xy::new_symm(1.0),
+
+    scroll_offset: Xy::new(0.0, 0.0),
 
     text_id: None,
 

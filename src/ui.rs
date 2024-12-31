@@ -93,6 +93,7 @@ pub(crate) struct System {
     pub z_cursor: f32,
     pub rects: Vec<RenderRect>,
     pub invisible_but_clickable_rects: Vec<RenderRect>,
+    pub scroll_rects: Vec<RenderRect>,
     // todo: keep a separate vec with the bounding boxes for faster mouse hit scans
 
     pub unifs: Uniforms,
@@ -103,6 +104,7 @@ pub(crate) struct System {
     pub mouse_input: MouseInput<Id>,
 
     pub hovered: Vec<Id>,
+    pub hovered_scroll_area: Option<Id>,
 
     pub focused: Option<Id>,
 
@@ -355,6 +357,7 @@ impl Ui {
                 render_pipeline,
                 rects: Vec::with_capacity(50),
                 invisible_but_clickable_rects: Vec::with_capacity(20),
+                scroll_rects: Vec::with_capacity(20),
 
                 gpu_rect_buffer,
                 base_uniform_buffer: resolution_buffer,
@@ -373,6 +376,7 @@ impl Ui {
 
                 // todo: maybe remove and use mouse_input.current_tag()? There was never a point in having multiple hovereds
                 hovered: Vec::with_capacity(15),
+                hovered_scroll_area: None,
                 focused: None,
 
                 anim_render_timer: AnimationRenderTimer::default(),
@@ -503,8 +507,14 @@ impl IndexMut<usize> for Nodes {
         return &mut self.nodes[i];
     }
 }
+impl Nodes {
+    pub(crate) fn get_by_id(&mut self, id: Id) -> Option<(&mut Node, usize)> {
+        let i = self.node_hashmap.get(&id)?;
+        return Some((&mut self.nodes[i.slab_i], i.slab_i));
+    }
+}
 
-pub fn mouse_hit_rect(rect: &RenderRect, size: &Xy<f32>, cursor_pos: DVec2) -> bool {
+pub(crate) fn mouse_hit_rect(rect: &RenderRect, size: &Xy<f32>, cursor_pos: DVec2) -> bool {
     // rects are rebuilt whenever they change, they don't have to be skipped based on a timestamp or anything like that.
     // in the future if we do a click detection specific datastructure it might use a timestamp, maybe? probably not.
 

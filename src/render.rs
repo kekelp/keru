@@ -57,7 +57,9 @@ impl Ui {
                 self.resolve_hover();
             }
             WindowEvent::Resized(size) => self.resize(&size),
-            
+            WindowEvent::MouseWheel { delta, .. } => {
+                self.handle_scroll(delta);
+            }
             _ => {}
         }
 

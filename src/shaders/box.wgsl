@@ -40,7 +40,9 @@ struct RenderRect {
     @location(12) flags: u32,                 // Corresponds to flags
     @location(13) _padding: u32,              // Corresponds to _padding
 
-    @location(14) id: vec2<u32>,              // Corresponds to id. Don't use this. It's originally a u64.
+    @location(14) clip_xs: vec2<f32>,               // Corresponds to rect.x_min, rect.y_min
+    @location(15) clip_ys: vec2<f32>,               // Corresponds to rect.x_max, rect.y_max
+    // @location(14) id: vec2<u32>,              // Corresponds to id. Don't use this. It's originally a u64.
 };
 
 struct VertexOutput {
@@ -72,11 +74,14 @@ fn vs_main(in: RenderRect) -> VertexOutput {
     let x = in.xs[i_x];
     let y = in.ys[i_y];
 
+    let x_clipped = clamp(x, in.clip_xs[0], in.clip_xs[1]);
+    let y_clipped = clamp(y, in.clip_ys[0], in.clip_ys[1]);
+
     var vertex_colors = array(in.vertex_colors_bl, in.vertex_colors_tl, in.vertex_colors_br, in.vertex_colors_tr);
     let i_1234 = i_y + 2 * i_x;
     let color = vec4f(vertex_colors[i_1234]) / 255.0;
 
-    let clip_position = vec4(x, y, in.z, 1.0);
+    let clip_position = vec4(x_clipped, y_clipped, in.z, 1.0);
 
     let half_size = vec2f( 
         (in.xs[1] - in.xs[0]) * unif.screen_resolution.x / 2.0, 
@@ -84,10 +89,13 @@ fn vs_main(in: RenderRect) -> VertexOutput {
     );
 
     let uv_01 = vec2f(vec2u(i_x, i_y));
+    
     let tex_coords = vec2<f32>(in.tex_coord_xs[i_x], in.tex_coord_ys[i_y]);
 
-    let uv = uv_01 * half_size * 2.0;
-    // let uv = uv_01 * half_size * 2.0 - clip_uv_diff;
+    var uv = (uv_01 * half_size * 2.0);
+
+    uv.y += (y_clipped - y) * unif.screen_resolution.y;
+    uv.x += (x_clipped - x) * unif.screen_resolution.x;
 
     let clickable = f32(read_flag(in.flags, CLICK_ANIMATION_FLAG));
     let filled = f32( ! read_flag(in.flags, OUTLINE_ONLY_FLAG));
@@ -115,15 +123,10 @@ fn vs_main(in: RenderRect) -> VertexOutput {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    // in.uv: absolute value coords: 
-    // +L <-- 0 --> +L
-    // where L = rect_half_size (pixels)
 
+    var centered_uv = in.uv - (in.half_size);
 
-    var centered_uv = abs(in.uv - (in.half_size));
-    // var centered_uv = in.uv;
-
-    var circle_uv = centered_uv;
+    var circle_uv = abs(centered_uv);
     circle_uv.y *= (in.half_size.x / in.half_size.y);
 
     var alpha = in.color.a;
@@ -161,4 +164,5 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var final_color = tex_color * rect_color;
 
     return final_color;
+    // return vec4f(centered_uv.x, 0.0, centered_uv.y, 1.0);
 }

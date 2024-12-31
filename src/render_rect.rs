@@ -23,13 +23,15 @@ pub(crate) struct RenderRect {
     pub flags: u32,                 // (u32) bitfield flags
     pub _padding: u32,        // (u32) next free block index
 
+    pub clip_rect: XyRect,          // (f32, f32) for each corner
+
     // this is currently used for click resolution, but it's not used for anything on the gpu.
     // in the future, I would like to have a separate structure for click resolution, and remove the Id from this structure.
     pub id: Id,
 }
 
 impl RenderRect {
-    pub fn buffer_desc() -> [VertexAttribute; 15] {
+    pub fn buffer_desc() -> [VertexAttribute; 16] {
         vertex_attr_array![
             // rect (XyRect): 2 x Float32x2
             0 => Float32x2, // rect.x_min, rect.y_min
@@ -52,8 +54,12 @@ impl RenderRect {
 
             12 => Uint32, // flags
             13 => Uint32, // slab_next_free
+
+            // rect (XyRect): 2 x Float32x2
+            14 => Float32x2, // rect.x_min, rect.y_min
+            15 => Float32x2, // rect.x_max, rect.y_max
             
-            14 => Uint32x2, // id. it's actually a u64, but it doesn't look like wgpu understands u64s.
+            // 16 => Uint32x2, // id. it's actually a u64, but it doesn't look like wgpu understands u64s.
         ]
     }
 
@@ -162,6 +168,7 @@ impl Node {
 
         return Some(RenderRect {
             rect: self.rect.to_graphics_space(),
+            clip_rect: self.clip_rect.to_graphics_space(),
             vertex_colors: self.params.rect.vertex_colors,
             last_hover: self.hover_timestamp,
             last_click: self.last_click,

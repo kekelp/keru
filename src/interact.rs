@@ -1,9 +1,10 @@
 use std::time::Duration;
 
-use winit::{event::{KeyEvent, MouseButton}, keyboard::{Key, NamedKey}};
+use winit::{dpi::PhysicalPosition, event::{KeyEvent, MouseButton, MouseScrollDelta}, keyboard::{Key, NamedKey}};
 use winit_mouse_events::MouseInput;
 
 use crate::*;
+use crate::Axis::{X, Y};
 
 pub(crate) const ANIMATION_RERENDER_TIME: f32 = 0.5;
 
@@ -32,6 +33,7 @@ impl Ui {
     // todo: think if it's really worth it to do this on every mouse movement.
     // maybe add a global setting to do it just once per frame
     pub(crate) fn resolve_hover(&mut self) {
+        // real hover
         let hovered_node_id = self.scan_mouse_hits();
         self.sys.mouse_input.update_current_tag(hovered_node_id);
 
@@ -51,6 +53,16 @@ impl Ui {
 
         if self.sys.is_anything_dragged {
             self.sys.new_ui_input = true;
+        }
+
+        // scroll area hover
+        let hovered_scroll_area_id = self.scan_scroll_areas_mouse_hits();
+
+        // since this doesn't cause any rerenders or gpu updates directly, I think we can do it in the dumb way for now
+        if let Some(hovered_scroll_area_id) = hovered_scroll_area_id {
+            self.sys.hovered_scroll_area = Some(hovered_scroll_area_id);
+        } else {
+            self.sys.hovered_scroll_area = None;
         }
     }
 
@@ -185,14 +197,40 @@ impl Ui {
             }
         }
 
-        // only the one with the highest z is actually clicked.
+        // only the one with the top (aka lowest) z is actually clicked.
         // in practice, nobody ever sets the Z. it depends on the order.
         let mut topmost_hit = None;
 
-        let mut max_z = f32::MAX;
+        let mut top_z = f32::MAX;
         for (id, z) in self.sys.mouse_hit_stack.iter().rev() {
-            if *z < max_z {
-                max_z = *z;
+
+            if *z < top_z {
+                top_z = *z;
+                topmost_hit = Some(*id);
+            }
+        }
+
+        return topmost_hit;
+    }
+
+    pub(crate) fn scan_scroll_areas_mouse_hits(&mut self) -> Option<Id> {
+        self.sys.mouse_hit_stack.clear();
+
+        for rect in &self.sys.scroll_rects {
+            if mouse_hit_rect(rect, &self.sys.unifs.size, self.cursor_position()) {
+                self.sys.mouse_hit_stack.push((rect.id, rect.z));
+            }
+        }
+
+        // only the one with the top (aka lowest) z is actually clicked.
+        // in practice, nobody ever sets the Z. it depends on the order.
+        let mut topmost_hit = None;
+
+        let mut top_z = f32::MAX;
+        for (id, z) in self.sys.mouse_hit_stack.iter().rev() {
+
+            if *z < top_z {
+                top_z = *z;
                 topmost_hit = Some(*id);
             }
         }
@@ -219,6 +257,33 @@ impl Ui {
 
         return false;
     }
+
+    pub(crate) fn handle_scroll(&mut self, delta: &MouseScrollDelta) {
+        let Some(hovered_scroll_area_id) = self.sys.hovered_scroll_area else {
+            return;
+        };
+
+        let Some(i) = self.nodes.node_hashmap.get(&hovered_scroll_area_id) else {
+            return;
+        };
+        let i = i.slab_i;
+
+        let (x, y) = match delta {
+            MouseScrollDelta::LineDelta(x, y) => (x * 0.1, y * 0.1),
+            MouseScrollDelta::PixelDelta(PhysicalPosition {x, y}) => (*x as f32, *y as f32),
+        };
+        
+        if self.nodes[i].params.layout.scrollable[X] {
+            self.nodes[i].scroll_offset.x += x;
+        };
+        if self.nodes[i].params.layout.scrollable[Y] {
+            self.nodes[i].scroll_offset.y += y;
+        };
+        if self.nodes[i].params.is_scrollable() {
+            // todo: this is a bit wasteful maybe? idk, maybe not
+            self.push_partial_relayout(i);
+            // todo: why is this even needed
+            self.sys.new_ui_input = true;
+        }
+    }
 }
-
-

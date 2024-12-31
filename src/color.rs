@@ -94,9 +94,9 @@ impl VertexColors {
 
 impl Color {
     pub const FLGR_BLACK: Color = Color {
-        r: (0.6 * 255.0) as u8,
-        g: (0.3 * 255.0) as u8,
-        b: (0.6 * 255.0) as u8,
+        r: (0.07 * 255.0) as u8,
+        g: (0.07 * 255.0) as u8,
+        b: (0.09 * 255.0) as u8,
         a: 255_u8,
     };
 

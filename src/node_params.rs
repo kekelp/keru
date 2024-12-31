@@ -210,7 +210,7 @@ impl Rect {
 // rename
 // todo: add greyed text for textinput
 /// Options for text nodes.
-#[derive(Debug, Copy, Clone, Hash)]
+#[derive(Debug, Default, Copy, Clone, Hash)]
 pub struct TextOptions {
     pub editable: bool,
     pub single_line: bool,
@@ -360,6 +360,16 @@ impl NodeParams {
         return self;
     }
 
+    pub const fn scrollable_x(mut self, scrollable_x: bool) -> Self {
+        self.layout.scrollable.x = scrollable_x;
+        return self;
+    }
+
+    pub const fn scrollable_y(mut self, scrollable_y: bool) -> Self {
+        self.layout.scrollable.y = scrollable_y;
+        return self;
+    }
+
     pub const fn absorbs_clicks(mut self, absorbs_clicks: bool) -> Self {
         self.interact.absorbs_mouse_events = absorbs_clicks;
         return self;
@@ -368,5 +378,9 @@ impl NodeParams {
     pub fn is_fit_content(&self) -> bool {
         let Xy { x, y } = self.layout.size;
         return x == Size::FitContent || y == Size::FitContent
-    }   
+    }
+
+    pub fn is_scrollable(&self) -> bool {
+        return self.layout.scrollable.x || self.layout.scrollable.y
+    }
 }

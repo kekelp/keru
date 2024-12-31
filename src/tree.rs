@@ -313,7 +313,7 @@ impl Ui {
     /// ```
     #[track_caller]
     pub fn add_anon(&mut self) -> UiNode {
-        return self.add_anon_with_name("Anon Node");
+        return self.add_anon_with_name("anon Node");
     }
     
     #[track_caller]
@@ -467,9 +467,10 @@ impl Ui {
     /// Resize the `Ui`. 
     /// Updates the `Ui`'s internal state, and schedules a full relayout to adapt to the new size.
     /// Called by [`Ui::handle_events`].
-    pub(crate) fn resize(&mut self, size: &PhysicalSize<u32>) {
+    pub(crate) fn resize(&mut self, size: &PhysicalSize<u32>) {        
         self.sys.changes.full_relayout = true;
         
+        dbg!("in the event:", size);
         self.sys.unifs.size[X] = size.width as f32;
         self.sys.unifs.size[Y] = size.height as f32;
 
@@ -495,6 +496,13 @@ impl Ui {
             }
         }
 
+        if node.params.is_scrollable() {
+            let just_give_me_a_rect = true;
+            if let Some(rect) = node.render_rect(just_give_me_a_rect, None) {
+                self.sys.scroll_rects.push(rect);
+            }
+        }
+
         if let Some(image) = node.imageref {
             if let Some(image_rect) = node.render_rect(draw_even_if_invisible, Some(image.tex_coords)) {
                 self.sys.rects.push(image_rect);
@@ -502,6 +510,7 @@ impl Ui {
         }
     }
 
+    // todo: wtf is this function? any renamers?
     pub(crate) fn update_rect(&mut self, node: usize) {
         let node = &mut self.nodes.nodes[node];
 
@@ -640,40 +649,71 @@ impl Ui {
         self.relayout();
     }
 
-    /// Add and place an anonymous vertical stack container.
+    /// Add and place an anonymous node with the given [`NodeParams`].
+    #[track_caller]
+    pub fn anon(&mut self, params: NodeParams) -> UiPlacedNode {
+        return self.add_anon_with_name("anon node").params(params).place()
+    }
+
+
+    /// Add and place an anonymous panel.
     #[track_caller]
     pub fn panel(&mut self) -> UiPlacedNode {
-        return self.add_anon_with_name("Anon panel").params(PANEL).place();
+        return self.add_anon_with_name("anon panel").params(PANEL).place();
     }
 
     /// Add and place an anonymous vertical stack container.
     #[track_caller]
     pub fn v_stack(&mut self) -> UiPlacedNode {
-        return self.add_anon_with_name("Anon v_stack").params(V_STACK).place();
+        return self.add_anon_with_name("anon v_stack").params(V_STACK).place();
     }
     
     /// Add and place an anonymous horizontal stack container.
     #[track_caller]
     pub fn h_stack(&mut self) -> UiPlacedNode {
-        return self.add_anon_with_name("Anon h_stack").params(H_STACK).place();
+        return self.add_anon_with_name("anon h_stack").params(H_STACK).place();
     }
 
     /// Add and place an anonymous text element.
     #[track_caller]
     pub fn text(&mut self, text: impl Display + Hash) -> UiPlacedNode {
-        return self.add_anon_with_name("Anon text").params(TEXT).text(text).place();
+        return self.add_anon_with_name("anon text").params(TEXT).text(text).place();
+    }
+
+    /// Add and place an anonymous text element.
+    #[track_caller]
+    pub fn static_text(&mut self, text: &'static str) -> UiPlacedNode {
+        return self.add_anon_with_name("anon text").params(TEXT).static_text(text).place();
     }
 
     /// Add and place an anonymous text element.
     #[track_caller]
     pub fn multiline_text(&mut self, text: impl Display + Hash) -> UiPlacedNode {
-        return self.add_anon_with_name("Anon text").params(TEXT_PARAGRAPH).text(text).place();
+        return self.add_anon_with_name("anon multiline text").params(TEXT_PARAGRAPH).text(text).place();
+    }
+
+    /// Add and place an anonymous text element.
+    #[track_caller]
+    pub fn static_multiline_text(&mut self, text: &'static str) -> UiPlacedNode {
+        return self.add_anon_with_name("anon multiline text").params(TEXT_PARAGRAPH).static_text(text).place();
     }
 
     /// Add and place an anonymous label.
     #[track_caller]
     pub fn label(&mut self, text: impl Display + Hash) -> UiPlacedNode {
-        return self.add_anon_with_name("Anon label").params(LABEL).text(text).place();
+        return self.add_anon_with_name("anon label").params(LABEL).text(text).place();
+    }
+
+    /// Add and place an anonymous label.
+    #[track_caller]
+    pub fn static_multiline_label(&mut self, text: &'static str) -> UiPlacedNode {
+        return self.add_anon_with_name("anon label").params(MULTILINE_LABEL).static_text(text).place();
+    }
+
+    /// Add and place an anonymous forsenE.
+    #[track_caller]
+    pub fn forsen_e(&mut self) -> UiPlacedNode {
+        return self.add_anon_with_name("anon forsenE").params(IMAGE).static_image(include_bytes!("textures/forsenE.png")).place();
     }
 
     /// Returns `true` if a node corresponding to `key` exists and if it is currently part of the GUI tree. 

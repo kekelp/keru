@@ -50,18 +50,20 @@ impl<'a> UiNode<'a> {
     /// ```
     /// 
     /// Panics if the byte slice in `image` can't be interpreted as an image.
-    pub fn static_image(&mut self, image: &'static [u8]) {
+    pub fn static_image(&mut self, image: &'static [u8])  -> &mut Self {
         let image_pointer: *const u8 = image.as_ptr();
 
         if let Some(last_pointer) = self.node().last_static_image_ptr {
             if image_pointer == last_pointer {
-                return;
+                return self;
             }
         }
 
         let image = self.ui.sys.texture_atlas.allocate_image(image);
         self.node_mut().imageref = Some(image);
         self.node_mut().last_static_image_ptr = Some(image_pointer);
+
+        return self;
     }
 
     /// Add an image to the node.
@@ -160,6 +162,16 @@ impl<'a> UiNode<'a> {
 
     pub fn size_y(&mut self, size: Size) -> &mut Self {
         self.node_mut().params.layout.size.y = size;
+        return self;
+    }
+
+    pub fn scrollable_x(&mut self, scrollable_x: bool) -> &mut Self {
+        self.node_mut().params.layout.scrollable.x = scrollable_x;
+        return self;
+    }
+
+    pub fn scrollable_y(&mut self, scrollable_y: bool) -> &mut Self {
+        self.node_mut().params.layout.scrollable.y = scrollable_y;
         return self;
     }
 
@@ -339,10 +351,17 @@ impl<'a> UiNode<'a> {
     pub fn text(&mut self, into_text: impl Display) -> &mut Self {
         // todo: hash into_text instead of the text to skip the formatting??
         // note that many exotic types like "f32" can be formatted but not hashed 
+        // todo: this display crap causes an useless copy in the common case when it's just a string
         self.ui.format_into_scratch(into_text);
 
         if let Some(text_id) = self.node_mut().text_id {
             let hash = fx_hash(&self.ui.format_scratch);
+            
+            let str_len = self.ui.format_scratch.len();
+            if str_len > 400 {
+                log::info!("Hashing a big string ({} bytes). If possible, consider using static_text and similar functions to avoid hashing.", str_len);
+            }
+
             let area = &mut self.ui.sys.text.text_areas[text_id];
             if hash != area.params.last_hash {
                 area.params.last_hash = hash;

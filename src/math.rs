@@ -169,6 +169,12 @@ impl<T: Copy> Xy<T> {
     }
 }
 
+pub fn intersect(a: [f32; 2], b: [f32; 2]) -> [f32; 2] {
+    let left = a[0].max(b[0]);
+    let right = a[1].min(b[1]);
+    return [left, right];
+}
+
 /// A two-dimensional rectangle.
 /// 
 /// Alias for [`Xy`]<[f32; 2]>.
@@ -194,6 +200,31 @@ impl XyRect {
     pub fn to_graphics_space(self) -> Self {
         let a = self * 2. - 1.;
         return Self::new([a.x[0], a.x[1]], [-a.y[1], -a.y[0]]);
+    }
+
+    /// Computes the intersection of two `XyRect`s.
+    /// Returns the intersecting rectangle if they intersect,
+    /// or a degenerate rectangle if they do not.
+    pub(crate) fn intersect(&self, other: &XyRect) -> XyRect {
+        let left = self.x[0].max(other.x[0]);
+        let right = self.x[1].min(other.x[1]);
+        let top = self.y[0].max(other.y[0]);
+        let bottom = self.y[1].min(other.y[1]);
+
+        // Check if there is an overlap
+        if left < right && top < bottom {
+            // Return the intersecting rectangle
+            XyRect {
+                x: [left, right],
+                y: [top, bottom],
+            }
+        } else {
+            // Return a degenerate rectangle
+            XyRect {
+                x: [self.x[0], self.x[0]],
+                y: [self.y[0], self.y[0]],
+            }
+        }
     }
 }
 impl Add<f32> for XyRect {
