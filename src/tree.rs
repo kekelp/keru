@@ -470,7 +470,6 @@ impl Ui {
     pub(crate) fn resize(&mut self, size: &PhysicalSize<u32>) {        
         self.sys.changes.full_relayout = true;
         
-        dbg!("in the event:", size);
         self.sys.unifs.size[X] = size.width as f32;
         self.sys.unifs.size[Y] = size.height as f32;
 
