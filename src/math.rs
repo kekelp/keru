@@ -201,6 +201,14 @@ impl XyRect {
         let a = self * 2. - 1.;
         return Self::new([a.x[0], a.x[1]], [-a.y[1], -a.y[0]]);
     }
+
+    pub fn start(&self) -> Xy<f32> {
+        return Xy::new(self[X][0], self[Y][0]);
+    }
+
+    pub fn end(&self) -> Xy<f32> {
+        return Xy::new(self[X][1], self[Y][1]);
+    }
 }
 impl Add<f32> for XyRect {
     type Output = Self;

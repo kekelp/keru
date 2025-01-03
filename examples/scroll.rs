@@ -25,12 +25,12 @@ impl ExampleLoop for State {
 
         const SCROLL_STACK: NodeParams = V_STACK.scrollable_y(true);
 
-        ui.add(DARK_PANEL).params(PANEL).color(Color::FLGR_BLACK).size_symm(Fill);
+        ui.add(DARK_PANEL).params(PANEL).color(Color::FLGR_BLUE).size_symm(Fill);
         // works
         // ui.add(SCROLL_PANEL).params(PANEL);
         // doesnt work
-        ui.add(SMALL_PANEL).params(PANEL).size_symm(Fixed(Frac(0.95))).color(Color::FLGR_BLACK);
-        ui.add(SCROLL_AREA).params(CONTAINER).size_y(Fill).scrollable_y(true);
+        ui.add(SMALL_PANEL).params(PANEL).size_symm(Fixed(Frac(0.95))).color(Color::FLGR_BLACK).padding(Len::ZERO);
+        ui.add(SCROLL_AREA).params(CONTAINER).size_y(Fill).scrollable_y(true).padding(Len::ZERO);
 
         ui.place(DARK_PANEL).nest(|| {
             ui.h_stack().nest(|| {
@@ -41,7 +41,7 @@ impl ExampleLoop for State {
                         ui.v_stack().nest(|| {
                             ui.static_multiline_label(LATIN_TEXT);
                             ui.static_multiline_label(RUSSIAN_TEXT);
-                            ui.static_multiline_label(SMALL_TEXT);
+                            // ui.static_multiline_label(SMALL_TEXT);
                             ui.static_multiline_label(CHINESE_TEXT);
                             ui.static_multiline_label(JAPANESE_TEXT);
                         });
@@ -49,19 +49,19 @@ impl ExampleLoop for State {
                         
                 });
 
-                ui.add_anon().params(TEXT_PARAGRAPH).static_text(CHINESE_TEXT).scrollable_y(true).place();
+                // ui.add_anon().params(TEXT_PARAGRAPH).size_y(Fill).static_text(CHINESE_TEXT).scrollable_y(true).place();
 
-                ui.panel().nest(|| {                 
-                    ui.anon(SCROLL_STACK).nest(|| {
+                // ui.panel().nest(|| {                 
+                //     ui.anon(SCROLL_STACK).nest(|| {
 
-                        ui.static_multiline_label(LATIN_TEXT);
-                        ui.static_multiline_label(RUSSIAN_TEXT);
-                        ui.static_multiline_label(SMALL_TEXT);
-                        ui.static_multiline_label(CHINESE_TEXT);
-                        ui.static_multiline_label(JAPANESE_TEXT);
+                //         ui.static_multiline_label(LATIN_TEXT);
+                //         ui.static_multiline_label(RUSSIAN_TEXT);
+                //         ui.static_multiline_label(SMALL_TEXT);
+                //         ui.static_multiline_label(CHINESE_TEXT);
+                //         ui.static_multiline_label(JAPANESE_TEXT);
                         
-                    });
-                });
+                //     });
+                // });
 
             });
         });

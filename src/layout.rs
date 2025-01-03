@@ -102,7 +102,7 @@ impl Ui {
             self.resolve_hover();
         }
 
-        // these ones are after the second-order-effect resolve_hover, just do have less latency un the update.
+        // these ones are after the second-order-effect resolve_hover, just to see the update sooner.
         if full_relayout || rebuild_all_rects {
             self.rebuild_all_rects();
 
@@ -128,7 +128,7 @@ impl Ui {
         
         // 2nd recursive tree traversal: now that all nodes have a calculated size, place them.
         // we don't do update_rects here because the first frame you can't update... but maybe just special-case the first frame, then should be faster
-        self.recursive_place_children(ROOT_I, false);
+        self.recursive_place_children(ROOT_I, false, false);
         
         self.nodes[ROOT_I].last_layout_frame = self.sys.current_frame;
 
@@ -148,7 +148,7 @@ impl Ui {
         self.recursive_determine_size(node, starting_proposed_size);
         
         // 2nd recursive tree traversal: now that all nodes have a calculated size, place them.
-        self.recursive_place_children(node, update_rects);
+        self.recursive_place_children(node, update_rects, false);
     }
 
     fn get_proposed_size(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
@@ -315,7 +315,10 @@ impl Ui {
         }
 
         buffer.set_size(&mut self.sys.text.font_system, Some(w), Some(h));
+
+        // let now = std::time::Instant::now();
         buffer.shape_until_scroll(&mut self.sys.text.font_system, false);
+        // log::trace!("Shape text buffer {:?}", now.elapsed());
 
         let trimmed_size = buffer.measure_text_pixels();
 
@@ -334,9 +337,6 @@ impl Ui {
 
         return self.f32_pixels_to_frac2(trimmed_size);
     }
-
-
-
 
     fn adjust_final_size(&mut self, node: usize, final_size: Xy<f32>) -> Xy<f32> {
         // re-add spacing and padding to the final size we calculated
@@ -360,12 +360,12 @@ impl Ui {
         return final_size;
     }
 
-    fn recursive_place_children(&mut self, node: usize, also_update_rects: bool) {
+    pub(crate) fn recursive_place_children(&mut self, node: usize, also_update_rects: bool, only_adjust_scroll: bool) {
         self.sys.partial_relayout_count += 1;
         if let Some(stack) = self.nodes[node].params.stack {
             self.place_children_stack(node, stack);
         } else {
-            self.place_children_container(node);
+            self.place_children_container(node, only_adjust_scroll);
         };
 
         // self.place_image(node); // I think there's nothing to place? right now it's always the full rect
@@ -375,22 +375,25 @@ impl Ui {
             self.update_rect(node);
         }
 
-        self.set_clip_rect(node);
-
-        self.nodes[node].last_layout_frame = self.sys.current_frame;
+        if ! only_adjust_scroll {
+            self.set_clip_rect(node);
+            
+            self.nodes[node].last_layout_frame = self.sys.current_frame;
+        }
 
         for_each_child!(self, self.nodes[node], child, {
-            self.recursive_place_children(child, also_update_rects);
+            self.recursive_place_children(child, also_update_rects, only_adjust_scroll);
         });
     }
 
     fn place_children_stack(&mut self, node: usize, stack: Stack) {
         let (main, cross) = (stack.axis, stack.axis.other());
-        let mut parent_rect = self.nodes[node].rect;
-
+        let mut containing_rect = self.nodes[node].rect;
+        
         for axis in [X, Y] {
             if self.nodes[node].params.layout.scrollable[axis] {
-                parent_rect[axis][0] += self.nodes[node].scroll_offset[axis];
+                containing_rect[axis][0] += self.nodes[node].scroll_offset[axis];
+                containing_rect[axis][1] += self.nodes[node].scroll_offset[axis];
             }
         }
 
@@ -415,10 +418,10 @@ impl Ui {
         }
 
         let mut main_origin = match stack.arrange {
-            Arrange::Start => parent_rect[main][0] + padding[main],
-            Arrange::End => parent_rect[main][1] + padding[main] - total_size,
+            Arrange::Start => containing_rect[main][0] + padding[main],
+            Arrange::End => containing_rect[main][1] + padding[main] - total_size,
             Arrange::Center => {
-                let center = (parent_rect[main][1] + parent_rect[main][0]) / 2.0 - 2.0 * padding[main];
+                let center = (containing_rect[main][1] + containing_rect[main][0]) / 2.0 - 2.0 * padding[main];
                 center - total_size / 2.0
             },
             _ => todo!(),
@@ -429,23 +432,23 @@ impl Ui {
 
             match self.nodes[child].params.layout.position[cross] {
                 Position::Center => {
-                    let origin = (parent_rect[cross][1] + parent_rect[cross][0]) / 2.0;
+                    let origin = (containing_rect[cross][1] + containing_rect[cross][0]) / 2.0;
                     self.nodes[child].rect[cross] = [
                         origin - child_size[cross] / 2.0 ,
                         origin + child_size[cross] / 2.0 ,
                     ];  
                 },
                 Position::Start => {
-                    let origin = parent_rect[cross][0] + padding[cross];
+                    let origin = containing_rect[cross][0] + padding[cross];
                     self.nodes[child].rect[cross] = [origin, origin + child_size[cross]];         
                 },
                 Position::Static(len) => {
-                    let static_pos = self.len_to_frac_of_size(len, parent_rect.size(), cross);
-                    let origin = parent_rect[cross][0] + padding[cross] + static_pos;
+                    let static_pos = self.len_to_frac_of_size(len, containing_rect.size(), cross);
+                    let origin = containing_rect[cross][0] + padding[cross] + static_pos;
                     self.nodes[child].rect[cross] = [origin, origin + child_size[cross]];  
                 },
                 Position::End => {
-                    let origin = parent_rect[cross][1] - padding[cross];
+                    let origin = containing_rect[cross][1] - padding[cross];
                     self.nodes[child].rect[cross] = [origin - child_size[cross], origin];
                 },
             }
@@ -456,45 +459,92 @@ impl Ui {
         });
     }
 
-    fn place_children_container(&mut self, node: usize) {
-        let mut parent_rect = self.nodes[node].rect;
-        let padding = self.to_frac2(self.nodes[node].params.layout.padding);
+    fn place_children_container(&mut self, node: usize, only_adjust_scroll: bool) {
+
+        if ! only_adjust_scroll {
+            let parent_rect = self.nodes[node].rect;
+
+            let padding = self.to_frac2(self.nodes[node].params.layout.padding);
+
+            let mut content_bounding_rect = XyRect::new([f32::MAX, -f32::MAX], [f32::MAX, -f32::MAX]);
+            let mut origin = Xy::<f32>::default();
+
+            for_each_child!(self, self.nodes[node], child, {
+                let child_size = self.nodes[child].size;
+
+                // check the children's chosen Position's and place them.
+                for ax in [X, Y] {
+                    match self.nodes[child].params.layout.position[ax] {
+                        Position::Start => {
+                            origin[ax] = parent_rect[ax][0] + padding[ax];
+                            self.nodes[child].rect[ax] = [origin[ax], origin[ax] + child_size[ax]];         
+                        },
+                        Position::Static(len) => {
+                            let static_pos = self.len_to_frac_of_size(len, parent_rect.size(), ax);
+                            origin[ax] = parent_rect[ax][0] + padding[ax] + static_pos;
+                            self.nodes[child].rect[ax] = [origin[ax], origin[ax] + child_size[ax]];
+                        }
+                        Position::End => {
+                            origin[ax] = parent_rect[ax][1] - padding[ax];
+                            self.nodes[child].rect[ax] = [origin[ax] - child_size[ax], origin[ax]];
+                        },
+                        Position::Center => {
+                            origin[ax] = (parent_rect[ax][0] + parent_rect[ax][1]) / 2.0;
+                            self.nodes[child].rect[ax] = [
+                                origin[ax] - child_size[ax] / 2.0 ,
+                                origin[ax] + child_size[ax] / 2.0 ,
+                            ];           
+                        },
+                    }
+        
+                    if self.nodes[node].params.layout.scrollable[ax] {
+                        // todo: try using the remembered content_size and origin instead of doing this
+                        content_bounding_rect.update_bounding_rect(ax, self.nodes[child].rect);
+                    }
+                }
+            });
+
+            self.nodes[node].scroll_limits = self.scroll_limits(node, content_bounding_rect);
+        }
+
+        self.set_children_scroll(node);
+    }
+
+    // doesnt work lol
+    pub(crate) fn recursive_set_scroll(&mut self, node: usize) {
+        self.set_children_scroll(node);
+
+        for_each_child!(self, self.nodes[node], child, {
+            self.recursive_set_scroll(child);
+        });
+    }
+
+    fn set_children_scroll(&mut self, node: usize) {
+        if ! self.nodes[node].params.is_scrollable() {
+            return;
+        }
 
         for axis in [X, Y] {
             if self.nodes[node].params.layout.scrollable[axis] {
-                parent_rect[axis][0] += self.nodes[node].scroll_offset[axis];
-            }
+                let min_scroll = self.nodes[node].scroll_limits.min_scroll(axis);
+                let max_scroll = self.nodes[node].scroll_limits.max_scroll(axis);
+                let scroll = &mut self.nodes[node].scroll_offset[axis];
+                *scroll = scroll.clamp(min_scroll, max_scroll);
+            };
         }
 
         for_each_child!(self, self.nodes[node], child, {
-            let child_size = self.nodes[child].size;
-
-            // check the children's chosen Position's and place them.
             for ax in [X, Y] {
-                match self.nodes[child].params.layout.position[ax] {
-                    Position::Start => {
-                        let origin = parent_rect[ax][0] + padding[ax];
-                        self.nodes[child].rect[ax] = [origin, origin + child_size[ax]];         
-                    },
-                    Position::Static(len) => {
-                        let static_pos = self.len_to_frac_of_size(len, parent_rect.size(), ax);
-                        let origin = parent_rect[ax][0] + padding[ax] + static_pos;
-                        self.nodes[child].rect[ax] = [origin, origin + child_size[ax]];
-                    }
-                    Position::End => {
-                        let origin = parent_rect[ax][1] - padding[ax];
-                        self.nodes[child].rect[ax] = [origin - child_size[ax], origin];
-                    },
-                    Position::Center => {
-                        let origin = (parent_rect[ax][1] + parent_rect[ax][0]) / 2.0;
-                        self.nodes[child].rect[ax] = [
-                            origin - child_size[ax] / 2.0 ,
-                            origin + child_size[ax] / 2.0 ,
-                        ];           
-                    },
+                if self.nodes[node].params.layout.scrollable[ax] {
+                    self.nodes[child].rect[ax][0] += self.nodes[node].scroll_offset[ax] - self.nodes[node].old_scroll_offset[ax];
+                    self.nodes[child].rect[ax][1] += self.nodes[node].scroll_offset[ax] - self.nodes[node].old_scroll_offset[ax];
                 }
             }
+            self.update_rect(child);
+
         });
+        
+        self.nodes[node].old_scroll_offset = self.nodes[node].scroll_offset;
     }
 
     fn set_clip_rect(&mut self, node: usize) {
@@ -536,20 +586,21 @@ impl Ui {
 
     fn place_text_inside(&mut self, node: usize, rect: XyRect) {
         let padding = self.to_pixels2(self.nodes[node].params.layout.padding);
-        let node = &mut self.nodes[node];
-        let text_id = node.text_id;
 
-        let mut rect = rect;
+        let mut containing_rect = rect;
+        let mut content_bounding_rect = XyRect::new([f32::MAX, -f32::MAX], [f32::MAX, -f32::MAX]);
 
         for axis in [X, Y] {
-            if node.params.layout.scrollable[axis] {
-                rect[axis][0] += node.scroll_offset[axis];
+            if self.nodes[node].params.layout.scrollable[axis] {
+                containing_rect[axis][0] += self.nodes[node].scroll_offset[axis];
+                containing_rect[axis][1] += self.nodes[node].scroll_offset[axis];
             }
         }
-
+        
+        let text_id = self.nodes[node].text_id;
         if let Some(text_id) = text_id {
-            let left = rect[X][0] * self.sys.unifs.size[X];
-            let top = rect[Y][0] * self.sys.unifs.size[Y];
+            let left = containing_rect[X][0] * self.sys.unifs.size[X];
+            let top = containing_rect[Y][0] * self.sys.unifs.size[Y];
 
             // let right = rect[X][1] * self.sys.unifs.size[X];
             // let bottom =     rect[Y][1] * self.sys.unifs.size[Y];
@@ -557,6 +608,7 @@ impl Ui {
             self.sys.text.text_areas[text_id].params.left = left + padding[X] as f32;
             self.sys.text.text_areas[text_id].params.top = top + padding[Y] as f32;
            
+            // todo: different align? 
             // self.sys.text.text_areas[text_id].bounds.left = left as i32 + padding[X] as i32;
             // self.sys.text.text_areas[text_id].bounds.top = top as i32 + padding[Y] as i32;
 
@@ -565,7 +617,7 @@ impl Ui {
         }
     }
 
-    fn rebuild_all_rects(&mut self) {
+    pub(crate) fn rebuild_all_rects(&mut self) {
         log::info!("Rebuilding all rectangles");
         self.sys.rects.clear();
         self.sys.invisible_but_clickable_rects.clear();
@@ -616,6 +668,52 @@ impl Xy<f32> {
 
 }
 
+impl XyRect {
+    fn update_bounding_rect(&mut self, axis: Axis, child_rect: XyRect) {
+        let diff = child_rect[axis][0];
+        if diff < self[axis][0] {
+            self[axis][0] = diff;
+        }
+
+        let diff = child_rect[axis][1];
+        if diff > self[axis][1] {
+            self[axis][1] = diff;
+        }
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct ScrollLimits(XyRect);
+impl ScrollLimits {
+    pub(crate) const ZERO: ScrollLimits = ScrollLimits(XyRect::new([0.0, 0.0], [0.0, 0.0]));
+    fn min_scroll(&self, axis: Axis) -> f32 {
+        return self.0[axis][0];
+    }
+    fn max_scroll(&self, axis: Axis) -> f32 {
+        return self.0[axis][1];
+    }
+}
+
+
+impl Ui {
+    fn scroll_limits(&mut self, node: usize, content_bounding_rect: XyRect) -> ScrollLimits {
+        let mut scroll_limits = XyRect::new([0.0, 0.0], [0.0, 0.0]);
+
+        for axis in [X, Y] {
+            if self.nodes[node].params.layout.scrollable[axis] {
+                let min_scroll = self.nodes[node].rect[axis][1] - content_bounding_rect[axis][1];
+                let min_scroll = min_scroll.clamp(-f32::MAX, 0.0);
+                
+                let max_scroll = self.nodes[node].rect[axis][0] - content_bounding_rect[axis][0];
+                let max_scroll = max_scroll.clamp(0.0, f32::MAX);
+
+                scroll_limits[axis][0] = min_scroll;
+                scroll_limits[axis][1] = max_scroll;
+            }
+        }
+        return ScrollLimits(scroll_limits);
+    }
+}
 
 pub trait MeasureText {
     fn measure_text_pixels(&self) -> Xy<f32>;

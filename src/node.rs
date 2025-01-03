@@ -1,4 +1,5 @@
 use crate::*;
+use crate::layout::*;
 
 use texture_atlas::ImageRef;
 
@@ -11,6 +12,10 @@ pub struct Node {
     pub last_layout_frame: u64,
 
     pub scroll_offset: Xy<f32>,
+    // delta to be applied
+    pub old_scroll_offset: Xy<f32>,
+    pub scroll_limits: ScrollLimits,
+
 
     // also for invisible rects, used for layout
     // Coordinates: who knows???
@@ -22,8 +27,9 @@ pub struct Node {
     // in probably in fraction of screen units or some trash 
     pub size: Xy<f32>,
 
-    // partial result when layouting, useful to keep it for setting max scroll
+    // not really used right now, was meant to simplify scroll limits calculation, but couldn't get it right
     pub content_size: Xy<f32>,
+
 
     pub last_proposed_size: Xy<f32>,
 
@@ -82,11 +88,15 @@ impl Node {
             clip_rect: Xy::new_symm([0.0, 1.0]),
 
             size: Xy::new_symm(0.5),
+
             content_size: Xy::new_symm(0.5),
+            
             last_proposed_size: Xy::new_symm(0.5),
             text_id: None,
 
             scroll_offset: Xy::new(0.0, 0.0),
+            old_scroll_offset: Xy::new(0.0, 0.0),
+            scroll_limits: ScrollLimits::ZERO,
 
             imageref: None,
             last_static_image_ptr: None,
@@ -141,10 +151,13 @@ pub const NODE_ROOT: Node = Node {
     clip_rect: Xy::new_symm([0.0, 1.0]),
 
     size: Xy::new_symm(1.0),
-    content_size: Xy::new_symm(1.0),
+    content_size: Xy::new_symm(0.5),
+
     last_proposed_size: Xy::new_symm(1.0),
 
     scroll_offset: Xy::new(0.0, 0.0),
+    old_scroll_offset: Xy::new(0.0, 0.0),
+    scroll_limits: ScrollLimits::ZERO,
 
     text_id: None,
 

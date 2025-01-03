@@ -1,3 +1,4 @@
+use std::time::Duration;
 use std::{marker::PhantomData, mem};
 
 use bytemuck::Pod;
@@ -113,12 +114,14 @@ impl Ui {
         if self.sys.changes.need_gpu_rect_update {
             self.sys.gpu_rect_buffer.queue_write(&self.sys.rects[..], queue);
             self.sys.changes.need_gpu_rect_update = false;
+            log::trace!("Update GPU rectangles");
         }
         
         // texture atlas
         // todo: don't do this all the time
         self.sys.texture_atlas.load_to_gpu(queue);
 
+        let now = std::time::Instant::now();
         self.sys.text
             .text_renderer
             .prepare(
@@ -131,6 +134,10 @@ impl Ui {
                 &mut self.sys.text.cache,
             )
             .unwrap();
+        
+        if now.elapsed() > Duration::from_millis(7) {
+            log::info!("Glyphon prepare(): {:?}", now.elapsed());
+        }
     }
 
     /// Returns `true` if the `Ui` needs to be rerendered.

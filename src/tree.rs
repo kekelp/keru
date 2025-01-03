@@ -509,7 +509,6 @@ impl Ui {
         }
     }
 
-    // todo: wtf is this function? any renamers?
     pub(crate) fn update_rect(&mut self, node: usize) {
         let node = &mut self.nodes.nodes[node];
 
@@ -520,7 +519,9 @@ impl Ui {
             // however, it's probably a bug that we should fix.
             self.sys.rects[old_i] = rect;
         }
-            
+
+        // this kind of makes sense, but apparently not needed? I guess someone else is calling it?
+        // self.sys.changes.need_gpu_rect_update = true;
         // todo: update images?
     }
 
@@ -646,6 +647,11 @@ impl Ui {
         thread_local::pop_parent();
         
         self.relayout();
+
+        // todo: the thing about resetting these early was just retarded, I think, because it keeps it on foverer if the cursor is hovering normally?
+        // like this for now
+        self.sys.new_ui_input = false;
+        self.sys.new_external_events = false;
     }
 
     /// Add and place an anonymous node with the given [`NodeParams`].
