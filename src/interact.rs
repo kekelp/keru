@@ -281,7 +281,7 @@ impl Ui {
         }
 
         if self.nodes[i].params.is_scrollable() {
-            self.recursive_place_children(i, true, true);
+            self.recursive_place_children(i, true);
             
             self.sys.changes.need_gpu_rect_update = true;
             self.sys.changes.need_rerender = true;
