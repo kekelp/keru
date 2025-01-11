@@ -276,7 +276,6 @@ impl Ui {
 
         for axis in [X, Y] {
             if self.nodes[i].params.layout.scrollable[axis] {
-                self.nodes[i].old_scroll_offset[axis] = self.nodes[i].scroll_offset[axis];
                 self.nodes[i].scroll_offset[axis] += delta[axis];
             };
         }

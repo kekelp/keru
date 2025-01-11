@@ -135,8 +135,8 @@ impl Ui {
             )
             .unwrap();
         
-        if now.elapsed() > Duration::from_millis(7) {
-            log::info!("Glyphon prepare(): {:?}", now.elapsed());
+        if now.elapsed() > Duration::from_millis(2) {
+            log::info!("glyphon `prepare` took {:?}", now.elapsed());
         }
     }
 

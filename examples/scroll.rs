@@ -22,6 +22,8 @@ impl ExampleLoop for State {
         #[node_key] pub const DARK_PANEL: NodeKey;
         #[node_key] pub const SMALL_PANEL: NodeKey;
         #[node_key] pub const SCROLL_AREA: NodeKey;
+        
+        #[node_key] pub const SCROLL_TEXT: NodeKey;
 
         const SCROLL_STACK: NodeParams = V_STACK.scrollable_y(true);
 
@@ -49,7 +51,7 @@ impl ExampleLoop for State {
                         
                 });
 
-                // ui.add_anon().params(TEXT_PARAGRAPH).size_y(Fill).static_text(CHINESE_TEXT).scrollable_y(true).place();
+                // ui.add(SCROLL_TEXT).params(TEXT_PARAGRAPH).size_y(Fill).static_text(CHINESE_TEXT).scrollable_y(true).place();
 
                 // ui.panel().nest(|| {                 
                 //     ui.anon(SCROLL_STACK).nest(|| {

@@ -319,6 +319,7 @@ impl Ui {
     #[track_caller]
     pub(crate) fn add_anon_with_name(&mut self, debug_name: &'static str) -> UiNode {
         let location = Location::caller();
+        // it would be cool to avoid doing all these hashes at runtime, somehow.
         let caller_location_hash = fx_hash(location);
         
         // NodeKey

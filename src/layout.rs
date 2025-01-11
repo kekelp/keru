@@ -369,7 +369,7 @@ impl Ui {
         };
 
         // self.place_image(node); // I think there's nothing to place? right now it's always the full rect
-        self.place_text_inside(node, self.nodes[node].rect);
+        self.place_text_inside(node, self.nodes[node].rect, only_adjust_scroll);
     
         if also_update_rects {
             self.update_rect(node);
@@ -507,19 +507,19 @@ impl Ui {
             self.nodes[node].scroll_limits = self.scroll_limits(node, content_bounding_rect);
         }
 
-        self.set_children_scroll(node);
+        self.set_children_scroll(node, only_adjust_scroll);
     }
 
     // doesnt work lol
-    pub(crate) fn recursive_set_scroll(&mut self, node: usize) {
-        self.set_children_scroll(node);
+    // pub(crate) fn recursive_set_scroll(&mut self, node: usize) {
+    //     self.set_children_scroll(node);
 
-        for_each_child!(self, self.nodes[node], child, {
-            self.recursive_set_scroll(child);
-        });
-    }
+    //     for_each_child!(self, self.nodes[node], child, {
+    //         self.recursive_set_scroll(child);
+    //     });
+    // }
 
-    fn set_children_scroll(&mut self, node: usize) {
+    fn set_children_scroll(&mut self, node: usize, only_adjust_scroll: bool) {
         if ! self.nodes[node].params.is_scrollable() {
             return;
         }
@@ -530,14 +530,20 @@ impl Ui {
                 let max_scroll = self.nodes[node].scroll_limits.max_scroll(axis);
                 let scroll = &mut self.nodes[node].scroll_offset[axis];
                 *scroll = scroll.clamp(min_scroll, max_scroll);
+
             };
         }
 
         for_each_child!(self, self.nodes[node], child, {
             for ax in [X, Y] {
-                if self.nodes[node].params.layout.scrollable[ax] {
-                    self.nodes[child].rect[ax][0] += self.nodes[node].scroll_offset[ax] - self.nodes[node].old_scroll_offset[ax];
-                    self.nodes[child].rect[ax][1] += self.nodes[node].scroll_offset[ax] - self.nodes[node].old_scroll_offset[ax];
+                if self.nodes[node].params.layout.scrollable[ax] {                    
+                    if only_adjust_scroll {
+                        self.nodes[child].rect[ax][0] -= self.nodes[node].old_scroll_offset[ax];
+                        self.nodes[child].rect[ax][1] -= self.nodes[node].old_scroll_offset[ax];
+                    }
+
+                    self.nodes[child].rect[ax][0] += self.nodes[node].scroll_offset[ax];
+                    self.nodes[child].rect[ax][1] += self.nodes[node].scroll_offset[ax];
                 }
             }
             self.update_rect(child);
@@ -584,7 +590,7 @@ impl Ui {
         // might be something here in the future
     }
 
-    fn place_text_inside(&mut self, node: usize, rect: XyRect) {
+    fn place_text_inside(&mut self, node: usize, rect: XyRect, only_adjust_scroll: bool) {
         let padding = self.to_pixels2(self.nodes[node].params.layout.padding);
 
         let mut containing_rect = rect;
@@ -698,6 +704,10 @@ impl ScrollLimits {
 impl Ui {
     fn scroll_limits(&mut self, node: usize, content_bounding_rect: XyRect) -> ScrollLimits {
         let mut scroll_limits = XyRect::new([0.0, 0.0], [0.0, 0.0]);
+        
+        if self.nodes[node].debug_name() == "SCROLL_AREA" {
+
+        }
 
         for axis in [X, Y] {
             if self.nodes[node].params.layout.scrollable[axis] {
