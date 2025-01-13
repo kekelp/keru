@@ -33,6 +33,9 @@ fn main() {
     let mut state = State::new(ctx);
 
     let _ = event_loop.run_app(&mut state);
+
+    // skip running destructors, because the program is ending anyway. probably shouldn't do this.
+    std::mem::forget(state);
 }
 
 pub struct State {
