@@ -54,7 +54,12 @@ impl Ui {
         }
 
         if self.sys.partial_relayout_count != 0 {
-            log::info!("Partial relayout ({:?} node/s)", self.sys.partial_relayout_count);
+            let nodes = if self.sys.partial_relayout_count == 1 {
+                "node"
+            } else {
+                "nodes"
+            };
+            log::info!("Partial relayout ({:?} {nodes})", self.sys.partial_relayout_count);
         }
 
         self.sys.partial_relayout_count = 0;
