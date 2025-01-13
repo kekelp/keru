@@ -11,10 +11,7 @@ pub struct Node {
 
     pub last_layout_frame: u64,
 
-    pub scroll_offset: Xy<f32>,
-    // not used right now, was intended for scroll update that doesn't do the full place_children
-    pub old_scroll_offset: Xy<f32>,
-    pub scroll_limits: ScrollLimits,
+    pub scroll: Scroll,
 
 
     // also for invisible rects, used for layout
@@ -94,9 +91,7 @@ impl Node {
             last_proposed_size: Xy::new_symm(0.5),
             text_id: None,
 
-            scroll_offset: Xy::new(0.0, 0.0),
-            old_scroll_offset: Xy::new(0.0, 0.0),
-            scroll_limits: ScrollLimits::ZERO,
+            scroll: Scroll::ZERO,
 
             imageref: None,
             last_static_image_ptr: None,
@@ -155,10 +150,7 @@ pub const NODE_ROOT: Node = Node {
 
     last_proposed_size: Xy::new_symm(1.0),
 
-    scroll_offset: Xy::new(0.0, 0.0),
-    old_scroll_offset: Xy::new(0.0, 0.0),
-    scroll_limits: ScrollLimits::ZERO,
-
+    scroll: Scroll::ZERO,
     text_id: None,
 
     imageref: None,

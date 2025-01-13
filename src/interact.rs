@@ -276,8 +276,7 @@ impl Ui {
 
         for axis in [X, Y] {
             if self.nodes[i].params.layout.scrollable[axis] {
-                let scroll_space = self.nodes[i].scroll_limits.scroll_space(axis);
-                self.nodes[i].scroll_offset[axis] += delta[axis] / scroll_space;
+                self.nodes[i].scroll.update(delta[axis], axis);
             };
         }
 
