@@ -1,12 +1,10 @@
 //! Helper functions for `winit` and `wgpu`.
-use log::{info, warn};
 pub use wgpu::{CommandEncoderDescriptor, TextureViewDescriptor};
 pub use winit::{
     error::EventLoopError, event_loop::EventLoop, event::Event
 };
 use winit::{event_loop::ActiveEventLoop, window::*};
 
-use core::f32;
 use std::{ops::{Deref, DerefMut}, sync::Arc};
 
 use wgpu::{

@@ -471,33 +471,33 @@ impl Ui {
             let child_size = self.nodes[child].size;
 
             // check the children's chosen Position's and place them.
-            for ax in [X, Y] {
-                match self.nodes[child].params.layout.position[ax] {
+            for axis in [X, Y] {
+                match self.nodes[child].params.layout.position[axis] {
                     Position::Start => {
-                        origin[ax] = parent_rect[ax][0] + padding[ax];
-                        self.nodes[child].rect[ax] = [origin[ax], origin[ax] + child_size[ax]];         
+                        origin[axis] = parent_rect[axis][0] + padding[axis];
+                        self.nodes[child].rect[axis] = [origin[axis], origin[axis] + child_size[axis]];         
                     },
                     Position::Static(len) => {
-                        let static_pos = self.len_to_frac_of_size(len, parent_rect.size(), ax);
-                        origin[ax] = parent_rect[ax][0] + padding[ax] + static_pos;
-                        self.nodes[child].rect[ax] = [origin[ax], origin[ax] + child_size[ax]];
+                        let static_pos = self.len_to_frac_of_size(len, parent_rect.size(), axis);
+                        origin[axis] = parent_rect[axis][0] + padding[axis] + static_pos;
+                        self.nodes[child].rect[axis] = [origin[axis], origin[axis] + child_size[axis]];
                     }
                     Position::End => {
-                        origin[ax] = parent_rect[ax][1] - padding[ax];
-                        self.nodes[child].rect[ax] = [origin[ax] - child_size[ax], origin[ax]];
+                        origin[axis] = parent_rect[axis][1] - padding[axis];
+                        self.nodes[child].rect[axis] = [origin[axis] - child_size[axis], origin[axis]];
                     },
                     Position::Center => {
-                        origin[ax] = (parent_rect[ax][0] + parent_rect[ax][1]) / 2.0;
-                        self.nodes[child].rect[ax] = [
-                            origin[ax] - child_size[ax] / 2.0 ,
-                            origin[ax] + child_size[ax] / 2.0 ,
+                        origin[axis] = (parent_rect[axis][0] + parent_rect[axis][1]) / 2.0;
+                        self.nodes[child].rect[axis] = [
+                            origin[axis] - child_size[axis] / 2.0 ,
+                            origin[axis] + child_size[axis] / 2.0 ,
                         ];           
                     },
                 }
     
-                if self.nodes[node].params.layout.scrollable[ax] {
+                if self.nodes[node].params.layout.scrollable[axis] {
                     // todo: try using the remembered content_size and origin instead of doing this
-                    content_bounding_rect.update_bounding_rect(ax, self.nodes[child].rect);
+                    content_bounding_rect.update_bounding_rect(axis, self.nodes[child].rect);
                 }
             }
         });
@@ -522,11 +522,11 @@ impl Ui {
         }
 
         for_each_child!(self, self.nodes[node], child, {
-            for ax in [X, Y] {
-                if self.nodes[node].params.layout.scrollable[ax] {
-                    let scroll_offset = self.nodes[node].scroll.absolute_offset(ax);
-                    self.nodes[child].rect[ax][0] += scroll_offset;
-                    self.nodes[child].rect[ax][1] += scroll_offset;
+            for axis in [X, Y] {
+                if self.nodes[node].params.layout.scrollable[axis] {
+                    let scroll_offset = self.nodes[node].scroll.absolute_offset(axis);
+                    self.nodes[child].rect[axis][0] += scroll_offset;
+                    self.nodes[child].rect[axis][1] += scroll_offset;
                 }
             }
             self.update_rect(child);
