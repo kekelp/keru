@@ -121,7 +121,8 @@ impl Ui {
         // todo: don't do this all the time
         self.sys.texture_atlas.load_to_gpu(queue);
 
-        let now = std::time::Instant::now();
+        let now = start_info_log_timer();
+
         self.sys.text
             .text_renderer
             .prepare(
@@ -135,8 +136,10 @@ impl Ui {
             )
             .unwrap();
         
-        if now.elapsed() > Duration::from_millis(2) {
-            log::info!("glyphon `prepare` took {:?}", now.elapsed());
+        if let Some(now) = now {
+            if now.elapsed() > Duration::from_millis(2) {
+                log::info!("glyphon `prepare` took {:?}", now.elapsed());
+            }
         }
     }
 

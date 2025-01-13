@@ -646,7 +646,7 @@ impl Ui {
         log::trace!("Finished Ui update");
         // pop the root node
         thread_local::pop_parent();
-        
+
         self.relayout();
 
         // todo: the thing about resetting these early was just retarded, I think, because it keeps it on foverer if the cursor is hovering normally?
@@ -907,3 +907,10 @@ impl<'a> UiNode<'a> {
     }
 }
 
+pub fn start_info_log_timer() -> Option<std::time::Instant> {
+    if log::max_level() >= log::LevelFilter::Info {
+        Some(std::time::Instant::now())
+    } else {
+        None
+    }
+}
