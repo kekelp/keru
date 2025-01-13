@@ -390,8 +390,10 @@ impl Ui {
         
         for axis in [X, Y] {
             if self.nodes[node].params.layout.scrollable[axis] {
-                containing_rect[axis][0] += self.nodes[node].scroll_offset[axis];
-                containing_rect[axis][1] += self.nodes[node].scroll_offset[axis];
+                let scroll_offset = self.nodes[node].scroll_offset[axis];
+                let scroll_space = self.nodes[node].scroll_limits.scroll_space(axis);
+                containing_rect[axis][0] += scroll_offset * scroll_space;
+                containing_rect[axis][1] += scroll_offset * scroll_space;
             }
         }
 
@@ -522,19 +524,24 @@ impl Ui {
 
         for axis in [X, Y] {
             if self.nodes[node].params.layout.scrollable[axis] {
-                let min_scroll = self.nodes[node].scroll_limits.min_scroll(axis);
-                let max_scroll = self.nodes[node].scroll_limits.max_scroll(axis);
+                let scroll_space = self.nodes[node].scroll_limits.scroll_space(axis);
+                let min_scroll = self.nodes[node].scroll_limits.min_scroll(axis) / scroll_space;
+                let max_scroll = self.nodes[node].scroll_limits.max_scroll(axis) / scroll_space;
                 let scroll = &mut self.nodes[node].scroll_offset[axis];
                 *scroll = scroll.clamp(min_scroll, max_scroll);
-
+                
             };
         }
 
         for_each_child!(self, self.nodes[node], child, {
             for ax in [X, Y] {
                 if self.nodes[node].params.layout.scrollable[ax] {
-                    self.nodes[child].rect[ax][0] += self.nodes[node].scroll_offset[ax];
-                    self.nodes[child].rect[ax][1] += self.nodes[node].scroll_offset[ax];
+                    let scroll_offset = self.nodes[node].scroll_offset[ax];
+                    let scroll_space = self.nodes[node].scroll_limits.scroll_space(ax);
+                    dbg!(scroll_offset, scroll_space);
+
+                    self.nodes[child].rect[ax][0] += scroll_offset * scroll_space;
+                    self.nodes[child].rect[ax][1] += scroll_offset * scroll_space;
                 }
             }
             self.update_rect(child);
@@ -683,11 +690,14 @@ impl XyRect {
 pub(crate) struct ScrollLimits(XyRect);
 impl ScrollLimits {
     pub(crate) const ZERO: ScrollLimits = ScrollLimits(XyRect::new([0.0, 0.0], [0.0, 0.0]));
-    fn min_scroll(&self, axis: Axis) -> f32 {
+    pub fn min_scroll(&self, axis: Axis) -> f32 {
         return self.0[axis][0];
     }
-    fn max_scroll(&self, axis: Axis) -> f32 {
+    pub fn max_scroll(&self, axis: Axis) -> f32 {
         return self.0[axis][1];
+    }
+    pub fn scroll_space(&self, axis: Axis) -> f32 {
+        return self.max_scroll(axis) - self.min_scroll(axis);
     }
 }
 
