@@ -18,8 +18,8 @@ impl Ui {
     /// Returns `true` if the event was "consumed" by the `Ui`, e.g. if a mouse click hit an opaque panel.
     /// 
     // todo: move or rename the file
-    pub fn handle_event(&mut self, event: &WindowEvent) -> bool {
-        self.sys.mouse_input.handle_event(&event);
+    pub fn window_event(&mut self, event: &WindowEvent) -> bool {
+        self.sys.mouse_input.window_event(&event);
 
         match event {
             WindowEvent::CursorMoved { .. } => {              
@@ -145,7 +145,7 @@ impl Ui {
 
     /// Returns `true` if the `Ui` needs to be rerendered.
     /// 
-    /// If this is true, you should call [`Ui::prepare`] and [`Ui::render`] as soon as possible to display the updated GUI state on the screen.
+    /// If this is true, you should call [`Ui::render`] as soon as possible to display the updated GUI state on the screen.
     pub fn needs_rerender(&mut self) -> bool {
         return self.sys.changes.need_rerender || self.sys.anim_render_timer.is_live()
     }

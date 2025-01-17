@@ -1,4 +1,4 @@
-//! Keru is a Graphical User Interface library.
+//! Keru is an experimental Graphical User Interface library.
 //! 
 //! It is in active development and it's not ready for any kind of use.
 //! 
@@ -52,25 +52,19 @@
 //! 
 //! However, Keru is intended to be used as part of a regular `winit`/`wgpu` window loop managed by the library user. This makes it very simple to combine it with any kind of custom rendering (as long as it uses `wgpu`).
 //! 
-//! When building your own loop, you can still use the helper functions in the [`basic_window_loop`] module to skip most of the `winit` and `wgpu` boilerplate. The Painter example uses this method. 
-//! 
 //! Once you have a window loop, you can create a [`Ui`] struct and store it in your main program state.
-//! The [`Ui`] struct is the central API of the library. All operations start by calling a method of [`Ui`].
-//! 
 //! To integrate it with the window loop, you only need to do two things:
 //! 
-//! - When you receive a `winit` event, pass it to [`Ui::handle_events`].
-//! - When you want to render, call [`Ui::prepare`] to load the GUI data onto the GPU, then call [`Ui::render`].
+//! - When you receive a `winit` `WindowEvent`, pass it to [`Ui::window_event`].
+//! - When you receive a `WindowEvent::RedrawRequested`, redeclare your GUI, then call [`Ui::render`].
 //! 
 //! You can use the [`Ui::needs_rerender()`] to decide whether to render the GUI or skip it.
 //! 
 //! For a full integration example, see the Painter example. Another simpler integration example will be added in the future.
 //! 
-//! ## Building the GUI
+//! ## Declaring the GUI
 //! 
-//! Then, you can use the [`Ui`] struct to build your UI.
-//! 
-//! Whenever you want to update your GUI, you have to start a new GUI "tree", rerun all your GUI declaration code, then finish the tree.
+//! To redeclare your GUI, you have to start a new GUI "tree", rerun all your GUI declaration code, then finish the tree.
 //! 
 //! ```rust
 //! # use keru::*;
@@ -82,14 +76,15 @@
 //! #   fn declare_ui(&mut self) {
 //! #
 //! self.ui.begin_tree();
-//! // declare the GUI and update state
+//! self.ui.text("Hello");
+//! self.ui.text("World");
 //! self.ui.finish_tree();
 //! #
 //! #   }
 //! # }
 //! ```
 //! 
-//! Note that even if you do this every frame, it doesn't mean that the GUI is re-rendering every frame, doing a full relayout on every frame, or anything like that. See the [`about`] page for more information on this point.
+//! Note that even if you do this every frame, it doesn't mean that the GUI is re-rendering every frame, doing a full relayout on every frame, or anything of that sort. See the [`about`] page for more information on this point.
 //! 
 //! To see how the GUI declaration code works, you can check the basic example above, the Counter example, or the `paint_ui.rs` file in the painter example.
 //! 
@@ -136,9 +131,9 @@ mod interact;
 
 pub mod basic_window_loop;
 pub mod example_window_loop;
+
 pub mod winit_mouse_events;
 pub mod winit_key_events;
-pub mod loop2;
 
 mod changes;
 mod twin_nodes;

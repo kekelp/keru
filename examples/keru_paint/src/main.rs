@@ -62,7 +62,7 @@ impl ApplicationHandler for State {
         event: WindowEvent,
     ) {
         self.ctx.window_event(event_loop, _window_id, &event);
-        let consumed = self.ui.handle_event(&event);
+        let consumed = self.ui.window_event(&event);
         if !consumed {
             self.handle_canvas_event(&event);
         }
@@ -145,8 +145,8 @@ impl State {
 
     pub fn handle_canvas_event(&mut self, event: &WindowEvent) {
 
-        self.canvas.mouse_input.handle_event(event);
-        self.canvas.key_input.handle_event(event);
+        self.canvas.mouse_input.window_event(event);
+        self.canvas.key_input.window_event(event);
         
         match event {
             WindowEvent::MouseInput { state, button, .. } => {

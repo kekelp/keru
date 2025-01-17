@@ -74,7 +74,7 @@ impl<S: ExampleLoop> ApplicationHandler for FullState<S> {
         event: WindowEvent,
     ) {
         self.ctx.window_event(event_loop, _window_id, &event);
-        self.ui.handle_event(&event);
+        self.ui.window_event(&event);
 
         if event == WindowEvent::RedrawRequested {
             if self.ui.needs_update() {

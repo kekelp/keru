@@ -55,9 +55,9 @@ pub(crate) fn ui_time_f32() -> f32 {
 /// 
 /// To react to mouse clicks and other node events, call [`Ui::is_clicked`] and similar methods.
 /// 
-/// To integrate [`Ui`] with your `winit` event loop, pass all your `winit` events to [`Ui::handle_events`].
+/// To integrate [`Ui`] with your `winit` event loop, pass all your `winit` events to [`Ui::window_event`].
 /// 
-/// To render the GUI to the screen, call [`Ui::prepare`] and [`Ui::render`]
+/// To render the GUI to the screen, call [`Ui::render`].
 /// 
 // todo: the sys split is no longer needed, lol.
 pub struct Ui {

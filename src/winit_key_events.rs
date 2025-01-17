@@ -57,7 +57,7 @@ impl KeyInput {
         }
     }
 
-    pub fn handle_event(&mut self, event: &WindowEvent) {
+    pub fn window_event(&mut self, event: &WindowEvent) {
         match event {
             WindowEvent::KeyboardInput { event, is_synthetic, .. } => {
                 if ! is_synthetic {

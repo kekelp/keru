@@ -336,7 +336,7 @@ impl Ui {
     /// 
     /// The position is defined by the position of the [`place`](Ui::place) call relative to [`nest`](UiPlacedNode::nest) calls.
     /// 
-    /// Panics if it is called with a key that doesn't correspond to any previously added node, through either [Ui::add], [Ui::add_anon], or [Ui::text] or similar functions.
+    /// Panics if it is called with a key that doesn't correspond to any previously added node, through either [`Ui::add`], [`Ui::add_anon`], or [`Ui::text`] or similar functions.
     /// 
     /// ```rust
     /// # use keru::*;
@@ -362,7 +362,7 @@ impl Ui {
     /// # }
     /// ```
     /// 
-    /// [`UiNode::place`] does the same thing. It is called instead directly on an [`UiNode`], so it doesn't need a `NodeKey` argument to identify the node.
+    /// [`UiNode::place`] does the same thing. Since it is a method of [`UiNode`], you can call it on the node you want to place immediately after adding it. Thus, it doesn't need a `NodeKey` argument to identify the node to place.
     /// 
     /// Compared to [`UiNode::place`], this function allows separating the code that adds the node and sets the params from the `place` code. This usually makes the tree layout much easier to read.
     ///
@@ -467,7 +467,7 @@ impl Ui {
 
     /// Resize the `Ui`. 
     /// Updates the `Ui`'s internal state, and schedules a full relayout to adapt to the new size.
-    /// Called by [`Ui::handle_events`].
+    /// Called by [`Ui::window_event`].
     pub(crate) fn resize(&mut self, size: &PhysicalSize<u32>) {        
         self.sys.changes.full_relayout = true;
         
@@ -897,7 +897,7 @@ impl<'a> UiNode<'a> {
     /// # }
     /// ```
     /// 
-    /// [`Ui::place`] does the same thing, using a `NodeKey` argument to identify the node to place.
+    /// [`Ui::place`] does the same thing. Since it's a method of [`Ui`], you have to use a `NodeKey` argument to tell it which node to place.
     /// 
     /// Compared to [`Ui::place`], this function doesn't allow separating the code that `add`s the node and sets the [`NodeParams`] and the code that defines the layout. 
     /// 
@@ -907,7 +907,7 @@ impl<'a> UiNode<'a> {
     }
 }
 
-pub fn start_info_log_timer() -> Option<std::time::Instant> {
+pub(crate) fn start_info_log_timer() -> Option<std::time::Instant> {
     if log::max_level() >= log::LevelFilter::Info {
         Some(std::time::Instant::now())
     } else {

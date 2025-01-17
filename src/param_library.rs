@@ -108,7 +108,10 @@ pub const H_STACK: NodeParams = NodeParams {
     },
 };
 
-pub const V_SCROLL_AREA: NodeParams = NodeParams {
+/// Preset [`NodeParams`] for a vertically scrollable vertical stack.
+///
+/// You can use the "source" link to inspect the param values. 
+pub const V_SCROLL_STACK: NodeParams = NodeParams {
         stack: Some(Stack {
             arrange: Arrange::Center,
             axis: Axis::Y,

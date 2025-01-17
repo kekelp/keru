@@ -58,7 +58,7 @@ impl<T: Tag> MouseInput<T> {
         }
     }
 
-    pub fn handle_event(&mut self, event: &WindowEvent) {
+    pub fn window_event(&mut self, event: &WindowEvent) {
         match event {
             WindowEvent::CursorMoved { position, .. } => {
                 self.cursor_position = dvec2(position.x, position.y);
@@ -249,8 +249,6 @@ pub enum IsMouseReleased {
 
 
 /// A full description of a mouse event tracked for multiple frames, from click to release.
-/// 
-/// Usually there's no need to use this struct directly, as you can use [`Ui::is_clicked`] and similar methods. But for advanced uses, you can obtain an iterator of `FullMouseEvent`s from [`Ui::all_mouse_events`] or [`Ui::mouse_events`].
 /// 
 /// You can use the [`FullMouseEvent::is_just_clicked`] and the other methods to map these events into more familiar concepts.
 #[derive(Clone, Copy, Debug)]
