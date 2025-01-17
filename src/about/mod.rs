@@ -1,6 +1,6 @@
 //! Some extra information about the library.
 //! 
-//! # What does the code look like?
+//! # How does it work?
 //! 
 //! Keru has a declarative API similar to immediate mode GUI libraries. However, it is not immediate mode.
 //! 
@@ -35,8 +35,7 @@
 //!     self.ui.place(SHOW);
 //!     if self.show {
 //!         self.ui.place(INCREASE);
-//!         self.ui.label(self.count);
-//!         // For the count label, we used a shorthand to add it, set its text and place it all at once. 
+//!         self.ui.label(self.count); // shorthand: add(), text() and place() all in one
 //!     }
 //! });
 //! 
@@ -59,11 +58,9 @@
 //! 
 //! [^1]: In most "slow" UI applications, the UI can "go to sleep" and do nothing until user input or an external event wakes it up. Even true immediate mode GUIs like `egui` can do this. "Cycle" refers to one of these "awake frames".
 //! 
-//! Every time, you re-declare the whole GUI tree. However, the tree is **fully retained** across frames. If a call like `add` finds that the corresponding node already exists in the tree, it will either update it, or do nothing.
+//! Every time, you re-declare the whole GUI tree. However, the tree is **fully retained** across frames. If a function like [`place()`](Ui::place) finds that the corresponding node already exists in the tree, it will either update it, or do nothing.
 //! 
-//! 
-//! 
-//! If a function causes a change in the tree, it will also tell the [`Ui`] to do **partial relayouts** and **partial updates** to the render data, propagating the change to the screen.
+//! If a function does cause a change in the tree, it will also tell the [`Ui`] to do *partial* relayouts and *partial* updates to the render data, propagating the change to the screen.
 //! 
 //! To be more precise:
 //! 
@@ -89,7 +86,7 @@
 //! // when a node is placed onto the tree,
 //! // the library will compare its new params to the ones it had last frame.
 //! self.ui.v_stack().nest(|| {
-//!     // For example, if the SHOW node's size has changed, 
+//!     // For example, if the size of the SHOW node has changed, 
 //!     // it will schedule a _partial_ relayout starting 
 //!     // at this position in the tree. If the color has changed, 
 //!     // it will schedule to update the render data for that _single_ rectangle.
@@ -113,45 +110,20 @@
 //! # }
 //! ```
 //! 
-//! ### Isn't this still like immediate mode?
 //! 
-//! Not really. It's true that that there's still some code that gets run on every frame/cycle. This doesn't happen only in immediate mode systems, but also in many "reactive" systems like React [^2].
+//! While the GUI redeclaration code is rerun every cycle, the functions barely do anything at all, unless something changed in the underlying state.
 //! 
-//! [^2]: There are also some "true reactive" systems like Floem and SwiftUi, which *don't* run update code on every frame. Instead, they effectively inject "setters" in front of all your state, and then run all app logic and UI updates in callbacks triggered by those setters.
+//! If something did change, the library knows which nodes need to be updated, and can schedule only the minimal relayouts and updates needed.
 //! 
-//! 
-//! However, it's definitely not like immediate mode, in the sense that:
-//! - the node tree is always retained at all times!
-//! - there is no "state tearing" (I think)
-//! - you are not forced to write a button's effect immediately after adding it
-//! 
-//! And most importantly:
-//! - there is no need to do a full relayout every frame/cycle
-//! - there is no need to recreate the render data from scratch every frame/cycle
-//! 
-//! What matters is *how much stuff* you're doing every frame/cycle (and how optimized the code is).
-//! 
-//! In the painter example, the UI redeclaration code takes about 20 μs.
+//! Most of the time, all that the library needs to do is to hash some [`NodeParams`] and some text, and conclude that nothing changed. This is usually very light.
 //! 
 //! It's also important to remember that this has nothing to do with the performance of the program when idle: see footnote [^1].
 //! 
-//! ### Reactivity at home
-//! 
-//! From this starting point, there's still some room for "reactivity".
-//! 
-//! The only difference between what Keru does and a true reactive system (see footnote [^2]) is the redeclaration code that we run every frame/cycle. It doesn't do that much work, but it does have to hash a fair amount of [`NodeParams`] and strings to watch for changes.
-//! 
-//! In reactive systems like Floem, the user has to wrap all the state that the GUI depends on inside a wrapper (`RwSignal` in Floem). The wrapper observes changes in the value and reports it ro a interior-mutable thread_local runtime. The runtime uses the information about all these changes to determine which parts of the UI it has to run. 
-//! 
-//! In Keru, you can make the GUI read and write any variable that you can get a reference to. But the user could still optionally wrap **some** of his state into a wrapper that works in the same way as Floem's `RwSignal`.
-//! 
-//! Keru doesn't take control of the main loop, so it can't use that information as effectively and transparently as Floem does. However, with a bit of help from the user, it could still use that information to either skip all the hashing/diffing operations, or maybe to skip running the redeclaration code completely.
-//! 
-//! None of this is implemented yet, but I am currently trying out a few different approaches.
+//! However, since reactivity seems to be the current big thing, I am also experimenting with ways to skip even this light work: see the ["Reactivity at Home"](#reactivity-at-home) section. 
 //! 
 //! # Advantages
 //! 
-//! This is a list of advantages that I think Keru's approach gives over other other commonly seen approaches. 
+//! This is a list of advantages that I think Keru's approach gives over other  approaches. 
 //! 
 //! - **Own your window loop and rendering**
 //! 
@@ -166,14 +138,12 @@
 //! 
 //! - **Regular Rust Code**
 //! 
-//!     You write Regular Rust Code™. It's always clear when your code gets executed and, hopefully, what it does.
+//!     You write Regular Rust Code™, and it's always clear when your code gets executed.
 //! 
 //!     - you don't have to write as your code inside a big proc macro
 //!     - you don't have to use a domain specific language
-//!     - you don't have to write all your code as part of the impl of some trait that the runtime executes who-knows-when
+//!     - you don't have to write all your code inside of a trait impl or a closure that the runtime executes on its own schedule
 //!     - you don't have to write all your logic inside callbacks
-//! 
-//!     The original plan also included "you don't have to write all your code inside closures", but I abandoned it: you do use closures a lot in Keru, when using the [`nest`](`UiPlacedNode::nest`) function. But they're very simple closures with no arguments that get executed immediately. As close as closures can get to "just a normal block of code".
 //! 
 //! -------
 //! 
@@ -196,8 +166,8 @@
 //! 
 //!     Your UI can depend on any variable that you can get a reference to, i.e. anything. You don't have to structure your state in any particular way.
 //!     - You don't have to pair the state with its UI display logic (unless you want to!)
-//!     - You don't have to wrap your state into observer structs or signal handlers (unless you want to, see the "[Reactivity at Home](#reactivity-at-home)" section)
-//!     - You shouldn't get any extra borrowing or lifetime issues (unlike in closure-heavy and callback-heavy systems)
+//!     - You don't have to wrap your state into observer structs or signal handlers (unless you want to: see the ["Reactivity at Home"](#reactivity-at-home) section)
+//!     - You shouldn't get any extra borrowing or lifetime issues (unlike in closure-heavy and callback-heavy approaches)
 //! 
 //! -------
 //! 
@@ -213,15 +183,38 @@
 //! 
 //!     Keru's API and implementation also tries to improve in other areas where Egui is (in my opinion) janky or inconvenient:
 //! 
-//!     - The API is less fragmented: all operations are methods on the retained [`Ui`] struct, as opposed to a mixture of methods and associated functions on `Context`, `Ui`, `Window`, `Frame`, ... in Egui.
+//!     - The API is less fragmented: all operations are methods on the main [`Ui`] struct, as opposed to a mixture of methods and associated functions on `Context`, `Ui`, `Window`, `Frame`, ... in Egui.
 //!     - There is no interior mutability or locking hidden inside the [`Ui`], unlike Egui's `Context`.
-//!     - Egui's closure pattern is substituted by a much simpler one (see [`UiPlacedNode::nest()`]). Because the closure doesn't borrow or capture anything, it's a lot less prone to ownership errors, and gives more flexibility in how user code can be organized.
-//!     To make this pattern possible, Keru keeps track of the nested  [nest()][`UiPlacedNode::nest()`] calls in thread-local variables. The nesting of function calls is an intrinsically thread-local concept, so this feels like a natural step.
+//!     - Egui's closure pattern is substituted by a much simpler one (see [`UiPlacedNode::nest()`]).
+//! 
+//!         Because the closure doesn't borrow or capture anything, it's a lot less prone to borrowing compile errors, and gives more flexibility in how user code can be organized.
+//!         
+//!         To make this pattern possible, Keru keeps track of the nested  [nest()][`UiPlacedNode::nest()`] calls in thread-local variables. The nesting of function calls is an intrinsically thread-local concept, so this feels like a natural step.
 //! 
 //! 
 //! ## Open questions and unsolved issues
 //! 
-//! - Reactivity
+//! ### Reactivity at home
+//! 
+//! There's still some of room for "reactivity" on top of the library as described so far. I am not 100% sure reactivity in general is worth the tradeoff, but I am currently experimenting with it.
+//! 
+//! From what I've understood, the word "reactive" is used to describe at least two classes of GUI systems, but in this paragraph, I'm talking about the ones like SwiftUi and Floem. These ones don't need to run *any* update code on every cycle, and they don't need to do any diffs. Instead, they effectively inject "setters" in front of all your state, and then run all app logic and UI updates in callbacks triggered by those setters.
+//! 
+//! In SwiftUI this all happens very transparently because of compiler magic. Since this is unrealistic in Rust, and since I don't know how it works internally, I will focus on Floem here.
+//! 
+//! In Floem, the user has to help out a bit and wrap *all* the state that the GUI depends on inside a wrapper, usually `RwSignal`. The wrapper observes changes in the value and reports it to a thread_local runtime. The runtime uses the information about all these changes to determine which parts of the UI it has to update.
+//! 
+//! At least in concept, this should allow the GUI to be more efficient, because it only ever reruns GUI redeclaration code when something has changed, and it never needs to diff or hash anything. Compared to Keru, it does a whole lot less of hashing.
+//! 
+//! In Keru, you can make the GUI read and write any variable that you can get a reference to. You don't have to organize your state in any specific way, and it's easy to e.g. put a GUI on top of some pre-existing game or simulation without going through its state and wrapping it or annotating it with anything.
+//! 
+//! But the user could still optionally wrap **some** of his state into a wrapper that works in the same way as Floem's `RwSignal`.
+//! 
+//! Keru doesn't take control of the main loop, so it can't use that information as effectively and transparently as Floem does. However, with a bit of help from the user, it could still use that information to either skip some hashing/diffing operations, or maybe to skip running the redeclaration code completely.
+//! 
+//! None of this is implemented yet, but I am currently trying out a few different approaches.
+//! 
+//! ### Other
 //! 
 //! - Less room for mistakes: [`Ui::place`] in particular can panic if used incorrectly (using the same key twice or placing a node that wasn't added). 
 //!     There are ways around this, but they make the API worse in other ways. Given that [`UiNode::place`] already offers a less flexible but panic-safe alternative, it might be fine to leave it as it is, but I am still thinking about this often.
@@ -233,11 +226,18 @@
 //! 
 //! - Problems with `winit`/`wgpu`: At least on my X11 Linux system, both take forever to start up, and resizing the window isn't smooth at all. 
 //! 
-//! - Problems with `glyphon`: I am extremely grateful for this library and for `cosmic_text`, as a simple way to "just render text on the screen" was somehow still missing until very recent times. (How was this possible if both Chrome and Firefox open-source state of the art text renderers since forever? That's just the power of C++, I think). However, as soon as I implemented scrolling, I noticed that it would often take 50 or even 100 milliseconds to run its `prepare()` function, even for pretty small paragraphs.
+//! - Problems with `glyphon`: I am extremely grateful for this library and for `cosmic_text`, as a simple way to "just render text on the screen" was somehow still missing until very recent times. (How was this possible if both Chrome and Firefox have had open-source state-of-the-art text renderers since forever? That's just the power of C++, I think). However, as soon as I implemented scrolling, I noticed that glyphon would often take 50 or even 100 milliseconds to run its `prepare()` function, even for pretty small paragraphs.
 //! 
 //! - Adding the remaining 99% of features.
 //! 
 //! 
+//! ### Inspiration
+//! 
+//! Most of the ideas here are inspired by the work of other people, as it usually is. 
+//! 
+//! - [Ryan Fleury's UI series](https://www.rfleury.com/p/ui-series-table-of-contents)
+//! - [Egui](https://github.com/emilk/egui) and [Dear Imgui](https://github.com/ocornut/imgui)
+//! - [Crochet](https://github.com/raphlinus/crochet)
 
 // This helps with doc links.
 #[allow(unused_imports)]
