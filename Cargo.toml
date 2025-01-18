@@ -1,12 +1,14 @@
-workspace = { members = [
-    "crates/view_derive",
-    "crates/change_watcher",
-    "examples/keru_paint",
-] }
 [package]
 name = "keru"
+description = "Experimental GUI library"
+license = "MIT"
 version = "0.1.0"
 edition = "2021"
+
+[workspace]
+members = [
+    "examples/keru_paint",
+]
 
 [profile.dev]
 opt-level = 1
@@ -15,8 +17,6 @@ opt-level = 1
 
 [dependencies]
 view_derive = { path = "crates/view_derive" }
-change_watcher = { path = "crates/change_watcher" }
-
 winit = { version = "0.30.5", features = ["rwh_05"] }
 wgpu = { version = "23", default-features = true }
 glyphon = { version = "0.7.0" }

@@ -40,8 +40,8 @@ impl NodeKey {
     /// # use keru::*;
     /// #[node_key] const ROOT_COLOR_KEY: NodeKey;
     /// let colors = ["blue", "green", "violet"];
-    /// for c in colors {
-    ///     let color_key = ROOT_COLOR_KEY.sibling(s);
+    /// for color in colors {
+    ///     let color_key = ROOT_COLOR_KEY.sibling(color);
     /// }
     /// ```
     pub fn sibling<H: Hash>(self, value: H) -> Self {

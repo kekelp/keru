@@ -45,9 +45,6 @@
 //! if self.ui.is_clicked(INCREASE) {
 //!     self.count += 1;
 //! }
-//! if self.ui.is_clicked(DECREASE) {
-//!     self.count -= 1;
-//! }
 //! # 
 //! #   }
 //! # }
@@ -100,7 +97,6 @@
 //!     if self.show {
 //!         self.ui.place(INCREASE);
 //!         self.ui.label(self.count);
-//!         self.ui.place(DECREASE);
 //!     }
 //! });
 //! 

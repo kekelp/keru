@@ -8,19 +8,21 @@ use crate::*;
 /// 
 /// To see why this function is needed, consider this example: if we wrap some GUI code in a function:
 /// ```
-/// fn my_slider(&mut ui: Ui) {
-///     #[node_key] pub const SLIDER_BUTTON: NodeKey;    
-///     // some complicated GUI code that uses SLIDER_BUTTON  
+/// # use keru::*;
+/// fn widget(ui: &mut Ui) {
+///     #[node_key] pub const WIDGET_NODE: NodeKey;    
+///     // some complicated GUI code that uses WIDGET_NODE  
 /// }
 /// ```
-/// If we call `my_slider()` in multiple places, it would still be using the same `SLIDER_BUTTON` key every time. This will probably cause things to not work as intended.
+/// If we call `widget()` in multiple places, it would still be using the same `WIDGET_NODE` key every time. This will probably cause things to not work as intended.
 /// 
 /// To solve this, just wrap the code in a subtree:
 /// ```
-/// fn my_slider(&mut ui: Ui) -> f32 {
+/// # use keru::*;
+/// fn widget(ui: &mut Ui) {
 ///     subtree(|| {
-///         #[node_key] pub const SLIDER_BUTTON: NodeKey;    
-///         // some complicated GUI code that uses SLIDER_BUTTON
+///         #[node_key] pub const WIDGET_NODE: NodeKey;    
+///         // some complicated GUI code that uses WIDGET_NODE
 ///     });
 /// }
 /// ```
@@ -45,21 +47,36 @@ pub fn subtree<T>(subtree_block: impl FnOnce() -> T) -> T {
 /// 
 /// This is usually not needed, but it allows to access a node in a subtree from outside of it:
 /// ```
-/// fn custom_rendered_widget(&mut ui: Ui, key: NodeKey) {
-///     subtree(|| {
+/// # use keru::*;
+/// fn custom_rendered_widget(ui: &mut Ui, key: NodeKey) {
+///     named_subtree(key, || {
 ///         #[node_key] pub const CUSTOM_RENDERED_NODE: NodeKey;    
 ///         // some complicated GUI code that uses CUSTOM_RENDERED_NODE
 ///     });
 /// }
-/// // Somewhere else in the code, we want to get the custom node's rectangle, so we can run our custom render code
+/// 
+/// # fn test_fn(ui: &mut Ui) {
+/// #[node_key] pub const WIDGET_KEY_1: NodeKey; 
+/// custom_rendered_widget(ui, WIDGET_KEY_1);
+/// # }
+/// 
+/// // Somewhere else in the code, we want to get the custom node's rectangle, 
+/// //   so we can run our custom render code.
 /// // But we can't just do `ui.get_node(CUSTOM_RENDERED_NODE)?.render_rect();`:
 /// // That node was defined inside a private subtree, and we are outside of it.
-/// // So, we re-enter the _same_ named subtree, using the same key as before::
-/// named_subtree(self.key, || {
+/// // So, we re-enter the _same_ named subtree, using the same key as before:
+/// # #[node_key] pub const CUSTOM_RENDERED_NODE: NodeKey;
+/// # #[node_key] pub const WIDGET_KEY_1: NodeKey; 
+/// # fn test_fn2(ui: &mut Ui) -> Option<()> {
+/// named_subtree(WIDGET_KEY_1, || {
 ///     let render_rect = ui.get_node(CUSTOM_RENDERED_NODE)?.render_rect();
-///     // use render_rect as we please
-/// });
+///     // ... render the custom widget
+///     # return Some(());
+/// })
+/// # }
 /// ```
+/// 
+/// Usually there are other ways to accomplish the same thing without using named subtrees. In the example, we could have got the render rect when still inside the first subtree, returned it from the function, and passed it to the render code.
 /// 
 pub fn named_subtree<T>(key: NodeKey, subtree_block: impl FnOnce() -> T) -> T {
     let subtree_id = key.id_with_subtree();
@@ -78,7 +95,8 @@ pub fn named_subtree<T>(key: NodeKey, subtree_block: impl FnOnce() -> T) -> T {
 /// This is useful when creating "container widgets" that take a closure for the content in the same way [`nest()`](UiPlacedNode::nest()) does.
 /// 
 /// ```
-/// fn custom_container(&mut ui: Ui, content: impl FnOnce()) {
+/// # use keru::*;
+/// fn custom_container(ui: &mut Ui, content: impl FnOnce()) {
 ///     // start a subtree
 ///     subtree(|| {
 ///         // build a fancy border or something

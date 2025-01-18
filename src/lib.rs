@@ -1,10 +1,10 @@
 //! Keru is an experimental Graphical User Interface library.
 //! 
-//! It is in active development and it's not ready for any kind of use.
+//! It is in active development and it's not ready for any kind of use. Many features are missing or half-baked. However, if anyone takes the time to check it out and to share some feedback, I'd really appreciate it.
 //! 
-//! It offers a declarative API similar to immediate mode GUI libraries, but it is not immediate mode.
+//! Keru offers a declarative API similar to immediate mode GUI libraries, but it is not immediate mode.
 //! 
-//! See the ["About"](about) page for more information about the API design, the internals, performance considerations, and more.
+//! See the ["About"](about) page for more information about how it works, how it compares to other libraries, and more.
 //! 
 //! ## Example
 //! 
@@ -54,8 +54,8 @@
 //! Once you have a window loop, you can create a [`Ui`] struct and store it in your main program state.
 //! To integrate it with the window loop, you only need to do two things:
 //! 
-//! - When you receive a `winit` `WindowEvent`, pass it to [`Ui::window_event`].
-//! - When you receive a `WindowEvent::RedrawRequested`, redeclare your GUI, then call [`Ui::render`].
+//! - When you receive a `winit` `WindowEvent`, pass it to [`Ui::window_event()`].
+//! - When you receive a `WindowEvent::RedrawRequested`, redeclare your GUI, then call [`Ui::render()`].
 //! 
 //! You can use the [`Ui::needs_rerender()`] to decide whether to render the GUI or skip it.
 //! 
@@ -97,7 +97,7 @@
 //! 
 //! You can do these things by either calling methods directly on the main [`Ui`] struct, or by calling chained methods on the result of a previous method.
 //! 
-//! Methods on the [`Ui`] struct usually take a [`NodeKey`] argument in order to refer to a specific node.
+//! Methods on the [`Ui`] struct usually take a [`NodeKey`] argument to refer to a specific node.
 //! 
 //! ## Creating complex GUIs
 //! 
