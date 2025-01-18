@@ -13,7 +13,7 @@ use crate::*;
 ///     // some complicated GUI code that uses SLIDER_BUTTON  
 /// }
 /// ```
-/// When calling `my_slider()` in multiple places, it would end up using the same `SLIDER_BUTTON` key every time. This will probably cause things to not work as intended.
+/// If we call `my_slider()` in multiple places, it would still be using the same `SLIDER_BUTTON` key every time. This will probably cause things to not work as intended.
 /// 
 /// To solve this, just wrap the code in a subtree:
 /// ```
@@ -25,7 +25,7 @@ use crate::*;
 /// }
 /// ```
 /// 
-/// Now, we can call the function from multiple places. Every time, `subtree()` will create a distinct subtree. Within each one, the same key refers to a different node specified by both the key and the subtree it's in.
+/// Now, we can call the function from multiple places without problems: on every call, `subtree()` will create a distinct subtree. Within each one, the same key refers to a different node identified by both the key and the subtree it's in.
 /// 
 pub fn subtree<T>(subtree_block: impl FnOnce() -> T) -> T {
     // todo: maybe this should use track caller, or something else?
@@ -75,7 +75,23 @@ pub fn named_subtree<T>(key: NodeKey, subtree_block: impl FnOnce() -> T) -> T {
 
 /// Temporarily exit a subtree, and then re-renter it.
 /// 
-/// This is useful when creating "container widgets" that also take a closure for the content. 
+/// This is useful when creating "container widgets" that take a closure for the content in the same way [`nest()`](UiPlacedNode::nest()) does.
+/// 
+/// ```
+/// fn custom_container(&mut ui: Ui, content: impl FnOnce()) {
+///     // start a subtree
+///     subtree(|| {
+///         // build a fancy border or something
+///         exit_subtree(|| {
+///             // run the content code provided from outside
+///             content();
+///         });
+///         // re-enter the subtree and build some more border elements
+///     });
+/// }
+/// ```
+/// 
+/// I haven't really tried this out yet.
 pub fn exit_subtree(out_of_subtree_block: impl FnOnce()) {       
     if let Some(last_subtree_id) = thread_local::last_subtree() {
         thread_local::pop_subtree();

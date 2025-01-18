@@ -115,22 +115,22 @@
 //! 
 //! If something did change, the library knows which nodes need to be updated, and can schedule only the minimal relayouts and updates needed.
 //! 
-//! Most of the time, all that the library needs to do is to hash some [`NodeParams`] and some text, and conclude that nothing changed. This is usually very light.
+//! Most of the time, all that the library needs to do is to hash some [`NodeParams`] and some text, and conclude that nothing changed. This is usually very light, especially compared to a "true immediate mode" approach.
 //! 
 //! It's also important to remember that this has nothing to do with the performance of the program when idle: see footnote [^1].
 //! 
-//! However, since reactivity seems to be the current big thing, I am also experimenting with ways to skip even this light work: see the ["Reactivity at Home"](#reactivity-at-home) section. 
+//! However, since reactivity seems to be the current big thing, I am also experimenting with ways to skip even this work: see the ["Reactivity at Home"](#reactivity-at-home) section. 
 //! 
 //! # Advantages
 //! 
-//! This is a list of advantages that I think Keru's approach gives over other  approaches. 
+//! This is a list of advantages that I think Keru gives over the most popular alternatives. 
 //! 
 //! - **Own your window loop and rendering**
 //! 
 //!     You can use a regular `winit`/`wgpu` render loop and call Keru as a library. It doesn't take any control away from you.
 //!     This makes it easy to compose the ui with custom rendering, both "below" and "inside" the GUI. This is demonstrated in the painter example. Both the painting canvas "below" the UI and the OKLAB color picker "inside" an UI element use custom `wgpu` rendering. 
 //!     
-//!     In particular, this also means that Keru is trivially compatible with ecosystem crates for things like SVG rendering, animations, video, etc, without needing to include and "bless" a particular implementation within Keru. (Of course, it could also include one anyway for the sake of a more complete out-of-the-box experience).
+//!     This also means that Keru is automatically compatible with ecosystem crates for things like SVG rendering, animations, video, etc, without needing to include a particular implementation within Keru. (although including one anyway would still result in a better out-of-the box experience, and probably better ergonomics).
 //! 
 //!     Egui and Dear Imgui accomplish this in a much more hardcore way by being compatible with most windowing and render libraries on earth, but this has many disadvantages, in addition to requiring a ton of extra work. For now, Keru just supports `winit` and `wgpu`.
 //! 
@@ -191,7 +191,9 @@
 //!         
 //!         To make this pattern possible, Keru keeps track of the nested  [nest()][`UiPlacedNode::nest()`] calls in thread-local variables. The nesting of function calls is an intrinsically thread-local concept, so this feels like a natural step.
 //! 
+//! --------
 //! 
+//! I'm not going to spell them out here, but there are disadvantages as well, of course.
 //! 
 //! ## Reactivity at home
 //! 
@@ -207,7 +209,7 @@
 //! 
 //! I think the idea is fair, it's just a matter of finding a nice enough API.
 //! 
-//! Specifying dependencies explicitly might sound annoying, but there's a natural place to do it: at the beginning of any "widget function", like a slider that only takes a `f32` value as an argument.
+//! Specifying dependencies explicitly might sound annoying, but there's a natural place to do it: at the beginning of any "widget" function.
 //!  
 //! 
 //! ## Open questions

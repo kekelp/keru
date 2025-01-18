@@ -4,7 +4,7 @@
 //! 
 //! It offers a declarative API similar to immediate mode GUI libraries, but it is not immediate mode.
 //! 
-//! See the [`about`] page for more information about the API design, the internals, performance considerations, and more.
+//! See the ["About"](about) page for more information about the API design, the internals, performance considerations, and more.
 //! 
 //! ## Example
 //! 
@@ -82,7 +82,7 @@
 //! # }
 //! ```
 //! 
-//! Note that even if you do this every frame, it doesn't mean that the GUI is re-rendering every frame, doing a full relayout on every frame, or anything of that sort. See the [`about`] page for more information on this point.
+//! Note that even if you do this every frame, it doesn't mean that the GUI is re-rendering every frame, doing a full relayout on every frame, or anything of that sort. See the ["About"](about) page for more information on this point.
 //! 
 //! To see how the GUI declaration code works, you can check the basic example above, the Counter example, or the `paint_ui.rs` file in the painter example.
 //! 
@@ -99,6 +99,15 @@
 //! 
 //! Methods on the [`Ui`] struct usually take a [`NodeKey`] argument in order to refer to a specific node.
 //! 
+//! ## Creating complex GUIs
+//! 
+//! * In dynamic GUIs, you can't identify every node with a static [`NodeKey`] in the way the examples do it.
+//! 
+//!     Instead, you can use the [`NodeKey::sibling()`] function to create keys dynamically at runtime.
+//! 
+//! * To create reusable "widgets", you can just wrap the GUI code in a function. However, it's very likely that you'll need to create a [`subtree`](subtree()) for it to make it work correctly.
+//! 
+//! These building blocks should be enough to create complex GUIs. But only time will tell.
 //! 
 
 mod tree;

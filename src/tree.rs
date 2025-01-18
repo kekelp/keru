@@ -713,12 +713,6 @@ impl Ui {
         return self.add_anon_with_name("anon label").params(MULTILINE_LABEL).static_text(text).place();
     }
 
-    /// Add and place an anonymous forsenE.
-    #[track_caller]
-    pub fn forsen_e(&mut self) -> UiPlacedNode {
-        return self.add_anon_with_name("anon forsenE").params(IMAGE).static_image(include_bytes!("textures/forsenE.png")).place();
-    }
-
     /// Returns `true` if a node corresponding to `key` exists and if it is currently part of the GUI tree. 
     pub fn is_in_tree(&self, key: NodeKey) -> bool {
         let node_i = self.nodes.node_hashmap.get(&key.id_with_subtree());
