@@ -122,6 +122,9 @@ pub use node_params::*;
 mod color;
 pub use color::*;
 
+mod subtree;
+pub use subtree::*;
+
 mod ui_node;
 pub use ui_node::*;
 

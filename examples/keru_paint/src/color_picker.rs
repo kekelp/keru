@@ -40,7 +40,7 @@ pub trait ColorPickerUi {
 }
 impl ColorPickerUi for Ui {
     fn place_color_picker(&mut self, color_picker: &mut ColorPicker) {
-        Ui::subtree(color_picker.key, || {
+        named_subtree(color_picker.key, || {
 
             // DVec2 hell
             if let Some((_time_held, abs_pos)) = self.is_held(OKLAB_HUE_WHEEL) {
@@ -150,7 +150,7 @@ impl ColorPicker {
     }
 
     pub fn prepare(&self, ui: &mut Ui, queue: &wgpu::Queue) -> Option<()> {
-        Ui::subtree(self.key, || {
+        named_subtree(self.key, || {
             let wheel_info = ui.get_node(OKLAB_HUE_WHEEL)?.render_rect();
             let wheel_rect = ColorPickerRenderRect {
                 rect: wheel_info.rect,

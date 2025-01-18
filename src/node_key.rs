@@ -19,10 +19,10 @@ use crate::*;
 #[derive(Clone, Copy, Debug)]
 pub struct NodeKey {
     id: Id,
-    pub debug_name: &'static str,
+    pub(crate) debug_name: &'static str,
 }
 impl NodeKey {
-    pub fn id_with_subtree(&self) -> Id {
+    pub(crate) fn id_with_subtree(&self) -> Id {
         
         if let Some(subtree_id) = thread_local::last_subtree() {
             let mut hasher = FxHasher::default();
@@ -38,10 +38,10 @@ impl NodeKey {
     ///
     /// ```rust
     /// # use keru::*;
-    /// #[node_key] const COLOR_NODE: NodeKey;
-    /// let strings = ["blue", "green", "violet"];
-    /// for s in strings {
-    ///     let key = COLOR_NODE.sibling(s);
+    /// #[node_key] const ROOT_COLOR_KEY: NodeKey;
+    /// let colors = ["blue", "green", "violet"];
+    /// for c in colors {
+    ///     let color_key = ROOT_COLOR_KEY.sibling(s);
     /// }
     /// ```
     pub fn sibling<H: Hash>(self, value: H) -> Self {
@@ -56,7 +56,9 @@ impl NodeKey {
         };
     }
 
-    /// Create a key manually. This is usually not needed, use the [`macro@node_key`] macro.
+    /// Create a key manually.
+    /// 
+    /// This is usually not needed: use the [`macro@node_key`] macro for static keys, and [`NodeKey::sibling`] for dynamic keys.
     pub const fn new(id: Id, debug_name: &'static str) -> Self {
         return Self {
             id,

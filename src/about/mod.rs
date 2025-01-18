@@ -17,7 +17,7 @@
 //! # impl State {
 //! #   fn declare_ui(&mut self) {
 //! # 
-//! // Define unique keys/ids for some ui elements. This is not always required.
+//! // Define unique keys/ids for some ui elements.
 //! #[node_key] const INCREASE: NodeKey;
 //! #[node_key] const SHOW: NodeKey;
 //! 
@@ -54,7 +54,7 @@
 //! # 
 //! ```
 //! 
-//! This code is run either on every frame or on every "cycle" (user interaction/external event) [^1].
+//! This code is run either on every frame or on every "cycle" (user interaction/external event) [^1], depending on how the `winit` loop is set up.
 //! 
 //! [^1]: In most "slow" UI applications, the UI can "go to sleep" and do nothing until user input or an external event wakes it up. Even true immediate mode GUIs like `egui` can do this. "Cycle" refers to one of these "awake frames".
 //! 
@@ -195,15 +195,15 @@
 //! 
 //! ## Reactivity at home
 //! 
-//! There's still some of room to add "reactivity" (in the Floem/SwiftUI sense) on top of the library as described so far. I am currently experimenting with it.
+//! There's still some of room to add "reactivity" (in the Floem/SwiftUI sense) on top of the library as described so far. I am currently experimenting with this.
 //! 
-//! Since none of this is implemented yet, there's no point in going into too much detail, but the idea is simple:
+//! Since nothing is implemented yet, there's no point in going into too much detail, but the idea is simple:
 //! 
-//! - The user can optionally choose to wrap some of his state in something similar to Floem's `RwSignal`.
+//! - The user can optionally choose to wrap *some* of his state in something similar to Floem's `RwSignal`.
 //! 
 //! - The user can specify explicitly that a block of UI declaration code depends only on a handful of wrapped variables.
 //! 
-//! - Then, the library can just skip all that code completely, or at least turn functions like [`Ui::add`] and [`Ui::place`] into no-ops.
+//! - Then, the library can just skip all that code completely if none of the variables changed, or at least turn functions like [`Ui::add`] and [`Ui::place`] into no-ops.
 //! 
 //! I think the idea is fair, it's just a matter of finding a nice enough API.
 //! 

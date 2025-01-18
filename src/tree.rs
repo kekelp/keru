@@ -318,11 +318,8 @@ impl Ui {
     
     #[track_caller]
     pub(crate) fn add_anon_with_name(&mut self, debug_name: &'static str) -> UiNode {
-        let location = Location::caller();
-        // it would be cool to avoid doing all these hashes at runtime, somehow.
-        let caller_location_hash = fx_hash(location);
+        let caller_location_hash = caller_location_hash();
         
-        // NodeKey
         let anonymous_key = NodeKey::new(Id(caller_location_hash), debug_name);
         
         let i = self.add_or_update_node(anonymous_key);
@@ -741,47 +738,6 @@ impl Ui {
             self.place_by_i(entry.slab_i);
         }
     }
-
-    pub fn anon_subtree<T>(subtree: impl FnOnce() -> T) -> T {
-        // todo: use track caller, or something else
-        let subtree_id = Id(thread_local::current_tree_hash());
-        
-        thread_local::push_subtree(subtree_id);
-        
-        let result = subtree();
-
-        thread_local::pop_subtree();
-
-        return result;
-    }
-
-    pub fn subtree<T>(key: NodeKey, subtree: impl FnOnce() -> T) -> T {
-        let subtree_id = key.id_with_subtree();
-        
-        thread_local::push_subtree(subtree_id);
-        
-        let result = subtree();
-
-        thread_local::pop_subtree();
-
-        return result;
-    }
-
-    pub fn exit_subtree(subtree: impl FnOnce()) {       
-        if let Some(last_subtree_id) = thread_local::last_subtree() {
-            thread_local::pop_subtree();
-        
-            subtree();
-            
-            thread_local::push_subtree(last_subtree_id);
-
-        } else {
-            log::warn!("exit_subtree, was called, but no subtree was ever entered!");
-            subtree();
-        };
-
-
-    }
 }
 
 
@@ -790,6 +746,14 @@ pub(crate) fn fx_hash<T: Hash>(value: &T) -> u64 {
     let mut hasher = FxHasher::default();
     value.hash(&mut hasher);
     hasher.finish()
+}
+
+#[track_caller]
+fn caller_location_hash() -> u64 {
+    let location = Location::caller();
+    // it would be cool to avoid doing all these hashes at runtime, somehow.
+    let caller_location_hash = fx_hash(location);
+    return caller_location_hash;
 }
 
 /// A struct referring to a node that was [placed](Ui::place) on the tree. Allows adding nested children.
