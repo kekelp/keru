@@ -20,27 +20,27 @@
 //! # impl State {
 //! #   fn declare_ui(&mut self) {
 //! # 
-//! // Define an unique identity for this button
+//! // Define an unique identity for a node. You can also create keys dynamically.
 //! #[node_key] const INCREASE: NodeKey;
 //! 
-//! // Run code in response to events
-//! if self.ui.is_clicked(INCREASE) {
-//!     self.count += 1;
-//! }
-//! 
-//! // Add nodes to the UI and set their parameters
+//! // Add the node to the UI and set its parameters
 //! self.ui.add(INCREASE)
 //!     .params(BUTTON)
 //!     .color(Color::RED)
 //!     .text("Increase");
 //! 
-//! // Place the nodes into the tree and define the layout
+//! // Place nodes into the tree and define the layout
 //! self.ui.v_stack().nest(|| {
 //!     if self.show {
 //!         self.ui.place(INCREASE);
-//!         self.ui.label(self.count); // This one doesn't need an unique key.
+//!         self.ui.label(self.count);
 //!     }
 //! });
+//! 
+//! // Run code in response to events
+//! if self.ui.is_clicked(INCREASE) {
+//!     self.count += 1;
+//! }
 //! #   }
 //! # }
 //! ```
@@ -48,7 +48,6 @@
 //! ## Window Loop
 //! 
 //! If you just want to try out some GUI building code, you can use the one-line loop in [`example_window_loop`]. The Counter example uses this method. 
-//! If you do this, you can skip the rest of this section, for now.
 //! 
 //! However, Keru is intended to be used as part of a regular `winit`/`wgpu` window loop managed by the library user. This makes it very simple to combine it with any kind of custom rendering (as long as it uses `wgpu`).
 //! 
@@ -76,8 +75,7 @@
 //! #   fn declare_ui(&mut self) {
 //! #
 //! self.ui.begin_tree();
-//! self.ui.text("Hello");
-//! self.ui.text("World");
+//! self.ui.text("Hello World");
 //! self.ui.finish_tree();
 //! #
 //! #   }
@@ -91,7 +89,7 @@
 //! To summarize, for each element in the GUI, you have to perform some of these conceptual steps:
 //! 
 //! - optionally, define a [`NodeKey`] for the node
-//! - [add](`Ui::add`) the node to the `Ui`
+//! - [add](`Ui::add`) the node to the [`Ui`]
 //! - set its parameters ([color](`UiNode::color`), [size](`UiNode::size`), [text](`UiNode::text`), ...)
 //! - [place](Ui::place) it in the tree
 //! - optionally, start a [nested](`UiPlacedNode::nest`) block

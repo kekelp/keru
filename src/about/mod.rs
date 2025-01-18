@@ -171,11 +171,11 @@
 //! 
 //! -------
 //! 
-//! - **But it's still not immediate mode!**
+//! - **It's not immediate mode!**
 //! 
-//!     From the public API, Keru might seem very similar to Egui or other immediate mode libraries, and indeed Egui also offers many of the advantages listed so far.
+//!     From the public API, Keru might seem very similar to Egui or other immediate mode libraries, and indeed many of the advantages listed so far also apply to Egui.
 //! 
-//!     However, Keru is **not immediate mode!** The public declarative API might look similar, but inside, there is a fully retained node tree. This is enough to avoid most of the traditional disadvantages of immediate mode GUI:
+//!     However, Keru is **not immediate mode!** The declarative API might look similar, but inside, there is a fully retained node tree. This is enough to avoid most of the traditional disadvantages of immediate mode GUI:
 //!     
 //!     - Layout isn't any more difficult than with any traditional retained mode GUI.
 //!     - There is no need to do a full relayout on every frame. When few things change, Keru does partial updates and relayouts.
@@ -192,29 +192,25 @@
 //!         To make this pattern possible, Keru keeps track of the nested  [nest()][`UiPlacedNode::nest()`] calls in thread-local variables. The nesting of function calls is an intrinsically thread-local concept, so this feels like a natural step.
 //! 
 //! 
-//! ## Open questions and unsolved issues
 //! 
-//! ### Reactivity at home
+//! ## Reactivity at home
 //! 
-//! There's still some of room for "reactivity" on top of the library as described so far. I am not 100% sure reactivity in general is worth the tradeoff, but I am currently experimenting with it.
+//! There's still some of room to add "reactivity" (in the Floem/SwiftUI sense) on top of the library as described so far. I am currently experimenting with it.
 //! 
-//! From what I've understood, the word "reactive" is used to describe at least two classes of GUI systems, but in this paragraph, I'm talking about the ones like SwiftUi and Floem. These ones don't need to run *any* update code on every cycle, and they don't need to do any diffs. Instead, they effectively inject "setters" in front of all your state, and then run all app logic and UI updates in callbacks triggered by those setters.
+//! Since none of this is implemented yet, there's no point in going into too much detail, but the idea is simple:
 //! 
-//! In SwiftUI this all happens very transparently because of compiler magic. Since this is unrealistic in Rust, and since I don't know how it works internally, I will focus on Floem here.
+//! - The user can optionally choose to wrap some of his state in something similar to Floem's `RwSignal`.
 //! 
-//! In Floem, the user has to help out a bit and wrap *all* the state that the GUI depends on inside a wrapper, usually `RwSignal`. The wrapper observes changes in the value and reports it to a thread_local runtime. The runtime uses the information about all these changes to determine which parts of the UI it has to update.
+//! - The user can specify explicitly that a block of UI declaration code depends only on a handful of wrapped variables.
 //! 
-//! At least in concept, this should allow the GUI to be more efficient, because it only ever reruns GUI redeclaration code when something has changed, and it never needs to diff or hash anything. Compared to Keru, it does a whole lot less of hashing.
+//! - Then, the library can just skip all that code completely, or at least turn functions like [`Ui::add`] and [`Ui::place`] into no-ops.
 //! 
-//! In Keru, you can make the GUI read and write any variable that you can get a reference to. You don't have to organize your state in any specific way, and it's easy to e.g. put a GUI on top of some pre-existing game or simulation without going through its state and wrapping it or annotating it with anything.
+//! I think the idea is fair, it's just a matter of finding a nice enough API.
 //! 
-//! But the user could still optionally wrap **some** of his state into a wrapper that works in the same way as Floem's `RwSignal`.
+//! Specifying dependencies explicitly might sound annoying, but there's a natural place to do it: at the beginning of any "widget function", like a slider that only takes a `f32` value as an argument.
+//!  
 //! 
-//! Keru doesn't take control of the main loop, so it can't use that information as effectively and transparently as Floem does. However, with a bit of help from the user, it could still use that information to either skip some hashing/diffing operations, or maybe to skip running the redeclaration code completely.
-//! 
-//! None of this is implemented yet, but I am currently trying out a few different approaches.
-//! 
-//! ### Other
+//! ## Open questions
 //! 
 //! - Less room for mistakes: [`Ui::place`] in particular can panic if used incorrectly (using the same key twice or placing a node that wasn't added). 
 //!     There are ways around this, but they make the API worse in other ways. Given that [`UiNode::place`] already offers a less flexible but panic-safe alternative, it might be fine to leave it as it is, but I am still thinking about this often.
@@ -232,8 +228,6 @@
 //! 
 //! 
 //! ### Inspiration
-//! 
-//! Most of the ideas here are inspired by the work of other people, as it usually is. 
 //! 
 //! - [Ryan Fleury's UI series](https://www.rfleury.com/p/ui-series-table-of-contents)
 //! - [Egui](https://github.com/emilk/egui) and [Dear Imgui](https://github.com/ocornut/imgui)

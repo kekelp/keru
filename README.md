@@ -6,16 +6,13 @@ It offers a declarative API similar to immediate mode GUI libraries, but it is n
 
 See the docs.rs page for more information.
 
-## Example
+![Screenshot of paint example](screenshots/paint.png)
+
+## Code Example
 
 ```rust
 // Define an unique identity for this button
 #[node_key] const INCREASE: NodeKey;
-
-// Run code in response to events
-if ui.is_clicked(INCREASE) {
-    self.count += 1;
-}
 
 // Add nodes to the UI and set their parameters
 ui.add(INCREASE)
@@ -30,4 +27,9 @@ ui.v_stack().nest(|| {
         ui.label(self.count); // This one doesn't need an unique key.
     }
 });
+
+// Run code in response to events
+if ui.is_clicked(INCREASE) {
+    self.count += 1;
+}
 ```
