@@ -1108,7 +1108,7 @@ dependencies = [
  "glam",
  "glyphon",
  "image",
- "keru_macros",
+ "keru_macros 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log",
  "pollster",
  "rustc-hash 1.1.0",
@@ -1121,6 +1121,18 @@ dependencies = [
 [[package]]
 name = "keru_macros"
 version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "rand",
+ "syn",
+]
+
+[[package]]
+name = "keru_macros"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd223ac846be49958a84ff37d42719963d9f3d6e9e9f956a660ec07022c42176"
 dependencies = [
  "proc-macro2",
  "quote",
