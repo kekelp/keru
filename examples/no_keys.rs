@@ -9,12 +9,14 @@ pub struct State {
 
 impl ExampleLoop for State {
     // This example is equivalent to the "counter" example, but it doesn't use NodeKeys.
-    // In my opinion, mashing together style, layout and effects like this makes things very hard to read.
+    // Since we can't refer to nodes using keys, we have to do all operations for a node (creating it, setting parameters, placing it in the layout, and running effects) all in a single method chain.
+    // This might actually be more familiar, since that's how it works in many other declarative GUI libraries.
+    // But in my opinion, it makes things harder to read: the layout is defined by the nesting of the function calls, but since we're doing so much other stuff in the same place, the layout structure becomes hard to understand at a glance.
 
     fn update_ui(&mut self, ui: &mut Ui) {
         fn count_color(count: i32) -> Color {
-            let red = (0.1 * (count as f32) * 255.0) as u8;
-            return Color::rgba(red, 26, 52, 205);
+            let red = 0.1 * count as f32;
+            return Color::rgba_f(red, 0.10196, 0.59608, 0.80392);
         }
         let show_button_text = match self.show {
             true => "Hide Counter",

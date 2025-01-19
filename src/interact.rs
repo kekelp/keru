@@ -8,19 +8,103 @@ use crate::Axis::{X, Y};
 
 pub(crate) const ANIMATION_RERENDER_TIME: f32 = 0.5;
 
-impl Ui {
-    pub fn mouse_input(&self) -> &MouseInput<Id> {
-        return &self.sys.mouse_input;
+pub struct UiNodeResponse<'a> {
+    ui: &'a mut Ui,
+    node_i: usize,
+}
+
+impl<'a> UiNodeResponse<'a> {
+    pub fn new<'b>(ui: &'b mut Ui, node_i: usize) -> UiNodeResponse<'b> {
+        return UiNodeResponse {
+            ui,
+            node_i,
+        }
+    }
+    
+    // todo: remove all this duplication. Either make UiNode and UiPlacedNode hold a key instead of a slab i, or make it easier to use Ui's is_clicked with the slab i.
+    // 2nd one is easier, but the 1st one might be worth doing for other reasons?
+
+    /// Returns `true` if the node was just clicked with the left mouse button.
+    /// 
+    /// This is "act on press", you might want [is_click_released()](Self::is_click_released()).
+    pub fn is_clicked(&self) -> bool {
+        let id = self.ui.nodes[self.node_i].id;
+        return self.ui.sys.mouse_input.clicked(Some(MouseButton::Left), Some(id));
     }
 
+    /// Returns `true` if a left button mouse click was just released on the node.
+    pub fn is_click_released(&self) -> bool {
+        let id = self.ui.nodes[self.node_i].id;
+        return self.ui.sys.mouse_input.click_released(Some(MouseButton::Left), Some(id));
+    }
+
+    /// If the node was being held with the left mouse button in the last frame, returns the duration for which it was held.
+    pub fn is_held(&self) -> Option<Duration> {
+        let id = self.ui.nodes[self.node_i].id;
+        return self.ui.sys.mouse_input.held(Some(MouseButton::Left), Some(id));
+    }
+
+    /// If the node was dragged, returns the distance dragged. Otherwise, returns `(0.0, 0.0)`.
+    pub fn is_dragged(&self) -> (f64, f64) {
+        let id = self.ui.nodes[self.node_i].id;
+        return self.ui.sys.mouse_input.dragged(Some(MouseButton::Left), Some(id));
+    }
+
+    /// Returns `true` if a node is currently hovered by the cursor.
+    pub fn is_hovered(&self) -> bool {
+        let id = self.ui.nodes[self.node_i].id;
+        return self.ui.sys.hovered.last() == Some(&id);
+    }
+
+    /// Returns `true` if the node was just clicked with the `mouse_button`.
+    /// 
+    /// This is "act on press", you might want [is_click_released()](Self::is_click_released()).
+    pub fn is_mouse_button_clicked(&self, mouse_button: MouseButton) -> bool {
+        let id = self.ui.nodes[self.node_i].id;
+        return self.ui.sys.mouse_input.clicked(Some(mouse_button), Some(id));
+    }
+
+    /// Returns `true` if a `mouse_button` click was just released on the node.
+    pub fn is_mouse_button_click_released(&self, mouse_button: MouseButton) -> bool {
+        let id = self.ui.nodes[self.node_i].id;
+        return self.ui.sys.mouse_input.click_released(Some(mouse_button), Some(id));
+    }
+
+    /// If the node was being held with `mouse_button` in the last frame, returns the duration for which it was held.
+    pub fn is_mouse_button_held(&self, mouse_button: MouseButton) -> Option<Duration> {
+        let id = self.ui.nodes[self.node_i].id;
+        return self.ui.sys.mouse_input.held(Some(mouse_button), Some(id));
+    }
+
+    /// If the node was dragged, returns the distance dragged. Otherwise, returns `(0.0, 0.0)`.
+    pub fn is_mouse_button_dragged(&self, mouse_button: MouseButton) -> (f64, f64) {
+        let id = self.ui.nodes[self.node_i].id;
+        return self.ui.sys.mouse_input.dragged(Some(mouse_button), Some(id));
+    }
+
+    // todo: the rest of the interact functions
+}
+
+
+impl Ui {
+    /// Returns `true` if the node corresponding to `key` was just clicked with the left mouse button.
+    /// 
+    /// This is "act on press", you might want [is_click_released()](Self::is_click_released()).
     pub fn is_clicked(&self, node_key: NodeKey) -> bool {
         return self.sys.mouse_input.clicked(Some(MouseButton::Left), Some(node_key.id_with_subtree()));
     }
 
-    pub fn is_held(&self, node_key: NodeKey) -> Option<(Duration, glam::DVec2)> {
+    /// Returns `true` if a left button mouse click was just released on the node corresponding to `key`.
+    pub fn is_click_released(&self, node_key: NodeKey) -> bool {
+        return self.sys.mouse_input.click_released(Some(MouseButton::Left), Some(node_key.id_with_subtree()));
+    }
+
+    /// If the node corresponding to `key` was being held with the left mouse button in the last frame, returns the duration for which it was held.
+    pub fn is_held(&self, node_key: NodeKey) -> Option<Duration> {
         return self.sys.mouse_input.held(Some(MouseButton::Left), Some(node_key.id_with_subtree()));
     }
 
+    /// If the node corresponding to `key` was dragged, returns the distance dragged. Otherwise, returns `(0.0, 0.0)`.
     pub fn is_dragged(&self, node_key: NodeKey) -> (f64, f64) {
         return self.sys.mouse_input.dragged(Some(MouseButton::Left), Some(node_key.id_with_subtree()));
     }
@@ -28,6 +112,28 @@ impl Ui {
     /// Returns `true` if a node is currently hovered by the cursor.
     pub fn is_hovered(&self, node_key: NodeKey) -> bool {
         return self.sys.hovered.last() == Some(&node_key.id_with_subtree());
+    }
+
+    /// Returns `true` if the node corresponding to `key` was just clicked with the `mouse_button`.
+    /// 
+    /// This is "act on press", you might want [is_click_released()](Self::is_click_released()).
+    pub fn is_mouse_button_clicked(&self, node_key: NodeKey, mouse_button: MouseButton) -> bool {
+        return self.sys.mouse_input.clicked(Some(mouse_button), Some(node_key.id_with_subtree()));
+    }
+
+    /// Returns `true` if a `mouse_button` click was just released on the node corresponding to `key`.
+    pub fn is_mouse_button_click_released(&self, node_key: NodeKey, mouse_button: MouseButton) -> bool {
+        return self.sys.mouse_input.click_released(Some(mouse_button), Some(node_key.id_with_subtree()));
+    }
+
+    /// If the node corresponding to `key` was being held with `mouse_button` in the last frame, returns the duration for which it was held.
+    pub fn is_mouse_button_held(&self, node_key: NodeKey, mouse_button: MouseButton) -> Option<Duration> {
+        return self.sys.mouse_input.held(Some(mouse_button), Some(node_key.id_with_subtree()));
+    }
+
+    /// If the node corresponding to `key` was dragged, returns the distance dragged. Otherwise, returns `(0.0, 0.0)`.
+    pub fn is_mouse_button_dragged(&self, node_key: NodeKey, mouse_button: MouseButton) -> (f64, f64) {
+        return self.sys.mouse_input.dragged(Some(mouse_button), Some(node_key.id_with_subtree()));
     }
 
     // todo: think if it's really worth it to do this on every mouse movement.

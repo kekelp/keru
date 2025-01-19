@@ -188,22 +188,19 @@ impl<T: Tag> MouseInput<T> {
     }
 
     /// Returns the time a mouse button was held on a node and its last position, or `None` if it wasn’t held.
-    pub fn held(&self, mouse_button: Option<MouseButton>, tag: Option<T>) -> Option<(Duration, glam::DVec2)> {
+    pub fn held(&self, mouse_button: Option<MouseButton>, tag: Option<T>) -> Option<Duration> {
         let all_events = self.mouse_events(mouse_button, tag);
 
         let mut time_held = Duration::ZERO;
-        let mut last_pos = glam::dvec2(0.0, 0.0);
 
         for e in all_events {
             time_held += e.time_held();
-            // todo: this is not good... but iterators are hard
-            last_pos = e.currently_at.position;
         }
 
         if time_held == Duration::ZERO {
             return None;
         } else {
-            return Some((time_held, last_pos));
+            return Some(time_held);
         }
     }
 }

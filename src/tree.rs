@@ -9,6 +9,7 @@ use crate::node::*;
 use glyphon::cosmic_text::Align;
 use glyphon::{AttrsList, Color as GlyphonColor, TextBounds, Viewport};
 
+use interact::UiNodeResponse;
 use rustc_hash::FxHasher;
 
 use std::collections::hash_map::Entry;
@@ -817,24 +818,7 @@ impl UiPlacedNode {
     /// 
     /// To see an example of code using this alternative pattern, see the "no_keys" example.
     pub fn response<'a>(&self, ui: &'a mut Ui) -> UiNodeResponse<'a> {
-        return UiNodeResponse {
-            ui,
-            node_i: self.node_i,
-        }
-    }
-}
-
-pub struct UiNodeResponse<'a> {
-    ui: &'a mut Ui,
-    node_i: usize,
-}
-impl<'a> UiNodeResponse<'a> {
-    pub fn is_clicked(&self) -> bool {
-        let id = self.ui.nodes[self.node_i].id;
-
-        // todo: don't do this. this actually breaks with subtrees.
-        let awkwardly_recreated_key = NodeKey::new(id, "");
-        return self.ui.is_clicked(awkwardly_recreated_key);
+        return UiNodeResponse::new(ui, self.node_i);
     }
 }
 

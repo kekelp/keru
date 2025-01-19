@@ -111,7 +111,7 @@
 //! 
 //! If something did change, the library knows which nodes need to be updated, and can schedule only the minimal relayouts and updates needed.
 //! 
-//! Most of the time, all that the library needs to do is to hash some [`NodeParams`] and some text, and conclude that nothing changed. This is usually very light, especially compared to a "true immediate mode" approach.
+//! Most of the time, all that the library needs to do is to hash some [`NodeParams`] and some text, and conclude that nothing changed. This should be very light, especially compared to a "true immediate mode" approach.
 //! 
 //! It's also important to remember that this has nothing to do with the performance of the program when idle: see footnote [^1].
 //! 
@@ -195,7 +195,7 @@
 //! 
 //! ## Reactivity at home
 //! 
-//! There's still some of room to add "reactivity" (in the Floem/SwiftUI sense) on top of the library as described so far. I am currently experimenting with this.
+//! There's still some room to add "reactivity" (in the Floem/SwiftUI sense) on top of the library as described so far. I am currently experimenting with this.
 //! 
 //! Since nothing is implemented yet, there's no point in going into too much detail, but the idea is simple:
 //! 
