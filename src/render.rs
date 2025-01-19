@@ -166,6 +166,7 @@ impl<T: Pod> TypedGpuBuffer<T> {
         }
     }
 
+    #[allow(dead_code)]
     pub fn size() -> u64 {
         mem::size_of::<T>() as u64
     }

@@ -189,6 +189,7 @@ impl<T: Tag> MouseInput<T> {
 
     /// Returns the time a mouse button was held on a node and its last position, or `None` if it wasn’t held.
     pub fn held(&self, mouse_button: Option<MouseButton>, tag: Option<T>) -> Option<Duration> {
+        // this used to return a more accurate position, but I doubt anybody cares
         let all_events = self.mouse_events(mouse_button, tag);
 
         let mut time_held = Duration::ZERO;

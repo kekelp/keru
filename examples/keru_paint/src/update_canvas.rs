@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 use crate::{canvas::EpicRotation, State};
 use glam::dvec2;
 use winit::{

@@ -43,8 +43,8 @@ impl ColorPickerUi for Ui {
         named_subtree(color_picker.key, || {
 
             // DVec2 hell
-            if let Some((_time_held, abs_pos)) = self.is_held(OKLAB_HUE_WHEEL) {
-                let abs_pos: Vec2 = vec2(abs_pos.x as f32, abs_pos.y as f32);
+            if let Some(_) = self.is_held(OKLAB_HUE_WHEEL) {
+                let abs_pos: Vec2 = self.cursor_position().as_vec2();
                 let center: Vec2 = self.get_node(OKLAB_HUE_WHEEL).unwrap().center().into();
                 let pos: Vec2 = abs_pos - center;
                 let angle = pos.x.atan2(pos.y);
@@ -53,8 +53,8 @@ impl ColorPickerUi for Ui {
                 color_picker.need_rerender = true;
             };
 
-            if let Some((_time_held, abs_pos)) = self.is_held(OKLAB_SQUARE) {
-                let abs_pos: Vec2 = vec2(abs_pos.x as f32, abs_pos.y as f32);
+            if let Some(_) = self.is_held(OKLAB_SQUARE) {
+                let abs_pos: Vec2 = self.cursor_position().as_vec2();
                 let size_pixels: Vec2 = self.get_node(OKLAB_SQUARE).unwrap().rect().size().into();
                 let bottom_left: Vec2 = self.get_node(OKLAB_SQUARE).unwrap().bottom_left().into();
                 let mut pos: Vec2 = abs_pos - bottom_left;
