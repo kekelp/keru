@@ -22,9 +22,9 @@ impl ExampleLoop for State {
         
         #[node_key] pub const SCROLL_TEXT: NodeKey;
 
-        ui.add(DARK_PANEL).params(PANEL).color(Color::FLGR_BLUE).size_symm(Fill);
+        ui.add(DARK_PANEL).params(PANEL).color(Color::KERU_BLUE).size_symm(Fill);
 
-        ui.add(SMALL_PANEL).params(PANEL).size_symm(Fixed(Frac(0.95))).color(Color::FLGR_BLACK).padding(Len::ZERO);
+        ui.add(SMALL_PANEL).params(PANEL).size_symm(Fixed(Frac(0.95))).color(Color::KERU_BLACK).padding(Len::ZERO);
         ui.add(SCROLL_AREA).params(CONTAINER).size_y(Fill).scrollable_y(true).padding(Len::ZERO);
 
         ui.place(DARK_PANEL).nest(|| {

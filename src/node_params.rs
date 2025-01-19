@@ -203,7 +203,7 @@ impl Rect {
         shape: Shape::Rectangle { corner_radius: BASE_RADIUS }, 
         visible: true,
         outline_only: true,
-        vertex_colors: VertexColors::flat(Color::FLGR_BLUE),
+        vertex_colors: VertexColors::flat(Color::KERU_BLUE),
     };
 }
 
@@ -279,7 +279,7 @@ impl NodeParams {
     pub const fn invisible(mut self) -> Self {
         self.rect.visible = false;
         self.rect.outline_only = false;
-        self.rect.vertex_colors = VertexColors::flat(Color::FLGR_DEBUG_RED);
+        self.rect.vertex_colors = VertexColors::flat(Color::KERU_DEBUG_RED);
         return self;
     }
 

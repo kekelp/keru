@@ -40,7 +40,7 @@ pub const DEFAULT: NodeParams = NodeParams {
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
         outline_only: false,
-        vertex_colors: VertexColors::flat(Color::FLGR_BLUE),
+        vertex_colors: VertexColors::flat(Color::KERU_BLUE),
     },
     interact: Interact {
         absorbs_mouse_events: false,
@@ -67,7 +67,7 @@ pub const V_STACK: NodeParams = NodeParams {
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
         outline_only: true,
-        vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
+        vertex_colors: VertexColors::flat(Color::KERU_DEBUG_RED),
     },
     interact: Interact {
         absorbs_mouse_events: false,
@@ -94,7 +94,7 @@ pub const H_STACK: NodeParams = NodeParams {
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
         outline_only: true,
-        vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
+        vertex_colors: VertexColors::flat(Color::KERU_DEBUG_RED),
     },
     interact: Interact {
         absorbs_mouse_events: false,
@@ -122,7 +122,7 @@ pub const V_SCROLL_STACK: NodeParams = NodeParams {
             shape: Rectangle { corner_radius: BASE_RADIUS },
             visible: false,
             outline_only: true,
-            vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
+            vertex_colors: VertexColors::flat(Color::KERU_DEBUG_RED),
         },
         interact: Interact {
             absorbs_mouse_events: false,
@@ -146,7 +146,7 @@ pub const MARGIN: NodeParams = NodeParams {
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
         outline_only: true,
-        vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
+        vertex_colors: VertexColors::flat(Color::KERU_DEBUG_RED),
     },
     interact: Interact {
         absorbs_mouse_events: false,
@@ -169,7 +169,7 @@ pub const ICON_BUTTON: NodeParams = NodeParams {
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
         outline_only: false,
-        vertex_colors: VertexColors::FLGR_SOVL_GRAD,
+        vertex_colors: VertexColors::KERU_GRAD,
     },
     interact: Interact {
         absorbs_mouse_events: true,
@@ -219,7 +219,7 @@ pub const BUTTON: NodeParams = NodeParams {
         visible: true,
         outline_only: false,
         // vertex_colors: VertexColors::TEST,
-        vertex_colors: VertexColors::diagonal_gradient_backslash(Color::FLGR_BLUE, Color::FLGR_RED),
+        vertex_colors: VertexColors::diagonal_gradient_backslash(Color::KERU_BLUE, Color::KERU_RED),
     },
     interact: Interact {
         absorbs_mouse_events: true,
@@ -245,7 +245,7 @@ pub const LABEL: NodeParams = NodeParams {
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
         outline_only: false,
-        vertex_colors: VertexColors::FLGR_SOVL_GRAD,
+        vertex_colors: VertexColors::KERU_GRAD,
     },
     interact: Interact {
         absorbs_mouse_events: false,
@@ -272,7 +272,7 @@ pub const MULTILINE_LABEL: NodeParams = NodeParams {
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
         outline_only: false,
-        vertex_colors: VertexColors::FLGR_SOVL_GRAD,
+        vertex_colors: VertexColors::KERU_GRAD,
     },
     interact: Interact {
         absorbs_mouse_events: false,
@@ -299,7 +299,7 @@ pub const TEXT: NodeParams = NodeParams {
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
         outline_only: true,
-        vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
+        vertex_colors: VertexColors::flat(Color::KERU_DEBUG_RED),
     },
     interact: Interact {
         absorbs_mouse_events: false,
@@ -326,7 +326,7 @@ pub const TEXT_PARAGRAPH: NodeParams = NodeParams {
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
         outline_only: true,
-        vertex_colors: VertexColors::flat(Color::FLGR_DEBUG_RED),
+        vertex_colors: VertexColors::flat(Color::KERU_DEBUG_RED),
     },
     interact: Interact {
         absorbs_mouse_events: false,
@@ -378,7 +378,7 @@ pub const PANEL: NodeParams = NodeParams {
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
         outline_only: false,
-        vertex_colors: VertexColors::FLGR_SOVL_GRAD_FW,
+        vertex_colors: VertexColors::KERU_GRAD_FW,
     },
     interact: Interact {
         absorbs_mouse_events: false,
@@ -402,7 +402,7 @@ pub const CONTAINER: NodeParams = NodeParams {
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
         outline_only: true,
-        vertex_colors: VertexColors::FLGR_SOVL_GRAD,
+        vertex_colors: VertexColors::KERU_GRAD,
     },
     interact: Interact {
         absorbs_mouse_events: false,

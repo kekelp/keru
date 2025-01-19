@@ -12,7 +12,7 @@ use wgpu::BindGroup;
 use wgpu::Buffer;
 use wgpu::RenderPipeline;
 
-use crate::paint_ui::FLGR_PANEL;
+use crate::paint_ui::KERU_PANEL;
 
 pub struct ColorPickerRenderer {
     pub vertex_buffer: Buffer,
@@ -77,7 +77,7 @@ impl ColorPickerUi for Ui {
             // todo: actually implement this, and pair it with a nicer observer for the example
 
             self.add(CONTAINER)
-                .params(FLGR_PANEL)
+                .params(KERU_PANEL)
                 .size_x(Size::Fixed(Frac(0.18)))
                 .size_y(Size::AspectRatio(1.0));
             

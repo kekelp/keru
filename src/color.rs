@@ -27,11 +27,11 @@ pub struct VertexColors {
 impl VertexColors {
     pub const GREENSCREEN: Self = VertexColors::flat(Color::rgba_f(0.0, 1.0, 0.0, 0.7));
 
-    pub const FLGR_SOVL_GRAD: Self =
-        VertexColors::diagonal_gradient_backslash(Color::FLGR_BLUE, Color::FLGR_RED);
+    pub const KERU_GRAD: Self =
+        VertexColors::diagonal_gradient_backslash(Color::KERU_BLUE, Color::KERU_RED);
 
-    pub const FLGR_SOVL_GRAD_FW: Self =
-        VertexColors::diagonal_gradient_forward_slash(Color::FLGR_BLUE, Color::FLGR_RED);
+    pub const KERU_GRAD_FW: Self =
+        VertexColors::diagonal_gradient_forward_slash(Color::KERU_BLUE, Color::KERU_RED);
 
 
     pub const TEST: Self = Self {
@@ -93,14 +93,14 @@ impl VertexColors {
 }
 
 impl Color {
-    pub const FLGR_BLACK: Color = Color {
+    pub const KERU_BLACK: Color = Color {
         r: (0.07 * 255.0) as u8,
         g: (0.07 * 255.0) as u8,
         b: (0.09 * 255.0) as u8,
         a: 255_u8,
     };
 
-    pub const FLGR_DEBUG_RED: Color = Color::rgba(255, 0, 0, 77);
+    pub const KERU_DEBUG_RED: Color = Color::rgba(255, 0, 0, 77);
 
     pub const RED: Color = Color::rgba(255, 0, 0, 255);
     pub const GREEN: Color = Color::rgba(0, 255, 0, 255);
@@ -110,9 +110,9 @@ impl Color {
     pub const WHITE: Color = Color::rgba(255, 255, 255, 255);
     pub const TRANSPARENT: Color = Color::rgba(255, 255, 255, 0);
 
-    pub const FLGR_BLUE: Color = Color::rgba(26, 26, 255, 255);
-    pub const FLGR_RED: Color = Color::rgba(255, 26, 26, 255);
-    pub const FLGR_GREEN: Color = Color::rgba(26, 255, 26, 255);
+    pub const KERU_BLUE: Color = Color::rgba(26, 26, 255, 255);
+    pub const KERU_RED: Color = Color::rgba(255, 26, 26, 255);
+    pub const KERU_GREEN: Color = Color::rgba(26, 255, 26, 255);
 
     pub const LIGHT_BLUE: Color = Color {
         r: (0.9 * 255.0) as u8,

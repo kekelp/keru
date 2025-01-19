@@ -13,7 +13,7 @@ use crate::State;
 const COLOR1: Color = Color::rgba(50, 13, 100, 240);
 const COLOR2: Color = Color::rgba(100, 13, 50, 240);
 const GRAD1: VertexColors = VertexColors::diagonal_gradient_forward_slash(COLOR1, COLOR2);
-pub const FLGR_PANEL: NodeParams = PANEL.vertex_colors(GRAD1);
+pub const KERU_PANEL: NodeParams = PANEL.vertex_colors(GRAD1);
 
 impl State {
 
@@ -75,7 +75,7 @@ impl State {
         
         #[node_key] const PIXEL_PANEL2: NodeKey;
         self.ui.add(PIXEL_PANEL2)
-            .params(FLGR_PANEL)
+            .params(KERU_PANEL)
             .position_x(Start)
             .position_y(Start)
             // without a fixed size here, we get way too much partial relayouting to do on every frame
@@ -113,7 +113,7 @@ impl State {
         self.ui.add(ERASER).params(ICON_BUTTON).static_image(include_bytes!("icons/eraser.png"));
 
         self.ui.add(TOOLS_PANEL)
-            .params(FLGR_PANEL)
+            .params(KERU_PANEL)
             .position_x(Start)
             .position_y(Start)
             .size_x(FitContent);
@@ -138,17 +138,17 @@ impl State {
 
         #[node_key] pub const SLIDER_CONTAINER: NodeKey;
         self.ui.add(SLIDER_CONTAINER)
-            .params(FLGR_PANEL)
+            .params(KERU_PANEL)
             .position_x(End)
             .size_y(Size::Fixed(Frac(0.7)))
             .size_x(Fixed(Pixels(50)));
 
         #[node_key] pub const SLIDER_FILL: NodeKey;
         self.ui.add(SLIDER_FILL)
-            .params(FLGR_PANEL)
+            .params(KERU_PANEL)
             .size_x(Fill)
             .size_y(Fixed(Frac((log_value - log_min) / (log_max - log_min))))
-            .color(Color::FLGR_RED)
+            .color(Color::KERU_RED)
             .position_y(End)
             .padding_y(Pixels(1));
 
