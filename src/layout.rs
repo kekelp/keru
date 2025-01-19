@@ -707,7 +707,6 @@ impl Scroll {
 #[derive(Debug)]
 pub(crate) struct ScrollLimits(XyRect);
 impl ScrollLimits {
-    pub const ZERO: ScrollLimits = ScrollLimits(XyRect::new([0.0, 0.0], [0.0, 0.0]));
     pub fn min_scroll(&self, axis: Axis) -> f32 {
         return self.0[axis][0];
     }

@@ -811,7 +811,7 @@ impl UiPlacedNode {
     /// 
     /// The [`UiNodeResponse`]'s methods can be used to know if a node is being clicked, dragged, or hovered.
     /// 
-    /// For complicated API design reasons, you have to pass a reference to the [`Ui`] back to this method. This might change in the future.
+    /// For somewhat complicated reasons, you have to pass a reference to the [`Ui`] back to this method. This might change in the future.
     /// 
     /// This is an "alternative" API, only useful if you really don't want to use [`NodeKeys`](NodeKey). The recommended way to do this is to use functions like [`Ui::is_clicked()`] directly on the main [`Ui`] struct, using a [`NodeKey`] to refer to the intended node.
     /// 

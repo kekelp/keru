@@ -53,7 +53,7 @@
 //! 
 //! This code is run either on every frame or on every "cycle" (user interaction/external event) [^1], depending on how the `winit` loop is set up.
 //! 
-//! [^1]: In most "slow" UI applications, the UI can "go to sleep" and do nothing until user input or an external event wakes it up. Even true immediate mode GUIs like `egui` can do this. "Cycle" refers to one of these "awake frames".
+//! [^1]: In most "slow" UI applications, the UI can "go to sleep" and do nothing until user input or an external event wakes it up. Even true immediate mode GUIs like Egui can do this. "Cycle" refers to one of these "awake frames".
 //! 
 //! Every time, you re-declare the whole GUI tree. However, the tree is **fully retained** across frames. If a function like [`place()`](Ui::place) finds that the corresponding node already exists in the tree, it will either update it, or do nothing.
 //! 
@@ -124,9 +124,9 @@
 //! - **Own your window loop and rendering**
 //! 
 //!     You can use a regular `winit`/`wgpu` render loop and call Keru as a library. It doesn't take any control away from you.
-//!     This makes it easy to compose the ui with custom rendering, both "below" and "inside" the GUI. This is demonstrated in the painter example. Both the painting canvas "below" the UI and the OKLAB color picker "inside" an UI element use custom `wgpu` rendering. 
+//!     This makes it easy to compose the ui with custom rendering, both "below" and "inside" the GUI. This is demonstrated in the painter example. Both the painting canvas ("below" the UI) and the color picker (inside an UI element) use custom `wgpu` rendering. 
 //!     
-//!     This also means that Keru is automatically compatible with ecosystem crates for things like SVG rendering, animations, video, etc, without needing to include a particular implementation within Keru. (although including one anyway would still result in a better out-of-the box experience, and probably better ergonomics).
+//!     This also means that Keru is automatically compatible with ecosystem crates for things like SVG rendering, animations, video, etc (as long as they use `wgpu`) without needing to include a particular implementation within Keru. (although including one anyway would still result in a better out-of-the box experience, and probably better ergonomics).
 //! 
 //!     Egui and Dear Imgui accomplish this in a much more hardcore way by being compatible with most windowing and render libraries on earth, but this has many disadvantages, in addition to requiring a ton of extra work. For now, Keru just supports `winit` and `wgpu`.
 //! 
@@ -138,7 +138,7 @@
 //! 
 //!     - you don't have to write as your code inside a big proc macro
 //!     - you don't have to use a domain specific language
-//!     - you don't have to write all your code inside of a trait impl or a closure that the runtime executes on its own schedule
+//!     - you don't have to write all your code inside of a trait impl or a long-lived closure that the runtime executes on its own schedule
 //!     - you don't have to write all your logic inside callbacks
 //! 
 //! -------
@@ -147,14 +147,14 @@
 //! 
 //!     You should have as much freedom as possible when organizing your GUI code. You have the *option* to keep style, layout and effects of an element close to each other, but you aren't forced to do so.
 //!     
-//!     If you look at the examples in the repos for `gpui`, `floem`, `egui` and others, you'll see that the layout is derived from the order and nesting of the functions that create the elements.
+//!     If you look at the examples in the repos for Gpui, Floem, Egui and others, you'll see that like in Keru the layout is derived from the order and nesting of the functions that create the elements.
 //!     But you also have to specify the style and the effect right after that call by chaining builder functions to it.
 //! 
 //!     The resulting code is very strange and hard to read, in my opinion. In particular, it's very hard to follow the nesting structure that defines the layout, since it's mixed with so much other stuff. Most of the clarity of the "nested calls -> layout" approach is lost.
 //! 
 //!     In Keru, you can always refer to a node from anywhere in your code by using the unique [`NodeKey`]. So you can split the layout code ([`place`](Ui::place) and [`nest`](UiPlacedNode::nest)) or the effects ([`is_clicked`](`Ui::is_clicked`), etc.) from the rest. This is the pattern used in the examples.
 //! 
-//!     If you don't care about any of this, you can still prefer to keep style, layout and effects all together: use anonymous nodes ([`anon`](Ui::add_anon)) and chained builder methods ([`place`](UiNode::place)). Currently, effect functions like [`Ui::is_clicked`] are the only ones that don't have a chained builder method counterpart, but I will be trying to fix this,
+//!     If you don't care about any of this, and you still prefer to keep style, layout and effects all together, you still can. Using [`NodeKeys`](NodeKey) is completely optional. See the "no_keys" example to see how this works.
 //! 
 //! -------
 //! 
