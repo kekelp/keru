@@ -474,26 +474,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "const_format"
-version = "0.2.32"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3a214c7af3d04997541b18d432afaff4c455e79e2029079647e72fc2bd27673"
-dependencies = [
- "const_format_proc_macros",
-]
-
-[[package]]
-name = "const_format_proc_macros"
-version = "0.2.32"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7f6ff08fd20f4f299298a28e2dfa8a8ba1036e6cd2460ac1de7b425d76f2500"
-dependencies = [
- "proc-macro2",
- "quote",
- "unicode-xid",
-]
-
-[[package]]
 name = "copypasta"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1128,14 +1108,24 @@ dependencies = [
  "glam",
  "glyphon",
  "image",
+ "keru_macros",
  "log",
- "node_key_macro",
  "pollster",
  "rustc-hash 1.1.0",
  "slab",
  "unicode-segmentation",
  "wgpu",
  "winit",
+]
+
+[[package]]
+name = "keru_macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "rand",
+ "syn",
 ]
 
 [[package]]
@@ -1398,17 +1388,6 @@ name = "new_debug_unreachable"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "650eef8c711430f1a879fdd01d4745a7deea475becfb90269c06775983bbf086"
-
-[[package]]
-name = "node_key_macro"
-version = "0.1.0"
-dependencies = [
- "const_format",
- "proc-macro2",
- "quote",
- "rand",
- "syn",
-]
 
 [[package]]
 name = "nom"

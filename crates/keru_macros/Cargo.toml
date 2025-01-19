@@ -1,17 +1,18 @@
 [package]
-name = "node_key_macro"
+name = "keru_macros"
 version = "0.1.0"
 edition = "2021"
+description = "Macros for the `keru` crate"
+license = "GPL-3.0-only"
 
 [lib]
 proc-macro = true
 
 [dependencies]
-syn = {version = "2.0", features = ["full", "extra-traits"]}
+syn = "2.0"
 quote = "1.0"
 proc-macro2 = "1.0"
 rand = "0.8.5"
-const_format = "0.2.32"
 
 [lints.clippy]
 needless_return = { level = "allow" } 
