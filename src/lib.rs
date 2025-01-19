@@ -4,8 +4,6 @@
 //! 
 //! Keru offers a declarative API similar to immediate mode GUI libraries, but it is not immediate mode.
 //! 
-//! See the ["About"](about) page for more information about how it works, how it compares to other libraries, and more.
-//! 
 //! ## Example
 //! 
 //! ```rust
@@ -109,6 +107,10 @@
 //! 
 //! These building blocks should be enough to create complex GUIs. But only time will tell.
 //! 
+//! ## More information
+//! 
+//! See the ["About"](about) page for more information about how Keru works internally, how it compares to other libraries, and more.
+
 
 mod tree;
 pub use tree::*;

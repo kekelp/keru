@@ -286,7 +286,7 @@ impl Ui {
         return self.get_ref_unchecked(i, &key);
     }
 
-    /// Exactly like [`Ui::add`], but without a key.
+    /// Exactly like [`Ui::add`], but without a key. Default parameters are passed in immediately for convenience.
     /// 
     /// The added node will be anonymous, and it won't be reachable by methods like [`Ui::place`] or [`Ui::get_node`] that use a key.
     /// 
@@ -302,8 +302,7 @@ impl Ui {
     /// #    fn declare_ui(&mut self) {
     /// #    let ui = &mut self.ui; 
     /// #
-    /// ui.add_anon()
-    ///     .params(LABEL)
+    /// ui.add_anon(LABEL)
     ///     .color(Color::RED)
     ///     .text("Hello World")
     ///     .place();
@@ -312,8 +311,15 @@ impl Ui {
     /// # }    
     /// ```
     #[track_caller]
-    pub fn add_anon(&mut self) -> UiNode {
-        return self.add_anon_with_name("anon Node");
+    pub fn add_anon(&mut self, params: NodeParams) -> UiNode {
+        let mut node = self.add_anon_with_name("anon Node");
+        node.params(params);
+        return node;
+    }
+
+    #[track_caller]
+    pub fn add_anon2(&mut self, debug_name: &'static str) -> UiNode {
+        return self.add_anon_with_name(debug_name);
     }
     
     #[track_caller]
@@ -652,13 +658,6 @@ impl Ui {
         self.sys.new_external_events = false;
     }
 
-    /// Add and place an anonymous node with the given [`NodeParams`].
-    #[track_caller]
-    pub fn anon(&mut self, params: NodeParams) -> UiPlacedNode {
-        return self.add_anon_with_name("anon node").params(params).place()
-    }
-
-
     /// Add and place an anonymous panel.
     #[track_caller]
     pub fn panel(&mut self) -> UiPlacedNode {
@@ -752,35 +751,12 @@ fn caller_location_hash() -> u64 {
 
 /// A struct referring to a node that was [placed](Ui::place) on the tree. Allows adding nested children.
 ///  
-/// Can be used to call [nest](UiPlacedNode::nest) and add more nodes as a parent of this one.
-/// 
-/// ```rust
-/// # use keru::*;
-/// # use keru::*;
-/// # pub struct State {
-/// #     pub ui: Ui,
-/// # }
-/// #
-/// # impl State {
-/// #    fn declare_ui(&mut self) {
-/// #    let ui = &mut self.ui; 
-/// #
-/// # #[node_key] pub const PARENT: NodeKey;
-/// # #[node_key] pub const CHILD: NodeKey;
-/// #
-///             // ↓ returns a `UiPlacedNode`
-/// ui.place(PARENT).nest(|| {
-///     ui.place(CHILD);
-/// });
-/// #
-/// #   }
-/// # }
-/// ```
+/// Can be used to call [`nest()`](Self::nest()) and add more nodes as children of this one.
 /// 
 /// The nesting mechanism uses a bit of magic to avoid having to pass a [`Ui`] parameter into the closure.
-/// Because of this, `UiPlacedNode` is actually a plain-old-data struct and doesn't contain a reference to the main [`Ui`] object, so it can technically be freely assigned to a variable and stored.
+/// Because of this, `UiPlacedNode` is actually a plain-old-data struct and doesn't contain a reference to the main [`Ui`] struct, so it can technically be freely assigned to a variable and passed around.
 /// 
-/// While there's nothing unsafe about that, it will almost surely lead to weird unreadable code. The intended use is to just call [nest](UiPlacedNode::nest) immediately after getting this struct from [`UiNode::place`], like in the example.
+/// While there's nothing unsafe about that, it will almost surely lead to weird unreadable code. The intended use is to call [`nest()`](Self::nest()) immediately after getting this struct from [`UiNode::place()`], like in the [`nest()`](Self::nest()) example.
 /// 
 pub struct UiPlacedNode {
     pub(crate) node_i: usize,
@@ -811,6 +787,7 @@ impl UiPlacedNode {
     /// # #[node_key] pub const PARENT: NodeKey;
     /// # #[node_key] pub const CHILD: NodeKey;
     /// #
+    /// //             ↓ returns a `UiPlacedNode`
     /// ui.place(PARENT).nest(|| {
     ///     ui.place(CHILD);
     /// });
@@ -828,6 +805,36 @@ impl UiPlacedNode {
         content();
 
         thread_local::pop_parent();
+    }
+
+    /// Get a [`UiNodeResponse`] out of a placed node.
+    /// 
+    /// The [`UiNodeResponse`]'s methods can be used to know if a node is being clicked, dragged, or hovered.
+    /// 
+    /// For complicated API design reasons, you have to pass a reference to the [`Ui`] back to this method. This might change in the future.
+    /// 
+    /// This is an "alternative" API, only useful if you really don't want to use [`NodeKeys`](NodeKey). The recommended way to do this is to use functions like [`Ui::is_clicked()`] directly on the main [`Ui`] struct, using a [`NodeKey`] to refer to the intended node.
+    /// 
+    /// To see an example of code using this alternative pattern, see the "no_keys" example.
+    pub fn response<'a>(&self, ui: &'a mut Ui) -> UiNodeResponse<'a> {
+        return UiNodeResponse {
+            ui,
+            node_i: self.node_i,
+        }
+    }
+}
+
+pub struct UiNodeResponse<'a> {
+    ui: &'a mut Ui,
+    node_i: usize,
+}
+impl<'a> UiNodeResponse<'a> {
+    pub fn is_clicked(&self) -> bool {
+        let id = self.ui.nodes[self.node_i].id;
+
+        // todo: don't do this. this actually breaks with subtrees.
+        let awkwardly_recreated_key = NodeKey::new(id, "");
+        return self.ui.is_clicked(awkwardly_recreated_key);
     }
 }
 
@@ -847,7 +854,7 @@ impl<'a> UiNode<'a> {
     /// #    let ui = &mut self.ui; 
     /// #
     /// # #[node_key] pub const BUTTON_KEY: NodeKey;
-    /// ui.add_anon().params(PANEL).place().nest(|| {
+    /// ui.add_anon(PANEL).place().nest(|| {
     ///     ui.add(BUTTON_KEY).place();
     /// });
     /// #

@@ -133,6 +133,10 @@ impl<T: Tag> MouseInput<T> {
     
     // querying
 
+    pub fn all_mouse_events(&self) -> impl DoubleEndedIterator<Item = &FullMouseEvent<T>> {
+        self.last_frame_mouse_events.iter()
+    }  
+
     /// Returns all [`FullMouseEvent`]s for a specific button on the node corresponding to `tag`, or an empty iterator if the node is currently not part of the tree or if it doesn't exist.
     pub fn mouse_events(
         &self, 
