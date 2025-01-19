@@ -1,6 +1,6 @@
 //! Keru is an experimental Graphical User Interface library.
 //! 
-//! It is in active development and it's not ready for any kind of use. Many features are missing or half-baked. However, if anyone takes the time to check it out and to share some feedback, I'd really appreciate it.
+//! It is in active development and it's not ready to be used. Many features are missing or half-baked.
 //! 
 //! Keru offers a declarative API similar to immediate mode GUI libraries, but it is not immediate mode.
 //! 

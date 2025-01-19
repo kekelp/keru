@@ -1,6 +1,6 @@
 Keru is a Graphical User Interface library.
 
-It is in active development and it's not ready for any kind of use.
+It is in active development and it's not ready to be used. Many features are missing or half-baked.
 
 It offers a declarative API similar to immediate mode GUI libraries, but it is not immediate mode.
 
@@ -24,7 +24,7 @@ ui.add(INCREASE)
 ui.v_stack().nest(|| {
     if self.show {
         ui.place(INCREASE);
-        ui.label(self.count); // This one doesn't need an unique key.
+        ui.label(self.count); // This one doesn't need a key.
     }
 });
 
