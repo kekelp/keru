@@ -16,6 +16,12 @@ use crate::*;
 /// ```
 /// 
 /// Used in many [`Ui`] methods to add nodes to the GUI ([`Ui::add`]) or to refer to already added ones ([`Ui::place`], [`Ui::get_node`], [`Ui::is_clicked`], ...)
+/// 
+/// `NodeKeys` are *optional*: all methods that require a `NodeKey` have an equivalent method that can be called directly after adding the node. See the "no_keys" example to see how this works.
+/// 
+/// Using `NodeKeys` mostly just allows more flexibility in organizing GUI code.
+/// 
+/// The explicit identity granted by a `NodeKey` might also help with performance in some cases, but this is unlikely to make a big difference,
 #[derive(Clone, Copy, Debug)]
 pub struct NodeKey {
     id: Id,

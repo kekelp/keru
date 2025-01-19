@@ -43,6 +43,8 @@
 //! # }
 //! ```
 //! 
+//! Using [`NodeKeys`](NodeKey) gives more flexibility when organizing the code, but they are not required. See the "no_keys" example to see a similar counter written without [`NodeKeys`](NodeKey).
+//! 
 //! ## Window Loop
 //! 
 //! If you just want to try out some GUI building code, you can use the one-line loop in [`example_window_loop`]. The Counter example uses this method. 
