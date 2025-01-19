@@ -820,7 +820,7 @@ impl UiPlacedNode {
     /// ```
     /// 
     /// Since the `content` closure doesn't borrow or move anything, it sets no restrictions at all on what code can be ran inside it.
-    /// You can keep access and mutate both the `Ui` object and the rest of the program state freely, as you'd outside of the closure. 
+    /// You can keep accessing and mutating both the `Ui` object and the rest of the program state freely, as you'd outside of the closure. 
     ///  
     pub fn nest(&self, content: impl FnOnce()) {
         thread_local::push_parent(self);
