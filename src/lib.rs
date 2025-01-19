@@ -160,6 +160,6 @@ mod render_rect;
 
 mod texture_atlas;
 
-pub use view_derive::node_key;
+pub use node_key_macro::node_key;
 
 pub mod about;
