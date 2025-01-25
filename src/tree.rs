@@ -628,6 +628,7 @@ impl Ui {
         self.nodes[ROOT_I].n_children = 0;
 
         self.sys.current_frame += 1;
+        thread_local::bump_current_frame();
         thread_local::clear_parent_stack();
         self.format_scratch.clear();
 

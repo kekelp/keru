@@ -23,6 +23,8 @@ pub struct Stacks {
     pub parents: Vec<StackParent>,
     pub tree_changes: Vec<NodeWithDepth>,
     pub subtrees: Vec<Id>,
+    pub current_frame: u64,
+    pub reactive: i32,
 }
 impl Stacks {
     pub fn initialize() -> Stacks {
@@ -30,6 +32,8 @@ impl Stacks {
             parents: Vec::with_capacity(25),
             subtrees: Vec::with_capacity(10),
             tree_changes: Vec::with_capacity(25),
+            current_frame: 0,
+            reactive: 0,
         };
     }
 }
@@ -126,5 +130,29 @@ pub fn pop_subtree() {
 pub fn last_subtree() -> Option<Id> {
     return THREAD_STACKS.with(|stack| {
         return stack.borrow_mut().subtrees.last().copied();
+    });
+}
+
+pub(crate) fn bump_current_frame() {
+    THREAD_STACKS.with(|stack| {
+        stack.borrow_mut().current_frame += 1;
+    });
+}
+
+pub(crate) fn current_frame() -> u64 {
+    return THREAD_STACKS.with(|stack| {
+        return stack.borrow().current_frame
+    });
+}
+
+pub fn push_skip_block() {
+    THREAD_STACKS.with(|stack| {
+        stack.borrow_mut().reactive += 1;
+    });
+}
+
+pub fn pop_skip_block() {
+    THREAD_STACKS.with(|stack| {
+        stack.borrow_mut().reactive -= 1;
     });
 }

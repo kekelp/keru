@@ -144,6 +144,9 @@ pub use ui_node::*;
 mod observer;
 pub use observer::*;
 
+mod reactive;
+pub use reactive::*;
+
 mod interact;
 
 pub mod basic_window_loop;
@@ -152,9 +155,10 @@ pub mod example_window_loop;
 pub mod winit_mouse_events;
 pub mod winit_key_events;
 
+mod thread_local;
+
 mod changes;
 mod twin_nodes;
-mod thread_local;
 mod render;
 mod layout;
 mod text;

@@ -36,11 +36,11 @@ pub fn subtree<T>(subtree_block: impl FnOnce() -> T) -> T {
     
     thread_local::push_subtree(subtree_id);
     
-    let result = subtree_block();
+    let block_result = subtree_block();
 
     thread_local::pop_subtree();
 
-    return result;
+    return block_result;
 }
 
 /// Like [`subtree()`], but starts a named subtree identified by a [`NodeKey`].
