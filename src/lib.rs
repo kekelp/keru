@@ -141,6 +141,9 @@ pub use subtree::*;
 mod ui_node;
 pub use ui_node::*;
 
+mod observer;
+pub use observer::*;
+
 mod interact;
 
 pub mod basic_window_loop;
