@@ -152,6 +152,7 @@ impl Ui {
     /// Returns an [`UiNode`] corresponding to `key`, if it exists.
     /// 
     /// This function ignores whether the node is currently inside the tree or not.
+    // todo: why though? is that ever useful?
     /// 
     /// The returned [`UiNode`] can be used to get information about the node, through functions like [`UiNode::inner_size`] or [`UiNode::render_rect`]
     /// 
@@ -385,45 +386,49 @@ impl Ui {
 
     pub(crate) fn place_by_i(&mut self, i: usize) -> UiPlacedNode {
 
+        
         // refresh last_frame_touched. 
         // refreshing the node should go here as well.
         // but maybe not? the point was always that untouched nodes stay out of the tree and they get skipped automatically.
         // unless we still need the frame for things like pruning?
         let frame = self.sys.current_frame;
         self.sys.text.refresh_last_frame(self.nodes[i].text_id, frame);
-
-
+        
         let old_children_hash = self.nodes[i].children_hash;
         // reset the children hash to keep it in sync with the thread local one (which will be created new in push_parent)
         self.nodes[i].children_hash = EMPTY_HASH;
-
+        
         // update the in-tree links and the thread-local state based on the current parent.
         let NodeWithDepth { i: parent_i, depth } = thread_local::current_parent();
         self.set_tree_links(i, parent_i, depth);
-
+        
         // update the parent's **THREAD_LOCAL** children_hash with ourselves. (when the parent gets popped, it will be compared to the old one, which we passed to nest() before starting to add children)
         // AND THEN, sync the thread local hash value with the one on the node as well, so that we'll be able to use it for the old value next frame
         let children_hash_so_far = thread_local::hash_new_child(i);
         self.nodes[parent_i].children_hash = children_hash_so_far;
-
-        let cosmetic_params_hash = self.nodes[i].params.cosmetic_update_hash();
-        let layout_params_hash = self.nodes[i].params.partial_relayout_hash();
-
-        let param_cosmetic_update = cosmetic_params_hash != self.nodes[i].last_cosmetic_params_hash;
-        let param_partial_relayout = layout_params_hash != self.nodes[i].last_layout_params_hash;
-
         
-        if self.nodes[i].needs_partial_relayout | param_partial_relayout {
-            self.push_partial_relayout(i);
-            self.nodes[i].last_layout_params_hash = layout_params_hash;
-            self.nodes[i].needs_partial_relayout = false;
-        }
-        
-        // push cosmetic updates
-        if self.nodes[i].needs_cosmetic_update | param_cosmetic_update{
-            self.push_cosmetic_update(i);
-            self.nodes[i].last_cosmetic_params_hash = cosmetic_params_hash;
-            self.nodes[i].needs_cosmetic_update = false;
+        if ! reactive::can_skip() {
+
+            let cosmetic_params_hash = self.nodes[i].params.cosmetic_update_hash();
+            let layout_params_hash = self.nodes[i].params.partial_relayout_hash();
+            
+            let param_cosmetic_update = cosmetic_params_hash != self.nodes[i].last_cosmetic_params_hash;
+            let param_partial_relayout = layout_params_hash != self.nodes[i].last_layout_params_hash;
+            
+            
+            if self.nodes[i].needs_partial_relayout | param_partial_relayout {
+                self.push_partial_relayout(i);
+                self.nodes[i].last_layout_params_hash = layout_params_hash;
+                self.nodes[i].needs_partial_relayout = false;
+            }
+            
+            // push cosmetic updates
+            if self.nodes[i].needs_cosmetic_update | param_cosmetic_update{
+                self.push_cosmetic_update(i);
+                self.nodes[i].last_cosmetic_params_hash = cosmetic_params_hash;
+                self.nodes[i].needs_cosmetic_update = false;
+            }
+               
         }
 
         // return the child_hash that this node had in the last frame, so that can new children can check against it.
@@ -654,9 +659,13 @@ impl Ui {
 
         self.relayout();
 
-        // todo: the thing about resetting these early was just retarded, I think, because it keeps it on foverer if the cursor is hovering normally?
-        // like this for now
-        self.sys.new_ui_input = false;
+        if self.sys.new_ui_input_1_more_frame {
+            self.sys.new_ui_input_1_more_frame = false;
+            self.sys.new_ui_input = true;
+        } else {
+            self.sys.new_ui_input = false;
+        }
+
         self.sys.new_external_events = false;
     }
 
@@ -744,7 +753,7 @@ pub(crate) fn fx_hash<T: Hash>(value: &T) -> u64 {
 }
 
 #[track_caller]
-fn caller_location_hash() -> u64 {
+pub(crate) fn caller_location_hash() -> u64 {
     let location = Location::caller();
     // it would be cool to avoid doing all these hashes at runtime, somehow.
     let caller_location_hash = fx_hash(location);

@@ -89,8 +89,13 @@ impl Ui {
     /// Returns `true` if the node corresponding to `key` was just clicked with the left mouse button.
     /// 
     /// This is "act on press", you might want [is_click_released()](Self::is_click_released()).
-    pub fn is_clicked(&self, node_key: NodeKey) -> bool {
-        return self.sys.mouse_input.clicked(Some(MouseButton::Left), Some(node_key.id_with_subtree()));
+    pub fn is_clicked(&mut self, node_key: NodeKey) -> bool {
+        let clicked = self.sys.mouse_input.clicked(Some(MouseButton::Left), Some(node_key.id_with_subtree()));
+        if clicked {
+            self.sys.new_ui_input = true;
+            self.sys.new_ui_input_1_more_frame = true;
+        }
+        return clicked;
     }
 
     /// Returns `true` if a left button mouse click was just released on the node corresponding to `key`.
@@ -228,6 +233,7 @@ impl Ui {
     }
 
     pub(crate) fn resolve_click_release(&mut self, _button: MouseButton) {
+        // todo: there's something wrong here, releasing a click doesn't wake up the event loop somehow (it stays dark)
         self.sys.new_ui_input = true;
     }
 

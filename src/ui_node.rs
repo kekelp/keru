@@ -50,7 +50,7 @@ impl<'a> UiNode<'a> {
     /// ```
     /// 
     /// Panics if the byte slice in `image` can't be interpreted as an image.
-    pub fn static_image(&mut self, image: &'static [u8])  -> &mut Self {
+    pub fn static_image(&mut self, image: &'static [u8]) -> &mut Self {
         let image_pointer: *const u8 = image.as_ptr();
 
         if let Some(last_pointer) = self.node().last_static_image_ptr {
@@ -73,14 +73,16 @@ impl<'a> UiNode<'a> {
     /// Otherwise, it will assume that it has changed.
     /// 
     /// Panics if the byte slice in `image` can't be interpreted as an image.
-    pub fn dyn_image(&mut self, image: &[u8], changed: bool) {
+    pub fn dyn_image(&mut self, image: &[u8], changed: bool) -> &mut Self {
         if self.node_mut().imageref.is_some() && changed == false {
-            return;
+            return self;
         }
 
         let image = self.ui.sys.texture_atlas.allocate_image(image);
         self.node_mut().imageref = Some(image);
         self.node_mut().last_static_image_ptr = None;
+
+        return self;
     }
 
     // This is not a callback, the effect is executed immediately (or never if not clicked)
@@ -349,6 +351,10 @@ impl<'a> UiNode<'a> {
     /// ```
 
     pub fn text(&mut self, into_text: impl Display) -> &mut Self {
+        if can_skip() {
+            return self;
+        }
+
         // todo: hash into_text instead of the text to skip the formatting??
         // note that many exotic types like "f32" can be formatted but not hashed 
         // todo: this display crap causes an useless copy in the common case when it's just a string

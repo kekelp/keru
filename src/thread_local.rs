@@ -97,9 +97,14 @@ pub fn current_tree_hash() -> u64 {
 
             let mut hasher = FxHasher::default();
         
+            // todo: why do we need the whole branch? isn't the last parent enough?
             for ancestor in parent_stack {
                 ancestor.i.hash(&mut hasher); // Write each element into the same hasher
             }
+
+            let current_children_hash = parent_stack.last().unwrap().children_hash.finish();
+
+            current_children_hash.hash(&mut hasher);
         
             return hasher.finish();
         }

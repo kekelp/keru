@@ -74,6 +74,7 @@ pub(crate) struct System {
     pub debug_key_pressed: bool,
 
     pub new_ui_input: bool,
+    pub new_ui_input_1_more_frame: bool,
     pub new_external_events: bool,
 
     pub clipboard: ClipboardContext,
@@ -338,6 +339,7 @@ impl Ui {
                 debug_key_pressed: false,
 
                 new_ui_input: true,
+                new_ui_input_1_more_frame: false,
                 new_external_events: true,
 
                 clipboard: ClipboardContext::new().unwrap(),
@@ -434,11 +436,13 @@ impl Ui {
 
     pub fn new_ui_input(&mut self) -> bool {
         return self.sys.new_ui_input ||
+        self.sys.new_ui_input_1_more_frame ||
         self.sys.changes.resize;
     }
 
     pub fn needs_update(&mut self) -> bool {
         return self.sys.new_ui_input ||
+            self.sys.new_ui_input_1_more_frame ||
             self.sys.new_external_events ||
             self.sys.changes.resize;
     }
@@ -450,6 +454,7 @@ impl Ui {
     /// For advanced uses, you should decide when to wake the loop yourself. Future versions of the library will try to make that easier.
     pub fn event_loop_needs_to_wake(&mut self) -> bool {
         return self.sys.new_ui_input ||
+            self.sys.new_ui_input_1_more_frame ||
             self.sys.changes.resize ||
             self.needs_rerender();
     }

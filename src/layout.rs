@@ -98,8 +98,8 @@ impl Ui {
         }
         
         // reset these early, but resolve_hover has a chance to turn them back on
-        self.sys.new_ui_input = false;
-        self.sys.new_external_events = false;
+        // self.sys.new_ui_input = false;
+        // self.sys.new_external_events = false;
 
         // after doing a relayout, we might be moving the hovered node away from the cursor.
         // So we run resolve_hover again, possibly causing another relayout next frame

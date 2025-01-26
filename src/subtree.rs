@@ -29,6 +29,7 @@ use crate::*;
 /// 
 /// Now, we can call the function from multiple places without problems: on every call, `subtree()` will create a distinct subtree. Within each one, the same key refers to a different node identified by both the key and the subtree it's in.
 /// 
+/// 
 pub fn subtree<T>(subtree_block: impl FnOnce() -> T) -> T {
     // todo: maybe this should use track caller, or something else?
     // maybe both?
