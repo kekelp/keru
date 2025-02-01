@@ -876,3 +876,56 @@ pub(crate) fn start_info_log_timer() -> Option<std::time::Instant> {
         None
     }
 }
+
+
+pub trait FullNodeParams {
+    fn params(&self) -> &NodeParams;
+    fn text(&self) -> Option<&str>;
+}
+
+impl FullNodeParams for NodeParams {
+    fn params(&self) -> &NodeParams {
+        return &self;
+    }
+
+    fn text(&self) -> Option<&str> {
+        return None;
+    }
+}
+
+pub struct NodeParamsWithText<'a> {
+    params: NodeParams,
+    text: &'a str,
+}
+
+impl<'a> FullNodeParams for NodeParamsWithText<'a> {
+    fn params(&self) -> &NodeParams {
+        return &self.params;
+    }
+
+    fn text(&self) -> Option<&str> {
+        return Some(self.text);
+    }
+}
+
+impl<'a> UiNode<'a> {
+    #[must_use]
+    pub fn params2(&mut self, params: impl FullNodeParams) -> &mut Self {
+        self.node_mut().params = *params.params();
+        
+        if let Some(text) = params.text() {
+            self.text(text);
+        }
+        
+        return self;
+    }
+}
+
+impl NodeParams {
+    pub fn text<'a>(self, text: &'a str) -> NodeParamsWithText<'a> {
+        return NodeParamsWithText {
+            params: self,
+            text,
+        }
+    }
+}
