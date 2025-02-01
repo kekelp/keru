@@ -105,7 +105,7 @@
 //! 
 //!     Instead, you can use the [`NodeKey::sibling()`] function to create keys dynamically at runtime.
 //! 
-//! * To create reusable "widgets", you can just wrap the GUI code in a function. However, it's very likely that you'll need to create a [`subtree`](subtree()) for it to make it work correctly.
+//! * To create reusable "components", you can just wrap the GUI code in a function. However, it's very likely that you'll need to create a [`subtree`](subtree()) for it to make it work correctly.
 //! 
 //! These building blocks should be enough to create complex GUIs. But only time will tell.
 //! 

@@ -108,7 +108,7 @@ impl Node {
 
             is_twin: twin_n,
             params: NodeParams::const_default(),
-            debug_name: key.debug_name,
+            debug_name: key.debug_name(),
             hover_timestamp: f32::MIN,
             hovered: false,
             last_click: f32::MIN,

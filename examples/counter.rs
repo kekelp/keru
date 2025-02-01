@@ -16,8 +16,6 @@ impl ExampleLoop for State {
         #[node_key] const SHOW: NodeKey;
         
         // Change our state according to the Ui events.
-        // Since we use the unique stable identities provided by the node_key constants, we could run this same code from wherever we want.
-        // This is also true of the definitions of the #[node_key] consts themselves.
         if ui.is_clicked(SHOW) {
             self.show = !self.show;
         }

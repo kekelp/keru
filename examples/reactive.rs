@@ -15,22 +15,22 @@ fn count_color(count: i32) -> Color {
     return Color::rgba_f(red, 0.10196, 0.59608, 0.80392);
 }
 
-pub trait CustomWidgets {
-    fn counter(&mut self, count: &mut Observer<i32>, show: &mut Observer<bool>, number: i32);
+pub trait CustomComponents {
+    fn counter(&mut self, count: &mut Observer<i32>, show: &mut Observer<bool>, debug_name: &str);
 }
 
-impl CustomWidgets for Ui {
-    fn counter(&mut self, count: &mut Observer<i32>, show: &mut Observer<bool>, number: i32) {
+impl CustomComponents for Ui {
+    fn counter(&mut self, count: &mut Observer<i32>, show: &mut Observer<bool>, debug_name: &str) {
         
-        subtree(|| {
+        self.anon_subtree().start(|| {
 
             let changed = count.changed() || show.changed();
             reactive(changed, || {
 
                 if can_skip() {
-                    log::warn!("Counter #{number} is soft-skipped. `ui` methods will be able to skip most expensive operations");
+                    log::warn!("Counter #{} is soft-skipped. `ui` methods will be able to skip most expensive operations", debug_name);
                 } else {
-                    log::warn!("Counter #{number} updated");
+                    log::warn!("Counter #{} updated", debug_name);
                 }
 
                 #[node_key] const INCREASE: NodeKey;
@@ -82,10 +82,10 @@ impl CustomWidgets for Ui {
 
 impl ExampleLoop for State {
     fn update_ui(&mut self, ui: &mut Ui) {
-
+        
         ui.h_stack().nest(|| {
-            ui.counter(&mut self.count_1, &mut self.show_1, 1);
-            ui.counter(&mut self.count_2, &mut self.show_2, 2);
+            ui.counter(&mut self.count_1, &mut self.show_1, "1");
+            ui.counter(&mut self.count_2, &mut self.show_2, "2");
         });
 
     }

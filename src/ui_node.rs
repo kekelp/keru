@@ -88,6 +88,7 @@ impl<'a> UiNode<'a> {
     // This is not a callback, the effect is executed immediately (or never if not clicked)
     // It's this way just for easier builder-style composition
     // You can also do ui.is_clicked(KEY) 
+    // #[must_use]
     // pub fn on_click(&mut self, effect: impl FnOnce()) -> &mut Self {
     //     let id = self.node().id;
 

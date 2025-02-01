@@ -25,6 +25,7 @@ use wgpu::{
     SamplerBindingType, SamplerDescriptor, ShaderModuleDescriptor, ShaderSource, ShaderStages,
     TextureSampleType, TextureViewDimension, VertexState,
 };
+use winit_key_events::KeyInput;
 use winit_mouse_events::MouseInput;
 
 use std::ops::{Index, IndexMut};
@@ -103,6 +104,7 @@ pub(crate) struct System {
     pub mouse_hit_stack: Vec<(Id, f32)>,
 
     pub mouse_input: MouseInput<Id>,
+    pub key_input: KeyInput,
 
     pub hovered: Vec<Id>,
     pub hovered_scroll_area: Option<Id>,
@@ -375,6 +377,7 @@ impl Ui {
                 mouse_hit_stack: Vec::with_capacity(50),
 
                 mouse_input: MouseInput::default(),
+                key_input: KeyInput::default(),
 
                 // todo: maybe remove and use mouse_input.current_tag()? There was never a point in having multiple hovereds
                 hovered: Vec::with_capacity(15),
@@ -461,6 +464,11 @@ impl Ui {
 
     pub fn cursor_position(&self) -> DVec2 {
         return self.sys.mouse_input.cursor_position();
+    }
+
+    // todo: expose functions directly instead of the inner struct
+    pub fn key_input(&self) -> &KeyInput {
+        return &self.sys.key_input;
     }
 }
 

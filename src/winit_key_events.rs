@@ -8,6 +8,7 @@ pub struct KeyInput {
     unresolved_key_presses: Vec<PendingKeyPress>,
     last_frame_key_events: Vec<FullKeyEvent>,
     key_repeats: Vec<Key>,
+    last_frame_key_repeats: Vec<Key>,
 }
 
 // todo: merge with the mouse one??
@@ -26,6 +27,7 @@ impl Default for KeyInput {
             unresolved_key_presses: Vec::with_capacity(20),
             last_frame_key_events: Vec::with_capacity(20),
             key_repeats: Vec::with_capacity(10),
+            last_frame_key_repeats: Vec::with_capacity(10),
         }
     }
 }
@@ -35,6 +37,7 @@ impl KeyInput {
     pub fn begin_new_frame(&mut self) {
         let current_mouse_status = Instant::now();
 
+        std::mem::swap(&mut self.last_frame_key_repeats, &mut self.key_repeats);
         self.key_repeats.clear();
         
         self.last_frame_key_events.clear();
@@ -131,7 +134,7 @@ impl KeyInput {
     }
 
     pub fn key_repeated(&self, key: &Key) -> bool {
-        let count = self.key_repeats.iter().filter(|c| *c == key).count(); // ???
+        let count = self.last_frame_key_repeats.iter().filter(|c| *c == key).count(); // ???
         return count > 0;
     }
 

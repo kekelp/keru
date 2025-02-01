@@ -25,7 +25,7 @@ use crate::*;
 #[derive(Clone, Copy, Debug)]
 pub struct NodeKey {
     id: Id,
-    pub(crate) debug_name: &'static str,
+    debug_name: &'static str,
 }
 impl NodeKey {
     pub(crate) fn id_with_subtree(&self) -> Id {
@@ -71,4 +71,10 @@ impl NodeKey {
             debug_name,
         };
     }
+
+    pub const fn debug_name(&self) -> &'static str {
+        return self.debug_name;
+    }
 }
+
+pub type SubtreeKey = NodeKey;

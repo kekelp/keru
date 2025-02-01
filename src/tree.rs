@@ -283,6 +283,7 @@ impl Ui {
     /// - [`Ui::add_anon`] can also add a node, but without requiring a key.
     /// 
     /// - Shorthand functions like [`Ui::text`] and [`Ui::label`] can `add` and [place](`Ui::place`) simple nodes all in once without requiring a key.
+    #[must_use]
     pub fn add(&mut self, key: NodeKey) -> UiNode {
         let i = self.add_or_update_node(key);
         return self.get_ref_unchecked(i, &key);
@@ -315,7 +316,7 @@ impl Ui {
     #[track_caller]
     pub fn add_anon(&mut self, params: NodeParams) -> UiNode {
         let mut node = self.add_anon_with_name("anon Node");
-        node.params(params);
+        let _ = node.params(params);
         return node;
     }
 
@@ -371,7 +372,7 @@ impl Ui {
     /// 
     /// Compared to [`UiNode::place`], this function allows separating the code that adds the node and sets the params from the `place` code. This usually makes the tree layout much easier to read.
     ///
-    // #[track_caller]
+    #[track_caller]
     pub fn place(&mut self, key: NodeKey) -> UiPlacedNode {
         // twin key resolver thing removed recently. hopefully its ok.
         let node_i = self
@@ -810,12 +811,14 @@ impl UiPlacedNode {
     /// Since the `content` closure doesn't borrow or move anything, it sets no restrictions at all on what code can be ran inside it.
     /// You can keep accessing and mutating both the `Ui` object and the rest of the program state freely, as you'd outside of the closure. 
     ///  
-    pub fn nest(&self, content: impl FnOnce()) {
+    pub fn nest<T>(&self, content: impl FnOnce() -> T ) -> T {
         thread_local::push_parent(self);
 
-        content();
+        let result = content();
 
         thread_local::pop_parent();
+    
+        return result;
     }
 
     /// Get a [`UiNodeResponse`] out of a placed node.

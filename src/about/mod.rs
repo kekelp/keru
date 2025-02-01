@@ -207,7 +207,7 @@
 //! 
 //! I think the idea is fair, it's just a matter of finding a nice enough API.
 //! 
-//! Specifying dependencies explicitly might sound annoying, but there's a natural place to do it: at the beginning of any "widget" function.
+//! Specifying dependencies explicitly might sound annoying, but there's a natural place to do it: at the beginning of any "component" function.
 //!  
 //! 
 //! ## Open questions

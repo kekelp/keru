@@ -224,6 +224,7 @@ impl Ui {
 
     pub(crate) fn begin_frame_resolve_inputs(&mut self) {
         self.sys.mouse_input.begin_new_frame();
+        self.sys.key_input.begin_new_frame();
 
         if self.sys.mouse_input.dragged(Some(MouseButton::Left), None) != (0.0, 0.0) {
             self.sys.is_anything_dragged = true;

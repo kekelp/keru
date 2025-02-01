@@ -1,5 +1,4 @@
 use basic_window_loop::Context;
-use glam::vec2;
 use glam::Vec2;
 use keru::*;
 use keru::Size::*;
@@ -40,7 +39,7 @@ pub trait ColorPickerUi {
 }
 impl ColorPickerUi for Ui {
     fn place_color_picker(&mut self, color_picker: &mut ColorPicker) {
-        named_subtree(color_picker.key, || {
+        self.subtree(color_picker.key).start(|| {
 
             // DVec2 hell
             if let Some(_) = self.is_held(OKLAB_HUE_WHEEL) {
@@ -150,7 +149,7 @@ impl ColorPicker {
     }
 
     pub fn prepare(&self, ui: &mut Ui, queue: &wgpu::Queue) -> Option<()> {
-        named_subtree(self.key, || {
+        ui.subtree(self.key).start(|| {
             let wheel_info = ui.get_node(OKLAB_HUE_WHEEL)?.render_rect();
             let wheel_rect = ColorPickerRenderRect {
                 rect: wheel_info.rect,

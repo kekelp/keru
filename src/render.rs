@@ -20,6 +20,7 @@ impl Ui {
     // todo: move or rename the file
     pub fn window_event(&mut self, event: &WindowEvent) -> bool {
         self.sys.mouse_input.window_event(&event);
+        self.sys.key_input.window_event(&event);
 
         match event {
             WindowEvent::CursorMoved { .. } => {              
@@ -49,6 +50,9 @@ impl Ui {
                 is_synthetic,
                 ..
             } => {
+                // todo: set new_input only if a node is focused? hard to tell... users probably *shouldn't* listen for unconditional key inputs, but they definitely can
+                // probably should have two different bools: one for focused input, one for generic new input. the event loop can decide to wake up and/or update depending on either 
+                self.sys.new_ui_input = true;
                 if !is_synthetic {
                     let consumed = self.handle_keyboard_event(&event);
                     return consumed;
