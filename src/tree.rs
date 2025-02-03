@@ -159,6 +159,8 @@ impl Ui {
     /// To see if a node was clicked, use [`Ui::is_clicked`] and friends. In the future, those functions might be moved to [`UiNode`] as well.
 
     // todo: non-mut version of this?
+    // todo: the pub version of this should give out a non-mut ref. You only get to change nodes by redeclaring them.
+    // aka make a new UiNode that's not mutable and give that
     pub fn get_node(&mut self, key: NodeKey) -> Option<UiNode> {
         let node_i = self.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
         return Some(self.get_ref_unchecked(node_i, &key));
@@ -407,7 +409,13 @@ impl Ui {
         // AND THEN, sync the thread local hash value with the one on the node as well, so that we'll be able to use it for the old value next frame
         let children_hash_so_far = thread_local::hash_new_child(i);
         self.nodes[parent_i].children_hash = children_hash_so_far;
-        
+
+
+        // return the child_hash that this node had in the last frame, so that can new children can check against it.
+        return UiPlacedNode::new(i, old_children_hash);
+    }
+
+    pub(crate) fn check_param_changes(&mut self, i: usize) {
         if ! reactive::can_skip() {
 
             let cosmetic_params_hash = self.nodes[i].params.cosmetic_update_hash();
@@ -431,9 +439,6 @@ impl Ui {
             }
                
         }
-
-        // return the child_hash that this node had in the last frame, so that can new children can check against it.
-        return UiPlacedNode::new(i, old_children_hash);
     }
 
     fn set_tree_links(&mut self, new_node_i: usize, parent_i: usize, depth: usize) {
@@ -880,16 +885,19 @@ pub(crate) fn start_info_log_timer() -> Option<std::time::Instant> {
 
 pub trait FullNodeParams {
     fn params(&self) -> &NodeParams;
-    fn text(&self) -> Option<&str>;
+
+    fn text(&self) -> Option<&str> {
+        return None;
+    }
+    
+    fn image(&self) -> Option<&[u8]> {
+        return None;
+    }
 }
 
 impl FullNodeParams for NodeParams {
     fn params(&self) -> &NodeParams {
         return &self;
-    }
-
-    fn text(&self) -> Option<&str> {
-        return None;
     }
 }
 

@@ -19,6 +19,12 @@ pub struct UiNode<'a> {
     pub(crate) ui: &'a mut Ui,
 }
 
+impl<'a> Drop for UiNode<'a> {
+    fn drop(&mut self) {
+        self.ui.check_param_changes(self.node_i);
+    }
+}
+
 impl<'a> UiNode<'a> {
     pub(crate) fn node_mut(&mut self) -> &mut Node {
         return &mut self.ui.nodes.nodes[self.node_i];
