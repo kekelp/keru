@@ -23,14 +23,22 @@ impl ExampleLoop for State {
             false => "Show Counter",
         };
 
+        let increase_button_params = BUTTON
+            .color(count_color(self.count))
+            .text("Increase");
+
+        let show_button_params = BUTTON
+            .color(Color::RED)
+            .text(show_button_text);
+
+        let decrease_button_params = BUTTON
+            .text("Decrease");
+
         ui.v_stack().nest(|| {
             if self.show {
                 if ui
-                    .add_anon(BUTTON)
-                    .color(count_color(self.count))
-                    .static_text("Increase")
-                    .place()
-                    .response(ui)
+                    .add_anon().params(BUTTON)
+                    .params(increase_button_params)
                     .is_clicked()
                 {
                     self.count += 1;
@@ -39,10 +47,8 @@ impl ExampleLoop for State {
                 ui.label(self.count);
 
                 if ui
-                    .add_anon(BUTTON)
-                    .static_text("Decrease")
-                    .place()
-                    .response(ui)
+                    .add_anon().params(BUTTON)
+                    .params(decrease_button_params)
                     .is_clicked()
                 {
                     self.count -= 1;
@@ -50,11 +56,8 @@ impl ExampleLoop for State {
             }
 
             if ui
-                .add_anon(BUTTON)
-                .color(Color::RED)
-                .static_text(show_button_text)
-                .place()
-                .response(ui)
+                .add_anon().params(BUTTON)
+                .params(show_button_params)
                 .is_clicked()
             {
                 self.show = !self.show;

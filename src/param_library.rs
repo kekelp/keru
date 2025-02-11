@@ -11,6 +11,7 @@ use Shape::*;
 ///
 /// You can use the "source" link to inspect the param values. 
 pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
+    key: None,
     stack: None,
     text_params: None,
     rect: Rect {
@@ -34,6 +35,7 @@ pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
 ///
 /// You can use the "source" link to inspect the param values. 
 pub const DEFAULT: NodeParams = NodeParams {
+    key: None,
     stack: None,
     text_params: None,
     rect: Rect {
@@ -57,6 +59,7 @@ pub const DEFAULT: NodeParams = NodeParams {
 ///
 /// You can use the "source" link to inspect the param values. 
 pub const V_STACK: NodeParams = NodeParams {
+    key: None,
     stack: Some(Stack {
         arrange: Arrange::Center,
         axis: Axis::Y,
@@ -84,6 +87,7 @@ pub const V_STACK: NodeParams = NodeParams {
 ///
 /// You can use the "source" link to inspect the param values. 
 pub const H_STACK: NodeParams = NodeParams {
+    key: None,
     stack: Some(Stack {
         arrange: Arrange::Start,
         axis: Axis::X,
@@ -112,6 +116,7 @@ pub const H_STACK: NodeParams = NodeParams {
 ///
 /// You can use the "source" link to inspect the param values. 
 pub const V_SCROLL_STACK: NodeParams = NodeParams {
+    key: None,
         stack: Some(Stack {
             arrange: Arrange::Center,
             axis: Axis::Y,
@@ -140,6 +145,7 @@ pub const V_SCROLL_STACK: NodeParams = NodeParams {
 ///
 /// You can use the "source" link to inspect the param values. 
 pub const MARGIN: NodeParams = NodeParams {
+    key: None,
     stack: None,
     text_params: None,
     rect: Rect {
@@ -163,6 +169,7 @@ pub const MARGIN: NodeParams = NodeParams {
 ///
 /// You can use the "source" link to inspect the param values. 
 pub const ICON_BUTTON: NodeParams = NodeParams {
+    key: None,
     stack: None,
     text_params: None,
     rect: Rect {
@@ -186,6 +193,7 @@ pub const ICON_BUTTON: NodeParams = NodeParams {
 ///
 /// You can use the "source" link to inspect the param values. 
 pub const IMAGE: NodeParams = NodeParams {
+    key: None,
     stack: None,
     text_params: None,
     rect: Rect {
@@ -209,6 +217,7 @@ pub const IMAGE: NodeParams = NodeParams {
 ///
 /// You can use the "source" link to inspect the param values. 
 pub const BUTTON: NodeParams = NodeParams {
+    key: None,
     stack: None,
     text_params: Some(TextOptions {
         single_line: true,
@@ -236,6 +245,7 @@ pub const BUTTON: NodeParams = NodeParams {
 ///
 /// You can use the "source" link to inspect the param values. 
 pub const LABEL: NodeParams = NodeParams {
+    key: None,
     stack: None,
     text_params: Some(TextOptions {
         single_line: true,
@@ -263,6 +273,7 @@ pub const LABEL: NodeParams = NodeParams {
 ///
 /// You can use the "source" link to inspect the param values. 
 pub const MULTILINE_LABEL: NodeParams = NodeParams {
+    key: None,
     stack: None,
     text_params: Some(TextOptions {
         single_line: false,
@@ -290,6 +301,7 @@ pub const MULTILINE_LABEL: NodeParams = NodeParams {
 ///
 /// You can use the "source" link to inspect the param values. 
 pub const TEXT: NodeParams = NodeParams {
+    key: None,
     stack: None,
     text_params: Some(TextOptions {
         single_line: true,
@@ -317,6 +329,7 @@ pub const TEXT: NodeParams = NodeParams {
 ///
 /// You can use the "source" link to inspect the param values. 
 pub const TEXT_PARAGRAPH: NodeParams = NodeParams {
+    key: None,
     stack: None,
     text_params: Some(TextOptions {
         single_line: false,
@@ -345,6 +358,7 @@ pub const TEXT_PARAGRAPH: NodeParams = NodeParams {
 // ///
 // /// You can use the "source" link to inspect the param values. 
 // pub const TEXT_INPUT: NodeParams = NodeParams {
+    // key: None,
 //     stack: None,
 //     text_params: Some(TextOptions {
 //     single_line: true,
@@ -372,6 +386,7 @@ pub const TEXT_PARAGRAPH: NodeParams = NodeParams {
 ///
 /// You can use the "source" link to inspect the param values. 
 pub const PANEL: NodeParams = NodeParams {
+    key: None,
     stack: None,
     text_params: None,
     rect: Rect {
@@ -396,6 +411,7 @@ pub const PANEL: NodeParams = NodeParams {
 ///
 /// You can use the "source" link to inspect the param values. 
 pub const CONTAINER: NodeParams = NodeParams {
+    key: None,
     stack: None,
     text_params: None,
     rect: Rect {
@@ -441,6 +457,7 @@ pub const CONTAINER: NodeParams = NodeParams {
 /// ```
 /// See the color picker in the painter example.
 pub const CUSTOM_RENDERED_PANEL: NodeParams = NodeParams {
+    key: None,
     stack: None,
     text_params: None,
     rect: Rect {

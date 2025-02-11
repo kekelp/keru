@@ -56,6 +56,7 @@ use rustc_hash::FxHasher;
 /// ```
 /// To see it show up, use [`UiNode::place`] or [`Ui::place`] to place it in the ui tree.
 pub struct NodeParams {
+    pub key: Option<NodeKey>,
     pub text_params: Option<TextOptions>,
     pub stack: Option<Stack>,
     pub rect: Rect,
@@ -385,6 +386,11 @@ impl NodeParams {
         return self;
     }
 
+    pub fn key(mut self, key: NodeKey) -> Self {
+        self.key = Some(key);
+        return self;
+    }
+
     pub fn is_fit_content(&self) -> bool {
         let Xy { x, y } = self.layout.size;
         return x == Size::FitContent || y == Size::FitContent
@@ -392,5 +398,208 @@ impl NodeParams {
 
     pub fn is_scrollable(&self) -> bool {
         return self.layout.scrollable.x || self.layout.scrollable.y
+    }
+}
+
+pub struct FullNodeParams<'a> {
+    pub params: NodeParams,
+    pub text: Option<&'a str>,
+    pub image: Option<&'static [u8]>,
+}
+
+impl<'a> NodeParamsTrait for FullNodeParams<'a> {
+    fn get_params(&self) -> &NodeParams {
+        return &self.params;
+    }
+
+    fn get_text(&self) -> Option<&str> {
+        return self.text;
+    }
+
+    fn get_image(&self) -> Option<&'static [u8]> {
+        return self.image;
+    }
+}
+
+impl<'a> FullNodeParams<'a> {
+    // todo: in a future version of Rust that allows it, change these to take a generic Into<Size>
+    pub const fn position(mut self, position_x: Position, position_y: Position) -> Self {
+        self.params.layout.position.x = position_x;
+        self.params.layout.position.y = position_y;
+        return self;
+    }
+
+    pub const fn position_symm(mut self, position: Position) -> Self {
+        self.params.layout.position.x = position;
+        self.params.layout.position.y = position;
+        return self;
+    }
+
+    pub const fn position_x(mut self, position: Position) -> Self {
+        self.params.layout.position.x = position;
+        return self;
+    }
+
+    pub const fn position_y(mut self, position: Position) -> Self {
+        self.params.layout.position.y = position;
+        return self;
+    }
+
+    pub const fn size(mut self, size_x: Size, size_y: Size) -> Self {
+        self.params.layout.size.x = size_x;
+        self.params.layout.size.y = size_y;
+        return self;
+    }
+
+    pub const fn size_x(mut self, size_x: Size) -> Self {
+        self.params.layout.size.x = size_x;
+        return self;
+    }
+
+    pub const fn size_y(mut self, size_y: Size) -> Self {
+        self.params.layout.size.y = size_y;
+        return self;
+    }
+
+    pub const fn size_symm(mut self, size: Size) -> Self {
+        self.params.layout.size.x = size;
+        self.params.layout.size.y = size;
+        return self;
+    }
+
+    pub const fn visible(mut self) -> Self {
+        self.params.rect.visible = true;
+        return self;
+    }
+    pub const fn invisible(mut self) -> Self {
+        self.params.rect.visible = false;
+        self.params.rect.outline_only = false;
+        self.params.rect.vertex_colors = VertexColors::flat(Color::KERU_DEBUG_RED);
+        return self;
+    }
+
+    pub const fn filled(mut self, filled: bool) -> Self {
+        self.params.rect.outline_only = filled;
+        return self;
+    }
+
+    pub const fn color(mut self, color: Color) -> Self {
+        self.params.rect.vertex_colors = VertexColors::flat(color);
+        return self;
+    }
+
+    pub const fn shape(mut self, shape: Shape) -> Self {
+        self.params.rect.shape = shape;
+        return self;
+    }
+
+    pub const fn circle(mut self) -> Self {
+        self.params.rect.shape = Shape::Circle;
+        return self;
+    }
+
+    pub const fn vertex_colors(mut self, colors: VertexColors) -> Self {
+        self.params.rect.vertex_colors = colors;
+        return self;
+    }
+
+    pub const fn stack(mut self, axis: Axis, arrange: Arrange, spacing: Len) -> Self {
+        self.params.stack = Some(Stack {
+            arrange,
+            axis,
+            spacing,
+        });
+        return self;
+    }
+
+    pub const fn stack_arrange(mut self, arrange: Arrange) -> Self {
+        let stack = match self.params.stack {
+            Some(stack) => stack,
+            None => Stack::DEFAULT,
+        };
+        self.params.stack = Some(stack.arrange(arrange));
+        return self;
+    }
+
+    pub const fn stack_spacing(mut self, spacing: Len) -> Self {
+        let stack = match self.params.stack {
+            Some(stack) => stack,
+            None => Stack::DEFAULT,
+        };
+        self.params.stack = Some(stack.spacing(spacing));
+        return self;
+    }
+
+    // todo: if we don't mind sacrificing symmetry, it could make sense to just remove this one.
+    pub const fn stack_axis(mut self, axis: Axis) -> Self {
+        let stack = match self.params.stack {
+            Some(stack) => stack,
+            None => Stack::DEFAULT,
+        };
+        self.params.stack = Some(stack.axis(axis));
+        return self;
+    }
+
+    pub const fn padding(mut self, padding: Len) -> Self {
+        self.params.layout.padding = Xy::new_symm(padding);
+        return self;
+    }
+
+    pub const fn padding_x(mut self, padding: Len) -> Self {
+        self.params.layout.padding.x = padding;
+        return self;
+    }
+
+    pub const fn padding_y(mut self, padding: Len) -> Self {
+        self.params.layout.padding.y = padding;
+        return self;
+    }
+
+    pub const fn scrollable_x(mut self, scrollable_x: bool) -> Self {
+        self.params.layout.scrollable.x = scrollable_x;
+        return self;
+    }
+
+    pub const fn scrollable_y(mut self, scrollable_y: bool) -> Self {
+        self.params.layout.scrollable.y = scrollable_y;
+        return self;
+    }
+
+    pub const fn absorbs_clicks(mut self, absorbs_clicks: bool) -> Self {
+        self.params.interact.absorbs_mouse_events = absorbs_clicks;
+        return self;
+    }
+
+    pub fn key(mut self, key: NodeKey) -> Self {
+        self.params.key = Some(key);
+        return self;
+    }
+
+    pub fn is_fit_content(&self) -> bool {
+        let Xy { x, y } = self.params.layout.size;
+        return x == Size::FitContent || y == Size::FitContent
+    }
+
+    pub fn is_scrollable(&self) -> bool {
+        return self.params.layout.scrollable.x || self.params.layout.scrollable.y
+    }
+}
+
+// todo: static text
+impl NodeParams {
+    pub fn text<'a>(self, text: &'a str) -> FullNodeParams<'a> {
+        return FullNodeParams {
+            params: self,
+            text: Some(text),
+            image: None,
+        }
+    }
+
+    pub fn static_image(self, image: &'static [u8]) -> FullNodeParams<'static> {
+        return FullNodeParams {
+            params: self,
+            text: None,
+            image: Some(image),
+        }
     }
 }

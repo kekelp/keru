@@ -9,7 +9,6 @@ use crate::node::*;
 use glyphon::cosmic_text::Align;
 use glyphon::{AttrsList, Color as GlyphonColor, TextBounds, Viewport};
 
-use interact::UiNodeResponse;
 use rustc_hash::FxHasher;
 
 use std::collections::hash_map::Entry;
@@ -163,11 +162,11 @@ impl Ui {
     // aka make a new UiNode that's not mutable and give that
     pub fn get_node(&mut self, key: NodeKey) -> Option<UiNode> {
         let node_i = self.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
-        return Some(self.get_ref_unchecked(node_i, &key));
+        return Some(self.get_uinode(node_i));
     }
 
     // only for the macro, use get_ref
-    pub(crate) fn get_ref_unchecked(&mut self, i: usize, _key: &NodeKey) -> UiNode {
+    pub(crate) fn get_uinode(&mut self, i: usize) -> UiNode {
         return UiNode {
             node_i: i,
             ui: self,
@@ -196,7 +195,6 @@ impl Ui {
                 match refresh_or_add_twin(frame, old_map_entry.last_frame_touched) {
                     // Refresh a normal node from the previous frame (no twins).
                     Refresh => {
-                        let warning = "todo: refresh should be in place(), not here";
                         old_map_entry.refresh(frame);
                         // in this branch we don't really do anything now. there will be a separate thing for updating params
                         let final_i = old_map_entry.slab_i;
@@ -235,7 +233,6 @@ impl Ui {
                     Entry::Occupied(o) => {
                         let old_twin_map_entry = o.into_mut();
 
-                        let warning = "todo: refresh should be in place(), not here";
                         let real_final_i = old_twin_map_entry.refresh(frame);
 
                         (real_final_i, twin_key.id_with_subtree())
@@ -243,6 +240,17 @@ impl Ui {
                 }
             }
         };
+
+        // refresh last_frame_touched. 
+        // refreshing the node should go here as well.
+        // but maybe not? the point was always that untouched nodes stay out of the tree and they get skipped automatically.
+        // unless we still need the frame for things like pruning?
+        let frame = self.sys.current_frame;
+        self.sys.text.refresh_last_frame(self.nodes[real_final_i].text_id, frame);
+        
+        // update the in-tree links and the thread-local state based on the current parent.
+        let NodeWithDepth { i: parent_i, depth } = thread_local::current_parent();
+        self.set_tree_links(real_final_i, parent_i, depth);
 
         return real_final_i;
     }
@@ -285,10 +293,20 @@ impl Ui {
     /// - [`Ui::add_anon`] can also add a node, but without requiring a key.
     /// 
     /// - Shorthand functions like [`Ui::text`] and [`Ui::label`] can `add` and [place](`Ui::place`) simple nodes all in once without requiring a key.
-    #[must_use]
-    pub fn add(&mut self, key: NodeKey) -> UiNode {
-        let i = self.add_or_update_node(key);
-        return self.get_ref_unchecked(i, &key);
+    #[track_caller]
+    pub fn add(&mut self, params: impl NodeParamsTrait) -> UiParent {
+        if let Some(key) = params.get_params().key {
+            let i = self.add_or_update_node(key);
+            self.get_uinode(i).params(params);
+            return self.make_parent_from_i(i);
+        } else {
+            let caller_location_hash = caller_location_hash();
+            let anonymous_key = NodeKey::new(Id(caller_location_hash), "");
+
+            let i = self.add_or_update_node(anonymous_key);
+            self.get_uinode(i).params(params);
+            return self.make_parent_from_i(i);
+        }
     }
 
     /// Exactly like [`Ui::add`], but without a key. Default parameters are passed in immediately for convenience.
@@ -316,10 +334,8 @@ impl Ui {
     /// # }    
     /// ```
     #[track_caller]
-    pub fn add_anon(&mut self, params: NodeParams) -> UiNode {
-        let mut node = self.add_anon_with_name("anon Node");
-        let _ = node.params(params);
-        return node;
+    pub fn add_anon(&mut self) -> UiNode {
+        return self.add_anon_with_name("anon Node");
     }
 
     #[track_caller]
@@ -335,76 +351,18 @@ impl Ui {
         
         let i = self.add_or_update_node(anonymous_key);
 
-        let uinode = self.get_ref_unchecked(i, &anonymous_key);
+        let uinode = self.get_uinode(i);
         return uinode; 
     }
 
-
-    /// Place the node corresponding to `key` at a specific position in the GUI tree.
-    /// 
-    /// The position is defined by the position of the [`place`](Ui::place) call relative to [`nest`](UiPlacedNode::nest) calls.
-    /// 
-    /// Panics if it is called with a key that doesn't correspond to any previously added node, through either [`Ui::add`], [`Ui::add_anon`], or [`Ui::text`] or similar functions.
-    /// 
-    /// ```rust
-    /// # use keru::*;
-    /// # pub struct State {
-    /// #     pub ui: Ui,
-    /// # }
-    /// #
-    /// # impl State {
-    /// #    fn declare_ui(&mut self) {
-    /// #    let ui = &mut self.ui; 
-    /// #
-    /// # #[node_key] pub const PARENT: NodeKey;
-    /// # #[node_key] pub const CHILD: NodeKey;
-    /// #
-    /// ui.add(PARENT).params(CONTAINER);
-    /// ui.add(CHILD).params(BUTTON);
-    /// 
-    /// ui.place(PARENT).nest(|| {
-    ///     ui.place(CHILD);
-    /// });
-    /// #
-    /// #   }
-    /// # }
-    /// ```
-    /// 
-    /// [`UiNode::place`] does the same thing. Since it is a method of [`UiNode`], you can call it on the node you want to place immediately after adding it. Thus, it doesn't need a `NodeKey` argument to identify the node to place.
-    /// 
-    /// Compared to [`UiNode::place`], this function allows separating the code that adds the node and sets the params from the `place` code. This usually makes the tree layout much easier to read.
-    ///
-    #[track_caller]
-    pub fn place(&mut self, key: NodeKey) -> UiPlacedNode {
-        // twin key resolver thing removed recently. hopefully its ok.
-        let node_i = self
-            .nodes
-            .node_hashmap
-            .get(&key.id_with_subtree())
-            .expect("Error: `place()`ing a node that was never `add()`ed.")
-            .slab_i;
-
-        return self.place_by_i(node_i);
-    }
-
-    pub(crate) fn place_by_i(&mut self, i: usize) -> UiPlacedNode {
-
-        
-        // refresh last_frame_touched. 
-        // refreshing the node should go here as well.
-        // but maybe not? the point was always that untouched nodes stay out of the tree and they get skipped automatically.
-        // unless we still need the frame for things like pruning?
-        let frame = self.sys.current_frame;
-        self.sys.text.refresh_last_frame(self.nodes[i].text_id, frame);
+    pub(crate) fn make_parent_from_i(&mut self, i: usize) -> UiParent {
         
         let old_children_hash = self.nodes[i].children_hash;
         // reset the children hash to keep it in sync with the thread local one (which will be created new in push_parent)
         self.nodes[i].children_hash = EMPTY_HASH;
         
-        // update the in-tree links and the thread-local state based on the current parent.
-        let NodeWithDepth { i: parent_i, depth } = thread_local::current_parent();
-        self.set_tree_links(i, parent_i, depth);
-        
+        let parent_i = self.nodes[i].parent;
+
         // update the parent's **THREAD_LOCAL** children_hash with ourselves. (when the parent gets popped, it will be compared to the old one, which we passed to nest() before starting to add children)
         // AND THEN, sync the thread local hash value with the one on the node as well, so that we'll be able to use it for the old value next frame
         let children_hash_so_far = thread_local::hash_new_child(i);
@@ -412,7 +370,7 @@ impl Ui {
 
 
         // return the child_hash that this node had in the last frame, so that can new children can check against it.
-        return UiPlacedNode::new(i, old_children_hash);
+        return UiParent::new(i, old_children_hash);
     }
 
     pub(crate) fn check_param_changes(&mut self, i: usize) {
@@ -645,7 +603,7 @@ impl Ui {
 
         // messy manual equivalent of what we'd do when place()ing the root
         let old_root_hash = self.nodes[ROOT_I].children_hash;
-        let root_parent = UiPlacedNode::new(ROOT_I, old_root_hash);
+        let root_parent = UiParent::new(ROOT_I, old_root_hash);
         self.nodes[ROOT_I].children_hash = EMPTY_HASH;
 
         thread_local::push_parent(&root_parent);
@@ -675,58 +633,67 @@ impl Ui {
         self.sys.new_external_events = false;
     }
 
-    /// Add and place an anonymous panel.
+    /// Add a key-less panel.
     #[track_caller]
-    pub fn panel(&mut self) -> UiPlacedNode {
-        return self.add_anon_with_name("anon panel").params(PANEL).place();
+    pub fn panel(&mut self) -> UiParent {
+        return self.add(PANEL);
     }
 
-    /// Add and place an anonymous vertical stack container.
+    /// Add a key-less vertical stack container.
     #[track_caller]
-    pub fn v_stack(&mut self) -> UiPlacedNode {
-        return self.add_anon_with_name("anon v_stack").params(V_STACK).place();
+    pub fn v_stack(&mut self) -> UiParent {
+        return self.add(V_STACK);
     }
     
-    /// Add and place an anonymous horizontal stack container.
+    /// Add a key-less horizontal stack container.
     #[track_caller]
-    pub fn h_stack(&mut self) -> UiPlacedNode {
-        return self.add_anon_with_name("anon h_stack").params(H_STACK).place();
+    pub fn h_stack(&mut self) -> UiParent {
+        return self.add(H_STACK);
     }
 
-    /// Add and place an anonymous text element.
+    /// Add a key-less text element.
     #[track_caller]
-    pub fn text(&mut self, text: impl Display + Hash) -> UiPlacedNode {
-        return self.add_anon_with_name("anon text").params(TEXT).text(text).place();
+    pub fn text(&mut self, text: impl Display + Hash) -> UiParent {
+        // todo: ideally FullNodeParams would be able to hold the ref to the impl Display + Hash item?
+        let node = self.add(TEXT);
+        self.get_uinode(node.i).text(text);
+        return node;
     }
 
-    /// Add and place an anonymous text element.
+    /// Add a key-less text element.
     #[track_caller]
-    pub fn static_text(&mut self, text: &'static str) -> UiPlacedNode {
-        return self.add_anon_with_name("anon text").params(TEXT).static_text(text).place();
+    pub fn static_text(&mut self, text: &'static str) -> UiParent {
+        return self.add(TEXT.text(text));
     }
 
-    /// Add and place an anonymous text element.
+    /// Add a key-less text element.
     #[track_caller]
-    pub fn multiline_text(&mut self, text: impl Display + Hash) -> UiPlacedNode {
-        return self.add_anon_with_name("anon multiline text").params(TEXT_PARAGRAPH).text(text).place();
+    pub fn multiline_text(&mut self, text: impl Display + Hash) -> UiParent {
+        // todo: ideally FullNodeParams would be able to hold the ref to the impl Display + Hash item?
+        let node = self.add(TEXT);
+        self.get_uinode(node.i).text(text);
+        return node;
     }
 
-    /// Add and place an anonymous text element.
+    /// Add a key-less text element.
     #[track_caller]
-    pub fn static_multiline_text(&mut self, text: &'static str) -> UiPlacedNode {
-        return self.add_anon_with_name("anon multiline text").params(TEXT_PARAGRAPH).static_text(text).place();
+    pub fn static_multiline_text(&mut self, text: &'static str) -> UiParent {
+        return self.add(TEXT_PARAGRAPH.text(text));
     }
 
-    /// Add and place an anonymous label.
+    /// Add a key-less label.
     #[track_caller]
-    pub fn label(&mut self, text: impl Display + Hash) -> UiPlacedNode {
-        return self.add_anon_with_name("anon label").params(LABEL).text(text).place();
+    pub fn label(&mut self, text: impl Display + Hash) -> UiParent {
+        // todo: ideally FullNodeParams would be able to hold the ref to the impl Display + Hash item?
+        let node = self.add(LABEL);
+        self.get_uinode(node.i).text(text);
+        return node;
     }
 
-    /// Add and place an anonymous label.
+    /// Add a key-less label.
     #[track_caller]
-    pub fn static_multiline_label(&mut self, text: &'static str) -> UiPlacedNode {
-        return self.add_anon_with_name("anon label").params(MULTILINE_LABEL).static_text(text).place();
+    pub fn static_multiline_label(&mut self, text: &'static str) -> UiParent {
+        return self.add(MULTILINE_LABEL.text(text));
     }
 
     /// Returns `true` if a node corresponding to `key` exists and if it is currently part of the GUI tree. 
@@ -737,15 +704,6 @@ impl Ui {
             return entry.last_frame_touched == self.sys.current_frame;
         } else {
             return false;
-        }
-    }
-
-    /// Experimental function for skipping declaration code when the underlying state is unchanged.
-    pub fn place_and_assume_unchanged(&mut self, key: NodeKey) {
-        let node_i = self.nodes.node_hashmap.get(&key.id_with_subtree());
-        if let Some(entry) = node_i {
-            // also set a retained flag
-            self.place_by_i(entry.slab_i);
         }
     }
 }
@@ -775,14 +733,14 @@ pub(crate) fn caller_location_hash() -> u64 {
 /// 
 /// While there's nothing unsafe about that, it will almost surely lead to weird unreadable code. The intended use is to call [`nest()`](Self::nest()) immediately after getting this struct from [`UiNode::place()`], like in the [`nest()`](Self::nest()) example.
 /// 
-pub struct UiPlacedNode {
-    pub(crate) node_i: usize,
+pub struct UiParent {
+    pub(crate) i: usize,
     pub(crate) old_children_hash: u64,
 }
-impl UiPlacedNode {
-    pub(crate) fn new(node_i: usize, old_children_hash: u64) -> UiPlacedNode {
-        return UiPlacedNode {
-            node_i,
+impl UiParent {
+    pub(crate) fn new(node_i: usize, old_children_hash: u64) -> UiParent {
+        return UiParent {
+            i: node_i,
             old_children_hash,
         }
     }
@@ -825,53 +783,6 @@ impl UiPlacedNode {
     
         return result;
     }
-
-    /// Get a [`UiNodeResponse`] out of a placed node.
-    /// 
-    /// The [`UiNodeResponse`]'s methods can be used to know if a node is being clicked, dragged, or hovered.
-    /// 
-    /// For somewhat complicated reasons, you have to pass a reference to the [`Ui`] back to this method. This might change in the future.
-    /// 
-    /// This is an "alternative" API, only useful if you really don't want to use [`NodeKeys`](NodeKey). The recommended way to do this is to use functions like [`Ui::is_clicked()`] directly on the main [`Ui`] struct, using a [`NodeKey`] to refer to the intended node.
-    /// 
-    /// To see an example of code using this alternative pattern, see the "no_keys" example.
-    pub fn response<'a>(&self, ui: &'a mut Ui) -> UiNodeResponse<'a> {
-        return UiNodeResponse::new(ui, self.node_i);
-    }
-}
-
-impl<'a> UiNode<'a> {
-    /// Place the node at a specific position in the Ui tree.
-    /// 
-    /// The position is defined by the position of the [`place`](UiNode::place) call relative to [`nest`](UiPlacedNode::nest) calls.
-    /// 
-    /// ```rust
-    /// # use keru::*;
-    /// # pub struct State {
-    /// #     pub ui: Ui,
-    /// # }
-    /// #
-    /// # impl State {
-    /// #    fn declare_ui(&mut self) {
-    /// #    let ui = &mut self.ui; 
-    /// #
-    /// # #[node_key] pub const BUTTON_KEY: NodeKey;
-    /// ui.add_anon(PANEL).place().nest(|| {
-    ///     ui.add(BUTTON_KEY).place();
-    /// });
-    /// #
-    /// #   }
-    /// # }
-    /// ```
-    /// 
-    /// [`Ui::place`] does the same thing. Since it's a method of [`Ui`], you have to use a `NodeKey` argument to tell it which node to place.
-    /// 
-    /// Compared to [`Ui::place`], this function doesn't allow separating the code that `add`s the node and sets the [`NodeParams`] and the code that defines the layout. 
-    /// 
-    /// However, it is fully panic-safe. 
-    pub fn place(&mut self) -> UiPlacedNode {
-        return self.ui.place_by_i(self.node_i);
-    }
 }
 
 pub(crate) fn start_info_log_timer() -> Option<std::time::Instant> {
@@ -883,57 +794,43 @@ pub(crate) fn start_info_log_timer() -> Option<std::time::Instant> {
 }
 
 
-pub trait FullNodeParams {
-    fn params(&self) -> &NodeParams;
+pub trait NodeParamsTrait {
+    fn get_params(&self) -> &NodeParams;
 
-    fn text(&self) -> Option<&str> {
+    fn get_text(&self) -> Option<&str>;
+    
+    fn get_image(&self) -> Option<&'static [u8]>;
+}
+
+impl NodeParamsTrait for NodeParams {
+    fn get_params(&self) -> &NodeParams {
+        return &self;
+    }
+
+    fn get_text(&self) -> Option<&str> {
         return None;
     }
     
-    fn image(&self) -> Option<&[u8]> {
+    fn get_image(&self) -> Option<&'static [u8]> {
         return None;
-    }
-}
-
-impl FullNodeParams for NodeParams {
-    fn params(&self) -> &NodeParams {
-        return &self;
-    }
-}
-
-pub struct NodeParamsWithText<'a> {
-    params: NodeParams,
-    text: &'a str,
-}
-
-impl<'a> FullNodeParams for NodeParamsWithText<'a> {
-    fn params(&self) -> &NodeParams {
-        return &self.params;
-    }
-
-    fn text(&self) -> Option<&str> {
-        return Some(self.text);
     }
 }
 
 impl<'a> UiNode<'a> {
-    #[must_use]
-    pub fn params2(&mut self, params: impl FullNodeParams) -> &mut Self {
-        self.node_mut().params = *params.params();
+    pub fn params(&mut self, params: impl NodeParamsTrait) -> &mut Self {
+        self.node_mut().params = *params.get_params();
         
-        if let Some(text) = params.text() {
+        if let Some(text) = params.get_text() {
             self.text(text);
         }
         
+        if let Some(image) = params.get_image() {
+            self.static_image(image);
+        }
+
+        self.ui.check_param_changes(self.node_i);
+
         return self;
     }
 }
 
-impl NodeParams {
-    pub fn text<'a>(self, text: &'a str) -> NodeParamsWithText<'a> {
-        return NodeParamsWithText {
-            params: self,
-            text,
-        }
-    }
-}

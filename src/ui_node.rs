@@ -19,12 +19,6 @@ pub struct UiNode<'a> {
     pub(crate) ui: &'a mut Ui,
 }
 
-impl<'a> Drop for UiNode<'a> {
-    fn drop(&mut self) {
-        self.ui.check_param_changes(self.node_i);
-    }
-}
-
 impl<'a> UiNode<'a> {
     pub(crate) fn node_mut(&mut self) -> &mut Node {
         return &mut self.ui.nodes.nodes[self.node_i];
@@ -120,75 +114,6 @@ impl<'a> UiNode<'a> {
     //     }
     // }
 
-    pub fn color(&mut self, color: crate::color::Color) -> &mut Self {
-        self.node_mut().params.rect.vertex_colors = VertexColors::flat(color);
-        return self;
-    }
-
-    pub fn vertex_colors(&mut self, colors: VertexColors) -> &mut Self {
-        self.node_mut().params.rect.vertex_colors = colors;
-        return self;
-    }
-
-    pub fn position(&mut self, position_x: Position, position_y: Position) -> &mut Self {
-        self.node_mut().params.layout.position.x = position_x;
-        self.node_mut().params.layout.position.y = position_y;
-        return self;
-    }
-
-    pub fn position_symm(&mut self, position: Position) -> &mut Self {
-        self.node_mut().params.layout.position.x = position;
-        self.node_mut().params.layout.position.y = position;
-        return self;
-    }
-
-    pub fn position_x(&mut self, position: Position) -> &mut Self {
-        self.node_mut().params.layout.position.x = position;
-        return self;
-    }
-
-    pub fn position_y(&mut self, position: Position) -> &mut Self {
-        self.node_mut().params.layout.position.y = position;
-        return self;
-    }
-
-    pub fn size(&mut self, size_x: Size, size_y: Size) -> &mut Self {
-        self.node_mut().params.layout.size.x = size_x;
-        self.node_mut().params.layout.size.y = size_y;
-        return self;
-    }
-
-    pub fn size_symm(&mut self, size: Size) -> &mut Self {
-        self.node_mut().params.layout.size.x = size;
-        self.node_mut().params.layout.size.y = size;
-        return self;
-    }
-    
-    pub fn size_x(&mut self, size: Size) -> &mut Self {
-        self.node_mut().params.layout.size.x = size;
-        return self;
-    }
-
-    pub fn size_y(&mut self, size: Size) -> &mut Self {
-        self.node_mut().params.layout.size.y = size;
-        return self;
-    }
-
-    pub fn scrollable_x(&mut self, scrollable_x: bool) -> &mut Self {
-        self.node_mut().params.layout.scrollable.x = scrollable_x;
-        return self;
-    }
-
-    pub fn scrollable_y(&mut self, scrollable_y: bool) -> &mut Self {
-        self.node_mut().params.layout.scrollable.y = scrollable_y;
-        return self;
-    }
-
-    pub fn params(&mut self, params: NodeParams) -> &mut Self {
-        self.node_mut().params = params;
-        return self;
-    }
-
     pub fn inner_size(&self) -> Xy<u32> {
         let padding = self.node().params.layout.padding;
         let padding = self.ui.to_pixels2(padding);
@@ -234,44 +159,6 @@ impl<'a> UiNode<'a> {
             rect: self.node().rect.to_graphics_space(),
             z: self.node().z + Z_STEP / 2.0,
         };
-    }
-
-    pub fn stack_arrange(&mut self, arrange: Arrange) -> &mut Self {
-        let stack = match self.node().params.stack {
-            Some(stack) => stack,
-            None => Stack::DEFAULT,
-        };
-        self.node_mut().params.stack = Some(stack.arrange(arrange));
-        return self;
-    }
-
-    pub fn stack_spacing(&mut self, spacing: Len) -> &mut Self {
-        let stack = match self.node().params.stack {
-            Some(stack) => stack,
-            None => Stack::DEFAULT,
-        };
-        self.node_mut().params.stack = Some(stack.spacing(spacing));
-        return self;
-    }
-
-    pub fn padding(&mut self, padding: Len) -> &mut Self {
-        self.node_mut().params.layout.padding = Xy::new_symm(padding);
-        return self;
-    }
-
-    pub fn padding_x(&mut self, padding: Len) -> &mut Self {
-        self.node_mut().params.layout.padding.x = padding;
-        return self;
-    }
-
-    pub fn padding_y(&mut self, padding: Len) -> &mut Self {
-        self.node_mut().params.layout.padding.y = padding;
-        return self;
-    }
-
-    pub fn shape(&mut self, shape: Shape) -> &mut Self {
-        self.node_mut().params.rect.shape = shape;
-        return self;
     }
 }
 

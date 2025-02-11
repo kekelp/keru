@@ -9,13 +9,10 @@ pub struct State {
 
 impl ExampleLoop for State {
     fn update_ui(&mut self, ui: &mut Ui) {
-        // Declare unique identities for out Ui elements with #[node_key]
-        // Using a NodeKey to assign a stable identity to each element is almost always a good idea, but it's not always necessary.
         #[node_key] const INCREASE: NodeKey;
         #[node_key] const DECREASE: NodeKey;
         #[node_key] const SHOW: NodeKey;
         
-        // Change our state according to the Ui events.
         if ui.is_clicked(SHOW) {
             self.show = !self.show;
         }
@@ -26,7 +23,6 @@ impl ExampleLoop for State {
             self.count -= 1;
         }
 
-        // Big number = more red
         fn count_color(count: i32) -> Color {
             let red = 0.1 * count as f32;
             return Color::rgba_f(red, 0.10196, 0.59608, 0.80392);
@@ -36,31 +32,27 @@ impl ExampleLoop for State {
             false => "Show Counter",
         };
 
-        // Add nodes to the UI and set their parameters
-        ui.add(INCREASE)
-            .params(BUTTON)
+        let increase_button = BUTTON
             .color(count_color(self.count))
-            .static_text("Increase");
+            .text("Increase")
+            .key(INCREASE);
 
-        ui.add(SHOW)
-            .params(BUTTON)
+        let show_button = BUTTON
             .color(Color::RED)
-            .static_text(show_button_text);
+            .text(show_button_text)
+            .key(SHOW);
 
-        ui.add(DECREASE)
-            .params(BUTTON)
-            .static_text("Decrease");
+        let decrease_button = BUTTON
+            .text("Decrease")
+            .key(DECREASE);
 
-        // Place the nodes into the tree. The nesting and order of these calls define the layout.
         ui.v_stack().nest(|| {
             if self.show {
-                ui.place(INCREASE);
-                // let variable_text = format!("{:?}", std::time::Instant::now());
-                // ui.label(variable_text);
+                ui.add(increase_button);
                 ui.label(self.count);
-                ui.place(DECREASE);
+                ui.add(decrease_button);
             }
-            ui.place(SHOW);
+            ui.add(show_button);
         });
     }
 

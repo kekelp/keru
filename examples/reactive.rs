@@ -28,7 +28,7 @@ impl CustomComponents for Ui {
             reactive(changed, || {
 
                 if can_skip() {
-                    log::warn!("Counter #{} is soft-skipped. `ui` methods will be able to skip most expensive operations", debug_name);
+                    log::warn!("Counter #{} is soft-skipped", debug_name);
                 } else {
                     log::warn!("Counter #{} updated", debug_name);
                 }
@@ -52,27 +52,29 @@ impl CustomComponents for Ui {
                     false => "Show Counter",
                 };
 
-                self.add(INCREASE)
-                    .params(BUTTON)
-                    .color(count_color(**count))
-                    .static_text("Increase");
-
-                self.add(SHOW)
-                    .params(BUTTON)
+                let increase_button = BUTTON
+                .color(count_color(**count))
+                .text("Increase")
+                .key(INCREASE);
+    
+                let show_button = BUTTON
                     .color(Color::RED)
-                    .static_text(show_button_text);
+                    .text(show_button_text)
+                    .key(SHOW);
 
-                self.add(DECREASE)
-                    .params(BUTTON)
-                    .static_text("Decrease");
+        
+                let decrease_button = BUTTON
+                    .text("Decrease")
+                    .key(DECREASE);
+
 
                 self.v_stack().nest(|| {
                     if **show {
-                        self.place(INCREASE);
+                        self.add(increase_button);
                         self.label(*count);
-                        self.place(DECREASE);
+                        self.add(decrease_button);
                     }
-                    self.place(SHOW);
+                    self.add(show_button);
                 });
             });    
         });
@@ -92,7 +94,7 @@ impl ExampleLoop for State {
 }
 
 fn main() {
-    basic_env_logger_init();
+    env_logger::Builder::new().filter_level(log::LevelFilter::Warn).init();
     let state = State::default();
     run_example_loop(state);
 }

@@ -75,27 +75,25 @@ impl ColorPickerUi for Ui {
             // }
             // todo: actually implement this, and pair it with a nicer observer for the example
 
-            self.add(CONTAINER)
-                .params(KERU_PANEL)
+            let container = KERU_PANEL
                 .size_x(Size::Fixed(Frac(0.18)))
                 .size_y(Size::AspectRatio(1.0));
             
-            self.add(OKLAB_HUE_WHEEL)
-                .params(CUSTOM_RENDERED_PANEL)
+            let oklab_hue_wheel = CUSTOM_RENDERED_PANEL
                 .size_symm(Fill)
-                .shape(Shape::Ring { width: 60.0 });
+                .shape(Shape::Ring { width: 60.0 })
+                .key(OKLAB_HUE_WHEEL);
         
-            self.add(PADDING_SQUARE)
-                .params(PANEL)
+            let padding_square = PANEL
                 .color(NEUTRAL_GREY)
                 .size_symm(Fill)
                 // .shape(Shape::Rectangle { corner_radius: 0.5 })
                 .padding(Pixels((60.0 * 2.0f32.sqrt() / 2.0) as u32));
 
-            self.add(OKLAB_SQUARE)
-                .params(CUSTOM_RENDERED_PANEL)
+            let oklab_square = CUSTOM_RENDERED_PANEL
                 .shape(Shape::Rectangle { corner_radius: 0.0 })
-                .size_symm(Fixed(Frac(0.7071)));
+                .size_symm(Fixed(Frac(0.7071)))
+                .key(OKLAB_SQUARE);
 
             // let ring_y = 1.0 - color_picker.oklch_color.chroma / 0.33;
             // let ring_x = color_picker.oklch_color.lightness;
@@ -110,13 +108,13 @@ impl ColorPickerUi for Ui {
             //     .position_y(Position::Static(Frac(ring_y)));
 
             // layout
-            self.place(CONTAINER).nest(|| {
-                self.place(PADDING_SQUARE).nest(|| {
-                    self.place(OKLAB_SQUARE).nest(|| {
-                        // self.place(SMALL_RING);
+            self.add(container).nest(|| {
+                self.add(padding_square).nest(|| {
+                    self.add(oklab_square).nest(|| {
+                        // self.add(SMALL_RING).params();
                     });
                 });
-                self.place(OKLAB_HUE_WHEEL);
+                self.add(oklab_hue_wheel);
             });
                         
         });

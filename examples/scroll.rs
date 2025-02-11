@@ -16,23 +16,25 @@ pub const JAPANESE_TEXT: &str = "ヘッケはこれらのL-函数が全複素平
 
 impl ExampleLoop for State {
     fn update_ui(&mut self, ui: &mut Ui) {
-        #[node_key] pub const DARK_PANEL: NodeKey;
-        #[node_key] pub const SMALL_PANEL: NodeKey;
-        #[node_key] pub const SCROLL_AREA: NodeKey;
+
+        let dark_panel = PANEL
+            .color(Color::KERU_BLUE)
+            .size_symm(Fill);
+    
+        let small_panel = PANEL
+            .size_symm(Fixed(Frac(0.95)))
+            .color(Color::KERU_BLACK)
+            .padding(Len::ZERO);
+
+        let scroll_area = CONTAINER
+            .size_y(Fill)
+            .scrollable_y(true)
+            .padding(Len::ZERO);
         
-        #[node_key] pub const SCROLL_TEXT: NodeKey;
-
-        ui.add(DARK_PANEL).params(PANEL).color(Color::KERU_BLUE).size_symm(Fill);
-
-        ui.add(SMALL_PANEL).params(PANEL).size_symm(Fixed(Frac(0.95))).color(Color::KERU_BLACK).padding(Len::ZERO);
-        ui.add(SCROLL_AREA).params(CONTAINER).size_y(Fill).scrollable_y(true).padding(Len::ZERO);
-
-        ui.place(DARK_PANEL).nest(|| {
+        ui.add(dark_panel).nest(|| {
             ui.h_stack().nest(|| {
-
-                ui.place(SMALL_PANEL).nest(|| {                 
-                    
-                    ui.place(SCROLL_AREA).nest(|| {
+                ui.add(small_panel).nest(|| {
+                    ui.add(scroll_area).nest(|| {
                         ui.v_stack().nest(|| {
                             ui.static_multiline_label(LATIN_TEXT);
                             ui.static_multiline_label(RUSSIAN_TEXT);
@@ -40,7 +42,6 @@ impl ExampleLoop for State {
                             ui.static_multiline_label(JAPANESE_TEXT);
                         });
                     });
-                        
                 });
             });
         });
@@ -48,7 +49,7 @@ impl ExampleLoop for State {
 }
 
 fn main() {
-    basic_env_logger_init();
+    env_logger::Builder::new().filter_level(log::LevelFilter::Warn).init();
     let state = State::default();
     run_example_loop(state);
 }
