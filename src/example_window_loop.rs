@@ -48,7 +48,7 @@ struct FullState<S> {
 
 pub fn run_example_loop<S: ExampleLoop>(state: S) {
     let event_loop = EventLoop::new().unwrap();
-    event_loop.set_control_flow(ControlFlow::Wait);
+    event_loop.set_control_flow(ControlFlow::Poll);
 
     let ctx = Context::init();
     let ui = Ui::new(&ctx.device, &ctx.queue, &ctx.surface_config);
@@ -88,8 +88,8 @@ impl<S: ExampleLoop> ApplicationHandler for FullState<S> {
             }
         }
                 
+        self.ctx.window.request_redraw();
         if self.ui.event_loop_needs_to_wake() {
-            self.ctx.window.request_redraw();
         }
     }
 }

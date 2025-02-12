@@ -98,8 +98,8 @@ impl State {
             self.canvas.eraser_mode = true;
         }
         
-        let brush = ICON_BUTTON.static_image(include_bytes!("icons/brush.png"));
-        let eraser = ICON_BUTTON.static_image(include_bytes!("icons/eraser.png"));
+        let brush = ICON_BUTTON.static_image(include_bytes!("icons/brush.png")).key(BRUSH);
+        let eraser = ICON_BUTTON.static_image(include_bytes!("icons/eraser.png")).key(ERASER);
 
         let tools_panel = KERU_PANEL
             .position_x(Start)
@@ -127,8 +127,11 @@ impl State {
         let slider_height = match self.ui.get_node(SLIDER_CONTAINER) {
             Some(container) => container.inner_size().y as f32,
             // this is just for the first frame. awkward.
-            None => 100.0,
+            None => 1.0,
         };
+
+        println!("{}", log_min);
+        println!("{}", log_max);
 
         let (_, y) = self.ui.is_dragged(SLIDER_CONTAINER);
         log_value += (y as f32) / slider_height * (log_max - log_min);
@@ -138,7 +141,6 @@ impl State {
         
 
         log_value = log_value.clamp(log_min, log_max);
-        log_value = 10f32.powf(log_value);
 
         #[node_key] pub const SLIDER_CONTAINER: NodeKey;
         let slider_container = KERU_PANEL
@@ -156,11 +158,13 @@ impl State {
             .padding_y(Pixels(1))
             .key(SLIDER_FILL);
 
+        let lin_value = 10f32.powf(log_value);
+
         // There's 2 reasons why can can't just pass the f32 and let the UI format it:
         // - we're using a custom format. This could be solved by making a text!() macro. but it wouldn't be nice.
         // - f32 doesn't implement Hash!!!!!!!!!!!!! So we still couldn't skip the formatting when it's unchanged
         self.format_scratch.clear();
-        let _ = write!(&mut self.format_scratch, "{:.2}", log_value);
+        let _ = write!(&mut self.format_scratch, "{:.2}", lin_value);
 
         self.ui.add(slider_container).nest(|| {
             self.ui.add(slider_fill);
@@ -168,6 +172,6 @@ impl State {
         });
 
         self.format_scratch.clear();
-        return log_value;
+        return lin_value;
     }
 }
