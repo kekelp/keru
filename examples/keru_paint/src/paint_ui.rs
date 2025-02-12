@@ -130,9 +130,6 @@ impl State {
             None => 1.0,
         };
 
-        println!("{}", log_min);
-        println!("{}", log_max);
-
         let (_, y) = self.ui.is_dragged(SLIDER_CONTAINER);
         log_value += (y as f32) / slider_height * (log_max - log_min);
         
