@@ -25,7 +25,7 @@ use rustc_hash::FxHasher;
 /// #    fn declare_ui(&mut self) {
 /// #    let ui = &mut self.ui; 
 /// #
-/// # #[node_key] pub const INCREASE: NodeKey;
+/// # #[node_key] const INCREASE: NodeKey;
 /// # const MY_BUTTON: NodeParams = keru::BUTTON
 /// #     .color(Color::RED)
 /// #     .shape(Shape::Circle); 
@@ -45,7 +45,7 @@ use rustc_hash::FxHasher;
 /// #    fn declare_ui(&mut self) {
 /// #    let ui = &mut self.ui; 
 /// #
-/// # #[node_key] pub const INCREASE: NodeKey;
+/// # #[node_key] const INCREASE: NodeKey;
 /// # const MY_BUTTON: NodeParams = keru::BUTTON
 /// #     .color(Color::RED)
 /// #     .shape(Shape::Circle); 

@@ -28,10 +28,10 @@ pub struct ColorPicker {
 
 const NEUTRAL_GREY: Color = Color::rgba_f(0.09, 0.09, 0.09, 1.0);
 
-#[node_key] pub const OKLAB_HUE_WHEEL: NodeKey;
-#[node_key] pub const OKLAB_SQUARE: NodeKey;
-#[node_key] pub const SMALL_RING: NodeKey;
-#[node_key] pub const PADDING_SQUARE: NodeKey;
+#[node_key] const OKLAB_HUE_WHEEL: NodeKey;
+#[node_key] const OKLAB_SQUARE: NodeKey;
+#[node_key] const SMALL_RING: NodeKey;
+#[node_key] const PADDING_SQUARE: NodeKey;
 #[node_key] const CONTAINER: NodeKey;
 
 pub trait ColorPickerUi {

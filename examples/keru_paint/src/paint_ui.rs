@@ -142,14 +142,14 @@ impl State {
 
         log_value = log_value.clamp(log_min, log_max);
 
-        #[node_key] pub const SLIDER_CONTAINER: NodeKey;
+        #[node_key] const SLIDER_CONTAINER: NodeKey;
         let slider_container = KERU_PANEL
             .position_x(End)
             .size_y(Size::Fixed(Frac(0.7)))
             .size_x(Fixed(Pixels(50)))
             .key(SLIDER_CONTAINER);
 
-        #[node_key] pub const SLIDER_FILL: NodeKey;
+        #[node_key] const SLIDER_FILL: NodeKey;
         let slider_fill = KERU_PANEL
             .size_x(Fill)
             .size_y(Fixed(Frac((log_value - log_min) / (log_max - log_min))))

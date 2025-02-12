@@ -10,7 +10,7 @@ use crate::*;
 // ```
 // # use keru::*;
 // fn widget(ui: &mut Ui) {
-//     #[node_key] pub const WIDGET_NODE: NodeKey;    
+//     #[node_key] const WIDGET_NODE: NodeKey;    
 //     // some complicated GUI code that uses WIDGET_NODE  
 // }
 // ```
@@ -21,7 +21,7 @@ use crate::*;
 // # use keru::*;
 // fn widget(ui: &mut Ui) {
 //     subtree(|| {
-//         #[node_key] pub const WIDGET_NODE: NodeKey;    
+//         #[node_key] const WIDGET_NODE: NodeKey;    
 //         // some complicated GUI code that uses WIDGET_NODE
 //     });
 // }
@@ -51,13 +51,13 @@ use crate::*;
 // /// # use keru::*;
 // /// fn custom_rendered_widget(ui: &mut Ui, key: NodeKey) {
 // ///     named_subtree(key, || {
-// ///         #[node_key] pub const CUSTOM_RENDERED_NODE: NodeKey;    
+// ///         #[node_key] const CUSTOM_RENDERED_NODE: NodeKey;    
 // ///         // some complicated GUI code that uses CUSTOM_RENDERED_NODE
 // ///     });
 // /// }
 // /// 
 // /// # fn test_fn(ui: &mut Ui) {
-// /// #[node_key] pub const WIDGET_KEY_1: NodeKey; 
+// /// #[node_key] const WIDGET_KEY_1: NodeKey; 
 // /// custom_rendered_widget(ui, WIDGET_KEY_1);
 // /// # }
 // /// 
@@ -66,8 +66,8 @@ use crate::*;
 // /// // But we can't just do `ui.get_node(CUSTOM_RENDERED_NODE)?.render_rect();`:
 // /// // That node was defined inside a private subtree, and we are outside of it.
 // /// // So, we re-enter the _same_ named subtree, using the same key as before:
-// /// # #[node_key] pub const CUSTOM_RENDERED_NODE: NodeKey;
-// /// # #[node_key] pub const WIDGET_KEY_1: NodeKey; 
+// /// # #[node_key] const CUSTOM_RENDERED_NODE: NodeKey;
+// /// # #[node_key] const WIDGET_KEY_1: NodeKey; 
 // /// # fn test_fn2(ui: &mut Ui) -> Option<()> {
 // /// named_subtree(WIDGET_KEY_1, || {
 // ///     let render_rect = ui.get_node(CUSTOM_RENDERED_NODE)?.render_rect();

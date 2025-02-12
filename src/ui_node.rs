@@ -41,7 +41,7 @@ impl<'a> UiNode<'a> {
     /// #    fn declare_ui(&mut self) {
     /// #    let ui = &mut self.ui; 
     /// #
-    /// # #[node_key] pub const MY_BUTTON: NodeKey;
+    /// # #[node_key] const MY_BUTTON: NodeKey;
     /// #
     /// ui.add(MY_BUTTON).params(ICON_BUTTON).static_image(include_bytes!("textures/debug.png"));
     /// #
@@ -179,7 +179,7 @@ impl<'a> UiNode<'a> {
     /// #    fn declare_ui(&mut self) {
     /// #    let ui = &mut self.ui; 
     /// #
-    /// # #[node_key] pub const SHOW: NodeKey;
+    /// # #[node_key] const SHOW: NodeKey;
     /// let button_text = match self.show {
     ///     true => "Hide Counter",
     ///     false => "Show Counter",
@@ -232,7 +232,7 @@ impl<'a> UiNode<'a> {
     /// #    fn declare_ui(&mut self) {
     /// #    let ui = &mut self.ui; 
     /// #
-    /// # #[node_key] pub const MY_BUTTON: NodeKey;
+    /// # #[node_key] const MY_BUTTON: NodeKey;
     /// #
     /// # use std::time::Instant;
     /// let variable_text = format!("{:?}", Instant::now());

@@ -448,7 +448,7 @@ pub const CONTAINER: NodeParams = NodeParams {
 /// #
 /// # let ui = &mut self.ui;
 /// #
-/// # #[node_key] pub const HUE_WHEEL: NodeKey;
+/// # #[node_key] const HUE_WHEEL: NodeKey;
 /// #
 /// let render_data = ui.get_node(HUE_WHEEL).unwrap().render_rect();
 /// #

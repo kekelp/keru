@@ -759,8 +759,8 @@ impl UiParent {
     /// #    fn declare_ui(&mut self) {
     /// #    let ui = &mut self.ui; 
     /// #
-    /// # #[node_key] pub const PARENT: NodeKey;
-    /// # #[node_key] pub const CHILD: NodeKey;
+    /// # #[node_key] const PARENT: NodeKey;
+    /// # #[node_key] const CHILD: NodeKey;
     /// #
     /// //             ↓ returns a `UiPlacedNode`
     /// ui.place(PARENT).nest(|| {
