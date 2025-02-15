@@ -148,6 +148,61 @@ impl Ui {
         let _ = write!(self.format_scratch, "{}", value);
     }
 
+
+    /// Add a node to the `Ui` corresponding to `key` and returns an [`UiNode`] pointing to it.
+    /// 
+    /// Adding the node adds it to the `Ui`, but it won't be visible until it is "placed" in the tree. You can do this by calling [`Ui::place`] with the same key, or by calling [`place()`](UiNode::place) directly on the returned [`UiNode`].
+    /// 
+    /// The returned [`UiNode`] can also be used to set the appearance, size, text, etc. of the node, using [`UiNode`]'s builder methods.
+    /// 
+    /// ```rust
+    /// # use keru::*;
+    /// # pub struct State {
+    /// #     pub ui: Ui,
+    /// # }
+    /// #
+    /// # impl State {
+    /// #    fn declare_ui(&mut self) {
+    /// #    let ui = &mut self.ui; 
+    /// #
+    /// let red_label = LABEL
+    ///     .color(Color::RED)
+    ///     .text("Increase");
+    /// 
+    /// ui.add(red_label);
+    /// #
+    /// #   }
+    /// # }
+    /// ```
+    /// 
+    /// # Details
+    ///  
+    /// - If a node corresponding to `key` was already added in a previous frame, then it will return a [`UiNode`] pointing to the old one.
+    /// 
+    /// - If one or more nodes corresponding to `key` were already added in the *same* frame, then it will create a "twin" node.
+    /// It's usually clearer to use different keys, or to create sibling keys explicitely with [`NodeKey::sibling`], rather than to rely on this behavior.
+    /// 
+    /// # Similar Functions
+    /// 
+    /// - [`Ui::add_anon`] can also add a node, but without requiring a key.
+    /// 
+    /// - Shorthand functions like [`Ui::text`] and [`Ui::label`] can `add` and [place](`Ui::place`) simple nodes all in once without requiring a key.
+    #[track_caller]
+    pub fn add(&mut self, params: impl NodeParamsTrait) -> UiParent {
+        if let Some(key) = params.get_params().key {
+            let i = self.add_or_update_node(key);
+            self.get_uinode(i).set_params(params);
+            return self.make_parent_from_i(i);
+        } else {
+            let caller_location_hash = caller_location_hash();
+            let anonymous_key = NodeKey::new(Id(caller_location_hash), "");
+
+            let i = self.add_or_update_node(anonymous_key);
+            self.get_uinode(i).set_params(params);
+            return self.make_parent_from_i(i);
+        }
+    }
+
     /// Returns an [`UiNode`] corresponding to `key`, if it exists.
     /// 
     /// This function ignores whether the node is currently inside the tree or not.
@@ -255,105 +310,6 @@ impl Ui {
         return real_final_i;
     }
 
-    /// Add a node to the `Ui` corresponding to `key` and returns an [`UiNode`] pointing to it.
-    /// 
-    /// Adding the node adds it to the `Ui`, but it won't be visible until it is "placed" in the tree. You can do this by calling [`Ui::place`] with the same key, or by calling [`place()`](UiNode::place) directly on the returned [`UiNode`].
-    /// 
-    /// The returned [`UiNode`] can also be used to set the appearance, size, text, etc. of the node, using [`UiNode`]'s builder methods.
-    /// 
-    /// ```rust
-    /// # use keru::*;
-    /// # pub struct State {
-    /// #     pub ui: Ui,
-    /// # }
-    /// #
-    /// # impl State {
-    /// #    fn declare_ui(&mut self) {
-    /// #    let ui = &mut self.ui; 
-    /// #
-    /// #[node_key] const RED_BUTTON: NodeKey;
-    /// ui.add(RED_BUTTON)
-    ///     .params(BUTTON)
-    ///     .color(Color::RED)
-    ///     .text("Increase");
-    /// #
-    /// #   }
-    /// # }
-    /// ```
-    /// 
-    /// # Details
-    ///  
-    /// - If a node corresponding to `key` was already added in a previous frame, then it will return a [`UiNode`] pointing to the old one.
-    /// 
-    /// - If one or more nodes corresponding to `key` were already added in the *same* frame, then it will create a "twin" node.
-    /// It's usually clearer to use different keys, or to create sibling keys explicitely with [`NodeKey::sibling`], rather than to rely on this behavior.
-    /// 
-    /// # Similar Functions
-    /// 
-    /// - [`Ui::add_anon`] can also add a node, but without requiring a key.
-    /// 
-    /// - Shorthand functions like [`Ui::text`] and [`Ui::label`] can `add` and [place](`Ui::place`) simple nodes all in once without requiring a key.
-    #[track_caller]
-    pub fn add(&mut self, params: impl NodeParamsTrait) -> UiParent {
-        if let Some(key) = params.get_params().key {
-            let i = self.add_or_update_node(key);
-            self.get_uinode(i).params(params);
-            return self.make_parent_from_i(i);
-        } else {
-            let caller_location_hash = caller_location_hash();
-            let anonymous_key = NodeKey::new(Id(caller_location_hash), "");
-
-            let i = self.add_or_update_node(anonymous_key);
-            self.get_uinode(i).params(params);
-            return self.make_parent_from_i(i);
-        }
-    }
-
-    /// Exactly like [`Ui::add`], but without a key. Default parameters are passed in immediately for convenience.
-    /// 
-    /// The added node will be anonymous, and it won't be reachable by methods like [`Ui::place`] or [`Ui::get_node`] that use a key.
-    /// 
-    /// You can still perform most operations by calling functionss directly on the returned [`UiNode`].
-    /// 
-    /// ```rust
-    /// # use keru::*;
-    /// # pub struct State {
-    /// #     pub ui: Ui,
-    /// # }
-    /// #
-    /// # impl State {
-    /// #    fn declare_ui(&mut self) {
-    /// #    let ui = &mut self.ui; 
-    /// #
-    /// ui.add_anon(LABEL)
-    ///     .color(Color::RED)
-    ///     .text("Hello World")
-    ///     .place();
-    /// #
-    /// #   }
-    /// # }    
-    /// ```
-    #[track_caller]
-    pub fn add_anon(&mut self) -> UiNode {
-        return self.add_anon_with_name("anon Node");
-    }
-
-    #[track_caller]
-    pub fn add_anon2(&mut self, debug_name: &'static str) -> UiNode {
-        return self.add_anon_with_name(debug_name);
-    }
-    
-    #[track_caller]
-    pub(crate) fn add_anon_with_name(&mut self, debug_name: &'static str) -> UiNode {
-        let caller_location_hash = caller_location_hash();
-        
-        let anonymous_key = NodeKey::new(Id(caller_location_hash), debug_name);
-        
-        let i = self.add_or_update_node(anonymous_key);
-
-        let uinode = self.get_uinode(i);
-        return uinode; 
-    }
 
     pub(crate) fn make_parent_from_i(&mut self, i: usize) -> UiParent {
         
@@ -571,7 +527,7 @@ impl Ui {
 
     /// Clear the old GUI tree and start declaring another one.
     /// 
-    /// Use together with [`Ui::finish_tree()`], at most once per frame.
+    /// Use together with [`Ui::finish_frame()`], at most once per frame.
     /// 
     /// ```rust
     /// # use keru::*;
@@ -583,14 +539,14 @@ impl Ui {
     /// #
     /// # impl State {
     /// #   fn declare_ui(&mut self) {
-    /// self.ui.begin_tree();
+    /// self.ui.begin_frame();
     /// // declare the GUI and update state
-    /// self.ui.finish_tree();
+    /// self.ui.finish_frame();
     /// #
     /// #   }
     /// # }
     /// ```
-    pub fn begin_tree(&mut self) {
+    pub fn begin_frame(&mut self) {
         // clear root
         self.nodes[ROOT_I].last_child = None;
         self.nodes[ROOT_I].first_child = None;        
@@ -615,8 +571,8 @@ impl Ui {
     /// 
     /// This function will also relayout the nodes that need it, and do some bookkeeping.
     /// 
-    /// Use at most once per frame, after calling [`Ui::begin_tree()`] and running your tree declaration code.
-    pub fn finish_tree(&mut self) {
+    /// Use at most once per frame, after calling [`Ui::begin_frame()`] and running your tree declaration code.
+    pub fn finish_frame(&mut self) {
         log::trace!("Finished Ui update");
         // pop the root node
         thread_local::pop_parent();
@@ -633,25 +589,25 @@ impl Ui {
         self.sys.new_external_events = false;
     }
 
-    /// Add a key-less panel.
+    /// Add a panel.
     #[track_caller]
     pub fn panel(&mut self) -> UiParent {
         return self.add(PANEL);
     }
 
-    /// Add a key-less vertical stack container.
+    /// Add a vertical stack container.
     #[track_caller]
     pub fn v_stack(&mut self) -> UiParent {
         return self.add(V_STACK);
     }
     
-    /// Add a key-less horizontal stack container.
+    /// Add a horizontal stack container.
     #[track_caller]
     pub fn h_stack(&mut self) -> UiParent {
         return self.add(H_STACK);
     }
 
-    /// Add a key-less text element.
+    /// Add a text element.
     #[track_caller]
     pub fn text(&mut self, text: impl Display + Hash) -> UiParent {
         // todo: ideally FullNodeParams would be able to hold the ref to the impl Display + Hash item?
@@ -660,13 +616,13 @@ impl Ui {
         return node;
     }
 
-    /// Add a key-less text element.
+    /// Add a text element.
     #[track_caller]
     pub fn static_text(&mut self, text: &'static str) -> UiParent {
         return self.add(TEXT.text(text));
     }
 
-    /// Add a key-less text element.
+    /// Add a text element.
     #[track_caller]
     pub fn multiline_text(&mut self, text: impl Display + Hash) -> UiParent {
         // todo: ideally FullNodeParams would be able to hold the ref to the impl Display + Hash item?
@@ -675,13 +631,13 @@ impl Ui {
         return node;
     }
 
-    /// Add a key-less text element.
+    /// Add a text element.
     #[track_caller]
     pub fn static_multiline_text(&mut self, text: &'static str) -> UiParent {
         return self.add(TEXT_PARAGRAPH.text(text));
     }
 
-    /// Add a key-less label.
+    /// Add a label.
     #[track_caller]
     pub fn label(&mut self, text: impl Display + Hash) -> UiParent {
         // todo: ideally FullNodeParams would be able to hold the ref to the impl Display + Hash item?
@@ -690,7 +646,7 @@ impl Ui {
         return node;
     }
 
-    /// Add a key-less label.
+    /// Add a label.
     #[track_caller]
     pub fn static_multiline_label(&mut self, text: &'static str) -> UiParent {
         return self.add(MULTILINE_LABEL.text(text));
@@ -724,15 +680,9 @@ pub(crate) fn caller_location_hash() -> u64 {
     return caller_location_hash;
 }
 
-/// A struct referring to a node that was [placed](Ui::place) on the tree. Allows adding nested children.
+/// A struct referring to a node that was [`added`](Ui::add) on the tree.
 ///  
-/// Can be used to call [`nest()`](Self::nest()) and add more nodes as children of this one.
-/// 
-/// The nesting mechanism uses a bit of magic to avoid having to pass a [`Ui`] parameter into the closure.
-/// Because of this, `UiPlacedNode` is actually a plain-old-data struct and doesn't contain a reference to the main [`Ui`] struct, so it can technically be freely assigned to a variable and passed around.
-/// 
-/// While there's nothing unsafe about that, it will almost surely lead to weird unreadable code. The intended use is to call [`nest()`](Self::nest()) immediately after getting this struct from [`UiNode::place()`], like in the [`nest()`](Self::nest()) example.
-/// 
+/// Can be used to call [`nest()`](Self::nest()) and add more nodes as children of this one. 
 pub struct UiParent {
     pub(crate) i: usize,
     pub(crate) old_children_hash: u64,
@@ -762,7 +712,7 @@ impl UiParent {
     /// # #[node_key] const PARENT: NodeKey;
     /// # #[node_key] const CHILD: NodeKey;
     /// #
-    /// //             ↓ returns a `UiPlacedNode`
+    /// //             ↓ returns a `UiParent`
     /// ui.place(PARENT).nest(|| {
     ///     ui.place(CHILD);
     /// });
@@ -793,7 +743,7 @@ pub(crate) fn start_info_log_timer() -> Option<std::time::Instant> {
     }
 }
 
-
+/// A trait implemented by both [`NodeParams`] and [`FullNodeParams`], allowing them to be used interchangeably.
 pub trait NodeParamsTrait {
     fn get_params(&self) -> &NodeParams;
 
@@ -817,7 +767,7 @@ impl NodeParamsTrait for NodeParams {
 }
 
 impl<'a> UiNode<'a> {
-    pub fn params(&mut self, params: impl NodeParamsTrait) -> &mut Self {
+    pub(crate) fn set_params(&mut self, params: impl NodeParamsTrait) -> &mut Self {
         self.node_mut().params = *params.get_params();
         
         if let Some(text) = params.get_text() {

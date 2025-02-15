@@ -1,8 +1,4 @@
-//! Keru is an experimental Graphical User Interface library.
-//! 
-//! It is in active development and it's not ready to be used. Many features are missing or half-baked.
-//! 
-//! Keru offers a declarative API similar to immediate mode GUI libraries, but it is not immediate mode.
+//! Keru is an experimental graphical user interface library.
 //! 
 //! ## Example
 //! 
@@ -18,32 +14,30 @@
 //! # impl State {
 //! #   fn declare_ui(&mut self) {
 //! # 
-//! // Define an unique identity for a node. You can also create keys dynamically.
+//! // Define an unique identity for a Ui node
 //! #[node_key] const INCREASE: NodeKey;
 //! 
-//! // Add the node to the UI and set its parameters
-//! self.ui.add(INCREASE)
-//!     .params(BUTTON)
-//!     .color(Color::RED)
-//!     .text("Increase");
+//! // Create a NodeParams struct that describes the node
+//! let increase_button = BUTTON
+//! .color(Color::RED)
+//! .text("Increase")
+//! .key(INCREASE); // Set its identity
 //! 
-//! // Place nodes into the tree and define the layout
-//! self.ui.v_stack().nest(|| {
-//!     if self.show {
-//!         self.ui.place(INCREASE);
+//! // Add nodes to the tree and define the layout
+//! if self.show {
+//!     self.ui.v_stack().nest(|| {
+//!         self.ui.add(increase_button);
 //!         self.ui.label(self.count);
-//!     }
-//! });
+//!     });
+//! }
 //! 
-//! // Run code in response to events
+//! // Update the state if the button is clicked
 //! if self.ui.is_clicked(INCREASE) {
 //!     self.count += 1;
 //! }
 //! #   }
 //! # }
 //! ```
-//! 
-//! Using [`NodeKeys`](NodeKey) gives more flexibility when organizing the code, but they are not required. See the "no_keys" example to see a similar counter written without [`NodeKeys`](NodeKey).
 //! 
 //! ## Window Loop
 //! 
@@ -57,13 +51,9 @@
 //! - When you receive a `winit` `WindowEvent`, pass it to [`Ui::window_event()`].
 //! - When you receive a `WindowEvent::RedrawRequested`, redeclare your GUI, then call [`Ui::render()`].
 //! 
-//! You can use the [`Ui::needs_rerender()`] to decide whether to render the GUI or skip it.
+//! ## Building the Ui
 //! 
-//! For a full integration example, see the Painter example. Another simpler integration example will be added in the future.
-//! 
-//! ## Declaring the GUI
-//! 
-//! To redeclare your GUI, you have to start a new GUI "tree", rerun all your GUI declaration code, then finish the tree.
+//! Every frame, to update the Ui, you have to start a new Ui frame, rerun all your Ui declaration code, then finish the frame.
 //! 
 //! ```rust
 //! # use keru::*;
@@ -74,40 +64,31 @@
 //! # impl State {
 //! #   fn declare_ui(&mut self) {
 //! #
-//! self.ui.begin_tree();
-//! self.ui.text("Hello World");
-//! self.ui.finish_tree();
+//! self.ui.begin_frame();
+//! self.ui.v_stack().nest(|| {
+//!     self.ui.label("Hello");
+//!     self.ui.label("World");
+//! });
+//! self.ui.finish_frame();
 //! #
 //! #   }
 //! # }
 //! ```
 //! 
-//! Note that even if you do this every frame, it doesn't mean that the GUI is re-rendering every frame, doing a full relayout on every frame, or anything of that sort. See the ["About"](about) page for more information on this point.
+//! The [`Ui`] struct retains the state of the whole Ui, so even if you do this every frame, it doesn't mean that the GUI is re-rendering every frame, doing a full relayout on every frame, or anything of that sort.
+//! See the ["About"](about) page for more information on this point.
 //! 
-//! To see how the GUI declaration code works, you can check the basic example above, the Counter example, or the `paint_ui.rs` file in the painter example.
+//! To see how the Ui declaration code works, see the basic example above, or the Counter example.
 //! 
-//! To summarize, for each element in the GUI, you have to perform some of these conceptual steps:
+//! * In general, all you have to do is [`add`](Ui::add) a node with the right [`NodeParams`], and if you want to check interactions on it, call methods like [`Ui::is_clicked()`] with the same [`NodeKey`].
 //! 
-//! - optionally, define a [`NodeKey`] for the node
-//! - [add](`Ui::add`) the node to the [`Ui`]
-//! - set its parameters ([color](`UiNode::color`), [size](`UiNode::size`), [text](`UiNode::text`), ...)
-//! - [place](Ui::place) it in the tree
-//! - optionally, start a [nested](`UiPlacedNode::nest`) block
-//! - optionally, [check for input](`Ui::is_clicked`) on the nodes and run code as a consequence
-//! 
-//! You can do these things by either calling methods directly on the main [`Ui`] struct, or by calling chained methods on the result of a previous method.
-//! 
-//! Methods on the [`Ui`] struct usually take a [`NodeKey`] argument to refer to a specific node.
-//! 
-//! ## Creating complex GUIs
-//! 
-//! * In dynamic GUIs, you can't identify every node with a static [`NodeKey`] in the way the examples do it.
+//! * In dynamic Uis, you can't identify every node with a static [`NodeKey`] in the way the examples do it.
 //! 
 //!     Instead, you can use the [`NodeKey::sibling()`] function to create keys dynamically at runtime.
 //! 
-//! * To create reusable "components", you can just wrap the GUI code in a function. However, it's very likely that you'll need to create a [`subtree`](subtree()) for it to make it work correctly.
+//! * To create reusable "components", you can just wrap the GUI code in a function. If the code uses unique [`NodeKeys'](NodeKey), however, you'll need to wrap the code in [`subtree`](subtree()) to be able to reuse the same key multiple times without conflicts.
 //! 
-//! These building blocks should be enough to create complex GUIs. But only time will tell.
+//! These building blocks should be enough to create complex interfaces. But only time will tell.
 //! 
 //! ## More information
 //! 

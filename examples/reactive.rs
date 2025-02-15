@@ -22,7 +22,7 @@ pub trait CustomComponents {
 impl CustomComponents for Ui {
     fn counter(&mut self, count: &mut Observer<i32>, show: &mut Observer<bool>, debug_name: &str) {
         
-        self.anon_subtree().start(|| {
+        self.subtree().start(|| {
 
             let changed = count.changed() || show.changed();
             reactive(changed, || {

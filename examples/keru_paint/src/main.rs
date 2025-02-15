@@ -101,11 +101,11 @@ impl State {
     }
 
     pub fn update_and_render(&mut self) {
-        self.ui.begin_tree();
+        self.ui.begin_frame();
         if self.show_ui {    
             self.update_ui();
         }
-        self.ui.finish_tree();
+        self.ui.finish_frame();
 
         self.update_canvas();
 

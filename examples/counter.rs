@@ -23,17 +23,16 @@ impl ExampleLoop for State {
             self.count -= 1;
         }
 
-        fn count_color(count: i32) -> Color {
-            let red = 0.1 * count as f32;
-            return Color::rgba_f(red, 0.10196, 0.59608, 0.80392);
-        }
+        let red = 0.1 * self.count as f32;
+        let count_color = Color::rgba_f(red, 0.10196, 0.59608, 0.80392);
+
         let show_button_text = match self.show {
             true => "Hide Counter",
             false => "Show Counter",
         };
 
         let increase_button = BUTTON
-            .color(count_color(self.count))
+            .color(count_color)
             .text("Increase")
             .key(INCREASE);
 

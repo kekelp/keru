@@ -1,8 +1,8 @@
-//! Some extra information about the library.
+//! [Documentation] Some extra information about the library.
 //! 
 //! # How does it work?
 //! 
-//! Keru has a declarative API similar to immediate mode GUI libraries. However, it is not immediate mode.
+//! Keru has a declarative API similar to immediate mode GUI libraries. However, it is not immediate mode in the usual sense of the word.
 //! 
 //! The code to declare the GUI looks like this:
 //! 
@@ -21,21 +21,23 @@
 //! #[node_key] const INCREASE: NodeKey;
 //! #[node_key] const SHOW: NodeKey;
 //! 
-//! self.ui.add(SHOW) // Create an element. This doesn't place it into the active ui tree yet.
-//!     .params(BUTTON) // Set style and properties
-//!     .static_text("Show Counter"); // Set text
+//! let show_button = BUTTON // Create a NodeParams value on the stack
+//!     .color(Color::RED) // Set style and properties
+//!     .text("Show") // Se text
+//!     .key(SHOW); // Sets its identity with a unique NodeKey
 //! 
-//! self.ui.add(INCREASE)
-//!     .params(BUTTON)
-//!     .static_text("Increase");
+//! let increase_button = BUTTON
+//!     .color(Color::RED)
+//!     .text("Increase")
+//!     .key(INCREASE);
 //! 
-//! // Place the nodes in the ui tree.
+//! // Add the nodes to the ui tree.
 //! // The nesting of these calls will define the layout.
 //! self.ui.v_stack().nest(|| { 
-//!     self.ui.place(SHOW);
+//!     self.ui.add(show_button);
 //!     if self.show {
-//!         self.ui.place(INCREASE);
-//!         self.ui.label(self.count); // shorthand: add(), text() and place() all in one
+//!         self.ui.add(increase_button);
+//!         self.ui.label(self.count); // shorthand (no NodeParams, no key)
 //!     }
 //! });
 //! 
@@ -55,9 +57,9 @@
 //! 
 //! [^1]: In most "slow" UI applications, the UI can "go to sleep" and do nothing until user input or an external event wakes it up. Even true immediate mode GUIs like Egui can do this. "Cycle" refers to one of these "awake frames".
 //! 
-//! Every time, you re-declare the whole GUI tree. However, the tree is **fully retained** across frames. If a function like [`place()`](Ui::place) finds that the corresponding node already exists in the tree, it will either update it, or do nothing.
+//! Every time, you re-declare the whole GUI tree. However, the tree is **fully retained** across frames.
 //! 
-//! If a function does cause a change in the tree, it will also tell the [`Ui`] to do *partial* relayouts and *partial* updates to the render data, propagating the change to the screen.
+//! If [`Ui::add()`] finds that the corresponding node already exists in the tree, and it is called with different [`NodeParams`] from last frame, it will either do a *partial* update, or do nothing.
 //! 
 //! To be more precise:
 //! 
@@ -69,25 +71,30 @@
 //! #     pub show: bool,
 //! # }
 //! # 
-//! # #[node_key] const INCREASE: NodeKey;
-//! # #[node_key] const SHOW: NodeKey;
-//! # 
 //! # impl State {
 //! #   fn declare_ui(&mut self) {
 //! # 
-//! // The `add` call will update the node's parameters (size, color, text, etc),
-//! self.ui.add(INCREASE)
-//!     .params(BUTTON)
-//!     .static_text("Increate");
+//! # #[node_key] const INCREASE: NodeKey;
+//! # #[node_key] const SHOW: NodeKey;
+//! # 
+//! # let show_button = BUTTON // Create a NodeParams value on the stack
+//! #     .color(Color::RED) // Set style and properties
+//! #     .text("Show") // Se text
+//! #     .key(SHOW); // Sets its identity with a unique NodeKey
+//! # 
+//! # let increase_button = BUTTON
+//! #     .color(Color::RED)
+//! #     .text("Increase")
+//! #     .key(INCREASE);
 //! 
-//! // when a node is placed onto the tree,
-//! // the library will compare its new params to the ones it had last frame.
-//! self.ui.v_stack().nest(|| {
+//! // when a node is added onto the tree,
+//! // Ui will compare its new params to the ones it had last frame.
+//! self.ui.v_stack().nest(|| { 
 //!     // For example, if the size of the SHOW node has changed, 
 //!     // it will schedule a _partial_ relayout starting 
 //!     // at this position in the tree. If the color has changed, 
 //!     // it will schedule to update the render data for that _single_ rectangle.
-//!     self.ui.place(SHOW);
+//!     self.ui.add(show_button);
 //!     // Here, depending on the value of `self.show`, some nodes 
 //!     // might be included or excluded from the tree.
 //!     // If the value of `self.show` is different from last frame, 
@@ -95,21 +102,22 @@
 //!     // the parent will notice that its children changed.
 //!     // In that case, it will schedule a partial relayout.
 //!     if self.show {
-//!         self.ui.place(INCREASE);
-//!         self.ui.label(self.count);
+//!         self.ui.add(increase_button);
+//!         self.ui.label(self.count); // shorthand (no NodeParams, no key)
 //!     }
 //! });
 //! 
-//! // At the end, the library will do all the partial relayouts and updates needed.
+//! // At the end, the Ui will do all the partial relayouts and updates needed.
 //! # 
 //! #   }
 //! # }
+//! # 
 //! ```
 //! 
 //! 
 //! While the GUI redeclaration code is rerun every cycle, the functions barely do anything at all, unless something changed in the underlying state.
 //! 
-//! If something did change, the library knows which nodes need to be updated, and can schedule only the minimal relayouts and updates needed.
+//! If something did change, the library can check which nodes need to be updated, and can schedule only the minimal relayouts and updates needed.
 //! 
 //! Most of the time, all that the library needs to do is to hash some [`NodeParams`] and some text, and conclude that nothing changed. This should be very light, especially compared to a "true immediate mode" approach.
 //! 
@@ -152,9 +160,9 @@
 //! 
 //!     The resulting code is very strange and hard to read, in my opinion. In particular, it's very hard to follow the nesting structure that defines the layout, since it's mixed with so much other stuff. Most of the clarity of the "nested calls -> layout" approach is lost.
 //! 
-//!     In Keru, you can always refer to a node from anywhere in your code by using the unique [`NodeKey`]. So you can split the layout code ([`place`](Ui::place) and [`nest`](UiPlacedNode::nest)) or the effects ([`is_clicked`](`Ui::is_clicked`), etc.) from the rest. This is the pattern used in the examples.
+//!     In Keru, you can always separate the layout code ([`add`](Ui::add) and [`nest`](UiParent::nest)), the styling (creating a [`NodeParams`] struct) and the effects ([`is_clicked`](`Ui::is_clicked`), etc.) from each other.
 //! 
-//!     If you don't care about any of this, and you still prefer to keep style, layout and effects all together, you still can. Using [`NodeKeys`](NodeKey) is completely optional. See the "no_keys" example to see how this works.
+//!     But if you do prefer to keep them together, you can still put them all next to each other.
 //! 
 //! -------
 //! 
@@ -182,16 +190,18 @@
 //!     - The API is less fragmented: all operations are methods on the main [`Ui`] struct, as opposed to a mixture of methods and associated functions on `Context`, `Ui`, `Window`, `Frame`, ... in Egui.
 //!     - There is no interior mutability or locking hidden inside the [`Ui`], unlike Egui's `Context`.
 //!     - There's probably a lot less dynamic allocations, though I haven't checked this rigorously. Keru barely does any dynamic allocations at all.
-//!     - Egui's closure pattern for nesting is substituted by a much simpler one (see [`UiPlacedNode::nest()`]).   
+//!     - Egui's closure pattern for nesting is substituted by a much simpler one (see [`UiParent::nest()`]).   
 //! 
 //!         Because Keru's closure doesn't borrow or capture anything, it's a lot less prone to borrow checker errors, and thus gives more flexibility in how the user can organize their code.
 //!         
-//!         To make this pattern possible, Keru keeps track of the nested [nest()][`UiPlacedNode::nest()`] calls in thread-local variables. The nesting of function calls is an intrinsically thread-local concept, so this feels like a natural step.
+//!         To make this pattern possible, Keru keeps track of the nested [nest()][`UiParent::nest()`] calls in thread-local variables. The nesting of function calls is an intrinsically thread-local concept, so this feels like a natural step.
 //! 
 //! 
 //! --------
 //! 
-//! I'm not going to spell them out here, but there are disadvantages as well, of course.
+//! Of course there are some disadvantages as well. I think the main one is having to deal explicitly with keys and subtrees. This might be made mostly optional by adding a way to get interaction results with a chained method directly on the result of [`Ui::add()`]. This would be a bit awkward currently, but doable. 
+//! 
+//! With this approach, the library has to hash [`NodeParams`] objects and figure out if anything needs to be updated. For this reason, it has a theoretical performance disadvantage compared to "true reactive" approaches like Floem of SwiftUi, but this is not really guaranteed to cause a measurable difference in practice.
 //! 
 //! ## Reactivity at home
 //! 

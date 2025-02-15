@@ -8,9 +8,6 @@ use crate::Axis::{X, Y};
 pub(crate) const ANIMATION_RERENDER_TIME: f32 = 0.5;
 
 impl<'a> UiNode<'a> {
-    // todo: remove all this duplication. Either make UiNode and UiPlacedNode hold a key instead of a slab i, or make it easier to use Ui's is_clicked with the slab i.
-    // 2nd one is easier, but the 1st one might be worth doing for other reasons?
-
     /// Returns `true` if the node was just clicked with the left mouse button.
     /// 
     /// This is "act on press", you might want [is_click_released()](Self::is_click_released()).
@@ -81,7 +78,7 @@ impl<'a> UiNode<'a> {
 impl Ui {
     /// Returns `true` if the node corresponding to `key` was just clicked with the left mouse button.
     /// 
-    /// This is "act on press", you might want [is_click_released()](Self::is_click_released()).
+    /// This is "act on press". For "act on release", see [is_click_released()](Self::is_click_released()).
     pub fn is_clicked(&mut self, node_key: NodeKey) -> bool {
         let clicked = self.sys.mouse_input.clicked(Some(MouseButton::Left), Some(node_key.id_with_subtree()));
         let warning = "add this everywhere else";

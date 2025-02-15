@@ -4,9 +4,30 @@ use std::hash::{Hash, Hasher};
 use rustc_hash::FxHasher;
 
 #[derive(Debug, Copy, Clone)]
-/// A lightweight struct describing the params of a GUI node.
+/// A lightweight struct describing the params of a Ui node.
 /// 
-/// You can start with one of the preset constants ([`BUTTON`], [`LABEL`], [`TEXT`], ...), then use the builder methods to customize it:
+/// Pass it to [`Ui::add`] to create a node with the given params:
+/// ```rust
+/// # use keru::*;
+/// # pub struct State {
+/// #     pub ui: Ui,
+/// # }
+/// #
+/// # impl State {
+/// #    fn declare_ui(&mut self) {
+/// #    let ui = &mut self.ui; 
+/// #
+/// # #[node_key] const INCREASE: NodeKey;
+/// # const MY_BUTTON: NodeParams = keru::BUTTON
+/// #     .color(Color::RED)
+/// #     .shape(Shape::Circle); 
+/// ui.add(MY_BUTTON);
+/// #
+/// #   }
+/// # }
+/// ```
+/// 
+///  You can start with one of the preset constants ([`BUTTON`], [`LABEL`], [`TEXT`], ...), then use the builder methods to customize it:
 /// 
 /// ```rust
 /// # use keru::*;
@@ -14,47 +35,11 @@ use rustc_hash::FxHasher;
 ///     .color(Color::RED)
 ///     .shape(Shape::Circle); 
 /// ```
-/// After adding a node to the [`Ui`] with [`Ui::add`], you can call the [`UiNode::params`] method on it to set its params.
-/// ```rust
-/// # use keru::*;
-/// # pub struct State {
-/// #     pub ui: Ui,
-/// # }
-/// #
-/// # impl State {
-/// #    fn declare_ui(&mut self) {
-/// #    let ui = &mut self.ui; 
-/// #
-/// # #[node_key] const INCREASE: NodeKey;
-/// # const MY_BUTTON: NodeParams = keru::BUTTON
-/// #     .color(Color::RED)
-/// #     .shape(Shape::Circle); 
-/// ui.add(INCREASE).params(MY_BUTTON);
-/// #
-/// #   }
-/// # }
-/// ```
-/// You can also call [`UiNode`]'s other builder methods to change the node's params it *after* you add it:
-/// ```rust
-/// # use keru::*;
-/// # pub struct State {
-/// #     pub ui: Ui,
-/// # }
-/// #
-/// # impl State {
-/// #    fn declare_ui(&mut self) {
-/// #    let ui = &mut self.ui; 
-/// #
-/// # #[node_key] const INCREASE: NodeKey;
-/// # const MY_BUTTON: NodeParams = keru::BUTTON
-/// #     .color(Color::RED)
-/// #     .shape(Shape::Circle); 
-/// ui.add(INCREASE).params(MY_BUTTON).size_x(Size::Fill);
-/// #
-/// #   }
-/// # }
-/// ```
-/// To see it show up, use [`UiNode::place`] or [`Ui::place`] to place it in the ui tree.
+/// 
+/// [`NodeParams`] is a lightweight plain-old-data struct. Methods like [`Self::text()`] allow to associate borrowed data like a `&str` to a [`NodeParams`].
+/// 
+/// The result is a [`FullNodeParams`], a version of this struct that can hold borrowed data. Both versions can be used in the same ways.
+/// 
 pub struct NodeParams {
     pub key: Option<NodeKey>,
     pub text_params: Option<TextOptions>,
@@ -401,6 +386,9 @@ impl NodeParams {
     }
 }
 
+/// A version of [`NodeParams`] that can hold borrowed data.
+/// 
+/// Can be used in the same way as [`NodeParams`].
 pub struct FullNodeParams<'a> {
     pub params: NodeParams,
     pub text: Option<&'a str>,
@@ -570,6 +558,8 @@ impl<'a> FullNodeParams<'a> {
         return self;
     }
 
+    /// Associate a [`NodeKey`] to the [`NodeParams`].
+    /// 
     pub fn key(mut self, key: NodeKey) -> Self {
         self.params.key = Some(key);
         return self;

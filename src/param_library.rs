@@ -7,7 +7,7 @@ use Shape::*;
 
 // todo: not very discoverable from docs. there's a list of constants on the main page, maybe that's good? link to that or something?
 
-/// Preset [`NodeParams`] for a node_root_params. 
+/// [`NodeParams`] for a node_root_params. 
 ///
 /// You can use the "source" link to inspect the param values. 
 pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
@@ -31,7 +31,7 @@ pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
         scrollable: Xy::new(false, false),
     },
 };
-/// Preset [`NodeParams`] for a default. 
+/// [`NodeParams`] for a default. 
 ///
 /// You can use the "source" link to inspect the param values. 
 pub const DEFAULT: NodeParams = NodeParams {
@@ -55,7 +55,7 @@ pub const DEFAULT: NodeParams = NodeParams {
         scrollable: Xy::new(false, false),
     },
 };
-/// Preset [`NodeParams`] for a vertical stack. 
+/// [`NodeParams`] for a vertical stack. 
 ///
 /// You can use the "source" link to inspect the param values. 
 pub const V_STACK: NodeParams = NodeParams {
@@ -83,7 +83,7 @@ pub const V_STACK: NodeParams = NodeParams {
         scrollable: Xy::new(false, false),
     },
 };
-/// Preset [`NodeParams`] for a horizontal stack. 
+/// [`NodeParams`] for a horizontal stack. 
 ///
 /// You can use the "source" link to inspect the param values. 
 pub const H_STACK: NodeParams = NodeParams {
@@ -112,7 +112,7 @@ pub const H_STACK: NodeParams = NodeParams {
     },
 };
 
-/// Preset [`NodeParams`] for a vertically scrollable vertical stack.
+/// [`NodeParams`] for a vertically scrollable vertical stack.
 ///
 /// You can use the "source" link to inspect the param values. 
 pub const V_SCROLL_STACK: NodeParams = NodeParams {
@@ -141,7 +141,7 @@ pub const V_SCROLL_STACK: NodeParams = NodeParams {
         },
     };
 
-/// Preset [`NodeParams`] for a margin. 
+/// [`NodeParams`] for a margin. 
 ///
 /// You can use the "source" link to inspect the param values. 
 pub const MARGIN: NodeParams = NodeParams {
@@ -165,7 +165,7 @@ pub const MARGIN: NodeParams = NodeParams {
         scrollable: Xy::new(false, false),
     },
 };
-/// Preset [`NodeParams`] for an icon button. 
+/// [`NodeParams`] for an icon button. 
 ///
 /// You can use the "source" link to inspect the param values. 
 pub const ICON_BUTTON: NodeParams = NodeParams {
@@ -189,7 +189,7 @@ pub const ICON_BUTTON: NodeParams = NodeParams {
         scrollable: Xy::new(false, false),
     },
 };
-/// Preset [`NodeParams`] for an icon button. 
+/// [`NodeParams`] for an icon button. 
 ///
 /// You can use the "source" link to inspect the param values. 
 pub const IMAGE: NodeParams = NodeParams {
@@ -213,7 +213,7 @@ pub const IMAGE: NodeParams = NodeParams {
         scrollable: Xy::new(false, false),
     },
 };
-/// Preset [`NodeParams`] for a button. 
+/// [`NodeParams`] for a button. 
 ///
 /// You can use the "source" link to inspect the param values. 
 pub const BUTTON: NodeParams = NodeParams {
@@ -241,7 +241,7 @@ pub const BUTTON: NodeParams = NodeParams {
         scrollable: Xy::new(false, false),
     },
 };
-/// Preset [`NodeParams`] for a label. 
+/// [`NodeParams`] for a label. 
 ///
 /// You can use the "source" link to inspect the param values. 
 pub const LABEL: NodeParams = NodeParams {
@@ -269,7 +269,7 @@ pub const LABEL: NodeParams = NodeParams {
     },
 };
 
-/// Preset [`NodeParams`] for a label containing a multi-line paragraph. 
+/// [`NodeParams`] for a label containing a multi-line paragraph. 
 ///
 /// You can use the "source" link to inspect the param values. 
 pub const MULTILINE_LABEL: NodeParams = NodeParams {
@@ -297,7 +297,7 @@ pub const MULTILINE_LABEL: NodeParams = NodeParams {
     },
 };
 
-/// Preset [`NodeParams`] for a text element. 
+/// [`NodeParams`] for a text element. 
 ///
 /// You can use the "source" link to inspect the param values. 
 pub const TEXT: NodeParams = NodeParams {
@@ -325,7 +325,7 @@ pub const TEXT: NodeParams = NodeParams {
     },
 };
 
-/// Preset [`NodeParams`] for a text element containing a multi-line paragraph.
+/// [`NodeParams`] for a text element containing a multi-line paragraph.
 ///
 /// You can use the "source" link to inspect the param values. 
 pub const TEXT_PARAGRAPH: NodeParams = NodeParams {
@@ -354,7 +354,7 @@ pub const TEXT_PARAGRAPH: NodeParams = NodeParams {
 };
 
 
-// /// Preset [`NodeParams`] for a text_input. 
+// /// [`NodeParams`] for a text_input. 
 // ///
 // /// You can use the "source" link to inspect the param values. 
 // pub const TEXT_INPUT: NodeParams = NodeParams {
@@ -382,7 +382,7 @@ pub const TEXT_PARAGRAPH: NodeParams = NodeParams {
 //     },
 // };
 
-/// Preset [`NodeParams`] for a panel. 
+/// [`NodeParams`] for a panel. 
 ///
 /// You can use the "source" link to inspect the param values. 
 pub const PANEL: NodeParams = NodeParams {
@@ -407,7 +407,7 @@ pub const PANEL: NodeParams = NodeParams {
     },
 };
 
-/// Preset [`NodeParams`] for a container. 
+/// [`NodeParams`] for a container. 
 ///
 /// You can use the "source" link to inspect the param values. 
 pub const CONTAINER: NodeParams = NodeParams {
@@ -432,7 +432,7 @@ pub const CONTAINER: NodeParams = NodeParams {
     },
 };
 
-/// Preset [`NodeParams`] for a custom rendered panel.
+/// [`NodeParams`] for a custom rendered panel.
 ///
 /// You can use the "source" link to inspect the param values. 
 /// 

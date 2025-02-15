@@ -78,9 +78,9 @@ impl<S: ExampleLoop> ApplicationHandler for FullState<S> {
 
         if event == WindowEvent::RedrawRequested {
             if self.ui.needs_update() {
-                self.ui.begin_tree();
+                self.ui.begin_frame();
                 self.user_state.update_ui(&mut self.ui);
-                self.ui.finish_tree();
+                self.ui.finish_frame();
             }
 
             if self.ui.needs_rerender() {

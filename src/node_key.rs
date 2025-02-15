@@ -6,7 +6,7 @@ use crate::*;
 
 // todo: possibly split debug_name into debug_name and source_code_location, and maybe put back cfg(debug) for source_code_loc or both
 
-/// An unique key that identifies a GUI node.
+/// An unique key that identifies a Ui node.
 /// 
 /// Usually created with the [`macro@node_key`] macro or with [`NodeKey::sibling`].
 /// 
@@ -15,13 +15,7 @@ use crate::*;
 /// #[node_key] const UNIQUE_KEY: NodeKey;
 /// ```
 /// 
-/// Used in many [`Ui`] methods to add nodes to the GUI ([`Ui::add`]) or to refer to already added ones ([`Ui::place`], [`Ui::get_node`], [`Ui::is_clicked`], ...)
-/// 
-/// `NodeKeys` are *optional*: all methods that require a `NodeKey` have an equivalent method that can be called directly after adding the node. See the "no_keys" example to see how this works.
-/// 
-/// Using `NodeKeys` mostly just allows more flexibility in organizing GUI code.
-/// 
-/// The explicit identity granted by a `NodeKey` might also help with performance in some cases, but this is unlikely to make a big difference,
+/// Used in many [`Ui`] methods to refer to specific nodes: for example, [`Ui::is_clicked`],
 #[derive(Clone, Copy, Debug)]
 pub struct NodeKey {
     id: Id,
