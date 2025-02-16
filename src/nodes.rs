@@ -5,8 +5,6 @@ use rustc_hash::FxHashMap;
 use slab::Slab;
 
 use crate::*;
-use crate::node::*;
-
 
 #[derive(Debug)]
 pub(crate) struct Nodes {

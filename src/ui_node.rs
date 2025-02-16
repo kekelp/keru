@@ -1,6 +1,5 @@
 use std::fmt::Display;
 
-use glyphon::cosmic_text::Align;
 use glyphon::Attrs;
 use glyphon::Family;
 use glyphon::Shaping;

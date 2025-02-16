@@ -1,10 +1,4 @@
-use crate::changes::{NodeWithDepth, PartialChanges};
-use crate::math::*;
-use crate::render::TypedGpuBuffer;
-use crate::texture_atlas::*;
 use crate::*;
-use crate::node::*;
-use crate::render_rect::*;
 
 use crate::math::Axis::*;
 
@@ -13,10 +7,6 @@ use copypasta::ClipboardContext;
 use glam::DVec2;
 use glyphon::Cache as GlyphonCache;
 use glyphon::Viewport;
-
-use node::Node;
-use rustc_hash::FxHashMap;
-use slab::Slab;
 
 use wgpu::{
     BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
@@ -28,8 +18,6 @@ use wgpu::{
 use winit_key_events::KeyInput;
 use winit_mouse_events::MouseInput;
 
-use std::num::NonZeroU16;
-use std::ops::{Index, IndexMut};
 use std::sync::LazyLock;
 use std::time::Duration;
 use std::{mem, time::Instant};

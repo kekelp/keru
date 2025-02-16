@@ -2,7 +2,6 @@ use crate::{color::*, Shape, BASE_RADIUS};
 use crate::*;
 use Size::*;
 use Position::*;
-use Len::*;
 use Shape::*;
 
 // todo: not very discoverable from docs. there's a list of constants on the main page, maybe that's good? link to that or something?

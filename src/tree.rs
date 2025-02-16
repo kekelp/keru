@@ -1,11 +1,6 @@
 // todo: move some more stuff out of this file
 use crate::changes::NodeWithDepth;
 use crate::*;
-use crate::node_key::*;
-use crate::math::*;
-use crate::param_library::*;
-use crate::text::*;
-use crate::node::*;
 use glyphon::cosmic_text::Align;
 use glyphon::{AttrsList, Color as GlyphonColor, TextBounds, Viewport};
 
@@ -23,9 +18,6 @@ use glyphon::{
 use winit::dpi::PhysicalSize;
 use Axis::{X, Y};
 
-use crate::twin_nodes::RefreshOrClone::*;
-use crate::twin_nodes::TwinCheckResult::*;
-use crate::twin_nodes::*;
 use std::fmt::{Display, Write};
 
 
