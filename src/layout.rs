@@ -139,7 +139,7 @@ impl Ui {
 
     }
 
-    pub(crate) fn partial_relayout(&mut self, node: usize, update_rects: bool) {
+    pub(crate) fn partial_relayout(&mut self, node: NodeI, update_rects: bool) {
         // if the node has already been layouted on the current frame, stop immediately, and don't even recurse.
         // when doing partial layouts, this avoids overlap, but it means that we have to sort the partial relayouts cleanly from least depth to highest depth in order to get it right. This is done in `relayout()`.
         let current_frame = self.sys.current_frame;
@@ -159,7 +159,7 @@ impl Ui {
     /// From a size proposed to us, decide our own size and subtract padding to get a size to propose to children
     fn get_size(
         &mut self,
-        node: usize,    
+        node: NodeI,    
         child_proposed_size: Xy<f32>, // the size that was proposed to us specifically after dividing between children
         whole_parent_proposed_size: Xy<f32>, // the whole size that the parent proposed to ALL its children collectively
     ) -> Xy<f32> {
@@ -209,7 +209,7 @@ impl Ui {
         return size;
     }
 
-    fn get_inner_size(&mut self, node: usize, size: Xy<f32>) -> Xy<f32> {
+    fn get_inner_size(&mut self, node: NodeI, size: Xy<f32>) -> Xy<f32> {
         let mut inner_size = size;
 
         // remove padding
@@ -233,7 +233,7 @@ impl Ui {
 
     fn recursive_determine_size(
         &mut self,
-        node: usize,
+        node: NodeI,
         child_proposed_size: Xy<f32>, // the size that was proposed to us specifically after dividing between children
         whole_parent_proposed_size: Xy<f32>, // the whole size that the parent proposed to ALL its children collectively
     ) -> Xy<f32> {
@@ -309,13 +309,13 @@ impl Ui {
         return final_size;
     }
 
-    fn determine_image_size(&mut self, node: usize, _proposed_size: Xy<f32>) -> Xy<f32> {
+    fn determine_image_size(&mut self, node: NodeI, _proposed_size: Xy<f32>) -> Xy<f32> {
         let image_ref = self.nodes[node].imageref.unwrap();
         let size = image_ref.original_size;
         return self.f32_pixels_to_frac2(size);
     }
 
-    fn determine_text_size(&mut self, node: usize, proposed_size: Xy<f32>) -> Xy<f32> {
+    fn determine_text_size(&mut self, node: NodeI, proposed_size: Xy<f32>) -> Xy<f32> {
         let text_id = self.nodes[node].text_id.unwrap();
         let buffer = &mut self.sys.text.text_areas[text_id].buffer;
 
@@ -366,7 +366,7 @@ impl Ui {
         return self.f32_pixels_to_frac2(trimmed_size);
     }
 
-    pub(crate) fn recursive_place_children(&mut self, node: usize, also_update_rects: bool) {
+    pub(crate) fn recursive_place_children(&mut self, node: NodeI, also_update_rects: bool) {
         self.sys.partial_relayout_count += 1;
         if let Some(stack) = self.nodes[node].params.stack {
             self.place_children_stack(node, stack);
@@ -390,7 +390,7 @@ impl Ui {
         });
     }
 
-    fn place_children_stack(&mut self, node: usize, stack: Stack) {
+    fn place_children_stack(&mut self, node: NodeI, stack: Stack) {
         let (main, cross) = (stack.axis, stack.axis.other());
         let mut containing_rect = self.nodes[node].rect;
         
@@ -464,7 +464,7 @@ impl Ui {
         });
     }
 
-    fn place_children_container(&mut self, node: usize) {
+    fn place_children_container(&mut self, node: NodeI) {
 
         let parent_rect = self.nodes[node].rect;
 
@@ -514,7 +514,7 @@ impl Ui {
     }
 
     // doesnt work lol
-    // pub(crate) fn recursive_set_scroll(&mut self, node: usize) {
+    // pub(crate) fn recursive_set_scroll(&mut self, node: NodeI) {
     //     self.set_children_scroll(node);
 
     //     for_each_child!(self, self.nodes[node], child, {
@@ -522,7 +522,7 @@ impl Ui {
     //     });
     // }
 
-    fn set_children_scroll(&mut self, node: usize) {
+    fn set_children_scroll(&mut self, node: NodeI) {
         if ! self.nodes[node].params.is_scrollable() {
             return;
         }
@@ -540,7 +540,7 @@ impl Ui {
         });
         
     }
-    fn set_clip_rect(&mut self, node: usize) {
+    fn set_clip_rect(&mut self, node: NodeI) {
         let parent_clip_rect;
         if node == ROOT_I {
             parent_clip_rect = Xy::new_symm([0.0, 1.0]);
@@ -573,11 +573,11 @@ impl Ui {
     }
 
     #[allow(dead_code)]
-    pub(crate) fn place_image(&mut self, _node: usize) {     
+    pub(crate) fn place_image(&mut self, _node: NodeI) {     
         // might be something here in the future
     }
 
-    fn place_text_inside(&mut self, node: usize, rect: XyRect) {
+    fn place_text_inside(&mut self, node: NodeI, rect: XyRect) {
         let padding = self.to_pixels2(self.nodes[node].params.layout.padding);
 
         let mut containing_rect = rect;
@@ -620,7 +620,7 @@ impl Ui {
         self.recursive_push_rects(ROOT_I);
     }
 
-    fn recursive_push_rects(&mut self, node: usize) {
+    fn recursive_push_rects(&mut self, node: NodeI) {
         // 3nd recursive tree traversal: now that all nodes have a calculated size, place them.
         self.push_rect(node);
 
@@ -721,7 +721,7 @@ impl ScrollLimits {
 
 
 impl Ui {
-    fn scroll_limits(&mut self, node: usize, content_bounding_rect: XyRect) -> ScrollLimits {
+    fn scroll_limits(&mut self, node: NodeI, content_bounding_rect: XyRect) -> ScrollLimits {
         let mut scroll_limits = XyRect::new([0.0, 0.0], [0.0, 0.0]);
 
         for axis in [X, Y] {

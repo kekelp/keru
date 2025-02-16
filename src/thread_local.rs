@@ -2,15 +2,15 @@ use std::{cell::RefCell, hash::{Hash, Hasher}};
 
 use rustc_hash::FxHasher;
 
-use crate::{changes::NodeWithDepth, Id, UiParent};
+use crate::*;
 
 pub struct StackParent {
-    i: usize,
+    i: NodeI,
     old_children_hash: u64,
     children_hash: FxHasher,
 }
 impl StackParent {
-    fn new(i: usize, old_children_hash: u64) -> StackParent {
+    fn new(i: NodeI, old_children_hash: u64) -> StackParent {
         return StackParent {
             i,
             old_children_hash,
@@ -68,11 +68,11 @@ pub fn pop_parent() {
     })
 }
 
-pub fn hash_new_child(child_i: usize) -> u64 {
+pub fn hash_new_child(child_i: NodeI) -> u64 {
     return THREAD_STACKS.with(|stack| {
         let mut stack = stack.borrow_mut();
-        let children_hash = &mut stack.parents.last_mut().unwrap().children_hash;
-        children_hash.write_usize(child_i);
+        let mut children_hash = &mut stack.parents.last_mut().unwrap().children_hash;
+        child_i.hash(&mut children_hash);
         // For this hasher, `finish()` just returns the current value. It doesn't actually finish anything. We can continue using it.
         return children_hash.finish()
     });

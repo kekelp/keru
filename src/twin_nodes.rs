@@ -15,6 +15,6 @@ pub fn refresh_or_add_twin(current_frame: u64, old_node_last_frame_touched: u64)
 }
 
 pub enum TwinCheckResult {
-    UpdatedNormal { final_i: usize },
+    UpdatedNormal { final_i: NodeI },
     NeedToUpdateTwin { twin_n: u32, twin_key: NodeKey },
 }

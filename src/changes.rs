@@ -1,8 +1,9 @@
 use crate::thread_local::THREAD_STACKS;
+use crate::*;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct NodeWithDepth {
-    pub i: usize,
+    pub i: NodeI,
     pub depth: usize,
 }
 
@@ -20,7 +21,7 @@ impl PartialOrd for NodeWithDepth {
 
 #[derive(Debug)]
 pub struct PartialChanges {
-    pub cosmetic_rect_updates: Vec<usize>,
+    pub cosmetic_rect_updates: Vec<NodeI>,
     pub partial_relayouts: Vec<NodeWithDepth>,
     pub swapped_tree_changes: Vec<NodeWithDepth>,
     pub rebuild_all_rects: bool,

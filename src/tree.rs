@@ -221,14 +221,14 @@ impl Ui {
     }
 
     // only for the macro, use get_ref
-    pub(crate) fn get_uinode(&mut self, i: usize) -> UiNode {
+    pub(crate) fn get_uinode(&mut self, i: NodeI) -> UiNode {
         return UiNode {
             node_i: i,
             ui: self,
         };
     }
 
-    pub(crate) fn add_or_update_node(&mut self, key: NodeKey) -> usize {
+    pub(crate) fn add_or_update_node(&mut self, key: NodeKey) -> NodeI {
         let frame = self.sys.current_frame;
 
         // Check the node corresponding to the key's id.
@@ -239,7 +239,7 @@ impl Ui {
             // Add a normal node (no twins).
             Entry::Vacant(v) => {
                 let new_node = Node::new(&key, None);
-                let final_i = self.nodes.nodes.insert(new_node);
+                let final_i = NodeI::from(self.nodes.nodes.insert(new_node));
                 v.insert(NodeMapEntry::new(frame, final_i));
 
                 UpdatedNormal { final_i }
@@ -280,7 +280,7 @@ impl Ui {
                     // Add new twin.
                     Entry::Vacant(v) => {
                         let new_twin_node = Node::new(&twin_key, Some(twin_n));
-                        let real_final_i = self.nodes.nodes.insert(new_twin_node);
+                        let real_final_i = NodeI::from(self.nodes.nodes.insert(new_twin_node));
                         v.insert(NodeMapEntry::new(frame, real_final_i));
                         (real_final_i, twin_key.id_with_subtree())
                     }
@@ -311,7 +311,7 @@ impl Ui {
     }
 
 
-    pub(crate) fn make_parent_from_i(&mut self, i: usize) -> UiParent {
+    pub(crate) fn make_parent_from_i(&mut self, i: NodeI) -> UiParent {
         
         let old_children_hash = self.nodes[i].children_hash;
         // reset the children hash to keep it in sync with the thread local one (which will be created new in push_parent)
@@ -329,7 +329,7 @@ impl Ui {
         return UiParent::new(i, old_children_hash);
     }
 
-    pub(crate) fn check_param_changes(&mut self, i: usize) {
+    pub(crate) fn check_param_changes(&mut self, i: NodeI) {
         if ! reactive::can_skip() {
 
             let cosmetic_params_hash = self.nodes[i].params.cosmetic_update_hash();
@@ -355,7 +355,7 @@ impl Ui {
         }
     }
 
-    fn set_tree_links(&mut self, new_node_i: usize, parent_i: usize, depth: usize) {
+    fn set_tree_links(&mut self, new_node_i: NodeI, parent_i: NodeI, depth: usize) {
         assert!(new_node_i != parent_i, "Internal error: tried to add a node as child of itself ({}).", self.nodes[new_node_i].debug_name);
 
         // clear old tree links
@@ -383,12 +383,12 @@ impl Ui {
         };
     }
 
-    fn add_first_child(&mut self, new_node_i: usize, parent_i: usize) {
+    fn add_first_child(&mut self, new_node_i: NodeI, parent_i: NodeI) {
         self.nodes[parent_i].last_child = Some(new_node_i);
         self.nodes[parent_i].first_child = Some(new_node_i);
     }
     
-    fn add_sibling(&mut self, new_node_i: usize, old_last_child: usize, parent_i: usize) {
+    fn add_sibling(&mut self, new_node_i: NodeI, old_last_child: NodeI, parent_i: NodeI) {
         self.nodes[new_node_i].prev_sibling = Some(old_last_child);
         self.nodes[old_last_child].next_sibling = Some(new_node_i);
         self.nodes[parent_i].last_child = Some(new_node_i);
@@ -406,7 +406,7 @@ impl Ui {
         self.sys.changes.resize = true;
     }
 
-    pub(crate) fn push_rect(&mut self, node: usize) {
+    pub(crate) fn push_rect(&mut self, node: NodeI) {
         let node = &mut self.nodes[node];
         
         // really only need to do this whenever a custom-rendered rect shows up. But that would require custom rendered rects to be specifically marked, as opposed to just being the same as any other visible-only-in-debug rect, which means that you can forget to mark it and mess everything up. There's no real disadvantage to just always doing it.
@@ -439,7 +439,7 @@ impl Ui {
         }
     }
 
-    pub(crate) fn update_rect(&mut self, node: usize) {
+    pub(crate) fn update_rect(&mut self, node: NodeI) {
         let node = &mut self.nodes[node];
 
         let draw_even_if_invisible = self.sys.debug_mode;
@@ -455,7 +455,7 @@ impl Ui {
         // todo: update images?
     }
 
-    fn set_relayout_chain_root(&mut self, new_node_i: usize, parent_i: usize) {
+    fn set_relayout_chain_root(&mut self, new_node_i: NodeI, parent_i: NodeI) {
         let is_fit_content = self.nodes[new_node_i].params.is_fit_content();
         match self.nodes[parent_i].relayout_chain_root {
             Some(root_of_parent) => match is_fit_content {
@@ -469,11 +469,11 @@ impl Ui {
         };
     }
 
-    pub(crate) fn set_partial_relayout_flag(&mut self, node_i: usize) {
+    pub(crate) fn set_partial_relayout_flag(&mut self, node_i: NodeI) {
         self.nodes[node_i].needs_partial_relayout = true;
     }
 
-    pub(crate) fn push_partial_relayout(&mut self, i: usize) {
+    pub(crate) fn push_partial_relayout(&mut self, i: NodeI) {
         let relayout_chain_root = match self.nodes[i].relayout_chain_root {
             Some(root) => root,
             None => i,
@@ -491,17 +491,17 @@ impl Ui {
     }
 
     // this will be still needed for things like image/texture updates, I think. 
-    pub(crate) fn _set_cosmetic_update_flag(&mut self, node_i: usize) {
+    pub(crate) fn _set_cosmetic_update_flag(&mut self, node_i: NodeI) {
         self.nodes[node_i].needs_cosmetic_update = true;
     }
 
-    pub(crate) fn push_cosmetic_update(&mut self, i: usize) {
+    pub(crate) fn push_cosmetic_update(&mut self, i: NodeI) {
         self.sys.changes.cosmetic_rect_updates.push(i);
     }
 
     // todo: need_rerender should be on a flag too, not instant, right?
     // because the text might change on a node that ends up not being place()d
-    pub(crate) fn push_text_change(&mut self, i: usize) {
+    pub(crate) fn push_text_change(&mut self, i: NodeI) {
         if self.nodes[i].params.is_fit_content() {
             self.set_partial_relayout_flag(i);
         } else {
@@ -668,11 +668,11 @@ pub(crate) fn caller_location_hash() -> u64 {
 ///  
 /// Can be used to call [`nest()`](Self::nest()) and add more nodes as children of this one. 
 pub struct UiParent {
-    pub(crate) i: usize,
+    pub(crate) i: NodeI,
     pub(crate) old_children_hash: u64,
 }
 impl UiParent {
-    pub(crate) fn new(node_i: usize, old_children_hash: u64) -> UiParent {
+    pub(crate) fn new(node_i: NodeI, old_children_hash: u64) -> UiParent {
         return UiParent {
             i: node_i,
             old_children_hash,

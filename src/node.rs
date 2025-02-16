@@ -7,6 +7,7 @@ use texture_atlas::ImageRef;
 #[derive(Debug)]
 pub struct Node {
     pub id: Id,
+    // todo: this surely doesn't need 64 bits?
     pub depth: usize,
 
     pub last_layout_frame: u64,
@@ -26,7 +27,7 @@ pub struct Node {
 
     pub last_proposed_size: Xy<f32>,
 
-    pub(crate) relayout_chain_root: Option<usize>,
+    pub(crate) relayout_chain_root: Option<NodeI>,
 
     pub(crate) last_rect_i: usize,
 
@@ -36,17 +37,16 @@ pub struct Node {
     pub last_static_image_ptr: Option<*const u8>,
     pub last_static_text_ptr: Option<*const u8>,
 
-    pub parent: usize,
+    pub parent: NodeI,
 
     // le epic inline linked list instead of a random Vec somewhere else on the heap
-    // todo: Option<usize> is 128 bits, which is ridicolous. Use a NonMaxU32 or something
     pub n_children: u16,
 
-    pub last_child: Option<usize>,
-    pub prev_sibling: Option<usize>,
+    pub last_child: Option<NodeI>,
+    pub prev_sibling: Option<NodeI>,
     
-    pub first_child: Option<usize>,
-    pub next_sibling: Option<usize>,
+    pub first_child: Option<NodeI>,
+    pub next_sibling: Option<NodeI>,
 
     pub params: NodeParams,
 
@@ -91,7 +91,7 @@ impl Node {
             last_static_image_ptr: None,
             last_static_text_ptr: None,
 
-            parent: 0, // just a wrong value which will be overwritten. it's even worse here.
+            parent: NodeI::from(12312355), // just a wrong value which will be overwritten. it's even worse here.
             // but it's for symmetry with update_node, where all these values are old and are reset.
 
             n_children: 0,
@@ -147,7 +147,7 @@ pub const ZERO_NODE_DUMMY: Node = Node {
     last_static_image_ptr: None,
     last_static_text_ptr: None,
 
-    parent: usize::MAX,
+    parent: NodeI::from(91359),
 
     n_children: 0,
     last_child: None,
@@ -175,7 +175,7 @@ pub const ZERO_NODE_DUMMY: Node = Node {
     last_layout_params_hash: 0,
 };
 
-pub const ROOT_I: usize = 1;
+pub const ROOT_I: NodeI = NodeI::from(1);
 
 pub const NODE_ROOT_ID: Id = Id(0);
 pub const NODE_ROOT: Node = Node {
@@ -195,7 +195,7 @@ pub const NODE_ROOT: Node = Node {
     last_static_image_ptr: None,
     last_static_text_ptr: None,
 
-    parent: usize::MAX,
+    parent: NodeI::from(13354246),
 
     n_children: 0,
     last_child: None,

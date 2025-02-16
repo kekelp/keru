@@ -472,10 +472,10 @@ pub(crate) struct NodeMapEntry {
     // for this reason, "clones" or "copies" would be better names, but those words are loaded in rust
     // reproduction? replica? imitation? duplicate? version? dupe? replication? mock? carbon?
     pub n_twins: u32,
-    pub slab_i: usize,
+    pub slab_i: NodeI,
 }
 impl NodeMapEntry {
-    pub fn new(frame: u64, new_i: usize) -> Self {
+    pub fn new(frame: u64, new_i: NodeI) -> Self {
         return Self {
             last_frame_touched: frame,
             n_twins: 0,
@@ -483,7 +483,7 @@ impl NodeMapEntry {
         };
     }
 
-    pub fn refresh(&mut self, frame: u64) -> usize {
+    pub fn refresh(&mut self, frame: u64) -> NodeI {
         self.last_frame_touched = frame;
         self.n_twins = 0;
         return self.slab_i;

@@ -147,6 +147,7 @@ mod node;
 mod render_rect;
 mod nodes;
 pub(crate) use crate::nodes::*;
+pub(crate) use crate::changes::*;
 
 mod texture_atlas;
 

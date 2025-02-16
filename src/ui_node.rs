@@ -15,16 +15,16 @@ use crate::Axis::*;
 /// 
 /// A `UiNode` is also returned from [`Ui::get_node`]. This is useful to extract dynamic properties of a node, like its exact size.
 pub struct UiNode<'a> {
-    pub(crate) node_i: usize,
+    pub(crate) node_i: NodeI,
     pub(crate) ui: &'a mut Ui,
 }
 
 impl<'a> UiNode<'a> {
     pub(crate) fn node_mut(&mut self) -> &mut Node {
-        return &mut self.ui.nodes.nodes[self.node_i];
+        return &mut self.ui.nodes[self.node_i];
     }
     pub(crate) fn node(&self) -> &Node {
-        return &self.ui.nodes.nodes[self.node_i];
+        return &self.ui.nodes[self.node_i];
     }
 
     pub(crate) fn static_image(&mut self, image: &'static [u8]) -> &mut Self {
