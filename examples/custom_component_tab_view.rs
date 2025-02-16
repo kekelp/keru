@@ -1,4 +1,6 @@
 use keru::*;
+use keru::Size::*;
+use keru::Len::*;
 use keru::example_window_loop::*;
 
 // Define a trait to hold our custom component function, that we will implement for `Ui`.
@@ -37,20 +39,25 @@ impl CustomWidgets for Ui {
                 }
             }
 
+            let content_panel = PANEL.size_y(Size::Fill);
+            let v_stack = V_STACK.size_y(Fill).stack_arrange(Arrange::End);
+            let tabs_h_stack = H_STACK.size_y(Fixed(Pixels(100)));
+
             // Add the nodes to the ui.
             self.add(CONTAINER.size_symm(Size::Fill)).nest(|| {
 
-                self.v_stack().nest(|| {
-                    self.h_stack().nest(|| {
+                self.add(v_stack).nest(|| {
+                    self.add(tabs_h_stack).nest(|| {
                         for (i, name) in tabs.iter().enumerate() {
-                            let button = BUTTON.text(name).key(TAB_BUTTON.sibling(i));
+                            let key_i = TAB_BUTTON.sibling(i);
+                            let button = BUTTON.text(name).key(key_i).size_y(Fill);
                             self.add(button);
                         }
                     });
 
-                    let content = self.add(PANEL);
+                    let content_nest = self.add(content_panel);
                     
-                    return content;
+                    return content_nest;
                 })
                 // down here, we're using implicit returns to pass the return value through all the closures and out of the function.
                 // if this feels wrong, you can also declare `let mut result: Option<UiParent> = None` at the start of the function,
