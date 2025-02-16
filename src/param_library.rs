@@ -88,7 +88,7 @@ pub const V_STACK: NodeParams = NodeParams {
 pub const H_STACK: NodeParams = NodeParams {
     key: None,
     stack: Some(Stack {
-        arrange: Arrange::Start,
+        arrange: Arrange::Center,
         axis: Axis::X,
         spacing: Len::Pixels(5),
     }),
