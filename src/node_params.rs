@@ -53,23 +53,25 @@ pub struct NodeParams {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Size {
     // todo: use two variants instead of Len?
-    Fixed(Len),
-    Fill,
+    Pixels(u32),
+    Frac(f32),
+    Fill, // todo, same as Frac(1), remove?
     FitContent,
     FitContentOrMinimum(Len),
     AspectRatio(f32),
 }
 
-// Get a load of this dogshit that I have to write
+// Get a load of this crap that I have to write
 impl Hash for Size {
     fn hash<H: Hasher>(&self, state: &mut H) {
         use Size::*;
         match self {
-            Fixed(len) => (0u8, len).hash(state),
-            Fill => 1u8.hash(state),
-            FitContent => 2u8.hash(state),
-            FitContentOrMinimum(len) => (3u8, len).hash(state),
-            AspectRatio(ratio) => (4u8, ratio.to_bits()).hash(state),
+            Pixels(len) => (0u8, len).hash(state),
+            Frac(len) => (1u8, len.to_bits()).hash(state),
+            Fill => 2u8.hash(state),
+            FitContent => 3u8.hash(state),
+            FitContentOrMinimum(len) => (4u8, len).hash(state),
+            AspectRatio(ratio) => (5u8, ratio.to_bits()).hash(state),
         }
     }
 }

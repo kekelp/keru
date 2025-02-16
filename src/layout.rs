@@ -168,8 +168,11 @@ impl Ui {
             match self.nodes[node].params.layout.size[axis] {
                 Size::FitContent | Size::FitContentOrMinimum(_) => {}, // propose the whole available size. We will shrink our final size later if they end up using less or more 
                 Size::Fill => {}, // propose the whole available size
-                Size::Fixed(len) => {
-                    proposed_size[axis] = self.len_to_frac_of_size(len, proposed_size, axis);
+                Size::Pixels(pixels) => {
+                    proposed_size[axis] = self.pixels_to_frac(pixels, axis);
+                },
+                Size::Frac(frac) => {
+                    proposed_size[axis] = proposed_size[axis] * frac;
                 }
                 Size::AspectRatio(_aspect) => {
                     const ASPECT_RATIO_DEFAULT: f32 = 0.5;

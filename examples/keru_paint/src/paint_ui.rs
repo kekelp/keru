@@ -29,7 +29,7 @@ impl State {
         let left_bar = V_STACK
             .position_x(Position::Start)
             .size_y(Fill)
-            .size_x(Fixed(Frac(0.1)));
+            .size_x(Size::Frac(0.1));
 
         self.ui.add(right_bar).nest(|| {
             self.ui.place_color_picker(&mut self.color_picker);
@@ -75,8 +75,8 @@ impl State {
             .position_x(Start)
             .position_y(Start)
             // without a fixed size here, we get way too much partial relayouting to do on every frame
-            .size_x(Fixed(Pixels(100)))
-            .size_y(Fixed(Pixels(50)));
+            .size_x(Size::Pixels(100))
+            .size_y(Size::Pixels(50));
 
         self.ui.add(pixel_panel_2).nest(|| {
             self.ui.v_stack().nest(|| {
@@ -142,17 +142,17 @@ impl State {
         #[node_key] const SLIDER_CONTAINER: NodeKey;
         let slider_container = KERU_PANEL
             .position_x(End)
-            .size_y(Size::Fixed(Frac(0.7)))
-            .size_x(Fixed(Pixels(50)))
+            .size_y(Size::Frac(0.7))
+            .size_x(Size::Pixels(50))
             .key(SLIDER_CONTAINER);
 
         #[node_key] const SLIDER_FILL: NodeKey;
         let slider_fill = KERU_PANEL
             .size_x(Fill)
-            .size_y(Fixed(Frac((log_value - log_min) / (log_max - log_min))))
+            .size_y(Size::Frac((log_value - log_min) / (log_max - log_min)))
             .color(Color::KERU_RED)
             .position_y(End)
-            .padding_y(Pixels(1))
+            .padding_y(Len::Pixels(1))
             .key(SLIDER_FILL);
 
         let lin_value = 10f32.powf(log_value);

@@ -25,7 +25,7 @@ pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
         click_animation: false,
     },
     layout: Layout {
-        size: Xy::new_symm(Fixed(Frac(1.0))),
+        size: Xy::new_symm(Size::Frac(1.0)),
         position: Xy::new_symm(Start),
         padding: Xy::new_symm(Len::ZERO),
         scrollable: Xy::new(false, false),
@@ -49,7 +49,7 @@ pub const DEFAULT: NodeParams = NodeParams {
         click_animation: false,
     },
     layout: Layout {
-        size: Xy::new_symm(Fixed(Frac(1.0))),
+        size: Xy::new_symm(Size::Frac(1.0)),
         position: Xy::new_symm(Center),
         padding: Xy::new_symm(Len::ZERO),
         scrollable: Xy::new(false, false),
@@ -159,7 +159,7 @@ pub const MARGIN: NodeParams = NodeParams {
         click_animation: false,
     },
     layout: Layout {
-        size: Xy::new_symm(Fixed(Frac(0.9))),
+        size: Xy::new_symm(Size::Frac(0.9)),
         position: Xy::new_symm(Center),
         padding: Xy::new_symm(Len::ZERO),
         scrollable: Xy::new(false, false),

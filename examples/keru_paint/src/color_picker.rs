@@ -1,8 +1,6 @@
 use basic_window_loop::Context;
 use glam::Vec2;
 use keru::*;
-use keru::Size::*;
-use keru::Len::*;
 use wgpu::RenderPass;
 use crate::color_picker_render::ColorPickerRenderRect;
 use crate::oklab::*;
@@ -76,23 +74,23 @@ impl ColorPickerUi for Ui {
             // todo: actually implement this, and pair it with a nicer observer for the example
 
             let container = KERU_PANEL
-                .size_x(Size::Fixed(Frac(0.18)))
+                .size_x(Size::Frac(0.18))
                 .size_y(Size::AspectRatio(1.0));
             
             let oklab_hue_wheel = CUSTOM_RENDERED_PANEL
-                .size_symm(Fill)
+                .size_symm(Size::Fill)
                 .shape(Shape::Ring { width: 60.0 })
                 .key(OKLAB_HUE_WHEEL);
         
             let padding_square = PANEL
                 .color(NEUTRAL_GREY)
-                .size_symm(Fill)
+                .size_symm(Size::Fill)
                 // .shape(Shape::Rectangle { corner_radius: 0.5 })
-                .padding(Pixels((60.0 * 2.0f32.sqrt() / 2.0) as u32));
+                .padding(Len::Pixels((60.0 * 2.0f32.sqrt() / 2.0) as u32));
 
             let oklab_square = CUSTOM_RENDERED_PANEL
                 .shape(Shape::Rectangle { corner_radius: 0.0 })
-                .size_symm(Fixed(Frac(0.7071)))
+                .size_symm(Size::Frac(0.7071))
                 .key(OKLAB_SQUARE);
 
             // let ring_y = 1.0 - color_picker.oklch_color.chroma / 0.33;

@@ -1,7 +1,6 @@
 use keru::*;
 use keru::example_window_loop::*;
 use keru::Size::*;
-use keru::Len::*;
 
 #[derive(Default)]
 pub struct State {}
@@ -22,7 +21,7 @@ impl ExampleLoop for State {
             .size_symm(Fill);
     
         let small_panel = PANEL
-            .size_symm(Fixed(Frac(0.95)))
+            .size_symm(Size::Frac(0.95))
             .color(Color::KERU_BLACK)
             .padding(Len::ZERO);
 
