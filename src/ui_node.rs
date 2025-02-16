@@ -27,30 +27,7 @@ impl<'a> UiNode<'a> {
         return &self.ui.nodes.nodes[self.node_i];
     }
 
-    /// Add an image to the node.
-    /// 
-    /// Uses pointer comparison to tell if the image has changed since the last call on the same node..
-    /// 
-    /// ```rust
-    /// # use keru::*;
-    /// # pub struct State {
-    /// #     pub ui: Ui,
-    /// # }
-    /// #
-    /// # impl State {
-    /// #    fn declare_ui(&mut self) {
-    /// #    let ui = &mut self.ui; 
-    /// #
-    /// # #[node_key] const MY_BUTTON: NodeKey;
-    /// #
-    /// ui.add(MY_BUTTON).params(ICON_BUTTON).static_image(include_bytes!("textures/debug.png"));
-    /// #
-    /// #   }
-    /// # }
-    /// ```
-    /// 
-    /// Panics if the byte slice in `image` can't be interpreted as an image.
-    pub fn static_image(&mut self, image: &'static [u8]) -> &mut Self {
+    pub(crate) fn static_image(&mut self, image: &'static [u8]) -> &mut Self {
         let image_pointer: *const u8 = image.as_ptr();
 
         if let Some(last_pointer) = self.node().last_static_image_ptr {
@@ -73,7 +50,7 @@ impl<'a> UiNode<'a> {
     /// Otherwise, it will assume that it has changed.
     /// 
     /// Panics if the byte slice in `image` can't be interpreted as an image.
-    pub fn dyn_image(&mut self, image: &[u8], changed: bool) -> &mut Self {
+    pub(crate) fn dyn_image(&mut self, image: &[u8], changed: bool) -> &mut Self {
         if self.node_mut().imageref.is_some() && changed == false {
             return self;
         }
@@ -163,35 +140,7 @@ impl<'a> UiNode<'a> {
 }
 
 impl<'a> UiNode<'a> {
-    
-    /// Add some text to the node.
-    /// 
-    /// Uses pointer equality to check if the text has changed since the last call on the same node.
-    /// 
-    /// ```rust
-    /// # use keru::*;
-    /// # pub struct State {
-    /// #     pub ui: Ui,
-    /// #     pub show: bool,
-    /// # }
-    /// #
-    /// # impl State {
-    /// #    fn declare_ui(&mut self) {
-    /// #    let ui = &mut self.ui; 
-    /// #
-    /// # #[node_key] const SHOW: NodeKey;
-    /// let button_text = match self.show {
-    ///     true => "Hide Counter",
-    ///     false => "Show Counter",
-    /// };
-    /// ui.add(SHOW)
-    ///     .params(BUTTON)
-    ///     .static_text(button_text);
-    /// #
-    /// #   }
-    /// # }
-    /// ```
-    pub fn static_text(&mut self, text: &'static str) -> &mut Self {
+    pub(crate) fn _static_text(&mut self, text: &'static str) -> &mut Self {
         let text_pointer: *const u8 = text.as_ptr();
 
         if let Some(last_pointer) = self.node().last_static_text_ptr {
@@ -218,33 +167,7 @@ impl<'a> UiNode<'a> {
         return self;
     }
 
-    /// Add some text to the node.
-    /// 
-    /// Will hash the provided text to determine if has changed since the last call on the same node.
-    /// 
-    /// ```rust
-    /// # use keru::*;
-    /// # pub struct State {
-    /// #     pub ui: Ui,
-    /// # }
-    /// #
-    /// # impl State {
-    /// #    fn declare_ui(&mut self) {
-    /// #    let ui = &mut self.ui; 
-    /// #
-    /// # #[node_key] const MY_BUTTON: NodeKey;
-    /// #
-    /// # use std::time::Instant;
-    /// let variable_text = format!("{:?}", Instant::now());
-    /// ui.add(MY_BUTTON)
-    ///     .params(BUTTON)
-    ///     .text(variable_text);
-    /// #
-    /// #   }
-    /// # }
-    /// ```
-
-    pub fn text(&mut self, into_text: impl Display) -> &mut Self {
+    pub(crate) fn text(&mut self, into_text: impl Display) -> &mut Self {
         if can_skip() {
             return self;
         }
@@ -287,12 +210,7 @@ impl<'a> UiNode<'a> {
         return self;
     }
 
-    /// Add some text to the node.
-    /// 
-    /// If `into_text` is `None`, the function will assume that the text hasn't changed since the last call, and won't do anything.
-    /// 
-    /// Otherwise, it will assume that it has changed.
-    pub fn dyn_text(mut self, into_text: Option<impl Display>) -> Self {
+    pub(crate) fn _dyn_text(mut self, into_text: Option<impl Display>) -> Self {
         // if the text is None, return.
         let Some(into_text) = into_text else {
             return self;
@@ -316,32 +234,32 @@ impl<'a> UiNode<'a> {
         return self;
     }
 
-    /// Set the node's text attrs to `attrs`.
-    /// 
-    /// `attrs` is a `cosmic_text::Attrs` object. 
-    pub fn text_attrs(&mut self, attrs: Attrs) -> &mut Self {
-        if let Some(text_id) = self.node_mut().text_id {
-            self.ui.sys.text.set_text_attrs(text_id, attrs);
+    // /// Set the node's text attrs to `attrs`.
+    // /// 
+    // /// `attrs` is a `cosmic_text::Attrs` object. 
+    // pub fn text_attrs(&mut self, attrs: Attrs) -> &mut Self {
+    //     if let Some(text_id) = self.node_mut().text_id {
+    //         self.ui.sys.text.set_text_attrs(text_id, attrs);
 
-            self.ui.set_partial_relayout_flag(self.node_i);
+    //         self.ui.set_partial_relayout_flag(self.node_i);
 
-        } else {
-            // todo: add the text area
-        }
-        return self;
-    }
+    //     } else {
+    //         // todo: add the text area
+    //     }
+    //     return self;
+    // }
 
-    /// Set the node's text align to `align`.
-    /// 
-    /// `align` is a `cosmic_text::Align` object. 
-    pub fn text_align(&mut self, align: Align) -> &mut Self {
-        if let Some(text_id) = self.node_mut().text_id {
-            self.ui.sys.text.set_text_align(text_id, align);
-        } else {
-            // todo: add the text area
-        }
-        return self;
-    }
+    // /// Set the node's text align to `align`.
+    // /// 
+    // /// `align` is a `cosmic_text::Align` object. 
+    // pub fn text_align(&mut self, align: Align) -> &mut Self {
+    //     if let Some(text_id) = self.node_mut().text_id {
+    //         self.ui.sys.text.set_text_align(text_id, align);
+    //     } else {
+    //         // todo: add the text area
+    //     }
+    //     return self;
+    // }
 
     // todo: in a sane world, this wouldn't allocate.
     pub fn get_text(&self) -> Option<String> {

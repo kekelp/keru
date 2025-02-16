@@ -52,7 +52,7 @@ impl Ui {
     /// ```
     /// # use keru::*;
     /// fn custom_rendered_widget(ui: &mut Ui, key: NodeKey) {
-    ///     ui.named_subtree().start(key, || {
+    /// ui.named_subtree(key).start(|| {
     ///         #[node_key] const CUSTOM_RENDERED_NODE: NodeKey;    
     ///         // some complicated GUI code that uses CUSTOM_RENDERED_NODE
     ///     });
@@ -71,7 +71,7 @@ impl Ui {
     /// # #[node_key] const CUSTOM_RENDERED_NODE: NodeKey;
     /// # #[node_key] const WIDGET_KEY_1: NodeKey; 
     /// # fn test_fn2(ui: &mut Ui) -> Option<()> {
-    /// ui.named_subtree().start(WIDGET_KEY_1, || {
+    /// ui.named_subtree(WIDGET_KEY_1).start(|| {
     ///     let render_rect = ui.get_node(CUSTOM_RENDERED_NODE)?.render_rect();
     ///     // ... render the custom widget
     ///     # return Some(());

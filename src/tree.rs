@@ -709,12 +709,12 @@ impl UiParent {
     /// #    fn declare_ui(&mut self) {
     /// #    let ui = &mut self.ui; 
     /// #
-    /// # #[node_key] const PARENT: NodeKey;
-    /// # #[node_key] const CHILD: NodeKey;
+    /// # let parent = V_STACK;
+    /// # let child = BUTTON;
     /// #
     /// //             ↓ returns a `UiParent`
-    /// ui.place(PARENT).nest(|| {
-    ///     ui.place(CHILD);
+    /// ui.add(parent).nest(|| {
+    ///     ui.add(child);
     /// });
     /// #
     /// #   }
