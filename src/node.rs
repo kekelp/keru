@@ -24,10 +24,6 @@ pub struct Node {
     // in probably in fraction of screen units or some trash 
     pub size: Xy<f32>,
 
-    // not really used right now, was meant to simplify scroll limits calculation, but couldn't get it right
-    pub content_size: Xy<f32>,
-
-
     pub last_proposed_size: Xy<f32>,
 
     pub(crate) relayout_chain_root: Option<usize>,
@@ -86,8 +82,6 @@ impl Node {
 
             size: Xy::new_symm(0.5),
 
-            content_size: Xy::new_symm(0.5),
-            
             last_proposed_size: Xy::new_symm(0.5),
             text_id: None,
 
@@ -146,7 +140,6 @@ pub const NODE_ROOT: Node = Node {
     clip_rect: Xy::new_symm([0.0, 1.0]),
 
     size: Xy::new_symm(1.0),
-    content_size: Xy::new_symm(0.5),
 
     last_proposed_size: Xy::new_symm(1.0),
 

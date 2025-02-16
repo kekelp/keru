@@ -1,6 +1,5 @@
 use keru::*;
 use keru::Size::*;
-use keru::Len::*;
 use keru::example_window_loop::*;
 
 // Define a trait to hold our custom component function, that we will implement for `Ui`.

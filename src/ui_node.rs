@@ -262,14 +262,13 @@ impl<'a> UiNode<'a> {
     // }
 
     // todo: in a sane world, this wouldn't allocate.
-    pub fn get_text(&self) -> Option<String> {
-        // let text_id = self.node().text_id.unwrap();
+    pub(crate) fn get_text(&self) -> Option<String> {
+        let text_id = self.node().text_id?;
 
-        // let lines = self.ui.sys.text.text_areas[text_id].buffer.lines;
+        let lines = &self.ui.sys.text.text_areas[text_id].buffer.lines;
         
-        // let text = lines.into_iter().map(|l| l.text()).collect();
-        // return Some(text);
-        return None;
+        let text = lines.into_iter().map(|l| l.text()).collect();
+        return Some(text);
     }
 }
 

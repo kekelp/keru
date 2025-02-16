@@ -57,7 +57,6 @@ pub enum Size {
     Frac(f32),
     Fill, // todo, same as Frac(1), remove?
     FitContent,
-    FitContentOrMinimum(Len),
     AspectRatio(f32),
 }
 
@@ -70,7 +69,6 @@ impl Hash for Size {
             Frac(len) => (1u8, len.to_bits()).hash(state),
             Fill => 2u8.hash(state),
             FitContent => 3u8.hash(state),
-            FitContentOrMinimum(len) => (4u8, len).hash(state),
             AspectRatio(ratio) => (5u8, ratio.to_bits()).hash(state),
         }
     }

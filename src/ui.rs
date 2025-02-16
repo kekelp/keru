@@ -111,6 +111,7 @@ pub(crate) struct System {
 
     pub focused: Option<Id>,
 
+    // todo: maybe size_scratch can use the same Vec<usize> as above.
     pub size_scratch: Vec<f32>,
     pub relayouts_scrath: Vec<NodeWithDepth>,
     // this is used exclusively for debug messages
