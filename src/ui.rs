@@ -28,6 +28,7 @@ use wgpu::{
 use winit_key_events::KeyInput;
 use winit_mouse_events::MouseInput;
 
+use std::num::NonZeroU16;
 use std::ops::{Index, IndexMut};
 use std::sync::LazyLock;
 use std::time::Duration;
@@ -315,22 +316,7 @@ impl Ui {
 
         let text_areas = Vec::with_capacity(50);
 
-        let mut node_hashmap = FxHashMap::with_capacity_and_hasher(100, Default::default());
-
-        let mut nodes = Slab::with_capacity(100);
-        let root_i = nodes.insert(NODE_ROOT);
-        let root_map_entry = NodeMapEntry {
-            last_frame_touched: u64::MAX,
-            slab_i: root_i,
-            n_twins: 0,
-        };
-
-        node_hashmap.insert(NODE_ROOT_ID, root_map_entry);
-
-        let nodes = Nodes {
-            node_hashmap,
-            nodes,
-        };
+        let nodes = Nodes::new();
 
         Self {
             nodes,
@@ -504,29 +490,6 @@ impl NodeMapEntry {
     }
 }
 
-#[derive(Debug)]
-pub(crate) struct Nodes {
-    // todo: make faster or something
-    pub node_hashmap: FxHashMap<Id, NodeMapEntry>,
-    pub nodes: Slab<Node>,
-}
-impl Index<usize> for Nodes {
-    type Output = Node;
-    fn index(&self, i: usize) -> &Self::Output {
-        return &self.nodes[i];
-    }
-}
-impl IndexMut<usize> for Nodes {
-    fn index_mut(&mut self, i: usize) -> &mut Self::Output {
-        return &mut self.nodes[i];
-    }
-}
-impl Nodes {
-    pub(crate) fn get_by_id(&mut self, id: Id) -> Option<(&mut Node, usize)> {
-        let i = self.node_hashmap.get(&id)?;
-        return Some((&mut self.nodes[i.slab_i], i.slab_i));
-    }
-}
 
 pub(crate) fn mouse_hit_rect(rect: &RenderRect, size: &Xy<f32>, cursor_pos: DVec2) -> bool {
     // rects are rebuilt whenever they change, they don't have to be skipped based on a timestamp or anything like that.

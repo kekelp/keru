@@ -407,7 +407,7 @@ impl Ui {
     }
 
     pub(crate) fn push_rect(&mut self, node: usize) {
-        let node = &mut self.nodes.nodes[node];
+        let node = &mut self.nodes[node];
         
         // really only need to do this whenever a custom-rendered rect shows up. But that would require custom rendered rects to be specifically marked, as opposed to just being the same as any other visible-only-in-debug rect, which means that you can forget to mark it and mess everything up. There's no real disadvantage to just always doing it.
         self.sys.z_cursor += Z_STEP;
@@ -440,7 +440,7 @@ impl Ui {
     }
 
     pub(crate) fn update_rect(&mut self, node: usize) {
-        let node = &mut self.nodes.nodes[node];
+        let node = &mut self.nodes[node];
 
         let draw_even_if_invisible = self.sys.debug_mode;
         if let Some(rect) = node.render_rect(draw_even_if_invisible, None) {
@@ -453,22 +453,6 @@ impl Ui {
         // this kind of makes sense, but apparently not needed? I guess someone else is calling it?
         // self.sys.changes.need_gpu_rect_update = true;
         // todo: update images?
-    }
-
-    // todo: actually call this once in a while
-    pub(crate) fn prune(&mut self) {
-        self.nodes.node_hashmap.retain(|_k, v| {
-            // the > is to always keep the root node without having to refresh it
-            let should_retain = v.last_frame_touched >= self.sys.current_frame;
-            if !should_retain {
-                let name = self.nodes.nodes[v.slab_i].debug_name();
-                // side effect happens inside this closure? idk if this even works
-                self.nodes.nodes.remove(v.slab_i);
-                // remember to remove text areas and such ...
-                log::info!("pruning node {:?}", name);
-            }
-            should_retain
-        });
     }
 
     fn set_relayout_chain_root(&mut self, new_node_i: usize, parent_i: usize) {

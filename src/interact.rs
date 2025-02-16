@@ -170,9 +170,7 @@ impl Ui {
     pub(crate) fn start_hovering(&mut self, hovered_id: Id) {
         self.sys.hovered.push(hovered_id);
         
-        // todo: yuck
-        let hovered_node_i = self.nodes.node_hashmap.get(&hovered_id).unwrap().slab_i;
-        let hovered_node = &mut self.nodes.nodes[hovered_node_i];
+        let (hovered_node, hovered_node_i) = self.nodes.get_by_id(&hovered_id).unwrap();
 
         if hovered_node.params.interact.click_animation {
             hovered_node.hovered = true;
@@ -198,7 +196,7 @@ impl Ui {
                 if entry.last_frame_touched == self.sys.current_frame {
 
                     let hovered_node_i = entry.slab_i;
-                    let hovered_node = &mut self.nodes.nodes[hovered_node_i];
+                    let hovered_node = &mut self.nodes[hovered_node_i];
                     
                     if hovered_node.params.interact.click_animation {
                         hovered_node.hovered = false;
@@ -248,8 +246,7 @@ impl Ui {
             let t = T0.elapsed();
 
             // todo: yuck
-            let clicked_node_i = self.nodes.node_hashmap.get(&clicked_id).unwrap().slab_i;
-            let clicked_node = &mut self.nodes.nodes[clicked_node_i];
+            let (clicked_node, clicked_node_i) = self.nodes.get_by_id(&clicked_id).unwrap();
 
             if clicked_node.params.interact.click_animation {
 

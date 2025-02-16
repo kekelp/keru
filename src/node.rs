@@ -129,8 +129,53 @@ impl Node {
 }
 
 
-// ...because it will be added first?
-pub const ROOT_I: usize = 0;
+// a dummy node value to fill up the zero slot, so that 
+pub const ZERO_NODE_DUMMY: Node = Node {
+    id: NODE_ROOT_ID,
+    depth: 0,
+    rect: Xy::new_symm([0.0, 1.0]),
+    clip_rect: Xy::new_symm([0.0, 1.0]),
+
+    size: Xy::new_symm(1.0),
+
+    last_proposed_size: Xy::new_symm(1.0),
+
+    scroll: Scroll::ZERO,
+    text_id: None,
+
+    imageref: None,
+    last_static_image_ptr: None,
+    last_static_text_ptr: None,
+
+    parent: usize::MAX,
+
+    n_children: 0,
+    last_child: None,
+    first_child: None,
+    prev_sibling: None,
+    next_sibling: None,
+
+    is_twin: None,
+
+    params: NODE_ROOT_PARAMS,
+    debug_name: "ZERO_NODE_DUMMY",
+    hover_timestamp: f32::MIN,
+    hovered: false,
+
+    last_click: f32::MIN,
+    z: -10000.0,
+    last_rect_i: 0,
+    relayout_chain_root: None,
+    children_hash: EMPTY_HASH,
+    last_layout_frame: 0,
+
+    needs_cosmetic_update: false,
+    needs_partial_relayout: false,
+    last_cosmetic_params_hash: 0,
+    last_layout_params_hash: 0,
+};
+
+pub const ROOT_I: usize = 1;
 
 pub const NODE_ROOT_ID: Id = Id(0);
 pub const NODE_ROOT: Node = Node {

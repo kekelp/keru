@@ -363,8 +363,6 @@ impl Ui {
         //     trimmed_size[axis] *= 2.0;
         // }
 
-        dbg!(self.f32_pixels_to_frac2(trimmed_size));
-
         return self.f32_pixels_to_frac2(trimmed_size);
     }
 
