@@ -141,9 +141,9 @@ mod thread_local;
 mod changes;
 pub(crate) use crate::changes::*;
 mod twin_nodes;
-pub use crate::twin_nodes::*;
-pub use crate::twin_nodes::RefreshOrClone::*;
-pub use crate::twin_nodes::TwinCheckResult::*;
+pub(crate) use crate::twin_nodes::*;
+pub(crate) use crate::twin_nodes::RefreshOrClone::*;
+pub(crate) use crate::twin_nodes::TwinCheckResult::*;
 
 mod render;
 pub(crate) use crate::render::*;

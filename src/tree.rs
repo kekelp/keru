@@ -1,6 +1,6 @@
 // todo: move some more stuff out of this file
-use crate::changes::NodeWithDepth;
 use crate::*;
+
 use glyphon::cosmic_text::Align;
 use glyphon::{AttrsList, Color as GlyphonColor, TextBounds, Viewport};
 
