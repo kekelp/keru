@@ -40,6 +40,7 @@ impl ExampleLoop for State {
                             ui.static_multiline_label(LATIN_TEXT);
                             ui.static_multiline_label(RUSSIAN_TEXT);
                             ui.static_multiline_label(CHINESE_TEXT);
+                            ui.add(BUTTON.text("useless button"));
                             ui.static_multiline_label(JAPANESE_TEXT);
                             ui.static_multiline_label(ARABIC_TEXT);
                         });

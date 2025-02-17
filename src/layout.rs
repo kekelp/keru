@@ -101,12 +101,6 @@ impl Ui {
         // self.sys.new_ui_input = false;
         // self.sys.new_external_events = false;
 
-        // after doing a relayout, we might be moving the hovered node away from the cursor.
-        // So we run resolve_hover again, possibly causing another relayout next frame
-        if tree_changed || partial_relayouts || full_relayout {
-            self.resolve_hover();
-        }
-
         // these ones are after the second-order-effect resolve_hover, just to see the update sooner.
         if full_relayout || rebuild_all_rects {
             self.rebuild_all_rects();
@@ -116,6 +110,12 @@ impl Ui {
         }
 
         self.sys.changes.reset_layout_changes();
+
+        // after doing a relayout, we might be moving the hovered node away from the cursor.
+        // So we run resolve_hover again, possibly causing another relayout next frame
+        if tree_changed || partial_relayouts || full_relayout {
+            self.resolve_hover();
+        }
 
         if tree_changed {
             // pruning here seems like an ok idea, but I haven't thought about it super hard yet.
