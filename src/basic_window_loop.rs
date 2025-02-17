@@ -1,18 +1,23 @@
 //! Helper functions for `winit` and `wgpu`.
 pub use wgpu::{CommandEncoderDescriptor, TextureViewDescriptor};
-pub use winit::{
-    error::EventLoopError, event_loop::EventLoop, event::Event
+pub use winit::{error::EventLoopError, event::Event, event_loop::EventLoop};
+use winit::{
+    event_loop::ActiveEventLoop, platform::wayland::WindowAttributesExtWayland, window::*,
 };
-use winit::{event_loop::ActiveEventLoop, window::*};
 
-use std::{ops::{Deref, DerefMut}, sync::Arc};
+use std::{
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
 
 use wgpu::{
-    Color, CommandEncoder, CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance, InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue, RenderPass, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor, RequestAdapterOptions, Surface, SurfaceConfiguration, SurfaceTexture, Texture, TextureFormat, TextureUsages, TextureView
+    Color, CommandEncoder, CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance,
+    InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue, RenderPass,
+    RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
+    RequestAdapterOptions, Surface, SurfaceConfiguration, SurfaceTexture, Texture, TextureFormat,
+    TextureUsages, TextureView,
 };
-use winit::{
-    dpi::PhysicalSize, event::WindowEvent, window::Window as WinitWindow
-};
+use winit::{dpi::PhysicalSize, event::WindowEvent, window::Window as WinitWindow};
 
 use crate::Ui;
 
@@ -68,7 +73,7 @@ pub fn basic_depth_texture_descriptor(width: u32, height: u32) -> wgpu::TextureD
         format: wgpu::TextureFormat::Depth32Float,
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
         view_formats: &[],
-    }
+    };
 }
 
 pub struct AutoUnwrap<T>(Option<T>);
@@ -91,7 +96,7 @@ pub struct Context {
     // To avoid panics, just do the same thing as you'd do anyway: initialize the window in `resumed()`, and never set it to None
     pub window: AutoUnwrap<Arc<WinitWindow>>,
     pub surface: AutoUnwrap<Surface<'static>>,
-    
+
     pub surface_config: SurfaceConfiguration,
     pub device: Device,
     pub queue: Queue,
@@ -128,10 +133,16 @@ impl Context {
     }
 
     pub fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        let window = Arc::new(event_loop.create_window(Window::default_attributes()).unwrap());
+        let window = Arc::new(
+            event_loop
+                .create_window(
+                    Window::default_attributes().with_name("Keru Example", "Keru Example"),
+                )
+                .unwrap(),
+        );
 
         let surface = self.instance.create_surface(window.clone()).unwrap();
-        
+
         self.surface = AutoUnwrap(Some(surface));
         self.window = AutoUnwrap(Some(window));
 
@@ -148,7 +159,7 @@ impl Context {
         match event {
             WindowEvent::CloseRequested => {
                 event_loop.exit();
-            },
+            }
             WindowEvent::Resized(size) => {
                 self.resize(*size);
             }
@@ -178,13 +189,17 @@ impl Context {
     }
 
     pub fn begin_frame(&mut self) -> RenderFrame {
-        let encoder = self.device.create_command_encoder(&CommandEncoderDescriptor::default());
+        let encoder = self
+            .device
+            .create_command_encoder(&CommandEncoderDescriptor::default());
 
         let frame = self.surface.get_current_texture().unwrap();
 
         // todo: why recreate the views on every frame?
         let view = frame.texture.create_view(&TextureViewDescriptor::default());
-        let depth_stencil_view = self.depth_stencil_texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let depth_stencil_view = self
+            .depth_stencil_texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
 
         return RenderFrame {
             encoder,
@@ -196,12 +211,12 @@ impl Context {
 
     pub fn render_ui(&mut self, ui: &mut Ui) {
         let mut frame = self.begin_frame();
-        
+
         {
             let mut render_pass = frame.begin_render_pass(wgpu::Color::WHITE);
             ui.render(&mut render_pass, &self.device, &self.queue);
         }
-        
+
         frame.finish(&self);
     }
 }
@@ -217,7 +232,7 @@ impl RenderFrame {
     pub fn begin_render_pass(&mut self, bg_color: Color) -> RenderPass<'_> {
         let color_att = basic_color_attachment(&self.view, bg_color);
         let depth_att = basic_depth_stencil_attachment(&self.depth_stencil_view);
-        
+
         let render_pass_desc = RenderPassDescriptor {
             label: None,
             color_attachments: &color_att,
@@ -237,7 +252,10 @@ impl RenderFrame {
     }
 }
 
-pub fn basic_color_attachment(view: &TextureView, bg_color: Color) -> [Option<RenderPassColorAttachment<'_>>; 1] {
+pub fn basic_color_attachment(
+    view: &TextureView,
+    bg_color: Color,
+) -> [Option<RenderPassColorAttachment<'_>>; 1] {
     return [Some(RenderPassColorAttachment {
         view,
         resolve_target: None,
@@ -248,7 +266,9 @@ pub fn basic_color_attachment(view: &TextureView, bg_color: Color) -> [Option<Re
     })];
 }
 
-pub fn basic_depth_stencil_attachment(depth_stencil_view: &TextureView) -> Option<RenderPassDepthStencilAttachment<'_>> {
+pub fn basic_depth_stencil_attachment(
+    depth_stencil_view: &TextureView,
+) -> Option<RenderPassDepthStencilAttachment<'_>> {
     return Some(wgpu::RenderPassDepthStencilAttachment {
         view: &depth_stencil_view,
         depth_ops: Some(wgpu::Operations {
@@ -274,7 +294,11 @@ pub trait EventIsRedrawRequested {
 }
 impl EventIsRedrawRequested for Event<()> {
     fn is_redraw_requested(&self) -> bool {
-        if let Event::WindowEvent { event: WindowEvent::RedrawRequested, .. } = self {
+        if let Event::WindowEvent {
+            event: WindowEvent::RedrawRequested,
+            ..
+        } = self
+        {
             return true;
         } else {
             return false;

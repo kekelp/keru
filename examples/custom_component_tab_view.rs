@@ -40,7 +40,7 @@ impl CustomWidgets for Ui {
 
             let content_panel = PANEL.size_y(Size::Fill);
             let v_stack = V_STACK.size_y(Fill).stack_arrange(Arrange::End);
-            let tabs_h_stack = H_STACK.size_y(Size::Pixels(100));
+            let tabs_h_stack = H_STACK.size_y(Size::Pixels(50));
 
             // Add the nodes to the ui.
             self.add(CONTAINER.size_symm(Size::Fill)).nest(|| {

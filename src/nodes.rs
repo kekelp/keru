@@ -13,6 +13,13 @@ pub(crate) struct Nodes {
     pub(crate) nodes: Slab<Node>,
 }
 
+/// An index for nodes in the slab.
+/// 
+/// This has the same guarantees as a `usize` slab key/index: if the corresponding element gets removed, any dangling NodeIs can point to arbitrary other nodes that might have taken its place, or it can just point outside of the slab's current length, in which case it will panic on access.
+/// 
+/// For this reason, NodeIs should never be held for longer than one frame.
+/// 
+/// Obviously this can never be pub.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct NodeI(NonZeroU16);
 
@@ -48,6 +55,7 @@ impl Nodes {
 
     pub(crate) fn new() -> Self {        
         let mut nodes = Slab::with_capacity(100);
+        // Insert a dummy node at position zero and never remove it, so that real nodes can be indexed by NonZeroU16
         nodes.insert(ZERO_NODE_DUMMY);
         nodes.insert(NODE_ROOT);
 
