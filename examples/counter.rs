@@ -54,15 +54,6 @@ impl ExampleLoop for State {
             ui.add(show_button);
         });
 
-        // ui.add(V_STACK.size_y(Size::Frac(0.8)).size_x(Size::Pixels(200))).nest(|| {
-            // ui.add(BUTTON.size_y(Size::Pixels(100)).text("Sneed"));
-        //     // ui.add(BUTTON.size_y(Size::Pixels(50)).text("Feed"));
-        //     ui.add(BUTTON.size_y(Size::Frac(0.15)).text("Sneed2"));
-        //     ui.add(BUTTON.size_y(Size::Fill).text("Feed"));
-        //     ui.add(BUTTON.size_y(Size::Fill).text("Feed2"));
-        //     ui.add(BUTTON.size_y(Size::Frac(0.35)).text("Nasheed"));
-
-        // });
     }
 
 }

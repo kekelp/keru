@@ -40,16 +40,15 @@ impl CustomWidgets for Ui {
 
             let content_panel = PANEL.size_y(Size::Fill);
             let v_stack = V_STACK.size_y(Fill).stack_arrange(Arrange::End);
-            let tabs_h_stack = H_STACK.size_y(Size::Pixels(50));
+            let tabs_h_stack = H_STACK.size_y(Size::FitContent);
 
             // Add the nodes to the ui.
-            self.add(CONTAINER.size_symm(Size::Fill)).nest(|| {
 
                 self.add(v_stack).nest(|| {
                     self.add(tabs_h_stack).nest(|| {
                         for (i, name) in tabs.iter().enumerate() {
                             let key_i = TAB_BUTTON.sibling(i);
-                            let button = BUTTON.text(name).key(key_i).size_y(Fill);
+                            let button = BUTTON.text(name).key(key_i);
                             self.add(button);
                         }
                     });
@@ -62,7 +61,6 @@ impl CustomWidgets for Ui {
                 // if this feels wrong, you can also declare `let mut result: Option<UiParent> = None` at the start of the function,
                 // then assign `result = content_node`,
                 // and `return result.unwrap()` at the end.
-            })
         })
     }
 }
