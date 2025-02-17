@@ -41,7 +41,7 @@ pub(crate) fn ui_time_f32() -> f32 {
 /// 
 /// To create a new [`Ui`] instance, use [`Ui::new`].
 /// 
-/// To build a GUI, add nodes to the [`Ui`] by calling [`Ui::add`] and then [`Ui::place`].
+/// To build a GUI, add nodes to the [`Ui`] by calling [`Ui::add`].
 /// 
 /// To react to mouse clicks and other node events, call [`Ui::is_clicked`] and similar methods.
 /// 

@@ -1,4 +1,4 @@
-//! [Documentation] Some extra information about the library.
+//! \[Docs\] Some extra information about the library.
 //! 
 //! # How does it work?
 //! 
@@ -213,18 +213,16 @@
 //! 
 //! - The user can specify explicitly that a block of UI declaration code depends only on a handful of wrapped variables.
 //! 
-//! - Then, the library can just skip all that code completely if none of the variables changed, or at least turn functions like [`Ui::add`] and [`Ui::place`] into no-ops.
-//! 
-//! I think the idea is fair, it's just a matter of finding a nice enough API.
+//! - Then, the library can just skip all that code completely if none of the variables changed, or at least skip the hashing and diffing operations inside [`Ui::add`].
 //! 
 //! Specifying dependencies explicitly might sound annoying, but there's a natural place to do it: at the beginning of any "component" function.
 //!  
 //! 
 //! ## Open questions
 //! 
-//! - Less room for mistakes: [`Ui::place`] in particular can panic if used incorrectly (using the same key twice or placing a node that wasn't added). 
-//!     
-//!     There are ways around this, but they make the API worse in other ways. Given that [`UiNode::place`] already offers a less flexible but panic-safe alternative, it might be fine to leave it as it is, but I am still thinking about this often.
+//! - Less room for mistakes: it's possible to use the same key for multiple nodes, in which case `is_clicked(KEY)` would always refer the first one added.
+//! 
+//!     It's also rather easy to forget to use [`Ui::subtree()`].
 //! 
 //! - ~~Accessing is_clicked from the builder method chain instead of in a separate block with a key. This is the only operation that can't be done without a key. If I found a good way to do it, keys would become completely optional.~~ 
 //! 

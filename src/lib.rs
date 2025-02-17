@@ -78,15 +78,22 @@
 //! The [`Ui`] struct retains the state of the whole Ui, so even if you do this every frame, it doesn't mean that the GUI is re-rendering every frame, doing a full relayout on every frame, or anything of that sort.
 //! See the ["About"](about) page for more information on this point.
 //! 
-//! To see how the Ui declaration code works, see the basic example above, or the Counter example.
 //! 
-//! * In general, all you have to do is [`add`](Ui::add) a node with the right [`NodeParams`], and if you want to check interactions on it, call methods like [`Ui::is_clicked()`] with the same [`NodeKey`].
+//! * In Keru, everything is a node. Whether you want a button, an image, a text element, a stack container, or anything else, the way is always to [`add`](Ui::add) a node with the right [`NodeParams`].
+//! 
+//! * [`Ui`] has some convenience methods like [`Ui::label()`]. These are always equivalent to [`adding`](Ui::add) one or more nodes with specific [`NodeParams`].
+//! 
+//! * To check interactions on a node, use [`NodeParams::key()`] to associate a [`NodeKey`] to a [`NodeParams`], then call methods like [`Ui::is_clicked()`] with the same [`NodeKey`].
 //! 
 //! * In dynamic Uis, you can't identify every node with a static [`NodeKey`] in the way the examples do it.
 //! 
 //!     Instead, you can use the [`NodeKey::sibling()`] function to create keys dynamically at runtime.
 //! 
-//! * To create reusable "components", you can just wrap the GUI code in a function. If the code uses unique [`NodeKeys'](NodeKey), however, you'll need to wrap the code in [`subtree`](subtree()) to be able to reuse the same key multiple times without conflicts.
+//! * To create reusable "components", you can just wrap the Ui code in a function, like the builtin convenience functions like [`Ui::label()`] do. If the code uses unique [`NodeKeys`](NodeKey), however, you'll need to wrap the code in a [`subtree`](Ui::subtree()).
+//! 
+//!     This allows multiple calls to the same component function to reuse the same key multiple times without conflicts.
+//! 
+//! [^1]: This is not set in stone. Less general param types like `StackParams` might be added in the future, if I find that they make the API clearer and simpler to learn. 
 //! 
 //! These building blocks should be enough to create complex interfaces. But only time will tell.
 //! 

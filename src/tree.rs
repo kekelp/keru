@@ -141,44 +141,20 @@ impl Ui {
     }
 
 
-    /// Add a node to the `Ui` corresponding to `key` and returns an [`UiNode`] pointing to it.
-    /// 
-    /// Adding the node adds it to the `Ui`, but it won't be visible until it is "placed" in the tree. You can do this by calling [`Ui::place`] with the same key, or by calling [`place()`](UiNode::place) directly on the returned [`UiNode`].
-    /// 
-    /// The returned [`UiNode`] can also be used to set the appearance, size, text, etc. of the node, using [`UiNode`]'s builder methods.
+    /// Add a node to the `Ui` with the properties described by `params`.
     /// 
     /// ```rust
     /// # use keru::*;
-    /// # pub struct State {
-    /// #     pub ui: Ui,
-    /// # }
-    /// #
-    /// # impl State {
-    /// #    fn declare_ui(&mut self) {
-    /// #    let ui = &mut self.ui; 
-    /// #
+    /// # fn declare_ui(ui: &mut Ui) {
     /// let red_label = LABEL
     ///     .color(Color::RED)
     ///     .text("Increase");
     /// 
     /// ui.add(red_label);
-    /// #
-    /// #   }
     /// # }
     /// ```
     /// 
-    /// # Details
-    ///  
-    /// - If a node corresponding to `key` was already added in a previous frame, then it will return a [`UiNode`] pointing to the old one.
-    /// 
-    /// - If one or more nodes corresponding to `key` were already added in the *same* frame, then it will create a "twin" node.
-    /// It's usually clearer to use different keys, or to create sibling keys explicitely with [`NodeKey::sibling`], rather than to rely on this behavior.
-    /// 
-    /// # Similar Functions
-    /// 
-    /// - [`Ui::add_anon`] can also add a node, but without requiring a key.
-    /// 
-    /// - Shorthand functions like [`Ui::text`] and [`Ui::label`] can `add` and [place](`Ui::place`) simple nodes all in once without requiring a key.
+    /// In Keru, everything is a node: buttons, images, text elements, stack containers, etc. are all created by `add`ing a node with the right [`NodeParams`].
     #[track_caller]
     pub fn add(&mut self, params: impl NodeParamsTrait) -> UiParent {
         if let Some(key) = params.get_params().key {
@@ -222,6 +198,8 @@ impl Ui {
 
     pub(crate) fn add_or_update_node(&mut self, key: NodeKey) -> NodeI {
         let frame = self.sys.current_frame;
+
+        // todo: at least when using non-anonymous keys, I think there's no legit use case for twins anymore. it's always a mistake, I think. it should print out a warning or panic.
 
         // Check the node corresponding to the key's id.
         // We might find that the key has already been used in this same frame:

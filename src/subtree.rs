@@ -9,6 +9,15 @@ impl Ui {
     /// 
     /// To start the subtree and run Ui code inside it, use [`UiSubtree::start()`].
     /// 
+    /// ```no_run
+    /// # use keru::*;
+    /// fn component(ui: &mut Ui) {
+    ///     ui.subtree().start(|| {
+    ///         // define private keys and use them
+    ///     });
+    /// }
+    /// ```
+    /// 
     /// Within a subtree, all [`NodeKeys`](NodeKey) are "private": a [`NodeKey`] will never collide with another [`NodeKey`] in a different subtree.
     /// 
     /// This is the main way to make Ui code reusable, and to create "components".
@@ -18,7 +27,7 @@ impl Ui {
     /// # use keru::*;
     /// fn widget(ui: &mut Ui) {
     ///     #[node_key] const WIDGET_NODE: NodeKey;    
-    ///     // some complicated GUI code that uses WIDGET_NODE  
+    ///     // some complicated Ui code that uses WIDGET_NODE  
     /// }
     /// ```
     /// If we call `widget()` in multiple places, it would still be using the same `WIDGET_NODE` key every time. This will probably cause things to not work as intended.
@@ -46,7 +55,7 @@ impl Ui {
     }
 
 
-    /// Like [`Uisubtree()`], but starts a named subtree identified by a [`NodeKey`].
+    /// Like [`Ui::subtree()`], but starts a named subtree identified by a [`NodeKey`].
     /// 
     /// This is usually not needed, but it allows to access a node in a subtree from outside of it:
     /// ```

@@ -10,14 +10,13 @@ use crate::Axis::*;
 
 /// A struct referring to a node in the GUI tree.
 /// 
-/// A `UiNode` is returned when "added" the node to the tree through [`Ui::add`] or similar functions. In that case, you can use the [`UiNode`]'s builder methods to set the node's params, size, color, text, image, etc., and to eventually [place](`UiNode::place`) the node onto the tree.
-/// 
-/// A `UiNode` is also returned from [`Ui::get_node`]. This is useful to extract dynamic properties of a node, like its exact size.
+/// A `UiNode` is returned from [`Ui::get_node`]. This is useful to extract dynamic properties of a node, like its exact size.
 pub struct UiNode<'a> {
     pub(crate) node_i: NodeI,
     pub(crate) ui: &'a mut Ui,
 }
 
+// todo: clean up all the setter functions here and move them to nodeparams.
 impl<'a> UiNode<'a> {
     pub(crate) fn node_mut(&mut self) -> &mut Node {
         return &mut self.ui.nodes[self.node_i];
