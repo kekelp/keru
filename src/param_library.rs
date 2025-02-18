@@ -26,7 +26,7 @@ pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     layout: Layout {
         size: Xy::new_symm(Size::Frac(1.0)),
         position: Xy::new_symm(Start),
-        padding: Xy::new_symm(Len::ZERO),
+        padding: Xy::new_symm(0),
         scrollable: Xy::new(false, false),
     },
 };
@@ -50,7 +50,7 @@ pub const DEFAULT: NodeParams = NodeParams {
     layout: Layout {
         size: Xy::new_symm(Size::Frac(1.0)),
         position: Xy::new_symm(Center),
-        padding: Xy::new_symm(Len::ZERO),
+        padding: Xy::new_symm(0),
         scrollable: Xy::new(false, false),
     },
 };
@@ -62,7 +62,7 @@ pub const V_STACK: NodeParams = NodeParams {
     stack: Some(Stack {
         arrange: Arrange::Center,
         axis: Axis::Y,
-        spacing: Len::Pixels(10),
+        spacing: 10,
     }),
     text_params: None,
     rect: Rect {
@@ -78,7 +78,7 @@ pub const V_STACK: NodeParams = NodeParams {
     layout: Layout {
         size: Xy::new(Size::FitContent, Size::FitContent),
         position: Xy::new_symm(Center),
-        padding: Xy::new_symm(Len::ZERO),
+        padding: Xy::new_symm(0),
         scrollable: Xy::new(false, false),
     },
 };
@@ -90,7 +90,7 @@ pub const H_STACK: NodeParams = NodeParams {
     stack: Some(Stack {
         arrange: Arrange::Center,
         axis: Axis::X,
-        spacing: Len::Pixels(5),
+        spacing: 5,
     }),
     text_params: None,
     rect: Rect {
@@ -106,7 +106,7 @@ pub const H_STACK: NodeParams = NodeParams {
     layout: Layout {
         size: Xy::new(Size::FitContent, Size::FitContent),
         position: Xy::new_symm(Center),
-        padding: Xy::new_symm(Len::ZERO),
+        padding: Xy::new_symm(0),
         scrollable: Xy::new(false, false),
     },
 };
@@ -119,7 +119,7 @@ pub const V_SCROLL_STACK: NodeParams = NodeParams {
         stack: Some(Stack {
             arrange: Arrange::Center,
             axis: Axis::Y,
-            spacing: Len::Pixels(10),
+            spacing: 10,
         }),
         text_params: None,
         rect: Rect {
@@ -135,7 +135,7 @@ pub const V_SCROLL_STACK: NodeParams = NodeParams {
         layout: Layout {
             size: Xy::new(Size::FitContent, Size::Fill),
             position: Xy::new_symm(Center),
-            padding: Xy::new_symm(Len::ZERO),
+            padding: Xy::new_symm(0),
             scrollable: Xy::new(false, true),
         },
     };
@@ -160,7 +160,7 @@ pub const MARGIN: NodeParams = NodeParams {
     layout: Layout {
         size: Xy::new_symm(Size::Frac(0.9)),
         position: Xy::new_symm(Center),
-        padding: Xy::new_symm(Len::ZERO),
+        padding: Xy::new_symm(0),
         scrollable: Xy::new(false, false),
     },
 };
@@ -184,7 +184,7 @@ pub const ICON_BUTTON: NodeParams = NodeParams {
     layout: Layout {
         size: Xy::new_symm(FitContent),
         position: Xy::new_symm(Center),
-        padding: Xy::new_symm(Len::ZERO),
+        padding: Xy::new_symm(0),
         scrollable: Xy::new(false, false),
     },
 };
@@ -208,7 +208,7 @@ pub const IMAGE: NodeParams = NodeParams {
     layout: Layout {
         size: Xy::new_symm(FitContent),
         position: Xy::new_symm(Center),
-        padding: Xy::new_symm(Len::ZERO),
+        padding: Xy::new_symm(0),
         scrollable: Xy::new(false, false),
     },
 };
@@ -236,7 +236,7 @@ pub const BUTTON: NodeParams = NodeParams {
     layout: Layout {
         size: Xy::new_symm(FitContent),
         position: Xy::new_symm(Center),
-        padding: Xy::new_symm(Len::Pixels(10)),
+        padding: Xy::new_symm(10),
         scrollable: Xy::new(false, false),
     },
 };
@@ -263,7 +263,7 @@ pub const LABEL: NodeParams = NodeParams {
     layout: Layout {
         size: Xy::new_symm(FitContent),
         position: Xy::new_symm(Center),
-        padding: Xy::new_symm(Len::Pixels(10)),
+        padding: Xy::new_symm(10),
         scrollable: Xy::new(false, false),
     },
 };
@@ -291,7 +291,7 @@ pub const MULTILINE_LABEL: NodeParams = NodeParams {
     layout: Layout {
         size: Xy::new_symm(FitContent),
         position: Xy::new_symm(Center),
-        padding: Xy::new_symm(Len::Pixels(10)),
+        padding: Xy::new_symm(10),
         scrollable: Xy::new(false, false),
     },
 };
@@ -319,7 +319,7 @@ pub const TEXT: NodeParams = NodeParams {
     layout: Layout {
         size: Xy::new_symm(FitContent),
         position: Xy::new_symm(Center),
-        padding: Xy::new_symm(Len::Pixels(2)),
+        padding: Xy::new_symm(2),
         scrollable: Xy::new(false, false),
     },
 };
@@ -347,7 +347,7 @@ pub const TEXT_PARAGRAPH: NodeParams = NodeParams {
     layout: Layout {
         size: Xy::new_symm(FitContent),
         position: Xy::new_symm(Center),
-        padding: Xy::new_symm(Len::Pixels(2)),
+        padding: Xy::new_symm(2),
         scrollable: Xy::new(false, false),
     },
 };
@@ -401,7 +401,7 @@ pub const PANEL: NodeParams = NodeParams {
     layout: Layout {
         size: Xy::new_symm(FitContent),
         position: Xy::new_symm(Center),
-        padding: Xy::new_symm(Len::Pixels(10)),
+        padding: Xy::new_symm(10),
         scrollable: Xy::new(false, false),
     },
 };
@@ -426,7 +426,7 @@ pub const CONTAINER: NodeParams = NodeParams {
     layout: Layout {
         size: Xy::new_symm(FitContent),
         position: Xy::new_symm(Center),
-        padding: Xy::new_symm(Len::Pixels(10)),
+        padding: Xy::new_symm(10),
         scrollable: Xy::new(false, false),
     },
 };
@@ -472,7 +472,7 @@ pub const CUSTOM_RENDERED_PANEL: NodeParams = NodeParams {
     layout: Layout {
         size: Xy::new_symm(FitContent),
         position: Xy::new_symm(Center),
-        padding: Xy::new_symm(Len::Pixels(0)),
+        padding: Xy::new_symm(0),
         scrollable: Xy::new(false, false),
     },
 };

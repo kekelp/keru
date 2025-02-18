@@ -92,19 +92,19 @@ pub enum Position {
 pub struct Stack {
     pub arrange: Arrange,
     pub axis: Axis,
-    pub spacing: Len,
+    pub spacing: u32,
 }
 impl Stack {
     pub const DEFAULT: Stack = Stack {
         arrange: Arrange::Center,
         axis: Axis::Y,
-        spacing: Len::Pixels(5),
+        spacing: 5,
     };
     pub const fn arrange(mut self, arrange: Arrange) -> Self {
         self.arrange = arrange;
         return self;
     }
-    pub const fn spacing(mut self, spacing: Len) -> Self {
+    pub const fn spacing(mut self, spacing: u32) -> Self {
         self.spacing = spacing;
         return self;
     }
@@ -139,7 +139,7 @@ pub struct Interact {
 #[derive(Debug, Copy, Clone, PartialEq, Hash)]
 pub struct Layout {
     pub size: Xy<Size>,
-    pub padding: Xy<Len>,
+    pub padding: Xy<u32>,
     pub position: Xy<Position>,
     pub scrollable: Xy<bool>,
 }
@@ -304,7 +304,7 @@ impl NodeParams {
         return self;
     }
 
-    pub const fn stack(mut self, axis: Axis, arrange: Arrange, spacing: Len) -> Self {
+    pub const fn stack(mut self, axis: Axis, arrange: Arrange, spacing: u32) -> Self {
         self.stack = Some(Stack {
             arrange,
             axis,
@@ -322,7 +322,7 @@ impl NodeParams {
         return self;
     }
 
-    pub const fn stack_spacing(mut self, spacing: Len) -> Self {
+    pub const fn stack_spacing(mut self, spacing: u32) -> Self {
         let stack = match self.stack {
             Some(stack) => stack,
             None => Stack::DEFAULT,
@@ -341,17 +341,17 @@ impl NodeParams {
         return self;
     }
 
-    pub const fn padding(mut self, padding: Len) -> Self {
+    pub const fn padding(mut self, padding: u32) -> Self {
         self.layout.padding = Xy::new_symm(padding);
         return self;
     }
 
-    pub const fn padding_x(mut self, padding: Len) -> Self {
+    pub const fn padding_x(mut self, padding: u32) -> Self {
         self.layout.padding.x = padding;
         return self;
     }
 
-    pub const fn padding_y(mut self, padding: Len) -> Self {
+    pub const fn padding_y(mut self, padding: u32) -> Self {
         self.layout.padding.y = padding;
         return self;
     }
@@ -491,7 +491,7 @@ impl<'a> FullNodeParams<'a> {
         return self;
     }
 
-    pub const fn stack(mut self, axis: Axis, arrange: Arrange, spacing: Len) -> Self {
+    pub const fn stack(mut self, axis: Axis, arrange: Arrange, spacing: u32) -> Self {
         self.params.stack = Some(Stack {
             arrange,
             axis,
@@ -509,7 +509,7 @@ impl<'a> FullNodeParams<'a> {
         return self;
     }
 
-    pub const fn stack_spacing(mut self, spacing: Len) -> Self {
+    pub const fn stack_spacing(mut self, spacing: u32) -> Self {
         let stack = match self.params.stack {
             Some(stack) => stack,
             None => Stack::DEFAULT,
@@ -528,17 +528,17 @@ impl<'a> FullNodeParams<'a> {
         return self;
     }
 
-    pub const fn padding(mut self, padding: Len) -> Self {
+    pub const fn padding(mut self, padding: u32) -> Self {
         self.params.layout.padding = Xy::new_symm(padding);
         return self;
     }
 
-    pub const fn padding_x(mut self, padding: Len) -> Self {
+    pub const fn padding_x(mut self, padding: u32) -> Self {
         self.params.layout.padding.x = padding;
         return self;
     }
 
-    pub const fn padding_y(mut self, padding: Len) -> Self {
+    pub const fn padding_y(mut self, padding: u32) -> Self {
         self.params.layout.padding.y = padding;
         return self;
     }

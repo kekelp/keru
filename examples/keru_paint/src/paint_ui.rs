@@ -3,7 +3,6 @@ use std::fmt::Write;
 use keru::*;
 use keru::Position::*;
 use keru::Size::*;
-use keru::Len::*;
 
 use crate::color_picker::ColorPickerUi;
 use crate::oklab::*;
@@ -152,7 +151,7 @@ impl State {
             .size_y(Size::Frac((log_value - log_min) / (log_max - log_min)))
             .color(Color::KERU_RED)
             .position_y(End)
-            .padding_y(Len::Pixels(1))
+            .padding_y(1)
             .key(SLIDER_FILL);
 
         let lin_value = 10f32.powf(log_value);

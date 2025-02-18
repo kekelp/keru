@@ -86,7 +86,7 @@ impl ColorPickerUi for Ui {
                 .color(NEUTRAL_GREY)
                 .size_symm(Size::Fill)
                 // .shape(Shape::Rectangle { corner_radius: 0.5 })
-                .padding(Len::Pixels((60.0 * 2.0f32.sqrt() / 2.0) as u32));
+                .padding((60.0 * 2.0f32.sqrt() / 2.0) as u32);
 
             let oklab_square = CUSTOM_RENDERED_PANEL
                 .shape(Shape::Rectangle { corner_radius: 0.0 })

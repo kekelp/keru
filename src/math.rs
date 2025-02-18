@@ -52,6 +52,13 @@ impl Ui {
     pub(crate) fn pixels_to_frac(&self, pixels: u32, axis: Axis) -> f32 {
         return (pixels as f32) / self.sys.unifs.size[axis];
     }
+    pub(crate) fn pixels_to_frac2(&self, pixels: Xy<u32>) -> Xy<f32> {
+        return Xy::new(
+            self.pixels_to_frac(pixels.x, X),
+            self.pixels_to_frac(pixels.y, Y),
+        );
+    }
+
     pub(crate) fn f32_pixels_to_frac(&self, pixels: f32, axis: Axis) -> f32 {
         return pixels / self.sys.unifs.size[axis];
     }

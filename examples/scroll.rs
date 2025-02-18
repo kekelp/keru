@@ -25,12 +25,12 @@ impl ExampleLoop for State {
         let small_panel = PANEL
             .size_symm(Size::Frac(0.95))
             .color(Color::KERU_BLACK)
-            .padding(Len::ZERO);
+            .padding(0);
 
         let scroll_area = CONTAINER
             .size_y(Fill)
             .scrollable_y(true)
-            .padding(Len::ZERO);
+            .padding(0);
         
         ui.add(dark_panel).nest(|| {
             ui.h_stack().nest(|| {

@@ -91,7 +91,6 @@ impl<'a> UiNode<'a> {
 
     pub fn inner_size(&self) -> Xy<u32> {
         let padding = self.node().params.layout.padding;
-        let padding = self.ui.to_pixels2(padding);
         
         let size = self.node().size;
         let size = self.ui.f32_size_to_pixels2(size);

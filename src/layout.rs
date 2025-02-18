@@ -213,7 +213,7 @@ impl Ui {
         let mut inner_size = size;
 
         // remove padding
-        let padding = self.to_frac2(self.nodes[node].params.layout.padding);
+        let padding = self.pixels_to_frac2(self.nodes[node].params.layout.padding);
         for axis in [X, Y] {
             inner_size[axis] -= 2.0 * padding[axis];
         }
@@ -221,7 +221,7 @@ impl Ui {
         // remove stack spacing
         if let Some(stack) = self.nodes[node].params.stack {
             let n_children = self.nodes[node].n_children as f32;
-            let spacing = self.to_frac(stack.spacing, stack.axis);
+            let spacing = self.pixels_to_frac(stack.spacing, stack.axis);
 
             if n_children > 1.5 {
                 inner_size[stack.axis] -= spacing * (n_children - 1.0);
@@ -292,7 +292,7 @@ impl Ui {
         // todo: is we're not fitcontenting, we can skip the update_for_* calls instead, and then remove this, I guess.
         let mut final_size = size;
 
-        let padding = self.to_frac2(self.nodes[node].params.layout.padding);
+        let padding = self.pixels_to_frac2(self.nodes[node].params.layout.padding);
 
         for axis in [X, Y] {
             match self.nodes[node].params.layout.size[axis] {
@@ -402,8 +402,8 @@ impl Ui {
             }
         }
 
-        let padding = self.to_frac2(self.nodes[node].params.layout.padding);
-        let spacing = self.to_frac(stack.spacing, stack.axis);
+        let padding = self.pixels_to_frac2(self.nodes[node].params.layout.padding);
+        let spacing = self.pixels_to_frac(stack.spacing, stack.axis);
         
         // On the main axis, totally ignore the children's chosen Position's and place them according to our own Stack::Arrange value.
 
@@ -468,7 +468,7 @@ impl Ui {
 
         let parent_rect = self.nodes[node].rect;
 
-        let padding = self.to_frac2(self.nodes[node].params.layout.padding);
+        let padding = self.pixels_to_frac2(self.nodes[node].params.layout.padding);
 
         let mut content_bounding_rect = XyRect::new([f32::MAX, -f32::MAX], [f32::MAX, -f32::MAX]);
         let mut origin = Xy::<f32>::default();
@@ -578,7 +578,7 @@ impl Ui {
     }
 
     fn place_text_inside(&mut self, node: NodeI, rect: XyRect) {
-        let padding = self.to_pixels2(self.nodes[node].params.layout.padding);
+        let padding = self.nodes[node].params.layout.padding;
 
         let mut containing_rect = rect;
         let mut content_bounding_rect = XyRect::new([f32::MAX, -f32::MAX], [f32::MAX, -f32::MAX]);
