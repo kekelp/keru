@@ -111,8 +111,8 @@ pub use ui::*;
 mod math;
 pub use math::*;
 
-mod param_library;
-pub use param_library::*;
+mod library;
+pub use library::*;
 
 mod node_key;
 pub use node_key::*;

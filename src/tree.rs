@@ -376,8 +376,8 @@ impl Ui {
         self.sys.changes.resize = true;
     }
 
-    pub(crate) fn push_rect(&mut self, node: NodeI) {
-        let node = &mut self.nodes[node];
+    pub(crate) fn push_rect(&mut self, i: NodeI) {
+        let node = &mut self.nodes[i];
         
         // really only need to do this whenever a custom-rendered rect shows up. But that would require custom rendered rects to be specifically marked, as opposed to just being the same as any other visible-only-in-debug rect, which means that you can forget to mark it and mess everything up. There's no real disadvantage to just always doing it.
         self.sys.z_cursor += Z_STEP;
@@ -409,8 +409,8 @@ impl Ui {
         }
     }
 
-    pub(crate) fn update_rect(&mut self, node: NodeI) {
-        let node = &mut self.nodes[node];
+    pub(crate) fn update_rect(&mut self, i: NodeI) {
+        let node = &mut self.nodes[i];
 
         let draw_even_if_invisible = self.sys.debug_mode;
         if let Some(rect) = node.render_rect(draw_even_if_invisible, None) {
@@ -439,8 +439,8 @@ impl Ui {
         };
     }
 
-    pub(crate) fn set_partial_relayout_flag(&mut self, node_i: NodeI) {
-        self.nodes[node_i].needs_partial_relayout = true;
+    pub(crate) fn set_partial_relayout_flag(&mut self, i: NodeI) {
+        self.nodes[i].needs_partial_relayout = true;
     }
 
     pub(crate) fn push_partial_relayout(&mut self, i: NodeI) {
@@ -461,8 +461,8 @@ impl Ui {
     }
 
     // this will be still needed for things like image/texture updates, I think. 
-    pub(crate) fn _set_cosmetic_update_flag(&mut self, node_i: NodeI) {
-        self.nodes[node_i].needs_cosmetic_update = true;
+    pub(crate) fn _set_cosmetic_update_flag(&mut self, i: NodeI) {
+        self.nodes[i].needs_cosmetic_update = true;
     }
 
     pub(crate) fn push_cosmetic_update(&mut self, i: NodeI) {

@@ -493,3 +493,27 @@ pub const CUSTOM_RENDERED_PANEL: NodeParams = NodeParams {
         scrollable: Xy::new(false, false),
     },
 };
+
+/// [`NodeParams`] for a spacer element.
+pub const SPACER: NodeParams = NodeParams {
+    key: None,
+    stack: None,
+    text_params: None,
+    rect: Rect {
+        rounded_corners: RoundedCorners::ALL,
+        shape: Rectangle { corner_radius: BASE_RADIUS },
+        visible: true,
+        outline_only: true,
+        vertex_colors: VertexColors::flat(Color::KERU_DEBUG_RED),
+    },
+    interact: Interact {
+        absorbs_mouse_events: true,
+        click_animation: false,
+    },
+    layout: Layout {
+        size: Xy::new_symm(FitContent),
+        position: Xy::new_symm(Center),
+        padding: Xy::new_symm(0),
+        scrollable: Xy::new(false, false),
+    },
+};

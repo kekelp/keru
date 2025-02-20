@@ -139,34 +139,34 @@ impl Ui {
 
     }
 
-    pub(crate) fn partial_relayout(&mut self, node: NodeI, update_rects: bool) {
+    pub(crate) fn partial_relayout(&mut self, i: NodeI, update_rects: bool) {
         // if the node has already been layouted on the current frame, stop immediately, and don't even recurse.
         // when doing partial layouts, this avoids overlap, but it means that we have to sort the partial relayouts cleanly from least depth to highest depth in order to get it right. This is done in `relayout()`.
         let current_frame = self.sys.current_frame;
-        if self.nodes[node].last_layout_frame >= current_frame {
+        if self.nodes[i].last_layout_frame >= current_frame {
             return;
         }
 
         // 1st recursive tree traversal: start from the root and recursively determine the size of all nodes
         // For the first node, use the proposed size that we got from the parent last frame.
-        let starting_proposed_size = self.nodes[node].last_proposed_size;
-        self.recursive_determine_size(node, starting_proposed_size, starting_proposed_size);
+        let starting_proposed_size = self.nodes[i].last_proposed_size;
+        self.recursive_determine_size(i, starting_proposed_size, starting_proposed_size);
         
         // 2nd recursive tree traversal: now that all nodes have a calculated size, place them.
-        self.recursive_place_children(node, update_rects);
+        self.recursive_place_children(i, update_rects);
     }
 
     /// From a size proposed to us, decide our own size and subtract padding to get a size to propose to children
     fn get_size(
         &mut self,
-        node: NodeI,    
+        i: NodeI,    
         child_proposed_size: Xy<f32>, // the size that was proposed to us specifically after dividing between children
         whole_parent_proposed_size: Xy<f32>, // the whole size that the parent proposed to ALL its children collectively
     ) -> Xy<f32> {
         let mut size = child_proposed_size; // this default value is mostly useless
 
         for axis in [X, Y] {
-            match self.nodes[node].params.layout.size[axis] {
+            match self.nodes[i].params.layout.size[axis] {
                 Size::FitContent => {
                     size[axis] = child_proposed_size[axis];
                 }, // propose the whole available size. We will shrink our final size later if they end up using less or more 
@@ -185,11 +185,11 @@ impl Ui {
 
         // apply AspectRatio
         for axis in [X, Y] {
-            match self.nodes[node].params.layout.size[axis] {
+            match self.nodes[i].params.layout.size[axis] {
                 Size::AspectRatio(aspect) => {
-                    match self.nodes[node].params.layout.size[axis.other()] {
+                    match self.nodes[i].params.layout.size[axis.other()] {
                         Size::AspectRatio(_second_aspect) => {
-                            let debug_name = self.nodes[node].debug_name();
+                            let debug_name = self.nodes[i].debug_name();
                             log::warn!("A Size shouldn't be AspectRatio in both dimensions. (node: {:?})", debug_name);
                         }
                         _ => {
@@ -209,18 +209,18 @@ impl Ui {
         return size;
     }
 
-    fn get_inner_size(&mut self, node: NodeI, size: Xy<f32>) -> Xy<f32> {
+    fn get_inner_size(&mut self, i: NodeI, size: Xy<f32>) -> Xy<f32> {
         let mut inner_size = size;
 
         // remove padding
-        let padding = self.pixels_to_frac2(self.nodes[node].params.layout.padding);
+        let padding = self.pixels_to_frac2(self.nodes[i].params.layout.padding);
         for axis in [X, Y] {
             inner_size[axis] -= 2.0 * padding[axis];
         }
 
         // remove stack spacing
-        if let Some(stack) = self.nodes[node].params.stack {
-            let n_children = self.nodes[node].n_children as f32;
+        if let Some(stack) = self.nodes[i].params.stack {
+            let n_children = self.nodes[i].n_children as f32;
             let spacing = self.pixels_to_frac(stack.spacing, stack.axis);
 
             if n_children > 1.5 {
@@ -233,16 +233,16 @@ impl Ui {
 
     fn recursive_determine_size(
         &mut self,
-        node: NodeI,
+        i: NodeI,
         child_proposed_size: Xy<f32>, // the size that was proposed to us specifically after dividing between children
         whole_parent_proposed_size: Xy<f32>, // the whole size that the parent proposed to ALL its children collectively
     ) -> Xy<f32> {
-        self.nodes[node].last_proposed_size = child_proposed_size;
+        self.nodes[i].last_proposed_size = child_proposed_size;
         
-        let size = self.get_size(node, child_proposed_size, whole_parent_proposed_size);
-        let size_to_propose = self.get_inner_size(node, size);
+        let size = self.get_size(i, child_proposed_size, whole_parent_proposed_size);
+        let size_to_propose = self.get_inner_size(i, size);
 
-        let stack = self.nodes[node].params.stack;
+        let stack = self.nodes[i].params.stack;
         let mut content_size = Xy::new(0.0, 0.0);
         
         if let Some(stack) = stack {
@@ -250,7 +250,7 @@ impl Ui {
             let mut available_size_left = size_to_propose;
             let mut n_fill_children = 0;
             // First, do all non-Fill children
-            for_each_child!(self, self.nodes[node], child, {
+            for_each_child!(self, self.nodes[i], child, {
                 if self.nodes[child].params.layout.size[stack.axis] != Size::Fill {
                     let child_size = self.recursive_determine_size(child, available_size_left, size_to_propose);
                     content_size.update_for_child(child_size, Some(stack));
@@ -263,7 +263,7 @@ impl Ui {
             // then, divide the remaining space between the Fill children
             let mut size_per_child = available_size_left;
             size_per_child[stack.axis] /= n_fill_children as f32;
-            for_each_child!(self, self.nodes[node], child, {
+            for_each_child!(self, self.nodes[i], child, {
                 let child_size = self.recursive_determine_size(child, size_per_child, size_to_propose);
                 content_size.update_for_child(child_size, Some(stack));
                 available_size_left[stack.axis] -= child_size[stack.axis];
@@ -271,18 +271,18 @@ impl Ui {
 
         } else {
             // Propose a size to the children and let them decide
-            for_each_child!(self, self.nodes[node], child, {
+            for_each_child!(self, self.nodes[i], child, {
                 let child_size = self.recursive_determine_size(child, size_to_propose, size_to_propose);
                 content_size.update_for_child(child_size, stack); // this is None
             });            
             
             // Propose the whole size_to_propose to the contents, and let them decide.
-            if self.nodes[node].text_id.is_some() {
-                let text_size = self.determine_text_size(node, size_to_propose);
+            if self.nodes[i].text_id.is_some() {
+                let text_size = self.determine_text_size(i, size_to_propose);
                 content_size.update_for_content(text_size);
             }
-            if self.nodes[node].imageref.is_some() {
-                let image_size = self.determine_image_size(node, size_to_propose);
+            if self.nodes[i].imageref.is_some() {
+                let image_size = self.determine_image_size(i, size_to_propose);
                 content_size.update_for_content(image_size);
             }
         }
@@ -292,10 +292,10 @@ impl Ui {
         // todo: is we're not fitcontenting, we can skip the update_for_* calls instead, and then remove this, I guess.
         let mut final_size = size;
 
-        let padding = self.pixels_to_frac2(self.nodes[node].params.layout.padding);
+        let padding = self.pixels_to_frac2(self.nodes[i].params.layout.padding);
 
         for axis in [X, Y] {
-            match self.nodes[node].params.layout.size[axis] {
+            match self.nodes[i].params.layout.size[axis] {
                 Size::FitContent => {
                     let mut content_size_with_padding = content_size;
                     content_size_with_padding[axis] += 2.0 * padding[axis];
@@ -305,32 +305,32 @@ impl Ui {
             }
         }
 
-        self.nodes[node].size = final_size;
+        self.nodes[i].size = final_size;
         return final_size;
     }
 
-    fn determine_image_size(&mut self, node: NodeI, _proposed_size: Xy<f32>) -> Xy<f32> {
-        let image_ref = self.nodes[node].imageref.unwrap();
+    fn determine_image_size(&mut self, i: NodeI, _proposed_size: Xy<f32>) -> Xy<f32> {
+        let image_ref = self.nodes[i].imageref.unwrap();
         let size = image_ref.original_size;
         return self.f32_pixels_to_frac2(size);
     }
 
-    fn determine_text_size(&mut self, node: NodeI, proposed_size: Xy<f32>) -> Xy<f32> {
-        let text_id = self.nodes[node].text_id.unwrap();
+    fn determine_text_size(&mut self, i: NodeI, proposed_size: Xy<f32>) -> Xy<f32> {
+        let text_id = self.nodes[i].text_id.unwrap();
         let buffer = &mut self.sys.text.text_areas[text_id].buffer;
 
         // this is for FitContent on both directions, basically.
         // todo: the rest.
         // also, note: the set_align trick might not be good if we expose the ability to set whatever align the user wants.
 
-        let h = match self.nodes[node].params.layout.size[Y] {
+        let h = match self.nodes[i].params.layout.size[Y] {
             Size::FitContent => BIG_FLOAT,
             _ => proposed_size.x * self.sys.unifs.size[X],
         };
 
-        let w = match self.nodes[node].params.layout.size[X] {
+        let w = match self.nodes[i].params.layout.size[X] {
             Size::FitContent => {
-                match self.nodes[node].params.text_params.unwrap_or(TextOptions::default()).single_line {
+                match self.nodes[i].params.text_params.unwrap_or(TextOptions::default()).single_line {
                     true => BIG_FLOAT,
                     false => proposed_size.x * self.sys.unifs.size[X],
                 }
@@ -366,51 +366,51 @@ impl Ui {
         return self.f32_pixels_to_frac2(trimmed_size);
     }
 
-    pub(crate) fn recursive_place_children(&mut self, node: NodeI, also_update_rects: bool) {
+    pub(crate) fn recursive_place_children(&mut self, i: NodeI, also_update_rects: bool) {
         self.sys.partial_relayout_count += 1;
-        if let Some(stack) = self.nodes[node].params.stack {
-            self.place_children_stack(node, stack);
+        if let Some(stack) = self.nodes[i].params.stack {
+            self.place_children_stack(i, stack);
         } else {
-            self.place_children_container(node);
+            self.place_children_container(i);
         };
 
-        // self.place_image(node); // I think there's nothing to place? right now it's always the full rect
-        self.place_text_inside(node, self.nodes[node].rect);
+        // self.place_image(i); // I think there's nothing to place? right now it's always the full rect
+        self.place_text_inside(i, self.nodes[i].rect);
     
         if also_update_rects {
-            self.update_rect(node);
+            self.update_rect(i);
         }
 
-        self.set_clip_rect(node);
+        self.set_clip_rect(i);
             
-        self.nodes[node].last_layout_frame = self.sys.current_frame;
+        self.nodes[i].last_layout_frame = self.sys.current_frame;
 
-        for_each_child!(self, self.nodes[node], child, {
+        for_each_child!(self, self.nodes[i], child, {
             self.recursive_place_children(child, also_update_rects);
         });
     }
 
-    fn place_children_stack(&mut self, node: NodeI, stack: Stack) {
+    fn place_children_stack(&mut self, i: NodeI, stack: Stack) {
         let (main, cross) = (stack.axis, stack.axis.other());
-        let mut containing_rect = self.nodes[node].rect;
+        let mut containing_rect = self.nodes[i].rect;
         
         for axis in [X, Y] {
-            if self.nodes[node].params.layout.scrollable[axis] {
-                let scroll_offset = self.nodes[node].scroll.absolute_offset(axis);
+            if self.nodes[i].params.layout.scrollable[axis] {
+                let scroll_offset = self.nodes[i].scroll.absolute_offset(axis);
                 containing_rect[axis][0] += scroll_offset;
                 containing_rect[axis][1] += scroll_offset;
             }
         }
 
-        let padding = self.pixels_to_frac2(self.nodes[node].params.layout.padding);
+        let padding = self.pixels_to_frac2(self.nodes[i].params.layout.padding);
         let spacing = self.pixels_to_frac(stack.spacing, stack.axis);
         
         // On the main axis, totally ignore the children's chosen Position's and place them according to our own Stack::Arrange value.
 
         // collect all the children sizes in a vec
-        let n = self.nodes[node].n_children;
+        let n = self.nodes[i].n_children;
         self.sys.size_scratch.clear();
-        for_each_child!(self, self.nodes[node], child, {
+        for_each_child!(self, self.nodes[i], child, {
             self.sys.size_scratch.push(self.nodes[child].size[main]);
         });
 
@@ -432,7 +432,7 @@ impl Ui {
             _ => todo!(),
         };
 
-        for_each_child!(self, self.nodes[node], child, {
+        for_each_child!(self, self.nodes[i], child, {
             let child_size = self.nodes[child].size;
 
             match self.nodes[child].params.layout.position[cross] {
@@ -464,16 +464,16 @@ impl Ui {
         });
     }
 
-    fn place_children_container(&mut self, node: NodeI) {
+    fn place_children_container(&mut self, i: NodeI) {
 
-        let parent_rect = self.nodes[node].rect;
+        let parent_rect = self.nodes[i].rect;
 
-        let padding = self.pixels_to_frac2(self.nodes[node].params.layout.padding);
+        let padding = self.pixels_to_frac2(self.nodes[i].params.layout.padding);
 
         let mut content_bounding_rect = XyRect::new([f32::MAX, -f32::MAX], [f32::MAX, -f32::MAX]);
         let mut origin = Xy::<f32>::default();
 
-        for_each_child!(self, self.nodes[node], child, {
+        for_each_child!(self, self.nodes[i], child, {
             let child_size = self.nodes[child].size;
 
             // check the children's chosen Position's and place them.
@@ -501,36 +501,36 @@ impl Ui {
                     },
                 }
     
-                if self.nodes[node].params.layout.scrollable[axis] {
+                if self.nodes[i].params.layout.scrollable[axis] {
                     // todo: try using the remembered content_size and origin instead of doing this
                     content_bounding_rect.update_bounding_rect(axis, self.nodes[child].rect);
                 }
             }
         });
 
-        self.nodes[node].scroll.limits = self.scroll_limits(node, content_bounding_rect);
+        self.nodes[i].scroll.limits = self.scroll_limits(i, content_bounding_rect);
 
-        self.set_children_scroll(node);
+        self.set_children_scroll(i);
     }
 
     // doesnt work lol
-    // pub(crate) fn recursive_set_scroll(&mut self, node: NodeI) {
-    //     self.set_children_scroll(node);
+    // pub(crate) fn recursive_set_scroll(&mut self, i: NodeI) {
+    //     self.set_children_scroll(i);
 
-    //     for_each_child!(self, self.nodes[node], child, {
+    //     for_each_child!(self, self.nodes[i], child, {
     //         self.recursive_set_scroll(child);
     //     });
     // }
 
-    fn set_children_scroll(&mut self, node: NodeI) {
-        if ! self.nodes[node].params.is_scrollable() {
+    fn set_children_scroll(&mut self, i: NodeI) {
+        if ! self.nodes[i].params.is_scrollable() {
             return;
         }
 
-        for_each_child!(self, self.nodes[node], child, {
+        for_each_child!(self, self.nodes[i], child, {
             for axis in [X, Y] {
-                if self.nodes[node].params.layout.scrollable[axis] {
-                    let scroll_offset = self.nodes[node].scroll.absolute_offset(axis);
+                if self.nodes[i].params.layout.scrollable[axis] {
+                    let scroll_offset = self.nodes[i].scroll.absolute_offset(axis);
                     self.nodes[child].rect[axis][0] += scroll_offset;
                     self.nodes[child].rect[axis][1] += scroll_offset;
                 }
@@ -540,9 +540,9 @@ impl Ui {
         });
         
     }
-    fn set_clip_rect(&mut self, node: NodeI) {
+    fn set_clip_rect(&mut self, i: NodeI) {
         let parent_clip_rect;
-        if node == ROOT_I {
+        if i == ROOT_I {
             parent_clip_rect = Xy::new_symm([0.0, 1.0]);
         } else {
             let parent = self.nodes[node].parent;
@@ -573,25 +573,25 @@ impl Ui {
     }
 
     #[allow(dead_code)]
-    pub(crate) fn place_image(&mut self, _node: NodeI) {     
+    pub(crate) fn place_image(&mut self, _i: NodeI) {     
         // might be something here in the future
     }
 
-    fn place_text_inside(&mut self, node: NodeI, rect: XyRect) {
-        let padding = self.nodes[node].params.layout.padding;
+    fn place_text_inside(&mut self, i: NodeI, rect: XyRect) {
+        let padding = self.nodes[i].params.layout.padding;
 
         let mut containing_rect = rect;
         let mut content_bounding_rect = XyRect::new([f32::MAX, -f32::MAX], [f32::MAX, -f32::MAX]);
 
         for axis in [X, Y] {
-            if self.nodes[node].params.layout.scrollable[axis] {
-                let scroll_offset = self.nodes[node].scroll.absolute_offset(axis);
+            if self.nodes[i].params.layout.scrollable[axis] {
+                let scroll_offset = self.nodes[i].scroll.absolute_offset(axis);
                 containing_rect[axis][0] += scroll_offset;
                 containing_rect[axis][1] += scroll_offset;
             }
         }
         
-        let text_id = self.nodes[node].text_id;
+        let text_id = self.nodes[i].text_id;
         if let Some(text_id) = text_id {
             let left = containing_rect[X][0] * self.sys.unifs.size[X];
             let top = containing_rect[Y][0] * self.sys.unifs.size[Y];
@@ -620,11 +620,11 @@ impl Ui {
         self.recursive_push_rects(ROOT_I);
     }
 
-    fn recursive_push_rects(&mut self, node: NodeI) {
+    fn recursive_push_rects(&mut self, i: NodeI) {
         // 3nd recursive tree traversal: now that all nodes have a calculated size, place them.
-        self.push_rect(node);
+        self.push_rect(i);
 
-        for_each_child!(self, self.nodes[node], child, {
+        for_each_child!(self, self.nodes[i], child, {
             self.recursive_push_rects(child);
         });
     }
@@ -721,15 +721,15 @@ impl ScrollLimits {
 
 
 impl Ui {
-    fn scroll_limits(&mut self, node: NodeI, content_bounding_rect: XyRect) -> ScrollLimits {
+    fn scroll_limits(&mut self, i: NodeI, content_bounding_rect: XyRect) -> ScrollLimits {
         let mut scroll_limits = XyRect::new([0.0, 0.0], [0.0, 0.0]);
 
         for axis in [X, Y] {
-            if self.nodes[node].params.layout.scrollable[axis] {
-                let min_scroll = self.nodes[node].rect[axis][1] - content_bounding_rect[axis][1];
+            if self.nodes[i].params.layout.scrollable[axis] {
+                let min_scroll = self.nodes[i].rect[axis][1] - content_bounding_rect[axis][1];
                 let min_scroll = min_scroll.clamp(-f32::MAX, 0.0);
                 
-                let max_scroll = self.nodes[node].rect[axis][0] - content_bounding_rect[axis][0];
+                let max_scroll = self.nodes[i].rect[axis][0] - content_bounding_rect[axis][0];
                 let max_scroll = max_scroll.clamp(0.0, f32::MAX);
 
                 scroll_limits[axis][0] = min_scroll;
