@@ -545,26 +545,26 @@ impl Ui {
         if i == ROOT_I {
             parent_clip_rect = Xy::new_symm([0.0, 1.0]);
         } else {
-            let parent = self.nodes[node].parent;
+            let parent = self.nodes[i].parent;
             parent_clip_rect = self.nodes[parent].clip_rect;
         }
 
-        let own_rect = self.nodes[node].rect;
+        let own_rect = self.nodes[i].rect;
         for axis in [X, Y] {
-            if self.nodes[node].params.layout.scrollable[axis] {
-                self.nodes[node].clip_rect[axis] = intersect(own_rect[axis], parent_clip_rect[axis])
+            if self.nodes[i].params.layout.scrollable[axis] {
+                self.nodes[i].clip_rect[axis] = intersect(own_rect[axis], parent_clip_rect[axis])
             } else {
-                self.nodes[node].clip_rect = parent_clip_rect;
+                self.nodes[i].clip_rect = parent_clip_rect;
             }
         }
 
         // text
-        let left = self.nodes[node].clip_rect[X][0] * self.sys.unifs.size[X];
-        let right = self.nodes[node].clip_rect[X][1] * self.sys.unifs.size[X];
-        let top = self.nodes[node].clip_rect[Y][0] * self.sys.unifs.size[Y];
-        let bottom = self.nodes[node].clip_rect[Y][1] * self.sys.unifs.size[Y];
+        let left = self.nodes[i].clip_rect[X][0] * self.sys.unifs.size[X];
+        let right = self.nodes[i].clip_rect[X][1] * self.sys.unifs.size[X];
+        let top = self.nodes[i].clip_rect[Y][0] * self.sys.unifs.size[Y];
+        let bottom = self.nodes[i].clip_rect[Y][1] * self.sys.unifs.size[Y];
 
-        if let Some(text_id) = self.nodes[node].text_id {
+        if let Some(text_id) = self.nodes[i].text_id {
             self.sys.text.text_areas[text_id].params.bounds.left = left as i32;
             self.sys.text.text_areas[text_id].params.bounds.top = top as i32;
             self.sys.text.text_areas[text_id].params.bounds.right = right as i32;
