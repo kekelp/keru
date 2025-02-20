@@ -95,6 +95,8 @@ impl RenderRect {
     pub const OUTLINE_ONLY:    u32 = 1 << 9;  // 0b00000000_00000000_00000010_00000000 
     pub const HOVERED:         u32 = 1 << 10; // 0b00000000_00000000_00000100_00000000 
 
+    // bits 11, 12, 13, 14 are for rounded corners
+
     pub const EMPTY_FLAGS: u32 = 0;
 }
 
@@ -116,6 +118,15 @@ impl RenderShape {
     }
 }
 
+const ROUNDED_CORNERS_MASK: u32 = !(0b00001111 << 11);
+
+impl RenderShape {
+    fn write_corners(flags: &mut u32, corners: RoundedCorners) {
+        let cleared = *flags & ROUNDED_CORNERS_MASK;
+        *flags = cleared | ((corners.bits() as u32) << 11);
+    }
+}
+
 impl Shape {
     pub(crate) fn render_shape(&self) -> RenderShape {
         match self {
@@ -133,7 +144,6 @@ impl Shape {
         }
     } 
 }
-
 
 impl Node {
     pub(crate) fn render_rect(&self, draw_even_if_invisible: bool, image_texcoords: Option<Xy<[f32; 2]>>) -> Option<RenderRect> {
@@ -154,6 +164,8 @@ impl Node {
 
 
         flags = RenderShape::write_into_least_significant_8_bits(flags, self.params.rect.shape.render_shape() as u8);
+        
+        RenderShape::write_corners(&mut flags, self.params.rect.rounded_corners);
 
         let tex_coords = if let Some(image_texcoords) = image_texcoords {
             image_texcoords

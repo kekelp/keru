@@ -55,6 +55,7 @@ struct VertexOutput {
     @location(5) filled: f32,
     @location(6) tex_coords: vec2<f32>,
     @location(7) shape: u32,
+    @location(8) corners: u32,
 }
 
 fn read_flag(value: u32, flag: u32) -> bool {
@@ -63,6 +64,10 @@ fn read_flag(value: u32, flag: u32) -> bool {
 
 fn read_shape(flags: u32) -> u32 {
     return flags & 0x000000FF;
+}
+
+fn read_rounded_corners(flags: u32) -> u32 {
+    return (flags >> 11) & 0xF; // Extract bits 11–14
 }
 
 @vertex
@@ -78,8 +83,8 @@ fn vs_main(in: RenderRect) -> VertexOutput {
     let y_clipped = clamp(y, in.clip_ys[0], in.clip_ys[1]);
 
     var vertex_colors = array(in.vertex_colors_bl, in.vertex_colors_tl, in.vertex_colors_br, in.vertex_colors_tr);
-    let i_1234 = i_y + 2 * i_x;
-    let color = vec4f(vertex_colors[i_1234]) / 255.0;
+    let i_0123 = i_y + 2 * i_x;
+    let color = vec4f(vertex_colors[i_0123]) / 255.0;
 
     let clip_position = vec4(x_clipped, y_clipped, in.z, 1.0);
 
@@ -118,7 +123,8 @@ fn vs_main(in: RenderRect) -> VertexOutput {
     let dark_click = 1.0 - click * 0.78;
 
     let dark = min(dark_click, dark_hover);
-    return VertexOutput(clip_position, uv, half_size, color, dark, in.radius, filled, tex_coords, shape);
+    let corners = read_rounded_corners(in.flags);
+    return VertexOutput(clip_position, uv, half_size, color, dark, in.radius, filled, tex_coords, shape, corners);
 }
 
 @fragment
@@ -126,21 +132,29 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     var centered_uv = in.uv - (in.half_size);
 
+    let index = select(0u, 1u, centered_uv.x < 0.0) + select(0u, 2u, centered_uv.y < 0.0);
+    let flag = (in.corners >> index) & 1u;
+    let rounded = flag != 0u;
+
     var circle_uv = abs(centered_uv);
     circle_uv.y *= (in.half_size.x / in.half_size.y);
 
     var alpha = in.color.a;
 
+    var radius = f32(rounded) * in.radius;
+
     if (in.shape == SHAPE_RECTANGLE) {
-        // todo: better name?
-        let q = abs(centered_uv) - in.half_size + in.radius;
-
-        let dist = length(max(q, vec2(0.0, 0.0))) - in.radius;
-
-        let inside = (1.0 - smoothstep(-1.0, 1.0, dist));
-        let outside = (1.0 - smoothstep(1.0, -1.0, dist + 8.0));
-
-        alpha = alpha * (inside * max(in.filled, outside));
+        let q = abs(centered_uv) - in.half_size + radius;
+        let dist = length(max(q, vec2(0.0, 0.0))) - radius;
+        var is_inside = (1.0 - smoothstep(-1.0, 1.0, dist));
+        var is_in_outline = (1.0 - smoothstep(1.0, -1.0, dist + 8.0));
+        if radius < 1.0 {
+            is_inside = 1.0;
+            is_in_outline = f32(any(centered_uv > in.half_size - vec2f(8.0)));
+        }
+        
+        let outline_mask = max(in.filled, is_in_outline); // filled: always 1. not filled, 1 in the outline, 0 inside.
+        alpha = alpha * (is_inside * outline_mask);
     }
 
     else if (in.shape == SHAPE_CIRCLE) {
@@ -150,7 +164,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     
     else if (in.shape == SHAPE_RING ) {
         let circle_alpha = in.half_size.x - length(circle_uv);
-        let inner_ring_alpha = length(circle_uv) - (in.half_size.x - in.radius);
+        let inner_ring_alpha = length(circle_uv) - (in.half_size.x - radius);
         let ring_alpha = min(inner_ring_alpha, circle_alpha);
         
         alpha = alpha * clamp(ring_alpha, 0.0, 1.0);

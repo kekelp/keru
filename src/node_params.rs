@@ -144,6 +144,24 @@ pub struct Layout {
     pub scrollable: Xy<bool>,
 }
 
+bitflags::bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+    pub struct RoundedCorners: u8 {
+        const TOP_RIGHT    = 1 << 0;
+        const TOP_LEFT     = 1 << 1;
+        const BOTTOM_RIGHT = 1 << 2;
+        const BOTTOM_LEFT  = 1 << 3;
+        
+        const TOP          = Self::TOP_LEFT.bits() | Self::TOP_RIGHT.bits();
+        const BOTTOM       = Self::BOTTOM_LEFT.bits() | Self::BOTTOM_RIGHT.bits();
+        const LEFT         = Self::TOP_LEFT.bits() | Self::BOTTOM_LEFT.bits();
+        const RIGHT        = Self::TOP_RIGHT.bits() | Self::BOTTOM_RIGHT.bits();        
+        const ALL = Self::TOP.bits() | Self::BOTTOM.bits();
+        const NONE = 0;
+    }
+
+}
+
 /// The node's shape.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Shape {
@@ -179,6 +197,7 @@ impl Hash for Shape {
 #[derive(Debug, Copy, Clone, PartialEq, Hash)]
 pub struct Rect {
     pub shape: Shape,
+    pub rounded_corners: RoundedCorners,
     pub visible: bool,
     pub outline_only: bool,
     pub vertex_colors: VertexColors,
@@ -190,6 +209,7 @@ impl Rect {
         visible: true,
         outline_only: true,
         vertex_colors: VertexColors::flat(Color::KERU_BLUE),
+        rounded_corners: RoundedCorners::ALL,
     };
 }
 
@@ -202,7 +222,7 @@ pub struct TextOptions {
     pub single_line: bool,
 }
 
-pub(crate) const BASE_RADIUS: f32 = 20.0;
+pub(crate) const BASE_RADIUS: f32 = 15.0;
 
 impl NodeParams {
     pub(crate) fn cosmetic_update_hash(&self) -> u64 {
@@ -383,6 +403,11 @@ impl NodeParams {
 
     pub fn is_scrollable(&self) -> bool {
         return self.layout.scrollable.x || self.layout.scrollable.y
+    }
+
+    pub const fn corners(mut self, corners: RoundedCorners) -> Self {
+        self.rect.rounded_corners = corners;
+        return self;
     }
 }
 
@@ -572,6 +597,11 @@ impl<'a> FullNodeParams<'a> {
 
     pub fn is_scrollable(&self) -> bool {
         return self.params.layout.scrollable.x || self.params.layout.scrollable.y
+    }
+
+    pub const fn corners(mut self, corners: RoundedCorners) -> Self {
+        self.params.rect.rounded_corners = corners;
+        return self;
     }
 }
 

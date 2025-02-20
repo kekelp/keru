@@ -38,7 +38,7 @@ impl CustomWidgets for Ui {
                 }
             }
 
-            let v_stack = V_STACK.stack_spacing(0);
+            let v_stack = V_STACK .stack_spacing(0);
             let content_panel = PANEL.size_symm(Size::Fill);
             let tabs_h_stack = H_STACK.size_y(Size::FitContent);
 
@@ -48,7 +48,7 @@ impl CustomWidgets for Ui {
                     self.add(tabs_h_stack).nest(|| {
                         for (i, name) in tabs.iter().enumerate() {
                             let key_i = TAB_BUTTON.sibling(i);
-                            let button = BUTTON.text(name).key(key_i);
+                            let button = BUTTON.text(name).corners(RoundedCorners::TOP).key(key_i);
                             self.add(button);
                         }
                     });

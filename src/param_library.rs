@@ -14,6 +14,7 @@ pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     stack: None,
     text_params: None,
     rect: Rect {
+        rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
         outline_only: true,
@@ -38,6 +39,7 @@ pub const DEFAULT: NodeParams = NodeParams {
     stack: None,
     text_params: None,
     rect: Rect {
+        rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
         outline_only: false,
@@ -66,6 +68,7 @@ pub const V_STACK: NodeParams = NodeParams {
     }),
     text_params: None,
     rect: Rect {
+        rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
         outline_only: true,
@@ -94,6 +97,7 @@ pub const H_STACK: NodeParams = NodeParams {
     }),
     text_params: None,
     rect: Rect {
+        rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
         outline_only: true,
@@ -123,6 +127,7 @@ pub const V_SCROLL_STACK: NodeParams = NodeParams {
         }),
         text_params: None,
         rect: Rect {
+            rounded_corners: RoundedCorners::ALL,
             shape: Rectangle { corner_radius: BASE_RADIUS },
             visible: false,
             outline_only: true,
@@ -148,6 +153,7 @@ pub const MARGIN: NodeParams = NodeParams {
     stack: None,
     text_params: None,
     rect: Rect {
+        rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
         outline_only: true,
@@ -172,6 +178,7 @@ pub const ICON_BUTTON: NodeParams = NodeParams {
     stack: None,
     text_params: None,
     rect: Rect {
+        rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
         outline_only: false,
@@ -196,6 +203,7 @@ pub const IMAGE: NodeParams = NodeParams {
     stack: None,
     text_params: None,
     rect: Rect {
+        rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
         outline_only: false,
@@ -223,6 +231,7 @@ pub const BUTTON: NodeParams = NodeParams {
         editable: false,
     }),
     rect: Rect {
+        rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
         outline_only: false,
@@ -251,6 +260,7 @@ pub const LABEL: NodeParams = NodeParams {
         editable: false,
     }),
     rect: Rect {
+        rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
         outline_only: false,
@@ -279,6 +289,7 @@ pub const MULTILINE_LABEL: NodeParams = NodeParams {
         editable: false,
     }),
     rect: Rect {
+        rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
         outline_only: false,
@@ -307,6 +318,7 @@ pub const TEXT: NodeParams = NodeParams {
         editable: false,
     }),
     rect: Rect {
+        rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
         outline_only: true,
@@ -335,6 +347,7 @@ pub const TEXT_PARAGRAPH: NodeParams = NodeParams {
         editable: false,
     }),
     rect: Rect {
+        rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
         outline_only: true,
@@ -364,6 +377,7 @@ pub const TEXT_PARAGRAPH: NodeParams = NodeParams {
 //         editable: true,
 //     }),
 //     rect: Rect {
+//     rounded_corners: RoundedCorners::ALL,
 //         shape: Rectangle { corner_radius: BASE_RADIUS },
 //         visible: true,
 //         outline_only: false,
@@ -389,6 +403,7 @@ pub const PANEL: NodeParams = NodeParams {
     stack: None,
     text_params: None,
     rect: Rect {
+        rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
         outline_only: false,
@@ -414,6 +429,7 @@ pub const CONTAINER: NodeParams = NodeParams {
     stack: None,
     text_params: None,
     rect: Rect {
+        rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
         outline_only: true,
@@ -460,6 +476,7 @@ pub const CUSTOM_RENDERED_PANEL: NodeParams = NodeParams {
     stack: None,
     text_params: None,
     rect: Rect {
+        rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
         outline_only: false,
