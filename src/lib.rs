@@ -49,11 +49,11 @@
 //! To integrate it with the window loop, you only need to do two things:
 //! 
 //! - When you receive a `winit` `WindowEvent`, pass it to [`Ui::window_event()`].
-//! - When you receive a `WindowEvent::RedrawRequested`, redeclare your GUI, then call [`Ui::render()`].
+//! - When you receive a `WindowEvent::RedrawRequested`, update your GUI, then call [`Ui::render()`].
 //! 
-//! ## Building the Ui
+//! ## Building the GUI
 //! 
-//! Every frame, to update the Ui, you have to start a new Ui frame, rerun all your Ui declaration code, then finish the frame.
+//! Every frame, to update the GUI, start a new GUI frame, rerun all your GUI building code, then finish the frame.
 //! 
 //! ```rust
 //! # use keru::*;
@@ -75,7 +75,7 @@
 //! # }
 //! ```
 //! 
-//! The [`Ui`] struct retains the state of the whole Ui, so even if you do this every frame, it doesn't mean that the GUI is re-rendering every frame, doing a full relayout on every frame, or anything of that sort.
+//! The [`Ui`] struct retains the state of the whole GUI, so even if you do this every frame, it doesn't mean that the GUI is re-rendering every frame, doing a full relayout on every frame, or anything of that sort.
 //! See the ["About"](about) page for more information on this point.
 //! 
 //! 
@@ -85,11 +85,9 @@
 //! 
 //! * To check interactions on a node, use [`NodeParams::key()`] to associate a [`NodeKey`] to a [`NodeParams`], then call methods like [`Ui::is_clicked()`] with the same [`NodeKey`].
 //! 
-//! * In dynamic Uis, you can't identify every node with a static [`NodeKey`] in the way the examples do it.
+//! * You can use the [`NodeKey::sibling()`] function to create keys dynamically at runtime. This is useful for dynamic GUIs where you can't identify every node with a static [`NodeKey`] in the way the basic examples do it.
 //! 
-//!     Instead, you can use the [`NodeKey::sibling()`] function to create keys dynamically at runtime.
-//! 
-//! * To create reusable "components", you can just wrap the Ui code in a function, like the builtin convenience functions like [`Ui::label()`] do. If the code uses unique [`NodeKeys`](NodeKey), however, you'll need to wrap the code in a [`subtree`](Ui::subtree()).
+//! * To create reusable "components", you can just wrap the Ui code in a function, like the builtin convenience functions like [`Ui::label()`] do. If the code uses unique [`NodeKeys`](NodeKey), however, you'll need to wrap it in a [`subtree`](Ui::subtree()).
 //! 
 //!     This allows multiple calls to the same component function to reuse the same key multiple times without conflicts.
 //! 
