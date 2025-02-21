@@ -143,6 +143,10 @@ impl Ui {
                 // nothing changed, do nothing
             } else {
                 // newly entered
+                if self.debug_mode() {
+                    let (hovered_node, hovered_node_i) = self.nodes.get_by_id(&hovered_id).unwrap();
+                    log::info!("Hovering {}", self.format_node_debug_name(hovered_node_i))
+                }
                 self.end_all_hovering();
                 self.start_hovering(hovered_id);
                 self.sys.new_ui_input = true;
