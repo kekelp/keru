@@ -3,11 +3,11 @@ use keru::example_window_loop::*;
 
 #[derive(Default)]
 pub struct State {
-    pub count_1: Observer<i32>,
-    pub show_1: Observer<bool>,
+    pub count_1: ThreadLocalObserver<i32>,
+    pub show_1: ThreadLocalObserver<bool>,
 
-    pub count_2: Observer<i32>,
-    pub show_2: Observer<bool>,
+    pub count_2: ThreadLocalObserver<i32>,
+    pub show_2: ThreadLocalObserver<bool>,
 }
 
 fn count_color(count: i32) -> Color {
@@ -16,11 +16,11 @@ fn count_color(count: i32) -> Color {
 }
 
 pub trait CustomComponents {
-    fn counter(&mut self, count: &mut Observer<i32>, show: &mut Observer<bool>, debug_name: &str);
+    fn counter(&mut self, count: &mut ThreadLocalObserver<i32>, show: &mut ThreadLocalObserver<bool>, debug_name: &str);
 }
 
 impl CustomComponents for Ui {
-    fn counter(&mut self, count: &mut Observer<i32>, show: &mut Observer<bool>, debug_name: &str) {
+    fn counter(&mut self, count: &mut ThreadLocalObserver<i32>, show: &mut ThreadLocalObserver<bool>, debug_name: &str) {
         
         self.subtree().start(|| {
 
