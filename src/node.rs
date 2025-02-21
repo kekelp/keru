@@ -1,3 +1,5 @@
+use std::panic::Location;
+
 use crate::*;
 
 #[derive(Debug)]
@@ -21,7 +23,7 @@ pub struct Node {
     // in probably in fraction of screen units or some trash 
     pub size: Xy<f32>,
 
-    pub last_proposed_size: Xy<f32>,
+    pub last_proposed_sizes: ProposedSizes,
 
     pub(crate) relayout_chain_root: Option<NodeI>,
 
@@ -47,6 +49,7 @@ pub struct Node {
     pub params: NodeParams,
 
     pub debug_name: &'static str,
+    pub debug_location: &'static Location<'static>,
 
     pub children_hash: u64,
 
@@ -67,6 +70,7 @@ impl Node {
     pub fn new(
         key: &NodeKey,
         twin_n: Option<u32>,
+        debug_location: &'static Location<'static>,
     ) -> Node {
         // add back somewhere
 
@@ -78,7 +82,7 @@ impl Node {
 
             size: Xy::new_symm(0.5),
 
-            last_proposed_size: Xy::new_symm(0.5),
+            last_proposed_sizes: ProposedSizes::for_single_child(Xy::new_symm(0.5)),
             text_id: None,
 
             scroll: Scroll::ZERO,
@@ -99,6 +103,7 @@ impl Node {
             is_twin: twin_n,
             params: NodeParams::const_default(),
             debug_name: key.debug_name(),
+            debug_location: debug_location,
             hover_timestamp: f32::MIN,
             hovered: false,
             last_click: f32::MIN,
@@ -134,7 +139,7 @@ pub const ZERO_NODE_DUMMY: Node = Node {
 
     size: Xy::new_symm(1.0),
 
-    last_proposed_size: Xy::new_symm(1.0),
+    last_proposed_sizes: ProposedSizes::for_single_child(Xy::new_symm(1.0)),
 
     scroll: Scroll::ZERO,
     text_id: None,
@@ -155,6 +160,7 @@ pub const ZERO_NODE_DUMMY: Node = Node {
 
     params: NODE_ROOT_PARAMS,
     debug_name: "ZERO_NODE_DUMMY",
+    debug_location: Location::caller(),
     hover_timestamp: f32::MIN,
     hovered: false,
 
@@ -182,7 +188,7 @@ pub const NODE_ROOT: Node = Node {
 
     size: Xy::new_symm(1.0),
 
-    last_proposed_size: Xy::new_symm(1.0),
+    last_proposed_sizes: ProposedSizes::for_single_child(Xy::new_symm(1.0)),
 
     scroll: Scroll::ZERO,
     text_id: None,
@@ -203,6 +209,8 @@ pub const NODE_ROOT: Node = Node {
 
     params: NODE_ROOT_PARAMS,
     debug_name: "Root",
+    debug_location: Location::caller(),
+
     hover_timestamp: f32::MIN,
     hovered: false,
 

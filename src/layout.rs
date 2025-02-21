@@ -129,7 +129,7 @@ impl Ui {
         // For the first node, assume that the proposed size that we got from the parent last frame is valid. (except for root, in which case just use the whole screen. todo: should just make full_relayout a separate function.)
         let starting_proposed_size = Xy::new(1.0, 1.0);
 
-        self.recursive_determine_size(ROOT_I, starting_proposed_size, starting_proposed_size);
+        self.recursive_determine_size(ROOT_I, ProposedSizes::for_single_child(starting_proposed_size));
         
         // 2nd recursive tree traversal: now that all nodes have a calculated size, place them.
         // we don't do update_rects here because the first frame you can't update... but maybe just special-case the first frame, then should be faster
@@ -149,8 +149,8 @@ impl Ui {
 
         // 1st recursive tree traversal: start from the root and recursively determine the size of all nodes
         // For the first node, use the proposed size that we got from the parent last frame.
-        let starting_proposed_size = self.nodes[i].last_proposed_size;
-        self.recursive_determine_size(i, starting_proposed_size, starting_proposed_size);
+        let starting_proposed_size = self.nodes[i].last_proposed_sizes;
+        self.recursive_determine_size(i, starting_proposed_size);
         
         // 2nd recursive tree traversal: now that all nodes have a calculated size, place them.
         self.recursive_place_children(i, update_rects);
@@ -234,12 +234,11 @@ impl Ui {
     fn recursive_determine_size(
         &mut self,
         i: NodeI,
-        child_proposed_size: Xy<f32>, // the size that was proposed to us specifically after dividing between children
-        whole_parent_proposed_size: Xy<f32>, // the whole size that the parent proposed to ALL its children collectively
+        proposed_sizes: ProposedSizes,
     ) -> Xy<f32> {
-        self.nodes[i].last_proposed_size = child_proposed_size;
-        
-        let size = self.get_size(i, child_proposed_size, whole_parent_proposed_size);
+        self.nodes[i].last_proposed_sizes = proposed_sizes;
+
+        let size = self.get_size(i, proposed_sizes.to_this_child, proposed_sizes.to_all_children);
         let size_to_propose = self.get_inner_size(i, size);
 
         let stack = self.nodes[i].params.stack;
@@ -252,7 +251,7 @@ impl Ui {
             // First, do all non-Fill children
             for_each_child!(self, self.nodes[i], child, {
                 if self.nodes[child].params.layout.size[stack.axis] != Size::Fill {
-                    let child_size = self.recursive_determine_size(child, available_size_left, size_to_propose);
+                    let child_size = self.recursive_determine_size(child, ProposedSizes::new(available_size_left, size_to_propose));
                     content_size.update_for_child(child_size, Some(stack));
                     available_size_left[stack.axis] -= child_size[stack.axis];
                 } else {
@@ -266,7 +265,7 @@ impl Ui {
                 size_per_child[stack.axis] /= n_fill_children as f32;
                 for_each_child!(self, self.nodes[i], child, {
                     if self.nodes[child].params.layout.size[stack.axis] == Size::Fill {
-                        let child_size = self.recursive_determine_size(child, size_per_child, size_to_propose);
+                        let child_size = self.recursive_determine_size(child, ProposedSizes::new(size_per_child, size_to_propose));
                         content_size.update_for_child(child_size, Some(stack));
                         available_size_left[stack.axis] -= child_size[stack.axis];
                     }
@@ -276,7 +275,7 @@ impl Ui {
         } else {
             // Propose a size to the children and let them decide
             for_each_child!(self, self.nodes[i], child, {
-                let child_size = self.recursive_determine_size(child, size_to_propose, size_to_propose);
+                let child_size = self.recursive_determine_size(child, ProposedSizes::for_single_child(size_to_propose));
                 content_size.update_for_child(child_size, stack); // this is None
             });            
             
@@ -741,6 +740,26 @@ impl Ui {
             }
         }
         return ScrollLimits(scroll_limits);
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct ProposedSizes {
+    to_this_child: Xy<f32>, // the size that was proposed to us specifically after dividing between children
+    to_all_children: Xy<f32>, // the whole size that the parent proposed to ALL its children collectively
+}
+impl ProposedSizes {
+    pub(crate) const fn new(to_this_child: Xy<f32>, to_all_children: Xy<f32>) -> ProposedSizes {
+        return ProposedSizes {
+            to_this_child,
+            to_all_children,
+        }
+    }
+    pub(crate) const fn for_single_child(size: Xy<f32>) -> ProposedSizes {
+        return ProposedSizes {
+            to_this_child: size,
+            to_all_children: size,
+        }
     }
 }
 

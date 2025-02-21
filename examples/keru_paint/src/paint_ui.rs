@@ -134,33 +134,33 @@ impl State {
         
         let (_, y) = self.ui.is_dragged(SLIDER_FILL);
         log_value += (y as f32) / slider_height * (log_max - log_min);
-        
 
         log_value = log_value.clamp(log_min, log_max);
+        let filled_frac = (log_value - log_min) / (log_max - log_min);
 
         #[node_key] const SLIDER_CONTAINER: NodeKey;
         let slider_container = KERU_PANEL
             .position_x(End)
             .size_y(Size::Frac(0.7))
-            .size_x(Size::Pixels(50))
+            .size_x(Size::Pixels(60))
             .key(SLIDER_CONTAINER);
 
         #[node_key] const SLIDER_FILL: NodeKey;
         let slider_fill = KERU_PANEL
             .size_x(Fill)
-            .size_y(Size::Frac((log_value - log_min) / (log_max - log_min)))
+            .size_y(Size::Frac(filled_frac))
             .color(Color::KERU_RED)
             .position_y(End)
             .padding_y(1)
             .key(SLIDER_FILL);
 
-        let lin_value = 10f32.powf(log_value);
+        let new_lin_value = 10f32.powf(log_value);
 
         // There's 2 reasons why can can't just pass the f32 and let the UI format it:
         // - we're using a custom format. This could be solved by making a text!() macro. but it wouldn't be nice.
         // - f32 doesn't implement Hash!!!!!!!!!!!!! So we still couldn't skip the formatting when it's unchanged
         self.format_scratch.clear();
-        let _ = write!(&mut self.format_scratch, "{:.2}", lin_value);
+        let _ = write!(&mut self.format_scratch, "{:.2}", new_lin_value);
 
         self.ui.add(slider_container).nest(|| {
             self.ui.add(slider_fill);
@@ -168,6 +168,6 @@ impl State {
         });
 
         self.format_scratch.clear();
-        return lin_value;
+        return new_lin_value;
     }
 }
