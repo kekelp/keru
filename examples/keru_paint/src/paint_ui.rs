@@ -85,7 +85,6 @@ impl State {
     }
 
     pub fn place_tools(&mut self) {
-        #[node_key] const TOOLS_PANEL: NodeKey;
         #[node_key] const BRUSH: NodeKey;
         #[node_key] const ERASER: NodeKey;
 
@@ -103,6 +102,8 @@ impl State {
         let tools_panel = KERU_PANEL
             .position_x(Start)
             .position_y(Start)
+            // todo: something is off here
+            .padding_y(20)
             .size_x(FitContent);
 
         self.ui.add(tools_panel).nest(|| {

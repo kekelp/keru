@@ -82,7 +82,7 @@ impl Node {
 
             size: Xy::new_symm(0.5),
 
-            last_proposed_sizes: ProposedSizes::for_single_child(Xy::new_symm(0.5)),
+            last_proposed_sizes: ProposedSizes::container(Xy::new_symm(0.5)),
             text_id: None,
 
             scroll: Scroll::ZERO,
@@ -139,7 +139,7 @@ pub const ZERO_NODE_DUMMY: Node = Node {
 
     size: Xy::new_symm(1.0),
 
-    last_proposed_sizes: ProposedSizes::for_single_child(Xy::new_symm(1.0)),
+    last_proposed_sizes: ProposedSizes::container(Xy::new_symm(1.0)),
 
     scroll: Scroll::ZERO,
     text_id: None,
@@ -188,7 +188,7 @@ pub const NODE_ROOT: Node = Node {
 
     size: Xy::new_symm(1.0),
 
-    last_proposed_sizes: ProposedSizes::for_single_child(Xy::new_symm(1.0)),
+    last_proposed_sizes: ProposedSizes::container(Xy::new_symm(1.0)),
 
     scroll: Scroll::ZERO,
     text_id: None,

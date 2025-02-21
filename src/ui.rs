@@ -101,7 +101,6 @@ pub(crate) struct System {
     pub focused: Option<Id>,
 
     // todo: maybe size_scratch can use the same Vec<usize> as above.
-    pub size_scratch: Vec<f32>,
     pub relayouts_scrath: Vec<NodeWithDepth>,
     // this is used exclusively for debug messages
     pub partial_relayout_count: u32,
@@ -342,7 +341,6 @@ impl Ui {
                 base_uniform_buffer: resolution_buffer,
                 bind_group,
 
-                size_scratch: Vec::with_capacity(15),
                 relayouts_scrath: Vec::with_capacity(15),
                 partial_relayout_count: 0,
 
