@@ -43,8 +43,8 @@ pub fn reactive<T>(state_changed: bool, reactive_block: impl FnOnce() -> T) -> T
 
 /// Returns `true` if currently in a reactive block that is being skipped.
 /// 
-/// This can be used to skip expensive computations that are only useful when the GUI actually updates. For example, formatting values into strings.
-pub fn can_skip() -> bool {
+/// This can be used to skip expensive computations that are only useful when the GUI actually updates, such as formatting complex values into strings.
+pub fn is_in_skipped_reactive_block() -> bool {
     return thread_local::THREAD_STACKS.with(|stack| {
         return stack.borrow_mut().reactive > 0;
     });

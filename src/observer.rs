@@ -19,41 +19,41 @@ enum ChangeState {
     SawChangeAtFrame(u64)
 }
 
-pub struct ThreadLocalObserver<T> {
+pub struct Observer<T> {
     value: T,
     change_state: ChangeState,
 }
 
-impl<T> ThreadLocalObserver<T> {
+impl<T> Observer<T> {
     pub fn new(value: T) -> Self {
-        ThreadLocalObserver { 
+        Observer { 
             value, 
             change_state: ChangeState::Changed, 
         }
     }
 }
 
-impl<T> Deref for ThreadLocalObserver<T> {
+impl<T> Deref for Observer<T> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
         &self.value
     }
 }
 
-impl<T> DerefMut for ThreadLocalObserver<T> {
+impl<T> DerefMut for Observer<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.change_state = ChangeState::Changed;
         &mut self.value
     }
 }
 
-impl<T> ThreadLocalObserver<T> {
+impl<T> Observer<T> {
     pub fn changed(&mut self) -> bool {
         let current_frame = thread_local::current_frame();
         self.changed_inner(current_frame)
     }
 
-    pub fn changed_inner(&mut self, current_frame: u64) -> bool {
+    fn changed_inner(&mut self, current_frame: u64) -> bool {
         let changed = self.change_state == ChangeState::Changed || self.change_state == ChangeState::SawChangeAtFrame(current_frame);
 
         if changed {
@@ -71,7 +71,7 @@ mod tests {
 
     #[test]
     fn test_observer() {
-        let mut value = ThreadLocalObserver::new(17);
+        let mut value = Observer::new(17);
         let mut current_frame = 0;
         
         assert!(value.changed_inner(current_frame));
@@ -105,14 +105,14 @@ mod tests {
 
 macro_rules! impl_binary_ops {
     ($trait:ident, $method:ident, $assign_trait:ident, $assign_method:ident) => {
-        impl<T: $trait<T>> $trait<T> for ThreadLocalObserver<T> {
-            type Output = ThreadLocalObserver<T::Output>;
+        impl<T: $trait<T>> $trait<T> for Observer<T> {
+            type Output = Observer<T::Output>;
             fn $method(self, rhs: T) -> Self::Output {
-                ThreadLocalObserver::new(self.value.$method(rhs))
+                Observer::new(self.value.$method(rhs))
             }
         }
 
-        impl<T: $assign_trait<T>> $assign_trait<T> for ThreadLocalObserver<T> {
+        impl<T: $assign_trait<T>> $assign_trait<T> for Observer<T> {
             fn $assign_method(&mut self, rhs: T) {
                 self.value.$assign_method(rhs);
                 self.change_state = ChangeState::Changed;
@@ -132,73 +132,73 @@ impl_binary_ops!(BitXor, bitxor, BitXorAssign, bitxor_assign);
 impl_binary_ops!(Shl, shl, ShlAssign, shl_assign);
 impl_binary_ops!(Shr, shr, ShrAssign, shr_assign);
 
-impl<T: Neg> Neg for ThreadLocalObserver<T> {
-    type Output = ThreadLocalObserver<T::Output>;
+impl<T: Neg> Neg for Observer<T> {
+    type Output = Observer<T::Output>;
     fn neg(self) -> Self::Output {
-        ThreadLocalObserver { value: -self.value, change_state: ChangeState::Changed }
+        Observer { value: -self.value, change_state: ChangeState::Changed }
     }
 }
 
-impl<T: Not> Not for ThreadLocalObserver<T> {
-    type Output = ThreadLocalObserver<T::Output>;
+impl<T: Not> Not for Observer<T> {
+    type Output = Observer<T::Output>;
     fn not(self) -> Self::Output {
-        ThreadLocalObserver { value: !self.value, change_state: ChangeState::Changed }
+        Observer { value: !self.value, change_state: ChangeState::Changed }
     }
 }
 
-impl<T: Clone> Clone for ThreadLocalObserver<T> {
+impl<T: Clone> Clone for Observer<T> {
     fn clone(&self) -> Self {
-        ThreadLocalObserver {
+        Observer {
             value: self.value.clone(),
             change_state: self.change_state,
         }
     }
 }
 
-impl<T: Copy> Copy for ThreadLocalObserver<T> {}
+impl<T: Copy> Copy for Observer<T> {}
 
-impl<T: Default> Default for ThreadLocalObserver<T> {
+impl<T: Default> Default for Observer<T> {
     fn default() -> Self {
-        ThreadLocalObserver {
+        Observer {
             value: T::default(),
             change_state: ChangeState::Changed,
         }
     }
 }
 
-impl<T: Debug> Debug for ThreadLocalObserver<T> {
+impl<T: Debug> Debug for Observer<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.value.fmt(f)
     }
 }
 
-impl<T: Display> Display for ThreadLocalObserver<T> {
+impl<T: Display> Display for Observer<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.value.fmt(f)
     }
 }
 
-impl<T: PartialEq> PartialEq for ThreadLocalObserver<T> {
+impl<T: PartialEq> PartialEq for Observer<T> {
     fn eq(&self, other: &Self) -> bool {
         self.value.eq(&other.value)
     }
 }
 
-impl<T: Eq> Eq for ThreadLocalObserver<T> {}
+impl<T: Eq> Eq for Observer<T> {}
 
-impl<T: PartialOrd> PartialOrd for ThreadLocalObserver<T> {
+impl<T: PartialOrd> PartialOrd for Observer<T> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.value.partial_cmp(&other.value)
     }
 }
 
-impl<T: Ord> Ord for ThreadLocalObserver<T> {
+impl<T: Ord> Ord for Observer<T> {
     fn cmp(&self, other: &Self) -> Ordering {
         self.value.cmp(&other.value)
     }
 }
 
-impl<T: Hash> Hash for ThreadLocalObserver<T> {
+impl<T: Hash> Hash for Observer<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.value.hash(state)
     }

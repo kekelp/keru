@@ -14,14 +14,13 @@
 //! # impl State {
 //! #   fn declare_ui(&mut self) {
 //! # 
-//! // Define an unique identity for a Ui node
-//! #[node_key] const INCREASE: NodeKey;
+//! #[node_key] const INCREASE: NodeKey; // Define an unique identity for a Ui node
 //! 
-//! // Create a NodeParams struct that describes the node
+//! // Create a `NodeParams` struct that describes the node
 //! let increase_button = BUTTON
-//! .color(Color::RED)
-//! .text("Increase")
-//! .key(INCREASE); // Set its identity
+//!     .color(Color::RED)
+//!     .text("Increase")
+//!     .key(INCREASE); // Set its identity
 //! 
 //! // Add nodes to the tree and define the layout
 //! if self.show {
@@ -79,7 +78,7 @@
 //! See the ["About"](about) page for more information on this point.
 //! 
 //! 
-//! * In Keru, everything is a node. Whether you want a button, an image, a text element, a stack container, or anything else, the way is always to [`add`](Ui::add) a node with the right [`NodeParams`].
+//! * In Keru, everything is a node. Whether you want a [button](`BUTTON`), an [image](`IMAGE`), a [text element](`TEXT`), a [stack container](V_STACK), or anything else, the way is always to [`add()`](Ui::add) a node with the right [`NodeParams`][^1].
 //! 
 //! * [`Ui`] has some convenience methods like [`Ui::label()`]. These are always equivalent to [`adding`](Ui::add) one or more nodes with specific [`NodeParams`].
 //! 
@@ -93,9 +92,9 @@
 //! 
 //!     This allows multiple calls to the same component function to reuse the same key multiple times without conflicts.
 //! 
-//! [^1]: This is not set in stone. Less general param types like `StackParams` might be added in the future, if I find that they make the API clearer and simpler to learn. 
+//! * The [`reactive()`] function provides an experimental way to improve performance in complex GUIs with many independent components.
 //! 
-//! These building blocks should be enough to create complex interfaces. But only time will tell.
+//! [^1]: This is not set in stone. Less general param types like `StackParams` might be added in the future, if I find that they make the API clearer and simpler to learn.
 //! 
 //! ## More information
 //! 

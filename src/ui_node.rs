@@ -165,7 +165,7 @@ impl<'a> UiNode<'a> {
     }
 
     pub(crate) fn text(&mut self, into_text: impl Display) -> &mut Self {
-        if can_skip() {
+        if is_in_skipped_reactive_block() {
             return self;
         }
 

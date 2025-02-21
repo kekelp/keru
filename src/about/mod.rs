@@ -17,13 +17,13 @@
 //! # impl State {
 //! #   fn declare_ui(&mut self) {
 //! # 
-//! // Define unique keys/ids for some ui elements.
+//! // Define unique keys for some ui elements.
 //! #[node_key] const INCREASE: NodeKey;
 //! #[node_key] const SHOW: NodeKey;
 //! 
 //! let show_button = BUTTON // Create a NodeParams value on the stack
 //!     .color(Color::RED) // Set style and properties
-//!     .text("Show") // Se text
+//!     .text("Show") // Set text
 //!     .key(SHOW); // Sets its identity with a unique NodeKey
 //! 
 //! let increase_button = BUTTON
@@ -123,7 +123,7 @@
 //! 
 //! It's also important to remember that this has nothing to do with the performance of the program when idle: see footnote [^1].
 //! 
-//! However, since reactivity seems to be the current big thing, I am also experimenting with ways to skip even this work: see the ["Reactivity at Home"](#reactivity-at-home) section. 
+//! However, since reactivity seems to be the current big thing, Keru provides an experimental way to skip even this work: see the ["Reactivity"](#reactivity) section.
 //! 
 //! # Advantages
 //! 
@@ -155,10 +155,10 @@
 //! 
 //!     You should have as much freedom as possible when organizing your GUI code. You have the *option* to keep style, layout and effects of an element close to each other, but you aren't forced to do so.
 //!     
-//!     If you look at the examples in the repos for Gpui, Floem, Egui and others, you'll see that like in Keru the layout is derived from the order and nesting of the functions that create the elements.
+//!     If you look at the examples in the repos for Gpui, Floem, Egui and others, you'll see that like in Keru the layout is derived from the order and nesting of the function calls that create the elements.
 //!     But you also have to specify the style and the effect right after that call by chaining builder functions to it.
 //! 
-//!     The resulting code is very strange and hard to read, in my opinion. In particular, it's very hard to follow the nesting structure that defines the layout, since it's mixed with so much other stuff. Most of the clarity of the "nested calls -> layout" approach is lost.
+//!     The resulting code is very strange and hard to read, in my opinion. In particular, it's very hard to follow the nesting structure that defines the layout, since it's mixed with so much other stuff. Most of the clarity of the approach is lost.
 //! 
 //!     In Keru, you can always separate the layout code ([`add`](Ui::add) and [`nest`](UiParent::nest)), the styling (creating a [`NodeParams`] struct) and the effects ([`is_clicked`](`Ui::is_clicked`), etc.) from each other.
 //! 
@@ -170,7 +170,7 @@
 //! 
 //!     Your UI can depend on any variable that you can get a reference to, i.e. anything. You don't have to structure your state in any particular way.
 //!     - You don't have to pair the state with its UI display logic (unless you want to!)
-//!     - You don't have to wrap your state into observer structs or signal handlers (unless you want to: see the ["Reactivity at Home"](#reactivity-at-home) section)
+//!     - You don't have to wrap your state into observer structs or signal handlers (unless you want to: see the ["Reactivity"](#reactivity) section)
 //!     - You shouldn't get any extra borrowing or lifetime issues (unlike in closure-heavy and callback-heavy approaches)
 //! 
 //! -------
@@ -203,42 +203,17 @@
 //! 
 //! With this approach, the library has to hash [`NodeParams`] objects and figure out if anything needs to be updated. For this reason, it has a theoretical performance disadvantage compared to "true reactive" approaches like Floem of SwiftUi, but this is not really guaranteed to cause a measurable difference in practice.
 //! 
-//! ## Reactivity at home
+//! ## Reactivity
 //! 
-//! There's still some room to add "reactivity" (in the Floem/SwiftUI sense) on top of the library as described so far. I am currently experimenting with this.
+//! There's still some room to add "reactivity" (in the Floem/SwiftUI sense) on top of the library as described so far. Currently, this is offered by the [`reactive()`] function. This is the main idea:
 //! 
-//! Since nothing is implemented yet, there's no point in going into too much detail, but the idea is simple:
+//! - The user can opt in to writing a block of UI code in a "reactive block". For this to work properly, the code has to depend only on a small set of variables: for example: a color picker widget only depends on the value of the color.
 //! 
-//! - The user can optionally choose to wrap *some* of their state in something similar to Floem's `RwSignal`.
+//! - The user does something to track whether or not those variables change or not from one UI frame to another. Keru provides a simple way to do this by through the [`Observer`] wrapper struct, but any method can work.
 //! 
-//! - The user can specify explicitly that a block of UI declaration code depends only on a handful of wrapped variables.
+//! - Then, the library assumes that the GUI code inside the block won't result in any UI updates or relayouts. Therefore, it can skip all the hashing and diffing operations.
 //! 
-//! - Then, the library can just skip all that code completely if none of the variables changed, or at least skip the hashing and diffing operations inside [`Ui::add`].
-//! 
-//! Specifying dependencies explicitly might sound annoying, but there's a natural place to do it: at the beginning of any "component" function.
-//!  
-//! 
-//! ## Open questions
-//! 
-//! - Less room for mistakes: it's possible to use the same key for multiple nodes, in which case `is_clicked(KEY)` would always refer the first one added.
-//! 
-//!     It's also rather easy to forget to use [`Ui::subtree()`].
-//! 
-//! - ~~Accessing is_clicked from the builder method chain instead of in a separate block with a key. This is the only operation that can't be done without a key. If I found a good way to do it, keys would become completely optional.~~ 
-//! 
-//!     NodeKeys are now completely optional, see the "no_keys" example. It's still an open question if this is good or not: now there are two parallel ways to do the same thing.
-//! 
-//! - The current way of doing custom rendered UI elements can result in imperfect alpha blending.
-//! 
-//! - Problems with `winit`/`wgpu`: At least on my X11 Linux system, both take forever to start up, and resizing the window isn't smooth at all. It also doesn't feel good to brag about how the library doesn't take control of the main loop away from the user, only for Winit to take it away from them anyway.
-//! 
-//! - Problems with `glyphon`: I am extremely grateful for this library and for `cosmic_text`, as a simple way to "just render text on the screen" was somehow still missing until very recent times.
-//! 
-//!     (How was this possible if both Chrome and Firefox have had open-source state-of-the-art text renderers since forever? Why couldn't we just use those? That's just the power of C++, I think).
-//! 
-//!     However, as soon as I implemented scrolling, I noticed that glyphon would often take 50 or even 100 milliseconds to run its `prepare()` function, even for pretty small paragraphs.
-//! 
-//! - Adding the remaining 99% of features.
+//! Specifying dependencies explicitly might sound annoying, but there's a natural place to do it: at the beginning of any reusable component function.
 //! 
 //! 
 //! ### Inspiration

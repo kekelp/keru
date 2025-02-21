@@ -302,7 +302,7 @@ impl Ui {
     }
 
     pub(crate) fn check_param_changes(&mut self, i: NodeI) {
-        if ! reactive::can_skip() {
+        if ! reactive::is_in_skipped_reactive_block() {
 
             let cosmetic_params_hash = self.nodes[i].params.cosmetic_update_hash();
             let layout_params_hash = self.nodes[i].params.partial_relayout_hash();
