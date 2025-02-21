@@ -135,6 +135,7 @@ impl TextSystem {
 }
 
 impl Ui {
+    // todo: this function writes into format_scratch, doesn't tell anybody anything, and then expects people to get their string directly from self.format_scratch. is it really impossible to just return a reference? 
     pub(crate) fn format_into_scratch(&mut self, value: impl Display) {
         self.format_scratch.clear();
         let _ = write!(self.format_scratch, "{}", value);
@@ -327,7 +328,7 @@ impl Ui {
     }
 
     fn set_tree_links(&mut self, new_node_i: NodeI, parent_i: NodeI, depth: usize) {
-        assert!(new_node_i != parent_i, "Internal error: tried to add a node as child of itself ({}).", self.nodes[new_node_i].debug_name);
+        assert!(new_node_i != parent_i, "Internal error: tried to add a node as child of itself ({}).", self.nodes[new_node_i].debug_key_name);
 
         // clear old tree links
         self.nodes[new_node_i].last_child = None;

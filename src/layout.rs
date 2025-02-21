@@ -25,7 +25,7 @@ impl Ui {
         for idx in 0..self.sys.changes.cosmetic_rect_updates.len() {
             let update = self.sys.changes.cosmetic_rect_updates[idx];
             self.update_rect(update);
-            log::info!("Visual rectangle update ({:?})", self.nodes[update].debug_name());
+            log::info!("Visual rectangle update ({})", self.format_node_debug_name(update));
         }
     }
 
@@ -47,7 +47,7 @@ impl Ui {
 
         for idx in 0..self.sys.relayouts_scrath.len() {
             // in partial_relayout(), we will check for overlaps.
-            // todo: is that works as expected, maybe we can skip the limit/full relayout thing, or at least raise the limit by a lot.
+            // todo: if that works as expected, maybe we can skip the limit/full relayout thing, or at least raise the limit by a lot.
             let relayout = self.sys.relayouts_scrath[idx];
             
             self.partial_relayout(relayout.i, update_rects_while_relayouting);
@@ -189,8 +189,8 @@ impl Ui {
                 Size::AspectRatio(aspect) => {
                     match self.nodes[i].params.layout.size[axis.other()] {
                         Size::AspectRatio(_second_aspect) => {
-                            let debug_name = self.nodes[i].debug_name();
-                            log::warn!("A Size shouldn't be AspectRatio in both dimensions. (node: {:?})", debug_name);
+                            let debug_name = self.format_node_debug_name(i);
+                            log::warn!("A Size shouldn't be AspectRatio in both dimensions. (node: {})", debug_name);
                         }
                         _ => {
                             let window_aspect = self.sys.unifs.size.x / self.sys.unifs.size.y;

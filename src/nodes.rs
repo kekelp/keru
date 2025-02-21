@@ -83,11 +83,11 @@ impl Nodes {
             let should_retain = v.last_frame_touched >= current_frame;
             if !should_retain {
                 let i: usize = v.slab_i.as_usize();
-                let name = self.nodes[i].debug_name();
+                // let name = self.format_node_debug_name(i);
                 // side effect happens inside this closure? idk if this even works
                 self.nodes.remove(i);
                 // remember to remove text areas and such ...
-                log::info!("pruning node {:?}", name);
+                // log::info!("pruning node {:?}", name);
             }
             should_retain
         });

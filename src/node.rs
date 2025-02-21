@@ -1,4 +1,4 @@
-use std::panic::Location;
+use std::{fmt::Write, panic::Location};
 
 use crate::*;
 
@@ -48,7 +48,7 @@ pub struct Node {
 
     pub params: NodeParams,
 
-    pub debug_name: &'static str,
+    pub debug_key_name: &'static str,
     pub debug_location: &'static Location<'static>,
 
     pub children_hash: u64,
@@ -102,7 +102,7 @@ impl Node {
 
             is_twin: twin_n,
             params: NodeParams::const_default(),
-            debug_name: key.debug_name(),
+            debug_key_name: key.debug_name(),
             debug_location: debug_location,
             hover_timestamp: f32::MIN,
             hovered: false,
@@ -119,13 +119,22 @@ impl Node {
             needs_partial_relayout: false,        
         };
     }
+}
 
-    pub fn debug_name(&self) -> String {
-        let debug_name = match self.is_twin {
-            Some(n) => format!("{} (twin #{})", self.debug_name, n),
-            None => self.debug_name.to_string(),
-        };
-        return debug_name;
+impl Ui {
+    pub(crate) fn format_node_debug_name(&mut self, i: NodeI) -> &str {
+        self.format_scratch.clear();
+        
+        if self.nodes[i].debug_key_name != "" {
+            let _ = write!(&mut self.format_scratch, "{} ", self.nodes[i].debug_key_name);
+
+            if let Some(twin_n) = self.nodes[i].is_twin {
+                let _ = write!(&mut self.format_scratch, "(twin #{})", twin_n );
+            }
+        }
+        let _ = write!(&mut self.format_scratch, "[{}]", self.nodes[i].debug_location );
+
+        return &self.format_scratch;
     }
 }
 
@@ -159,7 +168,7 @@ pub const ZERO_NODE_DUMMY: Node = Node {
     is_twin: None,
 
     params: NODE_ROOT_PARAMS,
-    debug_name: "ZERO_NODE_DUMMY",
+    debug_key_name: "ZERO_NODE_DUMMY",
     debug_location: Location::caller(),
     hover_timestamp: f32::MIN,
     hovered: false,
@@ -208,7 +217,7 @@ pub const NODE_ROOT: Node = Node {
     is_twin: None,
 
     params: NODE_ROOT_PARAMS,
-    debug_name: "Root",
+    debug_key_name: "Root",
     debug_location: Location::caller(),
 
     hover_timestamp: f32::MIN,
