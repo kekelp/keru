@@ -689,6 +689,15 @@ impl UiParent {
     
         return result;
     }
+
+    /// Returns true if the added node was clicked.
+    /// 
+    /// This method allows to test for interactions right after adding a node, without needing to use a key.
+    /// 
+    /// This function needs to take an `&mut Ui` argument because `UiParent` doesn't hold a reference to the `Ui`, to allow greater flexibility when using [`UiParent::nest()`].
+    pub fn is_clicked(&self, ui: &mut Ui) -> bool {
+        return ui.get_uinode(self.i).is_clicked();
+    }
 }
 
 pub(crate) fn start_info_log_timer() -> Option<std::time::Instant> {

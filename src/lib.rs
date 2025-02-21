@@ -14,7 +14,8 @@
 //! # impl State {
 //! #   fn declare_ui(&mut self) {
 //! # 
-//! #[node_key] const INCREASE: NodeKey; // Define an unique identity for a Ui node
+//! // Define an unique identity for a Ui node
+//! #[node_key] const INCREASE: NodeKey;
 //! 
 //! // Create a `NodeParams` struct that describes the node
 //! let increase_button = BUTTON
