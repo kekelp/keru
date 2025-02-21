@@ -260,14 +260,18 @@ impl Ui {
                 }
             });
 
-            // then, divide the remaining space between the Fill children
-            let mut size_per_child = available_size_left;
-            size_per_child[stack.axis] /= n_fill_children as f32;
-            for_each_child!(self, self.nodes[i], child, {
-                let child_size = self.recursive_determine_size(child, size_per_child, size_to_propose);
-                content_size.update_for_child(child_size, Some(stack));
-                available_size_left[stack.axis] -= child_size[stack.axis];
-            });
+            if n_fill_children > 0 {
+                // then, divide the remaining space between the Fill children
+                let mut size_per_child = available_size_left;
+                size_per_child[stack.axis] /= n_fill_children as f32;
+                for_each_child!(self, self.nodes[i], child, {
+                    if self.nodes[child].params.layout.size[stack.axis] == Size::Fill {
+                        let child_size = self.recursive_determine_size(child, size_per_child, size_to_propose);
+                        content_size.update_for_child(child_size, Some(stack));
+                        available_size_left[stack.axis] -= child_size[stack.axis];
+                    }
+                });
+            }
 
         } else {
             // Propose a size to the children and let them decide
