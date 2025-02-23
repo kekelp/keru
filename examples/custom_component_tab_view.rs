@@ -1,5 +1,4 @@
 use keru::*;
-use keru::Size::*;
 use keru::example_window_loop::*;
 
 // Define a trait to hold our custom component function, that we will implement for `Ui`.
@@ -19,8 +18,9 @@ impl CustomWidgets for Ui {
         // (the subtree comes into play when keys are used, not when they are defined. So the TAB_BUTTON line can be outside of the subtree, as well as in another file or anywhere else).
         self.subtree().start(|| {
                 
-            if *tab_number >= 5 {
-                *tab_number = 5;
+            let max_n = tabs.len() - 1;
+            if *tab_number >= max_n {
+                *tab_number = max_n;
             }
             
             // Update the state in response to button clicks or keyboard presses
@@ -30,17 +30,20 @@ impl CustomWidgets for Ui {
                 }
             }
             // todo: focused?
+            let ilen = tabs.len() as isize;
             if self.key_input().key_pressed_or_repeated(&winit::keyboard::Key::Named(winit::keyboard::NamedKey::Tab)) {
                 if self.key_mods().shift_key() {
-                    *tab_number = (((*tab_number as isize) - 1 + 5) % 5) as usize;
+                    *tab_number = (((*tab_number as isize) - 1 + ilen) % ilen) as usize;
                 } else {
-                    *tab_number = (*tab_number + 1) % 5;
+                    *tab_number = (*tab_number + 1) % tabs.len();
                 }
             }
 
-            let v_stack = V_STACK .stack_spacing(0);
-            let content_panel = PANEL.size_symm(Size::Fill);
+            let v_stack = V_STACK.stack_spacing(0);
             let tabs_h_stack = H_STACK.size_y(Size::FitContent);
+            let inactive_tab = BUTTON.corners(RoundedCorners::TOP).colors(self.theme().muted_background);
+            let active_tab = inactive_tab.colors(self.theme().background);
+            let content_panel = PANEL.size_symm(Size::Fill).colors(self.theme().background);
 
             // Add the nodes to the ui.
 
@@ -48,8 +51,9 @@ impl CustomWidgets for Ui {
                     self.add(tabs_h_stack).nest(|| {
                         for (i, name) in tabs.iter().enumerate() {
                             let key_i = TAB_BUTTON.sibling(i);
-                            let button = BUTTON.text(name).corners(RoundedCorners::TOP).key(key_i);
-                            self.add(button);
+                            let tab = if i == *tab_number { active_tab } else { inactive_tab };
+                            let tab_i = tab.text(name).key(key_i);
+                            self.add(tab_i);
                         }
                     });
 

@@ -1,4 +1,3 @@
-use crate::{color::*, Shape, BASE_RADIUS};
 use crate::*;
 use Size::*;
 use Position::*;

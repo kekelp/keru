@@ -133,6 +133,12 @@ pub use observer::*;
 mod reactive;
 pub use reactive::*;
 
+mod theme;
+pub use theme::*;
+
+mod components;
+pub use components::*;
+
 mod interact;
 
 pub mod basic_window_loop;

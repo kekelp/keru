@@ -319,7 +319,7 @@ impl NodeParams {
         return self;
     }
 
-    pub const fn vertex_colors(mut self, colors: VertexColors) -> Self {
+    pub const fn colors(mut self, colors: VertexColors) -> Self {
         self.rect.vertex_colors = colors;
         return self;
     }

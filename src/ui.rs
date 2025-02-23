@@ -61,6 +61,7 @@ pub(crate) struct System {
     // usually these have filled = false (just the outline), but this is not enforced.
     pub debug_mode: bool,
 
+    pub theme: Theme,
     pub debug_key_pressed: bool,
 
     pub new_ui_input: bool,
@@ -311,6 +312,7 @@ impl Ui {
 
             sys: System {
                 z_cursor: 0.0,
+                theme: KERU_DARK,
                 debug_mode: false,
                 debug_key_pressed: false,
 
@@ -400,6 +402,11 @@ impl Ui {
     /// When debug mode is active, all nodes will be shown, including stacks and containers.
     pub fn debug_mode(&self) -> bool {
         return self.sys.debug_mode;
+    }
+
+    /// Get a reference to the active theme.
+    pub fn theme(&mut self) -> &mut Theme {
+        return &mut self.sys.theme;
     }
 
     pub fn push_external_event(&mut self) {

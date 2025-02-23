@@ -22,9 +22,9 @@ use winit::{dpi::PhysicalSize, event::WindowEvent, window::Window as WinitWindow
 use crate::Ui;
 
 pub const BACKGROUND_GREY: wgpu::Color = wgpu::Color {
-    r: 0.037,
-    g: 0.039,
-    b: 0.037,
+    r: 0.017,
+    g: 0.019,
+    b: 0.017,
     a: 1.0,
 };
 
@@ -213,7 +213,7 @@ impl Context {
         let mut frame = self.begin_frame();
 
         {
-            let mut render_pass = frame.begin_render_pass(wgpu::Color::WHITE);
+            let mut render_pass = frame.begin_render_pass(BACKGROUND_GREY);
             ui.render(&mut render_pass, &self.device, &self.queue);
         }
 

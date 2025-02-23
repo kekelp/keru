@@ -695,7 +695,9 @@ impl Scroll {
         let min_scroll = self.limits.min_scroll(axis) / scroll_space;
         let max_scroll = self.limits.max_scroll(axis) / scroll_space;
         let scroll = &mut self.relative_offset[axis];
-        *scroll = scroll.clamp(min_scroll, max_scroll);
+        if min_scroll < max_scroll {
+            *scroll = scroll.clamp(min_scroll, max_scroll);
+        }
     }
 
     pub fn absolute_offset(&self, axis: Axis) -> f32 {
