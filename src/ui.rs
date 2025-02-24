@@ -18,6 +18,8 @@ use wgpu::{
 use winit_key_events::KeyInput;
 use winit_mouse_events::MouseInput;
 
+use std::sync::atomic::AtomicU64;
+use std::sync::atomic::Ordering;
 use std::sync::LazyLock;
 use std::time::Duration;
 use std::{mem, time::Instant};
@@ -56,11 +58,14 @@ pub struct Ui {
     pub(crate) format_scratch: String,
 }
 
+static INSTANCE_COUNTER: AtomicU64 = AtomicU64::new(1);
+
 pub(crate) struct System {
     // in debug mode, draw invisible rects as well, for example V_STACKs.
     // usually these have filled = false (just the outline), but this is not enforced.
     pub debug_mode: bool,
 
+    pub unique_id: u64,
     pub theme: Theme,
     pub debug_key_pressed: bool,
 
@@ -311,6 +316,7 @@ impl Ui {
             format_scratch: String::with_capacity(1024),
 
             sys: System {
+                unique_id: INSTANCE_COUNTER.fetch_add(1, Ordering::Relaxed),
                 z_cursor: 0.0,
                 theme: KERU_DARK,
                 debug_mode: false,
@@ -411,6 +417,10 @@ impl Ui {
 
     pub fn current_frame(&self) -> u64 {
         return self.sys.current_frame;
+    }
+
+    pub fn unique_id(&self) -> u64 {
+        return self.sys.unique_id;
     }
 
     pub fn push_external_event(&mut self) {

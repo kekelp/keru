@@ -7,12 +7,12 @@ use crate::*;
 /// To use this function correctly, you must be sure that all the GUI code inside the block depends only on a well known set of variables, and you must be able to determine if these variables changed since the last frame or not.
 /// 
 /// A good place to use this function is when writing self-contained "component" functions.
-/// An easy way to keep track of whether variables have changed is to keep wrap them in an [`Observer`] struct, but there are many other valid strategies, depending on the context.
+/// An easy way to keep track of whether variables have changed is to keep wrap them in an [`Observed`] struct, but there are many other valid strategies, depending on the context.
 /// 
 /// ```
 /// # use keru::*;
-/// fn display_score(ui: &mut Ui, score: &mut Observer<i32>) {
-///     let state_changed = score.changed();
+/// fn display_score(ui: &mut Ui, score: &mut Observed<i32>) {
+///     let state_changed = ui.observe_changes(score);
 ///     reactive(state_changed, || {
 ///         // as long as the GUI code inside here depends only on the value of `score`, this is correct.
 ///         ui.label(score);

@@ -209,7 +209,7 @@
 //! 
 //! - The user can opt in to writing a block of UI code in a "reactive block". For this to work properly, the code has to depend only on a small set of variables: for example: a color picker widget only depends on the value of the color.
 //! 
-//! - The user does something to track whether or not those variables change or not from one UI frame to another. Keru provides a simple way to do this by through the [`Observer`] wrapper struct, but any method can work.
+//! - The user does something to track whether or not those variables change or not from one UI frame to another. Keru provides a simple way to do this by through the [`Observed`] wrapper struct, but any method can work.
 //! 
 //! - Then, the library assumes that the GUI code inside the block won't result in any UI updates or relayouts. Therefore, it can skip all the hashing and diffing operations.
 //! 

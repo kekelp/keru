@@ -302,29 +302,31 @@ impl Ui {
     }
 
     pub(crate) fn check_param_changes(&mut self, i: NodeI) {
-        if ! reactive::is_in_skipped_reactive_block() {
-
-            let cosmetic_params_hash = self.nodes[i].params.cosmetic_update_hash();
-            let layout_params_hash = self.nodes[i].params.partial_relayout_hash();
-            
-            let param_cosmetic_update = cosmetic_params_hash != self.nodes[i].last_cosmetic_params_hash;
-            let param_partial_relayout = layout_params_hash != self.nodes[i].last_layout_params_hash;
-            
-            
-            if self.nodes[i].needs_partial_relayout | param_partial_relayout {
-                self.push_partial_relayout(i);
-                self.nodes[i].last_layout_params_hash = layout_params_hash;
-                self.nodes[i].needs_partial_relayout = false;
-            }
-            
-            // push cosmetic updates
-            if self.nodes[i].needs_cosmetic_update | param_cosmetic_update{
-                self.push_cosmetic_update(i);
-                self.nodes[i].last_cosmetic_params_hash = cosmetic_params_hash;
-                self.nodes[i].needs_cosmetic_update = false;
-            }
-               
+        if reactive::is_in_skipped_reactive_block() {
+            return;
+            // todo: in debug mode don't actually return. diff everything anyway, and panic if something changed. 
         }
+
+        let cosmetic_params_hash = self.nodes[i].params.cosmetic_update_hash();
+        let layout_params_hash = self.nodes[i].params.partial_relayout_hash();
+        
+        let param_cosmetic_update = cosmetic_params_hash != self.nodes[i].last_cosmetic_params_hash;
+        let param_partial_relayout = layout_params_hash != self.nodes[i].last_layout_params_hash;
+        
+        
+        if self.nodes[i].needs_partial_relayout | param_partial_relayout {
+            self.push_partial_relayout(i);
+            self.nodes[i].last_layout_params_hash = layout_params_hash;
+            self.nodes[i].needs_partial_relayout = false;
+        }
+        
+        // push cosmetic updates
+        if self.nodes[i].needs_cosmetic_update | param_cosmetic_update{
+            self.push_cosmetic_update(i);
+            self.nodes[i].last_cosmetic_params_hash = cosmetic_params_hash;
+            self.nodes[i].needs_cosmetic_update = false;
+        }
+               
     }
 
     fn set_tree_links(&mut self, new_node_i: NodeI, parent_i: NodeI, depth: usize) {

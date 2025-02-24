@@ -1,33 +1,60 @@
-use std::ops::{
-    Deref, DerefMut, Add, Sub, Mul, Div, Rem,
-    AddAssign, SubAssign, MulAssign, DivAssign, RemAssign,
-    Neg, Not, BitAnd, BitOr, BitXor,
-    BitAndAssign, BitOrAssign, BitXorAssign,
-    Shl, Shr, ShlAssign, ShrAssign
-};
-use std::fmt::{self, Debug, Display};
-use std::cmp::{PartialEq, Eq, PartialOrd, Ord, Ordering};
-use std::hash::{Hash, Hasher};
 use std::clone::Clone;
+use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::default::Default;
+use std::fmt::{self, Debug, Display};
+use std::hash::{Hash, Hasher};
+use std::ops::{
+    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Deref,
+    DerefMut, Div, DivAssign, Mul, MulAssign, Neg, Not, Rem, RemAssign, Shl, ShlAssign, Shr,
+    ShrAssign, Sub, SubAssign,
+};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum ChangeState {
-    Changed,
     Unchanged,
-    SawChangeAtFrame(u64)
+    Changed,
+    ChangeSeenAtFrame(u64),
 }
 
+/// A wrapper that keeps track of changes to a value.
+///
+/// `Observed<T>` marks itself as changed when modified. A [`Ui`] can check for changes using
+/// [`Ui::observe_changes()`].
+///
+/// The change state is reset to "unchanged" only at the end of an `Ui` frame. Therefore, different parts of an `Ui` can check the state independently in the same frame, and they will all see the value as "changed".
+///
+/// # Panics
+///
+/// An `Observed` value should be only observed by **a single `Ui` instance**.
+///
+/// In debug mode, `Observed<T>` stores the observing `Ui`'s unique ID and panics if another `Ui`
+/// attempts to observe it, even at separate times.
+///
+/// Since most programs only use a single `Ui` instance, this check is omitted in release mode.
+/// This means that in release mode, observing with multiple `Ui`s will result in unchecked incorrect behavior. Don't use multiple `Ui`s!
+/// 
+/// # Interior Mutability
+/// 
+/// This type cannot detect changes made through interior mutability or unsafe code.
+///
+/// # Example
+///
+/// See the "reactive" example in the repository.
+///
 pub struct Observed<T> {
+    // todo: in the future, require Freeze/ShallowImmutable.
     value: T,
     change_state: ChangeState,
+    #[cfg(debug_assertions)]
+    observer_id: Option<u64>,
 }
 
 impl<T> Observed<T> {
     pub fn new(value: T) -> Self {
-        Observed { 
-            value, 
-            change_state: ChangeState::Changed, 
+        Observed {
+            value,
+            change_state: ChangeState::Changed,
+            observer_id: None,
         }
     }
 }
@@ -48,22 +75,56 @@ impl<T> DerefMut for Observed<T> {
 
 impl<T> Observed<T> {
     fn observe_changes(&mut self, current_frame: u64) -> bool {
-        let changed = self.change_state == ChangeState::Changed || self.change_state == ChangeState::SawChangeAtFrame(current_frame);
-
-        if changed {
-            self.change_state = ChangeState::SawChangeAtFrame(current_frame);
-        } else {
-            self.change_state = ChangeState::Unchanged;
+        match self.change_state {
+            ChangeState::Unchanged => false,
+            ChangeState::Changed => {
+                self.change_state = ChangeState::ChangeSeenAtFrame(current_frame);
+                true
+            }
+            ChangeState::ChangeSeenAtFrame(frame) => {
+                if frame == current_frame {
+                    true
+                } else {
+                    self.change_state = ChangeState::Unchanged;
+                    false
+                }
+            }
         }
-        changed
+    }
+
+    #[cfg(debug_assertions)]
+    fn update_observer_id(&mut self, new_observer_id: u64) {
+        if let Some(existing_id) = self.observer_id {
+            if existing_id != new_observer_id {
+                panic!("Observed<T> cannot be observed by multiple Ui instances.");
+            }
+        } else {
+            self.observer_id = Some(new_observer_id);
+        }
     }
 }
 
 use crate::Ui;
 impl Ui {
+    /// Returns `true` if the value wrapped by `observed` was changed since the last frame.
+    ///
+    /// # Panics
+    ///
+    /// A given [`Observed`] value can be observed by a single [`Ui`]. Calling this function from different [`Ui`]s with the same `observer` as argument is incorrect.
+    ///
+    /// In debug mode, doing so will result in a panic. In release mode, **this check is omitted**, and it will result in unchecked incorrect behavior.
+    /// 
+    /// # Interior Mutability
+    /// 
+    /// This function cannot detect changes made through interior mutability or unsafe code.
+    ///
+    /// # Example
+    /// See the "reactive" example in the repository.
     pub fn observe_changes<T>(&self, observer: &mut Observed<T>) -> bool {
-        let current_frame = self.current_frame();
-        observer.observe_changes(current_frame)
+        #[cfg(debug_assertions)]
+        observer.update_observer_id(self.unique_id());
+
+        observer.observe_changes(self.current_frame())
     }
 }
 
@@ -75,24 +136,24 @@ mod tests {
     fn test_observer() {
         let mut value = Observed::new(17);
         let mut current_frame = 0;
-        
+
         assert!(value.observe_changes(current_frame));
         assert!(value.observe_changes(current_frame));
         assert!(value.observe_changes(current_frame));
-        
+
         current_frame += 1;
-        
+
         assert!(value.observe_changes(current_frame) == false);
 
         current_frame += 1;
-        
+
         value += 123;
 
         assert!(value.observe_changes(current_frame));
         assert!(value.observe_changes(current_frame));
-        
+
         current_frame += 1;
-        
+
         assert!(value.observe_changes(current_frame) == false);
 
         current_frame += 1;
@@ -137,14 +198,22 @@ impl_binary_ops!(Shr, shr, ShrAssign, shr_assign);
 impl<T: Neg> Neg for Observed<T> {
     type Output = Observed<T::Output>;
     fn neg(self) -> Self::Output {
-        Observed { value: -self.value, change_state: ChangeState::Changed }
+        Observed {
+            value: -self.value,
+            change_state: ChangeState::Changed,
+            observer_id: self.observer_id,
+        }
     }
 }
 
 impl<T: Not> Not for Observed<T> {
     type Output = Observed<T::Output>;
     fn not(self) -> Self::Output {
-        Observed { value: !self.value, change_state: ChangeState::Changed }
+        Observed {
+            value: !self.value,
+            change_state: ChangeState::Changed,
+            observer_id: self.observer_id,
+        }
     }
 }
 
@@ -153,6 +222,7 @@ impl<T: Clone> Clone for Observed<T> {
         Observed {
             value: self.value.clone(),
             change_state: self.change_state,
+            observer_id: self.observer_id,
         }
     }
 }
@@ -164,6 +234,7 @@ impl<T: Default> Default for Observed<T> {
         Observed {
             value: T::default(),
             change_state: ChangeState::Changed,
+            observer_id: None,
         }
     }
 }
