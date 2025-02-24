@@ -397,24 +397,14 @@ impl Ui {
 
     fn place_children_stack(&mut self, i: NodeI, stack: Stack) {
         let (main, cross) = (stack.axis, stack.axis.other());
-        let mut containing_rect = self.nodes[i].rect;
-        
-        for axis in [X, Y] {
-            if self.nodes[i].params.layout.scrollable[axis] {
-                let scroll_offset = self.nodes[i].scroll.absolute_offset(axis);
-                containing_rect[axis][0] += scroll_offset;
-                containing_rect[axis][1] += scroll_offset;
-            }
-        }
+        let stack_rect = self.nodes[i].rect;
 
         let padding = self.pixels_to_frac2(self.nodes[i].params.layout.padding);
         let spacing = self.pixels_to_frac(stack.spacing, stack.axis);
         
         // On the main axis, totally ignore the children's chosen Position's and place them according to our own Stack::Arrange value.
-
-        // collect all the children sizes in a vec
+        
         let n = self.nodes[i].n_children;
-
         let mut total_size = 0.0;
         for_each_child!(self, self.nodes[i], child, {
             total_size += self.nodes[child].size[main];
@@ -424,11 +414,12 @@ impl Ui {
             total_size += spacing * (n - 1) as f32;
         }
 
-        let mut main_origin = match stack.arrange {
-            Arrange::Start => containing_rect[main][0] + padding[main],
-            Arrange::End => containing_rect[main][1] + padding[main] - total_size,
+        let mut content_bounds = XyRect::new_symm([f32::MAX, f32::MIN]);
+        let mut main_origin = match stack.arrange { //todo: rename
+            Arrange::Start => stack_rect[main][0] + padding[main],
+            Arrange::End => stack_rect[main][1] + padding[main] - total_size,
             Arrange::Center => {
-                let center = (containing_rect[main][1] + containing_rect[main][0]) / 2.0 - 2.0 * padding[main];
+                let center = (stack_rect[main][1] + stack_rect[main][0]) / 2.0 - 2.0 * padding[main];
                 center - total_size / 2.0
             },
             _ => todo!(),
@@ -439,23 +430,23 @@ impl Ui {
 
             match self.nodes[child].params.layout.position[cross] {
                 Position::Center => {
-                    let origin = (containing_rect[cross][1] + containing_rect[cross][0]) / 2.0;
+                    let origin = (stack_rect[cross][1] + stack_rect[cross][0]) / 2.0;
                     self.nodes[child].rect[cross] = [
                         origin - child_size[cross] / 2.0 ,
                         origin + child_size[cross] / 2.0 ,
                     ];  
                 },
                 Position::Start => {
-                    let origin = containing_rect[cross][0] + padding[cross];
+                    let origin = stack_rect[cross][0] + padding[cross];
                     self.nodes[child].rect[cross] = [origin, origin + child_size[cross]];         
                 },
                 Position::Static(len) => {
-                    let static_pos = self.len_to_frac_of_size(len, containing_rect.size(), cross);
-                    let origin = containing_rect[cross][0] + padding[cross] + static_pos;
+                    let static_pos = self.len_to_frac_of_size(len, stack_rect.size(), cross);
+                    let origin = stack_rect[cross][0] + padding[cross] + static_pos;
                     self.nodes[child].rect[cross] = [origin, origin + child_size[cross]];  
                 },
                 Position::End => {
-                    let origin = containing_rect[cross][1] - padding[cross];
+                    let origin = stack_rect[cross][1] - padding[cross];
                     self.nodes[child].rect[cross] = [origin - child_size[cross], origin];
                 },
             }
@@ -463,7 +454,15 @@ impl Ui {
             self.nodes[child].rect[main] = [main_origin, main_origin + child_size[main]];
 
             main_origin += self.nodes[child].size[main] + spacing;
+
+            for axis in [X, Y] {
+                content_bounds[axis][0] = content_bounds[axis][0].min(self.nodes[child].rect[axis][0]);
+                content_bounds[axis][1] = content_bounds[axis][1].max(self.nodes[child].rect[axis][1]);
+            }
         });
+
+        self.nodes[i].scroll.content_bounds = content_bounds;
+        self.set_children_scroll(i);
     }
 
     fn place_children_container(&mut self, i: NodeI) {
@@ -504,8 +503,6 @@ impl Ui {
             }
         });
 
-        self.nodes[i].scroll.limits = self.scroll_limits(i);
-
         self.set_children_scroll(i);
     }
 
@@ -526,12 +523,12 @@ impl Ui {
         for_each_child!(self, self.nodes[i], child, {
             for axis in [X, Y] {
                 if self.nodes[i].params.layout.scrollable[axis] {
-                    let scroll_offset = self.nodes[i].scroll.absolute_offset(axis);
+                    let scroll_offset = self.scroll_offset(i, axis);
                     self.nodes[child].rect[axis][0] += scroll_offset;
                     self.nodes[child].rect[axis][1] += scroll_offset;
                 }
             }
-            self.update_rect(child);
+            // self.update_rect(child);
 
         });
         
@@ -579,13 +576,13 @@ impl Ui {
         let mut containing_rect = rect;
         let mut content_bounding_rect = XyRect::new([f32::MAX, -f32::MAX], [f32::MAX, -f32::MAX]);
 
-        for axis in [X, Y] {
-            if self.nodes[i].params.layout.scrollable[axis] {
-                let scroll_offset = self.nodes[i].scroll.absolute_offset(axis);
-                containing_rect[axis][0] += scroll_offset;
-                containing_rect[axis][1] += scroll_offset;
-            }
-        }
+        // for axis in [X, Y] {
+        //     if self.nodes[i].params.layout.scrollable[axis] {
+        //         let scroll_offset = self.nodes[i].scroll.absolute_offset(axis);
+        //         containing_rect[axis][0] += scroll_offset;
+        //         containing_rect[axis][1] += scroll_offset;
+        //     }
+        // }
         
         let text_id = self.nodes[i].text_id;
         if let Some(text_id) = text_id {
@@ -658,92 +655,44 @@ impl Xy<f32> {
 
 }
 
-impl XyRect {
-    fn update_bounding_rect(&mut self, axis: Axis, child_rect: XyRect) {
-        let child_edge = child_rect[axis][0];
-        if child_edge < self[axis][0] {
-            self[axis][0] = child_edge;
-        }
-
-        let child_edge = child_rect[axis][1];
-        if child_edge > self[axis][1] {
-            self[axis][1] = child_edge;
-        }
-    }
-}
-
 #[derive(Debug)]
 pub(crate) struct Scroll {
-    limits: ScrollLimits,
+    content_bounds: XyRect,
     relative_offset: Xy<f32>,
 }
 impl Scroll {
     pub const ZERO: Scroll = Scroll {
-        limits: ScrollLimits(XyRect::new([0.0, 0.0], [0.0, 0.0])),
         relative_offset: Xy::new(0.0, 0.0),
+        content_bounds: XyRect::new_symm([0.0, 0.0]),
     };
-
-    pub fn update(&mut self, delta: f32, axis: Axis) {
-        let scroll_space = self.limits.scroll_space(axis);
-        if scroll_space <= 0.0 {
-            self.relative_offset[axis] = 0.0;
-        } else {
-            self.relative_offset[axis] += delta / scroll_space;
-            
-            let scroll_space = self.limits.scroll_space(axis);
-            let min_scroll = self.limits.min_scroll(axis) / scroll_space;
-            let max_scroll = self.limits.max_scroll(axis) / scroll_space;
-
-            dbg!(min_scroll, max_scroll, self.relative_offset);
-            let rel_offset = &mut self.relative_offset[axis];
-            *rel_offset = rel_offset.clamp(min_scroll, max_scroll);
-        }
-    }
-
-    pub fn absolute_offset(&self, axis: Axis) -> f32 {
-        let scroll_offset = self.relative_offset[axis];
-        let scroll_space = self.limits.scroll_space(axis);
-        return scroll_offset * scroll_space;
-    }
 }
-
-#[derive(Debug)]
-pub(crate) struct ScrollLimits(XyRect);
-impl ScrollLimits {
-    pub fn min_scroll(&self, axis: Axis) -> f32 {
-        return self.0[axis][0];
-    }
-    pub fn max_scroll(&self, axis: Axis) -> f32 {
-        return self.0[axis][1];
-    }
-    pub fn scroll_space(&self, axis: Axis) -> f32 {
-        return self.max_scroll(axis) - self.min_scroll(axis);
-    }
-}
-
 
 impl Ui {
-    fn scroll_limits(&mut self, i: NodeI) -> ScrollLimits {
-        let mut scroll_limits = XyRect::new([0.0, 0.0], [0.0, 0.0]);
+    pub(crate) fn update_scroll(&mut self, i: NodeI, delta: f32, axis: Axis) {       
+        let real_rect = self.nodes[i].rect;
+        
+        let content_rect = self.nodes[i].scroll.content_bounds;
+        let content_rect_size = content_rect.size()[axis];
 
-        let padding = self.pixels_to_frac2(self.nodes[i].params.layout.padding);
-        let start = self.nodes[i].rect.start() + padding;
-        let end = start + self.nodes[i].content_size + padding;
-        let content_rect: XyRect = XyRect::from_ends(start, end);
+        if content_rect_size <= 0.0 {
+            self.nodes[i].scroll.relative_offset[axis] = 0.0;
+        } else {
+            self.nodes[i].scroll.relative_offset[axis] += delta;
+            
+            let min_scroll = (content_rect[axis][0] - real_rect[axis][0] ) / content_rect_size;
+            let max_scroll = (content_rect[axis][1] - real_rect[axis][1] ) / content_rect_size;
 
-        for axis in [X, Y] {
-            if self.nodes[i].params.layout.scrollable[axis] {
-                let min_scroll = self.nodes[i].rect[axis][1] - content_rect[axis][1];
-                let min_scroll = min_scroll.clamp(-f32::MAX, 0.0);
-                
-                let max_scroll = self.nodes[i].rect[axis][0] - content_rect[axis][0];
-                let max_scroll = max_scroll.clamp(0.0, f32::MAX);
-
-                scroll_limits[axis][0] = min_scroll;
-                scroll_limits[axis][1] = max_scroll;
+            let rel_offset = &mut self.nodes[i].scroll.relative_offset[axis];
+            if min_scroll < max_scroll {
+                *rel_offset = rel_offset.clamp(min_scroll, max_scroll);
             }
         }
-        return ScrollLimits(scroll_limits);
+    }
+
+    pub(crate) fn scroll_offset(&self, i: NodeI, axis: Axis) -> f32 {
+        let scroll_offset = self.nodes[i].scroll.relative_offset[axis];
+        let scroll_space = self.nodes[i].scroll.content_bounds.size()[axis];
+        return scroll_offset * scroll_space;
     }
 }
 

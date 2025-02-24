@@ -23,6 +23,32 @@ impl ExampleLoop for State {
 
             ui.vertical_tabs(&tabs, &mut self.current_tab).nest(|| {
                 match tabs[self.current_tab] {
+                    CHUCK_TAB => {
+
+                        let scroll_area = CONTAINER
+                            // .size_y(Fill)
+                            .size_y(Size::Frac(0.4))
+                            .size_x(Size::Frac(1.0))
+                            .scrollable_y(true)
+                            .padding(0);
+                        
+                        let v_stack = V_STACK
+                            .size_x(Frac(0.8))
+                            .size_y(Size::Frac(0.4))
+                            .scrollable_y(true);
+
+                        // ui.add(scroll_area).nest(|| {
+                            ui.add(v_stack).nest(|| {
+                                ui.static_multiline_label(CHINESE_TEXT);
+                                ui.static_multiline_label(JAPANESE_TEXT);
+                                ui.add(BUTTON.text("useless button"));
+                                ui.static_multiline_label(JAPANESE_TEXT);
+                                ui.static_multiline_label(CHINESE_TEXT);
+                            });
+                        // });
+
+                    },
+
                     SEED_TAB => {
                         ui.add(PANEL.size_symm(FitContent)).nest(|| {
                             ui.add(BUTTON.size_symm(Size::Fill).text("Sneed"));
@@ -33,26 +59,11 @@ impl ExampleLoop for State {
                             });
                         });
                     },
+
                     FEED_TAB => {
                         ui.text("Erm...");
                     }
-                    CHUCK_TAB => {
-                        
-                        let scroll_area = CONTAINER
-                            // .size_y(Fill)
-                            .size_y(Size::Frac(0.9))
-                            .scrollable_y(true)
-                            .padding(0);
 
-                        ui.add(scroll_area).nest(|| {
-                            ui.add(V_STACK).nest(|| {
-                                ui.static_multiline_label(CHINESE_TEXT);
-                                ui.add(BUTTON.text("useless button"));
-                                ui.static_multiline_label(JAPANESE_TEXT);
-                            });
-                        });
-
-                    },
                     _ => {}
                 }
             });
