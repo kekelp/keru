@@ -145,7 +145,7 @@ impl Ui {
                 // newly entered
                 if self.debug_mode() {
                     let (_, hovered_node_i) = self.nodes.get_by_id(&hovered_id).unwrap();
-                    log::info!("Hovering {}", self.format_node_debug_name(hovered_node_i))
+                    log::info!("Debug mode: hovering {}", self.format_node_debug_name(hovered_node_i))
                 }
                 self.end_all_hovering();
                 self.start_hovering(hovered_id);
@@ -380,7 +380,7 @@ impl Ui {
 
         for axis in [X, Y] {
             if self.nodes[i].params.layout.scrollable[axis] {
-                self.nodes[i].scroll.update(delta[axis], axis);
+                self.update_scroll(i, delta[axis], axis);
             };
         }
 
