@@ -503,6 +503,14 @@ impl Ui {
                     },
                 }
             }
+
+            // update content bounds
+            for axis in [X, Y] {
+                let child_rect = self.nodes[child].rect[axis];
+                let c_bounds = &mut self.nodes[i].content_bounds[axis];
+                c_bounds[0] = c_bounds[0].min(child_rect[0]);
+                c_bounds[1] = c_bounds[1].max(child_rect[1]);
+            }
         });
 
         self.set_children_scroll(i);

@@ -26,10 +26,10 @@ impl ExampleLoop for State {
                     CHUCK_TAB => {
 
                         let scroll_area = CONTAINER
-                            // .size_y(Fill)
                             .size_y(Size::Frac(0.4))
-                            .size_x(Size::Frac(1.0))
+                            .size_x(Size::Frac(0.4))
                             .scrollable_y(true)
+                            .scrollable_x(true)
                             .padding(0);
                         
                         let v_stack = V_STACK
@@ -37,15 +37,13 @@ impl ExampleLoop for State {
                             .size_y(Size::Frac(0.4))
                             .scrollable_y(true);
 
-                        // ui.add(scroll_area).nest(|| {
-                            ui.add(v_stack).nest(|| {
-                                ui.static_multiline_label(CHINESE_TEXT);
-                                ui.static_multiline_label(JAPANESE_TEXT);
-                                ui.add(BUTTON.text("useless button"));
-                                ui.static_multiline_label(JAPANESE_TEXT);
-                                ui.static_multiline_label(CHINESE_TEXT);
-                            });
-                        // });
+                        ui.add(v_stack).nest(|| {
+                            ui.static_multiline_label(CHINESE_TEXT);
+                            ui.static_multiline_label(JAPANESE_TEXT);
+                            ui.add(BUTTON.text("useless button"));
+                            ui.static_multiline_label(JAPANESE_TEXT);
+                            ui.static_multiline_label(CHINESE_TEXT);
+                        });
 
                     },
 
