@@ -200,6 +200,13 @@ pub(crate) fn intersect(a: [f32; 2], b: [f32; 2]) -> [f32; 2] {
 pub type XyRect = Xy<[f32; 2]>;
 
 impl XyRect {
+    pub fn from_ends(start: Xy<f32>, end: Xy<f32>) -> XyRect {
+        return XyRect {
+            x: [start[X], end[Y]],
+            y: [start[X], end[Y]],
+        }
+    }
+
     pub fn size(&self) -> Xy<f32> {
         return Xy::new(self[X][1] - self[X][0], self[Y][1] - self[Y][0]);
     }

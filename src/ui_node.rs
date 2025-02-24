@@ -179,7 +179,7 @@ impl<'a> UiNode<'a> {
             
             let str_len = self.ui.format_scratch.len();
             if str_len > 400 {
-                log::info!("Hashing a big string ({} bytes). If possible, consider using static_text and similar functions to avoid hashing.", str_len);
+                // log::info!("Hashing a big string ({} bytes). If possible, consider using static_text and similar functions to avoid hashing.", str_len);
             }
 
             let area = &mut self.ui.sys.text.text_areas[text_id];

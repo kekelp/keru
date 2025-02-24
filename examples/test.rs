@@ -4,7 +4,7 @@ use keru::*;
 
 #[derive(Default)]
 pub struct State {
-    pub curren_tab: usize,
+    pub current_tab: usize,
 }
 
 const SEED_TAB: &str = "Seed";
@@ -19,10 +19,10 @@ impl ExampleLoop for State {
     fn update_ui(&mut self, ui: &mut Ui) {
         ui.subtree().start(|| {
 
-            let tabs = [SEED_TAB, FEED_TAB, CHUCK_TAB];
+            let tabs = [CHUCK_TAB, SEED_TAB, FEED_TAB];
 
-            ui.vertical_tabs(&tabs, &mut self.curren_tab).nest(|| {
-                match tabs[self.curren_tab] {
+            ui.vertical_tabs(&tabs, &mut self.current_tab).nest(|| {
+                match tabs[self.current_tab] {
                     SEED_TAB => {
                         ui.add(PANEL.size_symm(FitContent)).nest(|| {
                             ui.add(BUTTON.size_symm(Size::Fill).text("Sneed"));
@@ -35,15 +35,23 @@ impl ExampleLoop for State {
                     },
                     FEED_TAB => {
                         ui.text("Erm...");
-                    },
+                    }
                     CHUCK_TAB => {
-                        ui.add(V_SCROLL_STACK).nest(|| {
-                            ui.v_stack().nest(|| {
+                        
+                        let scroll_area = CONTAINER
+                            // .size_y(Fill)
+                            .size_y(Size::Frac(0.9))
+                            .scrollable_y(true)
+                            .padding(0);
+
+                        ui.add(scroll_area).nest(|| {
+                            ui.add(V_STACK).nest(|| {
                                 ui.static_multiline_label(CHINESE_TEXT);
                                 ui.add(BUTTON.text("useless button"));
                                 ui.static_multiline_label(JAPANESE_TEXT);
                             });
                         });
+
                     },
                     _ => {}
                 }

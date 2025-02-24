@@ -290,6 +290,8 @@ impl Ui {
             }
         }
 
+        self.nodes[i].content_size = content_size;
+
         // Decide our own size. 
         //   We either use the size that we decided before, or we change our mind to based on children.
         // todo: is we're not fitcontenting, we can skip the update_for_* calls instead, and then remove this, I guess.
@@ -470,7 +472,6 @@ impl Ui {
 
         let padding = self.pixels_to_frac2(self.nodes[i].params.layout.padding);
 
-        let mut content_bounding_rect = XyRect::new([f32::MAX, -f32::MAX], [f32::MAX, -f32::MAX]);
         let mut origin = Xy::<f32>::default();
 
         for_each_child!(self, self.nodes[i], child, {
@@ -500,15 +501,10 @@ impl Ui {
                         ];           
                     },
                 }
-    
-                if self.nodes[i].params.layout.scrollable[axis] {
-                    // todo: try using the remembered content_size and origin instead of doing this
-                    content_bounding_rect.update_bounding_rect(axis, self.nodes[child].rect);
-                }
             }
         });
 
-        self.nodes[i].scroll.limits = self.scroll_limits(i, content_bounding_rect);
+        self.nodes[i].scroll.limits = self.scroll_limits(i);
 
         self.set_children_scroll(i);
     }
@@ -664,14 +660,14 @@ impl Xy<f32> {
 
 impl XyRect {
     fn update_bounding_rect(&mut self, axis: Axis, child_rect: XyRect) {
-        let diff = child_rect[axis][0];
-        if diff < self[axis][0] {
-            self[axis][0] = diff;
+        let child_edge = child_rect[axis][0];
+        if child_edge < self[axis][0] {
+            self[axis][0] = child_edge;
         }
 
-        let diff = child_rect[axis][1];
-        if diff > self[axis][1] {
-            self[axis][1] = diff;
+        let child_edge = child_rect[axis][1];
+        if child_edge > self[axis][1] {
+            self[axis][1] = child_edge;
         }
     }
 }
@@ -689,14 +685,18 @@ impl Scroll {
 
     pub fn update(&mut self, delta: f32, axis: Axis) {
         let scroll_space = self.limits.scroll_space(axis);
-        self.relative_offset[axis] += delta / scroll_space;
+        if scroll_space <= 0.0 {
+            self.relative_offset[axis] = 0.0;
+        } else {
+            self.relative_offset[axis] += delta / scroll_space;
+            
+            let scroll_space = self.limits.scroll_space(axis);
+            let min_scroll = self.limits.min_scroll(axis) / scroll_space;
+            let max_scroll = self.limits.max_scroll(axis) / scroll_space;
 
-        let scroll_space = self.limits.scroll_space(axis);
-        let min_scroll = self.limits.min_scroll(axis) / scroll_space;
-        let max_scroll = self.limits.max_scroll(axis) / scroll_space;
-        let scroll = &mut self.relative_offset[axis];
-        if min_scroll < max_scroll {
-            *scroll = scroll.clamp(min_scroll, max_scroll);
+            dbg!(min_scroll, max_scroll, self.relative_offset);
+            let rel_offset = &mut self.relative_offset[axis];
+            *rel_offset = rel_offset.clamp(min_scroll, max_scroll);
         }
     }
 
@@ -723,15 +723,20 @@ impl ScrollLimits {
 
 
 impl Ui {
-    fn scroll_limits(&mut self, i: NodeI, content_bounding_rect: XyRect) -> ScrollLimits {
+    fn scroll_limits(&mut self, i: NodeI) -> ScrollLimits {
         let mut scroll_limits = XyRect::new([0.0, 0.0], [0.0, 0.0]);
+
+        let padding = self.pixels_to_frac2(self.nodes[i].params.layout.padding);
+        let start = self.nodes[i].rect.start() + padding;
+        let end = start + self.nodes[i].content_size + padding;
+        let content_rect: XyRect = XyRect::from_ends(start, end);
 
         for axis in [X, Y] {
             if self.nodes[i].params.layout.scrollable[axis] {
-                let min_scroll = self.nodes[i].rect[axis][1] - content_bounding_rect[axis][1];
+                let min_scroll = self.nodes[i].rect[axis][1] - content_rect[axis][1];
                 let min_scroll = min_scroll.clamp(-f32::MAX, 0.0);
                 
-                let max_scroll = self.nodes[i].rect[axis][0] - content_bounding_rect[axis][0];
+                let max_scroll = self.nodes[i].rect[axis][0] - content_rect[axis][0];
                 let max_scroll = max_scroll.clamp(0.0, f32::MAX);
 
                 scroll_limits[axis][0] = min_scroll;
