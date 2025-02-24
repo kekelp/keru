@@ -3,11 +3,11 @@ use keru::example_window_loop::*;
 
 #[derive(Default)]
 pub struct State {
-    pub count_1: Observer<i32>,
-    pub show_1: Observer<bool>,
+    pub count_1: Observed<i32>,
+    pub show_1: Observed<bool>,
 
-    pub count_2: Observer<i32>,
-    pub show_2: Observer<bool>,
+    pub count_2: Observed<i32>,
+    pub show_2: Observed<bool>,
 }
 
 fn count_color(count: i32) -> Color {
@@ -16,15 +16,15 @@ fn count_color(count: i32) -> Color {
 }
 
 pub trait CustomComponents {
-    fn counter(&mut self, count: &mut Observer<i32>, show: &mut Observer<bool>, debug_name: &str);
+    fn counter(&mut self, count: &mut Observed<i32>, show: &mut Observed<bool>, debug_name: &str);
 }
 
 impl CustomComponents for Ui {
-    fn counter(&mut self, count: &mut Observer<i32>, show: &mut Observer<bool>, debug_name: &str) {
+    fn counter(&mut self, count: &mut Observed<i32>, show: &mut Observed<bool>, debug_name: &str) {
         
         self.subtree().start(|| {
 
-            let changed = count.changed() || show.changed();
+            let changed = self.observe_changes(count) || self.observe_changes(show);
             reactive(changed, || {
 
                 if is_in_skipped_reactive_block() {

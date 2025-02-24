@@ -409,6 +409,10 @@ impl Ui {
         return &mut self.sys.theme;
     }
 
+    pub fn current_frame(&self) -> u64 {
+        return self.sys.current_frame;
+    }
+
     pub fn push_external_event(&mut self) {
         self.sys.new_external_events = true;
     }
