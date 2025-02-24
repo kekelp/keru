@@ -455,13 +455,7 @@ impl Ui {
 
             main_origin += self.nodes[child].size[main] + spacing;
 
-            // update content bounds
-            for axis in [X, Y] {
-                let child_rect = self.nodes[child].rect[axis];
-                let c_bounds = &mut self.nodes[i].content_bounds[axis];
-                c_bounds[0] = c_bounds[0].min(child_rect[0]);
-                c_bounds[1] = c_bounds[1].max(child_rect[1]);
-            }
+            self.update_content_bounds(i, self.nodes[child].rect);
         });
 
         self.set_children_scroll(i);
@@ -504,16 +498,19 @@ impl Ui {
                 }
             }
 
-            // update content bounds
-            for axis in [X, Y] {
-                let child_rect = self.nodes[child].rect[axis];
-                let c_bounds = &mut self.nodes[i].content_bounds[axis];
-                c_bounds[0] = c_bounds[0].min(child_rect[0]);
-                c_bounds[1] = c_bounds[1].max(child_rect[1]);
-            }
+            self.update_content_bounds(i, self.nodes[child].rect);
         });
 
         self.set_children_scroll(i);
+    }
+
+    #[inline]
+    fn update_content_bounds(&mut self, i: NodeI, content_rect: XyRect) {
+        for axis in [X, Y] {
+            let c_bounds = &mut self.nodes[i].content_bounds[axis];
+            c_bounds[0] = c_bounds[0].min(content_rect[axis][0]);
+            c_bounds[1] = c_bounds[1].max(content_rect[axis][1]);
+        }
     }
 
     // doesnt work lol
@@ -583,9 +580,6 @@ impl Ui {
     fn place_text_inside(&mut self, i: NodeI, rect: XyRect) {
         let padding = self.nodes[i].params.layout.padding;
 
-        let mut containing_rect = rect;
-        let mut content_bounding_rect = XyRect::new([f32::MAX, -f32::MAX], [f32::MAX, -f32::MAX]);
-
         // for axis in [X, Y] {
         //     if self.nodes[i].params.layout.scrollable[axis] {
         //         let scroll_offset = self.nodes[i].scroll.absolute_offset(axis);
@@ -596,8 +590,8 @@ impl Ui {
         
         let text_id = self.nodes[i].text_id;
         if let Some(text_id) = text_id {
-            let left = containing_rect[X][0] * self.sys.unifs.size[X];
-            let top = containing_rect[Y][0] * self.sys.unifs.size[Y];
+            let left = rect[X][0] * self.sys.unifs.size[X];
+            let top = rect[Y][0] * self.sys.unifs.size[Y];
 
             // let right = rect[X][1] * self.sys.unifs.size[X];
             // let bottom =     rect[Y][1] * self.sys.unifs.size[Y];
