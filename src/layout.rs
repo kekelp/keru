@@ -290,8 +290,6 @@ impl Ui {
             }
         }
 
-        self.nodes[i].content_size = content_size;
-
         // Decide our own size. 
         //   We either use the size that we decided before, or we change our mind to based on children.
         // todo: is we're not fitcontenting, we can skip the update_for_* calls instead, and then remove this, I guess.
@@ -372,6 +370,9 @@ impl Ui {
     }
 
     pub(crate) fn recursive_place_children(&mut self, i: NodeI, also_update_rects: bool) {
+        self.nodes[i].content_bounds = XyRect::new_symm([f32::MAX, f32::MIN]);
+
+
         self.sys.partial_relayout_count += 1;
         if let Some(stack) = self.nodes[i].params.stack {
             self.place_children_stack(i, stack);
@@ -414,7 +415,6 @@ impl Ui {
             total_size += spacing * (n - 1) as f32;
         }
 
-        let mut content_bounds = XyRect::new_symm([f32::MAX, f32::MIN]);
         let mut main_origin = match stack.arrange { //todo: rename
             Arrange::Start => stack_rect[main][0] + padding[main],
             Arrange::End => stack_rect[main][1] + padding[main] - total_size,
@@ -455,13 +455,15 @@ impl Ui {
 
             main_origin += self.nodes[child].size[main] + spacing;
 
+            // update content bounds
             for axis in [X, Y] {
-                content_bounds[axis][0] = content_bounds[axis][0].min(self.nodes[child].rect[axis][0]);
-                content_bounds[axis][1] = content_bounds[axis][1].max(self.nodes[child].rect[axis][1]);
+                let child_rect = self.nodes[child].rect[axis];
+                let c_bounds = &mut self.nodes[i].content_bounds[axis];
+                c_bounds[0] = c_bounds[0].min(child_rect[0]);
+                c_bounds[1] = c_bounds[1].max(child_rect[1]);
             }
         });
 
-        self.nodes[i].scroll.content_bounds = content_bounds;
         self.set_children_scroll(i);
     }
 
@@ -657,13 +659,11 @@ impl Xy<f32> {
 
 #[derive(Debug)]
 pub(crate) struct Scroll {
-    content_bounds: XyRect,
     relative_offset: Xy<f32>,
 }
 impl Scroll {
     pub const ZERO: Scroll = Scroll {
         relative_offset: Xy::new(0.0, 0.0),
-        content_bounds: XyRect::new_symm([0.0, 0.0]),
     };
 }
 
@@ -671,7 +671,7 @@ impl Ui {
     pub(crate) fn update_scroll(&mut self, i: NodeI, delta: f32, axis: Axis) {       
         let real_rect = self.nodes[i].rect;
         
-        let content_rect = self.nodes[i].scroll.content_bounds;
+        let content_rect = self.nodes[i].content_bounds;
         let content_rect_size = content_rect.size()[axis];
 
         if content_rect_size <= 0.0 {
@@ -691,7 +691,7 @@ impl Ui {
 
     pub(crate) fn scroll_offset(&self, i: NodeI, axis: Axis) -> f32 {
         let scroll_offset = self.nodes[i].scroll.relative_offset[axis];
-        let scroll_space = self.nodes[i].scroll.content_bounds.size()[axis];
+        let scroll_space = self.nodes[i].content_bounds.size()[axis];
         return scroll_offset * scroll_space;
     }
 }

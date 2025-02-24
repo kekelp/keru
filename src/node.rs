@@ -17,12 +17,13 @@ pub struct Node {
     // Coordinates: who knows???
     pub rect: XyRect,
 
+    // todo: isn't this just the parent's rect?
     pub clip_rect: XyRect,
 
     // partial result when layouting?
     // in probably in fraction of screen units or some trash 
     pub size: Xy<f32>,
-    pub content_size: Xy<f32>,
+    pub content_bounds: XyRect,
 
     pub last_proposed_sizes: ProposedSizes,
 
@@ -82,7 +83,7 @@ impl Node {
             clip_rect: Xy::new_symm([0.0, 1.0]),
 
             size: Xy::new_symm(0.5),
-            content_size: Xy::new_symm(0.5),
+            content_bounds: XyRect::new_symm([0.0, 0.0]),
 
             last_proposed_sizes: ProposedSizes::container(Xy::new_symm(0.5)),
             text_id: None,
@@ -149,7 +150,7 @@ pub const ZERO_NODE_DUMMY: Node = Node {
     clip_rect: Xy::new_symm([0.0, 1.0]),
 
     size: Xy::new_symm(1.0),
-    content_size: Xy::new_symm(1.0),
+    content_bounds: XyRect::new_symm([0.0, 0.0]),
 
     last_proposed_sizes: ProposedSizes::container(Xy::new_symm(1.0)),
 
@@ -199,7 +200,7 @@ pub const NODE_ROOT: Node = Node {
     clip_rect: Xy::new_symm([0.0, 1.0]),
 
     size: Xy::new_symm(1.0),
-    content_size: Xy::new_symm(1.0),
+    content_bounds: XyRect::new_symm([0.0, 0.0]),
 
     last_proposed_sizes: ProposedSizes::container(Xy::new_symm(1.0)),
 
