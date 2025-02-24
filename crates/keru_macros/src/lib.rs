@@ -64,7 +64,7 @@ pub fn node_key(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let debug_name = format!("{}", key_ident);
 
     // todo, use a hash of ident instead of a random number?
-    let random_id: u64 = rand::thread_rng().gen();
+    let random_id: u64 = rand::rng().random();
 
     let expanded = quote! {
         pub const #key_ident: #key_type = <#key_type>::new(

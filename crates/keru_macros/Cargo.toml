@@ -1,7 +1,7 @@
 [package]
 name = "keru_macros"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 description = "Macros for the `keru` crate"
 license = "GPL-3.0-only"
 
@@ -12,7 +12,7 @@ proc-macro = true
 syn = "2.0"
 quote = "1.0"
 proc-macro2 = "1.0"
-rand = "0.8.5"
+rand = "0.9.0"
 
 [lints.clippy]
 needless_return = { level = "allow" } 
