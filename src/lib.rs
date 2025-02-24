@@ -79,7 +79,7 @@
 //! See the ["About"](about) page for more information on this point.
 //! 
 //! 
-//! * In Keru, everything is a node. Whether you want a [button](`BUTTON`), an [image](`IMAGE`), a [text element](`TEXT`), a [stack container](V_STACK), or anything else, the way is always to [`add()`](Ui::add) a node with the right [`NodeParams`][^1].
+//! * In Keru, everything is a node. Whether you want a [button](`BUTTON`), an [image](`IMAGE`), a [text element](`TEXT`), a [stack container](V_STACK), or anything else, the way is always to [`add()`](Ui::add) a node with the right [`NodeParams`].
 //! 
 //! * [`Ui`] has some convenience methods like [`Ui::label()`]. These are always equivalent to [`adding`](Ui::add) one or more nodes with specific [`NodeParams`].
 //! 
@@ -93,7 +93,6 @@
 //! 
 //! * The [`reactive()`] function provides an experimental way to improve performance in complex GUIs with many independent components.
 //! 
-//! [^1]: This is not set in stone. Less general param types like `StackParams` might be added in the future, if I find that they make the API clearer and simpler to learn.
 //! 
 //! ## More information
 //! 
