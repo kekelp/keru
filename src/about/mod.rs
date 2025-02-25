@@ -215,6 +215,14 @@
 //! 
 //! Specifying dependencies explicitly might sound annoying, but there's a natural place to do it: at the beginning of any reusable component function.
 //! 
+//! When running in debug mode, the Ui can actually choose to not skip anything. Instead, it does the hashing anyway, and if it finds a difference in a place where the user asserted that there wouldn't be, it just panics. This should be a good way to spot mistakes in the dependency specification code. This is not implemented, however.
+//! 
+//! 
+//! ### Actual Reactivity
+//! 
+//! Besides that, there's another option: if the [`NodeParams`] builder methods can accept [`Observed<T>`] arguments besides just `T`, then they can keep track of whether they depend on changed or unchanged data. (If the user doesn't want to bother and passes in a raw `T`, the params will get hashed like usual).
+//! 
+//! 
 //! 
 //! ### Inspiration
 //! 
