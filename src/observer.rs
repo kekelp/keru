@@ -23,26 +23,24 @@ enum ChangeState {
 ///
 /// The change state is reset to "unchanged" only at the end of an `Ui` frame. Therefore, different parts of an `Ui` can check the state independently in the same frame, and they will all see the value as "changed".
 ///
-/// # Panics
+/// # Limitations
 ///
-/// An `Observed` value should be only observed by **a single `Ui` instance**.
+/// - An `Observed` value should be only observed by **a single `Ui` instance**.
 ///
-/// In debug mode, `Observed<T>` stores the observing `Ui`'s unique ID and panics if another `Ui`
+///     In debug mode, `Observed<T>` stores the observing `Ui`'s unique ID and panics if another `Ui`
 /// attempts to observe it, even at separate times.
 ///
-/// Since most programs only use a single `Ui` instance, this check is omitted in release mode.
-/// This means that in release mode, observing with multiple `Ui`s will result in unchecked incorrect behavior. Don't use multiple `Ui`s!
+///     Since most programs only use a single `Ui` instance, this check is omitted in release mode.
+///     This means that in release mode, observing with multiple `Ui`s will result in unchecked incorrect behavior. Don't use multiple `Ui`s!
 /// 
-/// # Interior Mutability
-/// 
-/// This type cannot detect changes made through interior mutability or unsafe code.
+/// - This struct cannot keep track of changes made through interior mutability or unsafe code.
 ///
 /// # Example
 ///
 /// See the "reactive" example in the repository.
 ///
 pub struct Observed<T> {
-    // todo: in the future, require Freeze/ShallowImmutable.
+    // todo: in the future, require T: Freeze/ShallowImmutable. (but what we would actually need is DeepImmutable, which probably won't exist)
     value: T,
     change_state: ChangeState,
     #[cfg(debug_assertions)]
@@ -108,15 +106,13 @@ use crate::Ui;
 impl Ui {
     /// Returns `true` if the value wrapped by `observed` was changed since the last frame.
     ///
-    /// # Panics
+    /// # Limitations
     ///
-    /// A given [`Observed`] value can be observed by a single [`Ui`]. Calling this function from different [`Ui`]s with the same `observer` as argument is incorrect.
+    /// - A given [`Observed`] value can be observed by a single [`Ui`]. Calling this function from different [`Ui`]s with the same `observer` as argument is incorrect.
     ///
-    /// In debug mode, doing so will result in a panic. In release mode, **this check is omitted**, and it will result in unchecked incorrect behavior.
+    ///     In debug mode, doing so will result in a panic. In release mode, **this check is omitted**, and it will result in unchecked incorrect behavior.
     /// 
-    /// # Interior Mutability
-    /// 
-    /// This function cannot detect changes made through interior mutability or unsafe code.
+    /// - The `Observed` struct can't keep track of changes made through interior mutability or unsafe code..
     ///
     /// # Example
     /// See the "reactive" example in the repository.
