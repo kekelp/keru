@@ -3,7 +3,6 @@ use crate::color::*;
 use std::hash::{Hash, Hasher};
 use rustc_hash::FxHasher;
 
-#[derive(Debug, Copy, Clone)]
 /// A lightweight struct describing the params of a Ui node.
 /// 
 /// Pass it to [`Ui::add`] to create a node with the given params:
@@ -39,7 +38,7 @@ use rustc_hash::FxHasher;
 /// [`NodeParams`] is a lightweight plain-old-data struct. Methods like [`Self::text()`] allow to associate borrowed data like a `&str` to a [`NodeParams`].
 /// 
 /// The result is a [`FullNodeParams`], a version of this struct that can hold borrowed data. Both versions can be used in the same ways.
-/// 
+#[derive(Debug, Copy, Clone)]
 pub struct NodeParams {
     pub key: Option<NodeKey>,
     pub text_params: Option<TextOptions>,

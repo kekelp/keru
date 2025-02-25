@@ -1,274 +1,99 @@
-use std::clone::Clone;
-use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
-use std::default::Default;
-use std::fmt::{self, Debug, Display};
-use std::hash::{Hash, Hasher};
-use std::ops::{
-    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Deref,
-    DerefMut, Div, DivAssign, Mul, MulAssign, Neg, Not, Rem, RemAssign, Shl, ShlAssign, Shr,
-    ShrAssign, Sub, SubAssign,
-};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::ops::{Deref, DerefMut};
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum ChangeState {
-    Unchanged,
-    Changed,
-    ChangeSeenAtFrame(u64),
-}
+// Global counter for fake timestamps
+static FAKE_TIME: AtomicU64 = AtomicU64::new(0);
 
-/// A wrapper that keeps track of changes to a value.
-///
-/// `Observed<T>` marks itself as changed when modified. A [`Ui`] can check for changes using
-/// [`Ui::observe_changes()`].
-///
-/// The change state is reset to "unchanged" only at the end of an `Ui` frame. Therefore, different parts of an `Ui` can check the state independently in the same frame, and they will all see the value as "changed".
-///
-/// # Limitations
-///
-/// - An `Observed` value should be only observed by **a single `Ui` instance**.
-///
-///     In debug mode, `Observed<T>` stores the observing `Ui`'s unique ID and panics if another `Ui`
-/// attempts to observe it, even at separate times.
-///
-///     Since most programs only use a single `Ui` instance, this check is omitted in release mode.
-///     This means that in release mode, observing with multiple `Ui`s will result in unchecked incorrect behavior. Don't use multiple `Ui`s!
-/// 
-/// - This struct cannot keep track of changes made through interior mutability or unsafe code.
-///
-/// # Example
-///
-/// See the "reactive" example in the repository.
-///
-pub struct Observed<T> {
-    // todo: in the future, require T: Freeze/ShallowImmutable. (but what we would actually need is DeepImmutable, which probably won't exist)
+pub struct Observer<T> {
     value: T,
-    change_state: ChangeState,
-    #[cfg(debug_assertions)]
-    observer_id: Option<u64>,
+    changed_at: u64, // Stores the last counter value when the value was modified
 }
 
-impl<T> Observed<T> {
+impl<T> Observer<T> {
     pub fn new(value: T) -> Self {
-        Observed {
+        Observer {
             value,
-            change_state: ChangeState::Changed,
-            observer_id: None,
+            changed_at: FAKE_TIME.load(Ordering::Relaxed),
         }
     }
 }
 
-impl<T> Deref for Observed<T> {
+impl<T> Deref for Observer<T> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
         &self.value
     }
 }
 
-impl<T> DerefMut for Observed<T> {
+impl<T> DerefMut for Observer<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.change_state = ChangeState::Changed;
+        // Increment the global counter and store the new value
+        self.changed_at = FAKE_TIME.fetch_add(1, Ordering::SeqCst);
         &mut self.value
     }
 }
 
-impl<T> Observed<T> {
-    fn observe_changes(&mut self, current_frame: u64) -> bool {
-        match self.change_state {
-            ChangeState::Unchanged => false,
-            ChangeState::Changed => {
-                self.change_state = ChangeState::ChangeSeenAtFrame(current_frame);
-                true
-            }
-            ChangeState::ChangeSeenAtFrame(frame) => {
-                if frame == current_frame {
-                    true
-                } else {
-                    self.change_state = ChangeState::Unchanged;
-                    false
-                }
-            }
-        }
+impl<T> Observer<T> {
+    pub fn observe_changes(&self, last_frame_end: u64) -> bool {
+        // Check if the value was modified after the renderer's last frame
+        last_frame_end < self.changed_at
     }
-
-    #[cfg(debug_assertions)]
-    fn update_observer_id(&mut self, new_observer_id: u64) {
-        if let Some(existing_id) = self.observer_id {
-            if existing_id != new_observer_id {
-                panic!("Observed<T> cannot be observed by multiple Ui instances.");
-            }
-        } else {
-            self.observer_id = Some(new_observer_id);
-        }
+    pub fn changed_at(&self) -> u64 {
+        self.changed_at
     }
 }
 
-use crate::Ui;
-impl Ui {
-    /// Returns `true` if the value wrapped by `observed` was changed since the last frame.
-    ///
-    /// # Limitations
-    ///
-    /// - A given [`Observed`] value can be observed by a single [`Ui`]. Calling this function from different [`Ui`]s with the same `observer` as argument is incorrect.
-    ///
-    ///     In debug mode, doing so will result in a panic. In release mode, **this check is omitted**, and it will result in unchecked incorrect behavior.
-    /// 
-    /// - The `Observed` struct can't keep track of changes made through interior mutability or unsafe code..
-    ///
-    /// # Example
-    /// See the "reactive" example in the repository.
-    pub fn observe_changes<T>(&self, observer: &mut Observed<T>) -> bool {
-        #[cfg(debug_assertions)]
-        observer.update_observer_id(self.unique_id());
-
-        observer.observe_changes(self.current_frame())
-    }
-}
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    struct TestUi {
+        last_frame_end: u64,
+    }
+
+    impl TestUi {
+        fn new() -> Self {
+            TestUi {
+                last_frame_end: FAKE_TIME.fetch_add(1, Ordering::SeqCst),
+            }
+        }
+
+        fn advance_frame(&mut self) {
+            // Simulate advancing a frame by updating the last_frame_end to the current counter value
+            self.last_frame_end = FAKE_TIME.fetch_add(1, Ordering::SeqCst);
+        }
+    }
+
+
     #[test]
     fn test_observer() {
-        let mut value = Observed::new(17);
-        let mut current_frame = 0;
+        let mut observer = Observer::new(17);
+        let mut renderer1 = TestUi::new();
+        let mut renderer2 = TestUi::new();
 
-        assert!(value.observe_changes(current_frame));
-        assert!(value.observe_changes(current_frame));
-        assert!(value.observe_changes(current_frame));
+        assert!(!observer.observe_changes(renderer1.last_frame_end));
+        assert!(!observer.observe_changes(renderer2.last_frame_end));
 
-        current_frame += 1;
+        *observer += 123;
 
-        assert!(value.observe_changes(current_frame) == false);
+        assert!(observer.observe_changes(renderer1.last_frame_end));
+        assert!(observer.observe_changes(renderer2.last_frame_end));
 
-        current_frame += 1;
+        renderer1.advance_frame();
 
-        value += 123;
+        assert!(!observer.observe_changes(renderer1.last_frame_end));
 
-        assert!(value.observe_changes(current_frame));
-        assert!(value.observe_changes(current_frame));
+        assert!(observer.observe_changes(renderer2.last_frame_end));
 
-        current_frame += 1;
+        renderer2.advance_frame();
 
-        assert!(value.observe_changes(current_frame) == false);
+        assert!(!observer.observe_changes(renderer1.last_frame_end));
+        assert!(!observer.observe_changes(renderer2.last_frame_end));
 
-        current_frame += 1;
+        *observer += 1;
 
-        assert!(value.observe_changes(current_frame) == false);
-        assert!(value.observe_changes(current_frame) == false);
-        assert!(value.observe_changes(current_frame) == false);
-    }
-}
-
-// traits
-
-macro_rules! impl_binary_ops {
-    ($trait:ident, $method:ident, $assign_trait:ident, $assign_method:ident) => {
-        impl<T: $trait<T>> $trait<T> for Observed<T> {
-            type Output = Observed<T::Output>;
-            fn $method(self, rhs: T) -> Self::Output {
-                Observed::new(self.value.$method(rhs))
-            }
-        }
-
-        impl<T: $assign_trait<T>> $assign_trait<T> for Observed<T> {
-            fn $assign_method(&mut self, rhs: T) {
-                self.value.$assign_method(rhs);
-                self.change_state = ChangeState::Changed;
-            }
-        }
-    };
-}
-
-impl_binary_ops!(Add, add, AddAssign, add_assign);
-impl_binary_ops!(Sub, sub, SubAssign, sub_assign);
-impl_binary_ops!(Mul, mul, MulAssign, mul_assign);
-impl_binary_ops!(Div, div, DivAssign, div_assign);
-impl_binary_ops!(Rem, rem, RemAssign, rem_assign);
-impl_binary_ops!(BitAnd, bitand, BitAndAssign, bitand_assign);
-impl_binary_ops!(BitOr, bitor, BitOrAssign, bitor_assign);
-impl_binary_ops!(BitXor, bitxor, BitXorAssign, bitxor_assign);
-impl_binary_ops!(Shl, shl, ShlAssign, shl_assign);
-impl_binary_ops!(Shr, shr, ShrAssign, shr_assign);
-
-impl<T: Neg> Neg for Observed<T> {
-    type Output = Observed<T::Output>;
-    fn neg(self) -> Self::Output {
-        Observed {
-            value: -self.value,
-            change_state: ChangeState::Changed,
-            observer_id: self.observer_id,
-        }
-    }
-}
-
-impl<T: Not> Not for Observed<T> {
-    type Output = Observed<T::Output>;
-    fn not(self) -> Self::Output {
-        Observed {
-            value: !self.value,
-            change_state: ChangeState::Changed,
-            observer_id: self.observer_id,
-        }
-    }
-}
-
-impl<T: Clone> Clone for Observed<T> {
-    fn clone(&self) -> Self {
-        Observed {
-            value: self.value.clone(),
-            change_state: self.change_state,
-            observer_id: self.observer_id,
-        }
-    }
-}
-
-impl<T: Copy> Copy for Observed<T> {}
-
-impl<T: Default> Default for Observed<T> {
-    fn default() -> Self {
-        Observed {
-            value: T::default(),
-            change_state: ChangeState::Changed,
-            observer_id: None,
-        }
-    }
-}
-
-impl<T: Debug> Debug for Observed<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.value.fmt(f)
-    }
-}
-
-impl<T: Display> Display for Observed<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.value.fmt(f)
-    }
-}
-
-impl<T: PartialEq> PartialEq for Observed<T> {
-    fn eq(&self, other: &Self) -> bool {
-        self.value.eq(&other.value)
-    }
-}
-
-impl<T: Eq> Eq for Observed<T> {}
-
-impl<T: PartialOrd> PartialOrd for Observed<T> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.value.partial_cmp(&other.value)
-    }
-}
-
-impl<T: Ord> Ord for Observed<T> {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.value.cmp(&other.value)
-    }
-}
-
-impl<T: Hash> Hash for Observed<T> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.value.hash(state)
+        assert!(observer.observe_changes(renderer1.last_frame_end));
+        assert!(observer.observe_changes(renderer2.last_frame_end));
     }
 }

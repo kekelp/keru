@@ -46,13 +46,10 @@ impl Ui {
                 self.add(tabs_v_stack).nest(|| {
                     for (i, name) in tabs.iter().enumerate() {
                         let key_i = TAB_BUTTON.sibling(i);
-                        let tab = if i == *current_tab {
-                            active_tab
-                        } else {
-                            inactive_tab
-                        };
-                        let tab_i = tab.text(name).key(key_i);
-                        self.add(tab_i);
+                        let active = i == *current_tab;
+                        let tab = if active { active_tab } else { inactive_tab };
+                        let tab = tab.text(name).key(key_i);
+                        self.add(tab);
                     }
                 });
 

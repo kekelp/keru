@@ -40,7 +40,7 @@ impl Stacks {
 
 thread_local! {
     /// Thread local stacks
-    pub static THREAD_STACKS: RefCell<Stacks> = RefCell::new(Stacks::initialize());
+    pub(crate) static THREAD_STACKS: RefCell<Stacks> = RefCell::new(Stacks::initialize());
 }
 
 pub fn push_parent(new_parent: &UiParent) {
