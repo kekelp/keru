@@ -95,6 +95,7 @@ pub(crate) struct System {
 
     pub unifs: Uniforms,
     pub current_frame: u64,
+    pub last_frame_end_fake_time: u64,
 
     pub mouse_hit_stack: Vec<(Id, f32)>,
 
@@ -353,6 +354,7 @@ impl Ui {
                 partial_relayout_count: 0,
 
                 current_frame: FIRST_FRAME,
+                last_frame_end_fake_time: fake_time_now(),
                 unifs: uniforms,
 
                 mouse_hit_stack: Vec::with_capacity(50),

@@ -138,18 +138,6 @@ pub fn last_subtree() -> Option<Id> {
     });
 }
 
-pub(crate) fn bump_current_frame() {
-    THREAD_STACKS.with(|stack| {
-        stack.borrow_mut().current_frame += 1;
-    });
-}
-
-pub(crate) fn current_frame() -> u64 {
-    return THREAD_STACKS.with(|stack| {
-        return stack.borrow().current_frame
-    });
-}
-
 pub fn push_skip_block() {
     THREAD_STACKS.with(|stack| {
         stack.borrow_mut().reactive += 1;
