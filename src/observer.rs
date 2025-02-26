@@ -16,6 +16,18 @@ pub(crate) fn fake_time_now() -> u64 {
     return FAKE_TIME.fetch_add(1, Ordering::Relaxed);
 }
 
+/// A wrapper that keeps track of changes to a value.
+///
+/// `Observer<T>` marks itself as changed when modified. A [`Ui`] can check for changes using
+/// [`Ui::check_changes()`].
+///
+/// # Limitations
+/// 
+/// - This struct cannot keep track of changes made through interior mutability or unsafe code.
+///
+/// # Example
+///
+/// See the "reactive" example in the repository.
 pub struct Observer<T> {
     value: T,
     changed_at: u64,
@@ -53,8 +65,8 @@ impl<T> Observer<T> {
 
 use crate::Ui;
 impl Ui {
-    /// Returns `true` if the value wrapped by `observed` was changed in the last frame.
-    ///
+    /// Returns `true` if the value wrapped by `observer` was changed in the last frame.
+    /// 
     /// # Limitations
     /// 
     /// - The `Observer` struct can't keep track of changes made through interior mutability or unsafe code.
