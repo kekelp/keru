@@ -40,6 +40,14 @@ impl<T> Observer<T> {
             changed_at: fake_time_now(),
         }
     }
+
+    // maybe you want to pass a const into something that uses an observer? In that case, the time should stay at zero, so it's never changed
+    pub const fn new_const(value: T) -> Self {
+        Observer {
+            value,
+            changed_at: 0,
+        }
+    }
 }
 
 impl<T> Deref for Observer<T> {
