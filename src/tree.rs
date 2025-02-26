@@ -158,18 +158,14 @@ impl Ui {
     /// In Keru, everything is a node: buttons, images, text elements, stack containers, etc. are all created by `add`ing a node with the right [`NodeParams`].
     #[track_caller]
     pub fn add(&mut self, params: impl NodeParamsTrait) -> UiParent {
-        if let Some(key) = params.get_params().key {
-            let i = self.add_or_update_node(key);
-            self.get_uinode(i).set_params(params);
-            return self.make_parent_from_i(i);
-        } else {
-            let caller_location_hash = caller_location_hash();
-            let anonymous_key = NodeKey::new(Id(caller_location_hash), "");
-
-            let i = self.add_or_update_node(anonymous_key);
-            self.get_uinode(i).set_params(params);
-            return self.make_parent_from_i(i);
-        }
+        let key = match params.get_params().key {
+            Some(key) => key,
+            None => NodeKey::new(Id(caller_location_hash()), ""),
+        };
+        
+        let i = self.add_or_update_node(key);
+        self.get_uinode(i).set_params(params);
+        return self.make_parent_from_i(i);
     }
 
     /// Returns an [`UiNode`] corresponding to `key`, if it exists.
@@ -219,7 +215,7 @@ impl Ui {
             Entry::Occupied(o) => {
                 let old_map_entry = o.into_mut();
 
-                match refresh_or_add_twin(frame, old_map_entry.last_frame_touched) {
+                match should_refresh_or_add_twin(frame, old_map_entry.last_frame_touched) {
                     // Refresh a normal node from the previous frame (no twins).
                     Refresh => {
                         old_map_entry.refresh(frame);
@@ -316,6 +312,7 @@ impl Ui {
         #[cfg(debug_assertions)]
         if reactive::is_in_skipped_reactive_block() {
             if param_cosmetic_update || param_partial_relayout {
+                // todo: different message for cosmetic/layout
                 log::error!("Keru: incorrect reactive block: the params of node \"{}\" changed, even if a reactive block declared that it shouldn't have.\n Check that the reactive block is correctly checking all the runtime variables that can affect the node's params.", self.node_debug_name(i));
             }
             return;
@@ -479,8 +476,6 @@ impl Ui {
         self.sys.changes.cosmetic_rect_updates.push(i);
     }
 
-    // todo: need_rerender should be on a flag too, not instant, right?
-    // because the text might change on a node that ends up not being place()d
     pub(crate) fn push_text_change(&mut self, i: NodeI) {
         if self.nodes[i].params.is_fit_content() {
             self.set_partial_relayout_flag(i);
@@ -495,8 +490,6 @@ impl Ui {
     /// 
     /// ```rust
     /// # use keru::*;
-    /// # use keru::*;
-    /// #
     /// # pub struct State {
     /// #     pub ui: Ui,
     /// # }
@@ -520,7 +513,7 @@ impl Ui {
         thread_local::clear_parent_stack();
         self.format_scratch.clear();
 
-        // messy manual equivalent of what we'd do when place()ing the root
+        // messy manual equivalent of what we'd do when add()ing the root
         let old_root_hash = self.nodes[ROOT_I].children_hash;
         let root_parent = UiParent::new(ROOT_I, old_root_hash);
         self.nodes[ROOT_I].children_hash = EMPTY_HASH;

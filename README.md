@@ -23,7 +23,7 @@ ui.add(INCREASE)
 // Place the nodes into the tree and define the layout
 ui.v_stack().nest(|| {
     if self.show {
-        ui.place(INCREASE);
+        ui.add(INCREASE);
         ui.label(self.count); // This one doesn't need a key.
     }
 });

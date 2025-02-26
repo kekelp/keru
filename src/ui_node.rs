@@ -137,33 +137,6 @@ impl<'a> UiNode<'a> {
 }
 
 impl<'a> UiNode<'a> {
-    pub(crate) fn _static_text(&mut self, text: &'static str) -> &mut Self {
-        let text_pointer: *const u8 = text.as_ptr();
-
-        if let Some(last_pointer) = self.node().last_static_text_ptr {
-            if text_pointer == last_pointer {
-                return self;
-            }
-        }
-
-        if let Some(text_id) = self.node_mut().text_id {
-            self.ui.sys.text.set_text_unchecked(text_id, text);
-        } else {
-            let text_id = self
-                .ui
-                .sys
-                .text
-                .maybe_new_text_area(Some(text), self.ui.sys.current_frame);
-            self.node_mut().text_id = text_id;
-        }
-
-        self.node_mut().last_static_text_ptr = Some(text_pointer);
-
-        self.ui.push_text_change(self.node_i);
-
-        return self;
-    }
-
     pub(crate) fn text(&mut self, into_text: impl Display) -> &mut Self {
         if is_in_skipped_reactive_block() {
             return self;
@@ -207,30 +180,6 @@ impl<'a> UiNode<'a> {
         return self;
     }
 
-    pub(crate) fn _dyn_text(mut self, into_text: Option<impl Display>) -> Self {
-        // if the text is None, return.
-        let Some(into_text) = into_text else {
-            return self;
-        };
-        
-        self.ui.format_into_scratch(into_text);
-        
-        if let Some(text_id) = self.node_mut().text_id {
-            self.ui.sys.text.set_text_unchecked(text_id, &self.ui.format_scratch);
-        } else {
-            let text_id = self
-                .ui
-                .sys
-                .text
-                .maybe_new_text_area(Some(&self.ui.format_scratch), self.ui.sys.current_frame);
-            self.node_mut().text_id = text_id;
-        }
-
-        self.ui.push_text_change(self.node_i);
-
-        return self;
-    }
-
     // /// Set the node's text attrs to `attrs`.
     // /// 
     // /// `attrs` is a `cosmic_text::Attrs` object. 
@@ -259,7 +208,7 @@ impl<'a> UiNode<'a> {
     // }
 
     // todo: in a sane world, this wouldn't allocate.
-    pub(crate) fn get_text(&self) -> Option<String> {
+    pub fn get_text(&self) -> Option<String> {
         let text_id = self.node().text_id?;
 
         let lines = &self.ui.sys.text.text_areas[text_id].buffer.lines;
