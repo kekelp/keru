@@ -393,7 +393,7 @@ impl Ui {
         self.sys.z_cursor += Z_STEP;
         node.z = self.sys.z_cursor;
 
-        let draw_even_if_invisible = self.sys.debug_mode;
+        let draw_even_if_invisible = self.sys.inspect_mode;
         if let Some(rect) = node.render_rect(draw_even_if_invisible, None) {
             self.sys.rects.push(rect);
             node.last_rect_i = self.sys.rects.len() - 1;
@@ -422,7 +422,7 @@ impl Ui {
     pub(crate) fn update_rect(&mut self, i: NodeI) {
         let node = &mut self.nodes[i];
 
-        let draw_even_if_invisible = self.sys.debug_mode;
+        let draw_even_if_invisible = self.sys.inspect_mode;
         if let Some(rect) = node.render_rect(draw_even_if_invisible, None) {
             let old_i = node.last_rect_i;
             // this panics all the time: big skill issue. solve with the dense maps thing, I guess.

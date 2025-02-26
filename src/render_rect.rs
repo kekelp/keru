@@ -200,7 +200,7 @@ impl Node {
     //     }
 
     //     if let Some(image) = self.imageref {
-    //         // in debug mode, draw invisible rects as well.
+    //         // in inspect mode, draw invisible rects as well.
     //         // usually these have filled = false (just the outline), but this is not enforced.
 
     //         return Some(RenderRect {

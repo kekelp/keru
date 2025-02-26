@@ -143,9 +143,9 @@ impl Ui {
                 // nothing changed, do nothing
             } else {
                 // newly entered
-                if self.debug_mode() {
+                if self.inspect_mode() {
                     let (_, hovered_node_i) = self.nodes.get_by_id(&hovered_id).unwrap();
-                    log::info!("Debug mode: hovering {}", self.node_debug_name(hovered_node_i))
+                    log::info!("Inspect mode: hovering {}", self.node_debug_name(hovered_node_i))
                 }
                 self.end_all_hovering();
                 self.start_hovering(hovered_id);
@@ -350,7 +350,7 @@ impl Ui {
                 if event.state.is_pressed() && self.sys.debug_key_pressed == false {
                     #[cfg(debug_assertions)]
                     {
-                        self.set_debug_mode(!self.debug_mode());
+                        self.set_inspect_mode(!self.inspect_mode());
                         self.sys.new_ui_input = true;
                     }
                 }

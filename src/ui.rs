@@ -61,9 +61,9 @@ pub struct Ui {
 static INSTANCE_COUNTER: AtomicU64 = AtomicU64::new(1);
 
 pub(crate) struct System {
-    // in debug mode, draw invisible rects as well, for example V_STACKs.
+    // in inspect mode, draw invisible rects as well, for example V_STACKs.
     // usually these have filled = false (just the outline), but this is not enforced.
-    pub debug_mode: bool,
+    pub inspect_mode: bool,
 
     pub unique_id: u64,
     pub theme: Theme,
@@ -324,7 +324,7 @@ impl Ui {
                 unique_id: INSTANCE_COUNTER.fetch_add(1, Ordering::Relaxed),
                 z_cursor: 0.0,
                 theme: KERU_DARK,
-                debug_mode: false,
+                inspect_mode: false,
                 debug_key_pressed: false,
 
                 new_ui_input: true,
@@ -403,18 +403,18 @@ impl Ui {
         return &self.sys.base_uniform_buffer;
     }
 
-    /// Set debug mode. When debug mode is active, all nodes will be shown, including stacks and containers. 
-    pub fn set_debug_mode(&mut self, debug_mode: bool) {
-        if self.debug_mode() != debug_mode {
+    /// Set inspect mode. When inspect mode is active, all nodes will be shown, including stacks and containers. 
+    pub fn set_inspect_mode(&mut self, inspect_mode: bool) {
+        if self.inspect_mode() != inspect_mode {
             self.sys.changes.rebuild_all_rects = true;
         }
-        self.sys.debug_mode = debug_mode;
+        self.sys.inspect_mode = inspect_mode;
     }
 
-    /// Get the current debug mode state.
-    /// When debug mode is active, all nodes will be shown, including stacks and containers.
-    pub fn debug_mode(&self) -> bool {
-        return self.sys.debug_mode;
+    /// Get the current inspect mode state.
+    /// When inspect mode is active, all nodes will be shown, including stacks and containers.
+    pub fn inspect_mode(&self) -> bool {
+        return self.sys.inspect_mode;
     }
 
     /// Get a reference to the active theme.
