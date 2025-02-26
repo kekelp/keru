@@ -315,9 +315,10 @@ impl Ui {
         
         #[cfg(debug_assertions)]
         if reactive::is_in_skipped_reactive_block() {
-            if param_cosmetic_update || param_partial_relayout || self.nodes[i].needs_partial_relayout || self.nodes[i].needs_cosmetic_update {
+            if param_cosmetic_update || param_partial_relayout {
                 log::error!("Keru: incorrect reactive block: the params of node \"{}\" changed, even if a reactive block declared that it shouldn't have.\n Check that the reactive block is correctly checking all the runtime variables that can affect the node's params.", self.node_debug_name(i));
             }
+            return;
         }
         
         if self.nodes[i].needs_partial_relayout || param_partial_relayout {
