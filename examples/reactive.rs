@@ -53,15 +53,14 @@ impl CustomComponents for Ui {
                 };
 
                 let increase_button = BUTTON
-                .color(count_color(**count))
-                .text("Increase")
-                .key(INCREASE);
+                    .color(count_color(**count))
+                    .text("Increase")
+                    .key(INCREASE);
     
                 let show_button = BUTTON
                     .color(Color::RED)
                     .text(show_button_text)
                     .key(SHOW);
-
         
                 let decrease_button = BUTTON
                     .text("Decrease")

@@ -315,19 +315,19 @@ impl Ui {
         
         #[cfg(debug_assertions)]
         if reactive::is_in_skipped_reactive_block() {
-            if param_cosmetic_update || param_partial_relayout {
-                panic!("Incorrect reactive block: the params of node \"{}\" changed, even if a reactive block declared that it shouldn't have.", self.node_debug_name(i));
+            if param_cosmetic_update || param_partial_relayout || self.nodes[i].needs_partial_relayout || self.nodes[i].needs_cosmetic_update {
+                log::error!("Keru: incorrect reactive block: the params of node \"{}\" changed, even if a reactive block declared that it shouldn't have.\n Check that the reactive block is correctly checking all the runtime variables that can affect the node's params.", self.node_debug_name(i));
             }
         }
         
-        if self.nodes[i].needs_partial_relayout | param_partial_relayout {
+        if self.nodes[i].needs_partial_relayout || param_partial_relayout {
             self.push_partial_relayout(i);
             self.nodes[i].last_layout_params_hash = layout_params_hash;
             self.nodes[i].needs_partial_relayout = false;
         }
         
         // push cosmetic updates
-        if self.nodes[i].needs_cosmetic_update | param_cosmetic_update{
+        if self.nodes[i].needs_cosmetic_update || param_cosmetic_update{
             self.push_cosmetic_update(i);
             self.nodes[i].last_cosmetic_params_hash = cosmetic_params_hash;
             self.nodes[i].needs_cosmetic_update = false;
