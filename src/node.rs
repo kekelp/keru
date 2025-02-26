@@ -125,7 +125,7 @@ impl Node {
 }
 
 impl Ui {
-    pub(crate) fn format_node_debug_name(&mut self, i: NodeI) -> &str {
+    pub(crate) fn node_debug_name(&mut self, i: NodeI) -> &str {
         self.format_scratch.clear();
         
         if self.nodes[i].debug_key_name != "" {

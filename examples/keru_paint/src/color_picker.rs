@@ -63,16 +63,6 @@ impl ColorPickerUi for Ui {
                 color_picker.need_rerender = true;
             };
 
-            // Wanted reactivity anyway for a laugh?
-            // let changed = color_picker.need_rerender;
-            // // Tell the ui that if `changed` is false, then the whole subtree starting from `CONTAINER` will stay the same as it was before
-            // self.get_node(CONTAINER).assume_unchanged_if(!changed);
-            // // Now we can literally skip the rest of the function (but not the input handling... so we have to write it above)
-            // if ! changed {
-            //     return;
-            // }
-            // todo: actually implement this, and pair it with a nicer observer for the example
-
             let container = KERU_PANEL
                 .size_x(Size::Frac(0.18))
                 .size_y(Size::AspectRatio(1.0));

@@ -501,7 +501,7 @@ pub const SPACER: NodeParams = NodeParams {
     rect: Rect {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
-        visible: true,
+        visible: false,
         outline_only: true,
         vertex_colors: VertexColors::flat(Color::KERU_DEBUG_RED),
     },
@@ -510,7 +510,7 @@ pub const SPACER: NodeParams = NodeParams {
         click_animation: false,
     },
     layout: Layout {
-        size: Xy::new_symm(FitContent),
+        size: Xy::new_symm(Fill),
         position: Xy::new_symm(Center),
         padding: Xy::new_symm(0),
         scrollable: Xy::new(false, false),

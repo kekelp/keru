@@ -302,9 +302,9 @@ impl Ui {
     }
 
     pub(crate) fn check_param_changes(&mut self, i: NodeI) {
+        #[cfg(not(debug_assertions))]
         if reactive::is_in_skipped_reactive_block() {
             return;
-            // todo: in debug mode don't actually return. diff everything anyway, and panic if something changed. 
         }
 
         let cosmetic_params_hash = self.nodes[i].params.cosmetic_update_hash();
@@ -313,6 +313,12 @@ impl Ui {
         let param_cosmetic_update = cosmetic_params_hash != self.nodes[i].last_cosmetic_params_hash;
         let param_partial_relayout = layout_params_hash != self.nodes[i].last_layout_params_hash;
         
+        #[cfg(debug_assertions)]
+        if reactive::is_in_skipped_reactive_block() {
+            if param_cosmetic_update || param_partial_relayout {
+                panic!("Incorrect reactive block: the params of node \"{}\" changed, even if a reactive block declared that it shouldn't have.", self.node_debug_name(i));
+            }
+        }
         
         if self.nodes[i].needs_partial_relayout | param_partial_relayout {
             self.push_partial_relayout(i);
@@ -558,6 +564,12 @@ impl Ui {
     #[track_caller]
     pub fn v_stack(&mut self) -> UiParent {
         return self.add(V_STACK);
+    }
+
+    /// Add a spacer.
+    #[track_caller]
+    pub fn spacer(&mut self) -> UiParent {
+        return self.add(SPACER);
     }
     
     /// Add a horizontal stack container.

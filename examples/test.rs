@@ -49,11 +49,14 @@ impl ExampleLoop for State {
 
                     SEED_TAB => {
                         ui.add(PANEL.size_symm(FitContent)).nest(|| {
-                            ui.add(BUTTON.size_symm(Size::Fill).text("Sneed"));
+                            ui.add(BUTTON.size_symm(Size::Fill).text("Big button"));
             
-                            ui.add(V_STACK).nest(|| {
-                                ui.add(BUTTON.size_y(Size::Frac(0.3)).text("1"));
-                                ui.add(BUTTON.size_y(Size::Frac(0.7)).text("2"));
+                            ui.add(V_STACK.size_y(Fill)).nest(|| {
+                                ui.spacer();
+                                ui.add(BUTTON.size_y(Size::Frac(0.3)).text("Nested button 1"));
+                                ui.spacer();
+                                ui.add(BUTTON.size_y(Size::Frac(0.2)).text("Nested button 2"));
+                                ui.spacer();
                             });
                         });
                     },

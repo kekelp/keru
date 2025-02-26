@@ -25,7 +25,7 @@ impl Ui {
         for idx in 0..self.sys.changes.cosmetic_rect_updates.len() {
             let update = self.sys.changes.cosmetic_rect_updates[idx];
             self.update_rect(update);
-            log::info!("Visual rectangle update ({})", self.format_node_debug_name(update));
+            log::info!("Visual rectangle update ({})", self.node_debug_name(update));
         }
     }
 
@@ -189,7 +189,7 @@ impl Ui {
                 Size::AspectRatio(aspect) => {
                     match self.nodes[i].params.layout.size[axis.other()] {
                         Size::AspectRatio(_second_aspect) => {
-                            let debug_name = self.format_node_debug_name(i);
+                            let debug_name = self.node_debug_name(i);
                             log::warn!("A Size shouldn't be AspectRatio in both dimensions. (node: {})", debug_name);
                         }
                         _ => {
@@ -415,7 +415,7 @@ impl Ui {
             total_size += spacing * (n - 1) as f32;
         }
 
-        let mut main_origin = match stack.arrange { //todo: rename
+        let mut walking_position = match stack.arrange {
             Arrange::Start => stack_rect[main][0] + padding[main],
             Arrange::End => stack_rect[main][1] + padding[main] - total_size,
             Arrange::Center => {
@@ -451,9 +451,9 @@ impl Ui {
                 },
             }
 
-            self.nodes[child].rect[main] = [main_origin, main_origin + child_size[main]];
+            self.nodes[child].rect[main] = [walking_position, walking_position + child_size[main]];
 
-            main_origin += self.nodes[child].size[main] + spacing;
+            walking_position += self.nodes[child].size[main] + spacing;
 
             self.update_content_bounds(i, self.nodes[child].rect);
         });

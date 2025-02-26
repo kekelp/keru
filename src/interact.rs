@@ -145,7 +145,7 @@ impl Ui {
                 // newly entered
                 if self.debug_mode() {
                     let (_, hovered_node_i) = self.nodes.get_by_id(&hovered_id).unwrap();
-                    log::info!("Debug mode: hovering {}", self.format_node_debug_name(hovered_node_i))
+                    log::info!("Debug mode: hovering {}", self.node_debug_name(hovered_node_i))
                 }
                 self.end_all_hovering();
                 self.start_hovering(hovered_id);
@@ -387,6 +387,7 @@ impl Ui {
         if self.nodes[i].params.is_scrollable() {
             self.recursive_place_children(i, true);
             
+            self.resolve_hover();
             self.sys.changes.need_gpu_rect_update = true;
             self.sys.changes.need_rerender = true;
         }
