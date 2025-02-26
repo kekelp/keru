@@ -510,7 +510,6 @@ impl Ui {
         self.nodes[ROOT_I].n_children = 0;
 
         self.sys.current_frame += 1;
-        self.sys.last_frame_end_fake_time = fake_time_now();
         thread_local::clear_parent_stack();
         self.format_scratch.clear();
 
@@ -535,6 +534,9 @@ impl Ui {
         thread_local::pop_parent();
 
         self.relayout();
+        self.sys.second_last_frame_end_fake_time = self.sys.last_frame_end_fake_time;
+        self.sys.last_frame_end_fake_time = fake_time_now();
+
 
         if self.sys.new_ui_input_1_more_frame {
             self.sys.new_ui_input_1_more_frame = false;

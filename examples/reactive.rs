@@ -24,7 +24,7 @@ impl CustomComponents for Ui {
         
         self.subtree().start(|| {
 
-            let changed = self.observe_changes(count) || self.observe_changes(show);
+            let changed = self.check_changes(count) || self.check_changes(show);
             reactive(changed, || {
 
                 if is_in_skipped_reactive_block() {
@@ -38,13 +38,13 @@ impl CustomComponents for Ui {
                 #[node_key] const SHOW: NodeKey;
 
                 if self.is_clicked(SHOW) {
-                    **show = ! **show;
+                    *show = ! *show;
                 }
                 if self.is_clicked(INCREASE) {
-                    **count += 1;
+                    *count += 1;
                 }
                 if self.is_clicked(DECREASE) {
-                    **count -= 1;
+                    *count -= 1;
                 }
 
                 let show_button_text = match **show {
@@ -71,7 +71,7 @@ impl CustomComponents for Ui {
                 self.v_stack().nest(|| {
                     if **show {
                         self.add(increase_button);
-                        self.label(**count);
+                        self.label(*count);
                         self.add(decrease_button);
                     }
                     self.add(show_button);
@@ -87,7 +87,7 @@ impl ExampleLoop for State {
         
         ui.h_stack().nest(|| {
             ui.counter(&mut self.count_1, &mut self.show_1, "1");
-            // ui.counter(&mut self.count_2, &mut self.show_2, "2");
+            ui.counter(&mut self.count_2, &mut self.show_2, "2");
         });
 
     }
