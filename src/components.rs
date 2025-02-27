@@ -2,6 +2,7 @@ use crate as keru;
 use keru::*;
 
 impl Ui {
+    /// A component for vertical tabs
     pub fn vertical_tabs(&mut self, tabs: &[&str], current_tab: &mut usize) -> UiParent {
         #[node_key]
         const TAB_BUTTON: NodeKey;

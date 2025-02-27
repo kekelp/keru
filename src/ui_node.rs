@@ -41,25 +41,6 @@ impl<'a> UiNode<'a> {
         return self;
     }
 
-    /// Add an image to the node.
-    /// 
-    /// If `changed` is `false`, it will assume that the same image as the last frame is being passed, and won't do anything.
-    /// 
-    /// Otherwise, it will assume that it has changed.
-    /// 
-    /// Panics if the byte slice in `image` can't be interpreted as an image.
-    pub(crate) fn dyn_image(&mut self, image: &[u8], changed: bool) -> &mut Self {
-        if self.node_mut().imageref.is_some() && changed == false {
-            return self;
-        }
-
-        let image = self.ui.sys.texture_atlas.allocate_image(image);
-        self.node_mut().imageref = Some(image);
-        self.node_mut().last_static_image_ptr = None;
-
-        return self;
-    }
-
     // This is not a callback, the effect is executed immediately (or never if not clicked)
     // It's this way just for easier builder-style composition
     // You can also do ui.is_clicked(KEY) 

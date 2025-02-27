@@ -1,6 +1,6 @@
 use crate::*;
 use crate::color::*;
-use std::{fmt::Display, hash::{Hash, Hasher}, ops::Deref};
+use std::{fmt::Display, hash::{Hash, Hasher}};
 use rustc_hash::FxHasher;
 
 /// A lightweight struct describing the params of a Ui node.
@@ -413,29 +413,15 @@ impl NodeParams {
 /// A version of [`NodeParams`] that can hold borrowed data.
 /// 
 /// Can be used in the same way as [`NodeParams`].
-pub struct FullNodeParams<'a> {
+pub struct FullNodeParams<'a, T: Display + ?Sized> {
     pub params: NodeParams,
-    pub text: Option<&'a str>,
+    pub text: Option<&'a T>,
     pub text_changed: Changed,
     pub text_ptr: usize,
     pub image: Option<&'static [u8]>,
 }
 
-impl<'a> NodeParamsTrait for FullNodeParams<'a> {
-    fn get_params(&self) -> &NodeParams {
-        return &self.params;
-    }
-
-    fn get_text(&self) -> Option<&str> {
-        return self.text;
-    }
-
-    fn get_image(&self) -> Option<&'static [u8]> {
-        return self.image;
-    }
-}
-
-impl<'a> FullNodeParams<'a> {
+impl<'a, T: Display + ?Sized> FullNodeParams<'a, T> {
     // todo: in a future version of Rust that allows it, change these to take a generic Into<Size>
     pub const fn position(mut self, position_x: Position, position_y: Position) -> Self {
         self.params.layout.position.x = position_x;
@@ -608,7 +594,7 @@ impl<'a> FullNodeParams<'a> {
 
 // todo: static text
 impl NodeParams {
-    pub fn text<'a>(self, text: &'a str) -> FullNodeParams<'a> {
+    pub fn hashed_text<'a>(self, text: &'a str) -> FullNodeParams<'a, str> {
         return FullNodeParams {
             params: self,
             text: Some(text),
@@ -618,7 +604,7 @@ impl NodeParams {
         }
     }
 
-    pub fn static_text(self, text: &'static str) -> FullNodeParams<'static> {
+    pub fn static_text(self, text: &'static str) -> FullNodeParams<'static, str> {
         return FullNodeParams {
             params: self,
             text: Some(text),
@@ -638,7 +624,7 @@ impl NodeParams {
     //     }
     // }
 
-    pub fn static_image(self, image: &'static [u8]) -> FullNodeParams<'static> {
+    pub fn static_image(self, image: &'static [u8]) -> FullNodeParams<'static, str> {
         return FullNodeParams {
             params: self,
             text: None,
@@ -656,53 +642,20 @@ pub enum Changed {
     NeedsHash,
 }
 
-
-pub struct FullNodeParams2<'a, T: Display + ?Sized> {
-    pub params: NodeParams,
-    pub text: Option<&'a T>,
-    pub text_changed: Changed,
-    pub text_ptr: usize,
-    pub image: Option<&'static [u8]>,
-}
-
-impl NodeParams {
-    pub fn text2<'a, T: Display + ?Sized>(self, text: &'a T) -> FullNodeParams2<'a, T> {
-        return FullNodeParams2 {
+impl<'a> Into<FullNodeParams<'a, str>> for NodeParams {
+    fn into(self) -> FullNodeParams<'a, str> {
+        FullNodeParams {
             params: self,
-            text: Some(&text),
+            text: None,
+            text_changed: Changed::Static,
+            text_ptr: 0,
             image: None,
-            text_changed: Changed::NeedsHash,
-            text_ptr: (&raw const text) as usize,
         }
-    }
-
-    pub fn smart_text2<'a, T: Display>(self, text: &'a Observer<T>) -> FullNodeParams2<'a, T> {
-        return FullNodeParams2 {
-            params: self,
-            text: Some(&text),
-            image: None,
-            text_changed: text.changed_at(),
-            text_ptr: (&raw const text) as usize,
-        }
-    }
-}
-
-impl Ui {
-    #[track_caller]
-    pub fn add2<T: Display + ?Sized>(&mut self, params: FullNodeParams2<T>) -> UiParent {
-        let key = match params.params.key {
-            Some(key) => key,
-            None => NodeKey::new(Id(caller_location_hash()), ""),
-        };
-        
-        let i = self.add_or_update_node(key);
-        self.get_uinode(i).set_params2(params);
-        return self.make_parent_from_i(i);
     }
 }
 
 impl<'a> UiNode<'a> {
-    pub(crate) fn set_params2<T: Display + ?Sized>(&mut self, params: FullNodeParams2<T>) -> &mut Self {
+    pub(crate) fn set_params<T: Display + ?Sized>(&mut self, params: FullNodeParams<T>) -> &mut Self {
         self.node_mut().params = params.params;
         if let Some(text) = params.text {
             let text_changed = match params.text_changed {
@@ -740,17 +693,18 @@ impl<'a> UiNode<'a> {
 // In this way, Observer<T> doesn't implement Display on its own, and it works.
 // I might be wrong about this. Pretty good chance actually.
 // However, if that is true, this name is kind of a lie. But it ends up being pretty ok, as long as this is only exposed for Display types anyway.
-pub trait MaybeObserver<T> {
+pub trait MaybeObserver<T: ?Sized> {
     fn value(&self) -> &T;
     fn changed_at(&self) -> Changed;
 }
 
 impl NodeParams {
-    pub fn just_unbelievably_smart_text2<'a, T: Display>(
-        self,
-        text: &'a impl MaybeObserver<T>,
-    ) -> FullNodeParams2<'a, T> {
-        return FullNodeParams2 {
+    pub fn text<'a, T, M>(self, text: &'a M) -> FullNodeParams<'a, T>
+    where
+        T: Display + ?Sized,
+        M: MaybeObserver<T> + ?Sized,
+    {
+        return FullNodeParams {
             params: self,
             text: Some(&text.value()),
             image: None,
@@ -761,7 +715,7 @@ impl NodeParams {
 }
 
 
-impl<T: Display> MaybeObserver<T> for T {
+impl<T: Display + ?Sized> MaybeObserver<T> for T {
     fn value(&self) -> &T {
         self
     }

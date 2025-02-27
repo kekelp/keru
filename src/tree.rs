@@ -107,16 +107,6 @@ impl TextSystem {
         }
     }
 
-    pub(crate) fn set_text_unchecked(&mut self, text_id: usize, text: &str) {
-        let area = &mut self.text_areas[text_id];
-        area.buffer.set_text(
-            &mut self.font_system,
-            text,
-            Attrs::new().family(Family::SansSerif),
-            Shaping::Advanced,
-        );
-    }
-
     pub(crate) fn set_text_attrs(&mut self, text_id: usize, attrs: Attrs) {
         let area = &mut self.text_areas[text_id];
 
@@ -157,12 +147,17 @@ impl Ui {
     /// 
     /// In Keru, everything is a node: buttons, images, text elements, stack containers, etc. are all created by `add`ing a node with the right [`NodeParams`].
     #[track_caller]
-    pub fn add(&mut self, params: impl NodeParamsTrait) -> UiParent {
-        let key = match params.get_params().key {
+    pub fn add<'a, M, T>(&mut self, params: M) -> UiParent
+    where
+        M: Into<FullNodeParams<'a, T>>,
+        T: Display + ?Sized + 'a,
+    {
+        let params = params.into();
+        let key = match params.params.key {
             Some(key) => key,
             None => NodeKey::new(Id(caller_location_hash()), ""),
         };
-        
+
         let i = self.add_or_update_node(key);
         self.get_uinode(i).set_params(params);
         return self.make_parent_from_i(i);
@@ -574,32 +569,30 @@ impl Ui {
 
     /// Add a text element.
     #[track_caller]
-    pub fn text<'a>(&mut self, text: &'a str) -> UiParent {
-        let params = TEXT.text(text);
+    pub fn text(&mut self, text: impl Display) -> UiParent {
+        let params = TEXT.text(&text);
         return self.add(params);
     }
 
     /// Add a multiline text paragraph.
     #[track_caller]
-    pub fn paragraph<'a>(&mut self, text: &'a str) -> UiParent {
-        let params = TEXT_PARAGRAPH.text(text);
+    pub fn paragraph(&mut self, text: impl Display) -> UiParent {
+        let params = TEXT_PARAGRAPH.text(&text);
         return self.add(params);
     }
 
     /// Add a single-line label.
     #[track_caller]
-    pub fn label2<'a>(&mut self, text: &'a str) -> UiParent {
-        let params = LABEL.text(text);
+    pub fn label(&mut self, text: impl Display) -> UiParent {
+        let params = LABEL.text(&text);
         return self.add(params);
     }
 
-    /// Add a label.
+    /// Add a single-line label.
     #[track_caller]
-    pub fn label(&mut self, text: impl Display + Hash) -> UiParent {
-        // todo: ideally FullNodeParams would be able to hold the ref to the impl Display + Hash item?
-        let node = self.add(LABEL);
-        self.get_uinode(node.i).text(text);
-        return node;
+    pub fn multiline_label(&mut self, text: impl Display) -> UiParent {
+        let params = MULTILINE_LABEL.text(&text);
+        return self.add(params);
     }
 
     /// Returns `true` if a node corresponding to `key` exists and if it is currently part of the GUI tree. 
@@ -701,45 +694,3 @@ pub(crate) fn start_info_log_timer() -> Option<std::time::Instant> {
         None
     }
 }
-
-/// A trait implemented by both [`NodeParams`] and [`FullNodeParams`], allowing them to be used interchangeably.
-pub trait NodeParamsTrait {
-    fn get_params(&self) -> &NodeParams;
-
-    fn get_text(&self) -> Option<&str>;
-    
-    fn get_image(&self) -> Option<&'static [u8]>;
-}
-
-impl NodeParamsTrait for NodeParams {
-    fn get_params(&self) -> &NodeParams {
-        return &self;
-    }
-
-    fn get_text(&self) -> Option<&str> {
-        return None;
-    }
-    
-    fn get_image(&self) -> Option<&'static [u8]> {
-        return None;
-    }
-}
-
-impl<'a> UiNode<'a> {
-    pub(crate) fn set_params(&mut self, params: impl NodeParamsTrait) -> &mut Self {
-        self.node_mut().params = *params.get_params();
-        
-        if let Some(text) = params.get_text() {
-            self.text(text);
-        }
-        
-        if let Some(image) = params.get_image() {
-            self.static_image(image);
-        }
-
-        self.ui.check_param_changes(self.node_i);
-
-        return self;
-    }
-}
-

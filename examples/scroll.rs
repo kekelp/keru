@@ -37,12 +37,12 @@ impl ExampleLoop for State {
                 ui.add(small_panel).nest(|| {
                     ui.add(scroll_area).nest(|| {
                         ui.v_stack().nest(|| {
-                            ui.label2(LATIN_TEXT);
-                            ui.label2(RUSSIAN_TEXT);
-                            ui.label2(CHINESE_TEXT);
+                            ui.label(LATIN_TEXT);
+                            ui.label(RUSSIAN_TEXT);
+                            ui.label(CHINESE_TEXT);
                             ui.add(BUTTON.text("useless button"));
-                            ui.label2(JAPANESE_TEXT);
-                            ui.label2(ARABIC_TEXT);
+                            ui.label(JAPANESE_TEXT);
+                            ui.label(ARABIC_TEXT);
                         });
                     });
                 });

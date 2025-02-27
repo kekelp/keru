@@ -24,29 +24,11 @@ impl Hash for Len {
 }
 
 impl Ui {
-    pub(crate) fn to_pixels(&self, len: Len, axis: Axis) -> u32 {
-        match len {
-            Len::Pixels(pixels) => return pixels,
-            Len::Frac(frac) => return (frac * self.sys.unifs.size[axis]) as u32,
-        }
-    }
-
     pub(crate) fn f32_size_to_pixels2(&self, size: Xy<f32>) -> Xy<u32> {
         return Xy::new(
             (size.x * self.sys.unifs.size[X]) as u32,
             (size.y * self.sys.unifs.size[Y]) as u32
         );
-    }
-
-    pub(crate) fn to_pixels2(&self, len: Xy<Len>) -> Xy<u32> {
-        return Xy::new(self.to_pixels(len.x, X), self.to_pixels(len.y, Y));
-    }
-
-    pub(crate) fn to_frac(&self, len: Len, axis: Axis) -> f32 {
-        match len {
-            Len::Pixels(pixels) => return (pixels as f32) / self.sys.unifs.size[axis],
-            Len::Frac(frac) => return frac,
-        }
     }
 
     pub(crate) fn pixels_to_frac(&self, pixels: u32, axis: Axis) -> f32 {
@@ -68,10 +50,6 @@ impl Ui {
             self.f32_pixels_to_frac(pixels.x, X),
             self.f32_pixels_to_frac(pixels.y, Y),
         );
-    }
-
-    pub(crate) fn to_frac2(&self, len: Xy<Len>) -> Xy<f32> {
-        return Xy::new(self.to_frac(len.x, X), self.to_frac(len.y, Y));
     }
 
     pub(crate) fn len_to_frac_of_size(&self, len: Len, parent: Xy<f32>, axis: Axis) -> f32 {

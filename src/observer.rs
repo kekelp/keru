@@ -1,7 +1,7 @@
 use std::clone::Clone;
 use std::cmp::{Eq, Ord, PartialEq, PartialOrd};
 use std::default::Default;
-use std::fmt::{self, Debug, Display};
+use std::fmt::{self, Debug};
 use std::hash::{Hash, Hasher};
 use std::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Deref,

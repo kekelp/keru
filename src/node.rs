@@ -35,7 +35,6 @@ pub struct Node {
 
     pub imageref: Option<ImageRef>,
     pub last_static_image_ptr: Option<*const u8>,
-    pub last_static_text_ptr: Option<*const u8>,
 
     pub last_text_ptr: usize,
 
@@ -94,7 +93,6 @@ impl Node {
 
             imageref: None,
             last_static_image_ptr: None,
-            last_static_text_ptr: None,
             last_text_ptr: 0,
 
             parent: NodeI::from(12312355), // just a wrong value which will be overwritten. it's even worse here.
@@ -162,7 +160,6 @@ pub const ZERO_NODE_DUMMY: Node = Node {
 
     imageref: None,
     last_static_image_ptr: None,
-    last_static_text_ptr: None,
     last_text_ptr: 0,
 
 
@@ -214,7 +211,6 @@ pub const NODE_ROOT: Node = Node {
 
     imageref: None,
     last_static_image_ptr: None,
-    last_static_text_ptr: None,
     last_text_ptr: 0,
 
 

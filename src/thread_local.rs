@@ -23,7 +23,6 @@ pub struct Stacks {
     pub parents: Vec<StackParent>,
     pub tree_changes: Vec<NodeWithDepth>,
     pub subtrees: Vec<Id>,
-    pub current_frame: u64,
     pub reactive: i32,
 }
 impl Stacks {
@@ -32,7 +31,6 @@ impl Stacks {
             parents: Vec::with_capacity(25),
             subtrees: Vec::with_capacity(10),
             tree_changes: Vec::with_capacity(25),
-            current_frame: 0,
             reactive: 0,
         };
     }
