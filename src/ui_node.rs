@@ -137,6 +137,7 @@ impl<'a> UiNode<'a> {
 }
 
 impl<'a> UiNode<'a> {
+    // todo: remove
     pub(crate) fn text(&mut self, into_text: impl Display) -> &mut Self {
         if is_in_skipped_reactive_block() {
             return self;

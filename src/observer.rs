@@ -30,7 +30,7 @@ pub(crate) fn fake_time_now() -> u64 {
 /// See the "reactive" example in the repository.
 pub struct Observer<T> {
     value: T,
-    changed_at: u64,
+    pub(crate) changed_at: u64,
 }
 
 impl<T> Observer<T> {

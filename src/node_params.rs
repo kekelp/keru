@@ -1,6 +1,6 @@
 use crate::*;
 use crate::color::*;
-use std::hash::{Hash, Hasher};
+use std::{hash::{Hash, Hasher}, ops::Deref};
 use rustc_hash::FxHasher;
 
 /// A lightweight struct describing the params of a Ui node.
@@ -416,6 +416,8 @@ impl NodeParams {
 pub struct FullNodeParams<'a> {
     pub params: NodeParams,
     pub text: Option<&'a str>,
+    pub text_changed: Changed,
+    pub text_ptr: usize,
     pub image: Option<&'static [u8]>,
 }
 
@@ -606,10 +608,22 @@ impl<'a> FullNodeParams<'a> {
 
 // todo: static text
 impl NodeParams {
-    pub fn text<'a>(self, text: &'a str) -> FullNodeParams<'a> {
+    pub fn text_old<'a>(self, text: &'a str) -> FullNodeParams<'a> {
         return FullNodeParams {
             params: self,
             text: Some(text),
+            image: None,
+            text_changed: Changed::NeedsHash,
+            text_ptr: (&raw const text) as usize,
+        }
+    }
+
+    pub fn text<'a>(self, text: &'a (impl AsSmartStr + ?Sized)) -> FullNodeParams<'a> {
+        return FullNodeParams {
+            params: self,
+            text: Some(text.string()),
+            text_changed: text.changed_at(),
+            text_ptr: (&raw const text) as usize,
             image: None,
         }
     }
@@ -619,6 +633,84 @@ impl NodeParams {
             params: self,
             text: None,
             image: Some(image),
+            text_changed: Changed::Static,
+            text_ptr: 0,
         }
     }
 }
+
+
+pub enum Changed {
+    Static,
+    ChangedAt(u64),
+    NeedsHash,
+}
+
+/// A trait for types that can be referenced as text, and optionally track changes.
+///
+/// This is implemented for `&str`, `String`, and any type `T: AsRef<str>`. Since these types don't track changes, the `Ui` will have to hash the text on every update to figure out if it needs to update the rendered UI.
+/// 
+/// This is also implemented for any [`Observer<T>`](Observer) where `T: AsRef<str>`. In this case, the `Ui` can use the information tracked by the observer to avoid unnecessary work.
+/// 
+/// This is implemented for the [`Static`] and [`Unchanging`] wrappers. In this case, the `Ui` assumes that the text never changes.
+pub trait AsSmartStr {
+    fn string(&self) -> &str; 
+    fn changed_at(&self) -> Changed {
+        Changed::NeedsHash
+    }
+}
+
+impl<T: AsRef<str> + ?Sized> AsSmartStr for T {
+    fn string(&self) -> &str {
+        self.as_ref()
+    }
+}
+
+impl<T: AsRef<str>> AsSmartStr for Observer<T> {
+    fn string(&self) -> &str {
+        self.as_ref()
+    }
+
+    fn changed_at(&self) -> Changed {
+        Changed::ChangedAt(self.changed_at)
+    }
+}
+
+pub struct Static(pub &'static str);
+
+impl Deref for Static {
+    type Target = &'static str;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl AsSmartStr for Static {
+    fn string(&self) -> &'static str {
+        &self.0
+    }
+
+    fn changed_at(&self) -> Changed {
+        Changed::Static
+    }
+}
+
+pub struct Unchanging<'a>(&'a str);
+
+impl<'a> Deref for Unchanging<'a> {
+    type Target = &'a str;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<'a> AsSmartStr for Unchanging<'a> {
+    fn string(&self) -> &'a str {
+        &self.0
+    }
+
+    fn changed_at(&self) -> Changed {
+        Changed::Static
+    }
+}
+

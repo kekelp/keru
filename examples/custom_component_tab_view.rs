@@ -94,27 +94,27 @@ impl ExampleLoop for State {
         ui.tab_view(&tabs, &mut self.tab_number).nest(|| {
             match tabs[self.tab_number] {
                 TAB_1 => {
-                    ui.label("Content 1");
+                    ui.label2("Content 1");
                 }
                 TAB_2 => {
-                    ui.label("Content 2");
+                    ui.label2("Content 2");
                 }
                 TAB_3 => {
                     ui.v_stack().nest(|| {
-                        ui.label("Content 3");
-                        ui.label("Content 3");
-                        ui.label("Content 3");
+                        ui.label2("Content 3");
+                        ui.label2("Content 3");
+                        ui.label2("Content 3");
                     });
                 }
                 TAB_4 => {
-                    ui.label("Content 4");
+                    ui.label2("Content 4");
                 }
                 TAB_5 => {
                     ui.v_stack().nest(|| {
-                        ui.label("Content 5");
-                        ui.label("Content 5");
-                        ui.label("Content 5");
-                        ui.label("Content 5");
+                        ui.label2("Content 5");
+                        ui.label2("Content 5");
+                        ui.label2("Content 5");
+                        ui.label2("Content 5");
                     });
                 }
                 _ => {}

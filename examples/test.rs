@@ -38,11 +38,11 @@ impl ExampleLoop for State {
                             .scrollable_y(true);
 
                         ui.add(v_stack).nest(|| {
-                            ui.static_multiline_label(CHINESE_TEXT);
-                            ui.static_multiline_label(JAPANESE_TEXT);
+                            ui.paragraph(CHINESE_TEXT);
+                            ui.paragraph(JAPANESE_TEXT);
                             ui.add(BUTTON.text("useless button"));
-                            ui.static_multiline_label(JAPANESE_TEXT);
-                            ui.static_multiline_label(CHINESE_TEXT);
+                            ui.paragraph(JAPANESE_TEXT);
+                            ui.paragraph(CHINESE_TEXT);
                         });
 
                     },

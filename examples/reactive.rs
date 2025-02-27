@@ -67,7 +67,7 @@ impl CustomComponents for Ui {
                 self.v_stack().nest(|| {
                     if **show {
                         self.add(increase_button);
-                        self.label(*count);
+                        self.label2(*count);
                         self.add(decrease_button);
                     }
                     self.add(show_button);

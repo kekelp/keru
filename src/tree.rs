@@ -574,32 +574,23 @@ impl Ui {
 
     /// Add a text element.
     #[track_caller]
-    pub fn text(&mut self, text: impl Display + Hash) -> UiParent {
-        // todo: ideally FullNodeParams would be able to hold the ref to the impl Display + Hash item?
-        let node = self.add(TEXT);
-        self.get_uinode(node.i).text(text);
-        return node;
+    pub fn text<'a>(&mut self, text: &'a (impl AsSmartStr + ?Sized)) -> UiParent {
+        let params = TEXT.text(text);
+        return self.add(params);
     }
 
-    /// Add a text element.
+    /// Add a multiline text paragraph.
     #[track_caller]
-    pub fn static_text(&mut self, text: &'static str) -> UiParent {
-        return self.add(TEXT.text(text));
+    pub fn paragraph<'a>(&mut self, text: &'a (impl AsSmartStr + ?Sized)) -> UiParent {
+        let params = TEXT_PARAGRAPH.text(text);
+        return self.add(params);
     }
 
-    /// Add a text element.
+    /// Add a single-line label.
     #[track_caller]
-    pub fn multiline_text(&mut self, text: impl Display + Hash) -> UiParent {
-        // todo: ideally FullNodeParams would be able to hold the ref to the impl Display + Hash item?
-        let node = self.add(TEXT);
-        self.get_uinode(node.i).text(text);
-        return node;
-    }
-
-    /// Add a text element.
-    #[track_caller]
-    pub fn static_multiline_text(&mut self, text: &'static str) -> UiParent {
-        return self.add(TEXT_PARAGRAPH.text(text));
+    pub fn label2<'a>(&mut self, text: &'a (impl AsSmartStr + ?Sized)) -> UiParent {
+        let params = LABEL.text(text);
+        return self.add(params);
     }
 
     /// Add a label.
@@ -609,12 +600,6 @@ impl Ui {
         let node = self.add(LABEL);
         self.get_uinode(node.i).text(text);
         return node;
-    }
-
-    /// Add a label.
-    #[track_caller]
-    pub fn static_multiline_label(&mut self, text: &'static str) -> UiParent {
-        return self.add(MULTILINE_LABEL.text(text));
     }
 
     /// Returns `true` if a node corresponding to `key` exists and if it is currently part of the GUI tree. 
