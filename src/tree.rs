@@ -574,21 +574,21 @@ impl Ui {
 
     /// Add a text element.
     #[track_caller]
-    pub fn text<'a>(&mut self, text: &'a (impl AsSmartStr + ?Sized)) -> UiParent {
+    pub fn text<'a>(&mut self, text: &'a str) -> UiParent {
         let params = TEXT.text(text);
         return self.add(params);
     }
 
     /// Add a multiline text paragraph.
     #[track_caller]
-    pub fn paragraph<'a>(&mut self, text: &'a (impl AsSmartStr + ?Sized)) -> UiParent {
+    pub fn paragraph<'a>(&mut self, text: &'a str) -> UiParent {
         let params = TEXT_PARAGRAPH.text(text);
         return self.add(params);
     }
 
     /// Add a single-line label.
     #[track_caller]
-    pub fn label2<'a>(&mut self, text: &'a (impl AsSmartStr + ?Sized)) -> UiParent {
+    pub fn label2<'a>(&mut self, text: &'a str) -> UiParent {
         let params = LABEL.text(text);
         return self.add(params);
     }

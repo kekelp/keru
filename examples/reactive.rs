@@ -22,11 +22,11 @@ impl CustomComponents for Ui {
             let changed = self.check_changes(count) || self.check_changes(show);
             reactive(changed, || {
 
-                if is_in_skipped_reactive_block() {
-                    log::warn!("Counter #{} is soft-skipped", debug_name);
-                } else {
-                    log::warn!("Counter #{} updated", debug_name);
-                }
+                // if is_in_skipped_reactive_block() {
+                //     log::warn!("Counter #{} is soft-skipped", debug_name);
+                // } else {
+                //     log::warn!("Counter #{} updated", debug_name);
+                // }
 
                 #[node_key] const INCREASE: NodeKey;
                 #[node_key] const DECREASE: NodeKey;
@@ -64,10 +64,14 @@ impl CustomComponents for Ui {
                     .key(DECREASE);
 
 
+                let label = LABEL.smart_text2(count);
+
+                let label2 = LABEL.static_text("Clueless");
                 self.v_stack().nest(|| {
                     if **show {
                         self.add(increase_button);
-                        self.label2(*count);
+                        self.add2(label);
+                        self.add(label2);
                         self.add(decrease_button);
                     }
                     self.add(show_button);

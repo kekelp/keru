@@ -1,6 +1,6 @@
 use crate::*;
 use crate::color::*;
-use std::{hash::{Hash, Hasher}, ops::Deref};
+use std::{fmt::Display, hash::{Hash, Hasher}, ops::Deref};
 use rustc_hash::FxHasher;
 
 /// A lightweight struct describing the params of a Ui node.
@@ -608,7 +608,7 @@ impl<'a> FullNodeParams<'a> {
 
 // todo: static text
 impl NodeParams {
-    pub fn text_old<'a>(self, text: &'a str) -> FullNodeParams<'a> {
+    pub fn text<'a>(self, text: &'a str) -> FullNodeParams<'a> {
         return FullNodeParams {
             params: self,
             text: Some(text),
@@ -618,15 +618,25 @@ impl NodeParams {
         }
     }
 
-    pub fn text<'a>(self, text: &'a (impl AsSmartStr + ?Sized)) -> FullNodeParams<'a> {
+    pub fn static_text(self, text: &'static str) -> FullNodeParams<'static> {
         return FullNodeParams {
             params: self,
-            text: Some(text.string()),
-            text_changed: text.changed_at(),
-            text_ptr: (&raw const text) as usize,
+            text: Some(text),
             image: None,
+            text_changed: Changed::Static,
+            text_ptr: (&raw const text) as usize,
         }
     }
+
+    // pub fn smart_text<'a>(self, text: &'a Observer<impl AsRef<str>>) -> FullNodeParams<'a> {
+    //     return FullNodeParams {
+    //         params: self,
+    //         text: Some(text.as_ref()),
+    //         text_changed: text.changed_at(),
+    //         text_ptr: (&raw const text) as usize,
+    //         image: None,
+    //     }
+    // }
 
     pub fn static_image(self, image: &'static [u8]) -> FullNodeParams<'static> {
         return FullNodeParams {
@@ -646,71 +656,82 @@ pub enum Changed {
     NeedsHash,
 }
 
-/// A trait for types that can be referenced as text, and optionally track changes.
-///
-/// This is implemented for `&str`, `String`, and any type `T: AsRef<str>`. Since these types don't track changes, the `Ui` will have to hash the text on every update to figure out if it needs to update the rendered UI.
-/// 
-/// This is also implemented for any [`Observer<T>`](Observer) where `T: AsRef<str>`. In this case, the `Ui` can use the information tracked by the observer to avoid unnecessary work.
-/// 
-/// This is implemented for the [`Static`] and [`Unchanging`] wrappers. In this case, the `Ui` assumes that the text never changes.
-pub trait AsSmartStr {
-    fn string(&self) -> &str; 
-    fn changed_at(&self) -> Changed {
-        Changed::NeedsHash
+
+pub struct FullNodeParams2<'a, T: Display + ?Sized> {
+    pub params: NodeParams,
+    pub text: Option<&'a T>,
+    pub text_changed: Changed,
+    pub text_ptr: usize,
+    pub image: Option<&'static [u8]>,
+}
+
+impl NodeParams {
+    pub fn text2<'a, T: Display + ?Sized>(self, text: &'a T) -> FullNodeParams2<'a, T> {
+        return FullNodeParams2 {
+            params: self,
+            text: Some(&text),
+            image: None,
+            text_changed: Changed::NeedsHash,
+            text_ptr: (&raw const text) as usize,
+        }
+    }
+
+    pub fn smart_text2<'a, T: Display>(self, text: &'a Observer<T>) -> FullNodeParams2<'a, T> {
+        return FullNodeParams2 {
+            params: self,
+            text: Some(&text),
+            image: None,
+            text_changed: text.changed_at(),
+            text_ptr: (&raw const text) as usize,
+        }
     }
 }
 
-impl<T: AsRef<str> + ?Sized> AsSmartStr for T {
-    fn string(&self) -> &str {
-        self.as_ref()
+impl Ui {
+    #[track_caller]
+    pub fn add2<T: Display + ?Sized>(&mut self, params: FullNodeParams2<T>) -> UiParent {
+        let key = match params.params.key {
+            Some(key) => key,
+            None => NodeKey::new(Id(caller_location_hash()), ""),
+        };
+        
+        let i = self.add_or_update_node(key);
+        self.get_uinode(i).set_params2(params);
+        return self.make_parent_from_i(i);
     }
 }
 
-impl<T: AsRef<str>> AsSmartStr for Observer<T> {
-    fn string(&self) -> &str {
-        self.as_ref()
-    }
+impl<'a> UiNode<'a> {
+    pub(crate) fn set_params2<T: Display + ?Sized>(&mut self, params: FullNodeParams2<T>) -> &mut Self {
+        self.node_mut().params = params.params;
+        if let Some(text) = params.text {
+            let text_changed = match params.text_changed {
+                Changed::Static => false,
+                Changed::ChangedAt(frame) => frame > self.ui.sys.second_last_frame_end_fake_time,
+                Changed::NeedsHash => true,
+            };
 
-    fn changed_at(&self) -> Changed {
-        Changed::ChangedAt(self.changed_at)
-    }
-}
+            let did_we_even_get_the_same_text_variable = params.text_ptr == self.node().last_text_ptr;
 
-pub struct Static(pub &'static str);
+            let can_we_skip_it = did_we_even_get_the_same_text_variable && (text_changed == false);
 
-impl Deref for Static {
-    type Target = &'static str;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
+            if can_we_skip_it == false {
+                log::warn!("Actually writing");
+                // todo: skip the hashing inside text() when we're sure it changed
+                self.text(text);
+                self.node_mut().last_text_ptr = params.text_ptr;
+            } else {
+                log::warn!("Skipping unchanged display value");
+            }
 
-impl AsSmartStr for Static {
-    fn string(&self) -> &'static str {
-        &self.0
-    }
+        }
+        
+        if let Some(image) = params.image {
+            self.static_image(image);
+        }
 
-    fn changed_at(&self) -> Changed {
-        Changed::Static
-    }
-}
+        self.ui.check_param_changes(self.node_i);
 
-pub struct Unchanging<'a>(&'a str);
-
-impl<'a> Deref for Unchanging<'a> {
-    type Target = &'a str;
-    fn deref(&self) -> &Self::Target {
-        &self.0
+        return self;
     }
 }
-
-impl<'a> AsSmartStr for Unchanging<'a> {
-    fn string(&self) -> &'a str {
-        &self.0
-    }
-
-    fn changed_at(&self) -> Changed {
-        Changed::Static
-    }
-}
-

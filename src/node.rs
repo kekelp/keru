@@ -37,6 +37,8 @@ pub struct Node {
     pub last_static_image_ptr: Option<*const u8>,
     pub last_static_text_ptr: Option<*const u8>,
 
+    pub last_text_ptr: usize,
+
     pub parent: NodeI,
 
     // le epic inline linked list instead of a random Vec somewhere else on the heap
@@ -93,6 +95,7 @@ impl Node {
             imageref: None,
             last_static_image_ptr: None,
             last_static_text_ptr: None,
+            last_text_ptr: 0,
 
             parent: NodeI::from(12312355), // just a wrong value which will be overwritten. it's even worse here.
             // but it's for symmetry with update_node, where all these values are old and are reset.
@@ -160,6 +163,8 @@ pub const ZERO_NODE_DUMMY: Node = Node {
     imageref: None,
     last_static_image_ptr: None,
     last_static_text_ptr: None,
+    last_text_ptr: 0,
+
 
     parent: NodeI::from(91359),
 
@@ -210,6 +215,8 @@ pub const NODE_ROOT: Node = Node {
     imageref: None,
     last_static_image_ptr: None,
     last_static_text_ptr: None,
+    last_text_ptr: 0,
+
 
     parent: NodeI::from(13354246),
 

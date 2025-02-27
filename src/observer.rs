@@ -9,6 +9,7 @@ use std::ops::{
     ShrAssign, Sub, SubAssign,
 };
 use std::sync::atomic::{AtomicU64, Ordering};
+use crate::*;
 
 pub(crate) static FAKE_TIME: AtomicU64 = AtomicU64::new(10);
 pub(crate) fn fake_time_now() -> u64 {
@@ -67,6 +68,10 @@ impl<T> DerefMut for Observer<T> {
 impl<T> Observer<T> {
     pub fn is_changed(&self, last_frame_end: u64) -> bool {
         return self.changed_at > last_frame_end;
+    }
+
+    pub fn changed_at(&self) -> Changed {
+        Changed::ChangedAt(self.changed_at)
     }
 }
 
@@ -168,11 +173,13 @@ impl<T: Debug> Debug for Observer<T> {
     }
 }
 
-impl<T: Display> Display for Observer<T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.value.fmt(f)
-    }
-}
+// not implementing this so that people remember to use smart_text.
+// Pretty cringe.
+// impl<T: Display> Display for Observer<T> {
+//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//         self.value.fmt(f)
+//     }
+// }
 
 impl<T: PartialEq> PartialEq for Observer<T> {
     fn eq(&self, other: &Self) -> bool {
