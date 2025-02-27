@@ -30,7 +30,7 @@ pub(crate) fn fake_time_now() -> u64 {
 ///
 /// See the "reactive" example in the repository.
 pub struct Observer<T> {
-    value: T,
+    pub value: T,
     pub(crate) changed_at: u64,
 }
 
@@ -173,8 +173,7 @@ impl<T: Debug> Debug for Observer<T> {
     }
 }
 
-// not implementing this so that people remember to use smart_text.
-// Pretty cringe.
+// not implementing this, so that we can implement that MaybeObserver trait for all Display types without conflicts.
 // impl<T: Display> Display for Observer<T> {
 //     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 //         self.value.fmt(f)

@@ -64,14 +64,14 @@ impl CustomComponents for Ui {
                     .key(DECREASE);
 
 
-                let label = LABEL.smart_text2(count);
+                let label = LABEL.just_unbelievably_smart_text2(count);
+                let label2 = LABEL.just_unbelievably_smart_text2(&"Clueless");
 
-                let label2 = LABEL.static_text("Clueless");
                 self.v_stack().nest(|| {
                     if **show {
                         self.add(increase_button);
                         self.add2(label);
-                        self.add(label2);
+                        self.add2(label2);
                         self.add(decrease_button);
                     }
                     self.add(show_button);

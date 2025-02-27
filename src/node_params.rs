@@ -735,3 +735,49 @@ impl<'a> UiNode<'a> {
         return self;
     }
 }
+
+// to avoid conflicting impls, MaybeObserver<T> is implemented for all T: Display, not all T in general.
+// In this way, Observer<T> doesn't implement Display on its own, and it works.
+// I might be wrong about this. Pretty good chance actually.
+// However, if that is true, this name is kind of a lie. But it ends up being pretty ok, as long as this is only exposed for Display types anyway.
+pub trait MaybeObserver<T> {
+    fn value(&self) -> &T;
+    fn changed_at(&self) -> Changed;
+}
+
+impl NodeParams {
+    pub fn just_unbelievably_smart_text2<'a, T: Display>(
+        self,
+        text: &'a impl MaybeObserver<T>,
+    ) -> FullNodeParams2<'a, T> {
+        return FullNodeParams2 {
+            params: self,
+            text: Some(&text.value()),
+            image: None,
+            text_changed: text.changed_at(),
+            text_ptr: (&raw const text) as usize,
+        };
+    }
+}
+
+
+impl<T: Display> MaybeObserver<T> for T {
+    fn value(&self) -> &T {
+        self
+    }
+
+    fn changed_at(&self) -> Changed {
+        Changed::NeedsHash
+    }
+}
+
+impl<T: Display> MaybeObserver<T> for Observer<T> {
+    fn value(&self) -> &T {
+        self
+    }
+
+    fn changed_at(&self) -> Changed {
+        self.changed_at()
+    }
+}
+
