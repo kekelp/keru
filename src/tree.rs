@@ -134,6 +134,8 @@ impl Ui {
 
     /// Add a node to the `Ui` with the properties described by `params`.
     /// 
+    /// `params` can be a basic [`NodeParams`] or a [`FullNodeParams`] created from it.
+    /// 
     /// ```rust
     /// # use keru::*;
     /// # fn declare_ui(ui: &mut Ui) {
@@ -145,7 +147,7 @@ impl Ui {
     /// # }
     /// ```
     /// 
-    /// In Keru, everything is a node: buttons, images, text elements, stack containers, etc. are all created by `add`ing a node with the right [`NodeParams`].
+    ///  Buttons, images, text elements, stack containers, etc. are all created by `add`ing a node with the right [`NodeParams`].
     #[track_caller]
     pub fn add<'a, M, T>(&mut self, params: M) -> UiParent
     where

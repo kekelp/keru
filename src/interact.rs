@@ -111,7 +111,7 @@ impl Ui {
 
     /// Returns `true` if the node corresponding to `key` was just clicked with the `mouse_button`.
     /// 
-    /// This is "act on press", you might want [is_click_released()](Self::is_click_released()).
+    /// This is "act on press". For "act on release", use [Ui::is_click_released()].
     pub fn is_mouse_button_clicked(&self, node_key: NodeKey, mouse_button: MouseButton) -> bool {
         return self.sys.mouse_input.clicked(Some(mouse_button), Some(node_key.id_with_subtree()));
     }

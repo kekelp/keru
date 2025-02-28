@@ -242,7 +242,6 @@ impl NodeParams {
         return DEFAULT;
     }
 
-    // todo: in a future version of Rust that allows it, change these to take a generic Into<Size>
     pub const fn position(mut self, position_x: Position, position_y: Position) -> Self {
         self.layout.position.x = position_x;
         self.layout.position.y = position_y;
@@ -410,7 +409,9 @@ impl NodeParams {
     }
 }
 
-/// A version of [`NodeParams`] that can hold borrowed data.
+/// An extended version of [`NodeParams`] that can hold borrowed data.
+/// 
+/// Created starting from a [`NodeParams`] and using methods that add text, images, etc. to it, like [`NodeParams::text()`].
 /// 
 /// Can be used in the same way as [`NodeParams`].
 pub struct FullNodeParams<'a, T: Display + ?Sized> {
@@ -422,7 +423,6 @@ pub struct FullNodeParams<'a, T: Display + ?Sized> {
 }
 
 impl<'a, T: Display + ?Sized> FullNodeParams<'a, T> {
-    // todo: in a future version of Rust that allows it, change these to take a generic Into<Size>
     pub const fn position(mut self, position_x: Position, position_y: Position) -> Self {
         self.params.layout.position.x = position_x;
         self.params.layout.position.y = position_y;
@@ -570,7 +570,7 @@ impl<'a, T: Display + ?Sized> FullNodeParams<'a, T> {
         return self;
     }
 
-    /// Associate a [`NodeKey`] to the [`NodeParams`].
+    /// Add a [`NodeKey`] to the [`NodeParams`].
     /// 
     pub fn key(mut self, key: NodeKey) -> Self {
         self.params.key = Some(key);
@@ -689,16 +689,36 @@ impl<'a> UiNode<'a> {
     }
 }
 
-// to avoid conflicting impls, MaybeObserver<T> is implemented for all T: Display, not all T in general.
-// In this way, Observer<T> doesn't implement Display on its own, and it works.
-// I might be wrong about this. Pretty good chance actually.
-// However, if that is true, this name is kind of a lie. But it ends up being pretty ok, as long as this is only exposed for Display types anyway.
+/// A trait for types that can *optionally* observe changes to themselves and report them to an [`Ui`] for more efficient displaying.
+/// 
+/// This is implemented for regular untracked types (no optimization) and [`Observer`] types. Todo: add some `Static` or `Unchanged` wrappers and implement this.
+/// 
+/// ```
+/// let regular_string = "regular string".to_string();
+/// 
+/// let observed_string = Observer::new("observed string".to_string());
+/// 
+/// // NodeParams::text()'s argument is a MaybeObserver, so can take both a regular String and an Observed<String> 
+/// let label_params = LABEL.text(regular_string); // no optimization
+/// let label_params = LABEL.text(observed_string); // when this is added to the Ui, it will check if it has changed, and potentially skip some work.
+/// ```
+/// 
+/// # Notes
+/// 
+/// The logical thing would be to implement `MaybeObserver` for any `T` and any `Observer<T>`, but this is not possible in current Rust. This problem is mostly solved by implementing it only for the types and traits that are exposed by functions like [`NodeParams::text()`], plus some compromises on [`Observer`]'s `Deref`ing abilities.
 pub trait MaybeObserver<T: ?Sized> {
     fn value(&self) -> &T;
     fn changed_at(&self) -> Changed;
 }
 
 impl NodeParams {
+    /// Add text to the [`NodeParams`].
+    /// 
+    /// The `text` argument can be a `&str`, a `String`, or any type that implements [`Display`].
+    /// 
+    /// It can also be an [`Observer<T>`](Observer) for any `T` that implements [`Display`]. In this case, the [`Observer`]'s information might be used to skip updating the node.
+    /// 
+    /// If a non-[`Observer`] type is used, the [`Ui`] will fall back to hashing the string to determine if the text needs updating.
     pub fn text<'a, T, M>(self, text: &'a M) -> FullNodeParams<'a, T>
     where
         T: Display + ?Sized,

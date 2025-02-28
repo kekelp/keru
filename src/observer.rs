@@ -30,7 +30,7 @@ pub(crate) fn fake_time_now() -> u64 {
 ///
 /// See the "reactive" example in the repository.
 pub struct Observer<T> {
-    pub value: T,
+    pub(crate) value: T,
     pub(crate) changed_at: u64,
 }
 
@@ -49,6 +49,14 @@ impl<T> Observer<T> {
             changed_at: 0,
         }
     }
+
+    pub(crate) fn is_changed(&self, last_frame_end: u64) -> bool {
+        return self.changed_at > last_frame_end;
+    }
+
+    pub(crate) fn changed_at(&self) -> Changed {
+        Changed::ChangedAt(self.changed_at)
+    }
 }
 
 impl<T> Deref for Observer<T> {
@@ -64,17 +72,6 @@ impl<T> DerefMut for Observer<T> {
         &mut self.value
     }
 }
-
-impl<T> Observer<T> {
-    pub fn is_changed(&self, last_frame_end: u64) -> bool {
-        return self.changed_at > last_frame_end;
-    }
-
-    pub fn changed_at(&self) -> Changed {
-        Changed::ChangedAt(self.changed_at)
-    }
-}
-
 
 use crate::Ui;
 impl Ui {

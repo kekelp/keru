@@ -22,11 +22,11 @@ impl CustomComponents for Ui {
             let changed = self.check_changes(count) || self.check_changes(show);
             reactive(changed, || {
 
-                // if is_in_skipped_reactive_block() {
-                //     log::warn!("Counter #{} is soft-skipped", debug_name);
-                // } else {
-                //     log::warn!("Counter #{} updated", debug_name);
-                // }
+                if is_in_skipped_reactive_block() {
+                    log::warn!("Counter #{} is soft-skipped", debug_name);
+                } else {
+                    log::warn!("Counter #{} updated", debug_name);
+                }
 
                 #[node_key] const INCREASE: NodeKey;
                 #[node_key] const DECREASE: NodeKey;
