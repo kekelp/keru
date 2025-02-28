@@ -315,17 +315,15 @@ impl Ui {
             return;
         }
         
-        if self.nodes[i].needs_partial_relayout || param_partial_relayout {
+        if param_partial_relayout {
             self.push_partial_relayout(i);
             self.nodes[i].last_layout_params_hash = layout_params_hash;
-            self.nodes[i].needs_partial_relayout = false;
         }
         
         // push cosmetic updates
-        if self.nodes[i].needs_cosmetic_update || param_cosmetic_update{
+        if param_cosmetic_update{
             self.push_cosmetic_update(i);
             self.nodes[i].last_cosmetic_params_hash = cosmetic_params_hash;
-            self.nodes[i].needs_cosmetic_update = false;
         }
                
     }
@@ -443,10 +441,6 @@ impl Ui {
         };
     }
 
-    pub(crate) fn set_partial_relayout_flag(&mut self, i: NodeI) {
-        self.nodes[i].needs_partial_relayout = true;
-    }
-
     pub(crate) fn push_partial_relayout(&mut self, i: NodeI) {
         let relayout_chain_root = match self.nodes[i].relayout_chain_root {
             Some(root) => root,
@@ -464,18 +458,13 @@ impl Ui {
         self.sys.changes.partial_relayouts.push(relayout_entry);
     }
 
-    // this will be still needed for things like image/texture updates, I think. 
-    pub(crate) fn _set_cosmetic_update_flag(&mut self, i: NodeI) {
-        self.nodes[i].needs_cosmetic_update = true;
-    }
-
     pub(crate) fn push_cosmetic_update(&mut self, i: NodeI) {
         self.sys.changes.cosmetic_rect_updates.push(i);
     }
 
     pub(crate) fn push_text_change(&mut self, i: NodeI) {
         if self.nodes[i].params.is_fit_content() {
-            self.set_partial_relayout_flag(i);
+            self.push_partial_relayout(i);
         } else {
             self.sys.changes.need_rerender = true;
         }
@@ -578,8 +567,19 @@ impl Ui {
 
     /// Add a multiline text paragraph.
     #[track_caller]
-    pub fn paragraph(&mut self, text: impl Display) -> UiParent {
-        let params = TEXT_PARAGRAPH.text(&text);
+    pub fn paragraph<'a, T, M>(&mut self, text: &'a M) -> UiParent 
+    where
+        T: Display + ?Sized,
+        M: MaybeObserver<T> + ?Sized,
+    {
+        let params = TEXT_PARAGRAPH.text(text);
+        return self.add(params);
+    }
+
+    /// Add a multiline text paragraph from a `'static str` .
+    #[track_caller]
+    pub fn static_paragraph(&mut self, text: &'static str) -> UiParent {
+        let params = TEXT_PARAGRAPH.static_text(text);
         return self.add(params);
     }
 

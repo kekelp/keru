@@ -162,33 +162,6 @@ impl<'a> UiNode<'a> {
         return self;
     }
 
-    // /// Set the node's text attrs to `attrs`.
-    // /// 
-    // /// `attrs` is a `cosmic_text::Attrs` object. 
-    // pub fn text_attrs(&mut self, attrs: Attrs) -> &mut Self {
-    //     if let Some(text_id) = self.node_mut().text_id {
-    //         self.ui.sys.text.set_text_attrs(text_id, attrs);
-
-    //         self.ui.set_partial_relayout_flag(self.node_i);
-
-    //     } else {
-    //         // todo: add the text area
-    //     }
-    //     return self;
-    // }
-
-    // /// Set the node's text align to `align`.
-    // /// 
-    // /// `align` is a `cosmic_text::Align` object. 
-    // pub fn text_align(&mut self, align: Align) -> &mut Self {
-    //     if let Some(text_id) = self.node_mut().text_id {
-    //         self.ui.sys.text.set_text_align(text_id, align);
-    //     } else {
-    //         // todo: add the text area
-    //     }
-    //     return self;
-    // }
-
     // todo: in a sane world, this wouldn't allocate.
     pub fn get_text(&self) -> Option<String> {
         let text_id = self.node().text_id?;

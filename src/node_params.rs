@@ -637,9 +637,10 @@ impl NodeParams {
 
 
 pub enum Changed {
-    Static,
     ChangedAt(u64),
     NeedsHash,
+    // isn't this about the same as ChangedAt(0)?
+    Static,
 }
 
 impl<'a> Into<FullNodeParams<'a, str>> for NodeParams {
@@ -755,3 +756,15 @@ impl<T: Display> MaybeObserver<T> for Observer<T> {
     }
 }
 
+// Newtype wrapper
+pub struct Static<T: ?Sized>(pub T);
+
+impl<T: Display + ?Sized> MaybeObserver<T> for Static<T> {
+    fn value(&self) -> &T {
+        &self.0
+    }
+    
+    fn changed_at(&self) -> Changed {
+        Changed::Static
+    }
+}

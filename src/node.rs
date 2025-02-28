@@ -63,8 +63,6 @@ pub struct Node {
     pub hover_timestamp: f32,
     pub z: f32,
 
-    pub needs_cosmetic_update: bool,
-    pub needs_partial_relayout: bool,
     pub last_cosmetic_params_hash: u64,
     pub last_layout_params_hash: u64,
 }
@@ -119,8 +117,6 @@ impl Node {
 
             last_cosmetic_params_hash: 0,
             last_layout_params_hash: 0,
-            needs_cosmetic_update: false,
-            needs_partial_relayout: false,        
         };
     }
 }
@@ -186,8 +182,6 @@ pub const ZERO_NODE_DUMMY: Node = Node {
     children_hash: EMPTY_HASH,
     last_layout_frame: 0,
 
-    needs_cosmetic_update: false,
-    needs_partial_relayout: false,
     last_cosmetic_params_hash: 0,
     last_layout_params_hash: 0,
 };
@@ -238,8 +232,6 @@ pub const NODE_ROOT: Node = Node {
     children_hash: EMPTY_HASH,
     last_layout_frame: 0,
 
-    needs_cosmetic_update: false,
-    needs_partial_relayout: false,
     last_cosmetic_params_hash: 0,
     last_layout_params_hash: 0,
 };

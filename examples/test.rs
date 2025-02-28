@@ -38,11 +38,11 @@ impl ExampleLoop for State {
                             .scrollable_y(true);
 
                         ui.add(v_stack).nest(|| {
-                            ui.paragraph(CHINESE_TEXT);
-                            ui.paragraph(JAPANESE_TEXT);
+                            ui.static_paragraph(CHINESE_TEXT);
+                            ui.static_paragraph(JAPANESE_TEXT);
                             ui.add(BUTTON.text("useless button"));
-                            ui.paragraph(JAPANESE_TEXT);
-                            ui.paragraph(CHINESE_TEXT);
+                            ui.static_paragraph(JAPANESE_TEXT);
+                            ui.static_paragraph(CHINESE_TEXT);
                         });
 
                     },
@@ -53,9 +53,9 @@ impl ExampleLoop for State {
             
                             ui.add(V_STACK.size_y(Fill)).nest(|| {
                                 ui.spacer();
-                                ui.add(BUTTON.size_y(Size::Frac(0.3)).text("Nested button 1"));
+                                ui.add(BUTTON.size_y(Size::Frac(0.3)).static_text("Nested button 1"));
                                 ui.spacer();
-                                ui.add(BUTTON.size_y(Size::Frac(0.2)).text("Nested button 2"));
+                                ui.add(BUTTON.size_y(Size::Frac(0.2)).static_text("Nested button 2"));
                                 ui.spacer();
                             });
                         });
