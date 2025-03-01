@@ -38,18 +38,18 @@ impl ExampleLoop for State {
                             .scrollable_y(true);
 
                         ui.add(v_stack).nest(|| {
-                            ui.static_paragraph(CHINESE_TEXT);
-                            ui.static_paragraph(JAPANESE_TEXT);
-                            ui.add(BUTTON.text("useless button"));
-                            ui.static_paragraph(JAPANESE_TEXT);
-                            ui.static_paragraph(CHINESE_TEXT);
+                            ui.label(&Static(JAPANESE_TEXT));
+                            ui.label(&Static(JAPANESE_TEXT));
+                            ui.add(BUTTON.text(&Static("useless button")));
+                            ui.label(&Static(JAPANESE_TEXT));
+                            ui.label(&Static(CHINESE_TEXT));
                         });
 
                     },
 
                     SEED_TAB => {
                         ui.add(PANEL.size_symm(FitContent)).nest(|| {
-                            ui.add(BUTTON.size_symm(Size::Fill).text("Big button"));
+                            ui.add(BUTTON.size_symm(Size::Fill).static_text("Big button"));
             
                             ui.add(V_STACK.size_y(Fill)).nest(|| {
                                 ui.spacer();
@@ -62,7 +62,7 @@ impl ExampleLoop for State {
                     },
 
                     FEED_TAB => {
-                        ui.text("Erm...");
+                        ui.text_line("Erm...");
                     }
 
                     _ => {}

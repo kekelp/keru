@@ -715,15 +715,14 @@ pub trait MaybeObserver<T: ?Sized> {
 impl NodeParams {
     /// Add text to the [`NodeParams`].
     /// 
-    /// The `text` argument can be a `&str`, a `String`, or any type that implements [`Display`].
+    /// The `text` argument can be a `&str`, a `String`, or any type that implements [`Display`], possibly wrapped by an [`Observer`], [`Static`] or [`Unchanged`] for efficiency.
     /// 
-    /// It can also be an [`Observer<T>`](Observer) for any `T` that implements [`Display`]. In this case, the [`Observer`]'s information might be used to skip updating the node.
     /// 
     /// If a non-[`Observer`] type is used, the [`Ui`] will fall back to hashing the string to determine if the text needs updating.
     pub fn text<'a, T, M>(self, text: &'a M) -> FullNodeParams<'a, T>
     where
-        T: Display + ?Sized,
         M: MaybeObserver<T> + ?Sized,
+        T: Display + ?Sized,
     {
         return FullNodeParams {
             params: self,
@@ -756,10 +755,49 @@ impl<T: Display> MaybeObserver<T> for Observer<T> {
     }
 }
 
-// Newtype wrapper
-pub struct Static<T: ?Sized>(pub T);
+/// A wrapper struct for a `'static` value that will never change during its lifetime.
+/// 
+/// `'static` values can't be mutated except through interior mutability or unsafe code, so this struct is relatively hard to misuse. 
+/// 
+/// ```
+/// let string: &'static str = "this will never change";
+/// 
+/// // Rust doesn't know that `string` is static.
+/// // If we use `params1` to create a node and add it to the Ui,
+/// // the Ui will need to hash the text on every update to make sure it's not changing.  
+/// let params1 = LABEL.text(string); 
+/// 
+/// // If the string is wrapped in `Static`,
+/// // `text()` can tell that this string can never change, and skip some updates. 
+/// let params2 = LABEL.text(&Static(string);
+/// ```
+/// 
+/// If you can guarantee that a non-`'static` variable will not be mutated through its lifetime, you can use [`Unchanged`]: it works the same way as [`Static`], but without an explicit `'static` bound.
+/// 
+/// # Notes
+/// 
+/// This is needed because Rust doesn't support lifetime specialization.
+pub struct Static<T: ?Sized + 'static>(pub &'static T);
 
-impl<T: Display + ?Sized> MaybeObserver<T> for Static<T> {
+impl<T: Display + ?Sized + 'static> MaybeObserver<T> for Static<T> {
+    fn value(&self) -> &T {
+        &self.0
+    }
+    
+    fn changed_at(&self) -> Changed {
+        Changed::Static
+    }
+}
+
+
+/// Same as `Static`, but without an explicit ``static` bound.
+/// 
+/// This struct can wrap any value: it is up to the programmer to ensure that wrapped variables never change. If this assumption is broken, the values displayed in the Ui will get out of sync with the real value of `T`.
+/// 
+/// You can always use an [`Observer<T>`](`Observer`) or a raw `T` to avoid this risk. If a raw `T` is passed, the [`Ui`] will hash the resulting text to make sure it stays synced.
+pub struct Unchanged<T: ?Sized>(pub T);
+
+impl<T: Display + ?Sized> MaybeObserver<T> for Unchanged<T> {
     fn value(&self) -> &T {
         &self.0
     }

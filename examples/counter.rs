@@ -48,7 +48,7 @@ impl ExampleLoop for State {
         ui.v_stack().nest(|| {
             if self.show {
                 ui.add(increase_button);
-                ui.label(self.count);
+                ui.label(&self.count);
                 ui.add(decrease_button);
             }
             ui.add(show_button);

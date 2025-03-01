@@ -523,7 +523,6 @@ impl Ui {
         self.sys.second_last_frame_end_fake_time = self.sys.last_frame_end_fake_time;
         self.sys.last_frame_end_fake_time = fake_time_now();
 
-
         if self.sys.new_ui_input_1_more_frame {
             self.sys.new_ui_input_1_more_frame = false;
             self.sys.new_ui_input = true;
@@ -558,16 +557,27 @@ impl Ui {
         return self.add(H_STACK);
     }
 
-    /// Add a text element.
+    /// Add a single-line text element.
     #[track_caller]
-    pub fn text(&mut self, text: impl Display) -> UiParent {
-        let params = TEXT.text(&text);
+    pub fn text_line<'a, T, M>(&mut self, text: &'a M) -> UiParent
+    where
+        T: Display + ?Sized,
+        M: MaybeObserver<T> + ?Sized,
+    {
+        let params = TEXT.text(text);
+        return self.add(params);
+    }
+
+    /// Add a single-line text element from a `'static str`.
+    #[track_caller]
+    pub fn static_text_line(&mut self, text: &'static str) -> UiParent {
+        let params = TEXT.static_text(text);
         return self.add(params);
     }
 
     /// Add a multiline text paragraph.
     #[track_caller]
-    pub fn paragraph<'a, T, M>(&mut self, text: &'a M) -> UiParent 
+    pub fn paragraph<'a, T, M>(&mut self, text: &'a M) -> UiParent
     where
         T: Display + ?Sized,
         M: MaybeObserver<T> + ?Sized,
@@ -576,24 +586,28 @@ impl Ui {
         return self.add(params);
     }
 
-    /// Add a multiline text paragraph from a `'static str` .
+    /// Add a multiline text paragraph from a `'static str`.
     #[track_caller]
     pub fn static_paragraph(&mut self, text: &'static str) -> UiParent {
         let params = TEXT_PARAGRAPH.static_text(text);
         return self.add(params);
     }
 
-    /// Add a single-line label.
+    /// Add a label.
     #[track_caller]
-    pub fn label(&mut self, text: impl Display) -> UiParent {
-        let params = LABEL.text(&text);
+    pub fn label<'a, T, M>(&mut self, text: &'a M) -> UiParent
+    where
+        T: Display + ?Sized,
+        M: MaybeObserver<T> + ?Sized,
+    {
+        let params = MULTILINE_LABEL.text(text);
         return self.add(params);
     }
 
-    /// Add a single-line label.
+    /// Add a label from a `&static str`.
     #[track_caller]
-    pub fn multiline_label(&mut self, text: impl Display) -> UiParent {
-        let params = MULTILINE_LABEL.text(&text);
+    pub fn static_label(&mut self, text: &'static str) -> UiParent {
+        let params = MULTILINE_LABEL.static_text(text);
         return self.add(params);
     }
 

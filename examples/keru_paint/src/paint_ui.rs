@@ -79,7 +79,7 @@ impl State {
 
         self.ui.add(pixel_panel_2).nest(|| {
             self.ui.v_stack().nest(|| {
-                self.ui.text(&self.format_scratch);
+                self.ui.text_line(&self.format_scratch);
             });
         });
     }
@@ -165,7 +165,7 @@ impl State {
 
         self.ui.add(slider_container).nest(|| {
             self.ui.add(slider_fill);
-            self.ui.text(&self.format_scratch);
+            self.ui.text_line(&self.format_scratch);
         });
 
         self.format_scratch.clear();
