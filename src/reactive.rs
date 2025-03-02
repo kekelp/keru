@@ -30,6 +30,12 @@ use crate::*;
 /// 
 /// Reactive blocks are only useful in complex GUIs, to avoid running a full update on the whole visible GUI when only a part changed.
 pub fn reactive<T>(state_changed: bool, reactive_block: impl FnOnce() -> T) -> T {
+    if state_changed {
+        log::trace!("Reactive block: state changed");
+    } else {
+        log::trace!("Reactive block: state unchanged");
+    }
+
     if ! state_changed {
         thread_local::push_skip_block();
     }
@@ -63,11 +69,11 @@ impl Ui {
             self.get_uinode(i).static_image(image);
         }
         
-        let cosmetic_hash = self.nodes[i].params.cosmetic_hash();
-        let layout_hash = self.nodes[i].params.layout_hash();
+        let new_cosmetic_hash = params.params.cosmetic_hash();
+        let new_layout_hash = params.params.layout_hash();
         
-        let cosmetic_changed = cosmetic_hash != self.nodes[i].last_cosmetic_hash;
-        let layout_changed = layout_hash != self.nodes[i].last_layout_hash;
+        let cosmetic_changed = new_cosmetic_hash != self.nodes[i].last_cosmetic_hash;
+        let layout_changed = new_layout_hash != self.nodes[i].last_layout_hash;
 
         #[cfg(debug_assertions)]
         if reactive::is_in_skipped_reactive_block() {
@@ -78,7 +84,6 @@ impl Ui {
                     (false, true) => "appearance",
                     _ => unreachable!()
                 };
-                // dbg!(self.nodes[i].params.rect.vertex_colors, params.params.rect.vertex_colors);
                 // dbg!(self.nodes[i].params.cosmetic_hash(), params.params.cosmetic_hash());
                 // dbg!(self.nodes[i].last_cosmetic_hash);
                 // dbg!(self.nodes[i].params.rect.vertex_colors == params.params.rect.vertex_colors);
@@ -92,8 +97,8 @@ impl Ui {
         // some off-by-one-frame errors or something. see notes.
         self.nodes[i].params = params.params;
 
-        self.nodes[i].last_cosmetic_hash = cosmetic_hash;
-        self.nodes[i].last_layout_hash = layout_hash;
+        self.nodes[i].last_cosmetic_hash = new_cosmetic_hash;
+        self.nodes[i].last_layout_hash = new_layout_hash;
 
         if layout_changed {
             self.push_partial_relayout(i);

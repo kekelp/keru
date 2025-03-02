@@ -81,7 +81,7 @@ impl Ui {
     /// # Example
     /// See the "reactive" example in the repository.
     pub fn check_changes<T>(&self, observer: &mut Observer<T>) -> bool {
-        return observer.changed_at > self.sys.second_last_frame_end_fake_time;
+        return observer.changed_at > self.sys.third_last_frame_end_fake_time;
     }
 }
 

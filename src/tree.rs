@@ -482,6 +482,7 @@ impl Ui {
         thread_local::pop_parent();
 
         self.relayout();
+        self.sys.third_last_frame_end_fake_time = self.sys.second_last_frame_end_fake_time;
         self.sys.second_last_frame_end_fake_time = self.sys.last_frame_end_fake_time;
         self.sys.last_frame_end_fake_time = fake_time_now();
 

@@ -97,6 +97,7 @@ pub(crate) struct System {
     pub current_frame: u64,
     pub last_frame_end_fake_time: u64,
     pub second_last_frame_end_fake_time: u64,
+    pub third_last_frame_end_fake_time: u64,
 
     pub mouse_hit_stack: Vec<(Id, f32)>,
 
@@ -313,8 +314,9 @@ impl Ui {
 
         let nodes = Nodes::new();
 
-        let second_last_frame_end_fake_time = 0;
-        let last_frame_end_fake_time = 1;
+        let third_last_frame_end_fake_time = 3;
+        let second_last_frame_end_fake_time = 4;
+        let last_frame_end_fake_time = 5;
 
         Self {
             nodes,
@@ -358,8 +360,10 @@ impl Ui {
                 partial_relayout_count: 0,
 
                 current_frame: FIRST_FRAME,
+                third_last_frame_end_fake_time,
                 second_last_frame_end_fake_time,
                 last_frame_end_fake_time,
+
                 unifs: uniforms,
 
                 mouse_hit_stack: Vec::with_capacity(50),

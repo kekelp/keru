@@ -719,6 +719,27 @@ impl Ui {
 
         self.format_into_scratch(text);
 
+        // todo: we're doing the hash twice in debug mode to do this check
+        #[cfg(debug_assertions)]
+        if reactive::is_in_skipped_reactive_block() {
+            let hash = fx_hash(&self.format_scratch);
+            let mut error = false;
+            if let Some(last_hash) = self.nodes[i].last_text_hash {
+                if last_hash != hash {
+                    error = true;
+                }
+                self.nodes[i].last_text_hash = Some(hash); 
+            } else {
+                // this is probably wrong too
+                error = true;
+            }
+            if error {
+                log::error!("Keru: incorrect reactive block: the text on node \"{}\" changed, but reactive thought they didn't", self.node_debug_name(i));
+                return;
+
+            }
+        }
+
         match text_verdict {
             TextVerdict::Skip => { unreachable!("lol") },
             TextVerdict::HashAndSee => {
@@ -726,6 +747,7 @@ impl Ui {
                     let hash = fx_hash(&self.format_scratch);
                     if let Some(last_hash) = self.nodes[i].last_text_hash {
                         if hash != last_hash {
+
                             log::trace!("Updating after hash");
                             self.nodes[i].last_text_hash = Some(hash);                    
                             self.get_uinode(i).text_from_fmtscratch();
