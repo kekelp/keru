@@ -18,14 +18,13 @@ impl CustomComponents for Ui {
 
         self.subtree().start(|| {
             let changed = self.check_changes(count);
-            reactive(changed, || {
-            
-            // if we uncomment these two lines and comment the two above, the ui will miss updates to `count`.
-            // However, when running in debug mode, the Ui still does all the hashing just to be sure, so it can detect this mismatch and print some error messages.
-            // This does mean that any performance gains apply only to release mode.
+            // if we uncomment these two lines and comment the two below, the ui will have a wrong idea of which variables the ui code depends on, and it will miss updates to `count`.
+            // However, when running in debug mode, the Ui still checks for differences, so it can detect this mistake and print some error messages.
+            // This does mean that any performance gains from the reactive block apply to release mode only: in debug mode, the [`Ui`] is still hashing and diffing everything.
 
             // let changed_wrong = self.check_changes(_useless_variable);
             // reactive(changed_wrong, || {
+            self.reactive(changed).start(|| {
 
                 let red = 0.1 * (**count as f32);
                 let increase_color = Color::rgba_f(red, 0.10196, 0.59608, 0.80392);
