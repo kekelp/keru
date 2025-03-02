@@ -774,6 +774,54 @@ impl Ui {
     }
 
 
+    pub(crate) fn set_params<T: Display + ?Sized>(&mut self, i: NodeI, params: &FullNodeParams<T>) {
+        #[cfg(not(debug_assertions))]
+        if reactive::is_in_skipped_reactive_block() {
+            return;
+        }
+        
+        if let Some(image) = params.image {
+            self.get_uinode(i).static_image(image);
+        }
+        
+        let new_cosmetic_hash = params.params.cosmetic_hash();
+        let new_layout_hash = params.params.layout_hash();
+        
+        let cosmetic_changed = new_cosmetic_hash != self.nodes[i].last_cosmetic_hash;
+        let layout_changed = new_layout_hash != self.nodes[i].last_layout_hash;
+
+        #[cfg(debug_assertions)]
+        if reactive::is_in_skipped_reactive_block() {
+            if cosmetic_changed || layout_changed {
+                let kind = match (layout_changed, cosmetic_changed) {
+                    (true, true) => "layout and appearance",
+                    (true, false) => "layout",
+                    (false, true) => "appearance",
+                    _ => unreachable!()
+                };
+                // dbg!(self.nodes[i].params.cosmetic_hash(), params.params.cosmetic_hash());
+                // dbg!(self.nodes[i].last_cosmetic_hash);
+                // dbg!(self.nodes[i].params.rect.vertex_colors == params.params.rect.vertex_colors);
+                // dbg!(cosmetic_changed);
+                log::error!("Keru: incorrect reactive block: the {kind} params of node \"{}\" changed, but reactive thought they didn't", self.node_debug_name(i));
+                // log::error!("Keru: incorrect reactive block: the {kind} params of node \"{}\" changed, even if a reactive block declared that it shouldn't have.\n Check that the reactive block is correctly checking all the runtime variables that can affect the node's params.", self.node_debug_name(i));
+            }
+            return;
+        }
+        
+        // some off-by-one-frame errors or something. see notes.
+        self.nodes[i].params = params.params;
+
+        self.nodes[i].last_cosmetic_hash = new_cosmetic_hash;
+        self.nodes[i].last_layout_hash = new_layout_hash;
+
+        if layout_changed {
+            self.push_partial_relayout(i);
+        }
+        if cosmetic_changed{
+            self.push_cosmetic_update(i);
+        }
+    }
 }
 
 /// A trait for types that can *optionally* observe changes to themselves and report them to an [`Ui`] for more efficient displaying.
@@ -781,13 +829,14 @@ impl Ui {
 /// This is implemented for regular untracked types (no optimization) and [`Observer`] types. Todo: add some `Static` or `Unchanged` wrappers and implement this.
 /// 
 /// ```
+/// # use keru::*;
 /// let regular_string = "regular string".to_string();
 /// 
 /// let observed_string = Observer::new("observed string".to_string());
 /// 
 /// // NodeParams::text()'s argument is a MaybeObserver, so can take both a regular String and an Observed<String> 
-/// let label_params = LABEL.text(regular_string); // no optimization
-/// let label_params = LABEL.text(observed_string); // when this is added to the Ui, it will check if it has changed, and potentially skip some work.
+/// let label_params = LABEL.text(&regular_string); // no optimization
+/// let label_params = LABEL.text(&observed_string); // when this is added to the Ui, it will check if it has changed, and potentially skip some work.
 /// ```
 /// 
 /// # Notes
@@ -845,7 +894,8 @@ impl<T: Display> MaybeObserver<T> for Observer<T> {
 /// 
 /// `'static` values can't be mutated except through interior mutability or unsafe code, so this struct is relatively hard to misuse. 
 /// 
-/// ```
+/// ```rust
+/// # use keru::*;
 /// let string: &'static str = "this will never change";
 /// 
 /// // Rust doesn't know that `string` is static.
@@ -855,7 +905,7 @@ impl<T: Display> MaybeObserver<T> for Observer<T> {
 /// 
 /// // If the string is wrapped in `Static`,
 /// // `text()` can tell that this string can never change, and skip some updates. 
-/// let params2 = LABEL.text(&Static(string);
+/// let params2 = LABEL.text(&Static(string));
 /// ```
 /// 
 /// If you can guarantee that a non-`'static` variable will not be mutated through its lifetime, you can use [`Unchanged`]: it works the same way as [`Static`], but without an explicit `'static` bound.

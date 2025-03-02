@@ -10,7 +10,6 @@ pub struct Reactive {
 }
 
 impl Ui {
-
     /// Start a reactive block.
     /// 
     /// This function seems to work from the examples, but it's still kind of experimental. It might be reimplemented in a more robust way in the future.
@@ -26,7 +25,7 @@ impl Ui {
     /// # use keru::*;
     /// fn display_score(ui: &mut Ui, score: &mut Observer<i32>) {
     ///     let state_changed = ui.check_changes(score);
-    ///     reactive(state_changed, || {
+    ///     ui.reactive(state_changed).start(|| {
     ///         // as long as the GUI code inside here depends only on the value of `score`, this is correct.
     ///         ui.label(score);
     ///         // if it depended on something like the system's time,
@@ -80,55 +79,4 @@ pub fn is_in_skipped_reactive_block() -> bool {
     return thread_local::THREAD_STACKS.with(|stack| {
         return stack.borrow_mut().reactive > 0;
     });
-}
-
-impl Ui {
-    pub(crate) fn set_params<T: Display + ?Sized>(&mut self, i: NodeI, params: &FullNodeParams<T>) {
-        #[cfg(not(debug_assertions))]
-        if reactive::is_in_skipped_reactive_block() {
-            return;
-        }
-        
-        if let Some(image) = params.image {
-            self.get_uinode(i).static_image(image);
-        }
-        
-        let new_cosmetic_hash = params.params.cosmetic_hash();
-        let new_layout_hash = params.params.layout_hash();
-        
-        let cosmetic_changed = new_cosmetic_hash != self.nodes[i].last_cosmetic_hash;
-        let layout_changed = new_layout_hash != self.nodes[i].last_layout_hash;
-
-        #[cfg(debug_assertions)]
-        if reactive::is_in_skipped_reactive_block() {
-            if cosmetic_changed || layout_changed {
-                let kind = match (layout_changed, cosmetic_changed) {
-                    (true, true) => "layout and appearance",
-                    (true, false) => "layout",
-                    (false, true) => "appearance",
-                    _ => unreachable!()
-                };
-                // dbg!(self.nodes[i].params.cosmetic_hash(), params.params.cosmetic_hash());
-                // dbg!(self.nodes[i].last_cosmetic_hash);
-                // dbg!(self.nodes[i].params.rect.vertex_colors == params.params.rect.vertex_colors);
-                // dbg!(cosmetic_changed);
-                log::error!("Keru: incorrect reactive block: the {kind} params of node \"{}\" changed, but reactive thought they didn't", self.node_debug_name(i));
-                // log::error!("Keru: incorrect reactive block: the {kind} params of node \"{}\" changed, even if a reactive block declared that it shouldn't have.\n Check that the reactive block is correctly checking all the runtime variables that can affect the node's params.", self.node_debug_name(i));
-            }
-            return;
-        }
-        
-        // some off-by-one-frame errors or something. see notes.
-        self.nodes[i].params = params.params;
-
-        self.nodes[i].last_cosmetic_hash = new_cosmetic_hash;
-        self.nodes[i].last_layout_hash = new_layout_hash;
-
-        if layout_changed {
-            self.push_partial_relayout(i);
-        }
-        if cosmetic_changed{
-            self.push_cosmetic_update(i);
-        }
-    }
 }

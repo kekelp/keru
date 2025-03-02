@@ -63,6 +63,6 @@ fn main() {
     let state = State {
         text: Observer::new("Etc".to_string()),
     };
-    
+
     run_example_loop(state);
 }

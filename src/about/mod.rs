@@ -37,7 +37,7 @@
 //!     self.ui.add(show_button);
 //!     if self.show {
 //!         self.ui.add(increase_button);
-//!         self.ui.label(self.count); // shorthand (no NodeParams, no key)
+//!         self.ui.label(&self.count); // shorthand (no NodeParams, no key)
 //!     }
 //! });
 //! 
@@ -103,7 +103,7 @@
 //!     // In that case, it will schedule a partial relayout.
 //!     if self.show {
 //!         self.ui.add(increase_button);
-//!         self.ui.label(self.count); // shorthand (no NodeParams, no key)
+//!         self.ui.label(&self.count); // shorthand (no NodeParams, no key)
 //!     }
 //! });
 //! 
@@ -205,7 +205,7 @@
 //! 
 //! ## Reactivity
 //! 
-//! There's still some room to add "reactivity" (in the Floem/SwiftUI sense) on top of the library as described so far. Currently, this is offered by the [`reactive()`] function. This is the main idea:
+//! There's still some room to add "reactivity" (in the Floem/SwiftUI sense) on top of the library as described so far. Currently, this is offered by the [`Ui::reactive()`]. This is the main idea:
 //! 
 //! - The user can opt in to writing a block of UI code in a "reactive block". For this to work properly, the code has to depend only on a small set of variables: for example: a color picker widget only depends on the value of the color.
 //! 

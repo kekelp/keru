@@ -27,7 +27,7 @@
 //! if self.show {
 //!     self.ui.v_stack().nest(|| {
 //!         self.ui.add(increase_button);
-//!         self.ui.label(self.count);
+//!         self.ui.label(&self.count);
 //!     });
 //! }
 //! 
@@ -91,7 +91,7 @@
 //! 
 //!     This allows multiple calls to the same component function to reuse the same key multiple times without conflicts.
 //! 
-//! * The [`reactive()`] function provides an experimental way to improve performance in complex GUIs with many independent components.
+//! * The [`Ui::reactive()`] function provides an experimental way to improve performance in complex GUIs with many independent components.
 //! 
 //! 
 //! ## More information
