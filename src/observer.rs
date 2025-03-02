@@ -31,10 +31,11 @@ pub(crate) fn fake_time_now() -> u64 {
 /// See the "reactive" example in the repository.
 pub struct Observer<T> {
     pub(crate) value: T,
-    pub(crate) changed_at: u64,
+    pub changed_at: u64,
 }
 
 impl<T> Observer<T> {
+    // todo: also impl Into<Observer<T>> for T?
     pub fn new(value: T) -> Self {
         Observer {
             value,
@@ -48,10 +49,6 @@ impl<T> Observer<T> {
             value,
             changed_at: 0,
         }
-    }
-
-    pub(crate) fn is_changed(&self, last_frame_end: u64) -> bool {
-        return self.changed_at > last_frame_end;
     }
 
     pub(crate) fn changed_at(&self) -> Changed {
@@ -84,7 +81,7 @@ impl Ui {
     /// # Example
     /// See the "reactive" example in the repository.
     pub fn check_changes<T>(&self, observer: &mut Observer<T>) -> bool {
-        return observer.is_changed(self.sys.second_last_frame_end_fake_time);
+        return observer.changed_at > self.sys.second_last_frame_end_fake_time;
     }
 }
 
@@ -200,59 +197,5 @@ impl<T: Ord> Ord for Observer<T> {
 impl<T: Hash> Hash for Observer<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.value.hash(state)
-    }
-}
-
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    struct TestUi {
-        last_frame_end: u64,
-    }
-
-    impl TestUi {
-        fn new() -> Self {
-            TestUi {
-                last_frame_end: fake_time_now(),
-            }
-        }
-
-        fn advance_frame(&mut self) {
-            self.last_frame_end = fake_time_now();
-        }
-    }
-
-
-    #[test]
-    fn test_observer() {
-        let mut observer = Observer::new(17);
-        let mut renderer1 = TestUi::new();
-        let mut renderer2 = TestUi::new();
-
-        assert!(observer.is_changed(renderer1.last_frame_end) == false);
-        assert!(observer.is_changed(renderer2.last_frame_end) == false);
-
-        *observer += 123;
-
-        assert!(observer.is_changed(renderer1.last_frame_end));
-        assert!(observer.is_changed(renderer2.last_frame_end));
-
-        renderer1.advance_frame();
-
-        assert!(observer.is_changed(renderer1.last_frame_end) == false);
-
-        assert!(observer.is_changed(renderer2.last_frame_end));
-
-        renderer2.advance_frame();
-
-        assert!(observer.is_changed(renderer1.last_frame_end) == false);
-        assert!(observer.is_changed(renderer2.last_frame_end) == false);
-
-        *observer += 1;
-
-        assert!(observer.is_changed(renderer1.last_frame_end));
-        assert!(observer.is_changed(renderer2.last_frame_end));
     }
 }

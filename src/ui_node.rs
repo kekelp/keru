@@ -12,17 +12,17 @@ use crate::Axis::*;
 /// 
 /// A `UiNode` is returned from [`Ui::get_node`]. This is useful to extract dynamic properties of a node, like its exact size.
 pub struct UiNode<'a> {
-    pub(crate) node_i: NodeI,
+    pub(crate) i: NodeI,
     pub(crate) ui: &'a mut Ui,
 }
 
 // todo: clean up all the setter functions here and move them to nodeparams.
 impl<'a> UiNode<'a> {
     pub(crate) fn node_mut(&mut self) -> &mut Node {
-        return &mut self.ui.nodes[self.node_i];
+        return &mut self.ui.nodes[self.i];
     }
     pub(crate) fn node(&self) -> &Node {
-        return &self.ui.nodes[self.node_i];
+        return &self.ui.nodes[self.i];
     }
 
     pub(crate) fn static_image(&mut self, image: &'static [u8]) -> &mut Self {
@@ -118,37 +118,23 @@ impl<'a> UiNode<'a> {
 }
 
 impl<'a> UiNode<'a> {
-    // todo: remove
-    pub(crate) fn text(&mut self, into_text: impl Display) -> &mut Self {
-        if is_in_skipped_reactive_block() {
-            return self;
-        }
+    // todo: move to Ui, or just merge with set_params_text, or something
+    pub(crate) fn text_from_fmtscratch(&mut self) -> &mut Self {
+        // assume that the caller wrote the text into format_scratch...
 
-        // todo: hash into_text instead of the text to skip the formatting??
-        // note that many exotic types like "f32" can be formatted but not hashed 
-        // todo: this display crap causes an useless copy in the common case when it's just a string
-        self.ui.format_into_scratch(into_text);
 
         if let Some(text_id) = self.node_mut().text_id {
-            let hash = fx_hash(&self.ui.format_scratch);
-            
-            let str_len = self.ui.format_scratch.len();
-            if str_len > 400 {
-                // log::info!("Hashing a big string ({} bytes). If possible, consider using static_text and similar functions to avoid hashing.", str_len);
-            }
 
             let area = &mut self.ui.sys.text.text_areas[text_id];
-            if hash != area.params.last_hash {
-                area.params.last_hash = hash;
-                area.buffer.set_text(
-                    &mut self.ui.sys.text.font_system,
-                    &self.ui.format_scratch,
-                    Attrs::new().family(Family::SansSerif),
-                    Shaping::Advanced,
-                );
+            area.buffer.set_text(
+                &mut self.ui.sys.text.font_system,
+                &self.ui.format_scratch,
+                Attrs::new().family(Family::SansSerif),
+                Shaping::Advanced,
+            );
 
-                self.ui.push_text_change(self.node_i);
-            }
+            self.ui.push_text_change(self.i);
+        
         } else {
             let text_id = self
                 .ui
@@ -156,7 +142,7 @@ impl<'a> UiNode<'a> {
                 .text
                 .maybe_new_text_area(Some(&self.ui.format_scratch), self.ui.sys.current_frame);
             self.node_mut().text_id = text_id;
-            self.ui.push_text_change(self.node_i);
+            self.ui.push_text_change(self.i);
         }
 
         return self;

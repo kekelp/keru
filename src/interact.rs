@@ -12,7 +12,7 @@ impl<'a> UiNode<'a> {
     /// 
     /// This is "act on press", you might want [is_click_released()](Self::is_click_released()).
     pub fn is_clicked(&mut self) -> bool {
-        let id = self.ui.nodes[self.node_i].id;
+        let id = self.ui.nodes[self.i].id;
         let clicked = self.ui.sys.mouse_input.clicked(Some(MouseButton::Left), Some(id));
         if clicked {
             self.ui.sys.new_ui_input = true;
@@ -23,25 +23,25 @@ impl<'a> UiNode<'a> {
 
     /// Returns `true` if a left button mouse click was just released on the node.
     pub fn is_click_released(&self) -> bool {
-        let id = self.ui.nodes[self.node_i].id;
+        let id = self.ui.nodes[self.i].id;
         return self.ui.sys.mouse_input.click_released(Some(MouseButton::Left), Some(id));
     }
 
     /// If the node was being held with the left mouse button in the last frame, returns the duration for which it was held.
     pub fn is_held(&self) -> Option<Duration> {let id 
-        = self.ui.nodes[self.node_i].id;
+        = self.ui.nodes[self.i].id;
         return self.ui.sys.mouse_input.held(Some(MouseButton::Left), Some(id));
     }
 
     /// If the node was dragged, returns the distance dragged. Otherwise, returns `(0.0, 0.0)`.
     pub fn is_dragged(&self) -> (f64, f64) {
-        let id = self.ui.nodes[self.node_i].id;
+        let id = self.ui.nodes[self.i].id;
         return self.ui.sys.mouse_input.dragged(Some(MouseButton::Left), Some(id));
     }
 
     /// Returns `true` if a node is currently hovered by the cursor.
     pub fn is_hovered(&self) -> bool {
-        let id = self.ui.nodes[self.node_i].id;
+        let id = self.ui.nodes[self.i].id;
         return self.ui.sys.hovered.last() == Some(&id);
     }
 
@@ -49,25 +49,25 @@ impl<'a> UiNode<'a> {
     /// 
     /// This is "act on press", you might want [is_click_released()](Self::is_click_released()).
     pub fn is_mouse_button_clicked(&self, mouse_button: MouseButton) -> bool {
-        let id = self.ui.nodes[self.node_i].id;
+        let id = self.ui.nodes[self.i].id;
         return self.ui.sys.mouse_input.clicked(Some(mouse_button), Some(id));
     }
 
     /// Returns `true` if a `mouse_button` click was just released on the node.
     pub fn is_mouse_button_click_released(&self, mouse_button: MouseButton) -> bool {
-        let id = self.ui.nodes[self.node_i].id;
+        let id = self.ui.nodes[self.i].id;
         return self.ui.sys.mouse_input.click_released(Some(mouse_button), Some(id));
     }
 
     /// If the node was being held with `mouse_button` in the last frame, returns the duration for which it was held.
     pub fn is_mouse_button_held(&self, mouse_button: MouseButton) -> Option<Duration> {
-        let id = self.ui.nodes[self.node_i].id;
+        let id = self.ui.nodes[self.i].id;
         return self.ui.sys.mouse_input.held(Some(mouse_button), Some(id));
     }
 
     /// If the node was dragged, returns the distance dragged. Otherwise, returns `(0.0, 0.0)`.
     pub fn is_mouse_button_dragged(&self, mouse_button: MouseButton) -> (f64, f64) {
-        let id = self.ui.nodes[self.node_i].id;
+        let id = self.ui.nodes[self.i].id;
         return self.ui.sys.mouse_input.dragged(Some(mouse_button), Some(id));
     }
 

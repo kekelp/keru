@@ -155,13 +155,10 @@ impl Ui {
         T: Display + ?Sized + 'a,
     {
         let params = params.into();
-        let key = match params.params.key {
-            Some(key) => key,
-            None => NodeKey::new(Id(caller_location_hash()), ""),
-        };
-
+        let key = params.key_or_anon_key();
         let i = self.add_or_update_node(key);
-        self.get_uinode(i).set_params(params);
+        self.set_params(i, &params);
+        self.set_params_text(i, &params);
         return self.make_parent_from_i(i);
     }
 
@@ -185,7 +182,7 @@ impl Ui {
     // only for the macro, use get_ref
     pub(crate) fn get_uinode(&mut self, i: NodeI) -> UiNode {
         return UiNode {
-            node_i: i,
+            i,
             ui: self,
         };
     }
@@ -292,40 +289,6 @@ impl Ui {
 
         // return the child_hash that this node had in the last frame, so that can new children can check against it.
         return UiParent::new(i, old_children_hash);
-    }
-
-    pub(crate) fn check_param_changes(&mut self, i: NodeI) {
-        #[cfg(not(debug_assertions))]
-        if reactive::is_in_skipped_reactive_block() {
-            return;
-        }
-
-        let cosmetic_params_hash = self.nodes[i].params.cosmetic_update_hash();
-        let layout_params_hash = self.nodes[i].params.partial_relayout_hash();
-        
-        let param_cosmetic_update = cosmetic_params_hash != self.nodes[i].last_cosmetic_params_hash;
-        let param_partial_relayout = layout_params_hash != self.nodes[i].last_layout_params_hash;
-        
-        #[cfg(debug_assertions)]
-        if reactive::is_in_skipped_reactive_block() {
-            if param_cosmetic_update || param_partial_relayout {
-                // todo: different message for cosmetic/layout
-                log::error!("Keru: incorrect reactive block: the params of node \"{}\" changed, even if a reactive block declared that it shouldn't have.\n Check that the reactive block is correctly checking all the runtime variables that can affect the node's params.", self.node_debug_name(i));
-            }
-            return;
-        }
-        
-        if param_partial_relayout {
-            self.push_partial_relayout(i);
-            self.nodes[i].last_layout_params_hash = layout_params_hash;
-        }
-        
-        // push cosmetic updates
-        if param_cosmetic_update{
-            self.push_cosmetic_update(i);
-            self.nodes[i].last_cosmetic_params_hash = cosmetic_params_hash;
-        }
-               
     }
 
     fn set_tree_links(&mut self, new_node_i: NodeI, parent_i: NodeI, depth: usize) {
@@ -503,7 +466,6 @@ impl Ui {
         let old_root_hash = self.nodes[ROOT_I].children_hash;
         let root_parent = UiParent::new(ROOT_I, old_root_hash);
         self.nodes[ROOT_I].children_hash = EMPTY_HASH;
-
         thread_local::push_parent(&root_parent);
 
         self.begin_frame_resolve_inputs();
@@ -531,6 +493,9 @@ impl Ui {
         }
 
         self.sys.new_external_events = false;
+
+        // let mut buffer = String::new();
+        // std::io::stdin().read_line(&mut buffer).expect("Failed to read line");
     }
 
     /// Add a panel.

@@ -224,13 +224,13 @@ pub struct TextOptions {
 pub(crate) const BASE_RADIUS: f32 = 15.0;
 
 impl NodeParams {
-    pub(crate) fn cosmetic_update_hash(&self) -> u64 {
+    pub(crate) fn cosmetic_hash(&self) -> u64 {
         let mut hasher = FxHasher::default();
         self.rect.hash(&mut hasher);
         return hasher.finish();
     }
 
-    pub(crate) fn partial_relayout_hash(&self) -> u64 {
+    pub(crate) fn layout_hash(&self) -> u64 {
         let mut hasher = FxHasher::default();
         self.layout.hash(&mut hasher);
         self.stack.hash(&mut hasher);
@@ -635,7 +635,7 @@ impl NodeParams {
     }
 }
 
-
+#[derive(Debug)]
 pub enum Changed {
     ChangedAt(u64),
     NeedsHash,
@@ -655,38 +655,154 @@ impl<'a> Into<FullNodeParams<'a, str>> for NodeParams {
     }
 }
 
-impl<'a> UiNode<'a> {
-    pub(crate) fn set_params<T: Display + ?Sized>(&mut self, params: FullNodeParams<T>) -> &mut Self {
-        self.node_mut().params = params.params;
-        if let Some(text) = params.text {
-            let text_changed = match params.text_changed {
-                Changed::Static => false,
-                Changed::ChangedAt(frame) => frame > self.ui.sys.second_last_frame_end_fake_time,
-                Changed::NeedsHash => true,
-            };
+impl<'a, T: Display + ?Sized> FullNodeParams<'a, T> {
+    #[track_caller]
+    pub(crate) fn key_or_anon_key(&self) -> NodeKey {
+        return match self.params.key {
+            Some(key) => key,
+            None => NodeKey::new(Id(caller_location_hash()), ""),
+        };
+    }
+}
 
-            let did_we_even_get_the_same_text_variable = params.text_ptr == self.node().last_text_ptr;
+#[derive(PartialEq, Debug)]
+enum TextVerdict {
+    Skip,
+    HashAndSee,
+    UpdateWithoutHashing,
+}
 
-            let can_we_skip_it = did_we_even_get_the_same_text_variable && (text_changed == false);
-
-            if can_we_skip_it == false {
-                log::warn!("Actually writing");
-                // todo: skip the hashing inside text() when we're sure it changed
-                self.text(text);
-                self.node_mut().last_text_ptr = params.text_ptr;
-            } else {
-                log::warn!("Skipping unchanged display value");
+impl Ui {
+    fn check_text_situation<T: Display + ?Sized>(&self, i: NodeI, params: &FullNodeParams<T>) -> TextVerdict {
+        let same_pointer = params.text_ptr == self.nodes[i].last_text_ptr;
+        let verdict = if same_pointer {
+             match params.text_changed {
+                Changed::NeedsHash => TextVerdict::HashAndSee,
+                Changed::ChangedAt(change_frame) => {
+                    if change_frame > self.sys.second_last_frame_end_fake_time {
+                        TextVerdict::UpdateWithoutHashing
+                    } else {
+                        TextVerdict::Skip
+                    }
+                },
+                Changed::Static => TextVerdict::Skip,
             }
 
+        } else { // different pointer 
+            // probably not worth even hashing here
+            TextVerdict::UpdateWithoutHashing
+        };
+        return verdict;
+    }
+
+    pub(crate) fn set_params_text<T: Display + ?Sized>(&mut self, i: NodeI, params: &FullNodeParams<T>) {       
+        let Some(text) = params.text else {
+            return
+        };
+
+        #[cfg(not(debug_assertions))]
+        if reactive::is_in_skipped_reactive_block() {
+            return;
+        }
+        // todo: the error-logging brother of that
+        
+        // todo: if text attributes have changed, go straight to relayout anyway.
+
+        let text_verdict = self.check_text_situation(i, params);
+
+        self.nodes[i].last_text_ptr = params.text_ptr;
+
+        if text_verdict == TextVerdict::Skip {
+            log::trace!("Skipping text update");
+            return;
+        }
+
+        self.format_into_scratch(text);
+
+        match text_verdict {
+            TextVerdict::Skip => { unreachable!("lol") },
+            TextVerdict::HashAndSee => {
+                if let Some(_) = self.nodes[i].text_id {
+                    let hash = fx_hash(&self.format_scratch);
+                    if let Some(last_hash) = self.nodes[i].last_text_hash {
+                        if hash != last_hash {
+                            log::trace!("Updating after hash");
+                            self.nodes[i].last_text_hash = Some(hash);                    
+                            self.get_uinode(i).text_from_fmtscratch();
+                        } else {
+                            log::trace!("Skipping after hash");
+                        }
+                        
+                    } else {
+                        self.get_uinode(i).text_from_fmtscratch();
+                        self.nodes[i].last_text_hash = Some(hash);                    
+                    }
+                } else {
+                    log::trace!("Updating (node had no text)");
+                    self.get_uinode(i).text_from_fmtscratch();
+                }
+            },
+            TextVerdict::UpdateWithoutHashing => {
+                log::trace!("Updating without hash");
+                self.get_uinode(i).text_from_fmtscratch();
+                self.nodes[i].last_text_hash = None;
+                // todo, think about this a bit more. we lose the hash.
+            },
+        };
+    }
+
+
+    pub(crate) fn set_params<T: Display + ?Sized>(&mut self, i: NodeI, params: &FullNodeParams<T>) {
+        #[cfg(not(debug_assertions))]
+        if reactive::is_in_skipped_reactive_block() {
+            return;
         }
         
         if let Some(image) = params.image {
-            self.static_image(image);
+            self.get_uinode(i).static_image(image);
         }
+        
+        let cosmetic_hash = self.nodes[i].params.cosmetic_hash();
+        let layout_hash = self.nodes[i].params.layout_hash();
+        
 
-        self.ui.check_param_changes(self.node_i);
 
-        return self;
+        let cosmetic_changed = cosmetic_hash != self.nodes[i].last_cosmetic_hash;
+        let layout_changed = layout_hash != self.nodes[i].last_layout_hash;
+
+
+
+        #[cfg(debug_assertions)]
+        if reactive::is_in_skipped_reactive_block() {
+            if cosmetic_changed || layout_changed {
+                let kind = match (layout_changed, cosmetic_changed) {
+                    (true, true) => "layout and appearance",
+                    (true, false) => "layout",
+                    (false, true) => "appearance",
+                    _ => unreachable!()
+                };
+                dbg!(self.nodes[i].params.rect.vertex_colors, params.params.rect.vertex_colors);
+                dbg!(self.nodes[i].params.cosmetic_hash(), params.params.cosmetic_hash());
+                dbg!(self.nodes[i].last_cosmetic_hash);
+                dbg!(self.nodes[i].params.rect.vertex_colors == params.params.rect.vertex_colors);
+                dbg!(cosmetic_changed);
+                log::error!("Keru: incorrect reactive block: the {kind} params of node \"{}\" changed, even if a reactive block declared that it shouldn't have.\n Check that the reactive block is correctly checking all the runtime variables that can affect the node's params.", self.node_debug_name(i));
+            }
+            return;
+        }
+        
+        // some off-by-one-frame errors or something. see notes.
+        self.nodes[i].params = params.params;
+
+        self.nodes[i].last_cosmetic_hash = cosmetic_hash;
+        self.nodes[i].last_layout_hash = layout_hash;
+
+        if layout_changed {
+            self.push_partial_relayout(i);
+        }
+        if cosmetic_changed{
+            self.push_cosmetic_update(i);
+        }
     }
 }
 
