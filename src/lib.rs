@@ -130,6 +130,7 @@ mod theme;
 pub use theme::*;
 
 mod components;
+pub use components::*;
 
 mod interact;
 

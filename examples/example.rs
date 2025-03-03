@@ -3,13 +3,14 @@ use keru::example_window_loop::*;
 use keru::*;
 
 #[derive(Default)]
-pub struct State {
-    pub current_tab: usize,
+struct State {
+    tabs: Vec<Tab>,
+    current_tab: usize,
 }
 
-const SEED_TAB: &str = "Seed";
-const FEED_TAB: &str = "Feed";
-const CHUCK_TAB: &str = "Chuck";
+const COMPONENTS_TAB: Tab = Tab("Components");
+const TEXT_TAB: Tab = Tab("Text");
+const WEIRD_TAB: Tab = Tab("Weird Stuff");
 
 const CHINESE_TEXT: &str = "此后，人民文学出版社和齐鲁书社的做法被诸多出版社效仿，可见文化部出版局1985年的一纸批文并没有打消各地出版社出版此书的念头。所以，1988年新闻出版署发出了《关于整理出版〈金瓶梅〉及其研究资料的通知》。《通知》首先说明《金瓶梅》及其研究资料的需求“日益增大”，“先后有十余家出版社向我署提出报告，分别要求出版《金瓶梅》的各种版本及改编本，包括图录、连环画及影视文学剧本等”，但话锋一转，明确提出“《金瓶梅》一书虽在文学史上占有重要地位，但该书存在大量自然主义的秽亵描写，不宜广泛印行";
 
@@ -18,11 +19,13 @@ const JAPANESE_TEXT: &str = "ヘッケはこれらのL-函数が全複素平面�
 impl ExampleLoop for State {
     fn update_ui(&mut self, ui: &mut Ui) {
         ui.subtree().start(|| {
-            let tabs = [CHUCK_TAB, SEED_TAB, FEED_TAB];
 
-            ui.vertical_tabs(&tabs, &mut self.current_tab)
-                .nest(|| match tabs[self.current_tab] {
-                    CHUCK_TAB => {
+            ui.vertical_tabs(&self.tabs[..], &mut self.current_tab)
+                .nest(|| match self.tabs[self.current_tab] {
+                    COMPONENTS_TAB => {
+
+                    }
+                    TEXT_TAB => {
                         let v_stack = V_STACK
                             .size_x(Frac(0.8))
                             .size_y(Size::Frac(0.7))
@@ -36,8 +39,7 @@ impl ExampleLoop for State {
                             ui.label(&Static(CHINESE_TEXT));
                         });
                     }
-
-                    SEED_TAB => {
+                    WEIRD_TAB => {
                         let big_button = BUTTON
                             .size_symm(Size::Fill)
                             .static_text(JAPANESE_TEXT)
@@ -52,18 +54,13 @@ impl ExampleLoop for State {
                         ui.add(PANEL).nest(|| {
                             ui.add(big_button).nest(|| {
                                 ui.spacer();
-                                // ui.add(nested_button_1);
-                                // ui.spacer();
-                                // ui.add(nested_button_2);
-                                // ui.spacer();
+                                ui.add(nested_button_1);
+                                ui.spacer();
+                                ui.add(nested_button_2);
+                                ui.spacer();
                             });
                         });
                     }
-
-                    FEED_TAB => {
-                        ui.text_line("Erm...");
-                    }
-
                     _ => {}
                 });
         });
@@ -72,6 +69,9 @@ impl ExampleLoop for State {
 
 fn main() {
     basic_env_logger_init();
-    let state = State::default();
+    let state = State {
+        tabs: vec![COMPONENTS_TAB, TEXT_TAB, WEIRD_TAB],
+        current_tab: 0,
+    };
     run_example_loop(state);
 }

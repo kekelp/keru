@@ -1,9 +1,12 @@
 use crate as keru;
 use keru::*;
 
+#[derive(PartialEq, Eq)]
+pub struct Tab(pub &'static str);
+
 impl Ui {
     /// A component for vertical tabs
-    pub fn vertical_tabs(&mut self, tabs: &[&str], current_tab: &mut usize) -> UiParent {
+    pub fn vertical_tabs(&mut self, tabs: &[Tab], current_tab: &mut usize) -> UiParent {
         #[node_key]
         const TAB_BUTTON: NodeKey;
 
@@ -35,7 +38,7 @@ impl Ui {
             }
 
             let h_stack = H_STACK.stack_spacing(0);
-            let tabs_v_stack = V_STACK.size_x(Size::Frac(0.12));
+            let tabs_v_stack = V_STACK.size_x(Size::Pixels(250));
             let inactive_tab = BUTTON
                 .corners(RoundedCorners::LEFT)
                 .size_x(Size::Fill)
@@ -50,7 +53,7 @@ impl Ui {
                         let active = i == *current_tab;
                         let tab = if active { active_tab } else { inactive_tab };
                         // we could ask for 'static strings so we can Static() here, but I doubt anybody cares  
-                        let tab = tab.text(name).key(key_i);
+                        let tab = tab.static_text(&name.0).key(key_i);
                         self.add(tab);
                     }
                 });
