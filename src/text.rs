@@ -9,7 +9,6 @@ pub struct TextAreaParams {
     pub bounds: TextBounds,
     pub default_color: Color,
     pub last_frame_touched: u64,
-    pub last_hash: u64,
 }
 
 pub struct FullText {

@@ -64,10 +64,6 @@ impl TextSystem {
         let mut buffer = GlyphonBuffer::new(&mut self.font_system, GLOBAL_TEXT_METRICS);
         buffer.set_size(&mut self.font_system, Some(500.), Some(500.));
 
-        let mut hasher = FxHasher::default();
-        text.hash(&mut hasher);
-        let hash = hasher.finish();
-
         for line in &mut buffer.lines {
             line.set_align(Some(glyphon::cosmic_text::Align::Center));
         }
@@ -81,7 +77,6 @@ impl TextSystem {
             Shaping::Advanced,
         );
 
-
         let params = TextAreaParams {
             left: 10.0,
             top: 10.0,
@@ -94,7 +89,6 @@ impl TextSystem {
             },
             default_color: GlyphonColor::rgb(255, 255, 255),
             last_frame_touched: current_frame,
-            last_hash: hash,
         };
         self.text_areas.push(FullText { buffer, params });
         let text_id = self.text_areas.len() - 1;
