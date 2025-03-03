@@ -20,51 +20,6 @@ macro_rules! for_each_child {
 }
 
 impl Ui {
-
-    pub(crate) fn do_cosmetic_rect_updates(&mut self) {
-        for idx in 0..self.sys.changes.cosmetic_rect_updates.len() {
-            let update = self.sys.changes.cosmetic_rect_updates[idx];
-            self.update_rect(update);
-            log::info!("Visual rectangle update ({})", self.node_debug_name(update));
-        }
-    }
-
-    // this gets called even when zero relayouts are needed. in that case it just does nothing. I guess it's to make the layout() logic more readable
-    pub(crate) fn do_partial_relayouts(&mut self, update_rects_while_relayouting: bool) {
-        self.sys.relayouts_scrath.clear();
-        for n in &self.sys.changes.swapped_tree_changes {
-            self.sys.relayouts_scrath.push(*n);
-        }
-        for n in &self.sys.changes.partial_relayouts {
-            self.sys.relayouts_scrath.push(*n);
-        }
-
-        // sort by depth
-        // todo: there was something about it being close to already sorted, except in reverse
-        // the plan was to sort it in reverse and then use it in reverse
-        self.sys.relayouts_scrath.sort();
-        self.sys.partial_relayout_count = 0;
-
-        for idx in 0..self.sys.relayouts_scrath.len() {
-            // in partial_relayout(), we will check for overlaps.
-            // todo: if that works as expected, maybe we can skip the limit/full relayout thing, or at least raise the limit by a lot.
-            let relayout = self.sys.relayouts_scrath[idx];
-            
-            self.partial_relayout(relayout.i, update_rects_while_relayouting);
-        }
-
-        if self.sys.partial_relayout_count != 0 {
-            let nodes = if self.sys.partial_relayout_count == 1 {
-                "node"
-            } else {
-                "nodes"
-            };
-            log::info!("Partial relayout ({:?} {nodes})", self.sys.partial_relayout_count);
-        }
-
-        self.sys.partial_relayout_count = 0;
-    }
-
     pub(crate) fn relayout(&mut self) {
         self.sys.changes.swap_thread_local_tree_changes();
 
@@ -122,6 +77,50 @@ impl Ui {
             // in general, we could use info in tree_changes to do better pruning.
             // self.prune();
         }
+    }
+
+    pub(crate) fn do_cosmetic_rect_updates(&mut self) {
+        for idx in 0..self.sys.changes.cosmetic_rect_updates.len() {
+            let update = self.sys.changes.cosmetic_rect_updates[idx];
+            self.update_rect(update);
+            log::info!("Visual rectangle update ({})", self.node_debug_name(update));
+        }
+    }
+
+    // this gets called even when zero relayouts are needed. in that case it just does nothing. I guess it's to make the layout() logic more readable
+    pub(crate) fn do_partial_relayouts(&mut self, update_rects_while_relayouting: bool) {
+        self.sys.relayouts_scrath.clear();
+        for n in &self.sys.changes.swapped_tree_changes {
+            self.sys.relayouts_scrath.push(*n);
+        }
+        for n in &self.sys.changes.partial_relayouts {
+            self.sys.relayouts_scrath.push(*n);
+        }
+
+        // sort by depth
+        // todo: there was something about it being close to already sorted, except in reverse
+        // the plan was to sort it in reverse and then use it in reverse
+        self.sys.relayouts_scrath.sort();
+        self.sys.partial_relayout_count = 0;
+
+        for idx in 0..self.sys.relayouts_scrath.len() {
+            // in partial_relayout(), we will check for overlaps.
+            // todo: if that works as expected, maybe we can skip the limit/full relayout thing, or at least raise the limit by a lot.
+            let relayout = self.sys.relayouts_scrath[idx];
+            
+            self.partial_relayout(relayout.i, update_rects_while_relayouting);
+        }
+
+        if self.sys.partial_relayout_count != 0 {
+            let nodes = if self.sys.partial_relayout_count == 1 {
+                "node"
+            } else {
+                "nodes"
+            };
+            log::info!("Partial relayout ({:?} {nodes})", self.sys.partial_relayout_count);
+        }
+
+        self.sys.partial_relayout_count = 0;
     }
 
     pub(crate) fn relayout_from_root(&mut self) {

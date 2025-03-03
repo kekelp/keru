@@ -592,8 +592,10 @@ impl<'a, T: Display + ?Sized> FullNodeParams<'a, T> {
     }
 }
 
-// todo: static text
 impl NodeParams {
+    /// Add text to the [`NodeParams`] from a `&'static str`.
+    /// 
+    /// The [`Ui`] will have to hash `text` to determine if it needs to update the text shown on the screen. To avoid this performance penalty, use [`NodeParams::smart_text`], or [`NodeParams::static_text`] if `text` is an unchanging `'static str`. 
     pub fn hashed_text<'a>(self, text: &'a str) -> FullNodeParams<'a, str> {
         return FullNodeParams {
             params: self,
@@ -604,6 +606,11 @@ impl NodeParams {
         }
     }
 
+    /// Add text to the [`NodeParams`] from a `&'static str`.
+    /// 
+    /// `text` is assumed to be unchanged, so the [`Ui`] uses pointer equality to determine if it needs to update the text shown on screen.
+    /// 
+    /// If `text` changes, due to interior mutability or unsafe code, then the [`Ui`] will miss it.  
     pub fn static_text(self, text: &'static str) -> FullNodeParams<'static, str> {
         return FullNodeParams {
             params: self,
@@ -614,15 +621,15 @@ impl NodeParams {
         }
     }
 
-    // pub fn smart_text<'a>(self, text: &'a Observer<impl AsRef<str>>) -> FullNodeParams<'a> {
-    //     return FullNodeParams {
-    //         params: self,
-    //         text: Some(text.as_ref()),
-    //         text_changed: text.changed_at(),
-    //         text_ptr: (&raw const text) as usize,
-    //         image: None,
-    //     }
-    // }
+    pub fn smart_text<'a>(self, text: &'a Observer<impl AsRef<str>>) -> FullNodeParams<'a, str> {
+        return FullNodeParams {
+            params: self,
+            text: Some(text.as_ref()),
+            text_changed: text.changed_at(),
+            text_ptr: (&raw const text) as usize,
+            image: None,
+        }
+    }
 
     pub fn static_image(self, image: &'static [u8]) -> FullNodeParams<'static, str> {
         return FullNodeParams {

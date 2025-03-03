@@ -122,7 +122,6 @@ impl<'a> UiNode<'a> {
     pub(crate) fn text_from_fmtscratch(&mut self) -> &mut Self {
         // assume that the caller wrote the text into format_scratch...
 
-
         if let Some(text_id) = self.node_mut().text_id {
             let area = &mut self.ui.sys.text.text_areas[text_id];
             area.buffer.set_text(
@@ -135,8 +134,6 @@ impl<'a> UiNode<'a> {
             self.ui.push_text_change(self.i);
         
         } else {
-            dbg!("Adding text");
-
             let text_id = self
                 .ui
                 .sys
