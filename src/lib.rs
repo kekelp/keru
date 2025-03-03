@@ -75,8 +75,7 @@
 //! # }
 //! ```
 //! 
-//! The [`Ui`] struct retains the state of the whole GUI, so even if you do this every frame, it doesn't mean that the GUI is re-rendering every frame, doing a full relayout on every frame, or anything of that sort.
-//! See the ["About"](about) page for more information on this point.
+//! The [`Ui`] struct retains the state of the whole GUI, so even if you do this every frame, it doesn't mean that the GUI is re-rendering every frame, or doing a full relayout on every frame..
 //! 
 //! 
 //! * In Keru, everything is a node. Whether you want a [button](`BUTTON`), an [image](`IMAGE`), a [text element](`TEXT`), a [stack container](V_STACK), or anything else, the way is always to [`add()`](Ui::add) a node with the right [`NodeParams`].
@@ -93,11 +92,6 @@
 //! 
 //! * The [`Ui::reactive()`] function provides an experimental way to improve performance in complex GUIs with many independent components.
 //! 
-//! 
-//! ## More information
-//! 
-//! See the ["About"](about) page for more information about how Keru works internally, how it compares to other libraries, and more.
-
 
 mod tree;
 pub use tree::*;
@@ -171,5 +165,3 @@ mod texture_atlas;
 pub(crate) use crate::texture_atlas::*;
 
 pub use keru_macros::node_key;
-
-pub mod about;

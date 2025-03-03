@@ -20,7 +20,6 @@ impl ExampleLoop for State {
 
         let big_button = BUTTON
             .size_symm(Size::Fill)
-            .static_text(JAPANESE_TEXT)
             .stack(Axis::Y, Arrange::Center, 10);
         let nested_button_1 = BUTTON
             .size_y(Size::Frac(0.3))
@@ -30,15 +29,20 @@ impl ExampleLoop for State {
             .static_text("Nested button 2");
 
         ui.add(PANEL).nest(|| {
-            ui.add(big_button).nest(|| {
-                ui.spacer();
-                ui.add(nested_button_1);
-                ui.spacer();
-                ui.add(nested_button_2);
-                ui.spacer();
+            ui.v_stack().nest(|| {
+
+                ui.h_stack().nest(|| {
+                    ui.static_label("Test");
+                    ui.static_label("Sneed");
+                });
+                
+                ui.h_stack().nest(|| {
+                    ui.static_label("Test2");
+                    ui.static_label("Sneed2");
+                });
             });
+
         });
-    
 
     }
 }
