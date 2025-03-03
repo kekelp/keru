@@ -709,14 +709,13 @@ impl Ui {
         // todo: if text attributes have changed, go straight to relayout anyway.
 
         let text_verdict = self.check_text_situation(i, params);
-
-        self.nodes[i].last_text_ptr = params.text_ptr;
-
+        
         if text_verdict == TextVerdict::Skip {
             log::trace!("Skipping text update");
             return;
         }
-
+        
+        self.nodes[i].last_text_ptr = params.text_ptr;
         self.format_into_scratch(text);
 
         // todo: we're doing the hash twice in debug mode to do this check
@@ -799,10 +798,6 @@ impl Ui {
                     (false, true) => "appearance",
                     _ => unreachable!()
                 };
-                // dbg!(self.nodes[i].params.cosmetic_hash(), params.params.cosmetic_hash());
-                // dbg!(self.nodes[i].last_cosmetic_hash);
-                // dbg!(self.nodes[i].params.rect.vertex_colors == params.params.rect.vertex_colors);
-                // dbg!(cosmetic_changed);
                 log::error!("Keru: incorrect reactive block: the {kind} params of node \"{}\" changed, but reactive thought they didn't", self.node_debug_name(i));
                 // log::error!("Keru: incorrect reactive block: the {kind} params of node \"{}\" changed, even if a reactive block declared that it shouldn't have.\n Check that the reactive block is correctly checking all the runtime variables that can affect the node's params.", self.node_debug_name(i));
             }
@@ -854,6 +849,8 @@ impl NodeParams {
     /// 
     /// 
     /// If a non-[`Observer`] type is used, the [`Ui`] will fall back to hashing the string to determine if the text needs updating.
+    /// 
+    /// This single generic function might be replaced by three separate functions: `hashed_text()`, `static_text()`, `observed_text()`, or similar. 
     pub fn text<'a, T, M>(self, text: &'a M) -> FullNodeParams<'a, T>
     where
         M: MaybeObserver<T> + ?Sized,

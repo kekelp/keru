@@ -68,6 +68,10 @@ impl TextSystem {
         text.hash(&mut hasher);
         let hash = hasher.finish();
 
+        for line in &mut buffer.lines {
+            line.set_align(Some(glyphon::cosmic_text::Align::Center));
+        }
+
         // todo: maybe remove duplication with set_text_hashed (the branch in refresh_node that updates the text without creating a new entry here)
         // buffer.set_wrap(&mut self.font_system, glyphon::Wrap::Word);
         buffer.set_text(
@@ -77,9 +81,6 @@ impl TextSystem {
             Shaping::Advanced,
         );
 
-        for line in &mut buffer.lines {
-            line.set_align(Some(glyphon::cosmic_text::Align::Center));
-        }
 
         let params = TextAreaParams {
             left: 10.0,

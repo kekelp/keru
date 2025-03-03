@@ -506,7 +506,7 @@ pub const SPACER: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::KERU_DEBUG_RED),
     },
     interact: Interact {
-        absorbs_mouse_events: true,
+        absorbs_mouse_events: false,
         click_animation: false,
     },
     layout: Layout {

@@ -124,7 +124,6 @@ impl<'a> UiNode<'a> {
 
 
         if let Some(text_id) = self.node_mut().text_id {
-
             let area = &mut self.ui.sys.text.text_areas[text_id];
             area.buffer.set_text(
                 &mut self.ui.sys.text.font_system,
@@ -136,6 +135,8 @@ impl<'a> UiNode<'a> {
             self.ui.push_text_change(self.i);
         
         } else {
+            dbg!("Adding text");
+
             let text_id = self
                 .ui
                 .sys

@@ -1,5 +1,5 @@
-use keru::example_window_loop::*;
 use keru::Size::*;
+use keru::example_window_loop::*;
 use keru::*;
 
 #[derive(Default)]
@@ -17,65 +17,37 @@ const JAPANESE_TEXT: &str = "ヘッケはこれらのL-函数が全複素平面�
 
 impl ExampleLoop for State {
     fn update_ui(&mut self, ui: &mut Ui) {
-        ui.subtree().start(|| {
 
-            let tabs = [CHUCK_TAB, SEED_TAB, FEED_TAB];
+        let big_button = BUTTON
+            .size_symm(Size::Fill)
+            .static_text(JAPANESE_TEXT)
+            .stack(Axis::Y, Arrange::Center, 10);
+        let nested_button_1 = BUTTON
+            .size_y(Size::Frac(0.3))
+            .static_text("Nested button 1");
+        let nested_button_2 = BUTTON
+            .size_y(Size::Frac(0.2))
+            .static_text("Nested button 2");
 
-            ui.vertical_tabs(&tabs, &mut self.current_tab).nest(|| {
-                match tabs[self.current_tab] {
-                    CHUCK_TAB => {
-
-                        let scroll_area = CONTAINER
-                            .size_y(Size::Frac(0.4))
-                            .size_x(Size::Frac(0.4))
-                            .scrollable_y(true)
-                            .scrollable_x(true)
-                            .padding(0);
-                        
-                        let v_stack = V_STACK
-                            .size_x(Frac(0.8))
-                            .size_y(Size::Frac(0.4))
-                            .scrollable_y(true);
-
-                        ui.add(v_stack).nest(|| {
-                            ui.label(&Static(JAPANESE_TEXT));
-                            ui.label(&Static(JAPANESE_TEXT));
-                            ui.add(BUTTON.text(&Static("useless button")));
-                            ui.label(&Static(JAPANESE_TEXT));
-                            ui.label(&Static(CHINESE_TEXT));
-                        });
-
-                    },
-
-                    SEED_TAB => {
-                        ui.add(PANEL.size_symm(FitContent)).nest(|| {
-                            ui.add(BUTTON.size_symm(Size::Fill).static_text("Big button"));
-            
-                            ui.add(V_STACK.size_y(Fill)).nest(|| {
-                                ui.spacer();
-                                ui.add(BUTTON.size_y(Size::Frac(0.3)).static_text("Nested button 1"));
-                                ui.spacer();
-                                ui.add(BUTTON.size_y(Size::Frac(0.2)).static_text("Nested button 2"));
-                                ui.spacer();
-                            });
-                        });
-                    },
-
-                    FEED_TAB => {
-                        ui.text_line("Erm...");
-                    }
-
-                    _ => {}
-                }
+        ui.add(PANEL).nest(|| {
+            ui.add(big_button).nest(|| {
+                ui.spacer();
+                ui.add(nested_button_1);
+                ui.spacer();
+                ui.add(nested_button_2);
+                ui.spacer();
             });
-
-
         });
+    
+
     }
 }
 
 fn main() {
-    basic_env_logger_init();
+    env_logger::Builder::new()
+        .filter_level(log::LevelFilter::Warn)
+        .filter_module("keru::node_params", log::LevelFilter::Trace)
+        .init();
     let state = State::default();
     run_example_loop(state);
 }
