@@ -6,8 +6,6 @@ use Shape::*;
 // todo: not very discoverable from docs. there's a list of constants on the main page, maybe that's good? link to that or something?
 
 /// [`NodeParams`] for a node_root_params. 
-///
-/// You can use the "source" link to inspect the param values. 
 pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     key: None,
     stack: None,
@@ -31,8 +29,6 @@ pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     },
 };
 /// [`NodeParams`] for a default. 
-///
-/// You can use the "source" link to inspect the param values. 
 pub const DEFAULT: NodeParams = NodeParams {
     key: None,
     stack: None,
@@ -56,8 +52,6 @@ pub const DEFAULT: NodeParams = NodeParams {
     },
 };
 /// [`NodeParams`] for a vertical stack. 
-///
-/// You can use the "source" link to inspect the param values. 
 pub const V_STACK: NodeParams = NodeParams {
     key: None,
     stack: Some(Stack {
@@ -85,8 +79,6 @@ pub const V_STACK: NodeParams = NodeParams {
     },
 };
 /// [`NodeParams`] for a horizontal stack. 
-///
-/// You can use the "source" link to inspect the param values. 
 pub const H_STACK: NodeParams = NodeParams {
     key: None,
     stack: Some(Stack {
@@ -115,8 +107,6 @@ pub const H_STACK: NodeParams = NodeParams {
 };
 
 /// [`NodeParams`] for a vertically scrollable vertical stack.
-///
-/// You can use the "source" link to inspect the param values. 
 pub const V_SCROLL_STACK: NodeParams = NodeParams {
     key: None,
         stack: Some(Stack {
@@ -145,8 +135,6 @@ pub const V_SCROLL_STACK: NodeParams = NodeParams {
     };
 
 /// [`NodeParams`] for a margin. 
-///
-/// You can use the "source" link to inspect the param values. 
 pub const MARGIN: NodeParams = NodeParams {
     key: None,
     stack: None,
@@ -170,8 +158,6 @@ pub const MARGIN: NodeParams = NodeParams {
     },
 };
 /// [`NodeParams`] for an icon button. 
-///
-/// You can use the "source" link to inspect the param values. 
 pub const ICON_BUTTON: NodeParams = NodeParams {
     key: None,
     stack: None,
@@ -195,9 +181,30 @@ pub const ICON_BUTTON: NodeParams = NodeParams {
     },
 };
 /// [`NodeParams`] for an icon button. 
-///
-/// You can use the "source" link to inspect the param values. 
 pub const IMAGE: NodeParams = NodeParams {
+    key: None,
+    stack: None,
+    text_params: None,
+    rect: Rect {
+        rounded_corners: RoundedCorners::ALL,
+        shape: Rectangle { corner_radius: BASE_RADIUS },
+        visible: true,
+        outline_only: false,
+        vertex_colors: VertexColors::flat(Color::WHITE),
+    },
+    interact: Interact {
+        absorbs_mouse_events: true,
+        click_animation: false,
+    },
+    layout: Layout {
+        size: Xy::new_symm(FitContent),
+        position: Xy::new_symm(Center),
+        padding: Xy::new_symm(0),
+        scrollable: Xy::new(false, false),
+    },
+};
+/// [`NodeParams`] for an icon button. 
+pub const IMAGE_BUTTON: NodeParams = NodeParams {
     key: None,
     stack: None,
     text_params: None,
@@ -220,8 +227,6 @@ pub const IMAGE: NodeParams = NodeParams {
     },
 };
 /// [`NodeParams`] for a button. 
-///
-/// You can use the "source" link to inspect the param values. 
 pub const BUTTON: NodeParams = NodeParams {
     key: None,
     stack: None,
@@ -249,8 +254,6 @@ pub const BUTTON: NodeParams = NodeParams {
     },
 };
 /// [`NodeParams`] for a label. 
-///
-/// You can use the "source" link to inspect the param values. 
 pub const LABEL: NodeParams = NodeParams {
     key: None,
     stack: None,
@@ -278,8 +281,6 @@ pub const LABEL: NodeParams = NodeParams {
 };
 
 /// [`NodeParams`] for a label containing a multi-line paragraph. 
-///
-/// You can use the "source" link to inspect the param values. 
 pub const MULTILINE_LABEL: NodeParams = NodeParams {
     key: None,
     stack: None,
@@ -307,8 +308,6 @@ pub const MULTILINE_LABEL: NodeParams = NodeParams {
 };
 
 /// [`NodeParams`] for a text element. 
-///
-/// You can use the "source" link to inspect the param values. 
 pub const TEXT: NodeParams = NodeParams {
     key: None,
     stack: None,
@@ -336,8 +335,6 @@ pub const TEXT: NodeParams = NodeParams {
 };
 
 /// [`NodeParams`] for a text element containing a multi-line paragraph.
-///
-/// You can use the "source" link to inspect the param values. 
 pub const TEXT_PARAGRAPH: NodeParams = NodeParams {
     key: None,
     stack: None,
@@ -366,8 +363,7 @@ pub const TEXT_PARAGRAPH: NodeParams = NodeParams {
 
 
 // /// [`NodeParams`] for a text_input. 
-// ///
-// /// You can use the "source" link to inspect the param values. 
+// //
 // pub const TEXT_INPUT: NodeParams = NodeParams {
     // key: None,
 //     stack: None,
@@ -395,8 +391,6 @@ pub const TEXT_PARAGRAPH: NodeParams = NodeParams {
 // };
 
 /// [`NodeParams`] for a panel. 
-///
-/// You can use the "source" link to inspect the param values. 
 pub const PANEL: NodeParams = NodeParams {
     key: None,
     stack: None,
@@ -421,8 +415,6 @@ pub const PANEL: NodeParams = NodeParams {
 };
 
 /// [`NodeParams`] for a container. 
-///
-/// You can use the "source" link to inspect the param values. 
 pub const CONTAINER: NodeParams = NodeParams {
     key: None,
     stack: None,
@@ -447,8 +439,6 @@ pub const CONTAINER: NodeParams = NodeParams {
 };
 
 /// [`NodeParams`] for a custom rendered panel.
-///
-/// You can use the "source" link to inspect the param values. 
 /// 
 /// Use [`UiNode::render_rect`] to get the render data for your node, then render it in a separate draw call.
 /// ```rust

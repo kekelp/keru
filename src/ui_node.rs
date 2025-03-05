@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use glyphon::Attrs;
 use glyphon::Family;
 use glyphon::Shaping;

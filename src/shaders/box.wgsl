@@ -97,6 +97,17 @@ fn vs_main(in: RenderRect) -> VertexOutput {
     
     let tex_coords = vec2<f32>(in.tex_coord_xs[i_x], in.tex_coord_ys[i_y]);
 
+    let x_clip_factor = (x_clipped - x) / (in.xs[1] - in.xs[0]);
+    let y_clip_factor = (y_clipped - y) / (in.ys[1] - in.ys[0]);
+
+    let tex_width = in.tex_coord_xs[1] - in.tex_coord_xs[0];
+    let tex_height = in.tex_coord_ys[1] - in.tex_coord_ys[0];
+
+    let tex_coords_clipped = vec2<f32>(
+        tex_coords.x + x_clip_factor * tex_width,
+        tex_coords.y + y_clip_factor * tex_height
+    );
+
     var uv = (uv_01 * half_size * 2.0);
 
     uv.y += (y_clipped - y) * unif.screen_resolution.y;
@@ -124,7 +135,7 @@ fn vs_main(in: RenderRect) -> VertexOutput {
 
     let dark = min(dark_click, dark_hover);
     let corners = read_rounded_corners(in.flags);
-    return VertexOutput(clip_position, uv, half_size, color, dark, in.radius, filled, tex_coords, shape, corners);
+    return VertexOutput(clip_position, uv, half_size, color, dark, in.radius, filled, tex_coords_clipped, shape, corners);
 }
 
 @fragment

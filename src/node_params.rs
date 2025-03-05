@@ -590,6 +590,24 @@ impl<'a, T: Display + ?Sized> FullNodeParams<'a, T> {
         self.params.rect.rounded_corners = corners;
         return self;
     }
+
+}
+
+impl<'a, T: Display + ?Sized> FullNodeParams<'a, T> {
+    /// Add text to the [`NodeParams`] from a `&'static str`.
+    /// 
+    /// `text` is assumed to be unchanged, so the [`Ui`] uses pointer equality to determine if it needs to update the text shown on screen.
+    /// 
+    /// If `text` changes, due to interior mutability or unsafe code, then the [`Ui`] will miss it.  
+    pub fn static_text(self, text: &'static str) -> FullNodeParams<'static, str> {
+        return FullNodeParams {
+            params: self.params,
+            image: self.image,
+            text: Some(text),
+            text_changed: Changed::Static,
+            text_ptr: (&raw const text) as usize,
+        }
+    }
 }
 
 impl NodeParams {
@@ -935,9 +953,9 @@ impl<T: Display + ?Sized + 'static> MaybeObserver<T> for Static<T> {
 /// This struct can wrap any value: it is up to the programmer to ensure that wrapped variables never change. If this assumption is broken, the values displayed in the Ui will get out of sync with the real value of `T`.
 /// 
 /// You can always use an [`Observer<T>`](`Observer`) or a raw `T` to avoid this risk. If a raw `T` is passed, the [`Ui`] will hash the resulting text to make sure it stays synced.
-pub struct Unchanged<T: ?Sized>(pub T);
+pub struct Immut<T: ?Sized>(pub T);
 
-impl<T: Display + ?Sized> MaybeObserver<T> for Unchanged<T> {
+impl<T: Display + ?Sized> MaybeObserver<T> for Immut<T> {
     fn value(&self) -> &T {
         &self.0
     }

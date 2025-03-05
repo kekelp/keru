@@ -23,33 +23,38 @@ impl ExampleLoop for State {
             ui.vertical_tabs(&self.tabs[..], &mut self.current_tab)
                 .nest(|| match self.tabs[self.current_tab] {
                     COMPONENTS_TAB => {
+                        let image = IMAGE.static_image(include_bytes!("../src/textures/E.png"));
 
+                        ui.add(V_SCROLL_STACK).nest(|| {
+                            ui.add(image);
+                        });
+                        
                     }
                     TEXT_TAB => {
                         let v_stack = V_STACK
                             .size_x(Frac(0.8))
                             .size_y(Size::Frac(0.7))
                             .scrollable_y(true);
-
+                        let image = IMAGE.static_image(include_bytes!("../src/textures/clouds.png"));
                         ui.add(v_stack).nest(|| {
                             ui.label(&Static(JAPANESE_TEXT));
-                            ui.label(&Static(CHINESE_TEXT));
-                            ui.add(BUTTON.text(&Static("useless button")));
-                            ui.label(&Static(JAPANESE_TEXT));
+                            ui.add(image);
                             ui.label(&Static(CHINESE_TEXT));
                         });
                     }
                     WEIRD_TAB => {
                         let big_button = BUTTON
                             .size_symm(Size::Fill)
-                            .static_text(JAPANESE_TEXT)
+                            .static_text("Button that is also a Stack")
                             .stack(Axis::Y, Arrange::Center, 10);
                         let nested_button_1 = BUTTON
                             .size_y(Size::Frac(0.3))
-                            .static_text("Nested button 1");
+                            .static_text("Everything is a node");
                         let nested_button_2 = BUTTON
                             .size_y(Size::Frac(0.2))
-                            .static_text("Nested button 2");
+                            .static_image(include_bytes!("../src/textures/clouds.png"))
+                            .static_text("And every node can be everything at once\n(for now)");
+
 
                         ui.add(PANEL).nest(|| {
                             ui.add(big_button).nest(|| {

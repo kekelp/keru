@@ -366,6 +366,7 @@ impl Ui {
         if let Some(image) = node.imageref {
             if let Some(image_rect) = node.render_rect(draw_even_if_invisible, Some(image.tex_coords)) {
                 self.sys.rects.push(image_rect);
+                node.last_image_rect_i = Some(self.sys.rects.len() - 1);
             }
         }
     }
@@ -378,6 +379,14 @@ impl Ui {
             let old_i = node.last_rect_i;
             // this panics all the time: big skill issue. solve with the dense maps thing, I guess.
             self.sys.rects[old_i] = rect;
+        }
+        
+        if let Some(imageref) = node.imageref {
+            if let Some(image_rect) = node.render_rect(draw_even_if_invisible, Some(imageref.tex_coords)) {
+                let old_i = node.last_image_rect_i.unwrap();
+                self.sys.rects[old_i] = image_rect;
+            }
+
         }
 
         // this kind of makes sense, but apparently not needed? I guess someone else is calling it?
