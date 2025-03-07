@@ -180,7 +180,7 @@ pub const ICON_BUTTON: NodeParams = NodeParams {
         scrollable: Xy::new(false, false),
     },
 };
-/// [`NodeParams`] for an icon button. 
+/// [`NodeParams`] for an image. 
 pub const IMAGE: NodeParams = NodeParams {
     key: None,
     stack: None,
@@ -189,7 +189,7 @@ pub const IMAGE: NodeParams = NodeParams {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
-        outline_only: false,
+        outline_only: true,
         vertex_colors: VertexColors::flat(Color::WHITE),
     },
     interact: Interact {

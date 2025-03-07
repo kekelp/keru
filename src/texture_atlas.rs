@@ -43,7 +43,7 @@ impl TextureAtlas {
         let packer = BucketedAtlasAllocator::new(size2(atlas_size as i32, atlas_size as i32));
 
         let atlas_texture = device.create_texture(&TextureDescriptor {
-            label: Some("Fulgur texture atlas"),
+            label: None,
             size: Extent3d {
                 width: atlas_size,
                 height: atlas_size,
@@ -107,7 +107,7 @@ impl TextureAtlas {
     pub fn allocate_image(&mut self, image_bytes: &[u8]) -> ImageRef {
 
         log::info!("Allocating an image"); 
-        let img = image::load_from_memory(image_bytes).unwrap();
+        let img = image::load_from_memory(image_bytes).unwrap(); // todo: don't unwrap here
 
         // convert to RGBA8 format
         let img = img.to_rgba8();

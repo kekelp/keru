@@ -18,30 +18,12 @@ const JAPANESE_TEXT: &str = "ヘッケはこれらのL-函数が全複素平面�
 impl ExampleLoop for State {
     fn update_ui(&mut self, ui: &mut Ui) {
 
-        let big_button = BUTTON
-            .size_symm(Size::Fill)
-            .stack(Axis::Y, Arrange::Center, 10);
-        let nested_button_1 = BUTTON
-            .size_y(Size::Frac(0.3))
-            .static_text("Nested button 1");
-        let nested_button_2 = BUTTON
-            .size_y(Size::Frac(0.2))
-            .static_text("Nested button 2");
+        let image1 = IMAGE.static_image(include_bytes!("../src/textures/E.png"));
+        let image2 = IMAGE.static_image(include_bytes!("../src/textures/clouds_450.png"));
 
-        ui.add(PANEL).nest(|| {
-            ui.v_stack().nest(|| {
-
-                ui.h_stack().nest(|| {
-                    ui.static_label("Test");
-                    ui.static_label("Sneed");
-                });
-                
-                ui.h_stack().nest(|| {
-                    ui.static_label("Test2");
-                    ui.static_label("Sneed2");
-                });
-            });
-
+        ui.v_stack().nest(|| {
+            ui.add(image2);
+            // ui.add(image1);
         });
 
     }

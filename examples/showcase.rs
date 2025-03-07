@@ -35,7 +35,9 @@ impl ExampleLoop for State {
                             .size_x(Frac(0.8))
                             .size_y(Size::Frac(0.7))
                             .scrollable_y(true);
-                        let image = IMAGE.static_image(include_bytes!("../src/textures/clouds.png"));
+                        
+                        let image = IMAGE.static_image(include_bytes!("../src/textures/clouds_small.png"));
+
                         ui.add(v_stack).nest(|| {
                             ui.label(&Static(JAPANESE_TEXT));
                             ui.add(image);

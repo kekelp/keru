@@ -151,11 +151,17 @@ impl Node {
             return None;
         }
 
+        let outline_only = if let Some(_) = image_texcoords {
+            false
+        } else {
+            self.params.rect.outline_only
+        };
+
         let mut flags = RenderRect::EMPTY_FLAGS;
         if self.params.interact.click_animation {
             flags |= RenderRect::CLICK_ANIMATION;
         }
-        if self.params.rect.outline_only {
+        if outline_only {
             flags |= RenderRect::OUTLINE_ONLY;
         }
         if self.hovered {

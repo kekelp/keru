@@ -239,7 +239,7 @@ impl Ui {
                     count: None,
                 },
             ],
-            label: Some("Fulgur Bind Group Layout"),
+            label: Some("Keru Bind Group Layout"),
         });
 
         // Create the bind group
@@ -259,7 +259,7 @@ impl Ui {
                     resource: BindingResource::Sampler(&texture_sampler),
                 },
             ],
-            label: Some("Fulgur Bind Group"),
+            label: Some("Keru Bind Group"),
         });
 
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
