@@ -155,7 +155,6 @@ impl Ui {
         self.recursive_place_children(i, update_rects);
     }
 
-    /// From a size proposed to us, decide our own size and subtract padding to get a size to propose to children
     fn get_size(
         &mut self,
         i: NodeI,    
@@ -241,32 +240,49 @@ impl Ui {
         let size_to_propose = self.get_inner_size(i, size);
 
         let stack = self.nodes[i].params.stack;
+        let padding = self.pixels_to_frac2(self.nodes[i].params.layout.padding);
         let mut content_size = Xy::new(0.0, 0.0);
-        
+
         if let Some(stack) = stack {
-            
+            let spacing = self.pixels_to_frac(stack.spacing, stack.axis);
+
             let mut available_size_left = size_to_propose;
+            let mut n_added_children = 0;
             let mut n_fill_children = 0;
             // First, do all non-Fill children
             for_each_child!(self, self.nodes[i], child, {
                 if self.nodes[child].params.layout.size[stack.axis] != Size::Fill {
                     let child_size = self.recursive_determine_size(child, ProposedSizes::stack(available_size_left, size_to_propose));
                     content_size.update_for_child(child_size, Some(stack));
+                    if n_added_children != 0 {
+                        content_size[stack.axis] += spacing;
+                    }
                     available_size_left[stack.axis] -= child_size[stack.axis];
+                    available_size_left[stack.axis] -= padding[stack.axis];
+                    n_added_children += 1;
                 } else {
                     n_fill_children += 1;
                 }
             });
 
+            
             if n_fill_children > 0 {
                 // then, divide the remaining space between the Fill children
                 let mut size_per_child = available_size_left;
+                if n_fill_children > 1 {
+                    available_size_left[stack.axis] -= ((n_fill_children - 1) as f32) * padding[stack.axis];
+                }
+
                 size_per_child[stack.axis] /= n_fill_children as f32;
                 for_each_child!(self, self.nodes[i], child, {
                     if self.nodes[child].params.layout.size[stack.axis] == Size::Fill {
                         let child_size = self.recursive_determine_size(child, ProposedSizes::stack(size_per_child, size_to_propose));
                         content_size.update_for_child(child_size, Some(stack));
+                        if n_added_children != 0 {
+                            content_size[stack.axis] += spacing;
+                        }
                         available_size_left[stack.axis] -= child_size[stack.axis];
+                        n_added_children += 1;
                     }
                 });
             }
@@ -294,11 +310,10 @@ impl Ui {
         // todo: is we're not fitcontenting, we can skip the update_for_* calls instead, and then remove this, I guess.
         let mut final_size = size;
 
-        let padding = self.pixels_to_frac2(self.nodes[i].params.layout.padding);
-
         for axis in [X, Y] {
-            match self.nodes[i].params.layout.size[axis] {
+            match self.nodes[i].params.layout.size[axis] { // todo if let
                 Size::FitContent => {
+                    // if we use content_size instead of the size above, then content_size doesn't have padding in
                     let mut content_size_with_padding = content_size;
                     content_size_with_padding[axis] += 2.0 * padding[axis];
                     final_size[axis] = content_size_with_padding[axis];

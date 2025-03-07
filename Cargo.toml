@@ -17,7 +17,7 @@ members = [
 [profile.dev]
 opt-level = 1
 [profile.dev.package."*"]
-opt-level = 1
+opt-level = 3
 
 [dependencies]
 keru_macros = "0.1.0"

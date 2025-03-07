@@ -73,8 +73,7 @@ impl State {
         let pixel_panel_2 = KERU_PANEL
             .position_x(Start)
             .position_y(Start)
-            // without a fixed size here, we get way too much partial relayouting to do on every frame
-            .size_x(Size::Pixels(100))
+            .size_x(Size::Pixels(110))
             .size_y(Size::Pixels(50));
 
         self.ui.add(pixel_panel_2).nest(|| {
@@ -102,9 +101,7 @@ impl State {
         let tools_panel = KERU_PANEL
             .position_x(Start)
             .position_y(Start)
-            // todo: something is off here
-            .padding_y(20)
-            .size_x(FitContent);
+            .size_symm(FitContent);
 
         self.ui.add(tools_panel).nest(|| {
             self.ui.h_stack().nest(|| {
@@ -142,7 +139,7 @@ impl State {
         #[node_key] const SLIDER_CONTAINER: NodeKey;
         let slider_container = KERU_PANEL
             .position_x(End)
-            .size_y(Size::Frac(0.7))
+            .size_y(Size::Fill)
             .size_x(Size::Pixels(60))
             .key(SLIDER_CONTAINER);
 
