@@ -693,24 +693,23 @@ impl Ui {
 
         if content_rect_size <= 0.0 {
             self.nodes[i].scroll.relative_offset[axis] = 0.0;
-        } else {
-            let min_scroll = (content_rect[axis][0] - real_rect[axis][0] ) / content_rect_size;
-            let max_scroll = (content_rect[axis][1] - real_rect[axis][1] ) / content_rect_size;
-            
-            if min_scroll < max_scroll {                
-                // let (min_scroll, max_scroll) = (min_scroll.min(max_scroll), min_scroll.max(max_scroll));
-                
-                self.nodes[i].scroll.relative_offset[axis] += delta * (max_scroll - min_scroll);
-                
-                let rel_offset = &mut self.nodes[i].scroll.relative_offset[axis];
-                if min_scroll < max_scroll {
-                    *rel_offset = rel_offset.clamp(min_scroll, max_scroll);
-                }
-            } else {
-                // todo: this needs to happen on resize as well
-                self.nodes[i].scroll.relative_offset[axis] = 0.0;
-            }
+            return;
         }
+
+        let min_scroll = (content_rect[axis][0] - real_rect[axis][0] ) / content_rect_size;
+        let max_scroll = (content_rect[axis][1] - real_rect[axis][1] ) / content_rect_size;
+        
+        if min_scroll < max_scroll {                
+            self.nodes[i].scroll.relative_offset[axis] += delta * (max_scroll - min_scroll);
+            
+            let rel_offset = &mut self.nodes[i].scroll.relative_offset[axis];
+            if min_scroll < max_scroll {
+                *rel_offset = rel_offset.clamp(min_scroll, max_scroll);
+            }
+        } else {
+            self.nodes[i].scroll.relative_offset[axis] = 0.0;
+        }
+    
     }
     
     pub(crate) fn clamp_scroll(&mut self, i: NodeI) {       
