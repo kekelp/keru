@@ -540,6 +540,7 @@ impl Ui {
         if ! self.nodes[i].params.is_scrollable() {
             return;
         }
+        self.clamp_scroll(i);
 
         for_each_child!(self, self.nodes[i], child, {
             for axis in [X, Y] {
@@ -709,6 +710,12 @@ impl Ui {
                 // todo: this needs to happen on resize as well
                 self.nodes[i].scroll.relative_offset[axis] = 0.0;
             }
+        }
+    }
+    
+    pub(crate) fn clamp_scroll(&mut self, i: NodeI) {       
+        for axis in [X, Y] {
+            self.update_scroll(i, 0.0, axis);
         }
     }
 
