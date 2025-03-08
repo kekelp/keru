@@ -693,11 +693,11 @@ impl Ui {
         if content_rect_size <= 0.0 {
             self.nodes[i].scroll.relative_offset[axis] = 0.0;
         } else {
-            self.nodes[i].scroll.relative_offset[axis] += delta;
-            
             let min_scroll = (content_rect[axis][0] - real_rect[axis][0] ) / content_rect_size;
             let max_scroll = (content_rect[axis][1] - real_rect[axis][1] ) / content_rect_size;
-
+            
+            self.nodes[i].scroll.relative_offset[axis] += delta * (min_scroll - max_scroll).abs();
+            
             let rel_offset = &mut self.nodes[i].scroll.relative_offset[axis];
             if min_scroll < max_scroll {
                 *rel_offset = rel_offset.clamp(min_scroll, max_scroll);
