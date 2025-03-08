@@ -141,8 +141,8 @@ impl Ui {
             .unwrap();
         
         if let Some(now) = now {
-            if now.elapsed() > Duration::from_millis(2) {
-                log::info!("glyphon `prepare` took {:?}", now.elapsed());
+            if now.elapsed() > Duration::from_millis(5) {
+                log::info!("glyphon prepare() took {:?}", now.elapsed());
             }
         }
     }
