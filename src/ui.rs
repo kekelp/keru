@@ -91,7 +91,7 @@ pub(crate) struct System {
     pub click_rects: Vec<ClickRect>,
 
     pub invisible_but_clickable_rects: Vec<RenderRect>,
-    pub scroll_rects: Vec<RenderRect>,
+    pub scroll_rects: Vec<ClickRect>,
 
     pub unifs: Uniforms,
     pub current_frame: u64,

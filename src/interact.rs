@@ -320,12 +320,16 @@ impl Ui {
     pub(crate) fn scan_scroll_areas_mouse_hits(&mut self) -> Option<Id> {
         self.sys.mouse_hit_stack.clear();
 
-        for rect in &self.sys.scroll_rects {
-            if mouse_hit_rect(rect, &self.sys.unifs.size, self.cursor_position()) {
-                self.sys.mouse_hit_stack.push((rect.id, rect.z));
+        for clk_i in 0..self.sys.scroll_rects.len() {
+            let clk_rect = self.sys.scroll_rects[clk_i];
+            if self.hit_click_rect(&clk_rect) {
+                let node_i = clk_rect.i;
+                let id = self.nodes[node_i].id;
+                let z = self.nodes[node_i].z;
+                self.sys.mouse_hit_stack.push((id, z));
             }
         }
-
+        
         // only the one with the top (aka lowest) z is actually clicked.
         // in practice, nobody ever sets the Z. it depends on the order.
         let mut topmost_hit = None;
@@ -415,16 +419,10 @@ bitflags::bitflags! {
 }
 
 impl Ui {
-    pub(crate) fn click_rect(&mut self, i: NodeI) -> Option<ClickRect> {
-        let node = &mut self.nodes[i];
-
-        if node.params.interact.absorbs_mouse_events {
-            return Some(ClickRect {
-                rect: node.rect,
-                i,
-            })
-        } else {
-            return None;
+    pub(crate) fn click_rect(&mut self, i: NodeI) -> ClickRect {
+        return ClickRect {
+            rect: self.nodes[i].rect,
+            i,
         }
     }
 }

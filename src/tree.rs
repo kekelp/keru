@@ -338,9 +338,16 @@ impl Ui {
     }
 
     pub(crate) fn push_rect(&mut self, i: NodeI) {
-        if let Some(click_rect) = self.click_rect(i) {
+        // todo: not really the right conditions, use the senses o algo
+        if self.nodes[i].params.interact.absorbs_mouse_events {
+            let click_rect = self.click_rect(i);
             self.sys.click_rects.push(click_rect);
             self.nodes[i].last_click_rect_i = self.sys.click_rects.len() - 1;
+        }
+
+        if self.nodes[i].params.is_scrollable() {
+            let click_rect = self.click_rect(i);
+            self.sys.scroll_rects.push(click_rect);
         }
 
         let node = &mut self.nodes[i];
@@ -361,13 +368,6 @@ impl Ui {
             }
         }
 
-        if node.params.is_scrollable() {
-            let just_give_me_a_rect = true;
-            if let Some(rect) = node.render_rect(just_give_me_a_rect, None) {
-                self.sys.scroll_rects.push(rect);
-            }
-        }
-
         if let Some(image) = node.imageref {
             if let Some(image_rect) = node.render_rect(draw_even_if_invisible, Some(image.tex_coords)) {
                 self.sys.rects.push(image_rect);
@@ -377,11 +377,14 @@ impl Ui {
     }
 
     pub(crate) fn update_rect(&mut self, i: NodeI) {
-        
-        if let Some(click_rect) = self.click_rect(i) {
+        if self.nodes[i].params.interact.absorbs_mouse_events {
+            let click_rect = self.click_rect(i);
             let old_i = self.nodes[i].last_click_rect_i;
             self.sys.click_rects[old_i] = click_rect;
         }
+
+        // todo: update scroll rect
+        // at this point, maybe split the cosmetic or size (click,scroll) updates?
 
         let node = &mut self.nodes[i];
 
