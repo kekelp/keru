@@ -6,6 +6,8 @@ use keru::*;
 struct State {
     tabs: Vec<Tab>,
     current_tab: usize,
+
+    f32_value: f32,
 }
 
 const COMPONENTS_TAB: Tab = Tab("Components");
@@ -18,59 +20,55 @@ const JAPANESE_TEXT: &str = "ヘッケはこれらのL-函数が全複素平面�
 
 impl ExampleLoop for State {
     fn update_ui(&mut self, ui: &mut Ui) {
-        ui.subtree().start(|| {
+        ui.vertical_tabs(&self.tabs[..], &mut self.current_tab)
+            .nest(|| match self.tabs[self.current_tab] {
+                COMPONENTS_TAB => {
+                    ui.add(V_SCROLL_STACK).nest(|| {
+                        ui.slider(&mut self.f32_value, 0.0, 100.0);
+                    });
+                }
 
-            ui.vertical_tabs(&self.tabs[..], &mut self.current_tab)
-                .nest(|| match self.tabs[self.current_tab] {
-                    COMPONENTS_TAB => {
-                        let image = IMAGE.static_image(include_bytes!("../src/textures/E.png"));
+                TEXT_TAB => {
+                    let v_stack = V_STACK
+                        .size_x(Frac(0.8))
+                        .size_y(Size::Frac(0.7))
+                        .scrollable_y(true);
 
-                        ui.add(V_SCROLL_STACK).nest(|| {
-                            ui.add(image);
+                    let image =
+                        IMAGE.static_image(include_bytes!("../src/textures/clouds.png"));
+
+                    ui.add(v_stack).nest(|| {
+                        ui.label(&Static(JAPANESE_TEXT));
+                        ui.add(image);
+                        ui.label(&Static(CHINESE_TEXT));
+                    });
+                }
+
+                WEIRD_TAB => {
+                    let big_button = BUTTON
+                        .size_symm(Size::Fill)
+                        .static_text("Button that is also a Stack")
+                        .stack(Axis::Y, Arrange::Center, 10);
+                    let nested_button_1 = BUTTON
+                        .size_y(Size::Frac(0.3))
+                        .static_text("Everything is a node");
+                    let nested_button_2 = BUTTON
+                        .size_y(Size::Frac(0.2))
+                        .static_image(include_bytes!("../src/textures/clouds.png"))
+                        .static_text("And every node can be everything at once\n(for now)");
+
+                    ui.add(PANEL).nest(|| {
+                        ui.add(big_button).nest(|| {
+                            ui.spacer();
+                            ui.add(nested_button_1);
+                            ui.spacer();
+                            ui.add(nested_button_2);
+                            ui.spacer();
                         });
-                        
-                    }
-                    TEXT_TAB => {
-                        let v_stack = V_STACK
-                            .size_x(Frac(0.8))
-                            .size_y(Size::Frac(0.7))
-                            .scrollable_y(true);
-                        
-                        let image = IMAGE.static_image(include_bytes!("../src/textures/clouds_small.png"));
-
-                        ui.add(v_stack).nest(|| {
-                            ui.label(&Static(JAPANESE_TEXT));
-                            ui.add(image);
-                            ui.label(&Static(CHINESE_TEXT));
-                        });
-                    }
-                    WEIRD_TAB => {
-                        let big_button = BUTTON
-                            .size_symm(Size::Fill)
-                            .static_text("Button that is also a Stack")
-                            .stack(Axis::Y, Arrange::Center, 10);
-                        let nested_button_1 = BUTTON
-                            .size_y(Size::Frac(0.3))
-                            .static_text("Everything is a node");
-                        let nested_button_2 = BUTTON
-                            .size_y(Size::Frac(0.2))
-                            .static_image(include_bytes!("../src/textures/clouds.png"))
-                            .static_text("And every node can be everything at once\n(for now)");
-
-
-                        ui.add(PANEL).nest(|| {
-                            ui.add(big_button).nest(|| {
-                                ui.spacer();
-                                ui.add(nested_button_1);
-                                ui.spacer();
-                                ui.add(nested_button_2);
-                                ui.spacer();
-                            });
-                        });
-                    }
-                    _ => {}
-                });
-        });
+                    });
+                }
+                _ => {}
+            });
     }
 }
 
@@ -79,6 +77,8 @@ fn main() {
     let state = State {
         tabs: vec![COMPONENTS_TAB, TEXT_TAB, WEIRD_TAB],
         current_tab: 0,
+        f32_value: 20.0,
+        ..Default::default()
     };
     run_example_loop(state);
 }

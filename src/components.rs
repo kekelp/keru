@@ -1,5 +1,9 @@
+use std::fmt::Write;
+
 use crate as keru;
 use keru::*;
+use keru::Size::*;
+use keru::Position::*;
 
 #[derive(PartialEq, Eq)]
 pub struct Tab(pub &'static str);
@@ -63,5 +67,49 @@ impl Ui {
                 return content_nest;
             })
         })
+    }
+
+
+    pub fn slider(&mut self, value: &mut f32, min: f32, max: f32) {
+        let slider_height = match self.get_node(SLIDER_CONTAINER) {
+            Some(container) => container.inner_size().x as f32,
+            // this is just for the first frame. awkward.
+            None => 1.0,
+        };
+
+        let (x, _) = self.is_dragged(SLIDER_CONTAINER);
+        *value += (x as f32) / slider_height * (min - max);
+        
+        let (x, _) = self.is_dragged(SLIDER_FILL);
+        *value += (x as f32) / slider_height * (min - max);
+
+        *value = value.clamp(min, max);
+        let filled_frac = (*value - min) / (max - min);
+
+        #[node_key] const SLIDER_CONTAINER: NodeKey;
+        let slider_container = PANEL
+            .size_x(Size::Fill)
+            .size_y(Size::Pixels(60))
+            .key(SLIDER_CONTAINER);
+
+        #[node_key] const SLIDER_FILL: NodeKey;
+        let slider_fill = PANEL
+            .size_y(Fill)
+            .size_x(Size::Frac(filled_frac))
+            .color(Color::KERU_RED)
+            .position_x(Start)
+            .padding_x(1)
+            .key(SLIDER_FILL);
+
+
+        // todo: don't allocate here
+        let text = format!("{:.2}", value);
+
+        self.add(slider_container).nest(|| {
+            self.add(slider_fill);
+            self.text_line(&text);
+        });
+
+        self.format_scratch.clear();
     }
 }

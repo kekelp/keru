@@ -846,7 +846,7 @@ impl Ui {
 
 /// A trait for types that can *optionally* observe changes to themselves and report them to an [`Ui`] for more efficient displaying.
 /// 
-/// This is implemented for regular untracked types (no optimization) and [`Observer`] types. Todo: add some `Static` or `Unchanged` wrappers and implement this.
+/// This is implemented for regular untracked types (no optimization) and [`Observer`] types. Todo: add some `Static` or `Immut` wrappers and implement this.
 /// 
 /// ```
 /// # use keru::*;
@@ -870,7 +870,7 @@ pub trait MaybeObserver<T: ?Sized> {
 impl NodeParams {
     /// Add text to the [`NodeParams`].
     /// 
-    /// The `text` argument can be a `&str`, a `String`, or any type that implements [`Display`], possibly wrapped by an [`Observer`], [`Static`] or [`Unchanged`] for efficiency.
+    /// The `text` argument can be a `&str`, a `String`, or any type that implements [`Display`], possibly wrapped by an [`Observer`], [`Static`] or [`Immut`] for efficiency.
     /// 
     /// 
     /// If a non-[`Observer`] type is used, the [`Ui`] will fall back to hashing the string to determine if the text needs updating.
@@ -930,7 +930,7 @@ impl<T: Display> MaybeObserver<T> for Observer<T> {
 /// let params2 = LABEL.text(&Static(string));
 /// ```
 /// 
-/// If you can guarantee that a non-`'static` variable will not be mutated through its lifetime, you can use [`Unchanged`]: it works the same way as [`Static`], but without an explicit `'static` bound.
+/// If you can guarantee that a non-`'static` variable will not be mutated through its lifetime, you can use [`Immut`]: it works the same way as [`Static`], but without an explicit `'static` bound.
 /// 
 /// # Notes
 /// 
