@@ -30,6 +30,7 @@ pub struct Node {
     pub(crate) relayout_chain_root: Option<NodeI>,
 
     pub(crate) last_rect_i: usize,
+    pub(crate) last_click_rect_i: usize,
     pub(crate) last_image_rect_i: Option<usize>,
 
     pub text_id: Option<usize>,
@@ -113,6 +114,7 @@ impl Node {
             last_click: f32::MIN,
             z: 0.0,
             last_rect_i: 0,
+            last_click_rect_i: 0,
             last_image_rect_i: None,
             relayout_chain_root: None,
             children_hash: EMPTY_HASH,
@@ -182,6 +184,7 @@ pub const ZERO_NODE_DUMMY: Node = Node {
     last_click: f32::MIN,
     z: -10000.0,
     last_rect_i: 0,
+    last_click_rect_i: 0,
     last_image_rect_i: None,
     relayout_chain_root: None,
     children_hash: EMPTY_HASH,
@@ -234,6 +237,7 @@ pub const NODE_ROOT: Node = Node {
     last_click: f32::MIN,
     z: -10000.0,
     last_rect_i: 0,
+    last_click_rect_i: 0,
     last_image_rect_i: None,
     relayout_chain_root: None,
     children_hash: EMPTY_HASH,

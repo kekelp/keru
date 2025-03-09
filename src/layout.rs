@@ -626,6 +626,7 @@ impl Ui {
     pub(crate) fn rebuild_all_rects(&mut self) {
         log::info!("Rebuilding all rectangles");
         self.sys.rects.clear();
+        self.sys.click_rects.clear();
         self.sys.invisible_but_clickable_rects.clear();
         self.sys.scroll_rects.clear();
         self.sys.z_cursor = Z_BACKDROP;

@@ -338,6 +338,11 @@ impl Ui {
     }
 
     pub(crate) fn push_rect(&mut self, i: NodeI) {
+        if let Some(click_rect) = self.click_rect(i) {
+            self.sys.click_rects.push(click_rect);
+            self.nodes[i].last_click_rect_i = self.sys.click_rects.len() - 1;
+        }
+
         let node = &mut self.nodes[i];
         
         // really only need to do this whenever a custom-rendered rect shows up. But that would require custom rendered rects to be specifically marked, as opposed to just being the same as any other visible-only-in-debug rect, which means that you can forget to mark it and mess everything up. There's no real disadvantage to just always doing it.
@@ -372,6 +377,12 @@ impl Ui {
     }
 
     pub(crate) fn update_rect(&mut self, i: NodeI) {
+        
+        if let Some(click_rect) = self.click_rect(i) {
+            let old_i = self.nodes[i].last_click_rect_i;
+            self.sys.click_rects[old_i] = click_rect;
+        }
+
         let node = &mut self.nodes[i];
 
         let draw_even_if_invisible = self.sys.inspect_mode;

@@ -3,7 +3,7 @@ use crate::*;
 use crate::math::Axis::*;
 
 use basic_window_loop::basic_depth_stencil_state;
-use copypasta::ClipboardContext;
+// use copypasta::ClipboardContext;
 use glam::DVec2;
 use glyphon::Cache as GlyphonCache;
 use glyphon::Viewport;
@@ -87,9 +87,11 @@ pub(crate) struct System {
 
     pub z_cursor: f32,
     pub rects: Vec<RenderRect>,
+
+    pub click_rects: Vec<ClickRect>,
+
     pub invisible_but_clickable_rects: Vec<RenderRect>,
     pub scroll_rects: Vec<RenderRect>,
-    // todo: keep a separate vec with the bounding boxes for faster mouse hit scans
 
     pub unifs: Uniforms,
     pub current_frame: u64,
@@ -347,6 +349,8 @@ impl Ui {
 
                 render_pipeline,
                 rects: Vec::with_capacity(50),
+                
+                click_rects: Vec::with_capacity(50),
                 invisible_but_clickable_rects: Vec::with_capacity(20),
                 scroll_rects: Vec::with_capacity(20),
 
@@ -565,5 +569,66 @@ pub(crate) fn mouse_hit_rect(rect: &RenderRect, size: &Xy<f32>, cursor_pos: DVec
 
             // in case there's any doubts, this was awful, it would be a lot better to have the click specific datastruct so that everything there can be in pixels
         }
+    }
+}
+
+
+impl Ui {
+    pub(crate) fn hit_click_rect(&self, rect: &ClickRect) -> bool {
+        let size = self.sys.unifs.size;
+        let cursor_pos = (
+            self.cursor_position().x as f32 / size[X],
+            self.cursor_position().y as f32 / size[Y],
+        );
+
+        let aabb_hit = rect.rect[X][0] < cursor_pos.0
+            && cursor_pos.0 < rect.rect[X][1]
+            && rect.rect[Y][0] < cursor_pos.1
+            && cursor_pos.1 < rect.rect[Y][1];
+
+        if aabb_hit == false {
+            return false;
+        }
+
+        let node_i = rect.i;
+
+
+        match self.nodes[node_i].params.rect.shape {
+            Shape::Rectangle { corner_radius: _ } => {
+                return true;
+            }
+            Shape::Circle => {
+                // Calculate the circle center and radius
+                let center_x = (rect.rect[X][0] + rect.rect[X][1]) / 2.0;
+                let center_y = (rect.rect[Y][0] + rect.rect[Y][1]) / 2.0;
+                let radius = (rect.rect[X][1] - rect.rect[X][0]) / 2.0;
+
+                // Check if the mouse is within the circle
+                let dx = cursor_pos.0 - center_x;
+                let dy = cursor_pos.1 - center_y;
+                return dx * dx + dy * dy <= radius * radius;
+            }
+            Shape::Ring { width } => {
+                // scale to correct coordinates
+                // width should have been a Len anyway so this will have to change
+                let width = width / size[X];
+
+                let aspect = size[X] / size[Y];
+                    // Calculate the ring's center and radii
+                let center_x = (rect.rect[X][0] + rect.rect[X][1]) / 2.0;
+                let center_y = (rect.rect[Y][0] + rect.rect[Y][1]) / 2.0;
+                let outer_radius = (rect.rect[X][1] - rect.rect[X][0]) / 2.0;
+                let inner_radius = outer_radius - width;
+
+                // Check if the mouse is within the ring
+                let dx = cursor_pos.0 - center_x;
+                let dy = (cursor_pos.1 - center_y) / aspect;
+                let distance_squared = dx * dx + dy * dy;
+                return distance_squared <= outer_radius * outer_radius
+                    && distance_squared >= inner_radius * inner_radius;
+
+            }
+        }
+
     }
 }

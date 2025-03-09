@@ -149,6 +149,7 @@ impl Ui {
                 }
                 self.end_all_hovering();
                 self.start_hovering(hovered_id);
+                // only do this if the node has the correct sense (and maybe in debug mode)
                 self.sys.new_ui_input = true;
             }
             
@@ -289,17 +290,16 @@ impl Ui {
     pub(crate) fn scan_mouse_hits(&mut self) -> Option<Id> {
         self.sys.mouse_hit_stack.clear();
 
-        for rect in &self.sys.rects {
-            if mouse_hit_rect(rect, &self.sys.unifs.size, self.cursor_position()) {
-                self.sys.mouse_hit_stack.push((rect.id, rect.z));
+        for clk_i in 0..self.sys.click_rects.len() {
+            let clk_rect = self.sys.click_rects[clk_i];
+            if self.hit_click_rect(&clk_rect) {
+                let node_i = clk_rect.i;
+                let id = self.nodes[node_i].id;
+                let z = self.nodes[node_i].z;
+                self.sys.mouse_hit_stack.push((id, z));
             }
         }
 
-        for rect in &self.sys.invisible_but_clickable_rects {
-            if mouse_hit_rect(rect, &self.sys.unifs.size, self.cursor_position()) {
-                self.sys.mouse_hit_stack.push((rect.id, rect.z));
-            }
-        }
 
         // only the one with the top (aka lowest) z is actually clicked.
         // in practice, nobody ever sets the Z. it depends on the order.
@@ -390,6 +390,41 @@ impl Ui {
             self.resolve_hover();
             self.sys.changes.need_gpu_rect_update = true;
             self.sys.changes.need_rerender = true;
+        }
+    }
+}
+
+
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct ClickRect {
+    pub rect: XyRect,
+    pub i: NodeI,
+}
+
+bitflags::bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+    pub struct Sense: u8 {
+        const CLICK    = 1 << 0;
+        const DRAG     = 1 << 1;
+        const HOVER = 1 << 2;
+        const BOTTOM_LEFT  = 1 << 3;
+        
+        const CLICK_AND_HOVER = Self::CLICK.bits() | Self::HOVER.bits();
+        const NONE = 0;
+    }
+}
+
+impl Ui {
+    pub(crate) fn click_rect(&mut self, i: NodeI) -> Option<ClickRect> {
+        let node = &mut self.nodes[i];
+
+        if node.params.interact.absorbs_mouse_events {
+            return Some(ClickRect {
+                rect: node.rect,
+                i,
+            })
+        } else {
+            return None;
         }
     }
 }
