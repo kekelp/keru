@@ -172,9 +172,6 @@ impl<T: Tag> MouseInput<T> {
     }
 
     /// Returns the drag distance for a mouse button on a node, or None if there was no drag.
-    ///
-    /// In the case where the user dragged, released, and redragged all in one frame,
-    /// this sums the distances.
     pub fn dragged(&self, mouse_button: Option<MouseButton>, tag: Option<T>) -> (f64, f64) {
         let all_events = self.mouse_events(mouse_button, tag);
 

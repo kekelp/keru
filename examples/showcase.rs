@@ -24,7 +24,18 @@ impl ExampleLoop for State {
             .nest(|| match self.tabs[self.current_tab] {
                 COMPONENTS_TAB => {
                     ui.add(V_SCROLL_STACK).nest(|| {
-                        ui.slider(&mut self.f32_value, 0.0, 100.0);
+
+                        ui.h_stack().nest(|| {
+                            if ui.add(BUTTON.text("Increase")).is_clicked(ui) {
+                                self.f32_value += 1.0;
+                            }
+                            ui.label(&self.f32_value);
+                        });
+                        
+                        ui.add(V_SCROLL_STACK).nest(|| {
+                            ui.slider(&mut self.f32_value, 0.0, 100.0);
+                        });
+                    
                     });
                 }
 
