@@ -49,9 +49,7 @@ pub(crate) fn ui_time_f32() -> f32 {
 /// 
 /// To integrate [`Ui`] with your `winit` event loop, pass all your `winit` events to [`Ui::window_event`].
 /// 
-/// To render the GUI to the screen, call [`Ui::render`].
-/// 
-// todo: the sys split is no longer needed, lol.
+/// To render the GUI to the screen, call [`Ui::render`]. 
 pub struct Ui {
     pub(crate) nodes: Nodes,
     pub(crate) sys: System,
@@ -73,7 +71,7 @@ pub(crate) struct System {
     pub new_ui_input_1_more_frame: bool,
     pub new_external_events: bool,
 
-    pub clipboard: ClipboardContext,
+    // pub clipboard: ClipboardContext,
 
     // todo: remove and put in mouse_input
     pub key_mods: ModifiersState,
@@ -168,7 +166,7 @@ impl Ui {
         LazyLock::force(&T0);
         
         let gpu_rect_buffer = device.create_buffer_init(&util::BufferInitDescriptor {
-            label: Some("player bullet pos buffer"),
+            label: Some("Keru rectangle buffer"),
             // todo: I guess this should be growable
             contents: {
                 let warning = "todo: make this growable";
@@ -333,7 +331,7 @@ impl Ui {
                 new_ui_input_1_more_frame: false,
                 new_external_events: true,
 
-                clipboard: ClipboardContext::new().unwrap(),
+                // clipboard: ClipboardContext::new().unwrap(),
                 key_mods: ModifiersState::default(),
 
                 text: TextSystem {
