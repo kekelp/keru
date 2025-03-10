@@ -76,37 +76,78 @@ impl<'a> UiNode<'a> {
 
 
 impl Ui {
+    #[cfg(debug_assertions)]
+    fn check_node_sense(&self, id: Id, sense: Sense, fn_name: &'static str) -> bool {
+        if let Some((node, _)) = self.nodes.get_by_id(&id) {
+            if !node.params.interact.senses.contains(sense) {
+                log::error!(
+                    "Debug mode check: {} was called on node {}, but the node doesn't have the {:?} sense.",
+                    fn_name,
+                    node.debug_name(),
+                    sense
+                );
+                return false;
+            }
+        }
+        return true;
+    }
+
     /// Returns `true` if the node corresponding to `key` was just clicked with the left mouse button.
     /// 
     /// This is "act on press". For "act on release", see [is_click_released()](Self::is_click_released()).
     pub fn is_clicked(&mut self, node_key: NodeKey) -> bool {
-        let clicked = self.sys.mouse_input.clicked(Some(MouseButton::Left), Some(node_key.id_with_subtree()));
-        let warning = "add this everywhere else";
-        if clicked {
-            self.sys.new_ui_input = true;
-            self.sys.new_ui_input_1_more_frame = true;
+        let id = node_key.id_with_subtree();
+        #[cfg(debug_assertions)] {
+            if ! self.check_node_sense(id, Sense::CLICK, "is_clicked") {
+                return false;
+            }
         }
+        let clicked = self.sys.mouse_input.clicked(Some(MouseButton::Left), Some(id));
         return clicked;
     }
 
     /// Returns `true` if a left button mouse click was just released on the node corresponding to `key`.
     pub fn is_click_released(&self, node_key: NodeKey) -> bool {
-        return self.sys.mouse_input.click_released(Some(MouseButton::Left), Some(node_key.id_with_subtree()));
+        let id = node_key.id_with_subtree();
+        #[cfg(debug_assertions)] {
+            if ! self.check_node_sense(id, Sense::CLICK, "is_click_released") {
+                return false;
+            }
+        }
+        return self.sys.mouse_input.click_released(Some(MouseButton::Left), Some(id));
     }
 
     /// If the node corresponding to `key` was being held with the left mouse button in the last frame, returns the duration for which it was held.
     pub fn is_held(&self, node_key: NodeKey) -> Option<Duration> {
-        return self.sys.mouse_input.held(Some(MouseButton::Left), Some(node_key.id_with_subtree()));
+        let id = node_key.id_with_subtree();
+        #[cfg(debug_assertions)] {
+            if ! self.check_node_sense(id, Sense::HOLD, "is_held") {
+                return None;
+            }
+        }
+        return self.sys.mouse_input.held(Some(MouseButton::Left), Some(id));
     }
 
     /// If the node corresponding to `key` was dragged, returns the distance dragged. Otherwise, returns `(0.0, 0.0)`.
     pub fn is_dragged(&self, node_key: NodeKey) -> (f64, f64) {
-        return self.sys.mouse_input.dragged(Some(MouseButton::Left), Some(node_key.id_with_subtree()));
+        let id = node_key.id_with_subtree();
+        #[cfg(debug_assertions)] {
+            if ! self.check_node_sense(id, Sense::DRAG, "is_dragged") {
+                return (0.0, 0.0);
+            }
+        }
+        return self.sys.mouse_input.dragged(Some(MouseButton::Left), Some(id));
     }
 
     /// Returns `true` if a node is currently hovered by the cursor.
     pub fn is_hovered(&self, node_key: NodeKey) -> bool {
-        return self.sys.hovered.last() == Some(&node_key.id_with_subtree());
+        let id = node_key.id_with_subtree();
+        #[cfg(debug_assertions)] {
+            if ! self.check_node_sense(id, Sense::HOVER, "is_hovered") {
+                return false;
+            }
+        }
+        return self.sys.hovered.last() == Some(&id);
     }
 
     /// Returns `true` if the node corresponding to `key` was just clicked with the `mouse_button`.
@@ -140,24 +181,42 @@ impl Ui {
 
         if let Some(hovered_id) = hovered_node_id {
             if self.sys.hovered.contains(&hovered_id) {
-                // nothing changed, do nothing
+                let (hovered_node, _) = self.nodes.get_mut_by_id(&hovered_id).unwrap();
+                if hovered_node.params.interact.senses.contains(Sense::HOVER) {
+                    self.sys.new_ui_input = true;
+                }
+
+                if hovered_node.params.interact.senses.contains(Sense::DRAG)
+                    && self.sys.mouse_input.held(Some(MouseButton::Left), Some(hovered_id)).is_some() {
+                    self.sys.new_ui_input = true;
+                }
+
             } else {
                 // newly entered
+                let (_, hovered_node_i) = self.nodes.get_mut_by_id(&hovered_id).unwrap();
                 if self.inspect_mode() {
-                    let (_, hovered_node_i) = self.nodes.get_by_id(&hovered_id).unwrap();
-                    log::info!("Inspect mode: hovering {}", self.node_debug_name(hovered_node_i))
+                    log::info!("Inspect mode: hovering {}", self.node_debug_name_fmt_scratch(hovered_node_i))
                 }
                 self.end_all_hovering();
                 self.start_hovering(hovered_id);
-                // only do this if the node has the correct sense (and maybe in debug mode)
-                self.sys.new_ui_input = true;
+
+                let hovered_node = &mut self.nodes[hovered_node_i];
+                if hovered_node.params.interact.senses.contains(Sense::HOVER) {
+                    self.sys.new_ui_input = true;
+                }
+                if hovered_node.params.interact.click_animation {
+                    // // don't do this
+                    // self.sys.new_ui_input = true;
+                    self.sys.anim_render_timer.push_new(Duration::from_secs_f32(ANIMATION_RERENDER_TIME));
+                }
+
             }
             
         } else {
             self.end_all_hovering();
         }
 
-        if self.sys.is_anything_dragged {
+        if self.sys.mouse_input.dragged(Some(MouseButton::Left), None) != (0.0, 0.0) {
             self.sys.new_ui_input = true;
         }
 
@@ -175,7 +234,7 @@ impl Ui {
     pub(crate) fn start_hovering(&mut self, hovered_id: Id) {
         self.sys.hovered.push(hovered_id);
         
-        let (hovered_node, hovered_node_i) = self.nodes.get_by_id(&hovered_id).unwrap();
+        let (hovered_node, hovered_node_i) = self.nodes.get_mut_by_id(&hovered_id).unwrap();
 
         if hovered_node.params.interact.click_animation {
             hovered_node.hovered = true;
@@ -188,9 +247,7 @@ impl Ui {
     }
 
     pub(crate) fn end_all_hovering(&mut self) {
-        if ! self.sys.hovered.is_empty() {
-            self.sys.anim_render_timer.push_new(Duration::from_secs_f32(ANIMATION_RERENDER_TIME));
-        }
+        let mut animation = false;
 
         for hovered_id in &self.sys.hovered {
             let hovered_nodemap_entry = self.nodes.node_hashmap.get(&hovered_id);
@@ -207,24 +264,25 @@ impl Ui {
                         hovered_node.hovered = false;
                         hovered_node.hover_timestamp = ui_time_f32();
                         self.sys.changes.cosmetic_rect_updates.push(hovered_node_i);
-                    }
 
-                    self.sys.new_ui_input = true;
+                        animation = true;
+                    }
                 }
             }
         }
+
+        if animation {
+            // // don't do this
+            // self.sys.new_ui_input = true;
+            self.sys.anim_render_timer.push_new(Duration::from_secs_f32(ANIMATION_RERENDER_TIME));
+        }
+
         self.sys.hovered.clear();
     }
 
     pub(crate) fn begin_frame_resolve_inputs(&mut self) {
         self.sys.mouse_input.begin_new_frame();
         self.sys.key_input.begin_new_frame();
-
-        if self.sys.mouse_input.dragged(Some(MouseButton::Left), None) != (0.0, 0.0) {
-            self.sys.is_anything_dragged = true;
-        } else {
-            self.sys.is_anything_dragged = false;
-        }
     }
 
     pub(crate) fn resolve_click_release(&mut self, _button: MouseButton) {
@@ -251,7 +309,7 @@ impl Ui {
             let t = T0.elapsed();
 
             // todo: yuck
-            let (clicked_node, clicked_node_i) = self.nodes.get_by_id(&clicked_id).unwrap();
+            let (clicked_node, clicked_node_i) = self.nodes.get_mut_by_id(&clicked_id).unwrap();
 
             if clicked_node.params.interact.click_animation {
 
@@ -411,7 +469,8 @@ bitflags::bitflags! {
         const CLICK    = 1 << 0;
         const DRAG     = 1 << 1;
         const HOVER = 1 << 2;
-        const BOTTOM_LEFT  = 1 << 3;
+        const HOLD  = 1 << 4;
+        // todo: HoverEnter could be useful
         
         const CLICK_AND_HOVER = Self::CLICK.bits() | Self::HOVER.bits();
         const NONE = 0;

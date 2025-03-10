@@ -141,6 +141,7 @@ impl State {
             .position_x(End)
             .size_y(Size::Fill)
             .size_x(Size::Pixels(60))
+            .sense_drag(true)
             .key(SLIDER_CONTAINER);
 
         #[node_key] const SLIDER_FILL: NodeKey;
@@ -149,6 +150,7 @@ impl State {
             .size_y(Size::Frac(filled_frac))
             .color(Color::KERU_RED)
             .position_y(End)
+            .sense_drag(true)
             .padding_y(1)
             .key(SLIDER_FILL);
 

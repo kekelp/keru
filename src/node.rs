@@ -128,7 +128,7 @@ impl Node {
 }
 
 impl Ui {
-    pub(crate) fn node_debug_name(&mut self, i: NodeI) -> &str {
+    pub(crate) fn node_debug_name_fmt_scratch(&mut self, i: NodeI) -> &str {
         self.format_scratch.clear();
         
         if self.nodes[i].debug_key_name != "" {
@@ -141,6 +141,23 @@ impl Ui {
         let _ = write!(&mut self.format_scratch, "[{}]", self.nodes[i].debug_location );
 
         return &self.format_scratch;
+    }
+}
+impl Node {
+    pub(crate) fn debug_name(&self) -> String {
+        let mut result = String::new();
+        
+        if self.debug_key_name != "" {
+            write!(result, "{} ", self.debug_key_name).unwrap();
+            
+            if let Some(twin_n) = self.is_twin {
+                write!(result, "(twin #{})", twin_n).unwrap();
+            }
+        }
+        
+        write!(result, "[{}]", self.debug_location).unwrap();
+        
+        return result;
     }
 }
 

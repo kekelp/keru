@@ -1,8 +1,7 @@
 // todo: move some more stuff out of this file
 use crate::*;
 
-use glyphon::cosmic_text::Align;
-use glyphon::{AttrsList, Color as GlyphonColor, TextBounds, Viewport};
+use glyphon::{Color as GlyphonColor, TextBounds, Viewport};
 
 use rustc_hash::FxHasher;
 
@@ -99,22 +98,6 @@ impl TextSystem {
     pub(crate) fn refresh_last_frame(&mut self, text_id: Option<usize>, current_frame: u64) {
         if let Some(text_id) = text_id {
             self.text_areas[text_id].params.last_frame_touched = current_frame;
-        }
-    }
-
-    pub(crate) fn set_text_attrs(&mut self, text_id: usize, attrs: Attrs) {
-        let area = &mut self.text_areas[text_id];
-
-        // Define new attributes
-        // Apply new attributes to the entire text
-        for line in &mut area.buffer.lines {
-            line.set_attrs_list(AttrsList::new(attrs));
-        }
-    }
-
-    pub(crate) fn set_text_align(&mut self, text_id: usize, align: Align) {
-        for line in &mut self.text_areas[text_id].buffer.lines {
-            line.set_align(Some(align));
         }
     }
 }
@@ -338,8 +321,13 @@ impl Ui {
     }
 
     pub(crate) fn push_rect(&mut self, i: NodeI) {
-        // todo: not really the right conditions, use the senses o algo
-        if self.nodes[i].params.interact.absorbs_mouse_events {
+        let debug = cfg!(debug_assertions);
+        let push_click_rect = if debug {
+            self.nodes[i].params.interact.absorbs_mouse_events
+        } else {
+            self.nodes[i].params.interact.senses != Sense::NONE 
+        };
+        if push_click_rect {
             let click_rect = self.click_rect(i);
             self.sys.click_rects.push(click_rect);
             self.nodes[i].last_click_rect_i = self.sys.click_rects.len() - 1;
@@ -392,6 +380,7 @@ impl Ui {
         if let Some(rect) = node.render_rect(draw_even_if_invisible, None) {
             let old_i = node.last_rect_i;
             // this panics all the time: big skill issue. solve with the dense maps thing, I guess.
+            // or maybe it's ok now.
             self.sys.rects[old_i] = rect;
         }
         

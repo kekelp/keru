@@ -73,6 +73,7 @@ impl Ui {
 
     /// Updates the GUI data on the GPU and renders it. 
     pub fn render(&mut self, render_pass: &mut RenderPass, device: &Device, queue: &Queue) {  
+        self.do_cosmetic_rect_updates();
         self.prepare(device, queue);
 
         let n = self.sys.rects.len() as u32;

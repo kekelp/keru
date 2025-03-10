@@ -50,19 +50,6 @@ impl ColorPickerUi for Ui {
                 color_picker.need_rerender = true;
             };
 
-            if let Some(_) = self.is_held(OKLAB_SQUARE) {
-                let abs_pos: Vec2 = self.cursor_position().as_vec2();
-                let size_pixels: Vec2 = self.get_node(OKLAB_SQUARE).unwrap().rect().size().into();
-                let bottom_left: Vec2 = self.get_node(OKLAB_SQUARE).unwrap().bottom_left().into();
-                let mut pos: Vec2 = abs_pos - bottom_left;
-                pos.y = - pos.y;
-                let pos: Vec2 = pos / size_pixels;
-                
-                color_picker.oklch_color.chroma = pos.y * 0.33;
-                color_picker.oklch_color.lightness = pos.x;
-                color_picker.need_rerender = true;
-            };
-
             let container = KERU_PANEL
                 .size_x(Size::Frac(0.18))
                 .size_y(Size::AspectRatio(1.0));
@@ -70,6 +57,7 @@ impl ColorPickerUi for Ui {
             let oklab_hue_wheel = CUSTOM_RENDERED_PANEL
                 .size_symm(Size::Fill)
                 .shape(Shape::Ring { width: 60.0 })
+                .sense_hold(true)
                 .key(OKLAB_HUE_WHEEL);
         
             let padding_square = PANEL

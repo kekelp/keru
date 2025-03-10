@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use crate::*;
 
 /// A struct referring to a reactive block created with [`Ui::reactive()`].

@@ -101,6 +101,7 @@ pub(crate) struct System {
 
     pub mouse_hit_stack: Vec<(Id, f32)>,
 
+    // mouse input needs to be Id based, not NodeI based, because you can hold a button for several frames
     pub mouse_input: MouseInput<Id>,
     pub key_input: KeyInput,
 
@@ -109,17 +110,14 @@ pub(crate) struct System {
 
     pub focused: Option<Id>,
 
-    // todo: maybe size_scratch can use the same Vec<usize> as above.
     pub relayouts_scrath: Vec<NodeWithDepth>,
-    // this is used exclusively for debug messages
+    // this is used exclusively for info messages
     pub partial_relayout_count: u32,
 
     pub changes: PartialChanges,
 
     // move to changes oalgo
     pub anim_render_timer: AnimationRenderTimer,
-
-    pub is_anything_dragged: bool,
 }
 
 pub(crate) struct AnimationRenderTimer(Option<Instant>);
@@ -171,7 +169,6 @@ impl Ui {
             label: Some("Keru rectangle buffer"),
             // todo: I guess this should be growable
             contents: {
-                let warning = "todo: make this growable";
                 bytemuck::cast_slice(&[0.0; 2048])
             },
             usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
@@ -381,8 +378,6 @@ impl Ui {
                 anim_render_timer: AnimationRenderTimer::default(),
 
                 changes: PartialChanges::new(),
-
-                is_anything_dragged: false,
             },
         }
     }
@@ -440,16 +435,13 @@ impl Ui {
         self.sys.new_external_events = true;
     }
 
-    pub fn new_external_events(&mut self) -> bool {
-        return self.sys.new_external_events;
-    }
-
-    pub fn new_ui_input(&mut self) -> bool {
-        return self.sys.new_ui_input ||
-        self.sys.new_ui_input_1_more_frame ||
-        self.sys.changes.resize;
-    }
-
+    /// Returns `true` if the [`Ui`] needs to be updated.
+    /// 
+    /// This is true when the [`Ui`] received an input that it cares about, such as a click on a clickable element, or when the user explicitly notified it with [`Ui::push_external_event()`].
+    ///  
+    /// In a typical `winit` loop for an application that only updates in response to user input, this function is what decides if the [`Ui`] building code should be rerun.
+    /// 
+    /// In applications that update on every frame regardless of user input, like games or simulations, the [`Ui`] building code should be rerun on every frame unconditionally, so this function isn't useful.
     pub fn needs_update(&mut self) -> bool {
         return self.sys.new_ui_input ||
             self.sys.new_ui_input_1_more_frame ||
@@ -457,16 +449,16 @@ impl Ui {
             self.sys.changes.resize;
     }
 
-    /// A common sense method that tracks when the UI needs the event loop to wake up **in most common cases**.
+    /// Returns `true` if the [`Ui`] needs to be updated or rerendered.
     /// 
-    /// Depending on the situation, this might have both false positives and false negatives.
+    /// In a typical `winit` loop for an application that only updates in response to user input, this function is what decides if `winit::Window::request_redraw()` should be called.
     /// 
-    /// For advanced uses, you should decide when to wake the loop yourself. Future versions of the library will try to make that easier.
+    /// An application that works like this can also wake up in response to external events, but it has to be explicitely told to, with [`Ui::push_external_event()`].
+    /// 
+    /// For an application that updates on every frame regardless of user input, like a game or a simulation, `request_redraw()` should be called on every frame unconditionally, so this function isn't useful.
+    /// 
     pub fn event_loop_needs_to_wake(&mut self) -> bool {
-        return self.sys.new_ui_input ||
-            self.sys.new_ui_input_1_more_frame ||
-            self.sys.changes.resize ||
-            self.needs_rerender();
+        return self.needs_update() || self.needs_rerender();
     }
 
     pub fn cursor_position(&self) -> DVec2 {
@@ -509,69 +501,6 @@ impl NodeMapEntry {
         return self.slab_i;
     }
 }
-
-
-pub(crate) fn mouse_hit_rect(rect: &RenderRect, size: &Xy<f32>, cursor_pos: DVec2) -> bool {
-    // rects are rebuilt whenever they change, they don't have to be skipped based on a timestamp or anything like that.
-    // in the future if we do a click detection specific datastructure it might use a timestamp, maybe? probably not.
-
-    let mut cursor_pos = (
-        cursor_pos.x as f32 / size[X],
-        1.0 - (cursor_pos.y as f32 / size[Y]),
-    );
-
-    // transform mouse_pos into "opengl" centered coordinates
-    cursor_pos.0 = (cursor_pos.0 * 2.0) - 1.0;
-    cursor_pos.1 = (cursor_pos.1 * 2.0) - 1.0;
-
-    let aabb_hit = rect.rect[X][0] < cursor_pos.0
-        && cursor_pos.0 < rect.rect[X][1]
-        && rect.rect[Y][0] < cursor_pos.1
-        && cursor_pos.1 < rect.rect[Y][1];
-
-    if !aabb_hit {
-        return false;
-    }
-
-    match rect.read_shape() {
-        Shape::Rectangle { corner_radius: _ } => {
-            return aabb_hit;
-        }
-        Shape::Circle => {
-            // Calculate the circle center and radius
-            let center_x = (rect.rect[X][0] + rect.rect[X][1]) / 2.0;
-            let center_y = (rect.rect[Y][0] + rect.rect[Y][1]) / 2.0;
-            let radius = (rect.rect[X][1] - rect.rect[X][0]) / 2.0;
-
-            // Check if the mouse is within the circle
-            let dx = cursor_pos.0 - center_x;
-            let dy = cursor_pos.1 - center_y;
-            return dx * dx + dy * dy <= radius * radius;
-        }
-        Shape::Ring { width } => {
-            // scale to correct coordinates
-            // width should have been a Len anyway so this will have to change
-            let width = width / size[X];
-
-            let aspect = size[X] / size[Y];
-                // Calculate the ring's center and radii
-            let center_x = (rect.rect[X][0] + rect.rect[X][1]) / 2.0;
-            let center_y = (rect.rect[Y][0] + rect.rect[Y][1]) / 2.0;
-            let outer_radius = (rect.rect[X][1] - rect.rect[X][0]) / 2.0;
-            let inner_radius = outer_radius - width;
-
-            // Check if the mouse is within the ring
-            let dx = cursor_pos.0 - center_x;
-            let dy = (cursor_pos.1 - center_y) / aspect;
-            let distance_squared = dx * dx + dy * dy;
-            return distance_squared <= outer_radius * outer_radius
-                && distance_squared >= inner_radius * inner_radius;
-
-            // in case there's any doubts, this was awful, it would be a lot better to have the click specific datastruct so that everything there can be in pixels
-        }
-    }
-}
-
 
 impl Ui {
     pub(crate) fn hit_click_rect(&self, rect: &ClickRect) -> bool {

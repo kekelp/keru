@@ -132,6 +132,8 @@ pub struct Interact {
     pub click_animation: bool,
     /// Whether the node consumes mouse events, or is transparent to them.
     pub absorbs_mouse_events: bool,
+    /// Which types of input the node can respond to
+    pub senses: Sense,
 }
 
 /// The node's layout, size and position.
@@ -394,6 +396,46 @@ impl NodeParams {
         return self;
     }
 
+    pub const fn sense_click(mut self, value: bool) -> Self {
+        let senses = &mut self.interact.senses;
+        if value {
+            *senses = senses.union(Sense::CLICK);
+        } else {
+            *senses = senses.intersection(Sense::CLICK.complement());
+        }
+        return self;
+    }
+
+    pub const fn sense_drag(mut self, value: bool) -> Self {
+        let senses = &mut self.interact.senses;
+        if value {
+            *senses = senses.union(Sense::DRAG);
+        } else {
+            *senses = senses.intersection(Sense::DRAG.complement());
+        }
+        return self;
+    }
+
+    pub const fn sense_hover(mut self, value: bool) -> Self {
+        let senses = &mut self.interact.senses;
+        if value {
+            *senses = senses.union(Sense::HOVER);
+        } else {
+            *senses = senses.intersection(Sense::HOVER.complement());
+        }
+        return self;
+    }
+
+    pub const fn sense_hold(mut self, value: bool) -> Self {
+        let senses = &mut self.interact.senses;
+        if value {
+            *senses = senses.union(Sense::HOLD);
+        } else {
+            *senses = senses.intersection(Sense::HOLD.complement());
+        }
+        return self;
+    }
+
     pub fn is_fit_content(&self) -> bool {
         let Xy { x, y } = self.layout.size;
         return x == Size::FitContent || y == Size::FitContent
@@ -567,6 +609,46 @@ impl<'a, T: Display + ?Sized> FullNodeParams<'a, T> {
 
     pub const fn absorbs_clicks(mut self, absorbs_clicks: bool) -> Self {
         self.params.interact.absorbs_mouse_events = absorbs_clicks;
+        return self;
+    }
+
+    pub const fn sense_click(mut self, value: bool) -> Self {
+        let senses = &mut self.params.interact.senses;
+        if value {
+            *senses = senses.union(Sense::CLICK);
+        } else {
+            *senses = senses.intersection(Sense::CLICK.complement());
+        }
+        return self;
+    }
+
+    pub const fn sense_drag(mut self, value: bool) -> Self {
+        let senses = &mut self.params.interact.senses;
+        if value {
+            *senses = senses.union(Sense::DRAG);
+        } else {
+            *senses = senses.intersection(Sense::DRAG.complement());
+        }
+        return self;
+    }
+
+    pub const fn sense_hover(mut self, value: bool) -> Self {
+        let senses = &mut self.params.interact.senses;
+        if value {
+            *senses = senses.union(Sense::HOVER);
+        } else {
+            *senses = senses.intersection(Sense::HOVER.complement());
+        }
+        return self;
+    }
+
+    pub const fn sense_hold(mut self, value: bool) -> Self {
+        let senses = &mut self.params.interact.senses;
+        if value {
+            *senses = senses.union(Sense::HOLD);
+        } else {
+            *senses = senses.intersection(Sense::HOLD.complement());
+        }
         return self;
     }
 
@@ -758,7 +840,7 @@ impl Ui {
                 error = true;
             }
             if error {
-                log::error!("Keru: incorrect reactive block: the text on node \"{}\" changed, but reactive thought they didn't", self.node_debug_name(i));
+                log::error!("Keru: incorrect reactive block: the text on node \"{}\" changed, but reactive thought they didn't", self.node_debug_name_fmt_scratch(i));
                 return;
 
             }
@@ -823,7 +905,7 @@ impl Ui {
                     (false, true) => "appearance",
                     _ => unreachable!()
                 };
-                log::error!("Keru: incorrect reactive block: the {kind} params of node \"{}\" changed, but reactive thought they didn't", self.node_debug_name(i));
+                log::error!("Keru: incorrect reactive block: the {kind} params of node \"{}\" changed, but reactive thought they didn't", self.node_debug_name_fmt_scratch(i));
                 // log::error!("Keru: incorrect reactive block: the {kind} params of node \"{}\" changed, even if a reactive block declared that it shouldn't have.\n Check that the reactive block is correctly checking all the runtime variables that can affect the node's params.", self.node_debug_name(i));
             }
             return;

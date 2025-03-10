@@ -25,11 +25,13 @@ impl ExampleLoop for State {
                 COMPONENTS_TAB => {
                     ui.add(V_SCROLL_STACK).nest(|| {
 
+                        let text = format!("{:.2}", self.f32_value);
+
                         ui.h_stack().nest(|| {
                             if ui.add(BUTTON.text("Increase")).is_clicked(ui) {
                                 self.f32_value += 1.0;
                             }
-                            ui.label(&self.f32_value);
+                            ui.label(&text);
                         });
                         
                         ui.add(V_SCROLL_STACK).nest(|| {

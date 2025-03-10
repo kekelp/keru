@@ -1,5 +1,3 @@
-use std::fmt::Write;
-
 use crate as keru;
 use keru::*;
 use keru::Size::*;
@@ -90,8 +88,9 @@ impl Ui {
         let slider_container = PANEL
             .size_x(Size::Fill)
             .size_y(Size::Pixels(60))
+            .sense_drag(true)
             .key(SLIDER_CONTAINER);
-
+        
         #[node_key] const SLIDER_FILL: NodeKey;
         let slider_fill = PANEL
             .size_y(Fill)
@@ -99,6 +98,7 @@ impl Ui {
             .color(Color::KERU_RED)
             .position_x(Start)
             .padding_x(1)
+            .sense_drag(true)
             .key(SLIDER_FILL);
 
 

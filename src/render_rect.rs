@@ -62,29 +62,6 @@ impl RenderRect {
             // 16 => Uint32x2, // id. it's actually a u64, but it doesn't look like wgpu understands u64s.
         ]
     }
-
-
-    pub fn read_shape(&self) -> Shape {
-        // Extract the first 8 bits (bits 0–7) from `flags` to determine the `RenderShape`
-        let shape_byte = (self.flags & 0x000000FF) as u8; // Mask out all but the least significant 8 bits
-        let render_shape = match shape_byte {
-            0 => RenderShape::Rectangle,
-            1 => RenderShape::Circle,
-            2 => RenderShape::Ring,
-            _ => panic!("Invalid shape byte: {}", shape_byte),
-        };
-
-
-        return match render_shape {
-            RenderShape::Rectangle => Shape::Rectangle {
-                corner_radius: self.shape_data,
-            },
-            RenderShape::Circle => Shape::Circle,
-            RenderShape::Ring => Shape::Ring {
-                width: self.shape_data,
-            },
-        };
-    }
 }
 
 #[rustfmt::skip]

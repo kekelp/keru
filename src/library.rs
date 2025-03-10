@@ -18,6 +18,7 @@ pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::TRANSPARENT)
     },
     interact: Interact {
+        senses: Sense::NONE,
         absorbs_mouse_events: false,
         click_animation: false,
     },
@@ -41,6 +42,7 @@ pub const DEFAULT: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::KERU_BLUE),
     },
     interact: Interact {
+        senses: Sense::NONE,
         absorbs_mouse_events: false,
         click_animation: false,
     },
@@ -68,6 +70,7 @@ pub const V_STACK: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::KERU_DEBUG_RED),
     },
     interact: Interact {
+        senses: Sense::NONE,
         absorbs_mouse_events: false,
         click_animation: false,
     },
@@ -95,6 +98,7 @@ pub const H_STACK: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::KERU_DEBUG_RED),
     },
     interact: Interact {
+        senses: Sense::NONE,
         absorbs_mouse_events: false,
         click_animation: false,
     },
@@ -123,6 +127,7 @@ pub const V_SCROLL_STACK: NodeParams = NodeParams {
             vertex_colors: VertexColors::flat(Color::KERU_DEBUG_RED),
         },
         interact: Interact {
+            senses: Sense::NONE,
             absorbs_mouse_events: false,
             click_animation: false,
         },
@@ -147,6 +152,7 @@ pub const MARGIN: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::KERU_DEBUG_RED),
     },
     interact: Interact {
+        senses: Sense::NONE,
         absorbs_mouse_events: false,
         click_animation: false,
     },
@@ -170,6 +176,7 @@ pub const ICON_BUTTON: NodeParams = NodeParams {
         vertex_colors: VertexColors::KERU_GRAD,
     },
     interact: Interact {
+        senses: Sense::CLICK,
         absorbs_mouse_events: true,
         click_animation: true,
     },
@@ -193,6 +200,7 @@ pub const IMAGE: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::WHITE),
     },
     interact: Interact {
+        senses: Sense::NONE,
         absorbs_mouse_events: true,
         click_animation: false,
     },
@@ -216,6 +224,7 @@ pub const IMAGE_BUTTON: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::WHITE),
     },
     interact: Interact {
+        senses: Sense::CLICK,
         absorbs_mouse_events: true,
         click_animation: true,
     },
@@ -243,6 +252,7 @@ pub const BUTTON: NodeParams = NodeParams {
         vertex_colors: VertexColors::diagonal_gradient_backslash(Color::KERU_BLUE, Color::KERU_RED),
     },
     interact: Interact {
+        senses: Sense::CLICK,
         absorbs_mouse_events: true,
         click_animation: true,
     },
@@ -269,7 +279,8 @@ pub const LABEL: NodeParams = NodeParams {
         vertex_colors: VertexColors::KERU_GRAD,
     },
     interact: Interact {
-        absorbs_mouse_events: false,
+        senses: Sense::NONE,
+        absorbs_mouse_events: true,
         click_animation: false,
     },
     layout: Layout {
@@ -296,7 +307,8 @@ pub const MULTILINE_LABEL: NodeParams = NodeParams {
         vertex_colors: VertexColors::KERU_GRAD,
     },
     interact: Interact {
-        absorbs_mouse_events: false,
+        senses: Sense::NONE,
+        absorbs_mouse_events: true,
         click_animation: false,
     },
     layout: Layout {
@@ -323,6 +335,7 @@ pub const TEXT: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::KERU_DEBUG_RED),
     },
     interact: Interact {
+        senses: Sense::NONE,
         absorbs_mouse_events: false,
         click_animation: false,
     },
@@ -350,6 +363,7 @@ pub const TEXT_PARAGRAPH: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::KERU_DEBUG_RED),
     },
     interact: Interact {
+        senses: Sense::NONE,
         absorbs_mouse_events: false,
         click_animation: false,
     },
@@ -379,6 +393,7 @@ pub const TEXT_PARAGRAPH: NodeParams = NodeParams {
 //         vertex_colors: VertexColors::flat(Color::rgba(26, 0, 26, 230)),
 //     },
 //     interact: Interact {
+    // senses: Sense::NONE,
 //         absorbs_mouse_events: true,
 //         click_animation: true,
 //     },
@@ -403,7 +418,8 @@ pub const PANEL: NodeParams = NodeParams {
         vertex_colors: VertexColors::KERU_GRAD_FW,
     },
     interact: Interact {
-        absorbs_mouse_events: false,
+        senses: Sense::NONE,
+        absorbs_mouse_events: true,
         click_animation: false,
     },
     layout: Layout {
@@ -427,7 +443,8 @@ pub const CONTAINER: NodeParams = NodeParams {
         vertex_colors: VertexColors::KERU_GRAD,
     },
     interact: Interact {
-        absorbs_mouse_events: false,
+        senses: Sense::NONE,
+        absorbs_mouse_events: true,
         click_animation: false,
     },
     layout: Layout {
@@ -472,6 +489,7 @@ pub const CUSTOM_RENDERED_PANEL: NodeParams = NodeParams {
         vertex_colors: VertexColors::GREENSCREEN,
     },
     interact: Interact {
+        senses: Sense::NONE,
         absorbs_mouse_events: true,
         click_animation: false,
     },
@@ -496,6 +514,7 @@ pub const SPACER: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::KERU_DEBUG_RED),
     },
     interact: Interact {
+        senses: Sense::NONE,
         absorbs_mouse_events: false,
         click_animation: false,
     },

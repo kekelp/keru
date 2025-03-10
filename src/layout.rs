@@ -80,11 +80,15 @@ impl Ui {
     }
 
     pub(crate) fn do_cosmetic_rect_updates(&mut self) {
+        if self.sys.changes.cosmetic_rect_updates.len() > 0 {
+            self.sys.changes.need_gpu_rect_update = true;
+        }
         for idx in 0..self.sys.changes.cosmetic_rect_updates.len() {
             let update = self.sys.changes.cosmetic_rect_updates[idx];
             self.update_rect(update);
-            log::info!("Visual rectangle update ({})", self.node_debug_name(update));
+            log::info!("Visual rectangle update ({})", self.node_debug_name_fmt_scratch(update));
         }
+        self.sys.changes.cosmetic_rect_updates.clear();
     }
 
     // this gets called even when zero relayouts are needed. in that case it just does nothing. I guess it's to make the layout() logic more readable
@@ -187,7 +191,7 @@ impl Ui {
                 Size::AspectRatio(aspect) => {
                     match self.nodes[i].params.layout.size[axis.other()] {
                         Size::AspectRatio(_second_aspect) => {
-                            let debug_name = self.node_debug_name(i);
+                            let debug_name = self.node_debug_name_fmt_scratch(i);
                             log::warn!("A Size shouldn't be AspectRatio in both dimensions. (node: {})", debug_name);
                         }
                         _ => {

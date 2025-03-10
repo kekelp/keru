@@ -48,9 +48,14 @@ impl IndexMut<NodeI> for Nodes {
 
 impl Nodes {
     // todo: doesn't this kind of suck?
-    pub(crate) fn get_by_id(&mut self, id: &Id) -> Option<(&mut Node, NodeI)> {
+    pub(crate) fn get_mut_by_id(&mut self, id: &Id) -> Option<(&mut Node, NodeI)> {
         let i = self.node_hashmap.get(&id)?;
         return Some((&mut self.nodes[i.slab_i.as_usize()], i.slab_i));
+    }
+
+    pub(crate) fn get_by_id(&self, id: &Id) -> Option<(&Node, NodeI)> {
+        let i = self.node_hashmap.get(&id)?;
+        return Some((&self.nodes[i.slab_i.as_usize()], i.slab_i));
     }
 
     pub(crate) fn new() -> Self {        
@@ -76,7 +81,7 @@ impl Nodes {
     }
 
     // todo: actually call this once in a while
-    pub(crate) fn prune(&mut self, current_frame: u64) {
+    pub(crate) fn _prune(&mut self, current_frame: u64) {
         // remember to not delete the zero dummy node
         self.node_hashmap.retain(|_k, v| {
             // the > is to always keep the root node without having to refresh it
