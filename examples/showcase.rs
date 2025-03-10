@@ -18,68 +18,72 @@ const CHINESE_TEXT: &str = "此后，人民文学出版社和齐鲁书社的做�
 
 const JAPANESE_TEXT: &str = "ヘッケはこれらのL-函数が全複素平面へ有理型接続を持ち、指標が自明であるときには s = 1 でオーダー 1 である極を持ち、それ以外では解析的であることを証明した。原始ヘッケ指標（原始ディリクレ指標に同じ方法である modulus に相対的に定義された）に対し、ヘッケは、これらのL-函数が指標の L-函数の函数等式を満たし、L-函数の複素共役指標であることを示した。 主イデアル上の座と、無限での座を含む全ての例外有限集合の上で 1 である単円の上への写像を取ることで、イデール類群の指標 ψ を考える。すると、ψ はイデアル群 IS の指標 χ を生成し、イデアル群は S 上に入らない素イデアル上の自由アーベル群となる。";
 
+trait Components {
+    fn components_tab(&mut self, state: &mut State);
+    fn text_tab(&mut self);
+    fn weird_tab(&mut self);
+}
+
+impl Components for Ui {
+    fn components_tab(&mut self, state: &mut State) {
+        self.add(V_SCROLL_STACK).nest(|| {
+            let text = format!("{:.2}", state.f32_value);
+            self.h_stack().nest(|| {
+                if self.add(BUTTON.text("Increase")).is_clicked(self) {
+                    state.f32_value += 1.0;
+                }
+                self.label(&text);
+            });
+            self.add(V_SCROLL_STACK).nest(|| {
+                self.slider(&mut state.f32_value, 0.0, 100.0);
+            });
+        });
+    }
+
+    fn text_tab(&mut self) {
+        let v_stack = V_STACK
+            .size_x(Frac(0.8))
+            .size_y(Size::Frac(0.7))
+            .scrollable_y(true);
+        let image = IMAGE.static_image(include_bytes!("../src/textures/clouds.png"));
+        self.add(v_stack).nest(|| {
+            self.label(&Static(JAPANESE_TEXT));
+            self.add(image);
+            self.label(&Static(CHINESE_TEXT));
+        });
+    }
+
+    fn weird_tab(&mut self) {
+        let big_button = BUTTON
+            .size_symm(Size::Fill)
+            .static_text("Button that is also a Stack")
+            .stack(Axis::Y, Arrange::Center, 10);
+        let nested_button_1 = BUTTON
+            .size_y(Size::Frac(0.3))
+            .static_text("Everything is a node");
+        let nested_button_2 = BUTTON
+            .size_y(Size::Frac(0.2))
+            .static_image(include_bytes!("../src/textures/clouds.png"))
+            .static_text("And every node can be everything at once\n(for now)");
+        self.add(PANEL).nest(|| {
+            self.add(big_button).nest(|| {
+                self.spacer();
+                self.add(nested_button_1);
+                self.spacer();
+                self.add(nested_button_2);
+                self.spacer();
+            });
+        });
+    }
+}
+
 impl ExampleLoop for State {
     fn update_ui(&mut self, ui: &mut Ui) {
         ui.vertical_tabs(&self.tabs[..], &mut self.current_tab)
             .nest(|| match self.tabs[self.current_tab] {
-                COMPONENTS_TAB => {
-                    ui.add(V_SCROLL_STACK).nest(|| {
-
-                        let text = format!("{:.2}", self.f32_value);
-
-                        ui.h_stack().nest(|| {
-                            if ui.add(BUTTON.text("Increase")).is_clicked(ui) {
-                                self.f32_value += 1.0;
-                            }
-                            ui.label(&text);
-                        });
-                        
-                        ui.add(V_SCROLL_STACK).nest(|| {
-                            ui.slider(&mut self.f32_value, 0.0, 100.0);
-                        });
-                    
-                    });
-                }
-
-                TEXT_TAB => {
-                    let v_stack = V_STACK
-                        .size_x(Frac(0.8))
-                        .size_y(Size::Frac(0.7))
-                        .scrollable_y(true);
-
-                    let image =
-                        IMAGE.static_image(include_bytes!("../src/textures/clouds.png"));
-
-                    ui.add(v_stack).nest(|| {
-                        ui.label(&Static(JAPANESE_TEXT));
-                        ui.add(image);
-                        ui.label(&Static(CHINESE_TEXT));
-                    });
-                }
-
-                WEIRD_TAB => {
-                    let big_button = BUTTON
-                        .size_symm(Size::Fill)
-                        .static_text("Button that is also a Stack")
-                        .stack(Axis::Y, Arrange::Center, 10);
-                    let nested_button_1 = BUTTON
-                        .size_y(Size::Frac(0.3))
-                        .static_text("Everything is a node");
-                    let nested_button_2 = BUTTON
-                        .size_y(Size::Frac(0.2))
-                        .static_image(include_bytes!("../src/textures/clouds.png"))
-                        .static_text("And every node can be everything at once\n(for now)");
-
-                    ui.add(PANEL).nest(|| {
-                        ui.add(big_button).nest(|| {
-                            ui.spacer();
-                            ui.add(nested_button_1);
-                            ui.spacer();
-                            ui.add(nested_button_2);
-                            ui.spacer();
-                        });
-                    });
-                }
+                COMPONENTS_TAB => ui.components_tab(self),
+                TEXT_TAB => ui.text_tab(),
+                WEIRD_TAB => ui.weird_tab(),
                 _ => {}
             });
     }

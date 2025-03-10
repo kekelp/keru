@@ -52,7 +52,6 @@ pub fn pop_parent() {
     THREAD_STACKS.with(|stack| {
         let mut stack = stack.borrow_mut();
         
-        // todo: say something
         let parent = stack.parents.pop().unwrap();
 
         if parent.children_hash.finish() != parent.old_children_hash {
