@@ -36,10 +36,6 @@ impl<'a> UiNode<'a> {
     pub fn is_clicked(&mut self) -> bool {
         let id = self.ui.nodes[self.i].id;
         let clicked = self.ui.sys.mouse_input.clicked(Some(MouseButton::Left), Some(id));
-        if clicked {
-            self.ui.sys.new_ui_input = true;
-            self.ui.sys.new_ui_input_1_more_frame = true;
-        }
         return clicked;
     }
 
@@ -246,14 +242,14 @@ impl Ui {
 
         if let Some(hovered_id) = hovered_node_id {
             if self.sys.hovered.contains(&hovered_id) {
-                let (hovered_node, _) = self.nodes.get_mut_by_id(&hovered_id).unwrap();
-                if hovered_node.params.interact.senses.contains(Sense::HOVER) {
-                    self.sys.new_ui_input = true;
+                let hovered_i = self.nodes.node_hashmap.get(&hovered_id).unwrap().slab_i;
+                if self.nodes[hovered_i].params.interact.senses.contains(Sense::HOVER) {
+                    self.set_new_ui_input();
                 }
 
-                if hovered_node.params.interact.senses.contains(Sense::DRAG)
+                if self.nodes[hovered_i].params.interact.senses.contains(Sense::DRAG)
                     && self.sys.mouse_input.held(Some(MouseButton::Left), Some(hovered_id)).is_some() {
-                    self.sys.new_ui_input = true;
+                    self.set_new_ui_input();
                 }
 
             } else {
@@ -265,13 +261,12 @@ impl Ui {
                 self.end_all_hovering();
                 self.start_hovering(hovered_id);
 
-                let hovered_node = &mut self.nodes[hovered_node_i];
-                if hovered_node.params.interact.senses.contains(Sense::HOVER) {
-                    self.sys.new_ui_input = true;
+                if self.nodes[hovered_node_i].params.interact.senses.contains(Sense::HOVER) {
+                    self.set_new_ui_input();
                 }
-                if hovered_node.params.interact.click_animation {
+                if self.nodes[hovered_node_i].params.interact.click_animation {
                     // // don't do this
-                    // self.sys.new_ui_input = true;
+    //                 self.set_new_ui_input();
                     self.sys.anim_render_timer.push_new(Duration::from_secs_f32(ANIMATION_RERENDER_TIME));
                 }
 
@@ -282,7 +277,7 @@ impl Ui {
         }
 
         if self.sys.mouse_input.dragged(Some(MouseButton::Left), None) != (0.0, 0.0) {
-            self.sys.new_ui_input = true;
+            self.set_new_ui_input();
         }
 
         // scroll area hover
@@ -338,7 +333,7 @@ impl Ui {
 
         if animation {
             // // don't do this
-            // self.sys.new_ui_input = true;
+//                 self.set_new_ui_input();
             self.sys.anim_render_timer.push_new(Duration::from_secs_f32(ANIMATION_RERENDER_TIME));
         }
 
@@ -352,12 +347,12 @@ impl Ui {
 
     pub(crate) fn resolve_click_release(&mut self, _button: MouseButton) {
         // todo: there's something wrong here, releasing a click doesn't wake up the event loop somehow (it stays dark)
-        self.sys.new_ui_input = true;
+        self.set_new_ui_input();
     }
 
     // returns if the ui consumed the mouse press, or if it should be passed down. 
     pub(crate) fn resolve_click_press(&mut self, button: MouseButton) -> bool {
-        self.sys.new_ui_input = true;
+        self.set_new_ui_input();
 
         // defocus, so that we defocus when clicking anywhere outside.
         // if we're clicking something we'll re-focus below.
@@ -478,7 +473,7 @@ impl Ui {
                     #[cfg(debug_assertions)]
                     {
                         self.set_inspect_mode(!self.inspect_mode());
-                        self.sys.new_ui_input = true;
+                        self.set_new_ui_input();
                     }
                 }
 

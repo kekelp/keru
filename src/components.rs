@@ -53,7 +53,6 @@ impl Ui {
                         let key_i = TAB_BUTTON.sibling(i);
                         let active = i == *current_tab;
                         let tab = if active { active_tab } else { inactive_tab };
-                        // we could ask for 'static strings so we can Static() here, but I doubt anybody cares  
                         let tab = tab.static_text(&name.0).key(key_i);
                         self.add(tab);
                     }

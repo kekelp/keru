@@ -52,7 +52,7 @@ impl Ui {
             } => {
                 // todo: set new_input only if a node is focused? hard to tell... users probably *shouldn't* listen for unconditional key inputs, but they definitely can
                 // probably should have two different bools: one for focused input, one for generic new input. the event loop can decide to wake up and/or update depending on either 
-                self.sys.new_ui_input = true;
+                self.set_new_ui_input();
                 if !is_synthetic {
                     let consumed = self.handle_keyboard_event(&event);
                     return consumed;

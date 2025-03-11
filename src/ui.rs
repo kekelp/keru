@@ -67,7 +67,7 @@ pub(crate) struct System {
     pub theme: Theme,
     pub debug_key_pressed: bool,
 
-    pub new_ui_input: bool,
+    pub new_ui_input: u8,
     pub new_ui_input_1_more_frame: bool,
     pub new_external_events: bool,
 
@@ -326,7 +326,7 @@ impl Ui {
                 inspect_mode: false,
                 debug_key_pressed: false,
 
-                new_ui_input: true,
+                new_ui_input: 2,
                 new_ui_input_1_more_frame: false,
                 new_external_events: true,
 
@@ -443,10 +443,15 @@ impl Ui {
     /// 
     /// In applications that update on every frame regardless of user input, like games or simulations, the [`Ui`] building code should be rerun on every frame unconditionally, so this function isn't useful.
     pub fn needs_update(&mut self) -> bool {
-        return self.sys.new_ui_input ||
-            self.sys.new_ui_input_1_more_frame ||
+        return self.sys.new_ui_input > 0 ||
             self.sys.new_external_events ||
             self.sys.changes.resize;
+    }
+
+    pub(crate) fn set_new_ui_input(&mut self) {
+        // Anti state-tearing: always update two times
+        // Or rather, anti get-stuck on a state-tear view. The state tearing is still there.
+        self.sys.new_ui_input = 2;
     }
 
     /// Returns `true` if the [`Ui`] needs to be updated or rerendered.
