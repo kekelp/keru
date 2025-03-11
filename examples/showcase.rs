@@ -10,7 +10,7 @@ struct State {
     f32_value: f32,
 }
 
-const COMPONENTS_TAB: Tab = Tab("Components");
+const INTRO_TAB: Tab = Tab("Intro");
 const TEXT_TAB: Tab = Tab("Cosmic Text");
 const WEIRD_TAB: Tab = Tab("Weird Stuff");
 
@@ -27,14 +27,15 @@ trait Components {
 impl Components for Ui {
     fn components_tab(&mut self, state: &mut State) {
         self.add(V_SCROLL_STACK).nest(|| {
-            self.paragraph(
+            self.static_paragraph(
                 "Thanks for checking out Keru.\n\n\
                 Keru is an experimental Graphical User Interface library, with the goal of being as easy to use as Egui (and even a bit easier), but without the downsides of immediate mode.\n\n\
                 I think the experiment has been really successful, and I'm very happy with the user-facing API of the library and the internal architecture. \n\n\
                 However, many features are still missing."
             );
 
-            self.text_line("Button and label:");
+            self.static_paragraph("\nHere are some classic GUI elements: \n");
+            self.static_paragraph("Button and label:");
 
             self.h_stack().nest(|| {
                 if self.add(BUTTON.text("Increase")).is_clicked(self) {
@@ -44,13 +45,13 @@ impl Components for Ui {
                 self.label(&text);
             });
 
-            self.text_line("Fat slider:");
+            self.static_paragraph("Fat slider:");
             self.slider(&mut state.f32_value, 0.0, 100.0);
 
-            self.text_line("Classic slider:");
+            self.static_paragraph("Classic slider:");
             self.classic_slider(&mut state.f32_value, 0.0, 100.0);
 
-            self.paragraph(
+            self.static_paragraph(
                 "Press F1 for Inspect mode. This lets you see the bounds of the layout rectangles. \n\n\
                 In Inspect mode, hovering nodes will also log an Info message with the name and source code location of the node."
             );
@@ -65,6 +66,11 @@ impl Components for Ui {
         let image = IMAGE.static_image(include_bytes!("../src/textures/clouds.png"));
 
         self.add(v_stack).nest(|| {
+            self.static_label(
+                "Currently, Keru uses Cosmic Text and Glyphon for rendering text. \n\n\
+                This means that international text already works. \n\n\
+                However, the integration isn't very good yet. Keru might switch to another library soon."
+            );
             self.label(&Static(JAPANESE_TEXT));
             self.add(image);
             self.label(&Static(CHINESE_TEXT));
@@ -81,12 +87,11 @@ impl Components for Ui {
             .size_y(Size::Frac(0.3))
             .static_text("Everything is a node");
         let nested_button_2 = BUTTON
-
             .size_y(Size::Frac(0.2))
             .size_x(Size::Fill)
             .static_image(include_bytes!("../src/textures/clouds.png"))
             .static_text("And every node can be everything at once\n(for now)");
-        
+
         self.add(PANEL).nest(|| {
             self.add(big_button).nest(|| {
                 self.spacer();
@@ -103,7 +108,7 @@ impl ExampleLoop for State {
     fn update_ui(&mut self, ui: &mut Ui) {
         ui.vertical_tabs(&self.tabs[..], &mut self.current_tab)
             .nest(|| match self.tabs[self.current_tab] {
-                COMPONENTS_TAB => ui.components_tab(self),
+                INTRO_TAB => ui.components_tab(self),
                 TEXT_TAB => ui.text_tab(),
                 WEIRD_TAB => ui.weird_tab(self),
                 _ => {}
@@ -114,7 +119,7 @@ impl ExampleLoop for State {
 fn main() {
     basic_env_logger_init();
     let state = State {
-        tabs: vec![COMPONENTS_TAB, TEXT_TAB, WEIRD_TAB],
+        tabs: vec![INTRO_TAB, TEXT_TAB, WEIRD_TAB],
         current_tab: 0,
         f32_value: 20.0,
         ..Default::default()
