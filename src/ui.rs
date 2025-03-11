@@ -447,7 +447,7 @@ impl Ui {
 
     pub(crate) fn set_new_ui_input(&mut self) {
         // Anti state-tearing: always update two times
-        // Or rather, anti get-stuck-in-a-state-teared-frame. The state tearing is still there.
+        // Or rather, anti get-stuck-in-a-state-teared-frame. The state tearing is still there for one frame.
         self.sys.new_ui_input = 2;
     }
 

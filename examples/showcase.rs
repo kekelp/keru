@@ -69,7 +69,8 @@ impl Components for Ui {
             self.static_label(
                 "Currently, Keru uses Cosmic Text and Glyphon for rendering text. \n\n\
                 This means that international text already works. \n\n\
-                However, the integration isn't very good yet. Keru might switch to another library soon."
+                However, the integration isn't very good yet. Keru might switch to another library soon. \n\n\
+                If you notice some stuttering when the text below first comes into view, that's Glyphon's fault."
             );
             self.label(&Static(JAPANESE_TEXT));
             self.add(image);

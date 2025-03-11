@@ -2,7 +2,7 @@
 pub use wgpu::{CommandEncoderDescriptor, TextureViewDescriptor};
 pub use winit::{error::EventLoopError, event::Event, event_loop::EventLoop};
 use winit::{
-    event_loop::ActiveEventLoop, platform::wayland::WindowAttributesExtWayland, window::*,
+    event_loop::ActiveEventLoop, window::*,
 };
 
 use std::{
@@ -136,7 +136,7 @@ impl Context {
         let window = Arc::new(
             event_loop
                 .create_window(
-                    Window::default_attributes().with_name("Keru Example", "Keru Example"),
+                    Window::default_attributes(),
                 )
                 .unwrap(),
         );
