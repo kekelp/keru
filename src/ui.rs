@@ -442,8 +442,7 @@ impl Ui {
     /// In applications that update on every frame regardless of user input, like games or simulations, the [`Ui`] building code should be rerun on every frame unconditionally, so this function isn't useful.
     pub fn needs_update(&mut self) -> bool {
         return self.sys.new_ui_input > 0 ||
-            self.sys.new_external_events ||
-            self.sys.changes.resize;
+            self.sys.new_external_events;
     }
 
     pub(crate) fn set_new_ui_input(&mut self) {

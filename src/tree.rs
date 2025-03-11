@@ -317,6 +317,7 @@ impl Ui {
         self.sys.unifs.size[Y] = size.height as f32;
 
         self.sys.changes.resize = true;
+        self.set_new_ui_input();
     }
 
     pub(crate) fn push_rect(&mut self, i: NodeI) {

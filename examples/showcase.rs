@@ -31,7 +31,7 @@ impl Components for Ui {
                 "Thanks for checking out Keru.\n\n\
                 Keru is an experimental Graphical User Interface library, with the goal of being as easy to use as Egui (and even a bit easier), but without the downsides of immediate mode.\n\n\
                 I think the experiment has been really successful, and I'm very happy with the user-facing API of the library and the internal architecture. \n\n\
-                However, many features are still missing."
+                However, there's still a lot missing features and edge cases that aren't handled well."
             );
 
             self.static_paragraph("\nHere are some classic GUI elements: \n");
