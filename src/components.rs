@@ -71,7 +71,7 @@ impl Ui {
         })
     }
 
-
+    #[track_caller]
     pub fn slider(&mut self, value: &mut f32, min: f32, max: f32) {
         self.subtree().start(|| {
             if let Some(drag) = self.is_dragged(SLIDER_CONTAINER) {
@@ -112,6 +112,7 @@ impl Ui {
         });
     }
 
+    #[track_caller]
     pub fn classic_slider(&mut self, value: &mut f32, min: f32, max: f32) {
         self.subtree().start(|| {
             // todo: combined with the handle's manual positioning, this is pretty awful. it means that the handle is drawn at zero in the first frame.

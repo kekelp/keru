@@ -104,6 +104,9 @@ pub(crate) struct System {
     pub mouse_input: MouseInput<Id>,
     pub key_input: KeyInput,
 
+    #[cfg(debug_assertions)]
+    pub inspect_hovered: Option<Id>,
+
     pub hovered: Vec<Id>,
     pub hovered_scroll_area: Option<Id>,
 
@@ -346,6 +349,7 @@ impl Ui {
                 rects: Vec::with_capacity(50),
                 
                 click_rects: Vec::with_capacity(50),
+                // todo: remove
                 invisible_but_clickable_rects: Vec::with_capacity(20),
                 scroll_rects: Vec::with_capacity(20),
 
@@ -371,6 +375,11 @@ impl Ui {
                 // todo: maybe remove and use mouse_input.current_tag()? There was never a point in having multiple hovereds
                 hovered: Vec::with_capacity(15),
                 hovered_scroll_area: None,
+
+                #[cfg(debug_assertions)]
+                inspect_hovered: None,
+            
+
                 focused: None,
 
                 anim_render_timer: AnimationRenderTimer::default(),

@@ -13,13 +13,12 @@ const JAPANESE_TEXT: &str = "ヘッケはこれらのL-函数が全複素平面�
 
 impl ExampleLoop for State {
     fn update_ui(&mut self, ui: &mut Ui) {
-
-        let image1 = IMAGE.static_image(include_bytes!("../src/textures/E.png"));
-
         ui.v_stack().nest(|| {
-            ui.add(image1);
-        });
 
+            ui.add(BUTTON.text("My child will type sneed"));
+            ui.add(BUTTON.text("My child will type sneed"));
+            ui.add(BUTTON.text("My child will type sneed"));
+        });
     }
 }
 

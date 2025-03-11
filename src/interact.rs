@@ -243,7 +243,7 @@ impl Ui {
         }
 
         // real hover
-        let hovered_node_id = self.scan_mouse_hits();
+        let hovered_node_id = self.scan_mouse_hits(false);
         self.sys.mouse_input.update_current_tag(hovered_node_id);
 
         if let Some(hovered_id) = hovered_node_id {
@@ -256,9 +256,7 @@ impl Ui {
             } else {
                 // newly entered
                 let (_, hovered_node_i) = self.nodes.get_mut_by_id(&hovered_id).unwrap();
-                if self.inspect_mode() {
-                    log::info!("Inspect mode: hovering {}", self.node_debug_name_fmt_scratch(hovered_node_i))
-                }
+
                 self.end_all_hovering();
                 self.start_hovering(hovered_id);
 
@@ -287,6 +285,25 @@ impl Ui {
             self.sys.hovered_scroll_area = Some(hovered_scroll_area_id);
         } else {
             self.sys.hovered_scroll_area = None;
+        }
+
+        // in debug mode, do a separate scan that sees invisible rects as well
+        #[cfg(debug_assertions)] {
+            if self.inspect_mode() {
+                let inspect_hovered_node_id = self.scan_mouse_hits(true);
+                if let Some(hovered_id) = inspect_hovered_node_id {
+                    if let Some(id) = self.sys.inspect_hovered {
+                        if id != hovered_id {
+                            // newly entered
+                            let (_, hovered_node_i) = self.nodes.get_mut_by_id(&hovered_id).unwrap();
+                            if self.inspect_mode() {
+                                log::info!("Inspect mode: hovering {}", self.node_debug_name_fmt_scratch(hovered_node_i))
+                            }
+                        }
+                    }
+                }
+                self.sys.inspect_hovered = inspect_hovered_node_id;
+            }
         }
     }
 
@@ -402,11 +419,19 @@ impl Ui {
         return consumed;
     }
 
-    pub(crate) fn scan_mouse_hits(&mut self) -> Option<Id> {
+    pub(crate) fn scan_mouse_hits(&mut self, see_invisible_rects: bool) -> Option<Id> {
         self.sys.mouse_hit_stack.clear();
 
         for clk_i in 0..self.sys.click_rects.len() {
             let clk_rect = self.sys.click_rects[clk_i];
+            
+            // in release mode, if a node is not absorbs_mouse_events it won't have a click_rect in the first place
+            #[cfg(debug_assertions)] {
+                if ! see_invisible_rects && ! self.nodes[clk_rect.i].params.interact.absorbs_mouse_events {
+                    continue;
+                }
+            }
+            
             if self.hit_click_rect(&clk_rect) {
                 let node_i = clk_rect.i;
                 let id = self.nodes[node_i].id;

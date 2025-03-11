@@ -322,15 +322,18 @@ impl Ui {
 
     pub(crate) fn push_rect(&mut self, i: NodeI) {
         let debug = cfg!(debug_assertions);
-        let push_click_rect = if debug {
-            self.nodes[i].params.interact.absorbs_mouse_events
+        let push_click_rect = if debug && self.inspect_mode() {
+        // let push_click_rect = if debug {
+            true
         } else {
-            self.nodes[i].params.interact.senses != Sense::NONE 
+            self.nodes[i].params.interact.senses != Sense::NONE
         };
         if push_click_rect {
             let click_rect = self.click_rect(i);
             self.sys.click_rects.push(click_rect);
-            self.nodes[i].last_click_rect_i = self.sys.click_rects.len() - 1;
+            self.nodes[i].last_click_rect_i = Some(self.sys.click_rects.len() - 1);
+        } else {
+            self.nodes[i].last_click_rect_i = None;
         }
 
         if self.nodes[i].params.is_scrollable() {
@@ -365,9 +368,8 @@ impl Ui {
     }
 
     pub(crate) fn update_rect(&mut self, i: NodeI) {
-        if self.nodes[i].params.interact.absorbs_mouse_events {
+        if let Some(old_i) = self.nodes[i].last_click_rect_i {
             let click_rect = self.click_rect(i);
-            let old_i = self.nodes[i].last_click_rect_i;
             self.sys.click_rects[old_i] = click_rect;
         }
 
