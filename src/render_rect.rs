@@ -24,10 +24,6 @@ pub(crate) struct RenderRect {
     pub _padding: u32,        // (u32) next free block index
 
     pub clip_rect: XyRect,          // (f32, f32) for each corner
-
-    // this is currently used for click resolution, but it's not used for anything on the gpu.
-    // in the future, I would like to have a separate structure for click resolution, and remove the Id from this structure.
-    pub id: Id,
 }
 
 impl RenderRect {
@@ -167,7 +163,6 @@ impl Node {
             vertex_colors: self.params.rect.vertex_colors,
             last_hover: self.hover_timestamp,
             last_click: self.last_click,
-            id: self.id,
             z: self.z,
             shape_data: self.params.rect.shape.shape_data(),
             tex_coords,

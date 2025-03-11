@@ -29,8 +29,8 @@ pub struct Node {
 
     pub(crate) relayout_chain_root: Option<NodeI>,
 
-    // todo: option here
-    pub(crate) last_rect_i: usize,
+    // todo: get niche optimization here. I don't feel like doing that dumb thing with the zero slot again though
+    pub(crate) last_rect_i: Option<usize>,
     pub(crate) last_click_rect_i: Option<usize>,
     pub(crate) last_image_rect_i: Option<usize>,
 
@@ -114,7 +114,7 @@ impl Node {
             hovered: false,
             last_click: f32::MIN,
             z: 0.0,
-            last_rect_i: 0,
+            last_rect_i: None,
             last_click_rect_i: None,
             last_image_rect_i: None,
             relayout_chain_root: None,
@@ -201,7 +201,7 @@ pub const ZERO_NODE_DUMMY: Node = Node {
 
     last_click: f32::MIN,
     z: -10000.0,
-    last_rect_i: 0,
+    last_rect_i: None,
     last_click_rect_i: None,
     last_image_rect_i: None,
     relayout_chain_root: None,
@@ -254,7 +254,7 @@ pub const NODE_ROOT: Node = Node {
 
     last_click: f32::MIN,
     z: -10000.0,
-    last_rect_i: 0,
+    last_rect_i: None,
     last_click_rect_i: None,
     last_image_rect_i: None,
     relayout_chain_root: None,

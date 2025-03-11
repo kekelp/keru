@@ -631,7 +631,6 @@ impl Ui {
         log::info!("Rebuilding all rectangles");
         self.sys.rects.clear();
         self.sys.click_rects.clear();
-        self.sys.invisible_but_clickable_rects.clear();
         self.sys.scroll_rects.clear();
         self.sys.z_cursor = Z_BACKDROP;
         self.recursive_push_rects(ROOT_I);

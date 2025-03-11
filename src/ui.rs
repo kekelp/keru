@@ -89,7 +89,6 @@ pub(crate) struct System {
 
     pub click_rects: Vec<ClickRect>,
 
-    pub invisible_but_clickable_rects: Vec<RenderRect>,
     pub scroll_rects: Vec<ClickRect>,
 
     pub unifs: Uniforms,
@@ -346,11 +345,9 @@ impl Ui {
                 texture_atlas,
 
                 render_pipeline,
-                rects: Vec::with_capacity(50),
+                rects: Vec::with_capacity(100),
                 
                 click_rects: Vec::with_capacity(50),
-                // todo: remove
-                invisible_but_clickable_rects: Vec::with_capacity(20),
                 scroll_rects: Vec::with_capacity(20),
 
                 gpu_rect_buffer,

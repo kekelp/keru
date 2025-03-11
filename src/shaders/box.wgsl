@@ -42,7 +42,6 @@ struct RenderRect {
 
     @location(14) clip_xs: vec2<f32>,               // Corresponds to rect.x_min, rect.y_min
     @location(15) clip_ys: vec2<f32>,               // Corresponds to rect.x_max, rect.y_max
-    // @location(14) id: vec2<u32>,              // Corresponds to id. Don't use this. It's originally a u64.
 };
 
 struct VertexOutput {

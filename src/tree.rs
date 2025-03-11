@@ -350,13 +350,9 @@ impl Ui {
         let draw_even_if_invisible = self.sys.inspect_mode;
         if let Some(rect) = node.render_rect(draw_even_if_invisible, None) {
             self.sys.rects.push(rect);
-            node.last_rect_i = self.sys.rects.len() - 1;
-        } else if node.params.interact.absorbs_mouse_events {
-            // if it wasn't added to the regular rects but still needs to be clickable, add it to the lidl rects
-            let just_give_me_a_rect = true;
-            if let Some(rect) = node.render_rect(just_give_me_a_rect, None) {
-                self.sys.invisible_but_clickable_rects.push(rect);
-            }
+            node.last_rect_i = Some(self.sys.rects.len() - 1);
+        } else {
+            node.last_rect_i = None;
         }
 
         if let Some(image) = node.imageref {
@@ -379,11 +375,10 @@ impl Ui {
         let node = &mut self.nodes[i];
 
         let draw_even_if_invisible = self.sys.inspect_mode;
-        if let Some(rect) = node.render_rect(draw_even_if_invisible, None) {
-            let old_i = node.last_rect_i;
-            // this panics all the time: big skill issue. solve with the dense maps thing, I guess.
-            // or maybe it's ok now.
-            self.sys.rects[old_i] = rect;
+        if let Some(old_i) = node.last_rect_i {
+            if let Some(rect) = node.render_rect(draw_even_if_invisible, None) {
+                self.sys.rects[old_i] = rect;
+            }
         }
         
         if let Some(imageref) = node.imageref {
