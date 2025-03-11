@@ -127,11 +127,12 @@ impl State {
             None => 1.0,
         };
 
-        let (_, y) = self.ui.is_dragged(SLIDER_CONTAINER);
-        log_value += (y as f32) / slider_height * (log_max - log_min);
-        
-        let (_, y) = self.ui.is_dragged(SLIDER_FILL);
-        log_value += (y as f32) / slider_height * (log_max - log_min);
+        if let Some(drag) = self.ui.is_dragged(SLIDER_CONTAINER) {
+            log_value += (drag.absolute_delta.y as f32) / slider_height * (log_max - log_min);
+        }
+        if let Some(drag) = self.ui.is_dragged(SLIDER_FILL) {
+            log_value += (drag.absolute_delta.y as f32) / slider_height * (log_max - log_min);
+        }
 
         log_value = log_value.clamp(log_min, log_max);
         let filled_frac = (log_value - log_min) / (log_max - log_min);

@@ -68,7 +68,6 @@ pub(crate) struct System {
     pub debug_key_pressed: bool,
 
     pub new_ui_input: u8,
-    pub new_ui_input_1_more_frame: bool,
     pub new_external_events: bool,
 
     // pub clipboard: ClipboardContext,
@@ -327,7 +326,6 @@ impl Ui {
                 debug_key_pressed: false,
 
                 new_ui_input: 2,
-                new_ui_input_1_more_frame: false,
                 new_external_events: true,
 
                 // clipboard: ClipboardContext::new().unwrap(),
@@ -450,7 +448,7 @@ impl Ui {
 
     pub(crate) fn set_new_ui_input(&mut self) {
         // Anti state-tearing: always update two times
-        // Or rather, anti get-stuck on a state-tear view. The state tearing is still there.
+        // Or rather, anti get-stuck-in-a-state-teared-frame. The state tearing is still there.
         self.sys.new_ui_input = 2;
     }
 
