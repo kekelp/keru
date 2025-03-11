@@ -145,6 +145,7 @@ impl Ui {
                 .size_x(Size::Frac(handle_position_frac))
                 .color(Color::KERU_RED)
                 .position_x(Start)
+                .padding_x(0)
                 .absorbs_clicks(false)
                 .key(FILLED);
             
@@ -157,6 +158,7 @@ impl Ui {
                 .position_x(Position::Static(Len::Pixels((handle_position_frac * slider_width - handle_radius) as u32)))
                 .position_y(Position::Center)
                 .shape(Shape::Circle)
+                .padding_x(0)
                 .absorbs_clicks(false)
                 .key(HANDLE);
             
@@ -172,6 +174,7 @@ impl Ui {
                 .size_y(Size::Pixels(30))
                 .sense_click(true)
                 .sense_drag(true)
+                .padding(0)
                 .key(HITBOX);
             
             self.add(slider_container).nest(|| {
