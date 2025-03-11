@@ -106,7 +106,8 @@ impl Color {
     pub const GREEN: Color = Color::rgba(0, 255, 0, 255);
     pub const BLUE: Color = Color::rgba(0, 0, 255, 255);
     pub const BLACK: Color = Color::rgba(0, 0, 0, 255);
-
+    
+    pub const GREY: Color = Color::rgba(50, 50, 50, 255);
     pub const WHITE: Color = Color::rgba(255, 255, 255, 255);
     pub const TRANSPARENT: Color = Color::rgba(255, 255, 255, 0);
 

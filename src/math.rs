@@ -107,6 +107,8 @@ impl<T: Add<Output = T> + Copy> Add<Xy<T>> for Xy<T> {
 }
 impl<T: Sub<Output = T> + Copy> Sub<Xy<T>> for Xy<T> {
     type Output = Self;
+    // todo: track_caller everywhere else (or use someone else's math library)
+    #[track_caller]
     fn sub(self, rhs: Xy<T>) -> Self::Output {
         let new_x = self.x - rhs.x;
         let new_y = self.y - rhs.y;

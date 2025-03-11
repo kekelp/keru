@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use winit::{dpi::PhysicalPosition, event::{KeyEvent, MouseButton, MouseScrollDelta}, keyboard::{Key, NamedKey}};
 
@@ -7,6 +7,28 @@ use crate::Axis::{X, Y};
 
 pub(crate) const ANIMATION_RERENDER_TIME: f32 = 0.5;
 
+#[derive(Clone, Copy, Debug)]
+pub struct Click {
+    pub absolute_position: glam::DVec2,
+    pub relative_position: glam::DVec2,
+    pub timestamp: Instant,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct Drag {
+    /// Position relative to the node (0.0 to 1.0 in each dimension)
+    pub relative_position: glam::DVec2,
+    /// Absolute screen position in pixels
+    pub absolute_position: glam::DVec2,
+    /// Delta movement relative to the node's dimensions (as a fraction)
+    pub relative_delta: glam::DVec2,
+    /// Absolute delta movement in pixels
+    pub absolute_delta: glam::DVec2,
+    /// Time when the drag event occurred
+    pub timestamp: Instant,
+}
+
+// todo: remove all of this crap
 impl<'a> UiNode<'a> {
     /// Returns `true` if the node was just clicked with the left mouse button.
     /// 
@@ -106,6 +128,32 @@ impl Ui {
         return clicked;
     }
 
+    /// If the node corresponding to `key` was clicked in the last frame, returns a struct containing the timestamp and position of the click. Otherwise, returns `None`.
+    /// 
+    /// If the node was clicked multiple times in the last frame, the result holds the information about the last click only.
+    pub fn clicked_at(&mut self, node_key: NodeKey) -> Option<Click> {
+        let id = node_key.id_with_subtree();
+        #[cfg(debug_assertions)] {
+            if !self.check_node_sense(id, Sense::CLICK, "clicked_at") {
+                return None;
+            }
+        }
+        let mouse_record = self.sys.mouse_input.clicked_at(Some(MouseButton::Left), Some(id))?;
+        let i = self.nodes.node_hashmap.get(&id).unwrap().slab_i;
+        let node_rect = self.nodes[i].rect;
+        
+        let relative_position = glam::DVec2::new(
+            ((mouse_record.position.x / self.sys.unifs.size.x as f64) - (node_rect.x[0]) as f64) / node_rect.size().x as f64,
+            ((mouse_record.position.y / self.sys.unifs.size.y as f64) - (node_rect.y[0]) as f64) / node_rect.size().y as f64,
+        );
+        
+        return Some(Click {
+            relative_position,
+            absolute_position: mouse_record.position,
+            timestamp: mouse_record.timestamp,
+        });
+    }
+
     /// Returns `true` if a left button mouse click was just released on the node corresponding to `key`.
     pub fn is_click_released(&self, node_key: NodeKey) -> bool {
         let id = node_key.id_with_subtree();
@@ -129,14 +177,31 @@ impl Ui {
     }
 
     /// If the node corresponding to `key` was dragged, returns the distance dragged. Otherwise, returns `(0.0, 0.0)`.
-    pub fn is_dragged(&self, node_key: NodeKey) -> (f64, f64) {
+    pub fn is_dragged(&mut self, node_key: NodeKey) -> Option<Drag> {
         let id = node_key.id_with_subtree();
         #[cfg(debug_assertions)] {
-            if ! self.check_node_sense(id, Sense::DRAG, "is_dragged") {
-                return (0.0, 0.0);
+            if !self.check_node_sense(id, Sense::DRAG, "dragged_at") {
+                return None;
             }
         }
-        return self.sys.mouse_input.dragged(Some(MouseButton::Left), Some(id));
+        let mouse_record = self.sys.mouse_input.dragged_at(Some(MouseButton::Left), Some(id))?;
+        let i = self.nodes.node_hashmap.get(&id).unwrap().slab_i;
+        let node_rect = self.nodes[i].rect;
+        let relative_position = glam::DVec2::new(
+            ((mouse_record.currently_at.position.x / self.sys.unifs.size.x as f64) - (node_rect.x[0]) as f64) / node_rect.size().x as f64,
+            ((mouse_record.currently_at.position.y / self.sys.unifs.size.y as f64) - (node_rect.y[0]) as f64) / node_rect.size().y as f64,
+        );
+        let relative_delta = glam::DVec2::new(
+            mouse_record.drag_distance().x / (node_rect.size().x as f64 * self.sys.unifs.size.x as f64),
+            mouse_record.drag_distance().y / (node_rect.size().y as f64 * self.sys.unifs.size.y as f64),
+        );
+        return Some(Drag {
+            relative_position,
+            absolute_position: mouse_record.currently_at.position,
+            relative_delta,
+            absolute_delta: mouse_record.drag_distance(),
+            timestamp: mouse_record.currently_at.timestamp,
+        });
     }
 
     /// Returns `true` if a node is currently hovered by the cursor.

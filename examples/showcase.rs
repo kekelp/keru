@@ -28,15 +28,17 @@ impl Components for Ui {
     fn components_tab(&mut self, state: &mut State) {
         self.add(V_SCROLL_STACK).nest(|| {
             let text = format!("{:.2}", state.f32_value);
+            self.text_line("Button and label:");
             self.h_stack().nest(|| {
                 if self.add(BUTTON.text("Increase")).is_clicked(self) {
                     state.f32_value += 1.0;
                 }
                 self.label(&text);
             });
-            self.add(V_SCROLL_STACK).nest(|| {
-                self.slider(&mut state.f32_value, 0.0, 100.0);
-            });
+            self.text_line("Fat slider:");
+            self.slider(&mut state.f32_value, 0.0, 100.0);
+            self.text_line("Classic slider:");
+            self.classic_slider(&mut state.f32_value, 0.0, 100.0);
         });
     }
 

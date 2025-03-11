@@ -155,6 +155,11 @@ impl<T: Tag> MouseInput<T> {
         return n_clicks > 0;
     }
 
+    pub fn clicked_at(&self, mouse_button: Option<MouseButton>, tag: Option<T>) -> Option<MouseRecord<T>> {
+        let last_click = self.mouse_events(mouse_button, tag).last()?;
+        return Some(last_click.last_seen);
+    }
+
     pub fn clicks(&self, mouse_button: Option<MouseButton>, tag: Option<T>) -> usize {
         let all_events = self.mouse_events(mouse_button, tag);
         return all_events.filter(|c| c.is_just_clicked()).count();
@@ -182,6 +187,11 @@ impl<T: Tag> MouseInput<T> {
         }
 
         return (dist.x, dist.y);
+    }
+
+    pub fn dragged_at(&self, mouse_button: Option<MouseButton>, tag: Option<T>) -> Option<FullMouseEvent<T>> {
+        let last_drag = self.mouse_events(mouse_button, tag).last()?;
+        return Some(*last_drag);
     }
 
     /// Returns the time a mouse button was held on a node and its last position, or `None` if it wasn’t held.
@@ -254,6 +264,7 @@ pub enum IsMouseReleased {
 pub struct FullMouseEvent<T: Tag> {
     pub button: MouseButton,
     pub originally_pressed: MouseRecord<T>,
+    /// The last position the mouse was seen at before the event's conclusion
     pub last_seen: MouseRecord<T>,
     pub currently_at: MouseRecord<T>,
     pub kind: IsMouseReleased,
