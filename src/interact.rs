@@ -236,6 +236,12 @@ impl Ui {
     // todo: think if it's really worth it to do this on every mouse movement.
     // maybe add a global setting to do it just once per frame
     pub(crate) fn resolve_hover(&mut self) {
+        // if something draggable is being dragged, stay awake at every mouse movement, regardless of what is hit
+        // todo: this probably has false positives
+        if self.sys.mouse_input.dragged_at(None, None).is_some() {
+            self.set_new_ui_input();
+        }
+
         // real hover
         let hovered_node_id = self.scan_mouse_hits();
         self.sys.mouse_input.update_current_tag(hovered_node_id);
@@ -244,11 +250,6 @@ impl Ui {
             if self.sys.hovered.contains(&hovered_id) {
                 let hovered_i = self.nodes.node_hashmap.get(&hovered_id).unwrap().slab_i;
                 if self.nodes[hovered_i].params.interact.senses.contains(Sense::HOVER) {
-                    self.set_new_ui_input();
-                }
-
-                if self.nodes[hovered_i].params.interact.senses.contains(Sense::DRAG)
-                    && self.sys.mouse_input.held(Some(MouseButton::Left), Some(hovered_id)).is_some() {
                     self.set_new_ui_input();
                 }
 
@@ -265,8 +266,6 @@ impl Ui {
                     self.set_new_ui_input();
                 }
                 if self.nodes[hovered_node_i].params.interact.click_animation {
-                    // // don't do this
-    //                 self.set_new_ui_input();
                     self.sys.anim_render_timer.push_new(Duration::from_secs_f32(ANIMATION_RERENDER_TIME));
                 }
 
@@ -332,8 +331,6 @@ impl Ui {
         }
 
         if animation {
-            // // don't do this
-//                 self.set_new_ui_input();
             self.sys.anim_render_timer.push_new(Duration::from_secs_f32(ANIMATION_RERENDER_TIME));
         }
 

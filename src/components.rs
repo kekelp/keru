@@ -8,8 +8,9 @@ pub struct Tab(pub &'static str);
 
 impl Ui {
     /// A component for vertical tabs
+    #[track_caller]
     pub fn vertical_tabs(&mut self, tabs: &[Tab], current_tab: &mut usize) -> UiParent {
-        #[node_key] const TAB_BUTTON: NodeKey;
+        #[node_key] const VERTICAL_TABS_TAB_BUTTON: NodeKey;
 
         self.subtree().start(|| {
             let max_n = tabs.len() - 1;
@@ -19,7 +20,7 @@ impl Ui {
 
             // Update the state in response to button clicks or keyboard presses
             for (i, _) in tabs.iter().enumerate() {
-                if self.is_clicked(TAB_BUTTON.sibling(i)) {
+                if self.is_clicked(VERTICAL_TABS_TAB_BUTTON.sibling(i)) {
                     *current_tab = i;
                 }
             }
@@ -45,12 +46,17 @@ impl Ui {
                 .size_x(Size::Fill)
                 .colors(self.theme().muted_background);
             let active_tab = inactive_tab.colors(self.theme().background);
-            let content_panel = PANEL.size_symm(Size::Fill).colors(self.theme().background);
+
+            #[node_key] const VERTICAL_TABS_CONTENT_PANEL: NodeKey;
+            let content_panel = PANEL
+                .size_symm(Size::Fill)
+                .colors(self.theme().background)
+                .key(VERTICAL_TABS_CONTENT_PANEL);
 
             self.add(h_stack).nest(|| {
                 self.add(tabs_v_stack).nest(|| {
                     for (i, name) in tabs.iter().enumerate() {
-                        let key_i = TAB_BUTTON.sibling(i);
+                        let key_i = VERTICAL_TABS_TAB_BUTTON.sibling(i);
                         let active = i == *current_tab;
                         let tab = if active { active_tab } else { inactive_tab };
                         let tab = tab.static_text(&name.0).key(key_i);
