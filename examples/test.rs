@@ -4,6 +4,7 @@ use keru::*;
 #[derive(Default)]
 pub struct State {
     pub current_tab: usize,
+    pub show: bool,
 }
 
 
@@ -15,9 +16,23 @@ impl ExampleLoop for State {
     fn update_ui(&mut self, ui: &mut Ui) {
         ui.v_stack().nest(|| {
 
-            ui.add(BUTTON.text("My child will type sneed"));
-            ui.add(BUTTON.text("My child will type sneed"));
-            ui.add(BUTTON.text("My child will type sneed"));
+            #[node_key] const MOVING_NODE: NodeKey;
+            let moving_node = BUTTON.color(Color::RED).key(MOVING_NODE);
+
+            ui.add(BUTTON.text("My child will type sneed2\n.\n.\n.")).nest(|| {
+                if self.show {
+                    ui.add(moving_node);
+                }
+            });
+            ui.add(BUTTON.text("My child will type sneed1\n.\n.\n.")).nest(|| {
+                if ! self.show {
+                    ui.add(moving_node);
+                }
+            });
+
+            if ui.add(BUTTON.text("Show")).is_clicked(ui) {
+                self.show = ! self.show;
+            }
         });
     }
 }
@@ -25,8 +40,9 @@ impl ExampleLoop for State {
 fn main() {
     env_logger::Builder::new()
         .filter_level(log::LevelFilter::Warn)
-        .filter_module("keru::node_params", log::LevelFilter::Trace)
+        .filter_module("keru::tree", log::LevelFilter::Trace)
         .init();
-    let state = State::default();
+    let mut state = State::default();
+    state.show = true;
     run_example_loop(state);
 }

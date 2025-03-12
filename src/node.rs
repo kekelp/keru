@@ -52,6 +52,9 @@ pub struct Node {
     pub first_child: Option<NodeI>,
     pub next_sibling: Option<NodeI>,
 
+    pub old_first_child: Option<NodeI>,
+    pub old_next_sibling: Option<NodeI>,
+
     pub params: NodeParams,
 
     pub debug_key_name: &'static str,
@@ -105,6 +108,9 @@ impl Node {
             first_child: None,
             prev_sibling: None,
             next_sibling: None,
+
+            old_first_child: None,
+            old_next_sibling: None,
 
             is_twin: twin_n,
             params: NodeParams::const_default(),
@@ -191,6 +197,9 @@ pub const ZERO_NODE_DUMMY: Node = Node {
     prev_sibling: None,
     next_sibling: None,
 
+    old_first_child: None,
+    old_next_sibling: None,
+
     is_twin: None,
 
     params: NODE_ROOT_PARAMS,
@@ -242,6 +251,9 @@ pub const NODE_ROOT: Node = Node {
     first_child: None,
     prev_sibling: None,
     next_sibling: None,
+
+    old_first_child: None,
+    old_next_sibling: None,
 
     is_twin: None,
 

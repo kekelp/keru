@@ -1,10 +1,14 @@
-use crate::thread_local::THREAD_STACKS;
 use crate::*;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct NodeWithDepth {
     pub i: NodeI,
     pub depth: usize,
+}
+impl NodeWithDepth {
+    pub fn new(i: NodeI, depth: usize) -> Self {
+        NodeWithDepth { i, depth }
+    }
 }
 
 impl Ord for NodeWithDepth {
@@ -52,20 +56,8 @@ impl PartialChanges {
     pub fn reset_layout_changes(&mut self) {
         self.partial_relayouts.clear();
         self.cosmetic_rect_updates.clear();
+        self.swapped_tree_changes.clear();
         self.full_relayout = false;
         self.rebuild_all_rects = false;
-    }
-
-    pub fn swap_thread_local_tree_changes(&mut self) {
-        THREAD_STACKS.with(|stack| {
-            let mut stack = stack.borrow_mut();
-            
-            // mem::swap the tree changes out of the thread_local into a normal vec.
-            std::mem::swap(&mut self.swapped_tree_changes, &mut stack.tree_changes);
-
-            stack.tree_changes.clear();
-
-            // after this, the tree changes are stored in `swapped_tree_changes`, until they are swapped again.
-        })
     }
 }

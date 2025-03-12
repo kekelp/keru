@@ -7,6 +7,7 @@ use Axis::{X, Y};
 const BIG_FLOAT: f32 = 1000.0;
 
 /// Iterate on the children linked list.
+#[macro_export]
 macro_rules! for_each_child {
     ($ui:expr, $start:expr, $child:ident, $body:block) => {
         {
@@ -19,10 +20,22 @@ macro_rules! for_each_child {
     };
 }
 
+/// Iterate on the leftover linked list of old children from last frame
+#[macro_export]
+macro_rules! for_each_old_child {
+    ($ui:expr, $start:expr, $child:ident, $body:block) => {
+        {
+            let mut current_child = $start.old_first_child;
+            while let Some($child) = current_child {
+                $body
+                current_child = $ui.nodes[$child].old_next_sibling;
+            }
+        }
+    };
+}
+
 impl Ui {
     pub(crate) fn relayout(&mut self) {
-        self.sys.changes.swap_thread_local_tree_changes();
-
         let tree_changed = ! self.sys.changes.swapped_tree_changes.is_empty();
         let rebuild_all_rects = tree_changed || self.sys.changes.rebuild_all_rects;
         let partial_relayouts = ! self.sys.changes.partial_relayouts.is_empty();

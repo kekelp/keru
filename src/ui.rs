@@ -115,6 +115,11 @@ pub(crate) struct System {
     // this is used exclusively for info messages
     pub partial_relayout_count: u32,
 
+    pub old_child_collect: Vec<NodeI>,
+    pub new_child_collect: Vec<NodeI>,
+    pub added_nodes: Vec<NodeI>,
+    pub removed_nodes: Vec<NodeI>,
+
     pub changes: PartialChanges,
 
     // move to changes oalgo
@@ -376,6 +381,10 @@ impl Ui {
                 #[cfg(debug_assertions)]
                 inspect_hovered: None,
             
+                old_child_collect: Vec::with_capacity(10),
+                new_child_collect: Vec::with_capacity(10),
+                added_nodes: Vec::with_capacity(30),
+                removed_nodes: Vec::with_capacity(30),
 
                 focused: None,
 

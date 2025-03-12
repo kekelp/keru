@@ -269,9 +269,12 @@ impl Ui {
     }
 
     fn set_tree_links(&mut self, new_node_i: NodeI, parent_i: NodeI, depth: usize) {
-        assert!(new_node_i != parent_i, "Internal error: tried to add a node as child of itself ({}).", self.nodes[new_node_i].debug_key_name);
+        assert!(new_node_i != parent_i, "Keru: Internal error: tried to add a node as child of itself ({}). This shouldn't be possible.", self.nodes[new_node_i].debug_name());
 
         // clear old tree links
+        self.nodes[new_node_i].old_first_child = self.nodes[new_node_i].first_child;
+        self.nodes[new_node_i].old_next_sibling = self.nodes[new_node_i].next_sibling;
+        
         self.nodes[new_node_i].last_child = None;
         self.nodes[new_node_i].first_child = None;
         self.nodes[new_node_i].prev_sibling = None;
@@ -458,8 +461,14 @@ impl Ui {
     /// ```
     pub fn begin_frame(&mut self) {
         // clear root
+        // todo: why does this have to be manual
+        self.nodes[ROOT_I].old_first_child = self.nodes[ROOT_I].first_child;
+        self.nodes[ROOT_I].old_next_sibling = self.nodes[ROOT_I].next_sibling;
+        
         self.nodes[ROOT_I].last_child = None;
-        self.nodes[ROOT_I].first_child = None;        
+        self.nodes[ROOT_I].first_child = None;
+        self.nodes[ROOT_I].prev_sibling = None;
+        self.nodes[ROOT_I].next_sibling = None;
         self.nodes[ROOT_I].n_children = 0;
 
         self.sys.current_frame += 1;
@@ -485,7 +494,10 @@ impl Ui {
         // pop the root node
         thread_local::pop_parent();
 
+        self.diff_children();
         self.relayout();
+        self.garbage_collect();
+        
         self.sys.third_last_frame_end_fake_time = self.sys.second_last_frame_end_fake_time;
         self.sys.second_last_frame_end_fake_time = self.sys.last_frame_end_fake_time;
         self.sys.last_frame_end_fake_time = fake_time_now();
@@ -587,6 +599,78 @@ impl Ui {
             return entry.last_frame_touched == self.sys.current_frame;
         } else {
             return false;
+        }
+    }
+
+    fn diff_children(&mut self) {
+       self.sys.added_nodes.clear();
+       self.sys.removed_nodes.clear();
+
+       self.recursive_diff_children(ROOT_I);
+
+        // push partial relayouts
+        for i in &self.sys.removed_nodes {
+            let node_with_depth = NodeWithDepth::new(*i, self.nodes[*i].depth);
+            self.sys.changes.swapped_tree_changes.push(node_with_depth);
+        }
+        for i in &self.sys.added_nodes {
+            let node_with_depth = NodeWithDepth::new(*i, self.nodes[*i].depth);
+            self.sys.changes.swapped_tree_changes.push(node_with_depth);
+        }
+    }
+
+    fn recursive_diff_children(&mut self, i: NodeI) {
+        // collect old and new children
+        self.sys.new_child_collect.clear();        
+        self.sys.old_child_collect.clear();
+        
+        for_each_child!(self, self.nodes[i], child, {
+            self.sys.new_child_collect.push(child);
+        });
+        for_each_old_child!(self, self.nodes[i], child, {
+            self.sys.old_child_collect.push(child);
+        });
+
+        // diff the arrays
+        // todo: use hashsets? NodeI is 16 bits so it probably fits all in cache.
+        for &new_child in &self.sys.new_child_collect {
+            if !self.sys.old_child_collect.contains(&new_child) {
+                log::trace!("Adding?: {:?} ({:?})", new_child, self.nodes[new_child].debug_name());
+                
+                self.sys.added_nodes.push(new_child);
+            }
+        }
+        for &old_child in &self.sys.old_child_collect {
+            if !self.sys.new_child_collect.contains(&old_child) {
+                log::trace!("Removing?: {:?} ({:?})", old_child, self.nodes[old_child].debug_name());
+                self.sys.removed_nodes.push(old_child);
+            }
+        }
+
+        // continue recursion
+        for_each_old_child!(self, self.nodes[i], child, {
+            self.recursive_diff_children(child);
+        });        
+    }
+
+    fn garbage_collect(&mut self) {
+        // Really remove the nodes
+        for k in 0..self.sys.removed_nodes.len() {
+            let i = self.sys.removed_nodes[k];
+
+            // todo: skip the nodes that want to stay hidden
+            
+            let id = self.nodes[i].id;
+            
+            // skip the nodes that have last_frame_touched = now, because that means that they were not really removed, but just moved somewhere else in the tree
+            if self.nodes.node_hashmap[&id].last_frame_touched == self.sys.current_frame {
+                log::trace!("Seethe: {:?} ({:?})", i, self.node_debug_name_fmt_scratch(i));
+                continue;
+            }
+
+            log::trace!("Removing {:?} ({:?})", i, self.node_debug_name_fmt_scratch(i));
+            self.nodes.node_hashmap.remove(&id);
+            self.nodes.nodes.remove(i.as_usize());
         }
     }
 }
