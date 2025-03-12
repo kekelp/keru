@@ -680,10 +680,12 @@ impl Xy<f32> {
 
 #[derive(Debug)]
 pub(crate) struct Scroll {
+    at_min: Xy<bool>,
     relative_offset: Xy<f32>,
 }
 impl Scroll {
     pub const ZERO: Scroll = Scroll {
+        at_min: Xy::new(true, true),
         relative_offset: Xy::new(0.0, 0.0),
     };
 }
@@ -691,29 +693,31 @@ impl Scroll {
 impl Ui {
     pub(crate) fn update_scroll(&mut self, i: NodeI, delta: f32, axis: Axis) {       
         let real_rect = self.nodes[i].rect;
-        
-        let content_rect = self.nodes[i].content_bounds;
-        let content_rect_size = content_rect.size()[axis];
+
+        let content_bounds = self.nodes[i].content_bounds;
+        let content_rect_size = content_bounds.size()[axis];
 
         if content_rect_size <= 0.0 {
             self.nodes[i].scroll.relative_offset[axis] = 0.0;
             return;
         }
 
-        let min_scroll = (content_rect[axis][0] - real_rect[axis][0] ) / content_rect_size;
-        let max_scroll = (content_rect[axis][1] - real_rect[axis][1] ) / content_rect_size;
+        let min_scroll = (content_bounds[axis][0] - real_rect[axis][0] ) / content_rect_size;
+        let max_scroll = (content_bounds[axis][1] - real_rect[axis][1] ) / content_rect_size;
         
         if min_scroll < max_scroll {                
             self.nodes[i].scroll.relative_offset[axis] += delta * (max_scroll - min_scroll);
             
             let rel_offset = &mut self.nodes[i].scroll.relative_offset[axis];
             if min_scroll < max_scroll {
-                *rel_offset = rel_offset.clamp(min_scroll, max_scroll);
+                *rel_offset = rel_offset.clamp(min_scroll - max_scroll, 0.0);
             }
         } else {
             self.nodes[i].scroll.relative_offset[axis] = 0.0;
         }
-    
+
+        let at_min = self.nodes[i].scroll.relative_offset[axis] == min_scroll;
+        self.nodes[i].scroll.at_min[axis] = at_min;    
     }
     
     pub(crate) fn clamp_scroll(&mut self, i: NodeI) {       
@@ -723,9 +727,15 @@ impl Ui {
     }
 
     pub(crate) fn scroll_offset(&self, i: NodeI, axis: Axis) -> f32 {
+        let real_rect = self.nodes[i].rect;
+        
+        let content_bounds = self.nodes[i].content_bounds;
+        let content_rect_size = content_bounds.size()[axis];
+        
+        let max_scroll = (content_bounds[axis][1] - real_rect[axis][1] ) / content_rect_size;
+
         let scroll_offset = self.nodes[i].scroll.relative_offset[axis];
-        let scroll_space = self.nodes[i].content_bounds.size()[axis];
-        return scroll_offset * scroll_space;
+        return (max_scroll + scroll_offset) * content_rect_size;
     }
 }
 
