@@ -14,23 +14,30 @@ const JAPANESE_TEXT: &str = "ヘッケはこれらのL-函数が全複素平面�
 
 impl ExampleLoop for State {
     fn update_ui(&mut self, ui: &mut Ui) {
-        ui.v_stack().nest(|| {
+        #[node_key] const MOVING_NODE: NodeKey;
+        #[node_key] const V_STACK_KEY: NodeKey;
+        #[node_key] const SHOW: NodeKey;
+        #[node_key] const CONT_1: NodeKey;
+        #[node_key] const CONT_2: NodeKey;
 
-            #[node_key] const MOVING_NODE: NodeKey;
+        ui.add(V_STACK.key(V_STACK_KEY)).nest(|| {
+
             let moving_node = BUTTON.color(Color::RED).key(MOVING_NODE);
 
-            ui.add(BUTTON.text("My child will type sneed2\n.\n.\n.")).nest(|| {
+            let cont_1 = BUTTON.text("My child will type sneed1\n.\n.\n.").key(CONT_1);
+            ui.add(cont_1).nest(|| {
                 if self.show {
                     ui.add(moving_node);
                 }
             });
-            ui.add(BUTTON.text("My child will type sneed1\n.\n.\n.")).nest(|| {
+            let cont_2 = BUTTON.text("My child will type sneed2\n.\n.\n.").key(CONT_2);
+            ui.add(cont_2).nest(|| {
                 if ! self.show {
                     ui.add(moving_node);
                 }
             });
 
-            if ui.add(BUTTON.text("Show")).is_clicked(ui) {
+            if ui.add(BUTTON.text("Show").key(SHOW)).is_clicked(ui) {
                 self.show = ! self.show;
             }
         });

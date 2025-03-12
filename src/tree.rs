@@ -603,19 +603,27 @@ impl Ui {
     }
 
     fn diff_children(&mut self) {
-       self.sys.added_nodes.clear();
-       self.sys.removed_nodes.clear();
+        self.sys.added_nodes.clear();
+        self.sys.removed_nodes.clear();
 
-       self.recursive_diff_children(ROOT_I);
+        self.recursive_diff_children(ROOT_I);
 
         // push partial relayouts
-        for i in &self.sys.removed_nodes {
-            let node_with_depth = NodeWithDepth::new(*i, self.nodes[*i].depth);
+        for k in 0..self.sys.removed_nodes.len() {
+            // todo: this is probably pushing a lot of useless relayouts for nodes that will get cleaned up right after
+            // either improve the logic, or do garbage collection before relayouts, and change layout logic to ignore nodes that don't exist
+            // for now it's prob better to keep the panics in layout just to stay alert
+            let i = self.sys.removed_nodes[k];
+            let node_with_depth = NodeWithDepth::new(i, self.nodes[i].depth);
+            // todo: change swapped_tree_changes into just a bool and set it
             self.sys.changes.swapped_tree_changes.push(node_with_depth);
+            self.push_partial_relayout(i);
         }
-        for i in &self.sys.added_nodes {
-            let node_with_depth = NodeWithDepth::new(*i, self.nodes[*i].depth);
+        for k in 0..self.sys.added_nodes.len() {
+            let i = self.sys.added_nodes[k];
+            let node_with_depth = NodeWithDepth::new(i, self.nodes[i].depth);
             self.sys.changes.swapped_tree_changes.push(node_with_depth);
+            self.push_partial_relayout(i);
         }
     }
 
@@ -635,17 +643,14 @@ impl Ui {
         // todo: use hashsets? NodeI is 16 bits so it probably fits all in cache.
         for &new_child in &self.sys.new_child_collect {
             if !self.sys.old_child_collect.contains(&new_child) {
-                log::trace!("Adding?: {:?} ({:?})", new_child, self.nodes[new_child].debug_name());
-                
                 self.sys.added_nodes.push(new_child);
             }
         }
         for &old_child in &self.sys.old_child_collect {
             if !self.sys.new_child_collect.contains(&old_child) {
-                log::trace!("Removing?: {:?} ({:?})", old_child, self.nodes[old_child].debug_name());
                 self.sys.removed_nodes.push(old_child);
             }
-        }
+        }    
 
         // continue recursion
         for_each_old_child!(self, self.nodes[i], child, {
@@ -664,7 +669,7 @@ impl Ui {
             
             // skip the nodes that have last_frame_touched = now, because that means that they were not really removed, but just moved somewhere else in the tree
             if self.nodes.node_hashmap[&id].last_frame_touched == self.sys.current_frame {
-                log::trace!("Seethe: {:?} ({:?})", i, self.node_debug_name_fmt_scratch(i));
+                log::trace!("Not removing: {:?} ({:?}), as it was moved around and not removed", i, self.node_debug_name_fmt_scratch(i));
                 continue;
             }
 

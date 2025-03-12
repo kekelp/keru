@@ -650,7 +650,6 @@ impl Ui {
     }
 
     fn recursive_push_rects(&mut self, i: NodeI) {
-        // 3nd recursive tree traversal: now that all nodes have a calculated size, place them.
         self.push_rect(i);
 
         for_each_child!(self, self.nodes[i], child, {
