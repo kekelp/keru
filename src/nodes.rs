@@ -7,6 +7,7 @@ use slab::Slab;
 use crate::*;
 
 #[derive(Debug)]
+// The point of this weird data structure is that from "outside", the nodes can be referenced by stable Ids, but internally, nodes can refer to other nodes by holding a NodeI. A NodeI can be way smaller than both a pointer or an id, and you can use it to access nodes without hashing (as if they held a hashmap key), and without lifetime issues (as if they held references).
 pub(crate) struct Nodes {
     // todo: make faster or something
     pub(crate) node_hashmap: FxHashMap<Id, NodeMapEntry>,
@@ -18,6 +19,8 @@ pub(crate) struct Nodes {
 /// This has the same guarantees as a `usize` slab key/index: if the corresponding element gets removed, any dangling NodeIs can point to arbitrary other nodes that might have taken its place, or it can just point outside of the slab's current length, in which case it will panic on access.
 /// 
 /// For this reason, NodeIs should never be held for longer than one frame.
+/// 
+/// This is mostly automatic given the declarative structure, but for example things like Hovered or Focused have to hold an Id and not a NodeI for this reason.
 /// 
 /// Obviously this can never be pub.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -78,23 +81,5 @@ impl Nodes {
             node_hashmap,
             nodes,
         };
-    }
-
-    // todo: actually call this once in a while
-    pub(crate) fn _prune(&mut self, current_frame: u64) {
-        // remember to not delete the zero dummy node
-        self.node_hashmap.retain(|_k, v| {
-            // the > is to always keep the root node without having to refresh it
-            let should_retain = v.last_frame_touched >= current_frame;
-            if !should_retain {
-                let i: usize = v.slab_i.as_usize();
-                // let name = self.format_node_debug_name(i);
-                // side effect happens inside this closure? idk if this even works
-                self.nodes.remove(i);
-                // remember to remove text areas and such ...
-                // log::info!("pruning node {:?}", name);
-            }
-            should_retain
-        });
     }
 }
