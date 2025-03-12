@@ -28,13 +28,12 @@ impl Components for Ui {
     fn components_tab(&mut self, state: &mut State) {
         self.add(V_SCROLL_STACK).nest(|| {
             self.static_paragraph(
-                "Thanks for checking out Keru.\n\n\
-                Keru is an experimental Graphical User Interface library, with the goal of being as easy to use as Egui (and even a bit easier), but without the downsides of immediate mode.\n\n\
-                I think the experiment has been really successful, and I'm very happy with the user-facing API of the library and the internal architecture. \n\n\
-                However, there's still a lot missing features and edge cases that aren't handled well."
+                "Keru is an experimental Graphical User Interface library, with the goal of being as easy to use as Egui (and even a bit easier), but without the downsides of immediate mode.\n\n\
+                I think the experiment has been successful, and I'm fairly happy with the user-facing API of the library and the internal architecture. \n\n\
+                However, there's still a lot missing features and edge cases that aren't handled well.\n\n"
             );
 
-            self.static_paragraph("\nHere are some classic GUI elements: \n");
+            self.static_paragraph("Here are some classic GUI elements: \n");
             self.static_paragraph("Button and label:");
 
             self.h_stack().nest(|| {
@@ -55,6 +54,7 @@ impl Components for Ui {
                 "Press F1 for Inspect mode. This lets you see the bounds of the layout rectangles. \n\n\
                 In Inspect mode, hovering nodes will also log an Info message with the name and source code location of the node."
             );
+            self.static_paragraph("Thanks for checking it out!")
         });
     }
 
