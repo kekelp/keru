@@ -74,15 +74,20 @@ impl Ui {
     #[track_caller]
     pub fn slider(&mut self, value: &mut f32, min: f32, max: f32) {
         self.subtree().start(|| {
+            let mut new_value = *value;
             if let Some(drag) = self.is_dragged(SLIDER_CONTAINER) {
-                *value += drag.relative_delta.x as f32 * (min - max);
+                new_value += drag.relative_delta.x as f32 * (min - max);
             }
 
             if let Some(drag) = self.is_dragged(SLIDER_FILL) {
-                *value += drag.relative_delta.x as f32 * (min - max);
+                new_value += drag.relative_delta.x as f32 * (min - max);
             }
 
-            *value = value.clamp(min, max);
+            if new_value.is_finite() {
+                new_value = new_value.clamp(min, max);
+                *value = new_value;
+            }
+
             let filled_frac = (*value - min) / (max - min);
 
             #[node_key] const SLIDER_CONTAINER: NodeKey;
