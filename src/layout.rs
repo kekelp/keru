@@ -36,17 +36,15 @@ macro_rules! for_each_old_child {
 
 impl Ui {
     pub(crate) fn relayout(&mut self) {
-        let tree_changed = ! self.sys.changes.swapped_tree_changes.is_empty();
-        let rebuild_all_rects = tree_changed || self.sys.changes.rebuild_all_rects;
+        let tree_changed = self.sys.changes.tree_changed;
         let partial_relayouts = ! self.sys.changes.partial_relayouts.is_empty();
         let rect_updates = ! self.sys.changes.cosmetic_rect_updates.is_empty();
         let full_relayout = self.sys.changes.full_relayout;
 
-        let nothing_to_do = ! tree_changed
-            && ! partial_relayouts
+        let nothing_to_do = ! partial_relayouts
             && ! rect_updates
             && ! full_relayout
-            && ! rebuild_all_rects;
+            && ! tree_changed;
         if nothing_to_do {
             return;
         }
@@ -58,7 +56,7 @@ impl Ui {
         if full_relayout {
             self.relayout_from_root();
         } else {           
-            if rebuild_all_rects {
+            if tree_changed {
                 self.do_partial_relayouts(false);
             } else {
                 self.do_partial_relayouts(true);
@@ -70,7 +68,7 @@ impl Ui {
         // self.sys.new_external_events = false;
 
         // these ones are after the second-order-effect resolve_hover, just to see the update sooner.
-        if full_relayout || rebuild_all_rects {
+        if full_relayout || tree_changed {
             self.rebuild_all_rects();
 
         } else {
@@ -106,34 +104,22 @@ impl Ui {
 
     // this gets called even when zero relayouts are needed. in that case it just does nothing. I guess it's to make the layout() logic more readable
     pub(crate) fn do_partial_relayouts(&mut self, update_rects_while_relayouting: bool) {
-        self.sys.relayouts_scrath.clear();
-        for n in &self.sys.changes.swapped_tree_changes {
-            self.sys.relayouts_scrath.push(*n);
-        }
-        for n in &self.sys.changes.partial_relayouts {
-            self.sys.relayouts_scrath.push(*n);
-        }
-
         // sort by depth
         // todo: there was something about it being close to already sorted, except in reverse
         // the plan was to sort it in reverse and then use it in reverse
-        self.sys.relayouts_scrath.sort();
+        self.sys.changes.partial_relayouts.sort();
         self.sys.partial_relayout_count = 0;
 
-        for idx in 0..self.sys.relayouts_scrath.len() {
+        for idx in 0..self.sys.changes.partial_relayouts.len() {
             // in partial_relayout(), we will check for overlaps.
             // todo: if that works as expected, maybe we can skip the limit/full relayout thing, or at least raise the limit by a lot.
-            let relayout = self.sys.relayouts_scrath[idx];
+            let relayout = self.sys.changes.partial_relayouts[idx];
             
             self.partial_relayout(relayout.i, update_rects_while_relayouting);
         }
 
         if self.sys.partial_relayout_count != 0 {
-            let nodes = if self.sys.partial_relayout_count == 1 {
-                "node"
-            } else {
-                "nodes"
-            };
+            let nodes = if self.sys.partial_relayout_count == 1 { "node" } else { "nodes" };
             log::info!("Partial relayout ({:?} {nodes})", self.sys.partial_relayout_count);
         }
 

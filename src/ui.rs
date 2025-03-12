@@ -111,7 +111,6 @@ pub(crate) struct System {
 
     pub focused: Option<Id>,
 
-    pub relayouts_scrath: Vec<NodeWithDepth>,
     // this is used exclusively for info messages
     pub partial_relayout_count: u32,
 
@@ -359,7 +358,6 @@ impl Ui {
                 base_uniform_buffer: resolution_buffer,
                 bind_group,
 
-                relayouts_scrath: Vec::with_capacity(15),
                 partial_relayout_count: 0,
 
                 current_frame: FIRST_FRAME,
@@ -420,7 +418,7 @@ impl Ui {
     /// Set inspect mode. When inspect mode is active, all nodes will be shown, including stacks and containers. 
     pub fn set_inspect_mode(&mut self, inspect_mode: bool) {
         if self.inspect_mode() != inspect_mode {
-            self.sys.changes.rebuild_all_rects = true;
+            self.sys.changes.tree_changed = true;
         }
         self.sys.inspect_mode = inspect_mode;
     }

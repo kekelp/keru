@@ -608,21 +608,22 @@ impl Ui {
 
         self.recursive_diff_children(ROOT_I);
 
+        // if the tree changes, all rects have to be rebuilt. this might change if the rects become densemaps or whatever
+        if ! self.sys.added_nodes.is_empty() || ! self.sys.removed_nodes.is_empty() {
+            self.sys.changes.tree_changed = true;
+        }
+
         // push partial relayouts
+        for k in 0..self.sys.added_nodes.len() {
+            // the recursive_diff_children traversal uses the old tree, so it can miss a lot of added rects that are added to new children directly. This is fine though because added_rects is just for relayouts.
+            let i = self.sys.added_nodes[k];
+            self.push_partial_relayout(i);
+        }
         for k in 0..self.sys.removed_nodes.len() {
             // todo: this is probably pushing a lot of useless relayouts for nodes that will get cleaned up right after
             // either improve the logic, or do garbage collection before relayouts, and change layout logic to ignore nodes that don't exist
             // for now it's prob better to keep the panics in layout just to stay alert
             let i = self.sys.removed_nodes[k];
-            let node_with_depth = NodeWithDepth::new(i, self.nodes[i].depth);
-            // todo: change swapped_tree_changes into just a bool and set it
-            self.sys.changes.swapped_tree_changes.push(node_with_depth);
-            self.push_partial_relayout(i);
-        }
-        for k in 0..self.sys.added_nodes.len() {
-            let i = self.sys.added_nodes[k];
-            let node_with_depth = NodeWithDepth::new(i, self.nodes[i].depth);
-            self.sys.changes.swapped_tree_changes.push(node_with_depth);
             self.push_partial_relayout(i);
         }
     }
