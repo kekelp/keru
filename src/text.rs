@@ -1,4 +1,73 @@
-use glyphon::{Buffer as GlyphonBuffer, Color, TextArea, TextBounds};
+use glyphon::{Color as GlyphonColor, TextBounds, Viewport, TextArea};
+use glyphon::{
+    Attrs, Buffer as GlyphonBuffer, Family, FontSystem, Metrics, Shaping, SwashCache,
+    TextAtlas, TextRenderer,
+};
+
+// another stupid sub struct for dodging partial borrows
+pub(crate) struct TextSystem {
+    pub font_system: FontSystem,
+    pub cache: SwashCache,
+    pub atlas: TextAtlas,
+    pub text_renderer: TextRenderer,
+    pub text_areas: Vec<FullText>,
+    pub glyphon_viewport: Viewport,
+}
+const GLOBAL_TEXT_METRICS: Metrics = Metrics::new(24.0, 24.0);
+
+
+impl TextSystem {
+    pub(crate) fn maybe_new_text_area(
+        &mut self,
+        text: Option<&str>,
+        current_frame: u64,
+    ) -> Option<usize> {
+        let text = match text {
+            Some(text) => text,
+            None => return None,
+        };
+
+        let mut buffer = GlyphonBuffer::new(&mut self.font_system, GLOBAL_TEXT_METRICS);
+        buffer.set_size(&mut self.font_system, Some(500.), Some(500.));
+
+        for line in &mut buffer.lines {
+            line.set_align(Some(glyphon::cosmic_text::Align::Center));
+        }
+
+        // todo: maybe remove duplication with set_text_hashed (the branch in refresh_node that updates the text without creating a new entry here)
+        // buffer.set_wrap(&mut self.font_system, glyphon::Wrap::Word);
+        buffer.set_text(
+            &mut self.font_system,
+            text,
+            Attrs::new().family(Family::SansSerif),
+            Shaping::Advanced,
+        );
+
+        let params = TextAreaParams {
+            left: 10.0,
+            top: 10.0,
+            scale: 1.0,
+            bounds: TextBounds {
+                left: 0,
+                top: 0,
+                right: 10000,
+                bottom: 10000,
+            },
+            default_color: GlyphonColor::rgb(255, 255, 255),
+            last_frame_touched: current_frame,
+        };
+        self.text_areas.push(FullText { buffer, params });
+        let text_id = self.text_areas.len() - 1;
+
+        return Some(text_id);
+    }
+
+    pub(crate) fn refresh_last_frame(&mut self, text_id: Option<usize>, current_frame: u64) {
+        if let Some(text_id) = text_id {
+            self.text_areas[text_id].params.last_frame_touched = current_frame;
+        }
+    }
+}
 
 
 #[derive(Clone, Debug)]
@@ -7,7 +76,7 @@ pub struct TextAreaParams {
     pub top: f32,
     pub scale: f32,
     pub bounds: TextBounds,
-    pub default_color: Color,
+    pub default_color: GlyphonColor,
     pub last_frame_touched: u64,
 }
 

@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate as keru;
 use keru::*;
 use keru::Size::*;
@@ -7,7 +9,86 @@ use keru::Position::*;
 pub struct Tab(pub &'static str);
 
 impl Ui {
-    /// A component for vertical tabs
+
+    /// Add a panel.
+    #[track_caller]
+    pub fn panel(&mut self) -> UiParent {
+        return self.add(PANEL);
+    }
+
+    /// Add a vertical stack container.
+    #[track_caller]
+    pub fn v_stack(&mut self) -> UiParent {
+        return self.add(V_STACK);
+    }
+
+    /// Add a spacer.
+    #[track_caller]
+    pub fn spacer(&mut self) -> UiParent {
+        return self.add(SPACER);
+    }
+    
+    /// Add a horizontal stack container.
+    #[track_caller]
+    pub fn h_stack(&mut self) -> UiParent {
+        return self.add(H_STACK);
+    }
+
+    /// Add a single-line text element.
+    #[track_caller]
+    pub fn text_line<'a, T, M>(&mut self, text: &'a M) -> UiParent
+    where
+        T: Display + ?Sized,
+        M: MaybeObserver<T> + ?Sized,
+    {
+        let params = TEXT.text(text);
+        return self.add(params);
+    }
+
+    /// Add a single-line text element from a `'static str`.
+    #[track_caller]
+    pub fn static_text_line(&mut self, text: &'static str) -> UiParent {
+        let params = TEXT.static_text(text);
+        return self.add(params);
+    }
+
+    /// Add a multiline text paragraph.
+    #[track_caller]
+    pub fn paragraph<'a, T, M>(&mut self, text: &'a M) -> UiParent
+    where
+        T: Display + ?Sized,
+        M: MaybeObserver<T> + ?Sized,
+    {
+        let params = TEXT_PARAGRAPH.text(text);
+        return self.add(params);
+    }
+
+    /// Add a multiline text paragraph from a `'static str`.
+    #[track_caller]
+    pub fn static_paragraph(&mut self, text: &'static str) -> UiParent {
+        let params = TEXT_PARAGRAPH.static_text(text);
+        return self.add(params);
+    }
+
+    /// Add a label.
+    #[track_caller]
+    pub fn label<'a, T, M>(&mut self, text: &'a M) -> UiParent
+    where
+        T: Display + ?Sized,
+        M: MaybeObserver<T> + ?Sized,
+    {
+        let params = MULTILINE_LABEL.text(text);
+        return self.add(params);
+    }
+
+    /// Add a label from a `&static str`.
+    #[track_caller]
+    pub fn static_label(&mut self, text: &'static str) -> UiParent {
+        let params = MULTILINE_LABEL.static_text(text);
+        return self.add(params);
+    }
+
+    /// Add a vertical tabs container
     #[track_caller]
     pub fn vertical_tabs(&mut self, tabs: &[Tab], current_tab: &mut usize) -> UiParent {
         #[node_key] const VERTICAL_TABS_TAB_BUTTON: NodeKey;
@@ -71,6 +152,7 @@ impl Ui {
         })
     }
 
+    /// Add a slider for a `f32` value with a label
     #[track_caller]
     pub fn slider(&mut self, value: &mut f32, min: f32, max: f32) {
         self.subtree().start(|| {
@@ -117,6 +199,7 @@ impl Ui {
         });
     }
 
+    /// Add a classic looking slider for a `f32` value
     #[track_caller]
     pub fn classic_slider(&mut self, value: &mut f32, min: f32, max: f32) {
         self.subtree().start(|| {

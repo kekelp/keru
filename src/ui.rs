@@ -15,6 +15,7 @@ use wgpu::{
     SamplerBindingType, SamplerDescriptor, ShaderModuleDescriptor, ShaderSource, ShaderStages,
     TextureSampleType, TextureViewDimension, VertexState,
 };
+use winit::dpi::PhysicalSize;
 use winit_key_events::KeyInput;
 use winit_mouse_events::MouseInput;
 
@@ -462,12 +463,6 @@ impl Ui {
             self.sys.new_external_events;
     }
 
-    pub(crate) fn set_new_ui_input(&mut self) {
-        // Anti state-tearing: always update two times
-        // Or rather, anti get-stuck-in-a-state-teared-frame. The state tearing is still there for one frame.
-        self.sys.new_ui_input = 2;
-    }
-
     /// Returns `true` if the [`Ui`] needs to be updated or rerendered.
     /// 
     /// In a typical `winit` loop for an application that only updates in response to user input, this function is what decides if `winit::Window::request_redraw()` should be called.
@@ -487,6 +482,25 @@ impl Ui {
     // todo: expose functions directly instead of the inner struct
     pub fn key_input(&self) -> &KeyInput {
         return &self.sys.key_input;
+    }
+
+    pub(crate) fn set_new_ui_input(&mut self) {
+        // Anti state-tearing: always update two times
+        // Or rather, anti get-stuck-in-a-state-teared-frame. The state tearing is still there for one frame.
+        self.sys.new_ui_input = 2;
+    }
+
+    /// Resize the `Ui`. 
+    /// Updates the `Ui`'s internal state, and schedules a full relayout to adapt to the new size.
+    /// Called by [`Ui::window_event`].
+    pub(crate) fn resize(&mut self, size: &PhysicalSize<u32>) {        
+        self.sys.changes.full_relayout = true;
+        
+        self.sys.unifs.size[X] = size.width as f32;
+        self.sys.unifs.size[Y] = size.height as f32;
+
+        self.sys.changes.resize = true;
+        self.set_new_ui_input();
     }
 }
 

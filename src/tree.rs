@@ -1,23 +1,10 @@
 use crate::*;
-
-use glyphon::{Color as GlyphonColor, TextBounds, Viewport};
-
 use rustc_hash::FxHasher;
-
 use std::collections::hash_map::Entry;
 use std::hash::Hasher;
 use std::panic::Location;
-
 use bytemuck::{Pod, Zeroable};
-use glyphon::{
-    Attrs, Buffer as GlyphonBuffer, Family, FontSystem, Metrics, Shaping, SwashCache,
-    TextAtlas, TextRenderer,
-};
-use winit::dpi::PhysicalSize;
-use Axis::{X, Y};
-
 use std::fmt::{Display, Write};
-
 
 /// An `u64` identifier for a GUI node.
 /// 
@@ -33,69 +20,6 @@ pub(crate) const Z_BACKDROP: f32 = 0.5;
 // This one has to be small, but not small enough to get precision issues.
 // And I think it's probably good if it's a rounded binary number (0x38000000)? Not sure.
 pub(crate) const Z_STEP: f32 = -0.000030517578125;
-
-// another stupid sub struct for dodging partial borrows
-pub(crate) struct TextSystem {
-    pub font_system: FontSystem,
-    pub cache: SwashCache,
-    pub atlas: TextAtlas,
-    pub text_renderer: TextRenderer,
-    pub text_areas: Vec<FullText>,
-    pub glyphon_viewport: Viewport,
-}
-const GLOBAL_TEXT_METRICS: Metrics = Metrics::new(24.0, 24.0);
-impl TextSystem {
-    pub(crate) fn maybe_new_text_area(
-        &mut self,
-        text: Option<&str>,
-        current_frame: u64,
-    ) -> Option<usize> {
-        let text = match text {
-            Some(text) => text,
-            None => return None,
-        };
-
-        let mut buffer = GlyphonBuffer::new(&mut self.font_system, GLOBAL_TEXT_METRICS);
-        buffer.set_size(&mut self.font_system, Some(500.), Some(500.));
-
-        for line in &mut buffer.lines {
-            line.set_align(Some(glyphon::cosmic_text::Align::Center));
-        }
-
-        // todo: maybe remove duplication with set_text_hashed (the branch in refresh_node that updates the text without creating a new entry here)
-        // buffer.set_wrap(&mut self.font_system, glyphon::Wrap::Word);
-        buffer.set_text(
-            &mut self.font_system,
-            text,
-            Attrs::new().family(Family::SansSerif),
-            Shaping::Advanced,
-        );
-
-        let params = TextAreaParams {
-            left: 10.0,
-            top: 10.0,
-            scale: 1.0,
-            bounds: TextBounds {
-                left: 0,
-                top: 0,
-                right: 10000,
-                bottom: 10000,
-            },
-            default_color: GlyphonColor::rgb(255, 255, 255),
-            last_frame_touched: current_frame,
-        };
-        self.text_areas.push(FullText { buffer, params });
-        let text_id = self.text_areas.len() - 1;
-
-        return Some(text_id);
-    }
-
-    pub(crate) fn refresh_last_frame(&mut self, text_id: Option<usize>, current_frame: u64) {
-        if let Some(text_id) = text_id {
-            self.text_areas[text_id].params.last_frame_touched = current_frame;
-        }
-    }
-}
 
 impl Ui {
     // todo: this function writes into format_scratch, doesn't tell anybody anything, and then expects people to get their string directly from self.format_scratch. is it really impossible to just return a reference? 
@@ -293,19 +217,6 @@ impl Ui {
         self.nodes[parent_i].last_child = Some(new_node_i);
     }
 
-    /// Resize the `Ui`. 
-    /// Updates the `Ui`'s internal state, and schedules a full relayout to adapt to the new size.
-    /// Called by [`Ui::window_event`].
-    pub(crate) fn resize(&mut self, size: &PhysicalSize<u32>) {        
-        self.sys.changes.full_relayout = true;
-        
-        self.sys.unifs.size[X] = size.width as f32;
-        self.sys.unifs.size[Y] = size.height as f32;
-
-        self.sys.changes.resize = true;
-        self.set_new_ui_input();
-    }
-
     pub(crate) fn push_rect(&mut self, i: NodeI) {
         let debug = cfg!(debug_assertions);
         let push_click_rect = if debug && self.inspect_mode() {
@@ -443,16 +354,7 @@ impl Ui {
     /// # }
     /// ```
     pub fn begin_frame(&mut self) {
-        // clear root
-        // todo: why does this have to be manual
-        self.nodes[ROOT_I].old_first_child = self.nodes[ROOT_I].first_child;
-        self.nodes[ROOT_I].old_next_sibling = self.nodes[ROOT_I].next_sibling;
-        
-        self.nodes[ROOT_I].last_child = None;
-        self.nodes[ROOT_I].first_child = None;
-        self.nodes[ROOT_I].prev_sibling = None;
-        self.nodes[ROOT_I].next_sibling = None;
-        self.nodes[ROOT_I].n_children = 0;
+        self.reset_root();
 
         self.sys.current_frame += 1;
         thread_local::clear_parent_stack();
@@ -464,6 +366,16 @@ impl Ui {
         self.begin_frame_resolve_inputs();
     }
     
+    fn reset_root(&mut self) {
+        self.nodes[ROOT_I].old_first_child = self.nodes[ROOT_I].first_child;
+        self.nodes[ROOT_I].old_next_sibling = self.nodes[ROOT_I].next_sibling;
+        self.nodes[ROOT_I].last_child = None;
+        self.nodes[ROOT_I].first_child = None;
+        self.nodes[ROOT_I].prev_sibling = None;
+        self.nodes[ROOT_I].next_sibling = None;
+        self.nodes[ROOT_I].n_children = 0;
+    }
+
     /// Finish declaring the current GUI tree.
     /// 
     /// This function will also relayout the nodes that need it, and do some bookkeeping.
@@ -491,84 +403,6 @@ impl Ui {
 
         // let mut buffer = String::new();
         // std::io::stdin().read_line(&mut buffer).expect("Failed to read line");
-    }
-
-    /// Add a panel.
-    #[track_caller]
-    pub fn panel(&mut self) -> UiParent {
-        return self.add(PANEL);
-    }
-
-    /// Add a vertical stack container.
-    #[track_caller]
-    pub fn v_stack(&mut self) -> UiParent {
-        return self.add(V_STACK);
-    }
-
-    /// Add a spacer.
-    #[track_caller]
-    pub fn spacer(&mut self) -> UiParent {
-        return self.add(SPACER);
-    }
-    
-    /// Add a horizontal stack container.
-    #[track_caller]
-    pub fn h_stack(&mut self) -> UiParent {
-        return self.add(H_STACK);
-    }
-
-    /// Add a single-line text element.
-    #[track_caller]
-    pub fn text_line<'a, T, M>(&mut self, text: &'a M) -> UiParent
-    where
-        T: Display + ?Sized,
-        M: MaybeObserver<T> + ?Sized,
-    {
-        let params = TEXT.text(text);
-        return self.add(params);
-    }
-
-    /// Add a single-line text element from a `'static str`.
-    #[track_caller]
-    pub fn static_text_line(&mut self, text: &'static str) -> UiParent {
-        let params = TEXT.static_text(text);
-        return self.add(params);
-    }
-
-    /// Add a multiline text paragraph.
-    #[track_caller]
-    pub fn paragraph<'a, T, M>(&mut self, text: &'a M) -> UiParent
-    where
-        T: Display + ?Sized,
-        M: MaybeObserver<T> + ?Sized,
-    {
-        let params = TEXT_PARAGRAPH.text(text);
-        return self.add(params);
-    }
-
-    /// Add a multiline text paragraph from a `'static str`.
-    #[track_caller]
-    pub fn static_paragraph(&mut self, text: &'static str) -> UiParent {
-        let params = TEXT_PARAGRAPH.static_text(text);
-        return self.add(params);
-    }
-
-    /// Add a label.
-    #[track_caller]
-    pub fn label<'a, T, M>(&mut self, text: &'a M) -> UiParent
-    where
-        T: Display + ?Sized,
-        M: MaybeObserver<T> + ?Sized,
-    {
-        let params = MULTILINE_LABEL.text(text);
-        return self.add(params);
-    }
-
-    /// Add a label from a `&static str`.
-    #[track_caller]
-    pub fn static_label(&mut self, text: &'static str) -> UiParent {
-        let params = MULTILINE_LABEL.static_text(text);
-        return self.add(params);
     }
 
     /// Returns `true` if a node corresponding to `key` exists and if it is currently part of the GUI tree. 
