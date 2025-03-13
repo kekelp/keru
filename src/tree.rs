@@ -472,7 +472,7 @@ impl Ui {
             });
 
             // diff the arrays
-            // todo: use hashsets? NodeI is 16 bits so it probably fits all in cache.
+            // todo: use hashsets? probably not needed at all
             for &new_child in &self.sys.new_child_collect {
                 if !self.sys.old_child_collect.contains(&new_child) {
                     self.sys.added_nodes.push(new_child);
@@ -483,7 +483,7 @@ impl Ui {
 
                     if new_hidden_branch {
                         self.sys.hidden_nodes.push(old_child);
-                        log::trace!("Not removing: {:?}, as its direct parent is hiding", self.nodes[old_child].debug_name());
+                        log::trace!("Not removing: {:?} or its children, as its direct parent is hiding", self.nodes[old_child].debug_name());
 
                     } else {
                         self.sys.direct_removed_nodes.push(old_child);
@@ -493,13 +493,12 @@ impl Ui {
 
             // continue recursion on old children
             
-            // This should be uncommented: in a hidden branch, there should be no chance of any node being freshly added, and the nodes don't get garbage collected, so recursive_diff_children doesn't do anything.
-            // but I'm nervous about it right now.
-            // if ! in_hidden_branch {
+            // in a hidden branch, there should be no chance of any node being freshly added, and the nodes don't get garbage collected, so recursive_diff_children doesn't do anything.
+            if ! new_hidden_branch {
                 for_each_old_child!(self, self.nodes[i], child, {
                     self.recursive_diff_children(child);
                 });
-            // }
+            }
 
         } else {
             // orphaned children of old nodes
@@ -515,15 +514,12 @@ impl Ui {
 
             // Add all their nodes to removed without diffing
             for_each_child!(self, self.nodes[i], child, {
-
-                // ideally this wouldn't even be needed because hidden branches can be skipped and not even traversed
+                // this check isn't needed because hidden branches aren't even traversed.
+                // however it's still here for safety.
                 let in_hidden_branch = ! self.sys.hidden_stack.is_empty();
-                if in_hidden_branch {
-                    log::trace!("Not removing: {:?}, as his indirect parent is hiding", self.nodes[child].debug_name());
-                } else {
+                if ! in_hidden_branch {
                     self.sys.indirect_removed_nodes.push(child);
                 }
-
             });
 
             // continue recursion. down here, all nodes should all be not freshly added
