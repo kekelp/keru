@@ -132,6 +132,7 @@ impl Ui {
             let content_panel = PANEL
                 .size_symm(Size::Fill)
                 .colors(self.theme().background)
+                .children_can_hide(true)
                 .key(VERTICAL_TABS_CONTENT_PANEL);
 
             self.add(h_stack).nest(|| {

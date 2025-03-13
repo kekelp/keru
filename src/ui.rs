@@ -122,11 +122,16 @@ pub(crate) struct System {
     pub direct_removed_nodes: Vec<NodeI>,
     // nodes that were removed "automatically" as a consequence of their parent or grandparent being directly removed. Aka orphaned nodes. These ones don't cause relayouts.
     pub indirect_removed_nodes: Vec<NodeI>,
+    // nodes that were excluded from the tree, but stay hidden. still have to do relayouts for them.
+    pub hidden_nodes: Vec<NodeI>,
 
     pub changes: PartialChanges,
 
     // move to changes oalgo
     pub anim_render_timer: AnimationRenderTimer,
+
+    pub hidden_stack: Vec<NodeI>,
+    pub hidden_nodes_record_or_something: Vec<(Id, Id)>,
 }
 
 pub(crate) struct AnimationRenderTimer(Option<Instant>);
@@ -394,6 +399,9 @@ impl Ui {
                 anim_render_timer: AnimationRenderTimer::default(),
 
                 changes: PartialChanges::new(),
+                hidden_stack: Vec::with_capacity(10),
+                hidden_nodes: Vec::with_capacity(10),
+                hidden_nodes_record_or_something: Vec::with_capacity(10),
             },
         }
     }

@@ -28,6 +28,7 @@ pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
         padding: Xy::new_symm(0),
         scrollable: Xy::new(false, false),
     },
+    children_can_hide: false,
 };
 /// [`NodeParams`] for a default. 
 pub const DEFAULT: NodeParams = NodeParams {
@@ -52,6 +53,7 @@ pub const DEFAULT: NodeParams = NodeParams {
         padding: Xy::new_symm(0),
         scrollable: Xy::new(false, false),
     },
+    children_can_hide: false,
 };
 /// [`NodeParams`] for a vertical stack. 
 pub const V_STACK: NodeParams = NodeParams {
@@ -80,6 +82,7 @@ pub const V_STACK: NodeParams = NodeParams {
         padding: Xy::new_symm(0),
         scrollable: Xy::new(false, false),
     },
+    children_can_hide: false,
 };
 /// [`NodeParams`] for a horizontal stack. 
 pub const H_STACK: NodeParams = NodeParams {
@@ -108,6 +111,7 @@ pub const H_STACK: NodeParams = NodeParams {
         padding: Xy::new_symm(0),
         scrollable: Xy::new(false, false),
     },
+    children_can_hide: false,
 };
 
 /// [`NodeParams`] for a vertically scrollable vertical stack.
@@ -137,6 +141,7 @@ pub const V_SCROLL_STACK: NodeParams = NodeParams {
             padding: Xy::new_symm(0),
             scrollable: Xy::new(false, true),
         },
+        children_can_hide: false,
     };
 
 /// [`NodeParams`] for a margin. 
@@ -162,6 +167,7 @@ pub const MARGIN: NodeParams = NodeParams {
         padding: Xy::new_symm(0),
         scrollable: Xy::new(false, false),
     },
+    children_can_hide: false,
 };
 /// [`NodeParams`] for an icon button. 
 pub const ICON_BUTTON: NodeParams = NodeParams {
@@ -186,6 +192,7 @@ pub const ICON_BUTTON: NodeParams = NodeParams {
         padding: Xy::new_symm(0),
         scrollable: Xy::new(false, false),
     },
+    children_can_hide: false,
 };
 /// [`NodeParams`] for an image. 
 pub const IMAGE: NodeParams = NodeParams {
@@ -210,6 +217,7 @@ pub const IMAGE: NodeParams = NodeParams {
         padding: Xy::new_symm(0),
         scrollable: Xy::new(false, false),
     },
+    children_can_hide: false,
 };
 /// [`NodeParams`] for an icon button. 
 pub const IMAGE_BUTTON: NodeParams = NodeParams {
@@ -234,6 +242,7 @@ pub const IMAGE_BUTTON: NodeParams = NodeParams {
         padding: Xy::new_symm(0),
         scrollable: Xy::new(false, false),
     },
+    children_can_hide: false,
 };
 /// [`NodeParams`] for a button. 
 pub const BUTTON: NodeParams = NodeParams {
@@ -262,6 +271,7 @@ pub const BUTTON: NodeParams = NodeParams {
         padding: Xy::new_symm(10),
         scrollable: Xy::new(false, false),
     },
+    children_can_hide: false,
 };
 /// [`NodeParams`] for a label. 
 pub const LABEL: NodeParams = NodeParams {
@@ -289,6 +299,7 @@ pub const LABEL: NodeParams = NodeParams {
         padding: Xy::new_symm(10),
         scrollable: Xy::new(false, false),
     },
+    children_can_hide: false,
 };
 
 /// [`NodeParams`] for a label containing a multi-line paragraph. 
@@ -317,6 +328,7 @@ pub const MULTILINE_LABEL: NodeParams = NodeParams {
         padding: Xy::new_symm(10),
         scrollable: Xy::new(false, false),
     },
+    children_can_hide: false,
 };
 
 /// [`NodeParams`] for a text element. 
@@ -345,6 +357,7 @@ pub const TEXT: NodeParams = NodeParams {
         padding: Xy::new_symm(2),
         scrollable: Xy::new(false, false),
     },
+    children_can_hide: false,
 };
 
 /// [`NodeParams`] for a text element containing a multi-line paragraph.
@@ -373,37 +386,8 @@ pub const TEXT_PARAGRAPH: NodeParams = NodeParams {
         padding: Xy::new_symm(2),
         scrollable: Xy::new(false, false),
     },
+    children_can_hide: false,
 };
-
-
-// /// [`NodeParams`] for a text_input. 
-// //
-// pub const TEXT_INPUT: NodeParams = NodeParams {
-    // key: None,
-//     stack: None,
-//     text_params: Some(TextOptions {
-//     single_line: true,
-//         editable: true,
-//     }),
-//     rect: Rect {
-//     rounded_corners: RoundedCorners::ALL,
-//         shape: Rectangle { corner_radius: BASE_RADIUS },
-//         visible: true,
-//         outline_only: false,
-//         vertex_colors: VertexColors::flat(Color::rgba(26, 0, 26, 230)),
-//     },
-//     interact: Interact {
-    // senses: Sense::NONE,
-//         absorbs_mouse_events: true,
-//         click_animation: true,
-//     },
-//     layout: Layout {
-    //         size: Xy::new_symm(Fill),
-    //         position: Xy::new_symm(Center),
-    //         padding: Xy::new_symm(Len::Pixels(5)),
-    // scrollable: Xy::new(false, false),
-//     },
-// };
 
 /// [`NodeParams`] for a panel. 
 pub const PANEL: NodeParams = NodeParams {
@@ -428,6 +412,7 @@ pub const PANEL: NodeParams = NodeParams {
         padding: Xy::new_symm(10),
         scrollable: Xy::new(false, false),
     },
+    children_can_hide: false,
 };
 
 /// [`NodeParams`] for a container. 
@@ -453,6 +438,7 @@ pub const CONTAINER: NodeParams = NodeParams {
         padding: Xy::new_symm(10),
         scrollable: Xy::new(false, false),
     },
+    children_can_hide: false,
 };
 
 /// [`NodeParams`] for a custom rendered panel.
@@ -499,6 +485,7 @@ pub const CUSTOM_RENDERED_PANEL: NodeParams = NodeParams {
         padding: Xy::new_symm(0),
         scrollable: Xy::new(false, false),
     },
+    children_can_hide: false,
 };
 
 /// [`NodeParams`] for a spacer element.
@@ -524,4 +511,5 @@ pub const SPACER: NodeParams = NodeParams {
         padding: Xy::new_symm(0),
         scrollable: Xy::new(false, false),
     },
+    children_can_hide: false,
 };

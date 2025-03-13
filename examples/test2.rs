@@ -24,6 +24,7 @@ impl ExampleLoop for State {
         let c1 = PANEL
             .color(Color::KERU_DEBUG_RED)
             .size_symm(Size::FitContent)
+            .children_can_hide(true)
             .key(C1);
         let c2 = PANEL
             .color(Color::KERU_GREEN)
@@ -49,33 +50,34 @@ impl ExampleLoop for State {
             .static_text("Show")
             .key(SHOW);
 
-        ui.v_stack().nest(|| {
 
-            if self.show {
-                ui.add(c1).nest(|| {
-                    ui.add(c2).nest(|| {
-                        ui.add(c3).nest(|| {
-                            ui.add(c4).nest(|| {
-                                ui.add(c5).nest(|| {
-                                    ui.static_text_line("Suh")
-                                });
+        if self.show {
+            ui.add(c1).nest(|| {
+                ui.add(c2).nest(|| {
+                    ui.add(c3).nest(|| {
+                        ui.add(c4).nest(|| {
+                            ui.add(c5).nest(|| {
+                                ui.static_text_line("Suh")
                             });
                         });
                     });
                 });
-            }
-            ui.add(show);
-            
-            if ui.is_clicked(SHOW) {
-                self.show = !self.show;
-            }
-        })
+            });
+        }
+
+        ui.add(show);
+        
+        if ui.is_clicked(SHOW) {
+            self.show = !self.show;
+        }
+    
     }
 }
 
 fn main() {
     env_logger::Builder::new()
         .filter_level(log::LevelFilter::Warn)
+        .filter_module("keru", log::LevelFilter::Info)
         .filter_module("keru::tree", log::LevelFilter::Trace)
         .init();
     let mut state = State::default();

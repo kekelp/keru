@@ -420,8 +420,11 @@ impl Ui {
         self.sys.added_nodes.clear();
         self.sys.direct_removed_nodes.clear();
         self.sys.indirect_removed_nodes.clear();
+        self.sys.hidden_nodes_record_or_something.clear();
+        self.sys.hidden_nodes.clear();
+        self.sys.hidden_stack.clear();
 
-        self.recursive_diff_children(ROOT_I);
+        self.recursive_diff_children(ROOT_I, true);
 
         // if the tree changes, all rects have to be rebuilt. this might change if the rects become densemaps or whatever
         if ! self.sys.added_nodes.is_empty() || ! self.sys.direct_removed_nodes.is_empty() {
@@ -438,13 +441,23 @@ impl Ui {
             let i = self.sys.direct_removed_nodes[k];
             self.push_partial_relayout(i);
         }
+        for k in 0..self.sys.hidden_nodes.len() {
+            let i = self.sys.hidden_nodes[k];
+            self.push_partial_relayout(i);
+        }
     }
 
-    fn recursive_diff_children(&mut self, i: NodeI) {
+    fn recursive_diff_children(&mut self, i: NodeI, parent_freshly_added: bool) {
         let id = self.nodes[i].id;
         let freshly_added = self.nodes.node_hashmap[&id].last_frame_touched == self.sys.current_frame;
-            // todo: rather than doing this, just update last_frame_touched for root...?
-            if i == ROOT_I || freshly_added {
+
+        // hidden branch o algo
+        if parent_freshly_added && self.nodes[i].params.children_can_hide {
+            self.sys.hidden_stack.push(i);
+        }
+        let in_hidden_branch = ! self.sys.hidden_stack.is_empty();
+
+        if i == ROOT_I || freshly_added {
             // collect old and new children
             self.sys.new_child_collect.clear();        
             self.sys.old_child_collect.clear();
@@ -465,15 +478,23 @@ impl Ui {
             }
             for &old_child in &self.sys.old_child_collect {
                 if !self.sys.new_child_collect.contains(&old_child) {
-                    log::trace!("{:?} {:?}", self.nodes[i].debug_name(), self.nodes[old_child].debug_name());
-                    self.sys.direct_removed_nodes.push(old_child);
+
+                    if in_hidden_branch {
+                        self.sys.hidden_nodes.push(old_child);
+                        log::trace!("Not removing: {:?}, as it is merely hiding", self.nodes[old_child].debug_name());
+
+                    } else {
+                        self.sys.direct_removed_nodes.push(old_child);
+                    }
                 }
             }    
 
             // continue recursion on old children
+            // todo: don't even recurse hidden children? maybe
             for_each_old_child!(self, self.nodes[i], child, {
-                self.recursive_diff_children(child);
+                self.recursive_diff_children(child, true);
             });
+
         } else {
             // orphaned children of old nodes
             // these ones were never visited, so their tree links weren't even updated.
@@ -488,12 +509,27 @@ impl Ui {
 
             // Add all their nodes to removed without diffing
             for_each_child!(self, self.nodes[i], child, {
-                self.sys.indirect_removed_nodes.push(child);
+
+                let in_hidden_branch = ! self.sys.hidden_stack.is_empty();
+
+                if in_hidden_branch {
+                    log::trace!("Not removing: {:?}, as it is merely hiding (because his parent is hiding)", self.nodes[child].debug_name());
+                } else {
+                    self.sys.indirect_removed_nodes.push(child);
+                }
+
             });
+
             // continue recursion
             for_each_child!(self, self.nodes[i], child, {
-                self.recursive_diff_children(child);
+                self.recursive_diff_children(child, false);
             });
+        }
+
+        if let Some(pop_hidden) = self.sys.hidden_stack.last() {
+            if *pop_hidden == i {
+                self.sys.hidden_stack.pop();
+            }
         }
     }
 
@@ -520,7 +556,7 @@ impl Ui {
             return;
         }
 
-        log::trace!("Removing {:?}", self.node_debug_name_fmt_scratch(i));
+        log::trace!("Removing {:?} ({:?})", self.node_debug_name_fmt_scratch(i), i);
         self.nodes.node_hashmap.remove(&id);
         self.nodes.nodes.remove(i.as_usize());
     }
