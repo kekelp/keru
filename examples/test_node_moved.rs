@@ -14,70 +14,44 @@ const JAPANESE_TEXT: &str = "ヘッケはこれらのL-函数が全複素平面�
 
 impl ExampleLoop for State {
     fn update_ui(&mut self, ui: &mut Ui) {
-        #[node_key] const C1: NodeKey;
-        #[node_key] const C2: NodeKey;
-        #[node_key] const C3: NodeKey;
-        #[node_key] const C4: NodeKey;
-        #[node_key] const C5: NodeKey;
+        #[node_key] const MOVING_NODE: NodeKey;
+        #[node_key] const V_STACK_KEY: NodeKey;
         #[node_key] const SHOW: NodeKey;
+        #[node_key] const CONT_1: NodeKey;
+        #[node_key] const CONT_2: NodeKey;
 
-        let c1 = PANEL
-            .color(Color::KERU_DEBUG_RED)
-            .size_symm(Size::FitContent)
-            .children_can_hide(true)
-            .key(C1);
-        let c2 = PANEL
-            .color(Color::KERU_GREEN)
-            .size_symm(Size::FitContent)
-            .key(C2);
-        let c3 = PANEL
-            .color(Color::KERU_BLUE)
-            .size_symm(Size::FitContent)
-            .key(C3);
-        let c4 = PANEL
-            .color(Color::WHITE)
-            .size_symm(Size::FitContent)
-            .key(C4);
-        let c5 = PANEL
-            .color(Color::KERU_RED)
-            .size_symm(Size::FitContent)
-            .key(C5);
+        let moving_node = BUTTON
+            .color(Color::RED)
+            .shape(Shape::Circle)
+            .key(MOVING_NODE);
+        let cont_1 = BUTTON
+            .text("My child will type sneed1\n.\n.\n.")
+            .key(CONT_1);
+        let cont_2 = BUTTON
+            .text("My child will type sneed2\n.\n.\n.")
+            .key(CONT_2);
 
-        let show = BUTTON
-            .color(Color::KERU_RED)
-            .size_symm(Size::FitContent)
-            .position_y(Position::End)
-            .static_text("Show")
-            .key(SHOW);
-
-
-        if self.show {
-            ui.add(c1).nest(|| {
-                ui.add(c2).nest(|| {
-                    ui.add(c3).nest(|| {
-                        ui.add(c4).nest(|| {
-                            ui.add(c5).nest(|| {
-                                ui.static_text_line("Suh")
-                            });
-                        });
-                    });
-                });
+        ui.add(V_STACK.key(V_STACK_KEY)).nest(|| {
+            ui.add(cont_1).nest(|| {
+                if self.show {
+                    ui.add(moving_node);
+                }
             });
-        }
-
-        ui.add(show);
-        
-        if ui.is_clicked(SHOW) {
-            self.show = !self.show;
-        }
-    
+            ui.add(cont_2).nest(|| {
+                if !self.show {
+                    ui.add(moving_node);
+                }
+            });
+            if ui.add(BUTTON.text("Show").key(SHOW)).is_clicked(ui) {
+                self.show = !self.show;
+            }
+        });
     }
 }
 
 fn main() {
     env_logger::Builder::new()
         .filter_level(log::LevelFilter::Warn)
-        .filter_module("keru", log::LevelFilter::Info)
         .filter_module("keru::tree", log::LevelFilter::Trace)
         .init();
     let mut state = State::default();

@@ -3,7 +3,7 @@ use crate::color::*;
 use std::{fmt::Display, hash::{Hash, Hasher}};
 use rustc_hash::FxHasher;
 
-/// A lightweight struct describing the params of a Ui node.
+/// A struct describing the params of a GUI node.
 /// 
 /// Pass it to [`Ui::add`] to create a node with the given params:
 /// ```rust
@@ -35,7 +35,7 @@ use rustc_hash::FxHasher;
 ///     .shape(Shape::Circle); 
 /// ```
 /// 
-/// [`NodeParams`] is a lightweight plain-old-data struct. Methods like [`Self::text()`] allow to associate borrowed data like a `&str` to a [`NodeParams`].
+/// [`NodeParams`] is a plain-old-data struct. Methods like [`Self::text()`] allow to associate borrowed data like a `&str` to a [`NodeParams`].
 /// 
 /// The result is a [`FullNodeParams`], a version of this struct that can hold borrowed data. Both versions can be used in the same ways.
 #[derive(Debug, Copy, Clone)]
@@ -471,6 +471,7 @@ impl NodeParams {
 /// Created starting from a [`NodeParams`] and using methods that add text, images, etc. to it, like [`NodeParams::text()`].
 /// 
 /// Can be used in the same way as [`NodeParams`].
+#[derive(Copy, Clone)]
 pub struct FullNodeParams<'a, T: Display + ?Sized> {
     pub params: NodeParams,
     pub text: Option<&'a T>,
@@ -761,7 +762,7 @@ impl NodeParams {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Changed {
     ChangedAt(u64),
     NeedsHash,
