@@ -47,13 +47,12 @@ impl Ui {
     /// 
     // /// 
     pub fn subtree(&mut self) -> UiSubtree {
-        let subtree_id = Id(thread_local::current_tree_hash());
+        let subtree_id = Id(self.current_tree_hash());
         let key = SubtreeKey::new(subtree_id, "Anon subtree");
         return UiSubtree {
             key,
         };
     }
-
 
     /// Like [`Ui::subtree()`], but starts a named subtree identified by a [`NodeKey`].
     /// 

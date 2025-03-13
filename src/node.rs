@@ -60,8 +60,6 @@ pub struct Node {
     pub debug_key_name: &'static str,
     pub debug_location: &'static Location<'static>,
 
-    pub children_hash: u64,
-
     pub is_twin: Option<u32>,
 
     pub last_click: f32,
@@ -124,7 +122,6 @@ impl Node {
             last_click_rect_i: None,
             last_image_rect_i: None,
             relayout_chain_root: None,
-            children_hash: EMPTY_HASH,
             last_layout_frame: 0,
 
             last_cosmetic_hash: 0,
@@ -214,7 +211,6 @@ pub const ZERO_NODE_DUMMY: Node = Node {
     last_click_rect_i: None,
     last_image_rect_i: None,
     relayout_chain_root: None,
-    children_hash: EMPTY_HASH,
     last_layout_frame: 0,
 
     last_cosmetic_hash: 0,
@@ -270,7 +266,6 @@ pub const NODE_ROOT: Node = Node {
     last_click_rect_i: None,
     last_image_rect_i: None,
     relayout_chain_root: None,
-    children_hash: EMPTY_HASH,
     last_layout_frame: 0,
 
     last_cosmetic_hash: 0,

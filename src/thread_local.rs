@@ -1,27 +1,9 @@
-use std::{cell::RefCell, hash::{Hash, Hasher}};
-
-use rustc_hash::FxHasher;
+use std::cell::RefCell;
 
 use crate::*;
 
-pub struct StackParent {
-    i: NodeI,
-    old_children_hash: u64,
-    children_hash: FxHasher,
-}
-impl StackParent {
-    fn new(i: NodeI, old_children_hash: u64) -> StackParent {
-        return StackParent {
-            i,
-            old_children_hash,
-            children_hash: FxHasher::default(),
-        }
-    }
-}
-
 pub struct Stacks {
-    pub parents: Vec<StackParent>,
-    pub tree_changes: Vec<NodeWithDepth>,
+    pub parents: Vec<NodeI>,
     pub subtrees: Vec<Id>,
     pub reactive: i32,
 }
@@ -30,7 +12,6 @@ impl Stacks {
         return Stacks {
             parents: Vec::with_capacity(25),
             subtrees: Vec::with_capacity(10),
-            tree_changes: Vec::with_capacity(25),
             reactive: 0,
         };
     }
@@ -43,67 +24,23 @@ thread_local! {
 
 pub fn push_parent(new_parent: &UiParent) {
     THREAD_STACKS.with(|stack| {
-        let mut stack = stack.borrow_mut();
-        stack.parents.push(StackParent::new(new_parent.i, new_parent.old_children_hash));       
+        stack.borrow_mut().parents.push(new_parent.i);       
     });
 }
 
 pub fn pop_parent() {
     THREAD_STACKS.with(|stack| {
-        let mut stack = stack.borrow_mut();
-        
-        let parent = stack.parents.pop().unwrap();
-
-        if parent.children_hash.finish() != parent.old_children_hash {
-            // we just popped the parent, so its real depth was +1, I think
-            let current_depth = stack.parents.len() + 1;
-            stack.tree_changes.push(NodeWithDepth {
-                i: parent.i,
-                depth: current_depth,
-            });
-        }
+        stack.borrow_mut().parents.pop().unwrap();
     })
-}
-
-pub fn hash_new_child(child_i: NodeI) -> u64 {
-    return THREAD_STACKS.with(|stack| {
-        let mut stack = stack.borrow_mut();
-        let mut children_hash = &mut stack.parents.last_mut().unwrap().children_hash;
-        child_i.hash(&mut children_hash);
-        // For this hasher, `finish()` just returns the current value. It doesn't actually finish anything. We can continue using it.
-        return children_hash.finish()
-    });
 }
 
 // get the last parent slab i and the current depth ()
 pub fn current_parent() -> NodeWithDepth {
     return THREAD_STACKS.with(
         |stack| {
-            let parent_i = stack.borrow().parents.last().unwrap().i;
+            let parent_i = stack.borrow().parents.last().unwrap().clone();
             let depth = stack.borrow().parents.len();
             return NodeWithDepth{ i: parent_i, depth };
-        }
-    );
-}
-
-// this could be calculated on push/pop instead of every time
-pub fn current_tree_hash() -> u64 {
-    return THREAD_STACKS.with(
-        |stack| {
-            let parent_stack = &stack.borrow().parents;
-
-            let mut hasher = FxHasher::default();
-        
-            // todo: why do we need the whole branch? isn't the last parent enough?
-            for ancestor in parent_stack {
-                ancestor.i.hash(&mut hasher); // Write each element into the same hasher
-            }
-
-            let current_children_hash = parent_stack.last().unwrap().children_hash.finish();
-
-            current_children_hash.hash(&mut hasher);
-        
-            return hasher.finish();
         }
     );
 }

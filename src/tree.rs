@@ -27,12 +27,8 @@ use std::fmt::{Display, Write};
 #[repr(C)]
 pub struct Id(pub u64);
 
-// this is what you get from FxHasher::default().finish()
-pub(crate) const EMPTY_HASH: u64 = 0;
-
 pub(crate) const FIRST_FRAME: u64 = 1;
 
-// todo: make this stuff configurable
 pub(crate) const Z_BACKDROP: f32 = 0.5;
 // This one has to be small, but not small enough to get precision issues.
 // And I think it's probably good if it's a rounded binary number (0x38000000)? Not sure.
@@ -251,21 +247,8 @@ impl Ui {
 
 
     pub(crate) fn make_parent_from_i(&mut self, i: NodeI) -> UiParent {
-        
-        let old_children_hash = self.nodes[i].children_hash;
-        // reset the children hash to keep it in sync with the thread local one (which will be created new in push_parent)
-        self.nodes[i].children_hash = EMPTY_HASH;
-        
-        let parent_i = self.nodes[i].parent;
-
-        // update the parent's **THREAD_LOCAL** children_hash with ourselves. (when the parent gets popped, it will be compared to the old one, which we passed to nest() before starting to add children)
-        // AND THEN, sync the thread local hash value with the one on the node as well, so that we'll be able to use it for the old value next frame
-        let children_hash_so_far = thread_local::hash_new_child(i);
-        self.nodes[parent_i].children_hash = children_hash_so_far;
-
-
         // return the child_hash that this node had in the last frame, so that can new children can check against it.
-        return UiParent::new(i, old_children_hash);
+        return UiParent::new(i);
     }
 
     fn set_tree_links(&mut self, new_node_i: NodeI, parent_i: NodeI, depth: usize) {
@@ -475,10 +458,7 @@ impl Ui {
         thread_local::clear_parent_stack();
         self.format_scratch.clear();
 
-        // messy manual equivalent of what we'd do when add()ing the root
-        let old_root_hash = self.nodes[ROOT_I].children_hash;
-        let root_parent = UiParent::new(ROOT_I, old_root_hash);
-        self.nodes[ROOT_I].children_hash = EMPTY_HASH;
+        let root_parent = UiParent::new(ROOT_I);
         thread_local::push_parent(&root_parent);
 
         self.begin_frame_resolve_inputs();
@@ -710,6 +690,18 @@ impl Ui {
         self.nodes.node_hashmap.remove(&id);
         self.nodes.nodes.remove(i.as_usize());
     }
+
+    pub(crate) fn current_tree_hash(&mut self) -> u64 {
+        let current_parent = thread_local::current_parent();
+        let current_last_child = self.nodes[current_parent.i].last_child;
+
+        let mut hasher = FxHasher::default();
+            
+        current_parent.hash(&mut hasher);
+        current_last_child.hash(&mut hasher);
+        
+        return hasher.finish()   
+    }
 }
 
 
@@ -733,13 +725,11 @@ pub(crate) fn caller_location_hash() -> u64 {
 /// Can be used to call [`nest()`](Self::nest()) and add more nodes as children of this one. 
 pub struct UiParent {
     pub(crate) i: NodeI,
-    pub(crate) old_children_hash: u64,
 }
 impl UiParent {
-    pub(crate) fn new(node_i: NodeI, old_children_hash: u64) -> UiParent {
+    pub(crate) fn new(node_i: NodeI) -> UiParent {
         return UiParent {
             i: node_i,
-            old_children_hash,
         }
     }
 

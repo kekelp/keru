@@ -1,6 +1,6 @@
 use crate::*;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct NodeWithDepth {
     pub i: NodeI,
     pub depth: usize,
