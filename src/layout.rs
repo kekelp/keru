@@ -156,6 +156,8 @@ impl Ui {
         
         // 2nd recursive tree traversal: now that all nodes have a calculated size, place them.
         self.recursive_place_children(i, update_rects);
+
+        self.nodes[i].last_layout_frame = self.sys.current_frame;
     }
 
     fn get_size(
@@ -405,8 +407,6 @@ impl Ui {
         }
 
         self.set_clip_rect(i);
-            
-        self.nodes[i].last_layout_frame = self.sys.current_frame;
 
         for_each_child!(self, self.nodes[i], child, {
             self.recursive_place_children(child, also_update_rects);
