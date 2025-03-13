@@ -496,7 +496,7 @@ impl Ui {
 
         self.diff_children();
         self.relayout();
-        self.garbage_collect();
+        self.remove_nodes();
         
         self.sys.third_last_frame_end_fake_time = self.sys.second_last_frame_end_fake_time;
         self.sys.second_last_frame_end_fake_time = self.sys.last_frame_end_fake_time;
@@ -604,12 +604,13 @@ impl Ui {
 
     fn diff_children(&mut self) {
         self.sys.added_nodes.clear();
-        self.sys.removed_nodes.clear();
+        self.sys.direct_removed_nodes.clear();
+        self.sys.indirect_removed_nodes.clear();
 
         self.recursive_diff_children(ROOT_I);
 
         // if the tree changes, all rects have to be rebuilt. this might change if the rects become densemaps or whatever
-        if ! self.sys.added_nodes.is_empty() || ! self.sys.removed_nodes.is_empty() {
+        if ! self.sys.added_nodes.is_empty() || ! self.sys.direct_removed_nodes.is_empty() {
             self.sys.changes.tree_changed = true;
         }
 
@@ -619,65 +620,95 @@ impl Ui {
             let i = self.sys.added_nodes[k];
             self.push_partial_relayout(i);
         }
-        for k in 0..self.sys.removed_nodes.len() {
-            // todo: this is probably pushing a lot of useless relayouts for nodes that will get cleaned up right after
-            // either improve the logic, or do garbage collection before relayouts, and change layout logic to ignore nodes that don't exist
-            // for now it's prob better to keep the panics in layout just to stay alert
-            let i = self.sys.removed_nodes[k];
+        for k in 0..self.sys.direct_removed_nodes.len() {
+            let i = self.sys.direct_removed_nodes[k];
             self.push_partial_relayout(i);
         }
     }
 
     fn recursive_diff_children(&mut self, i: NodeI) {
-        // collect old and new children
-        self.sys.new_child_collect.clear();        
-        self.sys.old_child_collect.clear();
-        
-        for_each_child!(self, self.nodes[i], child, {
-            self.sys.new_child_collect.push(child);
-        });
-        for_each_old_child!(self, self.nodes[i], child, {
-            self.sys.old_child_collect.push(child);
-        });
+        let id = self.nodes[i].id;
+        let freshly_added = self.nodes.node_hashmap[&id].last_frame_touched == self.sys.current_frame;
+            // todo: rather than doing this, just update last_frame_touched for root...?
+            if i == ROOT_I || freshly_added {
+            // collect old and new children
+            self.sys.new_child_collect.clear();        
+            self.sys.old_child_collect.clear();
+            
+            for_each_child!(self, self.nodes[i], child, {
+                self.sys.new_child_collect.push(child);
+            });
+            for_each_old_child!(self, self.nodes[i], child, {
+                self.sys.old_child_collect.push(child);
+            });
 
-        // diff the arrays
-        // todo: use hashsets? NodeI is 16 bits so it probably fits all in cache.
-        for &new_child in &self.sys.new_child_collect {
-            if !self.sys.old_child_collect.contains(&new_child) {
-                self.sys.added_nodes.push(new_child);
+            // diff the arrays
+            // todo: use hashsets? NodeI is 16 bits so it probably fits all in cache.
+            for &new_child in &self.sys.new_child_collect {
+                if !self.sys.old_child_collect.contains(&new_child) {
+                    self.sys.added_nodes.push(new_child);
+                }
             }
+            for &old_child in &self.sys.old_child_collect {
+                if !self.sys.new_child_collect.contains(&old_child) {
+                    log::trace!("{:?} {:?}", self.nodes[i].debug_name(), self.nodes[old_child].debug_name());
+                    self.sys.direct_removed_nodes.push(old_child);
+                }
+            }    
+
+            // continue recursion on old children
+            for_each_old_child!(self, self.nodes[i], child, {
+                self.recursive_diff_children(child);
+            });
+        } else {
+            // orphaned children of old nodes
+            // these ones were never visited, so their tree links weren't even updated.
+
+            // todo: if removed_nodes was fine with having duplicates, this could be just:
+            // Right now I'd rather keep the panics to stay alert
+            // self.sys.removed_nodes.push(i);
+            // // and continue recursion
+            // for_each_child!(self, self.nodes[i], child, {
+            //     self.recursive_diff_children(child);
+            // });
+
+            // Add all their nodes to removed without diffing
+            for_each_child!(self, self.nodes[i], child, {
+                self.sys.indirect_removed_nodes.push(child);
+            });
+            // continue recursion
+            for_each_child!(self, self.nodes[i], child, {
+                self.recursive_diff_children(child);
+            });
         }
-        for &old_child in &self.sys.old_child_collect {
-            if !self.sys.new_child_collect.contains(&old_child) {
-                self.sys.removed_nodes.push(old_child);
-            }
-        }    
-
-        // continue recursion
-        for_each_old_child!(self, self.nodes[i], child, {
-            self.recursive_diff_children(child);
-        });        
     }
 
-    fn garbage_collect(&mut self) {
+    fn remove_nodes(&mut self) {
         // Really remove the nodes
-        for k in 0..self.sys.removed_nodes.len() {
-            let i = self.sys.removed_nodes[k];
-
-            // todo: skip the nodes that want to stay hidden
-            
-            let id = self.nodes[i].id;
-            
-            // skip the nodes that have last_frame_touched = now, because that means that they were not really removed, but just moved somewhere else in the tree
-            if self.nodes.node_hashmap[&id].last_frame_touched == self.sys.current_frame {
-                log::trace!("Not removing: {:?} ({:?}), as it was moved around and not removed", i, self.node_debug_name_fmt_scratch(i));
-                continue;
-            }
-
-            log::trace!("Removing {:?} ({:?})", i, self.node_debug_name_fmt_scratch(i));
-            self.nodes.node_hashmap.remove(&id);
-            self.nodes.nodes.remove(i.as_usize());
+        for k in 0..self.sys.direct_removed_nodes.len() {
+            let i = self.sys.direct_removed_nodes[k];
+            self.remove_node(i);
         }
+        for k in 0..self.sys.indirect_removed_nodes.len() {
+            let i = self.sys.indirect_removed_nodes[k];
+            self.remove_node(i);
+        }
+    }
+
+    fn remove_node(&mut self, i: NodeI) {
+        // todo: skip the nodes that want to stay hidden
+        
+        let id = self.nodes[i].id;
+        
+        // skip the nodes that have last_frame_touched = now, because that means that they were not really removed, but just moved somewhere else in the tree
+        if self.nodes.node_hashmap[&id].last_frame_touched == self.sys.current_frame {
+            log::trace!("Not removing: {:?}, as it was moved around and not removed", self.node_debug_name_fmt_scratch(i));
+            return;
+        }
+
+        log::trace!("Removing {:?}", self.node_debug_name_fmt_scratch(i));
+        self.nodes.node_hashmap.remove(&id);
+        self.nodes.nodes.remove(i.as_usize());
     }
 }
 

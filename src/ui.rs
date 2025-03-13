@@ -117,7 +117,10 @@ pub(crate) struct System {
     pub old_child_collect: Vec<NodeI>,
     pub new_child_collect: Vec<NodeI>,
     pub added_nodes: Vec<NodeI>,
-    pub removed_nodes: Vec<NodeI>,
+    // nodes that were removed and were direct children of still-visible nodes. Among other things, this means that them disappearing has to trigger a partial relayout.
+    pub direct_removed_nodes: Vec<NodeI>,
+    // nodes that were removed "automatically" as a consequence of their parent or grandparent being directly removed. Aka orphaned nodes. These ones don't cause relayouts.
+    pub indirect_removed_nodes: Vec<NodeI>,
 
     pub changes: PartialChanges,
 
@@ -382,7 +385,8 @@ impl Ui {
                 old_child_collect: Vec::with_capacity(10),
                 new_child_collect: Vec::with_capacity(10),
                 added_nodes: Vec::with_capacity(30),
-                removed_nodes: Vec::with_capacity(30),
+                direct_removed_nodes: Vec::with_capacity(30),
+                indirect_removed_nodes: Vec::with_capacity(30),
 
                 focused: None,
 
