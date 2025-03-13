@@ -504,37 +504,6 @@ impl Ui {
     }
 }
 
-
-
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct NodeMapEntry {
-    pub last_frame_touched: u64,
-
-    // keeping track of the twin situation.
-    // This is the number of twins of a node that showed up SO FAR in the current frame. it gets reset every frame (on refresh().)
-    // for the 0-th twin of a family, this will be the total number of clones of itself around. (not including itself, so starts at zero).
-    // the actual twins ARE twins, but they don't HAVE twins, so this is zero.
-    // for this reason, "clones" or "copies" would be better names, but those words are loaded in rust
-    // reproduction? replica? imitation? duplicate? version? dupe? replication? mock? carbon?
-    pub n_twins: u32,
-    pub slab_i: NodeI,
-}
-impl NodeMapEntry {
-    pub fn new(frame: u64, new_i: NodeI) -> Self {
-        return Self {
-            last_frame_touched: frame,
-            n_twins: 0,
-            slab_i: new_i,
-        };
-    }
-
-    pub fn refresh(&mut self, frame: u64) -> NodeI {
-        self.last_frame_touched = frame;
-        self.n_twins = 0;
-        return self.slab_i;
-    }
-}
-
 impl Ui {
     pub(crate) fn hit_click_rect(&self, rect: &ClickRect) -> bool {
         let size = self.sys.unifs.size;
