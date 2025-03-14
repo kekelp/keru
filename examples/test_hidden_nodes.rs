@@ -10,7 +10,7 @@ pub struct State {
 impl ExampleLoop for State {
     fn update_ui(&mut self, ui: &mut Ui) {
         #[node_key] const C1: NodeKey;
-        #[node_key] const C2: NodeKey;
+        #[node_key] const SHOULD_BE_HIDDEN_NOT_REMOVED: NodeKey;
         #[node_key] const C3: NodeKey;
         #[node_key] const C4: NodeKey;
         #[node_key] const C5: NodeKey;
@@ -24,7 +24,7 @@ impl ExampleLoop for State {
         let c2 = PANEL
             .color(Color::KERU_GREEN)
             .size_symm(Size::FitContent)
-            .key(C2);
+            .key(SHOULD_BE_HIDDEN_NOT_REMOVED);
         let c3 = PANEL
             .color(Color::KERU_BLUE)
             .size_symm(Size::FitContent)

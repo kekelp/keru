@@ -222,8 +222,6 @@ impl Ui {
     }
 
     fn add_hidden_child(&mut self, new_node_i: NodeI, parent_i: NodeI) {
-        // self.nodes[parent_i].n_children += 1;
-
         match self.nodes[parent_i].first_hidden_child {
             None => {
                 self.add_hidden_first_child(new_node_i, parent_i)
@@ -241,6 +239,11 @@ impl Ui {
     
     fn add_hidden_sibling(&mut self, new_node_i: NodeI, old_last_child: NodeI, _parent_i: NodeI) {
         self.nodes[old_last_child].next_hidden_sibling = Some(new_node_i);
+    }
+
+    fn clear_hidden_children(&mut self, i: NodeI) {
+        self.nodes[i].old_first_child = None;
+        self.nodes[i].old_next_sibling = None;
     }
 
     pub(crate) fn push_rect(&mut self, i: NodeI) {
@@ -482,6 +485,7 @@ impl Ui {
 
         let new_hidden_branch = freshly_added && self.nodes[i].params.children_can_hide;
         if new_hidden_branch {
+            // self.clear_hidden_children(i);
             self.sys.hidden_stack.push(i);
         }
 
@@ -514,10 +518,13 @@ impl Ui {
                         let old_child_id = self.nodes[old_child].id;
                         // as usual, if the hidden node is actually freshly added, that means that it wasn't hidden, but just moved somewhere else in the frame. In that case if we did add_hidden_child it would be pretty bad.
                         if self.nodes.node_hashmap[&old_child_id].last_frame_touched != self.sys.current_frame {
+                            
+                            // what, add it only if it's not already there?
+                            // no, there has to be a way to just remake it
                             self.add_hidden_child(old_child, i);
-                            log::trace!("Not removing: {:?} or its children, as its direct parent is a children hider", self.node_debug_name_fmt_scratch(old_child));
+                            log::trace!("Not removing {:?}, as its parent has can_hide_children = true", self.node_debug_name_fmt_scratch(old_child));
                         } else {
-                            log::trace!("Not removing: {:?} or its children, as its direct parent is a children hider. But not setting it as hidden either, as it has merely moved to another position in the tree. Wow, what an edge case!", self.node_debug_name_fmt_scratch(old_child));
+                            log::trace!("Not removing {:?}, as its parent has can_hide_children = true. But not setting it as hidden either, as it has merely moved to another position in the tree. Wow, what an edge case!", self.node_debug_name_fmt_scratch(old_child));
                         }
 
                     } else {

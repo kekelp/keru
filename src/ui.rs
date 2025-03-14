@@ -137,6 +137,7 @@ pub(crate) struct System {
     // move to changes oalgo
     pub anim_render_timer: AnimationRenderTimer,
 
+    // todo: probably remove
     pub hidden_stack: Vec<NodeI>,
 }
 
