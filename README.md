@@ -37,7 +37,7 @@ if ui.is_clicked(INCREASE) {
 
 ## Screenshots
 
-A simple counter and the code that generates it:
+A simple counter and the code that generates it. Implementing `ExampleLoop` is needed to use the `run_example_loop` helper, but the normal way to use Keru is from a user-managed `winit`/`wgpu` loop. 
 ![Screenshot of counter example](screenshots/counter.png)
 
 A showcase example with a tab viewer and some sliders:
