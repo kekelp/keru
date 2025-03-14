@@ -5,9 +5,7 @@ Keru is an experimental Graphical User Interface library.
 
 The goal of the library is to be as easy to use as immediate mode libraries (and even a bit easier), but without the downsides of immediate mode.
 
-See the [docs.rs page](https://docs.rs/keru/latest/keru/) for more information.
-
-![Screenshot of paint example](screenshots/paint.png)
+See the [docs for the master branch](https://kekelp.github.io/keru/keru/index.html) for more information.
 
 ## Code Example
 
@@ -36,3 +34,14 @@ if ui.is_clicked(INCREASE) {
 // This can also be done with a chained method after ui.add(increase_button).
 // In that case, the key isn't needed.
 ```
+
+## Screenshots
+
+A simple counter and the code that generates it:
+![Screenshot of counter example](screenshots/counter.png)
+
+A showcase example with a tab viewer and some sliders:
+![Screenshot of showcase example](screenshots/showcase.png)
+
+A basic paint program. The canvas and the color picker are rendered with custom `wgpu` code.
+![Screenshot of paint example](screenshots/paint.png)
