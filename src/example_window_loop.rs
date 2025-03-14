@@ -1,32 +1,7 @@
-//! A single-line window/render loop, for experimentation and examples.
+//! A very simple way to start a `winit`/`wgpu` window loop and to draw a Keru GUI inside it.
 //! 
-//! See the Counter example for a working demonstration,
-//! 
-//! The intended way to use Keru is with user-managed window loop and rendering. See the Painter example.
-//! 
-//! ### Example
-//! 
-//! ```no_run
-//! # use keru::*;
-//! use keru::example_window_loop::*;
-//! use keru::Ui;
-//! 
-//! #[derive(Default)]
-//! pub struct State {
-//!     // Custom program state
-//! }
-//! 
-//! impl ExampleLoop for State {
-//!     fn update_ui(&mut self, ui: &mut Ui) {
-//!         // Custom GUI building logic, with access to your custom state (`self`) and the `Ui` object
-//!     }
-//! }
-//! 
-//! fn main() {
-//!     let state = State::default();
-//!     run_example_loop(state);
-//! }
-//! ```
+//! See the [`run_example_loop`] function for an example.
+
 use crate::*;
 use crate::basic_window_loop::*;
 use winit::application::ApplicationHandler;
@@ -46,6 +21,35 @@ struct FullState<S> {
     ui: Ui,
 }
 
+/// A single-line window/render loop, for experimentation and examples.
+/// 
+/// See the Counter example for a working example,
+/// 
+/// The intended way to use Keru is with a user-managed window and rendering loop.
+/// 
+/// ### Example
+/// 
+/// ```no_run
+/// # use keru::*;
+/// use keru::example_window_loop::*;
+/// use keru::Ui;
+/// 
+/// #[derive(Default)]
+/// pub struct State {
+///     // Custom program state
+/// }
+/// 
+/// impl ExampleLoop for State {
+///     fn update_ui(&mut self, ui: &mut Ui) {
+///         // Custom GUI building logic, with access to your custom state (`self`) and the `Ui` object
+///     }
+/// }
+/// 
+/// fn main() {
+///     let state = State::default();
+///     run_example_loop(state);
+/// }
+/// ```
 pub fn run_example_loop<S: ExampleLoop>(state: S) {
     let event_loop = EventLoop::new().unwrap();
     event_loop.set_control_flow(ControlFlow::Wait);

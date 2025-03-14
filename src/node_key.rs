@@ -6,7 +6,7 @@ use crate::*;
 
 // todo: possibly split debug_name into debug_name and source_code_location, and maybe put back cfg(debug) for source_code_loc or both
 
-/// An unique key that identifies a Ui node.
+/// An unique key that identifies a GUI node.
 /// 
 /// Usually created with the [`macro@node_key`] macro or with [`NodeKey::sibling`].
 /// 

@@ -18,8 +18,8 @@ impl CustomComponents for Ui {
 
         self.subtree().start(|| {
             let changed = self.check_changes(count);
-            // if we uncomment these two lines and comment the two below, the ui will have a wrong idea of which variables the ui code depends on, and it will miss updates to `count`.
-            // However, when running in debug mode, the Ui still checks for differences, so it can detect this mistake and print some error messages.
+            // if we uncomment these two lines and comment the two below, the [`Ui`] will have a wrong idea of which variables the ui code depends on, and it will miss updates to `count`.
+            // However, when running in debug mode, the [`Ui`] still checks for differences, so it can detect this mistake and print some error messages.
             // This does mean that any performance gains from the reactive block apply to release mode only: in debug mode, the [`Ui`] is still hashing and diffing everything.
 
             // let changed_wrong = self.check_changes(_useless_variable);

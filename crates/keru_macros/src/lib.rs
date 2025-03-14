@@ -35,7 +35,7 @@ impl Parse for ItemConstNoEq {
     }
 }
 
-/// A macro that creates an unique [`NodeKey`](../keru/node_key/struct.NodeKey.html).
+/// A macro that creates a unique [`NodeKey`](../keru/node_key/struct.NodeKey.html).
 /// 
 /// The `id` field is obtained by rolling a random `u64` at compile time, while `debug_name` is obtained from the identifier.
 /// 

@@ -14,7 +14,7 @@
 //! # impl State {
 //! #   fn declare_ui(&mut self) {
 //! # 
-//! // Define an unique identity for a Ui node
+//! // Define a unique identity for a GUI node
 //! #[node_key] const INCREASE: NodeKey;
 //! 
 //! // Create a `NodeParams` struct that describes the node
@@ -35,7 +35,7 @@
 //! if self.ui.is_clicked(INCREASE) {
 //!     self.count += 1;
 //! }
-//! // `is_clicked()` can be equivalently called as a chained method after `ui.add(increase_button)`.
+//! // `is_clicked()` can be also called as a chained method after `ui.add(increase_button)`.
 //! // In that case, using a key is not necessary.
 //! #   }
 //! # }
@@ -43,9 +43,7 @@
 //! 
 //! ## Window Loop
 //! 
-//! If you just want to try out some GUI building code, you can use the one-line loop in [`example_window_loop`]. The Counter example uses this method. 
-//! 
-//! However, Keru is intended to be used as part of a regular `winit`/`wgpu` window loop managed by the library user. This makes it very simple to combine it with any kind of custom rendering (as long as it uses `wgpu`).
+//! Keru is meant to be used as part of a regular `winit`/`wgpu` window loop managed by the library user. However, it also includes a [one-line window loop](example_window_loop::run_example_loop) that can be used for quick experimentation. 
 //! 
 //! Once you have a window loop, you can create a [`Ui`] struct and store it in your main program state.
 //! To integrate it with the window loop, you only need to do two things:
@@ -88,7 +86,7 @@
 //! 
 //! * You can use the [`NodeKey::sibling()`] function to create keys dynamically at runtime. This is useful for dynamic GUIs where you can't identify every node with a static [`NodeKey`] in the way the basic examples do it.
 //! 
-//! * To create reusable "components", you can just wrap the Ui code in a function, like the builtin convenience functions like [`Ui::label()`] do. If the code uses unique [`NodeKeys`](NodeKey), however, you'll need to wrap it in a [`subtree`](Ui::subtree()).
+//! * To create reusable "components", you can just wrap the GUI building code in a function, like the builtin convenience functions like [`Ui::label()`] do. If the code uses unique [`NodeKeys`](NodeKey), however, you'll need to wrap it in a [`subtree`](Ui::subtree()).
 //! 
 //!     This allows multiple calls to the same component function to reuse the same key multiple times without conflicts.
 //! 

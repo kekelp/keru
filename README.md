@@ -10,7 +10,7 @@ See the [docs for the master branch](https://kekelp.github.io/keru/keru/index.ht
 ## Code Example
 
 ```rust
-// Define an unique identity for this button
+// Define a unique identity for this button
 #[node_key] const INCREASE: NodeKey;
 
 // Create a NodeParams struct describing a button
@@ -31,8 +31,8 @@ ui.v_stack().nest(|| {
 if ui.is_clicked(INCREASE) {
     self.count += 1;
 }
-// This can also be done with a chained method after ui.add(increase_button).
-// In that case, the key isn't needed.
+// `is_clicked()` can be also called as a chained method after `ui.add(increase_button)`.
+// In that case, using a key is not necessary.
 ```
 
 ## Screenshots

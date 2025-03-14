@@ -1056,7 +1056,7 @@ impl<T: Display + ?Sized + 'static> MaybeObserver<T> for Static<T> {
 /// 
 /// Same as `Static`, but without an explicit ``static` bound.
 /// 
-/// This struct can wrap any value: it is up to the user to ensure that wrapped variables actually never change. If this assumption is broken, the values displayed in the Ui will get out of sync with the real value of `T`.
+/// This struct can wrap any value: it is up to the user to ensure that wrapped variables actually never change. If this assumption is broken, the values displayed in the GUI will get out of sync with the real value of `T`.
 /// 
 /// You can always use an [`Observer<T>`](`Observer`) or a raw `T` to avoid this risk. If a raw `T` is passed, the [`Ui`] will hash the resulting text to make sure it stays synced.
 pub struct Immut<T: ?Sized>(pub T);
