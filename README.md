@@ -1,3 +1,6 @@
+![Keru is experimental](https://img.shields.io/badge/status-alpha-orange)
+[![Documentation for the `master` branch](https://img.shields.io/badge/docs-master-informational)](https://kekelp.github.io/keru/keru/index.html)
+
 Keru is an experimental Graphical User Interface library.
 
 The goal of the library is to be as easy to use as immediate mode libraries (and even a bit easier), but without the downsides of immediate mode.
