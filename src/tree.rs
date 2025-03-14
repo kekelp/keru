@@ -208,6 +208,8 @@ impl Ui {
                 self.add_sibling(new_node_i, old_last_child, parent_i)
             },
         };
+
+        self.remove_hidden_child_if_it_exists(new_node_i, parent_i);
     }
 
     fn add_first_child(&mut self, new_node_i: NodeI, parent_i: NodeI) {
@@ -219,6 +221,27 @@ impl Ui {
         self.nodes[new_node_i].prev_sibling = Some(old_last_child);
         self.nodes[old_last_child].next_sibling = Some(new_node_i);
         self.nodes[parent_i].last_child = Some(new_node_i);
+    }
+
+    fn remove_hidden_child_if_it_exists(&mut self, child_i: NodeI, parent_i: NodeI) {
+        if let Some(first_hidden_child) = self.nodes[parent_i].first_hidden_child {
+            if first_hidden_child == child_i {
+                self.nodes[parent_i].first_hidden_child = self.nodes[child_i].next_hidden_sibling;
+                self.nodes[child_i].next_hidden_sibling = None;
+                return;
+            }
+            
+            // Track previous node while iterating through siblings
+            let mut prev = first_hidden_child;
+            for_each_hidden_child!(self, self.nodes[parent_i], child, {
+                if child == child_i {
+                    self.nodes[prev].next_hidden_sibling = self.nodes[child].next_hidden_sibling;
+                    self.nodes[child].next_hidden_sibling = None;
+                    return;
+                }
+                prev = child;
+            });
+        }
     }
 
     fn add_hidden_child(&mut self, new_node_i: NodeI, parent_i: NodeI) {
@@ -239,11 +262,6 @@ impl Ui {
     
     fn add_hidden_sibling(&mut self, new_node_i: NodeI, old_last_child: NodeI, _parent_i: NodeI) {
         self.nodes[old_last_child].next_hidden_sibling = Some(new_node_i);
-    }
-
-    fn clear_hidden_children(&mut self, i: NodeI) {
-        self.nodes[i].old_first_child = None;
-        self.nodes[i].old_next_sibling = None;
     }
 
     pub(crate) fn push_rect(&mut self, i: NodeI) {
@@ -417,7 +435,7 @@ impl Ui {
 
         self.diff_children();
         self.relayout();
-        self.garbage_collect();
+        self.cleanup();
         
         self.sys.third_last_frame_end_fake_time = self.sys.second_last_frame_end_fake_time;
         self.sys.second_last_frame_end_fake_time = self.sys.last_frame_end_fake_time;
@@ -485,7 +503,6 @@ impl Ui {
 
         let new_hidden_branch = freshly_added && self.nodes[i].params.children_can_hide;
         if new_hidden_branch {
-            // self.clear_hidden_children(i);
             self.sys.hidden_stack.push(i);
         }
 
@@ -519,9 +536,8 @@ impl Ui {
                         // as usual, if the hidden node is actually freshly added, that means that it wasn't hidden, but just moved somewhere else in the frame. In that case if we did add_hidden_child it would be pretty bad.
                         if self.nodes.node_hashmap[&old_child_id].last_frame_touched != self.sys.current_frame {
                             
-                            // what, add it only if it's not already there?
-                            // no, there has to be a way to just remake it
                             self.add_hidden_child(old_child, i);
+
                             log::trace!("Not removing {:?}, as its parent has can_hide_children = true", self.node_debug_name_fmt_scratch(old_child));
                         } else {
                             log::trace!("Not removing {:?}, as its parent has can_hide_children = true. But not setting it as hidden either, as it has merely moved to another position in the tree. Wow, what an edge case!", self.node_debug_name_fmt_scratch(old_child));
@@ -570,8 +586,8 @@ impl Ui {
         }
     }
 
-    fn garbage_collect(&mut self) {
-        // if any of the removed nodes have hidden children, also add those nodes (and their whole branch) to the cleanup.  
+    fn cleanup(&mut self) {
+        // if any of the removed nodes have hidden children, also add those nodes (and their whole branch) to the cleanup.
         for k in 0..self.sys.direct_removed_nodes.len() {
             let i = self.sys.direct_removed_nodes[k];
             for_each_hidden_child!(self, self.nodes[i], hidden_child, {
@@ -584,23 +600,28 @@ impl Ui {
                 self.recursive_set_as_toremove_indirect_hidden_children(hidden_child);
             });
         }
+        // no need to clear 
 
-        // Really remove the nodes
         for k in 0..self.sys.direct_removed_nodes.len() {
             let i = self.sys.direct_removed_nodes[k];
-            self.garbage_collect_node(i);
+            self.cleanup_node(i);
         }
         for k in 0..self.sys.indirect_removed_nodes.len() {
             let i = self.sys.indirect_removed_nodes[k];
-            self.garbage_collect_node(i);
+            self.cleanup_node(i);
         }
         for k in 0..self.sys.very_indirect_removed_nodes.len() {
             let i = self.sys.very_indirect_removed_nodes[k];
-            self.garbage_collect_node(i);
+            self.cleanup_node(i);
         }
     }
 
-    fn garbage_collect_node(&mut self, i: NodeI) {
+    fn cleanup_node(&mut self, i: NodeI) {
+        if ! self.nodes.nodes.contains(i.as_usize()) {
+            log::error!("Keru: Internal error: tried to cleanup the same node twice. ({:?})", i);
+            // we could just cheat and do this
+            // return;
+        }
         let id = self.nodes[i].id;
         
         // skip the nodes that have last_frame_touched = now, because that means that they were not really removed, but just moved somewhere else in the tree.
