@@ -1,5 +1,7 @@
 /target
+
+notes.md
+
 perf.data
 perf.data.old
-notes2.txt
 flamegraph.svg
