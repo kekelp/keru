@@ -28,7 +28,7 @@ impl Components for Ui {
     fn components_tab(&mut self, state: &mut State) {
         self.add(V_SCROLL_STACK).nest(|| {
             self.static_paragraph(
-                "Keru is an experimental Graphical User Interface library, with the goal of being as easy to use as Egui (and even a bit easier), but without the downsides of immediate mode.\n\n\
+                "Keru is an experimental Graphical User Interface library, with the goal of being as easy to use as immediate mode libraries (and even a bit easier), but without the downsides of immediate mode.\n\n\
                 I think the experiment has fairly successful. However, there's still a lot missing features and edge cases that aren't handled well.\n\n"
             );
 

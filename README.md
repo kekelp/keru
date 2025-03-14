@@ -1,8 +1,6 @@
-Keru is a Graphical User Interface library.
+Keru is an experimental Graphical User Interface library.
 
-It is in active development and it's not ready to be used. Many features are missing or half-baked.
-
-It offers a declarative API similar to immediate mode GUI libraries, but it is not immediate mode.
+The goal of the library is to be as easy to use as immediate mode libraries (and even a bit easier), but without the downsides of immediate mode.
 
 See the [docs.rs page](https://docs.rs/keru/latest/keru/) for more information.
 
@@ -14,17 +12,17 @@ See the [docs.rs page](https://docs.rs/keru/latest/keru/) for more information.
 // Define an unique identity for this button
 #[node_key] const INCREASE: NodeKey;
 
-// Add nodes to the UI and set their parameters
-ui.add(INCREASE)
-    .params(BUTTON)
+// Create a NodeParams struct describing a button
+let increase_button = BUTTON
     .color(Color::RED)
-    .text("Increase");
+    .text("Increase")
+    .key(INCREASE);
 
 // Place the nodes into the tree and define the layout
 ui.v_stack().nest(|| {
     if self.show {
-        ui.add(INCREASE);
-        ui.label(self.count); // This one doesn't need a key.
+        ui.add(increase_button);
+        ui.label(&self.count); // This one doesn't need a key.
     }
 });
 
@@ -32,4 +30,6 @@ ui.v_stack().nest(|| {
 if ui.is_clicked(INCREASE) {
     self.count += 1;
 }
+// This can also be done with a chained method after ui.add(increase_button).
+// In that case, the key isn't needed.
 ```
