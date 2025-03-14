@@ -1,5 +1,6 @@
 use crate::*;
 
+#[doc(hidden)]
 pub struct Theme {
     // Base colors for light/dark mode
     /// Main background
@@ -52,6 +53,7 @@ pub struct Theme {
     pub border_width: f32,         // Default border thickness
 }
 
+#[doc(hidden)]
 pub const KERU_DARK: Theme = Theme {
     // Dark base colors
     muted_background: VertexColors::flat(Color { r: 11, g: 11, b: 14, a: 255 }),      // Muted background

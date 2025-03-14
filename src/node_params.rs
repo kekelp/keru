@@ -147,6 +147,7 @@ pub struct Layout {
 }
 
 bitflags::bitflags! {
+    /// A bitflag struct defining which corners of a rectangle are rounded
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
     pub struct RoundedCorners: u8 {
         const TOP_RIGHT    = 1 << 0;
@@ -475,8 +476,8 @@ impl NodeParams {
 pub struct FullNodeParams<'a, T: Display + ?Sized> {
     pub params: NodeParams,
     pub text: Option<&'a T>,
-    pub text_changed: Changed,
-    pub text_ptr: usize,
+    pub(crate) text_changed: Changed,
+    pub(crate) text_ptr: usize,
     pub image: Option<&'static [u8]>,
 }
 
@@ -762,6 +763,7 @@ impl NodeParams {
     }
 }
 
+#[doc(hidden)]
 #[derive(Debug, Clone, Copy)]
 pub enum Changed {
     ChangedAt(u64),
@@ -1050,9 +1052,11 @@ impl<T: Display + ?Sized + 'static> MaybeObserver<T> for Static<T> {
 }
 
 
+/// A wrapper struct for a value that will never change during its lifetime.
+/// 
 /// Same as `Static`, but without an explicit ``static` bound.
 /// 
-/// This struct can wrap any value: it is up to the programmer to ensure that wrapped variables never change. If this assumption is broken, the values displayed in the Ui will get out of sync with the real value of `T`.
+/// This struct can wrap any value: it is up to the user to ensure that wrapped variables actually never change. If this assumption is broken, the values displayed in the Ui will get out of sync with the real value of `T`.
 /// 
 /// You can always use an [`Observer<T>`](`Observer`) or a raw `T` to avoid this risk. If a raw `T` is passed, the [`Ui`] will hash the resulting text to make sure it stays synced.
 pub struct Immut<T: ?Sized>(pub T);

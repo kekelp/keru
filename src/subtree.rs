@@ -1,5 +1,8 @@
 use crate::*;
 
+/// A struct referring to a subtree created with [`Ui::subtree()`] or [`Ui::named_subtree()`].
+///  
+/// Use [`start()`](Self::start()) to start the subtree. 
 pub struct UiSubtree {
     key: SubtreeKey,
 }
@@ -95,9 +98,6 @@ impl Ui {
     }
 }
 
-/// A struct referring to a subtree created with [`Ui::subtree()`] or [`Ui::named_subtree()`].
-///  
-/// Use [`start()`](Self::start()) to start the subtree. 
 impl UiSubtree {
     /// Start a subtree created with [`Ui::subtree()`] or [`Ui::named_subtree()`].
     pub fn start<T>(&mut self, subtree_content: impl FnOnce() -> T) -> T {

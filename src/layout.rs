@@ -8,6 +8,7 @@ const BIG_FLOAT: f32 = 1000.0;
 
 /// Iterate on the children linked list.
 #[macro_export]
+#[doc(hidden)] // Ideally these wouldn't even be public
 macro_rules! for_each_child {
     ($ui:expr, $start:expr, $child:ident, $body:block) => {
         {
@@ -22,6 +23,7 @@ macro_rules! for_each_child {
 
 /// Iterate on the leftover linked list of old children from last frame
 #[macro_export]
+#[doc(hidden)]
 macro_rules! for_each_old_child {
     ($ui:expr, $start:expr, $child:ident, $body:block) => {
         {
@@ -34,7 +36,9 @@ macro_rules! for_each_old_child {
     };
 }
 
+/// Iterate on the linked list of hidden children
 #[macro_export]
+#[doc(hidden)]
 macro_rules! for_each_hidden_child {
     ($ui:expr, $start:expr, $child:ident, $body:block) => {
         {

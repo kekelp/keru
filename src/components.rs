@@ -5,6 +5,7 @@ use keru::*;
 use keru::Size::*;
 use keru::Position::*;
 
+/// A tab for [`Ui::vertical_tabs`]
 #[derive(PartialEq, Eq)]
 pub struct Tab(pub &'static str);
 

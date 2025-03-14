@@ -35,6 +35,8 @@
 //! if self.ui.is_clicked(INCREASE) {
 //!     self.count += 1;
 //! }
+//! // `is_clicked()` can be equivalently called as a chained method after `ui.add(increase_button)`.
+//! // In that case, using a key is not necessary.
 //! #   }
 //! # }
 //! ```

@@ -1,5 +1,6 @@
 use bytemuck::{Pod, Zeroable};
 
+/// A `rgba` color
 #[derive(Default, Debug, Clone, Copy, PartialEq, Zeroable, Pod, Hash)]
 #[repr(C)]
 pub struct Color {
