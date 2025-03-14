@@ -34,6 +34,19 @@ macro_rules! for_each_old_child {
     };
 }
 
+#[macro_export]
+macro_rules! for_each_hidden_child {
+    ($ui:expr, $start:expr, $child:ident, $body:block) => {
+        {
+            let mut current_child = $start.first_hidden_child;
+            while let Some($child) = current_child {
+                $body
+                current_child = $ui.nodes[$child].next_hidden_sibling;
+            }
+        }
+    };
+}
+
 impl Ui {
     pub(crate) fn relayout(&mut self) {
         let tree_changed = self.sys.changes.tree_changed;

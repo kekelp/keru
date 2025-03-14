@@ -30,13 +30,13 @@ impl ExampleLoop for State {
             .color(Color::KERU_RED)
             .size_symm(Size::FitContent)
             .position_y(Position::End)
-            .static_text("Show");
+            .static_text("Remove Outer");
 
         let show2 = BUTTON
             .color(Color::KERU_RED)
             .size_symm(Size::FitContent)
             .position_y(Position::End)
-            .static_text("Show2");
+            .static_text("Hide Inner");
 
         // the idea is that when show1 is false, the text node should still get removed, even if it's under tab_container.
         // it only stays as hidden when show2 is false but show1 is true.
@@ -63,7 +63,7 @@ impl ExampleLoop for State {
 fn main() {
     env_logger::Builder::new()
         .filter_level(log::LevelFilter::Warn)
-        .filter_module("keru", log::LevelFilter::Info)
+        // .filter_module("keru", log::LevelFilter::Info)
         .filter_module("keru::tree", log::LevelFilter::Trace)
         .init();
     let mut state = State::default();

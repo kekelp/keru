@@ -88,7 +88,7 @@ impl Ui {
     pub(crate) fn add_or_update_node(&mut self, key: NodeKey) -> NodeI {
         let frame = self.sys.current_frame;
 
-        // todo: at least when using non-anonymous keys, I think there's no legit use case for twins anymore. it's always a mistake, I think. it should print out a warning or panic.
+        // todo: at least when using non-anonymous keys, I think there's no legit use case for twins anymore. it's always a mistake, I think. it should log out a warning or panic.
 
         // Check the node corresponding to the key's id.
         // We might find that the key has already been used in this same frame:
@@ -193,6 +193,10 @@ impl Ui {
 
         self.set_relayout_chain_root(new_node_i, parent_i);
 
+        self.add_child(new_node_i, parent_i);
+    }
+
+    fn add_child(&mut self, new_node_i: NodeI, parent_i: NodeI) {
         self.nodes[parent_i].n_children += 1;
 
         match self.nodes[parent_i].last_child {
@@ -215,6 +219,28 @@ impl Ui {
         self.nodes[new_node_i].prev_sibling = Some(old_last_child);
         self.nodes[old_last_child].next_sibling = Some(new_node_i);
         self.nodes[parent_i].last_child = Some(new_node_i);
+    }
+
+    fn add_hidden_child(&mut self, new_node_i: NodeI, parent_i: NodeI) {
+        // self.nodes[parent_i].n_children += 1;
+
+        match self.nodes[parent_i].first_hidden_child {
+            None => {
+                self.add_hidden_first_child(new_node_i, parent_i)
+            },
+            Some(last_hidden_child) => {
+                let old_last_hidden_child = last_hidden_child;
+                self.add_hidden_sibling(new_node_i, old_last_hidden_child, parent_i)
+            },
+        };
+    }
+
+    fn add_hidden_first_child(&mut self, new_node_i: NodeI, parent_i: NodeI) {
+        self.nodes[parent_i].first_hidden_child = Some(new_node_i);
+    }
+    
+    fn add_hidden_sibling(&mut self, new_node_i: NodeI, old_last_child: NodeI, _parent_i: NodeI) {
+        self.nodes[old_last_child].next_hidden_sibling = Some(new_node_i);
     }
 
     pub(crate) fn push_rect(&mut self, i: NodeI) {
@@ -420,9 +446,11 @@ impl Ui {
         self.sys.added_nodes.clear();
         self.sys.direct_removed_nodes.clear();
         self.sys.indirect_removed_nodes.clear();
+        self.sys.very_indirect_removed_nodes.clear();
         self.sys.hidden_nodes_record_or_something.clear();
         self.sys.hidden_nodes.clear();
         self.sys.hidden_stack.clear();
+        
 
         self.recursive_diff_children(ROOT_I);
 
@@ -478,18 +506,23 @@ impl Ui {
                     self.sys.added_nodes.push(new_child);
                 }
             }
-            for &old_child in &self.sys.old_child_collect {
+            for k in 0..self.sys.old_child_collect.len() {
+                let old_child = self.sys.old_child_collect[k];
                 if !self.sys.new_child_collect.contains(&old_child) {
 
                     if new_hidden_branch {
                         self.sys.hidden_nodes.push(old_child);
+
+                        // todo: this doesn't account for moved nodes. the final garbage_collect guards against that, but the point is that it shouldn't even do add_hidden_child. so this has to be moved later 
+                        self.add_hidden_child(old_child, i);
+
                         log::trace!("Not removing: {:?} or its children, as its direct parent is hiding", self.nodes[old_child].debug_name());
 
                     } else {
                         self.sys.direct_removed_nodes.push(old_child);
                     }
                 }
-            }    
+            }
 
             // continue recursion on old children
             
@@ -503,14 +536,6 @@ impl Ui {
         } else {
             // orphaned children of old nodes
             // these ones were never visited, so their tree links weren't even updated. so the traversal uses for_each_child, not for_each_old_child
-
-            // todo: if removed_nodes was fine with having duplicates, this could be just:
-            // self.sys.removed_nodes.push(i);
-            // // and continue recursion
-            // for_each_child!(self, self.nodes[i], child, {
-                //     self.recursive_diff_children(child);
-                // });
-            // But right now I'd rather keep the panics just to stay alert
 
             // Add all their nodes to removed without diffing
             for_each_child!(self, self.nodes[i], child, {
@@ -536,6 +561,20 @@ impl Ui {
     }
 
     fn garbage_collect(&mut self) {
+        // do that thing with hidden nodes
+        for k in 0..self.sys.direct_removed_nodes.len() {
+            let i = self.sys.direct_removed_nodes[k];
+            for_each_hidden_child!(self, self.nodes[i], hidden_child, {
+                self.recursive_set_as_toremove_indirect_hidden_children(hidden_child);
+            });
+        }
+        for k in 0..self.sys.indirect_removed_nodes.len() {
+            let i = self.sys.indirect_removed_nodes[k];
+            for_each_hidden_child!(self, self.nodes[i], hidden_child, {
+                self.recursive_set_as_toremove_indirect_hidden_children(hidden_child);
+            });
+        }
+
         // Really remove the nodes
         for k in 0..self.sys.direct_removed_nodes.len() {
             let i = self.sys.direct_removed_nodes[k];
@@ -543,6 +582,10 @@ impl Ui {
         }
         for k in 0..self.sys.indirect_removed_nodes.len() {
             let i = self.sys.indirect_removed_nodes[k];
+            self.garbage_collect_node(i);
+        }
+        for k in 0..self.sys.very_indirect_removed_nodes.len() {
+            let i = self.sys.very_indirect_removed_nodes[k];
             self.garbage_collect_node(i);
         }
     }
@@ -560,6 +603,13 @@ impl Ui {
         log::trace!("Removing {:?} ({:?})", self.node_debug_name_fmt_scratch(i), i);
         self.nodes.node_hashmap.remove(&id);
         self.nodes.nodes.remove(i.as_usize());
+    }
+
+    fn recursive_set_as_toremove_indirect_hidden_children(&mut self, i: NodeI) {
+        self.sys.very_indirect_removed_nodes.push(i);
+        for_each_child!(self, self.nodes[i], child, {
+            self.recursive_set_as_toremove_indirect_hidden_children(child);
+        });
     }
 
     pub(crate) fn current_tree_hash(&mut self) -> u64 {

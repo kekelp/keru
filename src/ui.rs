@@ -125,12 +125,20 @@ pub(crate) struct System {
     // nodes that were excluded from the tree, but stay hidden. still have to do relayouts for them.
     pub hidden_nodes: Vec<NodeI>,
 
+    // There are also nodes that are hidden automatically due to their parent or grandparent being hidden. These don't cause relayouts. They don't get garbage collected immediately, but they do have to be garbage collected later if the root of the hidden branch gets garbage collected.
+    // While hidden, they stay connected to each other automatically with the regular tree links. But they need to be connected to the hidden root with the hidden tree links.
+    // And if the hidden root gets garbage collected, it needs to go through its hidden children and GC all their *regular* children, and then GC them.
+    // All the removals from there are collected here
+    pub very_indirect_removed_nodes: Vec<NodeI>,
+
+
     pub changes: PartialChanges,
 
     // move to changes oalgo
     pub anim_render_timer: AnimationRenderTimer,
 
     pub hidden_stack: Vec<NodeI>,
+    // todo remove
     pub hidden_nodes_record_or_something: Vec<(Id, Id)>,
 }
 
@@ -393,6 +401,7 @@ impl Ui {
                 added_nodes: Vec::with_capacity(30),
                 direct_removed_nodes: Vec::with_capacity(30),
                 indirect_removed_nodes: Vec::with_capacity(30),
+                very_indirect_removed_nodes: Vec::with_capacity(30),
 
                 focused: None,
 
