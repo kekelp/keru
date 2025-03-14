@@ -138,8 +138,6 @@ pub(crate) struct System {
     pub anim_render_timer: AnimationRenderTimer,
 
     pub hidden_stack: Vec<NodeI>,
-    // todo remove
-    pub hidden_nodes_record_or_something: Vec<(Id, Id)>,
 }
 
 pub(crate) struct AnimationRenderTimer(Option<Instant>);
@@ -410,7 +408,6 @@ impl Ui {
                 changes: PartialChanges::new(),
                 hidden_stack: Vec::with_capacity(10),
                 hidden_nodes: Vec::with_capacity(10),
-                hidden_nodes_record_or_something: Vec::with_capacity(10),
             },
         }
     }

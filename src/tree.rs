@@ -447,11 +447,9 @@ impl Ui {
         self.sys.direct_removed_nodes.clear();
         self.sys.indirect_removed_nodes.clear();
         self.sys.very_indirect_removed_nodes.clear();
-        self.sys.hidden_nodes_record_or_something.clear();
         self.sys.hidden_nodes.clear();
         self.sys.hidden_stack.clear();
         
-
         self.recursive_diff_children(ROOT_I);
 
         // if the tree changes, all rects have to be rebuilt. this might change if the rects become densemaps or whatever
@@ -513,12 +511,17 @@ impl Ui {
                     if new_hidden_branch {
                         self.sys.hidden_nodes.push(old_child);
 
-                        // todo: this doesn't account for moved nodes. the final garbage_collect guards against that, but the point is that it shouldn't even do add_hidden_child. so this has to be moved later 
-                        self.add_hidden_child(old_child, i);
-
-                        log::trace!("Not removing: {:?} or its children, as its direct parent is hiding", self.nodes[old_child].debug_name());
+                        let old_child_id = self.nodes[old_child].id;
+                        // as usual, if the hidden node is actually freshly added, that means that it wasn't hidden, but just moved somewhere else in the frame. In that case if we did add_hidden_child it would be pretty bad.
+                        if self.nodes.node_hashmap[&old_child_id].last_frame_touched != self.sys.current_frame {
+                            self.add_hidden_child(old_child, i);
+                            log::trace!("Not removing: {:?} or its children, as its direct parent is a children hider", self.node_debug_name_fmt_scratch(old_child));
+                        } else {
+                            log::trace!("Not removing: {:?} or its children, as its direct parent is a children hider. But not setting it as hidden either, as it has merely moved to another position in the tree. Wow, what an edge case!", self.node_debug_name_fmt_scratch(old_child));
+                        }
 
                     } else {
+                        // no hidden crap, just remove. We could to the moved-somewhere-else check here for symmetry, but it's working fine down in garbage_collect_node
                         self.sys.direct_removed_nodes.push(old_child);
                     }
                 }
@@ -526,7 +529,7 @@ impl Ui {
 
             // continue recursion on old children
             
-            // in a hidden branch, there should be no chance of any node being freshly added, and the nodes don't get garbage collected, so recursive_diff_children doesn't do anything.
+            // in a hidden branch, there should be no chance of any node being freshly added, and the nodes don't get garbage collected, so there's no need to recurse at all.
             if ! new_hidden_branch {
                 for_each_old_child!(self, self.nodes[i], child, {
                     self.recursive_diff_children(child);
@@ -561,7 +564,7 @@ impl Ui {
     }
 
     fn garbage_collect(&mut self) {
-        // do that thing with hidden nodes
+        // if any of the removed nodes have hidden children, also add those nodes (and their whole branch) to the cleanup.  
         for k in 0..self.sys.direct_removed_nodes.len() {
             let i = self.sys.direct_removed_nodes[k];
             for_each_hidden_child!(self, self.nodes[i], hidden_child, {

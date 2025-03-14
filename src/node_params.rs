@@ -689,7 +689,7 @@ impl<'a, T: Display + ?Sized> FullNodeParams<'a, T> {
         return self;
     }
 
-    pub fn can_hide(mut self, value: bool) -> Self {
+    pub fn children_can_hide(mut self, value: bool) -> Self {
         self.params.children_can_hide = value;
         return self;
     }
