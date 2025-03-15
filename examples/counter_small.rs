@@ -21,7 +21,6 @@ impl ExampleLoop for State {
             .text("Increase")
             .key(INCREASE);
 
-
         ui.v_stack().nest(|| {
             ui.add(increase_button);
             ui.label(&self.count);

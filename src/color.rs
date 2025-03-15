@@ -68,7 +68,7 @@ impl VertexColors {
         return VertexColors::new(top, top, bottom, bottom);
     }
 
-    // techinically, the blended corners shouldn't be blended with weight 0.5. The weight should depend on the aspect ratio, I think. I don't think that's practical though, and it looks okay like this.
+    // technically, the blended corners shouldn't be blended with weight 0.5. The weight should depend on the aspect ratio, I think. I don't think that's practical though, and it looks okay like this.
     pub const fn diagonal_gradient_forward_slash(
         bottom_left: Color,
         top_right: Color,

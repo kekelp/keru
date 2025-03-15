@@ -478,14 +478,11 @@ impl Ui {
             self.sys.new_external_events;
     }
 
-    /// Returns `true` if the [`Ui`] needs to be updated or rerendered.
+    /// Returns `true` if the [`Ui`] needs to be updated or rerendered as a consequence of input, animations, or other [`Ui`]-internal events.
     /// 
     /// In a typical `winit` loop for an application that only updates in response to user input, this function is what decides if `winit::Window::request_redraw()` should be called.
     /// 
-    /// An application that works like this can also wake up in response to external events, but it has to be explicitely told to, with [`Ui::push_external_event()`].
-    /// 
     /// For an application that updates on every frame regardless of user input, like a game or a simulation, `request_redraw()` should be called on every frame unconditionally, so this function isn't useful.
-    /// 
     pub fn event_loop_needs_to_wake(&mut self) -> bool {
         return self.needs_update() || self.needs_rerender();
     }

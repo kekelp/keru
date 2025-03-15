@@ -75,7 +75,7 @@
 //! # }
 //! ```
 //! 
-//! The [`Ui`] struct retains the state of the whole GUI, so even if you do this every frame, it doesn't mean that the GUI is re-rendering every frame, or doing a full relayout on every frame..
+//! The [`Ui`] struct retains the state of the whole GUI, so even if you do this on every frame, it doesn't mean that the GUI is rerendering or doing a full relayout every time. The library can detect differences and apply only the minimal updates or partial relayouts needed.
 //! 
 //! 
 //! * In Keru, everything is a node. Whether you want a [button](`BUTTON`), an [image](`IMAGE`), a [text element](`TEXT`), a [stack container](V_STACK), or anything else, the way is always to [`add()`](Ui::add) a node with the right [`NodeParams`].
