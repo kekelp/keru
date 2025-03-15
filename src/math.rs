@@ -272,8 +272,8 @@ impl Div<Xy<f32>> for Xy<f32> {
     }
 }
 
-impl Into<Vec2> for Xy<f32> {
-    fn into(self) -> Vec2 {
-        return vec2(self.x, self.y);
+impl From<Xy<f32>> for Vec2 {
+    fn from(val: Xy<f32>) -> Self {
+        return vec2(val.x, val.y);
     }
 }

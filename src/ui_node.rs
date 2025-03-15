@@ -15,7 +15,7 @@ pub struct UiNode<'a> {
 }
 
 // todo: clean up all the setter functions here and move them to nodeparams.
-impl<'a> UiNode<'a> {
+impl UiNode<'_> {
     pub(crate) fn node_mut(&mut self) -> &mut Node {
         return &mut self.ui.nodes[self.i];
     }
@@ -115,7 +115,7 @@ impl<'a> UiNode<'a> {
     }
 }
 
-impl<'a> UiNode<'a> {
+impl UiNode<'_> {
     // todo: move to Ui, or just merge with set_params_text, or something
     pub(crate) fn text_from_fmtscratch(&mut self) -> &mut Self {
         // assume that the caller wrote the text into format_scratch...
@@ -150,7 +150,7 @@ impl<'a> UiNode<'a> {
 
         let lines = &self.ui.sys.text.text_areas[text_id].buffer.lines;
         
-        let text = lines.into_iter().map(|l| l.text()).collect();
+        let text = lines.iter().map(|l| l.text()).collect();
         return Some(text);
     }
 }

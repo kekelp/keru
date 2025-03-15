@@ -35,7 +35,7 @@ impl Ui {
 
     /// Add a single-line text element.
     #[track_caller]
-    pub fn text_line<'a>(&mut self, text: &'a (impl MaybeObservedText + ?Sized)) -> UiParent {
+    pub fn text_line(&mut self, text: &(impl MaybeObservedText + ?Sized)) -> UiParent {
         let params = TEXT.text(text);
         return self.add(params);
     }
@@ -49,7 +49,7 @@ impl Ui {
 
     /// Add a multiline text paragraph.
     #[track_caller]
-    pub fn paragraph<'a>(&mut self, text: &'a (impl MaybeObservedText + ?Sized)) -> UiParent {
+    pub fn paragraph(&mut self, text: &(impl MaybeObservedText + ?Sized)) -> UiParent {
         let params = TEXT_PARAGRAPH.text(text);
         return self.add(params);
     }
@@ -64,7 +64,7 @@ impl Ui {
     /// Add a label.
     #[track_caller]
     // todo: all the other functions should use this new generic crap
-    pub fn label<'a>(&mut self, text: &'a (impl MaybeObservedText + ?Sized)) -> UiParent {
+    pub fn label(&mut self, text: &(impl MaybeObservedText + ?Sized)) -> UiParent {
         let params = MULTILINE_LABEL.text(text);
         return self.add(params);
     }

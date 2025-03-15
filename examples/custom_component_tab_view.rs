@@ -69,11 +69,11 @@ impl CustomWidgets for Ui {
     }
 }
 
-const TAB_1: &'static str = "Tab 1";
-const TAB_2: &'static str = "Tab 2";
-const TAB_3: &'static str = "Tab 3";
-const TAB_4: &'static str = "Tab 4";
-const TAB_5: &'static str = "Tab 5";
+const TAB_1: &str = "Tab 1";
+const TAB_2: &str = "Tab 2";
+const TAB_3: &str = "Tab 3";
+const TAB_4: &str = "Tab 4";
+const TAB_5: &str = "Tab 5";
 
 #[derive(Default)]
 pub struct State {

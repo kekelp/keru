@@ -38,7 +38,7 @@ pub fn pop_parent() {
 pub fn current_parent() -> NodeWithDepth {
     return THREAD_STACKS.with(
         |stack| {
-            let parent_i = stack.borrow().parents.last().unwrap().clone();
+            let parent_i = *stack.borrow().parents.last().unwrap();
             let depth = stack.borrow().parents.len();
             return NodeWithDepth{ i: parent_i, depth };
         }

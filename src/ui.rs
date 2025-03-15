@@ -321,8 +321,8 @@ impl Ui {
 
         let font_system = FontSystem::new();
         let cache = SwashCache::new();
-        let glyphon_cache = GlyphonCache::new(&device);
-        let glyphon_viewport = Viewport::new(&device, &glyphon_cache);
+        let glyphon_cache = GlyphonCache::new(device);
+        let glyphon_viewport = Viewport::new(device, &glyphon_cache);
 
         let mut atlas = TextAtlas::new(device, queue, &glyphon_cache, config.format);
         let text_renderer =

@@ -22,10 +22,7 @@ impl TextSystem {
         text: Option<&str>,
         current_frame: u64,
     ) -> Option<usize> {
-        let text = match text {
-            Some(text) => text,
-            None => return None,
-        };
+        let text = text?;
 
         let mut buffer = GlyphonBuffer::new(&mut self.font_system, GLOBAL_TEXT_METRICS);
         buffer.set_size(&mut self.font_system, Some(500.), Some(500.));
@@ -133,6 +130,6 @@ impl<'a> Iterator for TextAreaIter<'a> {
     }
 }
 
-pub fn render_iter<'a>(data: &'a Vec<FullText>, frame: u64) -> TextAreaIter<'a> {
+pub fn render_iter(data: &Vec<FullText>, frame: u64) -> TextAreaIter<'_> {
     return TextAreaIter::new(data, frame);
 }

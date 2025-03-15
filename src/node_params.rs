@@ -481,7 +481,7 @@ pub struct FullNodeParams<'a> {
     pub image: Option<&'static [u8]>,
 }
 
-impl<'a> FullNodeParams<'a> {
+impl FullNodeParams<'_> {
     pub const fn position(mut self, position_x: Position, position_y: Position) -> Self {
         self.params.layout.position.x = position_x;
         self.params.layout.position.y = position_y;
@@ -696,7 +696,7 @@ impl<'a> FullNodeParams<'a> {
     }
 }
 
-impl<'a> FullNodeParams<'a> {
+impl FullNodeParams<'_> {
     /// Add text to the [`NodeParams`] from a `&'static str`.
     /// 
     /// `text` is assumed to be unchanged, so the [`Ui`] uses pointer equality to determine if it needs to update the text shown on screen.
@@ -723,7 +723,7 @@ impl NodeParams {
     //     M: MaybeObserver<T> + ?Sized,
     //     T: AsRef<str> + ?Sized + 'a,
     // {
-    pub fn hashed_text<'a>(self, text: &'a (impl AsRef<str> + ?Sized)) -> FullNodeParams<'a> {
+    pub fn hashed_text(self, text: &(impl AsRef<str> + ?Sized)) -> FullNodeParams<'_> {
         return FullNodeParams {
             params: self,
             text: Some(text.as_ref()),
@@ -753,7 +753,7 @@ impl NodeParams {
     /// Since the text is assumed to never change, the [`Ui`] can use pointer equality to determine if it needs to update the text shown on screen.
     /// 
     /// If `text` changes anyway, then the [`Ui`] will miss it.  
-    pub fn immut_text<'a>(self, text: &'a (impl AsRef<str> + ?Sized)) -> FullNodeParams<'a> {
+    pub fn immut_text(self, text: &(impl AsRef<str> + ?Sized)) -> FullNodeParams<'_> {
         return FullNodeParams {
             params: self,
             text: Some(text.as_ref()),
@@ -763,10 +763,10 @@ impl NodeParams {
         }
     }
 
-    pub fn observed_text<'a>(self, text: Observer<&'a (impl AsRef<str> + ?Sized)>) -> FullNodeParams<'a> {
+    pub fn observed_text(self, text: Observer<&(impl AsRef<str> + ?Sized)>) -> FullNodeParams<'_> {
         return FullNodeParams {
             params: self,
-            text: Some(&text.as_ref()),
+            text: Some(text.as_ref()),
             text_changed: text.changed_at(),
             text_ptr: (&raw const text) as usize,
             image: None,
@@ -793,10 +793,10 @@ pub enum Changed {
     Static,
 }
 
-impl<'a> Into<FullNodeParams<'a>> for NodeParams {
-    fn into(self) -> FullNodeParams<'a> {
+impl From<NodeParams> for FullNodeParams<'_> {
+    fn from(val: NodeParams) -> Self {
         FullNodeParams {
-            params: self,
+            params: val,
             text: None,
             text_changed: Changed::Static,
             text_ptr: 0,
@@ -805,7 +805,7 @@ impl<'a> Into<FullNodeParams<'a>> for NodeParams {
     }
 }
 
-impl<'a> FullNodeParams<'a> {
+impl FullNodeParams<'_> {
     #[track_caller]
     pub(crate) fn key_or_anon_key(&self) -> NodeKey {
         return match self.params.key {
@@ -892,7 +892,7 @@ impl Ui {
         match text_verdict {
             TextVerdict::Skip => { unreachable!("lol") },
             TextVerdict::HashAndSee => {
-                if let Some(_) = self.nodes[i].text_id {
+                if self.nodes[i].text_id.is_some() {
                     let hash = fx_hash(&self.format_scratch);
                     if let Some(last_hash) = self.nodes[i].last_text_hash {
                         if hash != last_hash {
@@ -979,7 +979,7 @@ impl NodeParams {
     /// If a plain non-[`Observer`] type is used, the [`Ui`] will fall back to hashing the text to determine if the text needs updating.
     /// 
     /// Instead of this single generic function, you can also use [`Self::hashed_text()`], [`Self::static_text()`], [`Self::immut_text()`], or [`Self::observed_text()`].
-    pub fn text<'a>(self, text: &'a (impl MaybeObservedText + ?Sized)) -> FullNodeParams<'a> {
+    pub fn text(self, text: &(impl MaybeObservedText + ?Sized)) -> FullNodeParams<'_> {
         FullNodeParams {
             params: self,
             text: Some(text.as_text()),
@@ -1019,7 +1019,7 @@ pub struct Static<T: 'static + ?Sized>(pub &'static T);
 impl<T: ?Sized> Deref for Static<T> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
-        &self.0
+        self.0
     }
 }
 

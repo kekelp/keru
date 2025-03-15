@@ -183,7 +183,7 @@ impl<T: Tag> MouseInput<T> {
         let mut dist = glam::dvec2(0.0, 0.0);
         
         for e in all_events {
-            dist = dist + e.drag_distance();
+            dist += e.drag_distance();
         }
 
         return (dist.x, dist.y);

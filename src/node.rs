@@ -119,7 +119,7 @@ impl Node {
             is_twin: twin_n,
             params: NodeParams::const_default(),
             debug_key_name: key.debug_name(),
-            debug_location: debug_location,
+            debug_location,
             hover_timestamp: f32::MIN,
             hovered: false,
             last_click: f32::MIN,
@@ -141,7 +141,7 @@ impl Ui {
     pub(crate) fn node_debug_name_fmt_scratch(&mut self, i: NodeI) -> &str {
         self.format_scratch.clear();
         
-        if self.nodes[i].debug_key_name != "" {
+        if !self.nodes[i].debug_key_name.is_empty() {
             let _ = write!(&mut self.format_scratch, "{} ", self.nodes[i].debug_key_name);
 
             if let Some(twin_n) = self.nodes[i].is_twin {
@@ -157,7 +157,7 @@ impl Node {
     pub(crate) fn debug_name(&self) -> String {
         let mut result = String::new();
         
-        if self.debug_key_name != "" {
+        if !self.debug_key_name.is_empty() {
             write!(result, "{} ", self.debug_key_name).unwrap();
             
             if let Some(twin_n) = self.is_twin {

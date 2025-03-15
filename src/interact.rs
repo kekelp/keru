@@ -29,7 +29,7 @@ pub struct Drag {
 }
 
 // todo: remove all of this crap
-impl<'a> UiNode<'a> {
+impl UiNode<'_> {
     /// Returns `true` if the node was just clicked with the left mouse button.
     /// 
     /// This is "act on press", you might want [is_click_released()](Self::is_click_released()).
@@ -326,7 +326,7 @@ impl Ui {
         let mut animation = false;
 
         for hovered_id in &self.sys.hovered {
-            let hovered_nodemap_entry = self.nodes.node_hashmap.get(&hovered_id);
+            let hovered_nodemap_entry = self.nodes.node_hashmap.get(hovered_id);
             
             if let Some(entry) = hovered_nodemap_entry {
                 // check that the node is currently part of the tree...

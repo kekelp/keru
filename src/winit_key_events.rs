@@ -61,27 +61,24 @@ impl KeyInput {
     }
 
     pub fn window_event(&mut self, event: &WindowEvent) {
-        match event {
-            WindowEvent::KeyboardInput { event, is_synthetic, .. } => {
-                if ! is_synthetic {
-                    if event.state == ElementState::Pressed {
-                        if ! event.repeat {
-                            self.push_key_press(&event.logical_key);
-                        } else {
-                            self.push_key_repeat(&event.logical_key);
-                        }
+        if let WindowEvent::KeyboardInput { event, is_synthetic, .. } = event {
+            if ! is_synthetic {
+                if event.state == ElementState::Pressed {
+                    if ! event.repeat {
+                        self.push_key_press(&event.logical_key);
                     } else {
-                        self.push_key_release(&event.logical_key);
+                        self.push_key_repeat(&event.logical_key);
                     }
+                } else {
+                    self.push_key_release(&event.logical_key);
                 }
             }
-            _ => {}
         }
     }
 
     fn push_key_press(&mut self, key: &Key) {
         let timestamp = Instant::now();
-        let pending_press = PendingKeyPress::new(timestamp, &key);
+        let pending_press = PendingKeyPress::new(timestamp, key);
         self.unresolved_key_presses.push(pending_press);
     }
 

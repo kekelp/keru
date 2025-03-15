@@ -124,7 +124,7 @@ impl Node {
             return None;
         }
 
-        let outline_only = if let Some(_) = image_texcoords {
+        let outline_only = if image_texcoords.is_some() {
             false
         } else {
             self.params.rect.outline_only

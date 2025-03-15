@@ -217,7 +217,7 @@ impl Context {
             ui.render(&mut render_pass, &self.device, &self.queue);
         }
 
-        frame.finish(&self);
+        frame.finish(self);
     }
 }
 
@@ -270,7 +270,7 @@ pub fn basic_depth_stencil_attachment(
     depth_stencil_view: &TextureView,
 ) -> Option<RenderPassDepthStencilAttachment<'_>> {
     return Some(wgpu::RenderPassDepthStencilAttachment {
-        view: &depth_stencil_view,
+        view: depth_stencil_view,
         depth_ops: Some(wgpu::Operations {
             load: wgpu::LoadOp::Clear(1.0),
             store: wgpu::StoreOp::Store,

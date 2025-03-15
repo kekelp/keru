@@ -108,7 +108,7 @@ impl Ui {
     }
 
     pub(crate) fn do_cosmetic_rect_updates(&mut self) {
-        if self.sys.changes.cosmetic_rect_updates.len() > 0 {
+        if !self.sys.changes.cosmetic_rect_updates.is_empty() {
             self.sys.changes.need_gpu_rect_update = true;
         }
         for idx in 0..self.sys.changes.cosmetic_rect_updates.len() {
@@ -205,24 +205,21 @@ impl Ui {
 
         // apply AspectRatio
         for axis in [X, Y] {
-            match self.nodes[i].params.layout.size[axis] {
-                Size::AspectRatio(aspect) => {
-                    match self.nodes[i].params.layout.size[axis.other()] {
-                        Size::AspectRatio(_second_aspect) => {
-                            let debug_name = self.node_debug_name_fmt_scratch(i);
-                            log::warn!("A Size shouldn't be AspectRatio in both dimensions. (node: {})", debug_name);
-                        }
-                        _ => {
-                            let window_aspect = self.sys.unifs.size.x / self.sys.unifs.size.y;
-                            let mult = match axis {
-                                X => 1.0 / (window_aspect * aspect),
-                                Y => window_aspect * aspect,
-                            };
-                            size[axis] = size[axis.other()] * mult;
-                        }
+            if let Size::AspectRatio(aspect) = self.nodes[i].params.layout.size[axis] {
+                match self.nodes[i].params.layout.size[axis.other()] {
+                    Size::AspectRatio(_second_aspect) => {
+                        let debug_name = self.node_debug_name_fmt_scratch(i);
+                        log::warn!("A Size shouldn't be AspectRatio in both dimensions. (node: {})", debug_name);
+                    }
+                    _ => {
+                        let window_aspect = self.sys.unifs.size.x / self.sys.unifs.size.y;
+                        let mult = match axis {
+                            X => 1.0 / (window_aspect * aspect),
+                            Y => window_aspect * aspect,
+                        };
+                        size[axis] = size[axis.other()] * mult;
                     }
                 }
-                _ => {}
             }
         }
 
@@ -369,7 +366,7 @@ impl Ui {
 
         let w = match self.nodes[i].params.layout.size[X] {
             Size::FitContent => {
-                match self.nodes[i].params.text_params.unwrap_or(TextOptions::default()).single_line {
+                match self.nodes[i].params.text_params.unwrap_or_default().single_line {
                     true => BIG_FLOAT,
                     false => proposed_size.x * self.sys.unifs.size[X],
                 }

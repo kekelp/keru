@@ -19,7 +19,7 @@ pub(crate) const FIRST_FRAME: u64 = 1;
 pub(crate) const Z_BACKDROP: f32 = 0.5;
 // This one has to be small, but not small enough to get precision issues.
 // And I think it's probably good if it's a rounded binary number (0x38000000)? Not sure.
-pub(crate) const Z_STEP: f32 = -0.000030517578125;
+pub(crate) const Z_STEP: f32 = -0.000_030_517_578;
 
 impl Ui {
     // todo: this function writes into format_scratch, doesn't tell anybody anything, and then expects people to get their string directly from self.format_scratch. is it really impossible to just return a reference? 

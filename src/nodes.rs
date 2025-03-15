@@ -76,12 +76,12 @@ impl IndexMut<NodeI> for Nodes {
 impl Nodes {
     // todo: doesn't this kind of suck?
     pub(crate) fn get_mut_by_id(&mut self, id: &Id) -> Option<(&mut Node, NodeI)> {
-        let i = self.node_hashmap.get(&id)?;
+        let i = self.node_hashmap.get(id)?;
         return Some((&mut self.nodes[i.slab_i.as_usize()], i.slab_i));
     }
 
     pub(crate) fn get_by_id(&self, id: &Id) -> Option<(&Node, NodeI)> {
-        let i = self.node_hashmap.get(&id)?;
+        let i = self.node_hashmap.get(id)?;
         return Some((&self.nodes[i.slab_i.as_usize()], i.slab_i));
     }
 
