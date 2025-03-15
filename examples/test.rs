@@ -9,17 +9,23 @@ pub struct State {
 
 impl ExampleLoop for State {
     fn update_ui(&mut self, ui: &mut Ui) {
-        let moving_node = BUTTON.text(&"Sneed");
+        let string = "String".to_string();
+        let str_ref = "string ref";
+        let number: f32 = 17.5;
 
-        ui.add(BUTTON.text(&"My child will type sneed2")).nest(|| {
-            if self.show {
-                ui.add(moving_node);
-            }
-        });
-        ui.add(BUTTON.text(&"My child will type sneed1")).nest(|| {
-            if ! self.show {
-                ui.add(moving_node);
-            }
+        let copy_this = BUTTON.text(&string);
+
+        ui.v_stack().nest(|| {
+            ui.add(BUTTON.text(str_ref));
+            ui.add(BUTTON.text(&string));
+            ui.add(BUTTON.text(number.to_string().as_str()));
+
+            ui.add(BUTTON.hashed_text(str_ref));
+            ui.add(BUTTON.hashed_text(&string));
+            ui.add(BUTTON.hashed_text(&number.to_string()));
+
+            ui.add(copy_this);
+            ui.add(copy_this);
         });
     }
 }

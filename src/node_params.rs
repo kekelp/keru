@@ -473,15 +473,15 @@ impl NodeParams {
 /// 
 /// Can be used in the same way as [`NodeParams`].
 #[derive(Copy, Clone)]
-pub struct FullNodeParams<'a, T: Display> {
+pub struct FullNodeParams<'a> {
     pub params: NodeParams,
-    pub text: Option<&'a T>,
+    pub text: Option<&'a str>,
     pub(crate) text_changed: Changed,
     pub(crate) text_ptr: usize,
     pub image: Option<&'static [u8]>,
 }
 
-impl<'a, T: Display> FullNodeParams<'a, T> {
+impl<'a> FullNodeParams<'a> {
     pub const fn position(mut self, position_x: Position, position_y: Position) -> Self {
         self.params.layout.position.x = position_x;
         self.params.layout.position.y = position_y;
@@ -696,13 +696,13 @@ impl<'a, T: Display> FullNodeParams<'a, T> {
     }
 }
 
-impl<'a, T: Display> FullNodeParams<'a, T> {
+impl<'a> FullNodeParams<'a> {
     /// Add text to the [`NodeParams`] from a `&'static str`.
     /// 
     /// `text` is assumed to be unchanged, so the [`Ui`] uses pointer equality to determine if it needs to update the text shown on screen.
     /// 
     /// If `text` changes, due to interior mutability or unsafe code, then the [`Ui`] will miss it.  
-    pub fn static_text(self, text: &'static &'static str) -> FullNodeParams<'static, &'static str> {
+    pub fn static_text(self, text: &'static str) -> FullNodeParams<'static> {
         return FullNodeParams {
             params: self.params,
             image: self.image,
@@ -717,10 +717,19 @@ impl NodeParams {
     /// Add text to the [`NodeParams`] from a `&'static str`.
     /// 
     /// The [`Ui`] will have to hash `text` to determine if it needs to update the text shown on the screen. To avoid this performance penalty, use [`NodeParams::smart_text`], or [`NodeParams::static_text`] if `text` is an unchanging `'static str`. 
-    pub fn hashed_text<'a>(self, text: &'a &'a str) -> FullNodeParams<'a, &'a str> {
+    
+    // pub fn text<'a, T, M>(self, text: &'a M) -> FullNodeParams<'a>
+    // where
+    //     M: MaybeObserver<T> + ?Sized,
+    //     T: AsRef<str> + ?Sized + 'a,
+    // {
+    pub fn hashed_text<'a, T>(self, text: &'a T) -> FullNodeParams<'a> 
+    where 
+        T: AsRef<str> + ?Sized
+    {
         return FullNodeParams {
             params: self,
-            text: Some(&text),
+            text: Some(text.as_ref()),
             image: None,
             text_changed: Changed::NeedsHash,
             text_ptr: (&raw const text) as usize,
@@ -732,17 +741,17 @@ impl NodeParams {
     /// `text` is assumed to be unchanged, so the [`Ui`] uses pointer equality to determine if it needs to update the text shown on screen.
     /// 
     /// If `text` changes, due to interior mutability or unsafe code, then the [`Ui`] will miss it.  
-    pub fn static_text<'a>(self, text: &'a &'static str) -> FullNodeParams<'static, &'a str> {
+    pub fn static_text(self, text: &'static str) -> FullNodeParams<'static> {
         return FullNodeParams {
             params: self,
-            text: Some(&text),
+            text: Some(text),
             image: None,
             text_changed: Changed::Static,
             text_ptr: (&raw const text) as usize,
         }
     }
 
-    pub fn smart_text<'a>(self, text: &'a Observer<&'a str>) -> FullNodeParams<'a, &'a str> {
+    pub fn smart_text<'a>(self, text: Observer<&'a str>) -> FullNodeParams<'a> {
         return FullNodeParams {
             params: self,
             text: Some(&text),
@@ -752,7 +761,7 @@ impl NodeParams {
         }
     }
 
-    pub fn static_image(self, image: &'static [u8]) -> FullNodeParams<'static, str> {
+    pub fn static_image(self, image: &'static [u8]) -> FullNodeParams<'static> {
         return FullNodeParams {
             params: self,
             text: None,
@@ -772,8 +781,8 @@ pub enum Changed {
     Static,
 }
 
-impl<'a> Into<FullNodeParams<'a, str>> for NodeParams {
-    fn into(self) -> FullNodeParams<'a, str> {
+impl<'a> Into<FullNodeParams<'a>> for NodeParams {
+    fn into(self) -> FullNodeParams<'a> {
         FullNodeParams {
             params: self,
             text: None,
@@ -784,7 +793,7 @@ impl<'a> Into<FullNodeParams<'a, str>> for NodeParams {
     }
 }
 
-impl<'a, T: Display> FullNodeParams<'a, T> {
+impl<'a> FullNodeParams<'a> {
     #[track_caller]
     pub(crate) fn key_or_anon_key(&self) -> NodeKey {
         return match self.params.key {
@@ -802,7 +811,7 @@ enum TextVerdict {
 }
 
 impl Ui {
-    fn check_text_situation<T: Display>(&self, i: NodeI, params: &FullNodeParams<T>) -> TextVerdict {
+    fn check_text_situation(&self, i: NodeI, params: &FullNodeParams) -> TextVerdict {
         let same_pointer = params.text_ptr == self.nodes[i].last_text_ptr;
         let verdict = if same_pointer {
              match params.text_changed {
@@ -824,7 +833,7 @@ impl Ui {
         return verdict;
     }
 
-    pub(crate) fn set_params_text<T: Display>(&mut self, i: NodeI, params: &FullNodeParams<T>) {       
+    pub(crate) fn set_params_text(&mut self, i: NodeI, params: &FullNodeParams) {       
         let Some(text) = params.text else {
             return
         };
@@ -902,7 +911,7 @@ impl Ui {
     }
 
 
-    pub(crate) fn set_params<T: Display>(&mut self, i: NodeI, params: &FullNodeParams<T>) {
+    pub(crate) fn set_params(&mut self, i: NodeI, params: &FullNodeParams) {
         #[cfg(not(debug_assertions))]
         if reactive::is_in_skipped_reactive_block() {
             return;
@@ -950,7 +959,11 @@ impl Ui {
 
 /// A trait for types that can *optionally* observe changes to themselves and report them to an [`Ui`] for more efficient displaying.
 /// 
-/// This is implemented for regular untracked types (no optimization) and [`Observer`] types. Todo: add some `Static` or `Immut` wrappers and implement this.
+/// This is implemented for:
+/// - any regular type `T`: no optimization. The [`Ui`] will probably have to hash or compare the value to see if it has changed.
+/// - [`Observer<T>`]: the [`Ui`] can skip hashing or comparing if the `Observer` didn't see any changes.
+/// - [`Static<T>`] and [`Immut<T>]`: the [`Ui`] can always assume the values didn't change.
+/// 
 /// 
 /// ```
 /// # use keru::*;
@@ -980,14 +993,14 @@ impl NodeParams {
     /// If a non-[`Observer`] type is used, the [`Ui`] will fall back to hashing the string to determine if the text needs updating.
     /// 
     /// This single generic function might be replaced by three separate functions: `hashed_text()`, `static_text()`, `observed_text()`, or similar. 
-    pub fn text<'a, T, M>(self, text: &'a M) -> FullNodeParams<'a, T>
+    pub fn text<'a, T, M>(self, text: &'a M) -> FullNodeParams<'a>
     where
-        M: MaybeObserver<T>,
-        T: Display,
+        M: MaybeObserver<T> + ?Sized,
+        T: AsRef<str> + ?Sized + 'a,
     {
         return FullNodeParams {
             params: self,
-            text: Some(&text.value()),
+            text: Some(text.value().as_ref()),
             image: None,
             text_changed: text.changed_at(),
             text_ptr: (&raw const text) as usize,
@@ -996,7 +1009,7 @@ impl NodeParams {
 }
 
 
-impl<T: Display> MaybeObserver<T> for T {
+impl<T: AsRef<str> + ?Sized> MaybeObserver<T> for T {
     fn value(&self) -> &T {
         self
     }
@@ -1006,7 +1019,7 @@ impl<T: Display> MaybeObserver<T> for T {
     }
 }
 
-impl<T: Display> MaybeObserver<T> for Observer<T> {
+impl<T: AsRef<str>> MaybeObserver<T> for Observer<T> {
     fn value(&self) -> &T {
         self
     }
@@ -1039,9 +1052,9 @@ impl<T: Display> MaybeObserver<T> for Observer<T> {
 /// # Notes
 /// 
 /// This is needed because Rust doesn't support lifetime specialization.
-pub struct Static<T: 'static>(pub &'static T);
+pub struct Static<T: 'static + ?Sized>(pub &'static T);
 
-impl<T: Display + 'static> MaybeObserver<T> for Static<T> {
+impl<T: AsRef<str> + 'static + ?Sized> MaybeObserver<T> for Static<T> {
     fn value(&self) -> &T {
         &self.0
     }
@@ -1061,7 +1074,7 @@ impl<T: Display + 'static> MaybeObserver<T> for Static<T> {
 /// You can always use an [`Observer<T>`](`Observer`) or a raw `T` to avoid this risk. If a raw `T` is passed, the [`Ui`] will hash the resulting text to make sure it stays synced.
 pub struct Immut<T: ?Sized>(pub T);
 
-impl<T: Display> MaybeObserver<T> for Immut<T> {
+impl<T: AsRef<str> + ?Sized> MaybeObserver<T> for Immut<T> {
     fn value(&self) -> &T {
         &self.0
     }

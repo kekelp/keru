@@ -32,7 +32,7 @@ impl CustomComponents for Ui {
                     self.add(increase_button);
                     self.add(clear_button);
                 });
-                self.label(text);
+                self.label(text.as_str());
             });
 
             if self.is_clicked(INCREASE) {

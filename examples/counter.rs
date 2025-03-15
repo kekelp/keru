@@ -33,22 +33,22 @@ impl ExampleLoop for State {
 
         let increase_button = BUTTON
             .color(count_color)
-            .text(&"Increase")
+            .text("Increase")
             .key(INCREASE);
 
         let show_button = BUTTON
             .color(Color::RED)
-            .text(&show_button_text)
+            .text(show_button_text)
             .key(SHOW);
 
         let decrease_button = BUTTON
-            .text(&"Decrease")
+            .text("Decrease")
             .key(DECREASE);
 
         ui.v_stack().nest(|| {
             if self.show {
                 ui.add(increase_button);
-                ui.label(&self.count);
+                ui.label(&self.count.to_string());
                 ui.add(decrease_button);
             }
             ui.add(show_button);

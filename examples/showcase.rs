@@ -40,7 +40,7 @@ impl Components for Ui {
                     state.f32_value += 1.0;
                 }
                 let text = format!("{:.2}", state.f32_value);
-                self.label(&text);
+                self.label(text.as_str());
             });
 
             self.static_paragraph(&"Fat slider:");
@@ -71,9 +71,9 @@ impl Components for Ui {
                 However, the integration isn't very good yet. Keru might switch to another library soon. \n\n\
                 If you notice some stuttering when the text below first comes into view, that's Glyphon's fault."
             );
-            self.label(&Static(&JAPANESE_TEXT));
+            self.label(&Static(JAPANESE_TEXT));
             self.add(image);
-            self.label(&Static(&CHINESE_TEXT));
+            self.label(&Static(CHINESE_TEXT));
         });
     }
 

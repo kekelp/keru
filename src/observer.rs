@@ -1,7 +1,7 @@
 use std::clone::Clone;
 use std::cmp::{Eq, Ord, PartialEq, PartialOrd};
 use std::default::Default;
-use std::fmt::{self, Debug};
+use std::fmt::{self, Debug, Display};
 use std::hash::{Hash, Hasher};
 use std::ops::{
     Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Deref,
@@ -168,11 +168,11 @@ impl<T: Debug> Debug for Observer<T> {
 }
 
 // not implementing this, so that we can implement that MaybeObserver trait for all Display types without conflicts.
-// impl<T: Display> Display for Observer<T> {
-//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-//         self.value.fmt(f)
-//     }
-// }
+impl<T: Display> Display for Observer<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.value.fmt(f)
+    }
+}
 
 impl<T: PartialEq> PartialEq for Observer<T> {
     fn eq(&self, other: &Self) -> bool {

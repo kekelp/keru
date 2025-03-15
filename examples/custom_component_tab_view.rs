@@ -52,7 +52,7 @@ impl CustomWidgets for Ui {
                         for (i, name) in tabs.iter().enumerate() {
                             let key_i = TAB_BUTTON.sibling(i);
                             let tab = if i == *tab_number { active_tab } else { inactive_tab };
-                            let tab_i = tab.text(name).key(key_i);
+                            let tab_i = tab.text(*name).key(key_i);
                             self.add(tab_i);
                         }
                     });
@@ -94,27 +94,27 @@ impl ExampleLoop for State {
         ui.tab_view(&tabs, &mut self.tab_number).nest(|| {
             match tabs[self.tab_number] {
                 TAB_1 => {
-                    ui.label(&"Content 1");
+                    ui.label("Content 1");
                 }
                 TAB_2 => {
-                    ui.label(&"Content 2");
+                    ui.label("Content 2");
                 }
                 TAB_3 => {
                     ui.v_stack().nest(|| {
-                        ui.label(&"Content 3");
-                        ui.label(&"Content 3");
-                        ui.label(&"Content 3");
+                        ui.label("Content 3");
+                        ui.label("Content 3");
+                        ui.label("Content 3");
                     });
                 }
                 TAB_4 => {
-                    ui.label(&"Content 4");
+                    ui.label("Content 4");
                 }
                 TAB_5 => {
                     ui.v_stack().nest(|| {
-                        ui.label(&"Content 5");
-                        ui.label(&"Content 5");
-                        ui.label(&"Content 5");
-                        ui.label(&"Content 5");
+                        ui.label("Content 5");
+                        ui.label("Content 5");
+                        ui.label("Content 5");
+                        ui.label("Content 5");
                     });
                 }
                 _ => {}

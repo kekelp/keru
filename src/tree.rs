@@ -46,10 +46,7 @@ impl Ui {
     /// 
     ///  Buttons, images, text elements, stack containers, etc. are all created by `add`ing a node with the right [`NodeParams`].
     #[track_caller]
-    pub fn add<'a, M, T>(&mut self, params: M) -> UiParent
-    where
-        M: Into<FullNodeParams<'a, T>>,
-        T: Display + ?Sized + 'a,
+    pub fn add<'a>(&mut self, params: impl Into<FullNodeParams<'a>>) -> UiParent
     {
         let params = params.into();
         let key = params.key_or_anon_key();

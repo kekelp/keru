@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use crate as keru;
 use keru::*;
 use keru::Size::*;
@@ -39,8 +37,8 @@ impl Ui {
     #[track_caller]
     pub fn text_line<'a, T, M>(&mut self, text: &'a M) -> UiParent
     where
-        T: Display,
-        M: MaybeObserver<T>,
+        M: MaybeObserver<T> + ?Sized,
+        T: AsRef<str> + ?Sized + 'a,
     {
         let params = TEXT.text(text);
         return self.add(params);
@@ -55,11 +53,7 @@ impl Ui {
 
     /// Add a multiline text paragraph.
     #[track_caller]
-    pub fn paragraph<'a, T, M>(&mut self, text: &'a M) -> UiParent
-    where
-        T: Display,
-        M: MaybeObserver<T>,
-    {
+    pub fn paragraph<'a, T: AsRef<str> + 'a>(&mut self, text: &'a impl MaybeObserver<T>) -> UiParent {
         let params = TEXT_PARAGRAPH.text(text);
         return self.add(params);
     }
@@ -73,12 +67,12 @@ impl Ui {
 
     /// Add a label.
     #[track_caller]
+    // todo: all the other functions should use this new generic crap
     pub fn label<'a, T, M>(&mut self, text: &'a M) -> UiParent
     where
-        T: Display,
-        M: MaybeObserver<T>,
-    {
-        let params = MULTILINE_LABEL.text(text);
+        M: MaybeObserver<T> + ?Sized,
+        T: AsRef<str> + ?Sized + 'a,
+    {        let params = MULTILINE_LABEL.text(text);
         return self.add(params);
     }
 
