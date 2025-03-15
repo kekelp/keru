@@ -11,12 +11,12 @@ impl ExampleLoop for State {
     fn update_ui(&mut self, ui: &mut Ui) {
         let moving_node = BUTTON.text(&"Sneed");
 
-        ui.add(BUTTON.text("My child will type sneed2")).nest(|| {
+        ui.add(BUTTON.text(&"My child will type sneed2")).nest(|| {
             if self.show {
                 ui.add(moving_node);
             }
         });
-        ui.add(BUTTON.text("My child will type sneed1")).nest(|| {
+        ui.add(BUTTON.text(&"My child will type sneed1")).nest(|| {
             if ! self.show {
                 ui.add(moving_node);
             }

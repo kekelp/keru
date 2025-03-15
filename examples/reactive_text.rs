@@ -20,11 +20,11 @@ impl CustomComponents for Ui {
 
             let increase_button = BUTTON
                 .color(Color::RED)
-                .static_text("Push str")
+                .static_text(&"Push str")
                 .key(INCREASE);
             let clear_button = BUTTON
                 .color(Color::RED)
-                .static_text("Clear")
+                .static_text(&"Clear")
                 .key(RESET);
 
             self.v_stack().nest(|| {

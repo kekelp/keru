@@ -30,14 +30,14 @@ impl CustomComponents for Ui {
                 let increase_color = Color::rgba_f(red, 0.10196, 0.59608, 0.80392);
                 let increase_button = BUTTON
                     .color(increase_color)
-                    .static_text("Increase")
+                    .static_text(&"Increase")
                     .key(INCREASE);
 
                 let green = 0.1 * ((10 - **count) as f32);
                 let decrease_color = Color::rgba_f(0.2345, green, 0.59608, 0.80392);
                 let decrease_button = BUTTON
                     .color(decrease_color)
-                    .static_text("Decrease")
+                    .static_text(&"Decrease")
                     .key(DECREASE);
                 
                 self.h_stack().nest(|| {

@@ -18,7 +18,7 @@ impl ExampleLoop for State {
 
         let increase_button = BUTTON
             .color(Color::RED)
-            .text("Increase")
+            .text(&"Increase")
             .key(INCREASE);
 
         ui.v_stack().nest(|| {

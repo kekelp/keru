@@ -39,8 +39,8 @@ impl Ui {
     #[track_caller]
     pub fn text_line<'a, T, M>(&mut self, text: &'a M) -> UiParent
     where
-        T: Display + ?Sized,
-        M: MaybeObserver<T> + ?Sized,
+        T: Display,
+        M: MaybeObserver<T>,
     {
         let params = TEXT.text(text);
         return self.add(params);
@@ -57,8 +57,8 @@ impl Ui {
     #[track_caller]
     pub fn paragraph<'a, T, M>(&mut self, text: &'a M) -> UiParent
     where
-        T: Display + ?Sized,
-        M: MaybeObserver<T> + ?Sized,
+        T: Display,
+        M: MaybeObserver<T>,
     {
         let params = TEXT_PARAGRAPH.text(text);
         return self.add(params);
@@ -75,8 +75,8 @@ impl Ui {
     #[track_caller]
     pub fn label<'a, T, M>(&mut self, text: &'a M) -> UiParent
     where
-        T: Display + ?Sized,
-        M: MaybeObserver<T> + ?Sized,
+        T: Display,
+        M: MaybeObserver<T>,
     {
         let params = MULTILINE_LABEL.text(text);
         return self.add(params);
