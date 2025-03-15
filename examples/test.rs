@@ -17,6 +17,7 @@ impl ExampleLoop for State {
 
         ui.v_stack().nest(|| {
             ui.add(BUTTON.text(str_ref));
+            ui.add(BUTTON.text(&str_ref));
             ui.add(BUTTON.text(&string));
             ui.add(BUTTON.text(number.to_string().as_str()));
 

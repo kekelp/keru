@@ -27,7 +27,7 @@
 //! if self.show {
 //!     self.ui.v_stack().nest(|| {
 //!         self.ui.add(increase_button);
-//!         self.ui.label(&self.count);
+//!         self.ui.label(&self.count.to_string());
 //!     });
 //! }
 //! 

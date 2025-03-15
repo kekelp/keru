@@ -35,11 +35,7 @@ impl Ui {
 
     /// Add a single-line text element.
     #[track_caller]
-    pub fn text_line<'a, T, M>(&mut self, text: &'a M) -> UiParent
-    where
-        M: MaybeObserver<T> + ?Sized,
-        T: AsRef<str> + ?Sized + 'a,
-    {
+    pub fn text_line<'a>(&mut self, text: &'a (impl MaybeObservedText + ?Sized)) -> UiParent {
         let params = TEXT.text(text);
         return self.add(params);
     }
@@ -53,7 +49,7 @@ impl Ui {
 
     /// Add a multiline text paragraph.
     #[track_caller]
-    pub fn paragraph<'a, T: AsRef<str> + 'a>(&mut self, text: &'a impl MaybeObserver<T>) -> UiParent {
+    pub fn paragraph<'a>(&mut self, text: &'a (impl MaybeObservedText + ?Sized)) -> UiParent {
         let params = TEXT_PARAGRAPH.text(text);
         return self.add(params);
     }
@@ -68,11 +64,8 @@ impl Ui {
     /// Add a label.
     #[track_caller]
     // todo: all the other functions should use this new generic crap
-    pub fn label<'a, T, M>(&mut self, text: &'a M) -> UiParent
-    where
-        M: MaybeObserver<T> + ?Sized,
-        T: AsRef<str> + ?Sized + 'a,
-    {        let params = MULTILINE_LABEL.text(text);
+    pub fn label<'a>(&mut self, text: &'a (impl MaybeObservedText + ?Sized)) -> UiParent {
+        let params = MULTILINE_LABEL.text(text);
         return self.add(params);
     }
 
@@ -132,12 +125,11 @@ impl Ui {
 
             self.add(h_stack).nest(|| {
                 self.add(tabs_v_stack).nest(|| {
-                    let i = 0;
-                    for tab_name in tabs {
+                    for (i, tab_name) in tabs.iter().enumerate() {
                         let key_i = VERTICAL_TABS_TAB_BUTTON.sibling(i);
                         let active = i == *current_tab;
                         let tab = if active { active_tab } else { inactive_tab };
-                        let tab = tab.text(&tab_name.0).key(key_i);
+                        let tab = tab.static_text(tab_name.0).key(key_i);
                         self.add(tab);
                     }
                 });

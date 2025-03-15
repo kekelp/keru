@@ -1,6 +1,6 @@
 use crate::*;
 use crate::color::*;
-use std::{fmt::Display, hash::{Hash, Hasher}};
+use std::{hash::{Hash, Hasher}, ops::Deref};
 use rustc_hash::FxHasher;
 
 /// A struct describing the params of a GUI node.
@@ -716,17 +716,14 @@ impl<'a> FullNodeParams<'a> {
 impl NodeParams {
     /// Add text to the [`NodeParams`] from a `&'static str`.
     /// 
-    /// The [`Ui`] will have to hash `text` to determine if it needs to update the text shown on the screen. To avoid this performance penalty, use [`NodeParams::smart_text`], or [`NodeParams::static_text`] if `text` is an unchanging `'static str`. 
+    /// The [`Ui`] will have to hash `text` to determine if it needs to update the text shown on the screen. To avoid this performance penalty, use [`NodeParams::observed_text`], or [`NodeParams::static_text`] if `text` is an unchanging `'static str`. 
     
     // pub fn text<'a, T, M>(self, text: &'a M) -> FullNodeParams<'a>
     // where
     //     M: MaybeObserver<T> + ?Sized,
     //     T: AsRef<str> + ?Sized + 'a,
     // {
-    pub fn hashed_text<'a, T>(self, text: &'a T) -> FullNodeParams<'a> 
-    where 
-        T: AsRef<str> + ?Sized
-    {
+    pub fn hashed_text<'a>(self, text: &'a (impl AsRef<str> + ?Sized)) -> FullNodeParams<'a> {
         return FullNodeParams {
             params: self,
             text: Some(text.as_ref()),
@@ -741,20 +738,35 @@ impl NodeParams {
     /// `text` is assumed to be unchanged, so the [`Ui`] uses pointer equality to determine if it needs to update the text shown on screen.
     /// 
     /// If `text` changes, due to interior mutability or unsafe code, then the [`Ui`] will miss it.  
-    pub fn static_text(self, text: &'static str) -> FullNodeParams<'static> {
+    pub fn static_text(self, text: &'static (impl AsRef<str> + ?Sized)) -> FullNodeParams<'static> {
         return FullNodeParams {
             params: self,
-            text: Some(text),
+            text: Some(text.as_ref()),
             image: None,
             text_changed: Changed::Static,
             text_ptr: (&raw const text) as usize,
         }
     }
 
-    pub fn smart_text<'a>(self, text: Observer<&'a str>) -> FullNodeParams<'a> {
+    /// Add text to the [`NodeParams`] from a `&str` that is known to not be mutated during its lifetime.
+    /// 
+    /// Since the text is assumed to never change, the [`Ui`] can use pointer equality to determine if it needs to update the text shown on screen.
+    /// 
+    /// If `text` changes anyway, then the [`Ui`] will miss it.  
+    pub fn immut_text<'a>(self, text: &'a (impl AsRef<str> + ?Sized)) -> FullNodeParams<'a> {
         return FullNodeParams {
             params: self,
-            text: Some(&text),
+            text: Some(text.as_ref()),
+            image: None,
+            text_changed: Changed::Static,
+            text_ptr: (&raw const text) as usize,
+        }
+    }
+
+    pub fn observed_text<'a>(self, text: Observer<&'a (impl AsRef<str> + ?Sized)>) -> FullNodeParams<'a> {
+        return FullNodeParams {
+            params: self,
+            text: Some(&text.as_ref()),
             text_changed: text.changed_at(),
             text_ptr: (&raw const text) as usize,
             image: None,
@@ -957,77 +969,27 @@ impl Ui {
     }
 }
 
-/// A trait for types that can *optionally* observe changes to themselves and report them to an [`Ui`] for more efficient displaying.
-/// 
-/// This is implemented for:
-/// - any regular type `T`: no optimization. The [`Ui`] will probably have to hash or compare the value to see if it has changed.
-/// - [`Observer<T>`]: the [`Ui`] can skip hashing or comparing if the `Observer` didn't see any changes.
-/// - [`Static<T>`] and [`Immut<T>]`: the [`Ui`] can always assume the values didn't change.
-/// 
-/// 
-/// ```
-/// # use keru::*;
-/// let regular_string = "regular string".to_string();
-/// 
-/// let observed_string = Observer::new("observed string".to_string());
-/// 
-/// // NodeParams::text()'s argument is a MaybeObserver, so can take both a regular String and an Observed<String> 
-/// let label_params = LABEL.text(&regular_string); // no optimization
-/// let label_params = LABEL.text(&observed_string); // when this is added to the Ui, it will check if it has changed, and potentially skip some work.
-/// ```
-/// 
-/// # Notes
-/// 
-/// The logical thing would be to implement `MaybeObserver` for any `T` and any `Observer<T>`, but this is not possible in current Rust. This problem is mostly solved by implementing it only for the types and traits that are exposed by functions like [`NodeParams::text()`], plus some compromises on [`Observer`]'s `Deref`ing abilities.
-pub trait MaybeObserver<T: ?Sized> {
-    fn value(&self) -> &T;
-    fn changed_at(&self) -> Changed;
-}
-
 impl NodeParams {
     /// Add text to the [`NodeParams`].
     /// 
-    /// The `text` argument can be a `&str`, a `String`, or any type that implements [`Display`], possibly wrapped by an [`Observer`], [`Static`] or [`Immut`] for efficiency.
+    /// The `text` argument can be a `&str`, a `String`, or any type that implements [`AsRef<str>`].
     /// 
+    /// It can optionally wrapped by an [`Observer`], [`Static`] or [`Immut`] for efficiency.
     /// 
-    /// If a non-[`Observer`] type is used, the [`Ui`] will fall back to hashing the string to determine if the text needs updating.
+    /// If a plain non-[`Observer`] type is used, the [`Ui`] will fall back to hashing the text to determine if the text needs updating.
     /// 
-    /// This single generic function might be replaced by three separate functions: `hashed_text()`, `static_text()`, `observed_text()`, or similar. 
-    pub fn text<'a, T, M>(self, text: &'a M) -> FullNodeParams<'a>
-    where
-        M: MaybeObserver<T> + ?Sized,
-        T: AsRef<str> + ?Sized + 'a,
-    {
-        return FullNodeParams {
+    /// Instead of this single generic function, you can also use [`Self::hashed_text()`], [`Self::static_text()`], [`Self::immut_text()`], or [`Self::observed_text()`].
+    pub fn text<'a>(self, text: &'a (impl MaybeObservedText + ?Sized)) -> FullNodeParams<'a> {
+        FullNodeParams {
             params: self,
-            text: Some(text.value().as_ref()),
+            text: Some(text.as_text()),
             image: None,
             text_changed: text.changed_at(),
             text_ptr: (&raw const text) as usize,
-        };
+        }
     }
 }
 
-
-impl<T: AsRef<str> + ?Sized> MaybeObserver<T> for T {
-    fn value(&self) -> &T {
-        self
-    }
-
-    fn changed_at(&self) -> Changed {
-        Changed::NeedsHash
-    }
-}
-
-impl<T: AsRef<str>> MaybeObserver<T> for Observer<T> {
-    fn value(&self) -> &T {
-        self
-    }
-
-    fn changed_at(&self) -> Changed {
-        self.changed_at()
-    }
-}
 
 /// A wrapper struct for a `'static` value that will never change during its lifetime.
 /// 
@@ -1054,16 +1016,12 @@ impl<T: AsRef<str>> MaybeObserver<T> for Observer<T> {
 /// This is needed because Rust doesn't support lifetime specialization.
 pub struct Static<T: 'static + ?Sized>(pub &'static T);
 
-impl<T: AsRef<str> + 'static + ?Sized> MaybeObserver<T> for Static<T> {
-    fn value(&self) -> &T {
+impl<T: ?Sized> Deref for Static<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
         &self.0
     }
-    
-    fn changed_at(&self) -> Changed {
-        Changed::Static
-    }
 }
-
 
 /// A wrapper struct for a value that will never change during its lifetime.
 /// 
@@ -1074,9 +1032,57 @@ impl<T: AsRef<str> + 'static + ?Sized> MaybeObserver<T> for Static<T> {
 /// You can always use an [`Observer<T>`](`Observer`) or a raw `T` to avoid this risk. If a raw `T` is passed, the [`Ui`] will hash the resulting text to make sure it stays synced.
 pub struct Immut<T: ?Sized>(pub T);
 
-impl<T: AsRef<str> + ?Sized> MaybeObserver<T> for Immut<T> {
-    fn value(&self) -> &T {
+impl<T: ?Sized> Deref for Immut<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+
+pub trait MaybeObservedText {
+    // Get the text content
+    fn as_text(&self) -> &str;
+    
+    // Check if the text has changed
+    fn changed_at(&self) -> Changed;
+}
+
+// Generic implementation for any type that implements AsRef<str>
+impl<T: AsRef<str> + ?Sized> MaybeObservedText for T {
+    fn as_text(&self) -> &str {
+        self.as_ref()
+    }
+    
+    fn changed_at(&self) -> Changed {
+        Changed::NeedsHash
+    }
+}
+
+// Observer can't be ?Sized because it physically holds the T as a field
+impl<T: AsRef<str>> MaybeObservedText for Observer<T> {
+    fn as_text(&self) -> &str {
+        self.as_ref()
+    }
+    
+    fn changed_at(&self) -> Changed {
+        self.changed_at()
+    }
+}
+
+impl<T: AsRef<str> + ?Sized> MaybeObservedText for Static<T> {
+    fn as_text(&self) -> &str {
+        self.as_ref()
+    }
+    
+    fn changed_at(&self) -> Changed {
+        Changed::Static
+    }
+}
+
+impl<T: AsRef<str> + ?Sized> MaybeObservedText for Immut<T> {
+    fn as_text(&self) -> &str {
+        self.as_ref()
     }
     
     fn changed_at(&self) -> Changed {

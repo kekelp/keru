@@ -25,7 +25,7 @@ impl Ui {
     ///     let state_changed = ui.check_changes(score);
     ///     ui.reactive(state_changed).start(|| {
     ///         // as long as the GUI code inside here depends only on the value of `score`, this is correct.
-    ///         ui.label(score);
+    ///         ui.label(&score.to_string());
     ///         // if it depended on something like the system's time,
     ///         // the reactive block would incorrectly skip updating it.
     ///     });    
