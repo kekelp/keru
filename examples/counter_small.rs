@@ -1,7 +1,7 @@
 
 
-use keru::*;
 use keru::example_window_loop::*;
+use keru::*;
 
 #[derive(Default)]
 pub struct State {
@@ -11,7 +11,7 @@ pub struct State {
 impl ExampleLoop for State {
     fn update_ui(&mut self, ui: &mut Ui) {
         #[node_key] const INCREASE: NodeKey;
-        
+
         if ui.is_clicked(INCREASE) {
             self.count += 1;
         }
@@ -22,10 +22,9 @@ impl ExampleLoop for State {
             .key(INCREASE);
 
         ui.v_stack().nest(|| {
-            ui.add(increase_button);
             ui.label(&self.count.to_string());
+            ui.add(increase_button);
         });
-
     }
 }
 
@@ -33,9 +32,5 @@ fn main() {
     let state = State::default();
     run_example_loop(state);
 }
-
-
-
-
 
 
