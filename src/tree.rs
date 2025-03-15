@@ -436,7 +436,7 @@ impl Ui {
         
         self.sys.third_last_frame_end_fake_time = self.sys.second_last_frame_end_fake_time;
         self.sys.second_last_frame_end_fake_time = self.sys.last_frame_end_fake_time;
-        self.sys.last_frame_end_fake_time = fake_time_now();
+        self.sys.last_frame_end_fake_time = observer_timestamp();
 
 
         if self.sys.new_ui_input > 0 {
