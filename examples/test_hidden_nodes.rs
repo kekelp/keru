@@ -42,7 +42,7 @@ impl ExampleLoop for State {
             .color(Color::KERU_RED)
             .size_symm(Size::FitContent)
             .position_y(Position::End)
-            .static_text("Show")
+            .static_text(&"Show")
             .key(SHOW);
 
 
@@ -52,7 +52,7 @@ impl ExampleLoop for State {
                     ui.add(c3).nest(|| {
                         ui.add(c4).nest(|| {
                             ui.add(c5).nest(|| {
-                                ui.static_text_line("Suh")
+                                ui.static_text_line(&"Suh")
                             });
                         });
                     });

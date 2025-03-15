@@ -48,7 +48,7 @@ impl Ui {
 
     /// Add a single-line text element from a `'static str`.
     #[track_caller]
-    pub fn static_text_line(&mut self, text: &'static str) -> UiParent {
+    pub fn static_text_line(&mut self, text: &'static &'static str) -> UiParent {
         let params = TEXT.static_text(text);
         return self.add(params);
     }
@@ -66,7 +66,7 @@ impl Ui {
 
     /// Add a multiline text paragraph from a `'static str`.
     #[track_caller]
-    pub fn static_paragraph(&mut self, text: &'static str) -> UiParent {
+    pub fn static_paragraph(&mut self, text: &'static &'static str) -> UiParent {
         let params = TEXT_PARAGRAPH.static_text(text);
         return self.add(params);
     }
@@ -84,7 +84,7 @@ impl Ui {
 
     /// Add a label from a `&static str`.
     #[track_caller]
-    pub fn static_label(&mut self, text: &'static str) -> UiParent {
+    pub fn static_label(&mut self, text: &'static &'static str) -> UiParent {
         let params = MULTILINE_LABEL.static_text(text);
         return self.add(params);
     }
@@ -138,11 +138,12 @@ impl Ui {
 
             self.add(h_stack).nest(|| {
                 self.add(tabs_v_stack).nest(|| {
-                    for (i, name) in tabs.iter().enumerate() {
+                    let i = 0;
+                    for tab_name in tabs {
                         let key_i = VERTICAL_TABS_TAB_BUTTON.sibling(i);
                         let active = i == *current_tab;
                         let tab = if active { active_tab } else { inactive_tab };
-                        let tab = tab.static_text(&name.0).key(key_i);
+                        let tab = tab.text(&tab_name.0).key(key_i);
                         self.add(tab);
                     }
                 });

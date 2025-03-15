@@ -467,9 +467,9 @@ impl NodeParams {
     }
 }
 
-/// An extended version of [`NodeParams`] that can hold borrowed data.
+/// An extended version of [`NodeParams`] that can hold text or other borrowed data.
 /// 
-/// Created starting from a [`NodeParams`] and using methods that add text, images, etc. to it, like [`NodeParams::text()`].
+/// Created starting from a [`NodeParams`] and using methods like [`NodeParams::text()`].
 /// 
 /// Can be used in the same way as [`NodeParams`].
 #[derive(Copy, Clone)]
@@ -732,10 +732,10 @@ impl NodeParams {
     /// `text` is assumed to be unchanged, so the [`Ui`] uses pointer equality to determine if it needs to update the text shown on screen.
     /// 
     /// If `text` changes, due to interior mutability or unsafe code, then the [`Ui`] will miss it.  
-    pub fn static_text(self, text: &'static str) -> FullNodeParams<'static, str> {
+    pub fn static_text<'a>(self, text: &'a &'static str) -> FullNodeParams<'static, &'a str> {
         return FullNodeParams {
             params: self,
-            text: Some(text),
+            text: Some(&text),
             image: None,
             text_changed: Changed::Static,
             text_ptr: (&raw const text) as usize,

@@ -28,12 +28,12 @@ impl Components for Ui {
     fn components_tab(&mut self, state: &mut State) {
         self.add(V_SCROLL_STACK).nest(|| {
             self.static_paragraph(
-                "Keru is an experimental Graphical User Interface library, with the goal of being as easy to use as immediate mode libraries (and even a bit easier), but without the downsides of immediate mode.\n\n\
+                &"Keru is an experimental Graphical User Interface library, with the goal of being as easy to use as immediate mode libraries (and even a bit easier), but without the downsides of immediate mode.\n\n\
                 I think the experiment has fairly successful. However, there's still a lot missing features and edge cases that aren't handled well.\n\n"
             );
 
-            self.static_paragraph("Here are some basic GUI elements: \n");
-            self.static_paragraph("Button and label:");
+            self.static_paragraph(&"Here are some basic GUI elements: \n");
+            self.static_paragraph(&"Button and label:");
 
             self.h_stack().nest(|| {
                 if self.add(BUTTON.text("Increase")).is_clicked(self) {
@@ -43,17 +43,17 @@ impl Components for Ui {
                 self.label(&text);
             });
 
-            self.static_paragraph("Fat slider:");
+            self.static_paragraph(&"Fat slider:");
             self.slider(&mut state.f32_value, 0.0, 100.0);
 
-            self.static_paragraph("Classic slider:");
+            self.static_paragraph(&"Classic slider:");
             self.classic_slider(&mut state.f32_value, 0.0, 100.0);
 
             self.static_paragraph(
-                "Press F1 for Inspect mode. This lets you see the bounds of the layout rectangles. \n\n\
+                &"Press F1 for Inspect mode. This lets you see the bounds of the layout rectangles. \n\n\
                 In Inspect mode, hovering nodes will also log an Info message with the node's debug name and source code location."
             );
-            self.static_paragraph("Thanks for checking it out!")
+            self.static_paragraph(&"Thanks for checking it out!")
         });
     }
 
@@ -66,7 +66,7 @@ impl Components for Ui {
 
         self.add(v_stack).nest(|| {
             self.static_label(
-                "Currently, Keru uses Cosmic Text and Glyphon for rendering text. \n\n\
+                &"Currently, Keru uses Cosmic Text and Glyphon for rendering text. \n\n\
                 This means that international text already works. \n\n\
                 However, the integration isn't very good yet. Keru might switch to another library soon. \n\n\
                 If you notice some stuttering when the text below first comes into view, that's Glyphon's fault."
@@ -80,12 +80,12 @@ impl Components for Ui {
     fn weird_tab(&mut self, _state: &mut State) {
         let big_button = BUTTON
             .size_symm(Size::Fill)
-            .static_text("Button that is also a Stack")
+            .static_text(&"Button that is also a Stack")
             .stack(Axis::Y, Arrange::Center, 10);
 
         let nested_button_1 = BUTTON
             .size_y(Size::Frac(0.3))
-            .static_text("Everything is a node");
+            .static_text(&"Everything is a node");
         let nested_button_2 = BUTTON
             .size_y(Size::Frac(0.2))
             .size_x(Size::Fill)

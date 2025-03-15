@@ -9,17 +9,17 @@ pub struct State {
 
 impl ExampleLoop for State {
     fn update_ui(&mut self, ui: &mut Ui) {
-        #[node_key] const MOVING_NODE: NodeKey;
-        #[node_key] const V_STACK_KEY: NodeKey;
-        #[node_key] const SHOW: NodeKey;
-        #[node_key] const CONT_1: NodeKey;
-        #[node_key] const CONT_2: NodeKey;
+        let moving_node = BUTTON.text(&"Sneed");
 
-        let button = BUTTON.size_symm(Size::Pixels(200));
-
-        ui.add(V_STACK.key(V_STACK_KEY)).nest(|| {
-            ui.add(button);
-            ui.add(button);
+        ui.add(BUTTON.text("My child will type sneed2")).nest(|| {
+            if self.show {
+                ui.add(moving_node);
+            }
+        });
+        ui.add(BUTTON.text("My child will type sneed1")).nest(|| {
+            if ! self.show {
+                ui.add(moving_node);
+            }
         });
     }
 }
