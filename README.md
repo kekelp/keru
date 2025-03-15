@@ -7,34 +7,6 @@ The goal of the library is to be as easy to use as immediate mode libraries (and
 
 See the [docs for the master branch](https://kekelp.github.io/keru/keru/index.html) for more information.
 
-## Code Example
-
-```rust
-// Define a unique identity for this button
-#[node_key] const INCREASE: NodeKey;
-
-// Create a NodeParams struct describing a button
-let increase_button = BUTTON
-    .color(Color::RED)
-    .text("Increase")
-    .key(INCREASE);
-
-// Place the nodes into the tree and define the layout
-ui.v_stack().nest(|| {
-    if self.show {
-        ui.add(increase_button);
-        ui.label(&self.count); // This one doesn't need a key.
-    }
-});
-
-// Run code in response to events
-if ui.is_clicked(INCREASE) {
-    self.count += 1;
-}
-// `is_clicked()` can be also called as a chained method after `ui.add(increase_button)`.
-// In that case, using a key is not necessary.
-```
-
 ## Screenshots
 
 A simple counter and the code that generates it. Implementing `ExampleLoop` is needed to use the `run_example_loop` helper, but the normal way to use Keru is from a user-managed `winit`/`wgpu` loop. 
