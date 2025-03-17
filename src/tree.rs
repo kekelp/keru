@@ -662,11 +662,69 @@ pub(crate) fn fx_hash<T: Hash>(value: &T) -> u64 {
 }
 
 #[track_caller]
-pub(crate) fn caller_location_hash() -> u64 {
+pub(crate) fn caller_location_id() -> u64 {
     let location = Location::caller();
-    // it would be cool to avoid doing all these hashes at runtime, somehow.
-    let caller_location_hash = fx_hash(location);
-    return caller_location_hash;
+    // Pointer equality probably works?
+    // https://rustc-dev-guide.rust-lang.org/backend/implicit-caller-location.html#generating-code-for-track_caller-callees
+    // This relies on `Location::internal_constructor` being const folded, and also other things. It's definitely not guaranteed.
+    // Neither false positives nor false negatives are the end of the world though.
+    // If this turns out to be dumb, just go back to hashing it.
+    // Ideally the magic track_caller mechanism would just insert a compile-time hash.
+    return &raw const (*location) as u64;
+}
+
+#[cfg(test)]
+mod test_caller_location_id {
+    use crate::caller_location_id;
+
+    #[test]
+    fn test_different() {
+        fn no_duplicates<T: Eq + std::hash::Hash>(vec: &[T]) -> bool {
+            let mut seen = std::collections::HashSet::new();
+            vec.iter().all(|item| seen.insert(item))
+        }
+
+        let mut vec = Vec::with_capacity(50);
+        vec.push(caller_location_id());
+        vec.push(caller_location_id());
+        vec.push(caller_location_id());
+        vec.push(caller_location_id());
+        vec.push(caller_location_id());
+        vec.push(caller_location_id());
+        vec.push(caller_location_id());
+        vec.push(caller_location_id());
+        vec.push(caller_location_id());
+        vec.push(caller_location_id());
+        vec.push(caller_location_id());
+        vec.push(caller_location_id());
+        vec.push(caller_location_id());
+        vec.push(caller_location_id());
+        vec.push(caller_location_id());
+        vec.push(caller_location_id());
+        vec.push(caller_location_id());
+        vec.push(caller_location_id());
+        vec.push(caller_location_id());
+        vec.push(caller_location_id());
+        vec.push(caller_location_id());
+        vec.push(caller_location_id());
+
+        assert!(no_duplicates(&vec));
+    }
+
+    #[test]
+    fn test_same() {
+        fn all_same<T: PartialEq>(vec: &[T]) -> bool {   
+            let first = &vec[0];
+            vec.iter().all(|item| item == first)
+        }
+
+        let mut vec = Vec::with_capacity(50);
+        for _ in 0..200 {
+            vec.push(caller_location_id());
+        }
+
+        assert!(all_same(&vec));
+    }
 }
 
 /// A struct referring to a node that was [`added`](Ui::add) on the tree.
