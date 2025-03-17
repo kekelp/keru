@@ -54,7 +54,7 @@ pub fn run_example_loop<S: ExampleLoop>(state: S) {
     let event_loop = EventLoop::new().unwrap();
     event_loop.set_control_flow(ControlFlow::Wait);
 
-    let ctx = Context::init();
+    let ctx = Context::new();
     let ui = Ui::new(&ctx.device, &ctx.queue, &ctx.surface_config);
 
     let mut full_state = FullState {

@@ -1,9 +1,7 @@
 //! Helper functions for `winit` and `wgpu`.
 pub use wgpu::{CommandEncoderDescriptor, TextureViewDescriptor};
 pub use winit::{error::EventLoopError, event::Event, event_loop::EventLoop};
-use winit::{
-    event_loop::ActiveEventLoop, window::*,
-};
+use winit::{event_loop::ActiveEventLoop, window::*};
 
 use std::{
     ops::{Deref, DerefMut},
@@ -93,8 +91,14 @@ impl<T> DerefMut for AutoUnwrap<T> {
 }
 
 pub struct Context {
-    // To avoid panics, just do the same thing as you'd do anyway: initialize the window in `resumed()`, and never set it to None
+    // Winit wants us to initialize all our stuff before it actually creates a window for us, so the best we can do is creating something like an Option, set it to None initially, and then put the window there when we finally get it.
+    // This sort of makes sense: during its lifetime a process can have a variable number of window ranging from zero to multiple. So in the general case you'd have something like a Vec of windows that can be empty. An Option is a simpler version of that.
+    // But for most programs including this basic example, none of this is relevant, there's only one window that lasts for the whole duration of the program, and even having to unwrap an Option every time we want to use it is just annoying for no good reason.
+    // Luckily, we can avoid that with this AutoUnwrap struct. Normally this would be a very weird thing to do, but Winit's loop is weird enough that it makes sense here.
+    //
+    // The Arc is needed for even more arcane reasons.
     pub window: AutoUnwrap<Arc<WinitWindow>>,
+
     pub surface: AutoUnwrap<Surface<'static>>,
 
     pub surface_config: SurfaceConfiguration,
@@ -106,10 +110,10 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn init() -> Self {
-        // just garbage numbers because of the weird winit loop
-        // at this point we don't even have a window
-        // the correct size will be set on the first resize event
+    pub fn new() -> Self {
+        // At this point we don't even have a window, so it doesn't matter what we write here.
+        // Again, the winit loop is a bit weird.
+        // The correct size will be set on the first resize event.
         let (width, height) = (1920, 1080);
 
         let (instance, device, queue) = basic_wgpu_init();
@@ -135,9 +139,7 @@ impl Context {
     pub fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let window = Arc::new(
             event_loop
-                .create_window(
-                    Window::default_attributes(),
-                )
+                .create_window(Window::default_attributes())
                 .unwrap(),
         );
 
@@ -167,9 +169,7 @@ impl Context {
         }
     }
 
-    pub fn resize(&mut self, _size: PhysicalSize<u32>) {
-        // Should use the size argument, but this seems to work better.
-        let size = self.window.inner_size();
+    pub fn resize(&mut self, size: PhysicalSize<u32>) {
         self.surface_config.width = size.width;
         self.surface_config.height = size.height;
         self.surface.configure(&self.device, &self.surface_config);
@@ -193,17 +193,17 @@ impl Context {
             .device
             .create_command_encoder(&CommandEncoderDescriptor::default());
 
-        let frame = self.surface.get_current_texture().unwrap();
+        let surface_texture = self.surface.get_current_texture().unwrap();
 
         // todo: why recreate the views on every frame?
-        let view = frame.texture.create_view(&TextureViewDescriptor::default());
+        let view = surface_texture.texture.create_view(&TextureViewDescriptor::default());
         let depth_stencil_view = self
             .depth_stencil_texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
         return RenderFrame {
             encoder,
-            frame,
+            surface_texture,
             view,
             depth_stencil_view,
         };
@@ -223,7 +223,7 @@ impl Context {
 
 pub struct RenderFrame {
     pub encoder: CommandEncoder,
-    pub frame: SurfaceTexture,
+    pub surface_texture: SurfaceTexture,
     pub view: TextureView,
     pub depth_stencil_view: TextureView,
 }
@@ -248,7 +248,7 @@ impl RenderFrame {
     pub fn finish(self, ctx: &Context) {
         ctx.queue.submit(Some(self.encoder.finish()));
         ctx.window.pre_present_notify();
-        self.frame.present();
+        self.surface_texture.present();
     }
 }
 

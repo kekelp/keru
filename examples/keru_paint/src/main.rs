@@ -28,7 +28,7 @@ fn main() {
     let event_loop = EventLoop::new().unwrap();
     event_loop.set_control_flow(ControlFlow::Wait);
 
-    let ctx = Context::init();
+    let ctx = Context::new();
 
     let mut state = State::new(ctx);
 
