@@ -138,7 +138,7 @@ impl State {
         }
 
         self.ctx.window.pre_present_notify();
-        frame.finish(&self.ctx);
+        self.ctx.finish_frame(frame);
     }
 
 

@@ -98,7 +98,6 @@ pub struct Context {
     //
     // The Arc is needed for even more arcane reasons.
     pub window: AutoUnwrap<Arc<WinitWindow>>,
-
     pub surface: AutoUnwrap<Surface<'static>>,
 
     pub surface_config: SurfaceConfiguration,
@@ -195,8 +194,9 @@ impl Context {
 
         let surface_texture = self.surface.get_current_texture().unwrap();
 
-        // todo: why recreate the views on every frame?
         let view = surface_texture.texture.create_view(&TextureViewDescriptor::default());
+        
+        // maybe we could avoid recreating this view every time.
         let depth_stencil_view = self
             .depth_stencil_texture
             .create_view(&wgpu::TextureViewDescriptor::default());
@@ -209,15 +209,22 @@ impl Context {
         };
     }
 
+    pub fn finish_frame(&mut self, frame: RenderFrame) {
+        self.queue.submit(Some(frame.encoder.finish()));
+        self.window.pre_present_notify();
+        frame.surface_texture.present();
+    }
+
     pub fn render_ui(&mut self, ui: &mut Ui) {
         let mut frame = self.begin_frame();
 
+        // Without these brackets, wgpu panics.
         {
             let mut render_pass = frame.begin_render_pass(BACKGROUND_GREY);
             ui.render(&mut render_pass, &self.device, &self.queue);
         }
-
-        frame.finish(self);
+        
+        self.finish_frame(frame);
     }
 }
 
@@ -243,12 +250,6 @@ impl RenderFrame {
         };
         let render_pass = self.encoder.begin_render_pass(&render_pass_desc);
         return render_pass;
-    }
-
-    pub fn finish(self, ctx: &Context) {
-        ctx.queue.submit(Some(self.encoder.finish()));
-        ctx.window.pre_present_notify();
-        self.surface_texture.present();
     }
 }
 
