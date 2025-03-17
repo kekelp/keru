@@ -7,6 +7,7 @@ use crate::Axis::{X, Y};
 
 pub(crate) const ANIMATION_RERENDER_TIME: f32 = 0.5;
 
+/// A struct describing a click event on a GUI node.
 #[derive(Clone, Copy, Debug)]
 pub struct Click {
     pub absolute_position: glam::DVec2,
@@ -14,6 +15,7 @@ pub struct Click {
     pub timestamp: Instant,
 }
 
+/// A struct describing a drag event on a GUI node.
 #[derive(Clone, Copy, Debug)]
 pub struct Drag {
     /// Position relative to the node (0.0 to 1.0 in each dimension)
@@ -112,7 +114,7 @@ impl Ui {
 
     /// Returns `true` if the node corresponding to `key` was just clicked with the left mouse button.
     /// 
-    /// This is "act on press". For "act on release", see [is_click_released()](Self::is_click_released()).
+    /// This is "act on press". For "act on release", see [`Self::is_click_released()`].
     pub fn is_clicked(&mut self, node_key: NodeKey) -> bool {
         let id = node_key.id_with_subtree();
         #[cfg(debug_assertions)] {
@@ -419,7 +421,7 @@ impl Ui {
         return consumed;
     }
 
-    pub(crate) fn scan_mouse_hits(&mut self, see_invisible_rects: bool) -> Option<Id> {
+    pub(crate) fn scan_mouse_hits(&mut self, _see_invisible_rects: bool) -> Option<Id> {
         self.sys.mouse_hit_stack.clear();
 
         for clk_i in 0..self.sys.click_rects.len() {
@@ -427,7 +429,7 @@ impl Ui {
             
             // in release mode, if a node is not absorbs_mouse_events it won't have a click_rect in the first place
             #[cfg(debug_assertions)] {
-                if ! see_invisible_rects && ! self.nodes[clk_rect.i].params.interact.absorbs_mouse_events {
+                if ! _see_invisible_rects && ! self.nodes[clk_rect.i].params.interact.absorbs_mouse_events {
                     continue;
                 }
             }

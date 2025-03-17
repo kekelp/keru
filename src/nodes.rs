@@ -80,6 +80,7 @@ impl Nodes {
         return Some((&mut self.nodes[i.slab_i.as_usize()], i.slab_i));
     }
 
+    #[allow(dead_code)]
     pub(crate) fn get_by_id(&self, id: &Id) -> Option<(&Node, NodeI)> {
         let i = self.node_hashmap.get(id)?;
         return Some((&self.nodes[i.slab_i.as_usize()], i.slab_i));

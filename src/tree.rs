@@ -4,7 +4,6 @@ use std::collections::hash_map::Entry;
 use std::hash::Hasher;
 use std::panic::Location;
 use bytemuck::{Pod, Zeroable};
-use std::fmt::{Display, Write};
 
 /// An `u64` identifier for a GUI node.
 /// 
@@ -22,13 +21,6 @@ pub(crate) const Z_BACKDROP: f32 = 0.5;
 pub(crate) const Z_STEP: f32 = -0.000_030_517_578;
 
 impl Ui {
-    // todo: this function writes into format_scratch, doesn't tell anybody anything, and then expects people to get their string directly from self.format_scratch. is it really impossible to just return a reference? 
-    pub(crate) fn format_into_scratch(&mut self, value: impl Display) {
-        self.format_scratch.clear();
-        let _ = write!(self.format_scratch, "{}", value);
-    }
-
-
     /// Add a node to the `Ui` with the properties described by `params`.
     /// 
     /// `params` can be a basic [`NodeParams`] or a [`FullNodeParams`] created from it.

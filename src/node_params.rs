@@ -866,56 +866,62 @@ impl Ui {
         }
         
         self.nodes[i].last_text_ptr = params.text_ptr;
-        self.format_into_scratch(text);
 
-        // todo: we're doing the hash twice in debug mode to do this check
         #[cfg(debug_assertions)]
-        if reactive::is_in_skipped_reactive_block() {
-            let hash = fx_hash(&self.format_scratch);
-            let mut error = false;
-            if let Some(last_hash) = self.nodes[i].last_text_hash {
-                if last_hash != hash {
+        let hash: u64;
+
+        #[cfg(debug_assertions)] {
+            hash = fx_hash(&text);
+            if reactive::is_in_skipped_reactive_block() {
+                let mut error = false;
+                if let Some(last_hash) = self.nodes[i].last_text_hash {
+                    if last_hash != hash {
+                        error = true;
+                    }
+                    self.nodes[i].last_text_hash = Some(hash); 
+                } else {
+                    // this is probably wrong too
                     error = true;
                 }
-                self.nodes[i].last_text_hash = Some(hash); 
-            } else {
-                // this is probably wrong too
-                error = true;
-            }
-            if error {
-                log::error!("Keru: incorrect reactive block: the text on node \"{}\" changed, but reactive thought they didn't", self.node_debug_name_fmt_scratch(i));
-                return;
-
+                if error {
+                    log::error!("Keru: incorrect reactive block: the text on node \"{}\" changed, but reactive thought they didn't", self.node_debug_name_fmt_scratch(i));
+                    return;
+                    
+                }
             }
         }
-
+            
         match text_verdict {
-            TextVerdict::Skip => { unreachable!("lol") },
+            TextVerdict::Skip => { unreachable!("I forgot why") },
             TextVerdict::HashAndSee => {
                 if self.nodes[i].text_id.is_some() {
-                    let hash = fx_hash(&self.format_scratch);
+
+                    #[cfg(not(debug_assertions))]
+                    let hash = fx_hash(&text);
+                    
+
                     if let Some(last_hash) = self.nodes[i].last_text_hash {
                         if hash != last_hash {
 
                             log::trace!("Updating after hash");
                             self.nodes[i].last_text_hash = Some(hash);                    
-                            self.get_uinode(i).text_from_fmtscratch();
+                            self.get_uinode(i).set_text(text);
                         } else {
                             log::trace!("Skipping after hash");
                         }
                         
                     } else {
-                        self.get_uinode(i).text_from_fmtscratch();
+                        self.get_uinode(i).set_text(text);
                         self.nodes[i].last_text_hash = Some(hash);                    
                     }
                 } else {
                     log::trace!("Updating (node had no text)");
-                    self.get_uinode(i).text_from_fmtscratch();
+                    self.get_uinode(i).set_text(text);
                 }
             },
             TextVerdict::UpdateWithoutHashing => {
                 log::trace!("Updating without hash");
-                self.get_uinode(i).text_from_fmtscratch();
+                self.get_uinode(i).set_text(text);
                 self.nodes[i].last_text_hash = None;
                 // todo, think about this a bit more. we lose the hash.
             },

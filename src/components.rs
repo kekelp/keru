@@ -250,6 +250,7 @@ impl Ui {
             let slider_container = CONTAINER
                 .size_x(Size::Fill)
                 .size_y(Size::Pixels(45))
+                .padding_x(0)
                 .key(SLIDER_CONTAINER);
             
             #[node_key] const HITBOX: NodeKey;

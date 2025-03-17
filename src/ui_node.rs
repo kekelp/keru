@@ -117,14 +117,12 @@ impl UiNode<'_> {
 
 impl UiNode<'_> {
     // todo: move to Ui, or just merge with set_params_text, or something
-    pub(crate) fn text_from_fmtscratch(&mut self) -> &mut Self {
-        // assume that the caller wrote the text into format_scratch...
-
+    pub(crate) fn set_text(&mut self, text: &str) -> &mut Self {
         if let Some(text_id) = self.node_mut().text_id {
             let area = &mut self.ui.sys.text.text_areas[text_id];
             area.buffer.set_text(
                 &mut self.ui.sys.text.font_system,
-                &self.ui.format_scratch,
+                text,
                 Attrs::new().family(Family::SansSerif),
                 Shaping::Advanced,
             );
@@ -136,7 +134,7 @@ impl UiNode<'_> {
                 .ui
                 .sys
                 .text
-                .maybe_new_text_area(Some(&self.ui.format_scratch), self.ui.sys.current_frame);
+                .maybe_new_text_area(Some(&text), self.ui.sys.current_frame);
             self.node_mut().text_id = text_id;
             self.ui.push_text_change(self.i);
         }

@@ -83,7 +83,7 @@ impl Ui {
     /// - The `Observer` struct can't keep track of changes made through interior mutability or unsafe code.
     ///
     /// # Example
-    /// See the "reactive" example in the repository.
+    /// See the "reactive_block" example in the repository.
     pub fn check_changes<T>(&self, observer: &mut Observer<T>) -> bool {
         return observer.changed_at > self.sys.third_last_frame_end_fake_time;
     }
