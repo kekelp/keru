@@ -1,5 +1,4 @@
 use std::{fmt::Debug, hash::{Hash, Hasher}};
-use rustc_hash::FxHasher;
 
 use crate::*;
 
@@ -25,7 +24,7 @@ impl NodeKey {
     pub(crate) fn id_with_subtree(&self) -> Id {
         
         if let Some(subtree_id) = thread_local::last_subtree() {
-            let mut hasher = FxHasher::default();
+            let mut hasher = ahasher();
             subtree_id.hash(&mut hasher);
             self.id.hash(&mut hasher);
             return Id(hasher.finish());
@@ -45,7 +44,7 @@ impl NodeKey {
     /// }
     /// ```
     pub fn sibling<H: Hash>(self, value: H) -> Self {
-        let mut hasher = FxHasher::default();
+        let mut hasher = ahasher();
         self.id.0.hash(&mut hasher);
         value.hash(&mut hasher);
         let new_id = hasher.finish();

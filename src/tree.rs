@@ -1,5 +1,4 @@
 use crate::*;
-use rustc_hash::FxHasher;
 use std::collections::hash_map::Entry;
 use std::hash::Hasher;
 use std::panic::Location;
@@ -636,7 +635,7 @@ impl Ui {
         let current_parent = thread_local::current_parent();
         let current_last_child = self.nodes[current_parent.i].last_child;
 
-        let mut hasher = FxHasher::default();
+        let mut hasher = ahasher();
             
         current_parent.hash(&mut hasher);
         current_last_child.hash(&mut hasher);
@@ -646,9 +645,14 @@ impl Ui {
 }
 
 
+pub(crate) fn ahasher() -> ahash::AHasher {
+    ahash::RandomState::with_seeds(567899776617, 113565788, 68634584565675377, 54345456222646).build_hasher()
+}
+
 use std::hash::Hash;
-pub(crate) fn fx_hash<T: Hash>(value: &T) -> u64 {
-    let mut hasher = FxHasher::default();
+use std::hash::BuildHasher;
+pub(crate) fn ahash<T: Hash>(value: &T) -> u64 {
+    let mut hasher = ahasher();
     value.hash(&mut hasher);
     hasher.finish()
 }

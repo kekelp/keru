@@ -8,7 +8,6 @@ use keru::Position::*;
 pub struct Tab(pub &'static str);
 
 impl Ui {
-
     /// Add a panel.
     #[track_caller]
     pub fn panel(&mut self) -> UiParent {
@@ -42,7 +41,7 @@ impl Ui {
 
     /// Add a single-line text element from a `'static str`.
     #[track_caller]
-    pub fn static_text_line(&mut self, text: &'static &'static str) -> UiParent {
+    pub fn static_text_line(&mut self, text: &'static str) -> UiParent {
         let params = TEXT.static_text(text);
         return self.add(params);
     }
@@ -56,14 +55,13 @@ impl Ui {
 
     /// Add a multiline text paragraph from a `'static str`.
     #[track_caller]
-    pub fn static_paragraph(&mut self, text: &'static &'static str) -> UiParent {
+    pub fn static_paragraph(&mut self, text: &'static str) -> UiParent {
         let params = TEXT_PARAGRAPH.static_text(text);
         return self.add(params);
     }
 
     /// Add a label.
     #[track_caller]
-    // todo: all the other functions should use this new generic crap
     pub fn label(&mut self, text: &(impl MaybeObservedText + ?Sized)) -> UiParent {
         let params = MULTILINE_LABEL.text(text);
         return self.add(params);
@@ -71,7 +69,7 @@ impl Ui {
 
     /// Add a label from a `&static str`.
     #[track_caller]
-    pub fn static_label(&mut self, text: &'static &'static str) -> UiParent {
+    pub fn static_label(&mut self, text: &'static str) -> UiParent {
         let params = MULTILINE_LABEL.static_text(text);
         return self.add(params);
     }

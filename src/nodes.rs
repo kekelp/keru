@@ -1,7 +1,7 @@
 use std::num::NonZeroU16;
 use std::ops::{Index, IndexMut};
 
-use rustc_hash::FxHashMap;
+use ahash::AHashMap;
 use slab::Slab;
 
 use crate::*;
@@ -10,7 +10,7 @@ use crate::*;
 // The point of this weird data structure is that from "outside", the nodes can be referenced by stable Ids, but internally, nodes can refer to other nodes by holding a NodeI. A NodeI can be way smaller than both a pointer or an id, and you can use it to access nodes without hashing (as if they held a hashmap key), and without lifetime issues (as if they held references).
 pub(crate) struct Nodes {
     // todo: make faster or something
-    pub(crate) node_hashmap: FxHashMap<Id, NodeMapEntry>,
+    pub(crate) node_hashmap: AHashMap<Id, NodeMapEntry>,
     pub(crate) nodes: Slab<Node>,
 }
 
@@ -98,7 +98,7 @@ impl Nodes {
             n_twins: 0,
         };
 
-        let mut node_hashmap = FxHashMap::with_capacity_and_hasher(100, Default::default());
+        let mut node_hashmap = AHashMap::with_capacity_and_hasher(100, Default::default());
         
         node_hashmap.insert(NODE_ROOT_ID, root_map_entry);
 

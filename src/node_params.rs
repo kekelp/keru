@@ -1,7 +1,6 @@
 use crate::*;
 use crate::color::*;
 use std::{hash::{Hash, Hasher}, ops::Deref};
-use rustc_hash::FxHasher;
 
 /// A struct describing the params of a GUI node.
 /// 
@@ -229,13 +228,13 @@ pub(crate) const BASE_RADIUS: f32 = 15.0;
 
 impl NodeParams {
     pub(crate) fn cosmetic_hash(&self) -> u64 {
-        let mut hasher = FxHasher::default();
+        let mut hasher = ahasher();
         self.rect.hash(&mut hasher);
         return hasher.finish();
     }
 
     pub(crate) fn layout_hash(&self) -> u64 {
-        let mut hasher = FxHasher::default();
+        let mut hasher = ahasher();
         self.layout.hash(&mut hasher);
         self.stack.hash(&mut hasher);
         self.text_params.hash(&mut hasher);
@@ -871,7 +870,7 @@ impl Ui {
         let hash: u64;
 
         #[cfg(debug_assertions)] {
-            hash = fx_hash(&text);
+            hash = ahash(&text);
             if reactive::is_in_skipped_reactive_block() {
                 let mut error = false;
                 if let Some(last_hash) = self.nodes[i].last_text_hash {
@@ -897,7 +896,7 @@ impl Ui {
                 if self.nodes[i].text_id.is_some() {
 
                     #[cfg(not(debug_assertions))]
-                    let hash = fx_hash(&text);
+                    let hash = ahash(&text);
                     
 
                     if let Some(last_hash) = self.nodes[i].last_text_hash {

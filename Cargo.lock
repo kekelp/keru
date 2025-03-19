@@ -741,12 +741,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "foldhash"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0d2fde1f7b3d48b8395d5f2de76c18a528bd6a9cdde438df747bfcba3e05d6f"
-
-[[package]]
 name = "font-types"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1119,19 +1113,18 @@ dependencies = [
 name = "keru"
 version = "0.1.0"
 dependencies = [
+ "ahash",
  "bitflags 2.8.0",
  "bytemuck",
  "copypasta",
  "env_logger",
  "etagere",
- "foldhash",
  "glam",
  "glyphon",
  "image",
  "keru_macros 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log",
  "pollster",
- "rustc-hash 1.1.0",
  "slab",
  "unicode-segmentation",
  "wgpu",
