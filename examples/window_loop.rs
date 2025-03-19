@@ -1,6 +1,6 @@
 // This example shows how to run Keru with a user-managed Winit/Wgpu loop.
 // It shows how you can run a Keru ui without giving up control of your main loo... well, without taking control of your main loop away from Winit.
-// It still uses the helper Context struct defined in keru::basic_window_loop. If you need more control or just want to look inside, you can copy the struct and its methods.
+// It still uses the helper Context struct defined in keru::basic_window_loop. If you need more control or just want to look inside, you should copy the struct and its methods and customize them.
 
 use keru::*;
 use keru::basic_window_loop::Context;

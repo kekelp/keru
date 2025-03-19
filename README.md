@@ -9,7 +9,7 @@ See the [docs for the master branch](https://kekelp.github.io/keru/keru/index.ht
 
 ## Screenshots
 
-A simple counter and the code that generates it. Implementing `ExampleLoop` is needed to use the `run_example_loop` helper, but the normal way to use Keru is from a user-managed `winit`/`wgpu` loop. To see how this works, see the `window_loop` example.
+A simple counter and the code that generates it. Examples use the `run_example_loop` helper, but the normal way to use Keru is from a user-managed `winit`/`wgpu` loop. To see how this works, see the `window_loop` example.
 ![Screenshot of counter example](screenshots/counter.png)
 
 A showcase example with a tab viewer and some sliders:
