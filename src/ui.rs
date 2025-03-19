@@ -574,4 +574,20 @@ impl Ui {
         }
 
     }
+
+    pub(crate) fn set_static_image(&mut self, i: NodeI, image: &'static [u8]) -> &mut Self {
+        let image_pointer: *const u8 = image.as_ptr();
+
+        if let Some(last_pointer) = self.nodes[i].last_static_image_ptr {
+            if image_pointer == last_pointer {
+                return self;
+            }
+        }
+
+        let image = self.sys.texture_atlas.allocate_image(image);
+        self.nodes[i].imageref = Some(image);
+        self.nodes[i].last_static_image_ptr = Some(image_pointer);
+
+        return self;
+    }
 }

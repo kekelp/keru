@@ -904,23 +904,23 @@ impl Ui {
 
                             log::trace!("Updating after hash");
                             self.nodes[i].last_text_hash = Some(hash);                    
-                            self.get_uinode(i).set_text(text);
+                            self.set_text(i, text);
                         } else {
                             log::trace!("Skipping after hash");
                         }
                         
                     } else {
-                        self.get_uinode(i).set_text(text);
+                        self.set_text(i, text);
                         self.nodes[i].last_text_hash = Some(hash);                    
                     }
                 } else {
                     log::trace!("Updating (node had no text)");
-                    self.get_uinode(i).set_text(text);
+                    self.set_text(i, text);
                 }
             },
             TextVerdict::UpdateWithoutHashing => {
                 log::trace!("Updating without hash");
-                self.get_uinode(i).set_text(text);
+                self.set_text(i, text);
                 self.nodes[i].last_text_hash = None;
                 // todo, think about this a bit more. we lose the hash.
             },
@@ -935,7 +935,7 @@ impl Ui {
         }
         
         if let Some(image) = params.image {
-            self.get_uinode(i).static_image(image);
+            self.set_static_image(i, image);
         }
         
         let new_cosmetic_hash = params.params.cosmetic_hash();

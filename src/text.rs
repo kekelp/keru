@@ -1,3 +1,4 @@
+use crate::*;
 use glyphon::{Color as GlyphonColor, TextBounds, Viewport, TextArea};
 use glyphon::{
     Attrs, Buffer as GlyphonBuffer, Family, FontSystem, Metrics, Shaping, SwashCache,
@@ -15,6 +16,32 @@ pub(crate) struct TextSystem {
 }
 const GLOBAL_TEXT_METRICS: Metrics = Metrics::new(24.0, 24.0);
 
+
+impl Ui {
+    pub(crate) fn set_text(&mut self, i: NodeI, text: &str) -> &mut Self {
+        if let Some(text_id) = self.nodes[i].text_id {
+            let area = &mut self.sys.text.text_areas[text_id];
+            area.buffer.set_text(
+                &mut self.sys.text.font_system,
+                text,
+                Attrs::new().family(Family::SansSerif),
+                Shaping::Advanced,
+            );
+
+            self.push_text_change(i);
+        
+        } else {
+            let text_id = self
+                .sys
+                .text
+                .maybe_new_text_area(Some(&text), self.sys.current_frame);
+            self.nodes[i].text_id = text_id;
+            self.push_text_change(i);
+        }
+
+        return self;
+    }
+}
 
 impl TextSystem {
     pub(crate) fn maybe_new_text_area(

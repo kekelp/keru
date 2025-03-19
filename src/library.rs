@@ -441,25 +441,16 @@ pub const CONTAINER: NodeParams = NodeParams {
     children_can_hide: false,
 };
 
-/// [`NodeParams`] for a custom rendered panel.
+/// [`NodeParams`] for a custom rendered node.
 /// 
 /// Use [`UiNode::render_rect`] to get the render data for your node, then render it in a separate draw call.
 /// ```rust
 /// # use keru::*;
-/// # pub struct State {
-/// #     pub ui: Ui,
-/// # }
-/// # 
-/// # impl State {
-/// #   fn declare_ui(&mut self) {
+/// # fn test(ui: &mut Ui) {
 /// #
-/// # let ui = &mut self.ui;
+/// #[node_key] const CUSTOM_RENDERED_NODE: NodeKey;
+/// let render_data = ui.render_rect(CUSTOM_RENDERED_NODE);
 /// #
-/// # #[node_key] const HUE_WHEEL: NodeKey;
-/// #
-/// let render_data = ui.get_node(HUE_WHEEL).unwrap().render_rect();
-/// #
-/// #   }
 /// # }
 /// ```
 /// See the color picker in the painter example.

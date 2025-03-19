@@ -47,31 +47,6 @@ impl Ui {
         return self.make_parent_from_i(i);
     }
 
-    /// Returns an [`UiNode`] corresponding to `key`, if it exists.
-    /// 
-    /// This function ignores whether the node is currently inside the tree or not.
-    // todo: why though? is that ever useful?
-    /// 
-    /// The returned [`UiNode`] can be used to get information about the node, through functions like [`UiNode::inner_size`] or [`UiNode::render_rect`]
-    /// 
-    /// To see if a node was clicked, use [`Ui::is_clicked`] and friends. In the future, those functions might be moved to [`UiNode`] as well.
-
-    // todo: non-mut version of this?
-    // todo: the pub version of this should give out a non-mut ref. You only get to change nodes by redeclaring them.
-    // aka make a new UiNode that's not mutable and give that
-    pub fn get_node(&mut self, key: NodeKey) -> Option<UiNode> {
-        let node_i = self.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
-        return Some(self.get_uinode(node_i));
-    }
-
-    // only for the macro, use get_ref
-    pub(crate) fn get_uinode(&mut self, i: NodeI) -> UiNode {
-        return UiNode {
-            i,
-            ui: self,
-        };
-    }
-
     #[track_caller]
     pub(crate) fn add_or_update_node(&mut self, key: NodeKey) -> NodeI {
         let frame = self.sys.current_frame;
@@ -773,15 +748,6 @@ impl UiParent {
         thread_local::pop_parent();
     
         return result;
-    }
-
-    /// Returns true if the added node was clicked.
-    /// 
-    /// This method allows to test for interactions right after adding a node, without needing to use a key.
-    /// 
-    /// This function needs to take an `&mut Ui` argument because `UiParent` doesn't hold a reference to the `Ui`, to allow greater flexibility when using [`UiParent::nest()`].
-    pub fn is_clicked(&self, ui: &mut Ui) -> bool {
-        return ui.get_uinode(self.i).is_clicked();
     }
 }
 

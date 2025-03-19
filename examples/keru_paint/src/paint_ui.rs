@@ -120,9 +120,9 @@ impl State {
         let log_min = min.log10();
         let log_max = max.log10();
         let mut log_value = linear_value.log10();
-
-        let slider_height = match self.ui.get_node(SLIDER_CONTAINER) {
-            Some(container) => container.inner_size().y as f32,
+        
+        let slider_height = match self.ui.inner_size(SLIDER_CONTAINER) {
+            Some(container) => container.y as f32,
             // this is just for the first frame. awkward.
             None => 1.0,
         };

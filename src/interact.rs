@@ -10,230 +10,30 @@ pub(crate) const ANIMATION_RERENDER_TIME: f32 = 0.5;
 /// A struct describing a click event on a GUI node.
 #[derive(Clone, Copy, Debug)]
 pub struct Click {
+    /// Absolute screen position in pixels
     pub absolute_position: glam::DVec2,
+    /// Position relative to the node (0.0 to 1.0 in each dimension)
     pub relative_position: glam::DVec2,
+    /// Timestamp of the click
     pub timestamp: Instant,
 }
 
 /// A struct describing a drag event on a GUI node.
 #[derive(Clone, Copy, Debug)]
 pub struct Drag {
-    /// Position relative to the node (0.0 to 1.0 in each dimension)
-    pub relative_position: glam::DVec2,
     /// Absolute screen position in pixels
     pub absolute_position: glam::DVec2,
-    /// Delta movement relative to the node's dimensions (as a fraction)
-    pub relative_delta: glam::DVec2,
+    /// Position relative to the node (0.0 to 1.0 in each dimension)
+    pub relative_position: glam::DVec2,
     /// Absolute delta movement in pixels
     pub absolute_delta: glam::DVec2,
-    /// Time when the drag event occurred
-    pub timestamp: Instant,
+    /// Delta movement relative to the node's dimensions (as a fraction)
+    pub relative_delta: glam::DVec2,
+    /// Time when the drag event started
+    pub pressed_timestamp: Instant,    
 }
-
-// todo: remove all of this crap
-impl UiNode<'_> {
-    /// Returns `true` if the node was just clicked with the left mouse button.
-    /// 
-    /// This is "act on press", you might want [is_click_released()](Self::is_click_released()).
-    pub fn is_clicked(&mut self) -> bool {
-        let id = self.ui.nodes[self.i].id;
-        let clicked = self.ui.sys.mouse_input.clicked(Some(MouseButton::Left), Some(id));
-        return clicked;
-    }
-
-    /// Returns `true` if a left button mouse click was just released on the node.
-    pub fn is_click_released(&self) -> bool {
-        let id = self.ui.nodes[self.i].id;
-        return self.ui.sys.mouse_input.click_released(Some(MouseButton::Left), Some(id));
-    }
-
-    /// If the node was being held with the left mouse button in the last frame, returns the duration for which it was held.
-    pub fn is_held(&self) -> Option<Duration> {let id 
-        = self.ui.nodes[self.i].id;
-        return self.ui.sys.mouse_input.held(Some(MouseButton::Left), Some(id));
-    }
-
-    /// If the node was dragged, returns the distance dragged. Otherwise, returns `(0.0, 0.0)`.
-    pub fn is_dragged(&self) -> (f64, f64) {
-        let id = self.ui.nodes[self.i].id;
-        return self.ui.sys.mouse_input.dragged(Some(MouseButton::Left), Some(id));
-    }
-
-    /// Returns `true` if a node is currently hovered by the cursor.
-    pub fn is_hovered(&self) -> bool {
-        let id = self.ui.nodes[self.i].id;
-        return self.ui.sys.hovered.last() == Some(&id);
-    }
-
-    /// Returns `true` if the node was just clicked with the `mouse_button`.
-    /// 
-    /// This is "act on press", you might want [is_click_released()](Self::is_click_released()).
-    pub fn is_mouse_button_clicked(&self, mouse_button: MouseButton) -> bool {
-        let id = self.ui.nodes[self.i].id;
-        return self.ui.sys.mouse_input.clicked(Some(mouse_button), Some(id));
-    }
-
-    /// Returns `true` if a `mouse_button` click was just released on the node.
-    pub fn is_mouse_button_click_released(&self, mouse_button: MouseButton) -> bool {
-        let id = self.ui.nodes[self.i].id;
-        return self.ui.sys.mouse_input.click_released(Some(mouse_button), Some(id));
-    }
-
-    /// If the node was being held with `mouse_button` in the last frame, returns the duration for which it was held.
-    pub fn is_mouse_button_held(&self, mouse_button: MouseButton) -> Option<Duration> {
-        let id = self.ui.nodes[self.i].id;
-        return self.ui.sys.mouse_input.held(Some(mouse_button), Some(id));
-    }
-
-    /// If the node was dragged, returns the distance dragged. Otherwise, returns `(0.0, 0.0)`.
-    pub fn is_mouse_button_dragged(&self, mouse_button: MouseButton) -> (f64, f64) {
-        let id = self.ui.nodes[self.i].id;
-        return self.ui.sys.mouse_input.dragged(Some(mouse_button), Some(id));
-    }
-
-    // todo: the rest of the interact functions
-}
-
 
 impl Ui {
-    #[cfg(debug_assertions)]
-    fn check_node_sense(&self, id: Id, sense: Sense, fn_name: &'static str) -> bool {
-        if let Some((node, _)) = self.nodes.get_by_id(&id) {
-            if !node.params.interact.senses.contains(sense) {
-                log::error!(
-                    "Debug mode check: {} was called on node {}, but the node doesn't have the {:?} sense.",
-                    fn_name,
-                    node.debug_name(),
-                    sense
-                );
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /// Returns `true` if the node corresponding to `key` was just clicked with the left mouse button.
-    /// 
-    /// This is "act on press". For "act on release", see [`Self::is_click_released()`].
-    pub fn is_clicked(&mut self, node_key: NodeKey) -> bool {
-        let id = node_key.id_with_subtree();
-        #[cfg(debug_assertions)] {
-            if ! self.check_node_sense(id, Sense::CLICK, "is_clicked") {
-                return false;
-            }
-        }
-        let clicked = self.sys.mouse_input.clicked(Some(MouseButton::Left), Some(id));
-        return clicked;
-    }
-
-    /// If the node corresponding to `key` was clicked in the last frame, returns a struct containing the timestamp and position of the click. Otherwise, returns `None`.
-    /// 
-    /// If the node was clicked multiple times in the last frame, the result holds the information about the last click only.
-    pub fn clicked_at(&mut self, node_key: NodeKey) -> Option<Click> {
-        let id = node_key.id_with_subtree();
-        #[cfg(debug_assertions)] {
-            if !self.check_node_sense(id, Sense::CLICK, "clicked_at") {
-                return None;
-            }
-        }
-        let mouse_record = self.sys.mouse_input.clicked_at(Some(MouseButton::Left), Some(id))?;
-        let i = self.nodes.node_hashmap.get(&id).unwrap().slab_i;
-        let node_rect = self.nodes[i].rect;
-        
-        let relative_position = glam::DVec2::new(
-            ((mouse_record.position.x / self.sys.unifs.size.x as f64) - (node_rect.x[0]) as f64) / node_rect.size().x as f64,
-            ((mouse_record.position.y / self.sys.unifs.size.y as f64) - (node_rect.y[0]) as f64) / node_rect.size().y as f64,
-        );
-        
-        return Some(Click {
-            relative_position,
-            absolute_position: mouse_record.position,
-            timestamp: mouse_record.timestamp,
-        });
-    }
-
-    /// Returns `true` if a left button mouse click was just released on the node corresponding to `key`.
-    pub fn is_click_released(&self, node_key: NodeKey) -> bool {
-        let id = node_key.id_with_subtree();
-        #[cfg(debug_assertions)] {
-            if ! self.check_node_sense(id, Sense::CLICK, "is_click_released") {
-                return false;
-            }
-        }
-        return self.sys.mouse_input.click_released(Some(MouseButton::Left), Some(id));
-    }
-
-    /// If the node corresponding to `key` was being held with the left mouse button in the last frame, returns the duration for which it was held.
-    pub fn is_held(&self, node_key: NodeKey) -> Option<Duration> {
-        let id = node_key.id_with_subtree();
-        #[cfg(debug_assertions)] {
-            if ! self.check_node_sense(id, Sense::HOLD, "is_held") {
-                return None;
-            }
-        }
-        return self.sys.mouse_input.held(Some(MouseButton::Left), Some(id));
-    }
-
-    /// If the node corresponding to `key` was dragged, returns the distance dragged. Otherwise, returns `(0.0, 0.0)`.
-    pub fn is_dragged(&mut self, node_key: NodeKey) -> Option<Drag> {
-        let id = node_key.id_with_subtree();
-        #[cfg(debug_assertions)] {
-            if !self.check_node_sense(id, Sense::DRAG, "dragged_at") {
-                return None;
-            }
-        }
-        let mouse_record = self.sys.mouse_input.dragged_at(Some(MouseButton::Left), Some(id))?;
-        let i = self.nodes.node_hashmap.get(&id).unwrap().slab_i;
-        let node_rect = self.nodes[i].rect;
-        let relative_position = glam::DVec2::new(
-            ((mouse_record.currently_at.position.x / self.sys.unifs.size.x as f64) - (node_rect.x[0]) as f64) / node_rect.size().x as f64,
-            ((mouse_record.currently_at.position.y / self.sys.unifs.size.y as f64) - (node_rect.y[0]) as f64) / node_rect.size().y as f64,
-        );
-        let relative_delta = glam::DVec2::new(
-            mouse_record.drag_distance().x / (node_rect.size().x as f64 * self.sys.unifs.size.x as f64),
-            mouse_record.drag_distance().y / (node_rect.size().y as f64 * self.sys.unifs.size.y as f64),
-        );
-        return Some(Drag {
-            relative_position,
-            absolute_position: mouse_record.currently_at.position,
-            relative_delta,
-            absolute_delta: mouse_record.drag_distance(),
-            timestamp: mouse_record.currently_at.timestamp,
-        });
-    }
-
-    /// Returns `true` if a node is currently hovered by the cursor.
-    pub fn is_hovered(&self, node_key: NodeKey) -> bool {
-        let id = node_key.id_with_subtree();
-        #[cfg(debug_assertions)] {
-            if ! self.check_node_sense(id, Sense::HOVER, "is_hovered") {
-                return false;
-            }
-        }
-        return self.sys.hovered.last() == Some(&id);
-    }
-
-    /// Returns `true` if the node corresponding to `key` was just clicked with the `mouse_button`.
-    /// 
-    /// This is "act on press". For "act on release", use [Ui::is_click_released()].
-    pub fn is_mouse_button_clicked(&self, node_key: NodeKey, mouse_button: MouseButton) -> bool {
-        return self.sys.mouse_input.clicked(Some(mouse_button), Some(node_key.id_with_subtree()));
-    }
-
-    /// Returns `true` if a `mouse_button` click was just released on the node corresponding to `key`.
-    pub fn is_mouse_button_click_released(&self, node_key: NodeKey, mouse_button: MouseButton) -> bool {
-        return self.sys.mouse_input.click_released(Some(mouse_button), Some(node_key.id_with_subtree()));
-    }
-
-    /// If the node corresponding to `key` was being held with `mouse_button` in the last frame, returns the duration for which it was held.
-    pub fn is_mouse_button_held(&self, node_key: NodeKey, mouse_button: MouseButton) -> Option<Duration> {
-        return self.sys.mouse_input.held(Some(mouse_button), Some(node_key.id_with_subtree()));
-    }
-
-    /// If the node corresponding to `key` was dragged, returns the distance dragged. Otherwise, returns `(0.0, 0.0)`.
-    pub fn is_mouse_button_dragged(&self, node_key: NodeKey, mouse_button: MouseButton) -> (f64, f64) {
-        return self.sys.mouse_input.dragged(Some(mouse_button), Some(node_key.id_with_subtree()));
-    }
 
     // todo: think if it's really worth it to do this on every mouse movement.
     // maybe add a global setting to do it just once per frame

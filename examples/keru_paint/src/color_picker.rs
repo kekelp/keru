@@ -42,7 +42,7 @@ impl ColorPickerUi for Ui {
             // DVec2 hell
             if let Some(_) = self.is_held(OKLAB_HUE_WHEEL) {
                 let abs_pos: Vec2 = self.cursor_position().as_vec2();
-                let center: Vec2 = self.get_node(OKLAB_HUE_WHEEL).unwrap().center().into();
+                let center: Vec2 = self.center(OKLAB_HUE_WHEEL).unwrap().into();
                 let pos: Vec2 = abs_pos - center;
                 let angle = pos.x.atan2(pos.y);
                 
@@ -52,8 +52,8 @@ impl ColorPickerUi for Ui {
 
             if let Some(_) = self.is_held(OKLAB_SQUARE) {
                 let abs_pos: Vec2 = self.cursor_position().as_vec2();
-                let size_pixels: Vec2 = self.get_node(OKLAB_SQUARE).unwrap().rect().size().into();
-                let bottom_left: Vec2 = self.get_node(OKLAB_SQUARE).unwrap().bottom_left().into();
+                let size_pixels: Vec2 = self.rect(OKLAB_SQUARE).unwrap().size().into();
+                let bottom_left: Vec2 = self.bottom_left(OKLAB_SQUARE).unwrap().into();
                 let mut pos: Vec2 = abs_pos - bottom_left;
                 pos.y = - pos.y;
                 let pos: Vec2 = pos / size_pixels;
@@ -138,14 +138,14 @@ impl ColorPicker {
 
     pub fn prepare(&self, ui: &mut Ui, queue: &wgpu::Queue) -> Option<()> {
         ui.named_subtree(self.key).start(|| {
-            let wheel_info = ui.get_node(OKLAB_HUE_WHEEL)?.render_rect();
+            let wheel_info = ui.render_rect(OKLAB_HUE_WHEEL)?;
             let wheel_rect = ColorPickerRenderRect {
                 rect: wheel_info.rect,
                 z: wheel_info.z,
                 oklch_color: self.oklch_color.into(),
             };
             
-            let square_info = ui.get_node(OKLAB_SQUARE)?.render_rect();
+            let square_info = ui.render_rect(OKLAB_SQUARE)?;
             let square_rect = ColorPickerRenderRect {
                 rect: square_info.rect,
                 z: square_info.z,

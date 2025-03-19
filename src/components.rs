@@ -193,7 +193,7 @@ impl Ui {
             // todo: combined with the handle's manual positioning, this is pretty awful. it means that the handle is drawn at zero in the first frame.
             // Currently, it relies on the anti-state tearing stuff to not stay at zero.
             // It should be fixed by making it's possible to express the " - handle_radius" part when using a Frac.
-            let slider_width = match self.get_node(TRACK) {
+            let slider_width = match self.get_uinode(TRACK) {
                 Some(track) => track.inner_size().x as f32,
                 // this is just for the first frame. awkward.
                 None => 1.0,

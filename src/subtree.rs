@@ -76,14 +76,14 @@ impl Ui {
     /// 
     /// // Somewhere else in the code, we want to get the custom node's rectangle, 
     /// //   so we can run our custom render code.
-    /// // But we can't just do `ui.get_node(CUSTOM_RENDERED_NODE)?.render_rect();`:
+    /// // But we can't just do `ui.render_rect(CUSTOM_RENDERED_NODE);`:
     /// // That node was defined inside a private subtree, and we are outside of it.
     /// // So, we re-enter the _same_ named subtree, using the same key as before:
     /// # #[node_key] const CUSTOM_RENDERED_NODE: NodeKey;
     /// # #[node_key] const WIDGET_KEY_1: NodeKey; 
     /// # fn test_fn2(ui: &mut Ui) -> Option<()> {
     /// ui.named_subtree(WIDGET_KEY_1).start(|| {
-    ///     let render_rect = ui.get_node(CUSTOM_RENDERED_NODE)?.render_rect();
+    ///     let render_rect = ui.render_rect(CUSTOM_RENDERED_NODE)?;
     ///     // ... render the custom widget
     ///     # return Some(());
     /// })
