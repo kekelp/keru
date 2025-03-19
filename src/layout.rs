@@ -573,13 +573,12 @@ impl Ui {
         
     }
     fn set_clip_rect(&mut self, i: NodeI) {
-        let parent_clip_rect;
-        if i == ROOT_I {
-            parent_clip_rect = Xy::new_symm([0.0, 1.0]);
+        let parent_clip_rect = if i == ROOT_I {
+            Xy::new_symm([0.0, 1.0])
         } else {
             let parent = self.nodes[i].parent;
-            parent_clip_rect = self.nodes[parent].clip_rect;
-        }
+            self.nodes[parent].clip_rect
+        };
 
         let own_rect = self.nodes[i].rect;
         for axis in [X, Y] {

@@ -130,6 +130,6 @@ impl<'a> Iterator for TextAreaIter<'a> {
     }
 }
 
-pub fn render_iter(data: &Vec<FullText>, frame: u64) -> TextAreaIter<'_> {
+pub fn render_iter(data: &[FullText], frame: u64) -> TextAreaIter<'_> {
     return TextAreaIter::new(data, frame);
 }
