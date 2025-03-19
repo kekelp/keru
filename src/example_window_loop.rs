@@ -13,10 +13,10 @@ pub use basic_window_loop::basic_env_logger_init;
 
 /// A single-line window/render loop, for experimentation and examples.
 ///
-/// See the Counter example for a working example,
-///
-/// The intended way to use Keru is with a user-managed window and rendering loop.
-///
+/// This function is only meant for examples and quick experimentation. The intended way to use Keru is with a user-managed window and rendering loop. See the `window_loop.rs` in the repository for a concise example of that. 
+/// 
+/// `state` is the program's state, and can be any type.
+/// `update_fn` is a function that reads the current `state`, updates a Keru [`Ui`], and can optionally modify the `state`. 
 /// ### Example
 ///
 /// ```no_run
@@ -51,6 +51,9 @@ pub use basic_window_loop::basic_env_logger_init;
 ///     run_example_loop(state, update_ui);
 /// }
 /// ```
+/// 
+/// `update_fn` can also be a method on the state `T`.
+/// 
 pub fn run_example_loop<T>(state: T, update_fn: fn(&mut T, &mut Ui)) {
     let event_loop = EventLoop::new().unwrap();
     event_loop.set_control_flow(ControlFlow::Wait);
