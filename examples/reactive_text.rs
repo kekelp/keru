@@ -39,14 +39,15 @@ impl CustomComponents for Ui {
                 text.push_str(" etc");
             }
             if self.is_clicked(RESET) {
-                *text = Observer::new("Etc".to_string());
+                text.clear();
+                text.push_str("Etc");
             }
         });    
     }
 }
 
 
-impl ExampleLoop for State {
+impl State {
     fn update_ui(&mut self, ui: &mut Ui) {
         ui.h_stack().nest(|| {
             ui.string_push(&mut self.text);
@@ -64,5 +65,5 @@ fn main() {
         text: Observer::new("Etc".to_string()),
     };
 
-    run_example_loop(state);
+    run_example_loop(state, State::update_ui);
 }

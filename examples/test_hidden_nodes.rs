@@ -7,7 +7,7 @@ pub struct State {
     pub show: bool,
 }
 
-impl ExampleLoop for State {
+impl State {
     fn update_ui(&mut self, ui: &mut Ui) {
         #[node_key] const C1: NodeKey;
         #[node_key] const SHOULD_BE_HIDDEN_NOT_REMOVED: NodeKey;
@@ -77,5 +77,5 @@ fn main() {
         .init();
     let mut state = State::default();
     state.show = true;
-    run_example_loop(state);
+    run_example_loop(state, State::update_ui);
 }

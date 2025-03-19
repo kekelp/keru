@@ -9,7 +9,7 @@ pub struct State {
     pub hide2: bool,
 }
 
-impl ExampleLoop for State {
+impl State {
     fn update_ui(&mut self, ui: &mut Ui) {
         #[node_key] const TAB_CONT: NodeKey;
         #[node_key] const CHECK_IF_THIS_NODE_GETS_REMOVED: NodeKey;
@@ -91,5 +91,5 @@ fn main() {
     let mut state = State::default();
     state.remove1 = true;
     state.hide1 = true;
-    run_example_loop(state);
+    run_example_loop(state, State::update_ui);
 }

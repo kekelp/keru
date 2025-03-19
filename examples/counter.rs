@@ -7,7 +7,7 @@ pub struct State {
     pub show: bool,
 }
 
-impl ExampleLoop for State {
+impl State {
     fn update_ui(&mut self, ui: &mut Ui) {
         #[node_key] const INCREASE: NodeKey;
         #[node_key] const DECREASE: NodeKey;
@@ -62,5 +62,5 @@ fn main() {
     basic_env_logger_init();
     let mut state = State::default();
     state.show = true;
-    run_example_loop(state);
+    run_example_loop(state, State::update_ui);
 }

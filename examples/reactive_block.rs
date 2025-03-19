@@ -61,7 +61,7 @@ impl CustomComponents for Ui {
 }
 
 
-impl ExampleLoop for State {
+impl State {
     fn update_ui(&mut self, ui: &mut Ui) {
         
         ui.counter(&mut self.count, &mut self.useless_variable);
@@ -76,5 +76,5 @@ fn main() {
         .init();
     
     let state = State::default();
-    run_example_loop(state);
+    run_example_loop(state, State::update_ui);
 }

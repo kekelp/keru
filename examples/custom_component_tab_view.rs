@@ -80,7 +80,7 @@ pub struct State {
     pub tab_number: usize,
 }
 
-impl ExampleLoop for State {
+impl State {
     fn update_ui(&mut self, ui: &mut Ui) {
 
         let tabs = [
@@ -128,5 +128,5 @@ impl ExampleLoop for State {
 fn main() {
     basic_env_logger_init();
     let state = State::default();
-    run_example_loop(state);
+    run_example_loop(state, State::update_ui);
 }

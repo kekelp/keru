@@ -104,7 +104,7 @@ impl Components for Ui {
     }
 }
 
-impl ExampleLoop for State {
+impl State {
     fn update_ui(&mut self, ui: &mut Ui) {
         ui.vertical_tabs(&self.tabs[..], &mut self.current_tab)
             .nest(|| match self.tabs[self.current_tab] {
@@ -129,5 +129,5 @@ fn main() {
         f32_value: 20.0,
         ..Default::default()
     };
-    run_example_loop(state);
+    run_example_loop(state, State::update_ui);
 }
