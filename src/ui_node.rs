@@ -18,35 +18,6 @@ impl UiNode<'_> {
         return &self.ui.nodes[self.i];
     }
 
-    // This is not a callback, the effect is executed immediately (or never if not clicked)
-    // It's this way just for easier builder-style composition
-    // You can also do ui.is_clicked(KEY) 
-    // #[must_use]
-    // pub fn on_click(&self, effect: impl FnOnce()) -> &Self {
-    //     let id = self.node().id;
-
-    //     let is_clicked = self.ui
-    //     .sys
-    //     .last_frame_clicks
-    //     .clicks
-    //     .iter()
-    //     .any(|c| c.hit_node_id == id && c.state.is_pressed() && c.button == MouseButton::Left); 
-
-    //     if is_clicked {
-    //         effect();
-    //     }
-
-    //     return self;
-    // }
-
-    // pub fn is_dragged(&self) -> Option<(f64, f64)> {
-    //     if self.is_clicked(node_key) {
-    //         return Some(self.ui.sys.mouse_status.cursor_diff())
-    //     } else {
-    //         return None;
-    //     }
-    // }
-
     pub(crate) fn inner_size(&self) -> Xy<u32> {
         let padding = self.node().params.layout.padding;
         
@@ -153,7 +124,7 @@ impl UiParent {
 
 /// The data needed for rendering a node with custom code.
 /// 
-/// Obtained from a [`UiNode`] through [`UiNode::render_rect`]
+/// Obtained with [`Ui::render_rect`] and a key.
 /// 
 /// The data is ready to be used in a shader like this:
 /// 

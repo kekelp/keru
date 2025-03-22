@@ -218,7 +218,7 @@ impl Context {
     pub fn render_ui(&mut self, ui: &mut Ui) {
         let mut frame = self.begin_frame();
 
-        // Without these brackets, wgpu panics.
+        // Without these brackets, wgpu panics. I think this used to be a compiler error in older versions? 
         {
             let mut render_pass = frame.begin_render_pass(BACKGROUND_GREY);
             ui.render(&mut render_pass, &self.device, &self.queue);

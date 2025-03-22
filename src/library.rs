@@ -443,7 +443,7 @@ pub const CONTAINER: NodeParams = NodeParams {
 
 /// [`NodeParams`] for a custom rendered node.
 /// 
-/// Use [`UiNode::render_rect`] to get the render data for your node, then render it in a separate draw call.
+/// Use [`Ui::render_rect`] to get the render data for your node, then render it in a separate draw call.
 /// ```rust
 /// # use keru::*;
 /// # fn test(ui: &mut Ui) {

@@ -1,77 +1,63 @@
 //! Keru is an experimental graphical user interface library.
 //! 
-//! ## Example
+//! # Code Example
 //! 
-//! ```rust
+//! ```no_run
+//! # use keru::example_window_loop::*;
 //! # use keru::*;
-//! # 
+//! # #[derive(Default)]
 //! # pub struct State {
-//! #     pub ui: Ui,
-//! #     pub count: u32,
-//! #     pub show: bool,
+//! #     pub count: i32,
 //! # }
-//! # 
-//! # impl State {
-//! #   fn declare_ui(&mut self) {
-//! # 
-//! // Define a unique identity for a GUI node
+//! # fn update_ui(state: &mut State, ui: &mut Ui) {
+//! // Define a unique identity for the button
 //! #[node_key] const INCREASE: NodeKey;
 //! 
-//! // Create a `NodeParams` struct that describes the node
+//! // Create a NodeParams struct describing a button
 //! let increase_button = BUTTON
 //!     .color(Color::RED)
 //!     .text("Increase")
-//!     .key(INCREASE); // Set its identity
+//!     .key(INCREASE);
 //! 
-//! // Add nodes to the tree and define the layout
-//! if self.show {
-//!     self.ui.v_stack().nest(|| {
-//!         self.ui.add(increase_button);
-//!         self.ui.label(&self.count.to_string());
-//!     });
-//! }
+//! // Place the nodes into the tree and define the layout
+//! ui.v_stack().nest(|| {
+//!     ui.add(increase_button);
+//!     ui.label(&state.count.to_string());
+//! });
 //! 
-//! // Update the state if the button is clicked
-//! if self.ui.is_clicked(INCREASE) {
-//!     self.count += 1;
+//! // Change the state in response to events
+//! if ui.is_clicked(INCREASE) {
+//!     state.count += 1;
 //! }
 //! // `is_clicked()` can be also called as a chained method after `ui.add(increase_button)`.
-//! // In that case, using a key is not necessary.
-//! #   }
+//! // In that case, using a key wouldn't be necessary.
 //! # }
 //! ```
 //! 
+//! See the `counter_small` example in the repository for a full working version of this code. 
+//! 
+//! 
 //! ## Window Loop
 //! 
-//! Keru is meant to be used as part of a regular `winit`/`wgpu` window loop managed by the library user. However, it also includes a [one-line window loop](example_window_loop::run_example_loop) that can be used for quick experimentation. 
+//! Keru is meant to be used as part of a regular `winit`/`wgpu` window loop managed by the library user, as shown in the `window_loop` example in the repository. However, it also includes a [one-line window loop](example_window_loop::run_example_loop) that can be used for quick experimentation. 
 //! 
 //! Once you have a window loop, you can create a [`Ui`] struct and store it in your main program state.
-//! To integrate it with the window loop, you only need to do two things:
-//! 
-//! - When you receive a `winit` `WindowEvent`, pass it to [`Ui::window_event()`].
-//! - When you receive a `WindowEvent::RedrawRequested`, update your GUI, then call [`Ui::render()`].
 //! 
 //! ## Building the GUI
 //! 
-//! Every frame, to update the GUI, start a new GUI frame, rerun all your GUI building code, then finish the frame.
+//! Every frame, start a new GUI frame, rerun all your GUI building code, then finish the frame.
 //! 
 //! ```rust
 //! # use keru::*;
-//! # pub struct State {
-//! #     pub ui: Ui,
-//! # }
+//! # fn declare_ui(ui: &mut Ui) {
 //! #
-//! # impl State {
-//! #   fn declare_ui(&mut self) {
-//! #
-//! self.ui.begin_frame();
-//! self.ui.v_stack().nest(|| {
-//!     self.ui.label("Hello");
-//!     self.ui.label("World");
+//! ui.begin_frame();
+//! ui.v_stack().nest(|| {
+//!     ui.label("Hello");
+//!     ui.label("World");
 //! });
-//! self.ui.finish_frame();
+//! ui.finish_frame();
 //! #
-//! #   }
 //! # }
 //! ```
 //! 
