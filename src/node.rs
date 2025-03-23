@@ -34,7 +34,7 @@ pub struct Node {
     pub(crate) last_click_rect_i: Option<usize>,
     pub(crate) last_image_rect_i: Option<usize>,
 
-    pub text_id: Option<usize>,
+    pub text_i: Option<TextI>,
 
     pub imageref: Option<ImageRef>,
     pub last_static_image_ptr: Option<*const u8>,
@@ -93,7 +93,7 @@ impl Node {
             content_bounds: XyRect::new_symm([0.0, 0.0]),
 
             last_proposed_sizes: ProposedSizes::container(Xy::new_symm(0.5)),
-            text_id: None,
+            text_i: None,
 
             scroll: Scroll::ZERO,
 
@@ -185,7 +185,7 @@ pub const ZERO_NODE_DUMMY: Node = Node {
     last_proposed_sizes: ProposedSizes::container(Xy::new_symm(1.0)),
 
     scroll: Scroll::ZERO,
-    text_id: None,
+    text_i: None,
 
     imageref: None,
     last_static_image_ptr: None,
@@ -242,7 +242,7 @@ pub const NODE_ROOT: Node = Node {
     last_proposed_sizes: ProposedSizes::container(Xy::new_symm(1.0)),
 
     scroll: Scroll::ZERO,
-    text_id: None,
+    text_i: None,
 
     imageref: None,
     last_static_image_ptr: None,

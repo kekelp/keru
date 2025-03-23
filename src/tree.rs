@@ -123,7 +123,7 @@ impl Ui {
         // but maybe not? the point was always that untouched nodes stay out of the tree and they get skipped automatically.
         // unless we still need the frame for things like pruning?
         let frame = self.sys.current_frame;
-        self.sys.text.refresh_last_frame(self.nodes[real_final_i].text_id, frame);
+        self.sys.text.refresh_last_frame(self.nodes[real_final_i].text_i, frame);
         
         // update the in-tree links and the thread-local state based on the current parent.
         let NodeWithDepth { i: parent_i, depth } = thread_local::current_parent();

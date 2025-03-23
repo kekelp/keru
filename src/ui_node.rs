@@ -65,12 +65,19 @@ impl UiNode<'_> {
     }
 
     pub fn get_text(&self) -> Option<String> {
-        let text_id = self.node().text_id?;
+        let text_i = self.node().text_i?;
 
-        let lines = &self.ui.sys.text.text_areas[text_id].buffer.lines;
+        match text_i {
+            TextI::TextI(text_i) => {
+                let lines = &self.ui.sys.text.slabs.boxes[text_i].buffer.lines;
         
-        let text = lines.iter().map(|l| l.text()).collect();
-        return Some(text);
+                let text = lines.iter().map(|l| l.text()).collect();
+                return Some(text);
+            } 
+            TextI::TextEditI(_text_i) => {
+                todo!()
+            } 
+        }
     }
 }
 

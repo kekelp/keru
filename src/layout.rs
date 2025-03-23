@@ -314,7 +314,7 @@ impl Ui {
             });            
             
             // Propose the whole size_to_propose to the contents, and let them decide.
-            if self.nodes[i].text_id.is_some() {
+            if self.nodes[i].text_i.is_some() {
                 let text_size = self.determine_text_size(i, size_to_propose);
                 content_size.update_for_content(text_size);
             }
@@ -352,8 +352,8 @@ impl Ui {
     }
 
     fn determine_text_size(&mut self, i: NodeI, proposed_size: Xy<f32>) -> Xy<f32> {
-        let text_id = self.nodes[i].text_id.unwrap();
-        let buffer = &mut self.sys.text.text_areas[text_id].buffer;
+        let text_i = self.nodes[i].text_i.unwrap();
+        let buffer = &mut self.sys.text.slabs.text_or_textedit_buffer(text_i);
 
         // this is for FitContent on both directions, basically.
         // todo: the rest.
@@ -390,8 +390,8 @@ impl Ui {
         // idk if this line is needed
         buffer.set_size(&mut self.sys.text.font_system, Some(trimmed_size.x), Some(trimmed_size.y));
 
-        // self.sys.text.text_areas[text_id].buffer.set_size(&mut self.sys.text.font_system, trimmed_size.x, trimmed_size.y);
-        // self.sys.text.text_areas[text_id]
+        // self.sys.text.text_areas[text_i].buffer.set_size(&mut self.sys.text.font_system, trimmed_size.x, trimmed_size.y);
+        // self.sys.text.text_areas[text_i]
         //     .buffer
         //     .shape_until_scroll(&mut self.sys.text.font_system, false);
 
@@ -595,11 +595,12 @@ impl Ui {
         let top = self.nodes[i].clip_rect[Y][0] * self.sys.unifs.size[Y];
         let bottom = self.nodes[i].clip_rect[Y][1] * self.sys.unifs.size[Y];
 
-        if let Some(text_id) = self.nodes[i].text_id {
-            self.sys.text.text_areas[text_id].params.bounds.left = left as i32;
-            self.sys.text.text_areas[text_id].params.bounds.top = top as i32;
-            self.sys.text.text_areas[text_id].params.bounds.right = right as i32;
-            self.sys.text.text_areas[text_id].params.bounds.bottom = bottom as i32;
+        if let Some(text_i) = self.nodes[i].text_i {
+            let params = self.sys.text.slabs.text_or_textedit_params(text_i);
+            params.bounds.left = left as i32;
+            params.bounds.top = top as i32;
+            params.bounds.right = right as i32;
+            params.bounds.bottom = bottom as i32;
         }
     }
 
@@ -619,23 +620,25 @@ impl Ui {
         //     }
         // }
         
-        let text_id = self.nodes[i].text_id;
-        if let Some(text_id) = text_id {
+        let text_i = self.nodes[i].text_i;
+        if let Some(text_i) = text_i {
             let left = rect[X][0] * self.sys.unifs.size[X];
             let top = rect[Y][0] * self.sys.unifs.size[Y];
+
+            let params = self.sys.text.slabs.text_or_textedit_params(text_i);
 
             // let right = rect[X][1] * self.sys.unifs.size[X];
             // let bottom =     rect[Y][1] * self.sys.unifs.size[Y];
 
-            self.sys.text.text_areas[text_id].params.left = left + padding[X] as f32;
-            self.sys.text.text_areas[text_id].params.top = top + padding[Y] as f32;
+            params.left = left + padding[X] as f32;
+            params.top = top + padding[Y] as f32;
            
             // todo: different align? 
-            // self.sys.text.text_areas[text_id].bounds.left = left as i32 + padding[X] as i32;
-            // self.sys.text.text_areas[text_id].bounds.top = top as i32 + padding[Y] as i32;
+            // self.sys.text.text_areas[text_i].bounds.left = left as i32 + padding[X] as i32;
+            // self.sys.text.text_areas[text_i].bounds.top = top as i32 + padding[Y] as i32;
 
-            // self.sys.text.text_areas[text_id].bounds.right = right as i32;
-            // self.sys.text.text_areas[text_id].bounds.bottom = bottom as i32;
+            // self.sys.text.text_areas[text_i].bounds.right = right as i32;
+            // self.sys.text.text_areas[text_i].bounds.bottom = bottom as i32;
         }
     }
 

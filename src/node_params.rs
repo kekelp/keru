@@ -845,6 +845,16 @@ impl Ui {
     }
 
     pub(crate) fn set_params_text(&mut self, i: NodeI, params: &FullNodeParams) {       
+        if let Some(editable) = params.params.text_params {
+            if editable.editable {
+
+                self.set_text(i, true, "");
+
+                return;
+            }
+        }
+        
+        
         let Some(text) = params.text else {
             return
         };
@@ -893,34 +903,33 @@ impl Ui {
         match text_verdict {
             TextVerdict::Skip => { unreachable!("I forgot why") },
             TextVerdict::HashAndSee => {
-                if self.nodes[i].text_id.is_some() {
+                if self.nodes[i].text_i.is_some() {
 
                     #[cfg(not(debug_assertions))]
                     let hash = ahash(&text);
-                    
 
                     if let Some(last_hash) = self.nodes[i].last_text_hash {
                         if hash != last_hash {
 
                             log::trace!("Updating after hash");
                             self.nodes[i].last_text_hash = Some(hash);                    
-                            self.set_text(i, text);
+                            self.set_text(i, false, text);
                         } else {
                             log::trace!("Skipping after hash");
                         }
                         
                     } else {
-                        self.set_text(i, text);
+                        self.set_text(i, false, text);
                         self.nodes[i].last_text_hash = Some(hash);                    
                     }
                 } else {
                     log::trace!("Updating (node had no text)");
-                    self.set_text(i, text);
+                    self.set_text(i, false, text);
                 }
             },
             TextVerdict::UpdateWithoutHashing => {
                 log::trace!("Updating without hash");
-                self.set_text(i, text);
+                self.set_text(i, false, text);
                 self.nodes[i].last_text_hash = None;
                 // todo, think about this a bit more. we lose the hash.
             },
@@ -959,7 +968,6 @@ impl Ui {
             return;
         }
         
-        // some off-by-one-frame errors or something. see notes.
         self.nodes[i].params = params.params;
 
         self.nodes[i].last_cosmetic_hash = new_cosmetic_hash;

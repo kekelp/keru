@@ -8,6 +8,7 @@ use glam::DVec2;
 use glyphon::Cache as GlyphonCache;
 use glyphon::Viewport;
 
+use slab::Slab;
 use wgpu::{
     BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
     BindingResource, BindingType, BlendState, Buffer, BufferBindingType, ColorWrites, FilterMode,
@@ -328,8 +329,6 @@ impl Ui {
         let text_renderer =
             TextRenderer::new(&mut atlas, device, MultisampleState::default(), Some(basic_depth_stencil_state()));
 
-        let text_areas = Vec::with_capacity(50);
-
         let nodes = Nodes::new();
 
         let third_last_frame_end_fake_time = 3;
@@ -358,7 +357,10 @@ impl Ui {
                     atlas,
                     text_renderer,
                     font_system,
-                    text_areas,
+                    slabs: TextSlabs {
+                        boxes: Vec::with_capacity(50),
+                        editors: Slab::with_capacity(10),
+                    },
                     glyphon_viewport,
                 },
 

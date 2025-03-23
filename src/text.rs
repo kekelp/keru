@@ -1,9 +1,21 @@
 use crate::*;
-use glyphon::{Color as GlyphonColor, TextBounds, Viewport, TextArea};
+use glyphon::{Color as GlyphonColor, Edit, Editor, TextArea, TextBounds, Viewport};
 use glyphon::{
     Attrs, Buffer as GlyphonBuffer, Family, FontSystem, Metrics, Shaping, SwashCache,
     TextAtlas, TextRenderer,
 };
+use slab::Slab;
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum TextI {
+    TextI(usize),
+    TextEditI(usize),
+}
+
+pub struct TextSlabs {
+    pub boxes: Vec<FullText>,
+    pub editors: Slab<FullTextEdit>,
+}
 
 // another stupid sub struct for dodging partial borrows
 pub(crate) struct TextSystem {
@@ -11,31 +23,39 @@ pub(crate) struct TextSystem {
     pub cache: SwashCache,
     pub atlas: TextAtlas,
     pub text_renderer: TextRenderer,
-    pub text_areas: Vec<FullText>,
+    pub slabs: TextSlabs,
     pub glyphon_viewport: Viewport,
 }
 const GLOBAL_TEXT_METRICS: Metrics = Metrics::new(24.0, 24.0);
 
 
 impl Ui {
-    pub(crate) fn set_text(&mut self, i: NodeI, text: &str) -> &mut Self {
-        if let Some(text_id) = self.nodes[i].text_id {
-            let area = &mut self.sys.text.text_areas[text_id];
-            area.buffer.set_text(
-                &mut self.sys.text.font_system,
-                text,
-                Attrs::new().family(Family::SansSerif),
-                Shaping::Advanced,
-            );
+    pub(crate) fn set_text(&mut self, i: NodeI, edit: bool, text: &str) -> &mut Self {
+        if let Some(text_i) = self.nodes[i].text_i {
+            match text_i {
+                TextI::TextI(text_i) => {
+                    let area = &mut self.sys.text.slabs.boxes[text_i];
+                    area.buffer.set_text(
+                        &mut self.sys.text.font_system,
+                        text,
+                        Attrs::new().family(Family::SansSerif),
+                        Shaping::Advanced,
+                    );
+        
+                    self.push_text_change(i);
+                },
+                TextI::TextEditI(_) => {
+                    todo!()
+                },
+            };
 
-            self.push_text_change(i);
         
         } else {
-            let text_id = self
+            let text_i = self
                 .sys
                 .text
-                .maybe_new_text_area(Some(&text), self.sys.current_frame);
-            self.nodes[i].text_id = text_id;
+                .new_text_area(&text, edit, self.sys.current_frame);
+            self.nodes[i].text_i = Some(text_i);
             self.push_text_change(i);
         }
 
@@ -44,12 +64,12 @@ impl Ui {
 }
 
 impl TextSystem {
-    pub(crate) fn maybe_new_text_area(
+    pub(crate) fn new_text_area(
         &mut self,
-        text: Option<&str>,
+        text: &str,
+        edit: bool,
         current_frame: u64,
-    ) -> Option<usize> {
-        let text = text?;
+    ) -> TextI {
 
         let mut buffer = GlyphonBuffer::new(&mut self.font_system, GLOBAL_TEXT_METRICS);
         buffer.set_size(&mut self.font_system, Some(500.), Some(500.));
@@ -80,17 +100,66 @@ impl TextSystem {
             default_color: GlyphonColor::rgb(255, 255, 255),
             last_frame_touched: current_frame,
         };
-        self.text_areas.push(FullText { buffer, params });
-        let text_id = self.text_areas.len() - 1;
 
-        return Some(text_id);
+        let text_i;
+        if edit {
+            let editor = Editor::new(buffer);
+            let i = self.slabs.editors.insert(FullTextEdit { editor, params });
+            text_i = TextI::TextEditI(i);
+        } else {
+            self.slabs.boxes.push(FullText { buffer, params });
+            let i = self.slabs.boxes.len() - 1;
+            text_i = TextI::TextI(i);
+
+        }
+
+        return text_i;
     }
 
-    pub(crate) fn refresh_last_frame(&mut self, text_id: Option<usize>, current_frame: u64) {
-        if let Some(text_id) = text_id {
-            self.text_areas[text_id].params.last_frame_touched = current_frame;
+
+    pub(crate) fn refresh_last_frame(&mut self, text_i: Option<TextI>, current_frame: u64) {
+        if let Some(text_i) = text_i {
+            match text_i {
+                TextI::TextI(text_i) => {
+                    self.slabs.boxes[text_i].params.last_frame_touched = current_frame;
+                }
+                TextI::TextEditI(_text_i) => {
+                    todo!()
+                }
+            }
         }
     }
+
+}
+
+impl TextSlabs {
+    pub(crate) fn text_or_textedit_buffer(&mut self, text_i: TextI) -> &mut glyphon::Buffer {
+        match text_i {
+            TextI::TextI(text_i) => {
+                return &mut self.boxes[text_i].buffer;
+            }
+            TextI::TextEditI(text_i) => {
+                let buffer_ref = self.editors[text_i].editor.buffer_ref_mut();
+                match buffer_ref {
+                    glyphon::cosmic_text::BufferRef::Owned(buffer) => {
+                        return buffer;
+                    },
+                    _ => panic!("We don't do that")
+                }
+            },
+        }
+    }
+
+    pub(crate) fn text_or_textedit_params(&mut self, text_i: TextI) -> &mut TextAreaParams {
+        match text_i {
+            TextI::TextI(text_i) => {
+                return &mut self.boxes[text_i].params;
+            }
+            TextI::TextEditI(text_i) => {
+                return &mut self.editors[text_i].params;
+            },
+        }
+    } 
 }
 
 
@@ -106,6 +175,11 @@ pub struct TextAreaParams {
 
 pub struct FullText {
     pub buffer: GlyphonBuffer,
+    pub params: TextAreaParams,
+}
+
+pub struct FullTextEdit {
+    pub editor: Editor<'static>,
     pub params: TextAreaParams,
 }
 

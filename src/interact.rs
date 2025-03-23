@@ -196,7 +196,7 @@ impl Ui {
                 self.sys.anim_render_timer.push_new(Duration::from_secs_f32(ANIMATION_RERENDER_TIME));
             }
                 
-            if clicked_node.text_id.is_some() {
+            if clicked_node.text_i.is_some() {
                 if let Some(text) = clicked_node.params.text_params{
                     if text.editable {
                         self.sys.focused = Some(clicked_id);
@@ -204,15 +204,22 @@ impl Ui {
                 }
             }
 
-            if let Some(id) = clicked_node.text_id {
-                let text_area = &mut self.sys.text.text_areas[id];
-                let cursor_pos = self.sys.mouse_input.cursor_position();
-                let (x, y) = (
-                    cursor_pos.x as f32 - text_area.params.left,
-                    cursor_pos.y as f32 - text_area.params.top,
-                );
-
-                text_area.buffer.hit(x, y);
+            if let Some(text_i) = clicked_node.text_i {
+                match text_i {
+                    TextI::TextI(text_i) => {
+                        let text_area = &mut self.sys.text.slabs.boxes[text_i];
+                        let cursor_pos = self.sys.mouse_input.cursor_position();
+                        let (x, y) = (
+                            cursor_pos.x as f32 - text_area.params.left,
+                            cursor_pos.y as f32 - text_area.params.top,
+                        );
+        
+                        text_area.buffer.hit(x, y);        
+                    }
+                    TextI::TextEditI(_text_i) => {
+                        todo!()
+                    }
+                }
             }
 
         }
