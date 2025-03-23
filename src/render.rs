@@ -5,7 +5,6 @@ use bytemuck::Pod;
 use wgpu::{Buffer, BufferSlice, Device, Queue, RenderPass};
 use winit::event::*;
 
-use crate::text::render_iter;
 use crate::*;
 
 impl Ui {
@@ -21,6 +20,16 @@ impl Ui {
     pub fn window_event(&mut self, event: &WindowEvent) -> bool {
         self.sys.mouse_input.window_event(event);
         self.sys.key_input.window_event(event);
+
+        let mut rel = false;
+        for (_, editor) in &mut self.sys.text.slabs.editors {
+            editor.editor.actions_from_events(event, &mut self.sys.text.font_system);
+            rel = true;
+        }
+        if rel {
+            self.sys.changes.full_relayout = true;
+        }
+
 
         match event {
             WindowEvent::CursorMoved { .. } => {              
@@ -128,24 +137,28 @@ impl Ui {
 
         let now = start_info_log_timer();
 
-        self.sys.text
-            .text_renderer
-            .prepare(
-                device,
-                queue,
-                &mut self.sys.text.font_system,
-                &mut self.sys.text.atlas,
-                &self.sys.text.glyphon_viewport,
-                render_iter(&self.sys.text.slabs.boxes, self.sys.current_frame),
-                &mut self.sys.text.cache,
-            )
-            .unwrap();
+        self.prepare_text(device, queue);
         
         if let Some(now) = now {
             if now.elapsed() > Duration::from_millis(5) {
                 log::info!("glyphon prepare() took {:?}", now.elapsed());
             }
         }
+    }
+
+    pub(crate) fn prepare_text(&mut self, device: &Device, queue: &Queue) {
+        self.sys.text
+        .text_renderer
+        .prepare(
+            device,
+            queue,
+            &mut self.sys.text.font_system,
+            &mut self.sys.text.atlas,
+            &self.sys.text.glyphon_viewport,
+            self.sys.text.slabs.all_text_buffers_iter(self.sys.current_frame),
+            &mut self.sys.text.cache,
+        )
+        .unwrap();
     }
 
     /// Returns `true` if the `Ui` needs to be rerendered.

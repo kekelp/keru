@@ -149,6 +149,9 @@ pub(crate) use crate::render_rect::*;
 mod nodes;
 pub(crate) use crate::nodes::*;
 
+mod text_edit;
+pub(crate) use crate::text_edit::*;
+
 mod texture_atlas;
 pub(crate) use crate::texture_atlas::*;
 

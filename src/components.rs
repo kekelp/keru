@@ -32,6 +32,13 @@ impl Ui {
         return self.add(H_STACK);
     }
 
+    /// Add a multiline text paragraph from a `'static str`.
+    #[track_caller]
+    pub fn text_edit(&mut self, text: &'static str) -> UiParent {
+        let params = TEXT_EDIT.static_text(text);
+        return self.add(params);
+    }
+
     /// Add a single-line text element.
     #[track_caller]
     pub fn text_line(&mut self, text: &(impl MaybeObservedText + ?Sized)) -> UiParent {

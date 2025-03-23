@@ -27,9 +27,9 @@ trait Components {
 impl Components for Ui {
     fn intro_tab(&mut self, state: &mut State) {
         self.add(V_SCROLL_STACK).nest(|| {
-            self.static_paragraph(
-                JAPANESE_TEXT
-            );
+            self.static_paragraph(JAPANESE_TEXT);
+            
+            self.text_edit("函数の複素共役");
 
             self.static_paragraph("Here are some basic GUI elements: \n");
             self.static_paragraph("Button and label:");

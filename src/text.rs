@@ -45,7 +45,7 @@ impl Ui {
                     self.push_text_change(i);
                 },
                 TextI::TextEditI(_) => {
-                    todo!()
+                    //  todo!()
                 },
             };
 
@@ -103,6 +103,12 @@ impl TextSystem {
 
         let text_i;
         if edit {
+            buffer.set_text(
+                &mut self.font_system,
+                "Default text oalgo",
+                Attrs::new().family(Family::SansSerif),
+                Shaping::Advanced,
+            );
             let editor = Editor::new(buffer);
             let i = self.slabs.editors.insert(FullTextEdit { editor, params });
             text_i = TextI::TextEditI(i);
@@ -119,17 +125,56 @@ impl TextSystem {
 
     pub(crate) fn refresh_last_frame(&mut self, text_i: Option<TextI>, current_frame: u64) {
         if let Some(text_i) = text_i {
-            match text_i {
-                TextI::TextI(text_i) => {
-                    self.slabs.boxes[text_i].params.last_frame_touched = current_frame;
-                }
-                TextI::TextEditI(_text_i) => {
-                    todo!()
-                }
-            }
+            self.slabs.text_or_textedit_params(text_i).last_frame_touched = current_frame;
         }
     }
 
+}
+
+// Lots of terrible code here, but I blame Glyphon.
+
+trait RipOutTheBuffer {
+    fn rip_it_out(&mut self) -> &mut GlyphonBuffer;
+}
+impl RipOutTheBuffer for Editor<'static> {
+    fn rip_it_out(&mut self) -> &mut GlyphonBuffer {
+        let buffer_ref = self.buffer_ref_mut();
+        match buffer_ref {
+            glyphon::cosmic_text::BufferRef::Owned(buffer) => {
+                return buffer;
+            },
+            _ => panic!("We don't do that")
+        }
+    }
+}
+trait PutItBackTogether {
+    fn glyphon_text_area(&mut self) -> TextArea<'_>;
+}
+impl PutItBackTogether for FullText {
+    fn glyphon_text_area(&mut self) -> TextArea<'_> {
+        return TextArea {
+            buffer: &self.buffer,
+            left: self.params.left,
+            top: self.params.top,
+            scale: self.params.scale,
+            bounds: self.params.bounds,
+            default_color: self.params.default_color,
+            custom_glyphs: &[],
+        };
+    }
+}
+impl PutItBackTogether for FullTextEdit {
+    fn glyphon_text_area(&mut self) -> TextArea<'_> {
+        return TextArea {
+            buffer: self.editor.rip_it_out(),
+            left: self.params.left,
+            top: self.params.top,
+            scale: self.params.scale,
+            bounds: self.params.bounds,
+            default_color: self.params.default_color,
+            custom_glyphs: &[],
+        };
+    }
 }
 
 impl TextSlabs {
@@ -139,13 +184,7 @@ impl TextSlabs {
                 return &mut self.boxes[text_i].buffer;
             }
             TextI::TextEditI(text_i) => {
-                let buffer_ref = self.editors[text_i].editor.buffer_ref_mut();
-                match buffer_ref {
-                    glyphon::cosmic_text::BufferRef::Owned(buffer) => {
-                        return buffer;
-                    },
-                    _ => panic!("We don't do that")
-                }
+                return self.editors[text_i].editor.rip_it_out(); 
             },
         }
     }
@@ -161,7 +200,6 @@ impl TextSlabs {
         }
     } 
 }
-
 
 #[derive(Clone, Debug)]
 pub struct TextAreaParams {
@@ -183,54 +221,26 @@ pub struct FullTextEdit {
     pub params: TextAreaParams,
 }
 
-// Lots of terrible code here, but I blame Glyphon.
-
-pub struct TextAreaIter<'a> {
-    data: &'a [FullText],
-    frame: u64,
-    current_index: usize,
-}
-
-impl<'a> TextAreaIter<'a> {
-    fn new(data: &'a [FullText], frame: u64) -> Self {
-        Self {
-            data,
-            frame,
-            current_index: 0,
-        }
+impl TextSlabs {
+    // Method to get an iterator over all buffers
+    pub fn all_text_buffers_iter(&mut self, current_frame: u64) -> impl Iterator<Item = TextArea<'_>> + '_ {
+        // Create an iterator over text box buffers
+        let text_box_buffers = self.boxes.iter_mut()
+            .map(move |text_box| if text_box.params.last_frame_touched == current_frame {
+                Some(text_box.glyphon_text_area())
+            } else {
+                None
+            });
+        
+        // Create an iterator over text edit box buffers
+        let text_edit_box_buffers = self.editors.iter_mut()
+            .map(move |(_, editor)| if editor.params.last_frame_touched == current_frame {
+                Some(editor.glyphon_text_area())
+            } else {
+                None
+            });
+        
+        // Chain them together
+        text_box_buffers.chain(text_edit_box_buffers).filter_map(|opt| opt)
     }
-}
-
-impl<'a> Iterator for TextAreaIter<'a> {
-    type Item = TextArea<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {           
-            if self.current_index >= self.data.len() {
-                return None;
-            }
-                
-            let item = &self.data[self.current_index];
-            self.current_index += 1;
-            
-            if item.params.last_frame_touched == self.frame {
-
-                let text_area = TextArea {
-                    buffer: &item.buffer,
-                    left: item.params.left,
-                    top: item.params.top,
-                    scale: item.params.scale,
-                    bounds: item.params.bounds,
-                    default_color: item.params.default_color,
-                    custom_glyphs: &[],
-                };
-                
-                return Some(text_area);
-            }
-        }
-    }
-}
-
-pub fn render_iter(data: &[FullText], frame: u64) -> TextAreaIter<'_> {
-    return TextAreaIter::new(data, frame);
 }

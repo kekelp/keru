@@ -360,6 +360,35 @@ pub const TEXT: NodeParams = NodeParams {
     children_can_hide: false,
 };
 
+/// [`NodeParams`] for a text element. 
+pub const TEXT_EDIT: NodeParams = NodeParams {
+    key: None,
+    stack: None,
+    text_params: Some(TextOptions {
+        single_line: true,
+        editable: true,
+    }),
+    rect: Rect {
+        rounded_corners: RoundedCorners::ALL,
+        shape: Rectangle { corner_radius: BASE_RADIUS },
+        visible: false,
+        outline_only: true,
+        vertex_colors: VertexColors::flat(Color::KERU_DEBUG_RED),
+    },
+    interact: Interact {
+        senses: Sense::NONE,
+        absorbs_mouse_events: true,
+        click_animation: true,
+    },
+    layout: Layout {
+        size: Xy::new_symm(FitContent),
+        position: Xy::new_symm(Center),
+        padding: Xy::new_symm(2),
+        scrollable: Xy::new(false, false),
+    },
+    children_can_hide: false,
+};
+
 /// [`NodeParams`] for a text element containing a multi-line paragraph.
 pub const TEXT_PARAGRAPH: NodeParams = NodeParams {
     key: None,
