@@ -1,5 +1,4 @@
 use bytemuck::{Pod, Zeroable};
-use node::Node;
 use wgpu::{vertex_attr_array, VertexAttribute};
 
 use crate::*;
@@ -118,33 +117,33 @@ impl Shape {
     } 
 }
 
-impl Node {
-    pub(crate) fn render_rect(&self, draw_even_if_invisible: bool, image_texcoords: Option<Xy<[f32; 2]>>) -> Option<RenderRect> {
-        if ! draw_even_if_invisible && ! self.params.rect.visible {
+impl Ui {
+    pub(crate) fn render_rect_i(&self, i: NodeI, draw_even_if_invisible: bool, image_texcoords: Option<Xy<[f32; 2]>>) -> Option<RenderRect> {
+        let node = &self.nodes[i];
+        if ! draw_even_if_invisible && ! node.params.rect.visible {
             return None;
         }
 
         let outline_only = if image_texcoords.is_some() {
             false
         } else {
-            self.params.rect.outline_only
+            node.params.rect.outline_only
         };
 
         let mut flags = RenderRect::EMPTY_FLAGS;
-        if self.params.interact.click_animation {
+        if node.params.interact.click_animation {
             flags |= RenderRect::CLICK_ANIMATION;
         }
         if outline_only {
             flags |= RenderRect::OUTLINE_ONLY;
         }
-        if self.hovered {
+        if node.hovered {
             flags |= RenderRect::HOVERED;
         }
 
-
-        flags = RenderShape::write_into_least_significant_8_bits(flags, self.params.rect.shape.render_shape() as u8);
+        flags = RenderShape::write_into_least_significant_8_bits(flags, node.params.rect.shape.render_shape() as u8);
         
-        RenderShape::write_corners(&mut flags, self.params.rect.rounded_corners);
+        RenderShape::write_corners(&mut flags, node.params.rect.rounded_corners);
 
         let tex_coords = if let Some(image_texcoords) = image_texcoords {
             image_texcoords
@@ -157,14 +156,16 @@ impl Node {
             }
         };
 
+        let size = self.sys.unifs.size;
+
         return Some(RenderRect {
-            rect: self.rect.to_graphics_space(),
-            clip_rect: self.clip_rect.to_graphics_space(),
-            vertex_colors: self.params.rect.vertex_colors,
-            last_hover: self.hover_timestamp,
-            last_click: self.last_click,
-            z: self.z,
-            shape_data: self.params.rect.shape.shape_data(),
+            rect: node.rect.to_graphics_space_rounded(size),
+            clip_rect: node.clip_rect.to_graphics_space_rounded(size),
+            vertex_colors: node.params.rect.vertex_colors,
+            last_hover: node.hover_timestamp,
+            last_click: node.last_click,
+            z: node.z,
+            shape_data: node.params.rect.shape.shape_data(),
             tex_coords,
             flags,
             _padding: 0,

@@ -247,25 +247,23 @@ impl Ui {
             let click_rect = self.click_rect(i);
             self.sys.scroll_rects.push(click_rect);
         }
-
-        let node = &mut self.nodes[i];
         
         // really only need to do this whenever a custom-rendered rect shows up. But that would require custom rendered rects to be specifically marked, as opposed to just being the same as any other visible-only-in-debug rect, which means that you can forget to mark it and mess everything up. There's no real disadvantage to just always doing it.
         self.sys.z_cursor += Z_STEP;
-        node.z = self.sys.z_cursor;
+         self.nodes[i].z = self.sys.z_cursor;
 
         let draw_even_if_invisible = self.sys.inspect_mode;
-        if let Some(rect) = node.render_rect(draw_even_if_invisible, None) {
+        if let Some(rect) = self.render_rect_i(i, draw_even_if_invisible, None) {
             self.sys.rects.push(rect);
-            node.last_rect_i = Some(self.sys.rects.len() - 1);
+             self.nodes[i].last_rect_i = Some(self.sys.rects.len() - 1);
         } else {
-            node.last_rect_i = None;
+             self.nodes[i].last_rect_i = None;
         }
 
-        if let Some(image) = node.imageref {
-            if let Some(image_rect) = node.render_rect(draw_even_if_invisible, Some(image.tex_coords)) {
+        if let Some(image) =  self.nodes[i].imageref {
+            if let Some(image_rect) = self.render_rect_i(i, draw_even_if_invisible, Some(image.tex_coords)) {
                 self.sys.rects.push(image_rect);
-                node.last_image_rect_i = Some(self.sys.rects.len() - 1);
+                 self.nodes[i].last_image_rect_i = Some(self.sys.rects.len() - 1);
             }
         }
     }
@@ -279,21 +277,18 @@ impl Ui {
         // todo: update scroll rect
         // at this point, maybe split the cosmetic or size (click,scroll) updates?
 
-        let node = &mut self.nodes[i];
-
         let draw_even_if_invisible = self.sys.inspect_mode;
-        if let Some(old_i) = node.last_rect_i {
-            if let Some(rect) = node.render_rect(draw_even_if_invisible, None) {
+        if let Some(old_i) = self.nodes[i].last_rect_i {
+            if let Some(rect) = self.render_rect_i(i, draw_even_if_invisible, None) {
                 self.sys.rects[old_i] = rect;
             }
         }
         
-        if let Some(imageref) = node.imageref {
-            if let Some(image_rect) = node.render_rect(draw_even_if_invisible, Some(imageref.tex_coords)) {
-                let old_i = node.last_image_rect_i.unwrap();
+        if let Some(imageref) = self.nodes[i].imageref {
+            if let Some(image_rect) = self.render_rect_i(i, draw_even_if_invisible, Some(imageref.tex_coords)) {
+                let old_i = self.nodes[i].last_image_rect_i.unwrap();
                 self.sys.rects[old_i] = image_rect;
             }
-
         }
 
         // this kind of makes sense, but apparently not needed? I guess someone else is calling it?

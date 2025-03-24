@@ -224,7 +224,7 @@ pub struct TextOptions {
     pub single_line: bool,
 }
 
-pub(crate) const BASE_RADIUS: f32 = 15.0;
+pub(crate) const BASE_RADIUS: f32 = 18.0;
 
 impl NodeParams {
     pub(crate) fn cosmetic_hash(&self) -> u64 {

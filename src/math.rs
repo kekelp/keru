@@ -191,8 +191,22 @@ impl XyRect {
         return Xy::new(self[X][1] - self[X][0], self[Y][1] - self[Y][0]);
     }
 
-    pub fn to_graphics_space(self) -> Self {
-        let a = self * 2. - 1.;
+    pub fn to_graphics_space_rounded(&self, size: Xy<f32>) -> Self {
+        // First convert to device pixels (assuming you have access to screen dimensions)
+        // This depends on your viewport/window size
+        let pixel_x = [
+            (self.x[0] * size.x).round() / size.x,
+            (self.x[1] * size.x).round() / size.x
+        ];
+        let pixel_y = [
+            (self.y[0] * size.y).round() / size.y,
+            (self.y[1] * size.y).round() / size.y
+        ];
+        
+        let pixel_aligned = Self::new(pixel_x, pixel_y);
+        
+        // Then do the normal conversion
+        let a = pixel_aligned * 2. - 1.;
         return Self::new([a.x[0], a.x[1]], [-a.y[1], -a.y[0]]);
     }
 

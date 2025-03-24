@@ -155,10 +155,6 @@ impl Ui {
                 new_value += drag.relative_delta.x as f32 * (min - max);
             }
 
-            if let Some(drag) = self.is_dragged(SLIDER_FILL) {
-                new_value += drag.relative_delta.x as f32 * (min - max);
-            }
-
             if new_value.is_finite() {
                 new_value = new_value.clamp(min, max);
                 *value = new_value;
@@ -171,6 +167,7 @@ impl Ui {
                 .size_x(Size::Fill)
                 .size_y(Size::Pixels(45))
                 .sense_drag(true)
+                // .shape(Shape::Rectangle { corner_radius: 36.0 })
                 .key(SLIDER_CONTAINER);
             
             #[node_key] const SLIDER_FILL: NodeKey;
@@ -180,7 +177,8 @@ impl Ui {
                 .color(Color::KERU_RED)
                 .position_x(Start)
                 .padding_x(1)
-                .sense_drag(true)
+                .absorbs_clicks(false)
+                // .shape(Shape::Rectangle { corner_radius: 16.0 })
                 .key(SLIDER_FILL);
 
             // todo: don't allocate here
@@ -225,12 +223,14 @@ impl Ui {
                 .size_y(Size::Pixels(10))
                 .padding(0)
                 .color(Color::GREY)
+                .shape(Shape::Rectangle { corner_radius: 10.0 })
                 .absorbs_clicks(false)
                 .key(TRACK);
             
             #[node_key] const FILLED: NodeKey;
             let slider_filled = PANEL
                 .size_y(Size::Pixels(14))
+                .shape(Shape::Rectangle { corner_radius: 14.0 })
                 .size_x(Size::Frac(handle_position_frac))
                 .color(Color::KERU_RED)
                 .position_x(Start)

@@ -58,8 +58,9 @@ impl UiNode<'_> {
     }
 
     pub(crate) fn render_rect(&self) -> RenderInfo {
+        let size = self.ui.sys.unifs.size;
         return RenderInfo {
-            rect: self.node().rect.to_graphics_space(),
+            rect: self.node().rect.to_graphics_space_rounded(size),
             z: self.node().z + Z_STEP / 2.0,
         };
     }

@@ -55,7 +55,6 @@ impl Components for Ui {
                 &"Press F1 for Inspect mode. This lets you see the bounds of the layout rectangles. \n\n\
                 In Inspect mode, hovering nodes will also log an Info message with the node's debug name and source code location."
             );
-            self.static_paragraph("Thanks for checking it out!")
         });
     }
 

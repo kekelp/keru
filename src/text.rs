@@ -105,7 +105,7 @@ impl TextSystem {
         if edit {
             buffer.set_text(
                 &mut self.font_system,
-                "Default text oalgo",
+                "Default text or something",
                 Attrs::new().family(Family::SansSerif),
                 Shaping::Advanced,
             );
