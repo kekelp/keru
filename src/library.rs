@@ -371,9 +371,9 @@ pub const TEXT_EDIT: NodeParams = NodeParams {
     rect: Rect {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
-        visible: false,
-        outline_only: true,
-        vertex_colors: VertexColors::flat(Color::KERU_DEBUG_RED),
+        visible: true,
+        outline_only: false,
+        vertex_colors: VertexColors::flat(Color::GREY),
     },
     interact: Interact {
         senses: Sense::NONE,

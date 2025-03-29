@@ -133,7 +133,7 @@ impl TextSystem {
 
 // Lots of terrible code here, but I blame Glyphon.
 
-trait RipOutTheBuffer {
+pub(crate) trait RipOutTheBuffer {
     fn rip_it_out(&mut self) -> &mut GlyphonBuffer;
 }
 impl RipOutTheBuffer for Editor<'static> {

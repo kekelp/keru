@@ -230,10 +230,11 @@ impl Ui {
     pub(crate) fn push_rect(&mut self, i: NodeI) {
         let debug = cfg!(debug_assertions);
         let push_click_rect = if debug && self.inspect_mode() {
-        // let push_click_rect = if debug {
             true
         } else {
-            self.nodes[i].params.interact.senses != Sense::NONE
+            let clickable = self.nodes[i].params.interact.senses != Sense::NONE;
+            let editable = matches!(self.nodes[i].text_i, Some(TextI::TextEditI(_)));
+            clickable || editable
         };
         if push_click_rect {
             let click_rect = self.click_rect(i);

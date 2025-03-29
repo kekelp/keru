@@ -168,6 +168,7 @@ impl Ui {
 
     // returns if the ui consumed the mouse press, or if it should be passed down. 
     pub(crate) fn resolve_click_press(&mut self, button: MouseButton) -> bool {
+        // todo wtf? don't do this unconditionally, we have senses now
         self.set_new_ui_input();
 
         // defocus, so that we defocus when clicking anywhere outside.
@@ -190,17 +191,15 @@ impl Ui {
             if clicked_node.params.interact.click_animation {
 
                 clicked_node.last_click = t.as_secs_f32();
-                
+
                 self.sys.changes.cosmetic_rect_updates.push(clicked_node_i);
                 
                 self.sys.anim_render_timer.push_new(Duration::from_secs_f32(ANIMATION_RERENDER_TIME));
             }
                 
             if clicked_node.text_i.is_some() {
-                if let Some(text) = clicked_node.params.text_params{
-                    if text.editable {
-                        self.sys.focused = Some(clicked_id);
-                    }
+                if let Some(TextI::TextEditI(_)) = clicked_node.text_i {
+                    self.sys.focused = Some(clicked_id);
                 }
             }
 
@@ -217,7 +216,7 @@ impl Ui {
                         text_area.buffer.hit(x, y);        
                     }
                     TextI::TextEditI(_text_i) => {
-                        // todo!()
+                        self.sys.focused = Some(clicked_id);
                     }
                 }
             }

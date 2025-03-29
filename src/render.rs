@@ -2,6 +2,7 @@ use std::time::Duration;
 use std::{marker::PhantomData, mem};
 
 use bytemuck::Pod;
+use glyphon::Edit;
 use wgpu::{Buffer, BufferSlice, Device, Queue, RenderPass};
 use winit::event::*;
 
@@ -21,15 +22,32 @@ impl Ui {
         self.sys.mouse_input.window_event(event);
         self.sys.key_input.window_event(event);
 
-        let mut rel = false;
-        for (_, editor) in &mut self.sys.text.slabs.editors {
-            editor.editor.actions_from_events(event, &mut self.sys.text.font_system);
-            rel = true;
-        }
-        if rel {
-            self.sys.changes.full_relayout = true;
-        }
+        if let Some(focused_id) = self.sys.focused {
+            if let Some(focused_i) = self.nodes.node_hashmap.get(&focused_id) {
+                let focused_i = focused_i.slab_i;
+                if let Some(TextI::TextEditI(editor_i)) = self.nodes[focused_i].text_i {
 
+                    // todo: unify this with is_held 
+                    let mouse_down = self.sys.mouse_input.held(Some(MouseButton::Left), Some(focused_id)).is_some();
+                    let mouse_pos = self.sys.mouse_input.cursor_position();
+
+                    let mut editor = self.sys.text.slabs.editors[editor_i].editor.borrow_with(&mut self.sys.text.font_system);
+
+                    // editor.draw(cache, text_color, cursor_color, selection_color, selected_text_color, f);
+
+                    editor_window_event(
+                        &mut editor,
+                        event,
+                        &self.sys.key_mods,
+                        mouse_down,
+                        mouse_pos.x,
+                        mouse_pos.y,
+                    );
+
+                    self.push_partial_relayout(focused_i);
+                }
+            }
+        }
 
         match event {
             WindowEvent::CursorMoved { .. } => {              

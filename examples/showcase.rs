@@ -118,11 +118,11 @@ impl State {
 }
 
 fn main() {
-    env_logger::Builder::new()
-        .filter_level(log::LevelFilter::Warn)
-        .filter_module("keru", log::LevelFilter::Info)
-        .filter_module("keru::tree", log::LevelFilter::Trace)
-        .init();
+    // env_logger::Builder::new()
+    //     .filter_level(log::LevelFilter::Warn)
+    //     .filter_module("keru", log::LevelFilter::Info)
+    //     .filter_module("keru::tree", log::LevelFilter::Trace)
+    //     .init();
 
     let state = State {
         tabs: vec![INTRO_TAB, TEXT_TAB, WEIRD_TAB],
