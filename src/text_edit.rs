@@ -1,6 +1,7 @@
 use std::cmp;
 
-use glyphon::{cosmic_text::{BorrowedWithFontSystem, Motion, Selection}, Action, Affinity, Cursor, Edit, Editor, FontSystem};
+use arboard::Clipboard;
+use glyphon::{cosmic_text::{BorrowedWithFontSystem, Motion, Selection}, Action, Affinity, Cursor, Edit};
 use unicode_segmentation::UnicodeSegmentation;
 use winit::{event::{ElementState, KeyEvent, MouseButton, WindowEvent}, keyboard::{Key, ModifiersState, NamedKey}};
 
@@ -14,6 +15,7 @@ pub(crate) fn editor_window_event<'buffer>(
     mouse_left_pressed: bool,
     mouse_x: f64,
     mouse_y: f64,
+    clipboard: &mut Clipboard,
 ) -> bool {
     match event {
         WindowEvent::KeyboardInput { event, .. } => {
@@ -185,6 +187,90 @@ pub(crate) fn editor_window_event<'buffer>(
                                     let end_line = editor.with_buffer(|buffer| buffer.lines.len() - 1);
                                     let end_col = editor.with_buffer(|buffer| buffer.lines[end_line].text().len());
                                     editor.set_selection(Selection::Normal(Cursor::new_with_affinity(end_line, end_col, Affinity::After)));
+                                    return true;
+                                }
+                                "c" => {
+                                    // Copy selected text to clipboard
+                                    if let Some((start, end)) = editor.selection_bounds() {
+                                        let text = editor.with_buffer(|buffer| {
+                                            let mut result = String::new();
+                                            
+                                            if start.line == end.line {
+                                                // Single line selection
+                                                let line_str = buffer.lines[start.line].text();
+                                                // Use grapheme indices instead of char_to_byte
+                                                let graphemes: Vec<&str> = line_str.graphemes(true).collect();
+                                                let start_char = if start.index < graphemes.len() { start.index } else { graphemes.len() };
+                                                let end_char = if end.index < graphemes.len() { end.index } else { graphemes.len() };
+                                                
+                                                for i in start_char..end_char {
+                                                    if i < graphemes.len() {
+                                                        result.push_str(graphemes[i]);
+                                                    }
+                                                }
+                                            } else {
+                                                // Multi-line selection
+                                                // First line
+                                                let first_line_str = buffer.lines[start.line].text();
+                                                let first_graphemes: Vec<&str> = first_line_str.graphemes(true).collect();
+                                                let start_char = if start.index < first_graphemes.len() { start.index } else { first_graphemes.len() };
+                                                
+                                                for i in start_char..first_graphemes.len() {
+                                                    result.push_str(first_graphemes[i]);
+                                                }
+                                                result.push('\n');
+                                                
+                                                // Middle lines
+                                                for line_idx in (start.line + 1)..end.line {
+                                                    result.push_str(buffer.lines[line_idx].text());
+                                                    result.push('\n');
+                                                }
+                                                
+                                                // Last line
+                                                let last_line_str = buffer.lines[end.line].text();
+                                                let last_graphemes: Vec<&str> = last_line_str.graphemes(true).collect();
+                                                let end_char = if end.index < last_graphemes.len() { end.index } else { last_graphemes.len() };
+                                                
+                                                for i in 0..end_char {
+                                                    if i < last_graphemes.len() {
+                                                        result.push_str(last_graphemes[i]);
+                                                    }
+                                                }
+                                            }
+                                            
+                                            result
+                                        });
+                                        
+                                        if let Err(err) = clipboard.set_text(text) {
+                                            eprintln!("Failed to copy text to clipboard: {}", err);
+                                        }
+                                    }
+                                    return true;
+                                }
+                                "v" => {
+                                    // Paste text from clipboard
+                                    if let Ok(text) = clipboard.get_text() {
+                                        // Delete any selected text first
+                                        editor.delete_selection();
+                                        
+                                        // Insert the clipboard text
+                                        for line in text.lines().enumerate() {
+                                            if line.0 > 0 {
+                                                // For lines after the first one, insert a newline first
+                                                editor.action(Action::Enter);
+                                            }
+                                            
+                                            // Insert the line character by character
+                                            for c in line.1.chars() {
+                                                editor.action(Action::Insert(c));
+                                            }
+                                        }
+                                        
+                                        // Handle the case where the clipboard text ends with a newline
+                                        if text.ends_with('\n') {
+                                            editor.action(Action::Enter);
+                                        }
+                                    }
                                     return true;
                                 }
                                 _ => {},

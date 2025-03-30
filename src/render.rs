@@ -42,6 +42,7 @@ impl Ui {
                         mouse_down,
                         mouse_pos.x,
                         mouse_pos.y,
+                        &mut self.sys.clipboard,
                     );
 
                     self.push_full_relayout();

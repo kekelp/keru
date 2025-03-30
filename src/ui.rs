@@ -2,8 +2,8 @@ use crate::*;
 
 use crate::math::Axis::*;
 
+use arboard::Clipboard;
 use basic_window_loop::basic_depth_stencil_state;
-// use copypasta::ClipboardContext;
 use glam::DVec2;
 use glyphon::Cache as GlyphonCache;
 use glyphon::Viewport;
@@ -72,7 +72,7 @@ pub(crate) struct System {
     pub new_ui_input: u8,
     pub new_external_events: bool,
 
-    // pub clipboard: ClipboardContext,
+    pub clipboard: Clipboard,
 
     // todo: remove and put in mouse_input
     pub key_mods: ModifiersState,
@@ -349,7 +349,7 @@ impl Ui {
                 new_ui_input: 2,
                 new_external_events: true,
 
-                // clipboard: ClipboardContext::new().unwrap(),
+                clipboard: Clipboard::new().expect("Couldn't initialize clipboard"),
                 key_mods: ModifiersState::default(),
 
                 text: TextSystem {
