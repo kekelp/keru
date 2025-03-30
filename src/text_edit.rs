@@ -234,29 +234,6 @@ pub(crate) fn editor_window_event<'buffer>(
     return false;
 }
 
-
-#[derive(Debug, Clone, Copy)]
-pub struct PlainRect {
-    pub x: i32,
-    pub y: i32,
-    pub width: u32,
-    pub height: u32,
-}
-
-pub struct EditorDecorationData {
-    pub selections: Vec<PlainRect>,
-    pub cursor: Option<PlainRect>,
-}
-
-impl EditorDecorationData {
-    pub fn new() -> Self {
-        Self {
-            selections: Vec::new(),
-            cursor: None,
-        }
-    }
-}
-
 impl Ui {
     pub(crate) fn push_cursor_rect(&mut self) -> Option<()> {
         let id = self.sys.focused?;
@@ -326,6 +303,9 @@ impl Ui {
         let selection_bounds = editor.selection_bounds();
     
         let buffer = editor.buffer();
+
+        const TASTEFUL_THICKNESS_H: f32 = 5.0;
+        const TASTEFUL_THICKNESS_V: f32 = 5.0;
     
         for run in buffer.layout_runs() {
             let line_i = run.line_i;
@@ -358,14 +338,13 @@ impl Ui {
                                     None => Some((c_x as i32, (c_x + c_w) as i32)),
                                 };
                             } else if let Some((min, max)) = range_opt.take() {
-                                // Convert PlainRect to RenderRect
                                 let min_f = min as f32;
                                 let max_f = max as f32;
                                 let top_f = line_top;
                                 let bottom_f = line_top + line_height;
                                 
                                 let selection_rect = XyRect::new(
-                                    [min_f, max_f],
+                                    [min_f, max_f + TASTEFUL_THICKNESS_H],
                                     [top_f, bottom_f]
                                 );
                                 
@@ -400,12 +379,9 @@ impl Ui {
                     }
     
                     if run.glyphs.is_empty() && end.line > line_i {
-                        // Full line selection for empty lines
-                        let width = buffer.size().0.unwrap_or(0.0);
-                        
                         let selection_rect = XyRect::new(
-                            [0.0, width],
-                            [line_top, line_top + line_height]
+                            [0.0, TASTEFUL_THICKNESS_H],
+                            [line_top, line_top + line_height + TASTEFUL_THICKNESS_V]
                         );
                         
                         // Normalize to editor space
@@ -435,15 +411,7 @@ impl Ui {
                         });
                     }
     
-                    if let Some((mut min, mut max)) = range_opt.take() {
-                        if end.line > line_i {
-                            // Extend to end of line
-                            if run.rtl {
-                                min = 0;
-                            } else {
-                                max = buffer.size().0.unwrap_or(0.0) as i32;
-                            }
-                        }
+                    if let Some((min, max)) = range_opt.take() {
                         
                         // Convert PlainRect to RenderRect
                         let min_f = min as f32;
@@ -452,8 +420,8 @@ impl Ui {
                         let bottom_f = line_top + line_height;
                         
                         let selection_rect = XyRect::new(
-                            [min_f, max_f],
-                            [top_f, bottom_f]
+                            [min_f, max_f + TASTEFUL_THICKNESS_H],
+                            [top_f, bottom_f + TASTEFUL_THICKNESS_V]
                         );
                         
                         // Normalize to editor space
