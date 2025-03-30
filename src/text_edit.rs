@@ -236,24 +236,16 @@ pub(crate) fn editor_window_event<'buffer>(
 
 
 #[derive(Debug, Clone, Copy)]
-pub struct SelectionRect {
+pub struct PlainRect {
     pub x: i32,
     pub y: i32,
     pub width: u32,
     pub height: u32,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct CursorRect {
-    pub x: i32,
-    pub y: i32,
-    pub height: u32,
-    pub width: u32,
 }
 
 pub struct EditorDecorationData {
-    pub selections: Vec<SelectionRect>,
-    pub cursor: Option<CursorRect>,
+    pub selections: Vec<PlainRect>,
+    pub cursor: Option<PlainRect>,
 }
 
 impl EditorDecorationData {
@@ -265,99 +257,236 @@ impl EditorDecorationData {
     }
 }
 
-pub fn get_editor_decorations(editor: &mut Editor<'static>) -> EditorDecorationData {
-    let mut data = EditorDecorationData::new();
-    let selection_bounds = editor.selection_bounds();
+impl Ui {
+    pub(crate) fn push_cursor_rect(&mut self) -> Option<()> {
+        let id = self.sys.focused?;
+        let node_i = self.nodes.node_hashmap.get(&id)?.slab_i;
 
-    let mut line_height = 10.0;
-    for run in editor.rip_it_out().layout_runs() {
-        line_height = run.line_height;
-        break;
-    }
+        let Some(TextI::TextEditI(edit_i)) = self.nodes[node_i].text_i else {
+            return None
+        };
 
-    // Extract cursor position
-    if let Some((x, y)) = editor.cursor_position() {
-        data.cursor = Some(CursorRect {
-            x,
-            y,
-            width: 1, // or your desired cursor width
-            height: line_height as u32,
+        // todo: get the one from the actual line
+        let editor = &self.sys.text.slabs.editors.get(edit_i)?.editor;
+        let mut line_height = 10.0;
+        for run in editor.buffer().layout_runs() {
+            line_height = run.line_height;
+            break;
+        }
+
+        const CURSOR_WIDTH: f32 = 2.5;
+        let size = self.sys.unifs.size;
+
+        let (x, y) = editor.cursor_position()?;
+        let (x, y) = (x as f32, y as f32);
+        let mut cursor_rect = XyRect::new([x + 1.0, x + 1.0 + CURSOR_WIDTH], [y - 2.0, y + 5.0 + line_height]);
+        
+        cursor_rect.x[0] = cursor_rect.x[0] / size.x;
+        cursor_rect.x[1] = cursor_rect.x[1] / size.x;
+        cursor_rect.y[0] = cursor_rect.y[0] / size.y;
+        cursor_rect.y[1] = cursor_rect.y[1] / size.y;
+        
+        let editor_rect = self.nodes[node_i].rect;
+        
+        let rect = XyRect::new(
+            [editor_rect.x[0] + cursor_rect.x[0], editor_rect.x[0] + cursor_rect.x[1]],
+            [editor_rect.y[0] + cursor_rect.y[0], editor_rect.y[0] + cursor_rect.y[1]],
+        );
+
+        self.sys.rects.push(RenderRect {
+            rect: rect.to_graphics_space_rounded(size),
+            tex_coords: Xy {
+                x: [0.9375, 0.9394531],
+                y: [0.00390625 / 2.0, 0.0],
+            },
+            vertex_colors: VertexColors::KERU_GRAD,
+            z: self.nodes[node_i].z - 0.0001,
+            last_hover: f32::MIN,
+            last_click: f32::MIN,
+            shape_data: 0.0,
+            flags: RenderRect::EMPTY_FLAGS,
+            _padding: 0,
+            clip_rect: self.nodes[node_i].clip_rect.to_graphics_space_rounded(size),
         });
+        Some(())
     }
 
-    let buffer = editor.rip_it_out();
-
-    for run in buffer.layout_runs() {
-        let line_i = run.line_i;
-        let line_top = run.line_top;
-        let line_height = run.line_height;
-
-        // Extract selection rectangles
-        if let Some((start, end)) = selection_bounds {
-            if line_i >= start.line && line_i <= end.line {
-                let mut range_opt = None;
-                
-                for glyph in run.glyphs.iter() {
-                    let cluster = &run.text[glyph.start..glyph.end];
-                    let total = cluster.grapheme_indices(true).count();
-                    let mut c_x = glyph.x;
-                    let c_w = glyph.w / total as f32;
+    pub fn push_selection_rects(&mut self) -> Option<()> {
+        let size = self.sys.unifs.size;
+    
+        let id = self.sys.focused?;
+        let node_i = self.nodes.node_hashmap.get(&id)?.slab_i;
+    
+        let Some(TextI::TextEditI(edit_i)) = self.nodes[node_i].text_i else {
+            return None
+        };
+    
+        let editor = &self.sys.text.slabs.editors.get(edit_i)?.editor;
+    
+        let selection_bounds = editor.selection_bounds();
+    
+        let buffer = editor.buffer();
+    
+        for run in buffer.layout_runs() {
+            let line_i = run.line_i;
+            let line_top = run.line_top;
+            let line_height = run.line_height;
+    
+            // Extract selection rectangles
+            if let Some((start, end)) = selection_bounds {
+                if line_i >= start.line && line_i <= end.line {
+                    let mut range_opt = None;
                     
-                    for (i, c) in cluster.grapheme_indices(true) {
-                        let c_start = glyph.start + i;
-                        let c_end = glyph.start + i + c.len();
+                    for glyph in run.glyphs.iter() {
+                        let cluster = &run.text[glyph.start..glyph.end];
+                        let total = cluster.grapheme_indices(true).count();
+                        let mut c_x = glyph.x;
+                        let c_w = glyph.w / total as f32;
                         
-                        if (start.line != line_i || c_end > start.index)
-                            && (end.line != line_i || c_start < end.index)
-                        {
-                            range_opt = match range_opt.take() {
-                                Some((min, max)) => Some((
-                                    cmp::min(min, c_x as i32),
-                                    cmp::max(max, (c_x + c_w) as i32),
-                                )),
-                                None => Some((c_x as i32, (c_x + c_w) as i32)),
-                            };
-                        } else if let Some((min, max)) = range_opt.take() {
-                            data.selections.push(SelectionRect {
-                                x: min,
-                                y: line_top as i32,
-                                width: cmp::max(0, max - min) as u32,
-                                height: line_height as u32,
-                            });
+                        for (i, c) in cluster.grapheme_indices(true) {
+                            let c_start = glyph.start + i;
+                            let c_end = glyph.start + i + c.len();
+                            
+                            if (start.line != line_i || c_end > start.index)
+                                && (end.line != line_i || c_start < end.index)
+                            {
+                                range_opt = match range_opt.take() {
+                                    Some((min, max)) => Some((
+                                        cmp::min(min, c_x as i32),
+                                        cmp::max(max, (c_x + c_w) as i32),
+                                    )),
+                                    None => Some((c_x as i32, (c_x + c_w) as i32)),
+                                };
+                            } else if let Some((min, max)) = range_opt.take() {
+                                // Convert PlainRect to RenderRect
+                                let min_f = min as f32;
+                                let max_f = max as f32;
+                                let top_f = line_top;
+                                let bottom_f = line_top + line_height;
+                                
+                                let selection_rect = XyRect::new(
+                                    [min_f, max_f],
+                                    [top_f, bottom_f]
+                                );
+                                
+                                // Normalize to editor space
+                                let editor_rect = self.nodes[node_i].rect;
+                                
+                                let rect = XyRect::new(
+                                    [editor_rect.x[0] + selection_rect.x[0] / size.x, 
+                                     editor_rect.x[0] + selection_rect.x[1] / size.x],
+                                    [editor_rect.y[0] + selection_rect.y[0] / size.y, 
+                                     editor_rect.y[0] + selection_rect.y[1] / size.y],
+                                );
+    
+                                self.sys.rects.push(RenderRect {
+                                    rect: rect.to_graphics_space_rounded(size),
+                                    tex_coords: Xy {
+                                        x: [0.9375, 0.9394531],
+                                        y: [0.00390625 / 2.0, 0.0],
+                                    },
+                                    vertex_colors: VertexColors::flat(Color::KERU_PINK),
+                                    z: self.nodes[node_i].z - 0.0001,
+                                    last_hover: f32::MIN,
+                                    last_click: f32::MIN,
+                                    shape_data: 0.0,
+                                    flags: RenderRect::EMPTY_FLAGS,
+                                    _padding: 0,
+                                    clip_rect: self.nodes[node_i].clip_rect.to_graphics_space_rounded(size),
+                                });
+                            }
+                            c_x += c_w;
                         }
-                        c_x += c_w;
                     }
-                }
-
-                if run.glyphs.is_empty() && end.line > line_i {
-                    // Full line selection for empty lines
-                    data.selections.push(SelectionRect {
-                        x: 0,
-                        y: line_top as i32,
-                        width: buffer.size().0.unwrap_or(0.0) as u32,
-                        height: line_height as u32,
-                    });
-                }
-
-                if let Some((mut min, mut max)) = range_opt.take() {
-                    if end.line > line_i {
-                        // Extend to end of line
-                        if run.rtl {
-                            min = 0;
-                        } else {
-                            max = buffer.size().0.unwrap_or(0.0) as i32;
+    
+                    if run.glyphs.is_empty() && end.line > line_i {
+                        // Full line selection for empty lines
+                        let width = buffer.size().0.unwrap_or(0.0);
+                        
+                        let selection_rect = XyRect::new(
+                            [0.0, width],
+                            [line_top, line_top + line_height]
+                        );
+                        
+                        // Normalize to editor space
+                        let editor_rect = self.nodes[node_i].rect;
+                        
+                        let rect = XyRect::new(
+                            [editor_rect.x[0] + selection_rect.x[0] / size.x, 
+                             editor_rect.x[0] + selection_rect.x[1] / size.x],
+                            [editor_rect.y[0] + selection_rect.y[0] / size.y, 
+                             editor_rect.y[0] + selection_rect.y[1] / size.y],
+                        );
+    
+                        self.sys.rects.push(RenderRect {
+                            rect: rect.to_graphics_space_rounded(size),
+                            tex_coords: Xy {
+                                x: [0.9375, 0.9394531],
+                                y: [0.00390625 / 2.0, 0.0],
+                            },
+                            vertex_colors: VertexColors::flat(Color::KERU_PINK),
+                            z: self.nodes[node_i].z - 0.0001,
+                            last_hover: f32::MIN,
+                            last_click: f32::MIN,
+                            shape_data: 0.0,
+                            flags: RenderRect::EMPTY_FLAGS,
+                            _padding: 0,
+                            clip_rect: self.nodes[node_i].clip_rect.to_graphics_space_rounded(size),
+                        });
+                    }
+    
+                    if let Some((mut min, mut max)) = range_opt.take() {
+                        if end.line > line_i {
+                            // Extend to end of line
+                            if run.rtl {
+                                min = 0;
+                            } else {
+                                max = buffer.size().0.unwrap_or(0.0) as i32;
+                            }
                         }
+                        
+                        // Convert PlainRect to RenderRect
+                        let min_f = min as f32;
+                        let max_f = max as f32;
+                        let top_f = line_top;
+                        let bottom_f = line_top + line_height;
+                        
+                        let selection_rect = XyRect::new(
+                            [min_f, max_f],
+                            [top_f, bottom_f]
+                        );
+                        
+                        // Normalize to editor space
+                        let editor_rect = self.nodes[node_i].rect;
+                        
+                        let rect = XyRect::new(
+                            [editor_rect.x[0] + selection_rect.x[0] / size.x, 
+                             editor_rect.x[0] + selection_rect.x[1] / size.x],
+                            [editor_rect.y[0] + selection_rect.y[0] / size.y, 
+                             editor_rect.y[0] + selection_rect.y[1] / size.y],
+                        );
+    
+                        self.sys.rects.push(RenderRect {
+                            rect: rect.to_graphics_space_rounded(size),
+                            tex_coords: Xy {
+                                x: [0.9375, 0.9394531],
+                                y: [0.00390625 / 2.0, 0.0],
+                            },
+                            vertex_colors: VertexColors::flat(Color::KERU_PINK),
+                            z: self.nodes[node_i].z - 0.0001,
+                            last_hover: f32::MIN,
+                            last_click: f32::MIN,
+                            shape_data: 0.0,
+                            flags: RenderRect::EMPTY_FLAGS,
+                            _padding: 0,
+                            clip_rect: self.nodes[node_i].clip_rect.to_graphics_space_rounded(size),
+                        });
                     }
-                    data.selections.push(SelectionRect {
-                        x: min,
-                        y: line_top as i32,
-                        width: cmp::max(0, max - min) as u32,
-                        height: line_height as u32,
-                    });
                 }
             }
         }
+        
+        Some(())
     }
-    
-    data
+
 }

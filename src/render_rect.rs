@@ -4,7 +4,6 @@ use wgpu::{vertex_attr_array, VertexAttribute};
 use crate::*;
 
 /// A struct with the information needed to render an ui rectangle on the screen.
-/// Despite the name, it is also used for checking for click resolution.
 /// The Ui state keeps a Vec of these.
 #[repr(C)]
 #[derive(Default, Debug, Pod, Copy, Clone, Zeroable)]

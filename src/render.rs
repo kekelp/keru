@@ -44,7 +44,8 @@ impl Ui {
                         mouse_pos.y,
                     );
 
-                    self.push_partial_relayout(focused_i);
+                    self.push_full_relayout();
+                    // self.push_partial_relayout(focused_i);
                 }
             }
         }

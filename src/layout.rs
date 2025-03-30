@@ -649,6 +649,9 @@ impl Ui {
         self.sys.scroll_rects.clear();
         self.sys.z_cursor = Z_BACKDROP;
         self.recursive_push_rects(ROOT_I);
+
+        self.push_cursor_rect();
+        self.push_selection_rects();
     }
 
     fn recursive_push_rects(&mut self, i: NodeI) {

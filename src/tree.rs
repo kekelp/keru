@@ -311,6 +311,10 @@ impl Ui {
         };
     }
 
+    pub(crate) fn push_full_relayout(&mut self) {
+        self.sys.changes.full_relayout = true;
+    }
+
     pub(crate) fn push_partial_relayout(&mut self, i: NodeI) {
         let relayout_chain_root = match self.nodes[i].relayout_chain_root {
             Some(root) => root,

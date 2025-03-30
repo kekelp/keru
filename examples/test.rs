@@ -9,25 +9,8 @@ pub struct State {
 
 impl State {
     fn update_ui(&mut self, ui: &mut Ui) {
-        let string = "String".to_string();
-        let str_ref = "string ref";
-        let number: f32 = 17.5;
-
-        let copy_this = BUTTON.text(&string);
-
-        ui.v_stack().nest(|| {
-            ui.add(BUTTON.text(str_ref));
-            ui.add(BUTTON.text(&str_ref));
-            ui.add(BUTTON.text(&string));
-            ui.add(BUTTON.text(number.to_string().as_str()));
-
-            ui.add(BUTTON.hashed_text(str_ref));
-            ui.add(BUTTON.hashed_text(&string));
-            ui.add(BUTTON.hashed_text(&number.to_string()));
-
-            ui.add(copy_this);
-            ui.add(copy_this);
-        });
+        let params = TEXT_EDIT.static_text("'moko");
+        ui.add(params);
     }
 }
 

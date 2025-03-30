@@ -134,10 +134,11 @@ impl TextSystem {
 // Lots of terrible code here, but I blame Glyphon.
 
 pub(crate) trait RipOutTheBuffer {
-    fn rip_it_out(&mut self) -> &mut GlyphonBuffer;
+    fn buffer_mut(&mut self) -> &mut GlyphonBuffer;
+    fn buffer(&self) -> &GlyphonBuffer;
 }
 impl RipOutTheBuffer for Editor<'static> {
-    fn rip_it_out(&mut self) -> &mut GlyphonBuffer {
+    fn buffer_mut(&mut self) -> &mut GlyphonBuffer {
         let buffer_ref = self.buffer_ref_mut();
         match buffer_ref {
             glyphon::cosmic_text::BufferRef::Owned(buffer) => {
@@ -146,6 +147,16 @@ impl RipOutTheBuffer for Editor<'static> {
             _ => panic!("We don't do that")
         }
     }
+    fn buffer(&self) -> &GlyphonBuffer {
+        let buffer_ref = self.buffer_ref();
+        match buffer_ref {
+            glyphon::cosmic_text::BufferRef::Owned(buffer) => {
+                return buffer;
+            },
+            _ => panic!("We don't do that")
+        }
+    }
+
 }
 trait PutItBackTogether {
     fn glyphon_text_area(&mut self) -> TextArea<'_>;
@@ -166,7 +177,7 @@ impl PutItBackTogether for FullText {
 impl PutItBackTogether for FullTextEdit {
     fn glyphon_text_area(&mut self) -> TextArea<'_> {
         return TextArea {
-            buffer: self.editor.rip_it_out(),
+            buffer: self.editor.buffer_mut(),
             left: self.params.left,
             top: self.params.top,
             scale: self.params.scale,
@@ -184,7 +195,7 @@ impl TextSlabs {
                 return &mut self.boxes[text_i].buffer;
             }
             TextI::TextEditI(text_i) => {
-                return self.editors[text_i].editor.rip_it_out(); 
+                return self.editors[text_i].editor.buffer_mut(); 
             },
         }
     }
