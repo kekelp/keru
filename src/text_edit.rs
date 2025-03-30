@@ -142,10 +142,21 @@ pub(crate) fn editor_window_event<'buffer>(
                         return true;
                     }
                     Key::Named(NamedKey::Enter) => {
-                        editor.action(Action::Enter);
-                        return true;
+                        // ctrl + enter isn't even listened
+                        if ! modifiers.control_key() {
+                            if editor.selection() != Selection::None {
+                                editor.delete_selection();
+                            } else {
+                                editor.action(Action::Enter);
+                            }
+                            return true;
+                        }
                     }
                     Key::Named(NamedKey::Backspace) => {
+                        if editor.selection() != Selection::None {
+                            editor.delete_selection();
+                            return true;
+                        }
                         if modifiers.control_key() {
                             let cursor = editor.cursor();
                             editor.action(Action::Motion(Motion::PreviousWord));
@@ -159,6 +170,10 @@ pub(crate) fn editor_window_event<'buffer>(
                         return true;
                     }
                     Key::Named(NamedKey::Delete) => {
+                        if editor.selection() != Selection::None {
+                            editor.delete_selection();
+                            return true;
+                        }
                         if modifiers.control_key() {
                             let cursor = editor.cursor();
                             editor.action(Action::Motion(Motion::NextWord));
@@ -172,11 +187,13 @@ pub(crate) fn editor_window_event<'buffer>(
                         return true;
                     }
                     Key::Named(key) => {
-                        if let Some(text) = key.to_text() {
-                            for c in text.chars() {
-                                editor.action(Action::Insert(c));
+                        if ! modifiers.control_key() {
+                            if let Some(text) = key.to_text() {
+                                for c in text.chars() {
+                                    editor.action(Action::Insert(c));
+                                }
+                                return true;
                             }
-                            return true;
                         }
                     }
                     Key::Character(text) => {
