@@ -48,7 +48,7 @@ impl Ui {
                         editor_rect[Axis::Y][0] * self.sys.unifs.size.y
                     );
 
-                    let absorbed = editor_window_event(
+                    let response = editor_window_event(
                         &mut editor,
                         editor_rect_top_left,
                         event,
@@ -59,11 +59,13 @@ impl Ui {
                         &mut self.sys.clipboard,
                     );
 
-                    // dbg!(absorbed);
-
-                    if absorbed {
+                    if response.redraw_text {
+                        self.push_partial_relayout(focused_i);
+                    }
+                    if response.redraw_cursor {
                         self.sys.changes.rebuild_editor_decorations = true;
                     }
+                    return response.absorbed;
                 }
             }
         }

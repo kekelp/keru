@@ -8,6 +8,41 @@ use winit::{event::{ElementState, KeyEvent, MouseButton, WindowEvent}, keyboard:
 
 use crate::*;
 
+/// Represents the result of handling an editor event
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EditorEventResult {
+    /// Whether the event was absorbed by the editor
+    pub absorbed: bool,
+    /// Whether the cursor/selection decorations need to be redrawn
+    pub redraw_cursor: bool,
+    /// Whether the text content needs to be redrawn
+    pub redraw_text: bool,
+}
+
+const IGNORED: EditorEventResult = EditorEventResult {
+    absorbed: false,
+    redraw_cursor: false,
+    redraw_text: false,
+};
+
+const ABSORBED_BUT_NOTHING_CHANGED: EditorEventResult = EditorEventResult {
+    absorbed: true,
+    redraw_cursor: false,
+    redraw_text: false,
+};
+
+const CURSOR_CHANGED: EditorEventResult = EditorEventResult {
+    absorbed: true,
+    redraw_cursor: true,
+    redraw_text: false,
+};
+
+const TEXT_CHANGED: EditorEventResult = EditorEventResult {
+    absorbed: true,
+    redraw_cursor: true,
+    redraw_text: true,
+};
+
 pub(crate) fn editor_window_event<'buffer>(
     editor: &mut BorrowedWithFontSystem<impl Edit<'buffer>>,
     editor_rect_top_left: Vec2,
@@ -17,7 +52,7 @@ pub(crate) fn editor_window_event<'buffer>(
     mouse_x: f64,
     mouse_y: f64,
     clipboard: &mut Clipboard,
-) -> bool {
+) -> EditorEventResult {
     match event {
         WindowEvent::KeyboardInput { event, .. } => {
             let KeyEvent {
@@ -47,7 +82,7 @@ pub(crate) fn editor_window_event<'buffer>(
                                 editor.action(Action::Motion(Motion::Left));
                             }
                         }
-                        return true;
+                        return CURSOR_CHANGED;
                     }
                     Key::Named(NamedKey::ArrowRight) => {
                         if modifiers.shift_key() {
@@ -70,7 +105,7 @@ pub(crate) fn editor_window_event<'buffer>(
                                 editor.action(Action::Motion(Motion::Right));
                             }
                         }
-                        return true;
+                        return CURSOR_CHANGED;
                     }
                     Key::Named(NamedKey::ArrowUp) => {
                         if modifiers.shift_key() {
@@ -86,7 +121,7 @@ pub(crate) fn editor_window_event<'buffer>(
                         } else {
                             editor.action(Action::Motion(Motion::Up));
                         }
-                        return true;
+                        return CURSOR_CHANGED;
                     }
                     Key::Named(NamedKey::ArrowDown) => {
                         if modifiers.shift_key() {
@@ -104,7 +139,7 @@ pub(crate) fn editor_window_event<'buffer>(
                         } else {
                             editor.action(Action::Motion(Motion::Down));
                         }
-                        return true;
+                        return CURSOR_CHANGED;
                     }
                     Key::Named(NamedKey::Home) => {
                         if modifiers.shift_key() {
@@ -116,7 +151,7 @@ pub(crate) fn editor_window_event<'buffer>(
                             editor.set_selection(Selection::None);
                         }
                         editor.action(Action::Motion(Motion::Home));
-                        return true;
+                        return CURSOR_CHANGED;
                     }
                     Key::Named(NamedKey::End) => {
                         if modifiers.shift_key() {
@@ -128,19 +163,19 @@ pub(crate) fn editor_window_event<'buffer>(
                             editor.set_selection(Selection::None);
                         }
                         editor.action(Action::Motion(Motion::End));
-                        return true;
+                        return CURSOR_CHANGED;
                     }
                     Key::Named(NamedKey::PageUp) => {
                         editor.action(Action::Motion(Motion::PageUp));
-                        return true;
+                        return CURSOR_CHANGED;
                     }
                     Key::Named(NamedKey::PageDown) => {
                         editor.action(Action::Motion(Motion::PageDown));
-                        return true;
+                        return CURSOR_CHANGED;
                     }
                     Key::Named(NamedKey::Escape) => {
                         editor.action(Action::Escape);
-                        return true;
+                        return CURSOR_CHANGED;
                     }
                     Key::Named(NamedKey::Enter) => {
                         // ctrl + enter isn't even listened
@@ -150,13 +185,13 @@ pub(crate) fn editor_window_event<'buffer>(
                             } else {
                                 editor.action(Action::Enter);
                             }
-                            return true;
+                            return TEXT_CHANGED;
                         }
                     }
                     Key::Named(NamedKey::Backspace) => {
                         if editor.selection() != Selection::None {
                             editor.delete_selection();
-                            return true;
+                            return TEXT_CHANGED;
                         }
                         if modifiers.control_key() {
                             let cursor = editor.cursor();
@@ -168,12 +203,12 @@ pub(crate) fn editor_window_event<'buffer>(
                         } else {
                             editor.action(Action::Backspace);
                         }
-                        return true;
+                        return TEXT_CHANGED;
                     }
                     Key::Named(NamedKey::Delete) => {
                         if editor.selection() != Selection::None {
                             editor.delete_selection();
-                            return true;
+                            return TEXT_CHANGED;
                         }
                         if modifiers.control_key() {
                             let cursor = editor.cursor();
@@ -185,7 +220,7 @@ pub(crate) fn editor_window_event<'buffer>(
                         } else {
                             editor.action(Action::Delete);
                         }
-                        return true;
+                        return TEXT_CHANGED;
                     }
                     Key::Named(key) => {
                         if ! modifiers.control_key() {
@@ -193,7 +228,7 @@ pub(crate) fn editor_window_event<'buffer>(
                                 for c in text.chars() {
                                     editor.action(Action::Insert(c));
                                 }
-                                return true;
+                                return TEXT_CHANGED;
                             }
                         }
                     }
@@ -205,7 +240,7 @@ pub(crate) fn editor_window_event<'buffer>(
                                     let end_line = editor.with_buffer(|buffer| buffer.lines.len() - 1);
                                     let end_col = editor.with_buffer(|buffer| buffer.lines[end_line].text().len());
                                     editor.set_selection(Selection::Normal(Cursor::new_with_affinity(end_line, end_col, Affinity::After)));
-                                    return true;
+                                    return CURSOR_CHANGED;
                                 }
                                 "c" => {
                                     // Copy selected text to clipboard
@@ -263,7 +298,7 @@ pub(crate) fn editor_window_event<'buffer>(
                                             log::error!("Failed to copy text to clipboard: {}", err);
                                         }
                                     }
-                                    return true;
+                                    return ABSORBED_BUT_NOTHING_CHANGED;
                                 }
                                 "v" => {
                                     // Paste text from clipboard
@@ -289,7 +324,7 @@ pub(crate) fn editor_window_event<'buffer>(
                                             editor.action(Action::Enter);
                                         }
                                     }
-                                    return true;
+                                    return TEXT_CHANGED;
                                 }
                                 _ => {},
                             }
@@ -297,7 +332,7 @@ pub(crate) fn editor_window_event<'buffer>(
                             for c in text.chars() {
                                 editor.action(Action::Insert(c));
                             }
-                            return true;
+                            return TEXT_CHANGED;
                         }
                     }
                     _ => {},
@@ -315,7 +350,7 @@ pub(crate) fn editor_window_event<'buffer>(
                     x: position.x as i32 - editor_rect_top_left.x as i32,
                     y: position.y as i32 - editor_rect_top_left.y as i32,
                 });
-                return true;
+                return CURSOR_CHANGED;
             }
         }
         WindowEvent::MouseInput {
@@ -329,13 +364,13 @@ pub(crate) fn editor_window_event<'buffer>(
                         x: mouse_x as i32 - editor_rect_top_left.x as i32,
                         y: mouse_y as i32 - editor_rect_top_left.y as i32,
                     });
-                    return true;
+                    return CURSOR_CHANGED;
                 }
             }
         }
         _ => {},
     }
-    return false;
+    return IGNORED;
 }
 
 impl Ui {
