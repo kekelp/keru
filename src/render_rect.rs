@@ -1,6 +1,12 @@
 use bytemuck::{Pod, Zeroable};
 use wgpu::{vertex_attr_array, VertexAttribute};
 
+// todo: don't do this
+pub(crate) const DUMB_MAGIC_TEX_COORDS: XyRect = Xy {
+    x: [0.9375, 0.9394531],
+    y: [0.00390625 / 2.0, 0.0],
+};
+
 use crate::*;
 
 /// A struct with the information needed to render an ui rectangle on the screen.
@@ -147,12 +153,7 @@ impl Ui {
         let tex_coords = if let Some(image_texcoords) = image_texcoords {
             image_texcoords
         } else {
-            // magic coords
-            // todo: demagic
-            Xy {
-                x: [0.9375, 0.9394531],
-                y: [0.00390625 / 2.0, 0.0],
-            }
+            DUMB_MAGIC_TEX_COORDS
         };
 
         let size = self.sys.unifs.size;

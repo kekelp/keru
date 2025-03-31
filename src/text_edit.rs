@@ -309,6 +309,7 @@ pub(crate) fn editor_window_event<'buffer>(
         } => {
             // Implement dragging
             if mouse_left_pressed {
+                
                 // Execute Drag editor action (update selection)
                 editor.action(Action::Drag {
                     x: position.x as i32,
@@ -375,10 +376,7 @@ impl Ui {
 
         self.sys.rects.push(RenderRect {
             rect: rect.to_graphics_space_rounded(size),
-            tex_coords: Xy {
-                x: [0.9375, 0.9394531],
-                y: [0.00390625 / 2.0, 0.0],
-            },
+            tex_coords: DUMB_MAGIC_TEX_COORDS,
             vertex_colors: VertexColors::KERU_GRAD,
             z: self.nodes[node_i].z - 0.0001,
             last_hover: f32::MIN,
@@ -463,10 +461,7 @@ impl Ui {
     
                                 self.sys.rects.push(RenderRect {
                                     rect: rect.to_graphics_space_rounded(size),
-                                    tex_coords: Xy {
-                                        x: [0.9375, 0.9394531],
-                                        y: [0.00390625 / 2.0, 0.0],
-                                    },
+                                    tex_coords: DUMB_MAGIC_TEX_COORDS,
                                     vertex_colors: VertexColors::flat(Color::KERU_PINK),
                                     z: self.nodes[node_i].z - 0.0001,
                                     last_hover: f32::MIN,
@@ -499,10 +494,7 @@ impl Ui {
     
                         self.sys.rects.push(RenderRect {
                             rect: rect.to_graphics_space_rounded(size),
-                            tex_coords: Xy {
-                                x: [0.9375, 0.9394531],
-                                y: [0.00390625 / 2.0, 0.0],
-                            },
+                            tex_coords: DUMB_MAGIC_TEX_COORDS,
                             vertex_colors: VertexColors::flat(Color::KERU_PINK),
                             z: self.nodes[node_i].z - 0.0001,
                             last_hover: f32::MIN,
@@ -539,10 +531,7 @@ impl Ui {
     
                         self.sys.rects.push(RenderRect {
                             rect: rect.to_graphics_space_rounded(size),
-                            tex_coords: Xy {
-                                x: [0.9375, 0.9394531],
-                                y: [0.00390625 / 2.0, 0.0],
-                            },
+                            tex_coords: DUMB_MAGIC_TEX_COORDS,
                             vertex_colors: VertexColors::flat(Color::KERU_PINK),
                             z: self.nodes[node_i].z - 0.0001,
                             last_hover: f32::MIN,
