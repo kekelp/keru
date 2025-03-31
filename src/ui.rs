@@ -88,6 +88,7 @@ pub(crate) struct System {
 
     pub z_cursor: f32,
     pub rects: Vec<RenderRect>,
+    pub editor_rects_i: u16,
 
     pub click_rects: Vec<ClickRect>,
 
@@ -368,6 +369,7 @@ impl Ui {
 
                 render_pipeline,
                 rects: Vec::with_capacity(100),
+                editor_rects_i: 0,
                 
                 click_rects: Vec::with_capacity(50),
                 scroll_rects: Vec::with_capacity(20),

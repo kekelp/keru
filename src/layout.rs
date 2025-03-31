@@ -57,11 +57,13 @@ impl Ui {
         let partial_relayouts = ! self.sys.changes.partial_relayouts.is_empty();
         let rect_updates = ! self.sys.changes.cosmetic_rect_updates.is_empty();
         let full_relayout = self.sys.changes.full_relayout;
+        let cursor_changed = self.sys.changes.rebuild_editor_decorations;
 
         let nothing_to_do = ! partial_relayouts
             && ! rect_updates
             && ! full_relayout
-            && ! tree_changed;
+            && ! tree_changed
+            && ! cursor_changed;
         if nothing_to_do {
             return;
         }
@@ -90,6 +92,11 @@ impl Ui {
 
         } else {
             self.do_cosmetic_rect_updates();
+
+            if self.sys.changes.rebuild_editor_decorations {
+                self.rebuild_editor_decorations();
+                self.sys.changes.rebuild_editor_decorations = false;
+            }
         }
 
         self.sys.changes.reset_layout_changes();
@@ -650,6 +657,12 @@ impl Ui {
         self.sys.z_cursor = Z_BACKDROP;
         self.recursive_push_rects(ROOT_I);
 
+        self.sys.editor_rects_i = (self.sys.rects.len()) as u16;
+        self.push_focused_editor_decorations();
+    }
+
+    pub(crate) fn rebuild_editor_decorations(&mut self) {
+        self.sys.rects.truncate(self.sys.editor_rects_i as usize);
         self.push_focused_editor_decorations();
     }
 

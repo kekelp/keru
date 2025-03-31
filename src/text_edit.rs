@@ -8,7 +8,6 @@ use winit::{event::{ElementState, KeyEvent, MouseButton, WindowEvent}, keyboard:
 
 use crate::*;
 
-
 pub(crate) fn editor_window_event<'buffer>(
     editor: &mut BorrowedWithFontSystem<impl Edit<'buffer>>,
     editor_rect_top_left: Vec2,
@@ -261,7 +260,7 @@ pub(crate) fn editor_window_event<'buffer>(
                                         });
                                         
                                         if let Err(err) = clipboard.set_text(text) {
-                                            eprintln!("Failed to copy text to clipboard: {}", err);
+                                            log::error!("Failed to copy text to clipboard: {}", err);
                                         }
                                     }
                                     return true;

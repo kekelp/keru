@@ -338,6 +338,8 @@ impl Ui {
 
         if self.nodes[i].params.is_scrollable() {
             self.recursive_place_children(i, true);
+            self.rebuild_editor_decorations();
+
             
             self.resolve_hover();
             self.sys.changes.need_gpu_rect_update = true;
