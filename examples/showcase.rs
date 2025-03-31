@@ -30,6 +30,7 @@ impl Components for Ui {
             self.static_paragraph(JAPANESE_TEXT);
             
             self.text_edit("函数の複素共役");
+            self.text_edit("函数の複素共役");
 
             self.static_paragraph("Here are some basic GUI elements: \n");
             self.static_paragraph("Button and label:");
@@ -69,12 +70,13 @@ impl Components for Ui {
             self.static_label(
                 "Currently, Keru uses Cosmic Text and Glyphon for rendering text. \n\n\
                 This means that international text already works. \n\n\
-                However, the integration isn't very good yet. Keru might switch to another library soon. \n\n\
-                If you notice some stuttering when the text below first comes into view, that's Glyphon's fault."
+                However, the integration isn't very good yet. Many things that Cosmic Text supports aren't exposed."
             );
             self.label(&Static(JAPANESE_TEXT));
             self.add(image);
             self.label(&Static(CHINESE_TEXT));
+            self.static_label("This page used to have some complaints about performance issues, but it's probably more important to say that I am very grateful for these libraries.\n\n\
+            Thanks, Cosmic Text and Glyphon!");
         });
     }
 
