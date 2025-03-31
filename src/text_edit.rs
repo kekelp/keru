@@ -340,6 +340,26 @@ pub(crate) fn editor_window_event<'buffer>(
 }
 
 impl Ui {
+    pub(crate) fn push_focused_editor_decorations(&mut self) -> Option<()> {
+        let id = self.sys.focused?;
+        let node_i = self.nodes.node_hashmap.get(&id)?.slab_i;
+
+        let Some(TextI::TextEditI(edit_i)) = self.nodes[node_i].text_i else {
+            return None
+        };
+
+        // todo: skip the reborrowing and rehashing
+        let editor = &self.sys.text.slabs.editors.get(edit_i)?.editor;
+        match editor.selection() {
+            Selection::None => self.push_cursor_rect(),
+            Selection::Normal(_) => self.push_selection_rects(),
+            Selection::Line(_) => self.push_selection_rects(),
+            Selection::Word(_) => self.push_selection_rects(),
+        };
+    
+        Some(())
+    }
+
     pub(crate) fn push_cursor_rect(&mut self) -> Option<()> {
         let id = self.sys.focused?;
         let node_i = self.nodes.node_hashmap.get(&id)?.slab_i;
@@ -447,7 +467,7 @@ impl Ui {
                                 
                                 let selection_rect = XyRect::new(
                                     [min_f, max_f + TASTEFUL_THICKNESS_H],
-                                    [top_f, bottom_f]
+                                    [top_f, bottom_f + TASTEFUL_THICKNESS_V]
                                 );
                                 
                                 // Normalize to editor space

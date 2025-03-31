@@ -650,8 +650,7 @@ impl Ui {
         self.sys.z_cursor = Z_BACKDROP;
         self.recursive_push_rects(ROOT_I);
 
-        self.push_cursor_rect();
-        self.push_selection_rects();
+        self.push_focused_editor_decorations();
     }
 
     fn recursive_push_rects(&mut self, i: NodeI) {
