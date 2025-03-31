@@ -117,7 +117,9 @@ pub(crate) fn editor_window_event<'buffer>(
                             editor.set_selection(Selection::None);
                         }
                         if editor.cursor().line == 0 {
-                            editor.action(Action::Motion(Motion::Home));
+                            // need to go to the beginning of the line, but Home isn't it
+                            // editor.action(Action::Motion(Motion::Home));
+                            editor.action(Action::Motion(Motion::Up));
                         } else {
                             editor.action(Action::Motion(Motion::Up));
                         }
@@ -135,7 +137,9 @@ pub(crate) fn editor_window_event<'buffer>(
                         if editor.cursor().line
                             == editor.with_buffer(|buffer| buffer.lines.len() - 1)
                         {
-                            editor.action(Action::Motion(Motion::End));
+                            // need to go to the beginning of the line, but Home isn't it
+                            // editor.action(Action::Motion(Motion::End));
+                            editor.action(Action::Motion(Motion::Down));
                         } else {
                             editor.action(Action::Motion(Motion::Down));
                         }
