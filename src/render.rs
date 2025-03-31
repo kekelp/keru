@@ -34,9 +34,15 @@ impl Ui {
                     let mut editor = self.sys.text.slabs.editors[editor_i].editor.borrow_with(&mut self.sys.text.font_system);
 
                     // editor.draw(cache, text_color, cursor_color, selection_color, selected_text_color, f);
+                    let editor_rect = self.nodes[focused_i].rect;
+                    let editor_rect_top_left = glam::vec2(
+                        editor_rect[Axis::X][0] * self.sys.unifs.size.x,
+                        editor_rect[Axis::Y][0] * self.sys.unifs.size.y
+                    );
 
                     editor_window_event(
                         &mut editor,
+                        editor_rect_top_left,
                         event,
                         &self.sys.key_mods,
                         mouse_down,

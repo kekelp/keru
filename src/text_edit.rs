@@ -1,6 +1,7 @@
 use std::cmp;
 
 use arboard::Clipboard;
+use glam::Vec2;
 use glyphon::{cosmic_text::{BorrowedWithFontSystem, Motion, Selection}, Action, Affinity, Cursor, Edit};
 use unicode_segmentation::UnicodeSegmentation;
 use winit::{event::{ElementState, KeyEvent, MouseButton, WindowEvent}, keyboard::{Key, ModifiersState, NamedKey}};
@@ -10,6 +11,7 @@ use crate::*;
 
 pub(crate) fn editor_window_event<'buffer>(
     editor: &mut BorrowedWithFontSystem<impl Edit<'buffer>>,
+    editor_rect_top_left: Vec2,
     event: &WindowEvent,
     modifiers: &ModifiersState,
     mouse_left_pressed: bool,
@@ -309,11 +311,10 @@ pub(crate) fn editor_window_event<'buffer>(
         } => {
             // Implement dragging
             if mouse_left_pressed {
-                
                 // Execute Drag editor action (update selection)
                 editor.action(Action::Drag {
-                    x: position.x as i32,
-                    y: position.y as i32,
+                    x: position.x as i32 - editor_rect_top_left.x as i32,
+                    y: position.y as i32 - editor_rect_top_left.y as i32,
                 });
                 return true;
             }
@@ -326,8 +327,8 @@ pub(crate) fn editor_window_event<'buffer>(
             if *button == MouseButton::Left {
                 if *state == ElementState::Pressed {
                     editor.action(Action::Click {
-                        x: mouse_x as i32,
-                        y: mouse_y as i32,
+                        x: mouse_x as i32 - editor_rect_top_left.x as i32,
+                        y: mouse_y as i32 - editor_rect_top_left.y as i32,
                     });
                     return true;
                 }
