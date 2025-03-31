@@ -22,6 +22,14 @@ impl Ui {
         self.sys.mouse_input.window_event(event);
         self.sys.key_input.window_event(event);
 
+        self.ui_input(&event);
+        
+        self.focused_editor_window_event(&event);
+
+        return false;
+    }
+
+    pub fn focused_editor_window_event(&mut self, event: &WindowEvent) -> bool {
         if let Some(focused_id) = self.sys.focused {
             if let Some(focused_i) = self.nodes.node_hashmap.get(&focused_id) {
                 let focused_i = focused_i.slab_i;
@@ -56,7 +64,10 @@ impl Ui {
                 }
             }
         }
+        return false;
+    }
 
+    pub fn ui_input(&mut self, event: &WindowEvent) -> bool {
         match event {
             WindowEvent::CursorMoved { .. } => {              
                 self.resolve_hover();
@@ -102,7 +113,6 @@ impl Ui {
             }
             _ => {}
         }
-
         return false;
     }
 
