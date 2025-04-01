@@ -117,9 +117,7 @@ pub(crate) fn editor_window_event<'buffer>(
                             editor.set_selection(Selection::None);
                         }
                         if editor.cursor().line == 0 {
-                            // need to go to the beginning of the line, but Home isn't it
-                            // editor.action(Action::Motion(Motion::Home));
-                            editor.action(Action::Motion(Motion::Up));
+                            editor.set_cursor(Cursor { line: 0, index: 0, affinity: Affinity::Before});
                         } else {
                             editor.action(Action::Motion(Motion::Up));
                         }
@@ -134,12 +132,10 @@ pub(crate) fn editor_window_event<'buffer>(
                         } else {
                             editor.set_selection(Selection::None);
                         }
-                        if editor.cursor().line
-                            == editor.with_buffer(|buffer| buffer.lines.len() - 1)
-                        {
-                            // need to go to the beginning of the line, but Home isn't it
-                            // editor.action(Action::Motion(Motion::End));
-                            editor.action(Action::Motion(Motion::Down));
+                        let last_line = editor.with_buffer(|buffer| buffer.lines.len() - 1);
+                        if editor.cursor().line == last_line {
+                            let last_index = editor.with_buffer(|buffer| buffer.lines[last_line].text().chars().count());
+                            editor.set_cursor(Cursor { line: last_line, index: last_index, affinity: Affinity::After });
                         } else {
                             editor.action(Action::Motion(Motion::Down));
                         }

@@ -61,7 +61,11 @@ impl Components for Ui {
             self.classic_slider(&mut state.f32_value, 0.0, 100.0);
 
             self.static_paragraph(
-                &"Press F1 for Inspect mode. This lets you see the bounds of the layout rectangles. \n\n\
+                "Press Ctrl+Tab and Ctrl+Shift+Tab to switch between tabs."
+            );
+
+            self.static_paragraph(
+                "Press F1 for Inspect mode. This lets you see the bounds of the layout rectangles. \n\n\
                 In Inspect mode, hovering nodes will also log an Info message with the node's debug name and source code location."
             );
         });
