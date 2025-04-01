@@ -52,7 +52,7 @@ impl Ui {
                         &mut editor,
                         editor_rect_top_left,
                         event,
-                        &self.sys.key_mods,
+                        &self.sys.key_input.key_mods(),
                         mouse_down,
                         mouse_pos.x,
                         mouse_pos.y,
@@ -92,9 +92,6 @@ impl Ui {
                         return false
                     },
                 }
-            }
-            WindowEvent::ModifiersChanged(modifiers) => {
-                self.sys.key_mods = modifiers.state();
             }
             WindowEvent::KeyboardInput {
                 event,

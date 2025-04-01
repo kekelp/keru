@@ -2,13 +2,14 @@ use std::time::{Duration, Instant};
 use std::fmt::Debug;
 
 use winit::event::{ElementState, WindowEvent};
-use winit::keyboard::Key;
+use winit::keyboard::{Key, ModifiersState};
 
 pub struct KeyInput {
     unresolved_key_presses: Vec<PendingKeyPress>,
     last_frame_key_events: Vec<FullKeyEvent>,
     key_repeats: Vec<Key>,
     last_frame_key_repeats: Vec<Key>,
+    key_mods: ModifiersState,
 }
 
 // todo: merge with the mouse one??
@@ -28,11 +29,16 @@ impl Default for KeyInput {
             last_frame_key_events: Vec::with_capacity(20),
             key_repeats: Vec::with_capacity(10),
             last_frame_key_repeats: Vec::with_capacity(10),
+            key_mods: ModifiersState::default(),
         }
     }
 }
 
 impl KeyInput {
+    pub fn key_mods(&self) -> &ModifiersState {
+        return &self.key_mods;
+    }
+
     // updating
     pub fn begin_new_frame(&mut self) {
         let current_mouse_status = Instant::now();
@@ -61,18 +67,27 @@ impl KeyInput {
     }
 
     pub fn window_event(&mut self, event: &WindowEvent) {
-        if let WindowEvent::KeyboardInput { event, is_synthetic, .. } = event {
-            if ! is_synthetic {
-                if event.state == ElementState::Pressed {
-                    if ! event.repeat {
-                        self.push_key_press(&event.logical_key);
-                    } else {
-                        self.push_key_repeat(&event.logical_key);
+        match event {
+            WindowEvent::KeyboardInput { event, is_synthetic, .. } => {
+                if !is_synthetic {
+                    match event.state {
+                        ElementState::Pressed => {
+                            if !event.repeat {
+                                self.push_key_press(&event.logical_key);
+                            } else {
+                                self.push_key_repeat(&event.logical_key);
+                            }
+                        },
+                        _ => {
+                            self.push_key_release(&event.logical_key);
+                        }
                     }
-                } else {
-                    self.push_key_release(&event.logical_key);
                 }
-            }
+            },
+            WindowEvent::ModifiersChanged(modifiers) => {
+                self.key_mods = modifiers.state();
+            },
+            _ => {}
         }
     }
 

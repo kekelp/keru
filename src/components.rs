@@ -105,8 +105,9 @@ impl Ui {
                 .key_pressed_or_repeated(&winit::keyboard::Key::Named(
                     winit::keyboard::NamedKey::Tab,
                 ))
+                && self.key_input().key_mods().control_key()
             {
-                if self.key_mods().shift_key() {
+                if self.key_input().key_mods().shift_key() {
                     *current_tab = (((*current_tab as isize) - 1 + ilen) % ilen) as usize;
                 } else {
                     *current_tab = (*current_tab + 1) % tabs.len();

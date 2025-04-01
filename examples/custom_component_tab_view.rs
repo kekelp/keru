@@ -32,7 +32,7 @@ impl CustomWidgets for Ui {
             // todo: focused?
             let ilen = tabs.len() as isize;
             if self.key_input().key_pressed_or_repeated(&winit::keyboard::Key::Named(winit::keyboard::NamedKey::Tab)) {
-                if self.key_mods().shift_key() {
+                if self.key_input().key_mods().shift_key() {
                     *tab_number = (((*tab_number as isize) - 1 + ilen) % ilen) as usize;
                 } else {
                     *tab_number = (*tab_number + 1) % tabs.len();

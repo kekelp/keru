@@ -83,7 +83,7 @@ impl State {
                 self.canvas.need_rerender = true;
             }
 
-            if self.ui.key_mods().shift_key() {
+            if self.ui.key_input().key_mods().shift_key() {
 
                 let before = self.ui.cursor_position();
                 

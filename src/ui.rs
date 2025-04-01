@@ -33,7 +33,6 @@ use wgpu::{
     BindGroup, BufferAddress, BufferUsages, ColorTargetState, Device, MultisampleState, Queue,
     RenderPipeline, SurfaceConfiguration, VertexBufferLayout, VertexStepMode,
 };
-use winit::keyboard::ModifiersState;
 
 pub(crate) static T0: LazyLock<Instant> = LazyLock::new(Instant::now);
 
@@ -73,9 +72,6 @@ pub(crate) struct System {
     pub new_external_events: bool,
 
     pub clipboard: Clipboard,
-
-    // todo: remove and put in mouse_input
-    pub key_mods: ModifiersState,
 
     pub gpu_rect_buffer: TypedGpuBuffer<RenderRect>,
     pub render_pipeline: RenderPipeline,
@@ -351,7 +347,6 @@ impl Ui {
                 new_external_events: true,
 
                 clipboard: Clipboard::new().expect("Couldn't initialize clipboard"),
-                key_mods: ModifiersState::default(),
 
                 text: TextSystem {
                     cache,
@@ -415,13 +410,6 @@ impl Ui {
                 hidden_nodes: Vec::with_capacity(10),
             },
         }
-    }
-
-    /// Returns a reference the `winit::ModifiersState` instance that the `Ui` stores and updates.
-    /// 
-    /// At the cost of some coupling, this can be reused in other parts of the program.
-    pub fn key_mods(&self) -> &ModifiersState {
-        return &self.sys.key_mods;
     }
 
     /// Returns a reference to a GPU buffer holding basic information.

@@ -179,12 +179,12 @@ impl State {
                     if let Key::Character(new_char) = &event.logical_key {
                     match new_char.as_str() {
                         "z" => {
-                            if self.ui.key_mods().control_key() {
+                            if self.ui.key_input().key_mods().control_key() {
                                 self.canvas.undo();
                             }
                         },
                         "Z" => {
-                            if self.ui.key_mods().control_key() {
+                            if self.ui.key_input().key_mods().control_key() {
                                 self.canvas.redo();
                             }
                         },
