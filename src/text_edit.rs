@@ -327,6 +327,15 @@ pub(crate) fn editor_window_event<'buffer>(
                                     }
                                     return ABSORBED_BUT_NOTHING_CHANGED;
                                 }
+                                "x" => {
+                                    if let Some(text) = editor.copy_selection() {                                        
+                                        if let Err(err) = clipboard.set_text(text) {
+                                            log::error!("Failed to copy text to clipboard: {}", err);
+                                        }
+                                    }
+                                    delete_selection_and_record(editor, history);
+                                    return TEXT_CHANGED;
+                                }
                                 "v" => {
                                     // Paste text from clipboard
                                     if let Ok(text) = clipboard.get_text() {
