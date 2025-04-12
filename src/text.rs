@@ -1,5 +1,5 @@
 use crate::*;
-use glyphon::{Color as GlyphonColor, Edit, Editor, TextArea, TextBounds, Viewport};
+use glyphon::{Color as GlyphonColor, Cursor, Edit, Editor, TextArea, TextBounds, Viewport};
 use glyphon::{
     Attrs, Buffer as GlyphonBuffer, Family, FontSystem, Metrics, Shaping, SwashCache,
     TextAtlas, TextRenderer,
@@ -110,7 +110,8 @@ impl TextSystem {
                 Shaping::Advanced,
             );
             let editor = Editor::new(buffer);
-            let i = self.slabs.editors.insert(FullTextEdit { editor, params });
+            let history = TextEditHistory::new();
+            let i = self.slabs.editors.insert(FullTextEdit { editor, params, history });
             text_i = TextI::TextEditI(i);
         } else {
             self.slabs.boxes.push(FullText { buffer, params });
@@ -230,6 +231,7 @@ pub struct FullText {
 pub struct FullTextEdit {
     pub editor: Editor<'static>,
     pub params: TextAreaParams,
+    pub history: TextEditHistory,
 }
 
 impl TextSlabs {
@@ -255,3 +257,4 @@ impl TextSlabs {
         text_box_buffers.chain(text_edit_box_buffers).filter_map(|opt| opt)
     }
 }
+

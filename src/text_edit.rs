@@ -43,8 +43,35 @@ const TEXT_CHANGED: EditorEventResult = EditorEventResult {
     redraw_text: true,
 };
 
+pub(crate) fn delete_selection_and_record<'buffer>(
+    editor: &mut BorrowedWithFontSystem<impl Edit<'buffer>>,
+    history: &mut TextEditHistory
+) {
+    let Some(selected_text) = editor.copy_selection() else {
+        return;
+    };
+    
+    editor.delete_selection();
+    history.record_delete(&selected_text, editor.cursor());
+}
+
+pub(crate) fn delete_selection_and_record_special<'buffer>(
+    editor: &mut BorrowedWithFontSystem<impl Edit<'buffer>>,
+    history: &mut TextEditHistory,
+    cursor: Cursor
+) {
+    let selected_text = editor.copy_selection();
+    let deleted_text = match &selected_text {
+        Some(text) => text.as_str(),
+        None => &"",
+    };
+    history.record_delete(deleted_text, cursor);
+    editor.delete_selection();
+}
+
 pub(crate) fn editor_window_event<'buffer>(
     editor: &mut BorrowedWithFontSystem<impl Edit<'buffer>>,
+    history: &mut TextEditHistory,
     editor_rect_top_left: Vec2,
     event: &WindowEvent,
     modifiers: &ModifiersState,
@@ -181,44 +208,55 @@ pub(crate) fn editor_window_event<'buffer>(
                         // ctrl + enter isn't even listened
                         if ! modifiers.control_key() {
                             if editor.selection() != Selection::None {
-                                editor.delete_selection();
+                                delete_selection_and_record(editor, history);
                             } else {
-                                editor.action(Action::Enter);
+                                delete_selection_and_record(editor, history);
+                                editor.action(Action::Insert('\n'));
+                                history.record_insert('\n', editor.cursor());
                             }
                             return TEXT_CHANGED;
                         }
                     }
                     Key::Named(NamedKey::Backspace) => {
                         if editor.selection() != Selection::None {
-                            editor.delete_selection();
+                            delete_selection_and_record(editor, history);
                             return TEXT_CHANGED;
                         }
                         if modifiers.control_key() {
                             let cursor = editor.cursor();
+                            editor.set_selection(Selection::Normal(cursor));
                             editor.action(Action::Motion(Motion::PreviousWord));
-                            let start = editor.cursor();
-                            editor.set_selection(Selection::Normal(start));
-                            editor.set_cursor(cursor);
-                            editor.delete_selection();
+                            delete_selection_and_record(editor, history);
+                            editor.set_selection(Selection::None);
                         } else {
-                            editor.action(Action::Backspace);
+                            let cursor = editor.cursor();
+                            editor.set_selection(Selection::Normal(cursor));
+                            editor.action(Action::Motion(Motion::Previous));
+                            delete_selection_and_record(editor, history);
+                            editor.set_selection(Selection::None);
                         }
                         return TEXT_CHANGED;
                     }
                     Key::Named(NamedKey::Delete) => {
                         if editor.selection() != Selection::None {
-                            editor.delete_selection();
+                            delete_selection_and_record(editor, history);
                             return TEXT_CHANGED;
                         }
                         if modifiers.control_key() {
-                            let cursor = editor.cursor();
+                            let old_cursor = editor.cursor();
+                            editor.set_selection(Selection::Normal(old_cursor));
                             editor.action(Action::Motion(Motion::NextWord));
-                            let end = editor.cursor();
-                            editor.set_selection(Selection::Normal(cursor));
-                            editor.set_cursor(end);
-                            editor.delete_selection();
+
+                            delete_selection_and_record(editor, history);
+                            editor.set_selection(Selection::None);
+
                         } else {
-                            editor.action(Action::Delete);
+                            let old_cursor = editor.cursor();
+                            editor.set_selection(Selection::Normal(old_cursor));
+                            editor.action(Action::Motion(Motion::Next));
+
+                            delete_selection_and_record(editor, history);
+                            editor.set_selection(Selection::None);
                         }
                         return TEXT_CHANGED;
                     }
@@ -227,6 +265,7 @@ pub(crate) fn editor_window_event<'buffer>(
                             if let Some(text) = key.to_text() {
                                 for c in text.chars() {
                                     editor.action(Action::Insert(c));
+                                    history.record_insert(c, editor.cursor());
                                 }
                                 return TEXT_CHANGED;
                             }
@@ -235,6 +274,22 @@ pub(crate) fn editor_window_event<'buffer>(
                     Key::Character(text) => {
                         if modifiers.control_key() {
                             match text.as_str() {
+                                "z" => {
+                                    if let Some(op) = history.undo() {
+                                        match op {
+                                            Undo::UndoInsert(undo_insert) => {
+                                                editor.set_cursor(undo_insert.cursor);
+                                                editor.action(Action::Backspace);
+                                                return TEXT_CHANGED;
+                                            },
+                                            Undo::UndoDelete(undo_delete) => {
+                                                let new_cursor = editor.insert_at(undo_delete.cursor, undo_delete.text, None);
+                                                editor.set_cursor(new_cursor);
+                                                return TEXT_CHANGED;
+                                            },
+                                        }
+                                    }
+                                }
                                 "a" => {
                                     editor.set_cursor(Cursor::new_with_affinity(0, 0, Affinity::Before));
                                     let end_line = editor.with_buffer(|buffer| buffer.lines.len() - 1);
@@ -243,57 +298,7 @@ pub(crate) fn editor_window_event<'buffer>(
                                     return CURSOR_CHANGED;
                                 }
                                 "c" => {
-                                    // Copy selected text to clipboard
-                                    if let Some((start, end)) = editor.selection_bounds() {
-                                        let text = editor.with_buffer(|buffer| {
-                                            let mut result = String::new();
-                                            
-                                            if start.line == end.line {
-                                                // Single line selection
-                                                let line_str = buffer.lines[start.line].text();
-                                                // Use grapheme indices instead of char_to_byte
-                                                let graphemes: Vec<&str> = line_str.graphemes(true).collect();
-                                                let start_char = if start.index < graphemes.len() { start.index } else { graphemes.len() };
-                                                let end_char = if end.index < graphemes.len() { end.index } else { graphemes.len() };
-                                                
-                                                for i in start_char..end_char {
-                                                    if i < graphemes.len() {
-                                                        result.push_str(graphemes[i]);
-                                                    }
-                                                }
-                                            } else {
-                                                // Multi-line selection
-                                                // First line
-                                                let first_line_str = buffer.lines[start.line].text();
-                                                let first_graphemes: Vec<&str> = first_line_str.graphemes(true).collect();
-                                                let start_char = if start.index < first_graphemes.len() { start.index } else { first_graphemes.len() };
-                                                
-                                                for i in start_char..first_graphemes.len() {
-                                                    result.push_str(first_graphemes[i]);
-                                                }
-                                                result.push('\n');
-                                                
-                                                // Middle lines
-                                                for line_idx in (start.line + 1)..end.line {
-                                                    result.push_str(buffer.lines[line_idx].text());
-                                                    result.push('\n');
-                                                }
-                                                
-                                                // Last line
-                                                let last_line_str = buffer.lines[end.line].text();
-                                                let last_graphemes: Vec<&str> = last_line_str.graphemes(true).collect();
-                                                let end_char = if end.index < last_graphemes.len() { end.index } else { last_graphemes.len() };
-                                                
-                                                for i in 0..end_char {
-                                                    if i < last_graphemes.len() {
-                                                        result.push_str(last_graphemes[i]);
-                                                    }
-                                                }
-                                            }
-                                            
-                                            result
-                                        });
-                                        
+                                    if let Some(text) = editor.copy_selection() {                                        
                                         if let Err(err) = clipboard.set_text(text) {
                                             log::error!("Failed to copy text to clipboard: {}", err);
                                         }
@@ -304,25 +309,11 @@ pub(crate) fn editor_window_event<'buffer>(
                                     // Paste text from clipboard
                                     if let Ok(text) = clipboard.get_text() {
                                         // Delete any selected text first
-                                        editor.delete_selection();
+                                        delete_selection_and_record(editor, history);
                                         
-                                        // Insert the clipboard text
-                                        for line in text.lines().enumerate() {
-                                            if line.0 > 0 {
-                                                // For lines after the first one, insert a newline first
-                                                editor.action(Action::Enter);
-                                            }
-                                            
-                                            // Insert the line character by character
-                                            for c in line.1.chars() {
-                                                editor.action(Action::Insert(c));
-                                            }
-                                        }
-                                        
-                                        // Handle the case where the clipboard text ends with a newline
-                                        if text.ends_with('\n') {
-                                            editor.action(Action::Enter);
-                                        }
+                                        let cursor = editor.cursor();
+                                        let new_cursor = editor.insert_at(cursor, &text, None);
+                                        editor.set_cursor(new_cursor);
                                     }
                                     return TEXT_CHANGED;
                                 }
@@ -330,7 +321,9 @@ pub(crate) fn editor_window_event<'buffer>(
                             }
                         } else {
                             for c in text.chars() {
+                                delete_selection_and_record(editor, history);
                                 editor.action(Action::Insert(c));
+                                history.record_insert(c, editor.cursor());
                             }
                             return TEXT_CHANGED;
                         }
@@ -604,4 +597,166 @@ impl Ui {
         Some(())
     }
 
+}
+
+
+
+
+
+pub(crate) struct TextEditHistory {
+    stored_text: String,
+    history: Vec<HistoryElem>,
+    current_position: usize, // Cursor position in history
+}
+
+#[derive(Debug)]
+enum HistoryElem {
+    Delete(Delete),
+    Insert(Insert)
+}
+
+#[derive(Debug)]
+struct Delete {
+    selection: Cursor,
+    text: (usize, usize) // range into storedtext
+}
+
+#[derive(Debug)]
+pub struct Insert {
+    cursor: Cursor,
+    text: (usize, usize)
+}
+
+#[derive(Debug)]
+pub struct UndoInsert {
+    cursor: Cursor,
+    n_chars: usize,
+}
+
+#[derive(Debug)]
+struct UndoDelete<'a> {
+    cursor: Cursor,
+    text: &'a str,
+}
+
+#[derive(Debug)]
+pub enum Undo<'a> {
+    UndoInsert(UndoInsert),
+    UndoDelete(UndoDelete<'a>),
+}
+
+impl TextEditHistory {
+    pub fn new() -> Self {
+        TextEditHistory {
+            stored_text: String::with_capacity(50),
+            history: Vec::with_capacity(50),
+            current_position: 0,
+        }
+    }
+
+    pub fn record_delete<'buffer>(&mut self, deleted_text: &str, selection: Cursor) {
+        // Store the deleted text in stored_text
+        let start = self.stored_text.len();
+        self.stored_text.push_str(deleted_text);
+        let end = self.stored_text.len();
+        
+        // Truncate history if we're not at the end (discard future redos)
+        if self.current_position < self.history.len() {
+            self.history.truncate(self.current_position);
+        }
+        
+        // Add new operation
+        self.history.push(HistoryElem::Delete(Delete {
+            selection,
+            text: (start, end),
+        }));
+        self.current_position = self.history.len();
+    }
+
+    pub fn record_insert(&mut self, inserted_char: char, cursor: Cursor) {
+        let start = self.stored_text.len();
+        self.stored_text.push(inserted_char);
+        let end = self.stored_text.len();
+
+        // Truncate history if we're not at the end
+        if self.current_position < self.history.len() {
+            self.history.truncate(self.current_position);
+        }
+        
+        // Add new operation
+        self.history.push(HistoryElem::Insert(Insert {
+            cursor,
+            text: (start, end),
+        }));
+        self.current_position = self.history.len();
+    }
+
+    pub fn undo(&mut self) -> Option<Undo> {
+        if self.current_position > 0 {
+            self.current_position -= 1;
+            let op = &self.history[self.current_position];
+            match op {
+                HistoryElem::Delete(delete) => {
+                    // Reinsert the deleted text
+                    let (start, end) = delete.text;
+                    let deleted_text = &self.stored_text[start..end];
+                    Some(Undo::UndoDelete(
+                        UndoDelete {
+                            cursor: delete.selection,
+                            text: deleted_text,
+                        }
+                    ))
+                },
+                HistoryElem::Insert(insert) => {
+                    let (start, end) = insert.text;
+                    Some(Undo::UndoInsert(
+                        UndoInsert {
+                            cursor: insert.cursor,
+                            n_chars: end - start,
+                        }
+                    ))
+                }
+            }
+        } else {
+            None
+        }
+    }
+    
+    pub fn redo(&mut self) -> Option<Undo> {
+        // Check if there are operations to redo (we must be at a position less than the history length)
+        if self.current_position < self.history.len() {
+            // Get the operation to redo
+            let op = &self.history[self.current_position];
+            
+            // Move forward in the history
+            self.current_position += 1;
+            
+            // Return the appropriate HistoryOp based on the stored operation
+            match op {
+                HistoryElem::Delete(delete) => {
+                    let (start, end) = delete.text;
+                    Some(Undo::UndoInsert(
+                        UndoInsert {
+                            cursor: delete.selection,
+                            n_chars: end - start,
+                        }
+                    ))
+                },
+                HistoryElem::Insert(insert) => {
+                    // For an insert operation, we need to insert again
+                    let (start, end) = insert.text;
+                    let text_to_insert = &self.stored_text[start..end];
+                    
+                    Some(Undo::UndoDelete(
+                        UndoDelete {
+                            cursor: insert.cursor,
+                            text: text_to_insert,
+                        }
+                    ))
+                }
+            }
+        } else {
+            None
+        }
+    }
 }

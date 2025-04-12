@@ -39,7 +39,12 @@ impl Ui {
                     let mouse_down = self.sys.mouse_input.held(Some(MouseButton::Left), Some(focused_id)).is_some();
                     let mouse_pos = self.sys.mouse_input.cursor_position();
 
-                    let mut editor = self.sys.text.slabs.editors[editor_i].editor.borrow_with(&mut self.sys.text.font_system);
+                    let full_edit = &mut self.sys.text.slabs.editors[editor_i];
+                    let editor = &mut full_edit.editor.borrow_with(&mut self.sys.text.font_system);
+                    let history = &mut full_edit.history;
+
+                    // let mut editor = &mut self.sys.text.slabs.editors[editor_i].editor.borrow_with(&mut self.sys.text.font_system);
+                    // let mut history = &mut self.sys.text.slabs.editors[editor_i].history;
 
                     // editor.draw(cache, text_color, cursor_color, selection_color, selected_text_color, f);
                     let editor_rect = self.nodes[focused_i].rect;
@@ -49,7 +54,8 @@ impl Ui {
                     );
 
                     let response = editor_window_event(
-                        &mut editor,
+                        editor,
+                        history,
                         editor_rect_top_left,
                         event,
                         &self.sys.key_input.key_mods(),

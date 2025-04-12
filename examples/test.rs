@@ -17,7 +17,7 @@ impl State {
 fn main() {
     env_logger::Builder::new()
         .filter_level(log::LevelFilter::Warn)
-        .filter_module("keru::tree", log::LevelFilter::Trace)
+        .filter_module("keru", log::LevelFilter::Info)
         .init();
     let mut state = State::default();
     state.show = true;
