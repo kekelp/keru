@@ -707,13 +707,41 @@ impl TextEditHistory {
         let start = self.stored_text.len();
         self.stored_text.push_str(inserted_char);
         let end = self.stored_text.len();
-
+        
         // Truncate history if we're not at the end
         if self.current_position < self.history.len() {
             self.history.truncate(self.current_position);
         }
         
-        // Add new operation
+        // Check if we can merge with previous insert operation
+        if let Some(last_op) = self.history.last_mut() {
+            if let HistoryElem::Insert(last_insert) = last_op {
+                // Heuristics for when to merge inserts
+                let should_merge = match inserted_char {
+                    // Don't merge if inserting a space or newline
+                    " " | "\n" | "\r\n" | "\t" => false,
+                    // Don't merge if the previous insert ended with a space/newline
+                    _ => {
+                        let prev_text = &self.stored_text[last_insert.text.0..last_insert.text.1];
+                        !prev_text.ends_with(|c| c == '\n' || c == '\t') &&
+                        // Only merge if cursor positions are contiguous
+                        last_insert.end_cursor == start_cursor &&
+                        // Limit merge size (e.g., don't merge if the combined text is too long)
+                        (end - last_insert.text.0) < 25
+                    }
+                };
+                
+                if should_merge {
+                    // Merge with previous insert
+                    last_insert.end_cursor = end_cursor;
+                    last_insert.text.1 = end;
+                    self.current_position = self.history.len();
+                    return;
+                }
+            }
+        }
+        
+        // Add new operation (no merge)
         self.history.push(HistoryElem::Insert(Insert {
             start_cursor,
             end_cursor,
