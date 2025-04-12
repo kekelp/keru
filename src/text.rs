@@ -1,5 +1,5 @@
 use crate::*;
-use glyphon::{Color as GlyphonColor, Cursor, Edit, Editor, TextArea, TextBounds, Viewport};
+use glyphon::{Color as GlyphonColor, Edit, Editor, TextArea, TextBounds, Viewport};
 use glyphon::{
     Attrs, Buffer as GlyphonBuffer, Family, FontSystem, Metrics, Shaping, SwashCache,
     TextAtlas, TextRenderer,

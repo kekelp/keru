@@ -47,26 +47,26 @@ pub(crate) fn delete_selection_and_record<'buffer>(
     editor: &mut BorrowedWithFontSystem<impl Edit<'buffer>>,
     history: &mut TextEditHistory
 ) {
+    let Some((start, end)) = editor.selection_bounds() else {
+        return;
+    };
     let Some(selected_text) = editor.copy_selection() else {
         return;
     };
-    
+
     editor.delete_selection();
-    history.record_delete(&selected_text, editor.cursor());
+    history.record_delete(&selected_text, start, end);
 }
 
-pub(crate) fn delete_selection_and_record_special<'buffer>(
+pub(crate) fn insert_and_record<'buffer>(
     editor: &mut BorrowedWithFontSystem<impl Edit<'buffer>>,
     history: &mut TextEditHistory,
-    cursor: Cursor
+    text: &str
 ) {
-    let selected_text = editor.copy_selection();
-    let deleted_text = match &selected_text {
-        Some(text) => text.as_str(),
-        None => &"",
-    };
-    history.record_delete(deleted_text, cursor);
-    editor.delete_selection();
+    let start = editor.cursor();
+    let new_cursor = editor.insert_at(start, text, None);
+    history.record_insert(text, start, new_cursor);
+    editor.set_cursor(new_cursor);
 }
 
 pub(crate) fn editor_window_event<'buffer>(
@@ -211,8 +211,7 @@ pub(crate) fn editor_window_event<'buffer>(
                                 delete_selection_and_record(editor, history);
                             } else {
                                 delete_selection_and_record(editor, history);
-                                editor.action(Action::Insert('\n'));
-                                history.record_insert('\n', editor.cursor());
+                                insert_and_record(editor, history, "\n");
                             }
                             return TEXT_CHANGED;
                         }
@@ -263,10 +262,7 @@ pub(crate) fn editor_window_event<'buffer>(
                     Key::Named(key) => {
                         if ! modifiers.control_key() {
                             if let Some(text) = key.to_text() {
-                                for c in text.chars() {
-                                    editor.action(Action::Insert(c));
-                                    history.record_insert(c, editor.cursor());
-                                }
+                                insert_and_record(editor, history, text);
                                 return TEXT_CHANGED;
                             }
                         }
@@ -275,16 +271,42 @@ pub(crate) fn editor_window_event<'buffer>(
                         if modifiers.control_key() {
                             match text.as_str() {
                                 "z" => {
+                                    // undo
                                     if let Some(op) = history.undo() {
                                         match op {
-                                            Undo::UndoInsert(undo_insert) => {
-                                                editor.set_cursor(undo_insert.cursor);
-                                                editor.action(Action::Backspace);
+                                            HistoryItem::HistoryInsert(undo_insert) => {
+                                                editor.set_cursor(undo_insert.start_cursor);
+                                                let start = undo_insert.start_cursor;
+                                                let end = undo_insert.end_cursor;
+                                                editor.delete_range(start, end);
+
+                                                editor.set_selection(Selection::None);
                                                 return TEXT_CHANGED;
                                             },
-                                            Undo::UndoDelete(undo_delete) => {
-                                                let new_cursor = editor.insert_at(undo_delete.cursor, undo_delete.text, None);
+                                            HistoryItem::HistoryDelete(undo_delete) => {
+                                                let new_cursor = editor.insert_at(undo_delete.start_cursor, undo_delete.text, None);
                                                 editor.set_cursor(new_cursor);
+                                                return TEXT_CHANGED;
+                                            },
+                                        }
+                                    }
+                                }
+                                "Z" => {
+                                    // redo
+                                    if let Some(op) = history.redo() {
+                                        match op {
+                                            HistoryItem::HistoryInsert(redo_insert) => {
+                                                let new_cursor = editor.insert_at(redo_insert.start_cursor, redo_insert.text, None);
+                                                editor.set_cursor(new_cursor);
+                                                return TEXT_CHANGED;
+                                            },
+                                            HistoryItem::HistoryDelete(redo_delete) => {
+                                                editor.set_cursor(redo_delete.start_cursor);
+                                                let start = redo_delete.start_cursor;
+                                                let end = redo_delete.end_cursor;
+                                                editor.delete_range(start, end);
+
+                                                editor.set_selection(Selection::None);
                                                 return TEXT_CHANGED;
                                             },
                                         }
@@ -310,21 +332,15 @@ pub(crate) fn editor_window_event<'buffer>(
                                     if let Ok(text) = clipboard.get_text() {
                                         // Delete any selected text first
                                         delete_selection_and_record(editor, history);
-                                        
-                                        let cursor = editor.cursor();
-                                        let new_cursor = editor.insert_at(cursor, &text, None);
-                                        editor.set_cursor(new_cursor);
+                                        insert_and_record(editor, history, &text);
                                     }
                                     return TEXT_CHANGED;
                                 }
                                 _ => {},
                             }
                         } else {
-                            for c in text.chars() {
-                                delete_selection_and_record(editor, history);
-                                editor.action(Action::Insert(c));
-                                history.record_insert(c, editor.cursor());
-                            }
+                            delete_selection_and_record(editor, history);
+                            insert_and_record(editor, history, &text);
                             return TEXT_CHANGED;
                         }
                     }
@@ -617,32 +633,36 @@ enum HistoryElem {
 
 #[derive(Debug)]
 struct Delete {
-    selection: Cursor,
+    start_cursor: Cursor,
+    end_cursor: Cursor,
     text: (usize, usize) // range into storedtext
 }
 
 #[derive(Debug)]
 pub struct Insert {
-    cursor: Cursor,
+    start_cursor: Cursor,
+    end_cursor: Cursor,
     text: (usize, usize)
 }
 
 #[derive(Debug)]
-pub struct UndoInsert {
-    cursor: Cursor,
-    n_chars: usize,
-}
-
-#[derive(Debug)]
-struct UndoDelete<'a> {
-    cursor: Cursor,
+pub struct HistoryInsert<'a> {
+    start_cursor: Cursor,
+    end_cursor: Cursor,
     text: &'a str,
 }
 
 #[derive(Debug)]
-pub enum Undo<'a> {
-    UndoInsert(UndoInsert),
-    UndoDelete(UndoDelete<'a>),
+pub struct HistoryDelete<'a> {
+    start_cursor: Cursor,
+    end_cursor: Cursor,
+    text: &'a str,
+}
+
+#[derive(Debug)]
+pub enum HistoryItem<'a> {
+    HistoryInsert(HistoryInsert<'a>),
+    HistoryDelete(HistoryDelete<'a>),
 }
 
 impl TextEditHistory {
@@ -654,7 +674,7 @@ impl TextEditHistory {
         }
     }
 
-    pub fn record_delete<'buffer>(&mut self, deleted_text: &str, selection: Cursor) {
+    pub fn record_delete<'buffer>(&mut self, deleted_text: &str, start_cursor: Cursor, end_cursor: Cursor) {
         // Store the deleted text in stored_text
         let start = self.stored_text.len();
         self.stored_text.push_str(deleted_text);
@@ -667,15 +687,16 @@ impl TextEditHistory {
         
         // Add new operation
         self.history.push(HistoryElem::Delete(Delete {
-            selection,
+            start_cursor,
+            end_cursor,
             text: (start, end),
         }));
         self.current_position = self.history.len();
     }
 
-    pub fn record_insert(&mut self, inserted_char: char, cursor: Cursor) {
+    pub fn record_insert(&mut self, inserted_char: &str, start_cursor: Cursor, end_cursor: Cursor) {
         let start = self.stored_text.len();
-        self.stored_text.push(inserted_char);
+        self.stored_text.push_str(inserted_char);
         let end = self.stored_text.len();
 
         // Truncate history if we're not at the end
@@ -685,13 +706,14 @@ impl TextEditHistory {
         
         // Add new operation
         self.history.push(HistoryElem::Insert(Insert {
-            cursor,
+            start_cursor,
+            end_cursor,
             text: (start, end),
         }));
         self.current_position = self.history.len();
     }
 
-    pub fn undo(&mut self) -> Option<Undo> {
+    pub fn undo(&mut self) -> Option<HistoryItem> {
         if self.current_position > 0 {
             self.current_position -= 1;
             let op = &self.history[self.current_position];
@@ -700,19 +722,22 @@ impl TextEditHistory {
                     // Reinsert the deleted text
                     let (start, end) = delete.text;
                     let deleted_text = &self.stored_text[start..end];
-                    Some(Undo::UndoDelete(
-                        UndoDelete {
-                            cursor: delete.selection,
+                    Some(HistoryItem::HistoryDelete(
+                        HistoryDelete {
+                            start_cursor: delete.start_cursor,
+                            end_cursor: delete.end_cursor,
                             text: deleted_text,
                         }
                     ))
                 },
                 HistoryElem::Insert(insert) => {
                     let (start, end) = insert.text;
-                    Some(Undo::UndoInsert(
-                        UndoInsert {
-                            cursor: insert.cursor,
-                            n_chars: end - start,
+                    let deleted_text = &self.stored_text[start..end];
+                    Some(HistoryItem::HistoryInsert(
+                        HistoryInsert {
+                            start_cursor: insert.start_cursor,
+                            end_cursor: insert.end_cursor,
+                            text: deleted_text,
                         }
                     ))
                 }
@@ -722,7 +747,7 @@ impl TextEditHistory {
         }
     }
     
-    pub fn redo(&mut self) -> Option<Undo> {
+    pub fn redo(&mut self) -> Option<HistoryItem> {
         // Check if there are operations to redo (we must be at a position less than the history length)
         if self.current_position < self.history.len() {
             // Get the operation to redo
@@ -735,10 +760,12 @@ impl TextEditHistory {
             match op {
                 HistoryElem::Delete(delete) => {
                     let (start, end) = delete.text;
-                    Some(Undo::UndoInsert(
-                        UndoInsert {
-                            cursor: delete.selection,
-                            n_chars: end - start,
+                    let text = &self.stored_text[start..end];
+                    Some(HistoryItem::HistoryDelete(
+                        HistoryDelete {
+                            start_cursor: delete.start_cursor,
+                            end_cursor: delete.end_cursor,
+                            text,
                         }
                     ))
                 },
@@ -747,9 +774,10 @@ impl TextEditHistory {
                     let (start, end) = insert.text;
                     let text_to_insert = &self.stored_text[start..end];
                     
-                    Some(Undo::UndoDelete(
-                        UndoDelete {
-                            cursor: insert.cursor,
+                    Some(HistoryItem::HistoryInsert(
+                        HistoryInsert {
+                            start_cursor: insert.start_cursor,
+                            end_cursor: insert.end_cursor,
                             text: text_to_insert,
                         }
                     ))
