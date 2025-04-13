@@ -682,24 +682,66 @@ impl TextEditHistory {
             current_position: 0,
         }
     }
-
     pub fn record_delete<'buffer>(&mut self, deleted_text: &str, start_cursor: Cursor, end_cursor: Cursor) {
-        // Store the deleted text in stored_text
-        let start = self.stored_text.len();
-        self.stored_text.push_str(deleted_text);
-        let end = self.stored_text.len();
-        
         // Truncate history if we're not at the end (discard future redos)
         if self.current_position < self.history.len() {
             self.history.truncate(self.current_position);
         }
         
-        // Add new operation
+        // Check if we can merge with previous delete operation
+        if let Some(last_op) = self.history.last_mut() {
+            if let HistoryElem::Delete(last_delete) = last_op {
+                // Heuristics for when to merge deletes
+
+                // "DELETE SEQ": the current deletion starts where the previous one started:
+                // Can merge this deletion with the previous one 
+                let can_merge_at_end = start_cursor == last_delete.start_cursor;
+                // "BACKSPACE SEQ": the current starts ends where the previous one started:
+                // Can merge this deletion with the previous one, but the new deleted text will have to go before the start of previous one. This means doing some shifting, but it's ok.
+                let can_merge_at_start = end_cursor == last_delete.start_cursor;
+
+                let should_merge = match deleted_text {
+                    // Don't merge if deleting only whitespace
+                    " " | "\n" | "\r\n" | "\t" if deleted_text.len() == 1 => false,
+                    _ => {
+                        (can_merge_at_start || can_merge_at_end) &&
+                        // Limit merge size
+                        (deleted_text.len() + (last_delete.text.1 - last_delete.text.0)) < 25
+                    }
+                };
+                
+                if should_merge {
+                    if can_merge_at_start {
+                        // Insert the new text at the beginning of the previous text
+                        self.stored_text.insert_str(last_delete.text.0, deleted_text);
+                        // Update cursor position
+                        last_delete.start_cursor = start_cursor;
+                    } else if can_merge_at_end {
+                        // Append the new text after the previous text
+                        self.stored_text.push_str(deleted_text);
+                        
+                        last_delete.end_cursor = end_cursor;
+                    }
+                    
+                    last_delete.text.1 += deleted_text.len();
+                    
+                    self.current_position = self.history.len();
+                    return;
+                }
+            }
+        }
+        
+        // Add new operation (no merge)
+        let start = self.stored_text.len();
+        self.stored_text.push_str(deleted_text);
+        let end = self.stored_text.len();
+        
         self.history.push(HistoryElem::Delete(Delete {
             start_cursor,
             end_cursor,
             text: (start, end),
         }));
+        
         self.current_position = self.history.len();
     }
 
