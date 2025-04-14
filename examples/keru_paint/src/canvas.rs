@@ -533,7 +533,6 @@ impl Canvas {
             let sy = if y0 < y1 { 1 } else { -1 };
             let mut err = dx + dy;
         
-            // loop uses isize only, maybe could be more precise or something
             loop {
                 // draw           
                 self.draw_circle(x0, y0);
@@ -553,6 +552,7 @@ impl Canvas {
                     y0 += sy;
                 }
             }
+
 
 
         }

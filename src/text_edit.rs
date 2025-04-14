@@ -674,6 +674,8 @@ pub enum HistoryItem<'a> {
     HistoryDelete(HistoryDelete<'a>),
 }
 
+const MAX_HISTORY_ELEM_LEN: usize = 15;
+
 impl TextEditHistory {
     pub fn new() -> Self {
         TextEditHistory {
@@ -706,7 +708,7 @@ impl TextEditHistory {
                     _ => {
                         (can_merge_at_start || can_merge_at_end) &&
                         // Limit merge size
-                        (deleted_text.len() + (last_delete.text.1 - last_delete.text.0)) < 25
+                        (deleted_text.len() + (last_delete.text.1 - last_delete.text.0)) < MAX_HISTORY_ELEM_LEN
                     }
                 };
                 
@@ -769,7 +771,7 @@ impl TextEditHistory {
                         // Only merge if cursor positions are contiguous
                         last_insert.end_cursor == start_cursor &&
                         // Limit merge size (e.g., don't merge if the combined text is too long)
-                        (end - last_insert.text.0) < 25
+                        (end - last_insert.text.0) < MAX_HISTORY_ELEM_LEN
                     }
                 };
                 
