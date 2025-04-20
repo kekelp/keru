@@ -275,16 +275,16 @@ pub(crate) fn editor_window_event<'buffer>(
                                     if let Some(op) = history.undo() {
                                         match op {
                                             HistoryItem::HistoryInsert(undo_insert) => {
-                                                editor.set_cursor(undo_insert.start_cursor);
-                                                let start = undo_insert.start_cursor;
-                                                let end = undo_insert.end_cursor;
+                                                editor.set_cursor(undo_insert.start);
+                                                let start = undo_insert.start;
+                                                let end = undo_insert.end;
                                                 editor.delete_range(start, end);
 
                                                 editor.set_selection(Selection::None);
                                                 return TEXT_CHANGED;
                                             },
                                             HistoryItem::HistoryDelete(undo_delete) => {
-                                                let new_cursor = editor.insert_at(undo_delete.start_cursor, undo_delete.text, None);
+                                                let new_cursor = editor.insert_at(undo_delete.start, undo_delete.text, None);
                                                 editor.set_cursor(new_cursor);
                                                 return TEXT_CHANGED;
                                             },
@@ -296,14 +296,14 @@ pub(crate) fn editor_window_event<'buffer>(
                                     if let Some(op) = history.redo() {
                                         match op {
                                             HistoryItem::HistoryInsert(redo_insert) => {
-                                                let new_cursor = editor.insert_at(redo_insert.start_cursor, redo_insert.text, None);
+                                                let new_cursor = editor.insert_at(redo_insert.start, redo_insert.text, None);
                                                 editor.set_cursor(new_cursor);
                                                 return TEXT_CHANGED;
                                             },
                                             HistoryItem::HistoryDelete(redo_delete) => {
-                                                editor.set_cursor(redo_delete.start_cursor);
-                                                let start = redo_delete.start_cursor;
-                                                let end = redo_delete.end_cursor;
+                                                editor.set_cursor(redo_delete.start);
+                                                let start = redo_delete.start;
+                                                let end = redo_delete.end;
                                                 editor.delete_range(start, end);
 
                                                 editor.set_selection(Selection::None);
@@ -631,47 +631,54 @@ impl Ui {
 pub(crate) struct TextEditHistory {
     stored_text: String,
     history: Vec<HistoryElem>,
-    current_position: usize, // Cursor position in history
+    current_position: usize,
 }
+
+// #[derive(Debug)]
+// struct InnerHist2 {
+//     prev_selection: Selection,
+//     buffer_delete_range: Range<usize>,
+//     stored_text_range: (usize, usize)
+// }
 
 #[derive(Debug)]
 enum HistoryElem {
-    Delete(Delete),
-    Insert(Insert)
+    Delete(InnerDelete),
+    Insert(InnerInsert)
 }
 
 #[derive(Debug)]
-struct Delete {
-    start_cursor: Cursor,
-    end_cursor: Cursor,
-    text: (usize, usize) // range into storedtext
-}
-
-#[derive(Debug)]
-pub struct Insert {
-    start_cursor: Cursor,
-    end_cursor: Cursor,
+struct InnerDelete {
+    start: Cursor,
+    end: Cursor,
     text: (usize, usize)
 }
 
 #[derive(Debug)]
-pub struct HistoryInsert<'a> {
-    start_cursor: Cursor,
-    end_cursor: Cursor,
+pub struct InnerInsert {
+    start: Cursor,
+    end: Cursor,
+    text: (usize, usize)
+}
+
+#[derive(Debug)]
+pub struct Insert<'a> {
+    start: Cursor,
+    end: Cursor,
     text: &'a str,
 }
 
 #[derive(Debug)]
-pub struct HistoryDelete<'a> {
-    start_cursor: Cursor,
-    end_cursor: Cursor,
+pub struct Delete<'a> {
+    start: Cursor,
+    end: Cursor,
     text: &'a str,
 }
 
 #[derive(Debug)]
 pub enum HistoryItem<'a> {
-    HistoryInsert(HistoryInsert<'a>),
-    HistoryDelete(HistoryDelete<'a>),
+    HistoryInsert(Insert<'a>),
+    HistoryDelete(Delete<'a>),
 }
 
 const MAX_HISTORY_ELEM_LEN: usize = 15;
@@ -695,12 +702,12 @@ impl TextEditHistory {
             if let HistoryElem::Delete(last_delete) = last_op {
                 // Heuristics for when to merge deletes
 
-                // "DELETE SEQ": the current deletion starts where the previous one started:
+                // the current deletion starts where the previous one started:
                 // Can merge this deletion with the previous one 
-                let can_merge_at_end = start_cursor == last_delete.start_cursor;
-                // "BACKSPACE SEQ": the current starts ends where the previous one started:
+                let can_merge_at_end = start_cursor == last_delete.start;
+                // the current starts ends where the previous one started:
                 // Can merge this deletion with the previous one, but the new deleted text will have to go before the start of previous one. This means doing some shifting, but it's ok.
-                let can_merge_at_start = end_cursor == last_delete.start_cursor;
+                let can_merge_at_start = end_cursor == last_delete.start;
 
                 let should_merge = match deleted_text {
                     // Don't merge if deleting only whitespace
@@ -717,12 +724,12 @@ impl TextEditHistory {
                         // Insert the new text at the beginning of the previous text
                         self.stored_text.insert_str(last_delete.text.0, deleted_text);
                         // Update cursor position
-                        last_delete.start_cursor = start_cursor;
+                        last_delete.start = start_cursor;
                     } else if can_merge_at_end {
                         // Append the new text after the previous text
                         self.stored_text.push_str(deleted_text);
                         
-                        last_delete.end_cursor = end_cursor;
+                        last_delete.end = end_cursor;
                     }
                     
                     last_delete.text.1 += deleted_text.len();
@@ -738,9 +745,9 @@ impl TextEditHistory {
         self.stored_text.push_str(deleted_text);
         let end = self.stored_text.len();
         
-        self.history.push(HistoryElem::Delete(Delete {
-            start_cursor,
-            end_cursor,
+        self.history.push(HistoryElem::Delete(InnerDelete {
+            start: start_cursor,
+            end: end_cursor,
             text: (start, end),
         }));
         
@@ -769,7 +776,7 @@ impl TextEditHistory {
                         let prev_text = &self.stored_text[last_insert.text.0..last_insert.text.1];
                         !prev_text.ends_with(|c| c == '\n' || c == '\t') &&
                         // Only merge if cursor positions are contiguous
-                        last_insert.end_cursor == start_cursor &&
+                        last_insert.end == start_cursor &&
                         // Limit merge size (e.g., don't merge if the combined text is too long)
                         (end - last_insert.text.0) < MAX_HISTORY_ELEM_LEN
                     }
@@ -777,7 +784,7 @@ impl TextEditHistory {
                 
                 if should_merge {
                     // Merge with previous insert
-                    last_insert.end_cursor = end_cursor;
+                    last_insert.end = end_cursor;
                     last_insert.text.1 = end;
                     self.current_position = self.history.len();
                     return;
@@ -786,9 +793,9 @@ impl TextEditHistory {
         }
         
         // Add new operation (no merge)
-        self.history.push(HistoryElem::Insert(Insert {
-            start_cursor,
-            end_cursor,
+        self.history.push(HistoryElem::Insert(InnerInsert {
+            start: start_cursor,
+            end: end_cursor,
             text: (start, end),
         }));
         self.current_position = self.history.len();
@@ -804,9 +811,9 @@ impl TextEditHistory {
                     let (start, end) = delete.text;
                     let deleted_text = &self.stored_text[start..end];
                     Some(HistoryItem::HistoryDelete(
-                        HistoryDelete {
-                            start_cursor: delete.start_cursor,
-                            end_cursor: delete.end_cursor,
+                        Delete {
+                            start: delete.start,
+                            end: delete.end,
                             text: deleted_text,
                         }
                     ))
@@ -815,9 +822,9 @@ impl TextEditHistory {
                     let (start, end) = insert.text;
                     let deleted_text = &self.stored_text[start..end];
                     Some(HistoryItem::HistoryInsert(
-                        HistoryInsert {
-                            start_cursor: insert.start_cursor,
-                            end_cursor: insert.end_cursor,
+                        Insert {
+                            start: insert.start,
+                            end: insert.end,
                             text: deleted_text,
                         }
                     ))
@@ -843,9 +850,9 @@ impl TextEditHistory {
                     let (start, end) = delete.text;
                     let text = &self.stored_text[start..end];
                     Some(HistoryItem::HistoryDelete(
-                        HistoryDelete {
-                            start_cursor: delete.start_cursor,
-                            end_cursor: delete.end_cursor,
+                        Delete {
+                            start: delete.start,
+                            end: delete.end,
                             text,
                         }
                     ))
@@ -856,9 +863,9 @@ impl TextEditHistory {
                     let text_to_insert = &self.stored_text[start..end];
                     
                     Some(HistoryItem::HistoryInsert(
-                        HistoryInsert {
-                            start_cursor: insert.start_cursor,
-                            end_cursor: insert.end_cursor,
+                        Insert {
+                            start: insert.start,
+                            end: insert.end,
                             text: text_to_insert,
                         }
                     ))
