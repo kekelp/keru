@@ -2,9 +2,9 @@ use std::time::Duration;
 use std::{marker::PhantomData, mem};
 
 use bytemuck::Pod;
-use glyphon::Edit;
 use wgpu::{Buffer, BufferSlice, Device, Queue, RenderPass};
 use winit::event::*;
+use winit::window::Window;
 
 use crate::*;
 
@@ -18,67 +18,23 @@ impl Ui {
     /// Returns `true` if the event was "consumed" by the `Ui`, e.g. if a mouse click hit an opaque panel.
     /// 
     // todo: move or rename the file
-    pub fn window_event(&mut self, event: &WindowEvent) -> bool {
+    pub fn window_event(&mut self, event: &WindowEvent, window: &Window) -> bool {
         self.sys.mouse_input.window_event(event);
         self.sys.key_input.window_event(event);
 
-        self.ui_input(&event);
-        
-        self.focused_editor_window_event(&event);
-
-        return false;
-    }
-
-    pub fn focused_editor_window_event(&mut self, event: &WindowEvent) -> bool {
-        if let Some(focused_id) = self.sys.focused {
-            if let Some(focused_i) = self.nodes.node_hashmap.get(&focused_id) {
-                let focused_i = focused_i.slab_i;
-                if let Some(TextI::TextEditI(editor_i)) = self.nodes[focused_i].text_i {
-
-                    // todo: unify this with is_held 
-                    let mouse_down = self.sys.mouse_input.held(Some(MouseButton::Left), Some(focused_id)).is_some();
-                    let mouse_pos = self.sys.mouse_input.cursor_position();
-
-                    let full_edit = &mut self.sys.text.slabs.editors[editor_i];
-                    let editor = &mut full_edit.editor.borrow_with(&mut self.sys.text.font_system);
-                    let history = &mut full_edit.history;
-
-                    // let mut editor = &mut self.sys.text.slabs.editors[editor_i].editor.borrow_with(&mut self.sys.text.font_system);
-                    // let mut history = &mut self.sys.text.slabs.editors[editor_i].history;
-
-                    // editor.draw(cache, text_color, cursor_color, selection_color, selected_text_color, f);
-                    let editor_rect = self.nodes[focused_i].rect;
-                    let editor_rect_top_left = glam::vec2(
-                        editor_rect[Axis::X][0] * self.sys.unifs.size.x,
-                        editor_rect[Axis::Y][0] * self.sys.unifs.size.y
-                    );
-
-                    let response = editor_window_event(
-                        editor,
-                        history,
-                        editor_rect_top_left,
-                        event,
-                        &self.sys.key_input.key_mods(),
-                        mouse_down,
-                        mouse_pos.x,
-                        mouse_pos.y,
-                        &mut self.sys.clipboard,
-                    );
-
-                    if response.redraw_text {
-                        self.push_partial_relayout(focused_i);
-                    }
-                    if response.redraw_cursor {
-                        self.sys.changes.rebuild_editor_decorations = true;
-                    }
-                    return response.absorbed;
-                }
-            }
+        // todo: what if they are occluded by rectangles?
+        let mut focus_already_grabbed = false;
+        for (_i, text_box) in &mut self.sys.text_boxes {
+            let grabbed = text_box.handle_event(event, window, focus_already_grabbed);
+            focus_already_grabbed &= grabbed;
         }
+
+        self.ui_input(&event, window);
+        
         return false;
     }
 
-    pub fn ui_input(&mut self, event: &WindowEvent) -> bool {
+    pub fn ui_input(&mut self, event: &WindowEvent, window: &Window) -> bool {
         match event {
             WindowEvent::CursorMoved { .. } => {              
                 self.resolve_hover();
@@ -88,7 +44,7 @@ impl Ui {
                 // We have to test against all clickable rectangles immediately to know if the input is consumed or not
                 match state {
                     ElementState::Pressed => {
-                        let consumed = self.resolve_click_press(*button);
+                        let consumed = self.resolve_click_press(*button, event, window);
                         return consumed;
                     },
                     ElementState::Released => {
@@ -126,6 +82,7 @@ impl Ui {
 
     /// Updates the GUI data on the GPU and renders it. 
     pub fn render(&mut self, render_pass: &mut RenderPass, device: &Device, queue: &Queue) {  
+        log::trace!("Render");
         self.do_cosmetic_rect_updates();
         self.prepare(device, queue);
 
@@ -137,13 +94,9 @@ impl Ui {
             render_pass.draw(0..6, 0..n);
         }
 
-        self.sys.text
-            .text_renderer
-            .render(&self.sys.text.atlas, &self.sys.text.glyphon_viewport, render_pass)
-            .unwrap();
+        self.sys.text_renderer.render(render_pass);
         
         self.sys.changes.need_rerender = false;
-        log::trace!("Render");
     }
 
     /// Load the GUI render data that has changed onto the GPU.
@@ -157,16 +110,16 @@ impl Ui {
         );
 
         // update glyphon size info
-        if self.sys.changes.resize {
-            self.sys.text.glyphon_viewport.update(
-                queue,
-                glyphon::Resolution {
-                    width: self.sys.unifs.size.x as u32,
-                    height: self.sys.unifs.size.y as u32,
-                },
-            );
-            self.sys.changes.resize = false;
-        }
+        // if self.sys.changes.resize {
+        //     self.sys.text.glyphon_viewport.update(
+        //         queue,
+        //         glyphon::Resolution {
+        //             width: self.sys.unifs.size.x as u32,
+        //             height: self.sys.unifs.size.y as u32,
+        //         },
+        //     );
+        //     self.sys.changes.resize = false;
+        // }
 
         // update rects
         if self.sys.changes.need_gpu_rect_update {
@@ -180,29 +133,14 @@ impl Ui {
         self.sys.texture_atlas.load_to_gpu(queue);
 
         let now = start_info_log_timer();
-
-        self.prepare_text(device, queue);
+        
+        self.sys.text_renderer.gpu_load(device, queue);
         
         if let Some(now) = now {
-            if now.elapsed() > Duration::from_millis(5) {
-                log::info!("glyphon prepare() took {:?}", now.elapsed());
+            if now.elapsed() > Duration::from_millis(2) {
+                log::info!("parley2 prepare took {:?}", now.elapsed());
             }
         }
-    }
-
-    pub(crate) fn prepare_text(&mut self, device: &Device, queue: &Queue) {
-        self.sys.text
-        .text_renderer
-        .prepare(
-            device,
-            queue,
-            &mut self.sys.text.font_system,
-            &mut self.sys.text.atlas,
-            &self.sys.text.glyphon_viewport,
-            self.sys.text.slabs.all_text_buffers_iter(self.sys.current_frame),
-            &mut self.sys.text.cache,
-        )
-        .unwrap();
     }
 
     /// Returns `true` if the `Ui` needs to be rerendered.

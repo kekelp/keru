@@ -2,12 +2,12 @@ use crate::*;
 
 use crate::math::Axis::*;
 
-use arboard::Clipboard;
 use basic_window_loop::basic_depth_stencil_state;
 use glam::DVec2;
-use glyphon::Cache as GlyphonCache;
-use glyphon::Viewport;
 
+use parley2::TextBox;
+use parley2::TextRenderer;
+use parley2::TextRendererParams;
 use slab::Slab;
 use wgpu::{
     BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
@@ -27,7 +27,6 @@ use std::time::Duration;
 use std::{mem, time::Instant};
 
 use bytemuck::{Pod, Zeroable};
-use glyphon::{FontSystem, SwashCache, TextAtlas, TextRenderer};
 use wgpu::{
     util::{self, DeviceExt},
     BindGroup, BufferAddress, BufferUsages, ColorTargetState, Device, MultisampleState, Queue,
@@ -71,7 +70,9 @@ pub(crate) struct System {
     pub new_ui_input: u8,
     pub new_external_events: bool,
 
-    pub clipboard: Clipboard,
+    pub text_renderer: TextRenderer,
+    pub text_boxes: Slab<TextBox<String>>,
+    pub static_text_boxes: Slab<TextBox<&'static str>>,
 
     pub gpu_rect_buffer: TypedGpuBuffer<RenderRect>,
     pub render_pipeline: RenderPipeline,
@@ -79,7 +80,6 @@ pub(crate) struct System {
     pub base_uniform_buffer: Buffer,
     pub bind_group: BindGroup,
 
-    pub text: TextSystem,
     pub texture_atlas: TextureAtlas,
 
     pub z_cursor: f32,
@@ -88,6 +88,7 @@ pub(crate) struct System {
 
     pub click_rects: Vec<ClickRect>,
 
+    // rects that react to mouse wheel scroll
     pub scroll_rects: Vec<ClickRect>,
 
     pub unifs: Uniforms,
@@ -291,6 +292,8 @@ impl Ui {
 
         let primitive = PrimitiveState::default();
 
+        let depth_stencil = Some(basic_depth_stencil_state());
+
         let render_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
             label: None,
             layout: Some(&pipeline_layout),
@@ -311,20 +314,11 @@ impl Ui {
                 compilation_options: Default::default(),
             }),
             primitive,
-            depth_stencil: Some(basic_depth_stencil_state()),
+            depth_stencil: depth_stencil.clone(),
             multisample: MultisampleState::default(),
             multiview: None,
             cache: None,
         });
-
-        let font_system = FontSystem::new();
-        let cache = SwashCache::new();
-        let glyphon_cache = GlyphonCache::new(device);
-        let glyphon_viewport = Viewport::new(device, &glyphon_cache);
-
-        let mut atlas = TextAtlas::new(device, queue, &glyphon_cache, config.format);
-        let text_renderer =
-            TextRenderer::new(&mut atlas, device, MultisampleState::default(), Some(basic_depth_stencil_state()));
 
         let nodes = Nodes::new();
 
@@ -345,20 +339,6 @@ impl Ui {
 
                 new_ui_input: 2,
                 new_external_events: true,
-
-                clipboard: Clipboard::new().expect("Couldn't initialize clipboard"),
-
-                text: TextSystem {
-                    cache,
-                    atlas,
-                    text_renderer,
-                    font_system,
-                    slabs: TextSlabs {
-                        boxes: Vec::with_capacity(50),
-                        editors: Slab::with_capacity(10),
-                    },
-                    glyphon_viewport,
-                },
 
                 texture_atlas,
 
@@ -408,6 +388,10 @@ impl Ui {
                 changes: PartialChanges::new(),
                 hidden_stack: Vec::with_capacity(10),
                 hidden_nodes: Vec::with_capacity(10),
+
+                text_renderer: TextRenderer::new_with_params(device, queue, config.format, depth_stencil, TextRendererParams::default()),
+                text_boxes: Slab::with_capacity(20),
+                static_text_boxes: Slab::with_capacity(20),
             },
         }
     }
@@ -504,6 +488,8 @@ impl Ui {
         self.sys.unifs.size[Y] = size.height as f32;
 
         self.sys.changes.resize = true;
+        self.sys.text_renderer.update_resolution(size.width as f32, size.height as f32);
+
         self.set_new_ui_input();
     }
 }

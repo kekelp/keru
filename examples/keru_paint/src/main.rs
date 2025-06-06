@@ -62,7 +62,7 @@ impl ApplicationHandler for State {
         event: WindowEvent,
     ) {
         self.ctx.window_event(event_loop, _window_id, &event);
-        let consumed = self.ui.window_event(&event);
+        let consumed = self.ui.window_event(&event, &self.ctx.window);
         if !consumed {
             self.handle_canvas_event(&event);
         }

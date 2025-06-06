@@ -23,7 +23,6 @@ opt-level = 3
 keru_macros = "0.1.0"
 winit = { version = "0.30.5", features = ["rwh_05"] }
 wgpu = { version = "23", default-features = true }
-glyphon = { version = "0.7.0" }
 pollster = "0.3.0"
 bytemuck = { version = "1.19.0", features = ["derive"] }
 unicode-segmentation = "1.11.0"
@@ -35,7 +34,8 @@ log = "0.4.22"
 env_logger = "0.11.6"
 bitflags = "2.8.0"
 ahash = "0.8.11"
-arboard = "3.4.1"
+
+parley2 = { path = "../../prj/parley2" }
 
 [lints.clippy]
 needless_return = { level = "allow" }

@@ -90,7 +90,7 @@ impl<T> ApplicationHandler for AppWrapper<T> {
         event: WindowEvent,
     ) {
         self.ctx.window_event(event_loop, _window_id, &event);
-        self.ui.window_event(&event);
+        self.ui.window_event(&event, &self.ctx.window);
 
         if event == WindowEvent::RedrawRequested {
             if self.ui.needs_update() {

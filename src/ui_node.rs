@@ -66,21 +66,9 @@ impl UiNode<'_> {
     }
 
     // todo: nasty allocation
-    pub fn get_text(&self) -> Option<String> {
+    pub fn get_text(&self) -> Option<&str> {
         let text_i = self.node().text_i?;
-
-        match text_i {
-            TextI::TextI(text_i) => {
-                let lines = &self.ui.sys.text.slabs.boxes[text_i].buffer.lines;
-                let text = lines.iter().map(|l| l.text()).collect();
-                return Some(text);
-            } 
-            TextI::TextEditI(text_i) => {
-                let lines = &self.ui.sys.text.slabs.editors[text_i].editor.buffer().lines;
-                let text = lines.iter().map(|l| l.text()).collect();
-                return Some(text);
-            } 
-        }
+        return Some(self.ui.sys.text_boxes[text_i.0].raw_text());
     }
 }
 
@@ -105,8 +93,10 @@ impl Ui {
     pub fn bottom_left(&self, key: NodeKey) -> Option<Xy<f32>> {
         Some(self.get_uinode(key)?.bottom_left())
     }
-    pub fn get_text(&self, key: NodeKey) -> Option<String> {
-        self.get_uinode(key)?.get_text()
+    pub fn get_text(&self, key: NodeKey) -> Option<&str> {
+        let i = self.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
+        let text_i = self.nodes[i].text_i?;
+        return Some(self.sys.text_boxes[text_i.0].raw_text());
     }
 }
 
@@ -127,8 +117,9 @@ impl UiParent {
     pub fn bottom_left(&self, ui: &mut Ui) -> Xy<f32> {
         self.get_uinode(ui).bottom_left()
     }
-    pub fn get_text(&self, ui: &mut Ui) -> Option<String> {
-        self.get_uinode(ui).get_text()
+    pub fn get_text<'u>(&self, ui: &'u mut Ui) -> Option<&'u str> {
+        let text_i = ui.nodes[self.i].text_i?;
+        return Some(ui.sys.text_boxes[text_i.0].raw_text());
     }
 }
 

@@ -1,7 +1,6 @@
 use crate::*;
 use crate::node::*;
 
-use glyphon::Buffer as GlyphonBuffer;
 use Axis::{X, Y};
 
 const BIG_FLOAT: f32 = 1000.0;
@@ -359,54 +358,56 @@ impl Ui {
     }
 
     fn determine_text_size(&mut self, i: NodeI, proposed_size: Xy<f32>) -> Xy<f32> {
-        let text_i = self.nodes[i].text_i.unwrap();
-        let buffer = &mut self.sys.text.slabs.text_or_textedit_buffer(text_i);
+        let text_i = self.nodes[i].text_i.unwrap().0;
+        let text_box = &mut self.sys.text_boxes[text_i];
+        // todo: losing precision for no reason
+        let size_pixels = Xy::new(text_box.layout().width() as u32, text_box.layout().height() as u32);
+        let size = self.pixels_to_frac2(size_pixels);
 
+        return size;
+
+        // todo: bring this back
         // this is for FitContent on both directions, basically.
         // todo: the rest.
         // also, note: the set_align trick might not be good if we expose the ability to set whatever align the user wants.
 
-        let h = match self.nodes[i].params.layout.size[Y] {
-            Size::FitContent => BIG_FLOAT,
-            _ => proposed_size.x * self.sys.unifs.size[X],
-        };
+        // let h = match self.nodes[i].params.layout.size[Y] {
+        //     Size::FitContent => BIG_FLOAT,
+        //     _ => proposed_size.x * self.sys.unifs.size[X],
+        // };
 
-        let w = match self.nodes[i].params.layout.size[X] {
-            Size::FitContent => {
-                match self.nodes[i].params.text_params.unwrap_or_default().single_line {
-                    true => BIG_FLOAT,
-                    false => proposed_size.x * self.sys.unifs.size[X],
-                }
-            },
-            _ => proposed_size.x * self.sys.unifs.size[X],
-        };
+        // let w = match self.nodes[i].params.layout.size[X] {
+        //     Size::FitContent => {
+        //         match self.nodes[i].params.text_params.unwrap_or_default().single_line {
+        //             true => BIG_FLOAT,
+        //             false => proposed_size.x * self.sys.unifs.size[X],
+        //         }
+        //     },
+        //     _ => proposed_size.x * self.sys.unifs.size[X],
+        // };
 
-        for line in &mut buffer.lines {
-            line.set_align(Some(glyphon::cosmic_text::Align::Left));
-        }
+        // textbox.set_size(&mut self.sys.text.font_system, Some(w), Some(h));
 
-        buffer.set_size(&mut self.sys.text.font_system, Some(w), Some(h));
+        // // let now = std::time::Instant::now();
+        // textbox.shape_until_scroll(&mut self.sys.text.font_system, false);
+        // // log::trace!("Shape text buffer {:?}", now.elapsed());
 
-        // let now = std::time::Instant::now();
-        buffer.shape_until_scroll(&mut self.sys.text.font_system, false);
-        // log::trace!("Shape text buffer {:?}", now.elapsed());
-
-        let trimmed_size = buffer.measure_text_pixels();
+        // let trimmed_size = textbox.measure_text_pixels();
 
 
-        // idk if this line is needed
-        buffer.set_size(&mut self.sys.text.font_system, Some(trimmed_size.x), Some(trimmed_size.y));
+        // // idk if this line is needed
+        // textbox.set_size(&mut self.sys.text.font_system, Some(trimmed_size.x), Some(trimmed_size.y));
 
-        // self.sys.text.text_areas[text_i].buffer.set_size(&mut self.sys.text.font_system, trimmed_size.x, trimmed_size.y);
-        // self.sys.text.text_areas[text_i]
-        //     .buffer
-        //     .shape_until_scroll(&mut self.sys.text.font_system, false);
+        // // self.sys.text.text_areas[text_i].buffer.set_size(&mut self.sys.text.font_system, trimmed_size.x, trimmed_size.y);
+        // // self.sys.text.text_areas[text_i]
+        // //     .buffer
+        // //     .shape_until_scroll(&mut self.sys.text.font_system, false);
 
-        // for axis in [X, Y] {
-        //     trimmed_size[axis] *= 2.0;
-        // }
+        // // for axis in [X, Y] {
+        // //     trimmed_size[axis] *= 2.0;
+        // // }
 
-        return self.f32_pixels_to_frac2(trimmed_size);
+        // return self.f32_pixels_to_frac2(trimmed_size);
     }
 
     pub(crate) fn recursive_place_children(&mut self, i: NodeI, also_update_rects: bool) {
@@ -602,13 +603,14 @@ impl Ui {
         let top = self.nodes[i].clip_rect[Y][0] * self.sys.unifs.size[Y];
         let bottom = self.nodes[i].clip_rect[Y][1] * self.sys.unifs.size[Y];
 
-        if let Some(text_i) = self.nodes[i].text_i {
-            let params = self.sys.text.slabs.text_or_textedit_params(text_i);
-            params.bounds.left = left as i32;
-            params.bounds.top = top as i32;
-            params.bounds.right = right as i32;
-            params.bounds.bottom = bottom as i32;
-        }
+        // todo: the new renderer doesn't have a way to clip
+        // if let Some(text_i) = self.nodes[i].text_i {
+        //     let params = self.sys.text.slabs.text_or_textedit_params(text_i);
+        //     params.bounds.left = left as i32;
+        //     params.bounds.top = top as i32;
+        //     params.bounds.right = right as i32;
+        //     params.bounds.bottom = bottom as i32;
+        // }
     }
 
     #[allow(dead_code)]
@@ -629,41 +631,43 @@ impl Ui {
         
         let text_i = self.nodes[i].text_i;
         if let Some(text_i) = text_i {
-            let left = rect[X][0] * self.sys.unifs.size[X];
-            let top = rect[Y][0] * self.sys.unifs.size[Y];
+            let left = (rect[X][0] * self.sys.unifs.size[X]) as f64 + padding[X] as f64;
+            let top = (rect[Y][0] * self.sys.unifs.size[Y]) as f64 + padding[Y] as f64;
 
-            let params = self.sys.text.slabs.text_or_textedit_params(text_i);
+            self.sys.text_boxes[text_i.0].set_pos((left, top));
 
-            // let right = rect[X][1] * self.sys.unifs.size[X];
-            // let bottom =     rect[Y][1] * self.sys.unifs.size[Y];
+            // let params = self.sys.text.slabs.text_or_textedit_params(text_i);
 
-            params.left = left + padding[X] as f32;
-            params.top = top + padding[Y] as f32;
+            // // let right = rect[X][1] * self.sys.unifs.size[X];
+            // // let bottom =     rect[Y][1] * self.sys.unifs.size[Y];
+
+            // params.left = left + padding[X] as f32;
+            // params.top = top + padding[Y] as f32;
            
-            // todo: different align? 
-            // self.sys.text.text_areas[text_i].bounds.left = left as i32 + padding[X] as i32;
-            // self.sys.text.text_areas[text_i].bounds.top = top as i32 + padding[Y] as i32;
+            // // todo: different align? 
+            // // self.sys.text.text_areas[text_i].bounds.left = left as i32 + padding[X] as i32;
+            // // self.sys.text.text_areas[text_i].bounds.top = top as i32 + padding[Y] as i32;
 
-            // self.sys.text.text_areas[text_i].bounds.right = right as i32;
-            // self.sys.text.text_areas[text_i].bounds.bottom = bottom as i32;
+            // // self.sys.text.text_areas[text_i].bounds.right = right as i32;
+            // // self.sys.text.text_areas[text_i].bounds.bottom = bottom as i32;
         }
     }
 
     pub(crate) fn rebuild_all_rects(&mut self) {
         log::info!("Rebuilding all rectangles");
         self.sys.rects.clear();
+        self.sys.text_renderer.clear();
+
         self.sys.click_rects.clear();
         self.sys.scroll_rects.clear();
         self.sys.z_cursor = Z_BACKDROP;
         self.recursive_push_rects(ROOT_I);
 
         self.sys.editor_rects_i = (self.sys.rects.len()) as u16;
-        self.push_focused_editor_decorations();
     }
 
     pub(crate) fn rebuild_editor_decorations(&mut self) {
         self.sys.rects.truncate(self.sys.editor_rects_i as usize);
-        self.push_focused_editor_decorations();
     }
 
     fn recursive_push_rects(&mut self, i: NodeI) {
@@ -788,19 +792,19 @@ impl ProposedSizes {
     }
 }
 
-pub trait MeasureText {
-    fn measure_text_pixels(&self) -> Xy<f32>;
-}
-impl MeasureText for GlyphonBuffer {
-    fn measure_text_pixels(&self) -> Xy<f32> {
-        let layout_runs = self.layout_runs();
-        let mut total_width: f32 = 0.;
-        let mut total_height: f32 = 0.;
-        for run in layout_runs {
-            total_width = total_width.max(run.line_w);
-            total_height += run.line_height;
+// pub trait MeasureText {
+//     fn measure_text_pixels(&self) -> Xy<f32>;
+// }
+// impl MeasureText for GlyphonBuffer {
+//     fn measure_text_pixels(&self) -> Xy<f32> {
+//         let layout_runs = self.layout_runs();
+//         let mut total_width: f32 = 0.;
+//         let mut total_height: f32 = 0.;
+//         for run in layout_runs {
+//             total_width = total_width.max(run.line_w);
+//             total_height += run.line_height;
 
-        }
-        return Xy::new(total_width.ceil(), total_height)
-    }
-}
+//         }
+//         return Xy::new(total_width.ceil(), total_height)
+//     }
+// }

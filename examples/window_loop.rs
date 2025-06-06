@@ -64,7 +64,7 @@ impl winit::application::ApplicationHandler for State {
         event: winit::event::WindowEvent,
     ) {
         self.winit_wgpu_ctx.window_event(event_loop, _window_id, &event);
-        self.ui.window_event(&event);
+        self.ui.window_event(&event, &self.winit_wgpu_ctx.window);
 
         if event == winit::event::WindowEvent::RedrawRequested {
             if self.ui.needs_update() {

@@ -123,7 +123,6 @@ impl Ui {
         // but maybe not? the point was always that untouched nodes stay out of the tree and they get skipped automatically.
         // unless we still need the frame for things like pruning?
         let frame = self.sys.current_frame;
-        self.sys.text.refresh_last_frame(self.nodes[real_final_i].text_i, frame);
         
         // update the in-tree links and the thread-local state based on the current parent.
         let NodeWithDepth { i: parent_i, depth } = thread_local::current_parent();
@@ -233,7 +232,9 @@ impl Ui {
             true
         } else {
             let clickable = self.nodes[i].params.interact.senses != Sense::NONE;
-            let editable = matches!(self.nodes[i].text_i, Some(TextI::TextEditI(_)));
+            let editable = if let Some(text_i) = self.nodes[i].text_i {
+                self.sys.text_boxes[text_i.0].editable()
+            } else { false };
             clickable || editable
         };
         if push_click_rect {
@@ -266,6 +267,10 @@ impl Ui {
                 self.sys.rects.push(image_rect);
                  self.nodes[i].last_image_rect_i = Some(self.sys.rects.len() - 1);
             }
+        }
+
+        if let Some(text_i) = self.nodes[i].text_i {
+            self.sys.text_renderer.prepare_text_box(&mut self.sys.text_boxes[text_i.0]);
         }
     }
 
@@ -591,6 +596,11 @@ impl Ui {
         }
 
         log::trace!("Removing {:?} ({:?})", self.node_debug_name_fmt_scratch(i), i);
+
+        if let Some(text_i) = self.nodes[i].text_i {
+            self.sys.text_boxes.remove(text_i.0);
+        }
+
         self.nodes.node_hashmap.remove(&id);
         self.nodes.nodes.remove(i.as_usize());
     }

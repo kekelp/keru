@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use winit::{dpi::PhysicalPosition, event::{KeyEvent, MouseButton, MouseScrollDelta}, keyboard::{Key, NamedKey}};
+use winit::{dpi::PhysicalPosition, event::{KeyEvent, MouseButton, MouseScrollDelta, WindowEvent}, keyboard::{Key, NamedKey}, window::Window};
 
 use crate::*;
 use crate::Axis::{X, Y};
@@ -167,7 +167,7 @@ impl Ui {
     }
 
     // returns if the ui consumed the mouse press, or if it should be passed down. 
-    pub(crate) fn resolve_click_press(&mut self, button: MouseButton) -> bool {
+    pub(crate) fn resolve_click_press(&mut self, button: MouseButton, event: &WindowEvent, window: &Window) -> bool {
         // todo wtf? don't do this unconditionally, we have senses now
         self.set_new_ui_input();
 
@@ -196,31 +196,16 @@ impl Ui {
                 
                 self.sys.anim_render_timer.push_new(Duration::from_secs_f32(ANIMATION_RERENDER_TIME));
             }
-                
-            if clicked_node.text_i.is_some() {
-                if let Some(TextI::TextEditI(_)) = clicked_node.text_i {
+          
+            if let Some(TextI(i)) = clicked_node.text_i {
+                if self.sys.text_boxes[i].editable() {
                     self.sys.focused = Some(clicked_id);
                 }
-            }
 
-            if let Some(text_i) = clicked_node.text_i {
-                match text_i {
-                    TextI::TextI(text_i) => {
-                        let text_area = &mut self.sys.text.slabs.boxes[text_i];
-                        let cursor_pos = self.sys.mouse_input.cursor_position();
-                        let (x, y) = (
-                            cursor_pos.x as f32 - text_area.params.left,
-                            cursor_pos.y as f32 - text_area.params.top,
-                        );
-        
-                        text_area.buffer.hit(x, y);        
-                    }
-                    TextI::TextEditI(_text_i) => {
-                        self.sys.focused = Some(clicked_id);
-                    }
-                }
-            }
+                // todo: not always...
+                self.push_text_change(clicked_node_i);
 
+            }
         }
    
         let consumed = self.sys.mouse_input.current_tag().is_some();
