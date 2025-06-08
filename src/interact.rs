@@ -324,10 +324,8 @@ impl Ui {
         if self.nodes[i].params.is_scrollable() {
             self.recursive_place_children(i, true);
 
-            with_info_log_timer("parley2 prepare (scroll)", || {
-                self.sys.text_renderer.clear();
-                self.recursive_prepare_text(ROOT_I);
-            });
+            self.sys.changes.full_relayout = true;
+            self.sys.new_external_events = true;
 
             self.resolve_hover();
             self.sys.changes.need_gpu_rect_update = true;

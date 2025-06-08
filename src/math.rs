@@ -192,8 +192,7 @@ impl XyRect {
     }
 
     pub fn to_graphics_space_rounded(&self, size: Xy<f32>) -> Self {
-        // First convert to device pixels (assuming you have access to screen dimensions)
-        // This depends on your viewport/window size
+        // Round to pixel grid
         let pixel_x = [
             (self.x[0] * size.x).round() / size.x,
             (self.x[1] * size.x).round() / size.x

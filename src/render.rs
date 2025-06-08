@@ -21,14 +21,14 @@ impl Ui {
         self.sys.mouse_input.window_event(event);
         self.sys.key_input.window_event(event);
 
-        // with_info_log_timer("parley2 events", || {            
-        //     // todo: what if they are occluded by rectangles?
-        //     let mut focus_already_grabbed = false;
-        //     for (_i, text_box) in &mut self.sys.text_boxes {
-        //         let grabbed = text_box.handle_event(event, window, focus_already_grabbed);
-        //         focus_already_grabbed &= grabbed;
-        //     }
-        // });
+        with_info_log_timer("parley2 events", || {            
+            // todo: what if they are occluded by rectangles?
+            let mut focus_already_grabbed = false;
+            for (_i, text_box) in &mut self.sys.text_boxes {
+                let grabbed = text_box.handle_event(event, window, focus_already_grabbed);
+                focus_already_grabbed &= grabbed;
+            }
+        });
 
         self.ui_input(&event, window);
         

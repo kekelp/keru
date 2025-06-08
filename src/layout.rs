@@ -79,11 +79,6 @@ impl Ui {
             }    
         }
 
-        with_info_log_timer("parley2 prepare (scroll)", || {
-            self.sys.text_renderer.clear();
-            self.recursive_prepare_text(ROOT_I);
-        });
-
         // reset these early, but resolve_hover has a chance to turn them back on
         // self.sys.new_ui_input = false;
         // self.sys.new_external_events = false;
@@ -760,6 +755,11 @@ impl Ui {
         let max_scroll = (content_bounds[axis][1] - real_rect[axis][1] ) / content_rect_size;
 
         let scroll_offset = self.nodes[i].scroll.relative_offset[axis];
+
+        // round it to whole pixels to avoid wobbling
+        let size = self.sys.unifs.size[axis];
+        let scroll_offset = (scroll_offset * size).round() / size;
+
         return (max_scroll + scroll_offset) * content_rect_size;
     }
 }
