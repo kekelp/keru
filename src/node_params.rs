@@ -845,19 +845,19 @@ impl Ui {
     }
 
     pub(crate) fn set_params_text(&mut self, i: NodeI, params: &FullNodeParams) {       
-        if let Some(editable) = params.params.text_params {
-            if editable.editable {
-
-                self.set_text(i, true, "");
-
-                return;
-            }
-        }
-        
         
         let Some(text) = params.text else {
             return
         };
+        
+        if let Some(editable) = params.params.text_params {
+            if editable.editable {
+
+                self.set_text(i, true, text);
+
+                return;
+            }
+        }
 
         #[cfg(not(debug_assertions))]
         if reactive::is_in_skipped_reactive_block() {

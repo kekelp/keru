@@ -21,18 +21,29 @@ impl Ui {
         self.sys.mouse_input.window_event(event);
         self.sys.key_input.window_event(event);
 
-        with_info_log_timer("parley2 events", || {            
-            // todo: what if they are occluded by rectangles?
-            let mut focus_already_grabbed = false;
-            for (_i, text_box) in &mut self.sys.text_boxes {
-                let grabbed = text_box.handle_event(event, window, focus_already_grabbed);
-                focus_already_grabbed &= grabbed;
-            }
-        });
+        let mut focus_already_grabbed = false;
+        self.recursive_text_events(ROOT_I, event, window, &mut focus_already_grabbed);
+
+        self.sys.changes.full_relayout = true;
 
         self.ui_input(&event, window);
         
         return false;
+    }
+
+    fn recursive_text_events(&mut self, i: NodeI, event: &WindowEvent, window: &Window, focus_already_grabbed: &mut bool) {
+        
+        if let Some(text_i) = self.nodes[i].text_i {
+            let text_box = &mut self.sys.text_boxes[text_i.0];
+            let grabbed = text_box.handle_event(event, window, *focus_already_grabbed);
+            if grabbed {
+                *focus_already_grabbed = true;
+            }
+        } 
+
+        for_each_child!(self, self.nodes[i], child, {
+            self.recursive_text_events(child, event, window, focus_already_grabbed);
+        });
     }
 
     pub fn ui_input(&mut self, event: &WindowEvent, window: &Window) -> bool {
@@ -68,6 +79,9 @@ impl Ui {
                     let consumed = self.handle_keyboard_event(event);
                     return consumed;
                 }
+            }
+            WindowEvent::Ime(_) => {
+                self.set_new_ui_input();
             }
             WindowEvent::Moved(..) => {
                 self.resolve_hover();

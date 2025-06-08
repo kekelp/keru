@@ -146,6 +146,7 @@ impl Context {
 
         self.surface = AutoUnwrap(Some(surface));
         self.window = AutoUnwrap(Some(window));
+        self.window.set_ime_allowed(true);
 
         self.resize(self.window.inner_size());
     }

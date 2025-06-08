@@ -40,7 +40,9 @@ pub struct TextI(pub usize);
 impl Ui {
     pub(crate) fn set_text(&mut self, i: NodeI, edit: bool, text: &str) -> &mut Self {
         if let Some(TextI(i)) = self.nodes[i].text_i {
-            self.sys.text_boxes[i].set_text(text);        
+            if ! edit {
+                self.sys.text_boxes[i].set_text(text);        
+            }
         } else {
             // todo: all empty? seems like a dumb api
             let new_text_box = TextBox::<String>::new(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5, edit);

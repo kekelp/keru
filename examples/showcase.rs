@@ -78,8 +78,8 @@ impl Components for Ui {
             self.static_label(
                 "Keru uses Parley for text. \n\n\
                 This means that it's a good 90% of the way there to text that just works in the way that you expect it, including font discovery, full-featured editing and IME support. Accessibility is supported by Parley itself, but it's not integrated into Keru yet.\n\n\
-                I think it's reasonable to expect it to get to 100% in a couple of years or so.\n\n\
-                Keru is curently using a the built-in Swash cpu rasterizer and a basic homemade atlas renderer similar to Glyphon. This means that the text rendering performance is pretty bad. This should also be solved soon by switching to Vello Hybrid when it's ready and stable."
+                I think it's reasonable to expect Parley to get to 100% in a couple of years or so.\n\n\
+                Keru is curently using the built-in Swash cpu rasterizer and a basic homemade atlas renderer similar to Glyphon. This means that the text rendering performance is not great. This should also be solved soon by switching to the new sparse-strip based Vello renderer once it's ready and stable."
             );
             self.label(&Static(JAPANESE_TEXT));
             self.label(&Static(CYRILLIC_TEXT));
