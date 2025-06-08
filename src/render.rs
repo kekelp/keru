@@ -1,4 +1,3 @@
-use std::time::Duration;
 use std::{marker::PhantomData, mem};
 
 use bytemuck::Pod;
@@ -22,12 +21,14 @@ impl Ui {
         self.sys.mouse_input.window_event(event);
         self.sys.key_input.window_event(event);
 
-        // todo: what if they are occluded by rectangles?
-        let mut focus_already_grabbed = false;
-        for (_i, text_box) in &mut self.sys.text_boxes {
-            let grabbed = text_box.handle_event(event, window, focus_already_grabbed);
-            focus_already_grabbed &= grabbed;
-        }
+        // with_info_log_timer("parley2 events", || {            
+        //     // todo: what if they are occluded by rectangles?
+        //     let mut focus_already_grabbed = false;
+        //     for (_i, text_box) in &mut self.sys.text_boxes {
+        //         let grabbed = text_box.handle_event(event, window, focus_already_grabbed);
+        //         focus_already_grabbed &= grabbed;
+        //     }
+        // });
 
         self.ui_input(&event, window);
         
@@ -109,18 +110,6 @@ impl Ui {
             bytemuck::bytes_of(&self.sys.unifs),
         );
 
-        // update glyphon size info
-        // if self.sys.changes.resize {
-        //     self.sys.text.glyphon_viewport.update(
-        //         queue,
-        //         glyphon::Resolution {
-        //             width: self.sys.unifs.size.x as u32,
-        //             height: self.sys.unifs.size.y as u32,
-        //         },
-        //     );
-        //     self.sys.changes.resize = false;
-        // }
-
         // update rects
         if self.sys.changes.need_gpu_rect_update {
             self.sys.gpu_rect_buffer.queue_write(&self.sys.rects[..], queue);
@@ -132,15 +121,7 @@ impl Ui {
         // todo: don't do this all the time
         self.sys.texture_atlas.load_to_gpu(queue);
 
-        let now = start_info_log_timer();
-        
         self.sys.text_renderer.gpu_load(device, queue);
-        
-        if let Some(now) = now {
-            if now.elapsed() > Duration::from_millis(2) {
-                log::info!("parley2 prepare took {:?}", now.elapsed());
-            }
-        }
     }
 
     /// Returns `true` if the `Ui` needs to be rerendered.

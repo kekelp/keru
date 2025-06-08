@@ -11,7 +11,7 @@ struct State {
 }
 
 const INTRO_TAB: Tab = Tab("Intro");
-const TEXT_TAB: Tab = Tab("Cosmic Text");
+const TEXT_TAB: Tab = Tab("Text");
 const WEIRD_TAB: Tab = Tab("Other Stuff");
 
 const CHINESE_TEXT: &str = "此后，人民文学出版社和齐鲁书社的做法被诸多出版社效仿，可见文化部出版局1985年的一纸批文并没有打消各地出版社出版此书的念头。所以，1988年新闻出版署发出了《关于整理出版〈金瓶梅〉及其研究资料的通知》。《通知》首先说明《金瓶梅》及其研究资料的需求“日益增大”，“先后有十余家出版社向我署提出报告，分别要求出版《金瓶梅》的各种版本及改编本，包括图录、连环画及影视文学剧本等”，但话锋一转，明确提出“《金瓶梅》一书虽在文学史上占有重要地位，但该书存在大量自然主义的秽亵描写，不宜广泛印行";
@@ -61,11 +61,8 @@ impl Components for Ui {
             self.classic_slider(&mut state.f32_value, 0.0, 100.0);
 
             self.static_paragraph(
-                "Press Ctrl+Tab and Ctrl+Shift+Tab to switch between tabs."
-            );
-
-            self.static_paragraph(
-                "Press F1 for Inspect mode. This lets you see the bounds of the layout rectangles. \n\n\
+                "Press Ctrl+Tab and Ctrl+Shift+Tab to switch between tabs.\n\n\
+                Press F1 for Inspect mode. This lets you see the bounds of the layout rectangles. \n\n\
                 In Inspect mode, hovering nodes will also log an Info message with the node's debug name and source code location."
             );
         });
@@ -79,16 +76,14 @@ impl Components for Ui {
 
         self.add(v_stack).nest(|| {
             self.static_label(
-                "Currently, Keru uses Cosmic Text and Glyphon for rendering text. \n\n\
-                This means that international text already works. \n\n\
-                However, the integration isn't very good yet. Many things that Cosmic Text supports aren't exposed."
+                "Keru uses Parley for text. \n\n\
+                This means that it's a good 90% of the way there to text that just works in the way that you expect it, including font discovery, full-featured text editing and IME support. Accessibility is supported by Parley itself, but it's not integrated into Keru yet.\n\n\
+                I think it's reasonable to expect it to get to 100% in a couple of years or so.\n\n\
+                Keru is curently using a basic homemade atlas renderer similar to Glyphon. This means that while the gpu rendering is fine, it's very easy for the initial cpu-side rasterization to take a long time. This should also be solved soon by switching to Vello Hybrid when it's ready and stable."
             );
             self.label(&Static(JAPANESE_TEXT));
             self.label(&Static(CYRILLIC_TEXT));
             self.label(&Static(CHINESE_TEXT));
-            self.static_label("This page used to have some complaints about performance issues, but it's probably more important to say that I am very grateful for these libraries.\n\n\
-            Without them, I would probably have given up on this project long ago.\n\n\
-            Thanks, Cosmic Text and Glyphon!");
         });
     }
 

@@ -43,7 +43,7 @@ impl Ui {
             self.sys.text_boxes[i].set_text(text);        
         } else {
             // todo: all empty? seems like a dumb api
-            let new_text_box = TextBox::<String>::new(text.to_string(), (0.0, 0.0), (100.0, 100.0), 0.5, edit);
+            let new_text_box = TextBox::<String>::new(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5, edit);
             let new_i = self.sys.text_boxes.insert(new_text_box);
             self.nodes[i].text_i = Some(TextI(new_i));
         }

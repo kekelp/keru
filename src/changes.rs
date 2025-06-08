@@ -23,7 +23,6 @@ pub struct PartialChanges {
     pub cosmetic_rect_updates: Vec<NodeI>,
     pub partial_relayouts: Vec<NodeWithDepth>,
     pub tree_changed: bool,
-    pub rebuild_editor_decorations: bool,
     pub full_relayout: bool,
 
     pub need_gpu_rect_update: bool,
@@ -38,7 +37,6 @@ impl PartialChanges {
             partial_relayouts: Vec::with_capacity(15),
             cosmetic_rect_updates: Vec::with_capacity(15),
             tree_changed: false,
-            rebuild_editor_decorations: false,
             full_relayout: true,
 
             need_rerender: true,

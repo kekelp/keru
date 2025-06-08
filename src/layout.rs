@@ -3,7 +3,7 @@ use crate::node::*;
 
 use Axis::{X, Y};
 
-const BIG_FLOAT: f32 = 1000.0;
+pub(crate) const BIG_FLOAT: f32 = 100000.0;
 
 /// Iterate on the children linked list.
 #[macro_export]
@@ -56,13 +56,11 @@ impl Ui {
         let partial_relayouts = ! self.sys.changes.partial_relayouts.is_empty();
         let rect_updates = ! self.sys.changes.cosmetic_rect_updates.is_empty();
         let full_relayout = self.sys.changes.full_relayout;
-        let cursor_changed = self.sys.changes.rebuild_editor_decorations;
 
         let nothing_to_do = ! partial_relayouts
             && ! rect_updates
             && ! full_relayout
-            && ! tree_changed
-            && ! cursor_changed;
+            && ! tree_changed;
         if nothing_to_do {
             return;
         }
@@ -80,7 +78,12 @@ impl Ui {
                 self.do_partial_relayouts(true);
             }    
         }
-        
+
+        with_info_log_timer("parley2 prepare (scroll)", || {
+            self.sys.text_renderer.clear();
+            self.recursive_prepare_text(ROOT_I);
+        });
+
         // reset these early, but resolve_hover has a chance to turn them back on
         // self.sys.new_ui_input = false;
         // self.sys.new_external_events = false;
@@ -88,14 +91,8 @@ impl Ui {
         // these ones are after the second-order-effect resolve_hover, just to see the update sooner.
         if full_relayout || tree_changed {
             self.rebuild_all_rects();
-
         } else {
             self.do_cosmetic_rect_updates();
-
-            if self.sys.changes.rebuild_editor_decorations {
-                self.rebuild_editor_decorations();
-                self.sys.changes.rebuild_editor_decorations = false;
-            }
         }
 
         self.sys.changes.reset_layout_changes();
@@ -360,59 +357,47 @@ impl Ui {
     fn determine_text_size(&mut self, i: NodeI, proposed_size: Xy<f32>) -> Xy<f32> {
         let text_i = self.nodes[i].text_i.unwrap().0;
         let text_box = &mut self.sys.text_boxes[text_i];
-        // todo: losing precision for no reason
-        let size_pixels = Xy::new(text_box.layout().width() as u32, text_box.layout().height() as u32);
-        let size = self.pixels_to_frac2(size_pixels);
-
-        return size;
 
         // todo: bring this back
         // this is for FitContent on both directions, basically.
         // todo: the rest.
-        // also, note: the set_align trick might not be good if we expose the ability to set whatever align the user wants.
 
-        // let h = match self.nodes[i].params.layout.size[Y] {
-        //     Size::FitContent => BIG_FLOAT,
-        //     _ => proposed_size.x * self.sys.unifs.size[X],
-        // };
+        let fit_content_y = self.nodes[i].params.layout.size[Y] == Size::FitContent;
+        let fit_content_x = self.nodes[i].params.layout.size[X] == Size::FitContent;
 
-        // let w = match self.nodes[i].params.layout.size[X] {
-        //     Size::FitContent => {
-        //         match self.nodes[i].params.text_params.unwrap_or_default().single_line {
-        //             true => BIG_FLOAT,
-        //             false => proposed_size.x * self.sys.unifs.size[X],
-        //         }
-        //     },
-        //     _ => proposed_size.x * self.sys.unifs.size[X],
-        // };
+        let h = if fit_content_y {
+            BIG_FLOAT
+        } else {
+            proposed_size.x * self.sys.unifs.size[X]
+        };
 
-        // textbox.set_size(&mut self.sys.text.font_system, Some(w), Some(h));
+        let w = if fit_content_x {
+            if fit_content_y {
+                // if it can fit_content in both directions, it's under-constrained.
+                // I don't really understand how the parley layout logic works, but it looks like it's already doing its best to keep a reasonable aspect ratio? 
+                // If yes, none of this really matters. Should check though.
+                proposed_size.x * self.sys.unifs.size[X]
+            } else {
+                BIG_FLOAT
+            }
+            // todo: single line? hopefully it just works from inside parley2
+        } else {
+            proposed_size.x * self.sys.unifs.size[X]
+        };
 
-        // // let now = std::time::Instant::now();
-        // textbox.shape_until_scroll(&mut self.sys.text.font_system, false);
-        // // log::trace!("Shape text buffer {:?}", now.elapsed());
+        text_box.set_size((w, h));
 
-        // let trimmed_size = textbox.measure_text_pixels();
+        text_box.refresh_layout();
 
+        let size_pixels = Xy::new(text_box.layout().width(), text_box.layout().height());
+        let size = self.f32_pixels_to_frac2(size_pixels);        
 
-        // // idk if this line is needed
-        // textbox.set_size(&mut self.sys.text.font_system, Some(trimmed_size.x), Some(trimmed_size.y));
+        return size;
 
-        // // self.sys.text.text_areas[text_i].buffer.set_size(&mut self.sys.text.font_system, trimmed_size.x, trimmed_size.y);
-        // // self.sys.text.text_areas[text_i]
-        // //     .buffer
-        // //     .shape_until_scroll(&mut self.sys.text.font_system, false);
-
-        // // for axis in [X, Y] {
-        // //     trimmed_size[axis] *= 2.0;
-        // // }
-
-        // return self.f32_pixels_to_frac2(trimmed_size);
     }
 
     pub(crate) fn recursive_place_children(&mut self, i: NodeI, also_update_rects: bool) {
         self.nodes[i].content_bounds = XyRect::new_symm([f32::MAX, f32::MIN]);
-
 
         self.sys.partial_relayout_count += 1;
         if let Some(stack) = self.nodes[i].params.stack {
@@ -434,6 +419,20 @@ impl Ui {
             self.recursive_place_children(child, also_update_rects);
         });
     }
+
+    // pub(crate) fn recursive_update_scroll(&mut self, i: NodeI) {
+
+    //     // self.place_text_inside(i, self.nodes[i].rect);
+    
+    //     self.set_children_scroll(i);
+
+    //     self.update_rect(i);
+    //     self.set_clip_rect(i);
+
+    //     for_each_child!(self, self.nodes[i], child, {
+    //         self.recursive_update_scroll(child);
+    //     });
+    // }
 
     fn place_children_stack(&mut self, i: NodeI, stack: Stack) {
         let (main, cross) = (stack.axis, stack.axis.other());
@@ -603,14 +602,19 @@ impl Ui {
         let top = self.nodes[i].clip_rect[Y][0] * self.sys.unifs.size[Y];
         let bottom = self.nodes[i].clip_rect[Y][1] * self.sys.unifs.size[Y];
 
-        // todo: the new renderer doesn't have a way to clip
-        // if let Some(text_i) = self.nodes[i].text_i {
-        //     let params = self.sys.text.slabs.text_or_textedit_params(text_i);
-        //     params.bounds.left = left as i32;
-        //     params.bounds.top = top as i32;
-        //     params.bounds.right = right as i32;
-        //     params.bounds.bottom = bottom as i32;
-        // }
+        if let Some(text_i) = self.nodes[i].text_i {
+            let text_box = &mut self.sys.text_boxes[text_i.0];
+            let padding = self.nodes[i].params.layout.padding;
+            let text_left = (self.nodes[i].rect[X][0] * self.sys.unifs.size[X]) as f64 + padding[X] as f64;
+            let text_top = (self.nodes[i].rect[Y][0] * self.sys.unifs.size[Y]) as f64 + padding[Y] as f64;
+            
+            text_box.set_clip_rect(Some(parley2::Rect {
+                x0: left as f64 - text_left,
+                y0: top as f64 - text_top,
+                x1: right as f64 - text_left,
+                y1: bottom as f64 - text_top,
+            }));
+        }
     }
 
     #[allow(dead_code)]
@@ -620,14 +624,6 @@ impl Ui {
 
     fn place_text_inside(&mut self, i: NodeI, rect: XyRect) {
         let padding = self.nodes[i].params.layout.padding;
-
-        // for axis in [X, Y] {
-        //     if self.nodes[i].params.layout.scrollable[axis] {
-        //         let scroll_offset = self.nodes[i].scroll.absolute_offset(axis);
-        //         containing_rect[axis][0] += scroll_offset;
-        //         containing_rect[axis][1] += scroll_offset;
-        //     }
-        // }
         
         let text_i = self.nodes[i].text_i;
         if let Some(text_i) = text_i {
@@ -635,21 +631,6 @@ impl Ui {
             let top = (rect[Y][0] * self.sys.unifs.size[Y]) as f64 + padding[Y] as f64;
 
             self.sys.text_boxes[text_i.0].set_pos((left, top));
-
-            // let params = self.sys.text.slabs.text_or_textedit_params(text_i);
-
-            // // let right = rect[X][1] * self.sys.unifs.size[X];
-            // // let bottom =     rect[Y][1] * self.sys.unifs.size[Y];
-
-            // params.left = left + padding[X] as f32;
-            // params.top = top + padding[Y] as f32;
-           
-            // // todo: different align? 
-            // // self.sys.text.text_areas[text_i].bounds.left = left as i32 + padding[X] as i32;
-            // // self.sys.text.text_areas[text_i].bounds.top = top as i32 + padding[Y] as i32;
-
-            // // self.sys.text.text_areas[text_i].bounds.right = right as i32;
-            // // self.sys.text.text_areas[text_i].bounds.bottom = bottom as i32;
         }
     }
 
@@ -663,18 +644,29 @@ impl Ui {
         self.sys.z_cursor = Z_BACKDROP;
         self.recursive_push_rects(ROOT_I);
 
+        with_info_log_timer("parley2 prepare (rebuild all)", || {
+            self.sys.text_renderer.clear();
+            self.recursive_prepare_text(ROOT_I);
+        });
+
         self.sys.editor_rects_i = (self.sys.rects.len()) as u16;
     }
-
-    pub(crate) fn rebuild_editor_decorations(&mut self) {
-        self.sys.rects.truncate(self.sys.editor_rects_i as usize);
-    }
-
+    
     fn recursive_push_rects(&mut self, i: NodeI) {
         self.push_rect(i);
-
+        
         for_each_child!(self, self.nodes[i], child, {
             self.recursive_push_rects(child);
+        });
+    }
+
+    pub(crate) fn recursive_prepare_text(&mut self, i: NodeI) {
+        if let Some(text_i) = self.nodes[i].text_i {
+            self.sys.text_renderer.prepare_text_box(&mut self.sys.text_boxes[text_i.0]);
+        }
+
+        for_each_child!(self, self.nodes[i], child, {
+            self.recursive_prepare_text(child);
         });
     }
 }

@@ -315,17 +315,20 @@ impl Ui {
         };
         let delta = Xy::new(x, y);
 
-        for axis in [X, Y] {
+        for axis in [X, Y] {            
             if self.nodes[i].params.layout.scrollable[axis] {
                 self.update_scroll(i, delta[axis], axis);
             };
         }
-
+        
         if self.nodes[i].params.is_scrollable() {
             self.recursive_place_children(i, true);
-            self.rebuild_editor_decorations();
 
-            
+            with_info_log_timer("parley2 prepare (scroll)", || {
+                self.sys.text_renderer.clear();
+                self.recursive_prepare_text(ROOT_I);
+            });
+
             self.resolve_hover();
             self.sys.changes.need_gpu_rect_update = true;
             self.sys.changes.need_rerender = true;

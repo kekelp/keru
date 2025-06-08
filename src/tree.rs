@@ -118,12 +118,6 @@ impl Ui {
             }
         };
 
-        // refresh last_frame_touched. 
-        // refreshing the node should go here as well.
-        // but maybe not? the point was always that untouched nodes stay out of the tree and they get skipped automatically.
-        // unless we still need the frame for things like pruning?
-        let frame = self.sys.current_frame;
-        
         // update the in-tree links and the thread-local state based on the current parent.
         let NodeWithDepth { i: parent_i, depth } = thread_local::current_parent();
         self.set_tree_links(real_final_i, parent_i, depth);
@@ -267,10 +261,6 @@ impl Ui {
                 self.sys.rects.push(image_rect);
                  self.nodes[i].last_image_rect_i = Some(self.sys.rects.len() - 1);
             }
-        }
-
-        if let Some(text_i) = self.nodes[i].text_i {
-            self.sys.text_renderer.prepare_text_box(&mut self.sys.text_boxes[text_i.0]);
         }
     }
 
@@ -656,9 +646,15 @@ mod test_caller_location_id {
 
     #[test]
     fn test_different() {
-        fn no_duplicates<T: Eq + std::hash::Hash>(vec: &[T]) -> bool {
+        fn no_duplicates<T: Eq + std::hash::Hash>(items: &[T]) -> bool {
             let mut seen = std::collections::HashSet::new();
-            vec.iter().all(|item| seen.insert(item))
+            for item in items {
+                if seen.contains(item) {
+                    return false;
+                }
+                seen.insert(item);
+            }
+            true
         }
 
         let mut vec = Vec::with_capacity(50);
@@ -757,10 +753,17 @@ impl UiParent {
     }
 }
 
-pub(crate) fn start_info_log_timer() -> Option<std::time::Instant> {
+#[track_caller]
+pub(crate) fn with_info_log_timer<T>(operation_name: &str, f: impl FnOnce() -> T) -> T {
     if log::max_level() >= log::LevelFilter::Info {
-        Some(std::time::Instant::now())
+        let start = std::time::Instant::now();
+        let result = f();
+        let elapsed = start.elapsed();
+        log::info!("{} took {:?}", operation_name, elapsed);
+        if elapsed > std::time::Duration::from_millis(2) {
+        }
+        result
     } else {
-        None
+        f()
     }
 }
