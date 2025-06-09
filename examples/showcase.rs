@@ -37,7 +37,7 @@ impl Components for Ui {
             #[node_key] const TEXT_EDIT_1: NodeKey;
             // #[node_key] const TEXT_EDIT_2: NodeKey;
 
-            self.add(TEXT_EDIT.key(TEXT_EDIT_1).text("Sneed it or keep it"));
+            self.add(TEXT_EDIT.size_y(Size::Pixels(100)).key(TEXT_EDIT_1).text("Text edit box"));
             // self.add(TEXT_EDIT.key(TEXT_EDIT_2));
 
             self.static_paragraph("Here are some basic GUI elements: \n");

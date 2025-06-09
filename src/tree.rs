@@ -227,7 +227,10 @@ impl Ui {
         } else {
             let clickable = self.nodes[i].params.interact.senses != Sense::NONE;
             let editable = if let Some(text_i) = self.nodes[i].text_i {
-                self.sys.text_boxes[text_i.0].editable()
+                match text_i {
+                    TextI::TextEdit(_) => true,
+                    TextI::TextBox(_) | TextI::StaticTextBox(_) => false,
+                }
             } else { false };
             clickable || editable
         };
@@ -588,7 +591,17 @@ impl Ui {
         log::trace!("Removing {:?} ({:?})", self.node_debug_name_fmt_scratch(i), i);
 
         if let Some(text_i) = self.nodes[i].text_i {
-            self.sys.text_boxes.remove(text_i.0);
+            match text_i {
+                TextI::TextBox(idx) => {
+                    self.sys.text_boxes.remove(idx);
+                }
+                TextI::StaticTextBox(idx) => {
+                    self.sys.static_text_boxes.remove(idx);
+                }
+                TextI::TextEdit(idx) => {
+                    self.sys.text_edits.remove(idx);
+                }
+            }
         }
 
         self.nodes.node_hashmap.remove(&id);

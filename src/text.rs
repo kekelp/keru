@@ -2,9 +2,12 @@ use crate::*;
 
 use parley2::*;
 
-// todo: also statics
 #[derive(Debug, Clone, Copy)]
-pub struct TextI(pub usize);
+pub enum TextI {
+    TextBox(usize),
+    StaticTextBox(usize),
+    TextEdit(usize),
+}
 
 
 // use glyphon::{Color as GlyphonColor, Edit, Editor, TextArea, TextBounds, Viewport};
@@ -39,15 +42,49 @@ pub struct TextI(pub usize);
 
 impl Ui {
     pub(crate) fn set_text(&mut self, i: NodeI, edit: bool, text: &str) -> &mut Self {
-        if let Some(TextI(i)) = self.nodes[i].text_i {
-            if ! edit {
-                self.sys.text_boxes[i].set_text(text);        
+        match self.nodes[i].text_i {
+            Some(TextI::TextBox(text_i)) => {
+                if !edit {
+                    self.sys.text_boxes[text_i] = TextBox::<String>::new(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
+                } else {
+                    self.sys.text_boxes.remove(text_i);
+                    let new_text_edit = TextEdit::new(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
+                    let new_i = self.sys.text_edits.insert(new_text_edit);
+                    self.nodes[i].text_i = Some(TextI::TextEdit(new_i));
+                }
             }
-        } else {
-            // todo: all empty? seems like a dumb api
-            let new_text_box = TextBox::<String>::new(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5, edit);
-            let new_i = self.sys.text_boxes.insert(new_text_box);
-            self.nodes[i].text_i = Some(TextI(new_i));
+            Some(TextI::TextEdit(edit_i)) => {
+                if edit {
+                    // do nothing
+                } else {
+                    self.sys.text_edits.remove(edit_i);
+                    let new_text_box = TextBox::<String>::new(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
+                    let new_i = self.sys.text_boxes.insert(new_text_box);
+                    self.nodes[i].text_i = Some(TextI::TextBox(new_i));
+                }
+            }
+            Some(TextI::StaticTextBox(_)) => {
+                if edit {
+                    let new_text_edit = TextEdit::new_single_line(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
+                    let new_i = self.sys.text_edits.insert(new_text_edit);
+                    self.nodes[i].text_i = Some(TextI::TextEdit(new_i));
+                } else {
+                    let new_text_box = TextBox::<String>::new(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
+                    let new_i = self.sys.text_boxes.insert(new_text_box);
+                    self.nodes[i].text_i = Some(TextI::TextBox(new_i));
+                }
+            }
+            None => {
+                if edit {
+                    let new_text_edit = TextEdit::new_single_line(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
+                    let new_i = self.sys.text_edits.insert(new_text_edit);
+                    self.nodes[i].text_i = Some(TextI::TextEdit(new_i));
+                } else {
+                    let new_text_box = TextBox::<String>::new(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
+                    let new_i = self.sys.text_boxes.insert(new_text_box);
+                    self.nodes[i].text_i = Some(TextI::TextBox(new_i));
+                }
+            }
         }
         self.push_text_change(i);
         

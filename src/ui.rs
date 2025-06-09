@@ -5,7 +5,7 @@ use crate::math::Axis::*;
 use basic_window_loop::basic_depth_stencil_state;
 use glam::DVec2;
 
-use parley2::TextBox;
+use parley2::{TextBox, TextEdit};
 use parley2::TextRenderer;
 use parley2::TextRendererParams;
 use slab::Slab;
@@ -73,6 +73,7 @@ pub(crate) struct System {
     pub text_renderer: TextRenderer,
     pub text_boxes: Slab<TextBox<String>>,
     pub static_text_boxes: Slab<TextBox<&'static str>>,
+    pub text_edits: Slab<TextEdit>,
 
     pub gpu_rect_buffer: TypedGpuBuffer<RenderRect>,
     pub render_pipeline: RenderPipeline,
@@ -392,6 +393,7 @@ impl Ui {
                 text_renderer: TextRenderer::new_with_params(device, queue, config.format, depth_stencil, TextRendererParams::default()),
                 text_boxes: Slab::with_capacity(20),
                 static_text_boxes: Slab::with_capacity(20),
+                text_edits: Slab::with_capacity(20),
             },
         }
     }

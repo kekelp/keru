@@ -197,9 +197,12 @@ impl Ui {
                 self.sys.anim_render_timer.push_new(Duration::from_secs_f32(ANIMATION_RERENDER_TIME));
             }
           
-            if let Some(TextI(i)) = clicked_node.text_i {
-                if self.sys.text_boxes[i].editable() {
-                    self.sys.focused = Some(clicked_id);
+            if let Some(text_i) = clicked_node.text_i {
+                match text_i {
+                    TextI::TextEdit(_) => {
+                        self.sys.focused = Some(clicked_id);
+                    }
+                    TextI::TextBox(_) | TextI::StaticTextBox(_) => {}
                 }
 
                 // todo: not always...
