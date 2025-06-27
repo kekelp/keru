@@ -11,74 +11,74 @@ impl Ui {
     /// Add a panel.
     #[track_caller]
     pub fn panel(&mut self) -> UiParent {
-        return self.add(PANEL);
+        self.add(PANEL)
     }
 
     /// Add a vertical stack container.
     #[track_caller]
     pub fn v_stack(&mut self) -> UiParent {
-        return self.add(V_STACK);
+        self.add(V_STACK)
     }
 
     /// Add a spacer.
     #[track_caller]
     pub fn spacer(&mut self) -> UiParent {
-        return self.add(SPACER);
+        self.add(SPACER)
     }
     
     /// Add a horizontal stack container.
     #[track_caller]
     pub fn h_stack(&mut self) -> UiParent {
-        return self.add(H_STACK);
+        self.add(H_STACK)
     }
 
     /// Add a multiline text paragraph from a `'static str`.
     #[track_caller]
     pub fn text_edit(&mut self, text: &'static str) -> UiParent {
         let params = TEXT_EDIT.static_text(text);
-        return self.add(params);
+        self.add(params)
     }
 
     /// Add a single-line text element.
     #[track_caller]
     pub fn text_line(&mut self, text: &(impl MaybeObservedText + ?Sized)) -> UiParent {
         let params = TEXT.text(text);
-        return self.add(params);
+        self.add(params)
     }
 
     /// Add a single-line text element from a `'static str`.
     #[track_caller]
     pub fn static_text_line(&mut self, text: &'static str) -> UiParent {
         let params = TEXT.static_text(text);
-        return self.add(params);
+        self.add(params)
     }
 
     /// Add a multiline text paragraph.
     #[track_caller]
     pub fn paragraph(&mut self, text: &(impl MaybeObservedText + ?Sized)) -> UiParent {
         let params = TEXT_PARAGRAPH.text(text);
-        return self.add(params);
+        self.add(params)
     }
 
     /// Add a multiline text paragraph from a `'static str`.
     #[track_caller]
     pub fn static_paragraph(&mut self, text: &'static str) -> UiParent {
         let params = TEXT_PARAGRAPH.static_text(text);
-        return self.add(params);
+        self.add(params)
     }
 
     /// Add a label.
     #[track_caller]
     pub fn label(&mut self, text: &(impl MaybeObservedText + ?Sized)) -> UiParent {
         let params = MULTILINE_LABEL.text(text);
-        return self.add(params);
+        self.add(params)
     }
 
     /// Add a label from a `&static str`.
     #[track_caller]
     pub fn static_label(&mut self, text: &'static str) -> UiParent {
         let params = MULTILINE_LABEL.static_text(text);
-        return self.add(params);
+        self.add(params)
     }
 
     /// Add a vertical tabs container
@@ -142,7 +142,7 @@ impl Ui {
 
                 let content_nest = self.add(content_panel);
 
-                return content_nest;
+                content_nest
             })
         })
     }

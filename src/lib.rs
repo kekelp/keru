@@ -129,6 +129,8 @@ pub mod winit_key_events;
 
 mod thread_local;
 
+pub use parley2::with_clipboard;
+
 mod changes;
 pub(crate) use crate::changes::*;
 mod twin_nodes;
@@ -148,9 +150,6 @@ mod render_rect;
 pub(crate) use crate::render_rect::*;
 mod nodes;
 pub(crate) use crate::nodes::*;
-
-mod text_edit;
-pub(crate) use crate::text_edit::*;
 
 mod texture_atlas;
 pub(crate) use crate::texture_atlas::*;

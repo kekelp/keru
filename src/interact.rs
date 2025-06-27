@@ -167,7 +167,7 @@ impl Ui {
     }
 
     // returns if the ui consumed the mouse press, or if it should be passed down. 
-    pub(crate) fn resolve_click_press(&mut self, button: MouseButton, event: &WindowEvent, window: &Window) -> bool {
+    pub(crate) fn resolve_click_press(&mut self, button: MouseButton, _event: &WindowEvent, _window: &Window) -> bool {
         // todo wtf? don't do this unconditionally, we have senses now
         self.set_new_ui_input();
 

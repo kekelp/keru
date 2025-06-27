@@ -7,14 +7,14 @@ use crate::*;
 
 /// An unique key that identifies a GUI node.
 /// 
-/// Usually created with the [`macro@node_key`] macro or with [`NodeKey::sibling`].
+/// Usually created with the [`macro@node_key`] macro or with [`NodeKey::sibling`]:
 /// 
 /// ```rust
 /// # use keru::*;
 /// #[node_key] const UNIQUE_KEY: NodeKey;
 /// ```
 /// 
-/// Used in many [`Ui`] methods to refer to specific nodes: for example, [`Ui::is_clicked`],
+/// Used in many [`Ui`] methods to refer to specific nodes: for example, [`Ui::is_clicked`].
 #[derive(Clone, Copy, Debug)]
 pub struct NodeKey {
     id: Id,

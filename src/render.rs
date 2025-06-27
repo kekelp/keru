@@ -45,7 +45,6 @@ impl Ui {
                 }
                 TextI::TextEdit(idx) => {
                     let text_edit = &mut self.sys.text_edits[idx];
-                    dbg!(text_edit.raw_text());
                     text_edit.handle_event(event, window, *focus_already_grabbed).focus_grabbed
                 }
             };

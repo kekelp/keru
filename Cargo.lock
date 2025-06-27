@@ -443,12 +443,6 @@ dependencies = [
 
 [[package]]
 name = "color"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa7f99105610438d4b3ee7ae8e453c2990e325c806a14d71e8ea937d584c5289"
-
-[[package]]
-name = "color"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ae467d04a8a8aea5d9a49018a6ade2e4221d92968e8ce55a48c0b1164e5f698"
@@ -749,15 +743,6 @@ checksum = "d9c4f5dac5e15c24eb999c26181a6ca40b39fe946cbe4c263c7209467bc83af2"
 
 [[package]]
 name = "font-types"
-version = "0.8.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fa6a5e5a77b5f3f7f9e32879f484aa5b3632ddfbe568a16266c904a6f32cdaf"
-dependencies = [
- "bytemuck",
-]
-
-[[package]]
-name = "font-types"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "02a596f5713680923a2080d86de50fe472fb290693cf0f701187a1c8b36996b7"
@@ -777,7 +762,9 @@ dependencies = [
 
 [[package]]
 name = "fontique"
-version = "0.3.0"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "39f97079e1293b8c1e9fb03a2875d328bd2ee8f3b95ce62959c0acc04049c708"
 dependencies = [
  "bytemuck",
  "fontconfig-cache-parser",
@@ -788,8 +775,8 @@ dependencies = [
  "objc2-core-foundation",
  "objc2-core-text",
  "objc2-foundation 0.3.1",
- "peniko 0.3.2",
- "read-fonts 0.25.3",
+ "peniko",
+ "read-fonts",
  "roxmltree",
  "smallvec",
  "windows",
@@ -1883,12 +1870,14 @@ dependencies = [
 
 [[package]]
 name = "parley"
-version = "0.3.0"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "13e57638545cf2ba4c3e72cc5715e53b1880b829cc3dbefda3d1700c58efe723"
 dependencies = [
  "fontique",
  "hashbrown 0.15.3",
- "peniko 0.3.2",
- "skrifa 0.26.6",
+ "peniko",
+ "skrifa",
  "swash",
 ]
 
@@ -1904,7 +1893,7 @@ dependencies = [
  "lazy_static",
  "lru",
  "parley",
- "peniko 0.4.0",
+ "peniko",
  "rustc-hash 2.1.1",
  "swash",
  "wgpu",
@@ -1919,23 +1908,11 @@ checksum = "de3145af08024dea9fa9914f381a17b8fc6034dfb00f3a84013f7ff43f29ed4c"
 
 [[package]]
 name = "peniko"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c1f594c54ccdc9bd177a726885f066bf28d20e17169e31a8a1456217b1316b4"
-dependencies = [
- "color 0.2.4",
- "kurbo",
- "peniko 0.4.0",
- "smallvec",
-]
-
-[[package]]
-name = "peniko"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f9529efd019889b2a205193c14ffb6e2839b54ed9d2720674f10f4b04d87ac9"
 dependencies = [
- "color 0.3.1",
+ "color",
  "kurbo",
  "smallvec",
 ]
@@ -2245,22 +2222,12 @@ dependencies = [
 
 [[package]]
 name = "read-fonts"
-version = "0.25.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f6f9e8a4f503e5c8750e4cd3b32a4e090035c46374b305a15c70bad833dca05f"
-dependencies = [
- "bytemuck",
- "font-types 0.8.4",
-]
-
-[[package]]
-name = "read-fonts"
 version = "0.29.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6f96bfbb7df43d34a2b7b8582fcbcb676ba02a763265cb90bc8aabfd62b57d64"
 dependencies = [
  "bytemuck",
- "font-types 0.9.0",
+ "font-types",
 ]
 
 [[package]]
@@ -2430,22 +2397,12 @@ dependencies = [
 
 [[package]]
 name = "skrifa"
-version = "0.26.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8cc1aa86c26dbb1b63875a7180aa0819709b33348eb5b1491e4321fae388179d"
-dependencies = [
- "bytemuck",
- "read-fonts 0.25.3",
-]
-
-[[package]]
-name = "skrifa"
 version = "0.31.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dbeb4ca4399663735553a09dd17ce7e49a0a0203f03b706b39628c4d913a8607"
 dependencies = [
  "bytemuck",
- "read-fonts 0.29.2",
+ "read-fonts",
 ]
 
 [[package]]
@@ -2548,7 +2505,7 @@ version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f745de914febc7c9ab4388dfaf94bbc87e69f57bb41133a9b0c84d4be49856f3"
 dependencies = [
- "skrifa 0.31.3",
+ "skrifa",
  "yazi",
  "zeno",
 ]

@@ -213,6 +213,11 @@ impl UiNode<'_> {
         return clicked;
     }
 
+    pub fn is_focused(&self) -> bool {
+        let id = self.node().id;
+        return self.ui.sys.focused == Some(id);
+    }
+
     /// If the node corresponding to `key` was clicked in the last frame, returns a struct containing detailed information of the click. Otherwise, returns `None`.
     /// 
     /// If the node was clicked multiple times in the last frame, the result holds the information about the last click only.
@@ -320,6 +325,13 @@ impl Ui {
             return false;
         };
         uinode.is_clicked()
+    }
+
+    pub fn is_focused(&self, key: NodeKey) -> bool {
+        let Some(uinode) = self.get_uinode(key) else {
+            return false;
+        };
+        uinode.is_focused()
     }
 
     /// Returns `true` if a left button mouse click was just released on the node corresponding to `key`.
