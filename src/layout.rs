@@ -591,7 +591,6 @@ impl Ui {
         if ! self.nodes[i].params.is_scrollable() {
             return;
         }
-        self.clamp_scroll(i);
 
         for_each_child!(self, self.nodes[i], child, {
             for axis in [X, Y] {
@@ -662,7 +661,6 @@ impl Ui {
 
     fn place_text_inside(&mut self, i: NodeI, rect: XyRect) {
         let padding = self.nodes[i].params.layout.padding;
-        
         let text_i = self.nodes[i].text_i;
         if let Some(text_i) = text_i {
             let left = (rect[X][0] * self.sys.unifs.size[X]) as f64 + padding[X] as f64;
@@ -763,19 +761,17 @@ impl Xy<f32> {
 
 #[derive(Debug)]
 pub(crate) struct Scroll {
-    at_min: Xy<bool>,
     relative_offset: Xy<f32>,
 }
 impl Scroll {
     pub const ZERO: Scroll = Scroll {
-        at_min: Xy::new(true, true),
         relative_offset: Xy::new(0.0, 0.0),
     };
 }
 
 impl Ui {
-    pub(crate) fn update_scroll(&mut self, i: NodeI, delta: f32, axis: Axis) {       
-        let real_rect = self.nodes[i].rect;
+    pub(crate) fn update_container_scroll(&mut self, i: NodeI, delta: f32, axis: Axis) {       
+        let container_rect = self.nodes[i].rect;
 
         let content_bounds = self.nodes[i].content_bounds;
         let content_rect_size = content_bounds.size()[axis];
@@ -785,45 +781,49 @@ impl Ui {
             return;
         }
 
-        let min_scroll = (content_bounds[axis][0] - real_rect[axis][0] ) / content_rect_size;
-        let max_scroll = (content_bounds[axis][1] - real_rect[axis][1] ) / content_rect_size;
-        
+        // min scroll is the negative/upwards scroll that corrects the bottom end of content ending up below the container's bottom
+        let min_scroll = if content_bounds[axis][1] > container_rect[axis][1] {
+            container_rect[axis][1] - content_bounds[axis][1]
+        } else {
+            0.0
+        };
+
+        // max scroll is the positive/downwards scroll that corrects the top end of content overflowing above the container's top
+        let max_scroll = if content_bounds[axis][0] < container_rect[axis][0] {
+            container_rect[axis][0] - content_bounds[axis][0]
+        } else {
+            0.0
+        };
+                
         if min_scroll < max_scroll {                
-            self.nodes[i].scroll.relative_offset[axis] += delta * (max_scroll - min_scroll);
+            self.nodes[i].scroll.relative_offset[axis] += delta;
             
             let rel_offset = &mut self.nodes[i].scroll.relative_offset[axis];
-            if min_scroll < max_scroll {
-                *rel_offset = rel_offset.clamp(min_scroll - max_scroll, 0.0);
-            }
+            *rel_offset = rel_offset.clamp(min_scroll, max_scroll);
+
         } else {
             self.nodes[i].scroll.relative_offset[axis] = 0.0;
         }
 
-        let at_min = self.nodes[i].scroll.relative_offset[axis] == min_scroll;
-        self.nodes[i].scroll.at_min[axis] = at_min;    
     }
     
-    pub(crate) fn clamp_scroll(&mut self, i: NodeI) {       
+    pub(crate) fn _clamp_scroll(&mut self, i: NodeI) {
+        // todo: this was hella wrong, figure it out from scratch
+        // this was mainly for resizing, I think. when the scroll values and bounds get messed up by resizing or relayouts, we should at least reclamp the offset, or set it to zero if all content fits now.
+        // for resizing, we should also store the offset as relative. Actually, for text it should be way more advanced, like  keeping track of the position in the text
         for axis in [X, Y] {
-            self.update_scroll(i, 0.0, axis);
+            self.update_container_scroll(i, 0.0, axis);
         }
     }
 
     pub(crate) fn scroll_offset(&self, i: NodeI, axis: Axis) -> f32 {
-        let real_rect = self.nodes[i].rect;
-        
-        let content_bounds = self.nodes[i].content_bounds;
-        let content_rect_size = content_bounds.size()[axis];
-        
-        let max_scroll = (content_bounds[axis][1] - real_rect[axis][1] ) / content_rect_size;
-
         let scroll_offset = self.nodes[i].scroll.relative_offset[axis];
 
         // round it to whole pixels to avoid wobbling
         let size = self.sys.unifs.size[axis];
         let scroll_offset = (scroll_offset * size).round() / size;
 
-        return (max_scroll + scroll_offset) * content_rect_size;
+        return scroll_offset;
     }
 }
 

@@ -399,8 +399,8 @@ impl Ui {
         self.sys.last_frame_end_fake_time = observer_timestamp();
 
 
-        if self.sys.new_ui_input > 0 {
-            self.sys.new_ui_input -= 1;
+        if self.sys.update_frames_needed > 0 {
+            self.sys.update_frames_needed -= 1;
         }
 
         self.sys.new_external_events = false;

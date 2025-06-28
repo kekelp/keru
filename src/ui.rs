@@ -67,7 +67,7 @@ pub(crate) struct System {
     pub theme: Theme,
     pub debug_key_pressed: bool,
 
-    pub new_ui_input: u8,
+    pub update_frames_needed: u8,
     pub new_external_events: bool,
 
     pub text_renderer: TextRenderer,
@@ -338,7 +338,7 @@ impl Ui {
                 inspect_mode: false,
                 debug_key_pressed: false,
 
-                new_ui_input: 2,
+                update_frames_needed: 2,
                 new_external_events: true,
 
                 texture_atlas,
@@ -452,7 +452,7 @@ impl Ui {
     /// 
     /// In applications that update on every frame regardless of user input, like games or simulations, the [`Ui`] building code should be rerun on every frame unconditionally, so this function isn't useful.
     pub fn needs_update(&mut self) -> bool {
-        return self.sys.new_ui_input > 0 ||
+        return self.sys.update_frames_needed > 0 ||
             self.sys.new_external_events;
     }
 
@@ -477,7 +477,7 @@ impl Ui {
     pub(crate) fn set_new_ui_input(&mut self) {
         // Anti state-tearing: always update two times
         // Or rather, anti get-stuck-in-a-state-teared-frame. The state tearing is still there for one frame.
-        self.sys.new_ui_input = 2;
+        self.sys.update_frames_needed = 2;
     }
 
     /// Resize the `Ui`. 

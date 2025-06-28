@@ -320,17 +320,21 @@ impl Ui {
 
         for axis in [X, Y] {            
             if self.nodes[i].params.layout.scrollable[axis] {
-                self.update_scroll(i, delta[axis], axis);
+                self.update_container_scroll(i, delta[axis], axis);
             };
         }
         
         if self.nodes[i].params.is_scrollable() {
-            self.recursive_place_children(i, true);
 
-            self.sys.changes.full_relayout = true; // todo: remove this
-            self.sys.new_external_events = true;
+            // todo: add quicker functions that just move the rectangles. for text, this requires big changes in parley2 and will probably become impossible if we change renderer
+            self.recursive_place_children(i, true);
+            
+            self.sys.text_renderer.clear();
+            self.recursive_prepare_text(ROOT_I);
 
             self.resolve_hover();
+
+
             self.sys.changes.need_gpu_rect_update = true;
             self.sys.changes.need_rerender = true;
         }
