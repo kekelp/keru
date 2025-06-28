@@ -32,22 +32,28 @@ impl Ui {
     fn recursive_text_events(&mut self, i: NodeI, event: &WindowEvent, window: &Window, focus_already_grabbed: &mut bool) {
         
         if let Some(text_i) = self.nodes[i].text_i {
-            let grabbed = match text_i {
+            let res = match text_i {
                 TextI::TextBox(idx) => {
                     let text_box = &mut self.sys.text_boxes[idx];
-                    text_box.handle_event(event, window, *focus_already_grabbed).focus_grabbed
+                    text_box.handle_event(event, window, *focus_already_grabbed)
                 }
                 TextI::StaticTextBox(idx) => {
                     let text_box = &mut self.sys.static_text_boxes[idx];
-                    text_box.handle_event(event, window, *focus_already_grabbed).focus_grabbed
+                    text_box.handle_event(event, window, *focus_already_grabbed)
                 }
                 TextI::TextEdit(idx) => {
                     let text_edit = &mut self.sys.text_edits[idx];
-                    text_edit.handle_event(event, window, *focus_already_grabbed).focus_grabbed
+                    text_edit.handle_event(event, window, *focus_already_grabbed)
                 }
             };
-            if grabbed {
+            if res.focus_grabbed {
                 *focus_already_grabbed = true;
+            }
+            if res.text_changed {
+                self.push_text_change(i);
+            }
+            if res.decorations_changed {
+                self.sys.changes.text_changed = true;
             }
         } 
 

@@ -336,6 +336,7 @@ impl Ui {
         } else {
             self.sys.changes.need_rerender = true;
         }
+        self.sys.changes.text_changed = true;
     }
 
     /// Clear the old GUI tree and start declaring another one.

@@ -56,10 +56,12 @@ impl Ui {
         let partial_relayouts = ! self.sys.changes.partial_relayouts.is_empty();
         let rect_updates = ! self.sys.changes.cosmetic_rect_updates.is_empty();
         let full_relayout = self.sys.changes.full_relayout;
+        let text_changed = self.sys.changes.text_changed;
 
         let nothing_to_do = ! partial_relayouts
             && ! rect_updates
             && ! full_relayout
+            && ! text_changed
             && ! tree_changed;
         if nothing_to_do {
             return;
@@ -76,7 +78,12 @@ impl Ui {
                 self.do_partial_relayouts(false);
             } else {
                 self.do_partial_relayouts(true);
-            }    
+            }
+
+            if text_changed {
+                self.sys.text_renderer.clear();
+                self.recursive_prepare_text(ROOT_I);
+            }
         }
 
         // reset these early, but resolve_hover has a chance to turn them back on

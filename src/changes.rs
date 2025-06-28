@@ -24,6 +24,7 @@ pub struct PartialChanges {
     pub partial_relayouts: Vec<NodeWithDepth>,
     pub tree_changed: bool,
     pub full_relayout: bool,
+    pub text_changed: bool,
 
     pub need_gpu_rect_update: bool,
 
@@ -33,10 +34,11 @@ pub struct PartialChanges {
 }
 impl PartialChanges {
     pub fn new() -> PartialChanges {
-        return PartialChanges { 
+        return PartialChanges {
             partial_relayouts: Vec::with_capacity(15),
             cosmetic_rect_updates: Vec::with_capacity(15),
             tree_changed: false,
+            text_changed: false,
             full_relayout: true,
 
             need_rerender: true,
