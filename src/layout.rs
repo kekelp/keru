@@ -1,8 +1,6 @@
 use crate::*;
 use crate::node::*;
 
-use Axis::{X, Y};
-
 pub(crate) const BIG_FLOAT: f32 = 100000.0;
 
 /// Iterate on the children linked list.
@@ -607,11 +605,9 @@ impl Ui {
                     self.nodes[child].rect[axis][1] += scroll_offset;
                 }
             }
-            // self.update_rect(child);
-
         });
-        
     }
+
     fn set_clip_rect(&mut self, i: NodeI) {
         let parent_clip_rect = if i == ROOT_I {
             Xy::new_symm([0.0, 1.0])

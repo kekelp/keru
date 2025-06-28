@@ -155,3 +155,5 @@ mod texture_atlas;
 pub(crate) use crate::texture_atlas::*;
 
 pub use keru_macros::node_key;
+
+pub(crate) use Axis::*;

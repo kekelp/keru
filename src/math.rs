@@ -1,7 +1,6 @@
 use bytemuck::{Pod, Zeroable};
 use glam::{vec2, Vec2};
 use std::{hash::{Hash, Hasher}, ops::{Add, Div, Index, IndexMut, Mul, Sub}};
-use Axis::*;
 
 use crate::*;
 
@@ -65,7 +64,7 @@ impl Ui {
 }
 
 /// The X or Y axes.
-#[derive(Debug, Clone, Copy, Hash)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum Axis {
     X,
     Y,

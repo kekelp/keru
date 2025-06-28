@@ -118,7 +118,7 @@ pub const H_STACK: NodeParams = NodeParams {
 pub const V_SCROLL_STACK: NodeParams = NodeParams {
     key: None,
         stack: Some(Stack {
-            arrange: Arrange::Center,
+            arrange: Arrange::Start,
             axis: Axis::Y,
             spacing: 10,
         }),
