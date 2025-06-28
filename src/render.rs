@@ -24,8 +24,6 @@ impl Ui {
         let mut focus_already_grabbed = false;
         self.recursive_text_events(ROOT_I, event, window, &mut focus_already_grabbed);
 
-        self.sys.changes.full_relayout = true;
-
         self.ui_input(&event, window);
         
         return false;
