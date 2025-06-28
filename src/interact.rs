@@ -302,7 +302,7 @@ impl Ui {
         return false;
     }
 
-    pub(crate) fn handle_scroll(&mut self, delta: &MouseScrollDelta) {
+    pub(crate) fn handle_scroll_event(&mut self, delta: &MouseScrollDelta) {
         let Some(hovered_scroll_area_id) = self.sys.hovered_scroll_area else {
             return;
         };
@@ -327,7 +327,7 @@ impl Ui {
         if self.nodes[i].params.is_scrollable() {
             self.recursive_place_children(i, true);
 
-            self.sys.changes.full_relayout = true;
+            self.sys.changes.full_relayout = true; // todo: remove this
             self.sys.new_external_events = true;
 
             self.resolve_hover();
