@@ -799,7 +799,19 @@ impl Ui {
         };
                 
         if min_scroll < max_scroll {                
-            self.nodes[i].scroll.relative_offset[axis] += delta;
+            if self.nodes[i].frame_added == self.sys.current_frame && delta == 0.0 {
+                if let Some(stack) = self.nodes[i].params.stack {
+                    if stack.axis == axis {
+                        self.nodes[i].scroll.relative_offset[axis] = match stack.arrange {
+                            Arrange::End => min_scroll,
+                            _ => max_scroll,
+                        };
+                    }
+                }
+            } else {
+                // Normal scroll update
+                self.nodes[i].scroll.relative_offset[axis] += delta;
+            }
             
             let rel_offset = &mut self.nodes[i].scroll.relative_offset[axis];
             *rel_offset = rel_offset.clamp(min_scroll, max_scroll);

@@ -9,6 +9,7 @@ pub struct Node {
     pub depth: usize,
 
     pub last_layout_frame: u64,
+    pub frame_added: u64,
 
     pub scroll: Scroll,
 
@@ -73,6 +74,7 @@ pub struct Node {
     pub last_cosmetic_hash: u64,
     pub last_layout_hash: u64,
     pub last_text_hash: Option<u64>,
+    pub default_text_style_generation: u64,
 }
 
 impl Node {
@@ -80,6 +82,7 @@ impl Node {
         key: &NodeKey,
         twin_n: Option<u32>,
         debug_location: &'static Location<'static>,
+        current_frame: u64,
     ) -> Node {
         // add back somewhere
 
@@ -129,10 +132,12 @@ impl Node {
             last_image_rect_i: None,
             relayout_chain_root: None,
             last_layout_frame: 0,
+            frame_added: current_frame,
 
             last_cosmetic_hash: 0,
             last_layout_hash: 0,
             last_text_hash: None,
+            default_text_style_generation: 0,
         };
     }
 }
@@ -221,10 +226,12 @@ pub const ZERO_NODE_DUMMY: Node = Node {
     last_image_rect_i: None,
     relayout_chain_root: None,
     last_layout_frame: 0,
+    frame_added: 0,
 
     last_cosmetic_hash: 0,
     last_layout_hash: 0,
     last_text_hash: None,
+    default_text_style_generation: 0,
 };
 
 pub const ROOT_I: NodeI = NodeI::from(1);
@@ -279,8 +286,10 @@ pub const NODE_ROOT: Node = Node {
     last_image_rect_i: None,
     relayout_chain_root: None,
     last_layout_frame: 0,
+    frame_added: 0,
 
     last_cosmetic_hash: 0,
     last_layout_hash: 0,
     last_text_hash: None,
+    default_text_style_generation: 0,
 };
