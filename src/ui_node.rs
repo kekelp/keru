@@ -312,6 +312,33 @@ impl UiNode<'_> {
         }
         return self.ui.sys.hovered.last() == Some(&id);
     }
+
+    /// If the node was scrolled in the last frame, returns a struct containing detailed information of the scroll event. Otherwise, returns `None`.
+    /// 
+    /// If the node was scrolled multiple times in the last frame, the result holds the information about the last scroll only.
+    pub fn scrolled_at(&self) -> Option<ScrollEvent> {
+        let id = self.node().id;
+        let scroll_event = self.ui.sys.mouse_input.last_scroll_event(Some(id))?;
+        let node_rect = self.node().rect;
+        
+        let relative_position = glam::DVec2::new(
+            ((scroll_event.position.x / self.ui.sys.unifs.size.x as f64) - (node_rect.x[0]) as f64) / node_rect.size().x as f64,
+            ((scroll_event.position.y / self.ui.sys.unifs.size.y as f64) - (node_rect.y[0]) as f64) / node_rect.size().y as f64,
+        );
+        
+        return Some(ScrollEvent {
+            relative_position,
+            absolute_position: scroll_event.position,
+            delta: scroll_event.delta,
+            timestamp: scroll_event.timestamp,
+        });
+    }
+
+    /// Returns the total scroll delta for this node in the last frame, or None if no scroll events occurred.
+    pub fn is_scrolled(&self) -> Option<glam::DVec2> {
+        let id = self.node().id;
+        return self.ui.sys.mouse_input.scrolled(Some(id));
+    }
 }
 
 
@@ -375,6 +402,24 @@ impl Ui {
         };
         uinode.is_held()
     }
+
+    /// If the node corresponding to `key` was scrolled in the last frame, returns a struct containing detailed information of the scroll event. Otherwise, returns `None`.
+    /// 
+    /// If the node was scrolled multiple times in the last frame, the result holds the information about the last scroll only.
+    pub fn scrolled_at(&self, key: NodeKey) -> Option<ScrollEvent> {
+        let Some(uinode) = self.get_uinode(key) else {
+            return None;
+        };
+        uinode.scrolled_at()
+    }
+
+    /// Returns the total scroll delta for the node corresponding to `key` in the last frame, or None if no scroll events occurred.
+    pub fn is_scrolled(&self, key: NodeKey) -> Option<glam::DVec2> {
+        let Some(uinode) = self.get_uinode(key) else {
+            return None;
+        };
+        uinode.is_scrolled()
+    }
 }
 
 impl UiParent {
@@ -410,5 +455,17 @@ impl UiParent {
    /// If the node corresponding to `key` was being held with the left mouse button in the last frame, returns the duration for which it was held.
    pub fn is_held(&self, ui: &mut Ui) -> Option<Duration> {
         self.get_uinode(ui).is_held()
+    }
+
+    /// If the node was scrolled in the last frame, returns a struct containing detailed information of the scroll event. Otherwise, returns `None`.
+    /// 
+    /// If the node was scrolled multiple times in the last frame, the result holds the information about the last scroll only.
+    pub fn scrolled_at(&self, ui: &mut Ui) -> Option<ScrollEvent> {
+        self.get_uinode(ui).scrolled_at()
+    }
+
+    /// Returns the total scroll delta for the node in the last frame, or None if no scroll events occurred.
+    pub fn is_scrolled(&self, ui: &mut Ui) -> Option<glam::DVec2> {
+        self.get_uinode(ui).is_scrolled()
     }
 }

@@ -33,6 +33,19 @@ pub struct Drag {
     pub pressed_timestamp: Instant,    
 }
 
+/// A struct describing a scroll event on a GUI node.
+#[derive(Clone, Copy, Debug)]
+pub struct ScrollEvent {
+    /// Absolute screen position in pixels where the scroll occurred
+    pub absolute_position: glam::DVec2,
+    /// Position relative to the node (0.0 to 1.0 in each dimension)
+    pub relative_position: glam::DVec2,
+    /// Scroll delta (positive Y is scroll up, negative Y is scroll down)
+    pub delta: glam::DVec2,
+    /// Timestamp of the scroll event
+    pub timestamp: Instant,
+}
+
 impl Ui {
 
     // todo: think if it's really worth it to do this on every mouse movement.

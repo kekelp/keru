@@ -868,23 +868,17 @@ impl Ui {
             if editable.editable {
                 // Check if we need to force update due to default style change
                 let uses_default_style = params.text_style.is_none();
-                let force_update = uses_default_style && 
-                    self.nodes[i].default_text_style_generation != self.sys.default_text_style_generation;
+                let force_update = uses_default_style && self.sys.default_text_style_changed;
                 
                 // For text edits, we need to check if we should force an update or use normal logic
                 if force_update {
                     log::trace!("Forcing text edit update due to default style change");
                     self.set_text(i, true, text, params.text_style);
-                    self.nodes[i].default_text_style_generation = self.sys.default_text_style_generation;
                 } else {
                     // Normal text edit update logic - only update if text content changed
                     if self.nodes[i].last_text_ptr != params.text_ptr {
                         self.set_text(i, true, text, params.text_style);
                         self.nodes[i].last_text_ptr = params.text_ptr;
-                        
-                        if uses_default_style {
-                            self.nodes[i].default_text_style_generation = self.sys.default_text_style_generation;
-                        }
                     }
                 }
 
@@ -905,9 +899,7 @@ impl Ui {
         // Check if default style changed for nodes using default style
         let uses_default_style = params.params.text_params.is_none();
         
-        if uses_default_style && 
-           self.nodes[i].default_text_style_generation != self.sys.default_text_style_generation {
-            log::trace!("Forcing text update due to default style change");
+        if uses_default_style && self.sys.default_text_style_changed {
             text_verdict = TextVerdict::UpdateWithoutHashing;
         }
         
@@ -956,9 +948,6 @@ impl Ui {
                             log::trace!("Updating after hash");
                             self.nodes[i].last_text_hash = Some(hash);                    
                             self.set_text(i, false, text, params.text_style);
-                            if uses_default_style {
-                                self.nodes[i].default_text_style_generation = self.sys.default_text_style_generation;
-                            }
                         } else {
                             log::trace!("Skipping after hash");
                         }
@@ -966,25 +955,16 @@ impl Ui {
                     } else {
                         self.set_text(i, false, text, params.text_style);
                         self.nodes[i].last_text_hash = Some(hash);
-                        if uses_default_style {
-                            self.nodes[i].default_text_style_generation = self.sys.default_text_style_generation;
-                        }
                     }
                 } else {
                     log::trace!("Updating (node had no text)");
                     self.set_text(i, false, text, params.text_style);
-                    if uses_default_style {
-                        self.nodes[i].default_text_style_generation = self.sys.default_text_style_generation;
-                    }
                 }
             },
             TextVerdict::UpdateWithoutHashing => {
                 log::trace!("Updating without hash");
                 self.set_text(i, false, text, params.text_style);
                 self.nodes[i].last_text_hash = None;
-                if uses_default_style {
-                    self.nodes[i].default_text_style_generation = self.sys.default_text_style_generation;
-                }
                 // todo, think about this a bit more. we lose the hash.
             },
         };

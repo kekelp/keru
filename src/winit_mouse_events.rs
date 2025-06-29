@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 use std::fmt::Debug;
 
 use glam::{dvec2, DVec2};
-use winit::event::{ElementState, MouseButton, WindowEvent};
+use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
 
 // todo: rewrite all doc comments
 
@@ -12,9 +12,10 @@ impl<T: Clone + Copy + PartialEq + Debug> Tag for T {}
 pub struct MouseInput<T: Tag> {
     unresolved_click_presses: Vec<PendingMousePress<T>>,
     last_frame_mouse_events: Vec<FullMouseEvent<T>>,
+    last_frame_scroll_events: Vec<ScrollEvent<T>>,
+    current_frame_scroll_events: Vec<ScrollEvent<T>>,
     current_tag: Option<T>,
     cursor_position: DVec2,
-    // todo: add tagged scrolling
 }
 
 
@@ -23,6 +24,8 @@ impl<T: Tag> Default for MouseInput<T> {
         return Self {
             unresolved_click_presses: Vec::with_capacity(20),
             last_frame_mouse_events: Vec::with_capacity(20),
+            last_frame_scroll_events: Vec::with_capacity(10),
+            current_frame_scroll_events: Vec::with_capacity(10),
             current_tag: None,
             cursor_position: Default::default(),
         }
@@ -37,8 +40,10 @@ impl<T: Tag> MouseInput<T> {
             timestamp: Instant::now(),
             tag: self.current_tag,
         };
-
-        self.last_frame_mouse_events.clear();
+        
+        // Swap scroll events for double buffering
+        std::mem::swap(&mut self.last_frame_scroll_events, &mut self.current_frame_scroll_events);
+        self.current_frame_scroll_events.clear();
 
         self.unresolved_click_presses.retain(|click| click.already_released == false);
 
@@ -73,6 +78,9 @@ impl<T: Tag> MouseInput<T> {
                         self.push_click_release(*button, tag);
                     },
                 }
+            },
+            WindowEvent::MouseWheel { delta, .. } => {
+                self.push_scroll_event(delta);
             }
             _ => {}
         }
@@ -129,6 +137,22 @@ impl<T: Tag> MouseInput<T> {
 
             self.last_frame_mouse_events.push(full_mouse_event);
         }
+    }
+
+    fn push_scroll_event(&mut self, delta: &MouseScrollDelta) {
+        let (x, y) = match delta {
+            MouseScrollDelta::LineDelta(x, y) => (*x as f64, *y as f64),
+            MouseScrollDelta::PixelDelta(pos) => (pos.x, pos.y),
+        };
+        
+        let scroll_event = ScrollEvent {
+            delta: DVec2::new(x, y),
+            position: self.cursor_position,
+            timestamp: Instant::now(),
+            tag: self.current_tag,
+        };
+        
+        self.current_frame_scroll_events.push(scroll_event);
     }
     
     // querying
@@ -211,6 +235,38 @@ impl<T: Tag> MouseInput<T> {
             return Some(time_held);
         }
     }
+
+    /// Returns all scroll events for a specific node tag, or all scroll events if tag is None.
+    pub fn scroll_events(&self, tag: Option<T>) -> impl Iterator<Item = &ScrollEvent<T>> {
+        self.last_frame_scroll_events.iter().filter(move |s| {
+            tag.is_none() || s.tag == tag
+        })
+    }
+
+    /// Returns the total scroll delta for a specific node tag, or None if no scroll events occurred.
+    pub fn scrolled(&self, tag: Option<T>) -> Option<DVec2> {
+        let mut total_delta = DVec2::ZERO;
+        let mut found_any = false;
+        
+        for event in self.scroll_events(tag) {
+            total_delta += event.delta;
+            found_any = true;
+        }
+        
+        if found_any { Some(total_delta) } else { None }
+    }
+
+    /// Returns the most recent scroll event for a specific node tag.
+    pub fn last_scroll_event(&self, tag: Option<T>) -> Option<&ScrollEvent<T>> {
+        self.scroll_events(tag).last()
+    }
+
+
+    /// Returns the total scroll delta for all scroll events that occurred this frame, regardless of which node they occurred on.
+    /// This is useful for global scroll handling like Ctrl+wheel for font size adjustment.
+    pub fn global_scroll_delta(&self) -> Option<glam::DVec2> {
+        return self.scrolled(None);
+    }
 }
 
 
@@ -222,6 +278,15 @@ impl<T: Tag> MouseInput<T> {
 #[derive(Clone, Copy, Debug)]
 pub struct MouseRecord<T: Tag> {
     pub position: glam::DVec2,
+    pub timestamp: Instant,
+    pub tag: Option<T>,
+}
+
+/// A record describing a scroll event and which node it occurred on.
+#[derive(Clone, Copy, Debug)]
+pub struct ScrollEvent<T: Tag> {
+    pub delta: DVec2,
+    pub position: DVec2,
     pub timestamp: Instant,
     pub tag: Option<T>,
 }

@@ -52,7 +52,7 @@ impl KeyInput {
 
         for key_pressed in self.unresolved_key_presses.iter_mut().rev() {
 
-            let mouse_happening = FullKeyEvent {
+            let key_event = FullKeyEvent {
                 key: key_pressed.key.clone(),
                 originally_pressed: key_pressed.pressed_at,
                 last_seen: key_pressed.last_seen,
@@ -60,7 +60,7 @@ impl KeyInput {
                 kind: IsKeyReleased::StillDownButFrameEnded,
             };
 
-            self.last_frame_key_events.push(mouse_happening);
+            self.last_frame_key_events.push(key_event);
 
             key_pressed.last_seen = current_mouse_status;
         }

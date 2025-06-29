@@ -175,6 +175,19 @@ impl State {
             }
         }
 
+        // Handle font size controls with Ctrl + mouse wheel
+        if ui.key_input().key_mods().control_key() {
+            if let Some(scroll_delta) = ui.scroll_delta() {
+                if scroll_delta.y > 0.0 {
+                    // Scroll up = increase font size
+                    ui.default_text_style_mut().font_size = (ui.default_text_style().font_size + 2.0).min(72.0);
+                } else if scroll_delta.y < 0.0 {
+                    // Scroll down = decrease font size
+                    ui.default_text_style_mut().font_size = (ui.default_text_style().font_size - 2.0).max(8.0);
+                }
+            }
+        }
+
         ui.vertical_tabs(&self.tabs[..], &mut self.current_tab)
             .nest(|| match self.tabs[self.current_tab] {
                 INTRO_TAB => ui.intro_tab(self),

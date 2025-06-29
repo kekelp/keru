@@ -84,7 +84,7 @@ pub(crate) struct System {
     
     // Default text style for all text elements (cloned each frame)
     pub default_text_style: TextStyle,
-    pub default_text_style_generation: u64,
+    pub default_text_style_changed: bool,
     
     // Shared version of the default text style that can be applied to text elements
     pub default_shared_style: SharedStyle,
@@ -410,7 +410,7 @@ impl Ui {
                 text_edits: Slab::with_capacity(20),
                 
                 default_text_style: ORIGINAL_DEFAULT_TEXT_STYLE.clone(),
-                default_text_style_generation: 0,
+                default_text_style_changed: false,
                 
                 default_shared_style: SharedStyle::new(ORIGINAL_DEFAULT_TEXT_STYLE.clone()),
             },
@@ -455,7 +455,7 @@ impl Ui {
     /// Changes will apply to text created after this point in the current frame.
     pub fn default_text_style_mut(&mut self) -> &mut TextStyle {
         // Increment generation to invalidate existing text using default style
-        self.sys.default_text_style_generation += 1;
+        self.sys.default_text_style_changed = true;
         &mut self.sys.default_text_style
     }
 
@@ -464,20 +464,11 @@ impl Ui {
         &self.sys.default_text_style
     }
 
-    /// Update the default shared style to match the current default text style.
-    /// This should be called after modifying the default text style to ensure
-    /// all text elements using the shared default style get updated.
-    pub fn update_default_shared_style(&mut self) {
-        self.sys.default_shared_style.with_borrow_mut(|shared_style| {
-            *shared_style = self.sys.default_text_style.clone();
-        });
-    }
-
     /// Reset the default text style to the original values.
     /// This is useful for implementing Ctrl+0 to reset font size.
     pub fn reset_default_text_style(&mut self) {
         self.sys.default_text_style = ORIGINAL_DEFAULT_TEXT_STYLE.clone();
-        self.sys.default_text_style_generation += 1;
+        self.sys.default_text_style_changed = true;
     }
 
     pub fn current_frame(&self) -> u64 {
@@ -520,6 +511,10 @@ impl Ui {
     // todo: expose functions directly instead of the inner struct
     pub fn key_input(&self) -> &KeyInput {
         return &self.sys.key_input;
+    }
+
+    pub fn scroll_delta(&self) -> Option<glam::DVec2> {
+        return self.sys.mouse_input.scrolled(None);
     }
 
     pub(crate) fn set_new_ui_input(&mut self) {
