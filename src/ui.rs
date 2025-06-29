@@ -5,7 +5,7 @@ use crate::math::Axis::*;
 use basic_window_loop::basic_depth_stencil_state;
 use glam::DVec2;
 
-use parley2::{TextBox, TextEdit};
+use parley2::{TextBox, TextEdit, TextStyle2 as TextStyle, ColorBrush};
 use parley2::TextRenderer;
 use parley2::TextRendererParams;
 use slab::Slab;
@@ -74,6 +74,10 @@ pub(crate) struct System {
     pub text_boxes: Slab<TextBox<String>>,
     pub static_text_boxes: Slab<TextBox<&'static str>>,
     pub text_edits: Slab<TextEdit>,
+    
+    // Default text style for all text elements (cloned each frame)
+    pub default_text_style: TextStyle,
+    pub default_text_style_generation: u64,
 
     pub gpu_rect_buffer: TypedGpuBuffer<RenderRect>,
     pub render_pipeline: RenderPipeline,
@@ -394,6 +398,13 @@ impl Ui {
                 text_boxes: Slab::with_capacity(20),
                 static_text_boxes: Slab::with_capacity(20),
                 text_edits: Slab::with_capacity(20),
+                
+                default_text_style: TextStyle {
+                    font_size: 16.0,
+                    brush: ColorBrush([255, 255, 255, 255]),
+                    ..Default::default()
+                },
+                default_text_style_generation: 0,
             },
         }
     }
@@ -430,6 +441,19 @@ impl Ui {
     /// Get a reference to the active theme.
     pub fn theme(&mut self) -> &mut Theme {
         return &mut self.sys.theme;
+    }
+
+    /// Get a mutable reference to the default text style for all text elements that don't have custom styling.
+    /// Changes will apply to text created after this point in the current frame.
+    pub fn default_text_style_mut(&mut self) -> &mut TextStyle {
+        // Increment generation to invalidate existing text using default style
+        self.sys.default_text_style_generation += 1;
+        &mut self.sys.default_text_style
+    }
+
+    /// Get a reference to the current default text style.
+    pub fn default_text_style(&self) -> &TextStyle {
+        &self.sys.default_text_style
     }
 
     pub fn current_frame(&self) -> u64 {

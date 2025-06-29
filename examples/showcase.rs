@@ -63,7 +63,38 @@ impl Components for Ui {
             self.static_paragraph(
                 "Press Ctrl+Tab and Ctrl+Shift+Tab to switch between tabs.\n\n\
                 Press F1 for Inspect mode. This lets you see the bounds of the layout rectangles. \n\n\
-                In Inspect mode, hovering nodes will also log an Info message with the node's debug name and source code location."
+                In Inspect mode, hovering nodes will also log an Info message with the node's debug name and source code location.\n\n\
+                Press Ctrl+Plus and Ctrl+Minus to adjust the global font size."
+            );
+
+            self.static_paragraph("Text Styling Examples:");
+
+            self.add(TEXT
+                .static_text("Large Bold Title")
+                .font_size(32.0)
+                .text_color(Color::KERU_RED)
+                .font_weight(FontWeight::BOLD)
+            );
+            
+            self.add(TEXT
+                .static_text("Medium Italic Text")
+                .font_size(18.0)
+                .text_color(Color::KERU_BLUE)
+                .font_style(FontStyle::Italic)
+            );
+            
+            self.add(TEXT
+                .static_text("Small Underlined Text")
+                .font_size(12.0)
+                .text_color(Color::WHITE)
+                .underline(true)
+            );
+            
+            self.add(TEXT
+                .static_text("Strikethrough Text")
+                .font_size(16.0)
+                .text_color(Color::GREY)
+                .strikethrough(true)
             );
         });
     }
@@ -116,6 +147,16 @@ impl Components for Ui {
 
 impl State {
     fn update_ui(&mut self, ui: &mut Ui) {
+        // Handle font size controls with Ctrl+ and Ctrl-
+        if ui.key_input().key_mods().control_key() {
+            if ui.key_input().key_pressed(&winit::keyboard::Key::Character("=".into())) || 
+               ui.key_input().key_pressed(&winit::keyboard::Key::Character("+".into())) {
+                ui.default_text_style_mut().font_size = (ui.default_text_style().font_size + 2.0).min(72.0);
+            } else if ui.key_input().key_pressed(&winit::keyboard::Key::Character("-".into())) {
+                ui.default_text_style_mut().font_size = (ui.default_text_style().font_size - 2.0).max(8.0);
+            }
+        }
+
         ui.vertical_tabs(&self.tabs[..], &mut self.current_tab)
             .nest(|| match self.tabs[self.current_tab] {
                 INTRO_TAB => ui.intro_tab(self),

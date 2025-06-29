@@ -41,46 +41,71 @@ pub enum TextI {
 
 
 impl Ui {
-    pub(crate) fn set_text(&mut self, i: NodeI, edit: bool, text: &str) -> &mut Self {
+    pub(crate) fn set_text(&mut self, i: NodeI, edit: bool, text: &str, style: Option<&TextStyle>) -> &mut Self {
         match self.nodes[i].text_i {
             Some(TextI::TextBox(text_i)) => {
                 if !edit {
-                    self.sys.text_boxes[text_i] = TextBox::<String>::new(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
+                    let mut text_box = TextBox::<String>::new(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
+                    if let Some(style) = style {
+                        text_box.set_unique_style(style.clone());
+                    }
+                    self.sys.text_boxes[text_i] = text_box;
                 } else {
                     self.sys.text_boxes.remove(text_i);
-                    let new_text_edit = TextEdit::new(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
+                    let mut new_text_edit = TextEdit::new(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
+                    if let Some(style) = style {
+                        new_text_edit.set_unique_style(style.clone());
+                    }
                     let new_i = self.sys.text_edits.insert(new_text_edit);
                     self.nodes[i].text_i = Some(TextI::TextEdit(new_i));
                 }
             }
             Some(TextI::TextEdit(edit_i)) => {
                 if edit {
-                    // do nothing
+                    // don't update the text
+                    if let Some(style) = style {
+                        self.sys.text_edits[edit_i].set_unique_style(style.clone());
+                    }
                 } else {
                     self.sys.text_edits.remove(edit_i);
-                    let new_text_box = TextBox::<String>::new(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
+                    let mut new_text_box = TextBox::<String>::new(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
+                    if let Some(style) = style {
+                        new_text_box.set_unique_style(style.clone());
+                    }
                     let new_i = self.sys.text_boxes.insert(new_text_box);
                     self.nodes[i].text_i = Some(TextI::TextBox(new_i));
                 }
             }
             Some(TextI::StaticTextBox(_)) => {
                 if edit {
-                    let new_text_edit = TextEdit::new_single_line(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
+                    let mut new_text_edit = TextEdit::new_single_line(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
+                    if let Some(style) = style {
+                        new_text_edit.set_unique_style(style.clone());
+                    }
                     let new_i = self.sys.text_edits.insert(new_text_edit);
                     self.nodes[i].text_i = Some(TextI::TextEdit(new_i));
                 } else {
-                    let new_text_box = TextBox::<String>::new(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
+                    let mut new_text_box = TextBox::<String>::new(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
+                    if let Some(style) = style {
+                        new_text_box.set_unique_style(style.clone());
+                    }
                     let new_i = self.sys.text_boxes.insert(new_text_box);
                     self.nodes[i].text_i = Some(TextI::TextBox(new_i));
                 }
             }
             None => {
                 if edit {
-                    let new_text_edit = TextEdit::new_single_line(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
+                    let mut new_text_edit = TextEdit::new_single_line(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
+                    if let Some(style) = style {
+                        new_text_edit.set_unique_style(style.clone());
+                    }
                     let new_i = self.sys.text_edits.insert(new_text_edit);
                     self.nodes[i].text_i = Some(TextI::TextEdit(new_i));
                 } else {
-                    let new_text_box = TextBox::<String>::new(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
+                    let mut new_text_box = TextBox::<String>::new(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
+                    if let Some(style) = style {
+                        new_text_box.set_unique_style(style.clone());
+                    }
                     let new_i = self.sys.text_boxes.insert(new_text_box);
                     self.nodes[i].text_i = Some(TextI::TextBox(new_i));
                 }

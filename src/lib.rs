@@ -129,7 +129,7 @@ pub mod winit_key_events;
 
 mod thread_local;
 
-pub use parley2::with_clipboard;
+pub use parley2::{with_clipboard, TextStyle2 as TextStyle, FontWeight, FontStyle, LineHeight, FontStack, ColorBrush};
 
 mod changes;
 pub(crate) use crate::changes::*;

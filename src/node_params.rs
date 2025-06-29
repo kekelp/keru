@@ -475,12 +475,13 @@ impl NodeParams {
 pub struct FullNodeParams<'a> {
     pub params: NodeParams,
     pub text: Option<&'a str>,
+    pub text_style: Option<&'a TextStyle>,
     pub(crate) text_changed: Changed,
     pub(crate) text_ptr: usize,
     pub image: Option<&'static [u8]>,
 }
 
-impl FullNodeParams<'_> {
+impl<'a> FullNodeParams<'a> {
     pub const fn position(mut self, position_x: Position, position_y: Position) -> Self {
         self.params.layout.position.x = position_x;
         self.params.layout.position.y = position_y;
@@ -693,24 +694,31 @@ impl FullNodeParams<'_> {
         self.params.children_can_hide = value;
         return self;
     }
-}
 
-impl FullNodeParams<'_> {
-    /// Add text to the [`NodeParams`] from a `&'static str`.
-    /// 
-    /// `text` is assumed to be unchanged, so the [`Ui`] uses pointer equality to determine if it needs to update the text shown on screen.
-    /// 
-    /// If `text` changes, due to interior mutability or unsafe code, then the [`Ui`] will miss it.  
-    pub fn static_text(self, text: &'static str) -> FullNodeParams<'static> {
-        return FullNodeParams {
-            params: self.params,
-            image: self.image,
-            text: Some(text),
-            text_changed: Changed::Static,
-            text_ptr: (&raw const text) as usize,
-        }
+    /// Set the text style for tis node
+    pub fn text_style(mut self, style: &'a TextStyle) -> Self {
+        self.text_style = Some(style);
+        return self;
     }
 }
+
+// impl FullNodeParams<'_> {
+//     /// Add text to the [`NodeParams`] from a `&'static str`.
+//     /// 
+//     /// `text` is assumed to be unchanged, so the [`Ui`] uses pointer equality to determine if it needs to update the text shown on screen.
+//     /// 
+//     /// If `text` changes, due to interior mutability or unsafe code, then the [`Ui`] will miss it.  
+//     pub fn static_text(self, text: &'static str) -> FullNodeParams<'static> {
+//         return FullNodeParams {
+//             params: self.params,
+//             image: self.image,
+//             text: Some(text),
+//             text_style: self.text_style,
+//             text_changed: Changed::Static,
+//             text_ptr: (&raw const text) as usize,
+//         }
+//     }
+// }
 
 impl NodeParams {
     /// Add text to the [`NodeParams`] from a `&'static str`.
@@ -726,6 +734,7 @@ impl NodeParams {
         return FullNodeParams {
             params: self,
             text: Some(text.as_ref()),
+            text_style: None,
             image: None,
             text_changed: Changed::NeedsHash,
             text_ptr: (&raw const text) as usize,
@@ -741,6 +750,7 @@ impl NodeParams {
         return FullNodeParams {
             params: self,
             text: Some(text.as_ref()),
+            text_style: None,
             image: None,
             text_changed: Changed::Static,
             text_ptr: (&raw const text) as usize,
@@ -756,6 +766,7 @@ impl NodeParams {
         return FullNodeParams {
             params: self,
             text: Some(text.as_ref()),
+            text_style: None,
             image: None,
             text_changed: Changed::Static,
             text_ptr: (&raw const text) as usize,
@@ -766,6 +777,7 @@ impl NodeParams {
         return FullNodeParams {
             params: self,
             text: Some(text.as_ref()),
+            text_style: None,
             text_changed: text.changed_at(),
             text_ptr: (&raw const text) as usize,
             image: None,
@@ -776,6 +788,7 @@ impl NodeParams {
         return FullNodeParams {
             params: self,
             text: None,
+            text_style: None,
             image: Some(image),
             text_changed: Changed::Static,
             text_ptr: 0,
@@ -797,6 +810,7 @@ impl From<NodeParams> for FullNodeParams<'_> {
         FullNodeParams {
             params: val,
             text: None,
+            text_style: None,
             text_changed: Changed::Static,
             text_ptr: 0,
             image: None,
@@ -850,10 +864,29 @@ impl Ui {
             return
         };
         
-        if let Some(editable) = params.params.text_params {
+        if let Some(editable) = &params.params.text_params {
             if editable.editable {
-
-                self.set_text(i, true, text);
+                // Check if we need to force update due to default style change
+                let uses_default_style = params.text_style.is_none();
+                let force_update = uses_default_style && 
+                    self.nodes[i].default_text_style_generation != self.sys.default_text_style_generation;
+                
+                // For text edits, we need to check if we should force an update or use normal logic
+                if force_update {
+                    log::trace!("Forcing text edit update due to default style change");
+                    self.set_text(i, true, text, params.text_style);
+                    self.nodes[i].default_text_style_generation = self.sys.default_text_style_generation;
+                } else {
+                    // Normal text edit update logic - only update if text content changed
+                    if self.nodes[i].last_text_ptr != params.text_ptr {
+                        self.set_text(i, true, text, params.text_style);
+                        self.nodes[i].last_text_ptr = params.text_ptr;
+                        
+                        if uses_default_style {
+                            self.nodes[i].default_text_style_generation = self.sys.default_text_style_generation;
+                        }
+                    }
+                }
 
                 return;
             }
@@ -867,7 +900,16 @@ impl Ui {
         
         // todo: if text attributes have changed, go straight to relayout anyway.
 
-        let text_verdict = self.check_text_situation(i, params);
+        let mut text_verdict = self.check_text_situation(i, params);
+        
+        // Check if default style changed for nodes using default style
+        let uses_default_style = params.params.text_params.is_none();
+        
+        if uses_default_style && 
+           self.nodes[i].default_text_style_generation != self.sys.default_text_style_generation {
+            log::trace!("Forcing text update due to default style change");
+            text_verdict = TextVerdict::UpdateWithoutHashing;
+        }
         
         if text_verdict == TextVerdict::Skip {
             log::trace!("Skipping text update");
@@ -913,24 +955,36 @@ impl Ui {
 
                             log::trace!("Updating after hash");
                             self.nodes[i].last_text_hash = Some(hash);                    
-                            self.set_text(i, false, text);
+                            self.set_text(i, false, text, params.text_style);
+                            if uses_default_style {
+                                self.nodes[i].default_text_style_generation = self.sys.default_text_style_generation;
+                            }
                         } else {
                             log::trace!("Skipping after hash");
                         }
                         
                     } else {
-                        self.set_text(i, false, text);
-                        self.nodes[i].last_text_hash = Some(hash);                    
+                        self.set_text(i, false, text, params.text_style);
+                        self.nodes[i].last_text_hash = Some(hash);
+                        if uses_default_style {
+                            self.nodes[i].default_text_style_generation = self.sys.default_text_style_generation;
+                        }
                     }
                 } else {
                     log::trace!("Updating (node had no text)");
-                    self.set_text(i, false, text);
+                    self.set_text(i, false, text, params.text_style);
+                    if uses_default_style {
+                        self.nodes[i].default_text_style_generation = self.sys.default_text_style_generation;
+                    }
                 }
             },
             TextVerdict::UpdateWithoutHashing => {
                 log::trace!("Updating without hash");
-                self.set_text(i, false, text);
+                self.set_text(i, false, text, params.text_style);
                 self.nodes[i].last_text_hash = None;
+                if uses_default_style {
+                    self.nodes[i].default_text_style_generation = self.sys.default_text_style_generation;
+                }
                 // todo, think about this a bit more. we lose the hash.
             },
         };
@@ -968,7 +1022,7 @@ impl Ui {
             return;
         }
         
-        self.nodes[i].params = params.params;
+        self.nodes[i].params = params.params.clone();
 
         self.nodes[i].last_cosmetic_hash = new_cosmetic_hash;
         self.nodes[i].last_layout_hash = new_layout_hash;
@@ -996,6 +1050,7 @@ impl NodeParams {
         FullNodeParams {
             params: self,
             text: Some(text.as_text()),
+            text_style: None,
             image: None,
             text_changed: text.changed_at(),
             text_ptr: (&raw const text) as usize,
