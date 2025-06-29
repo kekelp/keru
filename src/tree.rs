@@ -361,6 +361,14 @@ impl Ui {
     pub fn begin_frame(&mut self) {
         self.reset_root();
 
+        // Update the default shared style to match the current default text style
+        // This ensures that any changes made via default_text_style_mut() in the previous frame
+        // are reflected in text elements that use the shared default style
+        self.sys.default_shared_style.with_borrow_mut(|shared_style| {
+            *shared_style = self.sys.default_text_style.clone();
+            self.sys.changes.full_relayout = true;
+        });
+
         self.sys.current_frame += 1;
         thread_local::clear_parent_stack();
         self.format_scratch.clear();

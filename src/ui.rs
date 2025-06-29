@@ -5,7 +5,7 @@ use crate::math::Axis::*;
 use basic_window_loop::basic_depth_stencil_state;
 use glam::DVec2;
 
-use parley2::{TextBox, TextEdit, TextStyle2 as TextStyle, ColorBrush};
+use parley2::{TextBox, TextEdit, TextStyle2 as TextStyle, ColorBrush, SharedStyle};
 use parley2::TextRenderer;
 use parley2::TextRendererParams;
 use slab::Slab;
@@ -78,6 +78,9 @@ pub(crate) struct System {
     // Default text style for all text elements (cloned each frame)
     pub default_text_style: TextStyle,
     pub default_text_style_generation: u64,
+    
+    // Shared version of the default text style that can be applied to text elements
+    pub default_shared_style: SharedStyle,
 
     pub gpu_rect_buffer: TypedGpuBuffer<RenderRect>,
     pub render_pipeline: RenderPipeline,
@@ -405,6 +408,12 @@ impl Ui {
                     ..Default::default()
                 },
                 default_text_style_generation: 0,
+                
+                default_shared_style: SharedStyle::new(TextStyle {
+                    font_size: 16.0,
+                    brush: ColorBrush([255, 255, 255, 255]),
+                    ..Default::default()
+                }),
             },
         }
     }
@@ -454,6 +463,15 @@ impl Ui {
     /// Get a reference to the current default text style.
     pub fn default_text_style(&self) -> &TextStyle {
         &self.sys.default_text_style
+    }
+
+    /// Update the default shared style to match the current default text style.
+    /// This should be called after modifying the default text style to ensure
+    /// all text elements using the shared default style get updated.
+    pub fn update_default_shared_style(&mut self) {
+        self.sys.default_shared_style.with_borrow_mut(|shared_style| {
+            *shared_style = self.sys.default_text_style.clone();
+        });
     }
 
     pub fn current_frame(&self) -> u64 {
