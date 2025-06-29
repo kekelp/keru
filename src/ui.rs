@@ -35,6 +35,13 @@ use wgpu::{
 
 pub(crate) static T0: LazyLock<Instant> = LazyLock::new(Instant::now);
 
+/// The original default text style that can be restored with Ctrl+0
+pub static ORIGINAL_DEFAULT_TEXT_STYLE: LazyLock<TextStyle> = LazyLock::new(|| TextStyle {
+    font_size: 24.0,
+    brush: ColorBrush([255, 255, 255, 255]),
+    ..Default::default()
+});
+
 pub(crate) fn ui_time_f32() -> f32 {
     return T0.elapsed().as_secs_f32();
 }
@@ -402,18 +409,10 @@ impl Ui {
                 static_text_boxes: Slab::with_capacity(20),
                 text_edits: Slab::with_capacity(20),
                 
-                default_text_style: TextStyle {
-                    font_size: 16.0,
-                    brush: ColorBrush([255, 255, 255, 255]),
-                    ..Default::default()
-                },
+                default_text_style: ORIGINAL_DEFAULT_TEXT_STYLE.clone(),
                 default_text_style_generation: 0,
                 
-                default_shared_style: SharedStyle::new(TextStyle {
-                    font_size: 16.0,
-                    brush: ColorBrush([255, 255, 255, 255]),
-                    ..Default::default()
-                }),
+                default_shared_style: SharedStyle::new(ORIGINAL_DEFAULT_TEXT_STYLE.clone()),
             },
         }
     }
@@ -472,6 +471,13 @@ impl Ui {
         self.sys.default_shared_style.with_borrow_mut(|shared_style| {
             *shared_style = self.sys.default_text_style.clone();
         });
+    }
+
+    /// Reset the default text style to the original values.
+    /// This is useful for implementing Ctrl+0 to reset font size.
+    pub fn reset_default_text_style(&mut self) {
+        self.sys.default_text_style = ORIGINAL_DEFAULT_TEXT_STYLE.clone();
+        self.sys.default_text_style_generation += 1;
     }
 
     pub fn current_frame(&self) -> u64 {

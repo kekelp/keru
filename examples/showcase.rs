@@ -65,7 +65,7 @@ impl Components for Ui {
                 "Press Ctrl+Tab and Ctrl+Shift+Tab to switch between tabs.\n\n\
                 Press F1 for Inspect mode. This lets you see the bounds of the layout rectangles. \n\n\
                 In Inspect mode, hovering nodes will also log an Info message with the node's debug name and source code location.\n\n\
-                Press Ctrl+Plus and Ctrl+Minus to adjust the global font size."
+                Press Ctrl+Plus and Ctrl+Minus to adjust the global font size, Ctrl+0 to reset to original size."
             );
 
             self.static_paragraph("Text Styles:");
@@ -163,13 +163,15 @@ impl Components for Ui {
 
 impl State {
     fn update_ui(&mut self, ui: &mut Ui) {
-        // Handle font size controls with Ctrl+ and Ctrl-
+        // Handle font size controls with Ctrl+, Ctrl-, and Ctrl+0
         if ui.key_input().key_mods().control_key() {
             if ui.key_input().key_pressed(&winit::keyboard::Key::Character("=".into())) || 
                ui.key_input().key_pressed(&winit::keyboard::Key::Character("+".into())) {
                 ui.default_text_style_mut().font_size = (ui.default_text_style().font_size + 2.0).min(72.0);
             } else if ui.key_input().key_pressed(&winit::keyboard::Key::Character("-".into())) {
                 ui.default_text_style_mut().font_size = (ui.default_text_style().font_size - 2.0).max(8.0);
+            } else if ui.key_input().key_pressed(&winit::keyboard::Key::Character("0".into())) {
+                ui.reset_default_text_style();
             }
         }
 
