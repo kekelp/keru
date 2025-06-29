@@ -1,6 +1,7 @@
 use keru::Size::*;
 use keru::example_window_loop::*;
 use keru::*;
+use parley2::{TextStyle2 as TextStyle, ColorBrush, FontWeight, FontStyle};
 
 #[derive(Default)]
 struct State {
@@ -67,34 +68,50 @@ impl Components for Ui {
                 Press Ctrl+Plus and Ctrl+Minus to adjust the global font size."
             );
 
-            self.static_paragraph("Text Styling Examples:");
+            self.static_paragraph("Text Styles:");
 
+            // This is not so ergonomic, but it's for the greater good: in a real application, all text styles should be ready to change on the fly 
+            let large_bold_style = TextStyle {
+                font_size: 32.0,
+                brush: ColorBrush([255, 0, 0, 255]), // Red color (KERU_RED equivalent)
+                font_weight: FontWeight::BOLD,
+                ..Default::default()
+            };
             self.add(TEXT
                 .static_text("Large Bold Title")
-                .font_size(32.0)
-                .text_color(Color::KERU_RED)
-                .font_weight(FontWeight::BOLD)
+                .text_style(&large_bold_style)
             );
             
+            let medium_italic_style = TextStyle {
+                font_size: 18.0,
+                brush: ColorBrush([0, 100, 255, 255]), // Blue color (KERU_BLUE equivalent)
+                font_style: FontStyle::Italic,
+                ..Default::default()
+            };
             self.add(TEXT
                 .static_text("Medium Italic Text")
-                .font_size(18.0)
-                .text_color(Color::KERU_BLUE)
-                .font_style(FontStyle::Italic)
+                .text_style(&medium_italic_style)
             );
             
+            let small_style = TextStyle {
+                font_size: 12.0,
+                brush: ColorBrush([255, 255, 255, 255]), // White color
+                ..Default::default()
+            };
             self.add(TEXT
-                .static_text("Small Underlined Text")
-                .font_size(12.0)
-                .text_color(Color::WHITE)
-                .underline(true)
+                .static_text("Small Text")
+                .text_style(&small_style)
             );
             
+            
+            let strikethrough_style = TextStyle {
+                font_size: 16.0,
+                brush: ColorBrush([128, 128, 128, 255]), // Grey color
+                ..Default::default()
+            };
             self.add(TEXT
                 .static_text("Strikethrough Text")
-                .font_size(16.0)
-                .text_color(Color::GREY)
-                .strikethrough(true)
+                .text_style(&strikethrough_style)
             );
         });
     }
@@ -130,7 +147,6 @@ impl Components for Ui {
         let nested_button_2 = BUTTON
             .size_y(Size::Frac(0.2))
             .size_x(Size::Fill)
-            .static_image(include_bytes!("../src/textures/clouds.png"))
             .static_text("And every node can be everything at once\n(for now)");
 
         self.add(PANEL).nest(|| {
