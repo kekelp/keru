@@ -105,6 +105,7 @@ impl Ui {
             WindowEvent::Resized(size) => self.resize(size),
             WindowEvent::MouseWheel { delta, .. } => {
                 self.handle_scroll_event(delta);
+                self.set_new_ui_input();
             }
             _ => {}
         }

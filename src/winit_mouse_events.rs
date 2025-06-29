@@ -141,7 +141,7 @@ impl<T: Tag> MouseInput<T> {
 
     fn push_scroll_event(&mut self, delta: &MouseScrollDelta) {
         let (x, y) = match delta {
-            MouseScrollDelta::LineDelta(x, y) => (*x as f64, *y as f64),
+            MouseScrollDelta::LineDelta(x, y) => ((x * 0.1) as f64 , (y * 0.1) as f64),
             MouseScrollDelta::PixelDelta(pos) => (pos.x, pos.y),
         };
         
