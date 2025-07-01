@@ -65,13 +65,12 @@ impl UiNode<'_> {
         };
     }
 
-    // todo: nasty allocation
     pub fn get_text(&self) -> Option<&str> {
-        let text_i = self.node().text_i?;
+        let text_i = self.node().text_i.as_ref()?;
         match text_i {
-            TextI::TextBox(idx) => Some(self.ui.sys.text_boxes[idx].raw_text()),
-            TextI::StaticTextBox(idx) => Some(self.ui.sys.static_text_boxes[idx].raw_text()),
-            TextI::TextEdit(idx) => Some(self.ui.sys.text_edits[idx].raw_text()),
+            TextI::TextBox(handle) => Some(self.ui.sys.text.get_text_box(&handle).raw_text()),
+            TextI::StaticTextBox(handle) => Some(self.ui.sys.text.get_static_text_box(&handle).raw_text()),
+            TextI::TextEdit(handle) => Some(self.ui.sys.text.get_text_edit(&handle).raw_text()),
         }
     }
 }
@@ -99,11 +98,11 @@ impl Ui {
     }
     pub fn get_text(&self, key: NodeKey) -> Option<&str> {
         let i = self.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
-        let text_i = self.nodes[i].text_i?;
+        let text_i = self.nodes[i].text_i.as_ref()?;
         match text_i {
-            TextI::TextBox(idx) => Some(self.sys.text_boxes[idx].raw_text()),
-            TextI::StaticTextBox(idx) => Some(self.sys.static_text_boxes[idx].raw_text()),
-            TextI::TextEdit(idx) => Some(self.sys.text_edits[idx].raw_text()),
+            TextI::TextBox(handle) => Some(self.sys.text.get_text_box(&handle).raw_text()),
+            TextI::StaticTextBox(handle) => Some(self.sys.text.get_static_text_box(&handle).raw_text()),
+            TextI::TextEdit(handle) => Some(self.sys.text.get_text_edit(&handle).raw_text()),
         }
     }
 }
@@ -126,11 +125,11 @@ impl UiParent {
         self.get_uinode(ui).bottom_left()
     }
     pub fn get_text<'u>(&self, ui: &'u mut Ui) -> Option<&'u str> {
-        let text_i = ui.nodes[self.i].text_i?;
+        let text_i = ui.nodes[self.i].text_i.as_ref()?;
         match text_i {
-            TextI::TextBox(idx) => Some(ui.sys.text_boxes[idx].raw_text()),
-            TextI::StaticTextBox(idx) => Some(ui.sys.static_text_boxes[idx].raw_text()),
-            TextI::TextEdit(idx) => Some(ui.sys.text_edits[idx].raw_text()),
+            TextI::TextBox(handle) => Some(ui.sys.text.get_text_box(&handle).raw_text()),
+            TextI::StaticTextBox(handle) => Some(ui.sys.text.get_static_text_box(&handle).raw_text()),
+            TextI::TextEdit(handle) => Some(ui.sys.text.get_text_edit(&handle).raw_text()),
         }
     }
 }

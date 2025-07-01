@@ -210,7 +210,7 @@ impl Ui {
                 self.sys.anim_render_timer.push_new(Duration::from_secs_f32(ANIMATION_RERENDER_TIME));
             }
           
-            if let Some(text_i) = clicked_node.text_i {
+            if let Some(text_i) = &clicked_node.text_i {
                 match text_i {
                     TextI::TextEdit(_) => {
                         self.sys.focused = Some(clicked_id);
@@ -342,8 +342,7 @@ impl Ui {
             // todo: add quicker functions that just move the rectangles. for text, this requires big changes in parley2 and will probably become impossible if we change renderer
             self.recursive_place_children(i, true);
             
-            self.sys.text_renderer.clear();
-            self.recursive_prepare_text(ROOT_I);
+            self.sys.text.prepare_all(&mut self.sys.text_renderer);
 
             self.resolve_hover();
 

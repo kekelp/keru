@@ -79,8 +79,7 @@ impl Ui {
             }
 
             if text_changed {
-                self.sys.text_renderer.clear();
-                self.recursive_prepare_text(ROOT_I);
+                self.sys.text.prepare_all(&mut self.sys.text_renderer);
             }
         }
 
@@ -355,11 +354,11 @@ impl Ui {
     }
 
     fn determine_text_size(&mut self, i: NodeI, proposed_size: Xy<f32>) -> Xy<f32> {
-        let text_i = self.nodes[i].text_i.unwrap();
+        let text_i = self.nodes[i].text_i.as_ref().unwrap();
         
         match text_i {
-            TextI::TextEdit(idx) => {
-                let text_edit = &mut self.sys.text_edits[idx];
+            TextI::TextEdit(handle) => {
+                let text_edit = self.sys.text.get_text_edit_mut(&handle);
                 let w = proposed_size.x * self.sys.unifs.size[X];
                 let h = proposed_size.y * self.sys.unifs.size[Y];
 
@@ -367,8 +366,7 @@ impl Ui {
                 
                 return proposed_size;
             }
-            TextI::TextBox(idx) => {
-                let text_box = &mut self.sys.text_boxes[idx];
+            TextI::TextBox(handle) => {
                 
                 let fit_content_y = self.nodes[i].params.layout.size[Y] == Size::FitContent;
                 let fit_content_x = self.nodes[i].params.layout.size[X] == Size::FitContent;
@@ -389,16 +387,15 @@ impl Ui {
                     proposed_size.x * self.sys.unifs.size[X]
                 };
 
-                text_box.set_size((w, h));
+                self.sys.text.get_text_box_mut(&handle).set_size((w, h));
                 
-                let size_pixels = Xy::new(text_box.layout().width(), text_box.layout().height());
+                let layout = self.sys.text.get_text_box_layout(&handle);
+                let size_pixels = Xy::new(layout.width(), layout.height());
                 let size = self.f32_pixels_to_frac2(size_pixels);        
 
                 return size;
             }
-            TextI::StaticTextBox(idx) => {
-                let text_box = &mut self.sys.static_text_boxes[idx];
-                
+            TextI::StaticTextBox(handle) => {               
                 let fit_content_y = self.nodes[i].params.layout.size[Y] == Size::FitContent;
                 let fit_content_x = self.nodes[i].params.layout.size[X] == Size::FitContent;
 
@@ -418,9 +415,10 @@ impl Ui {
                     proposed_size.x * self.sys.unifs.size[X]
                 };
 
-                text_box.set_size((w, h));
+                self.sys.text.get_static_text_box_mut(&handle).set_size((w, h));
                 
-                let size_pixels = Xy::new(text_box.layout().width(), text_box.layout().height());
+                let layout = self.sys.text.get_static_text_box_layout(&handle);
+                let size_pixels = Xy::new(layout.width(), layout.height());
                 let size = self.f32_pixels_to_frac2(size_pixels);        
 
                 return size;
@@ -631,7 +629,7 @@ impl Ui {
         let top = self.nodes[i].clip_rect[Y][0] * self.sys.unifs.size[Y];
         let bottom = self.nodes[i].clip_rect[Y][1] * self.sys.unifs.size[Y];
 
-        if let Some(text_i) = self.nodes[i].text_i {
+        if let Some(text_i) = &self.nodes[i].text_i {
             let padding = self.nodes[i].params.layout.padding;
             let text_left = (self.nodes[i].rect[X][0] * self.sys.unifs.size[X]) as f64 + padding[X] as f64;
             let text_top = (self.nodes[i].rect[Y][0] * self.sys.unifs.size[Y]) as f64 + padding[Y] as f64;
@@ -644,14 +642,14 @@ impl Ui {
             });
             
             match text_i {
-                TextI::TextBox(idx) => {
-                    self.sys.text_boxes[idx].set_clip_rect(clip_rect);
+                TextI::TextBox(handle) => {
+                    self.sys.text.get_text_box_mut(&handle).set_clip_rect(clip_rect);
                 }
-                TextI::StaticTextBox(idx) => {
-                    self.sys.static_text_boxes[idx].set_clip_rect(clip_rect);
+                TextI::StaticTextBox(handle) => {
+                    self.sys.text.get_static_text_box_mut(&handle).set_clip_rect(clip_rect);
                 }
-                TextI::TextEdit(idx) => {
-                    self.sys.text_edits[idx].set_clip_rect(clip_rect);
+                TextI::TextEdit(handle) => {
+                    self.sys.text.get_text_edit_mut(&handle).set_clip_rect(clip_rect);
                 }
             }
         }
@@ -664,20 +662,19 @@ impl Ui {
 
     fn place_text_inside(&mut self, i: NodeI, rect: XyRect) {
         let padding = self.nodes[i].params.layout.padding;
-        let text_i = self.nodes[i].text_i;
-        if let Some(text_i) = text_i {
+        if let Some(text_i) = &self.nodes[i].text_i {
             let left = (rect[X][0] * self.sys.unifs.size[X]) as f64 + padding[X] as f64;
             let top = (rect[Y][0] * self.sys.unifs.size[Y]) as f64 + padding[Y] as f64;
 
             match text_i {
-                TextI::TextBox(idx) => {
-                    self.sys.text_boxes[idx].set_pos((left, top));
+                TextI::TextBox(handle) => {
+                    self.sys.text.get_text_box_mut(&handle).set_pos((left, top));
                 }
-                TextI::StaticTextBox(idx) => {
-                    self.sys.static_text_boxes[idx].set_pos((left, top));
+                TextI::StaticTextBox(handle) => {
+                    self.sys.text.get_static_text_box_mut(&handle).set_pos((left, top));
                 }
-                TextI::TextEdit(idx) => {
-                    self.sys.text_edits[idx].set_pos((left, top));
+                TextI::TextEdit(handle) => {
+                    self.sys.text.get_text_edit_mut(&handle).set_pos((left, top));
                 }
             }
         }
@@ -686,7 +683,6 @@ impl Ui {
     pub(crate) fn rebuild_all_rects(&mut self) {
         log::info!("Rebuilding all rectangles");
         self.sys.rects.clear();
-        self.sys.text_renderer.clear();
 
         self.sys.click_rects.clear();
         self.sys.scroll_rects.clear();
@@ -694,8 +690,7 @@ impl Ui {
         self.recursive_push_rects(ROOT_I);
 
         with_info_log_timer("parley2 prepare (rebuild all)", || {
-            self.sys.text_renderer.clear();
-            self.recursive_prepare_text(ROOT_I);
+            self.sys.text.prepare_all(&mut self.sys.text_renderer);
         });
 
         self.sys.editor_rects_i = (self.sys.rects.len()) as u16;
@@ -706,26 +701,6 @@ impl Ui {
         
         for_each_child!(self, self.nodes[i], child, {
             self.recursive_push_rects(child);
-        });
-    }
-
-    pub(crate) fn recursive_prepare_text(&mut self, i: NodeI) {
-        if let Some(text_i) = self.nodes[i].text_i {
-            match text_i {
-                TextI::TextBox(idx) => {
-                    self.sys.text_renderer.prepare_text_box(&mut self.sys.text_boxes[idx]);
-                }
-                TextI::StaticTextBox(idx) => {
-                    self.sys.text_renderer.prepare_text_box(&mut self.sys.static_text_boxes[idx]);
-                }
-                TextI::TextEdit(idx) => {
-                    self.sys.text_renderer.prepare_text_edit(&mut self.sys.text_edits[idx]);
-                }
-            }
-        }
-
-        for_each_child!(self, self.nodes[i], child, {
-            self.recursive_prepare_text(child);
         });
     }
 }

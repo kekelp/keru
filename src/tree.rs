@@ -226,7 +226,7 @@ impl Ui {
             true
         } else {
             let clickable = self.nodes[i].params.interact.senses != Sense::NONE;
-            let editable = if let Some(text_i) = self.nodes[i].text_i {
+            let editable = if let Some(text_i) = &self.nodes[i].text_i {
                 match text_i {
                     TextI::TextEdit(_) => true,
                     TextI::TextBox(_) | TextI::StaticTextBox(_) => false,
@@ -361,13 +361,8 @@ impl Ui {
     pub fn begin_frame(&mut self) {
         self.reset_root();
 
-        if self.sys.default_text_style_changed {
-            self.sys.default_shared_style.with_borrow_mut(|shared_style| {
-                *shared_style = self.sys.default_text_style.clone();
-                self.sys.changes.full_relayout = true;
-                self.sys.default_text_style_changed = false;
-            });  
-        }
+        // Note: default_text_style_changed logic removed in new centralized text system
+        // Style management is now handled centrally by the Text struct
 
         self.sys.current_frame += 1;
         thread_local::clear_parent_stack();
@@ -598,17 +593,17 @@ impl Ui {
         }
 
         log::trace!("Removing {:?} ({:?})", self.node_debug_name_fmt_scratch(i), i);
-
-        if let Some(text_i) = self.nodes[i].text_i {
+        let old_handle = self.nodes[i].text_i.take();
+        if let Some(text_i) = old_handle {
             match text_i {
-                TextI::TextBox(idx) => {
-                    self.sys.text_boxes.remove(idx);
+                TextI::TextBox(handle) => {
+                    self.sys.text.remove_text_box(handle);
                 }
-                TextI::StaticTextBox(idx) => {
-                    self.sys.static_text_boxes.remove(idx);
+                TextI::StaticTextBox(handle) => {
+                    self.sys.text.remove_static_text_box(handle);
                 }
-                TextI::TextEdit(idx) => {
-                    self.sys.text_edits.remove(idx);
+                TextI::TextEdit(handle) => {
+                    self.sys.text.remove_text_edit(handle);
                 }
             }
         }

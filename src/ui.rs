@@ -5,10 +5,9 @@ use crate::math::Axis::*;
 use basic_window_loop::basic_depth_stencil_state;
 use glam::DVec2;
 
-use parley2::{TextBox, TextEdit, TextStyle2 as TextStyle, ColorBrush, SharedStyle};
+use parley2::{ColorBrush, Text, TextStyle2 as TextStyle};
 use parley2::TextRenderer;
 use parley2::TextRendererParams;
-use slab::Slab;
 use wgpu::{
     BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
     BindingResource, BindingType, BlendState, Buffer, BufferBindingType, ColorWrites, FilterMode,
@@ -78,16 +77,7 @@ pub(crate) struct System {
     pub new_external_events: bool,
 
     pub text_renderer: TextRenderer,
-    pub text_boxes: Slab<TextBox<String>>,
-    pub static_text_boxes: Slab<TextBox<&'static str>>,
-    pub text_edits: Slab<TextEdit>,
-    
-    // Default text style for all text elements (cloned each frame)
-    pub default_text_style: TextStyle,
-    pub default_text_style_changed: bool,
-    
-    // Shared version of the default text style that can be applied to text elements
-    pub default_shared_style: SharedStyle,
+    pub text: Text,
 
     pub gpu_rect_buffer: TypedGpuBuffer<RenderRect>,
     pub render_pipeline: RenderPipeline,
@@ -405,14 +395,7 @@ impl Ui {
                 hidden_nodes: Vec::with_capacity(10),
 
                 text_renderer: TextRenderer::new_with_params(device, queue, config.format, depth_stencil, TextRendererParams::default()),
-                text_boxes: Slab::with_capacity(20),
-                static_text_boxes: Slab::with_capacity(20),
-                text_edits: Slab::with_capacity(20),
-                
-                default_text_style: ORIGINAL_DEFAULT_TEXT_STYLE.clone(),
-                default_text_style_changed: false,
-                
-                default_shared_style: SharedStyle::new(ORIGINAL_DEFAULT_TEXT_STYLE.clone()),
+                text: Text::new(), 
             },
         }
     }
@@ -449,26 +432,6 @@ impl Ui {
     /// Get a reference to the active theme.
     pub fn theme(&mut self) -> &mut Theme {
         return &mut self.sys.theme;
-    }
-
-    /// Get a mutable reference to the default text style for all text elements that don't have custom styling.
-    /// Changes will apply to text created after this point in the current frame.
-    pub fn default_text_style_mut(&mut self) -> &mut TextStyle {
-        // Increment generation to invalidate existing text using default style
-        self.sys.default_text_style_changed = true;
-        &mut self.sys.default_text_style
-    }
-
-    /// Get a reference to the current default text style.
-    pub fn default_text_style(&self) -> &TextStyle {
-        &self.sys.default_text_style
-    }
-
-    /// Reset the default text style to the original values.
-    /// This is useful for implementing Ctrl+0 to reset font size.
-    pub fn reset_default_text_style(&mut self) {
-        self.sys.default_text_style = ORIGINAL_DEFAULT_TEXT_STYLE.clone();
-        self.sys.default_text_style_changed = true;
     }
 
     pub fn current_frame(&self) -> u64 {
@@ -536,6 +499,18 @@ impl Ui {
         self.sys.text_renderer.update_resolution(size.width as f32, size.height as f32);
 
         self.set_new_ui_input();
+    }
+
+    pub fn default_text_style_mut(&mut self) -> &mut TextStyle {
+        self.sys.text.get_default_style_mut()
+    }
+
+    pub fn default_text_style(&self) -> &TextStyle {
+        self.sys.text.get_default_style()
+    }
+
+    pub fn original_default_style(&self) -> TextStyle {
+        self.sys.text.original_default_style()
     }
 }
 

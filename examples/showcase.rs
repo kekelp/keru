@@ -171,7 +171,7 @@ impl State {
             } else if ui.key_input().key_pressed(&winit::keyboard::Key::Character("-".into())) {
                 ui.default_text_style_mut().font_size = (ui.default_text_style().font_size - 2.0).max(8.0);
             } else if ui.key_input().key_pressed(&winit::keyboard::Key::Character("0".into())) {
-                ui.reset_default_text_style();
+                *ui.default_text_style_mut() = ui.original_default_style();
             }
         }
 

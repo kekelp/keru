@@ -40,6 +40,8 @@ impl<T: Tag> MouseInput<T> {
             timestamp: Instant::now(),
             tag: self.current_tag,
         };
+
+        self.last_frame_mouse_events.clear();
         
         // Swap scroll events for double buffering
         std::mem::swap(&mut self.last_frame_scroll_events, &mut self.current_frame_scroll_events);

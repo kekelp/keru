@@ -1,5 +1,7 @@
 use std::{fmt::Write, panic::Location};
 
+use parley2::{TextBoxHandle, TextEditHandle};
+
 use crate::*;
 
 #[derive(Debug)]

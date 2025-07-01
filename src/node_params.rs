@@ -868,7 +868,7 @@ impl Ui {
             if editable.editable {
                 // Check if we need to force update due to default style change
                 let uses_default_style = params.text_style.is_none();
-                let force_update = uses_default_style && self.sys.default_text_style_changed;
+                let force_update = uses_default_style;
                 
                 // For text edits, we need to check if we should force an update or use normal logic
                 if force_update {
@@ -899,9 +899,9 @@ impl Ui {
         // Check if default style changed for nodes using default style
         let uses_default_style = params.params.text_params.is_none();
         
-        if uses_default_style && self.sys.default_text_style_changed {
-            text_verdict = TextVerdict::UpdateWithoutHashing;
-        }
+        // Note: default_text_style_changed logic removed in new centralized text system
+        // Default styles are now managed centrally by the Text struct
+        let _ = uses_default_style; // suppress unused variable warning
         
         if text_verdict == TextVerdict::Skip {
             log::trace!("Skipping text update");
