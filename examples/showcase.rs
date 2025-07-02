@@ -33,7 +33,7 @@ trait Components {
 impl Components for Ui {
     fn intro_tab(&mut self, state: &mut State) {
         self.add(V_SCROLL_STACK).nest(|| {
-            self.static_paragraph("Keru is an experimental GUI library focused on combining a simple and natural programming model with high performance and flexibility.");
+            // self.static_paragraph("Keru is an experimental GUI library focused on combining a simple and natural programming model with high performance and flexibility.");
             
             #[node_key] const TEXT_EDIT_1: NodeKey;
             // #[node_key] const TEXT_EDIT_2: NodeKey;

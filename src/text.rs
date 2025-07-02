@@ -42,110 +42,37 @@ pub enum TextI {
 
 impl Ui {
     pub(crate) fn set_text(&mut self, i: NodeI, edit: bool, text: &str, style: Option<&TextStyle>) -> &mut Self {
-
         match &self.nodes[i].text_i {
             Some(TextI::TextBox(handle)) => {
-                *self.sys.text.get_text_box_mut(&handle).raw_text_mut() = text.to_string();
+                if edit {
+                    // Switch from TextBox to TextEdit
+                    let new_handle = self.sys.text.add_text_edit(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
+                    self.nodes[i].text_i = Some(TextI::TextEdit(new_handle));
+                } else {
+                    *self.sys.text.get_text_box_mut(&handle).raw_text_mut() = text.to_string();
+                }
+            },
+            Some(TextI::TextEdit(_handle)) => {
+                if edit {
+                    // do nothing
+                } else {
+                    // Switch from TextEdit to TextBox
+                    let new_handle = self.sys.text.add_text_box(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
+                    self.nodes[i].text_i = Some(TextI::TextBox(new_handle));
+                }
             },
             Some(_) => {}
             None => {
-                let new_handle = self.sys.text.add_text_box(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
-                self.nodes[i].text_i = Some(TextI::TextBox(new_handle));
+                if edit {
+                    let new_handle = self.sys.text.add_text_edit(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
+                    self.nodes[i].text_i = Some(TextI::TextEdit(new_handle));
+                } else {
+                    let new_handle = self.sys.text.add_text_box(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
+                    self.nodes[i].text_i = Some(TextI::TextBox(new_handle));
+                }
             },
         }
 
-        // let old_handle = self.nodes[i].text_i.take();
-
-        // match old_handle {
-        //     Some(TextI::TextBox(old_handle)) => {
-        //         if !edit {
-
-        //             println!("TEXT UPDATE {}", text);
-        //             let style_handle = if let Some(style) = style {
-        //                 Some(self.sys.text.add_style(style.clone()))
-        //             } else { None };
-
-        //             let text_box = self.sys.text.get_text_box(&old_handle);
-
-        //             *text_box.raw_text_mut() = text.to_string();
-
-        //             if let Some(style_handle) = style_handle {
-        //                 text_box.set_style(&style_handle);
-        //             }
-        //         } else {
-        //             self.sys.text.remove_text_box(old_handle);
-        //             let new_handle = self.sys.text.add_single_line_edit(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
-        //             if let Some(style) = style {
-        //                 let style_handle = self.sys.text.add_style(style.clone());
-        //                 let text_edit = self.sys.text.get_text_edit(&new_handle);
-        //                 text_edit.set_style(&style_handle);
-        //             }
-        //             self.nodes[i].text_i = Some(TextI::TextEdit(new_handle));
-        //         }
-        //     }
-        //     Some(TextI::TextEdit(old_handle)) => {
-        //         if edit {
-        //             // don't update the text
-        //             if let Some(style) = style {
-        //                 let style_handle = self.sys.text.add_style(style.clone());
-        //                 let text_edit = self.sys.text.get_text_edit(&old_handle);
-        //                 text_edit.set_style(&style_handle);
-        //             }
-        //         } else {
-        //             self.sys.text.remove_text_edit(old_handle);
-        //             let new_handle = self.sys.text.add_text_box(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
-        //             if let Some(style) = style {
-        //                 let style_handle = self.sys.text.add_style(style.clone());
-        //                 let text_box = self.sys.text.get_text_box(&new_handle);
-        //                 text_box.set_style(&style_handle);
-        //             }
-        //             self.nodes[i].text_i = Some(TextI::TextBox(new_handle));
-        //         }
-        //     }
-        //     Some(TextI::StaticTextBox(old_handle)) => {
-        //         if edit {
-        //             self.sys.text.remove_static_text_box(old_handle);
-        //             let new_handle = self.sys.text.add_single_line_edit(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
-        //             if let Some(style) = style {
-        //                 let style_handle = self.sys.text.add_style(style.clone());
-        //                 let text_edit = self.sys.text.get_text_edit(&new_handle);
-        //                 text_edit.set_style(&style_handle);
-        //             }
-        //             self.nodes[i].text_i = Some(TextI::TextEdit(new_handle));
-        //         } else {
-        //             self.sys.text.remove_static_text_box(old_handle);
-        //             let new_handle = self.sys.text.add_text_box(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
-        //             if let Some(style) = style {
-        //                 let style_handle = self.sys.text.add_style(style.clone());
-        //                 let text_box = self.sys.text.get_text_box(&new_handle);
-        //                 text_box.set_style(&style_handle);
-        //             }
-        //             self.nodes[i].text_i = Some(TextI::TextBox(new_handle));
-        //         }
-        //     }
-        //     None => {
-        //         if edit {
-        //             let new_handle = self.sys.text.add_single_line_edit(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
-        //             if let Some(style) = style {
-        //                 let style_handle = self.sys.text.add_style(style.clone());
-        //                 let text_edit = self.sys.text.get_text_edit(&new_handle);
-        //                 text_edit.set_style(&style_handle);
-        //             }
-        //             self.nodes[i].text_i = Some(TextI::TextEdit(new_handle));
-        //         } else {
-
-        //             println!("NEW TEXT BOX {}", text);
-
-        //             let new_handle = self.sys.text.add_text_box(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
-        //             if let Some(style) = style {
-        //                 let style_handle = self.sys.text.add_style(style.clone());
-        //                 let text_box = self.sys.text.get_text_box(&new_handle);
-        //                 text_box.set_style(&style_handle);
-        //             }
-        //             self.nodes[i].text_i = Some(TextI::TextBox(new_handle));
-        //         }
-        //     }
-        // }
         self.push_text_change(i);
         
         return self;

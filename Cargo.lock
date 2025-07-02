@@ -763,8 +763,7 @@ dependencies = [
 [[package]]
 name = "fontique"
 version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39f97079e1293b8c1e9fb03a2875d328bd2ee8f3b95ce62959c0acc04049c708"
+source = "git+https://github.com/linebender/parley?rev=93a2faa#93a2faa7d9581603afe2e86c82f0dafa16308f35"
 dependencies = [
  "bytemuck",
  "fontconfig-cache-parser",
@@ -1871,8 +1870,7 @@ dependencies = [
 [[package]]
 name = "parley"
 version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13e57638545cf2ba4c3e72cc5715e53b1880b829cc3dbefda3d1700c58efe723"
+source = "git+https://github.com/linebender/parley?rev=93a2faa#93a2faa7d9581603afe2e86c82f0dafa16308f35"
 dependencies = [
  "fontique",
  "hashbrown 0.15.3",

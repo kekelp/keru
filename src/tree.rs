@@ -122,6 +122,21 @@ impl Ui {
         let NodeWithDepth { i: parent_i, depth } = thread_local::current_parent();
         self.set_tree_links(real_final_i, parent_i, depth);
 
+        // refresh the text box associated with this node if it has one
+        if let Some(text_i) = &self.nodes[real_final_i].text_i {
+            match text_i {
+                TextI::TextBox(handle) => {
+                    self.sys.text.refresh_text_box(handle);
+                }
+                TextI::StaticTextBox(handle) => {
+                    self.sys.text.refresh_static_text_box(handle);
+                }
+                TextI::TextEdit(handle) => {
+                    self.sys.text.refresh_text_edit(handle);
+                }
+            }
+        }
+
         return real_final_i;
     }
 
@@ -365,6 +380,7 @@ impl Ui {
         // Style management is now handled centrally by the Text struct
 
         self.sys.current_frame += 1;
+        self.sys.text.advance_frame_and_forget_old_boxes();
         thread_local::clear_parent_stack();
         self.format_scratch.clear();
 
@@ -514,6 +530,8 @@ impl Ui {
             // continue recursion on old children
             
             // in a hidden branch, there should be no chance of any node being freshly added, and the nodes don't get garbage collected, so there's no need to recurse at all.
+            // (if we recursed anyway, presumably we could do retained-mode hiding text boxes instead of the last-frame-touched thing. But we would have to pass a "in_hidden_branch" parameter.)
+            // (Why don't we just do everything last-frame-touched style anyway? Maybe so that we can do more accurate partial relayouts? It would also be a bit complicated to tell if orphaned children should be removed or hidden. But would it be more complicated than this?)
             if ! new_hidden_branch {
                 for_each_old_child!(self, self.nodes[i], child, {
                     self.recursive_diff_children(child);
