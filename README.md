@@ -1,4 +1,3 @@
-![Keru is experimental](https://img.shields.io/badge/status-alpha-orange)
 [![Documentation for the `master` branch](https://img.shields.io/badge/docs-master-informational)](https://kekelp.github.io/keru/keru/index.html)
 
 Keru is an experimental Graphical User Interface library.
