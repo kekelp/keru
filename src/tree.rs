@@ -380,7 +380,7 @@ impl Ui {
         // Style management is now handled centrally by the Text struct
 
         self.sys.current_frame += 1;
-        self.sys.text.advance_frame_and_forget_old_boxes();
+        self.sys.text.advance_frame_and_hide_boxes();
         thread_local::clear_parent_stack();
         self.format_scratch.clear();
 
