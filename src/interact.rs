@@ -342,7 +342,8 @@ impl Ui {
             // todo: add quicker functions that just move the rectangles. for text, this requires big changes in parley2 and will probably become impossible if we change renderer
             self.recursive_place_children(i, true);
             
-            self.sys.text.prepare_all(&mut self.sys.text_renderer);
+            self.sys.changes.text_changed = true;
+            // self.sys.text.prepare_all(&mut self.sys.text_renderer);
 
             self.resolve_hover();
 

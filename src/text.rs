@@ -1,44 +1,11 @@
 use crate::*;
 
-use parley2::*;
-
 #[derive(Debug)]
 pub enum TextI {
     TextBox(parley2::TextBoxHandle),
     StaticTextBox(parley2::StaticTextBoxHandle),
     TextEdit(parley2::TextEditHandle),
 }
-
-
-// use glyphon::{Color as GlyphonColor, Edit, Editor, TextArea, TextBounds, Viewport};
-// use glyphon::{
-//     Attrs, Buffer as GlyphonBuffer, Family, FontSystem, Metrics, Shaping, SwashCache,
-//     TextAtlas, TextRenderer,
-// };
-// use slab::Slab;
-
-// #[derive(Debug, Clone, Copy)]
-// pub(crate) enum TextI {
-//     TextI(usize),
-//     TextEditI(usize),
-// }
-
-// pub struct TextSlabs {
-//     pub boxes: Vec<FullText>,
-//     pub editors: Slab<FullTextEdit>,
-// }
-
-// // another stupid sub struct for dodging partial borrows
-// pub(crate) struct TextSystem {
-//     pub font_system: FontSystem,
-//     pub cache: SwashCache,
-//     pub atlas: TextAtlas,
-//     pub text_renderer: TextRenderer,
-//     pub slabs: TextSlabs,
-//     pub glyphon_viewport: Viewport,
-// }
-// const GLOBAL_TEXT_METRICS: Metrics = Metrics::new(24.0, 24.0);
-
 
 impl Ui {
     pub(crate) fn set_text(&mut self, i: NodeI, edit: bool, text: &str, style: Option<&TextStyle>) -> &mut Self {

@@ -33,7 +33,7 @@ trait Components {
 impl Components for Ui {
     fn intro_tab(&mut self, state: &mut State) {
         self.add(V_SCROLL_STACK).nest(|| {
-            // self.static_paragraph("Keru is an experimental GUI library focused on combining a simple and natural programming model with high performance and flexibility.");
+            self.static_paragraph("Keru is an experimental GUI library focused on combining a simple and natural programming model with high performance and flexibility.");
             
             #[node_key] const TEXT_EDIT_1: NodeKey;
             // #[node_key] const TEXT_EDIT_2: NodeKey;
@@ -63,6 +63,7 @@ impl Components for Ui {
 
             self.static_paragraph(
                 "Press Ctrl+Tab and Ctrl+Shift+Tab to switch between tabs.\n\n\
+                Press Ctrl+Plus, Ctrl+Minus and Ctrl+0 to control the zoom level of the default text style.\n\n\
                 Press F1 for Inspect mode. This lets you see the bounds of the layout rectangles. \n\n\
                 In Inspect mode, hovering nodes will also log an Info message with the node's debug name and source code location.\n\n\
                 Press Ctrl+Plus and Ctrl+Minus to adjust the global font size, Ctrl+0 to reset to original size."
