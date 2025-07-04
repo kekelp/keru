@@ -1,4 +1,4 @@
-use std::{fmt::Debug, hash::{Hash, Hasher}};
+use std::{fmt::Debug, hash::{Hash, Hasher}, marker::PhantomData};
 
 use crate::*;
 
@@ -71,3 +71,52 @@ impl NodeKey {
 }
 
 pub type SubtreeKey = NodeKey;
+
+
+#[derive(Clone, Copy, Debug)]
+pub struct StateKey<T: Default + 'static> {
+    id: StateId,
+    debug_name: &'static str,
+    state_type: PhantomData<T>
+}
+impl<T: Default + 'static> StateKey<T> {
+    pub(crate) fn id_with_subtree(&self) -> StateId {
+        
+        if let Some(subtree_id) = thread_local::last_subtree() {
+            let mut hasher = ahasher();
+            subtree_id.hash(&mut hasher);
+            self.id.hash(&mut hasher);
+            return StateId(hasher.finish());
+        } else {
+            return self.id;
+        } 
+    }
+
+    pub fn sibling<H: Hash>(self, value: H) -> Self {
+        let mut hasher = ahasher();
+        self.id.0.hash(&mut hasher);
+        value.hash(&mut hasher);
+        let new_id = hasher.finish();
+
+        return Self {
+            id: StateId(new_id),
+            debug_name: self.debug_name,
+            state_type: PhantomData,
+        };
+    }
+
+    /// Create a key manually.
+    /// 
+    /// This is usually not needed: use the [`macro@node_key`] macro for static keys, and [`NodeKey::sibling`] for dynamic keys.
+    pub const fn new(id: StateId, debug_name: &'static str) -> Self {
+        return Self {
+            id,
+            debug_name,
+            state_type: PhantomData,
+        };
+    }
+
+    pub const fn debug_name(&self) -> &'static str {
+        return self.debug_name;
+    }
+}

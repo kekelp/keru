@@ -2,6 +2,7 @@ use crate::*;
 
 use crate::math::Axis::*;
 
+use ahash::{HashMap, HashMapExt};
 use basic_window_loop::basic_depth_stencil_state;
 use glam::DVec2;
 
@@ -19,6 +20,7 @@ use winit::dpi::PhysicalSize;
 use winit_key_events::KeyInput;
 use winit_mouse_events::MouseInput;
 
+use std::any::Any;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 use std::sync::LazyLock;
@@ -143,6 +145,8 @@ pub(crate) struct System {
 
     // todo: probably remove
     pub hidden_stack: Vec<NodeI>,
+
+    pub user_state: HashMap<StateId, Box<dyn Any>>
 }
 
 pub(crate) struct AnimationRenderTimer(Option<Instant>);
@@ -395,7 +399,9 @@ impl Ui {
                 hidden_nodes: Vec::with_capacity(10),
 
                 text_renderer: TextRenderer::new_with_params(device, queue, config.format, depth_stencil, TextRendererParams::default()),
-                text: Text::new(), 
+                text: Text::new(),
+
+                user_state: HashMap::with_capacity(7),
             },
         }
     }
@@ -589,4 +595,33 @@ impl Ui {
 
         return self;
     }
+
+    pub fn state<T: Default + 'static>(&mut self, key: StateKey<T>) -> &T {
+        // This function takes &mut self anyway because it has to initialize the state if it's not there, so for once we don't have to duplicate everything.
+        self.state_mut(key)
+    }
+
+    pub fn state_mut<T: Default + 'static>(&mut self, key: StateKey<T>) -> &mut T {
+        let id = key.id_with_subtree();
+        
+        if !self.sys.user_state.contains_key(&id) {
+            self.sys.user_state.insert(id, Box::new(T::default()));
+        }
+        
+        let NodeWithDepth { i: parent_i, .. } = thread_local::current_parent();
+        // todo: I guess skip this if it's the root? since it will never get cleared
+        if parent_i != ROOT_I {
+            self.nodes[parent_i].user_states.push(id);
+        }
+
+        return self.sys.user_state.get_mut(&id)
+            .unwrap()
+            .downcast_mut()
+            .unwrap();
+    }
 }
+
+#[doc(hidden)]
+#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, Pod, Zeroable)]
+#[repr(C)]
+pub struct StateId(pub u64);

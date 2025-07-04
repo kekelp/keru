@@ -62,6 +62,7 @@ impl Ui {
         return self;
     }
 
+    // todo: right now, it's kind of tempting to create a new one of these every frame...
     pub fn add_style(&mut self, style: TextStyle) -> StyleHandle {
         self.sys.text.add_style(style)
     }

@@ -1,7 +1,5 @@
 use std::{fmt::Write, panic::Location};
 
-use parley2::{TextBoxHandle, TextEditHandle};
-
 use crate::*;
 
 #[derive(Debug)]
@@ -76,7 +74,9 @@ pub struct Node {
     pub last_cosmetic_hash: u64,
     pub last_layout_hash: u64,
     pub last_text_hash: Option<u64>,
-    pub default_text_style_generation: u64,
+
+    // Almost surely not worth to make this a linked list.
+    pub user_states: Vec<StateId>,
 }
 
 impl Node {
@@ -139,7 +139,9 @@ impl Node {
             last_cosmetic_hash: 0,
             last_layout_hash: 0,
             last_text_hash: None,
-            default_text_style_generation: 0,
+
+            // intentionally at zero capacity
+            user_states: Vec::new(),
         };
     }
 }
@@ -233,7 +235,9 @@ pub const ZERO_NODE_DUMMY: Node = Node {
     last_cosmetic_hash: 0,
     last_layout_hash: 0,
     last_text_hash: None,
-    default_text_style_generation: 0,
+    
+    // intentionally at zero capacity
+    user_states: Vec::new(),
 };
 
 pub const ROOT_I: NodeI = NodeI::from(1);
@@ -293,5 +297,7 @@ pub const NODE_ROOT: Node = Node {
     last_cosmetic_hash: 0,
     last_layout_hash: 0,
     last_text_hash: None,
-    default_text_style_generation: 0,
+
+    // intentionally at zero capacity
+    user_states: Vec::new(),
 };

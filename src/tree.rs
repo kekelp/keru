@@ -44,7 +44,7 @@ impl Ui {
         let i = self.add_or_update_node(key);
         self.set_params(i, &params);
         self.set_params_text(i, &params);
-        return self.make_parent_from_i(i);
+        return UiParent::new(i);
     }
 
     #[track_caller]
@@ -140,12 +140,6 @@ impl Ui {
         return real_final_i;
     }
 
-
-    pub(crate) fn make_parent_from_i(&mut self, i: NodeI) -> UiParent {
-        // return the child_hash that this node had in the last frame, so that can new children can check against it.
-        return UiParent::new(i);
-    }
-
     fn set_tree_links(&mut self, new_node_i: NodeI, parent_i: NodeI, depth: usize) {
         assert!(new_node_i != parent_i, "Keru: Internal error: tried to add a node as child of itself ({}). This shouldn't be possible.", self.nodes[new_node_i].debug_name());
 
@@ -161,6 +155,8 @@ impl Ui {
 
         self.nodes[new_node_i].depth = depth;
         self.nodes[new_node_i].parent = parent_i;
+
+        self.nodes[new_node_i].user_states.clear();
 
         self.set_relayout_chain_root(new_node_i, parent_i);
 
@@ -598,8 +594,7 @@ impl Ui {
     fn cleanup_node(&mut self, i: NodeI) {
         if ! self.nodes.nodes.contains(i.as_usize()) {
             log::error!("Keru: Internal error: tried to cleanup the same node twice. ({:?})", i);
-            // we could just cheat and do this
-            // return;
+            // we could cheat and just return. instead we continue, so we can see the panic clearly in case there's any bugs.
         }
         let id = self.nodes[i].id;
         
@@ -624,6 +619,10 @@ impl Ui {
                     self.sys.text.remove_text_edit(handle);
                 }
             }
+        }
+
+        for state_id in &self.nodes[i].user_states {
+            self.sys.user_state.remove(state_id);
         }
 
         self.nodes.node_hashmap.remove(&id);

@@ -59,16 +59,14 @@ impl Components for Ui {
             self.static_paragraph("Classic slider:");
             self.classic_slider(&mut state.f32_value, 0.0, 100.0);
 
-            self.static_paragraph(
-                "Press Ctrl+Tab and Ctrl+Shift+Tab to switch between tabs.\n\n\
-                Press Ctrl+Plus, Ctrl+Minus and Ctrl+0 to control the zoom level of the default text style.\n\n\
-                Press F1 for Inspect mode. This lets you see the bounds of the layout rectangles. \n\n\
-                In Inspect mode, hovering nodes will also log an Info message with the node's debug name and source code location.\n\n\
-                Press Ctrl+Plus and Ctrl+Minus to adjust the global font size, Ctrl+0 to reset to original size."
-            );
+            self.static_paragraph("
+            Press F1 for Inspect mode. This lets you see the bounds of the layout rectangles. \n\n\
+            In Inspect mode, hovering nodes will also log an Info message with the node's debug name and source code location. \n\n\
+            Press Ctrl+Tab and Ctrl+Shift+Tab to switch between tabs. \n\n\
+            Press Ctrl+Plus, Ctrl+Minus and Ctrl+0 to control the zoom level of the default text style.\n\n
+            ");
 
-            self.static_paragraph("Fixed text styles:");
-
+            // todo, this is actually creating infinitely many identical styles, lol.
             let large_bold_style = self.add_style(TextStyle {
                 font_size: 32.0,
                 brush: ColorBrush([255, 0, 0, 255]),
@@ -76,40 +74,32 @@ impl Components for Ui {
                 ..Default::default()
             });
             self.add(TEXT
-                .static_text("Large Bold Title")
+                .static_text("This text uses a different style.")
                 .text_style(&large_bold_style)
             );
             
-            let medium_italic_style = self.add_style(TextStyle {
-                font_size: 18.0,
-                brush: ColorBrush([0, 100, 255, 255]),
-                font_style: FontStyle::Italic,
-                ..Default::default()
-            });
-            self.add(TEXT
-                .static_text("Medium Italic Text")
-                .text_style(&medium_italic_style)
-            );
+            self.static_paragraph("\nNormally, \"state management\" looks the same as in immediate mode libraries: all state is centralized. \n\n\
+            But if a widget has a small bit of state that you don't want to centralize, \"StateKey\"s provide a way to handle it. \n\n\
+            This bool value isn't declared in the main struct state.");
+
+            #[node_key] const BUTTON3: NodeKey;
+            #[state_key] const WIDGET_STATE: StateKey<bool>;
             
-            let small_style = self.add_style(TextStyle {
-                font_size: 12.0,
-                brush: ColorBrush([255, 255, 255, 255]),
-                ..Default::default()
+            self.h_stack().nest(|| {
+                if self.add(BUTTON.text("Toggle bool").key(BUTTON3)).is_clicked(self) {
+                    *self.state_mut(WIDGET_STATE) = ! self.state(WIDGET_STATE)
+                }
+
+                if *self.state(WIDGET_STATE) {
+                    self.label("Bool on");
+                } else {
+                    self.label("Bool off");
+                }
             });
-            self.add(TEXT
-                .static_text("Small Text")
-                .text_style(&small_style)
-            );            
-            
-            let strikethrough_style = self.add_style(TextStyle {
-                font_size: 16.0,
-                brush: ColorBrush([128, 128, 128, 255]),
-                ..Default::default()
-            });
-            self.add(TEXT
-                .static_text("Strikethrough Text")
-                .text_style(&strikethrough_style)
-            );
+
+            self.static_paragraph("The tab viewer uses the \"children_can_hide\" property on the tab containers. This means that when switching tabs, all ui state is kept in the background: the value of the bool is retained, as well as the scroll state, the text in the edit boxes, etc. \n\n\
+            Without \"children_can_hide\", everything would be cleaned up as soon as the tabs change.");
+
         });
     }
 

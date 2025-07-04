@@ -75,3 +75,26 @@ pub fn node_key(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
     return TokenStream::from(expanded);
 }
+
+#[proc_macro_attribute]
+pub fn state_key(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    // todo: make sure that attr is empty now
+    let input = parse_macro_input!(item as ItemConstNoEq);
+
+    let key_ident = &input.ident;
+    let key_type = &input.ty;
+
+    let debug_name = format!("{}", key_ident);
+
+    // todo, use a hash of ident instead of a random number?
+    let random_id: u64 = rand::rng().random();
+
+    let expanded = quote! {
+        pub const #key_ident: #key_type = <#key_type>::new(
+            keru::StateId(#random_id),
+            #debug_name,
+        );
+    };
+
+    return TokenStream::from(expanded);
+}

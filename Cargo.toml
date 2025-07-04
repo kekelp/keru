@@ -20,7 +20,7 @@ opt-level = 1
 opt-level = 3
 
 [dependencies]
-keru_macros = "0.1.0"
+keru_macros = { path = "crates/keru_macros" }
 winit = { version = "0.30.5", features = ["rwh_05"] }
 wgpu = { version = "23", default-features = true }
 pollster = "0.3.0"
