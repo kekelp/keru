@@ -5,7 +5,7 @@ use crate::*;
 #[derive(Debug)]
 pub enum TextI {
     TextBox(parley2::TextBoxHandle),
-    StaticTextBox(parley2::StaticTextBoxHandle),
+    _StaticTextBox(parley2::StaticTextBoxHandle),
     TextEdit(parley2::TextEditHandle),
 }
 
@@ -63,7 +63,7 @@ impl Ui {
     }
 
     // todo: right now, it's kind of tempting to create a new one of these every frame...
-    pub fn add_style(&mut self, style: TextStyle) -> StyleHandle {
+    pub fn insert_style(&mut self, style: TextStyle) -> StyleHandle {
         self.sys.text.add_style(style)
     }
 }

@@ -896,7 +896,7 @@ impl Ui {
         
         // todo: if text attributes have changed, go straight to relayout anyway.
 
-        let mut text_verdict = self.check_text_situation(i, params);
+        let text_verdict = self.check_text_situation(i, params);
         
         // Check if default style changed for nodes using default style
         let uses_default_style = params.params.text_params.is_none();

@@ -395,7 +395,7 @@ impl Ui {
 
                 return size;
             }
-            TextI::StaticTextBox(handle) => {               
+            TextI::_StaticTextBox(handle) => {               
                 let fit_content_y = self.nodes[i].params.layout.size[Y] == Size::FitContent;
                 let fit_content_x = self.nodes[i].params.layout.size[X] == Size::FitContent;
 
@@ -581,15 +581,6 @@ impl Ui {
         }
     }
 
-    // doesnt work lol
-    // pub(crate) fn recursive_set_scroll(&mut self, i: NodeI) {
-    //     self.set_children_scroll(i);
-
-    //     for_each_child!(self, self.nodes[i], child, {
-    //         self.recursive_set_scroll(child);
-    //     });
-    // }
-
     fn set_children_scroll(&mut self, i: NodeI) {
         if ! self.nodes[i].params.is_scrollable() {
             return;
@@ -645,7 +636,7 @@ impl Ui {
                 TextI::TextBox(handle) => {
                     self.sys.text.get_text_box_mut(&handle).set_clip_rect(clip_rect);
                 }
-                TextI::StaticTextBox(handle) => {
+                TextI::_StaticTextBox(handle) => {
                     self.sys.text.get_static_text_box_mut(&handle).set_clip_rect(clip_rect);
                 }
                 TextI::TextEdit(handle) => {
@@ -670,7 +661,7 @@ impl Ui {
                 TextI::TextBox(handle) => {
                     self.sys.text.get_text_box_mut(&handle).set_pos((left, top));
                 }
-                TextI::StaticTextBox(handle) => {
+                TextI::_StaticTextBox(handle) => {
                     self.sys.text.get_static_text_box_mut(&handle).set_pos((left, top));
                 }
                 TextI::TextEdit(handle) => {

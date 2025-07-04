@@ -64,15 +64,6 @@ impl UiNode<'_> {
             z: self.node().z + Z_STEP / 2.0,
         };
     }
-
-    pub fn get_text(&self) -> Option<&str> {
-        let text_i = self.node().text_i.as_ref()?;
-        match text_i {
-            TextI::TextBox(handle) => Some(self.ui.sys.text.get_text_box(&handle).raw_text()),
-            TextI::StaticTextBox(handle) => Some(self.ui.sys.text.get_static_text_box(&handle).raw_text()),
-            TextI::TextEdit(handle) => Some(self.ui.sys.text.get_text_edit(&handle).raw_text()),
-        }
-    }
 }
 
 impl Ui {
@@ -101,7 +92,7 @@ impl Ui {
         let text_i = self.nodes[i].text_i.as_ref()?;
         match text_i {
             TextI::TextBox(handle) => Some(self.sys.text.get_text_box(&handle).raw_text()),
-            TextI::StaticTextBox(handle) => Some(self.sys.text.get_static_text_box(&handle).raw_text()),
+            TextI::_StaticTextBox(handle) => Some(self.sys.text.get_static_text_box(&handle).raw_text()),
             TextI::TextEdit(handle) => Some(self.sys.text.get_text_edit(&handle).raw_text()),
         }
     }
@@ -128,7 +119,7 @@ impl UiParent {
         let text_i = ui.nodes[self.i].text_i.as_ref()?;
         match text_i {
             TextI::TextBox(handle) => Some(ui.sys.text.get_text_box(&handle).raw_text()),
-            TextI::StaticTextBox(handle) => Some(ui.sys.text.get_static_text_box(&handle).raw_text()),
+            TextI::_StaticTextBox(handle) => Some(ui.sys.text.get_static_text_box(&handle).raw_text()),
             TextI::TextEdit(handle) => Some(ui.sys.text.get_text_edit(&handle).raw_text()),
         }
     }

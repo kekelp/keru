@@ -128,7 +128,7 @@ impl Ui {
                 TextI::TextBox(handle) => {
                     self.sys.text.refresh_text_box(handle);
                 }
-                TextI::StaticTextBox(handle) => {
+                TextI::_StaticTextBox(handle) => {
                     self.sys.text.refresh_static_text_box(handle);
                 }
                 TextI::TextEdit(handle) => {
@@ -240,7 +240,7 @@ impl Ui {
             let editable = if let Some(text_i) = &self.nodes[i].text_i {
                 match text_i {
                     TextI::TextEdit(_) => true,
-                    TextI::TextBox(_) | TextI::StaticTextBox(_) => false,
+                    TextI::TextBox(_) | TextI::_StaticTextBox(_) => false,
                 }
             } else { false };
             clickable || editable
@@ -612,7 +612,7 @@ impl Ui {
                 TextI::TextBox(handle) => {
                     self.sys.text.remove_text_box(handle);
                 }
-                TextI::StaticTextBox(handle) => {
+                TextI::_StaticTextBox(handle) => {
                     self.sys.text.remove_static_text_box(handle);
                 }
                 TextI::TextEdit(handle) => {

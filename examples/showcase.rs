@@ -1,7 +1,7 @@
 use keru::Size::*;
 use keru::example_window_loop::*;
 use keru::*;
-use parley2::{TextStyle2 as TextStyle, ColorBrush, FontWeight, FontStyle};
+use parley2::{TextStyle2 as TextStyle, ColorBrush, FontWeight};
 
 #[derive(Default)]
 struct State {
@@ -67,7 +67,7 @@ impl Components for Ui {
             ");
 
             // todo, this is actually creating infinitely many identical styles, lol.
-            let large_bold_style = self.add_style(TextStyle {
+            let large_bold_style = self.insert_style(TextStyle {
                 font_size: 32.0,
                 brush: ColorBrush([255, 0, 0, 255]),
                 font_weight: FontWeight::BOLD,
@@ -90,10 +90,11 @@ impl Components for Ui {
                     *self.state_mut(WIDGET_STATE) = ! self.state(WIDGET_STATE)
                 }
 
+                #[node_key] pub const KYS2: NodeKey;
                 if *self.state(WIDGET_STATE) {
-                    self.label("Bool on");
+                    self.add(LABEL.key(KYS2).static_text("Bool on"));
                 } else {
-                    self.label("Bool off");
+                    self.add(LABEL.key(KYS2).static_text("Bool off"));
                 }
             });
 
