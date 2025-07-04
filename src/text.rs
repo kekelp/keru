@@ -1,3 +1,5 @@
+use parley2::StyleHandle;
+
 use crate::*;
 
 #[derive(Debug)]
@@ -8,14 +10,24 @@ pub enum TextI {
 }
 
 impl Ui {
-    pub(crate) fn set_text(&mut self, i: NodeI, edit: bool, text: &str, style: Option<&TextStyle>) -> &mut Self {
+    pub(crate) fn set_text(&mut self, i: NodeI, edit: bool, text: &str, style: Option<&StyleHandle>) -> &mut Self {
         match &self.nodes[i].text_i {
             Some(TextI::TextBox(handle)) => {
                 if edit {
                     // Switch from TextBox to TextEdit
                     let new_handle = self.sys.text.add_text_edit(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
+                    
+                    if let Some(style) = style {
+                        self.sys.text.get_text_edit_mut(&new_handle).set_style(style);
+                    }
+
                     self.nodes[i].text_i = Some(TextI::TextEdit(new_handle));
                 } else {
+
+                    if let Some(style) = style {
+                        self.sys.text.get_text_box_mut(&handle).set_style(style);
+                    }
+
                     *self.sys.text.get_text_box_mut(&handle).raw_text_mut() = text.to_string();
                 }
             },
@@ -35,6 +47,11 @@ impl Ui {
                     self.nodes[i].text_i = Some(TextI::TextEdit(new_handle));
                 } else {
                     let new_handle = self.sys.text.add_text_box(text.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
+
+                    if let Some(style) = style {
+                        self.sys.text.get_text_box_mut(&new_handle).set_style(style);
+                    }
+
                     self.nodes[i].text_i = Some(TextI::TextBox(new_handle));
                 }
             },
@@ -43,6 +60,10 @@ impl Ui {
         self.push_text_change(i);
         
         return self;
+    }
+
+    pub fn add_style(&mut self, style: TextStyle) -> StyleHandle {
+        self.sys.text.add_style(style)
     }
 }
 

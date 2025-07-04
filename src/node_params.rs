@@ -1,3 +1,5 @@
+use parley2::StyleHandle;
+
 use crate::*;
 use crate::color::*;
 use std::{hash::{Hash, Hasher}, ops::Deref};
@@ -475,7 +477,7 @@ impl NodeParams {
 pub struct FullNodeParams<'a> {
     pub params: NodeParams,
     pub text: Option<&'a str>,
-    pub text_style: Option<&'a TextStyle>,
+    pub text_style: Option<&'a StyleHandle>,
     pub(crate) text_changed: Changed,
     pub(crate) text_ptr: usize,
     pub image: Option<&'static [u8]>,
@@ -695,8 +697,8 @@ impl<'a> FullNodeParams<'a> {
         return self;
     }
 
-    /// Set the text style for tis node
-    pub fn text_style(mut self, style: &'a TextStyle) -> Self {
+    /// Set the text style for this node.
+    pub fn text_style(mut self, style: &'a StyleHandle) -> Self {
         self.text_style = Some(style);
         return self;
     }

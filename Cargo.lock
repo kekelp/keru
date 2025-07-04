@@ -1882,7 +1882,6 @@ dependencies = [
 [[package]]
 name = "parley2"
 version = "0.1.0"
-source = "git+https://github.com/kekelp/parley2/#7227ff758ef5ab3335dc4148f35f075416ea3f34"
 dependencies = [
  "accesskit",
  "arboard",

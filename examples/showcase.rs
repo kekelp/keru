@@ -36,10 +36,8 @@ impl Components for Ui {
             self.static_paragraph("Keru is an experimental GUI library focused on combining a simple and natural programming model with high performance and flexibility.");
             
             #[node_key] const TEXT_EDIT_1: NodeKey;
-            // #[node_key] const TEXT_EDIT_2: NodeKey;
 
             self.add(TEXT_EDIT.size_y(Size::Pixels(100)).key(TEXT_EDIT_1).text("Text edit box"));
-            // self.add(TEXT_EDIT.key(TEXT_EDIT_2));
 
             self.static_paragraph("Here are some basic GUI elements: \n");
             self.static_paragraph("Button and label:");
@@ -69,47 +67,45 @@ impl Components for Ui {
                 Press Ctrl+Plus and Ctrl+Minus to adjust the global font size, Ctrl+0 to reset to original size."
             );
 
-            self.static_paragraph("Text Styles:");
+            self.static_paragraph("Fixed text styles:");
 
-            // This is not so ergonomic, but it's for the greater good: in a real application, all text styles should be ready to change on the fly 
-            let large_bold_style = TextStyle {
+            let large_bold_style = self.add_style(TextStyle {
                 font_size: 32.0,
-                brush: ColorBrush([255, 0, 0, 255]), // Red color (KERU_RED equivalent)
+                brush: ColorBrush([255, 0, 0, 255]),
                 font_weight: FontWeight::BOLD,
                 ..Default::default()
-            };
+            });
             self.add(TEXT
                 .static_text("Large Bold Title")
                 .text_style(&large_bold_style)
             );
             
-            let medium_italic_style = TextStyle {
+            let medium_italic_style = self.add_style(TextStyle {
                 font_size: 18.0,
-                brush: ColorBrush([0, 100, 255, 255]), // Blue color (KERU_BLUE equivalent)
+                brush: ColorBrush([0, 100, 255, 255]),
                 font_style: FontStyle::Italic,
                 ..Default::default()
-            };
+            });
             self.add(TEXT
                 .static_text("Medium Italic Text")
                 .text_style(&medium_italic_style)
             );
             
-            let small_style = TextStyle {
+            let small_style = self.add_style(TextStyle {
                 font_size: 12.0,
-                brush: ColorBrush([255, 255, 255, 255]), // White color
+                brush: ColorBrush([255, 255, 255, 255]),
                 ..Default::default()
-            };
+            });
             self.add(TEXT
                 .static_text("Small Text")
                 .text_style(&small_style)
-            );
+            );            
             
-            
-            let strikethrough_style = TextStyle {
+            let strikethrough_style = self.add_style(TextStyle {
                 font_size: 16.0,
-                brush: ColorBrush([128, 128, 128, 255]), // Grey color
+                brush: ColorBrush([128, 128, 128, 255]),
                 ..Default::default()
-            };
+            });
             self.add(TEXT
                 .static_text("Strikethrough Text")
                 .text_style(&strikethrough_style)
@@ -164,7 +160,18 @@ impl Components for Ui {
 
 impl State {
     fn update_ui(&mut self, ui: &mut Ui) {
-        // Handle font size controls with Ctrl+, Ctrl-, and Ctrl+0
+        self.update_global_text(ui);
+
+        ui.vertical_tabs(&self.tabs[..], &mut self.current_tab)
+            .nest(|| match self.tabs[self.current_tab] {
+                INTRO_TAB => ui.intro_tab(self),
+                TEXT_TAB => ui.text_tab(),
+                WEIRD_TAB => ui.other_tab(self),
+                _ => {}
+            });
+    }
+
+    fn update_global_text(&mut self,  ui: &mut Ui) {
         if ui.key_input().key_mods().control_key() {
             if ui.key_input().key_pressed(&winit::keyboard::Key::Character("=".into())) || 
                ui.key_input().key_pressed(&winit::keyboard::Key::Character("+".into())) {
@@ -176,26 +183,15 @@ impl State {
             }
         }
 
-        // Handle font size controls with Ctrl + mouse wheel
         if ui.key_input().key_mods().control_key() {
             if let Some(scroll_delta) = ui.scroll_delta() {
                 if scroll_delta.y > 0.0 {
-                    // Scroll up = increase font size
                     ui.default_text_style_mut().font_size = (ui.default_text_style().font_size + 2.0).min(72.0);
                 } else if scroll_delta.y < 0.0 {
-                    // Scroll down = decrease font size
                     ui.default_text_style_mut().font_size = (ui.default_text_style().font_size - 2.0).max(8.0);
                 }
             }
         }
-
-        ui.vertical_tabs(&self.tabs[..], &mut self.current_tab)
-            .nest(|| match self.tabs[self.current_tab] {
-                INTRO_TAB => ui.intro_tab(self),
-                TEXT_TAB => ui.text_tab(),
-                WEIRD_TAB => ui.other_tab(self),
-                _ => {}
-            });
     }
 }
 
