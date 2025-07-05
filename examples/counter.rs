@@ -14,7 +14,6 @@ impl State {
         #[node_key] const SHOW: NodeKey;
         
         if ui.is_clicked(SHOW) {
-            dbg!("Huh?");
             self.show = !self.show;
         }
         if ui.is_clicked(INCREASE) {

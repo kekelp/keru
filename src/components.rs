@@ -85,6 +85,7 @@ impl Ui {
     #[track_caller]
     pub fn vertical_tabs(&mut self, tabs: &[Tab], current_tab: &mut usize) -> UiParent {
         #[node_key] const VERTICAL_TABS_TAB_BUTTON: NodeKey;
+        assert!(tabs.len() != 0);
 
         self.subtree().start(|| {
             let max_n = tabs.len() - 1;
@@ -126,7 +127,7 @@ impl Ui {
             let content_panel = PANEL
                 .size_symm(Size::Fill)
                 .colors(self.theme().background)
-                .children_can_hide(true)
+                // .children_can_hide(true)
                 .key(VERTICAL_TABS_CONTENT_PANEL);
 
             self.add(h_stack).nest(|| {

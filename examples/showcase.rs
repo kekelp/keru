@@ -89,12 +89,11 @@ impl Components for Ui {
                 if self.add(BUTTON.text("Toggle bool").key(BUTTON3)).is_clicked(self) {
                     *self.state_mut(WIDGET_STATE) = ! self.state(WIDGET_STATE)
                 }
-
-                #[node_key] pub const KYS2: NodeKey;
+    
                 if *self.state(WIDGET_STATE) {
-                    self.add(LABEL.key(KYS2).static_text("Bool on"));
+                    self.label("Bool on");
                 } else {
-                    self.add(LABEL.key(KYS2).static_text("Bool off"));
+                    self.label("Bool off");
                 }
             });
 

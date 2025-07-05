@@ -717,7 +717,7 @@ impl<'a> FullNodeParams<'a> {
 //             text: Some(text),
 //             text_style: self.text_style,
 //             text_changed: Changed::Static,
-//             text_ptr: (&raw const text) as usize,
+//             text_ptr: text.as_ref().as_ptr() as usize,
 //         }
 //     }
 // }
@@ -739,7 +739,7 @@ impl NodeParams {
             text_style: None,
             image: None,
             text_changed: Changed::NeedsHash,
-            text_ptr: (&raw const text) as usize,
+            text_ptr: text.as_ref().as_ptr() as usize,
         }
     }
 
@@ -755,7 +755,7 @@ impl NodeParams {
             text_style: None,
             image: None,
             text_changed: Changed::Static,
-            text_ptr: (&raw const text) as usize,
+            text_ptr: text.as_ref().as_ptr() as usize,
         }
     }
 
@@ -771,7 +771,7 @@ impl NodeParams {
             text_style: None,
             image: None,
             text_changed: Changed::Static,
-            text_ptr: (&raw const text) as usize,
+            text_ptr: text.as_ref().as_ptr() as usize,
         }
     }
 
@@ -781,7 +781,7 @@ impl NodeParams {
             text: Some(text.as_ref()),
             text_style: None,
             text_changed: text.changed_at(),
-            text_ptr: (&raw const text) as usize,
+            text_ptr: text.as_ref().as_ptr() as usize,
             image: None,
         }
     }
@@ -897,14 +897,7 @@ impl Ui {
         // todo: if text attributes have changed, go straight to relayout anyway.
 
         let text_verdict = self.check_text_situation(i, params);
-        
-        // Check if default style changed for nodes using default style
-        let uses_default_style = params.params.text_params.is_none();
-        
-        // Note: default_text_style_changed logic removed in new centralized text system
-        // Default styles are now managed centrally by the Text struct
-        let _ = uses_default_style; // suppress unused variable warning
-        
+                        
         if text_verdict == TextVerdict::Skip {
             log::trace!("Skipping text update");
             return;
@@ -935,7 +928,7 @@ impl Ui {
                 }
             }
         }
-            
+        
         match text_verdict {
             TextVerdict::Skip => { unreachable!("I forgot why") },
             TextVerdict::HashAndSee => {
@@ -1035,7 +1028,7 @@ impl NodeParams {
             text_style: None,
             image: None,
             text_changed: text.changed_at(),
-            text_ptr: (&raw const text) as usize,
+            text_ptr: text.as_text().as_ptr() as usize,
         }
     }
 }
