@@ -468,6 +468,25 @@ impl NodeParams {
     }
 }
 
+#[derive(Copy, Clone, Hash)]
+pub enum NodeText<'a> {
+    Dynamic(&'a str),
+    Static(&'static str),
+}
+
+impl<'a> NodeText<'a> {
+    pub fn as_str(&self) -> &str {
+        match self {
+            NodeText::Dynamic(s) => s,
+            NodeText::Static(s) => s,
+        }
+    }
+    
+    pub fn is_static(&self) -> bool {
+        matches!(self, NodeText::Static(_))
+    }
+}
+
 /// An extended version of [`NodeParams`] that can hold text or other borrowed data.
 /// 
 /// Created starting from a [`NodeParams`] and using methods like [`NodeParams::text()`].
@@ -476,7 +495,7 @@ impl NodeParams {
 #[derive(Copy, Clone)]
 pub struct FullNodeParams<'a> {
     pub params: NodeParams,
-    pub text: Option<&'a str>,
+    pub text: Option<NodeText<'a>>,
     pub text_style: Option<&'a StyleHandle>,
     pub(crate) text_changed: Changed,
     pub(crate) text_ptr: usize,
@@ -735,7 +754,7 @@ impl NodeParams {
     pub fn hashed_text(self, text: &(impl AsRef<str> + ?Sized)) -> FullNodeParams<'_> {
         return FullNodeParams {
             params: self,
-            text: Some(text.as_ref()),
+            text: Some(NodeText::Dynamic(text.as_ref())),
             text_style: None,
             image: None,
             text_changed: Changed::NeedsHash,
@@ -751,7 +770,7 @@ impl NodeParams {
     pub fn static_text(self, text: &'static (impl AsRef<str> + ?Sized)) -> FullNodeParams<'static> {
         return FullNodeParams {
             params: self,
-            text: Some(text.as_ref()),
+            text: Some(NodeText::Static(text.as_ref())),
             text_style: None,
             image: None,
             text_changed: Changed::Static,
@@ -767,7 +786,7 @@ impl NodeParams {
     pub fn immut_text(self, text: &(impl AsRef<str> + ?Sized)) -> FullNodeParams<'_> {
         return FullNodeParams {
             params: self,
-            text: Some(text.as_ref()),
+            text: Some(NodeText::Dynamic(text.as_ref())),
             text_style: None,
             image: None,
             text_changed: Changed::Static,
@@ -778,7 +797,7 @@ impl NodeParams {
     pub fn observed_text(self, text: Observer<&(impl AsRef<str> + ?Sized)>) -> FullNodeParams<'_> {
         return FullNodeParams {
             params: self,
-            text: Some(text.as_ref()),
+            text: Some(NodeText::Dynamic(text.as_ref())),
             text_style: None,
             text_changed: text.changed_at(),
             text_ptr: text.as_ref().as_ptr() as usize,
@@ -861,31 +880,22 @@ impl Ui {
     }
 
     pub(crate) fn set_params_text(&mut self, i: NodeI, params: &FullNodeParams) {       
-        
         let Some(text) = params.text else {
             return
         };
         
-        if let Some(editable) = &params.params.text_params {
-            if editable.editable {
-                // Check if we need to force update due to default style change
-                let uses_default_style = params.text_style.is_none();
-                let force_update = uses_default_style;
-                
-                // For text edits, we need to check if we should force an update or use normal logic
-                if force_update {
-                    log::trace!("Forcing text edit update due to default style change");
-                    self.set_text(i, true, text, params.text_style);
-                } else {
-                    // Normal text edit update logic - only update if text content changed
-                    if self.nodes[i].last_text_ptr != params.text_ptr {
-                        self.set_text(i, true, text, params.text_style);
-                        self.nodes[i].last_text_ptr = params.text_ptr;
-                    }
-                }
-
-                return;
+        let edit = params.params.text_params
+            .as_ref()
+            .map(|tp| tp.editable)
+            .unwrap_or(false);
+        
+        if edit {
+            // For editable text, always update if content changed
+            if self.nodes[i].last_text_ptr != params.text_ptr {
+                self.set_text(i, text, true, params.text_style);
+                self.nodes[i].last_text_ptr = params.text_ptr;
             }
+            return;
         }
 
         #[cfg(not(debug_assertions))]
@@ -897,7 +907,6 @@ impl Ui {
         // todo: if text attributes have changed, go straight to relayout anyway.
 
         let text_verdict = self.check_text_situation(i, params);
-                        
         if text_verdict == TextVerdict::Skip {
             log::trace!("Skipping text update");
             return;
@@ -928,39 +937,37 @@ impl Ui {
                 }
             }
         }
-        
+
         match text_verdict {
-            TextVerdict::Skip => { unreachable!("I forgot why") },
+            TextVerdict::Skip => unreachable!("Already handled above"),
             TextVerdict::HashAndSee => {
                 if self.nodes[i].text_i.is_some() {
-
                     #[cfg(not(debug_assertions))]
                     let hash = ahash(&text);
 
                     if let Some(last_hash) = self.nodes[i].last_text_hash {
                         if hash != last_hash {
-
                             log::trace!("Updating after hash");
-                            self.nodes[i].last_text_hash = Some(hash);                    
-                            self.set_text(i, false, text, params.text_style);
+                            self.nodes[i].last_text_hash = Some(hash);
+                            self.set_text(i, text, false, params.text_style);
                         } else {
                             log::trace!("Skipping after hash");
                         }
-                        
                     } else {
-                        self.set_text(i, false, text, params.text_style);
-                        self.nodes[i].last_text_hash = Some(hash);
+                        self.set_text(i, text, false, params.text_style);
+                        if !text.is_static() {
+                            self.nodes[i].last_text_hash = Some(hash);
+                        }
                     }
                 } else {
                     log::trace!("Updating (node had no text)");
-                    self.set_text(i, false, text, params.text_style);
+                    self.set_text(i, text, false, params.text_style);
                 }
             },
             TextVerdict::UpdateWithoutHashing => {
                 log::trace!("Updating without hash");
-                self.set_text(i, false, text, params.text_style);
+                self.set_text(i, text, false, params.text_style);
                 self.nodes[i].last_text_hash = None;
-                // todo, think about this a bit more. we lose the hash.
             },
         };
     }
@@ -1024,7 +1031,7 @@ impl NodeParams {
     pub fn text(self, text: &(impl MaybeObservedText + ?Sized)) -> FullNodeParams<'_> {
         FullNodeParams {
             params: self,
-            text: Some(text.as_text()),
+            text: Some(NodeText::Dynamic(text.as_text())),
             text_style: None,
             image: None,
             text_changed: text.changed_at(),

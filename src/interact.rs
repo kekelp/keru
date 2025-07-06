@@ -211,11 +211,12 @@ impl Ui {
             }
           
             if let Some(text_i) = &clicked_node.text_i {
+                // todo: isn't this all obsolete now?
                 match text_i {
                     TextI::TextEdit(_) => {
                         self.sys.focused = Some(clicked_id);
                     }
-                    TextI::TextBox(_) | TextI::_StaticTextBox(_) => {}
+                    TextI::TextBox(_) | TextI::StaticTextBox(_) => {}
                 }
 
                 // todo: not always...

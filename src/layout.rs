@@ -395,7 +395,7 @@ impl Ui {
 
                 return size;
             }
-            TextI::_StaticTextBox(handle) => {               
+            TextI::StaticTextBox(handle) => {               
                 let fit_content_y = self.nodes[i].params.layout.size[Y] == Size::FitContent;
                 let fit_content_x = self.nodes[i].params.layout.size[X] == Size::FitContent;
 
@@ -636,7 +636,7 @@ impl Ui {
                 TextI::TextBox(handle) => {
                     self.sys.text.get_text_box_mut(&handle).set_clip_rect(clip_rect);
                 }
-                TextI::_StaticTextBox(handle) => {
+                TextI::StaticTextBox(handle) => {
                     self.sys.text.get_static_text_box_mut(&handle).set_clip_rect(clip_rect);
                 }
                 TextI::TextEdit(handle) => {
@@ -661,7 +661,7 @@ impl Ui {
                 TextI::TextBox(handle) => {
                     self.sys.text.get_text_box_mut(&handle).set_pos((left, top));
                 }
-                TextI::_StaticTextBox(handle) => {
+                TextI::StaticTextBox(handle) => {
                     self.sys.text.get_static_text_box_mut(&handle).set_pos((left, top));
                 }
                 TextI::TextEdit(handle) => {

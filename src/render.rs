@@ -31,7 +31,7 @@ impl Ui {
 
     fn recursive_text_events(&mut self, _i: NodeI, event: &WindowEvent, window: &Window, _focus_already_grabbed: &mut bool) {
         // In the new centralized system, handle all text events at once
-        self.sys.text.handle_events(event, window);
+        self.sys.text.handle_event(event, window);
         
         // Mark that text might have changed so it gets re-prepared for rendering
         self.sys.changes.text_changed = true;
