@@ -9,6 +9,7 @@ struct State {
     current_tab: usize,
 
     f32_value: f32,
+    large_bold_style: Option<StyleHandle>,
 }
 
 const INTRO_TAB: Tab = Tab("Intro");
@@ -66,12 +67,15 @@ impl Components for Ui {
             Press Ctrl+Plus, Ctrl+Minus and Ctrl+0 to control the zoom level of the default text style.\n\n
             ");
 
-            // todo, this is actually creating infinitely many identical styles, lol.
-            let large_bold_style = self.insert_style(TextStyle {
-                font_size: 32.0,
-                brush: ColorBrush([255, 0, 0, 255]),
-                font_weight: FontWeight::BOLD,
-                ..Default::default()
+            // todo: this is not very nice.
+            // real examples without run_example_loop would do this in State::new(), I guess.
+            let large_bold_style = state.large_bold_style.get_or_insert_with(|| {
+                self.insert_style(TextStyle {
+                    font_size: 32.0,
+                    brush: ColorBrush([255, 0, 0, 255]),
+                    font_weight: FontWeight::BOLD,
+                    ..Default::default()
+                })
             });
             self.add(TEXT
                 .static_text("This text uses a different style.")
