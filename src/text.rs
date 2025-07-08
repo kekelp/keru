@@ -17,8 +17,11 @@ enum DesiredTextWidget {
 }
 
 impl Ui {
-    pub(crate) fn set_text(&mut self, i: NodeI, text: crate::NodeText, edit: bool, style: Option<&StyleHandle>, selectable: bool) -> &mut Self {
+    pub(crate) fn set_text(&mut self, i: NodeI, text: crate::NodeText, text_options: Option<&TextOptions>, style: Option<&StyleHandle>) -> &mut Self {
         // Determine what type of text widget we want
+        let edit = text_options.map(|to| to.editable).unwrap_or(false);
+        let selectable = text_options.map(|to| to.selectable).unwrap_or(true);
+        
         let desired = if edit {
             DesiredTextWidget::TextEdit
         } else {

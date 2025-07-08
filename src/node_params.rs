@@ -895,20 +895,13 @@ impl Ui {
             return
         };
         
-        let edit = params.params.text_params
-            .as_ref()
-            .map(|tp| tp.editable)
-            .unwrap_or(false);
-        
-        let selectable = params.params.text_params
-            .as_ref()
-            .map(|tp| tp.selectable)
-            .unwrap_or(true);
+        let text_options = params.params.text_params.as_ref();
+        let edit = text_options.map(|tp| tp.editable).unwrap_or(false);
         
         if edit {
             // For editable text, always update if content changed
             if self.nodes[i].last_text_ptr != params.text_ptr {
-                self.set_text(i, text, true, params.text_style, selectable);
+                self.set_text(i, text, text_options, params.text_style);
                 self.nodes[i].last_text_ptr = params.text_ptr;
             }
             return;
@@ -965,24 +958,24 @@ impl Ui {
                         if hash != last_hash {
                             log::trace!("Updating after hash");
                             self.nodes[i].last_text_hash = Some(hash);
-                            self.set_text(i, text, false, params.text_style, selectable);
+                            self.set_text(i, text, text_options, params.text_style);
                         } else {
                             log::trace!("Skipping after hash");
                         }
                     } else {
-                        self.set_text(i, text, false, params.text_style, selectable);
+                        self.set_text(i, text, text_options, params.text_style);
                         if !text.is_static() {
                             self.nodes[i].last_text_hash = Some(hash);
                         }
                     }
                 } else {
                     log::trace!("Updating (node had no text)");
-                    self.set_text(i, text, false, params.text_style, selectable);
+                    self.set_text(i, text, text_options, params.text_style);
                 }
             },
             TextVerdict::UpdateWithoutHashing => {
                 log::trace!("Updating without hash");
-                self.set_text(i, text, false, params.text_style, selectable);
+                self.set_text(i, text, text_options, params.text_style);
                 self.nodes[i].last_text_hash = None;
             },
         };
