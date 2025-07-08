@@ -220,10 +220,21 @@ impl Rect {
 // rename
 // todo: add greyed text for textinput
 /// Options for text nodes.
-#[derive(Debug, Default, Copy, Clone, Hash)]
+#[derive(Debug, Copy, Clone, Hash)]
 pub struct TextOptions {
     pub editable: bool,
     pub single_line: bool,
+    pub selectable: bool,
+}
+
+impl Default for TextOptions {
+    fn default() -> Self {
+        Self {
+            editable: false,
+            single_line: false,
+            selectable: true,
+        }
+    }
 }
 
 pub(crate) const BASE_RADIUS: f32 = 18.0;
@@ -889,10 +900,15 @@ impl Ui {
             .map(|tp| tp.editable)
             .unwrap_or(false);
         
+        let selectable = params.params.text_params
+            .as_ref()
+            .map(|tp| tp.selectable)
+            .unwrap_or(true);
+        
         if edit {
             // For editable text, always update if content changed
             if self.nodes[i].last_text_ptr != params.text_ptr {
-                self.set_text(i, text, true, params.text_style);
+                self.set_text(i, text, true, params.text_style, selectable);
                 self.nodes[i].last_text_ptr = params.text_ptr;
             }
             return;
@@ -949,24 +965,24 @@ impl Ui {
                         if hash != last_hash {
                             log::trace!("Updating after hash");
                             self.nodes[i].last_text_hash = Some(hash);
-                            self.set_text(i, text, false, params.text_style);
+                            self.set_text(i, text, false, params.text_style, selectable);
                         } else {
                             log::trace!("Skipping after hash");
                         }
                     } else {
-                        self.set_text(i, text, false, params.text_style);
+                        self.set_text(i, text, false, params.text_style, selectable);
                         if !text.is_static() {
                             self.nodes[i].last_text_hash = Some(hash);
                         }
                     }
                 } else {
                     log::trace!("Updating (node had no text)");
-                    self.set_text(i, text, false, params.text_style);
+                    self.set_text(i, text, false, params.text_style, selectable);
                 }
             },
             TextVerdict::UpdateWithoutHashing => {
                 log::trace!("Updating without hash");
-                self.set_text(i, text, false, params.text_style);
+                self.set_text(i, text, false, params.text_style, selectable);
                 self.nodes[i].last_text_hash = None;
             },
         };

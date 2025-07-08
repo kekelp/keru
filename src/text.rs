@@ -17,7 +17,7 @@ enum DesiredTextWidget {
 }
 
 impl Ui {
-    pub(crate) fn set_text(&mut self, i: NodeI, text: crate::NodeText, edit: bool, style: Option<&StyleHandle>) -> &mut Self {
+    pub(crate) fn set_text(&mut self, i: NodeI, text: crate::NodeText, edit: bool, style: Option<&StyleHandle>, selectable: bool) -> &mut Self {
         // Determine what type of text widget we want
         let desired = if edit {
             DesiredTextWidget::TextEdit
@@ -53,6 +53,7 @@ impl Ui {
                     if let Some(style) = style {
                         self.sys.text.get_text_edit_mut(&handle).set_style(style);
                     }
+                    self.sys.text.get_text_edit_mut(&handle).set_selectable(selectable);
                     TextI::TextEdit(handle)
                 },
                 DesiredTextWidget::TextBox => {
@@ -60,6 +61,7 @@ impl Ui {
                     if let Some(style) = style {
                         self.sys.text.get_text_box_mut(&handle).set_style(style);
                     }
+                    self.sys.text.get_text_box_mut(&handle).set_selectable(selectable);
                     TextI::TextBox(handle)
                 },
                 DesiredTextWidget::StaticTextBox => {
@@ -70,6 +72,7 @@ impl Ui {
                     if let Some(style) = style {
                         self.sys.text.get_static_text_box_mut(&handle).set_style(style);
                     }
+                    self.sys.text.get_static_text_box_mut(&handle).set_selectable(selectable);
                     TextI::StaticTextBox(handle)
                 },
             };
@@ -84,6 +87,7 @@ impl Ui {
                     if let Some(style) = style {
                         self.sys.text.get_text_edit_mut(&handle).set_style(style);
                     }
+                    self.sys.text.get_text_edit_mut(&handle).set_selectable(selectable);
 
                     // don't update the content. content in a text edit box is not reset declaratively every frame, obviously. 
                 },
@@ -92,6 +96,7 @@ impl Ui {
                     if let Some(style) = style {
                         self.sys.text.get_text_box_mut(&handle).set_style(style);
                     }
+                    self.sys.text.get_text_box_mut(&handle).set_selectable(selectable);
                 },
                 (Some(TextI::StaticTextBox(handle)), DesiredTextWidget::StaticTextBox) => {
                     match text {
@@ -105,6 +110,7 @@ impl Ui {
                     if let Some(style) = style {
                         self.sys.text.get_static_text_box_mut(&handle).set_style(style);
                     }
+                    self.sys.text.get_static_text_box_mut(&handle).set_selectable(selectable);
                 },
                 _ => unreachable!("Type mismatch should have been handled above"),
             }
