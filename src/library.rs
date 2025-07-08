@@ -252,6 +252,7 @@ pub const BUTTON: NodeParams = NodeParams {
         single_line: true,
         editable: false,
         selectable: false,
+        edit_disabled: false,
     }),
     rect: Rect {
         rounded_corners: RoundedCorners::ALL,
@@ -282,6 +283,7 @@ pub const LABEL: NodeParams = NodeParams {
         single_line: true,
         editable: false,
         selectable: true,
+        edit_disabled: false,
     }),
     rect: Rect {
         rounded_corners: RoundedCorners::ALL,
@@ -312,6 +314,7 @@ pub const MULTILINE_LABEL: NodeParams = NodeParams {
         single_line: false,
         editable: false,
         selectable: true,
+        edit_disabled: false,
     }),
     rect: Rect {
         rounded_corners: RoundedCorners::ALL,
@@ -342,6 +345,7 @@ pub const TEXT: NodeParams = NodeParams {
         single_line: true,
         editable: false,
         selectable: true,
+        edit_disabled: false,
     }),
     rect: Rect {
         rounded_corners: RoundedCorners::ALL,
@@ -372,6 +376,7 @@ pub const TEXT_EDIT: NodeParams = NodeParams {
         single_line: true,
         editable: true,
         selectable: true,
+        edit_disabled: false,
     }),
     rect: Rect {
         rounded_corners: RoundedCorners::ALL,
@@ -402,6 +407,7 @@ pub const TEXT_PARAGRAPH: NodeParams = NodeParams {
         single_line: false,
         editable: false,
         selectable: true,
+        edit_disabled: false,
     }),
     rect: Rect {
         rounded_corners: RoundedCorners::ALL,

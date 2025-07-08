@@ -21,6 +21,7 @@ impl Ui {
         // Determine what type of text widget we want
         let edit = text_options.map(|to| to.editable).unwrap_or(false);
         let selectable = text_options.map(|to| to.selectable).unwrap_or(true);
+        let edit_disabled = text_options.map(|to| to.edit_disabled).unwrap_or(false);
         
         let desired = if edit {
             DesiredTextWidget::TextEdit
@@ -118,6 +119,7 @@ impl Ui {
             match text_i {
                 TextI::TextEdit(handle) => {
                     self.sys.text.get_text_edit_mut(handle).set_selectable(selectable);
+                    self.sys.text.get_text_edit_mut(handle).set_editable(!edit_disabled);
                 },
                 TextI::TextBox(handle) => {
                     self.sys.text.get_text_box_mut(handle).set_selectable(selectable);

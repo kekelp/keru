@@ -225,6 +225,7 @@ pub struct TextOptions {
     pub editable: bool,
     pub single_line: bool,
     pub selectable: bool,
+    pub edit_disabled: bool,
 }
 
 impl Default for TextOptions {
@@ -233,6 +234,7 @@ impl Default for TextOptions {
             editable: false,
             single_line: false,
             selectable: true,
+            edit_disabled: false,
         }
     }
 }
