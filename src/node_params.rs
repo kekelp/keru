@@ -732,6 +732,7 @@ impl<'a> FullNodeParams<'a> {
         self.text_style = Some(style);
         return self;
     }
+
 }
 
 // impl FullNodeParams<'_> {
@@ -1038,7 +1039,7 @@ impl NodeParams {
     /// 
     /// Instead of this single generic function, you can also use [`Self::hashed_text()`], [`Self::static_text()`], [`Self::immut_text()`], or [`Self::observed_text()`].
     pub fn text(self, text: &(impl MaybeObservedText + ?Sized)) -> FullNodeParams<'_> {
-        FullNodeParams {
+        return FullNodeParams {
             params: self,
             text: Some(NodeText::Dynamic(text.as_text())),
             text_style: None,

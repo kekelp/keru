@@ -8,8 +8,8 @@ use Shape::*;
 /// [`NodeParams`] for a node_root_params. 
 pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     key: None,
-    stack: None,
     text_params: None,
+    stack: None,
     rect: Rect {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
@@ -33,8 +33,8 @@ pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
 /// [`NodeParams`] for a default. 
 pub const DEFAULT: NodeParams = NodeParams {
     key: None,
-    stack: None,
     text_params: None,
+    stack: None,
     rect: Rect {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
@@ -58,12 +58,12 @@ pub const DEFAULT: NodeParams = NodeParams {
 /// [`NodeParams`] for a vertical stack. 
 pub const V_STACK: NodeParams = NodeParams {
     key: None,
+    text_params: None,
     stack: Some(Stack {
         arrange: Arrange::Center,
         axis: Axis::Y,
         spacing: 10,
     }),
-    text_params: None,
     rect: Rect {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
@@ -87,12 +87,12 @@ pub const V_STACK: NodeParams = NodeParams {
 /// [`NodeParams`] for a horizontal stack. 
 pub const H_STACK: NodeParams = NodeParams {
     key: None,
+    text_params: None,
     stack: Some(Stack {
         arrange: Arrange::Center,
         axis: Axis::X,
         spacing: 5,
     }),
-    text_params: None,
     rect: Rect {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
@@ -117,13 +117,13 @@ pub const H_STACK: NodeParams = NodeParams {
 /// [`NodeParams`] for a vertically scrollable vertical stack.
 pub const V_SCROLL_STACK: NodeParams = NodeParams {
     key: None,
+    text_params: None,
         stack: Some(Stack {
             arrange: Arrange::Start,
             axis: Axis::Y,
             spacing: 10,
         }),
-        text_params: None,
-        rect: Rect {
+            rect: Rect {
             rounded_corners: RoundedCorners::ALL,
             shape: Rectangle { corner_radius: BASE_RADIUS },
             visible: false,
