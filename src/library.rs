@@ -393,7 +393,7 @@ pub const TEXT_EDIT: NodeParams = NodeParams {
     layout: Layout {
         size: Xy::new_symm(FitContent),
         position: Xy::new_symm(Center),
-        padding: Xy::new_symm(2),
+        padding: Xy::new_symm(10),
         scrollable: Xy::new(false, false),
     },
     children_can_hide: false,

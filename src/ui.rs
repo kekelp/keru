@@ -109,6 +109,11 @@ pub(crate) struct System {
     // mouse input needs to be Id based, not NodeI based, because you can hold a button for several frames
     pub mouse_input: MouseInput<Id>,
     pub key_input: KeyInput,
+    
+    /// The text edit node that had its text changed last frame, if any (available for queries this frame)
+    pub text_edit_changed_last_frame: Option<Id>,
+    /// The text edit node that had its text changed this frame (will be available next frame)
+    pub text_edit_changed_this_frame: Option<Id>,
 
     #[cfg(debug_assertions)]
     pub inspect_hovered: Option<Id>,
@@ -375,6 +380,8 @@ impl Ui {
 
                 mouse_input: MouseInput::default(),
                 key_input: KeyInput::default(),
+                text_edit_changed_last_frame: None,
+                text_edit_changed_this_frame: None,
 
                 // todo: maybe remove and use mouse_input.current_tag()? There was never a point in having multiple hovereds
                 hovered: Vec::with_capacity(15),

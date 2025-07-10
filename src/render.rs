@@ -29,9 +29,16 @@ impl Ui {
         return false;
     }
 
-    fn recursive_text_events(&mut self, _i: NodeI, event: &WindowEvent, window: &Window, _focus_already_grabbed: &mut bool) {
+    fn recursive_text_events(&mut self, _i: NodeI, event: &WindowEvent, window: &Window, _focus_already_grabbed: &mut bool) {        
         // In the new centralized system, handle all text events at once
         self.sys.text.handle_event(event, window);
+        
+        let text_changed = self.sys.text.get_text_changed();
+        if text_changed {
+            if let Some(node_id) = self.sys.focused {
+                self.sys.text_edit_changed_this_frame = Some(node_id);
+            }
+        }
         
         // Mark that text might have changed so it gets re-prepared for rendering
         self.sys.changes.text_changed = true;

@@ -344,6 +344,18 @@ impl Ui {
         uinode.is_clicked()
     }
 
+    /// Returns `true` if the text in the text edit node corresponding to `key` was just changed through user input.
+    /// 
+    /// This only tracks changes from user events (typing, pasting, etc.), not programmatic text changes.
+    /// Only works for text edit nodes - returns `false` for regular text nodes.
+    pub fn is_text_changed(&self, key: NodeKey) -> bool {        
+        let Some(uinode) = self.get_uinode(key) else {
+            return false;
+        };
+        let id = uinode.node().id;
+        self.sys.text_edit_changed_last_frame == Some(id)
+    }
+
     pub fn is_focused(&self, key: NodeKey) -> bool {
         let Some(uinode) = self.get_uinode(key) else {
             return false;
