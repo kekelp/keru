@@ -263,7 +263,7 @@ impl Ui {
          self.nodes[i].z = self.sys.z_cursor;
 
         let draw_even_if_invisible = self.sys.inspect_mode;
-        if let Some(rect) = self.render_rect_i(i, draw_even_if_invisible, None) {
+        if let Some(rect) = self.render_rect_i(i, draw_even_if_invisible, None, false) {
             self.sys.rects.push(rect);
              self.nodes[i].last_rect_i = Some(self.sys.rects.len() - 1);
         } else {
@@ -271,7 +271,7 @@ impl Ui {
         }
 
         if let Some(image) =  self.nodes[i].imageref {
-            if let Some(image_rect) = self.render_rect_i(i, draw_even_if_invisible, Some(image.tex_coords)) {
+            if let Some(image_rect) = self.render_rect_i(i, draw_even_if_invisible, Some(image.tex_coords), true) {
                 self.sys.rects.push(image_rect);
                  self.nodes[i].last_image_rect_i = Some(self.sys.rects.len() - 1);
             }
@@ -289,13 +289,13 @@ impl Ui {
 
         let draw_even_if_invisible = self.sys.inspect_mode;
         if let Some(old_i) = self.nodes[i].last_rect_i {
-            if let Some(rect) = self.render_rect_i(i, draw_even_if_invisible, None) {
+            if let Some(rect) = self.render_rect_i(i, draw_even_if_invisible, None, false) {
                 self.sys.rects[old_i] = rect;
             }
         }
         
         if let Some(imageref) = self.nodes[i].imageref {
-            if let Some(image_rect) = self.render_rect_i(i, draw_even_if_invisible, Some(imageref.tex_coords)) {
+            if let Some(image_rect) = self.render_rect_i(i, draw_even_if_invisible, Some(imageref.tex_coords), true) {
                 let old_i = self.nodes[i].last_image_rect_i.unwrap();
                 self.sys.rects[old_i] = image_rect;
             }

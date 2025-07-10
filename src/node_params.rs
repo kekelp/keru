@@ -230,6 +230,12 @@ pub struct TextOptions {
 
 impl Default for TextOptions {
     fn default() -> Self {
+        Self::const_default()
+    }
+}
+
+impl TextOptions {
+    const fn const_default() -> Self {
         Self {
             editable: false,
             single_line: false,
@@ -516,6 +522,21 @@ pub struct FullNodeParams<'a> {
 }
 
 impl<'a> FullNodeParams<'a> {
+    pub const fn single_line_text(mut self, value: bool) -> Self {
+        let text_params = match self.params.text_params {
+            Some(mut tp) => {
+                tp.single_line = value;
+                tp
+            },
+            None => TextOptions {
+                single_line: value,
+                ..TextOptions::const_default()
+            }
+        };
+        self.params.text_params = Some(text_params);
+        return self;
+    }
+
     pub const fn position(mut self, position_x: Position, position_y: Position) -> Self {
         self.params.layout.position.x = position_x;
         self.params.layout.position.y = position_y;

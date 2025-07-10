@@ -123,7 +123,7 @@ impl Shape {
 }
 
 impl Ui {
-    pub(crate) fn render_rect_i(&self, i: NodeI, draw_even_if_invisible: bool, image_texcoords: Option<Xy<[f32; 2]>>) -> Option<RenderRect> {
+    pub(crate) fn render_rect_i(&self, i: NodeI, draw_even_if_invisible: bool, image_texcoords: Option<Xy<[f32; 2]>>, without_padding: bool) -> Option<RenderRect> {
         let node = &self.nodes[i];
         if ! draw_even_if_invisible && ! node.params.rect.visible {
             return None;
@@ -158,8 +158,21 @@ impl Ui {
 
         let size = self.sys.unifs.size;
 
+        let rect = if without_padding {
+            dbg!(self.nodes[i].debug_name());
+            let padding = self.pixels_to_frac2(node.params.layout.padding);
+            let mut rect_without_padding = node.rect;
+            rect_without_padding.x[0] += padding.x;
+            rect_without_padding.x[1] -= padding.x;
+            rect_without_padding.y[0] += padding.y;
+            rect_without_padding.y[1] -= padding.y;
+            rect_without_padding.to_graphics_space_rounded(size)
+        } else {
+            node.rect.to_graphics_space_rounded(size)
+        };
+
         return Some(RenderRect {
-            rect: node.rect.to_graphics_space_rounded(size),
+            rect: rect,
             clip_rect: node.clip_rect.to_graphics_space_rounded(size),
             vertex_colors: node.params.rect.vertex_colors,
             last_hover: node.hover_timestamp,
