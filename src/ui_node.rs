@@ -346,14 +346,33 @@ impl Ui {
 
     /// Returns `true` if the text in the text edit node corresponding to `key` was just changed through user input.
     /// 
-    /// This only tracks changes from user events (typing, pasting, etc.), not programmatic text changes.
+    /// This tracks changes from both user events (typing, pasting, etc.) and programmatic changes via [`Self::set_text_edit_text()`].
     /// Only works for text edit nodes - returns `false` for regular text nodes.
-    pub fn is_text_changed(&self, key: NodeKey) -> bool {        
+    pub fn edit_text_changed(&self, key: NodeKey) -> bool {        
         let Some(uinode) = self.get_uinode(key) else {
             return false;
         };
         let id = uinode.node().id;
         self.sys.text_edit_changed_last_frame == Some(id)
+    }
+
+    /// Set the text content of a text edit node.
+    /// 
+    /// Does nothing for regular text nodes. To change the text, just re-add them with the desired text.
+    // todo: think if this really makes sense.
+    pub fn set_text_edit_text(&mut self, key: NodeKey, new_text: String) {
+        let Some(i) = self.nodes.node_hashmap.get(&key.id_with_subtree()) else {
+            return;
+        };
+        let i = i.slab_i;   
+
+        if let Some(TextI::TextEdit(handle)) = &self.nodes[i].text_i {
+
+            self.sys.text.set_text_edit_text(handle, new_text);
+            // Mark this node as having changed for next frame
+            self.sys.text_edit_changed_this_frame = Some(self.nodes[i].id);
+        
+        } 
     }
 
     pub fn is_focused(&self, key: NodeKey) -> bool {
