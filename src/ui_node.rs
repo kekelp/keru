@@ -92,7 +92,6 @@ impl Ui {
         let text_i = self.nodes[i].text_i.as_ref()?;
         match text_i {
             TextI::TextBox(handle) => Some(self.sys.text.get_text_box(&handle).text()),
-            TextI::StaticTextBox(handle) => Some(self.sys.text.get_static_text_box(&handle).text()),
             TextI::TextEdit(handle) => Some(self.sys.text.get_text_edit(&handle).raw_text()),
         }
     }
@@ -119,7 +118,6 @@ impl UiParent {
         let text_i = ui.nodes[self.i].text_i.as_ref()?;
         match text_i {
             TextI::TextBox(handle) => Some(ui.sys.text.get_text_box(&handle).text()),
-            TextI::StaticTextBox(handle) => Some(ui.sys.text.get_static_text_box(&handle).text()),
             TextI::TextEdit(handle) => Some(ui.sys.text.get_text_edit(&handle).raw_text()),
         }
     }

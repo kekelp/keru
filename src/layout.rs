@@ -395,34 +395,6 @@ impl Ui {
 
                 return size;
             }
-            TextI::StaticTextBox(handle) => {               
-                let fit_content_y = self.nodes[i].params.layout.size[Y] == Size::FitContent;
-                let fit_content_x = self.nodes[i].params.layout.size[X] == Size::FitContent;
-
-                let h = if fit_content_y {
-                    BIG_FLOAT
-                } else {
-                    proposed_size.y * self.sys.unifs.size[Y]
-                };
-
-                let w = if fit_content_x {
-                    if fit_content_y {
-                        proposed_size.x * self.sys.unifs.size[X]
-                    } else {
-                        BIG_FLOAT
-                    }
-                } else {
-                    proposed_size.x * self.sys.unifs.size[X]
-                };
-
-                self.sys.text.get_static_text_box_mut(&handle).set_size((w, h));
-                
-                let layout = self.sys.text.get_static_text_box_layout(&handle);
-                let size_pixels = Xy::new(layout.width(), layout.height());
-                let size = self.f32_pixels_to_frac2(size_pixels);        
-
-                return size;
-            }
         }
     }
 
@@ -636,9 +608,6 @@ impl Ui {
                 TextI::TextBox(handle) => {
                     self.sys.text.get_text_box_mut(&handle).set_clip_rect(clip_rect);
                 }
-                TextI::StaticTextBox(handle) => {
-                    self.sys.text.get_static_text_box_mut(&handle).set_clip_rect(clip_rect);
-                }
                 TextI::TextEdit(handle) => {
                     self.sys.text.get_text_edit_mut(&handle).set_clip_rect(clip_rect);
                 }
@@ -660,9 +629,6 @@ impl Ui {
             match text_i {
                 TextI::TextBox(handle) => {
                     self.sys.text.get_text_box_mut(&handle).set_pos((left, top));
-                }
-                TextI::StaticTextBox(handle) => {
-                    self.sys.text.get_static_text_box_mut(&handle).set_pos((left, top));
                 }
                 TextI::TextEdit(handle) => {
                     self.sys.text.get_text_edit_mut(&handle).set_pos((left, top));

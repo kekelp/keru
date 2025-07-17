@@ -5,16 +5,9 @@ use crate::*;
 #[derive(Debug)]
 pub enum TextI {
     TextBox(parley2::TextBoxHandle),
-    StaticTextBox(parley2::StaticTextBoxHandle),
     TextEdit(parley2::TextEditHandle),
 }
 
-#[derive(Debug)]
-enum DesiredTextWidget {
-    TextEdit,
-    TextBox, 
-    StaticTextBox,
-}
 
 impl Ui {
     pub(crate) fn set_text(&mut self, i: NodeI, text: crate::NodeText, text_options: Option<&TextOptions>, style: Option<&StyleHandle>, placeholder: Option<&str>) -> &mut Self {
@@ -23,21 +16,11 @@ impl Ui {
         let selectable = text_options.map(|to| to.selectable).unwrap_or(true);
         let edit_disabled = text_options.map(|to| to.edit_disabled).unwrap_or(false);
         let single_line = text_options.map(|to| to.single_line).unwrap_or(false);
-        
-        let desired = if edit {
-            DesiredTextWidget::TextEdit
-        } else {
-            match text {
-                crate::NodeText::Static(_) => DesiredTextWidget::StaticTextBox,
-                crate::NodeText::Dynamic(_) => DesiredTextWidget::TextBox,
-            }
-        };
 
-        let needs_new_widget = match (&self.nodes[i].text_i, &desired) {
+        let needs_new_widget = match (&self.nodes[i].text_i, edit) {
             (None, _) => true,
-            (Some(TextI::TextEdit(_)), DesiredTextWidget::TextEdit) => false,
-            (Some(TextI::TextBox(_)), DesiredTextWidget::TextBox) => false,
-            (Some(TextI::StaticTextBox(_)), DesiredTextWidget::StaticTextBox) => false,
+            (Some(TextI::TextEdit(_)), true) => false,   // Already TextEdit, want TextEdit
+            (Some(TextI::TextBox(_)), false) => false,   // Already TextBox, want TextBox
             _ => true, // Type mismatch, need to switch
         };
 
@@ -46,72 +29,58 @@ impl Ui {
             if let Some(old_text_i) = self.nodes[i].text_i.take() {
                 match old_text_i {
                     TextI::TextBox(handle) => self.sys.text.remove_text_box(handle),
-                    TextI::StaticTextBox(handle) => self.sys.text.remove_static_text_box(handle),
                     TextI::TextEdit(handle) => self.sys.text.remove_text_edit(handle),
                 }
             }
 
             // Create new widget
-            let new_text_i = match desired {
-                DesiredTextWidget::TextEdit => {
-                    let handle = self.sys.text.add_text_edit(text.as_str().to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
-                    if let Some(style) = style {
-                        self.sys.text.get_text_edit_mut(&handle).set_style(style);
+            let new_text_i = if edit {
+                let handle = self.sys.text.add_text_edit(text.as_str().to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
+                if let Some(style) = style {
+                    self.sys.text.get_text_edit_mut(&handle).set_style(style);
+                }
+                TextI::TextEdit(handle)
+            } else {
+                let handle = match text {
+                    crate::NodeText::Static(s) => {
+                        // Use the static string directly with Cow::Borrowed
+                        self.sys.text.add_text_box(s, (0.0, 0.0), (500.0, 500.0), 0.5)
+                    },
+                    crate::NodeText::Dynamic(s) => {
+                        // Use the String with Cow::Owned
+                        self.sys.text.add_text_box(s.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5)
                     }
-                    TextI::TextEdit(handle)
-                },
-                DesiredTextWidget::TextBox => {
-                    let handle = self.sys.text.add_text_box(text.as_str().to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
-                    if let Some(style) = style {
-                        self.sys.text.get_text_box_mut(&handle).set_style(style);
-                    }
-                    TextI::TextBox(handle)
-                },
-                DesiredTextWidget::StaticTextBox => {
-                    let handle = match text {
-                        crate::NodeText::Static(s) => self.sys.text.add_static_text_box(s, (0.0, 0.0), (500.0, 500.0), 0.5),
-                        crate::NodeText::Dynamic(_) => unreachable!("StaticTextBox with dynamic text"),
-                    };
-                    if let Some(style) = style {
-                        self.sys.text.get_static_text_box_mut(&handle).set_style(style);
-                    }
-                    TextI::StaticTextBox(handle)
-                },
+                };
+                if let Some(style) = style {
+                    self.sys.text.get_text_box_mut(&handle).set_style(style);
+                }
+                TextI::TextBox(handle)
             };
 
             self.nodes[i].text_i = Some(new_text_i);
         } else {
             // Same type - just update content and style
-            match (&self.nodes[i].text_i, &desired) {
-                (Some(TextI::TextEdit(handle)), DesiredTextWidget::TextEdit) => {
-                    // Note: TextEdit doesn't have raw_text_mut, so we need to check if text actually changed
-                    // For now, we'll just update the style if needed
+            match &self.nodes[i].text_i {
+                Some(TextI::TextEdit(handle)) => {
+                    // don't update the content. content in a text edit box is not reset declaratively every frame, obviously. 
                     if let Some(style) = style {
                         self.sys.text.get_text_edit_mut(&handle).set_style(style);
                     }
-
-                    // don't update the content. content in a text edit box is not reset declaratively every frame, obviously. 
                 },
-                (Some(TextI::TextBox(handle)), DesiredTextWidget::TextBox) => {
-                    *self.sys.text.get_text_box_mut(&handle).raw_text_mut() = text.as_str().to_string();
+                Some(TextI::TextBox(handle)) => {
+                    match text {
+                        crate::NodeText::Static(s) => {
+                            self.sys.text.get_text_box_mut(&handle).set_static(s);
+                        },
+                        crate::NodeText::Dynamic(s) => {
+                            *self.sys.text.get_text_box_mut(&handle).text_mut() = s.to_string();
+                        }
+                    }
                     if let Some(style) = style {
                         self.sys.text.get_text_box_mut(&handle).set_style(style);
                     }
                 },
-                (Some(TextI::StaticTextBox(handle)), DesiredTextWidget::StaticTextBox) => {
-                    match text {
-                        crate::NodeText::Dynamic(_) => unreachable!("Surely it's static only here"),
-                        crate::NodeText::Static(s) => {
-                            *self.sys.text.get_static_text_box_mut(&handle).raw_text_mut() = s;
-                        },
-                    };
-                    
-
-                    if let Some(style) = style {
-                        self.sys.text.get_static_text_box_mut(&handle).set_style(style);
-                    }
-                },
-                _ => unreachable!("Type mismatch should have been handled above"),
+                None => unreachable!("Should have created a new widget above"),
             }
         }
 
@@ -127,9 +96,6 @@ impl Ui {
                 },
                 TextI::TextBox(handle) => {
                     self.sys.text.get_text_box_mut(handle).set_selectable(selectable);
-                },
-                TextI::StaticTextBox(handle) => {
-                    self.sys.text.get_static_text_box_mut(handle).set_selectable(selectable);
                 },
             }
         }

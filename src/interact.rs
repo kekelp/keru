@@ -220,7 +220,7 @@ impl Ui {
                     TextI::TextEdit(_) => {
                         self.sys.focused = Some(clicked_id);
                     }
-                    TextI::TextBox(_) | TextI::StaticTextBox(_) => {}
+                    TextI::TextBox(_) => {}
                 }
 
                 // todo: not always...
