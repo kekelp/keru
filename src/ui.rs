@@ -516,11 +516,11 @@ impl Ui {
 
     pub fn default_text_style_mut(&mut self) -> &mut TextStyle {
         self.sys.changes.full_relayout = true;
-        self.sys.text.get_default_style_mut()
+        self.sys.text.get_default_text_style_mut()
     }
 
     pub fn default_text_style(&self) -> &TextStyle {
-        self.sys.text.get_default_style()
+        self.sys.text.get_default_text_style()
     }
 
     pub fn original_default_style(&self) -> TextStyle {

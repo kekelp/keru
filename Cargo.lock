@@ -751,22 +751,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "fontconfig-cache-parser"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7f8afb20c8069fd676d27b214559a337cc619a605d25a87baa90b49a06f3b18"
-dependencies = [
- "bytemuck",
- "thiserror",
-]
-
-[[package]]
 name = "fontique"
 version = "0.5.0"
-source = "git+https://github.com/linebender/parley?rev=93a2faa#93a2faa7d9581603afe2e86c82f0dafa16308f35"
 dependencies = [
  "bytemuck",
- "fontconfig-cache-parser",
  "hashbrown 0.15.3",
  "icu_locid",
  "memmap2",
@@ -780,6 +768,7 @@ dependencies = [
  "smallvec",
  "windows",
  "windows-core",
+ "yeslogic-fontconfig-sys",
 ]
 
 [[package]]
@@ -1858,7 +1847,6 @@ dependencies = [
 [[package]]
 name = "parley"
 version = "0.5.0"
-source = "git+https://github.com/linebender/parley?rev=93a2faa#93a2faa7d9581603afe2e86c82f0dafa16308f35"
 dependencies = [
  "fontique",
  "hashbrown 0.15.3",
@@ -3508,6 +3496,17 @@ name = "yazi"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e01738255b5a16e78bbb83e7fbba0a1e7dd506905cfc53f4622d89015a03fbb5"
+
+[[package]]
+name = "yeslogic-fontconfig-sys"
+version = "6.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "503a066b4c037c440169d995b869046827dbc71263f6e8f3be6d77d4f3229dbd"
+dependencies = [
+ "dlib",
+ "once_cell",
+ "pkg-config",
+]
 
 [[package]]
 name = "zeno"

@@ -519,6 +519,7 @@ pub struct FullNodeParams<'a> {
     pub(crate) text_changed: Changed,
     pub(crate) text_ptr: usize,
     pub image: Option<&'static [u8]>,
+    pub placeholder: Option<&'a str>,
 }
 
 impl<'a> FullNodeParams<'a> {
@@ -756,6 +757,13 @@ impl<'a> FullNodeParams<'a> {
         return self;
     }
 
+    /// Set placeholder text for a text edit that will be shown when the text edit is empty.
+    /// This only works with editable text nodes.
+    pub fn placeholder(mut self, placeholder: &'a str) -> Self {
+        self.placeholder = Some(placeholder);
+        self
+    }
+
 }
 
 // impl FullNodeParams<'_> {
@@ -794,6 +802,7 @@ impl NodeParams {
             image: None,
             text_changed: Changed::NeedsHash,
             text_ptr: text.as_ref().as_ptr() as usize,
+            placeholder: None,
         }
     }
 
@@ -810,6 +819,7 @@ impl NodeParams {
             image: None,
             text_changed: Changed::Static,
             text_ptr: text.as_ref().as_ptr() as usize,
+            placeholder: None,
         }
     }
 
@@ -826,6 +836,7 @@ impl NodeParams {
             image: None,
             text_changed: Changed::Static,
             text_ptr: text.as_ref().as_ptr() as usize,
+            placeholder: None,
         }
     }
 
@@ -837,6 +848,7 @@ impl NodeParams {
             text_changed: text.changed_at(),
             text_ptr: text.as_ref().as_ptr() as usize,
             image: None,
+            placeholder: None,
         }
     }
 
@@ -848,6 +860,7 @@ impl NodeParams {
             image: Some(image),
             text_changed: Changed::Static,
             text_ptr: 0,
+            placeholder: None,
         }
     }
 }
@@ -870,6 +883,7 @@ impl From<NodeParams> for FullNodeParams<'_> {
             text_changed: Changed::Static,
             text_ptr: 0,
             image: None,
+            placeholder: None,
         }
     }
 }
@@ -925,7 +939,7 @@ impl Ui {
         if edit {
             // For editable text, always update if content changed
             if self.nodes[i].last_text_ptr != params.text_ptr {
-                self.set_text(i, text, text_options, params.text_style);
+                self.set_text(i, text, text_options, params.text_style, params.placeholder);
                 self.nodes[i].last_text_ptr = params.text_ptr;
             }
             return;
@@ -982,24 +996,24 @@ impl Ui {
                         if hash != last_hash {
                             log::trace!("Updating after hash");
                             self.nodes[i].last_text_hash = Some(hash);
-                            self.set_text(i, text, text_options, params.text_style);
+                            self.set_text(i, text, text_options, params.text_style, params.placeholder);
                         } else {
                             log::trace!("Skipping after hash");
                         }
                     } else {
-                        self.set_text(i, text, text_options, params.text_style);
+                        self.set_text(i, text, text_options, params.text_style, params.placeholder);
                         if !text.is_static() {
                             self.nodes[i].last_text_hash = Some(hash);
                         }
                     }
                 } else {
                     log::trace!("Updating (node had no text)");
-                    self.set_text(i, text, text_options, params.text_style);
+                    self.set_text(i, text, text_options, params.text_style, params.placeholder);
                 }
             },
             TextVerdict::UpdateWithoutHashing => {
                 log::trace!("Updating without hash");
-                self.set_text(i, text, text_options, params.text_style);
+                self.set_text(i, text, text_options, params.text_style, params.placeholder);
                 self.nodes[i].last_text_hash = None;
             },
         };
@@ -1069,8 +1083,10 @@ impl NodeParams {
             image: None,
             text_changed: text.changed_at(),
             text_ptr: text.as_text().as_ptr() as usize,
+            placeholder: None,
         }
     }
+
 }
 
 

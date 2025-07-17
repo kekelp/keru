@@ -17,7 +17,7 @@ enum DesiredTextWidget {
 }
 
 impl Ui {
-    pub(crate) fn set_text(&mut self, i: NodeI, text: crate::NodeText, text_options: Option<&TextOptions>, style: Option<&StyleHandle>) -> &mut Self {
+    pub(crate) fn set_text(&mut self, i: NodeI, text: crate::NodeText, text_options: Option<&TextOptions>, style: Option<&StyleHandle>, placeholder: Option<&str>) -> &mut Self {
         // Determine what type of text widget we want
         let edit = text_options.map(|to| to.editable).unwrap_or(false);
         let selectable = text_options.map(|to| to.selectable).unwrap_or(true);
@@ -121,6 +121,9 @@ impl Ui {
                 TextI::TextEdit(handle) => {
                     self.sys.text.get_text_edit_mut(handle).set_disabled(edit_disabled);
                     self.sys.text.get_text_edit_mut(handle).set_single_line(single_line);
+                    if let Some(placeholder) = placeholder {
+                        self.sys.text.get_text_edit_mut(handle).set_placeholder(placeholder.to_string());
+                    }
                 },
                 TextI::TextBox(handle) => {
                     self.sys.text.get_text_box_mut(handle).set_selectable(selectable);
@@ -141,15 +144,15 @@ impl Ui {
     /// 
     // todo: figure out a better way to do this.  
     pub fn insert_style(&mut self, style: TextStyle) -> StyleHandle {
-        self.sys.text.add_style(style)
+        self.sys.text.add_style(style, None)
     }
 
     pub fn get_style(&self, style: &StyleHandle) -> &TextStyle {
-        self.sys.text.get_style(style)
+        self.sys.text.get_text_style(style)
     }
 
     pub fn get_style_mut(&mut self, style: &StyleHandle) -> &mut TextStyle {
-        self.sys.text.get_style_mut(style)
+        self.sys.text.get_text_style_mut(style)
     }
 }
 
