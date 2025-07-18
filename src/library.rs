@@ -368,8 +368,39 @@ pub const TEXT: NodeParams = NodeParams {
     children_can_hide: false,
 };
 
-/// [`NodeParams`] for a text element. 
+/// [`NodeParams`] for a multiline text edit box. 
 pub const TEXT_EDIT: NodeParams = NodeParams {
+    key: None,
+    stack: None,
+    text_params: Some(TextOptions {
+        single_line: false,
+        editable: true,
+        selectable: true,
+        edit_disabled: false,
+    }),
+    rect: Rect {
+        rounded_corners: RoundedCorners::ALL,
+        shape: Rectangle { corner_radius: BASE_RADIUS },
+        visible: true,
+        outline_only: false,
+        vertex_colors: VertexColors::flat(Color::GREY),
+    },
+    interact: Interact {
+        senses: Sense::NONE,
+        absorbs_mouse_events: true,
+        click_animation: true,
+    },
+    layout: Layout {
+        size: Xy::new_symm(FitContent),
+        position: Xy::new_symm(Center),
+        padding: Xy::new_symm(10),
+        scrollable: Xy::new(false, false),
+    },
+    children_can_hide: false,
+};
+
+/// [`NodeParams`] for a single line text edit box. 
+pub const TEXT_EDIT_LINE: NodeParams = NodeParams {
     key: None,
     stack: None,
     text_params: Some(TextOptions {

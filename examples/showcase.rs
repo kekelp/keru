@@ -37,8 +37,11 @@ impl Components for Ui {
             self.static_paragraph("Keru is an experimental GUI library focused on combining a simple and natural programming model with high performance and flexibility.");
             
             #[node_key] const TEXT_EDIT_1: NodeKey;
+            let edit = TEXT_EDIT_LINE
+                .key(TEXT_EDIT_1)
+                .text("Text edit box");
 
-            self.add(TEXT_EDIT.size_y(Size::Pixels(100)).key(TEXT_EDIT_1).text("Text edit box"));
+            self.add(edit);
 
             self.static_paragraph("Here are some basic GUI elements: \n");
             self.static_paragraph("Button and label:");

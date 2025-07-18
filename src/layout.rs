@@ -359,12 +359,29 @@ impl Ui {
         match text_i {
             TextI::TextEdit(handle) => {
                 let text_edit = self.sys.text.get_text_edit_mut(&handle);
-                let w = proposed_size.x * self.sys.unifs.size[X];
-                let h = proposed_size.y * self.sys.unifs.size[Y];
-
-                text_edit.set_size((w, h));
                 
-                return proposed_size;
+                if text_edit.is_single_line() {
+                    let layout = self.sys.text.get_text_edit_layout(&handle);
+                    let text_height = if let Some(first_line) = layout.lines().next() {
+                        first_line.metrics().line_height
+                    } else {
+                        0.0
+                    };
+                    
+                    // let text_width = layout.full_width();
+                    let text_width = proposed_size.x * self.sys.unifs.size[X];
+
+                    let text_size_pixels = Xy::new(text_width, text_height);
+                    return self.f32_pixels_to_frac2(text_size_pixels);
+                    
+                } else {
+                    let w = proposed_size.x * self.sys.unifs.size[X];
+                    let h = proposed_size.y * self.sys.unifs.size[Y];
+                    
+                    text_edit.set_size((w, h));
+                    return proposed_size;
+                }
+                
             }
             TextI::TextBox(handle) => {
                 
