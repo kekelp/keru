@@ -358,10 +358,10 @@ impl Ui {
         
         match text_i {
             TextI::TextEdit(handle) => {
-                let text_edit = self.sys.text.get_text_edit_mut(&handle);
+                let mut text_edit = self.sys.text.get_text_edit_mut(&handle);
                 
                 if text_edit.is_single_line() {
-                    let layout = self.sys.text.get_text_edit_layout(&handle);
+                    let layout = text_edit.layout();
                     let text_height = if let Some(first_line) = layout.lines().next() {
                         first_line.metrics().line_height
                     } else {
@@ -404,9 +404,10 @@ impl Ui {
                     proposed_size.x * self.sys.unifs.size[X]
                 };
 
-                self.sys.text.get_text_box_mut(&handle).set_size((w, h));
+                let mut text_box = self.sys.text.get_text_box_mut(&handle);
+                text_box.set_size((w, h));
                 
-                let layout = self.sys.text.get_text_box_layout(&handle);
+                let layout = text_box.layout();
                 let size_pixels = Xy::new(layout.width(), layout.height());
                 let size = self.f32_pixels_to_frac2(size_pixels);        
 

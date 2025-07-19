@@ -87,7 +87,7 @@ impl Ui {
     pub fn bottom_left(&self, key: NodeKey) -> Option<Xy<f32>> {
         Some(self.get_uinode(key)?.bottom_left())
     }
-    pub fn get_text(&self, key: NodeKey) -> Option<&str> {
+    pub fn get_text(&mut self, key: NodeKey) -> Option<&str> {
         let i = self.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
         let text_i = self.nodes[i].text_i.as_ref()?;
         match text_i {
@@ -366,7 +366,7 @@ impl Ui {
 
         if let Some(TextI::TextEdit(handle)) = &self.nodes[i].text_i {
 
-            self.sys.text.set_text_edit_text(handle, new_text);
+            self.sys.text.get_text_edit(handle).set_text(new_text);
             // Mark this node as having changed for next frame
             self.sys.text_edit_changed_this_frame = Some(self.nodes[i].id);
         

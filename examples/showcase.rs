@@ -39,9 +39,16 @@ impl Components for Ui {
             #[node_key] const TEXT_EDIT_1: NodeKey;
             let edit = TEXT_EDIT_LINE
                 .key(TEXT_EDIT_1)
-                .text("Text edit box");
+                .text("Single line text edit box");
 
             self.add(edit);
+
+            #[node_key] const TEXT_EDIT_2: NodeKey;
+            let edit2 = TEXT_EDIT
+                .key(TEXT_EDIT_2)
+                .text("Text edit box");
+
+            self.add(edit2);
 
             self.static_paragraph("Here are some basic GUI elements: \n");
             self.static_paragraph("Button and label:");
