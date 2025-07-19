@@ -371,6 +371,8 @@ impl Ui {
                     // let text_width = layout.full_width();
                     let text_width = proposed_size.x * self.sys.unifs.size[X];
 
+                    text_edit.set_size((text_width, text_height));
+
                     let text_size_pixels = Xy::new(text_width, text_height);
                     return self.f32_pixels_to_frac2(text_size_pixels);
                     
