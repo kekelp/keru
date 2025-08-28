@@ -33,7 +33,7 @@ impl Ui {
         // In the new centralized system, handle all text events at once
         self.sys.text.handle_event(event, window);
         
-        let text_changed = self.sys.text.get_text_changed();
+        let text_changed = self.sys.text.any_text_changed();
         if text_changed {
             if let Some(node_id) = self.sys.focused {
                 self.sys.text_edit_changed_this_frame = Some(node_id);
@@ -98,8 +98,8 @@ impl Ui {
     pub fn render(&mut self, render_pass: &mut RenderPass, device: &Device, queue: &Queue) {  
         log::trace!("Render");
         self.do_cosmetic_rect_updates();
-        self.prepare(device, queue);
 
+        self.prepare(device, queue);
         let n = self.sys.rects.len() as u32;
         if n > 0 {
             render_pass.set_pipeline(&self.sys.render_pipeline);
@@ -134,14 +134,15 @@ impl Ui {
         // todo: don't do this all the time
         self.sys.texture_atlas.load_to_gpu(queue);
 
-        self.sys.text_renderer.gpu_load(device, queue);
+        self.sys.text.prepare_all(&mut self.sys.text_renderer);
+        self.sys.text_renderer.load_to_gpu(device, queue);
     }
 
     /// Returns `true` if the `Ui` needs to be rerendered.
     /// 
     /// If this is true, you should call [`Ui::render`] as soon as possible to display the updated GUI state on the screen.
     pub fn needs_rerender(&mut self) -> bool {
-        return self.sys.changes.need_rerender || self.sys.anim_render_timer.is_live()
+        return self.sys.changes.need_rerender || self.sys.anim_render_timer.is_live() || self.sys.text.needs_rerender();
     }
 }
 

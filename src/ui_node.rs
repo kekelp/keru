@@ -366,7 +366,7 @@ impl Ui {
 
         if let Some(TextI::TextEdit(handle)) = &self.nodes[i].text_i {
 
-            self.sys.text.get_text_edit(handle).set_text(new_text);
+            self.sys.text.get_text_edit_mut(handle).set_text(new_text);
             // Mark this node as having changed for next frame
             self.sys.text_edit_changed_this_frame = Some(self.nodes[i].id);
         

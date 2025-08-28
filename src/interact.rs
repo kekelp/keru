@@ -344,7 +344,7 @@ impl Ui {
         
         if self.nodes[i].params.is_scrollable() {
 
-            // todo: add quicker functions that just move the rectangles. for text, this requires big changes in parley2 and will probably become impossible if we change renderer
+            // todo: add quicker functions that just move the rectangles. for text, this requires big changes in textslabs and will probably become impossible if we change renderer
             self.recursive_place_children(i, true);
             
             self.sys.changes.text_changed = true;

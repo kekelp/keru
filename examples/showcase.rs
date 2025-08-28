@@ -1,7 +1,7 @@
 use keru::Size::*;
 use keru::example_window_loop::*;
 use keru::*;
-use parley2::{TextStyle2 as TextStyle, ColorBrush, FontWeight};
+use textslabs::{TextStyle2 as TextStyle, ColorBrush, FontWeight};
 
 #[derive(Default)]
 struct State {

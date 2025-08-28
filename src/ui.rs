@@ -6,9 +6,9 @@ use ahash::{HashMap, HashMapExt};
 use basic_window_loop::basic_depth_stencil_state;
 use glam::DVec2;
 
-use parley2::{ColorBrush, Text, TextStyle2 as TextStyle};
-use parley2::TextRenderer;
-use parley2::TextRendererParams;
+use textslabs::{ColorBrush, Text, TextStyle2 as TextStyle};
+use textslabs::TextRenderer;
+use textslabs::TextRendererParams;
 use wgpu::{
     BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
     BindingResource, BindingType, BlendState, Buffer, BufferBindingType, ColorWrites, FilterMode,
@@ -17,13 +17,14 @@ use wgpu::{
     TextureSampleType, TextureViewDimension, VertexState,
 };
 use winit::dpi::PhysicalSize;
+use winit::window::Window;
 use winit_key_events::KeyInput;
 use winit_mouse_events::MouseInput;
 
 use std::any::Any;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 use std::time::Duration;
 use std::{mem, time::Instant};
 
@@ -413,6 +414,17 @@ impl Ui {
         }
     }
 
+    /// Enable automatic cursor blink wakeup for applications that pause their event loops.
+    /// 
+    /// `window` is used to wake up the `winit` event loop automatically when it needs to redraw a blinking cursor.
+    /// 
+    /// In applications that don't pause their event loops, like games, there is no need to call this method.
+    /// 
+    /// You can also handle cursor wakeups manually in your winit event loop with winit's `ControlFlow::WaitUntil` and [`Text::time_until_next_cursor_blink`]. See the `event_loop_smart.rs` example.
+    pub fn enable_cursor_blink_auto_wakeup(&mut self, window: Arc<Window>) {
+        self.sys.text.set_auto_wakeup(window);
+    }
+
     /// Returns a reference to a GPU buffer holding basic information.
     /// 
     /// At the cost of some coupling, this can be reused in other rendering jobs.
@@ -509,7 +521,6 @@ impl Ui {
         self.sys.unifs.size[Y] = size.height as f32;
 
         self.sys.changes.resize = true;
-        self.sys.text_renderer.update_resolution(size.width as f32, size.height as f32);
 
         self.set_new_ui_input();
     }

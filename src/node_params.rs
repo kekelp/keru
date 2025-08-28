@@ -1,4 +1,4 @@
-use parley2::StyleHandle;
+use textslabs::StyleHandle;
 
 use crate::*;
 use crate::color::*;

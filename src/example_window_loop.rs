@@ -81,6 +81,7 @@ struct AppWrapper<T> {
 impl<T> ApplicationHandler for AppWrapper<T> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         self.ctx.resumed(event_loop);
+        self.ui.enable_cursor_blink_auto_wakeup(self.ctx.window.clone());
     }
 
     fn window_event(

@@ -78,9 +78,10 @@ impl Ui {
                 self.do_partial_relayouts(true);
             }
 
-            if text_changed {
-                self.sys.text.prepare_all(&mut self.sys.text_renderer);
-            }
+            // todo: prepare_all refreshes layouts internally, can we really skip it? we should, but it's a bit scary
+            // if text_changed {
+            //     self.sys.text.prepare_all(&mut self.sys.text_renderer);
+            // }
         }
 
         // reset these early, but resolve_hover has a chance to turn them back on
@@ -360,7 +361,7 @@ impl Ui {
             TextI::TextEdit(handle) => {
                 let mut text_edit = self.sys.text.get_text_edit_mut(&handle);
                 
-                if text_edit.is_single_line() {
+                if text_edit.single_line() {
                     let layout = text_edit.layout();
                     let text_height = if let Some(first_line) = layout.lines().next() {
                         first_line.metrics().line_height
@@ -617,7 +618,7 @@ impl Ui {
             let text_left = (self.nodes[i].rect[X][0] * self.sys.unifs.size[X]) as f64 + padding[X] as f64;
             let text_top = (self.nodes[i].rect[Y][0] * self.sys.unifs.size[Y]) as f64 + padding[Y] as f64;
             
-            let clip_rect = Some(parley2::Rect {
+            let clip_rect = Some(textslabs::Rect {
                 x0: left as f64 - text_left,
                 y0: top as f64 - text_top,
                 x1: right as f64 - text_left,
@@ -665,10 +666,6 @@ impl Ui {
         self.sys.scroll_rects.clear();
         self.sys.z_cursor = Z_BACKDROP;
         self.recursive_push_rects(ROOT_I);
-
-        with_info_log_timer("parley2 prepare (rebuild all)", || {
-            self.sys.text.prepare_all(&mut self.sys.text_renderer);
-        });
 
         self.sys.editor_rects_i = (self.sys.rects.len()) as u16;
     }

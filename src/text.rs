@@ -1,11 +1,11 @@
-use parley2::StyleHandle;
+use textslabs::StyleHandle;
 
 use crate::*;
 
 #[derive(Debug)]
 pub enum TextI {
-    TextBox(parley2::TextBoxHandle),
-    TextEdit(parley2::TextEditHandle),
+    TextBox(textslabs::TextBoxHandle),
+    TextEdit(textslabs::TextEditHandle),
 }
 
 
@@ -33,9 +33,10 @@ impl Ui {
                 }
             }
 
+            let z = self.nodes[i].z + 0.0001;
             // Create new widget
             let new_text_i = if edit {
-                let handle = self.sys.text.add_text_edit(text.as_str().to_string(), (0.0, 0.0), (500.0, 500.0), 0.5);
+                let handle = self.sys.text.add_text_edit(text.as_str().to_string(), (0.0, 0.0), (500.0, 500.0), z);
                 if let Some(style) = style {
                     self.sys.text.get_text_edit_mut(&handle).set_style(style);
                 }
@@ -44,11 +45,11 @@ impl Ui {
                 let handle = match text {
                     crate::NodeText::Static(s) => {
                         // Use the static string directly with Cow::Borrowed
-                        self.sys.text.add_text_box(s, (0.0, 0.0), (500.0, 500.0), 0.5)
+                        self.sys.text.add_text_box(s, (0.0, 0.0), (500.0, 500.0), z)
                     },
                     crate::NodeText::Dynamic(s) => {
                         // Use the String with Cow::Owned
-                        self.sys.text.add_text_box(s.to_string(), (0.0, 0.0), (500.0, 500.0), 0.5)
+                        self.sys.text.add_text_box(s.to_string(), (0.0, 0.0), (500.0, 500.0), z)
                     }
                 };
                 if let Some(style) = style {
@@ -73,7 +74,7 @@ impl Ui {
                             self.sys.text.get_text_box_mut(&handle).set_static(s);
                         },
                         crate::NodeText::Dynamic(s) => {
-                            *self.sys.text.get_text_box_mut(&handle).text_mut() = s.to_string();
+                            *self.sys.text.get_text_box_mut(&handle).text_mut() = s.to_string().into();
                         }
                     }
                     if let Some(style) = style {
