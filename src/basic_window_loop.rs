@@ -35,14 +35,12 @@ pub fn basic_wgpu_init() -> (Instance, Device, Queue) {
     let adapter_options = &RequestAdapterOptions::default();
     let adapter = pollster::block_on(instance.request_adapter(adapter_options)).unwrap();
 
-    let limits = adapter.limits();
-    println!("Push constant size limit: {}", limits.max_push_constant_size);
-
     let device_desc = &DeviceDescriptor {
         label: None,
         required_features: Features::PUSH_CONSTANTS,
         // Downlevel defaults are really bad. Maximum texture size = 2048 means you can't even maximize a window on a 1440p screen.
         required_limits: Limits {
+            // todo: this might be a compatibility problem, and it's used just for the render_range thing.
             max_push_constant_size: 8,
             ..Default::default()
         },
@@ -83,7 +81,7 @@ pub fn basic_depth_texture_descriptor(width: u32, height: u32) -> wgpu::TextureD
     };
 }
 
-pub struct AutoUnwrap<T>(Option<T>);
+pub struct AutoUnwrap<T>(pub Option<T>);
 impl<T> Deref for AutoUnwrap<T> {
     type Target = T;
 

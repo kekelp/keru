@@ -73,12 +73,14 @@ fn read_shape(flags: u32) -> u32 {
 }
 
 fn read_rounded_corners(flags: u32) -> u32 {
-    return (flags >> 11) & 0xF; // Extract bits 11–14
+    return (flags >> 11) & 0xF;
 }
+
+const EPSILON: f32 = - 128.0 * 1.19209290e-07;
 
 @vertex
 fn vs_main(in: RenderRect) -> VertexOutput {
-    if in.z >= push.z_range[0] || in.z <= push.z_range[1] {
+    if in.z > (push.z_range[0] - EPSILON) || in.z < (push.z_range[1] + EPSILON) {
         return VertexOutput(
             vec4(-2.0, -2.0, -2.0, 1.0),
             vec2(0.0), vec2(0.0), vec4(0.0), 0.0, 0.0, 0.0, vec2(0.0), 0u, 0u

@@ -17,7 +17,7 @@ pub(crate) const FIRST_FRAME: u64 = 1;
 pub(crate) const Z_START: f32 = 0.5;
 // This one has to be small, but not small enough to get precision issues.
 // And I think it's probably good if it's a rounded binary number (0x38000000)? Not sure.
-pub(crate) const Z_STEP: f32 = -0.000_030_517_578;
+pub const Z_STEP: f32 = -0.000_030_517_578;
 
 impl Ui {
     /// Add a node to the `Ui` with the properties described by `params`.

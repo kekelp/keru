@@ -94,9 +94,9 @@ impl ColorPickerUi for Ui {
             let ring_x = ring_x.clamp(0.0, 1.0);
             let small_ring = PANEL
                 .key(SMALL_RING)
-                .size_symm(Size::Pixels(20))
+                .size_symm(Size::Pixels(5))
                 .color(Color::WHITE)
-                .shape(Shape::Ring { width: 5.0 })
+                .shape(Shape::Circle)
                 .position_x(Position::Static(Len::Frac(ring_x)))
                 .position_y(Position::Static(Len::Frac(ring_y)));
 
@@ -109,7 +109,6 @@ impl ColorPickerUi for Ui {
                 });
                 self.add(oklab_hue_wheel);
             });
-                        
         });
 
     }
@@ -169,6 +168,7 @@ impl ColorPicker {
         return self.need_rerender;
     }
 
+    // todo: in the future, these should give the range between the farthest and closest custom rendered nodes. right now the z layering is dumb so it's not possible (the hue wheel is closer than the small_ring/dot). But if we do that we eliminate dumb stuff like UI quads things being right on the edge (because the edges are things that the ui doesn't render)
     pub(crate) fn z_range(&self, ui: &mut Ui) -> Option<[f32; 2]> {
         ui.named_subtree(self.key).start(|| {
             let bg = ui.render_rect(PADDING_SQUARE)?;
