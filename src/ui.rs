@@ -92,6 +92,7 @@ pub(crate) struct System {
 
     pub z_cursor: f32,
     pub rects: Vec<RenderRect>,
+    // todo: wtf is this
     pub editor_rects_i: u16,
 
     pub click_rects: Vec<ClickRect>,
@@ -297,7 +298,10 @@ impl Ui {
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: None,
             bind_group_layouts: &[&bind_group_layout],
-            push_constant_ranges: &[],
+            push_constant_ranges: &[wgpu::PushConstantRange {
+                stages: wgpu::ShaderStages::VERTEX,
+                range: 0..8,
+            }],
         });
 
         let shader = device.create_shader_module(ShaderModuleDescriptor {

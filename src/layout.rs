@@ -664,7 +664,7 @@ impl Ui {
 
         self.sys.click_rects.clear();
         self.sys.scroll_rects.clear();
-        self.sys.z_cursor = Z_BACKDROP;
+        self.sys.z_cursor = Z_START;
         self.recursive_push_rects(ROOT_I);
 
         self.sys.editor_rects_i = (self.sys.rects.len()) as u16;

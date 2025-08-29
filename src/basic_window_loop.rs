@@ -27,16 +27,25 @@ pub const BACKGROUND_GREY: wgpu::Color = wgpu::Color {
 };
 
 pub fn basic_wgpu_init() -> (Instance, Device, Queue) {
-    let instance = Instance::new(InstanceDescriptor::default());
+    let instance = Instance::new(InstanceDescriptor {
+        // backends: wgpu::Backends::VULKAN, // Force Vulkan
+        ..Default::default()
+    });
 
     let adapter_options = &RequestAdapterOptions::default();
     let adapter = pollster::block_on(instance.request_adapter(adapter_options)).unwrap();
 
+    let limits = adapter.limits();
+    println!("Push constant size limit: {}", limits.max_push_constant_size);
+
     let device_desc = &DeviceDescriptor {
         label: None,
-        required_features: Features::empty(),
+        required_features: Features::PUSH_CONSTANTS,
         // Downlevel defaults are really bad. Maximum texture size = 2048 means you can't even maximize a window on a 1440p screen.
-        required_limits: Limits::default(),
+        required_limits: Limits {
+            max_push_constant_size: 8,
+            ..Default::default()
+        },
         memory_hints: wgpu::MemoryHints::MemoryUsage,
     };
     let (device, queue) = pollster::block_on(adapter.request_device(device_desc, None)).unwrap();

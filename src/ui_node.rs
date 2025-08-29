@@ -75,6 +75,9 @@ impl Ui {
     pub fn render_rect(&self, key: NodeKey) -> Option<RenderInfo> {
         Some(self.get_uinode(key)?.render_rect())
     }
+    pub fn z_value(&self, key: NodeKey) -> Option<f32> {
+        Some(self.get_uinode(key)?.render_rect().z)
+    }
     pub fn rect(&self, key: NodeKey) -> Option<XyRect> {
         Some(self.get_uinode(key)?.rect())
     }

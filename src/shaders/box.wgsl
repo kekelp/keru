@@ -10,6 +10,13 @@ var my_texture: texture_2d<f32>;
 @group(0) @binding(2)
 var my_sampler: sampler;
 
+struct PushConstants {
+    z_range: vec2<f32>, // z_min, z_max
+}
+
+var<push_constant> push: PushConstants;
+
+
 const CLICK_ANIMATION_FLAG: u32 = u32(1) << u32(8);
 const OUTLINE_ONLY_FLAG: u32    = u32(1) << u32(9);
 const HOVERED_FLAG: u32         = u32(1) << u32(10);
@@ -71,6 +78,13 @@ fn read_rounded_corners(flags: u32) -> u32 {
 
 @vertex
 fn vs_main(in: RenderRect) -> VertexOutput {
+    if in.z >= push.z_range[0] || in.z <= push.z_range[1] {
+        return VertexOutput(
+            vec4(-2.0, -2.0, -2.0, 1.0),
+            vec2(0.0), vec2(0.0), vec4(0.0), 0.0, 0.0, 0.0, vec2(0.0), 0u, 0u
+        );
+    }
+
     let i_x = u32( in.index == 0 || in.index >= 4 );
     let i_y = u32( in.index % 2 );
 

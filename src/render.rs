@@ -96,6 +96,14 @@ impl Ui {
 
     /// Updates the GUI data on the GPU and renders it. 
     pub fn render(&mut self, render_pass: &mut RenderPass, device: &Device, queue: &Queue) {  
+        self.render_z_range(render_pass, device, queue, [f32::MIN, f32::MAX])
+    }
+    
+    /// Renders quads within the specified z range.
+    pub fn render_z_range(&mut self, render_pass: &mut RenderPass, device: &Device, queue: &Queue, z_range: [f32; 2]) {  
+        
+        debug_assert!(z_range[0] > z_range[1], "z_range[0] should be greater than z_range[1].");
+        
         log::trace!("Render");
         self.do_cosmetic_rect_updates();
 
@@ -105,6 +113,7 @@ impl Ui {
             render_pass.set_pipeline(&self.sys.render_pipeline);
             render_pass.set_bind_group(0, &self.sys.bind_group, &[]);
             render_pass.set_vertex_buffer(0, self.sys.gpu_rect_buffer.slice(n));
+            render_pass.set_push_constants(wgpu::ShaderStages::VERTEX, 0, bytemuck::bytes_of(&z_range));
             render_pass.draw(0..6, 0..n);
         }
 

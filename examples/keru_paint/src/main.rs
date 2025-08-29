@@ -7,6 +7,7 @@ mod color_picker_render;
 mod oklab;
 
 use canvas::*;
+use color_picker::*;
 use color_picker::ColorPicker;
 use glam::dvec2;
 use winit::application::ApplicationHandler;
@@ -130,10 +131,19 @@ impl State {
             let mut render_pass = frame.begin_render_pass(BACKGROUND_GREY);
 
             self.canvas.render(&mut render_pass);
-            self.ui.render(&mut render_pass, &self.ctx.device, &self.ctx.queue);
             
-            if ! self.ui.inspect_mode() && self.show_ui {
-                self.color_picker.render(&mut render_pass);
+            // Draw the Ui elements below the color picker, then the color picker, the the elements above.
+            // This is to allow the ui elements on top of the custom rendered color picker to have proper blending with the color picker itself.
+            // This is kind of an edge case, mostly for demonstration only.
+            if self.show_ui {
+                if let Some(color_picker_z_range) = self.color_picker.z_range(&mut self.ui) {
+                    let z1 = color_picker_z_range[0];
+                    let z2 = color_picker_z_range[1];
+
+                    self.ui.render_z_range(&mut render_pass, &self.ctx.device, &self.ctx.queue, [1.0, z1]);
+                    self.color_picker.render(&mut render_pass);
+                    self.ui.render_z_range(&mut render_pass, &self.ctx.device, &self.ctx.queue, [z1, 0.0]);
+                }
             }
         }
 

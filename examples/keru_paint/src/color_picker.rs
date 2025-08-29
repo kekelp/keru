@@ -26,11 +26,11 @@ pub struct ColorPicker {
 
 const NEUTRAL_GREY: Color = Color::rgba_f(0.09, 0.09, 0.09, 1.0);
 
-#[node_key] const OKLAB_HUE_WHEEL: NodeKey;
-#[node_key] const OKLAB_SQUARE: NodeKey;
-#[node_key] const SMALL_RING: NodeKey;
-#[node_key] const PADDING_SQUARE: NodeKey;
-#[node_key] const CONTAINER: NodeKey;
+#[node_key] pub const OKLAB_HUE_WHEEL: NodeKey;
+#[node_key] pub const OKLAB_SQUARE: NodeKey;
+#[node_key] pub const SMALL_RING: NodeKey;
+#[node_key] pub const PADDING_SQUARE: NodeKey;
+#[node_key] pub const COLOR_PICKER_CONTAINER: NodeKey;
 
 pub trait ColorPickerUi {
     fn place_color_picker(&mut self, color_picker: &mut ColorPicker); 
@@ -64,6 +64,7 @@ impl ColorPickerUi for Ui {
             };
 
             let container = KERU_PANEL
+                .key(COLOR_PICKER_CONTAINER)
                 .size_x(Size::Frac(0.18))
                 .size_y(Size::AspectRatio(1.0));
             
@@ -74,6 +75,7 @@ impl ColorPickerUi for Ui {
                 .key(OKLAB_HUE_WHEEL);
         
             let padding_square = PANEL
+            .key(PADDING_SQUARE)
                 .color(NEUTRAL_GREY)
                 .size_symm(Size::Fill)
                 // .shape(Shape::Rectangle { corner_radius: 0.5 })
@@ -85,23 +87,24 @@ impl ColorPickerUi for Ui {
                 .sense_hold(true)
                 .key(OKLAB_SQUARE);
 
-            // let ring_y = 1.0 - color_picker.oklch_color.chroma / 0.33;
-            // let ring_x = color_picker.oklch_color.lightness;
-            // let ring_y = ring_y.clamp(0.0, 1.0);
-            // let ring_x = ring_x.clamp(0.0, 1.0);
-            // self.add(SMALL_RING)
-            //     .params(PANEL)
-            //     .size_symm(Size::Fixed(Pixels(4)))
-            //     .color(Color::WHITE)
-            //     .shape(Shape::Ring { width: 4.0 })
-            //     .position_x(Position::Static(Frac(ring_x)))
-            //     .position_y(Position::Static(Frac(ring_y)));
+
+            let ring_y = 1.0 - color_picker.oklch_color.chroma / 0.33;
+            let ring_x = color_picker.oklch_color.lightness;
+            let ring_y = ring_y.clamp(0.0, 1.0);
+            let ring_x = ring_x.clamp(0.0, 1.0);
+            let small_ring = PANEL
+                .key(SMALL_RING)
+                .size_symm(Size::Pixels(20))
+                .color(Color::WHITE)
+                .shape(Shape::Ring { width: 5.0 })
+                .position_x(Position::Static(Len::Frac(ring_x)))
+                .position_y(Position::Static(Len::Frac(ring_y)));
 
             // layout
             self.add(container).nest(|| {
                 self.add(padding_square).nest(|| {
                     self.add(oklab_square).nest(|| {
-                        // self.add(SMALL_RING).params();
+                        self.add(small_ring);
                     });
                 });
                 self.add(oklab_hue_wheel);
@@ -164,5 +167,13 @@ impl ColorPicker {
 
     pub fn needs_rerender(&self) -> bool {
         return self.need_rerender;
+    }
+
+    pub(crate) fn z_range(&self, ui: &mut Ui) -> Option<[f32; 2]> {
+        ui.named_subtree(self.key).start(|| {
+            let bg = ui.render_rect(PADDING_SQUARE)?;
+            let small_ring = ui.render_rect(SMALL_RING)?;
+            return Some([bg.z, small_ring.z])
+        })
     }
 }
