@@ -22,6 +22,7 @@ use winit_key_events::KeyInput;
 use winit_mouse_events::MouseInput;
 
 use std::any::Any;
+use std::collections::VecDeque;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, LazyLock};
@@ -127,6 +128,8 @@ pub(crate) struct System {
 
     // this is used exclusively for info messages
     pub partial_relayout_count: u32,
+
+    pub breadth_traversal_queue: VecDeque<NodeI>,
 
     pub old_child_collect: Vec<NodeI>,
     pub new_child_collect: Vec<NodeI>,
@@ -380,6 +383,8 @@ impl Ui {
                 last_frame_end_fake_time,
 
                 unifs: uniforms,
+
+                breadth_traversal_queue: VecDeque::with_capacity(64),
 
                 mouse_hit_stack: Vec::with_capacity(50),
 

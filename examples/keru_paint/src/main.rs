@@ -135,14 +135,10 @@ impl State {
             // This is to allow the ui elements on top of the custom rendered color picker to have proper blending with the color picker itself.
             // This is mostly just for demonstration.
             if self.show_ui {
-                if let Some(color_picker_z_range) = self.color_picker.z_range(&mut self.ui) {
-                    let z1 = color_picker_z_range[0];
-                    let z2 = color_picker_z_range[1];
-                    dbg!(z2);
-
-                    self.ui.render_z_range(&mut render_pass, &self.ctx.device, &self.ctx.queue, [1.0, z1]);
+                if let Some(color_picker_z) = self.color_picker.custom_rendered_rect_z(&mut self.ui) {
+                    self.ui.render_z_range(&mut render_pass, &self.ctx.device, &self.ctx.queue, [1.0, color_picker_z]);
                     self.color_picker.render(&mut render_pass);
-                    self.ui.render_z_range(&mut render_pass, &self.ctx.device, &self.ctx.queue, [z2, 0.0]);
+                    self.ui.render_z_range(&mut render_pass, &self.ctx.device, &self.ctx.queue, [color_picker_z, 0.0]);
                 }
             }
         }

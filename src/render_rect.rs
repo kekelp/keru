@@ -159,7 +159,6 @@ impl Ui {
         let size = self.sys.unifs.size;
 
         let rect = if without_padding {
-            dbg!(self.nodes[i].debug_name());
             let padding = self.pixels_to_frac2(node.params.layout.padding);
             let mut rect_without_padding = node.rect;
             rect_without_padding.x[0] += padding.x;

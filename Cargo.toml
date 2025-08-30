@@ -37,6 +37,7 @@ ahash = "0.8.11"
 
 # textslabs = { path = "../textslabs" }
 textslabs = { git = "https://github.com/kekelp/textslabs" }
+bumpalo = "3.19.0"
 
 [lints.clippy]
 needless_return = { level = "allow" }

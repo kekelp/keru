@@ -257,7 +257,7 @@ impl Ui {
         
         // really only need to do this whenever a custom-rendered rect shows up. But that would require custom rendered rects to be specifically marked, as opposed to just being the same as any other visible-only-in-debug rect, which means that you can forget to mark it and mess everything up. There's no real disadvantage to just always doing it.
         self.sys.z_cursor += Z_STEP;
-         self.nodes[i].z = self.sys.z_cursor;
+        self.nodes[i].z = self.sys.z_cursor;
 
         let draw_even_if_invisible = self.sys.inspect_mode;
         if let Some(rect) = self.render_rect_i(i, draw_even_if_invisible, None, false) {
@@ -781,6 +781,7 @@ impl UiParent {
     }
 }
 
+#[allow(dead_code)]
 #[track_caller]
 pub(crate) fn with_info_log_timer<T>(operation_name: &str, f: impl FnOnce() -> T) -> T {
     if log::max_level() >= log::LevelFilter::Info {

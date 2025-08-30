@@ -665,17 +665,32 @@ impl Ui {
         self.sys.click_rects.clear();
         self.sys.scroll_rects.clear();
         self.sys.z_cursor = Z_START;
-        self.recursive_push_rects(ROOT_I);
+
+        // Now doing breadth-first to have better z values.
+        self.breadth_first_push_rects(ROOT_I);
 
         self.sys.editor_rects_i = (self.sys.rects.len()) as u16;
     }
     
-    fn recursive_push_rects(&mut self, i: NodeI) {
+    fn _recursive_push_rects(&mut self, i: NodeI) {
         self.push_rect(i);
         
         for_each_child!(self, self.nodes[i], child, {
-            self.recursive_push_rects(child);
+            self._recursive_push_rects(child);
         });
+    }
+
+    fn breadth_first_push_rects(&mut self, start: NodeI) {
+        self.sys.breadth_traversal_queue.clear();
+        self.sys.breadth_traversal_queue.push_back(start);
+        
+        while let Some(node) = self.sys.breadth_traversal_queue.pop_front() {
+            self.push_rect(node);
+            
+            for_each_child!(self, self.nodes[node], child, {
+                self.sys.breadth_traversal_queue.push_back(child);
+            });
+        }
     }
 }
 

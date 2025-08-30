@@ -310,9 +310,9 @@ checksum = "236e6289eda5a812bc6b53c3b024039382a2895fbbeef2d748b2931546d392c4"
 
 [[package]]
 name = "bumpalo"
-version = "3.15.4"
+version = "3.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ff69b9dd49fd426c69a0db9fc04dd934cdb6645ff000864d98f7e2af8830eaa"
+checksum = "46c5e41b57b8bba42a04676d81cb89e9ee8e859a1a66f80a5a72e1cb76b34d43"
 
 [[package]]
 name = "bytemuck"
@@ -1110,6 +1110,7 @@ version = "0.1.1"
 dependencies = [
  "ahash",
  "bitflags 2.9.1",
+ "bumpalo",
  "bytemuck",
  "env_logger",
  "etagere",
