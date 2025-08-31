@@ -53,7 +53,6 @@ pub struct NodeParams {
 /// A node's size.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Size {
-    // todo: use two variants instead of Len?
     Pixels(u32),
     Frac(f32),
     Fill, // todo, same as Frac(1), remove?

@@ -415,7 +415,10 @@ impl Ui {
                 hidden_stack: Vec::with_capacity(10),
                 hidden_nodes: Vec::with_capacity(10),
 
-                text_renderer: TextRenderer::new_with_params(device, queue, config.format, depth_stencil, TextRendererParams::default()),
+                text_renderer: TextRenderer::new_with_params(device, queue, config.format, depth_stencil, TextRendererParams {
+                    enable_z_range_filtering: true,
+                    ..Default::default()
+                }),
                 text: Text::new(),
 
                 user_state: HashMap::with_capacity(7),

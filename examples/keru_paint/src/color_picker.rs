@@ -129,15 +129,6 @@ impl ColorPicker {
         }
     }
 
-    pub fn render(&mut self, render_pass: &mut RenderPass) {
-        render_pass.set_pipeline(&self.renderer.render_pipeline);
-        render_pass.set_vertex_buffer(0, self.renderer.vertex_buffer.slice(..));
-        render_pass.set_bind_group(0, &self.renderer.bind_group, &[]);
-        render_pass.draw(0..4, 0..2);
-
-        self.need_rerender = false;
-    }
-
     pub fn prepare(&self, ui: &mut Ui, queue: &wgpu::Queue) -> Option<()> {
         ui.named_subtree(self.key).start(|| {
             let wheel_info = ui.render_rect(OKLAB_HUE_WHEEL)?;
@@ -163,6 +154,16 @@ impl ColorPicker {
             return Some(());
         })
     }
+
+    pub fn render(&mut self, render_pass: &mut RenderPass) {
+        render_pass.set_pipeline(&self.renderer.render_pipeline);
+        render_pass.set_vertex_buffer(0, self.renderer.vertex_buffer.slice(..));
+        render_pass.set_bind_group(0, &self.renderer.bind_group, &[]);
+        render_pass.draw(0..4, 0..2);
+
+        self.need_rerender = false;
+    }
+
 
     pub fn needs_rerender(&self) -> bool {
         return self.need_rerender;

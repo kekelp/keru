@@ -117,7 +117,7 @@ impl Ui {
             render_pass.draw(0..6, 0..n);
         }
 
-        self.sys.text_renderer.render(render_pass);
+        self.sys.text_renderer.render_z_range(render_pass, z_range);
         
         self.sys.changes.need_rerender = false;
     }
