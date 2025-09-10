@@ -228,7 +228,7 @@ impl Ui {
         self.nodes[old_last_child].next_hidden_sibling = Some(new_node_i);
     }
 
-    pub(crate) fn push_rect(&mut self, i: NodeI) {
+    pub(crate) fn push_render_data(&mut self, i: NodeI) {
         let debug = cfg!(debug_assertions);
         let push_click_rect = if debug && self.inspect_mode() {
             true
@@ -256,7 +256,8 @@ impl Ui {
         }
         
         self.sys.z_cursor += Z_STEP;
-        self.nodes[i].z = self.sys.z_cursor;
+        let z = self.sys.z_cursor;
+        self.nodes[i].z = z;
 
         let draw_even_if_invisible = self.sys.inspect_mode;
         if let Some(rect) = self.render_rect_i(i, draw_even_if_invisible, None, false) {
@@ -270,6 +271,13 @@ impl Ui {
             if let Some(image_rect) = self.render_rect_i(i, draw_even_if_invisible, Some(image.tex_coords), true) {
                 self.sys.rects.push(image_rect);
                  self.nodes[i].last_image_rect_i = Some(self.sys.rects.len() - 1);
+            }
+        }
+
+        if let Some(text_i) = &self.nodes[i].text_i {
+            match text_i {
+                TextI::TextBox(text_box_handle) => self.sys.text.get_text_box_mut(&text_box_handle).set_depth(z),
+                TextI::TextEdit(text_edit_handle) => self.sys.text.get_text_edit_mut(&text_edit_handle).set_depth(z),
             }
         }
     }

@@ -688,7 +688,7 @@ impl Ui {
     }
     
     fn _recursive_push_rects(&mut self, i: NodeI) {
-        self.push_rect(i);
+        self.push_render_data(i);
         
         for_each_child!(self, self.nodes[i], child, {
             self._recursive_push_rects(child);
@@ -700,7 +700,7 @@ impl Ui {
         self.sys.breadth_traversal_queue.push_back(start);
         
         while let Some(node) = self.sys.breadth_traversal_queue.pop_front() {
-            self.push_rect(node);
+            self.push_render_data(node);
             
             for_each_child!(self, self.nodes[node], child, {
                 self.sys.breadth_traversal_queue.push_back(child);
