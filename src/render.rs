@@ -96,7 +96,7 @@ impl Ui {
 
     /// Updates the GUI data on the GPU and renders it. 
     pub fn render(&mut self, render_pass: &mut RenderPass, device: &Device, queue: &Queue) {  
-        self.render_z_range(render_pass, device, queue, [f32::MIN, f32::MAX])
+        self.render_z_range(render_pass, device, queue, [f32::MAX, f32::MIN])
     }
     
     /// Renders quads within the specified z range.

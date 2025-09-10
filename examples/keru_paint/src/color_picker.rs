@@ -75,7 +75,7 @@ impl ColorPickerUi for Ui {
                 .key(OKLAB_HUE_WHEEL);
         
             let padding_square = PANEL
-            .key(PADDING_SQUARE)
+                .key(PADDING_SQUARE)
                 .color(NEUTRAL_GREY)
                 .size_symm(Size::Fill)
                 // .shape(Shape::Rectangle { corner_radius: 0.5 })
@@ -171,7 +171,7 @@ impl ColorPicker {
 
     pub fn custom_rendered_rect_z(&self, ui: &mut Ui) -> Option<f32> {
         ui.named_subtree(self.key).start(|| {
-            let z1 = ui.render_rect(OKLAB_SQUARE)?.z;
+            let z1 = ui.render_rect(PADDING_SQUARE)?.z;
             return Some(z1)
         })
     }

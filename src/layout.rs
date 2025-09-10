@@ -18,6 +18,21 @@ macro_rules! for_each_child {
     };
 }
 
+/// Iterate on the children linked list backwards.
+#[macro_export]
+#[doc(hidden)] // Ideally these wouldn't even be public
+macro_rules! for_each_child_reverse {
+    ($ui:expr, $start:expr, $child:ident, $body:block) => {
+        {
+            let mut current_child = $start.last_child;
+            while let Some($child) = current_child {
+                $body
+                current_child = $ui.nodes[$child].prev_sibling;
+            }
+        }
+    };
+}
+
 /// Iterate on the leftover linked list of old children from last frame
 #[macro_export]
 #[doc(hidden)]

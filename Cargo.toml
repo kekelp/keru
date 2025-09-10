@@ -36,7 +36,7 @@ bitflags = "2.8.0"
 ahash = "0.8.11"
 
 # textslabs = { path = "../textslabs" }
-textslabs = { git = "https://github.com/kekelp/textslabs" }
+textslabs = { git = "https://github.com/kekelp/textslabs", rev = "2daac83" }
 bumpalo = "3.19.0"
 
 [lints.clippy]

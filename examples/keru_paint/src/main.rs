@@ -139,6 +139,8 @@ impl State {
                     self.ui.render_z_range(&mut render_pass, &self.ctx.device, &self.ctx.queue, [1.0, color_picker_z]);
                     self.color_picker.render(&mut render_pass);
                     self.ui.render_z_range(&mut render_pass, &self.ctx.device, &self.ctx.queue, [color_picker_z, 0.0]);
+                } else {
+                    self.ui.render(&mut render_pass, &self.ctx.device, &self.ctx.queue);
                 }
             }
         }
