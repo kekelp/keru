@@ -16,6 +16,8 @@ members = [
 
 [profile.dev]
 opt-level = 1
+debug = 0
+strip = "debuginfo"
 [profile.dev.package."*"]
 opt-level = 3
 
