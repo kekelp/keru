@@ -70,14 +70,14 @@ impl Ui {
     /// Add a label.
     #[track_caller]
     pub fn label(&mut self, text: &(impl MaybeObservedText + ?Sized)) -> UiParent {
-        let params = MULTILINE_LABEL.text(text);
+        let params = LABEL.text(text);
         self.add(params)
     }
 
     /// Add a label from a `&static str`.
     #[track_caller]
     pub fn static_label(&mut self, text: &'static str) -> UiParent {
-        let params = MULTILINE_LABEL.static_text(text);
+        let params = LABEL.static_text(text);
         self.add(params)
     }
 
