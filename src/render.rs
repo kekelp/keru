@@ -147,6 +147,49 @@ impl Ui {
         self.sys.text_renderer.load_to_gpu(device, queue);
     }
 
+    /// Renders the UI to a surface with full render pass management.
+    /// 
+    /// This is a helper method that creates the render pass, calls [`Ui::render()`], and presents to the screen.
+    pub fn create_render_pass_and_render(
+        &mut self,
+        surface: &wgpu::Surface,
+        depth_texture: &wgpu::Texture,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+    ) {
+        let surface_texture = surface.get_current_texture().unwrap();
+        let view = surface_texture.texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let depth_view = depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
+        
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+        
+        {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations { 
+                        load: wgpu::LoadOp::Clear(wgpu::Color { r: 0.1, g: 0.1, b: 0.1, a: 1.0 }),
+                        store: wgpu::StoreOp::Store 
+                    },
+                })],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &depth_view,
+                    depth_ops: Some(wgpu::Operations { 
+                        load: wgpu::LoadOp::Clear(1.0), 
+                        store: wgpu::StoreOp::Store 
+                    }),
+                    stencil_ops: None,
+                }),
+                ..Default::default()
+            });
+            self.render(&mut render_pass, device, queue);
+        }
+        
+        queue.submit([encoder.finish()]);
+        surface_texture.present();
+    }
+
     /// Returns `true` if the `Ui` needs to be rerendered.
     /// 
     /// If this is true, you should call [`Ui::render`] as soon as possible to display the updated GUI state on the screen.

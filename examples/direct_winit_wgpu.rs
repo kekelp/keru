@@ -87,34 +87,6 @@ impl State {
             self.count += 1;
         }
     }
-
-    fn render(&mut self) {
-        let surface_texture = self.surface.as_ref().unwrap().get_current_texture().unwrap();
-        let view = surface_texture.texture.create_view(&TextureViewDescriptor::default());
-        let depth_view = self.depth_texture.create_view(&TextureViewDescriptor::default());
-        
-        let mut encoder = self.device.create_command_encoder(&CommandEncoderDescriptor::default());
-        
-        {
-            let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
-                color_attachments: &[Some(RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: Operations { load: LoadOp::Clear(wgpu::Color { r: 0.1, g: 0.1, b: 0.1, a: 1.0 }), store: StoreOp::Store },
-                })],
-                depth_stencil_attachment: Some(RenderPassDepthStencilAttachment {
-                    view: &depth_view,
-                    depth_ops: Some(Operations { load: LoadOp::Clear(1.0), store: StoreOp::Store }),
-                    stencil_ops: None,
-                }),
-                ..Default::default()
-            });
-            self.ui.render(&mut render_pass, &self.device, &self.queue);
-        }
-        
-        self.queue.submit([encoder.finish()]);
-        surface_texture.present();
-    }
 }
 
 impl ApplicationHandler for State {
@@ -144,7 +116,12 @@ impl ApplicationHandler for State {
                     self.ui.finish_frame();
                 }
                 if self.ui.needs_rerender() {
-                    self.render();
+                    self.ui.create_render_pass_and_render(
+                        self.surface.as_ref().unwrap(),
+                        &self.depth_texture,
+                        &self.device,
+                        &self.queue,
+                    );
                 }
             }
             _ => {}
