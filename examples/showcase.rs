@@ -66,14 +66,9 @@ impl Components for Ui {
 
             self.static_paragraph("Fat slider:");
 
-
-            #[component_key] pub const SLIDER: ComponentKey<SliderParams>;
-
-            let slider = SliderParams::new(&mut state.f32_value, 0.0, 100.0).key(SLIDER);
+            let slider = SliderParams::new(&mut state.f32_value, 0.0, 100.0);
             self.add_component(slider);
 
-            let output = self.component_output(SLIDER);
-            dbg!(output);
 
             self.static_paragraph("Classic slider:");
             self.classic_slider(&mut state.f32_value, 0.0, 100.0);

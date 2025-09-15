@@ -69,7 +69,9 @@ pub trait ComponentParams {
         None
     }
 
-    fn component_key(&self) -> Option<ComponentKey<Self>>;
+    fn component_key(&self) -> Option<ComponentKey<Self>> {
+        None
+    }
 }
 
 impl Ui {
@@ -96,20 +98,14 @@ pub struct SliderParams<'a> {
     pub value: &'a mut f32,
     pub min: f32,
     pub max: f32,
-    // adding a key even though it's probably not needed, just to test it out.
-    pub key: Option<ComponentKey<Self>>,
 }
 
 #[node_key] const SLIDER_FILL: NodeKey;
 #[node_key] const SLIDER_LABEL: NodeKey;
 
 impl ComponentParams for SliderParams<'_> {
-    type ComponentOutput = String;
+    type ComponentOutput = ();
     type AddResult = ();
-
-    fn component_key(&self) -> Option<ComponentKey<Self>> {
-        self.key
-    }
 
     fn add_to_ui(self, ui: &mut Ui) {
         let mut new_value = *self.value;
@@ -152,19 +148,10 @@ impl ComponentParams for SliderParams<'_> {
             ui.add(label);
         });
     }
-
-    fn component_output(ui: &mut Ui) -> Option<Self::ComponentOutput> {
-        ui.get_text(SLIDER_LABEL).map(|x| x.to_string())
-    }
 }
 
 impl<'a> SliderParams<'a> {
     pub fn new(value: &'a mut f32, min: f32, max: f32) -> Self {
-        Self { value, min, max, key: None, }
-    }
-    
-    pub fn key(mut self, key: ComponentKey<Self>) -> Self {
-        self.key = Some(key);
-        self
+        Self { value, min, max }
     }
 }
