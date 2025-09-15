@@ -521,7 +521,7 @@ pub const CONTAINER: NodeParams = NodeParams {
 /// # fn test(ui: &mut Ui) {
 /// #
 /// #[node_key] const CUSTOM_RENDERED_NODE: NodeKey;
-/// let render_data = ui.render_rect(CUSTOM_RENDERED_NODE);
+/// let render_rect = ui.render_rect(CUSTOM_RENDERED_NODE);
 /// #
 /// # }
 /// ```

@@ -3,28 +3,26 @@ use keru::*;
 
 #[derive(Default)]
 pub struct State {
+    count: i32,
+}
+
+fn update_ui(state: &mut State, ui: &mut Ui) {
+
+    #[node_key] const COLOR_BUTTON: NodeKey;
+    let colors = ["Blue", "Azure", "Cerulean"];
+    
+    ui.add(V_STACK).nest(|| {
+        for color in &colors {
+            let dynamic_key = COLOR_BUTTON.sibling(color);
+            let button = BUTTON.key(dynamic_key).text(color);
+            ui.add(button);
+        }
+    });
 
 }
 
-impl State {
-    fn update_ui(&mut self, ui: &mut Ui) {
-
-        let red = PANEL
-            .color(Color::rgba_f(0.5, 0.0, 0.0, 1.0))
-            .size(Size::Pixels(300), Size::Pixels(300));
-        
-        let blue = PANEL
-            .color(Color::rgba_f(0.01, 0.015, 0.5, 1.0))
-            .size(Size::Pixels(200), Size::Pixels(400));
-
-        ui.add(TEXT.static_text("Test"));
-        ui.add(blue);
-        ui.add(red);
-
-    }
-}
 
 fn main() {
     let state = State::default();
-    run_example_loop(state, State::update_ui);
+    run_example_loop(state, update_ui);
 }

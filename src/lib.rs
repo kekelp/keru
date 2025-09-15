@@ -115,6 +115,9 @@ pub use reactive::*;
 mod theme;
 pub use theme::*;
 
+mod component;
+pub use component::*;
+
 mod components;
 pub use components::*;
 
