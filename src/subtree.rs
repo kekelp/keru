@@ -96,6 +96,12 @@ impl Ui {
             key,
         };
     }
+
+    pub fn component_subtree<C>(&mut self, key: ComponentKey<C>) -> UiSubtree {
+        return UiSubtree {
+            key: key.as_normal_key(),
+        };
+    }
 }
 
 impl UiSubtree {

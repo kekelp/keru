@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+#![allow(unused_variables)]
+
 use keru::example_window_loop::*;
 use keru::*;
 

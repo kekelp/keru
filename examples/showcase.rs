@@ -66,27 +66,23 @@ impl Components for Ui {
 
             self.static_paragraph("Fat slider:");
 
-            #[node_key] pub const SLIDER: NodeKey;
 
-            let slider = SliderParams {
-                value: &mut state.f32_value,
-                min: 0.0,
-                max: 100.0,
-                key: Some(SLIDER),
-            };
+            #[component_key] pub const SLIDER: ComponentKey<SliderParams>;
+
+            let slider = SliderParams::new(&mut state.f32_value, 0.0, 100.0).key(SLIDER);
             self.add_component(slider);
 
-            let output = self.component_output::<SliderParams>(SLIDER);
+            let output = self.component_output(SLIDER);
             dbg!(output);
 
             self.static_paragraph("Classic slider:");
             self.classic_slider(&mut state.f32_value, 0.0, 100.0);
 
             self.static_paragraph("
-            Press F1 for Inspect mode. This lets you see the bounds of the layout rectangles. \n\n\
-            In Inspect mode, hovering nodes will also log an Info message with the node's debug name and source code location. \n\n\
-            Press Ctrl+Tab and Ctrl+Shift+Tab to switch between tabs. \n\n\
-            Press Ctrl+Plus, Ctrl+Minus and Ctrl+0 to control the zoom level of the default text style.\n\n
+                Press F1 for Inspect mode. This lets you see the bounds of the layout rectangles. \n\n\
+                In Inspect mode, hovering nodes will also log an Info message with the node's debug name and source code location. \n\n\
+                Press Ctrl+Tab and Ctrl+Shift+Tab to switch between tabs. \n\n\
+                Press Ctrl+Plus, Ctrl+Minus and Ctrl+0 to control the zoom level of the default text style.\n\n
             ");
 
             // todo: this is not very nice.
