@@ -576,3 +576,28 @@ pub const SPACER: NodeParams = NodeParams {
     },
     children_can_hide: false,
 };
+
+pub(crate) const COMPONENT_ROOT: NodeParams = NodeParams {
+    key: None,
+    stack: None,
+    text_params: None,
+    rect: Rect {
+        rounded_corners: RoundedCorners::ALL,
+        shape: Rectangle { corner_radius: BASE_RADIUS },
+        visible: false,
+        outline_only: true,
+        vertex_colors: VertexColors::flat(Color::KERU_DEBUG_BLUE),
+    },
+    interact: Interact {
+        senses: Sense::NONE,
+        absorbs_mouse_events: true,
+        click_animation: false,
+    },
+    layout: Layout {
+        size: Xy::new_symm(FitContent),
+        position: Xy::new_symm(Center),
+        padding: Xy::new_symm(10),
+        scrollable: Xy::new(false, false),
+    },
+    children_can_hide: false,
+};

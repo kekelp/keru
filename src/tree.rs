@@ -41,14 +41,14 @@ impl Ui {
     {
         let params = params.into();
         let key = params.key_or_anon_key();
-        let i = self.add_or_update_node(key);
+        let (i, _id) = self.add_or_update_node(key);
         self.set_params(i, &params);
         self.set_params_text(i, &params);
         return UiParent::new(i);
     }
 
     #[track_caller]
-    pub(crate) fn add_or_update_node(&mut self, key: NodeKey) -> NodeI {
+    pub(crate) fn add_or_update_node(&mut self, key: NodeKey) -> (NodeI, Id) {
         let frame = self.sys.current_frame;
 
         // todo: at least when using non-anonymous keys, I think there's no legit use case for twins anymore. it's always a mistake, I think. it should log out a warning or panic.
@@ -95,7 +95,7 @@ impl Ui {
         // If twin_check_result is AddedNormal, the node was added in the section before,
         //      and there's nothing to do regarding twins, so we just confirm final_i.
         // If it's NeedToAddTwin, we repeat the same thing with the new twin_key.
-        let (real_final_i, _real_final_id) = match twin_check_result {
+        let (real_final_i, real_final_id) = match twin_check_result {
             UpdatedNormal { final_i } => (final_i, key.id_with_subtree()),
             NeedToUpdateTwin { twin_key, twin_n } => {
                 match self.nodes.node_hashmap.entry(twin_key.id_with_subtree()) {
@@ -134,7 +134,7 @@ impl Ui {
             }
         }
 
-        return real_final_i;
+        return (real_final_i, real_final_id);
     }
 
     fn set_tree_links(&mut self, new_node_i: NodeI, parent_i: NodeI, depth: usize) {

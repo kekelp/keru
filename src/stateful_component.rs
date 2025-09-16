@@ -24,22 +24,19 @@ pub trait StatefulComponentParams {
 
 impl Ui {
     #[track_caller]
-    pub fn add_stateful_component<W: StatefulComponentParams>(&mut self, component_params: W) -> W::AddResult {
-        let key_opt = component_params.component_key();
-        let component_key = match key_opt {
-            Some(key) => key,
-            None => ComponentKey::new(Id(caller_location_id()), ""),
+    pub fn add_stateful_component<T: StatefulComponentParams>(&mut self, component_params: T) -> T::AddResult {
+        let key = match component_params.component_key() {
+            Some(key) => key.as_normal_key(),
+            None => NodeKey::new(Id(caller_location_id()), ""),
         };
-
-        // todo: new plan: add a regular node that acts as the component's root, and use its final id, so that twinning works.
-        // do it for the stateless component too
-
+        
+        // Add the component. This should do twinning, with_subtree_id, and everything.
+        let (i, id) = self.add_or_update_node(key);
+        self.set_params(i, &COMPONENT_ROOT.into());
 
         // Initialize the state if it's not already there.
-        // todo: use entry? Sounds complicated.
-        let id = component_key.as_normal_key().id_with_subtree();
-        if !self.sys.user_state.contains_key(&id) {
-            self.sys.user_state.insert(id, Box::new(W::State::default()));
+        if let Entry::Vacant(e) = self.sys.user_state.entry(id) {
+            e.insert(Box::new(T::State::default()));
         }
 
         // Here, we have to pass the `&mut Ui` (`self`) and the reference to the state in `self.sys.user_state`.
@@ -51,14 +48,17 @@ impl Ui {
         // Take the state out of the hashmap.
         let mut state = self.sys.user_state.remove(&id).unwrap();
         let state_ref = state.downcast_mut().expect("Keru: Internal error: Couldn't downcast component state to the expected type.");
-        
-        // todo: use the twinned key.
-        // wait, aren't we doing id_with_subtree() twice? if we get a twinned id and pass that, besides looking stupid, it would also subtree-ify it twice, which would be wrong.
-        let res = self.component_subtree(component_key).start(|| {
-            W::add_to_ui(component_params, self, state_ref)
-        });
 
-        // Put the state back in its place inside the `Ui`.
+        // todo: since there are no closures anymore, doesn't this mean that the subtree stack could be a normal field on the Ui, instead of being in the thread local?
+        // yes, doing it this way is basically the same as reborrowing every time (|ui| { ... }, like in egui). Forcing the component's add_to_ui to borrow ui and state separately means that you don't have any problems.
+        // todo: then I guess put it inside the Ui?
+        thread_local::push_subtree(id);
+
+        let res = T::add_to_ui(component_params, self, state_ref);
+
+        thread_local::pop_subtree();
+
+        // Put the state back in its place inside the Ui.
         match self.sys.user_state.entry(id) {
             Entry::Vacant(e) => e.insert(state),
             Entry::Occupied(_) => panic!("Keru: Internal error: different components ended up using the same state?"),
@@ -67,9 +67,9 @@ impl Ui {
         return res;
     }
 
-    pub fn stateful_component_output<W: StatefulComponentParams>(&mut self, component_key: ComponentKey<W>) -> Option<W::ComponentOutput> {
+    pub fn stateful_component_output<T: StatefulComponentParams>(&mut self, component_key: ComponentKey<T>) -> Option<T::ComponentOutput> {
         self.component_subtree(component_key).start(|| {
-            W::component_output(self)
+            T::component_output(self)
         })
     }
 }

@@ -76,20 +76,27 @@ pub trait ComponentParams {
 
 impl Ui {
     #[track_caller]
-    pub fn add_component<W: ComponentParams>(&mut self, component_params: W) -> W::AddResult {
-        let key_opt = component_params.component_key();
-        let component_key = match key_opt {
-            Some(key) => key,
-            None => ComponentKey::new(Id(caller_location_id()), ""),
+    pub fn add_component<T: ComponentParams>(&mut self, component_params: T) -> T::AddResult {
+        let key = match component_params.component_key() {
+            Some(key) => key.as_normal_key(),
+            None => NodeKey::new(Id(caller_location_id()), ""),
         };
-        self.component_subtree(component_key).start(|| {
-            W::add_to_ui(component_params, self)
-        })
+
+        let (i, id) = self.add_or_update_node(key);
+        self.set_params(i, &COMPONENT_ROOT.into());
+
+        thread_local::push_subtree(id);
+
+        let res = T::add_to_ui(component_params, self);
+
+        thread_local::pop_subtree();
+
+        return res;
     }
 
-    pub fn component_output<W: ComponentParams>(&mut self, component_key: ComponentKey<W>) -> Option<W::ComponentOutput> {
+    pub fn component_output<T: ComponentParams>(&mut self, component_key: ComponentKey<T>) -> Option<T::ComponentOutput> {
         self.component_subtree(component_key).start(|| {
-            W::component_output(self)
+            T::component_output(self)
         })
     }
 }
