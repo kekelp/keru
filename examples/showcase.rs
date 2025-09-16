@@ -100,7 +100,7 @@ impl Components for Ui {
             This bool value isn't declared in the main struct state.");
 
             #[node_key] const BUTTON3: NodeKey;
-            #[state_key] const WIDGET_STATE: StateKey<bool>;
+            #[node_key] const WIDGET_STATE: StateKey<bool>;
             
             self.h_stack().nest(|| {
                 if self.add(BUTTON.text("Toggle bool").key(BUTTON3)).is_clicked(self) {

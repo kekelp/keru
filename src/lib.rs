@@ -118,6 +118,9 @@ pub use theme::*;
 mod component;
 pub use component::*;
 
+mod stateful_component;
+pub use stateful_component::*;
+
 mod components;
 pub use components::*;
 

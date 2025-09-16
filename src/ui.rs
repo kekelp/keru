@@ -644,14 +644,8 @@ impl Ui {
             self.nodes[parent_i].user_states.push(id);
         }
 
-        return self.sys.user_state.get_mut(&id)
-            .unwrap()
-            .downcast_mut()
-            .unwrap();
+        return self.sys.user_state.get_mut(&id).unwrap().downcast_mut().unwrap();
     }
 }
 
-#[doc(hidden)]
-#[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, Pod, Zeroable)]
-#[repr(C)]
-pub struct StateId(pub u64);
+pub type StateId = Id;

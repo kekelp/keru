@@ -16,7 +16,7 @@ impl State {
         // same state key added to different nodes?
         #[node_key] const BUTTON1: NodeKey;
         #[node_key] const BUTTON2: NodeKey;
-        #[state_key] const WIDGET_STATE: StateKey<bool>;
+        #[node_key] const WIDGET_STATE: StateKey<bool>;
 
         ui.vertical_tabs(&self.tabs[..], &mut self.current_tab)
             .nest(|| match self.tabs[self.current_tab] {

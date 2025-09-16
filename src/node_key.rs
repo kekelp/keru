@@ -86,7 +86,7 @@ impl<T: Default + 'static> StateKey<T> {
             let mut hasher = ahasher();
             subtree_id.hash(&mut hasher);
             self.id.hash(&mut hasher);
-            return StateId(hasher.finish());
+            return Id(hasher.finish());
         } else {
             return self.id;
         } 
@@ -99,7 +99,7 @@ impl<T: Default + 'static> StateKey<T> {
         let new_id = hasher.finish();
 
         return Self {
-            id: StateId(new_id),
+            id: Id(new_id),
             debug_name: self.debug_name,
             state_type: PhantomData,
         };
