@@ -102,7 +102,7 @@ impl Color {
     };
 
     pub const KERU_DEBUG_RED: Color = Color::rgba(255, 0, 0, 77);
-    pub const KERU_DEBUG_BLUE: Color = Color::rgba(30, 0, 255, 77);
+    pub const KERU_DEBUG_BLUE: Color = Color::rgba(30, 0, 255, 122);
 
     pub const RED: Color = Color::rgba(255, 0, 0, 255);
     pub const GREEN: Color = Color::rgba(0, 255, 0, 255);

@@ -49,7 +49,7 @@ impl Ui {
     /// Now, we can call the function from multiple places without problems: on every call, `Uisubtree()` will create a distinct subtree. Within each one, the same key refers to a different node identified by both the key and the subtree it's in.
     /// 
     // /// 
-    pub fn subtree(&mut self) -> UiSubtree {
+    pub fn subtree_old(&mut self) -> UiSubtree {
         let subtree_id = Id(self.current_tree_hash());
         let key = SubtreeKey::new(subtree_id, "Anon subtree");
         return UiSubtree {
@@ -97,10 +97,21 @@ impl Ui {
         };
     }
 
-    pub fn component_subtree<C>(&mut self, key: ComponentKey<C>) -> UiSubtree {
+    pub(crate) fn component_key_subtree<C>(&mut self, key: ComponentKey<C>) -> UiSubtree {
         return UiSubtree {
             key: key.as_normal_key(),
         };
+    }
+
+    /// Starts a subtree where keys can be used without conflicts with the outside world, like in components. 
+    /// 
+    /// It can be used to create reusable "components" more concisely than with the [`ComponentParams`] trait.
+    /// 
+    /// This function must be called from functions marked with `#[track_caller]`!  
+    #[track_caller]
+    pub fn subtree(&mut self) -> UiSubtree {
+        let key = NodeKey::new(Id(caller_location_id()), "");
+        return UiSubtree { key };
     }
 }
 

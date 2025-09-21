@@ -596,7 +596,7 @@ pub(crate) const COMPONENT_ROOT: NodeParams = NodeParams {
     layout: Layout {
         size: Xy::new_symm(FitContent),
         position: Xy::new_symm(Center),
-        padding: Xy::new_symm(10),
+        padding: Xy::new_symm(0),
         scrollable: Xy::new(false, false),
     },
     children_can_hide: false,

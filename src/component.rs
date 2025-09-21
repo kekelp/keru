@@ -82,20 +82,26 @@ impl Ui {
             None => NodeKey::new(Id(caller_location_id()), ""),
         };
 
+        // todo use normal add()??
         let (i, id) = self.add_or_update_node(key);
         self.set_params(i, &COMPONENT_ROOT.into());
-
-        thread_local::push_subtree(id);
-
-        let res = T::add_to_ui(component_params, self);
-
-        thread_local::pop_subtree();
+        let res = UiParent::new(i).nest(|| {
+    
+            thread_local::push_subtree(id);
+            
+            let res = T::add_to_ui(component_params, self);
+            
+            thread_local::pop_subtree();
+            
+            return res;
+        });
 
         return res;
     }
 
     pub fn component_output<T: ComponentParams>(&mut self, component_key: ComponentKey<T>) -> Option<T::ComponentOutput> {
-        self.component_subtree(component_key).start(|| {
+        // No twinning here, so use this old closure one which does twinning
+        self.component_key_subtree(component_key).start(|| {
             T::component_output(self)
         })
     }

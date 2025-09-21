@@ -16,7 +16,7 @@ impl CustomWidgets for Ui {
 
         // Use a subtree to ensure that the component can be reused without key conflicts.
         // (the subtree comes into play when keys are used, not when they are defined. So the TAB_BUTTON line can be outside of the subtree, as well as in another file or anywhere else).
-        self.subtree().start(|| {
+        self.subtree_old().start(|| {
                 
             let max_n = tabs.len() - 1;
             if *tab_number >= max_n {

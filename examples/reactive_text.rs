@@ -14,7 +14,7 @@ pub trait CustomComponents {
 
 impl CustomComponents for Ui {
     fn string_push(&mut self, text: &mut Observer<String>) {
-        self.subtree().start(|| {
+        self.subtree_old().start(|| {
             #[node_key] const INCREASE: NodeKey;
             #[node_key] const RESET: NodeKey;
 

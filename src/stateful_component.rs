@@ -68,7 +68,8 @@ impl Ui {
     }
 
     pub fn stateful_component_output<T: StatefulComponentParams>(&mut self, component_key: ComponentKey<T>) -> Option<T::ComponentOutput> {
-        self.component_subtree(component_key).start(|| {
+        // No twinning here, so use this old closure one which does twinning
+        self.component_key_subtree(component_key).start(|| {
             T::component_output(self)
         })
     }
