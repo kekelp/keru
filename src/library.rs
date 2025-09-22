@@ -62,7 +62,7 @@ pub const V_STACK: NodeParams = NodeParams {
     stack: Some(Stack {
         arrange: Arrange::Center,
         axis: Axis::Y,
-        spacing: 10,
+        spacing: 8,
     }),
     rect: Rect {
         rounded_corners: RoundedCorners::ALL,
@@ -91,7 +91,7 @@ pub const H_STACK: NodeParams = NodeParams {
     stack: Some(Stack {
         arrange: Arrange::Center,
         axis: Axis::X,
-        spacing: 5,
+        spacing: 8,
     }),
     rect: Rect {
         rounded_corners: RoundedCorners::ALL,
