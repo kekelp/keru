@@ -7,6 +7,10 @@ use Shape::*;
 
 /// [`NodeParams`] for a node_root_params. 
 pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
+    animation: Animation {
+        speed: 1.0,
+        slide: false,
+    },
     key: None,
     text_params: None,
     stack: None,
@@ -32,6 +36,10 @@ pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
 };
 /// [`NodeParams`] for a default. 
 pub const DEFAULT: NodeParams = NodeParams {
+    animation: Animation {
+        speed: 1.0,
+        slide: false,
+    },
     key: None,
     text_params: None,
     stack: None,
@@ -57,6 +65,10 @@ pub const DEFAULT: NodeParams = NodeParams {
 };
 /// [`NodeParams`] for a vertical stack. 
 pub const V_STACK: NodeParams = NodeParams {
+    animation: Animation {
+        speed: 1.0,
+        slide: false,
+    },
     key: None,
     text_params: None,
     stack: Some(Stack {
@@ -86,6 +98,10 @@ pub const V_STACK: NodeParams = NodeParams {
 };
 /// [`NodeParams`] for a horizontal stack. 
 pub const H_STACK: NodeParams = NodeParams {
+    animation: Animation {
+        speed: 1.0,
+        slide: false,
+    },
     key: None,
     text_params: None,
     stack: Some(Stack {
@@ -116,6 +132,10 @@ pub const H_STACK: NodeParams = NodeParams {
 
 /// [`NodeParams`] for a vertically scrollable vertical stack.
 pub const V_SCROLL_STACK: NodeParams = NodeParams {
+    animation: Animation {
+        speed: 1.0,
+        slide: false,
+    },
     key: None,
     text_params: None,
         stack: Some(Stack {
@@ -146,6 +166,10 @@ pub const V_SCROLL_STACK: NodeParams = NodeParams {
 
 /// [`NodeParams`] for a margin. 
 pub const MARGIN: NodeParams = NodeParams {
+    animation: Animation {
+        speed: 1.0,
+        slide: false,
+    },
     key: None,
     stack: None,
     text_params: None,
@@ -171,6 +195,10 @@ pub const MARGIN: NodeParams = NodeParams {
 };
 /// [`NodeParams`] for an icon button. 
 pub const ICON_BUTTON: NodeParams = NodeParams {
+    animation: Animation {
+        speed: 1.0,
+        slide: false,
+    },
     key: None,
     stack: None,
     text_params: None,
@@ -196,6 +224,10 @@ pub const ICON_BUTTON: NodeParams = NodeParams {
 };
 /// [`NodeParams`] for an image. 
 pub const IMAGE: NodeParams = NodeParams {
+    animation: Animation {
+        speed: 1.0,
+        slide: false,
+    },
     key: None,
     stack: None,
     text_params: None,
@@ -221,6 +253,10 @@ pub const IMAGE: NodeParams = NodeParams {
 };
 /// [`NodeParams`] for an icon button. 
 pub const IMAGE_BUTTON: NodeParams = NodeParams {
+    animation: Animation {
+        speed: 1.0,
+        slide: false,
+    },
     key: None,
     stack: None,
     text_params: None,
@@ -246,6 +282,10 @@ pub const IMAGE_BUTTON: NodeParams = NodeParams {
 };
 /// [`NodeParams`] for a button. 
 pub const BUTTON: NodeParams = NodeParams {
+    animation: Animation {
+        speed: 1.0,
+        slide: false,
+    },
     key: None,
     stack: None,
     text_params: Some(TextOptions {
@@ -277,6 +317,10 @@ pub const BUTTON: NodeParams = NodeParams {
 };
 /// [`NodeParams`] for a label. 
 pub const LABEL: NodeParams = NodeParams {
+    animation: Animation {
+        speed: 1.0,
+        slide: false,
+    },
     key: None,
     stack: None,
     text_params: Some(TextOptions {
@@ -308,6 +352,10 @@ pub const LABEL: NodeParams = NodeParams {
 
 /// [`NodeParams`] for a label containing a multi-line paragraph. 
 pub const MULTILINE_LABEL: NodeParams = NodeParams {
+    animation: Animation {
+        speed: 1.0,
+        slide: false,
+    },
     key: None,
     stack: None,
     text_params: Some(TextOptions {
@@ -339,6 +387,10 @@ pub const MULTILINE_LABEL: NodeParams = NodeParams {
 
 /// [`NodeParams`] for a text element. 
 pub const TEXT: NodeParams = NodeParams {
+    animation: Animation {
+        speed: 1.0,
+        slide: false,
+    },
     key: None,
     stack: None,
     text_params: Some(TextOptions {
@@ -370,6 +422,10 @@ pub const TEXT: NodeParams = NodeParams {
 
 /// [`NodeParams`] for a multiline text edit box. 
 pub const TEXT_EDIT: NodeParams = NodeParams {
+    animation: Animation {
+        speed: 1.0,
+        slide: false,
+    },
     key: None,
     stack: None,
     text_params: Some(TextOptions {
@@ -401,6 +457,10 @@ pub const TEXT_EDIT: NodeParams = NodeParams {
 
 /// [`NodeParams`] for a single line text edit box. 
 pub const TEXT_EDIT_LINE: NodeParams = NodeParams {
+    animation: Animation {
+        speed: 1.0,
+        slide: false,
+    },
     key: None,
     stack: None,
     text_params: Some(TextOptions {
@@ -432,6 +492,10 @@ pub const TEXT_EDIT_LINE: NodeParams = NodeParams {
 
 /// [`NodeParams`] for a text element containing a multi-line paragraph.
 pub const TEXT_PARAGRAPH: NodeParams = NodeParams {
+    animation: Animation {
+        speed: 1.0,
+        slide: false,
+    },
     key: None,
     stack: None,
     text_params: Some(TextOptions {
@@ -463,6 +527,10 @@ pub const TEXT_PARAGRAPH: NodeParams = NodeParams {
 
 /// [`NodeParams`] for a panel. 
 pub const PANEL: NodeParams = NodeParams {
+    animation: Animation {
+        speed: 1.0,
+        slide: false,
+    },
     key: None,
     stack: None,
     text_params: None,
@@ -489,6 +557,10 @@ pub const PANEL: NodeParams = NodeParams {
 
 /// [`NodeParams`] for a container. 
 pub const CONTAINER: NodeParams = NodeParams {
+    animation: Animation {
+        speed: 1.0,
+        slide: false,
+    },
     key: None,
     stack: None,
     text_params: None,
@@ -527,6 +599,10 @@ pub const CONTAINER: NodeParams = NodeParams {
 /// ```
 /// See the color picker in the painter example.
 pub const CUSTOM_RENDERED_PANEL: NodeParams = NodeParams {
+    animation: Animation {
+        speed: 1.0,
+        slide: false,
+    },
     key: None,
     stack: None,
     text_params: None,
@@ -553,6 +629,10 @@ pub const CUSTOM_RENDERED_PANEL: NodeParams = NodeParams {
 
 /// [`NodeParams`] for a spacer element.
 pub const SPACER: NodeParams = NodeParams {
+    animation: Animation {
+        speed: 1.0,
+        slide: false,
+    },
     key: None,
     stack: None,
     text_params: None,
@@ -578,6 +658,10 @@ pub const SPACER: NodeParams = NodeParams {
 };
 
 pub(crate) const COMPONENT_ROOT: NodeParams = NodeParams {
+    animation: Animation {
+        speed: 1.0,
+        slide: false,
+    },
     key: None,
     stack: None,
     text_params: None,

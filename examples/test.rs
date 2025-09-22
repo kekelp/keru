@@ -1,6 +1,3 @@
-#![allow(dead_code)]
-#![allow(unused_variables)]
-
 use keru::example_window_loop::*;
 use keru::*;
 
@@ -11,6 +8,10 @@ pub struct State {
 
 fn update_ui(state: &mut State, ui: &mut Ui) {
     #[node_key] const EXPAND: NodeKey;
+
+    if ui.is_clicked(EXPAND) {
+        state.expanded = ! state.expanded;
+    }
     
     let left_bar = V_STACK
         .size_x(Size::Pixels(300))
@@ -25,12 +26,12 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .size_x(Size::FitContent)
         .key(EXPAND);
 
-    let element = LABEL.size_x(Size::Fill);
+    let h_group = H_STACK.size_x(Size::Fill).stack_arrange(Arrange::Start);
+
+    let element = LABEL.size_x(Size::Fill).slide();
 
     ui.add(left_bar).nest(|| {
-        
-        let h_stack = H_STACK.size_x(Size::Fill).stack_arrange(Arrange::Start);
-        ui.add(h_stack).nest(|| {
+        ui.add(h_group).nest(|| {
             ui.add(expand);
             if state.expanded {
                 ui.add(V_STACK).nest(|| {
@@ -41,14 +42,11 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
             }
         });
     });
-
-    if ui.is_clicked(EXPAND) {
-        state.expanded = ! state.expanded;
-    }
 }
 
 
 fn main() {
+    basic_env_logger_init();
     let state = State {
         expanded: true,
     };

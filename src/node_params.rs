@@ -48,6 +48,13 @@ pub struct NodeParams {
     pub interact: Interact,
     pub layout: Layout,
     pub children_can_hide: bool,
+    pub animation: Animation,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct Animation {
+    pub speed: f32,
+    pub slide: bool, // Slide from the edge when appearing, and maybe also when it's moved around?
 }
 
 /// A node's size.
@@ -414,6 +421,11 @@ impl NodeParams {
 
     pub fn key(mut self, key: NodeKey) -> Self {
         self.key = Some(key);
+        return self;
+    }
+
+    pub fn slide(mut self) -> Self {
+        self.animation.slide = true;
         return self;
     }
 

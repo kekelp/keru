@@ -71,11 +71,7 @@ impl Ui {
         let full_relayout = self.sys.changes.full_relayout;
         let text_changed = self.sys.changes.text_changed;
 
-        let nothing_to_do = ! partial_relayouts
-            && ! rect_updates
-            && ! full_relayout
-            && ! text_changed
-            && ! tree_changed;
+        let nothing_to_do = !partial_relayouts && !rect_updates && !full_relayout && !text_changed && !tree_changed;
         if nothing_to_do {
             return;
         }
@@ -92,11 +88,6 @@ impl Ui {
             } else {
                 self.do_partial_relayouts(true);
             }
-
-            // todo: prepare_all refreshes layouts internally, can we really skip it? we should, but it's a bit scary
-            // if text_changed {
-            //     self.sys.text.prepare_all(&mut self.sys.text_renderer);
-            // }
         }
 
         // reset these early, but resolve_hover has a chance to turn them back on
@@ -457,20 +448,6 @@ impl Ui {
             self.recursive_place_children(child, also_update_rects);
         });
     }
-
-    // pub(crate) fn recursive_update_scroll(&mut self, i: NodeI) {
-
-    //     // self.place_text_inside(i, self.nodes[i].rect);
-    
-    //     self.set_children_scroll(i);
-
-    //     self.update_rect(i);
-    //     self.set_clip_rect(i);
-
-    //     for_each_child!(self, self.nodes[i], child, {
-    //         self.recursive_update_scroll(child);
-    //     });
-    // }
 
     fn place_children_stack(&mut self, i: NodeI, stack: Stack) {
         let (main, cross) = (stack.axis, stack.axis.other());
@@ -840,20 +817,3 @@ impl ProposedSizes {
         }
     }
 }
-
-// pub trait MeasureText {
-//     fn measure_text_pixels(&self) -> Xy<f32>;
-// }
-// impl MeasureText for GlyphonBuffer {
-//     fn measure_text_pixels(&self) -> Xy<f32> {
-//         let layout_runs = self.layout_runs();
-//         let mut total_width: f32 = 0.;
-//         let mut total_height: f32 = 0.;
-//         for run in layout_runs {
-//             total_width = total_width.max(run.line_w);
-//             total_height += run.line_height;
-
-//         }
-//         return Xy::new(total_width.ceil(), total_height)
-//     }
-// }

@@ -18,7 +18,6 @@ pub struct Node {
     // Coordinates: who knows???
     pub rect: XyRect,
 
-    // todo: isn't this just the parent's rect?
     pub clip_rect: XyRect,
 
     // partial result when layouting?
