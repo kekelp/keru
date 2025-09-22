@@ -175,14 +175,16 @@ pub struct RenderInfo {
 
 impl UiNode<'_> {
     #[cfg(debug_assertions)]
-    fn check_node_sense(&self, sense: Sense, fn_name: &'static str) -> bool {
+    fn check_node_sense(&self, sense: Sense, fn_name: &'static str, sense_add_fn_name: &'static str) -> bool {
         let node = self.node();
         if !node.params.interact.senses.contains(sense) {
-            log::error!(
-                "Debug mode check: {} was called on node {}, but the node doesn't have the {:?} sense.",
+            // todo: 
+            eprintln!(
+                "Keru: Debug mode check: \"{}\" was called for node {}, but the node doesn't have the {:?} sense. In release mode, this event will be silently ignored! You can add the sense to the node's NodeParams with the \"{}\" function.",
                 fn_name,
                 node.debug_name(),
-                sense
+                sense,
+                sense_add_fn_name,
             );
             return false;
         }
@@ -193,34 +195,30 @@ impl UiNode<'_> {
     /// 
     /// This is "act on press". For "act on release", see [`Self::is_click_released()`].
     pub fn is_clicked(&self) -> bool {
+
         #[cfg(debug_assertions)]
-        {
-            if ! self.check_node_sense(Sense::CLICK, "is_clicked") {
-                return false;
-            }
+        if ! self.check_node_sense(Sense::CLICK, "is_clicked()", "NodeParams::sense_click()") {
+            return false;
         }
-        let id = self.node().id;
-        let clicked = self.ui.sys.mouse_input.clicked(Some(MouseButton::Left), Some(id));
+
+        let clicked = self.ui.sys.mouse_input.clicked(Some(MouseButton::Left), Some(self.node().id));
         return clicked;
     }
 
     pub fn is_focused(&self) -> bool {
-        let id = self.node().id;
-        return self.ui.sys.focused == Some(id);
+        return self.ui.sys.focused == Some(self.node().id);
     }
 
     /// If the node corresponding to `key` was clicked in the last frame, returns a struct containing detailed information of the click. Otherwise, returns `None`.
     /// 
     /// If the node was clicked multiple times in the last frame, the result holds the information about the last click only.
     pub fn clicked_at(&self) -> Option<Click> {
-        let id = self.node().id;
-        #[cfg(debug_assertions)]
-        {
-            if !self.check_node_sense(Sense::CLICK, "clicked_at") {
-                return None;
-            }
+         #[cfg(debug_assertions)]
+        if !self.check_node_sense(Sense::CLICK, "clicked_at()", "NodeParams::sense_click()") {
+            return None;
         }
-        let mouse_record = self.ui.sys.mouse_input.clicked_at(Some(MouseButton::Left), Some(id))?;
+
+        let mouse_record = self.ui.sys.mouse_input.clicked_at(Some(MouseButton::Left), Some(self.node().id))?;
         let node_rect = self.node().rect;
         
         let relative_position = glam::DVec2::new(
@@ -237,26 +235,22 @@ impl UiNode<'_> {
 
     /// Returns `true` if a left button mouse click was just released on the node corresponding to `key`.
     pub fn is_click_released(&self) -> bool {
-        let id = self.node().id;
-        #[cfg(debug_assertions)]
-        {
-            if ! self.check_node_sense(Sense::CLICK, "is_click_released") {
-                return false;
-            }
+         #[cfg(debug_assertions)]
+        if ! self.check_node_sense(Sense::CLICK, "is_click_released()", "NodeParams::sense_click()") {
+            return false;
         }
-        return self.ui.sys.mouse_input.click_released(Some(MouseButton::Left), Some(id));
+
+        return self.ui.sys.mouse_input.click_released(Some(MouseButton::Left), Some(self.node().id));
     }
 
     /// If the node corresponding to `key` was dragged, returns a struct describing the drag event. Otherwise, returns `None`.
     pub fn is_dragged(&self) -> Option<Drag> {
-        let id = self.node().id;
-        #[cfg(debug_assertions)]
-        {
-            if !self.check_node_sense(Sense::DRAG, "dragged_at") {
-                return None;
-            }
+         #[cfg(debug_assertions)]
+        if !self.check_node_sense(Sense::DRAG, "dragged_at()", "NodeParams::sense_drag()") {
+            return None;
         }
-        let mouse_record = self.ui.sys.mouse_input.dragged_at(Some(MouseButton::Left), Some(id))?;
+
+        let mouse_record = self.ui.sys.mouse_input.dragged_at(Some(MouseButton::Left), Some(self.node().id))?;
         let node_rect = self.node().rect;
         let relative_position = glam::DVec2::new(
             ((mouse_record.currently_at.position.x / self.ui.sys.unifs.size.x as f64) - (node_rect.x[0]) as f64) / node_rect.size().x as f64,
@@ -282,34 +276,29 @@ impl UiNode<'_> {
 
    /// If the node corresponding to `key` was being held with the left mouse button in the last frame, returns the duration for which it was held.
     pub fn is_held(&self) -> Option<Duration> {
-        let id = self.node().id;
         #[cfg(debug_assertions)]
-        {
-            if ! self.check_node_sense(Sense::HOLD, "is_held") {
-                return None;
-            }
+        if ! self.check_node_sense(Sense::HOLD, "is_held()", "NodeParams::sense_hold()") {
+            return None;
         }
-        return self.ui.sys.mouse_input.held(Some(MouseButton::Left), Some(id));
+
+        return self.ui.sys.mouse_input.held(Some(MouseButton::Left), Some(self.node().id));
     }
 
     /// Returns `true` if a node is currently hovered by the cursor.
     pub fn is_hovered(&self) -> bool {
-        let id = self.node().id;
-        #[cfg(debug_assertions)]
-        {
-            if ! self.check_node_sense(Sense::HOVER, "is_hovered") {
-                return false;
-            }
+         #[cfg(debug_assertions)]
+        if ! self.check_node_sense(Sense::HOVER, "is_hovered", "NodeParams::sense_hover()") {
+            return false;
         }
-        return self.ui.sys.hovered.last() == Some(&id);
+
+        return self.ui.sys.hovered.last() == Some(&self.node().id);
     }
 
     /// If the node was scrolled in the last frame, returns a struct containing detailed information of the scroll event. Otherwise, returns `None`.
     /// 
     /// If the node was scrolled multiple times in the last frame, the result holds the information about the last scroll only.
     pub fn scrolled_at(&self) -> Option<ScrollEvent> {
-        let id = self.node().id;
-        let scroll_event = self.ui.sys.mouse_input.last_scroll_event(Some(id))?;
+        let scroll_event = self.ui.sys.mouse_input.last_scroll_event(Some(self.node().id))?;
         let node_rect = self.node().rect;
         
         let relative_position = glam::DVec2::new(
@@ -327,8 +316,8 @@ impl UiNode<'_> {
 
     /// Returns the total scroll delta for this node in the last frame, or None if no scroll events occurred.
     pub fn is_scrolled(&self) -> Option<glam::DVec2> {
-        let id = self.node().id;
-        return self.ui.sys.mouse_input.scrolled(Some(id));
+        // todo: is there no sense_scroll?
+        return self.ui.sys.mouse_input.scrolled(Some(self.node().id));
     }
 }
 
