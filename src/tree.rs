@@ -176,6 +176,7 @@ impl Ui {
         self.remove_hidden_child_if_it_exists(new_node_i, parent_i);
     }
 
+    // todo: inline
     fn add_first_child(&mut self, new_node_i: NodeI, parent_i: NodeI) {
         self.nodes[parent_i].last_child = Some(new_node_i);
         self.nodes[parent_i].first_child = Some(new_node_i);
@@ -228,6 +229,99 @@ impl Ui {
         self.nodes[old_last_child].next_hidden_sibling = Some(new_node_i);
     }
 
+    pub(crate) fn init_exit_animation(&mut self, child: NodeI, parent: NodeI) {
+        let slide_flags = self.nodes[child].params.animation.slide;
+        if !slide_flags.contains(SlideFlags::DISAPPEARING) {
+            return;
+        }
+
+        // Already exiting, don't restart another anim.
+        if self.nodes[child].exiting {
+            return;
+        }
+
+        self.nodes[child].exiting = true;
+        let current_time = ui_time_f32();
+        let target_rect = self.nodes[child].rect;
+        let parent_rect = self.nodes[parent].rect;
+        let parent_stack = self.nodes[parent].params.stack;
+        let mut target_offset = Xy::new(0.0, 0.0);
+        let mut should_animate = false;
+        
+        if let Some(stack) = parent_stack {
+            // Calculate exit target offset - distance to move away from current position
+            match (stack.axis, stack.arrange) {
+                (crate::math::Axis::Y, crate::Arrange::Start) if slide_flags.contains(SlideFlags::VERTICAL) => {
+                    // Exit downward (opposite of entering from above)
+                    // Move to parent_rect.y[1] (bottom of parent)
+                    target_offset.y = parent_rect.y[1] - target_rect.y[0];
+                    should_animate = true;
+                },
+                (crate::math::Axis::Y, crate::Arrange::End) if slide_flags.contains(SlideFlags::VERTICAL) => {
+                    // Exit upward (opposite of entering from below)
+                    // Move to parent_rect.y[0] - element_size (above parent)
+                    let element_size = target_rect.size().y;
+                    target_offset.y = (parent_rect.y[0] - element_size) - target_rect.y[0];
+                    should_animate = true;
+                },
+                (crate::math::Axis::X, crate::Arrange::Start) if slide_flags.contains(SlideFlags::HORIZONTAL) => {
+                    // Exit rightward (opposite of entering from left)
+                    // Move to parent_rect.x[1] (right of parent)
+                    target_offset.x = parent_rect.x[1] - target_rect.x[0];
+                    should_animate = true;
+                },
+                (crate::math::Axis::X, crate::Arrange::End) if slide_flags.contains(SlideFlags::HORIZONTAL) => {
+                    // Exit leftward (opposite of entering from right)
+                    // Move to parent_rect.x[0] - element_size (left of parent)
+                    let element_size = target_rect.size().x;
+                    target_offset.x = (parent_rect.x[0] - element_size) - target_rect.x[0];
+                    should_animate = true;
+                },
+                _ => {
+                    // Default: exit downward if vertical allowed (opposite of default entry from above)
+                    if slide_flags.contains(SlideFlags::VERTICAL) {
+                        target_offset.y = parent_rect.y[1] - target_rect.y[0];
+                        should_animate = true;
+                    }
+                }
+            }
+        } else if slide_flags.contains(SlideFlags::VERTICAL) {
+            // Non-stack container: exit downward by default (opposite of default entry from above)
+            target_offset.y = parent_rect.y[1] - target_rect.y[0];
+            should_animate = true;
+        }
+        
+        if should_animate {
+            let child_node = &mut self.nodes[child];
+            child_node.animation_offset_start = Xy::new(0.0, 0.0);
+            child_node.animation_offset_target = target_offset;
+            child_node.animation_start_time = Some(current_time);
+
+            println!("Animation start: offset=({:.3}, {:.3}) for child", target_offset.x, target_offset.y);
+        }
+    }
+
+    pub(crate) fn node_has_ongoing_animation(&self, i: NodeI) -> bool {
+        if let Some(animation_start_time) = self.nodes[i].animation_start_time {
+            let t = ui_time_f32();
+            let elapsed = t - animation_start_time;
+
+            let speed = self.sys.global_animation_speed * self.nodes[i].params.animation.speed;
+
+            let duration = BASE_DURATION / speed;
+            dbg!(speed);
+            if elapsed < duration {
+                return true;
+            }
+        }
+
+        // Check if this node is affected by parent animations
+        let has_parent_animation = self.nodes[i].cumulative_parent_animation_offset_delta.x != 0.0 
+            || self.nodes[i].cumulative_parent_animation_offset_delta.y != 0.0;
+        
+        has_parent_animation
+    }
+
     pub(crate) fn push_render_data(&mut self, i: NodeI) {
         let debug = cfg!(debug_assertions);
         let push_click_rect = if debug && self.inspect_mode() {
@@ -275,9 +369,23 @@ impl Ui {
         }
 
         if let Some(text_i) = &self.nodes[i].text_i {
+            // Update text position using animated rect
+            let animated_rect = self.nodes[i].get_animated_rect();
+            let padding = self.nodes[i].params.layout.padding;
+            let left = (animated_rect[X][0] * self.sys.unifs.size[X]) as f64 + padding[X] as f64;
+            let top = (animated_rect[Y][0] * self.sys.unifs.size[Y]) as f64 + padding[Y] as f64;
+            
             match text_i {
-                TextI::TextBox(text_box_handle) => self.sys.text.get_text_box_mut(&text_box_handle).set_depth(z),
-                TextI::TextEdit(text_edit_handle) => self.sys.text.get_text_edit_mut(&text_edit_handle).set_depth(z),
+                TextI::TextBox(text_box_handle) => {
+                    let mut text_box = self.sys.text.get_text_box_mut(&text_box_handle);
+                    text_box.set_depth(z);
+                    text_box.set_pos((left, top));
+                },
+                TextI::TextEdit(text_edit_handle) => {
+                    let mut text_edit = self.sys.text.get_text_edit_mut(&text_edit_handle);
+                    text_edit.set_depth(z);
+                    text_edit.set_pos((left, top));
+                },
             }
         }
     }
@@ -376,9 +484,6 @@ impl Ui {
     pub fn begin_frame(&mut self) {
         self.reset_root();
 
-        // Note: default_text_style_changed logic removed in new centralized text system
-        // Style management is now handled centrally by the Text struct
-
         self.sys.current_frame += 1;
         self.sys.text.advance_frame_and_hide_boxes();
         thread_local::clear_parent_stack();
@@ -411,8 +516,8 @@ impl Ui {
         thread_local::pop_parent();
 
         self.diff_children();
-        self.relayout();
         self.cleanup();
+        self.relayout();
         
         self.sys.third_last_frame_end_fake_time = self.sys.second_last_frame_end_fake_time;
         self.sys.second_last_frame_end_fake_time = self.sys.last_frame_end_fake_time;
@@ -506,23 +611,35 @@ impl Ui {
                 let old_child = self.sys.old_child_collect[k];
                 if !self.sys.new_child_collect.contains(&old_child) {
 
-                    if new_hidden_branch {
-                        self.sys.hidden_nodes.push(old_child);
+                    let old_child_id = self.nodes[old_child].id;
+                    // todo: this was below in the hidden branch, did we fuck something up?
+                    // as usual, if the hidden node is actually freshly added, that means that it wasn't hidden, but just moved somewhere else in the frame. In that case if we did add_hidden_child it would be pretty bad.
+                    if self.nodes.node_hashmap[&old_child_id].last_frame_touched == self.sys.current_frame {
+                        log::trace!("Not removing {:?}, as its parent has can_hide_children = true. But not setting it as hidden either, as it has merely moved to another position in the tree. Wow, what an edge case!", self.node_debug_name_fmt_scratch(old_child));
+                        continue;
+                    }
 
-                        let old_child_id = self.nodes[old_child].id;
-                        // as usual, if the hidden node is actually freshly added, that means that it wasn't hidden, but just moved somewhere else in the frame. In that case if we did add_hidden_child it would be pretty bad.
-                        if self.nodes.node_hashmap[&old_child_id].last_frame_touched != self.sys.current_frame {
-                            
+                    // try starting an exit animation for the removed node
+                    self.init_exit_animation(old_child, self.nodes[old_child].parent);
+
+                    if self.node_has_ongoing_animation(old_child) {
+                        // keep around as "exiting" until the animation is done
+                        let old_parent = self.nodes[old_child].parent;
+                        self.add_child(old_child, old_parent);
+
+                    } else {
+                        // remove normally
+                        if new_hidden_branch {
+                            self.sys.hidden_nodes.push(old_child);
+
                             self.add_hidden_child(old_child, i);
 
                             log::trace!("Not removing {:?}, as its parent has can_hide_children = true", self.node_debug_name_fmt_scratch(old_child));
-                        } else {
-                            log::trace!("Not removing {:?}, as its parent has can_hide_children = true. But not setting it as hidden either, as it has merely moved to another position in the tree. Wow, what an edge case!", self.node_debug_name_fmt_scratch(old_child));
-                        }
 
-                    } else {
-                        // no hidden crap, just remove. We could to the moved-somewhere-else check here for symmetry, but it's working fine down in garbage_collect_node
-                        self.sys.direct_removed_nodes.push(old_child);
+                        } else {
+                            // no hidden crap, just remove. We could to the moved-somewhere-else check here for symmetry, but it's working fine down in garbage_collect_node
+                            self.sys.direct_removed_nodes.push(old_child);
+                        }
                     }
                 }
             }
@@ -609,7 +726,7 @@ impl Ui {
             return;
         }
 
-        log::trace!("Removing {:?} ({:?})", self.node_debug_name_fmt_scratch(i), i);
+        println!("Removing {:?} ({:?})", self.node_debug_name_fmt_scratch(i), i);
         let old_handle = self.nodes[i].text_i.take();
         if let Some(text_i) = old_handle {
             match text_i {

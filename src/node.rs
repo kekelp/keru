@@ -17,6 +17,7 @@ pub struct Node {
     // also for invisible rects, used for layout
     // Coordinates: who knows???
     pub rect: XyRect,
+    pub animated_rect: XyRect,
 
     pub clip_rect: XyRect,
 
@@ -74,11 +75,59 @@ pub struct Node {
     pub last_layout_hash: u64,
     pub last_text_hash: Option<u64>,
 
+
+    pub animation_offset_start: Xy<f32>,
+    pub animation_offset_target: Xy<f32>,
+    pub animation_start_time: Option<f32>,
+    
+    // todo: prob remove. not sure if there's any point in storing this here.
+    // it's used in has_ongoing_animation but there's probably smarter way
+    pub cumulative_parent_animation_offset_delta: Xy<f32>,
+
     // Almost surely not worth to make this a linked list.
+    // todo: remove.
     pub user_states: Vec<StateId>,
+
+    // only kept around until the exit animation is done.
+    pub exiting: bool,
 }
 
 impl Node {
+    /// Get the current animated rect position
+    pub fn get_animated_rect(&self) -> XyRect {
+        // let mut final_rect = self.rect;
+        
+        // // todo: move and get self.sys.global_animation_speed
+        // let speed = 0.3 * self.params.animation.speed;
+
+        // let elapsed = current_time - self.animation_start_time;
+        // let duration = 0.1 / speed;
+        
+        // if elapsed < duration {
+        //     let t = elapsed / duration;
+        //     // Quadratic ease-out
+        //     let ease_t = 1.0 - (1.0 - t) * (1.0 - t);
+            
+        //     // Interpolate the offset from its starting value to zero
+        //     let current_offset_x = ease_t * self.target_offset.x + self.animation_offset.x * (1.0 - ease_t);
+        //     let current_offset_y = ease_t * self.target_offset.y + self.animation_offset.y * (1.0 - ease_t);
+            
+        //     // Apply the interpolated offset to the base rect
+        //     final_rect.x[0] += current_offset_x;
+        //     final_rect.x[1] += current_offset_x;
+        //     final_rect.y[0] += current_offset_y;
+        //     final_rect.y[1] += current_offset_y;
+        // }
+        
+        // // Add the cumulative parent animation offset
+        // final_rect.x[0] += self.cumulative_parent_animation_offset_delta.x;
+        // final_rect.x[1] += self.cumulative_parent_animation_offset_delta.x;
+        // final_rect.y[0] += self.cumulative_parent_animation_offset_delta.y;
+        // final_rect.y[1] += self.cumulative_parent_animation_offset_delta.y;
+        
+        self.animated_rect
+    }
+
     pub fn new(
         key: &NodeKey,
         twin_n: Option<u32>,
@@ -91,6 +140,7 @@ impl Node {
             id: key.id_with_subtree(),
             depth: 0,
             rect: Xy::new_symm([0.0, 1.0]),
+            animated_rect: Xy::new_symm([0.0, 1.0]),
             clip_rect: Xy::new_symm([0.0, 1.0]),
 
             size: Xy::new_symm(0.5),
@@ -139,8 +189,15 @@ impl Node {
             last_layout_hash: 0,
             last_text_hash: None,
 
+            // Animation state
+            animation_offset_start: Xy::new(0.0, 0.0),
+            animation_offset_target: Xy::new(0.0, 0.0),
+            animation_start_time: None,
+            cumulative_parent_animation_offset_delta: Xy::new(0.0, 0.0),
+
             // intentionally at zero capacity
             user_states: Vec::new(),
+            exiting: false,
         };
     }
 }
@@ -185,6 +242,7 @@ pub const ZERO_NODE_DUMMY: Node = Node {
     id: NODE_ROOT_ID,
     depth: 0,
     rect: Xy::new_symm([0.0, 1.0]),
+    animated_rect: Xy::new_symm([0.0, 1.0]),
     clip_rect: Xy::new_symm([0.0, 1.0]),
 
     size: Xy::new_symm(1.0),
@@ -234,9 +292,18 @@ pub const ZERO_NODE_DUMMY: Node = Node {
     last_cosmetic_hash: 0,
     last_layout_hash: 0,
     last_text_hash: None,
+
+    // Animation state
+    animation_offset_start: Xy::new(0.0, 0.0),
+    animation_offset_target: Xy::new(0.0, 0.0),
+    animation_start_time: None,
+    
+    cumulative_parent_animation_offset_delta: Xy::new(0.0, 0.0),
     
     // intentionally at zero capacity
     user_states: Vec::new(),
+
+    exiting: false,
 };
 
 pub const ROOT_I: NodeI = NodeI::from(1);
@@ -246,6 +313,7 @@ pub const NODE_ROOT: Node = Node {
     id: NODE_ROOT_ID,
     depth: 0,
     rect: Xy::new_symm([0.0, 1.0]),
+    animated_rect: Xy::new_symm([0.0, 1.0]),
     clip_rect: Xy::new_symm([0.0, 1.0]),
 
     size: Xy::new_symm(1.0),
@@ -297,6 +365,14 @@ pub const NODE_ROOT: Node = Node {
     last_layout_hash: 0,
     last_text_hash: None,
 
+    // Animation state
+    animation_offset_start: Xy::new(0.0, 0.0),
+    animation_offset_target: Xy::new(0.0, 0.0),
+    animation_start_time: None,
+    cumulative_parent_animation_offset_delta: Xy::new(0.0, 0.0),
+
     // intentionally at zero capacity
     user_states: Vec::new(),
+
+    exiting: false,
 };

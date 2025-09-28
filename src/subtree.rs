@@ -116,7 +116,7 @@ impl Ui {
 }
 
 impl UiSubtree {
-    /// Start a subtree created with [`Ui::subtree()`] or [`Ui::named_subtree()`].
+    /// Start a subtree created with [`Ui::component_subtree()`].
     pub fn start<T>(&mut self, subtree_content: impl FnOnce() -> T) -> T {
         let subtree_id = self.key.id_with_subtree();
         

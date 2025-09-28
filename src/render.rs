@@ -96,6 +96,9 @@ impl Ui {
 
     /// Updates the GUI data on the GPU and renders it. 
     pub fn render(&mut self, render_pass: &mut RenderPass, device: &Device, queue: &Queue) {  
+        self.set_new_ui_input();
+        self.sys.changes.full_relayout = true;
+
         self.render_z_range(render_pass, device, queue, [f32::MAX, f32::MIN])
     }
     

@@ -34,24 +34,31 @@ impl State {
         let increase_button = BUTTON
             .color(count_color)
             .text("Increase")
+            .slide()
             .key(INCREASE);
 
         let show_button = BUTTON
             .color(Color::RED)
             .text(show_button_text)
+            .slide()
             .key(SHOW);
 
         let decrease_button = BUTTON
             .text("Decrease")
+            .slide()
             .key(DECREASE);
 
+        // In a real program, you should use a frame arena to avoid useless allocations like these.
+        let fmt_count = self.count.to_string();
+        let count = LABEL.text(&fmt_count).slide();
+
         ui.v_stack().nest(|| {
+            ui.add(show_button);
             if self.show {
                 ui.add(increase_button);
-                ui.label(&self.count.to_string());
+                ui.add(count);
                 ui.add(decrease_button);
             }
-            ui.add(show_button);
         });
 
     }

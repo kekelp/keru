@@ -51,10 +51,38 @@ pub struct NodeParams {
     pub animation: Animation,
 }
 
+bitflags::bitflags! {
+    /// Bitflags for controlling when and how slide animations occur
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+    pub struct SlideFlags: u8 {
+        /// Slide when element appears
+        const APPEARING    = 1 << 0;
+        /// Slide when element disappears  
+        const DISAPPEARING = 1 << 1;
+        /// Slide when element moves to new position
+        const MOVING       = 1 << 2;
+        
+        /// Allow sliding in vertical direction
+        const VERTICAL     = 1 << 3;
+        /// Allow sliding in horizontal direction
+        const HORIZONTAL   = 1 << 4;
+        
+        /// Slide in any direction
+        const ANY_DIRECTION = Self::VERTICAL.bits() | Self::HORIZONTAL.bits();
+        /// Slide in all scenarios
+        const ALL_SCENARIOS = Self::APPEARING.bits() | Self::DISAPPEARING.bits() | Self::MOVING.bits();
+        /// Slide always in any direction
+        const ALL = Self::ALL_SCENARIOS.bits() | Self::ANY_DIRECTION.bits();
+        
+        /// No sliding
+        const NONE = 0;
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
 pub struct Animation {
     pub speed: f32,
-    pub slide: bool, // Slide from the edge when appearing, and maybe also when it's moved around?
+    pub slide: SlideFlags,
 }
 
 /// A node's size.
@@ -389,8 +417,8 @@ impl NodeParams {
         return self;
     }
 
-    pub const fn padding(mut self, padding: u32) -> Self {
-        self.layout.padding = Xy::new_symm(padding);
+    pub const fn padding(mut self, pixels: u32) -> Self {
+        self.layout.padding = Xy::new_symm(pixels);
         return self;
     }
 
@@ -425,7 +453,32 @@ impl NodeParams {
     }
 
     pub fn slide(mut self) -> Self {
-        self.animation.slide = true;
+        self.animation.slide = SlideFlags::ALL;
+        return self;
+    }
+    
+    pub fn slide_when_appearing(mut self) -> Self {
+        self.animation.slide |= SlideFlags::APPEARING | SlideFlags::ANY_DIRECTION;
+        return self;
+    }
+    
+    pub fn slide_when_disappearing(mut self) -> Self {
+        self.animation.slide |= SlideFlags::DISAPPEARING | SlideFlags::ANY_DIRECTION;
+        return self;
+    }
+    
+    pub fn slide_when_moving(mut self) -> Self {
+        self.animation.slide |= SlideFlags::MOVING | SlideFlags::ANY_DIRECTION;
+        return self;
+    }
+    
+    pub fn slide_vertical_only(mut self) -> Self {
+        self.animation.slide = (self.animation.slide & SlideFlags::ALL_SCENARIOS) | SlideFlags::VERTICAL;
+        return self;
+    }
+    
+    pub fn slide_horizontal_only(mut self) -> Self {
+        self.animation.slide = (self.animation.slide & SlideFlags::ALL_SCENARIOS) | SlideFlags::HORIZONTAL;
         return self;
     }
 
@@ -740,6 +793,36 @@ impl<'a> FullNodeParams<'a> {
     /// 
     pub fn key(mut self, key: NodeKey) -> Self {
         self.params.key = Some(key);
+        return self;
+    }
+
+    pub fn slide(mut self) -> Self {
+        self.params.animation.slide = SlideFlags::ALL;
+        return self;
+    }
+    
+    pub fn slide_when_appearing(mut self) -> Self {
+        self.params.animation.slide |= SlideFlags::APPEARING | SlideFlags::ANY_DIRECTION;
+        return self;
+    }
+    
+    pub fn slide_when_disappearing(mut self) -> Self {
+        self.params.animation.slide |= SlideFlags::DISAPPEARING | SlideFlags::ANY_DIRECTION;
+        return self;
+    }
+    
+    pub fn slide_when_moving(mut self) -> Self {
+        self.params.animation.slide |= SlideFlags::MOVING | SlideFlags::ANY_DIRECTION;
+        return self;
+    }
+    
+    pub fn slide_vertical_only(mut self) -> Self {
+        self.params.animation.slide = (self.params.animation.slide & SlideFlags::ALL_SCENARIOS) | SlideFlags::VERTICAL;
+        return self;
+    }
+    
+    pub fn slide_horizontal_only(mut self) -> Self {
+        self.params.animation.slide = (self.params.animation.slide & SlideFlags::ALL_SCENARIOS) | SlideFlags::HORIZONTAL;
         return self;
     }
 

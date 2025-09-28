@@ -73,6 +73,8 @@ pub(crate) struct System {
     // usually these have filled = false (just the outline), but this is not enforced.
     pub inspect_mode: bool,
 
+    pub global_animation_speed: f32,
+
     pub unique_id: u64,
     pub theme: Theme,
     pub debug_key_pressed: bool,
@@ -113,9 +115,7 @@ pub(crate) struct System {
     pub mouse_input: MouseInput<Id>,
     pub key_input: KeyInput,
     
-    /// The text edit node that had its text changed last frame, if any (available for queries this frame)
     pub text_edit_changed_last_frame: Option<Id>,
-    /// The text edit node that had its text changed this frame (will be available next frame)
     pub text_edit_changed_this_frame: Option<Id>,
 
     #[cfg(debug_assertions)]
@@ -129,7 +129,8 @@ pub(crate) struct System {
     // this is used exclusively for info messages
     pub partial_relayout_count: u32,
 
-    pub breadth_traversal_queue: VecDeque<NodeI>,
+    // Holds the nodes and the cumulative animation offset.
+    pub breadth_traversal_queue: VecDeque<(NodeI, Xy<f32>)>,
 
     pub old_child_collect: Vec<NodeI>,
     pub new_child_collect: Vec<NodeI>,
@@ -353,6 +354,7 @@ impl Ui {
             format_scratch: String::with_capacity(1024),
 
             sys: System {
+                global_animation_speed: 0.3,
                 unique_id: INSTANCE_COUNTER.fetch_add(1, Ordering::Relaxed),
                 z_cursor: 0.0,
                 theme: KERU_DARK,
