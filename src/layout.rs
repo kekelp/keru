@@ -590,49 +590,29 @@ impl Ui {
         let mut should_animate = false;
         
         if child_frame_added == current_frame && slide_flags.contains(SlideFlags::APPEARING) {
-            // Newly appearing element - calculate offset from edge
+            // Newly appearing element - calculate offset from configured edge
             let parent_rect = self.nodes[parent].rect;
-            let parent_stack = self.nodes[parent].params.stack;
+            let slide_edge = self.nodes[child].params.animation.slide_edge;
             
-            if let Some(stack) = parent_stack {
-                // Calculate offset based on stack direction
-                match (stack.axis, stack.arrange) {
-                    (Y, Arrange::Start) if slide_flags.contains(SlideFlags::VERTICAL) => {
-                        // Slide from above parent
-                        let element_size = target_rect.size().y;
-                        starting_offset.y = parent_rect.y[0] - element_size - target_rect.y[0];
-                        should_animate = true;
-                    },
-                    (Y, Arrange::End) if slide_flags.contains(SlideFlags::VERTICAL) => {
-                        // Slide from below parent
-                        starting_offset.y = parent_rect.y[1] - target_rect.y[0];
-                        should_animate = true;
-                    },
-                    (X, Arrange::Start) if slide_flags.contains(SlideFlags::HORIZONTAL) => {
-                        // Slide from left of parent
-                        let element_size = target_rect.size().x;
-                        starting_offset.x = parent_rect.x[0] - element_size - target_rect.x[0];
-                        should_animate = true;
-                    },
-                    (X, Arrange::End) if slide_flags.contains(SlideFlags::HORIZONTAL) => {
-                        // Slide from right of parent
-                        starting_offset.x = parent_rect.x[1] - target_rect.x[0];
-                        should_animate = true;
-                    },
-                    _ => {
-                        // Default: slide from above if vertical allowed
-                        if slide_flags.contains(SlideFlags::VERTICAL) {
-                            let element_size = target_rect.size().y;
-                            starting_offset.y = parent_rect.y[0] - element_size - target_rect.y[0];
-                            should_animate = true;
-                        }
-                    }
-                }
-            } else if slide_flags.contains(SlideFlags::VERTICAL) {
-                // Non-stack container: slide from above by default
-                let element_size = target_rect.size().y;
-                starting_offset.y = parent_rect.y[0] - element_size - target_rect.y[0];
-                should_animate = true;
+            match slide_edge {
+                SlideEdge::Top => {
+                    let element_size = target_rect.size().y;
+                    starting_offset.y = parent_rect.y[0] - element_size - target_rect.y[0];
+                    should_animate = true;
+                },
+                SlideEdge::Bottom => {
+                    starting_offset.y = parent_rect.y[1] - target_rect.y[0];
+                    should_animate = true;
+                },
+                SlideEdge::Left => {
+                    let element_size = target_rect.size().x;
+                    starting_offset.x = parent_rect.x[0] - element_size - target_rect.x[0];
+                    should_animate = true;
+                },
+                SlideEdge::Right => {
+                    starting_offset.x = parent_rect.x[1] - target_rect.x[0];
+                    should_animate = true;
+                },
             }
             
         } else if let Some(old_rect) = old_animated_rect
@@ -762,40 +742,44 @@ impl Ui {
     }
     
     /// update local animations and return the total offset so far, so that child nodes can use it as a base.
-    fn update_animations(&mut self, node: NodeI, parent_cumulative_offset_delta: Xy<f32>) -> Xy<f32> {
-        self.nodes[node].cumulative_parent_animation_offset_delta = parent_cumulative_offset_delta;
+    fn update_animations(&mut self, i: NodeI, parent_cumulative_offset_delta: Xy<f32>) -> Xy<f32> {
+
+        if ! self.node_has_ongoing_animation(i) {
+            self.nodes[i].animation_start_time = None;
+        }
+
+        self.nodes[i].cumulative_parent_animation_offset_delta = parent_cumulative_offset_delta;
 
         let mut total_offset_so_far = parent_cumulative_offset_delta;
 
-        self.nodes[node].animated_rect = self.nodes[node].rect;       
+        self.nodes[i].animated_rect = self.nodes[i].rect;       
 
         // Calculate current node's animation offset contribution
-        let has_entering_animation = self.nodes[node].animation_offset_start.x != 0.0 || self.nodes[node].animation_offset_start.y != 0.0;
-        let has_exit_animation = self.nodes[node].animation_offset_target.x != 0.0 || self.nodes[node].animation_offset_target.y != 0.0;
+        let has_entering_animation = self.nodes[i].animation_offset_start.x != 0.0 || self.nodes[i].animation_offset_start.y != 0.0;
+        let has_exit_animation = self.nodes[i].animation_offset_target.x != 0.0 || self.nodes[i].animation_offset_target.y != 0.0;
         
         if !has_entering_animation && !has_exit_animation {
             return Xy::new(0.0, 0.0);
         }
         
-        let Some(animation_start_time) = self.nodes[node].animation_start_time else {
+        let Some(animation_start_time) = self.nodes[i].animation_start_time else {
             return Xy::new(0.0, 0.0);
         };
 
         let elapsed = ui_time_f32() - animation_start_time;
         // dbg!(ui_time_f32(), self.nodes[node].animation_start_time);
 
-        let speed = self.sys.global_animation_speed * self.nodes[node].params.animation.speed;
+        let speed = self.sys.global_animation_speed * self.nodes[i].params.animation.speed;
         let duration = BASE_DURATION / speed;
         
         let local_offset;
         if elapsed < duration {
             let t = elapsed / duration;
-            // let ease_t = 1.0 - (1.0 - t) * (1.0 - t);
-            let ease_t = t;
+            let ease_t = 1.0 - (1.0 - t) * (1.0 - t);
             
             local_offset = Xy::new(
-                self.nodes[node].animation_offset_target.x * ease_t + self.nodes[node].animation_offset_start.x * (1.0 - ease_t),
-                self.nodes[node].animation_offset_target.y * ease_t + self.nodes[node].animation_offset_start.y * (1.0 - ease_t),
+                self.nodes[i].animation_offset_target.x * ease_t + self.nodes[i].animation_offset_start.x * (1.0 - ease_t),
+                self.nodes[i].animation_offset_target.y * ease_t + self.nodes[i].animation_offset_start.y * (1.0 - ease_t),
             );
         } else {
             local_offset = Xy::new(0.0, 0.0);
@@ -803,12 +787,12 @@ impl Ui {
             
         total_offset_so_far = total_offset_so_far + local_offset;
         
-        self.nodes[node].animated_rect = self.nodes[node].rect;
+        self.nodes[i].animated_rect = self.nodes[i].rect;
         
-        self.nodes[node].animated_rect.x[0] += total_offset_so_far.x;
-        self.nodes[node].animated_rect.x[1] += total_offset_so_far.x;
-        self.nodes[node].animated_rect.y[0] += total_offset_so_far.y;
-        self.nodes[node].animated_rect.y[1] += total_offset_so_far.y;
+        self.nodes[i].animated_rect.x[0] += total_offset_so_far.x;
+        self.nodes[i].animated_rect.x[1] += total_offset_so_far.x;
+        self.nodes[i].animated_rect.y[0] += total_offset_so_far.y;
+        self.nodes[i].animated_rect.y[1] += total_offset_so_far.y;
 
         return total_offset_so_far;
     }

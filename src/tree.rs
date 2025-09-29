@@ -230,6 +230,9 @@ impl Ui {
     }
 
     pub(crate) fn init_exit_animation(&mut self, child: NodeI, parent: NodeI) {
+        return;
+
+
         let slide_flags = self.nodes[child].params.animation.slide;
         if !slide_flags.contains(SlideFlags::DISAPPEARING) {
             return;
@@ -244,51 +247,31 @@ impl Ui {
         let current_time = ui_time_f32();
         let target_rect = self.nodes[child].rect;
         let parent_rect = self.nodes[parent].rect;
-        let parent_stack = self.nodes[parent].params.stack;
         let mut target_offset = Xy::new(0.0, 0.0);
-        let mut should_animate = false;
+        let should_animate;
         
-        if let Some(stack) = parent_stack {
-            // Calculate exit target offset - distance to move away from current position
-            match (stack.axis, stack.arrange) {
-                (crate::math::Axis::Y, crate::Arrange::Start) if slide_flags.contains(SlideFlags::VERTICAL) => {
-                    // Exit downward (opposite of entering from above)
-                    // Move to parent_rect.y[1] (bottom of parent)
-                    target_offset.y = parent_rect.y[1] - target_rect.y[0];
-                    should_animate = true;
-                },
-                (crate::math::Axis::Y, crate::Arrange::End) if slide_flags.contains(SlideFlags::VERTICAL) => {
-                    // Exit upward (opposite of entering from below)
-                    // Move to parent_rect.y[0] - element_size (above parent)
-                    let element_size = target_rect.size().y;
-                    target_offset.y = (parent_rect.y[0] - element_size) - target_rect.y[0];
-                    should_animate = true;
-                },
-                (crate::math::Axis::X, crate::Arrange::Start) if slide_flags.contains(SlideFlags::HORIZONTAL) => {
-                    // Exit rightward (opposite of entering from left)
-                    // Move to parent_rect.x[1] (right of parent)
-                    target_offset.x = parent_rect.x[1] - target_rect.x[0];
-                    should_animate = true;
-                },
-                (crate::math::Axis::X, crate::Arrange::End) if slide_flags.contains(SlideFlags::HORIZONTAL) => {
-                    // Exit leftward (opposite of entering from right)
-                    // Move to parent_rect.x[0] - element_size (left of parent)
-                    let element_size = target_rect.size().x;
-                    target_offset.x = (parent_rect.x[0] - element_size) - target_rect.x[0];
-                    should_animate = true;
-                },
-                _ => {
-                    // Default: exit downward if vertical allowed (opposite of default entry from above)
-                    if slide_flags.contains(SlideFlags::VERTICAL) {
-                        target_offset.y = parent_rect.y[1] - target_rect.y[0];
-                        should_animate = true;
-                    }
-                }
-            }
-        } else if slide_flags.contains(SlideFlags::VERTICAL) {
-            // Non-stack container: exit downward by default (opposite of default entry from above)
-            target_offset.y = parent_rect.y[1] - target_rect.y[0];
-            should_animate = true;
+        let slide_edge = self.nodes[child].params.animation.slide_edge;
+    
+        // Calculate exit target offset based on configured edge (same direction as entry)
+        match slide_edge {
+            SlideEdge::Top => {
+                let element_size = target_rect.size().y;
+                target_offset.y = (parent_rect.y[0] - element_size) - target_rect.y[0];
+                should_animate = true;
+            },
+            SlideEdge::Bottom => {
+                target_offset.y = parent_rect.y[1] - target_rect.y[0];
+                should_animate = true;
+            },
+            SlideEdge::Left => {
+                let element_size = target_rect.size().x;
+                target_offset.x = (parent_rect.x[0] - element_size) - target_rect.x[0];
+                should_animate = true;
+            },
+            SlideEdge::Right => {
+                target_offset.x = parent_rect.x[1] - target_rect.x[0];
+                should_animate = true;
+            },
         }
         
         if should_animate {

@@ -79,10 +79,19 @@ bitflags::bitflags! {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum SlideEdge {
+    Top,
+    Bottom,
+    Left,
+    Right,
+}
+
 #[derive(Debug, Copy, Clone)]
 pub struct Animation {
     pub speed: f32,
     pub slide: SlideFlags,
+    pub slide_edge: SlideEdge,
 }
 
 /// A node's size.
@@ -481,6 +490,26 @@ impl NodeParams {
         self.animation.slide = (self.animation.slide & SlideFlags::ALL_SCENARIOS) | SlideFlags::HORIZONTAL;
         return self;
     }
+    
+    pub fn slide_from_top(mut self) -> Self {
+        self.animation.slide_edge = SlideEdge::Top;
+        return self;
+    }
+    
+    pub fn slide_from_bottom(mut self) -> Self {
+        self.animation.slide_edge = SlideEdge::Bottom;
+        return self;
+    }
+    
+    pub fn slide_from_left(mut self) -> Self {
+        self.animation.slide_edge = SlideEdge::Left;
+        return self;
+    }
+    
+    pub fn slide_from_right(mut self) -> Self {
+        self.animation.slide_edge = SlideEdge::Right;
+        return self;
+    }
 
     /// Sets whether a node's children stay hidden or get removed when they get excluded from the tree.
     /// 
@@ -798,6 +827,7 @@ impl<'a> FullNodeParams<'a> {
 
     pub fn slide(mut self) -> Self {
         self.params.animation.slide = SlideFlags::ALL;
+        self.params.animation.slide_edge = SlideEdge::Top;
         return self;
     }
     
@@ -823,6 +853,26 @@ impl<'a> FullNodeParams<'a> {
     
     pub fn slide_horizontal_only(mut self) -> Self {
         self.params.animation.slide = (self.params.animation.slide & SlideFlags::ALL_SCENARIOS) | SlideFlags::HORIZONTAL;
+        return self;
+    }
+    
+    pub fn slide_from_top(mut self) -> Self {
+        self.params.animation.slide_edge = SlideEdge::Top;
+        return self;
+    }
+    
+    pub fn slide_from_bottom(mut self) -> Self {
+        self.params.animation.slide_edge = SlideEdge::Bottom;
+        return self;
+    }
+    
+    pub fn slide_from_left(mut self) -> Self {
+        self.params.animation.slide_edge = SlideEdge::Left;
+        return self;
+    }
+    
+    pub fn slide_from_right(mut self) -> Self {
+        self.params.animation.slide_edge = SlideEdge::Right;
         return self;
     }
 

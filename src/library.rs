@@ -10,6 +10,7 @@ pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     animation: Animation {
         speed: 1.0,
         slide: SlideFlags::NONE,
+        slide_edge: SlideEdge::Top,
     },
     key: None,
     text_params: None,
@@ -39,6 +40,7 @@ pub const DEFAULT: NodeParams = NodeParams {
     animation: Animation {
         speed: 1.0,
         slide: SlideFlags::NONE,
+        slide_edge: SlideEdge::Top,
     },
     key: None,
     text_params: None,
@@ -68,6 +70,7 @@ pub const V_STACK: NodeParams = NodeParams {
     animation: Animation {
         speed: 1.0,
         slide: SlideFlags::NONE,
+        slide_edge: SlideEdge::Top,
     },
     key: None,
     text_params: None,
@@ -101,6 +104,7 @@ pub const H_STACK: NodeParams = NodeParams {
     animation: Animation {
         speed: 1.0,
         slide: SlideFlags::NONE,
+        slide_edge: SlideEdge::Top,
     },
     key: None,
     text_params: None,
@@ -135,6 +139,7 @@ pub const V_SCROLL_STACK: NodeParams = NodeParams {
     animation: Animation {
         speed: 1.0,
         slide: SlideFlags::NONE,
+        slide_edge: SlideEdge::Top,
     },
     key: None,
     text_params: None,
@@ -169,6 +174,7 @@ pub const MARGIN: NodeParams = NodeParams {
     animation: Animation {
         speed: 1.0,
         slide: SlideFlags::NONE,
+        slide_edge: SlideEdge::Top,
     },
     key: None,
     stack: None,
@@ -198,6 +204,7 @@ pub const ICON_BUTTON: NodeParams = NodeParams {
     animation: Animation {
         speed: 1.0,
         slide: SlideFlags::NONE,
+        slide_edge: SlideEdge::Top,
     },
     key: None,
     stack: None,
@@ -227,6 +234,7 @@ pub const IMAGE: NodeParams = NodeParams {
     animation: Animation {
         speed: 1.0,
         slide: SlideFlags::NONE,
+        slide_edge: SlideEdge::Top,
     },
     key: None,
     stack: None,
@@ -256,6 +264,7 @@ pub const IMAGE_BUTTON: NodeParams = NodeParams {
     animation: Animation {
         speed: 1.0,
         slide: SlideFlags::NONE,
+        slide_edge: SlideEdge::Top,
     },
     key: None,
     stack: None,
@@ -285,6 +294,7 @@ pub const BUTTON: NodeParams = NodeParams {
     animation: Animation {
         speed: 1.0,
         slide: SlideFlags::NONE,
+        slide_edge: SlideEdge::Top,
     },
     key: None,
     stack: None,
@@ -320,6 +330,7 @@ pub const LABEL: NodeParams = NodeParams {
     animation: Animation {
         speed: 1.0,
         slide: SlideFlags::NONE,
+        slide_edge: SlideEdge::Top,
     },
     key: None,
     stack: None,
@@ -355,6 +366,7 @@ pub const MULTILINE_LABEL: NodeParams = NodeParams {
     animation: Animation {
         speed: 1.0,
         slide: SlideFlags::NONE,
+        slide_edge: SlideEdge::Top,
     },
     key: None,
     stack: None,
@@ -390,6 +402,7 @@ pub const TEXT: NodeParams = NodeParams {
     animation: Animation {
         speed: 1.0,
         slide: SlideFlags::NONE,
+        slide_edge: SlideEdge::Top,
     },
     key: None,
     stack: None,
@@ -425,6 +438,7 @@ pub const TEXT_EDIT: NodeParams = NodeParams {
     animation: Animation {
         speed: 1.0,
         slide: SlideFlags::NONE,
+        slide_edge: SlideEdge::Top,
     },
     key: None,
     stack: None,
@@ -460,6 +474,7 @@ pub const TEXT_EDIT_LINE: NodeParams = NodeParams {
     animation: Animation {
         speed: 1.0,
         slide: SlideFlags::NONE,
+        slide_edge: SlideEdge::Top,
     },
     key: None,
     stack: None,
@@ -495,6 +510,7 @@ pub const TEXT_PARAGRAPH: NodeParams = NodeParams {
     animation: Animation {
         speed: 1.0,
         slide: SlideFlags::NONE,
+        slide_edge: SlideEdge::Top,
     },
     key: None,
     stack: None,
@@ -530,6 +546,7 @@ pub const PANEL: NodeParams = NodeParams {
     animation: Animation {
         speed: 1.0,
         slide: SlideFlags::NONE,
+        slide_edge: SlideEdge::Top,
     },
     key: None,
     stack: None,
@@ -560,6 +577,7 @@ pub const CONTAINER: NodeParams = NodeParams {
     animation: Animation {
         speed: 1.0,
         slide: SlideFlags::NONE,
+        slide_edge: SlideEdge::Top,
     },
     key: None,
     stack: None,
@@ -602,6 +620,7 @@ pub const CUSTOM_RENDERED_PANEL: NodeParams = NodeParams {
     animation: Animation {
         speed: 1.0,
         slide: SlideFlags::NONE,
+        slide_edge: SlideEdge::Top,
     },
     key: None,
     stack: None,
@@ -632,6 +651,7 @@ pub const SPACER: NodeParams = NodeParams {
     animation: Animation {
         speed: 1.0,
         slide: SlideFlags::NONE,
+        slide_edge: SlideEdge::Top,
     },
     key: None,
     stack: None,
@@ -661,6 +681,7 @@ pub(crate) const COMPONENT_ROOT: NodeParams = NodeParams {
     animation: Animation {
         speed: 1.0,
         slide: SlideFlags::NONE,
+        slide_edge: SlideEdge::Top,
     },
     key: None,
     stack: None,
