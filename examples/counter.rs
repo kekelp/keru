@@ -66,7 +66,7 @@ impl State {
 }
 
 fn main() {
-    basic_env_logger_init();
+    // basic_env_logger_init();
     let mut state = State::default();
     state.show = true;
     run_example_loop(state, State::update_ui);

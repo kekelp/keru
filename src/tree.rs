@@ -1,6 +1,7 @@
 use crate::*;
 use std::collections::hash_map::Entry;
 use std::hash::Hasher;
+use std::num::NonZeroU16;
 use std::panic::Location;
 use bytemuck::{Pod, Zeroable};
 
@@ -229,11 +230,9 @@ impl Ui {
         self.nodes[old_last_child].next_hidden_sibling = Some(new_node_i);
     }
 
-    pub(crate) fn init_exit_animation(&mut self, child: NodeI, parent: NodeI) {
-        return;
-
-
+    pub(crate) fn init_exit_animations(&mut self, child: NodeI, parent: NodeI) {
         let slide_flags = self.nodes[child].params.animation.slide;
+        dbg!(self.nodes[child].debug_name(), slide_flags);
         if !slide_flags.contains(SlideFlags::DISAPPEARING) {
             return;
         }
@@ -280,7 +279,7 @@ impl Ui {
             child_node.animation_offset_target = target_offset;
             child_node.animation_start_time = Some(current_time);
 
-            println!("Animation start: offset=({:.3}, {:.3}) for child", target_offset.x, target_offset.y);
+            println!("Exit Animation start: offset=({:.3}, {:.3}) for child", target_offset.x, target_offset.y);
         }
     }
 
@@ -292,7 +291,6 @@ impl Ui {
             let speed = self.sys.global_animation_speed * self.nodes[i].params.animation.speed;
 
             let duration = BASE_DURATION / speed;
-            dbg!(speed);
             if elapsed < duration {
                 return true;
             }
@@ -498,8 +496,11 @@ impl Ui {
         // pop the root node
         thread_local::pop_parent();
 
-        self.diff_children();
-        self.cleanup();
+        // self.diff_children();
+        // self.cleanup();
+
+        self.cleanup_2();
+
         self.relayout();
         
         self.sys.third_last_frame_end_fake_time = self.sys.second_last_frame_end_fake_time;
@@ -526,6 +527,37 @@ impl Ui {
         } else {
             return false;
         }
+    }
+
+    fn cleanup_2(&mut self) {
+        self.sys.added_nodes.clear();
+        self.sys.direct_removed_nodes.clear();
+        self.sys.indirect_removed_nodes.clear();
+        self.sys.very_indirect_removed_nodes.clear();
+        self.sys.hidden_nodes.clear();
+        self.sys.hidden_stack.clear();
+        
+        // start from 2 to skip dummy and root
+        for i in 2..self.nodes.nodes.capacity() {
+            if self.nodes.nodes.contains(i) {
+                let i = NodeI::from(i);
+
+                let id = self.nodes[i].id;
+                let freshly_added = self.nodes.node_hashmap[&id].last_frame_touched == self.sys.current_frame;
+
+                if ! freshly_added {
+                    self.sys.direct_removed_nodes.push(i);
+                } 
+
+            }
+        }
+
+        for i in 0..self.sys.direct_removed_nodes.len() {
+            self.cleanup_node(self.sys.direct_removed_nodes[i]);
+        }
+
+        // todo: push partial relayouts
+        self.sys.changes.full_relayout = true;
     }
 
     fn diff_children(&mut self) {
@@ -603,7 +635,7 @@ impl Ui {
                     }
 
                     // try starting an exit animation for the removed node
-                    self.init_exit_animation(old_child, self.nodes[old_child].parent);
+                    self.init_exit_animations(old_child, self.nodes[old_child].parent);
 
                     if self.node_has_ongoing_animation(old_child) {
                         // keep around as "exiting" until the animation is done

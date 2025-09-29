@@ -61,7 +61,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 
 
 fn main() {
-    basic_env_logger_init();
+    // basic_env_logger_init();
     let state = State {
         expanded: vec![false, false, false, false, false],
     };

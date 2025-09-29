@@ -157,7 +157,6 @@ impl Ui {
 
     pub(crate) fn relayout_from_root(&mut self) {
         // 1st recursive tree traversal: start from the root and recursively determine the size of all nodes
-        // For the first node, assume that the proposed size that we got from the parent last frame is valid. (except for root, in which case just use the whole screen. todo: should just make full_relayout a separate function.)
         let starting_proposed_size = Xy::new(1.0, 1.0);
 
         self.recursive_determine_size(ROOT_I, ProposedSizes::container(starting_proposed_size));
@@ -638,8 +637,6 @@ impl Ui {
             let child_node = &mut self.nodes[child];
             child_node.animation_offset_start = starting_offset;
             child_node.animation_start_time = Some(current_time);
-            
-            println!("Animation start: offset=({:.3}, {:.3}) for child", starting_offset.x, starting_offset.y);
         }
     }
 

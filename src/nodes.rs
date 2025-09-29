@@ -111,6 +111,7 @@ impl Nodes {
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct NodeMapEntry {
+    // todo: why is this here and not on the Node?
     pub last_frame_touched: u64,
 
     // keeping track of the twin situation.

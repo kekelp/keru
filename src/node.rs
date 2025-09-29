@@ -88,6 +88,8 @@ pub struct Node {
     // todo: remove.
     pub user_states: Vec<StateId>,
 
+    pub can_hide: bool,
+
     // only kept around until the exit animation is done.
     pub exiting: bool,
 }
