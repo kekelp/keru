@@ -199,6 +199,7 @@ impl Node {
 
             // intentionally at zero capacity
             user_states: Vec::new(),
+            can_hide: false,
             exiting: false,
         };
     }
@@ -304,6 +305,7 @@ pub const ZERO_NODE_DUMMY: Node = Node {
     
     // intentionally at zero capacity
     user_states: Vec::new(),
+    can_hide: false,
 
     exiting: false,
 };
@@ -375,6 +377,7 @@ pub const NODE_ROOT: Node = Node {
 
     // intentionally at zero capacity
     user_states: Vec::new(),
+    can_hide: false,
 
     exiting: false,
 };

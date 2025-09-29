@@ -33,7 +33,7 @@ pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
         padding: Xy::new_symm(0),
         scrollable: Xy::new(false, false),
     },
-    children_can_hide: false,
+    children_can_hide: ChildrenCanHide::Inherit,
 };
 /// [`NodeParams`] for a default. 
 pub const DEFAULT: NodeParams = NodeParams {
@@ -63,7 +63,7 @@ pub const DEFAULT: NodeParams = NodeParams {
         padding: Xy::new_symm(0),
         scrollable: Xy::new(false, false),
     },
-    children_can_hide: false,
+    children_can_hide: ChildrenCanHide::Inherit,
 };
 /// [`NodeParams`] for a vertical stack. 
 pub const V_STACK: NodeParams = NodeParams {
@@ -97,7 +97,7 @@ pub const V_STACK: NodeParams = NodeParams {
         padding: Xy::new_symm(0),
         scrollable: Xy::new(false, false),
     },
-    children_can_hide: false,
+    children_can_hide: ChildrenCanHide::Inherit,
 };
 /// [`NodeParams`] for a horizontal stack. 
 pub const H_STACK: NodeParams = NodeParams {
@@ -131,7 +131,7 @@ pub const H_STACK: NodeParams = NodeParams {
         padding: Xy::new_symm(0),
         scrollable: Xy::new(false, false),
     },
-    children_can_hide: false,
+    children_can_hide: ChildrenCanHide::Inherit,
 };
 
 /// [`NodeParams`] for a vertically scrollable vertical stack.
@@ -166,7 +166,7 @@ pub const V_SCROLL_STACK: NodeParams = NodeParams {
             padding: Xy::new_symm(0),
             scrollable: Xy::new(false, true),
         },
-        children_can_hide: false,
+        children_can_hide: ChildrenCanHide::Inherit,
     };
 
 /// [`NodeParams`] for a margin. 
@@ -197,7 +197,7 @@ pub const MARGIN: NodeParams = NodeParams {
         padding: Xy::new_symm(0),
         scrollable: Xy::new(false, false),
     },
-    children_can_hide: false,
+    children_can_hide: ChildrenCanHide::Inherit,
 };
 /// [`NodeParams`] for an icon button. 
 pub const ICON_BUTTON: NodeParams = NodeParams {
@@ -227,7 +227,7 @@ pub const ICON_BUTTON: NodeParams = NodeParams {
         padding: Xy::new_symm(10),
         scrollable: Xy::new(false, false),
     },
-    children_can_hide: false,
+    children_can_hide: ChildrenCanHide::Inherit,
 };
 /// [`NodeParams`] for an image. 
 pub const IMAGE: NodeParams = NodeParams {
@@ -257,7 +257,7 @@ pub const IMAGE: NodeParams = NodeParams {
         padding: Xy::new_symm(0),
         scrollable: Xy::new(false, false),
     },
-    children_can_hide: false,
+    children_can_hide: ChildrenCanHide::Inherit,
 };
 /// [`NodeParams`] for an icon button. 
 pub const IMAGE_BUTTON: NodeParams = NodeParams {
@@ -287,7 +287,7 @@ pub const IMAGE_BUTTON: NodeParams = NodeParams {
         padding: Xy::new_symm(0),
         scrollable: Xy::new(false, false),
     },
-    children_can_hide: false,
+    children_can_hide: ChildrenCanHide::Inherit,
 };
 /// [`NodeParams`] for a button. 
 pub const BUTTON: NodeParams = NodeParams {
@@ -323,7 +323,7 @@ pub const BUTTON: NodeParams = NodeParams {
         padding: Xy::new_symm(10),
         scrollable: Xy::new(false, false),
     },
-    children_can_hide: false,
+    children_can_hide: ChildrenCanHide::Inherit,
 };
 /// [`NodeParams`] for a label. 
 pub const LABEL: NodeParams = NodeParams {
@@ -358,7 +358,7 @@ pub const LABEL: NodeParams = NodeParams {
         padding: Xy::new_symm(10),
         scrollable: Xy::new(false, false),
     },
-    children_can_hide: false,
+    children_can_hide: ChildrenCanHide::Inherit,
 };
 
 /// [`NodeParams`] for a label containing a multi-line paragraph. 
@@ -394,7 +394,7 @@ pub const MULTILINE_LABEL: NodeParams = NodeParams {
         padding: Xy::new_symm(10),
         scrollable: Xy::new(false, false),
     },
-    children_can_hide: false,
+    children_can_hide: ChildrenCanHide::Inherit,
 };
 
 /// [`NodeParams`] for a text element. 
@@ -430,7 +430,7 @@ pub const TEXT: NodeParams = NodeParams {
         padding: Xy::new_symm(2),
         scrollable: Xy::new(false, false),
     },
-    children_can_hide: false,
+    children_can_hide: ChildrenCanHide::Inherit,
 };
 
 /// [`NodeParams`] for a multiline text edit box. 
@@ -466,7 +466,7 @@ pub const TEXT_EDIT: NodeParams = NodeParams {
         padding: Xy::new_symm(10),
         scrollable: Xy::new(false, false),
     },
-    children_can_hide: false,
+    children_can_hide: ChildrenCanHide::Inherit,
 };
 
 /// [`NodeParams`] for a single line text edit box. 
@@ -502,7 +502,7 @@ pub const TEXT_EDIT_LINE: NodeParams = NodeParams {
         padding: Xy::new_symm(10),
         scrollable: Xy::new(false, false),
     },
-    children_can_hide: false,
+    children_can_hide: ChildrenCanHide::Inherit,
 };
 
 /// [`NodeParams`] for a text element containing a multi-line paragraph.
@@ -538,7 +538,7 @@ pub const TEXT_PARAGRAPH: NodeParams = NodeParams {
         padding: Xy::new_symm(2),
         scrollable: Xy::new(false, false),
     },
-    children_can_hide: false,
+    children_can_hide: ChildrenCanHide::Inherit,
 };
 
 /// [`NodeParams`] for a panel. 
@@ -569,7 +569,7 @@ pub const PANEL: NodeParams = NodeParams {
         padding: Xy::new_symm(10),
         scrollable: Xy::new(false, false),
     },
-    children_can_hide: false,
+    children_can_hide: ChildrenCanHide::Inherit,
 };
 
 /// [`NodeParams`] for a container. 
@@ -600,7 +600,7 @@ pub const CONTAINER: NodeParams = NodeParams {
         padding: Xy::new_symm(10),
         scrollable: Xy::new(false, false),
     },
-    children_can_hide: false,
+    children_can_hide: ChildrenCanHide::Inherit,
 };
 
 /// [`NodeParams`] for a custom rendered node.
@@ -643,7 +643,7 @@ pub const CUSTOM_RENDERED_PANEL: NodeParams = NodeParams {
         padding: Xy::new_symm(0),
         scrollable: Xy::new(false, false),
     },
-    children_can_hide: false,
+    children_can_hide: ChildrenCanHide::Inherit,
 };
 
 /// [`NodeParams`] for a spacer element.
@@ -674,7 +674,7 @@ pub const SPACER: NodeParams = NodeParams {
         padding: Xy::new_symm(0),
         scrollable: Xy::new(false, false),
     },
-    children_can_hide: false,
+    children_can_hide: ChildrenCanHide::Inherit,
 };
 
 pub(crate) const COMPONENT_ROOT: NodeParams = NodeParams {
@@ -704,5 +704,5 @@ pub(crate) const COMPONENT_ROOT: NodeParams = NodeParams {
         padding: Xy::new_symm(0),
         scrollable: Xy::new(false, false),
     },
-    children_can_hide: false,
+    children_can_hide: ChildrenCanHide::Inherit,
 };

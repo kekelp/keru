@@ -159,7 +159,7 @@ impl Ui {
         // 1st recursive tree traversal: start from the root and recursively determine the size of all nodes
         let starting_proposed_size = Xy::new(1.0, 1.0);
 
-        self.recursive_determine_size(ROOT_I, ProposedSizes::container(starting_proposed_size));
+        self.recursive_determine_size_and_hidden(ROOT_I, ProposedSizes::container(starting_proposed_size), false);
         
         // 2nd recursive tree traversal: now that all nodes have a calculated size, place them.
         // we don't do update_rects here because the first frame you can't update... but maybe just special-case the first frame, then should be faster
@@ -180,13 +180,23 @@ impl Ui {
         // 1st recursive tree traversal: start from the root and recursively determine the size of all nodes
         // For the first node, use the proposed size that we got from the parent last frame.
         let starting_proposed_size = self.nodes[i].last_proposed_sizes;
-        self.recursive_determine_size(i, starting_proposed_size);
+        let hidden_branch = if i == ROOT_I {
+            false
+        } else {
+            match self.nodes[self.nodes[i].parent].params.children_can_hide {
+                ChildrenCanHide::Yes => true,
+                ChildrenCanHide::No => false,
+                ChildrenCanHide::Inherit => false, // This should be determined by traversing up, but for partial relayout we simplify
+            }
+        };
+        self.recursive_determine_size_and_hidden(i, starting_proposed_size, hidden_branch);
         
         // 2nd recursive tree traversal: now that all nodes have a calculated size, place them.
         self.recursive_place_children(i, update_rects);
 
         self.nodes[i].last_layout_frame = self.sys.current_frame;
     }
+
 
     fn get_size(
         &mut self,
@@ -259,12 +269,23 @@ impl Ui {
         return inner_size;
     }
 
-    fn recursive_determine_size(
+    fn recursive_determine_size_and_hidden(
         &mut self,
         i: NodeI,
         proposed_sizes: ProposedSizes,
+        hideable_branch: bool,
     ) -> Xy<f32> {
         self.nodes[i].last_proposed_sizes = proposed_sizes;
+        
+        // Set can_hide flag based on parent's children_can_hide setting
+        self.nodes[i].can_hide = hideable_branch;
+        
+        // Determine this node's children_can_hide setting for its children
+        let children_can_hide = match self.nodes[i].params.children_can_hide {
+            ChildrenCanHide::Yes => true,
+            ChildrenCanHide::No => false,
+            ChildrenCanHide::Inherit => hideable_branch,
+        };
 
         let size = self.get_size(i, proposed_sizes.to_this_child, proposed_sizes.to_all_children);
         let size_to_propose = self.get_inner_size(i, size);
@@ -282,7 +303,7 @@ impl Ui {
             // First, do all non-Fill children
             for_each_child!(self, self.nodes[i], child, {
                 if self.nodes[child].params.layout.size[stack.axis] != Size::Fill {
-                    let child_size = self.recursive_determine_size(child, ProposedSizes::stack(available_size_left, size_to_propose));
+                    let child_size = self.recursive_determine_size_and_hidden(child, ProposedSizes::stack(available_size_left, size_to_propose), children_can_hide);
                     content_size.update_for_child(child_size, Some(stack));
                     if n_added_children != 0 {
                         content_size[stack.axis] += spacing;
@@ -306,7 +327,7 @@ impl Ui {
                 size_per_child[stack.axis] /= n_fill_children as f32;
                 for_each_child!(self, self.nodes[i], child, {
                     if self.nodes[child].params.layout.size[stack.axis] == Size::Fill {
-                        let child_size = self.recursive_determine_size(child, ProposedSizes::stack(size_per_child, size_to_propose));
+                        let child_size = self.recursive_determine_size_and_hidden(child, ProposedSizes::stack(size_per_child, size_to_propose), children_can_hide);
                         content_size.update_for_child(child_size, Some(stack));
                         if n_added_children != 0 {
                             content_size[stack.axis] += spacing;
@@ -320,7 +341,7 @@ impl Ui {
         } else {
             // Propose a size to the children and let them decide
             for_each_child!(self, self.nodes[i], child, {
-                let child_size = self.recursive_determine_size(child, ProposedSizes::container(size_to_propose));
+                let child_size = self.recursive_determine_size_and_hidden(child, ProposedSizes::container(size_to_propose), children_can_hide);
                 content_size.update_for_child(child_size, stack); // this is None
             });            
             

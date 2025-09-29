@@ -4,6 +4,13 @@ use crate::*;
 use crate::color::*;
 use std::{hash::{Hash, Hasher}, ops::Deref};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ChildrenCanHide {
+    Yes,
+    No,
+    Inherit,
+}
+
 /// A struct describing the params of a GUI node.
 /// 
 /// Pass it to [`Ui::add`] to create a node with the given params:
@@ -47,7 +54,7 @@ pub struct NodeParams {
     pub rect: Rect,
     pub interact: Interact,
     pub layout: Layout,
-    pub children_can_hide: bool,
+    pub children_can_hide: ChildrenCanHide,
     pub animation: Animation,
 }
 
@@ -521,7 +528,12 @@ impl NodeParams {
     /// 
     /// By default, almost all [`NodeParams`] values have [`children_can_hide(false)`].
     pub fn children_can_hide(mut self, value: bool) -> Self {
-        self.children_can_hide = value;
+        self.children_can_hide = if value { ChildrenCanHide::Yes } else { ChildrenCanHide::No };
+        return self;
+    }
+
+    pub fn children_can_hide_inherit(mut self) -> Self {
+        self.children_can_hide = ChildrenCanHide::Inherit;
         return self;
     }
 
@@ -891,7 +903,12 @@ impl<'a> FullNodeParams<'a> {
     }
 
     pub fn children_can_hide(mut self, value: bool) -> Self {
-        self.params.children_can_hide = value;
+        self.params.children_can_hide = if value { ChildrenCanHide::Yes } else { ChildrenCanHide::No };
+        return self;
+    }
+
+    pub fn children_can_hide_inherit(mut self) -> Self {
+        self.params.children_can_hide = ChildrenCanHide::Inherit;
         return self;
     }
 

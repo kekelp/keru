@@ -544,19 +544,34 @@ impl Ui {
 
                 let id = self.nodes[i].id;
                 let freshly_added = self.nodes.node_hashmap[&id].last_frame_touched == self.sys.current_frame;
+                let can_hide = self.nodes[i].can_hide;
 
-                if ! freshly_added {
+                if ! freshly_added && ! can_hide {
                     self.sys.direct_removed_nodes.push(i);
-                } 
-
+                }
+            }
+        }
+        
+        // if a node with children_can_hide is removed, its whole hidden branch needs to be cleaned up as well.
+        for k in 0..self.sys.direct_removed_nodes.len() {
+            let i = self.sys.direct_removed_nodes[k];
+            if self.nodes[i].params.children_can_hide == ChildrenCanHide::Yes {
+                for_each_hidden_child!(self, self.nodes[i], hidden_child, {
+                    // todo: add some comments to this stuff...
+                    self.recursive_set_as_toremove_indirect_hidden_children(hidden_child);
+                });
             }
         }
 
-        for i in 0..self.sys.direct_removed_nodes.len() {
-            self.cleanup_node(self.sys.direct_removed_nodes[i]);
+        for k in 0..self.sys.direct_removed_nodes.len() {
+            self.cleanup_node(self.sys.direct_removed_nodes[k]);
         }
 
-        // todo: push partial relayouts
+        for k in 0..self.sys.indirect_removed_nodes.len() {
+            self.cleanup_node(self.sys.indirect_removed_nodes[k]);
+        }
+
+        // todo: push partial relayouts instead
         self.sys.changes.full_relayout = true;
     }
 
@@ -598,7 +613,7 @@ impl Ui {
         let id = self.nodes[i].id;
         let freshly_added = self.nodes.node_hashmap[&id].last_frame_touched == self.sys.current_frame;
 
-        let new_hidden_branch = freshly_added && self.nodes[i].params.children_can_hide;
+        let new_hidden_branch = freshly_added && self.nodes[i].params.children_can_hide != ChildrenCanHide::No;
         if new_hidden_branch {
             self.sys.hidden_stack.push(i);
         }
@@ -736,6 +751,7 @@ impl Ui {
         
         // skip the nodes that have last_frame_touched = now, because that means that they were not really removed, but just moved somewhere else in the tree.
         // Kind of weird to do this so late.
+        // todo: with the new system we can delete this.
         if self.nodes.node_hashmap[&id].last_frame_touched == self.sys.current_frame {
             log::trace!("Not removing: {:?}, as it was moved around and not removed", self.node_debug_name_fmt_scratch(i));
             return;
