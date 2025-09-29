@@ -496,10 +496,10 @@ impl Ui {
         // pop the root node
         thread_local::pop_parent();
 
-        // self.diff_children();
-        // self.cleanup();
+        self.diff_children();
+        self.cleanup();
 
-        self.cleanup_2();
+        // self.cleanup_2();
 
         self.relayout();
         
@@ -536,6 +536,9 @@ impl Ui {
         self.sys.very_indirect_removed_nodes.clear();
         self.sys.hidden_nodes.clear();
         self.sys.hidden_stack.clear();
+
+        // I'm going insane here. todo: find another way to do this with no allocation and no partial borrow cancer
+        let mut direct_removed_nodes = Vec::with_capacity(30);
         
         // start from 2 to skip dummy and root
         for i in 2..self.nodes.nodes.capacity() {
@@ -546,29 +549,42 @@ impl Ui {
                 let freshly_added = self.nodes.node_hashmap[&id].last_frame_touched == self.sys.current_frame;
                 let can_hide = self.nodes[i].can_hide;
 
-                if ! freshly_added && ! can_hide {
-                    self.sys.direct_removed_nodes.push(i);
+                if ! freshly_added {
+                    if can_hide && ! self.nodes[i].currently_hidden {
+                        // try to attach the removed (direct) children of hideable nodes to the old parent as hidden children.
+                        let old_parent = self.nodes[i].parent;
+                        if self.nodes.contains(old_parent) {
+                            if self.nodes[old_parent].params.children_can_hide == ChildrenCanHide::Yes {
+                                println!("would like to add_hidden_child {:?} , {:?}", i, old_parent);
+                                self.add_hidden_child(i, old_parent);
+                                self.nodes[i].currently_hidden = true;
+                            }
+                        }
+                    } else {    
+                        direct_removed_nodes.push(i);
+                    }
                 }
             }
         }
-        
-        // if a node with children_can_hide is removed, its whole hidden branch needs to be cleaned up as well.
-        for k in 0..self.sys.direct_removed_nodes.len() {
-            let i = self.sys.direct_removed_nodes[k];
+
+        for &i in &direct_removed_nodes {
+            // if a node with children_can_hide is removed, its whole hidden branch needs to be cleaned up as well.
             if self.nodes[i].params.children_can_hide == ChildrenCanHide::Yes {
+                println!("We wuz... {}", self.nodes[i].debug_name());
                 for_each_hidden_child!(self, self.nodes[i], hidden_child, {
-                    // todo: add some comments to this stuff...
+                    println!("hidden child: {}", self.nodes[hidden_child].debug_name());
                     self.recursive_set_as_toremove_indirect_hidden_children(hidden_child);
                 });
             }
         }
-
+        
         for k in 0..self.sys.direct_removed_nodes.len() {
             self.cleanup_node(self.sys.direct_removed_nodes[k]);
         }
 
-        for k in 0..self.sys.indirect_removed_nodes.len() {
-            self.cleanup_node(self.sys.indirect_removed_nodes[k]);
+        for k in 0..self.sys.very_indirect_removed_nodes.len() {
+            println!("Indirect delete {}", self.nodes[self.sys.very_indirect_removed_nodes[k]].debug_name());
+            self.cleanup_node(self.sys.very_indirect_removed_nodes[k]);
         }
 
         // todo: push partial relayouts instead
@@ -585,7 +601,6 @@ impl Ui {
         
         self.recursive_diff_children(ROOT_I);
 
-        // if the tree changes, all rects have to be rebuilt. this might change if the rects become densemaps or whatever
         if !self.sys.added_nodes.is_empty()
             || !self.sys.direct_removed_nodes.is_empty()
             || !self.sys.hidden_nodes.is_empty()
@@ -757,7 +772,6 @@ impl Ui {
             return;
         }
 
-        println!("Removing {:?} ({:?})", self.node_debug_name_fmt_scratch(i), i);
         let old_handle = self.nodes[i].text_i.take();
         if let Some(text_i) = old_handle {
             match text_i {

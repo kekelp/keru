@@ -107,6 +107,10 @@ impl Nodes {
             nodes,
         };
     }
+
+    pub fn contains(&self, i: NodeI) -> bool {
+        self.nodes.contains(i.as_usize())
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

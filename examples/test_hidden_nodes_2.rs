@@ -3,93 +3,87 @@ use keru::*;
 
 #[derive(Default)]
 pub struct State {
-    pub current_tab: usize,
-    pub remove1: bool,
-    pub hide1: bool,
-    pub hide2: bool,
+    pub show_container: bool,
+    pub show_elem_1: bool,
+    pub show_elem_2: bool,
 }
 
 impl State {
     fn update_ui(&mut self, ui: &mut Ui) {
-        #[node_key] const TAB_CONT: NodeKey;
-        #[node_key] const CHECK_IF_THIS_NODE_GETS_REMOVED: NodeKey;
-        #[node_key] const CHECK_IF_THIS_NODE_GETS_REMOVED2: NodeKey;
-        #[node_key] const SHOW: NodeKey;
+        #[node_key] const CONTAINER: NodeKey;
+        #[node_key] const ELEM_1: NodeKey;
+        #[node_key] const ELEM_2: NodeKey;
 
-        let tab_container = PANEL
+        #[node_key] const SHOW_CONTAINER: NodeKey;
+        #[node_key] const SHOW_ELEM_1: NodeKey;
+        #[node_key] const SHOW_ELEM_2: NodeKey;
+
+        let container = PANEL
             .color(Color::KERU_RED)
             .size_symm(Size::Pixels(300))
             .children_can_hide(true)
-            .key(TAB_CONT);
+            .key(CONTAINER);
 
-        let check_this = LABEL
+        let elem_1 = TEXT_EDIT_LINE
             .color(Color::KERU_GREEN)
             .size_symm(Size::FitContent)
-            .position_x(Position::Start)
-            .static_text("Sneed")
-            .key(CHECK_IF_THIS_NODE_GETS_REMOVED);
+            .position_y(Position::Start)
+            .static_text("Edit text")
+            .key(ELEM_1);
 
-        let check_this2 = LABEL
+        let elem_2 = TEXT_EDIT_LINE
             .color(Color::KERU_GREEN)
-            .position_x(Position::End)
-            .size_symm(Size::FitContent)
-            .static_text("Sneed2")
-            .key(CHECK_IF_THIS_NODE_GETS_REMOVED2);
-
-        let remove = BUTTON
-            .color(Color::KERU_RED)
-            .size_symm(Size::FitContent)
             .position_y(Position::End)
-            .static_text("Remove Outer");
-
-        let hide1 = BUTTON
-            .color(Color::KERU_RED)
             .size_symm(Size::FitContent)
-            .position_y(Position::End)
-            .static_text("Hide Inner 1");
+            .static_text("Write here")
+            .key(ELEM_2);
 
-        let hide2 = BUTTON
-            .color(Color::KERU_RED)
-            .size_symm(Size::FitContent)
-            .position_y(Position::End)
-            .static_text("Hide Inner 2");
+        let show_container = BUTTON.static_text("Remove Container").key(SHOW_CONTAINER);
+        let show_elem_1 = BUTTON.static_text("Remove Element 1").key(SHOW_ELEM_1);
+        let show_elem_2 = BUTTON.static_text("Hide Element 2").key(SHOW_ELEM_2);
 
-        // the idea is that when show1 is false, the text node should still get removed, even if it's under tab_container.
-        // it only stays as hidden when show2 is false but show1 is true.
-        if self.remove1 {
-            ui.add(tab_container).nest(|| {
-                if self.hide1 {
-                    ui.add(check_this);
-                }
-                if self.hide2 {
-                    ui.add(check_this2);
-                }
+        let description = LABEL.static_text("The red container has children_can_hide = true. So, when the elements are removed, they remain in memory in the background, and their edited text is retained. \n When the container itself is removed, however, the elements that are kept alive by the container's \"children_can_hide\" should be removed as well, so bringing it back should reset the edited text.").position_y(Position::Start);
+
+        let v_stack = V_STACK.size_y(Size::Fill).stack_arrange(Arrange::Start).padding(5);
+
+        if ui.is_clicked(SHOW_CONTAINER) {
+            self.show_container = !self.show_container;
+        };
+        if ui.is_clicked(SHOW_ELEM_1) {
+            self.show_elem_1 = !self.show_elem_1;
+        };
+        if ui.is_clicked(SHOW_ELEM_2) {
+            self.show_elem_2 = !self.show_elem_2;
+        };
+
+        ui.add(v_stack).nest(|| {
+            ui.add(description);
+
+            ui.add(H_STACK).nest(|| {
+                ui.add(show_container);
+                ui.add(show_elem_1);
+                ui.add(show_elem_2);
             });
-        }
-    
-        ui.add(H_STACK.position_y(Position::End)).nest(|| {
-            if ui.add(remove).is_clicked(ui) {
-                self.remove1 = !self.remove1;
-            };
-            if ui.add(hide1).is_clicked(ui) {
-                self.hide1 = !self.hide1;
-            };
-            if ui.add(hide2).is_clicked(ui) {
-                self.hide2 = !self.hide2;
-            };
+
+            if self.show_container {
+                ui.add(container).nest(|| {
+                    if self.show_elem_1 {
+                        ui.add(elem_1);
+                    }
+                    if self.show_elem_2 {
+                        ui.add(elem_2);
+                    }
+                });
+            }
         });
-    
     }
 }
 
 fn main() {
-    env_logger::Builder::new()
-        .filter_level(log::LevelFilter::Warn)
-        // .filter_module("keru", log::LevelFilter::Info)
-        .filter_module("keru::tree", log::LevelFilter::Trace)
-        .init();
-    let mut state = State::default();
-    state.remove1 = true;
-    state.hide1 = true;
+    let state = State {
+        show_container: true,
+        show_elem_1: true,
+        show_elem_2: true,
+    };
     run_example_loop(state, State::update_ui);
 }

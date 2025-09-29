@@ -89,6 +89,7 @@ pub struct Node {
     pub user_states: Vec<StateId>,
 
     pub can_hide: bool,
+    pub currently_hidden: bool,
 
     // only kept around until the exit animation is done.
     pub exiting: bool,
@@ -201,6 +202,7 @@ impl Node {
             user_states: Vec::new(),
             can_hide: false,
             exiting: false,
+            currently_hidden: false,
         };
     }
 }
@@ -306,6 +308,7 @@ pub const ZERO_NODE_DUMMY: Node = Node {
     // intentionally at zero capacity
     user_states: Vec::new(),
     can_hide: false,
+    currently_hidden: false,
 
     exiting: false,
 };
@@ -380,4 +383,6 @@ pub const NODE_ROOT: Node = Node {
     can_hide: false,
 
     exiting: false,
+    currently_hidden: false,
+
 };
