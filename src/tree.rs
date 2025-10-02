@@ -154,6 +154,8 @@ impl Ui {
         self.nodes[new_node_i].depth = depth;
         self.nodes[new_node_i].parent = parent_i;
 
+        self.nodes[new_node_i].currently_hidden = false;
+
         self.nodes[new_node_i].user_states.clear();
 
         self.set_relayout_chain_root(new_node_i, parent_i);
@@ -496,10 +498,10 @@ impl Ui {
         // pop the root node
         thread_local::pop_parent();
 
-        self.diff_children();
-        self.cleanup();
+        // self.diff_children();
+        // self.cleanup();
 
-        // self.cleanup_2();
+        self.cleanup_2();
 
         self.relayout();
         
@@ -538,9 +540,11 @@ impl Ui {
         self.sys.hidden_stack.clear();
 
         // I'm going insane here. todo: find another way to do this with no allocation and no partial borrow cancer
-        let mut direct_removed_nodes = Vec::with_capacity(30);
+        let mut non_fresh_nodes = Vec::with_capacity(30);
+        let mut to_cleanup: Vec<NodeI> = Vec::with_capacity(30);
         
         // start from 2 to skip dummy and root
+        // todo: improve this loop
         for i in 2..self.nodes.nodes.capacity() {
             if self.nodes.nodes.contains(i) {
                 let i = NodeI::from(i);
@@ -561,34 +565,38 @@ impl Ui {
                             }
                         }
                     } else {    
-                        direct_removed_nodes.push(i);
+                        non_fresh_nodes.push(i);
                     }
                 }
             }
         }
 
-        for &i in &direct_removed_nodes {
+        for &i in &non_fresh_nodes {
+            if ! self.nodes[i].can_hide {
+                to_cleanup.push(i);
+            }
+
             // if a node with children_can_hide is removed, its whole hidden branch needs to be cleaned up as well.
             if self.nodes[i].params.children_can_hide == ChildrenCanHide::Yes {
-                println!("We wuz... {}", self.nodes[i].debug_name());
                 for_each_hidden_child!(self, self.nodes[i], hidden_child, {
-                    println!("hidden child: {}", self.nodes[hidden_child].debug_name());
-                    self.recursive_set_as_toremove_indirect_hidden_children(hidden_child);
+                    self.recursive_set_as_toremove_indirect_hidden_children_2(hidden_child, &mut to_cleanup);
                 });
             }
         }
         
-        for k in 0..self.sys.direct_removed_nodes.len() {
-            self.cleanup_node(self.sys.direct_removed_nodes[k]);
-        }
-
-        for k in 0..self.sys.very_indirect_removed_nodes.len() {
-            println!("Indirect delete {}", self.nodes[self.sys.very_indirect_removed_nodes[k]].debug_name());
-            self.cleanup_node(self.sys.very_indirect_removed_nodes[k]);
+        for &k in &to_cleanup {
+            self.cleanup_node(k );
         }
 
         // todo: push partial relayouts instead
         self.sys.changes.full_relayout = true;
+    }
+
+    fn recursive_set_as_toremove_indirect_hidden_children_2(&mut self, i: NodeI, vec: &mut Vec<NodeI>) {
+        vec.push(i);
+        for_each_child!(self, self.nodes[i], child, {
+            self.recursive_set_as_toremove_indirect_hidden_children_2(child, vec);
+        });
     }
 
     fn diff_children(&mut self) {
@@ -809,6 +817,69 @@ impl Ui {
         current_last_child.hash(&mut hasher);
         
         return hasher.finish()   
+    }
+
+    pub fn debug_print_tree(&self) {
+        let mut prefix = String::new();
+        self.debug_print_node_recursive(ROOT_I, &mut prefix, true, false);
+    }
+
+    fn debug_print_node_recursive(&self, node_i: NodeI, prefix: &mut String, is_last: bool, is_hidden: bool) {
+        let hidden_marker = if is_hidden { " [HIDDEN]" } else { "" };
+        let currently_hidden = if self.nodes[node_i].currently_hidden { " (currently_hidden=true)" } else { "" };
+        let exiting = if self.nodes[node_i].exiting { " (exiting=true)" } else { "" };
+        
+        let connector = if prefix.is_empty() {
+            String::new()
+        } else if is_last {
+            "└── ".to_string()
+        } else {
+            "├── ".to_string()
+        };
+        
+        println!("{}{}{}{}{}{}",
+            prefix,
+            connector,
+            self.nodes[node_i].debug_name(),
+            hidden_marker,
+            currently_hidden,
+            exiting
+        );
+
+        let old_len = prefix.len();
+        if is_last {
+            prefix.push_str("    ");
+        } else {
+            prefix.push_str("│   ");
+        }
+
+        // Count children first to determine which is last
+        let mut regular_count = 0;
+        let mut hidden_count = 0;
+        for_each_child!(self, self.nodes[node_i], _child, {
+            regular_count += 1;
+        });
+        for_each_hidden_child!(self, self.nodes[node_i], _hidden_child, {
+            hidden_count += 1;
+        });
+        let total_count = regular_count + hidden_count;
+
+        // Traverse regular children
+        let mut current_index = 0;
+        for_each_child!(self, self.nodes[node_i], child, {
+            let is_child_last = current_index == total_count - 1;
+            self.debug_print_node_recursive(child, prefix, is_child_last, false);
+            current_index += 1;
+        });
+
+        // Traverse hidden children
+        for_each_hidden_child!(self, self.nodes[node_i], hidden_child, {
+            let is_child_last = current_index == total_count - 1;
+            self.debug_print_node_recursive(hidden_child, prefix, is_child_last, true);
+            current_index += 1;
+        });
+
+        prefix.truncate(old_len);
     }
 }
 
