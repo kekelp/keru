@@ -552,30 +552,31 @@ impl Ui {
                 let id = self.nodes[i].id;
                 let freshly_added = self.nodes.node_hashmap[&id].last_frame_touched == self.sys.current_frame;
                 let can_hide = self.nodes[i].can_hide;
+                let currently_hidden = self.nodes[i].currently_hidden;
+                let old_parent = self.nodes[i].parent;
+
+                let is_root_of_hideable_branch = match self.nodes.get(old_parent) {
+                    Some(op) => op.params.children_can_hide == ChildrenCanHide::Yes,
+                    None => false,
+                };
 
                 if ! freshly_added {
-                    if can_hide && ! self.nodes[i].currently_hidden {
-                        // try to attach the removed (direct) children of hideable nodes to the old parent as hidden children.
-                        let old_parent = self.nodes[i].parent;
-                        if self.nodes.contains(old_parent) {
-                            if self.nodes[old_parent].params.children_can_hide == ChildrenCanHide::Yes {
-                                println!("would like to add_hidden_child {:?} , {:?}", i, old_parent);
-                                self.add_hidden_child(i, old_parent);
-                                self.nodes[i].currently_hidden = true;
-                            }
-                        }
-                    } else {    
+                    if ! can_hide {    
                         non_fresh_nodes.push(i);
+                        to_cleanup.push(i);
+                    } else if ! currently_hidden {
+                        self.nodes[i].currently_hidden = true;
+                        
+                        if is_root_of_hideable_branch {
+                            self.add_hidden_child(i, old_parent);
+                        }
                     }
+
                 }
             }
         }
 
         for &i in &non_fresh_nodes {
-            if ! self.nodes[i].can_hide {
-                to_cleanup.push(i);
-            }
-
             // if a node with children_can_hide is removed, its whole hidden branch needs to be cleaned up as well.
             if self.nodes[i].params.children_can_hide == ChildrenCanHide::Yes {
                 for_each_hidden_child!(self, self.nodes[i], hidden_child, {

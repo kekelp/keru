@@ -111,6 +111,10 @@ impl Nodes {
     pub fn contains(&self, i: NodeI) -> bool {
         self.nodes.contains(i.as_usize())
     }
+
+    pub fn get(&self, i: NodeI) -> Option<&Node> {
+        self.nodes.get(i.as_usize())
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
