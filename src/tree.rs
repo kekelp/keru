@@ -542,32 +542,39 @@ impl Ui {
         // I'm going insane here. todo: find another way to do this with no allocation and no partial borrow cancer
         let mut non_fresh_nodes = Vec::with_capacity(30);
         let mut to_cleanup: Vec<NodeI> = Vec::with_capacity(30);
+        let mut hidden_branch_parents: Vec<NodeI> = Vec::with_capacity(30);
         
         // start from 2 to skip dummy and root
         // todo: improve this loop
         for i in 2..self.nodes.nodes.capacity() {
             if self.nodes.nodes.contains(i) {
                 let i = NodeI::from(i);
-
                 let id = self.nodes[i].id;
                 let freshly_added = self.nodes.node_hashmap[&id].last_frame_touched == self.sys.current_frame;
                 let can_hide = self.nodes[i].can_hide;
                 let currently_hidden = self.nodes[i].currently_hidden;
                 let old_parent = self.nodes[i].parent;
 
-                let is_root_of_hideable_branch = match self.nodes.get(old_parent) {
-                    Some(op) => op.params.children_can_hide == ChildrenCanHide::Yes,
+                let is_first_child_in_hidden_branch = match self.nodes.get(old_parent) {
+                    Some(old_parent) => old_parent.params.children_can_hide == ChildrenCanHide::Yes,
                     None => false,
                 };
+                let children_can_hide = self.nodes[i].params.children_can_hide == ChildrenCanHide::Yes;
 
                 if ! freshly_added {
                     if ! can_hide {    
                         non_fresh_nodes.push(i);
                         to_cleanup.push(i);
+
+                        // if a node with children_can_hide is removed, its whole hidden branch needs to be cleaned up as well.
+                        if children_can_hide {
+                            hidden_branch_parents.push(i);
+                        }
+
                     } else if ! currently_hidden {
                         self.nodes[i].currently_hidden = true;
-                        
-                        if is_root_of_hideable_branch {
+
+                        if is_first_child_in_hidden_branch {
                             self.add_hidden_child(i, old_parent);
                         }
                     }
@@ -576,13 +583,10 @@ impl Ui {
             }
         }
 
-        for &i in &non_fresh_nodes {
-            // if a node with children_can_hide is removed, its whole hidden branch needs to be cleaned up as well.
-            if self.nodes[i].params.children_can_hide == ChildrenCanHide::Yes {
-                for_each_hidden_child!(self, self.nodes[i], hidden_child, {
-                    self.recursive_set_as_toremove_indirect_hidden_children_2(hidden_child, &mut to_cleanup);
-                });
-            }
+        for &i in &hidden_branch_parents {
+            for_each_hidden_child!(self, self.nodes[i], hidden_child, {
+                self.cleanup_branch(hidden_child, &mut to_cleanup);
+            });
         }
         
         for &k in &to_cleanup {
@@ -593,10 +597,10 @@ impl Ui {
         self.sys.changes.full_relayout = true;
     }
 
-    fn recursive_set_as_toremove_indirect_hidden_children_2(&mut self, i: NodeI, vec: &mut Vec<NodeI>) {
+    fn cleanup_branch(&mut self, i: NodeI, vec: &mut Vec<NodeI>) {
         vec.push(i);
         for_each_child!(self, self.nodes[i], child, {
-            self.recursive_set_as_toremove_indirect_hidden_children_2(child, vec);
+            self.cleanup_branch(child, vec);
         });
     }
 

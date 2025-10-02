@@ -42,7 +42,7 @@ impl State {
         let show_elem_1 = BUTTON.static_text("Remove Element 1").key(SHOW_ELEM_1);
         let show_elem_2 = BUTTON.static_text("Hide Element 2").key(SHOW_ELEM_2);
 
-        let description = LABEL.static_text("The red container has children_can_hide = true. So, when the elements are removed, they remain in memory in the background, and their edited text is retained. \n When the container itself is removed, however, the elements that are kept alive by the container's \"children_can_hide\" should be removed as well. So bringing it back should reset the edited text.").position_y(Position::Start);
+        let description = LABEL.static_text("The red container has children_can_hide = true. So, when the elements are removed, they remain in memory in the background, and their edited text is retained. \n But when the container itself is removed, the elements shouldn't stay in memory anymore: it's like closing a browser tab. So bringing it back should reset the edited text.").position_y(Position::Start);
 
         let v_stack = V_STACK.size_y(Size::Fill).stack_arrange(Arrange::Start).padding(5);
 
