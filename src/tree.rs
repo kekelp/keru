@@ -528,9 +528,9 @@ impl Ui {
     }
 
     fn cleanup_and_stuff(&mut self) {
-        let mut non_fresh_nodes: Vec<NodeI> = take_buffer(&mut self.sys.non_fresh_nodes);
-        let mut to_cleanup: Vec<NodeI> = take_buffer(&mut self.sys.to_cleanup);
-        let mut hidden_branch_parents: Vec<NodeI> = take_buffer(&mut self.sys.hidden_branch_parents);
+        let mut non_fresh_nodes: Vec<NodeI> = take_buffer_and_clear(&mut self.sys.non_fresh_nodes);
+        let mut to_cleanup: Vec<NodeI> = take_buffer_and_clear(&mut self.sys.to_cleanup);
+        let mut hidden_branch_parents: Vec<NodeI> = take_buffer_and_clear(&mut self.sys.hidden_branch_parents);
 
         // start from 2 to skip dummy and root
         // todo: improve this loop
@@ -865,8 +865,7 @@ pub(crate) fn with_info_log_timer<T>(operation_name: &str, f: impl FnOnce() -> T
 }
 
 // New partial borrow cope just dropped.
-// Does nothing for things like do_cosmetic_rect_updates.
-pub(crate) fn take_buffer<T>(buf: &mut Vec<T>) -> Vec<T> {
+pub(crate) fn take_buffer_and_clear<T>(buf: &mut Vec<T>) -> Vec<T> {
     buf.clear();
     return mem::take(buf)
 }

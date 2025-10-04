@@ -1,3 +1,5 @@
+use std::mem;
+
 use crate::*;
 use crate::node::*;
 
@@ -93,10 +95,6 @@ impl Ui {
             }
         }
 
-        // reset these early, but resolve_hover has a chance to turn them back on
-        // self.sys.new_ui_input = false;
-        // self.sys.new_external_events = false;
-
         // these ones are after the second-order-effect resolve_hover, just to see the update sooner.
         if full_relayout || tree_changed {
             self.rebuild_all_rects();
@@ -111,23 +109,22 @@ impl Ui {
         if tree_changed || partial_relayouts || full_relayout {
             self.resolve_hover();
         }
-
-        if tree_changed {
-            // pruning here seems like an ok idea, but I haven't thought about it super hard yet.
-            // in general, we could use info in tree_changes to do better pruning.
-            // self.prune();
-        }
     }
 
     pub(crate) fn do_cosmetic_rect_updates(&mut self) {
         if !self.sys.changes.cosmetic_rect_updates.is_empty() {
             self.sys.changes.need_gpu_rect_update = true;
         }
-        for idx in 0..self.sys.changes.cosmetic_rect_updates.len() {
-            let update = self.sys.changes.cosmetic_rect_updates[idx];
+
+        // Is this even better than iterating with an index?
+        let cosmetic_rect_updates = mem::take(&mut self.sys.changes.cosmetic_rect_updates);
+
+        for &update in &cosmetic_rect_updates {
             self.update_rect(update);
             log::info!("Visual rectangle update ({})", self.node_debug_name_fmt_scratch(update));
         }
+
+        self.sys.changes.cosmetic_rect_updates = cosmetic_rect_updates;
         self.sys.changes.cosmetic_rect_updates.clear();
     }
 
