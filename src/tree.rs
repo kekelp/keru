@@ -1,7 +1,7 @@
 use crate::*;
 use std::collections::hash_map::Entry;
 use std::hash::Hasher;
-use std::num::NonZeroU16;
+use std::mem;
 use std::panic::Location;
 use bytemuck::{Pod, Zeroable};
 
@@ -498,17 +498,13 @@ impl Ui {
         // pop the root node
         thread_local::pop_parent();
 
-        // self.diff_children();
-        // self.cleanup();
-
-        self.cleanup_2();
+        self.cleanup_and_stuff();
 
         self.relayout();
         
         self.sys.third_last_frame_end_fake_time = self.sys.second_last_frame_end_fake_time;
         self.sys.second_last_frame_end_fake_time = self.sys.last_frame_end_fake_time;
         self.sys.last_frame_end_fake_time = observer_timestamp();
-
 
         if self.sys.update_frames_needed > 0 {
             self.sys.update_frames_needed -= 1;
@@ -531,19 +527,11 @@ impl Ui {
         }
     }
 
-    fn cleanup_2(&mut self) {
-        self.sys.added_nodes.clear();
-        self.sys.direct_removed_nodes.clear();
-        self.sys.indirect_removed_nodes.clear();
-        self.sys.very_indirect_removed_nodes.clear();
-        self.sys.hidden_nodes.clear();
-        self.sys.hidden_stack.clear();
+    fn cleanup_and_stuff(&mut self) {
+        let mut non_fresh_nodes: Vec<NodeI> = take_buffer(&mut self.sys.non_fresh_nodes);
+        let mut to_cleanup: Vec<NodeI> = take_buffer(&mut self.sys.to_cleanup);
+        let mut hidden_branch_parents: Vec<NodeI> = take_buffer(&mut self.sys.hidden_branch_parents);
 
-        // I'm going insane here. todo: find another way to do this with no allocation and no partial borrow cancer
-        let mut non_fresh_nodes = Vec::with_capacity(30);
-        let mut to_cleanup: Vec<NodeI> = Vec::with_capacity(30);
-        let mut hidden_branch_parents: Vec<NodeI> = Vec::with_capacity(30);
-        
         // start from 2 to skip dummy and root
         // todo: improve this loop
         for i in 2..self.nodes.nodes.capacity() {
@@ -555,18 +543,19 @@ impl Ui {
                 let currently_hidden = self.nodes[i].currently_hidden;
                 let old_parent = self.nodes[i].parent;
 
+                // the top-level nodes in hidden branches need to be attached to their children_can_hide parents as hidden nodes, so that when that parent node is removed, we can also remove the hidden branch. Otherwise we'd just forget about them and leave them into memory forever. 
                 let is_first_child_in_hidden_branch = match self.nodes.get(old_parent) {
                     Some(old_parent) => old_parent.params.children_can_hide == ChildrenCanHide::Yes,
                     None => false,
                 };
                 let children_can_hide = self.nodes[i].params.children_can_hide == ChildrenCanHide::Yes;
 
+
                 if ! freshly_added {
                     if ! can_hide {    
                         non_fresh_nodes.push(i);
                         to_cleanup.push(i);
 
-                        // if a node with children_can_hide is removed, its whole hidden branch needs to be cleaned up as well.
                         if children_can_hide {
                             hidden_branch_parents.push(i);
                         }
@@ -578,196 +567,36 @@ impl Ui {
                             self.add_hidden_child(i, old_parent);
                         }
                     }
-
                 }
+            
             }
         }
 
+        // This is delayed so that hidden children are all added
         for &i in &hidden_branch_parents {
             for_each_hidden_child!(self, self.nodes[i], hidden_child, {
-                self.cleanup_branch(hidden_child, &mut to_cleanup);
+                self.add_branch_to_cleanup(hidden_child, &mut to_cleanup);
             });
         }
         
+        // finally cleanup
         for &k in &to_cleanup {
-            self.cleanup_node(k );
+            self.cleanup_node(k);
         }
 
-        // todo: push partial relayouts instead
+        // todo: push partial relayouts instead.
         self.sys.changes.full_relayout = true;
+
+        self.sys.non_fresh_nodes = non_fresh_nodes;
+        self.sys.to_cleanup = to_cleanup;
+        self.sys.hidden_branch_parents = hidden_branch_parents;
     }
 
-    fn cleanup_branch(&mut self, i: NodeI, vec: &mut Vec<NodeI>) {
+    fn add_branch_to_cleanup(&mut self, i: NodeI, vec: &mut Vec<NodeI>) {
         vec.push(i);
         for_each_child!(self, self.nodes[i], child, {
-            self.cleanup_branch(child, vec);
+            self.add_branch_to_cleanup(child, vec);
         });
-    }
-
-    fn diff_children(&mut self) {
-        self.sys.added_nodes.clear();
-        self.sys.direct_removed_nodes.clear();
-        self.sys.indirect_removed_nodes.clear();
-        self.sys.very_indirect_removed_nodes.clear();
-        self.sys.hidden_nodes.clear();
-        self.sys.hidden_stack.clear();
-        
-        self.recursive_diff_children(ROOT_I);
-
-        if !self.sys.added_nodes.is_empty()
-            || !self.sys.direct_removed_nodes.is_empty()
-            || !self.sys.hidden_nodes.is_empty()
-        {
-            self.sys.changes.tree_changed = true;
-        }
-
-        // push partial relayouts
-        for k in 0..self.sys.added_nodes.len() {
-            // the recursive_diff_children traversal uses the old tree, so it can miss a lot of added rects that are added to new children directly. This is fine though because added_rects is just for relayouts.
-            let i = self.sys.added_nodes[k];
-            self.push_partial_relayout(i);
-        }
-        for k in 0..self.sys.direct_removed_nodes.len() {
-            let i = self.sys.direct_removed_nodes[k];
-            self.push_partial_relayout(i);
-        }
-        for k in 0..self.sys.hidden_nodes.len() {
-            let i = self.sys.hidden_nodes[k];
-            self.push_partial_relayout(i);
-        }
-    }
-
-    fn recursive_diff_children(&mut self, i: NodeI) {
-        let id = self.nodes[i].id;
-        let freshly_added = self.nodes.node_hashmap[&id].last_frame_touched == self.sys.current_frame;
-
-        let new_hidden_branch = freshly_added && self.nodes[i].params.children_can_hide != ChildrenCanHide::No;
-        if new_hidden_branch {
-            self.sys.hidden_stack.push(i);
-        }
-
-        if i == ROOT_I || freshly_added {
-            // collect old and new children
-            self.sys.new_child_collect.clear();        
-            self.sys.old_child_collect.clear();
-            
-            for_each_child!(self, self.nodes[i], child, {
-                self.sys.new_child_collect.push(child);
-            });
-            for_each_old_child!(self, self.nodes[i], child, {
-                self.sys.old_child_collect.push(child);
-            });
-
-            // diff the arrays
-            // todo: use hashsets? probably not needed at all
-            for &new_child in &self.sys.new_child_collect {
-                if !self.sys.old_child_collect.contains(&new_child) {
-                    self.sys.added_nodes.push(new_child);
-                }
-            }
-            for k in 0..self.sys.old_child_collect.len() {
-                let old_child = self.sys.old_child_collect[k];
-                if !self.sys.new_child_collect.contains(&old_child) {
-
-                    let old_child_id = self.nodes[old_child].id;
-                    // todo: this was below in the hidden branch, did we fuck something up?
-                    // as usual, if the hidden node is actually freshly added, that means that it wasn't hidden, but just moved somewhere else in the frame. In that case if we did add_hidden_child it would be pretty bad.
-                    if self.nodes.node_hashmap[&old_child_id].last_frame_touched == self.sys.current_frame {
-                        log::trace!("Not removing {:?}, as its parent has can_hide_children = true. But not setting it as hidden either, as it has merely moved to another position in the tree. Wow, what an edge case!", self.node_debug_name_fmt_scratch(old_child));
-                        continue;
-                    }
-
-                    // try starting an exit animation for the removed node
-                    self.init_exit_animations(old_child, self.nodes[old_child].parent);
-
-                    if self.node_has_ongoing_animation(old_child) {
-                        // keep around as "exiting" until the animation is done
-                        let old_parent = self.nodes[old_child].parent;
-                        self.add_child(old_child, old_parent);
-
-                    } else {
-                        // remove normally
-                        if new_hidden_branch {
-                            self.sys.hidden_nodes.push(old_child);
-
-                            self.add_hidden_child(old_child, i);
-
-                            log::trace!("Not removing {:?}, as its parent has can_hide_children = true", self.node_debug_name_fmt_scratch(old_child));
-
-                        } else {
-                            // no hidden crap, just remove. We could to the moved-somewhere-else check here for symmetry, but it's working fine down in garbage_collect_node
-                            self.sys.direct_removed_nodes.push(old_child);
-                        }
-                    }
-                }
-            }
-
-            // continue recursion on old children
-            
-            // in a hidden branch, there should be no chance of any node being freshly added, and the nodes don't get garbage collected, so there's no need to recurse at all.
-            // (if we recursed anyway, presumably we could do retained-mode hiding text boxes instead of the last-frame-touched thing. But we would have to pass a "in_hidden_branch" parameter.)
-            // (Why don't we just do everything last-frame-touched style anyway? Maybe so that we can do more accurate partial relayouts? It would also be a bit complicated to tell if orphaned children should be removed or hidden. But would it be more complicated than this?)
-            if ! new_hidden_branch {
-                for_each_old_child!(self, self.nodes[i], child, {
-                    self.recursive_diff_children(child);
-                });
-            }
-
-        } else {
-            // orphaned children of old nodes
-            // these ones were never visited, so their tree links weren't even updated. so the traversal uses for_each_child, not for_each_old_child
-
-            // Add all their nodes to removed without diffing
-            for_each_child!(self, self.nodes[i], child, {
-                // this check isn't needed because hidden branches aren't even traversed.
-                // however it's still here for safety.
-                let in_hidden_branch = ! self.sys.hidden_stack.is_empty();
-                if ! in_hidden_branch {
-                    self.sys.indirect_removed_nodes.push(child);
-                }
-            });
-
-            // continue recursion. down here, all nodes should all be not freshly added
-            for_each_child!(self, self.nodes[i], child, {
-                self.recursive_diff_children(child);
-            });
-        }
-
-        if let Some(pop_hidden) = self.sys.hidden_stack.last() {
-            if *pop_hidden == i {
-                self.sys.hidden_stack.pop();
-            }
-        }
-    }
-
-    fn cleanup(&mut self) {
-        // if any of the removed nodes have hidden children, also add those nodes (and their whole branch) to the cleanup.
-        for k in 0..self.sys.direct_removed_nodes.len() {
-            let i = self.sys.direct_removed_nodes[k];
-            for_each_hidden_child!(self, self.nodes[i], hidden_child, {
-                self.recursive_set_as_toremove_indirect_hidden_children(hidden_child);
-            });
-        }
-        for k in 0..self.sys.indirect_removed_nodes.len() {
-            let i = self.sys.indirect_removed_nodes[k];
-            for_each_hidden_child!(self, self.nodes[i], hidden_child, {
-                self.recursive_set_as_toremove_indirect_hidden_children(hidden_child);
-            });
-        }
-        // no need to clear 
-
-        for k in 0..self.sys.direct_removed_nodes.len() {
-            let i = self.sys.direct_removed_nodes[k];
-            self.cleanup_node(i);
-        }
-        for k in 0..self.sys.indirect_removed_nodes.len() {
-            let i = self.sys.indirect_removed_nodes[k];
-            self.cleanup_node(i);
-        }
-        for k in 0..self.sys.very_indirect_removed_nodes.len() {
-            let i = self.sys.very_indirect_removed_nodes[k];
-            self.cleanup_node(i);
-        }
     }
 
     fn cleanup_node(&mut self, i: NodeI) {
@@ -803,13 +632,6 @@ impl Ui {
 
         self.nodes.node_hashmap.remove(&id);
         self.nodes.nodes.remove(i.as_usize());
-    }
-
-    fn recursive_set_as_toremove_indirect_hidden_children(&mut self, i: NodeI) {
-        self.sys.very_indirect_removed_nodes.push(i);
-        for_each_child!(self, self.nodes[i], child, {
-            self.recursive_set_as_toremove_indirect_hidden_children(child);
-        });
     }
 
     pub(crate) fn current_tree_hash(&mut self) -> u64 {
@@ -1040,4 +862,11 @@ pub(crate) fn with_info_log_timer<T>(operation_name: &str, f: impl FnOnce() -> T
     } else {
         f()
     }
+}
+
+// New partial borrow cope just dropped.
+// Does nothing for things like do_cosmetic_rect_updates.
+pub(crate) fn take_buffer<T>(buf: &mut Vec<T>) -> Vec<T> {
+    buf.clear();
+    return mem::take(buf)
 }

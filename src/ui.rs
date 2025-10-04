@@ -132,32 +132,17 @@ pub(crate) struct System {
     // Holds the nodes and the cumulative animation offset.
     pub breadth_traversal_queue: VecDeque<(NodeI, Xy<f32>)>,
 
-    pub old_child_collect: Vec<NodeI>,
-    pub new_child_collect: Vec<NodeI>,
-    pub added_nodes: Vec<NodeI>,
-    // nodes that were removed and were direct children of still-visible nodes. Among other things, this means that them disappearing has to trigger a partial relayout.
-    pub direct_removed_nodes: Vec<NodeI>,
-    // nodes that were removed "automatically" as a consequence of their parent or grandparent being directly removed. Aka orphaned nodes. These ones don't cause relayouts.
-    pub indirect_removed_nodes: Vec<NodeI>,
-    // nodes that were excluded from the tree, but stay hidden. still have to do relayouts for them.
-    pub hidden_nodes: Vec<NodeI>,
+    pub non_fresh_nodes: Vec<NodeI>,
 
-    // There are also nodes that are hidden automatically due to their parent or grandparent being hidden. These don't cause relayouts. They don't get garbage collected immediately, but they do have to be garbage collected later if the root of the hidden branch gets garbage collected.
-    // While hidden, they stay connected to each other automatically with the regular tree links. But they need to be connected to the hidden root with the hidden tree links.
-    // And if the hidden root gets garbage collected, it needs to go through its hidden children and GC all their *regular* children, and then GC them.
-    // All the removals from there are collected here
-    pub very_indirect_removed_nodes: Vec<NodeI>,
-
+    pub to_cleanup: Vec<NodeI>,
+    pub hidden_branch_parents: Vec<NodeI>,
 
     pub changes: PartialChanges,
 
     // move to changes oalgo
     pub anim_render_timer: AnimationRenderTimer,
 
-    // todo: probably remove
-    pub hidden_stack: Vec<NodeI>,
-
-    pub user_state: HashMap<StateId, Box<dyn Any>>
+    pub user_state: HashMap<StateId, Box<dyn Any>>,
 }
 
 pub(crate) struct AnimationRenderTimer(Option<Instant>);
@@ -401,21 +386,16 @@ impl Ui {
 
                 #[cfg(debug_assertions)]
                 inspect_hovered: None,
-            
-                old_child_collect: Vec::with_capacity(10),
-                new_child_collect: Vec::with_capacity(10),
-                added_nodes: Vec::with_capacity(30),
-                direct_removed_nodes: Vec::with_capacity(30),
-                indirect_removed_nodes: Vec::with_capacity(30),
-                very_indirect_removed_nodes: Vec::with_capacity(30),
+
+                non_fresh_nodes: Vec::with_capacity(10),
+                to_cleanup: Vec::with_capacity(30),
+                hidden_branch_parents: Vec::with_capacity(30),
 
                 focused: None,
 
                 anim_render_timer: AnimationRenderTimer::default(),
 
                 changes: PartialChanges::new(),
-                hidden_stack: Vec::with_capacity(10),
-                hidden_nodes: Vec::with_capacity(10),
 
                 text_renderer: TextRenderer::new_with_params(device, queue, config.format, depth_stencil, TextRendererParams {
                     enable_z_range_filtering: true,
