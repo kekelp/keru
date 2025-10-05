@@ -286,6 +286,7 @@ impl Ui {
     }
 
     pub(crate) fn node_has_ongoing_animation(&self, i: NodeI) -> bool {
+        // Check if node has its own ongoing animation
         if let Some(animation_start_time) = self.nodes[i].animation_start_time {
             let t = ui_time_f32();
             let elapsed = t - animation_start_time;
@@ -298,14 +299,36 @@ impl Ui {
             }
         }
 
-        // Check if this node is affected by parent animations
+        // Check if this node is affected by parent animations (visual offset)
         let has_parent_animation = self.nodes[i].cumulative_parent_animation_offset_delta.x != 0.0 
             || self.nodes[i].cumulative_parent_animation_offset_delta.y != 0.0;
         
-        // Check if parent animation time is still active
-        let has_parent_animation_time = self.nodes[i].parent_animation_time_left > 0.0;
-        
-        has_parent_animation || has_parent_animation_time
+        if has_parent_animation {
+            return true;
+        }
+
+        // Check if any ancestor has an ongoing animation
+        let mut current_parent = self.nodes[i].parent;
+        while current_parent != ROOT_I {
+            // Safety check: make sure parent still exists
+            if !self.nodes.nodes.contains(current_parent.as_usize()) {
+                break;
+            }
+            
+            if let Some(parent_animation_start_time) = self.nodes[current_parent].animation_start_time {
+                let t = ui_time_f32();
+                let elapsed = t - parent_animation_start_time;
+                let speed = self.sys.global_animation_speed * self.nodes[current_parent].params.animation.speed;
+                let duration = BASE_DURATION / speed;
+                
+                if elapsed < duration {
+                    return true;
+                }
+            }
+            current_parent = self.nodes[current_parent].parent;
+        }
+
+        return false;
     }
 
     pub(crate) fn push_render_data(&mut self, i: NodeI) {
@@ -535,8 +558,22 @@ impl Ui {
         let mut to_cleanup: Vec<NodeI> = take_buffer_and_clear(&mut self.sys.to_cleanup);
         let mut hidden_branch_parents: Vec<NodeI> = take_buffer_and_clear(&mut self.sys.hidden_branch_parents);
 
-        // start from 2 to skip dummy and root
-        // todo: improve this loop
+        // Start exit animations for ALL nodes that need them
+        for i in 2..self.nodes.nodes.capacity() {
+            if self.nodes.nodes.contains(i) {
+                let i = NodeI::from(i);
+                let id = self.nodes[i].id;
+                let freshly_added = self.nodes.node_hashmap[&id].last_frame_touched == self.sys.current_frame;
+                let old_parent = self.nodes[i].parent;
+                let old_parent_still_exists = self.nodes.get(old_parent).is_some();
+
+                if !freshly_added && old_parent_still_exists {
+                    self.init_exit_animations(i, old_parent);
+                }
+            }
+        }
+
+        // Rest of cleanup
         for i in 2..self.nodes.nodes.capacity() {
             if self.nodes.nodes.contains(i) {
                 let i = NodeI::from(i);
@@ -555,10 +592,6 @@ impl Ui {
                 let children_can_hide = self.nodes[i].params.children_can_hide == ChildrenCanHide::Yes;
 
                 if ! freshly_added {
-
-                    if old_parent_still_exists {
-                        self.init_exit_animations(i, old_parent);
-                    }
                     
                     // Keep it around for the exit animation, remove it, or keep it hidden.
                     if old_parent_still_exists && self.node_has_ongoing_animation(i) {
