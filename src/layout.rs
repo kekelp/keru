@@ -16,38 +16,25 @@ macro_rules! for_each_child {
         {
             let mut current_child = $start.first_child;
             while let Some($child) = current_child {
-                $body
+                if ! $ui.nodes[$child].just_lingering {
+                    $body
+                }
                 current_child = $ui.nodes[$child].next_sibling;
             }
         }
     };
 }
 
-/// Iterate on the children linked list backwards.
+/// Iterate on the children linked list.
 #[macro_export]
 #[doc(hidden)] // Ideally these wouldn't even be public
-macro_rules! for_each_child_reverse {
+macro_rules! for_each_child_including_lingering {
     ($ui:expr, $start:expr, $child:ident, $body:block) => {
         {
-            let mut current_child = $start.last_child;
+            let mut current_child = $start.first_child;
             while let Some($child) = current_child {
                 $body
-                current_child = $ui.nodes[$child].prev_sibling;
-            }
-        }
-    };
-}
-
-/// Iterate on the leftover linked list of old children from last frame
-#[macro_export]
-#[doc(hidden)]
-macro_rules! for_each_old_child {
-    ($ui:expr, $start:expr, $child:ident, $body:block) => {
-        {
-            let mut current_child = $start.old_first_child;
-            while let Some($child) = current_child {
-                $body
-                current_child = $ui.nodes[$child].old_next_sibling;
+                current_child = $ui.nodes[$child].next_sibling;
             }
         }
     };
@@ -750,7 +737,7 @@ impl Ui {
             let offset_so_far = self.update_animations(node, parent_offset);
             self.push_render_data(node);
             
-            for_each_child!(self, self.nodes[node], child, {
+            for_each_child_including_lingering!(self, self.nodes[node], child, {
                 self.sys.breadth_traversal_queue.push_back((child, offset_so_far));
             });
         }

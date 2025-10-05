@@ -376,6 +376,11 @@ impl NodeParams {
         return self;
     }
 
+    pub const fn outline_only(mut self, value: bool) -> Self {
+        self.rect.outline_only = value;
+        return self;
+    }
+
     pub const fn color(mut self, color: Color) -> Self {
         self.rect.vertex_colors = VertexColors::flat(color);
         return self;
@@ -700,6 +705,11 @@ impl<'a> FullNodeParams<'a> {
 
     pub const fn filled(mut self, filled: bool) -> Self {
         self.params.rect.outline_only = filled;
+        return self;
+    }
+
+    pub const fn outline_only(mut self, value: bool) -> Self {
+        self.params.rect.outline_only = value;
         return self;
     }
 

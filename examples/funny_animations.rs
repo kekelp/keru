@@ -32,6 +32,8 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .slide()
         .text("Suh");
 
+    let elem_vstack = V_STACK.slide().visible().outline_only(false);
+
     ui.add(left_bar).nest(|| {
         for i in 0..5 {
             ui.add(h_group).nest(|| {
@@ -39,7 +41,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                 ui.add(expand.key(key));
 
                 if state.expanded[i] {
-                    ui.add(V_STACK).nest(|| {
+                    ui.add(elem_vstack).nest(|| {
 
                         for j in 0..4 {
                             let key = ELEM.sibling(i).sibling(j);

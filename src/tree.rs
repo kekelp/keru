@@ -123,6 +123,8 @@ impl Ui {
         let NodeWithDepth { i: parent_i, depth } = thread_local::current_parent();
         self.set_tree_links(real_final_i, parent_i, depth);
 
+        self.nodes[real_final_i].just_lingering = false;
+
         // refresh the text box associated with this node if it has one
         if let Some(text_i) = &self.nodes[real_final_i].text_i {
             match text_i {
@@ -232,26 +234,25 @@ impl Ui {
         self.nodes[old_last_child].next_hidden_sibling = Some(new_node_i);
     }
 
-    pub(crate) fn init_exit_animations(&mut self, child: NodeI, parent: NodeI) {
-        let slide_flags = self.nodes[child].params.animation.slide;
-        dbg!(self.nodes[child].debug_name(), slide_flags);
+    pub(crate) fn init_exit_animations(&mut self, i: NodeI, parent: NodeI) {
+        let slide_flags = self.nodes[i].params.animation.slide;
         if !slide_flags.contains(SlideFlags::DISAPPEARING) {
             return;
         }
 
         // Already exiting, don't restart another anim.
-        if self.nodes[child].exiting {
+        if self.nodes[i].exiting {
             return;
         }
 
-        self.nodes[child].exiting = true;
+        self.nodes[i].exiting = true;
         let current_time = ui_time_f32();
-        let target_rect = self.nodes[child].rect;
+        let target_rect = self.nodes[i].rect;
         let parent_rect = self.nodes[parent].rect;
         let mut target_offset = Xy::new(0.0, 0.0);
         let should_animate;
         
-        let slide_edge = self.nodes[child].params.animation.slide_edge;
+        let slide_edge = self.nodes[i].params.animation.slide_edge;
     
         // Calculate exit target offset based on configured edge (same direction as entry)
         match slide_edge {
@@ -276,12 +277,10 @@ impl Ui {
         }
         
         if should_animate {
-            let child_node = &mut self.nodes[child];
+            let child_node = &mut self.nodes[i];
             child_node.animation_offset_start = Xy::new(0.0, 0.0);
             child_node.animation_offset_target = target_offset;
             child_node.animation_start_time = Some(current_time);
-
-            println!("Exit Animation start: offset=({:.3}, {:.3}) for child", target_offset.x, target_offset.y);
         }
     }
 
@@ -550,8 +549,23 @@ impl Ui {
                 };
                 let children_can_hide = self.nodes[i].params.children_can_hide == ChildrenCanHide::Yes;
 
-
                 if ! freshly_added {
+
+                    let old_parent = self.nodes[i].parent;
+                    // if the old parent is getting removed in the same frame, this will still be true for that one frame.
+                    // it's probably fine though.
+                    if self.nodes.get(old_parent).is_some() {
+                        self.init_exit_animations(i, old_parent);
+
+                        if self.node_has_ongoing_animation(i) {
+                            dbg!(self.nodes[i].debug_name());
+
+                            self.set_tree_links(i, old_parent, 0);
+                            self.nodes[i].just_lingering = true;
+                            continue;
+                        }
+                    }
+
                     if ! can_hide {    
                         non_fresh_nodes.push(i);
                         to_cleanup.push(i);
