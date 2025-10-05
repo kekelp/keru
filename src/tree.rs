@@ -541,6 +541,7 @@ impl Ui {
                 let can_hide = self.nodes[i].can_hide;
                 let currently_hidden = self.nodes[i].currently_hidden;
                 let old_parent = self.nodes[i].parent;
+                let old_parent_still_exists = self.nodes.get(old_parent).is_some();
 
                 // the top-level nodes in hidden branches need to be attached to their children_can_hide parents as hidden nodes, so that when that parent node is removed, we can also remove the hidden branch. Otherwise we'd just forget about them and leave them into memory forever. 
                 let is_first_child_in_hidden_branch = match self.nodes.get(old_parent) {
@@ -551,22 +552,16 @@ impl Ui {
 
                 if ! freshly_added {
 
-                    // Keep nodes that have an exit animation.
-                    let old_parent = self.nodes[i].parent;
-                    // if the old parent is getting removed in the same frame, this will still be true for that one frame.
-                    // it's probably fine though.
-                    if self.nodes.get(old_parent).is_some() {
+                    if old_parent_still_exists {
                         self.init_exit_animations(i, old_parent);
-
-                        if self.node_has_ongoing_animation(i) {
-                            self.set_tree_links(i, old_parent, 0);
-                            self.nodes[i].just_lingering = true;
-                            continue;
-                        }
                     }
+                    
+                    // Keep it around for the exit animation, remove it, or keep it hidden.
+                    if old_parent_still_exists && self.node_has_ongoing_animation(i) {
+                        self.set_tree_links(i, old_parent, 0);
+                        self.nodes[i].just_lingering = true;
 
-                    // Destroy or hide
-                    if ! can_hide {    
+                    } else if ! can_hide {
                         non_fresh_nodes.push(i);
                         to_cleanup.push(i);
 
