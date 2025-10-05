@@ -9,6 +9,7 @@ pub struct State {
 fn update_ui(state: &mut State, ui: &mut Ui) {
     #[node_key] const EXPAND: NodeKey;
     #[node_key] const ELEM: NodeKey;
+    #[node_key] const ELEM_VSTACK: NodeKey;
 
     let left_bar = V_STACK
         .size_x(Size::Pixels(500))
@@ -29,10 +30,10 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 
     let elem = LABEL
         .size_x(Size::Fill)
-        .slide()
+        // .slide()
         .text("Suh");
 
-    let elem_vstack = V_STACK.slide().visible().outline_only(false);
+    let elem_vstack = V_STACK.slide().visible().outline_only(false).key(ELEM_VSTACK);
 
     ui.add(left_bar).nest(|| {
         for i in 0..5 {

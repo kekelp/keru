@@ -339,7 +339,7 @@ impl Ui {
             format_scratch: String::with_capacity(1024),
 
             sys: System {
-                global_animation_speed: 0.1,
+                global_animation_speed: 0.3,
                 unique_id: INSTANCE_COUNTER.fetch_add(1, Ordering::Relaxed),
                 z_cursor: 0.0,
                 theme: KERU_DARK,

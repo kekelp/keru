@@ -745,7 +745,6 @@ impl Ui {
     
     /// update local animations and return the total offset so far, so that child nodes can use it as a base.
     fn update_animations(&mut self, i: NodeI, parent_cumulative_offset_delta: Xy<f32>) -> Xy<f32> {
-
         if ! self.node_has_ongoing_animation(i) {
             self.nodes[i].animation_start_time = None;
         }
@@ -760,33 +759,27 @@ impl Ui {
         let has_entering_animation = self.nodes[i].animation_offset_start.x != 0.0 || self.nodes[i].animation_offset_start.y != 0.0;
         let has_exit_animation = self.nodes[i].animation_offset_target.x != 0.0 || self.nodes[i].animation_offset_target.y != 0.0;
         
-        if !has_entering_animation && !has_exit_animation {
-            return Xy::new(0.0, 0.0);
+        let mut local_offset = Xy::new(0.0, 0.0);
+        if has_entering_animation || has_exit_animation {
+
+            if let Some(animation_start_time) = self.nodes[i].animation_start_time {
+                let elapsed = ui_time_f32() - animation_start_time;
+        
+                let speed = self.sys.global_animation_speed * self.nodes[i].params.animation.speed;
+                let duration = BASE_DURATION / speed;
+                
+                if elapsed < duration {
+                    let t = elapsed / duration;
+                    let ease_t = 1.0 - (1.0 - t) * (1.0 - t);
+                    
+                    local_offset = Xy::new(
+                        self.nodes[i].animation_offset_target.x * ease_t + self.nodes[i].animation_offset_start.x * (1.0 - ease_t),
+                        self.nodes[i].animation_offset_target.y * ease_t + self.nodes[i].animation_offset_start.y * (1.0 - ease_t),
+                    );
+                }   
+            }
         }
         
-        let Some(animation_start_time) = self.nodes[i].animation_start_time else {
-            return Xy::new(0.0, 0.0);
-        };
-
-        let elapsed = ui_time_f32() - animation_start_time;
-        // dbg!(ui_time_f32(), self.nodes[node].animation_start_time);
-
-        let speed = self.sys.global_animation_speed * self.nodes[i].params.animation.speed;
-        let duration = BASE_DURATION / speed;
-        
-        let local_offset;
-        if elapsed < duration {
-            let t = elapsed / duration;
-            let ease_t = 1.0 - (1.0 - t) * (1.0 - t);
-            
-            local_offset = Xy::new(
-                self.nodes[i].animation_offset_target.x * ease_t + self.nodes[i].animation_offset_start.x * (1.0 - ease_t),
-                self.nodes[i].animation_offset_target.y * ease_t + self.nodes[i].animation_offset_start.y * (1.0 - ease_t),
-            );
-        } else {
-            local_offset = Xy::new(0.0, 0.0);
-        }
-            
         total_offset_so_far = total_offset_so_far + local_offset;
         
         self.nodes[i].animated_rect = self.nodes[i].rect;

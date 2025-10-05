@@ -551,6 +551,7 @@ impl Ui {
 
                 if ! freshly_added {
 
+                    // Keep nodes that have an exit animation.
                     let old_parent = self.nodes[i].parent;
                     // if the old parent is getting removed in the same frame, this will still be true for that one frame.
                     // it's probably fine though.
@@ -558,14 +559,13 @@ impl Ui {
                         self.init_exit_animations(i, old_parent);
 
                         if self.node_has_ongoing_animation(i) {
-                            dbg!(self.nodes[i].debug_name());
-
                             self.set_tree_links(i, old_parent, 0);
                             self.nodes[i].just_lingering = true;
                             continue;
                         }
                     }
 
+                    // Destroy or hide
                     if ! can_hide {    
                         non_fresh_nodes.push(i);
                         to_cleanup.push(i);
