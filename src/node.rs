@@ -96,6 +96,9 @@ pub struct Node {
 
     // only kept around until the exit animation is done.
     pub exiting: bool,
+
+    // Time left for parent's animation - keeps node alive until parent animations complete
+    pub parent_animation_time_left: f32,
 }
 
 impl Node {
@@ -207,6 +210,7 @@ impl Node {
             can_hide: false,
             exiting: false,
             currently_hidden: false,
+            parent_animation_time_left: 0.0,
         };
     }
 }
@@ -316,6 +320,7 @@ pub const ZERO_NODE_DUMMY: Node = Node {
     currently_hidden: false,
 
     exiting: false,
+    parent_animation_time_left: 0.0,
 };
 
 pub const ROOT_I: NodeI = NodeI::from(1);
@@ -390,5 +395,6 @@ pub const NODE_ROOT: Node = Node {
 
     exiting: false,
     currently_hidden: false,
+    parent_animation_time_left: 0.0,
 
 };

@@ -4,6 +4,7 @@ use std::hash::Hasher;
 use std::mem;
 use std::panic::Location;
 use bytemuck::{Pod, Zeroable};
+use crate::layout::BASE_DURATION;
 
 /// An `u64` identifier for a GUI node.
 /// 
@@ -301,7 +302,10 @@ impl Ui {
         let has_parent_animation = self.nodes[i].cumulative_parent_animation_offset_delta.x != 0.0 
             || self.nodes[i].cumulative_parent_animation_offset_delta.y != 0.0;
         
-        has_parent_animation
+        // Check if parent animation time is still active
+        let has_parent_animation_time = self.nodes[i].parent_animation_time_left > 0.0;
+        
+        has_parent_animation || has_parent_animation_time
     }
 
     pub(crate) fn push_render_data(&mut self, i: NodeI) {

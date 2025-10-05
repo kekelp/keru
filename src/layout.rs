@@ -732,7 +732,8 @@ impl Ui {
     fn breadth_first_push_rects(&mut self) {
         self.sys.breadth_traversal_queue.clear();
         self.sys.breadth_traversal_queue.push_back((ROOT_I, Xy::new(0.0, 0.0)));
-        
+
+        // instead of doing this thing with the offset, we could just store it in the node, and each node could grab it from its parent directly.    
         while let Some((node, parent_offset)) = self.sys.breadth_traversal_queue.pop_front() {
             let offset_so_far = self.update_animations(node, parent_offset);
             self.push_render_data(node);
@@ -745,6 +746,25 @@ impl Ui {
     
     /// update local animations and return the total offset so far, so that child nodes can use it as a base.
     fn update_animations(&mut self, i: NodeI, parent_cumulative_offset_delta: Xy<f32>) -> Xy<f32> {
+        // Calculate parent animation time left
+        let parent_animation_time_left = if i != ROOT_I {
+            let parent_i = self.nodes[i].parent;
+            if let Some(parent_animation_start_time) = self.nodes[parent_i].animation_start_time {
+                let elapsed = ui_time_f32() - parent_animation_start_time;
+                let speed = self.sys.global_animation_speed * self.nodes[parent_i].params.animation.speed;
+                let duration = BASE_DURATION / speed;
+                (duration - elapsed).max(0.0)
+            } else {
+                self.nodes[parent_i].parent_animation_time_left
+            }
+        } else {
+            0.0
+        };
+
+        // Update this node's parent animation time left
+        dbg!(parent_animation_time_left);
+        self.nodes[i].parent_animation_time_left = parent_animation_time_left;
+
         if ! self.node_has_ongoing_animation(i) {
             self.nodes[i].animation_start_time = None;
         }
