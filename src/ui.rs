@@ -129,8 +129,8 @@ pub(crate) struct System {
     // this is used exclusively for info messages
     pub partial_relayout_count: u32,
 
-    // Holds the nodes and the cumulative animation offset.
-    pub breadth_traversal_queue: VecDeque<(NodeI, Xy<f32>)>,
+    // Holds the nodes for breadth-first traversal.
+    pub breadth_traversal_queue: VecDeque<NodeI>,
 
     pub non_fresh_nodes: Vec<NodeI>,
 
@@ -339,7 +339,7 @@ impl Ui {
             format_scratch: String::with_capacity(1024),
 
             sys: System {
-                global_animation_speed: 0.3,
+                global_animation_speed: 0.2,
                 unique_id: INSTANCE_COUNTER.fetch_add(1, Ordering::Relaxed),
                 z_cursor: 0.0,
                 theme: KERU_DARK,

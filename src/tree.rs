@@ -141,6 +141,7 @@ impl Ui {
         return (real_final_i, real_final_id);
     }
 
+    // todo split this in "reset_old_tree_links" and "add_child"?
     fn set_tree_links(&mut self, new_node_i: NodeI, parent_i: NodeI, depth: usize) {
         assert!(new_node_i != parent_i, "Keru: Internal error: tried to add a node as child of itself ({}). This shouldn't be possible.", self.nodes[new_node_i].debug_name());
 
@@ -148,14 +149,12 @@ impl Ui {
         self.nodes[new_node_i].old_first_child = self.nodes[new_node_i].first_child;
         self.nodes[new_node_i].old_next_sibling = self.nodes[new_node_i].next_sibling;
         
+
         self.nodes[new_node_i].last_child = None;
         self.nodes[new_node_i].first_child = None;
-        self.nodes[new_node_i].prev_sibling = None;
-        self.nodes[new_node_i].next_sibling = None;
         self.nodes[new_node_i].n_children = 0;
 
         self.nodes[new_node_i].depth = depth;
-        self.nodes[new_node_i].parent = parent_i;
 
         self.nodes[new_node_i].currently_hidden = false;
 
@@ -167,31 +166,32 @@ impl Ui {
     }
 
     fn add_child(&mut self, new_node_i: NodeI, parent_i: NodeI) {
+        self.nodes[new_node_i].parent = parent_i;
+        self.nodes[new_node_i].prev_sibling = None;
+        self.nodes[new_node_i].next_sibling = None;
+
         self.nodes[parent_i].n_children += 1;
 
         match self.nodes[parent_i].last_child {
             None => {
-                self.add_first_child(new_node_i, parent_i)
+                {
+                    let this = &mut *self;
+                    this.nodes[parent_i].last_child = Some(new_node_i);
+                    this.nodes[parent_i].first_child = Some(new_node_i);
+                }
             },
             Some(last_child) => {
                 let old_last_child = last_child;
-                self.add_sibling(new_node_i, old_last_child, parent_i)
+                {
+                    let this = &mut *self;
+                    this.nodes[new_node_i].prev_sibling = Some(old_last_child);
+                    this.nodes[old_last_child].next_sibling = Some(new_node_i);
+                    this.nodes[parent_i].last_child = Some(new_node_i);
+                }
             },
         };
 
         self.remove_hidden_child_if_it_exists(new_node_i, parent_i);
-    }
-
-    // todo: inline
-    fn add_first_child(&mut self, new_node_i: NodeI, parent_i: NodeI) {
-        self.nodes[parent_i].last_child = Some(new_node_i);
-        self.nodes[parent_i].first_child = Some(new_node_i);
-    }
-    
-    fn add_sibling(&mut self, new_node_i: NodeI, old_last_child: NodeI, parent_i: NodeI) {
-        self.nodes[new_node_i].prev_sibling = Some(old_last_child);
-        self.nodes[old_last_child].next_sibling = Some(new_node_i);
-        self.nodes[parent_i].last_child = Some(new_node_i);
     }
 
     fn remove_hidden_child_if_it_exists(&mut self, child_i: NodeI, parent_i: NodeI) {
@@ -278,14 +278,17 @@ impl Ui {
         }
         
         if should_animate {
-            let child_node = &mut self.nodes[i];
-            child_node.animation_offset_start = Xy::new(0.0, 0.0);
-            child_node.animation_offset_target = target_offset;
-            child_node.animation_start_time = Some(current_time);
+            self.nodes[i].animation_offset_start = Xy::new(0.0, 0.0);
+            self.nodes[i].animation_offset_target = target_offset;
+            self.nodes[i].animation_start_time = Some(current_time);
         }
     }
 
-    pub(crate) fn node_has_ongoing_animation(&self, i: NodeI) -> bool {
+    pub(crate) fn node_or_parent_has_ongoing_animation(&self, i: NodeI) -> bool {
+        if i == ROOT_I {
+            return false;
+        }
+
         // Check if node has its own ongoing animation
         if let Some(animation_start_time) = self.nodes[i].animation_start_time {
             let t = ui_time_f32();
@@ -299,15 +302,7 @@ impl Ui {
             }
         }
 
-        // Check if this node is affected by parent animations (visual offset)
-        let has_parent_animation = self.nodes[i].cumulative_parent_animation_offset_delta.x != 0.0 
-            || self.nodes[i].cumulative_parent_animation_offset_delta.y != 0.0;
-        
-        if has_parent_animation {
-            return true;
-        }
-
-        // Check if any ancestor has an ongoing animation
+        // Check the whole upward chain of parents to see if any has an ongoing animation
         let mut current_parent = self.nodes[i].parent;
         while current_parent != ROOT_I {
             // Safety check: make sure parent still exists
@@ -594,9 +589,20 @@ impl Ui {
                 if ! freshly_added {
                     
                     // Keep it around for the exit animation, remove it, or keep it hidden.
-                    if old_parent_still_exists && self.node_has_ongoing_animation(i) {
-                        self.set_tree_links(i, old_parent, 0);
+                    if old_parent_still_exists && self.node_or_parent_has_ongoing_animation(i) {
+                        self.add_child(i, old_parent);
                         self.nodes[i].just_lingering = true;
+                        
+                        // let id = self.nodes[i].id;
+                        // self.nodes.node_hashmap.get_mut(&id).unwrap().last_frame_touched = self.current_frame();
+                        eprintln!("[{}] Stick back in: {} as child of {}", 
+                            ui_time_f32(),
+                            self.nodes[i].debug_name(),
+                            self.nodes[old_parent].debug_name(),
+                        );
+
+                        dbg!(&self.nodes[i]);
+                        dbg!(&self.nodes[old_parent]);
 
                     } else if ! can_hide {
                         non_fresh_nodes.push(i);
@@ -699,6 +705,7 @@ impl Ui {
 
     fn debug_print_node_recursive(&self, node_i: NodeI, prefix: &mut String, is_last: bool, is_hidden: bool) {
         let hidden_marker = if is_hidden { " [HIDDEN]" } else { "" };
+        let lingering = if self.nodes[node_i].just_lingering { "[LINGERING]" } else { "" };
         let currently_hidden = if self.nodes[node_i].currently_hidden { " (currently_hidden=true)" } else { "" };
         let exiting = if self.nodes[node_i].exiting { " (exiting=true)" } else { "" };
         
@@ -710,13 +717,14 @@ impl Ui {
             "├── ".to_string()
         };
         
-        println!("{}{}{}{}{}{}",
+        println!("{}{}{}{}{}{}{}",
             prefix,
             connector,
             self.nodes[node_i].debug_name(),
             hidden_marker,
             currently_hidden,
-            exiting
+            exiting,
+            lingering,
         );
 
         let old_len = prefix.len();
@@ -729,7 +737,7 @@ impl Ui {
         // Count children first to determine which is last
         let mut regular_count = 0;
         let mut hidden_count = 0;
-        for_each_child!(self, self.nodes[node_i], _child, {
+        for_each_child_including_lingering!(self, self.nodes[node_i], _child, {
             regular_count += 1;
         });
         for_each_hidden_child!(self, self.nodes[node_i], _hidden_child, {
@@ -739,7 +747,7 @@ impl Ui {
 
         // Traverse regular children
         let mut current_index = 0;
-        for_each_child!(self, self.nodes[node_i], child, {
+        for_each_child_including_lingering!(self, self.nodes[node_i], child, {
             let is_child_last = current_index == total_count - 1;
             self.debug_print_node_recursive(child, prefix, is_child_last, false);
             current_index += 1;

@@ -35,8 +35,11 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 
     let elem_vstack = V_STACK.slide().visible().outline_only(false).key(ELEM_VSTACK);
 
+    let n = 1;
+    let m = 1;
+
     ui.add(left_bar).nest(|| {
-        for i in 0..5 {
+        for i in 0..n {
             ui.add(h_group).nest(|| {
                 let key = EXPAND.sibling(i);
                 ui.add(expand.key(key));
@@ -44,7 +47,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                 if state.expanded[i] {
                     ui.add(elem_vstack).nest(|| {
 
-                        for j in 0..4 {
+                        for j in 0..m {
                             let key = ELEM.sibling(i).sibling(j);
                             ui.add(elem.key(key));
                         }
@@ -55,11 +58,13 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         }
     });
 
-    for i in 0..5 {
+    for i in 0..n {
         if ui.is_clicked(EXPAND.sibling(i)) {
             state.expanded[i] = ! state.expanded[i];
         }
     }
+
+    // ui.debug_print_tree();
 }
 
 

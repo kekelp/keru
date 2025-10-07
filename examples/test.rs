@@ -54,6 +54,8 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
             ui.add(element_all.text("Slide in/out/move - any direction"));
         }
     });
+
+    ui.debug_print_tree();
 }
 
 

@@ -85,7 +85,7 @@ pub struct Node {
     
     // todo: prob remove. not sure if there's any point in storing this here.
     // it's used in has_ongoing_animation but there's probably smarter way
-    pub cumulative_parent_animation_offset_delta: Xy<f32>,
+    pub animation_offset: Xy<f32>,
 
     // Almost surely not worth to make this a linked list.
     // todo: remove.
@@ -200,7 +200,7 @@ impl Node {
             animation_offset_start: Xy::new(0.0, 0.0),
             animation_offset_target: Xy::new(0.0, 0.0),
             animation_start_time: None,
-            cumulative_parent_animation_offset_delta: Xy::new(0.0, 0.0),
+            animation_offset: Xy::new(0.0, 0.0),
 
             // intentionally at zero capacity
             user_states: Vec::new(),
@@ -308,7 +308,7 @@ pub const ZERO_NODE_DUMMY: Node = Node {
     animation_offset_target: Xy::new(0.0, 0.0),
     animation_start_time: None,
     
-    cumulative_parent_animation_offset_delta: Xy::new(0.0, 0.0),
+    animation_offset: Xy::new(0.0, 0.0),
     
     // intentionally at zero capacity
     user_states: Vec::new(),
@@ -382,7 +382,7 @@ pub const NODE_ROOT: Node = Node {
     animation_offset_start: Xy::new(0.0, 0.0),
     animation_offset_target: Xy::new(0.0, 0.0),
     animation_start_time: None,
-    cumulative_parent_animation_offset_delta: Xy::new(0.0, 0.0),
+    animation_offset: Xy::new(0.0, 0.0),
 
     // intentionally at zero capacity
     user_states: Vec::new(),

@@ -731,66 +731,73 @@ impl Ui {
 
     fn breadth_first_push_rects(&mut self) {
         self.sys.breadth_traversal_queue.clear();
-        self.sys.breadth_traversal_queue.push_back((ROOT_I, Xy::new(0.0, 0.0)));
+        self.sys.breadth_traversal_queue.push_back(ROOT_I);
 
-        // instead of doing this thing with the offset, we could just store it in the node, and each node could grab it from its parent directly.    
-        while let Some((node, parent_offset)) = self.sys.breadth_traversal_queue.pop_front() {
-            let offset_so_far = self.update_animations(node, parent_offset);
-            self.push_render_data(node);
+        // for e in self.nodes.nodes.iter() {
+        //     if e.1.debug_name().starts_with("ELEM_VSTACK") {
+        //         dbg!(e.1.first_child);
+        //     }
+        // }
+
+        while let Some(i) = self.sys.breadth_traversal_queue.pop_front() {
+            // if self.nodes[i].debug_name().starts_with("ELEM ") {
+            //     eprintln!("Draw pass {} {}", self.nodes[i].debug_name(), ui_time_f32());
+            // }
             
-            for_each_child_including_lingering!(self, self.nodes[node], child, {
-                self.sys.breadth_traversal_queue.push_back((child, offset_so_far));
+            self.update_animations(i);
+            self.push_render_data(i);
+            
+            for_each_child_including_lingering!(self, self.nodes[i], child, {
+                self.sys.breadth_traversal_queue.push_back(child);
             });
         }
     }
     
-    /// update local animations and return the total offset so far, so that child nodes can use it as a base.
-    pub(crate) fn update_animations(&mut self, i: NodeI, parent_cumulative_offset_delta: Xy<f32>) -> Xy<f32> {
-        if ! self.node_has_ongoing_animation(i) {
+    /// update local animations, storing the total offset in the node.
+    pub(crate) fn update_animations(&mut self, i: NodeI) {
+        if ! self.node_or_parent_has_ongoing_animation(i) {
             self.nodes[i].animation_start_time = None;
         }
 
-        self.nodes[i].cumulative_parent_animation_offset_delta = parent_cumulative_offset_delta;
-
-        let mut total_offset_so_far = parent_cumulative_offset_delta;
-
-        self.nodes[i].animated_rect = self.nodes[i].rect;       
-
-        // Calculate current node's animation offset contribution
-        let has_entering_animation = self.nodes[i].animation_offset_start.x != 0.0 || self.nodes[i].animation_offset_start.y != 0.0;
-        let has_exit_animation = self.nodes[i].animation_offset_target.x != 0.0 || self.nodes[i].animation_offset_target.y != 0.0;
+        let parent_offset = if i == ROOT_I {
+            Xy::new(0.0, 0.0)
+        } else {
+            let parent = self.nodes[i].parent;
+            self.nodes[parent].animation_offset
+        };
         
-        let mut local_offset = Xy::new(0.0, 0.0);
-        if has_entering_animation || has_exit_animation {
-
-            if let Some(animation_start_time) = self.nodes[i].animation_start_time {
-                let elapsed = ui_time_f32() - animation_start_time;
+        let mut local_offset = self.nodes[i].animation_offset_target;
         
-                let speed = self.sys.global_animation_speed * self.nodes[i].params.animation.speed;
-                let duration = BASE_DURATION / speed;
+        if let Some(animation_start_time) = self.nodes[i].animation_start_time {
+            let elapsed = ui_time_f32() - animation_start_time;
+    
+            let speed = self.sys.global_animation_speed * self.nodes[i].params.animation.speed;
+            let duration = BASE_DURATION / speed;
+            
+            if elapsed < duration {
+                let t = elapsed / duration;
+                let ease_t = 1.0 - (1.0 - t) * (1.0 - t);
                 
-                if elapsed < duration {
-                    let t = elapsed / duration;
-                    let ease_t = 1.0 - (1.0 - t) * (1.0 - t);
-                    
-                    local_offset = Xy::new(
-                        self.nodes[i].animation_offset_target.x * ease_t + self.nodes[i].animation_offset_start.x * (1.0 - ease_t),
-                        self.nodes[i].animation_offset_target.y * ease_t + self.nodes[i].animation_offset_start.y * (1.0 - ease_t),
-                    );
-                }   
+                local_offset = Xy::new(
+                    self.nodes[i].animation_offset_target.x * ease_t + self.nodes[i].animation_offset_start.x * (1.0 - ease_t),
+                    self.nodes[i].animation_offset_target.y * ease_t + self.nodes[i].animation_offset_start.y * (1.0 - ease_t),
+                );
             }
         }
         
-        total_offset_so_far = total_offset_so_far + local_offset;
+        let total_offset = parent_offset + local_offset;
+    
+        self.nodes[i].animated_rect.x[0] = self.nodes[i].rect.x[0] + total_offset.x;
+        self.nodes[i].animated_rect.x[1] = self.nodes[i].rect.x[1] + total_offset.x;
+        self.nodes[i].animated_rect.y[0] = self.nodes[i].rect.y[0] + total_offset.y;
+        self.nodes[i].animated_rect.y[1] = self.nodes[i].rect.y[1] + total_offset.y;
         
-        self.nodes[i].animated_rect = self.nodes[i].rect;
-        
-        self.nodes[i].animated_rect.x[0] += total_offset_so_far.x;
-        self.nodes[i].animated_rect.x[1] += total_offset_so_far.x;
-        self.nodes[i].animated_rect.y[0] += total_offset_so_far.y;
-        self.nodes[i].animated_rect.y[1] += total_offset_so_far.y;
+        // if self.nodes[i].debug_name().starts_with("ELEM") {
+        //     dbg!(self.nodes[i].rect.y[1]);
+        // }
 
-        return total_offset_so_far;
+        // Store the total offset for children to use
+        self.nodes[i].animation_offset = total_offset;
     }
 }
 
