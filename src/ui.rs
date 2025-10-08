@@ -136,6 +136,7 @@ pub(crate) struct System {
 
     pub to_cleanup: Vec<NodeI>,
     pub hidden_branch_parents: Vec<NodeI>,
+    pub lingering_nodes: Vec<NodeWithDepth>,
 
     pub changes: PartialChanges,
 
@@ -390,6 +391,7 @@ impl Ui {
                 non_fresh_nodes: Vec::with_capacity(10),
                 to_cleanup: Vec::with_capacity(30),
                 hidden_branch_parents: Vec::with_capacity(30),
+                lingering_nodes: Vec::with_capacity(30),
 
                 focused: None,
 

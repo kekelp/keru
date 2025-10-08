@@ -552,6 +552,8 @@ impl Ui {
         let mut non_fresh_nodes: Vec<NodeI> = take_buffer_and_clear(&mut self.sys.non_fresh_nodes);
         let mut to_cleanup: Vec<NodeI> = take_buffer_and_clear(&mut self.sys.to_cleanup);
         let mut hidden_branch_parents: Vec<NodeI> = take_buffer_and_clear(&mut self.sys.hidden_branch_parents);
+        let mut lingering_nodes: Vec<NodeWithDepth> = take_buffer_and_clear(&mut self.sys.lingering_nodes);
+
 
         // Start exit animations for ALL nodes that need them
         for i in 2..self.nodes.nodes.capacity() {
@@ -590,20 +592,11 @@ impl Ui {
                     
                     // Keep it around for the exit animation, remove it, or keep it hidden.
                     if old_parent_still_exists && self.node_or_parent_has_ongoing_animation(i) {
-                        self.add_child(i, old_parent);
-                        self.nodes[i].just_lingering = true;
+                        // Collect lingering nodes for depth-sorted processing
+                        lingering_nodes.push(NodeWithDepth {
+                            i, depth: self.nodes[i].depth
+                        });
                         
-                        // let id = self.nodes[i].id;
-                        // self.nodes.node_hashmap.get_mut(&id).unwrap().last_frame_touched = self.current_frame();
-                        eprintln!("[{}] Stick back in: {} as child of {}", 
-                            ui_time_f32(),
-                            self.nodes[i].debug_name(),
-                            self.nodes[old_parent].debug_name(),
-                        );
-
-                        dbg!(&self.nodes[i]);
-                        dbg!(&self.nodes[old_parent]);
-
                     } else if ! can_hide {
                         non_fresh_nodes.push(i);
                         to_cleanup.push(i);
@@ -624,6 +617,14 @@ impl Ui {
             }
         }
 
+        // Sort lingering nodes by depth (parents before children) and process them
+        lingering_nodes.sort_by_key(|n| n.depth);
+        for &NodeWithDepth { i, .. } in &lingering_nodes {
+            let old_parent = self.nodes[i].parent;
+            self.set_tree_links(i, old_parent, self.nodes[i].depth);
+            self.nodes[i].just_lingering = true;
+        }
+
         // This is delayed so that hidden children are all added
         for &i in &hidden_branch_parents {
             for_each_hidden_child!(self, self.nodes[i], hidden_child, {
@@ -639,6 +640,7 @@ impl Ui {
         // todo: push partial relayouts instead.
         self.sys.changes.full_relayout = true;
 
+        self.sys.lingering_nodes = lingering_nodes;
         self.sys.non_fresh_nodes = non_fresh_nodes;
         self.sys.to_cleanup = to_cleanup;
         self.sys.hidden_branch_parents = hidden_branch_parents;
@@ -919,6 +921,7 @@ pub(crate) fn with_info_log_timer<T>(operation_name: &str, f: impl FnOnce() -> T
 }
 
 // New partial borrow cope just dropped.
+// Remember to but the vec back in place!
 pub(crate) fn take_buffer_and_clear<T>(buf: &mut Vec<T>) -> Vec<T> {
     buf.clear();
     return mem::take(buf)

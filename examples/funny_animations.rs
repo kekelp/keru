@@ -35,8 +35,8 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 
     let elem_vstack = V_STACK.slide().visible().outline_only(false).key(ELEM_VSTACK);
 
-    let n = 1;
-    let m = 1;
+    let n = 4;
+    let m = 4;
 
     ui.add(left_bar).nest(|| {
         for i in 0..n {
