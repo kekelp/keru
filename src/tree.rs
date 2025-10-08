@@ -555,68 +555,68 @@ impl Ui {
         let mut hidden_branch_parents: Vec<NodeI> = take_buffer_and_clear(&mut self.sys.hidden_branch_parents);
         let mut lingering_nodes: Vec<NodeWithDepth> = take_buffer_and_clear(&mut self.sys.lingering_nodes);
 
-        // Start exit animations for all nodes that need them
-        for i in 2..self.nodes.nodes.capacity() {
-            if self.nodes.nodes.contains(i) {
-                let i = NodeI::from(i);
-                let id = self.nodes[i].id;
-                let freshly_added = self.nodes.node_hashmap[&id].last_frame_touched == self.sys.current_frame;
-                let old_parent = self.nodes[i].parent;
-                let old_parent_still_exists = self.nodes.get(old_parent).is_some();
 
-                if !freshly_added && old_parent_still_exists {
-                    self.init_exit_animations(i, old_parent);
-                }
+        for (i, _) in self.nodes.nodes.iter().skip(2) {
+            let i = NodeI::from(i);
+            let id = self.nodes[i].id;
+            let freshly_added = self.nodes.node_hashmap[&id].last_frame_touched == self.sys.current_frame;
+
+            if !freshly_added {
+                non_fresh_nodes.push(i);
             }
         }
 
-        // Rest of cleanup
-        for i in 2..self.nodes.nodes.capacity() {
-            if self.nodes.nodes.contains(i) {
-                let i = NodeI::from(i);
-                let id = self.nodes[i].id;
-                let freshly_added = self.nodes.node_hashmap[&id].last_frame_touched == self.sys.current_frame;
-                let can_hide = self.nodes[i].can_hide;
-                let currently_hidden = self.nodes[i].currently_hidden;
-                let old_parent = self.nodes[i].parent;
-                let old_parent_still_exists = self.nodes.get(old_parent).is_some();
+        // Start exit animations for all nodes that need them
+        for &i in &non_fresh_nodes {
+            let old_parent = self.nodes[i].parent;
+            let old_parent_still_exists = self.nodes.get(old_parent).is_some();
 
-                // the top-level nodes in hidden branches need to be attached to their children_can_hide parents as hidden nodes, so that when that parent node is removed, we can also remove the hidden branch. Otherwise we'd just forget about them and leave them in memory forever. 
-                let is_first_child_in_hidden_branch = match self.nodes.get(old_parent) {
-                    Some(old_parent) => old_parent.params.children_can_hide == ChildrenCanHide::Yes,
-                    None => false,
-                };
-                let children_can_hide = self.nodes[i].params.children_can_hide == ChildrenCanHide::Yes;
+            if old_parent_still_exists {
+                self.init_exit_animations(i, old_parent);
+            }
+        }
 
-                if ! freshly_added {
+        // the top-level nodes in hidden branches need to be attached to their children_can_hide parents as hidden nodes, so that when that parent node is removed, we can also remove the hidden branch. Otherwise we'd just forget about them and leave them in memory forever.
+        // The nodes with 
+        for &i in &non_fresh_nodes {
+            let id = self.nodes[i].id;
+            let freshly_added = self.nodes.node_hashmap[&id].last_frame_touched == self.sys.current_frame;
+            let can_hide = self.nodes[i].can_hide;
+            let currently_hidden = self.nodes[i].currently_hidden;
+            let old_parent = self.nodes[i].parent;
+            let old_parent_still_exists = self.nodes.get(old_parent).is_some();
+
+            let is_first_child_in_hidden_branch = match self.nodes.get(old_parent) {
+                Some(old_parent) => old_parent.params.children_can_hide == ChildrenCanHide::Yes,
+                None => false,
+            };
+            let children_can_hide = self.nodes[i].params.children_can_hide == ChildrenCanHide::Yes;
+
+            if ! freshly_added {                
+                if old_parent_still_exists && self.node_or_parent_has_ongoing_animation(i) {
+
+                    lingering_nodes.push(NodeWithDepth { i, depth: self.nodes[i].depth });
                     
-                    // Keep it around for the exit animation, remove it, or keep it hidden.
-                    if old_parent_still_exists && self.node_or_parent_has_ongoing_animation(i) {
-                        lingering_nodes.push(NodeWithDepth {
-                            i, depth: self.nodes[i].depth
-                        });
-                        
-                    } else if ! can_hide {
-                        to_cleanup.push(i);
+                } else if ! can_hide {
 
-                        if children_can_hide {
-                            hidden_branch_parents.push(i);
-                        }
+                    to_cleanup.push(i);
 
-                    } else if ! currently_hidden {
-                        self.nodes[i].currently_hidden = true;
+                    if children_can_hide {
+                        hidden_branch_parents.push(i);
+                    }
 
-                        if is_first_child_in_hidden_branch {
-                            self.add_hidden_child(i, old_parent);
-                        }
+                } else if ! currently_hidden {
+                    
+                    self.nodes[i].currently_hidden = true;
+
+                    if is_first_child_in_hidden_branch {
+                        self.add_hidden_child(i, old_parent);
                     }
                 }
-            
             }
         }
 
         // Add lingering nodes back into the tree.
-        // This needs to be done after calling init_exit_animations on *all* nodes, 
         // todo: don't just add them at the end, try to put them after their old prev_sibling
         lingering_nodes.sort_by_key(|n| n.depth);
         for &NodeWithDepth { i, .. } in &lingering_nodes {
