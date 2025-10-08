@@ -93,7 +93,6 @@ impl Nodes {
         nodes.insert(NODE_ROOT);
 
         let root_map_entry = NodeMapEntry {
-            last_frame_touched: u64::MAX,
             slab_i: ROOT_I,
             n_twins: 0,
         };
@@ -115,9 +114,6 @@ impl Nodes {
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct NodeMapEntry {
-    // todo: why is this here and not on the Node?
-    pub last_frame_touched: u64,
-
     // keeping track of the twin situation.
     // This is the number of twins of a node that showed up SO FAR in the current frame. it gets reset every frame (on refresh().)
     // for the 0-th twin of a family, this will be the total number of clones of itself around. (not including itself, so starts at zero).
@@ -128,16 +124,14 @@ pub(crate) struct NodeMapEntry {
     pub slab_i: NodeI,
 }
 impl NodeMapEntry {
-    pub fn new(frame: u64, new_i: NodeI) -> Self {
+    pub fn new(new_i: NodeI) -> Self {
         return Self {
-            last_frame_touched: frame,
             n_twins: 0,
             slab_i: new_i,
         };
     }
 
-    pub fn refresh(&mut self, frame: u64) -> NodeI {
-        self.last_frame_touched = frame;
+    pub fn refresh(&mut self) -> NodeI {
         self.n_twins = 0;
         return self.slab_i;
     }

@@ -64,20 +64,21 @@ impl Ui {
             Entry::Vacant(v) => {
                 let new_node = Node::new(&key, None, Location::caller(), frame);
                 let final_i = NodeI::from(self.nodes.nodes.insert(new_node));
-                v.insert(NodeMapEntry::new(frame, final_i));
+                v.insert(NodeMapEntry::new(final_i));
 
                 UpdatedNormal { final_i }
             }
             Entry::Occupied(o) => {
                 let old_map_entry = o.into_mut();
+                let old_i = old_map_entry.slab_i.as_usize();
+                let last_frame_touched = self.nodes.nodes[old_i].last_frame_touched;
 
-                match should_refresh_or_add_twin(frame, old_map_entry.last_frame_touched) {
+                match should_refresh_or_add_twin(frame, last_frame_touched) {
                     // Refresh a normal node from the previous frame (no twins).
                     Refresh => {
-                        old_map_entry.refresh(frame);
-                        // in this branch we don't really do anything now. there will be a separate thing for updating params
+                        old_map_entry.refresh();
+                        self.nodes.nodes[old_i].last_frame_touched = frame;
                         let final_i = old_map_entry.slab_i;
-
                         UpdatedNormal { final_i }
                     }
                     // do nothing, just calculate the twin key and go to twin part below
@@ -105,14 +106,15 @@ impl Ui {
                     Entry::Vacant(v) => {
                         let new_twin_node = Node::new(&twin_key, Some(twin_n), Location::caller(), frame);
                         let real_final_i = NodeI::from(self.nodes.nodes.insert(new_twin_node));
-                        v.insert(NodeMapEntry::new(frame, real_final_i));
+                        v.insert(NodeMapEntry::new(real_final_i));
                         (real_final_i, twin_key.id_with_subtree())
                     }
                     // Refresh a twin from the previous frame.
                     Entry::Occupied(o) => {
                         let old_twin_map_entry = o.into_mut();
 
-                        let real_final_i = old_twin_map_entry.refresh(frame);
+                        let real_final_i = old_twin_map_entry.refresh();
+                        self.nodes.nodes[real_final_i.as_usize()].last_frame_touched = frame;
 
                         (real_final_i, twin_key.id_with_subtree())
                     }
@@ -543,7 +545,7 @@ impl Ui {
         let node_i = self.nodes.node_hashmap.get(&key.id_with_subtree());
         if let Some(entry) = node_i {
             // todo: also return true if it's retained
-            return entry.last_frame_touched == self.sys.current_frame;
+            return self.nodes[entry.slab_i].last_frame_touched == self.sys.current_frame;
         } else {
             return false;
         }
@@ -558,8 +560,7 @@ impl Ui {
 
         for (i, _) in self.nodes.nodes.iter().skip(2) {
             let i = NodeI::from(i);
-            let id = self.nodes[i].id;
-            let freshly_added = self.nodes.node_hashmap[&id].last_frame_touched == self.sys.current_frame;
+            let freshly_added = self.nodes[i].last_frame_touched == self.sys.current_frame;
 
             if !freshly_added {
                 non_fresh_nodes.push(i);
@@ -579,8 +580,7 @@ impl Ui {
         // the top-level nodes in hidden branches need to be attached to their children_can_hide parents as hidden nodes, so that when that parent node is removed, we can also remove the hidden branch. Otherwise we'd just forget about them and leave them in memory forever.
         // The nodes with 
         for &i in &non_fresh_nodes {
-            let id = self.nodes[i].id;
-            let freshly_added = self.nodes.node_hashmap[&id].last_frame_touched == self.sys.current_frame;
+            let freshly_added = self.nodes[i].last_frame_touched == self.sys.current_frame;
             let can_hide = self.nodes[i].can_hide;
             let currently_hidden = self.nodes[i].currently_hidden;
             let old_parent = self.nodes[i].parent;
@@ -663,7 +663,7 @@ impl Ui {
         // skip the nodes that have last_frame_touched = now, because that means that they were not really removed, but just moved somewhere else in the tree.
         // Kind of weird to do this so late.
         // todo: with the new system we can delete this.
-        if self.nodes.node_hashmap[&id].last_frame_touched == self.sys.current_frame {
+        if self.nodes[i].last_frame_touched == self.sys.current_frame {
             log::trace!("Not removing: {:?}, as it was moved around and not removed", self.node_debug_name_fmt_scratch(i));
             return;
         }

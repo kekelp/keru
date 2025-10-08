@@ -141,16 +141,9 @@ impl Ui {
         let mut animation = false;
 
         for hovered_id in &self.sys.hovered {
-            let hovered_nodemap_entry = self.nodes.node_hashmap.get(hovered_id);
-            
-            if let Some(entry) = hovered_nodemap_entry {
-                // check that the node is currently part of the tree...
-                // this is a bit scary, and it will need to change with `assume_unchanged` and friends
-                if entry.last_frame_touched == self.sys.current_frame {
-
-                    let hovered_node_i = entry.slab_i;
-                    let hovered_node = &mut self.nodes[hovered_node_i];
-                    
+            if let Some((hovered_node, hovered_node_i)) = self.nodes.get_mut_by_id(hovered_id) {
+                if hovered_node.last_frame_touched == self.sys.current_frame {
+                
                     if hovered_node.params.interact.click_animation {
                         hovered_node.hovered = false;
                         hovered_node.hover_timestamp = ui_time_f32();

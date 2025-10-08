@@ -8,11 +8,12 @@ pub struct Node {
     pub just_lingering: bool,
 
     pub id: Id,
-    // todo: is this useful at all?
     pub depth: usize,
 
     pub last_layout_frame: u64,
+    // todo: who cares?
     pub frame_added: u64,
+    pub last_frame_touched: u64,
 
     pub scroll: Scroll,
 
@@ -47,7 +48,7 @@ pub struct Node {
 
     pub parent: NodeI,
 
-    // le epic inline linked list instead of a random Vec somewhere else on the heap
+    // doesn't include lingering children.
     pub n_children: u16,
 
     pub last_child: Option<NodeI>,
@@ -191,6 +192,7 @@ impl Node {
             relayout_chain_root: None,
             last_layout_frame: 0,
             frame_added: current_frame,
+            last_frame_touched: current_frame,
 
             last_cosmetic_hash: 0,
             last_layout_hash: 0,
@@ -298,6 +300,7 @@ pub const ZERO_NODE_DUMMY: Node = Node {
     relayout_chain_root: None,
     last_layout_frame: 0,
     frame_added: 0,
+    last_frame_touched: 0,
 
     last_cosmetic_hash: 0,
     last_layout_hash: 0,
@@ -373,6 +376,7 @@ pub const NODE_ROOT: Node = Node {
     relayout_chain_root: None,
     last_layout_frame: 0,
     frame_added: 0,
+    last_frame_touched: u64::MAX,
 
     last_cosmetic_hash: 0,
     last_layout_hash: 0,

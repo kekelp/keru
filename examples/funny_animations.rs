@@ -31,9 +31,10 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     let elem = LABEL
         .size_x(Size::Fill)
         // .slide()
-        .text("Suh");
+        .text("???");
 
-    let elem_vstack = V_STACK.slide().visible().outline_only(false).key(ELEM_VSTACK);
+    // let elem_vstack = V_STACK.slide().visible().outline_only(false).key(ELEM_VSTACK);
+    let elem_vstack = V_STACK.slide().clip_children_y(true);
 
     let n = 4;
     let m = 4;
@@ -45,7 +46,8 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                 ui.add(expand.key(key));
 
                 if state.expanded[i] {
-                    ui.add(elem_vstack).nest(|| {
+                    let key = ELEM_VSTACK.sibling(i);
+                    ui.add(elem_vstack.key(key)).nest(|| {
 
                         for j in 0..m {
                             let key = ELEM.sibling(i).sibling(j);

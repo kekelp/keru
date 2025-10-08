@@ -55,6 +55,7 @@ pub struct NodeParams {
     pub interact: Interact,
     pub layout: Layout,
     pub children_can_hide: ChildrenCanHide,
+    pub clip_children: Xy<bool>,
     pub animation: Animation,
 }
 
@@ -587,12 +588,27 @@ impl NodeParams {
         return x == Size::FitContent || y == Size::FitContent
     }
 
-    pub fn is_scrollable(&self) -> bool {
+    pub const fn is_scrollable(&self) -> bool {
         return self.layout.scrollable.x || self.layout.scrollable.y
     }
 
     pub const fn corners(mut self, corners: RoundedCorners) -> Self {
         self.rect.rounded_corners = corners;
+        return self;
+    }
+
+    pub const fn clip_children(mut self, value: Xy<bool>) -> Self {
+        self.clip_children = value;
+        return self;
+    }
+
+    pub const fn clip_children_x(mut self, value: bool) -> Self {
+        self.clip_children.x = value;
+        return self;
+    }
+
+    pub const fn clip_children_y(mut self, value: bool) -> Self {
+        self.clip_children.y = value;
         return self;
     }
 }
@@ -935,6 +951,20 @@ impl<'a> FullNodeParams<'a> {
         self
     }
 
+    pub const fn clip_children(mut self, value: Xy<bool>) -> Self {
+        self.params.clip_children = value;
+        return self;
+    }
+
+    pub const fn clip_children_x(mut self, value: bool) -> Self {
+        self.params.clip_children.x = value;
+        return self;
+    }
+
+    pub const fn clip_children_y(mut self, value: bool) -> Self {
+        self.params.clip_children.y = value;
+        return self;
+    }
 }
 
 // impl FullNodeParams<'_> {

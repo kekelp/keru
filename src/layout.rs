@@ -680,7 +680,7 @@ impl Ui {
 
         let own_rect = self.nodes[i].rect;
         for axis in [X, Y] {
-            if self.nodes[i].params.layout.scrollable[axis] {
+            if self.nodes[i].params.clip_children[axis] {
                 self.nodes[i].clip_rect[axis] = intersect(own_rect[axis], parent_clip_rect[axis])
             } else {
                 self.nodes[i].clip_rect = parent_clip_rect;
