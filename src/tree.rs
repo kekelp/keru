@@ -128,8 +128,14 @@ impl Ui {
 
         self.nodes[real_final_i].just_lingering = false;
 
+        self.refresh_node(real_final_i);
+
+        return (real_final_i, real_final_id);
+    }
+
+    fn refresh_node(&mut self, i: NodeI) {
         // refresh the text box associated with this node if it has one
-        if let Some(text_i) = &self.nodes[real_final_i].text_i {
+        if let Some(text_i) = &self.nodes[i].text_i {
             match text_i {
                 TextI::TextBox(handle) => {
                     self.sys.text.refresh_text_box(handle);
@@ -139,8 +145,6 @@ impl Ui {
                 }
             }
         }
-
-        return (real_final_i, real_final_id);
     }
 
     // todo split this in "reset_old_tree_links" and "add_child"?
@@ -617,11 +621,12 @@ impl Ui {
         }
 
         // Add lingering nodes back into the tree.
-        // todo: don't just add them at the end, try to put them after their old prev_sibling
+        // todo: don't just add them at the end, try to put them after their old prev_sibling. 
         lingering_nodes.sort_by_key(|n| n.depth);
         for &NodeWithDepth { i, .. } in &lingering_nodes {
             let old_parent = self.nodes[i].parent;
             self.set_tree_links(i, old_parent, self.nodes[i].depth);
+            self.refresh_node(i);
             self.nodes[i].just_lingering = true;
         }
 

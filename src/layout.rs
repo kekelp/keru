@@ -670,7 +670,9 @@ impl Ui {
         });
     }
 
-    fn set_clip_rect(&mut self, i: NodeI) {
+    pub(crate) fn set_clip_rect(&mut self, i: NodeI) {
+        // Start from keep the parent's clip rect.
+        // If nobody wants to clip children, this will always be [0.0, 1.0], passed down from root to everything else. 
         let parent_clip_rect = if i == ROOT_I {
             Xy::new_symm([0.0, 1.0])
         } else {
@@ -678,27 +680,27 @@ impl Ui {
             self.nodes[parent].clip_rect
         };
 
-        let own_rect = self.nodes[i].rect;
+        let mut clip_rect = parent_clip_rect;
         for axis in [X, Y] {
             if self.nodes[i].params.clip_children[axis] {
-                self.nodes[i].clip_rect[axis] = intersect(own_rect[axis], parent_clip_rect[axis])
-            } else {
-                self.nodes[i].clip_rect = parent_clip_rect;
+                let own_rect = self.nodes[i].rect;
+                clip_rect[axis] = intersect(own_rect[axis], parent_clip_rect[axis])
             }
         }
 
-        // text
-        let left = self.nodes[i].clip_rect[X][0] * self.sys.unifs.size[X];
-        let right = self.nodes[i].clip_rect[X][1] * self.sys.unifs.size[X];
-        let top = self.nodes[i].clip_rect[Y][0] * self.sys.unifs.size[Y];
-        let bottom = self.nodes[i].clip_rect[Y][1] * self.sys.unifs.size[Y];
+        self.nodes[i].clip_rect = clip_rect;
 
         if let Some(text_i) = &self.nodes[i].text_i {
+            let left = clip_rect[X][0] * self.sys.unifs.size[X];
+            let right = clip_rect[X][1] * self.sys.unifs.size[X];
+            let top = clip_rect[Y][0] * self.sys.unifs.size[Y];
+            let bottom = clip_rect[Y][1] * self.sys.unifs.size[Y];
+
             let padding = self.nodes[i].params.layout.padding;
             let text_left = (self.nodes[i].rect[X][0] * self.sys.unifs.size[X]) as f64 + padding[X] as f64;
             let text_top = (self.nodes[i].rect[Y][0] * self.sys.unifs.size[Y]) as f64 + padding[Y] as f64;
             
-            let clip_rect = Some(textslabs::Rect {
+            let text_clip_rect = Some(textslabs::Rect {
                 x0: left as f64 - text_left,
                 y0: top as f64 - text_top,
                 x1: right as f64 - text_left,
@@ -707,10 +709,10 @@ impl Ui {
             
             match text_i {
                 TextI::TextBox(handle) => {
-                    self.sys.text.get_text_box_mut(&handle).set_clip_rect(clip_rect);
+                    self.sys.text.get_text_box_mut(&handle).set_clip_rect(text_clip_rect);
                 }
                 TextI::TextEdit(handle) => {
-                    self.sys.text.get_text_edit_mut(&handle).set_clip_rect(clip_rect);
+                    self.sys.text.get_text_edit_mut(&handle).set_clip_rect(text_clip_rect);
                 }
             }
         }
