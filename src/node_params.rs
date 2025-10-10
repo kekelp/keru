@@ -479,6 +479,11 @@ impl NodeParams {
         return self;
     }
     
+    pub fn wait(mut self) -> Self {
+        self.animation.slide = SlideFlags::ALL;
+        return self;
+    }
+
     pub fn slide_when_appearing(mut self) -> Self {
         self.animation.slide |= SlideFlags::APPEARING | SlideFlags::ANY_DIRECTION;
         return self;

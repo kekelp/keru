@@ -18,12 +18,14 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .position_x(Position::Start);
     
     let h_group = H_STACK
+        .slide()
+        .clip_children_y(true)
         .size_x(Size::Fill)
         .stack_arrange(Arrange::Start);
     
     let expand = BUTTON
         .text("Expand")
-        .slide()
+        // .slide()
         .position_x(Position::Start)
         .position_y(Position::Start)
         .size_x(Size::FitContent);
@@ -34,7 +36,10 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .text("???");
 
     // let elem_vstack = V_STACK.slide().visible().outline_only(false).key(ELEM_VSTACK);
-    let elem_vstack = V_STACK.slide().clip_children_y(true);
+    let elem_vstack = V_STACK
+        .slide()
+        .clip_children_y(true)
+        .key(ELEM_VSTACK);
 
     let n = 4;
     let m = 4;

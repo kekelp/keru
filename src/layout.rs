@@ -442,14 +442,9 @@ impl Ui {
             self.place_children_container(i);
         };
 
-        // self.place_image(i); // I think there's nothing to place? right now it's always the full rect
-        // self.place_text_inside(i, self.nodes[i].rect); // We don't place the text here, it gets placed in push_render_data.
-
         if also_update_rects {
             self.update_rect(i);
         }
-
-        self.set_clip_rect(i);
 
         for_each_child!(self, self.nodes[i], child, {
             self.recursive_place_children(child, also_update_rects);
@@ -683,7 +678,7 @@ impl Ui {
         let mut clip_rect = parent_clip_rect;
         for axis in [X, Y] {
             if self.nodes[i].params.clip_children[axis] {
-                let own_rect = self.nodes[i].rect;
+                let own_rect = self.nodes[i].animated_rect;
                 clip_rect[axis] = intersect(own_rect[axis], parent_clip_rect[axis])
             }
         }
@@ -697,8 +692,8 @@ impl Ui {
             let bottom = clip_rect[Y][1] * self.sys.unifs.size[Y];
 
             let padding = self.nodes[i].params.layout.padding;
-            let text_left = (self.nodes[i].rect[X][0] * self.sys.unifs.size[X]) as f64 + padding[X] as f64;
-            let text_top = (self.nodes[i].rect[Y][0] * self.sys.unifs.size[Y]) as f64 + padding[Y] as f64;
+            let text_left = (self.nodes[i].animated_rect[X][0] * self.sys.unifs.size[X]) as f64 + padding[X] as f64;
+            let text_top = (self.nodes[i].animated_rect[Y][0] * self.sys.unifs.size[Y]) as f64 + padding[Y] as f64;
             
             let text_clip_rect = Some(textslabs::Rect {
                 x0: left as f64 - text_left,
@@ -735,17 +730,7 @@ impl Ui {
         self.sys.breadth_traversal_queue.clear();
         self.sys.breadth_traversal_queue.push_back(ROOT_I);
 
-        // for e in self.nodes.nodes.iter() {
-        //     if e.1.debug_name().starts_with("ELEM_VSTACK") {
-        //         dbg!(e.1.first_child);
-        //     }
-        // }
-
         while let Some(i) = self.sys.breadth_traversal_queue.pop_front() {
-            // if self.nodes[i].debug_name().starts_with("ELEM ") {
-            //     eprintln!("Draw pass {} {}", self.nodes[i].debug_name(), ui_time_f32());
-            // }
-            
             self.update_animations(i);
             self.push_render_data(i);
             
@@ -757,6 +742,8 @@ impl Ui {
     
     /// update local animations, storing the total offset in the node.
     pub(crate) fn update_animations(&mut self, i: NodeI) {
+        self.nodes[i].animated_rect = self.nodes[i].rect;
+
         if ! self.node_or_parent_has_ongoing_animation(i) {
             self.nodes[i].animation_start_time = None;
         }
@@ -794,12 +781,10 @@ impl Ui {
         self.nodes[i].animated_rect.y[0] = self.nodes[i].rect.y[0] + total_offset.y;
         self.nodes[i].animated_rect.y[1] = self.nodes[i].rect.y[1] + total_offset.y;
         
-        // if self.nodes[i].debug_name().starts_with("ELEM") {
-        //     dbg!(self.nodes[i].rect.y[1]);
-        // }
-
         // Store the total offset for children to use
         self.nodes[i].animation_offset = total_offset;
+
+        self.set_clip_rect(i);
     }
 }
 
