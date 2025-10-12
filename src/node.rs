@@ -23,6 +23,9 @@ pub struct Node {
     pub layout_rect: XyRect,
     pub animated_rect: XyRect,
 
+    pub local_layout_rect: XyRect,
+    pub local_animated_rect: XyRect,
+
     pub clip_rect: XyRect,
 
     // partial result when layouting?
@@ -147,6 +150,8 @@ impl Node {
             depth: 0,
             layout_rect: Xy::new_symm([0.0, 1.0]),
             animated_rect: Xy::new_symm([0.0, 1.0]),
+            local_layout_rect: Xy::new_symm([0.0, 0.0]),
+            local_animated_rect: Xy::new_symm([0.0, 0.0]),
             clip_rect: Xy::new_symm([0.0, 1.0]),
 
             size: Xy::new_symm(0.5),
@@ -250,6 +255,8 @@ pub const ZERO_NODE_DUMMY: Node = Node {
     depth: 0,
     layout_rect: Xy::new_symm([0.0, 1.0]),
     animated_rect: Xy::new_symm([0.0, 1.0]),
+    local_layout_rect: Xy::new_symm([0.0, 0.0]),
+    local_animated_rect: Xy::new_symm([0.0, 0.0]),
     clip_rect: Xy::new_symm([0.0, 1.0]),
 
     size: Xy::new_symm(1.0),
@@ -322,6 +329,8 @@ pub const NODE_ROOT: Node = Node {
     depth: 0,
     layout_rect: Xy::new_symm([0.0, 1.0]),
     animated_rect: Xy::new_symm([0.0, 1.0]),
+    local_layout_rect: Xy::new_symm([0.0, 1.0]),
+    local_animated_rect: Xy::new_symm([0.0, 1.0]),
     clip_rect: Xy::new_symm([0.0, 1.0]),
 
     size: Xy::new_symm(1.0),

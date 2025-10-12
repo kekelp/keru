@@ -376,7 +376,7 @@ bitflags::bitflags! {
 impl Ui {
     pub(crate) fn click_rect(&mut self, i: NodeI) -> ClickRect {
         return ClickRect {
-            rect: self.nodes[i].layout_rect,
+            rect: self.nodes[i].animated_rect,
             i,
         }
     }

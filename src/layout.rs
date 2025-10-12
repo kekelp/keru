@@ -505,6 +505,9 @@ impl Ui {
 
             self.nodes[child].layout_rect[main] = [walking_position, walking_position + child_size[main]];
 
+            // self.set_child_scroll_2(child, i);
+
+            self.set_local_layout_rect(child, i);
             self.init_animations(child);
 
             walking_position += self.nodes[child].size[main] + spacing;
@@ -552,6 +555,9 @@ impl Ui {
                 }
             }
 
+            // self.set_child_scroll_2(child, i);
+
+            self.set_local_layout_rect(child, i);
             self.init_animations(child);
 
             self.update_content_bounds(i, self.nodes[child].layout_rect);
@@ -560,22 +566,74 @@ impl Ui {
         self.set_children_scroll(i);
     }
 
+    fn set_local_layout_rect(&mut self, child: NodeI, parent: NodeI) {
+        let parent_rect = self.nodes[parent].layout_rect;
+        let child_rect = self.nodes[child].layout_rect;
+        
+        self.nodes[child].local_layout_rect = XyRect::new(
+            [child_rect.x[0] - parent_rect.x[0], child_rect.x[1] - parent_rect.x[0]],
+            [child_rect.y[0] - parent_rect.y[0], child_rect.y[1] - parent_rect.y[0]]
+        );
+    }
+
     pub(crate) fn init_animations(&mut self, i: NodeI) {
         if self.nodes[i].frame_added != self.current_frame() {
             return;
         }
 
-        if self.nodes[i].debug_name().starts_with("EXTEND ") {
-            self.nodes[i].animated_rect = self.nodes[i].layout_rect;          
-            return;
-        }
-
-        self.nodes[i].animated_rect = self.nodes[i].layout_rect;
+        self.nodes[i].local_animated_rect = self.nodes[i].local_layout_rect;
         
         self.nodes[i].anim_velocity = Xy::new([0.0, 0.0], [0.0, 0.0]);
 
+        let should_animate = true;
+        let target_offset_y = - self.nodes[i].local_layout_rect.size().y.abs();
+        
+        if should_animate {
+            self.nodes[i].local_animated_rect.y[0] += target_offset_y;
+            self.nodes[i].local_animated_rect.y[1] += target_offset_y;
+        }
+    }
+
+
+    pub(crate) fn init_exit_animations(&mut self, i: NodeI) {
+        // let slide_flags = self.nodes[i].params.animation.slide;
+        // if !slide_flags.contains(SlideFlags::DISAPPEARING) {
+        //     return;
+        // }
+
+        // Already exiting, don't restart another anim.
+        if self.nodes[i].exiting { return; }
+        self.nodes[i].exiting = true;
+
         let parent = self.nodes[i].parent;
         let parent_rect = self.nodes[parent].layout_rect;
+        // let mut target_offset = Xy::new(0.0, 0.0);
+        // let should_animate;
+        
+        // let slide_edge = self.nodes[i].params.animation.slide_edge;
+    
+        // // Calculate exit target offset based on configured edge (same direction as entry)
+        // match slide_edge {
+        //     SlideEdge::Top => {
+        //         let element_size = target_rect.size().y;
+        //         target_offset.y = (parent_rect.y[0] - element_size) - target_rect.y[0];
+        //         should_animate = true;
+        //     },
+        //     SlideEdge::Bottom => {
+        //         target_offset.y = parent_rect.y[1] - target_rect.y[0];
+        //         should_animate = true;
+        //     },
+        //     SlideEdge::Left => {
+        //         let element_size = target_rect.size().x;
+        //         target_offset.x = (parent_rect.x[0] - element_size) - target_rect.x[0];
+        //         should_animate = true;
+        //     },
+        //     SlideEdge::Right => {
+        //         target_offset.x = parent_rect.x[1] - target_rect.x[0];
+        //         should_animate = true;
+        //     },
+        // }
+
 
         let should_animate = true;
         let target_offset_y = - parent_rect.size().y.abs();
@@ -583,8 +641,10 @@ impl Ui {
         if should_animate {
             // self.nodes[i].layout_rect.x[0] += target_offset.x;
             // self.nodes[i].layout_rect.x[1] += target_offset.x;
-            self.nodes[i].animated_rect.y[0] += target_offset_y;
-            self.nodes[i].animated_rect.y[1] += target_offset_y;
+            self.nodes[i].layout_rect.y[0] += target_offset_y;
+            self.nodes[i].layout_rect.y[1] += target_offset_y;
+            self.nodes[i].local_layout_rect.y[0] += target_offset_y;
+            self.nodes[i].local_layout_rect.y[1] += target_offset_y;
         }
     }
 
@@ -606,8 +666,8 @@ impl Ui {
             for axis in [X, Y] {
                 if self.nodes[i].params.layout.scrollable[axis] {
                     let scroll_offset = self.scroll_offset(i, axis);
-                    self.nodes[child].layout_rect[axis][0] += scroll_offset;
-                    self.nodes[child].layout_rect[axis][1] += scroll_offset;
+                    self.nodes[child].local_layout_rect[axis][0] += scroll_offset;
+                    self.nodes[child].local_layout_rect[axis][1] += scroll_offset;
                 }
             }
         });
@@ -689,18 +749,8 @@ impl Ui {
     }
     
     pub(crate) fn update_animations(&mut self, i: NodeI) {
-        let parent_offset = if i == ROOT_I {
-            Xy::new(0.0, 0.0)
-        } else {
-            let parent = self.nodes[i].parent;
-            // todo: maybe not always TL?
-            Xy::new(
-                self.nodes[parent].animated_rect.x[0] - self.nodes[parent].layout_rect.x[0],
-                self.nodes[parent].animated_rect.y[0] - self.nodes[parent].layout_rect.y[0],
-            )
-        };
-
-        let target = self.nodes[i].layout_rect;
+        // do animations in local space
+        let target = self.nodes[i].local_layout_rect;
 
         let speed = self.sys.global_animation_speed * self.nodes[i].params.animation.speed;
         let speed = speed * 1.0;
@@ -712,7 +762,7 @@ impl Ui {
         let damping = criticality * 2.0 * f32::sqrt(stiffness);
         
         let mut v = self.nodes[i].anim_velocity;
-        let mut l = self.nodes[i].animated_rect;
+        let mut l = self.nodes[i].local_animated_rect;
         let mut delta = Xy::new([0.0, 0.0], [0.0, 0.0]);
 
         v.x[0] += (target.x[0] - l.x[0]) * stiffness * dt - v.x[0] * damping * dt;
@@ -730,7 +780,14 @@ impl Ui {
         l += delta;
 
         self.nodes[i].anim_velocity = v;
-        self.nodes[i].animated_rect = l;
+        self.nodes[i].local_animated_rect = l;
+
+        // add the parent offset
+        if i != ROOT_I {
+            let parent = self.nodes[i].parent;
+            let parent_offset = self.nodes[parent].animated_rect.top_left();
+            self.nodes[i].animated_rect = self.nodes[i].local_animated_rect + parent_offset;
+        }
 
         self.set_clip_rect(i);
     }

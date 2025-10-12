@@ -243,57 +243,6 @@ impl Ui {
         self.nodes[old_last_child].next_hidden_sibling = Some(new_node_i);
     }
 
-    pub(crate) fn init_exit_animations(&mut self, i: NodeI) {
-        // let slide_flags = self.nodes[i].params.animation.slide;
-        // if !slide_flags.contains(SlideFlags::DISAPPEARING) {
-        //     return;
-        // }
-
-        // Already exiting, don't restart another anim.
-        if self.nodes[i].exiting { return; }
-        self.nodes[i].exiting = true;
-
-        let parent = self.nodes[i].parent;
-        let parent_rect = self.nodes[parent].layout_rect;
-        // let mut target_offset = Xy::new(0.0, 0.0);
-        // let should_animate;
-        
-        // let slide_edge = self.nodes[i].params.animation.slide_edge;
-    
-        // // Calculate exit target offset based on configured edge (same direction as entry)
-        // match slide_edge {
-        //     SlideEdge::Top => {
-        //         let element_size = target_rect.size().y;
-        //         target_offset.y = (parent_rect.y[0] - element_size) - target_rect.y[0];
-        //         should_animate = true;
-        //     },
-        //     SlideEdge::Bottom => {
-        //         target_offset.y = parent_rect.y[1] - target_rect.y[0];
-        //         should_animate = true;
-        //     },
-        //     SlideEdge::Left => {
-        //         let element_size = target_rect.size().x;
-        //         target_offset.x = (parent_rect.x[0] - element_size) - target_rect.x[0];
-        //         should_animate = true;
-        //     },
-        //     SlideEdge::Right => {
-        //         target_offset.x = parent_rect.x[1] - target_rect.x[0];
-        //         should_animate = true;
-        //     },
-        // }
-
-
-        let should_animate = true;
-        let target_offset_y = - parent_rect.size().y.abs();
-        
-        if should_animate {
-            // self.nodes[i].layout_rect.x[0] += target_offset.x;
-            // self.nodes[i].layout_rect.x[1] += target_offset.x;
-            self.nodes[i].layout_rect.y[0] += target_offset_y;
-            self.nodes[i].layout_rect.y[1] += target_offset_y;
-        }
-    }
-
     pub(crate) fn node_or_parent_has_ongoing_animation(&self, i: NodeI) -> bool {
         let current = &self.nodes[i].animated_rect;
         let target = &self.nodes[i].layout_rect;

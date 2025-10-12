@@ -240,11 +240,11 @@ impl XyRect {
         return Self::new([a.x[0], a.x[1]], [-a.y[1], -a.y[0]]);
     }
 
-    pub fn start(&self) -> Xy<f32> {
+    pub fn top_left(&self) -> Xy<f32> {
         return Xy::new(self[X][0], self[Y][0]);
     }
 
-    pub fn end(&self) -> Xy<f32> {
+    pub fn bottom_right(&self) -> Xy<f32> {
         return Xy::new(self[X][1], self[Y][1]);
     }
 }
