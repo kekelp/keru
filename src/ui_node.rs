@@ -28,7 +28,7 @@ impl UiNode<'_> {
     }
 
     pub(crate) fn center(&self) -> Xy<f32> {
-        let rect = self.node().rect;
+        let rect = self.node().layout_rect;
         
         let center = Xy::new(
             (rect[X][1] + rect[X][0]) / 2.0,
@@ -41,7 +41,7 @@ impl UiNode<'_> {
     }
 
     pub(crate) fn bottom_left(&self) -> Xy<f32> {
-        let rect = self.node().rect;
+        let rect = self.node().layout_rect;
         
         let center = Xy::new(
             rect[X][0],
@@ -54,13 +54,13 @@ impl UiNode<'_> {
     }
 
     pub(crate) fn rect(&self) -> XyRect {
-        return self.node().rect * self.ui.sys.unifs.size;
+        return self.node().layout_rect * self.ui.sys.unifs.size;
     }
 
     pub(crate) fn render_rect(&self) -> RenderInfo {
         let size = self.ui.sys.unifs.size;
         return RenderInfo {
-            rect: self.node().rect.to_graphics_space_rounded(size),
+            rect: self.node().layout_rect.to_graphics_space_rounded(size),
             z: self.node().z + Z_STEP / 2.0,
         };
     }
@@ -219,7 +219,7 @@ impl UiNode<'_> {
         }
 
         let mouse_record = self.ui.sys.mouse_input.clicked_at(Some(MouseButton::Left), Some(self.node().id))?;
-        let node_rect = self.node().rect;
+        let node_rect = self.node().layout_rect;
         
         let relative_position = glam::DVec2::new(
             ((mouse_record.position.x / self.ui.sys.unifs.size.x as f64) - (node_rect.x[0]) as f64) / node_rect.size().x as f64,
@@ -251,7 +251,7 @@ impl UiNode<'_> {
         }
 
         let mouse_record = self.ui.sys.mouse_input.dragged_at(Some(MouseButton::Left), Some(self.node().id))?;
-        let node_rect = self.node().rect;
+        let node_rect = self.node().layout_rect;
         let relative_position = glam::DVec2::new(
             ((mouse_record.currently_at.position.x / self.ui.sys.unifs.size.x as f64) - (node_rect.x[0]) as f64) / node_rect.size().x as f64,
             ((mouse_record.currently_at.position.y / self.ui.sys.unifs.size.y as f64) - (node_rect.y[0]) as f64) / node_rect.size().y as f64,
@@ -299,7 +299,7 @@ impl UiNode<'_> {
     /// If the node was scrolled multiple times in the last frame, the result holds the information about the last scroll only.
     pub fn scrolled_at(&self) -> Option<ScrollEvent> {
         let scroll_event = self.ui.sys.mouse_input.last_scroll_event(Some(self.node().id))?;
-        let node_rect = self.node().rect;
+        let node_rect = self.node().layout_rect;
         
         let relative_position = glam::DVec2::new(
             ((scroll_event.position.x / self.ui.sys.unifs.size.x as f64) - (node_rect.x[0]) as f64) / node_rect.size().x as f64,

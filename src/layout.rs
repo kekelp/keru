@@ -5,9 +5,6 @@ use crate::node::*;
 
 pub(crate) const BIG_FLOAT: f32 = 100000.0;
 
-pub(crate) const BASE_DURATION: f32 = 0.1;
-
-
 /// Iterate on the children linked list.
 #[macro_export]
 #[doc(hidden)] // Ideally these wouldn't even be public
@@ -453,7 +450,7 @@ impl Ui {
 
     fn place_children_stack(&mut self, i: NodeI, stack: Stack) {
         let (main, cross) = (stack.axis, stack.axis.other());
-        let stack_rect = self.nodes[i].rect;
+        let stack_rect = self.nodes[i].layout_rect;
 
         let padding = self.pixels_to_frac2(self.nodes[i].params.layout.padding);
         let spacing = self.pixels_to_frac(stack.spacing, stack.axis);
@@ -483,40 +480,36 @@ impl Ui {
         for_each_child!(self, self.nodes[i], child, {
             let child_size = self.nodes[child].size;
 
-            // Store current animated position for position change detection
-            let old_animated_rect = self.nodes[child].get_animated_rect();
-
             match self.nodes[child].params.layout.position[cross] {
                 Position::Center => {
                     let origin = (stack_rect[cross][1] + stack_rect[cross][0]) / 2.0;
-                    self.nodes[child].rect[cross] = [
+                    self.nodes[child].layout_rect[cross] = [
                         origin - child_size[cross] / 2.0 ,
                         origin + child_size[cross] / 2.0 ,
                     ];  
                 },
                 Position::Start => {
                     let origin = stack_rect[cross][0] + padding[cross];
-                    self.nodes[child].rect[cross] = [origin, origin + child_size[cross]];         
+                    self.nodes[child].layout_rect[cross] = [origin, origin + child_size[cross]];         
                 },
                 Position::Static(len) => {
                     let static_pos = self.len_to_frac_of_size(len, stack_rect.size(), cross);
                     let origin = stack_rect[cross][0] + padding[cross] + static_pos;
-                    self.nodes[child].rect[cross] = [origin, origin + child_size[cross]];  
+                    self.nodes[child].layout_rect[cross] = [origin, origin + child_size[cross]];  
                 },
                 Position::End => {
                     let origin = stack_rect[cross][1] - padding[cross];
-                    self.nodes[child].rect[cross] = [origin - child_size[cross], origin];
+                    self.nodes[child].layout_rect[cross] = [origin - child_size[cross], origin];
                 },
             }
 
-            self.nodes[child].rect[main] = [walking_position, walking_position + child_size[main]];
+            self.nodes[child].layout_rect[main] = [walking_position, walking_position + child_size[main]];
 
-            // Initialize slide animation for newly appearing elements or position changes
-            self.init_animations(child, i, Some(old_animated_rect));
+            self.init_animations(child);
 
             walking_position += self.nodes[child].size[main] + spacing;
 
-            self.update_content_bounds(i, self.nodes[child].rect);
+            self.update_content_bounds(i, self.nodes[child].layout_rect);
         });
 
         self.set_children_scroll(i);
@@ -524,7 +517,7 @@ impl Ui {
 
     fn place_children_container(&mut self, i: NodeI) {
 
-        let parent_rect = self.nodes[i].rect;
+        let parent_rect = self.nodes[i].layout_rect;
 
         let padding = self.pixels_to_frac2(self.nodes[i].params.layout.padding);
 
@@ -533,27 +526,25 @@ impl Ui {
         for_each_child!(self, self.nodes[i], child, {
             let child_size = self.nodes[child].size;
 
-            let old_animated_rect = self.nodes[child].get_animated_rect();
-
             // check the children's chosen Position's and place them.
             for axis in [X, Y] {
                 match self.nodes[child].params.layout.position[axis] {
                     Position::Start => {
                         origin[axis] = parent_rect[axis][0] + padding[axis];
-                        self.nodes[child].rect[axis] = [origin[axis], origin[axis] + child_size[axis]];         
+                        self.nodes[child].layout_rect[axis] = [origin[axis], origin[axis] + child_size[axis]];         
                     },
                     Position::Static(len) => {
                         let static_pos = self.len_to_frac_of_size(len, parent_rect.size(), axis);
                         origin[axis] = parent_rect[axis][0] + padding[axis] + static_pos;
-                        self.nodes[child].rect[axis] = [origin[axis], origin[axis] + child_size[axis]];
+                        self.nodes[child].layout_rect[axis] = [origin[axis], origin[axis] + child_size[axis]];
                     }
                     Position::End => {
                         origin[axis] = parent_rect[axis][1] - padding[axis];
-                        self.nodes[child].rect[axis] = [origin[axis] - child_size[axis], origin[axis]];
+                        self.nodes[child].layout_rect[axis] = [origin[axis] - child_size[axis], origin[axis]];
                     },
                     Position::Center => {
                         origin[axis] = (parent_rect[axis][0] + parent_rect[axis][1]) / 2.0;
-                        self.nodes[child].rect[axis] = [
+                        self.nodes[child].layout_rect[axis] = [
                             origin[axis] - child_size[axis] / 2.0 ,
                             origin[axis] + child_size[axis] / 2.0 ,
                         ];           
@@ -561,82 +552,39 @@ impl Ui {
                 }
             }
 
-            // Initialize slide animation for newly appearing elements or position changes
-            self.init_animations(child, i, Some(old_animated_rect));
+            self.init_animations(child);
 
-            self.update_content_bounds(i, self.nodes[child].rect);
+            self.update_content_bounds(i, self.nodes[child].layout_rect);
         });
 
         self.set_children_scroll(i);
     }
 
-    fn init_animations(&mut self, child: NodeI, parent: NodeI, old_animated_rect: Option<XyRect>) {
-        let slide_flags = self.nodes[child].params.animation.slide;
-        if slide_flags.is_empty() {
-            return;
-        }
-        
-        // for now bail if an animation is already ongoing
-        if self.nodes[child].animation_start_time.is_some() {
+    pub(crate) fn init_animations(&mut self, i: NodeI) {
+        if self.nodes[i].frame_added != self.current_frame() {
             return;
         }
 
-        let current_time = ui_time_f32();
-        let current_frame = self.sys.current_frame;
-        let child_frame_added = self.nodes[child].frame_added;
-        let target_rect = self.nodes[child].rect;
-        let mut starting_offset = Xy::new(0.0, 0.0);
-        let mut should_animate = false;
-        
-        if child_frame_added == current_frame && slide_flags.contains(SlideFlags::APPEARING) {
-            // Newly appearing element - calculate offset from configured edge
-            let parent_rect = self.nodes[parent].rect;
-            let slide_edge = self.nodes[child].params.animation.slide_edge;
-            
-            match slide_edge {
-                SlideEdge::Top => {
-                    let element_size = target_rect.size().y;
-                    starting_offset.y = parent_rect.y[0] - element_size - target_rect.y[0];
-                    should_animate = true;
-                },
-                SlideEdge::Bottom => {
-                    starting_offset.y = parent_rect.y[1] - target_rect.y[0];
-                    should_animate = true;
-                },
-                SlideEdge::Left => {
-                    let element_size = target_rect.size().x;
-                    starting_offset.x = parent_rect.x[0] - element_size - target_rect.x[0];
-                    should_animate = true;
-                },
-                SlideEdge::Right => {
-                    starting_offset.x = parent_rect.x[1] - target_rect.x[0];
-                    should_animate = true;
-                },
-            }
-            
-        } else if let Some(old_rect) = old_animated_rect
-            && slide_flags.contains(SlideFlags::MOVING)
-            && ! self.nodes[child].exiting {
-
-            let position_threshold = 0.01;
-            let x_moved = (target_rect.x[0] - old_rect.x[0]).abs() > position_threshold;
-            let y_moved = (target_rect.y[0] - old_rect.y[0]).abs() > position_threshold;
-            
-            if x_moved && slide_flags.contains(SlideFlags::HORIZONTAL) {
-                starting_offset.x = old_rect.x[0] - target_rect.x[0];
-                should_animate = true;
-            }
-            if y_moved && slide_flags.contains(SlideFlags::VERTICAL) {
-                starting_offset.y = old_rect.y[0] - target_rect.y[0];
-                should_animate = true;
-            }
+        if self.nodes[i].debug_name().starts_with("EXTEND ") {
+            self.nodes[i].animated_rect = self.nodes[i].layout_rect;          
+            return;
         }
+
+        self.nodes[i].animated_rect = self.nodes[i].layout_rect;
+        
+        self.nodes[i].anim_velocity = Xy::new([0.0, 0.0], [0.0, 0.0]);
+
+        let parent = self.nodes[i].parent;
+        let parent_rect = self.nodes[parent].layout_rect;
+
+        let should_animate = true;
+        let target_offset_y = - parent_rect.size().y.abs();
         
         if should_animate {
-            // Initialize animation state with the offset
-            let child_node = &mut self.nodes[child];
-            child_node.animation_offset_start = starting_offset;
-            child_node.animation_start_time = Some(current_time);
+            // self.nodes[i].layout_rect.x[0] += target_offset.x;
+            // self.nodes[i].layout_rect.x[1] += target_offset.x;
+            self.nodes[i].animated_rect.y[0] += target_offset_y;
+            self.nodes[i].animated_rect.y[1] += target_offset_y;
         }
     }
 
@@ -658,8 +606,8 @@ impl Ui {
             for axis in [X, Y] {
                 if self.nodes[i].params.layout.scrollable[axis] {
                     let scroll_offset = self.scroll_offset(i, axis);
-                    self.nodes[child].rect[axis][0] += scroll_offset;
-                    self.nodes[child].rect[axis][1] += scroll_offset;
+                    self.nodes[child].layout_rect[axis][0] += scroll_offset;
+                    self.nodes[child].layout_rect[axis][1] += scroll_offset;
                 }
             }
         });
@@ -740,49 +688,49 @@ impl Ui {
         }
     }
     
-    /// update local animations, storing the total offset in the node.
     pub(crate) fn update_animations(&mut self, i: NodeI) {
-        self.nodes[i].animated_rect = self.nodes[i].rect;
-
-        if ! self.node_or_parent_has_ongoing_animation(i) {
-            self.nodes[i].animation_start_time = None;
-        }
-
         let parent_offset = if i == ROOT_I {
             Xy::new(0.0, 0.0)
         } else {
             let parent = self.nodes[i].parent;
-            self.nodes[parent].animation_offset
+            // todo: maybe not always TL?
+            Xy::new(
+                self.nodes[parent].animated_rect.x[0] - self.nodes[parent].layout_rect.x[0],
+                self.nodes[parent].animated_rect.y[0] - self.nodes[parent].layout_rect.y[0],
+            )
         };
+
+        let target = self.nodes[i].layout_rect;
+
+        let speed = self.sys.global_animation_speed * self.nodes[i].params.animation.speed;
+        let speed = speed * 1.0;
+        let criticality = 0.6;  // 1.0 = critical, <1.0 = underdamped (bouncy), >1.0 = overdamped (sluggish)
+        let dt = 1.0 / 60.0; // todo use real frame time
+
+        // Derive spring constants
+        let stiffness = speed * speed * 100.0;
+        let damping = criticality * 2.0 * f32::sqrt(stiffness);
         
-        let mut local_offset = self.nodes[i].animation_offset_target;
+        let mut v = self.nodes[i].anim_velocity;
+        let mut l = self.nodes[i].animated_rect;
+        let mut delta = Xy::new([0.0, 0.0], [0.0, 0.0]);
+
+        v.x[0] += (target.x[0] - l.x[0]) * stiffness * dt - v.x[0] * damping * dt;
+        v.x[1] += (target.x[1] - l.x[1]) * stiffness * dt - v.x[1] * damping * dt;
+        v.y[0] += (target.y[0] - l.y[0]) * stiffness * dt - v.y[0] * damping * dt;
+        v.y[1] += (target.y[1] - l.y[1]) * stiffness * dt - v.y[1] * damping * dt;
         
-        if let Some(animation_start_time) = self.nodes[i].animation_start_time {
-            let elapsed = ui_time_f32() - animation_start_time;
-    
-            let speed = self.sys.global_animation_speed * self.nodes[i].params.animation.speed;
-            let duration = BASE_DURATION / speed;
-            
-            if elapsed < duration {
-                let t = elapsed / duration;
-                let ease_t = 1.0 - (1.0 - t) * (1.0 - t);
-                
-                local_offset = Xy::new(
-                    self.nodes[i].animation_offset_target.x * ease_t + self.nodes[i].animation_offset_start.x * (1.0 - ease_t),
-                    self.nodes[i].animation_offset_target.y * ease_t + self.nodes[i].animation_offset_start.y * (1.0 - ease_t),
-                );
-            }
-        }
-        
-        let total_offset = parent_offset + local_offset;
-    
-        self.nodes[i].animated_rect.x[0] = self.nodes[i].rect.x[0] + total_offset.x;
-        self.nodes[i].animated_rect.x[1] = self.nodes[i].rect.x[1] + total_offset.x;
-        self.nodes[i].animated_rect.y[0] = self.nodes[i].rect.y[0] + total_offset.y;
-        self.nodes[i].animated_rect.y[1] = self.nodes[i].rect.y[1] + total_offset.y;
-        
-        // Store the total offset for children to use
-        self.nodes[i].animation_offset = total_offset;
+        delta.x[0] = v.x[0] * dt;
+        delta.x[1] = v.x[1] * dt;
+        delta.y[0] = v.y[0] * dt;
+        delta.y[1] = v.y[1] * dt;
+
+        // todo: snap if v is small
+
+        l += delta;
+
+        self.nodes[i].anim_velocity = v;
+        self.nodes[i].animated_rect = l;
 
         self.set_clip_rect(i);
     }
@@ -832,7 +780,7 @@ impl Scroll {
 
 impl Ui {
     pub(crate) fn update_container_scroll(&mut self, i: NodeI, delta: f32, axis: Axis) {       
-        let container_rect = self.nodes[i].rect;
+        let container_rect = self.nodes[i].layout_rect;
 
         let content_bounds = self.nodes[i].content_bounds;
         let content_rect_size = content_bounds.size()[axis];

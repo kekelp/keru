@@ -1,6 +1,6 @@
 use bytemuck::{Pod, Zeroable};
 use glam::{vec2, Vec2};
-use std::{hash::{Hash, Hasher}, ops::{Add, Div, Index, IndexMut, Mul, Sub}};
+use std::{hash::{Hash, Hasher}, ops::{Add, AddAssign, Div, Index, IndexMut, Mul, Sub}};
 
 use crate::*;
 
@@ -104,14 +104,44 @@ impl<T: Add<Output = T> + Copy> Add<Xy<T>> for Xy<T> {
         return Self::new(new_x, new_y);
     }
 }
-impl<T: Sub<Output = T> + Copy> Sub<Xy<T>> for Xy<T> {
+impl Sub<Xy<f32>> for Xy<[f32; 2]> {
     type Output = Self;
-    // todo: track_caller everywhere else (or use someone else's math library)
-    #[track_caller]
-    fn sub(self, rhs: Xy<T>) -> Self::Output {
-        let new_x = self.x - rhs.x;
-        let new_y = self.y - rhs.y;
-        return Self::new(new_x, new_y);
+    fn sub(self, rhs: Xy<f32>) -> Self::Output {
+        return Self::new(
+            [self.x[0] - rhs.x, self.x[1] - rhs.x],
+            [self.y[0] - rhs.y, self.y[1] - rhs.y],
+        );
+    }
+}
+impl<T: Sub<Output = T>> Sub for Xy<T> {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self::new(self.x - rhs.x, self.y - rhs.y)
+    }
+}
+impl Add<Xy<f32>> for Xy<[f32; 2]> {
+    type Output = Self;
+    fn add(self, rhs: Xy<f32>) -> Self::Output {
+        return Self::new(
+            [self.x[0] + rhs.x, self.x[1] + rhs.x],
+            [self.y[0] + rhs.y, self.y[1] + rhs.y],
+        );
+    }
+}
+impl AddAssign<Xy<f32>> for Xy<[f32; 2]> {
+    fn add_assign(&mut self, rhs: Xy<f32>) {
+        self.x[0] += rhs.x;
+        self.x[1] += rhs.x;
+        self.y[0] += rhs.y;
+        self.y[1] += rhs.y;
+    }
+}
+impl AddAssign<Xy<[f32; 2]>> for Xy<[f32; 2]> {
+    fn add_assign(&mut self, rhs: Xy<[f32; 2]>) {
+        self.x[0] += rhs.x[0];
+        self.x[1] += rhs.x[1];
+        self.y[0] += rhs.y[0];
+        self.y[1] += rhs.y[1];
     }
 }
 impl<T: Add<Output = T> + Copy> Add<(T, T)> for Xy<T> {
@@ -145,11 +175,13 @@ unsafe impl Pod for Xy<f32> {}
 unsafe impl Zeroable for Xy<[f32; 2]> {}
 unsafe impl Pod for Xy<[f32; 2]> {}
 
-impl<T: Copy> Xy<T> {
+impl<T> Xy<T> {
     pub const fn new(x: T, y: T) -> Self {
         return Self { x, y };
     }
+}
 
+impl<T: Copy> Xy<T> {
     pub const fn new_symm(v: T) -> Self {
         return Self { x: v, y: v };
     }

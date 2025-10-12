@@ -25,20 +25,16 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     
     let expand = BUTTON
         .text("Expand")
-        // .slide()
         .position_x(Position::Start)
         .position_y(Position::Start)
         .size_x(Size::FitContent);
 
-    let elem = LABEL
+    let elem = BUTTON
         .size_x(Size::Fill)
-        // .slide()
         .text("???");
 
-    // let elem_vstack = V_STACK.slide().visible().outline_only(false).key(ELEM_VSTACK);
     let elem_vstack = V_STACK
         .slide()
-        .clip_children_y(true)
         .key(ELEM_VSTACK);
 
     let n = 4;

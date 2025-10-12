@@ -4,7 +4,6 @@ use std::hash::Hasher;
 use std::mem;
 use std::panic::Location;
 use bytemuck::{Pod, Zeroable};
-use crate::layout::BASE_DURATION;
 
 /// An `u64` identifier for a GUI node.
 /// 
@@ -127,6 +126,7 @@ impl Ui {
         self.set_tree_links(real_final_i, parent_i, depth);
 
         self.nodes[real_final_i].just_lingering = false;
+        self.nodes[real_final_i].exiting = false;
 
         self.refresh_node(real_final_i);
 
@@ -134,6 +134,8 @@ impl Ui {
     }
 
     fn refresh_node(&mut self, i: NodeI) {
+        self.nodes[i].animation_start_time = ui_time_f32();
+        
         // refresh the text box associated with this node if it has one
         if let Some(text_i) = &self.nodes[i].text_i {
             match text_i {
@@ -241,96 +243,68 @@ impl Ui {
         self.nodes[old_last_child].next_hidden_sibling = Some(new_node_i);
     }
 
-    pub(crate) fn init_exit_animations(&mut self, i: NodeI, parent: NodeI) {
-        let slide_flags = self.nodes[i].params.animation.slide;
-        if !slide_flags.contains(SlideFlags::DISAPPEARING) {
-            return;
-        }
+    pub(crate) fn init_exit_animations(&mut self, i: NodeI) {
+        // let slide_flags = self.nodes[i].params.animation.slide;
+        // if !slide_flags.contains(SlideFlags::DISAPPEARING) {
+        //     return;
+        // }
 
         // Already exiting, don't restart another anim.
-        if self.nodes[i].exiting {
-            return;
-        }
-
+        if self.nodes[i].exiting { return; }
         self.nodes[i].exiting = true;
-        let current_time = ui_time_f32();
-        let target_rect = self.nodes[i].rect;
-        let parent_rect = self.nodes[parent].rect;
-        let mut target_offset = Xy::new(0.0, 0.0);
-        let should_animate;
+
+        let parent = self.nodes[i].parent;
+        let parent_rect = self.nodes[parent].layout_rect;
+        // let mut target_offset = Xy::new(0.0, 0.0);
+        // let should_animate;
         
-        let slide_edge = self.nodes[i].params.animation.slide_edge;
+        // let slide_edge = self.nodes[i].params.animation.slide_edge;
     
-        // Calculate exit target offset based on configured edge (same direction as entry)
-        match slide_edge {
-            SlideEdge::Top => {
-                let element_size = target_rect.size().y;
-                target_offset.y = (parent_rect.y[0] - element_size) - target_rect.y[0];
-                should_animate = true;
-            },
-            SlideEdge::Bottom => {
-                target_offset.y = parent_rect.y[1] - target_rect.y[0];
-                should_animate = true;
-            },
-            SlideEdge::Left => {
-                let element_size = target_rect.size().x;
-                target_offset.x = (parent_rect.x[0] - element_size) - target_rect.x[0];
-                should_animate = true;
-            },
-            SlideEdge::Right => {
-                target_offset.x = parent_rect.x[1] - target_rect.x[0];
-                should_animate = true;
-            },
-        }
+        // // Calculate exit target offset based on configured edge (same direction as entry)
+        // match slide_edge {
+        //     SlideEdge::Top => {
+        //         let element_size = target_rect.size().y;
+        //         target_offset.y = (parent_rect.y[0] - element_size) - target_rect.y[0];
+        //         should_animate = true;
+        //     },
+        //     SlideEdge::Bottom => {
+        //         target_offset.y = parent_rect.y[1] - target_rect.y[0];
+        //         should_animate = true;
+        //     },
+        //     SlideEdge::Left => {
+        //         let element_size = target_rect.size().x;
+        //         target_offset.x = (parent_rect.x[0] - element_size) - target_rect.x[0];
+        //         should_animate = true;
+        //     },
+        //     SlideEdge::Right => {
+        //         target_offset.x = parent_rect.x[1] - target_rect.x[0];
+        //         should_animate = true;
+        //     },
+        // }
+
+
+        let should_animate = true;
+        let target_offset_y = - parent_rect.size().y.abs();
         
         if should_animate {
-            self.nodes[i].animation_offset_start = Xy::new(0.0, 0.0);
-            self.nodes[i].animation_offset_target = target_offset;
-            self.nodes[i].animation_start_time = Some(current_time);
+            // self.nodes[i].layout_rect.x[0] += target_offset.x;
+            // self.nodes[i].layout_rect.x[1] += target_offset.x;
+            self.nodes[i].layout_rect.y[0] += target_offset_y;
+            self.nodes[i].layout_rect.y[1] += target_offset_y;
         }
     }
 
     pub(crate) fn node_or_parent_has_ongoing_animation(&self, i: NodeI) -> bool {
-        if i == ROOT_I {
-            return false;
-        }
+        let current = &self.nodes[i].animated_rect;
+        let target = &self.nodes[i].layout_rect;
+        let tolerance = 0.0005;
 
-        // Check if node has its own ongoing animation
-        if let Some(animation_start_time) = self.nodes[i].animation_start_time {
-            let t = ui_time_f32();
-            let elapsed = t - animation_start_time;
-
-            let speed = self.sys.global_animation_speed * self.nodes[i].params.animation.speed;
-
-            let duration = BASE_DURATION / speed;
-            if elapsed < duration {
-                return true;
-            }
-        }
-
-        // Check the whole upward chain of parents to see if any has an ongoing animation
-        // todo: instead of this, maybe make init_exit_animations mark all the children?
-        let mut current_parent = self.nodes[i].parent;
-        while current_parent != ROOT_I {
-            // Safety check: make sure parent still exists
-            if !self.nodes.nodes.contains(current_parent.as_usize()) {
-                break;
-            }
-            
-            if let Some(parent_animation_start_time) = self.nodes[current_parent].animation_start_time {
-                let t = ui_time_f32();
-                let elapsed = t - parent_animation_start_time;
-                let speed = self.sys.global_animation_speed * self.nodes[current_parent].params.animation.speed;
-                let duration = BASE_DURATION / speed;
-                
-                if elapsed < duration {
-                    return true;
-                }
-            }
-            current_parent = self.nodes[current_parent].parent;
-        }
-
-        return false;
+        let finished = (current.x[0] - target.x[0]).abs() < tolerance
+            && (current.x[1] - target.x[1]).abs() < tolerance
+            && (current.y[0] - target.y[0]).abs() < tolerance
+            && (current.y[1] - target.y[1]).abs() < tolerance;
+        
+        return !finished;
     }
 
     pub(crate) fn push_render_data(&mut self, i: NodeI) {
@@ -577,7 +551,7 @@ impl Ui {
             let old_parent_still_exists = self.nodes.get(old_parent).is_some();
 
             if old_parent_still_exists {
-                self.init_exit_animations(i, old_parent);
+                self.init_exit_animations(i);
             }
         }
 

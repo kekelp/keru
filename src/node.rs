@@ -20,7 +20,7 @@ pub struct Node {
 
     // also for invisible rects, used for layout
     // Coordinates: who knows???
-    pub rect: XyRect,
+    pub layout_rect: XyRect,
     pub animated_rect: XyRect,
 
     pub clip_rect: XyRect,
@@ -80,13 +80,11 @@ pub struct Node {
     pub last_text_hash: Option<u64>,
 
 
-    pub animation_offset_start: Xy<f32>,
-    pub animation_offset_target: Xy<f32>,
-    pub animation_start_time: Option<f32>,
+    pub anim_velocity: XyRect,
     
-    // todo: prob remove. not sure if there's any point in storing this here.
-    // it's used in has_ongoing_animation but there's probably smarter way
-    pub animation_offset: Xy<f32>,
+    // not really used for now
+    pub animation_start_time: f32,    
+    
 
     // Almost surely not worth to make this a linked list.
     // todo: remove.
@@ -147,7 +145,7 @@ impl Node {
             just_lingering: false,
             id: key.id_with_subtree(),
             depth: 0,
-            rect: Xy::new_symm([0.0, 1.0]),
+            layout_rect: Xy::new_symm([0.0, 1.0]),
             animated_rect: Xy::new_symm([0.0, 1.0]),
             clip_rect: Xy::new_symm([0.0, 1.0]),
 
@@ -198,11 +196,8 @@ impl Node {
             last_layout_hash: 0,
             last_text_hash: None,
 
-            // Animation state
-            animation_offset_start: Xy::new(0.0, 0.0),
-            animation_offset_target: Xy::new(0.0, 0.0),
-            animation_start_time: None,
-            animation_offset: Xy::new(0.0, 0.0),
+            animation_start_time: 0.0,            
+            anim_velocity: Xy::new_symm([0.0, 1.0]),
 
             // intentionally at zero capacity
             user_states: Vec::new(),
@@ -253,7 +248,7 @@ pub const ZERO_NODE_DUMMY: Node = Node {
     just_lingering: false,
     id: NODE_ROOT_ID,
     depth: 0,
-    rect: Xy::new_symm([0.0, 1.0]),
+    layout_rect: Xy::new_symm([0.0, 1.0]),
     animated_rect: Xy::new_symm([0.0, 1.0]),
     clip_rect: Xy::new_symm([0.0, 1.0]),
 
@@ -307,12 +302,9 @@ pub const ZERO_NODE_DUMMY: Node = Node {
     last_text_hash: None,
 
     // Animation state
-    animation_offset_start: Xy::new(0.0, 0.0),
-    animation_offset_target: Xy::new(0.0, 0.0),
-    animation_start_time: None,
-    
-    animation_offset: Xy::new(0.0, 0.0),
-    
+    animation_start_time: 0.0,   
+    anim_velocity: Xy::new_symm([0.0, 1.0]),
+
     // intentionally at zero capacity
     user_states: Vec::new(),
     can_hide: false,
@@ -328,7 +320,7 @@ pub const NODE_ROOT: Node = Node {
     just_lingering: false,
     id: NODE_ROOT_ID,
     depth: 0,
-    rect: Xy::new_symm([0.0, 1.0]),
+    layout_rect: Xy::new_symm([0.0, 1.0]),
     animated_rect: Xy::new_symm([0.0, 1.0]),
     clip_rect: Xy::new_symm([0.0, 1.0]),
 
@@ -382,11 +374,8 @@ pub const NODE_ROOT: Node = Node {
     last_layout_hash: 0,
     last_text_hash: None,
 
-    // Animation state
-    animation_offset_start: Xy::new(0.0, 0.0),
-    animation_offset_target: Xy::new(0.0, 0.0),
-    animation_start_time: None,
-    animation_offset: Xy::new(0.0, 0.0),
+    animation_start_time: 0.0,
+    anim_velocity: Xy::new_symm([0.0, 1.0]),
 
     // intentionally at zero capacity
     user_states: Vec::new(),
