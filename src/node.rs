@@ -20,6 +20,7 @@ pub struct Node {
 
     // also for invisible rects, used for layout
     // Coordinates: who knows???
+    // todo: can we maybe keep just the local one?
     pub layout_rect: XyRect,
     pub animated_rect: XyRect,
 

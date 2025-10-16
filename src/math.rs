@@ -113,10 +113,22 @@ impl Sub<Xy<f32>> for Xy<[f32; 2]> {
         );
     }
 }
-impl<T: Sub<Output = T>> Sub for Xy<T> {
+impl Sub<Xy<u32>> for Xy<u32> {
     type Output = Self;
-    fn sub(self, rhs: Self) -> Self::Output {
-        Self::new(self.x - rhs.x, self.y - rhs.y)
+    fn sub(self, rhs: Xy<u32>) -> Self::Output {
+        return Self::new(
+            self.x - rhs.x,
+            self.y - rhs.y,
+        );
+    }
+}
+impl Sub<Xy<f64>> for Xy<f64> {
+    type Output = Self;
+    fn sub(self, rhs: Xy<f64>) -> Self::Output {
+        return Self::new(
+            self.x - rhs.x,
+            self.y - rhs.y,
+        );
     }
 }
 impl Add<Xy<f32>> for Xy<[f32; 2]> {
@@ -263,6 +275,15 @@ impl Sub<f32> for XyRect {
         return Self::new(
             [self[X][0] - rhs, self[X][1] - rhs],
             [self[Y][0] - rhs, self[Y][1] - rhs],
+        );
+    }
+}
+impl Sub<XyRect> for XyRect {
+    type Output = Self;
+    fn sub(self, rhs: XyRect) -> Self::Output {
+        return Self::new(
+            [self[X][0] - rhs[X][0], self[X][1] - rhs[X][1]],
+            [self[Y][0] - rhs[Y][0], self[Y][1] - rhs[Y][1]],
         );
     }
 }

@@ -23,7 +23,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     
     let h_group = H_STACK
         .slide()
-        // .clip_children_y(true)
+        .clip_children_y(true)
         .size_x(Size::Fill)
         .stack_arrange(Arrange::Start);
     
