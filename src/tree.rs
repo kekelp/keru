@@ -243,6 +243,11 @@ impl Ui {
         self.nodes[old_last_child].next_hidden_sibling = Some(new_node_i);
     }
 
+    pub(crate) fn node_or_parent_has_ongoing_exit_animation(&self, i: NodeI) -> bool {
+        let exiting = self.node_or_parent_has_ongoing_animation(i) && self.nodes[i].exiting;
+        return exiting;
+    }
+
     pub(crate) fn node_or_parent_has_ongoing_animation(&self, i: NodeI) -> bool {
         let current = &self.nodes[i].animated_rect;
         let target = &self.nodes[i].layout_rect;
@@ -520,7 +525,7 @@ impl Ui {
             let children_can_hide = self.nodes[i].params.children_can_hide == ChildrenCanHide::Yes;
 
             if ! freshly_added {                
-                if old_parent_still_exists && self.node_or_parent_has_ongoing_animation(i) {
+                if old_parent_still_exists && self.node_or_parent_has_ongoing_exit_animation(i) {
 
                     lingering_nodes.push(NodeWithDepth { i, depth: self.nodes[i].depth });
                     
