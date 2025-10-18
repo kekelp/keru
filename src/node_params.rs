@@ -69,18 +69,9 @@ bitflags::bitflags! {
         const DISAPPEARING = 1 << 1;
         /// Slide when element moves to new position
         const MOVING       = 1 << 2;
-        
-        /// Allow sliding in vertical direction
-        const VERTICAL     = 1 << 3;
-        /// Allow sliding in horizontal direction
-        const HORIZONTAL   = 1 << 4;
-        
-        /// Slide in any direction
-        const ANY_DIRECTION = Self::VERTICAL.bits() | Self::HORIZONTAL.bits();
+
         /// Slide in all scenarios
-        const ALL_SCENARIOS = Self::APPEARING.bits() | Self::DISAPPEARING.bits() | Self::MOVING.bits();
-        /// Slide always in any direction
-        const ALL = Self::ALL_SCENARIOS.bits() | Self::ANY_DIRECTION.bits();
+        const ALWAYS = Self::APPEARING.bits() | Self::DISAPPEARING.bits();
         
         /// No sliding
         const NONE = 0;
@@ -99,8 +90,16 @@ pub enum SlideEdge {
 pub struct Animation {
     pub speed: f32,
     pub slide: SlideFlags,
-    pub slide_edge: SlideEdge,
+    pub slide_entrance_edge: SlideEdge,
+    pub slide_exit_edge: SlideEdge,
 }
+
+pub const NO_ANIMATION: Animation = Animation {
+    speed: 1.0,
+    slide: SlideFlags::NONE,
+    slide_entrance_edge: SlideEdge::Top,
+    slide_exit_edge: SlideEdge::Top,
+};
 
 /// A node's size.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -475,57 +474,47 @@ impl NodeParams {
     }
 
     pub fn slide(mut self) -> Self {
-        self.animation.slide = SlideFlags::ALL;
+        self.animation.slide = SlideFlags::ALWAYS;
         return self;
     }
     
     pub fn wait(mut self) -> Self {
-        self.animation.slide = SlideFlags::ALL;
+        self.animation.slide = SlideFlags::ALWAYS;
         return self;
     }
 
     pub fn slide_when_appearing(mut self) -> Self {
-        self.animation.slide |= SlideFlags::APPEARING | SlideFlags::ANY_DIRECTION;
+        self.animation.slide |= SlideFlags::APPEARING;
         return self;
     }
     
     pub fn slide_when_disappearing(mut self) -> Self {
-        self.animation.slide |= SlideFlags::DISAPPEARING | SlideFlags::ANY_DIRECTION;
+        self.animation.slide |= SlideFlags::DISAPPEARING;
         return self;
     }
     
     pub fn slide_when_moving(mut self) -> Self {
-        self.animation.slide |= SlideFlags::MOVING | SlideFlags::ANY_DIRECTION;
-        return self;
-    }
-    
-    pub fn slide_vertical_only(mut self) -> Self {
-        self.animation.slide = (self.animation.slide & SlideFlags::ALL_SCENARIOS) | SlideFlags::VERTICAL;
-        return self;
-    }
-    
-    pub fn slide_horizontal_only(mut self) -> Self {
-        self.animation.slide = (self.animation.slide & SlideFlags::ALL_SCENARIOS) | SlideFlags::HORIZONTAL;
+        self.animation.slide |= SlideFlags::MOVING;
         return self;
     }
     
     pub fn slide_from_top(mut self) -> Self {
-        self.animation.slide_edge = SlideEdge::Top;
+        self.animation.slide_entrance_edge = SlideEdge::Top;
         return self;
     }
     
     pub fn slide_from_bottom(mut self) -> Self {
-        self.animation.slide_edge = SlideEdge::Bottom;
+        self.animation.slide_entrance_edge = SlideEdge::Bottom;
         return self;
     }
     
     pub fn slide_from_left(mut self) -> Self {
-        self.animation.slide_edge = SlideEdge::Left;
+        self.animation.slide_entrance_edge = SlideEdge::Left;
         return self;
     }
     
     pub fn slide_from_right(mut self) -> Self {
-        self.animation.slide_edge = SlideEdge::Right;
+        self.animation.slide_entrance_edge = SlideEdge::Right;
         return self;
     }
 
@@ -869,53 +858,43 @@ impl<'a> FullNodeParams<'a> {
     }
 
     pub fn slide(mut self) -> Self {
-        self.params.animation.slide = SlideFlags::ALL;
-        self.params.animation.slide_edge = SlideEdge::Top;
+        self.params.animation.slide = SlideFlags::ALWAYS;
+        self.params.animation.slide_entrance_edge = SlideEdge::Top;
         return self;
     }
     
     pub fn slide_when_appearing(mut self) -> Self {
-        self.params.animation.slide |= SlideFlags::APPEARING | SlideFlags::ANY_DIRECTION;
+        self.params.animation.slide |= SlideFlags::APPEARING;
         return self;
     }
     
     pub fn slide_when_disappearing(mut self) -> Self {
-        self.params.animation.slide |= SlideFlags::DISAPPEARING | SlideFlags::ANY_DIRECTION;
+        self.params.animation.slide |= SlideFlags::DISAPPEARING;
         return self;
     }
     
     pub fn slide_when_moving(mut self) -> Self {
-        self.params.animation.slide |= SlideFlags::MOVING | SlideFlags::ANY_DIRECTION;
+        self.params.animation.slide |= SlideFlags::MOVING;
         return self;
     }
-    
-    pub fn slide_vertical_only(mut self) -> Self {
-        self.params.animation.slide = (self.params.animation.slide & SlideFlags::ALL_SCENARIOS) | SlideFlags::VERTICAL;
-        return self;
-    }
-    
-    pub fn slide_horizontal_only(mut self) -> Self {
-        self.params.animation.slide = (self.params.animation.slide & SlideFlags::ALL_SCENARIOS) | SlideFlags::HORIZONTAL;
-        return self;
-    }
-    
+
     pub fn slide_from_top(mut self) -> Self {
-        self.params.animation.slide_edge = SlideEdge::Top;
+        self.params.animation.slide_entrance_edge = SlideEdge::Top;
         return self;
     }
     
     pub fn slide_from_bottom(mut self) -> Self {
-        self.params.animation.slide_edge = SlideEdge::Bottom;
+        self.params.animation.slide_entrance_edge = SlideEdge::Bottom;
         return self;
     }
     
     pub fn slide_from_left(mut self) -> Self {
-        self.params.animation.slide_edge = SlideEdge::Left;
+        self.params.animation.slide_entrance_edge = SlideEdge::Left;
         return self;
     }
     
     pub fn slide_from_right(mut self) -> Self {
-        self.params.animation.slide_edge = SlideEdge::Right;
+        self.params.animation.slide_entrance_edge = SlideEdge::Right;
         return self;
     }
 
