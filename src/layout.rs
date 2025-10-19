@@ -595,6 +595,23 @@ impl Ui {
         if self.nodes[i].exiting { return; }
         // Set exiting even if we don't have an exiting animation, because the node might need to stick around for a parent's exit animation.
         self.nodes[i].exiting = true;
+        self.nodes[i].animating = true;
+        
+        dbg!(self.nodes[i].debug_name());
+        // reusing this random vec
+        self.sys.to_cleanup.clear();
+        for_each_child_including_lingering!(self, &self.nodes[i], child, {
+            self.sys.to_cleanup.push(child);
+        });
+        while let Some(node) = self.sys.to_cleanup.pop() {
+            if self.nodes[node].exiting { continue; }
+            self.nodes[node].exiting = true;
+            self.nodes[node].animating = true;
+            dbg!(self.nodes[node].debug_name());
+            for_each_child_including_lingering!(self, &self.nodes[node], child, {
+                self.sys.to_cleanup.push(child);
+            });
+        }
         
         let slide_flags = self.nodes[i].params.animation.slide;
         if !slide_flags.contains(SlideFlags::DISAPPEARING) {
@@ -701,7 +718,7 @@ impl Ui {
 
         let speed = self.sys.global_animation_speed * self.nodes[i].params.animation.speed;
         let speed = speed * 1.0;
-        let criticality = 0.6;  // 1.0 = critical, <1.0 = underdamped (bouncy), >1.0 = overdamped (sluggish)
+        let criticality = 1.0;  // 1.0 = critical, <1.0 = underdamped (bouncy), >1.0 = overdamped (sluggish)
         let dt = 1.0 / 60.0; // todo use real frame time
 
         // Derive spring constants
@@ -737,13 +754,13 @@ impl Ui {
         }
 
         // add scroll
-        let scroll = self.node_scroll(i);
+        let scroll = self.local_node_scroll(i);
         self.nodes[i].animated_rect += scroll;
 
         self.set_clip_rect(i);
     }
 
-    pub(crate) fn node_scroll(&self, i: NodeI) -> Xy<f32> {
+    pub(crate) fn local_node_scroll(&self, i: NodeI) -> Xy<f32> {
         if i == ROOT_I {
             return Xy::new(0.0, 0.0);
         }
