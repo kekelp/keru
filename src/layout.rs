@@ -591,14 +591,15 @@ impl Ui {
 
 
     pub(crate) fn init_exit_animations(&mut self, i: NodeI) {
+        // If already exiting, don't restart another anim.
+        if self.nodes[i].exiting { return; }
+        // Set exiting even if we don't have an exiting animation, because the node might need to stick around for a parent's exit animation.
+        self.nodes[i].exiting = true;
+        
         let slide_flags = self.nodes[i].params.animation.slide;
         if !slide_flags.contains(SlideFlags::DISAPPEARING) {
             return;
         }
-
-        // Already exiting, don't restart another anim.
-        if self.nodes[i].exiting { return; }
-        self.nodes[i].exiting = true;
 
         let parent = self.nodes[i].parent;
         let parent_rect = self.nodes[parent].layout_rect;
@@ -742,7 +743,7 @@ impl Ui {
         self.set_clip_rect(i);
     }
 
-    fn node_scroll(&mut self, i: NodeI) -> Xy<f32> {
+    pub(crate) fn node_scroll(&self, i: NodeI) -> Xy<f32> {
         if i == ROOT_I {
             return Xy::new(0.0, 0.0);
         }

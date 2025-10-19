@@ -243,16 +243,19 @@ impl Ui {
     }
 
     pub(crate) fn node_or_parent_has_ongoing_animation(&self, i: NodeI) -> bool {
-        let current = &self.nodes[i].animated_rect;
-        let target = &self.nodes[i].layout_rect;
-        let tolerance = 0.0005;
-
-        let finished = (current.x[0] - target.x[0]).abs() < tolerance
-            && (current.x[1] - target.x[1]).abs() < tolerance
-            && (current.y[0] - target.y[0]).abs() < tolerance
-            && (current.y[1] - target.y[1]).abs() < tolerance;
+        return self.nodes[i].animating;
+        // let scroll = self.node_scroll(i);
         
-        return !finished;
+        // let current = &self.nodes[i].animated_rect;
+        // let target = self.nodes[i].layout_rect + scroll;
+        // let tolerance = 0.0005;
+
+        // let finished = (current.x[0] - target.x[0]).abs() < tolerance
+        //     && (current.x[1] - target.x[1]).abs() < tolerance
+        //     && (current.y[0] - target.y[0]).abs() < tolerance
+        //     && (current.y[1] - target.y[1]).abs() < tolerance;
+        
+        // return !finished;
     }
 
     pub(crate) fn push_render_data(&mut self, i: NodeI) {
@@ -518,7 +521,7 @@ impl Ui {
             };
             let children_can_hide = self.nodes[i].params.children_can_hide == ChildrenCanHide::Yes;
 
-            if ! freshly_added {                
+            if ! freshly_added {
                 if old_parent_still_exists && self.nodes[i].exiting && self.node_or_parent_has_ongoing_animation(i) {
 
                     exiting_nodes.push(NodeWithDepth { i, depth: self.nodes[i].depth });
