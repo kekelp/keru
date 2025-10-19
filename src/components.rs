@@ -141,6 +141,7 @@ impl Ui {
                     }
                 });
 
+                // todo: identity for content panel?
                 let content_nest = self.add(content_panel);
 
                 content_nest

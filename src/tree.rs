@@ -125,7 +125,6 @@ impl Ui {
         let NodeWithDepth { i: parent_i, depth } = thread_local::current_parent();
         self.set_tree_links(real_final_i, parent_i, depth);
 
-        self.nodes[real_final_i].just_lingering = false;
         self.nodes[real_final_i].exiting = false;
 
         self.refresh_node(real_final_i);
@@ -241,11 +240,6 @@ impl Ui {
     
     fn add_hidden_sibling(&mut self, new_node_i: NodeI, old_last_child: NodeI, _parent_i: NodeI) {
         self.nodes[old_last_child].next_hidden_sibling = Some(new_node_i);
-    }
-
-    pub(crate) fn node_or_parent_has_ongoing_exit_animation(&self, i: NodeI) -> bool {
-        let exiting = self.node_or_parent_has_ongoing_animation(i) && self.nodes[i].exiting;
-        return exiting;
     }
 
     pub(crate) fn node_or_parent_has_ongoing_animation(&self, i: NodeI) -> bool {
@@ -487,7 +481,7 @@ impl Ui {
         let mut non_fresh_nodes: Vec<NodeI> = take_buffer_and_clear(&mut self.sys.non_fresh_nodes);
         let mut to_cleanup: Vec<NodeI> = take_buffer_and_clear(&mut self.sys.to_cleanup);
         let mut hidden_branch_parents: Vec<NodeI> = take_buffer_and_clear(&mut self.sys.hidden_branch_parents);
-        let mut lingering_nodes: Vec<NodeWithDepth> = take_buffer_and_clear(&mut self.sys.lingering_nodes);
+        let mut exiting_nodes: Vec<NodeWithDepth> = take_buffer_and_clear(&mut self.sys.lingering_nodes);
 
 
         for (i, _) in self.nodes.nodes.iter().skip(2) {
@@ -525,9 +519,9 @@ impl Ui {
             let children_can_hide = self.nodes[i].params.children_can_hide == ChildrenCanHide::Yes;
 
             if ! freshly_added {                
-                if old_parent_still_exists && self.node_or_parent_has_ongoing_exit_animation(i) {
+                if old_parent_still_exists && self.nodes[i].exiting && self.node_or_parent_has_ongoing_animation(i) {
 
-                    lingering_nodes.push(NodeWithDepth { i, depth: self.nodes[i].depth });
+                    exiting_nodes.push(NodeWithDepth { i, depth: self.nodes[i].depth });
                     
                 } else if ! can_hide {
 
@@ -550,12 +544,12 @@ impl Ui {
 
         // Add lingering nodes back into the tree.
         // todo: don't just add them at the end, try to put them after their old prev_sibling. 
-        lingering_nodes.sort_by_key(|n| n.depth);
-        for &NodeWithDepth { i, .. } in &lingering_nodes {
+        exiting_nodes.sort_by_key(|n| n.depth);
+        for &NodeWithDepth { i, .. } in &exiting_nodes {
             let old_parent = self.nodes[i].parent;
             self.set_tree_links(i, old_parent, self.nodes[i].depth);
             self.refresh_node(i);
-            self.nodes[i].just_lingering = true;
+            self.nodes[i].exiting = true;
         }
 
         // This is delayed so that hidden children are all added
@@ -573,7 +567,7 @@ impl Ui {
         // todo: push partial relayouts instead.
         self.sys.changes.full_relayout = true;
 
-        self.sys.lingering_nodes = lingering_nodes;
+        self.sys.lingering_nodes = exiting_nodes;
         self.sys.non_fresh_nodes = non_fresh_nodes;
         self.sys.to_cleanup = to_cleanup;
         self.sys.hidden_branch_parents = hidden_branch_parents;
@@ -640,7 +634,6 @@ impl Ui {
 
     fn debug_print_node_recursive(&self, node_i: NodeI, prefix: &mut String, is_last: bool, is_hidden: bool) {
         let hidden_marker = if is_hidden { " [HIDDEN]" } else { "" };
-        let lingering = if self.nodes[node_i].just_lingering { "[LINGERING]" } else { "" };
         let currently_hidden = if self.nodes[node_i].currently_hidden { " (currently_hidden=true)" } else { "" };
         let exiting = if self.nodes[node_i].exiting { " (exiting=true)" } else { "" };
         
@@ -652,14 +645,13 @@ impl Ui {
             "├── ".to_string()
         };
         
-        println!("{}{}{}{}{}{}{}",
+        println!("{}{}{}{}{}{}",
             prefix,
             connector,
             self.nodes[node_i].debug_name(),
             hidden_marker,
             currently_hidden,
             exiting,
-            lingering,
         );
 
         let old_len = prefix.len();

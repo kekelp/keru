@@ -13,7 +13,7 @@ macro_rules! for_each_child {
         {
             let mut current_child = $start.first_child;
             while let Some($child) = current_child {
-                if ! $ui.nodes[$child].just_lingering {
+                if ! $ui.nodes[$child].exiting {
                     $body
                 }
                 current_child = $ui.nodes[$child].next_sibling;
@@ -505,8 +505,6 @@ impl Ui {
 
             self.nodes[child].layout_rect[main] = [walking_position, walking_position + child_size[main]];
 
-            // self.set_child_scroll_2(child, i);
-
             self.set_local_layout_rect(child, i);
             self.init_animations(child);
 
@@ -515,7 +513,7 @@ impl Ui {
             self.update_content_bounds(i, self.nodes[child].layout_rect);
         });
 
-        self.set_children_scroll(i);
+        // self.set_children_scroll(i);
     }
 
     fn place_children_container(&mut self, i: NodeI) {
@@ -555,15 +553,11 @@ impl Ui {
                 }
             }
 
-            // self.set_child_scroll_2(child, i);
-
             self.set_local_layout_rect(child, i);
             self.init_animations(child);
 
             self.update_content_bounds(i, self.nodes[child].layout_rect);
         });
-
-        self.set_children_scroll(i);
     }
 
     fn set_local_layout_rect(&mut self, child: NodeI, parent: NodeI) {
@@ -624,23 +618,6 @@ impl Ui {
             c_bounds[1] = c_bounds[1].max(content_rect[axis][1]);
         }
     }
-
-    fn set_children_scroll(&mut self, i: NodeI) {
-        if ! self.nodes[i].params.is_scrollable() {
-            return;
-        }
-
-        for_each_child!(self, self.nodes[i], child, {
-            for axis in [X, Y] {
-                if self.nodes[i].params.layout.scrollable[axis] {
-                    let scroll_offset = self.scroll_offset(i, axis);
-                    self.nodes[child].local_layout_rect[axis][0] += scroll_offset;
-                    self.nodes[child].local_layout_rect[axis][1] += scroll_offset;
-                }
-            }
-        });
-    }
-    
 
     pub(crate) fn set_clip_rect(&mut self, i: NodeI) {
         // Start from keep the parent's clip rect.
@@ -708,7 +685,7 @@ impl Ui {
         self.sys.breadth_traversal_queue.push_back(ROOT_I);
 
         while let Some(i) = self.sys.breadth_traversal_queue.pop_front() {
-            self.update_animations(i);
+            self.resolve_animations_and_scrolling(i);
             self.push_render_data(i);
             
             for_each_child_including_lingering!(self, self.nodes[i], child, {
@@ -717,7 +694,7 @@ impl Ui {
         }
     }
     
-    pub(crate) fn update_animations(&mut self, i: NodeI) {
+    pub(crate) fn resolve_animations_and_scrolling(&mut self, i: NodeI) {
         // do animations in local space
         let target = self.nodes[i].local_layout_rect;
 
@@ -758,11 +735,35 @@ impl Ui {
             self.nodes[i].animated_rect = self.nodes[i].local_animated_rect + parent_offset;
         }
 
+        // add scroll
+        let scroll = self.node_scroll(i);
+        self.nodes[i].animated_rect += scroll;
+
         self.set_clip_rect(i);
     }
+
+    fn node_scroll(&mut self, i: NodeI) -> Xy<f32> {
+        if i == ROOT_I {
+            return Xy::new(0.0, 0.0);
+        }
+        let parent = self.nodes[i].parent;
+        if self.nodes.get(parent).is_none() {
+            return Xy::new(0.0, 0.0);
+        }
+        if ! self.nodes[parent].params.is_scrollable() {
+            return Xy::new(0.0, 0.0);
+        }
+    
+        let mut res = Xy::new(0.0, 0.0);
+        for axis in [X, Y] {
+            if self.nodes[parent].params.layout.scrollable[axis] {
+                let scroll_offset = self.scroll_offset(parent, axis);
+                res[axis] = scroll_offset;
+            }
+        }
+        return res;
+    }
 }
-
-
 
 impl Xy<f32> {
     pub(crate) fn update_for_child(&mut self, child_size: Xy<f32>, stack: Option<Stack>) {

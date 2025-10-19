@@ -121,10 +121,9 @@ impl Components for Ui {
     }
 
     fn text_tab(&mut self) {
-        let v_stack = V_STACK
+        let v_stack = V_SCROLL_STACK
             .size_x(Frac(0.8))
-            .size_y(Size::Frac(0.7))
-            .scrollable_y(true);
+            .size_y(Size::Frac(0.7));
 
         self.add(v_stack).nest(|| {
             self.static_label("Keru uses the Textslabs library for text, which uses Parley under the hood.");

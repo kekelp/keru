@@ -4,9 +4,6 @@ use crate::*;
 
 #[derive(Debug)]
 pub struct Node {
-
-    pub just_lingering: bool,
-
     pub id: Id,
     pub depth: usize,
 
@@ -146,7 +143,6 @@ impl Node {
         // add back somewhere
 
         return Node {
-            just_lingering: false,
             id: key.id_with_subtree(),
             depth: 0,
             layout_rect: Xy::new_symm([0.0, 1.0]),
@@ -251,7 +247,6 @@ impl Node {
 
 // a dummy node value to fill up the zero slot, so that 
 pub const ZERO_NODE_DUMMY: Node = Node {
-    just_lingering: false,
     id: NODE_ROOT_ID,
     depth: 0,
     layout_rect: Xy::new_symm([0.0, 1.0]),
@@ -325,7 +320,6 @@ pub const ROOT_I: NodeI = NodeI::from(1);
 
 pub const NODE_ROOT_ID: Id = Id(0);
 pub const NODE_ROOT: Node = Node {
-    just_lingering: false,
     id: NODE_ROOT_ID,
     depth: 0,
     layout_rect: Xy::new_symm([0.0, 1.0]),
