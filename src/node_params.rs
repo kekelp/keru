@@ -60,7 +60,6 @@ pub struct NodeParams {
 }
 
 bitflags::bitflags! {
-    /// Bitflags for controlling when and how slide animations occur
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
     pub struct SlideFlags: u8 {
         /// Slide when element appears
