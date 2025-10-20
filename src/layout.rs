@@ -595,10 +595,9 @@ impl Ui {
         if self.nodes[i].exiting { return; }
         // Set exiting even if we don't have an exiting animation, because the node might need to stick around for a parent's exit animation.
         self.nodes[i].exiting = true;
-        self.nodes[i].animating = true;
+        self.nodes[i].exit_animation_still_going = true;
         
-        dbg!(self.nodes[i].debug_name());
-        // reusing this random vec
+        // set the whole branch to exiting. (reusing this random vec)
         self.sys.to_cleanup.clear();
         for_each_child_including_lingering!(self, &self.nodes[i], child, {
             self.sys.to_cleanup.push(child);
@@ -606,8 +605,7 @@ impl Ui {
         while let Some(node) = self.sys.to_cleanup.pop() {
             if self.nodes[node].exiting { continue; }
             self.nodes[node].exiting = true;
-            self.nodes[node].animating = true;
-            dbg!(self.nodes[node].debug_name());
+            self.nodes[node].exit_animation_still_going = true;
             for_each_child_including_lingering!(self, &self.nodes[node], child, {
                 self.sys.to_cleanup.push(child);
             });
@@ -622,6 +620,8 @@ impl Ui {
         let parent_rect = self.nodes[parent].layout_rect;
         let target_offset_y = - parent_rect.size().y.abs();
         
+        // Change the layout_rect to move the "target" position.
+        // This works because exiting nodes are excluded from layout, so the layout_rect is not updated further.
         self.nodes[i].layout_rect.y[0] += target_offset_y;
         self.nodes[i].layout_rect.y[1] += target_offset_y;
         self.nodes[i].local_layout_rect.y[0] += target_offset_y;
@@ -747,15 +747,24 @@ impl Ui {
         self.nodes[i].local_animated_rect = l;
 
         // add the parent offset
-        if i != ROOT_I {
-            let parent = self.nodes[i].parent;
-            let parent_offset = self.nodes[parent].animated_rect.top_left();
-            self.nodes[i].animated_rect = self.nodes[i].local_animated_rect + parent_offset;
-        }
+        let parent = self.nodes[i].parent;
+        let parent_offset = self.nodes[parent].animated_rect.top_left();
+        self.nodes[i].animated_rect = self.nodes[i].local_animated_rect + parent_offset;
+
 
         // add scroll
         let scroll = self.local_node_scroll(i);
         self.nodes[i].animated_rect += scroll;
+
+
+        let parent = self.nodes[i].parent;
+        let expected_final_parent_offset = self.nodes[parent].expected_final_rect.top_left();
+
+        self.nodes[i].expected_final_rect = self.nodes[i].local_layout_rect + expected_final_parent_offset + scroll;
+
+        if ! self.node_or_parent_has_ongoing_animation(i) {
+            self.nodes[i].exit_animation_still_going = false;
+        }
 
         self.set_clip_rect(i);
     }

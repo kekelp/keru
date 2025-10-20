@@ -242,20 +242,10 @@ impl Ui {
         self.nodes[old_last_child].next_hidden_sibling = Some(new_node_i);
     }
 
-    pub(crate) fn node_or_parent_has_ongoing_animation(&self, i: NodeI) -> bool {
-        let scroll = self.local_node_scroll(i);
-
-        let parent_offset = if i != ROOT_I {
-            let parent = self.nodes[i].parent;
-            self.nodes[parent].animated_rect.top_left()
-        } else {
-            Xy::new(0.0, 0.0)
-        };
-        
+    pub(crate) fn node_or_parent_has_ongoing_animation(&self, i: NodeI) -> bool {        
+        let target = &self.nodes[i].expected_final_rect;
         let current = &self.nodes[i].animated_rect;
-        let target = self.nodes[i].local_layout_rect + parent_offset + scroll;
         let tolerance = 0.0005;
-
         
         let is_at_target = (current.x[0] - target.x[0]).abs() < tolerance
             && (current.x[1] - target.x[1]).abs() < tolerance
@@ -529,8 +519,7 @@ impl Ui {
             let children_can_hide = self.nodes[i].params.children_can_hide == ChildrenCanHide::Yes;
 
             if ! freshly_added {
-                let animation_not_over = self.node_or_parent_has_ongoing_animation(i);
-                if old_parent_still_exists && self.nodes[i].exiting && animation_not_over {
+                if old_parent_still_exists && self.nodes[i].exiting && self.nodes[i].exit_animation_still_going {
 
                     exiting_nodes.push(NodeWithDepth { i, depth: self.nodes[i].depth });
                     
