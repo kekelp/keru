@@ -4,6 +4,7 @@ use keru::*;
 #[derive(Default)]
 pub struct State {
     expanded: Vec<bool>,
+    clip_children: bool,
 }
 
 fn update_ui(state: &mut State, ui: &mut Ui) {
@@ -19,7 +20,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     
     let h_group = H_STACK
         .slide()
-        .clip_children_y(true)
+        .clip_children_y(state.clip_children)
         .size_x(Size::Fill)
         .stack_arrange(Arrange::Start);
     
@@ -67,14 +68,17 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         }
     }
 
-    // ui.debug_print_tree();
+    if ui.add(BUTTON.position_symm(Position::End).static_text("Toggle clipping")).is_clicked(ui) {
+        state.clip_children = !state.clip_children;
+    }
 }
 
 
 fn main() {
-    // basic_env_logger_init();
+    basic_env_logger_init();
     let state = State {
         expanded: vec![false, false, false, false, false],
+        clip_children: true,
     };
     run_example_loop(state, update_ui);
 }

@@ -250,77 +250,12 @@ impl Node {
 }
 
 
-// a dummy node value to fill up the zero slot, so that 
-pub const ZERO_NODE_DUMMY: Node = Node {
-    expected_final_rect: Xy::new_symm([0.0, 1.0]), 
-exit_animation_still_going: false,
-    id: NODE_ROOT_ID,
-    depth: 0,
-    layout_rect: Xy::new_symm([0.0, 1.0]),
-    animated_rect: Xy::new_symm([0.0, 1.0]),
-    local_layout_rect: Xy::new_symm([0.0, 0.0]),
-    local_animated_rect: Xy::new_symm([0.0, 0.0]),
-    clip_rect: Xy::new_symm([0.0, 1.0]),
-
-    size: Xy::new_symm(1.0),
-    content_bounds: XyRect::new_symm([0.0, 0.0]),
-
-    last_proposed_sizes: ProposedSizes::container(Xy::new_symm(1.0)),
-
-    scroll: Scroll::ZERO,
-    text_i: None,
-
-    imageref: None,
-    last_static_image_ptr: None,
-    last_text_ptr: 0,
-
-
-    parent: NodeI::from(91359),
-
-    n_children: 0,
-    last_child: None,
-    first_child: None,
-    prev_sibling: None,
-    next_sibling: None,
-
-    old_first_child: None,
-    old_next_sibling: None,
-
-    first_hidden_child: None,
-    next_hidden_sibling: None,
-
-    is_twin: None,
-
-    params: NODE_ROOT_PARAMS,
-    debug_key_name: "ZERO_NODE_DUMMY",
-    debug_location: Location::caller(),
-    hover_timestamp: f32::MIN,
-    hovered: false,
-
-    last_click: f32::MIN,
-    z: -10000.0,
-    last_rect_i: None,
-    last_click_rect_i: None,
-    last_image_rect_i: None,
-    relayout_chain_root: None,
-    last_layout_frame: 0,
-    frame_added: 0,
-    last_frame_touched: 0,
-
-    last_cosmetic_hash: 0,
-    last_layout_hash: 0,
-    last_text_hash: None,
-
-    // Animation state
-    animation_start_time: 0.0,   
-    anim_velocity: Xy::new_symm([0.0, 1.0]),
-
-    // intentionally at zero capacity
-    user_states: Vec::new(),
-    can_hide: false,
-    currently_hidden: false,
-
-    exiting: false,
+// A dummy node value to fill up the zero slot, so that the arena can be indexed by NonZero values. 
+pub const ZERO_NODE_DUMMY: Node = const {
+    let mut node = NODE_ROOT;
+    node.debug_key_name = "ZERO_NODE_DUMMY";
+    node.debug_location = Location::caller();
+    node
 };
 
 pub const ROOT_I: NodeI = NodeI::from(1);
@@ -349,7 +284,7 @@ exit_animation_still_going: false,
     last_static_image_ptr: None,
     last_text_ptr: 0,
 
-
+    // The root node is his own parent. This can be nice sometimes but it would probably be better to not use it.
     parent: ROOT_I,
 
     n_children: 0,
