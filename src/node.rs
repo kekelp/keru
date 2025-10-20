@@ -61,9 +61,6 @@ pub struct Node {
     pub first_child: Option<NodeI>,
     pub next_sibling: Option<NodeI>,
 
-    pub old_first_child: Option<NodeI>,
-    pub old_next_sibling: Option<NodeI>,
-
     pub first_hidden_child: Option<NodeI>,
     pub next_hidden_sibling: Option<NodeI>,
 
@@ -177,9 +174,6 @@ impl Node {
             prev_sibling: None,
             next_sibling: None,
 
-            old_first_child: None,
-            old_next_sibling: None,
-
             first_hidden_child: None,
             next_hidden_sibling: None,
         
@@ -292,9 +286,6 @@ exit_animation_still_going: false,
     first_child: None,
     prev_sibling: None,
     next_sibling: None,
-
-    old_first_child: None,
-    old_next_sibling: None,
 
     first_hidden_child: None,
     next_hidden_sibling: None,

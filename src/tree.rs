@@ -152,11 +152,6 @@ impl Ui {
     fn set_tree_links(&mut self, new_node_i: NodeI, parent_i: NodeI, depth: usize) {
         assert!(new_node_i != parent_i, "Keru: Internal error: tried to add a node as child of itself ({}). This shouldn't be possible.", self.nodes[new_node_i].debug_name());
 
-        // clear old tree links
-        self.nodes[new_node_i].old_first_child = self.nodes[new_node_i].first_child;
-        self.nodes[new_node_i].old_next_sibling = self.nodes[new_node_i].next_sibling;
-        
-
         self.nodes[new_node_i].last_child = None;
         self.nodes[new_node_i].first_child = None;
         self.nodes[new_node_i].n_children = 0;
@@ -429,8 +424,6 @@ impl Ui {
     }
     
     fn reset_root(&mut self) {
-        self.nodes[ROOT_I].old_first_child = self.nodes[ROOT_I].first_child;
-        self.nodes[ROOT_I].old_next_sibling = self.nodes[ROOT_I].next_sibling;
         self.nodes[ROOT_I].last_child = None;
         self.nodes[ROOT_I].first_child = None;
         self.nodes[ROOT_I].prev_sibling = None;
@@ -451,7 +444,7 @@ impl Ui {
         self.cleanup_and_stuff();
 
         self.relayout();
-        
+
         self.sys.third_last_frame_end_fake_time = self.sys.second_last_frame_end_fake_time;
         self.sys.second_last_frame_end_fake_time = self.sys.last_frame_end_fake_time;
         self.sys.last_frame_end_fake_time = observer_timestamp();
