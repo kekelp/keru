@@ -571,25 +571,23 @@ impl Ui {
     }
 
     pub(crate) fn init_animations(&mut self, i: NodeI) {
-        let slide_flags = self.nodes[i].params.animation.slide;
+        if self.nodes[i].frame_added != self.current_frame() {
+            return;
+        }
 
-        if self.nodes[i].frame_added == self.current_frame() {
-            self.nodes[i].local_animated_rect = self.nodes[i].local_layout_rect;
-            self.nodes[i].anim_velocity = Xy::new([0.0, 0.0], [0.0, 0.0]);
-            
-            if slide_flags.contains(SlideFlags::APPEARING) {
-                let target_offset_y = - self.nodes[i].local_layout_rect.size().y.abs();
-                
-                self.nodes[i].local_animated_rect.y[0] += target_offset_y;
-                self.nodes[i].local_animated_rect.y[1] += target_offset_y;
-            }
-        } else {
-            if ! slide_flags.contains(SlideFlags::MOVING) {
-                self.nodes[i].local_animated_rect = self.nodes[i].local_layout_rect;
-            } 
+        self.nodes[i].local_animated_rect = self.nodes[i].local_layout_rect;
+        self.nodes[i].anim_velocity = Xy::new([0.0, 0.0], [0.0, 0.0]);
+        
+        let slide_flags = self.nodes[i].params.animation.slide;
+        let appearing = slide_flags.contains(SlideFlags::APPEARING);
+
+        if appearing {
+            let target_offset_y = - self.nodes[i].local_layout_rect.size().y.abs();
+        
+            self.nodes[i].local_animated_rect.y[0] += target_offset_y;
+            self.nodes[i].local_animated_rect.y[1] += target_offset_y;
         }
     }
-
 
     pub(crate) fn init_exit_animations(&mut self, i: NodeI) {
         // If already exiting, don't restart another anim.
