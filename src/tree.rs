@@ -132,9 +132,7 @@ impl Ui {
         return (real_final_i, real_final_id);
     }
 
-    fn refresh_node(&mut self, i: NodeI) {
-        self.nodes[i].animation_start_time = ui_time_f32();
-        
+    fn refresh_node(&mut self, i: NodeI) {        
         // refresh the text box associated with this node if it has one
         if let Some(text_i) = &self.nodes[i].text_i {
             match text_i {
@@ -239,7 +237,7 @@ impl Ui {
 
     pub(crate) fn node_or_parent_has_ongoing_animation(&self, i: NodeI) -> bool {        
         let target = &self.nodes[i].expected_final_rect;
-        let current = &self.nodes[i].animated_rect;
+        let current = &self.nodes[i].real_rect;
         let tolerance = 0.0005;
         
         let is_at_target = (current.x[0] - target.x[0]).abs() < tolerance

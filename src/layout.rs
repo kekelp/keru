@@ -651,7 +651,7 @@ impl Ui {
         let mut clip_rect = parent_clip_rect;
         for axis in [X, Y] {
             if self.nodes[i].params.clip_children[axis] {
-                let own_rect = self.nodes[i].animated_rect;
+                let own_rect = self.nodes[i].real_rect;
                 clip_rect[axis] = intersect(own_rect[axis], parent_clip_rect[axis])
             }
         }
@@ -665,8 +665,8 @@ impl Ui {
             let bottom = clip_rect[Y][1] * self.sys.unifs.size[Y];
 
             let padding = self.nodes[i].params.layout.padding;
-            let text_left = (self.nodes[i].animated_rect[X][0] * self.sys.unifs.size[X]) as f64 + padding[X] as f64;
-            let text_top = (self.nodes[i].animated_rect[Y][0] * self.sys.unifs.size[Y]) as f64 + padding[Y] as f64;
+            let text_left = (self.nodes[i].real_rect[X][0] * self.sys.unifs.size[X]) as f64 + padding[X] as f64;
+            let text_top = (self.nodes[i].real_rect[Y][0] * self.sys.unifs.size[Y]) as f64 + padding[Y] as f64;
             
             let text_clip_rect = Some(textslabs::Rect {
                 x0: left as f64 - text_left,
@@ -749,13 +749,13 @@ impl Ui {
 
         // add the parent offset
         let parent = self.nodes[i].parent;
-        let parent_offset = self.nodes[parent].animated_rect.top_left();
-        self.nodes[i].animated_rect = self.nodes[i].local_animated_rect + parent_offset;
+        let parent_offset = self.nodes[parent].real_rect.top_left();
+        self.nodes[i].real_rect = self.nodes[i].local_animated_rect + parent_offset;
 
 
         // add scroll
         let scroll = self.local_node_scroll(i);
-        self.nodes[i].animated_rect += scroll;
+        self.nodes[i].real_rect += scroll;
 
 
         let parent = self.nodes[i].parent;

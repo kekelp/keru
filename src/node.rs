@@ -8,33 +8,28 @@ pub struct Node {
     pub depth: usize,
 
     pub last_layout_frame: u64,
-    // todo: who cares?
     pub frame_added: u64,
     pub last_frame_touched: u64,
 
     pub scroll: Scroll,
 
-
-    // also for invisible rects, used for layout
-    // Coordinates: who knows???
-    // todo: can we maybe keep just the local one?
-    pub layout_rect: XyRect,
-    pub animated_rect: XyRect,
+    pub real_rect: XyRect,
     pub expected_final_rect: XyRect,
-    
-    pub exit_animation_still_going: bool,
 
+    // todo: should try to get rid of some of these stored rects that are basically just partial results in the layout process.
     pub local_layout_rect: XyRect,
     pub local_animated_rect: XyRect,
-
-    pub clip_rect: XyRect,
-
-    // partial result when layouting?
-    // in probably in fraction of screen units or some trash 
-    pub size: Xy<f32>,
     pub content_bounds: XyRect,
-
+    // could maybe be passed down while traversing instead of stored.
+    pub clip_rect: XyRect,
+    // sort of a partial result compared to expected_final_rect.
+    pub layout_rect: XyRect,    
+    // this is sort of a partial result, but might be necessary because of the two-pass size, position layout.
+    pub size: Xy<f32>,
+    // partial result, but used for partial relayouts.
     pub last_proposed_sizes: ProposedSizes,
+
+    pub exit_animation_still_going: bool,
 
     pub(crate) relayout_chain_root: Option<NodeI>,
 
@@ -80,13 +75,8 @@ pub struct Node {
     pub last_layout_hash: u64,
     pub last_text_hash: Option<u64>,
 
-
     pub anim_velocity: XyRect,
     
-    // not really used for now
-    pub animation_start_time: f32,    
-    
-
     // Almost surely not worth to make this a linked list.
     // todo: remove.
     pub user_states: Vec<StateId>,
@@ -131,7 +121,7 @@ impl Node {
         // final_rect.y[0] += self.cumulative_parent_animation_offset_delta.y;
         // final_rect.y[1] += self.cumulative_parent_animation_offset_delta.y;
         
-        self.animated_rect
+        self.real_rect
     }
 
     pub fn new(
@@ -148,7 +138,7 @@ impl Node {
             id: key.id_with_subtree(),
             depth: 0,
             layout_rect: Xy::new_symm([0.0, 1.0]),
-            animated_rect: Xy::new_symm([0.0, 1.0]),
+            real_rect: Xy::new_symm([0.0, 1.0]),
             local_layout_rect: Xy::new_symm([0.0, 0.0]),
             local_animated_rect: Xy::new_symm([0.0, 0.0]),
             clip_rect: Xy::new_symm([0.0, 1.0]),
@@ -197,7 +187,6 @@ impl Node {
             last_layout_hash: 0,
             last_text_hash: None,
 
-            animation_start_time: 0.0,            
             anim_velocity: Xy::new_symm([0.0, 1.0]),
 
             // intentionally at zero capacity
@@ -261,7 +250,7 @@ exit_animation_still_going: false,
     id: NODE_ROOT_ID,
     depth: 0,
     layout_rect: Xy::new_symm([0.0, 1.0]),
-    animated_rect: Xy::new_symm([0.0, 1.0]),
+    real_rect: Xy::new_symm([0.0, 1.0]),
     local_layout_rect: Xy::new_symm([0.0, 1.0]),
     local_animated_rect: Xy::new_symm([0.0, 1.0]),
     clip_rect: Xy::new_symm([0.0, 1.0]),
@@ -313,7 +302,6 @@ exit_animation_still_going: false,
     last_layout_hash: 0,
     last_text_hash: None,
 
-    animation_start_time: 0.0,
     anim_velocity: Xy::new_symm([0.0, 1.0]),
 
     // intentionally at zero capacity
