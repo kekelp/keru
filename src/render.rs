@@ -96,14 +96,15 @@ impl Ui {
 
     /// Updates the GUI data on the GPU and renders it. 
     pub fn render(&mut self, render_pass: &mut RenderPass, device: &Device, queue: &Queue) {  
-        self.set_new_ui_input();
-        self.sys.changes.full_relayout = true;
-
         self.render_z_range(render_pass, device, queue, [f32::MAX, f32::MIN])
     }
     
     /// Renders quads within the specified z range.
-    pub fn render_z_range(&mut self, render_pass: &mut RenderPass, device: &Device, queue: &Queue, z_range: [f32; 2]) {  
+    pub fn render_z_range(&mut self, render_pass: &mut RenderPass, device: &Device, queue: &Queue, z_range: [f32; 2]) {
+
+        if self.sys.changes.should_rebuild_render_data {
+            self.rebuild_render_data();
+        }
         
         debug_assert!(z_range[0] > z_range[1], "z_range[0] should be greater than z_range[1].");
         
@@ -136,7 +137,7 @@ impl Ui {
         );
 
         // update rects
-        if self.sys.changes.need_gpu_rect_update {
+        if self.sys.changes.need_gpu_rect_update || self.sys.changes.should_rebuild_render_data {
             self.sys.gpu_rect_buffer.queue_write(&self.sys.rects[..], queue);
             self.sys.changes.need_gpu_rect_update = false;
             log::trace!("Update GPU rectangles");
@@ -197,7 +198,10 @@ impl Ui {
     /// 
     /// If this is true, you should call [`Ui::render`] as soon as possible to display the updated GUI state on the screen.
     pub fn needs_rerender(&mut self) -> bool {
-        return self.sys.changes.need_rerender || self.sys.anim_render_timer.is_live() || self.sys.text.needs_rerender();
+        return self.sys.changes.need_rerender
+            || self.sys.anim_render_timer.is_live()
+            || self.sys.text.needs_rerender()
+            || self.sys.changes.should_rebuild_render_data;
     }
 }
 

@@ -202,7 +202,6 @@ impl Ui {
                 return;
             }
             
-            // Track previous node while iterating through siblings
             let mut prev = first_hidden_child;
             for_each_hidden_child!(self, self.nodes[parent_i], child, {
                 if child == child_i {
@@ -339,8 +338,6 @@ impl Ui {
             }
         }
 
-        // this kind of makes sense, but apparently not needed? I guess someone else is calling it?
-        // self.sys.changes.need_gpu_rect_update = true;
         // todo: update images?
     }
 
@@ -414,6 +411,7 @@ impl Ui {
         self.sys.text.advance_frame_and_hide_boxes();
         thread_local::clear_parent_stack();
         self.format_scratch.clear();
+        self.sys.changes.unfinished_animations = false;
 
         let root_parent = UiParent::new(ROOT_I);
         thread_local::push_parent(&root_parent);

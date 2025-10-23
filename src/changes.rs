@@ -22,13 +22,17 @@ impl PartialOrd for NodeWithDepth {
 pub struct PartialChanges {
     pub cosmetic_rect_updates: Vec<NodeI>,
     pub partial_relayouts: Vec<NodeWithDepth>,
+    // todo: bitflags, or just less bools
     pub tree_changed: bool,
     pub full_relayout: bool,
     pub text_changed: bool,
+    pub unfinished_animations: bool,
 
+    
     pub need_gpu_rect_update: bool,
 
     pub need_rerender: bool,
+    pub should_rebuild_render_data: bool,
 
     pub resize: bool,
 }
@@ -40,7 +44,9 @@ impl PartialChanges {
             tree_changed: false,
             text_changed: false,
             full_relayout: true,
+            unfinished_animations: false,
 
+            should_rebuild_render_data: true,
             need_rerender: true,
             need_gpu_rect_update: true,
 

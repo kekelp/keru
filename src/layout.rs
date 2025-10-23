@@ -59,8 +59,7 @@ impl Ui {
         let rect_updates = ! self.sys.changes.cosmetic_rect_updates.is_empty();
         let full_relayout = self.sys.changes.full_relayout;
         let text_changed = self.sys.changes.text_changed;
-
-        let nothing_to_do = !partial_relayouts && !rect_updates && !full_relayout && !text_changed && !tree_changed;
+        let nothing_to_do = !partial_relayouts && !rect_updates && !full_relayout && !text_changed && !tree_changed && !self.sys.changes.unfinished_animations;
         if nothing_to_do {
             return;
         }
@@ -81,7 +80,7 @@ impl Ui {
 
         // these ones are after the second-order-effect resolve_hover, just to see the update sooner.
         if full_relayout || tree_changed {
-            self.rebuild_all_rects();
+            self.rebuild_render_data();
         } else {
             self.do_cosmetic_rect_updates();
         }
@@ -105,7 +104,7 @@ impl Ui {
 
         for &update in &cosmetic_rect_updates {
             self.update_rect(update);
-            log::info!("Visual rectangle update ({})", self.node_debug_name_fmt_scratch(update));
+            log::info!("Single rectangle update ({})", self.node_debug_name_fmt_scratch(update));
         }
 
         self.sys.changes.cosmetic_rect_updates = cosmetic_rect_updates;
@@ -684,17 +683,20 @@ impl Ui {
         }
     }
 
-    pub(crate) fn rebuild_all_rects(&mut self) {
-        log::info!("Rebuilding all rectangles");
+    pub(crate) fn rebuild_render_data(&mut self) {
+        log::info!("Rebuilding render data");
         self.sys.rects.clear();
 
         self.sys.click_rects.clear();
         self.sys.scroll_rects.clear();
         self.sys.z_cursor = Z_START;
 
+        self.sys.changes.unfinished_animations = false;
         self.breadth_first_push_rects();
 
         self.sys.editor_rects_i = (self.sys.rects.len()) as u16;
+
+        self.sys.changes.should_rebuild_render_data = self.sys.changes.unfinished_animations;
     }
 
     fn breadth_first_push_rects(&mut self) {
@@ -763,6 +765,8 @@ impl Ui {
 
         if ! self.node_or_parent_has_ongoing_animation(i) {
             self.nodes[i].exit_animation_still_going = false;
+        } else {
+            self.sys.changes.unfinished_animations = true;
         }
 
         self.set_clip_rect(i);

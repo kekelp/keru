@@ -319,5 +319,6 @@ pub fn basic_env_logger_init() {
     env_logger::Builder::new()
         .filter_level(log::LevelFilter::Warn)
         .filter_module("keru::", log::LevelFilter::Info)
+        .format_timestamp_millis() 
         .init();
 }

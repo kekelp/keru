@@ -141,6 +141,8 @@ pub(crate) struct System {
     pub changes: PartialChanges,
 
     // move to changes oalgo
+    // note that the magic "shader only animations" will probably disappear eventually,
+    // so things like this will need to rebuild render data, not just rerender
     pub anim_render_timer: AnimationRenderTimer,
 
     pub user_state: HashMap<StateId, Box<dyn Any>>,
