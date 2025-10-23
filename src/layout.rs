@@ -505,7 +505,7 @@ impl Ui {
             self.nodes[child].layout_rect[main] = [walking_position, walking_position + child_size[main]];
 
             self.set_local_layout_rect(child, i);
-            self.init_animations(child);
+            self.init_enter_animations(child);
 
             walking_position += self.nodes[child].size[main] + spacing;
 
@@ -553,23 +553,28 @@ impl Ui {
             }
 
             self.set_local_layout_rect(child, i);
-            self.init_animations(child);
+            self.init_enter_animations(child);
 
             self.update_content_bounds(i, self.nodes[child].layout_rect);
         });
     }
 
-    fn set_local_layout_rect(&mut self, child: NodeI, parent: NodeI) {
+    fn set_local_layout_rect(&mut self, i: NodeI, parent: NodeI) {       
         let parent_rect = self.nodes[parent].layout_rect;
-        let child_rect = self.nodes[child].layout_rect;
+        let child_rect = self.nodes[i].layout_rect;
         
-        self.nodes[child].local_layout_rect = XyRect::new(
+        self.nodes[i].local_layout_rect = XyRect::new(
             [child_rect.x[0] - parent_rect.x[0], child_rect.x[1] - parent_rect.x[0]],
             [child_rect.y[0] - parent_rect.y[0], child_rect.y[1] - parent_rect.y[0]]
         );
+
+        if ! self.nodes[i].params.animation.slide.contains(SlideFlags::MOVING) {
+            self.nodes[i].local_animated_rect = self.nodes[i].local_layout_rect;
+            // might still be adjusted later for enter/exit animations.
+        }
     }
 
-    pub(crate) fn init_animations(&mut self, i: NodeI) {
+    pub(crate) fn init_enter_animations(&mut self, i: NodeI) {
         if self.nodes[i].frame_added != self.current_frame() {
             return;
         }

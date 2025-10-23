@@ -70,7 +70,7 @@ bitflags::bitflags! {
         const MOVING       = 1 << 2;
 
         /// Slide in all scenarios
-        const ALWAYS = Self::APPEARING.bits() | Self::DISAPPEARING.bits();
+        const ALWAYS = Self::APPEARING.bits() | Self::DISAPPEARING.bits() | Self::MOVING.bits();
         
         /// No sliding
         const NONE = 0;

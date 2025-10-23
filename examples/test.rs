@@ -33,10 +33,8 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         state.expanded5 = ! state.expanded5;
     }
 
-
-    
     let expand_base = BUTTON
-        .slide() // All animations in any direction
+        .slide()
         .position_x(Position::Start)
         .position_y(Position::Start)
         .size_x(Size::FitContent);
