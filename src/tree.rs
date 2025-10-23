@@ -158,8 +158,6 @@ impl Ui {
 
         self.nodes[new_node_i].currently_hidden = false;
 
-        self.nodes[new_node_i].user_states.clear();
-
         self.set_relayout_chain_root(new_node_i, parent_i);
 
         self.add_child(new_node_i, parent_i);
@@ -594,10 +592,6 @@ impl Ui {
                     self.sys.text.remove_text_edit(handle);
                 }
             }
-        }
-
-        for state_id in &self.nodes[i].user_states {
-            self.sys.user_state.remove(state_id);
         }
 
         self.nodes.node_hashmap.remove(&id);

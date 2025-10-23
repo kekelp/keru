@@ -92,27 +92,8 @@ impl Components for Ui {
             });
             self.add(TEXT
                 .static_text("This text uses a different style.")
-                .text_style(&large_bold_style)
+                .text_style(large_bold_style.clone())
             );
-            
-            self.static_paragraph("\nNormally, \"state management\" looks the same as in immediate mode libraries: all state is centralized. \n\n\
-            But if a widget has a small bit of state that you don't want to centralize, \"StateKey\"s provide a way to handle it. \n\n\
-            This bool value isn't declared in the main struct state.");
-
-            #[node_key] const BUTTON3: NodeKey;
-            #[node_key] const WIDGET_STATE: StateKey<bool>;
-            
-            self.h_stack().nest(|| {
-                if self.add(BUTTON.text("Toggle bool").key(BUTTON3)).is_clicked(self) {
-                    *self.state_mut(WIDGET_STATE) = ! self.state(WIDGET_STATE)
-                }
-    
-                if *self.state(WIDGET_STATE) {
-                    self.label("Bool on");
-                } else {
-                    self.label("Bool off");
-                }
-            });
 
             self.static_paragraph("The tab viewer uses the \"children_can_hide\" property on the tab containers. This means that when switching tabs, all ui state is kept in the background: the value of the bool is retained, as well as the scroll state, the text in the edit boxes, etc. \n\n\
             Without \"children_can_hide\", everything would be cleaned up as soon as the tabs change.");

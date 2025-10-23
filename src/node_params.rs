@@ -634,7 +634,7 @@ impl<'a> NodeText<'a> {
 pub struct FullNodeParams<'a> {
     pub params: NodeParams,
     pub text: Option<NodeText<'a>>,
-    pub text_style: Option<&'a StyleHandle>,
+    pub text_style: Option<StyleHandle>,
     pub(crate) text_changed: Changed,
     pub(crate) text_ptr: usize,
     pub image: Option<&'static [u8]>,
@@ -922,7 +922,7 @@ impl<'a> FullNodeParams<'a> {
     }
 
     /// Set the text style for this node.
-    pub fn text_style(mut self, style: &'a StyleHandle) -> Self {
+    pub fn text_style(mut self, style: StyleHandle) -> Self {
         self.text_style = Some(style);
         return self;
     }
@@ -1123,7 +1123,8 @@ impl Ui {
         if edit {
             // For editable text, always update if content changed
             if self.nodes[i].last_text_ptr != params.text_ptr {
-                self.set_text(i, text, text_options, params.text_style, params.placeholder);
+                // todo: this as_ref() is dumb, should this be changed in textslabs?
+                self.set_text(i, text, text_options, params.text_style.as_ref(), params.placeholder);
                 self.nodes[i].last_text_ptr = params.text_ptr;
             }
             return;
@@ -1180,24 +1181,24 @@ impl Ui {
                         if hash != last_hash {
                             log::trace!("Updating after hash");
                             self.nodes[i].last_text_hash = Some(hash);
-                            self.set_text(i, text, text_options, params.text_style, params.placeholder);
+                            self.set_text(i, text, text_options, params.text_style.as_ref(), params.placeholder);
                         } else {
                             log::trace!("Skipping after hash");
                         }
                     } else {
-                        self.set_text(i, text, text_options, params.text_style, params.placeholder);
+                        self.set_text(i, text, text_options, params.text_style.as_ref(), params.placeholder);
                         if !text.is_static() {
                             self.nodes[i].last_text_hash = Some(hash);
                         }
                     }
                 } else {
                     log::trace!("Updating (node had no text)");
-                    self.set_text(i, text, text_options, params.text_style, params.placeholder);
+                    self.set_text(i, text, text_options, params.text_style.as_ref(), params.placeholder);
                 }
             },
             TextVerdict::UpdateWithoutHashing => {
                 log::trace!("Updating without hash");
-                self.set_text(i, text, text_options, params.text_style, params.placeholder);
+                self.set_text(i, text, text_options, params.text_style.as_ref(), params.placeholder);
                 self.nodes[i].last_text_hash = None;
             },
         };
@@ -1270,7 +1271,25 @@ impl NodeParams {
             placeholder: None,
         }
     }
+}
 
+impl<'a> FullNodeParams<'a> {
+    /// Add text to the [`NodeParams`].
+    /// 
+    /// The `text` argument can be a `&str`, a `String`, or any type that implements [`AsRef<str>`].
+    /// 
+    /// It can optionally wrapped by an [`Observer`], [`Static`] or [`Immut`] for efficiency.
+    /// 
+    /// If a plain non-[`Observer`] type is used, the [`Ui`] will fall back to hashing the text to determine if the text needs updating.
+    /// 
+    /// Instead of this single generic function, you can also use [`Self::hashed_text()`], [`Self::static_text()`], [`Self::immut_text()`], or [`Self::observed_text()`].
+    pub fn text(mut self, text: &'a (impl MaybeObservedText + ?Sized)) -> FullNodeParams<'a> {
+        self.text = Some(NodeText::Dynamic(text.as_text()));
+        self.text_changed = text.changed_at();
+        self.text_ptr = text.as_text().as_ptr() as usize;
+
+        return self;
+    }
 }
 
 

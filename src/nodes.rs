@@ -39,37 +39,16 @@ impl NodeI {
 impl Index<NodeI> for Nodes {
     type Output = Node;
     fn index(&self, i: NodeI) -> &Self::Output {
-        // if cfg!(debug_assertions) {
-        //     let res = self.nodes.get(i.as_usize());
-        //     match res {
-        //         Some(res) => {
-        //             return res
-        //         },
-        //         None => {
-        //             panic!("Invalid key: {:?}", i);
-        //         },
-        //     }
-        // } else {
-            return &self.nodes[i.as_usize()];
+        return &self.nodes[i.as_usize()];
+        // unsafe {
+        //     return &self.nodes.get_unchecked(i.as_usize());
         // }
     }
 }
 
 impl IndexMut<NodeI> for Nodes {
     fn index_mut(&mut self, i: NodeI) -> &mut Self::Output {
-        // if cfg!(debug_assertions) {
-        //     let res = self.nodes.get_mut(i.as_usize());
-        //     match res {
-        //         Some(res) => {
-        //             return res
-        //         },
-        //         None => {
-        //             panic!("Invalid key: {:?}", i);
-        //         },
-        //     }
-        // } else {
-            return &mut self.nodes[i.as_usize()];
-        // }
+        return &mut self.nodes[i.as_usize()];
     }
 }
 

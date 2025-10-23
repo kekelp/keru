@@ -76,10 +76,6 @@ pub struct Node {
     pub last_text_hash: Option<u64>,
 
     pub anim_velocity: XyRect,
-    
-    // Almost surely not worth to make this a linked list.
-    // todo: remove.
-    pub user_states: Vec<StateId>,
 
     pub can_hide: bool,
     pub currently_hidden: bool,
@@ -189,8 +185,6 @@ impl Node {
 
             anim_velocity: Xy::new_symm([0.0, 1.0]),
 
-            // intentionally at zero capacity
-            user_states: Vec::new(),
             can_hide: false,
             exiting: false,
             currently_hidden: false,
@@ -304,8 +298,6 @@ exit_animation_still_going: false,
 
     anim_velocity: Xy::new_symm([0.0, 1.0]),
 
-    // intentionally at zero capacity
-    user_states: Vec::new(),
     can_hide: false,
 
     exiting: false,

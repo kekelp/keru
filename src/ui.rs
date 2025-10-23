@@ -138,7 +138,7 @@ pub(crate) struct System {
     pub hidden_branch_parents: Vec<NodeI>,
     pub lingering_nodes: Vec<NodeWithDepth>,
 
-    pub changes: PartialChanges,
+    pub changes: Changes,
 
     // move to changes oalgo
     // note that the magic "shader only animations" will probably disappear eventually,
@@ -399,7 +399,7 @@ impl Ui {
 
                 anim_render_timer: AnimationRenderTimer::default(),
 
-                changes: PartialChanges::new(),
+                changes: Changes::new(),
 
                 text_renderer: TextRenderer::new_with_params(device, queue, config.format, depth_stencil, TextRendererParams {
                     enable_z_range_filtering: true,
@@ -610,27 +610,6 @@ impl Ui {
         self.nodes[i].last_static_image_ptr = Some(image_pointer);
 
         return self;
-    }
-
-    pub fn state<T: Default + 'static>(&mut self, key: StateKey<T>) -> &T {
-        // This function takes &mut self anyway because it has to initialize the state if it's not there, so for once we don't have to duplicate everything.
-        self.state_mut(key)
-    }
-
-    pub fn state_mut<T: Default + 'static>(&mut self, key: StateKey<T>) -> &mut T {
-        let id = key.id_with_subtree();
-        
-        if !self.sys.user_state.contains_key(&id) {
-            self.sys.user_state.insert(id, Box::new(T::default()));
-        }
-        
-        let NodeWithDepth { i: parent_i, .. } = thread_local::current_parent();
-        // todo: I guess skip this if it's the root? since it will never get cleared
-        if parent_i != ROOT_I {
-            self.nodes[parent_i].user_states.push(id);
-        }
-
-        return self.sys.user_state.get_mut(&id).unwrap().downcast_mut().unwrap();
     }
 }
 
