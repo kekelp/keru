@@ -70,7 +70,7 @@ impl Ui {
 
         if full_relayout {
             self.relayout_from_root();
-        } else {           
+        } else {
             if tree_changed {
                 self.do_partial_relayouts(false);
             } else {
@@ -136,6 +136,8 @@ impl Ui {
     }
 
     pub(crate) fn relayout_from_root(&mut self) {
+        log::info!("Full relayout");
+
         // 1st recursive tree traversal: start from the root and recursively determine the size of all nodes
         let starting_proposed_size = Xy::new(1.0, 1.0);
 
@@ -769,7 +771,11 @@ impl Ui {
         self.nodes[i].expected_final_rect = self.nodes[i].local_layout_rect + expected_final_parent_offset + scroll;
 
         if ! self.node_or_parent_has_ongoing_animation(i) {
-            self.nodes[i].exit_animation_still_going = false;
+            if self.nodes[i].exiting {
+                self.nodes[i].exit_animation_still_going = false;
+                // todo: think harder
+                self.set_new_ui_input();
+            }
         } else {
             self.sys.changes.unfinished_animations = true;
         }
