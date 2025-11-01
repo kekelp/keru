@@ -476,7 +476,7 @@ impl Ui {
     /// In a typical `winit` loop for an application that only updates in response to user input, this function is what decides if the [`Ui`] building code should be rerun.
     /// 
     /// In applications that update on every frame regardless of user input, like games or simulations, the [`Ui`] building code should be rerun on every frame unconditionally, so this function isn't useful.
-    pub fn needs_update(&mut self) -> bool {
+    pub fn should_update(&mut self) -> bool {
         return self.sys.update_frames_needed > 0 ||
             self.sys.new_external_events;
     }
@@ -486,8 +486,8 @@ impl Ui {
     /// In a typical `winit` loop for an application that only updates in response to user input, this function is what decides if `winit::Window::request_redraw()` should be called.
     /// 
     /// For an application that updates on every frame regardless of user input, like a game or a simulation, `request_redraw()` should be called on every frame unconditionally, so this function isn't useful.
-    pub fn event_loop_needs_to_wake(&mut self) -> bool {
-        return self.needs_update() || self.needs_rerender();
+    pub fn should_request_redraw(&mut self) -> bool {
+        return self.should_update() || self.should_rerender();
     }
 
     pub fn cursor_position(&self) -> DVec2 {
@@ -534,6 +534,10 @@ impl Ui {
 
     pub fn original_default_style(&self) -> TextStyle {
         self.sys.text.original_default_style()
+    }
+
+    pub(crate) fn new_redraw_requested_frame(&mut self) {
+        
     }
 }
 

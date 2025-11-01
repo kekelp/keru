@@ -537,6 +537,8 @@ impl Ui {
             self.set_tree_links(i, old_parent, self.nodes[i].depth);
             self.refresh_node(i);
             self.nodes[i].exiting = true;
+            // todo not in this retarded way
+            self.nodes[old_parent].n_children -= 1;
         }
 
         // This is delayed so that hidden children are all added

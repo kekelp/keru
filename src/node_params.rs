@@ -472,12 +472,12 @@ impl NodeParams {
         return self;
     }
 
-    pub fn slide(mut self) -> Self {
+    pub const fn slide(mut self) -> Self {
         self.animation.slide = SlideFlags::ALWAYS;
         return self;
     }
     
-    pub fn wait(mut self) -> Self {
+    pub const fn wait(mut self) -> Self {
         self.animation.slide = SlideFlags::ALWAYS;
         return self;
     }

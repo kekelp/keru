@@ -1,7 +1,7 @@
 use keru::*;
-use std::sync::Arc;
 use wgpu::*;
-use winit::{application::ApplicationHandler, event::WindowEvent, event_loop::EventLoop, window::Window};
+use std::sync::Arc;
+use winit::{application::ApplicationHandler, event::WindowEvent, event_loop::{ActiveEventLoop, EventLoop}, window::{Window, WindowId}};
 
 struct Application {
     state: Option<State>,
@@ -97,40 +97,46 @@ impl State {
 }
 
 impl ApplicationHandler for Application {
-    fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let window = Arc::new(event_loop.create_window(Window::default_attributes()).unwrap());
         let instance = Instance::new(InstanceDescriptor::default());
         let state = State::new(window, instance);
         self.state = Some(state);
     }
 
-    fn window_event(&mut self, event_loop: &winit::event_loop::ActiveEventLoop, _: winit::window::WindowId, event: WindowEvent) {
+    fn window_event(&mut self, event_loop: &ActiveEventLoop, _: WindowId, event: WindowEvent) {
         let state = self.state.as_mut().unwrap();
         
         state.ui.window_event(&event, &state.window);
+        // ^ redrawreq: clear what_to_do_this_frame and refill it with stuff from last frame
+        // other events: update what_to_do_next_frame
 
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => state.resize(size.width, size.height),
             WindowEvent::RedrawRequested => {
-                if state.ui.needs_update() {
+                if state.ui.should_update() {
                     state.ui.begin_frame();
                     state.update_ui();
                     state.ui.finish_frame();
+                    // ^ update what_to_do_NEXT_frame depending on animations finishing and stuff.
+                    // if we're updating, we might still end up not changing anything, so this can change what_to_do_this_frame as well.
+                    // and also update private stuff like rebuild_rects. 
                 }
-                if state.ui.needs_rerender() {
-                    state.ui.create_render_pass_and_render(
+                if state.ui.should_rerender() {
+                    state.ui.render(
                         &state.surface,
                         &state.depth_texture,
                         &state.device,
                         &state.queue,
+                        // ^ update what_to_do_NEXT_frame depending on animations finishing and stuff.
                     );
                 }
             }
             _ => {}
         }
         
-        if state.ui.event_loop_needs_to_wake() {
+        if state.ui.should_request_redraw() {
             state.window.request_redraw();
         }
     }

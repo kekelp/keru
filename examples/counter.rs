@@ -43,6 +43,7 @@ impl State {
         let show_button = BUTTON
             .color(Color::RED)
             .text(show_button_text)
+            .slide_when_moving()
             .key(SHOW);
 
         let decrease_button = BUTTON
@@ -51,7 +52,7 @@ impl State {
 
         // In a real program, you should use a frame arena to avoid useless allocations like these.
         let fmt_count = self.count.to_string();
-        let count = LABEL.text(&fmt_count);
+        let count = LABEL.text(&fmt_count).slide_when_moving();
 
         ui.add(v_stack).nest(|| {
             ui.add(show_button);

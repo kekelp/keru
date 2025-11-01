@@ -21,16 +21,14 @@ impl Ui {
         self.sys.mouse_input.window_event(event);
         self.sys.key_input.window_event(event);
 
-        let mut focus_already_grabbed = false;
-        self.recursive_text_events(ROOT_I, event, window, &mut focus_already_grabbed);
+        self.text_window_event(ROOT_I, event, window);
 
         self.ui_input(&event, window);
         
         return false;
     }
 
-    fn recursive_text_events(&mut self, _i: NodeI, event: &WindowEvent, window: &Window, _focus_already_grabbed: &mut bool) {        
-        // In the new centralized system, handle all text events at once
+    fn text_window_event(&mut self, _i: NodeI, event: &WindowEvent, window: &Window){     
         self.sys.text.handle_event(event, window);
         
         let text_changed = self.sys.text.any_text_changed();
@@ -38,14 +36,15 @@ impl Ui {
             if let Some(node_id) = self.sys.focused {
                 self.sys.text_edit_changed_this_frame = Some(node_id);
             }
+            self.sys.changes.text_changed = true;
         }
-        
-        // Mark that text might have changed so it gets re-prepared for rendering
-        self.sys.changes.text_changed = true;
     }
 
     pub fn ui_input(&mut self, event: &WindowEvent, window: &Window) -> bool {
         match event {
+            WindowEvent::RedrawRequested => {
+                self.new_redraw_requested_frame();
+            }
             WindowEvent::CursorMoved { .. } => {              
                 self.resolve_hover();
                 // cursormoved is never consumed
@@ -65,11 +64,7 @@ impl Ui {
                     },
                 }
             }
-            WindowEvent::KeyboardInput {
-                event,
-                is_synthetic,
-                ..
-            } => {
+            WindowEvent::KeyboardInput { event, is_synthetic, .. } => {
                 // todo: set new_input only if a node is focused? hard to tell... users probably *shouldn't* listen for unconditional key inputs, but they definitely can
                 // probably should have two different bools: one for focused input, one for generic new input. the event loop can decide to wake up and/or update depending on either 
                 self.set_new_ui_input();
@@ -95,13 +90,30 @@ impl Ui {
     }
 
     /// Updates the GUI data on the GPU and renders it. 
-    pub fn render(&mut self, render_pass: &mut RenderPass, device: &Device, queue: &Queue) {  
-        self.render_z_range(render_pass, device, queue, [f32::MAX, f32::MIN])
+    pub fn render_in_render_pass(&mut self, render_pass: &mut RenderPass, device: &Device, queue: &Queue) {  
+        if self.sys.changes.should_rebuild_render_data {
+            self.rebuild_render_data();
+        }
+        
+        log::trace!("Render");
+        self.do_cosmetic_rect_updates();
+
+        self.prepare(device, queue);
+        let n = self.sys.rects.len() as u32;
+        if n > 0 {
+            render_pass.set_pipeline(&self.sys.render_pipeline);
+            render_pass.set_bind_group(0, &self.sys.bind_group, &[]);
+            render_pass.set_vertex_buffer(0, self.sys.gpu_rect_buffer.slice(n));
+            render_pass.draw(0..6, 0..n);
+        }
+
+        self.sys.text_renderer.render(render_pass);
+        
+        self.sys.changes.need_rerender = false;
     }
     
     /// Renders quads within the specified z range.
     pub fn render_z_range(&mut self, render_pass: &mut RenderPass, device: &Device, queue: &Queue, z_range: [f32; 2]) {
-
         if self.sys.changes.should_rebuild_render_data {
             self.rebuild_render_data();
         }
@@ -153,8 +165,8 @@ impl Ui {
 
     /// Renders the UI to a surface with full render pass management.
     /// 
-    /// This is a helper method that creates the render pass, calls [`Ui::render()`], and presents to the screen.
-    pub fn create_render_pass_and_render(
+    /// This is a helper method that creates the render pass, calls [`Ui::render_in_render_pass()`], and presents to the screen.
+    pub fn render(
         &mut self,
         surface: &wgpu::Surface,
         depth_texture: &wgpu::Texture,
@@ -187,7 +199,7 @@ impl Ui {
                 }),
                 ..Default::default()
             });
-            self.render(&mut render_pass, device, queue);
+            self.render_in_render_pass(&mut render_pass, device, queue);
         }
         
         queue.submit([encoder.finish()]);
@@ -197,7 +209,7 @@ impl Ui {
     /// Returns `true` if the `Ui` needs to be rerendered.
     /// 
     /// If this is true, you should call [`Ui::render`] as soon as possible to display the updated GUI state on the screen.
-    pub fn needs_rerender(&mut self) -> bool {
+    pub fn should_rerender(&mut self) -> bool {
         return self.sys.changes.need_rerender
             || self.sys.anim_render_timer.is_live()
             || self.sys.text.needs_rerender()

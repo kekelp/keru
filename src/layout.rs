@@ -691,7 +691,7 @@ impl Ui {
     }
 
     pub(crate) fn rebuild_render_data(&mut self) {
-        log::info!("Rebuilding render data");
+        // log::info!("Rebuilding render data");
         self.sys.rects.clear();
 
         self.sys.click_rects.clear();

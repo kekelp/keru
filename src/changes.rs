@@ -19,6 +19,11 @@ impl PartialOrd for NodeWithDepth {
 }
 
 #[derive(Debug)]
+pub enum WhatToDoNextFrame {
+    
+}
+
+#[derive(Debug)]
 pub struct Changes {
     pub cosmetic_rect_updates: Vec<NodeI>,
     pub partial_relayouts: Vec<NodeWithDepth>,

@@ -94,18 +94,18 @@ impl<T> ApplicationHandler for AppWrapper<T> {
         self.ui.window_event(&event, &self.ctx.window);
 
         if event == WindowEvent::RedrawRequested {
-            if self.ui.needs_update() {
+            if self.ui.should_update() {
                 self.ui.begin_frame();
                 (self.update_fn)(&mut self.state, &mut self.ui);
                 self.ui.finish_frame();
             }
 
-            if self.ui.needs_rerender() {
+            if self.ui.should_rerender() {
                 self.ctx.render_ui(&mut self.ui);
             }
         }
 
-        if self.ui.event_loop_needs_to_wake() {
+        if self.ui.should_request_redraw() {
             self.ctx.window.request_redraw();
         }
     }

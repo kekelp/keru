@@ -74,7 +74,7 @@ impl ApplicationHandler for State {
         // In the paint program, input events almost always cause an update/rerender (update hovered pixel info, ...)
         // Instead of bothering to track if the canvas absorbs the event, we do this unconditionally.
         // Should still track it, tbh.
-        if event != WindowEvent::RedrawRequested || self.ui.needs_rerender() {
+        if event != WindowEvent::RedrawRequested || self.ui.should_rerender() {
             self.ctx.window.request_redraw();
         }
     }
@@ -109,7 +109,7 @@ impl State {
 
         self.update_canvas();
 
-        let need_rerender = self.ui.needs_rerender()
+        let need_rerender = self.ui.should_rerender()
             || self.canvas.needs_rerender()
             || self.color_picker.needs_rerender();
 
@@ -140,7 +140,7 @@ impl State {
                     self.color_picker.render(&mut render_pass);
                     self.ui.render_z_range(&mut render_pass, &self.ctx.device, &self.ctx.queue, [color_picker_z, 0.0]);
                 } else {
-                    self.ui.render(&mut render_pass, &self.ctx.device, &self.ctx.queue);
+                    self.ui.render_in_render_pass(&mut render_pass, &self.ctx.device, &self.ctx.queue);
                 }
             }
         }

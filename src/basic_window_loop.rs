@@ -229,7 +229,7 @@ impl Context {
         // Without these brackets, wgpu panics. I think this used to be a compiler error in older versions? 
         {
             let mut render_pass = frame.begin_render_pass(BACKGROUND_GREY);
-            ui.render(&mut render_pass, &self.device, &self.queue);
+            ui.render_in_render_pass(&mut render_pass, &self.device, &self.queue);
         }
         
         self.finish_frame(frame);
