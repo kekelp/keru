@@ -717,33 +717,65 @@ impl Ui {
         let target = self.nodes[i].local_layout_rect;
 
         let speed = self.sys.global_animation_speed * self.nodes[i].params.animation.speed;
-        let speed = speed * 1.0;
-        let criticality = 1.0;  // 1.0 = critical, <1.0 = underdamped (bouncy), >1.0 = overdamped (sluggish)
+
         let dt = 1.0 / 60.0; // todo use real frame time
 
-        // Derive spring constants
-        let stiffness = speed * speed * 100.0;
-        let damping = criticality * 2.0 * f32::sqrt(stiffness);
         
-        let mut v = self.nodes[i].anim_velocity;
+        // let mut v = self.nodes[i].anim_velocity;
         let mut l = self.nodes[i].local_animated_rect;
-        let mut delta = Xy::new([0.0, 0.0], [0.0, 0.0]);
 
-        v.x[0] += (target.x[0] - l.x[0]) * stiffness * dt - v.x[0] * damping * dt;
-        v.x[1] += (target.x[1] - l.x[1]) * stiffness * dt - v.x[1] * damping * dt;
-        v.y[0] += (target.y[0] - l.y[0]) * stiffness * dt - v.y[0] * damping * dt;
-        v.y[1] += (target.y[1] - l.y[1]) * stiffness * dt - v.y[1] * damping * dt;
+
+        let diff_x0 = target.x[0] - l.x[0];
+        let diff_x1 = target.x[1] - l.x[1];
+        let diff_y0 = target.y[0] - l.y[0];
+        let diff_y1 = target.y[1] - l.y[1];
         
-        delta.x[0] = v.x[0] * dt;
-        delta.x[1] = v.x[1] * dt;
-        delta.y[0] = v.y[0] * dt;
-        delta.y[1] = v.y[1] * dt;
+        let rate = 11.0 * speed * dt;
 
-        // todo: snap if v is small
+        let const_speed_pixels = 3.0;
+        let inv_const_sp = 1.0 / const_speed_pixels;
+        let size = self.sys.unifs.size;
 
-        l += delta;
+        // let mut delta = Xy::new([0.0, 0.0], [0.0, 0.0]);
+        // if diff_y1.abs() < (const_speed_pixels / size.y) {
+        //     l = target;
+        // } else { 
+        //     delta.x[0] = ((diff_x0 * rate) * inv_const_sp * size.x * diff_x0.signum()).ceil() / (inv_const_sp * size.x * diff_x0.signum());
+        //     delta.x[1] = ((diff_x1 * rate) * inv_const_sp * size.x * diff_x1.signum()).ceil() / (inv_const_sp * size.x * diff_x1.signum());
+        //     delta.y[0] = ((diff_y0 * rate) * inv_const_sp * size.y * diff_y0.signum()).ceil() / (inv_const_sp * size.y * diff_y0.signum());
+        //     delta.y[1] = ((diff_y1 * rate) * inv_const_sp * size.y * diff_y1.signum()).ceil() / (inv_const_sp * size.y * diff_y1.signum());
+            
+        //     l += delta;
+        // }
 
-        self.nodes[i].anim_velocity = v;
+        if diff_x0.abs() < (const_speed_pixels / size.x) {
+            l.x[0] = target.x[0];
+        } else { 
+            let delta = ((diff_x0 * rate) * inv_const_sp * size.x * diff_x0.signum()).ceil() / (inv_const_sp * size.x * diff_x0.signum());
+            l.x[0] += delta;
+        }
+        if diff_x1.abs() < (const_speed_pixels / size.x) {
+            l.x[1] = target.x[1];
+        } else { 
+            let delta = ((diff_x1 * rate) * inv_const_sp * size.x * diff_x1.signum()).ceil() / (inv_const_sp * size.x * diff_x1.signum());
+            l.x[1] += delta;
+        }
+        if diff_y0.abs() < (const_speed_pixels / size.y) {
+            l.y[0] = target.y[0];
+        } else { 
+            let delta = ((diff_y0 * rate) * inv_const_sp * size.y * diff_y0.signum()).ceil() / (inv_const_sp * size.y * diff_y0.signum());
+            l.y[0] += delta;
+        }
+        if diff_y1.abs() < (const_speed_pixels / size.y) {
+            l.y[1] = target.y[1];
+        } else { 
+            let delta = ((diff_y1 * rate) * inv_const_sp * size.y * diff_y1.signum()).ceil() / (inv_const_sp * size.y * diff_y1.signum());
+            l.y[1] += delta;
+        }
+
+        
+
+        // self.nodes[i].anim_velocity = v;
         self.nodes[i].local_animated_rect = l;
 
         // add the parent offset
