@@ -553,8 +553,10 @@ impl Ui {
             self.cleanup_node(k);
         }
 
-        // todo: push partial relayouts instead.
-        self.sys.changes.full_relayout = true;
+        if ! &to_cleanup.is_empty() {
+            // todo: push partial relayouts instead?
+            self.sys.changes.full_relayout = true;
+        }
 
         self.sys.lingering_nodes = exiting_nodes;
         self.sys.non_fresh_nodes = non_fresh_nodes;

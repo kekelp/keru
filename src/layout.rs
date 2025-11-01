@@ -78,12 +78,7 @@ impl Ui {
             }
         }
 
-        // these ones are after the second-order-effect resolve_hover, just to see the update sooner.
-        if full_relayout || tree_changed {
-            self.rebuild_render_data();
-        } else {
-            self.do_cosmetic_rect_updates();
-        }
+        self.rebuild_render_data();
 
         self.sys.changes.reset_layout_changes();
 
@@ -691,7 +686,7 @@ impl Ui {
     }
 
     pub(crate) fn rebuild_render_data(&mut self) {
-        // log::info!("Rebuilding render data");
+        log::info!("Rebuilding render data");
         self.sys.rects.clear();
 
         self.sys.click_rects.clear();
@@ -699,17 +694,11 @@ impl Ui {
         self.sys.z_cursor = Z_START;
 
         self.sys.changes.unfinished_animations = false;
-        self.breadth_first_push_rects();
 
-        self.sys.editor_rects_i = (self.sys.rects.len()) as u16;
-
-        self.sys.changes.should_rebuild_render_data = self.sys.changes.unfinished_animations;
-    }
-
-    fn breadth_first_push_rects(&mut self) {
         self.sys.breadth_traversal_queue.clear();
         self.sys.breadth_traversal_queue.push_back(ROOT_I);
 
+        // Breadth-first traversal to update animations, build render data, click rects, etc.
         while let Some(i) = self.sys.breadth_traversal_queue.pop_front() {
             self.resolve_animations_and_scrolling(i);
             self.push_render_data(i);
@@ -718,7 +707,10 @@ impl Ui {
                 self.sys.breadth_traversal_queue.push_back(child);
             });
         }
+
+        self.sys.changes.should_rebuild_render_data = self.sys.changes.unfinished_animations;
     }
+
     
     pub(crate) fn resolve_animations_and_scrolling(&mut self, i: NodeI) {
         // do animations in local space
