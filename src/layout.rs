@@ -577,7 +577,6 @@ impl Ui {
         }
 
         self.nodes[i].local_animated_rect = self.nodes[i].local_layout_rect;
-        self.nodes[i].anim_velocity = Xy::new([0.0, 0.0], [0.0, 0.0]);
         
         let slide_flags = self.nodes[i].params.animation.slide;
         let appearing = slide_flags.contains(SlideFlags::APPEARING);
@@ -720,62 +719,32 @@ impl Ui {
 
         let dt = 1.0 / 60.0; // todo use real frame time
 
-        
-        // let mut v = self.nodes[i].anim_velocity;
         let mut l = self.nodes[i].local_animated_rect;
 
-
-        let diff_x0 = target.x[0] - l.x[0];
-        let diff_x1 = target.x[1] - l.x[1];
-        let diff_y0 = target.y[0] - l.y[0];
-        let diff_y1 = target.y[1] - l.y[1];
-        
-        let rate = 11.0 * speed * dt;
+        let rate = 9.0 * speed * dt;
 
         let const_speed_pixels = 3.0;
-        let inv_const_sp = 1.0 / const_speed_pixels;
-        let size = self.sys.unifs.size;
+        let inv_const_speed = 1.0 / const_speed_pixels;
+        let diff = target - l;
 
-        // let mut delta = Xy::new([0.0, 0.0], [0.0, 0.0]);
-        // if diff_y1.abs() < (const_speed_pixels / size.y) {
-        //     l = target;
-        // } else { 
-        //     delta.x[0] = ((diff_x0 * rate) * inv_const_sp * size.x * diff_x0.signum()).ceil() / (inv_const_sp * size.x * diff_x0.signum());
-        //     delta.x[1] = ((diff_x1 * rate) * inv_const_sp * size.x * diff_x1.signum()).ceil() / (inv_const_sp * size.x * diff_x1.signum());
-        //     delta.y[0] = ((diff_y0 * rate) * inv_const_sp * size.y * diff_y0.signum()).ceil() / (inv_const_sp * size.y * diff_y0.signum());
-        //     delta.y[1] = ((diff_y1 * rate) * inv_const_sp * size.y * diff_y1.signum()).ceil() / (inv_const_sp * size.y * diff_y1.signum());
-            
-        //     l += delta;
-        // }
+        let threshold = Xy::new(
+            const_speed_pixels / self.sys.unifs.size.x,
+            const_speed_pixels / self.sys.unifs.size.y
+        );
 
-        if diff_x0.abs() < (const_speed_pixels / size.x) {
-            l.x[0] = target.x[0];
-        } else { 
-            let delta = ((diff_x0 * rate) * inv_const_sp * size.x * diff_x0.signum()).ceil() / (inv_const_sp * size.x * diff_x0.signum());
-            l.x[0] += delta;
-        }
-        if diff_x1.abs() < (const_speed_pixels / size.x) {
-            l.x[1] = target.x[1];
-        } else { 
-            let delta = ((diff_x1 * rate) * inv_const_sp * size.x * diff_x1.signum()).ceil() / (inv_const_sp * size.x * diff_x1.signum());
-            l.x[1] += delta;
-        }
-        if diff_y0.abs() < (const_speed_pixels / size.y) {
-            l.y[0] = target.y[0];
-        } else { 
-            let delta = ((diff_y0 * rate) * inv_const_sp * size.y * diff_y0.signum()).ceil() / (inv_const_sp * size.y * diff_y0.signum());
-            l.y[0] += delta;
-        }
-        if diff_y1.abs() < (const_speed_pixels / size.y) {
-            l.y[1] = target.y[1];
-        } else { 
-            let delta = ((diff_y1 * rate) * inv_const_sp * size.y * diff_y1.signum()).ceil() / (inv_const_sp * size.y * diff_y1.signum());
-            l.y[1] += delta;
+        for axis in [X, Y] {
+            for i in 0..2 {
+                if diff[axis][i].abs() < threshold[axis] {
+                    l[axis][i] = target[axis][i];
+                } else {
+                    let d = diff[axis][i];
+                    let diff_sign = d.signum();
+                    let scale = self.sys.unifs.size[axis] * inv_const_speed * diff_sign;
+                    l[axis][i] += (d * rate * scale).ceil() / scale;
+                }
+            }
         }
 
-        
-
-        // self.nodes[i].anim_velocity = v;
         self.nodes[i].local_animated_rect = l;
 
         // add the parent offset

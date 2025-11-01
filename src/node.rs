@@ -75,8 +75,6 @@ pub struct Node {
     pub last_layout_hash: u64,
     pub last_text_hash: Option<u64>,
 
-    pub anim_velocity: XyRect,
-
     pub can_hide: bool,
     pub currently_hidden: bool,
 
@@ -182,8 +180,6 @@ impl Node {
             last_cosmetic_hash: 0,
             last_layout_hash: 0,
             last_text_hash: None,
-
-            anim_velocity: Xy::new_symm([0.0, 1.0]),
 
             can_hide: false,
             exiting: false,
@@ -295,8 +291,6 @@ exit_animation_still_going: false,
     last_cosmetic_hash: 0,
     last_layout_hash: 0,
     last_text_hash: None,
-
-    anim_velocity: Xy::new_symm([0.0, 1.0]),
 
     can_hide: false,
 
