@@ -16,6 +16,7 @@ pub struct MouseInput<T: Tag> {
     current_frame_scroll_events: Vec<ScrollEvent<T>>,
     current_tag: Option<T>,
     cursor_position: DVec2,
+    prev_cursor_position: DVec2,
 }
 
 
@@ -28,6 +29,7 @@ impl<T: Tag> Default for MouseInput<T> {
             current_frame_scroll_events: Vec::with_capacity(10),
             current_tag: None,
             cursor_position: Default::default(),
+            prev_cursor_position: Default::default(),
         }
     }
 }
@@ -68,6 +70,7 @@ impl<T: Tag> MouseInput<T> {
     pub fn window_event(&mut self, event: &WindowEvent) {
         match event {
             WindowEvent::CursorMoved { position, .. } => {
+                self.prev_cursor_position = self.cursor_position;
                 self.cursor_position = dvec2(position.x, position.y);
             },
             WindowEvent::MouseInput { button, state, .. } => {
@@ -164,16 +167,12 @@ impl<T: Tag> MouseInput<T> {
     }  
 
     /// Returns all [`FullMouseEvent`]s for a specific button on the node corresponding to `tag`, or an empty iterator if the node is currently not part of the tree or if it doesn't exist.
-    pub fn mouse_events(
-        &self, 
-        mouse_button: Option<MouseButton>, 
-        tag: Option<T>
-    ) -> impl DoubleEndedIterator<Item = &FullMouseEvent<T>> {
+    pub fn mouse_events(&self, mouse_button: Option<MouseButton>, tag: Option<T>) -> impl DoubleEndedIterator<Item = &FullMouseEvent<T>> {
         self.last_frame_mouse_events.iter().filter(move |c| {
             (mouse_button.is_none() || c.button == mouse_button.unwrap())
                 && (tag.is_none() || c.originally_pressed.tag == tag)
         })
-    }    
+    }  
 
     /// Returns `true` if the left mouse button was clicked on the node corresponding to `tag`, or `false` if the node is currently not part of the tree or if it doesn't exist.
     pub fn clicked(&self, mouse_button: Option<MouseButton>, tag: Option<T>) -> bool {
@@ -202,7 +201,12 @@ impl<T: Tag> MouseInput<T> {
         return all_events.filter(|c| c.is_just_clicked()).count();
     }
 
-    /// Returns the drag distance for a mouse button on a node, or None if there was no drag.
+    /// Returns `true` if the mouse button was just pressed on the node corresponding to `tag` (first frame of press), or `false` if the node is currently not part of the tree or if it doesn't exist.
+    pub fn just_clicked(&self, mouse_button: Option<MouseButton>, tag: Option<T>) -> bool {
+        self.mouse_events(mouse_button, tag).any(|e| e.is_just_clicked())
+    }
+
+    /// Returns the drag distance for a mouse button on a node.
     pub fn dragged(&self, mouse_button: Option<MouseButton>, tag: Option<T>) -> (f64, f64) {
         let all_events = self.mouse_events(mouse_button, tag);
 
@@ -268,6 +272,10 @@ impl<T: Tag> MouseInput<T> {
     /// This is useful for global scroll handling like Ctrl+wheel for font size adjustment.
     pub fn global_scroll_delta(&self) -> Option<glam::DVec2> {
         return self.scrolled(None);
+    }
+
+    pub(crate) fn prev_cursor_position(&self) -> DVec2 {
+        self.prev_cursor_position
     }
 }
 

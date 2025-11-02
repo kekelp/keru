@@ -195,7 +195,7 @@ pub const ICON_BUTTON: NodeParams = NodeParams {
         vertex_colors: VertexColors::KERU_GRAD,
     },
     interact: Interact {
-        senses: Sense::CLICK,
+        senses: Sense::CLICK.union(Sense::CLICK_RELEASE),
         absorbs_mouse_events: true,
         click_animation: true,
     },
@@ -249,7 +249,7 @@ pub const IMAGE_BUTTON: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::WHITE),
     },
     interact: Interact {
-        senses: Sense::CLICK,
+        senses: Sense::CLICK.union(Sense::CLICK_RELEASE),
         absorbs_mouse_events: true,
         click_animation: true,
     },
@@ -282,7 +282,7 @@ pub const BUTTON: NodeParams = NodeParams {
         vertex_colors: VertexColors::diagonal_gradient_backslash(Color::KERU_BLUE, Color::KERU_RED),
     },
     interact: Interact {
-        senses: Sense::CLICK,
+        senses: Sense::CLICK.union(Sense::CLICK_RELEASE),
         absorbs_mouse_events: true,
         click_animation: true,
     },

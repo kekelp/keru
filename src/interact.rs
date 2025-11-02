@@ -51,13 +51,6 @@ impl Ui {
     // todo: think if it's really worth it to do this on every mouse movement.
     // maybe add a global setting to do it just once per frame
     pub(crate) fn resolve_hover(&mut self) {
-        // if something draggable is being dragged, stay awake at every mouse movement, regardless of what is hit
-        // todo: this probably has false positives
-        if self.sys.mouse_input.dragged_at(None, None).is_some() {
-            self.set_new_ui_input();
-        }
-
-        // real hover
         let hovered_node_id = self.scan_mouse_hits(false);
         self.sys.mouse_input.update_current_tag(hovered_node_id);
 
@@ -171,43 +164,49 @@ impl Ui {
         self.sys.text_edit_changed_this_frame = None;
     }
 
-    pub(crate) fn resolve_click_release(&mut self, _button: MouseButton) {
-        // todo: there's something wrong here, releasing a click doesn't wake up the event loop somehow (it stays dark)
-        self.set_new_ui_input();
+    pub(crate) fn resolve_click_release(&mut self, _button: MouseButton,  clicked_i: NodeI) {
+        let Some(clicked_id) = self.sys.mouse_input.current_tag() else {
+            return;
+        };
+
+        let Some(clicked_i) = self.nodes.node_hashmap.get(&clicked_id) else {
+            return;
+        };
+        let clicked_i = clicked_i.slab_i;
+
+        if self.nodes[clicked_i].params.interact.senses.contains(Sense::CLICK_RELEASE) {
+            self.set_new_ui_input();
+        }
     }
 
     // returns if the ui consumed the mouse press, or if it should be passed down. 
-    pub(crate) fn resolve_click_press(&mut self, button: MouseButton, _event: &WindowEvent, _window: &Window) -> bool {
-        // todo wtf? don't do this unconditionally, we have senses now
-        self.set_new_ui_input();
-
+    pub(crate) fn resolve_click_press(&mut self, button: MouseButton, _event: &WindowEvent, _window: &Window, clicked_i: NodeI) -> bool {        
         // defocus, so that we defocus when clicking anywhere outside.
         // if we're clicking something we'll re-focus below.
         self.sys.focused = None;
 
-        // if nothing is hit, we're done.
+        // if nothing is hit, return.
         let Some(clicked_id) = self.sys.mouse_input.current_tag() else {
             return false;
         };
-        
+
+        let sense_click = self.nodes[clicked_i].params.interact.senses.contains(Sense::CLICK);
+        if sense_click {
+            self.set_new_ui_input();
+        }
+
         // hardcoded stuff with animations, focusing nodes, spawning cursors, etc
         if button == MouseButton::Left {
             // the default animation and the "focused" flag are hardcoded to work on left click only, I guess.
             let t = T0.elapsed();
 
-            // todo: yuck
-            let (clicked_node, clicked_node_i) = self.nodes.get_mut_by_id(&clicked_id).unwrap();
-
-            if clicked_node.params.interact.click_animation {
-
-                clicked_node.last_click = t.as_secs_f32();
-
-                self.sys.changes.cosmetic_rect_updates.push(clicked_node_i);
-                
+            if self.nodes[clicked_i].params.interact.click_animation {
+                self.nodes[clicked_i].last_click = t.as_secs_f32();
+                self.sys.changes.cosmetic_rect_updates.push(clicked_i);
                 self.sys.anim_render_timer.push_new(Duration::from_secs_f32(ANIMATION_RERENDER_TIME));
             }
           
-            if let Some(text_i) = &clicked_node.text_i {
+            if let Some(text_i) = &self.nodes[clicked_i].text_i {
                 // todo: isn't this all obsolete now?
                 match text_i {
                     TextI::TextEdit(_) => {
@@ -217,8 +216,7 @@ impl Ui {
                 }
 
                 // todo: not always...
-                self.push_text_change(clicked_node_i);
-
+                self.push_text_change(clicked_i);
             }
         }
    
@@ -232,7 +230,7 @@ impl Ui {
         for clk_i in 0..self.sys.click_rects.len() {
             let clk_rect = self.sys.click_rects[clk_i];
             
-            // in release mode, if a node is not absorbs_mouse_events it won't have a click_rect in the first place
+            // in release mode, if a node is not absorbs_mouse_events it won't have a click_rect in the first place.
             #[cfg(debug_assertions)] {
                 if ! _see_invisible_rects && ! self.nodes[clk_rect.i].params.interact.absorbs_mouse_events {
                     continue;
@@ -362,10 +360,11 @@ pub(crate) struct ClickRect {
 bitflags::bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
     pub struct Sense: u8 {
-        const CLICK    = 1 << 0;
-        const DRAG     = 1 << 1;
+        const CLICK = 1 << 0;
+        const DRAG  = 1 << 1;
         const HOVER = 1 << 2;
         const HOLD  = 1 << 4;
+        const CLICK_RELEASE = 1 << 5;
         // todo: HoverEnter could be useful
         
         const CLICK_AND_HOVER = Self::CLICK.bits() | Self::HOVER.bits();

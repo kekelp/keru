@@ -1,6 +1,7 @@
 use std::{marker::PhantomData, mem};
 
 use bytemuck::Pod;
+use glam::dvec2;
 use wgpu::{Buffer, BufferSlice, Device, Queue, RenderPass};
 use winit::event::*;
 use winit::window::Window;
@@ -45,19 +46,29 @@ impl Ui {
             WindowEvent::RedrawRequested => {
                 self.new_redraw_requested_frame();
             }
-            WindowEvent::CursorMoved { .. } => {              
+            WindowEvent::CursorMoved { position, .. } => {
+
+                let last_cursor_pos = self.sys.mouse_input.prev_cursor_position();
+                if dvec2(position.x, position.y) != last_cursor_pos {
+                    self.set_new_ui_input(); // here
+                }
+
                 self.resolve_hover();
                 // cursormoved is never consumed
             }
             WindowEvent::MouseInput { button, state, .. } => {
-                // We have to test against all clickable rectangles immediately to know if the input is consumed or not
+
+                let Some(clicked_id) = self.sys.mouse_input.current_tag() else { return false };
+                let Some(clicked_i) = self.nodes.node_hashmap.get(&clicked_id) else { return false };
+                let clicked_i = clicked_i.slab_i;
+
                 match state {
                     ElementState::Pressed => {
-                        let consumed = self.resolve_click_press(*button, event, window);
+                        let consumed = self.resolve_click_press(*button, event, window, clicked_i);
                         return consumed;
                     },
                     ElementState::Released => {
-                        self.resolve_click_release(*button);
+                        self.resolve_click_release(*button, clicked_i);
                         // Consuming mouse releases can very easily mess things up for whoever is below us.
                         // Some unexpected mouse releases probably won't be too annoying.
                         return false
