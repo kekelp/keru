@@ -60,9 +60,15 @@ impl Nodes {
     }
 
     #[allow(dead_code)]
-    pub(crate) fn get_by_id(&self, id: &Id) -> Option<(&Node, NodeI)> {
+    pub(crate) fn get_by_id_ick(&self, id: &Id) -> Option<(&Node, NodeI)> {
         let i = self.node_hashmap.get(id)?;
         return Some((&self.nodes[i.slab_i.as_usize()], i.slab_i));
+    }
+
+    pub(crate) fn get_by_id(&mut self, id: Option<Id>) -> Option<NodeI> {
+        let id = id?;
+        let i = self.node_hashmap.get(&id)?;
+        return Some(i.slab_i);
     }
 
     pub(crate) fn new() -> Self {        

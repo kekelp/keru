@@ -165,15 +165,6 @@ impl Ui {
     }
 
     pub(crate) fn resolve_click_release(&mut self, _button: MouseButton,  clicked_i: NodeI) {
-        let Some(clicked_id) = self.sys.mouse_input.current_tag() else {
-            return;
-        };
-
-        let Some(clicked_i) = self.nodes.node_hashmap.get(&clicked_id) else {
-            return;
-        };
-        let clicked_i = clicked_i.slab_i;
-
         if self.nodes[clicked_i].params.interact.senses.contains(Sense::CLICK_RELEASE) {
             self.set_new_ui_input();
         }

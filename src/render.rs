@@ -47,36 +47,18 @@ impl Ui {
                 self.new_redraw_requested_frame();
             }
             WindowEvent::CursorMoved { position, .. } => {
-
+                // Set new input if this is a hover or a drag
                 let last_cursor_pos = self.sys.mouse_input.prev_cursor_position();
                 if dvec2(position.x, position.y) != last_cursor_pos {
-                    // Only set new input if:
-                    // 1. A hovered node has the hover sense, OR
-                    // 2. A node with drag sense is being dragged (can be outside hitbox)
-                    let should_set_new_input = {
-                        // Check if any hovered node has hover sense
-                        let has_hover_sense = self.sys.hovered.iter().any(|id| {
-                            if let Some((node, _)) = self.nodes.get_by_id(id) {
-                                node.params.interact.senses.contains(Sense::HOVER)
-                            } else {
-                                false
-                            }
-                        });
+                    let has_hover_sense = self.sys.hovered.iter()
+                        .filter_map(|id| self.nodes.get_by_id_ick(id).map(|(node, _)| node))
+                        .any(|node| node.params.interact.senses.contains(Sense::HOVER));
 
-                        // Check if any currently pressed node has drag sense
-                        let has_drag = self.sys.mouse_input.currently_pressed_tags().any(|(tag, _)| {
-                            if let Some(id) = tag {
-                                if let Some((node, _)) = self.nodes.get_by_id(&id) {
-                                    return node.params.interact.senses.contains(Sense::DRAG);
-                                }
-                            }
-                            false
-                        });
+                    let has_drag = self.sys.mouse_input.currently_pressed_tags()
+                        .filter_map(|(tag, _)| tag.and_then(|id| self.nodes.get_by_id_ick(&id).map(|(node, _)| node)))
+                        .any(|node| node.params.interact.senses.contains(Sense::DRAG));
 
-                        has_hover_sense || has_drag
-                    };
-
-                    if should_set_new_input {
+                    if has_hover_sense || has_drag {
                         self.set_new_ui_input();
                     }
                 }
@@ -86,9 +68,8 @@ impl Ui {
             }
             WindowEvent::MouseInput { button, state, .. } => {
 
-                let Some(clicked_id) = self.sys.mouse_input.current_tag() else { return false };
-                let Some(clicked_i) = self.nodes.node_hashmap.get(&clicked_id) else { return false };
-                let clicked_i = clicked_i.slab_i;
+                let clicked_id = self.sys.mouse_input.current_tag();
+                let Some(clicked_i) = self.nodes.get_by_id(clicked_id) else { return false };
 
                 match state {
                     ElementState::Pressed => {
