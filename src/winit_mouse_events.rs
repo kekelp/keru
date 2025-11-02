@@ -277,6 +277,12 @@ impl<T: Tag> MouseInput<T> {
     pub(crate) fn prev_cursor_position(&self) -> DVec2 {
         self.prev_cursor_position
     }
+
+    /// Returns an iterator over all currently pressed mouse buttons and their associated tags (node IDs).
+    /// This is useful for checking if any nodes are currently being dragged.
+    pub fn currently_pressed_tags(&self) -> impl Iterator<Item = (Option<T>, MouseButton)> + '_ {
+        self.unresolved_click_presses.iter().map(|press| (press.pressed_at.tag, press.button))
+    }
 }
 
 

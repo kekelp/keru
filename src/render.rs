@@ -50,7 +50,35 @@ impl Ui {
 
                 let last_cursor_pos = self.sys.mouse_input.prev_cursor_position();
                 if dvec2(position.x, position.y) != last_cursor_pos {
-                    self.set_new_ui_input(); // here
+                    // Only set new input if:
+                    // 1. A hovered node has the hover sense, OR
+                    // 2. A node with drag sense is being dragged (can be outside hitbox)
+                    let should_set_new_input = {
+                        // Check if any hovered node has hover sense
+                        let has_hover_sense = self.sys.hovered.iter().any(|id| {
+                            if let Some((node, _)) = self.nodes.get_by_id(id) {
+                                node.params.interact.senses.contains(Sense::HOVER)
+                            } else {
+                                false
+                            }
+                        });
+
+                        // Check if any currently pressed node has drag sense
+                        let has_drag = self.sys.mouse_input.currently_pressed_tags().any(|(tag, _)| {
+                            if let Some(id) = tag {
+                                if let Some((node, _)) = self.nodes.get_by_id(&id) {
+                                    return node.params.interact.senses.contains(Sense::DRAG);
+                                }
+                            }
+                            false
+                        });
+
+                        has_hover_sense || has_drag
+                    };
+
+                    if should_set_new_input {
+                        self.set_new_ui_input();
+                    }
                 }
 
                 self.resolve_hover();
