@@ -24,7 +24,8 @@ opt-level = 3
 [dependencies]
 keru_macros = { path = "crates/keru_macros" }
 winit = { version = "0.30.5", features = ["rwh_05"] }
-wgpu = { version = "23", default-features = true }
+wgpu = { version = "26", default-features = true }
+wgpu-types = "26"
 pollster = "0.3.0"
 bytemuck = { version = "1.19.0", features = ["derive"] }
 unicode-segmentation = "1.11.0"
@@ -37,9 +38,12 @@ env_logger = "0.11.6"
 bitflags = "2.8.0"
 ahash = "0.8.11"
 
-# textslabs = { path = "../textslabs" }
-textslabs = { git = "https://github.com/kekelp/textslabs", rev = "2daac83" }
+textslabs = { path = "../textslabs", features = ["vello_hybrid"] }
+# textslabs = { git = "https://github.com/kekelp/textslabs", rev = "2daac83" }
 bumpalo = { version = "3.19.0", features = ["collections"] }
+vello_hybrid = "0.0.4"
+vello_common = "0.0.4"
+peniko = "0.4.0"
 
 [lints.clippy]
 needless_return = { level = "allow" }

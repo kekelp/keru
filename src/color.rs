@@ -91,6 +91,26 @@ impl VertexColors {
             bottom_right,
         };
     }
+
+    /// Returns the top-left color.
+    pub const fn top_left_color(&self) -> Color {
+        self.top_left
+    }
+
+    /// Returns the top-right color.
+    pub const fn top_right_color(&self) -> Color {
+        self.top_right
+    }
+
+    /// Returns the bottom-left color.
+    pub const fn bottom_left_color(&self) -> Color {
+        self.bottom_left
+    }
+
+    /// Returns the bottom-right color.
+    pub const fn bottom_right_color(&self) -> Color {
+        self.bottom_right
+    }
 }
 
 impl Color {

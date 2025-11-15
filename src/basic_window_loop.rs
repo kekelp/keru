@@ -27,7 +27,7 @@ pub const BACKGROUND_GREY: wgpu::Color = wgpu::Color {
 };
 
 pub fn basic_wgpu_init() -> (Instance, Device, Queue) {
-    let instance = Instance::new(InstanceDescriptor {
+    let instance = Instance::new(&InstanceDescriptor {
         // backends: wgpu::Backends::VULKAN, // Force Vulkan
         ..Default::default()
     });
@@ -45,8 +45,9 @@ pub fn basic_wgpu_init() -> (Instance, Device, Queue) {
             ..Default::default()
         },
         memory_hints: wgpu::MemoryHints::MemoryUsage,
+        trace: wgpu::Trace::Off,
     };
-    let (device, queue) = pollster::block_on(adapter.request_device(device_desc, None)).unwrap();
+    let (device, queue) = pollster::block_on(adapter.request_device(device_desc)).unwrap();
 
     return (instance, device, queue);
 }
@@ -224,15 +225,7 @@ impl Context {
     }
 
     pub fn render_ui(&mut self, ui: &mut Ui) {
-        let mut frame = self.begin_frame();
-
-        // Without these brackets, wgpu panics. I think this used to be a compiler error in older versions? 
-        {
-            let mut render_pass = frame.begin_render_pass(BACKGROUND_GREY);
-            ui.render_in_render_pass(&mut render_pass, &self.device, &self.queue);
-        }
-        
-        self.finish_frame(frame);
+        ui.render(&self.surface, &self.depth_stencil_texture, &self.device, &self.queue);
     }
 }
 
@@ -272,6 +265,7 @@ pub fn basic_color_attachment(
             load: LoadOp::Clear(bg_color),
             store: wgpu::StoreOp::Store,
         },
+        depth_slice: None,
     })];
 }
 

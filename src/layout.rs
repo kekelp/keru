@@ -666,7 +666,7 @@ impl Ui {
             let text_left = (self.nodes[i].real_rect[X][0] * self.sys.unifs.size[X]) as f64 + padding[X] as f64;
             let text_top = (self.nodes[i].real_rect[Y][0] * self.sys.unifs.size[Y]) as f64 + padding[Y] as f64;
             
-            let text_clip_rect = Some(textslabs::Rect {
+            let text_clip_rect = Some(textslabs::BoundingBox {
                 x0: left as f64 - text_left,
                 y0: top as f64 - text_top,
                 x1: right as f64 - text_left,
@@ -693,6 +693,9 @@ impl Ui {
         self.sys.z_cursor = Z_START;
 
         self.sys.changes.unfinished_animations = false;
+
+        // Reset vello_hybrid scene
+        self.sys.vello_scene.reset();
 
         self.sys.breadth_traversal_queue.clear();
         self.sys.breadth_traversal_queue.push_back(ROOT_I);

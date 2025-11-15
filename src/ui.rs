@@ -3,19 +3,9 @@ use crate::*;
 use crate::math::Axis::*;
 
 use ahash::{HashMap, HashMapExt};
-use basic_window_loop::basic_depth_stencil_state;
 use glam::DVec2;
 
 use textslabs::{ColorBrush, Text, TextStyle2 as TextStyle};
-use textslabs::TextRenderer;
-use textslabs::TextRendererParams;
-use wgpu::{
-    BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
-    BindingResource, BindingType, BlendState, Buffer, BufferBindingType, ColorWrites, FilterMode,
-    FragmentState, PipelineLayoutDescriptor, PrimitiveState, RenderPipelineDescriptor,
-    SamplerBindingType, SamplerDescriptor, ShaderModuleDescriptor, ShaderSource, ShaderStages,
-    TextureSampleType, TextureViewDimension, VertexState,
-};
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
 use winit_key_events::KeyInput;
@@ -27,13 +17,11 @@ use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, LazyLock};
 use std::time::Duration;
-use std::{mem, time::Instant};
+use std::time::Instant;
 
 use bytemuck::{Pod, Zeroable};
 use wgpu::{
-    util::{self, DeviceExt},
-    BindGroup, BufferAddress, BufferUsages, ColorTargetState, Device, MultisampleState, Queue,
-    RenderPipeline, SurfaceConfiguration, VertexBufferLayout, VertexStepMode,
+    Device, Queue, SurfaceConfiguration,
 };
 
 pub(crate) static T0: LazyLock<Instant> = LazyLock::new(Instant::now);
@@ -82,16 +70,12 @@ pub(crate) struct System {
     pub update_frames_needed: u8,
     pub new_external_events: bool,
 
-    pub text_renderer: TextRenderer,
     pub text: Text,
 
-    pub gpu_rect_buffer: TypedGpuBuffer<RenderRect>,
-    pub render_pipeline: RenderPipeline,
+    pub vello_scene: vello_hybrid::Scene,
+    pub vello_renderer: vello_hybrid::Renderer,
 
-    pub base_uniform_buffer: Buffer,
-    pub bind_group: BindGroup,
 
-    pub texture_atlas: TextureAtlas,
 
     pub z_cursor: f32,
     pub rects: Vec<RenderRect>,
@@ -187,147 +171,17 @@ pub(crate) struct Uniforms {
 }
 
 impl Ui {
-    pub fn new(device: &Device, queue: &Queue, config: &SurfaceConfiguration) -> Self {
+    pub fn new(device: &Device, _queue: &Queue, config: &SurfaceConfiguration) -> Self {
         // initialize the static T0
         LazyLock::force(&T0);
-        
-        let gpu_rect_buffer = device.create_buffer_init(&util::BufferInitDescriptor {
-            label: Some("Keru rectangle buffer"),
-            // todo: I guess this should be growable
-            contents: {
-                bytemuck::cast_slice(&[0.0; 2048])
-            },
-            usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
-        });
-
-        let gpu_rect_buffer = TypedGpuBuffer::new(gpu_rect_buffer);
-        let vert_buff_layout = VertexBufferLayout {
-            array_stride: mem::size_of::<RenderRect>() as BufferAddress,
-            step_mode: VertexStepMode::Instance,
-            attributes: &RenderRect::buffer_desc(),
-        };
 
         let uniforms = Uniforms {
             size: Xy::new(config.width as f32, config.height as f32),
             t: 0.,
             _padding: 0.,
         };
-        let resolution_buffer = device.create_buffer_init(&util::BufferInitDescriptor {
-            label: Some("Resolution Uniform Buffer"),
-            contents: bytemuck::bytes_of(&uniforms),
-            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-        });
 
-        let mut texture_atlas = TextureAtlas::new(device);
 
-        let _white_alloc = texture_atlas.allocate_image(include_bytes!("textures/white.png"));
-        // let _debug_alloc = texture_atlas.allocate_image(include_bytes!("textures/debug.png"));
-
-        let texture_sampler = device.create_sampler(&SamplerDescriptor {
-            label: Some("Texture sampler"),
-            min_filter: FilterMode::Nearest,
-            mag_filter: FilterMode::Nearest,
-            mipmap_filter: FilterMode::Nearest,
-            lod_min_clamp: 0f32,
-            lod_max_clamp: 0f32,
-            ..Default::default()
-        });
-
-        let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            entries: &[
-                BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::VERTEX,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: ShaderStages::FRAGMENT,
-                    ty: BindingType::Texture {
-                        multisampled: false,
-                        view_dimension: TextureViewDimension::D2,
-                        sample_type: TextureSampleType::Float { filterable: true },
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 2,
-                    visibility: ShaderStages::FRAGMENT,
-                    ty: BindingType::Sampler(SamplerBindingType::Filtering),
-                    count: None,
-                },
-            ],
-            label: Some("Keru Bind Group Layout"),
-        });
-
-        // Create the bind group
-        let bind_group = device.create_bind_group(&BindGroupDescriptor {
-            layout: &bind_group_layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: resolution_buffer.as_entire_binding(),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::TextureView(texture_atlas.texture_view()),
-                },
-                BindGroupEntry {
-                    binding: 2,
-                    resource: BindingResource::Sampler(&texture_sampler),
-                },
-            ],
-            label: Some("Keru Bind Group"),
-        });
-
-        let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
-            label: None,
-            bind_group_layouts: &[&bind_group_layout],
-            push_constant_ranges: &[wgpu::PushConstantRange {
-                stages: wgpu::ShaderStages::VERTEX,
-                range: 0..8,
-            }],
-        });
-
-        let shader = device.create_shader_module(ShaderModuleDescriptor {
-            label: None,
-            source: ShaderSource::Wgsl(include_str!("shaders/box.wgsl").into()),
-        });
-
-        let primitive = PrimitiveState::default();
-
-        let depth_stencil = Some(basic_depth_stencil_state());
-
-        let render_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
-            label: None,
-            layout: Some(&pipeline_layout),
-            vertex: VertexState {
-                module: &shader,
-                entry_point: Some("vs_main"),
-                buffers: &[vert_buff_layout],
-                compilation_options: Default::default(),
-            },
-            fragment: Some(FragmentState {
-                module: &shader,
-                entry_point: Some("fs_main"),
-                targets: &[Some(ColorTargetState {
-                    format: config.format,
-                    blend: Some(BlendState::ALPHA_BLENDING),
-                    write_mask: ColorWrites::ALL,
-                })],
-                compilation_options: Default::default(),
-            }),
-            primitive,
-            depth_stencil: depth_stencil.clone(),
-            multisample: MultisampleState::default(),
-            multiview: None,
-            cache: None,
-        });
 
         let nodes = Nodes::new();
 
@@ -350,17 +204,12 @@ impl Ui {
                 update_frames_needed: 2,
                 new_external_events: true,
 
-                texture_atlas,
-
-                render_pipeline,
+                // todo: remove
                 rects: Vec::with_capacity(100),
                 
                 click_rects: Vec::with_capacity(50),
                 scroll_rects: Vec::with_capacity(20),
 
-                gpu_rect_buffer,
-                base_uniform_buffer: resolution_buffer,
-                bind_group,
 
                 partial_relayout_count: 0,
 
@@ -398,11 +247,17 @@ impl Ui {
 
                 changes: Changes::new(),
 
-                text_renderer: TextRenderer::new_with_params(device, queue, config.format, depth_stencil, TextRendererParams {
-                    enable_z_range_filtering: true,
-                    ..Default::default()
-                }),
                 text: Text::new(),
+
+                vello_scene: vello_hybrid::Scene::new(config.width as u16, config.height as u16),
+                vello_renderer: vello_hybrid::Renderer::new(
+                    device,
+                    &vello_hybrid::RenderTargetConfig {
+                        format: config.format,
+                        width: config.width,
+                        height: config.height,
+                    },
+                ),
 
                 user_state: HashMap::with_capacity(7),
             },
@@ -418,21 +273,6 @@ impl Ui {
     /// You can also handle cursor wakeups manually in your winit event loop with winit's `ControlFlow::WaitUntil` and [`Text::time_until_next_cursor_blink`]. See the `event_loop_smart.rs` example.
     pub fn enable_cursor_blink_auto_wakeup(&mut self, window: Arc<Window>) {
         self.sys.text.set_auto_wakeup(window);
-    }
-
-    /// Returns a reference to a GPU buffer holding basic information.
-    /// 
-    /// At the cost of some coupling, this can be reused in other rendering jobs.
-    /// 
-    /// Example usage in shader:
-    /// ```wgpu
-    /// struct Uniforms {
-    ///     @location(1) screen_resolution: vec2f,
-    ///     @location(0) t: f32,
-    /// };
-    /// ```
-    pub fn base_uniform_buffer(&self) -> &Buffer {
-        return &self.sys.base_uniform_buffer;
     }
 
     /// Set inspect mode. When inspect mode is active, all nodes will be shown, including stacks and containers. 
@@ -509,13 +349,16 @@ impl Ui {
     /// Resize the `Ui`. 
     /// Updates the `Ui`'s internal state, and schedules a full relayout to adapt to the new size.
     /// Called by [`Ui::window_event`].
-    pub(crate) fn resize(&mut self, size: &PhysicalSize<u32>) {        
+    pub(crate) fn resize(&mut self, size: &PhysicalSize<u32>) {
         self.sys.changes.full_relayout = true;
-        
+
         self.sys.unifs.size[X] = size.width as f32;
         self.sys.unifs.size[Y] = size.height as f32;
 
         self.sys.changes.resize = true;
+
+        // Update vello_scene size (vello_renderer uses RenderSize at render time)
+        self.sys.vello_scene = vello_hybrid::Scene::new(size.width as u16, size.height as u16);
 
         self.set_new_ui_input();
     }
@@ -579,7 +422,7 @@ impl Ui {
                 let width = width / size[X];
 
                 let aspect = size[X] / size[Y];
-                    // Calculate the ring's center and radii
+                // Calculate the ring's center and radii
                 let center_x = (rect.rect[X][0] + rect.rect[X][1]) / 2.0;
                 let center_y = (rect.rect[Y][0] + rect.rect[Y][1]) / 2.0;
                 let outer_radius = (rect.rect[X][1] - rect.rect[X][0]) / 2.0;
@@ -598,17 +441,17 @@ impl Ui {
     }
 
     pub(crate) fn set_static_image(&mut self, i: NodeI, image: &'static [u8]) -> &mut Self {
-        let image_pointer: *const u8 = image.as_ptr();
+        // let image_pointer: *const u8 = image.as_ptr();
 
-        if let Some(last_pointer) = self.nodes[i].last_static_image_ptr {
-            if image_pointer == last_pointer {
-                return self;
-            }
-        }
+        // if let Some(last_pointer) = self.nodes[i].last_static_image_ptr {
+        //     if image_pointer == last_pointer {
+        //         return self;
+        //     }
+        // }
 
-        let image = self.sys.texture_atlas.allocate_image(image);
-        self.nodes[i].imageref = Some(image);
-        self.nodes[i].last_static_image_ptr = Some(image_pointer);
+        // let image = self.sys.texture_atlas.allocate_image(image);
+        // self.nodes[i].imageref = Some(image);
+        // self.nodes[i].last_static_image_ptr = Some(image_pointer);
 
         return self;
     }

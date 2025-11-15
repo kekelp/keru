@@ -10,7 +10,7 @@ pub enum TextI {
 
 
 impl Ui {
-    pub(crate) fn set_text(&mut self, i: NodeI, text: crate::NodeText, text_options: Option<&TextOptions>, style: Option<&StyleHandle>, placeholder: Option<&str>) -> &mut Self {
+    pub(crate) fn set_text(&mut self, i: NodeI, text: NodeText, text_options: Option<&TextOptions>, style: Option<&StyleHandle>, placeholder: Option<&str>) -> &mut Self {
         // Determine what type of text widget we want
         let edit = text_options.map(|to| to.editable).unwrap_or(false);
         let selectable = text_options.map(|to| to.selectable).unwrap_or(true);
@@ -43,11 +43,11 @@ impl Ui {
                 TextI::TextEdit(handle)
             } else {
                 let handle = match text {
-                    crate::NodeText::Static(s) => {
+                    NodeText::Static(s) => {
                         // Use the static string directly with Cow::Borrowed
                         self.sys.text.add_text_box(s, (0.0, 0.0), (500.0, 500.0), z)
                     },
-                    crate::NodeText::Dynamic(s) => {
+                    NodeText::Dynamic(s) => {
                         // Use the String with Cow::Owned
                         self.sys.text.add_text_box(s.to_string(), (0.0, 0.0), (500.0, 500.0), z)
                     }
@@ -70,10 +70,10 @@ impl Ui {
                 },
                 Some(TextI::TextBox(handle)) => {
                     match text {
-                        crate::NodeText::Static(s) => {
+                        NodeText::Static(s) => {
                             self.sys.text.get_text_box_mut(&handle).set_static(s);
                         },
-                        crate::NodeText::Dynamic(s) => {
+                        NodeText::Dynamic(s) => {
                             *self.sys.text.get_text_box_mut(&handle).text_mut() = s.to_string().into();
                         }
                     }

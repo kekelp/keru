@@ -26,7 +26,7 @@ impl State {
             required_features: Features::PUSH_CONSTANTS,
             required_limits: Limits { max_push_constant_size: 8, ..Default::default() },
             ..Default::default()
-        }, None)).unwrap();
+        })).unwrap();
 
         let surface = instance.create_surface(window.clone()).unwrap();
         let size = window.inner_size();
@@ -99,7 +99,7 @@ impl State {
 impl ApplicationHandler for Application {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let window = Arc::new(event_loop.create_window(Window::default_attributes()).unwrap());
-        let instance = Instance::new(InstanceDescriptor::default());
+        let instance = Instance::new(&InstanceDescriptor::default());
         let state = State::new(window, instance);
         self.state = Some(state);
     }

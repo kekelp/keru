@@ -4,6 +4,8 @@ use std::hash::Hasher;
 use std::mem;
 use std::panic::Location;
 use bytemuck::{Pod, Zeroable};
+use vello_common::kurbo::Rect as VelloRect;
+use vello_common::kurbo::Shape as VelloShape;
 
 /// An `u64` identifier for a GUI node.
 /// 
@@ -277,18 +279,31 @@ impl Ui {
         self.nodes[i].z = z;
 
         let draw_even_if_invisible = self.sys.inspect_mode;
-        if let Some(rect) = self.render_rect_i(i, draw_even_if_invisible, None, false) {
-            self.sys.rects.push(rect);
-            self.nodes[i].last_rect_i = Some(self.sys.rects.len() - 1);
-        } else {
-            self.nodes[i].last_rect_i = None;
+
+        // Push clip layers.
+        // Todo: not sure this is a reasonable way to do it, but I don't understand how it's supposed to work.
+        // I need breadth-first-traversal for painter's algorithm, but I can't stack clip layers unless I'm doing depth-first.
+        let node_clip_rect = self.nodes[i].clip_rect;
+        let is_clipping = node_clip_rect != Xy::new_symm([0.0, 1.0]);
+        if is_clipping {
+            let screen_size = self.sys.unifs.size;
+            let clip_x0 = (node_clip_rect.x[0] * screen_size.x) as f64;
+            let clip_y0 = (node_clip_rect.y[0] * screen_size.y) as f64;
+            let clip_x1 = (node_clip_rect.x[1] * screen_size.x) as f64;
+            let clip_y1 = (node_clip_rect.y[1] * screen_size.y) as f64;
+
+            let clip_rect = VelloRect::new(clip_x0, clip_y0, clip_x1, clip_y1);
+            self.sys.vello_scene.push_clip_layer(&clip_rect.to_path(0.1));
         }
 
-        if let Some(image) =  self.nodes[i].imageref {
-            if let Some(image_rect) = self.render_rect_i(i, draw_even_if_invisible, Some(image.tex_coords), true) {
-                self.sys.rects.push(image_rect);
-                 self.nodes[i].last_image_rect_i = Some(self.sys.rects.len() - 1);
-            }
+        // Render node's shape directly to vello scene
+        if draw_even_if_invisible || self.nodes[i].params.rect.visible {
+            self.render_node_shape_to_scene(i);
+        }
+
+        // TODO: Handle images with textures (not supported by vello_hybrid yet)
+        if let Some(_image) = self.nodes[i].imageref {
+            // Images would need texture support in vello
         }
 
         if let Some(text_i) = &self.nodes[i].text_i {
@@ -297,44 +312,53 @@ impl Ui {
             let padding = self.nodes[i].params.layout.padding;
             let left = (animated_rect[X][0] * self.sys.unifs.size[X]) as f64 + padding[X] as f64;
             let top = (animated_rect[Y][0] * self.sys.unifs.size[Y]) as f64 + padding[Y] as f64;
-            
+
             match text_i {
                 TextI::TextBox(text_box_handle) => {
                     let mut text_box = self.sys.text.get_text_box_mut(&text_box_handle);
                     text_box.set_depth(z);
                     text_box.set_pos((left, top));
+                    // Render text to scene
+                    text_box.render_to_scene(&mut self.sys.vello_scene);
                 },
                 TextI::TextEdit(text_edit_handle) => {
                     let mut text_edit = self.sys.text.get_text_edit_mut(&text_edit_handle);
                     text_edit.set_depth(z);
                     text_edit.set_pos((left, top));
+                    // Render text to scene
+                    text_edit.render_to_scene(&mut self.sys.vello_scene);
                 },
             }
         }
+
+        if is_clipping {
+            self.sys.vello_scene.pop_layer();
+        }
     }
 
+    // todo: remove?
     pub(crate) fn update_rect(&mut self, i: NodeI) {
-        if let Some(old_i) = self.nodes[i].last_click_rect_i {
-            let click_rect = self.click_rect(i);
-            self.sys.click_rects[old_i] = click_rect;
-        }
+        // if let Some(old_i) = self.nodes[i].last_click_rect_i {
+        //     let click_rect = self.click_rect(i);
+        //     self.sys.click_rects[old_i] = click_rect;
+        // }
 
-        // todo: update scroll rect
-        // at this point, maybe split the cosmetic or size (click,scroll) updates?
+        // // todo: update scroll rect
+        // // at this point, maybe split the cosmetic or size (click,scroll) updates?
 
-        let draw_even_if_invisible = self.sys.inspect_mode;
-        if let Some(old_i) = self.nodes[i].last_rect_i {
-            if let Some(rect) = self.render_rect_i(i, draw_even_if_invisible, None, false) {
-                self.sys.rects[old_i] = rect;
-            }
-        }
+        // let draw_even_if_invisible = self.sys.inspect_mode;
+        // if let Some(old_i) = self.nodes[i].last_rect_i {
+        //     if let Some(rect) = self.render_rect_i(i, draw_even_if_invisible, None, false) {
+        //         self.sys.rects[old_i] = rect;
+        //     }
+        // }
         
-        if let Some(imageref) = self.nodes[i].imageref {
-            if let Some(image_rect) = self.render_rect_i(i, draw_even_if_invisible, Some(imageref.tex_coords), true) {
-                let old_i = self.nodes[i].last_image_rect_i.unwrap();
-                self.sys.rects[old_i] = image_rect;
-            }
-        }
+        // if let Some(imageref) = self.nodes[i].imageref {
+        //     if let Some(image_rect) = self.render_rect_i(i, draw_even_if_invisible, Some(imageref.tex_coords), true) {
+        //         let old_i = self.nodes[i].last_image_rect_i.unwrap();
+        //         self.sys.rects[old_i] = image_rect;
+        //     }
+        // }
 
         // todo: update images?
     }

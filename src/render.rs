@@ -2,9 +2,14 @@ use std::{marker::PhantomData, mem};
 
 use bytemuck::Pod;
 use glam::dvec2;
-use wgpu::{Buffer, BufferSlice, Device, Queue, RenderPass};
+use vello_common::peniko::Gradient;
+use wgpu::{Buffer, BufferSlice, Device, Queue};
 use winit::event::*;
 use winit::window::Window;
+
+use vello_common::{kurbo::{Rect as VelloRect, RoundedRect, Circle, BezPath}, paint::PaintType};
+use peniko::color::AlphaColor;
+use vello_common::kurbo::Shape as VelloShape;
 
 use crate::*;
 
@@ -109,121 +114,209 @@ impl Ui {
         return false;
     }
 
-    /// Updates the GUI data on the GPU and renders it. 
-    pub fn render_in_render_pass(&mut self, render_pass: &mut RenderPass, device: &Device, queue: &Queue) {  
-        if self.sys.changes.should_rebuild_render_data {
-            self.rebuild_render_data();
-        }
-        
-        log::trace!("Render");
-        self.do_cosmetic_rect_updates();
 
-        self.prepare(device, queue);
-        let n = self.sys.rects.len() as u32;
-        if n > 0 {
-            render_pass.set_pipeline(&self.sys.render_pipeline);
-            render_pass.set_bind_group(0, &self.sys.bind_group, &[]);
-            render_pass.set_vertex_buffer(0, self.sys.gpu_rect_buffer.slice(n));
-            render_pass.draw(0..6, 0..n);
+    /// Render a node's shape directly to the vello_hybrid scene.
+    pub(crate) fn render_node_shape_to_scene(&mut self, i: NodeI) {
+        let node = &self.nodes[i];
+
+        // Get rect in normalized space (0-1)
+        let animated_rect = node.get_animated_rect();
+
+        // Convert to pixel coordinates
+        let screen_size = self.sys.unifs.size;
+        let x0 = (animated_rect.x[0] * screen_size.x).round() as f64;
+        let y0 = (animated_rect.y[0] * screen_size.y).round() as f64;
+        let x1 = (animated_rect.x[1] * screen_size.x).round() as f64;
+        let y1 = (animated_rect.y[1] * screen_size.y).round() as f64;
+
+        // Get vertex colors
+        let colors = node.params.rect.vertex_colors;
+        let tl = colors.top_left_color();
+        let tr = colors.top_right_color();
+        let bl = colors.bottom_left_color();
+        let br = colors.bottom_right_color();
+
+        // Apply hover/click animations (darken effect)
+        let t = self.sys.unifs.t;
+        let clickable = node.params.interact.click_animation;
+
+        let mut dark = 1.0f32;
+        if clickable {
+            // Hover animation
+            let t_since_hover = (t - node.hover_timestamp) * 10.0;
+            let hover = if node.hovered {
+                t_since_hover.clamp(0.0, 1.0)
+            } else {
+                (1.0 - t_since_hover.clamp(0.0, 1.0)) * if t_since_hover < 1.0 { 1.0 } else { 0.0 }
+            };
+
+            // Click animation
+            let t_since_click = (t - node.last_click) * 4.1;
+            let click = (1.0 - t_since_click.clamp(0.0, 1.0)) * if t_since_click < 1.0 { 1.0 } else { 0.0 };
+
+            let dark_hover = 1.0 - hover * 0.32;
+            let dark_click = 1.0 - click * 0.78;
+            dark = dark_click.min(dark_hover);
         }
 
-        self.sys.text_renderer.render(render_pass);
-        
-        self.sys.changes.need_rerender = false;
-    }
-    
-    /// Renders quads within the specified z range.
-    pub fn render_z_range(&mut self, render_pass: &mut RenderPass, device: &Device, queue: &Queue, z_range: [f32; 2]) {
-        if self.sys.changes.should_rebuild_render_data {
-            self.rebuild_render_data();
-        }
-        
-        debug_assert!(z_range[0] > z_range[1], "z_range[0] should be greater than z_range[1].");
-        
-        log::trace!("Render");
-        self.do_cosmetic_rect_updates();
+        // Apply darkening to colors
+        let apply_dark = |c: Color| {
+            AlphaColor::from_rgba8(
+                (c.r as f32 * dark) as u8,
+                (c.g as f32 * dark) as u8,
+                (c.b as f32 * dark) as u8,
+                c.a
+            )
+        };
 
-        self.prepare(device, queue);
-        let n = self.sys.rects.len() as u32;
-        if n > 0 {
-            render_pass.set_pipeline(&self.sys.render_pipeline);
-            render_pass.set_bind_group(0, &self.sys.bind_group, &[]);
-            render_pass.set_vertex_buffer(0, self.sys.gpu_rect_buffer.slice(n));
-            render_pass.set_push_constants(wgpu::ShaderStages::VERTEX, 0, bytemuck::bytes_of(&z_range));
-            render_pass.draw(0..6, 0..n);
+        let tl_alpha = apply_dark(tl);
+        let br_alpha = apply_dark(br);
+
+        // Check if we have a gradient or solid color
+        let is_solid = tl == tr && tl == bl && tl == br;
+
+        // Set paint based on whether it's solid or gradient
+        if is_solid {
+            self.sys.vello_scene.set_paint(PaintType::Solid(tl_alpha));
+        } else {
+            // Create a linear gradient from top-left to bottom-right
+            // This approximates the 4-corner gradient with 2 colors
+            let gradient = Gradient::new_linear((x0, y0), (x1, y1))
+                .with_stops([tl_alpha, br_alpha]);
+            self.sys.vello_scene.set_paint(PaintType::Gradient(gradient));
         }
 
-        self.sys.text_renderer.render_z_range(render_pass, z_range);
-        
-        self.sys.changes.need_rerender = false;
+        // Render based on shape type
+        match &node.params.rect.shape {
+            Shape::Rectangle { corner_radius } => {
+                let corner_radius = *corner_radius as f64;
+
+                // Get which corners should be rounded
+                let rounded_corners = node.params.rect.rounded_corners;
+                let top_right = rounded_corners.contains(RoundedCorners::TOP_RIGHT);
+                let top_left = rounded_corners.contains(RoundedCorners::TOP_LEFT);
+                let bottom_right = rounded_corners.contains(RoundedCorners::BOTTOM_RIGHT);
+                let bottom_left = rounded_corners.contains(RoundedCorners::BOTTOM_LEFT);
+
+                if corner_radius > 0.0 && (top_right || top_left || bottom_right || bottom_left) {
+                    // Create rounded rect with per-corner radii
+                    let radii = vello_common::kurbo::RoundedRectRadii {
+                        top_left: if top_left { corner_radius } else { 0.0 },
+                        top_right: if top_right { corner_radius } else { 0.0 },
+                        bottom_right: if bottom_right { corner_radius } else { 0.0 },
+                        bottom_left: if bottom_left { corner_radius } else { 0.0 },
+                    };
+                    let rounded_rect = RoundedRect::from_rect(
+                        VelloRect::new(x0, y0, x1, y1),
+                        radii
+                    );
+                    self.sys.vello_scene.fill_path(&rounded_rect.to_path(0.1));
+                } else {
+                    let rect = VelloRect::new(x0, y0, x1, y1);
+                    self.sys.vello_scene.fill_rect(&rect);
+                }
+            }
+            Shape::Circle => {
+                let cx = (x0 + x1) / 2.0;
+                let cy = (y0 + y1) / 2.0;
+                let radius = ((x1 - x0) / 2.0).min((y1 - y0) / 2.0);
+                let circle = Circle::new((cx, cy), radius);
+                self.sys.vello_scene.fill_path(&circle.to_path(0.1));
+            }
+            Shape::Ring { width } => {
+                let cx = (x0 + x1) / 2.0;
+                let cy = (y0 + y1) / 2.0;
+                let outer_radius = ((x1 - x0) / 2.0).min((y1 - y0) / 2.0);
+                let inner_radius = (outer_radius - *width as f64).max(0.0);
+
+                // Create ring by subtracting inner circle from outer circle
+                let mut path = BezPath::new();
+                let outer_circle = Circle::new((cx, cy), outer_radius);
+                path.extend(outer_circle.to_path(0.1).iter());
+
+                if inner_radius > 0.0 {
+                    // Add inner circle in reverse to create a hole
+                    let inner_circle = Circle::new((cx, cy), inner_radius);
+                    let inner_path = inner_circle.to_path(0.1);
+                    // Reverse the inner path to create a cutout
+                    let mut reversed_inner = BezPath::new();
+                    for segment in inner_path.iter().collect::<Vec<_>>().into_iter().rev() {
+                        match segment {
+                            vello_common::kurbo::PathEl::MoveTo(p) => reversed_inner.move_to(p),
+                            vello_common::kurbo::PathEl::LineTo(p) => reversed_inner.line_to(p),
+                            vello_common::kurbo::PathEl::QuadTo(p1, p2) => reversed_inner.quad_to(p1, p2),
+                            vello_common::kurbo::PathEl::CurveTo(p1, p2, p3) => reversed_inner.curve_to(p1, p2, p3),
+                            vello_common::kurbo::PathEl::ClosePath => reversed_inner.close_path(),
+                        }
+                    }
+                    path.extend(reversed_inner.iter());
+                }
+
+                self.sys.vello_scene.fill_path(&path);
+            }
+        }
     }
 
     /// Load the GUI render data that has changed onto the GPU.
-    fn prepare(&mut self, device: &Device, queue: &Queue) {
+    fn prepare(&mut self, _device: &Device, queue: &Queue) {
         // update time + resolution. since we have to update the time anyway, we also update the screen resolution all the time
-        self.sys.unifs.t = ui_time_f32();
-        queue.write_buffer(
-            &self.sys.base_uniform_buffer,
-            0,
-            bytemuck::bytes_of(&self.sys.unifs),
-        );
+        // self.sys.unifs.t = ui_time_f32();
+        // queue.write_buffer(
+        //     &self.sys.base_uniform_buffer,
+        //     0,
+        //     bytemuck::bytes_of(&self.sys.unifs),
+        // );
 
-        // update rects
-        if self.sys.changes.need_gpu_rect_update || self.sys.changes.should_rebuild_render_data {
-            self.sys.gpu_rect_buffer.queue_write(&self.sys.rects[..], queue);
-            self.sys.changes.need_gpu_rect_update = false;
-            log::trace!("Update GPU rectangles");
-        }
+        // // update rects
+        // if self.sys.changes.need_gpu_rect_update || self.sys.changes.should_rebuild_render_data {
+        //     self.sys.gpu_rect_buffer.queue_write(&self.sys.rects[..], queue);
+        //     self.sys.changes.need_gpu_rect_update = false;
+        //     log::trace!("Update GPU rectangles");
+        // }
         
         // texture atlas
         // todo: don't do this all the time
-        self.sys.texture_atlas.load_to_gpu(queue);
-
-        self.sys.text.prepare_all(&mut self.sys.text_renderer);
-        self.sys.text_renderer.load_to_gpu(device, queue);
+        // self.sys.texture_atlas.load_to_gpu(queue);
     }
 
-    /// Renders the UI to a surface with full render pass management.
-    /// 
-    /// This is a helper method that creates the render pass, calls [`Ui::render_in_render_pass()`], and presents to the screen.
+    /// Renders the UI to a surface using vello_hybrid.
+    ///
+    /// The scene is built during `rebuild_render_data`, and this method just renders it.
     pub fn render(
         &mut self,
         surface: &wgpu::Surface,
-        depth_texture: &wgpu::Texture,
+        _depth_texture: &wgpu::Texture,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
+        if self.sys.changes.should_rebuild_render_data {
+            self.rebuild_render_data();
+        }
+
+        log::trace!("Render");
+        self.do_cosmetic_rect_updates();
+
+        self.prepare(device, queue);
+
+        self.sys.text.clear_changes();
+
+        // Render the scene to the surface
         let surface_texture = surface.get_current_texture().unwrap();
         let view = surface_texture.texture.create_view(&wgpu::TextureViewDescriptor::default());
-        let depth_view = depth_texture.create_view(&wgpu::TextureViewDescriptor::default());
-        
+
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
-        
-        {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations { 
-                        load: wgpu::LoadOp::Clear(wgpu::Color { r: 0.1, g: 0.1, b: 0.1, a: 1.0 }),
-                        store: wgpu::StoreOp::Store 
-                    },
-                })],
-                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &depth_view,
-                    depth_ops: Some(wgpu::Operations { 
-                        load: wgpu::LoadOp::Clear(1.0), 
-                        store: wgpu::StoreOp::Store 
-                    }),
-                    stencil_ops: None,
-                }),
-                ..Default::default()
-            });
-            self.render_in_render_pass(&mut render_pass, device, queue);
-        }
-        
+
+        let render_size = vello_hybrid::RenderSize {
+            width: self.sys.unifs.size[Axis::X] as u32,
+            height: self.sys.unifs.size[Axis::Y] as u32,
+        };
+
+        self.sys.vello_renderer.render(&self.sys.vello_scene, device, queue, &mut encoder, &render_size, &view).ok();
+
         queue.submit([encoder.finish()]);
         surface_texture.present();
+
+        self.sys.changes.need_rerender = false;
     }
 
     /// Returns `true` if the `Ui` needs to be rerendered.

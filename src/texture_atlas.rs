@@ -140,23 +140,23 @@ impl TextureAtlas {
             let atlas_min = data.allocation.rectangle.min;
 
             queue.write_texture(
-                ImageCopyTexture {
+                wgpu::TexelCopyTextureInfo {
                     texture: &self.atlas_texture,
                     mip_level: 0,
-                    origin: Origin3d {
+                    origin: wgpu::Origin3d {
                         x: atlas_min.x as u32,
                         y: atlas_min.y as u32,
                         z: 0,
                     },
-                    aspect: TextureAspect::All,
+                    aspect: wgpu::TextureAspect::All,
                 },
                 &data.image_data,
-                ImageDataLayout {
+                wgpu::TexelCopyBufferLayout {
                     offset: 0,
                     bytes_per_row: Some(data.width * 4_u32),
-                    rows_per_image: None,
+                    rows_per_image: Some(data.height),
                 },
-                Extent3d {
+                wgpu::Extent3d {
                     width: data.width,
                     height: data.height,
                     depth_or_array_layers: 1,
