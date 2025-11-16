@@ -1,9 +1,6 @@
-use std::{marker::PhantomData, mem};
-
-use bytemuck::Pod;
 use glam::dvec2;
 use vello_common::{color::{AlphaColor, ColorSpaceTag}, peniko::Gradient};
-use wgpu::{Buffer, BufferSlice, Device, Queue};
+use wgpu::{Device, Queue};
 use winit::event::*;
 use winit::window::Window;
 
@@ -266,7 +263,7 @@ impl Ui {
     }
 
     /// Load the GUI render data that has changed onto the GPU.
-    fn prepare(&mut self, _device: &Device, queue: &Queue) {
+    fn prepare(&mut self, _device: &Device, _queue: &Queue) {
         // update time + resolution. since we have to update the time anyway, we also update the screen resolution all the time
         // self.sys.unifs.t = ui_time_f32();
         // queue.write_buffer(
@@ -302,7 +299,6 @@ impl Ui {
         }
 
         log::trace!("Render");
-        self.do_cosmetic_rect_updates();
 
         self.prepare(device, queue);
 
@@ -352,9 +348,9 @@ impl Ui {
             log::info!("Uploaded image, got ImageId: {:?}", image_id);
 
             // Store the ImageId in the node
-            self.nodes[node_i].imageref = Some(crate::texture_atlas::ImageRef {
+            self.nodes[node_i].imageref = Some(ImageRef {
                 image_id,
-                original_size: crate::math::Xy::new(width as f32, height as f32),
+                original_size: Xy::new(width as f32, height as f32),
             });
         }
 
@@ -382,33 +378,8 @@ impl Ui {
     }
 }
 
-
-
-#[derive(Debug)]
-pub struct TypedGpuBuffer<T: Pod> {
-    pub buffer: Buffer,
-    pub marker: std::marker::PhantomData<T>,
-}
-impl<T: Pod> TypedGpuBuffer<T> {
-    pub fn new(buffer: Buffer) -> Self {
-        Self {
-            buffer,
-            marker: PhantomData::<T>,
-        }
-    }
-
-    #[allow(dead_code)]
-    pub fn size() -> u64 {
-        mem::size_of::<T>() as u64
-    }
-
-    pub fn slice<N: Into<u64>>(&self, n: N) -> BufferSlice {
-        let bytes = n.into() * (mem::size_of::<T>()) as u64;
-        return self.buffer.slice(..bytes);
-    }
-
-    pub fn queue_write(&mut self, data: &[T], queue: &Queue) {
-        let data = bytemuck::cast_slice(data);
-        queue.write_buffer(&self.buffer, 0, data);
-    }
+#[derive(Copy, Clone, Debug)]
+pub struct ImageRef {
+    pub image_id: vello_common::paint::ImageId,
+    pub original_size: Xy<f32>,
 }

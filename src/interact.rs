@@ -118,13 +118,13 @@ impl Ui {
     pub(crate) fn start_hovering(&mut self, hovered_id: Id) {
         self.sys.hovered.push(hovered_id);
         
-        let (hovered_node, hovered_node_i) = self.nodes.get_mut_by_id(&hovered_id).unwrap();
+        let (hovered_node, _hovered_node_i) = self.nodes.get_mut_by_id(&hovered_id).unwrap();
 
         if hovered_node.params.interact.click_animation {
             hovered_node.hovered = true;
             hovered_node.hover_timestamp = ui_time_f32();
             
-            self.sys.changes.cosmetic_rect_updates.push(hovered_node_i);
+            self.sys.changes.rebuild_render_data = true;
             self.sys.anim_render_timer.push_new(Duration::from_secs_f32(ANIMATION_RERENDER_TIME));
         }
 
@@ -134,13 +134,13 @@ impl Ui {
         let mut animation = false;
 
         for hovered_id in &self.sys.hovered {
-            if let Some((hovered_node, hovered_node_i)) = self.nodes.get_mut_by_id(hovered_id) {
+            if let Some((hovered_node, _hovered_node_i)) = self.nodes.get_mut_by_id(hovered_id) {
                 if hovered_node.last_frame_touched == self.sys.current_frame {
                 
                     if hovered_node.params.interact.click_animation {
                         hovered_node.hovered = false;
                         hovered_node.hover_timestamp = ui_time_f32();
-                        self.sys.changes.cosmetic_rect_updates.push(hovered_node_i);
+                        self.sys.changes.rebuild_render_data = true;
 
                         animation = true;
                     }
@@ -193,7 +193,7 @@ impl Ui {
 
             if self.nodes[clicked_i].params.interact.click_animation {
                 self.nodes[clicked_i].last_click = t.as_secs_f32();
-                self.sys.changes.cosmetic_rect_updates.push(clicked_i);
+                self.sys.changes.rebuild_render_data = true;
                 self.sys.anim_render_timer.push_new(Duration::from_secs_f32(ANIMATION_RERENDER_TIME));
             }
           
@@ -327,7 +327,7 @@ impl Ui {
         if self.nodes[i].params.is_scrollable() {
 
             // todo: add quicker functions that just move the rectangles. for text, this requires big changes in textslabs and will probably become impossible if we change renderer
-            self.recursive_place_children(i, true);
+            self.recursive_place_children(i);
             
             self.sys.changes.text_changed = true;
             // self.sys.text.prepare_all(&mut self.sys.text_renderer);

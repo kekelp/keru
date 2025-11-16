@@ -80,7 +80,6 @@ pub(crate) struct System {
     pub pending_images: Vec<(NodeI, &'static [u8])>,
 
     pub z_cursor: f32,
-    pub rects: Vec<RenderRect>,
 
     pub click_rects: Vec<ClickRect>,
 
@@ -205,9 +204,6 @@ impl Ui {
 
                 update_frames_needed: 2,
                 new_external_events: true,
-
-                // todo: remove
-                rects: Vec::with_capacity(100),
                 
                 click_rects: Vec::with_capacity(50),
                 scroll_rects: Vec::with_capacity(20),

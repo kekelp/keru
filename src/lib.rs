@@ -145,19 +145,15 @@ pub(crate) use crate::twin_nodes::RefreshOrClone::*;
 pub(crate) use crate::twin_nodes::TwinCheckResult::*;
 
 mod render;
+pub(crate) use crate::render::*;
 mod layout;
 pub(crate) use crate::layout::*;
 mod text;
 pub(crate) use crate::text::*;
 mod node;
 pub(crate) use crate::node::*;
-mod render_rect;
-pub(crate) use crate::render_rect::*;
 mod nodes;
 pub(crate) use crate::nodes::*;
-
-mod texture_atlas;
-pub(crate) use crate::texture_atlas::*;
 
 pub use keru_macros::*;
 

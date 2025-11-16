@@ -1448,7 +1448,7 @@ impl Ui {
             self.push_partial_relayout(i);
         }
         if cosmetic_changed{
-            self.push_cosmetic_update(i);
+            self.sys.changes.rebuild_render_data = true;
         }
     }
 }

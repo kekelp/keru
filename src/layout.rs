@@ -1,5 +1,3 @@
-use std::mem;
-
 use crate::*;
 use crate::node::*;
 
@@ -56,10 +54,9 @@ impl Ui {
     pub(crate) fn relayout(&mut self) {
         let tree_changed = self.sys.changes.tree_changed;
         let partial_relayouts = ! self.sys.changes.partial_relayouts.is_empty();
-        let rect_updates = ! self.sys.changes.cosmetic_rect_updates.is_empty();
         let full_relayout = self.sys.changes.full_relayout;
         let text_changed = self.sys.changes.text_changed;
-        let nothing_to_do = !partial_relayouts && !rect_updates && !full_relayout && !text_changed && !tree_changed && !self.sys.changes.unfinished_animations;
+        let nothing_to_do = !partial_relayouts && !full_relayout && !text_changed && !tree_changed && !self.sys.changes.unfinished_animations;
         if nothing_to_do {
             return;
         }
@@ -71,11 +68,7 @@ impl Ui {
         if full_relayout {
             self.relayout_from_root();
         } else {
-            if tree_changed {
-                self.do_partial_relayouts(false);
-            } else {
-                self.do_partial_relayouts(true);
-            }
+            self.do_partial_relayouts();
         }
 
         self.rebuild_render_data();
@@ -89,25 +82,8 @@ impl Ui {
         }
     }
 
-    pub(crate) fn do_cosmetic_rect_updates(&mut self) {
-        if !self.sys.changes.cosmetic_rect_updates.is_empty() {
-            self.sys.changes.need_gpu_rect_update = true;
-        }
-
-        // Is this even better than iterating with an index?
-        let cosmetic_rect_updates = mem::take(&mut self.sys.changes.cosmetic_rect_updates);
-
-        for &update in &cosmetic_rect_updates {
-            self.update_rect(update);
-            log::info!("Single rectangle update ({})", self.node_debug_name_fmt_scratch(update));
-        }
-
-        self.sys.changes.cosmetic_rect_updates = cosmetic_rect_updates;
-        self.sys.changes.cosmetic_rect_updates.clear();
-    }
-
     // this gets called even when zero relayouts are needed. in that case it just does nothing. I guess it's to make the layout() logic more readable
-    pub(crate) fn do_partial_relayouts(&mut self, update_rects_while_relayouting: bool) {
+    pub(crate) fn do_partial_relayouts(&mut self) {
         // sort by depth
         // todo: there was something about it being close to already sorted, except in reverse
         // the plan was to sort it in reverse and then use it in reverse
@@ -119,7 +95,7 @@ impl Ui {
             // todo: if that works as expected, maybe we can skip the limit/full relayout thing, or at least raise the limit by a lot.
             let relayout = self.sys.changes.partial_relayouts[idx];
             
-            self.partial_relayout(relayout.i, update_rects_while_relayouting);
+            self.partial_relayout(relayout.i);
         }
 
         if self.sys.partial_relayout_count != 0 {
@@ -140,13 +116,13 @@ impl Ui {
         
         // 2nd recursive tree traversal: now that all nodes have a calculated size, place them.
         // we don't do update_rects here because the first frame you can't update... but maybe just special-case the first frame, then should be faster
-        self.recursive_place_children(ROOT_I, false);
+        self.recursive_place_children(ROOT_I);
         
         self.nodes[ROOT_I].last_layout_frame = self.sys.current_frame;
 
     }
 
-    pub(crate) fn partial_relayout(&mut self, i: NodeI, update_rects: bool) {
+    pub(crate) fn partial_relayout(&mut self, i: NodeI) {
         // if the node has already been layouted on the current frame, stop immediately, and don't even recurse.
         // when doing partial layouts, this avoids overlap, but it means that we have to sort the partial relayouts cleanly from least depth to highest depth in order to get it right. This is done in `relayout()`.
         let current_frame = self.sys.current_frame;
@@ -169,7 +145,7 @@ impl Ui {
         self.recursive_determine_size_and_hidden(i, starting_proposed_size, hidden_branch);
         
         // 2nd recursive tree traversal: now that all nodes have a calculated size, place them.
-        self.recursive_place_children(i, update_rects);
+        self.recursive_place_children(i);
 
         self.nodes[i].last_layout_frame = self.sys.current_frame;
     }
@@ -425,7 +401,7 @@ impl Ui {
         }
     }
 
-    pub(crate) fn recursive_place_children(&mut self, i: NodeI, also_update_rects: bool) {
+    pub(crate) fn recursive_place_children(&mut self, i: NodeI) {
         self.nodes[i].content_bounds = XyRect::new_symm([f32::MAX, f32::MIN]);
 
         self.sys.partial_relayout_count += 1;
@@ -435,12 +411,8 @@ impl Ui {
             self.place_children_container(i);
         };
 
-        if also_update_rects {
-            self.update_rect(i);
-        }
-
         for_each_child!(self, self.nodes[i], child, {
-            self.recursive_place_children(child, also_update_rects);
+            self.recursive_place_children(child);
         });
     }
 
@@ -686,7 +658,6 @@ impl Ui {
 
     pub(crate) fn rebuild_render_data(&mut self) {
         log::info!("Rebuilding render data");
-        self.sys.rects.clear();
 
         self.sys.click_rects.clear();
         self.sys.scroll_rects.clear();

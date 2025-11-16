@@ -19,13 +19,8 @@ impl PartialOrd for NodeWithDepth {
 }
 
 #[derive(Debug)]
-pub enum WhatToDoNextFrame {
-    
-}
-
-#[derive(Debug)]
 pub struct Changes {
-    pub cosmetic_rect_updates: Vec<NodeI>,
+    pub rebuild_render_data: bool,
     pub partial_relayouts: Vec<NodeWithDepth>,
     // todo: bitflags, or just less bools
     pub tree_changed: bool,
@@ -45,7 +40,7 @@ impl Changes {
     pub fn new() -> Changes {
         return Changes {
             partial_relayouts: Vec::with_capacity(15),
-            cosmetic_rect_updates: Vec::with_capacity(15),
+            rebuild_render_data: false,
             tree_changed: false,
             text_changed: false,
             full_relayout: true,
@@ -61,7 +56,7 @@ impl Changes {
 
     pub fn reset_layout_changes(&mut self) {
         self.partial_relayouts.clear();
-        self.cosmetic_rect_updates.clear();
+        self.rebuild_render_data = false;
         self.full_relayout = false;
         self.tree_changed = false;
     }

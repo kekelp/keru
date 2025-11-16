@@ -265,9 +265,6 @@ impl Ui {
         if push_click_rect {
             let click_rect = self.click_rect(i);
             self.sys.click_rects.push(click_rect);
-            self.nodes[i].last_click_rect_i = Some(self.sys.click_rects.len() - 1);
-        } else {
-            self.nodes[i].last_click_rect_i = None;
         }
 
         if self.nodes[i].params.is_scrollable() {
@@ -364,33 +361,6 @@ impl Ui {
         }
     }
 
-    // todo: remove?
-    pub(crate) fn update_rect(&mut self, i: NodeI) {
-        // if let Some(old_i) = self.nodes[i].last_click_rect_i {
-        //     let click_rect = self.click_rect(i);
-        //     self.sys.click_rects[old_i] = click_rect;
-        // }
-
-        // // todo: update scroll rect
-        // // at this point, maybe split the cosmetic or size (click,scroll) updates?
-
-        // let draw_even_if_invisible = self.sys.inspect_mode;
-        // if let Some(old_i) = self.nodes[i].last_rect_i {
-        //     if let Some(rect) = self.render_rect_i(i, draw_even_if_invisible, None, false) {
-        //         self.sys.rects[old_i] = rect;
-        //     }
-        // }
-        
-        // if let Some(imageref) = self.nodes[i].imageref {
-        //     if let Some(image_rect) = self.render_rect_i(i, draw_even_if_invisible, Some(imageref.tex_coords), true) {
-        //         let old_i = self.nodes[i].last_image_rect_i.unwrap();
-        //         self.sys.rects[old_i] = image_rect;
-        //     }
-        // }
-
-        // todo: update images?
-    }
-
     fn set_relayout_chain_root(&mut self, new_node_i: NodeI, parent_i: NodeI) {
         let is_fit_content = self.nodes[new_node_i].params.is_fit_content();
         match self.nodes[parent_i].relayout_chain_root {
@@ -420,19 +390,6 @@ impl Ui {
             depth: self.nodes[relayout_target].depth,
         };
         self.sys.changes.partial_relayouts.push(relayout_entry);
-    }
-
-    pub(crate) fn push_cosmetic_update(&mut self, i: NodeI) {
-        self.sys.changes.cosmetic_rect_updates.push(i);
-    }
-
-    pub(crate) fn push_text_change(&mut self, i: NodeI) {
-        if self.nodes[i].params.is_fit_content() {
-            self.push_partial_relayout(i);
-        } else {
-            self.sys.changes.need_rerender = true;
-        }
-        self.sys.changes.text_changed = true;
     }
 
     /// Clear the old GUI tree and start declaring another one.
