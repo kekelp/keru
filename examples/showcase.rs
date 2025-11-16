@@ -62,6 +62,8 @@ impl Components for Ui {
                 self.label(text.as_str());
             });
 
+            self.static_paragraph("Image:");
+
             let image = IMAGE.static_image(include_bytes!("../src/textures/clouds.png"));
             self.add(image);
 
@@ -99,7 +101,7 @@ impl Components for Ui {
             self.static_paragraph("The tab viewer uses the \"children_can_hide\" property on the tab containers. This means that when switching tabs, all ui state is kept in the background: the value of the bool is retained, as well as the scroll state, the text in the edit boxes, etc. \n\n\
             Without \"children_can_hide\", everything would be cleaned up as soon as the tabs change.");
 
-            self.static_paragraph("Keru recently switched to the vello_hybrid renderer. This should help with a lot of useful things, like proper in-order drawing, Bezier paths and shapes, proper gradients, and eventually a pure CPU renderer backend.");
+            self.static_paragraph("Keru recently switched to the vello_hybrid renderer. This means that it's capable of drawing advanced paths strokes and fills, advanced gradients, and other things.");
 
             let button_with_stroke = BUTTON
                 .static_text("Rectangle with dashed stroke")
@@ -109,6 +111,18 @@ impl Components for Ui {
                 .stroke_dashes(10.0, 0.0);
 
             self.add(button_with_stroke);
+
+            let button_with_colored_stroke = BUTTON
+                .static_text("Button with different stroke color")
+                .color(Color::rgba(100, 150, 255, 255))
+                .stroke(3.0)
+                .stroke_color(Color::rgba(255, 0, 0, 255))
+                .shape(Shape::Rectangle { corner_radius: 15.0 });
+
+            self.add(button_with_colored_stroke);
+
+            self.static_paragraph("This should also make it very easy to add a vello_cpu backend, which would allow the GUI to be rendered without using the GPU at all. However, this hasn't been tried yet.");
+
 
         });
     }

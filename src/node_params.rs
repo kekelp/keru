@@ -263,6 +263,8 @@ pub struct Rect {
 pub struct Stroke {
     /// Width of the stroke.
     pub width: f32,
+    /// Color of the stroke.
+    pub color: Color,
     /// Style for connecting segments of the stroke.
     pub join: Join,
     /// Limit for miter joins.
@@ -281,12 +283,13 @@ impl Stroke {
     pub const fn new(width: f32) -> Self {
         Self {
             width,
+            color: Color::KERU_GREEN,
             join: Join::Miter,
             miter_limit: 4.0,
             start_cap: Cap::Butt,
             end_cap: Cap::Butt,
-            dash_length: 0.0,
-            dash_offset: 0.0,
+            dash_length: 10.0,
+            dash_offset: 10.0,
         }
     }
 
@@ -322,6 +325,11 @@ impl Stroke {
         self
     }
 
+    pub const fn with_color(mut self, color: Color) -> Self {
+        self.color = color;
+        self
+    }
+
     pub fn into_vello_stroke(self) -> VelloStroke {
         let mut stroke = VelloStroke::new(self.width as f64)
             .with_caps(self.start_cap)
@@ -343,6 +351,7 @@ impl Stroke {
 impl Hash for Stroke {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.width.to_bits().hash(state);
+        self.color.hash(state);
         std::mem::discriminant(&self.join).hash(state);
         self.miter_limit.to_bits().hash(state);
         std::mem::discriminant(&self.start_cap).hash(state);
@@ -514,6 +523,13 @@ impl NodeParams {
     pub const fn stroke_dashes(mut self, dash_length: f32, dash_offset: f32) -> Self {
         if let Some(stroke) = self.rect.stroke {
             self.rect.stroke = Some(stroke.with_dashes(dash_length, dash_offset));
+        }
+        return self;
+    }
+
+    pub const fn stroke_color(mut self, color: Color) -> Self {
+        if let Some(stroke) = self.rect.stroke {
+            self.rect.stroke = Some(stroke.with_color(color));
         }
         return self;
     }
@@ -898,6 +914,13 @@ impl<'a> FullNodeParams<'a> {
     pub const fn stroke_dashes(mut self, dash_length: f32, dash_offset: f32) -> Self {
         if let Some(stroke) = self.params.rect.stroke {
             self.params.rect.stroke = Some(stroke.with_dashes(dash_length, dash_offset));
+        }
+        return self;
+    }
+
+    pub const fn stroke_color(mut self, color: Color) -> Self {
+        if let Some(stroke) = self.params.rect.stroke {
+            self.params.rect.stroke = Some(stroke.with_color(color));
         }
         return self;
     }

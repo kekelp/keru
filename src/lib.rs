@@ -145,7 +145,6 @@ pub(crate) use crate::twin_nodes::RefreshOrClone::*;
 pub(crate) use crate::twin_nodes::TwinCheckResult::*;
 
 mod render;
-pub(crate) use crate::render::*;
 mod layout;
 pub(crate) use crate::layout::*;
 mod text;

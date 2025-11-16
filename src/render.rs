@@ -2,7 +2,7 @@ use std::{marker::PhantomData, mem};
 
 use bytemuck::Pod;
 use glam::dvec2;
-use vello_common::{color::AlphaColor, peniko::Gradient};
+use vello_common::{color::{AlphaColor, ColorSpaceTag}, peniko::Gradient};
 use wgpu::{Buffer, BufferSlice, Device, Queue};
 use winit::event::*;
 use winit::window::Window;
@@ -147,8 +147,18 @@ impl Ui {
             PaintType::Solid(tl_alpha)
         } else {
             let gradient = Gradient::new_linear((x0, y1), (x1, y0))
+            .with_interpolation_cs(ColorSpaceTag::Srgb)
                 .with_stops([tl_alpha, br_alpha]);
             PaintType::Gradient(gradient)
+        };
+
+        // Create stroke paint from stroke color
+        let stroke_paint = if let Some(stroke) = node.params.rect.stroke {
+            let stroke_alpha = AlphaColor::from_rgba8(stroke.color.r, stroke.color.g, stroke.color.b, stroke.color.a);
+            PaintType::Solid(stroke_alpha)
+        } else {
+            // Fallback (won't be used if there's no stroke)
+            PaintType::Solid(AlphaColor::from_rgba8(0, 0, 0, 255))
         };
 
         // Set stroke if provided
@@ -186,14 +196,17 @@ impl Ui {
 
                     self.sys.vello_scene.set_paint(fill_paint);
                     self.sys.vello_scene.fill_path(&path);
-                    
+
                     if is_stroked {
+                        self.sys.vello_scene.set_paint(stroke_paint);
                         self.sys.vello_scene.stroke_path(&path);
                     }
                 } else {
                     let rect = VelloRect::new(x0, y0, x1, y1);
+                    self.sys.vello_scene.set_paint(fill_paint);
                     self.sys.vello_scene.fill_rect(&rect);
                     if is_stroked {
+                        self.sys.vello_scene.set_paint(stroke_paint);
                         self.sys.vello_scene.stroke_rect(&rect);
                     }
                 }
@@ -205,8 +218,10 @@ impl Ui {
                 let circle = Circle::new((cx, cy), radius);
                 let path = circle.to_path(0.1);
                 if is_stroked {
+                    self.sys.vello_scene.set_paint(stroke_paint);
                     self.sys.vello_scene.stroke_path(&path);
                 } else {
+                    self.sys.vello_scene.set_paint(fill_paint);
                     self.sys.vello_scene.fill_path(&path);
                 }
             }
@@ -240,8 +255,10 @@ impl Ui {
                 }
 
                 if is_stroked {
+                    self.sys.vello_scene.set_paint(stroke_paint);
                     self.sys.vello_scene.stroke_path(&path);
                 } else {
+                    self.sys.vello_scene.set_paint(fill_paint);
                     self.sys.vello_scene.fill_path(&path);
                 }
             }
