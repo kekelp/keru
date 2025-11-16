@@ -207,7 +207,7 @@ impl Ui {
                 }
 
                 // todo: not always...
-                self.push_text_change(clicked_i);
+                // self.push_text_change(clicked_i);
             }
         }
    

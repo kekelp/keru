@@ -67,6 +67,7 @@ pub(crate) struct System {
     pub theme: Theme,
     pub debug_key_pressed: bool,
 
+    // todo: new system for this stuff
     pub update_frames_needed: u8,
     pub new_external_events: bool,
 

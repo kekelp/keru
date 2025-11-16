@@ -101,7 +101,8 @@ impl Ui {
             }
         }
 
-        self.push_text_change(i);
+        // todo: might need this for non-event-based changes.
+        // self.push_text_change(i);
         self
     }
 

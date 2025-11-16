@@ -37,12 +37,15 @@ impl Ui {
     fn text_window_event(&mut self, _i: NodeI, event: &WindowEvent, window: &Window){     
         self.sys.text.handle_event(event, window);
         
-        let text_changed = self.sys.text.any_text_changed();
-        if text_changed {
+        if self.sys.text.any_text_changed() {
             if let Some(node_id) = self.sys.focused {
                 self.sys.text_edit_changed_this_frame = Some(node_id);
             }
             self.sys.changes.text_changed = true;
+            self.sys.new_external_events = true;
+        }
+        if self.sys.text.decorations_changed() {
+            self.sys.new_external_events = true;
         }
     }
 
