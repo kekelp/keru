@@ -73,8 +73,8 @@ pub const V_STACK: NodeParams = NodeParams {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
-        stroke: None,
-        vertex_colors: VertexColors::flat(Color::KERU_DEBUG_RED),
+        stroke: Some(Stroke::new(4.0).with_color(Color::KERU_DEBUG_RED)),
+        vertex_colors: VertexColors::flat(Color::TRANSPARENT),
     },
     interact: Interact {
         senses: Sense::NONE,
@@ -104,8 +104,8 @@ pub const H_STACK: NodeParams = NodeParams {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
-        stroke: None,
-        vertex_colors: VertexColors::flat(Color::KERU_DEBUG_RED),
+        stroke: Some(Stroke::new(4.0).with_color(Color::KERU_DEBUG_RED)),
+        vertex_colors: VertexColors::flat(Color::TRANSPARENT),
     },
     interact: Interact {
         senses: Sense::NONE,
@@ -132,12 +132,12 @@ pub const V_SCROLL_STACK: NodeParams = NodeParams {
             axis: Axis::Y,
             spacing: 10,
         }),
-            rect: Rect {
+        rect: Rect {
             rounded_corners: RoundedCorners::ALL,
             shape: Rectangle { corner_radius: BASE_RADIUS },
             visible: false,
-            stroke: None,
-                vertex_colors: VertexColors::flat(Color::KERU_DEBUG_RED),
+            stroke: Some(Stroke::new(4.0).with_color(Color::KERU_DEBUG_RED)),
+            vertex_colors: VertexColors::flat(Color::TRANSPARENT),    
         },
         interact: Interact {
             senses: Sense::NONE,
@@ -164,8 +164,8 @@ pub const MARGIN: NodeParams = NodeParams {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
-        stroke: None,
-        vertex_colors: VertexColors::flat(Color::KERU_DEBUG_RED),
+        stroke: Some(Stroke::new(4.0).with_color(Color::KERU_DEBUG_RED)),
+        vertex_colors: VertexColors::flat(Color::TRANSPARENT),
     },
     interact: Interact {
         senses: Sense::NONE,
@@ -376,8 +376,8 @@ pub const TEXT: NodeParams = NodeParams {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
-        stroke: None,
-        vertex_colors: VertexColors::flat(Color::KERU_DEBUG_RED),
+        stroke: Some(Stroke::new(4.0).with_color(Color::KERU_DEBUG_RED)),
+        vertex_colors: VertexColors::flat(Color::TRANSPARENT),
     },
     interact: Interact {
         senses: Sense::NONE,
@@ -475,8 +475,8 @@ pub const TEXT_PARAGRAPH: NodeParams = NodeParams {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
-        stroke: None,
-        vertex_colors: VertexColors::flat(Color::KERU_DEBUG_RED),
+        stroke: Some(Stroke::new(4.0).with_color(Color::KERU_DEBUG_RED)),
+        vertex_colors: VertexColors::flat(Color::TRANSPARENT),
     },
     interact: Interact {
         senses: Sense::NONE,
@@ -599,8 +599,8 @@ pub const SPACER: NodeParams = NodeParams {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
-        stroke: None,
-        vertex_colors: VertexColors::flat(Color::KERU_DEBUG_RED),
+        stroke: Some(Stroke::new(4.0).with_color(Color::KERU_DEBUG_RED)),
+        vertex_colors: VertexColors::flat(Color::TRANSPARENT),
     },
     interact: Interact {
         senses: Sense::NONE,

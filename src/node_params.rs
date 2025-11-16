@@ -288,8 +288,8 @@ impl Stroke {
             miter_limit: 4.0,
             start_cap: Cap::Butt,
             end_cap: Cap::Butt,
-            dash_length: 10.0,
-            dash_offset: 10.0,
+            dash_length: 0.0,
+            dash_offset: 0.0,
         }
     }
 
@@ -470,8 +470,8 @@ impl NodeParams {
     }
     pub const fn invisible(mut self) -> Self {
         self.rect.visible = false;
-        self.rect.stroke = None;
-        self.rect.vertex_colors = VertexColors::flat(Color::KERU_DEBUG_RED);
+        self.rect.stroke = Some(Stroke::new(4.0).with_color(Color::KERU_DEBUG_RED));
+        self.rect.vertex_colors = VertexColors::flat(Color::TRANSPARENT);
         return self;
     }
 
@@ -861,8 +861,8 @@ impl<'a> FullNodeParams<'a> {
     }
     pub const fn invisible(mut self) -> Self {
         self.params.rect.visible = false;
-        self.params.rect.stroke = None;
-        self.params.rect.vertex_colors = VertexColors::flat(Color::KERU_DEBUG_RED);
+        self.params.rect.stroke = Some(Stroke::new(4.0).with_color(Color::KERU_DEBUG_RED));
+        self.params.rect.vertex_colors = VertexColors::flat(Color::TRANSPARENT);
         return self;
     }
 
