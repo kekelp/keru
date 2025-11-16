@@ -143,13 +143,13 @@ impl Ui {
         let tl_alpha = AlphaColor::from_rgba8(tl.r, tl.g, tl.b, tl.a);
         let br_alpha = AlphaColor::from_rgba8(br.r, br.g, br.b, br.a);
 
-        if is_solid {
-            self.sys.vello_scene.set_paint(PaintType::Solid(tl_alpha));
+        let fill_paint = if is_solid {
+            PaintType::Solid(tl_alpha)
         } else {
             let gradient = Gradient::new_linear((x0, y1), (x1, y0))
                 .with_stops([tl_alpha, br_alpha]);
-            self.sys.vello_scene.set_paint(PaintType::Gradient(gradient));
-        }
+            PaintType::Gradient(gradient)
+        };
 
         // Set stroke if provided
         if let Some(stroke) = node.params.rect.stroke {
@@ -183,17 +183,18 @@ impl Ui {
                         radii
                     );
                     let path = rounded_rect.to_path(0.1);
+
+                    self.sys.vello_scene.set_paint(fill_paint);
+                    self.sys.vello_scene.fill_path(&path);
+                    
                     if is_stroked {
                         self.sys.vello_scene.stroke_path(&path);
-                    } else {
-                        self.sys.vello_scene.fill_path(&path);
                     }
                 } else {
                     let rect = VelloRect::new(x0, y0, x1, y1);
+                    self.sys.vello_scene.fill_rect(&rect);
                     if is_stroked {
                         self.sys.vello_scene.stroke_rect(&rect);
-                    } else {
-                        self.sys.vello_scene.fill_rect(&rect);
                     }
                 }
             }
