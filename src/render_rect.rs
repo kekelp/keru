@@ -132,7 +132,7 @@ impl Ui {
         let outline_only = if image_texcoords.is_some() {
             false
         } else {
-            node.params.rect.outline_only
+            node.params.rect.stroke.is_some()
         };
 
         let mut flags = RenderRect::EMPTY_FLAGS;

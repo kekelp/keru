@@ -99,6 +99,17 @@ impl Components for Ui {
             self.static_paragraph("The tab viewer uses the \"children_can_hide\" property on the tab containers. This means that when switching tabs, all ui state is kept in the background: the value of the bool is retained, as well as the scroll state, the text in the edit boxes, etc. \n\n\
             Without \"children_can_hide\", everything would be cleaned up as soon as the tabs change.");
 
+            self.static_paragraph("Keru recently switched to the vello_hybrid renderer. This should help with a lot of useful things, like proper in-order drawing, Bezier paths and shapes, proper gradients, and eventually a cpu pure CPU renderer backend.");
+
+            let button_with_stroke = BUTTON
+                .static_text("Rectangle with dashed stroke")
+                .color(Color::rgba(255, 150, 100, 255))
+                .shape(Shape::Rectangle { corner_radius: 20.0 })
+                .stroke(5.0)
+                .stroke_dashes(10.0, 0.0);
+
+            self.add(button_with_stroke);
+
         });
     }
 

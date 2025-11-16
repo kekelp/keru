@@ -15,7 +15,7 @@ pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
-        outline_only: true,
+        stroke: Some(Stroke::new(2.0)),
         vertex_colors: VertexColors::flat(Color::TRANSPARENT)
     },
     interact: Interact {
@@ -42,7 +42,7 @@ pub const DEFAULT: NodeParams = NodeParams {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
-        outline_only: false,
+        stroke: None,
         vertex_colors: VertexColors::flat(Color::KERU_BLUE),
     },
     interact: Interact {
@@ -73,7 +73,7 @@ pub const V_STACK: NodeParams = NodeParams {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
-        outline_only: true,
+        stroke: Some(Stroke::new(2.0)),
         vertex_colors: VertexColors::flat(Color::KERU_DEBUG_RED),
     },
     interact: Interact {
@@ -104,7 +104,7 @@ pub const H_STACK: NodeParams = NodeParams {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
-        outline_only: true,
+        stroke: Some(Stroke::new(2.0)),
         vertex_colors: VertexColors::flat(Color::KERU_DEBUG_RED),
     },
     interact: Interact {
@@ -136,7 +136,7 @@ pub const V_SCROLL_STACK: NodeParams = NodeParams {
             rounded_corners: RoundedCorners::ALL,
             shape: Rectangle { corner_radius: BASE_RADIUS },
             visible: false,
-            outline_only: true,
+            stroke: Some(Stroke::new(2.0)),
             vertex_colors: VertexColors::flat(Color::KERU_DEBUG_RED),
         },
         interact: Interact {
@@ -164,7 +164,7 @@ pub const MARGIN: NodeParams = NodeParams {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
-        outline_only: true,
+        stroke: Some(Stroke::new(2.0)),
         vertex_colors: VertexColors::flat(Color::KERU_DEBUG_RED),
     },
     interact: Interact {
@@ -191,7 +191,7 @@ pub const ICON_BUTTON: NodeParams = NodeParams {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
-        outline_only: false,
+        stroke: None,
         vertex_colors: VertexColors::KERU_GRAD,
     },
     interact: Interact {
@@ -218,7 +218,7 @@ pub const IMAGE: NodeParams = NodeParams {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
-        outline_only: true,
+        stroke: Some(Stroke::new(2.0)),
         vertex_colors: VertexColors::flat(Color::WHITE),
     },
     interact: Interact {
@@ -245,7 +245,7 @@ pub const IMAGE_BUTTON: NodeParams = NodeParams {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
-        outline_only: false,
+        stroke: None,
         vertex_colors: VertexColors::flat(Color::WHITE),
     },
     interact: Interact {
@@ -277,7 +277,7 @@ pub const BUTTON: NodeParams = NodeParams {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
-        outline_only: false,
+        stroke: None,
         // vertex_colors: VertexColors::TEST,
         vertex_colors: VertexColors::diagonal_gradient_backslash(Color::KERU_BLUE, Color::KERU_RED),
     },
@@ -310,7 +310,7 @@ pub const LABEL: NodeParams = NodeParams {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
-        outline_only: false,
+        stroke: None,
         vertex_colors: VertexColors::KERU_GRAD,
     },
     interact: Interact {
@@ -343,7 +343,7 @@ pub const MULTILINE_LABEL: NodeParams = NodeParams {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
-        outline_only: false,
+        stroke: None,
         vertex_colors: VertexColors::KERU_GRAD,
     },
     interact: Interact {
@@ -376,7 +376,7 @@ pub const TEXT: NodeParams = NodeParams {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
-        outline_only: true,
+        stroke: Some(Stroke::new(2.0)),
         vertex_colors: VertexColors::flat(Color::KERU_DEBUG_RED),
     },
     interact: Interact {
@@ -409,7 +409,7 @@ pub const TEXT_EDIT: NodeParams = NodeParams {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
-        outline_only: false,
+        stroke: None,
         vertex_colors: VertexColors::flat(Color::GREY),
     },
     interact: Interact {
@@ -442,7 +442,7 @@ pub const TEXT_EDIT_LINE: NodeParams = NodeParams {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
-        outline_only: false,
+        stroke: None,
         vertex_colors: VertexColors::flat(Color::GREY),
     },
     interact: Interact {
@@ -475,7 +475,7 @@ pub const TEXT_PARAGRAPH: NodeParams = NodeParams {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
-        outline_only: true,
+        stroke: Some(Stroke::new(2.0)),
         vertex_colors: VertexColors::flat(Color::KERU_DEBUG_RED),
     },
     interact: Interact {
@@ -503,7 +503,7 @@ pub const PANEL: NodeParams = NodeParams {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
-        outline_only: false,
+        stroke: None,
         vertex_colors: VertexColors::KERU_GRAD_FW,
     },
     interact: Interact {
@@ -531,7 +531,7 @@ pub const CONTAINER: NodeParams = NodeParams {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
-        outline_only: true,
+        stroke: Some(Stroke::new(2.0)),
         vertex_colors: VertexColors::KERU_GRAD,
     },
     interact: Interact {
@@ -571,7 +571,7 @@ pub const CUSTOM_RENDERED_PANEL: NodeParams = NodeParams {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
-        outline_only: false,
+        stroke: None,
         vertex_colors: VertexColors::GREENSCREEN,
     },
     interact: Interact {
@@ -599,7 +599,7 @@ pub const SPACER: NodeParams = NodeParams {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
-        outline_only: true,
+        stroke: Some(Stroke::new(2.0)),
         vertex_colors: VertexColors::flat(Color::KERU_DEBUG_RED),
     },
     interact: Interact {
@@ -626,7 +626,7 @@ pub(crate) const COMPONENT_ROOT: NodeParams = NodeParams {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
-        outline_only: true,
+        stroke: Some(Stroke::new(2.0)),
         vertex_colors: VertexColors::flat(Color::KERU_DEBUG_BLUE),
     },
     interact: Interact {

@@ -1,4 +1,5 @@
 use textslabs::StyleHandle;
+use vello_common::kurbo::{Cap, Join, Stroke as VelloStroke};
 
 use crate::*;
 use crate::color::*;
@@ -252,15 +253,110 @@ pub struct Rect {
     pub shape: Shape,
     pub rounded_corners: RoundedCorners,
     pub visible: bool,
-    pub outline_only: bool,
+    pub stroke: Option<Stroke>,
     pub vertex_colors: VertexColors,
     // ... crazy stuff like texture and NinePatchRect
 }
+
+/// The visual style of a stroke.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Stroke {
+    /// Width of the stroke.
+    pub width: f32,
+    /// Style for connecting segments of the stroke.
+    pub join: Join,
+    /// Limit for miter joins.
+    pub miter_limit: f32,
+    /// Style for capping the beginning of an open subpath.
+    pub start_cap: Cap,
+    /// Style for capping the end of an open subpath.
+    pub end_cap: Cap,
+    /// Lengths of dashes in alternating on/off order.
+    pub dash_length: f32,
+    /// Offset of the first dash.
+    pub dash_offset: f32,
+}
+
+impl Stroke {
+    pub const fn new(width: f32) -> Self {
+        Self {
+            width,
+            join: Join::Miter,
+            miter_limit: 4.0,
+            start_cap: Cap::Butt,
+            end_cap: Cap::Butt,
+            dash_length: 0.0,
+            dash_offset: 0.0,
+        }
+    }
+
+    pub const fn with_join(mut self, join: Join) -> Self {
+        self.join = join;
+        self
+    }
+
+    pub const fn with_caps(mut self, cap: Cap) -> Self {
+        self.start_cap = cap;
+        self.end_cap = cap;
+        self
+    }
+
+    pub const fn with_start_cap(mut self, cap: Cap) -> Self {
+        self.start_cap = cap;
+        self
+    }
+
+    pub const fn with_end_cap(mut self, cap: Cap) -> Self {
+        self.end_cap = cap;
+        self
+    }
+
+    pub const fn with_miter_limit(mut self, limit: f32) -> Self {
+        self.miter_limit = limit;
+        self
+    }
+
+    pub const fn with_dashes(mut self, dash_length: f32, dash_offset: f32) -> Self {
+        self.dash_length = dash_length;
+        self.dash_offset = dash_offset;
+        self
+    }
+
+    pub fn into_vello_stroke(self) -> VelloStroke {
+        let mut stroke = VelloStroke::new(self.width as f64)
+            .with_caps(self.start_cap)
+            .with_join(self.join)
+            .with_miter_limit(self.miter_limit as f64);
+
+        if self.start_cap != self.end_cap {
+            stroke = stroke.with_end_cap(self.end_cap);
+        }
+
+        if self.dash_length > 0.0 {
+            stroke = stroke.with_dashes(self.dash_offset as f64, [self.dash_length as f64]);
+        }
+
+        stroke
+    }
+}
+
+impl Hash for Stroke {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.width.to_bits().hash(state);
+        std::mem::discriminant(&self.join).hash(state);
+        self.miter_limit.to_bits().hash(state);
+        std::mem::discriminant(&self.start_cap).hash(state);
+        std::mem::discriminant(&self.end_cap).hash(state);
+        self.dash_length.to_bits().hash(state);
+        self.dash_offset.to_bits().hash(state);
+    }
+}
+
 impl Rect {
     pub const DEFAULT: Self = Self {
-        shape: Shape::Rectangle { corner_radius: BASE_RADIUS }, 
+        shape: Shape::Rectangle { corner_radius: BASE_RADIUS },
         visible: true,
-        outline_only: true,
+        stroke: None,
         vertex_colors: VertexColors::flat(Color::KERU_BLUE),
         rounded_corners: RoundedCorners::ALL,
     };
@@ -365,18 +461,60 @@ impl NodeParams {
     }
     pub const fn invisible(mut self) -> Self {
         self.rect.visible = false;
-        self.rect.outline_only = false;
+        self.rect.stroke = None;
         self.rect.vertex_colors = VertexColors::flat(Color::KERU_DEBUG_RED);
         return self;
     }
 
-    pub const fn filled(mut self, filled: bool) -> Self {
-        self.rect.outline_only = filled;
+    pub const fn filled(mut self) -> Self {
+        self.rect.stroke = None;
         return self;
     }
 
-    pub const fn outline_only(mut self, value: bool) -> Self {
-        self.rect.outline_only = value;
+    pub const fn stroke(mut self, width: f32) -> Self {
+        self.rect.stroke = Some(Stroke::new(width));
+        return self;
+    }
+
+    pub const fn stroke_join(mut self, join: Join) -> Self {
+        if let Some(stroke) = self.rect.stroke {
+            self.rect.stroke = Some(stroke.with_join(join));
+        }
+        return self;
+    }
+
+    pub const fn stroke_caps(mut self, cap: Cap) -> Self {
+        if let Some(stroke) = self.rect.stroke {
+            self.rect.stroke = Some(stroke.with_caps(cap));
+        }
+        return self;
+    }
+
+    pub const fn stroke_start_cap(mut self, cap: Cap) -> Self {
+        if let Some(stroke) = self.rect.stroke {
+            self.rect.stroke = Some(stroke.with_start_cap(cap));
+        }
+        return self;
+    }
+
+    pub const fn stroke_end_cap(mut self, cap: Cap) -> Self {
+        if let Some(stroke) = self.rect.stroke {
+            self.rect.stroke = Some(stroke.with_end_cap(cap));
+        }
+        return self;
+    }
+
+    pub const fn stroke_miter_limit(mut self, limit: f32) -> Self {
+        if let Some(stroke) = self.rect.stroke {
+            self.rect.stroke = Some(stroke.with_miter_limit(limit));
+        }
+        return self;
+    }
+
+    pub const fn stroke_dashes(mut self, dash_length: f32, dash_offset: f32) -> Self {
+        if let Some(stroke) = self.rect.stroke {
+            self.rect.stroke = Some(stroke.with_dashes(dash_length, dash_offset));
+        }
         return self;
     }
 
@@ -707,18 +845,60 @@ impl<'a> FullNodeParams<'a> {
     }
     pub const fn invisible(mut self) -> Self {
         self.params.rect.visible = false;
-        self.params.rect.outline_only = false;
+        self.params.rect.stroke = None;
         self.params.rect.vertex_colors = VertexColors::flat(Color::KERU_DEBUG_RED);
         return self;
     }
 
-    pub const fn filled(mut self, filled: bool) -> Self {
-        self.params.rect.outline_only = filled;
+    pub const fn filled(mut self) -> Self {
+        self.params.rect.stroke = None;
         return self;
     }
 
-    pub const fn outline_only(mut self, value: bool) -> Self {
-        self.params.rect.outline_only = value;
+    pub const fn stroke(mut self, width: f32) -> Self {
+        self.params.rect.stroke = Some(Stroke::new(width));
+        return self;
+    }
+
+    pub const fn stroke_join(mut self, join: Join) -> Self {
+        if let Some(stroke) = self.params.rect.stroke {
+            self.params.rect.stroke = Some(stroke.with_join(join));
+        }
+        return self;
+    }
+
+    pub const fn stroke_caps(mut self, cap: Cap) -> Self {
+        if let Some(stroke) = self.params.rect.stroke {
+            self.params.rect.stroke = Some(stroke.with_caps(cap));
+        }
+        return self;
+    }
+
+    pub const fn stroke_start_cap(mut self, cap: Cap) -> Self {
+        if let Some(stroke) = self.params.rect.stroke {
+            self.params.rect.stroke = Some(stroke.with_start_cap(cap));
+        }
+        return self;
+    }
+
+    pub const fn stroke_end_cap(mut self, cap: Cap) -> Self {
+        if let Some(stroke) = self.params.rect.stroke {
+            self.params.rect.stroke = Some(stroke.with_end_cap(cap));
+        }
+        return self;
+    }
+
+    pub const fn stroke_miter_limit(mut self, limit: f32) -> Self {
+        if let Some(stroke) = self.params.rect.stroke {
+            self.params.rect.stroke = Some(stroke.with_miter_limit(limit));
+        }
+        return self;
+    }
+
+    pub const fn stroke_dashes(mut self, dash_length: f32, dash_offset: f32) -> Self {
+        if let Some(stroke) = self.params.rect.stroke {
+            self.params.rect.stroke = Some(stroke.with_dashes(dash_length, dash_offset));
+        }
         return self;
     }
 
