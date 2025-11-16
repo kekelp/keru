@@ -7,7 +7,7 @@ use wgpu::{Buffer, BufferSlice, Device, Queue};
 use winit::event::*;
 use winit::window::Window;
 
-use vello_common::{kurbo::{Rect as VelloRect, RoundedRect, Circle, BezPath}, paint::PaintType};
+use vello_common::{kurbo::{Rect as VelloRect, RoundedRect, Circle, BezPath, Stroke}, paint::PaintType};
 use peniko::color::AlphaColor;
 use vello_common::kurbo::Shape as VelloShape;
 
@@ -140,7 +140,7 @@ impl Ui {
         let br = colors.bottom_right_color();
 
         let is_solid = tl == tr && tl == bl && tl == br;
-        
+
         let tl_alpha = AlphaColor::from_rgba8(tl.r, tl.g, tl.b, tl.a);
         let br_alpha = AlphaColor::from_rgba8(br.r, br.g, br.b, br.a);
 
@@ -150,6 +150,14 @@ impl Ui {
             let gradient = Gradient::new_linear((x0, y1), (x1, y0))
                 .with_stops([tl_alpha, br_alpha]);
             self.sys.vello_scene.set_paint(PaintType::Gradient(gradient));
+        }
+
+        let outline_only = node.params.rect.outline_only;
+
+        // Set stroke width if drawing outline
+        if outline_only {
+            let stroke = Stroke::new(4.0);
+            self.sys.vello_scene.set_stroke(stroke);
         }
 
         // Render based on shape type
@@ -176,10 +184,19 @@ impl Ui {
                         VelloRect::new(x0, y0, x1, y1),
                         radii
                     );
-                    self.sys.vello_scene.fill_path(&rounded_rect.to_path(0.1));
+                    let path = rounded_rect.to_path(0.1);
+                    if outline_only {
+                        self.sys.vello_scene.stroke_path(&path);
+                    } else {
+                        self.sys.vello_scene.fill_path(&path);
+                    }
                 } else {
                     let rect = VelloRect::new(x0, y0, x1, y1);
-                    self.sys.vello_scene.fill_rect(&rect);
+                    if outline_only {
+                        self.sys.vello_scene.stroke_rect(&rect);
+                    } else {
+                        self.sys.vello_scene.fill_rect(&rect);
+                    }
                 }
             }
             Shape::Circle => {
@@ -187,7 +204,12 @@ impl Ui {
                 let cy = (y0 + y1) / 2.0;
                 let radius = ((x1 - x0) / 2.0).min((y1 - y0) / 2.0);
                 let circle = Circle::new((cx, cy), radius);
-                self.sys.vello_scene.fill_path(&circle.to_path(0.1));
+                let path = circle.to_path(0.1);
+                if outline_only {
+                    self.sys.vello_scene.stroke_path(&path);
+                } else {
+                    self.sys.vello_scene.fill_path(&path);
+                }
             }
             Shape::Ring { width } => {
                 let cx = (x0 + x1) / 2.0;
@@ -218,7 +240,11 @@ impl Ui {
                     path.extend(reversed_inner.iter());
                 }
 
-                self.sys.vello_scene.fill_path(&path);
+                if outline_only {
+                    self.sys.vello_scene.stroke_path(&path);
+                } else {
+                    self.sys.vello_scene.fill_path(&path);
+                }
             }
         }
     }
