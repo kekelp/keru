@@ -2,13 +2,12 @@ use std::{marker::PhantomData, mem};
 
 use bytemuck::Pod;
 use glam::dvec2;
-use vello_common::peniko::Gradient;
+use vello_common::{color::AlphaColor, peniko::Gradient};
 use wgpu::{Buffer, BufferSlice, Device, Queue};
 use winit::event::*;
 use winit::window::Window;
 
 use vello_common::{kurbo::{Rect as VelloRect, RoundedRect, Circle, BezPath}, paint::PaintType};
-use peniko::color::AlphaColor;
 use vello_common::kurbo::Shape as VelloShape;
 
 use crate::*;

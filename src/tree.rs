@@ -294,7 +294,7 @@ impl Ui {
             let clip_y1 = (node_clip_rect.y[1] * screen_size.y) as f64;
 
             let clip_rect = VelloRect::new(clip_x0, clip_y0, clip_x1, clip_y1);
-            self.sys.vello_scene.push_clip_layer(&clip_rect.to_path(0.1));
+            self.sys.vello_scene.push_clip_path(&clip_rect.to_path(0.1));
         }
 
         // Render node's shape directly to vello scene
@@ -360,7 +360,7 @@ impl Ui {
         }
 
         if is_clipping {
-            self.sys.vello_scene.pop_layer();
+            self.sys.vello_scene.pop_clip_path();
         }
     }
 

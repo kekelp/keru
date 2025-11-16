@@ -9,11 +9,7 @@ use std::{
 };
 
 use wgpu::{
-    Color, CommandEncoder, CompositeAlphaMode, Device, DeviceDescriptor, Features, Instance,
-    InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue, RenderPass,
-    RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor,
-    RequestAdapterOptions, Surface, SurfaceConfiguration, SurfaceTexture, Texture, TextureFormat,
-    TextureUsages, TextureView,
+    Color, CommandEncoder, CompositeAlphaMode, Device, DeviceDescriptor, ExperimentalFeatures, Features, Instance, InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue, RenderPass, RenderPassColorAttachment, RenderPassDepthStencilAttachment, RenderPassDescriptor, RequestAdapterOptions, Surface, SurfaceConfiguration, SurfaceTexture, Texture, TextureFormat, TextureUsages, TextureView
 };
 use winit::{dpi::PhysicalSize, event::WindowEvent, window::Window as WinitWindow};
 
@@ -46,6 +42,7 @@ pub fn basic_wgpu_init() -> (Instance, Device, Queue) {
         },
         memory_hints: wgpu::MemoryHints::MemoryUsage,
         trace: wgpu::Trace::Off,
+        experimental_features: ExperimentalFeatures::disabled(),
     };
     let (device, queue) = pollster::block_on(adapter.request_device(device_desc)).unwrap();
 
