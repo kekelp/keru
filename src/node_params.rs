@@ -294,7 +294,7 @@ impl TextOptions {
     }
 }
 
-pub(crate) const BASE_RADIUS: f32 = 18.0;
+pub(crate) const BASE_RADIUS: f32 = 9.0;
 
 impl NodeParams {
     pub(crate) fn cosmetic_hash(&self) -> u64 {

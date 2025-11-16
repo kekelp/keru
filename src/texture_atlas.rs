@@ -19,9 +19,8 @@ pub struct DataToLoad {
 
 #[derive(Copy, Clone, Debug)]
 pub struct ImageRef {
-    pub tex_coords: Xy<[f32; 2]>,
+    pub image_id: vello_common::paint::ImageId,
     pub original_size: Xy<f32>,
-    pub _id: AllocId,
 }
 
 impl TextureAtlas {
@@ -117,21 +116,11 @@ impl TextureAtlas {
     }
 
     pub fn allocate_raw(&mut self, image_data: Vec<u8>, width: u32, height: u32) -> ImageRef {
-
-        let size = size2(width as i32, height as i32);
-
-        let allocation = self.packer.allocate(size).expect(
-            "No more room in texture atlas. Don't use this for anything serious btw"
-        );
-
-        self.data_to_load.push(DataToLoad { allocation, image_data, width, height });
-
-        let tex_coords = self.tex_coords(allocation);
-
+        // For now, return a placeholder ImageRef
+        // The actual image upload will happen during render
         return ImageRef {
-            tex_coords,
+            image_id: vello_common::paint::ImageId::new(0),
             original_size: Xy::new(width as f32, height as f32),
-            _id: allocation.id,
         }
     }
 

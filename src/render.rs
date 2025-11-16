@@ -136,52 +136,15 @@ impl Ui {
         let bl = colors.bottom_left_color();
         let br = colors.bottom_right_color();
 
-        // Apply hover/click animations (darken effect)
-        let t = self.sys.unifs.t;
-        let clickable = node.params.interact.click_animation;
-
-        let mut dark = 1.0f32;
-        if clickable {
-            // Hover animation
-            let t_since_hover = (t - node.hover_timestamp) * 10.0;
-            let hover = if node.hovered {
-                t_since_hover.clamp(0.0, 1.0)
-            } else {
-                (1.0 - t_since_hover.clamp(0.0, 1.0)) * if t_since_hover < 1.0 { 1.0 } else { 0.0 }
-            };
-
-            // Click animation
-            let t_since_click = (t - node.last_click) * 4.1;
-            let click = (1.0 - t_since_click.clamp(0.0, 1.0)) * if t_since_click < 1.0 { 1.0 } else { 0.0 };
-
-            let dark_hover = 1.0 - hover * 0.32;
-            let dark_click = 1.0 - click * 0.78;
-            dark = dark_click.min(dark_hover);
-        }
-
-        // Apply darkening to colors
-        let apply_dark = |c: Color| {
-            AlphaColor::from_rgba8(
-                (c.r as f32 * dark) as u8,
-                (c.g as f32 * dark) as u8,
-                (c.b as f32 * dark) as u8,
-                c.a
-            )
-        };
-
-        let tl_alpha = apply_dark(tl);
-        let br_alpha = apply_dark(br);
-
-        // Check if we have a gradient or solid color
         let is_solid = tl == tr && tl == bl && tl == br;
+        
+        let tl_alpha = AlphaColor::from_rgba8(tl.r, tl.g, tl.b, tl.a);
+        let br_alpha = AlphaColor::from_rgba8(br.r, br.g, br.b, br.a);
 
-        // Set paint based on whether it's solid or gradient
         if is_solid {
             self.sys.vello_scene.set_paint(PaintType::Solid(tl_alpha));
         } else {
-            // Create a linear gradient from top-left to bottom-right
-            // This approximates the 4-corner gradient with 2 colors
-            let gradient = Gradient::new_linear((x0, y0), (x1, y1))
+            let gradient = Gradient::new_linear((x0, y1), (x1, y0))
                 .with_stops([tl_alpha, br_alpha]);
             self.sys.vello_scene.set_paint(PaintType::Gradient(gradient));
         }
@@ -305,6 +268,50 @@ impl Ui {
         let view = surface_texture.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+
+        // Upload pending images
+        let pending_images = std::mem::take(&mut self.sys.pending_images);
+        for (node_i, image_bytes) in pending_images {
+            use vello_common::pixmap::Pixmap;
+            use vello_common::peniko::color::PremulRgba8;
+
+            log::info!("Uploading image for node {:?}, size {} bytes", node_i, image_bytes.len());
+
+            // Load and decode the image
+            let img = image::load_from_memory(image_bytes).unwrap();
+            let img = img.to_rgba8();
+            let (width, height) = img.dimensions();
+
+            log::info!("Decoded image: {}x{}", width, height);
+
+            // Convert to premultiplied RGBA8
+            let pixels: Vec<PremulRgba8> = img.pixels().map(|p| {
+                let r = p[0];
+                let g = p[1];
+                let b = p[2];
+                let a = p[3];
+
+                let alpha = a as u16;
+                let premul_r = ((r as u16 * alpha) / 255) as u8;
+                let premul_g = ((g as u16 * alpha) / 255) as u8;
+                let premul_b = ((b as u16 * alpha) / 255) as u8;
+
+                PremulRgba8 { r: premul_r, g: premul_g, b: premul_b, a }
+            }).collect();
+
+            let pixmap = Pixmap::from_parts(pixels, width as u16, height as u16);
+
+            // Upload to vello_hybrid
+            let image_id = self.sys.vello_renderer.upload_image(device, queue, &mut encoder, &pixmap);
+
+            log::info!("Uploaded image, got ImageId: {:?}", image_id);
+
+            // Store the ImageId in the node
+            self.nodes[node_i].imageref = Some(crate::texture_atlas::ImageRef {
+                image_id,
+                original_size: crate::math::Xy::new(width as f32, height as f32),
+            });
+        }
 
         let render_size = vello_hybrid::RenderSize {
             width: self.sys.unifs.size[Axis::X] as u32,

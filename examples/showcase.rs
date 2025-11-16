@@ -46,6 +46,7 @@ impl Components for Ui {
             #[node_key] const TEXT_EDIT_2: NodeKey;
             let edit2 = TEXT_EDIT
                 .key(TEXT_EDIT_2)
+                .size_y(Size::Pixels(200))
                 .text("Text edit box");
 
             self.add(edit2);

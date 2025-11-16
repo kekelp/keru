@@ -4,6 +4,7 @@ use std::hash::Hasher;
 use std::mem;
 use std::panic::Location;
 use bytemuck::{Pod, Zeroable};
+use vello_common::peniko::Extend;
 use vello_common::kurbo::Rect as VelloRect;
 use vello_common::kurbo::Shape as VelloShape;
 
@@ -301,9 +302,36 @@ impl Ui {
             self.render_node_shape_to_scene(i);
         }
 
-        // TODO: Handle images with textures (not supported by vello_hybrid yet)
-        if let Some(_image) = self.nodes[i].imageref {
-            // Images would need texture support in vello
+        // Images
+        if let Some(image_ref) = self.nodes[i].imageref {
+            use vello_common::paint::{ImageSource, Image as VelloImage};
+            use vello_common::peniko::ImageSampler;
+            use vello_common::kurbo::Affine;
+
+            let animated_rect = self.nodes[i].get_animated_rect();
+            let screen_size = self.sys.unifs.size;
+            let x0 = (animated_rect.x[0] * screen_size.x) as f64;
+            let y0 = (animated_rect.y[0] * screen_size.y) as f64;
+            let x1 = (animated_rect.x[1] * screen_size.x) as f64;
+            let y1 = (animated_rect.y[1] * screen_size.y) as f64;
+
+            // Create an image brush from the uploaded image ID
+            let image_source = ImageSource::OpaqueId(image_ref.image_id);
+            let sampler = ImageSampler::default().with_extend(Extend::Repeat);
+            let image_brush = VelloImage {
+                image: image_source,
+                sampler,
+            };
+
+            self.sys.vello_scene.set_paint_transform(Affine::translate((x0, y0)));
+            self.sys.vello_scene.set_paint(image_brush);
+
+            // Draw the rect at the actual screen position
+            let rect = vello_common::kurbo::Rect::new(x0, y0, x1, y1);
+            self.sys.vello_scene.fill_rect(&rect);
+
+            // Reset paint transform
+            self.sys.vello_scene.reset_paint_transform();
         }
 
         if let Some(text_i) = &self.nodes[i].text_i {

@@ -75,7 +75,8 @@ pub(crate) struct System {
     pub vello_scene: vello_hybrid::Scene,
     pub vello_renderer: vello_hybrid::Renderer,
 
-
+    // todo: remove
+    pub pending_images: Vec<(NodeI, &'static [u8])>,
 
     pub z_cursor: f32,
     pub rects: Vec<RenderRect>,
@@ -259,6 +260,8 @@ impl Ui {
                     },
                 ),
 
+                pending_images: Vec::new(),
+
                 user_state: HashMap::with_capacity(7),
             },
         }
@@ -441,17 +444,16 @@ impl Ui {
     }
 
     pub(crate) fn set_static_image(&mut self, i: NodeI, image: &'static [u8]) -> &mut Self {
-        // let image_pointer: *const u8 = image.as_ptr();
+        let image_pointer: *const u8 = image.as_ptr();
 
-        // if let Some(last_pointer) = self.nodes[i].last_static_image_ptr {
-        //     if image_pointer == last_pointer {
-        //         return self;
-        //     }
-        // }
+        if let Some(last_pointer) = self.nodes[i].last_static_image_ptr {
+            if image_pointer == last_pointer {
+                return self;
+            }
+        }
 
-        // let image = self.sys.texture_atlas.allocate_image(image);
-        // self.nodes[i].imageref = Some(image);
-        // self.nodes[i].last_static_image_ptr = Some(image_pointer);
+        self.sys.pending_images.push((i, image));
+        self.nodes[i].last_static_image_ptr = Some(image_pointer);
 
         return self;
     }
