@@ -665,7 +665,6 @@ impl Ui {
 
         self.sys.changes.unfinished_animations = false;
 
-        // Reset vello_hybrid scene
         self.sys.vello_scene.reset();
 
         self.sys.breadth_traversal_queue.clear();

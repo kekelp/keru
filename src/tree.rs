@@ -7,6 +7,9 @@ use bytemuck::{Pod, Zeroable};
 use vello_common::peniko::Extend;
 use vello_common::kurbo::Rect as VelloRect;
 use vello_common::kurbo::Shape as VelloShape;
+use vello_common::paint::{ImageSource, Image as VelloImage};
+use vello_common::peniko::ImageSampler;
+use vello_common::kurbo::Affine;
 
 /// An `u64` identifier for a GUI node.
 /// 
@@ -262,6 +265,7 @@ impl Ui {
             } else { false };
             clickable || editable
         };
+        // todo: clipping??
         if push_click_rect {
             let click_rect = self.click_rect(i);
             self.sys.click_rects.push(click_rect);
@@ -301,10 +305,6 @@ impl Ui {
 
         // Images
         if let Some(image_ref) = self.nodes[i].imageref {
-            use vello_common::paint::{ImageSource, Image as VelloImage};
-            use vello_common::peniko::ImageSampler;
-            use vello_common::kurbo::Affine;
-
             let animated_rect = self.nodes[i].get_animated_rect();
             let screen_size = self.sys.unifs.size;
             let x0 = (animated_rect.x[0] * screen_size.x) as f64;
