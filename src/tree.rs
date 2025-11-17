@@ -152,24 +152,20 @@ impl Ui {
         }
     }
 
-    // todo split this in "reset_old_tree_links" and "add_child"?
     fn set_tree_links(&mut self, new_node_i: NodeI, parent_i: NodeI, depth: usize) {
         assert!(new_node_i != parent_i, "Keru: Internal error: tried to add a node as child of itself ({}). This shouldn't be possible.", self.nodes[new_node_i].debug_name());
 
+        self.nodes[new_node_i].depth = depth;
+        self.nodes[new_node_i].currently_hidden = false;
+
+        // Reset old links
         self.nodes[new_node_i].last_child = None;
         self.nodes[new_node_i].first_child = None;
         self.nodes[new_node_i].n_children = 0;
 
-        self.nodes[new_node_i].depth = depth;
-
-        self.nodes[new_node_i].currently_hidden = false;
-
         self.set_relayout_chain_root(new_node_i, parent_i);
 
-        self.add_child(new_node_i, parent_i);
-    }
-
-    fn add_child(&mut self, new_node_i: NodeI, parent_i: NodeI) {
+        // Add new child
         self.nodes[new_node_i].parent = parent_i;
         self.nodes[new_node_i].prev_sibling = None;
         self.nodes[new_node_i].next_sibling = None;
@@ -178,20 +174,14 @@ impl Ui {
 
         match self.nodes[parent_i].last_child {
             None => {
-                {
-                    let this = &mut *self;
-                    this.nodes[parent_i].last_child = Some(new_node_i);
-                    this.nodes[parent_i].first_child = Some(new_node_i);
-                }
+                self.nodes[parent_i].last_child = Some(new_node_i);
+                self.nodes[parent_i].first_child = Some(new_node_i);
             },
             Some(last_child) => {
                 let old_last_child = last_child;
-                {
-                    let this = &mut *self;
-                    this.nodes[new_node_i].prev_sibling = Some(old_last_child);
-                    this.nodes[old_last_child].next_sibling = Some(new_node_i);
-                    this.nodes[parent_i].last_child = Some(new_node_i);
-                }
+                self.nodes[new_node_i].prev_sibling = Some(old_last_child);
+                self.nodes[old_last_child].next_sibling = Some(new_node_i);
+                self.nodes[parent_i].last_child = Some(new_node_i);
             },
         };
 

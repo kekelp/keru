@@ -278,7 +278,7 @@ impl Ui {
     /// Set inspect mode. When inspect mode is active, all nodes will be shown, including stacks and containers. 
     pub fn set_inspect_mode(&mut self, inspect_mode: bool) {
         if self.inspect_mode() != inspect_mode {
-            self.sys.changes.tree_changed = true;
+            self.sys.changes.full_relayout = true;
         }
         self.sys.inspect_mode = inspect_mode;
     }

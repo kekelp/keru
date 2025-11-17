@@ -52,11 +52,10 @@ macro_rules! for_each_hidden_child {
 
 impl Ui {
     pub(crate) fn relayout(&mut self) {
-        let tree_changed = self.sys.changes.tree_changed;
         let partial_relayouts = ! self.sys.changes.partial_relayouts.is_empty();
         let full_relayout = self.sys.changes.full_relayout;
         let text_changed = self.sys.changes.text_changed;
-        let nothing_to_do = !partial_relayouts && !full_relayout && !text_changed && !tree_changed && !self.sys.changes.unfinished_animations;
+        let nothing_to_do = !partial_relayouts && !full_relayout && !text_changed && !self.sys.changes.unfinished_animations;
         if nothing_to_do {
             return;
         }
@@ -77,7 +76,7 @@ impl Ui {
 
         // after doing a relayout, we might be moving the hovered node away from the cursor.
         // So we run resolve_hover again, possibly causing another relayout next frame
-        if tree_changed || partial_relayouts || full_relayout {
+        if partial_relayouts || full_relayout {
             self.resolve_hover();
         }
     }
