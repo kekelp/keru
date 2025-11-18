@@ -23,15 +23,21 @@ impl Ui {
         self.sys.mouse_input.window_event(event);
         self.sys.key_input.window_event(event);
 
-        self.text_window_event(ROOT_I, event, window);
+        let event_consumed = self.text_window_event(ROOT_I, event, window);
+        if event_consumed {
+            return true;
+        }
 
-        self.ui_input(&event, window);
-        
+        let event_consumed = self.ui_input(&event, window);
+        if event_consumed {
+            return true;
+        }
+
         return false;
     }
 
-    fn text_window_event(&mut self, _i: NodeI, event: &WindowEvent, window: &Window){     
-        self.sys.text.handle_event(event, window);
+    fn text_window_event(&mut self, _i: NodeI, event: &WindowEvent, window: &Window) -> bool {     
+        let event_consumed = self.sys.text.handle_event(event, window);
         
         if self.sys.text.any_text_changed() {
             if let Some(node_id) = self.sys.focused {
@@ -43,6 +49,8 @@ impl Ui {
         if self.sys.text.decorations_changed() {
             self.sys.new_external_events = true;
         }
+
+        return event_consumed;
     }
 
     pub fn ui_input(&mut self, event: &WindowEvent, window: &Window) -> bool {
