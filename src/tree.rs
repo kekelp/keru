@@ -57,6 +57,7 @@ impl Ui {
     #[track_caller]
     pub(crate) fn add_or_update_node(&mut self, key: NodeKey) -> (NodeI, Id) {
         let frame = self.sys.current_frame;
+        let mut new_node_should_relayout = false;
 
         // todo: at least when using non-anonymous keys, I think there's no legit use case for twins anymore. it's always a mistake, I think. it should log out a warning or panic.
 
@@ -65,11 +66,13 @@ impl Ui {
         //      in this case, we take note, and calculate a twin key to use to add a "twin" in the next section.
         // Otherwise, we add or refresh normally, and take note of the final i.
         let twin_check_result = match self.nodes.node_hashmap.entry(key.id_with_subtree()) {
-            // Add a normal node (no twins).
+            // Add a new normal node (no twins).
             Entry::Vacant(v) => {
                 let new_node = Node::new(&key, None, Location::caller(), frame);
                 let final_i = NodeI::from(self.nodes.nodes.insert(new_node));
                 v.insert(NodeMapEntry::new(final_i));
+
+                new_node_should_relayout = true;
 
                 UpdatedNormal { final_i }
             }
@@ -112,6 +115,7 @@ impl Ui {
                         let new_twin_node = Node::new(&twin_key, Some(twin_n), Location::caller(), frame);
                         let real_final_i = NodeI::from(self.nodes.nodes.insert(new_twin_node));
                         v.insert(NodeMapEntry::new(real_final_i));
+                        new_node_should_relayout = true;
                         (real_final_i, twin_key.id_with_subtree())
                     }
                     // Refresh a twin from the previous frame.
@@ -134,6 +138,10 @@ impl Ui {
         self.nodes[real_final_i].exiting = false;
 
         self.refresh_node(real_final_i);
+
+        if new_node_should_relayout {
+            self.push_partial_relayout(real_final_i);
+        }
 
         return (real_final_i, real_final_id);
     }
@@ -163,8 +171,6 @@ impl Ui {
         self.nodes[new_node_i].first_child = None;
         self.nodes[new_node_i].n_children = 0;
 
-        self.set_relayout_chain_root(new_node_i, parent_i);
-
         // Add new child
         self.nodes[new_node_i].parent = parent_i;
         self.nodes[new_node_i].prev_sibling = None;
@@ -184,6 +190,8 @@ impl Ui {
                 self.nodes[parent_i].last_child = Some(new_node_i);
             },
         };
+
+        self.set_relayout_chain_root(new_node_i, parent_i);
 
         self.remove_hidden_child_if_it_exists(new_node_i, parent_i);
     }
@@ -547,14 +555,13 @@ impl Ui {
             });
         }
         
+        for &i in &non_fresh_nodes {
+            self.push_partial_relayout(i);
+        }
+
         // finally cleanup
         for &k in &to_cleanup {
             self.cleanup_node(k);
-        }
-
-        if ! &non_fresh_nodes.is_empty() {
-            // todo: push partial relayouts instead?
-            self.sys.changes.full_relayout = true;
         }
         
         self.sys.lingering_nodes = exiting_nodes;

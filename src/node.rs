@@ -31,7 +31,7 @@ pub struct Node {
 
     pub exit_animation_still_going: bool,
 
-    pub(crate) relayout_chain_root: Option<NodeI>,
+    pub relayout_chain_root: Option<NodeI>,
 
     pub text_i: Option<TextI>,
 

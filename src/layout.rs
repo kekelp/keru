@@ -144,7 +144,9 @@ impl Ui {
         self.recursive_determine_size_and_hidden(i, starting_proposed_size, hidden_branch);
         
         // 2nd recursive tree traversal: now that all nodes have a calculated size, place them.
-        self.recursive_place_children(i);
+        // todo: sort this
+        let parent = self.nodes[i].parent;
+        self.recursive_place_children(parent);
 
         self.nodes[i].last_layout_frame = self.sys.current_frame;
     }
