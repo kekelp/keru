@@ -19,6 +19,9 @@ use std::sync::{Arc, LazyLock};
 use std::time::Duration;
 use std::time::Instant;
 
+use vello_common::pixmap::Pixmap;
+use vello_common::peniko::color::PremulRgba8;
+
 use bytemuck::{Pod, Zeroable};
 use wgpu::{
     Device, Queue, SurfaceConfiguration,
@@ -61,6 +64,10 @@ pub(crate) struct System {
     // usually these have filled = false (just the outline), but this is not enforced.
     pub inspect_mode: bool,
 
+    // todo: I didn't mean to keep copies of these handles, but vello's image functions kind of require it.
+    pub device: Device,
+    pub queue: Queue,
+
     pub global_animation_speed: f32,
 
     pub unique_id: u64,
@@ -75,9 +82,6 @@ pub(crate) struct System {
 
     pub vello_scene: vello_hybrid::Scene,
     pub vello_renderer: vello_hybrid::Renderer,
-
-    // todo: remove
-    pub pending_images: Vec<(NodeI, &'static [u8])>,
 
     pub z_cursor: f32,
 
@@ -172,7 +176,7 @@ pub(crate) struct Uniforms {
 }
 
 impl Ui {
-    pub fn new(device: &Device, _queue: &Queue, config: &SurfaceConfiguration) -> Self {
+    pub fn new(device: &Device, queue: &Queue, config: &SurfaceConfiguration) -> Self {
         // initialize the static T0
         LazyLock::force(&T0);
 
@@ -195,6 +199,9 @@ impl Ui {
             format_scratch: String::with_capacity(1024),
 
             sys: System {
+                device: device.clone(),
+                queue: queue.clone(),
+
                 global_animation_speed: 1.0,
                 unique_id: INSTANCE_COUNTER.fetch_add(1, Ordering::Relaxed),
                 z_cursor: 0.0,
@@ -256,8 +263,6 @@ impl Ui {
                         height: config.height,
                     },
                 ),
-
-                pending_images: Vec::new(),
 
                 user_state: HashMap::with_capacity(7),
             },
@@ -449,7 +454,51 @@ impl Ui {
             }
         }
 
-        self.sys.pending_images.push((i, image));
+        // Load and decode the image
+        let img = image::load_from_memory(image).unwrap();
+        let img = img.to_rgba8();
+        let (width, height) = img.dimensions();
+
+        log::info!("Decoded image: {}x{}", width, height);
+
+        // Convert to premultiplied RGBA8
+        let pixels: Vec<PremulRgba8> = img.pixels().map(|p| {
+            let r = p[0];
+            let g = p[1];
+            let b = p[2];
+            let a = p[3];
+
+            let alpha = a as u16;
+            let premul_r = ((r as u16 * alpha) / 255) as u8;
+            let premul_g = ((g as u16 * alpha) / 255) as u8;
+            let premul_b = ((b as u16 * alpha) / 255) as u8;
+
+            PremulRgba8 { r: premul_r, g: premul_g, b: premul_b, a }
+        }).collect();
+
+        let pixmap = Pixmap::from_parts(pixels, width as u16, height as u16);
+
+        // todo: do this without holding handles to the device and the queue and creating a new encoder.
+        // I'm trusting that vello will not actually submit the command encoder unless it actually needs to
+        let mut encoder = self.sys.device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+
+        let image_id = self.sys.vello_renderer.upload_image(
+            &self.sys.device,
+            &self.sys.queue,
+            &mut encoder,
+            &pixmap
+        );
+
+        log::info!("Uploaded image, got ImageId: {:?}", image_id);
+
+        // Store the ImageId in the node
+        self.nodes[i].imageref = Some(ImageRef {
+            image_id,
+            original_size: Xy::new(width as f32, height as f32),
+        });
+    
+
+
         self.nodes[i].last_static_image_ptr = Some(image_pointer);
 
         return self;

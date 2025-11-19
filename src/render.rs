@@ -318,50 +318,6 @@ impl Ui {
 
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
 
-        // Upload pending images
-        let pending_images = std::mem::take(&mut self.sys.pending_images);
-        for (node_i, image_bytes) in pending_images {
-            use vello_common::pixmap::Pixmap;
-            use vello_common::peniko::color::PremulRgba8;
-
-            log::info!("Uploading image for node {:?}, size {} bytes", node_i, image_bytes.len());
-
-            // Load and decode the image
-            let img = image::load_from_memory(image_bytes).unwrap();
-            let img = img.to_rgba8();
-            let (width, height) = img.dimensions();
-
-            log::info!("Decoded image: {}x{}", width, height);
-
-            // Convert to premultiplied RGBA8
-            let pixels: Vec<PremulRgba8> = img.pixels().map(|p| {
-                let r = p[0];
-                let g = p[1];
-                let b = p[2];
-                let a = p[3];
-
-                let alpha = a as u16;
-                let premul_r = ((r as u16 * alpha) / 255) as u8;
-                let premul_g = ((g as u16 * alpha) / 255) as u8;
-                let premul_b = ((b as u16 * alpha) / 255) as u8;
-
-                PremulRgba8 { r: premul_r, g: premul_g, b: premul_b, a }
-            }).collect();
-
-            let pixmap = Pixmap::from_parts(pixels, width as u16, height as u16);
-
-            // Upload to vello_hybrid
-            let image_id = self.sys.vello_renderer.upload_image(device, queue, &mut encoder, &pixmap);
-
-            log::info!("Uploaded image, got ImageId: {:?}", image_id);
-
-            // Store the ImageId in the node
-            self.nodes[node_i].imageref = Some(ImageRef {
-                image_id,
-                original_size: Xy::new(width as f32, height as f32),
-            });
-        }
-
         let render_size = vello_hybrid::RenderSize {
             width: self.sys.unifs.size[Axis::X] as u32,
             height: self.sys.unifs.size[Axis::Y] as u32,
