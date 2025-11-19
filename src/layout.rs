@@ -64,11 +64,13 @@ impl Ui {
         self.sys.changes.need_gpu_rect_update = true;
         self.sys.changes.need_rerender = true;
 
-        if full_relayout {
-            self.relayout_from_root();
-        } else {
-            self.do_partial_relayouts();
-        }
+        // todo: bring back partial relayouts
+        self.relayout_from_root();
+        // if full_relayout {
+        //     self.relayout_from_root();
+        // } else {
+        //     self.do_partial_relayouts();
+        // }
 
         self.rebuild_render_data();
 
