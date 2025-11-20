@@ -14,7 +14,13 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     let left = LABEL.text("Left").key(LEFT_PANE)
         .size_x(Size::Frac(state.left_pane_frac))
         .size_y(Size::Fill);
-    let middling = PANEL.key(MIDDLING_TIER).size_y(Size::Fill).size_x(Size::Pixels(16));
+    
+    let middling = PANEL
+        .key(MIDDLING_TIER)
+        .size_y(Size::Fill)
+        .size_x(Size::Pixels(16))
+        .sense_drag(true);
+
     let right = LABEL.text("Right").key(RIGHT_PANE)
         .size_x(Size::Fill)
         .size_y(Size::Fill);
