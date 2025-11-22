@@ -127,7 +127,6 @@ pub use components::*;
 mod interact;
 pub(crate) use crate::interact::*;
 
-pub mod basic_window_loop;
 pub mod example_window_loop;
 
 pub mod winit_mouse_events;

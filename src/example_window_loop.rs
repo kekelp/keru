@@ -2,111 +2,191 @@
 //!
 //! See the [`run_example_loop`] function for an example.
 
-use crate::basic_window_loop::*;
 use crate::*;
+use std::sync::Arc;
+use wgpu::*;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
-use winit::event_loop::{ActiveEventLoop, ControlFlow};
-use winit::window::WindowId;
+use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
+use winit::window::{Window, WindowId};
 
-pub use basic_window_loop::basic_env_logger_init;
+/// Initialize env_logger with default settings for examples.
+pub fn basic_env_logger_init() {
+    env_logger::Builder::new()
+        .filter_level(log::LevelFilter::Warn)
+        .filter_module("keru::", log::LevelFilter::Info)
+        .format_timestamp_millis()
+        .init();
+}
 
 /// A single-line window/render loop, for experimentation and examples.
 ///
-/// This function is only meant for examples and quick experimentation. The intended way to use Keru is with a user-managed window and rendering loop. See the `window_loop.rs` in the repository for a concise example of that. 
-/// 
+/// This function is only meant for examples and quick experimentation. The intended way to use Keru is with a user-managed window and rendering loop. See the `window_loop.rs` example in the repository for a concise example of that.
+///
 /// `state` is the program's state, and can be any type.
-/// `update_fn` is a function that reads the current `state`, updates a Keru [`Ui`], and can optionally modify the `state`. 
+/// `update_fn` is a function that reads the current `state`, updates a Keru [`Ui`], and can optionally modify the `state`.
 /// ### Example
 ///
 /// ```no_run
 /// use keru::example_window_loop::*;
 /// use keru::*;
-/// 
+///
 /// #[derive(Default)]
 /// pub struct State {
 ///     pub count: i32,
 /// }
-/// 
+///
 /// fn update_ui(state: &mut State, ui: &mut Ui) {
 ///     #[node_key] const INCREASE: NodeKey;
-/// 
+///
 ///     let increase_button = BUTTON
 ///         .color(Color::RED)
 ///         .text("Increase")
 ///         .key(INCREASE);
-/// 
+///
 ///     ui.v_stack().nest(|| {
 ///         ui.add(increase_button);
 ///         ui.label(&state.count.to_string());
 ///     });
-/// 
+///
 ///     if ui.is_clicked(INCREASE) {
 ///         state.count += 1;
 ///     }
 /// }
-/// 
+///
 /// fn main() {
 ///     let state = State::default();
 ///     run_example_loop(state, update_ui);
 /// }
 /// ```
-/// 
+///
 /// `update_fn` can also be a method on the state `T`.
-/// 
-pub fn run_example_loop<T>(state: T, update_fn: fn(&mut T, &mut Ui)) {
+///
+pub fn run_example_loop<T>(user_state: T, update_fn: fn(&mut T, &mut Ui)) {
     let event_loop = EventLoop::new().unwrap();
     event_loop.set_control_flow(ControlFlow::Wait);
 
-    let ctx = Context::new();
-    let ui = Ui::new(&ctx.device, &ctx.queue, &ctx.surface_config);
-
-    let mut app = AppWrapper {
-        ctx,
-        ui,
-        state,
+    let mut app = Application {
+        state: None,
+        user_state,
         update_fn,
     };
 
     let _ = event_loop.run_app(&mut app);
 }
 
-struct AppWrapper<T> {
-    state: T,
+struct Application<T> {
+    state: Option<State>,
+    user_state: T,
     update_fn: fn(&mut T, &mut Ui),
-    ctx: Context,
+}
+
+struct State {
+    window: Arc<Window>,
+    surface: Surface<'static>,
+    device: Device,
+    queue: Queue,
+    config: SurfaceConfiguration,
+    depth_texture: Texture,
     ui: Ui,
 }
 
-impl<T> ApplicationHandler for AppWrapper<T> {
-    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        self.ctx.resumed(event_loop);
-        self.ui.enable_cursor_blink_auto_wakeup(self.ctx.window.clone());
+impl State {
+    fn new(window: Arc<Window>, instance: Instance) -> Self {
+        let adapter = pollster::block_on(instance.request_adapter(&RequestAdapterOptions::default())).unwrap();
+        let (device, queue) = pollster::block_on(adapter.request_device(&DeviceDescriptor {
+            required_features: Features::PUSH_CONSTANTS,
+            required_limits: Limits { max_push_constant_size: 8, ..Default::default() },
+            memory_hints: MemoryHints::MemoryUsage,
+            ..Default::default()
+        })).unwrap();
+
+        let surface = instance.create_surface(window.clone()).unwrap();
+        let size = window.inner_size();
+
+        let config = SurfaceConfiguration {
+            usage: TextureUsages::RENDER_ATTACHMENT,
+            format: TextureFormat::Bgra8UnormSrgb,
+            width: size.width,
+            height: size.height,
+            present_mode: PresentMode::Fifo,
+            alpha_mode: CompositeAlphaMode::Opaque,
+            view_formats: vec![],
+            desired_maximum_frame_latency: 2,
+        };
+
+        surface.configure(&device, &config);
+
+        let depth_texture = device.create_texture(&TextureDescriptor {
+            size: Extent3d { width: size.width, height: size.height, depth_or_array_layers: 1 },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: TextureDimension::D2,
+            format: TextureFormat::Depth32Float,
+            usage: TextureUsages::RENDER_ATTACHMENT,
+            label: Some("depth"),
+            view_formats: &[],
+        });
+
+        let ui = Ui::new(&device, &queue, &config);
+
+        Self { window, surface, device, queue, config, depth_texture, ui }
     }
 
-    fn window_event(
-        &mut self,
-        event_loop: &ActiveEventLoop,
-        _window_id: WindowId,
-        event: WindowEvent,
-    ) {
-        self.ctx.window_event(event_loop, _window_id, &event);
-        self.ui.window_event(&event, &self.ctx.window);
+    fn resize(&mut self, width: u32, height: u32) {
+        self.config.width = width;
+        self.config.height = height;
+        self.surface.configure(&self.device, &self.config);
+        self.depth_texture = self.device.create_texture(&TextureDescriptor {
+            size: Extent3d { width, height, depth_or_array_layers: 1 },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: TextureDimension::D2,
+            format: TextureFormat::Depth32Float,
+            usage: TextureUsages::RENDER_ATTACHMENT,
+            label: Some("depth"),
+            view_formats: &[],
+        });
+    }
+}
 
-        if event == WindowEvent::RedrawRequested {
-            if self.ui.should_update() {
-                self.ui.begin_frame();
-                (self.update_fn)(&mut self.state, &mut self.ui);
-                self.ui.finish_frame();
-            }
+impl<T> ApplicationHandler for Application<T> {
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        let window = Arc::new(event_loop.create_window(Window::default_attributes()).unwrap());
+        let instance = Instance::new(&InstanceDescriptor::default());
+        let mut state = State::new(window, instance);
+        state.ui.enable_cursor_blink_auto_wakeup(state.window.clone());
+        self.state = Some(state);
+    }
 
-            if self.ui.should_rerender() {
-                self.ctx.render_ui(&mut self.ui);
+    fn window_event(&mut self, event_loop: &ActiveEventLoop, _: WindowId, event: WindowEvent) {
+        let state = self.state.as_mut().unwrap();
+
+        state.ui.window_event(&event, &state.window);
+
+        match event {
+            WindowEvent::CloseRequested => event_loop.exit(),
+            WindowEvent::Resized(size) => state.resize(size.width, size.height),
+            WindowEvent::RedrawRequested => {
+                if state.ui.should_update() {
+                    state.ui.begin_frame();
+                    (self.update_fn)(&mut self.user_state, &mut state.ui);
+                    state.ui.finish_frame();
+                }
+                if state.ui.should_rerender() {
+                    state.ui.render(
+                        &state.surface,
+                        &state.depth_texture,
+                        &state.device,
+                        &state.queue,
+                    );
+                }
             }
+            _ => {}
         }
 
-        if self.ui.should_request_redraw() {
-            self.ctx.window.request_redraw();
+        if state.ui.should_request_redraw() {
+            state.window.request_redraw();
         }
     }
 }
