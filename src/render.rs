@@ -298,7 +298,6 @@ impl Ui {
     pub fn render(
         &mut self,
         surface: &wgpu::Surface,
-        _depth_texture: &wgpu::Texture,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {

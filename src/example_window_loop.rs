@@ -87,7 +87,6 @@ struct State {
     device: Device,
     queue: Queue,
     config: SurfaceConfiguration,
-    depth_texture: Texture,
     ui: Ui,
 }
 
@@ -117,36 +116,15 @@ impl State {
 
         surface.configure(&device, &config);
 
-        let depth_texture = device.create_texture(&TextureDescriptor {
-            size: Extent3d { width: size.width, height: size.height, depth_or_array_layers: 1 },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: TextureDimension::D2,
-            format: TextureFormat::Depth32Float,
-            usage: TextureUsages::RENDER_ATTACHMENT,
-            label: Some("depth"),
-            view_formats: &[],
-        });
-
         let ui = Ui::new(&device, &queue, &config);
 
-        Self { window, surface, device, queue, config, depth_texture, ui }
+        Self { window, surface, device, queue, config, ui }
     }
 
     fn resize(&mut self, width: u32, height: u32) {
         self.config.width = width;
         self.config.height = height;
         self.surface.configure(&self.device, &self.config);
-        self.depth_texture = self.device.create_texture(&TextureDescriptor {
-            size: Extent3d { width, height, depth_or_array_layers: 1 },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: TextureDimension::D2,
-            format: TextureFormat::Depth32Float,
-            usage: TextureUsages::RENDER_ATTACHMENT,
-            label: Some("depth"),
-            view_formats: &[],
-        });
     }
 }
 
@@ -176,7 +154,6 @@ impl<T> ApplicationHandler for Application<T> {
                 if state.ui.should_rerender() {
                     state.ui.render(
                         &state.surface,
-                        &state.depth_texture,
                         &state.device,
                         &state.queue,
                     );

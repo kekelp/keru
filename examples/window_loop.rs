@@ -13,7 +13,6 @@ struct State {
     device: Device,
     queue: Queue,
     config: SurfaceConfiguration,
-    depth_texture: Texture,
     ui: Ui,
     count: i32,
 }
@@ -44,37 +43,15 @@ impl State {
 
         surface.configure(&device, &config);
 
-        // The depth texture shouldn't be needed anymore in future versions of Keru, which will use a more advanced renderer.
-        let depth_texture = device.create_texture(&TextureDescriptor {
-            size: Extent3d { width: size.width, height: size.height, depth_or_array_layers: 1 },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: TextureDimension::D2,
-            format: TextureFormat::Depth32Float,
-            usage: TextureUsages::RENDER_ATTACHMENT,
-            label: Some("depth"),
-            view_formats: &[],
-        });
-
         let ui = Ui::new(&device, &queue, &config);
 
-        Self { window, surface, device, queue, config, depth_texture, ui, count: 0 }
+        Self { window, surface, device, queue, config, ui, count: 0 }
     }
 
     fn resize(&mut self, width: u32, height: u32) {
         self.config.width = width;
         self.config.height = height;
         self.surface.configure(&self.device, &self.config);
-        self.depth_texture = self.device.create_texture(&TextureDescriptor {
-            size: Extent3d { width, height, depth_or_array_layers: 1 },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: TextureDimension::D2,
-            format: TextureFormat::Depth32Float,
-            usage: TextureUsages::RENDER_ATTACHMENT,
-            label: Some("depth"),
-            view_formats: &[],
-        });
     }
 
     fn update_ui(&mut self) {
@@ -108,8 +85,6 @@ impl ApplicationHandler for Application {
         let state = self.state.as_mut().unwrap();
         
         state.ui.window_event(&event, &state.window);
-        // ^ redrawreq: clear what_to_do_this_frame and refill it with stuff from last frame
-        // other events: update what_to_do_next_frame
 
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
@@ -119,17 +94,12 @@ impl ApplicationHandler for Application {
                     state.ui.begin_frame();
                     state.update_ui();
                     state.ui.finish_frame();
-                    // ^ update what_to_do_NEXT_frame depending on animations finishing and stuff.
-                    // if we're updating, we might still end up not changing anything, so this can change what_to_do_this_frame as well.
-                    // and also update private stuff like rebuild_rects. 
                 }
                 if state.ui.should_rerender() {
                     state.ui.render(
                         &state.surface,
-                        &state.depth_texture,
                         &state.device,
                         &state.queue,
-                        // ^ update what_to_do_NEXT_frame depending on animations finishing and stuff.
                     );
                 }
             }
