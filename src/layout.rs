@@ -65,12 +65,12 @@ impl Ui {
         self.sys.changes.need_rerender = true;
 
         // todo: bring back partial relayouts
-        self.relayout_from_root();
-        // if full_relayout {
-        //     self.relayout_from_root();
-        // } else {
-        //     self.do_partial_relayouts();
-        // }
+        // self.relayout_from_root();
+        if full_relayout {
+            self.relayout_from_root();
+        } else {
+            self.do_partial_relayouts();
+        }
 
         self.rebuild_render_data();
 
@@ -146,9 +146,8 @@ impl Ui {
         self.recursive_determine_size_and_hidden(i, starting_proposed_size, hidden_branch);
         
         // 2nd recursive tree traversal: now that all nodes have a calculated size, place them.
-        // todo: sort this
-        let parent = self.nodes[i].parent;
-        self.recursive_place_children(parent);
+
+        self.recursive_place_children(i);
 
         self.nodes[i].last_layout_frame = self.sys.current_frame;
     }

@@ -160,6 +160,7 @@ impl Ui {
         }
     }
 
+    // this function also detects new nodes and reorderings, and pushes partial relayouts for them. For deleted nodes, partial relayouts will be pushed in cleanup_and_stuff.
     fn set_tree_links(&mut self, new_node_i: NodeI, parent_i: NodeI, depth: usize) {
         assert!(new_node_i != parent_i, "Keru: Internal error: tried to add a node as child of itself ({}). This shouldn't be possible.", self.nodes[new_node_i].debug_name());
 
@@ -167,8 +168,11 @@ impl Ui {
         self.nodes[new_node_i].currently_hidden = false;
 
         // Reset old links
-        self.nodes[new_node_i].last_child = None;
+        self.nodes[new_node_i].old_first_child = self.nodes[new_node_i].first_child;
+        self.nodes[new_node_i].old_next_sibling = self.nodes[new_node_i].next_sibling;
+        
         self.nodes[new_node_i].first_child = None;
+        self.nodes[new_node_i].last_child = None;
         self.nodes[new_node_i].n_children = 0;
 
         // Add new child
@@ -180,14 +184,22 @@ impl Ui {
 
         match self.nodes[parent_i].last_child {
             None => {
-                self.nodes[parent_i].last_child = Some(new_node_i);
                 self.nodes[parent_i].first_child = Some(new_node_i);
+                self.nodes[parent_i].last_child = Some(new_node_i);
+
+                if self.nodes[parent_i].first_child != self.nodes[parent_i].old_first_child {
+                    self.push_partial_relayout(parent_i);
+                }
             },
             Some(last_child) => {
-                let old_last_child = last_child;
-                self.nodes[new_node_i].prev_sibling = Some(old_last_child);
-                self.nodes[old_last_child].next_sibling = Some(new_node_i);
+                let prev_sibling = last_child;
+                self.nodes[new_node_i].prev_sibling = Some(prev_sibling);
+                self.nodes[prev_sibling].next_sibling = Some(new_node_i);
                 self.nodes[parent_i].last_child = Some(new_node_i);
+
+                if self.nodes[prev_sibling].old_next_sibling != self.nodes[prev_sibling].next_sibling {
+                    self.push_partial_relayout(parent_i);
+                }
             },
         };
 
@@ -383,6 +395,11 @@ impl Ui {
         // In practice, the first half of that is basically always true, but the second half is only true for Stacks. I don't really feel like adding a distinction for that right now.
         let relayout_target = self.nodes[relayout_chain_root].parent;
 
+        // try skipping some duplicates
+        if self.sys.changes.partial_relayouts.last().map(|x| x.i) == Some(relayout_target) {
+            return;
+        }
+
         let relayout_entry = NodeWithDepth {
             i: relayout_target,
             depth: self.nodes[relayout_target].depth,
@@ -520,6 +537,9 @@ impl Ui {
                 } else if ! can_hide {
 
                     to_cleanup.push(i);
+                    if old_parent_still_exists {
+                        self.push_partial_relayout(old_parent);
+                    }
 
                     if children_can_hide {
                         hidden_branch_parents.push(i);
@@ -531,6 +551,7 @@ impl Ui {
 
                     if is_first_child_in_hidden_branch {
                         self.add_hidden_child(i, old_parent);
+                        self.push_partial_relayout(i);
                     }
                 }
             }
@@ -553,10 +574,6 @@ impl Ui {
             for_each_hidden_child!(self, self.nodes[i], hidden_child, {
                 self.add_branch_to_cleanup(hidden_child, &mut to_cleanup);
             });
-        }
-        
-        for &i in &non_fresh_nodes {
-            self.push_partial_relayout(i);
         }
 
         // finally cleanup
