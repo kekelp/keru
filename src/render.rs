@@ -136,12 +136,45 @@ impl Ui {
         let x1 = (animated_rect.x[1] * screen_size.x).round() as f64;
         let y1 = (animated_rect.y[1] * screen_size.y).round() as f64;
 
-        // Get vertex colors
+        // Calculate hover and click darkening effects
+        let clickable = if node.params.interact.senses != Sense::NONE { 1.0 } else { 0.0 };
+
+        let t = ui_time_f32();
+        let t_since_hover = (t - node.hover_timestamp) * 10.0;
+        let hover = if node.hovered {
+            t_since_hover.clamp(0.0, 1.0) * clickable
+        } else {
+            (1.0 - t_since_hover.clamp(0.0, 1.0)) * if t_since_hover < 1.0 { 1.0 } else { 0.0 } * clickable
+        };
+
+        let t_since_click = (t - node.last_click) * 4.1;
+        let click = (1.0 - t_since_click.clamp(0.0, 1.0)) * if t_since_click < 1.0 { 1.0 } else { 0.0 } * clickable;
+
+        let dark_hover = 1.0 - hover * 0.32;
+        let dark_click = 1.0 - click * 0.78;
+        let dark = dark_click.min(dark_hover);
+
+        // Get vertex colors and apply darkening
         let colors = node.params.rect.vertex_colors;
         let tl = colors.top_left_color();
         let tr = colors.top_right_color();
         let bl = colors.bottom_left_color();
         let br = colors.bottom_right_color();
+
+        // Apply darkening to colors
+        let apply_dark = |c: Color| -> Color {
+            Color {
+                r: (c.r as f32 * dark) as u8,
+                g: (c.g as f32 * dark) as u8,
+                b: (c.b as f32 * dark) as u8,
+                a: c.a,
+            }
+        };
+
+        let tl = apply_dark(tl);
+        let tr = apply_dark(tr);
+        let bl = apply_dark(bl);
+        let br = apply_dark(br);
 
         let is_solid = tl == tr && tl == bl && tl == br;
 
@@ -159,7 +192,8 @@ impl Ui {
 
         // Create stroke paint from stroke color
         let stroke_paint = if let Some(stroke) = node.params.rect.stroke {
-            let stroke_alpha = AlphaColor::from_rgba8(stroke.color.r, stroke.color.g, stroke.color.b, stroke.color.a);
+            let stroke_color = apply_dark(stroke.color);
+            let stroke_alpha = AlphaColor::from_rgba8(stroke_color.r, stroke_color.g, stroke_color.b, stroke_color.a);
             PaintType::Solid(stroke_alpha)
         } else {
             // Fallback (won't be used if there's no stroke)
@@ -301,7 +335,8 @@ impl Ui {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
-        if self.sys.changes.should_rebuild_render_data {
+        // todo think harder
+        if self.sys.changes.should_rebuild_render_data || self.sys.anim_render_timer.is_live() {
             self.rebuild_render_data();
         }
 
