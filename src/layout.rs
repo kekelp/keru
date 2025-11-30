@@ -65,12 +65,12 @@ impl Ui {
         self.sys.changes.need_rerender = true;
 
         // todo: bring back partial relayouts
-        // self.relayout_from_root();
-        if full_relayout {
-            self.relayout_from_root();
-        } else {
-            self.do_partial_relayouts();
-        }
+        self.relayout_from_root();
+        // if full_relayout {
+        //     self.relayout_from_root();
+        // } else {
+        //     self.do_partial_relayouts();
+        // }
 
         self.rebuild_render_data();
 
@@ -105,6 +105,7 @@ impl Ui {
         }
 
         self.sys.partial_relayout_count = 0;
+        self.sys.changes.partial_relayouts.clear();
     }
 
     pub(crate) fn relayout_from_root(&mut self) {

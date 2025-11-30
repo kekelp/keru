@@ -275,7 +275,7 @@ impl Ui {
             } else { false };
             clickable || editable
         };
-        // todo: clipping??
+
         if push_click_rect {
             let click_rect = self.click_rect(i);
             self.sys.click_rects.push(click_rect);
@@ -551,7 +551,9 @@ impl Ui {
 
                     if is_first_child_in_hidden_branch {
                         self.add_hidden_child(i, old_parent);
-                        self.push_partial_relayout(i);
+                        if old_parent_still_exists {
+                            self.push_partial_relayout(old_parent);
+                        }
                     }
                 }
             }
