@@ -1,8 +1,0 @@
-[package]
-name = "async"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-async-std = "1.13.2"
-keru = { path = "../.." }

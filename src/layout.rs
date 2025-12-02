@@ -344,7 +344,7 @@ impl Ui {
         
         match text_i {
             TextI::TextEdit(handle) => {
-                let mut text_edit = self.sys.text.get_text_edit_mut(&handle);
+                let text_edit = self.sys.text.get_text_edit_mut(&handle);
                 
                 if text_edit.single_line() {
                     let layout = text_edit.layout();
@@ -392,7 +392,7 @@ impl Ui {
                     proposed_size.x * self.sys.unifs.size[X]
                 };
 
-                let mut text_box = self.sys.text.get_text_box_mut(&handle);
+                let text_box = self.sys.text.get_text_box_mut(&handle);
                 text_box.set_size((w, h));
                 
                 let layout = text_box.layout();

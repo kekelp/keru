@@ -350,14 +350,14 @@ impl Ui {
 
             match text_i {
                 TextI::TextBox(text_box_handle) => {
-                    let mut text_box = self.sys.text.get_text_box_mut(&text_box_handle);
+                    let text_box = self.sys.text.get_text_box_mut(&text_box_handle);
                     text_box.set_depth(z);
                     text_box.set_pos((left, top));
                     // Render text to scene
                     text_box.render_to_scene(&mut self.sys.vello_scene);
                 },
                 TextI::TextEdit(text_edit_handle) => {
-                    let mut text_edit = self.sys.text.get_text_edit_mut(&text_edit_handle);
+                    let text_edit = self.sys.text.get_text_edit_mut(&text_edit_handle);
                     text_edit.set_depth(z);
                     text_edit.set_pos((left, top));
                     // Render text to scene
@@ -472,6 +472,9 @@ impl Ui {
         }
 
         self.sys.new_external_events = false;
+        // todo: what probably happens is that the task completes instantly and it's immediately reset to false.
+        // should really do that this-frame/next-frame thing.
+        self.sys.external_needs_update.0.store(false, std::sync::atomic::Ordering::Relaxed);
 
         // let mut buffer = String::new();
         // std::io::stdin().read_line(&mut buffer).expect("Failed to read line");

@@ -13,6 +13,7 @@ use winit_mouse_events::MouseInput;
 
 use std::any::Any;
 use std::collections::VecDeque;
+use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, LazyLock};
@@ -133,6 +134,17 @@ pub(crate) struct System {
     pub anim_render_timer: AnimationRenderTimer,
 
     pub user_state: HashMap<StateId, Box<dyn Any>>,
+
+    pub external_needs_update: UiWaker,
+}
+
+#[derive(Clone)]
+pub struct UiWaker(pub(crate) Arc<AtomicBool>);
+
+impl UiWaker {
+    pub fn set_update_needed(&self) {
+        self.0.store(true, std::sync::atomic::Ordering::Relaxed);
+    }
 }
 
 pub(crate) struct AnimationRenderTimer(Option<Instant>);
@@ -265,6 +277,8 @@ impl Ui {
                 ),
 
                 user_state: HashMap::with_capacity(7),
+
+                external_needs_update: UiWaker(Arc::new(AtomicBool::new(false))),
             },
         }
     }
@@ -311,6 +325,10 @@ impl Ui {
         self.sys.new_external_events = true;
     }
 
+    pub fn ui_waker(&mut self) -> UiWaker {
+        return self.sys.external_needs_update.clone();
+    }
+
     /// Returns `true` if the [`Ui`] needs to be updated.
     /// 
     /// This is true when the [`Ui`] received an input that it cares about, such as a click on a clickable element, or when the user explicitly notified it with [`Ui::push_external_event()`].
@@ -319,8 +337,10 @@ impl Ui {
     /// 
     /// In applications that update on every frame regardless of user input, like games or simulations, the [`Ui`] building code should be rerun on every frame unconditionally, so this function isn't useful.
     pub fn should_update(&mut self) -> bool {
+        let real_external_events = self.sys.external_needs_update.0.load(std::sync::atomic::Ordering::Relaxed);
         return self.sys.update_frames_needed > 0 ||
-            self.sys.new_external_events;
+            self.sys.new_external_events || 
+            real_external_events;
     }
 
     /// Returns `true` if the [`Ui`] needs to be updated or rerendered as a consequence of input, animations, or other [`Ui`]-internal events.

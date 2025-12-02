@@ -75,11 +75,30 @@ pub fn run_example_loop<T>(user_state: T, update_fn: fn(&mut T, &mut Ui)) {
     let _ = event_loop.run_app(&mut app);
 }
 
+pub fn run_example_loop_with_window<T>(user_state: T, update_fn: fn(&mut T, &mut Ui, Arc<Window>)) {
+    let event_loop = EventLoop::new().unwrap();
+    event_loop.set_control_flow(ControlFlow::Wait);
+
+    let mut app = ApplicationWithWindow {
+        state: None,
+        user_state,
+        update_fn,
+    };
+
+    let _ = event_loop.run_app(&mut app);
+}
+
 struct Application<T> {
     state: Option<State>,
     user_state: T,
     update_fn: fn(&mut T, &mut Ui),
 }
+struct ApplicationWithWindow<T> {
+    state: Option<State>,
+    user_state: T,
+    update_fn: fn(&mut T, &mut Ui, Arc<Window>),
+}
+
 
 struct State {
     window: Arc<Window>,
@@ -149,6 +168,47 @@ impl<T> ApplicationHandler for Application<T> {
                 if state.ui.should_update() {
                     state.ui.begin_frame();
                     (self.update_fn)(&mut self.user_state, &mut state.ui);
+                    state.ui.finish_frame();
+                }
+                if state.ui.should_rerender() {
+                    state.ui.render(
+                        &state.surface,
+                        &state.device,
+                        &state.queue,
+                    );
+                }
+            }
+            _ => {}
+        }
+
+        if state.ui.should_request_redraw() {
+            state.window.request_redraw();
+        }
+    }
+}
+
+
+impl<T> ApplicationHandler for ApplicationWithWindow<T> {
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        let window = Arc::new(event_loop.create_window(Window::default_attributes()).unwrap());
+        let instance = Instance::new(&InstanceDescriptor::default());
+        let mut state = State::new(window, instance);
+        state.ui.enable_cursor_blink_auto_wakeup(state.window.clone());
+        self.state = Some(state);
+    }
+
+    fn window_event(&mut self, event_loop: &ActiveEventLoop, _: WindowId, event: WindowEvent) {
+        let state = self.state.as_mut().unwrap();
+
+        state.ui.window_event(&event, &state.window);
+
+        match event {
+            WindowEvent::CloseRequested => event_loop.exit(),
+            WindowEvent::Resized(size) => state.resize(size.width, size.height),
+            WindowEvent::RedrawRequested => {
+                if state.ui.should_update() {
+                    state.ui.begin_frame();
+                    (self.update_fn)(&mut self.user_state, &mut state.ui, state.window.clone());
                     state.ui.finish_frame();
                 }
                 if state.ui.should_rerender() {
