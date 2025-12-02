@@ -790,6 +790,7 @@ pub struct FullNodeParams<'a> {
     pub text: Option<NodeText<'a>>,
     pub text_style: Option<StyleHandle>,
     pub(crate) text_changed: Changed,
+    // todo: why store it here? just do text.ptr()?
     pub(crate) text_ptr: usize,
     pub image: Option<&'static [u8]>,
     pub placeholder: Option<&'a str>,
@@ -1132,7 +1133,7 @@ impl<'a> FullNodeParams<'a> {
 
     /// Set placeholder text for a text edit that will be shown when the text edit is empty.
     /// This only works with editable text nodes.
-    pub fn placeholder(mut self, placeholder: &'a str) -> Self {
+    pub fn placeholder_text(mut self, placeholder: &'a str) -> Self {
         self.placeholder = Some(placeholder);
         self
     }
@@ -1190,6 +1191,20 @@ impl NodeParams {
             text_changed: Changed::NeedsHash,
             text_ptr: text.as_ref().as_ptr() as usize,
             placeholder: None,
+        }
+    }
+
+    /// Set placeholder text for a text edit that will be shown when the text edit is empty.
+    /// This only works with editable text nodes.
+    pub fn placeholder_text<'a>(self, placeholder: &'a str) -> FullNodeParams<'a> {
+        return FullNodeParams {
+            params: self,
+            text: None,
+            text_style: None,
+            image: None,
+            text_changed: Changed::NeedsHash,
+            text_ptr: 0,
+            placeholder: Some(placeholder),
         }
     }
 
@@ -1327,7 +1342,7 @@ impl Ui {
             // For editable text, always update if content changed
             if self.nodes[i].last_text_ptr != params.text_ptr {
                 // todo: this as_ref() is dumb, should this be changed in textslabs?
-                self.set_text(i, text, text_options, params.text_style.as_ref(), params.placeholder);
+                self.set_text2(i, text, text_options, params.text_style.as_ref(), params.placeholder);
                 self.nodes[i].last_text_ptr = params.text_ptr;
             }
             return;
@@ -1384,24 +1399,24 @@ impl Ui {
                         if hash != last_hash {
                             log::trace!("Updating after hash");
                             self.nodes[i].last_text_hash = Some(hash);
-                            self.set_text(i, text, text_options, params.text_style.as_ref(), params.placeholder);
+                            self.set_text2(i, text, text_options, params.text_style.as_ref(), params.placeholder);
                         } else {
                             log::trace!("Skipping after hash");
                         }
                     } else {
-                        self.set_text(i, text, text_options, params.text_style.as_ref(), params.placeholder);
+                        self.set_text2(i, text, text_options, params.text_style.as_ref(), params.placeholder);
                         if !text.is_static() {
                             self.nodes[i].last_text_hash = Some(hash);
                         }
                     }
                 } else {
                     log::trace!("Updating (node had no text)");
-                    self.set_text(i, text, text_options, params.text_style.as_ref(), params.placeholder);
+                    self.set_text2(i, text, text_options, params.text_style.as_ref(), params.placeholder);
                 }
             },
             TextVerdict::UpdateWithoutHashing => {
                 log::trace!("Updating without hash");
-                self.set_text(i, text, text_options, params.text_style.as_ref(), params.placeholder);
+                self.set_text2(i, text, text_options, params.text_style.as_ref(), params.placeholder);
                 self.nodes[i].last_text_hash = None;
             },
         };

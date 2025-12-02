@@ -10,7 +10,7 @@ pub enum TextI {
 
 
 impl Ui {
-    pub(crate) fn set_text(&mut self, i: NodeI, text: NodeText, text_options: Option<&TextOptions>, style: Option<&StyleHandle>, placeholder: Option<&str>) -> &mut Self {
+    pub(crate) fn set_text2(&mut self, i: NodeI, text: NodeText, text_options: Option<&TextOptions>, style: Option<&StyleHandle>, placeholder: Option<&str>) -> &mut Self {
         // Determine what type of text widget we want
         let edit = text_options.map(|to| to.editable).unwrap_or(false);
         let selectable = text_options.map(|to| to.selectable).unwrap_or(true);

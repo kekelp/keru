@@ -98,6 +98,15 @@ impl Ui {
             TextI::TextEdit(handle) => Some(self.sys.text.get_text_edit(&handle).raw_text()),
         }
     }
+    pub fn set_text(&mut self, key: NodeKey, text: &str) -> Option<()> {
+        let i = self.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
+        let text_i = self.nodes[i].text_i.as_ref()?;
+        match text_i {
+            TextI::TextBox(handle) => *self.sys.text.get_text_box_mut(&handle).text_mut() = std::borrow::Cow::Owned(text.to_string()),
+            TextI::TextEdit(handle) => *self.sys.text.get_text_edit_mut(&handle).raw_text_mut() = text.to_string(),
+        };
+        Some(())
+    }
 }
 
 impl UiParent {
