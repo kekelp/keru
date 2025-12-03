@@ -1,4 +1,5 @@
 use std::io::Read;
+use std::path::Path;
 use std::sync::Arc;
 use std::task::Poll;
 use std::thread;
@@ -15,9 +16,8 @@ pub struct State {
 
 fn load_file_slowly() -> String {
     thread::sleep(Duration::from_millis(800));
-    let mut file = std::fs::File::open("src/lib.rs").unwrap();
-    let mut contents = String::new();
-    file.read_to_string(&mut contents).unwrap();
+    let cargo_dir = Path::new(env!("CARGO_MANIFEST_DIR")).canonicalize().unwrap();
+    let contents = std::fs::read_to_string(cargo_dir.join("src/lib.rs")).unwrap();
     return contents;
 }
 
