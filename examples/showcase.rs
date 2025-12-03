@@ -39,7 +39,8 @@ impl Components for Ui {
             #[node_key] const TEXT_EDIT_1: NodeKey;
             let edit = TEXT_EDIT_LINE
                 .key(TEXT_EDIT_1)
-                .text("Single line text edit box");
+                .text("Single line text edit box23")
+                .placeholder_text("Single line text edit box");
 
             self.add(edit);
 

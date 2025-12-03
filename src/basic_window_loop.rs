@@ -124,6 +124,7 @@ impl Context {
                 .create_window(Window::default_attributes())
                 .unwrap(),
         );
+        window.set_ime_allowed(true);
 
         let surface = self.instance.create_surface(window.clone()).unwrap();
 

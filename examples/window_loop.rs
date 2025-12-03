@@ -76,6 +76,7 @@ impl State {
 impl ApplicationHandler for Application {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let window = Arc::new(event_loop.create_window(Window::default_attributes()).unwrap());
+        window.set_ime_allowed(true);
         let instance = Instance::new(&InstanceDescriptor::default());
         let state = State::new(window, instance);
         self.state = Some(state);

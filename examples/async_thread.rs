@@ -1,4 +1,3 @@
-use std::io::Read;
 use std::path::Path;
 use std::sync::Arc;
 use std::task::Poll;
@@ -35,10 +34,8 @@ fn update_ui(state: &mut State, ui: &mut Ui, window: Arc<Window>) {
 
     match &mut state.file {
         None => {
-            #[node_key] pub const LOAD: NodeKey;
-            ui.add(BUTTON.key(LOAD).static_text("Click to load the file"));
-            
-            if ui.is_clicked(LOAD) {
+            let load = BUTTON.static_text("Click to load the file");
+            if ui.add(load).is_clicked(ui) {
                 state.file = Some(run_in_background(load_file_slowly, waker));
             }
         }
