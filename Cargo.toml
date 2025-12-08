@@ -44,7 +44,7 @@ bumpalo = { version = "3.19.0", features = ["collections"] }
 # vello_hybrid = "0.0.4"
 # vello_common = "0.0.4"
 vello_hybrid = { git = "https://github.com/linebender/vello" }
-vello_common = { git = "https://github.com/linebender/vello" }
+vello_common = { git = "https://github.com/linebender/vello", features = ["pico_svg"] }
 
 [lints.clippy]
 needless_return = { level = "allow" }

@@ -5,6 +5,11 @@ use Shape::*;
 
 // todo: not very discoverable from docs. there's a list of constants on the main page, maybe that's good? link to that or something?
 
+pub const ICON_RIGHT: &[u8] = include_bytes!("svg_icons/right.svg");
+pub const ICON_LEFT: &[u8] = include_bytes!("svg_icons/left.svg");
+pub const ICON_PLUS: &[u8] = include_bytes!("svg_icons/plus.svg");
+pub const ICON_MINUS: &[u8] = include_bytes!("svg_icons/minus.svg");
+
 /// [`NodeParams`] for a node_root_params. 
 pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     animation: NO_ANIMATION,
@@ -532,7 +537,7 @@ pub const CONTAINER: NodeParams = NodeParams {
         shape: Rectangle { corner_radius: BASE_RADIUS },
         visible: false,
         stroke: None,
-        vertex_colors: VertexColors::KERU_GRAD,
+        vertex_colors: VertexColors::flat(Color::TRANSPARENT),
     },
     interact: Interact {
         senses: Sense::NONE,

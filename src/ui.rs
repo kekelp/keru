@@ -81,6 +81,8 @@ pub(crate) struct System {
 
     pub text: Text,
 
+    pub svg_storage: Vec<Vec<vello_common::pico_svg::Item>>,
+
     pub vello_scene: vello_hybrid::Scene,
     pub vello_renderer: vello_hybrid::Renderer,
 
@@ -265,6 +267,8 @@ impl Ui {
                 changes: Changes::new(),
 
                 text: Text::new(),
+
+                svg_storage: Vec::new(),
 
                 vello_scene: vello_hybrid::Scene::new(config.width as u16, config.height as u16),
                 vello_renderer: vello_hybrid::Renderer::new(
@@ -512,14 +516,45 @@ impl Ui {
         log::info!("Uploaded image, got ImageId: {:?}", image_id);
 
         // Store the ImageId in the node
-        self.nodes[i].imageref = Some(ImageRef {
+        self.nodes[i].imageref = Some(ImageRef::Raster {
             image_id,
             original_size: Xy::new(width as f32, height as f32),
         });
-    
+
 
 
         self.nodes[i].last_static_image_ptr = Some(image_pointer);
+
+        return self;
+    }
+
+    pub(crate) fn set_static_svg(&mut self, i: NodeI, svg_data: &'static [u8]) -> &mut Self {
+        let svg_pointer: *const u8 = svg_data.as_ptr();
+
+        if let Some(last_pointer) = self.nodes[i].last_static_image_ptr {
+            if svg_pointer == last_pointer {
+                return self;
+            }
+        }
+
+        // Parse SVG using PicoSvg
+        let svg_str = std::str::from_utf8(svg_data).expect("Invalid UTF-8 in SVG data");
+        let pico_svg = vello_common::pico_svg::PicoSvg::load(svg_str, 1.0)
+            .expect("Failed to parse SVG");
+
+        log::info!("Parsed SVG: {}x{}", pico_svg.size.width, pico_svg.size.height);
+
+        // Store the parsed SVG items in central storage
+        let svg_index = self.sys.svg_storage.len();
+        self.sys.svg_storage.push(pico_svg.items);
+
+        // Store reference in the node
+        self.nodes[i].imageref = Some(ImageRef::Svg {
+            svg_index,
+            original_size: Xy::new(pico_svg.size.width as f32, pico_svg.size.height as f32),
+        });
+
+        self.nodes[i].last_static_image_ptr = Some(svg_pointer);
 
         return self;
     }

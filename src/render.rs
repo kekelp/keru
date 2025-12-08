@@ -377,7 +377,13 @@ impl Ui {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct ImageRef {
-    pub image_id: vello_common::paint::ImageId,
-    pub original_size: Xy<f32>,
+pub enum ImageRef {
+    Raster {
+        image_id: vello_common::paint::ImageId,
+        original_size: Xy<f32>,
+    },
+    Svg {
+        svg_index: usize,
+        original_size: Xy<f32>,
+    },
 }

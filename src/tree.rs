@@ -314,7 +314,7 @@ impl Ui {
         }
 
         // Images
-        if let Some(image_ref) = self.nodes[i].imageref {
+        if self.nodes[i].imageref.is_some() {
             let animated_rect = self.nodes[i].get_animated_rect();
             let screen_size = self.sys.unifs.size;
             let x0 = (animated_rect.x[0] * screen_size.x) as f64;
@@ -322,23 +322,50 @@ impl Ui {
             let x1 = (animated_rect.x[1] * screen_size.x) as f64;
             let y1 = (animated_rect.y[1] * screen_size.y) as f64;
 
-            // Create an image brush from the uploaded image ID
-            let image_source = ImageSource::OpaqueId(image_ref.image_id);
-            let sampler = ImageSampler::default().with_extend(Extend::Repeat);
-            let image_brush = VelloImage {
-                image: image_source,
-                sampler,
-            };
+            match &self.nodes[i].imageref {
+                Some(ImageRef::Raster { image_id, .. }) => {
+                    // Create an image brush from the uploaded image ID
+                    let image_source = ImageSource::OpaqueId(*image_id);
+                    let sampler = ImageSampler::default().with_extend(Extend::Repeat);
+                    let image_brush = VelloImage {
+                        image: image_source,
+                        sampler,
+                    };
 
-            self.sys.vello_scene.set_paint_transform(Affine::translate((x0, y0)));
-            self.sys.vello_scene.set_paint(image_brush);
+                    self.sys.vello_scene.set_paint_transform(Affine::translate((x0, y0)));
+                    self.sys.vello_scene.set_paint(image_brush);
 
-            // Draw the rect at the actual screen position
-            let rect = vello_common::kurbo::Rect::new(x0, y0, x1, y1);
-            self.sys.vello_scene.fill_rect(&rect);
+                    // Draw the rect at the actual screen position
+                    let rect = vello_common::kurbo::Rect::new(x0, y0, x1, y1);
+                    self.sys.vello_scene.fill_rect(&rect);
 
-            // Reset paint transform
-            self.sys.vello_scene.reset_paint_transform();
+                    // Reset paint transform
+                    self.sys.vello_scene.reset_paint_transform();
+                }
+                Some(ImageRef::Svg { svg_index, original_size }) => {
+                    // Calculate scale to fit SVG in the node's rect
+                    let node_width = x1 - x0;
+                    let node_height = y1 - y0;
+                    let scale_x = node_width / original_size.x as f64;
+                    let scale_y = node_height / original_size.y as f64;
+
+                    // Use the smaller scale to maintain aspect ratio
+                    let scale = scale_x.min(scale_y);
+
+                    // Calculate centering offset
+                    let scaled_width = original_size.x as f64 * scale;
+                    let scaled_height = original_size.y as f64 * scale;
+                    let offset_x = (node_width - scaled_width) / 2.0;
+                    let offset_y = (node_height - scaled_height) / 2.0;
+
+                    // Create transform: translate to position, then scale
+                    let transform = Affine::translate((x0 + offset_x, y0 + offset_y)) * Affine::scale(scale);
+
+                    // Render SVG items directly with the transform
+                    self.render_svg_items(*svg_index, transform);
+                }
+                None => {}
+            }
         }
 
         if let Some(text_i) = &self.nodes[i].text_i {
@@ -369,6 +396,36 @@ impl Ui {
         if is_clipping {
             self.sys.vello_scene.pop_clip_path();
         }
+    }
+
+    fn render_svg_items(&mut self, svg_index: usize, transform: Affine) {
+        use vello_common::pico_svg::Item;
+        use vello_common::kurbo::Stroke;
+
+        self.sys.vello_scene.set_transform(transform);
+
+        let item_count = self.sys.svg_storage[svg_index].len();
+        for i in 0..item_count {
+            match &self.sys.svg_storage[svg_index][i] {
+                Item::Fill(fill_item) => {
+                    self.sys.vello_scene.set_paint(fill_item.color);
+                    self.sys.vello_scene.fill_path(&fill_item.path);
+                }
+                Item::Stroke(stroke_item) => {
+                    let style = Stroke::new(stroke_item.width);
+                    self.sys.vello_scene.set_stroke(style);
+                    self.sys.vello_scene.set_paint(stroke_item.color);
+                    self.sys.vello_scene.stroke_path(&stroke_item.path);
+                }
+                Item::Group(group_item) => {
+                    let new_transform = transform * group_item.affine;
+                    render_svg_group(&mut self.sys.vello_scene, &group_item.children, new_transform);
+                    self.sys.vello_scene.set_transform(transform);
+                }
+            }
+        }
+
+        self.sys.vello_scene.reset_transform();
     }
 
     fn set_relayout_chain_root(&mut self, new_node_i: NodeI, parent_i: NodeI) {
@@ -865,4 +922,31 @@ pub(crate) fn with_info_log_timer<T>(operation_name: &str, f: impl FnOnce() -> T
 pub(crate) fn take_buffer_and_clear<T>(buf: &mut Vec<T>) -> Vec<T> {
     buf.clear();
     return mem::take(buf)
+}
+
+fn render_svg_group(scene: &mut vello_hybrid::Scene, items: &[vello_common::pico_svg::Item], transform: Affine) {
+    use vello_common::pico_svg::Item;
+    use vello_common::kurbo::Stroke;
+
+    scene.set_transform(transform);
+
+    for item in items {
+        match item {
+            Item::Fill(fill_item) => {
+                scene.set_paint(fill_item.color);
+                scene.fill_path(&fill_item.path);
+            }
+            Item::Stroke(stroke_item) => {
+                let style = Stroke::new(stroke_item.width);
+                scene.set_stroke(style);
+                scene.set_paint(stroke_item.color);
+                scene.stroke_path(&stroke_item.path);
+            }
+            Item::Group(group_item) => {
+                let new_transform = transform * group_item.affine;
+                render_svg_group(scene, &group_item.children, new_transform);
+                scene.set_transform(transform);
+            }
+        }
+    }
 }

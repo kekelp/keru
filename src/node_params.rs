@@ -779,10 +779,19 @@ impl<'a> NodeText<'a> {
     }
 }
 
+/// Data for an image to be displayed
+#[derive(Copy, Clone)]
+pub enum ImageData {
+    /// Raster image (PNG, JPEG, etc.)
+    Raster(&'static [u8]),
+    /// SVG image data
+    Svg(&'static [u8]),
+}
+
 /// An extended version of [`NodeParams`] that can hold text or other borrowed data.
-/// 
+///
 /// Created starting from a [`NodeParams`] and using methods like [`NodeParams::text()`].
-/// 
+///
 /// Can be used in the same way as [`NodeParams`].
 #[derive(Copy, Clone)]
 pub struct FullNodeParams<'a> {
@@ -792,7 +801,7 @@ pub struct FullNodeParams<'a> {
     pub(crate) text_changed: Changed,
     // todo: why store it here? just do text.ptr()?
     pub(crate) text_ptr: usize,
-    pub image: Option<&'static [u8]>,
+    pub image: Option<ImageData>,
     pub placeholder: Option<&'a str>,
 }
 
@@ -1259,7 +1268,19 @@ impl NodeParams {
             params: self,
             text: None,
             text_style: None,
-            image: Some(image),
+            image: Some(ImageData::Raster(image)),
+            text_changed: Changed::Static,
+            text_ptr: 0,
+            placeholder: None,
+        }
+    }
+
+    pub fn static_svg(self, svg: &'static [u8]) -> FullNodeParams<'static> {
+        return FullNodeParams {
+            params: self,
+            text: None,
+            text_style: None,
+            image: Some(ImageData::Svg(svg)),
             text_changed: Changed::Static,
             text_ptr: 0,
             placeholder: None,
@@ -1429,8 +1450,11 @@ impl Ui {
             return;
         }
         
-        if let Some(image) = params.image {
-            self.set_static_image(i, image);
+        if let Some(image_data) = params.image {
+            match image_data {
+                ImageData::Raster(image) => self.set_static_image(i, image),
+                ImageData::Svg(svg) => self.set_static_svg(i, svg),
+            };
         }
         
         let new_cosmetic_hash = params.params.cosmetic_hash();

@@ -334,8 +334,11 @@ impl Ui {
     }
 
     fn determine_image_size(&mut self, i: NodeI, _proposed_size: Xy<f32>) -> Xy<f32> {
-        let image_ref = self.nodes[i].imageref.unwrap();
-        let size = image_ref.original_size;
+        let image_ref = self.nodes[i].imageref.as_ref().unwrap();
+        let size = match image_ref {
+            ImageRef::Raster { original_size, .. } => *original_size,
+            ImageRef::Svg { original_size, .. } => *original_size,
+        };
         return self.f32_pixels_to_frac2(size);
     }
 
