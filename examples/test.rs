@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+#![allow(unused_variables)]
+
 use keru::example_window_loop::*;
 use keru::*;
 
@@ -13,17 +16,17 @@ pub struct State {
 fn update_ui(state: &mut State, ui: &mut Ui) {
     #[node_key] const EXPAND: NodeKey;
 
-    let text = TEXT_EDIT_LINE
-        // .text("aaa")
-        .placeholder_text("Feed");
+    ui.add(CONTAINER.size_symm(Size::Fill).padding(50)).nest(|| {
+        ui.add(LABEL.static_text("A").position_y(Position::End));
+        // ui.add(LABEL.static_text("B"));
+        // ui.add(LABEL.static_text("C"));
+    });
 
-    ui.add(text);
-    // ui.debug_print_tree();
 }
 
 
 fn main() {
-    // basic_env_logger_init();
+    basic_env_logger_init();
     let state = State::default();
     run_example_loop(state, update_ui);
 }

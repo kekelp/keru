@@ -443,9 +443,9 @@ impl Ui {
 
         let mut walking_position = match stack.arrange {
             Arrange::Start => stack_rect[main][0] + padding[main],
-            Arrange::End => stack_rect[main][1] + padding[main] - total_size,
+            Arrange::End => stack_rect[main][1] - padding[main] - total_size,
             Arrange::Center => {
-                let center = (stack_rect[main][1] + stack_rect[main][0]) / 2.0 - 2.0 * padding[main];
+                let center = (stack_rect[main][1] + stack_rect[main][0]) / 2.0;
                 center - total_size / 2.0
             },
             _ => todo!(),
