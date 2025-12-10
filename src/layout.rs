@@ -703,7 +703,6 @@ impl Ui {
         let rate = 9.0 * speed * dt;
 
         let const_speed_pixels = 3.0;
-        let inv_const_speed = 1.0 / const_speed_pixels;
         let diff = target - l;
 
         let threshold = Xy::new(
@@ -718,7 +717,7 @@ impl Ui {
                 } else {
                     let d = diff[axis][i];
                     let diff_sign = d.signum();
-                    let scale = self.sys.unifs.size[axis] * inv_const_speed * diff_sign;
+                    let scale = self.sys.unifs.size[axis] * diff_sign / const_speed_pixels;
                     l[axis][i] += (d * rate * scale).ceil() / scale;
                 }
             }
