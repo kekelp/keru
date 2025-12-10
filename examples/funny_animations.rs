@@ -44,16 +44,13 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     ui.add(left_bar).nest(|| {
         for i in 0..n {
             ui.add(h_group).nest(|| {
-                let key = EXPAND.sibling(i);
-                ui.add(expand.key(key));
+                ui.add(expand.key(EXPAND.sibling(i)));
 
                 if state.expanded[i] {
-                    let key = ELEM_VSTACK.sibling(i);
-                    ui.add(elem_vstack.key(key)).nest(|| {
+                    ui.add(elem_vstack.key(ELEM_VSTACK.sibling(i))).nest(|| {
 
                         for j in 0..m {
-                            let key = ELEM.sibling(i).sibling(j);
-                            ui.add(elem.key(key));
+                            ui.add(elem.key(ELEM.sibling(i).sibling(j)));
                         }
 
                     });

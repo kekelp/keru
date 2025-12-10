@@ -58,19 +58,22 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     ui.add(left_bar).nest(|| {
         for i in 0..n {
             ui.add(h_group).nest(|| {
-                let key = EXPAND.sibling(i);
-                ui.add(expand.key(key));
+                let expand = expand.key(EXPAND.s(i));
+                ui.add(expand);
                 
                 if state.expanded[i] {
-                    ui.add(elem_vstack.key(ELEM_VSTACK.sibling(i))).nest(|| {
+                    let elem_vstack = elem_vstack.key(ELEM_VSTACK.s(i));
+                    ui.add(elem_vstack).nest(|| {
                         for j in 0..m {
-                            ui.add(h_group.key(HGROUP.sibling(i).sibling(j))).nest(|| {
-                                ui.add(sub_expand.key(SUB_EXPAND.sibling(i).sibling(j)));
+
+                            let h_group = h_group.key(HGROUP.s(i).s(j));
+                            ui.add(h_group).nest(|| {
+                                ui.add(sub_expand.key(SUB_EXPAND.s(i).s(j)));
                                 
                                 if state.sub_expanded[i][j] {
-                                    ui.add(sub_elem_vstack.key(SUB_ELEM_VSTACK.sibling(i).sibling(j))).nest(|| {
+                                    ui.add(sub_elem_vstack.key(SUB_ELEM_VSTACK.s(i).s(j))).nest(|| {
                                         for k in 0..p {
-                                            ui.add(elem.key(ELEM.sibling(i).sibling(j).sibling(k)));
+                                            ui.add(elem.key(ELEM.s(i).s(j).s(k)));
                                         }
                                     });
                                 }

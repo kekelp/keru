@@ -55,6 +55,10 @@ impl NodeKey {
         };
     }
 
+    pub fn s<H: Hash>(self, value: H) -> Self {
+        self.sibling(value)
+    }
+
     /// Create a key manually.
     /// 
     /// This is usually not needed: use the [`macro@node_key`] macro for static keys, and [`NodeKey::sibling`] for dynamic keys.
