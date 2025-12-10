@@ -559,6 +559,12 @@ impl Ui {
         let slide_flags = self.nodes[i].params.animation.slide;
         let appearing = slide_flags.contains(SlideFlags::APPEARING);
 
+        if self.nodes[i].params.animation.grow_shrink {
+            // todo: select the correct edge and direction.
+            dbg!("Seethe2");
+            self.nodes[i].local_animated_rect.y[1] = self.nodes[i].local_layout_rect.y[0];
+        }
+
         if appearing {
             let target_offset_y = - self.nodes[i].local_layout_rect.size().y.abs();
         
@@ -588,21 +594,21 @@ impl Ui {
             });
         }
         
-        let slide_flags = self.nodes[i].params.animation.slide;
-        if !slide_flags.contains(SlideFlags::DISAPPEARING) {
-            return;
+        if self.nodes[i].params.animation.grow_shrink {
+            // todo: select the correct edge and direction.
+            self.nodes[i].local_layout_rect.y[1] = self.nodes[i].local_layout_rect.y[0];
+        }
+        if self.nodes[i].params.animation.slide.contains(SlideFlags::DISAPPEARING) {
+            let parent = self.nodes[i].parent;
+            let parent_rect = self.nodes[parent].layout_rect;
+            let target_offset_y = - parent_rect.size().y.abs();
+            
+            // Change the layout_rect to move the "target" position.
+            // This works because exiting nodes are excluded from layout, so the layout_rect is not updated further.
+            self.nodes[i].local_layout_rect.y[0] += target_offset_y;
+            self.nodes[i].local_layout_rect.y[1] += target_offset_y;
         }
 
-        let parent = self.nodes[i].parent;
-        let parent_rect = self.nodes[parent].layout_rect;
-        let target_offset_y = - parent_rect.size().y.abs();
-        
-        // Change the layout_rect to move the "target" position.
-        // This works because exiting nodes are excluded from layout, so the layout_rect is not updated further.
-        self.nodes[i].layout_rect.y[0] += target_offset_y;
-        self.nodes[i].layout_rect.y[1] += target_offset_y;
-        self.nodes[i].local_layout_rect.y[0] += target_offset_y;
-        self.nodes[i].local_layout_rect.y[1] += target_offset_y;
     }
 
     #[inline]
@@ -702,7 +708,7 @@ impl Ui {
 
         let rate = 9.0 * speed * dt;
 
-        let const_speed_pixels = 3.0;
+        let const_speed_pixels = 3.0 * speed;
         let diff = target - l;
 
         let threshold = Xy::new(
@@ -739,6 +745,7 @@ impl Ui {
         let parent = self.nodes[i].parent;
         let expected_final_parent_offset = self.nodes[parent].expected_final_rect.top_left();
 
+        // set the new target (expected_final_rect)
         self.nodes[i].expected_final_rect = self.nodes[i].local_layout_rect + expected_final_parent_offset + scroll;
 
         if ! self.node_or_parent_has_ongoing_animation(i) {

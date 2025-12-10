@@ -216,7 +216,7 @@ impl Ui {
                 device: device.clone(),
                 queue: queue.clone(),
 
-                global_animation_speed: 0.01,
+                global_animation_speed: 0.1,
                 unique_id: INSTANCE_COUNTER.fetch_add(1, Ordering::Relaxed),
                 z_cursor: 0.0,
                 theme: KERU_DARK,

@@ -17,6 +17,7 @@ pub struct Node {
     pub expected_final_rect: XyRect,
 
     // todo: should try to get rid of some of these stored rects that are basically just partial results in the layout process.
+    // todo: or at least make a struct to hide them.
     pub local_layout_rect: XyRect,
     pub local_animated_rect: XyRect,
     pub content_bounds: XyRect,

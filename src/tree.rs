@@ -44,9 +44,9 @@ impl Ui {
     /// 
     ///  Buttons, images, text elements, stack containers, etc. are all created by `add`ing a node with the right [`NodeParams`].
     #[track_caller]
-    pub fn add<'a>(&mut self, params: impl Into<FullNodeParams<'a>>) -> UiParent
+    pub fn add<'a>(&mut self, node: impl Into<FullNodeParams<'a>>) -> UiParent
     {
-        let params = params.into();
+        let params = node.into();
         let key = params.key_or_anon_key();
         let (i, _id) = self.add_or_update_node(key);
         self.set_params(i, &params);
@@ -248,7 +248,16 @@ impl Ui {
         self.nodes[old_last_child].next_hidden_sibling = Some(new_node_i);
     }
 
-    pub(crate) fn node_or_parent_has_ongoing_animation(&self, i: NodeI) -> bool {        
+    pub(crate) fn node_or_parent_has_ongoing_animation(&self, i: NodeI) -> bool {
+        // todo: what about non-position exit animations, like fading away.
+
+        // this works, but only if this function is called in the right pattern.
+        // does it mean that some of the offset-inheriting wasn't needed? probably not.
+        let parent = self.nodes[i].parent;
+        if self.nodes[parent].exit_animation_still_going {
+            return true;
+        }
+
         let target = &self.nodes[i].expected_final_rect;
         let current = &self.nodes[i].real_rect;
         let tolerance = 0.0005;
@@ -595,7 +604,6 @@ impl Ui {
                     exiting_nodes.push(NodeWithDepth { i, depth: self.nodes[i].depth });
                     
                 } else if ! can_hide {
-
                     to_cleanup.push(i);
                     if old_parent_still_exists {
                         self.push_partial_relayout(old_parent);

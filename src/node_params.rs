@@ -92,6 +92,7 @@ pub struct Animation {
     pub slide: SlideFlags,
     pub slide_entrance_edge: SlideEdge,
     pub slide_exit_edge: SlideEdge,
+    pub grow_shrink: bool,
 }
 
 pub const NO_ANIMATION: Animation = Animation {
@@ -99,6 +100,7 @@ pub const NO_ANIMATION: Animation = Animation {
     slide: SlideFlags::NONE,
     slide_entrance_edge: SlideEdge::Top,
     slide_exit_edge: SlideEdge::Top,
+    grow_shrink: false,
 };
 
 /// A node's size.
@@ -258,6 +260,7 @@ pub struct Rect {
     // ... crazy stuff like texture and NinePatchRect
 }
 
+// todo: is the size of this really ok?
 /// The visual style of a stroke.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Stroke {
@@ -623,6 +626,11 @@ impl NodeParams {
 
     pub fn key(mut self, key: NodeKey) -> Self {
         self.key = Some(key);
+        return self;
+    }
+
+    pub const fn animation(mut self, animation: Animation) -> Self {
+        self.animation = animation;
         return self;
     }
 
@@ -1069,12 +1077,18 @@ impl<'a> FullNodeParams<'a> {
         return self;
     }
 
-    pub fn slide(mut self) -> Self {
+    pub const fn animation(mut self, animation: Animation) -> Self {
+        self.params.animation = animation;
+        return self;
+    }
+
+    pub const fn slide(mut self) -> Self {
         self.params.animation.slide = SlideFlags::ALWAYS;
         self.params.animation.slide_entrance_edge = SlideEdge::Top;
         return self;
     }
     
+    // todo: make const
     pub fn slide_when_appearing(mut self) -> Self {
         self.params.animation.slide |= SlideFlags::APPEARING;
         return self;
@@ -1090,22 +1104,22 @@ impl<'a> FullNodeParams<'a> {
         return self;
     }
 
-    pub fn slide_from_top(mut self) -> Self {
+    pub const fn slide_from_top(mut self) -> Self {
         self.params.animation.slide_entrance_edge = SlideEdge::Top;
         return self;
     }
     
-    pub fn slide_from_bottom(mut self) -> Self {
+    pub const fn slide_from_bottom(mut self) -> Self {
         self.params.animation.slide_entrance_edge = SlideEdge::Bottom;
         return self;
     }
     
-    pub fn slide_from_left(mut self) -> Self {
+    pub const fn slide_from_left(mut self) -> Self {
         self.params.animation.slide_entrance_edge = SlideEdge::Left;
         return self;
     }
     
-    pub fn slide_from_right(mut self) -> Self {
+    pub const fn slide_from_right(mut self) -> Self {
         self.params.animation.slide_entrance_edge = SlideEdge::Right;
         return self;
     }
@@ -1115,7 +1129,7 @@ impl<'a> FullNodeParams<'a> {
         return x == Size::FitContent || y == Size::FitContent
     }
 
-    pub fn is_scrollable(&self) -> bool {
+    pub const fn is_scrollable(&self) -> bool {
         return self.params.layout.scrollable.x || self.params.layout.scrollable.y
     }
 
