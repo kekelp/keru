@@ -23,10 +23,7 @@ impl Ui {
         self.sys.mouse_input.window_event(event);
         self.sys.key_input.window_event(event);
 
-        let event_consumed = self.text_window_event(ROOT_I, event, window);
-        if event_consumed {
-            return true;
-        }
+        let _event_consumed_by_text = self.text_window_event(ROOT_I, event, window);
 
         let event_consumed = self.ui_input(&event, window);
         if event_consumed {
