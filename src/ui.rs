@@ -216,7 +216,7 @@ impl Ui {
                 device: device.clone(),
                 queue: queue.clone(),
 
-                global_animation_speed: 0.1,
+                global_animation_speed: 1.0,
                 unique_id: INSTANCE_COUNTER.fetch_add(1, Ordering::Relaxed),
                 z_cursor: 0.0,
                 theme: KERU_DARK,
@@ -296,6 +296,16 @@ impl Ui {
     /// You can also handle cursor wakeups manually in your winit event loop with winit's `ControlFlow::WaitUntil` and [`Text::time_until_next_cursor_blink`]. See the `event_loop_smart.rs` example.
     pub fn enable_cursor_blink_auto_wakeup(&mut self, window: Arc<Window>) {
         self.sys.text.set_auto_wakeup(window);
+    }
+
+    /// Set the global animation speed multiplier.
+    pub fn set_global_animation_speed(&mut self, speed: f32) {
+        self.sys.global_animation_speed = speed;
+    }
+
+    /// Get the global animation speed multiplier.
+    pub fn global_animation_speed(&mut self) -> f32 {
+        self.sys.global_animation_speed
     }
 
     /// Set inspect mode. When inspect mode is active, all nodes will be shown, including stacks and containers. 
