@@ -9,6 +9,8 @@ pub const ICON_RIGHT: &[u8] = include_bytes!("svg_icons/right.svg");
 pub const ICON_LEFT: &[u8] = include_bytes!("svg_icons/left.svg");
 pub const ICON_PLUS: &[u8] = include_bytes!("svg_icons/plus.svg");
 pub const ICON_MINUS: &[u8] = include_bytes!("svg_icons/minus.svg");
+pub const ICON_DELETE: &[u8] = include_bytes!("svg_icons/delete.svg");
+pub const ICON_EDIT: &[u8] = include_bytes!("svg_icons/pencil.svg");
 
 /// [`NodeParams`] for a node_root_params. 
 pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
@@ -614,6 +616,62 @@ pub const SPACER: NodeParams = NodeParams {
     },
     layout: Layout {
         size: Xy::new_symm(Fill),
+        position: Xy::new_symm(Center),
+        padding: Xy::new_symm(0),
+        scrollable: Xy::new(false, false),
+    },
+    children_can_hide: ChildrenCanHide::Inherit,
+    clip_children: Xy::new(false, false),
+};
+
+/// [`NodeParams`] for a invisible spacer element that fills all the available space in the X direction.
+pub const X_SPACER: NodeParams = NodeParams {
+    animation: NO_ANIMATION,
+    key: None,
+    stack: None,
+    text_params: None,
+    rect: Rect {
+        rounded_corners: RoundedCorners::ALL,
+        shape: Rectangle { corner_radius: BASE_RADIUS },
+        visible: false,
+        stroke: Some(Stroke::new(4.0).with_color(Color::KERU_DEBUG_RED)),
+        vertex_colors: VertexColors::flat(Color::TRANSPARENT),
+    },
+    interact: Interact {
+        senses: Sense::NONE,
+        absorbs_mouse_events: false,
+        click_animation: false,
+    },
+    layout: Layout {
+        size: Xy::new(Size::Fill, Size::FitContent),
+        position: Xy::new_symm(Center),
+        padding: Xy::new_symm(0),
+        scrollable: Xy::new(false, false),
+    },
+    children_can_hide: ChildrenCanHide::Inherit,
+    clip_children: Xy::new(false, false),
+};
+
+/// [`NodeParams`] for a invisible spacer element that fills all the available space in the Y direction.
+pub const Y_SPACER: NodeParams = NodeParams {
+    animation: NO_ANIMATION,
+    key: None,
+    stack: None,
+    text_params: None,
+    rect: Rect {
+        rounded_corners: RoundedCorners::ALL,
+        shape: Rectangle { corner_radius: BASE_RADIUS },
+        visible: false,
+        stroke: Some(Stroke::new(4.0).with_color(Color::KERU_DEBUG_RED)),
+        vertex_colors: VertexColors::flat(Color::TRANSPARENT),
+    },
+    interact: Interact {
+        senses: Sense::NONE,
+        absorbs_mouse_events: false,
+        click_animation: false,
+    },
+    layout: Layout {
+        size: Xy::new(Size::FitContent, Size::Fill),
         position: Xy::new_symm(Center),
         padding: Xy::new_symm(0),
         scrollable: Xy::new(false, false),
