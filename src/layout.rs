@@ -543,7 +543,9 @@ impl Ui {
             [child_rect.y[0] - parent_rect.y[0], child_rect.y[1] - parent_rect.y[0]]
         );
 
-        if ! self.nodes[i].params.animation.slide.contains(SlideFlags::MOVING) {
+        if ! self.nodes[i].params.animation.slide.contains(SlideFlags::MOVING)
+            // && ! self.nodes[i].exit_animation_still_going // this one is not needed, because exiting nodes don't get layouted.  
+                && ! self.nodes[i].enter_animation_still_going {
             self.nodes[i].local_animated_rect = self.nodes[i].local_layout_rect;
             // might still be adjusted later for enter/exit animations.
         }
@@ -555,21 +557,24 @@ impl Ui {
         }
 
         self.nodes[i].local_animated_rect = self.nodes[i].local_layout_rect;
-        
+
         let slide_flags = self.nodes[i].params.animation.slide;
         let appearing = slide_flags.contains(SlideFlags::APPEARING);
 
         if self.nodes[i].params.animation.grow_shrink {
             // todo: select the correct edge and direction.
-            dbg!("Seethe2");
-            self.nodes[i].local_animated_rect.y[1] = self.nodes[i].local_layout_rect.y[0];
+            let origin = (self.nodes[i].local_layout_rect.y[0] + self.nodes[i].local_layout_rect.y[1]) / 2.0;
+            self.nodes[i].local_animated_rect.y[0] = origin;
+            self.nodes[i].local_animated_rect.y[1] = origin;
+            self.nodes[i].enter_animation_still_going = true;
         }
 
         if appearing {
             let target_offset_y = - self.nodes[i].local_layout_rect.size().y.abs();
-        
+
             self.nodes[i].local_animated_rect.y[0] += target_offset_y;
             self.nodes[i].local_animated_rect.y[1] += target_offset_y;
+            self.nodes[i].enter_animation_still_going = true;
         }
     }
 
@@ -596,7 +601,10 @@ impl Ui {
         
         if self.nodes[i].params.animation.grow_shrink {
             // todo: select the correct edge and direction.
-            self.nodes[i].local_layout_rect.y[1] = self.nodes[i].local_layout_rect.y[0];
+            // If the parent is a stack with Arrange::Center, the nicest thing to do is to collapse at the middle.
+            let collapse_spot = (self.nodes[i].local_layout_rect.y[0] + self.nodes[i].local_layout_rect.y[1]) / 2.0;
+            self.nodes[i].local_layout_rect.y[0] = collapse_spot;
+            self.nodes[i].local_layout_rect.y[1] = collapse_spot;
         }
         if self.nodes[i].params.animation.slide.contains(SlideFlags::DISAPPEARING) {
             let parent = self.nodes[i].parent;
@@ -621,7 +629,7 @@ impl Ui {
     }
 
     pub(crate) fn set_clip_rect(&mut self, i: NodeI) {
-        // Start from keep the parent's clip rect.
+        // Start from the parent's clip rect.
         // If nobody wants to clip children, this will always be [0.0, 1.0], passed down from root to everything else. 
         let parent_clip_rect = if i == ROOT_I {
             Xy::new_symm([0.0, 1.0])
@@ -706,7 +714,7 @@ impl Ui {
 
         let mut l = self.nodes[i].local_animated_rect;
 
-        let rate = 9.0 * speed * dt;
+        let rate = 5.0 * speed * dt;
 
         let const_speed_pixels = 3.0 * speed;
         let diff = target - l;
@@ -733,6 +741,7 @@ impl Ui {
 
         // add the parent offset
         let parent = self.nodes[i].parent;
+        // todo: pick a side depending on the parent stack and stuff like that, separate translation and resize, etc
         let parent_offset = self.nodes[parent].real_rect.top_left();
         self.nodes[i].real_rect = self.nodes[i].local_animated_rect + parent_offset;
 
@@ -753,6 +762,9 @@ impl Ui {
                 self.nodes[i].exit_animation_still_going = false;
                 // todo: think harder
                 self.set_new_ui_input();
+            }
+            if self.nodes[i].enter_animation_still_going {
+                self.nodes[i].enter_animation_still_going = false;
             }
         } else {
             self.sys.changes.unfinished_animations = true;

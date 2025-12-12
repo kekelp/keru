@@ -30,6 +30,8 @@ pub struct Node {
     // partial result, but used for partial relayouts.
     pub last_proposed_sizes: ProposedSizes,
 
+    // Enter or exit animation can be a fuzzy concept, because what if the node gets relayouted to a different position/state before the animation is over? The animation would be "extended" and only end what the node settles in the new final position. Even if at that point it's a mix between an enter/exit animation and a regular interpolation one.
+    pub enter_animation_still_going: bool,
     pub exit_animation_still_going: bool,
 
     pub relayout_chain_root: Option<NodeI>,
@@ -126,8 +128,9 @@ impl Node {
         // add back somewhere
 
         return Node {
-            expected_final_rect: Xy::new_symm([0.0, 1.0]), 
+            expected_final_rect: Xy::new_symm([0.0, 1.0]),
             exit_animation_still_going: false,
+            enter_animation_still_going: false,
             id: key.id_with_subtree(),
             depth: 0,
             layout_rect: Xy::new_symm([0.0, 1.0]),
@@ -236,8 +239,9 @@ pub const ROOT_I: NodeI = NodeI::from(1);
 
 pub const NODE_ROOT_ID: Id = Id(0);
 pub const NODE_ROOT: Node = Node {
-    expected_final_rect: Xy::new_symm([0.0, 1.0]), 
-exit_animation_still_going: false,
+    expected_final_rect: Xy::new_symm([0.0, 1.0]),
+    exit_animation_still_going: false,
+    enter_animation_still_going: false,
     id: NODE_ROOT_ID,
     depth: 0,
     layout_rect: Xy::new_symm([0.0, 1.0]),

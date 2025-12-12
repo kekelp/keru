@@ -33,17 +33,24 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     // }
 
 
-    let animation = Animation {
+    let animation_grow = Animation {
         grow_shrink: true,
+        slide: SlideFlags::MOVING,
+        slide_entrance_edge: SlideEdge::Top,
         ..NO_ANIMATION
     };
 
-    if state.show {
-        ui.add(V_STACK.animation(animation).clip_children_y(true)).nest(|| {
 
-            ui.add(LABEL.text("SNEED"));
-        });
-    }
+    ui.add(V_STACK.slide().size_x(Size::Pixels(200)).position_y(Position::Start)).nest(|| {
+        
+        if state.show {
+            ui.add(V_STACK.animation(animation_grow).clip_children_y(true)).nest(|| {
+                ui.add(LABEL.text("SNEED"));
+            });
+        }
+     
+        ui.add(LABEL.text("FEED").slide());
+    });
 
     ui.add(BUTTON.key(ADD).static_text("SEETHE").position_y(Position::End));
     if ui.is_clicked(ADD) {

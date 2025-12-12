@@ -24,6 +24,8 @@ impl Ui {
         self.sys.key_input.window_event(event);
 
         let _event_consumed_by_text = self.text_window_event(ROOT_I, event, window);
+        // todo keyboard events should be consumed actually.
+        // but mouse events shouldn't. if a text edit gets focused, the node it's on should get focused as well.
 
         let event_consumed = self.ui_input(&event, window);
         if event_consumed {
