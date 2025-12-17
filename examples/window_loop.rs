@@ -43,7 +43,8 @@ impl State {
 
         surface.configure(&device, &config);
 
-        let ui = Ui::new(&device, &queue, &config);
+        let mut ui = Ui::new(&device, &queue, &config);
+        ui.enable_auto_wakeup(window.clone());
 
         Self { window, surface, device, queue, config, ui, count: 0 }
     }
@@ -74,6 +75,9 @@ impl State {
 }
 
 impl ApplicationHandler for Application {
+    // Right now we assume that for desktop applications there's only one Resume event at the beginning, so it's okay to create the whole state here.
+    // If this wasn't the case, we'd probably need to recreate just the winit window and the graphics context, and keep the rest.
+    // If the Ui ends up holding a Weak<Window> or similar, that would need to be updated too. 
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let window = Arc::new(event_loop.create_window(Window::default_attributes()).unwrap());
         window.set_ime_allowed(true);

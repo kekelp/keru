@@ -451,7 +451,7 @@ impl Ui {
         };
     }
 
-    pub(crate) fn push_partial_relayout(&mut self, i: NodeI) {
+    pub(crate) fn push_partial_relayout(&mut self, _i: NodeI) {
         // let relayout_chain_root = match self.nodes[i].relayout_chain_root {
         //     Some(root) => root,
         //     None => i,
@@ -538,9 +538,10 @@ impl Ui {
         }
 
         self.sys.new_external_events = false;
-        // todo: what probably happens is that the task completes instantly and it's immediately reset to false.
-        // should really do that this-frame/next-frame thing.
-        self.sys.external_needs_update.0.store(false, std::sync::atomic::Ordering::Relaxed);
+
+        if let Some(waker) = &self.sys.waker {
+            waker.needs_update.store(false, std::sync::atomic::Ordering::Relaxed);
+        }
 
         // let mut buffer = String::new();
         // std::io::stdin().read_line(&mut buffer).expect("Failed to read line");
