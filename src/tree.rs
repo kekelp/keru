@@ -452,25 +452,25 @@ impl Ui {
     }
 
     pub(crate) fn push_partial_relayout(&mut self, i: NodeI) {
-        let relayout_chain_root = match self.nodes[i].relayout_chain_root {
-            Some(root) => root,
-            None => i,
-        };
+        // let relayout_chain_root = match self.nodes[i].relayout_chain_root {
+        //     Some(root) => root,
+        //     None => i,
+        // };
 
-        // even after the chain, we still have to go one layer up, because a different sized child probably means that the parent wants to place the node differently, and maybe pick a different size and position for the other children as well
-        // In practice, the first half of that is basically always true, but the second half is only true for Stacks. I don't really feel like adding a distinction for that right now.
-        let relayout_target = self.nodes[relayout_chain_root].parent;
+        // // even after the chain, we still have to go one layer up, because a different sized child probably means that the parent wants to place the node differently, and maybe pick a different size and position for the other children as well
+        // // In practice, the first half of that is basically always true, but the second half is only true for Stacks. I don't really feel like adding a distinction for that right now.
+        // let relayout_target = self.nodes[relayout_chain_root].parent;
 
-        // try skipping some duplicates
-        if self.sys.changes.partial_relayouts.last().map(|x| x.i) == Some(relayout_target) {
-            return;
-        }
+        // // try skipping some duplicates
+        // if self.sys.changes.partial_relayouts.last().map(|x| x.i) == Some(relayout_target) {
+        //     return;
+        // }
 
-        let relayout_entry = NodeWithDepth {
-            i: relayout_target,
-            depth: self.nodes[relayout_target].depth,
-        };
-        self.sys.changes.partial_relayouts.push(relayout_entry);
+        // let relayout_entry = NodeWithDepth {
+        //     i: relayout_target,
+        //     depth: self.nodes[relayout_target].depth,
+        // };
+        // self.sys.changes.partial_relayouts.push(relayout_entry);
     }
 
     /// Clear the old GUI tree and start declaring another one.

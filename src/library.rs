@@ -1,4 +1,5 @@
 use crate::*;
+use vello_common::kurbo::{Cap, Join};
 use Size::*;
 use Position::*;
 use Shape::*;
@@ -11,6 +12,14 @@ pub const ICON_PLUS: &[u8] = include_bytes!("svg_icons/plus.svg");
 pub const ICON_MINUS: &[u8] = include_bytes!("svg_icons/minus.svg");
 pub const ICON_DELETE: &[u8] = include_bytes!("svg_icons/delete.svg");
 pub const ICON_EDIT: &[u8] = include_bytes!("svg_icons/pencil.svg");
+
+const DEBUG_ONLY_RECT: Rect = Rect {
+    rounded_corners: RoundedCorners::ALL,
+    shape: Rectangle { corner_radius: BASE_RADIUS },
+    visible: false,
+    stroke: Some(Stroke::new(4.0).with_color(Color::KERU_DEBUG_RED)),
+    vertex_colors: VertexColors::flat(Color::TRANSPARENT),
+};
 
 /// [`NodeParams`] for a node_root_params. 
 pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
@@ -76,13 +85,7 @@ pub const V_STACK: NodeParams = NodeParams {
         axis: Axis::Y,
         spacing: 8,
     }),
-    rect: Rect {
-        rounded_corners: RoundedCorners::ALL,
-        shape: Rectangle { corner_radius: BASE_RADIUS },
-        visible: false,
-        stroke: Some(Stroke::new(4.0).with_color(Color::KERU_DEBUG_RED)),
-        vertex_colors: VertexColors::flat(Color::TRANSPARENT),
-    },
+    rect: DEBUG_ONLY_RECT,
     interact: Interact {
         senses: Sense::NONE,
         absorbs_mouse_events: false,
@@ -107,13 +110,7 @@ pub const H_STACK: NodeParams = NodeParams {
         axis: Axis::X,
         spacing: 8,
     }),
-    rect: Rect {
-        rounded_corners: RoundedCorners::ALL,
-        shape: Rectangle { corner_radius: BASE_RADIUS },
-        visible: false,
-        stroke: Some(Stroke::new(4.0).with_color(Color::KERU_DEBUG_RED)),
-        vertex_colors: VertexColors::flat(Color::TRANSPARENT),
-    },
+    rect: DEBUG_ONLY_RECT,
     interact: Interact {
         senses: Sense::NONE,
         absorbs_mouse_events: false,
@@ -167,13 +164,7 @@ pub const MARGIN: NodeParams = NodeParams {
     key: None,
     stack: None,
     text_params: None,
-    rect: Rect {
-        rounded_corners: RoundedCorners::ALL,
-        shape: Rectangle { corner_radius: BASE_RADIUS },
-        visible: false,
-        stroke: Some(Stroke::new(4.0).with_color(Color::KERU_DEBUG_RED)),
-        vertex_colors: VertexColors::flat(Color::TRANSPARENT),
-    },
+    rect: DEBUG_ONLY_RECT,
     interact: Interact {
         senses: Sense::NONE,
         absorbs_mouse_events: false,
@@ -379,13 +370,29 @@ pub const TEXT: NodeParams = NodeParams {
         selectable: true,
         edit_disabled: false,
     }),
-    rect: Rect {
-        rounded_corners: RoundedCorners::ALL,
-        shape: Rectangle { corner_radius: BASE_RADIUS },
-        visible: false,
-        stroke: Some(Stroke::new(4.0).with_color(Color::KERU_DEBUG_RED)),
-        vertex_colors: VertexColors::flat(Color::TRANSPARENT),
+    rect: DEBUG_ONLY_RECT,
+    interact: Interact {
+        senses: Sense::NONE,
+        absorbs_mouse_events: false,
+        click_animation: false,
     },
+    layout: Layout {
+        size: Xy::new_symm(FitContent),
+        position: Xy::new_symm(Center),
+        padding: Xy::new_symm(2),
+        scrollable: Xy::new(false, false),
+    },
+    children_can_hide: ChildrenCanHide::Inherit,
+    clip_children: Xy::new(false, false),
+};
+
+/// [`NodeParams`] for an icon element. 
+pub const ICON: NodeParams = NodeParams {
+    animation: NO_ANIMATION,
+    key: None,
+    stack: None,
+    text_params: None,
+    rect: DEBUG_ONLY_RECT,
     interact: Interact {
         senses: Sense::NONE,
         absorbs_mouse_events: false,
@@ -420,7 +427,7 @@ pub const TEXT_EDIT: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::GREY),
     },
     interact: Interact {
-        senses: Sense::NONE,
+        senses: Sense::CLICK,
         absorbs_mouse_events: true,
         click_animation: true,
     },
@@ -453,7 +460,7 @@ pub const TEXT_EDIT_LINE: NodeParams = NodeParams {
         vertex_colors: VertexColors::flat(Color::GREY),
     },
     interact: Interact {
-        senses: Sense::NONE,
+        senses: Sense::CLICK,
         absorbs_mouse_events: true,
         click_animation: true,
     },
@@ -478,13 +485,7 @@ pub const TEXT_PARAGRAPH: NodeParams = NodeParams {
         selectable: true,
         edit_disabled: false,
     }),
-    rect: Rect {
-        rounded_corners: RoundedCorners::ALL,
-        shape: Rectangle { corner_radius: BASE_RADIUS },
-        visible: false,
-        stroke: Some(Stroke::new(4.0).with_color(Color::KERU_DEBUG_RED)),
-        vertex_colors: VertexColors::flat(Color::TRANSPARENT),
-    },
+    rect: DEBUG_ONLY_RECT,
     interact: Interact {
         senses: Sense::NONE,
         absorbs_mouse_events: false,
@@ -602,13 +603,7 @@ pub const SPACER: NodeParams = NodeParams {
     key: None,
     stack: None,
     text_params: None,
-    rect: Rect {
-        rounded_corners: RoundedCorners::ALL,
-        shape: Rectangle { corner_radius: BASE_RADIUS },
-        visible: false,
-        stroke: Some(Stroke::new(4.0).with_color(Color::KERU_DEBUG_RED)),
-        vertex_colors: VertexColors::flat(Color::TRANSPARENT),
-    },
+    rect: DEBUG_ONLY_RECT,
     interact: Interact {
         senses: Sense::NONE,
         absorbs_mouse_events: false,
@@ -630,13 +625,7 @@ pub const X_SPACER: NodeParams = NodeParams {
     key: None,
     stack: None,
     text_params: None,
-    rect: Rect {
-        rounded_corners: RoundedCorners::ALL,
-        shape: Rectangle { corner_radius: BASE_RADIUS },
-        visible: false,
-        stroke: Some(Stroke::new(4.0).with_color(Color::KERU_DEBUG_RED)),
-        vertex_colors: VertexColors::flat(Color::TRANSPARENT),
-    },
+    rect: DEBUG_ONLY_RECT,
     interact: Interact {
         senses: Sense::NONE,
         absorbs_mouse_events: false,
@@ -658,11 +647,42 @@ pub const Y_SPACER: NodeParams = NodeParams {
     key: None,
     stack: None,
     text_params: None,
+    rect: DEBUG_ONLY_RECT,
+    interact: Interact {
+        senses: Sense::NONE,
+        absorbs_mouse_events: false,
+        click_animation: false,
+    },
+    layout: Layout {
+        size: Xy::new(Size::FitContent, Size::Fill),
+        position: Xy::new_symm(Center),
+        padding: Xy::new_symm(0),
+        scrollable: Xy::new(false, false),
+    },
+    children_can_hide: ChildrenCanHide::Inherit,
+    clip_children: Xy::new(false, false),
+};
+
+/// [`NodeParams`] for a horizontal divider line.
+pub const H_LINE: NodeParams = NodeParams {
+    animation: NO_ANIMATION,
+    key: None,
+    stack: None,
+    text_params: None,
     rect: Rect {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
-        visible: false,
-        stroke: Some(Stroke::new(4.0).with_color(Color::KERU_DEBUG_RED)),
+        visible: true,
+        stroke: Some(Stroke {
+            width: 2.0,
+            color: Color::WHITE,
+            join: Join::Miter,
+            miter_limit: 4.0,
+            start_cap: Cap::Round,
+            end_cap: Cap::Round,
+            dash_length: 0.0,
+            dash_offset: 0.0,
+        }),
         vertex_colors: VertexColors::flat(Color::TRANSPARENT),
     },
     interact: Interact {
@@ -671,7 +691,7 @@ pub const Y_SPACER: NodeParams = NodeParams {
         click_animation: false,
     },
     layout: Layout {
-        size: Xy::new(Size::FitContent, Size::Fill),
+        size: Xy::new(Size::Fill, Size::Pixels(0)),
         position: Xy::new_symm(Center),
         padding: Xy::new_symm(0),
         scrollable: Xy::new(false, false),

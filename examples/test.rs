@@ -50,6 +50,10 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         }
      
         ui.add(LABEL.text("FEED").slide());
+        ui.add(H_LINE.slide());
+        ui.add(LABEL.text("FEED2").slide());
+        ui.add(H_LINE.slide());
+        ui.add(LABEL.text("FEED3").slide());
     });
 
     ui.add(BUTTON.key(ADD).static_text("SEETHE").position_y(Position::End));

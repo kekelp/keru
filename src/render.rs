@@ -211,41 +211,63 @@ impl Ui {
             Shape::Rectangle { corner_radius } => {
                 let corner_radius = *corner_radius as f64;
 
-                // Get which corners should be rounded
-                let rounded_corners = node.params.rect.rounded_corners;
-                let top_right = rounded_corners.contains(RoundedCorners::TOP_RIGHT);
-                let top_left = rounded_corners.contains(RoundedCorners::TOP_LEFT);
-                let bottom_right = rounded_corners.contains(RoundedCorners::BOTTOM_RIGHT);
-                let bottom_left = rounded_corners.contains(RoundedCorners::BOTTOM_LEFT);
+                // Check if one dimension is zero (for line rendering)
+                let width = x1 - x0;
+                let height = y1 - y0;
+                let is_horizontal_line = height == 0.0 && width > 0.0;
+                let is_vertical_line = width == 0.0 && height > 0.0;
 
-                if corner_radius > 0.0 && (top_right || top_left || bottom_right || bottom_left) {
-                    // Create rounded rect with per-corner radii
-                    let radii = vello_common::kurbo::RoundedRectRadii {
-                        top_left: if top_left { corner_radius } else { 0.0 },
-                        top_right: if top_right { corner_radius } else { 0.0 },
-                        bottom_right: if bottom_right { corner_radius } else { 0.0 },
-                        bottom_left: if bottom_left { corner_radius } else { 0.0 },
-                    };
-                    let rounded_rect = RoundedRect::from_rect(
-                        VelloRect::new(x0, y0, x1, y1),
-                        radii
-                    );
-                    let path = rounded_rect.to_path(0.1);
-
-                    self.sys.vello_scene.set_paint(fill_paint);
-                    self.sys.vello_scene.fill_path(&path);
-
+                if is_horizontal_line || is_vertical_line {
+                    // Draw only a single line when one dimension is zero
                     if is_stroked {
+                        use vello_common::kurbo::Line;
+                        let line = if is_horizontal_line {
+                            Line::new((x0, y0), (x1, y0))
+                        } else {
+                            Line::new((x0, y0), (x0, y1))
+                        };
+                        let path = line.to_path(0.1);
                         self.sys.vello_scene.set_paint(stroke_paint);
                         self.sys.vello_scene.stroke_path(&path);
                     }
                 } else {
-                    let rect = VelloRect::new(x0, y0, x1, y1);
-                    self.sys.vello_scene.set_paint(fill_paint);
-                    self.sys.vello_scene.fill_rect(&rect);
-                    if is_stroked {
-                        self.sys.vello_scene.set_paint(stroke_paint);
-                        self.sys.vello_scene.stroke_rect(&rect);
+                    // Normal rectangle rendering
+                    // Get which corners should be rounded
+                    let rounded_corners = node.params.rect.rounded_corners;
+                    let top_right = rounded_corners.contains(RoundedCorners::TOP_RIGHT);
+                    let top_left = rounded_corners.contains(RoundedCorners::TOP_LEFT);
+                    let bottom_right = rounded_corners.contains(RoundedCorners::BOTTOM_RIGHT);
+                    let bottom_left = rounded_corners.contains(RoundedCorners::BOTTOM_LEFT);
+
+                    if corner_radius > 0.0 && (top_right || top_left || bottom_right || bottom_left) {
+                        // Create rounded rect with per-corner radii
+                        let radii = vello_common::kurbo::RoundedRectRadii {
+                            top_left: if top_left { corner_radius } else { 0.0 },
+                            top_right: if top_right { corner_radius } else { 0.0 },
+                            bottom_right: if bottom_right { corner_radius } else { 0.0 },
+                            bottom_left: if bottom_left { corner_radius } else { 0.0 },
+                        };
+                        let rounded_rect = RoundedRect::from_rect(
+                            VelloRect::new(x0, y0, x1, y1),
+                            radii
+                        );
+                        let path = rounded_rect.to_path(0.1);
+
+                        self.sys.vello_scene.set_paint(fill_paint);
+                        self.sys.vello_scene.fill_path(&path);
+
+                        if is_stroked {
+                            self.sys.vello_scene.set_paint(stroke_paint);
+                            self.sys.vello_scene.stroke_path(&path);
+                        }
+                    } else {
+                        let rect = VelloRect::new(x0, y0, x1, y1);
+                        self.sys.vello_scene.set_paint(fill_paint);
+                        self.sys.vello_scene.fill_rect(&rect);
+                        if is_stroked {
+                            self.sys.vello_scene.set_paint(stroke_paint);
+                            self.sys.vello_scene.stroke_rect(&rect);
+                        }
                     }
                 }
             }
