@@ -12,12 +12,14 @@ use winit_key_events::KeyInput;
 use winit_mouse_events::MouseInput;
 
 use std::any::Any;
-use std::collections::VecDeque;
+use std::collections::{BinaryHeap, VecDeque};
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
+use std::sync::mpsc;
 use std::sync::Weak;
 use std::sync::{Arc, LazyLock};
+use std::thread;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -139,6 +141,7 @@ pub(crate) struct System {
     pub user_state: HashMap<StateId, Box<dyn Any>>,
 
     pub waker: Option<UiWaker>,
+    pub scheduled_wakeup: Option<ScheduledWakeupHandle>,
 }
 
 #[derive(Clone)]
@@ -153,6 +156,50 @@ impl UiWaker {
         if let Some(window) = self.window_ref.upgrade() {
             window.request_redraw();
         }
+    }
+}
+use std::cmp::Reverse;
+use std::sync::mpsc::{RecvTimeoutError, Sender};
+
+pub(crate) struct ScheduledWakeupHandle {
+    sender: Sender<Instant>,
+}
+
+impl ScheduledWakeupHandle {
+    fn new(waker: UiWaker) -> Self {
+        let (sender, receiver) = mpsc::channel::<Instant>();
+        
+        thread::spawn(move || {
+            let mut pending: BinaryHeap<Reverse<Instant>> = BinaryHeap::new();
+            
+            loop {
+                let timeout = pending
+                    .peek()
+                    .map(|Reverse(wake_at)| wake_at.saturating_duration_since(Instant::now()))
+                    .unwrap_or(Duration::MAX);
+                
+                match receiver.recv_timeout(timeout) {
+                    Ok(wake_at) => {
+                        pending.push(Reverse(wake_at));
+                    }
+                    Err(RecvTimeoutError::Timeout) => {
+                        // Drain all overdue wakeups
+                        let now = Instant::now();
+                        while pending.peek().map_or(false, |Reverse(wake_at)| *wake_at <= now) {
+                            pending.pop();
+                        }
+                        waker.set_update_needed();
+                    }
+                    Err(RecvTimeoutError::Disconnected) => break,
+                }
+            }
+        });
+        
+        Self { sender }
+    }
+    
+    fn schedule(&self, duration: Duration) {
+        let _ = self.sender.send(Instant::now() + duration);
     }
 }
 
@@ -290,6 +337,7 @@ impl Ui {
                 user_state: HashMap::with_capacity(7),
 
                 waker: None,
+                scheduled_wakeup: None,
             },
         }
     }
@@ -349,12 +397,27 @@ impl Ui {
     }
 
     /// Get a [UiWaker], which can be used to wake up the ui from a different thread.
-    /// 
+    ///
     /// Panics if the [Ui::enable_auto_wakeup()] wasn't called on this [Ui] instance.
     pub fn ui_waker(&mut self) -> UiWaker {
         return self.sys.waker.as_ref()
             .expect("Wakeup not enabled. Ui::enable_auto_wakeup() must be called before calling this function.")
             .clone()
+    }
+
+    /// Schedule a wakeup after the specified duration.
+    ///
+    /// The scheduler thread is created lazily on the first call to this method.
+    ///
+    /// Panics if [Ui::enable_auto_wakeup()] wasn't called on this [Ui] instance.
+    pub fn schedule_wakeup(&mut self, duration: Duration) {
+        let waker = self.sys.waker.as_ref().expect("Wakeup not enabled. Ui::enable_auto_wakeup() must be called before calling this function.");
+
+        if self.sys.scheduled_wakeup.is_none() {
+            self.sys.scheduled_wakeup = Some(ScheduledWakeupHandle::new(waker.clone()));
+        }
+
+        self.sys.scheduled_wakeup.as_ref().unwrap().schedule(duration);
     }
 
     /// Returns `true` if the [`Ui`] needs to be updated.
