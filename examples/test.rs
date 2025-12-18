@@ -33,27 +33,20 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     // }
 
 
-    let animation_grow = Animation {
-        grow_shrink: true,
-        slide: SlideFlags::MOVING,
-        slide_entrance_edge: SlideEdge::Top,
-        ..NO_ANIMATION
-    };
 
+    ui.add(V_STACK.slide_from_top().size_x(Size::Pixels(200)).position_y(Position::Start)).nest(|| {
 
-    ui.add(V_STACK.slide().size_x(Size::Pixels(200)).position_y(Position::Start)).nest(|| {
-        
         if state.show {
-            ui.add(V_STACK.animation(animation_grow).clip_children_y(true)).nest(|| {
+            ui.add(V_STACK.grow_shrink(Axis::Y, Position::Start).clip_children_y(true)).nest(|| {
                 ui.add(LABEL.text("SNEED"));
             });
         }
-     
-        ui.add(LABEL.text("FEED").slide());
-        ui.add(H_LINE.slide());
-        ui.add(LABEL.text("FEED2").slide());
-        ui.add(H_LINE.slide());
-        ui.add(LABEL.text("FEED3").slide());
+
+        ui.add(LABEL.text("FEED").animate_position(true));
+        ui.add(H_LINE.animate_position(true));
+        ui.add(LABEL.text("FEED2").animate_position(true));
+        ui.add(H_LINE.animate_position(true));
+        ui.add(LABEL.text("FEED3").animate_position(true));
     });
 
     ui.add(BUTTON.key(ADD).static_text("SEETHE").position_y(Position::End));

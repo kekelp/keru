@@ -22,33 +22,33 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .position_x(Position::Start);
     
     let h_group = H_STACK
-        .slide()
+        .slide_from_top()
         .clip_children_y(true)
         .size_x(Size::Fill)
         .stack_arrange(Arrange::Start);
-    
+
     let expand = BUTTON
         .text("Expand")
         .position_x(Position::Start)
         .position_y(Position::Start)
         .size_x(Size::FitContent);
-    
+
     let sub_expand = BUTTON
         .text("Sub-Expand")
         .position_x(Position::Start)
         .position_y(Position::Start)
         .size_x(Size::FitContent);
-    
+
     let elem = BUTTON
         .size_x(Size::Fill)
         .text("???");
-    
+
     let elem_vstack = V_STACK
-        .slide()
+        .slide_from_top()
         .key(ELEM_VSTACK);
-    
+
     let sub_elem_vstack = V_STACK
-        .slide()
+        .slide_from_top()
         .key(SUB_ELEM_VSTACK);
     
     let n = 4;

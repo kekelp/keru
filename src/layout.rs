@@ -543,8 +543,8 @@ impl Ui {
             [child_rect.y[0] - parent_rect.y[0], child_rect.y[1] - parent_rect.y[0]]
         );
 
-        if ! self.nodes[i].params.animation.slide.contains(SlideFlags::MOVING)
-            // && ! self.nodes[i].exit_animation_still_going // this one is not needed, because exiting nodes don't get layouted.  
+        if ! self.nodes[i].params.animation.state_transition.animate_position
+            // && ! self.nodes[i].exit_animation_still_going // this one is not needed, because exiting nodes don't get layouted.
                 && ! self.nodes[i].enter_animation_still_going {
             self.nodes[i].local_animated_rect = self.nodes[i].local_layout_rect;
             // might still be adjusted later for enter/exit animations.
@@ -558,23 +558,52 @@ impl Ui {
 
         self.nodes[i].local_animated_rect = self.nodes[i].local_layout_rect;
 
-        let slide_flags = self.nodes[i].params.animation.slide;
-        let appearing = slide_flags.contains(SlideFlags::APPEARING);
+        match self.nodes[i].params.animation.enter {
+            EnterAnimation::None => {}
+            EnterAnimation::Slide { edge, direction: _ } => {
+                use SlideEdge::*;
+                let rect = self.nodes[i].local_layout_rect;
+                let size = rect.size();
 
-        if self.nodes[i].params.animation.grow_shrink {
-            // todo: select the correct edge and direction.
-            let origin = (self.nodes[i].local_layout_rect.y[0] + self.nodes[i].local_layout_rect.y[1]) / 2.0;
-            self.nodes[i].local_animated_rect.y[0] = origin;
-            self.nodes[i].local_animated_rect.y[1] = origin;
-            self.nodes[i].enter_animation_still_going = true;
-        }
+                let (offset_x, offset_y) = match edge {
+                    Top => (0.0, -size.y.abs()),
+                    Bottom => (0.0, size.y.abs()),
+                    Left => (-size.x.abs(), 0.0),
+                    Right => (size.x.abs(), 0.0),
+                };
 
-        if appearing {
-            let target_offset_y = - self.nodes[i].local_layout_rect.size().y.abs();
+                self.nodes[i].local_animated_rect.x[0] += offset_x;
+                self.nodes[i].local_animated_rect.x[1] += offset_x;
+                self.nodes[i].local_animated_rect.y[0] += offset_y;
+                self.nodes[i].local_animated_rect.y[1] += offset_y;
+                self.nodes[i].enter_animation_still_going = true;
+            }
+            EnterAnimation::GrowShrink { axis, origin } => {
+                use Position::*;
+                let rect = self.nodes[i].local_layout_rect;
 
-            self.nodes[i].local_animated_rect.y[0] += target_offset_y;
-            self.nodes[i].local_animated_rect.y[1] += target_offset_y;
-            self.nodes[i].enter_animation_still_going = true;
+                match axis {
+                    Axis::X => {
+                        let origin_x = match origin {
+                            Center | Static(_) => (rect.x[0] + rect.x[1]) / 2.0,
+                            Start => rect.x[0],
+                            End => rect.x[1],
+                        };
+                        self.nodes[i].local_animated_rect.x[0] = origin_x;
+                        self.nodes[i].local_animated_rect.x[1] = origin_x;
+                    }
+                    Axis::Y => {
+                        let origin_y = match origin {
+                            Center | Static(_) => (rect.y[0] + rect.y[1]) / 2.0,
+                            Start => rect.y[0],
+                            End => rect.y[1],
+                        };
+                        self.nodes[i].local_animated_rect.y[0] = origin_y;
+                        self.nodes[i].local_animated_rect.y[1] = origin_y;
+                    }
+                }
+                self.nodes[i].enter_animation_still_going = true;
+            }
         }
     }
 
@@ -584,7 +613,7 @@ impl Ui {
         // Set exiting even if we don't have an exiting animation, because the node might need to stick around for a parent's exit animation.
         self.nodes[i].exiting = true;
         self.nodes[i].exit_animation_still_going = true;
-        
+
         // set the whole branch to exiting. (reusing this random vec)
         self.sys.to_cleanup.clear();
         for_each_child_including_lingering!(self, &self.nodes[i], child, {
@@ -598,23 +627,53 @@ impl Ui {
                 self.sys.to_cleanup.push(child);
             });
         }
-        
-        if self.nodes[i].params.animation.grow_shrink {
-            // todo: select the correct edge and direction.
-            // If the parent is a stack with Arrange::Center, the nicest thing to do is to collapse at the middle.
-            let collapse_spot = (self.nodes[i].local_layout_rect.y[0] + self.nodes[i].local_layout_rect.y[1]) / 2.0;
-            self.nodes[i].local_layout_rect.y[0] = collapse_spot;
-            self.nodes[i].local_layout_rect.y[1] = collapse_spot;
-        }
-        if self.nodes[i].params.animation.slide.contains(SlideFlags::DISAPPEARING) {
-            let parent = self.nodes[i].parent;
-            let parent_rect = self.nodes[parent].layout_rect;
-            let target_offset_y = - parent_rect.size().y.abs();
-            
-            // Change the layout_rect to move the "target" position.
-            // This works because exiting nodes are excluded from layout, so the layout_rect is not updated further.
-            self.nodes[i].local_layout_rect.y[0] += target_offset_y;
-            self.nodes[i].local_layout_rect.y[1] += target_offset_y;
+
+        match self.nodes[i].params.animation.exit {
+            ExitAnimation::None => {}
+            ExitAnimation::Slide { edge, direction: _ } => {
+                use SlideEdge::*;
+                let rect = self.nodes[i].local_layout_rect;
+                let size = rect.size();
+
+                let (offset_x, offset_y) = match edge {
+                    Top => (0.0, -size.y.abs()),
+                    Bottom => (0.0, size.y.abs()),
+                    Left => (-size.x.abs(), 0.0),
+                    Right => (size.x.abs(), 0.0),
+                };
+
+                // Change the layout_rect to move the "target" position.
+                // This works because exiting nodes are excluded from layout, so the layout_rect is not updated further.
+                self.nodes[i].local_layout_rect.x[0] += offset_x;
+                self.nodes[i].local_layout_rect.x[1] += offset_x;
+                self.nodes[i].local_layout_rect.y[0] += offset_y;
+                self.nodes[i].local_layout_rect.y[1] += offset_y;
+            }
+            ExitAnimation::GrowShrink { axis, origin } => {
+                use Position::*;
+                let rect = self.nodes[i].local_layout_rect;
+
+                match axis {
+                    Axis::X => {
+                        let origin_x = match origin {
+                            Center | Static(_) => (rect.x[0] + rect.x[1]) / 2.0,
+                            Start => rect.x[0],
+                            End => rect.x[1],
+                        };
+                        self.nodes[i].local_layout_rect.x[0] = origin_x;
+                        self.nodes[i].local_layout_rect.x[1] = origin_x;
+                    }
+                    Axis::Y => {
+                        let origin_y = match origin {
+                            Center | Static(_) => (rect.y[0] + rect.y[1]) / 2.0,
+                            Start => rect.y[0],
+                            End => rect.y[1],
+                        };
+                        self.nodes[i].local_layout_rect.y[0] = origin_y;
+                        self.nodes[i].local_layout_rect.y[1] = origin_y;
+                    }
+                }
+            }
         }
 
     }

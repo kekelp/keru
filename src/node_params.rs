@@ -60,24 +60,6 @@ pub struct NodeParams {
     pub animation: Animation,
 }
 
-bitflags::bitflags! {
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-    pub struct SlideFlags: u8 {
-        /// Slide when element appears
-        const APPEARING    = 1 << 0;
-        /// Slide when element disappears  
-        const DISAPPEARING = 1 << 1;
-        /// Slide when element moves to new position
-        const MOVING       = 1 << 2;
-
-        /// Slide in all scenarios
-        const ALWAYS = Self::APPEARING.bits() | Self::DISAPPEARING.bits() | Self::MOVING.bits();
-        
-        /// No sliding
-        const NONE = 0;
-    }
-}
-
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum SlideEdge {
     Top,
@@ -86,21 +68,47 @@ pub enum SlideEdge {
     Right,
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum SlideDirection {
+    In,
+    Out,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum EnterAnimation {
+    None,
+    Slide { edge: SlideEdge, direction: SlideDirection },
+    GrowShrink { axis: Axis, origin: Position },
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum ExitAnimation {
+    None,
+    Slide { edge: SlideEdge, direction: SlideDirection },
+    GrowShrink { axis: Axis, origin: Position },
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct StateTransition {
+    // For now, just position-based transitions (placeholder)
+    pub animate_position: bool,
+}
+
 #[derive(Debug, Copy, Clone)]
 pub struct Animation {
     pub speed: f32,
-    pub slide: SlideFlags,
-    pub slide_entrance_edge: SlideEdge,
-    pub slide_exit_edge: SlideEdge,
-    pub grow_shrink: bool,
+    pub enter: EnterAnimation,
+    pub exit: ExitAnimation,
+    pub state_transition: StateTransition,
 }
 
 pub const NO_ANIMATION: Animation = Animation {
     speed: 1.0,
-    slide: SlideFlags::NONE,
-    slide_entrance_edge: SlideEdge::Top,
-    slide_exit_edge: SlideEdge::Top,
-    grow_shrink: false,
+    enter: EnterAnimation::None,
+    exit: ExitAnimation::None,
+    state_transition: StateTransition {
+        animate_position: false,
+    },
 };
 
 /// A node's size.
@@ -108,7 +116,7 @@ pub const NO_ANIMATION: Animation = Animation {
 pub enum Size {
     Pixels(u32),
     Frac(f32),
-    Fill, // todo, same as Frac(1), remove?
+    Fill,
     FitContent,
     AspectRatio(f32),
 }
@@ -634,48 +642,66 @@ impl NodeParams {
         return self;
     }
 
-    pub const fn slide(mut self) -> Self {
-        self.animation.slide = SlideFlags::ALWAYS;
-        return self;
-    }
-    
-    pub const fn wait(mut self) -> Self {
-        self.animation.slide = SlideFlags::ALWAYS;
+    pub const fn animation_speed(mut self, speed: f32) -> Self {
+        self.animation.speed = speed;
         return self;
     }
 
-    pub fn slide_when_appearing(mut self) -> Self {
-        self.animation.slide |= SlideFlags::APPEARING;
+    // Enter animation methods
+    pub const fn enter_slide(mut self, edge: SlideEdge, direction: SlideDirection) -> Self {
+        self.animation.enter = EnterAnimation::Slide { edge, direction };
         return self;
     }
-    
-    pub fn slide_when_disappearing(mut self) -> Self {
-        self.animation.slide |= SlideFlags::DISAPPEARING;
+
+    pub const fn enter_grow(mut self, axis: Axis, origin: Position) -> Self {
+        self.animation.enter = EnterAnimation::GrowShrink { axis, origin };
         return self;
     }
-    
-    pub fn slide_when_moving(mut self) -> Self {
-        self.animation.slide |= SlideFlags::MOVING;
+
+    // Exit animation methods
+    pub const fn exit_slide(mut self, edge: SlideEdge, direction: SlideDirection) -> Self {
+        self.animation.exit = ExitAnimation::Slide { edge, direction };
         return self;
     }
-    
-    pub fn slide_from_top(mut self) -> Self {
-        self.animation.slide_entrance_edge = SlideEdge::Top;
+
+    pub const fn exit_shrink(mut self, axis: Axis, origin: Position) -> Self {
+        self.animation.exit = ExitAnimation::GrowShrink { axis, origin };
         return self;
     }
-    
-    pub fn slide_from_bottom(mut self) -> Self {
-        self.animation.slide_entrance_edge = SlideEdge::Bottom;
+
+    // Convenience methods for common patterns
+    pub const fn slide_from_top(mut self) -> Self {
+        self.animation.enter = EnterAnimation::Slide { edge: SlideEdge::Top, direction: SlideDirection::In };
+        self.animation.exit = ExitAnimation::Slide { edge: SlideEdge::Top, direction: SlideDirection::Out };
         return self;
     }
-    
-    pub fn slide_from_left(mut self) -> Self {
-        self.animation.slide_entrance_edge = SlideEdge::Left;
+
+    pub const fn slide_from_bottom(mut self) -> Self {
+        self.animation.enter = EnterAnimation::Slide { edge: SlideEdge::Bottom, direction: SlideDirection::In };
+        self.animation.exit = ExitAnimation::Slide { edge: SlideEdge::Bottom, direction: SlideDirection::Out };
         return self;
     }
-    
-    pub fn slide_from_right(mut self) -> Self {
-        self.animation.slide_entrance_edge = SlideEdge::Right;
+
+    pub const fn slide_from_left(mut self) -> Self {
+        self.animation.enter = EnterAnimation::Slide { edge: SlideEdge::Left, direction: SlideDirection::In };
+        self.animation.exit = ExitAnimation::Slide { edge: SlideEdge::Left, direction: SlideDirection::Out };
+        return self;
+    }
+
+    pub const fn slide_from_right(mut self) -> Self {
+        self.animation.enter = EnterAnimation::Slide { edge: SlideEdge::Right, direction: SlideDirection::In };
+        self.animation.exit = ExitAnimation::Slide { edge: SlideEdge::Right, direction: SlideDirection::Out };
+        return self;
+    }
+
+    pub const fn grow_shrink(mut self, axis: Axis, origin: Position) -> Self {
+        self.animation.enter = EnterAnimation::GrowShrink { axis, origin };
+        self.animation.exit = ExitAnimation::GrowShrink { axis, origin };
+        return self;
+    }
+
+    pub const fn animate_position(mut self, value: bool) -> Self {
+        self.animation.state_transition.animate_position = value;
         return self;
     }
 
@@ -1082,45 +1108,65 @@ impl<'a> FullNodeParams<'a> {
         return self;
     }
 
-    pub const fn slide(mut self) -> Self {
-        self.params.animation.slide = SlideFlags::ALWAYS;
-        self.params.animation.slide_entrance_edge = SlideEdge::Top;
+    pub const fn animation_speed(mut self, speed: f32) -> Self {
+        self.params.animation.speed = speed;
         return self;
     }
-    
-    // todo: make const
-    pub fn slide_when_appearing(mut self) -> Self {
-        self.params.animation.slide |= SlideFlags::APPEARING;
+
+    // Enter animation methods
+    pub const fn enter_slide(mut self, edge: SlideEdge, direction: SlideDirection) -> Self {
+        self.params.animation.enter = EnterAnimation::Slide { edge, direction };
         return self;
     }
-    
-    pub fn slide_when_disappearing(mut self) -> Self {
-        self.params.animation.slide |= SlideFlags::DISAPPEARING;
+
+    pub const fn enter_grow(mut self, axis: Axis, origin: Position) -> Self {
+        self.params.animation.enter = EnterAnimation::GrowShrink { axis, origin };
         return self;
     }
-    
-    pub fn slide_when_moving(mut self) -> Self {
-        self.params.animation.slide |= SlideFlags::MOVING;
+
+    // Exit animation methods
+    pub const fn exit_slide(mut self, edge: SlideEdge, direction: SlideDirection) -> Self {
+        self.params.animation.exit = ExitAnimation::Slide { edge, direction };
+        return self;
+    }
+
+    pub const fn exit_shrink(mut self, axis: Axis, origin: Position) -> Self {
+        self.params.animation.exit = ExitAnimation::GrowShrink { axis, origin };
         return self;
     }
 
     pub const fn slide_from_top(mut self) -> Self {
-        self.params.animation.slide_entrance_edge = SlideEdge::Top;
+        self.params.animation.enter = EnterAnimation::Slide { edge: SlideEdge::Top, direction: SlideDirection::In };
+        self.params.animation.exit = ExitAnimation::Slide { edge: SlideEdge::Top, direction: SlideDirection::Out };
         return self;
     }
-    
+
     pub const fn slide_from_bottom(mut self) -> Self {
-        self.params.animation.slide_entrance_edge = SlideEdge::Bottom;
+        self.params.animation.enter = EnterAnimation::Slide { edge: SlideEdge::Bottom, direction: SlideDirection::In };
+        self.params.animation.exit = ExitAnimation::Slide { edge: SlideEdge::Bottom, direction: SlideDirection::Out };
         return self;
     }
-    
+
     pub const fn slide_from_left(mut self) -> Self {
-        self.params.animation.slide_entrance_edge = SlideEdge::Left;
+        self.params.animation.enter = EnterAnimation::Slide { edge: SlideEdge::Left, direction: SlideDirection::In };
+        self.params.animation.exit = ExitAnimation::Slide { edge: SlideEdge::Left, direction: SlideDirection::Out };
         return self;
     }
-    
+
     pub const fn slide_from_right(mut self) -> Self {
-        self.params.animation.slide_entrance_edge = SlideEdge::Right;
+        self.params.animation.enter = EnterAnimation::Slide { edge: SlideEdge::Right, direction: SlideDirection::In };
+        self.params.animation.exit = ExitAnimation::Slide { edge: SlideEdge::Right, direction: SlideDirection::Out };
+        return self;
+    }
+
+    pub const fn grow_shrink(mut self, axis: Axis, origin: Position) -> Self {
+        self.params.animation.enter = EnterAnimation::GrowShrink { axis, origin };
+        self.params.animation.exit = ExitAnimation::GrowShrink { axis, origin };
+        return self;
+    }
+
+    pub const fn animate_position(mut self, value: bool) -> Self {
+        self.params.animation.state_transition.animate_position = value;
         return self;
     }
 
