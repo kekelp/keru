@@ -917,7 +917,7 @@ pub(crate) fn with_info_log_timer<T>(operation_name: &str, f: impl FnOnce() -> T
         let start = std::time::Instant::now();
         let result = f();
         let elapsed = start.elapsed();
-        log::info!("{} took {:?}", operation_name, elapsed);
+        log::info!("{}: {:?}", operation_name, elapsed);
         if elapsed > std::time::Duration::from_millis(2) {
         }
         result
