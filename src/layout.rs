@@ -584,6 +584,7 @@ impl Ui {
 
                 match axis {
                     Axis::X => {
+                        // todo: this was dumb actually, static doesn't do anything
                         let origin_x = match origin {
                             Center | Static(_) => (rect.x[0] + rect.x[1]) / 2.0,
                             Start => rect.x[0],

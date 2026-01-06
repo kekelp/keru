@@ -620,7 +620,7 @@ pub const SPACER: NodeParams = NodeParams {
 };
 
 /// [`NodeParams`] for a invisible spacer element that fills all the available space in the X direction.
-pub const X_SPACER: NodeParams = NodeParams {
+pub const H_SPACER: NodeParams = NodeParams {
     animation: NO_ANIMATION,
     key: None,
     stack: None,
@@ -642,7 +642,7 @@ pub const X_SPACER: NodeParams = NodeParams {
 };
 
 /// [`NodeParams`] for a invisible spacer element that fills all the available space in the Y direction.
-pub const Y_SPACER: NodeParams = NodeParams {
+pub const V_SPACER: NodeParams = NodeParams {
     animation: NO_ANIMATION,
     key: None,
     stack: None,

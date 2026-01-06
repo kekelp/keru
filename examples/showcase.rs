@@ -1,3 +1,5 @@
+#![windows_subsystem = "windows"]
+
 use keru::Size::*;
 use keru::example_window_loop::*;
 use keru::*;
