@@ -7,6 +7,7 @@ use glam::DVec2;
 
 use keru_draw::Renderer;
 pub use keru_draw::{TextStyle2 as TextStyle, ColorBrush};
+use wgpu_profiler::{GpuProfiler, GpuProfilerSettings};
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
 use winit_key_events::KeyInput;
@@ -131,6 +132,8 @@ pub(crate) struct System {
 
     pub waker: Option<UiWaker>,
     pub scheduled_wakeup: Option<ScheduledWakeupHandle>,
+
+    pub gpu_profiler: GpuProfiler,
 }
 
 #[derive(Clone)]
@@ -253,6 +256,8 @@ impl Ui {
 
         let renderer = Renderer::new(device.clone(), queue.clone(), config.format);
 
+        let gpu_profiler = GpuProfiler::new(&device, GpuProfilerSettings::default()).unwrap();
+
         Self {
             nodes,
             format_scratch: String::with_capacity(1024),
@@ -314,6 +319,8 @@ impl Ui {
 
                 waker: None,
                 scheduled_wakeup: None,
+
+                gpu_profiler,
             },
         }
     }

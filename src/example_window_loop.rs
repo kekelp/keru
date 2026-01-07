@@ -94,7 +94,7 @@ impl State {
     fn new(window: Arc<Window>, instance: Instance) -> Self {
         let adapter = pollster::block_on(instance.request_adapter(&RequestAdapterOptions::default())).unwrap();
         let (device, queue) = pollster::block_on(adapter.request_device(&DeviceDescriptor {
-            required_features: Features::PUSH_CONSTANTS,
+            required_features: wgpu::Features::TIMESTAMP_QUERY | wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS,
             required_limits: Limits { max_push_constant_size: 8, ..Default::default() },
             memory_hints: MemoryHints::MemoryUsage,
             ..Default::default()
