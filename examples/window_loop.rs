@@ -30,9 +30,15 @@ impl State {
         let surface = instance.create_surface(window.clone()).unwrap();
         let size = window.inner_size();
 
+        // When possible, using a linear color format for the surface results in better color blending.
+        let surface_caps = surface.get_capabilities(&adapter);
+        let surface_format = surface_caps.formats.iter()
+            .find(|f| ! f.is_srgb())
+            .copied().unwrap_or(surface_caps.formats[0]);
+
         let config = SurfaceConfiguration {
             usage: TextureUsages::RENDER_ATTACHMENT,
-            format: TextureFormat::Bgra8UnormSrgb,
+            format: surface_format,
             width: size.width,
             height: size.height,
             present_mode: PresentMode::Fifo,

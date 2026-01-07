@@ -4,6 +4,7 @@
 
 use crate::*;
 use std::sync::Arc;
+use std::time::Instant;
 use wgpu::*;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
@@ -103,9 +104,14 @@ impl State {
         let surface = instance.create_surface(window.clone()).unwrap();
         let size = window.inner_size();
 
+        let surface_caps = surface.get_capabilities(&adapter);
+        let surface_format = surface_caps.formats.iter()
+            .find(|f| ! f.is_srgb())
+            .copied().unwrap_or(surface_caps.formats[0]);
+
         let config = SurfaceConfiguration {
             usage: TextureUsages::RENDER_ATTACHMENT,
-            format: TextureFormat::Bgra8UnormSrgb,
+            format: surface_format,
             width: size.width,
             height: size.height,
             present_mode: PresentMode::Fifo,
@@ -147,6 +153,8 @@ impl<T> ApplicationHandler for Application<T> {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => state.resize(size.width, size.height),
             WindowEvent::RedrawRequested => {
+                let frame_start = Instant::now();
+
                 if state.ui.should_update() {
                     state.ui.begin_frame();
                     (self.update_fn)(&mut self.user_state, &mut state.ui);
@@ -159,6 +167,9 @@ impl<T> ApplicationHandler for Application<T> {
                         &state.queue,
                     );
                 }
+
+                let frame_time = frame_start.elapsed();
+                log::warn!("Total frame time: {:.2}ms", frame_time.as_secs_f32() * 1000.0);
             }
             _ => {}
         }

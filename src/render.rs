@@ -424,7 +424,7 @@ impl Ui {
         
         self.sys.renderer.render(&view);
         surface_texture.present();       
-        
+
         self.sys.changes.need_rerender = false;
     }
 
