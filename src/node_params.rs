@@ -1,5 +1,4 @@
-use textslabs::StyleHandle;
-use vello_common::kurbo::{Cap, Join, Stroke as VelloStroke};
+use keru_draw::StyleHandle;
 
 use crate::*;
 use crate::color::*;
@@ -341,22 +340,6 @@ impl Stroke {
         self
     }
 
-    pub fn into_vello_stroke(self) -> VelloStroke {
-        let mut stroke = VelloStroke::new(self.width as f64)
-            .with_caps(self.start_cap)
-            .with_join(self.join)
-            .with_miter_limit(self.miter_limit as f64);
-
-        if self.start_cap != self.end_cap {
-            stroke = stroke.with_end_cap(self.end_cap);
-        }
-
-        if self.dash_length > 0.0 {
-            stroke = stroke.with_dashes(self.dash_offset as f64, [self.dash_length as f64]);
-        }
-
-        stroke
-    }
 }
 
 impl Hash for Stroke {

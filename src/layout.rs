@@ -333,22 +333,18 @@ impl Ui {
         return final_size;
     }
 
-    fn determine_image_size(&mut self, i: NodeI, _proposed_size: Xy<f32>) -> Xy<f32> {
-        let image_ref = self.nodes[i].imageref.as_ref().unwrap();
-        let size = match image_ref {
-            ImageRef::Raster { original_size, .. } => *original_size,
-            ImageRef::Svg { original_size, .. } => *original_size,
-        };
-        return self.f32_pixels_to_frac2(size);
+    fn determine_image_size(&mut self, _i: NodeI, _proposed_size: Xy<f32>) -> Xy<f32> {
+        // TODO: Implement image size determination with keru_draw
+        return Xy::new(100.0, 100.0);
     }
 
     fn determine_text_size(&mut self, i: NodeI, proposed_size: Xy<f32>) -> Xy<f32> {
         let text_i = self.nodes[i].text_i.as_ref().unwrap();
-        
+
         match text_i {
             TextI::TextEdit(handle) => {
-                let text_edit = self.sys.text.get_text_edit_mut(&handle);
-                
+                let text_edit = self.sys.renderer.text.get_text_edit_mut(&handle);
+
                 if text_edit.single_line() {
                     let layout = text_edit.layout();
                     let text_height = if let Some(first_line) = layout.lines().next() {
@@ -356,7 +352,7 @@ impl Ui {
                     } else {
                         0.0
                     };
-                    
+
                     // let text_width = layout.full_width();
                     let text_width = proposed_size.x * self.sys.unifs.size[X];
 
@@ -364,18 +360,18 @@ impl Ui {
 
                     let text_size_pixels = Xy::new(text_width, text_height);
                     return self.f32_pixels_to_frac2(text_size_pixels);
-                    
+
                 } else {
                     let w = proposed_size.x * self.sys.unifs.size[X];
                     let h = proposed_size.y * self.sys.unifs.size[Y];
-                    
+
                     text_edit.set_size((w, h));
                     return proposed_size;
                 }
-                
+
             }
             TextI::TextBox(handle) => {
-                
+
                 let fit_content_y = self.nodes[i].params.layout.size[Y] == Size::FitContent;
                 let fit_content_x = self.nodes[i].params.layout.size[X] == Size::FitContent;
 
@@ -395,7 +391,7 @@ impl Ui {
                     proposed_size.x * self.sys.unifs.size[X]
                 };
 
-                let text_box = self.sys.text.get_text_box_mut(&handle);
+                let text_box = self.sys.renderer.text.get_text_box_mut(&handle);
                 text_box.set_size((w, h));
                 
                 let layout = text_box.layout();
@@ -714,38 +710,41 @@ impl Ui {
             let top = clip_rect[Y][0] * self.sys.unifs.size[Y];
             let bottom = clip_rect[Y][1] * self.sys.unifs.size[Y];
 
+            // Use animated_rect to match the position used in push_render_data
+            let animated_rect = self.nodes[i].get_animated_rect();
             let padding = self.nodes[i].params.layout.padding;
-            let text_left = (self.nodes[i].real_rect[X][0] * self.sys.unifs.size[X]) as f64 + padding[X] as f64;
-            let text_top = (self.nodes[i].real_rect[Y][0] * self.sys.unifs.size[Y]) as f64 + padding[Y] as f64;
-            
-            let text_clip_rect = Some(textslabs::BoundingBox {
+            let text_left = (animated_rect[X][0] * self.sys.unifs.size[X]) as f64 + padding[X] as f64;
+            let text_top = (animated_rect[Y][0] * self.sys.unifs.size[Y]) as f64 + padding[Y] as f64;
+
+            let text_clip_rect = Some(keru_draw::BoundingBox {
                 x0: left as f64 - text_left,
                 y0: top as f64 - text_top,
                 x1: right as f64 - text_left,
                 y1: bottom as f64 - text_top,
             });
-            
+
             match text_i {
                 TextI::TextBox(handle) => {
-                    self.sys.text.get_text_box_mut(&handle).set_clip_rect(text_clip_rect);
+                    self.sys.renderer.text.get_text_box_mut(&handle).set_clip_rect(text_clip_rect);
                 }
                 TextI::TextEdit(handle) => {
-                    self.sys.text.get_text_edit_mut(&handle).set_clip_rect(text_clip_rect);
+                    self.sys.renderer.text.get_text_edit_mut(&handle).set_clip_rect(text_clip_rect);
                 }
             }
         }
     }
 
     pub(crate) fn rebuild_render_data(&mut self) {
-        // log::info!("Rebuilding render data");
-
         self.sys.click_rects.clear();
         self.sys.scroll_rects.clear();
         self.sys.z_cursor = Z_START;
 
         self.sys.changes.unfinished_animations = false;
 
-        self.sys.vello_scene.reset();
+        // Begin frame with keru_draw
+        let width = self.sys.unifs.size[X];
+        let height = self.sys.unifs.size[Y];
+        self.sys.renderer.begin_frame(width, height);
 
         self.sys.breadth_traversal_queue.clear();
         self.sys.breadth_traversal_queue.push_back(ROOT_I);
@@ -754,7 +753,7 @@ impl Ui {
         while let Some(i) = self.sys.breadth_traversal_queue.pop_front() {
             self.resolve_animations_and_scrolling(i);
             self.push_render_data(i);
-            
+
             for_each_child_including_lingering!(self, self.nodes[i], child, {
                 self.sys.breadth_traversal_queue.push_back(child);
             });

@@ -38,13 +38,8 @@ env_logger = "0.11.6"
 bitflags = "2.8.0"
 ahash = "0.8.11"
 
-textslabs = { path = "../textslabs", features = ["vello_hybrid"] }
-# textslabs = { git = "https://github.com/kekelp/textslabs", rev = "2daac83" }
+keru_draw = { path = "../keru_draw" }
 bumpalo = { version = "3.19.0", features = ["collections"] }
-# vello_hybrid = "0.0.4"
-# vello_common = "0.0.4"
-vello_hybrid = { git = "https://github.com/linebender/vello" }
-vello_common = { git = "https://github.com/linebender/vello", features = ["pico_svg"] }
 
 [lints.clippy]
 needless_return = { level = "allow" }

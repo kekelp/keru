@@ -1,11 +1,7 @@
 use glam::dvec2;
-use vello_common::{color::{AlphaColor, ColorSpaceTag}, peniko::Gradient};
 use wgpu::{Device, Queue};
 use winit::event::*;
 use winit::window::Window;
-
-use vello_common::{kurbo::{Rect as VelloRect, RoundedRect, Circle, BezPath}, paint::PaintType};
-use vello_common::kurbo::Shape as VelloShape;
 
 use crate::*;
 
@@ -35,17 +31,17 @@ impl Ui {
         return false;
     }
 
-    fn text_window_event(&mut self, _i: NodeI, event: &WindowEvent, window: &Window) -> bool {     
-        let event_consumed = self.sys.text.handle_event(event, window);
-        
-        if self.sys.text.any_text_changed() {
+    fn text_window_event(&mut self, _i: NodeI, event: &WindowEvent, window: &Window) -> bool {
+        let event_consumed = self.sys.renderer.text.handle_event(event, window);
+
+        if self.sys.renderer.text.any_text_changed() {
             if let Some(node_id) = self.sys.focused {
                 self.sys.text_edit_changed_this_frame = Some(node_id);
             }
             self.sys.changes.text_changed = true;
             self.sys.new_external_events = true;
         }
-        if self.sys.text.decorations_changed() {
+        if self.sys.renderer.text.decorations_changed() {
             self.sys.new_external_events = true;
         }
 
@@ -121,8 +117,8 @@ impl Ui {
     }
 
 
-    /// Render a node's shape directly to the vello_hybrid scene.
-    pub(crate) fn render_node_shape_to_scene(&mut self, i: NodeI) {
+    /// Render a node's shape using keru_draw.
+    pub(crate) fn render_node_shape_to_scene(&mut self, i: NodeI, clip_rect: Xy<[f32; 2]>) {
         let node = &self.nodes[i];
 
         // Get rect in normalized space (0-1)
@@ -130,10 +126,10 @@ impl Ui {
 
         // Convert to pixel coordinates
         let screen_size = self.sys.unifs.size;
-        let x0 = (animated_rect.x[0] * screen_size.x).round() as f64;
-        let y0 = (animated_rect.y[0] * screen_size.y).round() as f64;
-        let x1 = (animated_rect.x[1] * screen_size.x).round() as f64;
-        let y1 = (animated_rect.y[1] * screen_size.y).round() as f64;
+        let x0 = (animated_rect.x[0] * screen_size.x).round();
+        let y0 = (animated_rect.y[0] * screen_size.y).round();
+        let x1 = (animated_rect.x[1] * screen_size.x).round();
+        let y1 = (animated_rect.y[1] * screen_size.y).round();
 
         // Calculate hover and click darkening effects
         let clickable = if node.params.interact.senses != Sense::NONE { 1.0 } else { 0.0 };
@@ -160,56 +156,65 @@ impl Ui {
         let bl = colors.bottom_left_color();
         let br = colors.bottom_right_color();
 
-        // Apply darkening to colors
-        let apply_dark = |c: Color| -> Color {
-            Color {
-                r: (c.r as f32 * dark) as u8,
-                g: (c.g as f32 * dark) as u8,
-                b: (c.b as f32 * dark) as u8,
-                a: c.a,
-            }
+        // Apply darkening to colors and convert to f32 [0-1]
+        let apply_dark = |c: Color| -> [f32; 4] {
+            [
+                (c.r as f32 * dark) / 255.0,
+                (c.g as f32 * dark) / 255.0,
+                (c.b as f32 * dark) / 255.0,
+                c.a as f32 / 255.0,
+            ]
         };
 
-        let tl = apply_dark(tl);
-        let tr = apply_dark(tr);
-        let bl = apply_dark(bl);
-        let br = apply_dark(br);
+        let tl_f = apply_dark(tl);
+        let tr_f = apply_dark(tr);
+        let bl_f = apply_dark(bl);
+        let _br_f = apply_dark(br);
 
         let is_solid = tl == tr && tl == bl && tl == br;
 
-        let tl_alpha = AlphaColor::from_rgba8(tl.r, tl.g, tl.b, tl.a);
-        let br_alpha = AlphaColor::from_rgba8(br.r, br.g, br.b, br.a);
+        // Determine gradient direction by checking which corners differ
+        // Old vello code used gradient from (x0, y1) bottom-left to (x1, y0) top-right
+        let (gradient_start_color, gradient_end_color, gradient_angle) = if !is_solid {
+            // Check if it's a horizontal, vertical, or diagonal gradient
+            let is_horizontal = tl == bl && tr == br;
+            let is_vertical = tl == tr && bl == br;
 
-        let fill_paint = if is_solid {
-            PaintType::Solid(tl_alpha)
+            if is_horizontal {
+                // Horizontal gradient: left to right
+                (tl_f, tr_f, 0.0) // 0 degrees = left to right
+            } else if is_vertical {
+                // Vertical gradient: top to bottom
+                (tl_f, bl_f, std::f32::consts::FRAC_PI_2) // 90 degrees = top to bottom
+            } else {
+                // Diagonal gradient: use bottom-left to top-right (matching old vello behavior)
+                // vello used (x0, y1) to (x1, y0) which is bottom-left to top-right
+                (bl_f, tr_f, -std::f32::consts::FRAC_PI_4) // -45 degrees = bottom-left to top-right
+            }
         } else {
-            let gradient = Gradient::new_linear((x0, y1), (x1, y0))
-            .with_interpolation_cs(ColorSpaceTag::Srgb)
-                .with_stops([tl_alpha, br_alpha]);
-            PaintType::Gradient(gradient)
+            (tl_f, tl_f, 0.0)
         };
 
-        // Create stroke paint from stroke color
-        let stroke_paint = if let Some(stroke) = node.params.rect.stroke {
-            let stroke_color = apply_dark(stroke.color);
-            let stroke_alpha = AlphaColor::from_rgba8(stroke_color.r, stroke_color.g, stroke_color.b, stroke_color.a);
-            PaintType::Solid(stroke_alpha)
+        // Convert clip rect to pixel coordinates
+        let x_clip = [
+            clip_rect.x[0] * screen_size.x,
+            clip_rect.x[1] * screen_size.x,
+        ];
+        let y_clip = [
+            clip_rect.y[0] * screen_size.y,
+            clip_rect.y[1] * screen_size.y,
+        ];
+
+        let border_thickness = if let Some(stroke) = node.params.rect.stroke {
+            stroke.width
         } else {
-            // Fallback (won't be used if there's no stroke)
-            PaintType::Solid(AlphaColor::from_rgba8(0, 0, 0, 255))
+            0.0
         };
-
-        // Set stroke if provided
-        if let Some(stroke) = node.params.rect.stroke {
-            self.sys.vello_scene.set_stroke(stroke.into_vello_stroke());
-        }
-
-        let is_stroked = node.params.rect.stroke.is_some();
 
         // Render based on shape type
         match &node.params.rect.shape {
             Shape::Rectangle { corner_radius } => {
-                let corner_radius = *corner_radius as f64;
+                let corner_radius = *corner_radius;
 
                 // Check if one dimension is zero (for line rendering)
                 let width = x1 - x0;
@@ -218,56 +223,62 @@ impl Ui {
                 let is_vertical_line = width == 0.0 && height > 0.0;
 
                 if is_horizontal_line || is_vertical_line {
-                    // Draw only a single line when one dimension is zero
-                    if is_stroked {
-                        use vello_common::kurbo::Line;
-                        let line = if is_horizontal_line {
-                            Line::new((x0, y0), (x1, y0))
-                        } else {
-                            Line::new((x0, y0), (x0, y1))
-                        };
-                        let path = line.to_path(0.1);
-                        self.sys.vello_scene.set_paint(stroke_paint);
-                        self.sys.vello_scene.stroke_path(&path);
+                    // Draw as a segment
+                    let thickness = if border_thickness > 0.0 {
+                        border_thickness
+                    } else {
+                        1.0
+                    };
+
+                    if is_solid {
+                        self.sys.renderer.draw_segment(
+                            [x0, y0],
+                            [x1, y1],
+                            thickness,
+                            tl_f,
+                            x_clip,
+                            y_clip,
+                        );
+                    } else {
+                        // For gradients on lines, use calculated gradient colors
+                        self.sys.renderer.draw_segment_gradient(
+                            [x0, y0],
+                            [x1, y1],
+                            thickness,
+                            gradient_start_color,
+                            gradient_end_color,
+                            x_clip,
+                            y_clip,
+                        );
                     }
                 } else {
                     // Normal rectangle rendering
-                    // Get which corners should be rounded
-                    let rounded_corners = node.params.rect.rounded_corners;
-                    let top_right = rounded_corners.contains(RoundedCorners::TOP_RIGHT);
-                    let top_left = rounded_corners.contains(RoundedCorners::TOP_LEFT);
-                    let bottom_right = rounded_corners.contains(RoundedCorners::BOTTOM_RIGHT);
-                    let bottom_left = rounded_corners.contains(RoundedCorners::BOTTOM_LEFT);
+                    let top_left = [x0, y0];
+                    let size = [x1 - x0, y1 - y0];
 
-                    if corner_radius > 0.0 && (top_right || top_left || bottom_right || bottom_left) {
-                        // Create rounded rect with per-corner radii
-                        let radii = vello_common::kurbo::RoundedRectRadii {
-                            top_left: if top_left { corner_radius } else { 0.0 },
-                            top_right: if top_right { corner_radius } else { 0.0 },
-                            bottom_right: if bottom_right { corner_radius } else { 0.0 },
-                            bottom_left: if bottom_left { corner_radius } else { 0.0 },
-                        };
-                        let rounded_rect = RoundedRect::from_rect(
-                            VelloRect::new(x0, y0, x1, y1),
-                            radii
+                    if is_solid {
+                        self.sys.renderer.draw_box(
+                            top_left,
+                            size,
+                            corner_radius,
+                            border_thickness,
+                            tl_f,
+                            x_clip,
+                            y_clip,
                         );
-                        let path = rounded_rect.to_path(0.1);
-
-                        self.sys.vello_scene.set_paint(fill_paint);
-                        self.sys.vello_scene.fill_path(&path);
-
-                        if is_stroked {
-                            self.sys.vello_scene.set_paint(stroke_paint);
-                            self.sys.vello_scene.stroke_path(&path);
-                        }
                     } else {
-                        let rect = VelloRect::new(x0, y0, x1, y1);
-                        self.sys.vello_scene.set_paint(fill_paint);
-                        self.sys.vello_scene.fill_rect(&rect);
-                        if is_stroked {
-                            self.sys.vello_scene.set_paint(stroke_paint);
-                            self.sys.vello_scene.stroke_rect(&rect);
-                        }
+                        // Use calculated gradient direction
+                        self.sys.renderer.draw_box_gradient(
+                            top_left,
+                            size,
+                            corner_radius,
+                            border_thickness,
+                            gradient_start_color,
+                            gradient_end_color,
+                            gradient_angle,
+                            x_clip,
+                            y_clip,
+                        );
                     }
                 }
             }
@@ -275,51 +286,95 @@ impl Ui {
                 let cx = (x0 + x1) / 2.0;
                 let cy = (y0 + y1) / 2.0;
                 let radius = ((x1 - x0) / 2.0).min((y1 - y0) / 2.0);
-                let circle = Circle::new((cx, cy), radius);
-                let path = circle.to_path(0.1);
-                if is_stroked {
-                    self.sys.vello_scene.set_paint(stroke_paint);
-                    self.sys.vello_scene.stroke_path(&path);
+
+                if is_solid {
+                    self.sys.renderer.draw_circle(
+                        [cx, cy],
+                        radius,
+                        tl_f,
+                        x_clip,
+                        y_clip,
+                    );
                 } else {
-                    self.sys.vello_scene.set_paint(fill_paint);
-                    self.sys.vello_scene.fill_path(&path);
+                    // For circles, determine if we should use linear or radial gradient
+                    // Radial gradient for actual color difference, linear for directional
+                    let is_horizontal = tl == bl && tr == br;
+                    let is_vertical = tl == tr && bl == br;
+
+                    if is_horizontal || is_vertical {
+                        // Use linear gradient
+                        self.sys.renderer.draw_circle_gradient(
+                            [cx, cy],
+                            radius,
+                            gradient_start_color,
+                            gradient_end_color,
+                            1, // linear gradient
+                            gradient_angle,
+                            x_clip,
+                            y_clip,
+                        );
+                    } else {
+                        // Use radial gradient for diagonal
+                        self.sys.renderer.draw_circle_gradient(
+                            [cx, cy],
+                            radius,
+                            gradient_start_color,
+                            gradient_end_color,
+                            2, // radial gradient
+                            0.0,
+                            x_clip,
+                            y_clip,
+                        );
+                    }
                 }
             }
             Shape::Ring { width } => {
                 let cx = (x0 + x1) / 2.0;
                 let cy = (y0 + y1) / 2.0;
                 let outer_radius = ((x1 - x0) / 2.0).min((y1 - y0) / 2.0);
-                let inner_radius = (outer_radius - *width as f64).max(0.0);
+                let inner_radius = (outer_radius - *width).max(0.0);
 
-                // Create ring by subtracting inner circle from outer circle
-                let mut path = BezPath::new();
-                let outer_circle = Circle::new((cx, cy), outer_radius);
-                path.extend(outer_circle.to_path(0.1).iter());
-
-                if inner_radius > 0.0 {
-                    // Add inner circle in reverse to create a hole
-                    let inner_circle = Circle::new((cx, cy), inner_radius);
-                    let inner_path = inner_circle.to_path(0.1);
-                    // Reverse the inner path to create a cutout
-                    let mut reversed_inner = BezPath::new();
-                    for segment in inner_path.iter().collect::<Vec<_>>().into_iter().rev() {
-                        match segment {
-                            vello_common::kurbo::PathEl::MoveTo(p) => reversed_inner.move_to(p),
-                            vello_common::kurbo::PathEl::LineTo(p) => reversed_inner.line_to(p),
-                            vello_common::kurbo::PathEl::QuadTo(p1, p2) => reversed_inner.quad_to(p1, p2),
-                            vello_common::kurbo::PathEl::CurveTo(p1, p2, p3) => reversed_inner.curve_to(p1, p2, p3),
-                            vello_common::kurbo::PathEl::ClosePath => reversed_inner.close_path(),
-                        }
-                    }
-                    path.extend(reversed_inner.iter());
-                }
-
-                if is_stroked {
-                    self.sys.vello_scene.set_paint(stroke_paint);
-                    self.sys.vello_scene.stroke_path(&path);
+                if is_solid {
+                    self.sys.renderer.draw_ring(
+                        [cx, cy],
+                        inner_radius,
+                        outer_radius,
+                        tl_f,
+                        x_clip,
+                        y_clip,
+                    );
                 } else {
-                    self.sys.vello_scene.set_paint(fill_paint);
-                    self.sys.vello_scene.fill_path(&path);
+                    // For rings, determine if we should use linear or radial gradient
+                    let is_horizontal = tl == bl && tr == br;
+                    let is_vertical = tl == tr && bl == br;
+
+                    if is_horizontal || is_vertical {
+                        // Use linear gradient
+                        self.sys.renderer.draw_ring_gradient(
+                            [cx, cy],
+                            inner_radius,
+                            outer_radius,
+                            gradient_start_color,
+                            gradient_end_color,
+                            1, // linear gradient
+                            gradient_angle,
+                            x_clip,
+                            y_clip,
+                        );
+                    } else {
+                        // Use radial gradient for diagonal
+                        self.sys.renderer.draw_ring_gradient(
+                            [cx, cy],
+                            inner_radius,
+                            outer_radius,
+                            gradient_start_color,
+                            gradient_end_color,
+                            2, // radial gradient
+                            0.0,
+                            x_clip,
+                            y_clip,
+                        );
+                    }
                 }
             }
         }
@@ -347,64 +402,45 @@ impl Ui {
         // self.sys.texture_atlas.load_to_gpu(queue);
     }
 
-    /// Renders the UI to a surface using vello_hybrid.
+    /// Renders the UI to a surface using keru_draw.
     ///
-    /// The scene is built during `rebuild_render_data`, and this method just renders it.
+    /// The rendering commands are built during `rebuild_render_data`, and this method executes them.
     pub fn render(
         &mut self,
         surface: &wgpu::Surface,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
+        _device: &wgpu::Device,
+        _queue: &wgpu::Queue,
     ) {
         // todo think harder
         if self.sys.changes.should_rebuild_render_data || self.sys.anim_render_timer.is_live() {
             self.rebuild_render_data();
         }
-
-        log::trace!("Render");
-
-        self.prepare(device, queue);
-
-        self.sys.text.clear_changes();
-
+        
+        self.sys.renderer.text.clear_changes();
+        
         // Render the scene to the surface
         let surface_texture = surface.get_current_texture().unwrap();
         let view = surface_texture.texture.create_view(&wgpu::TextureViewDescriptor::default());
-
-        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
-
-        let render_size = vello_hybrid::RenderSize {
-            width: self.sys.unifs.size[Axis::X] as u32,
-            height: self.sys.unifs.size[Axis::Y] as u32,
-        };
-
-        self.sys.vello_renderer.render(&self.sys.vello_scene, device, queue, &mut encoder, &render_size, &view).ok();
-
-        queue.submit([encoder.finish()]);
-        surface_texture.present();
-
+        
+        self.sys.renderer.render(&view);
+        surface_texture.present();       
+        
         self.sys.changes.need_rerender = false;
     }
 
     /// Returns `true` if the `Ui` needs to be rerendered.
-    /// 
+    ///
     /// If this is true, you should call [`Ui::render`] as soon as possible to display the updated GUI state on the screen.
     pub fn should_rerender(&mut self) -> bool {
         return self.sys.changes.need_rerender
             || self.sys.anim_render_timer.is_live()
-            || self.sys.text.needs_rerender()
+            || self.sys.renderer.text.needs_rerender()
             || self.sys.changes.should_rebuild_render_data;
     }
 }
 
 #[derive(Copy, Clone, Debug)]
 pub enum ImageRef {
-    Raster {
-        image_id: vello_common::paint::ImageId,
-        original_size: Xy<f32>,
-    },
-    Svg {
-        svg_index: usize,
-        original_size: Xy<f32>,
-    },
+    // TODO: Implement image support with keru_draw
+    Placeholder,
 }

@@ -1,11 +1,11 @@
-use textslabs::StyleHandle;
+pub use keru_draw::{StyleHandle, TextBoxHandle, TextEditHandle};
 
 use crate::*;
 
 #[derive(Debug)]
 pub enum TextI {
-    TextBox(textslabs::TextBoxHandle),
-    TextEdit(textslabs::TextEditHandle),
+    TextBox(TextBoxHandle),
+    TextEdit(TextEditHandle),
 }
 
 
@@ -28,32 +28,32 @@ impl Ui {
             // Remove old widget
             if let Some(old_text_i) = self.nodes[i].text_i.take() {
                 match old_text_i {
-                    TextI::TextBox(handle) => self.sys.text.remove_text_box(handle),
-                    TextI::TextEdit(handle) => self.sys.text.remove_text_edit(handle),
+                    TextI::TextBox(handle) => self.sys.renderer.text.remove_text_box(handle),
+                    TextI::TextEdit(handle) => self.sys.renderer.text.remove_text_edit(handle),
                 }
             }
 
             let z = self.nodes[i].z + 0.0001;
             // Create new widget
             let new_text_i = if edit {
-                let handle = self.sys.text.add_text_edit(text.as_str().to_string(), (0.0, 0.0), (500.0, 500.0), z);
+                let handle = self.sys.renderer.text.add_text_edit(text.as_str().to_string(), (0.0, 0.0), (500.0, 500.0), z);
                 if let Some(style) = style {
-                    self.sys.text.get_text_edit_mut(&handle).set_style(style);
+                    self.sys.renderer.text.get_text_edit_mut(&handle).set_style(style);
                 }
                 TextI::TextEdit(handle)
             } else {
                 let handle = match text {
                     NodeText::Static(s) => {
                         // Use the static string directly with Cow::Borrowed
-                        self.sys.text.add_text_box(s, (0.0, 0.0), (500.0, 500.0), z)
+                        self.sys.renderer.text.add_text_box(s, (0.0, 0.0), (500.0, 500.0), z)
                     },
                     NodeText::Dynamic(s) => {
                         // Use the String with Cow::Owned
-                        self.sys.text.add_text_box(s.to_string(), (0.0, 0.0), (500.0, 500.0), z)
+                        self.sys.renderer.text.add_text_box(s.to_string(), (0.0, 0.0), (500.0, 500.0), z)
                     }
                 };
                 if let Some(style) = style {
-                    self.sys.text.get_text_box_mut(&handle).set_style(style);
+                    self.sys.renderer.text.get_text_box_mut(&handle).set_style(style);
                 }
                 TextI::TextBox(handle)
             };
@@ -63,22 +63,22 @@ impl Ui {
             // Same type - just update content and style
             match &self.nodes[i].text_i {
                 Some(TextI::TextEdit(handle)) => {
-                    // don't update the content. content in a text edit box is not reset declaratively every frame, obviously. 
+                    // don't update the content. content in a text edit box is not reset declaratively every frame, obviously.
                     if let Some(style) = style {
-                        self.sys.text.get_text_edit_mut(&handle).set_style(style);
+                        self.sys.renderer.text.get_text_edit_mut(&handle).set_style(style);
                     }
                 },
                 Some(TextI::TextBox(handle)) => {
                     match text {
                         NodeText::Static(s) => {
-                            self.sys.text.get_text_box_mut(&handle).set_static(s);
+                            self.sys.renderer.text.get_text_box_mut(&handle).set_static(s);
                         },
                         NodeText::Dynamic(s) => {
-                            *self.sys.text.get_text_box_mut(&handle).text_mut() = s.to_string().into();
+                            *self.sys.renderer.text.get_text_box_mut(&handle).text_mut() = s.to_string().into();
                         }
                     }
                     if let Some(style) = style {
-                        self.sys.text.get_text_box_mut(&handle).set_style(style);
+                        self.sys.renderer.text.get_text_box_mut(&handle).set_style(style);
                     }
                 },
                 None => unreachable!("Should have created a new widget above"),
@@ -89,14 +89,14 @@ impl Ui {
         if let Some(text_i) = &self.nodes[i].text_i {
             match text_i {
                 TextI::TextEdit(handle) => {
-                    self.sys.text.get_text_edit_mut(handle).set_disabled(edit_disabled);
-                    self.sys.text.get_text_edit_mut(handle).set_single_line(single_line);
+                    self.sys.renderer.text.get_text_edit_mut(handle).set_disabled(edit_disabled);
+                    self.sys.renderer.text.get_text_edit_mut(handle).set_single_line(single_line);
                     if let Some(placeholder) = placeholder {
-                        self.sys.text.get_text_edit_mut(handle).set_placeholder(placeholder.to_string());
+                        self.sys.renderer.text.get_text_edit_mut(handle).set_placeholder(placeholder.to_string());
                     }
                 },
                 TextI::TextBox(handle) => {
-                    self.sys.text.get_text_box_mut(handle).set_selectable(selectable);
+                    self.sys.renderer.text.get_text_box_mut(handle).set_selectable(selectable);
                 },
             }
         }
@@ -107,20 +107,20 @@ impl Ui {
     }
 
     /// Insert a style, and get a [`StyleHandle`] that can be used to access and mutate it with the [`Self::get_style_mut`] functions.
-    /// 
+    ///
     /// This function **should not be called on every frame**, as that would insert a new copy of the style every time.
-    /// 
-    // todo: figure out a better way to do this.  
+    ///
+    // todo: figure out a better way to do this.
     pub fn insert_style(&mut self, style: TextStyle) -> StyleHandle {
-        self.sys.text.add_style(style, None)
+        self.sys.renderer.text.add_style(style, None)
     }
 
     pub fn get_style(&self, style: &StyleHandle) -> &TextStyle {
-        self.sys.text.get_text_style(style)
+        self.sys.renderer.text.get_text_style(style)
     }
 
     pub fn get_style_mut(&mut self, style: &StyleHandle) -> &mut TextStyle {
-        self.sys.text.get_text_style_mut(style)
+        self.sys.renderer.text.get_text_style_mut(style)
     }
 }
 

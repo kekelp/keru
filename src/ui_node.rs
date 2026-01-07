@@ -94,16 +94,16 @@ impl Ui {
         let i = self.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
         let text_i = self.nodes[i].text_i.as_ref()?;
         match text_i {
-            TextI::TextBox(handle) => Some(self.sys.text.get_text_box(&handle).text()),
-            TextI::TextEdit(handle) => Some(self.sys.text.get_text_edit(&handle).raw_text()),
+            TextI::TextBox(handle) => Some(self.sys.renderer.text.get_text_box(&handle).text()),
+            TextI::TextEdit(handle) => Some(self.sys.renderer.text.get_text_edit(&handle).raw_text()),
         }
     }
     pub fn set_text(&mut self, key: NodeKey, text: &str) -> Option<()> {
         let i = self.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
         let text_i = self.nodes[i].text_i.as_ref()?;
         match text_i {
-            TextI::TextBox(handle) => *self.sys.text.get_text_box_mut(&handle).text_mut() = std::borrow::Cow::Owned(text.to_string()),
-            TextI::TextEdit(handle) => *self.sys.text.get_text_edit_mut(&handle).raw_text_mut() = text.to_string(),
+            TextI::TextBox(handle) => *self.sys.renderer.text.get_text_box_mut(&handle).text_mut() = std::borrow::Cow::Owned(text.to_string()),
+            TextI::TextEdit(handle) => *self.sys.renderer.text.get_text_edit_mut(&handle).raw_text_mut() = text.to_string(),
         };
         Some(())
     }
@@ -129,8 +129,8 @@ impl UiParent {
     pub fn get_text<'u>(&self, ui: &'u mut Ui) -> Option<&'u str> {
         let text_i = ui.nodes[self.i].text_i.as_ref()?;
         match text_i {
-            TextI::TextBox(handle) => Some(ui.sys.text.get_text_box(&handle).text()),
-            TextI::TextEdit(handle) => Some(ui.sys.text.get_text_edit(&handle).raw_text()),
+            TextI::TextBox(handle) => Some(ui.sys.renderer.text.get_text_box(&handle).text()),
+            TextI::TextEdit(handle) => Some(ui.sys.renderer.text.get_text_edit(&handle).raw_text()),
         }
     }
 }
@@ -367,7 +367,7 @@ impl Ui {
 
         if let Some(TextI::TextEdit(handle)) = &self.nodes[i].text_i {
 
-            self.sys.text.get_text_edit_mut(handle).set_text(new_text);
+            self.sys.renderer.text.get_text_edit_mut(handle).set_text(new_text);
             // Mark this node as having changed for next frame
             self.sys.text_edit_changed_this_frame = Some(self.nodes[i].id);
         
@@ -384,7 +384,7 @@ impl Ui {
         let i = i.slab_i;   
 
         if let Some(TextI::TextEdit(handle)) = &self.nodes[i].text_i {
-            self.sys.text.get_text_edit_mut(handle).set_placeholder(placeholder);
+            self.sys.renderer.text.get_text_edit_mut(handle).set_placeholder(placeholder);
         } 
     }
 

@@ -4,12 +4,6 @@ use std::hash::Hasher;
 use std::mem;
 use std::panic::Location;
 use bytemuck::{Pod, Zeroable};
-use vello_common::peniko::Extend;
-use vello_common::kurbo::Rect as VelloRect;
-use vello_common::kurbo::Shape as VelloShape;
-use vello_common::paint::{ImageSource, Image as VelloImage};
-use vello_common::peniko::ImageSampler;
-use vello_common::kurbo::Affine;
 
 /// An `u64` identifier for a GUI node.
 /// 
@@ -146,15 +140,15 @@ impl Ui {
         return (real_final_i, real_final_id);
     }
 
-    fn refresh_node(&mut self, i: NodeI) {        
+    fn refresh_node(&mut self, i: NodeI) {
         // refresh the text box associated with this node if it has one
         if let Some(text_i) = &self.nodes[i].text_i {
             match text_i {
                 TextI::TextBox(handle) => {
-                    self.sys.text.refresh_text_box(handle);
+                    self.sys.renderer.text.refresh_text_box(handle);
                 }
                 TextI::TextEdit(handle) => {
-                    self.sys.text.refresh_text_edit(handle);
+                    self.sys.renderer.text.refresh_text_edit(handle);
                 }
             }
         }
@@ -294,87 +288,24 @@ impl Ui {
             let click_rect = self.click_rect(i);
             self.sys.scroll_rects.push(click_rect);
         }
-        
+
         self.sys.z_cursor += Z_STEP;
         let z = self.sys.z_cursor;
         self.nodes[i].z = z;
 
         let draw_even_if_invisible = self.sys.inspect_mode;
 
-        // Push clip layers.
-        // Todo: not sure this is a reasonable way to do it, but I don't understand how it's supposed to work.
-        // I need breadth-first-traversal for painter's algorithm, but I can't stack clip layers unless I'm doing depth-first.
+        // Get the clip rect for this node
         let node_clip_rect = self.nodes[i].clip_rect;
-        let is_clipping = node_clip_rect != Xy::new_symm([0.0, 1.0]);
-        if is_clipping {
-            let screen_size = self.sys.unifs.size;
-            let clip_x0 = (node_clip_rect.x[0] * screen_size.x) as f64;
-            let clip_y0 = (node_clip_rect.y[0] * screen_size.y) as f64;
-            let clip_x1 = (node_clip_rect.x[1] * screen_size.x) as f64;
-            let clip_y1 = (node_clip_rect.y[1] * screen_size.y) as f64;
 
-            let clip_rect = VelloRect::new(clip_x0, clip_y0, clip_x1, clip_y1);
-            self.sys.vello_scene.push_clip_path(&clip_rect.to_path(0.1));
-        }
-
-        // Render node's shape directly to vello scene
+        // Render node's shape
         if draw_even_if_invisible || self.nodes[i].params.rect.visible {
-            self.render_node_shape_to_scene(i);
+            self.render_node_shape_to_scene(i, node_clip_rect);
         }
 
-        // Images
+        // Images - TODO: implement with keru_draw
         if self.nodes[i].imageref.is_some() {
-            let animated_rect = self.nodes[i].get_animated_rect();
-            let screen_size = self.sys.unifs.size;
-            let x0 = (animated_rect.x[0] * screen_size.x) as f64;
-            let y0 = (animated_rect.y[0] * screen_size.y) as f64;
-            let x1 = (animated_rect.x[1] * screen_size.x) as f64;
-            let y1 = (animated_rect.y[1] * screen_size.y) as f64;
-
-            match &self.nodes[i].imageref {
-                Some(ImageRef::Raster { image_id, .. }) => {
-                    // Create an image brush from the uploaded image ID
-                    let image_source = ImageSource::OpaqueId(*image_id);
-                    let sampler = ImageSampler::default().with_extend(Extend::Repeat);
-                    let image_brush = VelloImage {
-                        image: image_source,
-                        sampler,
-                    };
-
-                    self.sys.vello_scene.set_paint_transform(Affine::translate((x0, y0)));
-                    self.sys.vello_scene.set_paint(image_brush);
-
-                    // Draw the rect at the actual screen position
-                    let rect = vello_common::kurbo::Rect::new(x0, y0, x1, y1);
-                    self.sys.vello_scene.fill_rect(&rect);
-
-                    // Reset paint transform
-                    self.sys.vello_scene.reset_paint_transform();
-                }
-                Some(ImageRef::Svg { svg_index, original_size }) => {
-                    // Calculate scale to fit SVG in the node's rect
-                    let node_width = x1 - x0;
-                    let node_height = y1 - y0;
-                    let scale_x = node_width / original_size.x as f64;
-                    let scale_y = node_height / original_size.y as f64;
-
-                    // Use the smaller scale to maintain aspect ratio
-                    let scale = scale_x.min(scale_y);
-
-                    // Calculate centering offset
-                    let scaled_width = original_size.x as f64 * scale;
-                    let scaled_height = original_size.y as f64 * scale;
-                    let offset_x = (node_width - scaled_width) / 2.0;
-                    let offset_y = (node_height - scaled_height) / 2.0;
-
-                    // Create transform: translate to position, then scale
-                    let transform = Affine::translate((x0 + offset_x, y0 + offset_y)) * Affine::scale(scale);
-
-                    // Render SVG items directly with the transform
-                    self.render_svg_items(*svg_index, transform);
-                }
-                None => {}
-            }
+            // Skip image rendering for now
         }
 
         if let Some(text_i) = &self.nodes[i].text_i {
@@ -386,56 +317,23 @@ impl Ui {
 
             match text_i {
                 TextI::TextBox(text_box_handle) => {
-                    let text_box = self.sys.text.get_text_box_mut(&text_box_handle);
+                    let text_box = self.sys.renderer.text.get_text_box_mut(&text_box_handle);
                     text_box.set_depth(z);
                     text_box.set_pos((left, top));
-                    // Render text to scene
-                    text_box.render_to_scene(&mut self.sys.vello_scene);
+                    // Draw the text box
+                    self.sys.renderer.draw_text_box(&text_box_handle);
                 },
                 TextI::TextEdit(text_edit_handle) => {
-                    let text_edit = self.sys.text.get_text_edit_mut(&text_edit_handle);
+                    let text_edit = self.sys.renderer.text.get_text_edit_mut(&text_edit_handle);
                     text_edit.set_depth(z);
                     text_edit.set_pos((left, top));
-                    // Render text to scene
-                    text_edit.render_to_scene(&mut self.sys.vello_scene);
+                    // Draw the text edit
+                    self.sys.renderer.draw_text_edit(&text_edit_handle);
                 },
             }
         }
-
-        if is_clipping {
-            self.sys.vello_scene.pop_clip_path();
-        }
     }
 
-    fn render_svg_items(&mut self, svg_index: usize, transform: Affine) {
-        use vello_common::pico_svg::Item;
-        use vello_common::kurbo::Stroke;
-
-        self.sys.vello_scene.set_transform(transform);
-
-        let item_count = self.sys.svg_storage[svg_index].len();
-        for i in 0..item_count {
-            match &self.sys.svg_storage[svg_index][i] {
-                Item::Fill(fill_item) => {
-                    self.sys.vello_scene.set_paint(fill_item.color);
-                    self.sys.vello_scene.fill_path(&fill_item.path);
-                }
-                Item::Stroke(stroke_item) => {
-                    let style = Stroke::new(stroke_item.width);
-                    self.sys.vello_scene.set_stroke(style);
-                    self.sys.vello_scene.set_paint(stroke_item.color);
-                    self.sys.vello_scene.stroke_path(&stroke_item.path);
-                }
-                Item::Group(group_item) => {
-                    let new_transform = transform * group_item.affine;
-                    render_svg_group(&mut self.sys.vello_scene, &group_item.children, new_transform);
-                    self.sys.vello_scene.set_transform(transform);
-                }
-            }
-        }
-
-        self.sys.vello_scene.reset_transform();
-    }
 
     fn set_relayout_chain_root(&mut self, new_node_i: NodeI, parent_i: NodeI) {
         let is_fit_content = self.nodes[new_node_i].params.is_fit_content();
@@ -496,7 +394,6 @@ impl Ui {
         self.reset_root();
 
         self.sys.current_frame += 1;
-        self.sys.text.advance_frame_and_hide_boxes();
         thread_local::clear_parent_stack();
         self.format_scratch.clear();
         self.sys.changes.unfinished_animations = false;
@@ -684,10 +581,10 @@ impl Ui {
         if let Some(text_i) = old_handle {
             match text_i {
                 TextI::TextBox(handle) => {
-                    self.sys.text.remove_text_box(handle);
+                    self.sys.renderer.text.remove_text_box(handle);
                 }
                 TextI::TextEdit(handle) => {
-                    self.sys.text.remove_text_edit(handle);
+                    self.sys.renderer.text.remove_text_edit(handle);
                 }
             }
         }
@@ -931,31 +828,4 @@ pub(crate) fn with_info_log_timer<T>(operation_name: &str, f: impl FnOnce() -> T
 pub(crate) fn take_buffer_and_clear<T>(buf: &mut Vec<T>) -> Vec<T> {
     buf.clear();
     return mem::take(buf)
-}
-
-fn render_svg_group(scene: &mut vello_hybrid::Scene, items: &[vello_common::pico_svg::Item], transform: Affine) {
-    use vello_common::pico_svg::Item;
-    use vello_common::kurbo::Stroke;
-
-    scene.set_transform(transform);
-
-    for item in items {
-        match item {
-            Item::Fill(fill_item) => {
-                scene.set_paint(fill_item.color);
-                scene.fill_path(&fill_item.path);
-            }
-            Item::Stroke(stroke_item) => {
-                let style = Stroke::new(stroke_item.width);
-                scene.set_stroke(style);
-                scene.set_paint(stroke_item.color);
-                scene.stroke_path(&stroke_item.path);
-            }
-            Item::Group(group_item) => {
-                let new_transform = transform * group_item.affine;
-                render_svg_group(scene, &group_item.children, new_transform);
-                scene.set_transform(transform);
-            }
-        }
-    }
 }

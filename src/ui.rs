@@ -5,7 +5,8 @@ use crate::math::Axis::*;
 use ahash::{HashMap, HashMapExt};
 use glam::DVec2;
 
-use textslabs::{ColorBrush, Text, TextStyle2 as TextStyle};
+use keru_draw::Renderer;
+pub use keru_draw::{TextStyle2 as TextStyle, ColorBrush};
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
 use winit_key_events::KeyInput;
@@ -22,9 +23,6 @@ use std::sync::{Arc, LazyLock};
 use std::thread;
 use std::time::Duration;
 use std::time::Instant;
-
-use vello_common::pixmap::Pixmap;
-use vello_common::peniko::color::PremulRgba8;
 
 use bytemuck::{Pod, Zeroable};
 use wgpu::{
@@ -68,10 +66,6 @@ pub(crate) struct System {
     // usually these have filled = false (just the outline), but this is not enforced.
     pub inspect_mode: bool,
 
-    // todo: I didn't mean to keep copies of these handles, but vello's image functions kind of require it.
-    pub device: Device,
-    pub queue: Queue,
-
     pub global_animation_speed: f32,
 
     pub unique_id: u64,
@@ -82,12 +76,7 @@ pub(crate) struct System {
     pub update_frames_needed: u8,
     pub new_external_events: bool,
 
-    pub text: Text,
-
-    pub svg_storage: Vec<Vec<vello_common::pico_svg::Item>>,
-
-    pub vello_scene: vello_hybrid::Scene,
-    pub vello_renderer: vello_hybrid::Renderer,
+    pub renderer: Renderer,
 
     pub z_cursor: f32,
 
@@ -262,14 +251,13 @@ impl Ui {
         let second_last_frame_end_fake_time = 4;
         let last_frame_end_fake_time = 5;
 
+        let renderer = Renderer::new(device.clone(), queue.clone(), config.format);
+
         Self {
             nodes,
             format_scratch: String::with_capacity(1024),
 
             sys: System {
-                device: device.clone(),
-                queue: queue.clone(),
-
                 global_animation_speed: 1.0,
                 unique_id: INSTANCE_COUNTER.fetch_add(1, Ordering::Relaxed),
                 z_cursor: 0.0,
@@ -279,7 +267,7 @@ impl Ui {
 
                 update_frames_needed: 2,
                 new_external_events: true,
-                
+
                 click_rects: Vec::with_capacity(50),
                 scroll_rects: Vec::with_capacity(20),
 
@@ -320,19 +308,7 @@ impl Ui {
 
                 changes: Changes::new(),
 
-                text: Text::new(),
-
-                svg_storage: Vec::new(),
-
-                vello_scene: vello_hybrid::Scene::new(config.width as u16, config.height as u16),
-                vello_renderer: vello_hybrid::Renderer::new(
-                    device,
-                    &vello_hybrid::RenderTargetConfig {
-                        format: config.format,
-                        width: config.width,
-                        height: config.height,
-                    },
-                ),
+                renderer,
 
                 user_state: HashMap::with_capacity(7),
 
@@ -345,10 +321,10 @@ impl Ui {
     /// Registers the `winit` window so that it can be used for automatic wakeup for cursor blinking, scheduled wakeups, and using the [UiWaker].
     /// 
     /// In applications that don't pause their event loops, like games, there is no need to call this method.
-    /// 
+    ///
     /// You can also handle cursor wakeups manually in your winit event loop with winit's `ControlFlow::WaitUntil` and [`Text::time_until_next_cursor_blink`]. See the `event_loop_smart.rs` example.
     pub fn enable_auto_wakeup(&mut self, window: Arc<Window>) {
-        self.sys.text.set_auto_wakeup(window.clone());
+        self.sys.renderer.text.set_auto_wakeup(window.clone());
         self.sys.waker = Some(UiWaker {
             needs_update: Arc::new(AtomicBool::new(false)),
             window_ref: Arc::downgrade(&window),
@@ -464,7 +440,7 @@ impl Ui {
         self.sys.update_frames_needed = 2;
     }
 
-    /// Resize the `Ui`. 
+    /// Resize the `Ui`.
     /// Updates the `Ui`'s internal state, and schedules a full relayout to adapt to the new size.
     /// Called by [`Ui::window_event`].
     pub(crate) fn resize(&mut self, size: &PhysicalSize<u32>) {
@@ -475,23 +451,22 @@ impl Ui {
 
         self.sys.changes.resize = true;
 
-        // Update vello_scene size (vello_renderer uses RenderSize at render time)
-        self.sys.vello_scene = vello_hybrid::Scene::new(size.width as u16, size.height as u16);
+        self.sys.renderer.resize(size.width, size.height);
 
         self.set_new_ui_input();
     }
 
     pub fn default_text_style_mut(&mut self) -> &mut TextStyle {
         self.sys.changes.full_relayout = true;
-        self.sys.text.get_default_text_style_mut()
+        self.sys.renderer.text.get_default_text_style_mut()
     }
 
     pub fn default_text_style(&self) -> &TextStyle {
-        self.sys.text.get_default_text_style()
+        self.sys.renderer.text.get_default_text_style()
     }
 
     pub fn original_default_style(&self) -> TextStyle {
-        self.sys.text.original_default_style()
+        self.sys.renderer.text.original_default_style()
     }
 
     pub(crate) fn new_redraw_requested_frame(&mut self) {
@@ -558,94 +533,14 @@ impl Ui {
 
     }
 
-    pub(crate) fn set_static_image(&mut self, i: NodeI, image: &'static [u8]) -> &mut Self {
-        let image_pointer: *const u8 = image.as_ptr();
-
-        if let Some(last_pointer) = self.nodes[i].last_static_image_ptr {
-            if image_pointer == last_pointer {
-                return self;
-            }
-        }
-
-        // Load and decode the image
-        let img = image::load_from_memory(image).unwrap();
-        let img = img.to_rgba8();
-        let (width, height) = img.dimensions();
-
-        log::info!("Decoded image: {}x{}", width, height);
-
-        // Convert to premultiplied RGBA8
-        let pixels: Vec<PremulRgba8> = img.pixels().map(|p| {
-            let r = p[0];
-            let g = p[1];
-            let b = p[2];
-            let a = p[3];
-
-            let alpha = a as u16;
-            let premul_r = ((r as u16 * alpha) / 255) as u8;
-            let premul_g = ((g as u16 * alpha) / 255) as u8;
-            let premul_b = ((b as u16 * alpha) / 255) as u8;
-
-            PremulRgba8 { r: premul_r, g: premul_g, b: premul_b, a }
-        }).collect();
-
-        let pixmap = Pixmap::from_parts(pixels, width as u16, height as u16);
-
-        // todo: do this without holding handles to the device and the queue and creating a new encoder.
-        // I'm trusting that vello will not actually submit the command encoder unless it actually needs to
-        let mut encoder = self.sys.device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
-
-        let image_id = self.sys.vello_renderer.upload_image(
-            &self.sys.device,
-            &self.sys.queue,
-            &mut encoder,
-            &pixmap
-        );
-
-        log::info!("Uploaded image, got ImageId: {:?}", image_id);
-
-        // Store the ImageId in the node
-        self.nodes[i].imageref = Some(ImageRef::Raster {
-            image_id,
-            original_size: Xy::new(width as f32, height as f32),
-        });
-
-
-
-        self.nodes[i].last_static_image_ptr = Some(image_pointer);
-
-        return self;
+    pub(crate) fn set_static_image(&mut self, _i: NodeI, _image: &'static [u8]) -> &mut Self {
+        // todo: Implement image support with keru_draw
+        self
     }
 
-    pub(crate) fn set_static_svg(&mut self, i: NodeI, svg_data: &'static [u8]) -> &mut Self {
-        let svg_pointer: *const u8 = svg_data.as_ptr();
-
-        if let Some(last_pointer) = self.nodes[i].last_static_image_ptr {
-            if svg_pointer == last_pointer {
-                return self;
-            }
-        }
-
-        // Parse SVG using PicoSvg
-        let svg_str = std::str::from_utf8(svg_data).expect("Invalid UTF-8 in SVG data");
-        let pico_svg = vello_common::pico_svg::PicoSvg::load(svg_str, 1.0)
-            .expect("Failed to parse SVG");
-
-        log::info!("Parsed SVG: {}x{}", pico_svg.size.width, pico_svg.size.height);
-
-        // Store the parsed SVG items in central storage
-        let svg_index = self.sys.svg_storage.len();
-        self.sys.svg_storage.push(pico_svg.items);
-
-        // Store reference in the node
-        self.nodes[i].imageref = Some(ImageRef::Svg {
-            svg_index,
-            original_size: Xy::new(pico_svg.size.width as f32, pico_svg.size.height as f32),
-        });
-
-        self.nodes[i].last_static_image_ptr = Some(svg_pointer);
-
-        return self;
+    pub(crate) fn set_static_svg(&mut self, _i: NodeI, _svg_data: &'static [u8]) -> &mut Self {
+        // todo: Implement SVG support with keru_draw
+        self
     }
 }
 

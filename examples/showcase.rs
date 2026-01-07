@@ -3,7 +3,8 @@
 use keru::Size::*;
 use keru::example_window_loop::*;
 use keru::*;
-use textslabs::{TextStyle2 as TextStyle, ColorBrush, FontWeight};
+use textslabs::{TextStyle2 as TextStyle, ColorBrush};
+use keru_draw::FontWeight;
 
 #[derive(Default)]
 struct State {

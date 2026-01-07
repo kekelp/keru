@@ -1,8 +1,24 @@
 use crate::*;
-use vello_common::kurbo::{Cap, Join};
 use Size::*;
 use Position::*;
 use Shape::*;
+
+// TODO: Re-add Cap and Join when implementing stroke features in keru_draw
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Cap {
+    Butt,
+    Round,
+    Square,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Join {
+    Miter,
+    Round,
+    Bevel,
+}
 
 // todo: not very discoverable from docs. there's a list of constants on the main page, maybe that's good? link to that or something?
 
