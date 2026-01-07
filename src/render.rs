@@ -416,15 +416,15 @@ impl Ui {
             self.rebuild_render_data();
         }
         
-        self.sys.renderer.text.clear_changes();
-        
         // Render the scene to the surface
         let surface_texture = surface.get_current_texture().unwrap();
         let view = surface_texture.texture.create_view(&wgpu::TextureViewDescriptor::default());
         
         self.sys.renderer.render(&view);
+                
         surface_texture.present();       
-
+        
+        self.sys.renderer.text.clear_changes();
         self.sys.changes.need_rerender = false;
     }
 

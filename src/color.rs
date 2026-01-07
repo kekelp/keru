@@ -133,8 +133,8 @@ impl Color {
     pub const WHITE: Color = Color::rgba(255, 255, 255, 255);
     pub const TRANSPARENT: Color = Color::rgba(255, 255, 255, 0);
 
-    pub const KERU_BLUE: Color = Color::rgba(26, 26, 255, 255);
-    pub const KERU_RED: Color = Color::rgba(255, 26, 26, 255);
+    pub const KERU_BLUE: Color = Color::rgba(79, 79, 255, 255);
+    pub const KERU_RED: Color = Color::rgba(255, 79, 79, 255);
     pub const KERU_PINK: Color = Color::rgba(141, 52, 141, 180);
     pub const KERU_GREEN: Color = Color::rgba(26, 255, 26, 255);
 

@@ -169,7 +169,7 @@ impl<T> ApplicationHandler for Application<T> {
                 }
 
                 let frame_time = frame_start.elapsed();
-                log::warn!("Total frame time: {:.2}ms", frame_time.as_secs_f32() * 1000.0);
+                log::info!("Total frame time: {:?}", frame_time);
             }
             _ => {}
         }
