@@ -333,9 +333,18 @@ impl Ui {
         return final_size;
     }
 
-    fn determine_image_size(&mut self, _i: NodeI, _proposed_size: Xy<f32>) -> Xy<f32> {
-        // TODO: Implement image size determination with keru_draw
-        return Xy::new(100.0, 100.0);
+    fn determine_image_size(&mut self, i: NodeI, _proposed_size: Xy<f32>) -> Xy<f32> {
+        if let Some(imageref) = &self.nodes[i].imageref {
+            match imageref {
+                crate::render::ImageRef::Loaded(loaded) => {
+                    let size_pixels = Xy::new(loaded.width as f32, loaded.height as f32);
+                    return self.f32_pixels_to_frac2(size_pixels);
+                }
+            }
+        }
+        // Fallback if no image is loaded
+        let fallback_pixels = Xy::new(100.0, 100.0);
+        return self.f32_pixels_to_frac2(fallback_pixels);
     }
 
     fn determine_text_size(&mut self, i: NodeI, proposed_size: Xy<f32>) -> Xy<f32> {

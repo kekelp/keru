@@ -1,5 +1,5 @@
 use glam::dvec2;
-use wgpu::{Device, Queue};
+use keru_draw::*;
 use winit::event::*;
 use winit::window::Window;
 
@@ -449,8 +449,7 @@ impl Ui {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub enum ImageRef {
-    // TODO: Implement image support with keru_draw
-    Placeholder,
+    Loaded(LoadedImage),
 }

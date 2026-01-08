@@ -6,7 +6,7 @@ pub struct State {}
 
 fn update_ui(_state: &mut State, ui: &mut Ui) {
     ui.v_stack().nest(|| {
-        ui.static_paragraph("Image Display Test - Using vello_hybrid");
+        ui.static_paragraph("Image Display Test - Using keru_draw");
 
         ui.h_stack().nest(|| {
             // Display debug image

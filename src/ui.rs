@@ -540,13 +540,44 @@ impl Ui {
 
     }
 
-    pub(crate) fn set_static_image(&mut self, _i: NodeI, _image: &'static [u8]) -> &mut Self {
-        // todo: Implement image support with keru_draw
+    pub(crate) fn set_static_image(&mut self, i: NodeI, image: &'static [u8]) -> &mut Self {
+        let node = &mut self.nodes[i];
+        let ptr = image.as_ptr();
+
+        if node.last_static_image_ptr == Some(ptr) {
+            return self;
+        }
+
+        if let Some(loaded) = self.sys.renderer.image_renderer.load_image_from_bytes(image) {
+            log::info!("Loaded image: {}x{} on page {}", loaded.width, loaded.height, loaded.page);
+            node.imageref = Some(crate::render::ImageRef::Loaded(loaded));
+            node.last_static_image_ptr = Some(ptr);
+            self.sys.changes.should_rebuild_render_data = true;
+        } else {
+            log::error!("Failed to load image from {} bytes", image.len());
+        }
+
         self
     }
 
-    pub(crate) fn set_static_svg(&mut self, _i: NodeI, _svg_data: &'static [u8]) -> &mut Self {
-        // todo: Implement SVG support with keru_draw
+    pub(crate) fn set_static_svg(&mut self, i: NodeI, svg_data: &'static [u8]) -> &mut Self {
+        let node = &mut self.nodes[i];
+        let ptr = svg_data.as_ptr();
+
+        if node.last_static_image_ptr == Some(ptr) {
+            return self;
+        }
+
+        // Use a default size for now - this could be made configurable
+        if let Some(loaded) = self.sys.renderer.image_renderer.load_svg(svg_data, 512, 512) {
+            log::info!("Loaded SVG: {}x{} on page {}", loaded.width, loaded.height, loaded.page);
+            node.imageref = Some(crate::render::ImageRef::Loaded(loaded));
+            node.last_static_image_ptr = Some(ptr);
+            self.sys.changes.should_rebuild_render_data = true;
+        } else {
+            log::error!("Failed to load SVG from {} bytes", svg_data.len());
+        }
+
         self
     }
 }
