@@ -394,6 +394,8 @@ impl Ui {
         self.reset_root();
 
         self.sys.current_frame += 1;
+        self.sys.renderer.text.advance_frame_and_hide_boxes();
+
         thread_local::clear_parent_stack();
         self.format_scratch.clear();
         self.sys.changes.unfinished_animations = false;
