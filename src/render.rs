@@ -205,10 +205,17 @@ impl Ui {
             clip_rect.y[1] * screen_size.y,
         ];
 
-        let border_thickness = if let Some(stroke) = node.params.rect.stroke {
-            stroke.width
+        let (border_thickness, border_color) = if let Some(stroke) = node.params.rect.stroke {
+            let c = stroke.color;
+            let border_color = [
+                c.r as f32 / 255.0,
+                c.g as f32 / 255.0,
+                c.b as f32 / 255.0,
+                c.a as f32 / 255.0,
+            ];
+            (stroke.width, Some(border_color))
         } else {
-            0.0
+            (0.0, None)
         };
 
         // Render based on shape type
@@ -256,25 +263,35 @@ impl Ui {
                     let top_left = [x0, y0];
                     let size = [x1 - x0, y1 - y0];
 
+                    // If there's a border with non-zero thickness, use border color; otherwise use fill color
+                    let use_border_color = border_thickness > 0.0 && border_color.is_some();
+
                     if is_solid {
+                        let color = if use_border_color { border_color.unwrap() } else { tl_f };
                         self.sys.renderer.draw_box(
                             top_left,
                             size,
                             corner_radius,
                             border_thickness,
-                            tl_f,
+                            color,
                             x_clip,
                             y_clip,
                         );
                     } else {
                         // Use calculated gradient direction
+                        let (start_color, end_color) = if use_border_color {
+                            let bc = border_color.unwrap();
+                            (bc, bc)
+                        } else {
+                            (gradient_start_color, gradient_end_color)
+                        };
                         self.sys.renderer.draw_box_gradient(
                             top_left,
                             size,
                             corner_radius,
                             border_thickness,
-                            gradient_start_color,
-                            gradient_end_color,
+                            start_color,
+                            end_color,
                             gradient_angle,
                             x_clip,
                             y_clip,
