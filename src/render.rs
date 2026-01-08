@@ -380,52 +380,62 @@ impl Ui {
         }
     }
 
-    /// Load the GUI render data that has changed onto the GPU.
-    fn prepare(&mut self, _device: &Device, _queue: &Queue) {
-        // update time + resolution. since we have to update the time anyway, we also update the screen resolution all the time
-        // self.sys.unifs.t = ui_time_f32();
-        // queue.write_buffer(
-        //     &self.sys.base_uniform_buffer,
-        //     0,
-        //     bytemuck::bytes_of(&self.sys.unifs),
-        // );
-
-        // // update rects
-        // if self.sys.changes.need_gpu_rect_update || self.sys.changes.should_rebuild_render_data {
-        //     self.sys.gpu_rect_buffer.queue_write(&self.sys.rects[..], queue);
-        //     self.sys.changes.need_gpu_rect_update = false;
-        //     log::trace!("Update GPU rectangles");
-        // }
-        
-        // texture atlas
-        // todo: don't do this all the time
-        // self.sys.texture_atlas.load_to_gpu(queue);
-    }
-
-    /// Renders the UI to a surface using keru_draw.
-    ///
-    /// The rendering commands are built during `rebuild_render_data`, and this method executes them.
+    /// Renders the UI into a render pass.
     pub fn render(
         &mut self,
-        surface: &wgpu::Surface,
-        _device: &wgpu::Device,
-        _queue: &wgpu::Queue,
+        render_pass: &mut wgpu::RenderPass,
     ) {
         // todo think harder
         if self.sys.changes.should_rebuild_render_data || self.sys.anim_render_timer.is_live() {
             self.rebuild_render_data();
         }
-        
-        // Render the scene to the surface
-        let surface_texture = surface.get_current_texture().unwrap();
-        let view = surface_texture.texture.create_view(&wgpu::TextureViewDescriptor::default());
-        
-        self.sys.renderer.render(&view);
-                
-        surface_texture.present();       
-        
+
+        self.sys.renderer.render(render_pass);
+
         self.sys.renderer.text.clear_changes();
         self.sys.changes.need_rerender = false;
+    }
+
+    /// Convenience function that creates a render pass, renders into it, and presents to the screen.
+    ///
+    /// Panics if the current surface texture can't be obtained from `surface`.
+    pub fn autorender(
+        &mut self,
+        surface: &wgpu::Surface,
+        background_color: wgpu::Color,
+    ) {
+        let output = surface.get_current_texture().unwrap();
+        let view = output
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+
+        let mut encoder = self.sys.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("keru_draw autorender render encoder"),
+        });
+
+        {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("keru_draw autorender render pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(background_color),
+                        store: wgpu::StoreOp::Store,
+                    },
+                    depth_slice: None,
+                })],
+                depth_stencil_attachment: None,
+                occlusion_query_set: None,
+                timestamp_writes: None,
+            });
+
+            self.render(&mut render_pass);
+        }
+
+        self.sys.queue.submit(std::iter::once(encoder.finish()));
+
+        output.present();
     }
 
     /// Returns `true` if the `Ui` needs to be rerendered.

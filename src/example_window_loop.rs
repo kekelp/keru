@@ -86,7 +86,7 @@ struct State {
     window: Arc<Window>,
     surface: Surface<'static>,
     device: Device,
-    queue: Queue,
+    _queue: Queue,
     config: SurfaceConfiguration,
     ui: Ui,
 }
@@ -124,7 +124,7 @@ impl State {
 
         let ui = Ui::new(&device, &queue, &config);
 
-        Self { window, surface, device, queue, config, ui }
+        Self { window, surface, device, _queue: queue, config, ui }
     }
 
     fn resize(&mut self, width: u32, height: u32) {
@@ -161,10 +161,9 @@ impl<T> ApplicationHandler for Application<T> {
                     state.ui.finish_frame();
                 }
                 if state.ui.should_rerender() {
-                    state.ui.render(
+                    state.ui.autorender(
                         &state.surface,
-                        &state.device,
-                        &state.queue,
+                        wgpu::Color::BLACK,
                     );
                 }
 

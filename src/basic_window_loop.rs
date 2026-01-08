@@ -191,7 +191,7 @@ impl Context {
     }
 
     pub fn render_ui(&mut self, ui: &mut Ui) {
-        ui.render(&self.surface, &self.device, &self.queue);
+        ui.autorender(&self.surface, wgpu::Color::BLACK);
     }
 }
 

@@ -107,11 +107,7 @@ impl ApplicationHandler for Application {
                     state.ui.finish_frame();
                 }
                 if state.ui.should_rerender() {
-                    state.ui.render(
-                        &state.surface,
-                        &state.device,
-                        &state.queue,
-                    );
+                    state.ui.autorender(&state.surface, wgpu::Color::BLACK);
                 }
             }
             _ => {}

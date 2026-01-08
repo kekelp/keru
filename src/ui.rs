@@ -133,7 +133,8 @@ pub(crate) struct System {
     pub waker: Option<UiWaker>,
     pub scheduled_wakeup: Option<ScheduledWakeupHandle>,
 
-    pub gpu_profiler: GpuProfiler,
+    pub device: wgpu::Device,
+    pub queue: wgpu::Queue,
 }
 
 #[derive(Clone)]
@@ -246,8 +247,6 @@ impl Ui {
             _padding: 0.,
         };
 
-
-
         let nodes = Nodes::new();
 
         let third_last_frame_end_fake_time = 3;
@@ -320,7 +319,8 @@ impl Ui {
                 waker: None,
                 scheduled_wakeup: None,
 
-                gpu_profiler,
+                device: device.clone(),
+                queue: queue.clone(),
             },
         }
     }
