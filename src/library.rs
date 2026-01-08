@@ -214,9 +214,9 @@ pub const ICON_BUTTON: NodeParams = NodeParams {
         click_animation: true,
     },
     layout: Layout {
-        size: Xy::new_symm(FitContent),
+        size: Xy::new_symm(Size::Pixels(40)),
         position: Xy::new_symm(Center),
-        padding: Xy::new_symm(10),
+        padding: Xy::new_symm(2),
         scrollable: Xy::new(false, false),
     },
     children_can_hide: ChildrenCanHide::Inherit,
@@ -415,7 +415,7 @@ pub const ICON: NodeParams = NodeParams {
         click_animation: false,
     },
     layout: Layout {
-        size: Xy::new_symm(FitContent),
+        size: Xy::new_symm(Size::Pixels(40)),
         position: Xy::new_symm(Center),
         padding: Xy::new_symm(2),
         scrollable: Xy::new(false, false),

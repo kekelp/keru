@@ -333,10 +333,54 @@ impl Ui {
         return final_size;
     }
 
-    fn determine_image_size(&mut self, i: NodeI, _proposed_size: Xy<f32>) -> Xy<f32> {
+    fn determine_image_size(&mut self, i: NodeI, proposed_size: Xy<f32>) -> Xy<f32> {
         if let Some(imageref) = &self.nodes[i].imageref {
             match imageref {
-                crate::render::ImageRef::Loaded(loaded) => {
+                crate::render::ImageRef::Raster(loaded) => {
+                    let size_pixels = Xy::new(loaded.width as f32, loaded.height as f32);
+                    return self.f32_pixels_to_frac2(size_pixels);
+                }
+                crate::render::ImageRef::Svg { loaded, data, rasterized_width, rasterized_height } => {
+                    // Calculate the proposed size in pixels
+                    let proposed_pixels = Xy::new(
+                        proposed_size.x * self.sys.unifs.size[X],
+                        proposed_size.y * self.sys.unifs.size[Y],
+                    );
+
+                    // Check if we need to re-rasterize (if size differs by more than 20%)
+                    let needs_rerasterize = {
+                        let width_ratio = proposed_pixels.x / (*rasterized_width as f32);
+                        let height_ratio = proposed_pixels.y / (*rasterized_height as f32);
+                        width_ratio > 1.2 || width_ratio < 0.8 || height_ratio > 1.2 || height_ratio < 0.8
+                    };
+
+                    if needs_rerasterize && proposed_pixels.x > 1.0 && proposed_pixels.y > 1.0 {
+                        // Re-rasterize the SVG at the new size
+                        let new_width = proposed_pixels.x.round() as u32;
+                        let new_height = proposed_pixels.y.round() as u32;
+
+                        log::info!("Re-rasterizing SVG from {}x{} to {}x{}",
+                            rasterized_width, rasterized_height, new_width, new_height);
+
+                        // Unload the old SVG
+                        self.sys.renderer.image_renderer.unload_svg(loaded);
+
+                        // Load at new size
+                        if let Some(new_loaded) = self.sys.renderer.image_renderer.load_svg(data, new_width, new_height) {
+                            self.nodes[i].imageref = Some(crate::render::ImageRef::Svg {
+                                loaded: new_loaded,
+                                data: *data,
+                                rasterized_width: new_width,
+                                rasterized_height: new_height,
+                            });
+                            self.sys.changes.should_rebuild_render_data = true;
+
+                            let size_pixels = Xy::new(new_width as f32, new_height as f32);
+                            return self.f32_pixels_to_frac2(size_pixels);
+                        }
+                    }
+
+                    // Use current rasterization
                     let size_pixels = Xy::new(loaded.width as f32, loaded.height as f32);
                     return self.f32_pixels_to_frac2(size_pixels);
                 }

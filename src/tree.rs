@@ -305,20 +305,18 @@ impl Ui {
 
         // Render images
         if let Some(imageref) = &self.nodes[i].imageref {
-            match imageref {
-                ImageRef::Loaded(loaded) => {
-                    let animated_rect = self.nodes[i].get_animated_rect();
-                    let x = animated_rect[X][0] * self.sys.unifs.size[X];
-                    let y = animated_rect[Y][0] * self.sys.unifs.size[Y];
-                    let width = (animated_rect[X][1] - animated_rect[X][0]) * self.sys.unifs.size[X];
-                    let height = (animated_rect[Y][1] - animated_rect[Y][0]) * self.sys.unifs.size[Y];
+            let loaded = match imageref {
+                ImageRef::Raster(loaded) => loaded,
+                ImageRef::Svg { loaded, .. } => loaded,
+            };
 
-                    log::debug!("Drawing image at ({}, {}) size {}x{} depth {} (loaded: {}x{} page {})",
-                        x, y, width, height, z, loaded.width, loaded.height, loaded.page);
+            let animated_rect = self.nodes[i].get_animated_rect();
+            let x = animated_rect[X][0] * self.sys.unifs.size[X];
+            let y = animated_rect[Y][0] * self.sys.unifs.size[Y];
+            let width = (animated_rect[X][1] - animated_rect[X][0]) * self.sys.unifs.size[X];
+            let height = (animated_rect[Y][1] - animated_rect[Y][0]) * self.sys.unifs.size[Y];
 
-                    self.sys.renderer.draw_image(loaded, x, y, width, height, z);
-                }
-            }
+            self.sys.renderer.draw_image(loaded, x, y, width, height, z);
         }
 
         if let Some(text_i) = &self.nodes[i].text_i {

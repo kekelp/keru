@@ -550,7 +550,7 @@ impl Ui {
 
         if let Some(loaded) = self.sys.renderer.image_renderer.load_image_from_bytes(image) {
             log::info!("Loaded image: {}x{} on page {}", loaded.width, loaded.height, loaded.page);
-            node.imageref = Some(crate::render::ImageRef::Loaded(loaded));
+            node.imageref = Some(crate::render::ImageRef::Raster(loaded));
             node.last_static_image_ptr = Some(ptr);
             self.sys.changes.should_rebuild_render_data = true;
         } else {
@@ -568,10 +568,16 @@ impl Ui {
             return self;
         }
 
-        // Use a default size for now - this could be made configurable
-        if let Some(loaded) = self.sys.renderer.image_renderer.load_svg(svg_data, 512, 512) {
+        // Start with a default size - will be re-rasterized at proper resolution during layout
+        let initial_size = 512;
+        if let Some(loaded) = self.sys.renderer.image_renderer.load_svg(svg_data, initial_size, initial_size) {
             log::info!("Loaded SVG: {}x{} on page {}", loaded.width, loaded.height, loaded.page);
-            node.imageref = Some(crate::render::ImageRef::Loaded(loaded));
+            node.imageref = Some(crate::render::ImageRef::Svg {
+                loaded,
+                data: svg_data,
+                rasterized_width: initial_size,
+                rasterized_height: initial_size,
+            });
             node.last_static_image_ptr = Some(ptr);
             self.sys.changes.should_rebuild_render_data = true;
         } else {
