@@ -113,14 +113,15 @@ pub struct SliderParams<'a> {
     pub max: f32,
 }
 
-#[node_key] const SLIDER_FILL: NodeKey;
-#[node_key] const SLIDER_LABEL: NodeKey;
 
 impl ComponentParams for SliderParams<'_> {
     type ComponentOutput = ();
     type AddResult = ();
-
+    
     fn add_to_ui(self, ui: &mut Ui) {
+        #[node_key] const SLIDER_FILL: NodeKey;
+        #[node_key] const SLIDER_LABEL: NodeKey;
+        
         let mut new_value = *self.value;
         if let Some(drag) = ui.is_dragged(SLIDER_CONTAINER) {
             new_value += drag.relative_delta.x as f32 * (self.min - self.max);
@@ -166,5 +167,50 @@ impl ComponentParams for SliderParams<'_> {
 impl<'a> SliderParams<'a> {
     pub fn new(value: &'a mut f32, min: f32, max: f32) -> Self {
         Self { value, min, max }
+    }
+}
+
+
+pub trait ComponentParams2<ADDRESULT> {
+    type ComponentOutput;
+    
+    fn add_to_ui(self, ui: &mut Ui) -> ADDRESULT;
+
+    // this returns an Option mostly just so that we can default impl it with None, but maybe that's useful in other ways?
+    // as in, if the component is not currently added, maybe Ui::component_output can just see that and return None, instead of running the function anyway and (hopefully) getting a None?
+    // todo: figure this out 
+    fn component_output(_ui: &mut Ui) -> Option<Self::ComponentOutput> {
+        None
+    }
+
+    fn component_key(&self) -> Option<ComponentKey<Self>> {
+        None
+    }
+}
+
+pub trait ComponentParams2Simple {
+    type ComponentOutput;
+    
+    fn add_to_ui(self, ui: &mut Ui);
+
+    // this returns an Option mostly just so that we can default impl it with None, but maybe that's useful in other ways?
+    // as in, if the component is not currently added, maybe Ui::component_output can just see that and return None, instead of running the function anyway and (hopefully) getting a None?
+    // todo: figure this out 
+    fn component_output(_ui: &mut Ui) -> Option<Self::ComponentOutput> {
+        None
+    }
+
+    fn component_key(&self) -> Option<ComponentKey<Self>> {
+        None
+    }
+}
+
+impl<T> ComponentParams2<()> for T
+where T: ComponentParams2Simple
+ {
+    type ComponentOutput = ();
+
+    fn add_to_ui(self, ui: &mut Ui) -> () {
+        Self::add_to_ui(self, ui);
     }
 }

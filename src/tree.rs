@@ -311,12 +311,23 @@ impl Ui {
             };
 
             let animated_rect = self.nodes[i].get_animated_rect();
-            let x = animated_rect[X][0] * self.sys.unifs.size[X];
-            let y = animated_rect[Y][0] * self.sys.unifs.size[Y];
-            let width = (animated_rect[X][1] - animated_rect[X][0]) * self.sys.unifs.size[X];
-            let height = (animated_rect[Y][1] - animated_rect[Y][0]) * self.sys.unifs.size[Y];
+            let padding = self.nodes[i].params.layout.padding;
 
-            self.sys.renderer.draw_image(loaded, x, y, width, height, z);
+            let image_width = loaded.width as f32;
+            let image_height = loaded.height as f32;
+
+            // Available space in the rect
+            let available_width = (animated_rect[X][1] - animated_rect[X][0]) * self.sys.unifs.size[X] - 2.0 * padding[X] as f32;
+            let available_height = (animated_rect[Y][1] - animated_rect[Y][0]) * self.sys.unifs.size[Y] - 2.0 * padding[Y] as f32;
+
+            // Center the image within the available space
+            let x_offset = (available_width - image_width).max(0.0) / 2.0;
+            let y_offset = (available_height - image_height).max(0.0) / 2.0;
+
+            let x = animated_rect[X][0] * self.sys.unifs.size[X] + padding[X] as f32 + x_offset;
+            let y = animated_rect[Y][0] * self.sys.unifs.size[Y] + padding[Y] as f32 + y_offset;
+
+            self.sys.renderer.draw_image(loaded, x, y, image_width, image_height, z);
         }
 
         if let Some(text_i) = &self.nodes[i].text_i {
