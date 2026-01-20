@@ -17,25 +17,22 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         // Control panel
         ui.label("Transform Controls");
 
-        // Zoom slider
         ui.h_stack().nest(|| {
             ui.label("Zoom:");
             ui.add_component(SliderParams::new(&mut state.zoom, 0.5, 3.0));
-            ui.label(&format!("{:.2}", state.zoom));
+            // ui.label(&format!("{:.2}", state.zoom));
         });
 
-        // Pan X slider
         ui.h_stack().nest(|| {
             ui.label("Pan X:");
             ui.add_component(SliderParams::new(&mut state.pan_x, -200.0, 200.0));
-            ui.label(&format!("{:.0}", state.pan_x));
+            // ui.label(&format!("{:.0}", state.pan_x));
         });
 
-        // Pan Y slider
         ui.h_stack().nest(|| {
             ui.label("Pan Y:");
             ui.add_component(SliderParams::new(&mut state.pan_y, -200.0, 200.0));
-            ui.label(&format!("{:.0}", state.pan_y));
+            // ui.label(&format!("{:.0}", state.pan_y));
         });
 
         ui.spacer();

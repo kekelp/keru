@@ -929,8 +929,23 @@ impl Ui {
         let parent_transform = self.nodes[parent].accumulated_transform;
         let parent_index = self.nodes[parent].accumulated_transform_index;
 
-        // Combine with this node's transform if it has one
-        let (combined_transform, transform_index) = if let Some(node_transform) = self.nodes[i].params.transform {
+        // Compose this node's translate/scale into a transform if present
+        let node_transform = match (self.nodes[i].params.scale, self.nodes[i].params.translate) {
+            (Some((sx, sy)), Some((tx, ty))) => {
+                // Scale then translate
+                Some(Transform::scale(sx, sy).then_translate((tx, ty).into()))
+            }
+            (Some((sx, sy)), None) => {
+                Some(Transform::scale(sx, sy))
+            }
+            (None, Some((tx, ty))) => {
+                Some(Transform::translation(tx, ty))
+            }
+            (None, None) => None,
+        };
+
+        // Combine with parent's transform
+        let (combined_transform, transform_index) = if let Some(node_transform) = node_transform {
             let combined = parent_transform.then(&node_transform);
             let index = self.sys.renderer.set_transform(combined);
             (combined, index)

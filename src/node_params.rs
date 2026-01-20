@@ -57,7 +57,8 @@ pub struct NodeParams {
     pub children_can_hide: ChildrenCanHide,
     pub clip_children: Xy<bool>,
     pub animation: Animation,
-    pub transform: Option<keru_draw::Transform>,
+    pub translate: Option<(f32, f32)>,
+    pub scale: Option<(f32, f32)>,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -767,19 +768,13 @@ impl NodeParams {
         return self;
     }
 
-    pub const fn transform(mut self, transform: keru_draw::Transform) -> Self {
-        self.transform = Some(transform);
-        return self;
-    }
-    
-    // todo: these functions overwrite the whole transform, should they add? isn't that annoying because you have to do it in order
-    pub fn translate(mut self, x: f32, y: f32) -> Self {
-        self.transform = Some(keru_draw::Transform::translation(x, y));
+    pub const fn translate(mut self, x: f32, y: f32) -> Self {
+        self.translate = Some((x, y));
         return self;
     }
 
-    pub fn zoom(mut self, scale: f32) -> Self {
-        self.transform = Some(keru_draw::Transform::scale(scale, scale));
+    pub const fn zoom(mut self, scale: f32) -> Self {
+        self.scale = Some((scale, scale));
         return self;
     }
 
