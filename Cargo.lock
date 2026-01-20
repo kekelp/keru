@@ -328,9 +328,6 @@ name = "bitflags"
 version = "2.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "812e12b5285cc515a9c72a5c1d3b6d46a19dac5acfef5265968c166106e31dd3"
-dependencies = [
- "serde_core",
-]
 
 [[package]]
 name = "bitstream-io"
@@ -804,6 +801,7 @@ version = "0.22.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ad9cdb4b747e485a12abb0e6566612956c7a1bafa3bdb8d682c5b6d403589e48"
 dependencies = [
+ "bytemuck",
  "num-traits",
 ]
 
@@ -1341,7 +1339,6 @@ dependencies = [
  "bumpalo",
  "bytemuck",
  "env_logger",
- "etagere",
  "glam",
  "image",
  "keru_draw",
@@ -1349,10 +1346,7 @@ dependencies = [
  "log",
  "pollster",
  "slab",
- "unicode-segmentation",
  "wgpu 27.0.1",
- "wgpu-profiler",
- "wgpu-types 26.0.0",
  "winit",
 ]
 
@@ -1361,6 +1355,7 @@ name = "keru_draw"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
+ "euclid",
  "keru_images",
  "textslabs",
  "wgpu 27.0.1",
@@ -2949,6 +2944,7 @@ dependencies = [
  "arboard",
  "bytemuck",
  "etagere",
+ "euclid",
  "image",
  "lazy_static",
  "lru",
@@ -3702,20 +3698,6 @@ checksum = "610f6ff27778148c31093f3b03abc4840f9636d58d597ca2f5977433acfe0068"
 dependencies = [
  "bitflags 2.10.0",
  "js-sys",
- "web-sys",
-]
-
-[[package]]
-name = "wgpu-types"
-version = "26.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eca7a8d8af57c18f57d393601a1fb159ace8b2328f1b6b5f80893f7d672c9ae2"
-dependencies = [
- "bitflags 2.10.0",
- "bytemuck",
- "js-sys",
- "log",
- "thiserror 2.0.17",
  "web-sys",
 ]
 

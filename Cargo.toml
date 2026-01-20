@@ -25,22 +25,17 @@ opt-level = 3
 keru_macros = { path = "crates/keru_macros" }
 winit = { version = "0.30.5", features = ["rwh_05"] }
 wgpu = { version = "27", default-features = true }
-wgpu-types = "26"
 pollster = "0.3.0"
 bytemuck = { version = "1.19.0", features = ["derive"] }
-unicode-segmentation = "1.11.0"
 glam = "0.28.0"
 slab = "0.4.9"
 image = "0.25.2"
-etagere = "0.2.13"
 log = "0.4.22"
 env_logger = "0.11.6"
 bitflags = "2.8.0"
 ahash = "0.8.11"
-
 keru_draw = { path = "../keru_draw" }
-bumpalo = { version = "3.19.0", features = ["collections"] }
-wgpu-profiler = "0.25.0"
+bumpalo = { version = "3.16", features = ["collections"] }
 
 [lints.clippy]
 needless_return = { level = "allow" }

@@ -298,6 +298,10 @@ impl Ui {
         // Get the clip rect for this node
         let node_clip_rect = self.nodes[i].clip_rect;
 
+        // Apply this node's accumulated transform for all rendering
+        let transform_index = self.nodes[i].accumulated_transform_index;
+        self.sys.renderer.use_transform(transform_index);
+
         // Render node's shape
         if draw_even_if_invisible || self.nodes[i].params.rect.visible {
             self.render_node_shape_to_scene(i, node_clip_rect);

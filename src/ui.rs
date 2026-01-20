@@ -254,8 +254,6 @@ impl Ui {
 
         let renderer = Renderer::new(device.clone(), queue.clone(), config.format);
 
-        let gpu_profiler = GpuProfiler::new(&device, GpuProfilerSettings::default()).unwrap();
-
         Self {
             nodes,
             format_scratch: String::with_capacity(1024),
@@ -483,10 +481,14 @@ impl Ui {
 impl Ui {
     pub(crate) fn hit_click_rect(&self, rect: &ClickRect) -> bool {
         let size = self.sys.unifs.size;
+
+        // Get cursor position and convert to normalized coordinates
         let cursor_pos = (
             self.cursor_position().x as f32 / size[X],
             self.cursor_position().y as f32 / size[Y],
         );
+
+        let node_i = rect.i;
 
         let aabb_hit = rect.rect[X][0] < cursor_pos.0
             && cursor_pos.0 < rect.rect[X][1]
@@ -496,8 +498,6 @@ impl Ui {
         if aabb_hit == false {
             return false;
         }
-
-        let node_i = rect.i;
 
 
         match self.nodes[node_i].params.rect.shape {

@@ -63,6 +63,7 @@ pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
+    transform: None,
 };
 /// [`NodeParams`] for a default. 
 pub const DEFAULT: NodeParams = NodeParams {
@@ -90,6 +91,7 @@ pub const DEFAULT: NodeParams = NodeParams {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
+    transform: None,
 };
 /// [`NodeParams`] for a vertical stack. 
 pub const V_STACK: NodeParams = NodeParams {
@@ -115,6 +117,7 @@ pub const V_STACK: NodeParams = NodeParams {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
+    transform: None,
 };
 /// [`NodeParams`] for a horizontal stack. 
 pub const H_STACK: NodeParams = NodeParams {
@@ -140,6 +143,7 @@ pub const H_STACK: NodeParams = NodeParams {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
+    transform: None,
 };
 
 /// [`NodeParams`] for a vertically scrollable vertical stack.
@@ -172,6 +176,7 @@ pub const V_SCROLL_STACK: NodeParams = NodeParams {
         },
         children_can_hide: ChildrenCanHide::Inherit,
         clip_children: Xy::new(false, true),
+        transform: None,
     };
 
 /// [`NodeParams`] for a margin. 
@@ -194,6 +199,7 @@ pub const MARGIN: NodeParams = NodeParams {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
+    transform: None,
 };
 /// [`NodeParams`] for an icon button. 
 pub const ICON_BUTTON: NodeParams = NodeParams {
@@ -221,6 +227,7 @@ pub const ICON_BUTTON: NodeParams = NodeParams {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
+    transform: None,
 };
 /// [`NodeParams`] for an image. 
 pub const IMAGE: NodeParams = NodeParams {
@@ -248,6 +255,7 @@ pub const IMAGE: NodeParams = NodeParams {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
+    transform: None,
 };
 /// [`NodeParams`] for an icon button. 
 pub const IMAGE_BUTTON: NodeParams = NodeParams {
@@ -275,6 +283,7 @@ pub const IMAGE_BUTTON: NodeParams = NodeParams {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
+    transform: None,
 };
 /// [`NodeParams`] for a button. 
 pub const BUTTON: NodeParams = NodeParams {
@@ -308,6 +317,7 @@ pub const BUTTON: NodeParams = NodeParams {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
+    transform: None,
 };
 /// [`NodeParams`] for a label. 
 pub const LABEL: NodeParams = NodeParams {
@@ -340,6 +350,7 @@ pub const LABEL: NodeParams = NodeParams {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
+    transform: None,
 };
 
 /// [`NodeParams`] for a label containing a multi-line paragraph. 
@@ -373,6 +384,7 @@ pub const MULTILINE_LABEL: NodeParams = NodeParams {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
+    transform: None,
 };
 
 /// [`NodeParams`] for a text element. 
@@ -400,6 +412,7 @@ pub const TEXT: NodeParams = NodeParams {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
+    transform: None,
 };
 
 /// [`NodeParams`] for an icon element. 
@@ -422,6 +435,7 @@ pub const ICON: NodeParams = NodeParams {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
+    transform: None,
 };
 
 /// [`NodeParams`] for a multiline text edit box. 
@@ -455,6 +469,7 @@ pub const TEXT_EDIT: NodeParams = NodeParams {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
+    transform: None,
 };
 
 /// [`NodeParams`] for a single line text edit box. 
@@ -488,6 +503,7 @@ pub const TEXT_EDIT_LINE: NodeParams = NodeParams {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
+    transform: None,
 };
 
 /// [`NodeParams`] for a text element containing a multi-line paragraph.
@@ -515,6 +531,7 @@ pub const TEXT_PARAGRAPH: NodeParams = NodeParams {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
+    transform: None,
 };
 
 /// [`NodeParams`] for a panel. 
@@ -543,6 +560,7 @@ pub const PANEL: NodeParams = NodeParams {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
+    transform: None,
 };
 
 /// [`NodeParams`] for a container. 
@@ -571,6 +589,7 @@ pub const CONTAINER: NodeParams = NodeParams {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
+    transform: None,
 };
 
 /// [`NodeParams`] for a custom rendered node.
@@ -611,6 +630,7 @@ pub const CUSTOM_RENDERED_PANEL: NodeParams = NodeParams {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
+    transform: None,
 };
 
 /// [`NodeParams`] for a spacer element.
@@ -633,6 +653,7 @@ pub const SPACER: NodeParams = NodeParams {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
+    transform: None,
 };
 
 /// [`NodeParams`] for a invisible spacer element that fills all the available space in the X direction.
@@ -655,6 +676,7 @@ pub const H_SPACER: NodeParams = NodeParams {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
+    transform: None,
 };
 
 /// [`NodeParams`] for a invisible spacer element that fills all the available space in the Y direction.
@@ -677,6 +699,7 @@ pub const V_SPACER: NodeParams = NodeParams {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
+    transform: None,
 };
 
 /// [`NodeParams`] for a horizontal divider line.
@@ -714,6 +737,7 @@ pub const H_LINE: NodeParams = NodeParams {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
+    transform: None,
 };
 
 pub(crate) const COMPONENT_ROOT: NodeParams = NodeParams {
@@ -741,4 +765,5 @@ pub(crate) const COMPONENT_ROOT: NodeParams = NodeParams {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
+    transform: None,
 };

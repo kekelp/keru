@@ -403,10 +403,9 @@ impl Ui {
                     let text_height = if let Some(first_line) = layout.lines().next() {
                         first_line.metrics().line_height
                     } else {
-                        0.0
+                        0.0 // todo rethink
                     };
 
-                    // let text_width = layout.full_width();
                     let text_width = proposed_size.x * self.sys.unifs.size[X];
 
                     text_edit.set_size((text_width, text_height));
@@ -869,6 +868,9 @@ impl Ui {
         // set the new target (expected_final_rect)
         self.nodes[i].expected_final_rect = self.nodes[i].local_layout_rect + expected_final_parent_offset + scroll;
 
+        // Accumulate transforms from parent
+        self.compute_accumulated_transform(i);
+
         if ! self.node_or_parent_has_ongoing_animation(i) {
             if self.nodes[i].exiting {
                 self.nodes[i].exit_animation_still_going = false;
@@ -896,7 +898,7 @@ impl Ui {
         if ! self.nodes[parent].params.is_scrollable() {
             return Xy::new(0.0, 0.0);
         }
-    
+
         let mut res = Xy::new(0.0, 0.0);
         for axis in [X, Y] {
             if self.nodes[parent].params.layout.scrollable[axis] {
@@ -905,6 +907,40 @@ impl Ui {
             }
         }
         return res;
+    }
+
+    pub(crate) fn compute_accumulated_transform(&mut self, i: NodeI) {
+        use keru_draw::Transform;
+
+        if i == ROOT_I {
+            self.nodes[i].accumulated_transform = Transform::identity();
+            self.nodes[i].accumulated_transform_index = 0;
+            return;
+        }
+
+        let parent = self.nodes[i].parent;
+        if self.nodes.get(parent).is_none() {
+            self.nodes[i].accumulated_transform = Transform::identity();
+            self.nodes[i].accumulated_transform_index = 0;
+            return;
+        }
+
+        // Get parent's accumulated transform and index
+        let parent_transform = self.nodes[parent].accumulated_transform;
+        let parent_index = self.nodes[parent].accumulated_transform_index;
+
+        // Combine with this node's transform if it has one
+        let (combined_transform, transform_index) = if let Some(node_transform) = self.nodes[i].params.transform {
+            let combined = parent_transform.then(&node_transform);
+            let index = self.sys.renderer.set_transform(combined);
+            (combined, index)
+        } else {
+            // No transform on this node, just inherit parent's
+            (parent_transform, parent_index)
+        };
+
+        self.nodes[i].accumulated_transform = combined_transform;
+        self.nodes[i].accumulated_transform_index = transform_index;
     }
 }
 
