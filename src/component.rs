@@ -119,6 +119,8 @@ impl ComponentParams for SliderParams<'_> {
     type AddResult = ();
     
     fn add_to_ui(self, ui: &mut Ui) {
+        with_arena(|arena| {
+
         #[node_key] const SLIDER_FILL: NodeKey;
         #[node_key] const SLIDER_LABEL: NodeKey;
         
@@ -152,14 +154,15 @@ impl ComponentParams for SliderParams<'_> {
             // .shape(Shape::Rectangle { corner_radius: 16.0 })
             .key(SLIDER_FILL);
 
-        // todo: don't allocate here
-        let text = format!("{:.2}", self.value);
 
+        let text = bumpalo::format!(in arena, "{:.2}", self.value);
         let label = TEXT.text(&text).key(SLIDER_LABEL);
 
         ui.add(slider_container).nest(|| {
             ui.add(slider_fill);
             ui.add(label);
+        });
+
         });
     }
 }
@@ -213,4 +216,51 @@ where T: ComponentParams2Simple
     fn add_to_ui(self, ui: &mut Ui) -> () {
         Self::add_to_ui(self, ui);
     }
+}
+
+
+use std::cell::RefCell;
+use bumpalo::Bump;
+
+thread_local! {
+    /// Thread local bump arena for temporary allocations
+    static THREAD_ARENA: RefCell<Bump> = RefCell::new(Bump::new());
+}
+
+/// Access keru's thread-local bump arena for temporary allocations.
+/// Useful for small local allocations without passing an arena around, like formatting strings to show in the gui.
+///
+/// The arena is reset at the end of each frame [`Ui::finish_frame()`].
+/// 
+/// This function is useful when implementing a reusable component with the [`ComponentParams`] trait, since you can't easily access all of your state from within the trait impl. In other cases, it might be more convenient to use your own arena.
+///
+/// # Panics
+/// Panics if `ui.finish_frame()` is called from inside the passes closure.
+///
+/// # Example
+/// ```no_run
+/// # use keru::*;
+/// # let mut ui: Ui = unimplemented!();
+/// # let float_value = 6.7;
+/// with_arena(|a| {
+///     let text = bumpalo::format!(in a, "{:.2}", float_value);
+///     ui.add(LABEL.text(&text)); // Great
+///     // ui.finish_frame(); // Don't do this.
+/// });
+/// 
+/// ui.finish_frame(); // Now it's fine.
+/// ```
+pub fn with_arena<F, R>(f: F) -> R
+where
+    F: FnOnce(&Bump) -> R,
+{
+    THREAD_ARENA.with(|arena| {
+        f(&arena.borrow())
+    })
+}
+
+pub(crate) fn reset_arena() {
+    THREAD_ARENA.with(|arena| {
+        arena.borrow_mut().reset();
+    });
 }

@@ -80,12 +80,10 @@ impl Components for Ui {
             self.static_paragraph("Classic slider:");
             self.classic_slider(&mut state.f32_value, 0.0, 100.0);
 
-            self.static_paragraph("
-                Press F1 for Inspect mode. This lets you see the bounds of the layout rectangles. \n\n\
+            self.static_paragraph("Press F1 for Inspect mode. This lets you see the bounds of the layout rectangles. \n\n\
                 In Inspect mode, hovering nodes will also log an Info message with the node's debug name and source code location. \n\n\
                 Press Ctrl+Tab and Ctrl+Shift+Tab to switch between tabs. \n\n\
-                Press Ctrl+Plus, Ctrl+Minus and Ctrl+0 to control the zoom level of the default text style.\n\n
-            ");
+                Press Ctrl+Plus, Ctrl+Minus and Ctrl+0 to control the zoom level of the default text style.\n\n");
 
             // todo: this is not very nice.
             // real examples without run_example_loop would do this in State::new(), I guess.

@@ -137,6 +137,8 @@ pub mod winit_key_events;
 
 mod thread_local;
 
+pub use bumpalo;
+
 pub use keru_draw::{TextStyle2 as TextStyle, FontWeight, FontStyle, LineHeight, FontStack, ColorBrush, StyleHandle, with_clipboard};
 
 mod changes;

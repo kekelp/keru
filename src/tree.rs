@@ -335,11 +335,26 @@ impl Ui {
             let animated_rect = self.nodes[i].get_animated_rect();
             let padding = self.nodes[i].params.layout.padding;
             let left = (animated_rect[X][0] * self.sys.unifs.size[X]) as f64 + padding[X] as f64;
-            let top = (animated_rect[Y][0] * self.sys.unifs.size[Y]) as f64 + padding[Y] as f64;
+
+            // Calculate node height in pixels
+            let node_height = (animated_rect[Y][1] - animated_rect[Y][0]) * self.sys.unifs.size[Y];
+            let available_height = node_height - (2.0 * padding[Y] as f32);
 
             match text_i {
                 TextI::TextBox(text_box_handle) => {
                     let text_box = self.sys.renderer.text.get_text_box_mut(&text_box_handle);
+                    let layout = text_box.layout();
+                    let text_height = layout.height() as f32;
+
+                    // Center vertically if text is smaller than available height
+                    let vertical_offset = if text_height < available_height {
+                        (available_height - text_height) / 2.0
+                    } else {
+                        0.0
+                    };
+
+                    let top = (animated_rect[Y][0] * self.sys.unifs.size[Y]) as f64 + padding[Y] as f64 + vertical_offset as f64;
+
                     text_box.set_depth(z);
                     text_box.set_pos((left, top));
                     // Draw the text box
@@ -347,6 +362,17 @@ impl Ui {
                 },
                 TextI::TextEdit(text_edit_handle) => {
                     let text_edit = self.sys.renderer.text.get_text_edit_mut(&text_edit_handle);
+                    let (_width, text_edit_height) = text_edit.size();
+
+                    // Center vertically based on the text edit widget size
+                    let vertical_offset = if text_edit_height < available_height {
+                        (available_height - text_edit_height) / 2.0
+                    } else {
+                        0.0
+                    };
+
+                    let top = (animated_rect[Y][0] * self.sys.unifs.size[Y]) as f64 + padding[Y] as f64 + vertical_offset as f64;
+
                     text_edit.set_depth(z);
                     text_edit.set_pos((left, top));
                     // Draw the text edit
@@ -437,10 +463,10 @@ impl Ui {
     }
 
     /// Finish declaring the current GUI tree.
-    /// 
+    ///
     /// This function will also relayout the nodes that need it, and do some bookkeeping.
-    /// 
-    /// Use at most once per frame, after calling [`Ui::begin_frame()`] and running your tree declaration code.
+    ///
+    /// This function must be called once per frame, after calling [`Ui::begin_frame()`] and running your ui declaration code.
     pub fn finish_frame(&mut self) {
         log::trace!("Finished Ui update");
         // pop the root node
@@ -463,6 +489,8 @@ impl Ui {
         if let Some(waker) = &self.sys.waker {
             waker.needs_update.store(false, std::sync::atomic::Ordering::Relaxed);
         }
+
+        reset_arena();
 
         // let mut buffer = String::new();
         // std::io::stdin().read_line(&mut buffer).expect("Failed to read line");

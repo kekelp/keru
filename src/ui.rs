@@ -7,7 +7,6 @@ use glam::DVec2;
 
 use keru_draw::Renderer;
 pub use keru_draw::{TextStyle2 as TextStyle, ColorBrush};
-use wgpu_profiler::{GpuProfiler, GpuProfilerSettings};
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
 use winit_key_events::KeyInput;

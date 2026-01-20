@@ -67,7 +67,7 @@ impl UiNode<'_> {
 }
 
 impl Ui {
-    pub(crate) fn get_uinode(&self, key: NodeKey) -> Option<UiNode> {
+    pub(crate) fn get_uinode(&self, key: NodeKey) -> Option<UiNode<'_>> {
         let i = self.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
         return Some(UiNode { i, ui: self });
     }
@@ -367,7 +367,7 @@ impl Ui {
 
         if let Some(TextI::TextEdit(handle)) = &self.nodes[i].text_i {
 
-            self.sys.renderer.text.get_text_edit_mut(handle).set_text(new_text);
+            self.sys.renderer.text.get_text_edit_mut(handle).set_text(&new_text);
             // Mark this node as having changed for next frame
             self.sys.text_edit_changed_this_frame = Some(self.nodes[i].id);
         
