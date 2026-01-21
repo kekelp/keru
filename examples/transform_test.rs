@@ -14,60 +14,61 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     #[node_key] const CLICK_COUNTER_BUTTON: NodeKey;
 
     ui.v_stack().nest(|| {
-        // Control panel
         ui.label("Transform Controls");
 
         ui.h_stack().nest(|| {
             ui.label("Zoom:");
             ui.add_component(SliderParams::new(&mut state.zoom, 0.5, 3.0));
-            // ui.label(&format!("{:.2}", state.zoom));
         });
 
         ui.h_stack().nest(|| {
             ui.label("Pan X:");
             ui.add_component(SliderParams::new(&mut state.pan_x, -200.0, 200.0));
-            // ui.label(&format!("{:.0}", state.pan_x));
         });
 
         ui.h_stack().nest(|| {
             ui.label("Pan Y:");
             ui.add_component(SliderParams::new(&mut state.pan_y, -200.0, 200.0));
-            // ui.label(&format!("{:.0}", state.pan_y));
         });
 
         ui.spacer();
 
     });
 
-    // // Transformed content area
-    ui.add(
-        PANEL
-            .size_symm(Size::Fill)
-            .color(Color::rgba(30, 30, 40, 255))
-            .key(TRANSFORMED_CONTAINER)
-            .translate(state.pan_x, state.pan_y)
-            .zoom(state.zoom)
-    ).nest(|| {
-        ui.v_stack().nest(|| {
-            // Title
-            ui.label("Transformed Content");
+    ui.add(PANEL.clip_children(true)).nest(|| {
 
-            // Interactive button
-            if ui.add(BUTTON.text(&format!("Click me! ({})", state.click_count)).key(CLICK_COUNTER_BUTTON)).is_clicked(ui) {
-                state.click_count += 1;
-            }
+        // // Transformed content area
+        ui.add(
+            PANEL
+                .size_symm(Size::Frac(0.6))
+                .color(Color::rgba(30, 30, 40, 255))
+                .key(TRANSFORMED_CONTAINER)
+                .clip_children(true)
+                .translate(state.pan_x, state.pan_y)
+                .zoom(state.zoom)
+        ).nest(|| {
+            ui.v_stack().nest(|| {
+                // Title
+                ui.label("Transformed Content");
 
-            // Some visual elements
-            ui.h_stack().nest(|| {
-                ui.add(PANEL.color(Color::RED).size_symm(Size::Pixels(50)));
-                ui.add(PANEL.color(Color::GREEN).size_symm(Size::Pixels(50)));
-                ui.add(PANEL.color(Color::BLUE).size_symm(Size::Pixels(50)));
+                // Interactive button
+                if ui.add(BUTTON.text(&format!("Click me! ({})", state.click_count)).key(CLICK_COUNTER_BUTTON)).is_clicked(ui) {
+                    state.click_count += 1;
+                }
+
+                // Some visual elements
+                ui.h_stack().nest(|| {
+                    ui.add(PANEL.color(Color::RED).size_symm(Size::Pixels(50)));
+                    ui.add(PANEL.color(Color::GREEN).size_symm(Size::Pixels(50)));
+                    ui.add(PANEL.color(Color::BLUE).size_symm(Size::Pixels(50)));
+                });
+
+                ui.label("This entire panel is transformed!");
+                ui.label("Notice how clicks still work correctly.");
             });
-
-            ui.label("This entire panel is transformed!");
-            ui.label("Notice how clicks still work correctly.");
         });
     });
+
 }
 
 fn main() {

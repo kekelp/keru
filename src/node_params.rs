@@ -763,8 +763,8 @@ impl NodeParams {
         return self;
     }
 
-    pub const fn clip_children(mut self, value: Xy<bool>) -> Self {
-        self.clip_children = value;
+    pub const fn clip_children(mut self, value: bool) -> Self {
+        self.clip_children = Xy::new(value, value);
         return self;
     }
 

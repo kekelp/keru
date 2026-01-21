@@ -15,7 +15,6 @@ pub struct Node {
 
     // Accumulated transform from all parents, used for rendering and hit testing
     pub accumulated_transform: keru_draw::Transform,
-    pub accumulated_transform_index: usize,
 
     pub real_rect: XyRect,
     pub expected_final_rect: XyRect,
@@ -152,7 +151,6 @@ impl Node {
             scroll: Scroll::ZERO,
 
             accumulated_transform: keru_draw::Transform::identity(),
-            accumulated_transform_index: 0,
 
             imageref: None,
             last_static_image_ptr: None,
@@ -265,7 +263,6 @@ pub const NODE_ROOT: Node = Node {
     scroll: Scroll::ZERO,
 
     accumulated_transform: keru_draw::Transform::new(1.0, 0.0, 0.0, 1.0, 0.0, 0.0),
-    accumulated_transform_index: 0,
 
     text_i: None,
 

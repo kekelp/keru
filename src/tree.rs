@@ -4,6 +4,7 @@ use std::hash::Hasher;
 use std::mem;
 use std::panic::Location;
 use bytemuck::{Pod, Zeroable};
+use keru_draw::euclid::Transform2D;
 
 /// An `u64` identifier for a GUI node.
 /// 
@@ -298,9 +299,10 @@ impl Ui {
         // Get the clip rect for this node
         let node_clip_rect = self.nodes[i].clip_rect;
 
-        // Apply this node's accumulated transform for all rendering
-        let transform_index = self.nodes[i].accumulated_transform_index;
-        self.sys.renderer.use_transform(transform_index);
+        // Push this node's accumulated transform for all rendering
+        if self.nodes[i].accumulated_transform != Transform2D::identity() {
+            self.sys.renderer.push_transform(self.nodes[i].accumulated_transform);
+        }
 
         // Render node's shape
         if draw_even_if_invisible || self.nodes[i].params.rect.visible {
@@ -383,6 +385,11 @@ impl Ui {
                     self.sys.renderer.draw_text_edit(&text_edit_handle);
                 },
             }
+        }
+        
+        // Pop the transform we pushed
+        if self.nodes[i].accumulated_transform != Transform2D::identity() {
+            self.sys.renderer.pop_transform();
         }
     }
 

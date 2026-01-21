@@ -914,20 +914,17 @@ impl Ui {
 
         if i == ROOT_I {
             self.nodes[i].accumulated_transform = Transform::identity();
-            self.nodes[i].accumulated_transform_index = 0;
             return;
         }
 
         let parent = self.nodes[i].parent;
         if self.nodes.get(parent).is_none() {
             self.nodes[i].accumulated_transform = Transform::identity();
-            self.nodes[i].accumulated_transform_index = 0;
             return;
         }
 
-        // Get parent's accumulated transform and index
+        // Get parent's accumulated transform
         let parent_transform = self.nodes[parent].accumulated_transform;
-        let parent_index = self.nodes[parent].accumulated_transform_index;
 
         // Compose this node's translate/scale into a transform if present
         let node_transform = match (self.nodes[i].params.scale, self.nodes[i].params.translate) {
@@ -945,17 +942,14 @@ impl Ui {
         };
 
         // Combine with parent's transform
-        let (combined_transform, transform_index) = if let Some(node_transform) = node_transform {
-            let combined = parent_transform.then(&node_transform);
-            let index = self.sys.renderer.set_transform(combined);
-            (combined, index)
+        let combined_transform = if let Some(node_transform) = node_transform {
+            parent_transform.then(&node_transform)
         } else {
             // No transform on this node, just inherit parent's
-            (parent_transform, parent_index)
+            parent_transform
         };
 
         self.nodes[i].accumulated_transform = combined_transform;
-        self.nodes[i].accumulated_transform_index = transform_index;
     }
 }
 
