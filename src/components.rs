@@ -226,14 +226,14 @@ impl Ui {
                 .size_y(Size::Pixels(10))
                 .padding(0)
                 .color(Color::GREY)
-                .shape(Shape::Rectangle { corner_radius: 10.0 })
+                .shape(Shape::Rectangle { corner_radius: 5.0 })
                 .absorbs_clicks(false)
                 .key(TRACK);
             
             #[node_key] const FILLED: NodeKey;
             let slider_filled = PANEL
                 .size_y(Size::Pixels(14))
-                .shape(Shape::Rectangle { corner_radius: 14.0 })
+                .shape(Shape::Rectangle { corner_radius: 7.0 })
                 .size_x(Size::Frac(handle_position_frac))
                 .color(Color::KERU_RED)
                 .position_x(Start)
