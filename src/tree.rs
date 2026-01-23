@@ -362,7 +362,7 @@ impl Ui {
                     let top = (animated_rect[Y][0] * self.sys.unifs.size[Y]) as f64 + padding[Y] as f64 + vertical_offset as f64;
 
                     text_box.set_depth(z);
-                    text_box.set_pos((left, top));
+                    text_box.set_pos((left.round(), top.round()));
 
                     // Set the screen-space clip rect before drawing
                     let clip = (
@@ -390,7 +390,7 @@ impl Ui {
                     let top = (animated_rect[Y][0] * self.sys.unifs.size[Y]) as f64 + padding[Y] as f64 + vertical_offset as f64;
 
                     text_edit.set_depth(z);
-                    text_edit.set_pos((left, top));
+                    text_edit.set_pos((left.round(), top.round()));
                     // Draw the text edit
                     self.sys.renderer.draw_text_edit(&text_edit_handle);
                 },
