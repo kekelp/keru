@@ -363,6 +363,16 @@ impl Ui {
 
                     text_box.set_depth(z);
                     text_box.set_pos((left, top));
+
+                    // Set the screen-space clip rect before drawing
+                    let clip = (
+                        node_clip_rect.x[0] * self.sys.unifs.size[X],
+                        node_clip_rect.y[0] * self.sys.unifs.size[Y],
+                        node_clip_rect.x[1] * self.sys.unifs.size[X],
+                        node_clip_rect.y[1] * self.sys.unifs.size[Y],
+                    );
+                    self.sys.renderer.text.get_text_box_mut(&text_box_handle).set_screen_space_clip_rect(Some(clip));
+
                     // Draw the text box
                     self.sys.renderer.draw_text_box(&text_box_handle);
                 },

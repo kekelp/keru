@@ -245,6 +245,7 @@ impl Ui {
                             tl_f,
                             x_clip,
                             y_clip,
+                            None,
                         );
                     } else {
                         // For gradients on lines, use calculated gradient colors
@@ -256,6 +257,7 @@ impl Ui {
                             gradient_end_color,
                             x_clip,
                             y_clip,
+                            None,
                         );
                     }
                 } else {

@@ -378,8 +378,15 @@ impl Ui {
             [real_rect[Y][0] * transform.m22 + ty_norm, real_rect[Y][1] * transform.m22 + ty_norm],
         );
 
+        // Clip the transformed rect to the node's clip_rect
+        let clip_rect = self.nodes[i].clip_rect;
+        let clipped_rect = XyRect::new(
+            intersect(transformed_rect[X], clip_rect[X]),
+            intersect(transformed_rect[Y], clip_rect[Y]),
+        );
+
         return ClickRect {
-            rect: transformed_rect,
+            rect: clipped_rect,
             i,
         }
     }

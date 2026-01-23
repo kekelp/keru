@@ -135,8 +135,11 @@ impl Components for Ui {
 
         self.add(v_stack).nest(|| {
             self.static_label("Keru uses the Textslabs library for text, which uses Parley under the hood.");
+            self.add(H_LINE.color(Color::WHITE));
             self.label(&Static(JAPANESE_TEXT));
+            self.add(H_LINE.color(Color::WHITE));
             self.label(&Static(CYRILLIC_TEXT));
+            self.add(H_LINE.color(Color::WHITE));
             self.label(&Static(CHINESE_TEXT));
         });
     }
