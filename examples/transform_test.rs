@@ -10,25 +10,27 @@ pub struct State {
 }
 
 fn update_ui(state: &mut State, ui: &mut Ui) {
-    #[node_key] const TRANSFORMED_CONTAINER: NodeKey;
+    #[node_key] const PAN_OVERLAY: NodeKey;
+    #[node_key] const TRANSFORMED_AREA: NodeKey;
     #[node_key] const CLICK_COUNTER_BUTTON: NodeKey;
 
+    let bg_panel = PANEL.size_symm(Size::Frac(0.6));
+    let pan_overlay = PANEL
+        .color(Color::TRANSPARENT)
+        .sense_drag(true)
+        .size(Size::Fill, Size::Fill)
+        .key(PAN_OVERLAY);
 
-    ui.add(
-        PANEL
-        .clip_children(true)
-    ).nest(|| {
+    let transform_area = PANEL
+        .size(Size::Fill, Size::Fill)
+        .color(Color::rgba(30, 30, 40, 255))
+        .key(TRANSFORMED_AREA)
+        .translate(state.pan_x, state.pan_y)
+        .zoom(state.zoom)
+        .clip_children(true);
 
-        // // Transformed content area
-        ui.add(
-            PANEL
-                .size_symm(Size::Frac(0.6))
-                .color(Color::rgba(30, 30, 40, 255))
-                .key(TRANSFORMED_CONTAINER)
-                // .clip_children(true)
-                .translate(state.pan_x, state.pan_y)
-                .zoom(state.zoom)
-        ).nest(|| {
+    ui.add(bg_panel).nest(|| {
+        ui.add(transform_area).nest(|| {
             ui.add(V_STACK).nest(|| {
                 ui.label("Transformed subtree");
 
@@ -45,7 +47,10 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                 ui.label("Don't expect scaled text to look good, though. It just scales the quads using the same cpu-rasterized texture");
             });
         });
+
+        ui.add(pan_overlay);
     });
+
 
     ui.add(V_STACK.stack_arrange(Arrange::Start)).nest(|| {
         ui.add(H_STACK).nest(|| {
@@ -65,10 +70,17 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         ui.add(SPACER);
     });
 
-
+    // Pan when holding space and dragging
+    if ui.key_input().key_held(&winit::keyboard::Key::Named(winit::keyboard::NamedKey::Space)) {
+        if let Some(drag) = ui.is_dragged(PAN_OVERLAY) {
+            state.pan_x -= drag.absolute_delta.x as f32;
+            state.pan_y -= drag.absolute_delta.y as f32;
+        }
+    }
 }
 
 fn main() {
+    basic_env_logger_init();
     let state = State {
         zoom: 1.0,
         pan_x: 0.0,
