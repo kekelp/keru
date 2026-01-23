@@ -78,9 +78,7 @@ impl Ui {
 
         // after doing a relayout, we might be moving the hovered node away from the cursor.
         // So we run resolve_hover again, possibly causing another relayout next frame
-        if partial_relayouts || full_relayout {
-            self.resolve_hover();
-        }
+        self.resolve_hover();
     }
 
     // this gets called even when zero relayouts are needed. in that case it just does nothing. I guess it's to make the layout() logic more readable
