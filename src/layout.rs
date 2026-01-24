@@ -937,14 +937,25 @@ impl Ui {
         // Get parent's accumulated transform
         let parent_transform = self.nodes[parent].accumulated_transform;
 
+        let node_center = self.nodes[i].real_rect.top_left() + self.nodes[i].real_rect.size() * Xy::new_symm(0.5);
+        let center_x = (node_center.x) * self.sys.unifs.size[X];
+        let center_y = (node_center.y) * self.sys.unifs.size[Y];
+
         // Compose this node's translate/scale into a transform if present
         let node_transform = match (self.nodes[i].params.scale, self.nodes[i].params.translate) {
             (Some((sx, sy)), Some((tx, ty))) => {
-                // Scale then translate
-                Some(Transform::scale(sx, sy).then_translate((tx, ty).into()))
+                Some(
+                    Transform::translation(-center_x, -center_y)
+                        .then_scale(sx, sy)
+                        .then_translate((center_x + tx, center_y + ty).into())
+                )
             }
             (Some((sx, sy)), None) => {
-                Some(Transform::scale(sx, sy))
+                Some(
+                    Transform::translation(-center_x, -center_y)
+                        .then_scale(sx, sy)
+                        .then_translate((center_x, center_y).into())
+                )
             }
             (None, Some((tx, ty))) => {
                 Some(Transform::translation(tx, ty))

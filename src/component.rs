@@ -111,7 +111,7 @@ pub struct SliderParams<'a> {
     pub value: &'a mut f32,
     pub min: f32,
     pub max: f32,
-    pub clamp: bool,
+    pub clamp: bool, // todo: with clamp = false, still clamp values set WITH the slider
 }
 
 
