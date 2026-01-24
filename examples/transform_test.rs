@@ -14,16 +14,25 @@ pub struct State {
 }
 
 fn update_ui(state: &mut State, ui: &mut Ui) {
+    #[node_key] const PAN_OVERLAY: NodeKey;
     #[node_key] const SPACEBAR_PAN_OVERLAY: NodeKey;
     #[node_key] const TRANSFORMED_AREA: NodeKey;
     #[node_key] const CLICK_COUNTER_BUTTON: NodeKey;
 
-    let pan_overlay = PANEL
+    let spacebar_pan_overlay = PANEL
         .padding(0)
         .color(Color::TRANSPARENT)
         .sense_drag(true)
         .size(Size::Fill, Size::Fill)
         .key(SPACEBAR_PAN_OVERLAY);
+
+    let pan_overlay = PANEL
+        .padding(0)
+        .color(Color::TRANSPARENT)
+        .sense_drag(true)
+        .absorbs_clicks(false)
+        .size(Size::Fill, Size::Fill)
+        .key(PAN_OVERLAY);
 
     let transform_area = PANEL
         .size_symm(Size::Pixels(1000000))
@@ -59,8 +68,10 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         });
             
         if ui.key_input().key_held(&Key::Named(NamedKey::Space)) {
-            ui.add(pan_overlay);
+            ui.add(spacebar_pan_overlay);
         }
+        
+        ui.add(pan_overlay);
     
     });
 
@@ -83,6 +94,11 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         ui.add(SPACER);
     });
 
+    if let Some(drag) = ui.is_mouse_button_dragged(PAN_OVERLAY, MouseButton::Middle) {
+        state.pan_x -= drag.absolute_delta.x as f32;
+        state.pan_y -= drag.absolute_delta.y as f32;
+    }
+
     if let Some(drag) = ui.is_dragged(SPACEBAR_PAN_OVERLAY) {
         state.pan_x -= drag.absolute_delta.x as f32;
         state.pan_y -= drag.absolute_delta.y as f32;
@@ -98,6 +114,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
             state.zoom = new_zoom;
             let zoom_ratio = state.zoom / old_zoom;
             let centered_pos = mouse_pos - dvec2(0.5, 0.5);
+            // todo get the 600 properly
             state.pan_x = state.pan_x * zoom_ratio + 600.0 * centered_pos.x as f32 * (1.0 - zoom_ratio);
             state.pan_y = state.pan_y * zoom_ratio + 600.0 * centered_pos.y as f32 * (1.0 - zoom_ratio);
         }

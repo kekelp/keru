@@ -35,7 +35,6 @@ impl<T: Tag> Default for MouseInput<T> {
 }
 
 impl<T: Tag> MouseInput<T> {
-    // updating
     pub fn begin_new_frame(&mut self) {
         let current_mouse_status = MouseRecord {
             position: self.cursor_position,
