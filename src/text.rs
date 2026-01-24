@@ -33,7 +33,8 @@ impl Ui {
                 }
             }
 
-            let z = self.nodes[i].z + 0.0001;
+            // this z doesn't matter, it's set when preparing render data. todo: cleanup.
+            let z = 0.0;
             // Create new widget
             let new_text_i = if edit {
                 let handle = self.sys.renderer.text.add_text_edit(text.as_str().to_string(), (0.0, 0.0), (500.0, 500.0), z);

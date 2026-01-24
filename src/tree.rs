@@ -292,7 +292,6 @@ impl Ui {
 
         self.sys.z_cursor += Z_STEP;
         let z = self.sys.z_cursor;
-        self.nodes[i].z = z;
 
         let draw_even_if_invisible = self.sys.inspect_mode;
 

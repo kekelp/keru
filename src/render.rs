@@ -55,6 +55,7 @@ impl Ui {
             }
             WindowEvent::CursorMoved { position, .. } => {
                 // Set new input if this is a hover or a drag
+                // todo: similar things happen inside resolve_hover, why though
                 let last_cursor_pos = self.sys.mouse_input.prev_cursor_position();
                 if dvec2(position.x, position.y) != last_cursor_pos {
                     let has_hover_sense = self.sys.hovered.iter()

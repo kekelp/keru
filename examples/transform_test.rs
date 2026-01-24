@@ -30,7 +30,10 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .clip_children(true);
 
     ui.add(bg_panel).nest(|| {
+
         ui.add(transform_area).nest(|| {
+
+
             ui.add(V_STACK).nest(|| {
                 ui.label("Transformed subtree");
 
@@ -46,9 +49,14 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 
                 ui.label("Don't expect scaled text to look good, though. It just scales the quads using the same cpu-rasterized texture");
             });
+
+            if ui.key_input().key_held(&winit::keyboard::Key::Named(winit::keyboard::NamedKey::Space)) {
+                ui.add(pan_overlay);
+            }
+
         });
 
-        ui.add(pan_overlay);
+
     });
 
 
@@ -70,12 +78,9 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         ui.add(SPACER);
     });
 
-    // Pan when holding space and dragging
-    if ui.key_input().key_held(&winit::keyboard::Key::Named(winit::keyboard::NamedKey::Space)) {
-        if let Some(drag) = ui.is_dragged(PAN_OVERLAY) {
-            state.pan_x -= drag.absolute_delta.x as f32;
-            state.pan_y -= drag.absolute_delta.y as f32;
-        }
+    if let Some(drag) = ui.is_dragged(PAN_OVERLAY) {
+        state.pan_x -= drag.absolute_delta.x as f32;
+        state.pan_y -= drag.absolute_delta.y as f32;
     }
 }
 

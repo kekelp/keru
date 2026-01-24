@@ -11,7 +11,7 @@ struct State {
     window: Arc<Window>,
     surface: Surface<'static>,
     device: Device,
-    queue: Queue,
+    _queue: Queue,
     config: SurfaceConfiguration,
     ui: Ui,
     count: i32,
@@ -52,7 +52,7 @@ impl State {
         let mut ui = Ui::new(&device, &queue, &config);
         ui.enable_auto_wakeup(window.clone());
 
-        Self { window, surface, device, queue, config, ui, count: 0 }
+        Self { window, surface, device, _queue: queue, config, ui, count: 0 }
     }
 
     fn resize(&mut self, width: u32, height: u32) {

@@ -168,7 +168,7 @@ impl<T> ApplicationHandler for Application<T> {
                 }
 
                 let frame_time = frame_start.elapsed();
-                log::info!("Total frame time: {:?}", frame_time);
+                log::trace!("Total frame time: {:?}", frame_time);
             }
             _ => {}
         }

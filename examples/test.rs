@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use keru::example_window_loop::*;
 use keru::*;
 

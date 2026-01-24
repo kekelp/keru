@@ -13,7 +13,7 @@ use winit_key_events::KeyInput;
 use winit_mouse_events::MouseInput;
 
 use std::any::Any;
-use std::collections::{BinaryHeap, VecDeque};
+use std::collections::BinaryHeap;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
@@ -91,8 +91,6 @@ pub(crate) struct System {
     pub second_last_frame_end_fake_time: u64,
     pub third_last_frame_end_fake_time: u64,
 
-    pub mouse_hit_stack: Vec<(Id, f32)>,
-
     // mouse input needs to be Id based, not NodeI based, because you can hold a button for several frames
     pub mouse_input: MouseInput<Id>,
     pub key_input: KeyInput,
@@ -112,7 +110,7 @@ pub(crate) struct System {
     pub partial_relayout_count: u32,
 
     // Holds the nodes for breadth-first traversal.
-    pub breadth_traversal_queue: VecDeque<NodeI>,
+    pub depth_traversal_queue: Vec<NodeI>,
 
     pub non_fresh_nodes: Vec<NodeI>,
 
@@ -282,9 +280,7 @@ impl Ui {
 
                 unifs: uniforms,
 
-                breadth_traversal_queue: VecDeque::with_capacity(64),
-
-                mouse_hit_stack: Vec::with_capacity(50),
+                depth_traversal_queue: Vec::with_capacity(64),
 
                 mouse_input: MouseInput::default(),
                 key_input: KeyInput::default(),

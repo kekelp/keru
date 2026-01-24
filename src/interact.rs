@@ -48,10 +48,8 @@ pub struct ScrollEvent {
 
 impl Ui {
 
-    // todo: think if it's really worth it to do this on every mouse movement.
-    // maybe add a global setting to do it just once per frame
     pub(crate) fn resolve_hover(&mut self) {
-        let hovered_node_id = self.scan_mouse_hits(false);
+        let hovered_node_id = self.scan_mouse_hits(false, Sense::HOVER | Sense::DRAG | Sense::CLICK);
         self.sys.mouse_input.update_current_tag(hovered_node_id);
 
         if let Some(hovered_id) = hovered_node_id {
@@ -98,7 +96,7 @@ impl Ui {
         // in debug mode, do a separate scan that sees invisible rects as well
         #[cfg(debug_assertions)] {
             if self.inspect_mode() {
-                let inspect_hovered_node_id = self.scan_mouse_hits(true);
+                let inspect_hovered_node_id = self.scan_mouse_hits(true, Sense::all());
                 if let Some(hovered_id) = inspect_hovered_node_id {
                     if let Some(id) = self.sys.inspect_hovered {
                         if id != hovered_id {
@@ -113,6 +111,7 @@ impl Ui {
                 self.sys.inspect_hovered = inspect_hovered_node_id;
             }
         }
+
     }
 
     pub(crate) fn start_hovering(&mut self, hovered_id: Id) {
@@ -215,10 +214,9 @@ impl Ui {
         return consumed;
     }
 
-    pub(crate) fn scan_mouse_hits(&mut self, _see_invisible_rects: bool) -> Option<Id> {
-        self.sys.mouse_hit_stack.clear();
-
-        for clk_i in 0..self.sys.click_rects.len() {
+    // _see_invisible_rects needs the _ to avoid the warning in non-debug mode
+    pub(crate) fn scan_mouse_hits(&mut self, _see_invisible_rects: bool, senses: Sense) -> Option<Id> {
+        for clk_i in (0..self.sys.click_rects.len()).rev() {
             let clk_rect = self.sys.click_rects[clk_i];
             
             // in release mode, if a node is not absorbs_mouse_events it won't have a click_rect in the first place.
@@ -227,59 +225,29 @@ impl Ui {
                     continue;
                 }
             }
+
+            if ! self.nodes[clk_rect.i].params.interact.senses.intersects(senses) {
+                continue;
+            }
             
             if self.hit_click_rect(&clk_rect) {
-                let node_i = clk_rect.i;
-                let id = self.nodes[node_i].id;
-                let z = self.nodes[node_i].z;
-                self.sys.mouse_hit_stack.push((id, z));
+                return Some(self.nodes[clk_rect.i].id);
             }
         }
 
-
-        // only the one with the top (aka lowest) z is actually clicked.
-        // in practice, nobody ever sets the Z. it depends on the order.
-        let mut topmost_hit = None;
-
-        let mut top_z = f32::MAX;
-        for (id, z) in self.sys.mouse_hit_stack.iter().rev() {
-
-            if *z < top_z {
-                top_z = *z;
-                topmost_hit = Some(*id);
-            }
-        }
-
-        return topmost_hit;
+        return None;
     }
 
     pub(crate) fn scan_scroll_areas_mouse_hits(&mut self) -> Option<Id> {
-        self.sys.mouse_hit_stack.clear();
-
-        for clk_i in 0..self.sys.scroll_rects.len() {
+        for clk_i in (0..self.sys.scroll_rects.len()).rev() {
             let clk_rect = self.sys.scroll_rects[clk_i];
+
             if self.hit_click_rect(&clk_rect) {
-                let node_i = clk_rect.i;
-                let id = self.nodes[node_i].id;
-                let z = self.nodes[node_i].z;
-                self.sys.mouse_hit_stack.push((id, z));
-            }
-        }
-        
-        // only the one with the top (aka lowest) z is actually clicked.
-        // in practice, nobody ever sets the Z. it depends on the order.
-        let mut topmost_hit = None;
-
-        let mut top_z = f32::MAX;
-        for (id, z) in self.sys.mouse_hit_stack.iter().rev() {
-
-            if *z < top_z {
-                top_z = *z;
-                topmost_hit = Some(*id);
+                return Some(self.nodes[clk_rect.i].id);
             }
         }
 
-        return topmost_hit;
+        return None;
     }
 
     pub(crate) fn handle_keyboard_event(&mut self, event: &KeyEvent) -> bool {
@@ -358,7 +326,6 @@ bitflags::bitflags! {
         const CLICK_RELEASE = 1 << 5;
         // todo: HoverEnter could be useful
         
-        const CLICK_AND_HOVER = Self::CLICK.bits() | Self::HOVER.bits();
         const NONE = 0;
     }
 }

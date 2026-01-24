@@ -35,6 +35,21 @@ macro_rules! for_each_child_including_lingering {
     };
 }
 
+/// Iterate on the children linked list.
+#[macro_export]
+#[doc(hidden)] // Ideally these wouldn't even be public
+macro_rules! for_each_child_including_lingering_reverse {
+    ($ui:expr, $start:expr, $child:ident, $body:block) => {
+        {
+            let mut current_child = $start.last_child;
+            while let Some($child) = current_child {
+                $body
+                current_child = $ui.nodes[$child].prev_sibling;
+            }
+        }
+    };
+}
+
 /// Iterate on the linked list of hidden children
 #[macro_export]
 #[doc(hidden)]
@@ -82,7 +97,7 @@ impl Ui {
     }
 
     // this gets called even when zero relayouts are needed. in that case it just does nothing. I guess it's to make the layout() logic more readable
-    pub(crate) fn do_partial_relayouts(&mut self) {
+    pub(crate) fn _do_partial_relayouts(&mut self) {
         // sort by depth
         // todo: there was something about it being close to already sorted, except in reverse
         // the plan was to sort it in reverse and then use it in reverse
@@ -94,7 +109,7 @@ impl Ui {
             // todo: if that works as expected, maybe we can skip the limit/full relayout thing, or at least raise the limit by a lot.
             let relayout = self.sys.changes.partial_relayouts[idx];
             
-            self.partial_relayout(relayout.i);
+            self._partial_relayout(relayout.i);
         }
 
         if self.sys.partial_relayout_count != 0 {
@@ -122,7 +137,7 @@ impl Ui {
 
     }
 
-    pub(crate) fn partial_relayout(&mut self, i: NodeI) {
+    pub(crate) fn _partial_relayout(&mut self, i: NodeI) {
         // if the node has already been layouted on the current frame, stop immediately, and don't even recurse.
         // when doing partial layouts, this avoids overlap, but it means that we have to sort the partial relayouts cleanly from least depth to highest depth in order to get it right. This is done in `relayout()`.
         let current_frame = self.sys.current_frame;
@@ -663,14 +678,14 @@ impl Ui {
 
         // set the whole branch to exiting. (reusing this random vec)
         self.sys.to_cleanup.clear();
-        for_each_child_including_lingering!(self, &self.nodes[i], child, {
+        for_each_child_including_lingering_reverse!(self, &self.nodes[i], child, {
             self.sys.to_cleanup.push(child);
         });
         while let Some(node) = self.sys.to_cleanup.pop() {
             if self.nodes[node].exiting { continue; }
             self.nodes[node].exiting = true;
             self.nodes[node].exit_animation_still_going = true;
-            for_each_child_including_lingering!(self, &self.nodes[node], child, {
+            for_each_child_including_lingering_reverse!(self, &self.nodes[node], child, {
                 self.sys.to_cleanup.push(child);
             });
         }
@@ -791,21 +806,19 @@ impl Ui {
 
         self.sys.changes.unfinished_animations = false;
 
-        // Begin frame with keru_draw
         let width = self.sys.unifs.size[X];
         let height = self.sys.unifs.size[Y];
         self.sys.renderer.begin_frame(width, height);
 
-        self.sys.breadth_traversal_queue.clear();
-        self.sys.breadth_traversal_queue.push_back(ROOT_I);
+        self.sys.depth_traversal_queue.clear();
+        self.sys.depth_traversal_queue.push(ROOT_I);
 
-        // Breadth-first traversal to update animations, build render data, click rects, etc.
-        while let Some(i) = self.sys.breadth_traversal_queue.pop_front() {
+        // Depth-first traversal to update animations, build render data, click rects, etc.
+        while let Some(i) = self.sys.depth_traversal_queue.pop() {
             self.resolve_animations_and_scrolling(i);
             self.push_render_data(i);
-
-            for_each_child_including_lingering!(self, self.nodes[i], child, {
-                self.sys.breadth_traversal_queue.push_back(child);
+            for_each_child_including_lingering_reverse!(self, self.nodes[i], child, {
+                self.sys.depth_traversal_queue.push(child);
             });
         }
 
