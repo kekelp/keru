@@ -66,7 +66,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     ui.add(V_STACK.stack_arrange(Arrange::Start)).nest(|| {
         ui.add(H_STACK).nest(|| {
             ui.label("Zoom:");
-            ui.add_component(SliderParams::new(&mut state.zoom, 0.1, 10.0, false));
+            ui.add_component(SliderParams::new(&mut state.zoom, 0.1, 5.0, false));
         });
 
         ui.add(H_STACK).nest(|| {
@@ -88,22 +88,18 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 
     if let Some(scroll_event) = ui.scrolled_at(PAN_OVERLAY) {        
         let old_zoom = state.zoom;
-        let zoom_delta = scroll_event.delta.y as f32;
-        state.zoom += zoom_delta;
-        if state.zoom <= 0.01 { state.zoom = 0.01; }
-
-        let zoom_ratio = state.zoom / old_zoom;
-
-        let mouse_pos = scroll_event.relative_position - dvec2(0.5, 0.5);
-
-        state.pan_x *= zoom_ratio;
-        state.pan_y *= zoom_ratio;
-
-        state.pan_x += 600.0 * mouse_pos.x as f32 * (1.0 - zoom_ratio);
-        state.pan_y += 600.0 * mouse_pos.y as f32 * (1.0 - zoom_ratio);
-
+        let curve_factor = ((0.01 + old_zoom).powf(1.1) - 0.01).abs();
+        let new_zoom = old_zoom + scroll_event.delta.y as f32 * curve_factor;
+        
+        if new_zoom > 0.01 && !new_zoom.is_infinite() && !new_zoom.is_nan() {
+            state.zoom = new_zoom;
+            let zoom_ratio = state.zoom / old_zoom;
+            let mouse_pos = scroll_event.relative_position - dvec2(0.5, 0.5);
+            
+            state.pan_x = state.pan_x * zoom_ratio + 600.0 * mouse_pos.x as f32 * (1.0 - zoom_ratio);
+            state.pan_y = state.pan_y * zoom_ratio + 600.0 * mouse_pos.y as f32 * (1.0 - zoom_ratio);
+        }
     }
-
 }
 
 fn main() {
