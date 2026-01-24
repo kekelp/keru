@@ -9,7 +9,11 @@ use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
 pub trait Tag: Clone + Copy + PartialEq + Debug {}
 impl<T: Clone + Copy + PartialEq + Debug> Tag for T {}
 
-type SmallVec<T> = smallvec::SmallVec<[T; 6]>;
+// Overflows if more than 6 elements should receive the event.
+// Normally the elements that receive events also absorb them. They only stack if a node has absorb_click_events = false but also has active Senses.
+// For example, invisible overlay panels.
+// This is only used for Id which is an u64.
+type SmallVec<T> = smallvec::SmallVec<[T; 8]>;
 
 pub struct MouseInput<T: Tag> {
     unresolved_click_presses: Vec<PendingMousePress<T>>,
@@ -160,10 +164,17 @@ impl<T: Tag> MouseInput<T> {
     /// Returns all [`FullMouseEvent`]s for a specific button on the node corresponding to `tag`, or an empty iterator if the node is currently not part of the tree or if it doesn't exist.
     pub fn mouse_events(&self, mouse_button: Option<MouseButton>, tag: Option<T>) -> impl DoubleEndedIterator<Item = &FullMouseEvent<T>> {
         self.last_frame_mouse_events.iter().filter(move |c| {
-            (mouse_button.is_none() || c.button == mouse_button.unwrap())
-                && (tag.is_none() || c.originally_pressed.tag.contains(&tag.unwrap()))
+            let button_matches = match mouse_button {
+                Some(btn) => c.button == btn,
+                None => true,
+            };
+            let tag_matches = match tag {
+                Some(t) => c.originally_pressed.tag.contains(&t),
+                None => true,
+            };
+            button_matches && tag_matches
         })
-    }  
+    }
 
     /// Returns `true` if the left mouse button was clicked on the node corresponding to `tag`, or `false` if the node is currently not part of the tree or if it doesn't exist.
     pub fn clicked(&self, mouse_button: Option<MouseButton>, tag: Option<T>) -> bool {
@@ -189,7 +200,7 @@ impl<T: Tag> MouseInput<T> {
 
     pub fn click_releases(&self, mouse_button: Option<MouseButton>, tag: Option<T>) -> usize {
         let all_events = self.mouse_events(mouse_button, tag);
-        return all_events.filter(|c| c.is_just_clicked()).count();
+        return all_events.filter(|c| c.is_click_release()).count();
     }
 
     /// Returns `true` if the mouse button was just pressed on the node corresponding to `tag` (first frame of press), or `false` if the node is currently not part of the tree or if it doesn't exist.
@@ -236,7 +247,10 @@ impl<T: Tag> MouseInput<T> {
     /// Returns all scroll events for a specific node tag, or all scroll events if tag is None.
     pub fn scroll_events(&self, tag: Option<T>) -> impl Iterator<Item = &ScrollEvent<T>> {
         self.last_frame_scroll_events.iter().filter(move |s| {
-            tag.is_none() || s.tag.contains(tag)
+            match tag {
+                Some(tag) => s.tag.contains(&tag),
+                None => true,
+            }
         })
     }
 

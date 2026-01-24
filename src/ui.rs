@@ -85,9 +85,6 @@ pub(crate) struct System {
     // rects that react to mouse wheel scroll
     pub scroll_rects: Vec<ClickRect>,
 
-    // scratch buffer for collecting hit IDs during multi-hit scanning
-    pub(crate) hit_ids_scratch: Vec<Id>,
-
     pub unifs: Uniforms,
     pub current_frame: u64,
     pub last_frame_end_fake_time: u64,
@@ -272,7 +269,6 @@ impl Ui {
 
                 click_rects: Vec::with_capacity(50),
                 scroll_rects: Vec::with_capacity(20),
-                hit_ids_scratch: Vec::with_capacity(10),
 
 
                 partial_relayout_count: 0,

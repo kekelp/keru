@@ -76,7 +76,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     });
 
 
-    ui.add(V_STACK.stack_arrange(Arrange::Start)).nest(|| {
+    ui.add(V_STACK.stack_arrange(Arrange::Start).position_y(Position::Start)).nest(|| {
         ui.add(H_STACK).nest(|| {
             ui.label("Zoom:");
             ui.add_component(SliderParams::new(&mut state.zoom, 0.1, 5.0, false));
@@ -91,7 +91,10 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
             ui.label("Pan Y:");
             ui.add_component(SliderParams::new(&mut state.pan_y, -800.0, 800.0, false));
         });
-        ui.add(SPACER);
+    });
+
+    ui.add(V_STACK.stack_arrange(Arrange::End).position_y(Position::End)).nest(|| {
+        ui.static_label("Middle click drag / Space + drag to pan. Scroll Space + middle click drag to zoom");
     });
 
     if ! ui.key_input().key_held(&Key::Named(NamedKey::Space)) {
@@ -106,7 +109,6 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         state.pan_y -= drag.absolute_delta.y as f32;
     }
 
-    // Closure to handle zoom logic
     let mut apply_zoom = |delta_y: f64, mouse_pos: glam::DVec2| {
         let old_zoom = state.zoom;
         let curve_factor = ((0.01 + old_zoom).powf(1.1) - 0.01).abs();
@@ -133,7 +135,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         state.zoom_drag_anchor = None;
     }
 
-    if let Some(scroll_event) = ui.scrolled_at(SPACEBAR_PAN_OVERLAY) {
+    if let Some(scroll_event) = ui.scrolled_at(PAN_OVERLAY) {
         apply_zoom(scroll_event.delta.y, scroll_event.relative_position);
     }
 }
