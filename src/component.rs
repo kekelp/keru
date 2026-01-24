@@ -111,6 +111,7 @@ pub struct SliderParams<'a> {
     pub value: &'a mut f32,
     pub min: f32,
     pub max: f32,
+    pub clamp: bool,
 }
 
 
@@ -131,7 +132,9 @@ impl ComponentParams for SliderParams<'_> {
             }
 
             if new_value.is_finite() {
-                new_value = new_value.clamp(self.min, self.max);
+                if self.clamp {
+                    new_value = new_value.clamp(self.min, self.max);
+                }
                 *self.value = new_value;
             }
 
@@ -168,8 +171,8 @@ impl ComponentParams for SliderParams<'_> {
 }
 
 impl<'a> SliderParams<'a> {
-    pub fn new(value: &'a mut f32, min: f32, max: f32) -> Self {
-        Self { value, min, max }
+    pub fn new(value: &'a mut f32, min: f32, max: f32, clamp: bool) -> Self {
+        Self { value, min, max, clamp }
     }
 }
 

@@ -16,6 +16,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     #[node_key] const CLICK_COUNTER_BUTTON: NodeKey;
 
     let pan_overlay = PANEL
+        .padding(0)
         .color(Color::TRANSPARENT)
         .sense_drag(true)
         .size(Size::Fill, Size::Fill)
@@ -29,12 +30,12 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .zoom(state.zoom)
         .clip_children(true);
 
-    let bg_panel = PANEL.size_symm(Size::Frac(0.6));
+    let bg_panel = PANEL.size_symm(Size::Pixels(600));
     let clip_area = CONTAINER.size_symm(Size::Fill).clip_children(true);
 
     ui.add(bg_panel).nest(|| {
         ui.add(clip_area).nest(|| {
-            
+
             ui.add(transform_area).nest(|| {
 
                 ui.add(V_STACK).nest(|| {
@@ -50,7 +51,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                         ui.add(PANEL.color(Color::BLUE).size_symm(Size::Pixels(50)));
                     });
 
-                    ui.label("Don't expect scaled text to look good, though. It just scales the quads using the same cpu-rasterized texture");
+                    ui.label("Don't expect scaled text to look good, though. It uses the same texture and just scales the quads");
                 });
 
             });
@@ -62,36 +63,51 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     });
 
 
-    // ui.add(V_STACK.stack_arrange(Arrange::Start)).nest(|| {
-    //     ui.add(H_STACK).nest(|| {
-    //         ui.label("Zoom:");
-    //         ui.add_component(SliderParams::new(&mut state.zoom, 0.5, 3.0));
-    //     });
+    ui.add(V_STACK.stack_arrange(Arrange::Start)).nest(|| {
+        ui.add(H_STACK).nest(|| {
+            // ui.label(&format!("Zoom: {:.2}", state.zoom));
+            ui.label("Zoom:");
+            ui.add_component(SliderParams::new(&mut state.zoom, 0.5, 3.0, false));
+        });
 
-    //     ui.add(H_STACK).nest(|| {
-    //         ui.label("Pan X:");
-    //         ui.add_component(SliderParams::new(&mut state.pan_x, -800.0, 800.0));
-    //     });
+        ui.add(H_STACK).nest(|| {
+            // ui.label(&format!("Pan X: {:.2}", state.pan_x));
+            ui.label("Pan X:");
+            ui.add_component(SliderParams::new(&mut state.pan_x, -800.0, 800.0, false));
+        });
 
-    //     ui.add(H_STACK).nest(|| {
-    //         ui.label("Pan Y:");
-    //         ui.add_component(SliderParams::new(&mut state.pan_y, -800.0, 800.0));
-    //     });
-    //     ui.add(SPACER);
-    // });
+        ui.add(H_STACK).nest(|| {
+            // ui.label(&format!("Pan Y: {:.2}", state.pan_y));
+            ui.label("Pan Y:");
+            ui.add_component(SliderParams::new(&mut state.pan_y, -800.0, 800.0, false));
+        });
+        ui.add(SPACER);
+    });
 
     if let Some(drag) = ui.is_dragged(PAN_OVERLAY) {
         state.pan_x -= drag.absolute_delta.x as f32;
         state.pan_y -= drag.absolute_delta.y as f32;
     }
 
-    if let Some(scroll) = ui.is_scrolled(PAN_OVERLAY) {
-        state.zoom += scroll.y as f32;
+    if let Some(scroll_event) = ui.scrolled_at(PAN_OVERLAY) {
+        let old_zoom = state.zoom;
+        let zoom_delta = scroll_event.delta.y as f32;
+        state.zoom += zoom_delta;
+
+        // Adjust pan to keep the content under the mouse at the same position
+        let mouse_pos = scroll_event.relative_position;
+        dbg!(mouse_pos);
+        dbg!((mouse_pos.x as f32) * (1.0 / state.zoom - 1.0 / old_zoom));
+        
+        state.pan_x += (mouse_pos.x as f32) * (1.0 / state.zoom - 1.0 / old_zoom) * 600.0;
+        state.pan_y += (mouse_pos.y as f32) * (1.0 / state.zoom - 1.0 / old_zoom) * 600.0;
     }
+
+    if state.zoom <= 0.001 { state.zoom = 0.001; }
 }
 
 fn main() {
-    basic_env_logger_init();
+    // basic_env_logger_init();
     let state = State {
         zoom: 1.0,
         pan_x: 0.0,

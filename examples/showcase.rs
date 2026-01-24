@@ -73,7 +73,7 @@ impl Components for Ui {
 
             self.static_paragraph("Fat slider:");
 
-            self.add_component(SliderParams::new(&mut state.f32_value, 0.0, 100.0));
+            self.add_component(SliderParams::new(&mut state.f32_value, 0.0, 100.0, true));
 
 
             self.static_paragraph("Classic slider:");
