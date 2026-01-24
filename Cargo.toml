@@ -36,6 +36,7 @@ bitflags = "2.8.0"
 ahash = "0.8.11"
 keru_draw = { path = "../keru_draw" }
 bumpalo = { version = "3.16", features = ["collections"] }
+smallvec = "1.15.1"
 
 [lints.clippy]
 needless_return = { level = "allow" }

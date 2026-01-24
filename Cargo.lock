@@ -1318,6 +1318,7 @@ dependencies = [
  "log",
  "pollster",
  "slab",
+ "smallvec",
  "wgpu",
  "winit",
 ]

@@ -9,14 +9,16 @@ use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
 pub trait Tag: Clone + Copy + PartialEq + Debug {}
 impl<T: Clone + Copy + PartialEq + Debug> Tag for T {}
 
+type SmallVec<T> = smallvec::SmallVec<[T; 6]>;
+
 pub struct MouseInput<T: Tag> {
     unresolved_click_presses: Vec<PendingMousePress<T>>,
     last_frame_mouse_events: Vec<FullMouseEvent<T>>,
     last_frame_scroll_events: Vec<ScrollEvent<T>>,
     current_frame_scroll_events: Vec<ScrollEvent<T>>,
-    current_tag: Option<T>,
-    cursor_position: DVec2,
-    prev_cursor_position: DVec2,
+    pub currently_hovered_tags: SmallVec<T>,
+    pub cursor_position: DVec2,
+    pub prev_cursor_position: DVec2,
 }
 
 
@@ -27,7 +29,7 @@ impl<T: Tag> Default for MouseInput<T> {
             last_frame_mouse_events: Vec::with_capacity(20),
             last_frame_scroll_events: Vec::with_capacity(10),
             current_frame_scroll_events: Vec::with_capacity(10),
-            current_tag: None,
+            currently_hovered_tags: SmallVec::with_capacity(5),
             cursor_position: Default::default(),
             prev_cursor_position: Default::default(),
         }
@@ -39,7 +41,7 @@ impl<T: Tag> MouseInput<T> {
         let current_mouse_status = MouseRecord {
             position: self.cursor_position,
             timestamp: Instant::now(),
-            tag: self.current_tag,
+            tag: self.currently_hovered_tags.clone(),
         };
 
         self.last_frame_mouse_events.clear();
@@ -54,15 +56,15 @@ impl<T: Tag> MouseInput<T> {
 
             let mouse_happening = FullMouseEvent {
                 button: click_pressed.button,
-                originally_pressed: click_pressed.pressed_at,
-                last_seen: click_pressed.last_seen,
-                currently_at: current_mouse_status,
+                originally_pressed: click_pressed.pressed_at.clone(),
+                last_seen: click_pressed.last_seen.clone(),
+                currently_at: current_mouse_status.clone(),
                 kind: IsMouseReleased::StillDownButFrameEnded,
             };
 
             self.last_frame_mouse_events.push(mouse_happening);
 
-            click_pressed.last_seen = current_mouse_status;
+            click_pressed.last_seen = current_mouse_status.clone();
         }
     }
 
@@ -73,13 +75,13 @@ impl<T: Tag> MouseInput<T> {
                 self.cursor_position = dvec2(position.x, position.y);
             },
             WindowEvent::MouseInput { button, state, .. } => {
-                let tag = self.current_tag;
+                let tags = self.currently_hovered_tags.clone();
                 match state {
                     ElementState::Pressed => {
-                        self.push_click_press(*button, tag)
+                        self.push_click_press(*button, tags)
                     },
                     ElementState::Released => {
-                        self.push_click_release(*button, tag);
+                        self.push_click_release(*button);
                     },
                 }
             },
@@ -90,19 +92,15 @@ impl<T: Tag> MouseInput<T> {
         }
     }
 
-    pub fn update_current_tag(&mut self, new_tag: Option<T>) {
-        self.current_tag = new_tag;
-    }
-
-    pub fn current_tag(&self) -> Option<T> {
-        return self.current_tag;
+    pub fn update_current_tag(&mut self, new_tag: SmallVec<T>) {
+        self.currently_hovered_tags = new_tag;
     }
 
     pub fn cursor_position(&self) -> DVec2 {
         return self.cursor_position;
     }
 
-    fn push_click_press(&mut self, button: MouseButton, current_tag: Option<T>) {
+    pub fn push_click_press(&mut self, button: MouseButton, current_tag: SmallVec<T>) {
         let current_mouse_status = MouseRecord {
             position: self.cursor_position,
             timestamp: Instant::now(),
@@ -112,50 +110,44 @@ impl<T: Tag> MouseInput<T> {
         self.unresolved_click_presses.push(pending_press);
     }
 
-    fn push_click_release(&mut self, button: MouseButton, current_tag: Option<T>) {
-        // look for a mouse press to match and resolve
-        let mut matched = None;
-        for click_pressed in self.unresolved_click_presses.iter_mut().rev() {
-            if click_pressed.button == button {
+    pub fn push_click_release(&mut self, button: MouseButton) {
+        // Collect all pending presses for this button and mark them as released
+        for click_pressed in self.unresolved_click_presses.iter_mut() {
+            if click_pressed.button == button && !click_pressed.already_released {
                 click_pressed.already_released = true;
-                // this copy is a classic borrow checker skill issue.
-                matched = Some(*click_pressed);
-                break;
+
+                let current_mouse_status = MouseRecord {
+                    position: self.cursor_position,
+                    timestamp: Instant::now(),
+                    tag: self.currently_hovered_tags.clone(),
+                };
+
+                let full_mouse_event = FullMouseEvent {
+                    button,
+                    originally_pressed: click_pressed.pressed_at.clone(),
+                    last_seen: click_pressed.last_seen.clone(),
+                    currently_at: current_mouse_status,
+                    kind: IsMouseReleased::MouseReleased,
+                };
+
+                self.last_frame_mouse_events.push(full_mouse_event);
             }
-        };
-
-        let current_mouse_status = MouseRecord {
-            position: self.cursor_position,
-            timestamp: Instant::now(),
-            tag: current_tag,
-        };
-
-        if let Some(matched) = matched {
-            let full_mouse_event = FullMouseEvent {
-                button,
-                originally_pressed: matched.pressed_at,
-                last_seen: matched.last_seen,
-                currently_at: current_mouse_status,
-                kind: IsMouseReleased::MouseReleased,
-            };
-
-            self.last_frame_mouse_events.push(full_mouse_event);
         }
     }
 
-    fn push_scroll_event(&mut self, delta: &MouseScrollDelta) {
+    pub fn push_scroll_event(&mut self, delta: &MouseScrollDelta) {
         let (x, y) = match delta {
             MouseScrollDelta::LineDelta(x, y) => ((x * 0.1) as f64 , (y * 0.1) as f64),
             MouseScrollDelta::PixelDelta(pos) => (pos.x, pos.y),
         };
-        
+
         let scroll_event = ScrollEvent {
             delta: DVec2::new(x, y),
             position: self.cursor_position,
             timestamp: Instant::now(),
-            tag: self.current_tag,
+            tag: self.currently_hovered_tags.clone(),
         };
-        
+
         self.current_frame_scroll_events.push(scroll_event);
     }
     
@@ -169,7 +161,7 @@ impl<T: Tag> MouseInput<T> {
     pub fn mouse_events(&self, mouse_button: Option<MouseButton>, tag: Option<T>) -> impl DoubleEndedIterator<Item = &FullMouseEvent<T>> {
         self.last_frame_mouse_events.iter().filter(move |c| {
             (mouse_button.is_none() || c.button == mouse_button.unwrap())
-                && (tag.is_none() || c.originally_pressed.tag == tag)
+                && (tag.is_none() || c.originally_pressed.tag.contains(&tag.unwrap()))
         })
     }  
 
@@ -181,7 +173,7 @@ impl<T: Tag> MouseInput<T> {
 
     pub fn clicked_at(&self, mouse_button: Option<MouseButton>, tag: Option<T>) -> Option<MouseRecord<T>> {
         let last_click = self.mouse_events(mouse_button, tag).last()?;
-        return Some(last_click.last_seen);
+        return Some(last_click.last_seen.clone());
     }
 
     pub fn clicks(&self, mouse_button: Option<MouseButton>, tag: Option<T>) -> usize {
@@ -209,7 +201,7 @@ impl<T: Tag> MouseInput<T> {
     pub fn dragged(&self, mouse_button: Option<MouseButton>, tag: Option<T>) -> (f64, f64) {
         let all_events = self.mouse_events(mouse_button, tag);
 
-        let mut dist = glam::dvec2(0.0, 0.0);
+        let mut dist = dvec2(0.0, 0.0);
         
         for e in all_events {
             dist += e.drag_distance();
@@ -220,7 +212,7 @@ impl<T: Tag> MouseInput<T> {
 
     pub fn dragged_at(&self, mouse_button: Option<MouseButton>, tag: Option<T>) -> Option<FullMouseEvent<T>> {
         let last_drag = self.mouse_events(mouse_button, tag).last()?;
-        return Some(*last_drag);
+        return Some(last_drag.clone());
     }
 
     /// Returns the time a mouse button was held on a node and its last position, or `None` if it wasn’t held.
@@ -244,7 +236,7 @@ impl<T: Tag> MouseInput<T> {
     /// Returns all scroll events for a specific node tag, or all scroll events if tag is None.
     pub fn scroll_events(&self, tag: Option<T>) -> impl Iterator<Item = &ScrollEvent<T>> {
         self.last_frame_scroll_events.iter().filter(move |s| {
-            tag.is_none() || s.tag == tag
+            tag.is_none() || s.tag.contains(tag)
         })
     }
 
@@ -269,7 +261,7 @@ impl<T: Tag> MouseInput<T> {
 
     /// Returns the total scroll delta for all scroll events that occurred this frame, regardless of which node they occurred on.
     /// This is useful for global scroll handling like Ctrl+wheel for font size adjustment.
-    pub fn global_scroll_delta(&self) -> Option<glam::DVec2> {
+    pub fn global_scroll_delta(&self) -> Option<DVec2> {
         return self.scrolled(None);
     }
 
@@ -279,8 +271,9 @@ impl<T: Tag> MouseInput<T> {
 
     /// Returns an iterator over all currently pressed mouse buttons and their associated tags (node IDs).
     /// This is useful for checking if any nodes are currently being dragged.
+    /// Returns the first tag in the SmallVec for each press (if any).
     pub fn currently_pressed_tags(&self) -> impl Iterator<Item = (Option<T>, MouseButton)> + '_ {
-        self.unresolved_click_presses.iter().map(|press| (press.pressed_at.tag, press.button))
+        self.unresolved_click_presses.iter().map(|press| (press.pressed_at.tag.first().copied(), press.button))
     }
 }
 
@@ -290,26 +283,26 @@ impl<T: Tag> MouseInput<T> {
 /// The `tag` field can be used for any extra information. For example, `Keru` uses it to store the `id` of the clicked node, 
 /// 
 /// This can represent either a mouse click or a mouse release. This is only used inside `FullMouseEvent`, where this is always clear from the context.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct MouseRecord<T: Tag> {
-    pub position: glam::DVec2,
+    pub position: DVec2,
     pub timestamp: Instant,
-    pub tag: Option<T>,
+    pub tag: SmallVec<T>,
 }
 
 /// A record describing a scroll event and which node it occurred on.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct ScrollEvent<T: Tag> {
     pub delta: DVec2,
     pub position: DVec2,
     pub timestamp: Instant,
-    pub tag: Option<T>,
+    pub tag: SmallVec<T>,
 }
 
 /// A mouse press that has to be matched to a future mouse release.
 /// 
 /// Not part of the public API.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct PendingMousePress<T: Tag> {
     pub button: MouseButton,
     pub pressed_at: MouseRecord<T>,
@@ -320,7 +313,7 @@ impl<T: Tag> PendingMousePress<T> {
     pub fn new(event: MouseRecord<T>, button: MouseButton) -> Self {
         return Self {
             button,
-            pressed_at: event,
+            pressed_at: event.clone(),
             last_seen: event,
             already_released: false,
         }
@@ -338,9 +331,9 @@ pub enum IsMouseReleased {
 
 
 /// A full description of a mouse event tracked for multiple frames, from click to release.
-/// 
+///
 /// You can use the [`FullMouseEvent::is_just_clicked`] and the other methods to map these events into more familiar concepts.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct FullMouseEvent<T: Tag> {
     pub button: MouseButton,
     pub originally_pressed: MouseRecord<T>,
@@ -362,7 +355,7 @@ impl<T: Tag> FullMouseEvent<T> {
         return is_click_release && is_on_same_node;
     }
 
-    pub fn drag_distance(&self) -> glam::DVec2 {
+    pub fn drag_distance(&self) -> DVec2 {
         return self.last_seen.position - self.currently_at.position;
     }
 

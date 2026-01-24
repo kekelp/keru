@@ -49,10 +49,11 @@ pub struct ScrollEvent {
 impl Ui {
 
     pub(crate) fn resolve_hover(&mut self) {
-        let hovered_node_id = self.scan_mouse_hits(false);
-        self.sys.mouse_input.update_current_tag(hovered_node_id);
+        let hovered_node_ids = self.scan_mouse_hits(false);
+        self.sys.mouse_input.update_current_tag(hovered_node_ids.clone());
 
-        if let Some(hovered_id) = hovered_node_id {
+        // Get the topmost hovered element (first in the list) for hover animations
+        if let Some(&hovered_id) = hovered_node_ids.first() {
             if self.sys.hovered.contains(&hovered_id) {
                 let hovered_i = self.nodes.node_hashmap.get(&hovered_id).unwrap().slab_i;
                 if self.nodes[hovered_i].params.interact.senses.contains(Sense::HOVER) {
@@ -74,7 +75,7 @@ impl Ui {
                 }
 
             }
-            
+
         } else {
             self.end_all_hovering();
         }
@@ -96,10 +97,10 @@ impl Ui {
         // in debug mode, do a separate scan that sees invisible rects as well
         #[cfg(debug_assertions)] {
             if self.inspect_mode() {
-                let inspect_hovered_node_id = self.scan_mouse_hits(true);
-                if let Some(hovered_id) = inspect_hovered_node_id {
-                    if let Some(id) = self.sys.inspect_hovered {
-                        if id != hovered_id {
+                let inspect_hovered_node_ids = self.scan_mouse_hits(true);
+                if let Some(&hovered_id) = inspect_hovered_node_ids.first() {
+                    if let Some(&old_id) = self.sys.inspect_hovered.first() {
+                        if old_id != hovered_id {
                             // newly entered
                             let (_, hovered_node_i) = self.nodes.get_mut_by_id(&hovered_id).unwrap();
                             if self.inspect_mode() {
@@ -108,7 +109,7 @@ impl Ui {
                         }
                     }
                 }
-                self.sys.inspect_hovered = inspect_hovered_node_id;
+                self.sys.inspect_hovered = inspect_hovered_node_ids;
             }
         }
 
@@ -169,16 +170,13 @@ impl Ui {
         }
     }
 
-    // returns if the ui consumed the mouse press, or if it should be passed down. 
-    pub(crate) fn resolve_click_press(&mut self, button: MouseButton, _event: &WindowEvent, _window: &Window, clicked_i: NodeI) -> bool {        
+    // returns if the ui consumed the mouse press, or if it should be passed down.
+    pub(crate) fn resolve_click_press(&mut self, button: MouseButton, _event: &WindowEvent, _window: &Window, clicked_i: NodeI) -> bool {
         // defocus, so that we defocus when clicking anywhere outside.
         // if we're clicking something we'll re-focus below.
         self.sys.focused = None;
 
-        // if nothing is hit, return.
-        let Some(clicked_id) = self.sys.mouse_input.current_tag() else {
-            return false;
-        };
+        let clicked_id = self.nodes[clicked_i].id;
 
         let sense_click = self.nodes[clicked_i].params.interact.senses.contains(Sense::CLICK);
         if sense_click {
@@ -195,7 +193,7 @@ impl Ui {
                 self.sys.changes.rebuild_render_data = true;
                 self.sys.anim_render_timer.push_new(Duration::from_secs_f32(ANIMATION_RERENDER_TIME));
             }
-          
+
             if let Some(text_i) = &self.nodes[clicked_i].text_i {
                 // todo: isn't this all obsolete now?
                 match text_i {
@@ -209,30 +207,43 @@ impl Ui {
                 // self.push_text_change(clicked_i);
             }
         }
-   
-        let consumed = self.sys.mouse_input.current_tag().is_some();
+
+        let consumed = self.nodes[clicked_i].params.interact.absorbs_mouse_events;
         return consumed;
     }
 
     // _see_invisible_rects needs the _ to avoid the warning in non-debug mode
-    pub(crate) fn scan_mouse_hits(&mut self, _see_invisible_rects: bool) -> Option<Id> {
+    pub(crate) fn scan_mouse_hits(&mut self, _see_invisible_rects: bool) -> smallvec::SmallVec<[Id; 6]> {
+        let mut result = smallvec::SmallVec::new();
         for clk_i in (0..self.sys.click_rects.len()).rev() {
             let clk_rect = self.sys.click_rects[clk_i];
-            
-            // in release mode, if a node is not absorbs_mouse_events it won't have a click_rect in the first place.
+
+            // In inspect mode, we see all rects. In normal mode, we only process rects that are interactive
             #[cfg(debug_assertions)] {
-                if ! _see_invisible_rects && ! self.nodes[clk_rect.i].params.interact.absorbs_mouse_events {
-                    continue;
+                if ! _see_invisible_rects {
+                    let has_interaction = self.nodes[clk_rect.i].params.interact.absorbs_mouse_events
+                        || self.nodes[clk_rect.i].params.interact.senses != Sense::NONE;
+                    if !has_interaction {
+                        continue;
+                    }
                 }
             }
-            
+
             if self.hit_click_rect(&clk_rect) {
-                return Some(self.nodes[clk_rect.i].id);
+                let node_id = self.nodes[clk_rect.i].id;
+                let absorbs = self.nodes[clk_rect.i].params.interact.absorbs_mouse_events;
+
+                result.push(node_id);
+
+                if absorbs {
+                    break;
+                }
             }
         }
 
-        return None;
+        return result;
     }
+
 
     pub(crate) fn scan_scroll_areas_mouse_hits(&mut self) -> Option<Id> {
         for clk_i in (0..self.sys.scroll_rects.len()).rev() {

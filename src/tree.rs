@@ -271,13 +271,14 @@ impl Ui {
             true
         } else {
             let opaque = self.nodes[i].params.interact.absorbs_mouse_events;
+            let has_senses = self.nodes[i].params.interact.senses != Sense::NONE;
             let editable = if let Some(text_i) = &self.nodes[i].text_i {
                 match text_i {
                     TextI::TextEdit(_) => true,
                     TextI::TextBox(_) => false,
                 }
             } else { false };
-            opaque || editable
+            opaque || editable || has_senses
         };
 
         if push_click_rect {

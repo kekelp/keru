@@ -75,17 +75,34 @@ impl Ui {
                 // cursormoved is never consumed
             }
             WindowEvent::MouseInput { button, state, .. } => {
-
-                let clicked_id = self.sys.mouse_input.current_tag();
-                let Some(clicked_i) = self.nodes.get_by_id(clicked_id) else { return false };
-
                 match state {
                     ElementState::Pressed => {
-                        let consumed = self.resolve_click_press(*button, event, window, clicked_i);
-                        return consumed;
+                        let mut any_consumed = false;
+                        // Clone to avoid borrow checker issues
+                        let hovered_tags = self.sys.mouse_input.currently_hovered_tags.clone();
+                        // Resolve click press for all currently hovered tags
+                        for tag in hovered_tags.iter() {
+                            if let Some(clicked_i) = self.nodes.get_by_id(Some(*tag)) {
+                                let consumed = self.resolve_click_press(*button, event, window, clicked_i);
+                                any_consumed = any_consumed || consumed;
+                            }
+                        }
+                        return any_consumed;
                     },
                     ElementState::Released => {
-                        self.resolve_click_release(*button, clicked_i);
+                        // Collect tags of elements that had pending presses before releasing
+                        let released_tags: Vec<_> = self.sys.mouse_input.currently_pressed_tags()
+                            .filter(|press| press.1 == *button)
+                            .filter_map(|press| press.0)
+                            .collect();
+
+                        // Resolve click release for each element that was originally pressed
+                        for tag in released_tags {
+                            if let Some(clicked_i) = self.nodes.get_by_id(Some(tag)) {
+                                self.resolve_click_release(*button, clicked_i);
+                            }
+                        }
+
                         // Consuming mouse releases can very easily mess things up for whoever is below us.
                         // Some unexpected mouse releases probably won't be too annoying.
                         return false
