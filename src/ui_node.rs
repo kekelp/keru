@@ -270,10 +270,6 @@ impl UiNode<'_> {
             mouse_record.drag_distance().y / (node_rect.size().y as f64 * self.ui.sys.unifs.size.y as f64),
         );
 
-        if mouse_record.drag_distance() == glam::dvec2(0.0, 0.0) {
-            return None;
-        }
-
         return Some(Drag {
             relative_position,
             absolute_position: mouse_record.currently_at.position,

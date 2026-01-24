@@ -30,7 +30,7 @@ pub struct Drag {
     /// Delta movement relative to the node's dimensions (as a fraction)
     pub relative_delta: glam::DVec2,
     /// Time when the drag event started
-    pub pressed_timestamp: Instant,    
+    pub pressed_timestamp: Instant,
 }
 
 /// A struct describing a scroll event on a GUI node.
@@ -49,7 +49,7 @@ pub struct ScrollEvent {
 impl Ui {
 
     pub(crate) fn resolve_hover(&mut self) {
-        let hovered_node_id = self.scan_mouse_hits(false, Sense::HOVER | Sense::DRAG | Sense::CLICK);
+        let hovered_node_id = self.scan_mouse_hits(false);
         self.sys.mouse_input.update_current_tag(hovered_node_id);
 
         if let Some(hovered_id) = hovered_node_id {
@@ -96,7 +96,7 @@ impl Ui {
         // in debug mode, do a separate scan that sees invisible rects as well
         #[cfg(debug_assertions)] {
             if self.inspect_mode() {
-                let inspect_hovered_node_id = self.scan_mouse_hits(true, Sense::all());
+                let inspect_hovered_node_id = self.scan_mouse_hits(true);
                 if let Some(hovered_id) = inspect_hovered_node_id {
                     if let Some(id) = self.sys.inspect_hovered {
                         if id != hovered_id {
@@ -215,7 +215,7 @@ impl Ui {
     }
 
     // _see_invisible_rects needs the _ to avoid the warning in non-debug mode
-    pub(crate) fn scan_mouse_hits(&mut self, _see_invisible_rects: bool, senses: Sense) -> Option<Id> {
+    pub(crate) fn scan_mouse_hits(&mut self, _see_invisible_rects: bool) -> Option<Id> {
         for clk_i in (0..self.sys.click_rects.len()).rev() {
             let clk_rect = self.sys.click_rects[clk_i];
             
@@ -224,10 +224,6 @@ impl Ui {
                 if ! _see_invisible_rects && ! self.nodes[clk_rect.i].params.interact.absorbs_mouse_events {
                     continue;
                 }
-            }
-
-            if ! self.nodes[clk_rect.i].params.interact.senses.intersects(senses) {
-                continue;
             }
             
             if self.hit_click_rect(&clk_rect) {

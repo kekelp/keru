@@ -10,10 +10,11 @@ pub struct State {
     pub pan_x: f32,
     pub pan_y: f32,
     pub click_count: i32,
+    pub zoom_drag_anchor: Option<glam::DVec2>,
 }
 
 fn update_ui(state: &mut State, ui: &mut Ui) {
-    #[node_key] const PAN_OVERLAY: NodeKey;
+    #[node_key] const SPACEBAR_PAN_OVERLAY: NodeKey;
     #[node_key] const TRANSFORMED_AREA: NodeKey;
     #[node_key] const CLICK_COUNTER_BUTTON: NodeKey;
 
@@ -22,7 +23,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .color(Color::TRANSPARENT)
         .sense_drag(true)
         .size(Size::Fill, Size::Fill)
-        .key(PAN_OVERLAY);
+        .key(SPACEBAR_PAN_OVERLAY);
 
     let transform_area = PANEL
         .size_symm(Size::Pixels(1000000))
@@ -82,39 +83,39 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         ui.add(SPACER);
     });
 
-    if let Some(drag) = ui.is_dragged(PAN_OVERLAY) {
+    if let Some(drag) = ui.is_dragged(SPACEBAR_PAN_OVERLAY) {
         state.pan_x -= drag.absolute_delta.x as f32;
         state.pan_y -= drag.absolute_delta.y as f32;
     }
 
-    if let Some(drag) = ui.is_mouse_button_dragged(PAN_OVERLAY, MouseButton::Middle) {
+    // Closure to handle zoom logic
+    let mut apply_zoom = |delta_y: f64, mouse_pos: glam::DVec2| {
         let old_zoom = state.zoom;
         let curve_factor = ((0.01 + old_zoom).powf(1.1) - 0.01).abs();
-        let new_zoom = old_zoom + drag.absolute_delta.y as f32 * curve_factor * 0.01;
-
+        let new_zoom = old_zoom + delta_y as f32 * curve_factor;
+        
         if new_zoom > 0.01 && !new_zoom.is_infinite() && !new_zoom.is_nan() {
             state.zoom = new_zoom;
             let zoom_ratio = state.zoom / old_zoom;
-            let mouse_pos = drag.relative_position - dvec2(0.5, 0.5);
-
-            state.pan_x = state.pan_x * zoom_ratio + 600.0 * mouse_pos.x as f32 * (1.0 - zoom_ratio);
-            state.pan_y = state.pan_y * zoom_ratio + 600.0 * mouse_pos.y as f32 * (1.0 - zoom_ratio);
+            let centered_pos = mouse_pos - dvec2(0.5, 0.5);
+            state.pan_x = state.pan_x * zoom_ratio + 600.0 * centered_pos.x as f32 * (1.0 - zoom_ratio);
+            state.pan_y = state.pan_y * zoom_ratio + 600.0 * centered_pos.y as f32 * (1.0 - zoom_ratio);
         }
+    };
+
+    if let Some(drag) = ui.is_mouse_button_dragged(SPACEBAR_PAN_OVERLAY, MouseButton::Middle) {
+        if state.zoom_drag_anchor.is_none() {
+            state.zoom_drag_anchor = Some(drag.relative_position);
+        }
+
+        apply_zoom(drag.absolute_delta.y * 0.01, state.zoom_drag_anchor.unwrap());
+
+    } else {
+        state.zoom_drag_anchor = None;
     }
 
-    if let Some(scroll_event) = ui.scrolled_at(PAN_OVERLAY) {
-        let old_zoom = state.zoom;
-        let curve_factor = ((0.01 + old_zoom).powf(1.1) - 0.01).abs();
-        let new_zoom = old_zoom + scroll_event.delta.y as f32 * curve_factor;
-
-        if new_zoom > 0.01 && !new_zoom.is_infinite() && !new_zoom.is_nan() {
-            state.zoom = new_zoom;
-            let zoom_ratio = state.zoom / old_zoom;
-            let mouse_pos = scroll_event.relative_position - dvec2(0.5, 0.5);
-
-            state.pan_x = state.pan_x * zoom_ratio + 600.0 * mouse_pos.x as f32 * (1.0 - zoom_ratio);
-            state.pan_y = state.pan_y * zoom_ratio + 600.0 * mouse_pos.y as f32 * (1.0 - zoom_ratio);
-        }
+    if let Some(scroll_event) = ui.scrolled_at(SPACEBAR_PAN_OVERLAY) {
+        apply_zoom(scroll_event.delta.y, scroll_event.relative_position);
     }
 }
 
@@ -125,6 +126,7 @@ fn main() {
         pan_x: 0.0,
         pan_y: 0.0,
         click_count: 0,
+        zoom_drag_anchor: None,
     };
     run_example_loop(state, update_ui);
 }
