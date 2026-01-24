@@ -1,6 +1,7 @@
 use glam::dvec2;
 use keru::example_window_loop::*;
 use keru::*;
+use winit::event::MouseButton;
 use winit::keyboard::{Key, NamedKey};
 
 #[derive(Default)]
@@ -86,16 +87,31 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         state.pan_y -= drag.absolute_delta.y as f32;
     }
 
-    if let Some(scroll_event) = ui.scrolled_at(PAN_OVERLAY) {        
+    if let Some(drag) = ui.is_mouse_button_dragged(PAN_OVERLAY, MouseButton::Middle) {
+        let old_zoom = state.zoom;
+        let curve_factor = ((0.01 + old_zoom).powf(1.1) - 0.01).abs();
+        let new_zoom = old_zoom + drag.absolute_delta.y as f32 * curve_factor * 0.01;
+
+        if new_zoom > 0.01 && !new_zoom.is_infinite() && !new_zoom.is_nan() {
+            state.zoom = new_zoom;
+            let zoom_ratio = state.zoom / old_zoom;
+            let mouse_pos = drag.relative_position - dvec2(0.5, 0.5);
+
+            state.pan_x = state.pan_x * zoom_ratio + 600.0 * mouse_pos.x as f32 * (1.0 - zoom_ratio);
+            state.pan_y = state.pan_y * zoom_ratio + 600.0 * mouse_pos.y as f32 * (1.0 - zoom_ratio);
+        }
+    }
+
+    if let Some(scroll_event) = ui.scrolled_at(PAN_OVERLAY) {
         let old_zoom = state.zoom;
         let curve_factor = ((0.01 + old_zoom).powf(1.1) - 0.01).abs();
         let new_zoom = old_zoom + scroll_event.delta.y as f32 * curve_factor;
-        
+
         if new_zoom > 0.01 && !new_zoom.is_infinite() && !new_zoom.is_nan() {
             state.zoom = new_zoom;
             let zoom_ratio = state.zoom / old_zoom;
             let mouse_pos = scroll_event.relative_position - dvec2(0.5, 0.5);
-            
+
             state.pan_x = state.pan_x * zoom_ratio + 600.0 * mouse_pos.x as f32 * (1.0 - zoom_ratio);
             state.pan_y = state.pan_y * zoom_ratio + 600.0 * mouse_pos.y as f32 * (1.0 - zoom_ratio);
         }

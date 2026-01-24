@@ -252,14 +252,14 @@ impl UiNode<'_> {
         return self.ui.sys.mouse_input.click_released(Some(MouseButton::Left), Some(self.node().id));
     }
 
-    /// If the node corresponding to `key` was dragged, returns a struct describing the drag event. Otherwise, returns `None`.
-    pub fn is_dragged(&self) -> Option<Drag> {
+    /// If the node was dragged with a specific mouse button, returns a struct describing the drag event. Otherwise, returns `None`.
+    pub fn is_mouse_button_dragged(&self, button: MouseButton) -> Option<Drag> {
          #[cfg(debug_assertions)]
-        if !self.check_node_sense(Sense::DRAG, "dragged_at()", "NodeParams::sense_drag()") {
+        if !self.check_node_sense(Sense::DRAG, "is_mouse_button_dragged()", "NodeParams::sense_drag()") {
             return None;
         }
 
-        let mouse_record = self.ui.sys.mouse_input.dragged_at(Some(MouseButton::Left), Some(self.node().id))?;
+        let mouse_record = self.ui.sys.mouse_input.dragged_at(Some(button), Some(self.node().id))?;
         let node_rect = self.node().real_rect;
         let relative_position = glam::DVec2::new(
             ((mouse_record.currently_at.position.x / self.ui.sys.unifs.size.x as f64) - (node_rect.x[0]) as f64) / node_rect.size().x as f64,
@@ -281,6 +281,11 @@ impl UiNode<'_> {
             absolute_delta: mouse_record.drag_distance(),
             pressed_timestamp: mouse_record.originally_pressed.timestamp,
         });
+    }
+
+    /// If the node corresponding to `key` was dragged, returns a struct describing the drag event. Otherwise, returns `None`.
+    pub fn is_dragged(&self) -> Option<Drag> {
+        self.is_mouse_button_dragged(MouseButton::Left)
     }
 
    /// If the node corresponding to `key` was being held with the left mouse button in the last frame, returns the duration for which it was held.
@@ -403,6 +408,14 @@ impl Ui {
         uinode.is_click_released()
     }
 
+    /// If the node corresponding to `key` was dragged with a specific mouse button, returns a struct describing the drag event. Otherwise, returns `None`.
+    pub fn is_mouse_button_dragged(&self, key: NodeKey, button: MouseButton) -> Option<Drag> {
+        let Some(uinode) = self.get_uinode(key) else {
+            return None;
+        };
+        uinode.is_mouse_button_dragged(button)
+    }
+
     /// If the node corresponding to `key` was dragged, returns a struct describing the drag event. Otherwise, returns `None`.
     pub fn is_dragged(&self, key: NodeKey) -> Option<Drag> {
         let Some(uinode) = self.get_uinode(key) else {
@@ -474,6 +487,11 @@ impl UiParent {
     /// If the node was clicked multiple times in the last frame, the result holds the information about the last click only.
     pub fn clicked_at(&self, ui: &mut Ui) -> Option<Click> {
         self.get_uinode(ui).clicked_at()
+    }
+
+    /// If the node was dragged with a specific mouse button, returns a struct describing the drag event. Otherwise, returns `None`.
+    pub fn is_mouse_button_dragged(&self, ui: &mut Ui, button: MouseButton) -> Option<Drag> {
+        self.get_uinode(ui).is_mouse_button_dragged(button)
     }
 
     /// If the node was dragged, returns a struct describing the drag event. Otherwise, returns `None`.
