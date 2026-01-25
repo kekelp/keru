@@ -51,13 +51,14 @@ impl KeruElementRange {
     }
 }
 
-/// Represents a single render command in the render plan.
+/// A single render command in the list provided by [Ui::render_commands()].
+/// 
+/// A `RenderCommand` can represent 
 #[derive(Debug, Clone, Copy)]
 pub enum RenderCommand {
-    /// Render Keru's built-in UI elements for the given range of instances.
+    /// A range of regular Keru ui elements, which can be rendered with the [Ui::render_range()] function.
     Keru(KeruElementRange),
-    /// A custom rendering region identified by the node's key and its rectangle.
-    /// The rectangle is in normalized coordinates (0-1) for both x and y axes.
+    /// A custom rendering region. Corresponds to a Ui element that was marked as [`custom_render(true)`](NodeParams::custom_render).
     CustomRenderingArea { key: NodeKey, rect: XyRect },
 }
 
@@ -76,7 +77,7 @@ pub struct Ui {
     pub(crate) nodes: Nodes,
     pub(crate) sys: System,
     pub(crate) format_scratch: String,
-    pub(crate) custom_render_plan: Vec<RenderCommand>,
+    pub(crate) custom_render_commands: Vec<RenderCommand>,
 }
 
 static INSTANCE_COUNTER: AtomicU64 = AtomicU64::new(1);
@@ -275,7 +276,7 @@ impl Ui {
         Self {
             nodes,
             format_scratch: String::with_capacity(1024),
-            custom_render_plan: Vec::with_capacity(50),
+            custom_render_commands: Vec::with_capacity(50),
 
             sys: System {
                 global_animation_speed: 1.0,
@@ -458,14 +459,13 @@ impl Ui {
         return self.sys.mouse_input.cursor_position();
     }
 
-    /// Returns a reference to the render plan, which describes the sequence of rendering operations.
-    ///
-    /// The render plan is built during [`Ui::finish_frame`] and contains a sequence of [`RenderCommand`]s
-    /// that describe how to render the UI, including where custom rendering should occur.
-    ///
-    /// User code can clone this and use it to interleave custom rendering with Keru's built-in rendering.
-    pub fn render_plan(&self) -> &[RenderCommand] {
-        &self.custom_render_plan
+    /// Returns a reference to the list of render commands for this frame. 
+    /// 
+    /// See the `custom_rendering.rs` example for an example.
+    /// 
+    /// If you don't use any custom wgpu rendering or custom shaders, this is not needed: use [Ui::render()] or [Ui::autorender()].
+    pub fn render_commands(&self) -> &[RenderCommand] {
+        &self.custom_render_commands
     }
 
     // todo: expose functions directly instead of the inner struct

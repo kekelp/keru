@@ -1,20 +1,15 @@
-// Custom shader for demonstrating custom rendering in Keru
-// This shader draws an animated radial gradient effect
-
 struct PushConstants {
-    // Rectangle in normalized coordinates (0-1)
     min_x: f32,
     min_y: f32,
     max_x: f32,
     max_y: f32,
-    // Animation time in seconds
     time: f32,
     _padding0: f32,
     _padding1: f32,
     _padding2: f32,
 }
 
-var<push_constant> pc: PushConstants;
+var<push_constant> data: PushConstants;
 
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
@@ -33,8 +28,8 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {
     out.uv = vec2<f32>(u, v);
 
     // Interpolate between min and max using normalized coords
-    let x = mix(pc.min_x, pc.max_x, u);
-    let y = mix(pc.min_y, pc.max_y, v);
+    let x = mix(data.min_x, data.max_x, u);
+    let y = mix(data.min_y, data.max_y, v);
 
     // Convert from normalized (0-1) to NDC (-1 to 1)
     let ndc_x = x * 2.0 - 1.0;
@@ -54,9 +49,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let angle = atan2(to_center.y, to_center.x);
 
     // Create swirling colors using time from push constants
-    let r = sin(dist * 8.0 + angle * 3.0 + pc.time) * 0.5 + 0.5;
-    let g = sin(dist * 8.0 + angle * 3.0 + pc.time + 2.094) * 0.5 + 0.5;
-    let b = sin(dist * 8.0 + angle * 3.0 + pc.time + 4.189) * 0.5 + 0.5;
+    let r = sin(dist * 8.0 + angle * 3.0 + data.time) * 0.5 + 0.5;
+    let g = sin(dist * 8.0 + angle * 3.0 + data.time + 2.094) * 0.5 + 0.5;
+    let b = sin(dist * 8.0 + angle * 3.0 + data.time + 4.189) * 0.5 + 0.5;
 
     // Add some vignette effect
     let vignette = smoothstep(0.8, 0.2, dist);

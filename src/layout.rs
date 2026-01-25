@@ -810,7 +810,7 @@ impl Ui {
         let height = self.sys.unifs.size[Y];
         self.sys.renderer.begin_frame(width, height);
 
-        self.custom_render_plan.clear();
+        self.custom_render_commands.clear();
         let mut keru_range_start: Option<usize> = None;
 
         self.sys.depth_traversal_queue.clear();
@@ -831,13 +831,13 @@ impl Ui {
                 // Close any open Keru range
                 if let Some(start) = keru_range_start {
                     if start < instance_index_before {
-                        self.custom_render_plan.push(RenderCommand::Keru(KeruElementRange::new(start, instance_index_before)));
+                        self.custom_render_commands.push(RenderCommand::Keru(KeruElementRange::new(start, instance_index_before)));
                     }
                     keru_range_start = None;
                 }
 
                 // Add custom render command with the node's rectangle
-                self.custom_render_plan.push(RenderCommand::CustomRenderingArea {
+                self.custom_render_commands.push(RenderCommand::CustomRenderingArea {
                     key: self.nodes[i].original_key,
                     rect: self.nodes[i].real_rect,
                 });
@@ -858,15 +858,20 @@ impl Ui {
             });
         }
 
+        // prepare text decorations
+        self.sys.renderer.prepare_text_decorations();
+
         // Close final Keru range if any
         if let Some(start) = keru_range_start {
             let final_count = self.sys.renderer.instance_count();
             if start < final_count {
-                self.custom_render_plan.push(RenderCommand::Keru(KeruElementRange::new(start, final_count)));
+                self.custom_render_commands.push(RenderCommand::Keru(KeruElementRange::new(start, final_count)));
             }
         }
 
         self.sys.changes.should_rebuild_render_data = self.sys.changes.unfinished_animations;
+
+        self.sys.renderer.text.clear_changes();
     }
 
     

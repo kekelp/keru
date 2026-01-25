@@ -493,13 +493,13 @@ impl Ui {
     /// After calling this, you can call `render_range()` multiple times to draw
     /// specific ranges of instances, interleaving with your own custom rendering.
     // todo: deduplicate and simplify this stuff
-    pub fn begin_custom_render(&mut self, render_pass: &mut wgpu::RenderPass) {
+    pub fn begin_custom_render(&mut self) {
         // Rebuild render data if needed
         if self.sys.changes.should_rebuild_render_data || self.sys.anim_render_timer.is_live() {
             self.rebuild_render_data();
         }
 
-        self.sys.renderer.setup_render_pass(render_pass);
+        self.sys.renderer.load_to_gpu();
     }
 
     /// Render a specific range of instances into a render pass.
@@ -516,7 +516,6 @@ impl Ui {
     ///
     /// Call this after you're done with all render_range() calls to clean up state.
     pub fn finish_custom_render(&mut self) {
-        self.sys.renderer.text.clear_changes();
         self.sys.changes.need_rerender = false;
     }
 

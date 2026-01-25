@@ -113,7 +113,7 @@ impl State {
             _queue: queue,
             config,
             ui,
-            panel_pos: (0.0, 0.0),
+            panel_pos: (50.0, 50.0),
             custom_pipeline: pipeline,
         }
     }
@@ -169,12 +169,13 @@ impl State {
     }
 
     fn render(&mut self, render_pass: &mut wgpu::RenderPass) {
-        self.ui.begin_custom_render(render_pass);
+        // Get a list of rendering commands that we need to do to render the ui elements and our custom ones in the proper order.
+        // Elements in the render  
+        let render_commands = self.ui.render_commands().to_vec();
 
-        // Get a "render plan" from the Ui: a list of either regular Keru ui elements that can be rendered all at once with Ui::render_range, 
-        let render_plan = self.ui.render_plan().to_vec();
+        self.ui.begin_custom_render();
 
-        for command in render_plan {
+        for command in render_commands {
             match command {
                 RenderCommand::Keru(range) => {
                     // Render the regular UI elements for this range.
