@@ -5,6 +5,7 @@ use crate::*;
 #[derive(Debug)]
 pub struct Node {
     pub id: Id,
+    pub original_key: NodeKey, // Without subtree
     pub depth: usize,
 
     pub last_layout_frame: u64,
@@ -65,7 +66,6 @@ pub struct Node {
 
     pub params: NodeParams,
 
-    pub debug_key_name: &'static str,
     pub debug_location: &'static Location<'static>,
 
     pub is_twin: Option<u32>,
@@ -135,6 +135,7 @@ impl Node {
             exit_animation_still_going: false,
             enter_animation_still_going: false,
             id: key.id_with_subtree(),
+            original_key: *key,
             depth: 0,
             layout_rect: Xy::new_symm([0.0, 1.0]),
             real_rect: Xy::new_symm([0.0, 1.0]),
@@ -174,7 +175,6 @@ impl Node {
         
             is_twin: twin_n,
             params: NodeParams::const_default(),
-            debug_key_name: key.debug_name(),
             debug_location,
             hover_timestamp: f32::MIN,
             hovered: false,
@@ -201,8 +201,8 @@ impl Ui {
     pub(crate) fn node_debug_name_fmt_scratch(&mut self, i: NodeI) -> &str {
         self.format_scratch.clear();
         
-        if !self.nodes[i].debug_key_name.is_empty() {
-            let _ = write!(&mut self.format_scratch, "{} ", self.nodes[i].debug_key_name);
+        if !self.nodes[i].original_key.debug_name().is_empty() {
+            let _ = write!(&mut self.format_scratch, "{} ", self.nodes[i].original_key.debug_name());
 
             if let Some(twin_n) = self.nodes[i].is_twin {
                 let _ = write!(&mut self.format_scratch, "(twin #{})", twin_n );
@@ -217,8 +217,8 @@ impl Node {
     pub(crate) fn debug_name(&self) -> String {
         let mut result = String::new();
         
-        if !self.debug_key_name.is_empty() {
-            write!(result, "{} ", self.debug_key_name).unwrap();
+        if !self.original_key.debug_name().is_empty() {
+            write!(result, "{} ", self.original_key.debug_name()).unwrap();
             
             if let Some(twin_n) = self.is_twin {
                 write!(result, "(twin #{})", twin_n).unwrap();
@@ -235,7 +235,7 @@ impl Node {
 // A dummy node value to fill up the zero slot, so that the arena can be indexed by NonZero values. 
 pub const ZERO_NODE_DUMMY: Node = const {
     let mut node = NODE_ROOT;
-    node.debug_key_name = "ZERO_NODE_DUMMY";
+    node.original_key = NodeKey::new(NODE_ROOT_ID, "Zero node dummy");
     node.debug_location = Location::caller();
     node
 };
@@ -248,6 +248,7 @@ pub const NODE_ROOT: Node = Node {
     exit_animation_still_going: false,
     enter_animation_still_going: false,
     id: NODE_ROOT_ID,
+    original_key: NodeKey::new(NODE_ROOT_ID, "Root"),
     depth: 0,
     layout_rect: Xy::new_symm([0.0, 1.0]),
     real_rect: Xy::new_symm([0.0, 1.0]),
@@ -288,7 +289,6 @@ pub const NODE_ROOT: Node = Node {
     is_twin: None,
 
     params: NODE_ROOT_PARAMS,
-    debug_key_name: "Root",
     debug_location: Location::caller(),
 
     hover_timestamp: f32::MIN,

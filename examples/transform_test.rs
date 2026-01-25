@@ -1,4 +1,4 @@
-use glam::dvec2;
+use glam::{DVec2, dvec2};
 use keru::example_window_loop::*;
 use keru::*;
 use winit::event::MouseButton;
@@ -43,7 +43,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .size_symm(Size::Fill)
         .clip_children(true);
 
-    let bg_panel = PANEL.size_symm(Size::Pixels(600));
+    let bg_panel = PANEL.size_symm(Size::Frac(0.8));
 
     ui.add(bg_panel).nest(|| {
 
@@ -75,6 +75,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     
     });
 
+    let size = ui.inner_size(TRANSFORMED_AREA).unwrap_or(Xy::new(600, 600));
 
     ui.add(V_STACK.stack_arrange(Arrange::Start).position_y(Position::Start)).nest(|| {
         ui.add(H_STACK).nest(|| {
@@ -109,7 +110,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         state.pan_y -= drag.absolute_delta.y as f32;
     }
 
-    let mut apply_zoom = |delta_y: f64, mouse_pos: glam::DVec2| {
+    let mut apply_zoom = |delta_y: f64, mouse_pos: DVec2| {
         let old_zoom = state.zoom;
         let curve_factor = ((0.01 + old_zoom).powf(1.1) - 0.01).abs();
         let new_zoom = old_zoom + delta_y as f32 * curve_factor;
@@ -118,9 +119,8 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
             state.zoom = new_zoom;
             let zoom_ratio = state.zoom / old_zoom;
             let centered_pos = mouse_pos - dvec2(0.5, 0.5);
-            // todo get the 600 properly
-            state.pan_x = state.pan_x * zoom_ratio + 600.0 * centered_pos.x as f32 * (1.0 - zoom_ratio);
-            state.pan_y = state.pan_y * zoom_ratio + 600.0 * centered_pos.y as f32 * (1.0 - zoom_ratio);
+            state.pan_x = state.pan_x * zoom_ratio + size.x as f32 * centered_pos.x as f32 * (1.0 - zoom_ratio);
+            state.pan_y = state.pan_y * zoom_ratio + size.y as f32 * centered_pos.y as f32 * (1.0 - zoom_ratio);
         }
     };
 

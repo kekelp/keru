@@ -13,7 +13,7 @@ impl<T: Clone + Copy + PartialEq + Debug> Tag for T {}
 // Normally the elements that receive events also absorb them. They only stack if a node has absorb_click_events = false but also has active Senses.
 // For example, invisible overlay panels.
 // This is only used for Id which is an u64.
-type SmallVec<T> = smallvec::SmallVec<[T; 8]>;
+pub(crate) type SmallVec<T> = smallvec::SmallVec<[T; 8]>;
 
 pub struct MouseInput<T: Tag> {
     unresolved_click_presses: Vec<PendingMousePress<T>>,

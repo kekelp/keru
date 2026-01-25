@@ -213,7 +213,7 @@ impl Ui {
     }
 
     // _see_invisible_rects needs the _ to avoid the warning in non-debug mode
-    pub(crate) fn scan_mouse_hits(&mut self, _see_invisible_rects: bool) -> smallvec::SmallVec<[Id; 6]> {
+    pub(crate) fn scan_mouse_hits(&mut self, _see_invisible_rects: bool) -> SmallVec<Id> {
         let mut result = smallvec::SmallVec::new();
         for clk_i in (0..self.sys.click_rects.len()).rev() {
             let clk_rect = self.sys.click_rects[clk_i];

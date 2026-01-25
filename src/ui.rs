@@ -99,7 +99,7 @@ pub(crate) struct System {
     pub text_edit_changed_this_frame: Option<Id>,
 
     #[cfg(debug_assertions)]
-    pub inspect_hovered: smallvec::SmallVec<[Id; 6]>,
+    pub inspect_hovered: SmallVec<Id>,
 
     pub hovered: Vec<Id>,
     pub hovered_scroll_area: Option<Id>,

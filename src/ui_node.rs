@@ -9,8 +9,8 @@ use crate::Axis::*;
 /// A helper struct that borrows the Ui but "selects" a specific node.
 /// Not really revolutionarily different than using self.nodes[i].
 pub(crate) struct UiNode<'a> {
-    pub i: NodeI,
-    pub ui: &'a Ui,
+    pub(crate) i: NodeI,
+    pub(crate) ui: &'a Ui,
 }
 
 impl UiNode<'_> {
@@ -67,6 +67,7 @@ impl UiNode<'_> {
 }
 
 impl Ui {
+    /// todo make this public?
     pub(crate) fn get_uinode(&self, key: NodeKey) -> Option<UiNode<'_>> {
         let i = self.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
         return Some(UiNode { i, ui: self });

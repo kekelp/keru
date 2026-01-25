@@ -773,6 +773,7 @@ impl NodeParams {
         return self;
     }
 
+    /// Apply a zoom centered at the center of the node's rect.
     pub const fn zoom(mut self, scale: f32) -> Self {
         self.scale = Some((scale, scale));
         return self;

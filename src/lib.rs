@@ -133,6 +133,8 @@ pub mod example_window_loop;
 pub mod basic_window_loop;
 
 pub mod winit_mouse_events;
+pub(crate) use crate::winit_mouse_events::SmallVec;
+
 pub mod winit_key_events;
 
 mod thread_local;
