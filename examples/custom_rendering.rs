@@ -1,13 +1,18 @@
-//! Custom Rendering Example with Custom Shaders
-//!
-//! This example demonstrates the custom rendering system in Keru with actual custom WGPU rendering.
-//! It shows how to integrate your own render pipeline with custom shaders between Keru's UI elements.
-//!
-//! Key features demonstrated:
-//! - Custom vertex and fragment shaders
-//! - Custom render pipeline setup
-//! - Interleaving custom shader rendering between UI text labels
-//! - Proper Z-ordering where custom content appears between UI elements
+// When using Keru, you remain in control of your program's wgpu rendering, so it's very easy to draw custom rendered content below or above the Keru Ui.
+//
+// But what if we wanted to draw custom rendered stuff *between* Ui elements, with proper z-ordering and transparency?
+// 
+// This example shows the system that allows it.
+//
+// - when declaring the Ui, we can mark specific nodes with `.custom_render(true)`
+// - when preparing its render data, the Ui pays attention to which nodes need custom rendering, 
+//    and determines the properly ordered sequence of Ui element ranges and custom render content.
+//    Example: [ ui_elements_background ] [ custom_1 ] [ ui_elements_middle ] [ custom_2 ] [ ui_elements_foreground ]
+// - we get the sequence with Ui::render_commands().
+// - we go through the sequence and perform the render commands depending on what we find:
+//     - ui_elements_xxx is a range of Ui elements. We just pass them to the function ui.render_range(ui_elements_xxx)
+//     - custom_xxx contains the screen rect of the special node. We draw whatever we want in the rect.
+
 
 use keru::*;
 use wgpu::*;
@@ -22,7 +27,6 @@ struct State {
     window: Arc<Window>,
     surface: Surface<'static>,
     device: Device,
-    _queue: Queue,
     config: SurfaceConfiguration,
     ui: Ui,
     panel_pos: (f64, f64),
@@ -32,6 +36,7 @@ struct State {
 impl State {
     fn new(window: Arc<Window>, instance: Instance) -> Self {
         let adapter = pollster::block_on(instance.request_adapter(&RequestAdapterOptions::default())).unwrap();
+        // Note that push constants are not guaranteed to be supported everywhere.
         let (device, queue) = pollster::block_on(adapter.request_device(&DeviceDescriptor {
             required_features: Features::PUSH_CONSTANTS,
             required_limits: Limits { max_push_constant_size: 32, ..Default::default() },
@@ -41,7 +46,6 @@ impl State {
         let surface = instance.create_surface(window.clone()).unwrap();
         let size = window.inner_size();
 
-        // When possible, using a linear color format for the surface results in better color blending.
         let surface_caps = surface.get_capabilities(&adapter);
         let surface_format = surface_caps.formats.iter()
             .find(|f| ! f.is_srgb())
@@ -55,7 +59,7 @@ impl State {
             present_mode: PresentMode::Fifo,
             alpha_mode: CompositeAlphaMode::Opaque,
             view_formats: vec![],
-            desired_maximum_frame_latency: 2,
+            desired_maximum_frame_latency: 2
         };
 
         surface.configure(&device, &config);
@@ -110,7 +114,6 @@ impl State {
             window,
             surface,
             device,
-            _queue: queue,
             config,
             ui,
             panel_pos: (50.0, 50.0),
@@ -170,7 +173,6 @@ impl State {
 
     fn render(&mut self, render_pass: &mut wgpu::RenderPass) {
         // Get a list of rendering commands that we need to do to render the ui elements and our custom ones in the proper order.
-        // Elements in the render  
         let render_commands = self.ui.render_commands().to_vec();
 
         self.ui.begin_custom_render();
