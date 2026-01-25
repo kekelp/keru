@@ -462,6 +462,8 @@ impl Ui {
     pub fn begin_frame(&mut self) {
         self.reset_root();
 
+        self.sys.unifs.t = ui_time_f32();
+
         self.sys.current_frame += 1;
         self.sys.renderer.text.advance_frame_and_hide_boxes();
 

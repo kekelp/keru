@@ -389,6 +389,18 @@ impl Ui {
         return self.sys.unique_id;
     }
 
+    /// Get the current screen size in pixels.
+    pub fn screen_size(&self) -> (f32, f32) {
+        (self.sys.unifs.size.x, self.sys.unifs.size.y)
+    }
+
+    /// Get the current UI time in seconds since the UI was created.
+    pub fn ui_time(&self) -> f32 {
+        // todo this is not used anymore?
+        // self.sys.unifs.t
+        ui_time_f32()
+    }
+
     pub fn push_external_event(&mut self) {
         self.sys.new_external_events = true;
     }

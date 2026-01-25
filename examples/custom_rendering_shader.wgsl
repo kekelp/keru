@@ -2,11 +2,16 @@
 // This shader draws an animated radial gradient effect
 
 struct PushConstants {
-    // Position and size in pixels
-    x: f32,
-    y: f32,
-    width: f32,
-    height: f32,
+    // Rectangle in normalized coordinates (0-1)
+    min_x: f32,
+    min_y: f32,
+    max_x: f32,
+    max_y: f32,
+    // Animation time in seconds
+    time: f32,
+    _padding0: f32,
+    _padding1: f32,
+    _padding2: f32,
 }
 
 var<push_constant> pc: PushConstants;
@@ -14,30 +19,28 @@ var<push_constant> pc: PushConstants;
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
     @location(0) uv: vec2<f32>,
-    @location(1) pixel_pos: vec2<f32>,
 }
 
 @vertex
-fn vs_main(@location(0) vertex_pos: vec2<f32>) -> VertexOutput {
+fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {
     var out: VertexOutput;
 
-    // Scale vertex position by rect size and translate
-    let pixel_x = pc.x + vertex_pos.x * pc.width;
-    let pixel_y = pc.y + vertex_pos.y * pc.height;
+    // Generate quad vertices from vertex index (triangle strip: 0,1,2,3)
+    // 0: bottom-left, 1: bottom-right, 2: top-left, 3: top-right
+    let u = f32(vertex_index & 1u);
+    let v = f32((vertex_index >> 1u) & 1u);
 
-    out.pixel_pos = vec2<f32>(pixel_x, pixel_y);
+    out.uv = vec2<f32>(u, v);
 
-    // Convert to NDC (normalized device coordinates)
-    // We need screen dimensions - for now using a common size
-    // In a real app, you'd pass this as a uniform or push constant
-    let screen_width = 800.0;
-    let screen_height = 600.0;
+    // Interpolate between min and max using normalized coords
+    let x = mix(pc.min_x, pc.max_x, u);
+    let y = mix(pc.min_y, pc.max_y, v);
 
-    let ndc_x = (pixel_x / screen_width) * 2.0 - 1.0;
-    let ndc_y = 1.0 - (pixel_y / screen_height) * 2.0;  // Flip Y for screen coordinates
+    // Convert from normalized (0-1) to NDC (-1 to 1)
+    let ndc_x = x * 2.0 - 1.0;
+    let ndc_y = 1.0 - y * 2.0;  // Flip Y for screen coordinates
 
     out.position = vec4<f32>(ndc_x, ndc_y, 0.0, 1.0);
-    out.uv = vertex_pos;
 
     return out;
 }
@@ -50,19 +53,16 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let dist = length(to_center);
     let angle = atan2(to_center.y, to_center.x);
 
-    // Use pixel position to create a time-like value (for animation without passing time)
-    let pseudo_time = (in.pixel_pos.x + in.pixel_pos.y) * 0.01;
-
-    // Create swirling colors
-    let r = sin(dist * 8.0 + angle * 3.0 + pseudo_time) * 0.5 + 0.5;
-    let g = sin(dist * 8.0 + angle * 3.0 + pseudo_time + 2.094) * 0.5 + 0.5;
-    let b = sin(dist * 8.0 + angle * 3.0 + pseudo_time + 4.189) * 0.5 + 0.5;
+    // Create swirling colors using time from push constants
+    let r = sin(dist * 8.0 + angle * 3.0 + pc.time) * 0.5 + 0.5;
+    let g = sin(dist * 8.0 + angle * 3.0 + pc.time + 2.094) * 0.5 + 0.5;
+    let b = sin(dist * 8.0 + angle * 3.0 + pc.time + 4.189) * 0.5 + 0.5;
 
     // Add some vignette effect
     let vignette = smoothstep(0.8, 0.2, dist);
 
     // Semitransparent with vignette
-    let alpha = 0.8 * vignette;
+    let alpha = 0.7 * vignette;
 
     return vec4<f32>(r, g, b, alpha);
 }
