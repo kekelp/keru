@@ -37,7 +37,7 @@ const DEBUG_ONLY_RECT: Rect = Rect {
     vertex_colors: VertexColors::flat(Color::TRANSPARENT),
 };
 
-/// [`NodeParams`] for a node_root_params. 
+/// [`NodeParams`] for a node_root_params.
 pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     animation: NO_ANIMATION,
     key: None,
@@ -65,8 +65,9 @@ pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     clip_children: Xy::new(false, false),
     translate: None,
     scale: None,
+    custom_render: false,
 };
-/// [`NodeParams`] for a default. 
+/// [`NodeParams`] for a default.
 pub const DEFAULT: NodeParams = NodeParams {
     animation: NO_ANIMATION,
     key: None,
@@ -94,8 +95,9 @@ pub const DEFAULT: NodeParams = NodeParams {
     clip_children: Xy::new(false, false),
     translate: None,
     scale: None,
+    custom_render: false,
 };
-/// [`NodeParams`] for a vertical stack. 
+/// [`NodeParams`] for a vertical stack.
 pub const V_STACK: NodeParams = NodeParams {
     animation: NO_ANIMATION,
     key: None,
@@ -121,8 +123,9 @@ pub const V_STACK: NodeParams = NodeParams {
     clip_children: Xy::new(false, false),
     translate: None,
     scale: None,
+    custom_render: false,
 };
-/// [`NodeParams`] for a horizontal stack. 
+/// [`NodeParams`] for a horizontal stack.
 pub const H_STACK: NodeParams = NodeParams {
     animation: NO_ANIMATION,
     key: None,
@@ -148,6 +151,7 @@ pub const H_STACK: NodeParams = NodeParams {
     clip_children: Xy::new(false, false),
     translate: None,
     scale: None,
+    custom_render: false,
 };
 
 /// [`NodeParams`] for a vertically scrollable vertical stack.
@@ -165,7 +169,7 @@ pub const V_SCROLL_STACK: NodeParams = NodeParams {
             shape: Rectangle { corner_radius: BASE_RADIUS },
             visible: false,
             stroke: Some(Stroke::new(4.0).with_color(Color::KERU_DEBUG_RED)),
-            vertex_colors: VertexColors::flat(Color::TRANSPARENT),    
+            vertex_colors: VertexColors::flat(Color::TRANSPARENT),
         },
         interact: Interact {
             senses: Sense::NONE,
@@ -182,9 +186,10 @@ pub const V_SCROLL_STACK: NodeParams = NodeParams {
         clip_children: Xy::new(false, true),
         translate: None,
     scale: None,
+    custom_render: false,
     };
 
-/// [`NodeParams`] for a margin. 
+/// [`NodeParams`] for a margin.
 pub const MARGIN: NodeParams = NodeParams {
     animation: NO_ANIMATION,
     key: None,
@@ -206,8 +211,9 @@ pub const MARGIN: NodeParams = NodeParams {
     clip_children: Xy::new(false, false),
     translate: None,
     scale: None,
+    custom_render: false,
 };
-/// [`NodeParams`] for an icon button. 
+/// [`NodeParams`] for an icon button.
 pub const ICON_BUTTON: NodeParams = NodeParams {
     animation: NO_ANIMATION,
     key: None,
@@ -235,6 +241,7 @@ pub const ICON_BUTTON: NodeParams = NodeParams {
     clip_children: Xy::new(false, false),
     translate: None,
     scale: None,
+    custom_render: false,
 };
 /// [`NodeParams`] for an image. 
 pub const IMAGE: NodeParams = NodeParams {
@@ -264,6 +271,7 @@ pub const IMAGE: NodeParams = NodeParams {
     clip_children: Xy::new(false, false),
     translate: None,
     scale: None,
+    custom_render: false,
 };
 /// [`NodeParams`] for an icon button. 
 pub const IMAGE_BUTTON: NodeParams = NodeParams {
@@ -293,6 +301,7 @@ pub const IMAGE_BUTTON: NodeParams = NodeParams {
     clip_children: Xy::new(false, false),
     translate: None,
     scale: None,
+    custom_render: false,
 };
 /// [`NodeParams`] for a button. 
 pub const BUTTON: NodeParams = NodeParams {
@@ -328,6 +337,7 @@ pub const BUTTON: NodeParams = NodeParams {
     clip_children: Xy::new(false, false),
     translate: None,
     scale: None,
+    custom_render: false,
 };
 /// [`NodeParams`] for a label. 
 pub const LABEL: NodeParams = NodeParams {
@@ -362,6 +372,7 @@ pub const LABEL: NodeParams = NodeParams {
     clip_children: Xy::new(false, false),
     translate: None,
     scale: None,
+    custom_render: false,
 };
 
 /// [`NodeParams`] for a label containing a multi-line paragraph. 
@@ -397,6 +408,7 @@ pub const MULTILINE_LABEL: NodeParams = NodeParams {
     clip_children: Xy::new(false, false),
     translate: None,
     scale: None,
+    custom_render: false,
 };
 
 /// [`NodeParams`] for a text element. 
@@ -426,6 +438,7 @@ pub const TEXT: NodeParams = NodeParams {
     clip_children: Xy::new(false, false),
     translate: None,
     scale: None,
+    custom_render: false,
 };
 
 /// [`NodeParams`] for an icon element. 
@@ -450,6 +463,7 @@ pub const ICON: NodeParams = NodeParams {
     clip_children: Xy::new(false, false),
     translate: None,
     scale: None,
+    custom_render: false,
 };
 
 /// [`NodeParams`] for a multiline text edit box. 
@@ -485,6 +499,7 @@ pub const TEXT_EDIT: NodeParams = NodeParams {
     clip_children: Xy::new(false, false),
     translate: None,
     scale: None,
+    custom_render: false,
 };
 
 /// [`NodeParams`] for a single line text edit box. 
@@ -520,6 +535,7 @@ pub const TEXT_EDIT_LINE: NodeParams = NodeParams {
     clip_children: Xy::new(false, false),
     translate: None,
     scale: None,
+    custom_render: false,
 };
 
 /// [`NodeParams`] for a text element containing a multi-line paragraph.
@@ -549,6 +565,7 @@ pub const TEXT_PARAGRAPH: NodeParams = NodeParams {
     clip_children: Xy::new(false, false),
     translate: None,
     scale: None,
+    custom_render: false,
 };
 
 /// [`NodeParams`] for a panel. 
@@ -579,6 +596,7 @@ pub const PANEL: NodeParams = NodeParams {
     clip_children: Xy::new(false, false),
     translate: None,
     scale: None,
+    custom_render: false,
 };
 
 /// [`NodeParams`] for a container. 
@@ -609,6 +627,7 @@ pub const CONTAINER: NodeParams = NodeParams {
     clip_children: Xy::new(false, false),
     translate: None,
     scale: None,
+    custom_render: false,
 };
 
 /// [`NodeParams`] for a custom rendered node.
@@ -651,6 +670,7 @@ pub const CUSTOM_RENDERED_PANEL: NodeParams = NodeParams {
     clip_children: Xy::new(false, false),
     translate: None,
     scale: None,
+    custom_render: false,
 };
 
 /// [`NodeParams`] for a spacer element.
@@ -675,6 +695,7 @@ pub const SPACER: NodeParams = NodeParams {
     clip_children: Xy::new(false, false),
     translate: None,
     scale: None,
+    custom_render: false,
 };
 
 /// [`NodeParams`] for a invisible spacer element that fills all the available space in the X direction.
@@ -699,6 +720,7 @@ pub const H_SPACER: NodeParams = NodeParams {
     clip_children: Xy::new(false, false),
     translate: None,
     scale: None,
+    custom_render: false,
 };
 
 /// [`NodeParams`] for a invisible spacer element that fills all the available space in the Y direction.
@@ -723,6 +745,7 @@ pub const V_SPACER: NodeParams = NodeParams {
     clip_children: Xy::new(false, false),
     translate: None,
     scale: None,
+    custom_render: false,
 };
 
 /// [`NodeParams`] for a horizontal divider line.
@@ -762,6 +785,7 @@ pub const H_LINE: NodeParams = NodeParams {
     clip_children: Xy::new(false, false),
     translate: None,
     scale: None,
+    custom_render: false,
 };
 
 pub(crate) const COMPONENT_ROOT: NodeParams = NodeParams {
@@ -791,4 +815,5 @@ pub(crate) const COMPONENT_ROOT: NodeParams = NodeParams {
     clip_children: Xy::new(false, false),
     translate: None,
     scale: None,
+    custom_render: false,
 };

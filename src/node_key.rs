@@ -15,7 +15,7 @@ use crate::*;
 /// ```
 /// 
 /// Used in many [`Ui`] methods to refer to specific nodes: for example, [`Ui::is_clicked`].
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct NodeKey {
     id: Id,
     debug_name: &'static str,

@@ -484,6 +484,117 @@ impl Ui {
             || self.sys.renderer.text.needs_rerender()
             || self.sys.changes.should_rebuild_render_data;
     }
+
+    /// Set up the render pass for custom rendering using the render plan.
+    ///
+    /// This must be called before using `render_range()` to draw individual ranges.
+    /// It uploads all GPU data and sets up the render pipeline and bind groups.
+    ///
+    /// After calling this, you can call `render_range()` multiple times to draw
+    /// specific ranges of instances, interleaving with your own custom rendering.
+    // todo: deduplicate and simplify this stuff
+    pub fn begin_custom_render(&mut self, render_pass: &mut wgpu::RenderPass) {
+        // Rebuild render data if needed
+        if self.sys.changes.should_rebuild_render_data || self.sys.anim_render_timer.is_live() {
+            self.rebuild_render_data();
+        }
+
+        self.sys.renderer.setup_render_pass(render_pass);
+    }
+
+    /// Render a specific range of instances into a render pass.
+    ///
+    /// This is useful for custom rendering where you want to interleave
+    /// Keru's rendering with your own custom drawing code using the render plan.
+    ///
+    /// You must call `setup_render_pass()` before calling this method.
+    pub fn render_range(&mut self, render_pass: &mut wgpu::RenderPass, range: KeruElementRange) {
+        self.sys.renderer.render_range(render_pass, range.0);
+    }
+
+    /// Finish rendering after using custom render plan.
+    ///
+    /// Call this after you're done with all render_range() calls to clean up state.
+    pub fn finish_custom_render(&mut self) {
+        self.sys.renderer.text.clear_changes();
+        self.sys.changes.need_rerender = false;
+    }
+
+    /// Submit command buffer to the GPU queue.
+    ///
+    /// This is a convenience method for custom rendering loops.
+    pub fn submit_commands(&mut self, command_buffer: wgpu::CommandBuffer) {
+        self.sys.queue.submit(std::iter::once(command_buffer));
+    }
+
+    /// Draw a box with a gradient for custom rendering.
+    ///
+    /// This is useful when implementing custom rendering in the render plan.
+    /// The box will be added to the current frame's render data.
+    pub fn draw_box_gradient(
+        &mut self,
+        top_left: [f32; 2],
+        size: [f32; 2],
+        corner_radius: f32,
+        border_thickness: f32,
+        start_color: [f32; 4],
+        end_color: [f32; 4],
+        gradient_angle: f32,
+        clip_x: [f32; 2],
+        clip_y: [f32; 2],
+    ) {
+        self.sys.renderer.draw_box_gradient(
+            top_left,
+            size,
+            corner_radius,
+            border_thickness,
+            start_color,
+            end_color,
+            gradient_angle,
+            clip_x,
+            clip_y,
+        );
+    }
+
+    /// Draw a solid color box for custom rendering.
+    ///
+    /// This is useful when implementing custom rendering in the render plan.
+    /// The box will be added to the current frame's render data.
+    pub fn draw_box(
+        &mut self,
+        top_left: [f32; 2],
+        size: [f32; 2],
+        corner_radius: f32,
+        border_thickness: f32,
+        color: [f32; 4],
+        clip_x: [f32; 2],
+        clip_y: [f32; 2],
+    ) {
+        self.sys.renderer.draw_box(
+            top_left,
+            size,
+            corner_radius,
+            border_thickness,
+            color,
+            clip_x,
+            clip_y,
+        );
+    }
+
+    /// Draw a circle for custom rendering.
+    ///
+    /// This is useful when implementing custom rendering in the render plan.
+    /// The circle will be added to the current frame's render data.
+    pub fn draw_circle(
+        &mut self,
+        center: [f32; 2],
+        radius: f32,
+        color: [f32; 4],
+        clip_x: [f32; 2],
+        clip_y: [f32; 2],
+    ) {
+        self.sys.renderer.draw_circle(center, radius, color, clip_x, clip_y);
+    }
 }
 
 #[derive(Clone, Debug)]

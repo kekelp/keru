@@ -59,6 +59,7 @@ pub struct NodeParams {
     pub animation: Animation,
     pub translate: Option<(f32, f32)>,
     pub scale: Option<(f32, f32)>,
+    pub custom_render: bool,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -788,6 +789,11 @@ impl NodeParams {
         self.clip_children.y = value;
         return self;
     }
+
+    pub const fn custom_render(mut self, value: bool) -> Self {
+        self.custom_render = value;
+        return self;
+    }
 }
 
 #[derive(Copy, Clone, Hash)]
@@ -1215,6 +1221,11 @@ impl<'a> FullNodeParams<'a> {
 
     pub const fn clip_children_y(mut self, value: bool) -> Self {
         self.params.clip_children.y = value;
+        return self;
+    }
+
+    pub const fn custom_render(mut self, value: bool) -> Self {
+        self.params.custom_render = value;
         return self;
     }
 }

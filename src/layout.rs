@@ -810,16 +810,60 @@ impl Ui {
         let height = self.sys.unifs.size[Y];
         self.sys.renderer.begin_frame(width, height);
 
+        self.custom_render_plan.clear();
+        let mut keru_range_start: Option<usize> = None;
+
         self.sys.depth_traversal_queue.clear();
         self.sys.depth_traversal_queue.push(ROOT_I);
 
         // Depth-first traversal to update animations, build render data, click rects, etc.
         while let Some(i) = self.sys.depth_traversal_queue.pop() {
             self.resolve_animations_and_scrolling(i);
+
+            let is_custom = self.nodes[i].params.custom_render;
+            let instance_index_before = self.sys.renderer.instance_count();
+
             self.push_render_data(i);
+
+            let instance_index_after = self.sys.renderer.instance_count();
+
+            if is_custom {
+                // Close any open Keru range
+                if let Some(start) = keru_range_start {
+                    if start < instance_index_before {
+                        self.custom_render_plan.push(RenderCommand::Keru(KeruElementRange::new(start, instance_index_before)));
+                    }
+                    keru_range_start = None;
+                }
+
+                // Add custom render command with the node's rectangle
+                self.custom_render_plan.push(RenderCommand::CustomRenderingArea {
+                    key: self.nodes[i].original_key,
+                    rect: self.nodes[i].real_rect,
+                });
+
+                // If the custom node also pushed instances (e.g., text or images), start a new range
+                if instance_index_after > instance_index_before {
+                    keru_range_start = Some(instance_index_before);
+                }
+            } else {
+                // Regular Keru rendering - accumulate range
+                if keru_range_start.is_none() && instance_index_after > instance_index_before {
+                    keru_range_start = Some(instance_index_before);
+                }
+            }
+
             for_each_child_including_lingering_reverse!(self, self.nodes[i], child, {
                 self.sys.depth_traversal_queue.push(child);
             });
+        }
+
+        // Close final Keru range if any
+        if let Some(start) = keru_range_start {
+            let final_count = self.sys.renderer.instance_count();
+            if start < final_count {
+                self.custom_render_plan.push(RenderCommand::Keru(KeruElementRange::new(start, final_count)));
+            }
         }
 
         self.sys.changes.should_rebuild_render_data = self.sys.changes.unfinished_animations;

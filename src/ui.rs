@@ -42,21 +42,41 @@ pub(crate) fn ui_time_f32() -> f32 {
     return T0.elapsed().as_secs_f32();
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct KeruElementRange(pub(crate) keru_draw::InstanceRange);
+
+impl KeruElementRange {
+    pub(crate) fn new(start: usize, end: usize) -> Self {
+        Self(keru_draw::InstanceRange { start, end })
+    }
+}
+
+/// Represents a single render command in the render plan.
+#[derive(Debug, Clone, Copy)]
+pub enum RenderCommand {
+    /// Render Keru's built-in UI elements for the given range of instances.
+    Keru(KeruElementRange),
+    /// A custom rendering region identified by the node's key and its rectangle.
+    /// The rectangle is in normalized coordinates (0-1) for both x and y axes.
+    CustomRenderingArea { key: NodeKey, rect: XyRect },
+}
+
 /// The central struct of the library, representing the whole GUI state.
-/// 
+///
 /// To create a new [`Ui`] instance, use [`Ui::new`].
-/// 
+///
 /// To build a GUI, add nodes to the [`Ui`] by calling [`Ui::add`].
-/// 
+///
 /// To react to mouse clicks and other node events, call [`Ui::is_clicked`] and similar methods.
-/// 
+///
 /// To integrate [`Ui`] with your `winit` event loop, pass all your `winit` events to [`Ui::window_event`].
-/// 
-/// To render the GUI to the screen, call [`Ui::render`]. 
+///
+/// To render the GUI to the screen, call [`Ui::render`].
 pub struct Ui {
     pub(crate) nodes: Nodes,
     pub(crate) sys: System,
     pub(crate) format_scratch: String,
+    pub(crate) custom_render_plan: Vec<RenderCommand>,
 }
 
 static INSTANCE_COUNTER: AtomicU64 = AtomicU64::new(1);
@@ -255,6 +275,7 @@ impl Ui {
         Self {
             nodes,
             format_scratch: String::with_capacity(1024),
+            custom_render_plan: Vec::with_capacity(50),
 
             sys: System {
                 global_animation_speed: 1.0,
@@ -423,6 +444,16 @@ impl Ui {
 
     pub fn cursor_position(&self) -> DVec2 {
         return self.sys.mouse_input.cursor_position();
+    }
+
+    /// Returns a reference to the render plan, which describes the sequence of rendering operations.
+    ///
+    /// The render plan is built during [`Ui::finish_frame`] and contains a sequence of [`RenderCommand`]s
+    /// that describe how to render the UI, including where custom rendering should occur.
+    ///
+    /// User code can clone this and use it to interleave custom rendering with Keru's built-in rendering.
+    pub fn render_plan(&self) -> &[RenderCommand] {
+        &self.custom_render_plan
     }
 
     // todo: expose functions directly instead of the inner struct
