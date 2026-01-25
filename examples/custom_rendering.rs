@@ -25,7 +25,7 @@ struct State {
     _queue: Queue,
     config: SurfaceConfiguration,
     ui: Ui,
-    count: i32,
+    panel_pos: (f64, f64),
     custom_pipeline: RenderPipeline,
 }
 
@@ -113,7 +113,7 @@ impl State {
             _queue: queue,
             config,
             ui,
-            count: 0,
+            panel_pos: (0.0, 0.0),
             custom_pipeline: pipeline,
         }
     }
@@ -124,50 +124,47 @@ impl State {
         self.surface.configure(&self.device, &self.config);
     }
 
+    #[node_key] const BACK_PANEL: NodeKey;
+    #[node_key] const HEADER: NodeKey;
     #[node_key] const CUSTOM_RECT: NodeKey;
-    #[node_key] const LABEL_TOP: NodeKey;
-    #[node_key] const LABEL_BOTTOM: NodeKey;
-    #[node_key] const BUTTON: NodeKey;
+    #[node_key] const OVERLAY_LABEL: NodeKey;
 
     fn update_ui(&mut self) {
 
-        // Text label positioned at top
-        let count_text = format!("Text BELOW custom shader (Count: {})", self.count);
-        let label_top = LABEL
-            .color(keru::Color::rgba(255, 255, 255, 230))
-            .padding(20)
-            .position(Position::Static(Len::Pixels(50)), Position::Static(Len::Pixels(100)))
-            .text(&count_text)
-            .key(Self::LABEL_TOP);
+        let panel = PANEL
+            .padding(30)
+            .position_x(Position::Static(Len::Pixels(self.panel_pos.0 as u32)))
+            .position_y(Position::Static(Len::Pixels(self.panel_pos.1 as u32)))
+            .sense_drag(true)
+            .key(Self::BACK_PANEL);
 
         let custom_rect = DEFAULT
             .invisible()
-            .custom_render(true) // Mark this one as a custom rendered rect. This will cause it to show up separatelyin the render plan.
-            .size(Size::Pixels(400), Size::Pixels(200))
-            .position(Position::Static(Len::Pixels(100)), Position::Static(Len::Pixels(150)))
+            .custom_render(true)
+            .size_symm(Size::Pixels(300))
             .key(Self::CUSTOM_RECT);
 
-        // Text label positioned at bottom - will render ABOVE the custom shader
-        let label_bottom = LABEL
-            .color(keru::Color::rgba(255, 255, 100, 230))
-            .padding(20)
-            .position(Position::Static(Len::Pixels(150)), Position::Static(Len::Pixels(300)))
-            .text("Text ABOVE custom shader")
-            .key(Self::LABEL_BOTTOM);
+        let button = BUTTON
+            .position_x(Position::Static(Len::Frac(0.6)))
+            .text("Overlay button\ndrawn over it");
 
-        // Button to increment counter
-        let button = keru::BUTTON
-            .position(Position::Static(Len::Pixels(200)), Position::Static(Len::Pixels(400)))
-            .text("Click to increment")
-            .key(Self::BUTTON);
+        self.ui.add(panel).nest(|| {
+            self.ui.add(V_STACK).nest(|| {
+                self.ui.static_paragraph("Background panel,\nrendered below the custom shader rect");
+                
+                self.ui.add(custom_rect).nest(|| {
+                    self.ui.add(button);
+                });
+                
+                self.ui.static_paragraph("Click and drag the panel to move it.");
+            })
+        });
 
-        self.ui.add(label_top);
-        self.ui.add(custom_rect);
-        self.ui.add(label_bottom);
-        self.ui.add(button);
-
-        if self.ui.is_clicked(Self::BUTTON) {
-            self.count += 1;
+        if let Some(drag) = self.ui.is_dragged(Self::BACK_PANEL) {
+            self.panel_pos.0 -= drag.absolute_delta.x;
+            self.panel_pos.1 -= drag.absolute_delta.y;
+            self.panel_pos.0 = f64::clamp(self.panel_pos.0, 0.0, 100000.0);
+            self.panel_pos.1 = f64::clamp(self.panel_pos.1, 0.0, 100000.0);
         }
     }
 
