@@ -551,27 +551,38 @@ impl Ui {
                     dash_length,
                 });
             }
-            Shape::Triangle { rotation } => {
-                // Generate equilateral triangle with one vertex pointing in rotation direction
+            Shape::Triangle { rotation, width } => {
+                // Generate isosceles triangle with one vertex pointing in rotation direction
+                // width = 1.0 gives equilateral, <1.0 narrower, >1.0 wider
                 let cx = (x0 + x1) / 2.0;
                 let cy = (y0 + y1) / 2.0;
-                let width = x1 - x0;
-                let height = y1 - y0;
-                let radius = width.min(height) / 2.0;
+                let rect_width = x1 - x0;
+                let rect_height = y1 - y0;
+                let radius = rect_width.min(rect_height) / 2.0;
 
-                // Equilateral triangle vertices
-                // First vertex points in the rotation direction
-                // Other two vertices are 120° apart
-                let angle0 = *rotation;
-                let angle1 = *rotation + 2.0 * std::f32::consts::PI / 3.0;  // +120°
-                let angle2 = *rotation - 2.0 * std::f32::consts::PI / 3.0;  // -120°
+                let cos_r = rotation.cos();
+                let sin_r = rotation.sin();
 
-                let p0_x = cx + radius * angle0.cos();
-                let p0_y = cy + radius * angle0.sin();
-                let p1_x = cx + radius * angle1.cos();
-                let p1_y = cy + radius * angle1.sin();
-                let p2_x = cx + radius * angle2.cos();
-                let p2_y = cy + radius * angle2.sin();
+                // For equilateral triangle inscribed in circle:
+                // - Tip is at distance r from center
+                // - Base vertices are at (-0.5r, ±0.866r) in local coords
+                let tip_dist = radius;
+                let base_back = radius * 0.5;
+                let base_half_width = radius * 0.866 * width; // sqrt(3)/2 ≈ 0.866
+
+                // Tip vertex (pointing in rotation direction)
+                let p0_x = cx + tip_dist * cos_r;
+                let p0_y = cy + tip_dist * sin_r;
+
+                // Perpendicular direction (rotate by 90°)
+                let perp_x = -sin_r;
+                let perp_y = cos_r;
+
+                // Base vertices (behind and to the sides)
+                let p1_x = cx - base_back * cos_r + base_half_width * perp_x;
+                let p1_y = cy - base_back * sin_r + base_half_width * perp_y;
+                let p2_x = cx - base_back * cos_r - base_half_width * perp_x;
+                let p2_y = cy - base_back * sin_r - base_half_width * perp_y;
 
                 let fill = if is_solid {
                     keru_draw::Fill::Solid(tl_f)

@@ -292,8 +292,10 @@ pub enum Shape {
     /// Convenience for a vertical line from top to bottom at horizontal center.
     VerticalLine,
     /// Triangle pointing in a direction. Rotation in radians, 0 = pointing right, π/2 = pointing up, etc.
+    /// Width controls the base width: 1.0 = equilateral, <1.0 = narrower, >1.0 = wider.
     Triangle {
         rotation: f32,
+        width: f32,
     },
     /// Grid pattern filling the node's rect.
     Grid {
@@ -347,9 +349,10 @@ impl Hash for Shape {
             VerticalLine => {
                 7u8.hash(state);
             }
-            Triangle { rotation } => {
+            Triangle { rotation, width } => {
                 8u8.hash(state);
                 rotation.to_bits().hash(state);
+                width.to_bits().hash(state);
             }
             Grid { lattice_size, offset, line_thickness } => {
                 9u8.hash(state);

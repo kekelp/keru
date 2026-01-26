@@ -104,10 +104,10 @@ impl Components for Ui {
             self.static_paragraph("The tab viewer uses the \"children_can_hide\" property on the tab containers. This means that when switching tabs, all ui state is kept in the background: the value of the bool is retained, as well as the scroll state, the text in the edit boxes, etc. \n\n\
             Without \"children_can_hide\", everything would be cleaned up as soon as the tabs change.");
 
-            self.static_paragraph("Keru recently switched to the vello_hybrid renderer. This means that it's capable of drawing advanced paths strokes and fills, advanced gradients, and other things.");
+            self.static_paragraph("Keru uses its own wgpu-based renderer, with the same architecture as the ones used in vger-rs and gpui. It's not a next-gen compute-based renderer.");
 
             let button_with_stroke = BUTTON
-                .static_text("Rectangle with dashed stroke")
+                .static_text("Button example")
                 .color(Color::rgba(255, 150, 100, 255))
                 .shape(Shape::Rectangle { corner_radius: 20.0 })
                 .stroke(5.0)
@@ -126,10 +126,9 @@ impl Components for Ui {
 
 
 
-            self.static_paragraph("Segmented line with circles at joins:");
+            self.static_paragraph("Basic vector drawing using regular Nodes:");
 
             #[node_key] const LINE_CONTAINER: NodeKey;
-
             let line_container = CONTAINER
                 .size_x(Size::Fill)
                 .size_y(Size::Pixels(100))
@@ -175,6 +174,7 @@ impl Components for Ui {
                     self.add(circle_node);
                 }
 
+                // Draw arrow tip
                 let p_prev = points[points.len() - 2];
                 let p_last = points[points.len() - 1];
                 let Xy { x: lx, y: ly } = self.inner_size(LINE_CONTAINER).unwrap();
@@ -182,10 +182,12 @@ impl Components for Ui {
                 let dy = (p_last.1 - p_prev.1) * ly as f32;
                 let angle = dy.atan2(dx);
 
-
                 let arrow = DEFAULT
-                    .shape(Shape::Triangle { rotation: angle })
-                    .color(Color::KERU_GREEN)
+                    .shape(Shape::Triangle {
+                        rotation: angle,
+                        width: 0.6,
+                    })
+                    .color(Color::KERU_RED)
                     .anchor_symm(Anchor::Center)
                     .size_symm(Size::Pixels(50))
                     .position_x(Position::Static(Len::Frac(p_last.0)))
@@ -193,6 +195,9 @@ impl Components for Ui {
 
                 self.add(arrow);
             });
+
+            self.static_paragraph("In the future, there might be a lower level vector drawing interface similar to the \"canvas\" in Rui.");
+            self.static_paragraph("There is also an experimental system for easily embedding custom wgpu rendering in-between the Keru ui elements. See the \"custom_rendering\" example.");
 
         });
     }
