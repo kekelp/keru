@@ -551,6 +551,48 @@ impl Ui {
                     dash_length,
                 });
             }
+            Shape::Triangle { rotation } => {
+                // Generate equilateral triangle with one vertex pointing in rotation direction
+                let cx = (x0 + x1) / 2.0;
+                let cy = (y0 + y1) / 2.0;
+                let width = x1 - x0;
+                let height = y1 - y0;
+                let radius = width.min(height) / 2.0;
+
+                // Equilateral triangle vertices
+                // First vertex points in the rotation direction
+                // Other two vertices are 120° apart
+                let angle0 = *rotation;
+                let angle1 = *rotation + 2.0 * std::f32::consts::PI / 3.0;  // +120°
+                let angle2 = *rotation - 2.0 * std::f32::consts::PI / 3.0;  // -120°
+
+                let p0_x = cx + radius * angle0.cos();
+                let p0_y = cy + radius * angle0.sin();
+                let p1_x = cx + radius * angle1.cos();
+                let p1_y = cy + radius * angle1.sin();
+                let p2_x = cx + radius * angle2.cos();
+                let p2_y = cy + radius * angle2.sin();
+
+                let fill = if is_solid {
+                    keru_draw::Fill::Solid(tl_f)
+                } else {
+                    keru_draw::Fill::Gradient {
+                        color_start: gradient_start_color,
+                        color_end: gradient_end_color,
+                        gradient_type: keru_draw::GradientType::Linear,
+                        angle: gradient_angle,
+                    }
+                };
+
+                self.sys.renderer.draw_triangle(keru_draw::Triangle {
+                    p0: [p0_x, p0_y],
+                    p1: [p1_x, p1_y],
+                    p2: [p2_x, p2_y],
+                    fill,
+                    x_clip,
+                    y_clip,
+                });
+            }
             Shape::Grid { lattice_size, offset, line_thickness } => {
                 let top_left = [x0, y0];
                 let size = [x1 - x0, y1 - y0];

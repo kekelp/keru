@@ -1,5 +1,7 @@
 #![windows_subsystem = "windows"]
 
+use std::f32::consts::PI;
+
 use keru::Size::*;
 use keru::example_window_loop::*;
 use keru::*;
@@ -122,16 +124,19 @@ impl Components for Ui {
 
             self.add(button_with_colored_stroke);
 
+
+
             self.static_paragraph("Segmented line with circles at joins:");
 
-            // Container for segmented line visualization
-            let container = DEFAULT
+            #[node_key] const LINE_CONTAINER: NodeKey;
+
+            let line_container = CONTAINER
                 .size_x(Size::Fill)
                 .size_y(Size::Pixels(100))
-                .invisible();
+                .padding(0)
+                .key(LINE_CONTAINER);
 
-            self.add(container).nest(|| {
-                // Define normalized points for the segmented line (within 0-1 range)
+            self.add(line_container).nest(|| {
                 let points = [
                     (0.05, 0.5),
                     (0.25, 0.2),
@@ -157,7 +162,7 @@ impl Components for Ui {
                 }
 
                 // Draw circles at joins
-                for &(x, y) in points.iter() {
+                for &(x, y) in &points[..points.len().saturating_sub(1)] {
                     let circle_size = 16.0;
                     let circle_node = DEFAULT
                         .shape(Shape::Circle)
@@ -169,10 +174,25 @@ impl Components for Ui {
 
                     self.add(circle_node);
                 }
+
+                let p_prev = points[points.len() - 2];
+                let p_last = points[points.len() - 1];
+                let Xy { x: lx, y: ly } = self.inner_size(LINE_CONTAINER).unwrap();
+                let dx = (p_last.0 - p_prev.0) * lx as f32;
+                let dy = (p_last.1 - p_prev.1) * ly as f32;
+                let angle = dy.atan2(dx);
+
+
+                let arrow = DEFAULT
+                    .shape(Shape::Triangle { rotation: angle })
+                    .color(Color::KERU_GREEN)
+                    .anchor_symm(Anchor::Center)
+                    .size_symm(Size::Pixels(50))
+                    .position_x(Position::Static(Len::Frac(p_last.0)))
+                    .position_y(Position::Static(Len::Frac(p_last.1)));
+
+                self.add(arrow);
             });
-
-            self.static_paragraph("This should also make it very easy to add a vello_cpu backend, which would allow the GUI to be rendered without using the GPU at all. However, this hasn't been tried yet.");
-
 
         });
     }

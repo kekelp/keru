@@ -596,8 +596,8 @@ impl Ui {
                 let dy = cursor_pos.1 - center_y;
                 return dx * dx + dy * dy <= radius * radius;
             }
-            Shape::Segment { .. } | Shape::HorizontalLine | Shape::VerticalLine | Shape::Grid { .. } | Shape::HexGrid { .. } => {
-                // For segments and grids, use simple rectangle hit test
+            Shape::Segment { .. } | Shape::HorizontalLine | Shape::VerticalLine | Shape::Triangle { .. } | Shape::Grid { .. } | Shape::HexGrid { .. } => {
+                // For segments, triangles, and grids, use simple rectangle hit test
                 return true;
             }
         }

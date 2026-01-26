@@ -204,6 +204,7 @@ impl Ui {
             let slider_width = match self.get_uinode(TRACK) {
                 Some(track) => track.inner_size().x as f32,
                 // this is just for the first frame. awkward.
+                // ...or do this calculation after adding it? the result is the same
                 None => 1.0,
             };
             
