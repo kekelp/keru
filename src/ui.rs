@@ -574,6 +574,32 @@ impl Ui {
                     && distance_squared >= inner_radius * inner_radius;
 
             }
+            Shape::Arc { .. } => {
+                // For Arc, treat it like a circle hit test for simplicity
+                // A more accurate test would check angular bounds
+                let center_x = (rect.rect[X][0] + rect.rect[X][1]) / 2.0;
+                let center_y = (rect.rect[Y][0] + rect.rect[Y][1]) / 2.0;
+                let radius = (rect.rect[X][1] - rect.rect[X][0]) / 2.0;
+
+                let dx = cursor_pos.0 - center_x;
+                let dy = cursor_pos.1 - center_y;
+                return dx * dx + dy * dy <= radius * radius;
+            }
+            Shape::Pie { .. } => {
+                // For Pie, treat it like a circle hit test for simplicity
+                // A more accurate test would check angular bounds
+                let center_x = (rect.rect[X][0] + rect.rect[X][1]) / 2.0;
+                let center_y = (rect.rect[Y][0] + rect.rect[Y][1]) / 2.0;
+                let radius = (rect.rect[X][1] - rect.rect[X][0]) / 2.0;
+
+                let dx = cursor_pos.0 - center_x;
+                let dy = cursor_pos.1 - center_y;
+                return dx * dx + dy * dy <= radius * radius;
+            }
+            Shape::Segment { .. } | Shape::HorizontalLine | Shape::VerticalLine | Shape::Grid { .. } | Shape::HexGrid { .. } => {
+                // For segments and grids, use simple rectangle hit test
+                return true;
+            }
         }
 
     }

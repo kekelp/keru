@@ -122,6 +122,54 @@ impl Components for Ui {
 
             self.add(button_with_colored_stroke);
 
+            self.static_paragraph("Segmented line with circles at joins:");
+
+            // Container for segmented line visualization
+            let container = DEFAULT
+                .size_x(Size::Fill)
+                .size_y(Size::Pixels(100))
+                .invisible();
+
+            self.add(container).nest(|| {
+                // Define normalized points for the segmented line (within 0-1 range)
+                let points = [
+                    (0.05, 0.5),
+                    (0.25, 0.2),
+                    (0.45, 0.8),
+                    (0.65, 0.3),
+                    (0.85, 0.7),
+                ];
+
+                // Draw line segments
+                for i in 0..points.len() - 1 {
+                    let segment_shape = Shape::Segment {
+                        start: points[i],
+                        end: points[i + 1],
+                    };
+
+                    let segment_node = DEFAULT
+                        .shape(segment_shape)
+                        .color(Color::KERU_GREEN)
+                        .stroke(3.0)
+                        .size_symm(Size::Fill);
+
+                    self.add(segment_node);
+                }
+
+                // Draw circles at joins
+                for &(x, y) in points.iter() {
+                    let circle_size = 16.0;
+                    let circle_node = DEFAULT
+                        .shape(Shape::Circle)
+                        .color(Color::KERU_BLUE)
+                        .size_symm(Size::Pixels(circle_size as u32))
+                        .position_x(Position::Static(Len::Frac(x)))
+                        .position_y(Position::Static(Len::Frac(y)));
+
+                    self.add(circle_node);
+                }
+            });
+
             self.static_paragraph("This should also make it very easy to add a vello_cpu backend, which would allow the GUI to be rendered without using the GPU at all. However, this hasn't been tried yet.");
 
 

@@ -237,7 +237,39 @@ pub enum Shape {
     Circle,
     Ring {
         width: f32,
-    }
+    },
+    /// Arc segment of a circle. Angles are in radians, starting from the right (0) and going counter-clockwise.
+    Arc {
+        start_angle: f32,
+        end_angle: f32,
+        width: f32,
+    },
+    /// Pie/wedge slice of a circle. Angles are in radians, starting from the right (0) and going counter-clockwise.
+    Pie {
+        start_angle: f32,
+        end_angle: f32,
+    },
+    /// Line segment. Coordinates are normalized (0.0 to 1.0) within the node's rect.
+    /// (0, 0) is top-left, (1, 1) is bottom-right.
+    Segment {
+        start: (f32, f32),
+        end: (f32, f32),
+    },
+    /// Convenience for a horizontal line from left to right at vertical center.
+    HorizontalLine,
+    /// Convenience for a vertical line from top to bottom at horizontal center.
+    VerticalLine,
+    /// Grid pattern filling the node's rect.
+    Grid {
+        lattice_size: f32,
+        offset: (f32, f32),
+        line_thickness: f32,
+    },
+    HexGrid {
+        lattice_size: f32,
+        offset: (f32, f32),
+        line_thickness: f32,
+    },
 }
 
 impl Hash for Shape {
@@ -245,15 +277,53 @@ impl Hash for Shape {
         use Shape::*;
         match self {
             Rectangle { corner_radius } => {
-                0u8.hash(state); // Unique tag for Rectangle
-                corner_radius.to_bits().hash(state); // Convert f32 to bits for hashing
+                0u8.hash(state);
+                corner_radius.to_bits().hash(state);
             }
             Circle => {
-                1u8.hash(state); // Unique tag for Circle
+                1u8.hash(state);
             }
             Ring { width } => {
-                2u8.hash(state); // Unique tag for Ring
-                width.to_bits().hash(state); // Convert f32 to bits for hashing
+                2u8.hash(state);
+                width.to_bits().hash(state);
+            }
+            Arc { start_angle, end_angle, width } => {
+                3u8.hash(state);
+                start_angle.to_bits().hash(state);
+                end_angle.to_bits().hash(state);
+                width.to_bits().hash(state);
+            }
+            Pie { start_angle, end_angle } => {
+                4u8.hash(state);
+                start_angle.to_bits().hash(state);
+                end_angle.to_bits().hash(state);
+            }
+            Segment { start, end } => {
+                5u8.hash(state);
+                start.0.to_bits().hash(state);
+                start.1.to_bits().hash(state);
+                end.0.to_bits().hash(state);
+                end.1.to_bits().hash(state);
+            }
+            HorizontalLine => {
+                6u8.hash(state);
+            }
+            VerticalLine => {
+                7u8.hash(state);
+            }
+            Grid { lattice_size, offset, line_thickness } => {
+                8u8.hash(state);
+                lattice_size.to_bits().hash(state);
+                offset.0.to_bits().hash(state);
+                offset.1.to_bits().hash(state);
+                line_thickness.to_bits().hash(state);
+            }
+            HexGrid { lattice_size, offset, line_thickness } => {
+                9u8.hash(state);
+                lattice_size.to_bits().hash(state);
+                offset.0.to_bits().hash(state);
+                offset.1.to_bits().hash(state);
+                line_thickness.to_bits().hash(state);
             }
         }
     }
