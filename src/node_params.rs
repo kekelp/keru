@@ -137,6 +137,37 @@ impl Hash for Size {
     }
 }
 
+/// Anchor point within a node for positioning.
+///
+/// Determines which point of the node is positioned at the given coordinates
+/// when using `Position::Static`. For example, with `Anchor::Center`, the
+/// center of the node will be placed at the specified position.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Anchor {
+    /// Anchor at the start (left for X, top for Y)
+    Start,
+    /// Anchor at the center
+    Center,
+    /// Anchor at the end (right for X, bottom for Y)
+    End,
+    /// Anchor at a relative position (0.0 = start, 1.0 = end)
+    Frac(f32),
+}
+
+impl Hash for Anchor {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            Anchor::Start => 0u8.hash(state),
+            Anchor::Center => 1u8.hash(state),
+            Anchor::End => 2u8.hash(state),
+            Anchor::Frac(f) => {
+                3u8.hash(state);
+                f.to_bits().hash(state);
+            }
+        }
+    }
+}
+
 /// A node's position relative to its parent.
 #[derive(Debug, Clone, Copy, PartialEq, Hash)]
 pub enum Position {
@@ -145,7 +176,7 @@ pub enum Position {
     End,
     // todo: this should be named "Fixed", but the name conflicts with Size when exporting everything together...
     // FixedPos and FixedSize??
-    // besides, this is missing anchors and the "self center" 
+    // besides, this is missing anchors and the "self center"
     Static(Len),
 }
 
@@ -206,6 +237,7 @@ pub struct Layout {
     pub size: Xy<Size>,
     pub padding: Xy<u32>,
     pub position: Xy<Position>,
+    pub anchor: Xy<Anchor>,
     pub scrollable: Xy<bool>,
 }
 
@@ -506,6 +538,28 @@ impl NodeParams {
 
     pub const fn position_y(mut self, position: Position) -> Self {
         self.layout.position.y = position;
+        return self;
+    }
+
+    pub const fn anchor(mut self, anchor_x: Anchor, anchor_y: Anchor) -> Self {
+        self.layout.anchor.x = anchor_x;
+        self.layout.anchor.y = anchor_y;
+        return self;
+    }
+
+    pub const fn anchor_symm(mut self, anchor: Anchor) -> Self {
+        self.layout.anchor.x = anchor;
+        self.layout.anchor.y = anchor;
+        return self;
+    }
+
+    pub const fn anchor_x(mut self, anchor: Anchor) -> Self {
+        self.layout.anchor.x = anchor;
+        return self;
+    }
+
+    pub const fn anchor_y(mut self, anchor: Anchor) -> Self {
+        self.layout.anchor.y = anchor;
         return self;
     }
 
@@ -946,6 +1000,28 @@ impl<'a> FullNodeParams<'a> {
 
     pub const fn position_y(mut self, position: Position) -> Self {
         self.params.layout.position.y = position;
+        return self;
+    }
+
+    pub const fn anchor(mut self, anchor_x: Anchor, anchor_y: Anchor) -> Self {
+        self.params.layout.anchor.x = anchor_x;
+        self.params.layout.anchor.y = anchor_y;
+        return self;
+    }
+
+    pub const fn anchor_symm(mut self, anchor: Anchor) -> Self {
+        self.params.layout.anchor.x = anchor;
+        self.params.layout.anchor.y = anchor;
+        return self;
+    }
+
+    pub const fn anchor_x(mut self, anchor: Anchor) -> Self {
+        self.params.layout.anchor.x = anchor;
+        return self;
+    }
+
+    pub const fn anchor_y(mut self, anchor: Anchor) -> Self {
+        self.params.layout.anchor.y = anchor;
         return self;
     }
 

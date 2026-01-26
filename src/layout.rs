@@ -529,8 +529,14 @@ impl Ui {
                 },
                 Position::Static(len) => {
                     let static_pos = self.len_to_frac_of_size(len, stack_rect.size(), cross);
-                    let origin = stack_rect[cross][0] + padding[cross] + static_pos;
-                    self.nodes[child].layout_rect[cross] = [origin, origin + child_size[cross]];  
+                    let anchor_offset = match self.nodes[child].params.layout.anchor[cross] {
+                        Anchor::Start => 0.0,
+                        Anchor::Center => -child_size[cross] / 2.0,
+                        Anchor::End => -child_size[cross],
+                        Anchor::Frac(f) => -child_size[cross] * f,
+                    };
+                    let origin = stack_rect[cross][0] + padding[cross] + static_pos + anchor_offset;
+                    self.nodes[child].layout_rect[cross] = [origin, origin + child_size[cross]];
                 },
                 Position::End => {
                     let origin = stack_rect[cross][1] - padding[cross];
@@ -571,7 +577,13 @@ impl Ui {
                     },
                     Position::Static(len) => {
                         let static_pos = self.len_to_frac_of_size(len, parent_rect.size(), axis);
-                        origin[axis] = parent_rect[axis][0] + padding[axis] + static_pos;
+                        let anchor_offset = match self.nodes[child].params.layout.anchor[axis] {
+                            Anchor::Start => 0.0,
+                            Anchor::Center => -child_size[axis] / 2.0,
+                            Anchor::End => -child_size[axis],
+                            Anchor::Frac(f) => -child_size[axis] * f,
+                        };
+                        origin[axis] = parent_rect[axis][0] + padding[axis] + static_pos + anchor_offset;
                         self.nodes[child].layout_rect[axis] = [origin[axis], origin[axis] + child_size[axis]];
                     }
                     Position::End => {

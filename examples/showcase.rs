@@ -162,6 +162,7 @@ impl Components for Ui {
                     let circle_node = DEFAULT
                         .shape(Shape::Circle)
                         .color(Color::KERU_BLUE)
+                        .anchor_symm(Anchor::Center)
                         .size_symm(Size::Pixels(circle_size as u32))
                         .position_x(Position::Static(Len::Frac(x)))
                         .position_y(Position::Static(Len::Frac(y)));
