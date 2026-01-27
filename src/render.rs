@@ -445,7 +445,7 @@ impl Ui {
                     y_clip,
                 });
             }
-            Shape::Segment { start, end } => {
+            Shape::Segment { start, end, dash_length } => {
                 // Convert normalized coordinates to pixel coordinates
                 let start_x = x0 + start.0 * (x1 - x0);
                 let start_y = y0 + start.1 * (y1 - y0);
@@ -458,9 +458,6 @@ impl Ui {
                     1.0
                 };
 
-                let dash_length = node.params.rect.stroke.and_then(|s| {
-                    if s.dash_length > 0.0 { Some(s.dash_length) } else { None }
-                });
 
                 let fill = if is_solid {
                     keru_draw::Fill::Solid(tl_f)
@@ -480,7 +477,7 @@ impl Ui {
                     fill,
                     x_clip,
                     y_clip,
-                    dash_length,
+                    dash_length: *dash_length,
                 });
             }
             Shape::HorizontalLine => {

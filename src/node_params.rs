@@ -283,9 +283,11 @@ pub enum Shape {
     },
     /// Line segment. Coordinates are normalized (0.0 to 1.0) within the node's rect.
     /// (0, 0) is top-left, (1, 1) is bottom-right.
+    /// dash_length: None = solid line, Some(length) = dashed line with specified dash length.
     Segment {
         start: (f32, f32),
         end: (f32, f32),
+        dash_length: Option<f32>,
     },
     /// Convenience for a horizontal line from left to right at vertical center.
     HorizontalLine,
@@ -336,12 +338,19 @@ impl Hash for Shape {
                 start_angle.to_bits().hash(state);
                 end_angle.to_bits().hash(state);
             }
-            Segment { start, end } => {
+            Segment { start, end, dash_length } => {
                 5u8.hash(state);
                 start.0.to_bits().hash(state);
                 start.1.to_bits().hash(state);
                 end.0.to_bits().hash(state);
                 end.1.to_bits().hash(state);
+                match dash_length {
+                    None => 0u8.hash(state),
+                    Some(len) => {
+                        1u8.hash(state);
+                        len.to_bits().hash(state);
+                    }
+                }
             }
             HorizontalLine => {
                 6u8.hash(state);

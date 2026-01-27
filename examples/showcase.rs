@@ -149,6 +149,7 @@ impl Components for Ui {
                     let segment_shape = Shape::Segment {
                         start: points[i],
                         end: points[i + 1],
+                        dash_length: Some(8.0),
                     };
 
                     let segment_node = DEFAULT
