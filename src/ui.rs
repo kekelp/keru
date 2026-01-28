@@ -58,7 +58,7 @@ impl KeruElementRange {
 pub enum RenderCommand {
     /// A range of regular Keru ui elements, which can be rendered with the [Ui::render_range()] function.
     Keru(KeruElementRange),
-    /// A custom rendering region. Corresponds to a Ui element that was marked as [`custom_render(true)`](NodeParams::custom_render).
+    /// A custom rendering region. Corresponds to a Ui element that was marked as [`custom_render(true)`](Node::custom_render).
     CustomRenderingArea { key: NodeKey, rect: XyRect },
 }
 

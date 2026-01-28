@@ -14,7 +14,7 @@ pub(crate) struct UiNode<'a> {
 }
 
 impl UiNode<'_> {
-    pub(crate) fn node(&self) -> &Node {
+    pub(crate) fn node(&self) -> &InnerNode {
         return &self.ui.nodes[self.i];
     }
 
@@ -190,7 +190,7 @@ impl UiNode<'_> {
         if !node.params.interact.senses.contains(sense) {
             // todo: 
             eprintln!(
-                "Keru: Debug mode check: \"{}\" was called for node {}, but the node doesn't have the {:?} sense. In release mode, this event will be silently ignored! You can add the sense to the node's NodeParams with the \"{}\" function.",
+                "Keru: Debug mode check: \"{}\" was called for node {}, but the node doesn't have the {:?} sense. In release mode, this event will be silently ignored! You can add the sense to the node's Node with the \"{}\" function.",
                 fn_name,
                 node.debug_name(),
                 sense,
@@ -207,7 +207,7 @@ impl UiNode<'_> {
     pub fn is_clicked(&self) -> bool {
 
         #[cfg(debug_assertions)]
-        if ! self.check_node_sense(Sense::CLICK, "is_clicked()", "NodeParams::sense_click()") {
+        if ! self.check_node_sense(Sense::CLICK, "is_clicked()", "Node::sense_click()") {
             return false;
         }
 
@@ -224,7 +224,7 @@ impl UiNode<'_> {
     /// If the node was clicked multiple times in the last frame, the result holds the information about the last click only.
     pub fn clicked_at(&self) -> Option<Click> {
          #[cfg(debug_assertions)]
-        if !self.check_node_sense(Sense::CLICK, "clicked_at()", "NodeParams::sense_click()") {
+        if !self.check_node_sense(Sense::CLICK, "clicked_at()", "Node::sense_click()") {
             return None;
         }
 
@@ -246,7 +246,7 @@ impl UiNode<'_> {
     /// Returns `true` if a left button mouse click was just released on the node corresponding to `key`.
     pub fn is_click_released(&self) -> bool {
          #[cfg(debug_assertions)]
-        if ! self.check_node_sense(Sense::CLICK, "is_click_released()", "NodeParams::sense_click()") {
+        if ! self.check_node_sense(Sense::CLICK, "is_click_released()", "Node::sense_click()") {
             return false;
         }
 
@@ -256,7 +256,7 @@ impl UiNode<'_> {
     /// If the node was dragged with a specific mouse button, returns a struct describing the drag event. Otherwise, returns `None`.
     pub fn is_mouse_button_dragged(&self, button: MouseButton) -> Option<Drag> {
          #[cfg(debug_assertions)]
-        if !self.check_node_sense(Sense::DRAG, "is_mouse_button_dragged()", "NodeParams::sense_drag()") {
+        if !self.check_node_sense(Sense::DRAG, "is_mouse_button_dragged()", "Node::sense_drag()") {
             return None;
         }
 
@@ -288,7 +288,7 @@ impl UiNode<'_> {
    /// If the node corresponding to `key` was being held with the left mouse button in the last frame, returns the duration for which it was held.
     pub fn is_held(&self) -> Option<Duration> {
         #[cfg(debug_assertions)]
-        if ! self.check_node_sense(Sense::HOLD, "is_held()", "NodeParams::sense_hold()") {
+        if ! self.check_node_sense(Sense::HOLD, "is_held()", "Node::sense_hold()") {
             return None;
         }
 
@@ -298,7 +298,7 @@ impl UiNode<'_> {
     /// Returns `true` if a node is currently hovered by the cursor.
     pub fn is_hovered(&self) -> bool {
          #[cfg(debug_assertions)]
-        if ! self.check_node_sense(Sense::HOVER, "is_hovered", "NodeParams::sense_hover()") {
+        if ! self.check_node_sense(Sense::HOVER, "is_hovered", "Node::sense_hover()") {
             return false;
         }
 

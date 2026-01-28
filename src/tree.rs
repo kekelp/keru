@@ -24,7 +24,7 @@ pub const Z_STEP: f32 = -0.000_030_517_578;
 impl Ui {
     /// Add a node to the `Ui` with the properties described by `params`.
     /// 
-    /// `params` can be a basic [`NodeParams`] or a [`FullNodeParams`] created from it.
+    /// `params` can be a basic [`Node`] or a [`FullNode`] created from it.
     /// 
     /// ```rust
     /// # use keru::*;
@@ -37,9 +37,9 @@ impl Ui {
     /// # }
     /// ```
     /// 
-    ///  Buttons, images, text elements, stack containers, etc. are all created by `add`ing a node with the right [`NodeParams`].
+    ///  Buttons, images, text elements, stack containers, etc. are all created by `add`ing a node with the right [`Node`].
     #[track_caller]
-    pub fn add<'a>(&mut self, node: impl Into<FullNodeParams<'a>>) -> UiParent
+    pub fn add<'a>(&mut self, node: impl Into<FullNode<'a>>) -> UiParent
     {
         let params = node.into();
         let key = params.key_or_anon_key();
@@ -63,7 +63,7 @@ impl Ui {
         let twin_check_result = match self.nodes.node_hashmap.entry(key.id_with_subtree()) {
             // Add a new normal node (no twins).
             Entry::Vacant(v) => {
-                let new_node = Node::new(&key, None, Location::caller(), frame);
+                let new_node = InnerNode::new(&key, None, Location::caller(), frame);
                 let final_i = NodeI::from(self.nodes.nodes.insert(new_node));
                 v.insert(NodeMapEntry::new(final_i));
 
@@ -107,7 +107,7 @@ impl Ui {
                 match self.nodes.node_hashmap.entry(twin_key.id_with_subtree()) {
                     // Add new twin.
                     Entry::Vacant(v) => {
-                        let new_twin_node = Node::new(&twin_key, Some(twin_n), Location::caller(), frame);
+                        let new_twin_node = InnerNode::new(&twin_key, Some(twin_n), Location::caller(), frame);
                         let real_final_i = NodeI::from(self.nodes.nodes.insert(new_twin_node));
                         v.insert(NodeMapEntry::new(real_final_i));
                         new_node_should_relayout = true;

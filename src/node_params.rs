@@ -25,7 +25,7 @@ pub enum ChildrenCanHide {
 /// #    let ui = &mut self.ui; 
 /// #
 /// # #[node_key] const INCREASE: NodeKey;
-/// # const MY_BUTTON: NodeParams = keru::BUTTON
+/// # const MY_BUTTON: Node = keru::BUTTON
 /// #     .color(Color::RED)
 /// #     .shape(Shape::Circle); 
 /// ui.add(MY_BUTTON);
@@ -38,16 +38,16 @@ pub enum ChildrenCanHide {
 /// 
 /// ```rust
 /// # use keru::*;
-/// const MY_BUTTON: NodeParams = keru::BUTTON
+/// const MY_BUTTON: Node = keru::BUTTON
 ///     .color(Color::RED)
 ///     .shape(Shape::Circle); 
 /// ```
 /// 
-/// [`NodeParams`] is a plain-old-data struct. Methods like [`Self::text()`] allow to associate borrowed data like a `&str` to a [`NodeParams`].
+/// [`Node`] is a plain-old-data struct. Methods like [`Self::text()`] allow to associate borrowed data like a `&str` to a [`Node`].
 /// 
-/// The result is a [`FullNodeParams`], a version of this struct that can hold borrowed data. Both versions can be used in the same ways.
+/// The result is a [`FullNode`], a version of this struct that can hold borrowed data. Both versions can be used in the same ways.
 #[derive(Debug, Copy, Clone)]
-pub struct NodeParams {
+pub struct Node {
     pub key: Option<NodeKey>,
     pub text_params: Option<TextOptions>,
     pub stack: Option<Stack>,
@@ -521,7 +521,7 @@ impl TextOptions {
 
 pub(crate) const BASE_RADIUS: f32 = 9.0;
 
-impl NodeParams {
+impl Node {
     pub(crate) fn cosmetic_hash(&self) -> u64 {
         let mut hasher = ahasher();
         self.rect.hash(&mut hasher);
@@ -844,7 +844,7 @@ impl NodeParams {
     /// 
     /// On the other hand, a panel that contains thumbnails for files, or similar highly dynamic content, should use [`children_can_hide(false)`], so that when the thumbnails for the old elements are switched out, their memory can be reused for the new ones.
     /// 
-    /// By default, almost all [`NodeParams`] values have [`children_can_hide(false)`].
+    /// By default, almost all [`Node`] values have [`children_can_hide(false)`].
     pub fn children_can_hide(mut self, value: bool) -> Self {
         self.children_can_hide = if value { ChildrenCanHide::Yes } else { ChildrenCanHide::No };
         return self;
@@ -969,14 +969,14 @@ pub enum ImageData {
     Svg(&'static [u8]),
 }
 
-/// An extended version of [`NodeParams`] that can hold text or other borrowed data.
+/// An extended version of [`Node`] that can hold text or other borrowed data.
 ///
-/// Created starting from a [`NodeParams`] and using methods like [`NodeParams::text()`].
+/// Created starting from a [`Node`] and using methods like [`Node::text()`].
 ///
-/// Can be used in the same way as [`NodeParams`].
+/// Can be used in the same way as [`Node`].
 #[derive(Copy, Clone)]
-pub struct FullNodeParams<'a> {
-    pub params: NodeParams,
+pub struct FullNode<'a> {
+    pub params: Node,
     pub text: Option<NodeText<'a>>,
     pub text_style: Option<StyleHandle>,
     pub(crate) text_changed: Changed,
@@ -986,7 +986,7 @@ pub struct FullNodeParams<'a> {
     pub placeholder: Option<&'a str>,
 }
 
-impl<'a> FullNodeParams<'a> {
+impl<'a> FullNode<'a> {
     pub const fn single_line_text(mut self, value: bool) -> Self {
         let text_params = match self.params.text_params {
             Some(mut tp) => {
@@ -1265,7 +1265,7 @@ impl<'a> FullNodeParams<'a> {
         return self;
     }
 
-    /// Add a [`NodeKey`] to the [`NodeParams`].
+    /// Add a [`NodeKey`] to the [`Node`].
     /// 
     pub fn key(mut self, key: NodeKey) -> Self {
         self.params.key = Some(key);
@@ -1397,14 +1397,14 @@ impl<'a> FullNodeParams<'a> {
     }
 }
 
-// impl FullNodeParams<'_> {
-//     /// Add text to the [`NodeParams`] from a `&'static str`.
+// impl FullNode<'_> {
+//     /// Add text to the [`Node`] from a `&'static str`.
 //     /// 
 //     /// `text` is assumed to be unchanged, so the [`Ui`] uses pointer equality to determine if it needs to update the text shown on screen.
 //     /// 
 //     /// If `text` changes, due to interior mutability or unsafe code, then the [`Ui`] will miss it.  
-//     pub fn static_text(self, text: &'static str) -> FullNodeParams<'static> {
-//         return FullNodeParams {
+//     pub fn static_text(self, text: &'static str) -> FullNode<'static> {
+//         return FullNode {
 //             params: self.params,
 //             image: self.image,
 //             text: Some(text),
@@ -1415,18 +1415,18 @@ impl<'a> FullNodeParams<'a> {
 //     }
 // }
 
-impl NodeParams {
-    /// Add text to the [`NodeParams`] from a `&'static str`.
+impl Node {
+    /// Add text to the [`Node`] from a `&'static str`.
     /// 
-    /// The [`Ui`] will have to hash `text` to determine if it needs to update the text shown on the screen. To avoid this performance penalty, use [`NodeParams::observed_text`], or [`NodeParams::static_text`] if `text` is an unchanging `'static str`. 
+    /// The [`Ui`] will have to hash `text` to determine if it needs to update the text shown on the screen. To avoid this performance penalty, use [`Node::observed_text`], or [`Node::static_text`] if `text` is an unchanging `'static str`. 
     
-    // pub fn text<'a, T, M>(self, text: &'a M) -> FullNodeParams<'a>
+    // pub fn text<'a, T, M>(self, text: &'a M) -> FullNode<'a>
     // where
     //     M: MaybeObserver<T> + ?Sized,
     //     T: AsRef<str> + ?Sized + 'a,
     // {
-    pub fn hashed_text(self, text: &(impl AsRef<str> + ?Sized)) -> FullNodeParams<'_> {
-        return FullNodeParams {
+    pub fn hashed_text(self, text: &(impl AsRef<str> + ?Sized)) -> FullNode<'_> {
+        return FullNode {
             params: self,
             text: Some(NodeText::Dynamic(text.as_ref())),
             text_style: None,
@@ -1439,8 +1439,8 @@ impl NodeParams {
 
     /// Set placeholder text for a text edit that will be shown when the text edit is empty.
     /// This only works with editable text nodes.
-    pub fn placeholder_text<'a>(self, placeholder: &'a str) -> FullNodeParams<'a> {
-        return FullNodeParams {
+    pub fn placeholder_text<'a>(self, placeholder: &'a str) -> FullNode<'a> {
+        return FullNode {
             params: self,
             text: None,
             text_style: None,
@@ -1451,13 +1451,13 @@ impl NodeParams {
         }
     }
 
-    /// Add text to the [`NodeParams`] from a `&'static str`.
+    /// Add text to the [`Node`] from a `&'static str`.
     /// 
     /// `text` is assumed to be unchanged, so the [`Ui`] uses pointer equality to determine if it needs to update the text shown on screen.
     /// 
     /// If `text` changes, due to interior mutability or unsafe code, then the [`Ui`] will miss it.  
-    pub fn static_text(self, text: &'static (impl AsRef<str> + ?Sized)) -> FullNodeParams<'static> {
-        return FullNodeParams {
+    pub fn static_text(self, text: &'static (impl AsRef<str> + ?Sized)) -> FullNode<'static> {
+        return FullNode {
             params: self,
             text: Some(NodeText::Static(text.as_ref())),
             text_style: None,
@@ -1468,13 +1468,13 @@ impl NodeParams {
         }
     }
 
-    /// Add text to the [`NodeParams`] from a `&str` that is known to not be mutated during its lifetime.
+    /// Add text to the [`Node`] from a `&str` that is known to not be mutated during its lifetime.
     /// 
     /// Since the text is assumed to never change, the [`Ui`] can use pointer equality to determine if it needs to update the text shown on screen.
     /// 
     /// If `text` changes anyway, then the [`Ui`] will miss it.  
-    pub fn immut_text(self, text: &(impl AsRef<str> + ?Sized)) -> FullNodeParams<'_> {
-        return FullNodeParams {
+    pub fn immut_text(self, text: &(impl AsRef<str> + ?Sized)) -> FullNode<'_> {
+        return FullNode {
             params: self,
             text: Some(NodeText::Dynamic(text.as_ref())),
             text_style: None,
@@ -1485,8 +1485,8 @@ impl NodeParams {
         }
     }
 
-    pub fn observed_text(self, text: Observer<&(impl AsRef<str> + ?Sized)>) -> FullNodeParams<'_> {
-        return FullNodeParams {
+    pub fn observed_text(self, text: Observer<&(impl AsRef<str> + ?Sized)>) -> FullNode<'_> {
+        return FullNode {
             params: self,
             text: Some(NodeText::Dynamic(text.as_ref())),
             text_style: None,
@@ -1497,8 +1497,8 @@ impl NodeParams {
         }
     }
 
-    pub fn static_image(self, image: &'static [u8]) -> FullNodeParams<'static> {
-        return FullNodeParams {
+    pub fn static_image(self, image: &'static [u8]) -> FullNode<'static> {
+        return FullNode {
             params: self,
             text: None,
             text_style: None,
@@ -1509,8 +1509,8 @@ impl NodeParams {
         }
     }
 
-    pub fn static_svg(self, svg: &'static [u8]) -> FullNodeParams<'static> {
-        return FullNodeParams {
+    pub fn static_svg(self, svg: &'static [u8]) -> FullNode<'static> {
+        return FullNode {
             params: self,
             text: None,
             text_style: None,
@@ -1531,9 +1531,9 @@ pub enum Changed {
     Static,
 }
 
-impl From<NodeParams> for FullNodeParams<'_> {
-    fn from(val: NodeParams) -> Self {
-        FullNodeParams {
+impl From<Node> for FullNode<'_> {
+    fn from(val: Node) -> Self {
+        FullNode {
             params: val,
             text: None,
             text_style: None,
@@ -1545,7 +1545,7 @@ impl From<NodeParams> for FullNodeParams<'_> {
     }
 }
 
-impl FullNodeParams<'_> {
+impl FullNode<'_> {
     #[track_caller]
     pub(crate) fn key_or_anon_key(&self) -> NodeKey {
         return match self.params.key {
@@ -1563,7 +1563,7 @@ enum TextVerdict {
 }
 
 impl Ui {
-    fn check_text_situation(&self, i: NodeI, params: &FullNodeParams) -> TextVerdict {
+    fn check_text_situation(&self, i: NodeI, params: &FullNode) -> TextVerdict {
         let same_pointer = params.text_ptr == self.nodes[i].last_text_ptr;
         let verdict = if same_pointer {
              match params.text_changed {
@@ -1585,7 +1585,7 @@ impl Ui {
         return verdict;
     }
 
-    pub(crate) fn set_params_text(&mut self, i: NodeI, params: &FullNodeParams) {       
+    pub(crate) fn set_params_text(&mut self, i: NodeI, params: &FullNode) {       
         let Some(text) = params.text else {
             return
         };
@@ -1678,7 +1678,7 @@ impl Ui {
     }
 
 
-    pub(crate) fn set_params(&mut self, i: NodeI, params: &FullNodeParams) {
+    pub(crate) fn set_params(&mut self, i: NodeI, params: &FullNode) {
         #[cfg(not(debug_assertions))]
         if reactive::is_in_skipped_reactive_block() {
             return;
@@ -1726,8 +1726,8 @@ impl Ui {
     }
 }
 
-impl NodeParams {
-    /// Add text to the [`NodeParams`].
+impl Node {
+    /// Add text to the [`Node`].
     /// 
     /// The `text` argument can be a `&str`, a `String`, or any type that implements [`AsRef<str>`].
     /// 
@@ -1736,8 +1736,8 @@ impl NodeParams {
     /// If a plain non-[`Observer`] type is used, the [`Ui`] will fall back to hashing the text to determine if the text needs updating.
     /// 
     /// Instead of this single generic function, you can also use [`Self::hashed_text()`], [`Self::static_text()`], [`Self::immut_text()`], or [`Self::observed_text()`].
-    pub fn text(self, text: &(impl MaybeObservedText + ?Sized)) -> FullNodeParams<'_> {
-        return FullNodeParams {
+    pub fn text(self, text: &(impl MaybeObservedText + ?Sized)) -> FullNode<'_> {
+        return FullNode {
             params: self,
             text: Some(NodeText::Dynamic(text.as_text())),
             text_style: None,
@@ -1749,8 +1749,8 @@ impl NodeParams {
     }
 }
 
-impl<'a> FullNodeParams<'a> {
-    /// Add text to the [`NodeParams`].
+impl<'a> FullNode<'a> {
+    /// Add text to the [`Node`].
     /// 
     /// The `text` argument can be a `&str`, a `String`, or any type that implements [`AsRef<str>`].
     /// 
@@ -1759,7 +1759,7 @@ impl<'a> FullNodeParams<'a> {
     /// If a plain non-[`Observer`] type is used, the [`Ui`] will fall back to hashing the text to determine if the text needs updating.
     /// 
     /// Instead of this single generic function, you can also use [`Self::hashed_text()`], [`Self::static_text()`], [`Self::immut_text()`], or [`Self::observed_text()`].
-    pub fn text(mut self, text: &'a (impl MaybeObservedText + ?Sized)) -> FullNodeParams<'a> {
+    pub fn text(mut self, text: &'a (impl MaybeObservedText + ?Sized)) -> FullNode<'a> {
         self.text = Some(NodeText::Dynamic(text.as_text()));
         self.text_changed = text.changed_at();
         self.text_ptr = text.as_text().as_ptr() as usize;

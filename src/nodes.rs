@@ -11,7 +11,7 @@ use crate::*;
 pub(crate) struct Nodes {
     // todo: make faster or something
     pub(crate) node_hashmap: AHashMap<Id, NodeMapEntry>,
-    pub(crate) nodes: Slab<Node>,
+    pub(crate) nodes: Slab<InnerNode>,
 }
 
 /// An index for nodes in the slab.
@@ -37,7 +37,7 @@ impl NodeI {
 }
 
 impl Index<NodeI> for Nodes {
-    type Output = Node;
+    type Output = InnerNode;
     fn index(&self, i: NodeI) -> &Self::Output {
         return &self.nodes[i.as_usize()];
         // unsafe {
@@ -54,13 +54,13 @@ impl IndexMut<NodeI> for Nodes {
 
 impl Nodes {
     // todo: doesn't this kind of suck?
-    pub(crate) fn get_mut_by_id(&mut self, id: &Id) -> Option<(&mut Node, NodeI)> {
+    pub(crate) fn get_mut_by_id(&mut self, id: &Id) -> Option<(&mut InnerNode, NodeI)> {
         let i = self.node_hashmap.get(id)?;
         return Some((&mut self.nodes[i.slab_i.as_usize()], i.slab_i));
     }
 
     #[allow(dead_code)]
-    pub(crate) fn get_by_id_ick(&self, id: &Id) -> Option<(&Node, NodeI)> {
+    pub(crate) fn get_by_id_ick(&self, id: &Id) -> Option<(&InnerNode, NodeI)> {
         let i = self.node_hashmap.get(id)?;
         return Some((&self.nodes[i.slab_i.as_usize()], i.slab_i));
     }
@@ -92,7 +92,7 @@ impl Nodes {
         };
     }
 
-    pub fn get(&self, i: NodeI) -> Option<&Node> {
+    pub fn get(&self, i: NodeI) -> Option<&InnerNode> {
         self.nodes.get(i.as_usize())
     }
 }

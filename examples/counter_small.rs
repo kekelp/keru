@@ -12,7 +12,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     // Define a unique identity for the button
     #[node_key] const INCREASE: NodeKey;
     
-    // Create a NodeParams struct describing a button
+    // Create a Node struct describing a button
     let increase_button = BUTTON
         .color(Color::RED)
         .text("Increase")

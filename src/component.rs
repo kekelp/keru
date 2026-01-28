@@ -59,16 +59,16 @@ impl<C> Copy for ComponentKey<C> {}
 
 impl Ui {
     #[track_caller]
-    pub fn add_component<T: StatefulComponentParams>(&mut self, component_params: T) -> T::AddResult {
+    pub fn add_component<T: Component2>(&mut self, component_params: T) -> T::AddResult {
         self.add_stateful_component(component_params)
     }
 
-    pub fn component_output<T: StatefulComponentParams>(&mut self, component_key: ComponentKey<T>) -> Option<T::ComponentOutput> {
+    pub fn component_output<T: Component2>(&mut self, component_key: ComponentKey<T>) -> Option<T::ComponentOutput> {
         self.stateful_component_output(component_key)
     }
 }
 
-pub struct SliderParams<'a> {
+pub struct Slider<'a> {
     pub value: &'a mut f32,
     pub min: f32,
     pub max: f32,
@@ -76,7 +76,7 @@ pub struct SliderParams<'a> {
 }
 
 
-impl ComponentParams for SliderParams<'_> {
+impl Component for Slider<'_> {
     fn add_to_ui(self, ui: &mut Ui) {
         with_arena(|arena| {
 
@@ -128,57 +128,11 @@ impl ComponentParams for SliderParams<'_> {
     }
 }
 
-impl<'a> SliderParams<'a> {
+impl<'a> Slider<'a> {
     pub fn new(value: &'a mut f32, min: f32, max: f32, clamp: bool) -> Self {
         Self { value, min, max, clamp }
     }
 }
-
-
-pub trait ComponentParams2<ADDRESULT> {
-    type ComponentOutput;
-    
-    fn add_to_ui(self, ui: &mut Ui) -> ADDRESULT;
-
-    // this returns an Option mostly just so that we can default impl it with None, but maybe that's useful in other ways?
-    // as in, if the component is not currently added, maybe Ui::component_output can just see that and return None, instead of running the function anyway and (hopefully) getting a None?
-    // todo: figure this out 
-    fn component_output(_ui: &mut Ui) -> Option<Self::ComponentOutput> {
-        None
-    }
-
-    fn component_key(&self) -> Option<ComponentKey<Self>> {
-        None
-    }
-}
-
-pub trait ComponentParams2Simple {
-    type ComponentOutput;
-    
-    fn add_to_ui(self, ui: &mut Ui);
-
-    // this returns an Option mostly just so that we can default impl it with None, but maybe that's useful in other ways?
-    // as in, if the component is not currently added, maybe Ui::component_output can just see that and return None, instead of running the function anyway and (hopefully) getting a None?
-    // todo: figure this out 
-    fn component_output(_ui: &mut Ui) -> Option<Self::ComponentOutput> {
-        None
-    }
-
-    fn component_key(&self) -> Option<ComponentKey<Self>> {
-        None
-    }
-}
-
-impl<T> ComponentParams2<()> for T
-where T: ComponentParams2Simple
- {
-    type ComponentOutput = ();
-
-    fn add_to_ui(self, ui: &mut Ui) -> () {
-        Self::add_to_ui(self, ui);
-    }
-}
-
 
 use std::cell::RefCell;
 use bumpalo::Bump;
@@ -193,7 +147,7 @@ thread_local! {
 ///
 /// The arena is reset at the end of each frame, when [`Ui::finish_frame()`] is called.
 /// 
-/// This function is useful when implementing a reusable component with the [`ComponentParams`] or [`StatefulComponentParams`] traits, since you can't easily access all of your state from within the trait impl. In other cases, it might be more convenient to use your own arena.
+/// This function is useful when implementing a reusable component with the [`Component`] traits, since you can't easily access all of your state from within the trait impl. In other cases, it might be more convenient to use your own arena.
 ///
 /// # Panics
 /// Panics if [`Ui::finish_frame()`] is called from inside the passes closure.

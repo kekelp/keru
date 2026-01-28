@@ -5,7 +5,7 @@ const DOWNCAST_ERROR: &str = "Keru: Internal error: Couldn't downcast component 
 use crate as keru;
 use keru::*;
 
-pub trait StatefulComponentParams {
+pub trait Component2 {
     type AddResult;
     type ComponentOutput;
     type State: Default + 'static;
@@ -24,10 +24,10 @@ pub trait StatefulComponentParams {
     }
 }
 
-/// A simpler version of [`StatefulComponentParams`] for stateless components that don't return a value.
+/// A simpler version of [`StatefulComponent`] for stateless components that don't return a value.
 ///
-/// This trait automatically implements [`StatefulComponentParams`] with all associated types set to `()`.
-pub trait ComponentParams {
+/// This trait automatically implements [`StatefulComponent`] with all associated types set to `()`.
+pub trait Component {
     fn add_to_ui(self, ui: &mut Ui);
 
     fn component_key(&self) -> Option<ComponentKey<Self>> {
@@ -35,23 +35,23 @@ pub trait ComponentParams {
     }
 }
 
-impl<T: ComponentParams> StatefulComponentParams for T {
+impl<T: Component> Component2 for T {
     type AddResult = ();
     type ComponentOutput = ();
     type State = ();
 
     fn add_to_ui(self, ui: &mut Ui, _state: &mut Self::State) -> Self::AddResult {
-        ComponentParams::add_to_ui(self, ui)
+        Component::add_to_ui(self, ui)
     }
 
     fn component_key(&self) -> Option<ComponentKey<Self>> {
-        ComponentParams::component_key(self)
+        Component::component_key(self)
     }
 }
 
 impl Ui {
     #[track_caller]
-    pub fn add_stateful_component<T: StatefulComponentParams>(&mut self, component_params: T) -> T::AddResult {        
+    pub fn add_stateful_component<T: Component2>(&mut self, component_params: T) -> T::AddResult {        
         let key = match component_params.component_key() {
             Some(key) => key.as_normal_key(),
             None => NodeKey::new(Id(caller_location_id()), ""),
@@ -101,7 +101,7 @@ impl Ui {
         return res;
     }
 
-    pub fn stateful_component_output<T: StatefulComponentParams>(&mut self, component_key: ComponentKey<T>) -> Option<T::ComponentOutput> {
+    pub fn stateful_component_output<T: Component2>(&mut self, component_key: ComponentKey<T>) -> Option<T::ComponentOutput> {
         // No twinning here, so use this old closure one.
         self.component_key_subtree(component_key).start(|| {
             T::component_output(self)

@@ -37,8 +37,8 @@ const DEBUG_ONLY_RECT: Rect = Rect {
     vertex_colors: VertexColors::flat(Color::TRANSPARENT),
 };
 
-/// [`NodeParams`] for a node_root_params.
-pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
+/// [`Node`] for a node_root_params.
+pub(crate) const NODE_ROOT_PARAMS: Node = Node {
     animation: NO_ANIMATION,
     key: None,
     text_params: None,
@@ -68,8 +68,8 @@ pub(crate) const NODE_ROOT_PARAMS: NodeParams = NodeParams {
     scale: None,
     custom_render: false,
 };
-/// [`NodeParams`] for a default.
-pub const DEFAULT: NodeParams = NodeParams {
+/// [`Node`] for a default.
+pub const DEFAULT: Node = Node {
     animation: NO_ANIMATION,
     key: None,
     text_params: None,
@@ -99,8 +99,8 @@ pub const DEFAULT: NodeParams = NodeParams {
     scale: None,
     custom_render: false,
 };
-/// [`NodeParams`] for a vertical stack.
-pub const V_STACK: NodeParams = NodeParams {
+/// [`Node`] for a vertical stack.
+pub const V_STACK: Node = Node {
     animation: NO_ANIMATION,
     key: None,
     text_params: None,
@@ -128,8 +128,8 @@ pub const V_STACK: NodeParams = NodeParams {
     scale: None,
     custom_render: false,
 };
-/// [`NodeParams`] for a horizontal stack.
-pub const H_STACK: NodeParams = NodeParams {
+/// [`Node`] for a horizontal stack.
+pub const H_STACK: Node = Node {
     animation: NO_ANIMATION,
     key: None,
     text_params: None,
@@ -158,8 +158,8 @@ pub const H_STACK: NodeParams = NodeParams {
     custom_render: false,
 };
 
-/// [`NodeParams`] for a vertically scrollable vertical stack.
-pub const V_SCROLL_STACK: NodeParams = NodeParams {
+/// [`Node`] for a vertically scrollable vertical stack.
+pub const V_SCROLL_STACK: Node = Node {
     animation: NO_ANIMATION,
     key: None,
     text_params: None,
@@ -194,8 +194,8 @@ pub const V_SCROLL_STACK: NodeParams = NodeParams {
     custom_render: false,
     };
 
-/// [`NodeParams`] for a margin.
-pub const MARGIN: NodeParams = NodeParams {
+/// [`Node`] for a margin.
+pub const MARGIN: Node = Node {
     animation: NO_ANIMATION,
     key: None,
     stack: None,
@@ -219,8 +219,8 @@ pub const MARGIN: NodeParams = NodeParams {
     scale: None,
     custom_render: false,
 };
-/// [`NodeParams`] for an icon button.
-pub const ICON_BUTTON: NodeParams = NodeParams {
+/// [`Node`] for an icon button.
+pub const ICON_BUTTON: Node = Node {
     animation: NO_ANIMATION,
     key: None,
     stack: None,
@@ -250,8 +250,8 @@ pub const ICON_BUTTON: NodeParams = NodeParams {
     scale: None,
     custom_render: false,
 };
-/// [`NodeParams`] for an image. 
-pub const IMAGE: NodeParams = NodeParams {
+/// [`Node`] for an image. 
+pub const IMAGE: Node = Node {
     animation: NO_ANIMATION,
     key: None,
     stack: None,
@@ -281,8 +281,8 @@ pub const IMAGE: NodeParams = NodeParams {
     scale: None,
     custom_render: false,
 };
-/// [`NodeParams`] for an icon button. 
-pub const IMAGE_BUTTON: NodeParams = NodeParams {
+/// [`Node`] for an icon button. 
+pub const IMAGE_BUTTON: Node = Node {
     animation: NO_ANIMATION,
     key: None,
     stack: None,
@@ -312,8 +312,8 @@ pub const IMAGE_BUTTON: NodeParams = NodeParams {
     scale: None,
     custom_render: false,
 };
-/// [`NodeParams`] for a button. 
-pub const BUTTON: NodeParams = NodeParams {
+/// [`Node`] for a button. 
+pub const BUTTON: Node = Node {
     animation: NO_ANIMATION,
     key: None,
     stack: None,
@@ -349,8 +349,8 @@ pub const BUTTON: NodeParams = NodeParams {
     scale: None,
     custom_render: false,
 };
-/// [`NodeParams`] for a label. 
-pub const LABEL: NodeParams = NodeParams {
+/// [`Node`] for a label. 
+pub const LABEL: Node = Node {
     animation: NO_ANIMATION,
     key: None,
     stack: None,
@@ -386,8 +386,8 @@ pub const LABEL: NodeParams = NodeParams {
     custom_render: false,
 };
 
-/// [`NodeParams`] for a label containing a multi-line paragraph. 
-pub const MULTILINE_LABEL: NodeParams = NodeParams {
+/// [`Node`] for a label containing a multi-line paragraph. 
+pub const MULTILINE_LABEL: Node = Node {
     animation: NO_ANIMATION,
     key: None,
     stack: None,
@@ -423,8 +423,8 @@ pub const MULTILINE_LABEL: NodeParams = NodeParams {
     custom_render: false,
 };
 
-/// [`NodeParams`] for a text element. 
-pub const TEXT: NodeParams = NodeParams {
+/// [`Node`] for a text element. 
+pub const TEXT: Node = Node {
     animation: NO_ANIMATION,
     key: None,
     stack: None,
@@ -454,8 +454,8 @@ pub const TEXT: NodeParams = NodeParams {
     custom_render: false,
 };
 
-/// [`NodeParams`] for an icon element. 
-pub const ICON: NodeParams = NodeParams {
+/// [`Node`] for an icon element. 
+pub const ICON: Node = Node {
     animation: NO_ANIMATION,
     key: None,
     stack: None,
@@ -480,8 +480,8 @@ pub const ICON: NodeParams = NodeParams {
     custom_render: false,
 };
 
-/// [`NodeParams`] for a multiline text edit box. 
-pub const TEXT_EDIT: NodeParams = NodeParams {
+/// [`Node`] for a multiline text edit box. 
+pub const TEXT_EDIT: Node = Node {
     animation: NO_ANIMATION,
     key: None,
     stack: None,
@@ -517,8 +517,8 @@ pub const TEXT_EDIT: NodeParams = NodeParams {
     custom_render: false,
 };
 
-/// [`NodeParams`] for a single line text edit box. 
-pub const TEXT_EDIT_LINE: NodeParams = NodeParams {
+/// [`Node`] for a single line text edit box. 
+pub const TEXT_EDIT_LINE: Node = Node {
     animation: NO_ANIMATION,
     key: None,
     stack: None,
@@ -554,8 +554,8 @@ pub const TEXT_EDIT_LINE: NodeParams = NodeParams {
     custom_render: false,
 };
 
-/// [`NodeParams`] for a text element containing a multi-line paragraph.
-pub const TEXT_PARAGRAPH: NodeParams = NodeParams {
+/// [`Node`] for a text element containing a multi-line paragraph.
+pub const TEXT_PARAGRAPH: Node = Node {
     animation: NO_ANIMATION,
     key: None,
     stack: None,
@@ -585,8 +585,8 @@ pub const TEXT_PARAGRAPH: NodeParams = NodeParams {
     custom_render: false,
 };
 
-/// [`NodeParams`] for a panel. 
-pub const PANEL: NodeParams = NodeParams {
+/// [`Node`] for a panel. 
+pub const PANEL: Node = Node {
     animation: NO_ANIMATION,
     key: None,
     stack: None,
@@ -617,8 +617,8 @@ pub const PANEL: NodeParams = NodeParams {
     custom_render: false,
 };
 
-/// [`NodeParams`] for a container. 
-pub const CONTAINER: NodeParams = NodeParams {
+/// [`Node`] for a container. 
+pub const CONTAINER: Node = Node {
     animation: NO_ANIMATION,
     key: None,
     stack: None,
@@ -649,7 +649,7 @@ pub const CONTAINER: NodeParams = NodeParams {
     custom_render: false,
 };
 
-/// [`NodeParams`] for a custom rendered node.
+/// [`Node`] for a custom rendered node.
 /// 
 /// Use [`Ui::render_rect`] to get the render data for your node, then render it in a separate draw call.
 /// ```rust
@@ -662,7 +662,7 @@ pub const CONTAINER: NodeParams = NodeParams {
 /// # }
 /// ```
 /// See the color picker in the painter example.
-pub const CUSTOM_RENDERED_PANEL: NodeParams = NodeParams {
+pub const CUSTOM_RENDERED_PANEL: Node = Node {
     animation: NO_ANIMATION,
     key: None,
     stack: None,
@@ -693,8 +693,8 @@ pub const CUSTOM_RENDERED_PANEL: NodeParams = NodeParams {
     custom_render: false,
 };
 
-/// [`NodeParams`] for a spacer element.
-pub const SPACER: NodeParams = NodeParams {
+/// [`Node`] for a spacer element.
+pub const SPACER: Node = Node {
     animation: NO_ANIMATION,
     key: None,
     stack: None,
@@ -719,8 +719,8 @@ pub const SPACER: NodeParams = NodeParams {
     custom_render: false,
 };
 
-/// [`NodeParams`] for a invisible spacer element that fills all the available space in the X direction.
-pub const H_SPACER: NodeParams = NodeParams {
+/// [`Node`] for a invisible spacer element that fills all the available space in the X direction.
+pub const H_SPACER: Node = Node {
     animation: NO_ANIMATION,
     key: None,
     stack: None,
@@ -745,8 +745,8 @@ pub const H_SPACER: NodeParams = NodeParams {
     custom_render: false,
 };
 
-/// [`NodeParams`] for a invisible spacer element that fills all the available space in the Y direction.
-pub const V_SPACER: NodeParams = NodeParams {
+/// [`Node`] for a invisible spacer element that fills all the available space in the Y direction.
+pub const V_SPACER: Node = Node {
     animation: NO_ANIMATION,
     key: None,
     stack: None,
@@ -771,8 +771,8 @@ pub const V_SPACER: NodeParams = NodeParams {
     custom_render: false,
 };
 
-/// [`NodeParams`] for a horizontal divider line.
-pub const H_LINE: NodeParams = NodeParams {
+/// [`Node`] for a horizontal divider line.
+pub const H_LINE: Node = Node {
     animation: NO_ANIMATION,
     key: None,
     stack: None,
@@ -812,7 +812,7 @@ pub const H_LINE: NodeParams = NodeParams {
     custom_render: false,
 };
 
-pub(crate) const COMPONENT_ROOT: NodeParams = NodeParams {
+pub(crate) const COMPONENT_ROOT: Node = Node {
     animation: NO_ANIMATION,
     key: None,
     stack: None,

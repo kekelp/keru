@@ -3,7 +3,7 @@ use std::{fmt::Write, panic::Location};
 use crate::*;
 
 #[derive(Debug)]
-pub struct Node {
+pub struct InnerNode {
     pub id: Id,
     pub original_key: NodeKey, // Without subtree
     pub depth: usize,
@@ -64,7 +64,7 @@ pub struct Node {
     pub first_hidden_child: Option<NodeI>,
     pub next_hidden_sibling: Option<NodeI>,
 
-    pub params: NodeParams,
+    pub params: Node,
 
     pub debug_location: &'static Location<'static>,
 
@@ -86,7 +86,7 @@ pub struct Node {
     pub exiting: bool,
 }
 
-impl Node {
+impl InnerNode {
     /// Get the current animated rect position
     pub fn get_animated_rect(&self) -> XyRect {
         // let mut final_rect = self.rect;
@@ -127,10 +127,10 @@ impl Node {
         twin_n: Option<u32>,
         debug_location: &'static Location<'static>,
         current_frame: u64,
-    ) -> Node {
+    ) -> InnerNode {
         // add back somewhere
 
-        return Node {
+        return InnerNode {
             expected_final_rect: Xy::new_symm([0.0, 1.0]),
             exit_animation_still_going: false,
             enter_animation_still_going: false,
@@ -174,7 +174,7 @@ impl Node {
             next_hidden_sibling: None,
         
             is_twin: twin_n,
-            params: NodeParams::const_default(),
+            params: Node::const_default(),
             debug_location,
             hover_timestamp: f32::MIN,
             hovered: false,
@@ -213,7 +213,7 @@ impl Ui {
         return &self.format_scratch;
     }
 }
-impl Node {
+impl InnerNode {
     pub(crate) fn debug_name(&self) -> String {
         let mut result = String::new();
         
@@ -233,7 +233,7 @@ impl Node {
 
 
 // A dummy node value to fill up the zero slot, so that the arena can be indexed by NonZero values. 
-pub const ZERO_NODE_DUMMY: Node = const {
+pub const ZERO_NODE_DUMMY: InnerNode = const {
     let mut node = NODE_ROOT;
     node.original_key = NodeKey::new(NODE_ROOT_ID, "Zero node dummy");
     node.debug_location = Location::caller();
@@ -243,7 +243,7 @@ pub const ZERO_NODE_DUMMY: Node = const {
 pub const ROOT_I: NodeI = NodeI::from(1);
 
 pub const NODE_ROOT_ID: Id = Id(0);
-pub const NODE_ROOT: Node = Node {
+pub const NODE_ROOT: InnerNode = InnerNode {
     expected_final_rect: Xy::new_symm([0.0, 1.0]),
     exit_animation_still_going: false,
     enter_animation_still_going: false,

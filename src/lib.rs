@@ -13,7 +13,7 @@
 //! // Define a unique identity for the button
 //! #[node_key] const INCREASE: NodeKey;
 //! 
-//! // Create a NodeParams struct describing a button
+//! // Create a Node struct describing a button
 //! let increase_button = BUTTON
 //!     .color(Color::RED)
 //!     .text("Increase")
@@ -64,11 +64,11 @@
 //! The [`Ui`] struct retains the state of the whole GUI, so even if you do this on every frame, it doesn't mean that the GUI is rerendering or doing a full relayout every time. The library can detect differences and apply only the minimal updates or partial relayouts needed.
 //! 
 //! 
-//! * In Keru, everything is a node. Whether you want a [button](`BUTTON`), an [image](`IMAGE`), a [text element](`TEXT`), a [stack container](V_STACK), or anything else, the way is always to [`add()`](Ui::add) a node with the right [`NodeParams`].
+//! * In Keru, everything is a node. Whether you want a [button](`BUTTON`), an [image](`IMAGE`), a [text element](`TEXT`), a [stack container](V_STACK), or anything else, the way is always to [`add()`](Ui::add) a node with the right [`Node`].
 //! 
-//! * [`Ui`] has some convenience methods like [`Ui::label()`]. These are always equivalent to [`adding`](Ui::add) one or more nodes with specific [`NodeParams`].
+//! * [`Ui`] has some convenience methods like [`Ui::label()`]. These are always equivalent to [`adding`](Ui::add) one or more nodes with specific [`Node`].
 //! 
-//! * To check interactions on a node, use [`NodeParams::key()`] to associate a [`NodeKey`] to a [`NodeParams`], then call methods like [`Ui::is_clicked()`] with the same [`NodeKey`].
+//! * To check interactions on a node, use [`Node::key()`] to associate a [`NodeKey`] to a [`Node`], then call methods like [`Ui::is_clicked()`] with the same [`NodeKey`].
 //! 
 //! * You can use the [`NodeKey::sibling()`] function to create keys dynamically at runtime. This is useful for dynamic GUIs where you can't identify every node with a static [`NodeKey`] in the way the basic examples do it.
 //! 

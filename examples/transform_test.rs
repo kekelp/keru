@@ -80,17 +80,17 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     ui.add(V_STACK.stack_arrange(Arrange::Start).position_y(Position::Start)).nest(|| {
         ui.add(H_STACK).nest(|| {
             ui.label("Zoom:");
-            ui.add_component(SliderParams::new(&mut state.zoom, 0.1, 5.0, false));
+            ui.add_component(Slider::new(&mut state.zoom, 0.1, 5.0, false));
         });
 
         ui.add(H_STACK).nest(|| {
             ui.label("Pan X:");
-            ui.add_component(SliderParams::new(&mut state.pan_x, -800.0, 800.0, false));
+            ui.add_component(Slider::new(&mut state.pan_x, -800.0, 800.0, false));
         });
 
         ui.add(H_STACK).nest(|| {
             ui.label("Pan Y:");
-            ui.add_component(SliderParams::new(&mut state.pan_y, -800.0, 800.0, false));
+            ui.add_component(Slider::new(&mut state.pan_y, -800.0, 800.0, false));
         });
     });
 
