@@ -1,12 +1,11 @@
 #![windows_subsystem = "windows"]
 
-use std::f32::consts::PI;
-
 use keru::Size::*;
 use keru::example_window_loop::*;
 use keru::*;
 use textslabs::{TextStyle2 as TextStyle, ColorBrush};
 use keru_draw::FontWeight;
+use winit::keyboard::Key;
 
 #[derive(Default)]
 struct State {
@@ -57,7 +56,7 @@ impl Components for Ui {
 
             self.add(edit2);
 
-            self.static_paragraph("Here are some basic GUI elements: \n");
+            self.static_paragraph("Here are some basic GUI elements:");
             self.static_paragraph("Button and label:");
 
             self.h_stack().nest(|| {
@@ -101,7 +100,7 @@ impl Components for Ui {
                 .text_style(large_bold_style.clone())
             );
 
-            self.static_paragraph("The tab viewer uses the \"children_can_hide\" property on the tab containers. This means that when switching tabs, all ui state is kept in the background: the value of the bool is retained, as well as the scroll state, the text in the edit boxes, etc. \n\n\
+            self.static_paragraph("The tab viewer uses the \"children_can_hide\" property on the tab containers. This means that when switching tabs, all ui state is kept in the background, and we can switch back without recreating the node tree. In addition, the scroll state, the text in the edit boxes, etc. is retained. \n\n\
             Without \"children_can_hide\", everything would be cleaned up as soon as the tabs change.");
 
             self.static_paragraph("Keru uses its own wgpu-based renderer, with the same architecture as the ones used in vger-rs and gpui. It's not a next-gen compute-based renderer.");
@@ -149,13 +148,13 @@ impl Components for Ui {
                     let segment_shape = Shape::Segment {
                         start: points[i],
                         end: points[i + 1],
-                        dash_length: Some(8.0),
+                        dash_length: Some(10.0),
                     };
 
                     let segment_node = DEFAULT
                         .shape(segment_shape)
                         .color(Color::KERU_GREEN)
-                        .stroke(3.0)
+                        .stroke(4.0)
                         .size_symm(Size::Fill);
 
                     self.add(segment_node);
@@ -199,6 +198,13 @@ impl Components for Ui {
 
             self.static_paragraph("In the future, there might be a lower level vector drawing interface similar to the \"canvas\" in Rui.");
             self.static_paragraph("There is also an experimental system for easily embedding custom wgpu rendering in-between the Keru ui elements. See the \"custom_rendering\" example.");
+            
+            self.static_paragraph("Other features that will probably be added in at some point:\n\
+            - reusable components\n\
+            - components with associated state\n\
+            - more incrementality in the layout and render code\n\
+            - some limited forms of incrementality in the user Ui declaration code\n\
+            - cooler looking gradients");
 
         });
     }
@@ -260,12 +266,12 @@ impl State {
 
     fn update_global_text(&mut self,  ui: &mut Ui) {
         if ui.key_input().key_mods().control_key() {
-            if ui.key_input().key_pressed(&winit::keyboard::Key::Character("=".into())) || 
-               ui.key_input().key_pressed(&winit::keyboard::Key::Character("+".into())) {
+            if ui.key_input().key_pressed(&Key::Character("=".into())) || 
+               ui.key_input().key_pressed(&Key::Character("+".into())) {
                 ui.default_text_style_mut().font_size = (ui.default_text_style().font_size + 2.0).min(72.0);
-            } else if ui.key_input().key_pressed(&winit::keyboard::Key::Character("-".into())) {
+            } else if ui.key_input().key_pressed(&Key::Character("-".into())) {
                 ui.default_text_style_mut().font_size = (ui.default_text_style().font_size - 2.0).max(8.0);
-            } else if ui.key_input().key_pressed(&winit::keyboard::Key::Character("0".into())) {
+            } else if ui.key_input().key_pressed(&Key::Character("0".into())) {
                 *ui.default_text_style_mut() = ui.original_default_style();
             }
         }

@@ -284,6 +284,7 @@ pub enum Shape {
     /// Line segment. Coordinates are normalized (0.0 to 1.0) within the node's rect.
     /// (0, 0) is top-left, (1, 1) is bottom-right.
     /// dash_length: None = solid line, Some(length) = dashed line with specified dash length.
+    // todo, this is terrible.
     Segment {
         start: (f32, f32),
         end: (f32, f32),
@@ -294,7 +295,7 @@ pub enum Shape {
     /// Convenience for a vertical line from top to bottom at horizontal center.
     VerticalLine,
     /// Triangle pointing in a direction. Rotation in radians, 0 = pointing right, π/2 = pointing up, etc.
-    /// Width controls the base width: 1.0 = equilateral, <1.0 = narrower, >1.0 = wider.
+    /// Width controls the base width: 1.0 = equilateral, <1.0 = narrower.
     Triangle {
         rotation: f32,
         width: f32,
