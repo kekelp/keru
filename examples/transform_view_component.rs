@@ -1,6 +1,5 @@
 use keru::example_window_loop::*;
 use keru::*;
-use bumpalo::format as format;
 
 #[derive(Default)]
 pub struct State {
@@ -15,7 +14,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 
         let bg_panel = PANEL.size_symm(Size::Frac(0.8));
 
-        let text = &format!(in a, "Click ({})", state.click_count);
+        let text = &bumpalo::format!(in a, "Click ({})", state.click_count);
         let button = BUTTON.text(text).key(CLICK_COUNTER_BUTTON);
         let transform = TransformView::new(&mut state.transform_state);
 

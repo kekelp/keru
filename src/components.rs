@@ -2,7 +2,6 @@ use crate as keru;
 use keru::*;
 use keru::Size::*;
 use keru::Position::*;
-use bumpalo::format as format;
 
 /// A tab for [`Ui::vertical_tabs`]
 #[derive(PartialEq, Eq)]
@@ -186,7 +185,7 @@ impl Ui {
                     // .shape(Shape::Rectangle { corner_radius: 16.0 })
                     .key(SLIDER_FILL);
 
-                let text = format!(in a, "{:.2}", value);
+                let text = bumpalo::format!(in a, "{:.2}", value);
 
                 self.add(slider_container).nest(|| {
                     self.add(slider_fill);
@@ -336,7 +335,7 @@ impl SimpleComponent for Slider<'_> {
                 .key(SLIDER_FILL);
 
 
-            let text = format!(in a, "{:.2}", self.value);
+            let text = bumpalo::format!(in a, "{:.2}", self.value);
             let label = TEXT.text(&text).key(SLIDER_LABEL);
 
             ui.add(slider_container).nest(|| {
@@ -354,12 +353,21 @@ impl<'a> Slider<'a> {
     }
 }
 
-#[derive(Default)]
 pub struct TransformViewState {
     pub zoom: f32,
     pub pan_x: f32,
     pub pan_y: f32,
     pub zoom_drag_anchor: Option<glam::DVec2>,
+}
+impl Default for TransformViewState {
+    fn default() -> Self {
+        Self { 
+            zoom: 1.0,
+            pan_x: 0.0,
+            pan_y: 0.0,
+            zoom_drag_anchor: None,
+        }
+    }
 }
 
 pub struct TransformView<'a> {
@@ -464,5 +472,18 @@ impl Component for TransformView<'_> {
         }
 
         return parent;
+    }
+}
+
+pub struct StatefulTransformView;
+
+impl Component for StatefulTransformView {
+    type AddResult = UiParent;
+    type ComponentOutput = ();
+    type State = TransformViewState;
+
+    fn add_to_ui(self, ui: &mut Ui, state: &mut Self::State) -> Self::AddResult {
+        return ui.add_component(TransformView::new(state));
+        // return ui.add(CONTAINER);
     }
 }

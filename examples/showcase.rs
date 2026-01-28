@@ -18,6 +18,7 @@ struct State {
 
 const INTRO_TAB: Tab = Tab("Intro");
 const TEXT_TAB: Tab = Tab("Text");
+const GRAPHICS_TAB: Tab = Tab("Graphics");
 const WEIRD_TAB: Tab = Tab("Other Stuff");
 
 const CHINESE_TEXT: &str = "此后，人民文学出版社和齐鲁书社的做法被诸多出版社效仿，可见文化部出版局1985年的一纸批文并没有打消各地出版社出版此书的念头。所以，1988年新闻出版署发出了《关于整理出版〈金瓶梅〉及其研究资料的通知》。《通知》首先说明《金瓶梅》及其研究资料的需求“日益增大”，“先后有十余家出版社向我署提出报告，分别要求出版《金瓶梅》的各种版本及改编本，包括图录、连环画及影视文学剧本等”，但话锋一转，明确提出“《金瓶梅》一书虽在文学史上占有重要地位，但该书存在大量自然主义的秽亵描写，不宜广泛印行";
@@ -29,13 +30,14 @@ const CYRILLIC_TEXT: &str = "Мунди деленит молестиае усу
 
 const JAPANESE_TEXT: &str = "ヘッケはこれらのL-函数が全複素平面へ有理型接続を持ち、指標が自明であるときには s = 1 でオーダー 1 である極を持ち、それ以外では解析的であることを証明した。原始ヘッケ指標（原始ディリクレ指標に同じ方法である modulus に相対的に定義された）に対し、ヘッケは、これらのL-函数が指標の L-函数の函数等式を満たし、L-函数の複素共役指標であることを示した。 主イデアル上の座と、無限での座を含む全ての例外有限集合の上で 1 である単円の上への写像を取ることで、イデール類群の指標 ψ を考える。すると、ψ はイデアル群 IS の指標 χ を生成し、イデアル群は S 上に入らない素イデアル上の自由アーベル群となる。";
 
-trait Components {
+trait UiExt {
     fn intro_tab(&mut self, state: &mut State);
     fn text_tab(&mut self);
+    fn graphics_tab(&mut self, state: &mut State);
     fn other_tab(&mut self, state: &mut State);
 }
 
-impl Components for Ui {
+impl UiExt for Ui {
     fn intro_tab(&mut self, state: &mut State) {
         self.add(V_SCROLL_STACK).nest(|| {
             self.static_paragraph("Keru is an experimental GUI library focused on combining a simple and natural programming model with high performance and flexibility.");
@@ -249,9 +251,46 @@ impl Components for Ui {
             });
         });
     }
+
+    fn graphics_tab(&mut self, _state: &mut State) {
+
+        let header = LABEL.static_text("The Transformed view is a stateful component.\n\
+        It can remember its own state (the pan and zoom of the transform) without us having to make space for it in our own State struct and passing it by reference.\n\
+        The state is initialized to its Default value when the component is first added to the tree, and is stored within the Ui struct in a Box<dyn Any>.\n\
+        You can also see how this state is retained when swiching between tabs, thanks to the \"children can hide\" property.\n\n\
+        The plan is to provide most components both in a stateful and state-borrowing forms.");
+
+        self.add(V_SCROLL_STACK).nest(|| {
+
+            self.add(header);
+
+            let bg_panel = PANEL.size_symm(Size::Frac(0.8));
+            self.add(bg_panel).nest(|| {
+                self.add_component(StatefulTransformView).nest(|| {
+                    self.add(V_STACK).nest(|| {
+                        self.label("Transformed subtree");
+    
+                        self.add(BUTTON.text("Button"));
+    
+                        self.add(H_STACK).nest(|| {
+                            self.add(PANEL.color(Color::RED).size_symm(Size::Pixels(50)));
+                            self.add(PANEL.color(Color::GREEN).size_symm(Size::Pixels(50)));
+                            self.add(PANEL.color(Color::BLUE).size_symm(Size::Pixels(50)));
+                        });
+    
+                        self.label("Don't expect scaled text to look good, though. It uses the same texture and just scales the quads");
+                    });
+                });
+            });
+
+        });
+
+
+    }
 }
 
 impl State {
+    #[track_caller]
     fn update_ui(&mut self, ui: &mut Ui) {
         self.update_global_text(ui);
 
@@ -259,6 +298,7 @@ impl State {
             .nest(|| match self.tabs[self.current_tab] {
                 INTRO_TAB => ui.intro_tab(self),
                 TEXT_TAB => ui.text_tab(),
+                GRAPHICS_TAB => ui.graphics_tab(self),
                 WEIRD_TAB => ui.other_tab(self),
                 _ => {}
             });
@@ -292,7 +332,7 @@ fn main() {
     basic_env_logger_init();
 
     let state = State {
-        tabs: vec![INTRO_TAB, TEXT_TAB, WEIRD_TAB],
+        tabs: vec![INTRO_TAB, TEXT_TAB, WEIRD_TAB, GRAPHICS_TAB],
         current_tab: 0,
         f32_value: 20.0,
         ..Default::default()
