@@ -118,8 +118,8 @@ pub use theme::*;
 mod component;
 pub use component::*;
 
-mod stateful_component;
-pub use stateful_component::*;
+mod thread_local_arena;
+pub use thread_local_arena::*;
 
 mod components;
 pub use components::*;

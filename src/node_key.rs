@@ -1,4 +1,4 @@
-use std::{fmt::Debug, hash::{Hash, Hasher}};
+use std::{fmt::Debug, hash::{Hash, Hasher}, marker::PhantomData};
 
 use crate::*;
 
@@ -76,3 +76,53 @@ impl NodeKey {
 
 pub type SubtreeKey = NodeKey;
 
+
+#[derive(Debug)]
+pub struct ComponentKey<ComponentType: ?Sized> {
+    id: Id,
+    debug_name: &'static str,
+    phantom: PhantomData<ComponentType>
+}
+impl<C> ComponentKey<C> {
+    /// Create "siblings" of a key dynamically at runtime, based on a hashable value.
+    pub fn sibling<H: Hash>(self, value: H) -> Self {
+        let mut hasher = ahasher();
+        self.id.0.hash(&mut hasher);
+        value.hash(&mut hasher);
+        let new_id = hasher.finish();
+
+        return Self {
+            id: Id(new_id),
+            debug_name: self.debug_name,
+            phantom: PhantomData::<C>,
+        };
+    }
+
+    /// Create a key manually.
+    /// 
+    /// This is usually not needed: use the [`macro@component_key`] macro for static keys, and [`ComponentKey::sibling`] for dynamic keys.
+    pub const fn new(id: Id, debug_name: &'static str) -> Self {
+        return Self {
+            id,
+            debug_name,
+            phantom: PhantomData::<C>
+        };
+    }
+
+    pub const fn debug_name(&self) -> &'static str {
+        return self.debug_name;
+    }
+
+    // Private function that removes the type marker.
+    pub(crate) fn as_normal_key(&self) -> NodeKey {
+        NodeKey::new(self.id, self.debug_name)
+    }
+}
+
+// The key should be Copy even if the component params struct (C) isn't. Because of how derive(C) works, this needs to be impl'd manually.
+impl<C> Clone for ComponentKey<C> {
+    fn clone(&self) -> Self {
+        Self { id: self.id, debug_name: self.debug_name, phantom: self.phantom }
+    }
+}
+impl<C> Copy for ComponentKey<C> {}

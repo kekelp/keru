@@ -1,5 +1,6 @@
 use keru::example_window_loop::*;
 use keru::*;
+use bumpalo::format as format;
 
 #[derive(Default)]
 pub struct State {
@@ -8,28 +9,37 @@ pub struct State {
 }
 
 fn update_ui(state: &mut State, ui: &mut Ui) {
-    #[node_key] const CLICK_COUNTER_BUTTON: NodeKey;
+    with_arena(|a| {
 
-    let bg_panel = PANEL.size_symm(Size::Frac(0.8));
+        #[node_key] const CLICK_COUNTER_BUTTON: NodeKey;
 
-    ui.add(bg_panel).nest(|| {
-        ui.add_component(TransformView::new(&mut state.transform_state, |ui| {
-            ui.add(V_STACK).nest(|| {
-                ui.label("Transformed subtree");
+        let bg_panel = PANEL.size_symm(Size::Frac(0.8));
 
-                if ui.add(BUTTON.text(&format!("Click ({})", state.click_count)).key(CLICK_COUNTER_BUTTON)).is_clicked(ui) {
-                    state.click_count += 1;
-                }
+        let text = &format!(in a, "Click ({})", state.click_count);
+        let button = BUTTON.text(text).key(CLICK_COUNTER_BUTTON);
+        let transform = TransformView::new(&mut state.transform_state);
 
-                ui.add(H_STACK).nest(|| {
-                    ui.add(PANEL.color(Color::RED).size_symm(Size::Pixels(50)));
-                    ui.add(PANEL.color(Color::GREEN).size_symm(Size::Pixels(50)));
-                    ui.add(PANEL.color(Color::BLUE).size_symm(Size::Pixels(50)));
+        ui.add(bg_panel).nest(|| {
+            ui.add_component(transform).nest(|| {
+                ui.add(V_STACK).nest(|| {
+                    ui.label("Transformed subtree");
+
+                    ui.add(button);
+
+                    ui.add(H_STACK).nest(|| {
+                        ui.add(PANEL.color(Color::RED).size_symm(Size::Pixels(50)));
+                        ui.add(PANEL.color(Color::GREEN).size_symm(Size::Pixels(50)));
+                        ui.add(PANEL.color(Color::BLUE).size_symm(Size::Pixels(50)));
+                    });
+
+                    ui.label("Don't expect scaled text to look good, though. It uses the same texture and just scales the quads");
                 });
-
-                ui.label("Don't expect scaled text to look good, though. It uses the same texture and just scales the quads");
             });
-        }));
+        });
+
+        if ui.is_clicked(CLICK_COUNTER_BUTTON) {
+            state.click_count += 1;
+        }
     });
 
     ui.add(V_STACK.stack_arrange(Arrange::Start).position_y(Position::Start)).nest(|| {
