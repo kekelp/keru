@@ -29,7 +29,6 @@ pollster = "0.3.0"
 bytemuck = { version = "1.19.0", features = ["derive"] }
 glam = "0.28.0"
 slab = "0.4.9"
-image = "0.25.2"
 log = "0.4.22"
 env_logger = "0.11.6"
 bitflags = "2.8.0"

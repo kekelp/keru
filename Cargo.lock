@@ -1312,7 +1312,6 @@ dependencies = [
  "bytemuck",
  "env_logger",
  "glam",
- "image",
  "keru_draw",
  "keru_macros",
  "log",

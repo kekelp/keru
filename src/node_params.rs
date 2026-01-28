@@ -1550,7 +1550,7 @@ impl FullNode<'_> {
     pub(crate) fn key_or_anon_key(&self) -> NodeKey {
         return match self.params.key {
             Some(key) => key,
-            None => NodeKey::new(Id(caller_location_id()), ""),
+            None => NodeKey::new(Id(caller_location_id()), "Anon node"),
         };
     }
 }

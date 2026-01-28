@@ -2,11 +2,11 @@ use crate as keru;
 use keru::*;
 use std::{any::TypeId, collections::hash_map::Entry};
 
-const DOWNCAST_ERROR: &str = "Keru: Internal error: Couldn't downcast component state to the expected type.";
 
-
-/// A simpler version of [`Component2`] for stateless components that don't return a value.
-pub trait Component {
+/// A simpler version of [`Component`] for stateless components that don't have nested children.
+/// 
+/// Types that implement [`SimpleComponent`] can be used wherever a [`Component`] is required.
+pub trait SimpleComponent {
     fn add_to_ui(self, ui: &mut Ui);
 
     fn component_key(&self) -> Option<ComponentKey<Self>> {
@@ -15,7 +15,7 @@ pub trait Component {
 }
 
 /// Trait for a reusable Ui component.
-pub trait Component2 {
+pub trait Component {
     type AddResult;
     type ComponentOutput;
     type State: Default + 'static;
@@ -34,26 +34,26 @@ pub trait Component2 {
     }
 }
 
-impl<T: Component> Component2 for T {
+impl<T: SimpleComponent> Component for T {
     type AddResult = ();
     type ComponentOutput = ();
     type State = ();
 
     fn add_to_ui(self, ui: &mut Ui, _state: &mut Self::State) -> Self::AddResult {
-        Component::add_to_ui(self, ui)
+        SimpleComponent::add_to_ui(self, ui)
     }
 
     fn component_key(&self) -> Option<ComponentKey<Self>> {
-        Component::component_key(self)
+        SimpleComponent::component_key(self)
     }
 }
 
 impl Ui {
     #[track_caller]
-    pub fn add_component<T: Component2>(&mut self, component_params: T) -> T::AddResult {        
+    pub fn add_component<T: Component>(&mut self, component_params: T) -> T::AddResult {        
         let key = match component_params.component_key() {
             Some(key) => key.as_normal_key(),
-            None => NodeKey::new(Id(caller_location_id()), ""),
+            None => NodeKey::new(Id(caller_location_id()), "Anon component"),
         };
         
         // Add the component. This should do twinning, with_subtree_id, and everything.
@@ -100,10 +100,12 @@ impl Ui {
         return res;
     }
 
-    pub fn component_output<T: Component2>(&mut self, component_key: ComponentKey<T>) -> Option<T::ComponentOutput> {
+    pub fn component_output<T: Component>(&mut self, component_key: ComponentKey<T>) -> Option<T::ComponentOutput> {
         // No twinning here, so use this old closure one.
         self.component_key_subtree(component_key).start(|| {
             T::component_output(self)
         })
     }
 }
+
+const DOWNCAST_ERROR: &str = "Keru: Internal error: Couldn't downcast component state to the expected type.";

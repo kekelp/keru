@@ -296,7 +296,7 @@ pub struct Slider<'a> {
     pub clamp: bool, // todo: with clamp = false, still clamp values set WITH the slider
 }
 
-impl Component for Slider<'_> {
+impl SimpleComponent for Slider<'_> {
     fn add_to_ui(self, ui: &mut Ui) {
         with_arena(|a| {
 
@@ -372,7 +372,7 @@ impl<'a> TransformView<'a> {
     }
 }
 
-impl Component2 for TransformView<'_> {
+impl Component for TransformView<'_> {
     type AddResult = UiParent;
     type ComponentOutput = ();
     type State = ();
