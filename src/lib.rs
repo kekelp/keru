@@ -88,14 +88,14 @@ pub use ui::*;
 mod math;
 pub use math::*;
 
-mod library;
-pub use library::*;
+mod node_library;
+pub use node_library::*;
 
 mod node_key;
 pub use node_key::*;
 
-mod node_params;
-pub use node_params::*;
+mod node;
+pub use node::*;
 
 mod color;
 pub use color::*;
@@ -121,8 +121,8 @@ pub use component::*;
 mod thread_local_arena;
 pub use thread_local_arena::*;
 
-mod components;
-pub use components::*;
+mod component_library;
+pub use component_library::*;
 
 mod interact;
 pub(crate) use crate::interact::*;
@@ -156,8 +156,8 @@ mod layout;
 pub(crate) use crate::layout::*;
 mod text;
 pub(crate) use crate::text::*;
-mod node;
-pub(crate) use crate::node::*;
+mod inner_node;
+pub(crate) use crate::inner_node::*;
 mod nodes;
 pub(crate) use crate::nodes::*;
 

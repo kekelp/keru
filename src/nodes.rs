@@ -21,8 +21,6 @@ pub(crate) struct Nodes {
 /// For this reason, NodeIs should never be held for longer than one frame.
 /// 
 /// This is mostly automatic given the declarative structure, but for example things like Hovered or Focused have to hold an Id and not a NodeI for this reason.
-/// 
-/// Obviously this can never be pub.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct NodeI(NonZeroU16);
 

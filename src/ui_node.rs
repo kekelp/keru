@@ -3,7 +3,7 @@ use std::time::Duration;
 use winit::event::MouseButton;
 
 use crate::*;
-use crate::node::*;
+use crate::inner_node::*;
 use crate::Axis::*;
 
 /// A helper struct that borrows the Ui but "selects" a specific node.

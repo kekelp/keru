@@ -1,5 +1,5 @@
 use crate::*;
-use crate::node::*;
+use crate::inner_node::*;
 
 pub(crate) const BIG_FLOAT: f32 = 100000.0;
 
