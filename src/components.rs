@@ -296,7 +296,7 @@ pub struct Slider<'a> {
 }
 
 impl SimpleComponent for Slider<'_> {
-    fn add_to_ui(self, ui: &mut Ui) {
+    fn add_to_ui(&mut self, ui: &mut Ui) {
         with_arena(|a| {
 
             #[node_key] const SLIDER_FILL: NodeKey;
@@ -385,7 +385,7 @@ impl Component for TransformView<'_> {
     type ComponentOutput = ();
     type State = ();
 
-    fn add_to_ui(self, ui: &mut Ui, _state: &mut Self::State) -> Self::AddResult {
+    fn add_to_ui(&mut self, ui: &mut Ui, _state: &mut Self::State) -> Self::AddResult {
         use glam::{DVec2, dvec2};
         use winit::event::MouseButton;
         use winit::keyboard::{Key, NamedKey};
@@ -482,7 +482,7 @@ impl Component for StatefulTransformView {
     type ComponentOutput = ();
     type State = TransformViewState;
 
-    fn add_to_ui(self, ui: &mut Ui, state: &mut Self::State) -> Self::AddResult {
+    fn add_to_ui(&mut self, ui: &mut Ui, state: &mut Self::State) -> Self::AddResult {
         return ui.add_component(TransformView::new(state));
         // return ui.add(CONTAINER);
     }

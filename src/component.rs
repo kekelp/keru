@@ -7,7 +7,7 @@ use std::{any::TypeId, collections::hash_map::Entry};
 /// 
 /// Types that implement [`SimpleComponent`] can be used wherever a [`Component`] is required.
 pub trait SimpleComponent {
-    fn add_to_ui(self, ui: &mut Ui);
+    fn add_to_ui(&mut self, ui: &mut Ui);
 
     fn component_key(&self) -> Option<ComponentKey<Self>> {
         None
@@ -20,7 +20,8 @@ pub trait Component {
     type ComponentOutput;
     type State: Default + 'static;
 
-    fn add_to_ui(self, ui: &mut Ui, state: &mut Self::State) -> Self::AddResult;
+    // todo: not sure if it should be &mut self or self.
+    fn add_to_ui(&mut self, ui: &mut Ui, state: &mut Self::State) -> Self::AddResult;
 
     // this returns an Option mostly just so that we can default impl it with None, but maybe that's useful in other ways?
     // as in, if the component is not currently added, maybe Ui::component_output can just see that and return None, instead of running the function anyway and (hopefully) getting a None?
@@ -39,7 +40,7 @@ impl<T: SimpleComponent> Component for T {
     type ComponentOutput = ();
     type State = ();
 
-    fn add_to_ui(self, ui: &mut Ui, _state: &mut Self::State) -> Self::AddResult {
+    fn add_to_ui(&mut self, ui: &mut Ui, _state: &mut Self::State) -> Self::AddResult {
         SimpleComponent::add_to_ui(self, ui)
     }
 
@@ -50,7 +51,7 @@ impl<T: SimpleComponent> Component for T {
 
 impl Ui {
     #[track_caller]
-    pub fn add_component<T: Component>(&mut self, component_params: T) -> T::AddResult {        
+    pub fn add_component<T: Component>(&mut self, mut component_params: T) -> T::AddResult {        
         let key = match component_params.component_key() {
             Some(key) => key.as_normal_key(),
             None => NodeKey::new(Id(caller_location_id()), "Anon component"),
@@ -77,7 +78,7 @@ impl Ui {
         if stateless {
             // Safety: we know that T is () here because of the TypeId check. 
             let state_ref = unsafe { std::mem::transmute::<&mut (), &mut T::State>(&mut ()) };
-            res = T::add_to_ui(component_params, self, state_ref);
+            res = T::add_to_ui(&mut component_params, self, state_ref);
                         
         } else {
             // Get the state or initialize it if it's not there yet.
@@ -87,7 +88,7 @@ impl Ui {
             };
             let state_ref = state.downcast_mut().expect(DOWNCAST_ERROR);
     
-            res = T::add_to_ui(component_params, self, state_ref);
+            res = T::add_to_ui(&mut component_params, self, state_ref);
     
             // Put the state back in its place inside the Ui.
             let a = self.sys.user_state.insert(id, state);
