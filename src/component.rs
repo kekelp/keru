@@ -134,6 +134,122 @@ impl<'a> Slider<'a> {
     }
 }
 
+#[derive(Default)]
+pub struct TransformViewState {
+    pub zoom: f32,
+    pub pan_x: f32,
+    pub pan_y: f32,
+    pub zoom_drag_anchor: Option<glam::DVec2>,
+}
+
+pub struct TransformView<'a, F> {
+    pub state: &'a mut TransformViewState,
+    pub content: F,
+}
+
+impl<'a, F> TransformView<'a, F>
+where
+    F: FnOnce(&mut Ui),
+{
+    pub fn new(state: &'a mut TransformViewState, content: F) -> Self {
+        Self { state, content }
+    }
+}
+
+impl<F> Component for TransformView<'_, F>
+where
+    F: FnOnce(&mut Ui),
+{
+    fn add_to_ui(self, ui: &mut Ui) {
+        use glam::{DVec2, dvec2};
+        use winit::event::MouseButton;
+        use winit::keyboard::{Key, NamedKey};
+
+        #[node_key] const PAN_OVERLAY: NodeKey;
+        #[node_key] const SPACEBAR_PAN_OVERLAY: NodeKey;
+        #[node_key] const TRANSFORMED_AREA: NodeKey;
+
+        let spacebar_pan_overlay = PANEL
+            .padding(0)
+            .color(Color::TRANSPARENT)
+            .sense_drag(true)
+            .size(Size::Fill, Size::Fill)
+            .key(SPACEBAR_PAN_OVERLAY);
+
+        let pan_overlay = PANEL
+            .padding(0)
+            .color(Color::TRANSPARENT)
+            .sense_drag(true)
+            .absorbs_clicks(false)
+            .size(Size::Fill, Size::Fill)
+            .key(PAN_OVERLAY);
+
+        let transform_area = PANEL
+            .size_symm(Size::Pixels(1000000))
+            .color(Color::rgba(30, 30, 40, 255))
+            .key(TRANSFORMED_AREA)
+            .translate(self.state.pan_x, self.state.pan_y)
+            .zoom(self.state.zoom)
+            .size_symm(Size::Fill)
+            .clip_children(true);
+
+        ui.add(transform_area).nest(|| {
+            (self.content)(ui);
+        });
+
+        if ui.key_input().key_held(&Key::Named(NamedKey::Space)) {
+            ui.add(spacebar_pan_overlay);
+        }
+
+        ui.add(pan_overlay);
+
+        let size = ui.inner_size(TRANSFORMED_AREA).unwrap_or(Xy::new(600, 600));
+
+        // Handle panning
+        if ! ui.key_input().key_held(&Key::Named(NamedKey::Space)) {
+            if let Some(drag) = ui.is_mouse_button_dragged(PAN_OVERLAY, MouseButton::Middle) {
+                self.state.pan_x -= drag.absolute_delta.x as f32;
+                self.state.pan_y -= drag.absolute_delta.y as f32;
+            }
+        }
+
+        if let Some(drag) = ui.is_dragged(SPACEBAR_PAN_OVERLAY) {
+            self.state.pan_x -= drag.absolute_delta.x as f32;
+            self.state.pan_y -= drag.absolute_delta.y as f32;
+        }
+
+        // Handle zooming
+        let mut apply_zoom = |delta_y: f64, mouse_pos: DVec2| {
+            let old_zoom = self.state.zoom;
+            let curve_factor = ((0.01 + old_zoom).powf(1.1) - 0.01).abs();
+            let new_zoom = old_zoom + delta_y as f32 * curve_factor;
+
+            if new_zoom > 0.01 && !new_zoom.is_infinite() && !new_zoom.is_nan() {
+                self.state.zoom = new_zoom;
+                let zoom_ratio = self.state.zoom / old_zoom;
+                let centered_pos = mouse_pos - dvec2(0.5, 0.5);
+                self.state.pan_x = self.state.pan_x * zoom_ratio + size.x as f32 * centered_pos.x as f32 * (1.0 - zoom_ratio);
+                self.state.pan_y = self.state.pan_y * zoom_ratio + size.y as f32 * centered_pos.y as f32 * (1.0 - zoom_ratio);
+            }
+        };
+
+        if let Some(drag) = ui.is_mouse_button_dragged(SPACEBAR_PAN_OVERLAY, MouseButton::Middle) {
+            if self.state.zoom_drag_anchor.is_none() {
+                self.state.zoom_drag_anchor = Some(drag.relative_position);
+            }
+
+            apply_zoom(drag.absolute_delta.y * 0.01, self.state.zoom_drag_anchor.unwrap());
+
+        } else {
+            self.state.zoom_drag_anchor = None;
+        }
+
+        if let Some(scroll_event) = ui.scrolled_at(PAN_OVERLAY) {
+            apply_zoom(scroll_event.delta.y, scroll_event.relative_position);
+        }
+    }
+}
+
 use std::cell::RefCell;
 use bumpalo::Bump;
 
