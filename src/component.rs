@@ -56,54 +56,15 @@ impl<C> Clone for ComponentKey<C> {
 impl<C> Copy for ComponentKey<C> {}
 
 
-pub trait ComponentParams {
-    type AddResult;
-    type ComponentOutput;
-    
-    fn add_to_ui(self, ui: &mut Ui) -> Self::AddResult;
-
-    // this returns an Option mostly just so that we can default impl it with None, but maybe that's useful in other ways?
-    // as in, if the component is not currently added, maybe Ui::component_output can just see that and return None, instead of running the function anyway and (hopefully) getting a None?
-    // todo: figure this out 
-    fn component_output(_ui: &mut Ui) -> Option<Self::ComponentOutput> {
-        None
-    }
-
-    fn component_key(&self) -> Option<ComponentKey<Self>> {
-        None
-    }
-}
 
 impl Ui {
     #[track_caller]
-    pub fn add_component<T: ComponentParams>(&mut self, component_params: T) -> T::AddResult {
-        let key = match component_params.component_key() {
-            Some(key) => key.as_normal_key(),
-            None => NodeKey::new(Id(caller_location_id()), ""),
-        };
-
-        // todo use normal add()??
-        let (i, id) = self.add_or_update_node(key);
-        self.set_params(i, &COMPONENT_ROOT.into());
-        let res = UiParent::new(i).nest(|| {
-    
-            thread_local::push_subtree(id);
-            
-            let res = T::add_to_ui(component_params, self);
-            
-            thread_local::pop_subtree();
-            
-            return res;
-        });
-
-        return res;
+    pub fn add_component<T: StatefulComponentParams>(&mut self, component_params: T) -> T::AddResult {
+        self.add_stateful_component(component_params)
     }
 
-    pub fn component_output<T: ComponentParams>(&mut self, component_key: ComponentKey<T>) -> Option<T::ComponentOutput> {
-        // No twinning here, so use this old closure one which does twinning
-        self.component_key_subtree(component_key).start(|| {
-            T::component_output(self)
-        })
+    pub fn component_output<T: StatefulComponentParams>(&mut self, component_key: ComponentKey<T>) -> Option<T::ComponentOutput> {
+        self.stateful_component_output(component_key)
     }
 }
 
@@ -116,9 +77,6 @@ pub struct SliderParams<'a> {
 
 
 impl ComponentParams for SliderParams<'_> {
-    type ComponentOutput = ();
-    type AddResult = ();
-    
     fn add_to_ui(self, ui: &mut Ui) {
         with_arena(|arena| {
 
@@ -235,7 +193,7 @@ thread_local! {
 ///
 /// The arena is reset at the end of each frame, when [`Ui::finish_frame()`] is called.
 /// 
-/// This function is useful when implementing a reusable component with the [`ComponentParams`] trait, since you can't easily access all of your state from within the trait impl. In other cases, it might be more convenient to use your own arena.
+/// This function is useful when implementing a reusable component with the [`ComponentParams`] or [`StatefulComponentParams`] traits, since you can't easily access all of your state from within the trait impl. In other cases, it might be more convenient to use your own arena.
 ///
 /// # Panics
 /// Panics if [`Ui::finish_frame()`] is called from inside the passes closure.

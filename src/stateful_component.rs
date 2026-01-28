@@ -24,6 +24,31 @@ pub trait StatefulComponentParams {
     }
 }
 
+/// A simpler version of [`StatefulComponentParams`] for stateless components that don't return a value.
+///
+/// This trait automatically implements [`StatefulComponentParams`] with all associated types set to `()`.
+pub trait ComponentParams {
+    fn add_to_ui(self, ui: &mut Ui);
+
+    fn component_key(&self) -> Option<ComponentKey<Self>> {
+        None
+    }
+}
+
+impl<T: ComponentParams> StatefulComponentParams for T {
+    type AddResult = ();
+    type ComponentOutput = ();
+    type State = ();
+
+    fn add_to_ui(self, ui: &mut Ui, _state: &mut Self::State) -> Self::AddResult {
+        ComponentParams::add_to_ui(self, ui)
+    }
+
+    fn component_key(&self) -> Option<ComponentKey<Self>> {
+        ComponentParams::component_key(self)
+    }
+}
+
 impl Ui {
     #[track_caller]
     pub fn add_stateful_component<T: StatefulComponentParams>(&mut self, component_params: T) -> T::AddResult {        

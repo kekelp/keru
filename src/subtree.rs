@@ -103,9 +103,9 @@ impl Ui {
         };
     }
 
-    /// Starts a subtree where keys can be used without conflicts with the outside world, like in components. 
-    /// 
-    /// It can be used to create reusable "components" more concisely than with the [`ComponentParams`] trait.
+    /// Starts a subtree where keys can be used without conflicts with the outside world, like in components.
+    ///
+    /// It can be used to create reusable "components" more concisely than with the [`ComponentParams`] or [`StatefulComponentParams`] traits.
     /// 
     /// This function must be called from functions marked with `#[track_caller]`!  
     #[track_caller]
