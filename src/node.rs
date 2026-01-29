@@ -14,24 +14,14 @@ pub enum ChildrenCanHide {
 /// A struct describing the params of a GUI node.
 /// 
 /// Pass it to [`Ui::add`] to create a node with the given params:
-/// ```rust
+/// ```no_run
 /// # use keru::*;
-/// # pub struct State {
-/// #     pub ui: Ui,
-/// # }
-/// #
-/// # impl State {
-/// #    fn declare_ui(&mut self) {
-/// #    let ui = &mut self.ui; 
-/// #
-/// # #[node_key] const INCREASE: NodeKey;
+/// # let mut ui: Ui = unimplemented!();
 /// # const MY_BUTTON: Node = keru::BUTTON
 /// #     .color(Color::RED)
-/// #     .shape(Shape::Circle); 
-/// ui.add(MY_BUTTON);
+/// #     .shape(Shape::Circle);
 /// #
-/// #   }
-/// # }
+/// ui.add(MY_BUTTON);
 /// ```
 /// 
 ///  You can start with one of the preset constants ([`BUTTON`], [`LABEL`], [`TEXT`], ...), then use the builder methods to customize it:

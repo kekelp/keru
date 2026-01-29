@@ -78,7 +78,6 @@ impl UiExt for Ui {
 
             self.add_component(Slider::new(&mut state.f32_value, 0.0, 100.0, true));
 
-
             self.static_paragraph("Classic slider:");
             self.classic_slider(&mut state.f32_value, 0.0, 100.0);
 

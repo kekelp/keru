@@ -41,14 +41,14 @@ impl Parse for ItemConstNoEq {
 /// 
 /// ### Example
 /// 
-/// ```rust
+/// ```
 /// # use keru::*;
 /// #[node_key] const UNIQUE_KEY: NodeKey;
 /// ```
 /// 
 /// ### Expands To
 /// 
-/// ```rust
+/// ```
 /// # use keru::*;
 /// const INCREASE: UNIQUE_KEY = <NodeKey>::new(keru::Id(13624446487038443998u64), "UNIQUE_KEY");
 /// ```

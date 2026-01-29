@@ -19,17 +19,18 @@ impl Ui {
     /// A good place to use this function is when writing self-contained "component" functions.
     /// An easy way to keep track of whether variables have changed is to keep wrap them in an [`Observer`] struct, but there are many other valid strategies, depending on the context.
     /// 
-    /// ```
+    /// ```no_run
     /// # use keru::*;
-    /// fn display_score(ui: &mut Ui, score: &mut Observer<i32>) {
-    ///     let state_changed = ui.check_changes(score);
-    ///     ui.reactive(state_changed).start(|| {
-    ///         // as long as the GUI code inside here depends only on the value of `score`, this is correct.
-    ///         ui.label(&score.to_string());
-    ///         // if it depended on something like the system's time,
-    ///         // the reactive block would incorrectly skip updating it.
-    ///     });    
-    /// }
+    /// # let mut ui: Ui = unimplemented!();
+    /// # let mut score = Observer::new(0);
+    /// #
+    /// let state_changed = ui.check_changes(&mut score);
+    /// ui.reactive(state_changed).start(|| {
+    ///     // as long as the GUI code inside here depends only on the value of `score`, this is correct.
+    ///     ui.label(&score.to_string());
+    ///     // if it depended on something like the system's time,
+    ///     // the reactive block would incorrectly skip updating it.
+    /// });
     /// ```
     /// 
     /// If code inside the reactive block changes the score, the GUI won't be updated until the following frame, as the value of `state_changed` is determined once at the start of the reactive block.

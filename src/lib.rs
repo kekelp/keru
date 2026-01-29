@@ -3,13 +3,12 @@
 //! # Code Example
 //! 
 //! ```no_run
-//! # use keru::example_window_loop::*;
 //! # use keru::*;
-//! # #[derive(Default)]
+//! # let mut ui: Ui = unimplemented!();
 //! # pub struct State {
 //! #     pub count: i32,
 //! # }
-//! # fn update_ui(state: &mut State, ui: &mut Ui) {
+//! # let mut state = State { count: 0 };
 //! // Define a unique identity for the button
 //! #[node_key] const INCREASE: NodeKey;
 //! 
@@ -31,7 +30,6 @@
 //! }
 //! // `is_clicked()` can be also called as a chained method after `ui.add(increase_button)`.
 //! // In that case, using a key wouldn't be necessary.
-//! # }
 //! ```
 //! 
 //! See the `counter_small` example in the repository for a full working version of this code. 
@@ -47,34 +45,27 @@
 //! 
 //! Every frame, start a new GUI frame, rerun all your GUI building code, then finish the frame.
 //! 
-//! ```rust
+//! ```no_run
 //! # use keru::*;
-//! # fn declare_ui(ui: &mut Ui) {
-//! #
+//! # let mut ui: Ui = unimplemented!();
 //! ui.begin_frame();
 //! ui.v_stack().nest(|| {
 //!     ui.label("Hello");
 //!     ui.label("World");
 //! });
 //! ui.finish_frame();
-//! #
-//! # }
 //! ```
 //! 
 //! The [`Ui`] struct retains the state of the whole GUI, so even if you do this on every frame, it doesn't mean that the GUI is rerendering or doing a full relayout every time. The library can detect differences and apply only the minimal updates or partial relayouts needed.
 //! 
 //! 
-//! * In Keru, everything is a node. Whether you want a [button](`BUTTON`), an [image](`IMAGE`), a [text element](`TEXT`), a [stack container](V_STACK), or anything else, the way is always to [`add()`](Ui::add) a node with the right [`Node`].
+//! * In Keru, everything is a [`Node`]. Whether you want a [button](`BUTTON`), an [image](`IMAGE`), a [text element](`TEXT`), a [stack container](V_STACK), or anything else, the way is always to [`add()`](Ui::add) a node with the right values.
 //! 
-//! * [`Ui`] has some convenience methods like [`Ui::label()`]. These are always equivalent to [`adding`](Ui::add) one or more nodes with specific [`Node`].
+//! * There are also "components", like [`Slider`]. Components are added with [`Ui::add_component()`] and they are a way to wrap multiple nodes into a reusable structure. You can define custom components with the [`SimpleComponent`] and [`Component`] traits.
+//! 
+//! * [`Ui`] has some convenience methods like [`Ui::label()`]. These work the same way as components, but with more natural syntax.
 //! 
 //! * To check interactions on a node, use [`Node::key()`] to associate a [`NodeKey`] to a [`Node`], then call methods like [`Ui::is_clicked()`] with the same [`NodeKey`].
-//! 
-//! * You can use the [`NodeKey::sibling()`] function to create keys dynamically at runtime. This is useful for dynamic GUIs where you can't identify every node with a static [`NodeKey`] in the way the basic examples do it.
-//! 
-//! * To create reusable "components", you can just wrap the GUI building code in a function, like the builtin convenience functions like [`Ui::label()`] do. If the code uses unique [`NodeKeys`](NodeKey), however, you'll need to wrap it in a [`subtree`](Ui::subtree()).
-//! 
-//!     This allows multiple calls to the same component function to reuse the same key multiple times without conflicts.
 //! 
 //! * The [`Ui::reactive()`] function provides an experimental way to improve performance in complex GUIs with many independent components.
 //! 

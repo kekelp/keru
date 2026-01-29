@@ -19,6 +19,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .position_x(Position::Start);
     
     let h_group = H_STACK
+        .animate_position(true)
         .slide_from_top()
         .clip_children_y(state.clip_children)
         .size_x(Size::Fill)
