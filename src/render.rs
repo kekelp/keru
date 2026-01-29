@@ -657,11 +657,7 @@ impl Ui {
     /// Convenience function that creates a render pass, renders into it, and presents to the screen.
     ///
     /// Panics if the current surface texture can't be obtained from `surface`.
-    pub fn autorender(
-        &mut self,
-        surface: &wgpu::Surface,
-        background_color: wgpu::Color,
-    ) {
+    pub fn autorender(&mut self, surface: &wgpu::Surface, background_color: wgpu::Color) {
         let output = surface.get_current_texture().unwrap();
         let view = output
             .texture

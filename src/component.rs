@@ -4,8 +4,6 @@ use std::{any::TypeId, collections::hash_map::Entry};
 
 
 /// A simpler version of [`Component`] for stateless components that don't have nested children.
-/// 
-/// Types that implement [`SimpleComponent`] can be used wherever a [`Component`] is required.
 pub trait SimpleComponent {
     fn add_to_ui(&mut self, ui: &mut Ui);
 
@@ -65,7 +63,7 @@ impl Ui {
 
         // Here, we have to pass the `&mut Ui` (`self`) and the reference to the state in `self.sys.user_state`.
         // Besides the dumb partial borrow issue, there's also a real issue: inside the `add_to_ui`, the user could re-add the same component and get a reference to the same state.
-        // But that's impossible because of the subtree id system. If the user re-adds with the same *key*, he'd end up with a different id anyway because of `id_with_subtree()`.
+        // But that's impossible because of the subtree id system. If the user re-adds with the same *key*, he'd end up with a different *id* anyway because of `id_with_subtree()`.
         // So there can't be multiple references to the same state.
         // If we really believe that, then we might as well use unsafe pointers. But we can also avoid the unsafe code and do this: remove the state from the hashmap, pass it to `add_to_ui` separately, then re-insert it. Since the state is inside a `Box` anyway, it can be moved in and out cheaply. We still do some extra hashing though.
         
@@ -79,7 +77,7 @@ impl Ui {
             // Safety: we know that T is () here because of the TypeId check. 
             let state_ref = unsafe { std::mem::transmute::<&mut (), &mut T::State>(&mut ()) };
             res = T::add_to_ui(&mut component_params, self, state_ref);
-                        
+
         } else {
             // Get the state or initialize it if it's not there yet.
             let mut state = match self.sys.user_state.entry(id) {

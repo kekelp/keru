@@ -843,8 +843,6 @@ impl Node {
     /// For example, the panel with the main content in a tabbed application should use [`children_can_hide(true)`], so that all state is retained when switching tabs.
     /// 
     /// On the other hand, a panel that contains thumbnails for files, or similar highly dynamic content, should use [`children_can_hide(false)`], so that when the thumbnails for the old elements are switched out, their memory can be reused for the new ones.
-    /// 
-    /// By default, almost all [`Node`] values have [`children_can_hide(false)`].
     pub fn children_can_hide(mut self, value: bool) -> Self {
         self.children_can_hide = if value { ChildrenCanHide::Yes } else { ChildrenCanHide::No };
         return self;

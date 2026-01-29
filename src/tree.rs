@@ -17,27 +17,24 @@ pub struct Id(pub u64);
 pub(crate) const FIRST_FRAME: u64 = 1;
 
 pub(crate) const Z_START: f32 = 0.5;
-// This one has to be small, but not small enough to get precision issues.
-// And I think it's probably good if it's a rounded binary number (0x38000000)? Not sure.
 pub const Z_STEP: f32 = -0.000_030_517_578;
 
 impl Ui {
-    /// Add a node to the `Ui` with the properties described by `params`.
+    /// Add a node to the `Ui`.
     /// 
-    /// `params` can be a basic [`Node`] or a [`FullNode`] created from it.
+    /// `node` can be a [`Node`] or a [`FullNode`].
     /// 
-    /// ```rust
+    /// ```no_run
     /// # use keru::*;
-    /// # fn declare_ui(ui: &mut Ui) {
+    /// # let mut ui: Ui = unimplemented!();
     /// let red_label = LABEL
     ///     .color(Color::RED)
     ///     .text("Increase");
     /// 
     /// ui.add(red_label);
-    /// # }
     /// ```
     /// 
-    ///  Buttons, images, text elements, stack containers, etc. are all created by `add`ing a node with the right [`Node`].
+    /// Buttons, images, text elements, stack containers, etc. are all created by `add`ing a [`Node`] with the right fields.
     #[track_caller]
     pub fn add<'a>(&mut self, node: impl Into<FullNode<'a>>) -> UiParent
     {
@@ -440,24 +437,16 @@ impl Ui {
         // self.sys.changes.partial_relayouts.push(relayout_entry);
     }
 
-    /// Clear the old GUI tree and start declaring another one.
+    /// Clear the old Ui tree and start declaring another one.
     /// 
     /// Use together with [`Ui::finish_frame()`], at most once per frame.
     /// 
-    /// ```rust
+    /// ```no_run
     /// # use keru::*;
-    /// # pub struct State {
-    /// #     pub ui: Ui,
-    /// # }
-    /// #
-    /// # impl State {
-    /// #   fn declare_ui(&mut self) {
-    /// self.ui.begin_frame();
-    /// // declare the GUI and update state
-    /// self.ui.finish_frame();
-    /// #
-    /// #   }
-    /// # }
+    /// # let mut ui: Ui = unimplemented!();
+    /// ui.begin_frame();
+    /// // declare the GUI and update state: ui.add(...)
+    /// ui.finish_frame();
     /// ```
     pub fn begin_frame(&mut self) {
         self.reset_root();
@@ -514,9 +503,6 @@ impl Ui {
         }
 
         reset_arena();
-
-        // let mut buffer = String::new();
-        // std::io::stdin().read_line(&mut buffer).expect("Failed to read line");
     }
 
     /// Returns `true` if a node corresponding to `key` exists and if it is currently part of the GUI tree. 
@@ -846,31 +832,20 @@ impl UiParent {
     /// 
     /// Inside the nested block, new nodes will be added as a child of the node that `self` refers to.
     /// 
-    /// ```rust
+    /// ```no_run
     /// # use keru::*;
-    /// # pub struct State {
-    /// #     pub ui: Ui,
-    /// # }
-    /// #
-    /// # impl State {
-    /// #    fn declare_ui(&mut self) {
-    /// #    let ui = &mut self.ui; 
-    /// #
+    /// # let mut ui: Ui = unimplemented!();
     /// # let parent = V_STACK;
     /// # let child = BUTTON;
     /// #
-    /// //             ↓ returns a `UiParent`
+    /// //           ↓ returns a `UiParent`
     /// ui.add(parent).nest(|| {
     ///     ui.add(child);
     /// });
-    /// #
-    /// #   }
-    /// # }
     /// ```
     /// 
-    /// Since the `content` closure doesn't borrow or move anything, it sets no restrictions at all on what code can be ran inside it.
-    /// You can keep accessing and mutating both the `Ui` object and the rest of the program state freely, as you'd outside of the closure. 
-    ///  
+    /// Since the `content` closure doesn't borrow or move anything, it sets no restrictions on what code can be ran inside it.
+    /// You can keep accessing and mutating both the `Ui` and the rest of the program state freely, as you would outside of the closure. 
     pub fn nest<T>(&self, content: impl FnOnce() -> T ) -> T {
         thread_local::push_parent(self);
 
@@ -902,5 +877,7 @@ pub(crate) fn with_info_log_timer<T>(operation_name: &str, f: impl FnOnce() -> T
 // Remember to but the vec back in place!
 pub(crate) fn take_buffer_and_clear<T>(buf: &mut Vec<T>) -> Vec<T> {
     buf.clear();
-    return mem::take(buf)
+    let placeholder = Vec::new();
+    let real_vec = mem::replace(buf, placeholder);
+    return real_vec;
 }

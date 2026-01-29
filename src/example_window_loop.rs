@@ -161,10 +161,7 @@ impl<T> ApplicationHandler for Application<T> {
                     state.ui.finish_frame();
                 }
                 if state.ui.should_rerender() {
-                    state.ui.autorender(
-                        &state.surface,
-                        wgpu::Color::BLACK,
-                    );
+                    state.ui.autorender(&state.surface, wgpu::Color::BLACK);
                 }
 
                 let frame_time = frame_start.elapsed();
