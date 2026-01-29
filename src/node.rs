@@ -530,6 +530,72 @@ impl Node {
         return DEFAULT;
     }
 
+    /// Create a node for a line segment between two points specified in fractional coordinates (0.0 to 1.0).
+    pub fn segment_frac(start: (f32, f32), end: (f32, f32), dash_length: Option<f32>) -> Self {
+        let (x1, y1) = start;
+        let (x2, y2) = end;
+
+        // Calculate bounding box
+        let min_x = x1.min(x2);
+        let max_x = x1.max(x2);
+        let min_y = y1.min(y2);
+        let max_y = y1.max(y2);
+
+        let width = max_x - min_x;
+        let height = max_y - min_y;
+
+        // Determine which diagonal
+        let x1_is_min = x1 == min_x;
+        let y1_is_min = y1 == min_y;
+
+        let seg_start = (if x1_is_min { 0.0 } else { 1.0 }, if y1_is_min { 0.0 } else { 1.0 });
+        let seg_end = (if x1_is_min { 1.0 } else { 0.0 }, if y1_is_min { 1.0 } else { 0.0 });
+
+        DEFAULT
+            .shape(Shape::Segment {
+                start: seg_start,
+                end: seg_end,
+                dash_length,
+            })
+            .position_x(Position::Static(Len::Frac(min_x)))
+            .position_y(Position::Static(Len::Frac(min_y)))
+            .size_x(Size::Frac(width))
+            .size_y(Size::Frac(height))
+    }
+
+    /// Create a node for a line segment between two points specified in pixel coordinates.
+    pub fn segment_px(start: (u32, u32), end: (u32, u32), dash_length: Option<f32>) -> Self {
+        let (x1, y1) = start;
+        let (x2, y2) = end;
+
+        // Calculate bounding box
+        let min_x = x1.min(x2);
+        let max_x = x1.max(x2);
+        let min_y = y1.min(y2);
+        let max_y = y1.max(y2);
+
+        let width = max_x - min_x;
+        let height = max_y - min_y;
+
+        // Determine which diagonal
+        let x1_is_min = x1 == min_x;
+        let y1_is_min = y1 == min_y;
+
+        let seg_start = (if x1_is_min { 0.0 } else { 1.0 }, if y1_is_min { 0.0 } else { 1.0 });
+        let seg_end = (if x1_is_min { 1.0 } else { 0.0 }, if y1_is_min { 1.0 } else { 0.0 });
+
+        DEFAULT
+            .shape(Shape::Segment {
+                start: seg_start,
+                end: seg_end,
+                dash_length,
+            })
+            .position_x(Position::Static(Len::Pixels(min_x)))
+            .position_y(Position::Static(Len::Pixels(min_y)))
+            .size_x(Size::Pixels(width))
+            .size_y(Size::Pixels(height))
+    }
+
     pub const fn position(mut self, position_x: Position, position_y: Position) -> Self {
         self.layout.position.x = position_x;
         self.layout.position.y = position_y;

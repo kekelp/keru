@@ -146,17 +146,9 @@ impl UiExt for Ui {
 
                 // Draw line segments
                 for i in 0..points.len() - 1 {
-                    let segment_shape = Shape::Segment {
-                        start: points[i],
-                        end: points[i + 1],
-                        dash_length: Some(10.0),
-                    };
-
-                    let segment_node = DEFAULT
-                        .shape(segment_shape)
+                    let segment_node = Node::segment_frac(points[i], points[i + 1], Some(10.0))
                         .color(Color::KERU_GREEN)
-                        .stroke(4.0)
-                        .size_symm(Size::Fill);
+                        .stroke(4.0);
 
                     self.add(segment_node);
                 }
@@ -204,7 +196,7 @@ impl UiExt for Ui {
             - reusable components\n\
             - components with associated state\n\
             - more incrementality in the layout and render code\n\
-            - some limited forms of incrementality in the user Ui declaration code\n\
+            - some limited forms of incrementality in the user Ui declaration code, maybe\n\
             - cooler looking gradients");
 
         });
@@ -257,7 +249,7 @@ impl UiExt for Ui {
         It can remember its own state (the pan and zoom of the transform) without us having to make space for it in our own State struct and passing it by reference.\n\
         The state is initialized to its Default value when the component is first added to the tree, and is stored within the Ui struct in a Box<dyn Any>.\n\
         You can also see how this state is retained when swiching between tabs, thanks to the \"children can hide\" property.\n\n\
-        The plan is to provide most components both in a stateful and state-borrowing forms.");
+        The plan is to provide most components both in stateful and state-borrowing forms.");
 
         self.add(V_SCROLL_STACK).nest(|| {
 
