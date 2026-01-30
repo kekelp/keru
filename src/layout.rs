@@ -346,14 +346,19 @@ impl Ui {
         return final_size;
     }
 
-    fn determine_image_size(&mut self, i: NodeI, _proposed_size: Xy<f32>) -> Xy<f32> {
+    fn determine_image_size(&mut self, i: NodeI, proposed_size: Xy<f32>) -> Xy<f32> {
         if let Some(imageref) = &self.nodes[i].imageref {
-            let loaded = match imageref {
-                crate::render::ImageRef::Raster(loaded) => loaded,
-                crate::render::ImageRef::Svg(loaded) => loaded,
-            };
-            let size_pixels = Xy::new(loaded.width as f32, loaded.height as f32);
-            return self.f32_pixels_to_frac2(size_pixels);
+            match imageref {
+                crate::render::ImageRef::Raster(loaded) => {
+                    // use intrinsic size
+                    let size_pixels = Xy::new(loaded.width as f32, loaded.height as f32);
+                    return self.f32_pixels_to_frac2(size_pixels);
+                }
+                crate::render::ImageRef::Svg(_loaded) => {
+                    // no intrinsic size
+                    return proposed_size;
+                }
+            }
         }
         // Fallback if no image is loaded
         let fallback_pixels = Xy::new(100.0, 100.0);

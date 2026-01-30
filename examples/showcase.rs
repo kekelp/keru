@@ -74,6 +74,9 @@ impl UiExt for Ui {
             let image = IMAGE.static_image(include_bytes!("../src/textures/clouds.png"));
             self.add(image);
 
+            let icon = ICON.static_svg(include_bytes!("assets/tiger.svg"));
+            self.add(icon);
+
             self.static_paragraph("Fat slider:");
 
             self.add_component(Slider::new(&mut state.f32_value, 0.0, 100.0, true));
