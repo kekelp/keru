@@ -604,51 +604,92 @@ impl Ui {
 
     }
 
-    pub(crate) fn set_static_image(&mut self, i: NodeI, image: &'static [u8]) -> &mut Self {
+    pub(crate) fn set_static_image(&mut self, i: NodeI, image: &'static [u8]) {
         let node = &mut self.nodes[i];
-        let ptr = image.as_ptr();
+        let source = ImageSourceId::StaticPtr(image.as_ptr());
 
-        if node.last_static_image_ptr == Some(ptr) {
-            return self;
+        if node.last_image_source == Some(source) {
+            return;
         }
 
         if let Some(loaded) = self.sys.renderer.image_renderer.load_image_from_bytes(image) {
             log::info!("Loaded image: {}x{} on page {}", loaded.width, loaded.height, loaded.page);
             node.imageref = Some(crate::render::ImageRef::Raster(loaded));
-            node.last_static_image_ptr = Some(ptr);
+            node.last_image_source = Some(source);
             self.sys.changes.should_rebuild_render_data = true;
         } else {
             log::error!("Failed to load image from {} bytes", image.len());
         }
-
-        self
     }
 
-    pub(crate) fn set_static_svg(&mut self, i: NodeI, svg_data: &'static [u8]) -> &mut Self {
+    pub(crate) fn set_static_svg(&mut self, i: NodeI, svg_data: &'static [u8]) {
         let node = &mut self.nodes[i];
-        let ptr = svg_data.as_ptr();
+        let source = ImageSourceId::StaticPtr(svg_data.as_ptr());
 
-        if node.last_static_image_ptr == Some(ptr) {
-            return self;
+        if node.last_image_source == Some(source) {
+            return;
         }
 
-        // Start with a default size - will be re-rasterized at proper resolution during layout
         let initial_size = 512;
         if let Some(loaded) = self.sys.renderer.image_renderer.load_svg(svg_data, initial_size, initial_size) {
             log::info!("Loaded SVG: {}x{} on page {}", loaded.width, loaded.height, loaded.page);
-            node.imageref = Some(crate::render::ImageRef::Svg {
-                loaded,
-                data: svg_data,
-                rasterized_width: initial_size,
-                rasterized_height: initial_size,
-            });
-            node.last_static_image_ptr = Some(ptr);
+            node.imageref = Some(crate::render::ImageRef::Svg(loaded));
+            node.last_image_source = Some(source);
             self.sys.changes.should_rebuild_render_data = true;
         } else {
             log::error!("Failed to load SVG from {} bytes", svg_data.len());
         }
+    }
 
-        self
+    pub(crate) fn set_path_image(&mut self, i: NodeI, path: &str) {
+        let node = &mut self.nodes[i];
+        let source = crate::inner_node::ImageSourceId::PathHash(crate::tree::ahash(&path));
+
+        if node.last_image_source == Some(source) {
+            return;
+        }
+
+        match std::fs::read(path) {
+            Ok(bytes) => {
+                if let Some(loaded) = self.sys.renderer.image_renderer.load_image_from_bytes(&bytes) {
+                    log::info!("Loaded image from path '{}': {}x{} on page {}", path, loaded.width, loaded.height, loaded.page);
+                    node.imageref = Some(crate::render::ImageRef::Raster(loaded));
+                    node.last_image_source = Some(source);
+                    self.sys.changes.should_rebuild_render_data = true;
+                } else {
+                    log::error!("Failed to decode image from path '{}'", path);
+                }
+            }
+            Err(e) => {
+                log::error!("Failed to read image file '{}': {}", path, e);
+            }
+        }
+    }
+
+    pub(crate) fn set_path_svg(&mut self, i: NodeI, path: &str) {
+        let node = &mut self.nodes[i];
+        let source = crate::inner_node::ImageSourceId::PathHash(crate::tree::ahash(&path));
+
+        if node.last_image_source == Some(source) {
+            return;
+        }
+
+        match std::fs::read(path) {
+            Ok(bytes) => {
+                let initial_size = 512;
+                if let Some(loaded) = self.sys.renderer.image_renderer.load_svg(&bytes, initial_size, initial_size) {
+                    log::info!("Loaded SVG from path '{}': {}x{} on page {}", path, loaded.width, loaded.height, loaded.page);
+                    node.imageref = Some(crate::render::ImageRef::Svg(loaded));
+                    node.last_image_source = Some(source);
+                    self.sys.changes.should_rebuild_render_data = true;
+                } else {
+                    log::error!("Failed to decode SVG from path '{}'", path);
+                }
+            }
+            Err(e) => {
+                log::error!("Failed to read SVG file '{}': {}", path, e);
+            }
+        }
     }
 }
 

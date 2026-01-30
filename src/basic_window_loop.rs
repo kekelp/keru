@@ -190,8 +190,8 @@ impl Context {
         frame.surface_texture.present();
     }
 
-    pub fn render_ui(&mut self, ui: &mut Ui) {
-        ui.autorender(&self.surface, wgpu::Color::BLACK);
+    pub fn render_ui(&mut self, ui: &mut Ui, background_color: Color) {
+        ui.autorender(&self.surface, background_color);
     }
 }
 

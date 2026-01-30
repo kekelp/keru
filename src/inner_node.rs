@@ -2,6 +2,12 @@ use std::{fmt::Write, panic::Location};
 
 use crate::*;
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum ImageSourceId {
+    StaticPtr(*const u8),
+    PathHash(u64),
+}
+
 #[derive(Debug)]
 pub struct InnerNode {
     pub id: Id,
@@ -43,7 +49,7 @@ pub struct InnerNode {
     pub text_i: Option<TextI>,
 
     pub imageref: Option<ImageRef>,
-    pub last_static_image_ptr: Option<*const u8>,
+    pub last_image_source: Option<ImageSourceId>,
 
     pub last_text_ptr: usize,
 
@@ -154,7 +160,7 @@ impl InnerNode {
             accumulated_transform: keru_draw::Transform::identity(),
 
             imageref: None,
-            last_static_image_ptr: None,
+            last_image_source: None,
             last_text_ptr: 0,
 
             parent: NodeI::from(12312355), // just a wrong value which will be overwritten. it's even worse here.
@@ -268,7 +274,7 @@ pub const NODE_ROOT: InnerNode = InnerNode {
     text_i: None,
 
     imageref: None,
-    last_static_image_ptr: None,
+    last_image_source: None,
     last_text_ptr: 0,
 
     // The root node is his own parent. This can be nice sometimes but it would probably be better to not use it.

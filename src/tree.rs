@@ -307,14 +307,15 @@ impl Ui {
         }
 
         // Render images
-        if let Some(imageref) = &self.nodes[i].imageref {
-            let loaded = match imageref {
-                ImageRef::Raster(loaded) => loaded,
-                ImageRef::Svg { loaded, .. } => loaded,
-            };
-
+        if self.nodes[i].imageref.is_some() {
             let animated_rect = self.nodes[i].get_animated_rect();
             let padding = self.nodes[i].params.layout.padding;
+
+            let imageref = self.nodes[i].imageref.as_mut().unwrap();
+            let loaded = match imageref {
+                ImageRef::Raster(loaded) => loaded,
+                ImageRef::Svg(loaded) => loaded,
+            };
 
             let image_width = loaded.width as f32;
             let image_height = loaded.height as f32;

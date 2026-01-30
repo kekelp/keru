@@ -825,10 +825,5 @@ impl Ui {
 #[derive(Clone, Debug)]
 pub enum ImageRef {
     Raster(LoadedImage),
-    Svg {
-        loaded: LoadedImage,
-        data: &'static [u8],
-        rasterized_width: u32,
-        rasterized_height: u32,
-    },
+    Svg(LoadedImage),
 }

@@ -1327,25 +1327,16 @@ name = "keru_draw"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
- "euclid",
- "keru_images",
- "textslabs",
- "wgpu",
- "wgpu-profiler",
-]
-
-[[package]]
-name = "keru_images"
-version = "0.1.0"
-dependencies = [
- "bytemuck",
  "etagere",
+ "euclid",
  "image",
  "resvg",
  "slotmap",
+ "textslabs",
  "tiny-skia",
  "usvg",
  "wgpu",
+ "wgpu-profiler",
 ]
 
 [[package]]

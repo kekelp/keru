@@ -3,6 +3,7 @@ use Size::*;
 use Position::*;
 use Shape::*;
 
+// todo remove this
 // TODO: Re-add Cap and Join when implementing stroke features in keru_draw
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -454,7 +455,7 @@ pub const TEXT: Node = Node {
     custom_render: false,
 };
 
-/// [`Node`] for an icon element. 
+/// [`Node`] for an icon element.
 pub const ICON: Node = Node {
     animation: NO_ANIMATION,
     key: None,

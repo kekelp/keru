@@ -1016,11 +1016,15 @@ impl<'a> NodeText<'a> {
 
 /// Data for an image to be displayed
 #[derive(Copy, Clone)]
-pub enum ImageData {
-    /// Raster image (PNG, JPEG, etc.)
-    Raster(&'static [u8]),
-    /// SVG image data
-    Svg(&'static [u8]),
+pub enum Image<'a> {
+    /// Raster image from static bytes (PNG, JPEG, etc.)
+    RasterStatic(&'static [u8]),
+    /// Raster image from filesystem path
+    RasterPath(&'a str),
+    /// SVG image from static bytes
+    SvgStatic(&'static [u8]),
+    /// SVG image from filesystem path
+    SvgPath(&'a str),
 }
 
 /// An extended version of [`Node`] that can hold text or other borrowed data.
@@ -1036,7 +1040,7 @@ pub struct FullNode<'a> {
     pub(crate) text_changed: Changed,
     // todo: why store it here? just do text.ptr()?
     pub(crate) text_ptr: usize,
-    pub image: Option<ImageData>,
+    pub image: Option<Image<'a>>,
     pub placeholder: Option<&'a str>,
 }
 
@@ -1556,7 +1560,19 @@ impl Node {
             params: self,
             text: None,
             text_style: None,
-            image: Some(ImageData::Raster(image)),
+            image: Some(Image::RasterStatic(image)),
+            text_changed: Changed::Static,
+            text_ptr: 0,
+            placeholder: None,
+        }
+    }
+
+    pub fn image_path<'a>(self, path: &'a str) -> FullNode<'a> {
+        return FullNode {
+            params: self,
+            text: None,
+            text_style: None,
+            image: Some(Image::RasterPath(path)),
             text_changed: Changed::Static,
             text_ptr: 0,
             placeholder: None,
@@ -1568,7 +1584,19 @@ impl Node {
             params: self,
             text: None,
             text_style: None,
-            image: Some(ImageData::Svg(svg)),
+            image: Some(Image::SvgStatic(svg)),
+            text_changed: Changed::Static,
+            text_ptr: 0,
+            placeholder: None,
+        }
+    }
+
+    pub fn svg_path<'a>(self, path: &'a str) -> FullNode<'a> {
+        return FullNode {
+            params: self,
+            text: None,
+            text_style: None,
+            image: Some(Image::SvgPath(path)),
             text_changed: Changed::Static,
             text_ptr: 0,
             placeholder: None,
@@ -1740,8 +1768,10 @@ impl Ui {
         
         if let Some(image_data) = params.image {
             match image_data {
-                ImageData::Raster(image) => self.set_static_image(i, image),
-                ImageData::Svg(svg) => self.set_static_svg(i, svg),
+                Image::RasterStatic(image) => self.set_static_image(i, image),
+                Image::RasterPath(path) => self.set_path_image(i, path),
+                Image::SvgStatic(svg) => self.set_static_svg(i, svg),
+                Image::SvgPath(path) => self.set_path_svg(i, path),
             };
         }
         
