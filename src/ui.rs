@@ -518,6 +518,7 @@ impl Ui {
 }
 
 impl Ui {
+    /// Hit test with the current stored cursor position and a click rect
     pub(crate) fn hit_click_rect(&self, rect: &ClickRect) -> bool {
         let size = self.sys.unifs.size;
 
