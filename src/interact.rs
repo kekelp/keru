@@ -84,16 +84,6 @@ impl Ui {
             self.set_new_ui_input();
         }
 
-        // scroll area hover
-        let hovered_scroll_area_id = self.scan_scroll_areas_mouse_hits();
-
-        // since this doesn't cause any rerenders or gpu updates directly, I think we can do it in the dumb way for now
-        if let Some(hovered_scroll_area_id) = hovered_scroll_area_id {
-            self.sys.hovered_scroll_area = Some(hovered_scroll_area_id);
-        } else {
-            self.sys.hovered_scroll_area = None;
-        }
-
         // in debug mode, do a separate scan that sees invisible rects as well
         #[cfg(debug_assertions)] {
             if self.inspect_mode() {
@@ -221,9 +211,12 @@ impl Ui {
             // In inspect mode, we see all rects. In normal mode, we only process rects that are interactive
             #[cfg(debug_assertions)] {
                 if ! _see_invisible_rects {
-                    let has_interaction = self.nodes[clk_rect.i].params.interact.absorbs_mouse_events
-                        || self.nodes[clk_rect.i].params.interact.senses != Sense::NONE;
-                    if !has_interaction {
+                    // todo deduplicate this with the one used when creating the rects    
+                    let has_interaction = clk_rect.absorbs_mouse_events
+                        || self.nodes[clk_rect.i].params.interact.senses != Sense::NONE
+                        || self.nodes[clk_rect.i].params.is_scrollable();
+
+                    if ! has_interaction {
                         continue;
                     }
                 }
@@ -231,11 +224,10 @@ impl Ui {
 
             if self.hit_click_rect(&clk_rect) {
                 let node_id = self.nodes[clk_rect.i].id;
-                let absorbs = self.nodes[clk_rect.i].params.interact.absorbs_mouse_events;
 
                 result.push(node_id);
 
-                if absorbs {
+                if clk_rect.absorbs_mouse_events {
                     break;
                 }
             }
@@ -244,18 +236,6 @@ impl Ui {
         return result;
     }
 
-
-    pub(crate) fn scan_scroll_areas_mouse_hits(&mut self) -> Option<Id> {
-        for clk_i in (0..self.sys.scroll_rects.len()).rev() {
-            let clk_rect = self.sys.scroll_rects[clk_i];
-
-            if self.hit_click_rect(&clk_rect) {
-                return Some(self.nodes[clk_rect.i].id);
-            }
-        }
-
-        return None;
-    }
 
     pub(crate) fn handle_keyboard_event(&mut self, event: &KeyEvent) -> bool {
                 
@@ -278,40 +258,88 @@ impl Ui {
     }
 
     pub(crate) fn handle_scroll_event(&mut self, delta: &MouseScrollDelta) {
-        let Some(hovered_scroll_area_id) = self.sys.hovered_scroll_area else {
-            return;
-        };
 
-        let Some(i) = self.nodes.node_hashmap.get(&hovered_scroll_area_id) else {
+        // start with hovered_node_ids and propagate back
+        // find the right targets
+        // the scroll event in mouseinput
+        let Some(hovered_scroll_area_id) = self.sys.mouse_input.currently_hovered_tags.first() else {
             return;
         };
-        let i = i.slab_i;
+        let Some(map_entry) = self.nodes.node_hashmap.get(&hovered_scroll_area_id) else {
+            return;
+        };
+        let hover_i = map_entry.slab_i;
+
+        dbg!(self.nodes[hover_i].debug_name());
 
         let (x, y) = match delta {
             MouseScrollDelta::LineDelta(x, y) => (x * 0.1, y * 0.1),
             MouseScrollDelta::PixelDelta(PhysicalPosition {x, y}) => (*x as f32, *y as f32),
         };
-        let delta = Xy::new(x, y);
+        let fdelta = Xy::new(x, y);
 
-        for axis in [X, Y] {            
-            if self.nodes[i].params.layout.scrollable[axis] {
-                self.update_container_scroll(i, delta[axis], axis);
-            };
+        // Check if the hovered scroll area has the SCROLL sense
+        if self.nodes[hover_i].params.interact.senses.contains(Sense::SCROLL) {
+            self.set_new_ui_input();
         }
-        
-        if self.nodes[i].params.is_scrollable() {
 
-            // todo: add quicker functions that just move the rectangles. for text, this requires big changes in textslabs and will probably become impossible if we change renderer
-            self.recursive_place_children(i);
-            
-            self.sys.changes.text_changed = true;
-            // self.sys.text.prepare_all(&mut self.sys.text_renderer);
+        let mut scroll_target: Option<NodeI> = None;
+        let mut sense_or_container: bool = false;
 
-            self.resolve_hover();
+        // Try to scroll in each axis, propagating to parents if necessary
+        for axis in [X, Y] {
+            if fdelta[axis] == 0.0 {
+                continue;
+            }
 
+            let mut current_i = hover_i;
 
-            self.sys.changes.need_gpu_rect_update = true;
-            self.sys.changes.need_rerender = true;
+            // Walk up the parent chain until we find a scrollable node in this axis
+            loop {
+                let has_scroll_sense = self.nodes[current_i].params.interact.senses.contains(Sense::SCROLL);
+                // If this node absorbs mouse events and has scroll sense, stop propagation
+                if has_scroll_sense {
+                    scroll_target = Some(current_i);
+                    sense_or_container = true;
+                    break;
+                }
+
+                if self.nodes[current_i].params.layout.scrollable[axis] {
+                    scroll_target = Some(current_i);
+                    sense_or_container = false;
+                    break;
+                }
+
+                // Propagate to parent
+                let parent_i = self.nodes[current_i].parent;
+                if parent_i == ROOT_I {
+                    break;
+                } else {
+                    current_i = parent_i;
+                }
+            }
+        }
+
+        if let Some(scroll_target) = scroll_target {
+
+            if sense_or_container {
+                let scroll_target_id = self.nodes[scroll_target].id;
+                self.sys.mouse_input.push_scroll_event(delta, scroll_target_id);
+
+                self.set_new_ui_input();
+
+            } else {
+                self.update_container_scroll(scroll_target, fdelta[Y], Y);
+                self.recursive_place_children(scroll_target);
+
+                self.sys.changes.text_changed = true;
+                // self.sys.text.prepare_all(&mut self.sys.text_renderer);
+    
+                self.resolve_hover();
+    
+                self.sys.changes.need_gpu_rect_update = true;
+                self.sys.changes.need_rerender = true;
+            }
         }
     }
 }
@@ -321,6 +349,8 @@ impl Ui {
 pub(crate) struct ClickRect {
     pub rect: XyRect,
     pub i: NodeI,
+    pub scrollable: Xy<bool>,
+    pub absorbs_mouse_events: bool,
 }
 
 bitflags::bitflags! {
@@ -329,10 +359,11 @@ bitflags::bitflags! {
         const CLICK = 1 << 0;
         const DRAG  = 1 << 1;
         const HOVER = 1 << 2;
+        const SCROLL = 1 << 3;
         const HOLD  = 1 << 4;
         const CLICK_RELEASE = 1 << 5;
         // todo: HoverEnter could be useful
-        
+
         const NONE = 0;
     }
 }
@@ -362,6 +393,8 @@ impl Ui {
         return ClickRect {
             rect: clipped_rect,
             i,
+            scrollable: self.nodes[i].params.layout.scrollable,
+            absorbs_mouse_events: self.nodes[i].params.interact.absorbs_mouse_events,
         }
     }
 }

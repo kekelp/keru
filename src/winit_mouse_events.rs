@@ -21,6 +21,7 @@ pub struct MouseInput<T: Tag> {
     last_frame_scroll_events: Vec<ScrollEvent<T>>,
     current_frame_scroll_events: Vec<ScrollEvent<T>>,
     pub currently_hovered_tags: SmallVec<T>,
+    pub currently_hovered_tag_for_scroll: SmallVec<T>,
     pub cursor_position: DVec2,
     pub prev_cursor_position: DVec2,
 }
@@ -34,6 +35,7 @@ impl<T: Tag> Default for MouseInput<T> {
             last_frame_scroll_events: Vec::with_capacity(10),
             current_frame_scroll_events: Vec::with_capacity(10),
             currently_hovered_tags: SmallVec::with_capacity(5),
+            currently_hovered_tag_for_scroll: SmallVec::with_capacity(5),
             cursor_position: Default::default(),
             prev_cursor_position: Default::default(),
         }
@@ -89,9 +91,6 @@ impl<T: Tag> MouseInput<T> {
                     },
                 }
             },
-            WindowEvent::MouseWheel { delta, .. } => {
-                self.push_scroll_event(delta);
-            }
             _ => {}
         }
     }
@@ -139,17 +138,19 @@ impl<T: Tag> MouseInput<T> {
         }
     }
 
-    pub fn push_scroll_event(&mut self, delta: &MouseScrollDelta) {
+    pub fn push_scroll_event(&mut self, delta: &MouseScrollDelta, tag: T) {
         let (x, y) = match delta {
             MouseScrollDelta::LineDelta(x, y) => ((x * 0.1) as f64 , (y * 0.1) as f64),
             MouseScrollDelta::PixelDelta(pos) => (pos.x, pos.y),
         };
 
+        let mut tag2 = SmallVec::new();
+        tag2.push(tag);
         let scroll_event = ScrollEvent {
             delta: DVec2::new(x, y),
             position: self.cursor_position,
             timestamp: Instant::now(),
-            tag: self.currently_hovered_tags.clone(),
+            tag: tag2,
         };
 
         self.current_frame_scroll_events.push(scroll_event);

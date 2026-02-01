@@ -405,6 +405,7 @@ impl Component for TransformView<'_> {
             .padding(0)
             .color(Color::TRANSPARENT)
             .sense_drag(true)
+            .sense_scroll(true)
             .absorbs_clicks(false)
             .size(Size::Fill, Size::Fill)
             .key(PAN_OVERLAY);

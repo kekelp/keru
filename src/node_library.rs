@@ -186,7 +186,7 @@ pub const V_SCROLL_STACK: Node = Node {
             padding: Xy::new_symm(0),
             position: Xy::new_symm(Center),
             anchor: Xy::new_symm(Anchor::Start),
-        scrollable: Xy::new(false, true),
+            scrollable: Xy::new(false, true),
         },
         children_can_hide: ChildrenCanHide::Inherit,
         clip_children: Xy::new(false, true),

@@ -774,7 +774,6 @@ impl Ui {
 
     pub(crate) fn rebuild_render_data(&mut self) {
         self.sys.click_rects.clear();
-        self.sys.scroll_rects.clear();
         self.sys.z_cursor = Z_START;
 
         self.sys.changes.unfinished_animations = false;

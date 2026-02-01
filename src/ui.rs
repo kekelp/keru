@@ -103,9 +103,6 @@ pub(crate) struct System {
 
     pub click_rects: Vec<ClickRect>,
 
-    // rects that react to mouse wheel scroll
-    pub scroll_rects: Vec<ClickRect>,
-
     pub unifs: Uniforms,
     pub current_frame: u64,
     pub last_frame_end_fake_time: u64,
@@ -122,8 +119,8 @@ pub(crate) struct System {
     #[cfg(debug_assertions)]
     pub inspect_hovered: SmallVec<Id>,
 
+    // ???????
     pub hovered: Vec<Id>,
-    pub hovered_scroll_area: Option<Id>,
 
     pub focused: Option<Id>,
 
@@ -290,7 +287,6 @@ impl Ui {
                 new_external_events: true,
 
                 click_rects: Vec::with_capacity(50),
-                scroll_rects: Vec::with_capacity(20),
 
 
                 partial_relayout_count: 0,
@@ -311,7 +307,6 @@ impl Ui {
 
                 // todo: maybe remove and use mouse_input.current_tag()? There was never a point in having multiple hovereds
                 hovered: Vec::with_capacity(15),
-                hovered_scroll_area: None,
 
                 #[cfg(debug_assertions)]
                 inspect_hovered: smallvec::SmallVec::new(),

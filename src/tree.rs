@@ -264,6 +264,7 @@ impl Ui {
 
     pub(crate) fn push_render_data(&mut self, i: NodeI) {
         let debug = cfg!(debug_assertions);
+        let is_scrollable = self.nodes[i].params.is_scrollable();
         let push_click_rect = if debug && self.inspect_mode() {
             true
         } else {
@@ -275,17 +276,12 @@ impl Ui {
                     TextI::TextBox(_) => false,
                 }
             } else { false };
-            opaque || editable || has_senses
+            opaque || editable || has_senses || is_scrollable
         };
 
         if push_click_rect {
             let click_rect = self.click_rect(i);
             self.sys.click_rects.push(click_rect);
-        }
-
-        if self.nodes[i].params.is_scrollable() {
-            let click_rect = self.click_rect(i);
-            self.sys.scroll_rects.push(click_rect);
         }
 
         self.sys.z_cursor += Z_STEP;

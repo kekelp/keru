@@ -309,14 +309,19 @@ impl UiNode<'_> {
     /// 
     /// If the node was scrolled multiple times in the last frame, the result holds the information about the last scroll only.
     pub fn scrolled_at(&self) -> Option<ScrollEvent> {
+        #[cfg(debug_assertions)]
+        if !self.check_node_sense(Sense::SCROLL, "scrolled_at()", "Node::sense_scroll()") {
+            return None;
+        }
+
         let scroll_event = self.ui.sys.mouse_input.last_scroll_event(Some(self.node().id))?;
         let node_rect = self.node().real_rect;
-        
+
         let relative_position = glam::DVec2::new(
             ((scroll_event.position.x / self.ui.sys.unifs.size.x as f64) - (node_rect.x[0]) as f64) / node_rect.size().x as f64,
             ((scroll_event.position.y / self.ui.sys.unifs.size.y as f64) - (node_rect.y[0]) as f64) / node_rect.size().y as f64,
         );
-        
+
         return Some(ScrollEvent {
             relative_position,
             absolute_position: scroll_event.position,
@@ -327,7 +332,11 @@ impl UiNode<'_> {
 
     /// Returns the total scroll delta for this node in the last frame, or None if no scroll events occurred.
     pub fn is_scrolled(&self) -> Option<glam::DVec2> {
-        // todo: is there no sense_scroll?
+        #[cfg(debug_assertions)]
+        if !self.check_node_sense(Sense::SCROLL, "is_scrolled()", "Node::sense_scroll()") {
+            return None;
+        }
+
         return self.ui.sys.mouse_input.scrolled(Some(self.node().id));
     }
 }
