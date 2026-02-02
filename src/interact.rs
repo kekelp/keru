@@ -52,8 +52,15 @@ impl Ui {
         let hovered_node_ids = self.scan_mouse_hits(false);
         self.sys.mouse_input.update_current_tag(hovered_node_ids.clone());
 
-        // Get the topmost hovered element (first in the list) for hover animations
-        if let Some(&hovered_id) = hovered_node_ids.first() {
+
+        for i in 0..self.sys.hovered.len() {
+            let old_hovered = self.sys.hovered[i];
+            if ! hovered_node_ids.contains(&old_hovered) {
+                self.end_hovering_i(old_hovered);
+            }
+        }
+
+        for &hovered_id in &hovered_node_ids {
             if self.sys.hovered.contains(&hovered_id) {
                 let hovered_i = self.nodes.node_hashmap.get(&hovered_id).unwrap().slab_i;
                 if self.nodes[hovered_i].params.interact.senses.contains(Sense::HOVER) {
@@ -64,7 +71,6 @@ impl Ui {
                 // newly entered
                 let (_, hovered_node_i) = self.nodes.get_mut_by_id(&hovered_id).unwrap();
 
-                self.end_all_hovering();
                 self.start_hovering(hovered_id);
 
                 if self.nodes[hovered_node_i].params.interact.senses.contains(Sense::HOVER) {
@@ -76,9 +82,9 @@ impl Ui {
 
             }
 
-        } else {
-            self.end_all_hovering();
         }
+        
+        self.sys.hovered.retain(|i| hovered_node_ids.contains(i));
 
         if self.sys.mouse_input.dragged(Some(MouseButton::Left), None) != (0.0, 0.0) {
             self.set_new_ui_input();
@@ -120,20 +126,18 @@ impl Ui {
 
     }
 
-    pub(crate) fn end_all_hovering(&mut self) {
+    pub(crate) fn end_hovering_i(&mut self, id: Id) {
         let mut animation = false;
 
-        for hovered_id in &self.sys.hovered {
-            if let Some((hovered_node, _hovered_node_i)) = self.nodes.get_mut_by_id(hovered_id) {
-                if hovered_node.last_frame_touched == self.sys.current_frame {
-                
-                    if hovered_node.params.interact.click_animation {
-                        hovered_node.hovered = false;
-                        hovered_node.hover_timestamp = ui_time_f32();
-                        self.sys.changes.rebuild_render_data = true;
+        if let Some((hovered_node, _hovered_node_i)) = self.nodes.get_mut_by_id(&id) {
+            if hovered_node.last_frame_touched == self.sys.current_frame {
+            
+                if hovered_node.params.interact.click_animation {
+                    hovered_node.hovered = false;
+                    hovered_node.hover_timestamp = ui_time_f32();
+                    self.sys.changes.rebuild_render_data = true;
 
-                        animation = true;
-                    }
+                    animation = true;
                 }
             }
         }
@@ -141,8 +145,6 @@ impl Ui {
         if animation {
             self.sys.anim_render_timer.push_new(Duration::from_secs_f32(ANIMATION_RERENDER_TIME));
         }
-
-        self.sys.hovered.clear();
     }
 
     pub(crate) fn begin_frame_resolve_inputs(&mut self) {
