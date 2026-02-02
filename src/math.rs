@@ -4,24 +4,6 @@ use std::{hash::{Hash, Hasher}, ops::{Add, AddAssign, Div, Index, IndexMut, Mul,
 
 use crate::*;
 
-/// A length on the screen, expressed either as pixels or as a fraction of a parent rectangle.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Len {
-    Pixels(f32),
-    Frac(f32),
-}
-impl Len {
-    pub const ZERO: Self = Self::Pixels(0.0);
-}
-impl Hash for Len {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        match self {
-            Len::Pixels(p) => (0u8, p.to_bits()).hash(state),
-            Len::Frac(f) => (1u8, f.to_bits()).hash(state),
-        }
-    }
-}
-
 impl Ui {
     pub(crate) fn f32_size_to_pixels2(&self, size: Xy<f32>) -> Xy<f32> {
         return Xy::new(
@@ -38,17 +20,6 @@ impl Ui {
             self.pixels_to_frac(pixels.x, X),
             self.pixels_to_frac(pixels.y, Y),
         );
-    }
-
-    pub(crate) fn len_to_frac_of_size(&self, len: Len, parent: Xy<f32>, axis: Axis) -> f32 {
-        match len {
-            Len::Pixels(pixels) => {
-                return self.pixels_to_frac(pixels, axis);
-            },
-            Len::Frac(frac) => {
-                return parent[axis] * frac;
-            }
-        };
     }
 }
 

@@ -97,8 +97,8 @@ impl ColorPickerUi for Ui {
                 .size_symm(Size::Pixels(5))
                 .color(Color::WHITE)
                 .shape(Shape::Circle)
-                .position_x(Position::Static(Len::Frac(ring_x)))
-                .position_y(Position::Static(Len::Frac(ring_y)));
+                .position_x(Position::Frac(ring_x))
+                .position_y(Position::Frac(ring_y));
 
             // layout
             self.add(container).nest(|| {

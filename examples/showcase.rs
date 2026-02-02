@@ -164,8 +164,8 @@ impl UiExt for Ui {
                         .color(Color::KERU_BLUE)
                         .anchor_symm(Anchor::Center)
                         .size_symm(Size::Pixels(circle_size))
-                        .position_x(Position::Static(Len::Frac(x)))
-                        .position_y(Position::Static(Len::Frac(y)));
+                        .position_x(Position::Frac(x))
+                        .position_y(Position::Frac(y));
 
                     self.add(circle_node);
                 }
@@ -186,8 +186,8 @@ impl UiExt for Ui {
                     .color(Color::KERU_RED)
                     .anchor_symm(Anchor::Center)
                     .size_symm(Size::Pixels(50.0))
-                    .position_x(Position::Static(Len::Frac(p_last.0)))
-                    .position_y(Position::Static(Len::Frac(p_last.1)));
+                    .position_x(Position::Frac(p_last.0))
+                    .position_y(Position::Frac(p_last.1));
 
                 self.add(arrow);
             });

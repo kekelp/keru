@@ -486,10 +486,21 @@ impl Ui {
                 },
                 Position::Start => {
                     let origin = stack_rect[cross][0] + padding[cross];
-                    self.nodes[child].layout_rect[cross] = [origin, origin + child_size[cross]];         
+                    self.nodes[child].layout_rect[cross] = [origin, origin + child_size[cross]];
                 },
-                Position::Static(len) => {
-                    let static_pos = self.len_to_frac_of_size(len, stack_rect.size(), cross);
+                Position::Pixels(pixels) => {
+                    let static_pos = self.pixels_to_frac(pixels, cross);
+                    let anchor_offset = match self.nodes[child].params.layout.anchor[cross] {
+                        Anchor::Start => 0.0,
+                        Anchor::Center => -child_size[cross] / 2.0,
+                        Anchor::End => -child_size[cross],
+                        Anchor::Frac(f) => -child_size[cross] * f,
+                    };
+                    let origin = stack_rect[cross][0] + padding[cross] + static_pos + anchor_offset;
+                    self.nodes[child].layout_rect[cross] = [origin, origin + child_size[cross]];
+                },
+                Position::Frac(frac) => {
+                    let static_pos = frac * stack_rect.size()[cross];
                     let anchor_offset = match self.nodes[child].params.layout.anchor[cross] {
                         Anchor::Start => 0.0,
                         Anchor::Center => -child_size[cross] / 2.0,
@@ -534,10 +545,21 @@ impl Ui {
                 match self.nodes[child].params.layout.position[axis] {
                     Position::Start => {
                         origin[axis] = parent_rect[axis][0] + padding[axis];
-                        self.nodes[child].layout_rect[axis] = [origin[axis], origin[axis] + child_size[axis]];         
+                        self.nodes[child].layout_rect[axis] = [origin[axis], origin[axis] + child_size[axis]];
                     },
-                    Position::Static(len) => {
-                        let static_pos = self.len_to_frac_of_size(len, parent_rect.size(), axis);
+                    Position::Pixels(pixels) => {
+                        let static_pos = self.pixels_to_frac(pixels, axis);
+                        let anchor_offset = match self.nodes[child].params.layout.anchor[axis] {
+                            Anchor::Start => 0.0,
+                            Anchor::Center => -child_size[axis] / 2.0,
+                            Anchor::End => -child_size[axis],
+                            Anchor::Frac(f) => -child_size[axis] * f,
+                        };
+                        origin[axis] = parent_rect[axis][0] + padding[axis] + static_pos + anchor_offset;
+                        self.nodes[child].layout_rect[axis] = [origin[axis], origin[axis] + child_size[axis]];
+                    }
+                    Position::Frac(frac) => {
+                        let static_pos = frac * parent_rect.size()[axis];
                         let anchor_offset = match self.nodes[child].params.layout.anchor[axis] {
                             Anchor::Start => 0.0,
                             Anchor::Center => -child_size[axis] / 2.0,
@@ -620,7 +642,7 @@ impl Ui {
                     Axis::X => {
                         // todo: this was dumb actually, static doesn't do anything
                         let origin_x = match origin {
-                            Center | Static(_) => (rect.x[0] + rect.x[1]) / 2.0,
+                            Center | Pixels(_) | Frac(_) => (rect.x[0] + rect.x[1]) / 2.0,
                             Start => rect.x[0],
                             End => rect.x[1],
                         };
@@ -629,7 +651,7 @@ impl Ui {
                     }
                     Axis::Y => {
                         let origin_y = match origin {
-                            Center | Static(_) => (rect.y[0] + rect.y[1]) / 2.0,
+                            Center | Pixels(_) | Frac(_) => (rect.y[0] + rect.y[1]) / 2.0,
                             Start => rect.y[0],
                             End => rect.y[1],
                         };
@@ -691,7 +713,7 @@ impl Ui {
                 match axis {
                     Axis::X => {
                         let origin_x = match origin {
-                            Center | Static(_) => (rect.x[0] + rect.x[1]) / 2.0,
+                            Center | Pixels(_) | Frac(_) => (rect.x[0] + rect.x[1]) / 2.0,
                             Start => rect.x[0],
                             End => rect.x[1],
                         };
@@ -700,7 +722,7 @@ impl Ui {
                     }
                     Axis::Y => {
                         let origin_y = match origin {
-                            Center | Static(_) => (rect.y[0] + rect.y[1]) / 2.0,
+                            Center | Pixels(_) | Frac(_) => (rect.y[0] + rect.y[1]) / 2.0,
                             Start => rect.y[0],
                             End => rect.y[1],
                         };

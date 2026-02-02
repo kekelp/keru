@@ -159,15 +159,26 @@ impl Hash for Anchor {
 }
 
 /// A node's position relative to its parent.
-#[derive(Debug, Clone, Copy, PartialEq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Position {
     Center,
     Start,
     End,
-    // todo: this should be named "Fixed", but the name conflicts with Size when exporting everything together...
-    // FixedPos and FixedSize??
-    // besides, this is missing anchors and the "self center"
-    Static(Len),
+    Pixels(f32),
+    Frac(f32),
+}
+
+impl Hash for Position {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        use Position::*;
+        match self {
+            Center => 0u8.hash(state),
+            Start => 1u8.hash(state),
+            End => 2u8.hash(state),
+            Pixels(p) => (3u8, p.to_bits()).hash(state),
+            Frac(f) => (4u8, f.to_bits()).hash(state),
+        }
+    }
 }
 
 /// Options for stack container nodes.
@@ -578,8 +589,8 @@ impl Node {
                 end: seg_end,
                 dash_length,
             })
-            .position_x(Position::Static(Len::Frac(min_x)))
-            .position_y(Position::Static(Len::Frac(min_y)))
+            .position_x(Position::Frac(min_x))
+            .position_y(Position::Frac(min_y))
             .size_x(Size::Frac(width))
             .size_y(Size::Frac(height))
     }
@@ -611,8 +622,8 @@ impl Node {
                 end: seg_end,
                 dash_length,
             })
-            .position_x(Position::Static(Len::Pixels(min_x)))
-            .position_y(Position::Static(Len::Pixels(min_y)))
+            .position_x(Position::Pixels(min_x))
+            .position_y(Position::Pixels(min_y))
             .size_x(Size::Pixels(width))
             .size_y(Size::Pixels(height))
     }
