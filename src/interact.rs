@@ -272,8 +272,6 @@ impl Ui {
         };
         let hover_i = map_entry.slab_i;
 
-        dbg!(self.nodes[hover_i].debug_name());
-
         let (x, y) = match delta {
             MouseScrollDelta::LineDelta(x, y) => (x * 0.1, y * 0.1),
             MouseScrollDelta::PixelDelta(PhysicalPosition {x, y}) => (*x as f32, *y as f32),

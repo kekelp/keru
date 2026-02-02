@@ -291,15 +291,17 @@ pub enum Shape {
         width: f32,
     },
     /// Grid pattern filling the node's rect.
-    Grid {
+    SquareGrid {
         lattice_size: f32,
         offset: (f32, f32),
         line_thickness: f32,
+        scale_line_thickness: bool,
     },
     HexGrid {
         lattice_size: f32,
         offset: (f32, f32),
         line_thickness: f32,
+        scale_line_thickness: bool,
     },
 }
 
@@ -354,19 +356,21 @@ impl Hash for Shape {
                 rotation.to_bits().hash(state);
                 width.to_bits().hash(state);
             }
-            Grid { lattice_size, offset, line_thickness } => {
+            SquareGrid { lattice_size, offset, line_thickness, scale_line_thickness } => {
                 9u8.hash(state);
                 lattice_size.to_bits().hash(state);
                 offset.0.to_bits().hash(state);
                 offset.1.to_bits().hash(state);
                 line_thickness.to_bits().hash(state);
+                scale_line_thickness.hash(state);
             }
-            HexGrid { lattice_size, offset, line_thickness } => {
+            HexGrid { lattice_size, offset, line_thickness, scale_line_thickness } => {
                 10u8.hash(state);
                 lattice_size.to_bits().hash(state);
                 offset.0.to_bits().hash(state);
                 offset.1.to_bits().hash(state);
                 line_thickness.to_bits().hash(state);
+                scale_line_thickness.hash(state);
             }
         }
     }

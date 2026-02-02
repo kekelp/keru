@@ -601,7 +601,7 @@ impl Ui {
                     y_clip,
                 });
             }
-            Shape::Grid { lattice_size, offset, line_thickness } => {
+            Shape::SquareGrid { lattice_size, offset, line_thickness, scale_line_thickness } => {
                 let top_left = [x0, y0];
                 let size = [x1 - x0, y1 - y0];
 
@@ -616,9 +616,10 @@ impl Ui {
                     grid_type: keru_draw::GridType::Square,
                     x_clip,
                     y_clip,
+                    scale_line_thickness: *scale_line_thickness,
                 });
             }
-            Shape::HexGrid { lattice_size, offset, line_thickness } => {
+            Shape::HexGrid { lattice_size, offset, line_thickness, scale_line_thickness } => {
                 let top_left = [x0, y0];
                 let size = [x1 - x0, y1 - y0];
 
@@ -633,6 +634,7 @@ impl Ui {
                     grid_type: keru_draw::GridType::Hexagonal,
                     x_clip,
                     y_clip,
+                    scale_line_thickness: *scale_line_thickness,
                 });
             }
         }

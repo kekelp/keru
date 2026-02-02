@@ -49,8 +49,8 @@ impl<T: SimpleComponent> Component for T {
 
 impl Ui {
     #[track_caller]
-    pub fn add_component<T: Component>(&mut self, mut component_params: T) -> T::AddResult {        
-        let key = match component_params.component_key() {
+    pub fn add_component<T: Component>(&mut self, mut component: T) -> T::AddResult {        
+        let key = match component.component_key() {
             Some(key) => key.as_normal_key(),
             None => NodeKey::new(Id(caller_location_id()), "Anon component"),
         };
@@ -76,7 +76,7 @@ impl Ui {
         if stateless {
             // Safety: we know that T is () here because of the TypeId check. 
             let state_ref = unsafe { std::mem::transmute::<&mut (), &mut T::State>(&mut ()) };
-            res = T::add_to_ui(&mut component_params, self, state_ref);
+            res = T::add_to_ui(&mut component, self, state_ref);
 
         } else {
             // Get the state or initialize it if it's not there yet.
@@ -86,7 +86,7 @@ impl Ui {
             };
             let state_ref = state.downcast_mut().expect(DOWNCAST_ERROR);
     
-            res = T::add_to_ui(&mut component_params, self, state_ref);
+            res = T::add_to_ui(&mut component, self, state_ref);
     
             // Put the state back in its place inside the Ui.
             let a = self.sys.user_state.insert(id, state);

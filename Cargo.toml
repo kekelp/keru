@@ -25,7 +25,7 @@ winit = { version = "0.30.5", features = ["rwh_05"] }
 wgpu = { version = "27", default-features = true }
 pollster = "0.3.0"
 bytemuck = { version = "1.19.0", features = ["derive"] }
-glam = "0.28.0"
+glam = "0.28"
 slab = "0.4.9"
 log = "0.4.22"
 env_logger = "0.11.6"

@@ -412,7 +412,7 @@ impl Component for TransformView<'_> {
 
         let transform_area = PANEL
             .size_symm(Size::Pixels(1000000))
-            .color(Color::rgba(30, 30, 40, 255))
+            .color(Color::TRANSPARENT)
             .key(TRANSFORMED_AREA)
             .translate(self.state.pan_x, self.state.pan_y)
             .zoom(self.state.zoom)
