@@ -3,7 +3,7 @@ use crate::*;
 use crate::math::Axis::*;
 
 use ahash::{HashMap, HashMapExt};
-use glam::DVec2;
+use glam::Vec2;
 
 use keru_draw::Renderer;
 pub use keru_draw::{TextStyle2 as TextStyle, ColorBrush};
@@ -450,7 +450,7 @@ impl Ui {
         return self.should_update() || self.should_rerender();
     }
 
-    pub fn cursor_position(&self) -> DVec2 {
+    pub fn cursor_position(&self) -> Vec2 {
         return self.sys.mouse_input.cursor_position();
     }
 
@@ -468,7 +468,7 @@ impl Ui {
         return &self.sys.key_input;
     }
 
-    pub fn scroll_delta(&self) -> Option<glam::DVec2> {
+    pub fn scroll_delta(&self) -> Option<glam::Vec2> {
         return self.sys.mouse_input.scrolled(None);
     }
 

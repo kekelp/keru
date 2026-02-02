@@ -18,9 +18,9 @@ impl UiNode<'_> {
         return &self.ui.nodes[self.i];
     }
 
-    pub(crate) fn inner_size(&self) -> Xy<u32> {
+    pub(crate) fn inner_size(&self) -> Xy<f32> {
         let padding = self.node().params.layout.padding;
-        
+
         let size = self.node().size;
         let size = self.ui.f32_size_to_pixels2(size);
 
@@ -85,7 +85,7 @@ impl Ui {
     pub fn center(&self, key: NodeKey) -> Option<Xy<f32>> {
         Some(self.get_uinode(key)?.center())
     }
-    pub fn inner_size(&self, key: NodeKey) -> Option<Xy<u32>> {
+    pub fn inner_size(&self, key: NodeKey) -> Option<Xy<f32>> {
         Some(self.get_uinode(key)?.inner_size())
     }
     pub fn bottom_left(&self, key: NodeKey) -> Option<Xy<f32>> {
@@ -231,9 +231,9 @@ impl UiNode<'_> {
         let mouse_record = self.ui.sys.mouse_input.clicked_at(Some(MouseButton::Left), Some(self.node().id))?;
         let node_rect = self.node().real_rect;
         
-        let relative_position = glam::DVec2::new(
-            ((mouse_record.position.x / self.ui.sys.unifs.size.x as f64) - (node_rect.x[0]) as f64) / node_rect.size().x as f64,
-            ((mouse_record.position.y / self.ui.sys.unifs.size.y as f64) - (node_rect.y[0]) as f64) / node_rect.size().y as f64,
+        let relative_position = glam::Vec2::new(
+            ((mouse_record.position.x / self.ui.sys.unifs.size.x) - (node_rect.x[0])) / node_rect.size().x,
+            ((mouse_record.position.y / self.ui.sys.unifs.size.y) - (node_rect.y[0])) / node_rect.size().y,
         );
         
         return Some(Click {
@@ -262,13 +262,13 @@ impl UiNode<'_> {
 
         let mouse_record = self.ui.sys.mouse_input.dragged_at(Some(button), Some(self.node().id))?;
         let node_rect = self.node().real_rect;
-        let relative_position = glam::DVec2::new(
-            ((mouse_record.currently_at.position.x / self.ui.sys.unifs.size.x as f64) - (node_rect.x[0]) as f64) / node_rect.size().x as f64,
-            ((mouse_record.currently_at.position.y / self.ui.sys.unifs.size.y as f64) - (node_rect.y[0]) as f64) / node_rect.size().y as f64,
+        let relative_position = glam::Vec2::new(
+            ((mouse_record.currently_at.position.x / self.ui.sys.unifs.size.x) - (node_rect.x[0])) / node_rect.size().x,
+            ((mouse_record.currently_at.position.y / self.ui.sys.unifs.size.y) - (node_rect.y[0])) / node_rect.size().y,
         );
-        let relative_delta = glam::DVec2::new(
-            mouse_record.drag_distance().x / (node_rect.size().x as f64 * self.ui.sys.unifs.size.x as f64),
-            mouse_record.drag_distance().y / (node_rect.size().y as f64 * self.ui.sys.unifs.size.y as f64),
+        let relative_delta = glam::Vec2::new(
+            mouse_record.drag_distance().x / (node_rect.size().x * self.ui.sys.unifs.size.x),
+            mouse_record.drag_distance().y / (node_rect.size().y * self.ui.sys.unifs.size.y),
         );
 
         return Some(Drag {
@@ -317,9 +317,9 @@ impl UiNode<'_> {
         let scroll_event = self.ui.sys.mouse_input.last_scroll_event(Some(self.node().id))?;
         let node_rect = self.node().real_rect;
 
-        let relative_position = glam::DVec2::new(
-            ((scroll_event.position.x / self.ui.sys.unifs.size.x as f64) - (node_rect.x[0]) as f64) / node_rect.size().x as f64,
-            ((scroll_event.position.y / self.ui.sys.unifs.size.y as f64) - (node_rect.y[0]) as f64) / node_rect.size().y as f64,
+        let relative_position = glam::Vec2::new(
+            ((scroll_event.position.x / self.ui.sys.unifs.size.x) - (node_rect.x[0])) / node_rect.size().x,
+            ((scroll_event.position.y / self.ui.sys.unifs.size.y) - (node_rect.y[0])) / node_rect.size().y,
         );
 
         return Some(ScrollEvent {
@@ -331,7 +331,7 @@ impl UiNode<'_> {
     }
 
     /// Returns the total scroll delta for this node in the last frame, or None if no scroll events occurred.
-    pub fn is_scrolled(&self) -> Option<glam::DVec2> {
+    pub fn is_scrolled(&self) -> Option<glam::Vec2> {
         #[cfg(debug_assertions)]
         if !self.check_node_sense(Sense::SCROLL, "is_scrolled()", "Node::sense_scroll()") {
             return None;
@@ -467,7 +467,7 @@ impl Ui {
     }
 
     /// Returns the total scroll delta for the node corresponding to `key` in the last frame, or None if no scroll events occurred.
-    pub fn is_scrolled(&self, key: NodeKey) -> Option<glam::DVec2> {
+    pub fn is_scrolled(&self, key: NodeKey) -> Option<glam::Vec2> {
         let Some(uinode) = self.get_uinode(key) else {
             return None;
         };
@@ -523,7 +523,7 @@ impl UiParent {
     }
 
     /// Returns the total scroll delta for the node in the last frame, or None if no scroll events occurred.
-    pub fn is_scrolled(&self, ui: &mut Ui) -> Option<glam::DVec2> {
+    pub fn is_scrolled(&self, ui: &mut Ui) -> Option<glam::Vec2> {
         self.get_uinode(ui).is_scrolled()
     }
 }

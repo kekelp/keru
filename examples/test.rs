@@ -36,7 +36,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 
 
 
-    ui.add(V_STACK.slide_from_top().size_x(Size::Pixels(200)).position_y(Position::Start)).nest(|| {
+    ui.add(V_STACK.slide_from_top().size_x(Size::Pixels(200.0)).position_y(Position::Start)).nest(|| {
 
         if state.show {
             ui.add(V_STACK.grow_shrink(Axis::Y, Position::Start).clip_children_y(true)).nest(|| {

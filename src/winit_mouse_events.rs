@@ -1,7 +1,7 @@
 use std::time::{Duration, Instant};
 use std::fmt::Debug;
 
-use glam::{dvec2, DVec2};
+use glam::{vec2, Vec2};
 use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
 
 // todo: rewrite all doc comments
@@ -22,8 +22,8 @@ pub struct MouseInput<T: Tag> {
     current_frame_scroll_events: Vec<ScrollEvent<T>>,
     pub currently_hovered_tags: SmallVec<T>,
     pub currently_hovered_tag_for_scroll: SmallVec<T>,
-    pub cursor_position: DVec2,
-    pub prev_cursor_position: DVec2,
+    pub cursor_position: Vec2,
+    pub prev_cursor_position: Vec2,
 }
 
 
@@ -78,7 +78,7 @@ impl<T: Tag> MouseInput<T> {
         match event {
             WindowEvent::CursorMoved { position, .. } => {
                 self.prev_cursor_position = self.cursor_position;
-                self.cursor_position = dvec2(position.x, position.y);
+                self.cursor_position = vec2(position.x as f32, position.y as f32);
             },
             WindowEvent::MouseInput { button, state, .. } => {
                 let tags = self.currently_hovered_tags.clone();
@@ -99,7 +99,7 @@ impl<T: Tag> MouseInput<T> {
         self.currently_hovered_tags = new_tag;
     }
 
-    pub fn cursor_position(&self) -> DVec2 {
+    pub fn cursor_position(&self) -> Vec2 {
         return self.cursor_position;
     }
 
@@ -140,14 +140,14 @@ impl<T: Tag> MouseInput<T> {
 
     pub fn push_scroll_event(&mut self, delta: &MouseScrollDelta, tag: T) {
         let (x, y) = match delta {
-            MouseScrollDelta::LineDelta(x, y) => ((x * 0.1) as f64 , (y * 0.1) as f64),
-            MouseScrollDelta::PixelDelta(pos) => (pos.x, pos.y),
+            MouseScrollDelta::LineDelta(x, y) => (x * 0.1 , y * 0.1),
+            MouseScrollDelta::PixelDelta(pos) => (pos.x as f32, pos.y as f32),
         };
 
         let mut tag2 = SmallVec::new();
         tag2.push(tag);
         let scroll_event = ScrollEvent {
-            delta: DVec2::new(x, y),
+            delta: Vec2::new(x, y),
             position: self.cursor_position,
             timestamp: Instant::now(),
             tag: tag2,
@@ -210,10 +210,10 @@ impl<T: Tag> MouseInput<T> {
     }
 
     /// Returns the drag distance for a mouse button on a node.
-    pub fn dragged(&self, mouse_button: Option<MouseButton>, tag: Option<T>) -> (f64, f64) {
+    pub fn dragged(&self, mouse_button: Option<MouseButton>, tag: Option<T>) -> (f32, f32) {
         let all_events = self.mouse_events(mouse_button, tag);
 
-        let mut dist = dvec2(0.0, 0.0);
+        let mut dist = vec2(0.0, 0.0);
         
         for e in all_events {
             dist += e.drag_distance();
@@ -256,8 +256,8 @@ impl<T: Tag> MouseInput<T> {
     }
 
     /// Returns the total scroll delta for a specific node tag, or None if no scroll events occurred.
-    pub fn scrolled(&self, tag: Option<T>) -> Option<DVec2> {
-        let mut total_delta = DVec2::ZERO;
+    pub fn scrolled(&self, tag: Option<T>) -> Option<Vec2> {
+        let mut total_delta = Vec2::ZERO;
         let mut found_any = false;
         
         for event in self.scroll_events(tag) {
@@ -276,11 +276,11 @@ impl<T: Tag> MouseInput<T> {
 
     /// Returns the total scroll delta for all scroll events that occurred this frame, regardless of which node they occurred on.
     /// This is useful for global scroll handling like Ctrl+wheel for font size adjustment.
-    pub fn global_scroll_delta(&self) -> Option<DVec2> {
+    pub fn global_scroll_delta(&self) -> Option<Vec2> {
         return self.scrolled(None);
     }
 
-    pub(crate) fn prev_cursor_position(&self) -> DVec2 {
+    pub(crate) fn prev_cursor_position(&self) -> Vec2 {
         self.prev_cursor_position
     }
 
@@ -300,7 +300,7 @@ impl<T: Tag> MouseInput<T> {
 /// This can represent either a mouse click or a mouse release. This is only used inside `FullMouseEvent`, where this is always clear from the context.
 #[derive(Clone, Debug)]
 pub struct MouseRecord<T: Tag> {
-    pub position: DVec2,
+    pub position: Vec2,
     pub timestamp: Instant,
     pub tag: SmallVec<T>,
 }
@@ -308,8 +308,8 @@ pub struct MouseRecord<T: Tag> {
 /// A record describing a scroll event and which node it occurred on.
 #[derive(Clone, Debug)]
 pub struct ScrollEvent<T: Tag> {
-    pub delta: DVec2,
-    pub position: DVec2,
+    pub delta: Vec2,
+    pub position: Vec2,
     pub timestamp: Instant,
     pub tag: SmallVec<T>,
 }
@@ -370,7 +370,7 @@ impl<T: Tag> FullMouseEvent<T> {
         return is_click_release && is_on_same_node;
     }
 
-    pub fn drag_distance(&self) -> DVec2 {
+    pub fn drag_distance(&self) -> Vec2 {
         return self.last_seen.position - self.currently_at.position;
     }
 

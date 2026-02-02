@@ -20,7 +20,7 @@ impl State {
 
         let container = PANEL
             .color(Color::KERU_RED)
-            .size_symm(Size::Pixels(300))
+            .size_symm(Size::Pixels(300.0))
             .children_can_hide(true)
             .key(CONTAINER);
 
@@ -44,7 +44,7 @@ impl State {
 
         let description = LABEL.static_text("The red container has children_can_hide = true. So, when the elements are removed, they remain in memory in the background, and their edited text is retained. \n But when the container itself is removed, the elements shouldn't stay in memory anymore: it's like closing a browser tab. So bringing it back should reset the edited text.").position_y(Position::Start);
 
-        let v_stack = V_STACK.size_y(Size::Fill).stack_arrange(Arrange::Start).padding(5);
+        let v_stack = V_STACK.size_y(Size::Fill).stack_arrange(Arrange::Start).padding(5.0);
 
         if ui.is_clicked(SHOW_CONTAINER) {
             self.show_container = !self.show_container;

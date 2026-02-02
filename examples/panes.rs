@@ -18,7 +18,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     let middling = PANEL
         .key(MIDDLING_TIER)
         .size_y(Size::Fill)
-        .size_x(Size::Pixels(16))
+        .size_x(Size::Pixels(16.0))
         .sense_drag(true);
 
     let right = LABEL.text("Right").key(RIGHT_PANE)

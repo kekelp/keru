@@ -1,4 +1,4 @@
-use glam::dvec2;
+use glam::vec2;
 use keru_draw::*;
 use winit::event::*;
 use winit::window::Window;
@@ -57,7 +57,7 @@ impl Ui {
                 // Set new input if this is a hover or a drag
                 // todo: similar things happen inside resolve_hover, why though
                 let last_cursor_pos = self.sys.mouse_input.prev_cursor_position();
-                if dvec2(position.x, position.y) != last_cursor_pos {
+                if vec2(position.x as f32, position.y as f32) != last_cursor_pos {
                     let has_hover_sense = self.sys.hovered.iter()
                         .filter_map(|id| self.nodes.get_by_id_ick(id).map(|(node, _)| node))
                         .any(|node| node.params.interact.senses.contains(Sense::HOVER));

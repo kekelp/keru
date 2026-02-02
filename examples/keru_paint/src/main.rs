@@ -8,7 +8,7 @@ mod oklab;
 
 use canvas::*;
 use color_picker::ColorPicker;
-use glam::dvec2;
+use glam::vec2;
 use winit::application::ApplicationHandler;
 use winit::event_loop::{ActiveEventLoop, ControlFlow};
 use winit::window::WindowId;
@@ -225,7 +225,7 @@ impl State {
                         self.canvas.scroll.y += *y as f64;
                     },
                     winit::event::MouseScrollDelta::PixelDelta(pos) => {
-                        self.canvas.scroll += dvec2(pos.x, pos.y);
+                        self.canvas.scroll += vec2(pos.x, pos.y);
                     },
                 }
             }

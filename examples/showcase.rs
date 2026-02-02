@@ -53,7 +53,7 @@ impl UiExt for Ui {
             #[node_key] const TEXT_EDIT_2: NodeKey;
             let edit2 = TEXT_EDIT
                 .key(TEXT_EDIT_2)
-                .size_y(Size::Pixels(200))
+                .size_y(Size::Pixels(200.0))
                 .text("Text edit box");
 
             self.add(edit2);
@@ -134,8 +134,8 @@ impl UiExt for Ui {
             #[node_key] const LINE_CONTAINER: NodeKey;
             let line_container = CONTAINER
                 .size_x(Size::Fill)
-                .size_y(Size::Pixels(100))
-                .padding(0)
+                .size_y(Size::Pixels(100.0))
+                .padding(0.0)
                 .key(LINE_CONTAINER);
 
             self.add(line_container).nest(|| {
@@ -163,7 +163,7 @@ impl UiExt for Ui {
                         .shape(Shape::Circle)
                         .color(Color::KERU_BLUE)
                         .anchor_symm(Anchor::Center)
-                        .size_symm(Size::Pixels(circle_size as u32))
+                        .size_symm(Size::Pixels(circle_size))
                         .position_x(Position::Static(Len::Frac(x)))
                         .position_y(Position::Static(Len::Frac(y)));
 
@@ -185,7 +185,7 @@ impl UiExt for Ui {
                     })
                     .color(Color::KERU_RED)
                     .anchor_symm(Anchor::Center)
-                    .size_symm(Size::Pixels(50))
+                    .size_symm(Size::Pixels(50.0))
                     .position_x(Position::Static(Len::Frac(p_last.0)))
                     .position_y(Position::Static(Len::Frac(p_last.1)));
 
@@ -225,7 +225,7 @@ impl UiExt for Ui {
         let big_button = BUTTON
             .size_symm(Size::Fill)
             .static_text("Button that is also a Stack")
-            .stack(Axis::Y, Arrange::Center, 10);
+            .stack(Axis::Y, Arrange::Center, 10.0);
 
         let nested_button_1 = BUTTON
             .size_y(Size::Frac(0.3))
@@ -267,9 +267,9 @@ impl UiExt for Ui {
                         self.add(BUTTON.text("Button"));
     
                         self.add(H_STACK).nest(|| {
-                            self.add(PANEL.color(Color::RED).size_symm(Size::Pixels(50)));
-                            self.add(PANEL.color(Color::GREEN).size_symm(Size::Pixels(50)));
-                            self.add(PANEL.color(Color::BLUE).size_symm(Size::Pixels(50)));
+                            self.add(PANEL.color(Color::RED).size_symm(Size::Pixels(50.0)));
+                            self.add(PANEL.color(Color::GREEN).size_symm(Size::Pixels(50.0)));
+                            self.add(PANEL.color(Color::BLUE).size_symm(Size::Pixels(50.0)));
                         });
     
                         self.label("Don't expect scaled text to look good, though. It uses the same texture and just scales the quads");

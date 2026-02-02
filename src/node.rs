@@ -106,7 +106,7 @@ pub const NO_ANIMATION: Animation = Animation {
 /// A node's size.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Size {
-    Pixels(u32),
+    Pixels(f32),
     Frac(f32),
     Fill,
     FitContent,
@@ -118,7 +118,7 @@ impl Hash for Size {
     fn hash<H: Hasher>(&self, state: &mut H) {
         use Size::*;
         match self {
-            Pixels(len) => (0u8, len).hash(state),
+            Pixels(len) => (0u8, len.to_bits()).hash(state),
             Frac(len) => (1u8, len.to_bits()).hash(state),
             Fill => 2u8.hash(state),
             FitContent => 3u8.hash(state),
@@ -172,23 +172,30 @@ pub enum Position {
 
 /// Options for stack container nodes.
 #[allow(dead_code)]
-#[derive(Debug, Clone, Copy, Hash)]
+#[derive(Debug, Clone, Copy)]
 pub struct Stack {
     pub arrange: Arrange,
     pub axis: Axis,
-    pub spacing: u32,
+    pub spacing: f32,
+}
+impl Hash for Stack {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.arrange.hash(state);
+        self.axis.hash(state);
+        self.spacing.to_bits().hash(state);
+    }
 }
 impl Stack {
     pub const DEFAULT: Stack = Stack {
         arrange: Arrange::Center,
         axis: Axis::Y,
-        spacing: 5,
+        spacing: 5.0,
     };
     pub const fn arrange(mut self, arrange: Arrange) -> Self {
         self.arrange = arrange;
         return self;
     }
-    pub const fn spacing(mut self, spacing: u32) -> Self {
+    pub const fn spacing(mut self, spacing: f32) -> Self {
         self.spacing = spacing;
         return self;
     }
@@ -222,13 +229,23 @@ pub struct Interact {
 }
 
 /// The node's layout, size and position.
-#[derive(Debug, Copy, Clone, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Layout {
     pub size: Xy<Size>,
-    pub padding: Xy<u32>,
+    pub padding: Xy<f32>,
     pub position: Xy<Position>,
     pub anchor: Xy<Anchor>,
     pub scrollable: Xy<bool>,
+}
+impl Hash for Layout {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.size.hash(state);
+        self.padding.x.to_bits().hash(state);
+        self.padding.y.to_bits().hash(state);
+        self.position.hash(state);
+        self.anchor.hash(state);
+        self.scrollable.hash(state);
+    }
 }
 
 bitflags::bitflags! {
@@ -568,7 +585,7 @@ impl Node {
     }
 
     /// Create a node for a line segment between two points specified in pixel coordinates.
-    pub fn segment_px(start: (u32, u32), end: (u32, u32), dash_length: Option<f32>) -> Self {
+    pub fn segment_px(start: (f32, f32), end: (f32, f32), dash_length: Option<f32>) -> Self {
         let (x1, y1) = start;
         let (x2, y2) = end;
 
@@ -756,7 +773,7 @@ impl Node {
         return self;
     }
 
-    pub const fn stack(mut self, axis: Axis, arrange: Arrange, spacing: u32) -> Self {
+    pub const fn stack(mut self, axis: Axis, arrange: Arrange, spacing: f32) -> Self {
         self.stack = Some(Stack {
             arrange,
             axis,
@@ -774,7 +791,7 @@ impl Node {
         return self;
     }
 
-    pub const fn stack_spacing(mut self, spacing: u32) -> Self {
+    pub const fn stack_spacing(mut self, spacing: f32) -> Self {
         let stack = match self.stack {
             Some(stack) => stack,
             None => Stack::DEFAULT,
@@ -793,17 +810,17 @@ impl Node {
         return self;
     }
 
-    pub const fn padding(mut self, pixels: u32) -> Self {
+    pub const fn padding(mut self, pixels: f32) -> Self {
         self.layout.padding = Xy::new_symm(pixels);
         return self;
     }
 
-    pub const fn padding_x(mut self, padding: u32) -> Self {
+    pub const fn padding_x(mut self, padding: f32) -> Self {
         self.layout.padding.x = padding;
         return self;
     }
 
-    pub const fn padding_y(mut self, padding: u32) -> Self {
+    pub const fn padding_y(mut self, padding: f32) -> Self {
         self.layout.padding.y = padding;
         return self;
     }
@@ -1230,7 +1247,7 @@ impl<'a> FullNode<'a> {
         return self;
     }
 
-    pub const fn stack(mut self, axis: Axis, arrange: Arrange, spacing: u32) -> Self {
+    pub const fn stack(mut self, axis: Axis, arrange: Arrange, spacing: f32) -> Self {
         self.params.stack = Some(Stack {
             arrange,
             axis,
@@ -1248,7 +1265,7 @@ impl<'a> FullNode<'a> {
         return self;
     }
 
-    pub const fn stack_spacing(mut self, spacing: u32) -> Self {
+    pub const fn stack_spacing(mut self, spacing: f32) -> Self {
         let stack = match self.params.stack {
             Some(stack) => stack,
             None => Stack::DEFAULT,
@@ -1267,17 +1284,17 @@ impl<'a> FullNode<'a> {
         return self;
     }
 
-    pub const fn padding(mut self, padding: u32) -> Self {
+    pub const fn padding(mut self, padding: f32) -> Self {
         self.params.layout.padding = Xy::new_symm(padding);
         return self;
     }
 
-    pub const fn padding_x(mut self, padding: u32) -> Self {
+    pub const fn padding_x(mut self, padding: f32) -> Self {
         self.params.layout.padding.x = padding;
         return self;
     }
 
-    pub const fn padding_y(mut self, padding: u32) -> Self {
+    pub const fn padding_y(mut self, padding: f32) -> Self {
         self.params.layout.padding.y = padding;
         return self;
     }

@@ -39,7 +39,7 @@ impl CustomWidgets for Ui {
                 }
             }
 
-            let v_stack = V_STACK.stack_spacing(0);
+            let v_stack = V_STACK.stack_spacing(0.0);
             let tabs_h_stack = H_STACK.size_y(Size::FitContent);
             let inactive_tab = BUTTON.corners(RoundedCorners::TOP).colors(self.theme().muted_background);
             let active_tab = inactive_tab.colors(self.theme().background);

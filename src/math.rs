@@ -7,47 +7,36 @@ use crate::*;
 /// A length on the screen, expressed either as pixels or as a fraction of a parent rectangle.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Len {
-    Pixels(u32),
+    Pixels(f32),
     Frac(f32),
 }
 impl Len {
-    pub const ZERO: Self = Self::Pixels(0);
+    pub const ZERO: Self = Self::Pixels(0.0);
 }
 impl Hash for Len {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
-            Len::Pixels(p) => (0u8, p).hash(state),
+            Len::Pixels(p) => (0u8, p.to_bits()).hash(state),
             Len::Frac(f) => (1u8, f.to_bits()).hash(state),
         }
     }
 }
 
 impl Ui {
-    pub(crate) fn f32_size_to_pixels2(&self, size: Xy<f32>) -> Xy<u32> {
+    pub(crate) fn f32_size_to_pixels2(&self, size: Xy<f32>) -> Xy<f32> {
         return Xy::new(
-            (size.x * self.sys.unifs.size[X]) as u32,
-            (size.y * self.sys.unifs.size[Y]) as u32
+            size.x * self.sys.unifs.size[X],
+            size.y * self.sys.unifs.size[Y]
         );
     }
 
-    pub(crate) fn pixels_to_frac(&self, pixels: u32, axis: Axis) -> f32 {
-        return (pixels as f32) / self.sys.unifs.size[axis];
+    pub(crate) fn pixels_to_frac(&self, pixels: f32, axis: Axis) -> f32 {
+        return pixels / self.sys.unifs.size[axis];
     }
-    pub(crate) fn pixels_to_frac2(&self, pixels: Xy<u32>) -> Xy<f32> {
+    pub(crate) fn pixels_to_frac2(&self, pixels: Xy<f32>) -> Xy<f32> {
         return Xy::new(
             self.pixels_to_frac(pixels.x, X),
             self.pixels_to_frac(pixels.y, Y),
-        );
-    }
-
-    pub(crate) fn f32_pixels_to_frac(&self, pixels: f32, axis: Axis) -> f32 {
-        return pixels / self.sys.unifs.size[axis];
-    }
-
-    pub(crate) fn f32_pixels_to_frac2(&self, pixels: Xy<f32>) -> Xy<f32> {
-        return Xy::new(
-            self.f32_pixels_to_frac(pixels.x, X),
-            self.f32_pixels_to_frac(pixels.y, Y),
         );
     }
 
@@ -110,6 +99,15 @@ impl Sub<Xy<f32>> for Xy<[f32; 2]> {
         return Self::new(
             [self.x[0] - rhs.x, self.x[1] - rhs.x],
             [self.y[0] - rhs.y, self.y[1] - rhs.y],
+        );
+    }
+}
+impl Sub<Xy<f32>> for Xy<f32> {
+    type Output = Self;
+    fn sub(self, rhs: Xy<f32>) -> Self::Output {
+        return Self::new(
+            self.x - rhs.x,
+            self.y - rhs.y,
         );
     }
 }

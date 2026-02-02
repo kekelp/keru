@@ -352,7 +352,7 @@ impl Ui {
                 crate::render::ImageRef::Raster(loaded) => {
                     // use intrinsic size
                     let size_pixels = Xy::new(loaded.width as f32, loaded.height as f32);
-                    return self.f32_pixels_to_frac2(size_pixels);
+                    return self.pixels_to_frac2(size_pixels);
                 }
                 crate::render::ImageRef::Svg(_loaded) => {
                     // no intrinsic size
@@ -362,7 +362,7 @@ impl Ui {
         }
         // Fallback if no image is loaded
         let fallback_pixels = Xy::new(100.0, 100.0);
-        return self.f32_pixels_to_frac2(fallback_pixels);
+        return self.pixels_to_frac2(fallback_pixels);
     }
 
     fn determine_text_size(&mut self, i: NodeI, proposed_size: Xy<f32>) -> Xy<f32> {
@@ -385,7 +385,7 @@ impl Ui {
                     text_edit.set_size((text_width, text_height));
 
                     let text_size_pixels = Xy::new(text_width, text_height);
-                    return self.f32_pixels_to_frac2(text_size_pixels);
+                    return self.pixels_to_frac2(text_size_pixels);
 
                 } else {
                     let w = proposed_size.x * self.sys.unifs.size[X];
@@ -422,7 +422,7 @@ impl Ui {
                 
                 let layout = text_box.layout();
                 let size_pixels = Xy::new(layout.width(), layout.height());
-                let size = self.f32_pixels_to_frac2(size_pixels);        
+                let size = self.pixels_to_frac2(size_pixels);        
 
                 return size;
             }

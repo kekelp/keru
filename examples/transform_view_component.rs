@@ -26,9 +26,9 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                     ui.add(button);
 
                     ui.add(H_STACK).nest(|| {
-                        ui.add(PANEL.color(Color::RED).size_symm(Size::Pixels(50)));
-                        ui.add(PANEL.color(Color::GREEN).size_symm(Size::Pixels(50)));
-                        ui.add(PANEL.color(Color::BLUE).size_symm(Size::Pixels(50)));
+                        ui.add(PANEL.color(Color::RED).size_symm(Size::Pixels(50.0)));
+                        ui.add(PANEL.color(Color::GREEN).size_symm(Size::Pixels(50.0)));
+                        ui.add(PANEL.color(Color::BLUE).size_symm(Size::Pixels(50.0)));
                     });
 
                     ui.label("Don't expect scaled text to look good, though. It uses the same texture and just scales the quads");

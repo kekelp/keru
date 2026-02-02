@@ -115,8 +115,8 @@ impl Ui {
                 }
             }
 
-            let h_stack = H_STACK.stack_spacing(0);
-            let tabs_v_stack = V_STACK.size_x(Size::Pixels(250));
+            let h_stack = H_STACK.stack_spacing(0.0);
+            let tabs_v_stack = V_STACK.size_x(Size::Pixels(250.0));
             let inactive_tab = BUTTON
                 .corners(RoundedCorners::LEFT)
                 .size_x(Size::Fill)
@@ -169,7 +169,7 @@ impl Ui {
                 #[node_key] const SLIDER_CONTAINER: NodeKey;
                 let slider_container = PANEL
                     .size_x(Size::Fill)
-                    .size_y(Size::Pixels(45))
+                    .size_y(Size::Pixels(45.0))
                     .sense_drag(true)
                     // .shape(Shape::Rectangle { corner_radius: 36.0 })
                     .key(SLIDER_CONTAINER);
@@ -180,7 +180,7 @@ impl Ui {
                     .size_x(Size::Frac(filled_frac))
                     .color(Color::KERU_RED)
                     .position_x(Start)
-                    .padding_x(1)
+                    .padding_x(1.0)
                     .absorbs_clicks(false)
                     // .shape(Shape::Rectangle { corner_radius: 16.0 })
                     .key(SLIDER_FILL);
@@ -203,7 +203,7 @@ impl Ui {
             // Currently, it relies on the anti-state tearing stuff to not stay at zero.
             // It should be fixed by making it's possible to express the " - handle_radius" part when using a Frac.
             let slider_width = match self.get_uinode(TRACK) {
-                Some(track) => track.inner_size().x as f32,
+                Some(track) => track.inner_size().x,
                 // this is just for the first frame. awkward.
                 // ...or do this calculation after adding it? the result is the same
                 None => 1.0,
@@ -225,8 +225,8 @@ impl Ui {
             #[node_key] const TRACK: NodeKey;
             let slider_track = PANEL
                 .size_x(Size::Fill)
-                .size_y(Size::Pixels(10))
-                .padding(0)
+                .size_y(Size::Pixels(10.0))
+                .padding(0.0)
                 .color(Color::GREY)
                 .shape(Shape::Rectangle { corner_radius: 5.0 })
                 .absorbs_clicks(false)
@@ -234,42 +234,42 @@ impl Ui {
             
             #[node_key] const FILLED: NodeKey;
             let slider_filled = PANEL
-                .size_y(Size::Pixels(14))
+                .size_y(Size::Pixels(14.0))
                 .shape(Shape::Rectangle { corner_radius: 7.0 })
                 .size_x(Size::Frac(handle_position_frac))
                 .color(Color::KERU_RED)
                 .position_x(Start)
-                .padding_x(0)
+                .padding_x(0.0)
                 .absorbs_clicks(false)
                 .key(FILLED);
             
             #[node_key] const HANDLE: NodeKey;
             let slider_handle = PANEL
-                .size_x(Size::Pixels((handle_radius * 2.0) as u32))
-                .size_y(Size::Pixels((handle_radius * 2.0) as u32))
+                .size_x(Size::Pixels(handle_radius * 2.0))
+                .size_y(Size::Pixels(handle_radius * 2.0))
                 .color(Color::WHITE)
                 // .position_x(Position::Static(Len::Frac(handle_position_frac)))
-                .position_x(Position::Static(Len::Pixels((handle_position_frac * slider_width - handle_radius) as u32)))
+                .position_x(Position::Static(Len::Pixels(handle_position_frac * slider_width - handle_radius)))
                 .position_y(Position::Center)
                 .shape(Shape::Circle)
-                .padding_x(0)
+                .padding_x(0.0)
                 .absorbs_clicks(false)
                 .key(HANDLE);
             
             #[node_key] const SLIDER_CONTAINER: NodeKey;
             let slider_container = CONTAINER
                 .size_x(Size::Fill)
-                .size_y(Size::Pixels(45))
-                .padding_x(0)
+                .size_y(Size::Pixels(45.0))
+                .padding_x(0.0)
                 .key(SLIDER_CONTAINER);
             
             #[node_key] const HITBOX: NodeKey;
             let hitbox = CONTAINER
                 .size_x(Size::Fill)
-                .size_y(Size::Pixels(30))
+                .size_y(Size::Pixels(30.0))
                 .sense_click(true)
                 .sense_drag(true)
-                .padding(0)
+                .padding(0.0)
                 .key(HITBOX);
             
             self.add(slider_container).nest(|| {
@@ -319,7 +319,7 @@ impl SimpleComponent for Slider<'_> {
 
             let slider_container = PANEL
                 .size_x(Size::Fill)
-                .size_y(Size::Pixels(45))
+                .size_y(Size::Pixels(45.0))
                 .sense_drag(true)
                 // .shape(Shape::Rectangle { corner_radius: 36.0 })
                 .key(SLIDER_CONTAINER);
@@ -329,7 +329,7 @@ impl SimpleComponent for Slider<'_> {
                 .size_x(Size::Frac(filled_frac))
                 .color(Color::KERU_RED)
                 .position_x(Start)
-                .padding_x(1)
+                .padding_x(1.0)
                 .absorbs_clicks(false)
                 // .shape(Shape::Rectangle { corner_radius: 16.0 })
                 .key(SLIDER_FILL);
@@ -357,7 +357,7 @@ pub struct TransformViewState {
     pub zoom: f32,
     pub pan_x: f32,
     pub pan_y: f32,
-    pub zoom_drag_anchor: Option<glam::DVec2>,
+    pub zoom_drag_anchor: Option<glam::Vec2>,
 }
 impl Default for TransformViewState {
     fn default() -> Self {
@@ -386,7 +386,7 @@ impl Component for TransformView<'_> {
     type State = ();
 
     fn add_to_ui(&mut self, ui: &mut Ui, _state: &mut Self::State) -> Self::AddResult {
-        use glam::{DVec2, dvec2};
+        use glam::{Vec2, vec2};
         use winit::event::MouseButton;
         use winit::keyboard::{Key, NamedKey};
 
@@ -395,14 +395,14 @@ impl Component for TransformView<'_> {
         #[node_key] const TRANSFORMED_AREA: NodeKey;
 
         let spacebar_pan_overlay = PANEL
-            .padding(0)
+            .padding(0.0)
             .color(Color::TRANSPARENT)
             .sense_drag(true)
             .size(Size::Fill, Size::Fill)
             .key(SPACEBAR_PAN_OVERLAY);
 
         let pan_overlay = PANEL
-            .padding(0)
+            .padding(0.0)
             .color(Color::TRANSPARENT)
             .sense_drag(true)
             .sense_scroll(true)
@@ -411,7 +411,7 @@ impl Component for TransformView<'_> {
             .key(PAN_OVERLAY);
 
         let transform_area = PANEL
-            .size_symm(Size::Pixels(1000000))
+            .size_symm(Size::Pixels(1000000.0))
             .color(Color::TRANSPARENT)
             .key(TRANSFORMED_AREA)
             .translate(self.state.pan_x, self.state.pan_y)
@@ -427,7 +427,7 @@ impl Component for TransformView<'_> {
 
         ui.add(pan_overlay);
 
-        let size = ui.inner_size(TRANSFORMED_AREA).unwrap_or(Xy::new(600, 600));
+        let size = ui.inner_size(TRANSFORMED_AREA).unwrap_or(Xy::new(600.0, 600.0));
 
         // Handle panning
         if ! ui.key_input().key_held(&Key::Named(NamedKey::Space)) {
@@ -443,7 +443,7 @@ impl Component for TransformView<'_> {
         }
 
         // Handle zooming
-        let mut apply_zoom = |delta_y: f64, mouse_pos: DVec2| {
+        let mut apply_zoom = |delta_y: f32, mouse_pos: Vec2| {
             let old_zoom = self.state.zoom;
             let curve_factor = ((0.01 + old_zoom).powf(1.1) - 0.01).abs();
             let new_zoom = old_zoom + delta_y as f32 * curve_factor;
@@ -451,7 +451,7 @@ impl Component for TransformView<'_> {
             if new_zoom > 0.01 && !new_zoom.is_infinite() && !new_zoom.is_nan() {
                 self.state.zoom = new_zoom;
                 let zoom_ratio = self.state.zoom / old_zoom;
-                let centered_pos = mouse_pos - dvec2(0.5, 0.5);
+                let centered_pos = mouse_pos - vec2(0.5, 0.5);
                 self.state.pan_x = self.state.pan_x * zoom_ratio + size.x as f32 * centered_pos.x as f32 * (1.0 - zoom_ratio);
                 self.state.pan_y = self.state.pan_y * zoom_ratio + size.y as f32 * centered_pos.y as f32 * (1.0 - zoom_ratio);
             }

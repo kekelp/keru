@@ -11,9 +11,9 @@ pub(crate) const ANIMATION_RERENDER_TIME: f32 = 0.5;
 #[derive(Clone, Copy, Debug)]
 pub struct Click {
     /// Absolute screen position in pixels
-    pub absolute_position: glam::DVec2,
+    pub absolute_position: glam::Vec2,
     /// Position relative to the node (0.0 to 1.0 in each dimension)
-    pub relative_position: glam::DVec2,
+    pub relative_position: glam::Vec2,
     /// Timestamp of the click
     pub timestamp: Instant,
 }
@@ -22,13 +22,13 @@ pub struct Click {
 #[derive(Clone, Copy, Debug)]
 pub struct Drag {
     /// Absolute screen position in pixels
-    pub absolute_position: glam::DVec2,
+    pub absolute_position: glam::Vec2,
     /// Position relative to the node (0.0 to 1.0 in each dimension)
-    pub relative_position: glam::DVec2,
+    pub relative_position: glam::Vec2,
     /// Absolute delta movement in pixels
-    pub absolute_delta: glam::DVec2,
+    pub absolute_delta: glam::Vec2,
     /// Delta movement relative to the node's dimensions (as a fraction)
-    pub relative_delta: glam::DVec2,
+    pub relative_delta: glam::Vec2,
     /// Time when the drag event started
     pub pressed_timestamp: Instant,
 }
@@ -37,11 +37,11 @@ pub struct Drag {
 #[derive(Clone, Copy, Debug)]
 pub struct ScrollEvent {
     /// Absolute screen position in pixels where the scroll occurred
-    pub absolute_position: glam::DVec2,
+    pub absolute_position: glam::Vec2,
     /// Position relative to the node (0.0 to 1.0 in each dimension)
-    pub relative_position: glam::DVec2,
+    pub relative_position: glam::Vec2,
     /// Scroll delta (positive Y is scroll up, negative Y is scroll down)
-    pub delta: glam::DVec2,
+    pub delta: glam::Vec2,
     /// Timestamp of the scroll event
     pub timestamp: Instant,
 }

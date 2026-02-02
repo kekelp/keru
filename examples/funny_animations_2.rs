@@ -16,7 +16,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     #[node_key] const HGROUP: NodeKey;
     
     let left_bar = V_STACK
-        .size_x(Size::Pixels(500))
+        .size_x(Size::Pixels(500.0))
         .size_y(Size::Fill)
         .stack_arrange(Arrange::Start)
         .position_x(Position::Start);

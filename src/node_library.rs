@@ -58,7 +58,7 @@ pub(crate) const NODE_ROOT_PARAMS: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(Size::Frac(1.0)),
-        padding: Xy::new_symm(0),
+        padding: Xy::new_symm(0.0),
         position: Xy::new_symm(Start),
         anchor: Xy::new_symm(Anchor::Start),
         scrollable: Xy::new(false, false),
@@ -89,7 +89,7 @@ pub const DEFAULT: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(Size::Frac(1.0)),
-        padding: Xy::new_symm(0),
+        padding: Xy::new_symm(0.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
         scrollable: Xy::new(false, false),
@@ -108,7 +108,7 @@ pub const V_STACK: Node = Node {
     stack: Some(Stack {
         arrange: Arrange::Center,
         axis: Axis::Y,
-        spacing: 8,
+        spacing: 8.0,
     }),
     rect: DEBUG_ONLY_RECT,
     interact: Interact {
@@ -118,7 +118,7 @@ pub const V_STACK: Node = Node {
     },
     layout: Layout {
         size: Xy::new(Size::FitContent, Size::FitContent),
-        padding: Xy::new_symm(0),
+        padding: Xy::new_symm(0.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
         scrollable: Xy::new(false, false),
@@ -137,7 +137,7 @@ pub const H_STACK: Node = Node {
     stack: Some(Stack {
         arrange: Arrange::Center,
         axis: Axis::X,
-        spacing: 8,
+        spacing: 8.0,
     }),
     rect: DEBUG_ONLY_RECT,
     interact: Interact {
@@ -147,7 +147,7 @@ pub const H_STACK: Node = Node {
     },
     layout: Layout {
         size: Xy::new(Size::FitContent, Size::FitContent),
-        padding: Xy::new_symm(0),
+        padding: Xy::new_symm(0.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
         scrollable: Xy::new(false, false),
@@ -167,7 +167,7 @@ pub const V_SCROLL_STACK: Node = Node {
         stack: Some(Stack {
             arrange: Arrange::Start,
             axis: Axis::Y,
-            spacing: 10,
+            spacing: 10.0,
         }),
         rect: Rect {
             rounded_corners: RoundedCorners::ALL,
@@ -183,7 +183,7 @@ pub const V_SCROLL_STACK: Node = Node {
         },
         layout: Layout {
             size: Xy::new(Size::FitContent, Size::Fill),
-            padding: Xy::new_symm(0),
+            padding: Xy::new_symm(0.0),
             position: Xy::new_symm(Center),
             anchor: Xy::new_symm(Anchor::Start),
             scrollable: Xy::new(false, true),
@@ -209,7 +209,7 @@ pub const MARGIN: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(Size::Frac(0.9)),
-        padding: Xy::new_symm(0),
+        padding: Xy::new_symm(0.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
         scrollable: Xy::new(false, false),
@@ -239,8 +239,8 @@ pub const ICON_BUTTON: Node = Node {
         click_animation: true,
     },
     layout: Layout {
-        size: Xy::new_symm(Size::Pixels(40)),
-        padding: Xy::new_symm(2),
+        size: Xy::new_symm(Size::Pixels(40.0)),
+        padding: Xy::new_symm(2.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
         scrollable: Xy::new(false, false),
@@ -271,7 +271,7 @@ pub const IMAGE: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
-        padding: Xy::new_symm(0),
+        padding: Xy::new_symm(0.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
         scrollable: Xy::new(false, false),
@@ -302,7 +302,7 @@ pub const IMAGE_BUTTON: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
-        padding: Xy::new_symm(0),
+        padding: Xy::new_symm(0.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
         scrollable: Xy::new(false, false),
@@ -339,7 +339,7 @@ pub const BUTTON: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
-        padding: Xy::new_symm(10),
+        padding: Xy::new_symm(10.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
         scrollable: Xy::new(false, false),
@@ -375,7 +375,7 @@ pub const LABEL: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
-        padding: Xy::new_symm(10),
+        padding: Xy::new_symm(10.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
         scrollable: Xy::new(false, false),
@@ -412,7 +412,7 @@ pub const MULTILINE_LABEL: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
-        padding: Xy::new_symm(10),
+        padding: Xy::new_symm(10.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
         scrollable: Xy::new(false, false),
@@ -443,7 +443,7 @@ pub const TEXT: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
-        padding: Xy::new_symm(2),
+        padding: Xy::new_symm(2.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
         scrollable: Xy::new(false, false),
@@ -468,8 +468,8 @@ pub const ICON: Node = Node {
         click_animation: false,
     },
     layout: Layout {
-        size: Xy::new_symm(Size::Pixels(40)),
-        padding: Xy::new_symm(2),
+        size: Xy::new_symm(Size::Pixels(40.0)),
+        padding: Xy::new_symm(2.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
         scrollable: Xy::new(false, false),
@@ -506,7 +506,7 @@ pub const TEXT_EDIT: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
-        padding: Xy::new_symm(10),
+        padding: Xy::new_symm(10.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
         scrollable: Xy::new(false, false),
@@ -543,7 +543,7 @@ pub const TEXT_EDIT_LINE: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
-        padding: Xy::new_symm(10),
+        padding: Xy::new_symm(10.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
         scrollable: Xy::new(false, false),
@@ -574,7 +574,7 @@ pub const TEXT_PARAGRAPH: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
-        padding: Xy::new_symm(2),
+        padding: Xy::new_symm(2.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
         scrollable: Xy::new(false, false),
@@ -606,7 +606,7 @@ pub const PANEL: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
-        padding: Xy::new_symm(10),
+        padding: Xy::new_symm(10.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
         scrollable: Xy::new(false, false),
@@ -638,7 +638,7 @@ pub const CONTAINER: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
-        padding: Xy::new_symm(10),
+        padding: Xy::new_symm(10.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
         scrollable: Xy::new(false, false),
@@ -680,7 +680,7 @@ pub const CUSTOM_RENDERED_PANEL: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
-        padding: Xy::new_symm(0),
+        padding: Xy::new_symm(0.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
         scrollable: Xy::new(false, false),
@@ -706,7 +706,7 @@ pub const SPACER: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(Fill),
-        padding: Xy::new_symm(0),
+        padding: Xy::new_symm(0.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
         scrollable: Xy::new(false, false),
@@ -732,7 +732,7 @@ pub const H_SPACER: Node = Node {
     },
     layout: Layout {
         size: Xy::new(Size::Fill, Size::FitContent),
-        padding: Xy::new_symm(0),
+        padding: Xy::new_symm(0.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
         scrollable: Xy::new(false, false),
@@ -758,7 +758,7 @@ pub const V_SPACER: Node = Node {
     },
     layout: Layout {
         size: Xy::new(Size::FitContent, Size::Fill),
-        padding: Xy::new_symm(0),
+        padding: Xy::new_symm(0.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
         scrollable: Xy::new(false, false),
@@ -798,8 +798,8 @@ pub const H_LINE: Node = Node {
         click_animation: false,
     },
     layout: Layout {
-        size: Xy::new(Size::Fill, Size::Pixels(0)),
-        padding: Xy::new_symm(0),
+        size: Xy::new(Size::Fill, Size::Pixels(0.0)),
+        padding: Xy::new_symm(0.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
         scrollable: Xy::new(false, false),
@@ -830,7 +830,7 @@ pub(crate) const COMPONENT_ROOT: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
-        padding: Xy::new_symm(0),
+        padding: Xy::new_symm(0.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
         scrollable: Xy::new(false, false),

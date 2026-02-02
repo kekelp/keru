@@ -1,5 +1,5 @@
 use crate::{canvas::EpicRotation, State};
-use glam::dvec2;
+use glam::vec2;
 use winit::{
     event::MouseButton, keyboard::{Key, NamedKey}
 };
@@ -24,13 +24,13 @@ impl State {
             self.canvas.need_backup = false;
         }
 
-        self.canvas.scroll = dvec2(0.0, 0.0);
+        self.canvas.scroll = vec2(0.0, 0.0);
     }
 
     pub fn zoom(&mut self) {
         // todo, might be better to keep the last mouse pos *before the scrolling started*
         let mouse_before = self.canvas.screen_to_image(self.canvas.last_mouse_pos.x, self.canvas.last_mouse_pos.y);
-        let mouse_before = dvec2(mouse_before.0, mouse_before.1);
+        let mouse_before = vec2(mouse_before.0, mouse_before.1);
 
         let (_x, y) = ((), self.canvas.scroll.y);
 
@@ -43,17 +43,17 @@ impl State {
         let new_val = self.canvas.scale.x + delta * curve_factor;
 
         if new_val > min_zoom && new_val < max_zoom && ! new_val.is_infinite() && ! new_val.is_nan() {
-            self.canvas.scale = dvec2(new_val, new_val);
+            self.canvas.scale = vec2(new_val, new_val);
         }
 
         let mouse_after = self.canvas.screen_to_image(self.canvas.last_mouse_pos.x, self.canvas.last_mouse_pos.y);
-        let mouse_after = dvec2(mouse_after.0, mouse_after.1);
+        let mouse_after = vec2(mouse_after.0, mouse_after.1);
 
         let diff = mouse_after - mouse_before;
         
         // convert the mouse position diff (screen space) to image space.
         // --> only rotation and y invert
-        let diff = dvec2(diff.x, -diff.y);
+        let diff = vec2(diff.x, -diff.y);
         let huh = self.canvas.rotation.inverse_vec();
         let diff = diff.rotate(huh);
 
@@ -62,7 +62,7 @@ impl State {
         // I think the point was that there kind of things would go in canvas.prepare()?
         self.canvas.update_shader_transform(&self.ctx.queue);
 
-        if diff != dvec2(0.0, 0.0) {
+        if diff != vec2(0.0, 0.0) {
             self.canvas.need_rerender = true;
         }
     }
@@ -77,9 +77,9 @@ impl State {
         }
 
         if (x, y) != (0.0, 0.0) {
-            let delta = - dvec2(x, y);
+            let delta = - vec2(x, y);
 
-            if delta != dvec2(0.0, 0.0) {
+            if delta != vec2(0.0, 0.0) {
                 self.canvas.need_rerender = true;
             }
 
@@ -87,7 +87,7 @@ impl State {
 
                 let before = self.ui.cursor_position();
                 
-                let before = dvec2(before.x as f64, before.y as f64);
+                let before = vec2(before.x as f64, before.y as f64);
 
                 // todo, I think in some cases it should be centered around image coordinates.
                 // for example when the whole image is zoomed out and it's in the right half of the viewport.

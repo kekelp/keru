@@ -29,7 +29,7 @@ struct State {
     device: Device,
     config: SurfaceConfiguration,
     ui: Ui,
-    panel_pos: (f64, f64),
+    panel_pos: (f32, f32),
     custom_pipeline: RenderPipeline,
 }
 
@@ -135,16 +135,16 @@ impl State {
     fn update_ui(&mut self) {
 
         let panel = PANEL
-            .padding(30)
-            .position_x(Position::Static(Len::Pixels(self.panel_pos.0 as u32)))
-            .position_y(Position::Static(Len::Pixels(self.panel_pos.1 as u32)))
+            .padding(30.0)
+            .position_x(Position::Static(Len::Pixels(self.panel_pos.0)))
+            .position_y(Position::Static(Len::Pixels(self.panel_pos.1)))
             .sense_drag(true)
             .key(Self::BACK_PANEL);
 
         let custom_rect = DEFAULT
             .invisible()
             .custom_render(true)
-            .size_symm(Size::Pixels(300))
+            .size_symm(Size::Pixels(300.0))
             .key(Self::CUSTOM_RECT);
 
         let button = BUTTON
@@ -166,8 +166,8 @@ impl State {
         if let Some(drag) = self.ui.is_dragged(Self::BACK_PANEL) {
             self.panel_pos.0 -= drag.absolute_delta.x;
             self.panel_pos.1 -= drag.absolute_delta.y;
-            self.panel_pos.0 = f64::clamp(self.panel_pos.0, 0.0, 100000.0);
-            self.panel_pos.1 = f64::clamp(self.panel_pos.1, 0.0, 100000.0);
+            self.panel_pos.0 = f32::clamp(self.panel_pos.0, 0.0, 100000.0);
+            self.panel_pos.1 = f32::clamp(self.panel_pos.1, 0.0, 100000.0);
         }
     }
 
