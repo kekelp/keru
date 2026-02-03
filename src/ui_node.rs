@@ -246,7 +246,7 @@ impl UiNode<'_> {
     /// Returns `true` if a left button mouse click was just released on the node corresponding to `key`.
     pub fn is_click_released(&self) -> bool {
          #[cfg(debug_assertions)]
-        if ! self.check_node_sense(Sense::CLICK, "is_click_released()", "Node::sense_click()") {
+        if ! self.check_node_sense(Sense::CLICK_RELEASE, "is_click_released()", "Node::sense_click()") {
             return false;
         }
 

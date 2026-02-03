@@ -156,12 +156,6 @@ impl Ui {
         self.sys.text_edit_changed_this_frame = None;
     }
 
-    pub(crate) fn resolve_click_release(&mut self, _button: MouseButton,  clicked_i: NodeI) {
-        if self.nodes[clicked_i].params.interact.senses.contains(Sense::CLICK_RELEASE) {
-            self.set_new_ui_input();
-        }
-    }
-
     // returns if the ui consumed the mouse press, or if it should be passed down.
     pub(crate) fn resolve_click_press(&mut self, button: MouseButton, _event: &WindowEvent, _window: &Window, clicked_i: NodeI) -> bool {
         // defocus, so that we defocus when clicking anywhere outside.

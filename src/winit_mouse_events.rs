@@ -18,6 +18,7 @@ pub(crate) type SmallVec<T> = smallvec::SmallVec<[T; 8]>;
 pub struct MouseInput<T: Tag> {
     unresolved_click_presses: Vec<PendingMousePress<T>>,
     last_frame_mouse_events: Vec<FullMouseEvent<T>>,
+    current_frame_mouse_events: Vec<FullMouseEvent<T>>,
     last_frame_scroll_events: Vec<ScrollEvent<T>>,
     current_frame_scroll_events: Vec<ScrollEvent<T>>,
     pub currently_hovered_tags: SmallVec<T>,
@@ -32,6 +33,7 @@ impl<T: Tag> Default for MouseInput<T> {
         return Self {
             unresolved_click_presses: Vec::with_capacity(20),
             last_frame_mouse_events: Vec::with_capacity(20),
+            current_frame_mouse_events: Vec::with_capacity(20),
             last_frame_scroll_events: Vec::with_capacity(10),
             current_frame_scroll_events: Vec::with_capacity(10),
             currently_hovered_tags: SmallVec::with_capacity(5),
@@ -50,9 +52,10 @@ impl<T: Tag> MouseInput<T> {
             tag: self.currently_hovered_tags.clone(),
         };
 
-        self.last_frame_mouse_events.clear();
-        
-        // Swap scroll events for double buffering
+        // Swap events for double buffering
+        std::mem::swap(&mut self.last_frame_mouse_events, &mut self.current_frame_mouse_events);
+        self.current_frame_mouse_events.clear();
+
         std::mem::swap(&mut self.last_frame_scroll_events, &mut self.current_frame_scroll_events);
         self.current_frame_scroll_events.clear();
 
@@ -133,7 +136,7 @@ impl<T: Tag> MouseInput<T> {
                     kind: IsMouseReleased::MouseReleased,
                 };
 
-                self.last_frame_mouse_events.push(full_mouse_event);
+                self.current_frame_mouse_events.push(full_mouse_event);
             }
         }
     }

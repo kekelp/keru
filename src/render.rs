@@ -90,16 +90,13 @@ impl Ui {
                         return any_consumed;
                     },
                     ElementState::Released => {
-                        // Collect tags of elements that had pending presses before releasing
-                        let released_tags: Vec<_> = self.sys.mouse_input.currently_pressed_tags()
-                            .filter(|press| press.1 == *button)
-                            .filter_map(|press| press.0)
-                            .collect();
+                        let hovered_tags = self.sys.mouse_input.currently_hovered_tags.clone();
 
-                        // Resolve click release for each element that was originally pressed
-                        for tag in released_tags {
+                        for tag in hovered_tags {
                             if let Some(clicked_i) = self.nodes.get_by_id(Some(tag)) {
-                                self.resolve_click_release(*button, clicked_i);
+                                if self.nodes[clicked_i].params.interact.senses.contains(Sense::CLICK_RELEASE) {
+                                    self.set_new_ui_input();
+                                }
                             }
                         }
 
@@ -601,7 +598,7 @@ impl Ui {
                     y_clip,
                 });
             }
-            Shape::SquareGrid { lattice_size, offset, line_thickness, scale_line_thickness } => {
+            Shape::SquareGrid { lattice_size, offset, line_thickness } => {
                 let top_left = [x0, y0];
                 let size = [x1 - x0, y1 - y0];
 
@@ -616,10 +613,9 @@ impl Ui {
                     grid_type: keru_draw::GridType::Square,
                     x_clip,
                     y_clip,
-                    scale_line_thickness: *scale_line_thickness,
                 });
             }
-            Shape::HexGrid { lattice_size, offset, line_thickness, scale_line_thickness } => {
+            Shape::HexGrid { lattice_size, offset, line_thickness } => {
                 let top_left = [x0, y0];
                 let size = [x1 - x0, y1 - y0];
 
@@ -634,7 +630,6 @@ impl Ui {
                     grid_type: keru_draw::GridType::Hexagonal,
                     x_clip,
                     y_clip,
-                    scale_line_thickness: *scale_line_thickness,
                 });
             }
         }
