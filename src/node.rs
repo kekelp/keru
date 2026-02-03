@@ -1,3 +1,4 @@
+use glam::vec2;
 use keru_draw::StyleHandle;
 
 use crate::*;
@@ -47,8 +48,7 @@ pub struct Node {
     pub children_can_hide: ChildrenCanHide,
     pub clip_children: Xy<bool>,
     pub animation: Animation,
-    pub translate: Option<(f32, f32)>,
-    pub scale: Option<(f32, f32)>,
+    pub transform: Transform,
     pub custom_render: bool,
 }
 
@@ -1017,13 +1017,13 @@ impl Node {
     }
 
     pub const fn translate(mut self, x: f32, y: f32) -> Self {
-        self.translate = Some((x, y));
+        self.transform.offset = vec2(x, y);
         return self;
     }
 
     /// Apply a zoom centered at the center of the node's rect.
-    pub const fn zoom(mut self, scale: f32) -> Self {
-        self.scale = Some((scale, scale));
+    pub const fn scale(mut self, scale: f32) -> Self {
+        self.transform.scale = scale;
         return self;
     }
 

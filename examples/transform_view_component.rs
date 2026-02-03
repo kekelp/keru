@@ -44,7 +44,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     ui.add(V_STACK.stack_arrange(Arrange::Start).position_y(Position::Start)).nest(|| {
         ui.add(H_STACK).nest(|| {
             ui.label("Zoom:");
-            ui.add_component(Slider::new(&mut state.transform_state.zoom, 0.1, 5.0, false));
+            ui.add_component(Slider::new(&mut state.transform_state.scale, 0.1, 5.0, false));
         });
 
         ui.add(H_STACK).nest(|| {
@@ -66,7 +66,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 fn main() {
     let state = State {
         transform_state: TransformViewState {
-            zoom: 1.0,
+            scale: 1.0,
             pan_x: 0.0,
             pan_y: 0.0,
             zoom_drag_anchor: None,

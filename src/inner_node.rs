@@ -1,4 +1,5 @@
 use std::{fmt::Write, panic::Location};
+use glam::Vec2;
 
 use crate::*;
 
@@ -6,6 +7,18 @@ use crate::*;
 pub enum ImageSourceId {
     StaticPtr(*const u8),
     PathHash(u64),
+}
+
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub struct Transform {
+    pub offset: Vec2,
+    pub scale: f32,
+}
+impl Transform {
+    pub const IDENTITY: Transform = Transform {
+        offset: Vec2::ZERO,
+        scale: 1.0,
+    };
 }
 
 #[derive(Debug)]
@@ -21,7 +34,7 @@ pub struct InnerNode {
     pub scroll: Scroll,
 
     // Accumulated transform from all parents, used for rendering and hit testing
-    pub accumulated_transform: keru_draw::Transform,
+    pub accumulated_transform: Transform,
 
     pub real_rect: XyRect,
     pub expected_final_rect: XyRect,
@@ -157,7 +170,7 @@ impl InnerNode {
 
             scroll: Scroll::ZERO,
 
-            accumulated_transform: keru_draw::Transform::identity(),
+            accumulated_transform: Transform::IDENTITY,
 
             imageref: None,
             last_image_source: None,
@@ -269,7 +282,7 @@ pub const NODE_ROOT: InnerNode = InnerNode {
 
     scroll: Scroll::ZERO,
 
-    accumulated_transform: keru_draw::Transform::new(1.0, 0.0, 0.0, 1.0, 0.0, 0.0),
+    accumulated_transform: Transform::IDENTITY,
 
     text_i: None,
 

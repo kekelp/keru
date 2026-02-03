@@ -65,8 +65,7 @@ pub(crate) const NODE_ROOT_PARAMS: Node = Node {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
-    translate: None,
-    scale: None,
+    transform: Transform::IDENTITY,
     custom_render: false,
 };
 /// [`Node`] for a default.
@@ -96,8 +95,7 @@ pub const DEFAULT: Node = Node {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
-    translate: None,
-    scale: None,
+    transform: Transform::IDENTITY,
     custom_render: false,
 };
 /// [`Node`] for a vertical stack.
@@ -125,8 +123,7 @@ pub const V_STACK: Node = Node {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
-    translate: None,
-    scale: None,
+    transform: Transform::IDENTITY,
     custom_render: false,
 };
 /// [`Node`] for a horizontal stack.
@@ -154,8 +151,7 @@ pub const H_STACK: Node = Node {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
-    translate: None,
-    scale: None,
+    transform: Transform::IDENTITY,
     custom_render: false,
 };
 
@@ -190,8 +186,7 @@ pub const V_SCROLL_STACK: Node = Node {
         },
         children_can_hide: ChildrenCanHide::Inherit,
         clip_children: Xy::new(false, true),
-        translate: None,
-    scale: None,
+        transform: Transform::IDENTITY,
     custom_render: false,
     };
 
@@ -216,8 +211,7 @@ pub const MARGIN: Node = Node {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
-    translate: None,
-    scale: None,
+    transform: Transform::IDENTITY,
     custom_render: false,
 };
 /// [`Node`] for an icon button.
@@ -247,8 +241,7 @@ pub const ICON_BUTTON: Node = Node {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
-    translate: None,
-    scale: None,
+    transform: Transform::IDENTITY,
     custom_render: false,
 };
 /// [`Node`] for an image. 
@@ -278,8 +271,7 @@ pub const IMAGE: Node = Node {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
-    translate: None,
-    scale: None,
+    transform: Transform::IDENTITY,
     custom_render: false,
 };
 /// [`Node`] for an icon button. 
@@ -309,8 +301,7 @@ pub const IMAGE_BUTTON: Node = Node {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
-    translate: None,
-    scale: None,
+    transform: Transform::IDENTITY,
     custom_render: false,
 };
 /// [`Node`] for a button. 
@@ -346,8 +337,7 @@ pub const BUTTON: Node = Node {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
-    translate: None,
-    scale: None,
+    transform: Transform::IDENTITY,
     custom_render: false,
 };
 /// [`Node`] for a label. 
@@ -382,8 +372,7 @@ pub const LABEL: Node = Node {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
-    translate: None,
-    scale: None,
+    transform: Transform::IDENTITY,
     custom_render: false,
 };
 
@@ -419,8 +408,7 @@ pub const MULTILINE_LABEL: Node = Node {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
-    translate: None,
-    scale: None,
+    transform: Transform::IDENTITY,
     custom_render: false,
 };
 
@@ -450,8 +438,7 @@ pub const TEXT: Node = Node {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
-    translate: None,
-    scale: None,
+    transform: Transform::IDENTITY,
     custom_render: false,
 };
 
@@ -476,8 +463,7 @@ pub const ICON: Node = Node {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
-    translate: None,
-    scale: None,
+    transform: Transform::IDENTITY,
     custom_render: false,
 };
 
@@ -513,8 +499,7 @@ pub const TEXT_EDIT: Node = Node {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
-    translate: None,
-    scale: None,
+    transform: Transform::IDENTITY,
     custom_render: false,
 };
 
@@ -550,8 +535,7 @@ pub const TEXT_EDIT_LINE: Node = Node {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
-    translate: None,
-    scale: None,
+    transform: Transform::IDENTITY,
     custom_render: false,
 };
 
@@ -581,8 +565,7 @@ pub const TEXT_PARAGRAPH: Node = Node {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
-    translate: None,
-    scale: None,
+    transform: Transform::IDENTITY,
     custom_render: false,
 };
 
@@ -613,8 +596,7 @@ pub const PANEL: Node = Node {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
-    translate: None,
-    scale: None,
+    transform: Transform::IDENTITY,
     custom_render: false,
 };
 
@@ -645,8 +627,7 @@ pub const CONTAINER: Node = Node {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
-    translate: None,
-    scale: None,
+    transform: Transform::IDENTITY,
     custom_render: false,
 };
 
@@ -687,8 +668,7 @@ pub const CUSTOM_RENDERED_PANEL: Node = Node {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
-    translate: None,
-    scale: None,
+    transform: Transform::IDENTITY,
     custom_render: false,
 };
 
@@ -713,8 +693,7 @@ pub const SPACER: Node = Node {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
-    translate: None,
-    scale: None,
+    transform: Transform::IDENTITY,
     custom_render: false,
 };
 
@@ -739,8 +718,7 @@ pub const H_SPACER: Node = Node {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
-    translate: None,
-    scale: None,
+    transform: Transform::IDENTITY,
     custom_render: false,
 };
 
@@ -765,8 +743,7 @@ pub const V_SPACER: Node = Node {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
-    translate: None,
-    scale: None,
+    transform: Transform::IDENTITY,
     custom_render: false,
 };
 
@@ -806,8 +783,7 @@ pub const H_LINE: Node = Node {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
-    translate: None,
-    scale: None,
+    transform: Transform::IDENTITY,
     custom_render: false,
 };
 
@@ -837,7 +813,6 @@ pub(crate) const COMPONENT_ROOT: Node = Node {
     },
     children_can_hide: ChildrenCanHide::Inherit,
     clip_children: Xy::new(false, false),
-    translate: None,
-    scale: None,
+    transform: Transform::IDENTITY,
     custom_render: false,
 };

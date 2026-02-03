@@ -4,7 +4,6 @@ use std::hash::Hasher;
 use std::mem;
 use std::panic::Location;
 use bytemuck::{Pod, Zeroable};
-use keru_draw::euclid::Transform2D;
 
 /// An `u64` identifier for a GUI node.
 /// 
@@ -293,8 +292,11 @@ impl Ui {
         let node_clip_rect = self.nodes[i].clip_rect;
 
         // Push this node's accumulated transform for all rendering
-        if self.nodes[i].accumulated_transform != Transform2D::identity() {
-            self.sys.renderer.push_transform(self.nodes[i].accumulated_transform);
+        if self.nodes[i].accumulated_transform != Transform::IDENTITY {
+            let transform = &self.nodes[i].accumulated_transform;
+            let (x, y, s) = (transform.offset.x, transform.offset.y, transform.scale);
+            let matrix = keru_draw::Transform::translation(x, y).then_scale(s, s);
+            self.sys.renderer.push_transform(matrix);
         }
 
         // Render node's shape
@@ -396,8 +398,8 @@ impl Ui {
             }
         }
         
-        // Pop the transform we pushed
-        if self.nodes[i].accumulated_transform != Transform2D::identity() {
+        // Pop the transform if we pushed it
+        if self.nodes[i].accumulated_transform != Transform::IDENTITY {
             self.sys.renderer.pop_transform();
         }
     }

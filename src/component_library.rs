@@ -354,7 +354,7 @@ impl<'a> Slider<'a> {
 }
 
 pub struct TransformViewState {
-    pub zoom: f32,
+    pub scale: f32,
     pub pan_x: f32,
     pub pan_y: f32,
     pub zoom_drag_anchor: Option<glam::Vec2>,
@@ -362,7 +362,7 @@ pub struct TransformViewState {
 impl Default for TransformViewState {
     fn default() -> Self {
         Self { 
-            zoom: 1.0,
+            scale: 1.0,
             pan_x: 0.0,
             pan_y: 0.0,
             zoom_drag_anchor: None,
@@ -415,7 +415,7 @@ impl Component for TransformView<'_> {
             .color(Color::TRANSPARENT)
             .key(TRANSFORMED_AREA)
             .translate(self.state.pan_x, self.state.pan_y)
-            .zoom(self.state.zoom)
+            .scale(self.state.scale)
             .size_symm(Size::Fill)
             .clip_children(true);
 
@@ -432,8 +432,8 @@ impl Component for TransformView<'_> {
         // Handle panning
         if ! ui.key_input().key_held(&Key::Named(NamedKey::Space)) {
             if let Some(drag) = ui.is_mouse_button_dragged(PAN_OVERLAY, MouseButton::Middle) {
-                self.state.pan_x -= drag.absolute_delta.x as f32;
-                self.state.pan_y -= drag.absolute_delta.y as f32;
+                self.state.pan_x -= drag.absolute_delta.x as f32 / self.state.scale;
+                self.state.pan_y -= drag.absolute_delta.y as f32 / self.state.scale;
             }
         }
 
@@ -444,13 +444,13 @@ impl Component for TransformView<'_> {
 
         // Handle zooming
         let mut apply_zoom = |delta_y: f32, mouse_pos: Vec2| {
-            let old_zoom = self.state.zoom;
+            let old_zoom = self.state.scale;
             let curve_factor = ((0.01 + old_zoom).powf(1.1) - 0.01).abs();
             let new_zoom = old_zoom + delta_y as f32 * curve_factor;
 
             if new_zoom > 0.01 && !new_zoom.is_infinite() && !new_zoom.is_nan() {
-                self.state.zoom = new_zoom;
-                let zoom_ratio = self.state.zoom / old_zoom;
+                self.state.scale = new_zoom;
+                let zoom_ratio = self.state.scale / old_zoom;
                 let centered_pos = mouse_pos - vec2(0.5, 0.5);
                 self.state.pan_x = self.state.pan_x * zoom_ratio + size.x as f32 * centered_pos.x as f32 * (1.0 - zoom_ratio);
                 self.state.pan_y = self.state.pan_y * zoom_ratio + size.y as f32 * centered_pos.y as f32 * (1.0 - zoom_ratio);

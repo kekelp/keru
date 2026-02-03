@@ -369,12 +369,12 @@ impl Ui {
         let size = self.sys.unifs.size;
 
         // Apply transform: scale in normalized space, translate in pixel space converted to normalized
-        let tx_norm = transform.m31 / size[X];
-        let ty_norm = transform.m32 / size[Y];
+        let tx_norm = transform.offset.x / size[X];
+        let ty_norm = transform.offset.y / size[Y];
 
         let transformed_rect = XyRect::new(
-            [real_rect[X][0] * transform.m11 + tx_norm, real_rect[X][1] * transform.m11 + tx_norm],
-            [real_rect[Y][0] * transform.m22 + ty_norm, real_rect[Y][1] * transform.m22 + ty_norm],
+            [real_rect[X][0] * transform.scale + tx_norm, real_rect[X][1] * transform.scale + tx_norm],
+            [real_rect[Y][0] * transform.scale + ty_norm, real_rect[Y][1] * transform.scale + ty_norm],
         );
 
         // Clip the transformed rect to the node's clip_rect

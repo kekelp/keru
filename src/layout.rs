@@ -964,57 +964,32 @@ impl Ui {
     }
 
     pub(crate) fn compute_accumulated_transform(&mut self, i: NodeI) {
-        use keru_draw::Transform;
-
         if i == ROOT_I {
-            self.nodes[i].accumulated_transform = Transform::identity();
+            self.nodes[i].accumulated_transform = Transform::IDENTITY;
             return;
         }
-
         let parent = self.nodes[i].parent;
-        if self.nodes.get(parent).is_none() {
-            self.nodes[i].accumulated_transform = Transform::identity();
-            return;
+
+
+        let parent_transform = self.nodes[parent].accumulated_transform;
+        let own_transform = self.nodes[i].params.transform;
+        let accumulated_transform;
+
+        if self.nodes[i].params.transform != Transform::IDENTITY {
+            // let node_center = self.nodes[i].real_rect.top_left() + self.nodes[i].real_rect.size() * Xy::new_symm(0.5);
+            // let center_x = (node_center.x) * self.sys.unifs.size[X];
+            // let center_y = (node_center.y) * self.sys.unifs.size[Y];
+    
+            let new_offset = parent_transform.offset + own_transform.offset * parent_transform.scale;
+            let new_scale = parent_transform.scale * own_transform.scale;
+
+            accumulated_transform = Transform { offset: new_offset, scale: new_scale }
+
+        } else {
+            accumulated_transform = parent_transform;
         }
 
-        // Get parent's accumulated transform
-        let parent_transform = self.nodes[parent].accumulated_transform;
-
-        let node_center = self.nodes[i].real_rect.top_left() + self.nodes[i].real_rect.size() * Xy::new_symm(0.5);
-        let center_x = (node_center.x) * self.sys.unifs.size[X];
-        let center_y = (node_center.y) * self.sys.unifs.size[Y];
-
-        // Compose this node's translate/scale into a transform if present
-        let node_transform = match (self.nodes[i].params.scale, self.nodes[i].params.translate) {
-            (Some((sx, sy)), Some((tx, ty))) => {
-                Some(
-                    Transform::translation(-center_x, -center_y)
-                        .then_scale(sx, sy)
-                        .then_translate((center_x + tx, center_y + ty).into())
-                )
-            }
-            (Some((sx, sy)), None) => {
-                Some(
-                    Transform::translation(-center_x, -center_y)
-                        .then_scale(sx, sy)
-                        .then_translate((center_x, center_y).into())
-                )
-            }
-            (None, Some((tx, ty))) => {
-                Some(Transform::translation(tx, ty))
-            }
-            (None, None) => None,
-        };
-
-        // Combine with parent's transform
-        let combined_transform = if let Some(node_transform) = node_transform {
-            parent_transform.then(&node_transform)
-        } else {
-            // No transform on this node, just inherit parent's
-            parent_transform
-        };
-
-        self.nodes[i].accumulated_transform = combined_transform;
+        self.nodes[i].accumulated_transform = accumulated_transform;
     }
 }
 
