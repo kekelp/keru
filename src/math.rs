@@ -225,6 +225,14 @@ impl XyRect {
         return Xy::new(self[X][0], self[Y][0]);
     }
 
+    pub fn center(&self) -> Xy<f32> {
+        let tl = self.top_left();
+        let sz = self.size();
+        let center_px_x = tl.x + sz.x * 0.5;
+        let center_px_y = tl.y + sz.y * 0.5;
+        return Xy::new(center_px_x, center_px_y);
+    }
+
     pub fn bottom_right(&self) -> Xy<f32> {
         return Xy::new(self[X][1], self[Y][1]);
     }

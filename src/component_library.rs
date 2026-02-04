@@ -432,8 +432,8 @@ impl Component for TransformView<'_> {
         // Handle panning
         if ! ui.key_input().key_held(&Key::Named(NamedKey::Space)) {
             if let Some(drag) = ui.is_mouse_button_dragged(PAN_OVERLAY, MouseButton::Middle) {
-                self.state.pan_x -= drag.absolute_delta.x as f32 / self.state.scale;
-                self.state.pan_y -= drag.absolute_delta.y as f32 / self.state.scale;
+                self.state.pan_x -= drag.absolute_delta.x as f32;
+                self.state.pan_y -= drag.absolute_delta.y as f32;
             }
         }
 

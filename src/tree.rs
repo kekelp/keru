@@ -294,8 +294,11 @@ impl Ui {
         // Push this node's accumulated transform for all rendering
         if self.nodes[i].accumulated_transform != Transform::IDENTITY {
             let transform = &self.nodes[i].accumulated_transform;
-            let (x, y, s) = (transform.offset.x, transform.offset.y, transform.scale);
-            let matrix = keru_draw::Transform::translation(x, y).then_scale(s, s);
+            let matrix = keru_draw::Transform {
+                offset: [transform.offset.x, transform.offset.y],
+                scale: transform.scale,
+                _padding: 0.0,
+            };
             self.sys.renderer.push_transform(matrix);
         }
 

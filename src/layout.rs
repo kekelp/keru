@@ -1,3 +1,5 @@
+use glam::vec2;
+
 use crate::*;
 use crate::inner_node::*;
 
@@ -975,15 +977,28 @@ impl Ui {
         let own_transform = self.nodes[i].params.transform;
         let accumulated_transform;
 
-        if self.nodes[i].params.transform != Transform::IDENTITY {
-            // let node_center = self.nodes[i].real_rect.top_left() + self.nodes[i].real_rect.size() * Xy::new_symm(0.5);
-            // let center_x = (node_center.x) * self.sys.unifs.size[X];
-            // let center_y = (node_center.y) * self.sys.unifs.size[Y];
-    
-            let new_offset = parent_transform.offset + own_transform.offset * parent_transform.scale;
-            let new_scale = parent_transform.scale * own_transform.scale;
+        if own_transform != Transform::IDENTITY {
+            // Get node center in pixels for centered scaling
+            let rect = self.nodes[i].real_rect;
+            let center = rect.center();
+            let center_px_x = center.x * self.sys.unifs.size[X];
+            let center_px_y = center.y * self.sys.unifs.size[Y];
 
-            accumulated_transform = Transform { offset: new_offset, scale: new_scale }
+            // Center the child's scale around the node's center
+            // to scale around C, add C * (1 - scale) to offset
+            let factor = (1.0 - own_transform.scale) * parent_transform.scale;
+            let scale_center_offset = vec2(center_px_x * factor, center_px_y * factor);
+
+            let acc_offset = parent_transform.offset
+                + own_transform.offset * parent_transform.scale
+                + scale_center_offset;
+
+            let acc_scale = parent_transform.scale * own_transform.scale;
+            
+            accumulated_transform = Transform {
+                offset: acc_offset,
+                scale: acc_scale,
+            }
 
         } else {
             accumulated_transform = parent_transform;

@@ -368,7 +368,7 @@ impl Ui {
         let transform = self.nodes[i].accumulated_transform;
         let size = self.sys.unifs.size;
 
-        // Apply transform: scale in normalized space, translate in pixel space converted to normalized
+        // Apply transform
         let tx_norm = transform.offset.x / size[X];
         let ty_norm = transform.offset.y / size[Y];
 
