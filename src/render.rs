@@ -140,11 +140,13 @@ impl Ui {
         let animated_rect = node.get_animated_rect();
 
         // Convert to pixel coordinates
+        // Round to screen pixels using transform scale
         let screen_size = self.sys.unifs.size;
-        let x0 = (animated_rect.x[0] * screen_size.x).round();
-        let y0 = (animated_rect.y[0] * screen_size.y).round();
-        let x1 = (animated_rect.x[1] * screen_size.x).round();
-        let y1 = (animated_rect.y[1] * screen_size.y).round();
+        let scale = node.accumulated_transform.scale;
+        let x0 = (animated_rect.x[0] * screen_size.x * scale).round() / scale;
+        let y0 = (animated_rect.y[0] * screen_size.y * scale).round() / scale;
+        let x1 = (animated_rect.x[1] * screen_size.x * scale).round() / scale;
+        let y1 = (animated_rect.y[1] * screen_size.y * scale).round() / scale;
 
         // Calculate hover and click darkening effects
         let clickable = if node.params.interact.senses != Sense::NONE { 1.0 } else { 0.0 };

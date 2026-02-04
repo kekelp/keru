@@ -1112,8 +1112,10 @@ impl Ui {
         let scroll_offset = self.nodes[i].scroll.relative_offset[axis];
 
         // round it to whole pixels to avoid wobbling
+        // account for transform scale to round to real screen pixels
         let size = self.sys.unifs.size[axis];
-        let scroll_offset = (scroll_offset * size).round() / size;
+        let scale = self.nodes[i].accumulated_transform.scale;
+        let scroll_offset = (scroll_offset * size * scale).round() / scale / size;
 
         return scroll_offset;
     }

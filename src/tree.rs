@@ -350,6 +350,9 @@ impl Ui {
             let node_height = (animated_rect[Y][1] - animated_rect[Y][0]) * self.sys.unifs.size[Y];
             let available_height = node_height - (2.0 * padding[Y] as f32);
 
+            // Round to screen pixels using the transform scale (even if scaled text doesn't work anyway)
+            let scale = self.nodes[i].accumulated_transform.scale as f64;
+
             match text_i {
                 TextI::TextBox(text_box_handle) => {
                     let text_box = self.sys.renderer.text.get_text_box_mut(&text_box_handle);
@@ -366,7 +369,7 @@ impl Ui {
                     let top = (animated_rect[Y][0] * self.sys.unifs.size[Y]) as f64 + padding[Y] as f64 + vertical_offset as f64;
 
                     text_box.set_depth(z);
-                    text_box.set_pos((left.round(), top.round()));
+                    text_box.set_pos(((left * scale).round() / scale, (top * scale).round() / scale));
 
                     // Set the screen-space clip rect before drawing
                     let clip = (
@@ -394,7 +397,7 @@ impl Ui {
                     let top = (animated_rect[Y][0] * self.sys.unifs.size[Y]) as f64 + padding[Y] as f64 + vertical_offset as f64;
 
                     text_edit.set_depth(z);
-                    text_edit.set_pos((left.round(), top.round()));
+                    text_edit.set_pos(((left * scale).round() / scale, (top * scale).round() / scale));
                     // Draw the text edit
                     self.sys.renderer.draw_text_edit(&text_edit_handle);
                 },
