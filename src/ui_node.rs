@@ -254,6 +254,18 @@ impl UiNode<'_> {
         return self.ui.sys.mouse_input.click_released(Some(MouseButton::Left), Some(self.node().id));
     }
 
+    /// Returns `true` if a left button mouse drag on the node corresponding to `key` was just released.
+    /// 
+    /// Unlike [`Self::is_click_released()`], this is `true` even if the pointer is not on the node anymore when the button is released.
+    pub fn is_drag_released(&self) -> bool {
+    #[cfg(debug_assertions)]
+    if ! self.check_node_sense(Sense::CLICK_RELEASE, "is_click_released()", "Node::sense_click()") {
+        return false;
+    }
+
+    return self.ui.sys.mouse_input.drag_released(Some(MouseButton::Left), Some(self.node().id));
+}
+
     /// If the node was dragged with a specific mouse button, returns a struct describing the drag event. Otherwise, returns `None`.
     pub fn is_mouse_button_dragged(&self, button: MouseButton) -> Option<Drag> {
          #[cfg(debug_assertions)]
@@ -413,6 +425,16 @@ impl Ui {
             return false;
         };
         uinode.is_click_released()
+    }
+
+    /// Returns `true` if a left button mouse drag on the node corresponding to `key` was just released.
+    /// 
+    /// Unlike [`Self::is_click_released()`], this is `true` even if the pointer is not on the node anymore when the button is released. 
+    pub fn is_drag_released(&self, key: NodeKey) -> bool {
+        let Some(uinode) = self.get_uinode(key) else {
+            return false;
+        };
+        uinode.is_drag_released()
     }
 
     /// If the node corresponding to `key` was dragged with a specific mouse button, returns a struct describing the drag event. Otherwise, returns `None`.

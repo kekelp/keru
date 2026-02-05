@@ -54,6 +54,8 @@ impl Ui {
                 self.new_redraw_requested_frame();
             }
             WindowEvent::CursorMoved { position, .. } => {
+                self.resolve_hover();
+
                 // Set new input if this is a hover or a drag
                 // todo: similar things happen inside resolve_hover, why though
                 let last_cursor_pos = self.sys.mouse_input.prev_cursor_position();
@@ -71,7 +73,6 @@ impl Ui {
                     }
                 }
 
-                self.resolve_hover();
                 // cursormoved is never consumed
             }
             WindowEvent::MouseInput { button, state, .. } => {

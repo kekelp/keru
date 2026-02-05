@@ -17,10 +17,10 @@ pub(crate) type SmallVec<T> = smallvec::SmallVec<[T; 8]>;
 
 pub struct MouseInput<T: Tag> {
     unresolved_click_presses: Vec<PendingMousePress<T>>,
-    last_frame_mouse_events: Vec<FullMouseEvent<T>>,
-    current_frame_mouse_events: Vec<FullMouseEvent<T>>,
-    last_frame_scroll_events: Vec<ScrollEvent<T>>,
-    current_frame_scroll_events: Vec<ScrollEvent<T>>,
+    pub last_frame_mouse_events: Vec<FullMouseEvent<T>>,
+    pub current_frame_mouse_events: Vec<FullMouseEvent<T>>,
+    pub last_frame_scroll_events: Vec<ScrollEvent<T>>,
+    pub current_frame_scroll_events: Vec<ScrollEvent<T>>,
     pub currently_hovered_tags: SmallVec<T>,
     pub currently_hovered_tag_for_scroll: SmallVec<T>,
     pub cursor_position: Vec2,
@@ -207,6 +207,17 @@ impl<T: Tag> MouseInput<T> {
         return all_events.filter(|c| c.is_click_release()).count();
     }
 
+    /// Returns `true` if a left mouse button drag on the node corresponding to `tag` was released, or `false` if the node is currently not part of the tree or if it doesn't exist.
+    pub fn drag_released(&self, mouse_button: Option<MouseButton>, tag: Option<T>) -> bool {
+        let n_clicks = self.drag_releases(mouse_button, tag);
+        return n_clicks > 0;
+    }
+
+    pub fn drag_releases(&self, mouse_button: Option<MouseButton>, tag: Option<T>) -> usize {
+        let all_events = self.mouse_events(mouse_button, tag);
+        return all_events.filter(|c| c.is_drag_release()).count();
+    }
+
     /// Returns `true` if the mouse button was just pressed on the node corresponding to `tag` (first frame of press), or `false` if the node is currently not part of the tree or if it doesn't exist.
     pub fn just_clicked(&self, mouse_button: Option<MouseButton>, tag: Option<T>) -> bool {
         self.mouse_events(mouse_button, tag).any(|e| e.is_just_clicked())
@@ -371,6 +382,12 @@ impl<T: Tag> FullMouseEvent<T> {
         let is_click_release = self.kind == IsMouseReleased::MouseReleased;
         let is_on_same_node = self.originally_pressed.tag == self.currently_at.tag;
         return is_click_release && is_on_same_node;
+    }
+
+    // Less strict release that works if the pointer is not on the same node when it releases
+    pub fn is_drag_release(&self) -> bool {
+        let is_click_release = self.kind == IsMouseReleased::MouseReleased;
+        return is_click_release;
     }
 
     pub fn drag_distance(&self) -> Vec2 {

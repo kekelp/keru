@@ -82,6 +82,7 @@ impl Ui {
             // Get the state or initialize it if it's not there yet.
             let mut state = match self.sys.user_state.entry(id) {
                 Entry::Occupied(e) => e.remove(),
+                // todo: try smallbox
                 Entry::Vacant(_) => Box::new(T::State::default()),
             };
             let state_ref = state.downcast_mut().expect(DOWNCAST_ERROR);
