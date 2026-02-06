@@ -585,3 +585,98 @@ impl Component for StatefulVerticalTabs<'_> {
         self.key
     }
 }
+
+#[derive(Default)]
+pub struct HorizontalTabsState {
+    pub i: usize,
+}
+
+pub struct StatefulHorizontalTabs<'a> {
+    pub tabs: &'a [Tab],
+    pub key: Option<ComponentKey<Self>>,
+}
+
+impl<'a> StatefulHorizontalTabs<'a> {
+    pub fn new(tabs: &'a [Tab]) -> Self {
+        Self { tabs, key: None }
+    }
+
+    pub fn key(mut self, key: ComponentKey<Self>) -> Self {
+        self.key = Some(key);
+        self
+    }
+}
+
+impl Component for StatefulHorizontalTabs<'_> {
+    type AddResult = (UiParent, Tab);
+    type ComponentOutput = ();
+    type State = HorizontalTabsState;
+
+    fn add_to_ui(&mut self, ui: &mut Ui, state: &mut Self::State) -> Self::AddResult {
+        #[node_key] const HORIZONTAL_TABS_TAB_BUTTON: NodeKey;
+        #[node_key] const HORIZONTAL_TABS_CONTENT_PANEL: NodeKey;
+
+        assert!(!self.tabs.is_empty());
+
+        let max_n = self.tabs.len() - 1;
+        if state.i > max_n {
+            state.i = max_n;
+        }
+
+        // Update the state in response to button clicks
+        for (i, _) in self.tabs.iter().enumerate() {
+            if ui.is_clicked(HORIZONTAL_TABS_TAB_BUTTON.sibling(i)) {
+                state.i = i;
+            }
+        }
+
+        // Handle keyboard navigation with Ctrl+Tab
+        let ilen = self.tabs.len() as isize;
+        if ui
+            .key_input()
+            .key_pressed_or_repeated(&winit::keyboard::Key::Named(
+                winit::keyboard::NamedKey::Tab,
+            ))
+            && ui.key_input().key_mods().control_key()
+        {
+            if ui.key_input().key_mods().shift_key() {
+                state.i = (((state.i as isize) - 1 + ilen) % ilen) as usize;
+            } else {
+                state.i = (state.i + 1) % self.tabs.len();
+            }
+        }
+
+        let current_tab = self.tabs[state.i];
+
+        let v_stack = V_STACK.stack_spacing(0.0);
+        let tabs_h_stack = H_STACK.size_y(Size::FitContent);
+        let inactive_tab = BUTTON
+            .corners(RoundedCorners::TOP)
+            .colors(ui.theme().muted_background);
+        let active_tab = inactive_tab.colors(ui.theme().background);
+
+        let content_panel = PANEL
+            .size_symm(Size::Fill)
+            .colors(ui.theme().background)
+            .children_can_hide(true)
+            .key(HORIZONTAL_TABS_CONTENT_PANEL);
+
+        ui.add(v_stack).nest(|| {
+            ui.add(tabs_h_stack).nest(|| {
+                for (i, tab_name) in self.tabs.iter().enumerate() {
+                    let key_i = HORIZONTAL_TABS_TAB_BUTTON.sibling(i);
+                    let active = i == state.i;
+                    let tab = if active { active_tab } else { inactive_tab };
+                    let tab = tab.static_text(tab_name.0).key(key_i);
+                    ui.add(tab);
+                }
+            });
+
+            (ui.add(content_panel), current_tab)
+        })
+    }
+
+    fn component_key(&self) -> Option<ComponentKey<Self>> {
+        self.key
+    }
+}
