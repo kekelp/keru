@@ -483,49 +483,54 @@ impl Component for StatefulTransformView {
     type ComponentOutput = ();
     type State = TransformViewState;
 
+    // todo: right now it's not actually ok to nest them like this.
     fn add_to_ui(&mut self, ui: &mut Ui, state: &mut Self::State) -> Self::AddResult {
         return ui.add_component(TransformView::new(state));
     }
 }
 
-// VerticalTabs component
 
 #[derive(Default)]
 pub struct VerticalTabsState {
-    pub current_tab: usize,
+    pub i: usize,
 }
 
-pub struct VerticalTabs<'a> {
+pub struct StatefulVerticalTabs<'a> {
     pub tabs: &'a [Tab],
-    pub state: &'a mut VerticalTabsState,
+    pub key: Option<ComponentKey<Self>>,
 }
 
-impl<'a> VerticalTabs<'a> {
-    pub fn new(tabs: &'a [Tab], state: &'a mut VerticalTabsState) -> Self {
-        Self { tabs, state }
+impl<'a> StatefulVerticalTabs<'a> {
+    pub fn new(tabs: &'a [Tab]) -> Self {
+        Self { tabs, key: None }
+    }
+
+    pub fn key(mut self, key: ComponentKey<Self>) -> Self {
+        self.key = Some(key);
+        self
     }
 }
 
-impl Component for VerticalTabs<'_> {
+impl Component for StatefulVerticalTabs<'_> {
     type AddResult = (UiParent, Tab);
     type ComponentOutput = ();
-    type State = ();
+    type State = VerticalTabsState;
 
-    fn add_to_ui(&mut self, ui: &mut Ui, _state: &mut Self::State) -> Self::AddResult {
+    fn add_to_ui(&mut self, ui: &mut Ui, state: &mut Self::State) -> Self::AddResult {
         #[node_key] const VERTICAL_TABS_TAB_BUTTON: NodeKey;
         #[node_key] const VERTICAL_TABS_CONTENT_PANEL: NodeKey;
 
         assert!(!self.tabs.is_empty());
 
         let max_n = self.tabs.len() - 1;
-        if self.state.current_tab > max_n {
-            self.state.current_tab = max_n;
+        if state.i > max_n {
+            state.i = max_n;
         }
 
         // Update the state in response to button clicks
         for (i, _) in self.tabs.iter().enumerate() {
             if ui.is_clicked(VERTICAL_TABS_TAB_BUTTON.sibling(i)) {
-                self.state.current_tab = i;
+                state.i = i;
             }
         }
 
@@ -539,13 +544,13 @@ impl Component for VerticalTabs<'_> {
             && ui.key_input().key_mods().control_key()
         {
             if ui.key_input().key_mods().shift_key() {
-                self.state.current_tab = (((self.state.current_tab as isize) - 1 + ilen) % ilen) as usize;
+                state.i = (((state.i as isize) - 1 + ilen) % ilen) as usize;
             } else {
-                self.state.current_tab = (self.state.current_tab + 1) % self.tabs.len();
+                state.i = (state.i + 1) % self.tabs.len();
             }
         }
 
-        let current_tab = self.tabs[self.state.current_tab];
+        let current_tab = self.tabs[state.i];
 
         let h_stack = H_STACK.stack_spacing(0.0);
         let tabs_v_stack = V_STACK.size_x(Size::Pixels(250.0));
@@ -565,7 +570,7 @@ impl Component for VerticalTabs<'_> {
             ui.add(tabs_v_stack).nest(|| {
                 for (i, tab_name) in self.tabs.iter().enumerate() {
                     let key_i = VERTICAL_TABS_TAB_BUTTON.sibling(i);
-                    let active = i == self.state.current_tab;
+                    let active = i == state.i;
                     let tab = if active { active_tab } else { inactive_tab };
                     let tab = tab.static_text(tab_name.0).key(key_i);
                     ui.add(tab);
@@ -575,25 +580,8 @@ impl Component for VerticalTabs<'_> {
             (ui.add(content_panel), current_tab)
         })
     }
-}
 
-/// Stateful VerticalTabs component - manages its own state internally.
-pub struct StatefulVerticalTabs<'a> {
-    pub tabs: &'a [Tab],
-}
-
-impl<'a> StatefulVerticalTabs<'a> {
-    pub fn new(tabs: &'a [Tab]) -> Self {
-        Self { tabs }
-    }
-}
-
-impl Component for StatefulVerticalTabs<'_> {
-    type AddResult = (UiParent, Tab);
-    type ComponentOutput = ();
-    type State = VerticalTabsState;
-
-    fn add_to_ui(&mut self, ui: &mut Ui, state: &mut Self::State) -> Self::AddResult {
-        ui.add_component(VerticalTabs::new(self.tabs, state))
+    fn component_key(&self) -> Option<ComponentKey<Self>> {
+        self.key
     }
 }

@@ -63,9 +63,13 @@ impl Ui {
 
         // Here, we have to pass the `&mut Ui` (`self`) and the reference to the state in `self.sys.user_state`.
         // Besides the dumb partial borrow issue, there's also a real issue: inside the `add_to_ui`, the user could re-add the same component and get a reference to the same state.
-        // But that's impossible because of the subtree id system. If the user re-adds with the same *key*, he'd end up with a different *id* anyway because of `id_with_subtree()`.
+        // But that's impossible because of the subtree id system. If the user re-adds with the same *key*, he'd end up with a different *id* anyway because of `id_with_subtree()` (inside `add_or_update_node()`).
+        // 
         // So there can't be multiple references to the same state.
+        //
         // If we really believe that, then we might as well use unsafe pointers. But we can also avoid the unsafe code and do this: remove the state from the hashmap, pass it to `add_to_ui` separately, then re-insert it. Since the state is inside a `Box` anyway, it can be moved in and out cheaply. We still do some extra hashing though.
+        //
+        // (When adding the same component multiple times, they are deduplicated by track_caller or by key twinning, but that wouldn't be a safety issue for the state anyway.)
         
         thread_local::push_parent(&parent);
         thread_local::push_subtree(id);
@@ -105,6 +109,14 @@ impl Ui {
         self.component_key_subtree(component_key).start(|| {
             T::component_output(self)
         })
+    }
+
+    /// Get a mutable reference to a component's state by its key.
+    ///
+    /// Returns `None` if the component is not currently a part of the Ui tree.
+    pub fn component_state_mut<T: Component>(&mut self, component_key: ComponentKey<T>) -> Option<&mut T::State> {
+        let id = component_key.as_normal_key().id_with_subtree();
+        self.sys.user_state.get_mut(&id)?.downcast_mut()
     }
 }
 
