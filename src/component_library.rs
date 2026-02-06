@@ -4,7 +4,7 @@ use keru::Size::*;
 use keru::Position::*;
 
 /// A tab for [`Ui::vertical_tabs`]
-#[derive(PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Tab(pub &'static str);
 
 impl Ui {
@@ -485,6 +485,115 @@ impl Component for StatefulTransformView {
 
     fn add_to_ui(&mut self, ui: &mut Ui, state: &mut Self::State) -> Self::AddResult {
         return ui.add_component(TransformView::new(state));
-        // return ui.add(CONTAINER);
+    }
+}
+
+// VerticalTabs component
+
+#[derive(Default)]
+pub struct VerticalTabsState {
+    pub current_tab: usize,
+}
+
+pub struct VerticalTabs<'a> {
+    pub tabs: &'a [Tab],
+    pub state: &'a mut VerticalTabsState,
+}
+
+impl<'a> VerticalTabs<'a> {
+    pub fn new(tabs: &'a [Tab], state: &'a mut VerticalTabsState) -> Self {
+        Self { tabs, state }
+    }
+}
+
+impl Component for VerticalTabs<'_> {
+    type AddResult = (UiParent, Tab);
+    type ComponentOutput = ();
+    type State = ();
+
+    fn add_to_ui(&mut self, ui: &mut Ui, _state: &mut Self::State) -> Self::AddResult {
+        #[node_key] const VERTICAL_TABS_TAB_BUTTON: NodeKey;
+        #[node_key] const VERTICAL_TABS_CONTENT_PANEL: NodeKey;
+
+        assert!(!self.tabs.is_empty());
+
+        let max_n = self.tabs.len() - 1;
+        if self.state.current_tab > max_n {
+            self.state.current_tab = max_n;
+        }
+
+        // Update the state in response to button clicks
+        for (i, _) in self.tabs.iter().enumerate() {
+            if ui.is_clicked(VERTICAL_TABS_TAB_BUTTON.sibling(i)) {
+                self.state.current_tab = i;
+            }
+        }
+
+        // Handle keyboard navigation with Ctrl+Tab
+        let ilen = self.tabs.len() as isize;
+        if ui
+            .key_input()
+            .key_pressed_or_repeated(&winit::keyboard::Key::Named(
+                winit::keyboard::NamedKey::Tab,
+            ))
+            && ui.key_input().key_mods().control_key()
+        {
+            if ui.key_input().key_mods().shift_key() {
+                self.state.current_tab = (((self.state.current_tab as isize) - 1 + ilen) % ilen) as usize;
+            } else {
+                self.state.current_tab = (self.state.current_tab + 1) % self.tabs.len();
+            }
+        }
+
+        let current_tab = self.tabs[self.state.current_tab];
+
+        let h_stack = H_STACK.stack_spacing(0.0);
+        let tabs_v_stack = V_STACK.size_x(Size::Pixels(250.0));
+        let inactive_tab = BUTTON
+            .corners(RoundedCorners::LEFT)
+            .size_x(Size::Fill)
+            .colors(ui.theme().muted_background);
+        let active_tab = inactive_tab.colors(ui.theme().background);
+
+        let content_panel = PANEL
+            .size_symm(Size::Fill)
+            .colors(ui.theme().background)
+            .children_can_hide(true)
+            .key(VERTICAL_TABS_CONTENT_PANEL);
+
+        ui.add(h_stack).nest(|| {
+            ui.add(tabs_v_stack).nest(|| {
+                for (i, tab_name) in self.tabs.iter().enumerate() {
+                    let key_i = VERTICAL_TABS_TAB_BUTTON.sibling(i);
+                    let active = i == self.state.current_tab;
+                    let tab = if active { active_tab } else { inactive_tab };
+                    let tab = tab.static_text(tab_name.0).key(key_i);
+                    ui.add(tab);
+                }
+            });
+
+            (ui.add(content_panel), current_tab)
+        })
+    }
+}
+
+/// Stateful VerticalTabs component - manages its own state internally.
+pub struct StatefulVerticalTabs<'a> {
+    pub tabs: &'a [Tab],
+}
+
+impl<'a> StatefulVerticalTabs<'a> {
+    pub fn new(tabs: &'a [Tab]) -> Self {
+        Self { tabs }
+    }
+}
+
+impl Component for StatefulVerticalTabs<'_> {
+    type AddResult = (UiParent, Tab);
+    type ComponentOutput = ();
+    type State = VerticalTabsState;
+
+    fn add_to_ui(&mut self, ui: &mut Ui, state: &mut Self::State) -> Self::AddResult {
+        ui.add_component(VerticalTabs::new(self.tabs, state))
     }
 }

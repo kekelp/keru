@@ -10,22 +10,31 @@ pub struct State {
     show: bool,
 }
 
+const INTRO_TAB: Tab = Tab("Intro");
+const TEXT_TAB: Tab = Tab("Text");
+const GRAPHICS_TAB: Tab = Tab("Graphics");
+
 fn update_ui(state: &mut State, ui: &mut Ui) {
     #[node_key] const ADD: NodeKey;
     #[node_key] const DELETE: NodeKey;
 
-    let button = BUTTON.key(ADD).static_text("SEETHE").position_y(Position::End);
+    let vert_tabs = StatefulVerticalTabs { tabs: &[INTRO_TAB, TEXT_TAB, GRAPHICS_TAB] };
 
-    ui.add(button);
-
-    if ui.is_clicked(ADD) {
-        dbg!("click");
-    }
-
-    if ui.is_click_released(ADD) {
-        dbg!("click release");
-    }
-
+    let (parent, current_tab) = ui.add_component(vert_tabs);
+    parent.nest(|| {
+        match current_tab {
+            INTRO_TAB => {
+                ui.add(LABEL.text("asdasd"));
+            },
+            TEXT_TAB => {
+                ui.add(BUTTON.text("Buttons"));
+            },
+            GRAPHICS_TAB => {
+                ui.add(BUTTON.text("Graphics o algo"));
+            },
+            _ => {}
+        }
+    });
 }
 
 fn main() {
