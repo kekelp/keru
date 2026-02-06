@@ -259,24 +259,7 @@ impl Hash for Layout {
     }
 }
 
-bitflags::bitflags! {
-    /// A bitflag struct defining which corners of a rectangle are rounded
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-    pub struct RoundedCorners: u8 {
-        const TOP_RIGHT    = 1 << 0;
-        const TOP_LEFT     = 1 << 1;
-        const BOTTOM_RIGHT = 1 << 2;
-        const BOTTOM_LEFT  = 1 << 3;
-        
-        const TOP          = Self::TOP_LEFT.bits() | Self::TOP_RIGHT.bits();
-        const BOTTOM       = Self::BOTTOM_LEFT.bits() | Self::BOTTOM_RIGHT.bits();
-        const LEFT         = Self::TOP_LEFT.bits() | Self::BOTTOM_LEFT.bits();
-        const RIGHT        = Self::TOP_RIGHT.bits() | Self::BOTTOM_RIGHT.bits();        
-        const ALL = Self::TOP.bits() | Self::BOTTOM.bits();
-        const NONE = 0;
-    }
-
-}
+pub use keru_draw::RoundedCorners;
 
 /// The node's shape.
 #[derive(Debug, Copy, Clone, PartialEq)]
