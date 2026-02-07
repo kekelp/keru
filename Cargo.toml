@@ -11,6 +11,7 @@ keywords = ["gui"]
 [workspace]
 members = [
     "crates/keru_macros",
+    "examples/subsecond_example_doesnt_work",
     # "examples/keru_paint",
 ]
 
