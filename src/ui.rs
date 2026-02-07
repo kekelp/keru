@@ -609,7 +609,7 @@ impl Ui {
             return;
         }
 
-        if let Some(loaded) = self.sys.renderer.image_renderer.load_image_from_bytes(image) {
+        if let Some(loaded) = self.sys.renderer.image_renderer.load_encoded_image(image) {
             log::info!("Loaded image: {}x{} on page {}", loaded.width, loaded.height, loaded.page);
             node.imageref = Some(crate::render::ImageRef::Raster(loaded));
             node.last_image_source = Some(source);
@@ -648,7 +648,7 @@ impl Ui {
 
         match std::fs::read(path) {
             Ok(bytes) => {
-                if let Some(loaded) = self.sys.renderer.image_renderer.load_image_from_bytes(&bytes) {
+                if let Some(loaded) = self.sys.renderer.image_renderer.load_encoded_image(&bytes) {
                     log::info!("Loaded image from path '{}': {}x{} on page {}", path, loaded.width, loaded.height, loaded.page);
                     node.imageref = Some(crate::render::ImageRef::Raster(loaded));
                     node.last_image_source = Some(source);

@@ -274,6 +274,7 @@ impl Ui {
                         x_clip,
                         y_clip: y_clip,
                         dash_length: None,
+                        texture: None,
                     });
                 } else {
                     // Normal rectangle rendering
@@ -310,6 +311,7 @@ impl Ui {
                         fill,
                         x_clip,
                         y_clip,
+                        texture: None,
                     });
                 }
             }
@@ -350,6 +352,7 @@ impl Ui {
                     fill,
                     x_clip,
                     y_clip,
+                    texture: None,
                 });
             }
             Shape::Ring { width } => {
@@ -391,6 +394,7 @@ impl Ui {
                     fill,
                     x_clip,
                     y_clip,
+                    texture: None,
                 });
             }
             Shape::Arc { start_angle, end_angle, width } => {
@@ -418,6 +422,7 @@ impl Ui {
                     fill,
                     x_clip,
                     y_clip,
+                    texture: None,
                 });
             }
             Shape::Pie { start_angle, end_angle } => {
@@ -444,6 +449,7 @@ impl Ui {
                     fill,
                     x_clip,
                     y_clip,
+                    texture: None,
                 });
             }
             Shape::Segment { start, end, dash_length } => {
@@ -479,6 +485,7 @@ impl Ui {
                     x_clip,
                     y_clip,
                     dash_length: *dash_length,
+                    texture: None,
                 });
             }
             Shape::HorizontalLine => {
@@ -513,6 +520,7 @@ impl Ui {
                     x_clip,
                     y_clip,
                     dash_length,
+                    texture: None,
                 });
             }
             Shape::VerticalLine => {
@@ -547,6 +555,7 @@ impl Ui {
                     x_clip,
                     y_clip,
                     dash_length,
+                    texture: None,
                 });
             }
             Shape::Triangle { rotation, width } => {
@@ -600,6 +609,7 @@ impl Ui {
                     fill,
                     x_clip,
                     y_clip,
+                    texture: None,
                 });
             }
             Shape::SquareGrid { lattice_size, offset, line_thickness } => {
@@ -617,6 +627,7 @@ impl Ui {
                     grid_type: keru_draw::GridType::Square,
                     x_clip,
                     y_clip,
+                    texture: None,
                 });
             }
             Shape::HexGrid { lattice_size, offset, line_thickness } => {
@@ -634,6 +645,7 @@ impl Ui {
                     grid_type: keru_draw::GridType::Hexagonal,
                     x_clip,
                     y_clip,
+                    texture: None,
                 });
             }
         }
@@ -775,6 +787,7 @@ impl Ui {
             },
             x_clip: clip_x,
             y_clip: clip_y,
+            texture: None,
         });
     }
 
@@ -802,6 +815,7 @@ impl Ui {
             fill: keru_draw::Fill::Solid(color),
             x_clip: clip_x,
             y_clip: clip_y,
+            texture: None,
         });
     }
 
@@ -823,6 +837,7 @@ impl Ui {
             fill: keru_draw::Fill::Solid(color),
             x_clip: clip_x,
             y_clip: clip_y,
+            texture: None,
         });
     }
 }
