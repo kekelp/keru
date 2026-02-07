@@ -222,10 +222,10 @@ pub const ICON_BUTTON: Node = Node {
     text_params: None,
     rect: Rect {
         rounded_corners: RoundedCorners::ALL,
-        shape: Rectangle { corner_radius: BASE_RADIUS },
+        shape: Rectangle { corner_radius: 0.0 },
         visible: true,
         stroke: None,
-        vertex_colors: VertexColors::KERU_GRAD,
+        vertex_colors: VertexColors::flat(Color::WHITE),
     },
     interact: Interact {
         senses: Sense::CLICK.union(Sense::CLICK_RELEASE),
@@ -448,7 +448,13 @@ pub const ICON: Node = Node {
     key: None,
     stack: None,
     text_params: None,
-    rect: DEBUG_ONLY_RECT,
+    rect: Rect {
+        rounded_corners: RoundedCorners::ALL,
+        shape: Rectangle { corner_radius: 0.0 },
+        visible: true,
+        stroke: None,
+        vertex_colors: VertexColors::flat(Color::WHITE),
+    },
     interact: Interact {
         senses: Sense::NONE,
         absorbs_mouse_events: false,

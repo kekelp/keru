@@ -134,7 +134,7 @@ impl Ui {
 
 
     /// Render a node's shape using keru_draw.
-    pub(crate) fn render_node_shape_to_scene(&mut self, i: NodeI, clip_rect: Xy<[f32; 2]>) {
+    pub(crate) fn render_node_shape_to_scene(&mut self, i: NodeI, clip_rect: Xy<[f32; 2]>, texture: Option<LoadedImage>) {
         let node = &self.nodes[i];
 
         // Get rect in normalized space (0-1)
@@ -274,7 +274,7 @@ impl Ui {
                         x_clip,
                         y_clip: y_clip,
                         dash_length: None,
-                        texture: None,
+                        texture,
                     });
                 } else {
                     // Normal rectangle rendering
@@ -311,7 +311,7 @@ impl Ui {
                         fill,
                         x_clip,
                         y_clip,
-                        texture: None,
+                        texture,
                     });
                 }
             }
@@ -352,7 +352,7 @@ impl Ui {
                     fill,
                     x_clip,
                     y_clip,
-                    texture: None,
+                    texture,
                 });
             }
             Shape::Ring { width } => {
@@ -394,7 +394,7 @@ impl Ui {
                     fill,
                     x_clip,
                     y_clip,
-                    texture: None,
+                    texture,
                 });
             }
             Shape::Arc { start_angle, end_angle, width } => {
@@ -422,7 +422,7 @@ impl Ui {
                     fill,
                     x_clip,
                     y_clip,
-                    texture: None,
+                    texture,
                 });
             }
             Shape::Pie { start_angle, end_angle } => {
@@ -449,7 +449,7 @@ impl Ui {
                     fill,
                     x_clip,
                     y_clip,
-                    texture: None,
+                    texture,
                 });
             }
             Shape::Segment { start, end, dash_length } => {
@@ -485,7 +485,7 @@ impl Ui {
                     x_clip,
                     y_clip,
                     dash_length: *dash_length,
-                    texture: None,
+                    texture,
                 });
             }
             Shape::HorizontalLine => {
@@ -520,7 +520,7 @@ impl Ui {
                     x_clip,
                     y_clip,
                     dash_length,
-                    texture: None,
+                    texture,
                 });
             }
             Shape::VerticalLine => {
@@ -555,7 +555,7 @@ impl Ui {
                     x_clip,
                     y_clip,
                     dash_length,
-                    texture: None,
+                    texture,
                 });
             }
             Shape::Triangle { rotation, width } => {
@@ -609,7 +609,7 @@ impl Ui {
                     fill,
                     x_clip,
                     y_clip,
-                    texture: None,
+                    texture,
                 });
             }
             Shape::SquareGrid { lattice_size, offset, line_thickness } => {
@@ -627,7 +627,7 @@ impl Ui {
                     grid_type: keru_draw::GridType::Square,
                     x_clip,
                     y_clip,
-                    texture: None,
+                    texture,
                 });
             }
             Shape::HexGrid { lattice_size, offset, line_thickness } => {
@@ -645,7 +645,7 @@ impl Ui {
                     grid_type: keru_draw::GridType::Hexagonal,
                     x_clip,
                     y_clip,
-                    texture: None,
+                    texture,
                 });
             }
         }
