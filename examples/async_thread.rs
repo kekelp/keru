@@ -1,3 +1,7 @@
+/// Example using ThreadFuture and run_in_background.
+/// 
+/// The state has a Option<ThreadFuture<String>> value that gets filled in as a result of a background computation.
+
 use std::path::Path;
 use std::task::Poll;
 use std::thread;
@@ -11,20 +15,16 @@ pub struct State {
     pub file: Option<ThreadFuture<String>>,
 }
 
-fn load_file_slowly() -> String {
-    thread::sleep(Duration::from_millis(800));
-    let cargo_dir = Path::new(env!("CARGO_MANIFEST_DIR")).canonicalize().unwrap();
-    let contents = std::fs::read_to_string(cargo_dir.join("src/lib.rs")).unwrap();
-    return contents;
-}
-
-// This example needs access to the window to be able to wake up the event loop. 
 fn update_ui(state: &mut State, ui: &mut Ui) {
-
-    // Setup a waker callback that can both wake up the winit event loop and tell the Ui that an update is needed.
-    // Calling `set_update_needed()`` it will cause `Ui::should_update()` to return `true` on the next call, 
-    // which is the method used in the window loop to decide whether to rerun the ui logic.
     let uiwaker = ui.ui_waker();
+
+    let path = "src/lib.rs";
+    let load_file_slowly = move ||  {
+        thread::sleep(Duration::from_millis(800));
+        let cargo_dir = Path::new(env!("CARGO_MANIFEST_DIR")).canonicalize().unwrap();
+        let contents = std::fs::read_to_string(cargo_dir.join(path)).unwrap();
+        return contents;
+    };
 
     match &mut state.file {
         None => {
@@ -40,9 +40,9 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                 },
                 Poll::Ready(file) => {
                     ui.add(V_SCROLL_STACK.size_symm(Size::Frac(0.75))).nest(|| {
+                        ui.add(LABEL.static_text("Loaded"));
                         ui.add(LABEL.text(&file));
                     });
-                    state.file = None;
                 }
             };
         }

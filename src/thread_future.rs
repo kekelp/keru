@@ -25,7 +25,6 @@ impl<T: Send + Sync + 'static> ThreadFuture<T> {
     }
 }
 
-
 /// A simple convenience function to compute a value in background.
 /// 
 /// This function spawns a background thread that will run `function`, and immediately returns a `ThreadFuture`.

@@ -712,35 +712,20 @@ where T: Send + 'static {
     }
 }
 
-// todo: inline?
-pub struct AsyncButtonState<T: Send + Sync + 'static> {
-    pub future: Option<ThreadFuture<T>>,
-}
-
-impl<T: Send + Sync + 'static> Default for AsyncButtonState<T> {
-    fn default() -> Self {
-        Self { future: None }
-    }
-}
-
-
 impl<T> Component for AsyncButton<T>
 where T: Send + Sync + 'static {
     type AddResult = Poll<T>;
     type ComponentOutput = ();
-    type State = AsyncButtonState<T>;
+    type State = Option<ThreadFuture<T>>;
 
-    fn add_to_ui(&mut self, ui: &mut Ui, state: &mut Self::State) -> Self::AddResult {
-        #[node_key]
-        const ASYNC_BUTTON: NodeKey;
+    fn add_to_ui(&mut self, ui: &mut Ui, state: &mut Option<ThreadFuture<T>>) -> Self::AddResult {
+        #[node_key] const ASYNC_BUTTON: NodeKey;
     
-        let current_state = state.future.as_ref().map(|f| f.poll());
-        
         let clickable: bool;
         let button_text: &'static str;
         let result: Poll<T>;
     
-        match current_state {
+        match state.as_ref().map(|f| f.poll()) {
             None => {
                 button_text = self.idle_text;
                 clickable = true;
@@ -755,7 +740,7 @@ where T: Send + Sync + 'static {
                 button_text = self.idle_text;
                 clickable = true;
                 result = Poll::Ready(val);
-                state.future = None;  // Reset to idle so we can restart
+                *state = None;  // Reset to idle so we can restart
             }
         };
     
@@ -764,13 +749,13 @@ where T: Send + Sync + 'static {
         if clickable && ui.is_clicked(ASYNC_BUTTON) {
             let waker = ui.ui_waker();
             let func = Arc::clone(&self.function);
-            state.future = Some(run_in_background(
+            *state = Some(run_in_background(
                 move || func(),
                 move || waker.set_update_needed(),
             ));
         }
     
-        result
+        return result;
     }
 
     fn component_key(&self) -> Option<ComponentKey<Self>> {

@@ -166,6 +166,7 @@ impl UiWaker {
         }
     }
 }
+
 use std::cmp::Reverse;
 use std::sync::mpsc::{RecvTimeoutError, Sender};
 
@@ -403,7 +404,7 @@ impl Ui {
 
     /// Get a [UiWaker], which can be used to wake up the ui from a different thread.
     ///
-    /// Panics if the [Ui::enable_auto_wakeup()] wasn't called on this [Ui] instance.
+    /// Panics if [Ui::enable_auto_wakeup()] wasn't called on this [Ui] instance.
     pub fn ui_waker(&mut self) -> UiWaker {
         return self.sys.waker.as_ref()
             .expect("Wakeup not enabled. Ui::enable_auto_wakeup() must be called before calling this function.")
