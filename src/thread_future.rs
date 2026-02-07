@@ -6,7 +6,7 @@ use std::task::Poll;
 /// 
 /// Obtained by calling [`run_in_background()`].
 /// 
-/// Use [`Self::poll()`] to extract the result, when it's ready.
+/// Use [`Self::poll()`] to check for the result.
 pub struct ThreadFuture<T: Send + Sync + 'static>(Arc<OnceLock<T>>);
 
 impl<T: Send + Sync + 'static> Clone for ThreadFuture<T> {
@@ -14,6 +14,17 @@ impl<T: Send + Sync + 'static> Clone for ThreadFuture<T> {
         Self(self.0.clone())
     }
 }
+
+impl<T: Send + Sync + 'static> ThreadFuture<T> {
+    /// Returns [`Poll::Pending`] if the value is not ready, or [`Poll::Ready(val)`] if the background function has finished executing. `val` is a reference to the result of the background function.
+    pub fn poll(&self) -> Poll<&T> {
+        match self.0.get() {
+            Some(value) => Poll::Ready(&value),
+            None => Poll::Pending,
+        }
+    }
+}
+
 
 /// A simple convenience function to compute a value in background.
 /// 
@@ -29,23 +40,13 @@ pub fn run_in_background<T: Send + Sync + 'static>(
     waker: impl FnOnce() + Send + 'static,
 ) -> ThreadFuture<T> {
     let arc = Arc::new(OnceLock::new());
-    let clone = Arc::clone(&arc);
+    let arc_clone = Arc::clone(&arc);
     
     thread::spawn(move || {
         let result = function();
-        let _ = clone.set(result);
+        let _ = arc_clone.set(result);
         waker();
     });
 
     return ThreadFuture(arc);
-}
-
-impl<T: Send + Sync + 'static> ThreadFuture<T> {
-    /// Returns [`Poll::Pending`] if the value is not ready, or [`Poll::Ready(val)`] if the background function has finished executing. `val` is a reference to the result of the background function.
-    pub fn poll(&self) -> Poll<&T> {
-        match self.0.get() {
-            Some(value) => Poll::Ready(&value),
-            None => Poll::Pending,
-        }
-    }
 }

@@ -409,7 +409,7 @@ impl Ui {
                     }
                 };
 
-                self.sys.renderer.draw_arc(keru_draw::Arc {
+                self.sys.renderer.draw_arc(keru_draw::CircleArc {
                     center: [cx, cy],
                     radius,
                     start_angle: *start_angle,
@@ -436,7 +436,7 @@ impl Ui {
                     }
                 };
 
-                self.sys.renderer.draw_pie(keru_draw::Pie {
+                self.sys.renderer.draw_pie(keru_draw::CirclePie {
                     center: [cx, cy],
                     radius,
                     start_angle: *start_angle,

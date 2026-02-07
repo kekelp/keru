@@ -26,7 +26,6 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     // which is the method used in the window loop to decide whether to rerun the ui logic.
     let uiwaker = ui.ui_waker();
 
-
     match &mut state.file {
         None => {
             let load = BUTTON.static_text("Click to load the file");
@@ -43,6 +42,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                     ui.add(V_SCROLL_STACK.size_symm(Size::Frac(0.75))).nest(|| {
                         ui.add(LABEL.text(&file));
                     });
+                    state.file = None;
                 }
             };
         }

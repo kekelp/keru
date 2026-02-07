@@ -57,7 +57,7 @@ pub struct Theme {
 pub const KERU_DARK: Theme = Theme {
     // Dark base colors
     muted_background: VertexColors::flat(Color { r: 11, g: 11, b: 14, a: 255 }),      // Muted background
-    background: VertexColors::flat(Color { r: 26, g: 27, b: 38, a: 255 }),    // Very dark blue-tinted grey
+    background: VertexColors::flat(Color { r: 30, g: 31, b: 42, a: 255 }),    // Very dark blue-tinted grey
     surface: VertexColors::flat(Color { r: 30, g: 31, b: 44, a: 255 }),       // Slightly lighter
     surface_alt: VertexColors::flat(Color { r: 37, g: 38, b: 54, a: 255 }),   // For contrast against surface
 

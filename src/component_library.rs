@@ -591,12 +591,12 @@ pub struct HorizontalTabsState {
     pub i: usize,
 }
 
-pub struct StatefulHorizontalTabs<'a> {
+pub struct TabContainer<'a> {
     pub tabs: &'a [Tab],
     pub key: Option<ComponentKey<Self>>,
 }
 
-impl<'a> StatefulHorizontalTabs<'a> {
+impl<'a> TabContainer<'a> {
     pub fn new(tabs: &'a [Tab]) -> Self {
         Self { tabs, key: None }
     }
@@ -607,7 +607,7 @@ impl<'a> StatefulHorizontalTabs<'a> {
     }
 }
 
-impl Component for StatefulHorizontalTabs<'_> {
+impl Component for TabContainer<'_> {
     type AddResult = (UiParent, Tab);
     type ComponentOutput = ();
     type State = HorizontalTabsState;
@@ -674,6 +674,103 @@ impl Component for StatefulHorizontalTabs<'_> {
 
             (ui.add(content_panel), current_tab)
         })
+    }
+
+    fn component_key(&self) -> Option<ComponentKey<Self>> {
+        self.key
+    }
+}
+
+
+use crate::thread_future_2::{ThreadFuture, run_in_background};
+use std::sync::Arc;
+use std::task::Poll;
+
+pub struct AsyncButton<T>
+where T: Send + 'static {
+    function: Arc<dyn Fn() -> T + Send + Sync + 'static>,
+    idle_text: &'static str,
+    loading_text: &'static str,
+    key: Option<ComponentKey<Self>>,
+}
+
+impl<T> AsyncButton<T>
+where T: Send + 'static {
+    pub fn new<F>(function: F, idle_text: &'static str, loading_text: &'static str) -> Self
+    where F: Fn() -> T + Send + Sync + 'static {
+        Self {
+            function: Arc::new(function),
+            idle_text,
+            loading_text,
+            key: None,
+        }
+    }
+
+    pub fn key(mut self, key: ComponentKey<Self>) -> Self {
+        self.key = Some(key);
+        self
+    }
+}
+
+// todo: inline?
+pub struct AsyncButtonState<T: Send + Sync + 'static> {
+    pub future: Option<ThreadFuture<T>>,
+}
+
+impl<T: Send + Sync + 'static> Default for AsyncButtonState<T> {
+    fn default() -> Self {
+        Self { future: None }
+    }
+}
+
+
+impl<T> Component for AsyncButton<T>
+where T: Send + Sync + 'static {
+    type AddResult = Poll<T>;
+    type ComponentOutput = ();
+    type State = AsyncButtonState<T>;
+
+    fn add_to_ui(&mut self, ui: &mut Ui, state: &mut Self::State) -> Self::AddResult {
+        #[node_key]
+        const ASYNC_BUTTON: NodeKey;
+    
+        let current_state = state.future.as_ref().map(|f| f.poll());
+        
+        let clickable: bool;
+        let button_text: &'static str;
+        let result: Poll<T>;
+    
+        match current_state {
+            None => {
+                button_text = self.idle_text;
+                clickable = true;
+                result = Poll::Pending;
+            }
+            Some(Poll::Pending) => {
+                button_text = self.loading_text;
+                clickable = false;
+                result = Poll::Pending;
+            }
+            Some(Poll::Ready(val)) => {
+                button_text = self.idle_text;
+                clickable = true;
+                result = Poll::Ready(val);
+                state.future = None;  // Reset to idle so we can restart
+            }
+        };
+    
+        ui.add(BUTTON.static_text(button_text).key(ASYNC_BUTTON));
+    
+        if clickable && ui.is_clicked(ASYNC_BUTTON) {
+            let waker = ui.ui_waker();
+            let func = Arc::clone(&self.function);
+            state.future = Some(run_in_background(
+                move || func(),
+                move || waker.set_update_needed(),
+            ));
+        }
+    
+        result
     }
 
     fn component_key(&self) -> Option<ComponentKey<Self>> {

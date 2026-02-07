@@ -15,8 +15,8 @@ const INTRO_TAB: Tab = Tab("Intro");
 const TEXT_TAB: Tab = Tab("Text");
 const GRAPHICS_TAB: Tab = Tab("Graphics");
 
-#[component_key] const MY_TABS: ComponentKey<StatefulHorizontalTabs<'static>>;
-#[component_key] const MY_TABS2: ComponentKey<StatefulHorizontalTabs<'static>>;
+#[component_key] const MY_TABS: ComponentKey<TabContainer<'static>>;
+#[component_key] const MY_TABS2: ComponentKey<TabContainer<'static>>;
 
 fn update_ui(state: &mut State, ui: &mut Ui) {
     #[node_key] const ADD: NodeKey;
@@ -35,7 +35,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         }
     }
 
-    let vert_tabs = StatefulHorizontalTabs::new(&[INTRO_TAB, TEXT_TAB, GRAPHICS_TAB]).key(MY_TABS);
+    let vert_tabs = TabContainer::new(&[INTRO_TAB, TEXT_TAB, GRAPHICS_TAB]).key(MY_TABS);
 
     // instead of returning stuff like this, we could also use component_state_mut to get the state out, or other things.
     let (parent, current_tab) = ui.add_component(vert_tabs);
@@ -47,7 +47,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
             TEXT_TAB => {
 
                 // nest the same thing inside
-                let vert_tabs = StatefulHorizontalTabs::new(&[INTRO_TAB, TEXT_TAB, GRAPHICS_TAB]).key(MY_TABS2);
+                let vert_tabs = TabContainer::new(&[INTRO_TAB, TEXT_TAB, GRAPHICS_TAB]).key(MY_TABS2);
 
                 let (parent, current_tab) = ui.add_component(vert_tabs);
                 parent.nest(|| {
