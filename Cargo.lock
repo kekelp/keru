@@ -1555,6 +1555,7 @@ dependencies = [
  "keru_draw",
  "keru_macros",
  "log",
+ "lru",
  "pollster",
  "slab",
  "smallvec",

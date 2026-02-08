@@ -1,9 +1,9 @@
-use std::{fmt::Write, panic::Location};
+use std::{fmt::Write, hash::Hash, panic::Location};
 use glam::Vec2;
 
 use crate::*;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum ImageSourceId {
     StaticPtr(*const u8),
     PathHash(u64),

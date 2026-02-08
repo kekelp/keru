@@ -14,6 +14,7 @@ use winit_mouse_events::MouseInput;
 
 use std::any::Any;
 use std::collections::BinaryHeap;
+use std::num::NonZeroUsize;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
@@ -144,6 +145,9 @@ pub(crate) struct System {
     pub anim_render_timer: AnimationRenderTimer,
 
     pub user_state: HashMap<StateId, Box<dyn Any>>,
+
+    // todo: do something else
+    pub image_cache: lru::LruCache<ImageSourceId, ImageRef>,
 
     pub waker: Option<UiWaker>,
     pub scheduled_wakeup: Option<ScheduledWakeupHandle>,
@@ -326,6 +330,8 @@ impl Ui {
                 renderer,
 
                 user_state: HashMap::with_capacity(7),
+
+                image_cache: lru::LruCache::new(NonZeroUsize::new(128).unwrap()),
 
                 waker: None,
                 scheduled_wakeup: None,
@@ -535,7 +541,7 @@ impl Ui {
             return false;
         }
 
-
+        // todo more accurate clicks
         match self.nodes[node_i].params.rect.shape {
             Shape::Rectangle { corner_radius: _ } => {
                 return true;
@@ -572,8 +578,6 @@ impl Ui {
 
             }
             Shape::Arc { .. } => {
-                // For Arc, treat it like a circle hit test for simplicity
-                // A more accurate test would check angular bounds
                 let center_x = (rect.rect[X][0] + rect.rect[X][1]) / 2.0;
                 let center_y = (rect.rect[Y][0] + rect.rect[Y][1]) / 2.0;
                 let radius = (rect.rect[X][1] - rect.rect[X][0]) / 2.0;
@@ -583,8 +587,6 @@ impl Ui {
                 return dx * dx + dy * dy <= radius * radius;
             }
             Shape::Pie { .. } => {
-                // For Pie, treat it like a circle hit test for simplicity
-                // A more accurate test would check angular bounds
                 let center_x = (rect.rect[X][0] + rect.rect[X][1]) / 2.0;
                 let center_y = (rect.rect[Y][0] + rect.rect[Y][1]) / 2.0;
                 let radius = (rect.rect[X][1] - rect.rect[X][0]) / 2.0;
@@ -601,6 +603,19 @@ impl Ui {
 
     }
 
+    fn unload_imageref(&mut self, imageref: &ImageRef) {
+        match imageref {
+            ImageRef::Raster(loaded) => self.sys.renderer.image_renderer.unload_image(loaded),
+            ImageRef::Svg(loaded) => self.sys.renderer.image_renderer.unload_svg(loaded),
+        }
+    }
+
+    fn cache_image(&mut self, source: ImageSourceId, imageref: ImageRef) {
+        if let Some((_evicted_key, evicted_imageref)) = self.sys.image_cache.push(source, imageref) {
+            self.unload_imageref(&evicted_imageref);
+        }
+    }
+
     pub(crate) fn set_static_image(&mut self, i: NodeI, image: &'static [u8]) {
         let node = &mut self.nodes[i];
         let source = ImageSourceId::StaticPtr(image.as_ptr());
@@ -609,10 +624,20 @@ impl Ui {
             return;
         }
 
+        // Check global cache
+        if let Some(cached) = self.sys.image_cache.get(&source) {
+            node.imageref = Some(cached.clone());
+            node.last_image_source = Some(source);
+            self.sys.changes.should_rebuild_render_data = true;
+            return;
+        }
+
         if let Some(loaded) = self.sys.renderer.image_renderer.load_encoded_image(image) {
             log::info!("Loaded image: {}x{} on page {}", loaded.width, loaded.height, loaded.page);
-            node.imageref = Some(crate::render::ImageRef::Raster(loaded));
-            node.last_image_source = Some(source);
+            let imageref = ImageRef::Raster(loaded);
+            self.cache_image(source, imageref.clone());
+            self.nodes[i].imageref = Some(imageref);
+            self.nodes[i].last_image_source = Some(source);
             self.sys.changes.should_rebuild_render_data = true;
         } else {
             log::error!("Failed to load image from {} bytes", image.len());
@@ -627,11 +652,21 @@ impl Ui {
             return;
         }
 
+        // Check global cache
+        if let Some(cached) = self.sys.image_cache.get(&source) {
+            node.imageref = Some(cached.clone());
+            node.last_image_source = Some(source);
+            self.sys.changes.should_rebuild_render_data = true;
+            return;
+        }
+
         let initial_size = 512;
         if let Some(loaded) = self.sys.renderer.image_renderer.load_svg(svg_data, initial_size, initial_size) {
             log::info!("Loaded SVG: {}x{} on page {}", loaded.width, loaded.height, loaded.page);
-            node.imageref = Some(crate::render::ImageRef::Svg(loaded));
-            node.last_image_source = Some(source);
+            let imageref = ImageRef::Svg(loaded);
+            self.cache_image(source, imageref.clone());
+            self.nodes[i].imageref = Some(imageref);
+            self.nodes[i].last_image_source = Some(source);
             self.sys.changes.should_rebuild_render_data = true;
         } else {
             log::error!("Failed to load SVG from {} bytes", svg_data.len());
@@ -640,9 +675,17 @@ impl Ui {
 
     pub(crate) fn set_path_image(&mut self, i: NodeI, path: &str) {
         let node = &mut self.nodes[i];
-        let source = crate::inner_node::ImageSourceId::PathHash(crate::tree::ahash(&path));
+        let source = crate::inner_node::ImageSourceId::PathHash(ahash(&path));
 
         if node.last_image_source == Some(source) {
+            return;
+        }
+
+        // Check global cache
+        if let Some(cached) = self.sys.image_cache.get(&source) {
+            node.imageref = Some(cached.clone());
+            node.last_image_source = Some(source);
+            self.sys.changes.should_rebuild_render_data = true;
             return;
         }
 
@@ -650,8 +693,10 @@ impl Ui {
             Ok(bytes) => {
                 if let Some(loaded) = self.sys.renderer.image_renderer.load_encoded_image(&bytes) {
                     log::info!("Loaded image from path '{}': {}x{} on page {}", path, loaded.width, loaded.height, loaded.page);
-                    node.imageref = Some(crate::render::ImageRef::Raster(loaded));
-                    node.last_image_source = Some(source);
+                    let imageref = ImageRef::Raster(loaded);
+                    self.cache_image(source, imageref.clone());
+                    self.nodes[i].imageref = Some(imageref);
+                    self.nodes[i].last_image_source = Some(source);
                     self.sys.changes.should_rebuild_render_data = true;
                 } else {
                     log::error!("Failed to decode image from path '{}'", path);
@@ -665,9 +710,17 @@ impl Ui {
 
     pub(crate) fn set_path_svg(&mut self, i: NodeI, path: &str) {
         let node = &mut self.nodes[i];
-        let source = crate::inner_node::ImageSourceId::PathHash(crate::tree::ahash(&path));
+        let source = crate::inner_node::ImageSourceId::PathHash(ahash(&path));
 
         if node.last_image_source == Some(source) {
+            return;
+        }
+
+        // Check global cache
+        if let Some(cached) = self.sys.image_cache.get(&source) {
+            node.imageref = Some(cached.clone());
+            node.last_image_source = Some(source);
+            self.sys.changes.should_rebuild_render_data = true;
             return;
         }
 
@@ -676,8 +729,10 @@ impl Ui {
                 let initial_size = 512;
                 if let Some(loaded) = self.sys.renderer.image_renderer.load_svg(&bytes, initial_size, initial_size) {
                     log::info!("Loaded SVG from path '{}': {}x{} on page {}", path, loaded.width, loaded.height, loaded.page);
-                    node.imageref = Some(crate::render::ImageRef::Svg(loaded));
-                    node.last_image_source = Some(source);
+                    let imageref = ImageRef::Svg(loaded);
+                    self.cache_image(source, imageref.clone());
+                    self.nodes[i].imageref = Some(imageref);
+                    self.nodes[i].last_image_source = Some(source);
                     self.sys.changes.should_rebuild_render_data = true;
                 } else {
                     log::error!("Failed to decode SVG from path '{}'", path);
