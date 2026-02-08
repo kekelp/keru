@@ -45,6 +45,11 @@ impl Ui {
         return UiParent::new(i);
     }
 
+    /// EXPERIMENTAL
+    pub fn jump_to_root(&self) -> UiParent {
+        return UiParent { i: ROOT_I }
+    }
+
     #[track_caller]
     pub(crate) fn add_or_update_node(&mut self, key: NodeKey) -> (NodeI, Id) {
         let frame = self.sys.current_frame;
