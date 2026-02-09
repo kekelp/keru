@@ -95,7 +95,8 @@ impl Ui {
 
                         for tag in hovered_tags {
                             if let Some(clicked_i) = self.nodes.get_by_id(Some(tag)) {
-                                if self.nodes[clicked_i].params.interact.senses.contains(Sense::CLICK_RELEASE) {
+                                if self.nodes[clicked_i].params.interact.senses.contains(Sense::CLICK_RELEASE) ||
+                                    self.nodes[clicked_i].params.interact.senses.contains(Sense::DRAG)  {
                                     self.set_new_ui_input();
                                 }
                             }

@@ -259,7 +259,7 @@ impl UiNode<'_> {
     /// Unlike [`Self::is_click_released()`], this is `true` even if the pointer is not on the node anymore when the button is released.
     pub fn is_drag_released(&self) -> bool {
     #[cfg(debug_assertions)]
-    if ! self.check_node_sense(Sense::CLICK_RELEASE, "is_click_released()", "Node::sense_click()") {
+    if ! self.check_node_sense(Sense::DRAG, "is_drag_released()", "Node::sense_drag()") {
         return false;
     }
 
