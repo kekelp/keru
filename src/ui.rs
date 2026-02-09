@@ -440,12 +440,13 @@ impl Ui {
     /// 
     /// In applications that update on every frame regardless of user input, like games or simulations, the [`Ui`] building code should be rerun on every frame unconditionally, so this function isn't useful.
     pub fn should_update(&mut self) -> bool {
-        let real_external_events = if let Some(waker) = &self.sys.waker {
-            waker.needs_update.load(std::sync::atomic::Ordering::Relaxed)
-        } else { false };
+        if let Some(waker) = &self.sys.waker {
+            if waker.needs_update.swap(false, std::sync::atomic::Ordering::Relaxed) {
+                self.sys.update_frames_needed = 2;
+            }
+        }
         return self.sys.update_frames_needed > 0 ||
-            self.sys.new_external_events || 
-            real_external_events;
+            self.sys.new_external_events;
     }
 
     /// Returns `true` if the [`Ui`] needs to be updated or rerendered as a consequence of input, animations, or other [`Ui`]-internal events.

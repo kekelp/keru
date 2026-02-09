@@ -740,11 +740,13 @@ where T: Send + Sync + 'static {
                 button_text = self.idle_text;
                 clickable = true;
                 result = Poll::Ready(val);
-                *state = None;  // Reset to idle so we can restart
+                *state = None; // Reset to idle so we can restart
             }
         };
     
-        ui.add(BUTTON.static_text(button_text).key(ASYNC_BUTTON));
+        let button = BUTTON.static_text(button_text).key(ASYNC_BUTTON);
+
+        ui.add(button);
     
         if clickable && ui.is_clicked(ASYNC_BUTTON) {
             let waker = ui.ui_waker();

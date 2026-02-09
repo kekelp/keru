@@ -794,7 +794,8 @@ pub const H_LINE: Node = Node {
 };
 
 pub(crate) const COMPONENT_ROOT: Node = Node {
-    animation: NO_ANIMATION,
+    // todo remove
+    animation: Animation { speed: 1.0, enter: EnterAnimation::None, exit: ExitAnimation::None, state_transition: StateTransition { animate_position: true } },
     key: None,
     stack: None,
     text_params: None,
