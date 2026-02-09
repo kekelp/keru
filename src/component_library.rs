@@ -749,7 +749,7 @@ where T: Send + Sync + 'static {
         ui.add(button);
     
         if clickable && ui.is_clicked(ASYNC_BUTTON) {
-            let waker = ui.ui_waker();
+            let waker = ui.ui_waker_safe();
             let func = Arc::clone(&self.function);
             *state = Some(run_in_background(
                 move || func(),

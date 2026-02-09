@@ -149,23 +149,28 @@ pub(crate) struct System {
     // todo: do something else
     pub image_cache: lru::LruCache<ImageSourceId, ImageRef>,
 
-    pub waker: Option<UiWaker>,
+    pub needs_update: Arc<AtomicBool>,
+    pub window_ref: Option<Weak<Window>>,
     pub scheduled_wakeup: Option<ScheduledWakeupHandle>,
 
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
 }
 
+/// A handle that can be used to wake up the [`Ui`] from another thread.
 #[derive(Clone)]
 pub struct UiWaker {
     pub(crate) needs_update: Arc<AtomicBool>,
-    pub(crate) window_ref: Weak<Window>,
+    pub(crate) window_ref: Option<Weak<Window>>,
 }
 
 impl UiWaker {
+    /// Signal that the [`Ui`] needs to be updated, causing the next call to [`Ui::should_update()`] to return `true`.
+    /// 
+    /// If [`Ui::enable_auto_wakeup()`] was called on the [`Ui`], this will also wake up the `winit` event loop by calling `request_redraw()` on the window.
     pub fn set_update_needed(&self) {
         self.needs_update.store(true, std::sync::atomic::Ordering::Relaxed);
-        if let Some(window) = self.window_ref.upgrade() {
+        if let Some(window) = self.window_ref.as_ref().and_then(|w| w.upgrade()) {
             window.request_redraw();
         }
     }
@@ -333,7 +338,8 @@ impl Ui {
 
                 image_cache: lru::LruCache::new(NonZeroUsize::new(128).unwrap()),
 
-                waker: None,
+                needs_update: Arc::new(AtomicBool::new(false)),
+                window_ref: None,
                 scheduled_wakeup: None,
 
                 device: device.clone(),
@@ -343,16 +349,13 @@ impl Ui {
     }
 
     /// Registers the `winit` window so that it can be used for automatic wakeup for cursor blinking, scheduled wakeups, and using the [UiWaker].
-    /// 
+    ///
     /// In applications that don't pause their event loops, like games, there is no need to call this method.
     ///
     /// You can also handle cursor wakeups manually in your winit event loop with winit's `ControlFlow::WaitUntil` and [`Text::time_until_next_cursor_blink`]. See the `event_loop_smart.rs` example.
     pub fn enable_auto_wakeup(&mut self, window: Arc<Window>) {
         self.sys.renderer.text.set_auto_wakeup(window.clone());
-        self.sys.waker = Some(UiWaker {
-            needs_update: Arc::new(AtomicBool::new(false)),
-            window_ref: Arc::downgrade(&window),
-        });
+        self.sys.window_ref = Some(Arc::downgrade(&window));
     }
 
     /// Set the global animation speed multiplier.
@@ -408,13 +411,27 @@ impl Ui {
         self.sys.new_external_events = true;
     }
 
-    /// Get a [UiWaker], which can be used to wake up the ui from a different thread.
+    /// Get a [`UiWaker`] that can be used to wake up the ui from a different thread.
     ///
-    /// Panics if [Ui::enable_auto_wakeup()] wasn't called on this [Ui] instance.
+    /// Panics if [`Ui::enable_auto_wakeup()`] wasn't called on this [`Ui`] instance.
     pub fn ui_waker(&mut self) -> UiWaker {
-        return self.sys.waker.as_ref()
-            .expect("Wakeup not enabled. Ui::enable_auto_wakeup() must be called before calling this function.")
-            .clone()
+        if self.sys.window_ref.is_none() {
+            panic!("Wakeup not enabled. Ui::enable_auto_wakeup() must be called before calling this function.");
+        }
+        UiWaker {
+            needs_update: Arc::clone(&self.sys.needs_update),
+            window_ref: self.sys.window_ref.clone(),
+        }
+    }
+
+    /// Get a [`UiWaker`] that can be used to wake up the ui from a different thread.
+    ///
+    /// If [Ui::enable_auto_wakeup()] wasn't called on this [`Ui`] instance, the `UiWaker` won't be able to wake up the `winit` event loop. However, it will still set the [`Ui`]'s state so that the next call to [`Ui::needs_update()`] will return `true`.
+    pub fn ui_waker_safe(&mut self) -> UiWaker {
+        UiWaker {
+            needs_update: Arc::clone(&self.sys.needs_update),
+            window_ref: self.sys.window_ref.clone(),
+        }
     }
 
     /// Schedule a wakeup after the specified duration.
@@ -423,27 +440,31 @@ impl Ui {
     ///
     /// Panics if [Ui::enable_auto_wakeup()] wasn't called on this [Ui] instance.
     pub fn schedule_wakeup(&mut self, duration: Duration) {
-        let waker = self.sys.waker.as_ref().expect("Wakeup not enabled. Ui::enable_auto_wakeup() must be called before calling this function.");
+        if self.sys.window_ref.is_none() {
+            panic!("Wakeup not enabled. Ui::enable_auto_wakeup() must be called before calling this function.");
+        }
+        let waker = UiWaker {
+            needs_update: Arc::clone(&self.sys.needs_update),
+            window_ref: self.sys.window_ref.clone(),
+        };
 
         if self.sys.scheduled_wakeup.is_none() {
-            self.sys.scheduled_wakeup = Some(ScheduledWakeupHandle::new(waker.clone()));
+            self.sys.scheduled_wakeup = Some(ScheduledWakeupHandle::new(waker));
         }
 
         self.sys.scheduled_wakeup.as_ref().unwrap().schedule(duration);
     }
 
     /// Returns `true` if the [`Ui`] needs to be updated.
-    /// 
+    ///
     /// This is true when the [`Ui`] received an input that it cares about, such as a click on a clickable element, or when the user explicitly notified it with [`Ui::push_external_event()`].
-    ///  
+    ///
     /// In a typical `winit` loop for an application that only updates in response to user input, this function is what decides if the [`Ui`] building code should be rerun.
-    /// 
+    ///
     /// In applications that update on every frame regardless of user input, like games or simulations, the [`Ui`] building code should be rerun on every frame unconditionally, so this function isn't useful.
     pub fn should_update(&mut self) -> bool {
-        if let Some(waker) = &self.sys.waker {
-            if waker.needs_update.swap(false, std::sync::atomic::Ordering::Relaxed) {
-                self.sys.update_frames_needed = 2;
-            }
+        if self.sys.needs_update.swap(false, std::sync::atomic::Ordering::Relaxed) {
+            self.sys.update_frames_needed = 2;
         }
         return self.sys.update_frames_needed > 0 ||
             self.sys.new_external_events;

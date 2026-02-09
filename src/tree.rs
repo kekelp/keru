@@ -489,9 +489,7 @@ impl Ui {
         self.sys.new_external_events = false;
 
         // not sure if still needed
-        if let Some(waker) = &self.sys.waker {
-            waker.needs_update.store(false, std::sync::atomic::Ordering::Relaxed);
-        }
+        self.sys.needs_update.store(false, std::sync::atomic::Ordering::Relaxed);
 
         reset_arena();
     }
