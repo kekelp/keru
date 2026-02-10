@@ -45,7 +45,35 @@ impl Ui {
         return UiParent::new(i);
     }
 
-    /// EXPERIMENTAL
+    /// Returns an [`UiParent`] for the root node, that you can use to nest children directly into the root node, regardless of where you are in the [`nest`] structure.
+    /// 
+    /// This is sort of a crazy thing to do, but here's an example of why it might be useful:
+    /// 
+    /// ```no_run
+    /// # use keru::*;
+    /// # let mut ui: Ui = unimplemented!();
+    /// // A list of elements that can be dragged away from the container
+    /// #[node_key] pub const SOME_KEY: NodeKey;
+    /// ui.add(V_STACK).nest(|| {
+    ///     for i in 0..10 {
+    ///         let key = SOME_KEY.sibling(i);
+    ///         let element = LABEL.text("Element").key(key);
+    ///     
+    ///         if let Some(drag) = ui.is_dragged(SOME_KEY) {
+    ///             // Add the element that's being dragged to the root
+    ///             ui.jump_to_root().nest(|| {
+    ///                 let mouse_pos = todo!();
+    ///                 ui.add(element.position_symm(mouse_pos));
+    ///             });
+    ///         } else {
+    ///             // add all the other elements to the stack normally
+    ///             ui.add(element);
+    ///         }
+    ///     }
+    /// });
+    /// // Adding it to the root is an easy way to make the element follow the mouse without doing any math.
+    /// // Not adding it to the stack means that the other elements get the correct animations, without any sort of special-casing.
+    /// ```
     pub fn jump_to_root(&self) -> UiParent {
         return UiParent { i: ROOT_I }
     }
