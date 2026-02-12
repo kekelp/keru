@@ -825,6 +825,7 @@ impl Node {
         return self;
     }
 
+    // todo: rename to opaque or something like that
     pub const fn absorbs_clicks(mut self, absorbs_clicks: bool) -> Self {
         self.interact.absorbs_mouse_events = absorbs_clicks;
         return self;

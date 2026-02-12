@@ -297,7 +297,7 @@ impl UiNode<'_> {
             return None;
         }
 
-        let mouse_record = self.ui.sys.mouse_input.drag_released_onto(Some(MouseButton::Left), Some(self.node().id), Some(dest.id))?;
+        let mouse_record = self.ui.sys.mouse_input.drag_released_onto(Some(MouseButton::Left), Some(self.node().id), Some(dest.id_with_subtree()))?;
         Some(self.drag_from_mouse_record(&mouse_record))
     }
 
@@ -312,7 +312,7 @@ impl UiNode<'_> {
             return None;
         }
 
-        let mouse_record = self.ui.sys.mouse_input.drag_hovered_onto(Some(MouseButton::Left), Some(self.node().id), Some(dest.id))?;
+        let mouse_record = self.ui.sys.mouse_input.drag_hovered_onto(Some(MouseButton::Left), Some(self.node().id), Some(dest.id_with_subtree()))?;
         Some(self.drag_from_mouse_record(&mouse_record))
     }
 
