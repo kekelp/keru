@@ -80,6 +80,7 @@ impl Ui {
     pub fn z_value(&self, key: NodeKey) -> Option<f32> {
         Some(self.get_uinode(key)?.render_rect().z)
     }
+    /// Dimensions of the rect in screen pixels
     pub fn rect(&self, key: NodeKey) -> Option<XyRect> {
         Some(self.get_uinode(key)?.rect())
     }

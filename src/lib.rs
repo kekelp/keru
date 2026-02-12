@@ -116,7 +116,7 @@ mod component_library;
 pub use component_library::*;
 
 mod interact;
-pub(crate) use crate::interact::*;
+pub use crate::interact::*;
 
 pub mod thread_future;
 pub mod thread_future_2;

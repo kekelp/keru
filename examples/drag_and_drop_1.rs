@@ -18,7 +18,7 @@ impl State {
             .size_x(Size::Pixels(100.0))
             .anchor_symm(Anchor::Center)
             .sense_drag(true)
-            .absorbs_clicks(false)
+            .absorbs_clicks(false) // it would be better to have an invisible vstack_hitbox on top of the items. 
             .animate_position(true)
             .animation(Animation {
                 speed: 1.0,
@@ -41,9 +41,9 @@ impl State {
                 },
             });
 
-        
         let stack = V_STACK
-            .padding(50.0)
+            .padding_x(150.0)
+            .padding_y(50.0)
             .size_y(Size::Fill)
             .position_y(Pos::Start)
             .sense_drag_drop_target(true)
