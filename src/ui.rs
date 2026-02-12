@@ -565,6 +565,9 @@ impl Ui {
 
         // todo more accurate clicks
         match self.nodes[node_i].params.rect.shape {
+            Shape::NoShape => {
+                return false; // weird...
+            }
             Shape::Rectangle { corner_radius: _ } => {
                 return true;
             }

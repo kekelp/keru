@@ -328,7 +328,6 @@ impl Ui {
         self.sys.z_cursor += Z_STEP;
         let z = self.sys.z_cursor;
 
-        let draw_even_if_invisible = self.sys.inspect_mode;
 
         // Get the clip rect for this node
         let node_clip_rect = self.nodes[i].clip_rect;
@@ -352,9 +351,13 @@ impl Ui {
             }
         });
 
+        if self.sys.inspect_mode {
+            self.render_node_shape_to_scene(i, node_clip_rect, texture, true);
+        }
+        
         // Render node's shape (with texture if image is present)
-        if draw_even_if_invisible || self.nodes[i].params.rect.visible {
-            self.render_node_shape_to_scene(i, node_clip_rect, texture);
+        if self.nodes[i].params.visible {
+            self.render_node_shape_to_scene(i, node_clip_rect, texture, false);
 
             if let Some(text_i) = &self.nodes[i].text_i {
                 // Update text position using animated rect
@@ -419,7 +422,6 @@ impl Ui {
                     },
                 }
             }
-
         }
         
         // Pop the transform if we pushed it
@@ -846,6 +848,7 @@ mod test_caller_location_id {
 ///  
 /// Can be used to call [`nest()`](Self::nest()) and add more nodes as children of this one. 
 pub struct UiParent {
+    // todo: add a debug-mode frame number to check that it's not held and reused across frames 
     pub(crate) i: NodeI,
 }
 impl UiParent {

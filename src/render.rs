@@ -133,9 +133,8 @@ impl Ui {
         return false;
     }
 
-
     /// Render a node's shape using keru_draw.
-    pub(crate) fn render_node_shape_to_scene(&mut self, i: NodeI, clip_rect: Xy<[f32; 2]>, texture: Option<LoadedImage>) {
+    pub(crate) fn render_node_shape_to_scene(&mut self, i: NodeI, clip_rect: Xy<[f32; 2]>, texture: Option<LoadedImage>, debug_box: bool) {
         let node = &self.nodes[i];
 
         // Get rect in normalized space (0-1)
@@ -237,8 +236,15 @@ impl Ui {
             (0.0, None)
         };
 
+        let shape = if debug_box {
+            &Shape::Rectangle { corner_radius: 5.0 }
+        } else {
+            &node.params.rect.shape
+        };
+
         // Render based on shape type
-        match &node.params.rect.shape {
+        match shape {
+            Shape::NoShape => {}
             Shape::Rectangle { corner_radius } => {
                 let corner_radius = *corner_radius;
 

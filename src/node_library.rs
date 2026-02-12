@@ -32,8 +32,7 @@ pub const ICON_EDIT: &[u8] = include_bytes!("svg_icons/pencil.svg");
 
 const DEBUG_ONLY_RECT: Rect = Rect {
     rounded_corners: RoundedCorners::ALL,
-    shape: Rectangle { corner_radius: BASE_RADIUS },
-    visible: false,
+    shape: Shape::Circle,
     stroke: Some(Stroke::new(4.0).with_color(Color::KERU_DEBUG_RED)),
     vertex_colors: VertexColors::flat(Color::TRANSPARENT),
 };
@@ -44,10 +43,10 @@ pub(crate) const NODE_ROOT_PARAMS: Node = Node {
     key: None,
     text_params: None,
     stack: None,
+    visible: false,
     rect: Rect {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
-        visible: false,
         stroke: None,
         vertex_colors: VertexColors::flat(Color::TRANSPARENT)
     },
@@ -74,10 +73,10 @@ pub const DEFAULT: Node = Node {
     key: None,
     text_params: None,
     stack: None,
+    visible: true,
     rect: Rect {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
-        visible: true,
         stroke: None,
         vertex_colors: VertexColors::flat(Color::KERU_BLUE),
     },
@@ -108,6 +107,7 @@ pub const V_STACK: Node = Node {
         axis: Axis::Y,
         spacing: 8.0,
     }),
+    visible: true,
     rect: DEBUG_ONLY_RECT,
     interact: Interact {
         senses: Sense::NONE,
@@ -136,6 +136,7 @@ pub const H_STACK: Node = Node {
         axis: Axis::X,
         spacing: 8.0,
     }),
+    visible: true,
     rect: DEBUG_ONLY_RECT,
     interact: Interact {
         senses: Sense::NONE,
@@ -165,13 +166,8 @@ pub const V_SCROLL_STACK: Node = Node {
             axis: Axis::Y,
             spacing: 10.0,
         }),
-        rect: Rect {
-            rounded_corners: RoundedCorners::ALL,
-            shape: Rectangle { corner_radius: BASE_RADIUS },
-            visible: false,
-            stroke: Some(Stroke::new(4.0).with_color(Color::KERU_DEBUG_RED)),
-            vertex_colors: VertexColors::flat(Color::TRANSPARENT),
-        },
+        visible: true,
+        rect: DEBUG_ONLY_RECT,
         interact: Interact {
             senses: Sense::NONE,
             absorbs_mouse_events: false,
@@ -196,6 +192,7 @@ pub const MARGIN: Node = Node {
     key: None,
     stack: None,
     text_params: None,
+    visible: true,
     rect: DEBUG_ONLY_RECT,
     interact: Interact {
         senses: Sense::NONE,
@@ -220,10 +217,10 @@ pub const ICON_BUTTON: Node = Node {
     key: None,
     stack: None,
     text_params: None,
+    visible: true,
     rect: Rect {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: 0.0 },
-        visible: true,
         stroke: None,
         vertex_colors: VertexColors::flat(Color::WHITE),
     },
@@ -250,10 +247,10 @@ pub const IMAGE: Node = Node {
     key: None,
     stack: None,
     text_params: None,
+    visible: true,
     rect: Rect {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
-        visible: true,
         stroke: None,
         vertex_colors: VertexColors::flat(Color::WHITE),
     },
@@ -280,10 +277,10 @@ pub const IMAGE_BUTTON: Node = Node {
     key: None,
     stack: None,
     text_params: None,
+    visible: true,
     rect: Rect {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
-        visible: true,
         stroke: None,
         vertex_colors: VertexColors::flat(Color::WHITE),
     },
@@ -315,10 +312,10 @@ pub const BUTTON: Node = Node {
         selectable: false,
         edit_disabled: false,
     }),
+    visible: true,
     rect: Rect {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
-        visible: true,
         stroke: None,
         // vertex_colors: VertexColors::TEST,
         vertex_colors: VertexColors::diagonal_gradient_backslash(Color::KERU_BLUE, Color::KERU_RED),
@@ -351,10 +348,10 @@ pub const LABEL: Node = Node {
         selectable: true,
         edit_disabled: false,
     }),
+    visible: true,
     rect: Rect {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
-        visible: true,
         stroke: None,
         vertex_colors: VertexColors::KERU_GRAD,
     },
@@ -387,10 +384,10 @@ pub const MULTILINE_LABEL: Node = Node {
         selectable: true,
         edit_disabled: false,
     }),
+    visible: true,
     rect: Rect {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
-        visible: true,
         stroke: None,
         vertex_colors: VertexColors::KERU_GRAD,
     },
@@ -423,6 +420,7 @@ pub const TEXT: Node = Node {
         selectable: true,
         edit_disabled: false,
     }),
+    visible: true,
     rect: DEBUG_ONLY_RECT,
     interact: Interact {
         senses: Sense::NONE,
@@ -448,10 +446,10 @@ pub const ICON: Node = Node {
     key: None,
     stack: None,
     text_params: None,
+    visible: true,
     rect: Rect {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: 0.0 },
-        visible: true,
         stroke: None,
         vertex_colors: VertexColors::flat(Color::WHITE),
     },
@@ -484,10 +482,10 @@ pub const TEXT_EDIT: Node = Node {
         selectable: true,
         edit_disabled: false,
     }),
+    visible: true,
     rect: Rect {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
-        visible: true,
         stroke: None,
         vertex_colors: VertexColors::flat(Color::GREY),
     },
@@ -520,10 +518,10 @@ pub const TEXT_EDIT_LINE: Node = Node {
         selectable: true,
         edit_disabled: false,
     }),
+    visible: true,
     rect: Rect {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
-        visible: true,
         stroke: None,
         vertex_colors: VertexColors::flat(Color::GREY),
     },
@@ -556,6 +554,7 @@ pub const TEXT_PARAGRAPH: Node = Node {
         selectable: true,
         edit_disabled: false,
     }),
+    visible: true,
     rect: DEBUG_ONLY_RECT,
     interact: Interact {
         senses: Sense::NONE,
@@ -581,10 +580,10 @@ pub const PANEL: Node = Node {
     key: None,
     stack: None,
     text_params: None,
+    visible: true,
     rect: Rect {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
-        visible: true,
         stroke: None,
         vertex_colors: VertexColors::KERU_GRAD_FW,
     },
@@ -612,10 +611,10 @@ pub const CONTAINER: Node = Node {
     key: None,
     stack: None,
     text_params: None,
+    visible: false,
     rect: Rect {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
-        visible: false,
         stroke: None,
         vertex_colors: VertexColors::flat(Color::TRANSPARENT),
     },
@@ -653,10 +652,10 @@ pub const CUSTOM_RENDERED_PANEL: Node = Node {
     key: None,
     stack: None,
     text_params: None,
+    visible: false,
     rect: Rect {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
-        visible: false,
         stroke: None,
         vertex_colors: VertexColors::GREENSCREEN,
     },
@@ -684,6 +683,7 @@ pub const SPACER: Node = Node {
     key: None,
     stack: None,
     text_params: None,
+    visible: true,
     rect: DEBUG_ONLY_RECT,
     interact: Interact {
         senses: Sense::NONE,
@@ -710,6 +710,7 @@ pub const H_SPACER: Node = Node {
     stack: None,
     text_params: None,
     rect: DEBUG_ONLY_RECT,
+    visible: true,
     interact: Interact {
         senses: Sense::NONE,
         absorbs_mouse_events: false,
@@ -734,6 +735,7 @@ pub const V_SPACER: Node = Node {
     key: None,
     stack: None,
     text_params: None,
+    visible: true,
     rect: DEBUG_ONLY_RECT,
     interact: Interact {
         senses: Sense::NONE,
@@ -759,10 +761,10 @@ pub const H_LINE: Node = Node {
     key: None,
     stack: None,
     text_params: None,
+    visible: true,
     rect: Rect {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
-        visible: true,
         stroke: Some(Stroke {
             width: 2.0,
             color: Color::WHITE,
@@ -799,10 +801,10 @@ pub(crate) const COMPONENT_ROOT: Node = Node {
     key: None,
     stack: None,
     text_params: None,
+    visible: false,
     rect: Rect {
         rounded_corners: RoundedCorners::ALL,
         shape: Rectangle { corner_radius: BASE_RADIUS },
-        visible: false,
         stroke: None,
         vertex_colors: VertexColors::flat(Color::KERU_DEBUG_BLUE),
     },

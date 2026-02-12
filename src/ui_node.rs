@@ -111,6 +111,23 @@ impl Ui {
         };
         Some(())
     }
+
+    /// Get the rects (in screen-fraction coords) of all children of a node.
+    /// Returns rects from the previous frame's layout.
+    pub fn children_rects(&self, key: NodeKey) -> Vec<XyRect> {
+        let mut rects = Vec::new();
+        let Some(parent_i) = self.nodes.node_hashmap.get(&key.id_with_subtree()).map(|e| e.slab_i) else {
+            return rects;
+        };
+        let mut current = self.nodes[parent_i].first_child;
+        while let Some(child_i) = current {
+            if !self.nodes[child_i].exiting {
+                rects.push(self.nodes[child_i].real_rect);
+            }
+            current = self.nodes[child_i].next_sibling;
+        }
+        rects
+    }
 }
 
 impl UiParent {

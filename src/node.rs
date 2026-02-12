@@ -43,6 +43,7 @@ pub struct Node {
     pub text_params: Option<TextOptions>,
     pub stack: Option<Stack>,
     pub rect: Rect,
+    pub visible: bool, // skip both the shape, node and text
     pub interact: Interact,
     pub layout: Layout,
     pub children_can_hide: ChildrenCanHide,
@@ -264,6 +265,7 @@ pub use keru_draw::RoundedCorners;
 /// The node's shape.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Shape {
+    NoShape,
     Rectangle {
         corner_radius: f32,
     },
@@ -379,6 +381,7 @@ impl Hash for Shape {
                 offset.1.to_bits().hash(state);
                 line_thickness.to_bits().hash(state);
             }
+            NoShape => 11u8.hash(state)
         }
     }
 }
@@ -388,7 +391,6 @@ impl Hash for Shape {
 pub struct Rect {
     pub shape: Shape,
     pub rounded_corners: RoundedCorners,
-    pub visible: bool,
     pub stroke: Option<Stroke>,
     pub vertex_colors: VertexColors,
     // ... crazy stuff like texture and NinePatchRect
@@ -485,7 +487,6 @@ impl Hash for Stroke {
 impl Rect {
     pub const DEFAULT: Self = Self {
         shape: Shape::Rectangle { corner_radius: BASE_RADIUS },
-        visible: true,
         stroke: None,
         vertex_colors: VertexColors::flat(Color::KERU_BLUE),
         rounded_corners: RoundedCorners::ALL,
@@ -674,13 +675,11 @@ impl Node {
     }
 
     pub const fn visible(mut self) -> Self {
-        self.rect.visible = true;
+        self.visible = true;
         return self;
     }
     pub const fn invisible(mut self) -> Self {
-        self.rect.visible = false;
-        self.rect.stroke = Some(Stroke::new(4.0).with_color(Color::KERU_DEBUG_RED));
-        self.rect.vertex_colors = VertexColors::flat(Color::TRANSPARENT);
+        self.visible = false;
         return self;
     }
 
@@ -1169,13 +1168,11 @@ impl<'a> FullNode<'a> {
     }
 
     pub const fn visible(mut self) -> Self {
-        self.params.rect.visible = true;
+        self.params.visible = true;
         return self;
     }
     pub const fn invisible(mut self) -> Self {
-        self.params.rect.visible = false;
-        self.params.rect.stroke = Some(Stroke::new(4.0).with_color(Color::KERU_DEBUG_RED));
-        self.params.rect.vertex_colors = VertexColors::flat(Color::TRANSPARENT);
+        self.params.visible = false;
         return self;
     }
 
