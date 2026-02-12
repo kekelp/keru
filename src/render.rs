@@ -168,7 +168,7 @@ impl Ui {
         let dark = dark_click.min(dark_hover);
 
         // Get vertex colors and apply darkening
-        let colors = node.params.vertex_colors;
+        let colors = node.params.color;
         let tl = colors.top_left_color();
         let tr = colors.top_right_color();
         let bl = colors.bottom_left_color();

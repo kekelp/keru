@@ -44,7 +44,7 @@ pub struct Node {
     pub stack: Option<Stack>,
     pub rect: Rect,
     pub stroke: Option<Stroke>,
-    pub vertex_colors: VertexColors,
+    pub color: VertexColors,
     pub visible: bool, // skip both the shape, node and text
     pub interact: Interact,
     pub layout: Layout,
@@ -740,7 +740,7 @@ impl Node {
     }
 
     pub const fn color(mut self, color: Color) -> Self {
-        self.vertex_colors = VertexColors::flat(color);
+        self.color = VertexColors::flat(color);
         return self;
     }
 
@@ -755,7 +755,7 @@ impl Node {
     }
 
     pub const fn colors(mut self, colors: VertexColors) -> Self {
-        self.vertex_colors = colors;
+        self.color = colors;
         return self;
     }
 
@@ -1228,7 +1228,7 @@ impl<'a> FullNode<'a> {
     }
 
     pub const fn color(mut self, color: Color) -> Self {
-        self.params.vertex_colors = VertexColors::flat(color);
+        self.params.color = VertexColors::flat(color);
         return self;
     }
 
@@ -1243,7 +1243,7 @@ impl<'a> FullNode<'a> {
     }
 
     pub const fn vertex_colors(mut self, colors: VertexColors) -> Self {
-        self.params.vertex_colors = colors;
+        self.params.color = colors;
         return self;
     }
 
