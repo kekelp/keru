@@ -54,7 +54,6 @@ impl State {
                 } else {
                     ui.add(item);
                 }
-                
             }
         });
 

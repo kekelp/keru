@@ -227,6 +227,20 @@ impl<T: Tag> MouseInput<T> {
         return n_clicks > 0;
     }
 
+    /// Returns `true` if a mouse drag on the node corresponding to the `src` key is currently hovering over the node corresponding to the `dest` key.
+    pub fn drag_hovered_onto(&self, mouse_button: Option<MouseButton>, src_tag: Option<T>, dest_tag: Option<T>) -> bool {
+        let all_events = self.mouse_events(mouse_button, src_tag);
+        let matches = all_events.filter(|c| {
+            let is_ongoing = c.is_drag_ongoing();
+            let is_on_dest = match dest_tag {
+                Some(dest) => c.currently_at.tag.contains(&dest),
+                None => true,
+            };
+            is_ongoing && is_on_dest
+        }).count();
+        return matches > 0;
+    }
+
     pub fn drag_releases(&self, mouse_button: Option<MouseButton>, tag: Option<T>) -> usize {
         let all_events = self.mouse_events(mouse_button, tag);
         return all_events.filter(|c| c.is_drag_release()).count();
@@ -402,6 +416,10 @@ impl<T: Tag> FullMouseEvent<T> {
     pub fn is_drag_release(&self) -> bool {
         let is_click_release = self.kind == IsMouseReleased::MouseReleased;
         return is_click_release;
+    }
+
+    pub fn is_drag_ongoing(&self) -> bool {
+        return self.kind == IsMouseReleased::StillDownButFrameEnded;
     }
 
     pub fn drag_distance(&self) -> Vec2 {
