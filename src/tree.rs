@@ -194,10 +194,19 @@ impl Ui {
         // Reset old links
         self.nodes[new_node_i].old_first_child = self.nodes[new_node_i].first_child;
         self.nodes[new_node_i].old_next_sibling = self.nodes[new_node_i].next_sibling;
-        
+
         self.nodes[new_node_i].first_child = None;
         self.nodes[new_node_i].last_child = None;
         self.nodes[new_node_i].n_children = 0;
+
+        // If parent changed, convert local_animated_rect to the new parent's coordinate space using screen-space positions from the previous frame.
+        let old_parent = self.nodes[new_node_i].parent;
+        let is_new_node = self.nodes[new_node_i].frame_added == self.sys.current_frame;
+        if !is_new_node && old_parent != parent_i {
+            let screen_pos = self.nodes[new_node_i].real_rect;
+            let new_parent_offset = self.nodes[parent_i].real_rect.top_left();
+            self.nodes[new_node_i].local_animated_rect = screen_pos - new_parent_offset;
+        }
 
         // Add new child
         self.nodes[new_node_i].parent = parent_i;
