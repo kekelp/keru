@@ -93,6 +93,12 @@ impl State {
                     right_release_i = Some(idx);
                 }
             }
+
+            let final_hitbox_key = HITBOX.sibling(usize::MAX);
+            if let Some(_drag) = ui.is_drag_released_onto(left_drag_key, final_hitbox_key) {
+                let idx = self.right_strings.len();
+                right_release_i = Some(idx);
+            }
         }
 
         // Left stack
@@ -131,18 +137,15 @@ impl State {
 
         // Invisible hitbox stack
         ui.add(hitbox_stack).nest(|| {
-            let last = self.right_strings.len().saturating_sub(1);
-            for (i, string) in self.right_strings.iter().enumerate() {
-                
-                let size = if i == last { Size::Fill } else { Size::FitContent };
-            
-                let hitbox = hitbox
-                    .text(&string)
-                    .size_y(size)
-                    .key(HITBOX.sibling(string));
-    
+            for string in &self.right_strings {
+                let hitbox = hitbox.text(&string).key(HITBOX.sibling(string));
                 ui.add(hitbox);
             }
+
+            let size = Size::Pixels(500.0); // todo: why doesn't Fill work right here
+            let final_hitbox = hitbox.size_y(size).key(HITBOX.sibling(usize::MAX));
+            ui.add(final_hitbox);
+
         });
 
 
