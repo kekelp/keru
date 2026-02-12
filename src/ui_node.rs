@@ -287,6 +287,7 @@ impl UiNode<'_> {
     }
 
     /// If a left button mouse drag on this node was just released onto the node corresponding to the `dest` key, returns the drag info.
+    /// The `relative_position` in the returned `Drag` is relative to the destination node.
     pub fn is_drag_released_onto(&self, dest: NodeKey) -> Option<Drag> {
         #[cfg(debug_assertions)]
         if ! self.check_node_sense(Sense::DRAG, "is_drag_released_onto()", "Node::sense_drag()") {
@@ -298,10 +299,12 @@ impl UiNode<'_> {
         }
 
         let mouse_record = self.ui.sys.mouse_input.drag_released_onto(Some(MouseButton::Left), Some(self.node().id), Some(dest.id_with_subtree()))?;
-        Some(self.drag_from_mouse_record(&mouse_record))
+        let dest_rect = self.ui.get_uinode(dest)?.node().real_rect;
+        Some(self.drag_from_mouse_record_with_rect(&mouse_record, dest_rect))
     }
 
     /// If a left button mouse drag on this node is currently hovering over the node corresponding to the `dest` key, returns the drag info.
+    /// The `relative_position` in the returned `Drag` is relative to the destination node.
     pub fn is_drag_hovered_onto(&self, dest: NodeKey) -> Option<Drag> {
         #[cfg(debug_assertions)]
         if ! self.check_node_sense(Sense::DRAG, "is_drag_hovered_onto()", "Node::sense_drag()") {
@@ -313,11 +316,15 @@ impl UiNode<'_> {
         }
 
         let mouse_record = self.ui.sys.mouse_input.drag_hovered_onto(Some(MouseButton::Left), Some(self.node().id), Some(dest.id_with_subtree()))?;
-        Some(self.drag_from_mouse_record(&mouse_record))
+        let dest_rect = self.ui.get_uinode(dest)?.node().real_rect;
+        Some(self.drag_from_mouse_record_with_rect(&mouse_record, dest_rect))
     }
 
     fn drag_from_mouse_record(&self, mouse_record: &FullMouseEvent<Id>) -> Drag {
-        let node_rect = self.node().real_rect;
+        self.drag_from_mouse_record_with_rect(mouse_record, self.node().real_rect)
+    }
+
+    fn drag_from_mouse_record_with_rect(&self, mouse_record: &FullMouseEvent<Id>, node_rect: XyRect) -> Drag {
         let relative_position = glam::Vec2::new(
             ((mouse_record.currently_at.position.x / self.ui.sys.unifs.size.x) - (node_rect.x[0])) / node_rect.size().x,
             ((mouse_record.currently_at.position.y / self.ui.sys.unifs.size.y) - (node_rect.y[0])) / node_rect.size().y,

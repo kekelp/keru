@@ -355,70 +355,71 @@ impl Ui {
         // Render node's shape (with texture if image is present)
         if draw_even_if_invisible || self.nodes[i].params.rect.visible {
             self.render_node_shape_to_scene(i, node_clip_rect, texture);
-        }
 
-        if let Some(text_i) = &self.nodes[i].text_i {
-            // Update text position using animated rect
-            let animated_rect = self.nodes[i].get_animated_rect();
-            let padding = self.nodes[i].params.layout.padding;
-            let left = (animated_rect[X][0] * self.sys.unifs.size[X]) as f64 + padding[X] as f64;
+            if let Some(text_i) = &self.nodes[i].text_i {
+                // Update text position using animated rect
+                let animated_rect = self.nodes[i].get_animated_rect();
+                let padding = self.nodes[i].params.layout.padding;
+                let left = (animated_rect[X][0] * self.sys.unifs.size[X]) as f64 + padding[X] as f64;
 
-            // Calculate node height in pixels
-            let node_height = (animated_rect[Y][1] - animated_rect[Y][0]) * self.sys.unifs.size[Y];
-            let available_height = node_height - (2.0 * padding[Y] as f32);
+                // Calculate node height in pixels
+                let node_height = (animated_rect[Y][1] - animated_rect[Y][0]) * self.sys.unifs.size[Y];
+                let available_height = node_height - (2.0 * padding[Y] as f32);
 
-            // Round to screen pixels using the transform scale (even if scaled text doesn't work anyway)
-            let scale = self.nodes[i].accumulated_transform.scale as f64;
+                // Round to screen pixels using the transform scale (even if scaled text doesn't work anyway)
+                let scale = self.nodes[i].accumulated_transform.scale as f64;
 
-            match text_i {
-                TextI::TextBox(text_box_handle) => {
-                    let text_box = self.sys.renderer.text.get_text_box_mut(&text_box_handle);
-                    let layout = text_box.layout();
-                    let text_height = layout.height() as f32;
+                match text_i {
+                    TextI::TextBox(text_box_handle) => {
+                        let text_box = self.sys.renderer.text.get_text_box_mut(&text_box_handle);
+                        let layout = text_box.layout();
+                        let text_height = layout.height() as f32;
 
-                    // Center vertically if text is smaller than available height
-                    let vertical_offset = if text_height < available_height {
-                        (available_height - text_height) / 2.0
-                    } else {
-                        0.0
-                    };
+                        // Center vertically if text is smaller than available height
+                        let vertical_offset = if text_height < available_height {
+                            (available_height - text_height) / 2.0
+                        } else {
+                            0.0
+                        };
 
-                    let top = (animated_rect[Y][0] * self.sys.unifs.size[Y]) as f64 + padding[Y] as f64 + vertical_offset as f64;
+                        let top = (animated_rect[Y][0] * self.sys.unifs.size[Y]) as f64 + padding[Y] as f64 + vertical_offset as f64;
 
-                    text_box.set_depth(z);
-                    text_box.set_pos(((left * scale).round() / scale, (top * scale).round() / scale));
+                        text_box.set_depth(z);
+                        text_box.set_pos(((left * scale).round() / scale, (top * scale).round() / scale));
 
-                    // Set the screen-space clip rect before drawing
-                    let clip = (
-                        node_clip_rect.x[0] * self.sys.unifs.size[X],
-                        node_clip_rect.y[0] * self.sys.unifs.size[Y],
-                        node_clip_rect.x[1] * self.sys.unifs.size[X],
-                        node_clip_rect.y[1] * self.sys.unifs.size[Y],
-                    );
-                    self.sys.renderer.text.get_text_box_mut(&text_box_handle).set_screen_space_clip_rect(Some(clip));
+                        // Set the screen-space clip rect before drawing
+                        let clip = (
+                            node_clip_rect.x[0] * self.sys.unifs.size[X],
+                            node_clip_rect.y[0] * self.sys.unifs.size[Y],
+                            node_clip_rect.x[1] * self.sys.unifs.size[X],
+                            node_clip_rect.y[1] * self.sys.unifs.size[Y],
+                        );
+                        self.sys.renderer.text.get_text_box_mut(&text_box_handle).set_screen_space_clip_rect(Some(clip));
 
-                    // Draw the text box
-                    self.sys.renderer.draw_text_box(&text_box_handle);
-                },
-                TextI::TextEdit(text_edit_handle) => {
-                    let text_edit = self.sys.renderer.text.get_text_edit_mut(&text_edit_handle);
-                    let (_width, text_edit_height) = text_edit.size();
+                        // Draw the text box
+                        self.sys.renderer.draw_text_box(&text_box_handle);
+                    },
+                    TextI::TextEdit(text_edit_handle) => {
+                        let text_edit = self.sys.renderer.text.get_text_edit_mut(&text_edit_handle);
+                        let (_width, text_edit_height) = text_edit.size();
 
-                    // Center vertically based on the text edit widget size
-                    let vertical_offset = if text_edit_height < available_height {
-                        (available_height - text_edit_height) / 2.0
-                    } else {
-                        0.0
-                    };
+                        // Center vertically based on the text edit widget size
+                        let vertical_offset = if text_edit_height < available_height {
+                            (available_height - text_edit_height) / 2.0
+                        } else {
+                            0.0
+                        };
 
-                    let top = (animated_rect[Y][0] * self.sys.unifs.size[Y]) as f64 + padding[Y] as f64 + vertical_offset as f64;
+                        let top = (animated_rect[Y][0] * self.sys.unifs.size[Y]) as f64 + padding[Y] as f64 + vertical_offset as f64;
 
-                    text_edit.set_depth(z);
-                    text_edit.set_pos(((left * scale).round() / scale, (top * scale).round() / scale));
-                    // Draw the text edit
-                    self.sys.renderer.draw_text_edit(&text_edit_handle);
-                },
+                        text_edit.set_depth(z);
+                        text_edit.set_pos(((left * scale).round() / scale, (top * scale).round() / scale));
+                        // Draw the text edit
+                        self.sys.renderer.draw_text_edit(&text_edit_handle);
+                    },
+                }
             }
+
         }
         
         // Pop the transform if we pushed it
