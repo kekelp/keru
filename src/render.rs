@@ -168,7 +168,7 @@ impl Ui {
         let dark = dark_click.min(dark_hover);
 
         // Get vertex colors and apply darkening
-        let colors = node.params.rect.vertex_colors;
+        let colors = node.params.vertex_colors;
         let tl = colors.top_left_color();
         let tr = colors.top_right_color();
         let bl = colors.bottom_left_color();
@@ -223,7 +223,7 @@ impl Ui {
             clip_rect.y[1] * screen_size.y,
         ];
 
-        let (border_thickness, border_color) = if let Some(stroke) = node.params.rect.stroke {
+        let (border_thickness, border_color) = if let Some(stroke) = node.params.stroke {
             let c = stroke.color;
             let border_color = [
                 c.r as f32 / 255.0,
@@ -466,7 +466,7 @@ impl Ui {
                 let end_x = x0 + end.0 * (x1 - x0);
                 let end_y = y0 + end.1 * (y1 - y0);
 
-                let thickness = if let Some(stroke) = node.params.rect.stroke {
+                let thickness = if let Some(stroke) = node.params.stroke {
                     stroke.width
                 } else {
                     1.0
@@ -496,7 +496,7 @@ impl Ui {
                 });
             }
             Shape::HorizontalLine => {
-                let thickness = if let Some(stroke) = node.params.rect.stroke {
+                let thickness = if let Some(stroke) = node.params.stroke {
                     stroke.width
                 } else {
                     1.0
@@ -504,7 +504,7 @@ impl Ui {
 
                 let cy = (y0 + y1) / 2.0;
 
-                let dash_length = node.params.rect.stroke.and_then(|s| {
+                let dash_length = node.params.stroke.and_then(|s| {
                     if s.dash_length > 0.0 { Some(s.dash_length) } else { None }
                 });
 
@@ -531,7 +531,7 @@ impl Ui {
                 });
             }
             Shape::VerticalLine => {
-                let thickness = if let Some(stroke) = node.params.rect.stroke {
+                let thickness = if let Some(stroke) = node.params.stroke {
                     stroke.width
                 } else {
                     1.0
@@ -539,7 +539,7 @@ impl Ui {
 
                 let cx = (x0 + x1) / 2.0;
 
-                let dash_length = node.params.rect.stroke.and_then(|s| {
+                let dash_length = node.params.stroke.and_then(|s| {
                     if s.dash_length > 0.0 { Some(s.dash_length) } else { None }
                 });
 

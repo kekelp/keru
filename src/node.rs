@@ -43,6 +43,8 @@ pub struct Node {
     pub text_params: Option<TextOptions>,
     pub stack: Option<Stack>,
     pub rect: Rect,
+    pub stroke: Option<Stroke>,
+    pub vertex_colors: VertexColors,
     pub visible: bool, // skip both the shape, node and text
     pub interact: Interact,
     pub layout: Layout,
@@ -392,9 +394,6 @@ impl Hash for Shape {
 #[derive(Debug, Copy, Clone, PartialEq, Hash)]
 pub struct Rect {
     pub shape: Shape,
-    pub stroke: Option<Stroke>,
-    pub vertex_colors: VertexColors,
-    // ... crazy stuff like texture and NinePatchRect
 }
 
 // todo: is the size of this really ok?
@@ -488,8 +487,6 @@ impl Hash for Stroke {
 impl Rect {
     pub const DEFAULT: Self = Self {
         shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: BASE_RADIUS },
-        stroke: None,
-        vertex_colors: VertexColors::flat(Color::KERU_BLUE),
     };
 }
 
@@ -684,66 +681,66 @@ impl Node {
     }
 
     pub const fn filled(mut self) -> Self {
-        self.rect.stroke = None;
+        self.stroke = None;
         return self;
     }
 
     pub const fn stroke(mut self, width: f32) -> Self {
-        self.rect.stroke = Some(Stroke::new(width));
+        self.stroke = Some(Stroke::new(width));
         return self;
     }
 
     pub const fn stroke_join(mut self, join: Join) -> Self {
-        if let Some(stroke) = self.rect.stroke {
-            self.rect.stroke = Some(stroke.with_join(join));
+        if let Some(stroke) = self.stroke {
+            self.stroke = Some(stroke.with_join(join));
         }
         return self;
     }
 
     pub const fn stroke_caps(mut self, cap: Cap) -> Self {
-        if let Some(stroke) = self.rect.stroke {
-            self.rect.stroke = Some(stroke.with_caps(cap));
+        if let Some(stroke) = self.stroke {
+            self.stroke = Some(stroke.with_caps(cap));
         }
         return self;
     }
 
     pub const fn stroke_start_cap(mut self, cap: Cap) -> Self {
-        if let Some(stroke) = self.rect.stroke {
-            self.rect.stroke = Some(stroke.with_start_cap(cap));
+        if let Some(stroke) = self.stroke {
+            self.stroke = Some(stroke.with_start_cap(cap));
         }
         return self;
     }
 
     pub const fn stroke_end_cap(mut self, cap: Cap) -> Self {
-        if let Some(stroke) = self.rect.stroke {
-            self.rect.stroke = Some(stroke.with_end_cap(cap));
+        if let Some(stroke) = self.stroke {
+            self.stroke = Some(stroke.with_end_cap(cap));
         }
         return self;
     }
 
     pub const fn stroke_miter_limit(mut self, limit: f32) -> Self {
-        if let Some(stroke) = self.rect.stroke {
-            self.rect.stroke = Some(stroke.with_miter_limit(limit));
+        if let Some(stroke) = self.stroke {
+            self.stroke = Some(stroke.with_miter_limit(limit));
         }
         return self;
     }
 
     pub const fn stroke_dashes(mut self, dash_length: f32, dash_offset: f32) -> Self {
-        if let Some(stroke) = self.rect.stroke {
-            self.rect.stroke = Some(stroke.with_dashes(dash_length, dash_offset));
+        if let Some(stroke) = self.stroke {
+            self.stroke = Some(stroke.with_dashes(dash_length, dash_offset));
         }
         return self;
     }
 
     pub const fn stroke_color(mut self, color: Color) -> Self {
-        if let Some(stroke) = self.rect.stroke {
-            self.rect.stroke = Some(stroke.with_color(color));
+        if let Some(stroke) = self.stroke {
+            self.stroke = Some(stroke.with_color(color));
         }
         return self;
     }
 
     pub const fn color(mut self, color: Color) -> Self {
-        self.rect.vertex_colors = VertexColors::flat(color);
+        self.vertex_colors = VertexColors::flat(color);
         return self;
     }
 
@@ -758,7 +755,7 @@ impl Node {
     }
 
     pub const fn colors(mut self, colors: VertexColors) -> Self {
-        self.rect.vertex_colors = colors;
+        self.vertex_colors = colors;
         return self;
     }
 
@@ -1172,66 +1169,66 @@ impl<'a> FullNode<'a> {
     }
 
     pub const fn filled(mut self) -> Self {
-        self.params.rect.stroke = None;
+        self.params.stroke = None;
         return self;
     }
 
     pub const fn stroke(mut self, width: f32) -> Self {
-        self.params.rect.stroke = Some(Stroke::new(width));
+        self.params.stroke = Some(Stroke::new(width));
         return self;
     }
 
     pub const fn stroke_join(mut self, join: Join) -> Self {
-        if let Some(stroke) = self.params.rect.stroke {
-            self.params.rect.stroke = Some(stroke.with_join(join));
+        if let Some(stroke) = self.params.stroke {
+            self.params.stroke = Some(stroke.with_join(join));
         }
         return self;
     }
 
     pub const fn stroke_caps(mut self, cap: Cap) -> Self {
-        if let Some(stroke) = self.params.rect.stroke {
-            self.params.rect.stroke = Some(stroke.with_caps(cap));
+        if let Some(stroke) = self.params.stroke {
+            self.params.stroke = Some(stroke.with_caps(cap));
         }
         return self;
     }
 
     pub const fn stroke_start_cap(mut self, cap: Cap) -> Self {
-        if let Some(stroke) = self.params.rect.stroke {
-            self.params.rect.stroke = Some(stroke.with_start_cap(cap));
+        if let Some(stroke) = self.params.stroke {
+            self.params.stroke = Some(stroke.with_start_cap(cap));
         }
         return self;
     }
 
     pub const fn stroke_end_cap(mut self, cap: Cap) -> Self {
-        if let Some(stroke) = self.params.rect.stroke {
-            self.params.rect.stroke = Some(stroke.with_end_cap(cap));
+        if let Some(stroke) = self.params.stroke {
+            self.params.stroke = Some(stroke.with_end_cap(cap));
         }
         return self;
     }
 
     pub const fn stroke_miter_limit(mut self, limit: f32) -> Self {
-        if let Some(stroke) = self.params.rect.stroke {
-            self.params.rect.stroke = Some(stroke.with_miter_limit(limit));
+        if let Some(stroke) = self.params.stroke {
+            self.params.stroke = Some(stroke.with_miter_limit(limit));
         }
         return self;
     }
 
     pub const fn stroke_dashes(mut self, dash_length: f32, dash_offset: f32) -> Self {
-        if let Some(stroke) = self.params.rect.stroke {
-            self.params.rect.stroke = Some(stroke.with_dashes(dash_length, dash_offset));
+        if let Some(stroke) = self.params.stroke {
+            self.params.stroke = Some(stroke.with_dashes(dash_length, dash_offset));
         }
         return self;
     }
 
     pub const fn stroke_color(mut self, color: Color) -> Self {
-        if let Some(stroke) = self.params.rect.stroke {
-            self.params.rect.stroke = Some(stroke.with_color(color));
+        if let Some(stroke) = self.params.stroke {
+            self.params.stroke = Some(stroke.with_color(color));
         }
         return self;
     }
 
     pub const fn color(mut self, color: Color) -> Self {
-        self.params.rect.vertex_colors = VertexColors::flat(color);
+        self.params.vertex_colors = VertexColors::flat(color);
         return self;
     }
 
@@ -1246,7 +1243,7 @@ impl<'a> FullNode<'a> {
     }
 
     pub const fn vertex_colors(mut self, colors: VertexColors) -> Self {
-        self.params.rect.vertex_colors = colors;
+        self.params.vertex_colors = colors;
         return self;
     }
 

@@ -31,8 +31,6 @@ pub const ICON_EDIT: &[u8] = include_bytes!("svg_icons/pencil.svg");
 
 const DEBUG_ONLY_RECT: Rect = Rect {
     shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: BASE_RADIUS },
-    stroke: None,
-    vertex_colors: VertexColors::flat(Color::TRANSPARENT),
 };
 
 /// [`Node`] for a node_root_params.
@@ -42,10 +40,10 @@ pub(crate) const NODE_ROOT_PARAMS: Node = Node {
     text_params: None,
     stack: None,
     visible: false,
+    stroke: None,
+    vertex_colors: VertexColors::flat(Color::TRANSPARENT),
     rect: Rect {
         shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: BASE_RADIUS },
-        stroke: None,
-        vertex_colors: VertexColors::flat(Color::TRANSPARENT)
     },
     interact: Interact {
         senses: Sense::NONE,
@@ -71,10 +69,10 @@ pub const DEFAULT: Node = Node {
     text_params: None,
     stack: None,
     visible: true,
+    stroke: None,
+    vertex_colors: VertexColors::flat(Color::KERU_BLUE),
     rect: Rect {
         shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: BASE_RADIUS },
-        stroke: None,
-        vertex_colors: VertexColors::flat(Color::KERU_BLUE),
     },
     interact: Interact {
         senses: Sense::NONE,
@@ -104,6 +102,9 @@ pub const V_STACK: Node = Node {
         spacing: 8.0,
     }),
     visible: true,
+    vertex_colors: VertexColors::flat(Color::TRANSPARENT),
+    stroke: None,
+
     rect: DEBUG_ONLY_RECT,
     interact: Interact {
         senses: Sense::NONE,
@@ -133,6 +134,8 @@ pub const H_STACK: Node = Node {
         spacing: 8.0,
     }),
     visible: true,
+    vertex_colors: VertexColors::flat(Color::TRANSPARENT),
+    stroke: None,
     rect: DEBUG_ONLY_RECT,
     interact: Interact {
         senses: Sense::NONE,
@@ -163,6 +166,8 @@ pub const V_SCROLL_STACK: Node = Node {
             spacing: 10.0,
         }),
         visible: true,
+            vertex_colors: VertexColors::flat(Color::TRANSPARENT),
+    stroke: None,
         rect: DEBUG_ONLY_RECT,
         interact: Interact {
             senses: Sense::NONE,
@@ -189,6 +194,8 @@ pub const MARGIN: Node = Node {
     stack: None,
     text_params: None,
     visible: true,
+        vertex_colors: VertexColors::flat(Color::TRANSPARENT),
+    stroke: None,
     rect: DEBUG_ONLY_RECT,
     interact: Interact {
         senses: Sense::NONE,
@@ -214,10 +221,10 @@ pub const ICON_BUTTON: Node = Node {
     stack: None,
     text_params: None,
     visible: true,
+    stroke: None,
+    vertex_colors: VertexColors::flat(Color::WHITE),
     rect: Rect {
         shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: 0.0 },
-        stroke: None,
-        vertex_colors: VertexColors::flat(Color::WHITE),
     },
     interact: Interact {
         senses: Sense::CLICK.union(Sense::CLICK_RELEASE),
@@ -243,10 +250,10 @@ pub const IMAGE: Node = Node {
     stack: None,
     text_params: None,
     visible: true,
+    stroke: None,
+    vertex_colors: VertexColors::flat(Color::WHITE),
     rect: Rect {
         shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: BASE_RADIUS },
-        stroke: None,
-        vertex_colors: VertexColors::flat(Color::WHITE),
     },
     interact: Interact {
         senses: Sense::NONE,
@@ -272,10 +279,10 @@ pub const IMAGE_BUTTON: Node = Node {
     stack: None,
     text_params: None,
     visible: true,
+    stroke: None,
+    vertex_colors: VertexColors::flat(Color::WHITE),
     rect: Rect {
         shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: BASE_RADIUS },
-        stroke: None,
-        vertex_colors: VertexColors::flat(Color::WHITE),
     },
     interact: Interact {
         senses: Sense::CLICK.union(Sense::CLICK_RELEASE),
@@ -306,11 +313,10 @@ pub const BUTTON: Node = Node {
         edit_disabled: false,
     }),
     visible: true,
+    stroke: None,
+    vertex_colors: VertexColors::diagonal_gradient_backslash(Color::KERU_BLUE, Color::KERU_RED),
     rect: Rect {
         shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: BASE_RADIUS },
-        stroke: None,
-        // vertex_colors: VertexColors::TEST,
-        vertex_colors: VertexColors::diagonal_gradient_backslash(Color::KERU_BLUE, Color::KERU_RED),
     },
     interact: Interact {
         senses: Sense::CLICK.union(Sense::CLICK_RELEASE),
@@ -341,10 +347,10 @@ pub const LABEL: Node = Node {
         edit_disabled: false,
     }),
     visible: true,
+    stroke: None,
+    vertex_colors: VertexColors::KERU_GRAD,
     rect: Rect {
         shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: BASE_RADIUS },
-        stroke: None,
-        vertex_colors: VertexColors::KERU_GRAD,
     },
     interact: Interact {
         senses: Sense::NONE,
@@ -376,10 +382,10 @@ pub const MULTILINE_LABEL: Node = Node {
         edit_disabled: false,
     }),
     visible: true,
+    stroke: None,
+    vertex_colors: VertexColors::KERU_GRAD,
     rect: Rect {
         shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: BASE_RADIUS },
-        stroke: None,
-        vertex_colors: VertexColors::KERU_GRAD,
     },
     interact: Interact {
         senses: Sense::NONE,
@@ -411,6 +417,8 @@ pub const TEXT: Node = Node {
         edit_disabled: false,
     }),
     visible: true,
+        vertex_colors: VertexColors::flat(Color::TRANSPARENT),
+    stroke: None,
     rect: DEBUG_ONLY_RECT,
     interact: Interact {
         senses: Sense::NONE,
@@ -437,10 +445,10 @@ pub const ICON: Node = Node {
     stack: None,
     text_params: None,
     visible: true,
+    stroke: None,
+    vertex_colors: VertexColors::flat(Color::WHITE),
     rect: Rect {
         shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: 0.0 },
-        stroke: None,
-        vertex_colors: VertexColors::flat(Color::WHITE),
     },
     interact: Interact {
         senses: Sense::NONE,
@@ -472,10 +480,10 @@ pub const TEXT_EDIT: Node = Node {
         edit_disabled: false,
     }),
     visible: true,
+    stroke: None,
+    vertex_colors: VertexColors::flat(Color::GREY),
     rect: Rect {
         shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: BASE_RADIUS },
-        stroke: None,
-        vertex_colors: VertexColors::flat(Color::GREY),
     },
     interact: Interact {
         senses: Sense::CLICK,
@@ -507,10 +515,10 @@ pub const TEXT_EDIT_LINE: Node = Node {
         edit_disabled: false,
     }),
     visible: true,
+    stroke: None,
+    vertex_colors: VertexColors::flat(Color::GREY),
     rect: Rect {
         shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: BASE_RADIUS },
-        stroke: None,
-        vertex_colors: VertexColors::flat(Color::GREY),
     },
     interact: Interact {
         senses: Sense::CLICK,
@@ -542,6 +550,8 @@ pub const TEXT_PARAGRAPH: Node = Node {
         edit_disabled: false,
     }),
     visible: true,
+        vertex_colors: VertexColors::flat(Color::TRANSPARENT),
+    stroke: None,
     rect: DEBUG_ONLY_RECT,
     interact: Interact {
         senses: Sense::NONE,
@@ -568,10 +578,10 @@ pub const PANEL: Node = Node {
     stack: None,
     text_params: None,
     visible: true,
+    stroke: None,
+    vertex_colors: VertexColors::KERU_GRAD_FW,
     rect: Rect {
         shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: BASE_RADIUS },
-        stroke: None,
-        vertex_colors: VertexColors::KERU_GRAD_FW,
     },
     interact: Interact {
         senses: Sense::NONE,
@@ -598,10 +608,10 @@ pub const CONTAINER: Node = Node {
     stack: None,
     text_params: None,
     visible: false,
+    stroke: None,
+    vertex_colors: VertexColors::flat(Color::TRANSPARENT),
     rect: Rect {
         shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: BASE_RADIUS },
-        stroke: None,
-        vertex_colors: VertexColors::flat(Color::TRANSPARENT),
     },
     interact: Interact {
         senses: Sense::NONE,
@@ -638,10 +648,10 @@ pub const CUSTOM_RENDERED_PANEL: Node = Node {
     stack: None,
     text_params: None,
     visible: false,
+    stroke: None,
+    vertex_colors: VertexColors::GREENSCREEN,
     rect: Rect {
         shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: BASE_RADIUS },
-        stroke: None,
-        vertex_colors: VertexColors::GREENSCREEN,
     },
     interact: Interact {
         senses: Sense::NONE,
@@ -668,6 +678,8 @@ pub const SPACER: Node = Node {
     stack: None,
     text_params: None,
     visible: true,
+        vertex_colors: VertexColors::flat(Color::TRANSPARENT),
+    stroke: None,
     rect: DEBUG_ONLY_RECT,
     interact: Interact {
         senses: Sense::NONE,
@@ -693,6 +705,8 @@ pub const H_SPACER: Node = Node {
     key: None,
     stack: None,
     text_params: None,
+        vertex_colors: VertexColors::flat(Color::TRANSPARENT),
+    stroke: None,
     rect: DEBUG_ONLY_RECT,
     visible: true,
     interact: Interact {
@@ -720,6 +734,8 @@ pub const V_SPACER: Node = Node {
     stack: None,
     text_params: None,
     visible: true,
+        vertex_colors: VertexColors::flat(Color::TRANSPARENT),
+    stroke: None,
     rect: DEBUG_ONLY_RECT,
     interact: Interact {
         senses: Sense::NONE,
@@ -746,19 +762,19 @@ pub const H_LINE: Node = Node {
     stack: None,
     text_params: None,
     visible: true,
+    stroke: Some(Stroke {
+        width: 2.0,
+        color: Color::WHITE,
+        join: Join::Miter,
+        miter_limit: 4.0,
+        start_cap: Cap::Round,
+        end_cap: Cap::Round,
+        dash_length: 0.0,
+        dash_offset: 0.0,
+    }),
+    vertex_colors: VertexColors::flat(Color::TRANSPARENT),
     rect: Rect {
         shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: BASE_RADIUS },
-        stroke: Some(Stroke {
-            width: 2.0,
-            color: Color::WHITE,
-            join: Join::Miter,
-            miter_limit: 4.0,
-            start_cap: Cap::Round,
-            end_cap: Cap::Round,
-            dash_length: 0.0,
-            dash_offset: 0.0,
-        }),
-        vertex_colors: VertexColors::flat(Color::TRANSPARENT),
     },
     interact: Interact {
         senses: Sense::NONE,
@@ -785,10 +801,10 @@ pub(crate) const COMPONENT_ROOT: Node = Node {
     stack: None,
     text_params: None,
     visible: false,
+    stroke: None,
+    vertex_colors: VertexColors::flat(Color::KERU_DEBUG_BLUE),
     rect: Rect {
         shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: BASE_RADIUS },
-        stroke: None,
-        vertex_colors: VertexColors::flat(Color::KERU_DEBUG_BLUE),
     },
     interact: Interact {
         senses: Sense::NONE,
