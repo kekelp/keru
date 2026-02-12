@@ -4,6 +4,7 @@ use winit::event::MouseButton;
 
 use crate::*;
 use crate::inner_node::*;
+use crate::winit_mouse_events::FullMouseEvent;
 use crate::Axis::*;
 
 /// A helper struct that borrows the Ui but "selects" a specific node.
@@ -285,42 +286,37 @@ impl UiNode<'_> {
         return self.ui.sys.mouse_input.drag_released(Some(MouseButton::Left), Some(self.node().id));
     }
 
-    /// Returns `true` if a left button mouse drag on the node corresponding to the `src` key was just released onto the node corresponding to the `dest` key.
-    pub fn is_drag_released_onto(&self, dest: NodeKey) -> bool {
+    /// If a left button mouse drag on this node was just released onto the node corresponding to the `dest` key, returns the drag info.
+    pub fn is_drag_released_onto(&self, dest: NodeKey) -> Option<Drag> {
         #[cfg(debug_assertions)]
         if ! self.check_node_sense(Sense::DRAG, "is_drag_released_onto()", "Node::sense_drag()") {
-            return false;
+            return None;
         }
         #[cfg(debug_assertions)]
         if ! self.check_dest_node_sense(dest, Sense::DRAG_DROP_TARGET, "is_drag_released_onto()", "Node::sense_drag_drop_target()") {
-            return false;
-        }
-
-        return self.ui.sys.mouse_input.drag_released_onto(Some(MouseButton::Left), Some(self.node().id), Some(dest.id));
-    }
-
-    /// Returns `true` if a left button mouse drag on this node is currently hovering over the node corresponding to the `dest` key.
-    pub fn is_drag_hovered_onto(&self, dest: NodeKey) -> bool {
-        #[cfg(debug_assertions)]
-        if ! self.check_node_sense(Sense::DRAG, "is_drag_hovered_onto()", "Node::sense_drag()") {
-            return false;
-        }
-        #[cfg(debug_assertions)]
-        if ! self.check_dest_node_sense(dest, Sense::DRAG_DROP_TARGET, "is_drag_hovered_onto()", "Node::sense_drag_drop_target()") {
-            return false;
-        }
-
-        return self.ui.sys.mouse_input.drag_hovered_onto(Some(MouseButton::Left), Some(self.node().id), Some(dest.id));
-    }
-
-    /// If the node was dragged with a specific mouse button, returns a struct describing the drag event. Otherwise, returns `None`.
-    pub fn is_mouse_button_dragged(&self, button: MouseButton) -> Option<Drag> {
-         #[cfg(debug_assertions)]
-        if !self.check_node_sense(Sense::DRAG, "is_mouse_button_dragged()", "Node::sense_drag()") {
             return None;
         }
 
-        let mouse_record = self.ui.sys.mouse_input.dragged_at(Some(button), Some(self.node().id))?;
+        let mouse_record = self.ui.sys.mouse_input.drag_released_onto(Some(MouseButton::Left), Some(self.node().id), Some(dest.id))?;
+        Some(self.drag_from_mouse_record(&mouse_record))
+    }
+
+    /// If a left button mouse drag on this node is currently hovering over the node corresponding to the `dest` key, returns the drag info.
+    pub fn is_drag_hovered_onto(&self, dest: NodeKey) -> Option<Drag> {
+        #[cfg(debug_assertions)]
+        if ! self.check_node_sense(Sense::DRAG, "is_drag_hovered_onto()", "Node::sense_drag()") {
+            return None;
+        }
+        #[cfg(debug_assertions)]
+        if ! self.check_dest_node_sense(dest, Sense::DRAG_DROP_TARGET, "is_drag_hovered_onto()", "Node::sense_drag_drop_target()") {
+            return None;
+        }
+
+        let mouse_record = self.ui.sys.mouse_input.drag_hovered_onto(Some(MouseButton::Left), Some(self.node().id), Some(dest.id))?;
+        Some(self.drag_from_mouse_record(&mouse_record))
+    }
+
+    fn drag_from_mouse_record(&self, mouse_record: &FullMouseEvent<Id>) -> Drag {
         let node_rect = self.node().real_rect;
         let relative_position = glam::Vec2::new(
             ((mouse_record.currently_at.position.x / self.ui.sys.unifs.size.x) - (node_rect.x[0])) / node_rect.size().x,
@@ -331,13 +327,24 @@ impl UiNode<'_> {
             mouse_record.drag_distance().y / (node_rect.size().y * self.ui.sys.unifs.size.y),
         );
 
-        return Some(Drag {
+        Drag {
             relative_position,
             absolute_pos: mouse_record.currently_at.position,
             relative_delta,
             absolute_delta: mouse_record.drag_distance(),
             pressed_timestamp: mouse_record.originally_pressed.timestamp,
-        });
+        }
+    }
+
+    /// If the node was dragged with a specific mouse button, returns a struct describing the drag event. Otherwise, returns `None`.
+    pub fn is_mouse_button_dragged(&self, button: MouseButton) -> Option<Drag> {
+         #[cfg(debug_assertions)]
+        if !self.check_node_sense(Sense::DRAG, "is_mouse_button_dragged()", "Node::sense_drag()") {
+            return None;
+        }
+
+        let mouse_record = self.ui.sys.mouse_input.dragged_at(Some(button), Some(self.node().id))?;
+        Some(self.drag_from_mouse_record(&mouse_record))
     }
 
     /// If the node corresponding to `key` was dragged, returns a struct describing the drag event. Otherwise, returns `None`.
@@ -484,20 +491,14 @@ impl Ui {
         uinode.is_drag_released()
     }
 
-    /// Returns `true` if a left button mouse drag on the node corresponding to the `src` key was just released onto the node corresponding to the `dest` key.
-    pub fn is_drag_released_onto(&self, src: NodeKey, dest: NodeKey) -> bool {
-        let Some(uinode) = self.get_uinode(src) else {
-            return false;
-        };
-        uinode.is_drag_released_onto(dest)
+    /// If a left button mouse drag on the node corresponding to the `src` key was just released onto the node corresponding to the `dest` key, returns the drag info.
+    pub fn is_drag_released_onto(&self, src: NodeKey, dest: NodeKey) -> Option<Drag> {
+        self.get_uinode(src)?.is_drag_released_onto(dest)
     }
 
-    /// Returns `true` if a left button mouse drag on the node corresponding to the `src` key is currently hovering over the node corresponding to the `dest` key.
-    pub fn is_drag_hovered_onto(&self, src: NodeKey, dest: NodeKey) -> bool {
-        let Some(uinode) = self.get_uinode(src) else {
-            return false;
-        };
-        uinode.is_drag_hovered_onto(dest)
+    /// If a left button mouse drag on the node corresponding to the `src` key is currently hovering over the node corresponding to the `dest` key, returns the drag info.
+    pub fn is_drag_hovered_onto(&self, src: NodeKey, dest: NodeKey) -> Option<Drag> {
+        self.get_uinode(src)?.is_drag_hovered_onto(dest)
     }
 
     /// If the node corresponding to `key` was dragged with a specific mouse button, returns a struct describing the drag event. Otherwise, returns `None`.

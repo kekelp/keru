@@ -5,9 +5,6 @@ use keru::example_window_loop::*;
 pub struct State {
     pub left_strings: Vec<String>,
     pub right_strings: Vec<String>,
-    // Persisted insertion index for when drag is released
-    pub hover_insertion_index: Option<usize>,
-    pub hover_item_height: Option<f32>,
 }
 
 impl State {
@@ -32,28 +29,9 @@ impl State {
             .sense_drag_drop_target(true)
             .stack_arrange(Arrange::Start);
 
-        // Find which left item is being dragged over the right stack, and get cursor position
-        let mut dragged_item_info: Option<(usize, glam::Vec2)> = None;
-        for (i, string) in self.left_strings.iter().enumerate() {
-            let key = ITEM.sibling(string);
-            if let Some(drag) = ui.is_dragged(key) {
-                if ui.is_drag_hovered_onto(key, RIGHT_STACK) {
-                    dragged_item_info = Some((i, drag.absolute_pos));
-                }
-            }
-        }
-
-        // Calculate insertion index based on cursor position vs item midpoints
-        // Store in self so it persists when drag is released
-        if let Some((dragged_idx, cursor_pos)) = &dragged_item_info {
-            let dragged_key = ITEM.sibling(&self.left_strings[*dragged_idx]);
-            if let Some(rect) = ui.rect(dragged_key) {
-                self.hover_item_height = Some(rect.size().y);
-            }
-
-            let cursor_y = cursor_pos.y;
-            let mut found_index = self.right_strings.len(); // default: insert at end
-
+        // Helper to calculate insertion index from cursor position
+        let calc_insertion_index = |ui: &Ui, cursor_y: f32| -> usize {
+            let mut found_index = self.right_strings.len();
             for (i, string) in self.right_strings.iter().enumerate() {
                 let key = ITEM.sibling(string);
                 if let Some(rect) = ui.rect(key) {
@@ -64,19 +42,32 @@ impl State {
                     }
                 }
             }
-            self.hover_insertion_index = Some(found_index);
-        } else {
-            // Not hovering over right stack anymore, but keep the value for release frame
+            found_index
+        };
+
+        // Find hover info and calculate insertion index
+        let mut insertion_index: Option<usize> = None;
+        let mut dragged_item_height: Option<f32> = None;
+
+        for (_, string) in self.left_strings.iter().enumerate() {
+            let key = ITEM.sibling(string);
+            if let Some(drag) = ui.is_drag_hovered_onto(key, RIGHT_STACK) {
+                if let Some(rect) = ui.rect(key) {
+                    dragged_item_height = Some(rect.size().y);
+                }
+                insertion_index = Some(calc_insertion_index(ui, drag.absolute_pos.y));
+                break;
+            }
         }
 
         // Check for drag release onto right stack
-        let mut release_info: Option<(usize, usize)> = None; // (left_idx, insert_at)
+        let mut release_info: Option<(usize, usize)> = None;
         for (i, string) in self.left_strings.iter().enumerate() {
             let key = ITEM.sibling(string);
-            if ui.is_drag_released_onto(key, RIGHT_STACK) {
-                // Use the persisted insertion index
-                let insert_at = self.hover_insertion_index.unwrap_or(self.right_strings.len());
+            if let Some(drag) = ui.is_drag_released_onto(key, RIGHT_STACK) {
+                let insert_at = calc_insertion_index(ui, drag.absolute_pos.y);
                 release_info = Some((i, insert_at));
+                break;
             }
         }
 
@@ -84,12 +75,9 @@ impl State {
             let removed = self.left_strings.remove(left_idx);
             let clamped_idx = insert_at.min(self.right_strings.len());
             self.right_strings.insert(clamped_idx, removed);
-            // Clear hover state after insertion
-            self.hover_insertion_index = None;
-            self.hover_item_height = None;
         }
 
-        // Left stack - items can be dragged from here
+        // Left stack
         let left_stack = stack.position_x(Pos::Start).key(LEFT_STACK);
         ui.add(left_stack).nest(|| {
             for string in &self.left_strings {
@@ -109,9 +97,6 @@ impl State {
 
         // Right stack - items move apart to make space when hovering
         let right_stack = stack.position_x(Pos::End).key(RIGHT_STACK);
-        let insertion_index = if dragged_item_info.is_some() { self.hover_insertion_index } else { None };
-        let dragged_item_height = self.hover_item_height;
-
         ui.add(right_stack).nest(|| {
             for (i, string) in self.right_strings.iter().enumerate() {
                 // Insert spacer at the insertion point
@@ -138,7 +123,6 @@ impl State {
                     .size_x(Size::Pixels(100.0))
                     .size_y(Size::Pixels(height))
                     .animate_position(true);
-
                 ui.add(spacer);
             }
         });

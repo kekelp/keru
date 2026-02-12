@@ -213,32 +213,28 @@ impl<T: Tag> MouseInput<T> {
         return n_clicks > 0;
     }
 
-    /// Returns `true` if a left button mouse drag on the node corresponding to the `src` key was just released onto the node corresponding to the `dest` key.
-    pub fn drag_released_onto(&self, mouse_button: Option<MouseButton>, src_tag: Option<T>, dest_tag: Option<T>) -> bool {
-        let all_events = self.mouse_events(mouse_button, src_tag);
-        let n_clicks = all_events.filter(|c| {
+    /// Returns the mouse event if a left button mouse drag on the node corresponding to the `src` key was just released onto the node corresponding to the `dest` key.
+    pub fn drag_released_onto(&self, mouse_button: Option<MouseButton>, src_tag: Option<T>, dest_tag: Option<T>) -> Option<FullMouseEvent<T>> {
+        self.mouse_events(mouse_button, src_tag).find(|c| {
             let is_release = c.is_drag_release();
             let ends_on_dest = match dest_tag {
                 Some(dest) => c.currently_at.tag.contains(&dest),
                 None => true,
             };
             is_release && ends_on_dest
-        }).count();
-        return n_clicks > 0;
+        }).cloned()
     }
 
-    /// Returns `true` if a mouse drag on the node corresponding to the `src` key is currently hovering over the node corresponding to the `dest` key.
-    pub fn drag_hovered_onto(&self, mouse_button: Option<MouseButton>, src_tag: Option<T>, dest_tag: Option<T>) -> bool {
-        let all_events = self.mouse_events(mouse_button, src_tag);
-        let matches = all_events.filter(|c| {
+    /// Returns the mouse event if a mouse drag on the node corresponding to the `src` key is currently hovering over the node corresponding to the `dest` key.
+    pub fn drag_hovered_onto(&self, mouse_button: Option<MouseButton>, src_tag: Option<T>, dest_tag: Option<T>) -> Option<FullMouseEvent<T>> {
+        self.mouse_events(mouse_button, src_tag).find(|c| {
             let is_ongoing = c.is_drag_ongoing();
             let is_on_dest = match dest_tag {
                 Some(dest) => c.currently_at.tag.contains(&dest),
                 None => true,
             };
             is_ongoing && is_on_dest
-        }).count();
-        return matches > 0;
+        }).cloned()
     }
 
     pub fn drag_releases(&self, mouse_button: Option<MouseButton>, tag: Option<T>) -> usize {

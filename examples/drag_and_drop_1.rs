@@ -57,10 +57,10 @@ impl State {
         for (i, string) in self.left_strings.iter().enumerate() {
             let key = ITEM.sibling(string);
 
-            if ui.is_drag_released_onto(key, RIGHT_STACK) {
+            if ui.is_drag_released_onto(key, RIGHT_STACK).is_some() {
                 left_drag_released = Some(i);
             }
-            if ui.is_drag_hovered_onto(key, RIGHT_STACK) {
+            if ui.is_drag_hovered_onto(key, RIGHT_STACK).is_some() {
                 left_drag_hovered = Some(i);
             }
         }
@@ -75,10 +75,10 @@ impl State {
         for (i, string) in self.right_strings.iter().enumerate() {
             let key = ITEM.sibling(string);
 
-            if ui.is_drag_released_onto(key, LEFT_STACK) {
+            if ui.is_drag_released_onto(key, LEFT_STACK).is_some() {
                 right_drag_released = Some(i);
             }
-            if ui.is_drag_hovered_onto(key, LEFT_STACK) {
+            if ui.is_drag_hovered_onto(key, LEFT_STACK).is_some() {
                 right_drag_hovered = Some(i);
             }
         }
