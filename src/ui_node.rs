@@ -259,12 +259,22 @@ impl UiNode<'_> {
     /// Unlike [`Self::is_click_released()`], this is `true` even if the pointer is not on the node anymore when the button is released.
     pub fn is_drag_released(&self) -> bool {
     #[cfg(debug_assertions)]
-    if ! self.check_node_sense(Sense::DRAG, "is_drag_released()", "Node::sense_drag()") {
-        return false;
+        if ! self.check_node_sense(Sense::DRAG, "is_drag_released()", "Node::sense_drag()") {
+            return false;
+        }
+
+        return self.ui.sys.mouse_input.drag_released(Some(MouseButton::Left), Some(self.node().id));
     }
 
-    return self.ui.sys.mouse_input.drag_released(Some(MouseButton::Left), Some(self.node().id));
-}
+    /// Returns `true` if a left button mouse drag on the node corresponding to the `src` key was just released onto the node corresponding to the `dest` key.
+    pub fn is_drag_released_onto(&self, dest: NodeKey) -> bool {
+        #[cfg(debug_assertions)]
+        if ! self.check_node_sense(Sense::DRAG, "is_drag_released_onto()", "Node::sense_drag()") {
+            return false;
+        }
+    
+        return self.ui.sys.mouse_input.drag_released_onto(Some(MouseButton::Left), Some(self.node().id), Some(dest.id_with_subtree()));
+    }
 
     /// If the node was dragged with a specific mouse button, returns a struct describing the drag event. Otherwise, returns `None`.
     pub fn is_mouse_button_dragged(&self, button: MouseButton) -> Option<Drag> {
@@ -286,7 +296,7 @@ impl UiNode<'_> {
 
         return Some(Drag {
             relative_position,
-            absolute_position: mouse_record.currently_at.position,
+            absolute_pos: mouse_record.currently_at.position,
             relative_delta,
             absolute_delta: mouse_record.drag_distance(),
             pressed_timestamp: mouse_record.originally_pressed.timestamp,
@@ -435,6 +445,14 @@ impl Ui {
             return false;
         };
         uinode.is_drag_released()
+    }
+
+    /// Returns `true` if a left button mouse drag on the node corresponding to the `src` key was just released onto the node corresponding to the `dest` key.
+    pub fn is_drag_released_onto(&self, src: NodeKey, dest: NodeKey) -> bool {
+        let Some(uinode) = self.get_uinode(src) else {
+            return false;
+        };
+        uinode.is_drag_released_onto(dest)
     }
 
     /// If the node corresponding to `key` was dragged with a specific mouse button, returns a struct describing the drag event. Otherwise, returns `None`.

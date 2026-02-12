@@ -1,7 +1,7 @@
 use crate as keru;
 use keru::*;
 use keru::Size::*;
-use keru::Position::*;
+use keru::Pos::*;
 
 /// A tab for [`Ui::vertical_tabs`]
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -249,8 +249,8 @@ impl Ui {
                 .size_y(Size::Pixels(handle_radius * 2.0))
                 .color(Color::WHITE)
                 .anchor_x(Anchor::Center)
-                .position_x(Position::Pixels(handle_position_frac * slider_width))
-                .position_y(Position::Center)
+                .position_x(Pos::Pixels(handle_position_frac * slider_width))
+                .position_y(Pos::Center)
                 .shape(Shape::Circle)
                 .padding_x(0.0)
                 .absorbs_clicks(false)

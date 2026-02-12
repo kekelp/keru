@@ -12,7 +12,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     let button = BUTTON.static_text("Show Banner").key(SHOW);
     let label = LABEL
         .static_text("Showing up for a while")
-        .position_y(Position::End)
+        .position_y(Pos::End)
         .slide_from_bottom();
 
     ui.add(button);

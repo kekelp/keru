@@ -70,14 +70,14 @@ pub enum SlideDirection {
 pub enum EnterAnimation {
     None,
     Slide { edge: SlideEdge, direction: SlideDirection },
-    GrowShrink { axis: Axis, origin: Position },
+    GrowShrink { axis: Axis, origin: Pos },
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum ExitAnimation {
     None,
     Slide { edge: SlideEdge, direction: SlideDirection },
-    GrowShrink { axis: Axis, origin: Position },
+    GrowShrink { axis: Axis, origin: Pos },
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -160,7 +160,7 @@ impl Hash for Anchor {
 
 /// A node's position relative to its parent.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Position {
+pub enum Pos {
     Center,
     Start,
     End,
@@ -168,9 +168,9 @@ pub enum Position {
     Frac(f32),
 }
 
-impl Hash for Position {
+impl Hash for Pos {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        use Position::*;
+        use Pos::*;
         match self {
             Center => 0u8.hash(state),
             Start => 1u8.hash(state),
@@ -244,7 +244,7 @@ pub struct Interact {
 pub struct Layout {
     pub size: Xy<Size>,
     pub padding: Xy<f32>,
-    pub position: Xy<Position>,
+    pub position: Xy<Pos>,
     pub anchor: Xy<Anchor>,
     pub scrollable: Xy<bool>,
 }
@@ -568,8 +568,8 @@ impl Node {
                 end: seg_end,
                 dash_length,
             })
-            .position_x(Position::Frac(min_x))
-            .position_y(Position::Frac(min_y))
+            .position_x(Pos::Frac(min_x))
+            .position_y(Pos::Frac(min_y))
             .size_x(Size::Frac(width))
             .size_y(Size::Frac(height))
     }
@@ -601,30 +601,30 @@ impl Node {
                 end: seg_end,
                 dash_length,
             })
-            .position_x(Position::Pixels(min_x))
-            .position_y(Position::Pixels(min_y))
+            .position_x(Pos::Pixels(min_x))
+            .position_y(Pos::Pixels(min_y))
             .size_x(Size::Pixels(width))
             .size_y(Size::Pixels(height))
     }
 
-    pub const fn position(mut self, position_x: Position, position_y: Position) -> Self {
+    pub const fn position(mut self, position_x: Pos, position_y: Pos) -> Self {
         self.layout.position.x = position_x;
         self.layout.position.y = position_y;
         return self;
     }
 
-    pub const fn position_symm(mut self, position: Position) -> Self {
+    pub const fn position_symm(mut self, position: Pos) -> Self {
         self.layout.position.x = position;
         self.layout.position.y = position;
         return self;
     }
 
-    pub const fn position_x(mut self, position: Position) -> Self {
+    pub const fn position_x(mut self, position: Pos) -> Self {
         self.layout.position.x = position;
         return self;
     }
 
-    pub const fn position_y(mut self, position: Position) -> Self {
+    pub const fn position_y(mut self, position: Pos) -> Self {
         self.layout.position.y = position;
         return self;
     }
@@ -851,7 +851,7 @@ impl Node {
         return self;
     }
 
-    pub const fn enter_grow(mut self, axis: Axis, origin: Position) -> Self {
+    pub const fn enter_grow(mut self, axis: Axis, origin: Pos) -> Self {
         self.animation.enter = EnterAnimation::GrowShrink { axis, origin };
         return self;
     }
@@ -862,7 +862,7 @@ impl Node {
         return self;
     }
 
-    pub const fn exit_shrink(mut self, axis: Axis, origin: Position) -> Self {
+    pub const fn exit_shrink(mut self, axis: Axis, origin: Pos) -> Self {
         self.animation.exit = ExitAnimation::GrowShrink { axis, origin };
         return self;
     }
@@ -892,7 +892,7 @@ impl Node {
         return self;
     }
 
-    pub const fn grow_shrink(mut self, axis: Axis, origin: Position) -> Self {
+    pub const fn grow_shrink(mut self, axis: Axis, origin: Pos) -> Self {
         self.animation.enter = EnterAnimation::GrowShrink { axis, origin };
         self.animation.exit = ExitAnimation::GrowShrink { axis, origin };
         return self;
@@ -1091,24 +1091,24 @@ impl<'a> FullNode<'a> {
         return self;
     }
 
-    pub const fn position(mut self, position_x: Position, position_y: Position) -> Self {
+    pub const fn position(mut self, position_x: Pos, position_y: Pos) -> Self {
         self.params.layout.position.x = position_x;
         self.params.layout.position.y = position_y;
         return self;
     }
 
-    pub const fn position_symm(mut self, position: Position) -> Self {
+    pub const fn position_symm(mut self, position: Pos) -> Self {
         self.params.layout.position.x = position;
         self.params.layout.position.y = position;
         return self;
     }
 
-    pub const fn position_x(mut self, position: Position) -> Self {
+    pub const fn position_x(mut self, position: Pos) -> Self {
         self.params.layout.position.x = position;
         return self;
     }
 
-    pub const fn position_y(mut self, position: Position) -> Self {
+    pub const fn position_y(mut self, position: Pos) -> Self {
         self.params.layout.position.y = position;
         return self;
     }
@@ -1387,7 +1387,7 @@ impl<'a> FullNode<'a> {
         return self;
     }
 
-    pub const fn enter_grow(mut self, axis: Axis, origin: Position) -> Self {
+    pub const fn enter_grow(mut self, axis: Axis, origin: Pos) -> Self {
         self.params.animation.enter = EnterAnimation::GrowShrink { axis, origin };
         return self;
     }
@@ -1398,7 +1398,7 @@ impl<'a> FullNode<'a> {
         return self;
     }
 
-    pub const fn exit_shrink(mut self, axis: Axis, origin: Position) -> Self {
+    pub const fn exit_shrink(mut self, axis: Axis, origin: Pos) -> Self {
         self.params.animation.exit = ExitAnimation::GrowShrink { axis, origin };
         return self;
     }
@@ -1427,7 +1427,7 @@ impl<'a> FullNode<'a> {
         return self;
     }
 
-    pub const fn grow_shrink(mut self, axis: Axis, origin: Position) -> Self {
+    pub const fn grow_shrink(mut self, axis: Axis, origin: Pos) -> Self {
         self.params.animation.enter = EnterAnimation::GrowShrink { axis, origin };
         self.params.animation.exit = ExitAnimation::GrowShrink { axis, origin };
         return self;

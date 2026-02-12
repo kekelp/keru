@@ -213,6 +213,12 @@ impl<T: Tag> MouseInput<T> {
         return n_clicks > 0;
     }
 
+    /// Returns `true` if a left button mouse drag on the node corresponding to the `src` key was just released onto the node corresponding to the `dest` key.
+    pub fn drag_released_onto(&self, mouse_button: Option<MouseButton>, src_tag: Option<T>, dest_tag: Option<T>) -> bool {
+        // ...
+        return n_clicks > 0;
+    }
+
     pub fn drag_releases(&self, mouse_button: Option<MouseButton>, tag: Option<T>) -> usize {
         let all_events = self.mouse_events(mouse_button, tag);
         return all_events.filter(|c| c.is_drag_release()).count();

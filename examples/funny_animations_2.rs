@@ -19,7 +19,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .size_x(Size::Pixels(500.0))
         .size_y(Size::Fill)
         .stack_arrange(Arrange::Start)
-        .position_x(Position::Start);
+        .position_x(Pos::Start);
     
     let h_group = H_STACK
         .slide_from_top()
@@ -29,14 +29,14 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 
     let expand = BUTTON
         .text("Expand")
-        .position_x(Position::Start)
-        .position_y(Position::Start)
+        .position_x(Pos::Start)
+        .position_y(Pos::Start)
         .size_x(Size::FitContent);
 
     let sub_expand = BUTTON
         .text("Sub-Expand")
-        .position_x(Position::Start)
-        .position_y(Position::Start)
+        .position_x(Pos::Start)
+        .position_y(Pos::Start)
         .size_x(Size::FitContent);
 
     let elem = BUTTON

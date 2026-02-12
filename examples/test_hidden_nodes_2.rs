@@ -27,13 +27,13 @@ impl State {
         let elem_1 = TEXT_EDIT_LINE
             .color(Color::KERU_GREEN)
             .size_symm(Size::FitContent)
-            .position_y(Position::Start)
+            .position_y(Pos::Start)
             .static_text("Edit text")
             .key(ELEM_1);
 
         let elem_2 = TEXT_EDIT_LINE
             .color(Color::KERU_GREEN)
-            .position_y(Position::End)
+            .position_y(Pos::End)
             .size_symm(Size::FitContent)
             .static_text("Write here")
             .key(ELEM_2);
@@ -42,7 +42,7 @@ impl State {
         let show_elem_1 = BUTTON.static_text("Remove Element 1").key(SHOW_ELEM_1);
         let show_elem_2 = BUTTON.static_text("Hide Element 2").key(SHOW_ELEM_2);
 
-        let description = LABEL.static_text("The red container has children_can_hide = true. So, when the elements are removed, they remain in memory in the background, and their edited text is retained. \n But when the container itself is removed, the elements shouldn't stay in memory anymore: it's like closing a browser tab. So bringing it back should reset the edited text.").position_y(Position::Start);
+        let description = LABEL.static_text("The red container has children_can_hide = true. So, when the elements are removed, they remain in memory in the background, and their edited text is retained. \n But when the container itself is removed, the elements shouldn't stay in memory anymore: it's like closing a browser tab. So bringing it back should reset the edited text.").position_y(Pos::Start);
 
         let v_stack = V_STACK.size_y(Size::Fill).stack_arrange(Arrange::Start).padding(5.0);
 

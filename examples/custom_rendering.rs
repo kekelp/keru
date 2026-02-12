@@ -136,8 +136,8 @@ impl State {
 
         let panel = PANEL
             .padding(30.0)
-            .position_x(Position::Pixels(self.panel_pos.0))
-            .position_y(Position::Pixels(self.panel_pos.1))
+            .position_x(Pos::Pixels(self.panel_pos.0))
+            .position_y(Pos::Pixels(self.panel_pos.1))
             .sense_drag(true)
             .key(Self::BACK_PANEL);
 
@@ -148,7 +148,7 @@ impl State {
             .key(Self::CUSTOM_RECT);
 
         let button = BUTTON
-            .position_x(Position::Frac(0.6))
+            .position_x(Pos::Frac(0.6))
             .text("Overlay button\ndrawn over it");
 
         self.ui.add(panel).nest(|| {

@@ -479,18 +479,18 @@ impl Ui {
             let child_size = self.nodes[child].size;
 
             match self.nodes[child].params.layout.position[cross] {
-                Position::Center => {
+                Pos::Center => {
                     let origin = (stack_rect[cross][1] + stack_rect[cross][0]) / 2.0;
                     self.nodes[child].layout_rect[cross] = [
                         origin - child_size[cross] / 2.0 ,
                         origin + child_size[cross] / 2.0 ,
                     ];  
                 },
-                Position::Start => {
+                Pos::Start => {
                     let origin = stack_rect[cross][0] + padding[cross];
                     self.nodes[child].layout_rect[cross] = [origin, origin + child_size[cross]];
                 },
-                Position::Pixels(pixels) => {
+                Pos::Pixels(pixels) => {
                     let static_pos = self.pixels_to_frac(pixels, cross);
                     let anchor_offset = match self.nodes[child].params.layout.anchor[cross] {
                         Anchor::Start => 0.0,
@@ -501,7 +501,7 @@ impl Ui {
                     let origin = stack_rect[cross][0] + padding[cross] + static_pos + anchor_offset;
                     self.nodes[child].layout_rect[cross] = [origin, origin + child_size[cross]];
                 },
-                Position::Frac(frac) => {
+                Pos::Frac(frac) => {
                     let static_pos = frac * stack_rect.size()[cross];
                     let anchor_offset = match self.nodes[child].params.layout.anchor[cross] {
                         Anchor::Start => 0.0,
@@ -512,7 +512,7 @@ impl Ui {
                     let origin = stack_rect[cross][0] + padding[cross] + static_pos + anchor_offset;
                     self.nodes[child].layout_rect[cross] = [origin, origin + child_size[cross]];
                 },
-                Position::End => {
+                Pos::End => {
                     let origin = stack_rect[cross][1] - padding[cross];
                     self.nodes[child].layout_rect[cross] = [origin - child_size[cross], origin];
                 },
@@ -545,11 +545,11 @@ impl Ui {
             // check the children's chosen Position's and place them.
             for axis in [X, Y] {
                 match self.nodes[child].params.layout.position[axis] {
-                    Position::Start => {
+                    Pos::Start => {
                         origin[axis] = parent_rect[axis][0] + padding[axis];
                         self.nodes[child].layout_rect[axis] = [origin[axis], origin[axis] + child_size[axis]];
                     },
-                    Position::Pixels(pixels) => {
+                    Pos::Pixels(pixels) => {
                         let static_pos = self.pixels_to_frac(pixels, axis);
                         let anchor_offset = match self.nodes[child].params.layout.anchor[axis] {
                             Anchor::Start => 0.0,
@@ -560,7 +560,7 @@ impl Ui {
                         origin[axis] = parent_rect[axis][0] + padding[axis] + static_pos + anchor_offset;
                         self.nodes[child].layout_rect[axis] = [origin[axis], origin[axis] + child_size[axis]];
                     }
-                    Position::Frac(frac) => {
+                    Pos::Frac(frac) => {
                         let static_pos = frac * parent_rect.size()[axis];
                         let anchor_offset = match self.nodes[child].params.layout.anchor[axis] {
                             Anchor::Start => 0.0,
@@ -571,11 +571,11 @@ impl Ui {
                         origin[axis] = parent_rect[axis][0] + padding[axis] + static_pos + anchor_offset;
                         self.nodes[child].layout_rect[axis] = [origin[axis], origin[axis] + child_size[axis]];
                     }
-                    Position::End => {
+                    Pos::End => {
                         origin[axis] = parent_rect[axis][1] - padding[axis];
                         self.nodes[child].layout_rect[axis] = [origin[axis] - child_size[axis], origin[axis]];
                     },
-                    Position::Center => {
+                    Pos::Center => {
                         origin[axis] = (parent_rect[axis][0] + parent_rect[axis][1]) / 2.0;
                         self.nodes[child].layout_rect[axis] = [
                             origin[axis] - child_size[axis] / 2.0 ,
@@ -637,7 +637,7 @@ impl Ui {
                 self.nodes[i].enter_animation_still_going = true;
             }
             EnterAnimation::GrowShrink { axis, origin } => {
-                use Position::*;
+                use Pos::*;
                 let rect = self.nodes[i].local_layout_rect;
 
                 match axis {
@@ -709,7 +709,7 @@ impl Ui {
                 self.nodes[i].local_layout_rect.y[1] += offset_y;
             }
             ExitAnimation::GrowShrink { axis, origin } => {
-                use Position::*;
+                use Pos::*;
                 let rect = self.nodes[i].local_layout_rect;
 
                 match axis {

@@ -41,7 +41,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         }
     });
 
-    ui.add(V_STACK.stack_arrange(Arrange::Start).position_y(Position::Start)).nest(|| {
+    ui.add(V_STACK.stack_arrange(Arrange::Start).position_y(Pos::Start)).nest(|| {
         ui.add(H_STACK).nest(|| {
             ui.label("Zoom:");
             ui.add_component(Slider::new(&mut state.transform_state.scale, 0.1, 5.0, false));
@@ -58,7 +58,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         });
     });
 
-    ui.add(V_STACK.stack_arrange(Arrange::End).position_y(Position::End)).nest(|| {
+    ui.add(V_STACK.stack_arrange(Arrange::End).position_y(Pos::End)).nest(|| {
         ui.static_label("Middle click drag / Space + drag to pan. Scroll or Space + middle click drag to zoom");
     });
 }

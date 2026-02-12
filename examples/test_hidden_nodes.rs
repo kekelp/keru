@@ -41,7 +41,7 @@ impl State {
         let show = BUTTON
             .color(Color::KERU_RED)
             .size_symm(Size::FitContent)
-            .position_y(Position::End)
+            .position_y(Pos::End)
             .static_text(&"Show")
             .key(SHOW);
 

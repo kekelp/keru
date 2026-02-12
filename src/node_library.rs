@@ -1,6 +1,6 @@
 use crate::*;
 use Size::*;
-use Position::*;
+use Pos::*;
 use Shape::*;
 
 // todo remove this
