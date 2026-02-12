@@ -28,6 +28,19 @@ impl State {
                     animate_position: true,
                 },
             });
+
+        let plus_sign = LABEL
+            .static_text("+")
+            .color(Color::GREY)
+            .animation(Animation {
+                speed: 1.0,
+                enter: EnterAnimation::Slide { edge: SlideEdge::Top, direction: SlideDirection::In },
+                exit: ExitAnimation::None,
+                state_transition: StateTransition {
+                    animate_position: true,
+                },
+            });
+
         
         let stack = V_STACK
             .padding(50.0)
@@ -38,6 +51,43 @@ impl State {
 ;
         let left_stack = stack.position_x(Pos::Start).key(LEFT_STACK);
 
+        let mut left_drag_hovered: Option<usize> = None;
+        let mut left_drag_released: Option<usize> = None;
+
+        for (i, string) in self.left_strings.iter().enumerate() {
+            let key = ITEM.sibling(string);
+
+            if ui.is_drag_released_onto(key, RIGHT_STACK) {
+                left_drag_released = Some(i);
+            }
+            if ui.is_drag_hovered_onto(key, RIGHT_STACK) {
+                left_drag_hovered = Some(i);
+            }
+        }
+        if let Some(to_remove) = left_drag_released {
+            let removed = self.left_strings.remove(to_remove);
+            self.right_strings.push(removed);
+        }
+
+        let mut right_drag_hovered: Option<usize> = None;
+        let mut right_drag_released: Option<usize> = None;
+
+        for (i, string) in self.right_strings.iter().enumerate() {
+            let key = ITEM.sibling(string);
+
+            if ui.is_drag_released_onto(key, LEFT_STACK) {
+                right_drag_released = Some(i);
+            }
+            if ui.is_drag_hovered_onto(key, LEFT_STACK) {
+                right_drag_hovered = Some(i);
+            }
+        }
+        if let Some(to_remove) = right_drag_released {
+            let removed = self.right_strings.remove(to_remove);
+            self.left_strings.push(removed);
+        }
+
+
         ui.add(left_stack).nest(|| {
             for string in &self.left_strings {
 
@@ -46,7 +96,6 @@ impl State {
                 
                 if let Some(drag) = ui.is_dragged(key) {
                     let (x, y) = (Pos::Pixels(drag.absolute_pos.x), Pos::Pixels(drag.absolute_pos.y));
-                    
                     ui.jump_to_root().nest(|| {
                         ui.add(item.position(x, y));
                     });
@@ -54,6 +103,10 @@ impl State {
                 } else {
                     ui.add(item);
                 }
+            }
+
+            if let Some(_) = right_drag_hovered {
+                ui.add(plus_sign);
             }
         });
 
@@ -68,7 +121,6 @@ impl State {
                 
                 if let Some(drag) = ui.is_dragged(key) {
                     let (x, y) = (Pos::Pixels(drag.absolute_pos.x), Pos::Pixels(drag.absolute_pos.y));
-                    
                     ui.jump_to_root().nest(|| {
                         ui.add(item.position(x, y));
                     });
@@ -78,31 +130,13 @@ impl State {
                 }
                 
             }
+                
+            if let Some(_) = left_drag_hovered {
+                ui.add(plus_sign);
+            }
+
         });
 
-        let mut to_remove: Option<usize> = None;
-        for (i, string) in self.left_strings.iter().enumerate() {
-            let key = ITEM.sibling(string);
-            if ui.is_drag_released_onto(key, RIGHT_STACK) {
-                to_remove = Some(i);
-            }
-        }
-        if let Some(to_remove) = to_remove {
-            let removed = self.left_strings.remove(to_remove);
-            self.right_strings.push(removed);
-        }
-
-        let mut to_remove: Option<usize> = None;
-        for (i, string) in self.right_strings.iter().enumerate() {
-            let key = ITEM.sibling(string);
-            if ui.is_drag_released_onto(key, LEFT_STACK) {
-                to_remove = Some(i);
-            }
-        }
-        if let Some(to_remove) = to_remove {
-            let removed = self.right_strings.remove(to_remove);
-            self.left_strings.push(removed);
-        }
 
 
     }
