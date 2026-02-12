@@ -1,3 +1,6 @@
+/// This one is a bit complicated...
+/// Maybe it could be simpler by using invisible hitboxes instead of doing all that math by hand.
+
 use keru::*;
 use keru::example_window_loop::*;
 
@@ -9,9 +12,11 @@ pub struct State {
 
 impl State {
     fn update_ui(&mut self, ui: &mut Ui) {
+        ui.add(LABEL.text("Drag from left to right").position_y(Pos::End));
+
         #[node_key] const LEFT_STACK: NodeKey;
         #[node_key] const RIGHT_STACK: NodeKey;
-        #[node_key] const SPACER: NodeKey;
+        #[node_key] const RIGHT_SPACER: NodeKey;
 
         #[node_key] const ITEM: NodeKey;
 
@@ -29,11 +34,19 @@ impl State {
             .sense_drag_drop_target(true)
             .stack_arrange(Arrange::Start);
 
+        let spacer = SPACER
+            .size_x(Size::Pixels(100.0))
+            .key(RIGHT_SPACER)
+            .animate_position(true);
+
         // Helper to calculate insertion index from cursor position
         let calc_insertion_index = |ui: &Ui, cursor_y: f32| -> usize {
             let mut found_index = self.right_strings.len();
             for (i, string) in self.right_strings.iter().enumerate() {
                 let key = ITEM.sibling(string);
+                // Any time we use functions like `rect`, we're also adding subtle one-frame-off imperfections.
+                // The rect isn't calculated until the layout step at the end of the frame,
+                // so we're using the rect from the last frame for this frame's calculation.
                 if let Some(rect) = ui.rect(key) {
                     let midpoint_y = (rect.y[0] + rect.y[1]) / 2.0;
                     if cursor_y < midpoint_y {
@@ -70,7 +83,6 @@ impl State {
                 break;
             }
         }
-
         if let Some((left_idx, insert_at)) = release_info {
             let removed = self.left_strings.remove(left_idx);
             let clamped_idx = insert_at.min(self.right_strings.len());
@@ -95,19 +107,14 @@ impl State {
             }
         });
 
-        // Right stack - items move apart to make space when hovering
+        // Right stack
         let right_stack = stack.position_x(Pos::End).key(RIGHT_STACK);
         ui.add(right_stack).nest(|| {
             for (i, string) in self.right_strings.iter().enumerate() {
                 // Insert spacer at the insertion point
                 if Some(i) == insertion_index {
                     let height = dragged_item_height.unwrap_or(30.0);
-                    let spacer = PANEL
-                        .key(SPACER)
-                        .size_x(Size::Pixels(100.0))
-                        .size_y(Size::Pixels(height))
-                        .animate_position(true);
-                    ui.add(spacer);
+                    ui.add(spacer.size_y(Size::Pixels(height)));
                 }
 
                 let key = ITEM.sibling(string);
@@ -118,12 +125,7 @@ impl State {
             // Spacer at the end if inserting at the end
             if insertion_index == Some(self.right_strings.len()) {
                 let height = dragged_item_height.unwrap_or(30.0);
-                let spacer = PANEL
-                    .key(SPACER)
-                    .size_x(Size::Pixels(100.0))
-                    .size_y(Size::Pixels(height))
-                    .animate_position(true);
-                ui.add(spacer);
+                ui.add(spacer.size_y(Size::Pixels(height)));
             }
         });
     }
@@ -131,7 +133,7 @@ impl State {
 
 fn main() {
     let mut state = State::default();
-    state.left_strings = vec!["1".into(), "2".into(), "3".into(), "4".into(), "5".into()];
-    state.right_strings = vec!["a".into(), "b".into(), "c".into(), "d".into(), "e".into()];
+    state.left_strings = vec!["1".into(), "2".into(), "3".into(), "4".into()];
+    state.right_strings = vec!["a".into(), "b".into(), "c".into(), "d".into()];
     run_example_loop(state, State::update_ui);
 }
