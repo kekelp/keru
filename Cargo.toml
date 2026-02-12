@@ -20,6 +20,10 @@ opt-level = 1
 debug = 0
 strip = "debuginfo"
 
+[features]
+default = []
+serde = ["dep:serde", "glam/serde"]
+
 [dependencies]
 keru_macros = { path = "crates/keru_macros" }
 winit = { version = "0.30.5", features = ["rwh_05"] }
@@ -27,6 +31,7 @@ wgpu = { version = "27", default-features = true }
 pollster = "0.3.0"
 bytemuck = { version = "1.19.0", features = ["derive"] }
 glam = "0.28"
+serde = { version = "1", features = ["derive"], optional = true }
 slab = "0.4.9"
 log = "0.4.22"
 env_logger = "0.11.6"

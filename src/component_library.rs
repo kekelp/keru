@@ -353,10 +353,13 @@ impl<'a> Slider<'a> {
     }
 }
 
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TransformViewState {
     pub scale: f32,
     pub pan_x: f32,
     pub pan_y: f32,
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub zoom_drag_anchor: Option<glam::Vec2>,
 }
 impl Default for TransformViewState {
