@@ -1,7 +1,6 @@
 use crate::*;
 use Size::*;
 use Pos::*;
-use Shape::*;
 
 // todo remove this
 // TODO: Re-add Cap and Join when implementing stroke features in keru_draw
@@ -31,9 +30,8 @@ pub const ICON_DELETE: &[u8] = include_bytes!("svg_icons/delete.svg");
 pub const ICON_EDIT: &[u8] = include_bytes!("svg_icons/pencil.svg");
 
 const DEBUG_ONLY_RECT: Rect = Rect {
-    rounded_corners: RoundedCorners::ALL,
-    shape: Shape::Circle,
-    stroke: Some(Stroke::new(4.0).with_color(Color::KERU_DEBUG_RED)),
+    shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: BASE_RADIUS },
+    stroke: None,
     vertex_colors: VertexColors::flat(Color::TRANSPARENT),
 };
 
@@ -45,8 +43,7 @@ pub(crate) const NODE_ROOT_PARAMS: Node = Node {
     stack: None,
     visible: false,
     rect: Rect {
-        rounded_corners: RoundedCorners::ALL,
-        shape: Rectangle { corner_radius: BASE_RADIUS },
+        shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: BASE_RADIUS },
         stroke: None,
         vertex_colors: VertexColors::flat(Color::TRANSPARENT)
     },
@@ -75,8 +72,7 @@ pub const DEFAULT: Node = Node {
     stack: None,
     visible: true,
     rect: Rect {
-        rounded_corners: RoundedCorners::ALL,
-        shape: Rectangle { corner_radius: BASE_RADIUS },
+        shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: BASE_RADIUS },
         stroke: None,
         vertex_colors: VertexColors::flat(Color::KERU_BLUE),
     },
@@ -219,8 +215,7 @@ pub const ICON_BUTTON: Node = Node {
     text_params: None,
     visible: true,
     rect: Rect {
-        rounded_corners: RoundedCorners::ALL,
-        shape: Rectangle { corner_radius: 0.0 },
+        shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: 0.0 },
         stroke: None,
         vertex_colors: VertexColors::flat(Color::WHITE),
     },
@@ -249,8 +244,7 @@ pub const IMAGE: Node = Node {
     text_params: None,
     visible: true,
     rect: Rect {
-        rounded_corners: RoundedCorners::ALL,
-        shape: Rectangle { corner_radius: BASE_RADIUS },
+        shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: BASE_RADIUS },
         stroke: None,
         vertex_colors: VertexColors::flat(Color::WHITE),
     },
@@ -279,8 +273,7 @@ pub const IMAGE_BUTTON: Node = Node {
     text_params: None,
     visible: true,
     rect: Rect {
-        rounded_corners: RoundedCorners::ALL,
-        shape: Rectangle { corner_radius: BASE_RADIUS },
+        shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: BASE_RADIUS },
         stroke: None,
         vertex_colors: VertexColors::flat(Color::WHITE),
     },
@@ -314,8 +307,7 @@ pub const BUTTON: Node = Node {
     }),
     visible: true,
     rect: Rect {
-        rounded_corners: RoundedCorners::ALL,
-        shape: Rectangle { corner_radius: BASE_RADIUS },
+        shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: BASE_RADIUS },
         stroke: None,
         // vertex_colors: VertexColors::TEST,
         vertex_colors: VertexColors::diagonal_gradient_backslash(Color::KERU_BLUE, Color::KERU_RED),
@@ -350,8 +342,7 @@ pub const LABEL: Node = Node {
     }),
     visible: true,
     rect: Rect {
-        rounded_corners: RoundedCorners::ALL,
-        shape: Rectangle { corner_radius: BASE_RADIUS },
+        shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: BASE_RADIUS },
         stroke: None,
         vertex_colors: VertexColors::KERU_GRAD,
     },
@@ -386,8 +377,7 @@ pub const MULTILINE_LABEL: Node = Node {
     }),
     visible: true,
     rect: Rect {
-        rounded_corners: RoundedCorners::ALL,
-        shape: Rectangle { corner_radius: BASE_RADIUS },
+        shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: BASE_RADIUS },
         stroke: None,
         vertex_colors: VertexColors::KERU_GRAD,
     },
@@ -448,8 +438,7 @@ pub const ICON: Node = Node {
     text_params: None,
     visible: true,
     rect: Rect {
-        rounded_corners: RoundedCorners::ALL,
-        shape: Rectangle { corner_radius: 0.0 },
+        shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: 0.0 },
         stroke: None,
         vertex_colors: VertexColors::flat(Color::WHITE),
     },
@@ -484,8 +473,7 @@ pub const TEXT_EDIT: Node = Node {
     }),
     visible: true,
     rect: Rect {
-        rounded_corners: RoundedCorners::ALL,
-        shape: Rectangle { corner_radius: BASE_RADIUS },
+        shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: BASE_RADIUS },
         stroke: None,
         vertex_colors: VertexColors::flat(Color::GREY),
     },
@@ -520,8 +508,7 @@ pub const TEXT_EDIT_LINE: Node = Node {
     }),
     visible: true,
     rect: Rect {
-        rounded_corners: RoundedCorners::ALL,
-        shape: Rectangle { corner_radius: BASE_RADIUS },
+        shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: BASE_RADIUS },
         stroke: None,
         vertex_colors: VertexColors::flat(Color::GREY),
     },
@@ -582,8 +569,7 @@ pub const PANEL: Node = Node {
     text_params: None,
     visible: true,
     rect: Rect {
-        rounded_corners: RoundedCorners::ALL,
-        shape: Rectangle { corner_radius: BASE_RADIUS },
+        shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: BASE_RADIUS },
         stroke: None,
         vertex_colors: VertexColors::KERU_GRAD_FW,
     },
@@ -613,8 +599,7 @@ pub const CONTAINER: Node = Node {
     text_params: None,
     visible: false,
     rect: Rect {
-        rounded_corners: RoundedCorners::ALL,
-        shape: Rectangle { corner_radius: BASE_RADIUS },
+        shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: BASE_RADIUS },
         stroke: None,
         vertex_colors: VertexColors::flat(Color::TRANSPARENT),
     },
@@ -654,8 +639,7 @@ pub const CUSTOM_RENDERED_PANEL: Node = Node {
     text_params: None,
     visible: false,
     rect: Rect {
-        rounded_corners: RoundedCorners::ALL,
-        shape: Rectangle { corner_radius: BASE_RADIUS },
+        shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: BASE_RADIUS },
         stroke: None,
         vertex_colors: VertexColors::GREENSCREEN,
     },
@@ -763,8 +747,7 @@ pub const H_LINE: Node = Node {
     text_params: None,
     visible: true,
     rect: Rect {
-        rounded_corners: RoundedCorners::ALL,
-        shape: Rectangle { corner_radius: BASE_RADIUS },
+        shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: BASE_RADIUS },
         stroke: Some(Stroke {
             width: 2.0,
             color: Color::WHITE,
@@ -803,8 +786,7 @@ pub(crate) const COMPONENT_ROOT: Node = Node {
     text_params: None,
     visible: false,
     rect: Rect {
-        rounded_corners: RoundedCorners::ALL,
-        shape: Rectangle { corner_radius: BASE_RADIUS },
+        shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: BASE_RADIUS },
         stroke: None,
         vertex_colors: VertexColors::flat(Color::KERU_DEBUG_BLUE),
     },

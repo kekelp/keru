@@ -112,7 +112,7 @@ impl UiExt for Ui {
             let button_with_stroke = BUTTON
                 .static_text("Button example")
                 .color(Color::rgba(255, 150, 100, 255))
-                .shape(Shape::Rectangle { corner_radius: 20.0 })
+                .shape(Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: 20.0 })
                 .stroke(5.0)
                 .stroke_dashes(10.0, 0.0);
 
@@ -123,7 +123,7 @@ impl UiExt for Ui {
                 .color(Color::rgba(100, 150, 255, 255))
                 .stroke(3.0)
                 .stroke_color(Color::rgba(255, 0, 0, 255))
-                .shape(Shape::Rectangle { corner_radius: 15.0 });
+                .shape(Shape::Rectangle { rounded_corners: RoundedCorners::TOP_LEFT | RoundedCorners::BOTTOM_RIGHT, corner_radius: 15.0 });
 
             self.add(button_with_colored_stroke);
 

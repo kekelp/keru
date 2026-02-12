@@ -237,7 +237,7 @@ impl Ui {
         };
 
         let shape = if debug_box {
-            &Shape::Rectangle { corner_radius: 5.0 }
+            &Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: 5.0 }
         } else {
             &node.params.rect.shape
         };
@@ -245,7 +245,7 @@ impl Ui {
         // Render based on shape type
         match shape {
             Shape::NoShape => {}
-            Shape::Rectangle { corner_radius } => {
+            Shape::Rectangle { rounded_corners, corner_radius } => {
                 let corner_radius = *corner_radius;
 
                 // Check if one dimension is zero (for line rendering)
@@ -313,7 +313,7 @@ impl Ui {
                         top_left,
                         size,
                         corner_radius,
-                        rounded_corners: node.params.rect.rounded_corners,
+                        rounded_corners: *rounded_corners,
                         border_thickness,
                         fill,
                         x_clip,

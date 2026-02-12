@@ -118,7 +118,7 @@ impl Ui {
             let h_stack = H_STACK.stack_spacing(0.0);
             let tabs_v_stack = V_STACK.size_x(Size::Pixels(250.0));
             let inactive_tab = BUTTON
-                .corners(RoundedCorners::LEFT)
+                .shape(Shape::Rectangle { rounded_corners: RoundedCorners::LEFT, corner_radius: BASE_RADIUS })
                 .size_x(Size::Fill)
                 .colors(self.theme().muted_background);
             let active_tab = inactive_tab.colors(self.theme().background);
@@ -228,14 +228,14 @@ impl Ui {
                 .size_y(Size::Pixels(10.0))
                 .padding(0.0)
                 .color(Color::GREY)
-                .shape(Shape::Rectangle { corner_radius: 5.0 })
+                .shape(Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: 5.0 })
                 .absorbs_clicks(false)
                 .key(TRACK);
             
             #[node_key] const FILLED: NodeKey;
             let slider_filled = PANEL
                 .size_y(Size::Pixels(14.0))
-                .shape(Shape::Rectangle { corner_radius: 7.0 })
+                .shape(Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: 7.0 })
                 .size_x(Size::Frac(handle_position_frac))
                 .color(Color::KERU_RED)
                 .position_x(Start)
@@ -558,7 +558,7 @@ impl Component for StatefulVerticalTabs<'_> {
         let h_stack = H_STACK.stack_spacing(0.0);
         let tabs_v_stack = V_STACK.size_x(Size::Pixels(250.0));
         let inactive_tab = BUTTON
-            .corners(RoundedCorners::LEFT)
+            .shape(Shape::Rectangle { rounded_corners: RoundedCorners::LEFT, corner_radius: 5.0 })
             .size_x(Size::Fill)
             .colors(ui.theme().muted_background);
         let active_tab = inactive_tab.colors(ui.theme().background);
@@ -654,7 +654,7 @@ impl Component for TabContainer<'_> {
         let v_stack = V_STACK.stack_spacing(0.0);
         let tabs_h_stack = H_STACK.size_y(Size::FitContent);
         let inactive_tab = BUTTON
-            .corners(RoundedCorners::TOP)
+            .shape(Shape::Rectangle { rounded_corners: RoundedCorners::TOP, corner_radius: 5.0 })
             .colors(ui.theme().muted_background);
         let active_tab = inactive_tab.colors(ui.theme().background);
 

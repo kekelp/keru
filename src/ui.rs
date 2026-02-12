@@ -568,7 +568,7 @@ impl Ui {
             Shape::NoShape => {
                 return false; // weird...
             }
-            Shape::Rectangle { corner_radius: _ } => {
+            Shape::Rectangle { .. } => {
                 return true;
             }
             Shape::Circle => {

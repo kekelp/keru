@@ -267,6 +267,7 @@ pub use keru_draw::RoundedCorners;
 pub enum Shape {
     NoShape,
     Rectangle {
+        rounded_corners: RoundedCorners,
         corner_radius: f32,
     },
     Circle,
@@ -320,8 +321,9 @@ impl Hash for Shape {
     fn hash<H: Hasher>(&self, state: &mut H) {
         use Shape::*;
         match self {
-            Rectangle { corner_radius } => {
+            Rectangle { rounded_corners, corner_radius } => {
                 0u8.hash(state);
+                rounded_corners.hash(state);
                 corner_radius.to_bits().hash(state);
             }
             Circle => {
@@ -390,7 +392,6 @@ impl Hash for Shape {
 #[derive(Debug, Copy, Clone, PartialEq, Hash)]
 pub struct Rect {
     pub shape: Shape,
-    pub rounded_corners: RoundedCorners,
     pub stroke: Option<Stroke>,
     pub vertex_colors: VertexColors,
     // ... crazy stuff like texture and NinePatchRect
@@ -486,10 +487,9 @@ impl Hash for Stroke {
 
 impl Rect {
     pub const DEFAULT: Self = Self {
-        shape: Shape::Rectangle { corner_radius: BASE_RADIUS },
+        shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: BASE_RADIUS },
         stroke: None,
         vertex_colors: VertexColors::flat(Color::KERU_BLUE),
-        rounded_corners: RoundedCorners::ALL,
     };
 }
 
@@ -999,11 +999,6 @@ impl Node {
         return self.layout.scrollable.x || self.layout.scrollable.y
     }
 
-    pub const fn corners(mut self, corners: RoundedCorners) -> Self {
-        self.rect.rounded_corners = corners;
-        return self;
-    }
-
     pub const fn clip_children(mut self, value: bool) -> Self {
         self.clip_children = Xy::new(value, value);
         return self;
@@ -1463,11 +1458,6 @@ impl<'a> FullNode<'a> {
 
     pub const fn is_scrollable(&self) -> bool {
         return self.params.layout.scrollable.x || self.params.layout.scrollable.y
-    }
-
-    pub const fn corners(mut self, corners: RoundedCorners) -> Self {
-        self.params.rect.rounded_corners = corners;
-        return self;
     }
 
     pub fn children_can_hide(mut self, value: bool) -> Self {
