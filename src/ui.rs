@@ -564,7 +564,7 @@ impl Ui {
         }
 
         // todo more accurate clicks
-        match self.nodes[node_i].params.rect.shape {
+        match self.nodes[node_i].params.shape {
             Shape::NoShape => {
                 return false; // weird...
             }

@@ -42,7 +42,7 @@ pub struct Node {
     pub key: Option<NodeKey>,
     pub text_params: Option<TextOptions>,
     pub stack: Option<Stack>,
-    pub rect: Rect,
+    pub shape: Shape,
     pub stroke: Option<Stroke>,
     pub color: VertexColors,
     pub visible: bool, // skip both the shape, node and text
@@ -523,7 +523,7 @@ pub(crate) const BASE_RADIUS: f32 = 9.0;
 impl Node {
     pub(crate) fn cosmetic_hash(&self) -> u64 {
         let mut hasher = ahasher();
-        self.rect.hash(&mut hasher);
+        self.shape.hash(&mut hasher);
         return hasher.finish();
     }
 
@@ -745,12 +745,12 @@ impl Node {
     }
 
     pub const fn shape(mut self, shape: Shape) -> Self {
-        self.rect.shape = shape;
+        self.shape = shape;
         return self;
     }
 
     pub const fn circle(mut self) -> Self {
-        self.rect.shape = Shape::Circle;
+        self.shape = Shape::Circle;
         return self;
     }
 
@@ -1233,12 +1233,12 @@ impl<'a> FullNode<'a> {
     }
 
     pub const fn shape(mut self, shape: Shape) -> Self {
-        self.params.rect.shape = shape;
+        self.params.shape = shape;
         return self;
     }
 
     pub const fn circle(mut self) -> Self {
-        self.params.rect.shape = Shape::Circle;
+        self.params.shape = Shape::Circle;
         return self;
     }
 

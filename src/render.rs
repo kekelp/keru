@@ -239,7 +239,7 @@ impl Ui {
         let shape = if debug_box {
             &Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: 5.0 }
         } else {
-            &node.params.rect.shape
+            &node.params.shape
         };
 
         // Render based on shape type
