@@ -1,4 +1,5 @@
 /// Another way to do advanced drag and drop using hitboxes that are invisible copies of items.
+/// It would be better for performance if, instead of doing copies of items, we grabbed the size of the rect of the real item. But this looks cooler.
 
 use keru::*;
 use keru::example_window_loop::*;
@@ -13,8 +14,6 @@ impl State {
     fn update_ui(&mut self, ui: &mut Ui) {
         ui.add(LABEL.text("Drag from left to right").position_y(Pos::End));
 
-        #[node_key] const LEFT_STACK: NodeKey;
-        #[node_key] const RIGHT_STACK: NodeKey;
         #[node_key] const RIGHT_SPACER: NodeKey;
         #[node_key] const HITBOX: NodeKey;
         #[node_key] const ITEM: NodeKey;
@@ -22,6 +21,17 @@ impl State {
         // Have to control these manually to get the hitboxes to overlap correctly.
         let item_padding = 10.0;
         let stack_spacing = 10.0;
+
+        let stack = V_STACK
+            .padding(50.0)
+            .stack_spacing(stack_spacing)
+            .size_y(Size::Fill)
+            .position_y(Pos::Start)
+            .stack_arrange(Arrange::Start);
+
+        let left_stack = stack.position_x(Pos::Start);
+        let right_stack = stack.position_x(Pos::End);
+        let hitbox_stack = stack.position_x(Pos::End).stack_spacing(0.0);
 
         let item = BUTTON
             .size_x(Size::Pixels(100.0))
@@ -31,15 +41,10 @@ impl State {
             .absorbs_clicks(false)
             .animate_position(true);
 
-        let stack = V_STACK
-            .padding(50.0)
-            .stack_spacing(stack_spacing)
-            .size_y(Size::Fill)
-            .position_y(Pos::Start)
-            .stack_arrange(Arrange::Start);
-
-        let spacer = SPACER
+        let spacer = item
             .size_x(Size::Pixels(100.0))
+            .size_y(Size::Pixels(50.0))
+            .invisible()
             .key(RIGHT_SPACER)
             .animate_position(true);
 
@@ -64,8 +69,6 @@ impl State {
                 left_drag_key = Some(ITEM.sibling(left_string));
             }
         }
-
-        dbg!(left_dragged_i);
 
         if let Some(left_drag_key) = left_drag_key {
 
@@ -93,7 +96,6 @@ impl State {
         }
 
         // Left stack
-        let left_stack = stack.position_x(Pos::Start).key(LEFT_STACK);
         ui.add(left_stack).nest(|| {
             for string in &self.left_strings {
                 let key = ITEM.sibling(string);
@@ -111,7 +113,6 @@ impl State {
         });
 
         // Right stack with spacer
-        let right_stack = stack.position_x(Pos::End).key(RIGHT_STACK);
         ui.add(right_stack).nest(|| {
             for (i, string) in self.right_strings.iter().enumerate() {
 
@@ -128,15 +129,23 @@ impl State {
             }
         });
 
-        // Invisible hitbox stack - same layout as right stack but without the spacer
-        let hitbox_stack = stack.position_x(Pos::End).stack_spacing(0.0);
+        // Invisible hitbox stack
         ui.add(hitbox_stack).nest(|| {
-            for string in &self.right_strings {
-                let a = format!("    {}", string);
-                let hitbox = hitbox.text(&a).key(HITBOX.sibling(string));
+            let last = self.right_strings.len().saturating_sub(1);
+            for (i, string) in self.right_strings.iter().enumerate() {
+                
+                let size = if i == last { Size::Fill } else { Size::FitContent };
+            
+                let hitbox = hitbox
+                    .text(&string)
+                    .size_y(size)
+                    .key(HITBOX.sibling(string));
+    
                 ui.add(hitbox);
             }
         });
+
+
         
         if let Some(left_dragged_i) = left_dragged_i {
             if let Some(right_release_i) = right_release_i {
