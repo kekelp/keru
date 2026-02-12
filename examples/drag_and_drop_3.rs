@@ -1,5 +1,5 @@
 /// Another way to do advanced drag and drop using hitboxes that are invisible copies of items.
-/// It would be better for performance if, instead of doing copies of items, we grabbed the size of the rect of the real item. But this looks cooler.
+/// It would be better for performance if, instead of doing copies of items, we grabbed the size of the rect of the real item. But this looks cooler. And at that point, we might as well do the math by hand like in drag_and_drop_2.
 
 use keru::*;
 use keru::example_window_loop::*;
@@ -12,7 +12,7 @@ pub struct State {
 
 impl State {
     fn update_ui(&mut self, ui: &mut Ui) {
-        ui.add(LABEL.text("Drag from left to right").position_y(Pos::End));
+        ui.add(LABEL.text("Drag from left to right. F1 to see the hitboxes.").position_y(Pos::End));
 
         #[node_key] const RIGHT_SPACER: NodeKey;
         #[node_key] const HITBOX: NodeKey;
@@ -142,8 +142,7 @@ impl State {
                 ui.add(hitbox);
             }
 
-            let size = Size::Pixels(500.0); // todo: why doesn't Fill work right here
-            let final_hitbox = hitbox.size_y(size).key(HITBOX.sibling(usize::MAX));
+            let final_hitbox = hitbox.size_y(Size::Fill).key(HITBOX.sibling(usize::MAX));
             ui.add(final_hitbox);
 
         });
