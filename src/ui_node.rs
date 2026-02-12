@@ -189,11 +189,29 @@ impl UiNode<'_> {
     fn check_node_sense(&self, sense: Sense, fn_name: &'static str, sense_add_fn_name: &'static str) -> bool {
         let node = self.node();
         if !node.params.interact.senses.contains(sense) {
-            // todo: 
             eprintln!(
                 "Keru: Debug mode check: \"{}\" was called for node {}, but the node doesn't have the {:?} sense. In release mode, this event will be silently ignored! You can add the sense to the node's Node with the \"{}\" function.",
                 fn_name,
                 node.debug_name(),
+                sense,
+                sense_add_fn_name,
+            );
+            return false;
+        }
+        return true;
+    }
+
+    #[cfg(debug_assertions)]
+    fn check_dest_node_sense(&self, dest_key: NodeKey, sense: Sense, fn_name: &'static str, sense_add_fn_name: &'static str) -> bool {
+        let Some(dest_node) = self.ui.get_uinode(dest_key) else {
+            return true; // Node doesn't exist, let the function return false naturally
+        };
+        let dest_node = dest_node.node();
+        if !dest_node.params.interact.senses.contains(sense) {
+            eprintln!(
+                "Keru: Debug mode check: \"{}\" was called with destination node {}, but the destination node doesn't have the {:?} sense. In release mode, this event will be silently ignored! You can add the sense to the node's Node with the \"{}\" function.",
+                fn_name,
+                dest_node.debug_name(),
                 sense,
                 sense_add_fn_name,
             );
@@ -272,8 +290,12 @@ impl UiNode<'_> {
         if ! self.check_node_sense(Sense::DRAG, "is_drag_released_onto()", "Node::sense_drag()") {
             return false;
         }
-    
-        return self.ui.sys.mouse_input.drag_released_onto(Some(MouseButton::Left), Some(self.node().id), Some(dest.id_with_subtree()));
+        #[cfg(debug_assertions)]
+        if ! self.check_dest_node_sense(dest, Sense::DRAG_DROP_TARGET, "is_drag_released_onto()", "Node::sense_drag_drop_target()") {
+            return false;
+        }
+
+        return self.ui.sys.mouse_input.drag_released_onto(Some(MouseButton::Left), Some(self.node().id), Some(dest.id));
     }
 
     /// If the node was dragged with a specific mouse button, returns a struct describing the drag event. Otherwise, returns `None`.

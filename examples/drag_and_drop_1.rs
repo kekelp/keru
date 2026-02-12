@@ -12,25 +12,36 @@ impl State {
         #[node_key] const LEFT_STACK: NodeKey;
         #[node_key] const RIGHT_STACK: NodeKey;
 
-        #[node_key] const LEFT_ITEM: NodeKey;
-        #[node_key] const RIGHT_ITEM: NodeKey;
+        #[node_key] const ITEM: NodeKey;
 
         let item = BUTTON
             .size_x(Size::Pixels(100.0))
             .anchor_symm(Anchor::Center)
             .sense_drag(true)
-            .animate_position(true);
+            .absorbs_clicks(false)
+            .animate_position(true)
+            .animation(Animation {
+                speed: 1.0,
+                enter: EnterAnimation::None,
+                exit: ExitAnimation::None,
+                state_transition: StateTransition {
+                    animate_position: true,
+                },
+            });
         
-        let left_stack = V_STACK
+        let stack = V_STACK
             .padding(50.0)
-            .position_x(Pos::Start)
+            .size_y(Size::Fill)
             .position_y(Pos::Start)
-            .stack_arrange(Arrange::Start);
+            .sense_drag_drop_target(true)
+            .stack_arrange(Arrange::Start)
+;
+        let left_stack = stack.position_x(Pos::Start).key(LEFT_STACK);
 
         ui.add(left_stack).nest(|| {
             for string in &self.left_strings {
 
-                let key = LEFT_ITEM.sibling(string);
+                let key = ITEM.sibling(string);
                 let item = item.text(&string).key(key);
                 
                 if let Some(drag) = ui.is_dragged(key) {
@@ -47,16 +58,13 @@ impl State {
             }
         });
 
-        let right_stack = V_STACK
-            .padding(50.0)
-            .position_x(Pos::End)
-            .position_y(Pos::Start)
-            .stack_arrange(Arrange::Start);
+        
+        let right_stack = stack.position_x(Pos::End).key(RIGHT_STACK);
 
         ui.add(right_stack).nest(|| {
             for string in &self.right_strings {
 
-                let key = RIGHT_ITEM.sibling(string);
+                let key = ITEM.sibling(string);
                 let item = item.text(&string).key(key);
                 
                 if let Some(drag) = ui.is_dragged(key) {
@@ -75,8 +83,8 @@ impl State {
 
         let mut to_remove: Option<usize> = None;
         for (i, string) in self.left_strings.iter().enumerate() {
-            let key = LEFT_ITEM.sibling(string);
-            if ui.is_drag_released(key) {
+            let key = ITEM.sibling(string);
+            if ui.is_drag_released_onto(key, RIGHT_STACK) {
                 to_remove = Some(i);
             }
         }
@@ -87,8 +95,8 @@ impl State {
 
         let mut to_remove: Option<usize> = None;
         for (i, string) in self.right_strings.iter().enumerate() {
-            let key = RIGHT_ITEM.sibling(string);
-            if ui.is_drag_released(key) {
+            let key = ITEM.sibling(string);
+            if ui.is_drag_released_onto(key, LEFT_STACK) {
                 to_remove = Some(i);
             }
         }

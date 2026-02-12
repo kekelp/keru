@@ -980,6 +980,16 @@ impl Node {
         return self;
     }
 
+    pub const fn sense_drag_drop_target(mut self, value: bool) -> Self {
+        let senses = &mut self.interact.senses;
+        if value {
+            *senses = senses.union(Sense::DRAG_DROP_TARGET);
+        } else {
+            *senses = senses.intersection(Sense::DRAG_DROP_TARGET.complement());
+        }
+        return self;
+    }
+
     pub fn is_fit_content(&self) -> bool {
         let Xy { x, y } = self.layout.size;
         return x == Size::FitContent || y == Size::FitContent
@@ -1360,6 +1370,16 @@ impl<'a> FullNode<'a> {
             *senses = senses.union(Sense::SCROLL);
         } else {
             *senses = senses.intersection(Sense::SCROLL.complement());
+        }
+        return self;
+    }
+
+    pub const fn sense_drag_drop_target(mut self, value: bool) -> Self {
+        let senses = &mut self.params.interact.senses;
+        if value {
+            *senses = senses.union(Sense::DRAG_DROP_TARGET);
+        } else {
+            *senses = senses.intersection(Sense::DRAG_DROP_TARGET.complement());
         }
         return self;
     }

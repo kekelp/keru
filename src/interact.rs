@@ -356,6 +356,7 @@ bitflags::bitflags! {
         const SCROLL = 1 << 3;
         const HOLD  = 1 << 4;
         const CLICK_RELEASE = 1 << 5;
+        const DRAG_DROP_TARGET = 1 << 6;
         // todo: HoverEnter could be useful
 
         const NONE = 0;
