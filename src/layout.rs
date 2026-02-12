@@ -280,7 +280,6 @@ impl Ui {
                         content_size[stack.axis] += spacing;
                     }
                     available_size_left[stack.axis] -= child_size[stack.axis];
-                    available_size_left[stack.axis] -= padding[stack.axis];
                     n_added_children += 1;
                 } else {
                     n_fill_children += 1;
@@ -292,7 +291,7 @@ impl Ui {
                 // then, divide the remaining space between the Fill children
                 let mut size_per_child = available_size_left;
                 if n_fill_children > 1 {
-                    available_size_left[stack.axis] -= ((n_fill_children - 1) as f32) * padding[stack.axis];
+                    available_size_left[stack.axis] -= ((n_fill_children - 1) as f32) * spacing;
                 }
 
                 size_per_child[stack.axis] /= n_fill_children as f32;
