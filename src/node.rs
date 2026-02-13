@@ -744,6 +744,14 @@ impl Node {
         return self;
     }
 
+    pub const fn alpha(mut self, alpha: f32) -> Self {
+        self.color.top_left.a = (alpha * 255.0) as u8;
+        self.color.top_right.a = (alpha * 255.0) as u8;
+        self.color.bottom_left.a = (alpha * 255.0) as u8;
+        self.color.bottom_right.a = (alpha * 255.0) as u8;
+        return self;
+    }
+
     pub const fn shape(mut self, shape: Shape) -> Self {
         self.shape = shape;
         return self;
@@ -1229,6 +1237,14 @@ impl<'a> FullNode<'a> {
 
     pub const fn color(mut self, color: Color) -> Self {
         self.params.color = VertexColors::flat(color);
+        return self;
+    }
+
+    pub const fn alpha(mut self, alpha: f32) -> Self {
+        self.params.color.top_left.a = (alpha * 255.0) as u8;
+        self.params.color.top_right.a = (alpha * 255.0) as u8;
+        self.params.color.bottom_left.a = (alpha * 255.0) as u8;
+        self.params.color.bottom_right.a = (alpha * 255.0) as u8;
         return self;
     }
 

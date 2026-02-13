@@ -20,10 +20,10 @@ impl Color {
 #[derive(Default, Debug, Clone, Copy, PartialEq, Zeroable, Pod, Hash)]
 #[repr(C)]
 pub struct VertexColors {
-    top_left: Color,
-    top_right: Color,
-    bottom_left: Color,
-    bottom_right: Color,
+    pub(crate) top_left: Color,
+    pub(crate) top_right: Color,
+    pub(crate) bottom_left: Color,
+    pub(crate) bottom_right: Color,
 }
 impl VertexColors {
     pub const GREENSCREEN: Self = VertexColors::flat(Color::rgba_f(0.0, 1.0, 0.0, 1.0));
