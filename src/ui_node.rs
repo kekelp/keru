@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use glam::Vec2;
 use winit::event::MouseButton;
 
 use crate::*;
@@ -317,7 +318,7 @@ impl UiNode<'_> {
 
         let mouse_record = self.ui.sys.mouse_input.drag_released_onto(Some(MouseButton::Left), Some(self.node().id), Some(dest.id_with_subtree()))?;
         let dest_rect = self.ui.get_uinode(dest)?.node().real_rect;
-        Some(self.drag_from_mouse_record_with_rect(&mouse_record, dest_rect))
+        self.drag_from_mouse_record_with_rect(&mouse_record, dest_rect)
     }
 
     /// If a left button mouse drag on this node is currently hovering over the node corresponding to the `dest` key, returns the drag info.
@@ -334,14 +335,18 @@ impl UiNode<'_> {
 
         let mouse_record = self.ui.sys.mouse_input.drag_hovered_onto(Some(MouseButton::Left), Some(self.node().id), Some(dest.id_with_subtree()))?;
         let dest_rect = self.ui.get_uinode(dest)?.node().real_rect;
-        Some(self.drag_from_mouse_record_with_rect(&mouse_record, dest_rect))
+        self.drag_from_mouse_record_with_rect(&mouse_record, dest_rect)
     }
 
-    fn drag_from_mouse_record(&self, mouse_record: &FullMouseEvent<Id>) -> Drag {
+    fn drag_from_mouse_record(&self, mouse_record: &FullMouseEvent<Id>) -> Option<Drag> {
         self.drag_from_mouse_record_with_rect(mouse_record, self.node().real_rect)
     }
 
-    fn drag_from_mouse_record_with_rect(&self, mouse_record: &FullMouseEvent<Id>, node_rect: XyRect) -> Drag {
+    fn drag_from_mouse_record_with_rect(&self, mouse_record: &FullMouseEvent<Id>, node_rect: XyRect) -> Option<Drag> {
+        if mouse_record.total_drag_distance() == Vec2::ZERO {
+            return None;
+        }
+        
         let relative_position = glam::Vec2::new(
             ((mouse_record.currently_at.position.x / self.ui.sys.unifs.size.x) - (node_rect.x[0])) / node_rect.size().x,
             ((mouse_record.currently_at.position.y / self.ui.sys.unifs.size.y) - (node_rect.y[0])) / node_rect.size().y,
@@ -351,13 +356,13 @@ impl UiNode<'_> {
             mouse_record.drag_distance().y / (node_rect.size().y * self.ui.sys.unifs.size.y),
         );
 
-        Drag {
+        Some(Drag {
             relative_position,
             absolute_pos: mouse_record.currently_at.position,
             relative_delta,
             absolute_delta: mouse_record.drag_distance(),
             pressed_timestamp: mouse_record.originally_pressed.timestamp,
-        }
+        })
     }
 
     /// If the node was dragged with a specific mouse button, returns a struct describing the drag event. Otherwise, returns `None`.
@@ -368,7 +373,7 @@ impl UiNode<'_> {
         }
 
         let mouse_record = self.ui.sys.mouse_input.dragged_at(Some(button), Some(self.node().id))?;
-        Some(self.drag_from_mouse_record(&mouse_record))
+        self.drag_from_mouse_record(&mouse_record)
     }
 
     /// If the node corresponding to `key` was dragged, returns a struct describing the drag event. Otherwise, returns `None`.

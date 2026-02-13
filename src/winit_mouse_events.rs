@@ -422,6 +422,10 @@ impl<T: Tag> FullMouseEvent<T> {
         return self.last_seen.position - self.currently_at.position;
     }
 
+    pub fn total_drag_distance(&self) -> Vec2 {
+        return self.originally_pressed.position - self.currently_at.position;
+    }
+
     pub fn time_held(&self) -> Duration {
         return self.currently_at.timestamp.duration_since(self.last_seen.timestamp);
     }
