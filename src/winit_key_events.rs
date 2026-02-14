@@ -84,6 +84,9 @@ impl KeyInput {
                     }
                 }
             },
+            WindowEvent::Focused(false) => {
+                self.release_all_keys();
+            }
             WindowEvent::ModifiersChanged(modifiers) => {
                 self.key_mods = modifiers.state();
             },
@@ -126,6 +129,29 @@ impl KeyInput {
 
             self.last_frame_key_events.push(full_mouse_event);
         }
+    }
+
+    fn release_all_keys(&mut self) {
+        let timestamp = Instant::now();
+
+        for key_pressed in self.unresolved_key_presses.iter_mut() {
+            if !key_pressed.already_released {
+                key_pressed.already_released = true;
+
+                let full_key_event = FullKeyEvent {
+                    key: key_pressed.key.clone(),
+                    originally_pressed: key_pressed.pressed_at,
+                    last_seen: key_pressed.last_seen,
+                    currently_at: timestamp,
+                    kind: IsKeyReleased::KeyReleased,
+                };
+
+                self.last_frame_key_events.push(full_key_event);
+            }
+        }
+
+        // Maybe winit fixes the key mods on its own, should check 
+        self.key_mods = ModifiersState::empty();
     }
 
     // querying
