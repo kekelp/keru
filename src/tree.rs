@@ -526,6 +526,7 @@ impl Ui {
         }
 
         self.sys.new_external_events = false;
+        self.sys.changes.resize = false;
 
         // not sure if still needed
         self.sys.needs_update.store(false, std::sync::atomic::Ordering::Relaxed);

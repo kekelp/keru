@@ -88,6 +88,7 @@ pub(crate) struct System {
     pub inspect_mode: bool,
 
     pub global_animation_speed: f32,
+    pub disable_animations_on_resize: bool,
 
     pub t: f32, // time at the end of the last rendered frame, in seconds since the Ui creation
 
@@ -276,6 +277,7 @@ impl Ui {
             sys: System {
                 t: 0.0,
                 global_animation_speed: 1.0,
+                disable_animations_on_resize: true,
                 unique_id: INSTANCE_COUNTER.fetch_add(1, Ordering::Relaxed),
                 z_cursor: 0.0,
                 theme: KERU_DARK,
@@ -355,6 +357,11 @@ impl Ui {
     /// Get the global animation speed multiplier.
     pub fn global_animation_speed(&mut self) -> f32 {
         self.sys.global_animation_speed
+    }
+
+    /// Set whether animations should be disabled during window resize.
+    pub fn set_disable_animations_on_resize(&mut self, disable: bool) {
+        self.sys.disable_animations_on_resize = disable;
     }
 
     /// Set inspect mode. When inspect mode is active, all nodes will be shown, including stacks and containers. 

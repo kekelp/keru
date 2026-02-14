@@ -874,34 +874,42 @@ impl Ui {
         // do animations in local space
         let target = self.nodes[i].local_layout_rect;
 
-        let speed = self.sys.global_animation_speed * self.nodes[i].params.animation.speed;
+        // Don't do animations on resizes, unless the flag is not set
+        let skip_animations = self.sys.disable_animations_on_resize && self.sys.changes.resize;
 
-        let dt = 1.0 / 60.0; // todo use real frame time
+        let mut l;
+        if skip_animations {
+            l = target;
+        } else {
+            l = self.nodes[i].local_animated_rect;
 
-        let mut l = self.nodes[i].local_animated_rect;
+            let speed = self.sys.global_animation_speed * self.nodes[i].params.animation.speed;
 
-        let rate = 5.0 * speed * dt;
+            let dt = 1.0 / 60.0; // todo use real frame time
 
-        let const_speed_pixels = 3.0 * speed;
-        let diff = target - l;
+            let rate = 5.0 * speed * dt;
 
-        let threshold = Xy::new(
-            const_speed_pixels / self.sys.size.x,
-            const_speed_pixels / self.sys.size.y
-        );
+            let const_speed_pixels = 3.0 * speed;
+            let diff = target - l;
 
-        for axis in [X, Y] {
-            for i in 0..2 {
-                if diff[axis][i].abs() < threshold[axis] {
-                    l[axis][i] = target[axis][i];
-                } else {
-                    let d = diff[axis][i];
-                    let diff_sign = d.signum();
-                    let scale = self.sys.size[axis] * diff_sign / const_speed_pixels;
-                    l[axis][i] += (d * rate * scale).ceil() / scale;
+            let threshold = Xy::new(
+                const_speed_pixels / self.sys.size.x,
+                const_speed_pixels / self.sys.size.y
+            );
+
+            for axis in [X, Y] {
+                for i in 0..2 {
+                    if diff[axis][i].abs() < threshold[axis] {
+                        l[axis][i] = target[axis][i];
+                    } else {
+                        let d = diff[axis][i];
+                        let diff_sign = d.signum();
+                        let scale = self.sys.size[axis] * diff_sign / const_speed_pixels;
+                        l[axis][i] += (d * rate * scale).ceil() / scale;
+                    }
                 }
             }
-        }
+        };
 
         self.nodes[i].local_animated_rect = l;
 
