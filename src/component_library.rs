@@ -118,7 +118,7 @@ impl Ui {
             let h_stack = H_STACK.stack_spacing(0.0);
             let tabs_v_stack = V_STACK.size_x(Size::Pixels(250.0));
             let inactive_tab = BUTTON
-                .shape(Shape::Rectangle { rounded_corners: RoundedCorners::LEFT, corner_radius: BASE_RADIUS })
+                .shape(Shape::Rectangle { rounded_corners: RoundedCorners::LEFT, corner_radius: DEFAULT_CORNER_RADIUS })
                 .size_x(Size::Fill)
                 .colors(self.theme().muted_background);
             let active_tab = inactive_tab.colors(self.theme().background);

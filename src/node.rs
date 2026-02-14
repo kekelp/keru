@@ -486,7 +486,7 @@ impl Hash for Stroke {
 
 impl Rect {
     pub const DEFAULT: Self = Self {
-        shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: BASE_RADIUS },
+        shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: DEFAULT_CORNER_RADIUS },
     };
 }
 
@@ -518,7 +518,8 @@ impl TextOptions {
     }
 }
 
-pub(crate) const BASE_RADIUS: f32 = 9.0;
+// The corner rounding of most default nodes.
+pub const DEFAULT_CORNER_RADIUS: f32 = 9.0;
 
 impl Node {
     pub(crate) fn cosmetic_hash(&self) -> u64 {
