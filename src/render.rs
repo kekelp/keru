@@ -236,6 +236,20 @@ impl Ui {
             (0.0, None)
         };
 
+        // Override colors for debug box
+        let (tl_f, is_solid, border_thickness, border_color) = if debug_box {
+            let c = Color::KERU_DEBUG_RED;
+            let border_color_f32 = [
+                c.r as f32 / 255.0,
+                c.g as f32 / 255.0,
+                c.b as f32 / 255.0,
+                c.a as f32 / 255.0,
+            ];
+            ([0.0, 0.0, 0.0, 0.0], true, 3.0, Some(border_color_f32))
+        } else {
+            (tl_f, is_solid, border_thickness, border_color)
+        };
+
         let shape = if debug_box {
             &Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: 5.0 }
         } else {
