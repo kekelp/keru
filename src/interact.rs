@@ -118,7 +118,7 @@ impl Ui {
 
         if hovered_node.params.interact.click_animation {
             hovered_node.hovered = true;
-            hovered_node.hover_timestamp = ui_time_f32();
+            hovered_node.hover_timestamp = slow_accurate_timestamp_for_events_only();
             
             self.sys.changes.rebuild_render_data = true;
             self.sys.anim_render_timer.push_new(Duration::from_secs_f32(ANIMATION_RERENDER_TIME));
@@ -134,7 +134,7 @@ impl Ui {
             
                 if hovered_node.params.interact.click_animation {
                     hovered_node.hovered = false;
-                    hovered_node.hover_timestamp = ui_time_f32();
+                    hovered_node.hover_timestamp = slow_accurate_timestamp_for_events_only();
                     self.sys.changes.rebuild_render_data = true;
 
                     animation = true;
@@ -367,7 +367,7 @@ impl Ui {
     pub(crate) fn click_rect(&mut self, i: NodeI) -> ClickRect {
         let real_rect = self.nodes[i].real_rect;
         let transform = self.nodes[i].accumulated_transform;
-        let size = self.sys.unifs.size;
+        let size = self.sys.size;
 
         // Apply transform
         let tx_norm = transform.offset.x / size[X];

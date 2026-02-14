@@ -3,6 +3,7 @@ use std::collections::hash_map::Entry;
 use std::hash::Hasher;
 use std::mem;
 use std::panic::Location;
+use std::time::Duration;
 use bytemuck::{Pod, Zeroable};
 
 /// An `u64` identifier for a GUI node.
@@ -363,10 +364,10 @@ impl Ui {
                 // Update text position using animated rect
                 let animated_rect = self.nodes[i].get_animated_rect();
                 let padding = self.nodes[i].params.layout.padding;
-                let left = (animated_rect[X][0] * self.sys.unifs.size[X]) as f64 + padding[X] as f64;
+                let left = (animated_rect[X][0] * self.sys.size[X]) as f64 + padding[X] as f64;
 
                 // Calculate node height in pixels
-                let node_height = (animated_rect[Y][1] - animated_rect[Y][0]) * self.sys.unifs.size[Y];
+                let node_height = (animated_rect[Y][1] - animated_rect[Y][0]) * self.sys.size[Y];
                 let available_height = node_height - (2.0 * padding[Y] as f32);
 
                 // Round to screen pixels using the transform scale (even if scaled text doesn't work anyway)
@@ -385,17 +386,17 @@ impl Ui {
                             0.0
                         };
 
-                        let top = (animated_rect[Y][0] * self.sys.unifs.size[Y]) as f64 + padding[Y] as f64 + vertical_offset as f64;
+                        let top = (animated_rect[Y][0] * self.sys.size[Y]) as f64 + padding[Y] as f64 + vertical_offset as f64;
 
                         text_box.set_depth(z);
                         text_box.set_pos(((left * scale).round() / scale, (top * scale).round() / scale));
 
                         // Set the screen-space clip rect before drawing
                         let clip = (
-                            node_clip_rect.x[0] * self.sys.unifs.size[X],
-                            node_clip_rect.y[0] * self.sys.unifs.size[Y],
-                            node_clip_rect.x[1] * self.sys.unifs.size[X],
-                            node_clip_rect.y[1] * self.sys.unifs.size[Y],
+                            node_clip_rect.x[0] * self.sys.size[X],
+                            node_clip_rect.y[0] * self.sys.size[Y],
+                            node_clip_rect.x[1] * self.sys.size[X],
+                            node_clip_rect.y[1] * self.sys.size[Y],
                         );
                         self.sys.renderer.text.get_text_box_mut(&text_box_handle).set_screen_space_clip_rect(Some(clip));
 
@@ -413,7 +414,7 @@ impl Ui {
                             0.0
                         };
 
-                        let top = (animated_rect[Y][0] * self.sys.unifs.size[Y]) as f64 + padding[Y] as f64 + vertical_offset as f64;
+                        let top = (animated_rect[Y][0] * self.sys.size[Y]) as f64 + padding[Y] as f64 + vertical_offset as f64;
 
                         text_edit.set_depth(z);
                         text_edit.set_pos(((left * scale).round() / scale, (top * scale).round() / scale));
@@ -481,8 +482,6 @@ impl Ui {
     pub fn begin_frame(&mut self) {
         self.reset_root();
 
-        self.sys.unifs.t = ui_time_f32();
-
         self.sys.current_frame += 1;
         self.sys.renderer.text.advance_frame_and_hide_boxes();
 
@@ -510,7 +509,7 @@ impl Ui {
     ///
     /// This function must be called once per frame, after calling [`Ui::begin_frame()`] and running your ui declaration code.
     pub fn finish_frame(&mut self) {
-        log::trace!("Finished Ui update");
+        log::trace!("Finished Ui update");        
         // pop the root node
         thread_local::pop_parent();
 

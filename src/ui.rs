@@ -25,7 +25,6 @@ use std::thread;
 use std::time::Duration;
 use std::time::Instant;
 
-use bytemuck::{Pod, Zeroable};
 use wgpu::{
     Device, Queue, SurfaceConfiguration,
 };
@@ -39,7 +38,7 @@ pub static ORIGINAL_DEFAULT_TEXT_STYLE: LazyLock<TextStyle> = LazyLock::new(|| T
     ..Default::default()
 });
 
-pub(crate) fn ui_time_f32() -> f32 {
+pub(crate) fn slow_accurate_timestamp_for_events_only() -> f32 {
     return T0.elapsed().as_secs_f32();
 }
 
@@ -90,6 +89,8 @@ pub(crate) struct System {
 
     pub global_animation_speed: f32,
 
+    pub t: f32, // time at the end of the last rendered frame, in seconds since the Ui creation
+
     pub unique_id: u64,
     pub theme: Theme,
     pub debug_key_pressed: bool,
@@ -104,7 +105,8 @@ pub(crate) struct System {
 
     pub click_rects: Vec<ClickRect>,
 
-    pub unifs: Uniforms,
+    pub size: Xy<f32>,
+
     pub current_frame: u64,
     pub last_frame_end_fake_time: u64,
     pub second_last_frame_end_fake_time: u64,
@@ -253,24 +255,10 @@ impl AnimationRenderTimer {
     }
 }
 
-#[repr(C)]
-#[derive(Debug, Pod, Copy, Clone, Zeroable)]
-pub(crate) struct Uniforms {
-    pub size: Xy<f32>,
-    pub t: f32,
-    pub _padding: f32,
-}
-
 impl Ui {
     pub fn new(device: &Device, queue: &Queue, config: &SurfaceConfiguration) -> Self {
         // initialize the static T0
         LazyLock::force(&T0);
-
-        let uniforms = Uniforms {
-            size: Xy::new(config.width as f32, config.height as f32),
-            t: 0.,
-            _padding: 0.,
-        };
 
         let nodes = Nodes::new();
 
@@ -286,6 +274,7 @@ impl Ui {
             custom_render_commands: Vec::with_capacity(50),
 
             sys: System {
+                t: 0.0,
                 global_animation_speed: 1.0,
                 unique_id: INSTANCE_COUNTER.fetch_add(1, Ordering::Relaxed),
                 z_cursor: 0.0,
@@ -306,7 +295,7 @@ impl Ui {
                 second_last_frame_end_fake_time,
                 last_frame_end_fake_time,
 
-                unifs: uniforms,
+                size: Xy::new(config.width as f32, config.height as f32),
 
                 depth_traversal_queue: Vec::with_capacity(64),
 
@@ -397,14 +386,7 @@ impl Ui {
 
     /// Get the current screen size in pixels.
     pub fn screen_size(&self) -> (f32, f32) {
-        (self.sys.unifs.size.x, self.sys.unifs.size.y)
-    }
-
-    /// Get the current UI time in seconds since the UI was created.
-    pub fn ui_time(&self) -> f32 {
-        // todo this is not used anymore?
-        // self.sys.unifs.t
-        ui_time_f32()
+        (self.sys.size.x, self.sys.size.y)
     }
 
     pub fn push_external_event(&mut self) {
@@ -513,8 +495,8 @@ impl Ui {
     pub(crate) fn resize(&mut self, size: &PhysicalSize<u32>) {
         self.sys.changes.full_relayout = true;
 
-        self.sys.unifs.size[X] = size.width as f32;
-        self.sys.unifs.size[Y] = size.height as f32;
+        self.sys.size[X] = size.width as f32;
+        self.sys.size[Y] = size.height as f32;
 
         self.sys.changes.resize = true;
 
@@ -544,7 +526,7 @@ impl Ui {
 impl Ui {
     /// Hit test with the current stored cursor position and a click rect
     pub(crate) fn hit_click_rect(&self, rect: &ClickRect) -> bool {
-        let size = self.sys.unifs.size;
+        let size = self.sys.size;
 
         // Get cursor position and convert to normalized coordinates
         let cursor_pos = (

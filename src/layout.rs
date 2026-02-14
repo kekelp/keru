@@ -204,7 +204,7 @@ impl Ui {
                         log::warn!("A Size shouldn't be AspectRatio in both dimensions. (node: {})", debug_name);
                     }
                     _ => {
-                        let window_aspect = self.sys.unifs.size.x / self.sys.unifs.size.y;
+                        let window_aspect = self.sys.size.x / self.sys.size.y;
                         let mult = match axis {
                             X => 1.0 / (window_aspect * aspect),
                             Y => window_aspect * aspect,
@@ -381,7 +381,7 @@ impl Ui {
                         0.0 // todo rethink
                     };
 
-                    let text_width = proposed_size.x * self.sys.unifs.size[X];
+                    let text_width = proposed_size.x * self.sys.size[X];
 
                     text_edit.set_size((text_width, text_height));
 
@@ -389,8 +389,8 @@ impl Ui {
                     return self.pixels_to_frac2(text_size_pixels);
 
                 } else {
-                    let w = proposed_size.x * self.sys.unifs.size[X];
-                    let h = proposed_size.y * self.sys.unifs.size[Y];
+                    let w = proposed_size.x * self.sys.size[X];
+                    let h = proposed_size.y * self.sys.size[Y];
 
                     text_edit.set_size((w, h));
                     return proposed_size;
@@ -405,17 +405,17 @@ impl Ui {
                 let h = if fit_content_y {
                     BIG_FLOAT
                 } else {
-                    proposed_size.y * self.sys.unifs.size[Y]
+                    proposed_size.y * self.sys.size[Y]
                 };
 
                 let w = if fit_content_x {
                     if fit_content_y {
-                        proposed_size.x * self.sys.unifs.size[X]
+                        proposed_size.x * self.sys.size[X]
                     } else {
                         BIG_FLOAT
                     }
                 } else {
-                    proposed_size.x * self.sys.unifs.size[X]
+                    proposed_size.x * self.sys.size[X]
                 };
 
                 let text_box = self.sys.renderer.text.get_text_box_mut(&handle);
@@ -766,16 +766,16 @@ impl Ui {
         self.nodes[i].clip_rect = clip_rect;
 
         if let Some(text_i) = &self.nodes[i].text_i {
-            let left = clip_rect[X][0] * self.sys.unifs.size[X];
-            let right = clip_rect[X][1] * self.sys.unifs.size[X];
-            let top = clip_rect[Y][0] * self.sys.unifs.size[Y];
-            let bottom = clip_rect[Y][1] * self.sys.unifs.size[Y];
+            let left = clip_rect[X][0] * self.sys.size[X];
+            let right = clip_rect[X][1] * self.sys.size[X];
+            let top = clip_rect[Y][0] * self.sys.size[Y];
+            let bottom = clip_rect[Y][1] * self.sys.size[Y];
 
             // Use animated_rect to match the position used in push_render_data
             let animated_rect = self.nodes[i].get_animated_rect();
             let padding = self.nodes[i].params.layout.padding;
-            let text_left = (animated_rect[X][0] * self.sys.unifs.size[X]) as f64 + padding[X] as f64;
-            let text_top = (animated_rect[Y][0] * self.sys.unifs.size[Y]) as f64 + padding[Y] as f64;
+            let text_left = (animated_rect[X][0] * self.sys.size[X]) as f64 + padding[X] as f64;
+            let text_top = (animated_rect[Y][0] * self.sys.size[Y]) as f64 + padding[Y] as f64;
 
             let text_clip_rect = Some(keru_draw::BoundingBox {
                 x0: left as f64 - text_left,
@@ -801,8 +801,8 @@ impl Ui {
 
         self.sys.changes.unfinished_animations = false;
 
-        let width = self.sys.unifs.size[X];
-        let height = self.sys.unifs.size[Y];
+        let width = self.sys.size[X];
+        let height = self.sys.size[Y];
         self.sys.renderer.begin_frame(width, height);
 
         self.custom_render_commands.clear();
@@ -886,8 +886,8 @@ impl Ui {
         let diff = target - l;
 
         let threshold = Xy::new(
-            const_speed_pixels / self.sys.unifs.size.x,
-            const_speed_pixels / self.sys.unifs.size.y
+            const_speed_pixels / self.sys.size.x,
+            const_speed_pixels / self.sys.size.y
         );
 
         for axis in [X, Y] {
@@ -897,7 +897,7 @@ impl Ui {
                 } else {
                     let d = diff[axis][i];
                     let diff_sign = d.signum();
-                    let scale = self.sys.unifs.size[axis] * diff_sign / const_speed_pixels;
+                    let scale = self.sys.size[axis] * diff_sign / const_speed_pixels;
                     l[axis][i] += (d * rate * scale).ceil() / scale;
                 }
             }
@@ -980,8 +980,8 @@ impl Ui {
             // Get node center in pixels for centered scaling
             let rect = self.nodes[i].real_rect;
             let center = rect.center();
-            let center_px_x = center.x * self.sys.unifs.size[X];
-            let center_px_y = center.y * self.sys.unifs.size[Y];
+            let center_px_x = center.x * self.sys.size[X];
+            let center_px_y = center.y * self.sys.size[Y];
 
             // Center the child's scale around the node's center
             // to scale around C, add C * (1 - scale) to offset
@@ -1112,7 +1112,7 @@ impl Ui {
 
         // round it to whole pixels to avoid wobbling
         // account for transform scale to round to real screen pixels
-        let size = self.sys.unifs.size[axis];
+        let size = self.sys.size[axis];
         let scale = self.nodes[i].accumulated_transform.scale;
         let scroll_offset = (scroll_offset * size * scale).round() / scale / size;
 

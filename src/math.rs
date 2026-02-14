@@ -7,13 +7,13 @@ use crate::*;
 impl Ui {
     pub(crate) fn f32_size_to_pixels2(&self, size: Xy<f32>) -> Xy<f32> {
         return Xy::new(
-            size.x * self.sys.unifs.size[X],
-            size.y * self.sys.unifs.size[Y]
+            size.x * self.sys.size[X],
+            size.y * self.sys.size[Y]
         );
     }
 
     pub(crate) fn pixels_to_frac(&self, pixels: f32, axis: Axis) -> f32 {
-        return pixels / self.sys.unifs.size[axis];
+        return pixels / self.sys.size[axis];
     }
     pub(crate) fn pixels_to_frac2(&self, pixels: Xy<f32>) -> Xy<f32> {
         return Xy::new(

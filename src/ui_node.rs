@@ -37,7 +37,7 @@ impl UiNode<'_> {
             (rect[Y][1] + rect[Y][0]) / 2.0,
         );
 
-        let center = center * self.ui.sys.unifs.size;
+        let center = center * self.ui.sys.size;
 
         return center;
     }
@@ -50,17 +50,17 @@ impl UiNode<'_> {
             rect[Y][1],
         );
 
-        let center = center * self.ui.sys.unifs.size;
+        let center = center * self.ui.sys.size;
         
         return center;
     }
 
     pub(crate) fn rect(&self) -> XyRect {
-        return self.node().real_rect * self.ui.sys.unifs.size;
+        return self.node().real_rect * self.ui.sys.size;
     }
 
     pub(crate) fn render_rect(&self) -> RenderInfo {
-        let size = self.ui.sys.unifs.size;
+        let size = self.ui.sys.size;
         let scale = self.node().accumulated_transform.scale;
         return RenderInfo {
             rect: self.node().real_rect.to_graphics_space_rounded(size, scale),
@@ -271,8 +271,8 @@ impl UiNode<'_> {
         let node_rect = self.node().real_rect;
         
         let relative_position = glam::Vec2::new(
-            ((mouse_record.position.x / self.ui.sys.unifs.size.x) - (node_rect.x[0])) / node_rect.size().x,
-            ((mouse_record.position.y / self.ui.sys.unifs.size.y) - (node_rect.y[0])) / node_rect.size().y,
+            ((mouse_record.position.x / self.ui.sys.size.x) - (node_rect.x[0])) / node_rect.size().x,
+            ((mouse_record.position.y / self.ui.sys.size.y) - (node_rect.y[0])) / node_rect.size().y,
         );
         
         return Some(Click {
@@ -348,12 +348,12 @@ impl UiNode<'_> {
         }
         
         let relative_position = glam::Vec2::new(
-            ((mouse_record.currently_at.position.x / self.ui.sys.unifs.size.x) - (node_rect.x[0])) / node_rect.size().x,
-            ((mouse_record.currently_at.position.y / self.ui.sys.unifs.size.y) - (node_rect.y[0])) / node_rect.size().y,
+            ((mouse_record.currently_at.position.x / self.ui.sys.size.x) - (node_rect.x[0])) / node_rect.size().x,
+            ((mouse_record.currently_at.position.y / self.ui.sys.size.y) - (node_rect.y[0])) / node_rect.size().y,
         );
         let relative_delta = glam::Vec2::new(
-            mouse_record.drag_distance().x / (node_rect.size().x * self.ui.sys.unifs.size.x),
-            mouse_record.drag_distance().y / (node_rect.size().y * self.ui.sys.unifs.size.y),
+            mouse_record.drag_distance().x / (node_rect.size().x * self.ui.sys.size.x),
+            mouse_record.drag_distance().y / (node_rect.size().y * self.ui.sys.size.y),
         );
 
         Some(Drag {
@@ -414,8 +414,8 @@ impl UiNode<'_> {
         let node_rect = self.node().real_rect;
 
         let relative_position = glam::Vec2::new(
-            ((scroll_event.position.x / self.ui.sys.unifs.size.x) - (node_rect.x[0])) / node_rect.size().x,
-            ((scroll_event.position.y / self.ui.sys.unifs.size.y) - (node_rect.y[0])) / node_rect.size().y,
+            ((scroll_event.position.x / self.ui.sys.size.x) - (node_rect.x[0])) / node_rect.size().x,
+            ((scroll_event.position.y / self.ui.sys.size.y) - (node_rect.y[0])) / node_rect.size().y,
         );
 
         return Some(ScrollEvent {

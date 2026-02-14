@@ -142,7 +142,7 @@ impl Ui {
 
         // Convert to pixel coordinates
         // Round to screen pixels using transform scale
-        let screen_size = self.sys.unifs.size;
+        let screen_size = self.sys.size;
         let scale = node.accumulated_transform.scale;
         let x0 = (animated_rect.x[0] * screen_size.x * scale).round() / scale;
         let y0 = (animated_rect.y[0] * screen_size.y * scale).round() / scale;
@@ -152,7 +152,7 @@ impl Ui {
         // Calculate hover and click darkening effects
         let clickable = if node.params.interact.senses != Sense::NONE { 1.0 } else { 0.0 };
 
-        let t = ui_time_f32();
+        let t = self.sys.t;
         let t_since_hover = (t - node.hover_timestamp) * 10.0;
         let hover = if node.hovered {
             t_since_hover.clamp(0.0, 1.0) * clickable
@@ -659,10 +659,12 @@ impl Ui {
     }
 
     /// Renders the UI into a render pass.
-    pub fn render(
-        &mut self,
-        render_pass: &mut wgpu::RenderPass,
-    ) {
+    pub fn render(&mut self, render_pass: &mut wgpu::RenderPass) {
+        // It makes sense to update it here because it's only used for render effects.
+        // If it was used for other things, it would be better to update it in something like begin_frame,
+        // but begin_frame doesn't work because it's normal to do rerenders without rerunning begin_frame and the update. 
+        self.sys.t = T0.elapsed().as_secs_f32();
+
         // todo think harder
         if self.sys.changes.should_rebuild_render_data || self.sys.anim_render_timer.is_live() {
             self.rebuild_render_data();
