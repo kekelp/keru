@@ -106,38 +106,8 @@ pub struct InnerNode {
 }
 
 impl InnerNode {
-    /// Get the current animated rect position
-    pub fn get_animated_rect(&self) -> XyRect {
-        // let mut final_rect = self.rect;
-        
-        // // todo: move and get self.sys.global_animation_speed
-        // let speed = 0.3 * self.params.animation.speed;
-
-        // let elapsed = current_time - self.animation_start_time;
-        // let duration = 0.1 / speed;
-        
-        // if elapsed < duration {
-        //     let t = elapsed / duration;
-        //     // Quadratic ease-out
-        //     let ease_t = 1.0 - (1.0 - t) * (1.0 - t);
-            
-        //     // Interpolate the offset from its starting value to zero
-        //     let current_offset_x = ease_t * self.target_offset.x + self.animation_offset.x * (1.0 - ease_t);
-        //     let current_offset_y = ease_t * self.target_offset.y + self.animation_offset.y * (1.0 - ease_t);
-            
-        //     // Apply the interpolated offset to the base rect
-        //     final_rect.x[0] += current_offset_x;
-        //     final_rect.x[1] += current_offset_x;
-        //     final_rect.y[0] += current_offset_y;
-        //     final_rect.y[1] += current_offset_y;
-        // }
-        
-        // // Add the cumulative parent animation offset
-        // final_rect.x[0] += self.cumulative_parent_animation_offset_delta.x;
-        // final_rect.x[1] += self.cumulative_parent_animation_offset_delta.x;
-        // final_rect.y[0] += self.cumulative_parent_animation_offset_delta.y;
-        // final_rect.y[1] += self.cumulative_parent_animation_offset_delta.y;
-        
+    /// Get the current animated rectangle in screen space pixels.
+    pub fn get_animated_rect(&self) -> XyRect {       
         self.real_rect
     }
 

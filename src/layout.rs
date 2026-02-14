@@ -892,21 +892,26 @@ impl Ui {
             let const_speed_pixels = 3.0 * speed;
             let diff = target - l;
 
-            let threshold = Xy::new(
-                const_speed_pixels / self.sys.size.x,
-                const_speed_pixels / self.sys.size.y
-            );
-
-            for axis in [X, Y] {
-                for i in 0..2 {
-                    if diff[axis][i].abs() < threshold[axis] {
-                        l[axis][i] = target[axis][i];
-                    } else {
-                        let d = diff[axis][i];
-                        let diff_sign = d.signum();
-                        let scale = self.sys.size[axis] * diff_sign / const_speed_pixels;
-                        l[axis][i] += (d * rate * scale).ceil() / scale;
-                    }
+            for i in 0..2 {
+                // convert normalized diff into pixel space
+                let dx_px = diff[X][i] * self.sys.size.x;
+                let dy_px = diff[Y][i] * self.sys.size.y;
+            
+                let dist_px = (dx_px * dx_px + dy_px * dy_px).sqrt();
+            
+                if dist_px < const_speed_pixels {
+                    l[X][i] = target[X][i];
+                    l[Y][i] = target[Y][i];
+                } else {
+                    // normalized direction in pixel space
+                    let dir_x = dx_px / dist_px;
+                    let dir_y = dy_px / dist_px;
+            
+                    // same math concept as before but applied along straight-line distance
+                    let step_px = (dist_px * rate).ceil();
+            
+                    l[X][i] += (step_px * dir_x) / self.sys.size.x;
+                    l[Y][i] += (step_px * dir_y) / self.sys.size.y;
                 }
             }
         };
