@@ -414,6 +414,7 @@ impl Component for TransformView<'_> {
             .key(PAN_OVERLAY);
 
         let transform_area = PANEL
+            .padding(0.0)
             .size_symm(Size::Pixels(1000000.0))
             .color(Color::TRANSPARENT)
             .key(TRANSFORMED_AREA)
