@@ -411,7 +411,8 @@ impl<T: Tag> FullMouseEvent<T> {
     // Less strict release that works if the pointer is not on the same node when it releases
     pub fn is_drag_release(&self) -> bool {
         let is_click_release = self.kind == IsMouseReleased::MouseReleased;
-        return is_click_release;
+        let is_real_drag = self.total_drag_distance() != Vec2::ZERO;
+        return is_click_release && is_real_drag;
     }
 
     pub fn is_drag_ongoing(&self) -> bool {

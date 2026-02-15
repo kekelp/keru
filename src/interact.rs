@@ -1,5 +1,6 @@
 use std::time::{Duration, Instant};
 
+use glam::Vec2;
 use winit::{dpi::PhysicalPosition, event::{KeyEvent, MouseButton, MouseScrollDelta, WindowEvent}, keyboard::{Key, NamedKey}, window::Window};
 
 use crate::*;
@@ -22,15 +23,17 @@ pub struct Click {
 #[derive(Clone, Copy, Debug)]
 pub struct Drag {
     /// Absolute screen position in pixels
-    pub absolute_pos: glam::Vec2,
+    pub absolute_pos: Vec2,
     /// Position relative to the node (0.0 to 1.0 in each dimension)
-    pub relative_position: glam::Vec2,
+    pub relative_position: Vec2,
     /// Absolute delta movement in pixels
-    pub absolute_delta: glam::Vec2,
+    pub absolute_delta: Vec2,
     /// Delta movement relative to the node's dimensions (as a fraction)
-    pub relative_delta: glam::Vec2,
+    pub relative_delta: Vec2,
     /// Time when the drag event started
     pub pressed_timestamp: Instant,
+    /// Total absolute drag in pixels since the start of the drag event
+    pub total_drag_distance: Vec2, 
 }
 
 /// A struct describing a scroll event on a GUI node.

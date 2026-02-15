@@ -362,6 +362,7 @@ impl UiNode<'_> {
             relative_delta,
             absolute_delta: mouse_record.drag_distance(),
             pressed_timestamp: mouse_record.originally_pressed.timestamp,
+            total_drag_distance: mouse_record.total_drag_distance(),
         })
     }
 
