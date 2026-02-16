@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 use std::fmt::Debug;
 
 use winit::event::{ElementState, WindowEvent};
-use winit::keyboard::{Key, ModifiersState};
+use winit::keyboard::{Key, ModifiersState, PhysicalKey};
 
 pub struct KeyInput {
     unresolved_key_presses: Vec<PendingKeyPress>,
@@ -73,13 +73,13 @@ impl KeyInput {
                     match event.state {
                         ElementState::Pressed => {
                             if !event.repeat {
-                                self.push_key_press(&event.logical_key);
+                                self.push_key_press(&event.logical_key, event.physical_key);
                             } else {
                                 self.push_key_repeat(&event.logical_key);
                             }
                         },
                         _ => {
-                            self.push_key_release(&event.logical_key);
+                            self.push_key_release(event.physical_key);
                         }
                     }
                 }
@@ -94,9 +94,9 @@ impl KeyInput {
         }
     }
 
-    fn push_key_press(&mut self, key: &Key) {
+    fn push_key_press(&mut self, key: &Key, physical_key: PhysicalKey) {
         let timestamp = Instant::now();
-        let pending_press = PendingKeyPress::new(timestamp, key);
+        let pending_press = PendingKeyPress::new(timestamp, key, physical_key);
         self.unresolved_key_presses.push(pending_press);
     }
 
@@ -104,11 +104,12 @@ impl KeyInput {
         self.key_repeats.push(key.clone());
     }
 
-    fn push_key_release(&mut self, key: &Key) {
-        // look for a mouse press to match and resolve
+    fn push_key_release(&mut self, physical_key: PhysicalKey) {
+        // look for a key press to match and resolve (by physical key, since logical key
+        // can change based on modifier state at event time)
         let mut matched = None;
         for click_pressed in self.unresolved_key_presses.iter_mut().rev() {
-            if click_pressed.key == *key {
+            if click_pressed.physical_key == physical_key {
                 click_pressed.already_released = true;
                 // this copy is a classic borrow checker skill issue.
                 matched = Some(click_pressed.clone());
@@ -119,15 +120,17 @@ impl KeyInput {
         let timestamp = Instant::now();
 
         if let Some(matched) = matched {
-            let full_mouse_event = FullKeyEvent {
-                key: key.clone(),
+            let full_key_event = FullKeyEvent {
+                // use the logical key from when the key was pressed, not from the release
+                // event (since the release event's logical key may differ due to modifier state)
+                key: matched.key,
                 originally_pressed: matched.pressed_at,
                 last_seen: matched.last_seen,
                 currently_at: timestamp,
                 kind: IsKeyReleased::KeyReleased,
             };
 
-            self.last_frame_key_events.push(full_mouse_event);
+            self.last_frame_key_events.push(full_key_event);
         }
     }
 
@@ -165,7 +168,7 @@ impl KeyInput {
             .all_key_events()
             .filter(move |c| c.key == key);    }
 
-    pub fn key_pressed(&self, key: &Key) -> bool {
+    pub fn key_pressed(&self, key: &winit::keyboard::Key) -> bool {
         let all_events = self.key_events(key);
         let count = all_events.filter(|c| c.is_just_pressed()).count();
         return count > 0;
@@ -207,14 +210,16 @@ impl KeyInput {
 #[derive(Clone, Debug)]
 pub(crate) struct PendingKeyPress {
     pub key: Key,
+    pub physical_key: PhysicalKey,
     pub pressed_at: Instant,
     pub last_seen: Instant,
     pub already_released: bool,
 }
 impl PendingKeyPress {
-    pub fn new(timestamp: Instant, key: &Key) -> Self {
+    pub fn new(timestamp: Instant, key: &Key, physical_key: PhysicalKey) -> Self {
         return Self {
             key: key.clone(),
+            physical_key,
             pressed_at: timestamp,
             last_seen: timestamp,
             already_released: false,
