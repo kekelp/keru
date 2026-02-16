@@ -98,7 +98,7 @@ impl Component for DragList {
 
     fn add_to_ui(&mut self, ui: &mut Ui, state: &mut Self::State) -> Self::AddResult {
         #[node_key] const STACK: NodeKey;
-        #[node_key] const SPACER: NodeKey;
+        #[node_key] const SPACER_KEY: NodeKey;
         #[node_key] const DRAGGED_CONTAINER: NodeKey;
 
         let stack = V_STACK
@@ -111,7 +111,7 @@ impl Component for DragList {
         let spacer = SPACER
             .size_x(Size::Pixels(150.0))
             .size_y(Size::Pixels(40.0))
-            .key(SPACER)
+            .key(SPACER_KEY)
             .animate_position(true);
 
         // Get children rects from previous frame to calculate hover index

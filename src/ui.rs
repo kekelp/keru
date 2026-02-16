@@ -339,12 +339,14 @@ impl Ui {
         }
     }
 
-    /// Registers the `winit` window so that it can be used for automatic wakeup for cursor blinking, scheduled wakeups, and using the [UiWaker].
-    ///
-    /// In applications that don't pause their event loops, like games, there is no need to call this method.
-    ///
-    /// You can also handle cursor wakeups manually in your winit event loop with winit's `ControlFlow::WaitUntil` and [`Text::time_until_next_cursor_blink`]. See the `event_loop_smart.rs` example.
-    pub fn enable_auto_wakeup(&mut self, window: Arc<Window>) {
+    /// Registers the `winit` window 
+    /// 
+    /// This allows the Ui to:
+    /// 
+    /// - enable [IME](https://en.wikipedia.org/wiki/Input_method) when a text edit box is focused, and disable it when unfocused so that there's less risk of hotkey collisions
+    /// 
+    /// - automatically wakeup the event loop for cursor blinking, scheduled wakeups, when using the [`UiWaker`].
+    pub fn register_window(&mut self, window: Arc<Window>) {
         self.sys.renderer.text.set_auto_wakeup(window.clone());
         self.sys.window_ref = Some(Arc::downgrade(&window));
     }
@@ -446,9 +448,9 @@ impl Ui {
 
     /// Returns `true` if the [`Ui`] needs to be updated.
     ///
-    /// This is true when the [`Ui`] received an input that it cares about, such as a click on a clickable element, or when the user explicitly notified it with [`Ui::push_external_event()`].
+    /// This is true when the [`Ui`] received an input that it cares about, such as a click on a clickable element, when the user explicitly notified it with [`Ui::push_external_event()`], or from another thread with [`Ui::ui_waker()`].
     ///
-    /// In a typical `winit` loop for an application that only updates in response to user input, this function is what decides if the [`Ui`] building code should be rerun.
+    /// In a typical `winit` loop for an application that only updates in response to user input, this function is what decides if the [`Ui`] building code should be rerun. See the `window_loop` example.
     ///
     /// In applications that update on every frame regardless of user input, like games or simulations, the [`Ui`] building code should be rerun on every frame unconditionally, so this function isn't useful.
     pub fn should_update(&mut self) -> bool {

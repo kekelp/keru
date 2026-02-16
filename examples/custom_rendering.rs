@@ -16,8 +16,10 @@
 
 use keru::*;
 use wgpu::*;
-use std::sync::Arc;
+use std::{sync::{Arc, LazyLock}, time::Instant};
 use winit::{application::ApplicationHandler, event::WindowEvent, event_loop::{ActiveEventLoop, EventLoop}, window::{Window, WindowId}};
+
+pub(crate) static T0: LazyLock<Instant> = LazyLock::new(Instant::now);
 
 struct Application {
     state: Option<State>,
@@ -188,7 +190,7 @@ impl State {
                     let push_constants: [f32; 8] = [
                         rect.x[0], rect.y[0],
                         rect.x[1], rect.y[1],
-                        self.ui.ui_time(),
+                        T0.elapsed().as_secs_f32(),
                         0.0, 0.0, 0.0,
                     ];
                     render_pass.set_pipeline(&self.custom_pipeline);

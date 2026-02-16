@@ -139,7 +139,7 @@ impl<T> ApplicationHandler for Application<T> {
         let window = Arc::new(event_loop.create_window(Window::default_attributes()).unwrap());
         let instance = Instance::new(&InstanceDescriptor::default());
         let mut state = State::new(window, instance);
-        state.ui.enable_auto_wakeup(state.window.clone());
+        state.ui.register_window(state.window.clone());
         self.state = Some(state);
     }
 

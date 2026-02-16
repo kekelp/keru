@@ -20,12 +20,7 @@ struct State {
 impl State {
     fn new(window: Arc<Window>, instance: Instance) -> Self {
         let adapter = pollster::block_on(instance.request_adapter(&RequestAdapterOptions::default())).unwrap();
-        let (device, queue) = pollster::block_on(adapter.request_device(&DeviceDescriptor {
-            // todo: remove
-            required_features: Features::PUSH_CONSTANTS,
-            required_limits: Limits { max_push_constant_size: 8, ..Default::default() },
-            ..Default::default()
-        })).unwrap();
+        let (device, queue) = pollster::block_on(adapter.request_device(&DeviceDescriptor::default())).unwrap();
 
         let surface = instance.create_surface(window.clone()).unwrap();
         let size = window.inner_size();
@@ -50,7 +45,7 @@ impl State {
         surface.configure(&device, &config);
 
         let mut ui = Ui::new(&device, &queue, &config);
-        ui.enable_auto_wakeup(window.clone());
+        ui.register_window(window.clone());
 
         Self { window, surface, device, _queue: queue, config, ui, count: 0 }
     }
@@ -82,8 +77,8 @@ impl State {
 
 impl ApplicationHandler for Application {
     // Right now we assume that for desktop applications there's only one Resume event at the beginning, so it's okay to create the whole state here.
-    // If this wasn't the case, we'd probably need to recreate just the winit window and the graphics context, and keep the rest.
-    // If the Ui ends up holding a Weak<Window> or similar, that would need to be updated too. 
+    // If this wasn't the case, we'd probably need to recreate just the winit window and the wgpu graphics context, and keep the rest.
+    // We'd also need to call `ui.register_window()` again.
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let window = Arc::new(event_loop.create_window(Window::default_attributes()).unwrap());
         let instance = Instance::new(&InstanceDescriptor::default());
