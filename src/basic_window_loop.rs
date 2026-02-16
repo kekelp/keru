@@ -124,13 +124,11 @@ impl Context {
                 .create_window(Window::default_attributes())
                 .unwrap(),
         );
-        window.set_ime_allowed(true);
 
         let surface = self.instance.create_surface(window.clone()).unwrap();
 
         self.surface = AutoUnwrap(Some(surface));
         self.window = AutoUnwrap(Some(window));
-        self.window.set_ime_allowed(true);
 
         self.resize(self.window.inner_size());
     }

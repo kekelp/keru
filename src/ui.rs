@@ -76,7 +76,7 @@ pub enum RenderCommand {
 pub struct Ui {
     pub(crate) nodes: Nodes,
     pub(crate) sys: System,
-    pub(crate) format_scratch: String,
+    pub(crate) format_scratch: String, // todo use the thread local arena instead?
     pub(crate) custom_render_commands: Vec<RenderCommand>,
 }
 

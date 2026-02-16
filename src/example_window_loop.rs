@@ -137,7 +137,6 @@ impl State {
 impl<T> ApplicationHandler for Application<T> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let window = Arc::new(event_loop.create_window(Window::default_attributes()).unwrap());
-        window.set_ime_allowed(true);
         let instance = Instance::new(&InstanceDescriptor::default());
         let mut state = State::new(window, instance);
         state.ui.enable_auto_wakeup(state.window.clone());
