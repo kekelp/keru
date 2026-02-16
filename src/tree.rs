@@ -572,9 +572,7 @@ impl Ui {
         }
 
         // the top-level nodes in hidden branches need to be attached to their children_can_hide parents as hidden nodes, so that when that parent node is removed, we can also remove the hidden branch. Otherwise we'd just forget about them and leave them in memory forever.
-        // The nodes with 
         for &i in &non_fresh_nodes {
-            let freshly_added = self.nodes[i].last_frame_touched == self.sys.current_frame;
             let can_hide = self.nodes[i].can_hide;
             let currently_hidden = self.nodes[i].currently_hidden;
             let old_parent = self.nodes[i].parent;
@@ -586,33 +584,32 @@ impl Ui {
             };
             let children_can_hide = self.nodes[i].params.children_can_hide == ChildrenCanHide::Yes;
 
-            if ! freshly_added {
-                if old_parent_still_exists && self.nodes[i].exiting && self.nodes[i].exit_animation_still_going {
+            if old_parent_still_exists && self.nodes[i].exiting && self.nodes[i].exit_animation_still_going {
 
-                    exiting_nodes.push(NodeWithDepth { i, depth: self.nodes[i].depth });
-                    
-                } else if ! can_hide {
-                    to_cleanup.push(i);
+                exiting_nodes.push(NodeWithDepth { i, depth: self.nodes[i].depth });
+                
+            } else if ! can_hide {
+                to_cleanup.push(i);
+                if old_parent_still_exists {
+                    self.push_partial_relayout(old_parent);
+                }
+
+                if children_can_hide {
+                    hidden_branch_parents.push(i);
+                }
+
+            } else if ! currently_hidden {
+                
+                self.nodes[i].currently_hidden = true;
+
+                if is_first_child_in_hidden_branch {
+                    self.add_hidden_child(i, old_parent);
                     if old_parent_still_exists {
                         self.push_partial_relayout(old_parent);
                     }
-
-                    if children_can_hide {
-                        hidden_branch_parents.push(i);
-                    }
-
-                } else if ! currently_hidden {
-                    
-                    self.nodes[i].currently_hidden = true;
-
-                    if is_first_child_in_hidden_branch {
-                        self.add_hidden_child(i, old_parent);
-                        if old_parent_still_exists {
-                            self.push_partial_relayout(old_parent);
-                        }
-                    }
                 }
             }
+        
         }
 
         // Add lingering nodes back into the tree.
