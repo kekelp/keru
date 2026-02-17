@@ -747,6 +747,8 @@ impl Ui {
     /// specific ranges of instances, interleaving with your own custom rendering.
     // todo: deduplicate and simplify this stuff
     pub fn begin_custom_render(&mut self) {
+        self.sys.t = T0.elapsed().as_secs_f32(); // todo: maybe deduplicate better
+
         // Rebuild render data if needed
         if self.sys.changes.should_rebuild_render_data || self.sys.anim_render_timer.is_live() {
             self.rebuild_render_data();

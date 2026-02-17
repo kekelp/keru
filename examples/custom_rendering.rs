@@ -16,10 +16,9 @@
 
 use keru::*;
 use wgpu::*;
-use std::{sync::{Arc, LazyLock}, time::Instant};
+use std::{sync::Arc, time::Instant};
 use winit::{application::ApplicationHandler, event::WindowEvent, event_loop::{ActiveEventLoop, EventLoop}, window::{Window, WindowId}};
 
-pub(crate) static T0: LazyLock<Instant> = LazyLock::new(Instant::now);
 
 struct Application {
     state: Option<State>,
@@ -32,13 +31,14 @@ struct State {
     config: SurfaceConfiguration,
     ui: Ui,
     panel_pos: (f32, f32),
+    t0: Instant,
     custom_pipeline: RenderPipeline,
 }
 
 impl State {
     fn new(window: Arc<Window>, instance: Instance) -> Self {
         let adapter = pollster::block_on(instance.request_adapter(&RequestAdapterOptions::default())).unwrap();
-        // Note that push constants are not guaranteed to be supported everywhere.
+        // Note that push constants are not guaranteed to be supported everywhere. It's just for the example.
         let (device, queue) = pollster::block_on(adapter.request_device(&DeviceDescriptor {
             required_features: Features::PUSH_CONSTANTS,
             required_limits: Limits { max_push_constant_size: 32, ..Default::default() },
@@ -68,7 +68,7 @@ impl State {
 
         let ui = Ui::new(&device, &queue, &config);
 
-        // Wgpu boilerplate to set up a custom shader and a pipeline for it
+        // Wgpu boilerplate to set up a custom shader and a pipeline for it.
         let shader = device.create_shader_module(ShaderModuleDescriptor {
             label: Some("Custom Shader"),
             source: ShaderSource::Wgsl(include_str!("custom_rendering_shader.wgsl").into()),
@@ -83,7 +83,7 @@ impl State {
             }],
         });
 
-        let pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
+        let custom_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
             label: Some("Custom Pipeline"),
             layout: Some(&pipeline_layout),
             vertex: VertexState {
@@ -112,15 +112,10 @@ impl State {
             cache: None,
         });
 
-        Self {
-            window,
-            surface,
-            device,
-            config,
-            ui,
-            panel_pos: (50.0, 50.0),
-            custom_pipeline: pipeline,
-        }
+        let panel_pos = (50.0, 50.0);
+        let t0 = Instant::now();
+
+        Self { window, surface, device, config, ui, panel_pos, t0, custom_pipeline }
     }
 
     fn resize(&mut self, width: u32, height: u32) {
@@ -190,7 +185,7 @@ impl State {
                     let push_constants: [f32; 8] = [
                         rect.x[0], rect.y[0],
                         rect.x[1], rect.y[1],
-                        T0.elapsed().as_secs_f32(),
+                        self.t0.elapsed().as_secs_f32(),
                         0.0, 0.0, 0.0,
                     ];
                     render_pass.set_pipeline(&self.custom_pipeline);
@@ -204,6 +199,7 @@ impl State {
     }
 }
 
+// Regular boilerplate for the winit loop and wgpu rendering.
 impl ApplicationHandler for Application {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let window = Arc::new(event_loop.create_window(Window::default_attributes()).unwrap());
