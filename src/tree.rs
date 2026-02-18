@@ -391,6 +391,16 @@ impl Ui {
                         text_box.set_depth(z);
                         text_box.set_pos(((left * scale).round() / scale, (top * scale).round() / scale));
 
+                        // Set hitbox to cover the whole node (in local space relative to text position)
+                        let node_width = (animated_rect[X][1] - animated_rect[X][0]) * self.sys.size[X];
+                        let hitbox = (
+                            -padding[X],                                    // min_x
+                            -padding[Y] - vertical_offset,                  // min_y
+                            node_width - padding[X],                        // max_x
+                            node_height - padding[Y] - vertical_offset,     // max_y
+                        );
+                        text_box.set_hitbox(Some(hitbox));
+
                         // Set the screen-space clip rect before drawing
                         let clip = (
                             node_clip_rect.x[0] * self.sys.size[X],
@@ -418,6 +428,17 @@ impl Ui {
 
                         text_edit.set_depth(z);
                         text_edit.set_pos(((left * scale).round() / scale, (top * scale).round() / scale));
+
+                        // Set hitbox to cover the whole node (in local space relative to text position)
+                        let node_width = (animated_rect[X][1] - animated_rect[X][0]) * self.sys.size[X];
+                        let hitbox = (
+                            -padding[X],                                    // min_x
+                            -padding[Y] - vertical_offset,                  // min_y
+                            node_width - padding[X],                        // max_x
+                            node_height - padding[Y] - vertical_offset,     // max_y
+                        );
+                        text_edit.set_hitbox(Some(hitbox));
+
                         // Draw the text edit
                         self.sys.renderer.draw_text_edit(&text_edit_handle);
                     },
