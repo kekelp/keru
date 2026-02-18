@@ -40,12 +40,12 @@ trait UiExt {
 impl UiExt for Ui {
     fn intro_tab(&mut self, state: &mut State) {
         self.add(V_SCROLL_STACK).nest(|| {
-            self.static_paragraph("Keru is an experimental GUI library focused on combining a simple and natural programming model with high performance and flexibility.");
+            self.static_paragraph("Keru is an experimental GUI library.");
             
             #[node_key] const TEXT_EDIT_1: NodeKey;
             let edit = TEXT_EDIT_LINE
                 .key(TEXT_EDIT_1)
-                .text("Single line text edit box23")
+                .text("")
                 .placeholder_text("Single line text edit box");
 
             self.add(edit);
@@ -104,14 +104,14 @@ impl UiExt for Ui {
                 .text_style(large_bold_style.clone())
             );
 
-            self.static_paragraph("The tab viewer uses the \"children_can_hide\" property on the tab containers. This means that when switching tabs, all ui state is kept in the background, and we can switch back without recreating the node tree. In addition, the scroll state, the text in the edit boxes, etc. is retained. \n\n\
+            self.static_paragraph("The tab viewer uses the \"children_can_hide\" property, that can be set on any node. This means that when switching tabs, all ui state is kept in the background, and we can switch back without recreating the node tree. In addition all implicit \"state\" like the scroll offset, the text in the edit boxes, etc. is retained. \n\n\
             Without \"children_can_hide\", everything would be cleaned up as soon as the tabs change.");
 
-            self.static_paragraph("Keru uses its own wgpu-based renderer, with the same architecture as the ones used in vger-rs and gpui. It's not a next-gen compute-based renderer.");
+            self.static_paragraph("Keru uses its own wgpu-based renderer, with a similar architecture as the ones used in vger-rs and gpui. It's not a next-gen compute-based renderer.");
 
             let button_with_stroke = BUTTON
                 .static_text("Button example")
-                .color(Color::rgba(255, 150, 100, 255))
+                .color(Color::KERU_BLUE)
                 .shape(Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: 20.0 })
                 .stroke(5.0)
                 .stroke_dashes(10.0, 0.0);
@@ -120,14 +120,15 @@ impl UiExt for Ui {
 
             let button_with_colored_stroke = BUTTON
                 .static_text("Button with different stroke color")
-                .color(Color::rgba(100, 150, 255, 255))
+                .color(Color::KERU_PINK)
                 .stroke(3.0)
                 .stroke_color(Color::rgba(255, 0, 0, 255))
-                .shape(Shape::Rectangle { rounded_corners: RoundedCorners::TOP_LEFT | RoundedCorners::BOTTOM_RIGHT, corner_radius: 15.0 });
+                .shape(Shape::Rectangle {
+                    rounded_corners: RoundedCorners::TOP_LEFT | RoundedCorners::BOTTOM_RIGHT,
+                    corner_radius: 15.0
+                });
 
             self.add(button_with_colored_stroke);
-
-
 
             self.static_paragraph("Basic vector drawing using regular Nodes:");
 
@@ -211,7 +212,8 @@ impl UiExt for Ui {
             .size_y(Size::Frac(0.7));
 
         self.add(v_stack).nest(|| {
-            self.static_label("Keru uses the Textslabs library for text, which uses Parley under the hood.");
+            self.static_label("Keru uses the Textslabs library for text, which uses Parley under the hood. \n\
+            The text edit box supports IME, but this hasn't been thoroughly tested on all platforms yet.");
             self.add(H_LINE.color(Color::WHITE));
             self.label(&Static(JAPANESE_TEXT));
             self.add(H_LINE.color(Color::WHITE));
