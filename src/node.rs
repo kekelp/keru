@@ -1035,6 +1035,11 @@ impl Node {
         self.custom_render = value;
         return self;
     }
+
+    pub fn click_animation(mut self, value: bool) -> Self {
+        self.interact.click_animation = value;
+        return self;
+    }
 }
 
 #[derive(Copy, Clone, Hash)]

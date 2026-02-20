@@ -513,7 +513,7 @@ impl Ui {
 
     /// Returns `true` if a left button mouse drag on the node corresponding to `key` was just released.
     /// 
-    /// Unlike [`Self::is_click_released()`], this is `true` even if the pointer is not on the node anymore when the button is released. 
+    /// Unlike [`Self::is_click_released()`], this is `true` even if the cursor is not on the node anymore when the button is released. 
     pub fn is_drag_released(&self, key: NodeKey) -> bool {
         let Some(uinode) = self.get_uinode(key) else {
             return false;
