@@ -301,7 +301,7 @@ pub const BUTTON: Node = Node {
     }),
     visible: true,
     stroke: None,
-    color: VertexColors::diagonal_gradient_backslash(Color::KERU_BLUE, Color::KERU_RED),
+    color: VertexColors::flat(Color::KERU_PINK),
     shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: DEFAULT_CORNER_RADIUS },
     interact: Interact {
         senses: Sense::CLICK.union(Sense::CLICK_RELEASE),
