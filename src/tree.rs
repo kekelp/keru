@@ -3,7 +3,6 @@ use std::collections::hash_map::Entry;
 use std::hash::Hasher;
 use std::mem;
 use std::panic::Location;
-use std::time::Duration;
 use bytemuck::{Pod, Zeroable};
 
 /// An `u64` identifier for a GUI node.
@@ -913,8 +912,6 @@ pub(crate) fn with_info_log_timer<T>(operation_name: &str, f: impl FnOnce() -> T
         let result = f();
         let elapsed = start.elapsed();
         log::info!("{}: {:?}", operation_name, elapsed);
-        if elapsed > std::time::Duration::from_millis(2) {
-        }
         result
     } else {
         f()
