@@ -78,6 +78,18 @@ impl Ui {
         return UiParent { i: ROOT_I, sibling_cursor: None }
     }
 
+
+    /// If the node corresponding to `parent_key` exists, get a [`UiParent`] that can be used to break the normal nesting structure and add children to it.
+    ///
+    /// This is like [`jump_to_root`](Self::jump_to_root) but for any node.
+    pub fn jump_to_parent(&self, parent_key: NodeKey) -> Option<UiParent> {
+        let parent_i = self.nodes.node_hashmap.get(&parent_key.id_with_subtree())?.slab_i;
+        Some(UiParent {
+            i: parent_i,
+            sibling_cursor: None,
+        })
+    }
+
     /// If the node corresponding to `jump_key` exists, get a [`UiParent`] that can be used to break the normal nesting structure and add nodes after it.
     /// 
     /// The nested nodes will be added to `jump_key`'s parent, right after `jump_key`.
@@ -146,7 +158,57 @@ impl Ui {
             sibling_cursor,
         })
     }
-    
+
+    /// If the node corresponding to `parent_key` exists, get a [`UiParent`] positioned after its nth child.
+    ///
+    /// `n = 0` means insert before the first child, `n = 1` means insert after the first child, etc.
+    /// If `n` is greater than the number of children, inserts at the end.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use keru::*;
+    /// # let mut ui: Ui = unimplemented!();
+    /// #[node_key] const ITEM: NodeKey;
+    /// #[node_key] const MY_STACK: NodeKey;
+    /// let items = ["A", "B", "C", "D", "E"];
+    /// ui.add(H_STACK).nest(|| {
+    ///     ui.add(V_STACK.key(MY_STACK)).nest(|| {
+    ///         for item in items {
+    ///             ui.add(BUTTON.text(&item).key(ITEM.sibling(&item)));
+    ///         }
+    ///     });
+    ///
+    ///     // Add a red "X" between "B" and "C"
+    ///     ui.jump_to_nth_child(MY_STACK, 2).unwrap().nest(|| {
+    ///         ui.add(BUTTON.text("X").color(Color::RED));
+    ///     });
+    /// });
+    /// ```
+    pub fn jump_to_nth_child(&self, parent_key: NodeKey, n: usize) -> Option<UiParent> {
+        let parent_i = self.nodes.node_hashmap.get(&parent_key.id_with_subtree())?.slab_i;
+
+        if n == 0 {
+            return Some(UiParent {
+                i: parent_i,
+                sibling_cursor: None,
+            });
+        }
+
+        // Walk to the nth child
+        let mut current = self.nodes[parent_i].first_child;
+        for _ in 1..n {
+            match current {
+                Some(child_i) => current = self.nodes[child_i].next_sibling,
+                None => break,
+            }
+        }
+
+        Some(UiParent {
+            i: parent_i,
+            sibling_cursor: current,
+        })
+    }
 
     #[track_caller]
     pub(crate) fn add_or_update_node(&mut self, key: NodeKey) -> (NodeI, Id) {
