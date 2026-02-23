@@ -773,23 +773,44 @@ where T: Send + Sync + 'static {
 pub struct DragAndDropStack {
     pub key: ComponentKey<Self>,
 }
+
+/// Output from DragAndDropStack when something is dropped onto it
+pub struct DropEvent {
+    pub insertion_index: usize,
+    pub drag: Drag,
+}
+
 impl DragAndDropStack {
     #[node_key] pub const STACK: NodeKey;
     #[node_key] pub const HITBOX: NodeKey;
     #[node_key] const SPACER: NodeKey;
+
+    fn calc_insertion_index(ui: &Ui, cursor_y: f32) -> usize {
+        let children = ui.get_node(Self::STACK).unwrap().children();
+        let mut insertion_index = children.len();
+        for (i, child) in children.iter().enumerate() {
+            let rect = child.rect();
+            let midpoint_y = (rect.y[0] + rect.y[1]) / 2.0;
+            if cursor_y < midpoint_y {
+                insertion_index = i;
+                break;
+            }
+        }
+        insertion_index
+    }
 }
 
 impl Component for DragAndDropStack {
 
     type AddResult = UiParent;
-    type ComponentOutput = ();
+    type ComponentOutput = DropEvent;
     type State = ();
 
     fn add_to_ui(&mut self, ui: &mut Ui, _state: &mut Self::State) -> Self::AddResult {
         let stack = V_STACK.animate_position(true).key(Self::STACK);
 
         let hover_hitbox = CONTAINER
-            .sense_hover(true)
+            .sense_drag_drop_target(true)
             .size_x(Size::Fill)
             .size_y(Size::Fill)
             .position_y(Pos::Start)
@@ -799,7 +820,7 @@ impl Component for DragAndDropStack {
         let parent = ui.add(stack);
 
         ui.add(hover_hitbox);
-        
+
         return parent;
     }
 
@@ -808,24 +829,15 @@ impl Component for DragAndDropStack {
     }
 
     fn component_output(ui: &mut Ui) -> Option<Self::ComponentOutput> {
-        if let Some(hover) = ui.is_hovered(Self::HITBOX) {
-            // Get children and calculate insertion index based on cursor Y vs child midpoints
-            let children = ui.get_node(Self::STACK).unwrap().children();
-            let mut insertion_index = children.len();
-            for (i, child) in children.iter().enumerate() {
-                let rect = child.rect();
-                let midpoint_y = (rect.y[0] + rect.y[1]) / 2.0;
-                if hover.absolute_position.y < midpoint_y {
-                    insertion_index = i;
-                    break;
-                }
-            }
+        // Show spacer when something is being dragged over
+        if let Some(hover) = ui.is_any_drag_hovered_onto(Self::HITBOX) {
+            let insertion_index = Self::calc_insertion_index(ui, hover.absolute_pos.y);
 
             // Insert spacer at the calculated position
             ui.jump_to_nth_child(Self::STACK, insertion_index).unwrap().nest(|| {
                 let spacer = SPACER
                     .key(Self::SPACER)
-                    .size_y(Size::Pixels(50.0))
+                    .size_y(Size::Pixels(60.0))
                     .size_x(Size::Pixels(5.0))
                     .absorbs_clicks(false)
                     .animate_position(true);
@@ -834,6 +846,12 @@ impl Component for DragAndDropStack {
             });
         }
 
-        return None;
+        // Return drop info when something is released onto this stack
+        if let Some(drag) = ui.is_any_drag_released_onto(Self::HITBOX) {
+            let insertion_index = Self::calc_insertion_index(ui, drag.absolute_pos.y);
+            return Some(DropEvent { insertion_index, drag });
+        }
+
+        None
     }
 }

@@ -546,6 +546,96 @@ impl Ui {
         self.get_node(src)?.is_drag_hovered_onto(dest)
     }
 
+    /// If any node is currently being dragged over the node corresponding to `dest`, returns the drag info.
+    /// The `relative_position` in the returned `Drag` is relative to the destination node.
+    ///
+    /// This is useful for drop targets that need to react to any dragged item, without knowing
+    /// which specific item is being dragged.
+    pub fn is_any_drag_hovered_onto(&self, dest: NodeKey) -> Option<Drag> {
+        #[cfg(debug_assertions)]
+        {
+            let dest_i = self.nodes.node_hashmap.get(&dest.id_with_subtree())?.slab_i;
+            if !self.nodes[dest_i].params.interact.senses.contains(Sense::DRAG_DROP_TARGET) {
+                log::warn!(
+                    "is_any_drag_hovered_onto() was called on node {:?}, but it doesn't have the DRAG_DROP_TARGET sense. Add Node::sense_drag_drop_target() to the node.",
+                    dest.debug_name()
+                );
+                return None;
+            }
+        }
+
+        let mouse_record = self.sys.mouse_input.drag_hovered_onto(Some(MouseButton::Left), None, Some(dest.id_with_subtree()))?;
+        let dest_node = self.get_node(dest)?;
+        let dest_rect = dest_node.node().real_rect;
+
+        if mouse_record.total_drag_distance() == Vec2::ZERO {
+            return None;
+        }
+
+        let relative_position = glam::Vec2::new(
+            ((mouse_record.currently_at.position.x / self.sys.size.x) - (dest_rect.x[0])) / dest_rect.size().x,
+            ((mouse_record.currently_at.position.y / self.sys.size.y) - (dest_rect.y[0])) / dest_rect.size().y,
+        );
+        let relative_delta = glam::Vec2::new(
+            mouse_record.drag_distance().x / (dest_rect.size().x * self.sys.size.x),
+            mouse_record.drag_distance().y / (dest_rect.size().y * self.sys.size.y),
+        );
+
+        Some(Drag {
+            relative_position,
+            absolute_pos: mouse_record.currently_at.position,
+            relative_delta,
+            absolute_delta: mouse_record.drag_distance(),
+            pressed_timestamp: mouse_record.originally_pressed.timestamp,
+            total_drag_distance: mouse_record.total_drag_distance(),
+        })
+    }
+
+    /// If any node was just dropped (drag released) onto the node corresponding to `dest`, returns the drag info.
+    /// The `relative_position` in the returned `Drag` is relative to the destination node.
+    ///
+    /// This is useful for drop targets that need to react to any dropped item, without knowing
+    /// which specific item was dropped.
+    pub fn is_any_drag_released_onto(&self, dest: NodeKey) -> Option<Drag> {
+        #[cfg(debug_assertions)]
+        {
+            let dest_i = self.nodes.node_hashmap.get(&dest.id_with_subtree())?.slab_i;
+            if !self.nodes[dest_i].params.interact.senses.contains(Sense::DRAG_DROP_TARGET) {
+                log::warn!(
+                    "is_any_drag_released_onto() was called on node {:?}, but it doesn't have the DRAG_DROP_TARGET sense. Add Node::sense_drag_drop_target() to the node.",
+                    dest.debug_name()
+                );
+                return None;
+            }
+        }
+
+        let mouse_record = self.sys.mouse_input.drag_released_onto(Some(MouseButton::Left), None, Some(dest.id_with_subtree()))?;
+        let dest_node = self.get_node(dest)?;
+        let dest_rect = dest_node.node().real_rect;
+
+        if mouse_record.total_drag_distance() == Vec2::ZERO {
+            return None;
+        }
+
+        let relative_position = glam::Vec2::new(
+            ((mouse_record.currently_at.position.x / self.sys.size.x) - (dest_rect.x[0])) / dest_rect.size().x,
+            ((mouse_record.currently_at.position.y / self.sys.size.y) - (dest_rect.y[0])) / dest_rect.size().y,
+        );
+        let relative_delta = glam::Vec2::new(
+            mouse_record.drag_distance().x / (dest_rect.size().x * self.sys.size.x),
+            mouse_record.drag_distance().y / (dest_rect.size().y * self.sys.size.y),
+        );
+
+        Some(Drag {
+            relative_position,
+            absolute_pos: mouse_record.currently_at.position,
+            relative_delta,
+            absolute_delta: mouse_record.drag_distance(),
+            pressed_timestamp: mouse_record.originally_pressed.timestamp,
+            total_drag_distance: mouse_record.total_drag_distance(),
+        })
+    }
+
     /// If the node corresponding to `key` was dragged with a specific mouse button, returns a struct describing the drag event. Otherwise, returns `None`.
     pub fn is_mouse_button_dragged(&self, key: NodeKey, button: MouseButton) -> Option<Drag> {
         let Some(uinode) = self.get_node(key) else {
