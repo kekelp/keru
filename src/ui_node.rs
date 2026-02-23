@@ -401,14 +401,20 @@ impl UiNode<'_> {
         return self.ui.sys.mouse_input.held(Some(MouseButton::Left), Some(self.node().id));
     }
 
-    /// Returns `true` if a node is currently hovered by the cursor.
-    pub fn is_hovered(&self) -> bool {
-         #[cfg(debug_assertions)]
-        if ! self.check_node_sense(Sense::HOVER, "is_hovered", "Node::sense_hover()") {
-            return false;
+    /// If the node is currently hovered by the cursor, returns hover information including position.
+    pub fn is_hovered(&self) -> Option<Hover> {
+        #[cfg(debug_assertions)]
+        if !self.check_node_sense(Sense::HOVER, "is_hovered", "Node::sense_hover()") {
+            return None;
         }
 
-        return self.ui.sys.hovered.last() == Some(&self.node().id);
+        if self.ui.sys.mouse_input.hovered(&self.node().id) {
+            return Some(Hover {
+                absolute_position: self.ui.cursor_position(),
+            });
+        } else {
+            return None;
+        }
     }
 
     /// If the node was scrolled in the last frame, returns a struct containing detailed information of the scroll event. Otherwise, returns `None`.
@@ -566,10 +572,10 @@ impl Ui {
         uinode.clicked_at()
     }
 
-    /// Returns `true` if a node is currently hovered by the cursor.
-    pub fn is_hovered(&self, key: NodeKey) -> bool {
+    /// If the node is currently hovered by the cursor, returns hover information including position.
+    pub fn is_hovered(&self, key: NodeKey) -> Option<Hover> {
         let Some(uinode) = self.get_node(key) else {
-            return false;
+            return None;
         };
         uinode.is_hovered()
     }
@@ -631,8 +637,8 @@ impl UiParent {
         self.get_uinode(ui).is_dragged()
     }
 
-    /// Returns `true` if the node is currently hovered by the cursor.
-    pub fn is_hovered(&self, ui: &mut Ui) -> bool {
+    /// If the node is currently hovered by the cursor, returns hover information including position.
+    pub fn is_hovered(&self, ui: &mut Ui) -> Option<Hover> {
         self.get_uinode(ui).is_hovered()
     }
 

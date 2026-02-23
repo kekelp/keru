@@ -293,6 +293,10 @@ impl<T: Tag> MouseInput<T> {
         })
     }
 
+    pub fn hovered(&self, tag: &T) -> bool {
+        return self.currently_hovered_tags.contains(tag);
+    }
+
     /// Returns the total scroll delta for a specific node tag, or None if no scroll events occurred.
     pub fn scrolled(&self, tag: Option<T>) -> Option<Vec2> {
         let mut total_delta = Vec2::ZERO;

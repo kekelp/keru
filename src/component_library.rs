@@ -775,6 +775,7 @@ pub struct DragAndDropStack {
 }
 impl DragAndDropStack {
     #[node_key] pub const STACK: NodeKey;
+    #[node_key] pub const HITBOX: NodeKey;
     #[node_key] const SPACER: NodeKey;
 }
 
@@ -785,8 +786,20 @@ impl Component for DragAndDropStack {
     type State = ();
 
     fn add_to_ui(&mut self, ui: &mut Ui, _state: &mut Self::State) -> Self::AddResult {
-        let stack = V_STACK.key(Self::STACK);
+        let stack = V_STACK.animate_position(true).key(Self::STACK);
+
+        let hover_hitbox = CONTAINER
+            .sense_hover(true)
+            .size_x(Size::Fill)
+            .size_y(Size::Fill)
+            .position_y(Pos::Start)
+            .absorbs_clicks(false)
+            .key(Self::HITBOX);
+
         let parent = ui.add(stack);
+
+        ui.add(hover_hitbox);
+        
         return parent;
     }
 
@@ -795,40 +808,31 @@ impl Component for DragAndDropStack {
     }
 
     fn component_output(ui: &mut Ui) -> Option<Self::ComponentOutput> {
-        let cursor = ui.cursor_position();
-
-        let Some(stack_node) = ui.get_node(Self::STACK) else {
-            return None;
-        };
-        let stack_rect = stack_node.rect();
-
-        // Check if cursor is inside the stack
-        if cursor.x < stack_rect.x[0] || cursor.x > stack_rect.x[1] ||
-           cursor.y < stack_rect.y[0] || cursor.y > stack_rect.y[1] {
-            return None;
-        }
-
-        // Get children and calculate insertion index based on cursor Y vs child midpoints
-        let children = stack_node.children();
-        let mut insertion_index = children.len();
-        for (i, child) in children.iter().enumerate() {
-            let rect = child.rect();
-            let midpoint_y = (rect.y[0] + rect.y[1]) / 2.0;
-            // dbg!(rect);
-            if cursor.y < midpoint_y {
-                insertion_index = i;
-                break;
+        if let Some(hover) = ui.is_hovered(Self::HITBOX) {
+            // Get children and calculate insertion index based on cursor Y vs child midpoints
+            let children = ui.get_node(Self::STACK).unwrap().children();
+            let mut insertion_index = children.len();
+            for (i, child) in children.iter().enumerate() {
+                let rect = child.rect();
+                let midpoint_y = (rect.y[0] + rect.y[1]) / 2.0;
+                if hover.absolute_position.y < midpoint_y {
+                    insertion_index = i;
+                    break;
+                }
             }
-        }
 
-        // Insert spacer at the calculated position
-        ui.jump_to_nth_child(Self::STACK, insertion_index).unwrap().nest(|| {
-            let spacer = SPACER
-                .key(Self::SPACER)
-                .size_y(Size::Pixels(50.0))
-                .animate_position(true);
-            ui.add(spacer);
-        });
+            // Insert spacer at the calculated position
+            ui.jump_to_nth_child(Self::STACK, insertion_index).unwrap().nest(|| {
+                let spacer = SPACER
+                    .key(Self::SPACER)
+                    .size_y(Size::Pixels(50.0))
+                    .size_x(Size::Pixels(5.0))
+                    .absorbs_clicks(false)
+                    .animate_position(true);
+
+                ui.add(spacer);
+            });
+        }
 
         return None;
     }

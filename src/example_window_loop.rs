@@ -154,14 +154,14 @@ impl<T> ApplicationHandler for Application<T> {
             WindowEvent::RedrawRequested => {
                 let frame_start = Instant::now();
 
-                if state.ui.should_update() {
+                // if state.ui.should_update() {
                     state.ui.begin_frame();
                     (self.update_fn)(&mut self.user_state, &mut state.ui);
                     state.ui.finish_frame();
-                }
-                if state.ui.should_rerender() {
+                // }
+                // if state.ui.should_rerender() {
                     state.ui.autorender(&state.surface, wgpu::Color::BLACK);
-                }
+                // }
 
                 let frame_time = frame_start.elapsed();
                 log::info!("Time since last frame: {:?}", frame_time);
