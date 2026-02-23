@@ -794,10 +794,12 @@ impl Component for DragAndDropStack {
     }
 
     fn component_output(ui: &mut Ui) -> Option<Self::ComponentOutput> {
+        // don't mind the name, add the spacer code in here.
         
         let v = ui.get_node(Self::STACK).unwrap().children();
 
-        // let c = v.map(|x| x.);
+        // use v to get the node height measurements. watch out for borrow errors
+
 
         return None;
     }
