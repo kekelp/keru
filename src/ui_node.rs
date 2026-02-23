@@ -14,6 +14,7 @@ pub struct UiNode<'a> {
 }
 
 impl<'a> UiNode<'a> {
+    // todo: return iterator instead of vec
     pub fn children(&self) -> Vec<UiNode<'a>> {
         let mut v = Vec::new();
         let i = self.i;

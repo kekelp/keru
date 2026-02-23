@@ -148,20 +148,42 @@ impl<T> ApplicationHandler for Application<T> {
 
         state.ui.window_event(&event, &state.window);
 
+        // match event {
+        //     WindowEvent::CloseRequested => event_loop.exit(),
+        //     WindowEvent::Resized(size) => state.resize(size.width, size.height),
+        //     WindowEvent::RedrawRequested => {
+        //         let frame_start = Instant::now();
+
+        //         if state.ui.should_update() {
+        //             state.ui.begin_frame();
+        //             (self.update_fn)(&mut self.user_state, &mut state.ui);
+        //             state.ui.finish_frame();
+        //         }
+        //         if state.ui.should_rerender() {
+        //             state.ui.autorender(&state.surface, wgpu::Color::BLACK);
+        //         }
+
+        //         let frame_time = frame_start.elapsed();
+        //         log::info!("Time since last frame: {:?}", frame_time);
+        //     }
+        //     _ => {}
+        // }
+
+        // if state.ui.should_request_redraw() {
+        //     state.window.request_redraw();
+        // }
+
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => state.resize(size.width, size.height),
             WindowEvent::RedrawRequested => {
                 let frame_start = Instant::now();
 
-                // if state.ui.should_update() {
-                    state.ui.begin_frame();
-                    (self.update_fn)(&mut self.user_state, &mut state.ui);
-                    state.ui.finish_frame();
-                // }
-                // if state.ui.should_rerender() {
-                    state.ui.autorender(&state.surface, wgpu::Color::BLACK);
-                // }
+                state.ui.begin_frame();
+                (self.update_fn)(&mut self.user_state, &mut state.ui);
+                state.ui.finish_frame();
+            
+                state.ui.autorender(&state.surface, wgpu::Color::BLACK);
 
                 let frame_time = frame_start.elapsed();
                 log::info!("Time since last frame: {:?}", frame_time);
@@ -169,8 +191,7 @@ impl<T> ApplicationHandler for Application<T> {
             _ => {}
         }
 
-        // if state.ui.should_request_redraw() {
-            state.window.request_redraw();
-        // }
+        state.window.request_redraw();
+
     }
 }

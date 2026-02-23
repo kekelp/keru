@@ -772,6 +772,8 @@ where T: Send + Sync + 'static {
 
 pub struct DragAndDropStack {
     pub key: ComponentKey<Self>,
+    // todo: would be nice to have a better way to pass this sort of things
+    pub pos: Pos,
 }
 
 /// Output from DragAndDropStack when something is dropped onto it
@@ -783,6 +785,7 @@ pub struct DropEvent {
 impl DragAndDropStack {
     #[node_key] pub const STACK: NodeKey;
     #[node_key] pub const HITBOX: NodeKey;
+    #[node_key] pub const FLOATING: NodeKey;
     #[node_key] const SPACER: NodeKey;
 
     fn calc_insertion_index(ui: &Ui, cursor_y: f32) -> usize {
@@ -798,47 +801,73 @@ impl DragAndDropStack {
         }
         insertion_index
     }
+
+    fn get_dragged_item_height(ui: &Ui) -> Option<f32> {
+        let floating = ui.get_node(Self::FLOATING)?;
+        let children = floating.children();
+        let first_child = children.first()?;
+        Some(first_child.rect().size().y)
+    }
 }
 
 impl Component for DragAndDropStack {
 
-    type AddResult = UiParent;
+    type AddResult = (UiParent, UiParent);
     type ComponentOutput = DropEvent;
     type State = ();
 
     fn add_to_ui(&mut self, ui: &mut Ui, _state: &mut Self::State) -> Self::AddResult {
-        let stack = V_STACK.animate_position(true).key(Self::STACK);
+        let stack = V_STACK
+            .animate_position(true)
+            .position_x(self.pos)
+            .size_x(Size::Pixels(100.0))
+            .key(Self::STACK);
 
         let hover_hitbox = CONTAINER
             .sense_drag_drop_target(true)
-            .size_x(Size::Fill)
+            .size_x(Size::Pixels(200.0))
             .size_y(Size::Fill)
-            .position_y(Pos::Start)
+            .position_x(self.pos)
             .absorbs_clicks(false)
-            .key(Self::HITBOX);
+            .key(Self::HITBOX);            
 
-        let parent = ui.add(stack);
+        let floater = CONTAINER
+            .key(Self::FLOATING)
+            .anchor_symm(Anchor::Center)
+            .position_x(Pos::Pixels(ui.cursor_position().x))
+            .position_y(Pos::Pixels(ui.cursor_position().y))
+            .size_x(Size::FitContent)
+            .size_y(Size::FitContent)
+            .absorbs_clicks(false);
+
+        let stack_parent = ui.add(stack);
+        
+        let dragged_parent = ui.jump_to_root().nest(|| {
+            ui.add(floater)
+        });
 
         ui.add(hover_hitbox);
 
-        return parent;
+        return (stack_parent, dragged_parent);
     }
 
     fn component_key(&self) -> Option<ComponentKey<Self>> {
         return Some(self.key);
     }
 
-    fn component_output(ui: &mut Ui) -> Option<Self::ComponentOutput> {
+    fn component_output(ui: &mut Ui) -> Option<Self::ComponentOutput> {       
         // Show spacer when something is being dragged over
         if let Some(hover) = ui.is_any_drag_hovered_onto(Self::HITBOX) {
             let insertion_index = Self::calc_insertion_index(ui, hover.absolute_pos.y);
+
+            // Get height from dragged item if available, otherwise use default
+            let spacer_height = Self::get_dragged_item_height(ui).unwrap_or(60.0);
 
             // Insert spacer at the calculated position
             ui.jump_to_nth_child(Self::STACK, insertion_index).unwrap().nest(|| {
                 let spacer = SPACER
                     .key(Self::SPACER)
-                    .size_y(Size::Pixels(60.0))
-                    .size_x(Size::Pixels(5.0))
+                    .size_y(Size::Pixels(spacer_height))
                     .absorbs_clicks(false)
                     .animate_position(true);
 

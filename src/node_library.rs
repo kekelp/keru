@@ -773,11 +773,11 @@ pub(crate) const COMPONENT_ROOT: Node = Node {
     shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: DEFAULT_CORNER_RADIUS },
     interact: Interact {
         senses: Sense::NONE,
-        absorbs_mouse_events: true,
+        absorbs_mouse_events: false,
         click_animation: false,
     },
     layout: Layout {
-        size: Xy::new_symm(FitContent),
+        size: Xy::new_symm(Fill),
         padding: Xy::new_symm(0.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
