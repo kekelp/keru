@@ -202,7 +202,7 @@ impl Ui {
             // todo: combined with the handle's manual positioning, this is pretty awful. it means that the handle is drawn at zero in the first frame.
             // Currently, it relies on the anti-state tearing stuff to not stay at zero.
             // It should be fixed by making it's possible to express the " - handle_radius" part when using a Frac.
-            let slider_width = match self.get_uinode(TRACK) {
+            let slider_width = match self.get_node(TRACK) {
                 Some(track) => track.inner_size().x,
                 // this is just for the first frame. awkward.
                 // ...or do this calculation after adding it? the result is the same
@@ -766,5 +766,39 @@ where T: Send + Sync + 'static {
 
     fn component_key(&self) -> Option<ComponentKey<Self>> {
         self.key
+    }
+}
+
+
+pub struct DragAndDropStack {
+    pub key: ComponentKey<Self>,
+}
+impl DragAndDropStack {
+    #[node_key] pub const STACK: NodeKey;
+}
+
+impl Component for DragAndDropStack {
+
+    type AddResult = UiParent;
+    type ComponentOutput = ();
+    type State = ();
+
+    fn add_to_ui(&mut self, ui: &mut Ui, _state: &mut Self::State) -> Self::AddResult {
+        let stack = V_STACK.key(Self::STACK);
+        let parent = ui.add(stack);
+        return parent;
+    }
+
+    fn component_key(&self) -> Option<ComponentKey<Self>> {
+        return Some(self.key);
+    }
+
+    fn component_output(ui: &mut Ui) -> Option<Self::ComponentOutput> {
+        
+        let v = ui.get_node(Self::STACK).unwrap().children();
+
+        // let c = v.map(|x| x.);
+
+        return None;
     }
 }

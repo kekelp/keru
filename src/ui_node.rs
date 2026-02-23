@@ -8,11 +8,21 @@ use crate::inner_node::*;
 use crate::winit_mouse_events::FullMouseEvent;
 use crate::Axis::*;
 
-/// A helper struct that borrows the Ui but "selects" a specific node.
-/// Not really revolutionarily different than using self.nodes[i].
-pub(crate) struct UiNode<'a> {
+pub struct UiNode<'a> {
     pub(crate) i: NodeI,
     pub(crate) ui: &'a Ui,
+}
+
+impl<'a> UiNode<'a> {
+    pub fn children(&self) -> Vec<UiNode<'a>> {
+        let mut v = Vec::new();
+        let i = self.i;
+        for_each_child!(self.ui, self.ui.nodes[i], child, {
+            let uinode = UiNode { ui: self.ui, i };
+            v.push(uinode);
+        });
+        return v;
+    }
 }
 
 impl UiNode<'_> {
@@ -70,30 +80,29 @@ impl UiNode<'_> {
 }
 
 impl Ui {
-    /// todo make this public?
-    pub(crate) fn get_uinode(&self, key: NodeKey) -> Option<UiNode<'_>> {
+    pub fn get_node(&self, key: NodeKey) -> Option<UiNode<'_>> {
         let i = self.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
         return Some(UiNode { i, ui: self });
     }
 
     pub fn render_rect(&self, key: NodeKey) -> Option<RenderInfo> {
-        Some(self.get_uinode(key)?.render_rect())
+        Some(self.get_node(key)?.render_rect())
     }
     pub fn z_value(&self, key: NodeKey) -> Option<f32> {
-        Some(self.get_uinode(key)?.render_rect().z)
+        Some(self.get_node(key)?.render_rect().z)
     }
     /// Dimensions of the rect in screen pixels
     pub fn rect(&self, key: NodeKey) -> Option<XyRect> {
-        Some(self.get_uinode(key)?.rect())
+        Some(self.get_node(key)?.rect())
     }
     pub fn center(&self, key: NodeKey) -> Option<Xy<f32>> {
-        Some(self.get_uinode(key)?.center())
+        Some(self.get_node(key)?.center())
     }
     pub fn inner_size(&self, key: NodeKey) -> Option<Xy<f32>> {
-        Some(self.get_uinode(key)?.inner_size())
+        Some(self.get_node(key)?.inner_size())
     }
     pub fn bottom_left(&self, key: NodeKey) -> Option<Xy<f32>> {
-        Some(self.get_uinode(key)?.bottom_left())
+        Some(self.get_node(key)?.bottom_left())
     }
     pub fn get_text(&mut self, key: NodeKey) -> Option<&str> {
         let i = self.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
@@ -223,7 +232,7 @@ impl UiNode<'_> {
 
     #[cfg(debug_assertions)]
     fn check_dest_node_sense(&self, dest_key: NodeKey, sense: Sense, fn_name: &'static str, sense_add_fn_name: &'static str) -> bool {
-        let Some(dest_node) = self.ui.get_uinode(dest_key) else {
+        let Some(dest_node) = self.ui.get_node(dest_key) else {
             return true; // Node doesn't exist, let the function return false naturally
         };
         let dest_node = dest_node.node();
@@ -317,7 +326,7 @@ impl UiNode<'_> {
         }
 
         let mouse_record = self.ui.sys.mouse_input.drag_released_onto(Some(MouseButton::Left), Some(self.node().id), Some(dest.id_with_subtree()))?;
-        let dest_rect = self.ui.get_uinode(dest)?.node().real_rect;
+        let dest_rect = self.ui.get_node(dest)?.node().real_rect;
         self.drag_from_mouse_record_with_rect(&mouse_record, dest_rect)
     }
 
@@ -334,7 +343,7 @@ impl UiNode<'_> {
         }
 
         let mouse_record = self.ui.sys.mouse_input.drag_hovered_onto(Some(MouseButton::Left), Some(self.node().id), Some(dest.id_with_subtree()))?;
-        let dest_rect = self.ui.get_uinode(dest)?.node().real_rect;
+        let dest_rect = self.ui.get_node(dest)?.node().real_rect;
         self.drag_from_mouse_record_with_rect(&mouse_record, dest_rect)
     }
 
@@ -445,7 +454,7 @@ impl Ui {
     /// 
     /// This is "act on press". For "act on release", see [`Self::is_click_released()`].
     pub fn is_clicked(&self, key: NodeKey) -> bool {
-        let Some(uinode) = self.get_uinode(key) else {
+        let Some(uinode) = self.get_node(key) else {
             return false;
         };
         uinode.is_clicked()
@@ -456,7 +465,7 @@ impl Ui {
     /// This tracks changes from both user events (typing, pasting, etc.) and programmatic changes via [`Self::set_text_edit_text()`].
     /// Only works for text edit nodes - returns `false` for regular text nodes.
     pub fn edit_text_changed(&self, key: NodeKey) -> bool {        
-        let Some(uinode) = self.get_uinode(key) else {
+        let Some(uinode) = self.get_node(key) else {
             return false;
         };
         let id = uinode.node().id;
@@ -497,7 +506,7 @@ impl Ui {
     }
 
     pub fn is_focused(&self, key: NodeKey) -> bool {
-        let Some(uinode) = self.get_uinode(key) else {
+        let Some(uinode) = self.get_node(key) else {
             return false;
         };
         uinode.is_focused()
@@ -505,7 +514,7 @@ impl Ui {
 
     /// Returns `true` if a left button mouse click was just released on the node corresponding to `key`.
     pub fn is_click_released(&self, key: NodeKey) -> bool {
-        let Some(uinode) = self.get_uinode(key) else {
+        let Some(uinode) = self.get_node(key) else {
             return false;
         };
         uinode.is_click_released()
@@ -515,7 +524,7 @@ impl Ui {
     /// 
     /// Unlike [`Self::is_click_released()`], this is `true` even if the cursor is not on the node anymore when the button is released. 
     pub fn is_drag_released(&self, key: NodeKey) -> bool {
-        let Some(uinode) = self.get_uinode(key) else {
+        let Some(uinode) = self.get_node(key) else {
             return false;
         };
         uinode.is_drag_released()
@@ -523,17 +532,17 @@ impl Ui {
 
     /// If a left button mouse drag on the node corresponding to the `src` key was just released onto the node corresponding to the `dest` key, returns the drag info.
     pub fn is_drag_released_onto(&self, src: NodeKey, dest: NodeKey) -> Option<Drag> {
-        self.get_uinode(src)?.is_drag_released_onto(dest)
+        self.get_node(src)?.is_drag_released_onto(dest)
     }
 
     /// If a left button mouse drag on the node corresponding to the `src` key is currently hovering over the node corresponding to the `dest` key, returns the drag info.
     pub fn is_drag_hovered_onto(&self, src: NodeKey, dest: NodeKey) -> Option<Drag> {
-        self.get_uinode(src)?.is_drag_hovered_onto(dest)
+        self.get_node(src)?.is_drag_hovered_onto(dest)
     }
 
     /// If the node corresponding to `key` was dragged with a specific mouse button, returns a struct describing the drag event. Otherwise, returns `None`.
     pub fn is_mouse_button_dragged(&self, key: NodeKey, button: MouseButton) -> Option<Drag> {
-        let Some(uinode) = self.get_uinode(key) else {
+        let Some(uinode) = self.get_node(key) else {
             return None;
         };
         uinode.is_mouse_button_dragged(button)
@@ -541,7 +550,7 @@ impl Ui {
 
     /// If the node corresponding to `key` was dragged, returns a struct describing the drag event. Otherwise, returns `None`.
     pub fn is_dragged(&self, key: NodeKey) -> Option<Drag> {
-        let Some(uinode) = self.get_uinode(key) else {
+        let Some(uinode) = self.get_node(key) else {
             return None;
         };
         uinode.is_dragged()
@@ -551,7 +560,7 @@ impl Ui {
     /// 
     /// If the node was clicked multiple times in the last frame, the result holds the information about the last click only.
     pub fn clicked_at(&self, key: NodeKey) -> Option<Click> {
-        let Some(uinode) = self.get_uinode(key) else {
+        let Some(uinode) = self.get_node(key) else {
             return None;
         };
         uinode.clicked_at()
@@ -559,7 +568,7 @@ impl Ui {
 
     /// Returns `true` if a node is currently hovered by the cursor.
     pub fn is_hovered(&self, key: NodeKey) -> bool {
-        let Some(uinode) = self.get_uinode(key) else {
+        let Some(uinode) = self.get_node(key) else {
             return false;
         };
         uinode.is_hovered()
@@ -567,7 +576,7 @@ impl Ui {
 
    /// If the node corresponding to `key` was being held with the left mouse button in the last frame, returns the duration for which it was held.
    pub fn is_held(&self, key: NodeKey) -> Option<Duration> {
-        let Some(uinode) = self.get_uinode(key) else {
+        let Some(uinode) = self.get_node(key) else {
             return None;
         };
         uinode.is_held()
@@ -577,7 +586,7 @@ impl Ui {
     /// 
     /// If the node was scrolled multiple times in the last frame, the result holds the information about the last scroll only.
     pub fn scrolled_at(&self, key: NodeKey) -> Option<ScrollEvent> {
-        let Some(uinode) = self.get_uinode(key) else {
+        let Some(uinode) = self.get_node(key) else {
             return None;
         };
         uinode.scrolled_at()
@@ -585,7 +594,7 @@ impl Ui {
 
     /// Returns the total scroll delta for the node corresponding to `key` in the last frame, or None if no scroll events occurred.
     pub fn is_scrolled(&self, key: NodeKey) -> Option<glam::Vec2> {
-        let Some(uinode) = self.get_uinode(key) else {
+        let Some(uinode) = self.get_node(key) else {
             return None;
         };
         uinode.is_scrolled()
