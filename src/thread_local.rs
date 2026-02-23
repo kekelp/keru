@@ -2,11 +2,22 @@ use std::cell::RefCell;
 
 use crate::*;
 
+#[derive(Clone, Copy)]
+pub(crate) struct ParentCtx {
+    /// add()ing new children places them as children of this parent.
+    pub parent: NodeI,
+    /// Normally this is None and new children are added after the last child of the current parent automatically.
+    /// When using [`Ui::jump_to_sibling()`], this is Some, and new children are added after the subling_cursor node. 
+    /// Then [`Ui::set_tree_links()`] advances the sibling_cursor manually.
+    pub sibling_cursor: Option<NodeI>,
+}
+
 pub struct Stacks {
-    pub parents: Vec<NodeI>,
+    pub parents: Vec<ParentCtx>,
     pub subtrees: Vec<Id>,
     pub reactive: i32,
 }
+
 impl Stacks {
     pub fn initialize() -> Stacks {
         return Stacks {
@@ -18,45 +29,47 @@ impl Stacks {
 }
 
 thread_local! {
-    /// Thread local stacks
     pub(crate) static THREAD_STACKS: RefCell<Stacks> = RefCell::new(Stacks::initialize());
 }
 
-pub fn push_parent(new_parent: &UiParent) {
+pub(crate) fn push_parent(parent: NodeI, sibling_cursor: Option<NodeI>) {
     THREAD_STACKS.with(|stack| {
-        stack.borrow_mut().parents.push(new_parent.i);       
+        stack.borrow_mut().parents.push(ParentCtx { parent, sibling_cursor });
     });
 }
 
-pub fn pop_parent() {
+pub(crate) fn pop_parent() {
     THREAD_STACKS.with(|stack| {
         stack.borrow_mut().parents.pop().unwrap();
     })
 }
 
-// get the last parent slab i and the current depth ()
-pub fn current_parent() -> NodeWithDepth {
-    return THREAD_STACKS.with(
-        |stack| {
-            let parent_i = *stack.borrow().parents.last().unwrap();
-            let depth = stack.borrow().parents.len();
-            return NodeWithDepth{ i: parent_i, depth };
+pub(crate) fn current_parent() -> (NodeI, Option<NodeI>, usize) {
+    THREAD_STACKS.with(|stack| {
+        let stack = stack.borrow();
+        let parent_ctx = stack.parents.last().unwrap();
+        return (parent_ctx.parent, parent_ctx.sibling_cursor, stack.parents.len())
+    })
+}
+
+pub(crate) fn set_sibling_cursor(node: Option<NodeI>) {
+    THREAD_STACKS.with(|stack| {
+        if let Some(last) = stack.borrow_mut().parents.last_mut() {
+            last.sibling_cursor = node;
         }
-    );
+    });
 }
 
 pub fn clear_parent_stack() {
     THREAD_STACKS.with(|stack| {
-        let mut stack = stack.borrow_mut();
-        stack.parents.clear();
+        stack.borrow_mut().parents.clear();
     });
 }
 
 
 pub fn push_subtree(subtree_id: Id) {
     THREAD_STACKS.with(|stack| {
-        let mut stack = stack.borrow_mut();
-        stack.subtrees.push(subtree_id);
+        stack.borrow_mut().subtrees.push(subtree_id);
     });
 }
 

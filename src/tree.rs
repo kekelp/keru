@@ -75,15 +75,83 @@ impl Ui {
     /// // Not adding it to the stack means that the other elements get the correct animations, without any sort of special-casing.
     /// ```
     pub fn jump_to_root(&self) -> UiParent {
-        return UiParent { i: ROOT_I }
+        return UiParent { i: ROOT_I, sibling_cursor: None }
     }
+
+    /// If the node corresponding to `jump_key` exists, get a [`UiParent`] that can be used to break the normal nesting structure and add nodes after it.
+    /// 
+    /// The nested nodes will be added to `jump_key`'s parent, right after `jump_key`.
+    /// 
+    /// # Example
+    /// 
+    /// ```no_run
+    /// # use keru::*;
+    /// # let mut ui: Ui = unimplemented!();
+    /// #[node_key] const ITEM: NodeKey;
+    /// let items = ["A", "B", "C", "D", "E"];
+    /// ui.add(H_STACK).nest(|| {
+    ///     ui.add(V_STACK).nest(|| {
+    ///         for item in items {
+    ///             ui.add(BUTTON.text(&item).key(ITEM.sibling(&item)));
+    ///         }
+    ///     });
+    ///     
+    ///     // Add a red "X" between "B" and "C"
+    ///     let jump_key = ITEM.sibling("B");
+    ///     ui.jump_to_sibling(jump_key).unwrap().nest(|| {
+    ///         ui.add(BUTTON.text("X").color(Color::RED));
+    ///     });
+    /// });
+    /// ```
+    pub fn jump_to_sibling(&self, jump_key: NodeKey) -> Option<UiParent> {
+        let sibling_i = self.nodes.node_hashmap.get(&jump_key.id_with_subtree())?.slab_i;
+        let parent_i = self.nodes[sibling_i].parent;
+        Some(UiParent {
+            i: parent_i,
+            sibling_cursor: Some(sibling_i),
+        })
+    }
+
+    /// If the node corresponding to `jump_key` exists, get a [`UiParent`] that can be used to break the normal nesting structure and add nodes before it.
+    /// 
+    /// The nested nodes will be added to `jump_key`'s parent, right before `jump_key`.
+    /// 
+    /// # Example
+    /// 
+    /// ```no_run
+    /// # use keru::*;
+    /// # let mut ui: Ui = unimplemented!();
+    /// #[node_key] const ITEM: NodeKey;
+    /// let items = ["A", "B", "C", "D", "E"];
+    /// ui.add(H_STACK).nest(|| {
+    ///     ui.add(V_STACK).nest(|| {
+    ///         for item in items {
+    ///             ui.add(BUTTON.text(&item).key(ITEM.sibling(&item)));
+    ///         }
+    ///     });
+    ///     
+    ///     // Add a red "X" between "B" and "C"
+    ///     let jump_key = ITEM.sibling("C");
+    ///     ui.jump_to_before_sibling(jump_key).unwrap().nest(|| {
+    ///         ui.add(BUTTON.text("X").color(Color::RED));
+    ///     });
+    /// });
+    /// ```
+    pub fn jump_to_before_sibling(&self, jump_key: NodeKey) -> Option<UiParent> {
+        let sibling_i = self.nodes.node_hashmap.get(&jump_key.id_with_subtree())?.slab_i;
+        let parent_i = self.nodes[sibling_i].parent;
+        let sibling_cursor = self.nodes[sibling_i].prev_sibling;
+        Some(UiParent {
+            i: parent_i,
+            sibling_cursor,
+        })
+    }
+    
 
     #[track_caller]
     pub(crate) fn add_or_update_node(&mut self, key: NodeKey) -> (NodeI, Id) {
         let frame = self.sys.current_frame;
         let mut new_node_should_relayout = false;
-
-        // todo: at least when using non-anonymous keys, I think there's no legit use case for twins anymore. it's always a mistake, I think. it should log out a warning or panic.
 
         // Check the node corresponding to the key's id.
         // We might find that the key has already been used in this same frame:
@@ -156,8 +224,8 @@ impl Ui {
         };
 
         // update the in-tree links and the thread-local state based on the current parent.
-        let NodeWithDepth { i: parent_i, depth } = thread_local::current_parent();
-        self.set_tree_links(real_final_i, parent_i, depth);
+        let (parent, insert_after, depth) = thread_local::current_parent();
+        self.set_tree_links(real_final_i, parent, depth, insert_after);
 
         self.nodes[real_final_i].exiting = false;
 
@@ -185,7 +253,7 @@ impl Ui {
     }
 
     // this function also detects new nodes and reorderings, and pushes partial relayouts for them. For deleted nodes, partial relayouts will be pushed in cleanup_and_stuff.
-    fn set_tree_links(&mut self, new_node_i: NodeI, parent_i: NodeI, depth: usize) {
+    fn set_tree_links(&mut self, new_node_i: NodeI, parent_i: NodeI, depth: usize, insert_after: Option<NodeI>) {
         assert!(new_node_i != parent_i, "Keru: Internal error: tried to add a node as child of itself ({}). This shouldn't be possible.", self.nodes[new_node_i].debug_name());
 
         self.nodes[new_node_i].depth = depth;
@@ -215,24 +283,53 @@ impl Ui {
 
         self.nodes[parent_i].n_children += 1;
 
-        match self.nodes[parent_i].last_child {
+        match insert_after {
+            // Add after last sibling
             None => {
-                self.nodes[parent_i].first_child = Some(new_node_i);
-                self.nodes[parent_i].last_child = Some(new_node_i);
+                match self.nodes[parent_i].last_child {
+                    None => {
+                        // First child
+                        self.nodes[parent_i].first_child = Some(new_node_i);
+                        self.nodes[parent_i].last_child = Some(new_node_i);
 
-                if self.nodes[parent_i].first_child != self.nodes[parent_i].old_first_child {
-                    self.push_partial_relayout(parent_i);
+                        if self.nodes[parent_i].first_child != self.nodes[parent_i].old_first_child {
+                            self.push_partial_relayout(parent_i);
+                        }
+                    },
+                    Some(last_child) => {
+                        let prev_sibling = last_child;
+                        // Append after last_child
+                        self.nodes[new_node_i].prev_sibling = Some(prev_sibling);
+                        self.nodes[prev_sibling].next_sibling = Some(new_node_i);
+                        self.nodes[parent_i].last_child = Some(new_node_i);
+
+                        if self.nodes[prev_sibling].old_next_sibling != self.nodes[prev_sibling].next_sibling {
+                            self.push_partial_relayout(parent_i);
+                        }
+                    },
                 }
             },
-            Some(last_child) => {
-                let prev_sibling = last_child;
-                self.nodes[new_node_i].prev_sibling = Some(prev_sibling);
-                self.nodes[prev_sibling].next_sibling = Some(new_node_i);
-                self.nodes[parent_i].last_child = Some(new_node_i);
+            // Add after a specific sibling
+            Some(after_i) => {
+                let old_next = self.nodes[after_i].next_sibling;
 
-                if self.nodes[prev_sibling].old_next_sibling != self.nodes[prev_sibling].next_sibling {
-                    self.push_partial_relayout(parent_i);
+                self.nodes[new_node_i].prev_sibling = Some(after_i);
+                self.nodes[new_node_i].next_sibling = old_next;
+                self.nodes[after_i].next_sibling = Some(new_node_i);
+
+                match old_next {
+                    Some(old_next_i) => {
+                        self.nodes[old_next_i].prev_sibling = Some(new_node_i);
+                    }
+                    None => {
+                        self.nodes[parent_i].last_child = Some(new_node_i);
+                    }
                 }
+
+                // Manually advance the thread-local cursor
+                thread_local::set_sibling_cursor(Some(new_node_i));
+
+                self.push_partial_relayout(parent_i);
             },
         };
 
@@ -509,8 +606,7 @@ impl Ui {
         self.format_scratch.clear();
         self.sys.changes.unfinished_animations = false;
 
-        let root_parent = UiParent::new(ROOT_I);
-        thread_local::push_parent(&root_parent);
+        thread_local::push_parent(ROOT_I, None);
 
         self.begin_frame_resolve_inputs();
     }
@@ -637,7 +733,7 @@ impl Ui {
         exiting_nodes.sort_by_key(|n| n.depth);
         for &NodeWithDepth { i, .. } in &exiting_nodes {
             let old_parent = self.nodes[i].parent;
-            self.set_tree_links(i, old_parent, self.nodes[i].depth);
+            self.set_tree_links(i, old_parent, self.nodes[i].depth, None);
             self.refresh_node(i);
             self.nodes[i].exiting = true;
             // todo not in this retarded way
@@ -701,14 +797,18 @@ impl Ui {
     }
 
     pub(crate) fn current_tree_hash(&mut self) -> u64 {
-        let current_parent = thread_local::current_parent();
-        let current_last_child = self.nodes[current_parent.i].last_child;
+        let (parent, insert_after, _depth) = thread_local::current_parent();
 
-        let mut hasher = ahasher();
-            
-        current_parent.hash(&mut hasher);
-        current_last_child.hash(&mut hasher);
+        let current_last_child = match insert_after {
+            Some(insert_after) => Some(insert_after),
+            None => self.nodes[parent].last_child,
+        };
         
+        let mut hasher = ahasher();
+        
+        parent.hash(&mut hasher);
+        current_last_child.hash(&mut hasher);
+
         return hasher.finish()   
     }
 
@@ -867,11 +967,13 @@ mod test_caller_location_id {
 pub struct UiParent {
     // todo: add a debug-mode frame number to check that it's not held and reused across frames 
     pub(crate) i: NodeI,
+    pub(crate) sibling_cursor: Option<NodeI>,
 }
 impl UiParent {
     pub(crate) fn new(node_i: NodeI) -> UiParent {
         return UiParent {
             i: node_i,
+            sibling_cursor: None,
         }
     }
 
@@ -894,7 +996,7 @@ impl UiParent {
     /// Since the `content` closure doesn't borrow or move anything, it sets no restrictions on what code can be ran inside it.
     /// You can keep accessing and mutating both the `Ui` and the rest of the program state freely, as you would outside of the closure. 
     pub fn nest<T>(&self, content: impl FnOnce() -> T ) -> T {
-        thread_local::push_parent(self);
+        thread_local::push_parent(self.i, self.sibling_cursor);
 
         let result = content();
 
