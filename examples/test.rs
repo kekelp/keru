@@ -4,18 +4,38 @@ use keru::*;
 fn update_ui(_state: &mut (), ui: &mut Ui) {
 
     #[node_key] const ITEM: NodeKey;
-    #[component_key] const MY_STACK: ComponentKey<DragAndDropStack>;
+    #[component_key] const STACK_1: ComponentKey<DragAndDropStack>;
+    #[component_key] const STACK_2: ComponentKey<DragAndDropStack>;
     let items = ["A", "B", "C", "D", "E"];
 
-    let my_stack = DragAndDropStack { key: MY_STACK };
-    ui.add_component(my_stack).nest(|| {
-        for item in items {
-            ui.add(BUTTON.text(&item).key(ITEM.sibling(&item)));
-        }
+    let container = CONTAINER.size_x(Size::Frac(0.3)).position_y(Pos::Start);
+
+    let stack_2 = DragAndDropStack { key: STACK_1 };
+
+    ui.add(container.position_x(Pos::Start)).nest(|| {
+        ui.add_component(stack_2).nest(|| {
+            for item in items {
+                ui.add(BUTTON.animate_position(true).text(&item).key(ITEM.sibling(&item)));
+            }
+        });
+    
+        ui.component_output(STACK_1);
     });
 
-    // don't mind the name, this is what should add the spacer.
-    ui.component_output(MY_STACK);
+    let stack_2 = DragAndDropStack { key: STACK_2 };
+
+    ui.add(container.position_x(Pos::End)).nest(|| {
+        ui.add_component(stack_2).nest(|| {
+            for item in items {
+                ui.add(BUTTON.animate_position(true).text(&item).key(ITEM.sibling(&item)));
+            }
+        });
+    
+        ui.component_output(STACK_2);
+    });
+
+
+
 
 }
 

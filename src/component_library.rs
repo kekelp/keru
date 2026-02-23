@@ -775,6 +775,7 @@ pub struct DragAndDropStack {
 }
 impl DragAndDropStack {
     #[node_key] pub const STACK: NodeKey;
+    #[node_key] const SPACER: NodeKey;
 }
 
 impl Component for DragAndDropStack {
@@ -794,12 +795,40 @@ impl Component for DragAndDropStack {
     }
 
     fn component_output(ui: &mut Ui) -> Option<Self::ComponentOutput> {
-        // don't mind the name, add the spacer code in here.
-        
-        let v = ui.get_node(Self::STACK).unwrap().children();
+        let cursor = ui.cursor_position();
 
-        // use v to get the node height measurements. watch out for borrow errors
+        let Some(stack_node) = ui.get_node(Self::STACK) else {
+            return None;
+        };
+        let stack_rect = stack_node.rect();
 
+        // Check if cursor is inside the stack
+        if cursor.x < stack_rect.x[0] || cursor.x > stack_rect.x[1] ||
+           cursor.y < stack_rect.y[0] || cursor.y > stack_rect.y[1] {
+            return None;
+        }
+
+        // Get children and calculate insertion index based on cursor Y vs child midpoints
+        let children = stack_node.children();
+        let mut insertion_index = children.len();
+        for (i, child) in children.iter().enumerate() {
+            let rect = child.rect();
+            let midpoint_y = (rect.y[0] + rect.y[1]) / 2.0;
+            // dbg!(rect);
+            if cursor.y < midpoint_y {
+                insertion_index = i;
+                break;
+            }
+        }
+
+        // Insert spacer at the calculated position
+        ui.jump_to_nth_child(Self::STACK, insertion_index).unwrap().nest(|| {
+            let spacer = SPACER
+                .key(Self::SPACER)
+                .size_y(Size::Pixels(50.0))
+                .animate_position(true);
+            ui.add(spacer);
+        });
 
         return None;
     }

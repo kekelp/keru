@@ -169,8 +169,8 @@ impl<T> ApplicationHandler for Application<T> {
             _ => {}
         }
 
-        if state.ui.should_request_redraw() {
+        // if state.ui.should_request_redraw() {
             state.window.request_redraw();
-        }
+        // }
     }
 }

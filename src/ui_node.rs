@@ -18,7 +18,7 @@ impl<'a> UiNode<'a> {
         let mut v = Vec::new();
         let i = self.i;
         for_each_child!(self.ui, self.ui.nodes[i], child, {
-            let uinode = UiNode { ui: self.ui, i };
+            let uinode = UiNode { ui: self.ui, i: child };
             v.push(uinode);
         });
         return v;
