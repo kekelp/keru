@@ -75,7 +75,7 @@ impl Ui {
     /// // Not adding it to the stack means that the other elements get the correct animations, without any sort of special-casing.
     /// ```
     pub fn jump_to_root(&self) -> UiParent {
-        return UiParent { i: ROOT_I, sibling_cursor: None }
+        return UiParent { i: ROOT_I, sibling_cursor: SiblingCursor::None }
     }
 
 
@@ -86,7 +86,7 @@ impl Ui {
         let parent_i = self.nodes.node_hashmap.get(&parent_key.id_with_subtree())?.slab_i;
         Some(UiParent {
             i: parent_i,
-            sibling_cursor: None,
+            sibling_cursor: SiblingCursor::None,
         })
     }
 
@@ -120,7 +120,7 @@ impl Ui {
         let parent_i = self.nodes[sibling_i].parent;
         Some(UiParent {
             i: parent_i,
-            sibling_cursor: Some(sibling_i),
+            sibling_cursor: SiblingCursor::After(sibling_i),
         })
     }
 
@@ -152,7 +152,10 @@ impl Ui {
     pub fn jump_to_before_sibling(&self, jump_key: NodeKey) -> Option<UiParent> {
         let sibling_i = self.nodes.node_hashmap.get(&jump_key.id_with_subtree())?.slab_i;
         let parent_i = self.nodes[sibling_i].parent;
-        let sibling_cursor = self.nodes[sibling_i].prev_sibling;
+        let sibling_cursor = match self.nodes[sibling_i].prev_sibling {
+            Some(prev) => SiblingCursor::After(prev),
+            None => SiblingCursor::AtStart,
+        };
         Some(UiParent {
             i: parent_i,
             sibling_cursor,
@@ -191,7 +194,7 @@ impl Ui {
         if n == 0 {
             return Some(UiParent {
                 i: parent_i,
-                sibling_cursor: None,
+                sibling_cursor: SiblingCursor::AtStart,
             });
         }
 
@@ -204,9 +207,14 @@ impl Ui {
             }
         }
 
+        let sibling_cursor = match current {
+            Some(child_i) => SiblingCursor::After(child_i),
+            None => SiblingCursor::None,
+        };
+
         Some(UiParent {
             i: parent_i,
-            sibling_cursor: current,
+            sibling_cursor,
         })
     }
 
@@ -315,7 +323,7 @@ impl Ui {
     }
 
     // this function also detects new nodes and reorderings, and pushes partial relayouts for them. For deleted nodes, partial relayouts will be pushed in cleanup_and_stuff.
-    fn set_tree_links(&mut self, new_node_i: NodeI, parent_i: NodeI, depth: usize, insert_after: Option<NodeI>) {
+    fn set_tree_links(&mut self, new_node_i: NodeI, parent_i: NodeI, depth: usize, sibling_cursor: SiblingCursor) {
         assert!(new_node_i != parent_i, "Keru: Internal error: tried to add a node as child of itself ({}). This shouldn't be possible.", self.nodes[new_node_i].debug_name());
 
         self.nodes[new_node_i].depth = depth;
@@ -345,9 +353,9 @@ impl Ui {
 
         self.nodes[parent_i].n_children += 1;
 
-        match insert_after {
-            // Add after last sibling
-            None => {
+        match sibling_cursor {
+            // Add after last sibling (no jump)
+            SiblingCursor::None => {
                 match self.nodes[parent_i].last_child {
                     None => {
                         // First child
@@ -371,8 +379,29 @@ impl Ui {
                     },
                 }
             },
+            // Add at the start (before first child)
+            SiblingCursor::AtStart => {
+                let old_first = self.nodes[parent_i].first_child;
+
+                self.nodes[new_node_i].next_sibling = old_first;
+                self.nodes[parent_i].first_child = Some(new_node_i);
+
+                match old_first {
+                    Some(old_first_i) => {
+                        self.nodes[old_first_i].prev_sibling = Some(new_node_i);
+                    }
+                    None => {
+                        self.nodes[parent_i].last_child = Some(new_node_i);
+                    }
+                }
+
+                // Manually advance the thread-local cursor
+                thread_local::set_sibling_cursor(SiblingCursor::After(new_node_i));
+
+                self.push_partial_relayout(parent_i);
+            },
             // Add after a specific sibling
-            Some(after_i) => {
+            SiblingCursor::After(after_i) => {
                 let old_next = self.nodes[after_i].next_sibling;
 
                 self.nodes[new_node_i].prev_sibling = Some(after_i);
@@ -389,7 +418,7 @@ impl Ui {
                 }
 
                 // Manually advance the thread-local cursor
-                thread_local::set_sibling_cursor(Some(new_node_i));
+                thread_local::set_sibling_cursor(SiblingCursor::After(new_node_i));
 
                 self.push_partial_relayout(parent_i);
             },
@@ -668,7 +697,7 @@ impl Ui {
         self.format_scratch.clear();
         self.sys.changes.unfinished_animations = false;
 
-        thread_local::push_parent(ROOT_I, None);
+        thread_local::push_parent(ROOT_I, SiblingCursor::None);
 
         self.begin_frame_resolve_inputs();
     }
@@ -795,7 +824,7 @@ impl Ui {
         exiting_nodes.sort_by_key(|n| n.depth);
         for &NodeWithDepth { i, .. } in &exiting_nodes {
             let old_parent = self.nodes[i].parent;
-            self.set_tree_links(i, old_parent, self.nodes[i].depth, None);
+            self.set_tree_links(i, old_parent, self.nodes[i].depth, SiblingCursor::None);
             self.refresh_node(i);
             self.nodes[i].exiting = true;
             // todo not in this retarded way
@@ -859,19 +888,20 @@ impl Ui {
     }
 
     pub(crate) fn current_tree_hash(&mut self) -> u64 {
-        let (parent, insert_after, _depth) = thread_local::current_parent();
+        let (parent, sibling_cursor, _depth) = thread_local::current_parent();
 
-        let current_last_child = match insert_after {
-            Some(insert_after) => Some(insert_after),
-            None => self.nodes[parent].last_child,
+        let current_last_child = match sibling_cursor {
+            SiblingCursor::None => self.nodes[parent].last_child,
+            SiblingCursor::AtStart => None,
+            SiblingCursor::After(node) => Some(node),
         };
-        
+
         let mut hasher = ahasher();
-        
+
         parent.hash(&mut hasher);
         current_last_child.hash(&mut hasher);
 
-        return hasher.finish()   
+        return hasher.finish()
     }
 
     pub fn debug_print_tree(&self) {
@@ -1024,18 +1054,18 @@ mod test_caller_location_id {
 }
 
 /// A struct referring to a node that was [`added`](Ui::add) on the tree.
-///  
-/// Can be used to call [`nest()`](Self::nest()) and add more nodes as children of this one. 
+///
+/// Can be used to call [`nest()`](Self::nest()) and add more nodes as children of this one.
 pub struct UiParent {
-    // todo: add a debug-mode frame number to check that it's not held and reused across frames 
+    // todo: add a debug-mode frame number to check that it's not held and reused across frames
     pub(crate) i: NodeI,
-    pub(crate) sibling_cursor: Option<NodeI>,
+    pub(crate) sibling_cursor: SiblingCursor,
 }
 impl UiParent {
     pub(crate) fn new(node_i: NodeI) -> UiParent {
         return UiParent {
             i: node_i,
-            sibling_cursor: None,
+            sibling_cursor: SiblingCursor::None,
         }
     }
 

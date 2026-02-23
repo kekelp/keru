@@ -821,6 +821,9 @@ impl Component for DragAndDropStack {
             .animate_position(true)
             .position_x(self.pos)
             .size_x(Size::Pixels(100.0))
+            .position_y(Pos::Start)
+            .size_y(Size::Fill)
+            .stack_arrange(Arrange::Start)
             .key(Self::STACK);
 
         let hover_hitbox = CONTAINER
@@ -838,6 +841,7 @@ impl Component for DragAndDropStack {
             .position_y(Pos::Pixels(ui.cursor_position().y))
             .size_x(Size::FitContent)
             .size_y(Size::FitContent)
+            .animate_position(true)
             .absorbs_clicks(false);
 
         let stack_parent = ui.add(stack);

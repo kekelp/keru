@@ -3,13 +3,23 @@ use std::cell::RefCell;
 use crate::*;
 
 #[derive(Clone, Copy)]
+pub(crate) enum SiblingCursor {
+    /// No cursor - append after last child (normal behavior).
+    None,
+    /// Insert at the beginning, before first child.
+    AtStart,
+    /// Insert after a specific sibling.
+    After(NodeI),
+}
+
+#[derive(Clone, Copy)]
 pub(crate) struct ParentCtx {
     /// add()ing new children places them as children of this parent.
     pub parent: NodeI,
-    /// Normally this is None and new children are added after the last child of the current parent automatically.
-    /// When using [`Ui::jump_to_sibling()`], this is Some, and new children are added after the subling_cursor node. 
+    /// Normally this is Append and new children are added after the last child of the current parent automatically.
+    /// When using [`Ui::jump_to_sibling()`], this is After, and new children are added after the sibling_cursor node.
     /// Then [`Ui::set_tree_links()`] advances the sibling_cursor manually.
-    pub sibling_cursor: Option<NodeI>,
+    pub sibling_cursor: SiblingCursor,
 }
 
 pub struct Stacks {
@@ -32,7 +42,7 @@ thread_local! {
     pub(crate) static THREAD_STACKS: RefCell<Stacks> = RefCell::new(Stacks::initialize());
 }
 
-pub(crate) fn push_parent(parent: NodeI, sibling_cursor: Option<NodeI>) {
+pub(crate) fn push_parent(parent: NodeI, sibling_cursor: SiblingCursor) {
     THREAD_STACKS.with(|stack| {
         stack.borrow_mut().parents.push(ParentCtx { parent, sibling_cursor });
     });
@@ -44,7 +54,7 @@ pub(crate) fn pop_parent() {
     })
 }
 
-pub(crate) fn current_parent() -> (NodeI, Option<NodeI>, usize) {
+pub(crate) fn current_parent() -> (NodeI, SiblingCursor, usize) {
     THREAD_STACKS.with(|stack| {
         let stack = stack.borrow();
         let parent_ctx = stack.parents.last().unwrap();
@@ -52,10 +62,10 @@ pub(crate) fn current_parent() -> (NodeI, Option<NodeI>, usize) {
     })
 }
 
-pub(crate) fn set_sibling_cursor(node: Option<NodeI>) {
+pub(crate) fn set_sibling_cursor(cursor: SiblingCursor) {
     THREAD_STACKS.with(|stack| {
         if let Some(last) = stack.borrow_mut().parents.last_mut() {
-            last.sibling_cursor = node;
+            last.sibling_cursor = cursor;
         }
     });
 }

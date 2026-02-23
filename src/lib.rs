@@ -130,6 +130,7 @@ pub(crate) use crate::winit_mouse_events::SmallVec;
 pub mod winit_key_events;
 
 mod thread_local;
+pub(crate) use thread_local::SiblingCursor;
 
 pub use bumpalo;
 

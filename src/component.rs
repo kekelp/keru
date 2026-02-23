@@ -69,7 +69,7 @@ impl Ui {
         //
         // (When adding the same component multiple times, they are deduplicated by track_caller or by key twinning, but that wouldn't be a safety issue for the state anyway.)
 
-        thread_local::push_parent(i, None);
+        thread_local::push_parent(i, SiblingCursor::None);
         thread_local::push_subtree(id);
 
         let res;
