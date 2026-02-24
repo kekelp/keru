@@ -859,10 +859,13 @@ impl Component for DragAndDropStack {
         return Some(self.key);
     }
 
-    fn component_output(ui: &mut Ui) -> Option<Self::ComponentOutput> {       
-        // Show spacer when something is being dragged over
-        if let Some(hover) = ui.is_any_drag_hovered_onto(Self::HITBOX) {
-            let insertion_index = Self::calc_insertion_index(ui, hover.absolute_pos.y);
+    fn component_output(ui: &mut Ui) -> Option<Self::ComponentOutput> {
+        let pos = ui.cursor_position();   
+
+        let hovered = ui.is_any_drag_hovered_onto(Self::HITBOX).is_some();
+        let drag_released = ui.is_any_drag_released_onto(Self::HITBOX).is_some();
+        if hovered || drag_released {
+            let insertion_index = Self::calc_insertion_index(ui, pos.y);
 
             // Get height from dragged item if available, otherwise use default
             let spacer_height = Self::get_dragged_item_height(ui).unwrap_or(60.0);
@@ -881,7 +884,7 @@ impl Component for DragAndDropStack {
 
         // Return drop info when something is released onto this stack
         if let Some(drag) = ui.is_any_drag_released_onto(Self::HITBOX) {
-            let insertion_index = Self::calc_insertion_index(ui, drag.absolute_pos.y);
+            let insertion_index = Self::calc_insertion_index(ui, pos.y);
             return Some(DropEvent { insertion_index, drag });
         }
 
