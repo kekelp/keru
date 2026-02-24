@@ -1056,6 +1056,7 @@ mod test_caller_location_id {
 /// A struct referring to a node that was [`added`](Ui::add) on the tree.
 ///
 /// Can be used to call [`nest()`](Self::nest()) and add more nodes as children of this one.
+#[derive(Clone, Copy, Debug)]
 pub struct UiParent {
     // todo: add a debug-mode frame number to check that it's not held and reused across frames
     pub(crate) i: NodeI,

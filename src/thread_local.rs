@@ -2,7 +2,7 @@ use std::cell::RefCell;
 
 use crate::*;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub(crate) enum SiblingCursor {
     /// No cursor - append after last child (normal behavior).
     None,

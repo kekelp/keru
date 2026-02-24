@@ -18,16 +18,25 @@ pub trait Component {
     type ComponentOutput;
     type State: Default + 'static;
 
-    // todo: not sure if it should be &mut self or self.
+    /// Add the component's nodes to the `Ui`.
+    /// 
+    /// When the component's user calls [`Ui::add_component()`], the `Ui` will get or initialize the component's state, setup a private key subtree for it, then call this function.
     fn add_to_ui(&mut self, ui: &mut Ui, state: &mut Self::State) -> Self::AddResult;
 
-    // this returns an Option mostly just so that we can default impl it with None, but maybe that's useful in other ways?
-    // as in, if the component is not currently added, maybe Ui::component_output can just see that and return None, instead of running the function anyway and (hopefully) getting a None?
-    // todo: figure this out
-    fn component_output(_ui: &mut Ui) -> Option<Self::ComponentOutput> {
+    /// Run some extra logic for the component.
+    /// 
+    /// In advanced components, this can be used in different ways: 
+    /// 
+    /// - get an output value out of the component, such as whether an internal node is clicked, 
+    /// 
+    /// - adjust the component based on the children that have been added to it.
+    /// 
+    /// See the [`DragAndDropStack`] for an example of a component that uses these techniques.
+    fn run_component(_ui: &mut Ui) -> Option<Self::ComponentOutput> {
         None
     }
 
+    /// Allow 
     fn component_key(&self) -> Option<ComponentKey<Self>> {
         None
     }
@@ -49,6 +58,7 @@ impl<T: SimpleComponent> Component for T {
 
 impl Ui {
     #[track_caller]
+    /// Add a component to the `Ui`.
     pub fn add_component<T: Component>(&mut self, mut component: T) -> T::AddResult {        
         let key = match component.component_key() {
             Some(key) => key.as_normal_key(),
@@ -102,10 +112,15 @@ impl Ui {
         return res;
     }
 
-    pub fn component_output<T: Component>(&mut self, component_key: ComponentKey<T>) -> Option<T::ComponentOutput> {
+    /// Run additional logic for a component. Simple components don't use this method, but some advanced components might use it for various reasons:
+    /// 
+    /// - as a way to return a value from the component, such as whether an internal button is clicked.
+    /// 
+    /// - to modify the component after it has been added, for example after children have been added to it. 
+    pub fn run_component<T: Component>(&mut self, component_key: ComponentKey<T>) -> Option<T::ComponentOutput> {
         // No twinning here, so use this old closure one.
         self.component_key_subtree(component_key).start(|| {
-            T::component_output(self)
+            T::run_component(self)
         })
     }
 

@@ -17,6 +17,9 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .anchor_symm(Anchor::Center);
 
     let special_panel = PANEL
+    .size_x(Size::Pixels(100.0))
+    .size_y(Size::Pixels(100.0))
+        
         .animate_position(true)
         .sense_drag(true);
 
@@ -32,11 +35,11 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
             match item {
                 "special" => {
                     ui.add(special_panel.key(key)).nest(|| {
-                        ui.add(H_STACK).nest(|| {
-                            ui.add(PANEL.color(Color::RED).size_symm(Size::Pixels(30.0)));
-                            ui.add(PANEL.color(Color::GREEN).size_symm(Size::Pixels(30.0)));
-                            ui.add(PANEL.color(Color::BLUE).size_symm(Size::Pixels(30.0)));
-                        });
+                        // ui.add(H_STACK).nest(|| {
+                        //     ui.add(PANEL.color(Color::RED).size_symm(Size::Pixels(30.0)));
+                        //     ui.add(PANEL.color(Color::GREEN).size_symm(Size::Pixels(30.0)));
+                        //     ui.add(PANEL.color(Color::BLUE).size_symm(Size::Pixels(30.0)));
+                        // });
                     })
                 }
                 _ =>  {
@@ -67,7 +70,8 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 }
 
 fn main() {
-    let items = vec!["A", "special", "B", "C", "xxxxxx\nxxxxxx\nxxxxxx", "D", "E"];
+    // let items = vec!["A", "special", "B", "C", "xxxxxx\nxxxxxx\nxxxxxx", "D", "E"];
+    let items = vec!["A", "special", "B"];
 
     let state = State {
         items,

@@ -772,8 +772,6 @@ where T: Send + Sync + 'static {
 
 pub struct DragAndDropStack {
     pub key: ComponentKey<Self>,
-    // todo: would be nice to have a better way to pass this sort of things
-    pub pos: Pos,
 }
 
 /// Output from DragAndDropStack when something is dropped onto it
@@ -793,6 +791,7 @@ impl DragAndDropStack {
         let mut insertion_index = children.len();
         for (i, child) in children.iter().enumerate() {
             let rect = child.rect();
+            println!("\n");
             let midpoint_y = (rect.y[0] + rect.y[1]) / 2.0;
             if cursor_y < midpoint_y {
                 insertion_index = i;
@@ -819,7 +818,6 @@ impl Component for DragAndDropStack {
     fn add_to_ui(&mut self, ui: &mut Ui, _state: &mut Self::State) -> Self::AddResult {
         let stack = V_STACK
             .animate_position(true)
-            .position_x(self.pos)
             .size_x(Size::Pixels(100.0))
             .position_y(Pos::Start)
             .size_y(Size::Fill)
@@ -830,7 +828,6 @@ impl Component for DragAndDropStack {
             .sense_drag_drop_target(true)
             .size_x(Size::Pixels(200.0))
             .size_y(Size::Fill)
-            .position_x(self.pos)
             .absorbs_clicks(false)
             .key(Self::HITBOX);            
 
@@ -839,8 +836,6 @@ impl Component for DragAndDropStack {
             .anchor_symm(Anchor::Center)
             .position_x(Pos::Pixels(ui.cursor_position().x))
             .position_y(Pos::Pixels(ui.cursor_position().y))
-            .size_x(Size::FitContent)
-            .size_y(Size::FitContent)
             .animate_position(true)
             .absorbs_clicks(false);
 
@@ -859,13 +854,13 @@ impl Component for DragAndDropStack {
         return Some(self.key);
     }
 
-    fn component_output(ui: &mut Ui) -> Option<Self::ComponentOutput> {
-        let pos = ui.cursor_position();   
+    fn run_component(ui: &mut Ui) -> Option<Self::ComponentOutput> {
+        let pos = ui.cursor_position();
+        let insertion_index = Self::calc_insertion_index(ui, pos.y);
 
         let hovered = ui.is_any_drag_hovered_onto(Self::HITBOX).is_some();
         let drag_released = ui.is_any_drag_released_onto(Self::HITBOX).is_some();
         if hovered || drag_released {
-            let insertion_index = Self::calc_insertion_index(ui, pos.y);
 
             // Get height from dragged item if available, otherwise use default
             let spacer_height = Self::get_dragged_item_height(ui).unwrap_or(60.0);
@@ -882,11 +877,10 @@ impl Component for DragAndDropStack {
             });
         }
 
-        // Return drop info when something is released onto this stack
+        // Return drop info when something is released onto the stack
         if let Some(drag) = ui.is_any_drag_released_onto(Self::HITBOX) {
-            let insertion_index = Self::calc_insertion_index(ui, pos.y);
             return Some(DropEvent { insertion_index, drag });
-        }
+        } 
 
         None
     }
