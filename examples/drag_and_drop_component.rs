@@ -9,6 +9,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     #[node_key] const ITEM: NodeKey;
     #[component_key] const STACK: ComponentKey<DragAndDropStack>;
 
+    // todo: the absorbs_clicks(false) are needed because the dragged nodes themselves absorb the events while they are floating. needs either a smarter system for events or a system for adding nodes behind (but that would be a mess I think) 
     let item_base = BUTTON
         .animate_position(true)
         .sense_drag(true)
@@ -17,9 +18,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .anchor_symm(Anchor::Center);
 
     let special_panel = PANEL
-    .size_x(Size::Pixels(100.0))
-    .size_y(Size::Pixels(100.0))
-        
+        .absorbs_clicks(false)
         .animate_position(true)
         .sense_drag(true);
 
@@ -35,11 +34,11 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
             match item {
                 "special" => {
                     ui.add(special_panel.key(key)).nest(|| {
-                        // ui.add(H_STACK).nest(|| {
-                        //     ui.add(PANEL.color(Color::RED).size_symm(Size::Pixels(30.0)));
-                        //     ui.add(PANEL.color(Color::GREEN).size_symm(Size::Pixels(30.0)));
-                        //     ui.add(PANEL.color(Color::BLUE).size_symm(Size::Pixels(30.0)));
-                        // });
+                        ui.add(H_STACK.absorbs_clicks(false)).nest(|| {
+                            ui.add(PANEL.absorbs_clicks(false).color(Color::RED).size_symm(Size::Pixels(30.0)));
+                            ui.add(PANEL.absorbs_clicks(false).color(Color::GREEN).size_symm(Size::Pixels(30.0)));
+                            ui.add(PANEL.absorbs_clicks(false).color(Color::BLUE).size_symm(Size::Pixels(30.0)));
+                        });
                     })
                 }
                 _ =>  {
@@ -57,7 +56,6 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     for (i, item) in state.items.iter().enumerate() {
         if ui.is_drag_released(ITEM.sibling(&item)) {
             released_idx = Some(i);
-            dbg!(released_idx);
         }
     }
 
@@ -70,8 +68,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 }
 
 fn main() {
-    // let items = vec!["A", "special", "B", "C", "xxxxxx\nxxxxxx\nxxxxxx", "D", "E"];
-    let items = vec!["A", "special", "B"];
+    let items = vec!["A", "special", "B", "C", "xxxxxx\nxxxxxx\nxxxxxx", "D", "E"];
 
     let state = State {
         items,

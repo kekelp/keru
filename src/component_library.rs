@@ -784,14 +784,14 @@ impl DragAndDropStack {
     #[node_key] pub const STACK: NodeKey;
     #[node_key] pub const HITBOX: NodeKey;
     #[node_key] pub const FLOATING: NodeKey;
-    #[node_key] const SPACER: NodeKey;
+    #[node_key] pub const SPACER: NodeKey;
+    #[node_key] pub const ROOT: NodeKey;
 
     fn calc_insertion_index(ui: &Ui, cursor_y: f32) -> usize {
         let children = ui.get_node(Self::STACK).unwrap().children();
         let mut insertion_index = children.len();
         for (i, child) in children.iter().enumerate() {
             let rect = child.rect();
-            println!("\n");
             let midpoint_y = (rect.y[0] + rect.y[1]) / 2.0;
             if cursor_y < midpoint_y {
                 insertion_index = i;
@@ -816,6 +816,10 @@ impl Component for DragAndDropStack {
     type State = ();
 
     fn add_to_ui(&mut self, ui: &mut Ui, _state: &mut Self::State) -> Self::AddResult {
+        let root = CONTAINER
+            .animate_position(true)
+            .key(Self::ROOT);
+
         let stack = V_STACK
             .animate_position(true)
             .size_x(Size::Pixels(100.0))
@@ -823,13 +827,6 @@ impl Component for DragAndDropStack {
             .size_y(Size::Fill)
             .stack_arrange(Arrange::Start)
             .key(Self::STACK);
-
-        let hover_hitbox = CONTAINER
-            .sense_drag_drop_target(true)
-            .size_x(Size::Pixels(200.0))
-            .size_y(Size::Fill)
-            .absorbs_clicks(false)
-            .key(Self::HITBOX);            
 
         let floater = CONTAINER
             .key(Self::FLOATING)
@@ -839,15 +836,17 @@ impl Component for DragAndDropStack {
             .animate_position(true)
             .absorbs_clicks(false);
 
-        let stack_parent = ui.add(stack);
-        
-        let dragged_parent = ui.jump_to_root().nest(|| {
-            ui.add(floater)
-        });
 
-        ui.add(hover_hitbox);
+        ui.add(root).nest(|| {
 
-        return (stack_parent, dragged_parent);
+            let stack_parent = ui.add(stack);
+            
+            let dragged_parent = ui.jump_to_root().nest(|| {
+                ui.add(floater)
+            });
+            
+            return (stack_parent, dragged_parent);
+        })
     }
 
     fn component_key(&self) -> Option<ComponentKey<Self>> {
@@ -857,6 +856,20 @@ impl Component for DragAndDropStack {
     fn run_component(ui: &mut Ui) -> Option<Self::ComponentOutput> {
         let pos = ui.cursor_position();
         let insertion_index = Self::calc_insertion_index(ui, pos.y);
+
+        // Add the hitbox now so it's on top of children
+        let hover_hitbox = CONTAINER
+            .sense_drag_drop_target(true)
+            .size_x(Size::Pixels(200.0))
+            .size_y(Size::Fill)
+            .absorbs_clicks(false)
+            .color(Color::KERU_DEBUG_RED)
+            .visible()
+            .key(Self::HITBOX);            
+
+        ui.jump_to_parent(Self::ROOT).unwrap().nest(|| {
+            ui.add(hover_hitbox);
+        });
 
         let hovered = ui.is_any_drag_hovered_onto(Self::HITBOX).is_some();
         let drag_released = ui.is_any_drag_released_onto(Self::HITBOX).is_some();

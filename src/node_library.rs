@@ -586,7 +586,7 @@ pub const CONTAINER: Node = Node {
     shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: DEFAULT_CORNER_RADIUS },
     interact: Interact {
         senses: Sense::NONE,
-        absorbs_mouse_events: true,
+        absorbs_mouse_events: false,
         click_animation: false,
     },
     layout: Layout {
