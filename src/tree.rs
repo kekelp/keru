@@ -491,7 +491,7 @@ impl Ui {
         return !is_at_target;
     }
 
-    pub(crate) fn push_render_data(&mut self, i: NodeI) {
+    pub(crate) fn push_render_and_click_data(&mut self, i: NodeI) {
         let debug = cfg!(debug_assertions);
         let is_scrollable = self.nodes[i].params.is_scrollable();
         let push_click_rect = if debug && self.inspect_mode() {

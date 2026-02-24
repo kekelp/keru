@@ -818,7 +818,7 @@ impl Ui {
             let is_custom = self.nodes[i].params.custom_render;
             let instance_index_before = self.sys.renderer.instance_count();
 
-            self.push_render_data(i);
+            self.push_render_and_click_data(i);
 
             let instance_index_after = self.sys.renderer.instance_count();
 
