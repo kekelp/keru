@@ -17,8 +17,8 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     
     ui.add(button);
 
-    if let Some(drag) = ui.is_dragged(BUTTON_KEY) {
-        dbg!(drag);
+    if ui.is_clicked(BUTTON_KEY) {
+        dbg!(Instant::now());
     }
     
 }

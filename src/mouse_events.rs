@@ -9,8 +9,11 @@ pub(crate) type SmallVec<T> = smallvec::SmallVec<[T; 8]>;
 
 #[derive(Clone, Debug)]
 pub enum InputEvent {
-    /// Mouse button was pressed and released on the same node(s) without significant movement
-    Click(ClickEvent),
+    /// Mouse button was just pressed
+    Click(PressEvent),
+
+    /// Mouse button was pressed and released on the same node(s)
+    ClickRelease(ClickEvent),
 
     /// Ongoing drag - emitted each frame while dragging
     Drag(DragEvent),
@@ -20,6 +23,14 @@ pub enum InputEvent {
 
     /// Scroll wheel
     Scroll(ScrollEvent),
+}
+
+#[derive(Clone, Debug)]
+pub struct PressEvent {
+    pub targets: SmallVec<Id>,
+    pub position: Vec2,
+    pub button: MouseButton,
+    pub timestamp: Instant,
 }
 
 #[derive(Clone, Debug)]
@@ -152,8 +163,16 @@ impl MouseInput {
     ) {
         let now = Instant::now();
 
-        // Push PendingClick if there are click targets
+        // Emit Press event immediately
         if !click_targets.is_empty() {
+            self.events.push(InputEvent::Click(PressEvent {
+                targets: click_targets.clone(),
+                position: self.cursor_position,
+                button,
+                timestamp: now,
+            }));
+
+            // Track for potential Click on release
             self.pending.push(Pending::Click {
                 button,
                 press_pos: self.cursor_position,
@@ -185,7 +204,7 @@ impl MouseInput {
                     Pending::Click { press_pos, press_time, targets, .. } => {
                         // Click if released on same targets as pressed
                         if targets == current_click_targets {
-                            self.events.push(InputEvent::Click(ClickEvent {
+                            self.events.push(InputEvent::ClickRelease(ClickEvent {
                                 targets,
                                 position: self.cursor_position,
                                 button,
@@ -229,9 +248,16 @@ impl MouseInput {
 }
 
 impl MouseInput {
-    pub fn clicks(&self) -> impl Iterator<Item = &ClickEvent> {
+    pub fn presses(&self) -> impl Iterator<Item = &PressEvent> {
         self.events.iter().filter_map(|e| match e {
             InputEvent::Click(ev) => Some(ev),
+            _ => None,
+        })
+    }
+
+    pub fn clicks(&self) -> impl Iterator<Item = &ClickEvent> {
+        self.events.iter().filter_map(|e| match e {
+            InputEvent::ClickRelease(ev) => Some(ev),
             _ => None,
         })
     }

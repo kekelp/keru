@@ -287,7 +287,7 @@ impl UiNode<'_> {
         Some(Click {
             relative_position,
             absolute_position: event.position,
-            timestamp: event.press_time,
+            timestamp: event.timestamp,
         })
     }
 

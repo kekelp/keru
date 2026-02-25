@@ -448,19 +448,19 @@ impl Ui {
     }
 
     pub(crate) fn check_clicked(&self, id: Id, button: MouseButton) -> bool {
-        self.sys.mouse_input.clicks()
+        self.sys.mouse_input.presses()
             .any(|e| e.button == button && e.targets.contains(&id))
     }
 
-    pub(crate) fn check_clicked_at(&self, id: Id, button: MouseButton) -> Option<&mouse_events::ClickEvent> {
-        self.sys.mouse_input.clicks()
+    pub(crate) fn check_clicked_at(&self, id: Id, button: MouseButton) -> Option<&mouse_events::PressEvent> {
+        self.sys.mouse_input.presses()
             .filter(|e| e.button == button && e.targets.contains(&id))
             .last()
     }
 
     pub(crate) fn check_click_released(&self, id: Id, button: MouseButton) -> bool {
-        // Click events are emitted on release when released on same target
-        self.check_clicked(id, button)
+        self.sys.mouse_input.clicks()
+            .any(|e| e.button == button && e.targets.contains(&id))
     }
 
     pub(crate) fn check_dragged(&self, id: Id, button: MouseButton) -> Option<&mouse_events::DragEvent> {
