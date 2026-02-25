@@ -11,6 +11,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 
     let item_base = BUTTON
         .animate_position(true)
+        .absorbs_clicks(false)
         .sense_drag(true)
         .size_x(Size::Pixels(100.0))
         .anchor_symm(Anchor::Center);
@@ -19,15 +20,13 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .animate_position(true)
         .sense_drag(true);
 
-    let (stack, floater) = ui.add_component(DragAndDropStack { key: STACK });
+    let (stack, _floater) = ui.add_component(DragAndDropStack { key: STACK });
 
+    // Just add all items to the stack - run_component will move dragged ones to the floater
     for &item in &state.items {
         let key = ITEM.sibling(&item);
 
-        let stack_or_floater = if ui.is_dragged(key).is_some() { floater } else { stack };
-
-        stack_or_floater.nest(|| {
-
+        stack.nest(|| {
             match item {
                 "special" => {
                     ui.add(special_panel.key(key)).nest(|| {
@@ -43,9 +42,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                     ui.add(node);
                 }
             };
-
         });
-
     }
 
 

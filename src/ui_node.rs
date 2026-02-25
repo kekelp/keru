@@ -31,6 +31,13 @@ impl UiNode<'_> {
         return &self.ui.nodes[self.i];
     }
 
+    /// Returns the key that can be used to refer to this node.
+    ///
+    /// Note: This key should be used in the same subtree context as where the node was added.
+    pub fn temp_key(&self) -> NodeKey {
+        NodeKey::new_temp(self.node().id, "temp_node_key")
+    }
+
     pub(crate) fn inner_size(&self) -> Xy<f32> {
         let padding = self.node().params.layout.padding;
 

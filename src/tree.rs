@@ -218,6 +218,44 @@ impl Ui {
         })
     }
 
+    /// Remove a node from its current position in the tree and re-add it at the current parent context.
+    ///
+    /// This is useful for moving nodes between parents, for example moving a dragged item to a floating layer.
+    ///
+    /// Returns `None` if the node doesn't exist.
+    pub fn remove_and_readd(&mut self, key: NodeKey) -> Option<()> {        
+        let node_i = self.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
+        self.unlink_from_tree(node_i);
+
+        let (parent_i, sibling_cursor, depth) = thread_local::current_parent();
+        self.set_tree_links(node_i, parent_i, depth, sibling_cursor);
+        Some(())
+    }
+
+    /// Unlink a node from its current parent's child list.
+    fn unlink_from_tree(&mut self, node_i: NodeI) {
+        let old_parent = self.nodes[node_i].parent;
+        let prev = self.nodes[node_i].prev_sibling;
+        let next = self.nodes[node_i].next_sibling;
+
+        match prev {
+            Some(prev_i) => self.nodes[prev_i].next_sibling = next,
+            None => self.nodes[old_parent].first_child = next,
+        }
+
+        match next {
+            Some(next_i) => self.nodes[next_i].prev_sibling = prev,
+            None => self.nodes[old_parent].last_child = prev,
+        }
+
+        // Decrement parent's child count
+        self.nodes[old_parent].n_children = self.nodes[old_parent].n_children.saturating_sub(1);
+
+        // Clear the node's sibling pointers
+        self.nodes[node_i].prev_sibling = None;
+        self.nodes[node_i].next_sibling = None;
+    }
+
     #[track_caller]
     pub(crate) fn add_or_update_node(&mut self, key: NodeKey) -> (NodeI, Id) {
         let frame = self.sys.current_frame;

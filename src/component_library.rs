@@ -863,12 +863,27 @@ impl Component for DragAndDropStack {
             .size_x(Size::Pixels(200.0))
             .size_y(Size::Fill)
             .absorbs_clicks(false)
-            .color(Color::KERU_DEBUG_RED)
-            .visible()
+            // .color(Color::KERU_DEBUG_RED)
+            // .visible()
             .key(Self::HITBOX);            
 
         ui.jump_to_parent(Self::ROOT).unwrap().nest(|| {
             ui.add(hover_hitbox);
+        });
+
+        // Move dragged children to the floating layer
+        let dragged_keys: Vec<_> = ui.get_node(Self::STACK)
+            .map(|stack| stack.children()
+                .into_iter()
+                .filter(|c| c.is_dragged().is_some())
+                .map(|c| c.temp_key())
+                .collect())
+            .unwrap_or_default();
+
+        ui.jump_to_parent(Self::FLOATING).unwrap().nest(|| {
+            for key in dragged_keys {
+                ui.remove_and_readd(key);
+            }
         });
 
         let hovered = ui.is_any_drag_hovered_onto(Self::HITBOX).is_some();
@@ -889,6 +904,9 @@ impl Component for DragAndDropStack {
                 ui.add(spacer);
             });
         }
+
+
+
 
         // Return drop info when something is released onto the stack
         if let Some(drag) = ui.is_any_drag_released_onto(Self::HITBOX) {

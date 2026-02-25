@@ -19,11 +19,12 @@ use crate::*;
 pub struct NodeKey {
     id: Id,
     debug_name: &'static str,
+    temp: bool,
 }
 impl NodeKey {
     pub(crate) fn id_with_subtree(&self) -> Id {
         
-        if let Some(subtree_id) = thread_local::last_subtree() {
+        if let Some(subtree_id) = thread_local::last_subtree() && ! self.temp {
             let mut hasher = ahasher();
             subtree_id.hash(&mut hasher);
             self.id.hash(&mut hasher);
@@ -52,6 +53,7 @@ impl NodeKey {
         return Self {
             id: Id(new_id),
             debug_name: self.debug_name,
+            temp: self.temp,
         };
     }
 
@@ -66,6 +68,15 @@ impl NodeKey {
         return Self {
             id,
             debug_name,
+            temp: false,
+        };
+    }
+
+    pub(crate) const fn new_temp(id: Id, debug_name: &'static str) -> Self {
+        return Self {
+            id,
+            debug_name,
+            temp: true,
         };
     }
 
