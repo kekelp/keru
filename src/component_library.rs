@@ -156,7 +156,7 @@ impl Ui {
             self.subtree_old().start(|| {
                 let mut new_value = *value;
                 if let Some(drag) = self.is_dragged(SLIDER_CONTAINER) {
-                    new_value += drag.relative_delta.x as f32 * (min - max);
+                    new_value += drag.relative_delta.x as f32 * (max - min);
                 }
 
                 if new_value.is_finite() {
@@ -305,7 +305,7 @@ impl SimpleComponent for Slider<'_> {
                 
             let mut new_value = *self.value;
             if let Some(drag) = ui.is_dragged(SLIDER_CONTAINER) {
-                new_value += drag.relative_delta.x as f32 * (self.min - self.max);
+                new_value += drag.relative_delta.x as f32 * (self.max - self.min);
             }
 
             if new_value.is_finite() {
@@ -436,14 +436,14 @@ impl Component for TransformView<'_> {
         // Handle panning
         if ! ui.key_input().key_held(&Key::Named(NamedKey::Space)) {
             if let Some(drag) = ui.is_mouse_button_dragged(PAN_OVERLAY, MouseButton::Middle) {
-                self.state.pan_x -= drag.absolute_delta.x as f32;
-                self.state.pan_y -= drag.absolute_delta.y as f32;
+                self.state.pan_x += drag.absolute_delta.x as f32;
+                self.state.pan_y += drag.absolute_delta.y as f32;
             }
         }
 
         if let Some(drag) = ui.is_dragged(SPACEBAR_PAN_OVERLAY) {
-            self.state.pan_x -= drag.absolute_delta.x as f32;
-            self.state.pan_y -= drag.absolute_delta.y as f32;
+            self.state.pan_x += drag.absolute_delta.x as f32;
+            self.state.pan_y += drag.absolute_delta.y as f32;
         }
 
         // Handle zooming

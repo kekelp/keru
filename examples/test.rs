@@ -12,12 +12,12 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 
     let button = BUTTON
         .text("Click")
-        .sense_hover(true)
+        .sense_drag(true)
         .key(BUTTON_KEY);
     
     ui.add(button);
 
-    if let Some(drag) = ui.is_hovered(BUTTON_KEY) {
+    if let Some(drag) = ui.is_dragged(BUTTON_KEY) {
         dbg!(drag);
     }
     
