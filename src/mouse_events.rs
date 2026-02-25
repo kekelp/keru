@@ -10,10 +10,10 @@ pub(crate) type SmallVec<T> = smallvec::SmallVec<[T; 8]>;
 #[derive(Clone, Debug)]
 pub enum InputEvent {
     /// Mouse button was just pressed
-    Click(PressEvent),
+    Click(ClickEvent),
 
     /// Mouse button was pressed and released on the same node(s)
-    ClickRelease(ClickEvent),
+    ClickRelease(ClickReleaseEvent),
 
     /// Ongoing drag - emitted each frame while dragging
     Drag(DragEvent),
@@ -26,7 +26,7 @@ pub enum InputEvent {
 }
 
 #[derive(Clone, Debug)]
-pub struct PressEvent {
+pub struct ClickEvent {
     pub targets: SmallVec<Id>,
     pub position: Vec2,
     pub button: MouseButton,
@@ -34,7 +34,7 @@ pub struct PressEvent {
 }
 
 #[derive(Clone, Debug)]
-pub struct ClickEvent {
+pub struct ClickReleaseEvent {
     pub targets: SmallVec<Id>,
     pub position: Vec2,
     pub button: MouseButton,
@@ -163,9 +163,9 @@ impl MouseInput {
     ) {
         let now = Instant::now();
 
-        // Emit Press event immediately
+        // Emit Click event immediately
         if !click_targets.is_empty() {
-            self.events.push(InputEvent::Click(PressEvent {
+            self.events.push(InputEvent::Click(ClickEvent {
                 targets: click_targets.clone(),
                 position: self.cursor_position,
                 button,
@@ -202,9 +202,9 @@ impl MouseInput {
                 let pending = self.pending.remove(i);
                 match pending {
                     Pending::Click { press_pos, press_time, targets, .. } => {
-                        // Click if released on same targets as pressed
+                        // ClickRelease if released on same targets as pressed
                         if targets == current_click_targets {
-                            self.events.push(InputEvent::ClickRelease(ClickEvent {
+                            self.events.push(InputEvent::ClickRelease(ClickReleaseEvent {
                                 targets,
                                 position: self.cursor_position,
                                 button,
@@ -248,14 +248,14 @@ impl MouseInput {
 }
 
 impl MouseInput {
-    pub fn presses(&self) -> impl Iterator<Item = &PressEvent> {
+    pub fn clicks(&self) -> impl Iterator<Item = &ClickEvent> {
         self.events.iter().filter_map(|e| match e {
             InputEvent::Click(ev) => Some(ev),
             _ => None,
         })
     }
 
-    pub fn clicks(&self) -> impl Iterator<Item = &ClickEvent> {
+    pub fn click_releases(&self) -> impl Iterator<Item = &ClickReleaseEvent> {
         self.events.iter().filter_map(|e| match e {
             InputEvent::ClickRelease(ev) => Some(ev),
             _ => None,
