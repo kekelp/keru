@@ -223,12 +223,13 @@ impl Ui {
     /// This is useful for moving nodes between parents, for example moving a dragged item to a floating layer.
     ///
     /// Returns `None` if the node doesn't exist.
-    pub fn remove_and_readd(&mut self, key: NodeKey) -> Option<()> {        
+    pub fn remove_and_readd(&mut self, key: NodeKey) -> Option<()> {
         let node_i = self.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
         self.unlink_from_tree(node_i);
 
         let (parent_i, sibling_cursor, depth) = thread_local::current_parent();
-        self.set_tree_links(node_i, parent_i, depth, sibling_cursor);
+        self.link_node_to_parent(node_i, parent_i, depth, sibling_cursor);
+
         Some(())
     }
 
@@ -362,11 +363,11 @@ impl Ui {
 
     // this function also detects new nodes and reorderings, and pushes partial relayouts for them. For deleted nodes, partial relayouts will be pushed in cleanup_and_stuff.
     fn set_tree_links(&mut self, new_node_i: NodeI, parent_i: NodeI, depth: usize, sibling_cursor: SiblingCursor) {
-        assert!(new_node_i != parent_i, "Keru: Internal error: tried to add a node as child of itself ({}). This shouldn't be possible.", self.nodes[new_node_i].debug_name());
+        self.clear_node_children(new_node_i);
+        self.link_node_to_parent(new_node_i, parent_i, depth, sibling_cursor);
+    }
 
-        self.nodes[new_node_i].depth = depth;
-        self.nodes[new_node_i].currently_hidden = false;
-
+    fn clear_node_children(&mut self, new_node_i: NodeI) {
         // Reset old links
         self.nodes[new_node_i].old_first_child = self.nodes[new_node_i].first_child;
         self.nodes[new_node_i].old_next_sibling = self.nodes[new_node_i].next_sibling;
@@ -374,6 +375,13 @@ impl Ui {
         self.nodes[new_node_i].first_child = None;
         self.nodes[new_node_i].last_child = None;
         self.nodes[new_node_i].n_children = 0;
+    }
+
+    fn link_node_to_parent(&mut self, new_node_i: NodeI, parent_i: NodeI, depth: usize, sibling_cursor: SiblingCursor) {
+        assert!(new_node_i != parent_i, "Keru: Internal error: tried to add a node as child of itself ({}). This shouldn't be possible.", self.nodes[new_node_i].debug_name());
+
+        self.nodes[new_node_i].depth = depth;
+        self.nodes[new_node_i].currently_hidden = false;
 
         // If parent changed, convert local_animated_rect to the new parent's coordinate space using screen-space positions from the previous frame.
         let old_parent = self.nodes[new_node_i].parent;
