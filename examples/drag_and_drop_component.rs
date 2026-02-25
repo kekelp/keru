@@ -17,23 +17,27 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .anchor_symm(Anchor::Center);
 
     let special_panel = PANEL
+        .absorbs_clicks(false)
         .animate_position(true)
         .sense_drag(true);
 
-    let (stack, _floater) = ui.add_component(DragAndDropStack { key: STACK });
+    let color_panel = PANEL
+        .absorbs_clicks(false)
+        .size_symm(Size::Pixels(30.0));
 
-    // Just add all items to the stack - run_component will move dragged ones to the floater
-    for &item in &state.items {
-        let key = ITEM.sibling(&item);
 
-        stack.nest(|| {
+    ui.add_component(DragAndDropStack { key: STACK }).nest(|| {
+        
+        for &item in &state.items {
+            let key = ITEM.sibling(&item);
+    
             match item {
                 "special" => {
                     ui.add(special_panel.key(key)).nest(|| {
-                        ui.add(H_STACK).nest(|| {
-                            ui.add(PANEL.color(Color::RED).size_symm(Size::Pixels(30.0)));
-                            ui.add(PANEL.color(Color::GREEN).size_symm(Size::Pixels(30.0)));
-                            ui.add(PANEL.color(Color::BLUE).size_symm(Size::Pixels(30.0)));
+                        ui.add(H_STACK.absorbs_clicks(false)).nest(|| {
+                            ui.add(color_panel.color(Color::RED));
+                            ui.add(color_panel.color(Color::GREEN));
+                            ui.add(color_panel.color(Color::BLUE));
                         });
                     })
                 }
@@ -42,9 +46,9 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                     ui.add(node);
                 }
             };
-        });
-    }
+        }
 
+    });
 
     let mut released_idx = None;
     for (i, item) in state.items.iter().enumerate() {

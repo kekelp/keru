@@ -785,7 +785,6 @@ impl DragAndDropStack {
     #[node_key] pub const HITBOX: NodeKey;
     #[node_key] pub const FLOATING: NodeKey;
     #[node_key] pub const SPACER: NodeKey;
-    #[node_key] pub const ROOT: NodeKey;
 
     fn calc_insertion_index(ui: &Ui, cursor_y: f32) -> usize {
         let children = ui.get_node(Self::STACK).unwrap().children();
@@ -800,26 +799,16 @@ impl DragAndDropStack {
         }
         insertion_index
     }
-
-    fn get_dragged_item_height(ui: &Ui) -> Option<f32> {
-        let floating = ui.get_node(Self::FLOATING)?;
-        let children = floating.children();
-        let first_child = children.first()?;
-        Some(first_child.rect().size().y)
-    }
 }
 
 impl Component for DragAndDropStack {
 
-    type AddResult = (UiParent, UiParent);
+    type AddResult = UiParent;
     type ComponentOutput = DropEvent;
     type State = ();
 
     fn add_to_ui(&mut self, ui: &mut Ui, _state: &mut Self::State) -> Self::AddResult {
-        let root = CONTAINER
-            .animate_position(true)
-            .key(Self::ROOT);
-
+    
         let stack = V_STACK
             .animate_position(true)
             .size_x(Size::Pixels(100.0))
@@ -836,17 +825,20 @@ impl Component for DragAndDropStack {
             .animate_position(true)
             .absorbs_clicks(false);
 
+        let hover_hitbox = CONTAINER
+            .sense_drag_drop_target(true)
+            .size_x(Size::Pixels(200.0))
+            .size_y(Size::Fill)
+            .absorbs_clicks(false)
+            .key(Self::HITBOX);            
 
-        ui.add(root).nest(|| {
+        ui.add(hover_hitbox);
 
-            let stack_parent = ui.add(stack);
-            
-            let dragged_parent = ui.jump_to_root().nest(|| {
-                ui.add(floater)
-            });
-            
-            return (stack_parent, dragged_parent);
-        })
+        ui.jump_to_root().nest(|| {
+            ui.add(floater)
+        });
+        
+        return ui.add(stack);
     }
 
     fn component_key(&self) -> Option<ComponentKey<Self>> {
@@ -854,59 +846,47 @@ impl Component for DragAndDropStack {
     }
 
     fn run_component(ui: &mut Ui) -> Option<Self::ComponentOutput> {
+
         let pos = ui.cursor_position();
         let insertion_index = Self::calc_insertion_index(ui, pos.y);
+        
+        let mut dragged_key = None;
+        let mut dragged_height = None;
 
-        // Add the hitbox now so it's on top of children
-        let hover_hitbox = CONTAINER
-            .sense_drag_drop_target(true)
-            .size_x(Size::Pixels(200.0))
-            .size_y(Size::Fill)
-            .absorbs_clicks(false)
-            // .color(Color::KERU_DEBUG_RED)
-            // .visible()
-            .key(Self::HITBOX);            
-
-        ui.jump_to_parent(Self::ROOT).unwrap().nest(|| {
-            ui.add(hover_hitbox);
-        });
-
-        // Move dragged children to the floating layer
-        let dragged_keys: Vec<_> = ui.get_node(Self::STACK)
-            .map(|stack| stack.children()
-                .into_iter()
-                .filter(|c| c.is_dragged().is_some())
-                .map(|c| c.temp_key())
-                .collect())
-            .unwrap_or_default();
-
-        ui.jump_to_parent(Self::FLOATING).unwrap().nest(|| {
-            for key in dragged_keys {
-                ui.remove_and_readd(key);
+        if let Some(stack) = ui.get_node(Self::STACK) {
+            for child in stack.children() {
+                if child.is_dragged().is_some() || child.is_drag_released() {
+                    dragged_key = Some(child.temp_key());
+                    dragged_height = Some(child.rect().size().y);
+                    break;
+                }
             }
-        });
-
-        let hovered = ui.is_any_drag_hovered_onto(Self::HITBOX).is_some();
-        let drag_released = ui.is_any_drag_released_onto(Self::HITBOX).is_some();
-        if hovered || drag_released {
-
-            // Get height from dragged item if available, otherwise use default
-            let spacer_height = Self::get_dragged_item_height(ui).unwrap_or(60.0);
-
-            // Insert spacer at the calculated position
-            ui.jump_to_nth_child(Self::STACK, insertion_index).unwrap().nest(|| {
-                let spacer = SPACER
-                    .key(Self::SPACER)
-                    .size_y(Size::Pixels(spacer_height))
-                    .absorbs_clicks(false)
-                    .animate_position(true);
-
-                ui.add(spacer);
-            });
         }
 
+        dbg!(insertion_index);
 
+        if let (Some(key), Some(height)) = (dragged_key, dragged_height) {
 
+            let hovered = ui.is_any_drag_hovered_onto(Self::HITBOX).is_some();
+            let drag_released = ui.is_any_drag_released_onto(Self::HITBOX).is_some();
+            if hovered || drag_released {
+
+                // Insert spacer at the calculated position
+                ui.jump_to_nth_child(Self::STACK, insertion_index).unwrap().nest(|| {
+                    let spacer = SPACER
+                        .key(Self::SPACER)
+                        .size_y(Size::Pixels(height))
+                        .absorbs_clicks(false)
+                        .animate_position(true);
+
+                    ui.add(spacer);
+                });
+            }
+
+            ui.jump_to_parent(Self::FLOATING).unwrap().nest(|| {
+                ui.remove_and_readd(key);
+            });
+        }
 
         // Return drop info when something is released onto the stack
         if let Some(drag) = ui.is_any_drag_released_onto(Self::HITBOX) {
