@@ -16,52 +16,20 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .size_x(Size::Pixels(100.0))
         .anchor_symm(Anchor::Center);
 
-    let special_panel = PANEL
-        .absorbs_clicks(false)
-        .animate_position(true)
-        .sense_drag(true);
-
-    let color_panel = PANEL
-        .absorbs_clicks(false)
-        .size_symm(Size::Pixels(30.0));
-
-
-    ui.add_component(DragAndDropStack { key: STACK }).nest(|| {
-        
+    let component = DragAndDropStack { key: STACK };
+    
+    ui.add_component(component).nest(|| {
         for &item in &state.items {
             let key = ITEM.sibling(&item);
-    
-            match item {
-                "special" => {
-                    ui.add(special_panel.key(key)).nest(|| {
-                        ui.add(H_STACK.absorbs_clicks(false)).nest(|| {
-                            ui.add(color_panel.color(Color::RED));
-                            ui.add(color_panel.color(Color::GREEN));
-                            ui.add(color_panel.color(Color::BLUE));
-                        });
-                    })
-                }
-                _ =>  {
-                    let node = item_base.text(&item).key(key);
-                    ui.add(node);
-                }
-            };
+            let node = item_base.text(&item).key(key);
+            ui.add(node);
         }
-
     });
 
-    let mut released_idx = None;
-    for (i, item) in state.items.iter().enumerate() {
-        if ui.is_drag_released(ITEM.sibling(&item)) {
-            released_idx = Some(i);
-        }
-    }
-
-    if let Some(drop) = ui.run_component(STACK) {
-        if let Some(old_idx) = released_idx {
-            let item = state.items.remove(old_idx);
-            state.items.insert(drop.insertion_index.min(state.items.len()), item);
-        }
+    if let Some((move_from, move_to)) = ui.run_component(STACK) {
+        let item = state.items.remove(move_from);
+        let adjusted = if move_to > move_from { move_to - 1 } else { move_to };
+        state.items.insert(adjusted.min(state.items.len()), item);
     }
 }
 

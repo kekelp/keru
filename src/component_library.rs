@@ -774,12 +774,6 @@ pub struct DragAndDropStack {
     pub key: ComponentKey<Self>,
 }
 
-/// Output from DragAndDropStack when something is dropped onto it
-pub struct DropEvent {
-    pub insertion_index: usize,
-    pub drag: Drag,
-}
-
 impl DragAndDropStack {
     #[node_key] pub const STACK: NodeKey;
     #[node_key] pub const HITBOX: NodeKey;
@@ -804,7 +798,7 @@ impl DragAndDropStack {
 impl Component for DragAndDropStack {
 
     type AddResult = UiParent;
-    type ComponentOutput = DropEvent;
+    type ComponentOutput = (usize, usize);
     type State = ();
 
     fn add_to_ui(&mut self, ui: &mut Ui, _state: &mut Self::State) -> Self::AddResult {
@@ -849,23 +843,23 @@ impl Component for DragAndDropStack {
 
         let pos = ui.cursor_position();
         let insertion_index = Self::calc_insertion_index(ui, pos.y);
-        
+
         let mut dragged_key = None;
         let mut dragged_height = None;
+        let mut dragged_index = None;
 
         if let Some(stack) = ui.get_node(Self::STACK) {
-            for child in stack.children() {
+            for (i, child) in stack.children().iter().enumerate() {
                 if child.is_dragged().is_some() || child.is_drag_released() {
                     dragged_key = Some(child.temp_key());
                     dragged_height = Some(child.rect().size().y);
+                    dragged_index = Some(i);
                     break;
                 }
             }
         }
 
-        dbg!(insertion_index);
-
-        if let (Some(key), Some(height)) = (dragged_key, dragged_height) {
+        if let (Some(key), Some(height), Some(from_index)) = (dragged_key, dragged_height, dragged_index) {
 
             let hovered = ui.is_any_drag_hovered_onto(Self::HITBOX).is_some();
             let drag_released = ui.is_any_drag_released_onto(Self::HITBOX).is_some();
@@ -886,12 +880,12 @@ impl Component for DragAndDropStack {
             ui.jump_to_parent(Self::FLOATING).unwrap().nest(|| {
                 ui.remove_and_readd(key);
             });
-        }
 
-        // Return drop info when something is released onto the stack
-        if let Some(drag) = ui.is_any_drag_released_onto(Self::HITBOX) {
-            return Some(DropEvent { insertion_index, drag });
-        } 
+            // Return swap indices when drag is released
+            if drag_released && from_index != insertion_index {
+                return Some((from_index, insertion_index));
+            }
+        }
 
         None
     }
