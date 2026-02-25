@@ -5,7 +5,7 @@ use winit::event::MouseButton;
 
 use crate::*;
 use crate::inner_node::*;
-use crate::winit_mouse_events::FullMouseEvent;
+use crate::winit_mouse_events::MouseEvent;
 use crate::Axis::*;
 
 pub struct UiNode<'a> {
@@ -260,8 +260,7 @@ impl UiNode<'_> {
             return false;
         }
 
-        let clicked = self.ui.sys.mouse_input.clicked(Some(MouseButton::Left), Some(self.node().id));
-        return clicked;
+        self.ui.check_clicked(self.node().id, MouseButton::Left)
     }
 
     pub fn is_focused(&self) -> bool {
@@ -272,46 +271,46 @@ impl UiNode<'_> {
     /// 
     /// If the node was clicked multiple times in the last frame, the result holds the information about the last click only.
     pub fn clicked_at(&self) -> Option<Click> {
-         #[cfg(debug_assertions)]
-        if !self.check_node_sense(Sense::CLICK, "clicked_at()", "Node::sense_click()") {
+        #[cfg(debug_assertions)]
+        if ! self.check_node_sense(Sense::CLICK, "clicked_at()", "Node::sense_click()") {
             return None;
         }
 
-        let mouse_record = self.ui.sys.mouse_input.clicked_at(Some(MouseButton::Left), Some(self.node().id))?;
+        let event = self.ui.check_clicked_at(self.node().id, MouseButton::Left)?;
         let node_rect = self.node().real_rect;
-        
+
         let relative_position = glam::Vec2::new(
-            ((mouse_record.position.x / self.ui.sys.size.x) - (node_rect.x[0])) / node_rect.size().x,
-            ((mouse_record.position.y / self.ui.sys.size.y) - (node_rect.y[0])) / node_rect.size().y,
+            ((event.press_pos.x / self.ui.sys.size.x) - node_rect.x[0]) / node_rect.size().x,
+            ((event.press_pos.y / self.ui.sys.size.y) - node_rect.y[0]) / node_rect.size().y,
         );
         
-        return Some(Click {
+        Some(Click {
             relative_position,
-            absolute_position: mouse_record.position,
-            timestamp: mouse_record.timestamp,
-        });
+            absolute_position: event.press_pos,
+            timestamp: event.press_time,
+        })
     }
 
     /// Returns `true` if a left button mouse click was just released on the node corresponding to `key`.
     pub fn is_click_released(&self) -> bool {
-         #[cfg(debug_assertions)]
+        #[cfg(debug_assertions)]
         if ! self.check_node_sense(Sense::CLICK_RELEASE, "is_click_released()", "Node::sense_click()") {
             return false;
         }
 
-        return self.ui.sys.mouse_input.click_released(Some(MouseButton::Left), Some(self.node().id));
+        self.ui.check_click_released(self.node().id, MouseButton::Left)
     }
 
     /// Returns `true` if a left button mouse drag on the node corresponding to `key` was just released.
-    /// 
+    ///
     /// Unlike [`Self::is_click_released()`], this is `true` even if the pointer is not on the node anymore when the button is released.
     pub fn is_drag_released(&self) -> bool {
-    #[cfg(debug_assertions)]
+        #[cfg(debug_assertions)]
         if ! self.check_node_sense(Sense::DRAG, "is_drag_released()", "Node::sense_drag()") {
             return false;
         }
 
-        return self.ui.sys.mouse_input.drag_released(Some(MouseButton::Left), Some(self.node().id));
+        self.ui.check_drag_released(self.node().id, MouseButton::Left)
     }
 
     /// If a left button mouse drag on this node was just released onto the node corresponding to the `dest` key, returns the drag info.
@@ -326,9 +325,9 @@ impl UiNode<'_> {
             return None;
         }
 
-        let mouse_record = self.ui.sys.mouse_input.drag_released_onto(Some(MouseButton::Left), Some(self.node().id), Some(dest.id_with_subtree()))?;
+        let event = self.ui.check_drag_released_onto(self.node().id, dest.id_with_subtree(), MouseButton::Left)?;
         let dest_rect = self.ui.get_node(dest)?.node().real_rect;
-        self.drag_from_mouse_record_with_rect(&mouse_record, dest_rect)
+        self.drag_from_event_with_rect(&event, dest_rect)
     }
 
     /// If a left button mouse drag on this node is currently hovering over the node corresponding to the `dest` key, returns the drag info.
@@ -343,48 +342,48 @@ impl UiNode<'_> {
             return None;
         }
 
-        let mouse_record = self.ui.sys.mouse_input.drag_hovered_onto(Some(MouseButton::Left), Some(self.node().id), Some(dest.id_with_subtree()))?;
+        let event = self.ui.check_drag_hovered_onto(self.node().id, dest.id_with_subtree(), MouseButton::Left)?;
         let dest_rect = self.ui.get_node(dest)?.node().real_rect;
-        self.drag_from_mouse_record_with_rect(&mouse_record, dest_rect)
+        self.drag_from_event_with_rect(&event, dest_rect)
     }
 
-    fn drag_from_mouse_record(&self, mouse_record: &FullMouseEvent<Id>) -> Option<Drag> {
-        self.drag_from_mouse_record_with_rect(mouse_record, self.node().real_rect)
+    fn drag_from_event(&self, event: &MouseEvent) -> Option<Drag> {
+        self.drag_from_event_with_rect(event, self.node().real_rect)
     }
 
-    fn drag_from_mouse_record_with_rect(&self, mouse_record: &FullMouseEvent<Id>, node_rect: XyRect) -> Option<Drag> {
-        if mouse_record.total_drag_distance() == Vec2::ZERO {
+    fn drag_from_event_with_rect(&self, event: &MouseEvent, node_rect: XyRect) -> Option<Drag> {
+        if event.total_drag() == Vec2::ZERO {
             return None;
         }
-        
+
         let relative_position = glam::Vec2::new(
-            ((mouse_record.currently_at.position.x / self.ui.sys.size.x) - (node_rect.x[0])) / node_rect.size().x,
-            ((mouse_record.currently_at.position.y / self.ui.sys.size.y) - (node_rect.y[0])) / node_rect.size().y,
+            ((event.current_pos.x / self.ui.sys.size.x) - node_rect.x[0]) / node_rect.size().x,
+            ((event.current_pos.y / self.ui.sys.size.y) - node_rect.y[0]) / node_rect.size().y,
         );
         let relative_delta = glam::Vec2::new(
-            mouse_record.drag_distance().x / (node_rect.size().x * self.ui.sys.size.x),
-            mouse_record.drag_distance().y / (node_rect.size().y * self.ui.sys.size.y),
+            event.frame_drag().x / (node_rect.size().x * self.ui.sys.size.x),
+            event.frame_drag().y / (node_rect.size().y * self.ui.sys.size.y),
         );
 
         Some(Drag {
             relative_position,
-            absolute_pos: mouse_record.currently_at.position,
+            absolute_pos: event.current_pos,
             relative_delta,
-            absolute_delta: mouse_record.drag_distance(),
-            pressed_timestamp: mouse_record.originally_pressed.timestamp,
-            total_drag_distance: mouse_record.total_drag_distance(),
+            absolute_delta: event.frame_drag(),
+            pressed_timestamp: event.press_time,
+            total_drag_distance: event.total_drag(),
         })
     }
 
     /// If the node was dragged with a specific mouse button, returns a struct describing the drag event. Otherwise, returns `None`.
     pub fn is_mouse_button_dragged(&self, button: MouseButton) -> Option<Drag> {
-         #[cfg(debug_assertions)]
-        if !self.check_node_sense(Sense::DRAG, "is_mouse_button_dragged()", "Node::sense_drag()") {
+        #[cfg(debug_assertions)]
+        if ! self.check_node_sense(Sense::DRAG, "is_mouse_button_dragged()", "Node::sense_drag()") {
             return None;
         }
 
-        let mouse_record = self.ui.sys.mouse_input.dragged_at(Some(button), Some(self.node().id))?;
-        self.drag_from_mouse_record(&mouse_record)
+        let event = self.ui.check_dragged(self.node().id, button)?;
+        self.drag_from_event(&event)
     }
 
     /// If the node corresponding to `key` was dragged, returns a struct describing the drag event. Otherwise, returns `None`.
@@ -392,65 +391,65 @@ impl UiNode<'_> {
         self.is_mouse_button_dragged(MouseButton::Left)
     }
 
-   /// If the node corresponding to `key` was being held with the left mouse button in the last frame, returns the duration for which it was held.
+    /// If the node corresponding to `key` was being held with the left mouse button in the last frame, returns the duration for which it was held.
     pub fn is_held(&self) -> Option<Duration> {
         #[cfg(debug_assertions)]
         if ! self.check_node_sense(Sense::HOLD, "is_held()", "Node::sense_hold()") {
             return None;
         }
 
-        return self.ui.sys.mouse_input.held(Some(MouseButton::Left), Some(self.node().id));
+        self.ui.check_held_duration(self.node().id, MouseButton::Left)
     }
 
     /// If the node is currently hovered by the cursor, returns hover information including position.
     pub fn is_hovered(&self) -> Option<Hover> {
         #[cfg(debug_assertions)]
-        if !self.check_node_sense(Sense::HOVER, "is_hovered", "Node::sense_hover()") {
+        if ! self.check_node_sense(Sense::HOVER, "is_hovered", "Node::sense_hover()") {
             return None;
         }
 
-        if self.ui.sys.mouse_input.hovered(&self.node().id) {
-            return Some(Hover {
+        if self.ui.check_hovered(self.node().id) {
+            Some(Hover {
                 absolute_position: self.ui.cursor_position(),
-            });
+            })
         } else {
-            return None;
+            None
         }
     }
 
     /// If the node was scrolled in the last frame, returns a struct containing detailed information of the scroll event. Otherwise, returns `None`.
-    /// 
+    ///
     /// If the node was scrolled multiple times in the last frame, the result holds the information about the last scroll only.
     pub fn scrolled_at(&self) -> Option<ScrollEvent> {
         #[cfg(debug_assertions)]
-        if !self.check_node_sense(Sense::SCROLL, "scrolled_at()", "Node::sense_scroll()") {
+        if ! self.check_node_sense(Sense::SCROLL, "scrolled_at()", "Node::sense_scroll()") {
             return None;
         }
 
-        let scroll_event = self.ui.sys.mouse_input.last_scroll_event(Some(self.node().id))?;
+        let scroll_event = self.ui.check_last_scroll_event(self.node().id)?;
         let node_rect = self.node().real_rect;
 
         let relative_position = glam::Vec2::new(
-            ((scroll_event.position.x / self.ui.sys.size.x) - (node_rect.x[0])) / node_rect.size().x,
-            ((scroll_event.position.y / self.ui.sys.size.y) - (node_rect.y[0])) / node_rect.size().y,
+            ((scroll_event.position.x / self.ui.sys.size.x) - node_rect.x[0]) / node_rect.size().x,
+            ((scroll_event.position.y / self.ui.sys.size.y) - node_rect.y[0]) / node_rect.size().y,
         );
 
-        return Some(ScrollEvent {
+        Some(ScrollEvent {
             relative_position,
             absolute_position: scroll_event.position,
             delta: scroll_event.delta,
             timestamp: scroll_event.timestamp,
-        });
+        })
     }
 
     /// Returns the total scroll delta for this node in the last frame, or None if no scroll events occurred.
     pub fn is_scrolled(&self) -> Option<glam::Vec2> {
         #[cfg(debug_assertions)]
-        if !self.check_node_sense(Sense::SCROLL, "is_scrolled()", "Node::sense_scroll()") {
+        if ! self.check_node_sense(Sense::SCROLL, "is_scrolled()", "Node::sense_scroll()") {
             return None;
         }
 
-        return self.ui.sys.mouse_input.scrolled(Some(self.node().id));
+        self.ui.check_scrolled(self.node().id)
     }
 }
 
@@ -565,30 +564,30 @@ impl Ui {
             }
         }
 
-        let mouse_record = self.sys.mouse_input.drag_hovered_onto(Some(MouseButton::Left), None, Some(dest.id_with_subtree()))?;
+        let event = self.check_any_drag_hovered_onto(dest.id_with_subtree(), MouseButton::Left)?;
         let dest_node = self.get_node(dest)?;
         let dest_rect = dest_node.node().real_rect;
 
-        if mouse_record.total_drag_distance() == Vec2::ZERO {
+        if event.total_drag() == Vec2::ZERO {
             return None;
         }
 
         let relative_position = glam::Vec2::new(
-            ((mouse_record.currently_at.position.x / self.sys.size.x) - (dest_rect.x[0])) / dest_rect.size().x,
-            ((mouse_record.currently_at.position.y / self.sys.size.y) - (dest_rect.y[0])) / dest_rect.size().y,
+            ((event.current_pos.x / self.sys.size.x) - dest_rect.x[0]) / dest_rect.size().x,
+            ((event.current_pos.y / self.sys.size.y) - dest_rect.y[0]) / dest_rect.size().y,
         );
         let relative_delta = glam::Vec2::new(
-            mouse_record.drag_distance().x / (dest_rect.size().x * self.sys.size.x),
-            mouse_record.drag_distance().y / (dest_rect.size().y * self.sys.size.y),
+            event.frame_drag().x / (dest_rect.size().x * self.sys.size.x),
+            event.frame_drag().y / (dest_rect.size().y * self.sys.size.y),
         );
 
         Some(Drag {
             relative_position,
-            absolute_pos: mouse_record.currently_at.position,
+            absolute_pos: event.current_pos,
             relative_delta,
-            absolute_delta: mouse_record.drag_distance(),
-            pressed_timestamp: mouse_record.originally_pressed.timestamp,
-            total_drag_distance: mouse_record.total_drag_distance(),
+            absolute_delta: event.frame_drag(),
+            pressed_timestamp: event.press_time,
+            total_drag_distance: event.total_drag(),
         })
     }
 
@@ -610,30 +609,30 @@ impl Ui {
             }
         }
 
-        let mouse_record = self.sys.mouse_input.drag_released_onto(Some(MouseButton::Left), None, Some(dest.id_with_subtree()))?;
+        let event = self.check_any_drag_released_onto(dest.id_with_subtree(), MouseButton::Left)?;
         let dest_node = self.get_node(dest)?;
         let dest_rect = dest_node.node().real_rect;
 
-        if mouse_record.total_drag_distance() == Vec2::ZERO {
+        if event.total_drag() == Vec2::ZERO {
             return None;
         }
 
         let relative_position = glam::Vec2::new(
-            ((mouse_record.currently_at.position.x / self.sys.size.x) - (dest_rect.x[0])) / dest_rect.size().x,
-            ((mouse_record.currently_at.position.y / self.sys.size.y) - (dest_rect.y[0])) / dest_rect.size().y,
+            ((event.current_pos.x / self.sys.size.x) - dest_rect.x[0]) / dest_rect.size().x,
+            ((event.current_pos.y / self.sys.size.y) - dest_rect.y[0]) / dest_rect.size().y,
         );
         let relative_delta = glam::Vec2::new(
-            mouse_record.drag_distance().x / (dest_rect.size().x * self.sys.size.x),
-            mouse_record.drag_distance().y / (dest_rect.size().y * self.sys.size.y),
+            event.frame_drag().x / (dest_rect.size().x * self.sys.size.x),
+            event.frame_drag().y / (dest_rect.size().y * self.sys.size.y),
         );
 
         Some(Drag {
             relative_position,
-            absolute_pos: mouse_record.currently_at.position,
+            absolute_pos: event.current_pos,
             relative_delta,
-            absolute_delta: mouse_record.drag_distance(),
-            pressed_timestamp: mouse_record.originally_pressed.timestamp,
-            total_drag_distance: mouse_record.total_drag_distance(),
+            absolute_delta: event.frame_drag(),
+            pressed_timestamp: event.press_time,
+            total_drag_distance: event.total_drag(),
         })
     }
 

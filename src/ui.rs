@@ -10,7 +10,7 @@ pub use keru_draw::{TextStyle2 as TextStyle, ColorBrush};
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
 use winit_key_events::KeyInput;
-use winit_mouse_events::MouseInput;
+use winit_mouse_events::{MouseInput, SmallVec};
 
 use std::any::Any;
 use std::collections::BinaryHeap;
@@ -113,8 +113,7 @@ pub(crate) struct System {
     pub second_last_frame_end_fake_time: u64,
     pub third_last_frame_end_fake_time: u64,
 
-    // mouse input needs to be Id based, not NodeI based, because you can hold a button for several frames
-    pub mouse_input: MouseInput<Id>,
+    pub mouse_input: MouseInput,
     pub key_input: KeyInput,
     
     pub text_edit_changed_last_frame: Option<Id>,
@@ -489,7 +488,7 @@ impl Ui {
     }
 
     pub fn scroll_delta(&self) -> Option<glam::Vec2> {
-        return self.sys.mouse_input.scrolled(None);
+        self.global_scroll_delta()
     }
 
     pub(crate) fn set_new_ui_input(&mut self) {

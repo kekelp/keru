@@ -56,65 +56,36 @@ impl Ui {
             WindowEvent::CursorMoved { position, .. } => {
                 self.resolve_hover();
 
-                // Set new input if this is a hover or a drag
-                // todo: similar things happen inside resolve_hover, why though
                 let last_cursor_pos = self.sys.mouse_input.prev_cursor_position();
                 if vec2(position.x as f32, position.y as f32) != last_cursor_pos {
                     let has_hover_sense = self.sys.hovered.iter()
                         .filter_map(|id| self.nodes.get_by_id_ick(id).map(|(node, _)| node))
                         .any(|node| node.params.interact.senses.contains(Sense::HOVER));
 
-                    let has_drag = self.sys.mouse_input.currently_pressed_tags()
-                        .filter_map(|(tag, _)| tag.and_then(|id| self.nodes.get_by_id_ick(&id).map(|(node, _)| node)))
+                    let has_drag = self.sys.mouse_input.currently_pressed()
+                        .filter_map(|(id, _)| self.nodes.get_by_id_ick(&id).map(|(node, _)| node))
                         .any(|node| node.params.interact.senses.contains(Sense::DRAG));
 
                     if has_hover_sense || has_drag {
                         self.set_new_ui_input();
                     }
                 }
-
-                // cursormoved is never consumed
             }
             WindowEvent::MouseInput { button, state, .. } => {
                 match state {
                     ElementState::Pressed => {
-                        let mut any_consumed = false;
-                        // Clone to avoid borrow checker issues
-                        let hovered_tags = self.sys.mouse_input.currently_hovered_tags.clone();
-                        // Resolve click press for all currently hovered tags
-                        for tag in hovered_tags.iter() {
-                            if let Some(clicked_i) = self.nodes.get_by_id(Some(*tag)) {
-                                let consumed = self.resolve_click_press(*button, event, window, clicked_i);
-                                any_consumed = any_consumed || consumed;
-                            }
-                        }
-                        return any_consumed;
-                    },
+                        return self.handle_mouse_press(*button, window);
+                    }
                     ElementState::Released => {
-                        let hovered_tags = self.sys.mouse_input.currently_hovered_tags.clone();
-
-                        for tag in hovered_tags {
-                            if let Some(clicked_i) = self.nodes.get_by_id(Some(tag)) {
-                                if self.nodes[clicked_i].params.interact.senses.contains(Sense::CLICK_RELEASE) ||
-                                    self.nodes[clicked_i].params.interact.senses.contains(Sense::DRAG)  {
-                                    self.set_new_ui_input();
-                                }
-                            }
-                        }
-
-                        // Consuming mouse releases can very easily mess things up for whoever is below us.
-                        // Some unexpected mouse releases probably won't be too annoying.
-                        return false
-                    },
+                        self.handle_mouse_release(*button);
+                        return false;
+                    }
                 }
             }
             WindowEvent::KeyboardInput { event, is_synthetic, .. } => {
-                // todo: set new_input only if a node is focused? hard to tell... users probably *shouldn't* listen for unconditional key inputs, but they definitely can
-                // probably should have two different bools: one for focused input, one for generic new input. the event loop can decide to wake up and/or update depending on either 
                 self.set_new_ui_input();
                 if !is_synthetic {
-                    let consumed = self.handle_keyboard_event(event);
-                    return consumed;
+                    return self.handle_keyboard_event(event);
                 }
             }
             WindowEvent::Ime(_) => {
@@ -130,7 +101,7 @@ impl Ui {
             }
             _ => {}
         }
-        return false;
+        false
     }
 
     /// Render a node's shape using keru_draw.

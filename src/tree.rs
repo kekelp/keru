@@ -716,7 +716,7 @@ impl Ui {
     ///
     /// This function must be called once per frame, after calling [`Ui::begin_frame()`] and running your ui declaration code.
     pub fn finish_frame(&mut self) {
-        log::trace!("Finished Ui update");        
+        log::trace!("Finished Ui update");
         // pop the root node
         thread_local::pop_parent();
 
@@ -738,6 +738,7 @@ impl Ui {
         // not sure if still needed
         self.sys.needs_update.store(false, std::sync::atomic::Ordering::Relaxed);
 
+        self.sys.mouse_input.finish_frame();
         reset_arena();
     }
 

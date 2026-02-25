@@ -777,7 +777,7 @@ pub(crate) const COMPONENT_ROOT: Node = Node {
         click_animation: false,
     },
     layout: Layout {
-        size: Xy::new_symm(Fill),
+        size: Xy::new_symm(FitContent),
         padding: Xy::new_symm(0.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
