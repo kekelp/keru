@@ -5,7 +5,7 @@ use winit::event::MouseButton;
 
 use crate::*;
 use crate::inner_node::*;
-use crate::winit_mouse_events::MouseEvent;
+use crate::mouse_events::{DragEvent, DragReleaseEvent};
 use crate::Axis::*;
 
 pub struct UiNode<'a> {
@@ -268,7 +268,7 @@ impl UiNode<'_> {
     }
 
     /// If the node corresponding to `key` was clicked in the last frame, returns a struct containing detailed information of the click. Otherwise, returns `None`.
-    /// 
+    ///
     /// If the node was clicked multiple times in the last frame, the result holds the information about the last click only.
     pub fn clicked_at(&self) -> Option<Click> {
         #[cfg(debug_assertions)]
@@ -280,13 +280,13 @@ impl UiNode<'_> {
         let node_rect = self.node().real_rect;
 
         let relative_position = glam::Vec2::new(
-            ((event.press_pos.x / self.ui.sys.size.x) - node_rect.x[0]) / node_rect.size().x,
-            ((event.press_pos.y / self.ui.sys.size.y) - node_rect.y[0]) / node_rect.size().y,
+            ((event.position.x / self.ui.sys.size.x) - node_rect.x[0]) / node_rect.size().x,
+            ((event.position.y / self.ui.sys.size.y) - node_rect.y[0]) / node_rect.size().y,
         );
-        
+
         Some(Click {
             relative_position,
-            absolute_position: event.press_pos,
+            absolute_position: event.position,
             timestamp: event.press_time,
         })
     }
@@ -327,7 +327,7 @@ impl UiNode<'_> {
 
         let event = self.ui.check_drag_released_onto(self.node().id, dest.id_with_subtree(), MouseButton::Left)?;
         let dest_rect = self.ui.get_node(dest)?.node().real_rect;
-        self.drag_from_event_with_rect(&event, dest_rect)
+        self.drag_from_release_event_with_rect(event, dest_rect)
     }
 
     /// If a left button mouse drag on this node is currently hovering over the node corresponding to the `dest` key, returns the drag info.
@@ -344,34 +344,46 @@ impl UiNode<'_> {
 
         let event = self.ui.check_drag_hovered_onto(self.node().id, dest.id_with_subtree(), MouseButton::Left)?;
         let dest_rect = self.ui.get_node(dest)?.node().real_rect;
-        self.drag_from_event_with_rect(&event, dest_rect)
+        self.drag_from_event_with_rect(event, dest_rect)
     }
 
-    fn drag_from_event(&self, event: &MouseEvent) -> Option<Drag> {
+    fn drag_from_event(&self, event: &DragEvent) -> Option<Drag> {
         self.drag_from_event_with_rect(event, self.node().real_rect)
     }
 
-    fn drag_from_event_with_rect(&self, event: &MouseEvent, node_rect: XyRect) -> Option<Drag> {
-        if event.total_drag() == Vec2::ZERO {
-            return None;
-        }
-
+    fn drag_from_event_with_rect(&self, event: &DragEvent, node_rect: XyRect) -> Option<Drag> {
         let relative_position = glam::Vec2::new(
             ((event.current_pos.x / self.ui.sys.size.x) - node_rect.x[0]) / node_rect.size().x,
             ((event.current_pos.y / self.ui.sys.size.y) - node_rect.y[0]) / node_rect.size().y,
         );
         let relative_delta = glam::Vec2::new(
-            event.frame_drag().x / (node_rect.size().x * self.ui.sys.size.x),
-            event.frame_drag().y / (node_rect.size().y * self.ui.sys.size.y),
+            event.frame_delta.x / (node_rect.size().x * self.ui.sys.size.x),
+            event.frame_delta.y / (node_rect.size().y * self.ui.sys.size.y),
         );
 
         Some(Drag {
             relative_position,
             absolute_pos: event.current_pos,
             relative_delta,
-            absolute_delta: event.frame_drag(),
-            pressed_timestamp: event.press_time,
-            total_drag_distance: event.total_drag(),
+            absolute_delta: event.frame_delta,
+            pressed_timestamp: event.start_time,
+            total_drag_distance: event.total_delta,
+        })
+    }
+
+    fn drag_from_release_event_with_rect(&self, event: &DragReleaseEvent, node_rect: XyRect) -> Option<Drag> {
+        let relative_position = glam::Vec2::new(
+            ((event.end_pos.x / self.ui.sys.size.x) - node_rect.x[0]) / node_rect.size().x,
+            ((event.end_pos.y / self.ui.sys.size.y) - node_rect.y[0]) / node_rect.size().y,
+        );
+
+        Some(Drag {
+            relative_position,
+            absolute_pos: event.end_pos,
+            relative_delta: Vec2::ZERO, // No frame delta on release
+            absolute_delta: Vec2::ZERO,
+            pressed_timestamp: event.start_time,
+            total_drag_distance: event.total_delta,
         })
     }
 
@@ -383,7 +395,7 @@ impl UiNode<'_> {
         }
 
         let event = self.ui.check_dragged(self.node().id, button)?;
-        self.drag_from_event(&event)
+        self.drag_from_event(event)
     }
 
     /// If the node corresponding to `key` was dragged, returns a struct describing the drag event. Otherwise, returns `None`.
@@ -568,26 +580,22 @@ impl Ui {
         let dest_node = self.get_node(dest)?;
         let dest_rect = dest_node.node().real_rect;
 
-        if event.total_drag() == Vec2::ZERO {
-            return None;
-        }
-
         let relative_position = glam::Vec2::new(
             ((event.current_pos.x / self.sys.size.x) - dest_rect.x[0]) / dest_rect.size().x,
             ((event.current_pos.y / self.sys.size.y) - dest_rect.y[0]) / dest_rect.size().y,
         );
         let relative_delta = glam::Vec2::new(
-            event.frame_drag().x / (dest_rect.size().x * self.sys.size.x),
-            event.frame_drag().y / (dest_rect.size().y * self.sys.size.y),
+            event.frame_delta.x / (dest_rect.size().x * self.sys.size.x),
+            event.frame_delta.y / (dest_rect.size().y * self.sys.size.y),
         );
 
         Some(Drag {
             relative_position,
             absolute_pos: event.current_pos,
             relative_delta,
-            absolute_delta: event.frame_drag(),
-            pressed_timestamp: event.press_time,
-            total_drag_distance: event.total_drag(),
+            absolute_delta: event.frame_delta,
+            pressed_timestamp: event.start_time,
+            total_drag_distance: event.total_delta,
         })
     }
 
@@ -613,26 +621,18 @@ impl Ui {
         let dest_node = self.get_node(dest)?;
         let dest_rect = dest_node.node().real_rect;
 
-        if event.total_drag() == Vec2::ZERO {
-            return None;
-        }
-
         let relative_position = glam::Vec2::new(
-            ((event.current_pos.x / self.sys.size.x) - dest_rect.x[0]) / dest_rect.size().x,
-            ((event.current_pos.y / self.sys.size.y) - dest_rect.y[0]) / dest_rect.size().y,
-        );
-        let relative_delta = glam::Vec2::new(
-            event.frame_drag().x / (dest_rect.size().x * self.sys.size.x),
-            event.frame_drag().y / (dest_rect.size().y * self.sys.size.y),
+            ((event.end_pos.x / self.sys.size.x) - dest_rect.x[0]) / dest_rect.size().x,
+            ((event.end_pos.y / self.sys.size.y) - dest_rect.y[0]) / dest_rect.size().y,
         );
 
         Some(Drag {
             relative_position,
-            absolute_pos: event.current_pos,
-            relative_delta,
-            absolute_delta: event.frame_drag(),
-            pressed_timestamp: event.press_time,
-            total_drag_distance: event.total_drag(),
+            absolute_pos: event.end_pos,
+            relative_delta: Vec2::ZERO,
+            absolute_delta: Vec2::ZERO,
+            pressed_timestamp: event.start_time,
+            total_drag_distance: event.total_delta,
         })
     }
 

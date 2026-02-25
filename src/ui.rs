@@ -9,8 +9,8 @@ use keru_draw::Renderer;
 pub use keru_draw::{TextStyle2 as TextStyle, ColorBrush};
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
-use winit_key_events::KeyInput;
-use winit_mouse_events::{MouseInput, SmallVec};
+use key_events::KeyInput;
+use mouse_events::{MouseInput, SmallVec};
 
 use std::any::Any;
 use std::collections::BinaryHeap;
@@ -470,7 +470,7 @@ impl Ui {
     }
 
     pub fn cursor_position(&self) -> Vec2 {
-        return self.sys.mouse_input.cursor_position();
+        return self.sys.mouse_input.cursor_position;
     }
 
     /// Returns a reference to the list of render commands for this frame. 

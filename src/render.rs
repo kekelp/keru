@@ -56,14 +56,14 @@ impl Ui {
             WindowEvent::CursorMoved { position, .. } => {
                 self.resolve_hover();
 
-                let last_cursor_pos = self.sys.mouse_input.prev_cursor_position();
+                let last_cursor_pos = self.sys.mouse_input.prev_cursor_position;
                 if vec2(position.x as f32, position.y as f32) != last_cursor_pos {
                     let has_hover_sense = self.sys.hovered.iter()
                         .filter_map(|id| self.nodes.get_by_id_ick(id).map(|(node, _)| node))
                         .any(|node| node.params.interact.senses.contains(Sense::HOVER));
 
-                    let has_drag = self.sys.mouse_input.currently_pressed()
-                        .filter_map(|(id, _)| self.nodes.get_by_id_ick(&id).map(|(node, _)| node))
+                    let has_drag = self.sys.mouse_input.currently_dragging()
+                        .filter_map(|(id, _)| self.nodes.get_by_id_ick(id).map(|(node, _)| node))
                         .any(|node| node.params.interact.senses.contains(Sense::DRAG));
 
                     if has_hover_sense || has_drag {

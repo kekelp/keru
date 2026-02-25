@@ -5,7 +5,7 @@ use winit::{dpi::PhysicalPosition, event::{KeyEvent, MouseButton, MouseScrollDel
 
 use crate::*;
 use crate::Axis::{X, Y};
-use crate::winit_mouse_events::SmallVec;
+use crate::mouse_events::SmallVec;
 
 pub(crate) const ANIMATION_RERENDER_TIME: f32 = 0.5;
 
@@ -204,11 +204,6 @@ impl Ui {
         result
     }
 
-    /// Get the current hovered IDs for the mouse input system
-    pub(crate) fn current_hovered_ids(&self) -> SmallVec<Id> {
-        self.scan_opaque_hits()
-    }
-
     pub(crate) fn resolve_hover(&mut self) {
         let hovered_ids = self.scan_opaque_hits();
 
@@ -237,12 +232,7 @@ impl Ui {
         self.sys.hovered.retain(|id| hovered_ids.contains(id));
 
         // Check for ongoing drags
-        let has_drag = self.sys.mouse_input.currently_pressed()
-            .any(|(id, _)| {
-                self.nodes.node_hashmap.get(&id)
-                    .map(|e| self.nodes[e.slab_i].params.interact.senses.contains(Sense::DRAG))
-                    .unwrap_or(false)
-            });
+        let has_drag = self.sys.mouse_input.currently_dragging().next().is_some();
         if has_drag {
             self.set_new_ui_input();
         }
@@ -300,8 +290,7 @@ impl Ui {
     }
 
     pub(crate) fn begin_frame_resolve_inputs(&mut self) {
-        let hovered = self.current_hovered_ids();
-        self.sys.mouse_input.begin_new_frame(&hovered);
+        self.sys.mouse_input.begin_new_frame();
         self.sys.key_input.begin_new_frame();
 
         self.sys.text_edit_changed_last_frame = self.sys.text_edit_changed_this_frame;
@@ -311,16 +300,14 @@ impl Ui {
     pub(crate) fn handle_mouse_press(&mut self, button: MouseButton, window: &Window) -> bool {
         self.sys.focused = None;
 
-        let hovered_ids = self.scan_opaque_hits();
-
-        // Also scan for DRAG sense nodes - they might be behind non-interactive absorbing nodes
+        let click_ids = self.scan_hits_with_sense(Sense::CLICK);
         let drag_ids = self.scan_hits_with_sense(Sense::DRAG);
 
-        self.sys.mouse_input.push_press(button, hovered_ids.clone(), drag_ids);
+        self.sys.mouse_input.push_press(button, click_ids.clone(), drag_ids);
 
         // todo: instead of re-iterating, maybe do this while scanning?
         let mut any_consumed = false;
-        for &id in &hovered_ids {
+        for &id in &click_ids {
             if let Some(entry) = self.nodes.node_hashmap.get(&id) {
                 let i = entry.slab_i;
                 let consumed = self.resolve_click_press(button, window, i);
@@ -332,11 +319,12 @@ impl Ui {
     }
 
     pub(crate) fn handle_mouse_release(&mut self, button: MouseButton) {
-        let hovered_ids = self.scan_opaque_hits();
-        self.sys.mouse_input.push_release(button, hovered_ids.clone());
+        let click_ids = self.scan_hits_with_sense(Sense::CLICK);
+        self.sys.mouse_input.push_release(button, click_ids.clone());
 
         // todo: instead of re-iterating, maybe do this while scanning?
-        for &id in &hovered_ids {
+        // Signal update if any relevant nodes
+        for &id in &click_ids {
             if let Some(entry) = self.nodes.node_hashmap.get(&id) {
                 let senses = self.nodes[entry.slab_i].params.interact.senses;
                 if senses.contains(Sense::CLICK_RELEASE) || senses.contains(Sense::DRAG) {
@@ -459,93 +447,83 @@ impl Ui {
         self.sys.hovered.contains(&id)
     }
 
-    pub(crate) fn mouse_events_for(&self, id: Id, button: Option<MouseButton>) -> impl Iterator<Item = &winit_mouse_events::MouseEvent> {
-        self.sys.mouse_input.events.iter().filter(move |e| {
-            let button_match = button.map_or(true, |b| e.button == b);
-            let id_match = e.click_ids.contains(&id) || e.drag_ids.contains(&id);
-            button_match && id_match
-        })
-    }
-
-    pub(crate) fn scroll_events_for(&self, id: Id) -> impl Iterator<Item = &winit_mouse_events::ScrollEvent> {
-        self.sys.mouse_input.scroll_events.iter()
-            .filter(move |e| e.target_id == id)
-    }
-
     pub(crate) fn check_clicked(&self, id: Id, button: MouseButton) -> bool {
-        self.mouse_events_for(id, Some(button)).any(|e| e.is_just_pressed())
+        self.sys.mouse_input.clicks()
+            .any(|e| e.button == button && e.targets.contains(&id))
+    }
+
+    pub(crate) fn check_clicked_at(&self, id: Id, button: MouseButton) -> Option<&mouse_events::ClickEvent> {
+        self.sys.mouse_input.clicks()
+            .filter(|e| e.button == button && e.targets.contains(&id))
+            .last()
     }
 
     pub(crate) fn check_click_released(&self, id: Id, button: MouseButton) -> bool {
-        self.mouse_events_for(id, Some(button)).any(|e| e.is_click())
+        // Click events are emitted on release when released on same target
+        self.check_clicked(id, button)
+    }
+
+    pub(crate) fn check_dragged(&self, id: Id, button: MouseButton) -> Option<&mouse_events::DragEvent> {
+        self.sys.mouse_input.drags()
+            .find(|e| e.button == button && e.targets.contains(&id))
     }
 
     pub(crate) fn check_drag_released(&self, id: Id, button: MouseButton) -> bool {
-        self.mouse_events_for(id, Some(button)).any(|e| e.is_drag_release())
+        self.sys.mouse_input.drag_releases()
+            .any(|e| e.button == button && e.targets.contains(&id))
     }
 
-    pub(crate) fn check_drag_released_onto(&self, src_id: Id, dest_id: Id, button: MouseButton) -> Option<winit_mouse_events::MouseEvent> {
-        // Do a fresh scan for DRAG_DROP_TARGET nodes to check if dest is reachable
+    pub(crate) fn check_drag_released_onto(&self, src_id: Id, dest_id: Id, button: MouseButton) -> Option<&mouse_events::DragReleaseEvent> {
+        // Check if dest is reachable as a drop target
         let drop_targets = self.scan_hits_with_sense(Sense::DRAG_DROP_TARGET);
         if !drop_targets.contains(&dest_id) {
             return None;
         }
 
-        self.mouse_events_for(src_id, Some(button))
-            .find(|e| e.is_drag_release())
-            .cloned()
+        self.sys.mouse_input.drag_releases()
+            .find(|e| e.button == button && e.targets.contains(&src_id))
     }
 
-    pub(crate) fn check_drag_hovered_onto(&self, src_id: Id, dest_id: Id, button: MouseButton) -> Option<winit_mouse_events::MouseEvent> {
-        // Do a fresh scan for DRAG_DROP_TARGET nodes to check if dest is reachable
+    pub(crate) fn check_drag_hovered_onto(&self, src_id: Id, dest_id: Id, button: MouseButton) -> Option<&mouse_events::DragEvent> {
+        // Check if dest is reachable as a drop target
         let drop_targets = self.scan_hits_with_sense(Sense::DRAG_DROP_TARGET);
         if !drop_targets.contains(&dest_id) {
             return None;
         }
 
-        self.mouse_events_for(src_id, Some(button))
-            .find(|e| !e.released && e.total_drag() != glam::Vec2::ZERO)
-            .cloned()
+        self.sys.mouse_input.drags()
+            .find(|e| e.button == button && e.targets.contains(&src_id))
     }
 
-    pub(crate) fn check_dragged(&self, id: Id, button: MouseButton) -> Option<winit_mouse_events::MouseEvent> {
-        self.mouse_events_for(id, Some(button))
-            .find(|e| e.total_drag() != Vec2::ZERO)
-            .cloned()
-    }
-
-    pub(crate) fn check_held_duration(&self, id: Id, button: MouseButton) -> Option<std::time::Duration> {
-        let total: std::time::Duration = self.mouse_events_for(id, Some(button))
-            .map(|e| e.time_held())
-            .sum();
-        if total.is_zero() { None } else { Some(total) }
+    pub(crate) fn check_held_duration(&self, id: Id, button: MouseButton) -> Option<Duration> {
+        // Hold is tracked via drag events - duration since start
+        self.sys.mouse_input.drags()
+            .find(|e| e.button == button && e.targets.contains(&id))
+            .map(|e| e.start_time.elapsed())
     }
 
     pub(crate) fn check_scrolled(&self, id: Id) -> Option<Vec2> {
         let mut total = Vec2::ZERO;
         let mut found = false;
-        for e in self.scroll_events_for(id) {
-            total += e.delta;
-            found = true;
+        for e in self.sys.mouse_input.scrolls() {
+            if e.target == id {
+                total += e.delta;
+                found = true;
+            }
         }
         if found { Some(total) } else { None }
     }
 
-    pub(crate) fn check_last_scroll_event(&self, id: Id) -> Option<&winit_mouse_events::ScrollEvent> {
-        self.scroll_events_for(id).last()
-    }
-
-    pub(crate) fn check_clicked_at(&self, id: Id, button: MouseButton) -> Option<winit_mouse_events::MouseEvent> {
-        self.mouse_events_for(id, Some(button))
-            .filter(|e| e.is_just_pressed())
+    pub(crate) fn check_last_scroll_event(&self, id: Id) -> Option<&mouse_events::ScrollEvent> {
+        self.sys.mouse_input.scrolls()
+            .filter(|e| e.target == id)
             .last()
-            .cloned()
     }
 
     pub(crate) fn global_scroll_delta(&self) -> Option<Vec2> {
         let mut total = Vec2::ZERO;
         let mut found = false;
-        for e in &self.sys.mouse_input.scroll_events {
+        for e in self.sys.mouse_input.scrolls() {
             total += e.delta;
             found = true;
         }
@@ -553,32 +531,24 @@ impl Ui {
     }
 
     /// Find any drag hovering onto dest (from any source)
-    /// Does a fresh sense-aware scan to find DRAG_DROP_TARGET nodes.
-    pub(crate) fn check_any_drag_hovered_onto(&self, dest_id: Id, button: MouseButton) -> Option<winit_mouse_events::MouseEvent> {
-        // Do a fresh scan for DRAG_DROP_TARGET nodes - this ignores non-drop-target nodes that might be in the way
+    pub(crate) fn check_any_drag_hovered_onto(&self, dest_id: Id, button: MouseButton) -> Option<&mouse_events::DragEvent> {
         let drop_targets = self.scan_hits_with_sense(Sense::DRAG_DROP_TARGET);
         if !drop_targets.contains(&dest_id) {
             return None;
         }
 
-        // Find any ongoing drag event
-        self.sys.mouse_input.events.iter()
-            .find(|e| e.button == button && !e.released && e.total_drag() != glam::Vec2::ZERO)
-            .cloned()
+        self.sys.mouse_input.drags()
+            .find(|e| e.button == button)
     }
 
     /// Find any drag released onto dest (from any source)
-    /// Does a fresh sense-aware scan to find DRAG_DROP_TARGET nodes.
-    pub(crate) fn check_any_drag_released_onto(&self, dest_id: Id, button: MouseButton) -> Option<winit_mouse_events::MouseEvent> {
-        // Do a fresh scan for DRAG_DROP_TARGET nodes - this ignores non-drop-target nodes that might be in the way
+    pub(crate) fn check_any_drag_released_onto(&self, dest_id: Id, button: MouseButton) -> Option<&mouse_events::DragReleaseEvent> {
         let drop_targets = self.scan_hits_with_sense(Sense::DRAG_DROP_TARGET);
         if !drop_targets.contains(&dest_id) {
             return None;
         }
 
-        // Find any drag release event
-        self.sys.mouse_input.events.iter()
-            .find(|e| e.button == button && e.is_drag_release())
-            .cloned()
+        self.sys.mouse_input.drag_releases()
+            .find(|e| e.button == button)
     }
 }

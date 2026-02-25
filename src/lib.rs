@@ -124,9 +124,9 @@ pub mod thread_future_2;
 pub mod example_window_loop;
 pub mod basic_window_loop;
 
-pub mod winit_mouse_events;
+pub mod mouse_events;
 
-pub mod winit_key_events;
+pub mod key_events;
 
 mod thread_local;
 pub(crate) use thread_local::SiblingCursor;
