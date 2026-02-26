@@ -213,13 +213,28 @@ impl MouseInput {
                         }
                         let _ = press_pos; // unused for now, might use for threshold later
                     }
-                    Pending::Drag { start_pos, start_time, targets, .. } => {
+                    Pending::Drag { start_pos, start_time, last_pos, targets, .. } => {
+                        let frame_delta = self.cursor_position - last_pos;
+                        let total_delta = self.cursor_position - start_pos;
+
+                        // Emit final Drag event for the last frame of movement
+                        self.events.push(InputEvent::Drag(DragEvent {
+                            targets: targets.clone(),
+                            button,
+                            start_pos,
+                            current_pos: self.cursor_position,
+                            frame_delta,
+                            total_delta,
+                            start_time,
+                        }));
+
+                        // Then emit DragRelease
                         self.events.push(InputEvent::DragRelease(DragReleaseEvent {
                             targets,
                             button,
                             start_pos,
                             end_pos: self.cursor_position,
-                            total_delta: self.cursor_position - start_pos,
+                            total_delta,
                             start_time,
                         }));
                     }
