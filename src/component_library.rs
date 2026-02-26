@@ -779,20 +779,26 @@ impl DragAndDropStack {
     #[node_key] pub const HITBOX: NodeKey;
     #[node_key] pub const FLOATING: NodeKey;
     #[node_key] pub const SPACER: NodeKey;
-
+    // todo: &mut self nightmare to get self.spacing from here
+    
     fn calc_insertion_index(ui: &Ui, cursor_y: f32) -> usize {
+        let spacing = 10.0;
         let children = ui.get_node(Self::STACK).unwrap().children();
-        let mut insertion_index = children.len();
+
+        let mut y = 0.0;
         for (i, child) in children.iter().enumerate() {
-            let rect = child.rect();
-            let midpoint_y = (rect.y[0] + rect.y[1]) / 2.0;
-            if cursor_y < midpoint_y {
-                insertion_index = i;
-                break;
+            let height = child.rect().size().y;
+
+            if cursor_y < y + height / 2.0 {
+                return i;
             }
+
+            y += height + spacing;
         }
-        insertion_index
+
+        return children.len();
     }
+
 }
 
 impl Component for DragAndDropStack {
