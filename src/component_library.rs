@@ -775,12 +775,11 @@ pub struct ReorderStack {
 }
 impl ReorderStack {
     #[node_key] pub const STACK: NodeKey;
-    #[node_key] pub const FLOATING: NodeKey;
+    #[node_key] pub const FLOATER: NodeKey;
     #[node_key] pub const SPACER: NodeKey;
 }
 
 impl Component for ReorderStack {
-
     type AddResult = UiParent;
     type ComponentOutput = (usize, usize);
     type State = ();
@@ -800,7 +799,7 @@ impl Component for ReorderStack {
             .anchor(Anchor::Center, Anchor::Center)
             .position(Pos::Pixels(cursor.x), Pos::Pixels(cursor.y))
             .animate_position(true)
-            .key(Self::FLOATING);
+            .key(Self::FLOATER);
 
         ui.jump_to_root().nest(|| {
             ui.add(floater)
@@ -827,13 +826,13 @@ impl Component for ReorderStack {
             }
         }
 
-        if let Some((key, height, from_index)) = dragged {
+        if let Some((key, height, index)) = dragged {
             // Find where it's being hovered
             let children = ui.get_node(Self::STACK).unwrap().children();
             let cursor_y = ui.cursor_position().y;
             let mut insertion_index = children.len();
             for (i, child) in children.iter().enumerate() {
-                if i == from_index {
+                if i == index {
                     continue;
                 }
                 if cursor_y < child.last_frame_center().y {
@@ -842,8 +841,8 @@ impl Component for ReorderStack {
                 }
             }
 
-            let hovered = ui.is_any_drag_hovered_onto(Self::STACK).is_some();
-            let drag_released = ui.is_any_drag_released_onto(Self::STACK).is_some();
+            let hovered = ui.is_drag_hovered_onto(key, Self::STACK).is_some();
+            let drag_released = ui.is_drag_released_onto(key, Self::STACK).is_some();
             if hovered || drag_released {
                 // Insert spacer at the calculated position
                 ui.jump_to_nth_child(Self::STACK, insertion_index).unwrap().nest(|| {
@@ -857,13 +856,13 @@ impl Component for ReorderStack {
                 });
             }
 
-            ui.jump_to_parent(Self::FLOATING).unwrap().nest(|| {
+            ui.jump_to_parent(Self::FLOATER).unwrap().nest(|| {
                 ui.remove_and_readd(key);
             });
 
             // Return swap indices when drag is released
-            if drag_released && from_index != insertion_index {
-                return Some((from_index, insertion_index));
+            if drag_released && index != insertion_index {
+                return Some((index, insertion_index));
             }
         }
 
