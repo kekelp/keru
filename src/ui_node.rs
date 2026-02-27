@@ -38,7 +38,7 @@ impl UiNode<'_> {
         NodeKey::new_temp(self.node().id, "temp_node_key")
     }
 
-    pub(crate) fn inner_size(&self) -> Xy<f32> {
+    pub(crate) fn last_frame_inner_size(&self) -> Xy<f32> {
         let padding = self.node().params.layout.padding;
 
         let size = self.node().size;
@@ -47,7 +47,7 @@ impl UiNode<'_> {
         return size - padding;
     }
 
-    pub(crate) fn center(&self) -> Xy<f32> {
+    pub(crate) fn last_frame_center(&self) -> Xy<f32> {
         let rect = self.node().real_rect;
         
         let center = Xy::new(
@@ -60,7 +60,7 @@ impl UiNode<'_> {
         return center;
     }
 
-    pub(crate) fn bottom_left(&self) -> Xy<f32> {
+    pub(crate) fn last_frame_bottom_left(&self) -> Xy<f32> {
         let rect = self.node().real_rect;
         
         let center = Xy::new(
@@ -73,7 +73,7 @@ impl UiNode<'_> {
         return center;
     }
 
-    pub(crate) fn rect(&self) -> XyRect {
+    pub(crate) fn last_frame_rect(&self) -> XyRect {
         return self.node().real_rect * self.ui.sys.size;
     }
 
@@ -101,16 +101,16 @@ impl Ui {
     }
     /// Dimensions of the rect in screen pixels
     pub fn rect(&self, key: NodeKey) -> Option<XyRect> {
-        Some(self.get_node(key)?.rect())
+        Some(self.get_node(key)?.last_frame_rect())
     }
     pub fn center(&self, key: NodeKey) -> Option<Xy<f32>> {
-        Some(self.get_node(key)?.center())
+        Some(self.get_node(key)?.last_frame_center())
     }
     pub fn inner_size(&self, key: NodeKey) -> Option<Xy<f32>> {
-        Some(self.get_node(key)?.inner_size())
+        Some(self.get_node(key)?.last_frame_inner_size())
     }
     pub fn bottom_left(&self, key: NodeKey) -> Option<Xy<f32>> {
-        Some(self.get_node(key)?.bottom_left())
+        Some(self.get_node(key)?.last_frame_bottom_left())
     }
     pub fn get_text(&mut self, key: NodeKey) -> Option<&str> {
         let i = self.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
@@ -157,13 +157,13 @@ impl UiParent {
         self.get_uinode(ui).render_rect()
     }
     pub fn rect(&self, ui: &mut Ui) -> XyRect {
-        self.get_uinode(ui).rect()
+        self.get_uinode(ui).last_frame_rect()
     }
     pub fn center(&self, ui: &mut Ui) -> Xy<f32> {
-        self.get_uinode(ui).center()
+        self.get_uinode(ui).last_frame_center()
     }
     pub fn bottom_left(&self, ui: &mut Ui) -> Xy<f32> {
-        self.get_uinode(ui).bottom_left()
+        self.get_uinode(ui).last_frame_bottom_left()
     }
     pub fn get_text<'u>(&self, ui: &'u mut Ui) -> Option<&'u str> {
         let text_i = ui.nodes[self.i].text_i.as_ref()?;

@@ -203,7 +203,7 @@ impl Ui {
             // Currently, it relies on the anti-state tearing stuff to not stay at zero.
             // It should be fixed by making it's possible to express the " - handle_radius" part when using a Frac.
             let slider_width = match self.get_node(TRACK) {
-                Some(track) => track.inner_size().x,
+                Some(track) => track.last_frame_inner_size().x,
                 // this is just for the first frame. awkward.
                 // ...or do this calculation after adding it? the result is the same
                 None => 1.0,
@@ -770,11 +770,11 @@ where T: Send + Sync + 'static {
 }
 
 
-pub struct DragAndDropStack {
+pub struct ReorderStack {
     pub key: ComponentKey<Self>,
 }
 
-impl DragAndDropStack {
+impl ReorderStack {
     #[node_key] pub const STACK: NodeKey;
     #[node_key] pub const HITBOX: NodeKey;
     #[node_key] pub const FLOATING: NodeKey;
@@ -785,9 +785,12 @@ impl DragAndDropStack {
         let spacing = 10.0;
         let children = ui.get_node(Self::STACK).unwrap().children();
 
+        // Calculate where the dragged element falls in the stack's layout. 
+        // We can't just use the rect's midpoint, because the dragged one is repositioned to the mouse cursor!
+        // Going crazy with too many tree manipulations can definitely make things more complicated.
         let mut y = 0.0;
         for (i, child) in children.iter().enumerate() {
-            let height = child.rect().size().y;
+            let height = child.last_frame_rect().size().y;
 
             if cursor_y < y + height / 2.0 {
                 return i;
@@ -795,13 +798,14 @@ impl DragAndDropStack {
 
             y += height + spacing;
         }
+        // todo: actually this algorithm is imprecise when dragging things back into position. Should fix.
 
         return children.len();
     }
 
 }
 
-impl Component for DragAndDropStack {
+impl Component for ReorderStack {
 
     type AddResult = UiParent;
     type ComponentOutput = (usize, usize);
@@ -858,7 +862,7 @@ impl Component for DragAndDropStack {
             for (i, child) in stack.children().iter().enumerate() {
                 if child.is_dragged().is_some() || child.is_drag_released() {
                     dragged_key = Some(child.temp_key());
-                    dragged_height = Some(child.rect().size().y);
+                    dragged_height = Some(child.last_frame_rect().size().y);
                     dragged_index = Some(i);
                     break;
                 }

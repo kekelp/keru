@@ -49,6 +49,7 @@ pub struct Node {
     pub interact: Interact,
     pub layout: Layout,
     pub children_can_hide: ChildrenCanHide,
+    /// Clip all children of the node to the node's bounding box (not its shape).
     pub clip_children: Xy<bool>,
     pub animation: Animation,
     pub transform: Transform,
