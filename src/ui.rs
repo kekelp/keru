@@ -610,8 +610,52 @@ impl Ui {
                 let dy = cursor_pos.1 - center_y;
                 return dx * dx + dy * dy <= radius * radius;
             }
-            Shape::Segment { .. } | Shape::HorizontalLine | Shape::VerticalLine | Shape::Triangle { .. } | Shape::SquareGrid { .. } | Shape::HexGrid { .. } | Shape::Hexagon { .. } => {
-                // For segments, triangles, grids, and hexagons, use simple rectangle hit test
+            Shape::Hexagon { size: size_param, rotation } => {
+                let screen_width = size[X];
+                let screen_height = size[Y];
+
+                // Convert rect to pixels
+                let x0 = rect.rect[X][0] * screen_width;
+                let x1 = rect.rect[X][1] * screen_width;
+                let y0 = rect.rect[Y][0] * screen_height;
+                let y1 = rect.rect[Y][1] * screen_height;
+
+                // Cursor in pixels
+                let cursor_px = cursor_pos.0 * screen_width;
+                let cursor_py = cursor_pos.1 * screen_height;
+
+                // Calculate hexagon parameters (matching render.rs)
+                let cx = (x0 + x1) / 2.0;
+                let cy = (y0 + y1) / 2.0;
+                let max_radius = ((x1 - x0) / 2.0).min((y1 - y0) / 2.0);
+                let hex_radius = max_radius * size_param;
+
+                // Transform cursor to hexagon-local coordinates
+                let dx = cursor_px - cx;
+                let dy = cursor_py - cy;
+
+                // Apply inverse rotation (rotate by -rotation)
+                let cos_r = rotation.cos();
+                let sin_r = rotation.sin();
+                let local_x = dx * cos_r + dy * sin_r;
+                let local_y = -dx * sin_r + dy * cos_r;
+
+                // Point-in-hexagon test using 3-band method for flat-top hexagon
+                // A regular hexagon can be described as the intersection of 3 pairs of parallel lines
+                let sqrt3 = 3.0_f32.sqrt();
+                let sqrt3_r = sqrt3 * hex_radius;
+                let inradius = sqrt3_r / 2.0; // distance from center to edge midpoint
+
+                // Check 3 constraints:
+                // 1. Top/bottom edges: |y| <= inradius
+                // 2. Upper-right/lower-left edges: |√3*x + y| <= √3*R
+                // 3. Lower-right/upper-left edges: |√3*x - y| <= √3*R
+                return local_y.abs() <= inradius
+                    && (sqrt3 * local_x + local_y).abs() <= sqrt3_r
+                    && (sqrt3 * local_x - local_y).abs() <= sqrt3_r;
+            }
+            Shape::Segment { .. } | Shape::HorizontalLine | Shape::VerticalLine | Shape::Triangle { .. } | Shape::SquareGrid { .. } | Shape::HexGrid { .. } => {
+                // For segments, triangles, and grids, use simple rectangle hit test
                 return true;
             }
         }
