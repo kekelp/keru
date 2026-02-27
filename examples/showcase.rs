@@ -152,7 +152,7 @@ impl UiExt for Ui {
                 for i in 0..points.len() - 1 {
                     let segment_node = Node::segment_frac(points[i], points[i + 1], Some(10.0))
                         .color(Color::KERU_GREEN)
-                        .stroke(4.0);
+                        .stroke_width(4.0);
 
                     self.add(segment_node);
                 }
@@ -191,6 +191,35 @@ impl UiExt for Ui {
                     .position_y(Pos::Frac(p_last.1));
 
                 self.add(arrow);
+
+                // Draw hexagons
+                let hexagon1 = DEFAULT
+                    .shape(Shape::Hexagon {
+                        size: 0.85,
+                        rotation: 0.0,
+                    })
+                    .color(Color::KERU_PINK)
+                    .anchor_symm(Anchor::Center)
+                    .size_symm(Size::Pixels(60.0))
+                    .position_x(Pos::Frac(0.15))
+                    .position_y(Pos::Frac(0.5));
+
+                self.add(hexagon1);
+
+                // Rotated hexagon (pointy-top)
+                let hexagon2 = DEFAULT
+                    .shape(Shape::Hexagon {
+                        size: 0.8,
+                        rotation: std::f32::consts::PI / 6.0,
+                    })
+                    .color(Color::KERU_GREEN)
+                    .stroke_width(3.0)
+                    .anchor_symm(Anchor::Center)
+                    .size_symm(Size::Pixels(50.0))
+                    .position_x(Pos::Frac(0.35))
+                    .position_y(Pos::Frac(0.5));
+
+                self.add(hexagon2);
             });
 
             self.static_paragraph("In the future, there might be a lower level vector drawing interface similar to the \"canvas\" in Rui.");

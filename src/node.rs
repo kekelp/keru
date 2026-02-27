@@ -317,6 +317,13 @@ pub enum Shape {
         offset: (f32, f32),
         line_thickness: f32,
     },
+    /// Regular hexagon shape.
+    /// size: 0.0-1.0 relative to node dimensions (1.0 = fills the node)
+    /// rotation: in radians, 0 = flat-top
+    Hexagon {
+        size: f32,
+        rotation: f32,
+    },
 }
 
 impl Hash for Shape {
@@ -385,7 +392,12 @@ impl Hash for Shape {
                 offset.1.to_bits().hash(state);
                 line_thickness.to_bits().hash(state);
             }
-            NoShape => 11u8.hash(state)
+            Hexagon { size, rotation } => {
+                11u8.hash(state);
+                size.to_bits().hash(state);
+                rotation.to_bits().hash(state);
+            }
+            NoShape => 99u8.hash(state),
         }
     }
 }
@@ -686,8 +698,12 @@ impl Node {
         return self;
     }
 
-    pub const fn stroke(mut self, width: f32) -> Self {
-        self.stroke = Some(Stroke::new(width));
+    pub const fn stroke_width(mut self, width: f32) -> Self {
+        if let Some(stroke) = &mut self.stroke {
+            stroke.width = width;
+        } else {
+            self.stroke = Some(Stroke::new(width))
+        }
         return self;
     }
 

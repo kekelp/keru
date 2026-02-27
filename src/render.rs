@@ -640,6 +640,44 @@ impl Ui {
                     texture,
                 });
             }
+            Shape::Hexagon { size, rotation } => {
+                let cx = (x0 + x1) / 2.0;
+                let cy = (y0 + y1) / 2.0;
+                let max_radius = ((x1 - x0) / 2.0).min((y1 - y0) / 2.0);
+                let actual_size = max_radius * size;
+
+                // If there's a border with non-zero thickness, use border color; otherwise use fill color
+                let use_border_color = border_thickness > 0.0 && border_color.is_some();
+
+                let fill = if is_solid {
+                    let color = if use_border_color { border_color.unwrap() } else { tl_f };
+                    keru_draw::Fill::Solid(color)
+                } else {
+                    let (start_color, end_color) = if use_border_color {
+                        let bc = border_color.unwrap();
+                        (bc, bc)
+                    } else {
+                        (gradient_start_color, gradient_end_color)
+                    };
+                    keru_draw::Fill::Gradient {
+                        color_start: start_color,
+                        color_end: end_color,
+                        gradient_type: keru_draw::GradientType::Linear,
+                        angle: gradient_angle,
+                    }
+                };
+
+                self.sys.renderer.draw_hexagon(keru_draw::Hexagon {
+                    center: [cx, cy],
+                    size: actual_size,
+                    rotation: *rotation,
+                    fill,
+                    stroke_thickness: border_thickness,
+                    x_clip,
+                    y_clip,
+                    texture,
+                });
+            }
         }
     }
 
