@@ -773,28 +773,10 @@ where T: Send + Sync + 'static {
 pub struct ReorderStack {
     pub key: ComponentKey<Self>,
 }
-
 impl ReorderStack {
     #[node_key] pub const STACK: NodeKey;
     #[node_key] pub const FLOATING: NodeKey;
     #[node_key] pub const SPACER: NodeKey;
-    
-    fn calc_insertion_index(ui: &Ui, cursor_y: f32, dragged_index: usize) -> usize {
-        let children = ui.get_node(Self::STACK).unwrap().children();
-
-        for (i, child) in children.iter().enumerate() {
-            if i == dragged_index {
-                continue;
-            }
-
-            if cursor_y < child.last_frame_center().y {
-                return i;
-            }
-        }
-
-        return children.len();
-    }
-
 }
 
 impl Component for ReorderStack {
@@ -845,13 +827,24 @@ impl Component for ReorderStack {
             }
         }
 
-        if let Some((key, height, index)) = dragged {
-            let insertion_index = Self::calc_insertion_index(ui, ui.cursor_position().y, index);
+        if let Some((key, height, from_index)) = dragged {
+            // Find where it's being hovered
+            let children = ui.get_node(Self::STACK).unwrap().children();
+            let cursor_y = ui.cursor_position().y;
+            let mut insertion_index = children.len();
+            for (i, child) in children.iter().enumerate() {
+                if i == from_index {
+                    continue;
+                }
+                if cursor_y < child.last_frame_center().y {
+                    insertion_index = i;
+                    break;
+                }
+            }
 
             let hovered = ui.is_any_drag_hovered_onto(Self::STACK).is_some();
             let drag_released = ui.is_any_drag_released_onto(Self::STACK).is_some();
             if hovered || drag_released {
-
                 // Insert spacer at the calculated position
                 ui.jump_to_nth_child(Self::STACK, insertion_index).unwrap().nest(|| {
                     let spacer = SPACER
@@ -869,8 +862,8 @@ impl Component for ReorderStack {
             });
 
             // Return swap indices when drag is released
-            if drag_released && index != insertion_index {
-                return Some((index, insertion_index));
+            if drag_released && from_index != insertion_index {
+                return Some((from_index, insertion_index));
             }
         }
 
