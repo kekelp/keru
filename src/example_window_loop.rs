@@ -148,7 +148,7 @@ impl<T> ApplicationHandler for Application<T> {
 
         state.ui.window_event(&event, &state.window);
 
-        let always = true;
+        let always = false;
 
         if always {
             match event {

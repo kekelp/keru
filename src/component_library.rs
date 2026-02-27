@@ -776,29 +776,21 @@ pub struct ReorderStack {
 
 impl ReorderStack {
     #[node_key] pub const STACK: NodeKey;
-    #[node_key] pub const HITBOX: NodeKey;
     #[node_key] pub const FLOATING: NodeKey;
     #[node_key] pub const SPACER: NodeKey;
-    // todo: &mut self nightmare to get self.spacing from here
     
-    fn calc_insertion_index(ui: &Ui, cursor_y: f32) -> usize {
-        let spacing = 10.0;
+    fn calc_insertion_index(ui: &Ui, cursor_y: f32, dragged_index: usize) -> usize {
         let children = ui.get_node(Self::STACK).unwrap().children();
 
-        // Calculate where the dragged element falls in the stack's layout. 
-        // We can't just use the rect's midpoint, because the dragged one is repositioned to the mouse cursor!
-        // Going crazy with too many tree manipulations can definitely make things more complicated.
-        let mut y = 0.0;
         for (i, child) in children.iter().enumerate() {
-            let height = child.last_frame_rect().size().y;
-
-            if cursor_y < y + height / 2.0 {
-                return i;
+            if i == dragged_index {
+                continue;
             }
 
-            y += height + spacing;
+            if cursor_y < child.last_frame_center().y {
+                return i;
+            }
         }
-        // todo: actually this algorithm is imprecise when dragging things back into position. Should fix.
 
         return children.len();
     }
@@ -815,28 +807,18 @@ impl Component for ReorderStack {
     
         let stack = V_STACK
             .animate_position(true)
-            .size_x(Size::Pixels(100.0))
+            .size(Size::Pixels(100.0), Size::Fill)
             .position_y(Pos::Start)
-            .size_y(Size::Fill)
             .stack_arrange(Arrange::Start)
+            .sense_drag_drop_target(true)
             .key(Self::STACK);
 
+        let cursor = ui.cursor_position();
         let floater = CONTAINER
-            .key(Self::FLOATING)
-            .anchor_symm(Anchor::Center)
-            .position_x(Pos::Pixels(ui.cursor_position().x))
-            .position_y(Pos::Pixels(ui.cursor_position().y))
+            .anchor(Anchor::Center, Anchor::Center)
+            .position(Pos::Pixels(cursor.x), Pos::Pixels(cursor.y))
             .animate_position(true)
-            .absorbs_clicks(false);
-
-        let hover_hitbox = CONTAINER
-            .sense_drag_drop_target(true)
-            .size_x(Size::Pixels(200.0))
-            .size_y(Size::Fill)
-            .absorbs_clicks(false)
-            .key(Self::HITBOX);            
-
-        ui.add(hover_hitbox);
+            .key(Self::FLOATING);
 
         ui.jump_to_root().nest(|| {
             ui.add(floater)
@@ -850,29 +832,24 @@ impl Component for ReorderStack {
     }
 
     fn run_component(ui: &mut Ui) -> Option<Self::ComponentOutput> {
-
-        let pos = ui.cursor_position();
-        let insertion_index = Self::calc_insertion_index(ui, pos.y);
-
-        let mut dragged_key = None;
-        let mut dragged_height = None;
-        let mut dragged_index = None;
-
+        // Find the dragged item
+        let mut dragged = None;
         if let Some(stack) = ui.get_node(Self::STACK) {
-            for (i, child) in stack.children().iter().enumerate() {
+            for (index, child) in stack.children().iter().enumerate() {
                 if child.is_dragged().is_some() || child.is_drag_released() {
-                    dragged_key = Some(child.temp_key());
-                    dragged_height = Some(child.last_frame_rect().size().y);
-                    dragged_index = Some(i);
+                    let key = child.temp_key();
+                    let height = child.last_frame_rect().size().y;
+                    dragged = Some((key, height, index));
                     break;
                 }
             }
         }
 
-        if let (Some(key), Some(height), Some(from_index)) = (dragged_key, dragged_height, dragged_index) {
+        if let Some((key, height, index)) = dragged {
+            let insertion_index = Self::calc_insertion_index(ui, ui.cursor_position().y, index);
 
-            let hovered = ui.is_any_drag_hovered_onto(Self::HITBOX).is_some();
-            let drag_released = ui.is_any_drag_released_onto(Self::HITBOX).is_some();
+            let hovered = ui.is_any_drag_hovered_onto(Self::STACK).is_some();
+            let drag_released = ui.is_any_drag_released_onto(Self::STACK).is_some();
             if hovered || drag_released {
 
                 // Insert spacer at the calculated position
@@ -892,8 +869,8 @@ impl Component for ReorderStack {
             });
 
             // Return swap indices when drag is released
-            if drag_released && from_index != insertion_index {
-                return Some((from_index, insertion_index));
+            if drag_released && index != insertion_index {
+                return Some((index, insertion_index));
             }
         }
 

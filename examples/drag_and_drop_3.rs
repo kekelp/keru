@@ -128,6 +128,6 @@ impl State {
 
 fn main() {
     let mut state = State::default();
-    state.items = vec!["A".into(), "B".into(), "C".into(), "D".into(), "E".into()];
+    state.items = vec!["A\nA".into(), "B\nA\nA".into(), "C\nA\nA\nA".into(), "D\nA\nA\nA\nA".into(), "E".into()];
     run_example_loop(state, State::update_ui);
 }
