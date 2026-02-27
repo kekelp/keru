@@ -18,6 +18,8 @@ jobs:
         uses: actions/checkout@v4
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+      - name: Install system dependencies for Parley...
+        run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev pkg-config
       - name: Configure cache
         uses: Swatinem/rust-cache@v2
       - name: Setup pages

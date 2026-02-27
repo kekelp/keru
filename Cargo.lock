@@ -1577,7 +1577,6 @@ dependencies = [
  "euclid",
  "image",
  "resvg",
- "slotmap",
  "textslabs",
  "tiny-skia",
  "usvg",
