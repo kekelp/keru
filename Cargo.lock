@@ -1053,6 +1053,7 @@ dependencies = [
 [[package]]
 name = "fontique"
 version = "0.7.0"
+source = "git+https://github.com/kekelp/parley#10fedab4bfd4254a227a1a0f9602b6218e1fe447"
 dependencies = [
  "bytemuck",
  "hashbrown 0.16.1",
@@ -2337,6 +2338,7 @@ dependencies = [
 [[package]]
 name = "parley"
 version = "0.7.0"
+source = "git+https://github.com/kekelp/parley#10fedab4bfd4254a227a1a0f9602b6218e1fe447"
 dependencies = [
  "fontique",
  "harfrust",
@@ -3174,6 +3176,7 @@ dependencies = [
 [[package]]
 name = "textslabs"
 version = "0.1.0"
+source = "git+https://github.com/kekelp/textslabs.git#5602d919aa5232821a8c8429dd0bff1f5b83d093"
 dependencies = [
  "arboard",
  "bytemuck",

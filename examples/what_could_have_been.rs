@@ -1,8 +1,8 @@
+use std::{cell::RefCell, rc::Rc};
+
 struct Ui {
-    canary: usize,
     nodes: Vec<Node>,
-    parent_stack: Vec<usize>,
-    _not_send: std::marker::PhantomData<*mut ()>,
+    parent_stack: Rc<RefCell<Vec<usize>>>,
 }
 
 struct Node {
@@ -12,32 +12,29 @@ struct Node {
 }
 
 struct UiParent {
-    ui: *mut Ui,
+    parent_stack: Rc<RefCell<Vec<usize>>>,
     idx: usize,
-    expected_canary: usize,
 }
 
 impl Ui {
     fn new() -> Self {
         let root = Node { value: 0, first_child: None, next_sibling: None };
         Ui {
-            canary: random_canary(),
             nodes: vec![root],
-            parent_stack: vec![0],
-            _not_send: std::marker::PhantomData,
+            parent_stack: Rc::new(RefCell::new(vec![0])),
         }
     }
 
     fn add(&mut self, value: i32) -> UiParent {
         let idx = self.nodes.len();
         self.nodes.push(Node { value, first_child: None, next_sibling: None });
-        let parent_idx = *self.parent_stack.last().unwrap();
+        let parent_idx = *self.parent_stack.borrow().last().unwrap();
         if let Some(last) = self.nodes[parent_idx].first_child {
             self.nodes[last].next_sibling = Some(idx);
         } else {
             self.nodes[parent_idx].first_child = Some(idx);
         }
-        UiParent { ui: self as *mut Ui, idx, expected_canary: self.canary }
+        UiParent { idx, parent_stack: Rc::clone(&self.parent_stack) }
     }
 
     fn print_tree(&self) {
@@ -59,37 +56,11 @@ impl Ui {
     }
 }
 
-fn random_canary() -> usize {
-    use std::hash::{Hash, Hasher};
-    let mut h = std::hash::DefaultHasher::new();
-    std::time::SystemTime::now().hash(&mut h);
-    let local = 0usize;
-    (&local as *const usize as usize).hash(&mut h);
-    h.finish() as usize
-}
-
-impl Drop for Ui {
-    fn drop(&mut self) {
-        self.canary = !self.canary;
-    }
-}
-
 impl UiParent {
-    fn check(&self) {
-        // Safety: not safe, this is just an example.
-        let canary = unsafe { *(self.ui as *const usize) };
-        assert_eq!(canary, self.expected_canary, "Ui was dropped before concluding a nest() block");
-    }
-
     fn nest(self, f: impl FnOnce()) {
-        // Safety: not safe, this is just an example.
-        unsafe {
-            self.check();
-            (*self.ui).parent_stack.push(self.idx);
-            f();
-            self.check();
-            (*self.ui).parent_stack.pop();
-        }
+        self.parent_stack.borrow_mut().push(self.idx);
+        f();
+        self.parent_stack.borrow_mut().pop();
     }
 }
 
@@ -108,9 +79,8 @@ fn main() {
     });
     ui.print_tree();
 
-    // In practice it gets caught by the canary and panics cleanly. But we're already deep into theoretical UB either way and we will be sent to the borrow gulags for even thinking about it.
     let mut ui2 = Ui::new();
     ui2.add(8).nest(|| {
         drop(ui2);
-    }); 
+    });
 }
