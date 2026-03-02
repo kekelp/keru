@@ -20,6 +20,8 @@ pub(crate) struct ParentCtx {
     /// When using [`Ui::jump_to_sibling()`], this is After, and new children are added after the sibling_cursor node.
     /// Then [`Ui::set_tree_links()`] advances the sibling_cursor manually.
     pub sibling_cursor: SiblingCursor,
+    /// To allow for multiple Uis to be nested at the same time. Nobody should ever want to do this.
+    pub ui_instance_id: u32,
 }
 
 pub struct Stacks {
@@ -42,23 +44,36 @@ thread_local! {
     pub(crate) static THREAD_STACKS: RefCell<Stacks> = RefCell::new(Stacks::initialize());
 }
 
-pub(crate) fn push_parent(parent: NodeI, sibling_cursor: SiblingCursor) {
+pub(crate) fn push_parent(parent: NodeI, sibling_cursor: SiblingCursor, ui_instance_id: u32) {
     THREAD_STACKS.with(|stack| {
-        stack.borrow_mut().parents.push(ParentCtx { parent, sibling_cursor });
+        stack.borrow_mut().parents.push(ParentCtx { parent, sibling_cursor, ui_instance_id });
     });
 }
 
-pub(crate) fn pop_parent() {
+pub(crate) fn pop_parent(ui_instance_id: u32) {
     THREAD_STACKS.with(|stack| {
-        stack.borrow_mut().parents.pop().unwrap();
-    })
+        let mut stack = stack.borrow_mut();
+
+        let last = stack.parents.iter().rposition(|ctx| ctx.ui_instance_id == ui_instance_id);
+        if let Some(pos) = last {
+            stack.parents.remove(pos);
+        } else {
+            unreachable!();
+        }
+    });
 }
 
-pub(crate) fn current_parent() -> (NodeI, SiblingCursor, usize) {
+pub(crate) fn current_parent(ui_instance_id: u32) -> (NodeI, SiblingCursor, usize) {
     THREAD_STACKS.with(|stack| {
         let stack = stack.borrow();
-        let parent_ctx = stack.parents.last().unwrap();
-        return (parent_ctx.parent, parent_ctx.sibling_cursor, stack.parents.len())
+
+        let parent_ctx = stack
+            .parents
+            .iter()
+            .rfind(|ctx| ctx.ui_instance_id == ui_instance_id)
+            .expect("No parent_ctx found for current ui_instance_id");
+
+        (parent_ctx.parent, parent_ctx.sibling_cursor, stack.parents.len())
     })
 }
 

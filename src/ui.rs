@@ -16,7 +16,7 @@ use std::any::Any;
 use std::collections::BinaryHeap;
 use std::num::NonZeroUsize;
 use std::sync::atomic::AtomicBool;
-use std::sync::atomic::AtomicU64;
+use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc;
 use std::sync::Weak;
@@ -80,11 +80,9 @@ pub struct Ui {
     pub(crate) custom_render_commands: Vec<RenderCommand>,
 }
 
-static INSTANCE_COUNTER: AtomicU64 = AtomicU64::new(1);
+static INSTANCE_COUNTER: AtomicU32 = AtomicU32::new(1);
 
 pub(crate) struct System {
-    // in inspect mode, draw invisible rects as well, for example V_STACKs.
-    // usually these have filled = false (just the outline), but this is not enforced.
     pub inspect_mode: bool,
 
     pub global_animation_speed: f32,
@@ -92,7 +90,7 @@ pub(crate) struct System {
 
     pub t: f32, // time at the end of the last rendered frame, in seconds since the Ui creation
 
-    pub unique_id: u64,
+    pub unique_id: u32,
     pub theme: Theme,
     pub debug_key_pressed: bool,
 
@@ -386,10 +384,6 @@ impl Ui {
 
     pub fn current_frame(&self) -> u64 {
         return self.sys.current_frame;
-    }
-
-    pub fn unique_id(&self) -> u64 {
-        return self.sys.unique_id;
     }
 
     /// Get the current screen size in pixels.

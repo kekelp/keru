@@ -42,7 +42,7 @@ impl Ui {
         let (i, _id) = self.add_or_update_node(key);
         self.set_params(i, &params);
         self.set_params_text(i, &params);
-        return UiParent::new(i);
+        return UiParent { i, sibling_cursor: SiblingCursor::None, ui_instance_id: self.sys.unique_id };
     }
 
     /// Returns an [`UiParent`] for the root node, that you can use to nest children directly into the root node, regardless of where you are in the [`nest`] structure.
@@ -75,7 +75,7 @@ impl Ui {
     /// // Not adding it to the stack means that the other elements get the correct animations, without any sort of special-casing.
     /// ```
     pub fn jump_to_root(&self) -> UiParent {
-        return UiParent { i: ROOT_I, sibling_cursor: SiblingCursor::None }
+        return UiParent { i: ROOT_I, sibling_cursor: SiblingCursor::None, ui_instance_id: self.sys.unique_id }
     }
 
 
@@ -87,6 +87,7 @@ impl Ui {
         Some(UiParent {
             i: parent_i,
             sibling_cursor: SiblingCursor::None,
+            ui_instance_id: self.sys.unique_id,
         })
     }
 
@@ -121,6 +122,7 @@ impl Ui {
         Some(UiParent {
             i: parent_i,
             sibling_cursor: SiblingCursor::After(sibling_i),
+            ui_instance_id: self.sys.unique_id,
         })
     }
 
@@ -159,6 +161,7 @@ impl Ui {
         Some(UiParent {
             i: parent_i,
             sibling_cursor,
+            ui_instance_id: self.sys.unique_id,
         })
     }
 
@@ -195,6 +198,7 @@ impl Ui {
             return Some(UiParent {
                 i: parent_i,
                 sibling_cursor: SiblingCursor::AtStart,
+                ui_instance_id: self.sys.unique_id,
             });
         }
 
@@ -215,6 +219,7 @@ impl Ui {
         Some(UiParent {
             i: parent_i,
             sibling_cursor,
+            ui_instance_id: self.sys.unique_id,
         })
     }
 
@@ -227,7 +232,7 @@ impl Ui {
         let node_i = self.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
         self.unlink_from_tree(node_i);
 
-        let (parent_i, sibling_cursor, depth) = thread_local::current_parent();
+        let (parent_i, sibling_cursor, depth) = thread_local::current_parent(self.sys.unique_id);
         self.link_node_to_parent(node_i, parent_i, depth, sibling_cursor);
 
         Some(())
@@ -333,7 +338,7 @@ impl Ui {
         };
 
         // update the in-tree links and the thread-local state based on the current parent.
-        let (parent, insert_after, depth) = thread_local::current_parent();
+        let (parent, insert_after, depth) = thread_local::current_parent(self.sys.unique_id);
         self.set_tree_links(real_final_i, parent, depth, insert_after);
 
         self.nodes[real_final_i].exiting = false;
@@ -743,7 +748,7 @@ impl Ui {
         self.format_scratch.clear();
         self.sys.changes.unfinished_animations = false;
 
-        thread_local::push_parent(ROOT_I, SiblingCursor::None);
+        thread_local::push_parent(ROOT_I, SiblingCursor::None, self.sys.unique_id);
 
         self.begin_frame_resolve_inputs();
     }
@@ -764,7 +769,7 @@ impl Ui {
     pub fn finish_frame(&mut self) {
         log::trace!("Finished Ui update");
         // pop the root node
-        thread_local::pop_parent();
+        thread_local::pop_parent(self.sys.unique_id);
 
         self.cleanup_and_stuff();
 
@@ -935,7 +940,7 @@ impl Ui {
     }
 
     pub(crate) fn current_tree_hash(&mut self) -> u64 {
-        let (parent, sibling_cursor, _depth) = thread_local::current_parent();
+        let (parent, sibling_cursor, _depth) = thread_local::current_parent(self.sys.unique_id);
 
         let current_last_child = match sibling_cursor {
             SiblingCursor::None => self.nodes[parent].last_child,
@@ -1108,15 +1113,9 @@ pub struct UiParent {
     // todo: add a debug-mode frame number to check that it's not held and reused across frames
     pub(crate) i: NodeI,
     pub(crate) sibling_cursor: SiblingCursor,
+    pub(crate) ui_instance_id: u32,
 }
 impl UiParent {
-    pub(crate) fn new(node_i: NodeI) -> UiParent {
-        return UiParent {
-            i: node_i,
-            sibling_cursor: SiblingCursor::None,
-        }
-    }
-
     /// Start a nested block in the GUI tree.
     /// 
     /// Inside the nested block, new nodes will be added as a child of the node that `self` refers to.
@@ -1136,11 +1135,11 @@ impl UiParent {
     /// Since the `content` closure doesn't borrow or move anything, it sets no restrictions on what code can be ran inside it.
     /// You can keep accessing and mutating both the `Ui` and the rest of the program state freely, as you would outside of the closure. 
     pub fn nest<T>(&self, content: impl FnOnce() -> T ) -> T {
-        thread_local::push_parent(self.i, self.sibling_cursor);
+        thread_local::push_parent(self.i, self.sibling_cursor, self.ui_instance_id);
 
         let result = content();
 
-        thread_local::pop_parent();
+        thread_local::pop_parent(self.ui_instance_id);
     
         return result;
     }
