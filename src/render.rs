@@ -83,7 +83,21 @@ impl Ui {
                 }
             }
             WindowEvent::KeyboardInput { event, is_synthetic, .. } => {
+                // In release mode, only trigger UI update for filtered keys (if filter is set)
+                #[cfg(not(debug_assertions))]
+                {
+                    let should_update = match &self.sys.keyboard_filter {
+                        None => true, // No filter, all keys trigger update
+                        Some(filter) => filter.contains(&event.logical_key),
+                    };
+                    if should_update {
+                        self.set_new_ui_input();
+                    }
+                }
+                // In debug mode, always trigger UI update (filter is only used for warnings)
+                #[cfg(debug_assertions)]
                 self.set_new_ui_input();
+
                 if !is_synthetic {
                     return self.handle_keyboard_event(event);
                 }

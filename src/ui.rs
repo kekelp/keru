@@ -11,6 +11,8 @@ use winit::dpi::PhysicalSize;
 use winit::window::Window;
 use key_events::KeyInput;
 use mouse_events::{MouseInput, SmallVec};
+use winit::keyboard::Key;
+use key_events::FullKeyEvent;
 
 use std::any::Any;
 use std::collections::BinaryHeap;
@@ -155,6 +157,10 @@ pub(crate) struct System {
 
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
+
+    /// If set, only these keys will trigger a UI update via `set_new_ui_input`.
+    /// If None, all keyboard input triggers an update (default behavior).
+    pub listened_keys: Option<Vec<Key>>,
 }
 
 /// A handle that can be used to wake up the [`Ui`] from another thread.
@@ -332,6 +338,8 @@ impl Ui {
 
                 device: device.clone(),
                 queue: queue.clone(),
+
+                listened_keys: None,
             },
         }
     }
@@ -481,6 +489,71 @@ impl Ui {
         return &self.sys.key_input;
     }
 
+    #[cfg(debug_assertions)]
+    fn warn_if_key_not_registered(&self, key: &Key) {
+        if let Some(filter) = &self.sys.listened_keys {
+            if !filter.contains(key) {
+                log::warn!(
+                    "Querying key {:?} which is not in the keyboard filter. \
+                    Add it to the filter or this query will always return false in release mode.",
+                    key
+                );
+            }
+        }
+    }
+
+    /// Returns true if the given key was just pressed this frame.
+    pub fn key_pressed(&self, key: &Key) -> bool {
+        #[cfg(debug_assertions)]
+        self.warn_if_key_not_registered(key);
+        self.sys.key_input.key_pressed(key)
+    }
+
+    /// Returns true if the given key is being repeated (held down).
+    pub fn key_repeated(&self, key: &Key) -> bool {
+        #[cfg(debug_assertions)]
+        self.warn_if_key_not_registered(key);
+        self.sys.key_input.key_repeated(key)
+    }
+
+    /// Returns true if the given key was just pressed or is being repeated.
+    pub fn key_pressed_or_repeated(&self, key: &Key) -> bool {
+        #[cfg(debug_assertions)]
+        self.warn_if_key_not_registered(key);
+        self.sys.key_input.key_pressed_or_repeated(key)
+    }
+
+    /// Returns true if the given key is currently held down.
+    pub fn key_held(&self, key: &Key) -> bool {
+        #[cfg(debug_assertions)]
+        self.warn_if_key_not_registered(key);
+        self.sys.key_input.key_held(key)
+    }
+
+    /// Returns how long the given key has been held, if at all.
+    pub fn time_key_held(&self, key: &Key) -> Option<Duration> {
+        #[cfg(debug_assertions)]
+        self.warn_if_key_not_registered(key);
+        self.sys.key_input.time_key_held(key)
+    }
+
+    /// Returns an iterator over key events for the given key.
+    pub fn key_events(&self, key: &Key) -> impl DoubleEndedIterator<Item = &FullKeyEvent> {
+        #[cfg(debug_assertions)]
+        self.warn_if_key_not_registered(key);
+        self.sys.key_input.key_events(key)
+    }
+
+    /// Returns an iterator over all key events this frame.
+    pub fn all_key_events(&self) -> impl DoubleEndedIterator<Item = &FullKeyEvent> {
+        self.sys.key_input.all_key_events()
+    }
+
+    /// Returns the current modifier key state.
+    pub fn key_mods(&self) -> &winit::keyboard::ModifiersState {
+        self.sys.key_input.key_mods()
+    }
+
     pub fn scroll_delta(&self) -> Option<glam::Vec2> {
         self.global_scroll_delta()
     }
@@ -489,6 +562,23 @@ impl Ui {
         // Anti state-tearing: always update two times
         // Or rather, anti get-stuck-in-a-state-teared-frame. The state tearing is still there for one frame.
         self.sys.update_frames_needed = 2;
+    }
+
+    /// Register a keyboard key that the UI cares about.
+    /// 
+    /// Only registered keys will cause [`Ui::should_update()`] to return `true`.
+    /// 
+    /// In debug mode, calling [`Ui::key_pressed()`] with a key that wasn't added as listened will print a warning.
+    pub fn add_listened_key(&mut self, key: Key) {
+        let filter = self.sys.listened_keys.get_or_insert_with(Vec::new);
+        if !filter.contains(&key) {
+            filter.push(key);
+        }
+    }
+
+    /// Clear all registered keys, returning to default behavior where all keys trigger updates.
+    pub fn clear_listened_keys(&mut self) {
+        self.sys.listened_keys = None;
     }
 
     /// Resize the `Ui`.
