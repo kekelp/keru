@@ -83,13 +83,11 @@ impl Ui {
                 }
             }
             WindowEvent::KeyboardInput { event, is_synthetic, .. } => {
-                // In release mode, only trigger UI update for filtered keys (if filter is set)
+                // In release mode, only trigger UI update for listened keys
                 #[cfg(not(debug_assertions))]
                 {
-                    let should_update = match &self.sys.keyboard_filter {
-                        None => true, // No filter, all keys trigger update
-                        Some(filter) => filter.contains(&event.logical_key),
-                    };
+                    let should_update = !self.sys.filter_listened_keys
+                        || self.sys.listened_keys.contains(&event.logical_key);
                     if should_update {
                         self.set_new_ui_input();
                     }

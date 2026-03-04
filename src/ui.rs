@@ -158,9 +158,8 @@ pub(crate) struct System {
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
 
-    /// If set, only these keys will trigger a UI update via `set_new_ui_input`.
-    /// If None, all keyboard input triggers an update (default behavior).
-    pub listened_keys: Option<Vec<Key>>,
+    pub listened_keys: Vec<Key>,
+    pub filter_listened_keys: bool,
 }
 
 /// A handle that can be used to wake up the [`Ui`] from another thread.
@@ -339,7 +338,8 @@ impl Ui {
                 device: device.clone(),
                 queue: queue.clone(),
 
-                listened_keys: None,
+                listened_keys: Vec::new(),
+                filter_listened_keys: false,
             },
         }
     }
@@ -491,14 +491,12 @@ impl Ui {
 
     #[cfg(debug_assertions)]
     fn warn_if_key_not_registered(&self, key: &Key) {
-        if let Some(filter) = &self.sys.listened_keys {
-            if !filter.contains(key) {
-                log::warn!(
-                    "Querying key {:?} which is not in the keyboard filter. \
-                    Add it to the filter or this query will always return false in release mode.",
-                    key
-                );
-            }
+        if self.sys.filter_listened_keys && !self.sys.listened_keys.contains(key) {
+            log::warn!(
+                "Querying key {:?} which is not in the listened keys. \
+                Add it with add_listened_key() or this query will always return false in release mode.",
+                key
+            );
         }
     }
 
@@ -566,19 +564,26 @@ impl Ui {
 
     /// Register a keyboard key that the UI cares about.
     /// 
+    /// Register a key to listen for. Enables key filtering.
+    ///
     /// Only registered keys will cause [`Ui::should_update()`] to return `true`.
-    /// 
-    /// In debug mode, calling [`Ui::key_pressed()`] with a key that wasn't added as listened will print a warning.
+    ///
+    /// In debug mode, calling [`Ui::key_pressed()`] with a key that wasn't added will print a warning.
     pub fn add_listened_key(&mut self, key: Key) {
-        let filter = self.sys.listened_keys.get_or_insert_with(Vec::new);
-        if !filter.contains(&key) {
-            filter.push(key);
+        self.sys.filter_listened_keys = true;
+        if !self.sys.listened_keys.contains(&key) {
+            self.sys.listened_keys.push(key);
         }
     }
 
-    /// Clear all registered keys, returning to default behavior where all keys trigger updates.
+    /// Clear all registered keys. No keys will trigger updates until new ones are added.
     pub fn clear_listened_keys(&mut self) {
-        self.sys.listened_keys = None;
+        self.sys.listened_keys.clear();
+    }
+
+    /// Disable key filtering. All keyboard input will trigger UI updates.
+    pub fn disable_listened_keys(&mut self) {
+        self.sys.filter_listened_keys = false;
     }
 
     /// Resize the `Ui`.
