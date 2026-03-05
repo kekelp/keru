@@ -19,20 +19,20 @@ impl State {
         #[node_key] const SHOW_ELEM_2: NodeKey;
 
         let container = PANEL
-            .color(KERU_RED)
+            .color(Color::KERU_RED)
             .size_symm(Size::Pixels(300.0))
             .children_can_hide(true)
             .key(CONTAINER);
 
         let elem_1 = TEXT_EDIT_LINE
-            .color(KERU_GREEN)
+            .color(Color::KERU_GREEN)
             .size_symm(Size::FitContent)
             .position_y(Pos::Start)
             .static_text("Edit text")
             .key(ELEM_1);
 
         let elem_2 = TEXT_EDIT_LINE
-            .color(KERU_GREEN)
+            .color(Color::KERU_GREEN)
             .position_y(Pos::End)
             .size_symm(Size::FitContent)
             .static_text("Write here")

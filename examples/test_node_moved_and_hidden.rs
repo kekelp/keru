@@ -16,7 +16,7 @@ impl State {
         #[node_key] const CONT_2: NodeKey;
 
         let moving_node = BUTTON
-            .color(RED)
+            .color(Color::RED)
             .shape(Shape::Circle)
             .key(MOVING_NODE);
         let cont_1 = BUTTON

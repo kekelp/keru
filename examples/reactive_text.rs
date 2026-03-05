@@ -19,11 +19,11 @@ impl CustomComponents for Ui {
             #[node_key] const RESET: NodeKey;
 
             let increase_button = BUTTON
-                .color(RED)
+                .color(Color::RED)
                 .static_text(&"Push str")
                 .key(INCREASE);
             let clear_button = BUTTON
-                .color(RED)
+                .color(Color::RED)
                 .static_text(&"Clear")
                 .key(RESET);
 

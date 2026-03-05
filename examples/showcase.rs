@@ -111,7 +111,7 @@ impl UiExt for Ui {
 
             let button_with_stroke = BUTTON
                 .static_text("Button example")
-                .color(KERU_BLUE)
+                .color(Color::KERU_BLUE)
                 .shape(Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: 20.0 })
                 .stroke(5.0)
                 .stroke_dashes(10.0, 0.0);
@@ -120,9 +120,9 @@ impl UiExt for Ui {
 
             let button_with_colored_stroke = BUTTON
                 .static_text("Button with different stroke color")
-                .color(KERU_PINK)
+                .color(Color::KERU_PINK)
                 .stroke(3.0)
-                .stroke_color(rgba(255, 0, 0, 255))
+                .stroke_color(Color::RED)
                 .shape(Shape::Rectangle {
                     rounded_corners: RoundedCorners::TOP_LEFT | RoundedCorners::BOTTOM_RIGHT,
                     corner_radius: 15.0
@@ -151,7 +151,7 @@ impl UiExt for Ui {
                 // Draw line segments
                 for i in 0..points.len() - 1 {
                     let segment_node = Node::segment_frac(points[i], points[i + 1], Some(10.0))
-                        .color(KERU_GREEN)
+                        .color(Color::KERU_GREEN)
                         .stroke_width(4.0);
 
                     self.add(segment_node);
@@ -162,7 +162,7 @@ impl UiExt for Ui {
                     let circle_size = 16.0;
                     let circle_node = DEFAULT
                         .shape(Shape::Circle)
-                        .color(KERU_BLUE)
+                        .color(Color::KERU_BLUE)
                         .anchor_symm(Anchor::Center)
                         .size_symm(Size::Pixels(circle_size))
                         .position_x(Pos::Frac(x))
@@ -184,7 +184,7 @@ impl UiExt for Ui {
                         rotation: angle,
                         width: 0.6,
                     })
-                    .color(KERU_RED)
+                    .color(Color::KERU_RED)
                     .anchor_symm(Anchor::Center)
                     .size_symm(Size::Pixels(50.0))
                     .position_x(Pos::Frac(p_last.0))
@@ -198,7 +198,7 @@ impl UiExt for Ui {
                         size: 0.85,
                         rotation: 0.0,
                     })
-                    .color(KERU_PINK)
+                    .color(Color::KERU_PINK)
                     .anchor_symm(Anchor::Center)
                     .size_symm(Size::Pixels(60.0))
                     .position_x(Pos::Frac(0.15))
@@ -212,7 +212,7 @@ impl UiExt for Ui {
                         size: 0.8,
                         rotation: std::f32::consts::PI / 6.0,
                     })
-                    .color(KERU_GREEN)
+                    .color(Color::KERU_GREEN)
                     .stroke_width(3.0)
                     .anchor_symm(Anchor::Center)
                     .size_symm(Size::Pixels(50.0))
@@ -243,11 +243,11 @@ impl UiExt for Ui {
         self.add(v_stack).nest(|| {
             self.static_label("Keru uses the Textslabs library for text, which uses Parley under the hood. \n\
             The text edit box supports IME, but this hasn't been thoroughly tested on all platforms yet.");
-            self.add(H_LINE.color(WHITE));
+            self.add(H_LINE.color(Color::WHITE));
             self.label(&Static(JAPANESE_TEXT));
-            self.add(H_LINE.color(WHITE));
+            self.add(H_LINE.color(Color::WHITE));
             self.label(&Static(CYRILLIC_TEXT));
-            self.add(H_LINE.color(WHITE));
+            self.add(H_LINE.color(Color::WHITE));
             self.label(&Static(CHINESE_TEXT));
         });
     }
@@ -298,9 +298,9 @@ impl UiExt for Ui {
                         self.add(BUTTON.text("Button"));
     
                         self.add(H_STACK).nest(|| {
-                            self.add(PANEL.color(RED).size_symm(Size::Pixels(50.0)));
-                            self.add(PANEL.color(GREEN).size_symm(Size::Pixels(50.0)));
-                            self.add(PANEL.color(BLUE).size_symm(Size::Pixels(50.0)));
+                            self.add(PANEL.color(Color::RED).size_symm(Size::Pixels(50.0)));
+                            self.add(PANEL.color(Color::GREEN).size_symm(Size::Pixels(50.0)));
+                            self.add(PANEL.color(Color::BLUE).size_symm(Size::Pixels(50.0)));
                         });
     
                         self.label("Don't expect scaled text to look good, though. It uses the same texture and just scales the quads");

@@ -178,7 +178,7 @@ impl Ui {
                 let slider_fill = PANEL
                     .size_y(Fill)
                     .size_x(Size::Frac(filled_frac))
-                    .color(KERU_RED)
+                    .color(Color::KERU_RED)
                     .position_x(Start)
                     .padding_x(1.0)
                     .absorbs_clicks(false)
@@ -227,7 +227,7 @@ impl Ui {
                 .size_x(Size::Fill)
                 .size_y(Size::Pixels(10.0))
                 .padding(0.0)
-                .color(GREY)
+                .color(Color::GREY)
                 .shape(Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: 5.0 })
                 .absorbs_clicks(false)
                 .key(TRACK);
@@ -237,7 +237,7 @@ impl Ui {
                 .size_y(Size::Pixels(14.0))
                 .shape(Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: 7.0 })
                 .size_x(Size::Frac(handle_position_frac))
-                .color(KERU_RED)
+                .color(Color::KERU_RED)
                 .position_x(Start)
                 .padding_x(0.0)
                 .absorbs_clicks(false)
@@ -247,7 +247,7 @@ impl Ui {
             let slider_handle = PANEL
                 .size_x(Size::Pixels(handle_radius * 2.0))
                 .size_y(Size::Pixels(handle_radius * 2.0))
-                .color(WHITE)
+                .color(Color::WHITE)
                 .anchor_x(Anchor::Center)
                 .position_x(Pos::Pixels(handle_position_frac * slider_width))
                 .position_y(Pos::Center)
@@ -327,7 +327,7 @@ impl SimpleComponent for Slider<'_> {
             let slider_fill = PANEL
                 .size_y(Fill)
                 .size_x(Size::Frac(filled_frac))
-                .color(KERU_RED)
+                .color(Color::KERU_RED)
                 .position_x(Start)
                 .padding_x(1.0)
                 .absorbs_clicks(false)
@@ -399,14 +399,14 @@ impl Component for TransformView<'_> {
 
         let spacebar_pan_overlay = PANEL
             .padding(0.0)
-            .color(TRANSPARENT)
+            .color(Color::TRANSPARENT)
             .sense_drag(true)
             .size(Size::Fill, Size::Fill)
             .key(SPACEBAR_PAN_OVERLAY);
 
         let pan_overlay = PANEL
             .padding(0.0)
-            .color(TRANSPARENT)
+            .color(Color::TRANSPARENT)
             .sense_drag(true)
             .sense_scroll(true)
             .absorbs_clicks(false)
@@ -416,7 +416,7 @@ impl Component for TransformView<'_> {
         let transform_area = PANEL
             .padding(0.0)
             .size_symm(Size::Pixels(1000000.0))
-            .color(TRANSPARENT)
+            .color(Color::TRANSPARENT)
             .key(TRANSFORMED_AREA)
             .translate(self.state.pan_x, self.state.pan_y)
             .scale(self.state.scale)

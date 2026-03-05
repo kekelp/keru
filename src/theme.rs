@@ -50,26 +50,26 @@ pub struct Theme {
 
 #[doc(hidden)]
 pub const KERU_DARK: Theme = Theme {
-    muted_background: ColorFill::Color(rgba(11, 11, 14, 255)),
-    background: ColorFill::Color(rgba(30, 31, 42, 255)),
-    surface: ColorFill::Color(rgba(30, 31, 44, 255)),
-    surface_alt: ColorFill::Color(rgba(37, 38, 54, 255)),
+    muted_background: ColorFill::Color(Color::new(0.043137256, 0.043137256, 0.05490196, 1.0)),
+    background: ColorFill::Color(Color::new(0.11764706, 0.12156863, 0.16470589, 1.0)),
+    surface: ColorFill::Color(Color::new(0.11764706, 0.12156863, 0.17254902, 1.0)),
+    surface_alt: ColorFill::Color(Color::new(0.14509805, 0.14901961, 0.21176471, 1.0)),
 
-    text_primary: ColorFill::Color(rgba(220, 223, 228, 255)),
-    text_secondary: ColorFill::Color(rgba(156, 160, 176, 255)),
-    text_disabled: ColorFill::Color(rgba(98, 100, 116, 255)),
+    text_primary: ColorFill::Color(Color::new(0.8627451, 0.8745098, 0.89411765, 1.0)),
+    text_secondary: ColorFill::Color(Color::new(0.6117647, 0.627451, 0.6901961, 1.0)),
+    text_disabled: ColorFill::Color(Color::new(0.38431373, 0.39215687, 0.45490196, 1.0)),
 
-    primary: ColorFill::Color(rgba(89, 166, 255, 255)),
-    primary_hover: ColorFill::Color(rgba(120, 187, 255, 255)),
-    secondary: ColorFill::Color(rgba(135, 138, 180, 255)),
-    secondary_hover: ColorFill::Color(rgba(156, 160, 200, 255)),
+    primary: ColorFill::Color(Color::new(0.34901962, 0.6509804, 1.0, 1.0)),
+    primary_hover: ColorFill::Color(Color::new(0.47058824, 0.73333335, 1.0, 1.0)),
+    secondary: ColorFill::Color(Color::new(0.5294118, 0.5411765, 0.7058824, 1.0)),
+    secondary_hover: ColorFill::Color(Color::new(0.6117647, 0.627451, 0.78431374, 1.0)),
 
-    success: ColorFill::Color(rgba(87, 189, 134, 255)),
-    error: ColorFill::Color(rgba(235, 87, 87, 255)),
-    warning: ColorFill::Color(rgba(242, 178, 56, 255)),
+    success: ColorFill::Color(Color::new(0.34117648, 0.7411765, 0.5254902, 1.0)),
+    error: ColorFill::Color(Color::new(0.92156863, 0.34117648, 0.34117648, 1.0)),
+    warning: ColorFill::Color(Color::new(0.9490196, 0.69803923, 0.21960784, 1.0)),
 
-    border: ColorFill::Color(rgba(45, 46, 66, 255)),
-    disabled: ColorFill::Color(rgba(49, 50, 68, 255)),
+    border: ColorFill::Color(Color::new(0.1764706, 0.18039216, 0.25882354, 1.0)),
+    disabled: ColorFill::Color(Color::new(0.19215687, 0.19607843, 0.26666668, 1.0)),
 
     border_radius: 4.0,
     border_width: 1.0,

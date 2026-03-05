@@ -151,8 +151,8 @@ impl Ui {
         let dark = dark_click.min(dark_hover);
 
         // Apply darkening to fill
-        let apply_dark = |c: [f32; 4]| -> [f32; 4] {
-            [c[0] * dark, c[1] * dark, c[2] * dark, c[3]]
+        let apply_dark = |c: Color| -> Color {
+            Color::new(c.r * dark, c.g * dark, c.b * dark, c.a)
         };
         let apply_dark_fill = |f: ColorFill| -> ColorFill {
             match f {
@@ -180,7 +180,7 @@ impl Ui {
 
         // Get stroke info
         let stroke = if debug_box {
-            Some(Stroke::new(3.0).with_color(DEBUG_RED))
+            Some(Stroke::new(3.0).with_color(Color::DEBUG_RED))
         } else {
             node.params.stroke
         };
@@ -193,8 +193,8 @@ impl Ui {
 
         // Check if fill is visible (alpha > 0)
         let fill_visible = !debug_box && match node.params.color {
-            ColorFill::Color(c) => c[3] > 0.0,
-            ColorFill::Gradient(g) => g.color_start[3] > 0.0 || g.color_end[3] > 0.0,
+            ColorFill::Color(c) => c.a > 0.0,
+            ColorFill::Gradient(g) => g.color_start.a > 0.0 || g.color_end.a > 0.0,
         };
 
         // Render based on shape type
@@ -627,8 +627,8 @@ impl Ui {
         corner_radius: f32,
         rounded_corners: keru_draw::RoundedCorners,
         border_thickness: f32,
-        start_color: [f32; 4],
-        end_color: [f32; 4],
+        start_color: Color,
+        end_color: Color,
         gradient_angle: f32,
         clip_x: [f32; 2],
         clip_y: [f32; 2],
@@ -657,7 +657,7 @@ impl Ui {
         corner_radius: f32,
         rounded_corners: keru_draw::RoundedCorners,
         border_thickness: f32,
-        color: [f32; 4],
+        color: Color,
         clip_x: [f32; 2],
         clip_y: [f32; 2],
     ) {
@@ -682,7 +682,7 @@ impl Ui {
         &mut self,
         center: [f32; 2],
         radius: f32,
-        color: [f32; 4],
+        color: Color,
         clip_x: [f32; 2],
         clip_y: [f32; 2],
     ) {

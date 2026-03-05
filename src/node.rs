@@ -2,7 +2,6 @@ use glam::vec2;
 use keru_draw::StyleHandle;
 
 use crate::*;
-use crate::color::*;
 use std::{hash::{Hash, Hasher}, ops::Deref};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -427,7 +426,7 @@ impl Stroke {
     pub const fn new(width: f32) -> Self {
         Self {
             width,
-            color: ColorFill::Color(KERU_GREEN),
+            color: ColorFill::Color(Color::KERU_GREEN),
             dash_length: 0.0,
             dash_offset: 0.0,
         }
@@ -439,7 +438,7 @@ impl Stroke {
         self
     }
 
-    pub const fn with_color(mut self, color: [f32; 4]) -> Self {
+    pub const fn with_color(mut self, color: Color) -> Self {
         self.color = ColorFill::Color(color);
         self
     }
@@ -671,19 +670,19 @@ impl Node {
         return self;
     }
 
-    pub const fn stroke_color(mut self, color: [f32; 4]) -> Self {
+    pub const fn stroke_color(mut self, color: Color) -> Self {
         if let Some(stroke) = self.stroke {
             self.stroke = Some(stroke.with_color(color));
         }
         return self;
     }
 
-    pub const fn color(mut self, color: [f32; 4]) -> Self {
+    pub const fn color(mut self, color: Color) -> Self {
         self.color = ColorFill::Color(color);
         return self;
     }
 
-    pub const fn gradient(mut self, gradient: crate::color::Gradient) -> Self {
+    pub const fn gradient(mut self, gradient: Gradient) -> Self {
         self.color = ColorFill::Gradient(gradient);
         return self;
     }
@@ -1134,19 +1133,19 @@ impl<'a> FullNode<'a> {
         return self;
     }
 
-    pub const fn stroke_color(mut self, color: [f32; 4]) -> Self {
+    pub const fn stroke_color(mut self, color: Color) -> Self {
         if let Some(stroke) = self.params.stroke {
             self.params.stroke = Some(stroke.with_color(color));
         }
         return self;
     }
 
-    pub const fn color(mut self, color: [f32; 4]) -> Self {
+    pub const fn color(mut self, color: Color) -> Self {
         self.params.color = ColorFill::Color(color);
         return self;
     }
 
-    pub const fn gradient(mut self, gradient: crate::color::Gradient) -> Self {
+    pub const fn gradient(mut self, gradient: Gradient) -> Self {
         self.params.color = ColorFill::Gradient(gradient);
         return self;
     }

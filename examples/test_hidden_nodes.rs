@@ -17,29 +17,29 @@ impl State {
         #[node_key] const SHOW: NodeKey;
 
         let c1 = PANEL
-            .color(DEBUG_RED)
+            .color(Color::DEBUG_RED)
             .size_symm(Size::FitContent)
             .children_can_hide(true)
             .key(C1);
         let c2 = PANEL
-            .color(KERU_GREEN)
+            .color(Color::KERU_GREEN)
             .size_symm(Size::FitContent)
             .key(SHOULD_BE_HIDDEN_NOT_REMOVED);
         let c3 = PANEL
-            .color(KERU_BLUE)
+            .color(Color::KERU_BLUE)
             .size_symm(Size::FitContent)
             .key(C3);
         let c4 = PANEL
-            .color(WHITE)
+            .color(Color::WHITE)
             .size_symm(Size::FitContent)
             .key(C4);
         let c5 = PANEL
-            .color(KERU_RED)
+            .color(Color::KERU_RED)
             .size_symm(Size::FitContent)
             .key(C5);
 
         let show = BUTTON
-            .color(KERU_RED)
+            .color(Color::KERU_RED)
             .size_symm(Size::FitContent)
             .position_y(Pos::End)
             .static_text(&"Show")

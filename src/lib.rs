@@ -88,9 +88,6 @@ pub use node_key::*;
 mod node;
 pub use node::*;
 
-mod color;
-pub use color::*;
-
 mod subtree;
 pub use subtree::*;
 
@@ -133,7 +130,7 @@ pub(crate) use thread_local::SiblingCursor;
 
 pub use bumpalo;
 
-pub use keru_draw::{TextStyle2 as TextStyle, FontWeight, FontStyle, LineHeight, FontStack, ColorBrush, StyleHandle, with_clipboard};
+pub use keru_draw::{TextStyle2 as TextStyle, FontWeight, FontStyle, LineHeight, FontStack, ColorBrush, StyleHandle, with_clipboard, Color, ColorFill, Gradient};
 
 mod changes;
 pub(crate) use crate::changes::*;

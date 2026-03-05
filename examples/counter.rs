@@ -24,7 +24,7 @@ impl State {
         }
 
         let red = 0.1 * self.count as f32;
-        let count_color = [red, 0.10196, 0.59608, 0.80392];
+        let count_color = Color::new(red, 0.10196, 0.59608, 0.80392);
 
         let show_button_text = match self.show {
             true => "Hide Counter",
@@ -41,7 +41,7 @@ impl State {
             .key(INCREASE);
 
         let show_button = BUTTON
-            .color(RED)
+            .color(Color::RED)
             .text(show_button_text)
             .animate_position(true)
             .key(SHOW);

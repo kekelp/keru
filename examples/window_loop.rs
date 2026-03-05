@@ -1,5 +1,4 @@
 use keru::*;
-use wgpu::*;
 use std::sync::Arc;
 use winit::{application::ApplicationHandler, event::WindowEvent, event_loop::{ActiveEventLoop, EventLoop}, window::{Window, WindowId}};
 
@@ -9,18 +8,18 @@ struct Application {
 
 struct State {
     window: Arc<Window>,
-    surface: Surface<'static>,
-    device: Device,
-    _queue: Queue,
-    config: SurfaceConfiguration,
+    surface: wgpu::Surface<'static>,
+    device: wgpu::Device,
+    _queue: wgpu::Queue,
+    config: wgpu::SurfaceConfiguration,
     ui: Ui,
     count: i32,
 }
 
 impl State {
-    fn new(window: Arc<Window>, instance: Instance) -> Self {
-        let adapter = pollster::block_on(instance.request_adapter(&RequestAdapterOptions::default())).unwrap();
-        let (device, queue) = pollster::block_on(adapter.request_device(&DeviceDescriptor::default())).unwrap();
+    fn new(window: Arc<Window>, instance: wgpu::Instance) -> Self {
+        let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default())).unwrap();
+        let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default())).unwrap();
 
         let surface = instance.create_surface(window.clone()).unwrap();
         let size = window.inner_size();
@@ -31,13 +30,13 @@ impl State {
             .find(|f| ! f.is_srgb())
             .copied().unwrap_or(surface_caps.formats[0]);
 
-        let config = SurfaceConfiguration {
-            usage: TextureUsages::RENDER_ATTACHMENT,
+        let config = wgpu::SurfaceConfiguration {
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface_format,
             width: size.width,
             height: size.height,
-            present_mode: PresentMode::Fifo,
-            alpha_mode: CompositeAlphaMode::Opaque,
+            present_mode: wgpu::PresentMode::Fifo,
+            alpha_mode: wgpu::CompositeAlphaMode::Opaque,
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
         };
@@ -60,7 +59,7 @@ impl State {
         #[node_key] const INCREASE: NodeKey;
         
         let button = BUTTON
-            .color(keru::RED)
+            .color(Color::RED)
             .text("Increase")
             .key(INCREASE);
 
@@ -81,7 +80,7 @@ impl ApplicationHandler for Application {
     // We'd also need to call `ui.register_window()` again.
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let window = Arc::new(event_loop.create_window(Window::default_attributes()).unwrap());
-        let instance = Instance::new(&InstanceDescriptor::default());
+        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
         let state = State::new(window, instance);
         self.state = Some(state);
     }

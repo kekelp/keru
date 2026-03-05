@@ -27,14 +27,14 @@ impl CustomComponents for Ui {
             self.reactive(changed).start(|| {
 
                 let red = 0.1 * (**count as f32);
-                let increase_color = [red, 0.10196, 0.59608, 0.80392];
+                let increase_color = Color::new(red, 0.10196, 0.59608, 0.80392);
                 let increase_button = BUTTON
                     .color(increase_color)
                     .static_text(&"Increase")
                     .key(INCREASE);
 
                 let green = 0.1 * ((10 - **count) as f32);
-                let decrease_color = [0.2345, green, 0.59608, 0.80392];
+                let decrease_color = Color::new(0.2345, green, 0.59608, 0.80392);
                 let decrease_button = BUTTON
                     .color(decrease_color)
                     .static_text(&"Decrease")
