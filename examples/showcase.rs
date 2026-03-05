@@ -114,12 +114,13 @@ impl UiExt for Ui {
                 .color(Color::KERU_BLUE)
                 .shape(Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: 20.0 })
                 .stroke(5.0)
-                .stroke_dashes(10.0, 0.0);
+                .stroke_color(Color::GREEN)
+                .stroke_dashes(15.0, 0.0);
 
             self.add(button_with_stroke);
 
             let button_with_colored_stroke = BUTTON
-                .static_text("Button with different stroke color")
+                .static_text("Button example 2")
                 .color(Color::KERU_PINK)
                 .stroke(3.0)
                 .stroke_color(Color::RED)
@@ -212,7 +213,8 @@ impl UiExt for Ui {
                         size: 0.8,
                         rotation: std::f32::consts::PI / 6.0,
                     })
-                    .color(Color::KERU_GREEN)
+                    .color(Color::TRANSPARENT)
+                    .stroke_color(Color::KERU_GREEN)
                     .stroke_width(3.0)
                     .anchor_symm(Anchor::Center)
                     .size_symm(Size::Pixels(50.0))

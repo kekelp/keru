@@ -1122,7 +1122,12 @@ impl<'a> FullNode<'a> {
     }
 
     pub const fn stroke(mut self, width: f32) -> Self {
-        self.params.stroke = Some(Stroke::new(width));
+        match &mut self.params.stroke {
+            Some(stroke) => stroke.width = width,
+            None => {
+                self.params.stroke = Some(Stroke::new(width))
+            },
+        }
         return self;
     }
 
