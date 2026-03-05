@@ -35,7 +35,7 @@ impl Default for KeyInput {
 }
 
 impl KeyInput {
-    pub fn key_mods(&self) -> &ModifiersState {
+    pub fn key_mods(&self) -> &winit::keyboard::ModifiersState {
         return &self.key_mods;
     }
 
@@ -66,7 +66,7 @@ impl KeyInput {
         }
     }
 
-    pub fn window_event(&mut self, event: &WindowEvent) {
+    pub fn window_event(&mut self, event: &winit::event::WindowEvent) {
         match event {
             WindowEvent::KeyboardInput { event, is_synthetic, .. } => {
                 if !is_synthetic {

@@ -29,7 +29,7 @@ pub(crate) enum InputEvent {
 pub struct ClickEvent {
     pub targets: SmallVec<Id>,
     pub position: Vec2,
-    pub button: MouseButton,
+    pub button: winit::event::MouseButton,
     pub timestamp: Instant,
 }
 
@@ -37,14 +37,14 @@ pub struct ClickEvent {
 pub struct ClickReleaseEvent {
     pub targets: SmallVec<Id>,
     pub position: Vec2,
-    pub button: MouseButton,
+    pub button: winit::event::MouseButton,
     pub press_time: Instant,
 }
 
 #[derive(Clone, Debug)]
 pub struct DragEvent {
     pub targets: SmallVec<Id>,
-    pub button: MouseButton,
+    pub button: winit::event::MouseButton,
     pub start_pos: Vec2,
     pub current_pos: Vec2,
     pub frame_delta: Vec2,
@@ -55,7 +55,7 @@ pub struct DragEvent {
 #[derive(Clone, Debug)]
 pub struct DragReleaseEvent {
     pub targets: SmallVec<Id>,
-    pub button: MouseButton,
+    pub button: winit::event::MouseButton,
     pub start_pos: Vec2,
     pub end_pos: Vec2,
     pub total_delta: Vec2,
@@ -147,7 +147,7 @@ impl MouseInput {
         self.events.clear();
     }
 
-    pub fn window_event(&mut self, event: &WindowEvent) {
+    pub fn window_event(&mut self, event: &winit::event::WindowEvent) {
         if let WindowEvent::CursorMoved { position, .. } = event {
             self.prev_cursor_position = self.cursor_position;
             self.cursor_position = vec2(position.x as f32, position.y as f32);
@@ -157,7 +157,7 @@ impl MouseInput {
     /// Called when mouse button is pressed
     pub fn push_press(
         &mut self,
-        button: MouseButton,
+        button: winit::event::MouseButton,
         click_targets: SmallVec<Id>,
         drag_targets: SmallVec<Id>,
     ) {
@@ -194,7 +194,7 @@ impl MouseInput {
     }
 
     /// Called when mouse button is released
-    pub fn push_release(&mut self, button: MouseButton, current_click_targets: SmallVec<Id>) {
+    pub fn push_release(&mut self, button: winit::event::MouseButton, current_click_targets: SmallVec<Id>) {
         // Collect all pending entries for this button
         let mut i = 0;
         while i < self.pending.len() {
@@ -254,7 +254,7 @@ impl MouseInput {
         }));
     }
     /// Returns IDs of nodes currently being dragged
-    pub fn currently_dragging(&self) -> impl Iterator<Item = (&Id, MouseButton)> + '_ {
+    pub fn currently_dragging(&self) -> impl Iterator<Item = (&Id, winit::event::MouseButton)> + '_ {
         self.pending.iter().filter_map(|p| match p {
             Pending::Drag { targets, button, .. } => targets.first().map(|id| (id, *button)),
             _ => None,

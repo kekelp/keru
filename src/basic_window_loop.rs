@@ -1,7 +1,7 @@
 //! Helper functions for `winit` and `wgpu`.
 pub use wgpu::{CommandEncoderDescriptor, TextureViewDescriptor};
 pub use winit::{error::EventLoopError, event::Event, event_loop::EventLoop};
-use winit::{event_loop::ActiveEventLoop, window::*};
+use winit::window::*;
 
 use std::{
     ops::{Deref, DerefMut},
@@ -9,9 +9,9 @@ use std::{
 };
 
 use wgpu::{
-    Color, CommandEncoder, CompositeAlphaMode, Device, DeviceDescriptor, ExperimentalFeatures, Features, Instance, InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, Queue, RenderPass, RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, Surface, SurfaceConfiguration, SurfaceTexture, TextureFormat, TextureUsages, TextureView
+    CompositeAlphaMode, DeviceDescriptor, ExperimentalFeatures, Features, Instance, InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, SurfaceConfiguration, TextureFormat, TextureUsages
 };
-use winit::{dpi::PhysicalSize, event::WindowEvent, window::Window as WinitWindow};
+use winit::event::WindowEvent;
 
 use crate::Ui;
 
@@ -22,7 +22,7 @@ pub const BACKGROUND_GREY: wgpu::Color = wgpu::Color {
     a: 1.0,
 };
 
-pub fn basic_wgpu_init() -> (Instance, Device, Queue) {
+pub fn basic_wgpu_init() -> (wgpu::Instance, wgpu::Device, wgpu::Queue) {
     let instance = Instance::new(&InstanceDescriptor {
         // backends: wgpu::Backends::VULKAN, // Force Vulkan
         ..Default::default()
@@ -49,7 +49,7 @@ pub fn basic_wgpu_init() -> (Instance, Device, Queue) {
     return (instance, device, queue);
 }
 
-pub fn basic_surface_config(width: u32, height: u32) -> SurfaceConfiguration {
+pub fn basic_surface_config(width: u32, height: u32) -> wgpu::SurfaceConfiguration {
     return SurfaceConfiguration {
         usage: TextureUsages::RENDER_ATTACHMENT,
         format: TextureFormat::Bgra8UnormSrgb,
@@ -85,13 +85,13 @@ pub struct Context {
     // Luckily, we can avoid that with this AutoUnwrap struct. Normally this would be a very weird thing to do, but Winit's loop is weird enough that it makes sense here.
     //
     // The Arc is needed for even more arcane reasons.
-    pub window: AutoUnwrap<Arc<WinitWindow>>,
-    pub surface: AutoUnwrap<Surface<'static>>,
+    pub window: AutoUnwrap<Arc<winit::window::Window>>,
+    pub surface: AutoUnwrap<wgpu::Surface<'static>>,
 
-    pub surface_config: SurfaceConfiguration,
-    pub device: Device,
-    pub queue: Queue,
-    pub instance: Instance,
+    pub surface_config: wgpu::SurfaceConfiguration,
+    pub device: wgpu::Device,
+    pub queue: wgpu::Queue,
+    pub instance: wgpu::Instance,
 }
 
 impl Context {
@@ -118,7 +118,7 @@ impl Context {
         return ctx;
     }
 
-    pub fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+    pub fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
         let window = Arc::new(
             event_loop
                 .create_window(Window::default_attributes())
@@ -151,7 +151,7 @@ impl Context {
         }
     }
 
-    pub fn resize(&mut self, size: PhysicalSize<u32>) {
+    pub fn resize(&mut self, size: winit::dpi::PhysicalSize<u32>) {
         self.surface_config.width = size.width;
         self.surface_config.height = size.height;
         self.surface.configure(&self.device, &self.surface_config);
@@ -188,19 +188,19 @@ impl Context {
         frame.surface_texture.present();
     }
 
-    pub fn render_ui(&mut self, ui: &mut Ui, background_color: Color) {
+    pub fn render_ui(&mut self, ui: &mut Ui, background_color: wgpu::Color) {
         ui.autorender(&self.surface, background_color);
     }
 }
 
 pub struct RenderFrame {
-    pub encoder: CommandEncoder,
-    pub surface_texture: SurfaceTexture,
-    pub view: TextureView,
+    pub encoder: wgpu::CommandEncoder,
+    pub surface_texture: wgpu::SurfaceTexture,
+    pub view: wgpu::TextureView,
 }
 
 impl RenderFrame {
-    pub fn begin_render_pass(&mut self, bg_color: Color) -> RenderPass<'_> {
+    pub fn begin_render_pass(&mut self, bg_color: wgpu::Color) -> wgpu::RenderPass<'_> {
         let color_att = basic_color_attachment(&self.view, bg_color);
 
         let render_pass_desc = RenderPassDescriptor {
@@ -216,9 +216,9 @@ impl RenderFrame {
 }
 
 pub fn basic_color_attachment(
-    view: &TextureView,
-    bg_color: Color,
-) -> [Option<RenderPassColorAttachment<'_>>; 1] {
+    view: &wgpu::TextureView,
+    bg_color: wgpu::Color,
+) -> [Option<wgpu::RenderPassColorAttachment<'_>>; 1] {
     return [Some(RenderPassColorAttachment {
         view,
         resolve_target: None,

@@ -27,9 +27,6 @@ use std::thread;
 use std::time::Duration;
 use std::time::Instant;
 
-use wgpu::{
-    Device, Queue, SurfaceConfiguration,
-};
 
 pub(crate) static T0: LazyLock<Instant> = LazyLock::new(Instant::now);
 
@@ -259,7 +256,7 @@ impl AnimationRenderTimer {
 }
 
 impl Ui {
-    pub fn new(device: &Device, queue: &Queue, config: &SurfaceConfiguration) -> Self {
+    pub fn new(device: &wgpu::Device, queue: &wgpu::Queue, config: &wgpu::SurfaceConfiguration) -> Self {
         // initialize the static T0
         LazyLock::force(&T0);
 
@@ -351,7 +348,7 @@ impl Ui {
     /// - enable [IME](https://en.wikipedia.org/wiki/Input_method) when a text edit box is focused, and disable it when unfocused so that there's less risk of hotkey collisions
     /// 
     /// - automatically wakeup the event loop for cursor blinking, scheduled wakeups, when using the [`UiWaker`].
-    pub fn register_window(&mut self, window: Arc<Window>) {
+    pub fn register_window(&mut self, window: Arc<winit::window::Window>) {
         self.sys.renderer.text.set_auto_wakeup(window.clone());
         self.sys.window_ref = Some(Arc::downgrade(&window));
     }

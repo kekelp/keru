@@ -1,7 +1,6 @@
 use glam::vec2;
 use keru_draw::*;
 use winit::event::*;
-use winit::window::Window;
 
 use crate::*;
 
@@ -15,7 +14,7 @@ impl Ui {
     /// Returns `true` if the event was "consumed" by the `Ui`, e.g. if a mouse click hit an opaque panel.
     /// 
     // todo: move or rename the file
-    pub fn window_event(&mut self, event: &WindowEvent, window: &Window) -> bool {
+    pub fn window_event(&mut self, event: &winit::event::WindowEvent, window: &winit::window::Window) -> bool {
         self.sys.mouse_input.window_event(event);
         self.sys.key_input.window_event(event);
 
@@ -31,7 +30,7 @@ impl Ui {
         return false;
     }
 
-    fn text_window_event(&mut self, _i: NodeI, event: &WindowEvent, window: &Window) -> bool {
+    fn text_window_event(&mut self, _i: NodeI, event: &winit::event::WindowEvent, window: &winit::window::Window) -> bool {
         let event_consumed = self.sys.renderer.text.handle_event(event, window);
 
         if self.sys.renderer.text.any_text_changed() {
@@ -48,7 +47,7 @@ impl Ui {
         return event_consumed;
     }
 
-    pub fn ui_input(&mut self, event: &WindowEvent, window: &Window) -> bool {
+    pub fn ui_input(&mut self, event: &winit::event::WindowEvent, window: &winit::window::Window) -> bool {
         match event {
             WindowEvent::RedrawRequested => {
                 self.new_redraw_requested_frame();

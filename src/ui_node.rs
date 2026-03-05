@@ -395,7 +395,7 @@ impl UiNode<'_> {
     }
 
     /// If the node was dragged with a specific mouse button, returns a struct describing the drag event. Otherwise, returns `None`.
-    pub fn is_mouse_button_dragged(&self, button: MouseButton) -> Option<Drag> {
+    pub fn is_mouse_button_dragged(&self, button: winit::event::MouseButton) -> Option<Drag> {
         #[cfg(debug_assertions)]
         if ! self.check_node_sense(Sense::DRAG, "is_mouse_button_dragged()", "Node::sense_drag()") {
             return None;
@@ -644,7 +644,7 @@ impl Ui {
     }
 
     /// If the node corresponding to `key` was dragged with a specific mouse button, returns a struct describing the drag event. Otherwise, returns `None`.
-    pub fn is_mouse_button_dragged(&self, key: NodeKey, button: MouseButton) -> Option<Drag> {
+    pub fn is_mouse_button_dragged(&self, key: NodeKey, button: winit::event::MouseButton) -> Option<Drag> {
         let Some(uinode) = self.get_node(key) else {
             return None;
         };
@@ -725,7 +725,7 @@ impl UiParent {
     }
 
     /// If the node was dragged with a specific mouse button, returns a struct describing the drag event. Otherwise, returns `None`.
-    pub fn is_mouse_button_dragged(&self, ui: &mut Ui, button: MouseButton) -> Option<Drag> {
+    pub fn is_mouse_button_dragged(&self, ui: &mut Ui, button: winit::event::MouseButton) -> Option<Drag> {
         self.get_uinode(ui).is_mouse_button_dragged(button)
     }
 
