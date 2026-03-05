@@ -41,7 +41,7 @@ pub fn basic_env_logger_init() {
 ///     #[node_key] const INCREASE: NodeKey;
 ///
 ///     let increase_button = BUTTON
-///         .color(Color::RED)
+///         .color(RED)
 ///         .text("Increase")
 ///         .key(INCREASE);
 ///

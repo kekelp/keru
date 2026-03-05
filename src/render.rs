@@ -150,50 +150,19 @@ impl Ui {
         let dark_click = 1.0 - click * 0.78;
         let dark = dark_click.min(dark_hover);
 
-        // Get vertex colors and apply darkening
-        let colors = node.params.color;
-        let tl = colors.top_left_color();
-        let tr = colors.top_right_color();
-        let bl = colors.bottom_left_color();
-        let br = colors.bottom_right_color();
-
-        // Apply darkening to colors and convert to f32 [0-1]
-        let apply_dark = |c: Color| -> [f32; 4] {
-            [
-                (c.r as f32 * dark) / 255.0,
-                (c.g as f32 * dark) / 255.0,
-                (c.b as f32 * dark) / 255.0,
-                c.a as f32 / 255.0,
-            ]
+        // Apply darkening to fill
+        let apply_dark = |c: [f32; 4]| -> [f32; 4] {
+            [c[0] * dark, c[1] * dark, c[2] * dark, c[3]]
         };
 
-        let tl_f = apply_dark(tl);
-        let tr_f = apply_dark(tr);
-        let bl_f = apply_dark(bl);
-        let _br_f = apply_dark(br);
-
-        let is_solid = tl == tr && tl == bl && tl == br;
-
-        // Determine gradient direction by checking which corners differ
-        // Old vello code used gradient from (x0, y1) bottom-left to (x1, y0) top-right
-        let (gradient_start_color, gradient_end_color, gradient_angle) = if !is_solid {
-            // Check if it's a horizontal, vertical, or diagonal gradient
-            let is_horizontal = tl == bl && tr == br;
-            let is_vertical = tl == tr && bl == br;
-
-            if is_horizontal {
-                // Horizontal gradient: left to right
-                (tl_f, tr_f, 0.0) // 0 degrees = left to right
-            } else if is_vertical {
-                // Vertical gradient: top to bottom
-                (tl_f, bl_f, std::f32::consts::FRAC_PI_2) // 90 degrees = top to bottom
-            } else {
-                // Diagonal gradient: use bottom-left to top-right (matching old vello behavior)
-                // vello used (x0, y1) to (x1, y0) which is bottom-left to top-right
-                (bl_f, tr_f, -std::f32::consts::FRAC_PI_4) // -45 degrees = bottom-left to top-right
-            }
-        } else {
-            (tl_f, tl_f, 0.0)
+        let fill = match node.params.color {
+            ColorFill::Color(color) => ColorFill::Color(apply_dark(color)),
+            ColorFill::Gradient { color_start, color_end, gradient_type, angle } => ColorFill::Gradient {
+                color_start: apply_dark(color_start),
+                color_end: apply_dark(color_end),
+                gradient_type,
+                angle,
+            },
         };
 
         // Convert clip rect to pixel coordinates
@@ -207,30 +176,16 @@ impl Ui {
         ];
 
         let (border_thickness, border_color) = if let Some(stroke) = node.params.stroke {
-            let c = stroke.color;
-            let border_color = [
-                c.r as f32 / 255.0,
-                c.g as f32 / 255.0,
-                c.b as f32 / 255.0,
-                c.a as f32 / 255.0,
-            ];
-            (stroke.width, Some(border_color))
+            (stroke.width, Some(stroke.color))
         } else {
             (0.0, None)
         };
 
-        // Override colors for debug box
-        let (tl_f, is_solid, border_thickness, border_color) = if debug_box {
-            let c = Color::KERU_DEBUG_RED;
-            let border_color_f32 = [
-                c.r as f32 / 255.0,
-                c.g as f32 / 255.0,
-                c.b as f32 / 255.0,
-                c.a as f32 / 255.0,
-            ];
-            ([0.0, 0.0, 0.0, 0.0], true, 3.0, Some(border_color_f32))
+        // Override for debug box
+        let (fill, border_thickness, border_color) = if debug_box {
+            (ColorFill::Color([0.0, 0.0, 0.0, 0.0]), 3.0, Some(ColorFill::Color(DEBUG_RED)))
         } else {
-            (tl_f, is_solid, border_thickness, border_color)
+            (fill, border_thickness, border_color)
         };
 
         let shape = if debug_box {
@@ -252,67 +207,30 @@ impl Ui {
                 let is_vertical_line = width == 0.0 && height > 0.0;
 
                 if is_horizontal_line || is_vertical_line {
-                    // Draw as a segment
-                    let thickness = if border_thickness > 0.0 {
-                        border_thickness
-                    } else {
-                        1.0
-                    };
-
-                    let fill = if is_solid {
-                        keru_draw::Fill::Solid(tl_f)
-                    } else {
-                        keru_draw::Fill::Gradient {
-                            color_start: gradient_start_color,
-                            color_end: gradient_end_color,
-                            gradient_type: keru_draw::GradientType::Linear,
-                            angle: gradient_angle,
-                        }
-                    };
-
+                    let thickness = if border_thickness > 0.0 { border_thickness } else { 1.0 };
                     self.sys.renderer.draw_segment(keru_draw::Segment {
                         start: [x0, y0],
                         end: [x1, y1],
                         thickness,
                         fill,
                         x_clip,
-                        y_clip: y_clip,
+                        y_clip,
                         dash_length: None,
                         texture,
                     });
                 } else {
-                    // Normal rectangle rendering
-                    let top_left = [x0, y0];
-                    let size = [x1 - x0, y1 - y0];
-
-                    // If there's a border with non-zero thickness, use border color; otherwise use fill color
-                    let use_border_color = border_thickness > 0.0 && border_color.is_some();
-
-                    let fill = if is_solid {
-                        let color = if use_border_color { border_color.unwrap() } else { tl_f };
-                        keru_draw::Fill::Solid(color)
+                    let render_fill = if border_thickness > 0.0 && border_color.is_some() {
+                        border_color.unwrap()
                     } else {
-                        let (start_color, end_color) = if use_border_color {
-                            let bc = border_color.unwrap();
-                            (bc, bc)
-                        } else {
-                            (gradient_start_color, gradient_end_color)
-                        };
-                        keru_draw::Fill::Gradient {
-                            color_start: start_color,
-                            color_end: end_color,
-                            gradient_type: keru_draw::GradientType::Linear,
-                            angle: gradient_angle,
-                        }
+                        fill
                     };
-
                     self.sys.renderer.draw_box(keru_draw::Box {
-                        top_left,
-                        size,
+                        top_left: [x0, y0],
+                        size: [x1 - x0, y1 - y0],
                         corner_radius,
                         rounded_corners: *rounded_corners,
                         border_thickness,
-                        fill,
+                        fill: render_fill,
                         x_clip,
                         y_clip,
                         texture,
@@ -323,33 +241,6 @@ impl Ui {
                 let cx = (x0 + x1) / 2.0;
                 let cy = (y0 + y1) / 2.0;
                 let radius = ((x1 - x0) / 2.0).min((y1 - y0) / 2.0);
-
-                let fill = if is_solid {
-                    keru_draw::Fill::Solid(tl_f)
-                } else {
-                    // For circles, determine if we should use linear or radial gradient
-                    let is_horizontal = tl == bl && tr == br;
-                    let is_vertical = tl == tr && bl == br;
-
-                    if is_horizontal || is_vertical {
-                        // Use linear gradient
-                        keru_draw::Fill::Gradient {
-                            color_start: gradient_start_color,
-                            color_end: gradient_end_color,
-                            gradient_type: keru_draw::GradientType::Linear,
-                            angle: gradient_angle,
-                        }
-                    } else {
-                        // Use radial gradient for diagonal
-                        keru_draw::Fill::Gradient {
-                            color_start: gradient_start_color,
-                            color_end: gradient_end_color,
-                            gradient_type: keru_draw::GradientType::Radial,
-                            angle: 0.0,
-                        }
-                    }
-                };
-
                 self.sys.renderer.draw_circle(keru_draw::Circle {
                     center: [cx, cy],
                     radius,
@@ -364,33 +255,6 @@ impl Ui {
                 let cy = (y0 + y1) / 2.0;
                 let outer_radius = ((x1 - x0) / 2.0).min((y1 - y0) / 2.0);
                 let inner_radius = (outer_radius - *width).max(0.0);
-
-                let fill = if is_solid {
-                    keru_draw::Fill::Solid(tl_f)
-                } else {
-                    // For rings, determine if we should use linear or radial gradient
-                    let is_horizontal = tl == bl && tr == br;
-                    let is_vertical = tl == tr && bl == br;
-
-                    if is_horizontal || is_vertical {
-                        // Use linear gradient
-                        keru_draw::Fill::Gradient {
-                            color_start: gradient_start_color,
-                            color_end: gradient_end_color,
-                            gradient_type: keru_draw::GradientType::Linear,
-                            angle: gradient_angle,
-                        }
-                    } else {
-                        // Use radial gradient for diagonal
-                        keru_draw::Fill::Gradient {
-                            color_start: gradient_start_color,
-                            color_end: gradient_end_color,
-                            gradient_type: keru_draw::GradientType::Radial,
-                            angle: 0.0,
-                        }
-                    }
-                };
-
                 self.sys.renderer.draw_ring(keru_draw::Ring {
                     center: [cx, cy],
                     inner_radius,
@@ -405,18 +269,6 @@ impl Ui {
                 let cx = (x0 + x1) / 2.0;
                 let cy = (y0 + y1) / 2.0;
                 let radius = ((x1 - x0) / 2.0).min((y1 - y0) / 2.0);
-
-                let fill = if is_solid {
-                    keru_draw::Fill::Solid(tl_f)
-                } else {
-                    keru_draw::Fill::Gradient {
-                        color_start: gradient_start_color,
-                        color_end: gradient_end_color,
-                        gradient_type: keru_draw::GradientType::Linear,
-                        angle: gradient_angle,
-                    }
-                };
-
                 self.sys.renderer.draw_arc(keru_draw::CircleArc {
                     center: [cx, cy],
                     radius,
@@ -433,18 +285,6 @@ impl Ui {
                 let cx = (x0 + x1) / 2.0;
                 let cy = (y0 + y1) / 2.0;
                 let radius = ((x1 - x0) / 2.0).min((y1 - y0) / 2.0);
-
-                let fill = if is_solid {
-                    keru_draw::Fill::Solid(tl_f)
-                } else {
-                    keru_draw::Fill::Gradient {
-                        color_start: gradient_start_color,
-                        color_end: gradient_end_color,
-                        gradient_type: keru_draw::GradientType::Linear,
-                        angle: gradient_angle,
-                    }
-                };
-
                 self.sys.renderer.draw_pie(keru_draw::CirclePie {
                     center: [cx, cy],
                     radius,
@@ -457,30 +297,11 @@ impl Ui {
                 });
             }
             Shape::Segment { start, end, dash_length } => {
-                // Convert normalized coordinates to pixel coordinates
                 let start_x = x0 + start.0 * (x1 - x0);
                 let start_y = y0 + start.1 * (y1 - y0);
                 let end_x = x0 + end.0 * (x1 - x0);
                 let end_y = y0 + end.1 * (y1 - y0);
-
-                let thickness = if let Some(stroke) = node.params.stroke {
-                    stroke.width
-                } else {
-                    1.0
-                };
-
-
-                let fill = if is_solid {
-                    keru_draw::Fill::Solid(tl_f)
-                } else {
-                    keru_draw::Fill::Gradient {
-                        color_start: gradient_start_color,
-                        color_end: gradient_end_color,
-                        gradient_type: keru_draw::GradientType::Linear,
-                        angle: gradient_angle,
-                    }
-                };
-
+                let thickness = node.params.stroke.map(|s| s.width).unwrap_or(1.0);
                 self.sys.renderer.draw_segment(keru_draw::Segment {
                     start: [start_x, start_y],
                     end: [end_x, end_y],
@@ -493,29 +314,11 @@ impl Ui {
                 });
             }
             Shape::HorizontalLine => {
-                let thickness = if let Some(stroke) = node.params.stroke {
-                    stroke.width
-                } else {
-                    1.0
-                };
-
+                let thickness = node.params.stroke.map(|s| s.width).unwrap_or(1.0);
                 let cy = (y0 + y1) / 2.0;
-
                 let dash_length = node.params.stroke.and_then(|s| {
                     if s.dash_length > 0.0 { Some(s.dash_length) } else { None }
                 });
-
-                let fill = if is_solid {
-                    keru_draw::Fill::Solid(tl_f)
-                } else {
-                    keru_draw::Fill::Gradient {
-                        color_start: gradient_start_color,
-                        color_end: gradient_end_color,
-                        gradient_type: keru_draw::GradientType::Linear,
-                        angle: gradient_angle,
-                    }
-                };
-
                 self.sys.renderer.draw_segment(keru_draw::Segment {
                     start: [x0, cy],
                     end: [x1, cy],
@@ -528,29 +331,11 @@ impl Ui {
                 });
             }
             Shape::VerticalLine => {
-                let thickness = if let Some(stroke) = node.params.stroke {
-                    stroke.width
-                } else {
-                    1.0
-                };
-
+                let thickness = node.params.stroke.map(|s| s.width).unwrap_or(1.0);
                 let cx = (x0 + x1) / 2.0;
-
                 let dash_length = node.params.stroke.and_then(|s| {
                     if s.dash_length > 0.0 { Some(s.dash_length) } else { None }
                 });
-
-                let fill = if is_solid {
-                    keru_draw::Fill::Solid(tl_f)
-                } else {
-                    keru_draw::Fill::Gradient {
-                        color_start: gradient_start_color,
-                        color_end: gradient_end_color,
-                        gradient_type: keru_draw::GradientType::Linear,
-                        angle: gradient_angle,
-                    }
-                };
-
                 self.sys.renderer.draw_segment(keru_draw::Segment {
                     start: [cx, y0],
                     end: [cx, y1],
@@ -563,8 +348,6 @@ impl Ui {
                 });
             }
             Shape::Triangle { rotation, width } => {
-                // Generate isosceles triangle with one vertex pointing in rotation direction
-                // width = 1.0 gives equilateral, <1.0 narrower, >1.0 wider
                 let cx = (x0 + x1) / 2.0;
                 let cy = (y0 + y1) / 2.0;
                 let rect_width = x1 - x0;
@@ -573,38 +356,18 @@ impl Ui {
 
                 let cos_r = rotation.cos();
                 let sin_r = rotation.sin();
-
-                // For equilateral triangle inscribed in circle:
-                // - Tip is at distance r from center
-                // - Base vertices are at (-0.5r, ±0.866r) in local coords
                 let tip_dist = radius;
                 let base_back = radius * 0.5;
-                let base_half_width = radius * 0.866 * width; // sqrt(3)/2 ≈ 0.866
+                let base_half_width = radius * 0.866 * width;
 
-                // Tip vertex (pointing in rotation direction)
                 let p0_x = cx + tip_dist * cos_r;
                 let p0_y = cy + tip_dist * sin_r;
-
-                // Perpendicular direction (rotate by 90°)
                 let perp_x = -sin_r;
                 let perp_y = cos_r;
-
-                // Base vertices (behind and to the sides)
                 let p1_x = cx - base_back * cos_r + base_half_width * perp_x;
                 let p1_y = cy - base_back * sin_r + base_half_width * perp_y;
                 let p2_x = cx - base_back * cos_r - base_half_width * perp_x;
                 let p2_y = cy - base_back * sin_r - base_half_width * perp_y;
-
-                let fill = if is_solid {
-                    keru_draw::Fill::Solid(tl_f)
-                } else {
-                    keru_draw::Fill::Gradient {
-                        color_start: gradient_start_color,
-                        color_end: gradient_end_color,
-                        gradient_type: keru_draw::GradientType::Linear,
-                        angle: gradient_angle,
-                    }
-                };
 
                 self.sys.renderer.draw_triangle(keru_draw::Triangle {
                     p0: [p0_x, p0_y],
@@ -617,17 +380,17 @@ impl Ui {
                 });
             }
             Shape::SquareGrid { lattice_size, offset, line_thickness } => {
-                let top_left = [x0, y0];
-                let size = [x1 - x0, y1 - y0];
-
-                // For grid, we use the fill color (not stroke)
+                let grid_color = match fill {
+                    ColorFill::Color(c) => c,
+                    ColorFill::Gradient { color_start, .. } => color_start,
+                };
                 self.sys.renderer.draw_grid(keru_draw::Grid {
-                    top_left,
-                    size,
+                    top_left: [x0, y0],
+                    size: [x1 - x0, y1 - y0],
                     lattice_size: *lattice_size,
                     offset: [offset.0, offset.1],
                     line_thickness: *line_thickness,
-                    color: tl_f,
+                    color: grid_color,
                     grid_type: keru_draw::GridType::Square,
                     x_clip,
                     y_clip,
@@ -635,17 +398,17 @@ impl Ui {
                 });
             }
             Shape::HexGrid { lattice_size, offset, line_thickness } => {
-                let top_left = [x0, y0];
-                let size = [x1 - x0, y1 - y0];
-
-                // For hex grid, we use the fill color (not stroke)
+                let grid_color = match fill {
+                    ColorFill::Color(c) => c,
+                    ColorFill::Gradient { color_start, .. } => color_start,
+                };
                 self.sys.renderer.draw_grid(keru_draw::Grid {
-                    top_left,
-                    size,
+                    top_left: [x0, y0],
+                    size: [x1 - x0, y1 - y0],
                     lattice_size: *lattice_size,
                     offset: [offset.0, offset.1],
                     line_thickness: *line_thickness,
-                    color: tl_f,
+                    color: grid_color,
                     grid_type: keru_draw::GridType::Hexagonal,
                     x_clip,
                     y_clip,
@@ -657,33 +420,16 @@ impl Ui {
                 let cy = (y0 + y1) / 2.0;
                 let max_radius = ((x1 - x0) / 2.0).min((y1 - y0) / 2.0);
                 let actual_size = max_radius * size;
-
-                // If there's a border with non-zero thickness, use border color; otherwise use fill color
-                let use_border_color = border_thickness > 0.0 && border_color.is_some();
-
-                let fill = if is_solid {
-                    let color = if use_border_color { border_color.unwrap() } else { tl_f };
-                    keru_draw::Fill::Solid(color)
+                let render_fill = if border_thickness > 0.0 && border_color.is_some() {
+                    border_color.unwrap()
                 } else {
-                    let (start_color, end_color) = if use_border_color {
-                        let bc = border_color.unwrap();
-                        (bc, bc)
-                    } else {
-                        (gradient_start_color, gradient_end_color)
-                    };
-                    keru_draw::Fill::Gradient {
-                        color_start: start_color,
-                        color_end: end_color,
-                        gradient_type: keru_draw::GradientType::Linear,
-                        angle: gradient_angle,
-                    }
+                    fill
                 };
-
                 self.sys.renderer.draw_hexagon(keru_draw::Hexagon {
                     center: [cx, cy],
                     size: actual_size,
                     rotation: *rotation,
-                    fill,
+                    fill: render_fill,
                     stroke_thickness: border_thickness,
                     x_clip,
                     y_clip,
@@ -825,7 +571,7 @@ impl Ui {
             corner_radius,
             rounded_corners,
             border_thickness,
-            fill: keru_draw::Fill::Gradient {
+            fill: keru_draw::ColorFill::Gradient {
                 color_start: start_color,
                 color_end: end_color,
                 gradient_type: keru_draw::GradientType::Linear,
@@ -858,7 +604,7 @@ impl Ui {
             corner_radius,
             rounded_corners,
             border_thickness,
-            fill: keru_draw::Fill::Solid(color),
+            fill: keru_draw::ColorFill::Color(color),
             x_clip: clip_x,
             y_clip: clip_y,
             texture: None,
@@ -880,7 +626,7 @@ impl Ui {
         self.sys.renderer.draw_circle(keru_draw::Circle {
             center,
             radius,
-            fill: keru_draw::Fill::Solid(color),
+            fill: keru_draw::ColorFill::Color(color),
             x_clip: clip_x,
             y_clip: clip_y,
             texture: None,

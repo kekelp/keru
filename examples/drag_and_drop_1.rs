@@ -31,7 +31,7 @@ impl State {
 
         let plus_sign = LABEL
             .static_text("+")
-            .color(Color::GREY)
+            .color(GREY)
             .animation(Animation {
                 speed: 1.0,
                 enter: EnterAnimation::Slide { edge: SlideEdge::Top, direction: SlideDirection::In },

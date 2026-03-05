@@ -4,82 +4,72 @@ use crate::*;
 pub struct Theme {
     // Base colors for light/dark mode
     /// Main background
-    pub background: VertexColors,          
+    pub background: ColorFill,
     /// Muted background
-    pub muted_background: VertexColors,
+    pub muted_background: ColorFill,
     /// Raised elements like cards, buttons
-    pub surface: VertexColors,             
+    pub surface: ColorFill,
     /// Alternative surface for nested elements
-    pub surface_alt: VertexColors,         
-    
-    
+    pub surface_alt: ColorFill,
+
     // Text colors
     /// Main text
-    pub text_primary: VertexColors,        
+    pub text_primary: ColorFill,
     /// Less important text
-    pub text_secondary: VertexColors,      
+    pub text_secondary: ColorFill,
     /// Disabled text
-    pub text_disabled: VertexColors,       
-    
-    
+    pub text_disabled: ColorFill,
+
     // Interactive elements
     /// Main accent color for important actions
-    pub primary: VertexColors,             
+    pub primary: ColorFill,
     /// Hover state for primary
-    pub primary_hover: VertexColors,       
+    pub primary_hover: ColorFill,
     /// Less prominent interactive elements
-    pub secondary: VertexColors,           
+    pub secondary: ColorFill,
     /// Hover state for secondary
-    pub secondary_hover: VertexColors,     
-    
-    
+    pub secondary_hover: ColorFill,
+
     // Status colors
     /// Positive actions/states
-    pub success: VertexColors,             
+    pub success: ColorFill,
     /// Error states
-    pub error: VertexColors,              
+    pub error: ColorFill,
     /// Warning states
-    pub warning: VertexColors,            
-    
-    
+    pub warning: ColorFill,
+
     // Common states
-    pub disabled: VertexColors,           
-    /// Disabled elements
-    pub border: VertexColors,             
+    pub disabled: ColorFill,
     /// Borders and dividers
-    
+    pub border: ColorFill,
+
     // Optional: Common measurements
-    pub border_radius: f32,        // Default corner rounding
-    pub border_width: f32,         // Default border thickness
+    pub border_radius: f32,
+    pub border_width: f32,
 }
 
 #[doc(hidden)]
 pub const KERU_DARK: Theme = Theme {
-    // Dark base colors
-    muted_background: VertexColors::flat(Color { r: 11, g: 11, b: 14, a: 255 }),      // Muted background
-    background: VertexColors::flat(Color { r: 30, g: 31, b: 42, a: 255 }),    // Very dark blue-tinted grey
-    surface: VertexColors::flat(Color { r: 30, g: 31, b: 44, a: 255 }),       // Slightly lighter
-    surface_alt: VertexColors::flat(Color { r: 37, g: 38, b: 54, a: 255 }),   // For contrast against surface
+    muted_background: ColorFill::Color(rgba(11, 11, 14, 255)),
+    background: ColorFill::Color(rgba(30, 31, 42, 255)),
+    surface: ColorFill::Color(rgba(30, 31, 44, 255)),
+    surface_alt: ColorFill::Color(rgba(37, 38, 54, 255)),
 
-    // Text VertexColors::flat(colors
-    text_primary: VertexColors::flat(Color { r: 220, g: 223, b: 228, a: 255 }),   // Off-white
-    text_secondary: VertexColors::flat(Color { r: 156, g: 160, b: 176, a: 255 }), // Medium grey
-    text_disabled: VertexColors::flat(Color { r: 98, g: 100, b: 116, a: 255 }),   // Darker grey
+    text_primary: ColorFill::Color(rgba(220, 223, 228, 255)),
+    text_secondary: ColorFill::Color(rgba(156, 160, 176, 255)),
+    text_disabled: ColorFill::Color(rgba(98, 100, 116, 255)),
 
-    // Interactive elements - light blue scheme
-    primary: VertexColors::flat(Color { r: 89, g: 166, b: 255, a: 255 }),     // Bright light blue
-    primary_hover: VertexColors::flat(Color { r: 120, g: 187, b: 255, a: 255 }), // Lighter blue
-    secondary: VertexColors::flat(Color { r: 135, g: 138, b: 180, a: 255 }),     // Muted purple-blue
-    secondary_hover: VertexColors::flat(Color { r: 156, g: 160, b: 200, a: 255 }), // Slightly brighter purple-blue
+    primary: ColorFill::Color(rgba(89, 166, 255, 255)),
+    primary_hover: ColorFill::Color(rgba(120, 187, 255, 255)),
+    secondary: ColorFill::Color(rgba(135, 138, 180, 255)),
+    secondary_hover: ColorFill::Color(rgba(156, 160, 200, 255)),
 
-    // Status indicators
-    success: VertexColors::flat(Color { r: 87, g: 189, b: 134, a: 255 }),     // Green
-    error: VertexColors::flat(Color { r: 235, g: 87, b: 87, a: 255 }),        // Red
-    warning: VertexColors::flat(Color { r: 242, g: 178, b: 56, a: 255 }),     // Orange
+    success: ColorFill::Color(rgba(87, 189, 134, 255)),
+    error: ColorFill::Color(rgba(235, 87, 87, 255)),
+    warning: ColorFill::Color(rgba(242, 178, 56, 255)),
 
-    // UI elements
-    border: VertexColors::flat(Color { r: 45, g: 46, b: 66, a: 255 }),        // Subtle border
-    disabled: VertexColors::flat(Color { r: 49, g: 50, b: 68, a: 255 }),      // Muted background
+    border: ColorFill::Color(rgba(45, 46, 66, 255)),
+    disabled: ColorFill::Color(rgba(49, 50, 68, 255)),
 
     border_radius: 4.0,
     border_width: 1.0,

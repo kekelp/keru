@@ -19,19 +19,19 @@ pub enum ChildrenCanHide {
 /// # use keru::*;
 /// # let mut ui: Ui = unimplemented!();
 /// # const MY_BUTTON: Node = keru::BUTTON
-/// #     .color(Color::RED)
+/// #     .color(RED)
 /// #     .shape(Shape::Circle);
 /// #
 /// ui.add(MY_BUTTON);
 /// ```
-/// 
+///
 ///  You can start with one of the preset constants ([`BUTTON`], [`LABEL`], [`TEXT`], ...), then use the builder methods to customize it:
-/// 
+///
 /// ```rust
 /// # use keru::*;
 /// const MY_BUTTON: Node = keru::BUTTON
-///     .color(Color::RED)
-///     .shape(Shape::Circle); 
+///     .color(RED)
+///     .shape(Shape::Circle);
 /// ```
 /// 
 /// [`Node`] is a plain-old-data struct. Methods like [`Self::text()`] allow to associate borrowed data like a `&str` to a [`Node`].
@@ -44,7 +44,7 @@ pub struct Node {
     pub stack: Option<Stack>,
     pub shape: Shape,
     pub stroke: Option<Stroke>,
-    pub color: VertexColors,
+    pub color: ColorFill,
     pub visible: bool, // skip both the shape, node and text
     pub interact: Interact,
     pub layout: Layout,
@@ -416,84 +416,36 @@ pub struct Stroke {
     /// Width of the stroke.
     pub width: f32,
     /// Color of the stroke.
-    pub color: Color,
-    /// Style for connecting segments of the stroke.
-    pub join: Join,
-    /// Limit for miter joins.
-    pub miter_limit: f32,
-    /// Style for capping the beginning of an open subpath.
-    pub start_cap: Cap,
-    /// Style for capping the end of an open subpath.
-    pub end_cap: Cap,
+    pub color: ColorFill,
     /// Lengths of dashes in alternating on/off order.
     pub dash_length: f32,
-    /// Offset of the first dash.
-    pub dash_offset: f32,
 }
 
 impl Stroke {
     pub const fn new(width: f32) -> Self {
         Self {
             width,
-            color: Color::KERU_GREEN,
-            join: Join::Miter,
-            miter_limit: 4.0,
-            start_cap: Cap::Butt,
-            end_cap: Cap::Butt,
+            color: ColorFill::Color(KERU_GREEN),
             dash_length: 0.0,
-            dash_offset: 0.0,
         }
     }
 
-    pub const fn with_join(mut self, join: Join) -> Self {
-        self.join = join;
-        self
-    }
-
-    pub const fn with_caps(mut self, cap: Cap) -> Self {
-        self.start_cap = cap;
-        self.end_cap = cap;
-        self
-    }
-
-    pub const fn with_start_cap(mut self, cap: Cap) -> Self {
-        self.start_cap = cap;
-        self
-    }
-
-    pub const fn with_end_cap(mut self, cap: Cap) -> Self {
-        self.end_cap = cap;
-        self
-    }
-
-    pub const fn with_miter_limit(mut self, limit: f32) -> Self {
-        self.miter_limit = limit;
-        self
-    }
-
-    pub const fn with_dashes(mut self, dash_length: f32, dash_offset: f32) -> Self {
+    pub const fn with_dashes(mut self, dash_length: f32) -> Self {
         self.dash_length = dash_length;
-        self.dash_offset = dash_offset;
         self
     }
 
-    pub const fn with_color(mut self, color: Color) -> Self {
-        self.color = color;
+    pub const fn with_color(mut self, color: [f32; 4]) -> Self {
+        self.color = ColorFill::Color(color);
         self
     }
-
 }
 
 impl Hash for Stroke {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.width.to_bits().hash(state);
         self.color.hash(state);
-        std::mem::discriminant(&self.join).hash(state);
-        self.miter_limit.to_bits().hash(state);
-        std::mem::discriminant(&self.start_cap).hash(state);
-        std::mem::discriminant(&self.end_cap).hash(state);
         self.dash_length.to_bits().hash(state);
-        self.dash_offset.to_bits().hash(state);
     }
 }
 
@@ -708,65 +660,27 @@ impl Node {
         return self;
     }
 
-    pub const fn stroke_join(mut self, join: Join) -> Self {
+    pub const fn stroke_dashes(mut self, dash_length: f32) -> Self {
         if let Some(stroke) = self.stroke {
-            self.stroke = Some(stroke.with_join(join));
+            self.stroke = Some(stroke.with_dashes(dash_length));
         }
         return self;
     }
 
-    pub const fn stroke_caps(mut self, cap: Cap) -> Self {
-        if let Some(stroke) = self.stroke {
-            self.stroke = Some(stroke.with_caps(cap));
-        }
-        return self;
-    }
-
-    pub const fn stroke_start_cap(mut self, cap: Cap) -> Self {
-        if let Some(stroke) = self.stroke {
-            self.stroke = Some(stroke.with_start_cap(cap));
-        }
-        return self;
-    }
-
-    pub const fn stroke_end_cap(mut self, cap: Cap) -> Self {
-        if let Some(stroke) = self.stroke {
-            self.stroke = Some(stroke.with_end_cap(cap));
-        }
-        return self;
-    }
-
-    pub const fn stroke_miter_limit(mut self, limit: f32) -> Self {
-        if let Some(stroke) = self.stroke {
-            self.stroke = Some(stroke.with_miter_limit(limit));
-        }
-        return self;
-    }
-
-    pub const fn stroke_dashes(mut self, dash_length: f32, dash_offset: f32) -> Self {
-        if let Some(stroke) = self.stroke {
-            self.stroke = Some(stroke.with_dashes(dash_length, dash_offset));
-        }
-        return self;
-    }
-
-    pub const fn stroke_color(mut self, color: Color) -> Self {
+    pub const fn stroke_color(mut self, color: [f32; 4]) -> Self {
         if let Some(stroke) = self.stroke {
             self.stroke = Some(stroke.with_color(color));
         }
         return self;
     }
 
-    pub const fn color(mut self, color: Color) -> Self {
-        self.color = VertexColors::flat(color);
+    pub const fn color(mut self, color: [f32; 4]) -> Self {
+        self.color = ColorFill::Color(color);
         return self;
     }
 
-    pub const fn alpha(mut self, alpha: f32) -> Self {
-        self.color.top_left.a = (alpha * 255.0) as u8;
-        self.color.top_right.a = (alpha * 255.0) as u8;
-        self.color.bottom_left.a = (alpha * 255.0) as u8;
-        self.color.bottom_right.a = (alpha * 255.0) as u8;
+    pub const fn fill(mut self, fill: ColorFill) -> Self {
+        self.color = fill;
         return self;
     }
 
@@ -777,11 +691,6 @@ impl Node {
 
     pub const fn circle(mut self) -> Self {
         self.shape = Shape::Circle;
-        return self;
-    }
-
-    pub const fn colors(mut self, colors: VertexColors) -> Self {
-        self.color = colors;
         return self;
     }
 
@@ -1209,65 +1118,27 @@ impl<'a> FullNode<'a> {
         return self;
     }
 
-    pub const fn stroke_join(mut self, join: Join) -> Self {
+    pub const fn stroke_dashes(mut self, dash_length: f32) -> Self {
         if let Some(stroke) = self.params.stroke {
-            self.params.stroke = Some(stroke.with_join(join));
+            self.params.stroke = Some(stroke.with_dashes(dash_length));
         }
         return self;
     }
 
-    pub const fn stroke_caps(mut self, cap: Cap) -> Self {
-        if let Some(stroke) = self.params.stroke {
-            self.params.stroke = Some(stroke.with_caps(cap));
-        }
-        return self;
-    }
-
-    pub const fn stroke_start_cap(mut self, cap: Cap) -> Self {
-        if let Some(stroke) = self.params.stroke {
-            self.params.stroke = Some(stroke.with_start_cap(cap));
-        }
-        return self;
-    }
-
-    pub const fn stroke_end_cap(mut self, cap: Cap) -> Self {
-        if let Some(stroke) = self.params.stroke {
-            self.params.stroke = Some(stroke.with_end_cap(cap));
-        }
-        return self;
-    }
-
-    pub const fn stroke_miter_limit(mut self, limit: f32) -> Self {
-        if let Some(stroke) = self.params.stroke {
-            self.params.stroke = Some(stroke.with_miter_limit(limit));
-        }
-        return self;
-    }
-
-    pub const fn stroke_dashes(mut self, dash_length: f32, dash_offset: f32) -> Self {
-        if let Some(stroke) = self.params.stroke {
-            self.params.stroke = Some(stroke.with_dashes(dash_length, dash_offset));
-        }
-        return self;
-    }
-
-    pub const fn stroke_color(mut self, color: Color) -> Self {
+    pub const fn stroke_color(mut self, color: [f32; 4]) -> Self {
         if let Some(stroke) = self.params.stroke {
             self.params.stroke = Some(stroke.with_color(color));
         }
         return self;
     }
 
-    pub const fn color(mut self, color: Color) -> Self {
-        self.params.color = VertexColors::flat(color);
+    pub const fn color(mut self, color: [f32; 4]) -> Self {
+        self.params.color = ColorFill::Color(color);
         return self;
     }
 
-    pub const fn alpha(mut self, alpha: f32) -> Self {
-        self.params.color.top_left.a = (alpha * 255.0) as u8;
-        self.params.color.top_right.a = (alpha * 255.0) as u8;
-        self.params.color.bottom_left.a = (alpha * 255.0) as u8;
-        self.params.color.bottom_right.a = (alpha * 255.0) as u8;
+    pub const fn fill(mut self, fill: ColorFill) -> Self {
+        self.params.color = fill;
         return self;
     }
 
@@ -1278,11 +1149,6 @@ impl<'a> FullNode<'a> {
 
     pub const fn circle(mut self) -> Self {
         self.params.shape = Shape::Circle;
-        return self;
-    }
-
-    pub const fn vertex_colors(mut self, colors: VertexColors) -> Self {
-        self.params.color = colors;
         return self;
     }
 

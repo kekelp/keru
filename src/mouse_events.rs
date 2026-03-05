@@ -8,7 +8,7 @@ use crate::Id;
 pub(crate) type SmallVec<T> = smallvec::SmallVec<[T; 8]>;
 
 #[derive(Clone, Debug)]
-pub enum InputEvent {
+pub(crate) enum InputEvent {
     /// Mouse button was just pressed
     Click(ClickEvent),
 

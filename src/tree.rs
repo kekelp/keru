@@ -27,7 +27,7 @@ impl Ui {
     /// # use keru::*;
     /// # let mut ui: Ui = unimplemented!();
     /// let red_label = LABEL
-    ///     .color(Color::RED)
+    ///     .color(RED)
     ///     .text("Increase");
     /// 
     /// ui.add(red_label);
@@ -112,7 +112,7 @@ impl Ui {
     ///     // Add a red "X" between "B" and "C"
     ///     let jump_key = ITEM.sibling("B");
     ///     ui.jump_to_sibling(jump_key).unwrap().nest(|| {
-    ///         ui.add(BUTTON.text("X").color(Color::RED));
+    ///         ui.add(BUTTON.text("X").color(RED));
     ///     });
     /// });
     /// ```
@@ -147,7 +147,7 @@ impl Ui {
     ///     // Add a red "X" between "B" and "C"
     ///     let jump_key = ITEM.sibling("C");
     ///     ui.jump_to_before_sibling(jump_key).unwrap().nest(|| {
-    ///         ui.add(BUTTON.text("X").color(Color::RED));
+    ///         ui.add(BUTTON.text("X").color(RED));
     ///     });
     /// });
     /// ```
@@ -187,7 +187,7 @@ impl Ui {
     ///
     ///     // Add a red "X" between "B" and "C"
     ///     ui.jump_to_nth_child(MY_STACK, 2).unwrap().nest(|| {
-    ///         ui.add(BUTTON.text("X").color(Color::RED));
+    ///         ui.add(BUTTON.text("X").color(RED));
     ///     });
     /// });
     /// ```

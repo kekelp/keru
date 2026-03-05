@@ -60,7 +60,7 @@ impl State {
         #[node_key] const INCREASE: NodeKey;
         
         let button = BUTTON
-            .color(keru::Color::RED)
+            .color(keru::RED)
             .text("Increase")
             .key(INCREASE);
 
