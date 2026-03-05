@@ -157,12 +157,12 @@ impl Ui {
 
         let fill = match node.params.color {
             ColorFill::Color(color) => ColorFill::Color(apply_dark(color)),
-            ColorFill::Gradient { color_start, color_end, gradient_type, angle } => ColorFill::Gradient {
-                color_start: apply_dark(color_start),
-                color_end: apply_dark(color_end),
-                gradient_type,
-                angle,
-            },
+            ColorFill::Gradient(g) => ColorFill::Gradient(keru_draw::Gradient {
+                color_start: apply_dark(g.color_start),
+                color_end: apply_dark(g.color_end),
+                gradient_type: g.gradient_type,
+                angle: g.angle,
+            }),
         };
 
         // Convert clip rect to pixel coordinates
@@ -382,7 +382,7 @@ impl Ui {
             Shape::SquareGrid { lattice_size, offset, line_thickness } => {
                 let grid_color = match fill {
                     ColorFill::Color(c) => c,
-                    ColorFill::Gradient { color_start, .. } => color_start,
+                    ColorFill::Gradient(g) => g.color_start,
                 };
                 self.sys.renderer.draw_grid(keru_draw::Grid {
                     top_left: [x0, y0],
@@ -400,7 +400,7 @@ impl Ui {
             Shape::HexGrid { lattice_size, offset, line_thickness } => {
                 let grid_color = match fill {
                     ColorFill::Color(c) => c,
-                    ColorFill::Gradient { color_start, .. } => color_start,
+                    ColorFill::Gradient(g) => g.color_start,
                 };
                 self.sys.renderer.draw_grid(keru_draw::Grid {
                     top_left: [x0, y0],
@@ -571,12 +571,7 @@ impl Ui {
             corner_radius,
             rounded_corners,
             border_thickness,
-            fill: keru_draw::ColorFill::Gradient {
-                color_start: start_color,
-                color_end: end_color,
-                gradient_type: keru_draw::GradientType::Linear,
-                angle: gradient_angle,
-            },
+            fill: keru_draw::ColorFill::Gradient(keru_draw::Gradient::linear(start_color, end_color, gradient_angle)),
             x_clip: clip_x,
             y_clip: clip_y,
             texture: None,

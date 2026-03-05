@@ -1,4 +1,4 @@
-pub use keru_draw::{ColorFill, GradientType};
+pub use keru_draw::{ColorFill, Gradient, GradientType};
 
 pub const RED: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
 pub const GREEN: [f32; 4] = [0.0, 1.0, 0.0, 1.0];
@@ -26,18 +26,18 @@ pub const fn with_alpha(color: [f32; 4], alpha: f32) -> [f32; 4] {
     [color[0], color[1], color[2], alpha]
 }
 
-pub const KERU_GRAD: ColorFill = ColorFill::Gradient {
+pub const KERU_GRAD: ColorFill = ColorFill::Gradient(Gradient {
     color_start: KERU_BLUE,
     color_end: KERU_RED,
     gradient_type: GradientType::Linear,
     angle: -0.785398, // -45 degrees
-};
+});
 
-pub const KERU_GRAD_FW: ColorFill = ColorFill::Gradient {
+pub const KERU_GRAD_FW: ColorFill = ColorFill::Gradient(Gradient {
     color_start: KERU_BLUE,
     color_end: KERU_RED,
     gradient_type: GradientType::Linear,
     angle: 0.785398, // 45 degrees
-};
+});
 
 pub const GREENSCREEN: ColorFill = ColorFill::Color([0.0, 1.0, 0.0, 1.0]);

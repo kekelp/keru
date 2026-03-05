@@ -679,6 +679,11 @@ impl Node {
         return self;
     }
 
+    pub const fn gradient(mut self, gradient: crate::color::Gradient) -> Self {
+        self.color = ColorFill::Gradient(gradient);
+        return self;
+    }
+
     pub const fn fill(mut self, fill: ColorFill) -> Self {
         self.color = fill;
         return self;
@@ -1134,6 +1139,11 @@ impl<'a> FullNode<'a> {
 
     pub const fn color(mut self, color: [f32; 4]) -> Self {
         self.params.color = ColorFill::Color(color);
+        return self;
+    }
+
+    pub const fn gradient(mut self, gradient: crate::color::Gradient) -> Self {
+        self.params.color = ColorFill::Gradient(gradient);
         return self;
     }
 
