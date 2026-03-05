@@ -735,9 +735,10 @@ pub const H_LINE: Node = Node {
         width: 2.0,
         color: ColorFill::Color(WHITE),
         dash_length: 0.0,
+        dash_offset: 0.0,
     }),
     color: ColorFill::Color(TRANSPARENT),
-    shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: DEFAULT_CORNER_RADIUS },
+    shape: Shape::Segment { start: (0.0, 0.0), end: (1.0, 1.0), dash_length: None },
     interact: Interact {
         senses: Sense::NONE,
         absorbs_mouse_events: false,

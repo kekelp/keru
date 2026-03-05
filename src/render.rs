@@ -154,16 +154,19 @@ impl Ui {
         let apply_dark = |c: [f32; 4]| -> [f32; 4] {
             [c[0] * dark, c[1] * dark, c[2] * dark, c[3]]
         };
-
-        let fill = match node.params.color {
-            ColorFill::Color(color) => ColorFill::Color(apply_dark(color)),
-            ColorFill::Gradient(g) => ColorFill::Gradient(keru_draw::Gradient {
-                color_start: apply_dark(g.color_start),
-                color_end: apply_dark(g.color_end),
-                gradient_type: g.gradient_type,
-                angle: g.angle,
-            }),
+        let apply_dark_fill = |f: ColorFill| -> ColorFill {
+            match f {
+                ColorFill::Color(color) => ColorFill::Color(apply_dark(color)),
+                ColorFill::Gradient(g) => ColorFill::Gradient(keru_draw::Gradient {
+                    color_start: apply_dark(g.color_start),
+                    color_end: apply_dark(g.color_end),
+                    gradient_type: g.gradient_type,
+                    angle: g.angle,
+                }),
+            }
         };
+
+        let fill = apply_dark_fill(node.params.color);
 
         // Convert clip rect to pixel coordinates
         let x_clip = [
@@ -175,17 +178,11 @@ impl Ui {
             clip_rect.y[1] * screen_size.y,
         ];
 
-        let (border_thickness, border_color) = if let Some(stroke) = node.params.stroke {
-            (stroke.width, Some(stroke.color))
+        // Get stroke info
+        let stroke = if debug_box {
+            Some(Stroke::new(3.0).with_color(DEBUG_RED))
         } else {
-            (0.0, None)
-        };
-
-        // Override for debug box
-        let (fill, border_thickness, border_color) = if debug_box {
-            (ColorFill::Color([0.0, 0.0, 0.0, 0.0]), 3.0, Some(ColorFill::Color(DEBUG_RED)))
-        } else {
-            (fill, border_thickness, border_color)
+            node.params.stroke
         };
 
         let shape = if debug_box {
@@ -194,68 +191,105 @@ impl Ui {
             &node.params.shape
         };
 
+        // Check if fill is visible (alpha > 0)
+        let fill_visible = !debug_box && match node.params.color {
+            ColorFill::Color(c) => c[3] > 0.0,
+            ColorFill::Gradient(g) => g.color_start[3] > 0.0 || g.color_end[3] > 0.0,
+        };
+
         // Render based on shape type
         match shape {
             Shape::NoShape => {}
             Shape::Rectangle { rounded_corners, corner_radius } => {
                 let corner_radius = *corner_radius;
-
-                // Check if one dimension is zero (for line rendering)
                 let width = x1 - x0;
                 let height = y1 - y0;
-                let is_horizontal_line = height == 0.0 && width > 0.0;
-                let is_vertical_line = width == 0.0 && height > 0.0;
 
-                if is_horizontal_line || is_vertical_line {
-                    let thickness = if border_thickness > 0.0 { border_thickness } else { 1.0 };
-                    self.sys.renderer.draw_segment(keru_draw::Segment {
-                        start: [x0, y0],
-                        end: [x1, y1],
-                        thickness,
+                if fill_visible {
+                    self.sys.renderer.draw_box(keru_draw::Box {
+                        top_left: [x0, y0],
+                        size: [width, height],
+                        corner_radius,
+                        rounded_corners: *rounded_corners,
+                        border_thickness: 0.0,
                         fill,
                         x_clip,
                         y_clip,
-                        dash_length: None,
                         texture,
                     });
-                } else {
-                    let render_fill = if border_thickness > 0.0 && border_color.is_some() {
-                        border_color.unwrap()
+                }
+                if let Some(stroke) = stroke {
+                    let stroke_fill = apply_dark_fill(stroke.color);
+                    if stroke.dash_length > 0.0 {
+                        // Dashed stroke
+                        let stroke_color = match stroke_fill {
+                            ColorFill::Color(c) => c,
+                            ColorFill::Gradient(g) => g.color_start,
+                        };
+                        self.sys.renderer.draw_dashed_box_outline(keru_draw::DashedBoxOutline {
+                            top_left: [x0, y0],
+                            size: [width, height],
+                            corner_radius,
+                            thickness: stroke.width,
+                            color: stroke_color,
+                            dash_length: stroke.dash_length,
+                            x_clip,
+                            y_clip,
+                        });
                     } else {
-                        fill
-                    };
-                    self.sys.renderer.draw_box(keru_draw::Box {
-                        top_left: [x0, y0],
-                        size: [x1 - x0, y1 - y0],
-                        corner_radius,
-                        rounded_corners: *rounded_corners,
-                        border_thickness,
-                        fill: render_fill,
-                        x_clip,
-                        y_clip,
-                        texture,
-                    });
+                        // Solid stroke
+                        self.sys.renderer.draw_box(keru_draw::Box {
+                            top_left: [x0, y0],
+                            size: [width, height],
+                            corner_radius,
+                            rounded_corners: *rounded_corners,
+                            border_thickness: stroke.width,
+                            fill: stroke_fill,
+                            x_clip,
+                            y_clip,
+                            texture: None,
+                        });
+                    }
                 }
             }
             Shape::Circle => {
                 let cx = (x0 + x1) / 2.0;
                 let cy = (y0 + y1) / 2.0;
                 let radius = ((x1 - x0) / 2.0).min((y1 - y0) / 2.0);
-                self.sys.renderer.draw_circle(keru_draw::Circle {
-                    center: [cx, cy],
-                    radius,
-                    fill,
-                    x_clip,
-                    y_clip,
-                    texture,
-                });
+
+                if fill_visible {
+                    self.sys.renderer.draw_circle(keru_draw::Circle {
+                        center: [cx, cy],
+                        radius,
+                        fill,
+                        x_clip,
+                        y_clip,
+                        texture,
+                    });
+                }
+                if let Some(stroke) = stroke {
+                    let stroke_fill = apply_dark_fill(stroke.color);
+                    let dash_length = if stroke.dash_length > 0.0 { Some(stroke.dash_length) } else { None };
+                    self.sys.renderer.draw_ring(keru_draw::CircleRing {
+                        center: [cx, cy],
+                        inner_radius: radius - stroke.width * 0.5,
+                        outer_radius: radius + stroke.width * 0.5,
+                        fill: stroke_fill,
+                        x_clip,
+                        y_clip,
+                        texture: None,
+                        dash_length,
+                        dash_offset: 0.0,
+                    });
+                }
             }
             Shape::Ring { width } => {
                 let cx = (x0 + x1) / 2.0;
                 let cy = (y0 + y1) / 2.0;
                 let outer_radius = ((x1 - x0) / 2.0).min((y1 - y0) / 2.0);
                 let inner_radius = (outer_radius - *width).max(0.0);
-                self.sys.renderer.draw_ring(keru_draw::Ring {
+                let dash_length = stroke.and_then(|s| if s.dash_length > 0.0 { Some(s.dash_length) } else { None });
+                self.sys.renderer.draw_ring(keru_draw::CircleRing {
                     center: [cx, cy],
                     inner_radius,
                     outer_radius,
@@ -263,12 +297,15 @@ impl Ui {
                     x_clip,
                     y_clip,
                     texture,
+                    dash_length,
+                    dash_offset: 0.0,
                 });
             }
             Shape::Arc { start_angle, end_angle, width } => {
                 let cx = (x0 + x1) / 2.0;
                 let cy = (y0 + y1) / 2.0;
                 let radius = ((x1 - x0) / 2.0).min((y1 - y0) / 2.0);
+                let dash_length = stroke.and_then(|s| if s.dash_length > 0.0 { Some(s.dash_length) } else { None });
                 self.sys.renderer.draw_arc(keru_draw::CircleArc {
                     center: [cx, cy],
                     radius,
@@ -279,6 +316,8 @@ impl Ui {
                     x_clip,
                     y_clip,
                     texture,
+                    dash_length,
+                    dash_offset: 0.0,
                 });
             }
             Shape::Pie { start_angle, end_angle } => {
@@ -301,7 +340,7 @@ impl Ui {
                 let start_y = y0 + start.1 * (y1 - y0);
                 let end_x = x0 + end.0 * (x1 - x0);
                 let end_y = y0 + end.1 * (y1 - y0);
-                let thickness = node.params.stroke.map(|s| s.width).unwrap_or(1.0);
+                let thickness = stroke.map(|s| s.width).unwrap_or(1.0);
                 self.sys.renderer.draw_segment(keru_draw::Segment {
                     start: [start_x, start_y],
                     end: [end_x, end_y],
@@ -310,15 +349,14 @@ impl Ui {
                     x_clip,
                     y_clip,
                     dash_length: *dash_length,
+                    dash_offset: 0.0,
                     texture,
                 });
             }
             Shape::HorizontalLine => {
-                let thickness = node.params.stroke.map(|s| s.width).unwrap_or(1.0);
+                let thickness = stroke.map(|s| s.width).unwrap_or(1.0);
                 let cy = (y0 + y1) / 2.0;
-                let dash_length = node.params.stroke.and_then(|s| {
-                    if s.dash_length > 0.0 { Some(s.dash_length) } else { None }
-                });
+                let dash_length = stroke.and_then(|s| if s.dash_length > 0.0 { Some(s.dash_length) } else { None });
                 self.sys.renderer.draw_segment(keru_draw::Segment {
                     start: [x0, cy],
                     end: [x1, cy],
@@ -327,15 +365,14 @@ impl Ui {
                     x_clip,
                     y_clip,
                     dash_length,
+                    dash_offset: 0.0,
                     texture,
                 });
             }
             Shape::VerticalLine => {
-                let thickness = node.params.stroke.map(|s| s.width).unwrap_or(1.0);
+                let thickness = stroke.map(|s| s.width).unwrap_or(1.0);
                 let cx = (x0 + x1) / 2.0;
-                let dash_length = node.params.stroke.and_then(|s| {
-                    if s.dash_length > 0.0 { Some(s.dash_length) } else { None }
-                });
+                let dash_length = stroke.and_then(|s| if s.dash_length > 0.0 { Some(s.dash_length) } else { None });
                 self.sys.renderer.draw_segment(keru_draw::Segment {
                     start: [cx, y0],
                     end: [cx, y1],
@@ -344,6 +381,7 @@ impl Ui {
                     x_clip,
                     y_clip,
                     dash_length,
+                    dash_offset: 0.0,
                     texture,
                 });
             }
@@ -420,21 +458,51 @@ impl Ui {
                 let cy = (y0 + y1) / 2.0;
                 let max_radius = ((x1 - x0) / 2.0).min((y1 - y0) / 2.0);
                 let actual_size = max_radius * size;
-                let render_fill = if border_thickness > 0.0 && border_color.is_some() {
-                    border_color.unwrap()
-                } else {
-                    fill
-                };
-                self.sys.renderer.draw_hexagon(keru_draw::Hexagon {
-                    center: [cx, cy],
-                    size: actual_size,
-                    rotation: *rotation,
-                    fill: render_fill,
-                    stroke_thickness: border_thickness,
-                    x_clip,
-                    y_clip,
-                    texture,
-                });
+
+                if fill_visible {
+                    self.sys.renderer.draw_hexagon(keru_draw::Hexagon {
+                        center: [cx, cy],
+                        size: actual_size,
+                        rotation: *rotation,
+                        fill,
+                        stroke_thickness: 0.0,
+                        x_clip,
+                        y_clip,
+                        texture,
+                    });
+                }
+                if let Some(stroke) = stroke {
+                    let stroke_fill = apply_dark_fill(stroke.color);
+                    if stroke.dash_length > 0.0 {
+                        // Dashed stroke
+                        let stroke_color = match stroke_fill {
+                            ColorFill::Color(c) => c,
+                            ColorFill::Gradient(g) => g.color_start,
+                        };
+                        self.sys.renderer.draw_dashed_hexagon_outline(keru_draw::DashedHexagonOutline {
+                            center: [cx, cy],
+                            size: actual_size,
+                            rotation: *rotation,
+                            thickness: stroke.width,
+                            color: stroke_color,
+                            dash_length: stroke.dash_length,
+                            x_clip,
+                            y_clip,
+                        });
+                    } else {
+                        // Solid stroke
+                        self.sys.renderer.draw_hexagon(keru_draw::Hexagon {
+                            center: [cx, cy],
+                            size: actual_size,
+                            rotation: *rotation,
+                            fill: stroke_fill,
+                            stroke_thickness: stroke.width,
+                            x_clip,
+                            y_clip,
+                            texture: None,
+                        });
+                    }
+                }
             }
         }
     }

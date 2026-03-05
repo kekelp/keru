@@ -417,8 +417,10 @@ pub struct Stroke {
     pub width: f32,
     /// Color of the stroke.
     pub color: ColorFill,
-    /// Lengths of dashes in alternating on/off order.
+    /// Lengths of dashes.
     pub dash_length: f32,
+    /// Dash offset.
+    pub dash_offset: f32,
 }
 
 impl Stroke {
@@ -427,11 +429,13 @@ impl Stroke {
             width,
             color: ColorFill::Color(KERU_GREEN),
             dash_length: 0.0,
+            dash_offset: 0.0,
         }
     }
 
-    pub const fn with_dashes(mut self, dash_length: f32) -> Self {
+    pub const fn with_dashes(mut self, dash_length: f32,dash_offset: f32) -> Self {
         self.dash_length = dash_length;
+        self.dash_offset = dash_offset;
         self
     }
 
@@ -660,9 +664,9 @@ impl Node {
         return self;
     }
 
-    pub const fn stroke_dashes(mut self, dash_length: f32) -> Self {
+    pub const fn stroke_dashes(mut self, dash_length: f32, dash_offset: f32) -> Self {
         if let Some(stroke) = self.stroke {
-            self.stroke = Some(stroke.with_dashes(dash_length));
+            self.stroke = Some(stroke.with_dashes(dash_length, dash_offset));
         }
         return self;
     }
@@ -1123,9 +1127,9 @@ impl<'a> FullNode<'a> {
         return self;
     }
 
-    pub const fn stroke_dashes(mut self, dash_length: f32) -> Self {
+    pub const fn stroke_dashes(mut self, dash_length: f32, dash_offset: f32) -> Self {
         if let Some(stroke) = self.params.stroke {
-            self.params.stroke = Some(stroke.with_dashes(dash_length));
+            self.params.stroke = Some(stroke.with_dashes(dash_length, dash_offset));
         }
         return self;
     }
