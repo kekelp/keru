@@ -13,16 +13,46 @@ pub struct UiNode<'a> {
     pub(crate) ui: &'a Ui,
 }
 
+pub struct UiNodeChildrenIter<'a> {
+    ui: &'a Ui,
+    current: Option<NodeI>,
+    remaining: usize,
+}
+
+impl<'a> Iterator for UiNodeChildrenIter<'a> {
+    type Item = UiNode<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(child_i) = self.current {
+            self.current = self.ui.nodes[child_i].next_sibling;
+            if !self.ui.nodes[child_i].exiting {
+                self.remaining -= 1;
+                return Some(UiNode { ui: self.ui, i: child_i });
+            }
+        }
+        None
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.remaining, Some(self.remaining))
+    }
+}
+
+impl ExactSizeIterator for UiNodeChildrenIter<'_> {}
+
 impl<'a> UiNode<'a> {
-    // todo: return iterator instead of vec
-    pub fn children(&self) -> Vec<UiNode<'a>> {
-        let mut v = Vec::new();
-        let i = self.i;
-        for_each_child!(self.ui, self.ui.nodes[i], child, {
-            let uinode = UiNode { ui: self.ui, i: child };
-            v.push(uinode);
-        });
-        return v;
+    /// Get an iterator over all the children added to the node so far.
+    pub fn children(&self) -> UiNodeChildrenIter<'a> {
+        UiNodeChildrenIter {
+            ui: self.ui,
+            current: self.ui.nodes[self.i].first_child,
+            remaining: self.ui.nodes[self.i].n_children as usize,
+        }
+    }
+
+    /// Get the number of children added to the node so far.
+    pub fn children_count(&self) -> usize {
+        self.ui.nodes[self.i].n_children as usize
     }
 }
 

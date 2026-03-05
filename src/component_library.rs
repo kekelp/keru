@@ -816,7 +816,7 @@ impl Component for ReorderStack {
         // Find the dragged item
         let mut dragged = None;
         if let Some(stack) = ui.get_node(Self::STACK) {
-            for (index, child) in stack.children().iter().enumerate() {
+            for (index, child) in stack.children().enumerate() {
                 if child.is_dragged().is_some() || child.is_drag_released() {
                     let key = child.temp_key();
                     let height = child.last_frame_rect().size().y;
@@ -828,10 +828,10 @@ impl Component for ReorderStack {
 
         if let Some((key, height, index)) = dragged {
             // Find where it's being hovered
-            let children = ui.get_node(Self::STACK).unwrap().children();
+            let stack_node = ui.get_node(Self::STACK).unwrap();
             let cursor_y = ui.cursor_position().y;
-            let mut insertion_index = children.len();
-            for (i, child) in children.iter().enumerate() {
+            let mut insertion_index = stack_node.children_count();
+            for (i, child) in stack_node.children().enumerate() {
                 if i == index {
                     continue;
                 }
