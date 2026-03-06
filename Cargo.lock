@@ -2852,7 +2852,6 @@ dependencies = [
 [[package]]
 name = "textslabs"
 version = "0.1.0"
-source = "git+https://github.com/kekelp/textslabs.git#5602d919aa5232821a8c8429dd0bff1f5b83d093"
 dependencies = [
  "arboard",
  "bytemuck",

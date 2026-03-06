@@ -341,11 +341,11 @@ impl Ui {
         }
     }
 
-    /// Registers the `winit` window 
+    /// Registers the `winit` window.
     /// 
     /// This allows the Ui to:
     /// 
-    /// - enable [IME](https://en.wikipedia.org/wiki/Input_method) when a text edit box is focused, and disable it when unfocused so that there's less risk of hotkey collisions
+    /// - enable [IME](https://en.wikipedia.org/wiki/Input_method) when a text edit box is focused, and disable it when unfocused so that there's less risk of hotkey collisions.
     /// 
     /// - automatically wakeup the event loop for cursor blinking, scheduled wakeups, when using the [`UiWaker`].
     pub fn register_window(&mut self, window: Arc<winit::window::Window>) {
