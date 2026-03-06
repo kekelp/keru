@@ -796,6 +796,17 @@ impl Ui {
     }
 
     pub(crate) fn rebuild_render_data(&mut self) {
+        // This is another separate traversal:
+        // - separate from layout because of no-relayout animations
+        // - separate from push_render_data so that prepare_text() can run after it knows whether any textbox changed, but before push_render_data.
+        self.resolve_all_animations_and_scrolling();
+
+        self.sys.renderer.prepare_text();
+
+        self.push_all_render_and_click_data();
+    }
+
+    pub(crate) fn resolve_all_animations_and_scrolling(&mut self) {
         self.sys.click_rects.clear();
         self.sys.z_cursor = Z_START;
 
@@ -805,16 +816,28 @@ impl Ui {
         let height = self.sys.size[Y];
         self.sys.renderer.begin_frame(width, height);
 
+
+        self.sys.depth_traversal_queue.clear();
+        self.sys.depth_traversal_queue.push(ROOT_I);
+        while let Some(i) = self.sys.depth_traversal_queue.pop() {
+            self.resolve_animations_and_scrolling(i);
+            self.update_text_boxes(i);
+
+            for_each_child_including_lingering_reverse!(self, self.nodes[i], child, {
+                self.sys.depth_traversal_queue.push(child);
+            });
+        }
+
+    }
+
+    pub(crate) fn push_all_render_and_click_data(&mut self) {
         self.custom_render_commands.clear();
         let mut keru_range_start: Option<usize> = None;
 
         self.sys.depth_traversal_queue.clear();
         self.sys.depth_traversal_queue.push(ROOT_I);
 
-        // Depth-first traversal to update animations, build render data, click rects, etc.
         while let Some(i) = self.sys.depth_traversal_queue.pop() {
-            self.resolve_animations_and_scrolling(i);
-
             let is_custom = self.nodes[i].params.custom_render;
             let instance_index_before = self.sys.renderer.instance_count();
 
@@ -822,30 +845,12 @@ impl Ui {
 
             let instance_index_after = self.sys.renderer.instance_count();
 
-            if is_custom {
-                // Close any open Keru range
-                if let Some(start) = keru_range_start {
-                    if start < instance_index_before {
-                        self.custom_render_commands.push(RenderCommand::Keru(KeruElementRange::new(start, instance_index_before)));
-                    }
-                    keru_range_start = None;
-                }
-
-                // Add custom render command with the node's rectangle
-                self.custom_render_commands.push(RenderCommand::CustomRenderingArea {
-                    key: self.nodes[i].original_key,
-                    rect: self.nodes[i].real_rect,
-                });
-
-                // If the custom node also pushed instances (e.g., text or images), start a new range
-                if instance_index_after > instance_index_before {
-                    keru_range_start = Some(instance_index_before);
-                }
-            } else {
-                // Regular Keru rendering - accumulate range
+            if !is_custom {
                 if keru_range_start.is_none() && instance_index_after > instance_index_before {
                     keru_range_start = Some(instance_index_before);
                 }
+            } else {
+                self.add_custom_render_command(i, instance_index_before, instance_index_after, &mut keru_range_start,);
             }
 
             for_each_child_including_lingering_reverse!(self, self.nodes[i], child, {
@@ -854,7 +859,7 @@ impl Ui {
         }
 
         // prepare text decorations
-        self.sys.renderer.prepare_text_decorations();
+        self.sys.renderer.draw_text_decorations();
 
         // Close final Keru range if any
         if let Some(start) = keru_range_start {
@@ -865,10 +870,36 @@ impl Ui {
         }
 
         self.sys.changes.should_rebuild_render_data = self.sys.changes.unfinished_animations;
-
-        self.sys.renderer.text.clear_changes();
     }
 
+    fn add_custom_render_command(
+        &mut self,
+        i: NodeI,
+        instance_index_before: usize,
+        instance_index_after: usize,
+        keru_range_start: &mut Option<usize>,
+    ) {
+        // Close any open keru range
+        if let Some(start) = *keru_range_start {
+            if start < instance_index_before {
+                self.custom_render_commands.push(RenderCommand::Keru(
+                    KeruElementRange::new(start, instance_index_before),
+                ));
+            }
+            *keru_range_start = None;
+        }
+    
+        // Add custom render command with the node's rectangle
+        self.custom_render_commands.push(RenderCommand::CustomRenderingArea {
+            key: self.nodes[i].original_key,
+            rect: self.nodes[i].real_rect,
+        });
+    
+        // Start a new range
+        if instance_index_after > instance_index_before {
+            *keru_range_start = Some(instance_index_before);
+        }
+    }
     
     pub(crate) fn resolve_animations_and_scrolling(&mut self, i: NodeI) {
         // do animations in local space

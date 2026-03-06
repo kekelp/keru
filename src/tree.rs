@@ -542,6 +542,99 @@ impl Ui {
         return !is_at_target;
     }
 
+    pub(crate) fn update_text_boxes(&mut self, i: NodeI) {
+        self.sys.z_cursor += Z_STEP;
+        self.nodes[i].z = self.sys.z_cursor;
+
+        if !self.nodes[i].params.visible {
+            return;
+        }
+
+        let Some(text_i) = &self.nodes[i].text_i else {
+            return;
+        };
+
+        let z = self.nodes[i].z;
+        let node_clip_rect = self.nodes[i].clip_rect;
+
+        // Update text position using animated rect
+        let animated_rect = self.nodes[i].get_animated_rect();
+        let padding = self.nodes[i].params.layout.padding;
+        let left = (animated_rect[X][0] * self.sys.size[X]) as f64 + padding[X] as f64;
+
+        // Calculate node height in pixels
+        let node_height = (animated_rect[Y][1] - animated_rect[Y][0]) * self.sys.size[Y];
+        let available_height = node_height - (2.0 * padding[Y] as f32);
+
+        // Round to screen pixels using the transform scale
+        let scale = self.nodes[i].accumulated_transform.scale as f64;
+
+        match text_i {
+            TextI::TextBox(text_box_handle) => {
+                let text_box = self.sys.renderer.text.get_text_box_mut(&text_box_handle);
+                let layout = text_box.layout();
+                let text_height = layout.height() as f32;
+
+                // Center vertically if text is smaller than available height
+                let vertical_offset = if text_height < available_height {
+                    (available_height - text_height) / 2.0
+                } else {
+                    0.0
+                };
+
+                let top = (animated_rect[Y][0] * self.sys.size[Y]) as f64 + padding[Y] as f64 + vertical_offset as f64;
+
+                text_box.set_depth(z);
+                text_box.set_pos(((left * scale).round() / scale, (top * scale).round() / scale));
+
+                // Set hitbox to cover the whole node (in local space relative to text position)
+                let node_width = (animated_rect[X][1] - animated_rect[X][0]) * self.sys.size[X];
+                let hitbox = (
+                    -padding[X],                                    // min_x
+                    -padding[Y] - vertical_offset,                  // min_y
+                    node_width - padding[X],                        // max_x
+                    node_height - padding[Y] - vertical_offset,     // max_y
+                );
+                text_box.set_hitbox(Some(hitbox));
+
+                // Set the screen-space clip rect
+                let clip = (
+                    node_clip_rect.x[0] * self.sys.size[X],
+                    node_clip_rect.y[0] * self.sys.size[Y],
+                    node_clip_rect.x[1] * self.sys.size[X],
+                    node_clip_rect.y[1] * self.sys.size[Y],
+                );
+                self.sys.renderer.text.get_text_box_mut(&text_box_handle).set_screen_space_clip_rect(Some(clip));
+            },
+            TextI::TextEdit(text_edit_handle) => {
+                let text_edit = self.sys.renderer.text.get_text_edit_mut(&text_edit_handle);
+                let (_width, text_edit_height) = text_edit.size();
+
+                // Center vertically based on the text edit widget size
+                let vertical_offset = if text_edit_height < available_height {
+                    (available_height - text_edit_height) / 2.0
+                } else {
+                    0.0
+                };
+
+                let top = (animated_rect[Y][0] * self.sys.size[Y]) as f64 + padding[Y] as f64 + vertical_offset as f64;
+
+                text_edit.set_depth(z);
+                text_edit.set_pos(((left * scale).round() / scale, (top * scale).round() / scale));
+
+                // Set hitbox to cover the whole node (in local space relative to text position)
+                let node_width = (animated_rect[X][1] - animated_rect[X][0]) * self.sys.size[X];
+                let hitbox = (
+                    -padding[X],                                    // min_x
+                    -padding[Y] - vertical_offset,                  // min_y
+                    node_width - padding[X],                        // max_x
+                    node_height - padding[Y] - vertical_offset,     // max_y
+                );
+                text_edit.set_hitbox(Some(hitbox));
+            },
+        }
+    }
+
     pub(crate) fn push_render_and_click_data(&mut self, i: NodeI) {
         let debug = cfg!(debug_assertions);
         let is_scrollable = self.nodes[i].params.is_scrollable();
@@ -563,10 +656,6 @@ impl Ui {
             let click_rect = self.click_rect(i);
             self.sys.click_rects.push(click_rect);
         }
-
-        self.sys.z_cursor += Z_STEP;
-        let z = self.sys.z_cursor;
-
 
         // Get the clip rect for this node
         let node_clip_rect = self.nodes[i].clip_rect;
@@ -593,97 +682,24 @@ impl Ui {
         if self.sys.inspect_mode {
             self.render_node_shape_to_scene(i, node_clip_rect, texture, true);
         }
-        
+
         // Render node's shape (with texture if image is present)
         if self.nodes[i].params.visible {
             self.render_node_shape_to_scene(i, node_clip_rect, texture, false);
 
+            // Draw text (properties were already set in update_text_properties)
             if let Some(text_i) = &self.nodes[i].text_i {
-                // Update text position using animated rect
-                let animated_rect = self.nodes[i].get_animated_rect();
-                let padding = self.nodes[i].params.layout.padding;
-                let left = (animated_rect[X][0] * self.sys.size[X]) as f64 + padding[X] as f64;
-
-                // Calculate node height in pixels
-                let node_height = (animated_rect[Y][1] - animated_rect[Y][0]) * self.sys.size[Y];
-                let available_height = node_height - (2.0 * padding[Y] as f32);
-
-                // Round to screen pixels using the transform scale (even if scaled text doesn't work anyway)
-                let scale = self.nodes[i].accumulated_transform.scale as f64;
-
                 match text_i {
                     TextI::TextBox(text_box_handle) => {
-                        let text_box = self.sys.renderer.text.get_text_box_mut(&text_box_handle);
-                        let layout = text_box.layout();
-                        let text_height = layout.height() as f32;
-
-                        // Center vertically if text is smaller than available height
-                        let vertical_offset = if text_height < available_height {
-                            (available_height - text_height) / 2.0
-                        } else {
-                            0.0
-                        };
-
-                        let top = (animated_rect[Y][0] * self.sys.size[Y]) as f64 + padding[Y] as f64 + vertical_offset as f64;
-
-                        text_box.set_depth(z);
-                        text_box.set_pos(((left * scale).round() / scale, (top * scale).round() / scale));
-
-                        // Set hitbox to cover the whole node (in local space relative to text position)
-                        let node_width = (animated_rect[X][1] - animated_rect[X][0]) * self.sys.size[X];
-                        let hitbox = (
-                            -padding[X],                                    // min_x
-                            -padding[Y] - vertical_offset,                  // min_y
-                            node_width - padding[X],                        // max_x
-                            node_height - padding[Y] - vertical_offset,     // max_y
-                        );
-                        text_box.set_hitbox(Some(hitbox));
-
-                        // Set the screen-space clip rect before drawing
-                        let clip = (
-                            node_clip_rect.x[0] * self.sys.size[X],
-                            node_clip_rect.y[0] * self.sys.size[Y],
-                            node_clip_rect.x[1] * self.sys.size[X],
-                            node_clip_rect.y[1] * self.sys.size[Y],
-                        );
-                        self.sys.renderer.text.get_text_box_mut(&text_box_handle).set_screen_space_clip_rect(Some(clip));
-
-                        // Draw the text box
                         self.sys.renderer.draw_text_box(&text_box_handle);
                     },
                     TextI::TextEdit(text_edit_handle) => {
-                        let text_edit = self.sys.renderer.text.get_text_edit_mut(&text_edit_handle);
-                        let (_width, text_edit_height) = text_edit.size();
-
-                        // Center vertically based on the text edit widget size
-                        let vertical_offset = if text_edit_height < available_height {
-                            (available_height - text_edit_height) / 2.0
-                        } else {
-                            0.0
-                        };
-
-                        let top = (animated_rect[Y][0] * self.sys.size[Y]) as f64 + padding[Y] as f64 + vertical_offset as f64;
-
-                        text_edit.set_depth(z);
-                        text_edit.set_pos(((left * scale).round() / scale, (top * scale).round() / scale));
-
-                        // Set hitbox to cover the whole node (in local space relative to text position)
-                        let node_width = (animated_rect[X][1] - animated_rect[X][0]) * self.sys.size[X];
-                        let hitbox = (
-                            -padding[X],                                    // min_x
-                            -padding[Y] - vertical_offset,                  // min_y
-                            node_width - padding[X],                        // max_x
-                            node_height - padding[Y] - vertical_offset,     // max_y
-                        );
-                        text_edit.set_hitbox(Some(hitbox));
-
-                        // Draw the text edit
                         self.sys.renderer.draw_text_edit(&text_edit_handle);
                     },
                 }
             }
         }
-        
+
         // Pop the transform if we pushed it
         if self.nodes[i].accumulated_transform != Transform::IDENTITY {
             self.sys.renderer.pop_transform();

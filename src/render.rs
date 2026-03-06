@@ -520,7 +520,6 @@ impl Ui {
 
         self.sys.renderer.render(render_pass);
 
-        self.sys.renderer.text.clear_changes();
         self.sys.changes.need_rerender = false;
     }
 
