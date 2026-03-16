@@ -2,7 +2,7 @@ use glam::vec2;
 use keru_draw::StyleHandle;
 
 use crate::*;
-use std::{hash::{Hash, Hasher}, ops::Deref};
+use std::hash::{Hash, Hasher};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ChildrenCanHide {
@@ -978,8 +978,13 @@ impl Node {
 
 #[derive(Copy, Clone, Hash)]
 pub enum NodeText<'a> {
+    /// Text that will be hashed to detect changes.
     Dynamic(&'a str),
+    /// Static text that uses pointer-equality checking.
     Static(&'static str),
+    /// Non-static text that uses pointer-equality checking.
+    /// The user must ensure the text doesn't change.
+    Immut(&'a str),
 }
 
 impl<'a> NodeText<'a> {
@@ -987,11 +992,8 @@ impl<'a> NodeText<'a> {
         match self {
             NodeText::Dynamic(s) => s,
             NodeText::Static(s) => s,
+            NodeText::Immut(s) => s,
         }
-    }
-    
-    pub fn is_static(&self) -> bool {
-        matches!(self, NodeText::Static(_))
     }
 }
 
@@ -1018,9 +1020,6 @@ pub struct FullNode<'a> {
     pub params: Node,
     pub text: Option<NodeText<'a>>,
     pub text_style: Option<StyleHandle>,
-    pub(crate) text_changed: Changed,
-    // todo: why store it here? just do text.ptr()?
-    pub(crate) text_ptr: usize,
     pub image: Option<Image<'a>>,
     pub placeholder: Option<&'a str>,
 }
@@ -1424,46 +1423,7 @@ impl<'a> FullNode<'a> {
     }
 }
 
-// impl FullNode<'_> {
-//     /// Add text to the [`Node`] from a `&'static str`.
-//     /// 
-//     /// `text` is assumed to be unchanged, so the [`Ui`] uses pointer equality to determine if it needs to update the text shown on screen.
-//     /// 
-//     /// If `text` changes, due to interior mutability or unsafe code, then the [`Ui`] will miss it.  
-//     pub fn static_text(self, text: &'static str) -> FullNode<'static> {
-//         return FullNode {
-//             params: self.params,
-//             image: self.image,
-//             text: Some(text),
-//             text_style: self.text_style,
-//             text_changed: Changed::Static,
-//             text_ptr: text.as_ref().as_ptr() as usize,
-//         }
-//     }
-// }
-
 impl Node {
-    /// Add text to the [`Node`] from a `&'static str`.
-    /// 
-    /// The [`Ui`] will have to hash `text` to determine if it needs to update the text shown on the screen. To avoid this performance penalty, use [`Node::observed_text`], or [`Node::static_text`] if `text` is an unchanging `'static str`. 
-    
-    // pub fn text<'a, T, M>(self, text: &'a M) -> FullNode<'a>
-    // where
-    //     M: MaybeObserver<T> + ?Sized,
-    //     T: AsRef<str> + ?Sized + 'a,
-    // {
-    pub fn hashed_text(self, text: &(impl AsRef<str> + ?Sized)) -> FullNode<'_> {
-        return FullNode {
-            params: self,
-            text: Some(NodeText::Dynamic(text.as_ref())),
-            text_style: None,
-            image: None,
-            text_changed: Changed::NeedsHash,
-            text_ptr: text.as_ref().as_ptr() as usize,
-            placeholder: None,
-        }
-    }
-
     /// Set placeholder text for a text edit that will be shown when the text edit is empty.
     /// This only works with editable text nodes.
     pub fn placeholder_text<'a>(self, placeholder: &'a str) -> FullNode<'a> {
@@ -1472,53 +1432,32 @@ impl Node {
             text: None,
             text_style: None,
             image: None,
-            text_changed: Changed::NeedsHash,
-            text_ptr: 0,
             placeholder: Some(placeholder),
         }
     }
 
     /// Add text to the [`Node`] from a `&'static str`.
-    /// 
-    /// `text` is assumed to be unchanged, so the [`Ui`] uses pointer equality to determine if it needs to update the text shown on screen.
-    /// 
-    /// If `text` changes, due to interior mutability or unsafe code, then the [`Ui`] will miss it.  
-    pub fn static_text(self, text: &'static (impl AsRef<str> + ?Sized)) -> FullNode<'static> {
+    ///
+    /// Uses pointer equality to determine if the text needs updating.
+    pub fn static_text(self, text: &'static str) -> FullNode<'static> {
         return FullNode {
             params: self,
-            text: Some(NodeText::Static(text.as_ref())),
+            text: Some(NodeText::Static(text)),
             text_style: None,
             image: None,
-            text_changed: Changed::Static,
-            text_ptr: text.as_ref().as_ptr() as usize,
             placeholder: None,
         }
     }
 
-    /// Add text to the [`Node`] from a `&str` that is known to not be mutated during its lifetime.
-    /// 
-    /// Since the text is assumed to never change, the [`Ui`] can use pointer equality to determine if it needs to update the text shown on screen.
-    /// 
-    /// If `text` changes anyway, then the [`Ui`] will miss it.  
-    pub fn immut_text(self, text: &(impl AsRef<str> + ?Sized)) -> FullNode<'_> {
+    /// Add text to the [`Node`] from a `&str` that is known to not change during its lifetime.
+    ///
+    /// Uses pointer equality to determine if the text needs updating. The user must ensure
+    /// that the text content doesn't change, otherwise the display will get out of sync.
+    pub fn immut_text(self, text: &str) -> FullNode<'_> {
         return FullNode {
             params: self,
-            text: Some(NodeText::Dynamic(text.as_ref())),
+            text: Some(NodeText::Immut(text)),
             text_style: None,
-            image: None,
-            text_changed: Changed::Static,
-            text_ptr: text.as_ref().as_ptr() as usize,
-            placeholder: None,
-        }
-    }
-
-    pub fn observed_text(self, text: Observer<&(impl AsRef<str> + ?Sized)>) -> FullNode<'_> {
-        return FullNode {
-            params: self,
-            text: Some(NodeText::Dynamic(text.as_ref())),
-            text_style: None,
-            text_changed: text.changed_at(),
-            text_ptr: text.as_ref().as_ptr() as usize,
             image: None,
             placeholder: None,
         }
@@ -1530,8 +1469,6 @@ impl Node {
             text: None,
             text_style: None,
             image: Some(Image::RasterStatic(image)),
-            text_changed: Changed::Static,
-            text_ptr: 0,
             placeholder: None,
         }
     }
@@ -1542,8 +1479,6 @@ impl Node {
             text: None,
             text_style: None,
             image: Some(Image::RasterPath(path)),
-            text_changed: Changed::Static,
-            text_ptr: 0,
             placeholder: None,
         }
     }
@@ -1554,8 +1489,6 @@ impl Node {
             text: None,
             text_style: None,
             image: Some(Image::SvgStatic(svg)),
-            text_changed: Changed::Static,
-            text_ptr: 0,
             placeholder: None,
         }
     }
@@ -1566,20 +1499,9 @@ impl Node {
             text: None,
             text_style: None,
             image: Some(Image::SvgPath(path)),
-            text_changed: Changed::Static,
-            text_ptr: 0,
             placeholder: None,
         }
     }
-}
-
-#[doc(hidden)]
-#[derive(Debug, Clone, Copy)]
-pub enum Changed {
-    ChangedAt(u64),
-    NeedsHash,
-    // isn't this about the same as ChangedAt(0)?
-    Static,
 }
 
 impl From<Node> for FullNode<'_> {
@@ -1588,8 +1510,6 @@ impl From<Node> for FullNode<'_> {
             params: val,
             text: None,
             text_style: None,
-            text_changed: Changed::Static,
-            text_ptr: 0,
             image: None,
             placeholder: None,
         }
@@ -1606,126 +1526,107 @@ impl FullNode<'_> {
     }
 }
 
-#[derive(PartialEq, Debug)]
-enum TextVerdict {
-    Skip,
-    HashAndSee,
-    UpdateWithoutHashing,
-}
-
 impl Ui {
-    fn check_text_situation(&self, i: NodeI, params: &FullNode) -> TextVerdict {
-        let same_pointer = params.text_ptr == self.nodes[i].last_text_ptr;
-        let verdict = if same_pointer {
-             match params.text_changed {
-                Changed::NeedsHash => TextVerdict::HashAndSee,
-                Changed::ChangedAt(change_frame) => {
-                    if change_frame > self.sys.second_last_frame_end_fake_time {
-                        TextVerdict::UpdateWithoutHashing
-                    } else {
-                        TextVerdict::Skip
-                    }
-                },
-                Changed::Static => TextVerdict::Skip,
-            }
-
-        } else { // different pointer 
-            // probably not worth even hashing here
-            TextVerdict::UpdateWithoutHashing
-        };
-        return verdict;
-    }
-
-    pub(crate) fn set_params_text(&mut self, i: NodeI, params: &FullNode) {       
+    pub(crate) fn set_params_text(&mut self, i: NodeI, params: &FullNode) {
         let Some(text) = params.text else {
             return
         };
-        
+
         let text_options = params.params.text_params.as_ref();
-        let edit = text_options.map(|tp| tp.editable).unwrap_or(false);
-        
-        if edit {
-            // For editable text, always update if content changed
-            if self.nodes[i].last_text_ptr != params.text_ptr {
-                // todo: this as_ref() is dumb, should this be changed in textslabs?
-                self.set_text2(i, text, text_options, params.text_style.as_ref(), params.placeholder);
-                self.nodes[i].last_text_ptr = params.text_ptr;
-            }
-            return;
-        }
+        let style = params.text_style.as_ref();
+        let placeholder = params.placeholder;
 
-        #[cfg(not(debug_assertions))]
-        if reactive::is_in_skipped_reactive_block() {
-            return;
-        }
-        // todo: the error-logging brother of that
-        
-        // todo: if text attributes have changed, go straight to relayout anyway.
+        // Determine what type of text widget we want
+        let edit = text_options.map(|to| to.editable).unwrap_or(false);
+        let selectable = text_options.map(|to| to.selectable).unwrap_or(true);
+        let edit_disabled = text_options.map(|to| to.edit_disabled).unwrap_or(false);
+        let single_line = text_options.map(|to| to.single_line).unwrap_or(false);
 
-        let text_verdict = self.check_text_situation(i, params);
-        if text_verdict == TextVerdict::Skip {
-            log::trace!("Skipping text update");
-            return;
-        }
-        
-        self.nodes[i].last_text_ptr = params.text_ptr;
-
-        #[cfg(debug_assertions)]
-        let hash: u64;
-
-        #[cfg(debug_assertions)] {
-            hash = ahash(&text);
-            if reactive::is_in_skipped_reactive_block() {
-                let mut error = false;
-                if let Some(last_hash) = self.nodes[i].last_text_hash {
-                    if last_hash != hash {
-                        error = true;
-                    }
-                    self.nodes[i].last_text_hash = Some(hash); 
-                } else {
-                    // this is probably wrong too
-                    error = true;
-                }
-                if error {
-                    log::error!("Keru: incorrect reactive block: the text on node \"{}\" changed, but reactive thought they didn't", self.node_debug_name_fmt_scratch(i));
-                    return;
-                    
-                }
-            }
-        }
-
-        match text_verdict {
-            TextVerdict::Skip => unreachable!("Already handled above"),
-            TextVerdict::HashAndSee => {
-                if self.nodes[i].text_i.is_some() {
-                    #[cfg(not(debug_assertions))]
-                    let hash = ahash(&text);
-
-                    if let Some(last_hash) = self.nodes[i].last_text_hash {
-                        if hash != last_hash {
-                            log::trace!("Updating after hash");
-                            self.nodes[i].last_text_hash = Some(hash);
-                            self.set_text2(i, text, text_options, params.text_style.as_ref(), params.placeholder);
-                        } else {
-                            log::trace!("Skipping after hash");
-                        }
-                    } else {
-                        self.set_text2(i, text, text_options, params.text_style.as_ref(), params.placeholder);
-                        if !text.is_static() {
-                            self.nodes[i].last_text_hash = Some(hash);
-                        }
-                    }
-                } else {
-                    log::trace!("Updating (node had no text)");
-                    self.set_text2(i, text, text_options, params.text_style.as_ref(), params.placeholder);
-                }
-            },
-            TextVerdict::UpdateWithoutHashing => {
-                log::trace!("Updating without hash");
-                self.set_text2(i, text, text_options, params.text_style.as_ref(), params.placeholder);
-                self.nodes[i].last_text_hash = None;
-            },
+        let needs_new_widget = match (&self.nodes[i].text_i, edit) {
+            (None, _) => true,
+            (Some(TextI::TextEdit(_)), true) => false,   // Already TextEdit, want TextEdit
+            (Some(TextI::TextBox(_)), false) => false,   // Already TextBox, want TextBox
+            _ => true, // Type mismatch, need to switch
         };
+
+        if needs_new_widget {
+            // Remove old widget
+            if let Some(old_text_i) = self.nodes[i].text_i.take() {
+                match old_text_i {
+                    TextI::TextBox(handle) => self.sys.renderer.text.remove_text_box(handle),
+                    TextI::TextEdit(handle) => self.sys.renderer.text.remove_text_edit(handle),
+                }
+            }
+
+            // this z doesn't matter, it's set when preparing render data. todo: cleanup.
+            let z = 0.0;
+            // Create new widget
+            let new_text_i = if edit {
+                let handle = self.sys.renderer.text.add_text_edit(text.as_str().to_string(), (0.0, 0.0), (500.0, 500.0), z);
+                if let Some(style) = style {
+                    self.sys.renderer.text.get_text_edit_mut(&handle).set_style(style);
+                }
+                TextI::TextEdit(handle)
+            } else {
+                let handle = match text {
+                    NodeText::Static(s) => {
+                        self.sys.renderer.text.add_text_box(s, (0.0, 0.0), (500.0, 500.0), z)
+                    },
+                    NodeText::Dynamic(s) | NodeText::Immut(s) => {
+                        self.sys.renderer.text.add_text_box(s.to_string(), (0.0, 0.0), (500.0, 500.0), z)
+                    }
+                };
+                if let Some(style) = style {
+                    self.sys.renderer.text.get_text_box_mut(&handle).set_style(style);
+                }
+                TextI::TextBox(handle)
+            };
+
+            self.nodes[i].text_i = Some(new_text_i);
+        } else {
+            // Same type - just update content and style
+            match &self.nodes[i].text_i {
+                Some(TextI::TextEdit(handle)) => {
+                    // don't update the content. content in a text edit box is not reset declaratively every frame, obviously.
+                    if let Some(style) = style {
+                        self.sys.renderer.text.get_text_edit_mut(&handle).set_style(style);
+                    }
+                },
+                Some(TextI::TextBox(handle)) => {
+                    match text {
+                        NodeText::Static(s) => {
+                            self.sys.renderer.text.get_text_box_mut(&handle).set_static_text_with_pointer_check(s);
+                        },
+                        NodeText::Dynamic(s) => {
+                            self.sys.renderer.text.get_text_box_mut(&handle).set_text_hashed(s);
+                        },
+                        NodeText::Immut(s) => {
+                            self.sys.renderer.text.get_text_box_mut(&handle).set_text_with_pointer_check(s);
+                        }
+                    }
+                    if let Some(style) = style {
+                        self.sys.renderer.text.get_text_box_mut(&handle).set_style(style);
+                    }
+                },
+                None => unreachable!("Should have created a new widget above"),
+            }
+        }
+
+        // Apply text options
+        if let Some(text_i) = &self.nodes[i].text_i {
+            match text_i {
+                TextI::TextEdit(handle) => {
+                    self.sys.renderer.text.get_text_edit_mut(handle).set_disabled(edit_disabled);
+                    self.sys.renderer.text.get_text_edit_mut(handle).set_single_line(single_line);
+                    if let Some(placeholder) = placeholder {
+                        self.sys.renderer.text.get_text_edit_mut(handle).set_placeholder(placeholder.to_string());
+                    }
+                },
+                TextI::TextBox(handle) => {
+                    self.sys.renderer.text.get_text_box_mut(handle).set_selectable(selectable);
+                },
+            }
+        }
     }
 
 
@@ -1781,22 +1682,12 @@ impl Ui {
 
 impl Node {
     /// Add text to the [`Node`].
-    /// 
-    /// The `text` argument can be a `&str`, a `String`, or any type that implements [`AsRef<str>`].
-    /// 
-    /// It can optionally wrapped by an [`Observer`], [`Static`] or [`Immut`] for efficiency.
-    /// 
-    /// If a plain non-[`Observer`] type is used, the [`Ui`] will fall back to hashing the text to determine if the text needs updating.
-    /// 
-    /// Instead of this single generic function, you can also use [`Self::hashed_text()`], [`Self::static_text()`], [`Self::immut_text()`], or [`Self::observed_text()`].
-    pub fn text(self, text: &(impl MaybeObservedText + ?Sized)) -> FullNode<'_> {
+    pub fn text(self, text: &str) -> FullNode<'_> {
         return FullNode {
             params: self,
-            text: Some(NodeText::Dynamic(text.as_text())),
+            text: Some(NodeText::Dynamic(text)),
             text_style: None,
             image: None,
-            text_changed: text.changed_at(),
-            text_ptr: text.as_text().as_ptr() as usize,
             placeholder: None,
         }
     }
@@ -1804,119 +1695,8 @@ impl Node {
 
 impl<'a> FullNode<'a> {
     /// Add text to the [`Node`].
-    /// 
-    /// The `text` argument can be a `&str`, a `String`, or any type that implements [`AsRef<str>`].
-    /// 
-    /// It can optionally wrapped by an [`Observer`], [`Static`] or [`Immut`] for efficiency.
-    /// 
-    /// If a plain non-[`Observer`] type is used, the [`Ui`] will fall back to hashing the text to determine if the text needs updating.
-    /// 
-    /// Instead of this single generic function, you can also use [`Self::hashed_text()`], [`Self::static_text()`], [`Self::immut_text()`], or [`Self::observed_text()`].
-    pub fn text(mut self, text: &'a (impl MaybeObservedText + ?Sized)) -> FullNode<'a> {
-        self.text = Some(NodeText::Dynamic(text.as_text()));
-        self.text_changed = text.changed_at();
-        self.text_ptr = text.as_text().as_ptr() as usize;
-
+    pub fn text(mut self, text: &'a str) -> FullNode<'a> {
+        self.text = Some(NodeText::Dynamic(text));
         return self;
-    }
-}
-
-
-/// A wrapper struct for a `'static` value that will never change during its lifetime.
-/// 
-/// `'static` values can't be mutated except through interior mutability or unsafe code, so this struct is relatively hard to misuse. 
-/// 
-/// ```rust
-/// # use keru::*;
-/// let string: &'static str = "this will never change";
-/// 
-/// // Rust doesn't know that `string` is static.
-/// // If we use `params1` to create a node and add it to the Ui,
-/// // the Ui will need to hash the text on every update to make sure it's not changing.  
-/// let params1 = LABEL.text(string); 
-/// 
-/// // If the string is wrapped in `Static`,
-/// // `text()` can tell that this string can never change, and skip some updates. 
-/// let params2 = LABEL.text(&Static(string));
-/// ```
-/// 
-/// If you can guarantee that a non-`'static` variable will not be mutated through its lifetime, you can use [`Immut`]: it works the same way as [`Static`], but without an explicit `'static` bound.
-/// 
-/// # Notes
-/// 
-/// This is needed because Rust doesn't support lifetime specialization.
-pub struct Static<T: 'static + ?Sized>(pub &'static T);
-
-impl<T: ?Sized> Deref for Static<T> {
-    type Target = T;
-    fn deref(&self) -> &Self::Target {
-        self.0
-    }
-}
-
-/// A wrapper struct for a value that will never change during its lifetime.
-/// 
-/// Same as `Static`, but without an explicit ``static` bound.
-/// 
-/// This struct can wrap any value: it is up to the user to ensure that wrapped variables actually never change. If this assumption is broken, the values displayed in the GUI will get out of sync with the real value of `T`.
-/// 
-/// You can always use an [`Observer<T>`](`Observer`) or a raw `T` to avoid this risk. If a raw `T` is passed, the [`Ui`] will hash the resulting text to make sure it stays synced.
-pub struct Immut<T: ?Sized>(pub T);
-
-impl<T: ?Sized> Deref for Immut<T> {
-    type Target = T;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-
-pub trait MaybeObservedText {
-    // Get the text content
-    fn as_text(&self) -> &str;
-    
-    // Check if the text has changed
-    fn changed_at(&self) -> Changed;
-}
-
-// Generic implementation for any type that implements AsRef<str>
-impl<T: AsRef<str> + ?Sized> MaybeObservedText for T {
-    fn as_text(&self) -> &str {
-        self.as_ref()
-    }
-    
-    fn changed_at(&self) -> Changed {
-        Changed::NeedsHash
-    }
-}
-
-// Observer can't be ?Sized because it physically holds the T as a field
-impl<T: AsRef<str>> MaybeObservedText for Observer<T> {
-    fn as_text(&self) -> &str {
-        self.as_ref()
-    }
-    
-    fn changed_at(&self) -> Changed {
-        self.changed_at()
-    }
-}
-
-impl<T: AsRef<str> + ?Sized> MaybeObservedText for Static<T> {
-    fn as_text(&self) -> &str {
-        self.as_ref()
-    }
-    
-    fn changed_at(&self) -> Changed {
-        Changed::Static
-    }
-}
-
-impl<T: AsRef<str> + ?Sized> MaybeObservedText for Immut<T> {
-    fn as_text(&self) -> &str {
-        self.as_ref()
-    }
-    
-    fn changed_at(&self) -> Changed {
-        Changed::Static
     }
 }

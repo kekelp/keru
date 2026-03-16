@@ -9,7 +9,6 @@ use std::ops::{
     ShrAssign, Sub, SubAssign,
 };
 use std::sync::atomic::{AtomicU64, Ordering};
-use crate::*;
 
 pub(crate) static FAKE_TIME: AtomicU64 = AtomicU64::new(10);
 
@@ -53,10 +52,6 @@ impl<T> Observer<T> {
             value,
             changed_at: 0,
         }
-    }
-
-    pub(crate) fn changed_at(&self) -> Changed {
-        Changed::ChangedAt(self.changed_at)
     }
 }
 

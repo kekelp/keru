@@ -64,8 +64,6 @@ pub struct InnerNode {
     pub imageref: Option<ImageRef>,
     pub last_image_source: Option<ImageSourceId>,
 
-    pub last_text_ptr: usize,
-
     pub parent: NodeI,
 
     // doesn't include lingering children.
@@ -96,7 +94,6 @@ pub struct InnerNode {
 
     pub last_cosmetic_hash: u64,
     pub last_layout_hash: u64,
-    pub last_text_hash: Option<u64>,
 
     pub can_hide: bool,
     pub currently_hidden: bool,
@@ -144,7 +141,6 @@ impl InnerNode {
 
             imageref: None,
             last_image_source: None,
-            last_text_ptr: 0,
 
             parent: NodeI::from(12312355), // just a wrong value which will be overwritten. it's even worse here.
             // but it's for symmetry with update_node, where all these values are old and are reset.
@@ -177,7 +173,6 @@ impl InnerNode {
 
             last_cosmetic_hash: 0,
             last_layout_hash: 0,
-            last_text_hash: None,
 
             can_hide: false,
             exiting: false,
@@ -258,7 +253,6 @@ pub const NODE_ROOT: InnerNode = InnerNode {
 
     imageref: None,
     last_image_source: None,
-    last_text_ptr: 0,
 
     // The root node is his own parent. This can be nice sometimes but it would probably be better to not use it.
     parent: ROOT_I,
@@ -293,7 +287,6 @@ pub const NODE_ROOT: InnerNode = InnerNode {
 
     last_cosmetic_hash: 0,
     last_layout_hash: 0,
-    last_text_hash: None,
 
     can_hide: false,
 

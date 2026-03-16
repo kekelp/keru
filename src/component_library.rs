@@ -41,7 +41,7 @@ impl Ui {
 
     /// Add a single-line text element.
     #[track_caller]
-    pub fn text_line(&mut self, text: &(impl MaybeObservedText + ?Sized)) -> UiParent {
+    pub fn text_line(&mut self, text: &str) -> UiParent {
         let params = TEXT.text(text);
         self.add(params)
     }
@@ -55,7 +55,7 @@ impl Ui {
 
     /// Add a multiline text paragraph.
     #[track_caller]
-    pub fn paragraph(&mut self, text: &(impl MaybeObservedText + ?Sized)) -> UiParent {
+    pub fn paragraph(&mut self, text: &str) -> UiParent {
         let params = TEXT_PARAGRAPH.text(text);
         self.add(params)
     }
@@ -69,7 +69,7 @@ impl Ui {
 
     /// Add a label.
     #[track_caller]
-    pub fn label(&mut self, text: &(impl MaybeObservedText + ?Sized)) -> UiParent {
+    pub fn label(&mut self, text: &str) -> UiParent {
         let params = LABEL.text(text);
         self.add(params)
     }

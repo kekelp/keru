@@ -598,13 +598,13 @@ impl Ui {
                 text_box.set_hitbox(Some(hitbox));
 
                 // Set the screen-space clip rect
-                let clip = (
-                    node_clip_rect.x[0] * self.sys.size[X],
-                    node_clip_rect.y[0] * self.sys.size[Y],
-                    node_clip_rect.x[1] * self.sys.size[X],
-                    node_clip_rect.y[1] * self.sys.size[Y],
-                );
-                self.sys.renderer.text.get_text_box_mut(&text_box_handle).set_screen_space_clip_rect(Some(clip));
+                let clip = BoundingBox {
+                    x0: (node_clip_rect.x[0] * self.sys.size[X]) as f64,
+                    y0: (node_clip_rect.y[0] * self.sys.size[Y]) as f64,
+                    x1: (node_clip_rect.x[1] * self.sys.size[X]) as f64,
+                    y1: (node_clip_rect.y[1] * self.sys.size[Y]) as f64,
+                };
+                self.sys.renderer.text.get_text_box_mut(&text_box_handle).set_clip_rect(Some(clip));
             },
             TextI::TextEdit(text_edit_handle) => {
                 let text_edit = self.sys.renderer.text.get_text_edit_mut(&text_edit_handle);

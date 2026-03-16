@@ -245,11 +245,11 @@ impl UiExt for Ui {
             self.static_label("Keru uses the Textslabs library for text, which uses Parley under the hood. \n\
             The text edit box supports IME, but this hasn't been thoroughly tested on all platforms yet.");
             self.add(H_LINE.color(Color::WHITE));
-            self.label(&Static(JAPANESE_TEXT));
+            self.add(LABEL.static_text(JAPANESE_TEXT));
             self.add(H_LINE.color(Color::WHITE));
-            self.label(&Static(CYRILLIC_TEXT));
+            self.add(LABEL.static_text(CYRILLIC_TEXT));
             self.add(H_LINE.color(Color::WHITE));
-            self.label(&Static(CHINESE_TEXT));
+            self.add(LABEL.static_text(CHINESE_TEXT));
         });
     }
 

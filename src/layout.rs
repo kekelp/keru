@@ -765,22 +765,6 @@ impl Ui {
         }
 
         self.nodes[i].clip_rect = clip_rect;
-
-        if let Some(text_i) = &self.nodes[i].text_i {
-            let left = clip_rect[X][0] * self.sys.size[X];
-            let right = clip_rect[X][1] * self.sys.size[X];
-            let top = clip_rect[Y][0] * self.sys.size[Y];
-            let bottom = clip_rect[Y][1] * self.sys.size[Y];
-
-            match text_i {
-                TextI::TextBox(handle) => {
-                    self.sys.renderer.text.get_text_box_mut(&handle).set_screen_space_clip_rect(Some((left, top, right, bottom)));
-                }
-                TextI::TextEdit(handle) => {
-                    self.sys.renderer.text.get_text_edit_mut(&handle).set_screen_space_clip_rect(Some((left, top, right, bottom)));
-                }
-            }
-        }
     }
 
     pub(crate) fn rebuild_render_data(&mut self) {
