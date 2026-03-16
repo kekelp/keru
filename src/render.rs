@@ -18,7 +18,7 @@ impl Ui {
         self.sys.mouse_input.window_event(event);
         self.sys.key_input.window_event(event);
 
-        let _event_consumed_by_text = self.text_window_event(ROOT_I, event, window);
+        let _event_consumed_by_text = self.text_window_event(event, window);
         // todo keyboard events should be consumed actually.
         // but mouse events shouldn't. if a text edit gets focused, the node it's on should get focused as well.
 
@@ -30,21 +30,20 @@ impl Ui {
         return false;
     }
 
-    fn text_window_event(&mut self, _i: NodeI, event: &winit::event::WindowEvent, window: &winit::window::Window) -> bool {
-        let event_consumed = self.sys.renderer.text.handle_event(event, window);
+    fn text_window_event(
+        &mut self,
+        event: &winit::event::WindowEvent,
+        window: &winit::window::Window
+    ) -> bool {
+        // Pass events to keru_text so it can register windows and track dimensions.
+        // This is essential for keru_text to set the screen resolution correctly.
+        self.sys.renderer.text.handle_event(event, window);
+        // todo: see if keyboard events are consumed by a text box?
 
-        if self.sys.renderer.text.any_text_changed() {
-            if let Some(node_id) = self.sys.focused {
-                self.sys.text_edit_changed_this_frame = Some(node_id);
-            }
-            self.sys.changes.text_changed = true;
-            self.sys.new_external_events = true;
+        if self.sys.renderer.text.needs_rerender() {
+            self.sys.changes.should_rebuild_render_data = true;
         }
-        if self.sys.renderer.text.decorations_changed() {
-            self.sys.new_external_events = true;
-        }
-
-        return event_consumed;
+        return false;
     }
 
     pub fn ui_input(&mut self, event: &winit::event::WindowEvent, window: &winit::window::Window) -> bool {
@@ -538,6 +537,8 @@ impl Ui {
             label: Some("keru_draw autorender render encoder"),
         });
 
+        let query = self.sys.renderer.gpu_profiler.begin_query("Render", &mut encoder);
+
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("keru_draw autorender render pass"),
@@ -558,9 +559,27 @@ impl Ui {
             self.render(&mut render_pass);
         }
 
+        self.sys.renderer.gpu_profiler.end_query(&mut encoder, query);
+        self.sys.renderer.gpu_profiler.resolve_queries(&mut encoder);
+
         self.sys.queue.submit(std::iter::once(encoder.finish()));
 
         output.present();
+
+        self.sys.renderer.gpu_profiler.end_frame().unwrap();
+
+        #[cfg(debug_assertions)]
+        {
+            let profiling_data = self.sys.renderer.gpu_profiler.process_finished_frame(self.sys.queue.get_timestamp_period());
+            if let Some(profiling_data) = profiling_data {
+                for p in profiling_data {
+                    if let Some(time) = p.time {
+                        let dur = std::time::Duration::from_secs_f64(time.end - time.start);
+                        log::info!("Gpu time ({}): {:?}", p.label, dur);
+                    }
+                }
+            }
+        }
     }
 
     /// Returns `true` if the `Ui` needs to be rerendered.

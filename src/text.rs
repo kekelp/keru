@@ -72,7 +72,7 @@ impl Ui {
                 Some(TextI::TextBox(handle)) => {
                     match text {
                         NodeText::Static(s) => {
-                            self.sys.renderer.text.get_text_box_mut(&handle).set_static(s);
+                            self.sys.renderer.text.get_text_box_mut(&handle).set_static_text(s);
                         },
                         NodeText::Dynamic(s) => {
                             *self.sys.renderer.text.get_text_box_mut(&handle).text_mut() = s.to_string().into();

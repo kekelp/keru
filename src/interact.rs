@@ -292,9 +292,6 @@ impl Ui {
     pub(crate) fn begin_frame_resolve_inputs(&mut self) {
         self.sys.mouse_input.begin_new_frame();
         self.sys.key_input.begin_new_frame();
-
-        self.sys.text_edit_changed_last_frame = self.sys.text_edit_changed_this_frame;
-        self.sys.text_edit_changed_this_frame = None;
     }
 
     pub(crate) fn handle_mouse_press(&mut self, button: MouseButton, window: &Window) -> bool {

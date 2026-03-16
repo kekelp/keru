@@ -420,6 +420,7 @@ impl Ui {
 
                 let text_box = self.sys.renderer.text.get_text_box_mut(&handle);
                 text_box.set_size((w, h));
+                // todo: the box remains BIG_FLOAT-sized? is this really ok?
                 
                 let layout = text_box.layout();
                 let size_pixels = Xy::new(layout.width(), layout.height());
@@ -771,31 +772,20 @@ impl Ui {
             let top = clip_rect[Y][0] * self.sys.size[Y];
             let bottom = clip_rect[Y][1] * self.sys.size[Y];
 
-            // Use animated_rect to match the position used in push_render_data
-            let animated_rect = self.nodes[i].get_animated_rect();
-            let padding = self.nodes[i].params.layout.padding;
-            let text_left = (animated_rect[X][0] * self.sys.size[X]) as f64 + padding[X] as f64;
-            let text_top = (animated_rect[Y][0] * self.sys.size[Y]) as f64 + padding[Y] as f64;
-
-            let text_clip_rect = Some(keru_draw::BoundingBox {
-                x0: left as f64 - text_left,
-                y0: top as f64 - text_top,
-                x1: right as f64 - text_left,
-                y1: bottom as f64 - text_top,
-            });
-
             match text_i {
                 TextI::TextBox(handle) => {
-                    self.sys.renderer.text.get_text_box_mut(&handle).set_clip_rect(text_clip_rect);
+                    self.sys.renderer.text.get_text_box_mut(&handle).set_screen_space_clip_rect(Some((left, top, right, bottom)));
                 }
                 TextI::TextEdit(handle) => {
-                    self.sys.renderer.text.get_text_edit_mut(&handle).set_clip_rect(text_clip_rect);
+                    self.sys.renderer.text.get_text_edit_mut(&handle).set_screen_space_clip_rect(Some((left, top, right, bottom)));
                 }
             }
         }
     }
 
     pub(crate) fn rebuild_render_data(&mut self) {
+        self.sys.renderer.begin_frame();
+
         // This is another separate traversal:
         // - separate from layout because of no-relayout animations
         // - separate from push_render_data so that prepare_text() can run after it knows whether any textbox changed, but before push_render_data.
@@ -812,11 +802,6 @@ impl Ui {
 
         self.sys.changes.unfinished_animations = false;
 
-        let width = self.sys.size[X];
-        let height = self.sys.size[Y];
-        self.sys.renderer.begin_frame(width, height);
-
-
         self.sys.depth_traversal_queue.clear();
         self.sys.depth_traversal_queue.push(ROOT_I);
         while let Some(i) = self.sys.depth_traversal_queue.pop() {
@@ -827,7 +812,6 @@ impl Ui {
                 self.sys.depth_traversal_queue.push(child);
             });
         }
-
     }
 
     pub(crate) fn push_all_render_and_click_data(&mut self) {
@@ -857,9 +841,6 @@ impl Ui {
                 self.sys.depth_traversal_queue.push(child);
             });
         }
-
-        // prepare text decorations
-        self.sys.renderer.draw_text_decorations();
 
         // Close final Keru range if any
         if let Some(start) = keru_range_start {

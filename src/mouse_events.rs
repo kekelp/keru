@@ -102,10 +102,10 @@ impl Pending {
 }
 
 pub struct MouseInput {
-    pub events: Vec<InputEvent>,
+    pub(crate) events: Vec<InputEvent>,
     pending: Vec<Pending>,
-    pub cursor_position: Vec2,
-    pub prev_cursor_position: Vec2,
+    pub(crate) cursor_position: Vec2,
+    pub(crate) prev_cursor_position: Vec2,
 }
 
 impl Default for MouseInput {

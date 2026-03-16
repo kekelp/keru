@@ -671,7 +671,6 @@ impl Ui {
             self.sys.renderer.push_transform(matrix);
         }
 
-        // Extract texture from imageref if present
         let texture = self.nodes[i].imageref.as_ref().map(|imageref| {
             match imageref {
                 ImageRef::Raster(loaded) => loaded.clone(),
@@ -683,11 +682,9 @@ impl Ui {
             self.render_node_shape_to_scene(i, node_clip_rect, texture, true);
         }
 
-        // Render node's shape (with texture if image is present)
         if self.nodes[i].params.visible {
             self.render_node_shape_to_scene(i, node_clip_rect, texture, false);
 
-            // Draw text (properties were already set in update_text_properties)
             if let Some(text_i) = &self.nodes[i].text_i {
                 match text_i {
                     TextI::TextBox(text_box_handle) => {

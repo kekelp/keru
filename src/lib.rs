@@ -130,7 +130,7 @@ pub(crate) use thread_local::SiblingCursor;
 
 pub use bumpalo;
 
-pub use keru_draw::{TextStyle2 as TextStyle, FontWeight, FontStyle, LineHeight, FontStack, ColorBrush, StyleHandle, with_clipboard, Color, ColorFill, Gradient};
+pub use keru_draw::{TextStyle2 as TextStyle, FontWeight, FontStyle, LineHeight, ColorBrush, StyleHandle, with_clipboard, Color, ColorFill, Gradient};
 
 mod changes;
 pub(crate) use crate::changes::*;
@@ -154,4 +154,4 @@ pub use keru_macros::*;
 
 pub(crate) use Axis::*;
 
-pub use keru_draw::textslabs;
+pub use keru_draw::keru_text;

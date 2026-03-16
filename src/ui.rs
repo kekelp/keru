@@ -113,9 +113,6 @@ pub(crate) struct System {
     pub mouse_input: MouseInput,
     pub key_input: KeyInput,
     
-    pub text_edit_changed_last_frame: Option<Id>,
-    pub text_edit_changed_this_frame: Option<Id>,
-
     #[cfg(debug_assertions)]
     pub inspect_hovered: SmallVec<Id>,
 
@@ -302,8 +299,6 @@ impl Ui {
 
                 mouse_input: MouseInput::default(),
                 key_input: KeyInput::default(),
-                text_edit_changed_last_frame: None,
-                text_edit_changed_this_frame: None,
 
                 // todo: maybe remove and use mouse_input.current_tag()? There was never a point in having multiple hovereds
                 hovered: Vec::with_capacity(15),
@@ -593,8 +588,6 @@ impl Ui {
         self.sys.size[Y] = size.height as f32;
 
         self.sys.changes.resize = true;
-
-        self.sys.renderer.resize(size.width, size.height);
 
         self.set_new_ui_input();
     }
