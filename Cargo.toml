@@ -44,6 +44,10 @@ bumpalo = { version = "3.16", features = ["collections"] }
 smallvec = "1.15.1"
 lru = { version = "0.12", default-features = false }
 
+# Try to force logging = true in this indirect dependency to disable the fallback eprintln! output
+icu_provider = { version = "*", default-features = false, features = ["logging"] }
+
+
 [lints.clippy]
 needless_return = { level = "allow" }
 bool_comparison = { level = "allow" }

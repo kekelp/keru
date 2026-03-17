@@ -420,7 +420,6 @@ impl Ui {
 
                 let text_box = self.sys.renderer.text.get_text_box_mut(&handle);
                 text_box.set_size((w, h));
-                // todo: the box remains BIG_FLOAT-sized? is this really ok?
                 
                 let layout = text_box.layout();
                 let size_pixels = Xy::new(layout.width(), layout.height());
@@ -775,7 +774,11 @@ impl Ui {
         // - separate from push_render_data so that prepare_text() can run after it knows whether any textbox changed, but before push_render_data.
         self.resolve_all_animations_and_scrolling();
 
-        self.sys.renderer.prepare_text();
+        with_timer("prepare_text", Some(std::time::Duration::from_micros(500)), || {
+
+            self.sys.renderer.prepare_text();
+        
+        });
 
         self.push_all_render_and_click_data();
     }

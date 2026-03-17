@@ -1160,16 +1160,20 @@ impl UiParent {
 
 #[allow(dead_code)]
 #[track_caller]
-pub(crate) fn with_info_log_timer<T>(operation_name: &str, f: impl FnOnce() -> T) -> T {
-    if log::max_level() >= log::LevelFilter::Info {
+pub(crate) fn with_timer<T>(operation_name: &str, if_more_than: Option<std::time::Duration>, f: impl FnOnce() -> T) -> T {
         let start = std::time::Instant::now();
         let result = f();
         let elapsed = start.elapsed();
-        log::info!("{}: {:?}", operation_name, elapsed);
+
+        if let Some(if_more_than) = if_more_than {
+            if elapsed > if_more_than {
+                println!("{}: {:?}", operation_name, elapsed);
+            }
+        } else {
+            println!("{}: {:?}", operation_name, elapsed);
+        }
+
         result
-    } else {
-        f()
-    }
 }
 
 // New partial borrow cope just dropped.

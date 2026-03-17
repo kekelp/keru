@@ -1240,6 +1240,7 @@ checksum = "85962cf0ce02e1e0a629cc34e7ca3e373ce20dda4c4d7294bbd0bf1fdb59e614"
 dependencies = [
  "displaydoc",
  "icu_locale_core",
+ "log",
  "serde",
  "stable_deref_trait",
  "writeable",
@@ -1428,6 +1429,7 @@ dependencies = [
  "bytemuck",
  "env_logger",
  "glam",
+ "icu_provider",
  "keru_draw",
  "keru_macros",
  "log",

@@ -355,7 +355,7 @@ impl State {
 }
 
 fn main() {
-    basic_env_logger_init();
+    // basic_env_logger_init();
 
     let state = State {
         tabs: vec![INTRO_TAB, TEXT_TAB, OTHER_TAB, GRAPHICS_TAB],
