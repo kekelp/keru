@@ -28,13 +28,13 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     if ui.is_clicked(INCREASE) {
         state.count += 1;
     }
-    // `is_clicked()` can be also called as a chained method.
-    // In that case, using a key wouldn't be necessary.
 }
 
 fn main() {
     let state = State::default();
     run_example_loop(state, update_ui);
 }
+
+
 
 
