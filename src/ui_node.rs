@@ -398,6 +398,10 @@ impl UiNode<'_> {
             event.frame_delta.y / (node_rect.size().y * self.ui.sys.size.y),
         );
 
+        if event.total_delta == Vec2::ZERO {
+            return None;
+        }
+
         Some(Drag {
             relative_position,
             absolute_pos: event.current_pos,
