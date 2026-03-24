@@ -300,6 +300,32 @@ impl UiNode<'_> {
         self.ui.check_clicked(self.node().id, MouseButton::Left)
     }
 
+    /// Returns `true` if the node corresponding to `key` was just clicked with the right mouse button.
+    /// 
+    /// This is "act on press". For "act on release", see [`Self::is_right_click_released()`].
+    pub fn is_right_clicked(&self) -> bool {
+
+        #[cfg(debug_assertions)]
+        if ! self.check_node_sense(Sense::CLICK, "is_clicked()", "Node::sense_click()") {
+            return false;
+        }
+
+        self.ui.check_clicked(self.node().id, MouseButton::Right)
+    }
+
+    /// Returns `true` if the node corresponding to `key` was just clicked with a mouse button.
+    /// 
+    /// This is "act on press". For "act on release", see [`Self::is_right_click_released()`].
+    pub fn is_mouse_button_clicked(&self, button: winit::event::MouseButton) -> bool {
+
+        #[cfg(debug_assertions)]
+        if ! self.check_node_sense(Sense::CLICK, "is_clicked()", "Node::sense_click()") {
+            return false;
+        }
+
+        self.ui.check_clicked(self.node().id, button)
+    }
+
     pub fn is_focused(&self) -> bool {
         return self.ui.sys.focused == Some(self.node().id);
     }
@@ -517,6 +543,26 @@ impl Ui {
             return false;
         };
         uinode.is_clicked()
+    }
+
+    /// Returns `true` if the node corresponding to `key` was just clicked with the right mouse button.
+    /// 
+    /// This is "act on press". For "act on release", see [`Self::is_click_released()`].
+    pub fn is_right_clicked(&self, key: NodeKey) -> bool {
+        let Some(uinode) = self.get_node(key) else {
+            return false;
+        };
+        uinode.is_right_clicked()
+    }
+
+    /// Returns `true` if the node corresponding to `key` was just clicked with the left mouse button.
+    /// 
+    /// This is "act on press". For "act on release", see [`Self::is_click_released()`].
+    pub fn is_mouse_button_clicked(&self, key: NodeKey, button: winit::event::MouseButton) -> bool {
+        let Some(uinode) = self.get_node(key) else {
+            return false;
+        };
+        uinode.is_mouse_button_clicked(button)
     }
 
     /// Set placeholder text for a text edit node that will be shown when the text edit is empty.
