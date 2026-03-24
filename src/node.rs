@@ -1021,7 +1021,7 @@ pub struct FullNode<'a> {
     pub text: Option<NodeText<'a>>,
     pub text_style: Option<StyleHandle>,
     pub image: Option<Image<'a>>,
-    pub placeholder: Option<&'a str>,
+    pub placeholder_text: Option<NodeText<'a>>,
 }
 
 impl<'a> FullNode<'a> {
@@ -1397,8 +1397,26 @@ impl<'a> FullNode<'a> {
 
     /// Set placeholder text for a text edit that will be shown when the text edit is empty.
     /// This only works with editable text nodes.
-    pub fn placeholder_text(mut self, placeholder: &'a str) -> Self {
-        self.placeholder = Some(placeholder);
+    ///
+    /// Uses hashing to detect if the text has changed.
+    pub fn placeholder_text(mut self, placeholder_text: &'a str) -> Self {
+        self.placeholder_text = Some(NodeText::Dynamic(placeholder_text));
+        self
+    }
+
+    /// Set placeholder text from a `&'static str`.
+    ///
+    /// Uses pointer equality to determine if the text needs updating.
+    pub fn placeholder_text_static(mut self, placeholder_text: &'static str) -> FullNode<'a> {
+        self.placeholder_text = Some(NodeText::Static(placeholder_text));
+        self
+    }
+
+    /// Set placeholder text from a `&str` that is known to not change during its lifetime.
+    ///
+    /// Uses pointer equality to determine if the text needs updating.
+    pub fn placeholder_text_immut(mut self, placeholder_text: &'a str) -> Self {
+        self.placeholder_text = Some(NodeText::Immut(placeholder_text));
         self
     }
 
@@ -1426,13 +1444,41 @@ impl<'a> FullNode<'a> {
 impl Node {
     /// Set placeholder text for a text edit that will be shown when the text edit is empty.
     /// This only works with editable text nodes.
+    ///
+    /// Uses hashing to detect if the text has changed.
     pub fn placeholder_text<'a>(self, placeholder: &'a str) -> FullNode<'a> {
         return FullNode {
             params: self,
             text: None,
             text_style: None,
             image: None,
-            placeholder: Some(placeholder),
+            placeholder_text: Some(NodeText::Dynamic(placeholder)),
+        }
+    }
+
+    /// Set placeholder text from a `&'static str`.
+    ///
+    /// Uses pointer equality to determine if the text needs updating.
+    pub fn placeholder_text_static(self, placeholder: &'static str) -> FullNode<'static> {
+        return FullNode {
+            params: self,
+            text: None,
+            text_style: None,
+            image: None,
+            placeholder_text: Some(NodeText::Static(placeholder)),
+        }
+    }
+
+    /// Set placeholder text from a `&str` that is known to not change during its lifetime.
+    ///
+    /// Uses pointer equality to determine if the text needs updating.
+    pub fn placeholder_text_immut<'a>(self, placeholder: &'a str) -> FullNode<'a> {
+        return FullNode {
+            params: self,
+            text: None,
+            text_style: None,
+            image: None,
+            placeholder_text: Some(NodeText::Immut(placeholder)),
         }
     }
 
@@ -1445,7 +1491,7 @@ impl Node {
             text: Some(NodeText::Static(text)),
             text_style: None,
             image: None,
-            placeholder: None,
+            placeholder_text: None,
         }
     }
 
@@ -1459,7 +1505,7 @@ impl Node {
             text: Some(NodeText::Immut(text)),
             text_style: None,
             image: None,
-            placeholder: None,
+            placeholder_text: None,
         }
     }
 
@@ -1469,7 +1515,7 @@ impl Node {
             text: None,
             text_style: None,
             image: Some(Image::RasterStatic(image)),
-            placeholder: None,
+            placeholder_text: None,
         }
     }
 
@@ -1479,7 +1525,7 @@ impl Node {
             text: None,
             text_style: None,
             image: Some(Image::RasterPath(path)),
-            placeholder: None,
+            placeholder_text: None,
         }
     }
 
@@ -1489,7 +1535,7 @@ impl Node {
             text: None,
             text_style: None,
             image: Some(Image::SvgStatic(svg)),
-            placeholder: None,
+            placeholder_text: None,
         }
     }
 
@@ -1499,7 +1545,7 @@ impl Node {
             text: None,
             text_style: None,
             image: Some(Image::SvgPath(path)),
-            placeholder: None,
+            placeholder_text: None,
         }
     }
 }
@@ -1511,7 +1557,7 @@ impl From<Node> for FullNode<'_> {
             text: None,
             text_style: None,
             image: None,
-            placeholder: None,
+            placeholder_text: None,
         }
     }
 }
@@ -1534,7 +1580,6 @@ impl Ui {
 
         let text_options = params.params.text_params.as_ref();
         let style = params.text_style.as_ref();
-        let placeholder = params.placeholder;
 
         // Determine what type of text widget we want
         let edit = text_options.map(|to| to.editable).unwrap_or(false);
@@ -1618,8 +1663,18 @@ impl Ui {
                 TextI::TextEdit(handle) => {
                     self.sys.renderer.text.get_text_edit_mut(handle).set_disabled(edit_disabled);
                     self.sys.renderer.text.get_text_edit_mut(handle).set_single_line(single_line);
-                    if let Some(placeholder) = placeholder {
-                        self.sys.renderer.text.get_text_edit_mut(handle).set_placeholder(placeholder.to_string());
+                    if let Some(placeholder) = params.placeholder_text {
+                        match placeholder {
+                            NodeText::Static(s) => {
+                                self.sys.renderer.text.get_text_edit_mut(handle).set_placeholder_static_with_pointer_check(s);
+                            },
+                            NodeText::Dynamic(s) => {
+                                self.sys.renderer.text.get_text_edit_mut(handle).set_placeholder_hashed(s);
+                            },
+                            NodeText::Immut(s) => {
+                                self.sys.renderer.text.get_text_edit_mut(handle).set_placeholder_with_pointer_check(s);
+                            }
+                        }
                     }
                 },
                 TextI::TextBox(handle) => {
@@ -1688,7 +1743,7 @@ impl Node {
             text: Some(NodeText::Dynamic(text)),
             text_style: None,
             image: None,
-            placeholder: None,
+            placeholder_text: None,
         }
     }
 }

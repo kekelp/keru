@@ -53,7 +53,8 @@ impl UiExt for Ui {
             let edit2 = TEXT_EDIT
                 .key(TEXT_EDIT_2)
                 .size_y(Size::Pixels(200.0))
-                .text("Text edit box");
+                .placeholder_text("Multiline text edit box")
+                .text("Text edit");
 
             self.add(edit2);
 

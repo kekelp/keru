@@ -566,17 +566,17 @@ impl Ui {
     }
 
     /// Set placeholder text for a text edit node that will be shown when the text edit is empty.
-    /// 
+    ///
     /// Does nothing for regular text nodes.
-    pub fn set_text_edit_placeholder(&mut self, key: NodeKey, placeholder: String) {
+    pub fn set_text_edit_placeholder(&mut self, key: NodeKey, placeholder: &str) {
         let Some(i) = self.nodes.node_hashmap.get(&key.id_with_subtree()) else {
             return;
         };
-        let i = i.slab_i;   
+        let i = i.slab_i;
 
         if let Some(TextI::TextEdit(handle)) = &self.nodes[i].text_i {
             self.sys.renderer.text.get_text_edit_mut(handle).set_placeholder(placeholder);
-        } 
+        }
     }
 
     pub fn is_focused(&self, key: NodeKey) -> bool {
