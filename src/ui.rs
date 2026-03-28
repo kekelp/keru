@@ -6,6 +6,7 @@ use ahash::{HashMap, HashMapExt};
 use glam::Vec2;
 
 use keru_draw::Renderer;
+use keru_draw::Transform;
 pub use keru_draw::{TextStyle2 as TextStyle, ColorBrush};
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
@@ -605,12 +606,26 @@ impl Ui {
         self.sys.renderer.text.original_default_style()
     }
 
+    /// If `key` corresponds to a node in the tree, get a Renderer that can be used to do some vector drawing in the node's area.
+    pub fn canvas_drawing<T>(&mut self, key: NodeKey, drawing_function: impl FnOnce(&mut Renderer)) {
+        let Some(uinode) = self.get_node(key) else {
+            return;
+        };
+
+        let transform_index = self.sys.renderer.push_transform_indexed(Transform::identity());
+        self.sys.renderer.start_deferred_mode();
+        
+        drawing_function(&mut self.sys.renderer);
+
+        let deferred_instances_range = self.sys.renderer.end_deferred_mode();
+        self.sys.renderer.pop_transform();
+    }
+
+    // todo what's going on here
     pub(crate) fn new_redraw_requested_frame(&mut self) {
         
     }
-}
 
-impl Ui {
     /// Hit test with the current stored cursor position and a click rect
     pub(crate) fn hit_click_rect(&self, rect: &ClickRect) -> bool {
         let size = self.sys.size;
@@ -883,4 +898,5 @@ impl Ui {
     }
 }
 
+// todo probably doesn't need to be public anymore? As long as we use the trait
 pub type StateId = Id;
