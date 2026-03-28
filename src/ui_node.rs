@@ -54,9 +54,7 @@ impl<'a> UiNode<'a> {
     pub fn children_count(&self) -> usize {
         self.ui.nodes[self.i].n_children as usize
     }
-}
 
-impl UiNode<'_> {
     pub(crate) fn node(&self) -> &InnerNode {
         return &self.ui.nodes[self.i];
     }
@@ -115,6 +113,19 @@ impl UiNode<'_> {
             z: self.node().z + Z_STEP / 2.0,
         };
     }
+
+    /// Returns the text content if it was changed by user input this frame, otherwise `None`.
+    ///
+    /// Only works for text edit nodes. Returns `None` for regular text nodes.
+    pub fn text_edit_changed(&self) -> Option<&'a str> {
+        if let Some(TextI::TextEdit(handle)) = &self.node().text_i {
+            let text_edit = self.ui.sys.renderer.text.get_text_edit(&handle);
+            if text_edit.text_changed() {
+                return Some(text_edit.raw_text());
+            }
+        }
+        None
+    }
 }
 
 impl Ui {
@@ -154,8 +165,8 @@ impl Ui {
         let i = self.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
         let text_i = self.nodes[i].text_i.as_ref()?;
         match text_i {
-            TextI::TextBox(handle) => *self.sys.renderer.text.get_text_box_mut(&handle).text_mut() = std::borrow::Cow::Owned(text.to_string()),
-            TextI::TextEdit(handle) => *self.sys.renderer.text.get_text_edit_mut(&handle).raw_text_mut() = text.to_string(),
+            TextI::TextBox(handle) => self.sys.renderer.text.get_text_box_mut(&handle).set_text_hashed(text),
+            TextI::TextEdit(handle) => self.sys.renderer.text.get_text_edit_mut(&handle).set_text_hashed(text),
         };
         Some(())
     }
@@ -194,13 +205,6 @@ impl UiParent {
     }
     pub fn bottom_left(&self, ui: &mut Ui) -> Xy<f32> {
         self.get_uinode(ui).last_frame_bottom_left()
-    }
-    pub fn get_text<'u>(&self, ui: &'u mut Ui) -> Option<&'u str> {
-        let text_i = ui.nodes[self.i].text_i.as_ref()?;
-        match text_i {
-            TextI::TextBox(handle) => Some(ui.sys.renderer.text.get_text_box(&handle).text()),
-            TextI::TextEdit(handle) => Some(ui.sys.renderer.text.get_text_edit(&handle).raw_text()),
-        }
     }
 }
 
@@ -577,6 +581,16 @@ impl Ui {
         if let Some(TextI::TextEdit(handle)) = &self.nodes[i].text_i {
             self.sys.renderer.text.get_text_edit_mut(handle).set_placeholder(placeholder);
         }
+    }
+
+    /// Returns the text content if it was changed by user input this frame, otherwise `None`.
+    ///
+    /// Only works for text edit nodes. Returns `None` for regular text nodes.
+    pub fn text_edit_changed(&mut self, key: NodeKey) -> Option<&str> {
+        let Some(uinode) = self.get_node(key) else {
+            return None;
+        };
+        uinode.text_edit_changed()
     }
 
     pub fn is_focused(&self, key: NodeKey) -> bool {
