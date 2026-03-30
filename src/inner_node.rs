@@ -35,8 +35,6 @@ pub struct InnerNode {
 
     // Accumulated transform from all parents, used for rendering and hit testing
     pub accumulated_transform: Transform,
-    // Retained transform handle for accumulated_transform
-    pub accumulated_transform_handle: Option<keru_draw::TransformHandle>,
 
     pub real_rect: XyRect,
     pub expected_final_rect: XyRect,
@@ -150,7 +148,6 @@ impl InnerNode {
             scroll: Scroll::ZERO,
 
             accumulated_transform: Transform::IDENTITY,
-            accumulated_transform_handle: None,
 
             imageref: None,
             last_image_source: None,
@@ -263,7 +260,6 @@ pub const NODE_ROOT: InnerNode = InnerNode {
     scroll: Scroll::ZERO,
 
     accumulated_transform: Transform::IDENTITY,
-    accumulated_transform_handle: None,
 
     text_i: None,
 

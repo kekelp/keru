@@ -5,6 +5,7 @@ use crate::math::Axis::*;
 use ahash::{HashMap, HashMapExt};
 use glam::Vec2;
 
+use keru_draw::DrawContext;
 use keru_draw::Renderer;
 pub use keru_draw::{TextStyle2 as TextStyle, ColorBrush};
 use winit::dpi::PhysicalSize;
@@ -605,12 +606,12 @@ impl Ui {
         self.sys.renderer.text.original_default_style()
     }
 
-    /// If `key` corresponds to a node in the tree, run a closure with a [`keru_draw::Renderer`] that can be used to do some vector drawing in the node's area.
+    /// If `key` corresponds to a node in the tree, run a closure with a [`keru_draw::DrawContext`] that can be used to do custom vector drawing in the node's area.
     /// 
     /// The rendered shapes will be drawn on the node's post-layout position and z-order.
     /// 
     /// The closure is executed immediately, not stored, so there are no limitations with borrowing state.
-    pub fn canvas_drawing(&mut self, key: NodeKey, drawing_function: impl FnOnce(&mut Renderer)) {
+    pub fn canvas_drawing(&mut self, key: NodeKey, drawing_function: impl FnOnce(&mut DrawContext)) {
         use crate::inner_node::Canvas;
 
         let Some(i) = self.nodes.node_hashmap.get(&key.id_with_subtree()).map(|e| e.slab_i) else {
@@ -623,7 +624,7 @@ impl Ui {
         self.sys.renderer.set_current_transform(transform);
         self.sys.renderer.start_deferred_mode();
 
-        drawing_function(&mut self.sys.renderer);
+        drawing_function(&mut self.sys.renderer.get_draw_context());
 
         let instances = self.sys.renderer.end_deferred_mode();
         self.sys.renderer.clear_current_transform();

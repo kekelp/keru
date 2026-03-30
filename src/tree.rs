@@ -353,10 +353,7 @@ impl Ui {
     }
 
     fn refresh_node(&mut self, i: NodeI) {
-        // Clear and destroy canvas transform
-        if let Some(canvas) = &self.nodes[i].canvas {
-            self.sys.renderer.remove_transform(canvas.transform);
-        }
+        // Clear canvas drawing data
         self.nodes[i].canvas = None;
 
         // Refresh the text box associated with this node if it has one
@@ -668,23 +665,13 @@ impl Ui {
 
         // Apply accumulated_transform for regular shapes
         if self.nodes[i].accumulated_transform != Transform::IDENTITY {
-            let handle = match self.nodes[i].accumulated_transform_handle {
-                Some(h) => h,
-                None => {
-                    let h = self.sys.renderer.insert_transform(keru_draw::Transform::identity());
-                    self.nodes[i].accumulated_transform_handle = Some(h);
-                    h
-                }
-            };
-
             let accumulated = &self.nodes[i].accumulated_transform;
             let transform = keru_draw::Transform {
                 offset: [accumulated.offset.x, accumulated.offset.y],
                 scale: accumulated.scale,
                 _padding: 0.0,
             };
-
-            *self.sys.renderer.get_transform_mut(handle) = transform;
+            let handle = self.sys.renderer.insert_transform(transform);
             self.sys.renderer.set_current_transform(handle);
         }
 
@@ -990,15 +977,8 @@ impl Ui {
             }
         }
 
-        // Destroy retained transforms
-        if let Some(canvas) = &self.nodes[i].canvas {
-            self.sys.renderer.remove_transform(canvas.transform);
-        }
+        // Clear canvas drawing data
         self.nodes[i].canvas = None;
-        if let Some(handle) = self.nodes[i].accumulated_transform_handle {
-            self.sys.renderer.remove_transform(handle);
-        }
-        self.nodes[i].accumulated_transform_handle = None;
 
         self.nodes.node_hashmap.remove(&id);
         self.nodes.nodes.remove(i.as_usize());
