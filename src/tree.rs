@@ -353,7 +353,13 @@ impl Ui {
     }
 
     fn refresh_node(&mut self, i: NodeI) {
-        // refresh the text box associated with this node if it has one
+        // Clear and destroy canvas transform
+        if let Some(canvas) = &self.nodes[i].canvas {
+            self.sys.renderer.remove_transform(canvas.transform);
+        }
+        self.nodes[i].canvas = None;
+
+        // Refresh the text box associated with this node if it has one
         if let Some(text_i) = &self.nodes[i].text_i {
             match text_i {
                 TextI::TextBox(handle) => {
@@ -660,15 +666,26 @@ impl Ui {
         // Get the clip rect for this node
         let node_clip_rect = self.nodes[i].clip_rect;
 
-        // Push this node's accumulated transform for all rendering
+        // Apply accumulated_transform for regular shapes
         if self.nodes[i].accumulated_transform != Transform::IDENTITY {
-            let transform = &self.nodes[i].accumulated_transform;
-            let matrix = keru_draw::Transform {
-                offset: [transform.offset.x, transform.offset.y],
-                scale: transform.scale,
+            let handle = match self.nodes[i].accumulated_transform_handle {
+                Some(h) => h,
+                None => {
+                    let h = self.sys.renderer.insert_transform(keru_draw::Transform::identity());
+                    self.nodes[i].accumulated_transform_handle = Some(h);
+                    h
+                }
+            };
+
+            let accumulated = &self.nodes[i].accumulated_transform;
+            let transform = keru_draw::Transform {
+                offset: [accumulated.offset.x, accumulated.offset.y],
+                scale: accumulated.scale,
                 _padding: 0.0,
             };
-            self.sys.renderer.push_transform(matrix);
+
+            *self.sys.renderer.get_transform_mut(handle) = transform;
+            self.sys.renderer.set_current_transform(handle);
         }
 
         let texture = self.nodes[i].imageref.as_ref().map(|imageref| {
@@ -697,9 +714,32 @@ impl Ui {
             }
         }
 
-        // Pop the transform if we pushed it
+        // Clear current transform for regular shapes
         if self.nodes[i].accumulated_transform != Transform::IDENTITY {
-            self.sys.renderer.pop_transform();
+            self.sys.renderer.clear_current_transform();
+        }
+
+        // Draw canvas with combined transform (accumulated + canvas offset * scale)
+        if let Some(canvas) = self.nodes[i].canvas {
+            let accumulated = &self.nodes[i].accumulated_transform;
+            let rect = &self.nodes[i].real_rect;
+            let size = self.sys.size;
+
+            // Canvas offset needs to be scaled by accumulated scale
+            let canvas_offset_x = rect[X][0] * size.x * accumulated.scale;
+            let canvas_offset_y = rect[Y][0] * size.y * accumulated.scale;
+
+            let combined = keru_draw::Transform {
+                offset: [
+                    accumulated.offset.x + canvas_offset_x,
+                    accumulated.offset.y + canvas_offset_y,
+                ],
+                scale: accumulated.scale,
+                _padding: 0.0,
+            };
+
+            *self.sys.renderer.get_transform_mut(canvas.transform) = combined;
+            self.sys.renderer.draw_deferred_elements(canvas.instances);
         }
     }
 
@@ -757,6 +797,7 @@ impl Ui {
 
         self.sys.current_frame += 1;
         self.sys.renderer.text.advance_frame_and_hide_boxes();
+        self.sys.renderer.clear_for_new_frame();
 
         thread_local::clear_parent_stack();
         self.format_scratch.clear();
@@ -948,6 +989,16 @@ impl Ui {
                 }
             }
         }
+
+        // Destroy retained transforms
+        if let Some(canvas) = &self.nodes[i].canvas {
+            self.sys.renderer.remove_transform(canvas.transform);
+        }
+        self.nodes[i].canvas = None;
+        if let Some(handle) = self.nodes[i].accumulated_transform_handle {
+            self.sys.renderer.remove_transform(handle);
+        }
+        self.nodes[i].accumulated_transform_handle = None;
 
         self.nodes.node_hashmap.remove(&id);
         self.nodes.nodes.remove(i.as_usize());

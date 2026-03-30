@@ -224,8 +224,70 @@ impl UiExt for Ui {
                 self.add(hexagon2);
             });
 
-            self.static_paragraph("In the future, there might be a lower level vector drawing interface similar to the \"canvas\" in Rui.");
-            self.static_paragraph("There is also an experimental system for easily embedding custom wgpu rendering in-between the Keru ui elements. See the \"custom_rendering\" example.");
+            self.static_paragraph("Canvas drawing API (draw directly with the renderer):");
+
+            #[node_key] const CANVAS_CONTAINER: NodeKey;
+            let canvas_container = CONTAINER
+                .size_x(Size::Fill)
+                .size_y(Size::Pixels(120.0))
+                .padding(0.0)
+                .color(Color::rgba_u8(30, 30, 40, 255))
+                .key(CANVAS_CONTAINER);
+
+            self.add(canvas_container);
+
+            // Draw a spring/coil shape using many small segments
+            self.canvas_drawing(CANVAS_CONTAINER, |renderer| {
+                use keru_draw::{Segment, ColorFill};
+
+                let num_points = 200;
+                let width = 600.0;
+                let height = 120.0;
+                let margin = 40.0;
+                let num_coils = 6.0;
+                let coil_radius = 35.0;
+
+                // Generate points for a spring/coil shape
+                let points: Vec<[f32; 2]> = (0..num_points)
+                    .map(|i| {
+                        let t = i as f32 / (num_points - 1) as f32;
+                        let angle = t * num_coils * 2.0 * std::f32::consts::PI;
+                        let x = margin + t * (width - 2.0 * margin) + coil_radius * 0.3 * angle.cos();
+                        let y = height / 2.0 + coil_radius * angle.sin();
+                        [x, y]
+                    })
+                    .collect();
+
+                // Draw segments
+                for i in 0..points.len() - 1 {
+                    let t = i as f32 / (num_points - 1) as f32;
+                    let angle = t * num_coils * 2.0 * std::f32::consts::PI;
+                    // Thicker when "in front" (cos > 0), thinner when "behind"
+                    let depth = angle.cos();
+                    let thickness = 3.0 + 2.5 * (depth + 1.0) / 2.0;
+
+                    // Color shifts slightly based on depth for more 3D feel
+                    let color = if depth > 0.0 {
+                        Color::KERU_PINK
+                    } else {
+                        Color::rgba_u8(200, 100, 150, 255)
+                    };
+
+                    renderer.draw_segment(Segment {
+                        start: points[i],
+                        end: points[i + 1],
+                        thickness,
+                        fill: ColorFill::Color(color),
+                        x_clip: [f32::MIN, f32::MAX],
+                        y_clip: [f32::MIN, f32::MAX],
+                        dash_length: None,
+                        dash_offset: 0.0,
+                        texture: None,
+                    });
+                }
+            });
+
+            self.static_paragraph("There is also an experimental system for easily embedding fully custom wgpu rendering in-between the Keru ui elements. See the \"custom_rendering\" example.");
             
             self.static_paragraph("Other features that will probably be added in at some point:\n\
             - reusable components\n\
@@ -306,10 +368,78 @@ impl UiExt for Ui {
                         });
     
                         self.label("Don't expect scaled text to look good, though. It uses the same texture and just scales the quads");
+
+
+
+                        self.static_paragraph("Canvas drawing API (draw directly with the renderer):");
+
+                        #[node_key] const CANVAS_CONTAINER: NodeKey;
+                        let canvas_container = CONTAINER
+                            .size_x(Size::Fill)
+                            .size_y(Size::Pixels(120.0))
+                            .padding(0.0)
+                            .color(Color::rgba_u8(30, 30, 40, 255))
+                            .key(CANVAS_CONTAINER);
+
+                        self.add(canvas_container);
+
+                        // Draw a spring/coil shape using many small segments
+                        self.canvas_drawing(CANVAS_CONTAINER, |renderer| {
+                            use keru_draw::{Segment, ColorFill};
+
+                            let num_points = 200;
+                            let width = 600.0;
+                            let height = 120.0;
+                            let margin = 40.0;
+                            let num_coils = 6.0;
+                            let coil_radius = 35.0;
+
+                            // Generate points for a spring/coil shape
+                            let points: Vec<[f32; 2]> = (0..num_points)
+                                .map(|i| {
+                                    let t = i as f32 / (num_points - 1) as f32;
+                                    let angle = t * num_coils * 2.0 * std::f32::consts::PI;
+                                    let x = margin + t * (width - 2.0 * margin) + coil_radius * 0.3 * angle.cos();
+                                    let y = height / 2.0 + coil_radius * angle.sin();
+                                    [x, y]
+                                })
+                                .collect();
+
+                            // Draw segments
+                            for i in 0..points.len() - 1 {
+                                let t = i as f32 / (num_points - 1) as f32;
+                                let angle = t * num_coils * 2.0 * std::f32::consts::PI;
+                                // Thicker when "in front" (cos > 0), thinner when "behind"
+                                let depth = angle.cos();
+                                let thickness = 3.0 + 2.5 * (depth + 1.0) / 2.0;
+
+                                // Color shifts slightly based on depth for more 3D feel
+                                let color = if depth > 0.0 {
+                                    Color::KERU_PINK
+                                } else {
+                                    Color::rgba_u8(200, 100, 150, 255)
+                                };
+
+                                renderer.draw_segment(Segment {
+                                    start: points[i],
+                                    end: points[i + 1],
+                                    thickness,
+                                    fill: ColorFill::Color(color),
+                                    x_clip: [f32::MIN, f32::MAX],
+                                    y_clip: [f32::MIN, f32::MAX],
+                                    dash_length: None,
+                                    dash_offset: 0.0,
+                                    texture: None,
+                                });
+                            }
+                        });
+
+                        
                     });
                 });
             });
-
+            
+            self.static_label("Bottom text...\n\nBottom text");
         });
 
 

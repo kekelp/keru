@@ -6,7 +6,6 @@ use ahash::{HashMap, HashMapExt};
 use glam::Vec2;
 
 use keru_draw::Renderer;
-use keru_draw::Transform;
 pub use keru_draw::{TextStyle2 as TextStyle, ColorBrush};
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
@@ -606,19 +605,30 @@ impl Ui {
         self.sys.renderer.text.original_default_style()
     }
 
-    /// If `key` corresponds to a node in the tree, get a Renderer that can be used to do some vector drawing in the node's area.
-    pub fn canvas_drawing<T>(&mut self, key: NodeKey, drawing_function: impl FnOnce(&mut Renderer)) {
-        let Some(uinode) = self.get_node(key) else {
+    /// If `key` corresponds to a node in the tree, run a closure with a [`keru_draw::Renderer`] that can be used to do some vector drawing in the node's area.
+    /// 
+    /// The rendered shapes will be drawn on the node's post-layout position and z-order.
+    /// 
+    /// The closure is executed immediately, not stored, so there are no limitations with borrowing state.
+    pub fn canvas_drawing(&mut self, key: NodeKey, drawing_function: impl FnOnce(&mut Renderer)) {
+        use crate::inner_node::Canvas;
+
+        let Some(i) = self.nodes.node_hashmap.get(&key.id_with_subtree()).map(|e| e.slab_i) else {
             return;
         };
 
-        let transform_index = self.sys.renderer.push_transform_indexed(Transform::identity());
+        // Create a transform for this canvas. We will set it to the correct value after doing layout
+        let transform = self.sys.renderer.insert_transform(keru_draw::Transform::identity());
+
+        self.sys.renderer.set_current_transform(transform);
         self.sys.renderer.start_deferred_mode();
-        
+
         drawing_function(&mut self.sys.renderer);
 
-        let deferred_instances_range = self.sys.renderer.end_deferred_mode();
-        self.sys.renderer.pop_transform();
+        let instances = self.sys.renderer.end_deferred_mode();
+        self.sys.renderer.clear_current_transform();
+
+        self.nodes[i].canvas = Some(Canvas { instances, transform });
     }
 
     // todo what's going on here

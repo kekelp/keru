@@ -1,26 +1,51 @@
 use std::time::Instant;
 
 use keru::*;
+use keru_draw::{Box as DrawBox, ColorFill, Segment};
 
 struct State {
     items: Vec<&'static str>,
 }
 
 fn update_ui(state: &mut State, ui: &mut Ui) {
+    // Simple canvas test
+    #[node_key] const CANVAS: NodeKey;
+    let canvas_node = CONTAINER
+        .size_x(Size::Pixels(300.0))
+        .size_y(Size::Pixels(200.0))
+        .color(Color::rgba_u8(50, 50, 50, 255))
+        .key(CANVAS);
 
-    #[node_key] const BUTTON_KEY: NodeKey;
+    ui.add(canvas_node);
 
-    let button = BUTTON
-        .text("Click")
-        .sense_drag(true)
-        .key(BUTTON_KEY);
-    
-    ui.add(button);
+    ui.canvas_drawing(CANVAS, |renderer| {
+        // Draw a simple red box at (10, 10)
+        renderer.draw_box(DrawBox {
+            top_left: [10.0, 10.0],
+            size: [100.0, 50.0],
+            corner_radius: 5.0,
+            rounded_corners: keru_draw::RoundedCorners::ALL,
+            border_thickness: 0.0,
+            fill: ColorFill::Color(Color::RED),
+            x_clip: [f32::MIN, f32::MAX],
+            y_clip: [f32::MIN, f32::MAX],
+            texture: None,
+        });
 
-    if ui.is_clicked(BUTTON_KEY) {
-        dbg!(Instant::now());
-    }
-    
+        // Draw a simple line
+        renderer.draw_segment(Segment {
+            start: [20.0, 100.0],
+            end: [200.0, 150.0],
+            thickness: 5.0,
+            fill: ColorFill::Color(Color::KERU_GREEN),
+            x_clip: [f32::MIN, f32::MAX],
+            y_clip: [f32::MIN, f32::MAX],
+            dash_length: None,
+            dash_offset: 0.0,
+            texture: None,
+        });
+    });
+
 }
 
 fn main() {
