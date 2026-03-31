@@ -662,6 +662,13 @@ impl Ui {
 
         // Get the clip rect for this node
         let node_clip_rect = self.nodes[i].clip_rect;
+        let screen_size = self.sys.size;
+        let x_clip = [node_clip_rect.x[0] * screen_size.x, node_clip_rect.x[1] * screen_size.x];
+        let y_clip = [node_clip_rect.y[0] * screen_size.y, node_clip_rect.y[1] * screen_size.y,];
+        let clip_rect = keru_draw::ClipRect { x_clip, y_clip };
+
+        let clip_rect_handle = self.sys.renderer.insert_clip_rect(clip_rect);
+        self.sys.renderer.set_current_clip_rect(clip_rect_handle);
 
         // Apply accumulated_transform for regular shapes
         if self.nodes[i].accumulated_transform != Transform::IDENTITY {
@@ -683,11 +690,11 @@ impl Ui {
         });
 
         if self.sys.inspect_mode {
-            self.render_node_shape_to_scene(i, node_clip_rect, texture, true);
+            self.render_node_shape_to_scene(i, texture, true);
         }
 
         if self.nodes[i].params.visible {
-            self.render_node_shape_to_scene(i, node_clip_rect, texture, false);
+            self.render_node_shape_to_scene(i, texture, false);
 
             if let Some(text_i) = &self.nodes[i].text_i {
                 match text_i {
@@ -702,6 +709,7 @@ impl Ui {
         }
 
         // Clear current transform for regular shapes
+        self.sys.renderer.clear_current_clip_rect();
         if self.nodes[i].accumulated_transform != Transform::IDENTITY {
             self.sys.renderer.clear_current_transform();
         }
@@ -725,7 +733,8 @@ impl Ui {
                 _padding: 0.0,
             };
 
-            *self.sys.renderer.get_transform_mut(canvas.transform) = combined;
+            self.sys.renderer.update_transform(canvas.transform, combined);
+            self.sys.renderer.update_clip_rect(canvas.clip_rect, clip_rect);
             self.sys.renderer.draw_deferred_elements(canvas.instances);
         }
     }

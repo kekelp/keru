@@ -115,7 +115,7 @@ impl Ui {
     }
 
     /// Render a node's shape using keru_draw.
-    pub(crate) fn render_node_shape_to_scene(&mut self, i: NodeI, clip_rect: Xy<[f32; 2]>, texture: Option<LoadedImage>, debug_box: bool) {
+    pub(crate) fn render_node_shape_to_scene(&mut self, i: NodeI, texture: Option<LoadedImage>, debug_box: bool) {
         let node = &self.nodes[i];
 
         // Get rect in normalized space (0-1)
@@ -166,16 +166,6 @@ impl Ui {
 
         let fill = apply_dark_fill(node.params.color);
 
-        // Convert clip rect to pixel coordinates
-        let x_clip = [
-            clip_rect.x[0] * screen_size.x,
-            clip_rect.x[1] * screen_size.x,
-        ];
-        let y_clip = [
-            clip_rect.y[0] * screen_size.y,
-            clip_rect.y[1] * screen_size.y,
-        ];
-
         // Get stroke info
         let stroke = if debug_box {
             Some(Stroke::new(3.0).with_color(Color::DEBUG_RED))
@@ -211,8 +201,6 @@ impl Ui {
                         rounded_corners: *rounded_corners,
                         border_thickness: 0.0,
                         fill,
-                        x_clip,
-                        y_clip,
                         texture,
                     });
                 }
@@ -231,8 +219,6 @@ impl Ui {
                             thickness: stroke.width,
                             color: stroke_color,
                             dash_length: stroke.dash_length,
-                            x_clip,
-                            y_clip,
                         });
                     } else {
                         // Solid stroke
@@ -243,8 +229,6 @@ impl Ui {
                             rounded_corners: *rounded_corners,
                             border_thickness: stroke.width,
                             fill: stroke_fill,
-                            x_clip,
-                            y_clip,
                             texture: None,
                         });
                     }
@@ -260,8 +244,6 @@ impl Ui {
                         center: [cx, cy],
                         radius,
                         fill,
-                        x_clip,
-                        y_clip,
                         texture,
                     });
                 }
@@ -273,8 +255,6 @@ impl Ui {
                         inner_radius: radius - stroke.width * 0.5,
                         outer_radius: radius + stroke.width * 0.5,
                         fill: stroke_fill,
-                        x_clip,
-                        y_clip,
                         texture: None,
                         dash_length,
                         dash_offset: 0.0,
@@ -292,8 +272,6 @@ impl Ui {
                     inner_radius,
                     outer_radius,
                     fill,
-                    x_clip,
-                    y_clip,
                     texture,
                     dash_length,
                     dash_offset: 0.0,
@@ -311,8 +289,6 @@ impl Ui {
                     end_angle: *end_angle,
                     thickness: *width,
                     fill,
-                    x_clip,
-                    y_clip,
                     texture,
                     dash_length,
                     dash_offset: 0.0,
@@ -328,8 +304,6 @@ impl Ui {
                     start_angle: *start_angle,
                     end_angle: *end_angle,
                     fill,
-                    x_clip,
-                    y_clip,
                     texture,
                 });
             }
@@ -344,8 +318,6 @@ impl Ui {
                     end: [end_x, end_y],
                     thickness,
                     fill,
-                    x_clip,
-                    y_clip,
                     dash_length: *dash_length,
                     dash_offset: 0.0,
                     texture,
@@ -360,8 +332,6 @@ impl Ui {
                     end: [x1, cy],
                     thickness,
                     fill,
-                    x_clip,
-                    y_clip,
                     dash_length,
                     dash_offset: 0.0,
                     texture,
@@ -376,8 +346,6 @@ impl Ui {
                     end: [cx, y1],
                     thickness,
                     fill,
-                    x_clip,
-                    y_clip,
                     dash_length,
                     dash_offset: 0.0,
                     texture,
@@ -410,8 +378,6 @@ impl Ui {
                     p1: [p1_x, p1_y],
                     p2: [p2_x, p2_y],
                     fill,
-                    x_clip,
-                    y_clip,
                     texture,
                 });
             }
@@ -428,8 +394,6 @@ impl Ui {
                     line_thickness: *line_thickness,
                     color: grid_color,
                     grid_type: keru_draw::GridType::Square,
-                    x_clip,
-                    y_clip,
                     texture,
                 });
             }
@@ -446,8 +410,6 @@ impl Ui {
                     line_thickness: *line_thickness,
                     color: grid_color,
                     grid_type: keru_draw::GridType::Hexagonal,
-                    x_clip,
-                    y_clip,
                     texture,
                 });
             }
@@ -464,8 +426,6 @@ impl Ui {
                         rotation: *rotation,
                         fill,
                         stroke_thickness: 0.0,
-                        x_clip,
-                        y_clip,
                         texture,
                     });
                 }
@@ -484,8 +444,6 @@ impl Ui {
                             thickness: stroke.width,
                             color: stroke_color,
                             dash_length: stroke.dash_length,
-                            x_clip,
-                            y_clip,
                         });
                     } else {
                         // Solid stroke
@@ -495,8 +453,6 @@ impl Ui {
                             rotation: *rotation,
                             fill: stroke_fill,
                             stroke_thickness: stroke.width,
-                            x_clip,
-                            y_clip,
                             texture: None,
                         });
                     }
@@ -633,86 +589,6 @@ impl Ui {
     /// This is a convenience method for custom rendering loops.
     pub fn submit_commands(&mut self, command_buffer: wgpu::CommandBuffer) {
         self.sys.queue.submit(std::iter::once(command_buffer));
-    }
-
-    /// Draw a box with a gradient for custom rendering.
-    ///
-    /// This is useful when implementing custom rendering in the render plan.
-    /// The box will be added to the current frame's render data.
-    pub fn draw_box_gradient(
-        &mut self,
-        top_left: [f32; 2],
-        size: [f32; 2],
-        corner_radius: f32,
-        rounded_corners: keru_draw::RoundedCorners,
-        border_thickness: f32,
-        start_color: Color,
-        end_color: Color,
-        gradient_angle: f32,
-        clip_x: [f32; 2],
-        clip_y: [f32; 2],
-    ) {
-        self.sys.renderer.draw_box(keru_draw::Box {
-            top_left,
-            size,
-            corner_radius,
-            rounded_corners,
-            border_thickness,
-            fill: keru_draw::ColorFill::Gradient(keru_draw::Gradient::linear(start_color, end_color, gradient_angle)),
-            x_clip: clip_x,
-            y_clip: clip_y,
-            texture: None,
-        });
-    }
-
-    /// Draw a solid color box for custom rendering.
-    ///
-    /// This is useful when implementing custom rendering in the render plan.
-    /// The box will be added to the current frame's render data.
-    pub fn draw_box(
-        &mut self,
-        top_left: [f32; 2],
-        size: [f32; 2],
-        corner_radius: f32,
-        rounded_corners: keru_draw::RoundedCorners,
-        border_thickness: f32,
-        color: Color,
-        clip_x: [f32; 2],
-        clip_y: [f32; 2],
-    ) {
-        self.sys.renderer.draw_box(keru_draw::Box {
-            top_left,
-            size,
-            corner_radius,
-            rounded_corners,
-            border_thickness,
-            fill: keru_draw::ColorFill::Color(color),
-            x_clip: clip_x,
-            y_clip: clip_y,
-            texture: None,
-        });
-    }
-
-    /// Draw a circle for custom rendering.
-    ///
-    /// This is useful when implementing custom rendering in the render plan.
-    /// The circle will be added to the current frame's render data.
-    pub fn draw_circle(
-        &mut self,
-        center: [f32; 2],
-        radius: f32,
-        color: Color,
-        clip_x: [f32; 2],
-        clip_y: [f32; 2],
-    ) {
-        self.sys.renderer.draw_circle(keru_draw::Circle {
-            center,
-            radius,
-            fill: keru_draw::ColorFill::Color(color),
-            x_clip: clip_x,
-            y_clip: clip_y,
-            texture: None,
-        });
     }
 }
 

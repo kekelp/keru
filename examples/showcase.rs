@@ -107,7 +107,7 @@ impl UiExt for Ui {
             self.static_paragraph("The tab viewer uses the \"children_can_hide\" property, that can be set on any node. This means that when switching tabs, all ui state is kept in the background, and we can switch back without recreating the node tree. In addition all implicit \"state\" like the scroll offset, the text in the edit boxes, etc. is retained. \n\n\
             Without \"children_can_hide\", everything would be cleaned up as soon as the tabs change.");
 
-            self.static_paragraph("Keru uses its own wgpu-based renderer, with a similar architecture as the ones used in vger-rs and gpui. It's not a next-gen compute-based renderer.");
+            self.static_paragraph("Keru uses its own wgpu-based renderer, with a similar architecture as the ones used in vger-rs and gpui.");
 
             let button_with_stroke = BUTTON
                 .static_text("Button example")
@@ -131,7 +131,7 @@ impl UiExt for Ui {
 
             self.add(button_with_colored_stroke);
 
-            self.static_paragraph("Basic vector drawing using regular Nodes:");
+            self.static_paragraph("Basic vector drawing using normal Nodes with different Shape values:");
 
             #[node_key] const LINE_CONTAINER: NodeKey;
             let line_container = CONTAINER
@@ -207,7 +207,6 @@ impl UiExt for Ui {
 
                 self.add(hexagon1);
 
-                // Rotated hexagon (pointy-top)
                 let hexagon2 = DEFAULT
                     .shape(Shape::Hexagon {
                         size: 0.8,
@@ -224,7 +223,11 @@ impl UiExt for Ui {
                 self.add(hexagon2);
             });
 
-            self.static_paragraph("Canvas drawing API (draw directly with the renderer):");
+            self.static_paragraph("There is also an API for using the keru renderer directly to do custom rendering with the keru primitives, such as rectangles, circles, line segments, as well as quadratic Bezier curves (which are currently not available as a Shape variant).\n\
+            This kind of custom drawing will use the same draw call as the keru GUI elements, so it's both faster and simpler to use compared to fully custom wgpu rendering. \n\
+            Note that the closure is executed immediately, not stored: this means that the code in the closure can freely access all the state it wants without any kind of borrowing restrictions.\n\
+            It also means that these primitives are created before the keru ones (GUI declaration time vs keru's post-layout rendering step in finish_frame(). However, the renderer is still able to render them in the correct z-order and at the correct post-layout position.)
+            ");
 
             #[node_key] const CANVAS_CONTAINER: NodeKey;
             let canvas_container = CONTAINER
@@ -278,8 +281,6 @@ impl UiExt for Ui {
                         end: points[i + 1],
                         thickness,
                         fill: ColorFill::Color(color),
-                        x_clip: [f32::MIN, f32::MAX],
-                        y_clip: [f32::MIN, f32::MAX],
                         dash_length: None,
                         dash_offset: 0.0,
                         texture: None,
@@ -287,7 +288,7 @@ impl UiExt for Ui {
                 }
             });
 
-            self.static_paragraph("There is also an experimental system for easily embedding fully custom wgpu rendering in-between the Keru ui elements. See the \"custom_rendering\" example.");
+            self.static_paragraph("For fully custom wgpu rendered content, there is also an experimental system for rendering in-between the Keru ui elements. See the \"custom_rendering\" example. This will necessarily mean that the keru rendering will have to be split between multiple draw calls.");
             
             self.static_paragraph("Other features that will probably be added in at some point:\n\
             - reusable components\n\
@@ -425,8 +426,6 @@ impl UiExt for Ui {
                                     end: points[i + 1],
                                     thickness,
                                     fill: ColorFill::Color(color),
-                                    x_clip: [f32::MIN, f32::MAX],
-                                    y_clip: [f32::MIN, f32::MAX],
                                     dash_length: None,
                                     dash_offset: 0.0,
                                     texture: None,

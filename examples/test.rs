@@ -28,8 +28,6 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
             rounded_corners: keru_draw::RoundedCorners::ALL,
             border_thickness: 0.0,
             fill: ColorFill::Color(Color::RED),
-            x_clip: [f32::MIN, f32::MAX],
-            y_clip: [f32::MIN, f32::MAX],
             texture: None,
         });
 
@@ -39,8 +37,6 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
             end: [200.0, 150.0],
             thickness: 5.0,
             fill: ColorFill::Color(Color::KERU_GREEN),
-            x_clip: [f32::MIN, f32::MAX],
-            y_clip: [f32::MIN, f32::MAX],
             dash_length: None,
             dash_offset: 0.0,
             texture: None,

@@ -620,16 +620,19 @@ impl Ui {
 
         // Create a transform for this canvas. We will set it to the correct value after doing layout
         let transform = self.sys.renderer.insert_transform(keru_draw::Transform::identity());
+        let clip_rect = self.sys.renderer.insert_clip_rect(keru_draw::CLIP_NOTHING);
 
         self.sys.renderer.set_current_transform(transform);
+        self.sys.renderer.set_current_clip_rect(clip_rect);
         self.sys.renderer.start_deferred_mode();
 
         drawing_function(&mut self.sys.renderer.get_draw_context());
 
         let instances = self.sys.renderer.end_deferred_mode();
         self.sys.renderer.clear_current_transform();
+        self.sys.renderer.clear_current_clip_rect();
 
-        self.nodes[i].canvas = Some(Canvas { instances, transform });
+        self.nodes[i].canvas = Some(Canvas { instances, transform, clip_rect });
     }
 
     // todo what's going on here

@@ -110,6 +110,7 @@ pub struct InnerNode {
 pub struct Canvas {
     pub instances: keru_draw::DeferredInstanceRange,
     pub transform: keru_draw::TransformHandle,
+    pub clip_rect: keru_draw::ClipRectHandle,
 }
 
 impl InnerNode {
