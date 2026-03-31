@@ -264,7 +264,7 @@ impl Ui {
         let second_last_frame_end_fake_time = 4;
         let last_frame_end_fake_time = 5;
 
-        let renderer = Renderer::new(device.clone(), queue.clone(), config.format);
+        let renderer = Renderer::new(&device, &queue, config.format);
 
         Self {
             nodes,
