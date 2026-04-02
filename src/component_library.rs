@@ -487,7 +487,7 @@ impl Component for StatefulTransformView {
     type ComponentOutput = ();
     type State = TransformViewState;
 
-    // todo: right now it's not actually ok to nest them like this.
+    // todo: right now it's not actually ok to nest them like this, because of the stupid COMPONENT_ROOT node.
     fn add_to_ui(&mut self, ui: &mut Ui, state: &mut Self::State) -> Self::AddResult {
         return ui.add_component(TransformView::new(state));
     }
