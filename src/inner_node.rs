@@ -35,6 +35,8 @@ pub struct InnerNode {
 
     // Accumulated transform from all parents, used for rendering and hit testing
     pub accumulated_transform: Transform,
+    pub accumulated_transform_handle: Option<keru_draw::TransformHandle>,
+    pub clip_rect_handle: Option<keru_draw::ClipRectHandle>,
 
     pub real_rect: XyRect,
     pub expected_final_rect: XyRect,
@@ -101,16 +103,8 @@ pub struct InnerNode {
     // only kept around until the exit animation is done.
     pub exiting: bool,
 
-    // Canvas drawing - deferred instances and transform for rendering after layout
-    pub canvas: Option<Canvas>,
-}
-
-/// Canvas drawing data for a node.
-#[derive(Debug, Clone, Copy)]
-pub struct Canvas {
-    pub instances: keru_draw::DeferredInstanceRange,
-    pub transform: keru_draw::TransformHandle,
-    pub clip_rect: keru_draw::ClipRectHandle,
+    pub canvas_instances: Option<keru_draw::DeferredInstanceRange>,
+    pub canvas_transform_and_clip: Option<(keru_draw::TransformHandle, keru_draw::ClipRectHandle)>,
 }
 
 impl InnerNode {
@@ -149,6 +143,8 @@ impl InnerNode {
             scroll: Scroll::ZERO,
 
             accumulated_transform: Transform::IDENTITY,
+            accumulated_transform_handle: None,
+            clip_rect_handle: None,
 
             imageref: None,
             last_image_source: None,
@@ -189,7 +185,8 @@ impl InnerNode {
             exiting: false,
             currently_hidden: false,
 
-            canvas: None,
+            canvas_instances: None,
+            canvas_transform_and_clip: None,
         };
     }
 }
@@ -261,6 +258,8 @@ pub const NODE_ROOT: InnerNode = InnerNode {
     scroll: Scroll::ZERO,
 
     accumulated_transform: Transform::IDENTITY,
+    accumulated_transform_handle: None,
+    clip_rect_handle: None,
 
     text_i: None,
 
@@ -306,5 +305,6 @@ pub const NODE_ROOT: InnerNode = InnerNode {
     exiting: false,
     currently_hidden: false,
 
-    canvas: None,
+    canvas_instances: None,
+    canvas_transform_and_clip: None,
 };

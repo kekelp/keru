@@ -612,15 +612,19 @@ impl Ui {
     /// 
     /// The closure is executed immediately, not stored, so there are no limitations with borrowing state.
     pub fn canvas_drawing(&mut self, key: NodeKey, drawing_function: impl FnOnce(&mut DrawContext)) {
-        use crate::inner_node::Canvas;
-
         let Some(i) = self.nodes.node_hashmap.get(&key.id_with_subtree()).map(|e| e.slab_i) else {
             return;
         };
 
-        // Create a transform for this canvas. We will set it to the correct value after doing layout
-        let transform = self.sys.renderer.insert_transform(keru_draw::Transform::identity());
-        let clip_rect = self.sys.renderer.insert_clip_rect(keru_draw::CLIP_NOTHING);
+        let (transform, clip_rect) = match self.nodes[i].canvas_transform_and_clip {
+            Some(h) => h,
+            None => {
+                let transform_handle = self.sys.renderer.insert_transform(keru_draw::Transform::identity());
+                let clip_handle = self.sys.renderer.insert_clip_rect(keru_draw::ClipRect::NO_CLIPPING);
+                self.nodes[i].canvas_transform_and_clip = Some((transform_handle, clip_handle));
+                (transform_handle, clip_handle)
+            }
+        };
 
         self.sys.renderer.set_current_transform(transform);
         self.sys.renderer.set_current_clip_rect(clip_rect);
@@ -632,7 +636,7 @@ impl Ui {
         self.sys.renderer.clear_current_transform();
         self.sys.renderer.clear_current_clip_rect();
 
-        self.nodes[i].canvas = Some(Canvas { instances, transform, clip_rect });
+        self.nodes[i].canvas_instances = Some(instances);
     }
 
     // todo what's going on here

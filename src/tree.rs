@@ -353,10 +353,6 @@ impl Ui {
     }
 
     fn refresh_node(&mut self, i: NodeI) {
-        // Clear canvas drawing data
-        self.nodes[i].canvas = None;
-
-        // Refresh the text box associated with this node if it has one
         if let Some(text_i) = &self.nodes[i].text_i {
             match text_i {
                 TextI::TextBox(handle) => {
@@ -367,6 +363,8 @@ impl Ui {
                 }
             }
         }
+
+        self.nodes[i].canvas_instances = None;
     }
 
     // this function also detects new nodes and reorderings, and pushes partial relayouts for them. For deleted nodes, partial relayouts will be pushed in cleanup_and_stuff.
@@ -661,13 +659,25 @@ impl Ui {
         }
 
         // Get the clip rect for this node
+        // todo: only insert a new one it if it's non-zero
+
         let node_clip_rect = self.nodes[i].clip_rect;
         let screen_size = self.sys.size;
         let x_clip = [node_clip_rect.x[0] * screen_size.x, node_clip_rect.x[1] * screen_size.x];
         let y_clip = [node_clip_rect.y[0] * screen_size.y, node_clip_rect.y[1] * screen_size.y,];
         let clip_rect = keru_draw::ClipRect { x_clip, y_clip };
 
-        let clip_rect_handle = self.sys.renderer.insert_clip_rect(clip_rect);
+        let clip_rect_handle = match self.nodes[i].clip_rect_handle {
+            Some(h) => {
+                self.sys.renderer.update_clip_rect(h, clip_rect);
+                h
+            }
+            None => {
+                let h = self.sys.renderer.insert_clip_rect(clip_rect);
+                self.nodes[i].clip_rect_handle = Some(h);
+                h
+            }
+        };
         self.sys.renderer.set_current_clip_rect(clip_rect_handle);
 
         // Apply accumulated_transform for regular shapes
@@ -678,7 +688,17 @@ impl Ui {
                 scale: accumulated.scale,
                 _padding: 0.0,
             };
-            let handle = self.sys.renderer.insert_transform(transform);
+            let handle = match self.nodes[i].accumulated_transform_handle {
+                Some(h) => {
+                    self.sys.renderer.update_transform(h, transform);
+                    h
+                }
+                None => {
+                    let h = self.sys.renderer.insert_transform(transform);
+                    self.nodes[i].accumulated_transform_handle = Some(h);
+                    h
+                }
+            };
             self.sys.renderer.set_current_transform(handle);
         }
 
@@ -715,7 +735,8 @@ impl Ui {
         }
 
         // Draw canvas with combined transform (accumulated + canvas offset * scale)
-        if let Some(canvas) = self.nodes[i].canvas {
+        if let Some(canvas_instances) = self.nodes[i].canvas_instances 
+        && let Some((canvas_transform, canvas_clip_rect)) = self.nodes[i].canvas_transform_and_clip {
             let accumulated = &self.nodes[i].accumulated_transform;
             let rect = &self.nodes[i].real_rect;
             let size = self.sys.size;
@@ -733,9 +754,9 @@ impl Ui {
                 _padding: 0.0,
             };
 
-            self.sys.renderer.update_transform(canvas.transform, combined);
-            self.sys.renderer.update_clip_rect(canvas.clip_rect, clip_rect);
-            self.sys.renderer.draw_deferred_elements(canvas.instances);
+            self.sys.renderer.update_transform(canvas_transform, combined);
+            self.sys.renderer.update_clip_rect(canvas_clip_rect, clip_rect);
+            self.sys.renderer.draw_deferred_elements(canvas_instances);
         }
     }
 
@@ -986,8 +1007,21 @@ impl Ui {
             }
         }
 
-        // Clear canvas drawing data
-        self.nodes[i].canvas = None;
+        // Clean up retained transforms and clip rects
+        if let Some(handle) = self.nodes[i].accumulated_transform_handle {
+            self.sys.renderer.remove_transform(handle);
+            self.nodes[i].accumulated_transform_handle = None;
+        }
+        if let Some(handle) = self.nodes[i].clip_rect_handle {
+            self.sys.renderer.remove_clip_rect(handle);
+            self.nodes[i].clip_rect_handle = None;
+        }
+
+        if let Some((canvas_transform, canvas_clip_rect)) = self.nodes[i].canvas_transform_and_clip {
+            self.sys.renderer.remove_transform(canvas_transform);
+            self.sys.renderer.remove_clip_rect(canvas_clip_rect);
+            self.nodes[i].canvas_transform_and_clip = None;
+        }
 
         self.nodes.node_hashmap.remove(&id);
         self.nodes.nodes.remove(i.as_usize());
