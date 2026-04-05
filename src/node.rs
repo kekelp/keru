@@ -1628,6 +1628,20 @@ impl Ui {
             };
 
             self.nodes[i].text_i = Some(new_text_i);
+
+            // Link text boxes for selections
+            // todo fix this, and consider making it work with the latest text node, not just the previous
+            if !edit && selectable {
+                if let Some(TextI::TextBox(current_handle)) = &self.nodes[i].text_i {
+                    if let Some(prev_sibling_i) = self.nodes[i].prev_sibling {
+                        if let Some(TextI::TextBox(prev_handle)) = &self.nodes[prev_sibling_i].text_i {
+                            if self.sys.renderer.text.get_text_box(prev_handle).selectable() {
+                                self.sys.renderer.text.link_text_boxes(prev_handle, current_handle);
+                            }
+                        }
+                    }
+                }
+            }
         } else {
             // Same type - just update content and style
             match &self.nodes[i].text_i {
