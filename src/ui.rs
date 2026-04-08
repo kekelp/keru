@@ -102,6 +102,10 @@ pub(crate) struct System {
 
     pub z_cursor: f32,
 
+    /// The most recently processed selectable non-edit text box node this frame.
+    /// Used to link consecutive text boxes for cross-box selection.
+    pub last_linked_text_box_node: Option<NodeI>,
+
     pub click_rects: Vec<ClickRect>,
 
     pub size: Xy<f32>,
@@ -277,6 +281,7 @@ impl Ui {
                 disable_animations_on_resize: true,
                 unique_id: INSTANCE_COUNTER.fetch_add(1, Ordering::Relaxed),
                 z_cursor: 0.0,
+                last_linked_text_box_node: None,
                 theme: KERU_DARK,
                 inspect_mode: false,
                 debug_key_pressed: false,

@@ -813,6 +813,7 @@ impl Ui {
         self.reset_root();
 
         self.sys.current_frame += 1;
+        self.sys.last_linked_text_box_node = None;
         self.sys.renderer.text.advance_frame_and_hide_boxes();
         self.sys.renderer.clear_for_new_frame();
 
