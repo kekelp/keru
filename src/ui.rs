@@ -132,11 +132,6 @@ pub(crate) struct System {
     // Holds the nodes for breadth-first traversal.
     pub depth_traversal_queue: Vec<NodeI>,
 
-    pub non_fresh_nodes: Vec<NodeI>,
-
-    pub to_cleanup: Vec<NodeI>,
-    pub hidden_branch_parents: Vec<NodeI>,
-    pub lingering_nodes: Vec<NodeWithDepth>,
 
     pub changes: Changes,
 
@@ -311,11 +306,6 @@ impl Ui {
 
                 #[cfg(debug_assertions)]
                 inspect_hovered: smallvec::SmallVec::new(),
-
-                non_fresh_nodes: Vec::with_capacity(10),
-                to_cleanup: Vec::with_capacity(30),
-                hidden_branch_parents: Vec::with_capacity(30),
-                lingering_nodes: Vec::with_capacity(30),
 
                 focused: None,
 

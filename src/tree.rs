@@ -1,7 +1,6 @@
 use crate::*;
 use std::collections::hash_map::Entry;
 use std::hash::Hasher;
-use std::mem;
 use std::panic::Location;
 use bytemuck::{Pod, Zeroable};
 
@@ -872,103 +871,99 @@ impl Ui {
     }
 
     fn cleanup_and_stuff(&mut self) {
-        let mut non_fresh_nodes: Vec<NodeI> = take_buffer_and_clear(&mut self.sys.non_fresh_nodes);
-        let mut to_cleanup: Vec<NodeI> = take_buffer_and_clear(&mut self.sys.to_cleanup);
-        let mut hidden_branch_parents: Vec<NodeI> = take_buffer_and_clear(&mut self.sys.hidden_branch_parents);
-        let mut exiting_nodes: Vec<NodeWithDepth> = take_buffer_and_clear(&mut self.sys.lingering_nodes);
+        with_arena(|a| {
+            let mut non_fresh_nodes = bumpalo::collections::Vec::with_capacity_in(20, a);
+            let mut to_cleanup = bumpalo::collections::Vec::with_capacity_in(20, a);
+            let mut hidden_branch_parents = bumpalo::collections::Vec::with_capacity_in(20, a);
+            let mut exiting_nodes = bumpalo::collections::Vec::with_capacity_in(20, a);
 
+            for (i, _) in self.nodes.nodes.iter().skip(2) {
+                let i = NodeI::from(i);
+                let freshly_added = self.nodes[i].last_frame_touched == self.sys.current_frame;
 
-        for (i, _) in self.nodes.nodes.iter().skip(2) {
-            let i = NodeI::from(i);
-            let freshly_added = self.nodes[i].last_frame_touched == self.sys.current_frame;
-
-            if !freshly_added {
-                non_fresh_nodes.push(i);
+                if !freshly_added {
+                    non_fresh_nodes.push(i);
+                }
             }
-        }
 
-        // Start exit animations for all nodes that need them
-        for &i in &non_fresh_nodes {
-            let old_parent = self.nodes[i].parent;
-            let old_parent_still_exists = self.nodes.get(old_parent).is_some();
+            // Start exit animations for all nodes that need them
+            for &i in &non_fresh_nodes {
+                let old_parent = self.nodes[i].parent;
+                let old_parent_still_exists = self.nodes.get(old_parent).is_some();
 
-            if old_parent_still_exists {
-                self.init_exit_animations(i);
-            }
-        }
-
-        // the top-level nodes in hidden branches need to be attached to their children_can_hide parents as hidden nodes, so that when that parent node is removed, we can also remove the hidden branch. Otherwise we'd just forget about them and leave them in memory forever.
-        for &i in &non_fresh_nodes {
-            let can_hide = self.nodes[i].can_hide;
-            let currently_hidden = self.nodes[i].currently_hidden;
-            let old_parent = self.nodes[i].parent;
-            let old_parent_still_exists = self.nodes.get(old_parent).is_some();
-
-            let is_first_child_in_hidden_branch = match self.nodes.get(old_parent) {
-                Some(old_parent) => old_parent.params.children_can_hide == ChildrenCanHide::Yes,
-                None => false,
-            };
-            let children_can_hide = self.nodes[i].params.children_can_hide == ChildrenCanHide::Yes;
-
-            if old_parent_still_exists && self.nodes[i].exiting && self.nodes[i].exit_animation_still_going {
-
-                exiting_nodes.push(NodeWithDepth { i, depth: self.nodes[i].depth });
-                
-            } else if ! can_hide {
-                to_cleanup.push(i);
                 if old_parent_still_exists {
-                    self.push_partial_relayout(old_parent);
+                    self.init_exit_animations(i);
                 }
+            }
 
-                if children_can_hide {
-                    hidden_branch_parents.push(i);
-                }
+            // the top-level nodes in hidden branches need to be attached to their children_can_hide parents as hidden nodes, so that when that parent node is removed, we can also remove the hidden branch. Otherwise we'd just forget about them and leave them in memory forever.
+            for &i in &non_fresh_nodes {
+                let can_hide = self.nodes[i].can_hide;
+                let currently_hidden = self.nodes[i].currently_hidden;
+                let old_parent = self.nodes[i].parent;
+                let old_parent_still_exists = self.nodes.get(old_parent).is_some();
 
-            } else if ! currently_hidden {
-                
-                self.nodes[i].currently_hidden = true;
+                let is_first_child_in_hidden_branch = match self.nodes.get(old_parent) {
+                    Some(old_parent) => old_parent.params.children_can_hide == ChildrenCanHide::Yes,
+                    None => false,
+                };
+                let children_can_hide = self.nodes[i].params.children_can_hide == ChildrenCanHide::Yes;
 
-                if is_first_child_in_hidden_branch {
-                    self.add_hidden_child(i, old_parent);
+                if old_parent_still_exists && self.nodes[i].exiting && self.nodes[i].exit_animation_still_going {
+
+                    exiting_nodes.push(NodeWithDepth { i, depth: self.nodes[i].depth });
+
+                } else if ! can_hide {
+                    to_cleanup.push(i);
                     if old_parent_still_exists {
                         self.push_partial_relayout(old_parent);
                     }
+
+                    if children_can_hide {
+                        hidden_branch_parents.push(i);
+                    }
+
+                } else if ! currently_hidden {
+
+                    self.nodes[i].currently_hidden = true;
+
+                    if is_first_child_in_hidden_branch {
+                        self.add_hidden_child(i, old_parent);
+                        if old_parent_still_exists {
+                            self.push_partial_relayout(old_parent);
+                        }
+                    }
                 }
+
             }
-        
-        }
 
-        // Add lingering nodes back into the tree.
-        // todo: don't just add them at the end, try to put them after their old prev_sibling. 
-        exiting_nodes.sort_by_key(|n| n.depth);
-        for &NodeWithDepth { i, .. } in &exiting_nodes {
-            let old_parent = self.nodes[i].parent;
-            self.set_tree_links(i, old_parent, self.nodes[i].depth, SiblingCursor::None);
-            self.refresh_node(i);
-            self.nodes[i].exiting = true;
-            // todo not in this retarded way
-            self.nodes[old_parent].n_children -= 1;
-        }
+            // Add lingering nodes back into the tree.
+            // todo: don't just add them at the end, try to put them after their old prev_sibling. 
+            exiting_nodes.sort_by_key(|n| n.depth);
+            for &NodeWithDepth { i, .. } in &exiting_nodes {
+                let old_parent = self.nodes[i].parent;
+                self.set_tree_links(i, old_parent, self.nodes[i].depth, SiblingCursor::None);
+                self.refresh_node(i);
+                self.nodes[i].exiting = true;
+                // todo not in this retarded way
+                self.nodes[old_parent].n_children -= 1;
+            }
 
-        // This is delayed so that hidden children are all added
-        for &i in &hidden_branch_parents {
-            for_each_hidden_child!(self, self.nodes[i], hidden_child, {
-                self.add_branch_to_cleanup(hidden_child, &mut to_cleanup);
-            });
-        }
+            // This is delayed so that hidden children are all added
+            for &i in &hidden_branch_parents {
+                for_each_hidden_child!(self, self.nodes[i], hidden_child, {
+                    self.add_branch_to_cleanup(hidden_child, &mut to_cleanup);
+                });
+            }
 
-        // finally cleanup
-        for &k in &to_cleanup {
-            self.cleanup_node(k);
-        }
-        
-        self.sys.lingering_nodes = exiting_nodes;
-        self.sys.non_fresh_nodes = non_fresh_nodes;
-        self.sys.to_cleanup = to_cleanup;
-        self.sys.hidden_branch_parents = hidden_branch_parents;
+            // finally cleanup
+            for &k in &to_cleanup {
+                self.cleanup_node(k);
+            }
+        });
     }
 
-    fn add_branch_to_cleanup(&mut self, i: NodeI, vec: &mut Vec<NodeI>) {
+    fn add_branch_to_cleanup(&mut self, i: NodeI, vec: &mut bumpalo::collections::Vec<'_, NodeI>) {
         vec.push(i);
         for_each_child!(self, self.nodes[i], child, {
             self.add_branch_to_cleanup(child, vec);
@@ -1244,13 +1239,4 @@ pub(crate) fn with_timer<T>(operation_name: &str, if_more_than: Option<std::time
         }
 
         result
-}
-
-// New partial borrow cope just dropped.
-// Remember to but the vec back in place!
-pub(crate) fn take_buffer_and_clear<T>(buf: &mut Vec<T>) -> Vec<T> {
-    buf.clear();
-    let placeholder = Vec::new();
-    let real_vec = mem::replace(buf, placeholder);
-    return real_vec;
 }

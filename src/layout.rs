@@ -672,19 +672,21 @@ impl Ui {
         self.nodes[i].exiting = true;
         self.nodes[i].exit_animation_still_going = true;
 
-        // set the whole branch to exiting. (reusing this random vec)
-        self.sys.to_cleanup.clear();
-        for_each_child_including_lingering_reverse!(self, &self.nodes[i], child, {
-            self.sys.to_cleanup.push(child);
-        });
-        while let Some(node) = self.sys.to_cleanup.pop() {
-            if self.nodes[node].exiting { continue; }
-            self.nodes[node].exiting = true;
-            self.nodes[node].exit_animation_still_going = true;
-            for_each_child_including_lingering_reverse!(self, &self.nodes[node], child, {
-                self.sys.to_cleanup.push(child);
+        // set the whole branch to exiting.
+        with_arena(|a| {
+            let mut stack = bumpalo::collections::Vec::with_capacity_in(20, a);
+            for_each_child_including_lingering_reverse!(self, &self.nodes[i], child, {
+                stack.push(child);
             });
-        }
+            while let Some(node) = stack.pop() {
+                if self.nodes[node].exiting { continue; }
+                self.nodes[node].exiting = true;
+                self.nodes[node].exit_animation_still_going = true;
+                for_each_child_including_lingering_reverse!(self, &self.nodes[node], child, {
+                    stack.push(child);
+                });
+            }
+        });
 
         match self.nodes[i].params.animation.exit {
             ExitAnimation::None => {}
