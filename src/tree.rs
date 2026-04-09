@@ -544,9 +544,6 @@ impl Ui {
     }
 
     pub(crate) fn update_text_boxes(&mut self, i: NodeI) {
-        self.sys.z_cursor += Z_STEP;
-        self.nodes[i].z = self.sys.z_cursor;
-
         if !self.nodes[i].params.visible {
             return;
         }
@@ -555,7 +552,6 @@ impl Ui {
             return;
         };
 
-        let z = self.nodes[i].z;
         let node_clip_rect = self.nodes[i].clip_rect;
 
         // Update text position using animated rect
@@ -585,7 +581,6 @@ impl Ui {
 
                 let top = (animated_rect[Y][0] * self.sys.size[Y]) as f64 + padding[Y] as f64 + vertical_offset as f64;
 
-                text_box.set_depth(z);
                 text_box.set_pos(((left * scale).round() / scale, (top * scale).round() / scale));
 
                 // Set hitbox to cover the whole node (in local space relative to text position)
@@ -620,7 +615,6 @@ impl Ui {
 
                 let top = (animated_rect[Y][0] * self.sys.size[Y]) as f64 + padding[Y] as f64 + vertical_offset as f64;
 
-                text_edit.set_depth(z);
                 text_edit.set_pos(((left * scale).round() / scale, (top * scale).round() / scale));
 
                 // Set hitbox to cover the whole node (in local space relative to text position)

@@ -53,6 +53,9 @@ pub struct Node {
     pub animation: Animation,
     pub transform: Transform,
     pub custom_render: bool,
+    /// Draw order priority among siblings. Higher value = drawn on top. Default is 0.0.
+    /// When two siblings have the same z_index, declaration order is used (later = on top).
+    pub z_index: f32,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -493,6 +496,7 @@ impl Node {
     pub(crate) fn cosmetic_hash(&self) -> u64 {
         let mut hasher = ahasher();
         self.shape.hash(&mut hasher);
+        self.z_index.to_bits().hash(&mut hasher);
         return hasher.finish();
     }
 
@@ -699,6 +703,14 @@ impl Node {
 
     pub const fn circle(mut self) -> Self {
         self.shape = Shape::Circle;
+        return self;
+    }
+
+    /// Set the draw order priority among siblings.
+    /// 
+    /// Siblings with a higher value will be drawn on top. The default value is zero.
+    pub const fn z_index(mut self, z_index: f32) -> Self {
+        self.z_index = z_index;
         return self;
     }
 

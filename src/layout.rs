@@ -785,7 +785,6 @@ impl Ui {
 
     pub(crate) fn resolve_all_animations_and_scrolling(&mut self) {
         self.sys.click_rects.clear();
-        self.sys.z_cursor = Z_START;
 
         self.sys.changes.unfinished_animations = false;
 
@@ -795,6 +794,7 @@ impl Ui {
             self.resolve_animations_and_scrolling(i);
             self.update_text_boxes(i);
 
+            // This loop should be fine even without z-ordering.
             for_each_child_including_lingering_reverse!(self, self.nodes[i], child, {
                 self.sys.depth_traversal_queue.push(child);
             });
@@ -805,10 +805,26 @@ impl Ui {
         self.custom_render_commands.clear();
         let mut keru_range_start: Option<usize> = None;
 
+        self.sys.z_cursor = Z_START;
         self.sys.depth_traversal_queue.clear();
         self.sys.depth_traversal_queue.push(ROOT_I);
 
         while let Some(i) = self.sys.depth_traversal_queue.pop() {
+            // Assign z values here so they reflect z_index-sorted order.
+            self.sys.z_cursor += Z_STEP;
+            self.nodes[i].z = self.sys.z_cursor;
+            if let Some(text_i) = &self.nodes[i].text_i {
+                let z = self.nodes[i].z;
+                match text_i {
+                    TextI::TextBox(h) => {
+                        self.sys.renderer.text.get_text_box_mut(h).set_depth(z);
+                    }
+                    TextI::TextEdit(h) => {
+                        self.sys.renderer.text.get_text_edit_mut(h).set_depth(z);
+                    }
+                }
+            }
+
             let is_custom = self.nodes[i].params.custom_render;
             let instance_index_before = self.sys.renderer.instance_count();
 
@@ -824,8 +840,21 @@ impl Ui {
                 self.add_custom_render_command(i, instance_index_before, instance_index_after, &mut keru_range_start,);
             }
 
-            for_each_child_including_lingering_reverse!(self, self.nodes[i], child, {
-                self.sys.depth_traversal_queue.push(child);
+            // Sort z-ordering
+            with_arena(|arena| {
+                let n_children = self.nodes[i].n_children as usize + 5; // not sure if lingering children are counted, it's free anyway
+                let mut scratch = bumpalo::collections::Vec::with_capacity_in(n_children, arena);
+                let mut current = self.nodes[i].last_child;
+                while let Some(child) = current {
+                    scratch.push((child, self.nodes[child].params.z_index));
+                    current = self.nodes[child].prev_sibling;
+                }
+                scratch.sort_by(|x, y| {
+                    y.1.partial_cmp(&x.1).unwrap_or(std::cmp::Ordering::Equal)
+                });
+                for (child, _) in scratch {
+                    self.sys.depth_traversal_queue.push(child);
+                }
             });
         }
 

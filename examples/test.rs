@@ -1,56 +1,71 @@
 #![allow(unused)]
-use std::time::Instant;
-
 use keru::*;
-use keru_draw::{Box as DrawBox, ColorFill, Segment};
 
 struct State {
-    items: Vec<&'static str>,
+    swap: bool,
 }
 
 fn update_ui(state: &mut State, ui: &mut Ui) {
-    // Simple canvas test
-    #[node_key] const CANVAS: NodeKey;
-    let canvas_node = CONTAINER
+    #[node_key] const TOGGLE: NodeKey;
+    #[node_key] const RED: NodeKey;
+    #[node_key] const GREEN: NodeKey;
+    #[node_key] const BLUE: NodeKey;
+
+    let container = CONTAINER
         .size_x(Size::Pixels(300.0))
-        .size_y(Size::Pixels(200.0))
-        .color(Color::rgba_u8(50, 50, 50, 255))
-        .key(CANVAS);
+        .size_y(Size::Pixels(300.0))
+        .visible()
+        .color(Color::rgba_u8(30, 30, 30, 255));
 
-    ui.add(canvas_node);
+    ui.add(container).nest(|| {
+        let z_red   = if state.swap { 0.0 } else { 2.0 };
+        let z_green = 1.0;
+        let z_blue  = if state.swap { 2.0 } else { 0.0 };
 
-    ui.canvas_drawing(CANVAS, |renderer| {
-        // Draw a simple red box at (10, 10)
-        renderer.draw_box(DrawBox {
-            top_left: [10.0, 10.0],
-            size: [100.0, 50.0],
-            corner_radius: 5.0,
-            rounded_corners: keru_draw::RoundedCorners::ALL,
-            border_thickness: 0.0,
-            fill: ColorFill::Color(Color::RED),
-            texture: None,
-        });
+        // Red square — declared first, so without z_index it would be behind.
+        ui.add(DEFAULT
+            .key(RED)
+            .color(Color::rgba_u8(200, 60, 60, 255))
+            .size_symm(Size::Pixels(150.0))
+            .position_symm(Pos::Pixels(20.0))
+            .anchor_symm(Anchor::Start)
+            .z_index(z_red)
+        );
 
-        // Draw a simple line
-        renderer.draw_segment(Segment {
-            start: [20.0, 100.0],
-            end: [200.0, 150.0],
-            thickness: 5.0,
-            fill: ColorFill::Color(Color::KERU_GREEN),
-            dash_length: None,
-            dash_offset: 0.0,
-            texture: None,
-        });
+        // Green square — offset slightly.
+        ui.add(DEFAULT
+            .key(GREEN)
+            .color(Color::rgba_u8(60, 180, 60, 255))
+            .size_symm(Size::Pixels(150.0))
+            .position_symm(Pos::Pixels(70.0))
+            .anchor_symm(Anchor::Start)
+            .z_index(z_green)
+        );
+
+        // Blue square — declared last, so without z_index it would be on top.
+        ui.add(DEFAULT
+            .key(BLUE)
+            .color(Color::rgba_u8(60, 80, 210, 255))
+            .size_symm(Size::Pixels(150.0))
+            .position_symm(Pos::Pixels(120.0))
+            .anchor_symm(Anchor::Start)
+            .z_index(z_blue)
+        );
     });
 
+    // Toggle button: swaps red and blue z_index values.
+    let label = if state.swap {
+        "Red: 0, Blue: 2 (blue on top)"
+    } else {
+        "Red: 2, Blue: 0 (red on top)"
+    };
+    ui.add(BUTTON.key(TOGGLE).text(label).position_y(Pos::End).anchor_y(Anchor::End));
+    if ui.is_clicked(TOGGLE) {
+        state.swap = !state.swap;
+    }
 }
 
 fn main() {
-    let items = vec!["A", "special", "B", "C", "xxxxxx\nxxxxxx\nxxxxxx", "D", "E"];
-
-    let state = State {
-        items,
-    };
-
+    let state = State { swap: false };
     example_window_loop::run_example_loop(state, update_ui);
 }
