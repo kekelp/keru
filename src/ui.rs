@@ -168,9 +168,14 @@ impl Ui {
             return None;
         }
 
-        let unsafe_ui_pointer: NonNull<Ui> = NonNull::new(self).unwrap();
-        let wrapper = UiNode2::new(i, unsafe_ui_pointer);
-        return Some(self.sys.arena_for_wrapper_structs.alloc(wrapper));
+        let self_ptr = self as *mut Self;
+    
+        let wrapper = UiNode2 { i, ui_ref: UiRef::Mut(self)  };
+
+        let new_self = unsafe { self_ptr.as_mut().unwrap() };
+        let wrapper = new_self.sys.arena_for_wrapper_structs.alloc(wrapper);
+
+        return Some(wrapper);
     }
 
     fn get_node2(&self, key: NodeKey) -> Option<&UiNode2> {
@@ -179,8 +184,7 @@ impl Ui {
             return None;
         }
 
-        let unsafe_ui_pointer: NonNull<Ui> = NonNull::new((self as *const Ui).cast_mut()).unwrap();
-        let wrapper = UiNode2::new(i, unsafe_ui_pointer);
+        let wrapper = UiNode2 { i, ui_ref: UiRef::NonMut(self)  };
         return Some(self.sys.arena_for_wrapper_structs.alloc(wrapper));
     }
 }

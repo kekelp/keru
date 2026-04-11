@@ -848,7 +848,7 @@ impl UiParent {
     }
 }
 
-impl UiNode2 {
+impl<'a> UiNode2<'a> {
     pub fn set_text(&mut self, text: &str) -> Option<()> {
         let i = self.i;
         let ui = self.ui_mut();
