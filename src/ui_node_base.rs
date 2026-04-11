@@ -12,8 +12,10 @@ pub(crate) enum UiRef<'a> {
 impl<'a> UiNode2<'a> {
     pub(crate) fn ui_mut(&mut self) -> &mut Ui {
         match &mut self.ui_ref {
-            UiRef::Mut(ui) => return ui,
+            // We only call ui_mut() from functions that take &mut self.
+            // [`Ui::get_node_mut()`] ensures that if the caller has access to a `&mut UiNode`, it will have been constructed with `UiRef::Mut`.
             UiRef::NonMut(_) => unreachable!(),
+            UiRef::Mut(ui) => return ui,
         }
     }
 
@@ -25,8 +27,8 @@ impl<'a> UiNode2<'a> {
     }
 }
 
-
-// // use crate::*;
+// // // This is another way to do it. The unsafe is scarier, but as long as we don't refactor everything to avoid the partial borrow, the other way needs unsafe code as well. It still would have the advantage of not having a lifetime parameter in UiNode2. Although maybe it's more honest to have it.
+// use crate::*;
 // use std::ptr::NonNull;
 
 // pub struct UiNode2 {
@@ -64,58 +66,5 @@ impl<'a> UiNode2<'a> {
 //     }
 // }
 
-// This is another way that we could do it safely:
 
-// use crate::*;
 
-// pub struct UiNode2<'a> {
-//     pub(crate) i: NodeI,
-//     pub(crate) ui_ref: UiRef<'a>,
-// }
-// pub(crate) enum UiRef<'a> {
-//     Mut(&'a mut Ui),
-//     NonMut(&'a Ui),
-// }
-
-// impl<'a> UiNode2<'a> {
-//     pub(crate) fn ui_mut(&mut self) -> &mut Ui {
-//         match &mut self.ui_ref {
-//             UiRef::Mut(ui) => return ui,
-//             UiRef::NonMut(_) => unreachable!(),
-//         }
-//     }
-
-//     pub(crate) fn ui(&self) -> &Ui {
-//         match &self.ui_ref {
-//             UiRef::Mut(ui) => ui,
-//             UiRef::NonMut(ui) => return ui,
-//         }
-//     }
-// }
-
-// From here, it looks great. The lifetime parameter is a bit of useless noise but not a big deal.
-// But the problem is that we'd still have to create the wrapper struct inside the Ui to have reference semantics (which is the whole point).
-
-// fn get_node2_mut(&mut self, key: NodeKey) -> Option<&mut UiNode2> {
-//     let i = self.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
-//     if self.nodes[i].currently_hidden || self.nodes[i].exiting {
-//         return None;
-//     }
-
-//     let wrapper = UiNode2 { i, ui_ref: UiRef::Mut(self)  };
-//     return Some(self.sys.arena_for_wrapper_structs.alloc(wrapper));
-// }
-
-// If we try to do this, we'd get a partial-borrow-style issue, because the arena is another field of `self`.
-// So we can't store mutable `&mut self` references in it without it obviously overlapping. 
-
-// The solution would be to add another layer of indirection to the Ui: 
-
-// pub struct Ui {
-//     pub(crate) real: UiReal,
-//     pub(crate) node_wrapper_arena: Bump,
-// }
-
-// Then the UiNode would store a reference to the UiReal.
-// At the moment I am not ready to dump so much indirection.
-// The NonNull system is complicated as well, but it's scoped to the UiNode: with that kind of indirection, everyone trying to read the code 

@@ -17,10 +17,8 @@ use winit::keyboard::Key;
 use key_events::FullKeyEvent;
 
 use std::any::Any;
-use std::cell::Cell;
 use std::collections::BinaryHeap;
 use std::num::NonZeroUsize;
-use std::ptr::NonNull;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
@@ -162,23 +160,51 @@ pub(crate) struct System {
 }
 
 impl Ui {
-    fn get_node2_mut(&mut self, key: NodeKey) -> Option<&mut UiNode2> {
+    pub fn get_node2_mut(&mut self, key: NodeKey) -> Option<&mut UiNode2<'_>> {
         let i = self.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
         if self.nodes[i].currently_hidden || self.nodes[i].exiting {
             return None;
         }
 
-        let self_ptr = self as *mut Self;
-    
+        // SAFETY: this is a partial borrow workaround.
+        // Hopefully the fact that it's okay is clear enough from the fact that we could make it safe by splitting the Ui struct like this:
+        // ```
+        // pub struct Ui {
+        //     ui_real: UiReal,
+        //     arena: Bump,
+        // }
+        // ```
+        // Then making UiRef hold a reference to the UiReal, and finally moving all the internal methods that need to be used from the `UiNode` to `UiReal`.
+        // (This works because the `UiNode` methods never have to touch the arena).
+        // Right now I don't think it's worth it to make the code harder to read for everyone (even if they don't use get_node_mut at all) just to avoid this one line of unsafe code.
+        // 
+        // If you are wondering why are we creating wrapper structs inside an arena in the first place, it's so that the `UiNode` has better ergonomics.
+        // That is, so that the interface looks like this: 
+        // 
+        // ```
+        // let node: &UiNode = ui.get_node(key);
+        // let node_mut: &mut UiNode = ui.get_node_mut(key);
+        // ```
+        // 
+        // Rather than this: 
+        // 
+        // ```
+        // let node: UiNode = ui.get_node(key);
+        // let mut node_mut: UiNodeMut = ui.get_node_mut(key);
+        // ```
+        // 
+        // Where UiNode and UiNodeMut are crappy separate wrapper structs, the caller has to make the node_mut binding itself mutable, etc.
+
+        let arena_ref = unsafe { (&mut self.sys.arena_for_wrapper_structs as *mut Bump).as_mut().unwrap() };
+
         let wrapper = UiNode2 { i, ui_ref: UiRef::Mut(self)  };
 
-        let new_self = unsafe { self_ptr.as_mut().unwrap() };
-        let wrapper = new_self.sys.arena_for_wrapper_structs.alloc(wrapper);
+        let wrapper = arena_ref.alloc(wrapper);
 
         return Some(wrapper);
     }
 
-    fn get_node2(&self, key: NodeKey) -> Option<&UiNode2> {
+    pub fn get_node2(&self, key: NodeKey) -> Option<&UiNode2<'_>> {
         let i = self.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
         if self.nodes[i].currently_hidden || self.nodes[i].exiting {
             return None;
