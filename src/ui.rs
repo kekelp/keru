@@ -3,6 +3,7 @@ use crate::*;
 use crate::math::Axis::*;
 
 use ahash::{HashMap, HashMapExt};
+use bumpalo::Bump;
 use glam::Vec2;
 
 use keru_draw::DrawContext;
@@ -16,8 +17,10 @@ use winit::keyboard::Key;
 use key_events::FullKeyEvent;
 
 use std::any::Any;
+use std::cell::Cell;
 use std::collections::BinaryHeap;
 use std::num::NonZeroUsize;
+use std::ptr::NonNull;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
@@ -76,7 +79,7 @@ pub enum RenderCommand {
 pub struct Ui {
     pub(crate) nodes: Nodes,
     pub(crate) sys: System,
-    pub(crate) format_scratch: String, // todo use the thread local arena instead?
+    pub(crate) format_scratch: String, // todo use the thread local arena everywhere and remove this
     pub(crate) custom_render_commands: Vec<RenderCommand>,
 }
 
@@ -154,6 +157,32 @@ pub(crate) struct System {
 
     pub listened_keys: Vec<Key>,
     pub filter_listened_keys: bool,
+
+    pub arena_for_wrapper_structs: Bump,
+}
+
+impl Ui {
+    fn get_node2_mut(&mut self, key: NodeKey) -> Option<&mut UiNode2> {
+        let i = self.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
+        if self.nodes[i].currently_hidden || self.nodes[i].exiting {
+            return None;
+        }
+
+        let unsafe_ui_pointer: NonNull<Ui> = NonNull::new(self).unwrap();
+        let wrapper = UiNode2::new(i, unsafe_ui_pointer);
+        return Some(self.sys.arena_for_wrapper_structs.alloc(wrapper));
+    }
+
+    fn get_node2(&self, key: NodeKey) -> Option<&UiNode2> {
+        let i = self.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
+        if self.nodes[i].currently_hidden || self.nodes[i].exiting {
+            return None;
+        }
+
+        let unsafe_ui_pointer: NonNull<Ui> = NonNull::new((self as *const Ui).cast_mut()).unwrap();
+        let wrapper = UiNode2::new(i, unsafe_ui_pointer);
+        return Some(self.sys.arena_for_wrapper_structs.alloc(wrapper));
+    }
 }
 
 /// A handle that can be used to wake up the [`Ui`] from another thread.
@@ -328,6 +357,7 @@ impl Ui {
 
                 listened_keys: Vec::new(),
                 filter_listened_keys: false,
+                arena_for_wrapper_structs: Bump::with_capacity(10)
             },
         }
     }

@@ -847,3 +847,16 @@ impl UiParent {
         self.get_uinode(ui).is_scrolled()
     }
 }
+
+impl UiNode2 {
+    pub fn set_text(&mut self, text: &str) -> Option<()> {
+        let i = self.i;
+        let ui = self.ui_mut();
+        let text_i = ui.nodes[i].text_i.as_ref()?;
+        match text_i {
+            TextI::TextBox(handle) => ui.sys.renderer.text.get_text_box_mut(&handle).set_text_hashed(text),
+            TextI::TextEdit(handle) => ui.sys.renderer.text.get_text_edit_mut(&handle).set_text_hashed(text),
+        };
+        return Some(())
+    }
+}

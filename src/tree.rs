@@ -857,6 +857,8 @@ impl Ui {
 
         self.sys.mouse_input.finish_frame();
         reset_arena();
+        
+        self.sys.arena_for_wrapper_structs.reset();
     }
 
     /// Returns `true` if a node corresponding to `key` exists and if it is currently part of the GUI tree. 
