@@ -8,6 +8,7 @@ use crate::inner_node::*;
 use crate::mouse_events::{DragEvent, DragReleaseEvent};
 use crate::Axis::*;
 
+/// A struct representing a node within the [`Ui`].
 pub struct UiNode<'a> {
     pub(crate) i: NodeI,
     pub(crate) ui: &'a Ui,
@@ -53,6 +54,16 @@ impl<'a> UiNode<'a> {
     /// Get the number of children added to the node so far.
     pub fn children_count(&self) -> usize {
         self.ui.nodes[self.i].n_children as usize
+    }
+
+    /// Returns `true` if the node is currently hidden (excluded from the tree but retained in memory).
+    pub fn is_hidden(&self) -> bool {
+        self.ui.nodes[self.i].currently_hidden
+    }
+
+    /// Returns `true` if the node is currently playing its exit animation before being removed.
+    pub fn is_exiting(&self) -> bool {
+        self.ui.nodes[self.i].exiting
     }
 
     pub(crate) fn node(&self) -> &InnerNode {
@@ -129,7 +140,24 @@ impl<'a> UiNode<'a> {
 }
 
 impl Ui {
+    /// Get the [`UiNode`] corresponding to the `key`, if such a node is currently part of the visible UI tree.
+    /// 
+    /// This function will return the node if it exists and it is both visible and interactable. So it will return `None` if the node exists but it is hidden or if it is doing an exiting animation right before disappearing. Use also [`Ui::get_node_unfiltered`] for a version that also returns hidden and exiting nodes.
+    ///
+    /// If the same key was used to add multiple nodes in the same frame, the key will always return the first one. You can use [`NodeKey::sibling()`] to create different "versions" of the same key dynamically and still be able to point to them.
+    /// 
     pub fn get_node(&self, key: NodeKey) -> Option<UiNode<'_>> {
+        let i = self.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
+        if self.nodes[i].currently_hidden || self.nodes[i].exiting {
+            return None;
+        }
+        return Some(UiNode { i, ui: self });
+    }
+
+    /// Like [`Ui::get_node`], but also returns nodes that are currently hidden or exiting.
+    ///
+    /// You can use [`UiNode::is_hidden`] and [`UiNode::is_exiting`] to filter by state as needed.
+    pub fn get_node_unfiltered(&self, key: NodeKey) -> Option<UiNode<'_>> {
         let i = self.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
         return Some(UiNode { i, ui: self });
     }
