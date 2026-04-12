@@ -1,4 +1,4 @@
-use std::{fmt::Write, hash::Hash, panic::Location};
+use std::{fmt, fmt::Write, hash::Hash, panic::Location};
 use glam::Vec2;
 
 use crate::*;
@@ -191,20 +191,24 @@ impl InnerNode {
     }
 }
 
-impl Ui {
-    pub(crate) fn node_debug_name_fmt_scratch(&mut self, i: NodeI) -> &str {
-        self.format_scratch.clear();
-        
-        if !self.nodes[i].original_key.debug_name().is_empty() {
-            let _ = write!(&mut self.format_scratch, "{} ", self.nodes[i].original_key.debug_name());
+pub(crate) struct NodeDebugName<'a>(pub(crate) &'a InnerNode);
 
-            if let Some(twin_n) = self.nodes[i].is_twin {
-                let _ = write!(&mut self.format_scratch, "(twin #{})", twin_n );
+impl fmt::Display for NodeDebugName<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if !self.0.original_key.debug_name().is_empty() {
+            write!(f, "{} ", self.0.original_key.debug_name())?;
+
+            if let Some(twin_n) = self.0.is_twin {
+                write!(f, "(twin #{})", twin_n)?;
             }
         }
-        let _ = write!(&mut self.format_scratch, "[{}]", self.nodes[i].debug_location );
+        write!(f, "[{}]", self.0.debug_location)
+    }
+}
 
-        return &self.format_scratch;
+impl Ui {
+    pub(crate) fn node_debug_name(&self, i: NodeI) -> NodeDebugName<'_> {
+        NodeDebugName(&self.sys.nodes[i])
     }
 }
 impl InnerNode {

@@ -57,11 +57,11 @@ impl Ui {
                 let last_cursor_pos = self.sys.mouse_input.prev_cursor_position;
                 if vec2(position.x as f32, position.y as f32) != last_cursor_pos {
                     let has_hover_sense = self.sys.hovered.iter()
-                        .filter_map(|id| self.nodes.get_by_id_ick(id).map(|(node, _)| node))
+                        .filter_map(|id| self.sys.nodes.get_by_id_ick(id).map(|(node, _)| node))
                         .any(|node| node.params.interact.senses.contains(Sense::HOVER));
 
                     let has_drag = self.sys.mouse_input.currently_dragging()
-                        .filter_map(|(id, _)| self.nodes.get_by_id_ick(id).map(|(node, _)| node))
+                        .filter_map(|(id, _)| self.sys.nodes.get_by_id_ick(id).map(|(node, _)| node))
                         .any(|node| node.params.interact.senses.contains(Sense::DRAG));
 
                     if has_hover_sense || has_drag {
@@ -116,7 +116,7 @@ impl Ui {
 
     /// Render a node's shape using keru_draw.
     pub(crate) fn render_node_shape_to_scene(&mut self, i: NodeI, texture: Option<LoadedImage>, debug_box: bool) {
-        let node = &self.nodes[i];
+        let node = &self.sys.nodes[i];
 
         // Get rect in normalized space (0-1)
         let animated_rect = node.get_animated_rect();

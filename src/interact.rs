@@ -83,8 +83,8 @@ bitflags::bitflags! {
 
 impl Ui {
     pub(crate) fn click_rect(&self, i: NodeI) -> ClickRect {
-        let real_rect = self.nodes[i].real_rect;
-        let transform = self.nodes[i].accumulated_transform;
+        let real_rect = self.sys.nodes[i].real_rect;
+        let transform = self.sys.nodes[i].accumulated_transform;
         let size = self.sys.size;
 
         // Apply transform
@@ -97,7 +97,7 @@ impl Ui {
         );
 
         // Clip the transformed rect to the node's clip_rect
-        let clip_rect = self.nodes[i].clip_rect;
+        let clip_rect = self.sys.nodes[i].clip_rect;
         let clipped_rect = XyRect::new(
             intersect(transformed_rect[X], clip_rect[X]),
             intersect(transformed_rect[Y], clip_rect[Y]),
@@ -106,9 +106,9 @@ impl Ui {
         ClickRect {
             rect: clipped_rect,
             i,
-            senses: self.nodes[i].params.interact.senses,
-            scrollable: self.nodes[i].params.layout.scrollable,
-            absorbs_mouse_events: self.nodes[i].params.interact.absorbs_mouse_events,
+            senses: self.sys.nodes[i].params.interact.senses,
+            scrollable: self.sys.nodes[i].params.layout.scrollable,
+            absorbs_mouse_events: self.sys.nodes[i].params.interact.absorbs_mouse_events,
         }
     }
 
@@ -128,7 +128,7 @@ impl Ui {
                 || rect.absorbs_mouse_events;
 
             if is_interactive {
-                result.push(self.nodes[rect.i].id);
+                result.push(self.sys.nodes[rect.i].id);
             }
 
             if rect.absorbs_mouse_events {
@@ -154,7 +154,7 @@ impl Ui {
 
             // If this node has the sense, add it
             if rect.senses.contains(sense) {
-                result.push(self.nodes[rect.i].id);
+                result.push(self.sys.nodes[rect.i].id);
             }
 
             // If this is an absorbing node
@@ -164,18 +164,18 @@ impl Ui {
                     break;
                 } else {
                     // Absorbing node without the sense - walk up the parent tree
-                    let mut current_i = self.nodes[rect.i].parent;
+                    let mut current_i = self.sys.nodes[rect.i].parent;
                     while current_i != ROOT_I {
                         let parent_rect = self.click_rect(current_i);
                         if self.hit_click_rect(&parent_rect) {
                             if parent_rect.senses.contains(sense) {
-                                result.push(self.nodes[current_i].id);
+                                result.push(self.sys.nodes[current_i].id);
                             }
                             if parent_rect.absorbs_mouse_events {
                                 break;
                             }
                         }
-                        current_i = self.nodes[current_i].parent;
+                        current_i = self.sys.nodes[current_i].parent;
                     }
                     break; // Exit main loop after parent walking
                 }
@@ -193,7 +193,7 @@ impl Ui {
             let rect = &self.sys.click_rects[clk_i];
 
             if self.hit_click_rect(rect) {
-                result.push(self.nodes[rect.i].id);
+                result.push(self.sys.nodes[rect.i].id);
 
                 if rect.absorbs_mouse_events {
                     break;
@@ -221,8 +221,8 @@ impl Ui {
                 self.start_hovering(id);
             } else {
                 // Already hovered - check if we need to signal input
-                if let Some(entry) = self.nodes.node_hashmap.get(&id) {
-                    if self.nodes[entry.slab_i].params.interact.senses.contains(Sense::HOVER) {
+                if let Some(entry) = self.sys.nodes.node_hashmap.get(&id) {
+                    if self.sys.nodes[entry.slab_i].params.interact.senses.contains(Sense::HOVER) {
                         self.set_new_ui_input();
                     }
                 }
@@ -243,8 +243,8 @@ impl Ui {
             let all_hits = self.scan_any_node_hits();
             if let Some(&new_id) = all_hits.first() {
                 if self.sys.inspect_hovered.first() != Some(&new_id) {
-                    if let Some(entry) = self.nodes.node_hashmap.get(&new_id) {
-                        log::info!("Inspect mode: hovering {}", self.node_debug_name_fmt_scratch(entry.slab_i));
+                    if let Some(entry) = self.sys.nodes.node_hashmap.get(&new_id) {
+                        log::info!("Inspect mode: hovering {}", self.node_debug_name(entry.slab_i));
                     }
                 }
             }
@@ -256,7 +256,7 @@ impl Ui {
         self.sys.hovered.push(id);
 
         let (has_hover_sense, has_click_animation) = {
-            if let Some((node, _)) = self.nodes.get_mut_by_id(&id) {
+            if let Some((node, _)) = self.sys.nodes.get_mut_by_id(&id) {
                 let has_hover = node.params.interact.senses.contains(Sense::HOVER);
                 let has_anim = node.params.interact.click_animation;
                 if has_anim {
@@ -279,7 +279,7 @@ impl Ui {
     }
 
     fn end_hovering(&mut self, id: Id) {
-        if let Some((node, _)) = self.nodes.get_mut_by_id(&id) {
+        if let Some((node, _)) = self.sys.nodes.get_mut_by_id(&id) {
             if node.last_frame_touched == self.sys.current_frame && node.params.interact.click_animation {
                 node.hovered = false;
                 node.hover_timestamp = slow_accurate_timestamp_for_events_only();
@@ -305,7 +305,7 @@ impl Ui {
         // todo: instead of re-iterating, maybe do this while scanning?
         let mut any_consumed = false;
         for &id in &click_ids {
-            if let Some(entry) = self.nodes.node_hashmap.get(&id) {
+            if let Some(entry) = self.sys.nodes.node_hashmap.get(&id) {
                 let i = entry.slab_i;
                 let consumed = self.resolve_click_press(button, window, i);
                 any_consumed = any_consumed || consumed;
@@ -322,8 +322,8 @@ impl Ui {
         // todo: instead of re-iterating, maybe do this while scanning?
         // Signal update if any relevant nodes
         for &id in &click_ids {
-            if let Some(entry) = self.nodes.node_hashmap.get(&id) {
-                let senses = self.nodes[entry.slab_i].params.interact.senses;
+            if let Some(entry) = self.sys.nodes.node_hashmap.get(&id) {
+                let senses = self.sys.nodes[entry.slab_i].params.interact.senses;
                 if senses.contains(Sense::CLICK_RELEASE) || senses.contains(Sense::DRAG) {
                     self.set_new_ui_input();
                 }
@@ -332,29 +332,29 @@ impl Ui {
     }
 
     fn resolve_click_press(&mut self, button: MouseButton, _window: &Window, i: NodeI) -> bool {
-        let id = self.nodes[i].id;
+        let id = self.sys.nodes[i].id;
 
-        if self.nodes[i].params.interact.senses.contains(Sense::CLICK) {
+        if self.sys.nodes[i].params.interact.senses.contains(Sense::CLICK) {
             self.set_new_ui_input();
         }
 
         if button == MouseButton::Left {
             let t = T0.elapsed().as_secs_f32();
 
-            if self.nodes[i].params.interact.click_animation {
-                self.nodes[i].last_click = t;
+            if self.sys.nodes[i].params.interact.click_animation {
+                self.sys.nodes[i].last_click = t;
                 self.sys.changes.rebuild_render_data = true;
                 self.sys.anim_render_timer.push_new(Duration::from_secs_f32(ANIMATION_RERENDER_TIME));
             }
 
-            if let Some(text_i) = &self.nodes[i].text_i {
+            if let Some(text_i) = &self.sys.nodes[i].text_i {
                 if matches!(text_i, TextI::TextEdit(_)) {
                     self.sys.focused = Some(id);
                 }
             }
         }
 
-        return self.nodes[i].params.interact.absorbs_mouse_events;
+        return self.sys.nodes[i].params.interact.absorbs_mouse_events;
     }
 
     pub(crate) fn handle_keyboard_event(&mut self, event: &KeyEvent) -> bool {
@@ -377,7 +377,7 @@ impl Ui {
         let Some(&first_id) = hovered_ids.first() else {
             return;
         };
-        let Some(entry) = self.nodes.node_hashmap.get(&first_id) else {
+        let Some(entry) = self.sys.nodes.node_hashmap.get(&first_id) else {
             return;
         };
         let hover_i = entry.slab_i;
@@ -399,18 +399,18 @@ impl Ui {
             let mut current_i = hover_i;
             loop {
                 // Check for SCROLL sense first
-                if self.nodes[current_i].params.interact.senses.contains(Sense::SCROLL) {
+                if self.sys.nodes[current_i].params.interact.senses.contains(Sense::SCROLL) {
                     scroll_target = Some((current_i, true));
                     break;
                 }
 
                 // Then check for scrollable container
-                if self.nodes[current_i].params.layout.scrollable[axis] {
+                if self.sys.nodes[current_i].params.layout.scrollable[axis] {
                     scroll_target = Some((current_i, false));
                     break;
                 }
 
-                let parent_i = self.nodes[current_i].parent;
+                let parent_i = self.sys.nodes[current_i].parent;
                 if parent_i == ROOT_I {
                     break;
                 }
@@ -420,7 +420,7 @@ impl Ui {
 
         if let Some((target_i, is_sense)) = scroll_target {
             if is_sense {
-                let id = self.nodes[target_i].id;
+                let id = self.sys.nodes[target_i].id;
                 let scroll_delta = match delta {
                     MouseScrollDelta::LineDelta(x, y) => Vec2::new(*x * 0.1, *y * 0.1),
                     MouseScrollDelta::PixelDelta(p) => Vec2::new(p.x as f32, p.y as f32),

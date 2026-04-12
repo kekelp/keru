@@ -75,15 +75,18 @@ pub enum RenderCommand {
 ///
 /// To render the GUI to the screen, call [`Ui::render`].
 pub struct Ui {
-    pub(crate) nodes: Nodes,
     pub(crate) sys: System,
-    pub(crate) format_scratch: String, // todo use the thread local arena everywhere and remove this
-    pub(crate) custom_render_commands: Vec<RenderCommand>,
+    // todo: maybe get rid of this split and just use unsafe for the partial borrow in get_node_mut.
+    pub(crate) arena_for_wrapper_structs: Bump,
 }
 
 static INSTANCE_COUNTER: AtomicU32 = AtomicU32::new(1);
 
 pub(crate) struct System {
+    pub nodes: Nodes,
+
+    pub custom_render_commands: Vec<RenderCommand>,
+
     pub inspect_mode: bool,
 
     pub global_animation_speed: f32,
@@ -155,30 +158,16 @@ pub(crate) struct System {
 
     pub listened_keys: Vec<Key>,
     pub filter_listened_keys: bool,
-
-    pub arena_for_wrapper_structs: Bump,
 }
 
 impl Ui {
     pub fn get_node2_mut(&mut self, key: NodeKey) -> Option<&mut UiNode2<'_>> {
-        let i = self.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
-        if self.nodes[i].currently_hidden || self.nodes[i].exiting {
+        let i = self.sys.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
+        if self.sys.nodes[i].currently_hidden || self.sys.nodes[i].exiting {
             return None;
         }
 
-        // SAFETY: this is a partial borrow workaround.
-        // Hopefully the fact that it's okay is clear enough from the fact that we could make it safe by splitting the Ui struct like this:
-        // ```
-        // pub struct Ui {
-        //     ui_real: UiReal,
-        //     arena: Bump,
-        // }
-        // ```
-        // Then making UiRef hold a reference to the UiReal, and finally moving all the internal methods that need to be used from the `UiNode` to `UiReal`.
-        // (This works because the `UiNode` methods never have to touch the arena).
-        // Right now I don't think it's worth it to make the code harder to read for everyone (even if they don't use get_node_mut at all) just to avoid this one line of unsafe code.
-        // 
-        // If you are wondering why are we creating wrapper structs inside an arena in the first place, it's so that the `UiNode` has better ergonomics.
+        // If you are wondering why are we creating wrapper structs inside an arena, it's so that the `UiNode` has better ergonomics.
         // That is, so that the interface looks like this: 
         // 
         // ```
@@ -195,23 +184,20 @@ impl Ui {
         // 
         // Where UiNode and UiNodeMut are crappy separate wrapper structs, the caller has to make the node_mut binding itself mutable, etc.
 
-        let arena_ref = unsafe { (&mut self.sys.arena_for_wrapper_structs as *mut Bump).as_mut().unwrap() };
-
-        let wrapper = UiNode2 { i, ui_ref: UiRef::Mut(self)  };
-
-        let wrapper = arena_ref.alloc(wrapper);
+        let wrapper = UiNode2 { i, ui_ref: UiRef::Mut(&mut self.sys)  };
+        let wrapper = self.arena_for_wrapper_structs.alloc(wrapper);
 
         return Some(wrapper);
     }
 
     pub fn get_node2(&self, key: NodeKey) -> Option<&UiNode2<'_>> {
-        let i = self.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
-        if self.nodes[i].currently_hidden || self.nodes[i].exiting {
+        let i = self.sys.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
+        if self.sys.nodes[i].currently_hidden || self.sys.nodes[i].exiting {
             return None;
         }
 
-        let wrapper = UiNode2 { i, ui_ref: UiRef::NonMut(self)  };
-        return Some(self.sys.arena_for_wrapper_structs.alloc(wrapper));
+        let wrapper = UiNode2 { i, ui_ref: UiRef::NonMut(&self.sys)  };
+        return Some(self.arena_for_wrapper_structs.alloc(wrapper));
     }
 }
 
@@ -325,11 +311,10 @@ impl Ui {
         let renderer = Renderer::new(&device, &queue, config.format);
 
         Self {
-            nodes,
-            format_scratch: String::with_capacity(1024),
-            custom_render_commands: Vec::with_capacity(50),
-
+            
             sys: System {
+                nodes,
+                custom_render_commands: Vec::with_capacity(50),
                 t: 0.0,
                 global_animation_speed: 1.0,
                 disable_animations_on_resize: true,
@@ -387,8 +372,9 @@ impl Ui {
 
                 listened_keys: Vec::new(),
                 filter_listened_keys: false,
-                arena_for_wrapper_structs: Bump::with_capacity(10)
             },
+
+            arena_for_wrapper_structs: Bump::with_capacity(10)
         }
     }
 
@@ -529,7 +515,7 @@ impl Ui {
     /// 
     /// If you don't use any custom wgpu rendering or custom shaders, this is not needed: use [Ui::render()] or [Ui::autorender()].
     pub fn render_commands(&self) -> &[RenderCommand] {
-        &self.custom_render_commands
+        &self.sys.custom_render_commands
     }
 
     // todo: expose functions directly instead of the inner struct
@@ -667,16 +653,16 @@ impl Ui {
     /// 
     /// The closure is executed immediately, not stored, so there are no limitations with borrowing state.
     pub fn canvas_drawing(&mut self, key: NodeKey, drawing_function: impl FnOnce(&mut DrawContext)) {
-        let Some(i) = self.nodes.node_hashmap.get(&key.id_with_subtree()).map(|e| e.slab_i) else {
+        let Some(i) = self.sys.nodes.node_hashmap.get(&key.id_with_subtree()).map(|e| e.slab_i) else {
             return;
         };
 
-        let (transform, clip_rect) = match self.nodes[i].canvas_transform_and_clip {
+        let (transform, clip_rect) = match self.sys.nodes[i].canvas_transform_and_clip {
             Some(h) => h,
             None => {
                 let transform_handle = self.sys.renderer.insert_transform(keru_draw::Transform::identity());
                 let clip_handle = self.sys.renderer.insert_clip_rect(keru_draw::ClipRect::NO_CLIPPING);
-                self.nodes[i].canvas_transform_and_clip = Some((transform_handle, clip_handle));
+                self.sys.nodes[i].canvas_transform_and_clip = Some((transform_handle, clip_handle));
                 (transform_handle, clip_handle)
             }
         };
@@ -691,7 +677,7 @@ impl Ui {
         self.sys.renderer.clear_current_transform();
         self.sys.renderer.clear_current_clip_rect();
 
-        self.nodes[i].canvas_instances = Some(instances);
+        self.sys.nodes[i].canvas_instances = Some(instances);
     }
 
     // todo what's going on here
@@ -721,7 +707,7 @@ impl Ui {
         }
 
         // todo more accurate clicks
-        match self.nodes[node_i].params.shape {
+        match self.sys.nodes[node_i].params.shape {
             Shape::NoShape => {
                 return false; // weird...
             }
@@ -843,7 +829,7 @@ impl Ui {
     }
 
     pub(crate) fn set_static_image(&mut self, i: NodeI, image: &'static [u8]) {
-        let node = &mut self.nodes[i];
+        let node = &mut self.sys.nodes[i];
         let source = ImageSourceId::StaticPtr(image.as_ptr());
 
         if node.last_image_source == Some(source) {
@@ -862,8 +848,8 @@ impl Ui {
             log::info!("Loaded image: {}x{} on page {}", loaded.width, loaded.height, loaded.page);
             let imageref = ImageRef::Raster(loaded);
             self.cache_image(source, imageref.clone());
-            self.nodes[i].imageref = Some(imageref);
-            self.nodes[i].last_image_source = Some(source);
+            self.sys.nodes[i].imageref = Some(imageref);
+            self.sys.nodes[i].last_image_source = Some(source);
             self.sys.changes.should_rebuild_render_data = true;
         } else {
             log::error!("Failed to load image from {} bytes", image.len());
@@ -871,7 +857,7 @@ impl Ui {
     }
 
     pub(crate) fn set_static_svg(&mut self, i: NodeI, svg_data: &'static [u8]) {
-        let node = &mut self.nodes[i];
+        let node = &mut self.sys.nodes[i];
         let source = ImageSourceId::StaticPtr(svg_data.as_ptr());
 
         if node.last_image_source == Some(source) {
@@ -891,8 +877,8 @@ impl Ui {
             log::info!("Loaded SVG: {}x{} on page {}", loaded.width, loaded.height, loaded.page);
             let imageref = ImageRef::Svg(loaded);
             self.cache_image(source, imageref.clone());
-            self.nodes[i].imageref = Some(imageref);
-            self.nodes[i].last_image_source = Some(source);
+            self.sys.nodes[i].imageref = Some(imageref);
+            self.sys.nodes[i].last_image_source = Some(source);
             self.sys.changes.should_rebuild_render_data = true;
         } else {
             log::error!("Failed to load SVG from {} bytes", svg_data.len());
@@ -900,7 +886,7 @@ impl Ui {
     }
 
     pub(crate) fn set_path_image(&mut self, i: NodeI, path: &str) {
-        let node = &mut self.nodes[i];
+        let node = &mut self.sys.nodes[i];
         let source = crate::inner_node::ImageSourceId::PathHash(ahash(&path));
 
         if node.last_image_source == Some(source) {
@@ -921,8 +907,8 @@ impl Ui {
                     log::info!("Loaded image from path '{}': {}x{} on page {}", path, loaded.width, loaded.height, loaded.page);
                     let imageref = ImageRef::Raster(loaded);
                     self.cache_image(source, imageref.clone());
-                    self.nodes[i].imageref = Some(imageref);
-                    self.nodes[i].last_image_source = Some(source);
+                    self.sys.nodes[i].imageref = Some(imageref);
+                    self.sys.nodes[i].last_image_source = Some(source);
                     self.sys.changes.should_rebuild_render_data = true;
                 } else {
                     log::error!("Failed to decode image from path '{}'", path);
@@ -935,7 +921,7 @@ impl Ui {
     }
 
     pub(crate) fn set_path_svg(&mut self, i: NodeI, path: &str) {
-        let node = &mut self.nodes[i];
+        let node = &mut self.sys.nodes[i];
         let source = crate::inner_node::ImageSourceId::PathHash(ahash(&path));
 
         if node.last_image_source == Some(source) {
@@ -957,8 +943,8 @@ impl Ui {
                     log::info!("Loaded SVG from path '{}': {}x{} on page {}", path, loaded.width, loaded.height, loaded.page);
                     let imageref = ImageRef::Svg(loaded);
                     self.cache_image(source, imageref.clone());
-                    self.nodes[i].imageref = Some(imageref);
-                    self.nodes[i].last_image_source = Some(source);
+                    self.sys.nodes[i].imageref = Some(imageref);
+                    self.sys.nodes[i].last_image_source = Some(source);
                     self.sys.changes.should_rebuild_render_data = true;
                 } else {
                     log::error!("Failed to decode SVG from path '{}'", path);

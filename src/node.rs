@@ -1599,7 +1599,7 @@ impl Ui {
         let edit_disabled = text_options.map(|to| to.edit_disabled).unwrap_or(false);
         let single_line = text_options.map(|to| to.single_line).unwrap_or(false);
 
-        let needs_new_widget = match (&self.nodes[i].text_i, edit) {
+        let needs_new_widget = match (&self.sys.nodes[i].text_i, edit) {
             (None, _) => true,
             (Some(TextI::TextEdit(_)), true) => false,   // Already TextEdit, want TextEdit
             (Some(TextI::TextBox(_)), false) => false,   // Already TextBox, want TextBox
@@ -1608,7 +1608,7 @@ impl Ui {
 
         if needs_new_widget {
             // Remove old widget
-            if let Some(old_text_i) = self.nodes[i].text_i.take() {
+            if let Some(old_text_i) = self.sys.nodes[i].text_i.take() {
                 match old_text_i {
                     TextI::TextBox(handle) => self.sys.renderer.text.remove_text_box(handle),
                     TextI::TextEdit(handle) => self.sys.renderer.text.remove_text_edit(handle),
@@ -1639,10 +1639,10 @@ impl Ui {
                 TextI::TextBox(handle)
             };
 
-            self.nodes[i].text_i = Some(new_text_i);
+            self.sys.nodes[i].text_i = Some(new_text_i);
         } else {
             // Same type - just update content and style
-            match &self.nodes[i].text_i {
+            match &self.sys.nodes[i].text_i {
                 Some(TextI::TextEdit(handle)) => {
                     // don't update the content. content in a text edit box is not reset declaratively every frame, obviously.
                     if let Some(style) = style {
@@ -1670,7 +1670,7 @@ impl Ui {
         }
 
         // Apply text options
-        if let Some(text_i) = &self.nodes[i].text_i {
+        if let Some(text_i) = &self.sys.nodes[i].text_i {
             match text_i {
                 TextI::TextEdit(handle) => {
                     self.sys.renderer.text.get_text_edit_mut(handle).set_disabled(edit_disabled);
@@ -1698,11 +1698,11 @@ impl Ui {
         // Link this text box into the global cross-box selection chain.
         // Runs every frame so that links are always up-to-date regardless of structural changes.
         if !edit && selectable {
-            if let Some(TextI::TextBox(current_handle)) = &self.nodes[i].text_i {
+            if let Some(TextI::TextBox(current_handle)) = &self.sys.nodes[i].text_i {
                 self.sys.renderer.text.unlink_text_box(current_handle);
 
                 if let Some(prev_node_i) = self.sys.last_linked_text_box_node {
-                    if let Some(TextI::TextBox(prev_handle)) = &self.nodes[prev_node_i].text_i {
+                    if let Some(TextI::TextBox(prev_handle)) = &self.sys.nodes[prev_node_i].text_i {
                         self.sys.renderer.text.link_text_boxes(prev_handle, current_handle);
                     }
                 }
@@ -1731,8 +1731,8 @@ impl Ui {
         let new_cosmetic_hash = params.params.cosmetic_hash();
         let new_layout_hash = params.params.layout_hash();
         
-        let cosmetic_changed = new_cosmetic_hash != self.nodes[i].last_cosmetic_hash;
-        let layout_changed = new_layout_hash != self.nodes[i].last_layout_hash;
+        let cosmetic_changed = new_cosmetic_hash != self.sys.nodes[i].last_cosmetic_hash;
+        let layout_changed = new_layout_hash != self.sys.nodes[i].last_layout_hash;
 
         #[cfg(debug_assertions)]
         if reactive::is_in_skipped_reactive_block() {
@@ -1743,16 +1743,16 @@ impl Ui {
                     (false, true) => "appearance",
                     _ => unreachable!()
                 };
-                log::error!("Keru: incorrect reactive block: the {kind} params of node \"{}\" changed, but reactive thought they didn't", self.node_debug_name_fmt_scratch(i));
+                log::error!("Keru: incorrect reactive block: the {kind} params of node \"{}\" changed, but reactive thought they didn't", self.node_debug_name(i));
                 // log::error!("Keru: incorrect reactive block: the {kind} params of node \"{}\" changed, even if a reactive block declared that it shouldn't have.\n Check that the reactive block is correctly checking all the runtime variables that can affect the node's params.", self.node_debug_name(i));
             }
             return;
         }
         
-        self.nodes[i].params = params.params.clone();
+        self.sys.nodes[i].params = params.params.clone();
 
-        self.nodes[i].last_cosmetic_hash = new_cosmetic_hash;
-        self.nodes[i].last_layout_hash = new_layout_hash;
+        self.sys.nodes[i].last_cosmetic_hash = new_cosmetic_hash;
+        self.sys.nodes[i].last_layout_hash = new_layout_hash;
 
         if layout_changed {
             self.push_partial_relayout(i);

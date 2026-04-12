@@ -94,9 +94,6 @@ pub use subtree::*;
 mod ui_node;
 pub use ui_node::*;
 
-mod ui_node_base;
-pub use ui_node_base::*;
-
 mod observer;
 pub use observer::*;
 

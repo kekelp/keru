@@ -13,10 +13,10 @@ macro_rules! for_each_child {
         {
             let mut current_child = $start.first_child;
             while let Some($child) = current_child {
-                if ! $ui.nodes[$child].exiting {
+                if ! $ui.sys.nodes[$child].exiting {
                     $body
                 }
-                current_child = $ui.nodes[$child].next_sibling;
+                current_child = $ui.sys.nodes[$child].next_sibling;
             }
         }
     };
@@ -31,7 +31,7 @@ macro_rules! for_each_child_including_lingering {
             let mut current_child = $start.first_child;
             while let Some($child) = current_child {
                 $body
-                current_child = $ui.nodes[$child].next_sibling;
+                current_child = $ui.sys.nodes[$child].next_sibling;
             }
         }
     };
@@ -46,7 +46,7 @@ macro_rules! for_each_child_including_lingering_reverse {
             let mut current_child = $start.last_child;
             while let Some($child) = current_child {
                 $body
-                current_child = $ui.nodes[$child].prev_sibling;
+                current_child = $ui.sys.nodes[$child].prev_sibling;
             }
         }
     };
@@ -61,7 +61,7 @@ macro_rules! for_each_hidden_child {
             let mut current_child = $start.first_hidden_child;
             while let Some($child) = current_child {
                 $body
-                current_child = $ui.nodes[$child].next_hidden_sibling;
+                current_child = $ui.sys.nodes[$child].next_hidden_sibling;
             }
         }
     };
@@ -135,7 +135,7 @@ impl Ui {
         // we don't do update_rects here because the first frame you can't update... but maybe just special-case the first frame, then should be faster
         self.recursive_place_children(ROOT_I);
         
-        self.nodes[ROOT_I].last_layout_frame = self.sys.current_frame;
+        self.sys.nodes[ROOT_I].last_layout_frame = self.sys.current_frame;
 
     }
 
@@ -143,17 +143,17 @@ impl Ui {
         // if the node has already been layouted on the current frame, stop immediately, and don't even recurse.
         // when doing partial layouts, this avoids overlap, but it means that we have to sort the partial relayouts cleanly from least depth to highest depth in order to get it right. This is done in `relayout()`.
         let current_frame = self.sys.current_frame;
-        if self.nodes[i].last_layout_frame >= current_frame {
+        if self.sys.nodes[i].last_layout_frame >= current_frame {
             return;
         }
 
         // 1st recursive tree traversal: start from the root and recursively determine the size of all nodes
         // For the first node, use the proposed size that we got from the parent last frame.
-        let starting_proposed_size = self.nodes[i].last_proposed_sizes;
+        let starting_proposed_size = self.sys.nodes[i].last_proposed_sizes;
         let hidden_branch = if i == ROOT_I {
             false
         } else {
-            match self.nodes[self.nodes[i].parent].params.children_can_hide {
+            match self.sys.nodes[self.sys.nodes[i].parent].params.children_can_hide {
                 ChildrenCanHide::Yes => true,
                 ChildrenCanHide::No => false,
                 ChildrenCanHide::Inherit => false, // This should be determined by traversing up, but for partial relayout we simplify
@@ -165,7 +165,7 @@ impl Ui {
 
         self.recursive_place_children(i);
 
-        self.nodes[i].last_layout_frame = self.sys.current_frame;
+        self.sys.nodes[i].last_layout_frame = self.sys.current_frame;
     }
 
 
@@ -178,7 +178,7 @@ impl Ui {
         let mut size = child_proposed_size; // this default value is mostly useless
 
         for axis in [X, Y] {
-            match self.nodes[i].params.layout.size[axis] {
+            match self.sys.nodes[i].params.layout.size[axis] {
                 Size::FitContent => {
                     size[axis] = child_proposed_size[axis];
                 }, // propose the whole available size. We will shrink our final size later if they end up using less or more 
@@ -197,11 +197,10 @@ impl Ui {
 
         // apply AspectRatio
         for axis in [X, Y] {
-            if let Size::AspectRatio(aspect) = self.nodes[i].params.layout.size[axis] {
-                match self.nodes[i].params.layout.size[axis.other()] {
+            if let Size::AspectRatio(aspect) = self.sys.nodes[i].params.layout.size[axis] {
+                match self.sys.nodes[i].params.layout.size[axis.other()] {
                     Size::AspectRatio(_second_aspect) => {
-                        let debug_name = self.node_debug_name_fmt_scratch(i);
-                        log::warn!("A Size shouldn't be AspectRatio in both dimensions. (node: {})", debug_name);
+                        log::warn!("A Size shouldn't be AspectRatio in both dimensions. (node: {})", self.node_debug_name(i));
                     }
                     _ => {
                         let window_aspect = self.sys.size.x / self.sys.size.y;
@@ -222,14 +221,14 @@ impl Ui {
         let mut inner_size = size;
 
         // remove padding
-        let padding = self.pixels_to_frac2(self.nodes[i].params.layout.padding);
+        let padding = self.pixels_to_frac2(self.sys.nodes[i].params.layout.padding);
         for axis in [X, Y] {
             inner_size[axis] -= 2.0 * padding[axis];
         }
 
         // remove stack spacing
-        if let Some(stack) = self.nodes[i].params.stack {
-            let n_children = self.nodes[i].n_children as f32;
+        if let Some(stack) = self.sys.nodes[i].params.stack {
+            let n_children = self.sys.nodes[i].n_children as f32;
             let spacing = self.pixels_to_frac(stack.spacing, stack.axis);
 
             if n_children > 1.5 {
@@ -246,13 +245,13 @@ impl Ui {
         proposed_sizes: ProposedSizes,
         hideable_branch: bool,
     ) -> Xy<f32> {
-        self.nodes[i].last_proposed_sizes = proposed_sizes;
+        self.sys.nodes[i].last_proposed_sizes = proposed_sizes;
         
         // Set can_hide flag based on parent's children_can_hide setting
-        self.nodes[i].can_hide = hideable_branch;
+        self.sys.nodes[i].can_hide = hideable_branch;
         
         // Determine this node's children_can_hide setting for its children
-        let children_can_hide = match self.nodes[i].params.children_can_hide {
+        let children_can_hide = match self.sys.nodes[i].params.children_can_hide {
             ChildrenCanHide::Yes => true,
             ChildrenCanHide::No => false,
             ChildrenCanHide::Inherit => hideable_branch,
@@ -261,8 +260,8 @@ impl Ui {
         let size = self.get_size(i, proposed_sizes.to_this_child, proposed_sizes.to_all_children);
         let size_to_propose = self.get_inner_size(i, size);
 
-        let stack = self.nodes[i].params.stack;
-        let padding = self.pixels_to_frac2(self.nodes[i].params.layout.padding);
+        let stack = self.sys.nodes[i].params.stack;
+        let padding = self.pixels_to_frac2(self.sys.nodes[i].params.layout.padding);
         let mut content_size = Xy::new(0.0, 0.0);
 
         if let Some(stack) = stack {
@@ -272,8 +271,8 @@ impl Ui {
             let mut n_added_children = 0;
             let mut n_fill_children = 0;
             // First, do all non-Fill children
-            for_each_child!(self, self.nodes[i], child, {
-                if self.nodes[child].params.layout.size[stack.axis] != Size::Fill {
+            for_each_child!(self, self.sys.nodes[i], child, {
+                if self.sys.nodes[child].params.layout.size[stack.axis] != Size::Fill {
                     let child_size = self.recursive_determine_size_and_hidden(child, ProposedSizes::stack(available_size_left, size_to_propose), children_can_hide);
                     content_size.update_for_child(child_size, Some(stack));
                     if n_added_children != 0 {
@@ -295,8 +294,8 @@ impl Ui {
                 }
 
                 size_per_child[stack.axis] /= n_fill_children as f32;
-                for_each_child!(self, self.nodes[i], child, {
-                    if self.nodes[child].params.layout.size[stack.axis] == Size::Fill {
+                for_each_child!(self, self.sys.nodes[i], child, {
+                    if self.sys.nodes[child].params.layout.size[stack.axis] == Size::Fill {
                         let child_size = self.recursive_determine_size_and_hidden(child, ProposedSizes::stack(size_per_child, size_to_propose), children_can_hide);
                         content_size.update_for_child(child_size, Some(stack));
                         if n_added_children != 0 {
@@ -310,17 +309,17 @@ impl Ui {
 
         } else {
             // Propose a size to the children and let them decide
-            for_each_child!(self, self.nodes[i], child, {
+            for_each_child!(self, self.sys.nodes[i], child, {
                 let child_size = self.recursive_determine_size_and_hidden(child, ProposedSizes::container(size_to_propose), children_can_hide);
                 content_size.update_for_child(child_size, stack); // this is None
             });            
             
             // Propose the whole size_to_propose to the contents, and let them decide.
-            if self.nodes[i].text_i.is_some() {
+            if self.sys.nodes[i].text_i.is_some() {
                 let text_size = self.determine_text_size(i, size_to_propose);
                 content_size.update_for_content(text_size);
             }
-            if self.nodes[i].imageref.is_some() {
+            if self.sys.nodes[i].imageref.is_some() {
                 let image_size = self.determine_image_size(i, size_to_propose);
                 content_size.update_for_content(image_size);
             }
@@ -332,7 +331,7 @@ impl Ui {
         let mut final_size = size;
 
         for axis in [X, Y] {
-            match self.nodes[i].params.layout.size[axis] { // todo if let
+            match self.sys.nodes[i].params.layout.size[axis] { // todo if let
                 Size::FitContent => {
                     // if we use content_size instead of the size above, then content_size doesn't have padding in
                     let mut content_size_with_padding = content_size;
@@ -343,12 +342,12 @@ impl Ui {
             }
         }
 
-        self.nodes[i].size = final_size;
+        self.sys.nodes[i].size = final_size;
         return final_size;
     }
 
     fn determine_image_size(&mut self, i: NodeI, proposed_size: Xy<f32>) -> Xy<f32> {
-        if let Some(imageref) = &self.nodes[i].imageref {
+        if let Some(imageref) = &self.sys.nodes[i].imageref {
             match imageref {
                 crate::render::ImageRef::Raster(loaded) => {
                     // use intrinsic size
@@ -367,7 +366,7 @@ impl Ui {
     }
 
     fn determine_text_size(&mut self, i: NodeI, proposed_size: Xy<f32>) -> Xy<f32> {
-        let text_i = self.nodes[i].text_i.as_ref().unwrap();
+        let text_i = self.sys.nodes[i].text_i.as_ref().unwrap();
 
         match text_i {
             TextI::TextEdit(handle) => {
@@ -399,8 +398,8 @@ impl Ui {
             }
             TextI::TextBox(handle) => {
 
-                let fit_content_y = self.nodes[i].params.layout.size[Y] == Size::FitContent;
-                let fit_content_x = self.nodes[i].params.layout.size[X] == Size::FitContent;
+                let fit_content_y = self.sys.nodes[i].params.layout.size[Y] == Size::FitContent;
+                let fit_content_x = self.sys.nodes[i].params.layout.size[X] == Size::FitContent;
 
                 let h = if fit_content_y {
                     BIG_FLOAT
@@ -431,33 +430,33 @@ impl Ui {
     }
 
     pub(crate) fn recursive_place_children(&mut self, i: NodeI) {
-        self.nodes[i].content_bounds = XyRect::new_symm([f32::MAX, f32::MIN]);
+        self.sys.nodes[i].content_bounds = XyRect::new_symm([f32::MAX, f32::MIN]);
 
         self.sys.partial_relayout_count += 1;
-        if let Some(stack) = self.nodes[i].params.stack {
+        if let Some(stack) = self.sys.nodes[i].params.stack {
             self.place_children_stack(i, stack);
         } else {
             self.place_children_container(i);
         };
 
-        for_each_child!(self, self.nodes[i], child, {
+        for_each_child!(self, self.sys.nodes[i], child, {
             self.recursive_place_children(child);
         });
     }
 
     fn place_children_stack(&mut self, i: NodeI, stack: Stack) {
         let (main, cross) = (stack.axis, stack.axis.other());
-        let stack_rect = self.nodes[i].layout_rect;
+        let stack_rect = self.sys.nodes[i].layout_rect;
 
-        let padding = self.pixels_to_frac2(self.nodes[i].params.layout.padding);
+        let padding = self.pixels_to_frac2(self.sys.nodes[i].params.layout.padding);
         let spacing = self.pixels_to_frac(stack.spacing, stack.axis);
         
         // On the main axis, totally ignore the children's chosen Position's and place them according to our own Stack::Arrange value.
         
-        let n = self.nodes[i].n_children;
+        let n = self.sys.nodes[i].n_children;
         let mut total_size = 0.0;
-        for_each_child!(self, self.nodes[i], child, {
-            total_size += self.nodes[child].size[main];
+        for_each_child!(self, self.sys.nodes[i], child, {
+            total_size += self.sys.nodes[child].size[main];
         });
 
         if n > 0 {
@@ -474,57 +473,57 @@ impl Ui {
             _ => todo!(),
         };
 
-        for_each_child!(self, self.nodes[i], child, {
-            let child_size = self.nodes[child].size;
+        for_each_child!(self, self.sys.nodes[i], child, {
+            let child_size = self.sys.nodes[child].size;
 
-            match self.nodes[child].params.layout.position[cross] {
+            match self.sys.nodes[child].params.layout.position[cross] {
                 Pos::Center => {
                     let origin = (stack_rect[cross][1] + stack_rect[cross][0]) / 2.0;
-                    self.nodes[child].layout_rect[cross] = [
+                    self.sys.nodes[child].layout_rect[cross] = [
                         origin - child_size[cross] / 2.0 ,
                         origin + child_size[cross] / 2.0 ,
                     ];  
                 },
                 Pos::Start => {
                     let origin = stack_rect[cross][0] + padding[cross];
-                    self.nodes[child].layout_rect[cross] = [origin, origin + child_size[cross]];
+                    self.sys.nodes[child].layout_rect[cross] = [origin, origin + child_size[cross]];
                 },
                 Pos::Pixels(pixels) => {
                     let static_pos = self.pixels_to_frac(pixels, cross);
-                    let anchor_offset = match self.nodes[child].params.layout.anchor[cross] {
+                    let anchor_offset = match self.sys.nodes[child].params.layout.anchor[cross] {
                         Anchor::Start => 0.0,
                         Anchor::Center => -child_size[cross] / 2.0,
                         Anchor::End => -child_size[cross],
                         Anchor::Frac(f) => -child_size[cross] * f,
                     };
                     let origin = stack_rect[cross][0] + padding[cross] + static_pos + anchor_offset;
-                    self.nodes[child].layout_rect[cross] = [origin, origin + child_size[cross]];
+                    self.sys.nodes[child].layout_rect[cross] = [origin, origin + child_size[cross]];
                 },
                 Pos::Frac(frac) => {
                     let static_pos = frac * stack_rect.size()[cross];
-                    let anchor_offset = match self.nodes[child].params.layout.anchor[cross] {
+                    let anchor_offset = match self.sys.nodes[child].params.layout.anchor[cross] {
                         Anchor::Start => 0.0,
                         Anchor::Center => -child_size[cross] / 2.0,
                         Anchor::End => -child_size[cross],
                         Anchor::Frac(f) => -child_size[cross] * f,
                     };
                     let origin = stack_rect[cross][0] + padding[cross] + static_pos + anchor_offset;
-                    self.nodes[child].layout_rect[cross] = [origin, origin + child_size[cross]];
+                    self.sys.nodes[child].layout_rect[cross] = [origin, origin + child_size[cross]];
                 },
                 Pos::End => {
                     let origin = stack_rect[cross][1] - padding[cross];
-                    self.nodes[child].layout_rect[cross] = [origin - child_size[cross], origin];
+                    self.sys.nodes[child].layout_rect[cross] = [origin - child_size[cross], origin];
                 },
             }
 
-            self.nodes[child].layout_rect[main] = [walking_position, walking_position + child_size[main]];
+            self.sys.nodes[child].layout_rect[main] = [walking_position, walking_position + child_size[main]];
 
             self.set_local_layout_rect(child, i);
             self.init_enter_animations(child);
 
-            walking_position += self.nodes[child].size[main] + spacing;
+            walking_position += self.sys.nodes[child].size[main] + spacing;
 
-            self.update_content_bounds(i, self.nodes[child].layout_rect);
+            self.update_content_bounds(i, self.sys.nodes[child].layout_rect);
         });
 
         // self.set_children_scroll(i);
@@ -532,51 +531,51 @@ impl Ui {
 
     fn place_children_container(&mut self, i: NodeI) {
 
-        let parent_rect = self.nodes[i].layout_rect;
+        let parent_rect = self.sys.nodes[i].layout_rect;
 
-        let padding = self.pixels_to_frac2(self.nodes[i].params.layout.padding);
+        let padding = self.pixels_to_frac2(self.sys.nodes[i].params.layout.padding);
 
         let mut origin = Xy::<f32>::default();
 
-        for_each_child!(self, self.nodes[i], child, {
-            let child_size = self.nodes[child].size;
+        for_each_child!(self, self.sys.nodes[i], child, {
+            let child_size = self.sys.nodes[child].size;
 
             // check the children's chosen Position's and place them.
             for axis in [X, Y] {
-                match self.nodes[child].params.layout.position[axis] {
+                match self.sys.nodes[child].params.layout.position[axis] {
                     Pos::Start => {
                         origin[axis] = parent_rect[axis][0] + padding[axis];
-                        self.nodes[child].layout_rect[axis] = [origin[axis], origin[axis] + child_size[axis]];
+                        self.sys.nodes[child].layout_rect[axis] = [origin[axis], origin[axis] + child_size[axis]];
                     },
                     Pos::Pixels(pixels) => {
                         let static_pos = self.pixels_to_frac(pixels, axis);
-                        let anchor_offset = match self.nodes[child].params.layout.anchor[axis] {
+                        let anchor_offset = match self.sys.nodes[child].params.layout.anchor[axis] {
                             Anchor::Start => 0.0,
                             Anchor::Center => -child_size[axis] / 2.0,
                             Anchor::End => -child_size[axis],
                             Anchor::Frac(f) => -child_size[axis] * f,
                         };
                         origin[axis] = parent_rect[axis][0] + padding[axis] + static_pos + anchor_offset;
-                        self.nodes[child].layout_rect[axis] = [origin[axis], origin[axis] + child_size[axis]];
+                        self.sys.nodes[child].layout_rect[axis] = [origin[axis], origin[axis] + child_size[axis]];
                     }
                     Pos::Frac(frac) => {
                         let static_pos = frac * parent_rect.size()[axis];
-                        let anchor_offset = match self.nodes[child].params.layout.anchor[axis] {
+                        let anchor_offset = match self.sys.nodes[child].params.layout.anchor[axis] {
                             Anchor::Start => 0.0,
                             Anchor::Center => -child_size[axis] / 2.0,
                             Anchor::End => -child_size[axis],
                             Anchor::Frac(f) => -child_size[axis] * f,
                         };
                         origin[axis] = parent_rect[axis][0] + padding[axis] + static_pos + anchor_offset;
-                        self.nodes[child].layout_rect[axis] = [origin[axis], origin[axis] + child_size[axis]];
+                        self.sys.nodes[child].layout_rect[axis] = [origin[axis], origin[axis] + child_size[axis]];
                     }
                     Pos::End => {
                         origin[axis] = parent_rect[axis][1] - padding[axis];
-                        self.nodes[child].layout_rect[axis] = [origin[axis] - child_size[axis], origin[axis]];
+                        self.sys.nodes[child].layout_rect[axis] = [origin[axis] - child_size[axis], origin[axis]];
                     },
                     Pos::Center => {
                         origin[axis] = (parent_rect[axis][0] + parent_rect[axis][1]) / 2.0;
-                        self.nodes[child].layout_rect[axis] = [
+                        self.sys.nodes[child].layout_rect[axis] = [
                             origin[axis] - child_size[axis] / 2.0 ,
                             origin[axis] + child_size[axis] / 2.0 ,
                         ];           
@@ -587,39 +586,39 @@ impl Ui {
             self.set_local_layout_rect(child, i);
             self.init_enter_animations(child);
 
-            self.update_content_bounds(i, self.nodes[child].layout_rect);
+            self.update_content_bounds(i, self.sys.nodes[child].layout_rect);
         });
     }
 
     fn set_local_layout_rect(&mut self, i: NodeI, parent: NodeI) {       
-        let parent_rect = self.nodes[parent].layout_rect;
-        let child_rect = self.nodes[i].layout_rect;
+        let parent_rect = self.sys.nodes[parent].layout_rect;
+        let child_rect = self.sys.nodes[i].layout_rect;
         
-        self.nodes[i].local_layout_rect = XyRect::new(
+        self.sys.nodes[i].local_layout_rect = XyRect::new(
             [child_rect.x[0] - parent_rect.x[0], child_rect.x[1] - parent_rect.x[0]],
             [child_rect.y[0] - parent_rect.y[0], child_rect.y[1] - parent_rect.y[0]]
         );
 
-        if ! self.nodes[i].params.animation.state_transition.animate_position
-            // && ! self.nodes[i].exit_animation_still_going // this one is not needed, because exiting nodes don't get layouted.
-                && ! self.nodes[i].enter_animation_still_going {
-            self.nodes[i].local_animated_rect = self.nodes[i].local_layout_rect;
+        if ! self.sys.nodes[i].params.animation.state_transition.animate_position
+            // && ! self.sys.nodes[i].exit_animation_still_going // this one is not needed, because exiting nodes don't get layouted.
+                && ! self.sys.nodes[i].enter_animation_still_going {
+            self.sys.nodes[i].local_animated_rect = self.sys.nodes[i].local_layout_rect;
             // might still be adjusted later for enter/exit animations.
         }
     }
 
     pub(crate) fn init_enter_animations(&mut self, i: NodeI) {
-        if self.nodes[i].frame_added != self.current_frame() {
+        if self.sys.nodes[i].frame_added != self.current_frame() {
             return;
         }
 
-        self.nodes[i].local_animated_rect = self.nodes[i].local_layout_rect;
+        self.sys.nodes[i].local_animated_rect = self.sys.nodes[i].local_layout_rect;
 
-        match self.nodes[i].params.animation.enter {
+        match self.sys.nodes[i].params.animation.enter {
             EnterAnimation::None => {}
             EnterAnimation::Slide { edge, direction: _ } => {
                 use SlideEdge::*;
-                let rect = self.nodes[i].local_layout_rect;
+                let rect = self.sys.nodes[i].local_layout_rect;
                 let size = rect.size();
 
                 let (offset_x, offset_y) = match edge {
@@ -629,15 +628,15 @@ impl Ui {
                     Right => (size.x.abs(), 0.0),
                 };
 
-                self.nodes[i].local_animated_rect.x[0] += offset_x;
-                self.nodes[i].local_animated_rect.x[1] += offset_x;
-                self.nodes[i].local_animated_rect.y[0] += offset_y;
-                self.nodes[i].local_animated_rect.y[1] += offset_y;
-                self.nodes[i].enter_animation_still_going = true;
+                self.sys.nodes[i].local_animated_rect.x[0] += offset_x;
+                self.sys.nodes[i].local_animated_rect.x[1] += offset_x;
+                self.sys.nodes[i].local_animated_rect.y[0] += offset_y;
+                self.sys.nodes[i].local_animated_rect.y[1] += offset_y;
+                self.sys.nodes[i].enter_animation_still_going = true;
             }
             EnterAnimation::GrowShrink { axis, origin } => {
                 use Pos::*;
-                let rect = self.nodes[i].local_layout_rect;
+                let rect = self.sys.nodes[i].local_layout_rect;
 
                 match axis {
                     Axis::X => {
@@ -647,8 +646,8 @@ impl Ui {
                             Start => rect.x[0],
                             End => rect.x[1],
                         };
-                        self.nodes[i].local_animated_rect.x[0] = origin_x;
-                        self.nodes[i].local_animated_rect.x[1] = origin_x;
+                        self.sys.nodes[i].local_animated_rect.x[0] = origin_x;
+                        self.sys.nodes[i].local_animated_rect.x[1] = origin_x;
                     }
                     Axis::Y => {
                         let origin_y = match origin {
@@ -656,43 +655,43 @@ impl Ui {
                             Start => rect.y[0],
                             End => rect.y[1],
                         };
-                        self.nodes[i].local_animated_rect.y[0] = origin_y;
-                        self.nodes[i].local_animated_rect.y[1] = origin_y;
+                        self.sys.nodes[i].local_animated_rect.y[0] = origin_y;
+                        self.sys.nodes[i].local_animated_rect.y[1] = origin_y;
                     }
                 }
-                self.nodes[i].enter_animation_still_going = true;
+                self.sys.nodes[i].enter_animation_still_going = true;
             }
         }
     }
 
     pub(crate) fn init_exit_animations(&mut self, i: NodeI) {
         // If already exiting, don't restart another anim.
-        if self.nodes[i].exiting { return; }
+        if self.sys.nodes[i].exiting { return; }
         // Set exiting even if we don't have an exiting animation, because the node might need to stick around for a parent's exit animation.
-        self.nodes[i].exiting = true;
-        self.nodes[i].exit_animation_still_going = true;
+        self.sys.nodes[i].exiting = true;
+        self.sys.nodes[i].exit_animation_still_going = true;
 
         // set the whole branch to exiting.
         with_arena(|a| {
             let mut stack = bumpalo::collections::Vec::with_capacity_in(20, a);
-            for_each_child_including_lingering_reverse!(self, &self.nodes[i], child, {
+            for_each_child_including_lingering_reverse!(self, &self.sys.nodes[i], child, {
                 stack.push(child);
             });
             while let Some(node) = stack.pop() {
-                if self.nodes[node].exiting { continue; }
-                self.nodes[node].exiting = true;
-                self.nodes[node].exit_animation_still_going = true;
-                for_each_child_including_lingering_reverse!(self, &self.nodes[node], child, {
+                if self.sys.nodes[node].exiting { continue; }
+                self.sys.nodes[node].exiting = true;
+                self.sys.nodes[node].exit_animation_still_going = true;
+                for_each_child_including_lingering_reverse!(self, &self.sys.nodes[node], child, {
                     stack.push(child);
                 });
             }
         });
 
-        match self.nodes[i].params.animation.exit {
+        match self.sys.nodes[i].params.animation.exit {
             ExitAnimation::None => {}
             ExitAnimation::Slide { edge, direction: _ } => {
                 use SlideEdge::*;
-                let rect = self.nodes[i].local_layout_rect;
+                let rect = self.sys.nodes[i].local_layout_rect;
                 let size = rect.size();
 
                 let (offset_x, offset_y) = match edge {
@@ -704,14 +703,14 @@ impl Ui {
 
                 // Change the layout_rect to move the "target" position.
                 // This works because exiting nodes are excluded from layout, so the layout_rect is not updated further.
-                self.nodes[i].local_layout_rect.x[0] += offset_x;
-                self.nodes[i].local_layout_rect.x[1] += offset_x;
-                self.nodes[i].local_layout_rect.y[0] += offset_y;
-                self.nodes[i].local_layout_rect.y[1] += offset_y;
+                self.sys.nodes[i].local_layout_rect.x[0] += offset_x;
+                self.sys.nodes[i].local_layout_rect.x[1] += offset_x;
+                self.sys.nodes[i].local_layout_rect.y[0] += offset_y;
+                self.sys.nodes[i].local_layout_rect.y[1] += offset_y;
             }
             ExitAnimation::GrowShrink { axis, origin } => {
                 use Pos::*;
-                let rect = self.nodes[i].local_layout_rect;
+                let rect = self.sys.nodes[i].local_layout_rect;
 
                 match axis {
                     Axis::X => {
@@ -720,8 +719,8 @@ impl Ui {
                             Start => rect.x[0],
                             End => rect.x[1],
                         };
-                        self.nodes[i].local_layout_rect.x[0] = origin_x;
-                        self.nodes[i].local_layout_rect.x[1] = origin_x;
+                        self.sys.nodes[i].local_layout_rect.x[0] = origin_x;
+                        self.sys.nodes[i].local_layout_rect.x[1] = origin_x;
                     }
                     Axis::Y => {
                         let origin_y = match origin {
@@ -729,8 +728,8 @@ impl Ui {
                             Start => rect.y[0],
                             End => rect.y[1],
                         };
-                        self.nodes[i].local_layout_rect.y[0] = origin_y;
-                        self.nodes[i].local_layout_rect.y[1] = origin_y;
+                        self.sys.nodes[i].local_layout_rect.y[0] = origin_y;
+                        self.sys.nodes[i].local_layout_rect.y[1] = origin_y;
                     }
                 }
             }
@@ -741,7 +740,7 @@ impl Ui {
     #[inline]
     fn update_content_bounds(&mut self, i: NodeI, content_rect: XyRect) {
         for axis in [X, Y] {
-            let c_bounds = &mut self.nodes[i].content_bounds[axis];
+            let c_bounds = &mut self.sys.nodes[i].content_bounds[axis];
             c_bounds[0] = c_bounds[0].min(content_rect[axis][0]);
             c_bounds[1] = c_bounds[1].max(content_rect[axis][1]);
         }
@@ -753,19 +752,19 @@ impl Ui {
         let parent_clip_rect = if i == ROOT_I {
             Xy::new_symm([0.0, 1.0])
         } else {
-            let parent = self.nodes[i].parent;
-            self.nodes[parent].clip_rect
+            let parent = self.sys.nodes[i].parent;
+            self.sys.nodes[parent].clip_rect
         };
 
         let mut clip_rect = parent_clip_rect;
         for axis in [X, Y] {
-            if self.nodes[i].params.clip_children[axis] {
-                let own_rect = self.nodes[i].real_rect;
+            if self.sys.nodes[i].params.clip_children[axis] {
+                let own_rect = self.sys.nodes[i].real_rect;
                 clip_rect[axis] = intersect(own_rect[axis], parent_clip_rect[axis])
             }
         }
 
-        self.nodes[i].clip_rect = clip_rect;
+        self.sys.nodes[i].clip_rect = clip_rect;
     }
 
     pub(crate) fn rebuild_render_data(&mut self) {
@@ -797,14 +796,14 @@ impl Ui {
             self.update_text_boxes(i);
 
             // This loop should be fine even without z-ordering.
-            for_each_child_including_lingering_reverse!(self, self.nodes[i], child, {
+            for_each_child_including_lingering_reverse!(self, self.sys.nodes[i], child, {
                 self.sys.depth_traversal_queue.push(child);
             });
         }
     }
 
     pub(crate) fn push_all_render_and_click_data(&mut self) {
-        self.custom_render_commands.clear();
+        self.sys.custom_render_commands.clear();
         let mut keru_range_start: Option<usize> = None;
 
         self.sys.z_cursor = Z_START;
@@ -814,9 +813,9 @@ impl Ui {
         while let Some(i) = self.sys.depth_traversal_queue.pop() {
             // Assign z values here so they reflect z_index-sorted order.
             self.sys.z_cursor += Z_STEP;
-            self.nodes[i].z = self.sys.z_cursor;
-            if let Some(text_i) = &self.nodes[i].text_i {
-                let z = self.nodes[i].z;
+            self.sys.nodes[i].z = self.sys.z_cursor;
+            if let Some(text_i) = &self.sys.nodes[i].text_i {
+                let z = self.sys.nodes[i].z;
                 match text_i {
                     TextI::TextBox(h) => {
                         self.sys.renderer.text.get_text_box_mut(h).set_depth(z);
@@ -827,7 +826,7 @@ impl Ui {
                 }
             }
 
-            let is_custom = self.nodes[i].params.custom_render;
+            let is_custom = self.sys.nodes[i].params.custom_render;
             let instance_index_before = self.sys.renderer.instance_count();
 
             self.push_render_and_click_data(i);
@@ -844,12 +843,12 @@ impl Ui {
 
             // Sort z-ordering
             with_arena(|arena| {
-                let n_children = self.nodes[i].n_children as usize + 5; // not sure if lingering children are counted, it's free anyway
+                let n_children = self.sys.nodes[i].n_children as usize + 5; // not sure if lingering children are counted, it's free anyway
                 let mut scratch = bumpalo::collections::Vec::with_capacity_in(n_children, arena);
-                let mut current = self.nodes[i].last_child;
+                let mut current = self.sys.nodes[i].last_child;
                 while let Some(child) = current {
-                    scratch.push((child, self.nodes[child].params.z_index));
-                    current = self.nodes[child].prev_sibling;
+                    scratch.push((child, self.sys.nodes[child].params.z_index));
+                    current = self.sys.nodes[child].prev_sibling;
                 }
                 scratch.sort_by(|x, y| {
                     y.1.partial_cmp(&x.1).unwrap_or(std::cmp::Ordering::Equal)
@@ -864,7 +863,7 @@ impl Ui {
         if let Some(start) = keru_range_start {
             let final_count = self.sys.renderer.instance_count();
             if start < final_count {
-                self.custom_render_commands.push(RenderCommand::Keru(KeruElementRange::new(start, final_count)));
+                self.sys.custom_render_commands.push(RenderCommand::Keru(KeruElementRange::new(start, final_count)));
             }
         }
 
@@ -881,7 +880,7 @@ impl Ui {
         // Close any open keru range
         if let Some(start) = *keru_range_start {
             if start < instance_index_before {
-                self.custom_render_commands.push(RenderCommand::Keru(
+                self.sys.custom_render_commands.push(RenderCommand::Keru(
                     KeruElementRange::new(start, instance_index_before),
                 ));
             }
@@ -889,9 +888,9 @@ impl Ui {
         }
     
         // Add custom render command with the node's rectangle
-        self.custom_render_commands.push(RenderCommand::CustomRenderingArea {
-            key: self.nodes[i].original_key,
-            rect: self.nodes[i].real_rect,
+        self.sys.custom_render_commands.push(RenderCommand::CustomRenderingArea {
+            key: self.sys.nodes[i].original_key,
+            rect: self.sys.nodes[i].real_rect,
         });
     
         // Start a new range
@@ -902,7 +901,7 @@ impl Ui {
     
     pub(crate) fn resolve_animations_and_scrolling(&mut self, i: NodeI) {
         // do animations in local space
-        let target = self.nodes[i].local_layout_rect;
+        let target = self.sys.nodes[i].local_layout_rect;
 
         // Don't do animations on resizes, unless the flag is not set
         let skip_animations = self.sys.disable_animations_on_resize && self.sys.changes.resize;
@@ -911,9 +910,9 @@ impl Ui {
         if skip_animations {
             l = target;
         } else {
-            l = self.nodes[i].local_animated_rect;
+            l = self.sys.nodes[i].local_animated_rect;
 
-            let speed = self.sys.global_animation_speed * self.nodes[i].params.animation.speed;
+            let speed = self.sys.global_animation_speed * self.sys.nodes[i].params.animation.speed;
 
             let dt = 1.0 / 60.0; // todo use real frame time
 
@@ -946,37 +945,37 @@ impl Ui {
             }
         };
 
-        self.nodes[i].local_animated_rect = l;
+        self.sys.nodes[i].local_animated_rect = l;
 
         // add the parent offset
-        let parent = self.nodes[i].parent;
+        let parent = self.sys.nodes[i].parent;
         // todo: pick a side depending on the parent stack and stuff like that, separate translation and resize, etc
-        let parent_offset = self.nodes[parent].real_rect.top_left();
-        self.nodes[i].real_rect = self.nodes[i].local_animated_rect + parent_offset;
+        let parent_offset = self.sys.nodes[parent].real_rect.top_left();
+        self.sys.nodes[i].real_rect = self.sys.nodes[i].local_animated_rect + parent_offset;
 
 
         // add scroll
         let scroll = self.local_node_scroll(i);
-        self.nodes[i].real_rect += scroll;
+        self.sys.nodes[i].real_rect += scroll;
 
 
-        let parent = self.nodes[i].parent;
-        let expected_final_parent_offset = self.nodes[parent].expected_final_rect.top_left();
+        let parent = self.sys.nodes[i].parent;
+        let expected_final_parent_offset = self.sys.nodes[parent].expected_final_rect.top_left();
 
         // set the new target (expected_final_rect)
-        self.nodes[i].expected_final_rect = self.nodes[i].local_layout_rect + expected_final_parent_offset + scroll;
+        self.sys.nodes[i].expected_final_rect = self.sys.nodes[i].local_layout_rect + expected_final_parent_offset + scroll;
 
         // Accumulate transforms from parent
         self.compute_accumulated_transform(i);
 
         if ! self.node_or_parent_has_ongoing_animation(i) {
-            if self.nodes[i].exiting {
-                self.nodes[i].exit_animation_still_going = false;
+            if self.sys.nodes[i].exiting {
+                self.sys.nodes[i].exit_animation_still_going = false;
                 // todo: think harder
                 self.set_new_ui_input();
             }
-            if self.nodes[i].enter_animation_still_going {
-                self.nodes[i].enter_animation_still_going = false;
+            if self.sys.nodes[i].enter_animation_still_going {
+                self.sys.nodes[i].enter_animation_still_going = false;
             }
         } else {
             self.sys.changes.unfinished_animations = true;
@@ -989,17 +988,17 @@ impl Ui {
         if i == ROOT_I {
             return Xy::new(0.0, 0.0);
         }
-        let parent = self.nodes[i].parent;
-        if self.nodes.get(parent).is_none() {
+        let parent = self.sys.nodes[i].parent;
+        if self.sys.nodes.get(parent).is_none() {
             return Xy::new(0.0, 0.0);
         }
-        if ! self.nodes[parent].params.is_scrollable() {
+        if ! self.sys.nodes[parent].params.is_scrollable() {
             return Xy::new(0.0, 0.0);
         }
 
         let mut res = Xy::new(0.0, 0.0);
         for axis in [X, Y] {
-            if self.nodes[parent].params.layout.scrollable[axis] {
+            if self.sys.nodes[parent].params.layout.scrollable[axis] {
                 let scroll_offset = self.scroll_offset(parent, axis);
                 res[axis] = scroll_offset;
             }
@@ -1009,19 +1008,19 @@ impl Ui {
 
     pub(crate) fn compute_accumulated_transform(&mut self, i: NodeI) {
         if i == ROOT_I {
-            self.nodes[i].accumulated_transform = Transform::IDENTITY;
+            self.sys.nodes[i].accumulated_transform = Transform::IDENTITY;
             return;
         }
-        let parent = self.nodes[i].parent;
+        let parent = self.sys.nodes[i].parent;
 
 
-        let parent_transform = self.nodes[parent].accumulated_transform;
-        let own_transform = self.nodes[i].params.transform;
+        let parent_transform = self.sys.nodes[parent].accumulated_transform;
+        let own_transform = self.sys.nodes[i].params.transform;
         let accumulated_transform;
 
         if own_transform != Transform::IDENTITY {
             // Get node center in pixels for centered scaling
-            let rect = self.nodes[i].real_rect;
+            let rect = self.sys.nodes[i].real_rect;
             let center = rect.center();
             let center_px_x = center.x * self.sys.size[X];
             let center_px_y = center.y * self.sys.size[Y];
@@ -1046,7 +1045,7 @@ impl Ui {
             accumulated_transform = parent_transform;
         }
 
-        self.nodes[i].accumulated_transform = accumulated_transform;
+        self.sys.nodes[i].accumulated_transform = accumulated_transform;
     }
 }
 
@@ -1093,13 +1092,13 @@ impl Scroll {
 
 impl Ui {
     pub(crate) fn update_container_scroll(&mut self, i: NodeI, delta: f32, axis: Axis) {       
-        let container_rect = self.nodes[i].layout_rect;
+        let container_rect = self.sys.nodes[i].layout_rect;
 
-        let content_bounds = self.nodes[i].content_bounds;
+        let content_bounds = self.sys.nodes[i].content_bounds;
         let content_rect_size = content_bounds.size()[axis];
 
         if content_rect_size <= 0.0 {
-            self.nodes[i].scroll.relative_offset[axis] = 0.0;
+            self.sys.nodes[i].scroll.relative_offset[axis] = 0.0;
             return;
         }
 
@@ -1118,10 +1117,10 @@ impl Ui {
         };
                 
         if min_scroll < max_scroll {                
-            if self.nodes[i].frame_added == self.sys.current_frame && delta == 0.0 {
-                if let Some(stack) = self.nodes[i].params.stack {
+            if self.sys.nodes[i].frame_added == self.sys.current_frame && delta == 0.0 {
+                if let Some(stack) = self.sys.nodes[i].params.stack {
                     if stack.axis == axis {
-                        self.nodes[i].scroll.relative_offset[axis] = match stack.arrange {
+                        self.sys.nodes[i].scroll.relative_offset[axis] = match stack.arrange {
                             Arrange::End => min_scroll,
                             _ => max_scroll,
                         };
@@ -1129,14 +1128,14 @@ impl Ui {
                 }
             } else {
                 // Normal scroll update
-                self.nodes[i].scroll.relative_offset[axis] += delta;
+                self.sys.nodes[i].scroll.relative_offset[axis] += delta;
             }
             
-            let rel_offset = &mut self.nodes[i].scroll.relative_offset[axis];
+            let rel_offset = &mut self.sys.nodes[i].scroll.relative_offset[axis];
             *rel_offset = rel_offset.clamp(min_scroll, max_scroll);
 
         } else {
-            self.nodes[i].scroll.relative_offset[axis] = 0.0;
+            self.sys.nodes[i].scroll.relative_offset[axis] = 0.0;
         }
 
     }
@@ -1151,12 +1150,12 @@ impl Ui {
     }
 
     pub(crate) fn scroll_offset(&self, i: NodeI, axis: Axis) -> f32 {
-        let scroll_offset = self.nodes[i].scroll.relative_offset[axis];
+        let scroll_offset = self.sys.nodes[i].scroll.relative_offset[axis];
 
         // round it to whole pixels to avoid wobbling
         // account for transform scale to round to real screen pixels
         let size = self.sys.size[axis];
-        let scale = self.nodes[i].accumulated_transform.scale;
+        let scale = self.sys.nodes[i].accumulated_transform.scale;
         let scroll_offset = (scroll_offset * size * scale).round() / scale / size;
 
         return scroll_offset;

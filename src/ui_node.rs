@@ -8,14 +8,37 @@ use crate::inner_node::*;
 use crate::mouse_events::{DragEvent, DragReleaseEvent};
 use crate::Axis::*;
 
-/// A struct representing a node within the [`Ui`].
+
 pub struct UiNode<'a> {
     pub(crate) i: NodeI,
-    pub(crate) ui: &'a Ui,
+    pub(crate) ui: UiRef<'a>,
+}
+pub(crate) enum UiRef<'a> {
+    Mut(&'a mut System),
+    NonMut(&'a System),
 }
 
+impl<'a> UiNode<'a> {
+    pub(crate) fn ui_mut(&mut self) -> &mut System {
+        match &mut self.ui {
+            // We only call ui_mut() from functions that take &mut self.
+            // [`Ui::get_node_mut()`] ensures that if the caller has access to a `&mut UiNode`, it will have been constructed with `UiRef::Mut`.
+            UiRef::NonMut(_) => unreachable!(),
+            UiRef::Mut(ui) => return ui,
+        }
+    }
+
+    pub(crate) fn ui(&self) -> &System {
+        match &self.ui {
+            UiRef::Mut(ui) => ui,
+            UiRef::NonMut(ui) => return ui,
+        }
+    }
+}
+
+
 pub struct UiNodeChildrenIter<'a> {
-    ui: &'a Ui,
+    ui: UiRef<'a>,
     current: Option<NodeI>,
     remaining: usize,
 }
@@ -25,7 +48,7 @@ impl<'a> Iterator for UiNodeChildrenIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(child_i) = self.current {
-            self.current = self.ui.nodes[child_i].next_sibling;
+            self.current = self.ui.ui().nodes[child_i].next_sibling;
             if !self.ui.nodes[child_i].exiting {
                 self.remaining -= 1;
                 return Some(UiNode { ui: self.ui, i: child_i });
@@ -46,28 +69,28 @@ impl<'a> UiNode<'a> {
     pub fn children(&self) -> UiNodeChildrenIter<'a> {
         UiNodeChildrenIter {
             ui: self.ui,
-            current: self.ui.nodes[self.i].first_child,
-            remaining: self.ui.nodes[self.i].n_children as usize,
+            current: self.ui.sys.nodes[self.i].first_child,
+            remaining: self.ui.sys.nodes[self.i].n_children as usize,
         }
     }
 
     /// Get the number of children added to the node so far.
     pub fn children_count(&self) -> usize {
-        self.ui.nodes[self.i].n_children as usize
+        self.ui.sys.nodes[self.i].n_children as usize
     }
 
     /// Returns `true` if the node is currently hidden (excluded from the tree but retained in memory).
     pub fn is_hidden(&self) -> bool {
-        self.ui.nodes[self.i].currently_hidden
+        self.ui.sys.nodes[self.i].currently_hidden
     }
 
     /// Returns `true` if the node is currently playing its exit animation before being removed.
     pub fn is_exiting(&self) -> bool {
-        self.ui.nodes[self.i].exiting
+        self.ui.sys.nodes[self.i].exiting
     }
 
     pub(crate) fn node(&self) -> &InnerNode {
-        return &self.ui.nodes[self.i];
+        return &self.ui.sys.nodes[self.i];
     }
 
     /// Returns the key that can be used to refer to this node.
@@ -147,8 +170,8 @@ impl Ui {
     /// If the same key was used to add multiple nodes in the same frame, the key will always return the first one. You can use [`NodeKey::sibling()`] to create different "versions" of the same key dynamically and still be able to point to them.
     /// 
     pub fn get_node(&self, key: NodeKey) -> Option<UiNode<'_>> {
-        let i = self.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
-        if self.nodes[i].currently_hidden || self.nodes[i].exiting {
+        let i = self.sys.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
+        if self.sys.nodes[i].currently_hidden || self.sys.nodes[i].exiting {
             return None;
         }
         return Some(UiNode { i, ui: self });
@@ -158,7 +181,7 @@ impl Ui {
     ///
     /// You can use [`UiNode::is_hidden`] and [`UiNode::is_exiting`] to filter by state as needed.
     pub fn get_node_unfiltered(&self, key: NodeKey) -> Option<UiNode<'_>> {
-        let i = self.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
+        let i = self.sys.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
         return Some(UiNode { i, ui: self });
     }
 
@@ -182,16 +205,16 @@ impl Ui {
         Some(self.get_node(key)?.last_frame_bottom_left())
     }
     pub fn get_text(&mut self, key: NodeKey) -> Option<&str> {
-        let i = self.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
-        let text_i = self.nodes[i].text_i.as_ref()?;
+        let i = self.sys.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
+        let text_i = self.sys.nodes[i].text_i.as_ref()?;
         match text_i {
             TextI::TextBox(handle) => Some(self.sys.renderer.text.get_text_box(&handle).text()),
             TextI::TextEdit(handle) => Some(self.sys.renderer.text.get_text_edit(&handle).raw_text()),
         }
     }
     pub fn set_text(&mut self, key: NodeKey, text: &str) -> Option<()> {
-        let i = self.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
-        let text_i = self.nodes[i].text_i.as_ref()?;
+        let i = self.sys.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
+        let text_i = self.sys.nodes[i].text_i.as_ref()?;
         match text_i {
             TextI::TextBox(handle) => self.sys.renderer.text.get_text_box_mut(&handle).set_text_hashed(text),
             TextI::TextEdit(handle) => self.sys.renderer.text.get_text_edit_mut(&handle).set_text_hashed(text),
@@ -203,15 +226,15 @@ impl Ui {
     /// Returns rects from the previous frame's layout.
     pub fn children_rects(&self, key: NodeKey) -> Vec<XyRect> {
         let mut rects = Vec::new();
-        let Some(parent_i) = self.nodes.node_hashmap.get(&key.id_with_subtree()).map(|e| e.slab_i) else {
+        let Some(parent_i) = self.sys.nodes.node_hashmap.get(&key.id_with_subtree()).map(|e| e.slab_i) else {
             return rects;
         };
-        let mut current = self.nodes[parent_i].first_child;
+        let mut current = self.sys.nodes[parent_i].first_child;
         while let Some(child_i) = current {
-            if !self.nodes[child_i].exiting {
-                rects.push(self.nodes[child_i].real_rect);
+            if !self.sys.nodes[child_i].exiting {
+                rects.push(self.sys.nodes[child_i].real_rect);
             }
-            current = self.nodes[child_i].next_sibling;
+            current = self.sys.nodes[child_i].next_sibling;
         }
         rects
     }
@@ -277,7 +300,7 @@ pub struct RenderInfo {
 // }
 // impl UiNodeMut<'_> {
 //     pub(crate) fn node(&self) -> &mut Node {
-//         return &self.ui.nodes[self.i];
+//         return &self.ui.sys.nodes[self.i];
 //     }
 // }
 
@@ -601,12 +624,12 @@ impl Ui {
     ///
     /// Does nothing for regular text nodes.
     pub fn set_text_edit_placeholder(&mut self, key: NodeKey, placeholder: &str) {
-        let Some(i) = self.nodes.node_hashmap.get(&key.id_with_subtree()) else {
+        let Some(i) = self.sys.nodes.node_hashmap.get(&key.id_with_subtree()) else {
             return;
         };
         let i = i.slab_i;
 
-        if let Some(TextI::TextEdit(handle)) = &self.nodes[i].text_i {
+        if let Some(TextI::TextEdit(handle)) = &self.sys.nodes[i].text_i {
             self.sys.renderer.text.get_text_edit_mut(handle).set_placeholder(placeholder);
         }
     }
@@ -664,8 +687,8 @@ impl Ui {
     pub fn is_any_drag_hovered_onto(&self, dest: NodeKey) -> Option<Drag> {
         #[cfg(debug_assertions)]
         {
-            let dest_i = self.nodes.node_hashmap.get(&dest.id_with_subtree())?.slab_i;
-            if !self.nodes[dest_i].params.interact.senses.contains(Sense::DRAG_DROP_TARGET) {
+            let dest_i = self.sys.nodes.node_hashmap.get(&dest.id_with_subtree())?.slab_i;
+            if !self.sys.nodes[dest_i].params.interact.senses.contains(Sense::DRAG_DROP_TARGET) {
                 log::warn!(
                     "is_any_drag_hovered_onto() was called on node {:?}, but it doesn't have the DRAG_DROP_TARGET sense. Add Node::sense_drag_drop_target() to the node.",
                     dest.debug_name()
@@ -705,8 +728,8 @@ impl Ui {
     pub fn is_any_drag_released_onto(&self, dest: NodeKey) -> Option<Drag> {
         #[cfg(debug_assertions)]
         {
-            let dest_i = self.nodes.node_hashmap.get(&dest.id_with_subtree())?.slab_i;
-            if !self.nodes[dest_i].params.interact.senses.contains(Sense::DRAG_DROP_TARGET) {
+            let dest_i = self.sys.nodes.node_hashmap.get(&dest.id_with_subtree())?.slab_i;
+            if !self.sys.nodes[dest_i].params.interact.senses.contains(Sense::DRAG_DROP_TARGET) {
                 log::warn!(
                     "is_any_drag_released_onto() was called on node {:?}, but it doesn't have the DRAG_DROP_TARGET sense. Add Node::sense_drag_drop_target() to the node.",
                     dest.debug_name()
@@ -854,8 +877,8 @@ impl<'a> UiNode2<'a> {
         let ui = self.ui_mut();
         let text_i = ui.nodes[i].text_i.as_ref()?;
         match text_i {
-            TextI::TextBox(handle) => ui.sys.renderer.text.get_text_box_mut(&handle).set_text_hashed(text),
-            TextI::TextEdit(handle) => ui.sys.renderer.text.get_text_edit_mut(&handle).set_text_hashed(text),
+            TextI::TextBox(handle) => ui.renderer.text.get_text_box_mut(&handle).set_text_hashed(text),
+            TextI::TextEdit(handle) => ui.renderer.text.get_text_edit_mut(&handle).set_text_hashed(text),
         };
         return Some(())
     }

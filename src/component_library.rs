@@ -280,8 +280,6 @@ impl Ui {
                     });
                 });
             });
-            
-            self.format_scratch.clear();
         });
     }
 }
