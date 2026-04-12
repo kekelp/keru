@@ -4,12 +4,18 @@ use std::{hash::{Hash, Hasher}, ops::{Add, AddAssign, Div, Index, IndexMut, Mul,
 
 use crate::*;
 
-impl Ui {
+impl System {
     pub(crate) fn f32_size_to_pixels2(&self, size: Xy<f32>) -> Xy<f32> {
         return Xy::new(
-            size.x * self.sys.size[X],
-            size.y * self.sys.size[Y]
+            size.x * self.size[X],
+            size.y * self.size[Y]
         );
+    }
+}
+
+impl Ui {
+    pub(crate) fn f32_size_to_pixels2(&self, size: Xy<f32>) -> Xy<f32> {
+        self.sys.f32_size_to_pixels2(size)
     }
 
     pub(crate) fn pixels_to_frac(&self, pixels: f32, axis: Axis) -> f32 {

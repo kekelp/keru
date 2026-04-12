@@ -203,7 +203,7 @@ impl Ui {
             // Currently, it relies on the anti-state tearing stuff to not stay at zero.
             // It should be fixed by making it's possible to express the " - handle_radius" part when using a Frac.
             let slider_width = match self.get_node(TRACK) {
-                Some(track) => track.last_frame_inner_size().x,
+                Some(track) => track.inner_size().x,
                 // this is just for the first frame. awkward.
                 // ...or do this calculation after adding it? the result is the same
                 None => 1.0,
@@ -429,7 +429,7 @@ impl Component for TransformView<'_> {
 
         ui.add(pan_overlay);
 
-        let size = ui.inner_size(TRANSFORMED_AREA).unwrap_or(Xy::new(600.0, 600.0));
+        let size = ui.get_node(TRANSFORMED_AREA).map(|x| x.inner_size()).unwrap_or(Xy::new(600.0, 600.0));
 
         // Handle panning
         if ! ui.key_input().key_held(&Key::Named(NamedKey::Space)) {
@@ -833,7 +833,7 @@ impl Component for ReorderStack {
                 if i == index {
                     continue;
                 }
-                if cursor_y < child.last_frame_center().y {
+                if cursor_y < child.center().y {
                     insertion_index = i;
                     break;
                 }

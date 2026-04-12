@@ -15,30 +15,39 @@ pub struct UiNode<'a> {
 }
 pub(crate) enum UiRef<'a> {
     Mut(&'a mut System),
-    NonMut(&'a System),
+    Shared(&'a System),
 }
 
-impl<'a> UiNode<'a> {
-    pub(crate) fn ui_mut(&mut self) -> &mut System {
-        match &mut self.ui {
+impl<'a> UiRef<'a> {
+    pub(crate) fn sys_mut(&mut self) -> &mut System {
+        match self {
             // We only call ui_mut() from functions that take &mut self.
             // [`Ui::get_node_mut()`] ensures that if the caller has access to a `&mut UiNode`, it will have been constructed with `UiRef::Mut`.
-            UiRef::NonMut(_) => unreachable!(),
+            UiRef::Shared(_) => unreachable!(),
             UiRef::Mut(ui) => return ui,
         }
     }
 
-    pub(crate) fn ui(&self) -> &System {
-        match &self.ui {
+    pub(crate) fn sys(&self) -> &System {
+        match self {
             UiRef::Mut(ui) => ui,
-            UiRef::NonMut(ui) => return ui,
+            UiRef::Shared(ui) => return ui,
         }
+    }
+}
+impl<'a> UiNode<'a> {
+    pub(crate) fn sys_mut(&mut self) -> &mut System {
+        self.ui.sys_mut()
+    }
+
+    pub(crate) fn sys(&self) -> &System {
+        self.ui.sys()
     }
 }
 
 
 pub struct UiNodeChildrenIter<'a> {
-    ui: UiRef<'a>,
+    sys: &'a System,
     current: Option<NodeI>,
     remaining: usize,
 }
@@ -48,10 +57,10 @@ impl<'a> Iterator for UiNodeChildrenIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(child_i) = self.current {
-            self.current = self.ui.ui().nodes[child_i].next_sibling;
-            if !self.ui.nodes[child_i].exiting {
+            self.current = self.sys.nodes[child_i].next_sibling;
+            if !self.sys.nodes[child_i].exiting {
                 self.remaining -= 1;
-                return Some(UiNode { ui: self.ui, i: child_i });
+                return Some(UiNode { ui: UiRef::Shared(&self.sys), i: child_i });
             }
         }
         None
@@ -66,50 +75,57 @@ impl ExactSizeIterator for UiNodeChildrenIter<'_> {}
 
 impl<'a> UiNode<'a> {
     /// Get an iterator over all the children added to the node so far.
-    pub fn children(&self) -> UiNodeChildrenIter<'a> {
+    pub fn children(&'a self) -> impl Iterator<Item = UiNode<'a>> {
+        let sys = self.ui.sys();
         UiNodeChildrenIter {
-            ui: self.ui,
-            current: self.ui.sys.nodes[self.i].first_child,
-            remaining: self.ui.sys.nodes[self.i].n_children as usize,
+            sys: sys,
+            current: sys.nodes[self.i].first_child,
+            remaining: sys.nodes[self.i].n_children as usize,
         }
+    }
+
+    pub(crate) fn node(&self) -> &InnerNode {
+        return &self.sys().nodes[self.i];
     }
 
     /// Get the number of children added to the node so far.
     pub fn children_count(&self) -> usize {
-        self.ui.sys.nodes[self.i].n_children as usize
+        self.node().n_children as usize
     }
 
     /// Returns `true` if the node is currently hidden (excluded from the tree but retained in memory).
     pub fn is_hidden(&self) -> bool {
-        self.ui.sys.nodes[self.i].currently_hidden
+        self.node().currently_hidden
     }
 
     /// Returns `true` if the node is currently playing its exit animation before being removed.
     pub fn is_exiting(&self) -> bool {
-        self.ui.sys.nodes[self.i].exiting
+        self.node().exiting
     }
 
-    pub(crate) fn node(&self) -> &InnerNode {
-        return &self.ui.sys.nodes[self.i];
-    }
-
-    /// Returns the key that can be used to refer to this node.
-    ///
-    /// Note: This key should be used in the same subtree context as where the node was added.
+    /// Returns a temporary key that can be used to refer to this node.
     pub fn temp_key(&self) -> NodeKey {
         NodeKey::new_temp(self.node().id, "temp_node_key")
     }
 
-    pub(crate) fn last_frame_inner_size(&self) -> Xy<f32> {
+    /// Returns the node's inner size (without padding), in screen pixels.
+    /// 
+    /// Since the size and position of nodes is only determined after the layout pass at the end of the frame, 
+    /// this function will return the value from last frame.  
+    pub(crate) fn inner_size(&self) -> Xy<f32> {
         let padding = self.node().params.layout.padding;
 
         let size = self.node().size;
-        let size = self.ui.f32_size_to_pixels2(size);
+        let size = self.ui.sys().f32_size_to_pixels2(size);
 
         return size - padding;
     }
 
-    pub(crate) fn last_frame_center(&self) -> Xy<f32> {
+    /// Returns the center of the node's rectangle, in screen pixels.
+    /// 
+    /// Since the size and position of nodes is only determined after the layout pass at the end of the frame, 
+    /// this function will return the value from last frame.
+    pub(crate) fn center(&self) -> Xy<f32> {
         let rect = self.node().real_rect;
         
         let center = Xy::new(
@@ -117,12 +133,16 @@ impl<'a> UiNode<'a> {
             (rect[Y][1] + rect[Y][0]) / 2.0,
         );
 
-        let center = center * self.ui.sys.size;
+        let center = center * self.ui.sys().size;
 
         return center;
     }
 
-    pub(crate) fn last_frame_bottom_left(&self) -> Xy<f32> {
+    /// Returns the bottom left point of the node's rectangle, in screen pixels.
+    /// 
+    /// Since the size and position of nodes is only determined after the layout pass at the end of the frame, 
+    /// this function will return the value from last frame.
+    pub(crate) fn bottom_left(&self) -> Xy<f32> {
         let rect = self.node().real_rect;
         
         let center = Xy::new(
@@ -130,17 +150,25 @@ impl<'a> UiNode<'a> {
             rect[Y][1],
         );
 
-        let center = center * self.ui.sys.size;
+        let center = center * self.ui.sys().size;
         
         return center;
     }
 
+    /// Returns the node's rectangle in screen pixels.
+    /// 
+    /// Since the size and position of nodes is only determined after the layout pass at the end of the frame, 
+    /// this function will return the value from last frame.
     pub(crate) fn last_frame_rect(&self) -> XyRect {
-        return self.node().real_rect * self.ui.sys.size;
+        return self.node().real_rect * self.ui.sys().size;
     }
 
+    /// Returns the node's rectangle in normalized device coordinates (NDC).
+    /// 
+    /// Since the size and position of nodes is only determined after the layout pass at the end of the frame, 
+    /// this function will return the value from last frame.
     pub(crate) fn render_rect(&self) -> RenderInfo {
-        let size = self.ui.sys.size;
+        let size = self.ui.sys().size;
         let scale = self.node().accumulated_transform.scale;
         return RenderInfo {
             rect: self.node().real_rect.to_graphics_space_rounded(size, scale),
@@ -151,9 +179,9 @@ impl<'a> UiNode<'a> {
     /// Returns the text content if it was changed by user input this frame, otherwise `None`.
     ///
     /// Only works for text edit nodes. Returns `None` for regular text nodes.
-    pub fn text_edit_changed(&self) -> Option<&'a str> {
+    pub fn text_edit_changed(&'a self) -> Option<&'a str> {
         if let Some(TextI::TextEdit(handle)) = &self.node().text_i {
-            let text_edit = self.ui.sys.renderer.text.get_text_edit(&handle);
+            let text_edit = self.ui.sys().renderer.text.get_text_edit(&handle);
             if text_edit.text_changed() {
                 return Some(text_edit.raw_text());
             }
@@ -168,42 +196,62 @@ impl Ui {
     /// This function will return the node if it exists and it is both visible and interactable. So it will return `None` if the node exists but it is hidden or if it is doing an exiting animation right before disappearing. Use also [`Ui::get_node_unfiltered`] for a version that also returns hidden and exiting nodes.
     ///
     /// If the same key was used to add multiple nodes in the same frame, the key will always return the first one. You can use [`NodeKey::sibling()`] to create different "versions" of the same key dynamically and still be able to point to them.
-    /// 
-    pub fn get_node(&self, key: NodeKey) -> Option<UiNode<'_>> {
-        let i = self.sys.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
-        if self.sys.nodes[i].currently_hidden || self.sys.nodes[i].exiting {
+    pub fn get_node_mut(&mut self, key: NodeKey) -> Option<&mut UiNode<'_>> {
+        let node = self.get_node_unfiltered_mut(key)?;
+        if node.node().currently_hidden || node.node().exiting {
             return None;
+        } else {
+            return Some(node);
         }
-        return Some(UiNode { i, ui: self });
     }
 
-    /// Like [`Ui::get_node`], but also returns nodes that are currently hidden or exiting.
+    pub fn get_node(&self, key: NodeKey) -> Option<&UiNode<'_>> {
+        let node = self.get_node_unfiltered(key)?;
+        if node.node().currently_hidden || node.node().exiting {
+            return None;
+        } else {
+            return Some(node);
+        }
+    }
+
+    /// Like [`Ui::get_node_mut()`], but also returns nodes that are currently hidden or exiting.
     ///
-    /// You can use [`UiNode::is_hidden`] and [`UiNode::is_exiting`] to filter by state as needed.
-    pub fn get_node_unfiltered(&self, key: NodeKey) -> Option<UiNode<'_>> {
+    /// You can check [`UiNode::is_hidden`] and [`UiNode::is_exiting`] on the result to filter as needed.
+    pub fn get_node_unfiltered_mut(&mut self, key: NodeKey) -> Option<&mut UiNode<'_>> {
         let i = self.sys.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
-        return Some(UiNode { i, ui: self });
+        // If you are wondering why are we creating wrapper structs inside an arena in the first place, it's so that the `UiNode` has better ergonomics.
+        // That is, so that the interface looks like this: 
+        // 
+        // ```
+        // let node: &UiNode = ui.get_node(key);
+        // let node_mut: &mut UiNode = ui.get_node_mut(key);
+        // ```
+        // 
+        // Rather than this: 
+        // 
+        // ```
+        // let node: UiNode = ui.get_node(key);
+        // let mut node_mut: UiNodeMut = ui.get_node_mut(key);
+        // ```
+        // 
+        // Where UiNode and UiNodeMut are crappy separate wrapper structs, the caller has to make the node_mut binding itself mutable, etc.
+
+        let wrapper = UiNode { i, ui: UiRef::Mut(&mut self.sys)  };
+        let wrapper = self.arena_for_wrapper_structs.alloc(wrapper);
+
+        return Some(wrapper);
     }
 
-    pub fn render_rect(&self, key: NodeKey) -> Option<RenderInfo> {
-        Some(self.get_node(key)?.render_rect())
+    /// Like [`Ui::get_node()`], but also returns nodes that are currently hidden or exiting.
+    ///
+    /// You can check [`UiNode::is_hidden`] and [`UiNode::is_exiting`] on the result to filter as needed.
+    pub fn get_node_unfiltered(&self, key: NodeKey) -> Option<&UiNode<'_>> {
+        let i = self.sys.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
+        let wrapper = UiNode { i, ui: UiRef::Shared(&self.sys)  };
+        return Some(self.arena_for_wrapper_structs.alloc(wrapper));
     }
-    pub fn z_value(&self, key: NodeKey) -> Option<f32> {
-        Some(self.get_node(key)?.render_rect().z)
-    }
-    /// Dimensions of the rect in screen pixels
-    pub fn rect(&self, key: NodeKey) -> Option<XyRect> {
-        Some(self.get_node(key)?.last_frame_rect())
-    }
-    pub fn center(&self, key: NodeKey) -> Option<Xy<f32>> {
-        Some(self.get_node(key)?.last_frame_center())
-    }
-    pub fn inner_size(&self, key: NodeKey) -> Option<Xy<f32>> {
-        Some(self.get_node(key)?.last_frame_inner_size())
-    }
-    pub fn bottom_left(&self, key: NodeKey) -> Option<Xy<f32>> {
-        Some(self.get_node(key)?.last_frame_bottom_left())
-    }
+
+    // todo move
     pub fn get_text(&mut self, key: NodeKey) -> Option<&str> {
         let i = self.sys.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
         let text_i = self.sys.nodes[i].text_i.as_ref()?;
@@ -237,25 +285,6 @@ impl Ui {
             current = self.sys.nodes[child_i].next_sibling;
         }
         rects
-    }
-}
-
-impl UiParent {
-    pub(crate) fn get_uinode<'a>(&self, ui: &'a Ui) -> UiNode<'a> {
-        return UiNode { i: self.i, ui };
-    }
-    
-    pub fn render_rect(&self, ui: &mut Ui) -> RenderInfo {
-        self.get_uinode(ui).render_rect()
-    }
-    pub fn rect(&self, ui: &mut Ui) -> XyRect {
-        self.get_uinode(ui).last_frame_rect()
-    }
-    pub fn center(&self, ui: &mut Ui) -> Xy<f32> {
-        self.get_uinode(ui).last_frame_center()
-    }
-    pub fn bottom_left(&self, ui: &mut Ui) -> Xy<f32> {
-        self.get_uinode(ui).last_frame_bottom_left()
     }
 }
 
@@ -325,7 +354,7 @@ impl UiNode<'_> {
 
     #[cfg(debug_assertions)]
     fn check_dest_node_sense(&self, dest_key: NodeKey, sense: Sense, fn_name: &'static str, sense_add_fn_name: &'static str) -> bool {
-        let Some(dest_node) = self.ui.get_node(dest_key) else {
+        let Some(dest_node) = self.ui.sys().nodes.get_mut_by_id(dest_key) else {
             return true; // Node doesn't exist, let the function return false naturally
         };
         let dest_node = dest_node.node();
@@ -818,67 +847,14 @@ impl Ui {
     }
 }
 
-impl UiParent {
-    /// Returns `true` if the node was just clicked with the left mouse button.
-    /// 
-    /// This is "act on press". For "act on release", see [`Self::is_click_released()`].
-    pub fn is_clicked(&self, ui: &mut Ui) -> bool {
-        self.get_uinode(ui).is_clicked()
-    }
-
-    /// Returns `true` if a left button mouse click was just released on the node.
-    pub fn is_click_released(&self, ui: &mut Ui) -> bool {
-        self.get_uinode(ui).is_click_released()
-    }
-
-    /// If the node was clicked in the last frame, returns a struct containing detailed information of the click. Otherwise, returns `None`.
-    /// 
-    /// If the node was clicked multiple times in the last frame, the result holds the information about the last click only.
-    pub fn clicked_at(&self, ui: &mut Ui) -> Option<Click> {
-        self.get_uinode(ui).clicked_at()
-    }
-
-    /// If the node was dragged with a specific mouse button, returns a struct describing the drag event. Otherwise, returns `None`.
-    pub fn is_mouse_button_dragged(&self, ui: &mut Ui, button: winit::event::MouseButton) -> Option<Drag> {
-        self.get_uinode(ui).is_mouse_button_dragged(button)
-    }
-
-    /// If the node was dragged, returns a struct describing the drag event. Otherwise, returns `None`.
-    pub fn is_dragged(&self, ui: &mut Ui) -> Option<Drag> {
-        self.get_uinode(ui).is_dragged()
-    }
-
-    /// If the node is currently hovered by the cursor, returns hover information including position.
-    pub fn is_hovered(&self, ui: &mut Ui) -> Option<Hover> {
-        self.get_uinode(ui).is_hovered()
-    }
-
-   /// If the node corresponding to `key` was being held with the left mouse button in the last frame, returns the duration for which it was held.
-   pub fn is_held(&self, ui: &mut Ui) -> Option<Duration> {
-        self.get_uinode(ui).is_held()
-    }
-
-    /// If the node was scrolled in the last frame, returns a struct containing detailed information of the scroll event. Otherwise, returns `None`.
-    /// 
-    /// If the node was scrolled multiple times in the last frame, the result holds the information about the last scroll only.
-    pub fn scrolled_at(&self, ui: &mut Ui) -> Option<ScrollEvent> {
-        self.get_uinode(ui).scrolled_at()
-    }
-
-    /// Returns the total scroll delta for the node in the last frame, or None if no scroll events occurred.
-    pub fn is_scrolled(&self, ui: &mut Ui) -> Option<glam::Vec2> {
-        self.get_uinode(ui).is_scrolled()
-    }
-}
-
-impl<'a> UiNode2<'a> {
+impl<'a> UiNode<'a> {
     pub fn set_text(&mut self, text: &str) -> Option<()> {
         let i = self.i;
-        let ui = self.ui_mut();
-        let text_i = ui.nodes[i].text_i.as_ref()?;
+        let sys = self.sys_mut();
+        let text_i = sys.nodes[i].text_i.as_ref()?;
         match text_i {
-            TextI::TextBox(handle) => ui.renderer.text.get_text_box_mut(&handle).set_text_hashed(text),
-            TextI::TextEdit(handle) => ui.renderer.text.get_text_edit_mut(&handle).set_text_hashed(text),
+            TextI::TextBox(handle) => sys.renderer.text.get_text_box_mut(&handle).set_text_hashed(text),
+            TextI::TextEdit(handle) => sys.renderer.text.get_text_edit_mut(&handle).set_text_hashed(text),
         };
         return Some(())
     }

@@ -160,47 +160,6 @@ pub(crate) struct System {
     pub filter_listened_keys: bool,
 }
 
-impl Ui {
-    pub fn get_node2_mut(&mut self, key: NodeKey) -> Option<&mut UiNode2<'_>> {
-        let i = self.sys.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
-        if self.sys.nodes[i].currently_hidden || self.sys.nodes[i].exiting {
-            return None;
-        }
-
-        // If you are wondering why are we creating wrapper structs inside an arena, it's so that the `UiNode` has better ergonomics.
-        // That is, so that the interface looks like this: 
-        // 
-        // ```
-        // let node: &UiNode = ui.get_node(key);
-        // let node_mut: &mut UiNode = ui.get_node_mut(key);
-        // ```
-        // 
-        // Rather than this: 
-        // 
-        // ```
-        // let node: UiNode = ui.get_node(key);
-        // let mut node_mut: UiNodeMut = ui.get_node_mut(key);
-        // ```
-        // 
-        // Where UiNode and UiNodeMut are crappy separate wrapper structs, the caller has to make the node_mut binding itself mutable, etc.
-
-        let wrapper = UiNode2 { i, ui_ref: UiRef::Mut(&mut self.sys)  };
-        let wrapper = self.arena_for_wrapper_structs.alloc(wrapper);
-
-        return Some(wrapper);
-    }
-
-    pub fn get_node2(&self, key: NodeKey) -> Option<&UiNode2<'_>> {
-        let i = self.sys.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
-        if self.sys.nodes[i].currently_hidden || self.sys.nodes[i].exiting {
-            return None;
-        }
-
-        let wrapper = UiNode2 { i, ui_ref: UiRef::NonMut(&self.sys)  };
-        return Some(self.arena_for_wrapper_structs.alloc(wrapper));
-    }
-}
-
 /// A handle that can be used to wake up the [`Ui`] from another thread.
 #[derive(Clone)]
 pub struct UiWaker {
