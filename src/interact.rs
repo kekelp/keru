@@ -445,8 +445,7 @@ impl Ui {
     }
 
     pub(crate) fn check_clicked(&self, id: Id, button: MouseButton) -> bool {
-        self.sys.mouse_input.clicks()
-            .any(|e| e.button == button && e.targets.contains(&id))
+        self.sys.check_clicked(id, button)
     }
 
     pub(crate) fn check_clicked_at(&self, id: Id, button: MouseButton) -> Option<&mouse_events::ClickEvent> {
@@ -461,8 +460,7 @@ impl Ui {
     }
 
     pub(crate) fn check_dragged(&self, id: Id, button: MouseButton) -> Option<&mouse_events::DragEvent> {
-        self.sys.mouse_input.drags()
-            .find(|e| e.button == button && e.targets.contains(&id))
+        self.sys.check_dragged(id, button)
     }
 
     pub(crate) fn check_drag_released(&self, id: Id, button: MouseButton) -> bool {
@@ -547,5 +545,17 @@ impl Ui {
 
         self.sys.mouse_input.drag_releases()
             .find(|e| e.button == button)
+    }
+}
+
+impl System {
+    pub(crate) fn check_clicked(&self, id: Id, button: MouseButton) -> bool {
+        self.mouse_input.clicks()
+            .any(|e| e.button == button && e.targets.contains(&id))
+    }
+
+    pub(crate) fn check_dragged(&self, id: Id, button: MouseButton) -> Option<&mouse_events::DragEvent> {
+        self.mouse_input.drags()
+            .find(|e| e.button == button && e.targets.contains(&id))
     }
 }

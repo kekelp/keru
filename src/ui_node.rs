@@ -187,6 +187,34 @@ impl<'a> UiNode<'a> {
         }
         None
     }
+
+    /// Returns `true` if this node was just clicked with the left mouse button.
+    ///
+    /// This is "act on press". For "act on release", see [`Ui::is_click_released()`].
+    pub fn is_clicked(&self) -> bool {
+        let sys = self.sys();
+
+        #[cfg(debug_assertions)]
+        if !sys.check_node_sense(self.i, Sense::CLICK, "is_clicked()", "Node::sense_click()") {
+            return false;
+        }
+
+        sys.check_clicked(self.node().id, MouseButton::Left)
+    }
+
+    /// If this node was dragged with the left mouse button, returns a struct describing the drag event. Otherwise, returns `None`.
+    pub fn is_dragged(&self) -> Option<Drag> {
+        let sys = self.sys();
+        let node = self.node();
+
+        #[cfg(debug_assertions)]
+        if !sys.check_node_sense(self.i, Sense::DRAG, "is_dragged()", "Node::sense_drag()") {
+            return None;
+        }
+
+        let event = sys.check_dragged(node.id, MouseButton::Left)?;
+        sys.drag_from_event_with_rect(event, node.real_rect)
+    }
 }
 
 impl Ui {
@@ -334,10 +362,10 @@ pub struct RenderInfo {
 
 
 
-impl Ui {
+impl System {
     #[cfg(debug_assertions)]
-    fn check_node_sense(&self, i: NodeI, sense: Sense, fn_name: &'static str, sense_add_fn_name: &'static str) -> bool {
-        let node = &self.sys.nodes[i];
+    pub(crate) fn check_node_sense(&self, i: NodeI, sense: Sense, fn_name: &'static str, sense_add_fn_name: &'static str) -> bool {
+        let node = &self.nodes[i];
         if !node.params.interact.senses.contains(sense) {
             eprintln!(
                 "Keru: Debug mode check: \"{}\" was called for node {}, but the node doesn't have the {:?} sense. In release mode, this event will be silently ignored! You can add the sense to the node's Node with the \"{}\" function.",
@@ -350,6 +378,49 @@ impl Ui {
         }
         return true;
     }
+
+    pub(crate) fn drag_from_event_with_rect(&self, event: &DragEvent, node_rect: XyRect) -> Option<Drag> {
+        let relative_position = glam::Vec2::new(
+            ((event.current_pos.x / self.size.x) - node_rect.x[0]) / node_rect.size().x,
+            ((event.current_pos.y / self.size.y) - node_rect.y[0]) / node_rect.size().y,
+        );
+        let relative_delta = glam::Vec2::new(
+            event.frame_delta.x / (node_rect.size().x * self.size.x),
+            event.frame_delta.y / (node_rect.size().y * self.size.y),
+        );
+
+        if event.total_delta == Vec2::ZERO {
+            return None;
+        }
+
+        Some(Drag {
+            relative_position,
+            absolute_pos: event.current_pos,
+            relative_delta,
+            absolute_delta: event.frame_delta,
+            pressed_timestamp: event.start_time,
+            total_drag_distance: event.total_delta,
+        })
+    }
+
+    pub(crate) fn drag_from_release_event_with_rect(&self, event: &DragReleaseEvent, node_rect: XyRect) -> Option<Drag> {
+        let relative_position = glam::Vec2::new(
+            ((event.end_pos.x / self.size.x) - node_rect.x[0]) / node_rect.size().x,
+            ((event.end_pos.y / self.size.y) - node_rect.y[0]) / node_rect.size().y,
+        );
+
+        Some(Drag {
+            relative_position,
+            absolute_pos: event.end_pos,
+            relative_delta: Vec2::ZERO,
+            absolute_delta: Vec2::ZERO,
+            pressed_timestamp: event.start_time,
+            total_drag_distance: event.total_delta,
+        })
+    }
+}
+
+impl Ui {
 
     #[cfg(debug_assertions)]
     fn check_dest_node_sense(&self, dest_key: NodeKey, sense: Sense, fn_name: &'static str, sense_add_fn_name: &'static str) -> bool {
@@ -371,43 +442,11 @@ impl Ui {
     }
 
     fn drag_from_event_with_rect(&self, event: &DragEvent, node_rect: XyRect) -> Option<Drag> {
-        let relative_position = glam::Vec2::new(
-            ((event.current_pos.x / self.sys.size.x) - node_rect.x[0]) / node_rect.size().x,
-            ((event.current_pos.y / self.sys.size.y) - node_rect.y[0]) / node_rect.size().y,
-        );
-        let relative_delta = glam::Vec2::new(
-            event.frame_delta.x / (node_rect.size().x * self.sys.size.x),
-            event.frame_delta.y / (node_rect.size().y * self.sys.size.y),
-        );
-
-        if event.total_delta == Vec2::ZERO {
-            return None;
-        }
-
-        Some(Drag {
-            relative_position,
-            absolute_pos: event.current_pos,
-            relative_delta,
-            absolute_delta: event.frame_delta,
-            pressed_timestamp: event.start_time,
-            total_drag_distance: event.total_delta,
-        })
+        self.sys.drag_from_event_with_rect(event, node_rect)
     }
 
     fn drag_from_release_event_with_rect(&self, event: &DragReleaseEvent, node_rect: XyRect) -> Option<Drag> {
-        let relative_position = glam::Vec2::new(
-            ((event.end_pos.x / self.sys.size.x) - node_rect.x[0]) / node_rect.size().x,
-            ((event.end_pos.y / self.sys.size.y) - node_rect.y[0]) / node_rect.size().y,
-        );
-
-        Some(Drag {
-            relative_position,
-            absolute_pos: event.end_pos,
-            relative_delta: Vec2::ZERO,
-            absolute_delta: Vec2::ZERO,
-            pressed_timestamp: event.start_time,
-            total_drag_distance: event.total_delta,
-        })
+        self.sys.drag_from_release_event_with_rect(event, node_rect)
     }
 
     /// Returns `true` if the node corresponding to `key` was just clicked with the left mouse button.
@@ -421,11 +460,11 @@ impl Ui {
         let node = &self.sys.nodes[i];
 
         #[cfg(debug_assertions)]
-        if !self.check_node_sense(i, Sense::CLICK, "is_clicked()", "Node::sense_click()") {
+        if !self.sys.check_node_sense(i, Sense::CLICK, "is_clicked()", "Node::sense_click()") {
             return false;
         }
 
-        self.check_clicked(node.id, MouseButton::Left)
+        self.sys.check_clicked(node.id, MouseButton::Left)
     }
 
     /// Returns `true` if the node corresponding to `key` was just clicked with the right mouse button.
@@ -439,11 +478,11 @@ impl Ui {
         let node = &self.sys.nodes[i];
 
         #[cfg(debug_assertions)]
-        if !self.check_node_sense(i, Sense::CLICK, "is_right_clicked()", "Node::sense_click()") {
+        if !self.sys.check_node_sense(i, Sense::CLICK, "is_right_clicked()", "Node::sense_click()") {
             return false;
         }
 
-        self.check_clicked(node.id, MouseButton::Right)
+        self.sys.check_clicked(node.id, MouseButton::Right)
     }
 
     /// Returns `true` if the node corresponding to `key` was just clicked with a mouse button.
@@ -457,16 +496,16 @@ impl Ui {
         let node = &self.sys.nodes[i];
 
         #[cfg(debug_assertions)]
-        if !self.check_node_sense(i, Sense::CLICK, "is_mouse_button_clicked()", "Node::sense_click()") {
+        if !self.sys.check_node_sense(i, Sense::CLICK, "is_mouse_button_clicked()", "Node::sense_click()") {
             return false;
         }
 
-        self.check_clicked(node.id, button)
+        self.sys.check_clicked(node.id, button)
     }
 
     /// Set placeholder text for a text edit node that will be shown when the text edit is empty.
     ///
-    /// Does nothing for regular text nodes.
+    /// Does nothing for non-editable text nodes or for nodes without text.
     pub fn set_text_edit_placeholder(&mut self, key: NodeKey, placeholder: &str) {
         let Some(i) = self.sys.nodes.node_hashmap.get(&key.id_with_subtree()) else {
             return;
@@ -506,7 +545,7 @@ impl Ui {
         let node = &self.sys.nodes[i];
 
         #[cfg(debug_assertions)]
-        if !self.check_node_sense(i, Sense::CLICK_RELEASE, "is_click_released()", "Node::sense_click()") {
+        if !self.sys.check_node_sense(i, Sense::CLICK_RELEASE, "is_click_released()", "Node::sense_click()") {
             return false;
         }
 
@@ -524,7 +563,7 @@ impl Ui {
         let node = &self.sys.nodes[i];
 
         #[cfg(debug_assertions)]
-        if !self.check_node_sense(i, Sense::DRAG, "is_drag_released()", "Node::sense_drag()") {
+        if !self.sys.check_node_sense(i, Sense::DRAG, "is_drag_released()", "Node::sense_drag()") {
             return false;
         }
 
@@ -541,7 +580,7 @@ impl Ui {
         }
 
         #[cfg(debug_assertions)]
-        if !self.check_node_sense(src_i, Sense::DRAG, "is_drag_released_onto()", "Node::sense_drag()") {
+        if !self.sys.check_node_sense(src_i, Sense::DRAG, "is_drag_released_onto()", "Node::sense_drag()") {
             return None;
         }
         #[cfg(debug_assertions)]
@@ -566,7 +605,7 @@ impl Ui {
         }
 
         #[cfg(debug_assertions)]
-        if !self.check_node_sense(src_i, Sense::DRAG, "is_drag_hovered_onto()", "Node::sense_drag()") {
+        if !self.sys.check_node_sense(src_i, Sense::DRAG, "is_drag_hovered_onto()", "Node::sense_drag()") {
             return None;
         }
         #[cfg(debug_assertions)]
@@ -664,11 +703,11 @@ impl Ui {
         let i = self.sys.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
         let node = &self.sys.nodes[i];
         #[cfg(debug_assertions)]
-        if !self.check_node_sense(i, Sense::DRAG, "is_mouse_button_dragged()", "Node::sense_drag()") {
+        if !self.sys.check_node_sense(i, Sense::DRAG, "is_mouse_button_dragged()", "Node::sense_drag()") {
             return None;
         }
 
-        let event = self.check_dragged(node.id, button)?;
+        let event = self.sys.check_dragged(node.id, button)?;
         let node_rect = node.real_rect;
         self.drag_from_event_with_rect(event, node_rect)
     }
@@ -685,7 +724,7 @@ impl Ui {
         let i = self.sys.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
         let node = &self.sys.nodes[i];
         #[cfg(debug_assertions)]
-        if !self.check_node_sense(i, Sense::CLICK, "clicked_at()", "Node::sense_click()") {
+        if !self.sys.check_node_sense(i, Sense::CLICK, "clicked_at()", "Node::sense_click()") {
             return None;
         }
 
@@ -709,7 +748,7 @@ impl Ui {
         let i = self.sys.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
         let node = &self.sys.nodes[i];
         #[cfg(debug_assertions)]
-        if !self.check_node_sense(i, Sense::HOVER, "is_hovered()", "Node::sense_hover()") {
+        if !self.sys.check_node_sense(i, Sense::HOVER, "is_hovered()", "Node::sense_hover()") {
             return None;
         }
 
@@ -727,7 +766,7 @@ impl Ui {
     let i = self.sys.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
     let node = &self.sys.nodes[i];
         #[cfg(debug_assertions)]
-        if !self.check_node_sense(i, Sense::HOLD, "is_held()", "Node::sense_hold()") {
+        if !self.sys.check_node_sense(i, Sense::HOLD, "is_held()", "Node::sense_hold()") {
             return None;
         }
 
@@ -741,7 +780,7 @@ impl Ui {
         let i = self.sys.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
         let node = &self.sys.nodes[i];
         #[cfg(debug_assertions)]
-        if !self.check_node_sense(i, Sense::SCROLL, "scrolled_at()", "Node::sense_scroll()") {
+        if !self.sys.check_node_sense(i, Sense::SCROLL, "scrolled_at()", "Node::sense_scroll()") {
             return None;
         }
 
@@ -766,7 +805,7 @@ impl Ui {
         let i = self.sys.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
         let node = &self.sys.nodes[i];
         #[cfg(debug_assertions)]
-        if !self.check_node_sense(i, Sense::SCROLL, "is_scrolled()", "Node::sense_scroll()") {
+        if !self.sys.check_node_sense(i, Sense::SCROLL, "is_scrolled()", "Node::sense_scroll()") {
             return None;
         }
 
