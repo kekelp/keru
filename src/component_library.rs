@@ -815,9 +815,9 @@ impl Component for ReorderStack {
         let mut dragged = None;
         if let Some(stack) = ui.get_node(Self::STACK) {
             for (index, child) in stack.children().enumerate() {
-                if child.is_dragged().is_some() || child.is_drag_released() {
-                    let key = child.temp_key();
-                    let height = child.last_frame_rect().size().y;
+                let key = child.temp_key();
+                if child.is_dragged().is_some() || ui.is_drag_released(key) {
+                    let height = child.rect().size().y;
                     dragged = Some((key, height, index));
                     break;
                 }

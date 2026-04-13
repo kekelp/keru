@@ -989,7 +989,8 @@ impl Ui {
             return Xy::new(0.0, 0.0);
         }
         let parent = self.sys.nodes[i].parent;
-        if self.sys.nodes.get(parent).is_none() {
+        if self.sys.nodes.get_node_if_it_still_exists(parent).is_none() {
+            panic!("Surely this check isn't needed?");
             return Xy::new(0.0, 0.0);
         }
         if ! self.sys.nodes[parent].params.is_scrollable() {

@@ -890,7 +890,7 @@ impl Ui {
             // Start exit animations for all nodes that need them
             for &i in &non_fresh_nodes {
                 let old_parent = self.sys.nodes[i].parent;
-                let old_parent_still_exists = self.sys.nodes.get(old_parent).is_some();
+                let old_parent_still_exists = self.sys.nodes.get_node_if_it_still_exists(old_parent).is_some();
 
                 if old_parent_still_exists {
                     self.init_exit_animations(i);
@@ -902,9 +902,9 @@ impl Ui {
                 let can_hide = self.sys.nodes[i].can_hide;
                 let currently_hidden = self.sys.nodes[i].currently_hidden;
                 let old_parent = self.sys.nodes[i].parent;
-                let old_parent_still_exists = self.sys.nodes.get(old_parent).is_some();
+                let old_parent_still_exists = self.sys.nodes.get_node_if_it_still_exists(old_parent).is_some();
 
-                let is_first_child_in_hidden_branch = match self.sys.nodes.get(old_parent) {
+                let is_first_child_in_hidden_branch = match self.sys.nodes.get_node_if_it_still_exists(old_parent) {
                     Some(old_parent) => old_parent.params.children_can_hide == ChildrenCanHide::Yes,
                     None => false,
                 };
@@ -1222,6 +1222,24 @@ impl UiParent {
     
         return result;
     }
+
+    // Shortcut methods to get the real immediate-mode style (at the cost of having to bass back the Ui reference.)
+    // The UiParent can't hold a &Ui because it would conflict with use of Ui inside the nest() closure.
+    // This would probably not be an issue if Rust had a construct like python's `with` or C#'s `using`. Instead we have to do it with closures.
+    fn key(&self, ui: &Ui) -> NodeKey {
+        NodeKey::new_temp(ui.sys.nodes[self.i].id, "")
+    }
+
+    pub fn is_clicked(&self, ui: &Ui) -> bool { ui.is_clicked(self.key(ui)) }
+    pub fn is_right_clicked(&self, ui: &Ui) -> bool { ui.is_right_clicked(self.key(ui)) }
+    pub fn is_click_released(&self, ui: &Ui) -> bool { ui.is_click_released(self.key(ui)) }
+    pub fn is_dragged(&self, ui: &Ui) -> Option<Drag> { ui.is_dragged(self.key(ui)) }
+    pub fn is_drag_released(&self, ui: &Ui) -> bool { ui.is_drag_released(self.key(ui)) }
+    pub fn is_hovered(&self, ui: &Ui) -> Option<Hover> { ui.is_hovered(self.key(ui)) }
+    pub fn is_held(&self, ui: &Ui) -> Option<std::time::Duration> { ui.is_held(self.key(ui)) }
+    pub fn clicked_at(&self, ui: &Ui) -> Option<Click> { ui.clicked_at(self.key(ui)) }
+    pub fn is_scrolled(&self, ui: &Ui) -> Option<glam::Vec2> { ui.is_scrolled(self.key(ui)) }
+    pub fn scrolled_at(&self, ui: &Ui) -> Option<ScrollEvent> { ui.scrolled_at(self.key(ui)) }
 }
 
 #[allow(dead_code)]

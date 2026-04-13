@@ -46,7 +46,8 @@ impl State {
                     continue;
                 }
                 let key = ITEM.sibling(item_str);
-                if let Some(rect) = ui.rect(key) {
+                if let Some(node) = ui.get_node(key) {
+                    let rect = node.rect();
                     let midpoint_y = (rect.y[0] + rect.y[1]) / 2.0;
                     if cursor_y < midpoint_y {
                         found_index = i;
@@ -63,7 +64,7 @@ impl State {
         for (i, item_str) in self.items.iter().enumerate() {
             let key = ITEM.sibling(item_str);
             if let Some(drag) = ui.is_drag_hovered_onto(key, STACK) {
-                let height = ui.rect(key).map(|r| r.size().y).unwrap_or(30.0);
+                let height = ui.get_node(key).map(|node| node.rect().size().y).unwrap_or(30.0);
                 let insertion_idx = calc_insertion_index(ui, drag.absolute_pos.y, i);
                 dragged_info = Some((i, insertion_idx, height));
                 break;

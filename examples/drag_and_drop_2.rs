@@ -47,7 +47,8 @@ impl State {
                 // Any time we use functions like `rect`, we're also adding subtle one-frame-off imperfections.
                 // The rect isn't calculated until the layout step at the end of the frame,
                 // so we're using the rect from the last frame for this frame's calculation.
-                if let Some(rect) = ui.rect(key) {
+                if let Some(node) = ui.get_node(key) {
+                    let rect = node.rect();
                     let midpoint_y = (rect.y[0] + rect.y[1]) / 2.0;
                     if cursor_y < midpoint_y {
                         found_index = i;
@@ -65,8 +66,8 @@ impl State {
         for (_, string) in self.left_strings.iter().enumerate() {
             let key = ITEM.sibling(string);
             if let Some(drag) = ui.is_drag_hovered_onto(key, RIGHT_STACK) {
-                if let Some(rect) = ui.rect(key) {
-                    dragged_item_height = Some(rect.size().y);
+                if let Some(node) = ui.get_node(key) {
+                    dragged_item_height = Some(node.rect().size().y);
                 }
                 insertion_index = Some(calc_insertion_index(ui, drag.absolute_pos.y));
                 break;

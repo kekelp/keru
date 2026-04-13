@@ -225,7 +225,7 @@ impl UiExt for Ui {
                 // Draw arrow tip
                 let p_prev = points[points.len() - 2];
                 let p_last = points[points.len() - 1];
-                let Xy { x: lx, y: ly } = self.inner_size(LINE_CONTAINER).unwrap();
+                let Xy { x: lx, y: ly } = self.get_node(LINE_CONTAINER).unwrap().inner_size();
                 let dx = (p_last.0 - p_prev.0) * lx as f32;
                 let dy = (p_last.1 - p_prev.1) * ly as f32;
                 let angle = dy.atan2(dx);

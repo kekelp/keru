@@ -51,6 +51,11 @@ impl IndexMut<NodeI> for Nodes {
 }
 
 impl Nodes {
+    pub(crate) fn check_subtree_and_get(&mut self, key: NodeKey) -> Option<NodeI> {
+        let id = key.id_with_subtree();
+        return self.node_hashmap.get(&id).map(|x| x.slab_i);
+    }
+
     // todo: doesn't this kind of suck?
     pub(crate) fn get_mut_by_id(&mut self, id: &Id) -> Option<(&mut InnerNode, NodeI)> {
         let i = self.node_hashmap.get(id)?;
@@ -84,7 +89,7 @@ impl Nodes {
         };
     }
 
-    pub fn get(&self, i: NodeI) -> Option<&InnerNode> {
+    pub fn get_node_if_it_still_exists(&self, i: NodeI) -> Option<&InnerNode> {
         self.nodes.get(i.as_usize())
     }
 }
