@@ -10,37 +10,28 @@ use crate::Axis::*;
 
 pub struct UiNode<'a> {
     pub(crate) i: NodeI,
-    pub(crate) ui: UiRef<'a>,
+    pub(crate) sys: UiRef<'a>,
 }
 pub(crate) enum UiRef<'a> {
     Mut(&'a mut System),
     Shared(&'a System),
 }
 
-impl<'a> UiRef<'a> {
+impl<'a> UiNode<'a> {
     pub(crate) fn sys_mut(&mut self) -> &mut System {
-        match self {
+        match &mut self.sys {
             // We only call ui_mut() from functions that take &mut self.
             // [`Ui::get_node_mut()`] ensures that if the caller has access to a `&mut UiNode`, it will have been constructed with `UiRef::Mut`.
             UiRef::Shared(_) => unreachable!(),
-            UiRef::Mut(ui) => return ui,
+            UiRef::Mut(sys) => return sys,
         }
     }
 
     pub(crate) fn sys(&self) -> &System {
-        match self {
-            UiRef::Mut(ui) => ui,
-            UiRef::Shared(ui) => return ui,
+        match &self.sys {
+            UiRef::Mut(sys) => sys,
+            UiRef::Shared(sys) => return sys,
         }
-    }
-}
-impl<'a> UiNode<'a> {
-    pub(crate) fn sys_mut(&mut self) -> &mut System {
-        self.ui.sys_mut()
-    }
-
-    pub(crate) fn sys(&self) -> &System {
-        self.ui.sys()
     }
 }
 
@@ -59,7 +50,7 @@ impl<'a> Iterator for UiNodeChildrenIter<'a> {
             self.current = self.sys.nodes[child_i].next_sibling;
             if !self.sys.nodes[child_i].exiting {
                 self.remaining -= 1;
-                return Some(UiNode { ui: UiRef::Shared(&self.sys), i: child_i });
+                return Some(UiNode { sys: UiRef::Shared(&self.sys), i: child_i });
             }
         }
         None
@@ -75,7 +66,7 @@ impl ExactSizeIterator for UiNodeChildrenIter<'_> {}
 impl<'a> UiNode<'a> {
     /// Get an iterator over all the children added to the node so far.
     pub fn children(&'a self) -> impl Iterator<Item = UiNode<'a>> {
-        let sys = self.ui.sys();
+        let sys = self.sys();
         UiNodeChildrenIter {
             sys: sys,
             current: sys.nodes[self.i].first_child,
@@ -115,7 +106,7 @@ impl<'a> UiNode<'a> {
         let padding = self.node().params.layout.padding;
 
         let size = self.node().size;
-        let size = self.ui.sys().f32_size_to_pixels2(size);
+        let size = self.sys().f32_size_to_pixels2(size);
 
         return size - padding;
     }
@@ -132,7 +123,7 @@ impl<'a> UiNode<'a> {
             (rect[Y][1] + rect[Y][0]) / 2.0,
         );
 
-        let center = center * self.ui.sys().size;
+        let center = center * self.sys().size;
 
         return center;
     }
@@ -149,7 +140,7 @@ impl<'a> UiNode<'a> {
             rect[Y][1],
         );
 
-        let center = center * self.ui.sys().size;
+        let center = center * self.sys().size;
         
         return center;
     }
@@ -159,7 +150,7 @@ impl<'a> UiNode<'a> {
     /// Since the size and position of nodes is only determined after the layout pass at the end of the frame, 
     /// this function will return the value from last frame.
     pub fn rect(&self) -> XyRect {
-        return self.node().real_rect * self.ui.sys().size;
+        return self.node().real_rect * self.sys().size;
     }
 
     /// Returns the node's rectangle in normalized device coordinates (NDC).
@@ -167,7 +158,7 @@ impl<'a> UiNode<'a> {
     /// Since the size and position of nodes is only determined after the layout pass at the end of the frame, 
     /// this function will return the value from last frame.
     pub fn render_rect(&self) -> RenderInfo {
-        let size = self.ui.sys().size;
+        let size = self.sys().size;
         let scale = self.node().accumulated_transform.scale;
         return RenderInfo {
             rect: self.node().real_rect.to_graphics_space_rounded(size, scale),
@@ -180,26 +171,12 @@ impl<'a> UiNode<'a> {
     /// Only works for text edit nodes. Returns `None` for regular text nodes.
     pub fn text_edit_changed(&'a self) -> Option<&'a str> {
         if let Some(TextI::TextEdit(handle)) = &self.node().text_i {
-            let text_edit = self.ui.sys().renderer.text.get_text_edit(&handle);
+            let text_edit = self.sys().renderer.text.get_text_edit(&handle);
             if text_edit.text_changed() {
                 return Some(text_edit.raw_text());
             }
         }
         None
-    }
-
-    /// Returns `true` if this node was just clicked with the left mouse button.
-    ///
-    /// This is "act on press". For "act on release", see [`Ui::is_click_released()`].
-    pub fn is_clicked(&self) -> bool {
-        let sys = self.sys();
-
-        #[cfg(debug_assertions)]
-        if !sys.check_node_sense(self.i, Sense::CLICK, "is_clicked()", "Node::sense_click()") {
-            return false;
-        }
-
-        sys.check_clicked(self.node().id, MouseButton::Left)
     }
 
     /// If this node was dragged with the left mouse button, returns a struct describing the drag event. Otherwise, returns `None`.
@@ -263,7 +240,7 @@ impl Ui {
         // 
         // Where UiNode and UiNodeMut are crappy separate wrapper structs, the caller has to make the node_mut binding itself mutable, etc.
 
-        let wrapper = UiNode { i, ui: UiRef::Mut(&mut self.sys)  };
+        let wrapper = UiNode { i, sys: UiRef::Mut(&mut self.sys)  };
         let wrapper = self.arena_for_wrapper_structs.alloc(wrapper);
 
         return Some(wrapper);
@@ -274,7 +251,7 @@ impl Ui {
     /// You can check [`UiNode::is_hidden`] and [`UiNode::is_exiting`] on the result to filter as needed.
     pub fn get_node_unfiltered(&self, key: NodeKey) -> Option<&UiNode<'_>> {
         let i = self.sys.nodes.get_with_subtree(key)?;
-        let wrapper = UiNode { i, ui: UiRef::Shared(&self.sys)  };
+        let wrapper = UiNode { i, sys: UiRef::Shared(&self.sys)  };
         return Some(self.arena_for_wrapper_structs.alloc(wrapper));
     }
 
@@ -430,23 +407,6 @@ impl Ui {
 
     fn drag_from_release_event_with_rect(&self, event: &DragReleaseEvent, node_rect: XyRect) -> Option<Drag> {
         self.sys.drag_from_release_event_with_rect(event, node_rect)
-    }
-
-    /// Returns `true` if the node corresponding to `key` was just clicked with the left mouse button.
-    ///
-    /// This is "act on press". For "act on release", see [`Self::is_click_released()`].
-    pub fn is_clicked(&self, key: NodeKey) -> bool {
-        let Some(i) = self.sys.nodes.get_with_subtree(key) else {
-            return false;
-        };
-        let node = &self.sys.nodes[i];
-
-        #[cfg(debug_assertions)]
-        if !self.sys.check_node_sense(i, Sense::CLICK, "is_clicked()", "Node::sense_click()") {
-            return false;
-        }
-
-        self.sys.check_clicked(node.id, MouseButton::Left)
     }
 
     /// Returns `true` if the node corresponding to `key` was just clicked with the right mouse button.

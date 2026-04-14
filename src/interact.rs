@@ -573,6 +573,14 @@ impl System {
     }
 
     pub(crate) fn check_clicked(&self, id: Id, button: MouseButton) -> bool {
+        #[cfg(debug_assertions)] {
+            if let Some(i) = self.nodes.get_by_id(id) {
+                if !self.check_node_sense(i, Sense::CLICK, "is_clicked()", "Node::sense_click()") {
+                    return false;
+                }
+            }
+        }
+        
         self.mouse_input.clicks()
             .any(|e| e.button == button && e.targets.contains(&id))
     }
