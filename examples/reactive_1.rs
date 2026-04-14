@@ -1,19 +1,20 @@
 /// This is an example showing how to use `readd_branch` for "reactivity".
 /// Note that this feature is experimental and it doesn't fit in the library all that well. In particular, you can't use it together with Components.
 ///
-/// Normally, a GUI program has a state that can evolve in arbitrary ways. But once the state is set, it's usually not hard to go from the state to the GUI representation. In Keru, you just have to call a few `ui.add` functions, which are very cheap, and then the library can take it from there and do diffing, incremental relayouts, or incremental updates to the render data, if it wants to.
+/// Normally, a GUI program has a state that can evolve in arbitrary ways. But once the state is set, it's usually not hard to go from the state to the GUI representation. In Keru, you just have to create a few `Node` values, maybe format some strings (which is fast if you just use an arena), and call a few `ui.add` functions, which are very cheap. Then the library can take it from there and do diffing, incremental relayouts, or incremental updates to the render data, if it wants to.
+/// 
 /// As long as this is the case, "reactivity" isn't really anything that we need to worry about, and it's not worth complicating the programming model for it.
 ///
-/// But what if some reason we had to do some really expensive computation to convert the program state into something that can be shown in the GUI?
-/// For example, imagine that we have a counter where our state is a `i32`, with values `0`, `1`, `2`, and imagine that converting it to the strings "Zero", "One", "Two" that we want to display was an expensive process worth worrying about.
+/// But what if some reason we had to do some really expensive computation to decide what we want to show in the GUI in the first place, or to convert the program state into something that can be shown in the GUI?
+/// As an example, imagine that we have a counter where our state is a `i32`, with values `0`, `1`, `2`, and imagine that converting it to the strings "Zero", "One", "Two" that we want to display was an expensive process worth worrying about.
 ///
-/// The easy solution would be to just store the converted form in our state, and update when it changes. That would probably work great, so maybe we still don't need reactivity. But what if we were really convinced that this reactivity thing was the future? In that case, we might want a way to skip running that part of the GUI rebuilding code completely, except on the frames where the underlying `i32` changed.
+/// The easy solution would be to just store the converted form in our state, and update when it changes. That would probably work great, so maybe we still don't need reactivity. But what if we were like, really convinced that this reactivity thing was the future? In that case, we might want a way to skip running that part of the GUI rebuilding code completely, except on the frames where the underlying `i32` changed.
 ///
-/// To be precise, if it was so expensive that it makes the problem actually miss frames, that would be a separate issue: we'd still miss the frame whenever the `i32` did change. We'd need a real solution like computing it in a separate thread. (See the async_thread.rs example).
+/// To be precise, if it was so expensive that it makes the program actually miss frames, that would be a separate issue: we'd still miss the frame whenever the `i32` did change. So we'd need a real solution, like computing it in a separate thread. (See the async_thread.rs example.)
 /// 
 /// Also, if computing that expensive value was the ONLY thing that our program does, it wouldn't be a problem either. If the window loop is set correctly, it doesn't rerun the GUI rebuild code at all unless the `Ui` received an input that it cares about. If it only cares about the Increase button being clicked, that means that it's already only running it when the value actually needs to be recomputed, and there'd be nothing to skip.
 /// 
-/// What we're talking about here is the very specific case where we have a complex GUI with many individual parts, it's common for the user to interact with simpler parts of the GUI in ways that don't change the state that the expensive part depends on, and the cost of rerunning the expensive parts when not needed add up in terms of CPU usage or power consumption.
+/// What we're talking about here is the very specific case where we have a complex GUI with many individual parts, it's common for the user to interact with simpler parts of the GUI in ways that don't change the state that the expensive part depends on, and the cost of rerunning the expensive parts when not needed is adding up in terms of CPU usage or power consumption.
 /// In this case it might finally make sense to think about rerunning the builder code for the simple part but skipping the code for the expensive part.
 /// 
 /// (But remember that it's never too late to just cache the result of the expensive calculation, stop thinking about reactivity, and move on to more interesting things.)
@@ -38,7 +39,7 @@ pub struct State {
     pub reactive_count: Observer<i32>,
 }
 
-const NUMBERS: [&str; 8] = [
+const NUMBERS: [&str; 7] = [
     "Zero",
     "One",
     "Two",
@@ -46,17 +47,20 @@ const NUMBERS: [&str; 8] = [
     "Four",
     "Five",
     "Six",
-    "Too big...",
 ];
 
-fn do_a_slow_calculation_to_convert_our_state_into_something_that_we_can_show_in_the_gui(count: &i32) -> &'static str {
+fn do_a_slow_calculation(count: i32) -> &'static str {
     thread::sleep(Duration::from_secs(1));
-    let index = (count.abs() as usize).min(5);
-    return NUMBERS[index];
+    return NUMBERS.get(count as usize).unwrap_or(&"Too big...");
 }
 
 impl State {
     fn update_ui(&mut self, ui: &mut Ui) {
+        let explanation = "We can use the left counter without rerunning the slow code for the one on the right.";
+        let footer = LABEL
+            .static_text(explanation)
+            .position_y(Pos::End);
+
         #[node_key] const REACTIVE_ROOT: NodeKey;
 
         #[node_key] const INCREASE: NodeKey;
@@ -85,19 +89,21 @@ impl State {
                 ui.add(increase_button_2);
             });
 
-            let changed = ui.check_changes(&mut self.reactive_count);
+            let changed = ui.check_if_observer_is_changed(&self.reactive_count);
             if changed {
                 ui.add(V_STACK.key(REACTIVE_ROOT)).nest(|| {
                     ui.add(LABEL.static_text("Slow reactive counter"));
-                    let text = do_a_slow_calculation_to_convert_our_state_into_something_that_we_can_show_in_the_gui(&self.reactive_count);
+                    let text = do_a_slow_calculation(*self.reactive_count);
                     ui.add(LABEL.text(&text));
                     ui.add(increase_button);
                 });
             } else {
                 ui.readd_branch(REACTIVE_ROOT);
             }
-            
+
         });
+
+        ui.add(footer);
     }
 }
 

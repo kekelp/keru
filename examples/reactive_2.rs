@@ -20,7 +20,7 @@ impl CustomComponents for Ui {
         #[node_key] const DECREASE: NodeKey;
 
         self.subtree_old().start(|| {
-            let changed = self.check_changes(count);
+            let changed = self.check_if_observer_is_changed(count);
             // if we uncomment these two lines and comment the two below, the [`Ui`] will have a wrong idea of which variables the ui code depends on, and it will miss updates to `count`.
             // However, when running in debug mode, the [`Ui`] still checks for differences, so it can detect this mistake and print some error messages.
             // This does mean that any performance gains from the reactive block apply to release mode only: in debug mode, the [`Ui`] is still hashing and diffing everything.

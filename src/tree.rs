@@ -749,9 +749,7 @@ impl Ui {
 
         self.relayout();
 
-        self.sys.third_last_frame_end_fake_time = self.sys.second_last_frame_end_fake_time;
-        self.sys.second_last_frame_end_fake_time = self.sys.last_frame_end_fake_time;
-        self.sys.last_frame_end_fake_time = observer_timestamp();
+        self.sys.last_frame_end_fake_time = get_observer_timestamp();
 
         if self.sys.update_frames_needed > 0 {
             self.sys.update_frames_needed -= 1;

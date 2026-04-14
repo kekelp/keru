@@ -116,8 +116,6 @@ pub(crate) struct System {
 
     pub current_frame: u64,
     pub last_frame_end_fake_time: u64,
-    pub second_last_frame_end_fake_time: u64,
-    pub third_last_frame_end_fake_time: u64,
 
     pub mouse_input: MouseInput,
     pub key_input: KeyInput,
@@ -263,10 +261,6 @@ impl Ui {
 
         let nodes = Nodes::new();
 
-        let third_last_frame_end_fake_time = 3;
-        let second_last_frame_end_fake_time = 4;
-        let last_frame_end_fake_time = 5;
-
         let renderer = Renderer::new(&device, &queue, config.format);
 
         Self {
@@ -293,9 +287,7 @@ impl Ui {
                 partial_relayout_count: 0,
 
                 current_frame: FIRST_FRAME,
-                third_last_frame_end_fake_time,
-                second_last_frame_end_fake_time,
-                last_frame_end_fake_time,
+                last_frame_end_fake_time: 0,
 
                 size: Xy::new(config.width as f32, config.height as f32),
 

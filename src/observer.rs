@@ -15,19 +15,19 @@ pub(crate) static FAKE_TIME: AtomicU64 = AtomicU64::new(10);
 /// Returns the current value of the "timestamp" that the [`Ui`] uses to determine if values in an [`Observer`] have changed.
 /// 
 /// Might be useful to implement custom versions of [`Observer`].
-pub(crate) fn observer_timestamp() -> u64 {
-    // todo: is relaxed right here?
+pub(crate) fn get_observer_timestamp() -> u64 {
+    // This would probably be used in a single thread. Unless maybe you move the Observer into another thread, modify it, and move it back. Even then, relaxed is probably fine? But honestly who knows.
     return FAKE_TIME.fetch_add(1, Ordering::Relaxed);
 }
 
 /// A wrapper that keeps track of changes to a value.
 ///
 /// `Observer<T>` marks itself as changed when modified. A [`Ui`] can check for changes using
-/// [`Ui::check_changes()`].
+/// [`Ui::check_if_observer_is_changed()`].
 ///
 /// # Limitations
 /// 
-/// - This struct cannot keep track of changes made through interior mutability or unsafe code.
+/// - This struct uses `DerefMut` to keep track of changes. This means that cannot detect changes made through interior mutability or unsafe code.
 ///
 /// # Example
 ///
@@ -38,11 +38,10 @@ pub struct Observer<T> {
 }
 
 impl<T> Observer<T> {
-    // todo: also impl Into<Observer<T>> for T?
     pub fn new(value: T) -> Self {
         Observer {
             value,
-            changed_at: observer_timestamp(),
+            changed_at: get_observer_timestamp(),
         }
     }
 
@@ -64,7 +63,7 @@ impl<T> Deref for Observer<T> {
 
 impl<T> DerefMut for Observer<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.changed_at = observer_timestamp();
+        self.changed_at = get_observer_timestamp();
         &mut self.value
     }
 }
@@ -79,8 +78,8 @@ impl Ui {
     ///
     /// # Example
     /// See the "reactive_block" example in the repository.
-    pub fn check_changes<T>(&self, observer: &mut Observer<T>) -> bool {
-        return observer.changed_at > self.sys.third_last_frame_end_fake_time;
+    pub fn check_if_observer_is_changed<T>(&self, observer: &Observer<T>) -> bool {
+        return observer.changed_at > self.sys.last_frame_end_fake_time;
     }
 }
 
@@ -93,14 +92,14 @@ macro_rules! impl_binary_ops {
                 let value = self.value.$method(rhs);
                 Observer {
                     value,
-                    changed_at: observer_timestamp(),
+                    changed_at: get_observer_timestamp(),
                 }
             }
         }
 
         impl<T: $assign_trait<T>> $assign_trait<T> for Observer<T> {
             fn $assign_method(&mut self, rhs: T) {
-                self.changed_at = observer_timestamp();
+                self.changed_at = get_observer_timestamp();
                 self.value.$assign_method(rhs);
             }
         }
@@ -123,7 +122,7 @@ impl<T: Neg> Neg for Observer<T> {
     fn neg(self) -> Self::Output {
         Observer {
             value: -self.value,
-            changed_at: observer_timestamp(),
+            changed_at: get_observer_timestamp(),
         }
     }
 }
@@ -133,7 +132,7 @@ impl<T: Not> Not for Observer<T> {
     fn not(self) -> Self::Output {
         Observer {
             value: !self.value,
-            changed_at: observer_timestamp(),
+            changed_at: get_observer_timestamp(),
 
         }
     }
@@ -143,7 +142,7 @@ impl<T: Clone> Clone for Observer<T> {
     fn clone(&self) -> Self {
         Observer {
             value: self.value.clone(),
-            changed_at: observer_timestamp(),
+            changed_at: get_observer_timestamp(),
         }
     }
 }
@@ -154,7 +153,7 @@ impl<T: Default> Default for Observer<T> {
     fn default() -> Self {
         Observer {
             value: T::default(),
-            changed_at: observer_timestamp(),
+            changed_at: get_observer_timestamp(),
         }
     }
 }
