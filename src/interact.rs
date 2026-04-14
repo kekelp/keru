@@ -586,26 +586,65 @@ impl System {
     }
 
     pub(crate) fn check_dragged(&self, id: Id, button: MouseButton) -> Option<&mouse_events::DragEvent> {
+        #[cfg(debug_assertions)] {
+            if let Some(i) = self.nodes.get_by_id(id) {
+                if !self.check_node_sense(i, Sense::DRAG, "is_dragged()", "Node::sense_drag()") {
+                    return None;
+                }
+            }
+        }
         self.mouse_input.drags()
             .find(|e| e.button == button && e.targets.contains(&id))
     }
 
     pub(crate) fn check_hovered(&self, id: Id) -> bool {
+        #[cfg(debug_assertions)] {
+            if let Some(i) = self.nodes.get_by_id(id) {
+                if !self.check_node_sense(i, Sense::HOVER, "is_hovered()", "Node::sense_hover()") {
+                    return false;
+                }
+            }
+        }
         self.hovered.contains(&id)
     }
 
+    pub(crate) fn check_focused(&self, id: Id) -> bool {
+        self.focused == Some(id)
+    }
+
     pub(crate) fn check_clicked_at(&self, id: Id, button: MouseButton) -> Option<&mouse_events::ClickEvent> {
+        #[cfg(debug_assertions)] {
+            if let Some(i) = self.nodes.get_by_id(id) {
+                if !self.check_node_sense(i, Sense::CLICK, "clicked_at()", "Node::sense_click()") {
+                    return None;
+                }
+            }
+        }
         self.mouse_input.clicks()
             .filter(|e| e.button == button && e.targets.contains(&id))
             .last()
     }
 
     pub(crate) fn check_click_released(&self, id: Id, button: MouseButton) -> bool {
+        #[cfg(debug_assertions)] {
+            if let Some(i) = self.nodes.get_by_id(id) {
+                if !self.check_node_sense(i, Sense::CLICK_RELEASE, "is_click_released()", "Node::sense_click()") {
+                    return false;
+                }
+            }
+        }
         self.mouse_input.click_releases()
             .any(|e| e.button == button && e.targets.contains(&id))
     }
 
     pub(crate) fn check_drag_released(&self, id: Id, button: MouseButton) -> bool {
+        #[cfg(debug_assertions)] {
+            if let Some(i) = self.nodes.get_by_id(id) {
+                if !self.check_node_sense(i, Sense::DRAG, "is_drag_released()", "Node::sense_drag()") {
+                    return false;
+                }
+            }
+        }
         self.mouse_input.drag_releases()
             .any(|e| e.button == button && e.targets.contains(&id))
     }
@@ -633,6 +672,13 @@ impl System {
     }
 
     pub(crate) fn check_held_duration(&self, id: Id, button: MouseButton) -> Option<Duration> {
+        #[cfg(debug_assertions)] {
+            if let Some(i) = self.nodes.get_by_id(id) {
+                if !self.check_node_sense(i, Sense::HOLD, "is_held()", "Node::sense_hold()") {
+                    return None;
+                }
+            }
+        }
         // Hold is tracked via drag events - duration since start
         self.mouse_input.drags()
             .find(|e| e.button == button && e.targets.contains(&id))
@@ -640,6 +686,13 @@ impl System {
     }
 
     pub(crate) fn check_scrolled(&self, id: Id) -> Option<Vec2> {
+        #[cfg(debug_assertions)] {
+            if let Some(i) = self.nodes.get_by_id(id) {
+                if !self.check_node_sense(i, Sense::SCROLL, "is_scrolled()", "Node::sense_scroll()") {
+                    return None;
+                }
+            }
+        }
         let mut total = Vec2::ZERO;
         let mut found = false;
         for e in self.mouse_input.scrolls() {
@@ -652,6 +705,13 @@ impl System {
     }
 
     pub(crate) fn check_last_scroll_event(&self, id: Id) -> Option<&mouse_events::ScrollEvent> {
+        #[cfg(debug_assertions)] {
+            if let Some(i) = self.nodes.get_by_id(id) {
+                if !self.check_node_sense(i, Sense::SCROLL, "scrolled_at()", "Node::sense_scroll()") {
+                    return None;
+                }
+            }
+        }
         self.mouse_input.scrolls()
             .filter(|e| e.target == id)
             .last()

@@ -1,5 +1,4 @@
 use crate::*;
-use std::collections::hash_map::Entry;
 use std::hash::Hasher;
 use std::panic::Location;
 use bytemuck::{Pod, Zeroable};
@@ -1130,22 +1129,7 @@ impl UiParent {
         return result;
     }
 
-    // Shortcut methods to get the real immediate-mode style (at the cost of having to bass back the Ui reference.)
-    // The UiParent can't hold a &Ui because it would conflict with use of Ui inside the nest() closure.
-    // This would probably not be an issue if Rust had a construct like python's `with` or C#'s `using`. Instead we have to do it with closures.
-    pub(crate) fn key(&self, ui: &Ui) -> NodeKey {
-        NodeKey::new_temp(ui.sys.nodes[self.i].id, "")
-    }
 
-    pub fn is_right_clicked(&self, ui: &Ui) -> bool { ui.is_right_clicked(self.key(ui)) }
-    pub fn is_click_released(&self, ui: &Ui) -> bool { ui.is_click_released(self.key(ui)) }
-    pub fn is_dragged(&self, ui: &Ui) -> Option<Drag> { ui.is_dragged(self.key(ui)) }
-    pub fn is_drag_released(&self, ui: &Ui) -> bool { ui.is_drag_released(self.key(ui)) }
-    pub fn is_hovered(&self, ui: &Ui) -> Option<Hover> { ui.is_hovered(self.key(ui)) }
-    pub fn is_held(&self, ui: &Ui) -> Option<std::time::Duration> { ui.is_held(self.key(ui)) }
-    pub fn clicked_at(&self, ui: &Ui) -> Option<Click> { ui.clicked_at(self.key(ui)) }
-    pub fn is_scrolled(&self, ui: &Ui) -> Option<glam::Vec2> { ui.is_scrolled(self.key(ui)) }
-    pub fn scrolled_at(&self, ui: &Ui) -> Option<ScrollEvent> { ui.scrolled_at(self.key(ui)) }
 }
 
 #[allow(dead_code)]

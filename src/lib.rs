@@ -98,7 +98,6 @@ mod observer;
 pub use observer::*;
 
 mod input;
-pub use input::*;
 
 mod reactive;
 pub use reactive::*;
