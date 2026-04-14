@@ -177,6 +177,42 @@ impl<'a> UiNode<'a> {
         None
     }
 
+    /// Get the text in a node's text edit box or text box.
+    /// 
+    /// Does nothing and returns `None` if the node doesn't have a text edit box or a text box. 
+    pub fn get_text(&self) -> Option<&str> {
+        match self.node().text_i.as_ref()? {
+            TextI::TextBox(handle) => Some(self.sys().renderer.text.get_text_box(&handle).text()),
+            TextI::TextEdit(handle) => Some(self.sys().renderer.text.get_text_edit(&handle).raw_text()),
+        }
+    }
+
+    /// Set the text in a node's text edit box or text box.
+    /// 
+    /// Does nothing and returns `None` if the node doesn't have a text edit box or a text box. 
+    /// 
+    /// This method is meant for programmatically updating text edit content as a response to events. For text that depends on state, it's probably better to stick to the declarative API and set its text conditionally with [`Node::text()`] when rebuilding.
+    pub fn set_text(&mut self, text: &str) -> Option<()> {
+        let i = self.i;
+        let sys = self.sys_mut();
+        match sys.nodes[i].text_i.as_ref()? {
+            TextI::TextBox(handle) => sys.renderer.text.get_text_box_mut(&handle).set_text_hashed(text),
+            TextI::TextEdit(handle) => sys.renderer.text.get_text_edit_mut(&handle).set_text_hashed(text),
+        };
+        return Some(())
+    }
+
+    /// Set placeholder text for a text edit node that will be shown when the text edit is empty.
+    ///
+    /// Does nothing for non-editable text nodes or for nodes without text.
+    // todo: maybe just remove this function?
+    pub fn set_text_edit_placeholder(&mut self, placeholder: &str) {
+        let i = self.i;
+        let sys = self.sys_mut();
+        if let Some(TextI::TextEdit(handle)) = &sys.nodes[i].text_i {
+            sys.renderer.text.get_text_edit_mut(handle).set_placeholder(placeholder);
+        }
+    }
 }
 
 impl Ui {
@@ -240,24 +276,6 @@ impl Ui {
         return Some(self.arena_for_wrapper_structs.alloc(wrapper));
     }
 
-    // todo move
-    pub fn get_text(&mut self, key: NodeKey) -> Option<&str> {
-        let i = self.sys.nodes.get_with_subtree(key)?;
-        let text_i = self.sys.nodes[i].text_i.as_ref()?;
-        match text_i {
-            TextI::TextBox(handle) => Some(self.sys.renderer.text.get_text_box(&handle).text()),
-            TextI::TextEdit(handle) => Some(self.sys.renderer.text.get_text_edit(&handle).raw_text()),
-        }
-    }
-    pub fn set_text(&mut self, key: NodeKey, text: &str) -> Option<()> {
-        let i = self.sys.nodes.get_with_subtree(key)?;
-        let text_i = self.sys.nodes[i].text_i.as_ref()?;
-        match text_i {
-            TextI::TextBox(handle) => self.sys.renderer.text.get_text_box_mut(&handle).set_text_hashed(text),
-            TextI::TextEdit(handle) => self.sys.renderer.text.get_text_edit_mut(&handle).set_text_hashed(text),
-        };
-        Some(())
-    }
 }
 
 /// The data needed for rendering a node with custom code.
@@ -362,7 +380,7 @@ impl System {
             pressed_timestamp: event.start_time,
             total_drag_distance: event.total_delta,
         })
-    }
+    } 
 }
 
 impl Ui {
@@ -392,29 +410,6 @@ impl Ui {
 
     fn drag_from_release_event_with_rect(&self, event: &DragReleaseEvent, node_rect: XyRect) -> Option<Drag> {
         self.sys.drag_from_release_event_with_rect(event, node_rect)
-    }
-
-    /// Set placeholder text for a text edit node that will be shown when the text edit is empty.
-    ///
-    /// Does nothing for non-editable text nodes or for nodes without text.
-    pub fn set_text_edit_placeholder(&mut self, key: NodeKey, placeholder: &str) {
-        let Some(i) = self.sys.nodes.get_with_subtree(key) else {
-            return;
-        };
-
-        if let Some(TextI::TextEdit(handle)) = &self.sys.nodes[i].text_i {
-            self.sys.renderer.text.get_text_edit_mut(handle).set_placeholder(placeholder);
-        }
-    }
-
-    /// Returns the text content if it was changed by user input this frame, otherwise `None`.
-    ///
-    /// Only works for text edit nodes. Returns `None` for regular text nodes.
-    pub fn text_edit_changed(&mut self, key: NodeKey) -> Option<&str> {
-        let Some(uinode) = self.get_node(key) else {
-            return None;
-        };
-        uinode.text_edit_changed()
     }
 
     /// If a left button mouse drag on the node corresponding to the `src` key was just released onto the node corresponding to the `dest` key, returns the drag info.
@@ -542,17 +537,4 @@ impl Ui {
         })
     }
 
-}
-
-impl<'a> UiNode<'a> {
-    pub fn set_text(&mut self, text: &str) -> Option<()> {
-        let i = self.i;
-        let sys = self.sys_mut();
-        let text_i = sys.nodes[i].text_i.as_ref()?;
-        match text_i {
-            TextI::TextBox(handle) => sys.renderer.text.get_text_box_mut(&handle).set_text_hashed(text),
-            TextI::TextEdit(handle) => sys.renderer.text.get_text_edit_mut(&handle).set_text_hashed(text),
-        };
-        return Some(())
-    }
 }
