@@ -237,7 +237,7 @@ impl Ui {
     }
 
     /// Unlink a node from its current parent's child list.
-    fn unlink_from_tree(&mut self, node_i: NodeI) {
+    pub(crate) fn unlink_from_tree(&mut self, node_i: NodeI) {
         let old_parent = self.sys.nodes[node_i].parent;
         let prev = self.sys.nodes[node_i].prev_sibling;
         let next = self.sys.nodes[node_i].next_sibling;
@@ -291,7 +291,7 @@ impl Ui {
         self.sys.nodes[new_node_i].n_children = 0;
     }
 
-    fn link_node_to_parent(&mut self, new_node_i: NodeI, parent_i: NodeI, depth: usize, sibling_cursor: SiblingCursor) {
+    pub(crate) fn link_node_to_parent(&mut self, new_node_i: NodeI, parent_i: NodeI, depth: usize, sibling_cursor: SiblingCursor) {
         assert!(new_node_i != parent_i, "Keru: Internal error: tried to add a node as child of itself ({}). This shouldn't be possible.", self.sys.nodes[new_node_i].debug_name());
 
         self.sys.nodes[new_node_i].depth = depth;

@@ -1,3 +1,6 @@
+/// This is an old experimental API for using change tracking to let the library know when it can skip hashing Node values and text to check for differences.
+/// I doubt that it's ever worth doing. The diffing is really not that expensive.
+
 use keru::*;
 use keru::example_window_loop::*;
 

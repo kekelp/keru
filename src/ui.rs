@@ -784,6 +784,40 @@ impl Ui {
             }
         }
     }
+
+    pub fn readd_branch(&mut self, branch_root: NodeKey) {
+        let Some(i) = self.sys.nodes.get_with_subtree(branch_root) else { return };
+
+        let (parent, sibling_cursor, depth) = thread_local::current_parent(self.sys.unique_id);
+        self.link_node_to_parent(i, parent, depth, sibling_cursor);
+
+        self.sys.nodes[i].last_frame_touched = self.sys.current_frame;
+        self.refresh_node(i);
+
+        self.readd_branch_recursive(i);
+    }
+
+    fn readd_branch_recursive(&mut self, node_i: NodeI) {
+        let mut current_child = self.sys.nodes[node_i].first_child;
+        while let Some(child) = current_child {
+            // Save next before any unlinking that would clear it.
+            let next = self.sys.nodes[child].next_sibling;
+            if self.sys.nodes[child].exiting {
+                // Unlink exiting nodes from the preserved list so cleanup_and_stuff
+                // can re-add them cleanly (same as the normal add flow, where
+                // clear_node_children removes them before they're re-added).
+                // Exiting nodes aren't counted in n_children, so undo the decrement.
+                self.unlink_from_tree(child);
+                self.sys.nodes[node_i].n_children += 1;
+            } else {
+                self.sys.nodes[child].last_frame_touched = self.sys.current_frame;
+                self.refresh_node(child);
+                self.readd_branch_recursive(child);
+            }
+            current_child = next;
+        }
+    }
+
 }
 
 // todo probably doesn't need to be public anymore? As long as we use the trait
