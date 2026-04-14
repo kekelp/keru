@@ -56,15 +56,27 @@ impl Ui {
 
                 let last_cursor_pos = self.sys.mouse_input.prev_cursor_position;
                 if vec2(position.x as f32, position.y as f32) != last_cursor_pos {
-                    let has_hover_sense = self.sys.hovered.iter()
-                        .filter_map(|id| self.sys.nodes.get_by_id_ick(id).map(|(node, _)| node))
-                        .any(|node| node.params.interact.senses.contains(Sense::HOVER));
+                    let mut anything_was_hovered = false;
+                    for id in &self.sys.hovered {
+                        if let Some(i) = self.sys.nodes.get_by_id(*id) {
+                            if self.sys.nodes[i].params.interact.senses.contains(Sense::HOVER) {
+                                anything_was_hovered = true;
+                                break;
+                            }
+                        }
+                    }
 
-                    let has_drag = self.sys.mouse_input.currently_dragging()
-                        .filter_map(|(id, _)| self.sys.nodes.get_by_id_ick(id).map(|(node, _)| node))
-                        .any(|node| node.params.interact.senses.contains(Sense::DRAG));
+                    let mut anything_was_dragged = false;
+                    for (id, _) in self.sys.mouse_input.currently_dragging() {
+                        if let Some(i) = self.sys.nodes.get_by_id(*id) {
+                            if self.sys.nodes[i].params.interact.senses.contains(Sense::DRAG) {
+                                anything_was_dragged = true;
+                                break;
+                            }
+                        }
+                    }
 
-                    if has_hover_sense || has_drag {
+                    if anything_was_hovered || anything_was_dragged {
                         self.set_new_ui_input();
                     }
                 }

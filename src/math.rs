@@ -14,10 +14,6 @@ impl System {
 }
 
 impl Ui {
-    pub(crate) fn f32_size_to_pixels2(&self, size: Xy<f32>) -> Xy<f32> {
-        self.sys.f32_size_to_pixels2(size)
-    }
-
     pub(crate) fn pixels_to_frac(&self, pixels: f32, axis: Axis) -> f32 {
         return pixels / self.sys.size[axis];
     }

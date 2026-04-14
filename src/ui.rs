@@ -546,7 +546,7 @@ impl Ui {
     }
 
     pub fn scroll_delta(&self) -> Option<glam::Vec2> {
-        self.global_scroll_delta()
+        self.sys.global_scroll_delta()
     }
 
     pub(crate) fn set_new_ui_input(&mut self) {
@@ -612,7 +612,7 @@ impl Ui {
     /// 
     /// The closure is executed immediately, not stored, so there are no limitations with borrowing state.
     pub fn canvas_drawing(&mut self, key: NodeKey, drawing_function: impl FnOnce(&mut DrawContext)) {
-        let Some(i) = self.sys.nodes.node_hashmap.get(&key.id_with_subtree()).map(|e| e.slab_i) else {
+        let Some(i) = self.sys.nodes.get_with_subtree(key) else {
             return;
         };
 
@@ -642,136 +642,6 @@ impl Ui {
     // todo what's going on here
     pub(crate) fn new_redraw_requested_frame(&mut self) {
         
-    }
-
-    /// Hit test with the current stored cursor position and a click rect
-    pub(crate) fn hit_click_rect(&self, rect: &ClickRect) -> bool {
-        let size = self.sys.size;
-
-        // Get cursor position and convert to normalized coordinates
-        let cursor_pos = (
-            self.cursor_position().x as f32 / size[X],
-            self.cursor_position().y as f32 / size[Y],
-        );
-
-        let node_i = rect.i;
-
-        let aabb_hit = rect.rect[X][0] < cursor_pos.0
-            && cursor_pos.0 < rect.rect[X][1]
-            && rect.rect[Y][0] < cursor_pos.1
-            && cursor_pos.1 < rect.rect[Y][1];
-
-        if aabb_hit == false {
-            return false;
-        }
-
-        // todo more accurate clicks
-        match self.sys.nodes[node_i].params.shape {
-            Shape::NoShape => {
-                return false; // weird...
-            }
-            Shape::Rectangle { .. } => {
-                return true;
-            }
-            Shape::Circle => {
-                // Calculate the circle center and radius
-                let center_x = (rect.rect[X][0] + rect.rect[X][1]) / 2.0;
-                let center_y = (rect.rect[Y][0] + rect.rect[Y][1]) / 2.0;
-                let radius = (rect.rect[X][1] - rect.rect[X][0]) / 2.0;
-
-                // Check if the mouse is within the circle
-                let dx = cursor_pos.0 - center_x;
-                let dy = cursor_pos.1 - center_y;
-                return dx * dx + dy * dy <= radius * radius;
-            }
-            Shape::Ring { width } => {
-                // scale to correct coordinates
-                // width should have been a Len anyway so this will have to change
-                let width = width / size[X];
-
-                let aspect = size[X] / size[Y];
-                // Calculate the ring's center and radii
-                let center_x = (rect.rect[X][0] + rect.rect[X][1]) / 2.0;
-                let center_y = (rect.rect[Y][0] + rect.rect[Y][1]) / 2.0;
-                let outer_radius = (rect.rect[X][1] - rect.rect[X][0]) / 2.0;
-                let inner_radius = outer_radius - width;
-
-                // Check if the mouse is within the ring
-                let dx = cursor_pos.0 - center_x;
-                let dy = (cursor_pos.1 - center_y) / aspect;
-                let distance_squared = dx * dx + dy * dy;
-                return distance_squared <= outer_radius * outer_radius
-                    && distance_squared >= inner_radius * inner_radius;
-
-            }
-            Shape::Arc { .. } => {
-                let center_x = (rect.rect[X][0] + rect.rect[X][1]) / 2.0;
-                let center_y = (rect.rect[Y][0] + rect.rect[Y][1]) / 2.0;
-                let radius = (rect.rect[X][1] - rect.rect[X][0]) / 2.0;
-
-                let dx = cursor_pos.0 - center_x;
-                let dy = cursor_pos.1 - center_y;
-                return dx * dx + dy * dy <= radius * radius;
-            }
-            Shape::Pie { .. } => {
-                let center_x = (rect.rect[X][0] + rect.rect[X][1]) / 2.0;
-                let center_y = (rect.rect[Y][0] + rect.rect[Y][1]) / 2.0;
-                let radius = (rect.rect[X][1] - rect.rect[X][0]) / 2.0;
-
-                let dx = cursor_pos.0 - center_x;
-                let dy = cursor_pos.1 - center_y;
-                return dx * dx + dy * dy <= radius * radius;
-            }
-            Shape::Hexagon { size: size_param, rotation } => {
-                let screen_width = size[X];
-                let screen_height = size[Y];
-
-                // Convert rect to pixels
-                let x0 = rect.rect[X][0] * screen_width;
-                let x1 = rect.rect[X][1] * screen_width;
-                let y0 = rect.rect[Y][0] * screen_height;
-                let y1 = rect.rect[Y][1] * screen_height;
-
-                // Cursor in pixels
-                let cursor_px = cursor_pos.0 * screen_width;
-                let cursor_py = cursor_pos.1 * screen_height;
-
-                // Calculate hexagon parameters (matching render.rs)
-                let cx = (x0 + x1) / 2.0;
-                let cy = (y0 + y1) / 2.0;
-                let max_radius = ((x1 - x0) / 2.0).min((y1 - y0) / 2.0);
-                let hex_radius = max_radius * size_param;
-
-                // Transform cursor to hexagon-local coordinates
-                let dx = cursor_px - cx;
-                let dy = cursor_py - cy;
-
-                // Apply inverse rotation (rotate by -rotation)
-                let cos_r = rotation.cos();
-                let sin_r = rotation.sin();
-                let local_x = dx * cos_r + dy * sin_r;
-                let local_y = -dx * sin_r + dy * cos_r;
-
-                // Point-in-hexagon test using 3-band method for flat-top hexagon
-                // A regular hexagon can be described as the intersection of 3 pairs of parallel lines
-                let sqrt3 = 3.0_f32.sqrt();
-                let sqrt3_r = sqrt3 * hex_radius;
-                let inradius = sqrt3_r / 2.0; // distance from center to edge midpoint
-
-                // Check 3 constraints:
-                // 1. Top/bottom edges: |y| <= inradius
-                // 2. Upper-right/lower-left edges: |√3*x + y| <= √3*R
-                // 3. Lower-right/upper-left edges: |√3*x - y| <= √3*R
-                return local_y.abs() <= inradius
-                    && (sqrt3 * local_x + local_y).abs() <= sqrt3_r
-                    && (sqrt3 * local_x - local_y).abs() <= sqrt3_r;
-            }
-            Shape::Segment { .. } | Shape::HorizontalLine | Shape::VerticalLine | Shape::Triangle { .. } | Shape::SquareGrid { .. } | Shape::HexGrid { .. } => {
-                // For segments, triangles, and grids, use simple rectangle hit test
-                return true;
-            }
-        }
-
     }
 
     fn unload_imageref(&mut self, imageref: &ImageRef) {

@@ -88,6 +88,7 @@ pub struct InnerNode {
     pub debug_location: &'static Location<'static>,
 
     pub is_twin: Option<u32>,
+    pub n_twins: u32,
 
     pub last_click: f32,
     pub hovered: bool,
@@ -149,7 +150,7 @@ impl InnerNode {
             imageref: None,
             last_image_source: None,
 
-            parent: NodeI::from(12312355), // just a wrong value which will be overwritten. it's even worse here.
+            parent: DUMMY_I, // just a wrong value which will be overwritten. it's even worse here.
             // but it's for symmetry with update_node, where all these values are old and are reset.
 
             n_children: 0,
@@ -166,6 +167,7 @@ impl InnerNode {
             next_hidden_sibling: None,
         
             is_twin: twin_n,
+            n_twins: 0,
             params: Node::const_default(),
             debug_location,
             hover_timestamp: f32::MIN,
@@ -238,8 +240,6 @@ pub const ZERO_NODE_DUMMY: InnerNode = const {
     node
 };
 
-pub const ROOT_I: NodeI = NodeI::from(1);
-
 pub const NODE_ROOT_ID: Id = Id(0);
 pub const NODE_ROOT: InnerNode = InnerNode {
     expected_final_rect: Xy::new_symm([0.0, 1.0]),
@@ -286,6 +286,7 @@ pub const NODE_ROOT: InnerNode = InnerNode {
     next_hidden_sibling: None,
 
     is_twin: None,
+    n_twins: 0,
 
     params: NODE_ROOT_PARAMS,
     debug_location: Location::caller(),

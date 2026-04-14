@@ -82,36 +82,6 @@ bitflags::bitflags! {
 }
 
 impl Ui {
-    pub(crate) fn click_rect(&self, i: NodeI) -> ClickRect {
-        let real_rect = self.sys.nodes[i].real_rect;
-        let transform = self.sys.nodes[i].accumulated_transform;
-        let size = self.sys.size;
-
-        // Apply transform
-        let tx_norm = transform.offset.x / size[X];
-        let ty_norm = transform.offset.y / size[Y];
-
-        let transformed_rect = XyRect::new(
-            [real_rect[X][0] * transform.scale + tx_norm, real_rect[X][1] * transform.scale + tx_norm],
-            [real_rect[Y][0] * transform.scale + ty_norm, real_rect[Y][1] * transform.scale + ty_norm],
-        );
-
-        // Clip the transformed rect to the node's clip_rect
-        let clip_rect = self.sys.nodes[i].clip_rect;
-        let clipped_rect = XyRect::new(
-            intersect(transformed_rect[X], clip_rect[X]),
-            intersect(transformed_rect[Y], clip_rect[Y]),
-        );
-
-        ClickRect {
-            rect: clipped_rect,
-            i,
-            senses: self.sys.nodes[i].params.interact.senses,
-            scrollable: self.sys.nodes[i].params.layout.scrollable,
-            absorbs_mouse_events: self.sys.nodes[i].params.interact.absorbs_mouse_events,
-        }
-    }
-
     /// Scan for any interactive node under cursor (for general hover detection)
     pub(crate) fn scan_opaque_hits(&self) -> SmallVec<Id> {
         let mut result = SmallVec::new();
@@ -119,7 +89,7 @@ impl Ui {
         for clk_i in (0..self.sys.click_rects.len()).rev() {
             let rect = &self.sys.click_rects[clk_i];
 
-            if ! self.hit_click_rect(rect) {
+            if ! self.sys.hit_click_rect(rect) {
                 continue;
             }
 
@@ -139,52 +109,6 @@ impl Ui {
         result
     }
 
-    /// Scan for nodes with a specific sense. Only stops at absorbing nodes that have the sense.
-    /// If an absorbing node without the sense is encountered, walks up the parent tree instead
-    /// of continuing to scan siblings/unrelated nodes.
-    pub(crate) fn scan_hits_with_sense(&self, sense: Sense) -> SmallVec<Id> {
-        let mut result = SmallVec::new();
-
-        for clk_i in (0..self.sys.click_rects.len()).rev() {
-            let rect = &self.sys.click_rects[clk_i];
-
-            if ! self.hit_click_rect(rect) {
-                continue;
-            }
-
-            // If this node has the sense, add it
-            if rect.senses.contains(sense) {
-                result.push(self.sys.nodes[rect.i].id);
-            }
-
-            // If this is an absorbing node
-            if rect.absorbs_mouse_events {
-                if rect.senses.contains(sense) {
-                    // Absorbing node with the sense - stop completely
-                    break;
-                } else {
-                    // Absorbing node without the sense - walk up the parent tree
-                    let mut current_i = self.sys.nodes[rect.i].parent;
-                    while current_i != ROOT_I {
-                        let parent_rect = self.click_rect(current_i);
-                        if self.hit_click_rect(&parent_rect) {
-                            if parent_rect.senses.contains(sense) {
-                                result.push(self.sys.nodes[current_i].id);
-                            }
-                            if parent_rect.absorbs_mouse_events {
-                                break;
-                            }
-                        }
-                        current_i = self.sys.nodes[current_i].parent;
-                    }
-                    break; // Exit main loop after parent walking
-                }
-            }
-        }
-
-        result
-    }
-
     #[cfg(debug_assertions)]
     pub(crate) fn scan_any_node_hits(&self) -> SmallVec<Id> {
         let mut result = SmallVec::new();
@@ -192,7 +116,7 @@ impl Ui {
         for clk_i in (0..self.sys.click_rects.len()).rev() {
             let rect = &self.sys.click_rects[clk_i];
 
-            if self.hit_click_rect(rect) {
+            if self.sys.hit_click_rect(rect) {
                 result.push(self.sys.nodes[rect.i].id);
 
                 if rect.absorbs_mouse_events {
@@ -221,8 +145,8 @@ impl Ui {
                 self.start_hovering(id);
             } else {
                 // Already hovered - check if we need to signal input
-                if let Some(entry) = self.sys.nodes.node_hashmap.get(&id) {
-                    if self.sys.nodes[entry.slab_i].params.interact.senses.contains(Sense::HOVER) {
+                if let Some(i) = self.sys.nodes.get_by_id(id) {
+                    if self.sys.nodes[i].params.interact.senses.contains(Sense::HOVER) {
                         self.set_new_ui_input();
                     }
                 }
@@ -243,8 +167,8 @@ impl Ui {
             let all_hits = self.scan_any_node_hits();
             if let Some(&new_id) = all_hits.first() {
                 if self.sys.inspect_hovered.first() != Some(&new_id) {
-                    if let Some(entry) = self.sys.nodes.node_hashmap.get(&new_id) {
-                        log::info!("Inspect mode: hovering {}", self.node_debug_name(entry.slab_i));
+                    if let Some(i) = self.sys.nodes.get_by_id(new_id) {
+                        log::info!("Inspect mode: hovering {}", self.node_debug_name(i));
                     }
                 }
             }
@@ -256,7 +180,8 @@ impl Ui {
         self.sys.hovered.push(id);
 
         let (has_hover_sense, has_click_animation) = {
-            if let Some((node, _)) = self.sys.nodes.get_mut_by_id(&id) {
+            if let Some(i) = self.sys.nodes.get_by_id(id) {
+                let node = &mut self.sys.nodes[i];
                 let has_hover = node.params.interact.senses.contains(Sense::HOVER);
                 let has_anim = node.params.interact.click_animation;
                 if has_anim {
@@ -279,7 +204,8 @@ impl Ui {
     }
 
     fn end_hovering(&mut self, id: Id) {
-        if let Some((node, _)) = self.sys.nodes.get_mut_by_id(&id) {
+        if let Some(i) = self.sys.nodes.get_by_id(id) {
+            let node = &mut self.sys.nodes[i];
             if node.last_frame_touched == self.sys.current_frame && node.params.interact.click_animation {
                 node.hovered = false;
                 node.hover_timestamp = slow_accurate_timestamp_for_events_only();
@@ -297,16 +223,15 @@ impl Ui {
     pub(crate) fn handle_mouse_press(&mut self, button: MouseButton, window: &Window) -> bool {
         self.sys.focused = None;
 
-        let click_ids = self.scan_hits_with_sense(Sense::CLICK);
-        let drag_ids = self.scan_hits_with_sense(Sense::DRAG);
+        let click_ids = self.sys.scan_hits_with_sense(Sense::CLICK);
+        let drag_ids = self.sys.scan_hits_with_sense(Sense::DRAG);
 
         self.sys.mouse_input.push_press(button, click_ids.clone(), drag_ids);
 
         // todo: instead of re-iterating, maybe do this while scanning?
         let mut any_consumed = false;
         for &id in &click_ids {
-            if let Some(entry) = self.sys.nodes.node_hashmap.get(&id) {
-                let i = entry.slab_i;
+            if let Some(i) = self.sys.nodes.get_by_id(id) {
                 let consumed = self.resolve_click_press(button, window, i);
                 any_consumed = any_consumed || consumed;
             }
@@ -316,14 +241,14 @@ impl Ui {
     }
 
     pub(crate) fn handle_mouse_release(&mut self, button: MouseButton) {
-        let click_ids = self.scan_hits_with_sense(Sense::CLICK);
+        let click_ids = self.sys.scan_hits_with_sense(Sense::CLICK);
         self.sys.mouse_input.push_release(button, click_ids.clone());
 
         // todo: instead of re-iterating, maybe do this while scanning?
         // Signal update if any relevant nodes
         for &id in &click_ids {
-            if let Some(entry) = self.sys.nodes.node_hashmap.get(&id) {
-                let senses = self.sys.nodes[entry.slab_i].params.interact.senses;
+            if let Some(i) = self.sys.nodes.get_by_id(id) {
+                let senses = self.sys.nodes[i].params.interact.senses;
                 if senses.contains(Sense::CLICK_RELEASE) || senses.contains(Sense::DRAG) {
                     self.set_new_ui_input();
                 }
@@ -377,10 +302,9 @@ impl Ui {
         let Some(&first_id) = hovered_ids.first() else {
             return;
         };
-        let Some(entry) = self.sys.nodes.node_hashmap.get(&first_id) else {
+        let Some(hover_i) = self.sys.nodes.get_by_id(first_id) else {
             return;
         };
-        let hover_i = entry.slab_i;
 
         let (dx, dy) = match delta {
             MouseScrollDelta::LineDelta(x, y) => (x * 0.1, y * 0.1),
@@ -437,34 +361,244 @@ impl Ui {
             }
         }
     }
+}
 
-    // Query methods used by ui_node.rs
+// Methods that need to be reachable by the UiNode wrapper need to implemented for the inner System and not the Ui, because of the wrapper struct arena trick.
+// It doesn't make much difference. Maybe we should implement all private functions as methods of System for consistency.
+impl System {
+    pub(crate) fn click_rect(&self, i: NodeI) -> ClickRect {
+        let real_rect = self.nodes[i].real_rect;
+        let transform = self.nodes[i].accumulated_transform;
+        let size = self.size;
 
-    pub(crate) fn check_hovered(&self, id: Id) -> bool {
-        self.sys.hovered.contains(&id)
+        // Apply transform
+        let tx_norm = transform.offset.x / size[X];
+        let ty_norm = transform.offset.y / size[Y];
+
+        let transformed_rect = XyRect::new(
+            [real_rect[X][0] * transform.scale + tx_norm, real_rect[X][1] * transform.scale + tx_norm],
+            [real_rect[Y][0] * transform.scale + ty_norm, real_rect[Y][1] * transform.scale + ty_norm],
+        );
+
+        // Clip the transformed rect to the node's clip_rect
+        let clip_rect = self.nodes[i].clip_rect;
+        let clipped_rect = XyRect::new(
+            intersect(transformed_rect[X], clip_rect[X]),
+            intersect(transformed_rect[Y], clip_rect[Y]),
+        );
+
+        ClickRect {
+            rect: clipped_rect,
+            i,
+            senses: self.nodes[i].params.interact.senses,
+            scrollable: self.nodes[i].params.layout.scrollable,
+            absorbs_mouse_events: self.nodes[i].params.interact.absorbs_mouse_events,
+        }
+    }
+
+    /// Hit test with the current stored cursor position and a click rect
+    pub(crate) fn hit_click_rect(&self, rect: &ClickRect) -> bool {
+        let size = self.size;
+
+        // Get cursor position and convert to normalized coordinates
+        let cursor_pos = (
+            self.mouse_input.cursor_position.x as f32 / size[X],
+            self.mouse_input.cursor_position.y as f32 / size[Y],
+        );
+
+        let node_i = rect.i;
+
+        let aabb_hit = rect.rect[X][0] < cursor_pos.0
+            && cursor_pos.0 < rect.rect[X][1]
+            && rect.rect[Y][0] < cursor_pos.1
+            && cursor_pos.1 < rect.rect[Y][1];
+
+        if aabb_hit == false {
+            return false;
+        }
+
+        // todo more accurate clicks
+        match self.nodes[node_i].params.shape {
+            Shape::NoShape => {
+                return false; // weird...
+            }
+            Shape::Rectangle { .. } => {
+                return true;
+            }
+            Shape::Circle => {
+                // Calculate the circle center and radius
+                let center_x = (rect.rect[X][0] + rect.rect[X][1]) / 2.0;
+                let center_y = (rect.rect[Y][0] + rect.rect[Y][1]) / 2.0;
+                let radius = (rect.rect[X][1] - rect.rect[X][0]) / 2.0;
+
+                // Check if the mouse is within the circle
+                let dx = cursor_pos.0 - center_x;
+                let dy = cursor_pos.1 - center_y;
+                return dx * dx + dy * dy <= radius * radius;
+            }
+            Shape::Ring { width } => {
+                // scale to correct coordinates
+                // width should have been a Len anyway so this will have to change
+                let width = width / size[X];
+
+                let aspect = size[X] / size[Y];
+                // Calculate the ring's center and radii
+                let center_x = (rect.rect[X][0] + rect.rect[X][1]) / 2.0;
+                let center_y = (rect.rect[Y][0] + rect.rect[Y][1]) / 2.0;
+                let outer_radius = (rect.rect[X][1] - rect.rect[X][0]) / 2.0;
+                let inner_radius = outer_radius - width;
+
+                // Check if the mouse is within the ring
+                let dx = cursor_pos.0 - center_x;
+                let dy = (cursor_pos.1 - center_y) / aspect;
+                let distance_squared = dx * dx + dy * dy;
+                return distance_squared <= outer_radius * outer_radius
+                    && distance_squared >= inner_radius * inner_radius;
+
+            }
+            Shape::Arc { .. } => {
+                let center_x = (rect.rect[X][0] + rect.rect[X][1]) / 2.0;
+                let center_y = (rect.rect[Y][0] + rect.rect[Y][1]) / 2.0;
+                let radius = (rect.rect[X][1] - rect.rect[X][0]) / 2.0;
+
+                let dx = cursor_pos.0 - center_x;
+                let dy = cursor_pos.1 - center_y;
+                return dx * dx + dy * dy <= radius * radius;
+            }
+            Shape::Pie { .. } => {
+                let center_x = (rect.rect[X][0] + rect.rect[X][1]) / 2.0;
+                let center_y = (rect.rect[Y][0] + rect.rect[Y][1]) / 2.0;
+                let radius = (rect.rect[X][1] - rect.rect[X][0]) / 2.0;
+
+                let dx = cursor_pos.0 - center_x;
+                let dy = cursor_pos.1 - center_y;
+                return dx * dx + dy * dy <= radius * radius;
+            }
+            Shape::Hexagon { size: size_param, rotation } => {
+                let screen_width = size[X];
+                let screen_height = size[Y];
+
+                // Convert rect to pixels
+                let x0 = rect.rect[X][0] * screen_width;
+                let x1 = rect.rect[X][1] * screen_width;
+                let y0 = rect.rect[Y][0] * screen_height;
+                let y1 = rect.rect[Y][1] * screen_height;
+
+                // Cursor in pixels
+                let cursor_px = cursor_pos.0 * screen_width;
+                let cursor_py = cursor_pos.1 * screen_height;
+
+                // Calculate hexagon parameters (matching render.rs)
+                let cx = (x0 + x1) / 2.0;
+                let cy = (y0 + y1) / 2.0;
+                let max_radius = ((x1 - x0) / 2.0).min((y1 - y0) / 2.0);
+                let hex_radius = max_radius * size_param;
+
+                // Transform cursor to hexagon-local coordinates
+                let dx = cursor_px - cx;
+                let dy = cursor_py - cy;
+
+                // Apply inverse rotation (rotate by -rotation)
+                let cos_r = rotation.cos();
+                let sin_r = rotation.sin();
+                let local_x = dx * cos_r + dy * sin_r;
+                let local_y = -dx * sin_r + dy * cos_r;
+
+                // Point-in-hexagon test using 3-band method for flat-top hexagon
+                // A regular hexagon can be described as the intersection of 3 pairs of parallel lines
+                let sqrt3 = 3.0_f32.sqrt();
+                let sqrt3_r = sqrt3 * hex_radius;
+                let inradius = sqrt3_r / 2.0; // distance from center to edge midpoint
+
+                // Check 3 constraints:
+                // 1. Top/bottom edges: |y| <= inradius
+                // 2. Upper-right/lower-left edges: |√3*x + y| <= √3*R
+                // 3. Lower-right/upper-left edges: |√3*x - y| <= √3*R
+                return local_y.abs() <= inradius
+                    && (sqrt3 * local_x + local_y).abs() <= sqrt3_r
+                    && (sqrt3 * local_x - local_y).abs() <= sqrt3_r;
+            }
+            Shape::Segment { .. } | Shape::HorizontalLine | Shape::VerticalLine | Shape::Triangle { .. } | Shape::SquareGrid { .. } | Shape::HexGrid { .. } => {
+                // For segments, triangles, and grids, use simple rectangle hit test
+                return true;
+            }
+        }
+
+    }
+
+    /// Scan for nodes with a specific sense. Only stops at absorbing nodes that have the sense.
+    /// If an absorbing node without the sense is encountered, walks up the parent tree instead
+    /// of continuing to scan siblings/unrelated nodes.
+    pub(crate) fn scan_hits_with_sense(&self, sense: Sense) -> SmallVec<Id> {
+        let mut result = SmallVec::new();
+
+        for clk_i in (0..self.click_rects.len()).rev() {
+            let rect = &self.click_rects[clk_i];
+
+            if ! self.hit_click_rect(rect) {
+                continue;
+            }
+
+            // If this node has the sense, add it
+            if rect.senses.contains(sense) {
+                result.push(self.nodes[rect.i].id);
+            }
+
+            // If this is an absorbing node
+            if rect.absorbs_mouse_events {
+                if rect.senses.contains(sense) {
+                    // Absorbing node with the sense - stop completely
+                    break;
+                } else {
+                    // Absorbing node without the sense - walk up the parent tree
+                    let mut current_i = self.nodes[rect.i].parent;
+                    while current_i != ROOT_I {
+                        let parent_rect = self.click_rect(current_i);
+                        if self.hit_click_rect(&parent_rect) {
+                            if parent_rect.senses.contains(sense) {
+                                result.push(self.nodes[current_i].id);
+                            }
+                            if parent_rect.absorbs_mouse_events {
+                                break;
+                            }
+                        }
+                        current_i = self.nodes[current_i].parent;
+                    }
+                    break; // Exit main loop after parent walking
+                }
+            }
+        }
+
+        result
     }
 
     pub(crate) fn check_clicked(&self, id: Id, button: MouseButton) -> bool {
-        self.sys.check_clicked(id, button)
+        self.mouse_input.clicks()
+            .any(|e| e.button == button && e.targets.contains(&id))
+    }
+
+    pub(crate) fn check_dragged(&self, id: Id, button: MouseButton) -> Option<&mouse_events::DragEvent> {
+        self.mouse_input.drags()
+            .find(|e| e.button == button && e.targets.contains(&id))
+    }
+
+    pub(crate) fn check_hovered(&self, id: Id) -> bool {
+        self.hovered.contains(&id)
     }
 
     pub(crate) fn check_clicked_at(&self, id: Id, button: MouseButton) -> Option<&mouse_events::ClickEvent> {
-        self.sys.mouse_input.clicks()
+        self.mouse_input.clicks()
             .filter(|e| e.button == button && e.targets.contains(&id))
             .last()
     }
 
     pub(crate) fn check_click_released(&self, id: Id, button: MouseButton) -> bool {
-        self.sys.mouse_input.click_releases()
+        self.mouse_input.click_releases()
             .any(|e| e.button == button && e.targets.contains(&id))
     }
 
-    pub(crate) fn check_dragged(&self, id: Id, button: MouseButton) -> Option<&mouse_events::DragEvent> {
-        self.sys.check_dragged(id, button)
-    }
-
     pub(crate) fn check_drag_released(&self, id: Id, button: MouseButton) -> bool {
-        self.sys.mouse_input.drag_releases()
+        self.mouse_input.drag_releases()
             .any(|e| e.button == button && e.targets.contains(&id))
     }
 
@@ -475,7 +609,7 @@ impl Ui {
             return None;
         }
 
-        self.sys.mouse_input.drag_releases()
+        self.mouse_input.drag_releases()
             .find(|e| e.button == button && e.targets.contains(&src_id))
     }
 
@@ -486,13 +620,13 @@ impl Ui {
             return None;
         }
 
-        self.sys.mouse_input.drags()
+        self.mouse_input.drags()
             .find(|e| e.button == button && e.targets.contains(&src_id))
     }
 
     pub(crate) fn check_held_duration(&self, id: Id, button: MouseButton) -> Option<Duration> {
         // Hold is tracked via drag events - duration since start
-        self.sys.mouse_input.drags()
+        self.mouse_input.drags()
             .find(|e| e.button == button && e.targets.contains(&id))
             .map(|e| e.start_time.elapsed())
     }
@@ -500,7 +634,7 @@ impl Ui {
     pub(crate) fn check_scrolled(&self, id: Id) -> Option<Vec2> {
         let mut total = Vec2::ZERO;
         let mut found = false;
-        for e in self.sys.mouse_input.scrolls() {
+        for e in self.mouse_input.scrolls() {
             if e.target == id {
                 total += e.delta;
                 found = true;
@@ -510,7 +644,7 @@ impl Ui {
     }
 
     pub(crate) fn check_last_scroll_event(&self, id: Id) -> Option<&mouse_events::ScrollEvent> {
-        self.sys.mouse_input.scrolls()
+        self.mouse_input.scrolls()
             .filter(|e| e.target == id)
             .last()
     }
@@ -518,7 +652,7 @@ impl Ui {
     pub(crate) fn global_scroll_delta(&self) -> Option<Vec2> {
         let mut total = Vec2::ZERO;
         let mut found = false;
-        for e in self.sys.mouse_input.scrolls() {
+        for e in self.mouse_input.scrolls() {
             total += e.delta;
             found = true;
         }
@@ -532,7 +666,7 @@ impl Ui {
             return None;
         }
 
-        self.sys.mouse_input.drags()
+        self.mouse_input.drags()
             .find(|e| e.button == button)
     }
 
@@ -543,19 +677,8 @@ impl Ui {
             return None;
         }
 
-        self.sys.mouse_input.drag_releases()
+        self.mouse_input.drag_releases()
             .find(|e| e.button == button)
     }
 }
 
-impl System {
-    pub(crate) fn check_clicked(&self, id: Id, button: MouseButton) -> bool {
-        self.mouse_input.clicks()
-            .any(|e| e.button == button && e.targets.contains(&id))
-    }
-
-    pub(crate) fn check_dragged(&self, id: Id, button: MouseButton) -> Option<&mouse_events::DragEvent> {
-        self.mouse_input.drags()
-            .find(|e| e.button == button && e.targets.contains(&id))
-    }
-}

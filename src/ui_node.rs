@@ -245,7 +245,7 @@ impl Ui {
     ///
     /// You can check [`UiNode::is_hidden`] and [`UiNode::is_exiting`] on the result to filter as needed.
     pub fn get_node_unfiltered_mut(&mut self, key: NodeKey) -> Option<&mut UiNode<'_>> {
-        let i = self.sys.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
+        let i = self.sys.nodes.get_with_subtree(key)?;
         // If you are wondering why are we creating wrapper structs inside an arena in the first place, it's so that the `UiNode` has better ergonomics.
         // That is, so that the interface looks like this: 
         // 
@@ -273,14 +273,14 @@ impl Ui {
     ///
     /// You can check [`UiNode::is_hidden`] and [`UiNode::is_exiting`] on the result to filter as needed.
     pub fn get_node_unfiltered(&self, key: NodeKey) -> Option<&UiNode<'_>> {
-        let i = self.sys.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
+        let i = self.sys.nodes.get_with_subtree(key)?;
         let wrapper = UiNode { i, ui: UiRef::Shared(&self.sys)  };
         return Some(self.arena_for_wrapper_structs.alloc(wrapper));
     }
 
     // todo move
     pub fn get_text(&mut self, key: NodeKey) -> Option<&str> {
-        let i = self.sys.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
+        let i = self.sys.nodes.get_with_subtree(key)?;
         let text_i = self.sys.nodes[i].text_i.as_ref()?;
         match text_i {
             TextI::TextBox(handle) => Some(self.sys.renderer.text.get_text_box(&handle).text()),
@@ -288,30 +288,13 @@ impl Ui {
         }
     }
     pub fn set_text(&mut self, key: NodeKey, text: &str) -> Option<()> {
-        let i = self.sys.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
+        let i = self.sys.nodes.get_with_subtree(key)?;
         let text_i = self.sys.nodes[i].text_i.as_ref()?;
         match text_i {
             TextI::TextBox(handle) => self.sys.renderer.text.get_text_box_mut(&handle).set_text_hashed(text),
             TextI::TextEdit(handle) => self.sys.renderer.text.get_text_edit_mut(&handle).set_text_hashed(text),
         };
         Some(())
-    }
-
-    /// Get the rects (in screen-fraction coords) of all children of a node.
-    /// Returns rects from the previous frame's layout.
-    pub fn children_rects(&self, key: NodeKey) -> Vec<XyRect> {
-        let mut rects = Vec::new();
-        let Some(parent_i) = self.sys.nodes.node_hashmap.get(&key.id_with_subtree()).map(|e| e.slab_i) else {
-            return rects;
-        };
-        let mut current = self.sys.nodes[parent_i].first_child;
-        while let Some(child_i) = current {
-            if !self.sys.nodes[child_i].exiting {
-                rects.push(self.sys.nodes[child_i].real_rect);
-            }
-            current = self.sys.nodes[child_i].next_sibling;
-        }
-        rects
     }
 }
 
@@ -424,10 +407,10 @@ impl Ui {
 
     #[cfg(debug_assertions)]
     fn check_dest_node_sense(&self, dest_key: NodeKey, sense: Sense, fn_name: &'static str, sense_add_fn_name: &'static str) -> bool {
-        let Some(entry) = self.sys.nodes.node_hashmap.get(&dest_key.id_with_subtree()) else {
+        let Some(i) = self.sys.nodes.get_with_subtree(dest_key) else {
             return true; // Node doesn't exist, let the function return false naturally
         };
-        let dest_node = &self.sys.nodes[entry.slab_i];
+        let dest_node = &self.sys.nodes[i];
         if !dest_node.params.interact.senses.contains(sense) {
             eprintln!(
                 "Keru: Debug mode check: \"{}\" was called with destination node {}, but the destination node doesn't have the {:?} sense. In release mode, this event will be silently ignored! You can add the sense to the node's Node with the \"{}\" function.",
@@ -453,10 +436,9 @@ impl Ui {
     ///
     /// This is "act on press". For "act on release", see [`Self::is_click_released()`].
     pub fn is_clicked(&self, key: NodeKey) -> bool {
-        let Some(entry) = self.sys.nodes.node_hashmap.get(&key.id_with_subtree()) else {
+        let Some(i) = self.sys.nodes.get_with_subtree(key) else {
             return false;
         };
-        let i = entry.slab_i;
         let node = &self.sys.nodes[i];
 
         #[cfg(debug_assertions)]
@@ -471,10 +453,9 @@ impl Ui {
     ///
     /// This is "act on press". For "act on release", see [`Self::is_click_released()`].
     pub fn is_right_clicked(&self, key: NodeKey) -> bool {
-        let Some(entry) = self.sys.nodes.node_hashmap.get(&key.id_with_subtree()) else {
+        let Some(i) = self.sys.nodes.get_with_subtree(key) else {
             return false;
         };
-        let i = entry.slab_i;
         let node = &self.sys.nodes[i];
 
         #[cfg(debug_assertions)]
@@ -489,10 +470,9 @@ impl Ui {
     ///
     /// This is "act on press". For "act on release", see [`Self::is_right_click_released()`].
     pub fn is_mouse_button_clicked(&self, key: NodeKey, button: winit::event::MouseButton) -> bool {
-        let Some(entry) = self.sys.nodes.node_hashmap.get(&key.id_with_subtree()) else {
+        let Some(i) = self.sys.nodes.get_with_subtree(key) else {
             return false;
         };
-        let i = entry.slab_i;
         let node = &self.sys.nodes[i];
 
         #[cfg(debug_assertions)]
@@ -507,10 +487,9 @@ impl Ui {
     ///
     /// Does nothing for non-editable text nodes or for nodes without text.
     pub fn set_text_edit_placeholder(&mut self, key: NodeKey, placeholder: &str) {
-        let Some(i) = self.sys.nodes.node_hashmap.get(&key.id_with_subtree()) else {
+        let Some(i) = self.sys.nodes.get_with_subtree(key) else {
             return;
         };
-        let i = i.slab_i;
 
         if let Some(TextI::TextEdit(handle)) = &self.sys.nodes[i].text_i {
             self.sys.renderer.text.get_text_edit_mut(handle).set_placeholder(placeholder);
@@ -528,20 +507,18 @@ impl Ui {
     }
 
     pub fn is_focused(&self, key: NodeKey) -> bool {
-        let Some(entry) = self.sys.nodes.node_hashmap.get(&key.id_with_subtree()) else {
+        let Some(i) = self.sys.nodes.get_with_subtree(key) else {
             return false;
         };
-        let i = entry.slab_i;
         let node = &self.sys.nodes[i];
         self.sys.focused == Some(node.id)
     }
 
     /// Returns `true` if a left button mouse click was just released on the node corresponding to `key`.
     pub fn is_click_released(&self, key: NodeKey) -> bool {
-        let Some(entry) = self.sys.nodes.node_hashmap.get(&key.id_with_subtree()) else {
+        let Some(i) = self.sys.nodes.get_with_subtree(key) else {
             return false;
         };
-        let i = entry.slab_i;
         let node = &self.sys.nodes[i];
 
         #[cfg(debug_assertions)]
@@ -549,17 +526,16 @@ impl Ui {
             return false;
         }
 
-        self.check_click_released(node.id, MouseButton::Left)
+        self.sys.check_click_released(node.id, MouseButton::Left)
     }
 
     /// Returns `true` if a left button mouse drag on the node corresponding to `key` was just released.
     ///
     /// Unlike [`Self::is_click_released()`], this is `true` even if the cursor is not on the node anymore when the button is released.
     pub fn is_drag_released(&self, key: NodeKey) -> bool {
-        let Some(entry) = self.sys.nodes.node_hashmap.get(&key.id_with_subtree()) else {
+        let Some(i) = self.sys.nodes.get_with_subtree(key) else {
             return false;
         };
-        let i = entry.slab_i;
         let node = &self.sys.nodes[i];
 
         #[cfg(debug_assertions)]
@@ -567,13 +543,12 @@ impl Ui {
             return false;
         }
 
-        self.check_drag_released(node.id, MouseButton::Left)
+        self.sys.check_drag_released(node.id, MouseButton::Left)
     }
 
     /// If a left button mouse drag on the node corresponding to the `src` key was just released onto the node corresponding to the `dest` key, returns the drag info.
-    pub fn is_drag_released_onto(&self, src: NodeKey, dest: NodeKey) -> Option<Drag> {
-        let src_entry = self.sys.nodes.node_hashmap.get(&src.id_with_subtree())?;
-        let src_i = src_entry.slab_i;
+    pub fn is_drag_released_onto(&self, src_key: NodeKey, dest_key: NodeKey) -> Option<Drag> {
+        let src_i = self.sys.nodes.get_with_subtree(src_key)?;
         let src_node = &self.sys.nodes[src_i];
         if src_node.currently_hidden || src_node.exiting {
             return None;
@@ -584,21 +559,20 @@ impl Ui {
             return None;
         }
         #[cfg(debug_assertions)]
-        if !self.check_dest_node_sense(dest, Sense::DRAG_DROP_TARGET, "is_drag_released_onto()", "Node::sense_drag_drop_target()") {
+        if !self.check_dest_node_sense(dest_key, Sense::DRAG_DROP_TARGET, "is_drag_released_onto()", "Node::sense_drag_drop_target()") {
             return None;
         }
 
         let src_id = src_node.id;
-        let event = self.check_drag_released_onto(src_id, dest.id_with_subtree(), MouseButton::Left)?;
-        let dest_entry = self.sys.nodes.node_hashmap.get(&dest.id_with_subtree())?;
-        let dest_rect = self.sys.nodes[dest_entry.slab_i].real_rect;
+        let event = self.sys.check_drag_released_onto(src_id, dest_key.id_with_subtree(), MouseButton::Left)?;
+        let dest_i = self.sys.nodes.get_with_subtree(dest_key)?;
+        let dest_rect = self.sys.nodes[dest_i].real_rect;
         self.drag_from_release_event_with_rect(event, dest_rect)
     }
 
     /// If a left button mouse drag on the node corresponding to the `src` key is currently hovering over the node corresponding to the `dest` key, returns the drag info.
-    pub fn is_drag_hovered_onto(&self, src: NodeKey, dest: NodeKey) -> Option<Drag> {
-        let src_entry = self.sys.nodes.node_hashmap.get(&src.id_with_subtree())?;
-        let src_i = src_entry.slab_i;
+    pub fn is_drag_hovered_onto(&self, src_key: NodeKey, dest_key: NodeKey) -> Option<Drag> {
+        let src_i = self.sys.nodes.get_with_subtree(src_key)?;
         let src_node = &self.sys.nodes[src_i];
         if src_node.currently_hidden || src_node.exiting {
             return None;
@@ -609,14 +583,14 @@ impl Ui {
             return None;
         }
         #[cfg(debug_assertions)]
-        if !self.check_dest_node_sense(dest, Sense::DRAG_DROP_TARGET, "is_drag_hovered_onto()", "Node::sense_drag_drop_target()") {
+        if !self.check_dest_node_sense(dest_key, Sense::DRAG_DROP_TARGET, "is_drag_hovered_onto()", "Node::sense_drag_drop_target()") {
             return None;
         }
 
         let src_id = src_node.id;
-        let event = self.check_drag_hovered_onto(src_id, dest.id_with_subtree(), MouseButton::Left)?;
-        let dest_entry = self.sys.nodes.node_hashmap.get(&dest.id_with_subtree())?;
-        let dest_rect = self.sys.nodes[dest_entry.slab_i].real_rect;
+        let event = self.sys.check_drag_hovered_onto(src_id, dest_key.id_with_subtree(), MouseButton::Left)?;
+        let dest_i = self.sys.nodes.get_with_subtree(dest_key)?;
+        let dest_rect = self.sys.nodes[dest_i].real_rect;
         self.drag_from_event_with_rect(event, dest_rect)
     }
 
@@ -625,22 +599,21 @@ impl Ui {
     ///
     /// This is useful for drop targets that need to react to any dragged item, without knowing
     /// which specific item is being dragged.
-    pub fn is_any_drag_hovered_onto(&self, dest: NodeKey) -> Option<Drag> {
+    pub fn is_any_drag_hovered_onto(&self, dest_key: NodeKey) -> Option<Drag> {
         #[cfg(debug_assertions)]
         {
-            let dest_i = self.sys.nodes.node_hashmap.get(&dest.id_with_subtree())?.slab_i;
+            let dest_i = self.sys.nodes.get_with_subtree(dest_key)?;
             if !self.sys.nodes[dest_i].params.interact.senses.contains(Sense::DRAG_DROP_TARGET) {
                 log::warn!(
                     "is_any_drag_hovered_onto() was called on node {:?}, but it doesn't have the DRAG_DROP_TARGET sense. Add Node::sense_drag_drop_target() to the node.",
-                    dest.debug_name()
+                    dest_key.debug_name()
                 );
                 return None;
             }
         }
 
-        let event = self.check_any_drag_hovered_onto(dest.id_with_subtree(), MouseButton::Left)?;
-        let dest_node = self.get_node(dest)?;
-        let dest_rect = dest_node.node().real_rect;
+        let event = self.sys.check_any_drag_hovered_onto(dest_key.id_with_subtree(), MouseButton::Left)?;
+        let dest_rect = self.get_node(dest_key)?.node().real_rect;
 
         let relative_position = glam::Vec2::new(
             ((event.current_pos.x / self.sys.size.x) - dest_rect.x[0]) / dest_rect.size().x,
@@ -666,21 +639,21 @@ impl Ui {
     ///
     /// This is useful for drop targets that need to react to any dropped item, without knowing
     /// which specific item was dropped.
-    pub fn is_any_drag_released_onto(&self, dest: NodeKey) -> Option<Drag> {
+    pub fn is_any_drag_released_onto(&self, dest_key: NodeKey) -> Option<Drag> {
         #[cfg(debug_assertions)]
         {
-            let dest_i = self.sys.nodes.node_hashmap.get(&dest.id_with_subtree())?.slab_i;
+            let dest_i = self.sys.nodes.get_with_subtree(dest_key)?;
             if !self.sys.nodes[dest_i].params.interact.senses.contains(Sense::DRAG_DROP_TARGET) {
                 log::warn!(
                     "is_any_drag_released_onto() was called on node {:?}, but it doesn't have the DRAG_DROP_TARGET sense. Add Node::sense_drag_drop_target() to the node.",
-                    dest.debug_name()
+                    dest_key.debug_name()
                 );
                 return None;
             }
         }
 
-        let event = self.check_any_drag_released_onto(dest.id_with_subtree(), MouseButton::Left)?;
-        let dest_node = self.get_node(dest)?;
+        let event = self.sys.check_any_drag_released_onto(dest_key.id_with_subtree(), MouseButton::Left)?;
+        let dest_node = self.get_node(dest_key)?;
         let dest_rect = dest_node.node().real_rect;
 
         let relative_position = glam::Vec2::new(
@@ -700,7 +673,7 @@ impl Ui {
 
     /// If the node corresponding to `key` was dragged with a specific mouse button, returns a struct describing the drag event. Otherwise, returns `None`.
     pub fn is_mouse_button_dragged(&self, key: NodeKey, button: winit::event::MouseButton) -> Option<Drag> {
-        let i = self.sys.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
+        let i = self.sys.nodes.get_with_subtree(key)?;
         let node = &self.sys.nodes[i];
         #[cfg(debug_assertions)]
         if !self.sys.check_node_sense(i, Sense::DRAG, "is_mouse_button_dragged()", "Node::sense_drag()") {
@@ -721,14 +694,14 @@ impl Ui {
     ///
     /// If the node was clicked multiple times in the last frame, the result holds the information about the last click only.
     pub fn clicked_at(&self, key: NodeKey) -> Option<Click> {
-        let i = self.sys.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
+        let i = self.sys.nodes.get_with_subtree(key)?;
         let node = &self.sys.nodes[i];
         #[cfg(debug_assertions)]
         if !self.sys.check_node_sense(i, Sense::CLICK, "clicked_at()", "Node::sense_click()") {
             return None;
         }
 
-        let event = self.check_clicked_at(node.id, MouseButton::Left)?;
+        let event = self.sys.check_clicked_at(node.id, MouseButton::Left)?;
         let node_rect = node.real_rect;
 
         let relative_position = glam::Vec2::new(
@@ -745,14 +718,14 @@ impl Ui {
 
     /// If the node is currently hovered by the cursor, returns hover information including position.
     pub fn is_hovered(&self, key: NodeKey) -> Option<Hover> {
-        let i = self.sys.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
+        let i = self.sys.nodes.get_with_subtree(key)?;
         let node = &self.sys.nodes[i];
         #[cfg(debug_assertions)]
         if !self.sys.check_node_sense(i, Sense::HOVER, "is_hovered()", "Node::sense_hover()") {
             return None;
         }
 
-        if self.check_hovered(node.id) {
+        if self.sys.check_hovered(node.id) {
             Some(Hover {
                 absolute_position: self.cursor_position(),
             })
@@ -763,28 +736,28 @@ impl Ui {
 
    /// If the node corresponding to `key` was being held with the left mouse button in the last frame, returns the duration for which it was held.
    pub fn is_held(&self, key: NodeKey) -> Option<Duration> {
-    let i = self.sys.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
+    let i = self.sys.nodes.get_with_subtree(key)?;
     let node = &self.sys.nodes[i];
         #[cfg(debug_assertions)]
         if !self.sys.check_node_sense(i, Sense::HOLD, "is_held()", "Node::sense_hold()") {
             return None;
         }
 
-        self.check_held_duration(node.id, MouseButton::Left)
+        self.sys.check_held_duration(node.id, MouseButton::Left)
     }
 
     /// If the node corresponding to `key` was scrolled in the last frame, returns a struct containing detailed information of the scroll event. Otherwise, returns `None`.
     ///
     /// If the node was scrolled multiple times in the last frame, the result holds the information about the last scroll only.
     pub fn scrolled_at(&self, key: NodeKey) -> Option<ScrollEvent> {
-        let i = self.sys.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
+        let i = self.sys.nodes.get_with_subtree(key)?;
         let node = &self.sys.nodes[i];
         #[cfg(debug_assertions)]
         if !self.sys.check_node_sense(i, Sense::SCROLL, "scrolled_at()", "Node::sense_scroll()") {
             return None;
         }
 
-        let scroll_event = self.check_last_scroll_event(node.id)?;
+        let scroll_event = self.sys.check_last_scroll_event(node.id)?;
         let node_rect = node.real_rect;
 
         let relative_position = glam::Vec2::new(
@@ -802,14 +775,14 @@ impl Ui {
 
     /// Returns the total scroll delta for the node corresponding to `key` in the last frame, or None if no scroll events occurred.
     pub fn is_scrolled(&self, key: NodeKey) -> Option<glam::Vec2> {
-        let i = self.sys.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
+        let i = self.sys.nodes.get_with_subtree(key)?;
         let node = &self.sys.nodes[i];
         #[cfg(debug_assertions)]
         if !self.sys.check_node_sense(i, Sense::SCROLL, "is_scrolled()", "Node::sense_scroll()") {
             return None;
         }
 
-        self.check_scrolled(node.id)
+        self.sys.check_scrolled(node.id)
     }
 }
 

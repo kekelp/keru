@@ -82,7 +82,7 @@ impl Ui {
     ///
     /// This is like [`jump_to_root`](Self::jump_to_root) but for any node.
     pub fn jump_to_parent(&self, parent_key: NodeKey) -> Option<UiParent> {
-        let parent_i = self.sys.nodes.node_hashmap.get(&parent_key.id_with_subtree())?.slab_i;
+        let parent_i = self.sys.nodes.get_with_subtree(parent_key)?;
         Some(UiParent {
             i: parent_i,
             sibling_cursor: SiblingCursor::None,
@@ -116,7 +116,7 @@ impl Ui {
     /// });
     /// ```
     pub fn jump_to_sibling(&self, jump_key: NodeKey) -> Option<UiParent> {
-        let sibling_i = self.sys.nodes.node_hashmap.get(&jump_key.id_with_subtree())?.slab_i;
+        let sibling_i = self.sys.nodes.get_with_subtree(jump_key)?;
         let parent_i = self.sys.nodes[sibling_i].parent;
         Some(UiParent {
             i: parent_i,
@@ -151,7 +151,7 @@ impl Ui {
     /// });
     /// ```
     pub fn jump_to_before_sibling(&self, jump_key: NodeKey) -> Option<UiParent> {
-        let sibling_i = self.sys.nodes.node_hashmap.get(&jump_key.id_with_subtree())?.slab_i;
+        let sibling_i = self.sys.nodes.get_with_subtree(jump_key)?;
         let parent_i = self.sys.nodes[sibling_i].parent;
         let sibling_cursor = match self.sys.nodes[sibling_i].prev_sibling {
             Some(prev) => SiblingCursor::After(prev),
@@ -191,7 +191,7 @@ impl Ui {
     /// });
     /// ```
     pub fn jump_to_nth_child(&self, parent_key: NodeKey, n: usize) -> Option<UiParent> {
-        let parent_i = self.sys.nodes.node_hashmap.get(&parent_key.id_with_subtree())?.slab_i;
+        let parent_i = self.sys.nodes.get_with_subtree(parent_key)?;
 
         if n == 0 {
             return Some(UiParent {
@@ -228,7 +228,7 @@ impl Ui {
     ///
     /// Returns `None` if the node doesn't exist.
     pub fn remove_and_readd(&mut self, key: NodeKey) -> Option<()> {
-        let node_i = self.sys.nodes.node_hashmap.get(&key.id_with_subtree())?.slab_i;
+        let node_i = self.sys.nodes.get_with_subtree(key)?;
         self.unlink_from_tree(node_i);
 
         let (parent_i, sibling_cursor, depth) = thread_local::current_parent(self.sys.unique_id);
@@ -261,97 +261,7 @@ impl Ui {
         self.sys.nodes[node_i].next_sibling = None;
     }
 
-    #[track_caller]
-    pub(crate) fn add_or_update_node(&mut self, key: NodeKey) -> (NodeI, Id) {
-        let frame = self.sys.current_frame;
-        let mut new_node_should_relayout = false;
-
-        // Check the node corresponding to the key's id.
-        // We might find that the key has already been used in this same frame:
-        //      in this case, we take note, and calculate a twin key to use to add a "twin" in the next section.
-        // Otherwise, we add or refresh normally, and take note of the final i.
-        let twin_check_result = match self.sys.nodes.node_hashmap.entry(key.id_with_subtree()) {
-            // Add a new normal node (no twins).
-            Entry::Vacant(v) => {
-                let new_node = InnerNode::new(&key, None, Location::caller(), frame);
-                let final_i = NodeI::from(self.sys.nodes.nodes.insert(new_node));
-                v.insert(NodeMapEntry::new(final_i));
-
-                new_node_should_relayout = true;
-
-                UpdatedNormal { final_i }
-            }
-            Entry::Occupied(o) => {
-                let old_map_entry = o.into_mut();
-                let old_i = old_map_entry.slab_i.as_usize();
-                let last_frame_touched = self.sys.nodes.nodes[old_i].last_frame_touched;
-
-                match should_refresh_or_add_twin(frame, last_frame_touched) {
-                    // Refresh a normal node from the previous frame (no twins).
-                    Refresh => {
-                        old_map_entry.refresh();
-                        self.sys.nodes.nodes[old_i].last_frame_touched = frame;
-                        let final_i = old_map_entry.slab_i;
-                        UpdatedNormal { final_i }
-                    }
-                    // do nothing, just calculate the twin key and go to twin part below
-                    AddTwin => {
-                        old_map_entry.n_twins += 1;
-                        let twin_key = key.sibling(old_map_entry.n_twins);
-
-                        NeedToUpdateTwin {
-                            twin_key,
-                            twin_n: old_map_entry.n_twins,
-                        }
-                    }
-                }
-            }
-        };
-
-        // If twin_check_result is AddedNormal, the node was added in the section before,
-        //      and there's nothing to do regarding twins, so we just confirm final_i.
-        // If it's NeedToAddTwin, we repeat the same thing with the new twin_key.
-        let (real_final_i, real_final_id) = match twin_check_result {
-            UpdatedNormal { final_i } => (final_i, key.id_with_subtree()),
-            NeedToUpdateTwin { twin_key, twin_n } => {
-                match self.sys.nodes.node_hashmap.entry(twin_key.id_with_subtree()) {
-                    // Add new twin.
-                    Entry::Vacant(v) => {
-                        let new_twin_node = InnerNode::new(&twin_key, Some(twin_n), Location::caller(), frame);
-                        let real_final_i = NodeI::from(self.sys.nodes.nodes.insert(new_twin_node));
-                        v.insert(NodeMapEntry::new(real_final_i));
-                        new_node_should_relayout = true;
-                        (real_final_i, twin_key.id_with_subtree())
-                    }
-                    // Refresh a twin from the previous frame.
-                    Entry::Occupied(o) => {
-                        let old_twin_map_entry = o.into_mut();
-
-                        let real_final_i = old_twin_map_entry.refresh();
-                        self.sys.nodes.nodes[real_final_i.as_usize()].last_frame_touched = frame;
-
-                        (real_final_i, twin_key.id_with_subtree())
-                    }
-                }
-            }
-        };
-
-        // update the in-tree links and the thread-local state based on the current parent.
-        let (parent, insert_after, depth) = thread_local::current_parent(self.sys.unique_id);
-        self.set_tree_links(real_final_i, parent, depth, insert_after);
-
-        self.sys.nodes[real_final_i].exiting = false;
-
-        self.refresh_node(real_final_i);
-
-        if new_node_should_relayout {
-            self.push_partial_relayout(real_final_i);
-        }
-
-        return (real_final_i, real_final_id);
-    }
-
-    fn refresh_node(&mut self, i: NodeI) {
+    pub(crate) fn refresh_node(&mut self, i: NodeI) {
         if let Some(text_i) = &self.sys.nodes[i].text_i {
             match text_i {
                 TextI::TextBox(handle) => {
@@ -367,7 +277,7 @@ impl Ui {
     }
 
     // this function also detects new nodes and reorderings, and pushes partial relayouts for them. For deleted nodes, partial relayouts will be pushed in cleanup_and_stuff.
-    fn set_tree_links(&mut self, new_node_i: NodeI, parent_i: NodeI, depth: usize, sibling_cursor: SiblingCursor) {
+    pub(crate) fn set_tree_links(&mut self, new_node_i: NodeI, parent_i: NodeI, depth: usize, sibling_cursor: SiblingCursor) {
         self.clear_node_children(new_node_i);
         self.link_node_to_parent(new_node_i, parent_i, depth, sibling_cursor);
     }
@@ -647,7 +557,7 @@ impl Ui {
         };
 
         if push_click_rect {
-            let click_rect = self.click_rect(i);
+            let click_rect = self.sys.click_rect(i);
             self.sys.click_rects.push(click_rect);
         }
 
@@ -862,10 +772,9 @@ impl Ui {
 
     /// Returns `true` if a node corresponding to `key` exists and if it is currently part of the GUI tree. 
     pub fn is_in_tree(&self, key: NodeKey) -> bool {
-        let node_i = self.sys.nodes.node_hashmap.get(&key.id_with_subtree());
-        if let Some(entry) = node_i {
+        if let Some(i) = self.sys.nodes.get_with_subtree(key) {
             // todo: also return true if it's retained
-            return self.sys.nodes[entry.slab_i].last_frame_touched == self.sys.current_frame;
+            return self.sys.nodes[i].last_frame_touched == self.sys.current_frame;
         } else {
             return false;
         }
@@ -878,8 +787,7 @@ impl Ui {
             let mut hidden_branch_parents = bumpalo::collections::Vec::with_capacity_in(20, a);
             let mut exiting_nodes = bumpalo::collections::Vec::with_capacity_in(20, a);
 
-            for (i, _) in self.sys.nodes.nodes.iter().skip(2) {
-                let i = NodeI::from(i);
+            for i in self.sys.nodes.iter() {
                 let freshly_added = self.sys.nodes[i].last_frame_touched == self.sys.current_frame;
 
                 if !freshly_added {
@@ -972,7 +880,7 @@ impl Ui {
     }
 
     fn cleanup_node(&mut self, i: NodeI) {
-        if ! self.sys.nodes.nodes.contains(i.as_usize()) {
+        if self.sys.nodes.get_node_if_it_still_exists(i).is_none() {
             log::error!("Keru: Internal error: tried to cleanup the same node twice. ({:?})", i);
             // we could cheat and just return. instead we continue, so we can see the panic clearly in case there's any bugs.
         }
@@ -1014,8 +922,7 @@ impl Ui {
             self.sys.nodes[i].canvas_transform_and_clip = None;
         }
 
-        self.sys.nodes.node_hashmap.remove(&id);
-        self.sys.nodes.nodes.remove(i.as_usize());
+        self.sys.nodes.remove(id);
     }
 
     pub(crate) fn current_tree_hash(&mut self) -> u64 {
