@@ -13,7 +13,7 @@ struct Node {
 
 struct UiParent {
     parent_stack: Rc<RefCell<Vec<usize>>>,
-    idx: usize,
+    index: usize,
 }
 
 impl Ui {
@@ -26,27 +26,27 @@ impl Ui {
     }
 
     fn add(&mut self, value: i32) -> UiParent {
-        let idx = self.nodes.len();
+        let index = self.nodes.len();
         self.nodes.push(Node { value, first_child: None, next_sibling: None });
-        let parent_idx = *self.parent_stack.borrow().last().unwrap();
-        if let Some(last) = self.nodes[parent_idx].first_child {
-            self.nodes[last].next_sibling = Some(idx);
+        let parent_index = *self.parent_stack.borrow().last().unwrap();
+        if let Some(last) = self.nodes[parent_index].first_child {
+            self.nodes[last].next_sibling = Some(index);
         } else {
-            self.nodes[parent_idx].first_child = Some(idx);
+            self.nodes[parent_index].first_child = Some(index);
         }
-        UiParent { idx, parent_stack: Rc::clone(&self.parent_stack) }
+        UiParent { index, parent_stack: Rc::clone(&self.parent_stack) }
     }
 
     fn print_tree(&self) {
-        let mut idx = Some(0);
-        while let Some(i) = idx {
+        let mut index = Some(0);
+        while let Some(i) = index {
             self.print_node(i, 0);
-            idx = self.nodes[i].next_sibling;
+            index = self.nodes[i].next_sibling;
         }
     }
 
-    fn print_node(&self, idx: usize, depth: usize) {
-        let node = &self.nodes[idx];
+    fn print_node(&self, index: usize, depth: usize) {
+        let node = &self.nodes[index];
         println!("{}{}", "  ".repeat(depth), node.value);
         let mut child = node.first_child;
         while let Some(c) = child {
@@ -58,7 +58,7 @@ impl Ui {
 
 impl UiParent {
     fn nest(self, f: impl FnOnce()) {
-        self.parent_stack.borrow_mut().push(self.idx);
+        self.parent_stack.borrow_mut().push(self.index);
         f();
         self.parent_stack.borrow_mut().pop();
     }

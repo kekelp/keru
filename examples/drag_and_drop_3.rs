@@ -38,11 +38,11 @@ impl State {
             .animate_position(true);
 
         // Helper to calculate insertion index from cursor position
-        let calc_insertion_index = |ui: &Ui, cursor_y: f32, dragged_idx: usize| -> usize {
+        let calc_insertion_index = |ui: &Ui, cursor_y: f32, dragged_index: usize| -> usize {
             let mut found_index = self.items.len();
             for (i, item_str) in self.items.iter().enumerate() {
                 // Skip the item being dragged in the calculation
-                if i == dragged_idx {
+                if i == dragged_index {
                     continue;
                 }
                 let key = ITEM.sibling(item_str);
@@ -59,14 +59,14 @@ impl State {
         };
 
         // Find which item is being dragged and calculate insertion index
-        let mut dragged_info: Option<(usize, usize, f32)> = None; // (dragged_idx, insertion_idx, height)
+        let mut dragged_info: Option<(usize, usize, f32)> = None; // (dragged_index, insertion_index, height)
 
         for (i, item_str) in self.items.iter().enumerate() {
             let key = ITEM.sibling(item_str);
             if let Some(drag) = ui.is_drag_hovered_onto(key, STACK) {
                 let height = ui.get_node(key).map(|node| node.rect().size().y).unwrap_or(30.0);
-                let insertion_idx = calc_insertion_index(ui, drag.absolute_pos.y, i);
-                dragged_info = Some((i, insertion_idx, height));
+                let insertion_index = calc_insertion_index(ui, drag.absolute_pos.y, i);
+                dragged_info = Some((i, insertion_index, height));
                 break;
             }
         }
@@ -76,28 +76,28 @@ impl State {
         for (i, item_str) in self.items.iter().enumerate() {
             let key = ITEM.sibling(item_str);
             if let Some(drag) = ui.is_drag_released_onto(key, STACK) {
-                let insertion_idx = calc_insertion_index(ui, drag.absolute_pos.y, i);
-                release_info = Some((i, insertion_idx));
+                let insertion_index = calc_insertion_index(ui, drag.absolute_pos.y, i);
+                release_info = Some((i, insertion_index));
                 break;
             }
         }
-        if let Some((old_idx, new_idx)) = release_info {
-            let removed = self.items.remove(old_idx);
+        if let Some((old_index, new_index)) = release_info {
+            let removed = self.items.remove(old_index);
             // Adjust insertion index if we removed from before it
-            let adjusted_idx = if old_idx < new_idx {
-                (new_idx - 1).min(self.items.len())
+            let adjusted_index = if old_index < new_index {
+                (new_index - 1).min(self.items.len())
             } else {
-                new_idx.min(self.items.len())
+                new_index.min(self.items.len())
             };
-            self.items.insert(adjusted_idx, removed);
+            self.items.insert(adjusted_index, removed);
         }
 
         // Render the stack
         ui.add(stack).nest(|| {
             for (i, item_str) in self.items.iter().enumerate() {
                 // Insert spacer at the insertion point
-                if let Some((_, insertion_idx, height)) = dragged_info {
-                    if i == insertion_idx {
+                if let Some((_, insertion_index, height)) = dragged_info {
+                    if i == insertion_index {
                         ui.add(spacer.size_y(Size::Pixels(height)));
                     }
                 }
@@ -118,8 +118,8 @@ impl State {
             }
 
             // Spacer at the end if inserting at the end
-            if let Some((_, insertion_idx, height)) = dragged_info {
-                if insertion_idx == self.items.len() {
+            if let Some((_, insertion_index, height)) = dragged_info {
+                if insertion_index == self.items.len() {
                     ui.add(spacer.size_y(Size::Pixels(height)));
                 }
             }

@@ -84,10 +84,10 @@ impl State {
                 break;
             }
         }
-        if let Some((left_idx, insert_at)) = release_info {
-            let removed = self.left_strings.remove(left_idx);
-            let clamped_idx = insert_at.min(self.right_strings.len());
-            self.right_strings.insert(clamped_idx, removed);
+        if let Some((left_index, insert_at)) = release_info {
+            let removed = self.left_strings.remove(left_index);
+            let clamped_index = insert_at.min(self.right_strings.len());
+            self.right_strings.insert(clamped_index, removed);
         }
 
         // Left stack

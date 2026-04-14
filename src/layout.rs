@@ -106,10 +106,10 @@ impl Ui {
         self.sys.changes.partial_relayouts.sort();
         self.sys.partial_relayout_count = 0;
 
-        for idx in 0..self.sys.changes.partial_relayouts.len() {
+        for i in 0..self.sys.changes.partial_relayouts.len() {
             // in partial_relayout(), we will check for overlaps.
             // todo: if that works as expected, maybe we can skip the limit/full relayout thing, or at least raise the limit by a lot.
-            let relayout = self.sys.changes.partial_relayouts[idx];
+            let relayout = self.sys.changes.partial_relayouts[i];
             
             self._partial_relayout(relayout.i);
         }
