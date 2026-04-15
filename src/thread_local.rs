@@ -4,9 +4,9 @@ use crate::*;
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum SiblingCursor {
-    /// No cursor - append after last child (normal behavior).
+    /// No cursor, insert after the last child.
     None,
-    /// Insert at the beginning, before first child.
+    /// Insert at the beginning.
     AtStart,
     /// Insert after a specific sibling.
     After(NodeI),
@@ -16,7 +16,7 @@ pub(crate) enum SiblingCursor {
 pub(crate) struct ParentCtx {
     /// add()ing new children places them as children of this parent.
     pub parent: NodeI,
-    /// Normally this is Append and new children are added after the last child of the current parent automatically.
+    /// Normally this is None and new children are added after the last child of the current parent automatically.
     /// When using [`Ui::jump_to_sibling()`], this is After, and new children are added after the sibling_cursor node.
     /// Then [`Ui::set_tree_links()`] advances the sibling_cursor manually.
     pub sibling_cursor: SiblingCursor,
