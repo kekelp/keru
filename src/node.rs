@@ -1029,7 +1029,7 @@ pub enum Image<'a> {
 /// Can be used in the same way as [`Node`].
 #[derive(Copy, Clone)]
 pub struct FullNode<'a> {
-    pub params: Node,
+    pub node: Node,
     pub text: Option<NodeText<'a>>,
     pub text_style: Option<StyleHandle>,
     pub image: Option<Image<'a>>,
@@ -1038,7 +1038,7 @@ pub struct FullNode<'a> {
 
 impl<'a> FullNode<'a> {
     pub const fn single_line_text(mut self, value: bool) -> Self {
-        let text_params = match self.params.text_params {
+        let text_params = match self.node.text_params {
             Some(mut tp) => {
                 tp.single_line = value;
                 tp
@@ -1048,141 +1048,141 @@ impl<'a> FullNode<'a> {
                 ..TextOptions::const_default()
             }
         };
-        self.params.text_params = Some(text_params);
+        self.node.text_params = Some(text_params);
         return self;
     }
 
     pub const fn position(mut self, position_x: Pos, position_y: Pos) -> Self {
-        self.params.layout.position.x = position_x;
-        self.params.layout.position.y = position_y;
+        self.node.layout.position.x = position_x;
+        self.node.layout.position.y = position_y;
         return self;
     }
 
     pub const fn position_symm(mut self, position: Pos) -> Self {
-        self.params.layout.position.x = position;
-        self.params.layout.position.y = position;
+        self.node.layout.position.x = position;
+        self.node.layout.position.y = position;
         return self;
     }
 
     pub const fn position_x(mut self, position: Pos) -> Self {
-        self.params.layout.position.x = position;
+        self.node.layout.position.x = position;
         return self;
     }
 
     pub const fn position_y(mut self, position: Pos) -> Self {
-        self.params.layout.position.y = position;
+        self.node.layout.position.y = position;
         return self;
     }
 
     pub const fn anchor(mut self, anchor_x: Anchor, anchor_y: Anchor) -> Self {
-        self.params.layout.anchor.x = anchor_x;
-        self.params.layout.anchor.y = anchor_y;
+        self.node.layout.anchor.x = anchor_x;
+        self.node.layout.anchor.y = anchor_y;
         return self;
     }
 
     pub const fn anchor_symm(mut self, anchor: Anchor) -> Self {
-        self.params.layout.anchor.x = anchor;
-        self.params.layout.anchor.y = anchor;
+        self.node.layout.anchor.x = anchor;
+        self.node.layout.anchor.y = anchor;
         return self;
     }
 
     pub const fn anchor_x(mut self, anchor: Anchor) -> Self {
-        self.params.layout.anchor.x = anchor;
+        self.node.layout.anchor.x = anchor;
         return self;
     }
 
     pub const fn anchor_y(mut self, anchor: Anchor) -> Self {
-        self.params.layout.anchor.y = anchor;
+        self.node.layout.anchor.y = anchor;
         return self;
     }
 
     pub const fn size(mut self, size_x: Size, size_y: Size) -> Self {
-        self.params.layout.size.x = size_x;
-        self.params.layout.size.y = size_y;
+        self.node.layout.size.x = size_x;
+        self.node.layout.size.y = size_y;
         return self;
     }
 
     pub const fn size_x(mut self, size_x: Size) -> Self {
-        self.params.layout.size.x = size_x;
+        self.node.layout.size.x = size_x;
         return self;
     }
 
     pub const fn size_y(mut self, size_y: Size) -> Self {
-        self.params.layout.size.y = size_y;
+        self.node.layout.size.y = size_y;
         return self;
     }
 
     pub const fn size_symm(mut self, size: Size) -> Self {
-        self.params.layout.size.x = size;
-        self.params.layout.size.y = size;
+        self.node.layout.size.x = size;
+        self.node.layout.size.y = size;
         return self;
     }
 
     pub const fn visible(mut self) -> Self {
-        self.params.visible = true;
+        self.node.visible = true;
         return self;
     }
     pub const fn invisible(mut self) -> Self {
-        self.params.visible = false;
+        self.node.visible = false;
         return self;
     }
 
     pub const fn filled(mut self) -> Self {
-        self.params.stroke = None;
+        self.node.stroke = None;
         return self;
     }
 
     pub const fn stroke(mut self, width: f32) -> Self {
-        match &mut self.params.stroke {
+        match &mut self.node.stroke {
             Some(stroke) => stroke.width = width,
             None => {
-                self.params.stroke = Some(Stroke::new(width))
+                self.node.stroke = Some(Stroke::new(width))
             },
         }
         return self;
     }
 
     pub const fn stroke_dashes(mut self, dash_length: f32, dash_offset: f32) -> Self {
-        if let Some(stroke) = self.params.stroke {
-            self.params.stroke = Some(stroke.with_dashes(dash_length, dash_offset));
+        if let Some(stroke) = self.node.stroke {
+            self.node.stroke = Some(stroke.with_dashes(dash_length, dash_offset));
         }
         return self;
     }
 
     pub const fn stroke_color(mut self, color: Color) -> Self {
-        if let Some(stroke) = self.params.stroke {
-            self.params.stroke = Some(stroke.with_color(color));
+        if let Some(stroke) = self.node.stroke {
+            self.node.stroke = Some(stroke.with_color(color));
         }
         return self;
     }
 
     pub const fn color(mut self, color: Color) -> Self {
-        self.params.color = ColorFill::Color(color);
+        self.node.color = ColorFill::Color(color);
         return self;
     }
 
     pub const fn gradient(mut self, gradient: Gradient) -> Self {
-        self.params.color = ColorFill::Gradient(gradient);
+        self.node.color = ColorFill::Gradient(gradient);
         return self;
     }
 
     pub const fn fill(mut self, fill: ColorFill) -> Self {
-        self.params.color = fill;
+        self.node.color = fill;
         return self;
     }
 
     pub const fn shape(mut self, shape: Shape) -> Self {
-        self.params.shape = shape;
+        self.node.shape = shape;
         return self;
     }
 
     pub const fn circle(mut self) -> Self {
-        self.params.shape = Shape::Circle;
+        self.node.shape = Shape::Circle;
         return self;
     }
 
     pub const fn stack(mut self, axis: Axis, arrange: Arrange, spacing: f32) -> Self {
-        self.params.stack = Some(Stack {
+        self.node.stack = Some(Stack {
             arrange,
             axis,
             spacing,
@@ -1191,65 +1191,65 @@ impl<'a> FullNode<'a> {
     }
 
     pub const fn stack_arrange(mut self, arrange: Arrange) -> Self {
-        let stack = match self.params.stack {
+        let stack = match self.node.stack {
             Some(stack) => stack,
             None => Stack::DEFAULT,
         };
-        self.params.stack = Some(stack.arrange(arrange));
+        self.node.stack = Some(stack.arrange(arrange));
         return self;
     }
 
     pub const fn stack_spacing(mut self, spacing: f32) -> Self {
-        let stack = match self.params.stack {
+        let stack = match self.node.stack {
             Some(stack) => stack,
             None => Stack::DEFAULT,
         };
-        self.params.stack = Some(stack.spacing(spacing));
+        self.node.stack = Some(stack.spacing(spacing));
         return self;
     }
 
     // todo: if we don't mind sacrificing symmetry, it could make sense to just remove this one.
     pub const fn stack_axis(mut self, axis: Axis) -> Self {
-        let stack = match self.params.stack {
+        let stack = match self.node.stack {
             Some(stack) => stack,
             None => Stack::DEFAULT,
         };
-        self.params.stack = Some(stack.axis(axis));
+        self.node.stack = Some(stack.axis(axis));
         return self;
     }
 
     pub const fn padding(mut self, padding: f32) -> Self {
-        self.params.layout.padding = Xy::new_symm(padding);
+        self.node.layout.padding = Xy::new_symm(padding);
         return self;
     }
 
     pub const fn padding_x(mut self, padding: f32) -> Self {
-        self.params.layout.padding.x = padding;
+        self.node.layout.padding.x = padding;
         return self;
     }
 
     pub const fn padding_y(mut self, padding: f32) -> Self {
-        self.params.layout.padding.y = padding;
+        self.node.layout.padding.y = padding;
         return self;
     }
 
     pub const fn scrollable_x(mut self, scrollable_x: bool) -> Self {
-        self.params.layout.scrollable.x = scrollable_x;
+        self.node.layout.scrollable.x = scrollable_x;
         return self;
     }
 
     pub const fn scrollable_y(mut self, scrollable_y: bool) -> Self {
-        self.params.layout.scrollable.y = scrollable_y;
+        self.node.layout.scrollable.y = scrollable_y;
         return self;
     }
 
     pub const fn absorbs_clicks(mut self, absorbs_clicks: bool) -> Self {
-        self.params.interact.absorbs_mouse_events = absorbs_clicks;
+        self.node.interact.absorbs_mouse_events = absorbs_clicks;
         return self;
     }
 
     pub const fn sense_click(mut self, value: bool) -> Self {
-        let senses = &mut self.params.interact.senses;
+        let senses = &mut self.node.interact.senses;
         if value {
             *senses = senses.union(Sense::CLICK);
         } else {
@@ -1259,7 +1259,7 @@ impl<'a> FullNode<'a> {
     }
 
     pub const fn sense_drag(mut self, value: bool) -> Self {
-        let senses = &mut self.params.interact.senses;
+        let senses = &mut self.node.interact.senses;
         if value {
             *senses = senses.union(Sense::DRAG);
         } else {
@@ -1269,7 +1269,7 @@ impl<'a> FullNode<'a> {
     }
 
     pub const fn sense_hover(mut self, value: bool) -> Self {
-        let senses = &mut self.params.interact.senses;
+        let senses = &mut self.node.interact.senses;
         if value {
             *senses = senses.union(Sense::HOVER);
         } else {
@@ -1279,7 +1279,7 @@ impl<'a> FullNode<'a> {
     }
 
     pub const fn sense_hold(mut self, value: bool) -> Self {
-        let senses = &mut self.params.interact.senses;
+        let senses = &mut self.node.interact.senses;
         if value {
             *senses = senses.union(Sense::HOLD);
         } else {
@@ -1289,7 +1289,7 @@ impl<'a> FullNode<'a> {
     }
 
     pub const fn sense_scroll(mut self, value: bool) -> Self {
-        let senses = &mut self.params.interact.senses;
+        let senses = &mut self.node.interact.senses;
         if value {
             *senses = senses.union(Sense::SCROLL);
         } else {
@@ -1299,7 +1299,7 @@ impl<'a> FullNode<'a> {
     }
 
     pub const fn sense_drag_drop_target(mut self, value: bool) -> Self {
-        let senses = &mut self.params.interact.senses;
+        let senses = &mut self.node.interact.senses;
         if value {
             *senses = senses.union(Sense::DRAG_DROP_TARGET);
         } else {
@@ -1311,93 +1311,93 @@ impl<'a> FullNode<'a> {
     /// Add a [`NodeKey`] to the [`Node`].
     /// 
     pub fn key(mut self, key: NodeKey) -> Self {
-        self.params.key = Some(key);
+        self.node.key = Some(key);
         return self;
     }
 
     pub const fn animation(mut self, animation: Animation) -> Self {
-        self.params.animation = animation;
+        self.node.animation = animation;
         return self;
     }
 
     pub const fn animation_speed(mut self, speed: f32) -> Self {
-        self.params.animation.speed = speed;
+        self.node.animation.speed = speed;
         return self;
     }
 
     // Enter animation methods
     pub const fn enter_slide(mut self, edge: SlideEdge, direction: SlideDirection) -> Self {
-        self.params.animation.enter = EnterAnimation::Slide { edge, direction };
+        self.node.animation.enter = EnterAnimation::Slide { edge, direction };
         return self;
     }
 
     pub const fn enter_grow(mut self, axis: Axis, origin: Pos) -> Self {
-        self.params.animation.enter = EnterAnimation::GrowShrink { axis, origin };
+        self.node.animation.enter = EnterAnimation::GrowShrink { axis, origin };
         return self;
     }
 
     // Exit animation methods
     pub const fn exit_slide(mut self, edge: SlideEdge, direction: SlideDirection) -> Self {
-        self.params.animation.exit = ExitAnimation::Slide { edge, direction };
+        self.node.animation.exit = ExitAnimation::Slide { edge, direction };
         return self;
     }
 
     pub const fn exit_shrink(mut self, axis: Axis, origin: Pos) -> Self {
-        self.params.animation.exit = ExitAnimation::GrowShrink { axis, origin };
+        self.node.animation.exit = ExitAnimation::GrowShrink { axis, origin };
         return self;
     }
 
     pub const fn slide_from_top(mut self) -> Self {
-        self.params.animation.enter = EnterAnimation::Slide { edge: SlideEdge::Top, direction: SlideDirection::In };
-        self.params.animation.exit = ExitAnimation::Slide { edge: SlideEdge::Top, direction: SlideDirection::Out };
+        self.node.animation.enter = EnterAnimation::Slide { edge: SlideEdge::Top, direction: SlideDirection::In };
+        self.node.animation.exit = ExitAnimation::Slide { edge: SlideEdge::Top, direction: SlideDirection::Out };
         return self;
     }
 
     pub const fn slide_from_bottom(mut self) -> Self {
-        self.params.animation.enter = EnterAnimation::Slide { edge: SlideEdge::Bottom, direction: SlideDirection::In };
-        self.params.animation.exit = ExitAnimation::Slide { edge: SlideEdge::Bottom, direction: SlideDirection::Out };
+        self.node.animation.enter = EnterAnimation::Slide { edge: SlideEdge::Bottom, direction: SlideDirection::In };
+        self.node.animation.exit = ExitAnimation::Slide { edge: SlideEdge::Bottom, direction: SlideDirection::Out };
         return self;
     }
 
     pub const fn slide_from_left(mut self) -> Self {
-        self.params.animation.enter = EnterAnimation::Slide { edge: SlideEdge::Left, direction: SlideDirection::In };
-        self.params.animation.exit = ExitAnimation::Slide { edge: SlideEdge::Left, direction: SlideDirection::Out };
+        self.node.animation.enter = EnterAnimation::Slide { edge: SlideEdge::Left, direction: SlideDirection::In };
+        self.node.animation.exit = ExitAnimation::Slide { edge: SlideEdge::Left, direction: SlideDirection::Out };
         return self;
     }
 
     pub const fn slide_from_right(mut self) -> Self {
-        self.params.animation.enter = EnterAnimation::Slide { edge: SlideEdge::Right, direction: SlideDirection::In };
-        self.params.animation.exit = ExitAnimation::Slide { edge: SlideEdge::Right, direction: SlideDirection::Out };
+        self.node.animation.enter = EnterAnimation::Slide { edge: SlideEdge::Right, direction: SlideDirection::In };
+        self.node.animation.exit = ExitAnimation::Slide { edge: SlideEdge::Right, direction: SlideDirection::Out };
         return self;
     }
 
     pub const fn grow_shrink(mut self, axis: Axis, origin: Pos) -> Self {
-        self.params.animation.enter = EnterAnimation::GrowShrink { axis, origin };
-        self.params.animation.exit = ExitAnimation::GrowShrink { axis, origin };
+        self.node.animation.enter = EnterAnimation::GrowShrink { axis, origin };
+        self.node.animation.exit = ExitAnimation::GrowShrink { axis, origin };
         return self;
     }
 
     pub const fn animate_position(mut self, value: bool) -> Self {
-        self.params.animation.state_transition.animate_position = value;
+        self.node.animation.state_transition.animate_position = value;
         return self;
     }
 
     pub fn is_fit_content(&self) -> bool {
-        let Xy { x, y } = self.params.layout.size;
+        let Xy { x, y } = self.node.layout.size;
         return x == Size::FitContent || y == Size::FitContent
     }
 
     pub const fn is_scrollable(&self) -> bool {
-        return self.params.layout.scrollable.x || self.params.layout.scrollable.y
+        return self.node.layout.scrollable.x || self.node.layout.scrollable.y
     }
 
     pub fn children_can_hide(mut self, value: bool) -> Self {
-        self.params.children_can_hide = if value { ChildrenCanHide::Yes } else { ChildrenCanHide::No };
+        self.node.children_can_hide = if value { ChildrenCanHide::Yes } else { ChildrenCanHide::No };
         return self;
     }
 
     pub fn children_can_hide_inherit(mut self) -> Self {
-        self.params.children_can_hide = ChildrenCanHide::Inherit;
+        self.node.children_can_hide = ChildrenCanHide::Inherit;
         return self;
     }
 
@@ -1433,22 +1433,22 @@ impl<'a> FullNode<'a> {
     }
 
     pub const fn clip_children(mut self, value: Xy<bool>) -> Self {
-        self.params.clip_children = value;
+        self.node.clip_children = value;
         return self;
     }
 
     pub const fn clip_children_x(mut self, value: bool) -> Self {
-        self.params.clip_children.x = value;
+        self.node.clip_children.x = value;
         return self;
     }
 
     pub const fn clip_children_y(mut self, value: bool) -> Self {
-        self.params.clip_children.y = value;
+        self.node.clip_children.y = value;
         return self;
     }
 
     pub const fn custom_render(mut self, value: bool) -> Self {
-        self.params.custom_render = value;
+        self.node.custom_render = value;
         return self;
     }
 }
@@ -1460,7 +1460,7 @@ impl Node {
     /// Uses hashing to detect if the text has changed.
     pub fn placeholder_text<'a>(self, placeholder: &'a str) -> FullNode<'a> {
         return FullNode {
-            params: self,
+            node: self,
             text: None,
             text_style: None,
             image: None,
@@ -1473,7 +1473,7 @@ impl Node {
     /// Uses pointer equality to determine if the text needs updating.
     pub fn placeholder_text_static(self, placeholder: &'static str) -> FullNode<'static> {
         return FullNode {
-            params: self,
+            node: self,
             text: None,
             text_style: None,
             image: None,
@@ -1486,7 +1486,7 @@ impl Node {
     /// Uses pointer equality to determine if the text needs updating.
     pub fn placeholder_text_immut<'a>(self, placeholder: &'a str) -> FullNode<'a> {
         return FullNode {
-            params: self,
+            node: self,
             text: None,
             text_style: None,
             image: None,
@@ -1499,7 +1499,7 @@ impl Node {
     /// Uses pointer equality to determine if the text needs updating.
     pub fn static_text(self, text: &'static str) -> FullNode<'static> {
         return FullNode {
-            params: self,
+            node: self,
             text: Some(NodeText::Static(text)),
             text_style: None,
             image: None,
@@ -1513,7 +1513,7 @@ impl Node {
     /// that the text content doesn't change, otherwise the display will get out of sync.
     pub fn immut_text(self, text: &str) -> FullNode<'_> {
         return FullNode {
-            params: self,
+            node: self,
             text: Some(NodeText::Immut(text)),
             text_style: None,
             image: None,
@@ -1523,7 +1523,7 @@ impl Node {
 
     pub fn static_image(self, image: &'static [u8]) -> FullNode<'static> {
         return FullNode {
-            params: self,
+            node: self,
             text: None,
             text_style: None,
             image: Some(Image::RasterStatic(image)),
@@ -1533,7 +1533,7 @@ impl Node {
 
     pub fn image_path<'a>(self, path: &'a str) -> FullNode<'a> {
         return FullNode {
-            params: self,
+            node: self,
             text: None,
             text_style: None,
             image: Some(Image::RasterPath(path)),
@@ -1543,7 +1543,7 @@ impl Node {
 
     pub fn static_svg(self, svg: &'static [u8]) -> FullNode<'static> {
         return FullNode {
-            params: self,
+            node: self,
             text: None,
             text_style: None,
             image: Some(Image::SvgStatic(svg)),
@@ -1553,7 +1553,7 @@ impl Node {
 
     pub fn svg_path<'a>(self, path: &'a str) -> FullNode<'a> {
         return FullNode {
-            params: self,
+            node: self,
             text: None,
             text_style: None,
             image: Some(Image::SvgPath(path)),
@@ -1565,7 +1565,7 @@ impl Node {
 impl From<Node> for FullNode<'_> {
     fn from(val: Node) -> Self {
         FullNode {
-            params: val,
+            node: val,
             text: None,
             text_style: None,
             image: None,
@@ -1577,7 +1577,7 @@ impl From<Node> for FullNode<'_> {
 impl FullNode<'_> {
     #[track_caller]
     pub(crate) fn key_or_anon_key(&self) -> NodeKey {
-        return match self.params.key {
+        return match self.node.key {
             Some(key) => key,
             None => NodeKey::new(Id(caller_location_id()), "Anon node"),
         };
@@ -1590,7 +1590,7 @@ impl Ui {
             return
         };
 
-        let text_options = params.params.text_params.as_ref();
+        let text_options = params.node.text_params.as_ref();
         let style = params.text_style.as_ref();
 
         // Determine what type of text widget we want
@@ -1728,8 +1728,8 @@ impl Ui {
             };
         }
         
-        let new_cosmetic_hash = params.params.cosmetic_hash();
-        let new_layout_hash = params.params.layout_hash();
+        let new_cosmetic_hash = params.node.cosmetic_hash();
+        let new_layout_hash = params.node.layout_hash();
         
         let cosmetic_changed = new_cosmetic_hash != self.sys.nodes[i].last_cosmetic_hash;
         let layout_changed = new_layout_hash != self.sys.nodes[i].last_layout_hash;
@@ -1749,7 +1749,7 @@ impl Ui {
             return;
         }
         
-        self.sys.nodes[i].params = params.params.clone();
+        self.sys.nodes[i].params = params.node.clone();
 
         self.sys.nodes[i].last_cosmetic_hash = new_cosmetic_hash;
         self.sys.nodes[i].last_layout_hash = new_layout_hash;
@@ -1767,7 +1767,7 @@ impl Node {
     /// Add text to the [`Node`].
     pub fn text(self, text: &str) -> FullNode<'_> {
         return FullNode {
-            params: self,
+            node: self,
             text: Some(NodeText::Dynamic(text)),
             text_style: None,
             image: None,
