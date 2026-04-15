@@ -51,3 +51,6 @@ icu_provider = { version = "*", default-features = false, features = ["logging"]
 [lints.clippy]
 needless_return = { level = "allow" }
 bool_comparison = { level = "allow" }
+
+[package.metadata.docs.rs]
+rustdoc-args = ["--generate-link-to-definition"]

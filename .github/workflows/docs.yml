@@ -17,7 +17,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@nightly
       - name: Install system dependencies for Parley...
         run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev pkg-config
       - name: Configure cache
@@ -28,6 +28,8 @@ jobs:
       - name: Clean docs folder
         run: cargo clean --doc
       - name: Build docs
+        env:
+          RUSTDOCFLAGS: "-Z unstable-options --generate-link-to-definition"
         run: cargo doc --no-deps
       - name: Add redirect
         run: echo '<meta http-equiv="refresh" content="0;url=keru/index.html">' > target/doc/index.html
