@@ -2,7 +2,7 @@ use glam::vec2;
 use keru_draw::StyleHandle;
 
 use crate::*;
-use std::hash::{Hash, Hasher};
+use std::{hash::{Hash, Hasher}, ops::Range};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ChildrenCanHide {
@@ -39,7 +39,7 @@ pub enum ChildrenCanHide {
 #[derive(Debug, Copy, Clone)]
 pub struct Node {
     pub key: Option<NodeKey>,
-    pub text_params: Option<TextOptions>,
+    pub text_params: TextOptions,
     pub stack: Option<Stack>,
     pub shape: Shape,
     pub stroke: Option<Stroke>,
@@ -470,6 +470,7 @@ pub struct TextOptions {
     pub single_line: bool,
     pub selectable: bool,
     pub edit_disabled: bool,
+    pub auto_markdown: bool,
 }
 
 impl Default for TextOptions {
@@ -479,12 +480,13 @@ impl Default for TextOptions {
 }
 
 impl TextOptions {
-    const fn const_default() -> Self {
+    pub const fn const_default() -> Self {
         Self {
             editable: false,
             single_line: false,
             selectable: true,
             edit_disabled: false,
+            auto_markdown: false,
         }
     }
 }
@@ -776,6 +778,11 @@ impl Node {
         return self;
     }
 
+    pub const fn auto_markdown(mut self, auto_markdown: bool) -> Self {
+        self.text_params.auto_markdown = auto_markdown;
+        return self;
+    }
+
     // todo: rename to opaque or something like that
     pub const fn absorbs_clicks(mut self, absorbs_clicks: bool) -> Self {
         self.interact.absorbs_mouse_events = absorbs_clicks;
@@ -988,15 +995,37 @@ impl Node {
     }
 }
 
+
 #[derive(Copy, Clone, Hash)]
 pub enum NodeText<'a> {
-    /// Text that will be hashed to detect changes.
+    /// Text that may change between frames and will be hashed to detect changes.
     Dynamic(&'a str),
-    /// Static text that uses pointer-equality checking.
-    Static(&'static str),
-    /// Non-static text that uses pointer-equality checking.
-    /// The user must ensure the text doesn't change.
+    /// Text that doesn't change between frames that can be compared using pointer equality.
+    /// If the text is changed, the [`Ui`] will probably miss it.
     Immut(&'a str),
+    /// Static text that can use pointer-equality and can be stored as a reference without copying.
+    /// If the text is changed using unsafe code, the [`Ui`] will probably miss it.
+    Static(&'static str),
+
+    // /// Rich text that may change between frames and will be hashed to detect changes.
+    // RichDynamic(&'a RichText<'a>),
+    // /// Rich ext that doesn't change between frames that can be compared using pointer equality.
+    // /// If the text is changed, the [`Ui`] will probably miss it.
+    // RichImmut(&'a RichText<'a>),
+    // /// Static rich text that can use pointer-equality and can be stored as a reference without copying.
+    // /// If the text is changed using unsafe code, the [`Ui`] will probably miss it.
+    // RichStatic(&'a RichText<'static>),
+}
+
+#[derive(Copy, Clone, Hash)]
+pub struct RichText<'a> {
+    spans: &'a [StyledSpan<'a>],
+}
+
+#[derive(Copy, Clone, Hash)]
+pub struct StyledSpan<'a> {
+    text: &'a str,
+    style: i32,
 }
 
 impl<'a> NodeText<'a> {
@@ -1038,17 +1067,7 @@ pub struct FullNode<'a> {
 
 impl<'a> FullNode<'a> {
     pub const fn single_line_text(mut self, value: bool) -> Self {
-        let text_params = match self.node.text_params {
-            Some(mut tp) => {
-                tp.single_line = value;
-                tp
-            },
-            None => TextOptions {
-                single_line: value,
-                ..TextOptions::const_default()
-            }
-        };
-        self.node.text_params = Some(text_params);
+        self.node.text_params.single_line = value;
         return self;
     }
 
@@ -1240,6 +1259,11 @@ impl<'a> FullNode<'a> {
 
     pub const fn scrollable_y(mut self, scrollable_y: bool) -> Self {
         self.node.layout.scrollable.y = scrollable_y;
+        return self;
+    }
+
+    pub const fn auto_markdown(mut self, auto_markdown: bool) -> Self {
+        self.node.text_params.auto_markdown = auto_markdown;
         return self;
     }
 
@@ -1590,20 +1614,14 @@ impl Ui {
             return
         };
 
-        let text_options = params.node.text_params.as_ref();
+        let text_options = params.node.text_params;
         let style = params.text_style.as_ref();
 
-        // Determine what type of text widget we want
-        let edit = text_options.map(|to| to.editable).unwrap_or(false);
-        let selectable = text_options.map(|to| to.selectable).unwrap_or(true);
-        let edit_disabled = text_options.map(|to| to.edit_disabled).unwrap_or(false);
-        let single_line = text_options.map(|to| to.single_line).unwrap_or(false);
-
-        let needs_new_widget = match (&self.sys.nodes[i].text_i, edit) {
+        let needs_new_widget = match (&self.sys.nodes[i].text_i, text_options.editable) {
             (None, _) => true,
-            (Some(TextI::TextEdit(_)), true) => false,   // Already TextEdit, want TextEdit
-            (Some(TextI::TextBox(_)), false) => false,   // Already TextBox, want TextBox
-            _ => true, // Type mismatch, need to switch
+            (Some(TextI::TextEdit(_)), true) => false,
+            (Some(TextI::TextBox(_)), false) => false,
+            _ => true, // need to switch
         };
 
         if needs_new_widget {
@@ -1618,7 +1636,7 @@ impl Ui {
             // this z doesn't matter, it's set when preparing render data. todo: cleanup.
             let z = 0.0;
             // Create new widget
-            let new_text_i = if edit {
+            let new_text_i = if text_options.editable {
                 let handle = self.sys.renderer.text.add_text_edit(text.as_str().to_string(), (0.0, 0.0), (500.0, 500.0), z);
                 if let Some(style) = style {
                     self.sys.renderer.text.get_text_edit_mut(&handle).set_style(style);
@@ -1673,8 +1691,8 @@ impl Ui {
         if let Some(text_i) = &self.sys.nodes[i].text_i {
             match text_i {
                 TextI::TextEdit(handle) => {
-                    self.sys.renderer.text.get_text_edit_mut(handle).set_disabled(edit_disabled);
-                    self.sys.renderer.text.get_text_edit_mut(handle).set_single_line(single_line);
+                    self.sys.renderer.text.get_text_edit_mut(handle).set_disabled(text_options.edit_disabled);
+                    self.sys.renderer.text.get_text_edit_mut(handle).set_single_line(text_options.single_line);
                     if let Some(placeholder) = params.placeholder_text {
                         match placeholder {
                             NodeText::Static(s) => {
@@ -1690,14 +1708,14 @@ impl Ui {
                     }
                 },
                 TextI::TextBox(handle) => {
-                    self.sys.renderer.text.get_text_box_mut(handle).set_selectable(selectable);
+                    self.sys.renderer.text.get_text_box_mut(handle).set_selectable(text_options.selectable);
                 },
             }
         }
 
         // Link this text box into the global cross-box selection chain.
         // Runs every frame so that links are always up-to-date regardless of structural changes.
-        if !edit && selectable {
+        if !text_options.editable && text_options.selectable {
             if let Some(TextI::TextBox(current_handle)) = &self.sys.nodes[i].text_i {
                 self.sys.renderer.text.unlink_text_box(current_handle);
 
