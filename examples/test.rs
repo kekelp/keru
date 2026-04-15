@@ -1,71 +1,69 @@
 #![allow(unused)]
 use keru::*;
+use keru::example_window_loop::*;
+
+// Tests that readd_branch handles exiting nodes correctly.
+//
+// When a node inside a branch is removed, it starts an exit animation and stays
+// in the parent's child list with exiting=true. If readd_branch is then called
+// for that parent, it must unlink the exiting node before cleanup_and_stuff
+// re-adds it — otherwise cleanup_and_stuff would append it after itself,
+// creating a self-cycle in the linked list.
+//
+// To exercise this: toggle the extra panel off. The first frame rebuilds the
+// branch normally (extra is omitted → starts exiting). Every frame after that,
+// readd_branch is called while extra is still exiting. If the list gets
+// corrupted, layout/render will hang or crash.
 
 struct State {
-    swap: bool,
+    show_extra: bool,
+    changed: bool,
 }
 
 fn update_ui(state: &mut State, ui: &mut Ui) {
+    #[node_key] const BRANCH_ROOT: NodeKey;
     #[node_key] const TOGGLE: NodeKey;
-    #[node_key] const RED: NodeKey;
-    #[node_key] const GREEN: NodeKey;
-    #[node_key] const BLUE: NodeKey;
+    #[node_key] const EXTRA: NodeKey;
 
-    let container = CONTAINER
-        .size_x(Size::Pixels(300.0))
-        .size_y(Size::Pixels(300.0))
-        .visible()
-        .color(Color::rgba_u8(30, 30, 30, 255));
+    let toggle = BUTTON
+        .static_text(&"Toggle extra panel")
+        .key(TOGGLE);
 
-    ui.add(container).nest(|| {
-        let z_red   = if state.swap { 0.0 } else { 2.0 };
-        let z_green = 1.0;
-        let z_blue  = if state.swap { 2.0 } else { 0.0 };
+    let extra = PANEL
+        .color(Color::KERU_GREEN)
+        .size_symm(Size::Pixels(100.0))
+        .exit_slide(SlideEdge::Top, SlideDirection::Out)
+        .key(EXTRA);
 
-        // Red square — declared first, so without z_index it would be behind.
-        ui.add(DEFAULT
-            .key(RED)
-            .color(Color::rgba_u8(200, 60, 60, 255))
-            .size_symm(Size::Pixels(150.0))
-            .position_symm(Pos::Pixels(20.0))
-            .anchor_symm(Anchor::Start)
-            .z_index(z_red)
-        );
-
-        // Green square — offset slightly.
-        ui.add(DEFAULT
-            .key(GREEN)
-            .color(Color::rgba_u8(60, 180, 60, 255))
-            .size_symm(Size::Pixels(150.0))
-            .position_symm(Pos::Pixels(70.0))
-            .anchor_symm(Anchor::Start)
-            .z_index(z_green)
-        );
-
-        // Blue square — declared last, so without z_index it would be on top.
-        ui.add(DEFAULT
-            .key(BLUE)
-            .color(Color::rgba_u8(60, 80, 210, 255))
-            .size_symm(Size::Pixels(150.0))
-            .position_symm(Pos::Pixels(120.0))
-            .anchor_symm(Anchor::Start)
-            .z_index(z_blue)
-        );
-    });
-
-    // Toggle button: swaps red and blue z_index values.
-    let label = if state.swap {
-        "Red: 0, Blue: 2 (blue on top)"
-    } else {
-        "Red: 2, Blue: 0 (red on top)"
-    };
-    ui.add(BUTTON.key(TOGGLE).text(label).position_y(Pos::End).anchor_y(Anchor::End));
     if ui.is_clicked(TOGGLE) {
-        state.swap = !state.swap;
+        state.show_extra = !state.show_extra;
+        state.changed = true;
+    }
+
+    let branch = V_STACK.key(BRANCH_ROOT);
+
+    if state.changed {
+        ui.add(branch).nest(|| {
+            ui.add(toggle);
+            if state.show_extra {
+                ui.add(extra);
+            }
+        });
+        state.changed = false;
+    } else {
+        ui.readd_branch(BRANCH_ROOT);
     }
 }
 
 fn main() {
-    let state = State { swap: false };
+    env_logger::Builder::new()
+        .filter_level(log::LevelFilter::Warn)
+        .filter_module("keru::tree", log::LevelFilter::Trace)
+        .init();
+
+    let state = State {
+        show_extra: true,
+        changed: true,
+    };
     example_window_loop::run_example_loop(state, update_ui);
 }

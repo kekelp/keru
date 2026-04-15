@@ -795,11 +795,12 @@ impl Ui {
             // Save next before any unlinking that would clear it.
             let next = self.sys.nodes[child].next_sibling;
             if self.sys.nodes[child].exiting {
-                // Unlink exiting nodes from the preserved list so cleanup_and_stuff
-                // can re-add them cleanly (same as the normal add flow, where
-                // clear_node_children removes them before they're re-added).
-                // Exiting nodes aren't counted in n_children, so undo the decrement.
+                // For exiting children, we have to imitate what would happen normally:
+                // They would get "removed" by the fact that the user doesn't re-declare them.
+                // Then, cleanup_and_stuff will awkwardly add it back on. 
+                // So we have to manually remove the node.
                 self.unlink_from_tree(child);
+                // we're reusing unlink_from_tree which also decreases the parent's child count, but exiting nodes shouldn't be counted.
                 self.sys.nodes[node_i].n_children += 1;
             } else {
                 self.sys.nodes[child].last_frame_touched = self.sys.current_frame;

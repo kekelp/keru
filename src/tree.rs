@@ -253,7 +253,8 @@ impl Ui {
         }
 
         // Decrement parent's child count
-        self.sys.nodes[old_parent].n_children = self.sys.nodes[old_parent].n_children.saturating_sub(1);
+        debug_assert!(self.sys.nodes[old_parent].n_children > 0);
+        self.sys.nodes[old_parent].n_children -= 1;
 
         // Clear the node's sibling pointers
         self.sys.nodes[node_i].prev_sibling = None;
@@ -851,7 +852,7 @@ impl Ui {
                 self.set_tree_links(i, old_parent, self.sys.nodes[i].depth, SiblingCursor::None);
                 self.refresh_node(i);
                 self.sys.nodes[i].exiting = true;
-                // todo not in this retarded way
+                // we're reusing set_tree_links which also increases the parent's child count, but exiting nodes shouldn't be counted.
                 self.sys.nodes[old_parent].n_children -= 1;
             }
 
