@@ -1610,124 +1610,170 @@ impl FullNode<'_> {
 
 impl Ui {
     pub(crate) fn set_params_text(&mut self, i: NodeI, params: &FullNode) {
-        let Some(text) = params.text else {
-            return
-        };
+        with_arena(|arena| {
+            
+            let Some(mut text) = params.text else {
+                return
+            };
+    
+            let text_options = params.node.text_params;
+            let style = params.text_style.as_ref();
 
-        let text_options = params.node.text_params;
-        let style = params.text_style.as_ref();
 
-        let needs_new_widget = match (&self.sys.nodes[i].text_i, text_options.editable) {
-            (None, _) => true,
-            (Some(TextI::TextEdit(_)), true) => false,
-            (Some(TextI::TextBox(_)), false) => false,
-            _ => true, // need to switch
-        };
+            let mut string = bumpalo::collections::String::new_in(&arena);
+            let mut code_ranges: bumpalo::collections::Vec<Range<usize>> = bumpalo::collections::Vec::with_capacity_in(10, &arena);
+            if text_options.auto_markdown {
+                string.reserve(text.as_str().len());
 
-        if needs_new_widget {
-            // Remove old widget
-            if let Some(old_text_i) = self.sys.nodes[i].text_i.take() {
-                match old_text_i {
-                    TextI::TextBox(handle) => self.sys.renderer.text.remove_text_box(handle),
-                    TextI::TextEdit(handle) => self.sys.renderer.text.remove_text_edit(handle),
+                let src = text.as_str();
+                let mut in_code = false;
+                let mut range_start: Option<usize> = None;
+
+                for char in src.chars() {
+                    if char == '`' {
+                        if in_code {
+                            // closing `
+                            if let Some(start) = range_start.take() {
+                                code_ranges.push(start..string.len());
+                            }
+                            in_code = false;
+                        } else {
+                            // opening `
+                            in_code = true;
+                            range_start = Some(string.len());
+                        }
+                        continue;
+                    }
+
+                    string.push(char);
                 }
+
+                // todo maybe we could avoid forcing it into dynamic. but maybe it should go inside keru_text honestly.
+                text = NodeText::Dynamic(&string)
+
             }
 
-            // this z doesn't matter, it's set when preparing render data. todo: cleanup.
-            let z = 0.0;
-            // Create new widget
-            let new_text_i = if text_options.editable {
-                let handle = self.sys.renderer.text.add_text_edit(text.as_str().to_string(), (0.0, 0.0), (500.0, 500.0), z);
-                if let Some(style) = style {
-                    self.sys.renderer.text.get_text_edit_mut(&handle).set_style(style);
-                }
-                TextI::TextEdit(handle)
-            } else {
-                let handle = match text {
-                    NodeText::Static(s) => {
-                        self.sys.renderer.text.add_text_box(s, (0.0, 0.0), (500.0, 500.0), z)
-                    },
-                    NodeText::Dynamic(s) | NodeText::Immut(s) => {
-                        self.sys.renderer.text.add_text_box(s.to_string(), (0.0, 0.0), (500.0, 500.0), z)
-                    }
-                };
-                if let Some(style) = style {
-                    self.sys.renderer.text.get_text_box_mut(&handle).set_style(style);
-                }
-                TextI::TextBox(handle)
+            let needs_new_widget = match (&self.sys.nodes[i].text_i, text_options.editable) {
+                (None, _) => true,
+                (Some(TextI::TextEdit(_)), true) => false,
+                (Some(TextI::TextBox(_)), false) => false,
+                _ => true, // need to switch
             };
 
-            self.sys.nodes[i].text_i = Some(new_text_i);
-        } else {
-            // Same type - just update content and style
-            match &self.sys.nodes[i].text_i {
-                Some(TextI::TextEdit(handle)) => {
-                    // don't update the content. content in a text edit box is not reset declaratively every frame, obviously.
+            if needs_new_widget {
+                // Remove old widget
+                if let Some(old_text_i) = self.sys.nodes[i].text_i.take() {
+                    match old_text_i {
+                        TextI::TextBox(handle) => self.sys.renderer.text.remove_text_box(handle),
+                        TextI::TextEdit(handle) => self.sys.renderer.text.remove_text_edit(handle),
+                    }
+                }
+
+                // this z doesn't matter, it's set when preparing render data. todo: cleanup.
+                let z = 0.0;
+                // Create new widget
+                let new_text_i = if text_options.editable {
+                    let handle = self.sys.renderer.text.add_text_edit(text.as_str().to_string(), (0.0, 0.0), (500.0, 500.0), z);
                     if let Some(style) = style {
                         self.sys.renderer.text.get_text_edit_mut(&handle).set_style(style);
                     }
-                },
-                Some(TextI::TextBox(handle)) => {
-                    match text {
+                    TextI::TextEdit(handle)
+                } else {
+                    let handle = match text {
                         NodeText::Static(s) => {
-                            self.sys.renderer.text.get_text_box_mut(&handle).set_static_text_with_pointer_check(s);
+                            self.sys.renderer.text.add_text_box(s, (0.0, 0.0), (500.0, 500.0), z)
                         },
-                        NodeText::Dynamic(s) => {
-                            self.sys.renderer.text.get_text_box_mut(&handle).set_text_hashed(s);
-                        },
-                        NodeText::Immut(s) => {
-                            self.sys.renderer.text.get_text_box_mut(&handle).set_text_with_pointer_check(s);
+                        NodeText::Dynamic(s) | NodeText::Immut(s) => {
+                            self.sys.renderer.text.add_text_box(s.to_string(), (0.0, 0.0), (500.0, 500.0), z)
                         }
-                    }
+                    };
                     if let Some(style) = style {
                         self.sys.renderer.text.get_text_box_mut(&handle).set_style(style);
                     }
-                },
-                None => unreachable!("Should have created a new widget above"),
-            }
-        }
+                    TextI::TextBox(handle)
+                };
 
-        // Apply text options
-        if let Some(text_i) = &self.sys.nodes[i].text_i {
-            match text_i {
-                TextI::TextEdit(handle) => {
-                    self.sys.renderer.text.get_text_edit_mut(handle).set_disabled(text_options.edit_disabled);
-                    self.sys.renderer.text.get_text_edit_mut(handle).set_single_line(text_options.single_line);
-                    if let Some(placeholder) = params.placeholder_text {
-                        match placeholder {
+                self.sys.nodes[i].text_i = Some(new_text_i);
+            } else {
+                // Same type - just update content and style
+                match &self.sys.nodes[i].text_i {
+                    Some(TextI::TextEdit(handle)) => {
+                        // don't update the content. content in a text edit box is not reset declaratively every frame, obviously.
+                        if let Some(style) = style {
+                            self.sys.renderer.text.get_text_edit_mut(&handle).set_style(style);
+                        }
+                    },
+                    Some(TextI::TextBox(handle)) => {
+                        match text {
                             NodeText::Static(s) => {
-                                self.sys.renderer.text.get_text_edit_mut(handle).set_placeholder_static_with_pointer_check(s);
+                                self.sys.renderer.text.get_text_box_mut(&handle).set_static_text_with_pointer_check(s);
                             },
                             NodeText::Dynamic(s) => {
-                                self.sys.renderer.text.get_text_edit_mut(handle).set_placeholder_hashed(s);
+                                self.sys.renderer.text.get_text_box_mut(&handle).set_text_hashed(s);
+
+                                for range in code_ranges {
+                                    let code_prop = keru_draw::parley::StyleProperty::FontFamily(keru_draw::parley::FontFamily::Single(keru_draw::parley::FontFamilyName::Generic(keru_draw::parley::GenericFamily::Monospace)));
+                                    let grey_text_prop = keru_draw::parley::StyleProperty::Brush(ColorBrush([150,150,150,255]));
+                                    self.sys.renderer.text.get_text_box_mut(&handle).push_style_property(grey_text_prop, range.clone());
+                                    self.sys.renderer.text.get_text_box_mut(&handle).push_style_property(code_prop, range.clone());
+                                }
+
                             },
                             NodeText::Immut(s) => {
-                                self.sys.renderer.text.get_text_edit_mut(handle).set_placeholder_with_pointer_check(s);
+                                self.sys.renderer.text.get_text_box_mut(&handle).set_text_with_pointer_check(s);
                             }
                         }
-                    }
-                },
-                TextI::TextBox(handle) => {
-                    self.sys.renderer.text.get_text_box_mut(handle).set_selectable(text_options.selectable);
-                },
-            }
-        }
-
-        // Link this text box into the global cross-box selection chain.
-        // Runs every frame so that links are always up-to-date regardless of structural changes.
-        if !text_options.editable && text_options.selectable {
-            if let Some(TextI::TextBox(current_handle)) = &self.sys.nodes[i].text_i {
-                self.sys.renderer.text.unlink_text_box(current_handle);
-
-                if let Some(prev_node_i) = self.sys.last_linked_text_box_node {
-                    if let Some(TextI::TextBox(prev_handle)) = &self.sys.nodes[prev_node_i].text_i {
-                        self.sys.renderer.text.link_text_boxes(prev_handle, current_handle);
-                    }
+                        if let Some(style) = style {
+                            self.sys.renderer.text.get_text_box_mut(&handle).set_style(style);
+                        }
+                    },
+                    None => unreachable!("Should have created a new widget above"),
                 }
-
-                self.sys.last_linked_text_box_node = Some(i);
             }
-        }
+
+            // Apply text options
+            if let Some(text_i) = &self.sys.nodes[i].text_i {
+                match text_i {
+                    TextI::TextEdit(handle) => {
+                        self.sys.renderer.text.get_text_edit_mut(handle).set_disabled(text_options.edit_disabled);
+                        self.sys.renderer.text.get_text_edit_mut(handle).set_single_line(text_options.single_line);
+                        if let Some(placeholder) = params.placeholder_text {
+                            match placeholder {
+                                NodeText::Static(s) => {
+                                    self.sys.renderer.text.get_text_edit_mut(handle).set_placeholder_static_with_pointer_check(s);
+                                },
+                                NodeText::Dynamic(s) => {
+                                    self.sys.renderer.text.get_text_edit_mut(handle).set_placeholder_hashed(s);
+                                },
+                                NodeText::Immut(s) => {
+                                    self.sys.renderer.text.get_text_edit_mut(handle).set_placeholder_with_pointer_check(s);
+                                }
+                            }
+                        }
+                    },
+                    TextI::TextBox(handle) => {
+                        self.sys.renderer.text.get_text_box_mut(handle).set_selectable(text_options.selectable);
+                    },
+                }
+            }
+
+            // Link this text box into the global cross-box selection chain.
+            // Runs every frame so that links are always up-to-date regardless of structural changes.
+            if !text_options.editable && text_options.selectable {
+                if let Some(TextI::TextBox(current_handle)) = &self.sys.nodes[i].text_i {
+                    self.sys.renderer.text.unlink_text_box(current_handle);
+
+                    if let Some(prev_node_i) = self.sys.last_linked_text_box_node {
+                        if let Some(TextI::TextBox(prev_handle)) = &self.sys.nodes[prev_node_i].text_i {
+                            self.sys.renderer.text.link_text_boxes(prev_handle, current_handle);
+                        }
+                    }
+
+                    self.sys.last_linked_text_box_node = Some(i);
+                }
+            }
+
+        });
     }
 
 
