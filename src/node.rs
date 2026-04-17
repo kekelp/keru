@@ -471,6 +471,7 @@ pub struct TextOptions {
     pub selectable: bool,
     pub edit_disabled: bool,
     pub auto_markdown: bool,
+    pub use_pointer_comparison: bool,
 }
 
 impl Default for TextOptions {
@@ -487,6 +488,7 @@ impl TextOptions {
             selectable: true,
             edit_disabled: false,
             auto_markdown: false,
+            use_pointer_comparison: false,
         }
     }
 }
@@ -997,25 +999,7 @@ impl Node {
 
 
 #[derive(Copy, Clone, Hash)]
-pub enum NodeText<'a> {
-    /// Text that may change between frames and will be hashed to detect changes.
-    Dynamic(&'a str),
-    /// Text that doesn't change between frames that can be compared using pointer equality.
-    /// If the text is changed, the [`Ui`] will probably miss it.
-    Immut(&'a str),
-    /// Static text that can use pointer-equality and can be stored as a reference without copying.
-    /// If the text is changed using unsafe code, the [`Ui`] will probably miss it.
-    Static(&'static str),
-
-    // /// Rich text that may change between frames and will be hashed to detect changes.
-    // RichDynamic(&'a RichText<'a>),
-    // /// Rich ext that doesn't change between frames that can be compared using pointer equality.
-    // /// If the text is changed, the [`Ui`] will probably miss it.
-    // RichImmut(&'a RichText<'a>),
-    // /// Static rich text that can use pointer-equality and can be stored as a reference without copying.
-    // /// If the text is changed using unsafe code, the [`Ui`] will probably miss it.
-    // RichStatic(&'a RichText<'static>),
-}
+pub struct NodeText<'a>(pub &'a str);
 
 #[derive(Copy, Clone, Hash)]
 pub struct RichText<'a> {
@@ -1030,11 +1014,7 @@ pub struct StyledSpan<'a> {
 
 impl<'a> NodeText<'a> {
     pub fn as_str(&self) -> &str {
-        match self {
-            NodeText::Dynamic(s) => s,
-            NodeText::Static(s) => s,
-            NodeText::Immut(s) => s,
-        }
+        self.0
     }
 }
 
@@ -1433,26 +1413,8 @@ impl<'a> FullNode<'a> {
 
     /// Set placeholder text for a text edit that will be shown when the text edit is empty.
     /// This only works with editable text nodes.
-    ///
-    /// Uses hashing to detect if the text has changed.
     pub fn placeholder_text(mut self, placeholder_text: &'a str) -> Self {
-        self.placeholder_text = Some(NodeText::Dynamic(placeholder_text));
-        self
-    }
-
-    /// Set placeholder text from a `&'static str`.
-    ///
-    /// Uses pointer equality to determine if the text needs updating.
-    pub fn placeholder_text_static(mut self, placeholder_text: &'static str) -> FullNode<'a> {
-        self.placeholder_text = Some(NodeText::Static(placeholder_text));
-        self
-    }
-
-    /// Set placeholder text from a `&str` that is known to not change during its lifetime.
-    ///
-    /// Uses pointer equality to determine if the text needs updating.
-    pub fn placeholder_text_immut(mut self, placeholder_text: &'a str) -> Self {
-        self.placeholder_text = Some(NodeText::Immut(placeholder_text));
+        self.placeholder_text = Some(NodeText(placeholder_text));
         self
     }
 
@@ -1480,65 +1442,24 @@ impl<'a> FullNode<'a> {
 impl Node {
     /// Set placeholder text for a text edit that will be shown when the text edit is empty.
     /// This only works with editable text nodes.
-    ///
-    /// Uses hashing to detect if the text has changed.
     pub fn placeholder_text<'a>(self, placeholder: &'a str) -> FullNode<'a> {
         return FullNode {
             node: self,
             text: None,
             text_style: None,
             image: None,
-            placeholder_text: Some(NodeText::Dynamic(placeholder)),
-        }
-    }
-
-    /// Set placeholder text from a `&'static str`.
-    ///
-    /// Uses pointer equality to determine if the text needs updating.
-    pub fn placeholder_text_static(self, placeholder: &'static str) -> FullNode<'static> {
-        return FullNode {
-            node: self,
-            text: None,
-            text_style: None,
-            image: None,
-            placeholder_text: Some(NodeText::Static(placeholder)),
-        }
-    }
-
-    /// Set placeholder text from a `&str` that is known to not change during its lifetime.
-    ///
-    /// Uses pointer equality to determine if the text needs updating.
-    pub fn placeholder_text_immut<'a>(self, placeholder: &'a str) -> FullNode<'a> {
-        return FullNode {
-            node: self,
-            text: None,
-            text_style: None,
-            image: None,
-            placeholder_text: Some(NodeText::Immut(placeholder)),
+            placeholder_text: Some(NodeText(placeholder)),
         }
     }
 
     /// Add text to the [`Node`] from a `&'static str`.
     ///
     /// Uses pointer equality to determine if the text needs updating.
-    pub fn static_text(self, text: &'static str) -> FullNode<'static> {
+    pub fn static_text(mut self, text: &'static str) -> FullNode<'static> {
+        self.text_params.use_pointer_comparison = true;
         return FullNode {
             node: self,
-            text: Some(NodeText::Static(text)),
-            text_style: None,
-            image: None,
-            placeholder_text: None,
-        }
-    }
-
-    /// Add text to the [`Node`] from a `&str` that is known to not change during its lifetime.
-    ///
-    /// Uses pointer equality to determine if the text needs updating. The user must ensure
-    /// that the text content doesn't change, otherwise the display will get out of sync.
-    pub fn immut_text(self, text: &str) -> FullNode<'_> {
-        return FullNode {
-            node: self,
-            text: Some(NodeText::Immut(text)),
+            text: Some(NodeText(text)),
             text_style: None,
             image: None,
             placeholder_text: None,
@@ -1662,10 +1583,11 @@ impl Ui {
                 let trimmed_len = string.trim_end_matches('\n').len();
                 string.truncate(trimmed_len);
 
-                // todo maybe we could avoid forcing it into dynamic. but maybe it should go inside keru_text honestly.
-                text = NodeText::Dynamic(&string)
+                text = NodeText(&string);
 
             }
+
+            let use_ptr_cmp = text_options.use_pointer_comparison && !text_options.auto_markdown;
 
             let needs_new_widget = match (&self.sys.nodes[i].text_i, text_options.editable) {
                 (None, _) => true,
@@ -1693,14 +1615,7 @@ impl Ui {
                     }
                     TextI::TextEdit(handle)
                 } else {
-                    let handle = match text {
-                        NodeText::Static(s) => {
-                            self.sys.renderer.text.add_text_box(s, (0.0, 0.0), (500.0, 500.0), z)
-                        },
-                        NodeText::Dynamic(s) | NodeText::Immut(s) => {
-                            self.sys.renderer.text.add_text_box(s.to_string(), (0.0, 0.0), (500.0, 500.0), z)
-                        }
-                    };
+                    let handle = self.sys.renderer.text.add_text_box(text.as_str().to_string(), (0.0, 0.0), (500.0, 500.0), z);
                     if let Some(style) = style {
                         self.sys.renderer.text.get_text_box_mut(&handle).set_style(style);
                     }
@@ -1718,23 +1633,16 @@ impl Ui {
                         }
                     },
                     Some(TextI::TextBox(handle)) => {
-                        match text {
-                            NodeText::Static(s) => {
-                                self.sys.renderer.text.get_text_box_mut(&handle).set_static_text_with_pointer_check(s);
-                            },
-                            NodeText::Dynamic(s) => {
-                                let text_box = self.sys.renderer.text.get_text_box_mut(&handle);
-                                
-                                text_box.set_text_hashed(s);
+                        if use_ptr_cmp {
+                            self.sys.renderer.text.get_text_box_mut(&handle).set_text_with_pointer_check(text.as_str());
+                        } else {
+                            let text_box = self.sys.renderer.text.get_text_box_mut(&handle);
 
-                                self.sys.renderer.text.get_text_box_mut(&handle).clear_style_properties();
-                                for (prop, range) in style_ranges {
-                                    self.sys.renderer.text.get_text_box_mut(&handle).push_style_property(prop, range);
-                                }
+                            text_box.set_text_hashed(text.as_str());
 
-                            },
-                            NodeText::Immut(s) => {
-                                self.sys.renderer.text.get_text_box_mut(&handle).set_text_with_pointer_check(s);
+                            self.sys.renderer.text.get_text_box_mut(&handle).clear_style_properties();
+                            for (prop, range) in style_ranges {
+                                self.sys.renderer.text.get_text_box_mut(&handle).push_style_property(prop, range);
                             }
                         }
                         if let Some(style) = style {
@@ -1752,17 +1660,7 @@ impl Ui {
                         self.sys.renderer.text.get_text_edit_mut(handle).set_disabled(text_options.edit_disabled);
                         self.sys.renderer.text.get_text_edit_mut(handle).set_single_line(text_options.single_line);
                         if let Some(placeholder) = params.placeholder_text {
-                            match placeholder {
-                                NodeText::Static(s) => {
-                                    self.sys.renderer.text.get_text_edit_mut(handle).set_placeholder_static_with_pointer_check(s);
-                                },
-                                NodeText::Dynamic(s) => {
-                                    self.sys.renderer.text.get_text_edit_mut(handle).set_placeholder_hashed(s);
-                                },
-                                NodeText::Immut(s) => {
-                                    self.sys.renderer.text.get_text_edit_mut(handle).set_placeholder_with_pointer_check(s);
-                                }
-                            }
+                            self.sys.renderer.text.get_text_edit_mut(handle).set_placeholder_hashed(placeholder.as_str());
                         }
                     },
                     TextI::TextBox(handle) => {
@@ -1846,7 +1744,7 @@ impl Node {
     pub fn text(self, text: &str) -> FullNode<'_> {
         return FullNode {
             node: self,
-            text: Some(NodeText::Dynamic(text)),
+            text: Some(NodeText(text)),
             text_style: None,
             image: None,
             placeholder_text: None,
@@ -1857,7 +1755,7 @@ impl Node {
 impl<'a> FullNode<'a> {
     /// Add text to the [`Node`].
     pub fn text(mut self, text: &'a str) -> FullNode<'a> {
-        self.text = Some(NodeText::Dynamic(text));
+        self.text = Some(NodeText(text));
         return self;
     }
 }
