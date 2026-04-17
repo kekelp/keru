@@ -116,8 +116,12 @@ impl UiExt for Ui {
             .size_y(Size::Frac(0.7));
 
         self.add(v_stack).nest(|| {
-            self.static_label("Keru uses the Textslabs library for text, which uses Parley under the hood. \n\
-            The text edit box supports IME, but this hasn't been thoroughly tested on all platforms yet.");
+            self.add(LABEL.auto_markdown(true).static_text(
+                "Keru uses `parley` for text through the `keru_text` library. \n\
+                The text edit box supports IME, but this hasn't been thoroughly tested on all platforms yet."
+            ));
+            self.add(H_LINE.color(Color::WHITE));
+            self.add(LABEL.auto_markdown(true).static_text(include_str!("showcase.md")));
             self.add(H_LINE.color(Color::WHITE));
             self.add(LABEL.static_text(JAPANESE_TEXT));
             self.add(H_LINE.color(Color::WHITE));

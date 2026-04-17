@@ -46,6 +46,7 @@ lru = { version = "0.12", default-features = false }
 
 # Try to force logging = true in this indirect dependency to disable the fallback eprintln! output
 icu_provider = { version = "*", default-features = false, features = ["logging"] }
+pulldown-cmark = "0.13.3"
 
 
 [lints.clippy]

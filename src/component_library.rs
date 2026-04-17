@@ -63,7 +63,7 @@ impl Ui {
     /// Add a multiline text paragraph from a `'static str`.
     #[track_caller]
     pub fn static_paragraph(&mut self, text: &'static str) -> UiParent {
-        let params = TEXT_PARAGRAPH.static_text(text).auto_markdown(true);
+        let params = TEXT_PARAGRAPH.static_text(text);
         self.add(params)
     }
 

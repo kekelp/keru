@@ -1621,32 +1621,46 @@ impl Ui {
 
 
             let mut string = bumpalo::collections::String::new_in(&arena);
-            let mut code_ranges: bumpalo::collections::Vec<Range<usize>> = bumpalo::collections::Vec::with_capacity_in(10, &arena);
+            let mut style_ranges: bumpalo::collections::Vec<(keru_draw::parley::StyleProperty<ColorBrush>, Range<usize>)> = bumpalo::collections::Vec::with_capacity_in(8, &arena);
             if text_options.auto_markdown {
+                use pulldown_cmark::{Event, Options, Parser, Tag, TagEnd};
+
                 string.reserve(text.as_str().len());
 
-                let src = text.as_str();
-                let mut in_code = false;
-                let mut range_start: Option<usize> = None;
+                let mut em_start: Option<usize> = None;
+                let mut strong_start: Option<usize> = None;
 
-                for char in src.chars() {
-                    if char == '`' {
-                        if in_code {
-                            // closing `
-                            if let Some(start) = range_start.take() {
-                                code_ranges.push(start..string.len());
-                            }
-                            in_code = false;
-                        } else {
-                            // opening `
-                            in_code = true;
-                            range_start = Some(string.len());
+                for event in Parser::new_ext(text.as_str(), Options::empty()) {
+                    match event {
+                        Event::Text(t) => string.push_str(&t),
+                        Event::Code(t) => {
+                            let start = string.len();
+                            string.push_str(&t);
+                            let end = string.len();
+                            style_ranges.push((keru_draw::parley::StyleProperty::FontFamily(keru_draw::parley::FontFamily::Single(keru_draw::parley::FontFamilyName::Generic(keru_draw::parley::GenericFamily::Monospace))), start..end));
+                            style_ranges.push((keru_draw::parley::StyleProperty::Brush(ColorBrush([150, 150, 150, 255])), start..end));
                         }
-                        continue;
+                        Event::Start(Tag::Emphasis) => em_start = Some(string.len()),
+                        Event::End(TagEnd::Emphasis) => {
+                            if let Some(start) = em_start.take() {
+                                style_ranges.push((keru_draw::parley::StyleProperty::FontStyle(keru_draw::parley::FontStyle::Italic), start..string.len()));
+                            }
+                        }
+                        Event::Start(Tag::Strong) => strong_start = Some(string.len()),
+                        Event::End(TagEnd::Strong) => {
+                            if let Some(start) = strong_start.take() {
+                                style_ranges.push((keru_draw::parley::StyleProperty::FontWeight(keru_draw::parley::FontWeight::new(600.0)), start..string.len()));
+                            }
+                        }
+                        Event::SoftBreak => string.push(' '),
+                        Event::HardBreak => string.push('\n'),
+                        Event::End(TagEnd::Paragraph) => string.push_str("\n\n"),
+                        _ => {}
                     }
-
-                    string.push(char);
                 }
+
+                let trimmed_len = string.trim_end_matches('\n').len();
+                string.truncate(trimmed_len);
 
                 // todo maybe we could avoid forcing it into dynamic. but maybe it should go inside keru_text honestly.
                 text = NodeText::Dynamic(&string)
@@ -1709,13 +1723,13 @@ impl Ui {
                                 self.sys.renderer.text.get_text_box_mut(&handle).set_static_text_with_pointer_check(s);
                             },
                             NodeText::Dynamic(s) => {
-                                self.sys.renderer.text.get_text_box_mut(&handle).set_text_hashed(s);
+                                let text_box = self.sys.renderer.text.get_text_box_mut(&handle);
+                                
+                                text_box.set_text_hashed(s);
 
-                                for range in code_ranges {
-                                    let code_prop = keru_draw::parley::StyleProperty::FontFamily(keru_draw::parley::FontFamily::Single(keru_draw::parley::FontFamilyName::Generic(keru_draw::parley::GenericFamily::Monospace)));
-                                    let grey_text_prop = keru_draw::parley::StyleProperty::Brush(ColorBrush([150,150,150,255]));
-                                    self.sys.renderer.text.get_text_box_mut(&handle).push_style_property(grey_text_prop, range.clone());
-                                    self.sys.renderer.text.get_text_box_mut(&handle).push_style_property(code_prop, range.clone());
+                                self.sys.renderer.text.get_text_box_mut(&handle).clear_style_properties();
+                                for (prop, range) in style_ranges {
+                                    self.sys.renderer.text.get_text_box_mut(&handle).push_style_property(prop, range);
                                 }
 
                             },
