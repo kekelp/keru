@@ -9,6 +9,25 @@ pub enum ImageSourceId {
     PathHash(u64),
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum TextFingerprint {
+    None,
+    Hash(u64),
+    Ptr(usize, usize),
+}
+
+impl TextFingerprint {
+    pub fn new(s: &str, use_pointer: bool) -> Self {
+        if use_pointer {
+            TextFingerprint::Ptr(s.as_ptr() as usize, s.len())
+        } else {
+            let mut hasher = ahasher();
+            std::hash::Hash::hash(s, &mut hasher);
+            TextFingerprint::Hash(std::hash::Hasher::finish(&mut hasher))
+        }
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Transform {
     pub offset: Vec2,
@@ -62,6 +81,7 @@ pub struct InnerNode {
     pub relayout_chain_root: Option<NodeI>,
 
     pub text_i: Option<TextI>,
+    pub text_fingerprint: TextFingerprint,
 
     pub imageref: Option<ImageRef>,
     pub last_image_source: Option<ImageSourceId>,
@@ -140,6 +160,7 @@ impl InnerNode {
 
             last_proposed_sizes: ProposedSizes::container(Xy::new_symm(0.5)),
             text_i: None,
+            text_fingerprint: TextFingerprint::None,
 
             scroll: Scroll::ZERO,
 
@@ -266,6 +287,7 @@ pub const NODE_ROOT: InnerNode = InnerNode {
     clip_rect_handle: None,
 
     text_i: None,
+    text_fingerprint: TextFingerprint::None,
 
     imageref: None,
     last_image_source: None,

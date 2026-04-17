@@ -1001,17 +1001,6 @@ impl Node {
 #[derive(Copy, Clone, Hash)]
 pub struct NodeText<'a>(pub &'a str);
 
-#[derive(Copy, Clone, Hash)]
-pub struct RichText<'a> {
-    spans: &'a [StyledSpan<'a>],
-}
-
-#[derive(Copy, Clone, Hash)]
-pub struct StyledSpan<'a> {
-    text: &'a str,
-    style: i32,
-}
-
 impl<'a> NodeText<'a> {
     pub fn as_str(&self) -> &str {
         self.0
@@ -1529,65 +1518,62 @@ impl FullNode<'_> {
     }
 }
 
+type MarkdownStyleRange = (keru_draw::parley::StyleProperty<'static, ColorBrush>, Range<usize>);
+
+fn apply_markdown<'a>(text: &str, arena: &'a bumpalo::Bump) -> (bumpalo::collections::String<'a>, bumpalo::collections::Vec<'a, MarkdownStyleRange>) {
+    use pulldown_cmark::{Event, Options, Parser, Tag, TagEnd};
+
+    let mut string = bumpalo::collections::String::with_capacity_in(text.len(), arena);
+    let mut style_ranges = bumpalo::collections::Vec::with_capacity_in(8, arena);
+
+    let mut em_start: Option<usize> = None;
+    let mut strong_start: Option<usize> = None;
+
+    for event in Parser::new_ext(text, Options::empty()) {
+        match event {
+            Event::Text(t) => string.push_str(&t),
+            Event::Code(t) => {
+                let start = string.len();
+                string.push_str(&t);
+                let end = string.len();
+                style_ranges.push((keru_draw::parley::StyleProperty::FontFamily(keru_draw::parley::FontFamily::Single(keru_draw::parley::FontFamilyName::Generic(keru_draw::parley::GenericFamily::Monospace))), start..end));
+                style_ranges.push((keru_draw::parley::StyleProperty::Brush(ColorBrush([150, 150, 150, 255])), start..end));
+            }
+            Event::Start(Tag::Emphasis) => em_start = Some(string.len()),
+            Event::End(TagEnd::Emphasis) => {
+                if let Some(start) = em_start.take() {
+                    style_ranges.push((keru_draw::parley::StyleProperty::FontStyle(keru_draw::parley::FontStyle::Italic), start..string.len()));
+                }
+            }
+            Event::Start(Tag::Strong) => strong_start = Some(string.len()),
+            Event::End(TagEnd::Strong) => {
+                if let Some(start) = strong_start.take() {
+                    style_ranges.push((keru_draw::parley::StyleProperty::FontWeight(keru_draw::parley::FontWeight::new(600.0)), start..string.len()));
+                }
+            }
+            Event::SoftBreak => string.push(' '),
+            Event::HardBreak => string.push('\n'),
+            Event::End(TagEnd::Paragraph) => string.push_str("\n\n"),
+            _ => {}
+        }
+    }
+
+    let trimmed_len = string.trim_end_matches('\n').len();
+    string.truncate(trimmed_len);
+
+    return (string, style_ranges);
+}
+
 impl Ui {
     pub(crate) fn set_params_text(&mut self, i: NodeI, params: &FullNode) {
-        with_arena(|arena| {
-            
-            let Some(mut text) = params.text else {
+            let Some(raw_text) = params.text else {
                 return
             };
-    
+
             let text_options = params.node.text_params;
             let style = params.text_style.as_ref();
 
-
-            let mut string = bumpalo::collections::String::new_in(&arena);
-            let mut style_ranges: bumpalo::collections::Vec<(keru_draw::parley::StyleProperty<ColorBrush>, Range<usize>)> = bumpalo::collections::Vec::with_capacity_in(8, &arena);
-            if text_options.auto_markdown {
-                use pulldown_cmark::{Event, Options, Parser, Tag, TagEnd};
-
-                string.reserve(text.as_str().len());
-
-                let mut em_start: Option<usize> = None;
-                let mut strong_start: Option<usize> = None;
-
-                for event in Parser::new_ext(text.as_str(), Options::empty()) {
-                    match event {
-                        Event::Text(t) => string.push_str(&t),
-                        Event::Code(t) => {
-                            let start = string.len();
-                            string.push_str(&t);
-                            let end = string.len();
-                            style_ranges.push((keru_draw::parley::StyleProperty::FontFamily(keru_draw::parley::FontFamily::Single(keru_draw::parley::FontFamilyName::Generic(keru_draw::parley::GenericFamily::Monospace))), start..end));
-                            style_ranges.push((keru_draw::parley::StyleProperty::Brush(ColorBrush([150, 150, 150, 255])), start..end));
-                        }
-                        Event::Start(Tag::Emphasis) => em_start = Some(string.len()),
-                        Event::End(TagEnd::Emphasis) => {
-                            if let Some(start) = em_start.take() {
-                                style_ranges.push((keru_draw::parley::StyleProperty::FontStyle(keru_draw::parley::FontStyle::Italic), start..string.len()));
-                            }
-                        }
-                        Event::Start(Tag::Strong) => strong_start = Some(string.len()),
-                        Event::End(TagEnd::Strong) => {
-                            if let Some(start) = strong_start.take() {
-                                style_ranges.push((keru_draw::parley::StyleProperty::FontWeight(keru_draw::parley::FontWeight::new(600.0)), start..string.len()));
-                            }
-                        }
-                        Event::SoftBreak => string.push(' '),
-                        Event::HardBreak => string.push('\n'),
-                        Event::End(TagEnd::Paragraph) => string.push_str("\n\n"),
-                        _ => {}
-                    }
-                }
-
-                let trimmed_len = string.trim_end_matches('\n').len();
-                string.truncate(trimmed_len);
-
-                text = NodeText(&string);
-
-            }
-
-            let use_ptr_cmp = text_options.use_pointer_comparison && !text_options.auto_markdown;
+            let new_fingerprint = TextFingerprint::new(raw_text.as_str(), text_options.use_pointer_comparison);
 
             let needs_new_widget = match (&self.sys.nodes[i].text_i, text_options.editable) {
                 (None, _) => true,
@@ -1596,75 +1582,88 @@ impl Ui {
                 _ => true, // need to switch
             };
 
-            if needs_new_widget {
-                // Remove old widget
-                if let Some(old_text_i) = self.sys.nodes[i].text_i.take() {
-                    match old_text_i {
-                        TextI::TextBox(handle) => self.sys.renderer.text.remove_text_box(handle),
-                        TextI::TextEdit(handle) => self.sys.renderer.text.remove_text_edit(handle),
-                    }
-                }
+            let content_needs_update = needs_new_widget || self.sys.nodes[i].text_fingerprint != new_fingerprint;
 
-                // this z doesn't matter, it's set when preparing render data. todo: cleanup.
-                let z = 0.0;
-                // Create new widget
-                let new_text_i = if text_options.editable {
-                    let handle = self.sys.renderer.text.add_text_edit(text.as_str().to_string(), (0.0, 0.0), (500.0, 500.0), z);
-                    if let Some(style) = style {
-                        self.sys.renderer.text.get_text_edit_mut(&handle).set_style(style);
-                    }
-                    TextI::TextEdit(handle)
-                } else {
-                    let handle = self.sys.renderer.text.add_text_box(text.as_str().to_string(), (0.0, 0.0), (500.0, 500.0), z);
-                    if let Some(style) = style {
-                        self.sys.renderer.text.get_text_box_mut(&handle).set_style(style);
-                    }
-                    TextI::TextBox(handle)
-                };
+            if content_needs_update {
+                self.sys.nodes[i].text_fingerprint = new_fingerprint;
 
-                self.sys.nodes[i].text_i = Some(new_text_i);
-            } else {
-                // Same type - just update content and style
-                match &self.sys.nodes[i].text_i {
-                    Some(TextI::TextEdit(handle)) => {
-                        // don't update the content. content in a text edit box is not reset declaratively every frame, obviously.
-                        if let Some(style) = style {
-                            self.sys.renderer.text.get_text_edit_mut(&handle).set_style(style);
-                        }
-                    },
-                    Some(TextI::TextBox(handle)) => {
-                        if use_ptr_cmp {
-                            self.sys.renderer.text.get_text_box_mut(&handle).set_text_with_pointer_check(text.as_str());
-                        } else {
-                            let text_box = self.sys.renderer.text.get_text_box_mut(&handle);
+                // Run markdown transform only when the content actually changed.
+                // The fingerprint is based on the pre-transform text, so this is skipped too.
+                let run_markdown = !text_options.editable && text_options.auto_markdown;
 
-                            text_box.set_text_hashed(text.as_str());
+                with_arena(|arena| {
 
-                            self.sys.renderer.text.get_text_box_mut(&handle).clear_style_properties();
-                            for (prop, range) in style_ranges {
-                                self.sys.renderer.text.get_text_box_mut(&handle).push_style_property(prop, range);
+                    let (markdown_string, mut style_ranges) = if run_markdown {
+                        apply_markdown(raw_text.as_str(), arena)
+                    } else {
+                        (bumpalo::collections::String::new_in(arena), bumpalo::collections::Vec::new_in(arena))
+                    };
+                    let display_text: &str = if run_markdown { &markdown_string } else { raw_text.as_str() };
+
+                    if needs_new_widget {
+                        // Remove old widget
+                        if let Some(old_text_i) = self.sys.nodes[i].text_i.take() {
+                            match old_text_i {
+                                TextI::TextBox(handle) => self.sys.renderer.text.remove_text_box(handle),
+                                TextI::TextEdit(handle) => self.sys.renderer.text.remove_text_edit(handle),
                             }
                         }
-                        if let Some(style) = style {
-                            self.sys.renderer.text.get_text_box_mut(&handle).set_style(style);
+
+                        // this z doesn't matter, it's set when preparing render data. todo: cleanup.
+                        let z = 0.0;
+                        // Create new widget
+                        let new_text_i = if text_options.editable {
+                            let handle = self.sys.renderer.text.add_text_edit(display_text.to_string(), (0.0, 0.0), (500.0, 500.0), z);
+                            TextI::TextEdit(handle)
+                        } else {
+                            let handle = self.sys.renderer.text.add_text_box(display_text.to_string(), (0.0, 0.0), (500.0, 500.0), z);
+                            for (prop, range) in style_ranges.drain(..) {
+                                self.sys.renderer.text.get_text_box_mut(&handle).push_style_property(prop, range);
+                            }
+                            TextI::TextBox(handle)
+                        };
+
+                        self.sys.nodes[i].text_i = Some(new_text_i);
+                    } else {
+                        match &self.sys.nodes[i].text_i {
+                            Some(TextI::TextEdit(_)) => {
+                                // do nothing, content in a text edit box is not reset declaratively every frame, obviously.
+                            },
+                            Some(TextI::TextBox(handle)) => {
+                                let text_box = self.sys.renderer.text.get_text_box_mut(&handle);
+
+                                text_box.set_text(display_text);
+
+                                self.sys.renderer.text.get_text_box_mut(&handle).clear_style_properties();
+                                for (prop, range) in style_ranges.drain(..) {
+                                    self.sys.renderer.text.get_text_box_mut(&handle).push_style_property(prop, range);
+                                }
+                            },
+                            None => unreachable!("Should have created a new widget above"),
                         }
-                    },
-                    None => unreachable!("Should have created a new widget above"),
-                }
+                    }
+
+                });
             }
 
-            // Apply text options
+            // Apply text options and style every frame (keru_text already checks for differences and won't cause needless relayouts)
             if let Some(text_i) = &self.sys.nodes[i].text_i {
                 match text_i {
                     TextI::TextEdit(handle) => {
                         self.sys.renderer.text.get_text_edit_mut(handle).set_disabled(text_options.edit_disabled);
                         self.sys.renderer.text.get_text_edit_mut(handle).set_single_line(text_options.single_line);
+                        if let Some(style) = style {
+                            self.sys.renderer.text.get_text_edit_mut(handle).set_style(style);
+                        }
                         if let Some(placeholder) = params.placeholder_text {
                             self.sys.renderer.text.get_text_edit_mut(handle).set_placeholder_hashed(placeholder.as_str());
                         }
                     },
                     TextI::TextBox(handle) => {
                         self.sys.renderer.text.get_text_box_mut(handle).set_selectable(text_options.selectable);
+                        if let Some(style) = style {
+                            self.sys.renderer.text.get_text_box_mut(handle).set_style(style);
+                        }
                     },
                 }
             }
@@ -1684,8 +1683,6 @@ impl Ui {
                     self.sys.last_linked_text_box_node = Some(i);
                 }
             }
-
-        });
     }
 
 
