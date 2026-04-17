@@ -10,7 +10,7 @@ use std::thread;
 pub struct ThreadFuture<T: Send + 'static>(Receiver<T>);
 
 impl<T: Send + 'static> ThreadFuture<T> {
-    /// Returns [`Poll::Pending`] if the value is not ready, or [`Poll::Ready(val)`] if the background function has finished executing. `val` is the owned result of the background function.
+    /// Returns [`Poll::Pending`] if the value is not ready, or [`Poll::Ready(value)`](`std::task::Poll::Ready`) if the background function has finished executing. `value` is the result of the background function.
     pub fn poll(&self) -> Poll<T> {
         match self.0.try_recv() {
             Ok(value) => Poll::Ready(value),

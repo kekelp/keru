@@ -280,7 +280,7 @@ impl Ui {
 
 /// The data needed for rendering a node with custom code.
 /// 
-/// Obtained with [`Ui::render_rect`] and a key.
+/// Obtained with [`UiNode::render_rect()`].
 /// 
 /// The data is ready to be used in a shader like this:
 /// 

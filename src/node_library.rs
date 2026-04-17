@@ -630,15 +630,14 @@ pub const CONTAINER: Node = Node {
 
 /// [`Node`] for a custom rendered node.
 /// 
-/// Use [`Ui::render_rect`] to get the render data for your node, then render it in a separate draw call.
+/// Use [`UiNode::render_rect`] to get the render data for your node, then render it in a separate draw call.
 /// ```no_run
 /// # use keru::*;
 /// # let mut ui: Ui = unimplemented!();
 /// #
 /// #[node_key] const CUSTOM_RENDERED_NODE: NodeKey;
-/// let render_rect = ui.render_rect(CUSTOM_RENDERED_NODE);
+/// let render_rect = ui.get_node(CUSTOM_RENDERED_NODE).render_rect();
 /// ```
-/// See the color picker in the painter example.
 pub const CUSTOM_RENDERED_PANEL: Node = Node {
     animation: NO_ANIMATION,
     key: None,

@@ -43,7 +43,7 @@ impl Ui {
         return UiParent { i, sibling_cursor: SiblingCursor::None, ui_instance_id: self.sys.unique_id };
     }
 
-    /// Returns an [`UiParent`] for the root node, that you can use to nest children directly into the root node, regardless of where you are in the [`nest`] structure.
+    /// Returns an [`UiParent`] for the root node, that you can use to nest children directly into the root node, regardless of where you are in the `Ui` tree structure.
     /// 
     /// This is sort of a crazy thing to do, but here's an example of why it might be useful:
     /// 

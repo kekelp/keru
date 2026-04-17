@@ -16,7 +16,7 @@ impl<T: Send + Sync + 'static> Clone for ThreadFuture<T> {
 }
 
 impl<T: Send + Sync + 'static> ThreadFuture<T> {
-    /// Returns [`Poll::Pending`] if the value is not ready, or [`Poll::Ready(val)`] if the background function has finished executing. `val` is a reference to the result of the background function.
+    /// Returns [`Poll::Pending`] if the value is not ready, or [`Poll::Ready(value)`](`std::task::Poll::Ready`) if the background function has finished executing. `value` is a reference to the result of the background function.
     pub fn poll(&self) -> Poll<&T> {
         match self.0.get() {
             Some(value) => Poll::Ready(&value),

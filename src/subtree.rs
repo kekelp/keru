@@ -96,7 +96,7 @@ impl Ui {
 
     /// Starts a subtree where keys can be used without conflicts with the outside world, like in components.
     ///
-    /// It can be used to create reusable "components" more concisely than with the [`Component`] or [`StatefulComponent`] traits.
+    /// It can be used to create reusable "components" more concisely than with the [`Component`] trait.
     /// 
     /// This function must be called from functions marked with `#[track_caller]`!  
     #[track_caller]
@@ -107,7 +107,7 @@ impl Ui {
 }
 
 impl UiSubtree {
-    /// Start a subtree created with [`Ui::component_subtree()`].
+    /// Start a subtree created with [`Ui::subtree()`].
     pub fn start<T>(&mut self, subtree_content: impl FnOnce() -> T) -> T {
         let subtree_id = self.key.id_with_subtree();
         

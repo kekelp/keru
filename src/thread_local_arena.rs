@@ -1,4 +1,5 @@
 
+use crate::*;
 use std::cell::RefCell;
 use bumpalo::Bump;
 
@@ -7,12 +8,12 @@ thread_local! {
     static THREAD_ARENA: RefCell<Bump> = RefCell::new(Bump::new());
 }
 
-/// Access keru's thread-local bump arena for temporary allocations.
+/// Access Keru's thread-local bump arena for temporary allocations.
 /// Useful for small local allocations without passing an arena around, like formatting strings to show in the gui.
 ///
 /// The arena is reset at the end of each frame, when [`Ui::finish_frame()`] is called.
-/// 
-/// This function is useful when implementing a reusable component with the [`Component`] traits, since you can't easily access all of your state from within the trait impl. In other cases, it might be more convenient to use your own arena.
+///
+/// This function is useful when implementing a reusable component with the [`Component`] trait, since you might not be able to access your arenas or scratch buffers from within the trait impl. In other cases, it might be more convenient to use your own arena.
 ///
 /// # Panics
 /// Panics if [`Ui::finish_frame()`] is called from inside the passes closure.

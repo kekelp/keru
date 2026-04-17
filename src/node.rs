@@ -866,9 +866,9 @@ impl Node {
     /// 
     /// If a node stays hidden, it retains its internal state (scroll offset, text input, ...), and it is slightly less expensive to bring them back into view. If it gets removed, its memory can be reused for other nodes. 
     /// 
-    /// For example, the panel with the main content in a tabbed application should use [`children_can_hide(true)`], so that all state is retained when switching tabs.
-    /// 
-    /// On the other hand, a panel that contains thumbnails for files, or similar highly dynamic content, should use [`children_can_hide(false)`], so that when the thumbnails for the old elements are switched out, their memory can be reused for the new ones.
+    /// For example, the panel with the main content in a tabbed application should use [`children_can_hide(true)`](`Node::children_can_hide`), so that all state is retained when switching tabs.
+    ///
+    /// On the other hand, if a panel that contains dynamic content, it should stick to the default [`children_can_hide(false)`](`Node::children_can_hide`), so that when old elements are removed their memory can be reused for the new ones.
     pub fn children_can_hide(mut self, value: bool) -> Self {
         self.children_can_hide = if value { ChildrenCanHide::Yes } else { ChildrenCanHide::No };
         return self;

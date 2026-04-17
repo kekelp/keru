@@ -31,7 +31,7 @@ pub trait Component {
     /// 
     /// - adjust the component based on the children that have been added to it.
     /// 
-    /// See the [`DragAndDropStack`] for an example of a component that uses these techniques.
+    /// See the "drag_and_drop_component" example for an example of a component that uses these techniques.
     fn run_component(_ui: &mut Ui) -> Option<Self::ComponentOutput> {
         None
     }

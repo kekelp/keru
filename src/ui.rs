@@ -168,7 +168,7 @@ pub struct UiWaker {
 impl UiWaker {
     /// Signal that the [`Ui`] needs to be updated, causing the next call to [`Ui::should_update()`] to return `true`.
     /// 
-    /// If [`Ui::enable_auto_wakeup()`] was called on the [`Ui`], this will also wake up the `winit` event loop by calling `request_redraw()` on the window.
+    /// If the `winit` window was registered into the [`Ui`] with [`Ui::register_window()`], this will also call `request_redraw()` on the window to wake up the event loop.
     pub fn set_update_needed(&self) {
         self.needs_update.store(true, std::sync::atomic::Ordering::Relaxed);
         if let Some(window) = self.window_ref.as_ref().and_then(|w| w.upgrade()) {
@@ -390,7 +390,7 @@ impl Ui {
 
     /// Get a [`UiWaker`] that can be used to wake up the ui from a different thread.
     ///
-    /// Panics if [`Ui::enable_auto_wakeup()`] wasn't called on this [`Ui`] instance.
+    /// Panics if [`Ui::register_window()`] wasn't called on this [`Ui`] instance.
     pub fn ui_waker(&mut self) -> UiWaker {
         if self.sys.window_ref.is_none() {
             panic!("Wakeup not enabled. Ui::enable_auto_wakeup() must be called before calling this function.");
@@ -403,7 +403,7 @@ impl Ui {
 
     /// Get a [`UiWaker`] that can be used to wake up the ui from a different thread.
     ///
-    /// If [Ui::enable_auto_wakeup()] wasn't called on this [`Ui`] instance, the `UiWaker` won't be able to wake up the `winit` event loop. However, it will still set the [`Ui`]'s state so that the next call to [`Ui::needs_update()`] will return `true`.
+    /// If [`Ui::register_window()`] wasn't called on this [`Ui`] instance, the `UiWaker` won't be able to wake up the `winit` event loop. However, it will still set the [`Ui`]'s state so that the next call to [`Ui::should_update()`] will return `true`.
     pub fn ui_waker_safe(&mut self) -> UiWaker {
         UiWaker {
             needs_update: Arc::clone(&self.sys.needs_update),
@@ -415,7 +415,7 @@ impl Ui {
     ///
     /// The scheduler thread is created lazily on the first call to this method.
     ///
-    /// Panics if [Ui::enable_auto_wakeup()] wasn't called on this [Ui] instance.
+    /// Panics if [`Ui::register_window()`] wasn't called on this [`Ui`] instance.
     pub fn schedule_wakeup(&mut self, duration: Duration) {
         if self.sys.window_ref.is_none() {
             panic!("Wakeup not enabled. Ui::enable_auto_wakeup() must be called before calling this function.");
