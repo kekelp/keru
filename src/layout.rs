@@ -227,12 +227,12 @@ impl Ui {
         }
 
         // remove stack spacing
-        if let Some(stack) = self.sys.nodes[i].params.stack {
+        if let ChildrenLayout::Stack { axis, spacing, .. } = self.sys.nodes[i].params.children_layout {
             let n_children = self.sys.nodes[i].n_children as f32;
-            let spacing = self.pixels_to_frac(stack.spacing, stack.axis);
+            let spacing = self.pixels_to_frac(spacing, axis);
 
             if n_children > 1.5 {
-                inner_size[stack.axis] -= spacing * (n_children - 1.0);
+                inner_size[axis] -= spacing * (n_children - 1.0);
             }
         }
 
@@ -260,60 +260,88 @@ impl Ui {
         let size = self.get_size(i, proposed_sizes.to_this_child, proposed_sizes.to_all_children);
         let size_to_propose = self.get_inner_size(i, size);
 
-        let stack = self.sys.nodes[i].params.stack;
+        let children_layout = self.sys.nodes[i].params.children_layout;
         let padding = self.pixels_to_frac2(self.sys.nodes[i].params.layout.padding);
         let mut content_size = Xy::new(0.0, 0.0);
 
-        if let Some(stack) = stack {
-            let spacing = self.pixels_to_frac(stack.spacing, stack.axis);
+        if let ChildrenLayout::Stack { axis, spacing, .. } = children_layout {
+            let spacing = self.pixels_to_frac(spacing, axis);
 
             let mut available_size_left = size_to_propose;
             let mut n_added_children = 0;
             let mut n_fill_children = 0;
             // First, do all non-Fill children
             for_each_child!(self, self.sys.nodes[i], child, {
-                if self.sys.nodes[child].params.layout.size[stack.axis] != Size::Fill {
+                if self.sys.nodes[child].params.layout.size[axis] != Size::Fill {
                     let child_size = self.recursive_determine_size_and_hidden(child, ProposedSizes::stack(available_size_left, size_to_propose), children_can_hide);
-                    content_size.update_for_child(child_size, Some(stack));
+                    content_size.update_for_child(child_size, Some(axis));
                     if n_added_children != 0 {
-                        content_size[stack.axis] += spacing;
+                        content_size[axis] += spacing;
                     }
-                    available_size_left[stack.axis] -= child_size[stack.axis];
+                    available_size_left[axis] -= child_size[axis];
                     n_added_children += 1;
                 } else {
                     n_fill_children += 1;
                 }
             });
 
-            
+
             if n_fill_children > 0 {
                 // then, divide the remaining space between the Fill children
                 let mut size_per_child = available_size_left;
                 if n_fill_children > 1 {
-                    available_size_left[stack.axis] -= ((n_fill_children - 1) as f32) * spacing;
+                    available_size_left[axis] -= ((n_fill_children - 1) as f32) * spacing;
                 }
 
-                size_per_child[stack.axis] /= n_fill_children as f32;
+                size_per_child[axis] /= n_fill_children as f32;
                 for_each_child!(self, self.sys.nodes[i], child, {
-                    if self.sys.nodes[child].params.layout.size[stack.axis] == Size::Fill {
+                    if self.sys.nodes[child].params.layout.size[axis] == Size::Fill {
                         let child_size = self.recursive_determine_size_and_hidden(child, ProposedSizes::stack(size_per_child, size_to_propose), children_can_hide);
-                        content_size.update_for_child(child_size, Some(stack));
+                        content_size.update_for_child(child_size, Some(axis));
                         if n_added_children != 0 {
-                            content_size[stack.axis] += spacing;
+                            content_size[axis] += spacing;
                         }
-                        available_size_left[stack.axis] -= child_size[stack.axis];
+                        available_size_left[axis] -= child_size[axis];
                         n_added_children += 1;
                     }
                 });
             }
 
+        } else if let ChildrenLayout::Grid { columns, spacing_x, spacing_y } = children_layout {
+            let n = self.sys.nodes[i].n_children as usize;
+            if n > 0 {
+                let columns_usize = columns as usize;
+                let columns_f = columns as f32;
+                let rows_f = (n as f32 / columns_f).ceil();
+
+                let spacing_x_frac = self.pixels_to_frac(spacing_x, X);
+                let spacing_y_frac = self.pixels_to_frac(spacing_y, Y);
+
+                let cell_w = ((size_to_propose.x - spacing_x_frac * (columns_f - 1.0)) / columns_f).max(0.0);
+                let cell_h = ((size_to_propose.y - spacing_y_frac * (rows_f - 1.0)) / rows_f).max(0.0);
+                let cell_size = Xy::new(cell_w, cell_h);
+
+                let mut row_heights = vec![0.0f32; rows_f as usize];
+                let mut child_idx = 0usize;
+                for_each_child!(self, self.sys.nodes[i], child, {
+                    let child_actual = self.recursive_determine_size_and_hidden(child, ProposedSizes::container(cell_size), children_can_hide);
+                    let row = child_idx / columns_usize;
+                    if row < row_heights.len() {
+                        row_heights[row] = row_heights[row].max(child_actual.y);
+                    }
+                    child_idx += 1;
+                });
+
+                let total_h = row_heights.iter().sum::<f32>() + spacing_y_frac * (rows_f - 1.0).max(0.0);
+                content_size = Xy::new(size_to_propose.x, total_h);
+            }
         } else {
             // Propose a size to the children and let them decide
             for_each_child!(self, self.sys.nodes[i], child, {
                 let child_size = self.recursive_determine_size_and_hidden(child, ProposedSizes::container(size_to_propose), children_can_hide);
-                content_size.update_for_child(child_size, stack); // this is None
-            });            
-            
+                content_size.update_for_child(child_size, None);
+            });
+
             // Propose the whole size_to_propose to the contents, and let them decide.
             if self.sys.nodes[i].text_i.is_some() {
                 let text_size = self.determine_text_size(i, size_to_propose);
@@ -433,8 +461,10 @@ impl Ui {
         self.sys.nodes[i].content_bounds = XyRect::new_symm([f32::MAX, f32::MIN]);
 
         self.sys.partial_relayout_count += 1;
-        if let Some(stack) = self.sys.nodes[i].params.stack {
-            self.place_children_stack(i, stack);
+        if let ChildrenLayout::Stack { axis, arrange, spacing } = self.sys.nodes[i].params.children_layout {
+            self.place_children_stack(i, axis, arrange, spacing);
+        } else if let ChildrenLayout::Grid { columns, spacing_x, spacing_y } = self.sys.nodes[i].params.children_layout {
+            self.place_children_grid(i, columns, spacing_x, spacing_y);
         } else {
             self.place_children_container(i);
         };
@@ -444,12 +474,12 @@ impl Ui {
         });
     }
 
-    fn place_children_stack(&mut self, i: NodeI, stack: Stack) {
-        let (main, cross) = (stack.axis, stack.axis.other());
+    fn place_children_stack(&mut self, i: NodeI, axis: Axis, arrange: Arrange, spacing: f32) {
+        let (main, cross) = (axis, axis.other());
         let stack_rect = self.sys.nodes[i].layout_rect;
 
         let padding = self.pixels_to_frac2(self.sys.nodes[i].params.layout.padding);
-        let spacing = self.pixels_to_frac(stack.spacing, stack.axis);
+        let spacing = self.pixels_to_frac(spacing, axis);
         
         // On the main axis, totally ignore the children's chosen Position's and place them according to our own Stack::Arrange value.
         
@@ -463,7 +493,7 @@ impl Ui {
             total_size += spacing * (n - 1) as f32;
         }
 
-        let mut walking_position = match stack.arrange {
+        let mut walking_position = match arrange {
             Arrange::Start => stack_rect[main][0] + padding[main],
             Arrange::End => stack_rect[main][1] - padding[main] - total_size,
             Arrange::Center => {
@@ -527,6 +557,62 @@ impl Ui {
         });
 
         // self.set_children_scroll(i);
+    }
+
+    fn place_children_grid(&mut self, i: NodeI, columns: u32, spacing_x: f32, spacing_y: f32) {
+        let n = self.sys.nodes[i].n_children as usize;
+        if n == 0 { return; }
+
+        let columns_usize = columns as usize;
+        let columns_f = columns as f32;
+        let rows = (n + columns_usize - 1) / columns_usize;
+
+        let parent_rect = self.sys.nodes[i].layout_rect;
+        let padding = self.pixels_to_frac2(self.sys.nodes[i].params.layout.padding);
+        let spacing_x_frac = self.pixels_to_frac(spacing_x, X);
+        let spacing_y_frac = self.pixels_to_frac(spacing_y, Y);
+
+        let inner_w = parent_rect.size().x - 2.0 * padding.x;
+        let cell_w = ((inner_w - spacing_x_frac * (columns_f - 1.0)) / columns_f).max(0.0);
+
+        // collect max height per row
+        let mut row_heights = vec![0.0f32; rows];
+        let mut child_idx = 0usize;
+        for_each_child!(self, self.sys.nodes[i], child, {
+            let row = child_idx / columns_usize;
+            if row < row_heights.len() {
+                row_heights[row] = row_heights[row].max(self.sys.nodes[child].size.y);
+            }
+            child_idx += 1;
+        });
+
+        // compute cumulative y offsets per row
+        let mut row_y_offsets = vec![0.0f32; rows];
+        let mut y_acc = 0.0f32;
+        for r in 0..rows {
+            row_y_offsets[r] = y_acc;
+            y_acc += row_heights[r] + spacing_y_frac;
+        }
+
+        let mut child_idx = 0usize;
+        for_each_child!(self, self.sys.nodes[i], child, {
+            let col = child_idx % columns_usize;
+            let row = child_idx / columns_usize;
+
+            let child_size = self.sys.nodes[child].size;
+
+            let x0 = parent_rect.x[0] + padding.x + col as f32 * (cell_w + spacing_x_frac);
+            let y0 = parent_rect.y[0] + padding.y + row_y_offsets[row];
+
+            self.sys.nodes[child].layout_rect.x = [x0, x0 + child_size.x];
+            self.sys.nodes[child].layout_rect.y = [y0, y0 + child_size.y];
+
+            self.set_local_layout_rect(child, i);
+            self.init_enter_animations(child);
+            self.update_content_bounds(i, self.sys.nodes[child].layout_rect);
+
+            child_idx += 1;
+        });
     }
 
     fn place_children_container(&mut self, i: NodeI) {
@@ -1051,8 +1137,8 @@ impl Ui {
 }
 
 impl Xy<f32> {
-    pub(crate) fn update_for_child(&mut self, child_size: Xy<f32>, stack: Option<Stack>) {
-        match stack {
+    pub(crate) fn update_for_child(&mut self, child_size: Xy<f32>, stack_axis: Option<Axis>) {
+        match stack_axis {
             None => {
                 for axis in [X, Y] {
                     if child_size[axis] > self[axis] {
@@ -1060,10 +1146,10 @@ impl Xy<f32> {
                     }
                 }
             },
-            Some(stack) => {
-                let (main, cross) = (stack.axis, stack.axis.other());
+            Some(axis) => {
+                let cross = axis.other();
 
-                self[main] += child_size[main];
+                self[axis] += child_size[axis];
                 if child_size[cross] > self[cross] {
                     self[cross] = child_size[cross];
                 }
@@ -1119,9 +1205,9 @@ impl Ui {
                 
         if min_scroll < max_scroll {                
             if self.sys.nodes[i].frame_added == self.sys.current_frame && delta == 0.0 {
-                if let Some(stack) = self.sys.nodes[i].params.stack {
-                    if stack.axis == axis {
-                        self.sys.nodes[i].scroll.relative_offset[axis] = match stack.arrange {
+                if let ChildrenLayout::Stack { axis: stack_axis, arrange, .. } = self.sys.nodes[i].params.children_layout {
+                    if stack_axis == axis {
+                        self.sys.nodes[i].scroll.relative_offset[axis] = match arrange {
                             Arrange::End => min_scroll,
                             _ => max_scroll,
                         };

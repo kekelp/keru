@@ -2,68 +2,55 @@
 use keru::*;
 use keru::example_window_loop::*;
 
-// Tests that readd_branch handles exiting nodes correctly.
-//
-// When a node inside a branch is removed, it starts an exit animation and stays
-// in the parent's child list with exiting=true. If readd_branch is then called
-// for that parent, it must unlink the exiting node before cleanup_and_stuff
-// re-adds it — otherwise cleanup_and_stuff would append it after itself,
-// creating a self-cycle in the linked list.
-//
-// To exercise this: toggle the extra panel off. The first frame rebuilds the
-// branch normally (extra is omitted → starts exiting). Every frame after that,
-// readd_branch is called while extra is still exiting. If the list gets
-// corrupted, layout/render will hang or crash.
-
 struct State {
-    show_extra: bool,
-    changed: bool,
+    count: usize,
 }
 
 fn update_ui(state: &mut State, ui: &mut Ui) {
-    #[node_key] const BRANCH_ROOT: NodeKey;
-    #[node_key] const TOGGLE: NodeKey;
-    #[node_key] const EXTRA: NodeKey;
+    #[node_key] const ADD: NodeKey;
+    #[node_key] const REMOVE: NodeKey;
 
-    let toggle = BUTTON
-        .static_text(&"Toggle extra panel")
-        .key(TOGGLE);
-
-    let extra = PANEL
-        .color(Color::KERU_GREEN)
-        .size_symm(Size::Pixels(100.0))
-        .exit_slide(SlideEdge::Top, SlideDirection::Out)
-        .key(EXTRA);
-
-    if ui.is_clicked(TOGGLE) {
-        state.show_extra = !state.show_extra;
-        state.changed = true;
+    if ui.is_clicked(ADD) {
+        state.count += 1;
+    }
+    if ui.is_clicked(REMOVE) && state.count > 0 {
+        state.count -= 1;
     }
 
-    let branch = V_STACK.key(BRANCH_ROOT);
+    let grid = PANEL
+        .size(Size::Frac(0.8), Size::FitContent)
+        .grid(4, 8.0, 8.0)
+        .padding(8.0);
 
-    if state.changed {
-        ui.add(branch).nest(|| {
-            ui.add(toggle);
-            if state.show_extra {
-                ui.add(extra);
+    let count_str = format!("{} items", state.count);
+
+    ui.add(V_STACK).nest(|| {
+        ui.add(H_STACK).nest(|| {
+            ui.add(BUTTON.text("Add").key(ADD));
+            ui.add(BUTTON.text("Remove").key(REMOVE));
+            ui.add(LABEL.text(&count_str));
+        });
+        ui.add(grid).nest(|| {
+            for i in 0..state.count {
+                let hue = (i as f32 * 0.13).rem_euclid(1.0);
+                let color = Color::new(
+                    (hue * 6.0).rem_euclid(1.0),
+                    1.0 - (hue * 3.0).rem_euclid(0.5),
+                    0.4 + (hue * 5.0).rem_euclid(0.4),
+                    1.0,
+                );
+
+                ui.add(PANEL.color(color).size_symm(Size::Fill));
+
+                if i == 5 {
+                    ui.add(SPACER);
+                }
             }
         });
-        state.changed = false;
-    } else {
-        ui.readd_branch(BRANCH_ROOT);
-    }
+    });
 }
 
 fn main() {
-    env_logger::Builder::new()
-        .filter_level(log::LevelFilter::Warn)
-        .filter_module("keru::tree", log::LevelFilter::Trace)
-        .init();
-
-    let state = State {
-        show_extra: true,
-        changed: true,
-    };
+    let state = State { count: 9 };
     example_window_loop::run_example_loop(state, update_ui);
 }

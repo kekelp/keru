@@ -36,7 +36,7 @@ pub(crate) const NODE_ROOT_PARAMS: Node = Node {
     animation: NO_ANIMATION,
     key: None,
     text_params: TextOptions::const_default(),
-    stack: None,
+    children_layout: ChildrenLayout::Free,
     visible: false,
     stroke: None,
     color: ColorFill::Color(Color::TRANSPARENT),
@@ -64,7 +64,7 @@ pub const DEFAULT: Node = Node {
     animation: NO_ANIMATION,
     key: None,
     text_params: TextOptions::const_default(),
-    stack: None,
+    children_layout: ChildrenLayout::Free,
     visible: true,
     stroke: None,
     color: ColorFill::Color(Color::KERU_BLUE),
@@ -92,11 +92,11 @@ pub const V_STACK: Node = Node {
     animation: NO_ANIMATION,
     key: None,
     text_params: TextOptions::const_default(),
-    stack: Some(Stack {
+    children_layout: ChildrenLayout::Stack {
         arrange: Arrange::Center,
         axis: Axis::Y,
         spacing: 8.0,
-    }),
+    },
     visible: true,
     color: ColorFill::Color(Color::TRANSPARENT),
     stroke: None,
@@ -124,11 +124,11 @@ pub const H_STACK: Node = Node {
     animation: NO_ANIMATION,
     key: None,
     text_params: TextOptions::const_default(),
-    stack: Some(Stack {
+    children_layout: ChildrenLayout::Stack {
         arrange: Arrange::Center,
         axis: Axis::X,
         spacing: 8.0,
-    }),
+    },
     visible: true,
     color: ColorFill::Color(Color::TRANSPARENT),
     stroke: None,
@@ -157,11 +157,11 @@ pub const V_SCROLL_STACK: Node = Node {
     animation: NO_ANIMATION,
     key: None,
     text_params: TextOptions::const_default(),
-        stack: Some(Stack {
+        children_layout: ChildrenLayout::Stack {
             arrange: Arrange::Start,
             axis: Axis::Y,
             spacing: 10.0,
-        }),
+        },
         visible: true,
             color: ColorFill::Color(Color::TRANSPARENT),
     stroke: None,
@@ -189,7 +189,7 @@ pub const V_SCROLL_STACK: Node = Node {
 pub const MARGIN: Node = Node {
     animation: NO_ANIMATION,
     key: None,
-    stack: None,
+    children_layout: ChildrenLayout::Free,
     text_params: TextOptions::const_default(),
     visible: true,
         color: ColorFill::Color(Color::TRANSPARENT),
@@ -217,7 +217,7 @@ pub const MARGIN: Node = Node {
 pub const ICON_BUTTON: Node = Node {
     animation: NO_ANIMATION,
     key: None,
-    stack: None,
+    children_layout: ChildrenLayout::Free,
     text_params: TextOptions::const_default(),
     visible: true,
     stroke: None,
@@ -245,7 +245,7 @@ pub const ICON_BUTTON: Node = Node {
 pub const IMAGE: Node = Node {
     animation: NO_ANIMATION,
     key: None,
-    stack: None,
+    children_layout: ChildrenLayout::Free,
     text_params: TextOptions::const_default(),
     visible: true,
     stroke: None,
@@ -273,7 +273,7 @@ pub const IMAGE: Node = Node {
 pub const IMAGE_BUTTON: Node = Node {
     animation: NO_ANIMATION,
     key: None,
-    stack: None,
+    children_layout: ChildrenLayout::Free,
     text_params: TextOptions::const_default(),
     visible: true,
     stroke: None,
@@ -301,7 +301,7 @@ pub const IMAGE_BUTTON: Node = Node {
 pub const BUTTON: Node = Node {
     animation: NO_ANIMATION,
     key: None,
-    stack: None,
+    children_layout: ChildrenLayout::Free,
     text_params: TextOptions {
         single_line: true,
         editable: false,
@@ -336,7 +336,7 @@ pub const BUTTON: Node = Node {
 pub const LABEL: Node = Node {
     animation: NO_ANIMATION,
     key: None,
-    stack: None,
+    children_layout: ChildrenLayout::Free,
     text_params: TextOptions {
         single_line: true,
         editable: false,
@@ -372,7 +372,7 @@ pub const LABEL: Node = Node {
 pub const MULTILINE_LABEL: Node = Node {
     animation: NO_ANIMATION,
     key: None,
-    stack: None,
+    children_layout: ChildrenLayout::Free,
     text_params: TextOptions {
         single_line: false,
         editable: false,
@@ -408,7 +408,7 @@ pub const MULTILINE_LABEL: Node = Node {
 pub const TEXT: Node = Node {
     animation: NO_ANIMATION,
     key: None,
-    stack: None,
+    children_layout: ChildrenLayout::Free,
     text_params: TextOptions {
         single_line: true,
         editable: false,
@@ -444,7 +444,7 @@ pub const TEXT: Node = Node {
 pub const ICON: Node = Node {
     animation: NO_ANIMATION,
     key: None,
-    stack: None,
+    children_layout: ChildrenLayout::Free,
     text_params: TextOptions::const_default(),
     visible: true,
     stroke: None,
@@ -473,7 +473,7 @@ pub const ICON: Node = Node {
 pub const TEXT_EDIT: Node = Node {
     animation: NO_ANIMATION,
     key: None,
-    stack: None,
+    children_layout: ChildrenLayout::Free,
     text_params: TextOptions {
         single_line: false,
         editable: true,
@@ -509,7 +509,7 @@ pub const TEXT_EDIT: Node = Node {
 pub const TEXT_EDIT_LINE: Node = Node {
     animation: NO_ANIMATION,
     key: None,
-    stack: None,
+    children_layout: ChildrenLayout::Free,
     text_params: TextOptions {
         single_line: true,
         editable: true,
@@ -545,7 +545,7 @@ pub const TEXT_EDIT_LINE: Node = Node {
 pub const TEXT_PARAGRAPH: Node = Node {
     animation: NO_ANIMATION,
     key: None,
-    stack: None,
+    children_layout: ChildrenLayout::Free,
     text_params: TextOptions {
         single_line: false,
         editable: false,
@@ -581,7 +581,7 @@ pub const TEXT_PARAGRAPH: Node = Node {
 pub const PANEL: Node = Node {
     animation: NO_ANIMATION,
     key: None,
-    stack: None,
+    children_layout: ChildrenLayout::Free,
     text_params: TextOptions::const_default(),
     visible: true,
     stroke: None,
@@ -610,7 +610,7 @@ pub const PANEL: Node = Node {
 pub const CONTAINER: Node = Node {
     animation: NO_ANIMATION,
     key: None,
-    stack: None,
+    children_layout: ChildrenLayout::Free,
     text_params: TextOptions::const_default(),
     visible: false,
     stroke: None,
@@ -648,7 +648,7 @@ pub const CONTAINER: Node = Node {
 pub const CUSTOM_RENDERED_PANEL: Node = Node {
     animation: NO_ANIMATION,
     key: None,
-    stack: None,
+    children_layout: ChildrenLayout::Free,
     text_params: TextOptions::const_default(),
     visible: false,
     stroke: None,
@@ -677,7 +677,7 @@ pub const CUSTOM_RENDERED_PANEL: Node = Node {
 pub const SPACER: Node = Node {
     animation: NO_ANIMATION,
     key: None,
-    stack: None,
+    children_layout: ChildrenLayout::Free,
     text_params: TextOptions::const_default(),
     visible: true,
         color: ColorFill::Color(Color::TRANSPARENT),
@@ -706,7 +706,7 @@ pub const SPACER: Node = Node {
 pub const H_SPACER: Node = Node {
     animation: NO_ANIMATION,
     key: None,
-    stack: None,
+    children_layout: ChildrenLayout::Free,
     text_params: TextOptions::const_default(),
         color: ColorFill::Color(Color::TRANSPARENT),
     stroke: None,
@@ -735,7 +735,7 @@ pub const H_SPACER: Node = Node {
 pub const V_SPACER: Node = Node {
     animation: NO_ANIMATION,
     key: None,
-    stack: None,
+    children_layout: ChildrenLayout::Free,
     text_params: TextOptions::const_default(),
     visible: true,
         color: ColorFill::Color(Color::TRANSPARENT),
@@ -764,7 +764,7 @@ pub const V_SPACER: Node = Node {
 pub const H_LINE: Node = Node {
     animation: NO_ANIMATION,
     key: None,
-    stack: None,
+    children_layout: ChildrenLayout::Free,
     text_params: TextOptions::const_default(),
     visible: true,
     stroke: Some(Stroke {
@@ -798,7 +798,7 @@ pub(crate) const COMPONENT_ROOT: Node = Node {
     // todo remove
     animation: Animation { speed: 1.0, enter: EnterAnimation::None, exit: ExitAnimation::None, state_transition: StateTransition { animate_position: true } },
     key: None,
-    stack: None,
+    children_layout: ChildrenLayout::Free,
     text_params: TextOptions::const_default(),
     visible: false,
     stroke: None,

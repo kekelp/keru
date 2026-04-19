@@ -40,7 +40,7 @@ pub enum ChildrenCanHide {
 pub struct Node {
     pub key: Option<NodeKey>,
     pub text_params: TextOptions,
-    pub stack: Option<Stack>,
+    pub children_layout: ChildrenLayout,
     pub shape: Shape,
     pub stroke: Option<Stroke>,
     pub color: ColorFill,
@@ -187,38 +187,39 @@ impl Hash for Pos {
     }
 }
 
-/// Options for stack container nodes.
-#[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
-pub struct Stack {
-    pub arrange: Arrange,
-    pub axis: Axis,
-    pub spacing: f32,
+pub enum ChildrenLayout {
+    Free,
+    Stack {
+        arrange: Arrange,
+        axis: Axis,
+        spacing: f32,
+    },
+    Grid {
+        columns: u32,
+        spacing_x: f32,
+        spacing_y: f32,
+    },
 }
-impl Hash for Stack {
+
+impl Hash for ChildrenLayout {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.arrange.hash(state);
-        self.axis.hash(state);
-        self.spacing.to_bits().hash(state);
-    }
-}
-impl Stack {
-    pub const DEFAULT: Stack = Stack {
-        arrange: Arrange::Center,
-        axis: Axis::Y,
-        spacing: 5.0,
-    };
-    pub const fn arrange(mut self, arrange: Arrange) -> Self {
-        self.arrange = arrange;
-        return self;
-    }
-    pub const fn spacing(mut self, spacing: f32) -> Self {
-        self.spacing = spacing;
-        return self;
-    }
-    pub const fn axis(mut self, axis: Axis) -> Self {
-        self.axis = axis;
-        return self;
+        std::mem::discriminant(self).hash(state);
+
+        match self {
+            ChildrenLayout::Free => {},
+            ChildrenLayout::Stack { arrange, axis, spacing } => {
+                arrange.hash(state);
+                axis.hash(state);
+                spacing.to_bits().hash(state);
+            },
+            ChildrenLayout::Grid { columns, spacing_x, spacing_y } => {
+                columns.hash(state);
+                spacing_x.to_bits().hash(state);
+                spacing_y.to_bits().hash(state);
+            },
+        }
+
     }
 }
 
@@ -507,7 +508,7 @@ impl Node {
     pub(crate) fn layout_hash(&self) -> u64 {
         let mut hasher = ahasher();
         self.layout.hash(&mut hasher);
-        self.stack.hash(&mut hasher);
+        self.children_layout.hash(&mut hasher);
         self.text_params.hash(&mut hasher);
         return hasher.finish();
     }
@@ -719,39 +720,44 @@ impl Node {
     }
 
     pub const fn stack(mut self, axis: Axis, arrange: Arrange, spacing: f32) -> Self {
-        self.stack = Some(Stack {
+        self.children_layout = ChildrenLayout::Stack {
             arrange,
             axis,
             spacing,
-        });
+        };
         return self;
     }
 
     pub const fn stack_arrange(mut self, arrange: Arrange) -> Self {
-        let stack = match self.stack {
-            Some(stack) => stack,
-            None => Stack::DEFAULT,
+        let (axis, spacing) = match self.children_layout {
+            ChildrenLayout::Stack { axis, spacing, .. } => (axis, spacing),
+            _ => (Axis::Y, 8.0),
         };
-        self.stack = Some(stack.arrange(arrange));
+        self.children_layout = ChildrenLayout::Stack { arrange, axis, spacing };
         return self;
     }
 
     pub const fn stack_spacing(mut self, spacing: f32) -> Self {
-        let stack = match self.stack {
-            Some(stack) => stack,
-            None => Stack::DEFAULT,
+        let (arrange, axis) = match self.children_layout {
+            ChildrenLayout::Stack { arrange, axis, .. } => (arrange, axis),
+            _ => (Arrange::Center, Axis::Y),
         };
-        self.stack = Some(stack.spacing(spacing));
+        self.children_layout = ChildrenLayout::Stack { arrange, axis, spacing };
         return self;
     }
 
     // todo: if we don't mind sacrificing symmetry, it could make sense to just remove this one.
     pub const fn stack_axis(mut self, axis: Axis) -> Self {
-        let stack = match self.stack {
-            Some(stack) => stack,
-            None => Stack::DEFAULT,
+        let (arrange, spacing) = match self.children_layout {
+            ChildrenLayout::Stack { arrange, spacing, .. } => (arrange, spacing),
+            _ => (Arrange::Center, 8.0),
         };
-        self.stack = Some(stack.axis(axis));
+        self.children_layout = ChildrenLayout::Stack { arrange, axis, spacing };
+        return self;
+    }
+
+    pub const fn grid(mut self, columns: u32, spacing_x: f32, spacing_y: f32) -> Self {
+        self.children_layout = ChildrenLayout::Grid { columns, spacing_x, spacing_y };
         return self;
     }
 
@@ -1170,39 +1176,39 @@ impl<'a> FullNode<'a> {
     }
 
     pub const fn stack(mut self, axis: Axis, arrange: Arrange, spacing: f32) -> Self {
-        self.node.stack = Some(Stack {
+        self.node.children_layout = ChildrenLayout::Stack {
             arrange,
             axis,
             spacing,
-        });
+        };
         return self;
     }
 
     pub const fn stack_arrange(mut self, arrange: Arrange) -> Self {
-        let stack = match self.node.stack {
-            Some(stack) => stack,
-            None => Stack::DEFAULT,
+        let (axis, spacing) = match self.node.children_layout {
+            ChildrenLayout::Stack { axis, spacing, .. } => (axis, spacing),
+            _ => (Axis::Y, 8.0),
         };
-        self.node.stack = Some(stack.arrange(arrange));
+        self.node.children_layout = ChildrenLayout::Stack { arrange, axis, spacing };
         return self;
     }
 
     pub const fn stack_spacing(mut self, spacing: f32) -> Self {
-        let stack = match self.node.stack {
-            Some(stack) => stack,
-            None => Stack::DEFAULT,
+        let (arrange, axis) = match self.node.children_layout {
+            ChildrenLayout::Stack { arrange, axis, .. } => (arrange, axis),
+            _ => (Arrange::Center, Axis::Y),
         };
-        self.node.stack = Some(stack.spacing(spacing));
+        self.node.children_layout = ChildrenLayout::Stack { arrange, axis, spacing };
         return self;
     }
 
     // todo: if we don't mind sacrificing symmetry, it could make sense to just remove this one.
     pub const fn stack_axis(mut self, axis: Axis) -> Self {
-        let stack = match self.node.stack {
-            Some(stack) => stack,
-            None => Stack::DEFAULT,
+        let (arrange, spacing) = match self.node.children_layout {
+            ChildrenLayout::Stack { arrange, spacing, .. } => (arrange, spacing),
+            _ => (Arrange::Center, 8.0),
         };
-        self.node.stack = Some(stack.axis(axis));
+        self.node.children_layout = ChildrenLayout::Stack { arrange, axis, spacing };
         return self;
     }
 
