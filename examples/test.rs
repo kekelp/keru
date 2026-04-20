@@ -60,9 +60,9 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                 );
                 let label = format!("{i}");
                 let node = match i {
-                    0 => PANEL.color(color).size_symm(Size::Pixels(80.0)).grid_column_span(2),
-                    1 => PANEL.color(color).size_symm(Size::Pixels(80.0)).grid_row_span(2),
-                    _ => PANEL.color(color).size_symm(Size::Pixels(80.0)),
+                    // 0 => PANEL.color(color).size_symm(Size::Fill).grid_column_span(2),
+                    // 1 => PANEL.color(color).size_symm(Size::Fill).grid_row_span(2),
+                    _ => PANEL.color(color).animate_position(true).size_symm(Size::Fill),
                 };
                 ui.add(node).nest(|| {
                     ui.add(TEXT.text(&label));
