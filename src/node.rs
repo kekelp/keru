@@ -56,6 +56,8 @@ pub struct Node {
     /// Draw order priority among siblings. Higher value = drawn on top. Default is 0.0.
     /// When two siblings have the same z_index, declaration order is used (later = on top).
     pub z_index: f32,
+    /// If this node is a child of a Grid element, customize its positioning inside the grid.
+    pub grid_element: Option<GridElement>,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -199,6 +201,7 @@ pub enum ChildrenLayout {
         columns: u32,
         spacing_x: f32,
         spacing_y: f32,
+        flow: GridFlow,
     },
 }
 
@@ -213,14 +216,37 @@ impl Hash for ChildrenLayout {
                 axis.hash(state);
                 spacing.to_bits().hash(state);
             },
-            ChildrenLayout::Grid { columns, spacing_x, spacing_y } => {
+            ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow } => {
                 columns.hash(state);
                 spacing_x.to_bits().hash(state);
                 spacing_y.to_bits().hash(state);
+                flow.hash(state);
             },
         }
 
     }
+}
+
+/// Overrides how a node is placed inside a parent grid layout.
+#[derive(Debug, Clone, Copy, Hash)]
+pub struct GridElement {
+    pub column_span: u32,
+    pub row_span: u32,
+}
+
+/// Controls in which direction grid children are placed.
+///
+/// `main_axis` determines whether items fill horizontally first (rows) or vertically first (columns).
+/// `x_reversed` places items right-to-left; `y_reversed` places items bottom-to-top.
+#[derive(Debug, Clone, Copy, Hash)]
+pub struct GridFlow {
+    pub main_axis: Axis,
+    pub x_reversed: bool,
+    pub y_reversed: bool,
+}
+
+impl GridFlow {
+    pub const DEFAULT: Self = Self { main_axis: Axis::X, x_reversed: false, y_reversed: false };
 }
 
 /// Options for the arrangement of child nodes within a stack node.
@@ -510,6 +536,7 @@ impl Node {
         self.layout.hash(&mut hasher);
         self.children_layout.hash(&mut hasher);
         self.text_params.hash(&mut hasher);
+        self.grid_element.hash(&mut hasher);
         return hasher.finish();
     }
 
@@ -756,8 +783,20 @@ impl Node {
         return self;
     }
 
-    pub const fn grid(mut self, columns: u32, spacing_x: f32, spacing_y: f32) -> Self {
-        self.children_layout = ChildrenLayout::Grid { columns, spacing_x, spacing_y };
+    pub const fn grid(mut self, columns: u32, spacing_x: f32, spacing_y: f32, flow: GridFlow) -> Self {
+        self.children_layout = ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow };
+        return self;
+    }
+
+    pub const fn grid_column_span(mut self, span: u32) -> Self {
+        let row_span = match self.grid_element { Some(g) => g.row_span, None => 1 };
+        self.grid_element = Some(GridElement { column_span: span, row_span });
+        return self;
+    }
+
+    pub const fn grid_row_span(mut self, span: u32) -> Self {
+        let col_span = match self.grid_element { Some(g) => g.column_span, None => 1 };
+        self.grid_element = Some(GridElement { column_span: col_span, row_span: span });
         return self;
     }
 
