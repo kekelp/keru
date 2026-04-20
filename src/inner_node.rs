@@ -121,9 +121,9 @@ pub struct InnerNode {
     pub can_hide: bool,
     pub currently_hidden: bool,
 
-    pub grid_col: u16,
-    pub grid_row: u16,
-    pub grid_n_cols: u16,
+    pub grid_element_column_i: u16,
+    pub grid_element_row_i: u16,
+    pub grid_n_columns: u16,
     pub grid_n_rows: u16,
 
     // only kept around until the exit animation is done.
@@ -212,9 +212,9 @@ impl InnerNode {
             can_hide: false,
             currently_hidden: false,
 
-            grid_col: 0,
-            grid_row: 0,
-            grid_n_cols: 0,
+            grid_element_column_i: 0,
+            grid_element_row_i: 0,
+            grid_n_columns: 0,
             grid_n_rows: 0,
 
             exiting: false,
@@ -341,9 +341,9 @@ pub const NODE_ROOT: InnerNode = InnerNode {
     can_hide: false,
     currently_hidden: false,
 
-    grid_col: 0,
-    grid_row: 0,
-    grid_n_cols: 0,
+    grid_element_column_i: 0,
+    grid_element_row_i: 0,
+    grid_n_columns: 0,
     grid_n_rows: 0,
 
     exiting: false,

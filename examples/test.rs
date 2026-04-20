@@ -5,6 +5,7 @@ use keru::example_window_loop::*;
 struct State {
     count: usize,
     flow: GridFlow,
+    columns: Columns,
 }
 
 fn update_ui(state: &mut State, ui: &mut Ui) {
@@ -13,6 +14,8 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     #[node_key] const TOGGLE_AXIS: NodeKey;
     #[node_key] const TOGGLE_X: NodeKey;
     #[node_key] const TOGGLE_Y: NodeKey;
+    #[node_key] const TOGGLE_COLUMNS: NodeKey;
+    #[node_key] const TOGGLE_BACKFILL: NodeKey;
 
     if ui.is_clicked(ADD) {
         state.count += 1;
@@ -29,15 +32,29 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     if ui.is_clicked(TOGGLE_Y) {
         state.flow.y_reversed = !state.flow.y_reversed;
     }
+    if ui.is_clicked(TOGGLE_BACKFILL) {
+        state.flow.backfill = !state.flow.backfill;
+    }
+    if ui.is_clicked(TOGGLE_COLUMNS) {
+        state.columns = match state.columns {
+            Columns::Count(n) => Columns::Width(n as f32 * 30.0),
+            Columns::Width(_) => Columns::Count(4),
+        };
+    }
 
+    let backfill_label = if state.flow.backfill { "Backfill: On" } else { "Backfill: Off" };
     let axis_label = match state.flow.main_axis { Axis::X => "Axis: Row", Axis::Y => "Axis: Col" };
     let x_label = if state.flow.x_reversed { "X: RTL" } else { "X: LTR" };
     let y_label = if state.flow.y_reversed { "Y: BTT" } else { "Y: TTB" };
+    let columns_label = match state.columns {
+        Columns::Count(n) => format!("Count({})", n),
+        Columns::Width(w) => format!("Width({})", w),
+    };
     let count_str = format!("{} items", state.count);
 
     let grid = PANEL
         .size(Size::Frac(0.8), Size::FitContent)
-        .grid(4, 8.0, 8.0, state.flow)
+        .grid(state.columns, 8.0, 8.0, state.flow)
         .padding(8.0);
 
     ui.add(V_STACK.position_y(Pos::Start)).nest(|| {
@@ -48,6 +65,8 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
             ui.add(BUTTON.text(axis_label).key(TOGGLE_AXIS));
             ui.add(BUTTON.text(x_label).key(TOGGLE_X));
             ui.add(BUTTON.text(y_label).key(TOGGLE_Y));
+            ui.add(BUTTON.text(&columns_label).key(TOGGLE_COLUMNS));
+            ui.add(BUTTON.text(backfill_label).key(TOGGLE_BACKFILL));
         });
         ui.add(grid).nest(|| {
             for i in 0..state.count {
@@ -60,8 +79,9 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                 );
                 let label = format!("{i}");
                 let node = match i {
-                    // 0 => PANEL.color(color).size_symm(Size::Fill).grid_column_span(2),
-                    // 1 => PANEL.color(color).size_symm(Size::Fill).grid_row_span(2),
+                    0 => PANEL.color(color).size_symm(Size::Fill).grid_column_span(2),
+                    1 => PANEL.color(color).size_symm(Size::Fill).grid_row_span(2),
+                    2 => PANEL.color(color).size_symm(Size::Fill).grid_row_span(2).grid_column_span(2),
                     _ => PANEL.color(color).animate_position(true).size_symm(Size::Fill),
                 };
                 ui.add(node).nest(|| {
@@ -73,6 +93,6 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 }
 
 fn main() {
-    let state = State { count: 9, flow: GridFlow::DEFAULT };
+    let state = State { count: 9, flow: GridFlow::DEFAULT, columns: Columns::Count(4) };
     example_window_loop::run_example_loop(state, update_ui);
 }

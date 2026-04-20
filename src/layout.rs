@@ -3,24 +3,20 @@ use glam::vec2;
 use crate::*;
 use crate::inner_node::*;
 
+use bumpalo::collections::Vec as BumpVec;
 
 pub(crate) const BIG_FLOAT: f32 = 100000.0;
 
-/// Tracks which cells in a grid are occupied, supporting arbitrary col/row spans.
-///
-/// `lines` is the growing dimension: rows for X-major flow, columns for Y-major.
-/// `n_per_line` is the fixed dimension: n_cols for X-major, n_rows for Y-major.
-///
-/// Cells are stored flat: `cells[line * n_per_line + pos]`.
-struct GridOccupancy {
-    cells: Vec<bool>,
+struct GridOccupancy<'a> {
+    cells: BumpVec<'a, bool>,
     n_per_line: usize,
     n_lines: usize,
+    cursor_line: usize,
 }
 
-impl GridOccupancy {
-    fn new(n_per_line: usize) -> Self {
-        Self { cells: Vec::new(), n_per_line, n_lines: 0 }
+impl<'a> GridOccupancy<'a> {
+    fn new(n_per_line: usize, arena: &'a bumpalo::Bump) -> Self {
+        Self { cells: BumpVec::new_in(arena), n_per_line, n_lines: 0, cursor_line: 0 }
     }
 
     fn is_free(&self, line: usize, pos: usize, span_line: usize, span_pos: usize) -> bool {
@@ -47,14 +43,18 @@ impl GridOccupancy {
     }
 
     /// Find the first free rectangle of size (span_line x span_pos), occupy it, and return its (line, pos).
-    fn place_next(&mut self, span_line: usize, span_pos: usize) -> (usize, usize) {
+    /// If `backfill` is true, search from the beginning (dense, fills gaps). Otherwise search from the cursor.
+    fn place_next(&mut self, span_line: usize, span_pos: usize, backfill: bool) -> (usize, usize) {
         let span_pos = span_pos.min(self.n_per_line).max(1);
         let span_line = span_line.max(1);
-        let mut line = 0;
+        let mut line = if backfill { 0 } else { self.cursor_line };
         loop {
             for pos in 0..=self.n_per_line - span_pos {
                 if self.is_free(line, pos, span_line, span_pos) {
                     self.occupy(line, pos, span_line, span_pos);
+                    if !backfill {
+                        self.cursor_line = line;
+                    }
                     return (line, pos);
                 }
             }
@@ -415,60 +415,69 @@ impl Ui {
             ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow } => {
                 let n = self.sys.nodes[i].n_children as usize;
                 if n > 0 {
-                    let n_per_line = columns as usize;
-
-                    // Pre-pass: determine grid dimensions accounting for both col and row spans
-                    let mut occ = GridOccupancy::new(n_per_line);
-                    for_each_child!(self, self.sys.nodes[i], child, {
-                        let (col_span, row_span) = child_spans(&self.sys.nodes[child].params);
-                        let (sl, sp) = to_occ_spans(col_span, row_span, flow);
-                        occ.place_next(sl, sp);
-                    });
-                    let n_cross = occ.n_lines;
-
-                    let (n_cols, n_rows) = match flow.main_axis {
-                        Axis::X => (n_per_line, n_cross),
-                        Axis::Y => (n_cross, n_per_line),
-                    };
-
-                    self.sys.nodes[i].grid_n_cols = n_cols as u16;
-                    self.sys.nodes[i].grid_n_rows = n_rows as u16;
-
-                    let spacing_x_frac = self.pixels_to_frac(spacing_x, X);
-                    let spacing_y_frac = self.pixels_to_frac(spacing_y, Y);
-
-                    let cell_w = ((size_to_propose.x - spacing_x_frac * (n_cols as f32 - 1.0)) / n_cols as f32).max(0.0);
-                    let cell_h = ((size_to_propose.y - spacing_y_frac * (n_rows as f32 - 1.0)) / n_rows as f32).max(0.0);
-
-                    let mut row_heights = vec![0.0f32; n_rows];
-                    let mut occ = GridOccupancy::new(n_per_line);
-                    for_each_child!(self, self.sys.nodes[i], child, {
-                        let (col_span, row_span) = child_spans(&self.sys.nodes[child].params);
-                        let (sl, sp) = to_occ_spans(col_span, row_span, flow);
-                        let (line, pos) = occ.place_next(sl, sp);
-                        let (lc, lr) = from_occ(line, pos, flow);
-                        let (actual_col, actual_row) = apply_reversal(lc, lr, col_span, row_span, n_cols, n_rows, flow);
-
-                        self.sys.nodes[child].grid_col = actual_col as u16;
-                        self.sys.nodes[child].grid_row = actual_row as u16;
-
-                        let child_cell_size = Xy::new(
-                            col_span as f32 * cell_w + (col_span - 1) as f32 * spacing_x_frac,
-                            row_span as f32 * cell_h + (row_span - 1) as f32 * spacing_y_frac,
-                        );
-                        let child_actual = self.recursive_determine_size_and_hidden(child, ProposedSizes::container(child_cell_size), children_can_hide);
-
-                        let h_per_row = child_actual.y / row_span as f32;
-                        for r in 0..row_span {
-                            let row = actual_row + r;
-                            if row < row_heights.len() {
-                                row_heights[row] = row_heights[row].max(h_per_row);
+                    content_size = with_arena(|arena| {
+                        let spacing_x_frac_pre = self.pixels_to_frac(spacing_x, X);
+                        let n_columns = match columns {
+                            Columns::Count(n) => n as usize,
+                            Columns::Width(w) => {
+                                let w_frac = self.pixels_to_frac(w, X);
+                                ((size_to_propose.x + spacing_x_frac_pre) / (w_frac + spacing_x_frac_pre)).floor().max(1.0) as usize
                             }
-                        }
-                    });
+                        };
 
-                    let total_h = row_heights.iter().sum::<f32>() + spacing_y_frac * (n_rows as f32 - 1.0).max(0.0);
-                    content_size = Xy::new(size_to_propose.x, total_h);
+                        let mut occ = GridOccupancy::new(n_columns, arena);
+                        for_each_child!(self, self.sys.nodes[i], child, {
+                            let (col_span, row_span) = child_spans(&self.sys.nodes[child].params);
+                            let (sl, sp) = to_occ_spans(col_span, row_span, flow);
+                            occ.place_next(sl, sp, flow.backfill);
+                        });
+                        let n_cross = occ.n_lines;
+
+                        let (n_cols, n_rows) = match flow.main_axis {
+                            Axis::X => (n_columns, n_cross),
+                            Axis::Y => (n_cross, n_columns),
+                        };
+
+                        self.sys.nodes[i].grid_n_columns = n_cols as u16;
+                        self.sys.nodes[i].grid_n_rows = n_rows as u16;
+
+                        let spacing_x_frac = spacing_x_frac_pre;
+                        let spacing_y_frac = self.pixels_to_frac(spacing_y, Y);
+
+                        let cell_w = ((size_to_propose.x - spacing_x_frac * (n_cols as f32 - 1.0)) / n_cols as f32).max(0.0);
+                        let cell_h = ((size_to_propose.y - spacing_y_frac * (n_rows as f32 - 1.0)) / n_rows as f32).max(0.0);
+
+                        let mut row_heights = BumpVec::new_in(arena);
+                        row_heights.resize(n_rows, 0.0f32);
+                        let mut occ = GridOccupancy::new(n_columns, arena);
+                        for_each_child!(self, self.sys.nodes[i], child, {
+                            let (col_span, row_span) = child_spans(&self.sys.nodes[child].params);
+                            let (sl, sp) = to_occ_spans(col_span, row_span, flow);
+                            let (line, pos) = occ.place_next(sl, sp, flow.backfill);
+                            let (lc, lr) = from_occ(line, pos, flow);
+                            let (actual_col, actual_row) = apply_reversal(lc, lr, col_span, row_span, n_cols, n_rows, flow);
+
+                            self.sys.nodes[child].grid_element_column_i = actual_col as u16;
+                            self.sys.nodes[child].grid_element_row_i = actual_row as u16;
+
+                            let child_cell_size = Xy::new(
+                                col_span as f32 * cell_w + (col_span - 1) as f32 * spacing_x_frac,
+                                row_span as f32 * cell_h + (row_span - 1) as f32 * spacing_y_frac,
+                            );
+                            let child_actual = self.recursive_determine_size_and_hidden(child, ProposedSizes::container(child_cell_size), children_can_hide);
+
+                            let h_per_row = (child_actual.y - (row_span - 1) as f32 * spacing_y_frac) / row_span as f32;
+                            for r in 0..row_span {
+                                let row = actual_row + r;
+                                if row < row_heights.len() {
+                                    row_heights[row] = row_heights[row].max(h_per_row);
+                                }
+                            }
+                        });
+
+                        let total_h = row_heights.iter().sum::<f32>() + spacing_y_frac * (n_rows as f32 - 1.0).max(0.0);
+                        Xy::new(size_to_propose.x, total_h)
+                    });
                 }
             },
         }
@@ -679,59 +688,63 @@ impl Ui {
         // self.set_children_scroll(i);
     }
 
-    fn place_children_grid(&mut self, i: NodeI, _columns: u32, spacing_x: f32, spacing_y: f32, _flow: GridFlow) {
+    fn place_children_grid(&mut self, i: NodeI, _columns: Columns, spacing_x: f32, spacing_y: f32, _flow: GridFlow) {
         let n = self.sys.nodes[i].n_children as usize;
         if n == 0 { return; }
 
-        let parent_rect = self.sys.nodes[i].layout_rect;
-        let padding = self.pixels_to_frac2(self.sys.nodes[i].params.layout.padding);
-        let spacing_x_frac = self.pixels_to_frac(spacing_x, X);
-        let spacing_y_frac = self.pixels_to_frac(spacing_y, Y);
-
-        let n_cols = self.sys.nodes[i].grid_n_cols as usize;
+        let n_cols = self.sys.nodes[i].grid_n_columns as usize;
         let n_rows = self.sys.nodes[i].grid_n_rows as usize;
         if n_cols == 0 { return; }
 
-        let inner_w = parent_rect.size().x - 2.0 * padding.x;
-        let cell_w = ((inner_w - spacing_x_frac * (n_cols as f32 - 1.0)) / n_cols as f32).max(0.0);
+        with_arena(|arena| {
+            let parent_rect = self.sys.nodes[i].layout_rect;
+            let padding = self.pixels_to_frac2(self.sys.nodes[i].params.layout.padding);
+            let spacing_x_frac = self.pixels_to_frac(spacing_x, X);
+            let spacing_y_frac = self.pixels_to_frac(spacing_y, Y);
 
-        // Compute row heights from stored positions and child sizes
-        let mut row_heights = vec![0.0f32; n_rows];
-        for_each_child!(self, self.sys.nodes[i], child, {
-            let (_, row_span) = child_spans(&self.sys.nodes[child].params);
-            let actual_row = self.sys.nodes[child].grid_row as usize;
-            let h_per_row = self.sys.nodes[child].size.y / row_span as f32;
-            for r in 0..row_span {
-                let row = actual_row + r;
-                if row < row_heights.len() {
-                    row_heights[row] = row_heights[row].max(h_per_row);
+            let inner_w = parent_rect.size().x - 2.0 * padding.x;
+            let cell_w = ((inner_w - spacing_x_frac * (n_cols as f32 - 1.0)) / n_cols as f32).max(0.0);
+
+            // Compute row heights from stored positions and child sizes
+            let mut row_heights: BumpVec<f32> = BumpVec::new_in(arena);
+            row_heights.resize(n_rows, 0.0f32);
+            for_each_child!(self, self.sys.nodes[i], child, {
+                let (_, row_span) = child_spans(&self.sys.nodes[child].params);
+                let actual_row = self.sys.nodes[child].grid_element_row_i as usize;
+                let h_per_row = (self.sys.nodes[child].size.y - (row_span - 1) as f32 * spacing_y_frac) / row_span as f32;
+                for r in 0..row_span {
+                    let row = actual_row + r;
+                    if row < row_heights.len() {
+                        row_heights[row] = row_heights[row].max(h_per_row);
+                    }
                 }
+            });
+
+            // Compute cumulative y offsets per row
+            let mut row_y_offsets: BumpVec<f32> = BumpVec::new_in(arena);
+            row_y_offsets.resize(n_rows, 0.0f32);
+            let mut y_acc = 0.0f32;
+            for r in 0..n_rows {
+                row_y_offsets[r] = y_acc;
+                y_acc += row_heights[r] + spacing_y_frac;
             }
-        });
 
-        // Compute cumulative y offsets per row
-        let mut row_y_offsets = vec![0.0f32; n_rows];
-        let mut y_acc = 0.0f32;
-        for r in 0..n_rows {
-            row_y_offsets[r] = y_acc;
-            y_acc += row_heights[r] + spacing_y_frac;
-        }
+            // Place children inside their assigned grid cell
+            for_each_child!(self, self.sys.nodes[i], child, {
+                let actual_col = self.sys.nodes[child].grid_element_column_i as usize;
+                let actual_row = self.sys.nodes[child].grid_element_row_i as usize;
+                let child_size = self.sys.nodes[child].size;
 
-        // Place children inside their assigned grid cell
-        for_each_child!(self, self.sys.nodes[i], child, {
-            let actual_col = self.sys.nodes[child].grid_col as usize;
-            let actual_row = self.sys.nodes[child].grid_row as usize;
-            let child_size = self.sys.nodes[child].size;
+                let x0 = parent_rect.x[0] + padding.x + actual_col as f32 * (cell_w + spacing_x_frac);
+                let y0 = parent_rect.y[0] + padding.y + row_y_offsets[actual_row];
 
-            let x0 = parent_rect.x[0] + padding.x + actual_col as f32 * (cell_w + spacing_x_frac);
-            let y0 = parent_rect.y[0] + padding.y + row_y_offsets[actual_row];
+                self.sys.nodes[child].layout_rect.x = [x0, x0 + child_size.x];
+                self.sys.nodes[child].layout_rect.y = [y0, y0 + child_size.y];
 
-            self.sys.nodes[child].layout_rect.x = [x0, x0 + child_size.x];
-            self.sys.nodes[child].layout_rect.y = [y0, y0 + child_size.y];
-
-            self.set_local_layout_rect(child, i);
-            self.init_enter_animations(child);
-            self.update_content_bounds(i, self.sys.nodes[child].layout_rect);
+                self.set_local_layout_rect(child, i);
+                self.init_enter_animations(child);
+                self.update_content_bounds(i, self.sys.nodes[child].layout_rect);
+            });
         });
     }
 
@@ -879,7 +892,7 @@ impl Ui {
 
         // set the whole branch to exiting.
         with_arena(|a| {
-            let mut stack = bumpalo::collections::Vec::with_capacity_in(20, a);
+            let mut stack = BumpVec::with_capacity_in(20, a);
             for_each_child_including_lingering_reverse!(self, &self.sys.nodes[i], child, {
                 stack.push(child);
             });
@@ -1050,7 +1063,7 @@ impl Ui {
             // Sort z-ordering
             with_arena(|arena| {
                 let n_children = self.sys.nodes[i].n_children as usize + 5; // not sure if lingering children are counted, it's free anyway
-                let mut scratch = bumpalo::collections::Vec::with_capacity_in(n_children, arena);
+                let mut scratch = BumpVec::with_capacity_in(n_children, arena);
                 let mut current = self.sys.nodes[i].last_child;
                 while let Some(child) = current {
                     scratch.push((child, self.sys.nodes[child].params.z_index));

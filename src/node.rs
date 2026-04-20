@@ -198,7 +198,7 @@ pub enum ChildrenLayout {
         spacing: f32,
     },
     Grid {
-        columns: u32,
+        columns: Columns,
         spacing_x: f32,
         spacing_y: f32,
         flow: GridFlow,
@@ -243,10 +243,32 @@ pub struct GridFlow {
     pub main_axis: Axis,
     pub x_reversed: bool,
     pub y_reversed: bool,
+    /// If true, the placement algorithm restarts from the beginning of the grid for each item,
+    /// filling gaps left by earlier items with spans (like `grid-auto-flow: dense` in CSS).
+    /// If false, the cursor only moves forward and gaps are left unfilled.
+    pub backfill: bool,
 }
 
 impl GridFlow {
-    pub const DEFAULT: Self = Self { main_axis: Axis::X, x_reversed: false, y_reversed: false };
+    pub const DEFAULT: Self = Self { main_axis: Axis::X, x_reversed: false, y_reversed: false, backfill: false };
+}
+
+/// Specifies the number of columns in a grid layout.
+#[derive(Debug, Clone, Copy)]
+pub enum Columns {
+    /// Fixed number of columns.
+    Count(u32),
+    /// Target column width in pixels.
+    Width(f32),
+}
+
+impl std::hash::Hash for Columns {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            Columns::Count(n) => { 0u8.hash(state); n.hash(state); }
+            Columns::Width(w) => { 1u8.hash(state); w.to_bits().hash(state); }
+        }
+    }
 }
 
 /// Options for the arrangement of child nodes within a stack node.
@@ -783,7 +805,7 @@ impl Node {
         return self;
     }
 
-    pub const fn grid(mut self, columns: u32, spacing_x: f32, spacing_y: f32, flow: GridFlow) -> Self {
+    pub const fn grid(mut self, columns: Columns, spacing_x: f32, spacing_y: f32, flow: GridFlow) -> Self {
         self.children_layout = ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow };
         return self;
     }
