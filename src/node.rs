@@ -189,14 +189,20 @@ impl Hash for Pos {
     }
 }
 
+/// Determines how the children of the node are laid out in its space.
 #[derive(Debug, Clone, Copy)]
 pub enum ChildrenLayout {
+    /// Children can position themselves freely according to their [`Size`] and [`Pos`] values. 
     Free,
+    /// Children are arranged in a stack. Children's [`Pos`] values along the stack axis are ignored.
     Stack {
         arrange: Arrange,
         axis: Axis,
         spacing: f32,
     },
+    /// Children are arranged in a grid. Children's [`Pos`] values on both axes are ignored.
+    /// 
+    /// To give an element a size and position relative to the grid cell, you can add a [`CONTAINER`] node as the direct child of the grid, then add the element as a child of the Container.
     Grid {
         columns: Columns,
         spacing_x: f32,
@@ -806,17 +812,23 @@ impl Node {
     }
 
     pub const fn grid(mut self, columns: Columns, spacing_x: f32, spacing_y: f32, flow: GridFlow) -> Self {
+        let mut columns = columns;
+        if let Columns::Count(n) = columns && n <= 0 {
+            columns = Columns::Count(1);
+        }
         self.children_layout = ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow };
         return self;
     }
 
     pub const fn grid_column_span(mut self, span: u32) -> Self {
+        let span = if span == 0 { 1 } else { span };
         let row_span = match self.grid_element { Some(g) => g.row_span, None => 1 };
         self.grid_element = Some(GridElement { column_span: span, row_span });
         return self;
     }
 
     pub const fn grid_row_span(mut self, span: u32) -> Self {
+        let span = if span == 0 { 1 } else { span };
         let col_span = match self.grid_element { Some(g) => g.column_span, None => 1 };
         self.grid_element = Some(GridElement { column_span: col_span, row_span: span });
         return self;

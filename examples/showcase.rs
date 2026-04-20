@@ -410,7 +410,7 @@ impl UiExt for Ui {
 
                         self.label("Unfortunately we can't say the same thing for text. It's rasterized on the CPU using parley's built-in rasterizer and drawn with a traditional atlas renderer. When zooming, we use the same texture and just scale the quads.");
 
-                        self.label("But this might change soon thanks to Eric Lengyel releasing the Slug algorithm into the public domain and open-sourcing the code. Thanks!");
+                        self.label("But now that the Slug algorithm isn't patented anymore, maybe this will change.");
                         
                     });
                 });

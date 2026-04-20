@@ -370,7 +370,7 @@ impl Ui {
                     content_size.update_for_content(image_size);
                 }
             },
-            ChildrenLayout::Stack { arrange, axis, spacing } => {
+            ChildrenLayout::Stack { axis, spacing, arrange: _ } => {
                 let spacing = self.pixels_to_frac(spacing, axis);
 
                 let mut available_size_left = size_to_propose;
