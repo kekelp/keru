@@ -81,10 +81,10 @@ fn from_occ(line: usize, pos: usize, flow: GridFlow) -> (usize, usize) {
 }
 
 /// Apply flow reversal: convert logical (col, row) to actual (col, row) for placement.
-fn apply_reversal(lc: usize, lr: usize, col_span: usize, row_span: usize, n_cols: usize, n_rows: usize, flow: GridFlow) -> (usize, usize) {
-    let ac = if flow.x_fill_direction == Direction::RightToLeft { n_cols - col_span - lc } else { lc };
-    let ar = if flow.y_fill_direction == Direction::RightToLeft { n_rows - row_span - lr } else { lr };
-    (ac, ar)
+fn apply_reversal(logical_col: usize, logical_row: usize, col_span: usize, row_span: usize, n_cols: usize, n_rows: usize, flow: GridFlow) -> (usize, usize) {
+    let col = if flow.x_fill_direction == Direction::RightToLeft { n_cols - col_span - logical_col } else { logical_col };
+    let row = if flow.y_fill_direction == Direction::RightToLeft { n_rows - row_span - logical_row } else { logical_row };
+    (col, row)
 }
 
 /// Iterate on the children linked list.
@@ -422,8 +422,8 @@ impl Ui {
                         for_each_child!(self, self.sys.nodes[i], child, {
                             let col_span = (self.sys.nodes[child].params.grid_element.column_span as usize).max(1);
                             let row_span = (self.sys.nodes[child].params.grid_element.row_span as usize).max(1);
-                            let (sl, sp) = to_occ_spans(col_span, row_span, flow);
-                            occ.place_next(sl, sp, flow.backfill);
+                            let (span_line, span_pos) = to_occ_spans(col_span, row_span, flow);
+                            occ.place_next(span_line, span_pos, flow.backfill);
                         });
                         let n_cross = occ.n_lines;
 
@@ -447,10 +447,10 @@ impl Ui {
                         for_each_child!(self, self.sys.nodes[i], child, {
                             let col_span = (self.sys.nodes[child].params.grid_element.column_span as usize).max(1);
                             let row_span = (self.sys.nodes[child].params.grid_element.row_span as usize).max(1);
-                            let (sl, sp) = to_occ_spans(col_span, row_span, flow);
-                            let (line, pos) = occ.place_next(sl, sp, flow.backfill);
-                            let (lc, lr) = from_occ(line, pos, flow);
-                            let (actual_col, actual_row) = apply_reversal(lc, lr, col_span, row_span, n_cols, n_rows, flow);
+                            let (span_line, span_pos) = to_occ_spans(col_span, row_span, flow);
+                            let (occ_line, occ_pos) = occ.place_next(span_line, span_pos, flow.backfill);
+                            let (logical_col, logical_row) = from_occ(occ_line, occ_pos, flow);
+                            let (actual_col, actual_row) = apply_reversal(logical_col, logical_row, col_span, row_span, n_cols, n_rows, flow);
 
                             self.sys.nodes[child].grid_element_column_i = actual_col as u16;
                             self.sys.nodes[child].grid_element_row_i = actual_row as u16;
