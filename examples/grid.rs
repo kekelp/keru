@@ -97,7 +97,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         let y_label = if state.flow.y_reversed { "Bottom to Top" } else { "Top to Bottom" };
         let columns_label = if state.use_n_columns { "Column size: specify Count" } else { "Column size: specify Width" };
 
-        let columns = if state.use_n_columns { Columns::Count(state.n_columns as u32) } else { Columns::Width(state.column_width) };
+        let columns = if state.use_n_columns { MainAxisCellSize::Count(state.n_columns as u32) } else { MainAxisCellSize::Width(state.column_width) };
 
         let grid = PANEL
             .size_symm(Size::Fill)
@@ -119,7 +119,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                         ui.add(BUTTON.text(&columns_label).key(TOGGLE_COLUMNS));
                         if state.use_n_columns {
                             ui.add(TEXT.text("Columns: (rounded)"));
-                            ui.add_component(Slider::new(&mut state.n_columns, 0.0, 20.0, true))
+                            ui.add_component(Slider::new(&mut state.n_columns, 0.0, 50.0, true))
                         } else {
                             ui.add(TEXT.text("Width: (rounded)"));
                             ui.add_component(Slider::new(&mut state.column_width, 0.0, 300.0, true))
@@ -140,11 +140,9 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                         });
                         
                         ui.add(TEXT.text("\
-                            Click on elements to change their row and column span. \n\
-                            Left click: increase row span \n\
-                            Right click: decrease row span \n\
-                            Shift + Left click: increase column span \n\
-                            Shift + Right click: decrease column span \n\
+                            Click on elements to change their row span. \n\n\
+                            Left click / right click: increase / decrease span \n\n\
+                            Hold Shift to change column span
                         "));
                     });
                 });
@@ -170,8 +168,8 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                         .sense_click(true)
                         .size_symm(Size::Fill)
                         .animate_position(true)
-                        .grid_row_span(element.row_span as u32)
-                        .grid_column_span(element.column_span as u32)
+                        .grid_row_span(element.row_span as u16)
+                        .grid_column_span(element.column_span as u16)
                         .key(key);
 
                     ui.add(node).nest(|| {

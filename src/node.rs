@@ -57,7 +57,7 @@ pub struct Node {
     /// When two siblings have the same z_index, declaration order is used (later = on top).
     pub z_index: f32,
     /// If this node is a child of a Grid element, customize its positioning inside the grid.
-    pub grid_element: Option<GridElement>,
+    pub grid_element: GridElement,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -204,7 +204,7 @@ pub enum ChildrenLayout {
     /// 
     /// To give an element a size and position relative to the grid cell, you can add a [`CONTAINER`] node as the direct child of the grid, then add the element as a child of the Container.
     Grid {
-        columns: Columns,
+        columns: MainAxisCellSize,
         spacing_x: f32,
         spacing_y: f32,
         flow: GridFlow,
@@ -233,11 +233,19 @@ impl Hash for ChildrenLayout {
     }
 }
 
-/// Overrides how a node is placed inside a parent grid layout.
+/// How many cells of a grid the node occupies.
+/// 
+/// Only works if the node is added as a child of a [`ChildrenLayout::Grid`] node, 
 #[derive(Debug, Clone, Copy, Hash)]
 pub struct GridElement {
-    pub column_span: u32,
-    pub row_span: u32,
+    pub row_span: u16,
+    pub column_span: u16,
+}
+impl GridElement {
+    pub const ONE_BY_ONE: GridElement = GridElement {
+        row_span: 1,
+        column_span: 1,
+    };
 }
 
 /// Controls in which direction grid children are placed.
@@ -259,20 +267,20 @@ impl GridFlow {
     pub const DEFAULT: Self = Self { main_axis: Axis::X, x_reversed: false, y_reversed: false, backfill: false };
 }
 
-/// Specifies the number of columns in a grid layout.
+/// Specifies how cells are sized along the main axis of a grid layout.
 #[derive(Debug, Clone, Copy)]
-pub enum Columns {
-    /// Fixed number of columns.
+pub enum MainAxisCellSize {
+    /// Fixed number of cells.
     Count(u32),
-    /// Target column width in pixels.
+    /// Target cells width in pixels.
     Width(f32),
 }
 
-impl std::hash::Hash for Columns {
+impl std::hash::Hash for MainAxisCellSize {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         match self {
-            Columns::Count(n) => { 0u8.hash(state); n.hash(state); }
-            Columns::Width(w) => { 1u8.hash(state); w.to_bits().hash(state); }
+            MainAxisCellSize::Count(n) => { 0u8.hash(state); n.hash(state); }
+            MainAxisCellSize::Width(w) => { 1u8.hash(state); w.to_bits().hash(state); }
         }
     }
 }
@@ -811,26 +819,22 @@ impl Node {
         return self;
     }
 
-    pub const fn grid(mut self, columns: Columns, spacing_x: f32, spacing_y: f32, flow: GridFlow) -> Self {
-        let mut columns = columns;
-        if let Columns::Count(n) = columns && n <= 0 {
-            columns = Columns::Count(1);
+    pub const fn grid(mut self, cells: MainAxisCellSize, spacing_x: f32, spacing_y: f32, flow: GridFlow) -> Self {
+        let mut columns = cells;
+        if let MainAxisCellSize::Count(n) = columns && n <= 0 {
+            columns = MainAxisCellSize::Count(1);
         }
         self.children_layout = ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow };
         return self;
     }
 
-    pub const fn grid_column_span(mut self, span: u32) -> Self {
-        let span = if span == 0 { 1 } else { span };
-        let row_span = match self.grid_element { Some(g) => g.row_span, None => 1 };
-        self.grid_element = Some(GridElement { column_span: span, row_span });
+    pub const fn grid_row_span(mut self, span: u16) -> Self {
+        self.grid_element.row_span = span;
         return self;
     }
 
-    pub const fn grid_row_span(mut self, span: u32) -> Self {
-        let span = if span == 0 { 1 } else { span };
-        let col_span = match self.grid_element { Some(g) => g.column_span, None => 1 };
-        self.grid_element = Some(GridElement { column_span: col_span, row_span: span });
+    pub const fn grid_column_span(mut self, span: u16) -> Self {
+        self.grid_element.column_span = span;
         return self;
     }
 

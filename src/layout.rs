@@ -63,13 +63,6 @@ impl<'a> GridOccupancy<'a> {
     }
 }
 
-fn child_spans(params: &Node) -> (usize, usize) {
-    match params.grid_element {
-        Some(g) => (g.column_span as usize, g.row_span as usize),
-        None => (1, 1),
-    }
-}
-
 /// Convert (col_span, row_span) to occupancy (span_line, span_pos) based on main_axis.
 /// X-major: line=row, pos=col.  Y-major: line=col, pos=row.
 fn to_occ_spans(col_span: usize, row_span: usize, flow: GridFlow) -> (usize, usize) {
@@ -418,8 +411,8 @@ impl Ui {
                     content_size = with_arena(|arena| {
                         let spacing_x_frac_pre = self.pixels_to_frac(spacing_x, X);
                         let n_columns = match columns {
-                            Columns::Count(n) => n as usize,
-                            Columns::Width(w) => {
+                            MainAxisCellSize::Count(n) => n as usize,
+                            MainAxisCellSize::Width(w) => {
                                 let w_frac = self.pixels_to_frac(w, X);
                                 ((size_to_propose.x + spacing_x_frac_pre) / (w_frac + spacing_x_frac_pre)).floor().max(1.0) as usize
                             }
@@ -427,7 +420,8 @@ impl Ui {
 
                         let mut occ = GridOccupancy::new(n_columns, arena);
                         for_each_child!(self, self.sys.nodes[i], child, {
-                            let (col_span, row_span) = child_spans(&self.sys.nodes[child].params);
+                            let col_span = self.sys.nodes[child].params.grid_element.column_span as usize;
+                            let row_span = self.sys.nodes[child].params.grid_element.row_span as usize;
                             let (sl, sp) = to_occ_spans(col_span, row_span, flow);
                             occ.place_next(sl, sp, flow.backfill);
                         });
@@ -451,7 +445,8 @@ impl Ui {
                         row_heights.resize(n_rows, 0.0f32);
                         let mut occ = GridOccupancy::new(n_columns, arena);
                         for_each_child!(self, self.sys.nodes[i], child, {
-                            let (col_span, row_span) = child_spans(&self.sys.nodes[child].params);
+                            let col_span = self.sys.nodes[child].params.grid_element.column_span as usize;
+                            let row_span = self.sys.nodes[child].params.grid_element.row_span as usize;
                             let (sl, sp) = to_occ_spans(col_span, row_span, flow);
                             let (line, pos) = occ.place_next(sl, sp, flow.backfill);
                             let (lc, lr) = from_occ(line, pos, flow);
@@ -688,7 +683,7 @@ impl Ui {
         // self.set_children_scroll(i);
     }
 
-    fn place_children_grid(&mut self, i: NodeI, _columns: Columns, spacing_x: f32, spacing_y: f32, _flow: GridFlow) {
+    fn place_children_grid(&mut self, i: NodeI, _columns: MainAxisCellSize, spacing_x: f32, spacing_y: f32, _flow: GridFlow) {
         let n = self.sys.nodes[i].n_children as usize;
         if n == 0 { return; }
 
@@ -709,7 +704,7 @@ impl Ui {
             let mut row_heights: BumpVec<f32> = BumpVec::new_in(arena);
             row_heights.resize(n_rows, 0.0f32);
             for_each_child!(self, self.sys.nodes[i], child, {
-                let (_, row_span) = child_spans(&self.sys.nodes[child].params);
+                let row_span = self.sys.nodes[child].params.grid_element.row_span as usize;
                 let actual_row = self.sys.nodes[child].grid_element_row_i as usize;
                 let h_per_row = (self.sys.nodes[child].size.y - (row_span - 1) as f32 * spacing_y_frac) / row_span as f32;
                 for r in 0..row_span {
@@ -1210,7 +1205,6 @@ impl Ui {
         let parent = self.sys.nodes[i].parent;
         if self.sys.nodes.get_node_if_it_still_exists(parent).is_none() {
             panic!("Surely this check isn't needed?");
-            return Xy::new(0.0, 0.0);
         }
         if ! self.sys.nodes[parent].params.is_scrollable() {
             return Xy::new(0.0, 0.0);
