@@ -127,12 +127,13 @@ pub enum Size {
 impl Hash for Size {
     fn hash<H: Hasher>(&self, state: &mut H) {
         use Size::*;
+        std::mem::discriminant(self).hash(state);
         match self {
-            Pixels(len) => (0u8, len.to_bits()).hash(state),
-            Frac(len) => (1u8, len.to_bits()).hash(state),
-            Fill => 2u8.hash(state),
-            FitContent => 3u8.hash(state),
-            AspectRatio(ratio) => (5u8, ratio.to_bits()).hash(state),
+            Pixels(len) => len.to_bits().hash(state),
+            Frac(len) => len.to_bits().hash(state),
+            Fill => {},
+            FitContent => {},
+            AspectRatio(ratio) => ratio.to_bits().hash(state),
         }
     }
 }
@@ -156,14 +157,12 @@ pub enum Anchor {
 
 impl Hash for Anchor {
     fn hash<H: Hasher>(&self, state: &mut H) {
+        std::mem::discriminant(self).hash(state);
         match self {
-            Anchor::Start => 0u8.hash(state),
-            Anchor::Center => 1u8.hash(state),
-            Anchor::End => 2u8.hash(state),
-            Anchor::Frac(f) => {
-                3u8.hash(state);
-                f.to_bits().hash(state);
-            }
+            Anchor::Start => {},
+            Anchor::Center => {},
+            Anchor::End => {},
+            Anchor::Frac(f) => f.to_bits().hash(state),
         }
     }
 }
@@ -181,12 +180,13 @@ pub enum Pos {
 impl Hash for Pos {
     fn hash<H: Hasher>(&self, state: &mut H) {
         use Pos::*;
+        std::mem::discriminant(self).hash(state);
         match self {
-            Center => 0u8.hash(state),
-            Start => 1u8.hash(state),
-            End => 2u8.hash(state),
-            Pixels(p) => (3u8, p.to_bits()).hash(state),
-            Frac(f) => (4u8, f.to_bits()).hash(state),
+            Center => {},
+            Start => {},
+            End => {},
+            Pixels(p) => p.to_bits().hash(state),
+            Frac(f) => f.to_bits().hash(state),
         }
     }
 }
@@ -286,9 +286,10 @@ pub enum MainAxisCellSize {
 
 impl std::hash::Hash for MainAxisCellSize {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        std::mem::discriminant(self).hash(state);
         match self {
-            MainAxisCellSize::Count(n) => { 0u8.hash(state); n.hash(state); }
-            MainAxisCellSize::Width(w) => { 1u8.hash(state); w.to_bits().hash(state); }
+            MainAxisCellSize::Count(n) => n.hash(state),
+            MainAxisCellSize::Width(w) => w.to_bits().hash(state),
         }
     }
 }
@@ -403,75 +404,55 @@ pub enum Shape {
 impl Hash for Shape {
     fn hash<H: Hasher>(&self, state: &mut H) {
         use Shape::*;
+        std::mem::discriminant(self).hash(state);
         match self {
+            NoShape => {},
             Rectangle { rounded_corners, corner_radius } => {
-                0u8.hash(state);
                 rounded_corners.hash(state);
                 corner_radius.to_bits().hash(state);
             }
-            Circle => {
-                1u8.hash(state);
-            }
+            Circle => {},
             Ring { width } => {
-                2u8.hash(state);
                 width.to_bits().hash(state);
             }
             Arc { start_angle, end_angle, width } => {
-                3u8.hash(state);
                 start_angle.to_bits().hash(state);
                 end_angle.to_bits().hash(state);
                 width.to_bits().hash(state);
             }
             Pie { start_angle, end_angle } => {
-                4u8.hash(state);
                 start_angle.to_bits().hash(state);
                 end_angle.to_bits().hash(state);
             }
             Segment { start, end, dash_length } => {
-                5u8.hash(state);
                 start.0.to_bits().hash(state);
                 start.1.to_bits().hash(state);
                 end.0.to_bits().hash(state);
                 end.1.to_bits().hash(state);
-                match dash_length {
-                    None => 0u8.hash(state),
-                    Some(len) => {
-                        1u8.hash(state);
-                        len.to_bits().hash(state);
-                    }
-                }
+                dash_length.map(|len| len.to_bits()).hash(state);
             }
-            HorizontalLine => {
-                6u8.hash(state);
-            }
-            VerticalLine => {
-                7u8.hash(state);
-            }
+            HorizontalLine => {},
+            VerticalLine => {},
             Triangle { rotation, width } => {
-                8u8.hash(state);
                 rotation.to_bits().hash(state);
                 width.to_bits().hash(state);
             }
             SquareGrid { lattice_size, offset, line_thickness } => {
-                9u8.hash(state);
                 lattice_size.to_bits().hash(state);
                 offset.0.to_bits().hash(state);
                 offset.1.to_bits().hash(state);
                 line_thickness.to_bits().hash(state);
             }
             HexGrid { lattice_size, offset, line_thickness } => {
-                10u8.hash(state);
                 lattice_size.to_bits().hash(state);
                 offset.0.to_bits().hash(state);
                 offset.1.to_bits().hash(state);
                 line_thickness.to_bits().hash(state);
             }
             Hexagon { size, rotation } => {
-                11u8.hash(state);
                 size.to_bits().hash(state);
                 rotation.to_bits().hash(state);
             }
-            NoShape => 99u8.hash(state),
         }
     }
 }

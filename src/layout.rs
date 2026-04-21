@@ -410,12 +410,19 @@ impl Ui {
                 if n > 0 {
                     content_size = with_arena(|arena| {
                         let spacing_x_frac_pre = self.pixels_to_frac(spacing_x, X);
+                        let spacing_y_frac_pre = self.pixels_to_frac(spacing_y, Y);
                         let n_columns = match columns {
                             MainAxisCellSize::Count(n) => (n as usize).max(1),
-                            MainAxisCellSize::Width(w) => {
-                                let w_frac = self.pixels_to_frac(w, X);
-                                ((size_to_propose.x + spacing_x_frac_pre) / (w_frac + spacing_x_frac_pre)).floor().max(1.0) as usize
-                            }
+                            MainAxisCellSize::Width(w) => match flow.main_axis {
+                                Axis::X => {
+                                    let w_frac = self.pixels_to_frac(w, X);
+                                    ((size_to_propose.x + spacing_x_frac_pre) / (w_frac + spacing_x_frac_pre)).floor().max(1.0) as usize
+                                }
+                                Axis::Y => {
+                                    let h_frac = self.pixels_to_frac(w, Y);
+                                    ((size_to_propose.y + spacing_y_frac_pre) / (h_frac + spacing_y_frac_pre)).floor().max(1.0) as usize
+                                }
+                            },
                         };
 
                         let mut occ = GridOccupancy::new(n_columns, arena);
@@ -436,7 +443,7 @@ impl Ui {
                         self.sys.nodes[i].grid_n_rows = n_rows as u16;
 
                         let spacing_x_frac = spacing_x_frac_pre;
-                        let spacing_y_frac = self.pixels_to_frac(spacing_y, Y);
+                        let spacing_y_frac = spacing_y_frac_pre;
 
                         let cell_w = ((size_to_propose.x - spacing_x_frac * (n_cols as f32 - 1.0)) / n_cols as f32).max(0.0);
                         let cell_h = ((size_to_propose.y - spacing_y_frac * (n_rows as f32 - 1.0)) / n_rows as f32).max(0.0);
