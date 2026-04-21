@@ -82,8 +82,8 @@ fn from_occ(line: usize, pos: usize, flow: GridFlow) -> (usize, usize) {
 
 /// Apply flow reversal: convert logical (col, row) to actual (col, row) for placement.
 fn apply_reversal(lc: usize, lr: usize, col_span: usize, row_span: usize, n_cols: usize, n_rows: usize, flow: GridFlow) -> (usize, usize) {
-    let ac = if flow.x_reversed { n_cols - col_span - lc } else { lc };
-    let ar = if flow.y_reversed { n_rows - row_span - lr } else { lr };
+    let ac = if flow.x_fill_direction == Direction::RightToLeft { n_cols - col_span - lc } else { lc };
+    let ar = if flow.y_fill_direction == Direction::RightToLeft { n_rows - row_span - lr } else { lr };
     (ac, ar)
 }
 
@@ -411,7 +411,7 @@ impl Ui {
                     content_size = with_arena(|arena| {
                         let spacing_x_frac_pre = self.pixels_to_frac(spacing_x, X);
                         let n_columns = match columns {
-                            MainAxisCellSize::Count(n) => n as usize,
+                            MainAxisCellSize::Count(n) => (n as usize).max(1),
                             MainAxisCellSize::Width(w) => {
                                 let w_frac = self.pixels_to_frac(w, X);
                                 ((size_to_propose.x + spacing_x_frac_pre) / (w_frac + spacing_x_frac_pre)).floor().max(1.0) as usize
@@ -420,8 +420,8 @@ impl Ui {
 
                         let mut occ = GridOccupancy::new(n_columns, arena);
                         for_each_child!(self, self.sys.nodes[i], child, {
-                            let col_span = self.sys.nodes[child].params.grid_element.column_span as usize;
-                            let row_span = self.sys.nodes[child].params.grid_element.row_span as usize;
+                            let col_span = (self.sys.nodes[child].params.grid_element.column_span as usize).max(1);
+                            let row_span = (self.sys.nodes[child].params.grid_element.row_span as usize).max(1);
                             let (sl, sp) = to_occ_spans(col_span, row_span, flow);
                             occ.place_next(sl, sp, flow.backfill);
                         });
@@ -445,8 +445,8 @@ impl Ui {
                         row_heights.resize(n_rows, 0.0f32);
                         let mut occ = GridOccupancy::new(n_columns, arena);
                         for_each_child!(self, self.sys.nodes[i], child, {
-                            let col_span = self.sys.nodes[child].params.grid_element.column_span as usize;
-                            let row_span = self.sys.nodes[child].params.grid_element.row_span as usize;
+                            let col_span = (self.sys.nodes[child].params.grid_element.column_span as usize).max(1);
+                            let row_span = (self.sys.nodes[child].params.grid_element.row_span as usize).max(1);
                             let (sl, sp) = to_occ_spans(col_span, row_span, flow);
                             let (line, pos) = occ.place_next(sl, sp, flow.backfill);
                             let (lc, lr) = from_occ(line, pos, flow);
@@ -704,7 +704,7 @@ impl Ui {
             let mut row_heights: BumpVec<f32> = BumpVec::new_in(arena);
             row_heights.resize(n_rows, 0.0f32);
             for_each_child!(self, self.sys.nodes[i], child, {
-                let row_span = self.sys.nodes[child].params.grid_element.row_span as usize;
+                let row_span = (self.sys.nodes[child].params.grid_element.row_span as usize).max(1);
                 let actual_row = self.sys.nodes[child].grid_element_row_i as usize;
                 let h_per_row = (self.sys.nodes[child].size.y - (row_span - 1) as f32 * spacing_y_frac) / row_span as f32;
                 for r in 0..row_span {

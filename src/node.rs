@@ -251,20 +251,26 @@ impl GridElement {
 /// Controls in which direction grid children are placed.
 ///
 /// `main_axis` determines whether items fill horizontally first (rows) or vertically first (columns).
-/// `x_reversed` places items right-to-left; `y_reversed` places items bottom-to-top.
+/// `x_fill_direction: Direction::RightToLeft` places items right-to-left; `y_fill_direction: Direction::RightToLeft` places items bottom-to-top.
 #[derive(Debug, Clone, Copy, Hash)]
 pub struct GridFlow {
     pub main_axis: Axis,
-    pub x_reversed: bool,
-    pub y_reversed: bool,
+    pub x_fill_direction: Direction,
+    pub y_fill_direction: Direction,
     /// If true, the placement algorithm restarts from the beginning of the grid for each item,
     /// filling gaps left by earlier items with spans (like `grid-auto-flow: dense` in CSS).
     /// If false, the cursor only moves forward and gaps are left unfilled.
     pub backfill: bool,
 }
 
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+pub enum Direction {
+    LeftToRight,
+    RightToLeft,
+}
+
 impl GridFlow {
-    pub const DEFAULT: Self = Self { main_axis: Axis::X, x_reversed: false, y_reversed: false, backfill: false };
+    pub const DEFAULT: Self = Self { main_axis: Axis::X, x_fill_direction: Direction::LeftToRight, y_fill_direction: Direction::LeftToRight, backfill: false };
 }
 
 /// Specifies how cells are sized along the main axis of a grid layout.
@@ -820,11 +826,7 @@ impl Node {
     }
 
     pub const fn grid(mut self, cells: MainAxisCellSize, spacing_x: f32, spacing_y: f32, flow: GridFlow) -> Self {
-        let mut columns = cells;
-        if let MainAxisCellSize::Count(n) = columns && n <= 0 {
-            columns = MainAxisCellSize::Count(1);
-        }
-        self.children_layout = ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow };
+        self.children_layout = ChildrenLayout::Grid { columns: cells, spacing_x, spacing_y, flow };
         return self;
     }
 

@@ -59,10 +59,10 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
             state.flow.main_axis = state.flow.main_axis.other();
         }
         if ui.is_clicked(TOGGLE_X) {
-            state.flow.x_reversed = !state.flow.x_reversed;
+            state.flow.x_fill_direction = if state.flow.x_fill_direction == Direction::LeftToRight { Direction::RightToLeft } else { Direction::LeftToRight };
         }
         if ui.is_clicked(TOGGLE_Y) {
-            state.flow.y_reversed = !state.flow.y_reversed;
+            state.flow.y_fill_direction = if state.flow.y_fill_direction == Direction::LeftToRight { Direction::RightToLeft } else { Direction::LeftToRight };
         }
         if ui.is_clicked(TOGGLE_BACKFILL) {
             state.flow.backfill = ! state.flow.backfill;
@@ -93,8 +93,8 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 
         let backfill_label = if state.flow.backfill { "Backfill: On" } else { "Backfill: Off" };
         let axis_label = match state.flow.main_axis { Axis::X => "Fill Rows First", Axis::Y => "Fill Columns First" };
-        let x_label = if state.flow.x_reversed { "Right to Left" } else { "Left to Right" };
-        let y_label = if state.flow.y_reversed { "Bottom to Top" } else { "Top to Bottom" };
+        let x_label = if state.flow.x_fill_direction == Direction::RightToLeft { "Right to Left" } else { "Left to Right" };
+        let y_label = if state.flow.y_fill_direction == Direction::RightToLeft { "Bottom to Top" } else { "Top to Bottom" };
         let columns_label = if state.use_n_columns { "Column size: specify Count" } else { "Column size: specify Width" };
 
         let columns = if state.use_n_columns { MainAxisCellSize::Count(state.n_columns as u32) } else { MainAxisCellSize::Width(state.column_width) };
