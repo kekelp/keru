@@ -2,10 +2,11 @@ use crate::*;
 use std::hash::Hasher;
 use std::panic::Location;
 use bytemuck::{Pod, Zeroable};
+use bumpalo::collections::Vec as BumpVec;
 
 /// An `u64` identifier for a GUI node.
 /// 
-/// Usually this is only used as part of [`NodeKey`] structs, which are created with the [`node_key`] macro or with [`NodeKey::sibling`].
+/// Usually this is only used as part of [`NodeKey`] structs, which are created with the [`node_key`] macro or with [`NodeKey::sibling()`].
 #[doc(hidden)]
 #[derive(Debug, Default, Clone, Copy, Hash, PartialEq, Eq, Pod, Zeroable)]
 #[repr(C)]
@@ -780,10 +781,10 @@ impl Ui {
 
     fn cleanup_and_stuff(&mut self) {
         with_arena(|a| {
-            let mut non_fresh_nodes = bumpalo::collections::Vec::with_capacity_in(20, a);
-            let mut to_cleanup = bumpalo::collections::Vec::with_capacity_in(20, a);
-            let mut hidden_branch_parents = bumpalo::collections::Vec::with_capacity_in(20, a);
-            let mut exiting_nodes = bumpalo::collections::Vec::with_capacity_in(20, a);
+            let mut non_fresh_nodes = BumpVec::with_capacity_in(20, a);
+            let mut to_cleanup = BumpVec::with_capacity_in(20, a);
+            let mut hidden_branch_parents = BumpVec::with_capacity_in(20, a);
+            let mut exiting_nodes = BumpVec::with_capacity_in(20, a);
 
             for i in self.sys.nodes.iter() {
                 let freshly_added = self.sys.nodes[i].last_frame_touched == self.sys.current_frame;
@@ -870,7 +871,7 @@ impl Ui {
         });
     }
 
-    fn add_branch_to_cleanup(&mut self, i: NodeI, vec: &mut bumpalo::collections::Vec<'_, NodeI>) {
+    fn add_branch_to_cleanup(&mut self, i: NodeI, vec: &mut BumpVec<'_, NodeI>) {
         vec.push(i);
         for_each_child!(self, self.sys.nodes[i], child, {
             self.add_branch_to_cleanup(child, vec);

@@ -1,5 +1,7 @@
 use glam::vec2;
 use keru_draw::StyleHandle;
+use bumpalo::collections::Vec as BumpVec;
+use bumpalo::collections::String as BumpString;
 
 use crate::*;
 use std::{hash::{Hash, Hasher}, ops::Range};
@@ -1605,11 +1607,11 @@ impl FullNode<'_> {
 
 type MarkdownStyleRange = (keru_draw::parley::StyleProperty<'static, ColorBrush>, Range<usize>);
 
-fn apply_markdown<'a>(text: &str, arena: &'a bumpalo::Bump) -> (bumpalo::collections::String<'a>, bumpalo::collections::Vec<'a, MarkdownStyleRange>) {
+fn apply_markdown<'a>(text: &str, arena: &'a bumpalo::Bump) -> (BumpString<'a>, BumpVec<'a, MarkdownStyleRange>) {
     use pulldown_cmark::{Event, Options, Parser, Tag, TagEnd};
 
-    let mut string = bumpalo::collections::String::with_capacity_in(text.len(), arena);
-    let mut style_ranges = bumpalo::collections::Vec::with_capacity_in(8, arena);
+    let mut string = BumpString::with_capacity_in(text.len(), arena);
+    let mut style_ranges = BumpVec::with_capacity_in(8, arena);
 
     let mut em_start: Option<usize> = None;
     let mut strong_start: Option<usize> = None;
@@ -1681,7 +1683,7 @@ impl Ui {
                     let (markdown_string, mut style_ranges) = if run_markdown {
                         apply_markdown(raw_text.as_str(), arena)
                     } else {
-                        (bumpalo::collections::String::new_in(arena), bumpalo::collections::Vec::new_in(arena))
+                        (BumpString::new_in(arena), BumpVec::new_in(arena))
                     };
                     let display_text: &str = if run_markdown { &markdown_string } else { raw_text.as_str() };
 
