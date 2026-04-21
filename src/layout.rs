@@ -369,9 +369,11 @@ impl Ui {
                 let mut available_size_left = size_to_propose;
                 let mut n_added_children = 0;
                 let mut n_fill_children = 0;
-                // First, do all non-Fill children
+                // First, do all non-Fill children (free_placement children are recursed but excluded from the stack flow)
                 for_each_child!(self, self.sys.nodes[i], child, {
-                    if self.sys.nodes[child].params.layout.size[axis] != Size::Fill {
+                    if self.sys.nodes[child].params.free_placement {
+                        self.recursive_determine_size_and_hidden(child, ProposedSizes::container(size_to_propose), children_can_hide);
+                    } else if self.sys.nodes[child].params.layout.size[axis] != Size::Fill {
                         let child_size = self.recursive_determine_size_and_hidden(child, ProposedSizes::stack(available_size_left, size_to_propose), children_can_hide);
                         content_size.update_for_child(child_size, Some(axis));
                         if n_added_children != 0 {
@@ -393,7 +395,7 @@ impl Ui {
 
                     size_per_child[axis] /= n_fill_children as f32;
                     for_each_child!(self, self.sys.nodes[i], child, {
-                        if self.sys.nodes[child].params.layout.size[axis] == Size::Fill {
+                        if !self.sys.nodes[child].params.free_placement && self.sys.nodes[child].params.layout.size[axis] == Size::Fill {
                             let child_size = self.recursive_determine_size_and_hidden(child, ProposedSizes::stack(size_per_child, size_to_propose), children_can_hide);
                             content_size.update_for_child(child_size, Some(axis));
                             if n_added_children != 0 {
@@ -427,10 +429,12 @@ impl Ui {
 
                         let mut occ = GridOccupancy::new(n_columns, arena);
                         for_each_child!(self, self.sys.nodes[i], child, {
-                            let col_span = (self.sys.nodes[child].params.grid_element.column_span as usize).max(1);
-                            let row_span = (self.sys.nodes[child].params.grid_element.row_span as usize).max(1);
-                            let (span_line, span_pos) = to_occ_spans(col_span, row_span, flow);
-                            occ.place_next(span_line, span_pos, flow.backfill);
+                            if !self.sys.nodes[child].params.free_placement {
+                                let col_span = (self.sys.nodes[child].params.grid_element.column_span as usize).max(1);
+                                let row_span = (self.sys.nodes[child].params.grid_element.row_span as usize).max(1);
+                                let (span_line, span_pos) = to_occ_spans(col_span, row_span, flow);
+                                occ.place_next(span_line, span_pos, flow.backfill);
+                            }
                         });
                         let n_cross = occ.n_lines;
 
@@ -452,27 +456,31 @@ impl Ui {
                         row_heights.resize(n_rows, 0.0f32);
                         let mut occ = GridOccupancy::new(n_columns, arena);
                         for_each_child!(self, self.sys.nodes[i], child, {
-                            let col_span = (self.sys.nodes[child].params.grid_element.column_span as usize).max(1);
-                            let row_span = (self.sys.nodes[child].params.grid_element.row_span as usize).max(1);
-                            let (span_line, span_pos) = to_occ_spans(col_span, row_span, flow);
-                            let (occ_line, occ_pos) = occ.place_next(span_line, span_pos, flow.backfill);
-                            let (logical_col, logical_row) = from_occ(occ_line, occ_pos, flow);
-                            let (actual_col, actual_row) = apply_reversal(logical_col, logical_row, col_span, row_span, n_cols, n_rows, flow);
+                            if self.sys.nodes[child].params.free_placement {
+                                self.recursive_determine_size_and_hidden(child, ProposedSizes::container(size_to_propose), children_can_hide);
+                            } else {
+                                let col_span = (self.sys.nodes[child].params.grid_element.column_span as usize).max(1);
+                                let row_span = (self.sys.nodes[child].params.grid_element.row_span as usize).max(1);
+                                let (span_line, span_pos) = to_occ_spans(col_span, row_span, flow);
+                                let (occ_line, occ_pos) = occ.place_next(span_line, span_pos, flow.backfill);
+                                let (logical_col, logical_row) = from_occ(occ_line, occ_pos, flow);
+                                let (actual_col, actual_row) = apply_reversal(logical_col, logical_row, col_span, row_span, n_cols, n_rows, flow);
 
-                            self.sys.nodes[child].grid_element_column_i = actual_col as u16;
-                            self.sys.nodes[child].grid_element_row_i = actual_row as u16;
+                                self.sys.nodes[child].grid_element_column_i = actual_col as u16;
+                                self.sys.nodes[child].grid_element_row_i = actual_row as u16;
 
-                            let child_cell_size = Xy::new(
-                                col_span as f32 * cell_w + (col_span - 1) as f32 * spacing_x_frac,
-                                row_span as f32 * cell_h + (row_span - 1) as f32 * spacing_y_frac,
-                            );
-                            let child_actual = self.recursive_determine_size_and_hidden(child, ProposedSizes::container(child_cell_size), children_can_hide);
+                                let child_cell_size = Xy::new(
+                                    col_span as f32 * cell_w + (col_span - 1) as f32 * spacing_x_frac,
+                                    row_span as f32 * cell_h + (row_span - 1) as f32 * spacing_y_frac,
+                                );
+                                let child_actual = self.recursive_determine_size_and_hidden(child, ProposedSizes::container(child_cell_size), children_can_hide);
 
-                            let h_per_row = (child_actual.y - (row_span - 1) as f32 * spacing_y_frac) / row_span as f32;
-                            for r in 0..row_span {
-                                let row = actual_row + r;
-                                if row < row_heights.len() {
-                                    row_heights[row] = row_heights[row].max(h_per_row);
+                                let h_per_row = (child_actual.y - (row_span - 1) as f32 * spacing_y_frac) / row_span as f32;
+                                for r in 0..row_span {
+                                    let row = actual_row + r;
+                                    if row < row_heights.len() {
+                                        row_heights[row] = row_heights[row].max(h_per_row);
+                                    }
                                 }
                             }
                         });
@@ -613,11 +621,15 @@ impl Ui {
         let spacing = self.pixels_to_frac(spacing, axis);
         
         // On the main axis, totally ignore the children's chosen Position's and place them according to our own Stack::Arrange value.
-        
-        let n = self.sys.nodes[i].n_children;
+        // free_placement children are excluded from the stack flow and placed freely instead.
+
+        let mut n: u16 = 0;
         let mut total_size = 0.0;
         for_each_child!(self, self.sys.nodes[i], child, {
-            total_size += self.sys.nodes[child].size[main];
+            if !self.sys.nodes[child].params.free_placement {
+                total_size += self.sys.nodes[child].size[main];
+                n += 1;
+            }
         });
 
         if n > 0 {
@@ -635,56 +647,61 @@ impl Ui {
         };
 
         for_each_child!(self, self.sys.nodes[i], child, {
-            let child_size = self.sys.nodes[child].size;
+            if self.sys.nodes[child].params.free_placement {
+                self.place_child_free(child, i);
+            } else {
+                let child_size = self.sys.nodes[child].size;
 
-            match self.sys.nodes[child].params.layout.position[cross] {
-                Pos::Center => {
-                    let origin = (stack_rect[cross][1] + stack_rect[cross][0]) / 2.0;
-                    self.sys.nodes[child].layout_rect[cross] = [
-                        origin - child_size[cross] / 2.0 ,
-                        origin + child_size[cross] / 2.0 ,
-                    ];  
-                },
-                Pos::Start => {
-                    let origin = stack_rect[cross][0] + padding[cross];
-                    self.sys.nodes[child].layout_rect[cross] = [origin, origin + child_size[cross]];
-                },
-                Pos::Pixels(pixels) => {
-                    let static_pos = self.pixels_to_frac(pixels, cross);
-                    let anchor_offset = match self.sys.nodes[child].params.layout.anchor[cross] {
-                        Anchor::Start => 0.0,
-                        Anchor::Center => -child_size[cross] / 2.0,
-                        Anchor::End => -child_size[cross],
-                        Anchor::Frac(f) => -child_size[cross] * f,
-                    };
-                    let origin = stack_rect[cross][0] + padding[cross] + static_pos + anchor_offset;
-                    self.sys.nodes[child].layout_rect[cross] = [origin, origin + child_size[cross]];
-                },
-                Pos::Frac(frac) => {
-                    let static_pos = frac * stack_rect.size()[cross];
-                    let anchor_offset = match self.sys.nodes[child].params.layout.anchor[cross] {
-                        Anchor::Start => 0.0,
-                        Anchor::Center => -child_size[cross] / 2.0,
-                        Anchor::End => -child_size[cross],
-                        Anchor::Frac(f) => -child_size[cross] * f,
-                    };
-                    let origin = stack_rect[cross][0] + padding[cross] + static_pos + anchor_offset;
-                    self.sys.nodes[child].layout_rect[cross] = [origin, origin + child_size[cross]];
-                },
-                Pos::End => {
-                    let origin = stack_rect[cross][1] - padding[cross];
-                    self.sys.nodes[child].layout_rect[cross] = [origin - child_size[cross], origin];
-                },
+                match self.sys.nodes[child].params.layout.position[cross] {
+                    Pos::Center => {
+                        let origin = (stack_rect[cross][1] + stack_rect[cross][0]) / 2.0;
+                        self.sys.nodes[child].layout_rect[cross] = [
+                            origin - child_size[cross] / 2.0 ,
+                            origin + child_size[cross] / 2.0 ,
+                        ];
+                    },
+                    Pos::Start => {
+                        let origin = stack_rect[cross][0] + padding[cross];
+                        self.sys.nodes[child].layout_rect[cross] = [origin, origin + child_size[cross]];
+                    },
+                    Pos::Pixels(pixels) => {
+                        let static_pos = self.pixels_to_frac(pixels, cross);
+                        let anchor_offset = match self.sys.nodes[child].params.layout.anchor[cross] {
+                            Anchor::Start => 0.0,
+                            Anchor::Center => -child_size[cross] / 2.0,
+                            Anchor::End => -child_size[cross],
+                            Anchor::Frac(f) => -child_size[cross] * f,
+                        };
+                        let origin = stack_rect[cross][0] + padding[cross] + static_pos + anchor_offset;
+                        self.sys.nodes[child].layout_rect[cross] = [origin, origin + child_size[cross]];
+                    },
+                    Pos::Frac(frac) => {
+                        let inner_size = stack_rect.size()[cross] - 2.0 * padding[cross];
+                        let static_pos = frac * inner_size;
+                        let anchor_offset = match self.sys.nodes[child].params.layout.anchor[cross] {
+                            Anchor::Start => 0.0,
+                            Anchor::Center => -child_size[cross] / 2.0,
+                            Anchor::End => -child_size[cross],
+                            Anchor::Frac(f) => -child_size[cross] * f,
+                        };
+                        let origin = stack_rect[cross][0] + padding[cross] + static_pos + anchor_offset;
+                        self.sys.nodes[child].layout_rect[cross] = [origin, origin + child_size[cross]];
+                    },
+                    Pos::End => {
+                        let origin = stack_rect[cross][1] - padding[cross];
+                        self.sys.nodes[child].layout_rect[cross] = [origin - child_size[cross], origin];
+                    },
+                }
+
+                self.sys.nodes[child].layout_rect[main] = [walking_position, walking_position + child_size[main]];
+
+                self.set_local_layout_rect(child, i);
+                self.init_enter_animations(child);
+
+                walking_position += self.sys.nodes[child].size[main] + spacing;
+
+                self.update_content_bounds(i, self.sys.nodes[child].layout_rect);
             }
-
-            self.sys.nodes[child].layout_rect[main] = [walking_position, walking_position + child_size[main]];
-
-            self.set_local_layout_rect(child, i);
-            self.init_enter_animations(child);
-
-            walking_position += self.sys.nodes[child].size[main] + spacing;
-
-            self.update_content_bounds(i, self.sys.nodes[child].layout_rect);
         });
 
         // self.set_children_scroll(i);
@@ -711,13 +728,15 @@ impl Ui {
             let mut row_heights: BumpVec<f32> = BumpVec::new_in(arena);
             row_heights.resize(n_rows, 0.0f32);
             for_each_child!(self, self.sys.nodes[i], child, {
-                let row_span = (self.sys.nodes[child].params.grid_element.row_span as usize).max(1);
-                let actual_row = self.sys.nodes[child].grid_element_row_i as usize;
-                let h_per_row = (self.sys.nodes[child].size.y - (row_span - 1) as f32 * spacing_y_frac) / row_span as f32;
-                for r in 0..row_span {
-                    let row = actual_row + r;
-                    if row < row_heights.len() {
-                        row_heights[row] = row_heights[row].max(h_per_row);
+                if !self.sys.nodes[child].params.free_placement {
+                    let row_span = (self.sys.nodes[child].params.grid_element.row_span as usize).max(1);
+                    let actual_row = self.sys.nodes[child].grid_element_row_i as usize;
+                    let h_per_row = (self.sys.nodes[child].size.y - (row_span - 1) as f32 * spacing_y_frac) / row_span as f32;
+                    for r in 0..row_span {
+                        let row = actual_row + r;
+                        if row < row_heights.len() {
+                            row_heights[row] = row_heights[row].max(h_per_row);
+                        }
                     }
                 }
             });
@@ -733,81 +752,83 @@ impl Ui {
 
             // Place children inside their assigned grid cell
             for_each_child!(self, self.sys.nodes[i], child, {
-                let actual_col = self.sys.nodes[child].grid_element_column_i as usize;
-                let actual_row = self.sys.nodes[child].grid_element_row_i as usize;
-                let child_size = self.sys.nodes[child].size;
+                if self.sys.nodes[child].params.free_placement {
+                    self.place_child_free(child, i);
+                } else {
+                    let actual_col = self.sys.nodes[child].grid_element_column_i as usize;
+                    let actual_row = self.sys.nodes[child].grid_element_row_i as usize;
+                    let child_size = self.sys.nodes[child].size;
 
-                let x0 = parent_rect.x[0] + padding.x + actual_col as f32 * (cell_w + spacing_x_frac);
-                let y0 = parent_rect.y[0] + padding.y + row_y_offsets[actual_row];
+                    let x0 = parent_rect.x[0] + padding.x + actual_col as f32 * (cell_w + spacing_x_frac);
+                    let y0 = parent_rect.y[0] + padding.y + row_y_offsets[actual_row];
 
-                self.sys.nodes[child].layout_rect.x = [x0, x0 + child_size.x];
-                self.sys.nodes[child].layout_rect.y = [y0, y0 + child_size.y];
+                    self.sys.nodes[child].layout_rect.x = [x0, x0 + child_size.x];
+                    self.sys.nodes[child].layout_rect.y = [y0, y0 + child_size.y];
 
-                self.set_local_layout_rect(child, i);
-                self.init_enter_animations(child);
-                self.update_content_bounds(i, self.sys.nodes[child].layout_rect);
+                    self.set_local_layout_rect(child, i);
+                    self.init_enter_animations(child);
+                    self.update_content_bounds(i, self.sys.nodes[child].layout_rect);
+                }
             });
         });
     }
 
-    fn place_children_free(&mut self, i: NodeI) {
+    fn place_child_free(&mut self, child: NodeI, parent: NodeI) {
+        let parent_rect = self.sys.nodes[parent].layout_rect;
+        let padding = self.pixels_to_frac2(self.sys.nodes[parent].params.layout.padding);
+        let child_size = self.sys.nodes[child].size;
 
-        let parent_rect = self.sys.nodes[i].layout_rect;
-
-        let padding = self.pixels_to_frac2(self.sys.nodes[i].params.layout.padding);
-
-        let mut origin = Xy::<f32>::default();
-
-        for_each_child!(self, self.sys.nodes[i], child, {
-            let child_size = self.sys.nodes[child].size;
-
-            // check the children's chosen Position's and place them.
-            for axis in [X, Y] {
-                match self.sys.nodes[child].params.layout.position[axis] {
-                    Pos::Start => {
-                        origin[axis] = parent_rect[axis][0] + padding[axis];
-                        self.sys.nodes[child].layout_rect[axis] = [origin[axis], origin[axis] + child_size[axis]];
-                    },
-                    Pos::Pixels(pixels) => {
-                        let static_pos = self.pixels_to_frac(pixels, axis);
-                        let anchor_offset = match self.sys.nodes[child].params.layout.anchor[axis] {
-                            Anchor::Start => 0.0,
-                            Anchor::Center => -child_size[axis] / 2.0,
-                            Anchor::End => -child_size[axis],
-                            Anchor::Frac(f) => -child_size[axis] * f,
-                        };
-                        origin[axis] = parent_rect[axis][0] + padding[axis] + static_pos + anchor_offset;
-                        self.sys.nodes[child].layout_rect[axis] = [origin[axis], origin[axis] + child_size[axis]];
-                    }
-                    Pos::Frac(frac) => {
-                        let static_pos = frac * parent_rect.size()[axis];
-                        let anchor_offset = match self.sys.nodes[child].params.layout.anchor[axis] {
-                            Anchor::Start => 0.0,
-                            Anchor::Center => -child_size[axis] / 2.0,
-                            Anchor::End => -child_size[axis],
-                            Anchor::Frac(f) => -child_size[axis] * f,
-                        };
-                        origin[axis] = parent_rect[axis][0] + padding[axis] + static_pos + anchor_offset;
-                        self.sys.nodes[child].layout_rect[axis] = [origin[axis], origin[axis] + child_size[axis]];
-                    }
-                    Pos::End => {
-                        origin[axis] = parent_rect[axis][1] - padding[axis];
-                        self.sys.nodes[child].layout_rect[axis] = [origin[axis] - child_size[axis], origin[axis]];
-                    },
-                    Pos::Center => {
-                        origin[axis] = (parent_rect[axis][0] + parent_rect[axis][1]) / 2.0;
-                        self.sys.nodes[child].layout_rect[axis] = [
-                            origin[axis] - child_size[axis] / 2.0 ,
-                            origin[axis] + child_size[axis] / 2.0 ,
-                        ];           
-                    },
+        for axis in [X, Y] {
+            match self.sys.nodes[child].params.layout.position[axis] {
+                Pos::Start => {
+                    let origin = parent_rect[axis][0] + padding[axis];
+                    self.sys.nodes[child].layout_rect[axis] = [origin, origin + child_size[axis]];
+                },
+                Pos::Pixels(pixels) => {
+                    let static_pos = self.pixels_to_frac(pixels, axis);
+                    let anchor_offset = match self.sys.nodes[child].params.layout.anchor[axis] {
+                        Anchor::Start => 0.0,
+                        Anchor::Center => -child_size[axis] / 2.0,
+                        Anchor::End => -child_size[axis],
+                        Anchor::Frac(f) => -child_size[axis] * f,
+                    };
+                    let origin = parent_rect[axis][0] + padding[axis] + static_pos + anchor_offset;
+                    self.sys.nodes[child].layout_rect[axis] = [origin, origin + child_size[axis]];
                 }
+                Pos::Frac(frac) => {
+                    let inner_size = parent_rect.size()[axis] - 2.0 * padding[axis];
+                    let static_pos = frac * inner_size;
+                    let anchor_offset = match self.sys.nodes[child].params.layout.anchor[axis] {
+                        Anchor::Start => 0.0,
+                        Anchor::Center => -child_size[axis] / 2.0,
+                        Anchor::End => -child_size[axis],
+                        Anchor::Frac(f) => -child_size[axis] * f,
+                    };
+                    let origin = parent_rect[axis][0] + padding[axis] + static_pos + anchor_offset;
+                    self.sys.nodes[child].layout_rect[axis] = [origin, origin + child_size[axis]];
+                }
+                Pos::End => {
+                    let origin = parent_rect[axis][1] - padding[axis];
+                    self.sys.nodes[child].layout_rect[axis] = [origin - child_size[axis], origin];
+                },
+                Pos::Center => {
+                    let origin = (parent_rect[axis][0] + parent_rect[axis][1]) / 2.0;
+                    self.sys.nodes[child].layout_rect[axis] = [
+                        origin - child_size[axis] / 2.0 ,
+                        origin + child_size[axis] / 2.0 ,
+                    ];
+                },
             }
+        }
 
-            self.set_local_layout_rect(child, i);
-            self.init_enter_animations(child);
+        self.set_local_layout_rect(child, parent);
+        self.init_enter_animations(child);
+        self.update_content_bounds(parent, self.sys.nodes[child].layout_rect);
+    }
 
-            self.update_content_bounds(i, self.sys.nodes[child].layout_rect);
+    fn place_children_free(&mut self, i: NodeI) {
+        for_each_child!(self, self.sys.nodes[i], child, {
+            self.place_child_free(child, i);
         });
     }
 

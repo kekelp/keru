@@ -61,6 +61,32 @@ impl NodeKey {
         self.sibling(value)
     }
 
+    /// Combine two keys into a new one`.
+    pub const fn mix(self, other: NodeKey) -> Self {
+        const FNV_OFFSET: u64 = 14695981039346656037;
+        const FNV_PRIME: u64 = 1099511628211;
+        let mut hash = FNV_OFFSET;
+        let mut i = 0;
+        let a = self.id.0.to_le_bytes();
+        let b = other.id.0.to_le_bytes();
+        while i < 8 {
+            hash ^= a[i] as u64;
+            hash = hash.wrapping_mul(FNV_PRIME);
+            i += 1;
+        }
+        i = 0;
+        while i < 8 {
+            hash ^= b[i] as u64;
+            hash = hash.wrapping_mul(FNV_PRIME);
+            i += 1;
+        }
+        return Self {
+            id: Id(hash),
+            debug_name: self.debug_name,
+            temp: self.temp,
+        };
+    }
+
     /// Create a key manually.
     /// 
     /// This is usually not needed: use the [`macro@node_key`] macro for static keys, and [`NodeKey::sibling`] for dynamic keys.

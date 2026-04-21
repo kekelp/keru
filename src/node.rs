@@ -60,6 +60,8 @@ pub struct Node {
     pub z_index: f32,
     /// If this node is a child of a Grid element, customize its positioning inside the grid.
     pub grid_element: GridElement,
+    /// If true and the parent uses Stack or Grid layout, this node ignores that layout and is placed freely within the parent instead.
+    pub free_placement: bool,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -562,6 +564,7 @@ impl Node {
         self.children_layout.hash(&mut hasher);
         self.text_params.hash(&mut hasher);
         self.grid_element.hash(&mut hasher);
+        self.free_placement.hash(&mut hasher);
         return hasher.finish();
     }
 
@@ -1063,6 +1066,11 @@ impl Node {
         self.interact.click_animation = value;
         return self;
     }
+
+    pub const fn free_placement(mut self, value: bool) -> Self {
+        self.free_placement = value;
+        return self;
+    }
 }
 
 
@@ -1492,6 +1500,11 @@ impl<'a> FullNode<'a> {
 
     pub const fn custom_render(mut self, value: bool) -> Self {
         self.node.custom_render = value;
+        return self;
+    }
+
+    pub const fn free_placement(mut self, value: bool) -> Self {
+        self.node.free_placement = value;
         return self;
     }
 }
