@@ -1020,16 +1020,13 @@ impl Ui {
         let scroll_handle_key = key.mix(SCROLL_HANDLE_Y);
         let (scroll_handle_i, scroll_handle_id) = self.add_or_update_node(scroll_handle_key);
 
-        let rail_key = NodeKey::new_temp(scroll_rail_id, "scroll rail");
-        let handle_key = NodeKey::new_temp(scroll_handle_id, "scroll handle");
-
         // todo: without the "! released", it gets stuck to the wide size after dragging.
-        let wide = self.is_hovered(rail_key).is_some()
-            || self.is_hovered(handle_key).is_some()
-            || self.is_dragged(handle_key).is_some()
-            || self.is_dragged(rail_key).is_some()
-            && ! self.is_drag_released(rail_key)
-            && ! self.is_drag_released(handle_key);
+        let wide = self.is_hovered(scroll_rail_key).is_some()
+            || self.is_hovered(scroll_handle_key).is_some()
+            || self.is_dragged(scroll_handle_key).is_some()
+            || self.is_dragged(scroll_rail_key).is_some()
+            && ! self.is_drag_released(scroll_rail_key)
+            && ! self.is_drag_released(scroll_handle_key);
         let width = if wide { 8.0 } else { 3.0 };
         let rail_width = if wide { 14.0 } else { 9.0 };
 
@@ -1106,9 +1103,9 @@ impl Ui {
 
         // Click or drag on rail: keep thumb centered at cursor position.
         let rail_cursor_y =
-            if let Some(click) = self.clicked_at(rail_key) {
+            if let Some(click) = self.clicked_at(scroll_rail_key) {
                 Some(click.relative_position.y)
-            } else if let Some(drag) = self.is_dragged(rail_key) {
+            } else if let Some(drag) = self.is_dragged(scroll_rail_key) {
                 Some(drag.relative_position.y)
             } else {
                 None
@@ -1122,7 +1119,7 @@ impl Ui {
             }
         }
 
-        if let Some(drag) = self.is_dragged(handle_key) {
+        if let Some(drag) = self.is_dragged(scroll_handle_key) {
             let container_rect = self.sys.nodes[container_i].layout_rect;
             let content_bounds = self.sys.nodes[container_i].content_bounds;
 
