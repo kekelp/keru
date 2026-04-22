@@ -18,6 +18,7 @@ pub(crate) const Z_START: f32 = 0.5;
 pub const Z_STEP: f32 = -0.000_030_517_578;
 
 pub(crate) const SCROLL_HANDLE_Y: NodeKey = NodeKey::new(Id(834694356), "[internal] Scroll Handle");
+pub(crate) const SCROLL_RAIL_Y: NodeKey = NodeKey::new(Id(834694357), "[internal] Scroll Rail");
 
 impl Ui {
     /// Add a node to the `Ui`.
@@ -1013,14 +1014,24 @@ impl Ui {
 
 
     pub(crate) fn add_scrollbar_y(&mut self, i: NodeI, key: NodeKey) {
+        let scroll_rail_key = key.mix(SCROLL_RAIL_Y);
+        let (scroll_rail_i, scroll_rail_id) = self.add_or_update_node(scroll_rail_key);
+
         let scroll_handle_key = key.mix(SCROLL_HANDLE_Y);
         let (scroll_handle_i, scroll_handle_id) = self.add_or_update_node(scroll_handle_key);
 
+        let rail_key = NodeKey::new_temp(scroll_rail_id, "scroll rail");
         let handle_key = NodeKey::new_temp(scroll_handle_id, "scroll handle");
 
         // todo: without the "! released", it gets stuck to the wide size after dragging.
-        let wide = self.is_hovered(handle_key).is_some() || self.is_dragged(handle_key).is_some() && ! self.is_drag_released(handle_key);
+        let wide = self.is_hovered(rail_key).is_some()
+            || self.is_hovered(handle_key).is_some()
+            || self.is_dragged(handle_key).is_some()
+            || self.is_dragged(rail_key).is_some()
+            && ! self.is_drag_released(rail_key)
+            && ! self.is_drag_released(handle_key);
         let width = if wide { 8.0 } else { 3.0 };
+        let rail_width = if wide { 14.0 } else { 9.0 };
 
         let container_rect = self.sys.nodes[i].layout_rect;
         let content_bounds = self.sys.nodes[i].content_bounds;
@@ -1029,7 +1040,7 @@ impl Ui {
         let container_h = container_rect.size().y;
         let content_h = content_bounds.size().y;
 
-        let (thumb_h_frac, thumb_top_frac) = if content_h > container_h && container_h > 0.0 {
+        let (thumb_h_frac, thumb_top_frac, max_scroll, scroll_range) = if content_h > container_h && container_h > 0.0 {
             let thumb_h = (container_h / content_h).clamp(0.05, 1.0);
 
             let min_scroll = if content_bounds.y[1] > container_rect.y[1] {
@@ -1050,15 +1061,37 @@ impl Ui {
                 0.0
             };
 
-            (thumb_h, progress * (1.0 - thumb_h))
+            (thumb_h, progress * (1.0 - thumb_h), max_scroll, scroll_range)
         } else {
-            (0.05, 0.0)
+            (0.05, 0.0, 0.0, 0.0)
         };
+
+        let rail_color = if wide { Color::rgba_u8(80, 80, 80, 60) } else { Color::TRANSPARENT };
+
+        let scroll_rail_params = PANEL
+            .shape(Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: rail_width / 2.0 })
+            .size(Size::Pixels(rail_width), Size::Frac(1.0))
+            .position_x(Pos::End)
+            .position_y(Pos::Start)
+            .anchor_y(Anchor::Start)
+            .sense_hover(true)
+            .sense_click(true)
+            .sense_drag(true)
+            .free_placement(true)
+            .color(rail_color);
+
+        self.set_params(scroll_rail_i, &scroll_rail_params.into());
+
+        // Center the thumb horizontally within the rail using Anchor::Frac.
+        // With Pos::Frac(1.0) the origin is at the container's right edge.
+        // anchor_offset = -width * f, so f = (rail_width + width) / (2 * width) puts the thumb center at rail center.
+        let thumb_anchor_x = Anchor::Frac((rail_width + width) / (2.0 * width));
 
         let scroll_handle_params = PANEL
             .shape(Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: width / 2.0 })
             .size(Size::Pixels(width), Size::Frac(thumb_h_frac))
-            .position_x(Pos::End)
+            .position_x(Pos::Frac(1.0))
+            .anchor_x(thumb_anchor_x)
             .position_y(Pos::Frac(thumb_top_frac))
             .anchor_y(Anchor::Start)
             .sense_drag(true)
@@ -1070,6 +1103,24 @@ impl Ui {
         self.set_params(scroll_handle_i, &scroll_handle_params.into());
 
         let container_i = i;
+
+        // Click or drag on rail: keep thumb centered at cursor position.
+        let rail_cursor_y =
+            if let Some(click) = self.clicked_at(rail_key) {
+                Some(click.relative_position.y)
+            } else if let Some(drag) = self.is_dragged(rail_key) {
+                Some(drag.relative_position.y)
+            } else {
+                None
+            };
+
+        if let Some(cursor_y) = rail_cursor_y {
+            if scroll_range < 0.0 {
+                let progress = ((cursor_y - thumb_h_frac / 2.0) / (1.0 - thumb_h_frac)).clamp(0.0, 1.0);
+                let target_scroll = max_scroll + progress * scroll_range;
+                self.update_container_scroll(container_i, target_scroll - scroll_y, Y);
+            }
+        }
 
         if let Some(drag) = self.is_dragged(handle_key) {
             let container_rect = self.sys.nodes[container_i].layout_rect;
