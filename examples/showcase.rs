@@ -111,9 +111,7 @@ impl UiExt for Ui {
     }
 
     fn text_tab(&mut self) {
-        let v_stack = V_SCROLL_STACK
-            .size_x(Frac(0.8))
-            .size_y(Size::Frac(0.7));
+        let v_stack = V_SCROLL_STACK.size_x(Frac(0.8)).size_y(Size::Fill);
 
         self.add(v_stack).nest(|| {
             self.add(LABEL.auto_markdown(true).static_text(

@@ -1014,20 +1014,13 @@ impl Ui {
 
 
     pub(crate) fn add_scrollbar_y(&mut self, i: NodeI, key: NodeKey) {
-        thread_local::push_parent(i, SiblingCursor::None, self.sys.unique_id);
-
         let scroll_rail_key = key.mix(SCROLL_RAIL_Y);
-        let (scroll_rail_i, _) = self.add_or_update_node(scroll_rail_key);
-
         let scroll_handle_key = key.mix(SCROLL_HANDLE_Y);
-        let (scroll_handle_i, _) = self.add_or_update_node(scroll_handle_key);
-
-        thread_local::pop_parent(self.sys.unique_id);
 
         // todo: without the "! released", it gets stuck to the wide size after dragging.
         let wide = self.is_hovered(scroll_rail_key).is_some() || self.is_hovered(scroll_handle_key).is_some()
-            || self.is_dragged(scroll_rail_key).is_some() && ! self.is_drag_released(scroll_rail_key)
-            || self.is_dragged(scroll_handle_key).is_some() && ! self.is_drag_released(scroll_handle_key);
+            || (self.is_dragged(scroll_rail_key).is_some() && ! self.is_drag_released(scroll_rail_key))
+            || (self.is_dragged(scroll_handle_key).is_some() && ! self.is_drag_released(scroll_handle_key));
 
         let width = if wide { 8.0 } else { 3.0 };
         let rail_width = if wide { 14.0 } else { 9.0 };
@@ -1065,6 +1058,14 @@ impl Ui {
             (0.05, 0.0, 0.0, 0.0)
         };
 
+        // todo why not just add()
+        thread_local::push_parent(i, SiblingCursor::None, self.sys.unique_id);
+
+        let (scroll_rail_i, _) = self.add_or_update_node(scroll_rail_key);
+        let (scroll_handle_i, _) = self.add_or_update_node(scroll_handle_key);
+
+        thread_local::pop_parent(self.sys.unique_id);
+
         let rail_color = if wide { Color::rgba_u8(80, 80, 80, 60) } else { Color::TRANSPARENT };
         let handle_color = if wide { Color::rgba_u8(80, 80, 80, 255) } else { Color::rgba_u8(80, 80, 80, 90) };
 
@@ -1089,17 +1090,17 @@ impl Ui {
         let scroll_handle_params = PANEL
             .shape(Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: width / 2.0 })
             .size(Size::Pixels(width), Size::Frac(thumb_h_frac))
-            .position_x(Pos::Frac(100.0))
+            .position_x(Pos::Frac(1.0))
             .anchor_x(thumb_anchor_x)
             .position_y(Pos::Frac(thumb_top_frac))
             .anchor_y(Anchor::Start)
             .sense_drag(true)
             .sense_hover(true)
-            .z_index(1.0)
+            .z_index(100.0)
             .animate_position(true)
             .free_placement(true)
             .ignore_parent_scroll(true)
-            .color(Color::GREEN);
+            .color(handle_color);
 
         self.set_params(scroll_handle_i, &scroll_handle_params.into());
 
