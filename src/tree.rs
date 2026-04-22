@@ -1015,18 +1015,16 @@ impl Ui {
 
     pub(crate) fn add_scrollbar_y(&mut self, i: NodeI, key: NodeKey) {
         let scroll_rail_key = key.mix(SCROLL_RAIL_Y);
-        let (scroll_rail_i, scroll_rail_id) = self.add_or_update_node(scroll_rail_key);
+        let (scroll_rail_i, _) = self.add_or_update_node(scroll_rail_key);
 
         let scroll_handle_key = key.mix(SCROLL_HANDLE_Y);
-        let (scroll_handle_i, scroll_handle_id) = self.add_or_update_node(scroll_handle_key);
+        let (scroll_handle_i, _) = self.add_or_update_node(scroll_handle_key);
 
         // todo: without the "! released", it gets stuck to the wide size after dragging.
         let wide = self.is_hovered(scroll_rail_key).is_some()
             || self.is_hovered(scroll_handle_key).is_some()
-            || self.is_dragged(scroll_handle_key).is_some()
-            || self.is_dragged(scroll_rail_key).is_some()
-            && ! self.is_drag_released(scroll_rail_key)
-            && ! self.is_drag_released(scroll_handle_key);
+            || self.is_dragged(scroll_rail_key).is_some() && ! self.is_drag_released(scroll_rail_key)
+            || self.is_dragged(scroll_handle_key).is_some() && ! self.is_drag_released(scroll_handle_key);
         let width = if wide { 8.0 } else { 3.0 };
         let rail_width = if wide { 14.0 } else { 9.0 };
 
@@ -1101,7 +1099,7 @@ impl Ui {
 
         let container_i = i;
 
-        // Click or drag on rail: keep thumb centered at cursor position.
+        // Click or drag on rail (outside the handle): snap/keep thumb centered at cursor position.
         let rail_cursor_y =
             if let Some(click) = self.clicked_at(scroll_rail_key) {
                 Some(click.relative_position.y)
@@ -1119,36 +1117,16 @@ impl Ui {
             }
         }
 
+        // Drag on handle: delta-based, no snapping.
         if let Some(drag) = self.is_dragged(scroll_handle_key) {
-            let container_rect = self.sys.nodes[container_i].layout_rect;
-            let content_bounds = self.sys.nodes[container_i].content_bounds;
-
-            let container_h = container_rect.size().y;
-            let content_h = content_bounds.size().y;
-
-            if content_h > container_h && container_h > 0.0 {
-                let thumb_h_frac = (container_h / content_h).clamp(0.05, 1.0);
+            if scroll_range < 0.0 {
                 let track_h = (1.0 - thumb_h_frac) * container_h;
-
-                let min_scroll = if content_bounds.y[1] > container_rect.y[1] {
-                    container_rect.y[1] - content_bounds.y[1]
-                } else {
-                    0.0
-                };
-                let max_scroll = if content_bounds.y[0] < container_rect.y[0] {
-                    container_rect.y[0] - content_bounds.y[0]
-                } else {
-                    0.0
-                };
-
-                let scroll_range = min_scroll - max_scroll;
                 let delta_norm = drag.absolute_delta.y / self.sys.size.y;
                 let scroll_delta = if track_h > 0.0 {
                     delta_norm / track_h * scroll_range
                 } else {
                     0.0
                 };
-
                 self.update_container_scroll(container_i, scroll_delta, Y);
             }
         }
