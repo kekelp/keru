@@ -1021,10 +1021,10 @@ impl Ui {
         let (scroll_handle_i, _) = self.add_or_update_node(scroll_handle_key);
 
         // todo: without the "! released", it gets stuck to the wide size after dragging.
-        let wide = self.is_hovered(scroll_rail_key).is_some()
-            || self.is_hovered(scroll_handle_key).is_some()
+        let wide = self.is_hovered(scroll_rail_key).is_some() || self.is_hovered(scroll_handle_key).is_some()
             || self.is_dragged(scroll_rail_key).is_some() && ! self.is_drag_released(scroll_rail_key)
             || self.is_dragged(scroll_handle_key).is_some() && ! self.is_drag_released(scroll_handle_key);
+
         let width = if wide { 8.0 } else { 3.0 };
         let rail_width = if wide { 14.0 } else { 9.0 };
 
@@ -1062,6 +1062,7 @@ impl Ui {
         };
 
         let rail_color = if wide { Color::rgba_u8(80, 80, 80, 60) } else { Color::TRANSPARENT };
+        let handle_color = if wide { Color::rgba_u8(80, 80, 80, 255) } else { Color::rgba_u8(80, 80, 80, 90) };
 
         let scroll_rail_params = PANEL
             .shape(Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: rail_width / 2.0 })
@@ -1099,26 +1100,7 @@ impl Ui {
 
         let container_i = i;
 
-        // Click or drag on rail (outside the handle): snap/keep thumb centered at cursor position.
-        let rail_cursor_y =
-            if let Some(click) = self.clicked_at(scroll_rail_key) {
-                Some(click.relative_position.y)
-            } else if let Some(drag) = self.is_dragged(scroll_rail_key) {
-                Some(drag.relative_position.y)
-            } else {
-                None
-            };
-
-        if let Some(cursor_y) = rail_cursor_y {
-            if scroll_range < 0.0 {
-                let progress = ((cursor_y - thumb_h_frac / 2.0) / (1.0 - thumb_h_frac)).clamp(0.0, 1.0);
-                let target_scroll = max_scroll + progress * scroll_range;
-                self.update_container_scroll(container_i, target_scroll - scroll_y, Y);
-            }
-        }
-
-        // Drag on handle: delta-based, no snapping.
-        if let Some(drag) = self.is_dragged(scroll_handle_key) {
+        if self.is_dragged(scroll_rail_key).is_none() && let Some(drag) = self.is_dragged(scroll_handle_key) {
             if scroll_range < 0.0 {
                 let track_h = (1.0 - thumb_h_frac) * container_h;
                 let delta_norm = drag.absolute_delta.y / self.sys.size.y;
@@ -1129,6 +1111,25 @@ impl Ui {
                 };
                 self.update_container_scroll(container_i, scroll_delta, Y);
             }
+        } else {
+
+            let rail_cursor_y =
+            if let Some(click) = self.clicked_at(scroll_rail_key) {
+                Some(click.relative_position.y)
+            } else if let Some(drag) = self.is_dragged(scroll_rail_key) {
+                Some(drag.relative_position.y)
+            } else {
+                None
+            };
+
+            if let Some(cursor_y) = rail_cursor_y {
+                if scroll_range < 0.0 {
+                    let progress = ((cursor_y - thumb_h_frac / 2.0) / (1.0 - thumb_h_frac)).clamp(0.0, 1.0);
+                    let target_scroll = max_scroll + progress * scroll_range;
+                    self.update_container_scroll(container_i, target_scroll - scroll_y, Y);
+                }
+            }
+
         }
     }
 }

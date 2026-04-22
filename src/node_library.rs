@@ -170,30 +170,30 @@ pub const V_SCROLL_STACK: Node = Node {
             axis: Axis::Y,
             spacing: 10.0,
         },
-        visible: true,
-            color: ColorFill::Color(Color::TRANSPARENT),
+    visible: true,
+    color: ColorFill::Color(Color::TRANSPARENT),
     stroke: None,
-        shape: DEBUG_ONLY_SHAPE,
-        interact: Interact {
-            senses: Sense::NONE,
-            absorbs_mouse_events: false,
-            click_animation: false,
-        },
-        layout: Layout {
-            size: Xy::new(Size::FitContent, Size::Fill),
-            padding: Xy::new_symm(0.0),
-            position: Xy::new_symm(Center),
-            anchor: Xy::new_symm(Anchor::Start),
-            scrollable: Xy::new(false, true),
-        },
-        children_can_hide: ChildrenCanHide::Inherit,
-        clip_children: Xy::new(false, true),
-        transform: Transform::IDENTITY,
+    shape: DEBUG_ONLY_SHAPE,
+    interact: Interact {
+        senses: Sense::NONE,
+        absorbs_mouse_events: false,
+        click_animation: false,
+    },
+    layout: Layout {
+        size: Xy::new(Size::FitContent, Size::Fill),
+        padding: Xy::new_symm(0.0),
+        position: Xy::new_symm(Center),
+        anchor: Xy::new_symm(Anchor::Start),
+        scrollable: Xy::new(false, true),
+    },
+    children_can_hide: ChildrenCanHide::Inherit,
+    clip_children: Xy::new(false, true),
+    transform: Transform::IDENTITY,
     custom_render: false,
     z_index: 0.0,
     grid_element: GridElement::ONE_BY_ONE,
     free_placement: false,
-    };
+};
 
 /// [`Node`] for a margin.
 pub const MARGIN: Node = Node {
