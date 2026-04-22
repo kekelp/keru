@@ -1014,11 +1014,15 @@ impl Ui {
 
 
     pub(crate) fn add_scrollbar_y(&mut self, i: NodeI, key: NodeKey) {
+        thread_local::push_parent(i, SiblingCursor::None, self.sys.unique_id);
+
         let scroll_rail_key = key.mix(SCROLL_RAIL_Y);
         let (scroll_rail_i, _) = self.add_or_update_node(scroll_rail_key);
 
         let scroll_handle_key = key.mix(SCROLL_HANDLE_Y);
         let (scroll_handle_i, _) = self.add_or_update_node(scroll_handle_key);
+
+        thread_local::pop_parent(self.sys.unique_id);
 
         // todo: without the "! released", it gets stuck to the wide size after dragging.
         let wide = self.is_hovered(scroll_rail_key).is_some() || self.is_hovered(scroll_handle_key).is_some()
@@ -1066,34 +1070,35 @@ impl Ui {
 
         let scroll_rail_params = PANEL
             .shape(Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: rail_width / 2.0 })
-            .size(Size::Pixels(rail_width), Size::Frac(1.0))
+            .size(Size::Pixels(rail_width), Size::Fill)
             .position_x(Pos::End)
             .position_y(Pos::Start)
             .anchor_y(Anchor::Start)
             .sense_hover(true)
             .sense_click(true)
             .sense_drag(true)
+            .z_index(100.0)
             .free_placement(true)
+            .ignore_parent_scroll(true)
             .color(rail_color);
 
         self.set_params(scroll_rail_i, &scroll_rail_params.into());
 
-        // Center the thumb horizontally within the rail using Anchor::Frac.
-        // With Pos::Frac(1.0) the origin is at the container's right edge.
-        // anchor_offset = -width * f, so f = (rail_width + width) / (2 * width) puts the thumb center at rail center.
         let thumb_anchor_x = Anchor::Frac((rail_width + width) / (2.0 * width));
 
         let scroll_handle_params = PANEL
             .shape(Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: width / 2.0 })
             .size(Size::Pixels(width), Size::Frac(thumb_h_frac))
-            .position_x(Pos::Frac(1.0))
+            .position_x(Pos::Frac(100.0))
             .anchor_x(thumb_anchor_x)
             .position_y(Pos::Frac(thumb_top_frac))
             .anchor_y(Anchor::Start)
             .sense_drag(true)
             .sense_hover(true)
+            .z_index(1.0)
             .animate_position(true)
             .free_placement(true)
+            .ignore_parent_scroll(true)
             .color(Color::GREEN);
 
         self.set_params(scroll_handle_i, &scroll_handle_params.into());

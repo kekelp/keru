@@ -310,11 +310,16 @@ impl Ui {
 
         // remove stack spacing
         if let ChildrenLayout::Stack { axis, spacing, .. } = self.sys.nodes[i].params.children_layout {
-            let n_children = self.sys.nodes[i].n_children as f32;
+            let mut n_stack_children: f32 = 0.0;
+            for_each_child!(self, self.sys.nodes[i], child, {
+                if !self.sys.nodes[child].params.free_placement {
+                    n_stack_children += 1.0;
+                }
+            });
             let spacing = self.pixels_to_frac(spacing, axis);
 
-            if n_children > 1.5 {
-                inner_size[axis] -= spacing * (n_children - 1.0);
+            if n_stack_children > 1.5 {
+                inner_size[axis] -= spacing * (n_stack_children - 1.0);
             }
         }
 
@@ -823,7 +828,9 @@ impl Ui {
 
         self.set_local_layout_rect(child, parent);
         self.init_enter_animations(child);
-        self.update_content_bounds(parent, self.sys.nodes[child].layout_rect);
+        if !self.sys.nodes[child].params.ignore_parent_scroll {
+            self.update_content_bounds(parent, self.sys.nodes[child].layout_rect);
+        }
     }
 
     fn place_children_free(&mut self, i: NodeI) {
@@ -1228,6 +1235,9 @@ impl Ui {
 
     pub(crate) fn local_node_scroll(&self, i: NodeI) -> Xy<f32> {
         if i == ROOT_I {
+            return Xy::new(0.0, 0.0);
+        }
+        if self.sys.nodes[i].params.ignore_parent_scroll {
             return Xy::new(0.0, 0.0);
         }
         let parent = self.sys.nodes[i].parent;

@@ -62,6 +62,8 @@ pub struct Node {
     pub grid_element: GridElement,
     /// If true and the parent uses Stack or Grid layout, this node ignores that layout and is placed freely within the parent instead.
     pub free_placement: bool,
+    /// If true, this node is not shifted by the parent's scroll offset.
+    pub ignore_parent_scroll: bool,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -1071,6 +1073,11 @@ impl Node {
         self.free_placement = value;
         return self;
     }
+
+    pub const fn ignore_parent_scroll(mut self, value: bool) -> Self {
+        self.ignore_parent_scroll = value;
+        return self;
+    }
 }
 
 
@@ -1505,6 +1512,11 @@ impl<'a> FullNode<'a> {
 
     pub const fn free_placement(mut self, value: bool) -> Self {
         self.node.free_placement = value;
+        return self;
+    }
+
+    pub const fn ignore_parent_scroll(mut self, value: bool) -> Self {
+        self.node.ignore_parent_scroll = value;
         return self;
     }
 }

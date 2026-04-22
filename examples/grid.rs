@@ -105,7 +105,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
             .padding(8.0);
 
         ui.add(H_STACK.position_y(Pos::Start)).nest(|| {
-            ui.add(V_SCROLL_STACK.position_y(Pos::Start).size_x(Size::Pixels(250.0))).nest(|| {
+            ui.add(V_SCROLL_STACK.padding_y(0.0).position_y(Pos::Start).size_x(Size::Pixels(250.0))).nest(|| {
 
                 ui.add(PANEL).nest(|| {
                     ui.add(V_STACK).nest(|| {
