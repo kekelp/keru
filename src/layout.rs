@@ -308,21 +308,6 @@ impl Ui {
             inner_size[axis] -= 2.0 * padding[axis];
         }
 
-        // remove stack spacing
-        if let ChildrenLayout::Stack { axis, spacing, .. } = self.sys.nodes[i].params.children_layout {
-            let mut n_stack_children: f32 = 0.0;
-            for_each_child!(self, self.sys.nodes[i], child, {
-                if !self.sys.nodes[child].params.free_placement {
-                    n_stack_children += 1.0;
-                }
-            });
-            let spacing = self.pixels_to_frac(spacing, axis);
-
-            if n_stack_children > 1.5 {
-                inner_size[axis] -= spacing * (n_stack_children - 1.0);
-            }
-        }
-
         return inner_size;
     }
 
@@ -371,12 +356,24 @@ impl Ui {
             ChildrenLayout::Stack { axis, spacing, arrange: _ } => {
                 let spacing = self.pixels_to_frac(spacing, axis);
 
+                // Subtract stack spacing
+                let mut n_stack_children: f32 = 0.0;
+                for_each_child!(self, self.sys.nodes[i], child, {
+                    if !self.sys.nodes[child].params.free_placement {
+                        n_stack_children += 1.0;
+                    }
+                });
                 let mut available_size_left = size_to_propose;
+                if n_stack_children > 1.5 {
+                    available_size_left[axis] -= spacing * (n_stack_children - 1.0);
+                }
+
                 let mut n_added_children = 0;
                 let mut n_fill_children = 0;
-                // First, do all non-Fill children (free_placement children are recursed but excluded from the stack flow)
+                // First, do all non-Fill children
                 for_each_child!(self, self.sys.nodes[i], child, {
                     if self.sys.nodes[child].params.free_placement {
+                        // (for free_placement children, do the recursion without partecipating in the stack calculation)
                         self.recursive_determine_size_and_hidden(child, ProposedSizes::container(size_to_propose), children_can_hide);
                     } else if self.sys.nodes[child].params.layout.size[axis] != Size::Fill {
                         let child_size = self.recursive_determine_size_and_hidden(child, ProposedSizes::stack(available_size_left, size_to_propose), children_can_hide);
