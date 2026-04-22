@@ -17,6 +17,8 @@ pub(crate) const FIRST_FRAME: u64 = 1;
 pub(crate) const Z_START: f32 = 0.5;
 pub const Z_STEP: f32 = -0.000_030_517_578;
 
+pub(crate) const SCROLL_HANDLE_Y: NodeKey = NodeKey::new(Id(834694356), "[internal] Scroll Handle");
+
 impl Ui {
     /// Add a node to the `Ui`.
     /// 
@@ -41,6 +43,11 @@ impl Ui {
         let (i, _id) = self.add_or_update_node(key);
         self.set_params(i, &params);
         self.set_params_text(i, &params);
+
+        if params.node.layout.scrollable.y {
+            self.add_scrollbar_y(i, key);
+        }
+
         return UiParent { i, sibling_cursor: SiblingCursor::None, ui_instance_id: self.sys.unique_id };
     }
 
@@ -1002,6 +1009,101 @@ impl Ui {
         });
 
         prefix.truncate(old_len);
+    }
+
+
+    pub(crate) fn add_scrollbar_y(&mut self, i: NodeI, key: NodeKey) {
+        let scroll_handle_key = key.mix(SCROLL_HANDLE_Y);
+        let (scroll_handle_i, scroll_handle_id) = self.add_or_update_node(scroll_handle_key);
+
+        let handle_key = NodeKey::new_temp(scroll_handle_id, "scroll handle");
+
+        // todo: without the "! released", it gets stuck to the wide size after dragging.
+        let wide = self.is_hovered(handle_key).is_some() || self.is_dragged(handle_key).is_some() && ! self.is_drag_released(handle_key);
+        let width = if wide { 8.0 } else { 3.0 };
+
+        let container_rect = self.sys.nodes[i].layout_rect;
+        let content_bounds = self.sys.nodes[i].content_bounds;
+        let scroll_y = self.sys.nodes[i].scroll.relative_offset.y;
+
+        let container_h = container_rect.size().y;
+        let content_h = content_bounds.size().y;
+
+        let (thumb_h_frac, thumb_top_frac) = if content_h > container_h && container_h > 0.0 {
+            let thumb_h = (container_h / content_h).clamp(0.05, 1.0);
+
+            let min_scroll = if content_bounds.y[1] > container_rect.y[1] {
+                container_rect.y[1] - content_bounds.y[1]
+            } else {
+                0.0
+            };
+            let max_scroll = if content_bounds.y[0] < container_rect.y[0] {
+                container_rect.y[0] - content_bounds.y[0]
+            } else {
+                0.0
+            };
+
+            let scroll_range = min_scroll - max_scroll;
+            let progress = if scroll_range < 0.0 {
+                ((scroll_y - max_scroll) / scroll_range).clamp(0.0, 1.0)
+            } else {
+                0.0
+            };
+
+            (thumb_h, progress * (1.0 - thumb_h))
+        } else {
+            (0.05, 0.0)
+        };
+
+        let scroll_handle_params = PANEL
+            .shape(Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: width / 2.0 })
+            .size(Size::Pixels(width), Size::Frac(thumb_h_frac))
+            .position_x(Pos::End)
+            .position_y(Pos::Frac(thumb_top_frac))
+            .anchor_y(Anchor::Start)
+            .sense_drag(true)
+            .sense_hover(true)
+            .animate_position(true)
+            .free_placement(true)
+            .color(Color::GREEN);
+
+        self.set_params(scroll_handle_i, &scroll_handle_params.into());
+
+        let container_i = i;
+
+        if let Some(drag) = self.is_dragged(handle_key) {
+            let container_rect = self.sys.nodes[container_i].layout_rect;
+            let content_bounds = self.sys.nodes[container_i].content_bounds;
+
+            let container_h = container_rect.size().y;
+            let content_h = content_bounds.size().y;
+
+            if content_h > container_h && container_h > 0.0 {
+                let thumb_h_frac = (container_h / content_h).clamp(0.05, 1.0);
+                let track_h = (1.0 - thumb_h_frac) * container_h;
+
+                let min_scroll = if content_bounds.y[1] > container_rect.y[1] {
+                    container_rect.y[1] - content_bounds.y[1]
+                } else {
+                    0.0
+                };
+                let max_scroll = if content_bounds.y[0] < container_rect.y[0] {
+                    container_rect.y[0] - content_bounds.y[0]
+                } else {
+                    0.0
+                };
+
+                let scroll_range = min_scroll - max_scroll;
+                let delta_norm = drag.absolute_delta.y / self.sys.size.y;
+                let scroll_delta = if track_h > 0.0 {
+                    delta_norm / track_h * scroll_range
+                } else {
+                    0.0
+                };
+
+                self.update_container_scroll(container_i, scroll_delta, Y);
+            }
+        }
     }
 }
 

@@ -810,7 +810,6 @@ impl Ui {
             current_child = next;
         }
     }
-
 }
 
 // todo probably doesn't need to be public anymore? As long as we use the trait

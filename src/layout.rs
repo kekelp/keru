@@ -1324,7 +1324,7 @@ impl Xy<f32> {
 // todo remove?
 #[derive(Debug)]
 pub(crate) struct Scroll {
-    relative_offset: Xy<f32>,
+    pub(crate) relative_offset: Xy<f32>,
 }
 impl Scroll {
     pub const ZERO: Scroll = Scroll {
