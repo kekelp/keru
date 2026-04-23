@@ -332,6 +332,7 @@ impl UiExt for Ui {
                         dash_length: None,
                         dash_offset: 0.0,
                         texture: None,
+                        blur: 0.0,
                     });
                 }
             });
@@ -377,6 +378,7 @@ impl UiExt for Ui {
                                     p2: [120.0, mid_y],
                                     thickness: 4.0,
                                     color: Color::KERU_PINK,
+                                    blur: 0.0,
                                 },
                                 QuadraticBezier {
                                     p0: [120.0, mid_y],
@@ -384,6 +386,7 @@ impl UiExt for Ui {
                                     p2: [200.0, mid_y],
                                     thickness: 4.0,
                                     color: Color::KERU_GREEN,
+                                    blur: 0.0,
                                 },
                                 QuadraticBezier {
                                     p0: [200.0, mid_y],
@@ -391,6 +394,7 @@ impl UiExt for Ui {
                                     p2: [320.0, mid_y],
                                     thickness: 4.0,
                                     color: Color::KERU_BLUE,
+                                    blur: 0.0,
                                 },
                                 QuadraticBezier {
                                     p0: [320.0, mid_y],
@@ -398,6 +402,7 @@ impl UiExt for Ui {
                                     p2: [400.0, mid_y],
                                     thickness: 4.0,
                                     color: Color::KERU_GREEN,
+                                    blur: 0.0,
                                 },
                             ];
 
