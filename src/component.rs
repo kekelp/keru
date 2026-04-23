@@ -3,56 +3,79 @@ use keru::*;
 use std::{any::TypeId, collections::hash_map::Entry};
 
 
-/// A simpler version of [`Component`] for stateless components that don't have nested children.
+/// Trait for a reusable Ui component.
+///
+/// This trait is simpler version of [`Component`] for simple components that don't use [`Component::State`], [`Component::AddResult`] or [`Component::ComponentOutput`].
 pub trait SimpleComponent {
+    /// Add the component's nodes to the `Ui` and run any side effects.
+    /// 
+    /// When the component's user calls [`Ui::add_component()`], the [`Ui`] will do some setup, then call this function.
     fn add_to_ui(&mut self, ui: &mut Ui);
-
-    fn component_key(&self) -> Option<ComponentKey<Self>> {
-        None
-    }
 }
 
 /// Trait for a reusable Ui component.
 pub trait Component {
-    type AddResult;
-    type ComponentOutput;
+    /// State that the [`Ui`] will automatically associate with each instance of this component.
+    /// 
+    /// If you don't need this, you can set it to the empty type `()`. Unfortunately, Rust doesn't allow traits to provide default values for their associated types.
+    /// Consider also using [`SimpleComponent`].
     type State: Default + 'static;
 
-    /// Add the component's nodes to the `Ui`.
+    /// The type returned by [`Component::add_to_ui()`]. The component user will receive it back when calling [`Ui::add_component()`].
     /// 
-    /// When the component's user calls [`Ui::add_component()`], the `Ui` will get or initialize the component's state, setup a private key subtree for it, then call this function.
+    /// It can be used in two main ways:
+    /// - return an [`UiParent`] to allow the component user to nest children into one of the element's nodes.
+    /// - return the result of the app user's interaction with a node within the component.
+    /// 
+    /// If you don't need this, you can set it to the empty type `()`. Unfortunately, Rust doesn't allow traits to provide default values for their associated types.
+    /// Consider also using [`SimpleComponent`].
+    type AddResult;
+
+    /// The type returned by [`Component::run_component()`]. The component user will receive it back when calling [`Ui::run_component()`].
+    /// 
+    /// If you don't need this, you can set it to the empty type `()`. Unfortunately, Rust doesn't allow traits to provide default values for their associated types.
+    /// Consider also using [`SimpleComponent`].
+    type ComponentOutput;
+
+    /// Add the component's nodes to the `Ui` and run any side effects.
+    /// 
+    /// When the component's user calls [`Ui::add_component()`], the [`Ui`] will do some setup, then call this function.
+    /// 
+    /// If [`Component::State`] is not `()`, the [`Ui`] will initialize it as `Default` it when the component is first added, store it in its internal memory, and pass it to this function every time it's called. Then, it will drop the value when the component is removed from the tree.
+    /// 
+    /// If the same Component is added to the Ui multiple times in the same frame, each instance will get its own "private key space", so [`NodeKeys`] used inside this functions will "just work" without conflicts.
     fn add_to_ui(&mut self, ui: &mut Ui, state: &mut Self::State) -> Self::AddResult;
 
-    /// Run some extra logic for the component.
+    /// Allow a component to be associated with a key. This will allow code in [`Component::run_component()`] to enter the component's "key space" and access its nodes using the same keys used in the [`Component::add_to_ui()`].
     /// 
-    /// In advanced components, this can be used in different ways: 
+    /// Without this system, if we used the same `Component` multiple times, its internal keys would become ambiguous and it would be impossible to refer to them from outside.
     /// 
-    /// - get an output value out of the component, such as whether an internal node is clicked, 
     /// 
-    /// - adjust the component based on the children that have been added to it.
-    /// 
-    /// See the "drag_and_drop_component" example for an example of a component that uses these techniques.
-    fn run_component(_ui: &mut Ui) -> Option<Self::ComponentOutput> {
+    fn component_key(&self) -> Option<ComponentKey<Self>> {
         None
     }
 
-    /// Allow 
-    fn component_key(&self) -> Option<ComponentKey<Self>> {
+    /// Enter a component's space and run some additional logic for it. Requires [`Component::component_key()`] 
+    /// 
+    /// The user can call [`ui.run_component(key)`](`Ui::run_component()`) with the same key 
+    /// 
+    /// In advanced components, this can be used in different ways, such as adjusting the component based on the children that have been added to it.
+    /// 
+    /// It's also possible to enter the component space manually 
+    /// 
+    /// See the "drag_and_drop_component" example for an example.
+    fn run_component(_ui: &mut Ui) -> Option<Self::ComponentOutput> {
         None
     }
 }
 
 impl<T: SimpleComponent> Component for T {
     type AddResult = ();
-    type ComponentOutput = ();
     type State = ();
+    type ComponentOutput = ();
 
     fn add_to_ui(&mut self, ui: &mut Ui, _state: &mut Self::State) -> Self::AddResult {
         SimpleComponent::add_to_ui(self, ui)
-    }
-
-    fn component_key(&self) -> Option<ComponentKey<Self>> {
-        SimpleComponent::component_key(self)
     }
 }
 
@@ -117,7 +140,7 @@ impl Ui {
     /// - as a way to return a value from the component, such as whether an internal button is clicked.
     /// 
     /// - to modify the component after it has been added, for example after children have been added to it. 
-    pub fn run_component<T: Component>(&mut self, component_key: ComponentKey<T>) -> Option<T::ComponentOutput> {
+    pub fn run_component<T: Component>(&mut self, component_key: ComponentKey<T>) -> Option<T::ComponentOutput>{
         // No twinning here, so use this old closure one.
         self.component_key_subtree(component_key).start(|| {
             T::run_component(self)
