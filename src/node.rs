@@ -44,6 +44,7 @@ pub struct Node {
     pub text_params: TextOptions,
     pub children_layout: ChildrenLayout,
     pub shape: Shape,
+    pub blur: Option<f32>,
     pub stroke: Option<Stroke>,
     pub color: ColorFill,
     pub visible: bool, // skip both the shape, node and text
@@ -715,6 +716,11 @@ impl Node {
         return self;
     }
 
+    pub const fn blur(mut self, radius: f32) -> Self {
+        self.blur = Some(radius);
+        return self;
+    }
+
     pub const fn filled(mut self) -> Self {
         self.stroke = None;
         return self;
@@ -1195,6 +1201,11 @@ impl<'a> FullNode<'a> {
     }
     pub const fn invisible(mut self) -> Self {
         self.node.visible = false;
+        return self;
+    }
+
+    pub const fn blur(mut self, radius: f32) -> Self {
+        self.node.blur = Some(radius);
         return self;
     }
 

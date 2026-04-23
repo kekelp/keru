@@ -175,6 +175,7 @@ impl UiExt for Ui {
                 .static_text("Button example 2")
                 .color(Color::KERU_PINK)
                 .stroke(3.0)
+                .blur(5.0)
                 .stroke_color(Color::RED)
                 .shape(Shape::Rectangle {
                     rounded_corners: RoundedCorners::TOP_LEFT | RoundedCorners::BOTTOM_RIGHT,

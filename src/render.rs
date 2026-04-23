@@ -130,6 +130,7 @@ impl Ui {
     pub(crate) fn render_node_shape_to_scene(&mut self, i: NodeI, texture: Option<LoadedImage>, debug_box: bool) {
         let node = &self.sys.nodes[i];
 
+        let blur = node.params.blur.unwrap_or(0.0);
         // Get rect in normalized space (0-1)
         let animated_rect = node.get_animated_rect();
 
@@ -214,7 +215,7 @@ impl Ui {
                         border_thickness: 0.0,
                         fill,
                         texture,
-                        blur: 0.0,
+                        blur,
                     });
                 }
                 if let Some(stroke) = stroke {
@@ -232,7 +233,7 @@ impl Ui {
                             thickness: stroke.width,
                             color: stroke_color,
                             dash_length: stroke.dash_length,
-                            blur: 0.0,
+                            blur,
                         });
                     } else {
                         // Solid stroke
@@ -244,7 +245,7 @@ impl Ui {
                             border_thickness: stroke.width,
                             fill: stroke_fill,
                             texture: None,
-                            blur: 0.0,
+                            blur,
                         });
                     }
                 }
@@ -260,7 +261,7 @@ impl Ui {
                         radius,
                         fill,
                         texture,
-                        blur: 0.0,
+                        blur,
                     });
                 }
                 if let Some(stroke) = stroke {
@@ -274,7 +275,7 @@ impl Ui {
                         texture: None,
                         dash_length,
                         dash_offset: 0.0,
-                        blur: 0.0,
+                        blur,
                     });
                 }
             }
@@ -292,7 +293,7 @@ impl Ui {
                     texture,
                     dash_length,
                     dash_offset: 0.0,
-                    blur: 0.0,
+                    blur,
                 });
             }
             Shape::Arc { start_angle, end_angle, width } => {
@@ -310,7 +311,7 @@ impl Ui {
                     texture,
                     dash_length,
                     dash_offset: 0.0,
-                    blur: 0.0,
+                    blur,
                 });
             }
             Shape::Pie { start_angle, end_angle } => {
@@ -324,7 +325,7 @@ impl Ui {
                     end_angle: *end_angle,
                     fill,
                     texture,
-                    blur: 0.0,
+                    blur,
                 });
             }
             Shape::Segment { start, end, dash_length } => {
@@ -341,7 +342,7 @@ impl Ui {
                     dash_length: *dash_length,
                     dash_offset: 0.0,
                     texture,
-                    blur: 0.0,
+                    blur,
                 });
             }
             Shape::HorizontalLine => {
@@ -356,7 +357,7 @@ impl Ui {
                     dash_length,
                     dash_offset: 0.0,
                     texture,
-                    blur: 0.0,
+                    blur,
                 });
             }
             Shape::VerticalLine => {
@@ -371,7 +372,7 @@ impl Ui {
                     dash_length,
                     dash_offset: 0.0,
                     texture,
-                    blur: 0.0,
+                    blur,
                 });
             }
             Shape::Triangle { rotation, width } => {
@@ -402,7 +403,7 @@ impl Ui {
                     p2: [p2_x, p2_y],
                     fill,
                     texture,
-                    blur: 0.0,
+                    blur,
                 });
             }
             Shape::SquareGrid { lattice_size, offset, line_thickness } => {
@@ -419,7 +420,7 @@ impl Ui {
                     color: grid_color,
                     grid_type: keru_draw::GridType::Square,
                     texture,
-                    blur: 0.0,
+                    blur,
                 });
             }
             Shape::HexGrid { lattice_size, offset, line_thickness } => {
@@ -436,7 +437,7 @@ impl Ui {
                     color: grid_color,
                     grid_type: keru_draw::GridType::Hexagonal,
                     texture,
-                    blur: 0.0,
+                    blur,
                 });
             }
             Shape::Hexagon { size, rotation } => {
@@ -453,7 +454,7 @@ impl Ui {
                         fill,
                         stroke_thickness: 0.0,
                         texture,
-                        blur: 0.0,
+                        blur,
                     });
                 }
                 if let Some(stroke) = stroke {
@@ -471,7 +472,7 @@ impl Ui {
                             thickness: stroke.width,
                             color: stroke_color,
                             dash_length: stroke.dash_length,
-                            blur: 0.0,
+                            blur,
                         });
                     } else {
                         // Solid stroke
@@ -482,7 +483,7 @@ impl Ui {
                             fill: stroke_fill,
                             stroke_thickness: stroke.width,
                             texture: None,
-                            blur: 0.0,
+                            blur,
                         });
                     }
                 }
