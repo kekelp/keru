@@ -42,6 +42,8 @@ pub(crate) const NODE_ROOT_PARAMS: Node = Node {
     color: ColorFill::Color(Color::TRANSPARENT),
     shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: DEFAULT_CORNER_RADIUS },
     blur: None,
+    shadow: None,
+    second_shadow: None,
     interact: Interact {
         senses: Sense::NONE,
         absorbs_mouse_events: false,
@@ -74,6 +76,8 @@ pub const DEFAULT: Node = Node {
     color: ColorFill::Color(Color::KERU_BLUE),
     shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: DEFAULT_CORNER_RADIUS },
     blur: None,
+    shadow: None,
+    second_shadow: None,
     interact: Interact {
         senses: Sense::NONE,
         absorbs_mouse_events: false,
@@ -110,6 +114,8 @@ pub const V_STACK: Node = Node {
     stroke: None,
     shape: DEBUG_ONLY_SHAPE,
     blur: None,
+    shadow: None,
+    second_shadow: None,
     interact: Interact {
         senses: Sense::NONE,
         absorbs_mouse_events: false,
@@ -146,6 +152,8 @@ pub const H_STACK: Node = Node {
     stroke: None,
     shape: DEBUG_ONLY_SHAPE,
     blur: None,
+    shadow: None,
+    second_shadow: None,
     interact: Interact {
         senses: Sense::NONE,
         absorbs_mouse_events: false,
@@ -183,6 +191,8 @@ pub const V_SCROLL_STACK: Node = Node {
     stroke: None,
     shape: DEBUG_ONLY_SHAPE,
     blur: None,
+    shadow: None,
+    second_shadow: None,
     interact: Interact {
         senses: Sense::NONE,
         absorbs_mouse_events: false,
@@ -216,6 +226,8 @@ pub const MARGIN: Node = Node {
     stroke: None,
     shape: DEBUG_ONLY_SHAPE,
     blur: None,
+    shadow: None,
+    second_shadow: None,
     interact: Interact {
         senses: Sense::NONE,
         absorbs_mouse_events: false,
@@ -248,6 +260,8 @@ pub const ICON_BUTTON: Node = Node {
     color: ColorFill::Color(Color::WHITE),
     shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: 0.0 },
     blur: None,
+    shadow: None,
+    second_shadow: None,
     interact: Interact {
         senses: Sense::CLICK.union(Sense::CLICK_RELEASE),
         absorbs_mouse_events: true,
@@ -280,6 +294,8 @@ pub const IMAGE: Node = Node {
     color: ColorFill::Color(Color::WHITE),
     shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: DEFAULT_CORNER_RADIUS },
     blur: None,
+    shadow: None,
+    second_shadow: None,
     interact: Interact {
         senses: Sense::NONE,
         absorbs_mouse_events: true,
@@ -312,6 +328,8 @@ pub const IMAGE_BUTTON: Node = Node {
     color: ColorFill::Color(Color::WHITE),
     shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: DEFAULT_CORNER_RADIUS },
     blur: None,
+    shadow: None,
+    second_shadow: None,
     interact: Interact {
         senses: Sense::CLICK.union(Sense::CLICK_RELEASE),
         absorbs_mouse_events: true,
@@ -351,6 +369,8 @@ pub const BUTTON: Node = Node {
     color: ColorFill::Color(Color::KERU_PINK),
     shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: DEFAULT_CORNER_RADIUS },
     blur: None,
+    shadow: None,
+    second_shadow: None,
     interact: Interact {
         senses: Sense::CLICK.union(Sense::CLICK_RELEASE),
         absorbs_mouse_events: true,
@@ -390,6 +410,8 @@ pub const LABEL: Node = Node {
     color: Color::KERU_GRAD,
     shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: DEFAULT_CORNER_RADIUS },
     blur: None,
+    shadow: None,
+    second_shadow: None,
     interact: Interact {
         senses: Sense::NONE,
         absorbs_mouse_events: true,
@@ -430,6 +452,8 @@ pub const MULTILINE_LABEL: Node = Node {
     color: Color::KERU_GRAD,
     shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: DEFAULT_CORNER_RADIUS },
     blur: None,
+    shadow: None,
+    second_shadow: None,
     interact: Interact {
         senses: Sense::NONE,
         absorbs_mouse_events: true,
@@ -470,6 +494,8 @@ pub const TEXT: Node = Node {
     stroke: None,
     shape: DEBUG_ONLY_SHAPE,
     blur: None,
+    shadow: None,
+    second_shadow: None,
     interact: Interact {
         senses: Sense::NONE,
         absorbs_mouse_events: false,
@@ -503,6 +529,8 @@ pub const ICON: Node = Node {
     color: ColorFill::Color(Color::WHITE),
     shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: 0.0 },
     blur: None,
+    shadow: None,
+    second_shadow: None,
     interact: Interact {
         senses: Sense::NONE,
         absorbs_mouse_events: false,
@@ -543,6 +571,8 @@ pub const TEXT_EDIT: Node = Node {
     color: ColorFill::Color(Color::GREY),
     shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: DEFAULT_CORNER_RADIUS },
     blur: None,
+    shadow: None,
+    second_shadow: None,
     interact: Interact {
         senses: Sense::CLICK,
         absorbs_mouse_events: true,
@@ -583,6 +613,8 @@ pub const TEXT_EDIT_LINE: Node = Node {
     color: ColorFill::Color(Color::GREY),
     shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: DEFAULT_CORNER_RADIUS },
     blur: None,
+    shadow: None,
+    second_shadow: None,
     interact: Interact {
         senses: Sense::CLICK,
         absorbs_mouse_events: true,
@@ -623,6 +655,8 @@ pub const TEXT_PARAGRAPH: Node = Node {
     stroke: None,
     shape: DEBUG_ONLY_SHAPE,
     blur: None,
+    shadow: None,
+    second_shadow: None,
     interact: Interact {
         senses: Sense::NONE,
         absorbs_mouse_events: false,
@@ -656,6 +690,8 @@ pub const PANEL: Node = Node {
     color: Color::KERU_GRAD_FW,
     shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: DEFAULT_CORNER_RADIUS },
     blur: None,
+    shadow: None,
+    second_shadow: None,
     interact: Interact {
         senses: Sense::NONE,
         absorbs_mouse_events: true,
@@ -689,6 +725,8 @@ pub const CONTAINER: Node = Node {
     color: ColorFill::Color(Color::TRANSPARENT),
     shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: DEFAULT_CORNER_RADIUS },
     blur: None,
+    shadow: None,
+    second_shadow: None,
     interact: Interact {
         senses: Sense::NONE,
         absorbs_mouse_events: false,
@@ -731,6 +769,8 @@ pub const CUSTOM_RENDERED_PANEL: Node = Node {
     color: ColorFill::Color(Color::GREENSCREEN),
     shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: DEFAULT_CORNER_RADIUS },
     blur: None,
+    shadow: None,
+    second_shadow: None,
     interact: Interact {
         senses: Sense::NONE,
         absorbs_mouse_events: true,
@@ -764,6 +804,8 @@ pub const SPACER: Node = Node {
     stroke: None,
     shape: DEBUG_ONLY_SHAPE,
     blur: None,
+    shadow: None,
+    second_shadow: None,
     interact: Interact {
         senses: Sense::NONE,
         absorbs_mouse_events: false,
@@ -796,6 +838,8 @@ pub const H_SPACER: Node = Node {
     stroke: None,
     shape: DEBUG_ONLY_SHAPE,
     blur: None,
+    shadow: None,
+    second_shadow: None,
     visible: true,
     interact: Interact {
         senses: Sense::NONE,
@@ -830,6 +874,8 @@ pub const V_SPACER: Node = Node {
     stroke: None,
     shape: DEBUG_ONLY_SHAPE,
     blur: None,
+    shadow: None,
+    second_shadow: None,
     interact: Interact {
         senses: Sense::NONE,
         absorbs_mouse_events: false,
@@ -868,6 +914,8 @@ pub const H_LINE: Node = Node {
     color: ColorFill::Color(Color::TRANSPARENT),
     shape: Shape::Segment { start: (0.0, 0.0), end: (1.0, 1.0), dash_length: None },
     blur: None,
+    shadow: None,
+    second_shadow: None,
     interact: Interact {
         senses: Sense::NONE,
         absorbs_mouse_events: false,
@@ -901,6 +949,8 @@ pub(crate) const COMPONENT_ROOT: Node = Node {
     color: ColorFill::Color(Color::DEBUG_BLUE),
     shape: Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: DEFAULT_CORNER_RADIUS },
     blur: None,
+    shadow: None,
+    second_shadow: None,
     interact: Interact {
         senses: Sense::NONE,
         absorbs_mouse_events: false,

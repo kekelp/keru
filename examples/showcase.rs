@@ -166,6 +166,7 @@ impl UiExt for Ui {
                 .color(Color::KERU_BLUE)
                 .shape(Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: 20.0 })
                 .stroke(5.0)
+                .shadow(Shadow { blur: 6.0, offset: Xy::new(5.0, 5.0), color: Some(Color::WHITE) })
                 .stroke_color(Color::GREEN)
                 .stroke_dashes(15.0, 0.0);
 

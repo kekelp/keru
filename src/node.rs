@@ -45,6 +45,8 @@ pub struct Node {
     pub children_layout: ChildrenLayout,
     pub shape: Shape,
     pub blur: Option<f32>,
+    pub shadow: Option<Shadow>,
+    pub second_shadow: Option<Shadow>,
     pub stroke: Option<Stroke>,
     pub color: ColorFill,
     pub visible: bool, // skip both the shape, node and text
@@ -65,6 +67,27 @@ pub struct Node {
     pub free_placement: bool,
     /// If true, this node is not shifted by the parent's scroll offset.
     pub ignore_parent_scroll: bool,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct Shadow {
+    pub blur: f32,
+    pub offset: Xy<f32>,
+    pub color: Option<Color>,
+}
+
+impl Hash for Shadow {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.blur.to_bits().hash(state);
+        self.offset.x.to_bits().hash(state);
+        self.offset.y.to_bits().hash(state);
+        if let Some(c) = self.color {
+            c.r.to_bits().hash(state);
+            c.g.to_bits().hash(state);
+            c.b.to_bits().hash(state);
+            c.a.to_bits().hash(state);
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -721,6 +744,16 @@ impl Node {
         return self;
     }
 
+    pub const fn shadow(mut self, shadow: Shadow) -> Self {
+        self.shadow = Some(shadow);
+        return self;
+    }
+
+    pub const fn second_shadow(mut self, shadow: Shadow) -> Self {
+        self.second_shadow = Some(shadow);
+        return self;
+    }
+
     pub const fn filled(mut self) -> Self {
         self.stroke = None;
         return self;
@@ -1209,6 +1242,16 @@ impl<'a> FullNode<'a> {
         return self;
     }
 
+    pub const fn shadow(mut self, shadow: Shadow) -> Self {
+        self.node.shadow = Some(shadow);
+        return self;
+    }
+
+    pub const fn second_shadow(mut self, shadow: Shadow) -> Self {
+        self.node.second_shadow = Some(shadow);
+        return self;
+    }
+
     pub const fn filled(mut self) -> Self {
         self.node.stroke = None;
         return self;
@@ -1548,7 +1591,7 @@ impl Node {
     /// Add text to the [`Node`] from a `&'static str`.
     ///
     /// Uses pointer equality to determine if the text needs updating.
-    pub fn static_text(mut self, text: &'static str) -> FullNode<'static> {
+    pub const fn static_text(mut self, text: &'static str) -> FullNode<'static> {
         self.text_params.use_pointer_comparison = true;
         return FullNode {
             node: self,
@@ -1842,7 +1885,7 @@ impl Ui {
 
 impl Node {
     /// Add text to the [`Node`].
-    pub fn text(self, text: &str) -> FullNode<'_> {
+    pub const fn text(self, text: &str) -> FullNode<'_> {
         return FullNode {
             node: self,
             text: Some(NodeText(text)),

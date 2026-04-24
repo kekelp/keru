@@ -198,26 +198,269 @@ impl Ui {
             ColorFill::Gradient(g) => g.color_start.a > 0.0 || g.color_end.a > 0.0,
         };
 
-        // Render based on shape type
+        let shadow_color = |s: Shadow| -> Color {
+            s.color.unwrap_or_else(|| {
+                let base = match node.params.color {
+                    ColorFill::Color(c) => c,
+                    ColorFill::Gradient(g) => g.color_start,
+                };
+                Color::new(base.r * 0.3, base.g * 0.3, base.b * 0.3, base.a * 0.7)
+            })
+        };
+
+        struct ShapePass {
+            offset: Xy<f32>,
+            blur: f32,
+            fill: ColorFill,
+            texture: Option<LoadedImage>,
+        }
+
+        let shadow_pass = |s: Shadow| ShapePass {
+            offset: s.offset,
+            blur: blur + s.blur,
+            fill: ColorFill::Color(shadow_color(s)),
+            texture,
+        };
+
+        let real_pass = ShapePass {
+            offset: Xy::new(0.0, 0.0),
+            blur,
+            fill,
+            texture,
+        };
+
+        let passes: [Option<ShapePass>; 3] = if debug_box {
+            [None, None, Some(real_pass)]
+        } else {
+            [
+                node.params.shadow.map(shadow_pass),
+                node.params.second_shadow.map(shadow_pass),
+                Some(real_pass),
+            ]
+        };
+
+        // Draw all shapes, first the shadows then the real shape
+        for pass in passes.into_iter().flatten() {
+            let px0 = x0 + pass.offset.x;
+            let py0 = y0 + pass.offset.y;
+            let px1 = x1 + pass.offset.x;
+            let py1 = y1 + pass.offset.y;
+
+            match shape {
+                Shape::NoShape => {}
+                Shape::Rectangle { rounded_corners, corner_radius } => {
+                    self.sys.renderer.draw_box(keru_draw::Box {
+                        top_left: [px0, py0],
+                        size: [px1 - px0, py1 - py0],
+                        corner_radius: *corner_radius,
+                        rounded_corners: *rounded_corners,
+                        border_thickness: 0.0,
+                        fill: pass.fill,
+                        texture: pass.texture,
+                        blur: pass.blur,
+                    });
+                }
+                Shape::Circle => {
+                    let cx = (px0 + px1) / 2.0;
+                    let cy = (py0 + py1) / 2.0;
+                    let radius = ((px1 - px0) / 2.0).min((py1 - py0) / 2.0);
+                    self.sys.renderer.draw_circle(keru_draw::Circle {
+                        center: [cx, cy],
+                        radius,
+                        fill: pass.fill,
+                        texture: pass.texture,
+                        blur: pass.blur,
+                    });
+                }
+                Shape::Ring { width } => {
+                    let cx = (px0 + px1) / 2.0;
+                    let cy = (py0 + py1) / 2.0;
+                    let outer_radius = ((px1 - px0) / 2.0).min((py1 - py0) / 2.0);
+                    let inner_radius = (outer_radius - *width).max(0.0);
+                    let dash_length = stroke.and_then(|s| if s.dash_length > 0.0 { Some(s.dash_length) } else { None });
+                    self.sys.renderer.draw_ring(keru_draw::CircleRing {
+                        center: [cx, cy],
+                        inner_radius,
+                        outer_radius,
+                        fill: pass.fill,
+                        texture: pass.texture,
+                        dash_length,
+                        dash_offset: 0.0,
+                        blur: pass.blur,
+                    });
+                }
+                Shape::Arc { start_angle, end_angle, width } => {
+                    let cx = (px0 + px1) / 2.0;
+                    let cy = (py0 + py1) / 2.0;
+                    let radius = ((px1 - px0) / 2.0).min((py1 - py0) / 2.0);
+                    let dash_length = stroke.and_then(|s| if s.dash_length > 0.0 { Some(s.dash_length) } else { None });
+                    self.sys.renderer.draw_arc(keru_draw::CircleArc {
+                        center: [cx, cy],
+                        radius,
+                        start_angle: *start_angle,
+                        end_angle: *end_angle,
+                        thickness: *width,
+                        fill: pass.fill,
+                        texture: pass.texture,
+                        dash_length,
+                        dash_offset: 0.0,
+                        blur: pass.blur,
+                    });
+                }
+                Shape::Pie { start_angle, end_angle } => {
+                    let cx = (px0 + px1) / 2.0;
+                    let cy = (py0 + py1) / 2.0;
+                    let radius = ((px1 - px0) / 2.0).min((py1 - py0) / 2.0);
+                    self.sys.renderer.draw_pie(keru_draw::CirclePie {
+                        center: [cx, cy],
+                        radius,
+                        start_angle: *start_angle,
+                        end_angle: *end_angle,
+                        fill: pass.fill,
+                        texture: pass.texture,
+                        blur: pass.blur,
+                    });
+                }
+                Shape::Segment { start, end, dash_length } => {
+                    let start_x = px0 + start.0 * (px1 - px0);
+                    let start_y = py0 + start.1 * (py1 - py0);
+                    let end_x = px0 + end.0 * (px1 - px0);
+                    let end_y = py0 + end.1 * (py1 - py0);
+                    let thickness = stroke.map(|s| s.width).unwrap_or(1.0);
+                    self.sys.renderer.draw_segment(keru_draw::Segment {
+                        start: [start_x, start_y],
+                        end: [end_x, end_y],
+                        thickness,
+                        fill: pass.fill,
+                        dash_length: *dash_length,
+                        dash_offset: 0.0,
+                        texture: pass.texture,
+                        blur: pass.blur,
+                    });
+                }
+                Shape::HorizontalLine => {
+                    let thickness = stroke.map(|s| s.width).unwrap_or(1.0);
+                    let cy = (py0 + py1) / 2.0;
+                    let dash_length = stroke.and_then(|s| if s.dash_length > 0.0 { Some(s.dash_length) } else { None });
+                    self.sys.renderer.draw_segment(keru_draw::Segment {
+                        start: [px0, cy],
+                        end: [px1, cy],
+                        thickness,
+                        fill: pass.fill,
+                        dash_length,
+                        dash_offset: 0.0,
+                        texture: pass.texture,
+                        blur: pass.blur,
+                    });
+                }
+                Shape::Hexagon { size, rotation } => {
+                    let cx = (px0 + px1) / 2.0;
+                    let cy = (py0 + py1) / 2.0;
+                    let max_radius = ((x1 - x0) / 2.0).min((y1 - y0) / 2.0);
+                    let actual_size = max_radius * size;
+
+                    if fill_visible {
+                        self.sys.renderer.draw_hexagon(keru_draw::Hexagon {
+                            center: [cx, cy],
+                            size: actual_size,
+                            rotation: *rotation,
+                            fill: pass.fill,
+                            stroke_thickness: 0.0,
+                            texture: pass.texture,
+                            blur: pass.blur,
+                        });
+                    }
+                }
+                Shape::VerticalLine => {
+                    let thickness = stroke.map(|s| s.width).unwrap_or(1.0);
+                    let cx = (px0 + px1) / 2.0;
+                    let dash_length = stroke.and_then(|s| if s.dash_length > 0.0 { Some(s.dash_length) } else { None });
+                    self.sys.renderer.draw_segment(keru_draw::Segment {
+                        start: [cx, py0],
+                        end: [cx, py1],
+                        thickness,
+                        fill: pass.fill,
+                        dash_length,
+                        dash_offset: 0.0,
+                        texture: pass.texture,
+                        blur: pass.blur,
+                    });
+                }
+                Shape::Triangle { rotation, width } => {
+                    let cx = (px0 + px1) / 2.0;
+                    let cy = (py0 + py1) / 2.0;
+                    let rect_width = px1 - px0;
+                    let rect_height = py1 - py0;
+                    let radius = rect_width.min(rect_height) / 2.0;
+
+                    let cos_r = rotation.cos();
+                    let sin_r = rotation.sin();
+                    let tip_dist = radius;
+                    let base_back = radius * 0.5;
+                    let base_half_width = radius * 0.866 * width;
+
+                    let p0_x = cx + tip_dist * cos_r;
+                    let p0_y = cy + tip_dist * sin_r;
+                    let perp_x = -sin_r;
+                    let perp_y = cos_r;
+                    let p1_x = cx - base_back * cos_r + base_half_width * perp_x;
+                    let p1_y = cy - base_back * sin_r + base_half_width * perp_y;
+                    let p2_x = cx - base_back * cos_r - base_half_width * perp_x;
+                    let p2_y = cy - base_back * sin_r - base_half_width * perp_y;
+
+                    self.sys.renderer.draw_triangle(keru_draw::Triangle {
+                        p0: [p0_x, p0_y],
+                        p1: [p1_x, p1_y],
+                        p2: [p2_x, p2_y],
+                        fill: pass.fill,
+                        texture: pass.texture,
+                        blur: pass.blur,
+                    });
+                }
+                Shape::SquareGrid { lattice_size, offset, line_thickness } => {
+                    let grid_color = match pass.fill {
+                        ColorFill::Color(c) => c,
+                        ColorFill::Gradient(g) => g.color_start,
+                    };
+                    self.sys.renderer.draw_grid(keru_draw::Grid {
+                        top_left: [px0, py0],
+                        size: [px1 - px0, py1 - py0],
+                        lattice_size: *lattice_size,
+                        offset: [offset.0, offset.1],
+                        line_thickness: *line_thickness,
+                        color: grid_color,
+                        grid_type: keru_draw::GridType::Square,
+                        texture: pass.texture,
+                        blur: pass.blur,
+                    });
+                }
+                Shape::HexGrid { lattice_size, offset, line_thickness } => {
+                    let grid_color = match pass.fill {
+                        ColorFill::Color(c) => c,
+                        ColorFill::Gradient(g) => g.color_start,
+                    };
+                    self.sys.renderer.draw_grid(keru_draw::Grid {
+                        top_left: [px0, py0],
+                        size: [px1 - px0, py1 - py0],
+                        lattice_size: *lattice_size,
+                        offset: [offset.0, offset.1],
+                        line_thickness: *line_thickness,
+                        color: grid_color,
+                        grid_type: keru_draw::GridType::Hexagonal,
+                        texture: pass.texture,
+                        blur: pass.blur,
+                    });
+                }
+            }
+        }
+
+        // Draw strokes
         match shape {
             Shape::NoShape => {}
             Shape::Rectangle { rounded_corners, corner_radius } => {
                 let corner_radius = *corner_radius;
                 let width = x1 - x0;
                 let height = y1 - y0;
-
-                if fill_visible {
-                    self.sys.renderer.draw_box(keru_draw::Box {
-                        top_left: [x0, y0],
-                        size: [width, height],
-                        corner_radius,
-                        rounded_corners: *rounded_corners,
-                        border_thickness: 0.0,
-                        fill,
-                        texture,
-                        blur,
-                    });
-                }
                 if let Some(stroke) = stroke {
                     let stroke_fill = apply_dark_fill(stroke.color);
                     if stroke.dash_length > 0.0 {
@@ -254,16 +497,6 @@ impl Ui {
                 let cx = (x0 + x1) / 2.0;
                 let cy = (y0 + y1) / 2.0;
                 let radius = ((x1 - x0) / 2.0).min((y1 - y0) / 2.0);
-
-                if fill_visible {
-                    self.sys.renderer.draw_circle(keru_draw::Circle {
-                        center: [cx, cy],
-                        radius,
-                        fill,
-                        texture,
-                        blur,
-                    });
-                }
                 if let Some(stroke) = stroke {
                     let stroke_fill = apply_dark_fill(stroke.color);
                     let dash_length = if stroke.dash_length > 0.0 { Some(stroke.dash_length) } else { None };
@@ -279,184 +512,14 @@ impl Ui {
                     });
                 }
             }
-            Shape::Ring { width } => {
-                let cx = (x0 + x1) / 2.0;
-                let cy = (y0 + y1) / 2.0;
-                let outer_radius = ((x1 - x0) / 2.0).min((y1 - y0) / 2.0);
-                let inner_radius = (outer_radius - *width).max(0.0);
-                let dash_length = stroke.and_then(|s| if s.dash_length > 0.0 { Some(s.dash_length) } else { None });
-                self.sys.renderer.draw_ring(keru_draw::CircleRing {
-                    center: [cx, cy],
-                    inner_radius,
-                    outer_radius,
-                    fill,
-                    texture,
-                    dash_length,
-                    dash_offset: 0.0,
-                    blur,
-                });
-            }
-            Shape::Arc { start_angle, end_angle, width } => {
-                let cx = (x0 + x1) / 2.0;
-                let cy = (y0 + y1) / 2.0;
-                let radius = ((x1 - x0) / 2.0).min((y1 - y0) / 2.0);
-                let dash_length = stroke.and_then(|s| if s.dash_length > 0.0 { Some(s.dash_length) } else { None });
-                self.sys.renderer.draw_arc(keru_draw::CircleArc {
-                    center: [cx, cy],
-                    radius,
-                    start_angle: *start_angle,
-                    end_angle: *end_angle,
-                    thickness: *width,
-                    fill,
-                    texture,
-                    dash_length,
-                    dash_offset: 0.0,
-                    blur,
-                });
-            }
-            Shape::Pie { start_angle, end_angle } => {
-                let cx = (x0 + x1) / 2.0;
-                let cy = (y0 + y1) / 2.0;
-                let radius = ((x1 - x0) / 2.0).min((y1 - y0) / 2.0);
-                self.sys.renderer.draw_pie(keru_draw::CirclePie {
-                    center: [cx, cy],
-                    radius,
-                    start_angle: *start_angle,
-                    end_angle: *end_angle,
-                    fill,
-                    texture,
-                    blur,
-                });
-            }
-            Shape::Segment { start, end, dash_length } => {
-                let start_x = x0 + start.0 * (x1 - x0);
-                let start_y = y0 + start.1 * (y1 - y0);
-                let end_x = x0 + end.0 * (x1 - x0);
-                let end_y = y0 + end.1 * (y1 - y0);
-                let thickness = stroke.map(|s| s.width).unwrap_or(1.0);
-                self.sys.renderer.draw_segment(keru_draw::Segment {
-                    start: [start_x, start_y],
-                    end: [end_x, end_y],
-                    thickness,
-                    fill,
-                    dash_length: *dash_length,
-                    dash_offset: 0.0,
-                    texture,
-                    blur,
-                });
-            }
-            Shape::HorizontalLine => {
-                let thickness = stroke.map(|s| s.width).unwrap_or(1.0);
-                let cy = (y0 + y1) / 2.0;
-                let dash_length = stroke.and_then(|s| if s.dash_length > 0.0 { Some(s.dash_length) } else { None });
-                self.sys.renderer.draw_segment(keru_draw::Segment {
-                    start: [x0, cy],
-                    end: [x1, cy],
-                    thickness,
-                    fill,
-                    dash_length,
-                    dash_offset: 0.0,
-                    texture,
-                    blur,
-                });
-            }
-            Shape::VerticalLine => {
-                let thickness = stroke.map(|s| s.width).unwrap_or(1.0);
-                let cx = (x0 + x1) / 2.0;
-                let dash_length = stroke.and_then(|s| if s.dash_length > 0.0 { Some(s.dash_length) } else { None });
-                self.sys.renderer.draw_segment(keru_draw::Segment {
-                    start: [cx, y0],
-                    end: [cx, y1],
-                    thickness,
-                    fill,
-                    dash_length,
-                    dash_offset: 0.0,
-                    texture,
-                    blur,
-                });
-            }
-            Shape::Triangle { rotation, width } => {
-                let cx = (x0 + x1) / 2.0;
-                let cy = (y0 + y1) / 2.0;
-                let rect_width = x1 - x0;
-                let rect_height = y1 - y0;
-                let radius = rect_width.min(rect_height) / 2.0;
-
-                let cos_r = rotation.cos();
-                let sin_r = rotation.sin();
-                let tip_dist = radius;
-                let base_back = radius * 0.5;
-                let base_half_width = radius * 0.866 * width;
-
-                let p0_x = cx + tip_dist * cos_r;
-                let p0_y = cy + tip_dist * sin_r;
-                let perp_x = -sin_r;
-                let perp_y = cos_r;
-                let p1_x = cx - base_back * cos_r + base_half_width * perp_x;
-                let p1_y = cy - base_back * sin_r + base_half_width * perp_y;
-                let p2_x = cx - base_back * cos_r - base_half_width * perp_x;
-                let p2_y = cy - base_back * sin_r - base_half_width * perp_y;
-
-                self.sys.renderer.draw_triangle(keru_draw::Triangle {
-                    p0: [p0_x, p0_y],
-                    p1: [p1_x, p1_y],
-                    p2: [p2_x, p2_y],
-                    fill,
-                    texture,
-                    blur,
-                });
-            }
-            Shape::SquareGrid { lattice_size, offset, line_thickness } => {
-                let grid_color = match fill {
-                    ColorFill::Color(c) => c,
-                    ColorFill::Gradient(g) => g.color_start,
-                };
-                self.sys.renderer.draw_grid(keru_draw::Grid {
-                    top_left: [x0, y0],
-                    size: [x1 - x0, y1 - y0],
-                    lattice_size: *lattice_size,
-                    offset: [offset.0, offset.1],
-                    line_thickness: *line_thickness,
-                    color: grid_color,
-                    grid_type: keru_draw::GridType::Square,
-                    texture,
-                    blur,
-                });
-            }
-            Shape::HexGrid { lattice_size, offset, line_thickness } => {
-                let grid_color = match fill {
-                    ColorFill::Color(c) => c,
-                    ColorFill::Gradient(g) => g.color_start,
-                };
-                self.sys.renderer.draw_grid(keru_draw::Grid {
-                    top_left: [x0, y0],
-                    size: [x1 - x0, y1 - y0],
-                    lattice_size: *lattice_size,
-                    offset: [offset.0, offset.1],
-                    line_thickness: *line_thickness,
-                    color: grid_color,
-                    grid_type: keru_draw::GridType::Hexagonal,
-                    texture,
-                    blur,
-                });
-            }
+            Shape::Ring { .. } | Shape::Arc { .. } | Shape::Pie { .. } | Shape::Segment { .. } | Shape::HorizontalLine => {}
+            Shape::VerticalLine | Shape::Triangle { .. } | Shape::SquareGrid { .. } | Shape::HexGrid { .. } => {}
             Shape::Hexagon { size, rotation } => {
                 let cx = (x0 + x1) / 2.0;
                 let cy = (y0 + y1) / 2.0;
                 let max_radius = ((x1 - x0) / 2.0).min((y1 - y0) / 2.0);
                 let actual_size = max_radius * size;
 
-                if fill_visible {
-                    self.sys.renderer.draw_hexagon(keru_draw::Hexagon {
-                        center: [cx, cy],
-                        size: actual_size,
-                        rotation: *rotation,
-                        fill,
-                        stroke_thickness: 0.0,
-                        texture,
-                        blur,
-                    });
-                }
                 if let Some(stroke) = stroke {
                     let stroke_fill = apply_dark_fill(stroke.color);
                     if stroke.dash_length > 0.0 {
