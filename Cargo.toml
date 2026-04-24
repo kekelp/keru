@@ -55,3 +55,20 @@ bool_comparison = { level = "allow" }
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--generate-link-to-definition"]
+
+
+[[example]]
+name = "test"
+path = "examples/experimental/test.rs"
+
+[[example]]
+name = "different_add_nest_syntax"
+path = "examples/experimental/different_add_nest_syntax.rs"
+
+[[example]]
+name = "rc_instead_of_thread_local"
+path = "examples/experimental/rc_instead_of_thread_local.rs"
+
+[[example]]
+name = "reactive_old"
+path = "examples/experimental/reactive_old.rs"

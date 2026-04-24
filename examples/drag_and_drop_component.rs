@@ -1,16 +1,17 @@
-/// This is an example of an advanced component.
-/// 
-/// As the users of the `ReorderStack` component we add children to it as it it was a regular stack.
-/// 
-/// In `run_component`, the component uses the advanced `Ui` functions like `children()`, `rect()`, `jump_to_nth_child()`, `remove_and_readd()` to inspect and manipulates the tree after the children have been added to it. If the user is dragging an element:
-/// 
-/// - it calculates where the user is hovering it by going through the elements and measuring their height.
-/// - it inserts an invisible spacer in that position with the same height as the dragged element.
-/// - it removes the dragged elements from its place in the tree and it re-adds it as a child of the root node at the cursor position.
-/// - animations just work with just the standard `.animate_position(true)` on the elements.
-/// - when the dragged element is released, it returns a tuple of indices that indicate that it should be moved to the new position in the user's state.
-/// 
-/// This way, the `ReorderStack` works for a perfectly animated rearrangeable list that can hold any kind of elements, even complicated nested subtrees of different sizes.
+//! This is an example of an advanced component.
+//! 
+//! As the users of the `ReorderStack` component we add children to it as it it was a regular stack.
+//! 
+//! In `run_component`, the component uses the advanced `Ui` functions like `children()`, `rect()`, `jump_to_nth_child()`, `remove_and_readd()`
+//!   to inspect and manipulate the tree after the children have been added to it. If the user is dragging an element:
+//! 
+//! - it calculates where the user is hovering it by going through the elements and measuring their height.
+//! - it inserts an invisible spacer in that position with the same height as the dragged element.
+//! - it removes the dragged elements from its place in the tree and it re-adds it as a child of the root node at the cursor position.
+//! - animations just work with just the standard `.animate_position(true)` on the elements.
+//! - when the dragged element is released, it returns a tuple of indices that indicate that it should be moved to the new position in the user's state.
+//! 
+//! This way, the `ReorderStack` works for a perfectly animated rearrangeable list that can hold any kind of elements, even complicated nested subtrees of different sizes.
 
 use keru::*;
 

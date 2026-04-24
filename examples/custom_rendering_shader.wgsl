@@ -1,5 +1,5 @@
 // Stolen from Shadertoy.
-// todo: replace this shader
+// todo: replace this shader.
 struct PushConstants {
     min_x: f32,
     min_y: f32,

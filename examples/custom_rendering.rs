@@ -1,17 +1,17 @@
-// When using Keru, you remain in control of your program's wgpu rendering, so it's very easy to draw custom rendered content below or above the Keru Ui.
-//
-// But what if we wanted to draw custom rendered stuff *between* Ui elements, with proper z-ordering and transparency?
-// 
-// This example shows the system that allows it.
-//
-// - when declaring the Ui, we can mark specific nodes with `.custom_render(true)`
-// - when preparing its render data, the Ui pays attention to which nodes need custom rendering, 
-//    and determines the properly ordered sequence of Ui element ranges and custom render content.
-//    Example: [ ui_elements_background ] [ custom_1 ] [ ui_elements_middle ] [ custom_2 ] [ ui_elements_foreground ]
-// - we get the sequence with Ui::render_commands().
-// - we go through the sequence and perform the render commands depending on what we find:
-//     - ui_elements_xxx is a range of Ui elements. We just pass them to the function ui.render_range(ui_elements_xxx)
-//     - custom_xxx contains the screen rect of the special node. We draw whatever we want in the rect.
+//! When using Keru, you remain in control of your program's wgpu rendering, so it's very easy to draw custom rendered content below or above the Keru Ui.
+//!
+//! But what if we wanted to draw custom rendered stuff *between* Ui elements, with proper z-ordering and transparency?
+//! 
+//! This example shows the system that allows it.
+//!
+//! - when declaring the Ui, we can mark specific nodes with `.custom_render(true)`
+//! - when preparing its render data, the Ui pays attention to which nodes need custom rendering, 
+//!    and determines the properly ordered sequence of Ui element ranges and custom render content.
+//!    Example: [ ui_elements_background ] [ custom_1 ] [ ui_elements_middle ] [ custom_2 ] [ ui_elements_foreground ]
+//! - we get the sequence with [`Ui::render_commands()`].
+//! - then, we go through the sequence and perform the render commands depending on what we find:
+//!     - ui_elements_xxx is a range of Ui elements. We just pass them to the function ui.render_range(ui_elements_xxx)
+//!     - custom_xxx contains the screen rect of the special node. We draw whatever we want in the rect.
 
 
 use keru::*;
@@ -124,25 +124,25 @@ impl State {
         self.surface.configure(&self.device, &self.config);
     }
 
-    #[node_key] const BACK_PANEL: NodeKey;
-    #[node_key] const HEADER: NodeKey;
-    #[node_key] const CUSTOM_RECT: NodeKey;
-    #[node_key] const OVERLAY_LABEL: NodeKey;
-
+    
     fn update_ui(&mut self) {
-
+        #[node_key] const BACK_PANEL: NodeKey;
+        #[node_key] const HEADER: NodeKey;
+        #[node_key] const CUSTOM_RECT: NodeKey;
+        #[node_key] const OVERLAY_LABEL: NodeKey;
+        
         let panel = PANEL
             .padding(30.0)
             .position_x(Pos::Pixels(self.panel_pos.0))
             .position_y(Pos::Pixels(self.panel_pos.1))
             .sense_drag(true)
-            .key(Self::BACK_PANEL);
+            .key(BACK_PANEL);
 
         let custom_rect = DEFAULT
             .invisible()
             .custom_render(true)
             .size_symm(Size::Pixels(300.0))
-            .key(Self::CUSTOM_RECT);
+            .key(CUSTOM_RECT);
 
         let button = BUTTON
             .position_x(Pos::Frac(0.6))
@@ -160,7 +160,7 @@ impl State {
             })
         });
 
-        if let Some(drag) = self.ui.is_dragged(Self::BACK_PANEL) {
+        if let Some(drag) = self.ui.is_dragged(BACK_PANEL) {
             self.panel_pos.0 -= drag.absolute_delta.x;
             self.panel_pos.1 -= drag.absolute_delta.y;
             self.panel_pos.0 = f32::clamp(self.panel_pos.0, 0.0, 100000.0);

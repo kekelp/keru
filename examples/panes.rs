@@ -11,7 +11,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     #[node_key] const MIDDLING_TIER: NodeKey;
     #[node_key] const RIGHT_PANE: NodeKey;
     
-    let left = LABEL.text("Left").key(LEFT_PANE)
+    let left = CONTAINER.key(LEFT_PANE)
         .size_x(Size::Frac(state.left_pane_frac))
         .size_y(Size::Fill);
     
@@ -21,20 +21,35 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .size_x(Size::Pixels(16.0))
         .sense_drag(true);
 
-    let right = LABEL.text("Right").key(RIGHT_PANE)
+    let right = CONTAINER.key(RIGHT_PANE)
         .size_x(Size::Fill)
         .size_y(Size::Fill);
 
     ui.h_stack().nest(|| {
-        ui.add(left);
+
+        ui.add(left).nest(|| {
+            ui.add(H_STACK).nest(|| {
+                ui.add(PANEL.color(Color::KERU_BLUE).size_symm(Size::Fill));
+                ui.add(PANEL.color(Color::KERU_RED).size_symm(Size::Fill));
+                ui.add(PANEL.color(Color::KERU_GREEN).size_symm(Size::Fill));
+            });
+        });
+
         ui.add(middling);
-        ui.add(right);
+
+        ui.add(right).nest(|| {
+            ui.add(V_STACK).nest(|| {
+                ui.add(PANEL.color(Color::KERU_BLUE).size_symm(Size::Fill).text("Drag the thin middle bar"));
+                ui.add(PANEL.color(Color::KERU_RED).size_symm(Size::Fill));
+                ui.add(PANEL.color(Color::KERU_GREEN).size_symm(Size::Fill));
+            });
+        });
     });
 
     let width = 800.0;
 
     if let Some(drag) = ui.is_dragged(MIDDLING_TIER) {
-        state.left_pane_frac -= drag.absolute_delta.x as f32 / width;
+        state.left_pane_frac += drag.absolute_delta.x as f32 / width;
         state.left_pane_frac = state.left_pane_frac.clamp(0.05, 0.95);
     }
 }

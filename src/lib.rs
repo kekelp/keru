@@ -32,7 +32,7 @@
 //! // In that case, using a key wouldn't be necessary.
 //! ```
 //! 
-//! See the `counter_small` example in the repository for a full working version of this code. 
+//! See the `minimal` example in the repository for a full working version of this code. 
 //! 
 //! 
 //! ## Window Loop

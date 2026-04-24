@@ -1,3 +1,7 @@
+//! This example shows how to implement a simple drag and drop functionality manually, using functions like [`Ui::is_drag_released_onto()`].
+//! 
+//! See the `drag_and_drop_component.rs` example to see how this kind of logic can be encapsulated in a [`Component`].
+
 use keru::*;
 use keru::example_window_loop::*;
 
@@ -97,7 +101,7 @@ impl State {
                 if let Some(drag) = ui.is_dragged(key) {
                     let (x, y) = (Pos::Pixels(drag.absolute_pos.x), Pos::Pixels(drag.absolute_pos.y));
                     ui.jump_to_root().nest(|| {
-                        ui.add(item.position(x, y));
+                        ui.add(item.position(x, y).z_index(1.0));
                     });
 
                 } else {
@@ -136,8 +140,6 @@ impl State {
             }
 
         });
-
-
 
     }
 

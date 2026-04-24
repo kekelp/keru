@@ -691,7 +691,7 @@ use std::task::Poll;
 
 pub struct AsyncButton<T>
 where T: Send + 'static {
-    function: Arc<dyn Fn() -> T + Send + Sync + 'static>,
+    async_function: Arc<dyn Fn() -> T + Send + Sync + 'static>,
     idle_text: &'static str,
     loading_text: &'static str,
     key: Option<ComponentKey<Self>>,
@@ -702,7 +702,7 @@ where T: Send + 'static {
     pub fn new<F>(function: F, idle_text: &'static str, loading_text: &'static str) -> Self
     where F: Fn() -> T + Send + Sync + 'static {
         Self {
-            function: Arc::new(function),
+            async_function: Arc::new(function),
             idle_text,
             loading_text,
             key: None,
@@ -753,7 +753,7 @@ where T: Send + Sync + 'static {
     
         if clickable && ui.is_clicked(ASYNC_BUTTON) {
             let waker = ui.ui_waker_safe();
-            let func = Arc::clone(&self.function);
+            let func = Arc::clone(&self.async_function);
             *state = Some(run_in_background(
                 move || func(),
                 move || waker.set_update_needed(),

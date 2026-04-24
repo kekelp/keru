@@ -28,7 +28,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 
     match &mut state.file {
         None => {
-            let load = BUTTON.static_text("Click to load the file");
+            let load = BUTTON.static_text("Click to start loading the file");
             if ui.add(load).is_clicked(ui) {
                 state.file = Some(run_in_background(load_file_slowly, move || uiwaker.set_update_needed()));
             }
@@ -36,7 +36,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         Some(future) => {
             match future.poll() {
                 Poll::Pending => {
-                    ui.add(LABEL.static_text("Loading..."));
+                    ui.add(LABEL.static_text("Loading slowly..."));
                 },
                 Poll::Ready(file) => {
                     ui.add(V_SCROLL_STACK.size_symm(Size::Frac(0.75))).nest(|| {

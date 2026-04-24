@@ -50,7 +50,6 @@ impl State {
             .text("Decrease")
             .key(DECREASE);
 
-        // In a real program, you should use a frame arena to avoid useless allocations like these.
         let fmt_count = self.count.to_string();
         let count = LABEL.text(&fmt_count).animate_position(true);
 

@@ -159,6 +159,8 @@ pub(crate) struct System {
 }
 
 /// A handle that can be used to wake up the [`Ui`] from another thread.
+/// 
+/// You can get one from the [`Ui`] from [`Ui::ui_waker()`].
 #[derive(Clone)]
 pub struct UiWaker {
     pub(crate) needs_update: Arc<AtomicBool>,
@@ -415,6 +417,8 @@ impl Ui {
     ///
     /// The scheduler thread is created lazily on the first call to this method.
     ///
+    /// # Panics
+    /// 
     /// Panics if [`Ui::register_window()`] wasn't called on this [`Ui`] instance.
     pub fn schedule_wakeup(&mut self, duration: Duration) {
         if self.sys.window_ref.is_none() {

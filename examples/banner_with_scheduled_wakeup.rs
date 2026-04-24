@@ -1,3 +1,6 @@
+//! This example uses [Ui::schedule_wakeup()] to make a banner show up and go away, without having the loop tick continuously.
+//! See also [Ui::ui_waker()] to wake up the loop from another thread.
+
 use std::time::{Duration, Instant};
 
 use keru::*;
@@ -8,6 +11,7 @@ pub struct State {
 }
 
 fn update_ui(state: &mut State, ui: &mut Ui) {
+    println!("Tick {:?}", Instant::now());
     #[node_key] const SHOW: NodeKey;
     let button = BUTTON.static_text("Show Banner").key(SHOW);
     let label = LABEL
@@ -22,7 +26,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 
     if ui.is_clicked(SHOW) {
         state.banner_last_shown = Instant::now();
-        ui.schedule_wakeup(Duration::from_millis(1500));
+        ui.schedule_wakeup(Duration::from_millis(1000));
     }
 }
 

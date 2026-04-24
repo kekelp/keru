@@ -1,4 +1,5 @@
-use keru::example_window_loop::*;
+//! The animation system still needs some improvements.
+
 use keru::*;
 
 #[derive(Default)]
@@ -23,6 +24,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     
     let h_group = H_STACK
         .slide_from_top()
+        .animate_position(true)
         .clip_children_y(true)
         .size_x(Size::Fill)
         .stack_arrange(Arrange::Start);
@@ -45,10 +47,12 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 
     let elem_vstack = V_STACK
         .slide_from_top()
+        .animate_position(true)
         .key(ELEM_VSTACK);
 
     let sub_elem_vstack = V_STACK
         .slide_from_top()
+        .animate_position(true)
         .key(SUB_ELEM_VSTACK);
     
     let n = 4;
@@ -111,5 +115,5 @@ fn main() {
             vec![false, false, false, false],
         ],
     };
-    run_example_loop(state, update_ui);
+    example_window_loop::run_example_loop(state, update_ui);
 }
