@@ -37,7 +37,30 @@ impl Ui {
     ) -> bool {
         // Pass events to keru_text so it can register windows and track dimensions.
         // This is essential for keru_text to set the screen resolution correctly.
-        self.sys.renderer.text.handle_event(event, window);
+        if let WindowEvent::MouseInput { .. } = event {
+            let topmost_text_box = self.sys.renderer.text.find_topmost_text_box(event);
+
+            // Find the topmost interactive keru element under the cursor and get its z value.
+            let opaque_hits = self.scan_opaque_hits();
+            let topmost_keru_z = opaque_hits.first().and_then(|&id| {
+                self.sys.nodes.get_by_id(id).map(|i| self.sys.nodes[i].z)
+            });
+
+            let text_depth = topmost_text_box.as_ref().map(|tb| {
+                self.sys.renderer.text.get_text_box_depth(tb)
+            });
+
+            // The text box is occluded if a keru element with a lower z value (= in front) is hit.
+            let occluded = match (topmost_keru_z, text_depth) {
+                (Some(kz), Some(td)) => kz < td,
+                _ => false,
+            };
+
+            let topmost = if occluded { None } else { topmost_text_box };
+            self.sys.renderer.text.handle_event_with_topmost(event, window, topmost);
+        } else {
+            self.sys.renderer.text.handle_event(event, window);
+        }
         // todo: see if keyboard events are consumed by a text box?
 
         if self.sys.renderer.text.needs_rerender() {
