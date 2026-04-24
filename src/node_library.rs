@@ -28,11 +28,10 @@ pub const ICON_PLUS: &[u8] = include_bytes!("svg_icons/plus.svg");
 pub const ICON_MINUS: &[u8] = include_bytes!("svg_icons/minus.svg");
 pub const ICON_DELETE: &[u8] = include_bytes!("svg_icons/delete.svg");
 pub const ICON_EDIT: &[u8] = include_bytes!("svg_icons/pencil.svg");
-
 const DEBUG_ONLY_SHAPE: Shape = Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: DEFAULT_CORNER_RADIUS };
 
 /// [`Node`] for a node_root_params.
-pub(crate) const NODE_ROOT_PARAMS: Node = Node {
+pub(crate) const NODE_ROOT_PARAMS: Node<'_> = Node {
     animation: NO_ANIMATION,
     key: None,
     text_params: TextOptions::const_default(),
@@ -64,9 +63,13 @@ pub(crate) const NODE_ROOT_PARAMS: Node = Node {
     grid_element: GridElement::ONE_BY_ONE,
     free_placement: false,
     ignore_parent_scroll: false,
+    text: None,
+    placeholder_text: None,
+    text_style: None,
+    image: None,
 };
 /// [`Node`] for a default.
-pub const DEFAULT: Node = Node {
+pub const DEFAULT: Node<'_> = Node {
     animation: NO_ANIMATION,
     key: None,
     text_params: TextOptions::const_default(),
@@ -98,9 +101,13 @@ pub const DEFAULT: Node = Node {
     grid_element: GridElement::ONE_BY_ONE,
     free_placement: false,
     ignore_parent_scroll: false,
+    text: None,
+    placeholder_text: None,
+    text_style: None,
+    image: None,
 };
 /// [`Node`] for a vertical stack.
-pub const V_STACK: Node = Node {
+pub const V_STACK: Node<'_> = Node {
     animation: NO_ANIMATION,
     key: None,
     text_params: TextOptions::const_default(),
@@ -136,9 +143,13 @@ pub const V_STACK: Node = Node {
     grid_element: GridElement::ONE_BY_ONE,
     free_placement: false,
     ignore_parent_scroll: false,
+    text: None,
+    placeholder_text: None,
+    text_style: None,
+    image: None,
 };
 /// [`Node`] for a horizontal stack.
-pub const H_STACK: Node = Node {
+pub const H_STACK: Node<'_> = Node {
     animation: NO_ANIMATION,
     key: None,
     text_params: TextOptions::const_default(),
@@ -174,10 +185,14 @@ pub const H_STACK: Node = Node {
     grid_element: GridElement::ONE_BY_ONE,
     free_placement: false,
     ignore_parent_scroll: false,
+    text: None,
+    placeholder_text: None,
+    text_style: None,
+    image: None,
 };
 
 /// [`Node`] for a vertically scrollable vertical stack.
-pub const V_SCROLL_STACK: Node = Node {
+pub const V_SCROLL_STACK: Node<'_> = Node {
     animation: NO_ANIMATION,
     key: None,
     text_params: TextOptions::const_default(),
@@ -213,10 +228,14 @@ pub const V_SCROLL_STACK: Node = Node {
     grid_element: GridElement::ONE_BY_ONE,
     free_placement: false,
     ignore_parent_scroll: false,
+    text: None,
+    placeholder_text: None,
+    text_style: None,
+    image: None,
 };
 
 /// [`Node`] for a margin.
-pub const MARGIN: Node = Node {
+pub const MARGIN: Node<'_> = Node {
     animation: NO_ANIMATION,
     key: None,
     children_layout: ChildrenLayout::Free,
@@ -248,9 +267,13 @@ pub const MARGIN: Node = Node {
     grid_element: GridElement::ONE_BY_ONE,
     free_placement: false,
     ignore_parent_scroll: false,
+    text: None,
+    placeholder_text: None,
+    text_style: None,
+    image: None,
 };
 /// [`Node`] for an icon button.
-pub const ICON_BUTTON: Node = Node {
+pub const ICON_BUTTON: Node<'_> = Node {
     animation: NO_ANIMATION,
     key: None,
     children_layout: ChildrenLayout::Free,
@@ -282,9 +305,13 @@ pub const ICON_BUTTON: Node = Node {
     grid_element: GridElement::ONE_BY_ONE,
     free_placement: false,
     ignore_parent_scroll: false,
+    text: None,
+    placeholder_text: None,
+    text_style: None,
+    image: None,
 };
 /// [`Node`] for an image. 
-pub const IMAGE: Node = Node {
+pub const IMAGE: Node<'_> = Node {
     animation: NO_ANIMATION,
     key: None,
     children_layout: ChildrenLayout::Free,
@@ -316,9 +343,13 @@ pub const IMAGE: Node = Node {
     grid_element: GridElement::ONE_BY_ONE,
     free_placement: false,
     ignore_parent_scroll: false,
+    text: None,
+    placeholder_text: None,
+    text_style: None,
+    image: None,
 };
 /// [`Node`] for an icon button. 
-pub const IMAGE_BUTTON: Node = Node {
+pub const IMAGE_BUTTON: Node<'_> = Node {
     animation: NO_ANIMATION,
     key: None,
     children_layout: ChildrenLayout::Free,
@@ -350,9 +381,13 @@ pub const IMAGE_BUTTON: Node = Node {
     grid_element: GridElement::ONE_BY_ONE,
     free_placement: false,
     ignore_parent_scroll: false,
+    text: None,
+    placeholder_text: None,
+    text_style: None,
+    image: None,
 };
 /// [`Node`] for a button. 
-pub const BUTTON: Node = Node {
+pub const BUTTON: Node<'_> = Node {
     animation: NO_ANIMATION,
     key: None,
     children_layout: ChildrenLayout::Free,
@@ -391,9 +426,13 @@ pub const BUTTON: Node = Node {
     grid_element: GridElement::ONE_BY_ONE,
     free_placement: false,
     ignore_parent_scroll: false,
+    text: None,
+    placeholder_text: None,
+    text_style: None,
+    image: None,
 };
 /// [`Node`] for a label. 
-pub const LABEL: Node = Node {
+pub const LABEL: Node<'_> = Node {
     animation: NO_ANIMATION,
     key: None,
     children_layout: ChildrenLayout::Free,
@@ -432,10 +471,14 @@ pub const LABEL: Node = Node {
     grid_element: GridElement::ONE_BY_ONE,
     free_placement: false,
     ignore_parent_scroll: false,
+    text: None,
+    placeholder_text: None,
+    text_style: None,
+    image: None,
 };
 
 /// [`Node`] for a label containing a multi-line paragraph. 
-pub const MULTILINE_LABEL: Node = Node {
+pub const MULTILINE_LABEL: Node<'_> = Node {
     animation: NO_ANIMATION,
     key: None,
     children_layout: ChildrenLayout::Free,
@@ -474,10 +517,14 @@ pub const MULTILINE_LABEL: Node = Node {
     grid_element: GridElement::ONE_BY_ONE,
     free_placement: false,
     ignore_parent_scroll: false,
+    text: None,
+    placeholder_text: None,
+    text_style: None,
+    image: None,
 };
 
 /// [`Node`] for a text element. 
-pub const TEXT: Node = Node {
+pub const TEXT: Node<'_> = Node {
     animation: NO_ANIMATION,
     key: None,
     children_layout: ChildrenLayout::Free,
@@ -516,10 +563,14 @@ pub const TEXT: Node = Node {
     grid_element: GridElement::ONE_BY_ONE,
     free_placement: false,
     ignore_parent_scroll: false,
+    text: None,
+    placeholder_text: None,
+    text_style: None,
+    image: None,
 };
 
 /// [`Node`] for an icon element.
-pub const ICON: Node = Node {
+pub const ICON: Node<'_> = Node {
     animation: NO_ANIMATION,
     key: None,
     children_layout: ChildrenLayout::Free,
@@ -551,10 +602,14 @@ pub const ICON: Node = Node {
     grid_element: GridElement::ONE_BY_ONE,
     free_placement: false,
     ignore_parent_scroll: false,
+    text: None,
+    placeholder_text: None,
+    text_style: None,
+    image: None,
 };
 
 /// [`Node`] for a multiline text edit box. 
-pub const TEXT_EDIT: Node = Node {
+pub const TEXT_EDIT: Node<'_> = Node {
     animation: NO_ANIMATION,
     key: None,
     children_layout: ChildrenLayout::Free,
@@ -593,10 +648,14 @@ pub const TEXT_EDIT: Node = Node {
     grid_element: GridElement::ONE_BY_ONE,
     free_placement: false,
     ignore_parent_scroll: false,
+    text: None,
+    placeholder_text: None,
+    text_style: None,
+    image: None,
 };
 
 /// [`Node`] for a single line text edit box. 
-pub const TEXT_EDIT_LINE: Node = Node {
+pub const TEXT_EDIT_LINE: Node<'_> = Node {
     animation: NO_ANIMATION,
     key: None,
     children_layout: ChildrenLayout::Free,
@@ -635,10 +694,14 @@ pub const TEXT_EDIT_LINE: Node = Node {
     grid_element: GridElement::ONE_BY_ONE,
     free_placement: false,
     ignore_parent_scroll: false,
+    text: None,
+    placeholder_text: None,
+    text_style: None,
+    image: None,
 };
 
 /// [`Node`] for a text element containing a multi-line paragraph.
-pub const TEXT_PARAGRAPH: Node = Node {
+pub const TEXT_PARAGRAPH: Node<'_> = Node {
     animation: NO_ANIMATION,
     key: None,
     children_layout: ChildrenLayout::Free,
@@ -677,10 +740,14 @@ pub const TEXT_PARAGRAPH: Node = Node {
     grid_element: GridElement::ONE_BY_ONE,
     free_placement: false,
     ignore_parent_scroll: false,
+    text: None,
+    placeholder_text: None,
+    text_style: None,
+    image: None,
 };
 
 /// [`Node`] for a panel. 
-pub const PANEL: Node = Node {
+pub const PANEL: Node<'_> = Node {
     animation: NO_ANIMATION,
     key: None,
     children_layout: ChildrenLayout::Free,
@@ -712,10 +779,14 @@ pub const PANEL: Node = Node {
     grid_element: GridElement::ONE_BY_ONE,
     free_placement: false,
     ignore_parent_scroll: false,
+    text: None,
+    placeholder_text: None,
+    text_style: None,
+    image: None,
 };
 
 /// [`Node`] for a container. 
-pub const CONTAINER: Node = Node {
+pub const CONTAINER: Node<'_> = Node {
     animation: NO_ANIMATION,
     key: None,
     children_layout: ChildrenLayout::Free,
@@ -747,6 +818,10 @@ pub const CONTAINER: Node = Node {
     grid_element: GridElement::ONE_BY_ONE,
     free_placement: false,
     ignore_parent_scroll: false,
+    text: None,
+    placeholder_text: None,
+    text_style: None,
+    image: None,
 };
 
 /// [`Node`] for a custom rendered node.
@@ -759,7 +834,7 @@ pub const CONTAINER: Node = Node {
 /// #[node_key] const CUSTOM_RENDERED_NODE: NodeKey;
 /// let render_rect = ui.get_node(CUSTOM_RENDERED_NODE).render_rect();
 /// ```
-pub const CUSTOM_RENDERED_PANEL: Node = Node {
+pub const CUSTOM_RENDERED_PANEL: Node<'_> = Node {
     animation: NO_ANIMATION,
     key: None,
     children_layout: ChildrenLayout::Free,
@@ -791,10 +866,14 @@ pub const CUSTOM_RENDERED_PANEL: Node = Node {
     grid_element: GridElement::ONE_BY_ONE,
     free_placement: false,
     ignore_parent_scroll: false,
+    text: None,
+    placeholder_text: None,
+    text_style: None,
+    image: None,
 };
 
 /// [`Node`] for a spacer element.
-pub const SPACER: Node = Node {
+pub const SPACER: Node<'_> = Node {
     animation: NO_ANIMATION,
     key: None,
     children_layout: ChildrenLayout::Free,
@@ -826,10 +905,14 @@ pub const SPACER: Node = Node {
     grid_element: GridElement::ONE_BY_ONE,
     free_placement: false,
     ignore_parent_scroll: false,
+    text: None,
+    placeholder_text: None,
+    text_style: None,
+    image: None,
 };
 
 /// [`Node`] for a invisible spacer element that fills all the available space in the X direction.
-pub const H_SPACER: Node = Node {
+pub const H_SPACER: Node<'_> = Node {
     animation: NO_ANIMATION,
     key: None,
     children_layout: ChildrenLayout::Free,
@@ -861,10 +944,14 @@ pub const H_SPACER: Node = Node {
     grid_element: GridElement::ONE_BY_ONE,
     free_placement: false,
     ignore_parent_scroll: false,
+    text: None,
+    placeholder_text: None,
+    text_style: None,
+    image: None,
 };
 
 /// [`Node`] for a invisible spacer element that fills all the available space in the Y direction.
-pub const V_SPACER: Node = Node {
+pub const V_SPACER: Node<'_> = Node {
     animation: NO_ANIMATION,
     key: None,
     children_layout: ChildrenLayout::Free,
@@ -896,10 +983,14 @@ pub const V_SPACER: Node = Node {
     grid_element: GridElement::ONE_BY_ONE,
     free_placement: false,
     ignore_parent_scroll: false,
+    text: None,
+    placeholder_text: None,
+    text_style: None,
+    image: None,
 };
 
 /// [`Node`] for a horizontal divider line.
-pub const H_LINE: Node = Node {
+pub const H_LINE: Node<'_> = Node {
     animation: NO_ANIMATION,
     key: None,
     children_layout: ChildrenLayout::Free,
@@ -936,9 +1027,13 @@ pub const H_LINE: Node = Node {
     grid_element: GridElement::ONE_BY_ONE,
     free_placement: false,
     ignore_parent_scroll: false,
+    text: None,
+    placeholder_text: None,
+    text_style: None,
+    image: None,
 };
 
-pub(crate) const COMPONENT_ROOT: Node = Node {
+pub(crate) const COMPONENT_ROOT: Node<'_> = Node {
     // todo remove
     animation: Animation { speed: 1.0, enter: EnterAnimation::None, exit: ExitAnimation::None, state_transition: StateTransition { animate_position: true } },
     key: None,
@@ -971,4 +1066,8 @@ pub(crate) const COMPONENT_ROOT: Node = Node {
     grid_element: GridElement::ONE_BY_ONE,
     free_placement: false,
     ignore_parent_scroll: false,
+    text: None,
+    placeholder_text: None,
+    text_style: None,
+    image: None,
 };

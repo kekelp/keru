@@ -419,7 +419,8 @@ impl Component for TransformView<'_> {
             .translate(self.state.pan_x, self.state.pan_y)
             .scale(self.state.scale)
             .size_symm(Size::Fill)
-            .clip_children(true);
+            .clip_children_x(true)
+            .clip_children_y(true);
 
         let parent = ui.add(transform_area);
 

@@ -37,9 +37,9 @@ pub enum ChildrenCanHide {
 /// 
 /// [`Node`] is a plain-old-data struct. Methods like [`Self::text()`] allow to associate borrowed data like a `&str` to a [`Node`].
 /// 
-/// The result is a [`FullNode`], a version of this struct that can hold borrowed data. Both versions can be used in the same ways.
+/// The result is a [`Node`], a version of this struct that can hold borrowed data. Both versions can be used in the same ways.
 #[derive(Debug, Copy, Clone)]
-pub struct Node {
+pub struct Node<'a> {
     pub key: Option<NodeKey>,
     pub text_params: TextOptions,
     pub children_layout: ChildrenLayout,
@@ -67,6 +67,11 @@ pub struct Node {
     pub free_placement: bool,
     /// If true, this node is not shifted by the parent's scroll offset.
     pub ignore_parent_scroll: bool,
+
+    pub text: Option<NodeText<'a>>,
+    pub text_style: Option<StyleHandle>,
+    pub image: Option<Image<'a>>,
+    pub placeholder_text: Option<NodeText<'a>>,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -576,7 +581,7 @@ impl TextOptions {
 // The corner rounding of most default nodes.
 pub const DEFAULT_CORNER_RADIUS: f32 = 9.0;
 
-impl Node {
+impl<'a> Node<'a> {
     pub(crate) fn cosmetic_hash(&self) -> u64 {
         let mut hasher = ahasher();
         self.shape.hash(&mut hasher);
@@ -662,6 +667,96 @@ impl Node {
             .position_y(Pos::Pixels(min_y))
             .size_x(Size::Pixels(width))
             .size_y(Size::Pixels(height))
+    }
+
+    pub const fn stroke_width(mut self, width: f32) -> Self {
+        if let Some(stroke) = &mut self.stroke {
+            stroke.width = width;
+        } else {
+            self.stroke = Some(Stroke::new(width))
+        }
+        return self;
+    }
+
+    /// Set the draw order priority among siblings.
+    /// 
+    /// Siblings with a higher value will be drawn on top. The default value is zero.
+    pub const fn z_index(mut self, z_index: f32) -> Self {
+        self.z_index = z_index;
+        return self;
+    }
+
+    pub const fn grid(mut self, cells: MainAxisCellSize, spacing_x: f32, spacing_y: f32, flow: GridFlow) -> Self {
+        self.children_layout = ChildrenLayout::Grid { columns: cells, spacing_x, spacing_y, flow };
+        return self;
+    }
+
+    pub const fn grid_row_span(mut self, span: u16) -> Self {
+        self.grid_element.row_span = span;
+        return self;
+    }
+
+    pub const fn grid_column_span(mut self, span: u16) -> Self {
+        self.grid_element.column_span = span;
+        return self;
+    }
+
+    /// Sets whether a node's children stay hidden or get removed when they get excluded from the tree.
+    /// 
+    /// If a node stays hidden, it retains its internal state (scroll offset, text input, ...), and it is slightly less expensive to bring them back into view. If it gets removed, its memory can be reused for other nodes. 
+    /// 
+    /// For example, the panel with the main content in a tabbed application should use [`children_can_hide(true)`](`Node::children_can_hide`), so that all state is retained when switching tabs.
+    ///
+    /// On the other hand, if a panel that contains dynamic content, it should stick to the default [`children_can_hide(false)`](`Node::children_can_hide`), so that when old elements are removed their memory can be reused for the new ones.
+    pub fn children_can_hide(mut self, value: bool) -> Self {
+        self.children_can_hide = if value { ChildrenCanHide::Yes } else { ChildrenCanHide::No };
+        return self;
+    }
+
+    pub const fn translate(mut self, x: f32, y: f32) -> Self {
+        self.transform.offset = vec2(x, y);
+        return self;
+    }
+
+    /// Apply a zoom centered at the center of the node's rect.
+    pub const fn scale(mut self, scale: f32) -> Self {
+        self.transform.scale = scale;
+        return self;
+    }
+
+    pub fn click_animation(mut self, value: bool) -> Self {
+        self.interact.click_animation = value;
+        return self;
+    }
+}
+
+
+#[derive(Copy, Clone, Hash, Debug)]
+pub struct NodeText<'a>(pub &'a str);
+
+impl<'a> NodeText<'a> {
+    pub fn as_str(&self) -> &str {
+        self.0
+    }
+}
+
+/// Data for an image to be displayed
+#[derive(Copy, Clone, Debug)]
+pub enum Image<'a> {
+    /// Raster image from static bytes (PNG, JPEG, etc.)
+    RasterStatic(&'static [u8]),
+    /// Raster image from filesystem path
+    RasterPath(&'a str),
+    /// SVG image from static bytes
+    SvgStatic(&'static [u8]),
+    /// SVG image from filesystem path
+    SvgPath(&'a str),
+}
+
+impl<'a> Node<'a> {
+    pub const fn single_line_text(mut self, value: bool) -> Self {
+        self.text_params.single_line = value;
+        return self;
     }
 
     pub const fn position(mut self, position_x: Pos, position_y: Pos) -> Self {
@@ -759,11 +854,12 @@ impl Node {
         return self;
     }
 
-    pub const fn stroke_width(mut self, width: f32) -> Self {
-        if let Some(stroke) = &mut self.stroke {
-            stroke.width = width;
-        } else {
-            self.stroke = Some(Stroke::new(width))
+    pub const fn stroke(mut self, width: f32) -> Self {
+        match &mut self.stroke {
+            Some(stroke) => stroke.width = width,
+            None => {
+                self.stroke = Some(Stroke::new(width))
+            },
         }
         return self;
     }
@@ -807,14 +903,6 @@ impl Node {
         return self;
     }
 
-    /// Set the draw order priority among siblings.
-    /// 
-    /// Siblings with a higher value will be drawn on top. The default value is zero.
-    pub const fn z_index(mut self, z_index: f32) -> Self {
-        self.z_index = z_index;
-        return self;
-    }
-
     pub const fn stack(mut self, axis: Axis, arrange: Arrange, spacing: f32) -> Self {
         self.children_layout = ChildrenLayout::Stack {
             arrange,
@@ -852,23 +940,8 @@ impl Node {
         return self;
     }
 
-    pub const fn grid(mut self, cells: MainAxisCellSize, spacing_x: f32, spacing_y: f32, flow: GridFlow) -> Self {
-        self.children_layout = ChildrenLayout::Grid { columns: cells, spacing_x, spacing_y, flow };
-        return self;
-    }
-
-    pub const fn grid_row_span(mut self, span: u16) -> Self {
-        self.grid_element.row_span = span;
-        return self;
-    }
-
-    pub const fn grid_column_span(mut self, span: u16) -> Self {
-        self.grid_element.column_span = span;
-        return self;
-    }
-
-    pub const fn padding(mut self, pixels: f32) -> Self {
-        self.layout.padding = Xy::new_symm(pixels);
+    pub const fn padding(mut self, padding: f32) -> Self {
+        self.layout.padding = Xy::new_symm(padding);
         return self;
     }
 
@@ -897,12 +970,73 @@ impl Node {
         return self;
     }
 
-    // todo: rename to opaque or something like that
     pub const fn absorbs_clicks(mut self, absorbs_clicks: bool) -> Self {
         self.interact.absorbs_mouse_events = absorbs_clicks;
         return self;
     }
 
+    pub const fn sense_click(mut self, value: bool) -> Self {
+        let senses = &mut self.interact.senses;
+        if value {
+            *senses = senses.union(Sense::CLICK);
+        } else {
+            *senses = senses.intersection(Sense::CLICK.complement());
+        }
+        return self;
+    }
+
+    pub const fn sense_drag(mut self, value: bool) -> Self {
+        let senses = &mut self.interact.senses;
+        if value {
+            *senses = senses.union(Sense::DRAG);
+        } else {
+            *senses = senses.intersection(Sense::DRAG.complement());
+        }
+        return self;
+    }
+
+    pub const fn sense_hover(mut self, value: bool) -> Self {
+        let senses = &mut self.interact.senses;
+        if value {
+            *senses = senses.union(Sense::HOVER);
+        } else {
+            *senses = senses.intersection(Sense::HOVER.complement());
+        }
+        return self;
+    }
+
+    pub const fn sense_hold(mut self, value: bool) -> Self {
+        let senses = &mut self.interact.senses;
+        if value {
+            *senses = senses.union(Sense::HOLD);
+        } else {
+            *senses = senses.intersection(Sense::HOLD.complement());
+        }
+        return self;
+    }
+
+    pub const fn sense_scroll(mut self, value: bool) -> Self {
+        let senses = &mut self.interact.senses;
+        if value {
+            *senses = senses.union(Sense::SCROLL);
+        } else {
+            *senses = senses.intersection(Sense::SCROLL.complement());
+        }
+        return self;
+    }
+
+    pub const fn sense_drag_drop_target(mut self, value: bool) -> Self {
+        let senses = &mut self.interact.senses;
+        if value {
+            *senses = senses.union(Sense::DRAG_DROP_TARGET);
+        } else {
+            *senses = senses.intersection(Sense::DRAG_DROP_TARGET.complement());
+        }
+        return self;
+    }
+
+    /// Add a [`NodeKey`] to the [`Node`].
+    /// 
     pub fn key(mut self, key: NodeKey) -> Self {
         self.key = Some(key);
         return self;
@@ -940,7 +1074,6 @@ impl Node {
         return self;
     }
 
-    // Convenience methods for common patterns
     pub const fn slide_from_top(mut self) -> Self {
         self.animation.enter = EnterAnimation::Slide { edge: SlideEdge::Top, direction: SlideDirection::In };
         self.animation.exit = ExitAnimation::Slide { edge: SlideEdge::Top, direction: SlideDirection::Out };
@@ -976,93 +1109,6 @@ impl Node {
         return self;
     }
 
-    /// Sets whether a node's children stay hidden or get removed when they get excluded from the tree.
-    /// 
-    /// If a node stays hidden, it retains its internal state (scroll offset, text input, ...), and it is slightly less expensive to bring them back into view. If it gets removed, its memory can be reused for other nodes. 
-    /// 
-    /// For example, the panel with the main content in a tabbed application should use [`children_can_hide(true)`](`Node::children_can_hide`), so that all state is retained when switching tabs.
-    ///
-    /// On the other hand, if a panel that contains dynamic content, it should stick to the default [`children_can_hide(false)`](`Node::children_can_hide`), so that when old elements are removed their memory can be reused for the new ones.
-    pub fn children_can_hide(mut self, value: bool) -> Self {
-        self.children_can_hide = if value { ChildrenCanHide::Yes } else { ChildrenCanHide::No };
-        return self;
-    }
-
-    pub fn children_can_hide_inherit(mut self) -> Self {
-        self.children_can_hide = ChildrenCanHide::Inherit;
-        return self;
-    }
-
-    pub const fn sense_click_release(mut self, value: bool) -> Self {
-        let senses = &mut self.interact.senses;
-        if value {
-            *senses = senses.union(Sense::CLICK_RELEASE);
-        } else {
-            *senses = senses.intersection(Sense::CLICK_RELEASE.complement());
-        }
-        return self;
-    }
-
-    pub const fn sense_click(mut self, value: bool) -> Self {
-        let senses = &mut self.interact.senses;
-        if value {
-            *senses = senses.union(Sense::CLICK);
-        } else {
-            *senses = senses.intersection(Sense::CLICK.complement());
-        }
-        return self;
-    }
-
-    pub const fn sense_drag(mut self, value: bool) -> Self {
-        let senses = &mut self.interact.senses;
-        if value {
-            *senses = senses.union(Sense::DRAG);
-        } else {
-            *senses = senses.intersection(Sense::DRAG.complement());
-        }
-        return self;
-    }
-
-    pub const fn sense_hover(mut self, value: bool) -> Self {
-        let senses = &mut self.interact.senses;
-        if value {
-            *senses = senses.union(Sense::HOVER);
-        } else {
-            *senses = senses.intersection(Sense::HOVER.complement());
-        }
-        return self;
-    }
-
-    pub const fn sense_hold(mut self, value: bool) -> Self {
-        let senses = &mut self.interact.senses;
-        if value {
-            *senses = senses.union(Sense::HOLD);
-        } else {
-            *senses = senses.intersection(Sense::HOLD.complement());
-        }
-        return self;
-    }
-
-    pub const fn sense_scroll(mut self, value: bool) -> Self {
-        let senses = &mut self.interact.senses;
-        if value {
-            *senses = senses.union(Sense::SCROLL);
-        } else {
-            *senses = senses.intersection(Sense::SCROLL.complement());
-        }
-        return self;
-    }
-
-    pub const fn sense_drag_drop_target(mut self, value: bool) -> Self {
-        let senses = &mut self.interact.senses;
-        if value {
-            *senses = senses.union(Sense::DRAG_DROP_TARGET);
-        } else {
-            *senses = senses.intersection(Sense::DRAG_DROP_TARGET.complement());
-        }
-        return self;
-    }
-
     pub fn is_fit_content(&self) -> bool {
         let Xy { x, y } = self.layout.size;
         return x == Size::FitContent || y == Size::FitContent
@@ -1072,19 +1118,14 @@ impl Node {
         return self.layout.scrollable.x || self.layout.scrollable.y
     }
 
-    pub const fn clip_children(mut self, value: bool) -> Self {
-        self.clip_children = Xy::new(value, value);
+    pub fn children_can_hide_inherit(mut self) -> Self {
+        self.children_can_hide = ChildrenCanHide::Inherit;
         return self;
     }
 
-    pub const fn translate(mut self, x: f32, y: f32) -> Self {
-        self.transform.offset = vec2(x, y);
-        return self;
-    }
-
-    /// Apply a zoom centered at the center of the node's rect.
-    pub const fn scale(mut self, scale: f32) -> Self {
-        self.transform.scale = scale;
+    /// Set the text style for this node.
+    pub fn text_style(mut self, style: StyleHandle) -> Self {
+        self.text_style = Some(style);
         return self;
     }
 
@@ -1103,11 +1144,6 @@ impl Node {
         return self;
     }
 
-    pub fn click_animation(mut self, value: bool) -> Self {
-        self.interact.click_animation = value;
-        return self;
-    }
-
     pub const fn free_placement(mut self, value: bool) -> Self {
         self.free_placement = value;
         return self;
@@ -1117,548 +1153,54 @@ impl Node {
         self.ignore_parent_scroll = value;
         return self;
     }
-}
-
-
-#[derive(Copy, Clone, Hash)]
-pub struct NodeText<'a>(pub &'a str);
-
-impl<'a> NodeText<'a> {
-    pub fn as_str(&self) -> &str {
-        self.0
-    }
-}
-
-/// Data for an image to be displayed
-#[derive(Copy, Clone)]
-pub enum Image<'a> {
-    /// Raster image from static bytes (PNG, JPEG, etc.)
-    RasterStatic(&'static [u8]),
-    /// Raster image from filesystem path
-    RasterPath(&'a str),
-    /// SVG image from static bytes
-    SvgStatic(&'static [u8]),
-    /// SVG image from filesystem path
-    SvgPath(&'a str),
-}
-
-/// An extended version of [`Node`] that can hold text or other borrowed data.
-///
-/// Created starting from a [`Node`] and using methods like [`Node::text()`].
-///
-/// Can be used in the same way as [`Node`].
-#[derive(Copy, Clone)]
-pub struct FullNode<'a> {
-    pub node: Node,
-    pub text: Option<NodeText<'a>>,
-    pub text_style: Option<StyleHandle>,
-    pub image: Option<Image<'a>>,
-    pub placeholder_text: Option<NodeText<'a>>,
-}
-
-impl<'a> FullNode<'a> {
-    pub const fn single_line_text(mut self, value: bool) -> Self {
-        self.node.text_params.single_line = value;
-        return self;
-    }
-
-    pub const fn position(mut self, position_x: Pos, position_y: Pos) -> Self {
-        self.node.layout.position.x = position_x;
-        self.node.layout.position.y = position_y;
-        return self;
-    }
-
-    pub const fn position_symm(mut self, position: Pos) -> Self {
-        self.node.layout.position.x = position;
-        self.node.layout.position.y = position;
-        return self;
-    }
-
-    pub const fn position_x(mut self, position: Pos) -> Self {
-        self.node.layout.position.x = position;
-        return self;
-    }
-
-    pub const fn position_y(mut self, position: Pos) -> Self {
-        self.node.layout.position.y = position;
-        return self;
-    }
-
-    pub const fn anchor(mut self, anchor_x: Anchor, anchor_y: Anchor) -> Self {
-        self.node.layout.anchor.x = anchor_x;
-        self.node.layout.anchor.y = anchor_y;
-        return self;
-    }
-
-    pub const fn anchor_symm(mut self, anchor: Anchor) -> Self {
-        self.node.layout.anchor.x = anchor;
-        self.node.layout.anchor.y = anchor;
-        return self;
-    }
-
-    pub const fn anchor_x(mut self, anchor: Anchor) -> Self {
-        self.node.layout.anchor.x = anchor;
-        return self;
-    }
-
-    pub const fn anchor_y(mut self, anchor: Anchor) -> Self {
-        self.node.layout.anchor.y = anchor;
-        return self;
-    }
-
-    pub const fn size(mut self, size_x: Size, size_y: Size) -> Self {
-        self.node.layout.size.x = size_x;
-        self.node.layout.size.y = size_y;
-        return self;
-    }
-
-    pub const fn size_x(mut self, size_x: Size) -> Self {
-        self.node.layout.size.x = size_x;
-        return self;
-    }
-
-    pub const fn size_y(mut self, size_y: Size) -> Self {
-        self.node.layout.size.y = size_y;
-        return self;
-    }
-
-    pub const fn size_symm(mut self, size: Size) -> Self {
-        self.node.layout.size.x = size;
-        self.node.layout.size.y = size;
-        return self;
-    }
-
-    pub const fn visible(mut self) -> Self {
-        self.node.visible = true;
-        return self;
-    }
-    pub const fn invisible(mut self) -> Self {
-        self.node.visible = false;
-        return self;
-    }
-
-    pub const fn blur(mut self, radius: f32) -> Self {
-        self.node.blur = Some(radius);
-        return self;
-    }
-
-    pub const fn shadow(mut self, shadow: Shadow) -> Self {
-        self.node.shadow = Some(shadow);
-        return self;
-    }
-
-    pub const fn second_shadow(mut self, shadow: Shadow) -> Self {
-        self.node.second_shadow = Some(shadow);
-        return self;
-    }
-
-    pub const fn filled(mut self) -> Self {
-        self.node.stroke = None;
-        return self;
-    }
-
-    pub const fn stroke(mut self, width: f32) -> Self {
-        match &mut self.node.stroke {
-            Some(stroke) => stroke.width = width,
-            None => {
-                self.node.stroke = Some(Stroke::new(width))
-            },
-        }
-        return self;
-    }
-
-    pub const fn stroke_dashes(mut self, dash_length: f32, dash_offset: f32) -> Self {
-        if let Some(stroke) = self.node.stroke {
-            self.node.stroke = Some(stroke.with_dashes(dash_length, dash_offset));
-        }
-        return self;
-    }
-
-    pub const fn stroke_color(mut self, color: Color) -> Self {
-        if let Some(stroke) = self.node.stroke {
-            self.node.stroke = Some(stroke.with_color(color));
-        }
-        return self;
-    }
-
-    pub const fn color(mut self, color: Color) -> Self {
-        self.node.color = ColorFill::Color(color);
-        return self;
-    }
-
-    pub const fn gradient(mut self, gradient: Gradient) -> Self {
-        self.node.color = ColorFill::Gradient(gradient);
-        return self;
-    }
-
-    pub const fn fill(mut self, fill: ColorFill) -> Self {
-        self.node.color = fill;
-        return self;
-    }
-
-    pub const fn shape(mut self, shape: Shape) -> Self {
-        self.node.shape = shape;
-        return self;
-    }
-
-    pub const fn circle(mut self) -> Self {
-        self.node.shape = Shape::Circle;
-        return self;
-    }
-
-    pub const fn stack(mut self, axis: Axis, arrange: Arrange, spacing: f32) -> Self {
-        self.node.children_layout = ChildrenLayout::Stack {
-            arrange,
-            axis,
-            spacing,
-        };
-        return self;
-    }
-
-    pub const fn stack_arrange(mut self, arrange: Arrange) -> Self {
-        let (axis, spacing) = match self.node.children_layout {
-            ChildrenLayout::Stack { axis, spacing, .. } => (axis, spacing),
-            _ => (Axis::Y, 8.0),
-        };
-        self.node.children_layout = ChildrenLayout::Stack { arrange, axis, spacing };
-        return self;
-    }
-
-    pub const fn stack_spacing(mut self, spacing: f32) -> Self {
-        let (arrange, axis) = match self.node.children_layout {
-            ChildrenLayout::Stack { arrange, axis, .. } => (arrange, axis),
-            _ => (Arrange::Center, Axis::Y),
-        };
-        self.node.children_layout = ChildrenLayout::Stack { arrange, axis, spacing };
-        return self;
-    }
-
-    // todo: if we don't mind sacrificing symmetry, it could make sense to just remove this one.
-    pub const fn stack_axis(mut self, axis: Axis) -> Self {
-        let (arrange, spacing) = match self.node.children_layout {
-            ChildrenLayout::Stack { arrange, spacing, .. } => (arrange, spacing),
-            _ => (Arrange::Center, 8.0),
-        };
-        self.node.children_layout = ChildrenLayout::Stack { arrange, axis, spacing };
-        return self;
-    }
-
-    pub const fn padding(mut self, padding: f32) -> Self {
-        self.node.layout.padding = Xy::new_symm(padding);
-        return self;
-    }
-
-    pub const fn padding_x(mut self, padding: f32) -> Self {
-        self.node.layout.padding.x = padding;
-        return self;
-    }
-
-    pub const fn padding_y(mut self, padding: f32) -> Self {
-        self.node.layout.padding.y = padding;
-        return self;
-    }
-
-    pub const fn scrollable_x(mut self, scrollable_x: bool) -> Self {
-        self.node.layout.scrollable.x = scrollable_x;
-        return self;
-    }
-
-    pub const fn scrollable_y(mut self, scrollable_y: bool) -> Self {
-        self.node.layout.scrollable.y = scrollable_y;
-        return self;
-    }
-
-    pub const fn auto_markdown(mut self, auto_markdown: bool) -> Self {
-        self.node.text_params.auto_markdown = auto_markdown;
-        return self;
-    }
-
-    pub const fn absorbs_clicks(mut self, absorbs_clicks: bool) -> Self {
-        self.node.interact.absorbs_mouse_events = absorbs_clicks;
-        return self;
-    }
-
-    pub const fn sense_click(mut self, value: bool) -> Self {
-        let senses = &mut self.node.interact.senses;
-        if value {
-            *senses = senses.union(Sense::CLICK);
-        } else {
-            *senses = senses.intersection(Sense::CLICK.complement());
-        }
-        return self;
-    }
-
-    pub const fn sense_drag(mut self, value: bool) -> Self {
-        let senses = &mut self.node.interact.senses;
-        if value {
-            *senses = senses.union(Sense::DRAG);
-        } else {
-            *senses = senses.intersection(Sense::DRAG.complement());
-        }
-        return self;
-    }
-
-    pub const fn sense_hover(mut self, value: bool) -> Self {
-        let senses = &mut self.node.interact.senses;
-        if value {
-            *senses = senses.union(Sense::HOVER);
-        } else {
-            *senses = senses.intersection(Sense::HOVER.complement());
-        }
-        return self;
-    }
-
-    pub const fn sense_hold(mut self, value: bool) -> Self {
-        let senses = &mut self.node.interact.senses;
-        if value {
-            *senses = senses.union(Sense::HOLD);
-        } else {
-            *senses = senses.intersection(Sense::HOLD.complement());
-        }
-        return self;
-    }
-
-    pub const fn sense_scroll(mut self, value: bool) -> Self {
-        let senses = &mut self.node.interact.senses;
-        if value {
-            *senses = senses.union(Sense::SCROLL);
-        } else {
-            *senses = senses.intersection(Sense::SCROLL.complement());
-        }
-        return self;
-    }
-
-    pub const fn sense_drag_drop_target(mut self, value: bool) -> Self {
-        let senses = &mut self.node.interact.senses;
-        if value {
-            *senses = senses.union(Sense::DRAG_DROP_TARGET);
-        } else {
-            *senses = senses.intersection(Sense::DRAG_DROP_TARGET.complement());
-        }
-        return self;
-    }
-
-    /// Add a [`NodeKey`] to the [`Node`].
-    /// 
-    pub fn key(mut self, key: NodeKey) -> Self {
-        self.node.key = Some(key);
-        return self;
-    }
-
-    pub const fn animation(mut self, animation: Animation) -> Self {
-        self.node.animation = animation;
-        return self;
-    }
-
-    pub const fn animation_speed(mut self, speed: f32) -> Self {
-        self.node.animation.speed = speed;
-        return self;
-    }
-
-    // Enter animation methods
-    pub const fn enter_slide(mut self, edge: SlideEdge, direction: SlideDirection) -> Self {
-        self.node.animation.enter = EnterAnimation::Slide { edge, direction };
-        return self;
-    }
-
-    pub const fn enter_grow(mut self, axis: Axis, origin: Pos) -> Self {
-        self.node.animation.enter = EnterAnimation::GrowShrink { axis, origin };
-        return self;
-    }
-
-    // Exit animation methods
-    pub const fn exit_slide(mut self, edge: SlideEdge, direction: SlideDirection) -> Self {
-        self.node.animation.exit = ExitAnimation::Slide { edge, direction };
-        return self;
-    }
-
-    pub const fn exit_shrink(mut self, axis: Axis, origin: Pos) -> Self {
-        self.node.animation.exit = ExitAnimation::GrowShrink { axis, origin };
-        return self;
-    }
-
-    pub const fn slide_from_top(mut self) -> Self {
-        self.node.animation.enter = EnterAnimation::Slide { edge: SlideEdge::Top, direction: SlideDirection::In };
-        self.node.animation.exit = ExitAnimation::Slide { edge: SlideEdge::Top, direction: SlideDirection::Out };
-        return self;
-    }
-
-    pub const fn slide_from_bottom(mut self) -> Self {
-        self.node.animation.enter = EnterAnimation::Slide { edge: SlideEdge::Bottom, direction: SlideDirection::In };
-        self.node.animation.exit = ExitAnimation::Slide { edge: SlideEdge::Bottom, direction: SlideDirection::Out };
-        return self;
-    }
-
-    pub const fn slide_from_left(mut self) -> Self {
-        self.node.animation.enter = EnterAnimation::Slide { edge: SlideEdge::Left, direction: SlideDirection::In };
-        self.node.animation.exit = ExitAnimation::Slide { edge: SlideEdge::Left, direction: SlideDirection::Out };
-        return self;
-    }
-
-    pub const fn slide_from_right(mut self) -> Self {
-        self.node.animation.enter = EnterAnimation::Slide { edge: SlideEdge::Right, direction: SlideDirection::In };
-        self.node.animation.exit = ExitAnimation::Slide { edge: SlideEdge::Right, direction: SlideDirection::Out };
-        return self;
-    }
-
-    pub const fn grow_shrink(mut self, axis: Axis, origin: Pos) -> Self {
-        self.node.animation.enter = EnterAnimation::GrowShrink { axis, origin };
-        self.node.animation.exit = ExitAnimation::GrowShrink { axis, origin };
-        return self;
-    }
-
-    pub const fn animate_position(mut self, value: bool) -> Self {
-        self.node.animation.state_transition.animate_position = value;
-        return self;
-    }
-
-    pub fn is_fit_content(&self) -> bool {
-        let Xy { x, y } = self.node.layout.size;
-        return x == Size::FitContent || y == Size::FitContent
-    }
-
-    pub const fn is_scrollable(&self) -> bool {
-        return self.node.layout.scrollable.x || self.node.layout.scrollable.y
-    }
-
-    pub fn children_can_hide(mut self, value: bool) -> Self {
-        self.node.children_can_hide = if value { ChildrenCanHide::Yes } else { ChildrenCanHide::No };
-        return self;
-    }
-
-    pub fn children_can_hide_inherit(mut self) -> Self {
-        self.node.children_can_hide = ChildrenCanHide::Inherit;
-        return self;
-    }
-
-    /// Set the text style for this node.
-    pub fn text_style(mut self, style: StyleHandle) -> Self {
-        self.text_style = Some(style);
-        return self;
-    }
 
     /// Set placeholder text for a text edit that will be shown when the text edit is empty.
     /// This only works with editable text nodes.
-    pub fn placeholder_text(mut self, placeholder_text: &'a str) -> Self {
-        self.placeholder_text = Some(NodeText(placeholder_text));
-        self
-    }
-
-    pub const fn clip_children(mut self, value: Xy<bool>) -> Self {
-        self.node.clip_children = value;
+    pub fn placeholder_text(mut self, placeholder: &'a str) -> Node<'a> {
+        self.placeholder_text = Some(NodeText(placeholder));
         return self;
-    }
-
-    pub const fn clip_children_x(mut self, value: bool) -> Self {
-        self.node.clip_children.x = value;
-        return self;
-    }
-
-    pub const fn clip_children_y(mut self, value: bool) -> Self {
-        self.node.clip_children.y = value;
-        return self;
-    }
-
-    pub const fn custom_render(mut self, value: bool) -> Self {
-        self.node.custom_render = value;
-        return self;
-    }
-
-    pub const fn free_placement(mut self, value: bool) -> Self {
-        self.node.free_placement = value;
-        return self;
-    }
-
-    pub const fn ignore_parent_scroll(mut self, value: bool) -> Self {
-        self.node.ignore_parent_scroll = value;
-        return self;
-    }
-}
-
-impl Node {
-    /// Set placeholder text for a text edit that will be shown when the text edit is empty.
-    /// This only works with editable text nodes.
-    pub fn placeholder_text<'a>(self, placeholder: &'a str) -> FullNode<'a> {
-        return FullNode {
-            node: self,
-            text: None,
-            text_style: None,
-            image: None,
-            placeholder_text: Some(NodeText(placeholder)),
-        }
     }
 
     /// Add text to the [`Node`] from a `&'static str`.
     ///
     /// Uses pointer equality to determine if the text needs updating.
-    pub const fn static_text(mut self, text: &'static str) -> FullNode<'static> {
+    pub const fn static_text(mut self, text: &'static str) -> Node<'a> {
         self.text_params.use_pointer_comparison = true;
-        return FullNode {
-            node: self,
-            text: Some(NodeText(text)),
-            text_style: None,
-            image: None,
-            placeholder_text: None,
-        }
+        self.text = Some(NodeText(text));
+        return self;
     }
 
-    pub fn static_image(self, image: &'static [u8]) -> FullNode<'static> {
-        return FullNode {
-            node: self,
-            text: None,
-            text_style: None,
-            image: Some(Image::RasterStatic(image)),
-            placeholder_text: None,
-        }
+    pub fn static_image(mut self, image: &'static [u8]) -> Node<'a> {
+        self.image = Some(Image::RasterStatic(image));
+        return self;
     }
 
-    pub fn image_path<'a>(self, path: &'a str) -> FullNode<'a> {
-        return FullNode {
-            node: self,
-            text: None,
-            text_style: None,
-            image: Some(Image::RasterPath(path)),
-            placeholder_text: None,
-        }
+    pub fn image_path(mut self, path: &'a str) -> Node<'a> {
+        self.image = Some(Image::RasterPath(path));
+        return self;
     }
 
-    pub fn static_svg(self, svg: &'static [u8]) -> FullNode<'static> {
-        return FullNode {
-            node: self,
-            text: None,
-            text_style: None,
-            image: Some(Image::SvgStatic(svg)),
-            placeholder_text: None,
-        }
+    pub fn static_svg(mut self, svg: &'static [u8]) -> Node<'a> {
+        self.image = Some(Image::SvgStatic(svg));
+        return self;
     }
 
-    pub fn svg_path<'a>(self, path: &'a str) -> FullNode<'a> {
-        return FullNode {
-            node: self,
-            text: None,
-            text_style: None,
-            image: Some(Image::SvgPath(path)),
-            placeholder_text: None,
-        }
+    pub fn svg_path(mut self, path: &'a str) -> Node<'a> {
+        self.image = Some(Image::SvgPath(path));
+        return self;
+    }
+
+    /// Add text to the [`Node`].
+    pub fn text(mut self, text: &'a str) -> Node<'a> {
+        self.text = Some(NodeText(text));
+        return self;
     }
 }
 
-impl From<Node> for FullNode<'_> {
-    fn from(val: Node) -> Self {
-        FullNode {
-            node: val,
-            text: None,
-            text_style: None,
-            image: None,
-            placeholder_text: None,
-        }
-    }
-}
-
-impl FullNode<'_> {
+impl Node<'_> {
     #[track_caller]
     pub(crate) fn key_or_anon_key(&self) -> NodeKey {
-        return match self.node.key {
+        return match self.key {
             Some(key) => key,
             None => NodeKey::new(Id(caller_location_id()), "Anon node"),
         };
@@ -1712,13 +1254,13 @@ fn apply_markdown<'a>(text: &str, arena: &'a bumpalo::Bump) -> (BumpString<'a>, 
 }
 
 impl Ui {
-    pub(crate) fn set_params_text(&mut self, i: NodeI, params: &FullNode) {
-            let Some(raw_text) = params.text else {
+    pub(crate) fn set_params_text(&mut self, i: NodeI, node: &Node) {
+            let Some(raw_text) = node.text else {
                 return
             };
 
-            let text_options = params.node.text_params;
-            let style = params.text_style.as_ref();
+            let text_options = node.text_params;
+            let style = node.text_style.as_ref();
 
             let new_fingerprint = TextFingerprint::new(raw_text.as_str(), text_options.use_pointer_comparison);
 
@@ -1802,7 +1344,7 @@ impl Ui {
                         if let Some(style) = style {
                             self.sys.renderer.text.get_text_edit_mut(handle).set_style(style);
                         }
-                        if let Some(placeholder) = params.placeholder_text {
+                        if let Some(placeholder) = node.placeholder_text {
                             self.sys.renderer.text.get_text_edit_mut(handle).set_placeholder_hashed(placeholder.as_str());
                         }
                     },
@@ -1833,13 +1375,13 @@ impl Ui {
     }
 
 
-    pub(crate) fn set_params(&mut self, i: NodeI, params: &FullNode) {
+    pub(crate) fn set_params(&mut self, i: NodeI, node: &Node) {
         #[cfg(not(debug_assertions))]
         if reactive::is_in_skipped_reactive_block() {
             return;
         }
         
-        if let Some(image_data) = params.image {
+        if let Some(image_data) = node.image {
             match image_data {
                 Image::RasterStatic(image) => self.set_static_image(i, image),
                 Image::RasterPath(path) => self.set_path_image(i, path),
@@ -1848,8 +1390,8 @@ impl Ui {
             };
         }
         
-        let new_cosmetic_hash = params.node.cosmetic_hash();
-        let new_layout_hash = params.node.layout_hash();
+        let new_cosmetic_hash = node.cosmetic_hash();
+        let new_layout_hash = node.layout_hash();
         
         let cosmetic_changed = new_cosmetic_hash != self.sys.nodes[i].last_cosmetic_hash;
         let layout_changed = new_layout_hash != self.sys.nodes[i].last_layout_hash;
@@ -1869,7 +1411,7 @@ impl Ui {
             return;
         }
         
-        self.sys.nodes[i].params = params.node.clone();
+        self.sys.nodes[i].params = node.remove_borrowed_data_and_copy();
 
         self.sys.nodes[i].last_cosmetic_hash = new_cosmetic_hash;
         self.sys.nodes[i].last_layout_hash = new_layout_hash;
@@ -1883,23 +1425,36 @@ impl Ui {
     }
 }
 
-impl Node {
-    /// Add text to the [`Node`].
-    pub const fn text(self, text: &str) -> FullNode<'_> {
-        return FullNode {
-            node: self,
-            text: Some(NodeText(text)),
+
+impl<'a> Node<'a> {
+    fn remove_borrowed_data_and_copy(self) -> Node<'static> {
+        let staticized: Node<'static> = Node {
+            key: self.key,
+            text_params: self.text_params,
+            children_layout: self.children_layout,
+            shape: self.shape,
+            blur: self.blur,
+            shadow: self.shadow,
+            second_shadow: self.second_shadow,
+            stroke: self.stroke,
+            color: self.color,
+            visible: self.visible,
+            interact: self.interact,
+            layout: self.layout,
+            children_can_hide: self.children_can_hide,
+            clip_children: self.clip_children,
+            animation: self.animation,
+            transform: self.transform,
+            custom_render: self.custom_render,
+            z_index: self.z_index,
+            grid_element: self.grid_element,
+            free_placement: self.free_placement,
+            ignore_parent_scroll: self.ignore_parent_scroll,
+            text: None,
             text_style: None,
             image: None,
             placeholder_text: None,
-        }
-    }
-}
-
-impl<'a> FullNode<'a> {
-    /// Add text to the [`Node`].
-    pub fn text(mut self, text: &'a str) -> FullNode<'a> {
-        self.text = Some(NodeText(text));
-        return self;
+        };
+        return staticized;
     }
 }

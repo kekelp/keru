@@ -37,15 +37,14 @@ impl Ui {
     /// 
     /// Buttons, images, text elements, stack containers, etc. are all created by `add`ing a [`Node`] with the right fields.
     #[track_caller]
-    pub fn add<'a>(&mut self, node: impl Into<FullNode<'a>>) -> UiParent
+    pub fn add<'a>(&mut self, node: Node<'a>) -> UiParent
     {
-        let params = node.into();
-        let key = params.key_or_anon_key();
+        let key = node.key_or_anon_key();
         let (i, _id) = self.add_or_update_node(key);
-        self.set_params(i, &params);
-        self.set_params_text(i, &params);
+        self.set_params(i, &node);
+        self.set_params_text(i, &node);
 
-        if params.node.layout.scrollable.y {
+        if node.layout.scrollable.y {
             self.add_scrollbar_y(i, key);
         }
 

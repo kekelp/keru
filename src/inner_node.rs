@@ -103,7 +103,7 @@ pub struct InnerNode {
     pub first_hidden_child: Option<NodeI>,
     pub next_hidden_sibling: Option<NodeI>,
 
-    pub params: Node,
+    pub params: Node<'static>,
 
     pub debug_location: &'static Location<'static>,
 
