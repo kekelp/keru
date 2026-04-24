@@ -1035,6 +1035,16 @@ impl<'a> Node<'a> {
         return self;
     }
 
+    pub const fn sense_time(mut self, value: bool) -> Self {
+        let senses = &mut self.interact.senses;
+        if value {
+            *senses = senses.union(Sense::TIME);
+        } else {
+            *senses = senses.intersection(Sense::TIME.complement());
+        }
+        return self;
+    }
+
     /// Add a [`NodeKey`] to the [`Node`].
     /// 
     pub fn key(mut self, key: NodeKey) -> Self {

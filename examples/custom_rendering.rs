@@ -71,7 +71,7 @@ impl State {
         // Wgpu boilerplate to set up a custom shader and a pipeline for it.
         let shader = device.create_shader_module(ShaderModuleDescriptor {
             label: Some("Custom Shader"),
-            source: ShaderSource::Wgsl(include_str!("custom_rendering_shader.wgsl").into()),
+            source: ShaderSource::Wgsl(include_str!("custom_rendering.wgsl").into()),
         });
 
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
@@ -142,6 +142,9 @@ impl State {
             .invisible()
             .custom_render(true)
             .size_symm(Size::Pixels(300.0))
+            // this tells the Ui that as long as this node is visible, the render loop shouldn't go to sleep,
+            // so `state.ui.should_request_redraw()` will keep returning `true`.
+            .sense_time(true)
             .key(CUSTOM_RECT);
 
         let button = BUTTON
@@ -161,8 +164,8 @@ impl State {
         });
 
         if let Some(drag) = self.ui.is_dragged(BACK_PANEL) {
-            self.panel_pos.0 -= drag.absolute_delta.x;
-            self.panel_pos.1 -= drag.absolute_delta.y;
+            self.panel_pos.0 += drag.absolute_delta.x;
+            self.panel_pos.1 += drag.absolute_delta.y;
             self.panel_pos.0 = f32::clamp(self.panel_pos.0, 0.0, 100000.0);
             self.panel_pos.1 = f32::clamp(self.panel_pos.1, 0.0, 100000.0);
         }
@@ -250,7 +253,10 @@ impl ApplicationHandler for Application {
             _ => {}
         }
 
-        state.window.request_redraw();
+        // In this example, the `custom_rect` with `sense_time(true)` is always visible, so this will always return `true`.
+        if state.ui.should_request_redraw() {
+            state.window.request_redraw();
+        }
     }
 }
 

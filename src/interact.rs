@@ -76,6 +76,8 @@ bitflags::bitflags! {
         const HOLD  = 1 << 4;
         const CLICK_RELEASE = 1 << 5;
         const DRAG_DROP_TARGET = 1 << 6;
+        /// Hints that the winit loop should never go to sleep as long as this node is visible.
+        const TIME = 1 << 7;
 
         const NONE = 0;
     }

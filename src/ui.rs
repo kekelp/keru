@@ -101,6 +101,7 @@ pub(crate) struct System {
     // todo: new system for this stuff
     pub update_frames_needed: u8,
     pub new_external_events: bool,
+    pub has_any_time_sense_node: bool,
 
     pub renderer: Renderer,
 
@@ -282,6 +283,7 @@ impl Ui {
 
                 update_frames_needed: 2,
                 new_external_events: true,
+                has_any_time_sense_node: false,
 
                 click_rects: Vec::with_capacity(50),
 

@@ -567,6 +567,10 @@ impl Ui {
         if push_click_rect {
             let click_rect = self.sys.click_rect(i);
             self.sys.click_rects.push(click_rect);
+
+            if click_rect.senses.contains(Sense::TIME) {
+                self.sys.has_any_time_sense_node = true;
+            }
         }
 
         // Get the clip rect for this node
@@ -760,9 +764,12 @@ impl Ui {
 
         self.sys.last_frame_end_fake_time = get_observer_timestamp();
 
-        if self.sys.update_frames_needed > 0 {
+        if self.sys.has_any_time_sense_node {
+            self.sys.update_frames_needed = 2;
+        } else if self.sys.update_frames_needed > 0 {
             self.sys.update_frames_needed -= 1;
         }
+        self.sys.has_any_time_sense_node = false;
 
         self.sys.new_external_events = false;
         self.sys.changes.resize = false;
