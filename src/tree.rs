@@ -1064,18 +1064,13 @@ impl Ui {
             (0.05, 0.0, 0.0, 0.0)
         };
 
-        // todo why not just add()
-        thread_local::push_parent(i, SiblingCursor::None, self.sys.unique_id);
-
-        let (scroll_rail_i, _) = self.add_or_update_node(scroll_rail_key);
-        let (scroll_handle_i, _) = self.add_or_update_node(scroll_handle_key);
-
-        thread_local::pop_parent(self.sys.unique_id);
-
         let rail_color = if wide { Color::rgba_u8(80, 80, 80, 60) } else { Color::TRANSPARENT };
         let handle_color = if wide { Color::rgba_u8(80, 80, 80, 255) } else { Color::rgba_u8(80, 80, 80, 90) };
 
-        let scroll_rail_params = PANEL
+        let thumb_anchor_x = Anchor::Frac((rail_width + width) / (2.0 * width));
+
+        let scroll_rail_node = PANEL
+            .key(scroll_rail_key)
             .shape(Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: rail_width / 2.0 })
             .size(Size::Pixels(rail_width), Size::Fill)
             .position_x(Pos::End)
@@ -1089,11 +1084,8 @@ impl Ui {
             .ignore_parent_scroll(true)
             .color(rail_color);
 
-        self.set_params(scroll_rail_i, &scroll_rail_params.into());
-
-        let thumb_anchor_x = Anchor::Frac((rail_width + width) / (2.0 * width));
-
-        let scroll_handle_params = PANEL
+        let scroll_handle_node = PANEL
+            .key(scroll_handle_key)
             .shape(Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: width / 2.0 })
             .size(Size::Pixels(width), Size::Frac(thumb_h_frac))
             .position_x(Pos::Frac(1.0))
@@ -1108,7 +1100,12 @@ impl Ui {
             .ignore_parent_scroll(true)
             .color(handle_color);
 
-        self.set_params(scroll_handle_i, &scroll_handle_params.into());
+        thread_local::push_parent(i, SiblingCursor::None, self.sys.unique_id);
+
+        self.add(scroll_rail_node);
+        self.add(scroll_handle_node);
+
+        thread_local::pop_parent(self.sys.unique_id);
 
         let container_i = i;
 
