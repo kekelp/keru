@@ -68,7 +68,7 @@ pub(crate) struct ClickRect {
 
 bitflags::bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-    pub struct Sense: u8 {
+    pub struct Sense: u16 {
         const CLICK = 1 << 0;
         const DRAG  = 1 << 1;
         const HOVER = 1 << 2;
@@ -78,6 +78,9 @@ bitflags::bitflags! {
         const DRAG_DROP_TARGET = 1 << 6;
         /// Hints that the winit loop should never go to sleep as long as this node is visible.
         const TIME = 1 << 7;
+        /// Like HOVER, but only wakes up the event loop when the hover state changes (enter or exit),
+        /// not on every mouse move while already hovering.
+        const HOVER_ENTER_OR_EXIT = 1 << 8;
 
         const NONE = 0;
     }
@@ -146,7 +149,7 @@ impl Ui {
             if !self.sys.hovered.contains(&id) {
                 self.start_hovering(id);
             } else {
-                // Already hovered - check if we need to signal input
+                // Already hovered - only wake up for HOVER (not HOVER_ENTER_OR_EXIT, which is enter/exit only)
                 if let Some(i) = self.sys.nodes.get_by_id(id) {
                     if self.sys.nodes[i].params.interact.senses.contains(Sense::HOVER) {
                         self.set_new_ui_input();
@@ -156,12 +159,6 @@ impl Ui {
         }
 
         self.sys.hovered.retain(|id| hovered_ids.contains(id));
-
-        // Check for ongoing drags
-        let has_drag = self.sys.mouse_input.currently_dragging().next().is_some();
-        if has_drag {
-            self.set_new_ui_input();
-        }
 
         // Debug mode: track all hits for inspection
         #[cfg(debug_assertions)]
@@ -184,7 +181,8 @@ impl Ui {
         let (has_hover_sense, has_click_animation) = {
             if let Some(i) = self.sys.nodes.get_by_id(id) {
                 let node = &mut self.sys.nodes[i];
-                let has_hover = node.params.interact.senses.contains(Sense::HOVER);
+                let senses = node.params.interact.senses;
+                let has_hover = senses.intersects(Sense::HOVER | Sense::HOVER_ENTER_OR_EXIT);
                 let has_anim = node.params.interact.click_animation;
                 if has_anim {
                     node.hovered = true;
@@ -208,11 +206,15 @@ impl Ui {
     fn end_hovering(&mut self, id: Id) {
         if let Some(i) = self.sys.nodes.get_by_id(id) {
             let node = &mut self.sys.nodes[i];
+            let senses = node.params.interact.senses;
             if node.last_frame_touched == self.sys.current_frame && node.params.interact.click_animation {
                 node.hovered = false;
                 node.hover_timestamp = slow_accurate_timestamp_for_events_only();
                 self.sys.changes.rebuild_render_data = true;
                 self.sys.anim_render_timer.push_new(Duration::from_secs_f32(ANIMATION_RERENDER_TIME));
+            }
+            if senses.contains(Sense::HOVER_ENTER_OR_EXIT) {
+                self.set_new_ui_input();
             }
         }
     }
@@ -602,7 +604,12 @@ impl System {
     pub(crate) fn check_hovered(&self, id: Id) -> bool {
         #[cfg(debug_assertions)] {
             if let Some(i) = self.nodes.get_by_id(id) {
-                if !self.check_node_sense(i, Sense::HOVER, "is_hovered()", "Node::sense_hover()") {
+                let senses = self.nodes[i].params.interact.senses;
+                if !senses.intersects(Sense::HOVER | Sense::HOVER_ENTER_OR_EXIT) {
+                    eprintln!(
+                        "Keru: Debug mode check: \"is_hovered()\" was called for node {}, but the node doesn't have the HOVER or HOVER_ENTER_OR_EXIT sense. In release mode, this event will be silently ignored! You can add the sense with \"Node::sense_hover()\" or \"Node::sense_hover_enter_or_exit()\".",
+                        self.nodes[i].debug_name(),
+                    );
                     return false;
                 }
             }

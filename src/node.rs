@@ -995,12 +995,26 @@ impl<'a> Node<'a> {
         return self;
     }
 
+    /// Make a node able to react to hovering, in the sense of every mouse movement that hovers over it.
+    /// 
+    /// Consider using [`Node::sense_hover_enter_or_exit()`] if the node only needs to react to the mouse entering or exiting it.
     pub const fn sense_hover(mut self, value: bool) -> Self {
         let senses = &mut self.interact.senses;
         if value {
             *senses = senses.union(Sense::HOVER);
         } else {
             *senses = senses.intersection(Sense::HOVER.complement());
+        }
+        return self;
+    }
+
+    /// Make a node able to react to hovering, in the sense of the mouse moving inside or outside of it.
+    pub const fn sense_hover_enter_or_exit(mut self, value: bool) -> Self {
+        let senses = &mut self.interact.senses;
+        if value {
+            *senses = senses.union(Sense::HOVER_ENTER_OR_EXIT);
+        } else {
+            *senses = senses.intersection(Sense::HOVER_ENTER_OR_EXIT.complement());
         }
         return self;
     }
