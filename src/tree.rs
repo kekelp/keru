@@ -1262,8 +1262,6 @@ impl UiParent {
     
         return result;
     }
-
-
 }
 
 #[allow(dead_code)]
@@ -1282,4 +1280,58 @@ pub(crate) fn with_timer<T>(operation_name: &str, if_more_than: Option<std::time
         }
 
         result
+}
+
+impl Ui {
+    /// Alternate form of [`Ui::add()`] that returns an [`UiNode`].
+    /// 
+    /// This way, we can call [`is_clicked`](UiNode::is_clicked()) and all the other [`UiNode`] directly after adding the node, without tricks.
+    /// 
+    /// However, nesting requires two separate calls to `nest()` and `enter()` instead of just one `nest()`.
+    /// 
+    /// # Example
+    /// ```
+    /// # use keru::*; let mut ui: Ui = unimplemented!();
+    /// ui.add2(V_STACK).nest().enter(|| {
+    ///     ui.add2(BUTTON.text("Hello"));
+    ///     ui.add2(BUTTON.text("World"));
+    /// });
+    #[track_caller]
+    pub fn add2<'a>(&mut self, node: Node<'a>) -> &mut UiNode<'_>
+    {
+        let key = node.key_or_anon_key();
+        let (i, _id) = self.add_or_update_node(key);
+        self.set_params(i, &node);
+        self.set_params_text(i, &node);
+
+        if node.layout.scrollable.y {
+            self.add_scrollbar_y(i, key);
+        }
+
+        return self.get_node_mut(key).unwrap();
+    }
+}
+impl<'a> UiNode<'a> {
+    /// Get a [`UiParent`] that can be used to add other nodes as children of this one.
+    /// 
+    /// # Example
+    /// ```
+    /// # use keru::*; let mut ui: Ui = unimplemented!();
+    /// ui.add2(V_STACK).nest().enter(|| {
+    ///     ui.add2(BUTTON.text("Hello"));
+    ///     ui.add2(BUTTON.text("World"));
+    /// });
+    /// ```
+    pub fn nest(&self) -> UiParent {
+        let i = self.i;
+        let ui_instance_id = self.sys().unique_id;
+        return UiParent { i, sibling_cursor: SiblingCursor::None, ui_instance_id };
+    }
+}
+
+impl UiParent {
+    /// Alias of `nest` used for the alternative [`Ui::add2()`] syntax.
+    pub fn enter<T>(&self, content: impl FnOnce() -> T ) -> T {
+        self.nest(content)
+    }
 }
