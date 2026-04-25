@@ -2,6 +2,7 @@
 /// I doubt that it's ever worth doing. The diffing is really not that expensive.
 
 use keru::*;
+use keru::node_library::*;
 use keru::example_window_loop::*;
 
 #[derive(Default)]

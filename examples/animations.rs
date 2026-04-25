@@ -1,6 +1,7 @@
 //! The animation system still needs some improvements.
 
 use keru::*;
+use keru::node_library::*;
 
 #[derive(Default)]
 pub struct State {

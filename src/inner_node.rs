@@ -3,6 +3,7 @@ use glam::Vec2;
 use keru_draw::{TextBoxHandle, TextEditHandle};
 
 use crate::*;
+use crate::node_library::*;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum ImageSourceId {

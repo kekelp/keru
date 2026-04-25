@@ -79,8 +79,7 @@ pub use ui::*;
 mod math;
 pub use math::*;
 
-mod node_library;
-pub use node_library::*;
+pub mod node_library;
 
 mod node_key;
 pub use node_key::*;

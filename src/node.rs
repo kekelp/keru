@@ -13,6 +13,7 @@ pub enum TextStyle {
 }
 
 use crate::*;
+use crate::node_library::*;
 use std::{hash::{Hash, Hasher}, ops::Range};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -78,7 +79,7 @@ pub struct Node<'a> {
     pub ignore_parent_scroll: bool,
 
     pub text: Option<NodeText<'a>>,
-    pub text_font_size: Option<f32>,
+    pub text_size: Option<f32>,
     pub text_color: Option<Color>,
     pub text_properties: &'a [TextStyleProperty],
 
@@ -983,7 +984,7 @@ impl<'a> Node<'a> {
     }
 
     pub const fn text_size(mut self, font_size: f32) -> Self {
-        self.text_font_size = Some(font_size);
+        self.text_size = Some(font_size);
         return self;
     }
 
@@ -1396,7 +1397,7 @@ impl Ui {
 
                 let mut properties = BumpVec::with_capacity_in(node.text_properties.len() + 2, arena);
                 properties.extend_from_slice(node.text_properties);
-                if let Some(font_size) = node.text_font_size {
+                if let Some(font_size) = node.text_size {
                     properties.push(TextStyleProperty::FontSize(font_size));
                 }
                 if let Some(color) = node.text_color {
@@ -1516,7 +1517,7 @@ impl<'a> Node<'a> {
             grid_element: self.grid_element,
             free_placement: self.free_placement,
             ignore_parent_scroll: self.ignore_parent_scroll,
-            text_font_size: self.text_font_size,
+            text_size: self.text_size,
             text_color: self.text_color,
 
             text: None,

@@ -1,8 +1,8 @@
 #![windows_subsystem = "windows"]
 
-use keru::Size::*;
-use keru::example_window_loop::*;
 use keru::*;
+use keru::node_library::*;
+use keru::example_window_loop::*;
 use winit::keyboard::Key;
 
 #[derive(Default)]
@@ -103,7 +103,7 @@ impl UiExt for Ui {
     }
 
     fn text_tab(&mut self) {
-        let v_stack = V_SCROLL_STACK.size_x(Frac(0.8)).size_y(Size::Fill);
+        let v_stack = V_SCROLL_STACK.size_x(Size::Frac(0.8)).size_y(Size::Fill);
 
         self.add(v_stack).nest(|| {
             self.add(LABEL.auto_markdown(true).static_text(

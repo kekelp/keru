@@ -14,6 +14,7 @@
 //! This way, the `ReorderStack` works for a perfectly animated rearrangeable list that can hold any kind of elements, even complicated nested subtrees of different sizes.
 
 use keru::*;
+use keru::node_library::*;
 
 struct State {
     items: Vec<&'static str>,

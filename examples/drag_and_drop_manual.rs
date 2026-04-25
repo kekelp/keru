@@ -3,6 +3,7 @@
 //! See the `drag_and_drop_component.rs` example to see how this kind of logic can be encapsulated in a [`Component`].
 
 use keru::*;
+use keru::node_library::*;
 use keru::example_window_loop::*;
 
 #[derive(Default)]

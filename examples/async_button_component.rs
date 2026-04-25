@@ -14,6 +14,7 @@ use std::thread;
 use std::time::Duration;
 
 use keru::*;
+use keru::node_library::*;
 use keru::example_window_loop::*;
 
 #[derive(Default)]

@@ -24,6 +24,7 @@ use std::time::{Duration, Instant};
 use keru::thread_future::*;
 
 use keru::*;
+use keru::node_library::*;
 use keru::example_window_loop::*;
 
 pub struct State {

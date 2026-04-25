@@ -66,7 +66,7 @@ pub(crate) const NODE_ROOT_PARAMS: Node<'_> = Node {
     text: None,
     placeholder_text: None,
     image: None,
-    text_font_size: None,
+    text_size: None,
     text_color: None,
     text_properties: &[],
 };
@@ -106,7 +106,7 @@ pub const DEFAULT: Node<'_> = Node {
     text: None,
     placeholder_text: None,
     image: None,
-    text_font_size: None,
+    text_size: None,
     text_color: None,
     text_properties: &[],
 };
@@ -150,7 +150,7 @@ pub const V_STACK: Node<'_> = Node {
     text: None,
     placeholder_text: None,
     image: None,
-    text_font_size: None,
+    text_size: None,
     text_color: None,
     text_properties: &[],
 };
@@ -194,7 +194,7 @@ pub const H_STACK: Node<'_> = Node {
     text: None,
     placeholder_text: None,
     image: None,
-    text_font_size: None,
+    text_size: None,
     text_color: None,
     text_properties: &[],
 };
@@ -239,7 +239,7 @@ pub const V_SCROLL_STACK: Node<'_> = Node {
     text: None,
     placeholder_text: None,
     image: None,
-    text_font_size: None,
+    text_size: None,
     text_color: None,
     text_properties: &[],
 };
@@ -280,7 +280,7 @@ pub const MARGIN: Node<'_> = Node {
     text: None,
     placeholder_text: None,
     image: None,
-    text_font_size: None,
+    text_size: None,
     text_color: None,
     text_properties: &[],
 };
@@ -320,7 +320,7 @@ pub const ICON_BUTTON: Node<'_> = Node {
     text: None,
     placeholder_text: None,
     image: None,
-    text_font_size: None,
+    text_size: None,
     text_color: None,
     text_properties: &[],
 };
@@ -360,7 +360,7 @@ pub const IMAGE: Node<'_> = Node {
     text: None,
     placeholder_text: None,
     image: None,
-    text_font_size: None,
+    text_size: None,
     text_color: None,
     text_properties: &[],
 };
@@ -400,7 +400,7 @@ pub const IMAGE_BUTTON: Node<'_> = Node {
     text: None,
     placeholder_text: None,
     image: None,
-    text_font_size: None,
+    text_size: None,
     text_color: None,
     text_properties: &[],
 };
@@ -447,7 +447,7 @@ pub const BUTTON: Node<'_> = Node {
     text: None,
     placeholder_text: None,
     image: None,
-    text_font_size: None,
+    text_size: None,
     text_color: None,
     text_properties: &[],
 };
@@ -494,7 +494,7 @@ pub const LABEL: Node<'_> = Node {
     text: None,
     placeholder_text: None,
     image: None,
-    text_font_size: None,
+    text_size: None,
     text_color: None,
     text_properties: &[],
 };
@@ -542,7 +542,7 @@ pub const MULTILINE_LABEL: Node<'_> = Node {
     text: None,
     placeholder_text: None,
     image: None,
-    text_font_size: None,
+    text_size: None,
     text_color: None,
     text_properties: &[],
 };
@@ -590,7 +590,7 @@ pub const TEXT: Node<'_> = Node {
     text: None,
     placeholder_text: None,
     image: None,
-    text_font_size: None,
+    text_size: None,
     text_color: None,
     text_properties: &[],
 };
@@ -631,7 +631,7 @@ pub const ICON: Node<'_> = Node {
     text: None,
     placeholder_text: None,
     image: None,
-    text_font_size: None,
+    text_size: None,
     text_color: None,
     text_properties: &[],
 };
@@ -679,7 +679,7 @@ pub const TEXT_EDIT: Node<'_> = Node {
     text: None,
     placeholder_text: None,
     image: None,
-    text_font_size: None,
+    text_size: None,
     text_color: None,
     text_properties: &[],
 };
@@ -727,7 +727,7 @@ pub const TEXT_EDIT_LINE: Node<'_> = Node {
     text: None,
     placeholder_text: None,
     image: None,
-    text_font_size: None,
+    text_size: None,
     text_color: None,
     text_properties: &[],
 };
@@ -775,7 +775,7 @@ pub const TEXT_PARAGRAPH: Node<'_> = Node {
     text: None,
     placeholder_text: None,
     image: None,
-    text_font_size: None,
+    text_size: None,
     text_color: None,
     text_properties: &[],
 };
@@ -816,7 +816,7 @@ pub const PANEL: Node<'_> = Node {
     text: None,
     placeholder_text: None,
     image: None,
-    text_font_size: None,
+    text_size: None,
     text_color: None,
     text_properties: &[],
 };
@@ -857,7 +857,7 @@ pub const CONTAINER: Node<'_> = Node {
     text: None,
     placeholder_text: None,
     image: None,
-    text_font_size: None,
+    text_size: None,
     text_color: None,
     text_properties: &[],
 };
@@ -907,7 +907,7 @@ pub const CUSTOM_RENDERED_PANEL: Node<'_> = Node {
     text: None,
     placeholder_text: None,
     image: None,
-    text_font_size: None,
+    text_size: None,
     text_color: None,
     text_properties: &[],
 };
@@ -948,7 +948,7 @@ pub const SPACER: Node<'_> = Node {
     text: None,
     placeholder_text: None,
     image: None,
-    text_font_size: None,
+    text_size: None,
     text_color: None,
     text_properties: &[],
 };
@@ -989,7 +989,7 @@ pub const H_SPACER: Node<'_> = Node {
     text: None,
     placeholder_text: None,
     image: None,
-    text_font_size: None,
+    text_size: None,
     text_color: None,
     text_properties: &[],
 };
@@ -1030,7 +1030,7 @@ pub const V_SPACER: Node<'_> = Node {
     text: None,
     placeholder_text: None,
     image: None,
-    text_font_size: None,
+    text_size: None,
     text_color: None,
     text_properties: &[],
 };
@@ -1076,7 +1076,7 @@ pub const H_LINE: Node<'_> = Node {
     text: None,
     placeholder_text: None,
     image: None,
-    text_font_size: None,
+    text_size: None,
     text_color: None,
     text_properties: &[],
 };
@@ -1117,7 +1117,7 @@ pub(crate) const COMPONENT_ROOT: Node<'_> = Node {
     text: None,
     placeholder_text: None,
     image: None,
-    text_font_size: None,
+    text_size: None,
     text_color: None,
     text_properties: &[],
 };
