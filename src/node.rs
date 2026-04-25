@@ -998,11 +998,11 @@ impl<'a> Node<'a> {
         return self;
     }
 
-    pub fn text_style(mut self, variant: TextStyle) -> Self {
+    pub const fn text_style(mut self, style: TextStyle) -> Self {
         static BOLD: &[TextStyleProperty] = &[TextStyleProperty::FontWeight(FontWeight::new(700.0))];
         static ITALIC: &[TextStyleProperty] = &[TextStyleProperty::FontStyle(FontStyle::Italic)];
         static MONOSPACE: &[TextStyleProperty] = &[TextStyleProperty::FontFamily(FontFamily::Single(FontFamilyName::Generic(GenericFamily::Monospace)))];
-        self.text_properties = match variant {
+        self.text_properties = match style {
             TextStyle::Bold => BOLD,
             TextStyle::Italic => ITALIC,
             TextStyle::Monospace => MONOSPACE,
@@ -1315,11 +1315,12 @@ impl Ui {
     pub(crate) fn set_params_text(&mut self, i: NodeI, node: &Node) {
         with_arena(|arena| {
 
-            let Some(raw_text) = node.text else {
-                return
-            };
-
             let text_options = node.text_options;
+
+            if node.text.is_none() && !text_options.editable {
+                return;
+            }
+            let raw_text = node.text.unwrap_or(NodeText(""));
 
             let new_fingerprint = TextFingerprint::new(raw_text.as_str(), text_options.use_pointer_comparison);
 
