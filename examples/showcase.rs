@@ -3,7 +3,6 @@
 use keru::Size::*;
 use keru::example_window_loop::*;
 use keru::*;
-use keru_draw::FontWeight;
 use winit::keyboard::Key;
 
 #[derive(Default)]
@@ -12,7 +11,6 @@ struct State {
     current_tab: usize,
 
     f32_value: f32,
-    large_bold_style: Option<StyleHandle>,
 }
 
 const INTRO_TAB: Tab = Tab("Intro");
@@ -89,20 +87,14 @@ impl UiExt for Ui {
                 Press Ctrl+Tab and Ctrl+Shift+Tab to switch between tabs. \n\n\
                 Press Ctrl+Plus, Ctrl+Minus and Ctrl+0 to control the zoom level of the default text style.\n\n");
 
-            // todo: this is not very nice.
-            // real examples without run_example_loop would do this in State::new(), I guess.
-            let large_bold_style = state.large_bold_style.get_or_insert_with(|| {
-                self.insert_style(TextStyle {
-                    font_size: 32.0,
-                    brush: ColorBrush([255, 0, 0, 255]),
-                    font_weight: FontWeight::BOLD,
-                    ..Default::default()
-                })
-            });
-            self.add(TEXT
+
+            let red_text = TEXT
                 .static_text("This text uses a different style.")
-                .text_style(large_bold_style.clone())
-            );
+                .text_color(Color::RED)
+                .text_size(32.0)
+                .text_style(TextStyle::Bold);
+            
+            self.add(red_text);
 
             self.static_paragraph("The tab viewer uses the \"children_can_hide\" property, that can be set on any node. This means that when switching tabs, all ui state is kept in the background, and we can switch back without recreating the node tree. In addition all implicit \"state\" like the scroll offset, the text in the edit boxes, etc. is retained. \n\n\
             Without \"children_can_hide\", everything would be cleaned up as soon as the tabs change.");

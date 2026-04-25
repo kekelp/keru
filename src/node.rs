@@ -1,7 +1,16 @@
 use glam::vec2;
-use keru_draw::StyleHandle;
 use bumpalo::collections::Vec as BumpVec;
 use bumpalo::collections::String as BumpString;
+use keru_draw::parley::{FontStyle, FontWeight, FontFamily, FontFamilyName, GenericFamily};
+
+pub type TextStyleProperty = keru_draw::parley::StyleProperty<'static, ColorBrush>;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum TextStyle {
+    Bold,
+    Italic,
+    Monospace,
+}
 
 use crate::*;
 use std::{hash::{Hash, Hasher}, ops::Range};
@@ -41,7 +50,7 @@ pub enum ChildrenCanHide {
 #[derive(Debug, Copy, Clone)]
 pub struct Node<'a> {
     pub key: Option<NodeKey>,
-    pub text_params: TextOptions,
+    pub text_options: TextOptions,
     pub children_layout: ChildrenLayout,
     pub shape: Shape,
     pub blur: Option<f32>,
@@ -69,7 +78,10 @@ pub struct Node<'a> {
     pub ignore_parent_scroll: bool,
 
     pub text: Option<NodeText<'a>>,
-    pub text_style: Option<StyleHandle>,
+    pub text_font_size: Option<f32>,
+    pub text_color: Option<Color>,
+    pub text_properties: &'a [TextStyleProperty],
+
     pub image: Option<Image<'a>>,
     pub placeholder_text: Option<NodeText<'a>>,
 }
@@ -593,7 +605,7 @@ impl<'a> Node<'a> {
         let mut hasher = ahasher();
         self.layout.hash(&mut hasher);
         self.children_layout.hash(&mut hasher);
-        self.text_params.hash(&mut hasher);
+        self.text_options.hash(&mut hasher);
         self.grid_element.hash(&mut hasher);
         self.free_placement.hash(&mut hasher);
         return hasher.finish();
@@ -755,7 +767,7 @@ pub enum Image<'a> {
 
 impl<'a> Node<'a> {
     pub const fn single_line_text(mut self, value: bool) -> Self {
-        self.text_params.single_line = value;
+        self.text_options.single_line = value;
         return self;
     }
 
@@ -966,7 +978,34 @@ impl<'a> Node<'a> {
     }
 
     pub const fn auto_markdown(mut self, auto_markdown: bool) -> Self {
-        self.text_params.auto_markdown = auto_markdown;
+        self.text_options.auto_markdown = auto_markdown;
+        return self;
+    }
+
+    pub const fn text_size(mut self, font_size: f32) -> Self {
+        self.text_font_size = Some(font_size);
+        return self;
+    }
+
+    pub const fn text_color(mut self, color: Color) -> Self {
+        self.text_color = Some(color);
+        return self;
+    }
+
+    pub const fn text_properties(mut self, properties: &'a [TextStyleProperty]) -> Self {
+        self.text_properties = properties;
+        return self;
+    }
+
+    pub fn text_style(mut self, variant: TextStyle) -> Self {
+        static BOLD: &[TextStyleProperty] = &[TextStyleProperty::FontWeight(FontWeight::new(700.0))];
+        static ITALIC: &[TextStyleProperty] = &[TextStyleProperty::FontStyle(FontStyle::Italic)];
+        static MONOSPACE: &[TextStyleProperty] = &[TextStyleProperty::FontFamily(FontFamily::Single(FontFamilyName::Generic(GenericFamily::Monospace)))];
+        self.text_properties = match variant {
+            TextStyle::Bold => BOLD,
+            TextStyle::Italic => ITALIC,
+            TextStyle::Monospace => MONOSPACE,
+        };
         return self;
     }
 
@@ -1147,12 +1186,6 @@ impl<'a> Node<'a> {
         return self;
     }
 
-    /// Set the text style for this node.
-    pub fn text_style(mut self, style: StyleHandle) -> Self {
-        self.text_style = Some(style);
-        return self;
-    }
-
     pub const fn clip_children_x(mut self, value: bool) -> Self {
         self.clip_children.x = value;
         return self;
@@ -1189,7 +1222,7 @@ impl<'a> Node<'a> {
     ///
     /// Uses pointer equality to determine if the text needs updating.
     pub const fn static_text(mut self, text: &'static str) -> Node<'a> {
-        self.text_params.use_pointer_comparison = true;
+        self.text_options.use_pointer_comparison = true;
         self.text = Some(NodeText(text));
         return self;
     }
@@ -1231,7 +1264,7 @@ impl Node<'_> {
     }
 }
 
-type MarkdownStyleRange = (keru_draw::parley::StyleProperty<'static, ColorBrush>, Range<usize>);
+type MarkdownStyleRange = (TextStyleProperty, Range<usize>);
 
 fn apply_markdown<'a>(text: &str, arena: &'a bumpalo::Bump) -> (BumpString<'a>, BumpVec<'a, MarkdownStyleRange>) {
     use pulldown_cmark::{Event, Options, Parser, Tag, TagEnd};
@@ -1279,12 +1312,13 @@ fn apply_markdown<'a>(text: &str, arena: &'a bumpalo::Bump) -> (BumpString<'a>, 
 
 impl Ui {
     pub(crate) fn set_params_text(&mut self, i: NodeI, node: &Node) {
+        with_arena(|arena| {
+
             let Some(raw_text) = node.text else {
                 return
             };
 
-            let text_options = node.text_params;
-            let style = node.text_style.as_ref();
+            let text_options = node.text_options;
 
             let new_fingerprint = TextFingerprint::new(raw_text.as_str(), text_options.use_pointer_comparison);
 
@@ -1304,85 +1338,90 @@ impl Ui {
                 // The fingerprint is based on the pre-transform text, so this is skipped too.
                 let run_markdown = !text_options.editable && text_options.auto_markdown;
 
-                with_arena(|arena| {
+                let (markdown_string, mut style_ranges) = if run_markdown {
+                    apply_markdown(raw_text.as_str(), arena)
+                } else {
+                    (BumpString::new_in(arena), BumpVec::new_in(arena))
+                };
+                let display_text: &str = if run_markdown { &markdown_string } else { raw_text.as_str() };
 
-                    let (markdown_string, mut style_ranges) = if run_markdown {
-                        apply_markdown(raw_text.as_str(), arena)
-                    } else {
-                        (BumpString::new_in(arena), BumpVec::new_in(arena))
-                    };
-                    let display_text: &str = if run_markdown { &markdown_string } else { raw_text.as_str() };
-
-                    if needs_new_widget {
-                        // Remove old widget
-                        if let Some(old_text_i) = self.sys.nodes[i].text_i.take() {
-                            match old_text_i {
-                                TextI::TextBox(handle) => self.sys.renderer.text.remove_text_box(handle),
-                                TextI::TextEdit(handle) => self.sys.renderer.text.remove_text_edit(handle),
-                            }
-                        }
-
-                        // this z doesn't matter, it's set when preparing render data. todo: cleanup.
-                        let z = 0.0;
-                        // Create new widget
-                        let new_text_i = if text_options.editable {
-                            let handle = self.sys.renderer.text.add_text_edit(display_text.to_string(), (0.0, 0.0), (500.0, 500.0), z);
-                            TextI::TextEdit(handle)
-                        } else {
-                            let handle = self.sys.renderer.text.add_text_box(display_text.to_string(), (0.0, 0.0), (500.0, 500.0), z);
-                            for (prop, range) in style_ranges.drain(..) {
-                                self.sys.renderer.text.get_text_box_mut(&handle).push_style_property(prop, range);
-                            }
-                            TextI::TextBox(handle)
-                        };
-
-                        self.sys.nodes[i].text_i = Some(new_text_i);
-                    } else {
-                        match &self.sys.nodes[i].text_i {
-                            Some(TextI::TextEdit(_)) => {
-                                // do nothing, content in a text edit box is not reset declaratively every frame, obviously.
-                            },
-                            Some(TextI::TextBox(handle)) => {
-                                let text_box = self.sys.renderer.text.get_text_box_mut(&handle);
-
-                                text_box.set_text(display_text);
-
-                                self.sys.renderer.text.get_text_box_mut(&handle).clear_style_properties();
-                                for (prop, range) in style_ranges.drain(..) {
-                                    self.sys.renderer.text.get_text_box_mut(&handle).push_style_property(prop, range);
-                                }
-                            },
-                            None => unreachable!("Should have created a new widget above"),
+                if needs_new_widget {
+                    // Remove old widget
+                    if let Some(old_text_i) = self.sys.nodes[i].text_i.take() {
+                        match old_text_i {
+                            TextI::TextBox(handle) => self.sys.renderer.text.remove_text_box(handle),
+                            TextI::TextEdit(handle) => self.sys.renderer.text.remove_text_edit(handle),
                         }
                     }
 
-                });
+                    // this z doesn't matter, it's set when preparing render data. todo: cleanup.
+                    let z = 0.0;
+                    // Create new widget
+                    let new_text_i = if text_options.editable {
+                        let handle = self.sys.renderer.text.add_text_edit(display_text.to_string(), (0.0, 0.0), (500.0, 500.0), z);
+                        TextI::TextEdit(handle)
+                    } else {
+                        let handle = self.sys.renderer.text.add_text_box(display_text.to_string(), (0.0, 0.0), (500.0, 500.0), z);
+                        for (prop, range) in style_ranges.drain(..) {
+                            self.sys.renderer.text.get_text_box_mut(&handle).push_ranged_style_property(prop, range);
+                        }
+                        TextI::TextBox(handle)
+                    };
+
+                    self.sys.nodes[i].text_i = Some(new_text_i);
+                } else {
+                    match &self.sys.nodes[i].text_i {
+                        Some(TextI::TextEdit(_)) => {
+                            // do nothing, content in a text edit box is not reset declaratively every frame, obviously.
+                        },
+                        Some(TextI::TextBox(handle)) => {
+                            let text_box = self.sys.renderer.text.get_text_box_mut(&handle);
+
+                            text_box.set_text(display_text);
+
+                            if ! style_ranges.is_empty() {
+                                self.sys.renderer.text.get_text_box_mut(&handle).clear_ranged_style_properties();
+                                for (prop, range) in style_ranges.drain(..) {
+                                    self.sys.renderer.text.get_text_box_mut(&handle).push_ranged_style_property(prop, range);
+                                }
+                            }
+                        },
+                        None => unreachable!("Should have created a new widget above"),
+                    }
+                }
+
             }
 
-            // Apply text options and style every frame (keru_text already checks for differences and won't cause needless relayouts)
             if let Some(text_i) = &self.sys.nodes[i].text_i {
+
+                let mut properties = BumpVec::with_capacity_in(node.text_properties.len() + 2, arena);
+                properties.extend_from_slice(node.text_properties);
+                if let Some(font_size) = node.text_font_size {
+                    properties.push(TextStyleProperty::FontSize(font_size));
+                }
+                if let Some(color) = node.text_color {
+                    properties.push(TextStyleProperty::Brush(keru_draw::ColorBrush(color.to_u8_array())));
+                }
+
                 match text_i {
                     TextI::TextEdit(handle) => {
-                        self.sys.renderer.text.get_text_edit_mut(handle).set_disabled(text_options.edit_disabled);
-                        self.sys.renderer.text.get_text_edit_mut(handle).set_single_line(text_options.single_line);
-                        if let Some(style) = style {
-                            self.sys.renderer.text.get_text_edit_mut(handle).set_style(style);
-                        }
+                        let edit = self.sys.renderer.text.get_text_edit_mut(handle);
+                        edit.set_disabled(text_options.edit_disabled);
+                        edit.set_single_line(text_options.single_line);
                         if let Some(placeholder) = node.placeholder_text {
-                            self.sys.renderer.text.get_text_edit_mut(handle).set_placeholder_hashed(placeholder.as_str());
+                            edit.set_placeholder_hashed(placeholder.as_str());
                         }
+
+                        edit.set_style_property_overrides(&properties);
                     },
                     TextI::TextBox(handle) => {
-                        self.sys.renderer.text.get_text_box_mut(handle).set_selectable(text_options.selectable);
-                        if let Some(style) = style {
-                            self.sys.renderer.text.get_text_box_mut(handle).set_style(style);
-                        }
+                        self.sys.renderer.text.get_text_box_mut(handle).set_style_property_overrides(&properties);
                     },
                 }
             }
 
             // Link this text box into the global cross-box selection chain.
-            // Runs every frame so that links are always up-to-date regardless of structural changes.
+            // Relink every frame so that links are always updated.
             if !text_options.editable && text_options.selectable {
                 if let Some(TextI::TextBox(current_handle)) = &self.sys.nodes[i].text_i {
                     self.sys.renderer.text.unlink_text_box(current_handle);
@@ -1396,6 +1435,9 @@ impl Ui {
                     self.sys.last_linked_text_box_node = Some(i);
                 }
             }
+
+        });
+
     }
 
 
@@ -1454,7 +1496,7 @@ impl<'a> Node<'a> {
     fn remove_borrowed_data_and_copy(self) -> Node<'static> {
         let staticized: Node<'static> = Node {
             key: self.key,
-            text_params: self.text_params,
+            text_options: self.text_options,
             children_layout: self.children_layout,
             shape: self.shape,
             blur: self.blur,
@@ -1474,10 +1516,13 @@ impl<'a> Node<'a> {
             grid_element: self.grid_element,
             free_placement: self.free_placement,
             ignore_parent_scroll: self.ignore_parent_scroll,
+            text_font_size: self.text_font_size,
+            text_color: self.text_color,
+
             text: None,
-            text_style: None,
-            image: None,
             placeholder_text: None,
+            image: None,
+            text_properties: &[],
         };
         return staticized;
     }

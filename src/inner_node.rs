@@ -1,5 +1,6 @@
 use std::{fmt, fmt::Write, hash::Hash, panic::Location};
 use glam::Vec2;
+use keru_draw::{TextBoxHandle, TextEditHandle};
 
 use crate::*;
 
@@ -351,3 +352,9 @@ pub const NODE_ROOT: InnerNode = InnerNode {
     canvas_instances: None,
     canvas_transform_and_clip: None,
 };
+
+#[derive(Debug)]
+pub enum TextI {
+    TextBox(TextBoxHandle),
+    TextEdit(TextEditHandle),
+}

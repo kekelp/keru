@@ -8,7 +8,7 @@ use glam::Vec2;
 
 use keru_draw::DrawContext;
 use keru_draw::Renderer;
-pub use keru_draw::{TextStyle2 as TextStyle, ColorBrush};
+pub use keru_draw::ColorBrush;
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
 use key_events::KeyInput;
@@ -33,7 +33,7 @@ use std::time::Instant;
 pub(crate) static T0: LazyLock<Instant> = LazyLock::new(Instant::now);
 
 /// The original default text style that can be restored with Ctrl+0
-pub static ORIGINAL_DEFAULT_TEXT_STYLE: LazyLock<TextStyle> = LazyLock::new(|| TextStyle {
+pub static ORIGINAL_DEFAULT_TEXT_STYLE: LazyLock<SharedTextStyle> = LazyLock::new(|| SharedTextStyle {
     font_size: 24.0,
     brush: ColorBrush([255, 255, 255, 255]),
     ..Default::default()
@@ -591,16 +591,16 @@ impl Ui {
         self.set_new_ui_input();
     }
 
-    pub fn default_text_style_mut(&mut self) -> &mut TextStyle {
+    pub fn default_text_style_mut(&mut self) -> &mut SharedTextStyle {
         self.sys.changes.full_relayout = true;
         self.sys.renderer.text.get_default_text_style_mut()
     }
 
-    pub fn default_text_style(&self) -> &TextStyle {
+    pub fn default_text_style(&self) -> &SharedTextStyle {
         self.sys.renderer.text.get_default_text_style()
     }
 
-    pub fn original_default_style(&self) -> TextStyle {
+    pub fn original_default_style(&self) -> SharedTextStyle {
         self.sys.renderer.text.original_default_style()
     }
 
