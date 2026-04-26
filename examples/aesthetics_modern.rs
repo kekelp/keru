@@ -171,7 +171,9 @@ fn sidebar(state: &mut State, ui: &mut Ui) {
                     .sense_click(true)
                     .stack(Axis::X, Arrange::Start, 0.0)
                     .key(key);
+
                 let item_text = TEXT.text(*name).text_color(Color::BLACK).text_size(14.0).position_x(Pos::Start);
+                
                 ui.add(item).nest(|| {
                     ui.add(item_text);
                 });

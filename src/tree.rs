@@ -479,7 +479,10 @@ impl Ui {
 
         // Calculate node height in pixels
         let node_height = (animated_rect[Y][1] - animated_rect[Y][0]) * self.sys.size[Y];
+        let node_width = (animated_rect[X][1] - animated_rect[X][0]) * self.sys.size[X];
+
         let available_height = node_height - (2.0 * padding[Y] as f32);
+        let available_width = node_width - (2.0 * padding[X] as f32);
 
         // Round to screen pixels using the transform scale
         let scale = self.sys.nodes[i].accumulated_transform.scale as f64;
@@ -499,10 +502,10 @@ impl Ui {
 
                 let top = (animated_rect[Y][0] * self.sys.size[Y]) as f64 + padding[Y] as f64 + vertical_offset as f64;
 
-                text_box.set_pos(((left * scale).round() / scale, (top * scale).round() / scale));
+                text_box.set_pos(((left * scale) / scale, (top * scale) / scale));
+                // text_box.set_pos(((left * scale).round() / scale, (top * scale).round() / scale));
 
                 // Set hitbox to cover the whole node (in local space relative to text position)
-                let node_width = (animated_rect[X][1] - animated_rect[X][0]) * self.sys.size[X];
                 let hitbox = (
                     -padding[X],                                    // min_x
                     -padding[Y] - vertical_offset,                  // min_y
@@ -510,6 +513,7 @@ impl Ui {
                     node_height - padding[Y] - vertical_offset,     // max_y
                 );
                 text_box.set_hitbox(Some(hitbox));
+                text_box.set_size((available_width + 2.0, available_height));
 
                 // Set the screen-space clip rect
                 let clip = BoundingBox {
