@@ -632,11 +632,11 @@ impl Ui {
         });
 
         if self.sys.inspect_mode {
-            self.render_node_shape_to_scene(i, texture, true);
+            self.draw_node_shape(i, texture, true);
         }
 
         if self.sys.nodes[i].params.visible {
-            self.render_node_shape_to_scene(i, texture, false);
+            self.draw_node_shape(i, texture, false);
 
             if let Some(text_i) = &self.sys.nodes[i].text_i {
                 match text_i {

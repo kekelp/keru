@@ -150,7 +150,7 @@ impl Ui {
     }
 
     /// Render a node's shape using keru_draw.
-    pub(crate) fn render_node_shape_to_scene(&mut self, i: NodeI, texture: Option<LoadedImage>, debug_box: bool) {
+    pub(crate) fn draw_node_shape(&mut self, i: NodeI, texture: Option<LoadedImage>, debug_box: bool) {
         let node = &self.sys.nodes[i];
 
         let blur = node.params.blur.unwrap_or(0.0);
@@ -209,11 +209,7 @@ impl Ui {
             node.params.stroke
         };
 
-        let shape = if debug_box {
-            &Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: 5.0 }
-        } else {
-            &node.params.shape
-        };
+        let shape = &node.params.shape;
 
         // Check if fill is visible (alpha > 0)
         let fill_visible = !debug_box && match node.params.color {
