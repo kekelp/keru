@@ -482,30 +482,31 @@ impl Ui {
             },
         }
 
-        // Propose the whole size_to_propose to any inline text/image, and let them decide.
-        if self.sys.nodes[i].text_i.is_some() {
-            let text_size = self.determine_text_size(i, size_to_propose);
-            content_size.update_for_content(text_size);
-        }
-        if self.sys.nodes[i].imageref.is_some() {
-            let image_size = self.determine_image_size(i, size_to_propose);
-            content_size.update_for_content(image_size);
-        }
-
         // Decide our own size.
-        //   We either use the size that we decided before, or we change our mind to based on children.
-        // todo: is we're not fitcontenting, we can skip the update_for_* calls instead, and then remove this, I guess.
+        // We either use the size that we decided before, or we change our mind to based on children if we are FitContent.
         let mut final_size = size;
 
-        for axis in [X, Y] {
-            match self.sys.nodes[i].params.layout.size[axis] { // todo if let
-                Size::FitContent => {
-                    // if we use content_size instead of the size above, then content_size doesn't have padding in
-                    let mut content_size_with_padding = content_size;
-                    content_size_with_padding[axis] += 2.0 * padding[axis];
-                    final_size[axis] = content_size_with_padding[axis];
-                }
-                _ => {},
+        let fit_content_x = self.sys.nodes[i].params.layout.size[X] == Size::FitContent;
+        let fit_content_y = self.sys.nodes[i].params.layout.size[Y] == Size::FitContent;
+
+        if fit_content_x || fit_content_y {
+            // Propose the whole size_to_propose to any inline text/image, and let them decide.
+            if self.sys.nodes[i].text_i.is_some() {
+                let text_size = self.determine_text_size(i, size_to_propose);
+                content_size.update_for_content(text_size);
+            }
+            if self.sys.nodes[i].imageref.is_some() {
+                let image_size = self.determine_image_size(i, size_to_propose);
+                content_size.update_for_content(image_size);
+            }
+
+            if fit_content_x {
+                let content_size_with_padding = content_size.x + 2.0 * padding.x;
+                final_size.x = content_size_with_padding;
+            }
+            if fit_content_y {
+                let content_size_with_padding = content_size.y + 2.0 * padding.y;
+                final_size.y = content_size_with_padding;
             }
         }
 

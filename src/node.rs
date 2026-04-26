@@ -2,7 +2,12 @@ use glam::vec2;
 use bumpalo::collections::Vec as BumpVec;
 use bumpalo::collections::String as BumpString;
 use keru_draw::parley::Alignment;
+use keru_draw::parley::StyleProperty;
 use keru_draw::parley::{FontStyle, FontWeight, FontFamily, FontFamilyName, GenericFamily};
+
+const BOLD: TextStyleProperty = TextStyleProperty::FontWeight(FontWeight::new(800.0));
+const ITALIC: TextStyleProperty = TextStyleProperty::FontStyle(FontStyle::Italic);
+const MONOSPACE: TextStyleProperty = TextStyleProperty::FontFamily(FontFamily::Single(FontFamilyName::Generic(GenericFamily::Monospace)));
 
 pub type TextStyleProperty = keru_draw::parley::StyleProperty<'static, ColorBrush>;
 
@@ -1007,13 +1012,10 @@ impl<'a> Node<'a> {
     }
 
     pub const fn text_style(mut self, style: TextStyle) -> Self {
-        static BOLD: &[TextStyleProperty] = &[TextStyleProperty::FontWeight(FontWeight::new(700.0))];
-        static ITALIC: &[TextStyleProperty] = &[TextStyleProperty::FontStyle(FontStyle::Italic)];
-        static MONOSPACE: &[TextStyleProperty] = &[TextStyleProperty::FontFamily(FontFamily::Single(FontFamilyName::Generic(GenericFamily::Monospace)))];
         self.text_properties = match style {
-            TextStyle::Bold => BOLD,
-            TextStyle::Italic => ITALIC,
-            TextStyle::Monospace => MONOSPACE,
+            TextStyle::Bold => &[BOLD],
+            TextStyle::Italic => &[ITALIC],
+            TextStyle::Monospace => &[MONOSPACE],
         };
         return self;
     }
@@ -1291,19 +1293,20 @@ fn apply_markdown<'a>(text: &str, arena: &'a bumpalo::Bump) -> (BumpString<'a>, 
                 let start = string.len();
                 string.push_str(&t);
                 let end = string.len();
-                style_ranges.push((keru_draw::parley::StyleProperty::FontFamily(keru_draw::parley::FontFamily::Single(keru_draw::parley::FontFamilyName::Generic(keru_draw::parley::GenericFamily::Monospace))), start..end));
-                style_ranges.push((keru_draw::parley::StyleProperty::Brush(ColorBrush([150, 150, 150, 255])), start..end));
+                let grey = StyleProperty::Brush(ColorBrush([150, 150, 150, 255]));
+                style_ranges.push((MONOSPACE, start..end));
+                style_ranges.push((grey, start..end));
             }
             Event::Start(Tag::Emphasis) => em_start = Some(string.len()),
             Event::End(TagEnd::Emphasis) => {
                 if let Some(start) = em_start.take() {
-                    style_ranges.push((keru_draw::parley::StyleProperty::FontStyle(keru_draw::parley::FontStyle::Italic), start..string.len()));
+                    style_ranges.push((ITALIC, start..string.len()));
                 }
             }
             Event::Start(Tag::Strong) => strong_start = Some(string.len()),
             Event::End(TagEnd::Strong) => {
                 if let Some(start) = strong_start.take() {
-                    style_ranges.push((keru_draw::parley::StyleProperty::FontWeight(keru_draw::parley::FontWeight::new(600.0)), start..string.len()));
+                    style_ranges.push((BOLD, start..string.len()));
                 }
             }
             Event::SoftBreak => string.push(' '),
