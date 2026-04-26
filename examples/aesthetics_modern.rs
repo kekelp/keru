@@ -5,9 +5,9 @@ use keru::node_library::{
 use keru_draw::parley::{FontFamily, FontFamilyName, GenericFamily};
 
 const SIDEBAR_ITEMS: &[&str] = &[
-    "Solutions", "Analytics", "Business Logic", "Case Studies", "SEO", "Content Management", "Agentic Workflows",
-    "Clean Code", "Card", "User Funnel", "Platform Outreach", "API", "Workflows", "AI Policy", "Use Cases", "Responsive Design",
-    "Big Data", "Pipelines", "Call To Action", "Publishing", "Empowerment", "TDD", "Customer Stories", "Marketplace", 
+    "Solutions", "Analytics", "Case Studies", "SEO", "Content Management", "Agentic Workflows",
+    "Clean Code", "Card", "User Funnel", "Outreach", "API", "Workflows", "AI Policy", "Use Cases", "Responsive Design", "Business Logic", 
+    "Big Data", "Pipelines", "Call To Action", "Publishing", "Empowerment", "Test-Driven Development", "Customer Stories", "Marketplace", 
 ];
 
 struct State {
@@ -76,23 +76,17 @@ fn button_group_preview(ui: &mut Ui) {
         .color(Color::WHITE)
         .size_symm(Size::Pixels(40.0))
         .stroke(1.0)
-        .stroke_color(BORDER_COLOR);
+        .stroke_color(BORDER_COLOR)
+        .text_color(Color::BLACK)
+        .text_size(16.0);
 
-    let text = TEXT.text_color(Color::BLACK).text_size(16.0);
-
-    let left = container.shape(Shape::Rectangle { rounded_corners: RoundedCorners::LEFT, corner_radius: 6.0 });
-    let center = container.shape(Shape::Rectangle { rounded_corners: RoundedCorners::NONE, corner_radius: 6.0 });
-    let right = container.shape(Shape::Rectangle { rounded_corners: RoundedCorners::RIGHT, corner_radius: 6.0 });
-
-    let bold = text.color(Color::TRANSPARENT).text("B").text_style(TextStyle::Bold);
-    let italic = text.color(Color::TRANSPARENT).text("I").text_style(TextStyle::Italic);
-    let underline = text.color(Color::TRANSPARENT).text("U");
+    let bold = container.shape(Shape::Rectangle { rounded_corners: RoundedCorners::LEFT, corner_radius: 6.0 }).text("B").text_style(TextStyle::Bold);
+    let italic = container.shape(Shape::Rectangle { rounded_corners: RoundedCorners::NONE, corner_radius: 6.0 }).text("I").text_style(TextStyle::Italic);
+    let underline = container.shape(Shape::Rectangle { rounded_corners: RoundedCorners::RIGHT, corner_radius: 6.0 }).text("U");
 
     ui.add(H_STACK.stack_spacing(-1.0)).nest(|| {
-        for (container, text) in [(left, bold), (center, italic), (right, underline)] {
-            ui.add(container).nest(|| {
-                ui.add(text)
-            });
+        for btn in [bold, italic, underline] {
+            ui.add(btn);
         }
     });
 }
@@ -106,17 +100,16 @@ fn avatar_group_preview(ui: &mut Ui) {
         .size_symm(Size::Pixels(40.0))
         .stroke(2.0)
         .stroke_color(Color::WHITE)
-        .position_x(Pos::Center);
+        .position_x(Pos::Center)
+        .text_color(Color::new(0.4, 0.4, 0.4, 1.0))
+        .text_size(12.0);
 
     let slot = CONTAINER.size_x(Size::Pixels(28.0)).size_y(Size::Pixels(40.0));
 
     ui.add(H_STACK.stack_spacing(0.0)).nest(|| {
         for letter in &letters {
-            let letter_text = TEXT.text(letter).text_color(Color::new(0.4, 0.4, 0.4, 1.0)).text_size(12.0);
             ui.add(slot).nest(|| {
-                ui.add(circle).nest(|| {
-                    ui.add(letter_text);
-                });
+                ui.add(circle.text(letter));
             });
         }
     });
@@ -166,17 +159,19 @@ fn sidebar(state: &mut State, ui: &mut Ui) {
                     .size_x(Size::Fill)
                     .size_y(Size::FitContent)
                     .shape(Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: 6.0 })
-                    .padding_x(12.0)
-                    .padding_y(8.0)
+                    .padding(15.0)
                     .sense_click(true)
                     .stack(Axis::X, Arrange::Start, 0.0)
+                    .text(name).text_color(Color::BLACK).text_size(14.0)
+                    .text_alignment(keru_draw::parley::Alignment::Start)
                     .key(key);
 
-                let item_text = TEXT.text(*name).text_color(Color::BLACK).text_size(14.0).position_x(Pos::Start);
 
-                ui.add(item).nest(|| {
-                    ui.add(item_text);
-                });
+                // ui.add(item).nest(|| {
+                //     ui.add(item_text);
+                // });
+
+                ui.add(item);
             }
         });
     });
@@ -240,8 +235,11 @@ fn main_content(ui: &mut Ui) {
     let avatar = DEFAULT
         .shape(Shape::Circle)
         .color(AVATAR_DARK)
-        .size_symm(Size::Pixels(60.0));
-    let avatar_text = TEXT.static_text("K").text_color(Color::WHITE).text_size(22.0).text_style(TextStyle::Bold);
+        .size_symm(Size::Pixels(60.0))
+        .static_text("K")
+        .text_color(Color::WHITE)
+        .text_size(22.0)
+        .text_style(TextStyle::Bold);
 
     let black_button = BUTTON
         .static_text("Button")
@@ -261,9 +259,7 @@ fn main_content(ui: &mut Ui) {
         ui.add(grid).nest(|| {
             ui.add(CARD).nest(|| {
                 card_header(ui, "Avatar", "Display");
-                ui.add(avatar).nest(|| {
-                    ui.add(avatar_text);
-                });
+                ui.add(avatar);
             });
 
             ui.add(CARD).nest(|| {

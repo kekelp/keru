@@ -1,6 +1,7 @@
 use glam::vec2;
 use bumpalo::collections::Vec as BumpVec;
 use bumpalo::collections::String as BumpString;
+use keru_draw::parley::Alignment;
 use keru_draw::parley::{FontStyle, FontWeight, FontFamily, FontFamilyName, GenericFamily};
 
 pub type TextStyleProperty = keru_draw::parley::StyleProperty<'static, ColorBrush>;
@@ -77,6 +78,8 @@ pub struct Node<'a> {
     pub free_placement: bool,
     /// If true, this node is not shifted by the parent's scroll offset.
     pub ignore_parent_scroll: bool,
+
+    pub text_alignment: Alignment,
 
     pub text: Option<NodeText<'a>>,
     pub text_size: Option<f32>,
@@ -988,6 +991,11 @@ impl<'a> Node<'a> {
         return self;
     }
 
+    pub const fn text_alignment(mut self, alignment: Alignment) -> Self {
+        self.text_alignment = alignment;
+        return self;
+    }
+
     pub const fn text_color(mut self, color: Color) -> Self {
         self.text_color = Some(color);
         return self;
@@ -1407,17 +1415,19 @@ impl Ui {
 
                 match text_i {
                     TextI::TextEdit(handle) => {
-                        let edit = self.sys.renderer.text.get_text_edit_mut(handle);
-                        edit.set_disabled(text_options.edit_disabled);
-                        edit.set_single_line(text_options.single_line);
+                        let text_edit = self.sys.renderer.text.get_text_edit_mut(handle);
+                        text_edit.set_disabled(text_options.edit_disabled);
+                        text_edit.set_single_line(text_options.single_line);
                         if let Some(placeholder) = node.placeholder_text {
-                            edit.set_placeholder_hashed(placeholder.as_str());
+                            text_edit.set_placeholder_hashed(placeholder.as_str());
                         }
 
-                        edit.set_style_property_overrides(&properties);
+                        text_edit.set_style_property_overrides(&properties);
                     },
                     TextI::TextBox(handle) => {
-                        self.sys.renderer.text.get_text_box_mut(handle).set_style_property_overrides(&properties);
+                        let text_box = self.sys.renderer.text.get_text_box_mut(handle);
+                        text_box.set_style_property_overrides(&properties);
+                        text_box.set_alignment(node.text_alignment);
                     },
                 }
             }
@@ -1520,6 +1530,7 @@ impl<'a> Node<'a> {
             ignore_parent_scroll: self.ignore_parent_scroll,
             text_size: self.text_size,
             text_color: self.text_color,
+            text_alignment: Alignment::Center,
 
             text: None,
             placeholder_text: None,

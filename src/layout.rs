@@ -340,16 +340,6 @@ impl Ui {
                     let child_size = self.recursive_determine_size_and_hidden(child, ProposedSizes::container(size_to_propose), children_can_hide);
                     content_size.update_for_child(child_size, None);
                 });
-    
-                // Propose the whole size_to_propose to the contents, and let them decide.
-                if self.sys.nodes[i].text_i.is_some() {
-                    let text_size = self.determine_text_size(i, size_to_propose);
-                    content_size.update_for_content(text_size);
-                }
-                if self.sys.nodes[i].imageref.is_some() {
-                    let image_size = self.determine_image_size(i, size_to_propose);
-                    content_size.update_for_content(image_size);
-                }
             },
             ChildrenLayout::Stack { axis, spacing, arrange: _ } => {
                 let spacing = self.pixels_to_frac(spacing, axis);
@@ -491,9 +481,18 @@ impl Ui {
                 }
             },
         }
-       
 
-        // Decide our own size. 
+        // Propose the whole size_to_propose to any inline text/image, and let them decide.
+        if self.sys.nodes[i].text_i.is_some() {
+            let text_size = self.determine_text_size(i, size_to_propose);
+            content_size.update_for_content(text_size);
+        }
+        if self.sys.nodes[i].imageref.is_some() {
+            let image_size = self.determine_image_size(i, size_to_propose);
+            content_size.update_for_content(image_size);
+        }
+
+        // Decide our own size.
         //   We either use the size that we decided before, or we change our mind to based on children.
         // todo: is we're not fitcontenting, we can skip the update_for_* calls instead, and then remove this, I guess.
         let mut final_size = size;
@@ -572,15 +571,26 @@ impl Ui {
                 let proposed_size_pixels = proposed_size * self.sys.size;
 
                 let fit_content_x = self.sys.nodes[i].params.layout.size[X] == Size::FitContent;
+                let fit_content_y = self.sys.nodes[i].params.layout.size[Y] == Size::FitContent;
 
-                if fit_content_x {
+                if fit_content_x || fit_content_y {
                     let text_box = self.sys.renderer.text.get_text_box_mut(&handle);
-                    // force an early relayout and measure the text size
-                    text_box.set_size((proposed_size_pixels.x, proposed_size_pixels.y));
+
+                    if text_box.needs_relayout() {
+                        // layout in the whole available space
+                        text_box.set_size((proposed_size_pixels.x, proposed_size_pixels.y));
+                        // after, it would make sense to also shrink the text box size... but that would mean that needs_relayout() would be true again on the next frame.
+                        // and it's probably okay without. selection already requires a click on the actual layout bounds, not on the whole textbox.
+                        // It should be fine to shrink just the node
+                    }
+
                     let layout = text_box.layout();
-                    // Return the precise size of the laid out text
-                    size.x = layout.width() / self.sys.size[X];
-                    size.y = layout.height() / self.sys.size[Y];
+                    if fit_content_x {
+                        size.x = layout.width() / self.sys.size[X];
+                    }
+                    if fit_content_y {
+                        size.y = layout.height() / self.sys.size[Y];
+                    }
                 }
 
                 return size;
