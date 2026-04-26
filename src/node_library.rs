@@ -71,6 +71,7 @@ pub(crate) const NODE_ROOT_PARAMS: Node = Node {
     text_size: None,
     text_color: None,
     text_properties: &[],
+    text_style_flags: TextStyleFlags::empty(),
 };
 /// [`Node`] for a default.
 pub const DEFAULT: Node = Node {
@@ -112,6 +113,7 @@ pub const DEFAULT: Node = Node {
     text_size: None,
     text_color: None,
     text_properties: &[],
+    text_style_flags: TextStyleFlags::empty(),
 };
 /// [`Node`] for a vertical stack.
 pub const V_STACK: Node = Node {
@@ -157,6 +159,7 @@ pub const V_STACK: Node = Node {
     text_size: None,
     text_color: None,
     text_properties: &[],
+    text_style_flags: TextStyleFlags::empty(),
 };
 /// [`Node`] for a horizontal stack.
 pub const H_STACK: Node = Node {
@@ -202,6 +205,7 @@ pub const H_STACK: Node = Node {
     text_size: None,
     text_color: None,
     text_properties: &[],
+    text_style_flags: TextStyleFlags::empty(),
 };
 
 /// [`Node`] for a vertically scrollable vertical stack.
@@ -248,6 +252,7 @@ pub const V_SCROLL_STACK: Node = Node {
     text_size: None,
     text_color: None,
     text_properties: &[],
+    text_style_flags: TextStyleFlags::empty(),
 };
 
 /// [`Node`] for a margin.
@@ -290,6 +295,7 @@ pub const MARGIN: Node = Node {
     text_size: None,
     text_color: None,
     text_properties: &[],
+    text_style_flags: TextStyleFlags::empty(),
 };
 /// [`Node`] for an icon button.
 pub const ICON_BUTTON: Node = Node {
@@ -331,6 +337,7 @@ pub const ICON_BUTTON: Node = Node {
     text_size: None,
     text_color: None,
     text_properties: &[],
+    text_style_flags: TextStyleFlags::empty(),
 };
 /// [`Node`] for an image. 
 pub const IMAGE: Node = Node {
@@ -372,6 +379,7 @@ pub const IMAGE: Node = Node {
     text_size: None,
     text_color: None,
     text_properties: &[],
+    text_style_flags: TextStyleFlags::empty(),
 };
 /// [`Node`] for an icon button. 
 pub const IMAGE_BUTTON: Node = Node {
@@ -413,6 +421,7 @@ pub const IMAGE_BUTTON: Node = Node {
     text_size: None,
     text_color: None,
     text_properties: &[],
+    text_style_flags: TextStyleFlags::empty(),
 };
 /// [`Node`] for a button. 
 pub const BUTTON: Node = Node {
@@ -461,6 +470,7 @@ pub const BUTTON: Node = Node {
     text_size: None,
     text_color: None,
     text_properties: &[],
+    text_style_flags: TextStyleFlags::empty(),
 };
 /// [`Node`] for a label. 
 pub const LABEL: Node = Node {
@@ -509,6 +519,7 @@ pub const LABEL: Node = Node {
     text_size: None,
     text_color: None,
     text_properties: &[],
+    text_style_flags: TextStyleFlags::empty(),
 };
 
 /// [`Node`] for a label containing a multi-line paragraph. 
@@ -558,6 +569,7 @@ pub const MULTILINE_LABEL: Node = Node {
     text_size: None,
     text_color: None,
     text_properties: &[],
+    text_style_flags: TextStyleFlags::empty(),
 };
 
 /// [`Node`] for a text element. 
@@ -607,6 +619,7 @@ pub const TEXT: Node = Node {
     text_size: None,
     text_color: None,
     text_properties: &[],
+    text_style_flags: TextStyleFlags::empty(),
 };
 
 /// [`Node`] for an icon element.
@@ -649,6 +662,7 @@ pub const ICON: Node = Node {
     text_size: None,
     text_color: None,
     text_properties: &[],
+    text_style_flags: TextStyleFlags::empty(),
 };
 
 /// [`Node`] for a multiline text edit box. 
@@ -698,6 +712,7 @@ pub const TEXT_EDIT: Node = Node {
     text_size: None,
     text_color: None,
     text_properties: &[],
+    text_style_flags: TextStyleFlags::empty(),
 };
 
 /// [`Node`] for a single line text edit box. 
@@ -747,6 +762,7 @@ pub const TEXT_EDIT_LINE: Node = Node {
     text_size: None,
     text_color: None,
     text_properties: &[],
+    text_style_flags: TextStyleFlags::empty(),
 };
 
 /// [`Node`] for a text element containing a multi-line paragraph.
@@ -796,6 +812,7 @@ pub const TEXT_PARAGRAPH: Node = Node {
     text_size: None,
     text_color: None,
     text_properties: &[],
+    text_style_flags: TextStyleFlags::empty(),
 };
 
 /// [`Node`] for a panel. 
@@ -838,6 +855,7 @@ pub const PANEL: Node = Node {
     text_size: None,
     text_color: None,
     text_properties: &[],
+    text_style_flags: TextStyleFlags::empty(),
 };
 
 /// [`Node`] for a container. 
@@ -880,6 +898,7 @@ pub const CONTAINER: Node = Node {
     text_size: None,
     text_color: None,
     text_properties: &[],
+    text_style_flags: TextStyleFlags::empty(),
 };
 
 /// [`Node`] for a custom rendered node.
@@ -931,6 +950,7 @@ pub const CUSTOM_RENDERED_PANEL: Node = Node {
     text_size: None,
     text_color: None,
     text_properties: &[],
+    text_style_flags: TextStyleFlags::empty(),
 };
 
 /// [`Node`] for a spacer element.
@@ -973,6 +993,7 @@ pub const SPACER: Node = Node {
     text_size: None,
     text_color: None,
     text_properties: &[],
+    text_style_flags: TextStyleFlags::empty(),
 };
 
 /// [`Node`] for a invisible spacer element that fills all the available space in the X direction.
@@ -1015,6 +1036,7 @@ pub const H_SPACER: Node = Node {
     text_size: None,
     text_color: None,
     text_properties: &[],
+    text_style_flags: TextStyleFlags::empty(),
 };
 
 /// [`Node`] for a invisible spacer element that fills all the available space in the Y direction.
@@ -1057,6 +1079,7 @@ pub const V_SPACER: Node = Node {
     text_size: None,
     text_color: None,
     text_properties: &[],
+    text_style_flags: TextStyleFlags::empty(),
 };
 
 /// [`Node`] for a horizontal divider line.
@@ -1104,6 +1127,7 @@ pub const H_LINE: Node = Node {
     text_size: None,
     text_color: None,
     text_properties: &[],
+    text_style_flags: TextStyleFlags::empty(),
 };
 
 pub(crate) const COMPONENT_ROOT: Node = Node {
@@ -1146,4 +1170,5 @@ pub(crate) const COMPONENT_ROOT: Node = Node {
     text_size: None,
     text_color: None,
     text_properties: &[],
+    text_style_flags: TextStyleFlags::empty(),
 };

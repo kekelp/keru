@@ -37,7 +37,7 @@ const DIVIDER: Node = H_LINE.stroke_color(BORDER_COLOR).stroke_width(1.0);
 
 fn card_header(ui: &mut Ui, title: &'static str, subtitle: &'static str) {
     let stack = V_STACK.size_x(Size::Fill).stack_arrange(Arrange::Start).stack_spacing(0.0);
-    let title_text = TEXT.static_text(title).text_color(Color::BLACK).text_size(17.0).text_style(TextStyle::Bold).position_x(Pos::Start);
+    let title_text = TEXT.static_text(title).text_color(Color::BLACK).text_size(17.0).bold().position_x(Pos::Start);
     let subtitle_text = TEXT.static_text(subtitle).text_color(SUBTITLE_GREY).text_size(14.0).position_x(Pos::Start);
 
     ui.add(stack).nest(|| {
@@ -80,8 +80,8 @@ fn button_group_preview(ui: &mut Ui) {
         .text_color(Color::BLACK)
         .text_size(16.0);
 
-    let bold = container.shape(Shape::Rectangle { rounded_corners: RoundedCorners::LEFT, corner_radius: 6.0 }).text("B").text_style(TextStyle::Bold);
-    let italic = container.shape(Shape::Rectangle { rounded_corners: RoundedCorners::NONE, corner_radius: 6.0 }).text("I").text_style(TextStyle::Italic);
+    let bold = container.shape(Shape::Rectangle { rounded_corners: RoundedCorners::LEFT, corner_radius: 6.0 }).text("B").bold();
+    let italic = container.shape(Shape::Rectangle { rounded_corners: RoundedCorners::NONE, corner_radius: 6.0 }).text("I").italic();
     let underline = container.shape(Shape::Rectangle { rounded_corners: RoundedCorners::RIGHT, corner_radius: 6.0 }).text("U");
 
     ui.add(H_STACK.stack_spacing(-1.0)).nest(|| {
@@ -133,9 +133,9 @@ fn sidebar(state: &mut State, ui: &mut Ui) {
         .static_text("K")
         .text_color(Color::WHITE)
         .text_size(18.0)
-        .text_style(TextStyle::Bold);
+        .bold();
 
-    let title_text = TEXT.static_text("Webslop Example").text_color(Color::BLACK).text_size(16.0).text_style(TextStyle::Bold);
+    let title_text = TEXT.static_text("Webslop Example").text_color(Color::BLACK).text_size(16.0).bold();
 
     let list = V_SCROLL_STACK.size_x(Size::Fill).stack_spacing(2.0).padding(8.0);
 
@@ -239,7 +239,7 @@ fn main_content(ui: &mut Ui) {
         .static_text("K")
         .text_color(Color::WHITE)
         .text_size(22.0)
-        .text_style(TextStyle::Bold);
+        .bold();
 
     let black_button = BUTTON
         .static_text("Button")
@@ -294,13 +294,13 @@ fn quote(ui: &mut Ui) {
     let parley_serif = &[TextStyleProperty::FontFamily(FontFamily::Single(FontFamilyName::Generic(GenericFamily::Serif)))];
 
     let open_mark = TEXT.text("“").text_size(72.0).text_color(Color::new(0.75, 0.75, 0.75, 1.0)).text_properties(parley_serif).position_symm(Pos::Start);
-    let close_mark = TEXT.text("”").text_size(72.0).text_color(Color::new(0.75, 0.75, 0.75, 1.0)).text_properties(parley_serif).position_x(Pos::End).position_y(Pos::End);
+    let close_mark = open_mark.text("”").position_symm(Pos::End);
     
     let quote_text = TEXT
-        .static_text("We **can't get enough** of web style interfaces")
+        .static_text("We **can't get enough** of web-style interfaces")
         .auto_markdown(true)
         .text_color(Color::new(0.33, 0.33, 0.33, 1.0))
-        .text_size(32.0).text_style(TextStyle::Italic)
+        .text_size(32.0).italic()
         .position_symm(Pos::Center);
 
     let author = TEXT.static_text("— Everyone").text_color(SUBTITLE_GREY).text_size(16.0).position_symm(Pos::End);
@@ -319,7 +319,6 @@ fn quote(ui: &mut Ui) {
         ui.add(open_mark);
         ui.add(quote_text);
         ui.add(close_mark);
-
         ui.add(author);
     });
 }

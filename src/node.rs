@@ -11,11 +11,13 @@ const MONOSPACE: TextStyleProperty = TextStyleProperty::FontFamily(FontFamily::S
 
 pub type TextStyleProperty = keru_draw::parley::StyleProperty<'static, ColorBrush>;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum TextStyle {
-    Bold,
-    Italic,
-    Monospace,
+bitflags::bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+    pub struct TextStyleFlags: u8 {
+        const BOLD = 0b001;
+        const ITALIC = 0b010;
+        const MONOSPACE = 0b100;
+    }
 }
 
 use crate::*;
@@ -90,6 +92,7 @@ pub struct Node<'a> {
     pub text_size: Option<f32>,
     pub text_color: Option<Color>,
     pub text_properties: &'a [TextStyleProperty],
+    pub text_style_flags: TextStyleFlags,
 
     pub image: Option<Image<'a>>,
     pub placeholder_text: Option<NodeText<'a>>,
@@ -1011,12 +1014,18 @@ impl<'a> Node<'a> {
         return self;
     }
 
-    pub const fn text_style(mut self, style: TextStyle) -> Self {
-        self.text_properties = match style {
-            TextStyle::Bold => &[BOLD],
-            TextStyle::Italic => &[ITALIC],
-            TextStyle::Monospace => &[MONOSPACE],
-        };
+    pub const fn bold(mut self) -> Self {
+        self.text_style_flags = self.text_style_flags.union(TextStyleFlags::BOLD);
+        return self;
+    }
+
+    pub const fn italic(mut self) -> Self {
+        self.text_style_flags = self.text_style_flags.union(TextStyleFlags::ITALIC);
+        return self;
+    }
+
+    pub const fn monospace(mut self) -> Self {
+        self.text_style_flags = self.text_style_flags.union(TextStyleFlags::MONOSPACE);
         return self;
     }
 
@@ -1407,7 +1416,12 @@ impl Ui {
 
             if let Some(text_i) = &self.sys.nodes[i].text_i {
 
-                let mut properties = BumpVec::with_capacity_in(node.text_properties.len() + 2, arena);
+                let flags = node.text_style_flags;
+                let flag_count = flags.bits().count_ones() as usize;
+                let mut properties = BumpVec::with_capacity_in(node.text_properties.len() + flag_count + 2, arena);
+                if flags.contains(TextStyleFlags::BOLD) { properties.push(BOLD); }
+                if flags.contains(TextStyleFlags::ITALIC) { properties.push(ITALIC); }
+                if flags.contains(TextStyleFlags::MONOSPACE) { properties.push(MONOSPACE); }
                 properties.extend_from_slice(node.text_properties);
                 if let Some(font_size) = node.text_size {
                     properties.push(TextStyleProperty::FontSize(font_size));
@@ -1539,6 +1553,7 @@ impl<'a> Node<'a> {
             placeholder_text: None,
             image: None,
             text_properties: &[],
+            text_style_flags: TextStyleFlags::empty(),
         };
         return staticized;
     }
