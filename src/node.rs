@@ -407,7 +407,7 @@ impl Default for Layout {
     fn default() -> Self {
         Self {
             size: Xy::new_symm(Size::FitContent),
-            padding: Xy::new_symm(0.0),
+            padding: Xy::new_symm(10.0),
             position: Xy::new_symm(Pos::Center),
             anchor: Xy::new_symm(Anchor::Start),
             scrollable: Xy::new(false, false),

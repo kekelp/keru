@@ -89,8 +89,8 @@ impl Ui {
             None => NodeKey::new(Id(caller_location_id()), "Anon component"),
         };
         
-        // Add the component. This should do twinning, with_subtree_id, and everything.
-        // todo: try removing this node.
+        // Add a fake node for the component. This is a lazy way to do the id twinning and everything.
+        // We don't set it as parent, so it doesn't screw anything up. It would still be better to remove it, though.
         let (i, id) = self.add_or_update_node(key);
         self.set_params(i, &COMPONENT_ROOT.into());
         // Here, we have to pass the `&mut Ui` (`self`) and the reference to the state in `self.sys.user_state`.
@@ -103,7 +103,6 @@ impl Ui {
         //
         // (When adding the same component multiple times, they are deduplicated by track_caller or by key twinning, but that wouldn't be a safety issue for the state anyway.)
 
-        thread_local::push_parent(i, SiblingCursor::None, self.sys.unique_id);
         thread_local::push_subtree(id);
 
         let res;
@@ -131,7 +130,6 @@ impl Ui {
         };
 
         thread_local::pop_subtree();
-        thread_local::pop_parent(self.sys.unique_id);
 
         return res;
     }
