@@ -111,7 +111,7 @@ impl UiExt for Ui {
                 The text edit box supports IME, but this hasn't been thoroughly tested on all platforms yet."
             ));
             self.add(H_LINE.color(Color::WHITE));
-            self.add(LABEL.auto_markdown(true).static_text(include_str!("showcase.md")));
+            self.add(LABEL.auto_markdown(true).static_text(include_str!("assets/showcase.md")));
             self.add(H_LINE.color(Color::WHITE));
             self.add(LABEL.static_text(JAPANESE_TEXT));
             self.add(H_LINE.color(Color::WHITE));

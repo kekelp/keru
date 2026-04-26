@@ -403,6 +403,64 @@ impl Hash for Layout {
     }
 }
 
+impl Default for Layout {
+    fn default() -> Self {
+        Self {
+            size: Xy::new_symm(Size::FitContent),
+            padding: Xy::new_symm(0.0),
+            position: Xy::new_symm(Pos::Center),
+            anchor: Xy::new_symm(Anchor::Start),
+            scrollable: Xy::new(false, false),
+        }
+    }
+}
+
+impl Layout {
+    pub const fn size(mut self, size_x: Size, size_y: Size) -> Self {
+        self.size.x = size_x;
+        self.size.y = size_y;
+        return self;
+    }
+
+    pub const fn size_x(mut self, size_x: Size) -> Self {
+        self.size.x = size_x;
+        return self;
+    }
+
+    pub const fn size_y(mut self, size_y: Size) -> Self {
+        self.size.y = size_y;
+        return self;
+    }
+
+    pub const fn size_symm(mut self, size: Size) -> Self {
+        self.size.x = size;
+        self.size.y = size;
+        return self;
+    }
+
+    pub const fn position(mut self, position_x: Pos, position_y: Pos) -> Self {
+        self.position.x = position_x;
+        self.position.y = position_y;
+        return self;
+    }
+
+    pub const fn position_x(mut self, position: Pos) -> Self {
+        self.position.x = position;
+        return self;
+    }
+
+    pub const fn position_y(mut self, position: Pos) -> Self {
+        self.position.y = position;
+        return self;
+    }
+
+    pub const fn position_symm(mut self, position: Pos) -> Self {
+        self.position.x = position;
+        self.position.y = position;
+        return self;
+    }
+}
+
 pub use keru_draw::RoundedCorners;
 
 /// The node's shape.
@@ -833,6 +891,11 @@ impl<'a> Node<'a> {
 
     pub const fn anchor_y(mut self, anchor: Anchor) -> Self {
         self.layout.anchor.y = anchor;
+        return self;
+    }
+
+    pub const fn layout(mut self, layout: Layout) -> Self {
+        self.layout = layout;
         return self;
     }
 

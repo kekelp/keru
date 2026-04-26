@@ -20,7 +20,7 @@ impl CustomComponents for Ui {
         #[node_key] const INCREASE: NodeKey;
         #[node_key] const DECREASE: NodeKey;
 
-        self.subtree_old().start(|| {
+        self.subtree().start(|| {
             let changed = self.check_if_observer_is_changed(count);
             // if we uncomment these two lines and comment the two below, the [`Ui`] will have a wrong idea of which variables the ui code depends on, and it will miss updates to `count`.
             // However, when running in debug mode, the [`Ui`] still checks for differences, so it can detect this mistake and print some error messages.

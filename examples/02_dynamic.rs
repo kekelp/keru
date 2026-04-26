@@ -1,7 +1,9 @@
 use keru::*;
 use keru::node_library::*;
 
-// In this example, our State holds a Vec of items, and we'll add some buttons to add and remove them. 
+// This example shows how to use the NodeKey::sibling() method to create dynamic keys at runtime.
+
+// In this example, our State holds a Vec of items, and we'll add some buttons to add and remove them.
 pub struct State {
     pub items: Vec<String>,
 }
@@ -52,7 +54,6 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     // if we tried to do the removal immediately after adding the node, 
     // the compiler wouldn't have let us modify the Vec while we were iterating on it.
 
-    // The create button is static and works fine.
     if ui.is_clicked(CREATE_BUTTON) {
         const ITEMS: &[&str] = &["Apple", "Banana", "Cherry", "Dragonfruit"];
         let new_item = ITEMS[state.items.len() % ITEMS.len()].to_string();
