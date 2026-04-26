@@ -22,7 +22,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     // Place the nodes into the tree and define the layout
     ui.add(V_STACK).nest(|| {
         ui.add(increase_button);
-        ui.label(&state.count.to_string());
+        ui.add(LABEL.text(&state.count.to_string()));
     });
 
     // Change the state in response to events

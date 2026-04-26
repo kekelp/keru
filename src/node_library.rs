@@ -1118,7 +1118,7 @@ pub const H_LINE: Node = Node {
         dash_length: 0.0,
         dash_offset: 0.0,
     }),
-    color: ColorFill::Color(Color::TRANSPARENT),
+    color: ColorFill::Color(Color::WHITE),
     shape: Shape::Segment { start: (0.0, 0.0), end: (1.0, 1.0), dash_length: None },
     blur: None,
     shadow: None,
