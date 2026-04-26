@@ -24,6 +24,14 @@ use crate::*;
 use crate::node_library::*;
 use std::{hash::{Hash, Hasher}, ops::Range};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum VerticalTextAlignment {
+    #[default]
+    Center,
+    Top,
+    Bottom,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ChildrenCanHide {
     Yes,
@@ -87,6 +95,7 @@ pub struct Node<'a> {
     pub ignore_parent_scroll: bool,
 
     pub text_alignment: Alignment,
+    pub vertical_text_alignment: VerticalTextAlignment,
 
     pub text: Option<NodeText<'a>>,
     pub text_size: Option<f32>,
@@ -1004,6 +1013,11 @@ impl<'a> Node<'a> {
         return self;
     }
 
+    pub const fn vertical_text_alignment(mut self, alignment: VerticalTextAlignment) -> Self {
+        self.vertical_text_alignment = alignment;
+        return self;
+    }
+
     pub const fn text_color(mut self, color: Color) -> Self {
         self.text_color = Some(color);
         return self;
@@ -1547,7 +1561,8 @@ impl<'a> Node<'a> {
             ignore_parent_scroll: self.ignore_parent_scroll,
             text_size: self.text_size,
             text_color: self.text_color,
-            text_alignment: Alignment::Center,
+            text_alignment: self.text_alignment,
+            vertical_text_alignment: self.vertical_text_alignment,
 
             text: None,
             placeholder_text: None,

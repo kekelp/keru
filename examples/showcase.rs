@@ -92,7 +92,7 @@ impl UiExt for Ui {
                 .static_text("This text uses a different style.")
                 .text_color(Color::RED)
                 .text_size(32.0)
-                .text_style(TextStyle::Bold);
+                .bold();
             
             self.add(red_text);
 

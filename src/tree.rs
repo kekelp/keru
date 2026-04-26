@@ -493,11 +493,10 @@ impl Ui {
                 let layout = text_box.layout();
                 let text_height = layout.height() as f32;
 
-                // Center vertically if text is smaller than available height
-                let vertical_offset = if text_height < available_height {
-                    (available_height - text_height) / 2.0
-                } else {
-                    0.0
+                let vertical_offset = match self.sys.nodes[i].params.vertical_text_alignment {
+                    VerticalTextAlignment::Center => if text_height < available_height { (available_height - text_height) / 2.0 } else { 0.0 },
+                    VerticalTextAlignment::Top => 0.0,
+                    VerticalTextAlignment::Bottom => if text_height < available_height { available_height - text_height } else { 0.0 },
                 };
 
                 let top = (animated_rect[Y][0] * self.sys.size[Y]) as f64 + padding[Y] as f64 + vertical_offset as f64;
@@ -529,11 +528,13 @@ impl Ui {
                 let text_edit = self.sys.renderer.text.get_text_edit_mut(&text_edit_handle);
                 let (_width, text_edit_height) = text_edit.size();
 
-                // Center vertically based on the text edit widget size
-                let vertical_offset = if text_edit_height < available_height {
-                    (available_height - text_edit_height) / 2.0
-                } else {
-                    0.0
+                let vertical_offset = match self.sys.nodes[i].params.vertical_text_alignment {
+                    VerticalTextAlignment::Center => if text_edit_height < available_height { (available_height - text_edit_height) / 2.0 } else { 0.0 },
+                    VerticalTextAlignment::Top => {
+                        println!("Wneed");
+                        0.0
+                    },
+                    VerticalTextAlignment::Bottom => if text_edit_height < available_height { available_height - text_edit_height } else { 0.0 },
                 };
 
                 let top = (animated_rect[Y][0] * self.sys.size[Y]) as f64 + padding[Y] as f64 + vertical_offset as f64;
