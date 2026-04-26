@@ -1454,6 +1454,8 @@ impl Ui {
                         }
 
                         text_edit.set_style_property_overrides(&properties);
+                        text_edit.set_alignment(node.text_alignment);
+
                     },
                     TextI::TextBox(handle) => {
                         let text_box = self.sys.renderer.text.get_text_box_mut(handle);
