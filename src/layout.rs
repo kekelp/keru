@@ -1,12 +1,9 @@
 use glam::vec2;
-use keru_draw::parley::Alignment;
 
 use crate::*;
 use crate::inner_node::*;
 
 use bumpalo::collections::Vec as BumpVec;
-
-pub(crate) const BIG_FLOAT: f32 = 100000.0;
 
 struct GridOccupancy<'a> {
     cells: BumpVec<'a, bool>,
@@ -571,61 +568,22 @@ impl Ui {
             }
             TextI::TextBox(handle) => {
 
-                let (mut width, mut height) = (proposed_size.x, proposed_size.y);
+                let mut size = proposed_size;
+                let proposed_size_pixels = proposed_size * self.sys.size;
 
-                let fit_content_y = self.sys.nodes[i].params.layout.size[Y] == Size::FitContent;
                 let fit_content_x = self.sys.nodes[i].params.layout.size[X] == Size::FitContent;
 
-                let h = if fit_content_y {
-                    BIG_FLOAT
-                } else {
-                    proposed_size.y * self.sys.size[Y]
-                };
-
-                let w = if fit_content_x {
-                    if fit_content_y {
-                        proposed_size.x * self.sys.size[X]
-                    } else {
-                        BIG_FLOAT
-                    }
-                } else {
-                    proposed_size.x * self.sys.size[X]
-                };
-
-                let text_box = self.sys.renderer.text.get_text_box_mut(&handle);
-                    
                 if fit_content_x {
-                    // force a relayout with infinite space and Alignment::Left
-
-                    // text_box.set_alignment(Alignment::Left);
-                    text_box.set_size((w, h));
-
+                    let text_box = self.sys.renderer.text.get_text_box_mut(&handle);
+                    // force an early relayout and measure the text size
+                    text_box.set_size((proposed_size_pixels.x, proposed_size_pixels.y));
                     let layout = text_box.layout();
-
-                    // measure the text size
-                    let size_pixels = Xy::new(layout.width(), layout.height());
-                    let size = Xy::new(size_pixels.x / self.sys.size[X], size_pixels.y / self.sys.size[Y]);
-
-                    // restore the old alignment
-
-                    // ... the size will be set to the size of the full node anyway
-
-
-                    // let animated_rect = self.sys.nodes[i].get_animated_rect();
-                    // let padding = self.sys.nodes[i].params.layout.padding;
-                    // let node_height = (animated_rect[Y][1] - animated_rect[Y][0]) * self.sys.size[Y];
-                    // let node_width = (animated_rect[X][1] - animated_rect[X][0]) * self.sys.size[X];
-                    // let available_height = node_height - (2.0 * padding[Y] as f32);
-                    // let available_width = node_width - (2.0 * padding[X] as f32);
-                    // text_box.set_size((available_width, available_height));
-
-                    // text_box.set_alignment(real_alignment);
-                    return size;
-                    
-                } else {
-                    return proposed_size;
+                    // Return the precise size of the laid out text
+                    size.x = layout.width() / self.sys.size[X];
+                    size.y = layout.height() / self.sys.size[Y];
                 }
 
+                return size;
             }
         }
     }

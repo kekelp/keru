@@ -512,8 +512,9 @@ impl Ui {
                     node_width - padding[X],                        // max_x
                     node_height - padding[Y] - vertical_offset,     // max_y
                 );
+                // looks like it needs one pixel of breathing room, or the FitContent text will overflow to two lines
+                text_box.set_size((available_width + 1.0, available_height));
                 text_box.set_hitbox(Some(hitbox));
-                text_box.set_size((available_width + 2.0, available_height));
 
                 // Set the screen-space clip rect
                 let clip = BoundingBox {

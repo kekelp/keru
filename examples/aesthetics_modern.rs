@@ -173,7 +173,7 @@ fn sidebar(state: &mut State, ui: &mut Ui) {
                     .key(key);
 
                 let item_text = TEXT.text(*name).text_color(Color::BLACK).text_size(14.0).position_x(Pos::Start);
-                
+
                 ui.add(item).nest(|| {
                     ui.add(item_text);
                 });
@@ -189,7 +189,7 @@ fn shapes_preview(ui: &mut Ui) {
     let green: Color = Color::new(0.78, 0.86, 0.78, 1.0);
     let blue: Color = Color::new(0.78, 0.80, 0.88, 1.0);
 
-    let circle = DEFAULT
+    let circle = BUTTON
         .shape(Shape::Circle)
         .color(red)
         .size_symm(Size::Pixels(48.0))
@@ -197,7 +197,7 @@ fn shapes_preview(ui: &mut Ui) {
         .stroke_color(Color::WHITE)
         .position_x(Pos::Center);
 
-    let hexagon = DEFAULT
+    let hexagon = BUTTON
         .shape(Shape::Hexagon { size: 0.85, rotation: 3.14 / 2.0 })
         .color(green)
         .size_symm(Size::Pixels(64.0))
