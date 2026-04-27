@@ -2,7 +2,6 @@
 
 use keru::*;
 use keru::node_library::*;
-use keru::example_window_loop::*;
 
 #[derive(Default)]
 pub struct State {
@@ -33,7 +32,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 
 fn main() {
     let state = State::default();
-    run_example_loop(state, update_ui);
+    example_window_loop::run_example_loop(state, update_ui);
 }
 
 
