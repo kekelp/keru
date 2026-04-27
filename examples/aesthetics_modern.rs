@@ -135,7 +135,7 @@ fn sidebar(state: &mut State, ui: &mut Ui) {
         .text_size(18.0)
         .bold();
 
-    let title_text = TEXT.static_text("Webslop Example").text_color(Color::BLACK).text_size(16.0).bold();
+    let title_text = TEXT.static_text("Modern Example").text_color(Color::BLACK).text_size(16.0).bold();
 
     let list = V_SCROLL_STACK.size_x(Size::Fill).stack_spacing(2.0).padding(8.0);
 
@@ -165,11 +165,6 @@ fn sidebar(state: &mut State, ui: &mut Ui) {
                     .text(name).text_color(Color::BLACK).text_size(14.0)
                     .text_alignment(keru_draw::parley::Alignment::Start)
                     .key(key);
-
-
-                // ui.add(item).nest(|| {
-                //     ui.add(item_text);
-                // });
 
                 ui.add(item);
             }
