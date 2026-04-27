@@ -51,7 +51,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         }
     }
     // Using keys in this way is usually more readable, but this time we also happened to dodge a borrow issue.
-    // if we tried to do the removal immediately after adding the node, 
+    // If we tried to do the removal immediately after adding the node,
     // the compiler wouldn't have let us modify the Vec while we were iterating on it.
 
     if ui.is_clicked(CREATE_BUTTON) {

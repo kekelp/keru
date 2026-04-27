@@ -9,6 +9,7 @@ const BOLD: TextStyleProperty = TextStyleProperty::FontWeight(FontWeight::new(80
 const ITALIC: TextStyleProperty = TextStyleProperty::FontStyle(FontStyle::Italic);
 const MONOSPACE: TextStyleProperty = TextStyleProperty::FontFamily(FontFamily::Single(FontFamilyName::Generic(GenericFamily::Monospace)));
 
+/// An individual text style property, 
 pub type TextStyleProperty = keru_draw::parley::StyleProperty<'static, ColorBrush>;
 
 bitflags::bitflags! {
@@ -759,6 +760,7 @@ impl<'a> Node<'a> {
             .size_y(Size::Pixels(height))
     }
 
+    /// Set the stroke width.
     pub const fn stroke_width(mut self, width: f32) -> Self {
         if let Some(stroke) = &mut self.stroke {
             stroke.width = width;
@@ -776,16 +778,19 @@ impl<'a> Node<'a> {
         return self;
     }
 
+    /// Set children layout to a grid.
     pub const fn grid(mut self, cells: MainAxisCellSize, spacing_x: f32, spacing_y: f32, flow: GridFlow) -> Self {
         self.children_layout = ChildrenLayout::Grid { columns: cells, spacing_x, spacing_y, flow };
         return self;
     }
 
+    /// Set the number of grid rows this node spans when it is added as a child of a `Grid` node.
     pub const fn grid_row_span(mut self, span: u16) -> Self {
         self.grid_element.row_span = span;
         return self;
     }
 
+    /// Set the number of grid columns this node spans when it is added as a child of a `Grid` node.
     pub const fn grid_column_span(mut self, span: u16) -> Self {
         self.grid_element.column_span = span;
         return self;
@@ -803,6 +808,7 @@ impl<'a> Node<'a> {
         return self;
     }
 
+    /// Set the translation part of the node's transform.
     pub const fn translate(mut self, x: f32, y: f32) -> Self {
         self.transform.offset = vec2(x, y);
         return self;
@@ -814,6 +820,7 @@ impl<'a> Node<'a> {
         return self;
     }
 
+    /// Enable or disable the default click/hover animation.
     pub fn click_animation(mut self, value: bool) -> Self {
         self.interact.click_animation = value;
         return self;
@@ -844,111 +851,126 @@ pub enum Image<'a> {
 }
 
 impl<'a> Node<'a> {
+    /// If the node has an editable text box, make it single-line.
     pub const fn single_line_text(mut self, value: bool) -> Self {
         self.text_options.single_line = value;
         return self;
     }
 
+    /// Set the node's position on both axes.
     pub const fn position(mut self, position_x: Pos, position_y: Pos) -> Self {
         self.layout.position.x = position_x;
         self.layout.position.y = position_y;
         return self;
     }
 
+    /// Set the node's position to the same value on both axes.
     pub const fn position_symm(mut self, position: Pos) -> Self {
         self.layout.position.x = position;
         self.layout.position.y = position;
         return self;
     }
 
+    /// Set the node's horizontal position.
     pub const fn position_x(mut self, position: Pos) -> Self {
         self.layout.position.x = position;
         return self;
     }
 
+    /// Set the node's vertical position.
     pub const fn position_y(mut self, position: Pos) -> Self {
         self.layout.position.y = position;
         return self;
     }
 
+    /// Set the anchor point on both axes.
     pub const fn anchor(mut self, anchor_x: Anchor, anchor_y: Anchor) -> Self {
         self.layout.anchor.x = anchor_x;
         self.layout.anchor.y = anchor_y;
         return self;
     }
 
+    /// Set the same anchor on both axes.
     pub const fn anchor_symm(mut self, anchor: Anchor) -> Self {
         self.layout.anchor.x = anchor;
         self.layout.anchor.y = anchor;
         return self;
     }
 
+    /// Set the horizontal anchor point.
     pub const fn anchor_x(mut self, anchor: Anchor) -> Self {
         self.layout.anchor.x = anchor;
         return self;
     }
 
+    /// Set the vertical anchor point.
     pub const fn anchor_y(mut self, anchor: Anchor) -> Self {
         self.layout.anchor.y = anchor;
         return self;
     }
 
+    /// Set the node's [`Layout`].
     pub const fn layout(mut self, layout: Layout) -> Self {
         self.layout = layout;
         return self;
     }
 
+    /// Set the node's size on both axes.
     pub const fn size(mut self, size_x: Size, size_y: Size) -> Self {
         self.layout.size.x = size_x;
         self.layout.size.y = size_y;
         return self;
     }
 
+    /// Set the node's width.
     pub const fn size_x(mut self, size_x: Size) -> Self {
         self.layout.size.x = size_x;
         return self;
     }
 
+    /// Set the node's height.
     pub const fn size_y(mut self, size_y: Size) -> Self {
         self.layout.size.y = size_y;
         return self;
     }
 
+    /// Set the same size on both axes.
     pub const fn size_symm(mut self, size: Size) -> Self {
         self.layout.size.x = size;
         self.layout.size.y = size;
         return self;
     }
 
+    /// Make the node visible.
     pub const fn visible(mut self) -> Self {
         self.visible = true;
         return self;
     }
+    /// Make the node invisible.
     pub const fn invisible(mut self) -> Self {
         self.visible = false;
         return self;
     }
 
+    /// Apply a blur effect to the node's shape with the given radius.
     pub const fn blur(mut self, radius: f32) -> Self {
         self.blur = Some(radius);
         return self;
     }
 
+    /// Add a drop shadow.
     pub const fn shadow(mut self, shadow: Shadow) -> Self {
         self.shadow = Some(shadow);
         return self;
     }
 
+    /// Add a second drop shadow.
     pub const fn second_shadow(mut self, shadow: Shadow) -> Self {
         self.second_shadow = Some(shadow);
         return self;
     }
 
-    pub const fn filled(mut self) -> Self {
-        self.stroke = None;
-        return self;
-    }
-
+    /// Add a stroke with the given width.
     pub const fn stroke(mut self, width: f32) -> Self {
         match &mut self.stroke {
             Some(stroke) => stroke.width = width,
@@ -959,6 +981,7 @@ impl<'a> Node<'a> {
         return self;
     }
 
+    /// Set the dash pattern for the stroke.
     pub const fn stroke_dashes(mut self, dash_length: f32, dash_offset: f32) -> Self {
         if let Some(stroke) = self.stroke {
             self.stroke = Some(stroke.with_dashes(dash_length, dash_offset));
@@ -966,6 +989,7 @@ impl<'a> Node<'a> {
         return self;
     }
 
+    /// Set the stroke color.
     pub const fn stroke_color(mut self, color: Color) -> Self {
         if let Some(stroke) = self.stroke {
             self.stroke = Some(stroke.with_color(color));
@@ -973,31 +997,37 @@ impl<'a> Node<'a> {
         return self;
     }
 
+    /// Set the fill color.
     pub const fn color(mut self, color: Color) -> Self {
         self.color = ColorFill::Color(color);
         return self;
     }
 
+    /// Set the fill to a gradient.
     pub const fn gradient(mut self, gradient: Gradient) -> Self {
         self.color = ColorFill::Gradient(gradient);
         return self;
     }
 
+    /// Set the fill to a [`ColorFill`].
     pub const fn fill(mut self, fill: ColorFill) -> Self {
         self.color = fill;
         return self;
     }
 
+    /// Set the node's shape.
     pub const fn shape(mut self, shape: Shape) -> Self {
         self.shape = shape;
         return self;
     }
 
+    /// Set the shape to a circle.
     pub const fn circle(mut self) -> Self {
         self.shape = Shape::Circle;
         return self;
     }
 
+    /// Set children layout to a stack.
     pub const fn stack(mut self, axis: Axis, arrange: Arrange, spacing: f32) -> Self {
         self.children_layout = ChildrenLayout::Stack {
             arrange,
@@ -1007,6 +1037,7 @@ impl<'a> Node<'a> {
         return self;
     }
 
+    /// Set the arrangement of children in a stack.
     pub const fn stack_arrange(mut self, arrange: Arrange) -> Self {
         let (axis, spacing) = match self.children_layout {
             ChildrenLayout::Stack { axis, spacing, .. } => (axis, spacing),
@@ -1016,6 +1047,7 @@ impl<'a> Node<'a> {
         return self;
     }
 
+    /// Set the spacing between children in a stack.
     pub const fn stack_spacing(mut self, spacing: f32) -> Self {
         let (arrange, axis) = match self.children_layout {
             ChildrenLayout::Stack { arrange, axis, .. } => (arrange, axis),
@@ -1025,7 +1057,7 @@ impl<'a> Node<'a> {
         return self;
     }
 
-    // todo: if we don't mind sacrificing symmetry, it could make sense to just remove this one.
+    /// Set the axis of a stack layout.
     pub const fn stack_axis(mut self, axis: Axis) -> Self {
         let (arrange, spacing) = match self.children_layout {
             ChildrenLayout::Stack { arrange, spacing, .. } => (arrange, spacing),
@@ -1035,81 +1067,97 @@ impl<'a> Node<'a> {
         return self;
     }
 
+    /// Set symmetric padding on both axes.
     pub const fn padding(mut self, padding: f32) -> Self {
         self.layout.padding = Xy::new_symm(padding);
         return self;
     }
 
+    /// Set horizontal padding.
     pub const fn padding_x(mut self, padding: f32) -> Self {
         self.layout.padding.x = padding;
         return self;
     }
 
+    /// Set vertical padding.
     pub const fn padding_y(mut self, padding: f32) -> Self {
         self.layout.padding.y = padding;
         return self;
     }
 
+    /// Enable or disable horizontal scrolling.
     pub const fn scrollable_x(mut self, scrollable_x: bool) -> Self {
         self.layout.scrollable.x = scrollable_x;
         return self;
     }
 
+    /// Enable or disable vertical scrolling.
     pub const fn scrollable_y(mut self, scrollable_y: bool) -> Self {
         self.layout.scrollable.y = scrollable_y;
         return self;
     }
 
+    /// Enable or disable automatic Markdown rendering.
     pub const fn auto_markdown(mut self, auto_markdown: bool) -> Self {
         self.text_options.auto_markdown = auto_markdown;
         return self;
     }
 
+    /// Set the font size.
     pub const fn text_size(mut self, font_size: f32) -> Self {
         self.text_size = Some(font_size);
         return self;
     }
 
+    /// Set the horizontal text alignment.
     pub const fn text_alignment(mut self, alignment: Alignment) -> Self {
         self.text_alignment = alignment;
         return self;
     }
 
+    /// Set the vertical text alignment.
     pub const fn vertical_text_alignment(mut self, alignment: VerticalTextAlignment) -> Self {
         self.vertical_text_alignment = alignment;
         return self;
     }
 
+    /// Set the text color.
     pub const fn text_color(mut self, color: Color) -> Self {
         self.text_color = Some(color);
         return self;
     }
 
+    /// Set additional text style properties.
     pub const fn text_properties(mut self, properties: &'a [TextStyleProperty]) -> Self {
         self.text_properties = properties;
         return self;
     }
 
+    /// Make the text bold.
     pub const fn bold(mut self) -> Self {
         self.text_style_flags = self.text_style_flags.union(TextStyleFlags::BOLD);
         return self;
     }
 
+    /// Make the text italic.
     pub const fn italic(mut self) -> Self {
         self.text_style_flags = self.text_style_flags.union(TextStyleFlags::ITALIC);
         return self;
     }
 
+    /// Use a monospace font.
     pub const fn monospace(mut self) -> Self {
         self.text_style_flags = self.text_style_flags.union(TextStyleFlags::MONOSPACE);
         return self;
     }
 
+    /// Control whether this node consumes mouse events or is transparent to them.
     pub const fn absorbs_clicks(mut self, absorbs_clicks: bool) -> Self {
         self.interact.absorbs_mouse_events = absorbs_clicks;
         return self;
     }
 
+    /// Enable or disable click sensing.
     pub const fn sense_click(mut self, value: bool) -> Self {
         let senses = &mut self.interact.senses;
         if value {
@@ -1120,6 +1168,7 @@ impl<'a> Node<'a> {
         return self;
     }
 
+    /// Enable or disable drag sensing.
     pub const fn sense_drag(mut self, value: bool) -> Self {
         let senses = &mut self.interact.senses;
         if value {
@@ -1154,6 +1203,7 @@ impl<'a> Node<'a> {
         return self;
     }
 
+    /// Enable or disable hold sensing.
     pub const fn sense_hold(mut self, value: bool) -> Self {
         let senses = &mut self.interact.senses;
         if value {
@@ -1164,6 +1214,7 @@ impl<'a> Node<'a> {
         return self;
     }
 
+    /// Enable or disable scroll sensing.
     pub const fn sense_scroll(mut self, value: bool) -> Self {
         let senses = &mut self.interact.senses;
         if value {
@@ -1174,6 +1225,7 @@ impl<'a> Node<'a> {
         return self;
     }
 
+    /// Enable or disable drag-and-drop target sensing.
     pub const fn sense_drag_drop_target(mut self, value: bool) -> Self {
         let senses = &mut self.interact.senses;
         if value {
@@ -1184,6 +1236,7 @@ impl<'a> Node<'a> {
         return self;
     }
 
+    /// Enable or disable time-based sensing (node receives updates every frame).
     pub const fn sense_time(mut self, value: bool) -> Self {
         let senses = &mut self.interact.senses;
         if value {
@@ -1201,68 +1254,80 @@ impl<'a> Node<'a> {
         return self;
     }
 
+    /// Set the full animation config.
     pub const fn animation(mut self, animation: Animation) -> Self {
         self.animation = animation;
         return self;
     }
 
+    /// Set the animation speed multiplier.
     pub const fn animation_speed(mut self, speed: f32) -> Self {
         self.animation.speed = speed;
         return self;
     }
 
     // Enter animation methods
+    /// Set the enter slide animation.
     pub const fn enter_slide(mut self, edge: SlideEdge, direction: SlideDirection) -> Self {
         self.animation.enter = EnterAnimation::Slide { edge, direction };
         return self;
     }
 
+    /// Set a grow-in enter animation.
     pub const fn enter_grow(mut self, axis: Axis, origin: Pos) -> Self {
         self.animation.enter = EnterAnimation::GrowShrink { axis, origin };
         return self;
     }
 
     // Exit animation methods
+    /// Set the exit slide animation.
     pub const fn exit_slide(mut self, edge: SlideEdge, direction: SlideDirection) -> Self {
         self.animation.exit = ExitAnimation::Slide { edge, direction };
         return self;
     }
 
+    /// Set a shrink-out exit animation.
     pub const fn exit_shrink(mut self, axis: Axis, origin: Pos) -> Self {
         self.animation.exit = ExitAnimation::GrowShrink { axis, origin };
         return self;
     }
 
+    /// Slide in from and out to the top edge.
     pub const fn slide_from_top(mut self) -> Self {
         self.animation.enter = EnterAnimation::Slide { edge: SlideEdge::Top, direction: SlideDirection::In };
         self.animation.exit = ExitAnimation::Slide { edge: SlideEdge::Top, direction: SlideDirection::Out };
         return self;
     }
 
+    /// Slide in from and out to the bottom edge.
     pub const fn slide_from_bottom(mut self) -> Self {
         self.animation.enter = EnterAnimation::Slide { edge: SlideEdge::Bottom, direction: SlideDirection::In };
         self.animation.exit = ExitAnimation::Slide { edge: SlideEdge::Bottom, direction: SlideDirection::Out };
         return self;
     }
 
+    /// Slide in from and out to the left edge.
     pub const fn slide_from_left(mut self) -> Self {
         self.animation.enter = EnterAnimation::Slide { edge: SlideEdge::Left, direction: SlideDirection::In };
         self.animation.exit = ExitAnimation::Slide { edge: SlideEdge::Left, direction: SlideDirection::Out };
         return self;
     }
 
+    /// Slide in from and out to the right edge.
     pub const fn slide_from_right(mut self) -> Self {
         self.animation.enter = EnterAnimation::Slide { edge: SlideEdge::Right, direction: SlideDirection::In };
         self.animation.exit = ExitAnimation::Slide { edge: SlideEdge::Right, direction: SlideDirection::Out };
         return self;
     }
 
+    /// Grow in and shrink out along an axis from an origin.
     pub const fn grow_shrink(mut self, axis: Axis, origin: Pos) -> Self {
         self.animation.enter = EnterAnimation::GrowShrink { axis, origin };
         self.animation.exit = ExitAnimation::GrowShrink { axis, origin };
         return self;
     }
 
+    /// Animate position changes when this node moves.
     pub const fn animate_position(mut self, value: bool) -> Self {
         self.animation.state_transition.animate_position = value;
         return self;
@@ -1277,31 +1342,37 @@ impl<'a> Node<'a> {
         return self.layout.scrollable.x || self.layout.scrollable.y
     }
 
+    /// Inherit the `children_can_hide` setting from the parent.
     pub fn children_can_hide_inherit(mut self) -> Self {
         self.children_can_hide = ChildrenCanHide::Inherit;
         return self;
     }
 
+    /// Clip children to the node's horizontal bounds.
     pub const fn clip_children_x(mut self, value: bool) -> Self {
         self.clip_children.x = value;
         return self;
     }
 
+    /// Clip children to the node's vertical bounds.
     pub const fn clip_children_y(mut self, value: bool) -> Self {
         self.clip_children.y = value;
         return self;
     }
 
+    /// Enable custom rendering for this node.
     pub const fn custom_render(mut self, value: bool) -> Self {
         self.custom_render = value;
         return self;
     }
 
+    /// Ignore parent stack/grid layout and place freely within the parent.
     pub const fn free_placement(mut self, value: bool) -> Self {
         self.free_placement = value;
         return self;
     }
 
+    /// Prevent this node from being shifted by the parent's scroll offset.
     pub const fn ignore_parent_scroll(mut self, value: bool) -> Self {
         self.ignore_parent_scroll = value;
         return self;
@@ -1323,21 +1394,25 @@ impl<'a> Node<'a> {
         return self;
     }
 
+    /// Set a raster image from static bytes.
     pub fn static_image(mut self, image: &'static [u8]) -> Node<'a> {
         self.image = Some(Image::RasterStatic(image));
         return self;
     }
 
+    /// Set a raster image from a filesystem path.
     pub fn image_path(mut self, path: &'a str) -> Node<'a> {
         self.image = Some(Image::RasterPath(path));
         return self;
     }
 
+    /// Set an SVG image from static bytes.
     pub fn static_svg(mut self, svg: &'static [u8]) -> Node<'a> {
         self.image = Some(Image::SvgStatic(svg));
         return self;
     }
 
+    /// Set an SVG image from a filesystem path.
     pub fn svg_path(mut self, path: &'a str) -> Node<'a> {
         self.image = Some(Image::SvgPath(path));
         return self;

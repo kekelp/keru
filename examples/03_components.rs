@@ -7,12 +7,12 @@ pub struct State {
 
 // This example shows how to use the Component trait.
 // 
-// Components are the most robust way of separating GUI code 
-// The most important one is that Components can have their own "implicit" state, without the user having to make space for it in their own State.
+// Components are the most robust way of separating GUI code.
+// In addition, Components can have their own "implicit" state, without the user having to make space for it in their own State.
 //
 // In this example, we'll write a counter with a configuration setting that allows adding more than 1 at a time to the count.
-// It would surely be annoying if the user had to add a field in their State for every configuration variable of every color picker, rich text editor, 
-// or every small self-contained widget that they have.
+// It could surely get annoying if the user had to add a field in their State for every configuration variable of every color picker,  
+// rich text editor, or every small self-contained widget that they have.
 // 
 // The Component is meant to feel like building a regular Node and adding it.
 // 
@@ -54,7 +54,7 @@ impl Component for Counter<'_> {
     // When the component is added to the Ui, it will create and add one or more nodes, and it will run some effects.
     fn add_to_ui(&mut self, ui: &mut Ui, state: &mut Self::State) {
         // (Using an arena is not mandatory, but allocating a tiny String on the global heap just to format a value is really not a good thing.)
-        // (Keru has an internal arena that you can use without any setup, and it will make small local allocations virtually free.)
+        // (Keru has an arena that you can use without any setup, and it will make small local allocations virtually free.)
         with_arena(|arena| {
 
             let panel = PANEL.layout(self.layout);

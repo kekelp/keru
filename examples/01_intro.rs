@@ -10,7 +10,7 @@ pub struct State {
 // The declarative calls update the retained GUI state in the `Ui` struct.
 // We're not rebuilding the GUI from scratch: this is not an immediate-mode library (at least not in that sense).
 fn update_ui(state: &mut State, ui: &mut Ui) {
-    // First, create a NodeKey, which is an unique identity for a GUI element.
+    // First, create a NodeKey, which is a unique identity for a GUI element.
     #[node_key] const INCREASE: NodeKey;
     
     // Create a Node struct describing a button.
@@ -69,7 +69,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 
     // Note that we didn't add this new button as a child of the v_stack,
     // so it's a child of the tree root, and can position itself freely in the space of the whole window.
-    // There's no "ZStack": that's what happens automatically when you add nodes as children of a node that's neither a Stack or a Grid.
+    // There's no "ZStack": that's what happens automatically when you add nodes as children of a node that's neither a Stack nor a Grid.
 }
 
 fn main() {
@@ -86,7 +86,7 @@ fn main() {
 // 
 // To continue:
 // - the `02_dynamic.rs` example shows how to create NodeKeys at runtime for dynamic GUI elements.
-// - the `03_component.rs` example shows how to use the Component trait to create reusable components that can also manage their own state.
+// - the `03_components.rs` example shows how to use the Component trait to create reusable components that can also manage their own state.
 // 
 // Then, the rest of the examples show how these basic concepts can be combined together to build various things.
 // In particular:

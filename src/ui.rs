@@ -810,5 +810,4 @@ impl Ui {
     }
 }
 
-// todo probably doesn't need to be public anymore? As long as we use the trait
-pub type StateId = Id;
+pub(crate) type StateId = Id;

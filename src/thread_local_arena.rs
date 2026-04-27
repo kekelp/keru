@@ -32,7 +32,7 @@ thread_local! {
 /// ```
 pub fn with_arena<F, R>(f: F) -> R
 where
-    F: FnOnce(&Bump) -> R,
+    F: FnOnce(&bumpalo::Bump) -> R,
 {
     THREAD_ARENA.with(|arena| {
         f(&arena.borrow())
