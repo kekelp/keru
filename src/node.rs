@@ -1598,6 +1598,7 @@ impl Ui {
                         let text_box = self.sys.renderer.text.get_text_box_mut(handle);
                         text_box.set_style_property_overrides(&properties);
                         text_box.set_alignment(node.text_alignment);
+                        text_box.set_selectable(node.text_options.selectable);
                     },
                 }
             }

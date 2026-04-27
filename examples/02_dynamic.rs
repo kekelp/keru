@@ -28,19 +28,19 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 
     ui.add(V_STACK.animate_position(true)).nest(|| {
         ui.add(create_button);
-
-        ui.add(H_STACK).nest(|| {
-            // We can add Nodes based on dynamic data.
-            for (i, item) in state.items.iter().enumerate() {
-                ui.add(item_label.text(item.as_str()));
-            
+        
+        for (i, item) in state.items.iter().enumerate() {
+            ui.add(H_STACK).nest(|| {
+                // We can add Nodes based on dynamic data.
+               ui.add(item_label.text(item.as_str()));
+                
                 // We want a remove button for each item. But we can't create compile-time keys for all of them in advance.
                 // With the `sibling` method, we can start from a base NodeKey and create new ones dynamically from a hashable value:
                 let key = REMOVE_BUTTON.sibling(i);
                 let remove_button = remove_button.key(key);
                 ui.add(remove_button);
-            }
-        });
+            });
+        }
     });
 
     // Outside the loop, we can call `sibling` with the same arguments, and we'll deterministically end up with the same keys.

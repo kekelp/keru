@@ -84,7 +84,8 @@ impl Component for Counter<'_> {
     }
 }
 
-fn update_ui(state: &mut State, ui: &mut Ui) {    
+fn update_ui(state: &mut State, ui: &mut Ui) {
+    // Create and add the component.
     let counter_component = Counter {
         count: &mut state.count,
         color: Color::KERU_BLUE,
