@@ -50,7 +50,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     // We can also use the key to get a reference to the real retained Node that we added.
     // In this way, we can inspect or modify the tree after building it, 
     // in a way that's usually not possible in purely declarative or immediate-mode libraries.
-    // This is usually not needed except in very advanced Components. See the component used in `drag_and_drop_component.rs` for an example.
+    // This is usually not needed except in very advanced Components.
     let node_ref = ui.get_node_mut(INCREASE).unwrap();
     if node_ref.is_clicked() {
         let rect = node_ref.rect();
@@ -77,7 +77,7 @@ fn main() {
     // This is just meant for the examples and for experimenting: the "intended" way to use the library is from a user-managed winit/wgpu loop. 
     // It's really not that much code, and it allows your program to have full control over what code gets executed and when, 
     // to access all advanced winit features, and to easily integrate custom wgpu rendering.
-    // To see how this works, you can see the `window_loop` example.
+    // To see how this works, see the `window_loop` example.
     let state = State { count: 0 };
     example_window_loop::run_example_loop(state, update_ui);
 }
@@ -88,4 +88,8 @@ fn main() {
 // - the `02_dynamic.rs` example shows how to create NodeKeys at runtime for dynamic GUI elements.
 // - the `03_component.rs` example shows how to use the Component trait to create reusable components that can also manage their own state.
 // 
-// Then, the rest of the examples show how 
+// Then, the rest of the examples show how these basic concepts can be combined together to build various things.
+// In particular:
+// - the `showcase.rs` example gives an overview of various components, text, text editing, graphical effects, and vector drawing.
+// - the `aesthetics_*.rs` examples show how the Node's style params can be used to achieve a few different aesthetics.
+// - the `drag_and_drop_component.rs` shows an example of using a very advanced Component.
