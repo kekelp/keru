@@ -20,10 +20,10 @@ impl Ui {
     /// An easy way to keep track of whether variables have changed is to keep wrap them in an [`Observer`] struct, but there are many other valid strategies, depending on the context.
     /// 
     /// ```no_run
-    /// # use keru::*; # let mut ui: Ui = unimplemented!();
+    /// # use keru::*; use keru::node_library::*; let mut ui: Ui = unimplemented!();
     /// # let mut score = Observer::new(0);
     /// #
-    /// let state_changed = ui.check_changes(&mut score);
+    /// let state_changed = ui.check_if_observer_is_changed(&mut score);
     /// ui.reactive(state_changed).start(|| {
     ///     // as long as the GUI code inside here depends only on the value of `score`, this is correct.
     ///     ui.label(&score.to_string());

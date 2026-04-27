@@ -9,8 +9,8 @@ use crate::*;
 /// 
 /// Usually created with the [`macro@node_key`] macro or with [`NodeKey::sibling`]:
 /// 
-/// ```rust
-/// # use keru::*;
+/// ```no_run
+/// # use keru::*; use keru::node_library::*; let mut ui: Ui = unimplemented!();
 /// #[node_key] const UNIQUE_KEY: NodeKey;
 /// ```
 /// 
@@ -36,8 +36,8 @@ impl NodeKey {
 
     /// Create "siblings" of a key dynamically at runtime, based on a hashable value.
     ///
-    /// ```rust
-    /// # use keru::*;
+    /// ```no_run
+    /// # use keru::*; use keru::node_library::*; let mut ui: Ui = unimplemented!();
     /// #[node_key] const ROOT_COLOR_KEY: NodeKey;
     /// let colors = ["blue", "green", "violet"];
     /// for color in colors {

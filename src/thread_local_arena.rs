@@ -20,8 +20,7 @@ thread_local! {
 ///
 /// # Example
 /// ```no_run
-/// # use keru::*;
-/// # let mut ui: Ui = unimplemented!();
+/// # use keru::*; use keru::node_library::*; let mut ui: Ui = unimplemented!();
 /// # let float_value = 6.7;
 /// with_arena(|a| {
 ///     let text = bumpalo::format!(in a, "{:.2}", float_value);

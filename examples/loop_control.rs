@@ -1,7 +1,7 @@
 //! This example shows some of the ways in which we can indirectly control the winit loop and whether our Ui declaration code in `update_ui()` is executed or not.
 //! 
 //! This assumes that the winit loop is being controlled according to [Ui::should_request_redraw()], like in `run_example_loop` and in the `window_loop.rs` example:
-//! ```
+//! ```no_run
 //! if state.ui.should_request_redraw() {
 //!     window.request_redraw();
 //! }

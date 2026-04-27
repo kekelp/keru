@@ -43,10 +43,9 @@ pub enum ChildrenCanHide {
 /// 
 /// Pass it to [`Ui::add`] to create a node with the given params:
 /// ```no_run
-/// # use keru::*;
-/// # let mut ui: Ui = unimplemented!();
-/// # const MY_BUTTON: Node = keru::BUTTON
-/// #     .color(RED)
+/// # use keru::*; use keru::node_library::*; let mut ui: Ui = unimplemented!();
+/// # const MY_BUTTON: Node = BUTTON
+/// #     .color(Color::RED)
 /// #     .shape(Shape::Circle);
 /// #
 /// ui.add(MY_BUTTON);
@@ -54,10 +53,10 @@ pub enum ChildrenCanHide {
 ///
 ///  You can start with one of the preset constants ([`BUTTON`], [`LABEL`], [`TEXT`], ...), then use the builder methods to customize it:
 ///
-/// ```rust
-/// # use keru::*;
-/// const MY_BUTTON: Node = keru::BUTTON
-///     .color(RED)
+/// ```no_run
+/// # use keru::*; use keru::node_library::*; let mut ui: Ui = unimplemented!();
+/// const MY_BUTTON: Node = BUTTON
+///     .color(Color::RED)
 ///     .shape(Shape::Circle);
 /// ```
 /// 

@@ -15,7 +15,7 @@ impl Ui {
     /// To start the key scope and run Ui code inside it, use [`UiKeyScope::start()`].
     /// 
     /// ```no_run
-    /// # use keru::*;
+    /// # use keru::*; use keru::node_library::*; let mut ui: Ui = unimplemented!();
     /// fn component(ui: &mut Ui) {
     ///     ui.key_scope().start(|| {
     ///         // define private keys and use them
@@ -50,7 +50,7 @@ impl Ui {
     /// 
     /// This is usually not needed, but it allows to access a node in a key scope from outside of it:
     /// ```no_run
-    /// # use keru::*; let mut ui: Ui = unimplemented!();
+    /// # use keru::*; use keru::node_library::*; let mut ui: Ui = unimplemented!();
     /// # #[node_key] const CUSTOM_RENDERED_NODE: NodeKey;
     /// # #[node_key] const WIDGET_KEY_1: NodeKey;
     /// #
@@ -66,9 +66,13 @@ impl Ui {
     /// That node was defined inside a private key scope, and we are outside of it.
     /// So, we re-enter the _same_ named key scope using the same key as before:
     /// 
-    /// ```
+    /// ```no_run
+    /// # use keru::*; use keru::node_library::*; let mut ui: Ui = unimplemented!();
+    /// # #[node_key] const CUSTOM_RENDERED_NODE: NodeKey;
+    /// # #[node_key] const WIDGET_KEY_1: NodeKey;
+    /// #
     /// ui.named_key_scope(WIDGET_KEY_1).start(|| {
-    ///     let render_rect = ui.render_rect(CUSTOM_RENDERED_NODE);
+    ///     let render_rect = ui.get_node(CUSTOM_RENDERED_NODE).unwrap().render_rect();
     ///     // ... render the custom widget
     /// });
     /// ```

@@ -180,8 +180,8 @@ pub(crate) fn intersect(a: [f32; 2], b: [f32; 2]) -> [f32; 2] {
 /// 
 /// Alias for [`Xy`]<[f32; 2]>.
 /// 
-/// ```rust
-/// # use keru::*;
+/// ```no_run
+/// # use keru::*; use keru::node_library::*; let mut ui: Ui = unimplemented!();
 /// # let x0 = -1.0;
 /// # let x1 =  1.0;
 /// # let y0 = -1.0;

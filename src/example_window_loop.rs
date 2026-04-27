@@ -31,6 +31,7 @@ pub fn basic_env_logger_init() {
 /// ```no_run
 /// use keru::example_window_loop::*;
 /// use keru::*;
+/// use keru::node_library::*;
 ///
 /// #[derive(Default)]
 /// pub struct State {
@@ -41,7 +42,7 @@ pub fn basic_env_logger_init() {
 ///     #[node_key] const INCREASE: NodeKey;
 ///
 ///     let increase_button = BUTTON
-///         .color(RED)
+///         .color(Color::RED)
 ///         .text("Increase")
 ///         .key(INCREASE);
 ///

@@ -924,11 +924,10 @@ pub const CONTAINER: Node = Node {
 /// 
 /// Use [`UiNode::render_rect`] to get the render data for your node, then render it in a separate draw call.
 /// ```no_run
-/// # use keru::*;
-/// # let mut ui: Ui = unimplemented!();
+/// # use keru::*; use keru::node_library::*; let mut ui: Ui = unimplemented!();
 /// #
 /// #[node_key] const CUSTOM_RENDERED_NODE: NodeKey;
-/// let render_rect = ui.get_node(CUSTOM_RENDERED_NODE).render_rect();
+/// let render_rect = ui.get_node(CUSTOM_RENDERED_NODE).unwrap().render_rect();
 /// ```
 pub const CUSTOM_RENDERED_PANEL: Node = Node {
     animation: NO_ANIMATION,

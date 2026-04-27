@@ -13,7 +13,7 @@
 //! 
 //! // Create a Node struct describing a button
 //! let increase_button = BUTTON
-//!     .color(RED)
+//!     .color(Color::RED)
 //!     .text("Increase")
 //!     .key(INCREASE);
 //! 

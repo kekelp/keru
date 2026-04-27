@@ -25,9 +25,9 @@ impl Ui {
     /// Add a [`Node`] to the `Ui`.
     /// 
     /// ```no_run
-    /// # use keru::*; # let mut ui: Ui = unimplemented!();
+    /// # use keru::*; use keru::node_library::*; let mut ui: Ui = unimplemented!();
     /// let red_label = LABEL
-    ///     .color(RED)
+    ///     .color(Color::RED)
     ///     .text("Increase");
     /// 
     /// ui.add(red_label);
@@ -54,7 +54,7 @@ impl Ui {
     /// This is sort of a crazy thing to do, but here's an example of why it might be useful:
     /// 
     /// ```no_run
-    /// # use keru::*; # let mut ui: Ui = unimplemented!();
+    /// # use keru::*; use keru::node_library::*; let mut ui: Ui = unimplemented!();
     /// // A list of elements that can be dragged away from the container
     /// #[node_key] pub const SOME_KEY: NodeKey;
     /// ui.add(V_STACK).nest(|| {
@@ -101,7 +101,7 @@ impl Ui {
     /// # Example
     /// 
     /// ```no_run
-    /// # use keru::*; # let mut ui: Ui = unimplemented!();
+    /// # use keru::*; use keru::node_library::*; let mut ui: Ui = unimplemented!();
     /// #[node_key] const ITEM: NodeKey;
     /// let items = ["A", "B", "C", "D", "E"];
     /// ui.add(H_STACK).nest(|| {
@@ -114,7 +114,7 @@ impl Ui {
     ///     // Add a red "X" between "B" and "C"
     ///     let jump_key = ITEM.sibling("B");
     ///     ui.jump_to_sibling(jump_key).unwrap().nest(|| {
-    ///         ui.add(BUTTON.text("X").color(RED));
+    ///         ui.add(BUTTON.text("X").color(Color::RED));
     ///     });
     /// });
     /// ```
@@ -135,7 +135,7 @@ impl Ui {
     /// # Example
     /// 
     /// ```no_run
-    /// # use keru::*; # let mut ui: Ui = unimplemented!();
+    /// # use keru::*; use keru::node_library::*; let mut ui: Ui = unimplemented!();
     /// #[node_key] const ITEM: NodeKey;
     /// let items = ["A", "B", "C", "D", "E"];
     /// ui.add(H_STACK).nest(|| {
@@ -148,7 +148,7 @@ impl Ui {
     ///     // Add a red "X" between "B" and "C"
     ///     let jump_key = ITEM.sibling("C");
     ///     ui.jump_to_before_sibling(jump_key).unwrap().nest(|| {
-    ///         ui.add(BUTTON.text("X").color(RED));
+    ///         ui.add(BUTTON.text("X").color(Color::RED));
     ///     });
     /// });
     /// ```
@@ -174,7 +174,7 @@ impl Ui {
     /// # Example
     ///
     /// ```no_run
-    /// # use keru::*; # let mut ui: Ui = unimplemented!();
+    /// # use keru::*; use keru::node_library::*; let mut ui: Ui = unimplemented!();
     /// #[node_key] const ITEM: NodeKey;
     /// #[node_key] const MY_STACK: NodeKey;
     /// let items = ["A", "B", "C", "D", "E"];
@@ -187,7 +187,7 @@ impl Ui {
     ///
     ///     // Add a red "X" between "B" and "C"
     ///     ui.jump_to_nth_child(MY_STACK, 2).unwrap().nest(|| {
-    ///         ui.add(BUTTON.text("X").color(RED));
+    ///         ui.add(BUTTON.text("X").color(Color::RED));
     ///     });
     /// });
     /// ```
@@ -718,7 +718,7 @@ impl Ui {
     /// Use together with [`Ui::finish_frame()`], at most once per frame.
     /// 
     /// ```no_run
-    /// # use keru::*; # let mut ui: Ui = unimplemented!();
+    /// # use keru::*; use keru::node_library::*; let mut ui: Ui = unimplemented!();
     /// ui.begin_frame();
     /// // declare the GUI and update state: ui.add(...)
     /// ui.finish_frame();
@@ -1243,9 +1243,9 @@ impl UiParent {
     /// Inside the nested block, new nodes will be added as a child of the node that `self` refers to.
     /// 
     /// ```no_run
-    /// # use keru::*; # let mut ui: Ui = unimplemented!();
-    /// # let parent = V_STACK;
-    /// # let child = BUTTON;
+    /// # use keru::*; use keru::node_library::*; let mut ui: Ui = unimplemented!();
+    /// # let parent = node_library::V_STACK;
+    /// # let child = node_library::BUTTON;
     /// #
     /// //           ↓ returns a `UiParent`
     /// ui.add(parent).nest(|| {
@@ -1292,12 +1292,13 @@ impl Ui {
     /// However, nesting requires two separate calls to `nest()` and `enter()` instead of just one `nest()`.
     /// 
     /// # Example
-    /// ```
-    /// # use keru::*; let mut ui: Ui = unimplemented!();
+    /// ```no_run
+    /// # use keru::*; use keru::node_library::*; let mut ui: Ui = unimplemented!();
     /// ui.add2(V_STACK).nest().enter(|| {
     ///     ui.add2(BUTTON.text("Hello"));
     ///     ui.add2(BUTTON.text("World"));
     /// });
+    /// ```
     #[track_caller]
     pub fn add2<'a>(&mut self, node: Node<'a>) -> &mut UiNode<'_>
     {
@@ -1317,8 +1318,8 @@ impl<'a> UiNode<'a> {
     /// Get a [`UiParent`] that can be used to add other nodes as children of this one.
     /// 
     /// # Example
-    /// ```
-    /// # use keru::*; let mut ui: Ui = unimplemented!();
+    /// ```no_run
+    /// # use keru::*; use keru::node_library::*; let mut ui: Ui = unimplemented!();
     /// ui.add2(V_STACK).nest().enter(|| {
     ///     ui.add2(BUTTON.text("Hello"));
     ///     ui.add2(BUTTON.text("World"));
