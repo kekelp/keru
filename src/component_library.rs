@@ -88,7 +88,7 @@ impl Ui {
         #[node_key] const VERTICAL_TABS_TAB_BUTTON: NodeKey;
         assert!(tabs.len() != 0);
 
-        self.subtree().start(|| {
+        self.key_scope().start(|| {
             let max_n = tabs.len() - 1;
             if *current_tab >= max_n {
                 *current_tab = max_n;
@@ -154,7 +154,7 @@ impl Ui {
     #[track_caller]
     pub fn slider(&mut self, value: &mut f32, min: f32, max: f32) {
         with_arena(|a| {
-            self.subtree().start(|| {
+            self.key_scope().start(|| {
                 let mut new_value = *value;
                 if let Some(drag) = self.is_dragged(SLIDER_CONTAINER) {
                     new_value += drag.relative_delta.x as f32 * (max - min);
@@ -199,7 +199,7 @@ impl Ui {
     /// Add a classic looking slider for a `f32` value
     #[track_caller]
     pub fn classic_slider(&mut self, value: &mut f32, min: f32, max: f32) {
-        self.subtree().start(|| {
+        self.key_scope().start(|| {
             // todo: combined with the handle's manual positioning, this is pretty awful. it means that the handle is drawn at zero in the first frame.
             // Currently, it relies on the anti-state tearing stuff to not stay at zero.
             // It should be fixed by making it's possible to express the " - handle_radius" part when using a Frac.
@@ -317,7 +317,7 @@ impl SimpleComponent for Slider<'_> {
             let filled_frac = (*self.value - self.min) / (self.max - self.min);
 
             let slider_container = PANEL
-                .size_x(Size::Pixels(300.0))
+                .size_x(Size::Fill)
                 .size_y(Size::Pixels(45.0))
                 .sense_drag(true)
                 // .shape(Shape::Rectangle { corner_radius: 36.0 })
@@ -487,7 +487,6 @@ impl Component for StatefulTransformView {
     type ComponentOutput = ();
     type State = TransformViewState;
 
-    // todo: right now it's not actually ok to nest them like this, because of the stupid COMPONENT_ROOT node.
     fn add_to_ui(&mut self, ui: &mut Ui, state: &mut Self::State) -> Self::AddResult {
         return ui.add_component(TransformView::new(state));
     }

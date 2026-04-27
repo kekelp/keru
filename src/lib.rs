@@ -3,8 +3,7 @@
 //! # Code Example
 //! 
 //! ```no_run
-//! # use keru::*;
-//! # let mut ui: Ui = unimplemented!();
+//! # use keru::*; use keru::node_library::*; let mut ui: Ui = unimplemented!();
 //! # pub struct State {
 //! #     pub count: i32,
 //! # }
@@ -59,15 +58,13 @@
 //! The [`Ui`] struct retains the state of the whole GUI, so even if you do this on every frame, it doesn't mean that the GUI is rerendering or doing a full relayout every time. The library can detect differences and apply only the minimal updates or partial relayouts needed.
 //! 
 //! 
-//! * In Keru, everything is a [`Node`]. Whether you want a [button](`BUTTON`), an [image](`IMAGE`), a [text element](`TEXT`), a [stack container](V_STACK), or anything else, the way is always to [`add()`](Ui::add) a node with the right values.
+//! * In Keru, everything is a [`Node`]. Whether you want a [button](`node_library::BUTTON`), an [image](`node_library::IMAGE`), a [text element](`node_library::TEXT`), a [stack container](node_library::V_STACK), or anything else, the way is always to [`add()`](Ui::add) a node with the right values.
 //! 
 //! * There are also "components", like [`Slider`]. Components are added with [`Ui::add_component()`] and they are a way to wrap multiple nodes into a reusable structure. You can define custom components with the [`SimpleComponent`] and [`Component`] traits.
 //! 
-//! * [`Ui`] has some convenience methods like [`Ui::label()`]. These work the same way as components, but with more natural syntax.
+//! * [`Ui`] has some convenience methods like [`Ui::label()`]. They work the same way as components, but with more natural syntax.
 //! 
 //! * To check interactions on a node, use [`Node::key()`] to associate a [`NodeKey`] to a [`Node`], then call methods like [`Ui::is_clicked()`] with the same [`NodeKey`].
-//! 
-//! * The [`Ui::reactive()`] function provides an experimental way to improve performance in complex GUIs with many independent components.
 //! 
 
 mod tree;
@@ -87,8 +84,8 @@ pub use node_key::*;
 mod node;
 pub use node::*;
 
-mod subtree;
-pub use subtree::*;
+mod key_scope;
+pub use key_scope::*;
 
 mod ui_node;
 pub use ui_node::*;

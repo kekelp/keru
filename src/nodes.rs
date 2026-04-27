@@ -49,8 +49,8 @@ impl IndexMut<NodeI> for Nodes {
 }
 
 impl Nodes {
-    pub(crate) fn get_with_subtree(&self, key: NodeKey) -> Option<NodeI> {
-        let id = key.id_with_subtree();
+    pub(crate) fn get_with_key_scope(&self, key: NodeKey) -> Option<NodeI> {
+        let id = key.id_with_key_scope();
         return self.node_hashmap.get(&id).copied();
     }
 
@@ -99,7 +99,7 @@ impl Ui {
         // We might find that the key has already been used in this same frame:
         //      in this case, we take note, and calculate a twin key to use to add a "twin" in the next section.
         // Otherwise, we add or refresh normally, and take note of the final i.
-        let twin_check_result = match self.sys.nodes.node_hashmap.entry(key.id_with_subtree()) {
+        let twin_check_result = match self.sys.nodes.node_hashmap.entry(key.id_with_key_scope()) {
             // Add a new normal node (no twins).
             Entry::Vacant(v) => {
                 let new_node = InnerNode::new(&key, None, Location::caller(), frame);
@@ -139,23 +139,23 @@ impl Ui {
         //      and there's nothing to do regarding twins, so we just confirm final_i.
         // If it's NeedToAddTwin, we repeat the same thing with the new twin_key.
         let (real_final_i, real_final_id) = match twin_check_result {
-            UpdatedNormal { final_i } => (final_i, key.id_with_subtree()),
+            UpdatedNormal { final_i } => (final_i, key.id_with_key_scope()),
             NeedToUpdateTwin { twin_key, twin_n } => {
-                match self.sys.nodes.node_hashmap.entry(twin_key.id_with_subtree()) {
+                match self.sys.nodes.node_hashmap.entry(twin_key.id_with_key_scope()) {
                     // Add new twin.
                     Entry::Vacant(v) => {
                         let new_twin_node = InnerNode::new(&twin_key, Some(twin_n), Location::caller(), frame);
                         let real_final_i = NodeI::from(self.sys.nodes.nodes.insert(new_twin_node));
                         v.insert(real_final_i);
                         new_node_should_relayout = true;
-                        (real_final_i, twin_key.id_with_subtree())
+                        (real_final_i, twin_key.id_with_key_scope())
                     }
                     // Refresh a twin from the previous frame.
                     Entry::Occupied(o) => {
                         let real_final_i = *o.get();
                         self.sys.nodes.nodes[real_final_i.as_usize()].last_frame_touched = frame;
 
-                        (real_final_i, twin_key.id_with_subtree())
+                        (real_final_i, twin_key.id_with_key_scope())
                     }
                 }
             }

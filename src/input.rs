@@ -118,26 +118,26 @@ impl Ui {
     ///
     /// This is "act on press". For "act on release", see [`Ui::is_click_released()`].
     pub fn is_clicked(&self, key: NodeKey) -> bool {
-        self.sys.check_clicked(key.id_with_subtree(), MouseButton::Left)
+        self.sys.check_clicked(key.id_with_key_scope(), MouseButton::Left)
     }
 
     /// Returns `true` if the node corresponding to `key` was just clicked with the right mouse button.
     ///
     /// This is "act on press". For "act on release", see [`Ui::is_click_released()`].
     pub fn is_right_clicked(&self, key: NodeKey) -> bool {
-        self.sys.check_clicked(key.id_with_subtree(), MouseButton::Right)
+        self.sys.check_clicked(key.id_with_key_scope(), MouseButton::Right)
     }
 
     /// Returns `true` if the node corresponding to `key` was just clicked with the given mouse button.
     ///
     /// This is "act on press". For "act on release", see [`Ui::is_click_released()`].
     pub fn is_mouse_button_clicked(&self, key: NodeKey, button: MouseButton) -> bool {
-        self.sys.check_clicked(key.id_with_subtree(), button)
+        self.sys.check_clicked(key.id_with_key_scope(), button)
     }
 
     /// Returns `true` if a left button mouse click was just released on the node corresponding to `key`.
     pub fn is_click_released(&self, key: NodeKey) -> bool {
-        self.sys.check_click_released(key.id_with_subtree(), MouseButton::Left)
+        self.sys.check_click_released(key.id_with_key_scope(), MouseButton::Left)
     }
 
     /// Returns details about the click if the node corresponding to `key` was just clicked, otherwise `None`.
@@ -161,12 +161,12 @@ impl Ui {
     ///
     /// Unlike [`Ui::is_click_released()`], this is `true` even if the cursor is not on the node when the button is released.
     pub fn is_drag_released(&self, key: NodeKey) -> bool {
-        self.sys.check_drag_released(key.id_with_subtree(), MouseButton::Left)
+        self.sys.check_drag_released(key.id_with_key_scope(), MouseButton::Left)
     }
 
     /// If the node corresponding to `key` is currently hovered by the cursor, returns hover information.
     pub fn is_hovered(&self, key: NodeKey) -> Option<Hover> {
-        if !self.sys.check_hovered(key.id_with_subtree()) {
+        if !self.sys.check_hovered(key.id_with_key_scope()) {
             return None;
         }
         Some(Hover { absolute_position: self.sys.mouse_input.cursor_position })
@@ -174,17 +174,17 @@ impl Ui {
 
     /// Returns `true` if the node corresponding to `key` currently has keyboard focus.
     pub fn is_focused(&self, key: NodeKey) -> bool {
-        self.sys.check_focused(key.id_with_subtree())
+        self.sys.check_focused(key.id_with_key_scope())
     }
 
     /// If the node corresponding to `key` is being held with the left mouse button, returns the duration of the hold.
     pub fn is_held(&self, key: NodeKey) -> Option<Duration> {
-        self.sys.check_held_duration(key.id_with_subtree(), MouseButton::Left)
+        self.sys.check_held_duration(key.id_with_key_scope(), MouseButton::Left)
     }
 
     /// Returns the total scroll delta for the node corresponding to `key` in the last frame, or `None` if no scroll events occurred.
     pub fn is_scrolled(&self, key: NodeKey) -> Option<Vec2> {
-        self.sys.check_scrolled(key.id_with_subtree())
+        self.sys.check_scrolled(key.id_with_key_scope())
     }
 
     /// Returns details about the last scroll event on the node corresponding to `key`, or `None` if no scroll occurred.

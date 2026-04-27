@@ -6,12 +6,11 @@ pub struct State {
     pub count: i32,
 }
 
+// This is the function that declaratively builds the GUI every frame.
+// The declarative calls update the retained GUI state in the `Ui` struct.
+// We're not rebuilding the GUI from scratch: this is not an immediate-mode library (at least not in that sense).
 fn update_ui(state: &mut State, ui: &mut Ui) {
-    // This is the function that declaratively builds the GUI every frame.
-    // The declarative calls update the retained GUI state in the `Ui` struct. We're not rebuilding the GUI from scratch:
-    // this is not an immediate-mode GUI library (at least not in that sense).
-
-    // First, create a NodeKey, which is an unique identity for a UI element.
+    // First, create a NodeKey, which is an unique identity for a GUI element.
     #[node_key] const INCREASE: NodeKey;
     
     // Create a Node struct describing a button.
@@ -21,20 +20,21 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .key(INCREASE);
 
     // Create another Node describing the count label.
-    // By using the Node's builder methods or by using the basic constants from keru::node_library, 
-    // we can create different Nodes that can describe all sorts of UI elements.
+    // By using the Node's builder methods and the basic constants from keru::node_library, 
+    // we can create different Nodes to describe all sorts of UI elements.
     let formatted_count = state.count.to_string();
     let count: Node = LABEL.text(&formatted_count);
 
     // The vertical stack container is a Node as well!
+    // It just has `ChildrenLayout::Stack` instead of `ChildrenLayout::Free` as its `children_layout` field,
+    // which means that its children will be arranged in a stack.
     // Everything is a Node, and a Node can be many things at once.
     // All the Node's fields are public, so you are free to create all sorts of combinations.
     let v_stack = V_STACK.stack_spacing(15.0);
 
     // Add the nodes into the tree.
     // The .nest(|| { ... }) calls define the structure of the tree.
-    // The `children_layout = ChildrenLayout::Stack` field of the V_STACK means that the children of v_stack are arranged in a stack. 
-    // When compiling in debug mode, you can press F1 to see the bounds of the layout rectangles.
+    // If the program is compiled in debug mode, you can press F1 to see the bounds of the layout rectangles.
     ui.add(v_stack).nest(|| {
         ui.add(increase_button);
         ui.add(count);
@@ -47,10 +47,20 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         state.count += 1;
     }
 
+    // We can also use the key to get a reference to the real retained Node that we added.
+    // In this way, we can inspect or modify the tree after building it, 
+    // in a way that's usually not possible in purely declarative or immediate-mode libraries.
+    // This is usually not needed except in very advanced Components. See the component used in `drag_and_drop_component.rs` for an example.
+    let node_ref = ui.get_node_mut(INCREASE).unwrap();
+    if node_ref.is_clicked() {
+        let rect = node_ref.rect();
+        println!("{:?}", rect);
+    }
+
     // If we really want, we can skip keys completely and use a more traditional immediate mode GUI form:
     let decrease_button: Node = BUTTON
         .color(Color::BLUE)
-        .position_y(Pos::Frac(0.75))
+        .position_x(Pos::End)
         .text("Decrease");
 
     if ui.add(decrease_button).is_clicked(ui) {
@@ -59,7 +69,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 
     // Note that we didn't add this new button as a child of the v_stack,
     // so it's a child of the tree root, and can position itself freely in the space of the whole window.
-    // There's no "ZStack", as that's what happens automatically when you add nodes as children of a node that's neither a Stack or a Grid.
+    // There's no "ZStack": that's what happens automatically when you add nodes as children of a node that's neither a Stack or a Grid.
 }
 
 fn main() {
@@ -72,3 +82,10 @@ fn main() {
     example_window_loop::run_example_loop(state, update_ui);
 }
 
+// This example already covers most of the concepts of the library.
+// 
+// To continue:
+// - the `02_dynamic.rs` example shows how to create NodeKeys at runtime for dynamic GUI elements.
+// - the `03_component.rs` example shows how to use the Component trait to create reusable components that can also manage their own state.
+// 
+// Then, the rest of the examples show how 

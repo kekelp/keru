@@ -22,13 +22,10 @@ pub(crate) const SCROLL_HANDLE_Y: NodeKey = NodeKey::new(Id(834694356), "[intern
 pub(crate) const SCROLL_RAIL_Y: NodeKey = NodeKey::new(Id(834694357), "[internal] Scroll Rail");
 
 impl Ui {
-    /// Add a node to the `Ui`.
-    /// 
-    /// `node` can be a [`Node`] or a [`FullNode`].
+    /// Add a [`Node`] to the `Ui`.
     /// 
     /// ```no_run
-    /// # use keru::*;
-    /// # let mut ui: Ui = unimplemented!();
+    /// # use keru::*; # let mut ui: Ui = unimplemented!();
     /// let red_label = LABEL
     ///     .color(RED)
     ///     .text("Increase");
@@ -57,8 +54,7 @@ impl Ui {
     /// This is sort of a crazy thing to do, but here's an example of why it might be useful:
     /// 
     /// ```no_run
-    /// # use keru::*;
-    /// # let mut ui: Ui = unimplemented!();
+    /// # use keru::*; # let mut ui: Ui = unimplemented!();
     /// // A list of elements that can be dragged away from the container
     /// #[node_key] pub const SOME_KEY: NodeKey;
     /// ui.add(V_STACK).nest(|| {
@@ -90,7 +86,7 @@ impl Ui {
     ///
     /// This is like [`jump_to_root`](Self::jump_to_root) but for any node.
     pub fn jump_to_parent(&self, parent_key: NodeKey) -> Option<UiParent> {
-        let parent_i = self.sys.nodes.get_with_subtree(parent_key)?;
+        let parent_i = self.sys.nodes.get_with_key_scope(parent_key)?;
         Some(UiParent {
             i: parent_i,
             sibling_cursor: SiblingCursor::None,
@@ -105,8 +101,7 @@ impl Ui {
     /// # Example
     /// 
     /// ```no_run
-    /// # use keru::*;
-    /// # let mut ui: Ui = unimplemented!();
+    /// # use keru::*; # let mut ui: Ui = unimplemented!();
     /// #[node_key] const ITEM: NodeKey;
     /// let items = ["A", "B", "C", "D", "E"];
     /// ui.add(H_STACK).nest(|| {
@@ -124,7 +119,7 @@ impl Ui {
     /// });
     /// ```
     pub fn jump_to_sibling(&self, jump_key: NodeKey) -> Option<UiParent> {
-        let sibling_i = self.sys.nodes.get_with_subtree(jump_key)?;
+        let sibling_i = self.sys.nodes.get_with_key_scope(jump_key)?;
         let parent_i = self.sys.nodes[sibling_i].parent;
         Some(UiParent {
             i: parent_i,
@@ -140,8 +135,7 @@ impl Ui {
     /// # Example
     /// 
     /// ```no_run
-    /// # use keru::*;
-    /// # let mut ui: Ui = unimplemented!();
+    /// # use keru::*; # let mut ui: Ui = unimplemented!();
     /// #[node_key] const ITEM: NodeKey;
     /// let items = ["A", "B", "C", "D", "E"];
     /// ui.add(H_STACK).nest(|| {
@@ -159,7 +153,7 @@ impl Ui {
     /// });
     /// ```
     pub fn jump_to_before_sibling(&self, jump_key: NodeKey) -> Option<UiParent> {
-        let sibling_i = self.sys.nodes.get_with_subtree(jump_key)?;
+        let sibling_i = self.sys.nodes.get_with_key_scope(jump_key)?;
         let parent_i = self.sys.nodes[sibling_i].parent;
         let sibling_cursor = match self.sys.nodes[sibling_i].prev_sibling {
             Some(prev) => SiblingCursor::After(prev),
@@ -180,8 +174,7 @@ impl Ui {
     /// # Example
     ///
     /// ```no_run
-    /// # use keru::*;
-    /// # let mut ui: Ui = unimplemented!();
+    /// # use keru::*; # let mut ui: Ui = unimplemented!();
     /// #[node_key] const ITEM: NodeKey;
     /// #[node_key] const MY_STACK: NodeKey;
     /// let items = ["A", "B", "C", "D", "E"];
@@ -199,7 +192,7 @@ impl Ui {
     /// });
     /// ```
     pub fn jump_to_nth_child(&self, parent_key: NodeKey, n: usize) -> Option<UiParent> {
-        let parent_i = self.sys.nodes.get_with_subtree(parent_key)?;
+        let parent_i = self.sys.nodes.get_with_key_scope(parent_key)?;
 
         if n == 0 {
             return Some(UiParent {
@@ -236,7 +229,7 @@ impl Ui {
     ///
     /// Returns `None` if the node doesn't exist.
     pub fn remove_and_readd(&mut self, key: NodeKey) -> Option<()> {
-        let node_i = self.sys.nodes.get_with_subtree(key)?;
+        let node_i = self.sys.nodes.get_with_key_scope(key)?;
         self.unlink_from_tree(node_i);
 
         let (parent_i, sibling_cursor, depth) = thread_local::current_parent(self.sys.unique_id);
@@ -725,8 +718,7 @@ impl Ui {
     /// Use together with [`Ui::finish_frame()`], at most once per frame.
     /// 
     /// ```no_run
-    /// # use keru::*;
-    /// # let mut ui: Ui = unimplemented!();
+    /// # use keru::*; # let mut ui: Ui = unimplemented!();
     /// ui.begin_frame();
     /// // declare the GUI and update state: ui.add(...)
     /// ui.finish_frame();
@@ -792,7 +784,7 @@ impl Ui {
 
     /// Returns `true` if a node corresponding to `key` exists and if it is currently part of the GUI tree. 
     pub fn is_in_tree(&self, key: NodeKey) -> bool {
-        if let Some(i) = self.sys.nodes.get_with_subtree(key) {
+        if let Some(i) = self.sys.nodes.get_with_key_scope(key) {
             // todo: also return true if it's retained
             return self.sys.nodes[i].last_frame_touched == self.sys.current_frame;
         } else {
@@ -1251,8 +1243,7 @@ impl UiParent {
     /// Inside the nested block, new nodes will be added as a child of the node that `self` refers to.
     /// 
     /// ```no_run
-    /// # use keru::*;
-    /// # let mut ui: Ui = unimplemented!();
+    /// # use keru::*; # let mut ui: Ui = unimplemented!();
     /// # let parent = V_STACK;
     /// # let child = BUTTON;
     /// #

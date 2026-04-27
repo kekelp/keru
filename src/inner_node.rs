@@ -45,7 +45,7 @@ impl Transform {
 #[derive(Debug)]
 pub struct InnerNode {
     pub id: Id,
-    pub original_key: NodeKey, // Without subtree
+    pub original_key: NodeKey, // Without key scope
     pub depth: usize,
 
     pub last_layout_frame: u64,
@@ -153,7 +153,7 @@ impl InnerNode {
             expected_final_rect: Xy::new_symm([0.0, 1.0]),
             exit_animation_still_going: false,
             enter_animation_still_going: false,
-            id: key.id_with_subtree(),
+            id: key.id_with_key_scope(),
             original_key: *key,
             depth: 0,
             layout_rect: Xy::new_symm([0.0, 1.0]),

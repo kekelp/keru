@@ -19,8 +19,7 @@ pub struct State {
 // A component is a Node-like struct that describes the component's parameters.
 //
 // Then, the Component trait implementation describes what should happen when it is added to the Ui.
-// 
-// 
+
 pub struct Counter<'a> {
     // The struct can hold references to state, so that the component will use for its effects.
     pub count: &'a mut f32,
@@ -31,8 +30,10 @@ pub struct Counter<'a> {
     pub color: Color,
 }
 
-// Every `Counter` instance will have an associated `CounterSettings` instance as its implicit state.
-// It has to implement `Default`, so that the Ui can initialize the state automatically whenever an instance of the Component is added.
+/// Every `Counter` instance will have an associated `CounterSettings` instance as its implicit state.
+/// It has to implement `Default`, so that the Ui can initialize the state automatically whenever an instance of the Component is added.
+/// It will then be cleaned up when the Component is finally removed from the tree.
+/// If a component is hidden ([Node::children_can_hide]) rather than removed, it will retain its state. See the [StatefulTransformView] component in the showcase example.
 pub struct CounterSettings {
     pub increase_step: f32,
 }
@@ -50,32 +51,35 @@ impl Component for Counter<'_> {
     type AddResult = ();
     type ComponentOutput = ();
 
-    // Describe what should happen to the Ui when a Counter is added.
+    // When the component is added to the Ui, it will create and add one or more nodes, and it will run some effects.
     fn add_to_ui(&mut self, ui: &mut Ui, state: &mut Self::State) {
+        // (Using an arena is not mandatory, but allocating a tiny String on the global heap just to format a value is really not a good thing.)
+        // (Keru has an internal arena that you can use without any setup, and it will make small local allocations virtually free.)
+        with_arena(|arena| {
 
-        let panel = PANEL.layout(self.layout);
+            let panel = PANEL.layout(self.layout);
 
-        let count_text = format!("Count: {:.2}", self.count);
+            let count_text = bumpalo::format!(in arena, "Count: {:.2}", self.count);
 
-        ui.add(panel).nest(|| {
-            ui.add(V_STACK).nest(|| {
-                ui.add(LABEL.text(&count_text));
-                ui.add(BUTTON.color(self.color).text("Increase").key(INCREASE));
-                ui.add(TEXT.text("Increase Step:"));
-                ui.add_component(Slider { value: &mut state.increase_step, min: 0.0, max: 10.0, clamp: true });
+            ui.add(panel).nest(|| {
+                ui.add(V_STACK).nest(|| {
+                    ui.add(LABEL.text(&count_text));
+                    ui.add(BUTTON.color(self.color).text("Increase").key(INCREASE));
+                    ui.add(TEXT.text("Increase Step:"));
+                    ui.add_component(Slider { value: &mut state.increase_step, min: 0.0, max: 10.0, clamp: true });
+                });
             });
+                
+            if ui.is_clicked(INCREASE) {
+                *self.count += state.increase_step;
+            }
+            if ui.is_clicked(STEP_UP) {
+                state.increase_step += 1.0;
+            }
+            // Note that we're treating these keys as unique identifiers for their nodes, even if the component is meant to be added multiple times!
+            // This is fine: each instance of the Component gets its own private "key scope", and can treat its keys as unique.
+            // You can do this manually outside of a Component by using [Ui::key_scope]. see the `key_scope.rs` example.
         });
-            
-        if ui.is_clicked(INCREASE) {
-            *self.count += state.increase_step;
-        }
-        if ui.is_clicked(STEP_UP) {
-            state.increase_step += 1.0;
-        }
-        // Note that we're treating these keys as unique identifiers for their nodes, 
-        // even if the component is meant to be reused!
-        // This is fine: each instance of the Component gets its own private "key space" and can treat his keys as unique.
-
     }
 }
 
@@ -89,7 +93,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     ui.add_component(counter_component);
     
     // Another Counter instance with different params, but pointing to the same state.
-    // It will also get a separate stance of the CounterSettings.
+    // It will also get its own separate CounterSettings instance automatically.
     let counter_2 = Counter {
         count: &mut state.count,
         color: Color::KERU_GREEN,

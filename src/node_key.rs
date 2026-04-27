@@ -22,11 +22,11 @@ pub struct NodeKey {
     temp: bool,
 }
 impl NodeKey {
-    pub(crate) fn id_with_subtree(&self) -> Id {
+    pub(crate) fn id_with_key_scope(&self) -> Id {
         
-        if let Some(subtree_id) = thread_local::last_subtree() && ! self.temp {
+        if let Some(key_scope_id) = thread_local::last_key_scope() && ! self.temp {
             let mut hasher = ahasher();
-            subtree_id.hash(&mut hasher);
+            key_scope_id.hash(&mut hasher);
             self.id.hash(&mut hasher);
             return Id(hasher.finish());
         } else {
@@ -110,9 +110,6 @@ impl NodeKey {
         return self.debug_name;
     }
 }
-
-pub type SubtreeKey = NodeKey;
-
 
 #[derive(Debug)]
 pub struct ComponentKey<ComponentType: ?Sized> {

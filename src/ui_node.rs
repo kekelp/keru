@@ -243,7 +243,7 @@ impl Ui {
     ///
     /// You can check [`UiNode::is_hidden`] and [`UiNode::is_exiting`] on the result to filter as needed.
     pub fn get_node_unfiltered_mut(&mut self, key: NodeKey) -> Option<&mut UiNode<'_>> {
-        let i = self.sys.nodes.get_with_subtree(key)?;
+        let i = self.sys.nodes.get_with_key_scope(key)?;
         // If you are wondering why are we creating wrapper structs inside an arena in the first place, it's so that the `UiNode` has better ergonomics.
         // That is, so that the interface looks like this: 
         // 
@@ -271,7 +271,7 @@ impl Ui {
     ///
     /// You can check [`UiNode::is_hidden`] and [`UiNode::is_exiting`] on the result to filter as needed.
     pub fn get_node_unfiltered(&self, key: NodeKey) -> Option<&UiNode<'_>> {
-        let i = self.sys.nodes.get_with_subtree(key)?;
+        let i = self.sys.nodes.get_with_key_scope(key)?;
         let wrapper = UiNode { i, sys: UiRef::Shared(&self.sys)  };
         return Some(self.arena_for_wrapper_structs.alloc(wrapper));
     }
@@ -387,7 +387,7 @@ impl Ui {
 
     #[cfg(debug_assertions)]
     fn check_dest_node_sense(&self, dest_key: NodeKey, sense: Sense, fn_name: &'static str, sense_add_fn_name: &'static str) -> bool {
-        let Some(i) = self.sys.nodes.get_with_subtree(dest_key) else {
+        let Some(i) = self.sys.nodes.get_with_key_scope(dest_key) else {
             return true; // Node doesn't exist, let the function return false naturally
         };
         let dest_node = &self.sys.nodes[i];
@@ -414,7 +414,7 @@ impl Ui {
 
     /// If a left button mouse drag on the node corresponding to the `src` key was just released onto the node corresponding to the `dest` key, returns the drag info.
     pub fn is_drag_released_onto(&self, src_key: NodeKey, dest_key: NodeKey) -> Option<Drag> {
-        let src_i = self.sys.nodes.get_with_subtree(src_key)?;
+        let src_i = self.sys.nodes.get_with_key_scope(src_key)?;
         let src_node = &self.sys.nodes[src_i];
         if src_node.currently_hidden || src_node.exiting {
             return None;
@@ -430,15 +430,15 @@ impl Ui {
         }
 
         let src_id = src_node.id;
-        let event = self.sys.check_drag_released_onto(src_id, dest_key.id_with_subtree(), MouseButton::Left)?;
-        let dest_i = self.sys.nodes.get_with_subtree(dest_key)?;
+        let event = self.sys.check_drag_released_onto(src_id, dest_key.id_with_key_scope(), MouseButton::Left)?;
+        let dest_i = self.sys.nodes.get_with_key_scope(dest_key)?;
         let dest_rect = self.sys.nodes[dest_i].real_rect;
         self.drag_from_release_event_with_rect(event, dest_rect)
     }
 
     /// If a left button mouse drag on the node corresponding to the `src` key is currently hovering over the node corresponding to the `dest` key, returns the drag info.
     pub fn is_drag_hovered_onto(&self, src_key: NodeKey, dest_key: NodeKey) -> Option<Drag> {
-        let src_i = self.sys.nodes.get_with_subtree(src_key)?;
+        let src_i = self.sys.nodes.get_with_key_scope(src_key)?;
         let src_node = &self.sys.nodes[src_i];
         if src_node.currently_hidden || src_node.exiting {
             return None;
@@ -454,8 +454,8 @@ impl Ui {
         }
 
         let src_id = src_node.id;
-        let event = self.sys.check_drag_hovered_onto(src_id, dest_key.id_with_subtree(), MouseButton::Left)?;
-        let dest_i = self.sys.nodes.get_with_subtree(dest_key)?;
+        let event = self.sys.check_drag_hovered_onto(src_id, dest_key.id_with_key_scope(), MouseButton::Left)?;
+        let dest_i = self.sys.nodes.get_with_key_scope(dest_key)?;
         let dest_rect = self.sys.nodes[dest_i].real_rect;
         self.drag_from_event_with_rect(event, dest_rect)
     }
@@ -468,7 +468,7 @@ impl Ui {
     pub fn is_any_drag_hovered_onto(&self, dest_key: NodeKey) -> Option<Drag> {
         #[cfg(debug_assertions)]
         {
-            let dest_i = self.sys.nodes.get_with_subtree(dest_key)?;
+            let dest_i = self.sys.nodes.get_with_key_scope(dest_key)?;
             if !self.sys.nodes[dest_i].params.interact.senses.contains(Sense::DRAG_DROP_TARGET) {
                 log::warn!(
                     "is_any_drag_hovered_onto() was called on node {:?}, but it doesn't have the DRAG_DROP_TARGET sense. Add Node::sense_drag_drop_target() to the node.",
@@ -478,7 +478,7 @@ impl Ui {
             }
         }
 
-        let event = self.sys.check_any_drag_hovered_onto(dest_key.id_with_subtree(), MouseButton::Left)?;
+        let event = self.sys.check_any_drag_hovered_onto(dest_key.id_with_key_scope(), MouseButton::Left)?;
         let dest_rect = self.get_node(dest_key)?.node().real_rect;
 
         let relative_position = glam::Vec2::new(
@@ -508,7 +508,7 @@ impl Ui {
     pub fn is_any_drag_released_onto(&self, dest_key: NodeKey) -> Option<Drag> {
         #[cfg(debug_assertions)]
         {
-            let dest_i = self.sys.nodes.get_with_subtree(dest_key)?;
+            let dest_i = self.sys.nodes.get_with_key_scope(dest_key)?;
             if !self.sys.nodes[dest_i].params.interact.senses.contains(Sense::DRAG_DROP_TARGET) {
                 log::warn!(
                     "is_any_drag_released_onto() was called on node {:?}, but it doesn't have the DRAG_DROP_TARGET sense. Add Node::sense_drag_drop_target() to the node.",
@@ -518,7 +518,7 @@ impl Ui {
             }
         }
 
-        let event = self.sys.check_any_drag_released_onto(dest_key.id_with_subtree(), MouseButton::Left)?;
+        let event = self.sys.check_any_drag_released_onto(dest_key.id_with_key_scope(), MouseButton::Left)?;
         let dest_node = self.get_node(dest_key)?;
         let dest_rect = dest_node.node().real_rect;
 

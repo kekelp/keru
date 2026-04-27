@@ -8,7 +8,6 @@ use glam::Vec2;
 
 use keru_draw::DrawContext;
 use keru_draw::Renderer;
-pub use keru_draw::ColorBrush;
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
 use key_events::KeyInput;
@@ -31,13 +30,6 @@ use std::time::Instant;
 
 
 pub(crate) static T0: LazyLock<Instant> = LazyLock::new(Instant::now);
-
-/// The original default text style that can be restored with Ctrl+0
-pub static ORIGINAL_DEFAULT_TEXT_STYLE: LazyLock<SharedTextStyle> = LazyLock::new(|| SharedTextStyle {
-    font_size: 24.0,
-    brush: ColorBrush([255, 255, 255, 255]),
-    ..Default::default()
-});
 
 pub(crate) fn slow_accurate_timestamp_for_events_only() -> f32 {
     return T0.elapsed().as_secs_f32();
@@ -610,7 +602,7 @@ impl Ui {
     /// 
     /// The closure is executed immediately, not stored, so there are no limitations with borrowing state.
     pub fn canvas_drawing(&mut self, key: NodeKey, drawing_function: impl FnOnce(&mut DrawContext)) {
-        let Some(i) = self.sys.nodes.get_with_subtree(key) else {
+        let Some(i) = self.sys.nodes.get_with_key_scope(key) else {
             return;
         };
 
@@ -784,7 +776,7 @@ impl Ui {
     }
 
     pub fn readd_branch(&mut self, branch_root: NodeKey) {
-        let Some(i) = self.sys.nodes.get_with_subtree(branch_root) else { return };
+        let Some(i) = self.sys.nodes.get_with_key_scope(branch_root) else { return };
 
         let (parent, sibling_cursor, depth) = thread_local::current_parent(self.sys.unique_id);
         self.link_node_to_parent(i, parent, depth, sibling_cursor);

@@ -3,7 +3,7 @@ use keru::node_library::*;
 
 // This example shows how to use the NodeKey::sibling() method to create dynamic keys at runtime.
 
-// In this example, our State holds a Vec of items, and we'll add some buttons to add and remove them.
+// In this example, the State holds a Vec of items, and we'll add some buttons to add and remove them.
 pub struct State {
     pub items: Vec<String>,
 }
@@ -14,37 +14,37 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 
     let item_label = LABEL.size_x(Size::Pixels(150.0));
 
+    // There's only one Create button, so it works in the same way as the ones in the previous example.
     let create_button = BUTTON
         .text("Create item")
-        .animate_position(true)
         .color(Color::GREEN)
+        .animate_position(true)
         .key(CREATE_BUTTON);
 
     let remove_button = BUTTON
-        .size_x(Size::Pixels(150.0))
         .text("Remove")
+        .size_x(Size::Pixels(150.0))
         .color(Color::RED);
 
     ui.add(V_STACK.animate_position(true)).nest(|| {
-        // Use a key for the button that creates a new element.
         ui.add(create_button);
 
-        for (i, item) in state.items.iter().enumerate() {
-            ui.add(H_STACK).nest(|| {
-                // We can easily add Nodes based on dynamic data.
+        ui.add(H_STACK).nest(|| {
+            // We can add Nodes based on dynamic data.
+            for (i, item) in state.items.iter().enumerate() {
                 ui.add(item_label.text(item.as_str()));
             
                 // We want a remove button for each item. But we can't create compile-time keys for all of them in advance.
-                // With the `sibling` method, we can start on a base NodeKey and create new ones dynamically from a hashable value:
+                // With the `sibling` method, we can start from a base NodeKey and create new ones dynamically from a hashable value:
                 let key = REMOVE_BUTTON.sibling(i);
                 let remove_button = remove_button.key(key);
                 ui.add(remove_button);
-            });
-        }
+            }
+        });
     });
 
-    // Outside the loop, we can call `sibling` with the same arguments, and we'll deterministically end up with the same key.
-    // We can use it to point to the remove buttons and check for clicks on them. 
+    // Outside the loop, we can call `sibling` with the same arguments, and we'll deterministically end up with the same keys.
+    // We can use them to point to the remove buttons and check for clicks on them. 
     for i in 0..state.items.len() {
         if ui.is_clicked(REMOVE_BUTTON.sibling(i)) {
             state.items.remove(i);

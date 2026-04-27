@@ -26,7 +26,7 @@ pub(crate) struct ParentCtx {
 
 pub struct Stacks {
     pub parents: Vec<ParentCtx>,
-    pub subtrees: Vec<Id>,
+    pub key_scopes: Vec<Id>,
     pub reactive: i32,
 }
 
@@ -34,7 +34,7 @@ impl Stacks {
     pub fn initialize() -> Stacks {
         return Stacks {
             parents: Vec::with_capacity(25),
-            subtrees: Vec::with_capacity(10),
+            key_scopes: Vec::with_capacity(10),
             reactive: 0,
         };
     }
@@ -92,21 +92,21 @@ pub fn clear_parent_stack() {
 }
 
 
-pub fn push_subtree(subtree_id: Id) {
+pub fn push_key_scope(key_scope_id: Id) {
     THREAD_STACKS.with(|stack| {
-        stack.borrow_mut().subtrees.push(subtree_id);
+        stack.borrow_mut().key_scopes.push(key_scope_id);
     });
 }
 
-pub fn pop_subtree() {
+pub fn pop_key_scope() {
     THREAD_STACKS.with(|stack| {
-        stack.borrow_mut().subtrees.pop();
+        stack.borrow_mut().key_scopes.pop();
     });
 }
 
-pub fn last_subtree() -> Option<Id> {
+pub fn last_key_scope() -> Option<Id> {
     return THREAD_STACKS.with(|stack| {
-        return stack.borrow_mut().subtrees.last().copied();
+        return stack.borrow_mut().key_scopes.last().copied();
     });
 }
 

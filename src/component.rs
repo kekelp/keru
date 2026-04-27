@@ -44,7 +44,7 @@ pub trait Component {
     /// 
     /// If [`Component::State`] is not `()`, the [`Ui`] will initialize it as `Default` it when the component is first added, store it in its internal memory, and pass it to this function every time it's called. Then, it will drop the value when the component is removed from the tree.
     /// 
-    /// If the same Component is added to the Ui multiple times in the same frame, each instance will get its own "private key space", so [`NodeKeys`] used inside this functions will "just work" without conflicts.
+    /// If the same Component is added to the Ui multiple times in the same frame, each instance will get its own "private key scope", so [`NodeKey`](NodeKey) used inside this functions will work without conflicts.
     fn add_to_ui(&mut self, ui: &mut Ui, state: &mut Self::State) -> Self::AddResult;
 
     /// Allow a component to be associated with a key. This will allow code in [`Component::run_component()`] to enter the component's "key space" and access its nodes using the same keys used in the [`Component::add_to_ui()`].
@@ -89,13 +89,13 @@ impl Ui {
             None => NodeKey::new(Id(caller_location_id()), "Anon component"),
         };
         
-        // Add a fake node for the component. This is a lazy way to do the id twinning and everything.
-        // We don't set it as parent, so it doesn't screw anything up. It would still be better to remove it, though.
+        // Add a fake node for the component. This is a lazy way to get a properly track_called, keyscoped, and twinned id to use for the component key scope.
+        // We don't set it as parent, so it's not that bad. It would still be better to do it without literally adding a node, though.
         let (i, id) = self.add_or_update_node(key);
         self.set_params(i, &COMPONENT_ROOT.into());
         // Here, we have to pass the `&mut Ui` (`self`) and the reference to the state in `self.sys.user_state`.
         // Besides the dumb partial borrow issue, there's also a real issue: inside the `add_to_ui`, the user could re-add the same component and get a reference to the same state.
-        // But that's impossible because of the subtree id system. If the user re-adds with the same *key*, he'd end up with a different *id* anyway because of `id_with_subtree()` (inside `add_or_update_node()`).
+        // But that's impossible because of the scoped id system. If the user re-adds with the same *key*, he'd end up with a different *id* anyway because of `id_with_key_scope()` (inside `add_or_update_node()`).
         //
         // So there can't be multiple references to the same state.
         //
@@ -103,7 +103,7 @@ impl Ui {
         //
         // (When adding the same component multiple times, they are deduplicated by track_caller or by key twinning, but that wouldn't be a safety issue for the state anyway.)
 
-        thread_local::push_subtree(id);
+        thread_local::push_key_scope(id);
 
         let res;
 
@@ -129,7 +129,7 @@ impl Ui {
             debug_assert!(a.is_none());
         };
 
-        thread_local::pop_subtree();
+        thread_local::pop_key_scope();
 
         return res;
     }
@@ -141,7 +141,7 @@ impl Ui {
     /// - to modify the component after it has been added, for example after children have been added to it. 
     pub fn run_component<T: Component>(&mut self, component_key: ComponentKey<T>) -> Option<T::ComponentOutput>{
         // No twinning here, so use this old closure one.
-        self.component_key_subtree(component_key).start(|| {
+        self.component_key_scope(component_key).start(|| {
             T::run_component(self)
         })
     }
@@ -150,7 +150,7 @@ impl Ui {
     ///
     /// Returns `None` if the component is not currently a part of the Ui tree.
     pub fn component_state_mut<T: Component>(&mut self, component_key: ComponentKey<T>) -> Option<&mut T::State> {
-        let id = component_key.as_normal_key().id_with_subtree();
+        let id = component_key.as_normal_key().id_with_key_scope();
         self.sys.user_state.get_mut(&id)?.downcast_mut()
     }
 }
