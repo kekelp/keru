@@ -67,3 +67,5 @@ fn main() {
     };
     example_window_loop::run_example_loop(state, update_ui);
 }
+
+// Next, see the `03_components.rs` example, which explains the `Component` trait.

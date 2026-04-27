@@ -1,3 +1,5 @@
+// This example shows how to run Keru as a part of an user-managed `winit` loop, and how to render it with `wgpu`.
+
 use keru::*;
 use keru::node_library::*;
 use std::sync::Arc;

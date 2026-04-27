@@ -7,19 +7,20 @@ pub struct State {
 
 // This example shows how to use the Component trait.
 // 
-// Components are the most robust way of separating GUI code.
+// Components are the most robust way of separating GUI code into reusable "components" or "widgets".
 // In addition, Components can have their own "implicit" state, without the user having to make space for it in their own State.
+// 
+// This is an advanced feature: most programs will be fine without it.
 //
 // In this example, we'll write a counter with a configuration setting that allows adding more than 1 at a time to the count.
-// It could surely get annoying if the user had to add a field in their State for every configuration variable of every color picker,  
-// rich text editor, or every small self-contained widget that they have.
+//
+// In a complex program, it could surely get annoying if the user had to add a field in their State for every configuration variable of 
+// every color picker, rich text editor, or every small self-contained widget that they have.
 // 
 // The Component is meant to feel like building a regular Node and adding it.
-// 
-// A component is a Node-like struct that describes the component's parameters.
-//
-// Then, the Component trait implementation describes what should happen when it is added to the Ui.
 
+
+// A component is a Node-like struct that describes the component's parameters, and can hold references to portions of the outside state.
 pub struct Counter<'a> {
     // The struct can hold references to state, so that the component will use for its effects.
     pub count: &'a mut f32,
@@ -30,10 +31,10 @@ pub struct Counter<'a> {
     pub color: Color,
 }
 
-/// Every `Counter` instance will have an associated `CounterSettings` instance as its implicit state.
-/// It has to implement `Default`, so that the Ui can initialize the state automatically whenever an instance of the Component is added.
-/// It will then be cleaned up when the Component is finally removed from the tree.
-/// If a component is hidden ([Node::children_can_hide]) rather than removed, it will retain its state. See the [StatefulTransformView] component in the showcase example.
+// Every `Counter` instance will have an associated `CounterSettings` instance as its implicit state.
+// It has to implement `Default`, so that the Ui can initialize the state automatically whenever an instance of the Component is added.
+// It will then be cleaned up when the Component is finally removed from the tree.
+// If a component is hidden ([Node::children_can_hide]) rather than removed, it will retain its state. See the [StatefulTransformView] component in the showcase example.
 pub struct CounterSettings {
     pub increase_step: f32,
 }
@@ -46,12 +47,12 @@ impl Default for CounterSettings {
 #[node_key] const INCREASE: NodeKey;
 #[node_key] const STEP_UP: NodeKey;
 
+// We finally implement the Component trait and specify what should happen to the Ui when the user adds the component.
 impl Component for Counter<'_> {
     type State = CounterSettings;
     type AddResult = ();
     type ComponentOutput = ();
 
-    // When the component is added to the Ui, it will create and add one or more nodes, and it will run some effects.
     fn add_to_ui(&mut self, ui: &mut Ui, state: &mut Self::State) {
         // (Using an arena is not mandatory, but allocating a tiny String on the global heap just to format a value is really not a good thing.)
         // (Keru has an arena that you can use without any setup, and it will make small local allocations virtually free.)
@@ -78,7 +79,7 @@ impl Component for Counter<'_> {
             }
             // Note that we're treating these keys as unique identifiers for their nodes, even if the component is meant to be added multiple times!
             // This is fine: each instance of the Component gets its own private "key scope", and can treat its keys as unique.
-            // You can do this manually outside of a Component by using [Ui::key_scope]. see the `key_scope.rs` example.
+            // You can do this manually outside of a Component by using `ui.key_scope()`. See the `key_scope.rs` example.
         });
     }
 }
@@ -93,7 +94,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     ui.add_component(counter_component);
     
     // Another Counter instance with different params, but pointing to the same state.
-    // It will also get its own separate CounterSettings instance automatically.
+    // It will get its own separate CounterSettings instance automatically.
     let counter_2 = Counter {
         count: &mut state.count,
         color: Color::KERU_GREEN,
@@ -101,7 +102,6 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     };
     
     ui.add_component(counter_2);
-    
 }
 
 fn main() {

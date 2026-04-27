@@ -14,13 +14,11 @@ In particular, there are three heavily commented examples that serve as a tutori
 - [`02_dynamic.rs`]
 - [`03_components.rs`]
 
-
-
 ## Screenshots
 
 Screenshot of the [`minimal.rs`] example and its code.
 
-Examples use the `run_example_loop` helper, but the normal way to use Keru is from a user-managed `winit`/`wgpu` loop. To see how this works, see the `window_loop` example.
+Examples use the `run_example_loop` helper, but the "intended" way to use the library is from a user-managed `winit`/`wgpu` loop. See the [`window_loop.rs`] example.
 
 ![Screenshot of minimal.rs example](screenshots/minimal.png)
 
@@ -30,16 +28,17 @@ Screenshot of the [`showcase.rs`] example:
 
 Screenshot of the [`aesthetics_modern.rs`] example:
 
-![Screenshot of aesthetics_modern.rs example](screenshots/aesthetics_modern.png)
+![Screenshot of aesthetics_modern.rs example](screenshots/aesthetics_modern_2.png)
 
 A basic paint program. The canvas and the color picker are rendered with custom `wgpu` code.
 
 ![Screenshot of paint example](screenshots/paint.png)
 
 
-[`minimal.rs`]: https://github.com/kekelp/keru/blob/master/examples/minimal.rs
 [`01_intro.rs`]: https://github.com/kekelp/keru/blob/master/examples/01_intro.rs
 [`02_dynamic.rs`]: https://github.com/kekelp/keru/blob/master/examples/02_dynamic.rs
 [`03_components.rs`]: https://github.com/kekelp/keru/blob/master/examples/03_components.rs
+[`minimal.rs`]: https://github.com/kekelp/keru/blob/master/examples/minimal.rs
+[`window_loop.rs`]: https://github.com/kekelp/keru/blob/master/examples/window_loop.rs
 [`showcase.rs`]: https://github.com/kekelp/keru/blob/master/examples/showcase.rs
 [`aesthetics_modern.rs`]: https://github.com/kekelp/keru/blob/master/examples/aesthetics_modern.rs
