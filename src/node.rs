@@ -104,6 +104,7 @@ pub struct Node<'a> {
     pub text_style_flags: TextStyleFlags,
 
     pub image: Option<Image<'a>>,
+    pub image_options: ImageOptions,
     pub placeholder_text: Option<NodeText<'a>>,
 }
 
@@ -207,15 +208,15 @@ impl Hash for Size {
 /// Anchor point within a node for positioning.
 ///
 /// Determines which point of the node is positioned at the given coordinates
-/// when using `Position::Static`. For example, with `Anchor::Center`, the
+/// when using [`Pos::Frac`] or [`Pos::Pixels`]. For example, with `Anchor::Center`, the
 /// center of the node will be placed at the specified position.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Anchor {
-    /// Anchor at the start (left for X, top for Y)
+    /// Anchor at the start (left/top)
     Start,
     /// Anchor at the center
     Center,
-    /// Anchor at the end (right for X, bottom for Y)
+    /// Anchor at the end (right/bottom)
     End,
     /// Anchor at a relative position (0.0 = start, 1.0 = end)
     Frac(f32),
@@ -1423,6 +1424,12 @@ impl<'a> Node<'a> {
         self.text = Some(NodeText(text));
         return self;
     }
+
+    /// Set image options, such as tiling mode or 9-slice borders.
+    pub const fn image_options(mut self, options: ImageOptions) -> Node<'a> {
+        self.image_options = options;
+        return self;
+    }
 }
 
 impl Node<'_> {
@@ -1707,6 +1714,7 @@ impl<'a> Node<'a> {
             text: None,
             placeholder_text: None,
             image: None,
+            image_options: self.image_options,
             text_properties: &[],
             text_style_flags: TextStyleFlags::empty(),
         };

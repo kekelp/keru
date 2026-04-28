@@ -258,6 +258,8 @@ impl Ui {
             ]
         };
 
+        let texture_options = Some(node.params.image_options);
+
         // Draw all shapes, first the shadows then the real shape
         for pass in passes.into_iter().flatten() {
             let px0 = x0 + pass.offset.x;
@@ -277,6 +279,7 @@ impl Ui {
                         fill: pass.fill,
                         texture: pass.texture,
                         blur: pass.blur,
+                        texture_options,
                     });
                 }
                 Shape::Circle => {
@@ -289,6 +292,7 @@ impl Ui {
                         fill: pass.fill,
                         texture: pass.texture,
                         blur: pass.blur,
+                        texture_options,
                     });
                 }
                 Shape::Ring { width } => {
@@ -306,6 +310,7 @@ impl Ui {
                         dash_length,
                         dash_offset: 0.0,
                         blur: pass.blur,
+                        texture_options,
                     });
                 }
                 Shape::Arc { start_angle, end_angle, width } => {
@@ -324,6 +329,7 @@ impl Ui {
                         dash_length,
                         dash_offset: 0.0,
                         blur: pass.blur,
+                        texture_options,
                     });
                 }
                 Shape::Pie { start_angle, end_angle } => {
@@ -338,6 +344,7 @@ impl Ui {
                         fill: pass.fill,
                         texture: pass.texture,
                         blur: pass.blur,
+                        texture_options,
                     });
                 }
                 Shape::Segment { start, end, dash_length } => {
@@ -355,6 +362,7 @@ impl Ui {
                         dash_offset: 0.0,
                         texture: pass.texture,
                         blur: pass.blur,
+                        texture_options,
                     });
                 }
                 Shape::HorizontalLine => {
@@ -370,6 +378,7 @@ impl Ui {
                         dash_offset: 0.0,
                         texture: pass.texture,
                         blur: pass.blur,
+                        texture_options,
                     });
                 }
                 Shape::Hexagon { size, rotation } => {
@@ -387,6 +396,7 @@ impl Ui {
                             stroke_thickness: 0.0,
                             texture: pass.texture,
                             blur: pass.blur,
+                            texture_options,
                         });
                     }
                 }
@@ -403,6 +413,7 @@ impl Ui {
                         dash_offset: 0.0,
                         texture: pass.texture,
                         blur: pass.blur,
+                        texture_options,
                     });
                 }
                 Shape::Triangle { rotation, width } => {
@@ -434,6 +445,7 @@ impl Ui {
                         fill: pass.fill,
                         texture: pass.texture,
                         blur: pass.blur,
+                        texture_options,
                     });
                 }
                 Shape::SquareGrid { lattice_size, offset, line_thickness } => {
@@ -451,6 +463,7 @@ impl Ui {
                         grid_type: keru_draw::GridType::Square,
                         texture: pass.texture,
                         blur: pass.blur,
+                        texture_options,
                     });
                 }
                 Shape::HexGrid { lattice_size, offset, line_thickness } => {
@@ -468,6 +481,7 @@ impl Ui {
                         grid_type: keru_draw::GridType::Hexagonal,
                         texture: pass.texture,
                         blur: pass.blur,
+                        texture_options,
                     });
                 }
             }
@@ -508,6 +522,7 @@ impl Ui {
                             fill: stroke_fill,
                             texture: None,
                             blur,
+                            texture_options: None,
                         });
                     }
                 }
@@ -528,6 +543,7 @@ impl Ui {
                         dash_length,
                         dash_offset: 0.0,
                         blur,
+                        texture_options: None,
                     });
                 }
             }
@@ -566,6 +582,7 @@ impl Ui {
                             stroke_thickness: stroke.width,
                             texture: None,
                             blur,
+                            texture_options: None,
                         });
                     }
                 }

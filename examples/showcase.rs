@@ -325,8 +325,9 @@ impl UiExt for Ui {
                         fill: ColorFill::Color(color),
                         dash_length: None,
                         dash_offset: 0.0,
-                        texture: None,
                         blur: 0.0,
+                        texture: None,
+                        texture_options: None,
                     });
                 }
             });
