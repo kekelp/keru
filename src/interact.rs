@@ -25,6 +25,8 @@ pub struct Click {
 pub struct Hover {
     /// Absolute screen position in pixels
     pub absolute_position: glam::Vec2,
+    /// Position relative to the node (0.0 to 1.0 in each dimension)
+    pub relative_position: glam::Vec2,
 }
 
 /// A struct describing a drag event on a GUI node.

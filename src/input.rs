@@ -72,10 +72,16 @@ impl<'a> UiNode<'a> {
     /// If this node is currently hovered by the cursor, returns hover information.
     pub fn is_hovered(&self) -> Option<Hover> {
         let sys = self.sys();
-        if !sys.check_hovered(self.node().id) {
+        let node = self.node();
+        if !sys.check_hovered(node.id) {
             return None;
         }
-        Some(Hover { absolute_position: sys.mouse_input.cursor_position })
+        let cursor = sys.mouse_input.cursor_position;
+        let relative_position = Vec2::new(
+            ((cursor.x / sys.size.x) - node.real_rect.x[0]) / node.real_rect.size().x,
+            ((cursor.y / sys.size.y) - node.real_rect.y[0]) / node.real_rect.size().y,
+        );
+        Some(Hover { absolute_position: cursor, relative_position })
     }
 
     /// Returns `true` if this node currently has keyboard focus.
@@ -166,10 +172,7 @@ impl Ui {
 
     /// If the node corresponding to `key` is currently hovered by the cursor, returns hover information.
     pub fn is_hovered(&self, key: NodeKey) -> Option<Hover> {
-        if !self.sys.check_hovered(key.id_with_key_scope()) {
-            return None;
-        }
-        Some(Hover { absolute_position: self.sys.mouse_input.cursor_position })
+        self.get_node(key)?.is_hovered()
     }
 
     /// Returns `true` if the node corresponding to `key` currently has keyboard focus.

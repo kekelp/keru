@@ -1349,6 +1349,13 @@ impl<'a> Node<'a> {
         return self;
     }
 
+    /// Clip children to the node's rectangle on both axes.
+    pub const fn clip_children(mut self, value: bool) -> Self {
+        self.clip_children.x = value;
+        self.clip_children.y = value;
+        return self;
+    }
+
     /// Clip children to the node's horizontal bounds.
     pub const fn clip_children_x(mut self, value: bool) -> Self {
         self.clip_children.x = value;

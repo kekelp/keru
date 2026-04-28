@@ -16,13 +16,13 @@ pub struct State {
 //
 // In a complex program, it could surely get annoying if the user had to add a field in their State for every configuration variable of 
 // every color picker, rich text editor, or every small self-contained widget that they have.
-// 
-// The Component is meant to feel like building a regular Node and adding it.
 
 
-// A component is a Node-like struct that describes the component's parameters, and can hold references to portions of the outside state.
+// Using a Component is meant to feel like building a regular Node and adding it.
+// A component is a Node-like struct that describes the component's parameters
+// We can make it hold references to portions of the outside state.
 pub struct Counter<'a> {
-    // The struct can hold references to state, so that the component will use for its effects.
+    // Reference to the count that the counter's button will modify.
     pub count: &'a mut f32,
     // By including a Layout field and using it as the Layout of the component's root node,
     // we can let the user choose the component's placement and size how they want, like with a regular Node.

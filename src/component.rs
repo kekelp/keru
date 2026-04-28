@@ -36,7 +36,7 @@ pub trait Component {
     /// 
     /// If you don't need this, you can set it to the empty type `()`. Unfortunately, Rust doesn't allow traits to provide default values for their associated types.
     /// Consider also using [`SimpleComponent`].
-    type ComponentOutput;
+    type ComponentOutput: Default;
 
     /// Add the component's nodes to the `Ui` and run any side effects.
     /// 
@@ -65,8 +65,8 @@ pub trait Component {
     /// It's also possible to enter the component space manually 
     /// 
     /// See the "drag_and_drop_component" example for an example.
-    fn run_component(_ui: &mut Ui) -> Option<Self::ComponentOutput> {
-        None
+    fn run_component(_ui: &mut Ui) -> Self::ComponentOutput {
+        Self::ComponentOutput::default()
     }
 }
 
@@ -139,7 +139,7 @@ impl Ui {
     /// - as a way to return a value from the component, such as whether an internal button is clicked.
     /// 
     /// - to modify the component after it has been added, for example after children have been added to it. 
-    pub fn run_component<T: Component>(&mut self, component_key: ComponentKey<T>) -> Option<T::ComponentOutput>{
+    pub fn run_component<T: Component>(&mut self, component_key: ComponentKey<T>) -> T::ComponentOutput{
         // No twinning here, so use this old closure one.
         self.component_key_scope(component_key).start(|| {
             T::run_component(self)

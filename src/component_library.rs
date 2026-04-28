@@ -780,7 +780,7 @@ impl ReorderStack {
 
 impl Component for ReorderStack {
     type AddResult = UiParent;
-    type ComponentOutput = (usize, usize);
+    type ComponentOutput = Option<(usize, usize)>;
     type State = ();
 
     fn add_to_ui(&mut self, ui: &mut Ui, _state: &mut Self::State) -> Self::AddResult {
@@ -811,7 +811,7 @@ impl Component for ReorderStack {
         return Some(self.key);
     }
 
-    fn run_component(ui: &mut Ui) -> Option<Self::ComponentOutput> {
+    fn run_component(ui: &mut Ui) -> Self::ComponentOutput {
         // Find the dragged item
         let mut dragged = None;
         if let Some(stack) = ui.get_node(Self::STACK) {
