@@ -134,6 +134,8 @@ pub struct InnerNode {
 
     pub canvas_instances: Option<keru_draw::DeferredInstanceRange>,
     pub canvas_transform_and_clip: Option<(keru_draw::TransformHandle, keru_draw::ClipRectHandle)>,
+
+    pub has_component_state: bool,
 }
 
 impl InnerNode {
@@ -225,6 +227,8 @@ impl InnerNode {
 
             canvas_instances: None,
             canvas_transform_and_clip: None,
+
+            has_component_state: false,
         };
     }
 }
@@ -355,6 +359,8 @@ pub const NODE_ROOT: InnerNode = InnerNode {
 
     canvas_instances: None,
     canvas_transform_and_clip: None,
+
+    has_component_state: false,
 };
 
 #[derive(Debug)]

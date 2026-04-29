@@ -366,7 +366,6 @@ impl Ui {
                 let vertical_offset = match self.sys.nodes[i].params.vertical_text_alignment {
                     VerticalTextAlignment::Center => if text_edit_height < available_height { (available_height - text_edit_height) / 2.0 } else { 0.0 },
                     VerticalTextAlignment::Top => {
-                        println!("Wneed");
                         0.0
                     },
                     VerticalTextAlignment::Bottom => if text_edit_height < available_height { available_height - text_edit_height } else { 0.0 },
@@ -645,7 +644,7 @@ impl Ui {
                 }
             }
 
-            // the top-level nodes in hidden branches need to be attached to their children_can_hide parents as hidden nodes, so that when that parent node is removed, we can also remove the hidden branch. Otherwise we'd just forget about them and leave them in memory forever.
+            // the top-level nodes in hidden branches need to be attached to their children_can_hide parents as hidden nodes, so that when that parent node is removed, we can also remove the whole hidden branch. Otherwise we'd just forget about them and leave them in memory forever.
             for &i in &non_fresh_nodes {
                 let can_hide = self.sys.nodes[i].can_hide;
                 let currently_hidden = self.sys.nodes[i].currently_hidden;
@@ -760,6 +759,10 @@ impl Ui {
             self.sys.renderer.remove_transform(canvas_transform);
             self.sys.renderer.remove_clip_rect(canvas_clip_rect);
             self.sys.nodes[i].canvas_transform_and_clip = None;
+        }
+
+        if self.sys.nodes[i].has_component_state {
+            self.sys.user_state.remove(&id);
         }
 
         self.sys.nodes.remove(id);

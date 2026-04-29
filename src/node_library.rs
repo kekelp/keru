@@ -1227,8 +1227,8 @@ pub const H_LINE: Node = Node {
     text_style_flags: TextStyleFlags::empty(),
 };
 
+/// fake node used to keep track of components.
 pub(crate) const COMPONENT_ROOT: Node = Node {
-    // todo remove
     animation: Animation { speed: 1.0, enter: EnterAnimation::None, exit: ExitAnimation::None, state_transition: StateTransition { animate_position: true } },
     key: None,
     children_layout: ChildrenLayout::Free,
@@ -1258,7 +1258,7 @@ pub(crate) const COMPONENT_ROOT: Node = Node {
     custom_render: false,
     z_index: 0.0,
     grid_element: GridElement::ONE_BY_ONE,
-    free_placement: false,
+    free_placement: true,
     ignore_parent_scroll: false,
     text: None,
     placeholder_text: None,

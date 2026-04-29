@@ -1,6 +1,5 @@
 use crate as keru;
 use keru::*;
-use keru::node_library::*;
 use std::{any::TypeId, collections::hash_map::Entry};
 
 
@@ -90,9 +89,9 @@ impl Ui {
         };
         
         // Add a fake node for the component. This is a lazy way to get a properly track_called, keyscoped, and twinned id to use for the component key scope.
-        // We don't set it as parent, so it's not that bad. It would still be better to do it without literally adding a node, though.
+        // We don't set it as parent, and it has free_placement so it doesn't mess with the layout algorithms, so hopefully it's okay.
         let (i, id) = self.add_or_update_node(key);
-        self.set_params(i, &COMPONENT_ROOT.into());
+        self.set_params(i, &node_library::COMPONENT_ROOT);
         // Here, we have to pass the `&mut Ui` (`self`) and the reference to the state in `self.sys.user_state`.
         // Besides the dumb partial borrow issue, there's also a real issue: inside the `add_to_ui`, the user could re-add the same component and get a reference to the same state.
         // But that's impossible because of the scoped id system. If the user re-adds with the same *key*, he'd end up with a different *id* anyway because of `id_with_key_scope()` (inside `add_or_update_node()`).
@@ -114,6 +113,8 @@ impl Ui {
             res = T::add_to_ui(&mut component, self, state_ref);
 
         } else {
+            self.sys.nodes[i].has_component_state = true;
+
             // Get the state or initialize it if it's not there yet.
             let mut state = match self.sys.user_state.entry(id) {
                 Entry::Occupied(e) => e.remove(),

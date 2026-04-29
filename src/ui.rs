@@ -135,7 +135,7 @@ pub(crate) struct System {
     // so things like this will need to rebuild render data, not just rerender
     pub anim_render_timer: AnimationRenderTimer,
 
-    pub user_state: HashMap<StateId, Box<dyn Any>>,
+    pub user_state: HashMap<Id, Box<dyn Any>>,
 
     // todo: do something else
     pub image_cache: lru::LruCache<ImageSourceId, ImageRef>,
@@ -832,5 +832,3 @@ impl Ui {
         }
     }
 }
-
-pub(crate) type StateId = Id;
