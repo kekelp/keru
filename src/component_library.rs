@@ -773,9 +773,8 @@ pub struct ReorderStack {
     pub key: ComponentKey<Self>,
 }
 impl ReorderStack {
-    #[node_key] pub const STACK: NodeKey;
-    #[node_key] pub const FLOATER: NodeKey;
-    #[node_key] pub const SPACER: NodeKey;
+    #[node_key] const STACK: NodeKey;
+    #[node_key] const SPACER: NodeKey;
 }
 
 impl Component for ReorderStack {
@@ -792,17 +791,6 @@ impl Component for ReorderStack {
             .stack_arrange(Arrange::Start)
             .sense_drag_drop_target(true)
             .key(Self::STACK);
-
-        let cursor = ui.cursor_position();
-        let floater = CONTAINER
-            .anchor(Anchor::Center, Anchor::Center)
-            .position(Pos::Pixels(cursor.x), Pos::Pixels(cursor.y))
-            .animate_position(true)
-            .key(Self::FLOATER);
-
-        ui.jump_to_root().nest(|| {
-            ui.add(floater)
-        });
         
         return ui.add(stack);
     }
@@ -855,8 +843,12 @@ impl Component for ReorderStack {
                 });
             }
 
-            ui.jump_to_parent(Self::FLOATER).unwrap().nest(|| {
-                ui.remove_and_readd(key);
+            let cursor = ui.cursor_position();
+    
+            ui.jump_to_root().nest(|| {
+                let node = ui.get_node_mut(key).unwrap();
+                node.set_position(Pos::Pixels(cursor.x), Pos::Pixels(cursor.y));
+                node.re_add();
             });
 
             // Return swap indices when drag is released

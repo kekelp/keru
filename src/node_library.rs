@@ -1127,6 +1127,56 @@ pub const V_SPACER: Node = Node {
     text_style_flags: TextStyleFlags::empty(),
 };
 
+/// [`Node`] for a grid layout.
+pub const GRID: Node = Node {
+    animation: NO_ANIMATION,
+    key: None,
+    text_options: TextOptions::const_default(),
+    children_layout: ChildrenLayout::Grid {
+        columns: MainAxisCellSize::Count(3),
+        spacing_x: 8.0,
+        spacing_y: 8.0,
+        flow: GridFlow::DEFAULT,
+    },
+    visible: true,
+    color: ColorFill::Color(Color::TRANSPARENT),
+    stroke: None,
+    shape: DEBUG_ONLY_SHAPE,
+    blur: None,
+    shadow: None,
+    second_shadow: None,
+    interact: Interact {
+        senses: Sense::NONE,
+        absorbs_mouse_events: false,
+        click_animation: false,
+    },
+    layout: Layout {
+        size: Xy::new(Size::FitContent, Size::FitContent),
+        padding: Xy::new_symm(0.0),
+        position: Xy::new_symm(Center),
+        anchor: Xy::new_symm(Anchor::Start),
+        scrollable: Xy::new(false, false),
+    },
+    children_can_hide: ChildrenCanHide::Inherit,
+    clip_children: Xy::new(false, false),
+    transform: Transform::IDENTITY,
+    custom_render: false,
+    z_index: 0.0,
+    grid_element: GridElement::ONE_BY_ONE,
+    free_placement: false,
+    ignore_parent_scroll: false,
+    text: None,
+    placeholder_text: None,
+    image: None,
+    image_options: ImageOptions::DEFAULT,
+    text_alignment: Alignment::Center,
+    vertical_text_alignment: VerticalTextAlignment::Center,
+    text_size: None,
+    text_color: None,
+    text_properties: &[],
+    text_style_flags: TextStyleFlags::empty(),
+};
+
 /// [`Node`] for a horizontal divider line.
 pub const H_LINE: Node = Node {
     animation: NO_ANIMATION,
