@@ -1,4 +1,4 @@
-use std::{fmt, fmt::Write, hash::Hash, panic::Location};
+use std::{fmt, fmt::Write, hash::Hash, panic::Location, time::Instant};
 use glam::Vec2;
 use keru_draw::{TextBoxHandle, TextEditHandle};
 
@@ -115,6 +115,7 @@ pub struct InnerNode {
     pub last_click: f32,
     pub hovered: bool,
     pub hover_timestamp: f32,
+    pub hover_enter_exit_instant: Option<Instant>,
     pub z: f32,
 
     pub last_cosmetic_hash: u64,
@@ -200,6 +201,7 @@ impl InnerNode {
             debug_location,
             hover_timestamp: f32::MIN,
             hovered: false,
+            hover_enter_exit_instant: None,
             last_click: f32::MIN,
             z: 0.0,
 
@@ -328,6 +330,7 @@ pub const NODE_ROOT: InnerNode = InnerNode {
 
     hover_timestamp: f32::MIN,
     hovered: false,
+    hover_enter_exit_instant: None,
 
     last_click: f32::MIN,
     z: -10000.0,

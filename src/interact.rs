@@ -27,6 +27,8 @@ pub struct Hover {
     pub absolute_position: glam::Vec2,
     /// Position relative to the node (0.0 to 1.0 in each dimension)
     pub relative_position: glam::Vec2,
+    /// Timestamp of the latest hover-enter or hover-exit event on this node
+    pub last_enter_or_exit: Option<std::time::Instant>,
 }
 
 /// A struct describing a drag event on a GUI node.
@@ -190,6 +192,7 @@ impl Ui {
                     node.hovered = true;
                     node.hover_timestamp = slow_accurate_timestamp_for_events_only();
                 }
+                node.hover_enter_exit_instant = Some(std::time::Instant::now());
                 (has_hover, has_anim)
             } else {
                 (false, false)
@@ -215,6 +218,7 @@ impl Ui {
                 self.sys.changes.rebuild_render_data = true;
                 self.sys.anim_render_timer.push_new(Duration::from_secs_f32(ANIMATION_RERENDER_TIME));
             }
+            node.hover_enter_exit_instant = Some(std::time::Instant::now());
             if senses.contains(Sense::HOVER_ENTER_OR_EXIT) {
                 self.set_new_ui_input();
             }

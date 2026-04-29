@@ -81,7 +81,7 @@ impl<'a> UiNode<'a> {
             ((cursor.x / sys.size.x) - node.real_rect.x[0]) / node.real_rect.size().x,
             ((cursor.y / sys.size.y) - node.real_rect.y[0]) / node.real_rect.size().y,
         );
-        Some(Hover { absolute_position: cursor, relative_position })
+        Some(Hover { absolute_position: cursor, relative_position, last_enter_or_exit: node.hover_enter_exit_instant })
     }
 
     /// Returns `true` if this node currently has keyboard focus.
