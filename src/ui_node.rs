@@ -62,6 +62,34 @@ impl<'a> Iterator for UiNodeChildrenIter<'a> {
 impl ExactSizeIterator for UiNodeChildrenIter<'_> {}
 
 impl<'a> UiNode<'a> {
+    pub fn set_z_index(&mut self, z_index: f32) {
+        self.node_mut().params.z_index = z_index;
+    }
+
+    pub fn set_free_placement(&mut self, value: bool) {
+        let i = self.i;
+        let sys = self.sys_mut();
+        sys.nodes[i].params.free_placement = value;
+    }
+
+    pub fn set_position(&mut self, x: Pos, y: Pos) {
+        let i = self.i;
+        let sys = self.sys_mut();
+        sys.nodes[i].params.layout.position = Xy::new(x, y);
+    }
+
+    pub fn set_position_x(&mut self, x: Pos) {
+        let i = self.i;
+        let sys = self.sys_mut();
+        sys.nodes[i].params.layout.position.x = x;
+    }
+
+    pub fn set_position_y(&mut self, y: Pos) {
+        let i = self.i;
+        let sys = self.sys_mut();
+        sys.nodes[i].params.layout.position.y = y;
+    }
+
     /// Get an iterator over all the children added to the node so far.
     pub fn children(&'a self) -> impl Iterator<Item = UiNode<'a>> {
         let sys = self.sys();
@@ -74,6 +102,10 @@ impl<'a> UiNode<'a> {
 
     pub(crate) fn node(&self) -> &InnerNode {
         return &self.sys().nodes[self.i];
+    }
+    pub(crate) fn node_mut(&mut self) -> &mut InnerNode {
+        let i = self.i;
+        return &mut self.sys_mut().nodes[i];
     }
 
     /// Get the number of children added to the node so far.

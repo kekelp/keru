@@ -1068,6 +1068,56 @@ impl<'a> Node<'a> {
         return self;
     }
 
+    /// Set the number of columns in a grid layout.
+    pub const fn grid_columns(mut self, count: u32) -> Self {
+        let (spacing_x, spacing_y, flow) = match self.children_layout {
+            ChildrenLayout::Grid { spacing_x, spacing_y, flow, .. } => (spacing_x, spacing_y, flow),
+            _ => (8.0, 8.0, GridFlow::DEFAULT),
+        };
+        self.children_layout = ChildrenLayout::Grid { columns: MainAxisCellSize::Count(count), spacing_x, spacing_y, flow };
+        return self;
+    }
+
+    /// Set the target cell width in a grid layout, letting the number of columns adjust automatically.
+    pub const fn grid_column_width(mut self, width: f32) -> Self {
+        let (spacing_x, spacing_y, flow) = match self.children_layout {
+            ChildrenLayout::Grid { spacing_x, spacing_y, flow, .. } => (spacing_x, spacing_y, flow),
+            _ => (8.0, 8.0, GridFlow::DEFAULT),
+        };
+        self.children_layout = ChildrenLayout::Grid { columns: MainAxisCellSize::Width(width), spacing_x, spacing_y, flow };
+        return self;
+    }
+
+    /// Set the horizontal spacing between grid cells.
+    pub const fn grid_spacing_x(mut self, spacing_x: f32) -> Self {
+        let (columns, spacing_y, flow) = match self.children_layout {
+            ChildrenLayout::Grid { columns, spacing_y, flow, .. } => (columns, spacing_y, flow),
+            _ => (MainAxisCellSize::Count(3), 8.0, GridFlow::DEFAULT),
+        };
+        self.children_layout = ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow };
+        return self;
+    }
+
+    /// Set the vertical spacing between grid cells.
+    pub const fn grid_spacing_y(mut self, spacing_y: f32) -> Self {
+        let (columns, spacing_x, flow) = match self.children_layout {
+            ChildrenLayout::Grid { columns, spacing_x, flow, .. } => (columns, spacing_x, flow),
+            _ => (MainAxisCellSize::Count(3), 8.0, GridFlow::DEFAULT),
+        };
+        self.children_layout = ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow };
+        return self;
+    }
+
+    /// Set the flow direction of a grid layout.
+    pub const fn grid_flow(mut self, flow: GridFlow) -> Self {
+        let (columns, spacing_x, spacing_y) = match self.children_layout {
+            ChildrenLayout::Grid { columns, spacing_x, spacing_y, .. } => (columns, spacing_x, spacing_y),
+            _ => (MainAxisCellSize::Count(3), 8.0, 8.0),
+        };
+        self.children_layout = ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow };
+        return self;
+    }
+
     /// Set symmetric padding on both axes.
     pub const fn padding(mut self, padding: f32) -> Self {
         self.layout.padding = Xy::new_symm(padding);
@@ -1680,7 +1730,7 @@ impl Ui {
         self.sys.nodes[i].last_layout_hash = new_layout_hash;
 
         if layout_changed {
-            self.push_partial_relayout(i);
+            self.sys.push_partial_relayout(i);
         }
         if cosmetic_changed{
             self.sys.changes.rebuild_render_data = true;

@@ -13,7 +13,7 @@ use bumpalo::collections::Vec as BumpVec;
 #[repr(C)]
 pub struct Id(pub u64);
 
-pub(crate) const FIRST_FRAME: u64 = 1;
+pub(crate) const FIRST_FRAME: u64 = 0;
 
 pub(crate) const Z_START: f32 = 0.5;
 pub const Z_STEP: f32 = -0.000_030_517_578;
@@ -223,46 +223,6 @@ impl Ui {
         })
     }
 
-    /// Remove a node from its current position in the tree and re-add it at the current parent context.
-    ///
-    /// This is useful for moving nodes between parents, for example moving a dragged item to a floating layer.
-    ///
-    /// Returns `None` if the node doesn't exist.
-    pub fn remove_and_readd(&mut self, key: NodeKey) -> Option<()> {
-        let node_i = self.sys.nodes.get_with_key_scope(key)?;
-        self.unlink_from_tree(node_i);
-
-        let (parent_i, sibling_cursor, depth) = thread_local::current_parent(self.sys.unique_id);
-        self.link_node_to_parent(node_i, parent_i, depth, sibling_cursor);
-
-        Some(())
-    }
-
-    /// Unlink a node from its current parent's child list.
-    pub(crate) fn unlink_from_tree(&mut self, node_i: NodeI) {
-        let old_parent = self.sys.nodes[node_i].parent;
-        let prev = self.sys.nodes[node_i].prev_sibling;
-        let next = self.sys.nodes[node_i].next_sibling;
-
-        match prev {
-            Some(prev_i) => self.sys.nodes[prev_i].next_sibling = next,
-            None => self.sys.nodes[old_parent].first_child = next,
-        }
-
-        match next {
-            Some(next_i) => self.sys.nodes[next_i].prev_sibling = prev,
-            None => self.sys.nodes[old_parent].last_child = prev,
-        }
-
-        // Decrement parent's child count
-        debug_assert!(self.sys.nodes[old_parent].n_children > 0);
-        self.sys.nodes[old_parent].n_children -= 1;
-
-        // Clear the node's sibling pointers
-        self.sys.nodes[node_i].prev_sibling = None;
-        self.sys.nodes[node_i].next_sibling = None;
-    }
-
     pub(crate) fn refresh_node(&mut self, i: NodeI) {
         if let Some(text_i) = &self.sys.nodes[i].text_i {
             match text_i {
@@ -281,7 +241,7 @@ impl Ui {
     // this function also detects new nodes and reorderings, and pushes partial relayouts for them. For deleted nodes, partial relayouts will be pushed in cleanup_and_stuff.
     pub(crate) fn set_tree_links(&mut self, new_node_i: NodeI, parent_i: NodeI, depth: usize, sibling_cursor: SiblingCursor) {
         self.clear_node_children(new_node_i);
-        self.link_node_to_parent(new_node_i, parent_i, depth, sibling_cursor);
+        self.sys.link_node_to_parent(new_node_i, parent_i, depth, sibling_cursor);
     }
 
     fn clear_node_children(&mut self, new_node_i: NodeI) {
@@ -292,124 +252,6 @@ impl Ui {
         self.sys.nodes[new_node_i].first_child = None;
         self.sys.nodes[new_node_i].last_child = None;
         self.sys.nodes[new_node_i].n_children = 0;
-    }
-
-    pub(crate) fn link_node_to_parent(&mut self, new_node_i: NodeI, parent_i: NodeI, depth: usize, sibling_cursor: SiblingCursor) {
-        assert!(new_node_i != parent_i, "Keru: Internal error: tried to add a node as child of itself ({}). This shouldn't be possible.", self.sys.nodes[new_node_i].debug_name());
-
-        self.sys.nodes[new_node_i].depth = depth;
-        self.sys.nodes[new_node_i].currently_hidden = false;
-
-        // If parent changed, convert local_animated_rect to the new parent's coordinate space using screen-space positions from the previous frame.
-        let old_parent = self.sys.nodes[new_node_i].parent;
-        let is_new_node = self.sys.nodes[new_node_i].frame_added == self.sys.current_frame;
-        if !is_new_node && old_parent != parent_i {
-            let screen_pos = self.sys.nodes[new_node_i].real_rect;
-            let new_parent_offset = self.sys.nodes[parent_i].real_rect.top_left();
-            self.sys.nodes[new_node_i].local_animated_rect = screen_pos - new_parent_offset;
-        }
-
-        // Add new child
-        self.sys.nodes[new_node_i].parent = parent_i;
-        self.sys.nodes[new_node_i].prev_sibling = None;
-        self.sys.nodes[new_node_i].next_sibling = None;
-
-        self.sys.nodes[parent_i].n_children += 1;
-
-        match sibling_cursor {
-            // Add after last sibling (no jump)
-            SiblingCursor::None => {
-                match self.sys.nodes[parent_i].last_child {
-                    None => {
-                        // First child
-                        self.sys.nodes[parent_i].first_child = Some(new_node_i);
-                        self.sys.nodes[parent_i].last_child = Some(new_node_i);
-
-                        if self.sys.nodes[parent_i].first_child != self.sys.nodes[parent_i].old_first_child {
-                            self.push_partial_relayout(parent_i);
-                        }
-                    },
-                    Some(last_child) => {
-                        let prev_sibling = last_child;
-                        // Append after last_child
-                        self.sys.nodes[new_node_i].prev_sibling = Some(prev_sibling);
-                        self.sys.nodes[prev_sibling].next_sibling = Some(new_node_i);
-                        self.sys.nodes[parent_i].last_child = Some(new_node_i);
-
-                        if self.sys.nodes[prev_sibling].old_next_sibling != self.sys.nodes[prev_sibling].next_sibling {
-                            self.push_partial_relayout(parent_i);
-                        }
-                    },
-                }
-            },
-            // Add at the start (before first child)
-            SiblingCursor::AtStart => {
-                let old_first = self.sys.nodes[parent_i].first_child;
-
-                self.sys.nodes[new_node_i].next_sibling = old_first;
-                self.sys.nodes[parent_i].first_child = Some(new_node_i);
-
-                match old_first {
-                    Some(old_first_i) => {
-                        self.sys.nodes[old_first_i].prev_sibling = Some(new_node_i);
-                    }
-                    None => {
-                        self.sys.nodes[parent_i].last_child = Some(new_node_i);
-                    }
-                }
-
-                // Manually advance the thread-local cursor
-                thread_local::set_sibling_cursor(SiblingCursor::After(new_node_i));
-
-                self.push_partial_relayout(parent_i);
-            },
-            // Add after a specific sibling
-            SiblingCursor::After(after_i) => {
-                let old_next = self.sys.nodes[after_i].next_sibling;
-
-                self.sys.nodes[new_node_i].prev_sibling = Some(after_i);
-                self.sys.nodes[new_node_i].next_sibling = old_next;
-                self.sys.nodes[after_i].next_sibling = Some(new_node_i);
-
-                match old_next {
-                    Some(old_next_i) => {
-                        self.sys.nodes[old_next_i].prev_sibling = Some(new_node_i);
-                    }
-                    None => {
-                        self.sys.nodes[parent_i].last_child = Some(new_node_i);
-                    }
-                }
-
-                // Manually advance the thread-local cursor
-                thread_local::set_sibling_cursor(SiblingCursor::After(new_node_i));
-
-                self.push_partial_relayout(parent_i);
-            },
-        };
-
-        self.set_relayout_chain_root(new_node_i, parent_i);
-
-        self.remove_hidden_child_if_it_exists(new_node_i, parent_i);
-    }
-
-    fn remove_hidden_child_if_it_exists(&mut self, child_i: NodeI, parent_i: NodeI) {
-        if let Some(first_hidden_child) = self.sys.nodes[parent_i].first_hidden_child {
-            if first_hidden_child == child_i {
-                self.sys.nodes[parent_i].first_hidden_child = self.sys.nodes[child_i].next_hidden_sibling;
-                self.sys.nodes[child_i].next_hidden_sibling = None;
-                return;
-            }
-            
-            let mut prev = first_hidden_child;
-            for_each_hidden_child!(self, self.sys.nodes[parent_i], child, {
-                if child == child_i {
-                    self.sys.nodes[prev].next_hidden_sibling = self.sys.nodes[child].next_hidden_sibling;
-                    self.sys.nodes[child].next_hidden_sibling = None;
-                    return;
-                }
-                prev = child;
-            });
-        }
     }
 
     fn add_hidden_child(&mut self, new_node_i: NodeI, parent_i: NodeI) {
@@ -676,22 +518,8 @@ impl Ui {
     }
 
 
-    fn set_relayout_chain_root(&mut self, new_node_i: NodeI, parent_i: NodeI) {
-        let is_fit_content = self.sys.nodes[new_node_i].params.is_fit_content();
-        match self.sys.nodes[parent_i].relayout_chain_root {
-            Some(root_of_parent) => match is_fit_content {
-                true => self.sys.nodes[new_node_i].relayout_chain_root = Some(root_of_parent), // continue chain
-                false => self.sys.nodes[new_node_i].relayout_chain_root = None, // break chain
-            },
-            None => match is_fit_content {
-                true => self.sys.nodes[new_node_i].relayout_chain_root = Some(new_node_i), // start chain
-                false => self.sys.nodes[new_node_i].relayout_chain_root = None, // do nothing
-            },
-        };
-    }
-
-    pub(crate) fn push_partial_relayout(&mut self, _i: NodeI) {
-        self.sys.changes.full_relayout = true;
+    pub(crate) fn push_partial_relayout(&mut self, i: NodeI) {
+        self.sys.push_partial_relayout(i);
         // let relayout_chain_root = match self.sys.nodes[i].relayout_chain_root {
         //     Some(root) => root,
         //     None => i,
@@ -1314,9 +1142,174 @@ impl Ui {
         return self.get_node_mut(key).unwrap();
     }
 }
+impl System {
+    /// Unlink a node from its current parent's child list.
+    pub(crate) fn unlink_from_tree(&mut self, node_i: NodeI) {
+        let old_parent = self.nodes[node_i].parent;
+        let prev = self.nodes[node_i].prev_sibling;
+        let next = self.nodes[node_i].next_sibling;
+
+        match prev {
+            Some(prev_i) => self.nodes[prev_i].next_sibling = next,
+            None => self.nodes[old_parent].first_child = next,
+        }
+
+        match next {
+            Some(next_i) => self.nodes[next_i].prev_sibling = prev,
+            None => self.nodes[old_parent].last_child = prev,
+        }
+
+        // Decrement parent's child count
+        debug_assert!(self.nodes[old_parent].n_children > 0);
+        self.nodes[old_parent].n_children -= 1;
+
+        // Clear the node's sibling pointers
+        self.nodes[node_i].prev_sibling = None;
+        self.nodes[node_i].next_sibling = None;
+    }
+
+    pub(crate) fn link_node_to_parent(&mut self, new_node_i: NodeI, parent_i: NodeI, depth: usize, sibling_cursor: SiblingCursor) {
+        assert!(new_node_i != parent_i, "Keru: Internal error: tried to add a node as child of itself ({}). This shouldn't be possible.", self.nodes[new_node_i].debug_name());
+
+        self.nodes[new_node_i].depth = depth;
+        self.nodes[new_node_i].currently_hidden = false;
+
+        // If parent changed, convert local_animated_rect to the new parent's coordinate space using screen-space positions from the previous frame.
+        let old_parent = self.nodes[new_node_i].parent;
+        let is_new_node = self.nodes[new_node_i].frame_added == self.current_frame;
+        if !is_new_node && old_parent != parent_i {
+            let screen_pos = self.nodes[new_node_i].real_rect;
+            let new_parent_offset = self.nodes[parent_i].real_rect.top_left();
+            self.nodes[new_node_i].local_animated_rect = screen_pos - new_parent_offset;
+        }
+
+        // Add new child
+        self.nodes[new_node_i].parent = parent_i;
+        self.nodes[new_node_i].prev_sibling = None;
+        self.nodes[new_node_i].next_sibling = None;
+
+        self.nodes[parent_i].n_children += 1;
+
+        match sibling_cursor {
+            // Add after last sibling (no jump)
+            SiblingCursor::None => {
+                match self.nodes[parent_i].last_child {
+                    None => {
+                        // First child
+                        self.nodes[parent_i].first_child = Some(new_node_i);
+                        self.nodes[parent_i].last_child = Some(new_node_i);
+
+                        if self.nodes[parent_i].first_child != self.nodes[parent_i].old_first_child {
+                            self.push_partial_relayout(parent_i);
+                        }
+                    },
+                    Some(last_child) => {
+                        let prev_sibling = last_child;
+                        // Append after last_child
+                        self.nodes[new_node_i].prev_sibling = Some(prev_sibling);
+                        self.nodes[prev_sibling].next_sibling = Some(new_node_i);
+                        self.nodes[parent_i].last_child = Some(new_node_i);
+
+                        if self.nodes[prev_sibling].old_next_sibling != self.nodes[prev_sibling].next_sibling {
+                            self.push_partial_relayout(parent_i);
+                        }
+                    },
+                }
+            },
+            // Add at the start (before first child)
+            SiblingCursor::AtStart => {
+                let old_first = self.nodes[parent_i].first_child;
+
+                self.nodes[new_node_i].next_sibling = old_first;
+                self.nodes[parent_i].first_child = Some(new_node_i);
+
+                match old_first {
+                    Some(old_first_i) => {
+                        self.nodes[old_first_i].prev_sibling = Some(new_node_i);
+                    }
+                    None => {
+                        self.nodes[parent_i].last_child = Some(new_node_i);
+                    }
+                }
+
+                // Manually advance the thread-local cursor
+                thread_local::set_sibling_cursor(SiblingCursor::After(new_node_i));
+
+                self.push_partial_relayout(parent_i);
+            },
+            // Add after a specific sibling
+            SiblingCursor::After(after_i) => {
+                let old_next = self.nodes[after_i].next_sibling;
+
+                self.nodes[new_node_i].prev_sibling = Some(after_i);
+                self.nodes[new_node_i].next_sibling = old_next;
+                self.nodes[after_i].next_sibling = Some(new_node_i);
+
+                match old_next {
+                    Some(old_next_i) => {
+                        self.nodes[old_next_i].prev_sibling = Some(new_node_i);
+                    }
+                    None => {
+                        self.nodes[parent_i].last_child = Some(new_node_i);
+                    }
+                }
+
+                // Manually advance the thread-local cursor
+                thread_local::set_sibling_cursor(SiblingCursor::After(new_node_i));
+
+                self.push_partial_relayout(parent_i);
+            },
+        };
+
+        self.set_relayout_chain_root(new_node_i, parent_i);
+
+        self.remove_hidden_child_if_it_exists(new_node_i, parent_i);
+    }
+
+    fn set_relayout_chain_root(&mut self, new_node_i: NodeI, parent_i: NodeI) {
+        let is_fit_content = self.nodes[new_node_i].params.is_fit_content();
+        match self.nodes[parent_i].relayout_chain_root {
+            Some(root_of_parent) => match is_fit_content {
+                true => self.nodes[new_node_i].relayout_chain_root = Some(root_of_parent), // continue chain
+                false => self.nodes[new_node_i].relayout_chain_root = None, // break chain
+            },
+            None => match is_fit_content {
+                true => self.nodes[new_node_i].relayout_chain_root = Some(new_node_i), // start chain
+                false => self.nodes[new_node_i].relayout_chain_root = None, // do nothing
+            },
+        };
+    }
+
+    pub(crate) fn push_partial_relayout(&mut self, _i: NodeI) {
+        self.changes.full_relayout = true;
+    }
+
+    fn remove_hidden_child_if_it_exists(&mut self, child_i: NodeI, parent_i: NodeI) {
+        if let Some(first_hidden_child) = self.nodes[parent_i].first_hidden_child {
+            if first_hidden_child == child_i {
+                self.nodes[parent_i].first_hidden_child = self.nodes[child_i].next_hidden_sibling;
+                self.nodes[child_i].next_hidden_sibling = None;
+                return;
+            }
+
+            let mut prev = first_hidden_child;
+            let mut current_child = self.nodes[parent_i].first_hidden_child;
+            while let Some(child) = current_child {
+                if child == child_i {
+                    self.nodes[prev].next_hidden_sibling = self.nodes[child].next_hidden_sibling;
+                    self.nodes[child].next_hidden_sibling = None;
+                    return;
+                }
+                prev = child;
+                current_child = self.nodes[child].next_hidden_sibling;
+            }
+        }
+    }
+}
+
 impl<'a> UiNode<'a> {
     /// Get a [`UiParent`] that can be used to add other nodes as children of this one.
-    /// 
+    ///
     /// # Example
     /// ```no_run
     /// # use keru::*; use keru::node_library::*; let mut ui: Ui = unimplemented!();
@@ -1329,6 +1322,16 @@ impl<'a> UiNode<'a> {
         let i = self.i;
         let ui_instance_id = self.sys().unique_id;
         return UiParent { i, sibling_cursor: SiblingCursor::None, ui_instance_id };
+    }
+
+    /// Remove this node from its current position in the tree and re-add it at the current parent context.
+    pub fn re_add(&mut self) {
+        let node_i = self.i;
+        let sys = self.sys_mut();
+        sys.unlink_from_tree(node_i);
+
+        let (parent_i, sibling_cursor, depth) = thread_local::current_parent(sys.unique_id);
+        sys.link_node_to_parent(node_i, parent_i, depth, sibling_cursor);
     }
 }
 

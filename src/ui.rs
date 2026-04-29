@@ -596,6 +596,29 @@ impl Ui {
         self.sys.renderer.text.original_default_style()
     }
 
+    /// Load a font from raw font data and return the family name, which can be used in a text style.
+    ///
+    /// Returns `None` if the font data is invalid or contains no fonts.
+    ///
+    /// For more advanced use cases, use [`Ui::font_context()`] to access the parley `FontContext` directly.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use keru::*;
+    /// # let mut ui: Ui = unimplemented!();
+    /// let font_name = ui.load_font(include_bytes!("MyFont.ttf")).expect("Failed to load font");
+    /// ```
+    pub fn load_font(&mut self, font_data: &[u8]) -> Option<String> {
+        self.sys.renderer.text.load_font(font_data)
+    }
+
+    /// Returns a mutable reference to the parley `FontContext`.
+    ///
+    /// The `collection` field of `FontContext` is a `fontique` `Collection` that offers lower level font management.
+    pub fn font_context(&mut self) -> &mut keru_text::parley::FontContext {
+        self.sys.renderer.text.font_context()
+    }
+
     /// If `key` corresponds to a node in the tree, run a closure with a [`keru_draw::DrawContext`] that can be used to do custom vector drawing in the node's area.
     /// 
     /// The rendered shapes will be drawn on the node's post-layout position and z-order.
@@ -779,7 +802,7 @@ impl Ui {
         let Some(i) = self.sys.nodes.get_with_key_scope(branch_root) else { return };
 
         let (parent, sibling_cursor, depth) = thread_local::current_parent(self.sys.unique_id);
-        self.link_node_to_parent(i, parent, depth, sibling_cursor);
+        self.sys.link_node_to_parent(i, parent, depth, sibling_cursor);
 
         self.sys.nodes[i].last_frame_touched = self.sys.current_frame;
         self.refresh_node(i);
@@ -797,7 +820,7 @@ impl Ui {
                 // They would get "removed" by the fact that the user doesn't re-declare them.
                 // Then, cleanup_and_stuff will awkwardly add it back on. 
                 // So we have to manually remove the node.
-                self.unlink_from_tree(child);
+                self.sys.unlink_from_tree(child);
                 // we're reusing unlink_from_tree which also decreases the parent's child count, but exiting nodes shouldn't be counted.
                 self.sys.nodes[node_i].n_children += 1;
             } else {

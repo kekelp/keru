@@ -653,18 +653,18 @@ impl Ui {
 
         self.sys.renderer.gpu_profiler.end_frame().unwrap();
 
-        #[cfg(debug_assertions)]
-        {
-            let profiling_data = self.sys.renderer.gpu_profiler.process_finished_frame(self.sys.queue.get_timestamp_period());
-            if let Some(profiling_data) = profiling_data {
-                for p in profiling_data {
-                    if let Some(time) = p.time {
-                        let dur = std::time::Duration::from_secs_f64(time.end - time.start);
-                        log::info!("Gpu time ({}): {:?}", p.label, dur);
-                    }
-                }
-            }
-        }
+        // #[cfg(debug_assertions)]
+        // {
+        //     let profiling_data = self.sys.renderer.gpu_profiler.process_finished_frame(self.sys.queue.get_timestamp_period());
+        //     if let Some(profiling_data) = profiling_data {
+        //         for p in profiling_data {
+        //             if let Some(time) = p.time {
+        //                 let dur = std::time::Duration::from_secs_f64(time.end - time.start);
+        //                 log::info!("Gpu time ({}): {:?}", p.label, dur);
+        //             }
+        //         }
+        //     }
+        // }
     }
 
     /// Returns `true` if the `Ui` needs to be rerendered.

@@ -170,7 +170,7 @@ impl Ui {
         self.refresh_node(real_final_i);
 
         if new_node_should_relayout {
-            self.push_partial_relayout(real_final_i);
+            self.sys.push_partial_relayout(real_final_i);
         }
 
         return (real_final_i, real_final_id);
