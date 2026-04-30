@@ -98,6 +98,11 @@ impl<'a> Component for Button<'a> {
                 .position_x(Pos::Frac(state.click_pos.0))
                 .position_y(Pos::Frac(state.click_pos.1))
                 .absorbs_clicks(false)
+                // Since this animation is driven manually by our update function, we need to mark this node as "sensitive to the passage of time".
+                // With this setting turned on, the Ui will know that as long as this node is visible, it will have to keep rerunning the update function on every frame, and prevent the window loop from going idle.
+                // (Actually, the Ui doesn't directly control the window loop. This setting will just cause [Ui::should_request_redraw()] to return `true`),
+                // and it's up to us or to the `run_example_loop` helper to only call `winit::window::Window::request_redraw()` only when it's true.)
+                // (...actually, in this example, the 3D wireframe will keep the loop awake either way. See the `loop_control.rs` example to see this in action.)
                 .sense_time(true)
                 .shape(Shape::Circle)
                 .static_image(include_bytes!("assets/noise.jpg"))

@@ -1,46 +1,8 @@
 use std::{fmt, fmt::Write, hash::Hash, panic::Location, time::Instant};
 use glam::Vec2;
 use keru_draw::{TextBoxHandle, TextEditHandle};
-
 use crate::*;
 use crate::node_library::*;
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum ImageSourceId {
-    StaticPtr(*const u8),
-    PathHash(u64),
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum TextFingerprint {
-    None,
-    Hash(u64),
-    Ptr(usize, usize),
-}
-
-impl TextFingerprint {
-    pub fn new(s: &str, use_pointer: bool) -> Self {
-        if use_pointer {
-            TextFingerprint::Ptr(s.as_ptr() as usize, s.len())
-        } else {
-            let mut hasher = ahasher();
-            std::hash::Hash::hash(s, &mut hasher);
-            TextFingerprint::Hash(std::hash::Hasher::finish(&mut hasher))
-        }
-    }
-}
-
-#[derive(Clone, Copy, PartialEq, Debug)]
-pub struct Transform {
-    pub offset: Vec2,
-    pub scale: f32,
-}
-impl Transform {
-    pub const IDENTITY: Transform = Transform {
-        offset: Vec2::ZERO,
-        scale: 1.0,
-    };
-}
 
 #[derive(Debug)]
 pub struct InnerNode {
@@ -136,6 +98,43 @@ pub struct InnerNode {
     pub canvas_transform_and_clip: Option<(keru_draw::TransformHandle, keru_draw::ClipRectHandle)>,
 
     pub has_component_state: bool,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum ImageSourceId {
+    StaticPtr(*const u8),
+    PathHash(u64),
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum TextFingerprint {
+    None,
+    Hash(u64),
+    Ptr(usize, usize),
+}
+
+impl TextFingerprint {
+    pub fn new(s: &str, use_pointer: bool) -> Self {
+        if use_pointer {
+            TextFingerprint::Ptr(s.as_ptr() as usize, s.len())
+        } else {
+            let mut hasher = ahasher();
+            std::hash::Hash::hash(s, &mut hasher);
+            TextFingerprint::Hash(std::hash::Hasher::finish(&mut hasher))
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub struct Transform {
+    pub offset: Vec2,
+    pub scale: f32,
+}
+impl Transform {
+    pub const IDENTITY: Transform = Transform {
+        offset: Vec2::ZERO,
+        scale: 1.0,
+    };
 }
 
 impl InnerNode {

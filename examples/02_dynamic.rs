@@ -14,7 +14,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 
     let item_label = LABEL.size_x(Size::Pixels(150.0));
 
-    // There's only one Create button, so it works in the same way as the ones in the previous example.
+    // There's only one Create button, so it works the same as in the previous example.
     let create_button = BUTTON
         .text("Create item")
         .color(Color::GREEN)
@@ -34,8 +34,10 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                 // We can add Nodes based on dynamic data.
                ui.add(item_label.text(item.as_str()));
                 
-                // We want a remove button for each item. But we can't create compile-time keys for all of them in advance.
-                // With the `sibling` method, we can start from a base NodeKey and create new ones dynamically from a hashable value:
+                // We want a remove button for each item.
+                // But we can't create compile-time keys for all of them in advance.
+                // With the `sibling` method, we can start from a base NodeKey,
+                // and create new ones dynamically from a hashable value:
                 let key = REMOVE_BUTTON.sibling(i);
                 let remove_button = remove_button.key(key);
                 ui.add(remove_button);
@@ -43,14 +45,16 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         }
     });
 
-    // Outside the loop, we can call `sibling` with the same arguments, and we'll deterministically end up with the same keys.
+    // Outside the loop, we can call `sibling` with the same arguments,
+    // and we'll deterministically end up with the same keys.
     // We can use them to point to the remove buttons and check for clicks on them. 
     for i in 0..state.items.len() {
         if ui.is_clicked(REMOVE_BUTTON.sibling(i)) {
             state.items.remove(i);
         }
     }
-    // Using keys in this way is usually more readable, but this time we also happened to dodge a borrow issue.
+    // Using keys in this way is usually more readable,
+    // but this time we also happened to dodge a borrow issue.
     // If we tried to do the removal immediately after adding the node,
     // the compiler wouldn't have let us modify the Vec while we were iterating on it.
 
