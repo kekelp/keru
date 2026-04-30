@@ -858,6 +858,12 @@ impl<'a> Node<'a> {
         return self;
     }
 
+    /// Set whether the node's text is selectable by the user.
+    pub const fn text_selectable(mut self, value: bool) -> Self {
+        self.text_options.selectable = value;
+        return self;
+    }
+
     /// Set the node's position on both axes.
     pub const fn position(mut self, position_x: Pos, position_y: Pos) -> Self {
         self.layout.position.x = position_x;
@@ -994,6 +1000,17 @@ impl<'a> Node<'a> {
     pub const fn stroke_color(mut self, color: Color) -> Self {
         if let Some(stroke) = self.stroke {
             self.stroke = Some(stroke.with_color(color));
+        }
+        return self;
+    }
+
+    /// Set the stroke fill to a gradient.
+    pub const fn stroke_gradient(mut self, gradient: Gradient) -> Self {
+        if let Some(old_stroke) = self.stroke {
+            self.stroke = Some(Stroke {
+                color: ColorFill::Gradient(gradient),
+                ..old_stroke
+            });
         }
         return self;
     }

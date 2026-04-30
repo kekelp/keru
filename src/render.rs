@@ -449,17 +449,13 @@ impl Ui {
                     });
                 }
                 Shape::SquareGrid { lattice_size, offset, line_thickness } => {
-                    let grid_color = match pass.fill {
-                        ColorFill::Color(c) => c,
-                        ColorFill::Gradient(g) => g.color_start,
-                    };
                     self.sys.renderer.draw_grid(keru_draw::Grid {
                         top_left: [px0, py0],
                         size: [px1 - px0, py1 - py0],
                         lattice_size: *lattice_size,
                         offset: [offset.0, offset.1],
                         line_thickness: *line_thickness,
-                        color: grid_color,
+                        fill: pass.fill,
                         grid_type: keru_draw::GridType::Square,
                         texture: pass.texture,
                         blur: pass.blur,
@@ -467,17 +463,13 @@ impl Ui {
                     });
                 }
                 Shape::HexGrid { lattice_size, offset, line_thickness } => {
-                    let grid_color = match pass.fill {
-                        ColorFill::Color(c) => c,
-                        ColorFill::Gradient(g) => g.color_start,
-                    };
                     self.sys.renderer.draw_grid(keru_draw::Grid {
                         top_left: [px0, py0],
                         size: [px1 - px0, py1 - py0],
                         lattice_size: *lattice_size,
                         offset: [offset.0, offset.1],
                         line_thickness: *line_thickness,
-                        color: grid_color,
+                        fill: pass.fill,
                         grid_type: keru_draw::GridType::Hexagonal,
                         texture: pass.texture,
                         blur: pass.blur,

@@ -49,9 +49,14 @@ impl Default for CounterSettings {
 
 // We finally implement the Component trait and specify what should happen to the Ui when the user adds the component.
 impl Component for Counter<'_> {
+    // Set the counter to use CounterSettings as its associated state.
     type State = CounterSettings;
+    // Set the result of `ui.add_component(counter)`. Not used in this example.
+    // The main purpose is to return an `UiParent`, so that the user can add children to it: `ui.add_component(counter_component).nest(|| { ... })`.
     type AddResult = ();
+    // Another type that we're not using in this example. See the `drag_component.rs` or `aesthetics_scifi.rs` examples. 
     type ComponentOutput = ();
+    // ...hopefully future versions of Rust will let the trait use default values for these types when they are not used.
 
     fn add_to_ui(&mut self, ui: &mut Ui, state: &mut Self::State) {
         // (Using an arena is not mandatory, but allocating a tiny String on the global heap just to format a value is really not a good thing.)
@@ -67,7 +72,9 @@ impl Component for Counter<'_> {
                     ui.add(LABEL.text(&count_text));
                     ui.add(BUTTON.color(self.color).text("Increase").key(INCREASE));
                     ui.add(TEXT.text("Increase Step:"));
-                    ui.add_component(Slider { value: &mut state.increase_step, min: 0.0, max: 10.0, clamp: true });
+                    ui.add(CONTAINER.size_x(Size::Pixels(200.0))).nest(|| {  
+                        ui.add_component(Slider { value: &mut state.increase_step, min: 0.0, max: 10.0, clamp: true });
+                    })
                 });
             });
                 
@@ -86,24 +93,45 @@ impl Component for Counter<'_> {
 
 fn update_ui(state: &mut State, ui: &mut Ui) {
     // Create and add the component.
-    let counter_component = Counter {
+    let counter = Counter {
         count: &mut state.count,
         color: Color::KERU_BLUE,
         layout: Layout::default().size_symm(Size::FitContent).position_symm(Pos::Start),
     };
     
-    ui.add_component(counter_component);
+    ui.add_component(counter);
     
-    // Another Counter instance with different params, but pointing to the same state.
+    // Another Counter instance with different params, but pointing to the same `state.count`.
     // It will get its own separate CounterSettings instance automatically.
-    let counter_2 = Counter {
+    let counter2 = Counter {
         count: &mut state.count,
         color: Color::KERU_GREEN,
         layout: Layout::default().size_symm(Size::FitContent).position_symm(Pos::End),
     };
     
-    ui.add_component(counter_2);
+    ui.add_component(counter2);
 }
+
+/// Rather than sticking a reference inside of the component struct, we could also return the delta value as the result of ui.add_component, 
+/// and leave it to the user to change their state based on the returned result.
+/// ```
+/// let delta = ui.add_component(counter);
+/// state.count += delta;
+/// ```
+/// 
+/// We could also add a [ComponentKey] to the component struct, implement the optional [Component::component_key()] method,
+/// and then return the delta from the [Component::run_component()] method.
+/// This way, using the component would look very similar to using a regular Node and calling `ui.is_clicked(KEY)` on it:
+/// 
+/// ```
+/// #[component_key] const COUNTER_1;
+/// let counter = Counter::default().with_key(COUNTER_1);
+/// ui.add_component(counter);
+/// if let Some(delta) = ui.run_component(COUNTER_1) {
+///     state.count += delta;
+/// }
+/// ```
+/// All these advanced ways to use components are experimental.
 
 fn main() {
     let state = State { count: 0.0 };

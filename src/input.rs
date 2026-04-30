@@ -4,6 +4,19 @@ use std::time::Duration;
 use glam::Vec2;
 use winit::event::MouseButton;
 
+// Returns cursor position as a fraction of the node's inner (post-padding) rect,
+// matching the coordinate space used by Pos::Frac for child positioning.
+fn inner_relative_position(cursor: Vec2, window_size: Xy<f32>, rect: XyRect, padding: Xy<f32>) -> Vec2 {
+    let inner_x0 = rect.x[0] + padding.x / window_size.x;
+    let inner_y0 = rect.y[0] + padding.y / window_size.y;
+    let inner_w  = rect.size().x - 2.0 * padding.x / window_size.x;
+    let inner_h  = rect.size().y - 2.0 * padding.y / window_size.y;
+    Vec2::new(
+        (cursor.x / window_size.x - inner_x0) / inner_w,
+        (cursor.y / window_size.y - inner_y0) / inner_h,
+    )
+}
+
 impl<'a> UiNode<'a> {
     /// Returns `true` if this node was just clicked with the left mouse button.
     ///
@@ -38,10 +51,7 @@ impl<'a> UiNode<'a> {
         let sys = self.sys();
         let node = self.node();
         let event = sys.check_clicked_at(node.id, MouseButton::Left)?;
-        let relative_position = Vec2::new(
-            ((event.position.x / sys.size.x) - node.real_rect.x[0]) / node.real_rect.size().x,
-            ((event.position.y / sys.size.y) - node.real_rect.y[0]) / node.real_rect.size().y,
-        );
+        let relative_position = inner_relative_position(event.position, sys.size, node.real_rect, node.params.layout.padding);
         Some(Click {
             relative_position,
             absolute_position: event.position,
@@ -77,10 +87,7 @@ impl<'a> UiNode<'a> {
             return None;
         }
         let cursor = sys.mouse_input.cursor_position;
-        let relative_position = Vec2::new(
-            ((cursor.x / sys.size.x) - node.real_rect.x[0]) / node.real_rect.size().x,
-            ((cursor.y / sys.size.y) - node.real_rect.y[0]) / node.real_rect.size().y,
-        );
+        let relative_position = inner_relative_position(cursor, sys.size, node.real_rect, node.params.layout.padding);
         Some(Hover { absolute_position: cursor, relative_position, last_enter_or_exit: node.hover_enter_exit_instant })
     }
 
@@ -106,10 +113,7 @@ impl<'a> UiNode<'a> {
         let sys = self.sys();
         let node = self.node();
         let scroll_event = sys.check_last_scroll_event(node.id)?;
-        let relative_position = Vec2::new(
-            ((scroll_event.position.x / sys.size.x) - node.real_rect.x[0]) / node.real_rect.size().x,
-            ((scroll_event.position.y / sys.size.y) - node.real_rect.y[0]) / node.real_rect.size().y,
-        );
+        let relative_position = inner_relative_position(scroll_event.position, sys.size, node.real_rect, node.params.layout.padding);
         Some(ScrollEvent {
             relative_position,
             absolute_position: scroll_event.position,

@@ -30,7 +30,12 @@ Screenshot of the [`aesthetics_modern.rs`] example:
 
 ![Screenshot of aesthetics_modern.rs example](screenshots/aesthetics_modern_2.png)
 
-A basic paint program. The canvas and the color picker are rendered with custom `wgpu` code.
+Recording of the [`aesthetics_scifi.rs`] example. It uses a stateful `Component` to create a reusable button with a hover animation and a blinking ripple click effect.
+It also uses `canvas_drawing` to draw a 3D wireframe, just for fun.
+
+https://github.com/user-attachments/assets/7d52efdf-e668-4803-bd94-f7856481df76
+
+Screenshot of a basic paint program. The canvas and the color picker are rendered with custom `wgpu` code.
 
 ![Screenshot of paint example](screenshots/paint.png)
 
@@ -42,3 +47,4 @@ A basic paint program. The canvas and the color picker are rendered with custom 
 [`window_loop.rs`]: https://github.com/kekelp/keru/blob/master/examples/window_loop.rs
 [`showcase.rs`]: https://github.com/kekelp/keru/blob/master/examples/showcase.rs
 [`aesthetics_modern.rs`]: https://github.com/kekelp/keru/blob/master/examples/aesthetics_modern.rs
+[`aesthetics_scifi.rs`]: https://github.com/kekelp/keru/blob/master/examples/aesthetics_scifi.rs

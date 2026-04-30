@@ -90,6 +90,7 @@ impl Ui {
         
         // Add a fake node for the component. This is a lazy way to get a properly track_called, keyscoped, and twinned id to use for the component key scope.
         // We don't set it as parent, and it has free_placement so it doesn't mess with the layout algorithms, so hopefully it's okay.
+        // We should really do it without a node though, so that it's not confusing when using get_node().get_children().
         let (i, id) = self.add_or_update_node(key);
         self.set_params(i, &node_library::COMPONENT_ROOT);
         // Here, we have to pass the `&mut Ui` (`self`) and the reference to the state in `self.sys.user_state`.
