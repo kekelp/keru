@@ -270,7 +270,7 @@ impl Ui {
             match shape {
                 Shape::NoShape => {}
                 Shape::Rectangle { rounded_corners, corner_radius } => {
-                    self.sys.renderer.draw_box(keru_draw::Box {
+                    self.sys.renderer.draw_box(keru_draw::Rectangle {
                         top_left: [px0, py0],
                         size: [px1 - px0, py1 - py0],
                         corner_radius: *corner_radius,
@@ -505,7 +505,7 @@ impl Ui {
                         });
                     } else {
                         // Solid stroke
-                        self.sys.renderer.draw_box(keru_draw::Box {
+                        self.sys.renderer.draw_box(keru_draw::Rectangle {
                             top_left: [x0, y0],
                             size: [width, height],
                             corner_radius,
