@@ -29,7 +29,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     ui.add(V_STACK.animate_position(true)).nest(|| {
         ui.add(create_button);
         
-        for (i, item) in state.items.iter().enumerate() {
+        for (n, item) in state.items.iter().enumerate() {
             ui.add(H_STACK).nest(|| {
                 // We can add Nodes based on dynamic data.
                ui.add(item_label.text(item.as_str()));
@@ -37,10 +37,11 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                 // We want a remove button for each item.
                 // But we can't create compile-time keys for all of them in advance.
                 // With the `sibling` method, we can start from a base NodeKey,
-                // and create new ones dynamically from a hashable value:
-                let key = REMOVE_BUTTON.sibling(i);
-                let remove_button = remove_button.key(key);
-                ui.add(remove_button);
+                // and create new "sibling keys" dynamically with a hashable value.
+                let nth_key = REMOVE_BUTTON.sibling(n);
+                // Create a Node by taking the base `remove_button` and assigning it the new key
+                let nth_remove_button = remove_button.key(nth_key);
+                ui.add(nth_remove_button);
             });
         }
     });
@@ -48,9 +49,9 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     // Outside the loop, we can call `sibling` with the same arguments,
     // and we'll deterministically end up with the same keys.
     // We can use them to point to the remove buttons and check for clicks on them. 
-    for i in 0..state.items.len() {
-        if ui.is_clicked(REMOVE_BUTTON.sibling(i)) {
-            state.items.remove(i);
+    for n in 0..state.items.len() {
+        if ui.is_clicked(REMOVE_BUTTON.sibling(n)) {
+            state.items.remove(n);
         }
     }
     // Using keys in this way is usually more readable,
@@ -72,4 +73,4 @@ fn main() {
     example_window_loop::run_example_loop(state, update_ui);
 }
 
-// Next, see the `03_components.rs` example, which explains the `Component` trait.
+// The last tutorial example is `03_components.rs`, which shows the `Component` trait.

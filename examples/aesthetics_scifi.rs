@@ -3,7 +3,7 @@ use std::time::Instant;
 
 use keru::*;
 use keru::node_library::*;
-use keru::keru_text::parley::{FontFamily, FontFamilyName};
+use keru::keru_text::parley::{FontFamily, FontFamilyName, GenericFamily};
 
 const RED: Color = Color::from_hex_str("#f26032");
 const TEXT_COLOR: Color = Color::from_hex_str("#f26032");
@@ -169,7 +169,7 @@ impl<'a> Component for Button<'a> {
 fn update_ui(state: &mut State, ui: &mut Ui) {
     // The simplified example loop doesn't have a nice way to run code at setup only...
     if ui.current_frame() == 1 {
-        ui.default_text_style_mut().font_family = FontFamily::Single(FontFamilyName::Generic(keru_draw::parley::GenericFamily::Serif));
+        ui.default_text_style_mut().font_family = FontFamily::Single(FontFamilyName::Generic(GenericFamily::Serif));
         ui.default_text_style_mut().font_size = 30.0;
         ui.default_text_style_mut().brush = ColorBrush(TEXT_COLOR.to_u8_array());
     }

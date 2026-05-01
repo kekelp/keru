@@ -99,7 +99,6 @@ fn main() {
 // In particular:
 // - the `showcase.rs` example gives an overview of various components, text,
 //       text editing, graphical effects, and vector drawing.
-// - the `aesthetics_*.rs` examples show how the Node's styling params 
-//       can be used to achieve some different aesthetics.
+// - the `aesthetics_*.rs` examples show a few different aesthetics.
 // - the `drag_and_drop_component.rs` shows an example of using an advanced Component,
 //       that can manipulate the children that we add to it.

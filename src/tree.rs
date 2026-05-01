@@ -336,8 +336,7 @@ impl Ui {
 
                 let top = (animated_rect[Y][0] * self.sys.size[Y]) as f64 + padding[Y] as f64 + vertical_offset as f64;
 
-                text_box.set_pos(((left * scale) / scale, (top * scale) / scale));
-                // text_box.set_pos(((left * scale).round() / scale, (top * scale).round() / scale));
+                text_box.set_pos(((left * scale).round() / scale, (top * scale).round() / scale));
 
                 // Set hitbox to cover the whole node (in local space relative to text position)
                 let hitbox = (

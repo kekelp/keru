@@ -8,7 +8,7 @@ See the [docs for the master branch](https://kekelp.github.io/keru/keru/index.ht
 
 The best way to get started is to clone the repository and explore the examples.
 
-In particular, there are three heavily commented examples that serve as a tutorial:
+There are three heavily commented examples that act as a tutorial:
 
 - [`01_intro.rs`]
 - [`02_dynamic.rs`]
