@@ -26,7 +26,8 @@ Screenshot of the [`showcase.rs`] example:
 
 ![Screenshot of showcase.rs example](screenshots/showcase2.png)
 
-Screenshot of the [`aesthetics_modern.rs`] example:
+Screenshot of the [`aesthetics_modern.rs`] example.
+(The design is heavily inspired by an example in the Vizia library).
 
 ![Screenshot of aesthetics_modern.rs example](screenshots/aesthetics_modern_2.png)
 
