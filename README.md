@@ -1,6 +1,8 @@
 [![Documentation for the `master` branch](https://img.shields.io/badge/docs-master-informational)](https://kekelp.github.io/keru/keru/index.html)
 
-Keru is an experimental Graphical User Interface library.
+Keru is an experimental GUI library.
+
+It uses `winit` and `wgpu` for cross-platform support, but it has only been tested on Linux and Windows.
 
 See the [docs for the master branch](https://kekelp.github.io/keru/keru/index.html) for more information.
 
