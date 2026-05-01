@@ -40,7 +40,6 @@ Screenshot of a basic paint program. The canvas and the color picker are rendere
 
 ![Screenshot of paint example](screenshots/paint.png)
 
-
 [`01_intro.rs`]: https://github.com/kekelp/keru/blob/master/examples/01_intro.rs
 [`02_dynamic.rs`]: https://github.com/kekelp/keru/blob/master/examples/02_dynamic.rs
 [`03_components.rs`]: https://github.com/kekelp/keru/blob/master/examples/03_components.rs
