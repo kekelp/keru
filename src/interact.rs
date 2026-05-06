@@ -294,12 +294,10 @@ impl Ui {
 
     pub(crate) fn handle_keyboard_event(&mut self, event: &KeyEvent) -> bool {
         if let Key::Named(NamedKey::F1) = &event.logical_key {
+            #[cfg(debug_assertions)]
             if event.state.is_pressed() && !self.sys.debug_key_pressed {
-                #[cfg(debug_assertions)]
-                {
-                    self.set_inspect_mode(!self.inspect_mode());
-                    self.set_new_ui_input();
-                }
+                self.set_inspect_mode(!self.inspect_mode());
+                self.set_new_ui_input();
             }
             self.sys.debug_key_pressed = event.state.is_pressed();
         }

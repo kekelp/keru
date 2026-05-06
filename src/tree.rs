@@ -388,9 +388,8 @@ impl Ui {
     }
 
     pub(crate) fn push_render_and_click_data(&mut self, i: NodeI) {
-        let debug = cfg!(debug_assertions);
         let is_scrollable = self.sys.nodes[i].params.is_scrollable();
-        let push_click_rect = if debug && self.inspect_mode() {
+        let push_click_rect = if self.inspect_mode() {
             true
         } else {
             let opaque = self.sys.nodes[i].params.interact.absorbs_mouse_events;
