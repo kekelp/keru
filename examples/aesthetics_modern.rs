@@ -322,6 +322,7 @@ fn quote(ui: &mut Ui) {
 fn update_ui(state: &mut State, ui: &mut Ui) {
     let root = PANEL
         .color(GREY_BG)
+        .shape(Shape::Rectangle { rounded_corners: RoundedCorners::NONE, corner_radius: 0.0 })
         .size_symm(Size::Fill)
         .stack(Axis::X, Arrange::Start, 0.0)
         .padding(0.0);
