@@ -505,7 +505,7 @@ impl Ui {
                     accumulated.offset.x + canvas_offset_x,
                     accumulated.offset.y + canvas_offset_y,
                 ],
-                scale: accumulated.scale,
+                scale: accumulated.scale * self.sys.scale_factor,
                 _padding: 0.0,
             };
 
@@ -941,7 +941,7 @@ impl Ui {
         if self.is_dragged(scroll_rail_key).is_none() && let Some(drag) = self.is_dragged(scroll_handle_key) {
             if scroll_range < 0.0 {
                 let track_h = (1.0 - thumb_h_frac) * container_h;
-                let delta_norm = drag.absolute_delta.y / self.sys.size.y;
+                let delta_norm = drag.absolute_delta.y / self.sys.logical_size().y;
                 let scroll_delta = if track_h > 0.0 {
                     delta_norm / track_h * scroll_range
                 } else {

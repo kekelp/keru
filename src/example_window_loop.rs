@@ -123,7 +123,7 @@ impl State {
 
         surface.configure(&device, &config);
 
-        let ui = Ui::new(&device, &queue, &config);
+        let ui = Ui::new(&device, &queue, &config, &window);
 
         Self { window, surface, device, _queue: queue, config, ui }
     }

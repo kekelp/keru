@@ -5,17 +5,18 @@ use std::{hash::{Hash, Hasher}, ops::{Add, AddAssign, Div, Index, IndexMut, Mul,
 use crate::*;
 
 impl System {
-    pub(crate) fn f32_size_to_pixels2(&self, size: Xy<f32>) -> Xy<f32> {
+    /// Returns the screen size in LOGICAL pixels.
+    pub(crate) fn logical_size(&self) -> Xy<f32> {
         return Xy::new(
-            size.x * self.size[X],
-            size.y * self.size[Y]
+            self.size.x / self.scale_factor,
+            self.size.y / self.scale_factor,
         );
     }
 }
 
 impl Ui {
     pub(crate) fn pixels_to_frac(&self, pixels: f32, axis: Axis) -> f32 {
-        return pixels / self.sys.size[axis];
+        return pixels / self.sys.logical_size()[axis];
     }
     pub(crate) fn pixels_to_frac2(&self, pixels: Xy<f32>) -> Xy<f32> {
         return Xy::new(

@@ -147,10 +147,10 @@ impl MouseInput {
         self.events.clear();
     }
 
-    pub fn window_event(&mut self, event: &winit::event::WindowEvent) {
+    pub fn window_event(&mut self, event: &winit::event::WindowEvent, scale_factor: f32) {
         if let WindowEvent::CursorMoved { position, .. } = event {
             self.prev_cursor_position = self.cursor_position;
-            self.cursor_position = vec2(position.x as f32, position.y as f32);
+            self.cursor_position = vec2(position.x as f32 / scale_factor, position.y as f32 / scale_factor);
         }
     }
 

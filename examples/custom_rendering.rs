@@ -67,7 +67,7 @@ impl State {
 
         surface.configure(&device, &config);
 
-        let ui = Ui::new(&device, &queue, &config);
+        let ui = Ui::new(&device, &queue, &config, &window);
 
         // Wgpu boilerplate to set up a custom shader and a pipeline for it.
         let shader = device.create_shader_module(ShaderModuleDescriptor {

@@ -106,6 +106,7 @@ pub(crate) struct System {
     pub click_rects: Vec<ClickRect>,
 
     pub size: Xy<f32>,
+    pub scale_factor: f32,
 
     pub current_frame: u64,
     pub last_frame_end_fake_time: u64,
@@ -250,7 +251,7 @@ impl AnimationRenderTimer {
 }
 
 impl Ui {
-    pub fn new(device: &wgpu::Device, queue: &wgpu::Queue, config: &wgpu::SurfaceConfiguration) -> Self {
+    pub fn new(device: &wgpu::Device, queue: &wgpu::Queue, config: &wgpu::SurfaceConfiguration, window: &Window) -> Self {
         // initialize the static T0
         LazyLock::force(&T0);
 
@@ -286,6 +287,7 @@ impl Ui {
                 last_frame_end_fake_time: 0,
 
                 size: Xy::new(config.width as f32, config.height as f32),
+                scale_factor: window.scale_factor() as f32,
 
                 depth_traversal_queue: Vec::with_capacity(64),
 
@@ -375,9 +377,10 @@ impl Ui {
         return self.sys.current_frame;
     }
 
-    /// Get the current screen size in pixels.
+    /// Get the current screen size in logical pixels.
     pub fn screen_size(&self) -> (f32, f32) {
-        (self.sys.size.x, self.sys.size.y)
+        let s = self.sys.logical_size();
+        (s.x, s.y)
     }
 
     pub fn push_external_event(&mut self) {
@@ -581,6 +584,15 @@ impl Ui {
         self.sys.changes.resize = true;
 
         self.set_new_ui_input();
+    }
+
+    pub(crate) fn set_scale_factor(&mut self, scale_factor: f64) {
+        let scale_factor = scale_factor as f32;
+        if self.sys.scale_factor != scale_factor {
+            self.sys.scale_factor = scale_factor;
+            self.sys.changes.full_relayout = true;
+            self.set_new_ui_input();
+        }
     }
 
     pub fn default_text_style_mut(&mut self) -> &mut SharedTextStyle {

@@ -554,8 +554,7 @@ impl Ui {
 
                     text_edit.set_size((text_width, text_height));
 
-                    let text_size_pixels = Xy::new(text_width, text_height);
-                    return self.pixels_to_frac2(text_size_pixels);
+                    return Xy::new(text_width / self.sys.size[X], text_height / self.sys.size[Y]);
 
                 } else {
                     let w = proposed_size.x * self.sys.size[X];

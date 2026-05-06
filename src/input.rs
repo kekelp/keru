@@ -51,7 +51,8 @@ impl<'a> UiNode<'a> {
         let sys = self.sys();
         let node = self.node();
         let event = sys.check_clicked_at(node.id, MouseButton::Left)?;
-        let relative_position = inner_relative_position(event.position, sys.size, node.real_rect, node.params.layout.padding);
+        let logical_size = sys.logical_size();
+        let relative_position = inner_relative_position(event.position, logical_size, node.real_rect, node.params.layout.padding);
         Some(Click {
             relative_position,
             absolute_position: event.position,
@@ -87,7 +88,8 @@ impl<'a> UiNode<'a> {
             return None;
         }
         let cursor = sys.mouse_input.cursor_position;
-        let relative_position = inner_relative_position(cursor, sys.size, node.real_rect, node.params.layout.padding);
+        let logical_size = sys.logical_size();
+        let relative_position = inner_relative_position(cursor, logical_size, node.real_rect, node.params.layout.padding);
         Some(Hover { absolute_position: cursor, relative_position, last_enter_or_exit: node.hover_enter_exit_instant })
     }
 
@@ -113,7 +115,8 @@ impl<'a> UiNode<'a> {
         let sys = self.sys();
         let node = self.node();
         let scroll_event = sys.check_last_scroll_event(node.id)?;
-        let relative_position = inner_relative_position(scroll_event.position, sys.size, node.real_rect, node.params.layout.padding);
+        let logical_size = sys.logical_size();
+        let relative_position = inner_relative_position(scroll_event.position, logical_size, node.real_rect, node.params.layout.padding);
         Some(ScrollEvent {
             relative_position,
             absolute_position: scroll_event.position,

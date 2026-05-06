@@ -136,7 +136,9 @@ impl<'a> UiNode<'a> {
         let padding = self.node().params.layout.padding;
 
         let size = self.node().size;
-        let size = self.sys().f32_size_to_pixels2(size);
+        let sys = self.sys();
+        let logical_size = sys.logical_size();
+        let size = Xy::new(size.x * logical_size.x, size.y * logical_size.y);
 
         return size - padding;
     }
@@ -374,13 +376,14 @@ impl System {
     }
 
     pub(crate) fn drag_from_event_with_rect(&self, event: &DragEvent, node_rect: XyRect) -> Option<Drag> {
+        let logical_size = self.logical_size();
         let relative_position = glam::Vec2::new(
-            ((event.current_pos.x / self.size.x) - node_rect.x[0]) / node_rect.size().x,
-            ((event.current_pos.y / self.size.y) - node_rect.y[0]) / node_rect.size().y,
+            ((event.current_pos.x / logical_size.x) - node_rect.x[0]) / node_rect.size().x,
+            ((event.current_pos.y / logical_size.y) - node_rect.y[0]) / node_rect.size().y,
         );
         let relative_delta = glam::Vec2::new(
-            event.frame_delta.x / (node_rect.size().x * self.size.x),
-            event.frame_delta.y / (node_rect.size().y * self.size.y),
+            event.frame_delta.x / (node_rect.size().x * logical_size.x),
+            event.frame_delta.y / (node_rect.size().y * logical_size.y),
         );
 
         if event.total_delta == Vec2::ZERO {
@@ -398,9 +401,10 @@ impl System {
     }
 
     pub(crate) fn drag_from_release_event_with_rect(&self, event: &DragReleaseEvent, node_rect: XyRect) -> Option<Drag> {
+        let logical_size = self.logical_size();
         let relative_position = glam::Vec2::new(
-            ((event.end_pos.x / self.size.x) - node_rect.x[0]) / node_rect.size().x,
-            ((event.end_pos.y / self.size.y) - node_rect.y[0]) / node_rect.size().y,
+            ((event.end_pos.x / logical_size.x) - node_rect.x[0]) / node_rect.size().x,
+            ((event.end_pos.y / logical_size.y) - node_rect.y[0]) / node_rect.size().y,
         );
 
         Some(Drag {
@@ -512,13 +516,14 @@ impl Ui {
         let event = self.sys.check_any_drag_hovered_onto(dest_key.id_with_key_scope(), MouseButton::Left)?;
         let dest_rect = self.get_node(dest_key)?.node().real_rect;
 
+        let logical_size = self.sys.logical_size();
         let relative_position = glam::Vec2::new(
-            ((event.current_pos.x / self.sys.size.x) - dest_rect.x[0]) / dest_rect.size().x,
-            ((event.current_pos.y / self.sys.size.y) - dest_rect.y[0]) / dest_rect.size().y,
+            ((event.current_pos.x / logical_size.x) - dest_rect.x[0]) / dest_rect.size().x,
+            ((event.current_pos.y / logical_size.y) - dest_rect.y[0]) / dest_rect.size().y,
         );
         let relative_delta = glam::Vec2::new(
-            event.frame_delta.x / (dest_rect.size().x * self.sys.size.x),
-            event.frame_delta.y / (dest_rect.size().y * self.sys.size.y),
+            event.frame_delta.x / (dest_rect.size().x * logical_size.x),
+            event.frame_delta.y / (dest_rect.size().y * logical_size.y),
         );
 
         Some(Drag {
@@ -553,9 +558,10 @@ impl Ui {
         let dest_node = self.get_node(dest_key)?;
         let dest_rect = dest_node.node().real_rect;
 
+        let logical_size = self.sys.logical_size();
         let relative_position = glam::Vec2::new(
-            ((event.end_pos.x / self.sys.size.x) - dest_rect.x[0]) / dest_rect.size().x,
-            ((event.end_pos.y / self.sys.size.y) - dest_rect.y[0]) / dest_rect.size().y,
+            ((event.end_pos.x / logical_size.x) - dest_rect.x[0]) / dest_rect.size().x,
+            ((event.end_pos.y / logical_size.y) - dest_rect.y[0]) / dest_rect.size().y,
         );
 
         Some(Drag {

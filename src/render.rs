@@ -15,7 +15,7 @@ impl Ui {
     /// 
     // todo: move or rename the file
     pub fn window_event(&mut self, event: &winit::event::WindowEvent, window: &winit::window::Window) -> bool {
-        self.sys.mouse_input.window_event(event);
+        self.sys.mouse_input.window_event(event, self.sys.scale_factor);
         self.sys.key_input.window_event(event);
 
         let _event_consumed_by_text = self.text_window_event(event, window);
@@ -140,6 +140,9 @@ impl Ui {
                 self.resolve_hover();
             }
             WindowEvent::Resized(size) => self.resize(size),
+            WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+                self.set_scale_factor(*scale_factor);
+            }
             WindowEvent::MouseWheel { delta, .. } => {
                 self.handle_scroll_event(delta);
                 self.set_new_ui_input();
@@ -153,7 +156,8 @@ impl Ui {
     pub(crate) fn draw_node_shape(&mut self, i: NodeI, texture: Option<LoadedImage>, debug_box: bool) {
         let node = &self.sys.nodes[i];
 
-        let blur = node.params.blur.unwrap_or(0.0);
+        let scale_factor = self.sys.scale_factor;
+        let blur = node.params.blur.unwrap_or(0.0) * scale_factor;
         // Get rect in normalized space (0-1)
         let animated_rect = node.get_animated_rect();
 
@@ -235,8 +239,8 @@ impl Ui {
         }
 
         let shadow_pass = |s: Shadow| ShapePass {
-            offset: s.offset,
-            blur: blur + s.blur,
+            offset: Xy::new(s.offset.x * scale_factor, s.offset.y * scale_factor),
+            blur: blur + s.blur * scale_factor,
             fill: ColorFill::Color(shadow_color(s)),
             texture,
         };
@@ -273,7 +277,7 @@ impl Ui {
                     self.sys.renderer.draw_box(keru_draw::Rectangle {
                         top_left: [px0, py0],
                         size: [px1 - px0, py1 - py0],
-                        corner_radius: *corner_radius,
+                        corner_radius: *corner_radius * scale_factor,
                         rounded_corners: *rounded_corners,
                         border_thickness: 0.0,
                         fill: pass.fill,
@@ -299,8 +303,8 @@ impl Ui {
                     let cx = (px0 + px1) / 2.0;
                     let cy = (py0 + py1) / 2.0;
                     let outer_radius = ((px1 - px0) / 2.0).min((py1 - py0) / 2.0);
-                    let inner_radius = (outer_radius - *width).max(0.0);
-                    let dash_length = stroke.and_then(|s| if s.dash_length > 0.0 { Some(s.dash_length) } else { None });
+                    let inner_radius = (outer_radius - *width * scale_factor).max(0.0);
+                    let dash_length = stroke.and_then(|s| if s.dash_length > 0.0 { Some(s.dash_length * scale_factor) } else { None });
                     self.sys.renderer.draw_ring(keru_draw::CircleRing {
                         center: [cx, cy],
                         inner_radius,
@@ -317,13 +321,13 @@ impl Ui {
                     let cx = (px0 + px1) / 2.0;
                     let cy = (py0 + py1) / 2.0;
                     let radius = ((px1 - px0) / 2.0).min((py1 - py0) / 2.0);
-                    let dash_length = stroke.and_then(|s| if s.dash_length > 0.0 { Some(s.dash_length) } else { None });
+                    let dash_length = stroke.and_then(|s| if s.dash_length > 0.0 { Some(s.dash_length * scale_factor) } else { None });
                     self.sys.renderer.draw_arc(keru_draw::CircleArc {
                         center: [cx, cy],
                         radius,
                         start_angle: *start_angle,
                         end_angle: *end_angle,
-                        thickness: *width,
+                        thickness: *width * scale_factor,
                         fill: pass.fill,
                         texture: pass.texture,
                         dash_length,
@@ -352,13 +356,13 @@ impl Ui {
                     let start_y = py0 + start.1 * (py1 - py0);
                     let end_x = px0 + end.0 * (px1 - px0);
                     let end_y = py0 + end.1 * (py1 - py0);
-                    let thickness = stroke.map(|s| s.width).unwrap_or(1.0);
+                    let thickness = stroke.map(|s| s.width).unwrap_or(1.0) * scale_factor;
                     self.sys.renderer.draw_segment(keru_draw::Segment {
                         start: [start_x, start_y],
                         end: [end_x, end_y],
                         thickness,
                         fill: pass.fill,
-                        dash_length: *dash_length,
+                        dash_length: dash_length.map(|d| d * scale_factor),
                         dash_offset: 0.0,
                         texture: pass.texture,
                         blur: pass.blur,
@@ -366,9 +370,9 @@ impl Ui {
                     });
                 }
                 Shape::HorizontalLine => {
-                    let thickness = stroke.map(|s| s.width).unwrap_or(1.0);
+                    let thickness = stroke.map(|s| s.width).unwrap_or(1.0) * scale_factor;
                     let cy = (py0 + py1) / 2.0;
-                    let dash_length = stroke.and_then(|s| if s.dash_length > 0.0 { Some(s.dash_length) } else { None });
+                    let dash_length = stroke.and_then(|s| if s.dash_length > 0.0 { Some(s.dash_length * scale_factor) } else { None });
                     self.sys.renderer.draw_segment(keru_draw::Segment {
                         start: [px0, cy],
                         end: [px1, cy],
@@ -401,9 +405,9 @@ impl Ui {
                     }
                 }
                 Shape::VerticalLine => {
-                    let thickness = stroke.map(|s| s.width).unwrap_or(1.0);
+                    let thickness = stroke.map(|s| s.width).unwrap_or(1.0) * scale_factor;
                     let cx = (px0 + px1) / 2.0;
-                    let dash_length = stroke.and_then(|s| if s.dash_length > 0.0 { Some(s.dash_length) } else { None });
+                    let dash_length = stroke.and_then(|s| if s.dash_length > 0.0 { Some(s.dash_length * scale_factor) } else { None });
                     self.sys.renderer.draw_segment(keru_draw::Segment {
                         start: [cx, py0],
                         end: [cx, py1],
@@ -452,9 +456,9 @@ impl Ui {
                     self.sys.renderer.draw_grid(keru_draw::Grid {
                         top_left: [px0, py0],
                         size: [px1 - px0, py1 - py0],
-                        lattice_size: *lattice_size,
-                        offset: [offset.0, offset.1],
-                        line_thickness: *line_thickness,
+                        lattice_size: *lattice_size * scale_factor,
+                        offset: [offset.0 * scale_factor, offset.1 * scale_factor],
+                        line_thickness: *line_thickness * scale_factor,
                         fill: pass.fill,
                         grid_type: keru_draw::GridType::Square,
                         texture: pass.texture,
@@ -466,9 +470,9 @@ impl Ui {
                     self.sys.renderer.draw_grid(keru_draw::Grid {
                         top_left: [px0, py0],
                         size: [px1 - px0, py1 - py0],
-                        lattice_size: *lattice_size,
-                        offset: [offset.0, offset.1],
-                        line_thickness: *line_thickness,
+                        lattice_size: *lattice_size * scale_factor,
+                        offset: [offset.0 * scale_factor, offset.1 * scale_factor],
+                        line_thickness: *line_thickness * scale_factor,
                         fill: pass.fill,
                         grid_type: keru_draw::GridType::Hexagonal,
                         texture: pass.texture,
@@ -483,7 +487,7 @@ impl Ui {
         match shape {
             Shape::NoShape => {}
             Shape::Rectangle { rounded_corners, corner_radius } => {
-                let corner_radius = *corner_radius;
+                let corner_radius = *corner_radius * scale_factor;
                 let width = x1 - x0;
                 let height = y1 - y0;
                 if let Some(stroke) = stroke {
@@ -498,9 +502,9 @@ impl Ui {
                             top_left: [x0, y0],
                             size: [width, height],
                             corner_radius,
-                            thickness: stroke.width,
+                            thickness: stroke.width * scale_factor,
                             color: stroke_color,
-                            dash_length: stroke.dash_length,
+                            dash_length: stroke.dash_length * scale_factor,
                             blur,
                         });
                     } else {
@@ -510,7 +514,7 @@ impl Ui {
                             size: [width, height],
                             corner_radius,
                             rounded_corners: *rounded_corners,
-                            border_thickness: stroke.width,
+                            border_thickness: stroke.width * scale_factor,
                             fill: stroke_fill,
                             texture: None,
                             blur,
@@ -525,11 +529,11 @@ impl Ui {
                 let radius = ((x1 - x0) / 2.0).min((y1 - y0) / 2.0);
                 if let Some(stroke) = stroke {
                     let stroke_fill = apply_dark_fill(stroke.color);
-                    let dash_length = if stroke.dash_length > 0.0 { Some(stroke.dash_length) } else { None };
+                    let dash_length = if stroke.dash_length > 0.0 { Some(stroke.dash_length * scale_factor) } else { None };
                     self.sys.renderer.draw_ring(keru_draw::CircleRing {
                         center: [cx, cy],
-                        inner_radius: radius - stroke.width * 0.5,
-                        outer_radius: radius + stroke.width * 0.5,
+                        inner_radius: radius - stroke.width * scale_factor * 0.5,
+                        outer_radius: radius + stroke.width * scale_factor * 0.5,
                         fill: stroke_fill,
                         texture: None,
                         dash_length,
@@ -559,9 +563,9 @@ impl Ui {
                             center: [cx, cy],
                             size: actual_size,
                             rotation: *rotation,
-                            thickness: stroke.width,
+                            thickness: stroke.width * scale_factor,
                             color: stroke_color,
-                            dash_length: stroke.dash_length,
+                            dash_length: stroke.dash_length * scale_factor,
                             blur,
                         });
                     } else {
@@ -571,7 +575,7 @@ impl Ui {
                             size: actual_size,
                             rotation: *rotation,
                             fill: stroke_fill,
-                            stroke_thickness: stroke.width,
+                            stroke_thickness: stroke.width * scale_factor,
                             texture: None,
                             blur,
                             texture_options: None,

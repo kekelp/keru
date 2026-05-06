@@ -316,9 +316,10 @@ impl Ui {
             return;
         };
 
+        let scale = self.sys.scale_factor;
         let (dx, dy) = match delta {
             MouseScrollDelta::LineDelta(x, y) => (x * 0.1, y * 0.1),
-            MouseScrollDelta::PixelDelta(PhysicalPosition { x, y }) => (*x as f32, *y as f32),
+            MouseScrollDelta::PixelDelta(PhysicalPosition { x, y }) => (*x as f32 / scale, *y as f32 / scale),
         };
         let fdelta = Xy::new(dx, dy);
 
@@ -357,7 +358,7 @@ impl Ui {
                 let id = self.sys.nodes[target_i].id;
                 let scroll_delta = match delta {
                     MouseScrollDelta::LineDelta(x, y) => Vec2::new(*x * 0.1, *y * 0.1),
-                    MouseScrollDelta::PixelDelta(p) => Vec2::new(p.x as f32, p.y as f32),
+                    MouseScrollDelta::PixelDelta(p) => Vec2::new(p.x as f32 / scale, p.y as f32 / scale),
                 };
                 self.sys.mouse_input.push_scroll(scroll_delta, id);
                 self.set_new_ui_input();
@@ -408,12 +409,14 @@ impl System {
 
     /// Hit test with the current stored cursor position and a click rect
     pub(crate) fn hit_click_rect(&self, rect: &ClickRect) -> bool {
+        let logical_size = self.logical_size();
         let size = self.size;
 
-        // Get cursor position and convert to normalized coordinates
+        // Get cursor position and convert to normalized coordinates.
+        // cursor_position is in logical pixels; divide by logical screen size.
         let cursor_pos = (
-            self.mouse_input.cursor_position.x as f32 / size[X],
-            self.mouse_input.cursor_position.y as f32 / size[Y],
+            self.mouse_input.cursor_position.x / logical_size[X],
+            self.mouse_input.cursor_position.y / logical_size[Y],
         );
 
         let node_i = rect.i;

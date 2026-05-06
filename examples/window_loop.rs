@@ -46,7 +46,7 @@ impl State {
 
         surface.configure(&device, &config);
 
-        let mut ui = Ui::new(&device, &queue, &config);
+        let mut ui = Ui::new(&device, &queue, &config, &window);
         ui.register_window(window.clone());
 
         Self { window, surface, device, _queue: queue, config, ui, count: 0 }
