@@ -251,7 +251,7 @@ impl AnimationRenderTimer {
 }
 
 impl Ui {
-    pub fn new(device: &wgpu::Device, queue: &wgpu::Queue, config: &wgpu::SurfaceConfiguration, window: &Window) -> Self {
+    pub fn new(device: &wgpu::Device, queue: &wgpu::Queue, config: &wgpu::SurfaceConfiguration) -> Self {
         // initialize the static T0
         LazyLock::force(&T0);
 
@@ -287,7 +287,7 @@ impl Ui {
                 last_frame_end_fake_time: 0,
 
                 size: Xy::new(config.width as f32, config.height as f32),
-                scale_factor: window.scale_factor() as f32,
+                scale_factor: 1.0,
 
                 depth_traversal_queue: Vec::with_capacity(64),
 

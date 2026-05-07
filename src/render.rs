@@ -15,6 +15,11 @@ impl Ui {
     /// 
     // todo: move or rename the file
     pub fn window_event(&mut self, event: &winit::event::WindowEvent, window: &winit::window::Window) -> bool {
+        // there's already a ScaleFactorChanged event, but what about the initial one?
+        if *event == WindowEvent::RedrawRequested {
+            self.set_scale_factor(window.scale_factor());
+        }
+        
         self.sys.mouse_input.window_event(event, self.sys.scale_factor);
         self.sys.key_input.window_event(event);
 

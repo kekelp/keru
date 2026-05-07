@@ -33,7 +33,7 @@ pub fn basic_wgpu_init() -> (wgpu::Instance, wgpu::Device, wgpu::Queue) {
 
     let device_desc = &DeviceDescriptor {
         label: None,
-        required_features: Features::PUSH_CONSTANTS,
+        required_features: Features::default(),
         // Downlevel defaults are really bad. Maximum texture size = 2048 means you can't even maximize a window on a 1440p screen.
         required_limits: Limits {
             // todo: this might be a compatibility problem, and it's used just for the render_range thing.
