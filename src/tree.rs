@@ -866,31 +866,32 @@ impl Ui {
         let container_h = container_rect.size().y;
         let content_h = content_bounds.size().y;
 
-        let (thumb_h_frac, thumb_top_frac, max_scroll, scroll_range) = if content_h > container_h && container_h > 0.0 {
-            let thumb_h = (container_h / content_h).clamp(0.05, 1.0);
+        if content_h <= container_h || container_h <= 0.0 {
+            return;
+        }
 
-            let min_scroll = if content_bounds.y[1] > container_rect.y[1] {
-                container_rect.y[1] - content_bounds.y[1]
-            } else {
-                0.0
-            };
-            let max_scroll = if content_bounds.y[0] < container_rect.y[0] {
-                container_rect.y[0] - content_bounds.y[0]
-            } else {
-                0.0
-            };
+        let thumb_h = (container_h / content_h).clamp(0.05, 1.0);
 
-            let scroll_range = min_scroll - max_scroll;
-            let progress = if scroll_range < 0.0 {
-                ((scroll_y - max_scroll) / scroll_range).clamp(0.0, 1.0)
-            } else {
-                0.0
-            };
-
-            (thumb_h, progress * (1.0 - thumb_h), max_scroll, scroll_range)
+        let min_scroll = if content_bounds.y[1] > container_rect.y[1] {
+            container_rect.y[1] - content_bounds.y[1]
         } else {
-            (0.05, 0.0, 0.0, 0.0)
+            0.0
         };
+        let max_scroll = if content_bounds.y[0] < container_rect.y[0] {
+            container_rect.y[0] - content_bounds.y[0]
+        } else {
+            0.0
+        };
+
+        let scroll_range = min_scroll - max_scroll;
+        let progress = if scroll_range < 0.0 {
+            ((scroll_y - max_scroll) / scroll_range).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+
+        let thumb_h_frac = thumb_h;
+        let thumb_top_frac = progress * (1.0 - thumb_h);
 
         let rail_color = if wide { Color::rgba_u8(80, 80, 80, 60) } else { Color::TRANSPARENT };
         let handle_color = if wide { Color::rgba_u8(80, 80, 80, 255) } else { Color::rgba_u8(80, 80, 80, 90) };
