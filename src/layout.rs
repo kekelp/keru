@@ -1032,20 +1032,33 @@ impl Ui {
 
         self.sys.changes.unfinished_animations = false;
 
-        self.sys.depth_traversal_queue.clear();
-        self.sys.depth_traversal_queue.push(ROOT_I);
-        while let Some(i) = self.sys.depth_traversal_queue.pop() {
-            self.resolve_animations_and_scrolling(i);
+        with_arena(|arena| {
+            let mut traversal_queue: BumpVec<(NodeI, Xy<f32>)> = BumpVec::with_capacity_in(64, arena);
+            traversal_queue.push((ROOT_I, Xy::new(0.0, 0.0)));
+            
+            while let Some((i, parent_scroll)) = traversal_queue.pop() {
+                self.resolve_animations_and_scrolling(i, parent_scroll);
 
-            self.update_text_boxes(i);
-            if !self.node_is_offscreen(i) {
+                self.update_text_boxes(i);
+
+                let child_scroll = self.scroll_for_children(i);
+
+                // This loop should be fine even without z-ordering.
+                for_each_child_including_lingering_reverse!(self, self.sys.nodes[i], child, {
+                    traversal_queue.push((child, child_scroll));
+                });
             }
+        });
+    }
 
-            // This loop should be fine even without z-ordering.
-            for_each_child_including_lingering_reverse!(self, self.sys.nodes[i], child, {
-                self.sys.depth_traversal_queue.push(child);
-            });
+    fn scroll_for_children(&self, i: NodeI) -> Xy<f32> {
+        let mut res = Xy::new(0.0, 0.0);
+        for axis in [X, Y] {
+            if self.sys.nodes[i].params.layout.scrollable[axis] {
+                res[axis] = self.scroll_offset(i, axis);
+            }
         }
+        res
     }
 
     pub(crate) fn push_all_render_and_click_data(&mut self) {
@@ -1147,7 +1160,7 @@ impl Ui {
             || rect[Y][0] > 3.0
     }
 
-    pub(crate) fn resolve_animations_and_scrolling(&mut self, i: NodeI) {
+    pub(crate) fn resolve_animations_and_scrolling(&mut self, i: NodeI, parent_scroll: Xy<f32>) {
         // do animations in local space
         let target = self.sys.nodes[i].local_layout_rect;
 
@@ -1206,7 +1219,11 @@ impl Ui {
 
 
         // add scroll
-        let scroll = self.local_node_scroll(i);
+        let scroll = if self.sys.nodes[i].params.ignore_parent_scroll {
+            Xy::new(0.0, 0.0)
+        } else {
+            parent_scroll
+        };
         self.sys.nodes[i].real_rect += scroll;
 
 
@@ -1235,24 +1252,6 @@ impl Ui {
         }
 
         self.set_clip_rect(i);
-    }
-
-    pub(crate) fn local_node_scroll(&self, i: NodeI) -> Xy<f32> {
-        if i == ROOT_I {
-            return Xy::new(0.0, 0.0);
-        }
-        if self.sys.nodes[i].params.ignore_parent_scroll {
-            return Xy::new(0.0, 0.0);
-        }
-        let parent = self.sys.nodes[i].parent;
-
-        let mut res = Xy::new(0.0, 0.0);
-        for axis in [X, Y] {
-            if self.sys.nodes[parent].params.layout.scrollable[axis] {
-                res[axis] = self.scroll_offset(parent, axis);
-            }
-        }
-        return res;
     }
 
     pub(crate) fn compute_accumulated_transform(&mut self, i: NodeI) {
