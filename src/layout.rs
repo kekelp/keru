@@ -1149,6 +1149,7 @@ impl Ui {
         // Don't do animations on resizes, unless the flag is not set
         let skip_animations = self.sys.disable_animations_on_resize && self.sys.changes.resize;
 
+        // Todo: try a bruteforce optimization for offscreen nodes.
         let mut l;
         if skip_animations {
             l = target;

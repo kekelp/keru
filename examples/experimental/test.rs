@@ -6,7 +6,18 @@ use keru::example_window_loop::*;
 struct State {}
 
 fn update_ui(state: &mut State, ui: &mut Ui) {
-    ui.add(TEXT.text("hello"));
+    ui.add(V_SCROLL_STACK).nest(|| {
+        for _ in 0..100000 {
+            let node = PANEL
+            .color(Color::BLUE)
+            // .text("Hello")
+            .size_y(Size::Pixels(40.0))
+            .size_x(Size::Pixels(100.0))
+            ;
+
+            ui.add(node);
+        }
+    });
 }
 
 fn main() {

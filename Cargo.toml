@@ -40,6 +40,7 @@ log = "0.4.22"
 env_logger = "0.11.6"
 bitflags = "2.8.0"
 ahash = "0.8.11"
+rustc-hash = "2"
 bumpalo = { version = "3.16", features = ["collections"] }
 smallvec = "1.15.1"
 lru = { version = "0.12", default-features = false }

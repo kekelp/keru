@@ -1445,6 +1445,7 @@ dependencies = [
  "lru",
  "pollster",
  "pulldown-cmark",
+ "rustc-hash 2.1.1",
  "serde",
  "slab",
  "smallvec",
