@@ -1061,19 +1061,21 @@ impl Ui {
             self.sys.z_cursor += Z_STEP;
             self.sys.nodes[i].z = self.sys.z_cursor;
 
-            let is_custom = self.sys.nodes[i].params.custom_render;
-            let instance_index_before = self.sys.renderer.instance_count();
+            if ! self.node_is_offscreen(i) {
+                let is_custom = self.sys.nodes[i].params.custom_render;
+                let instance_index_before = self.sys.renderer.instance_count();
 
-            self.push_render_and_click_data(i);
+                self.push_render_and_click_data(i);
 
-            let instance_index_after = self.sys.renderer.instance_count();
+                let instance_index_after = self.sys.renderer.instance_count();
 
-            if !is_custom {
-                if keru_range_start.is_none() && instance_index_after > instance_index_before {
-                    keru_range_start = Some(instance_index_before);
+                if !is_custom {
+                    if keru_range_start.is_none() && instance_index_after > instance_index_before {
+                        keru_range_start = Some(instance_index_before);
+                    }
+                } else {
+                    self.add_custom_render_command(i, instance_index_before, instance_index_after, &mut keru_range_start,);
                 }
-            } else {
-                self.add_custom_render_command(i, instance_index_before, instance_index_after, &mut keru_range_start,);
             }
 
             // Sort z-ordering

@@ -388,10 +388,6 @@ impl Ui {
     }
 
     pub(crate) fn push_render_and_click_data(&mut self, i: NodeI) {
-        if self.node_is_offscreen(i) {
-            return;
-        }
-
         if let Some(text_i) = &self.sys.nodes[i].text_i {
             let z = self.sys.nodes[i].z;
             match text_i {
