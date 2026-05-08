@@ -1156,6 +1156,7 @@ impl Ui {
 
         // Todo: try a bruteforce optimization for offscreen nodes.
         let mut l;
+        let mut still_moving = false;
         if skip_animations {
             l = target;
         } else {
@@ -1181,13 +1182,14 @@ impl Ui {
                     l[X][i] = target[X][i];
                     l[Y][i] = target[Y][i];
                 } else {
+                    still_moving = true;
                     // normalized direction in pixel space
                     let dir_x = dx_px / dist_px;
                     let dir_y = dy_px / dist_px;
-            
+
                     // same math concept as before but applied along straight-line distance
                     let step_px = (dist_px * rate).ceil();
-            
+
                     l[X][i] += (step_px * dir_x) / self.sys.size.x;
                     l[Y][i] += (step_px * dir_y) / self.sys.size.y;
                 }
@@ -1217,7 +1219,9 @@ impl Ui {
         // Accumulate transforms from parent
         self.compute_accumulated_transform(i);
 
-        if ! self.node_or_parent_has_ongoing_animation(i) {
+        let parent = self.sys.nodes[i].parent;
+        let parent_exiting = self.sys.nodes[parent].exit_animation_still_going;
+        if !still_moving && !parent_exiting {
             if self.sys.nodes[i].exiting {
                 self.sys.nodes[i].exit_animation_still_going = false;
                 // todo: think harder
@@ -1241,18 +1245,11 @@ impl Ui {
             return Xy::new(0.0, 0.0);
         }
         let parent = self.sys.nodes[i].parent;
-        if self.sys.nodes.get_node_if_it_still_exists(parent).is_none() {
-            panic!("Surely this check isn't needed?");
-        }
-        if ! self.sys.nodes[parent].params.is_scrollable() {
-            return Xy::new(0.0, 0.0);
-        }
 
         let mut res = Xy::new(0.0, 0.0);
         for axis in [X, Y] {
             if self.sys.nodes[parent].params.layout.scrollable[axis] {
-                let scroll_offset = self.scroll_offset(parent, axis);
-                res[axis] = scroll_offset;
+                res[axis] = self.scroll_offset(parent, axis);
             }
         }
         return res;
