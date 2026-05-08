@@ -152,7 +152,7 @@ impl Ui {
         let partial_relayouts = ! self.sys.changes.partial_relayouts.is_empty();
         let full_relayout = self.sys.changes.full_relayout;
         let text_changed = self.sys.changes.text_changed;
-        let nothing_to_do = !partial_relayouts && !full_relayout && !text_changed && !self.sys.changes.unfinished_animations;
+        let nothing_to_do = !partial_relayouts && !full_relayout && !text_changed;
         if nothing_to_do {
             return;
         }
@@ -204,7 +204,7 @@ impl Ui {
     }
 
     pub(crate) fn relayout_from_root(&mut self) {
-        log::info!("Full relayout");
+        eprintln!("Full relayout");
 
         // 1st recursive tree traversal: start from the root and recursively determine the size of all nodes
         let starting_proposed_size = Xy::new(1.0, 1.0);

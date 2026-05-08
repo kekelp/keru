@@ -362,10 +362,8 @@ impl Ui {
                 self.set_new_ui_input();
             } else {
                 self.update_container_scroll(target_i, fdelta[Y], Y);
-                self.recursive_place_children(target_i);
-                self.sys.changes.text_changed = true;
                 self.resolve_hover();
-                self.sys.changes.need_gpu_rect_update = true;
+                self.sys.changes.should_rebuild_render_data = true;
                 self.sys.changes.need_rerender = true;
             }
         }

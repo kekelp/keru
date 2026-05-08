@@ -274,28 +274,6 @@ impl Ui {
         self.sys.nodes[old_last_child].next_hidden_sibling = Some(new_node_i);
     }
 
-    pub(crate) fn node_or_parent_has_ongoing_animation(&self, i: NodeI) -> bool {
-        // todo: what about non-position exit animations, like fading away.
-
-        // this works, but only if this function is called in the right pattern.
-        // does it mean that some of the offset-inheriting wasn't needed? probably not.
-        let parent = self.sys.nodes[i].parent;
-        if self.sys.nodes[parent].exit_animation_still_going {
-            return true;
-        }
-
-        let target = &self.sys.nodes[i].expected_final_rect;
-        let current = &self.sys.nodes[i].real_rect;
-        let tolerance = 0.0005;
-        
-        let is_at_target = (current.x[0] - target.x[0]).abs() < tolerance
-            && (current.x[1] - target.x[1]).abs() < tolerance
-            && (current.y[0] - target.y[0]).abs() < tolerance
-            && (current.y[1] - target.y[1]).abs() < tolerance;
-
-        return !is_at_target;
-    }
-
     pub(crate) fn update_text_boxes(&mut self, i: NodeI) {
         if !self.sys.nodes[i].params.visible {
             return;
