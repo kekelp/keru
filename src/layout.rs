@@ -1161,53 +1161,7 @@ impl Ui {
     }
 
     pub(crate) fn resolve_animations_and_scrolling(&mut self, i: NodeI, parent_scroll: Xy<f32>) {
-        // do animations in local space
-        let target = self.sys.nodes[i].local_layout_rect;
-
-        // Todo: try a bruteforce optimization for offscreen nodes.
-        let mut l = target;
-        let mut still_moving = false;
-        let animate_position = self.sys.nodes[i].params.animation.state_transition.animate_position;
-        let skip_animations = !animate_position || (self.sys.disable_animations_on_resize && self.sys.changes.resize);
-
-        if ! skip_animations {
-            l = self.sys.nodes[i].local_animated_rect;
-
-            let speed = self.sys.global_animation_speed * self.sys.nodes[i].params.animation.speed;
-
-            let dt = 1.0 / 60.0; // todo use real frame time
-
-            let rate = 5.0 * speed * dt;
-
-            let const_speed_pixels = 3.0 * speed;
-            let diff = target - l;
-
-            for i in 0..2 {
-                // convert normalized diff into pixel space
-                let dx_px = diff[X][i] * self.sys.size.x;
-                let dy_px = diff[Y][i] * self.sys.size.y;
-            
-                let dist_px = (dx_px * dx_px + dy_px * dy_px).sqrt();
-            
-                if dist_px < const_speed_pixels {
-                    l[X][i] = target[X][i];
-                    l[Y][i] = target[Y][i];
-                } else {
-                    still_moving = true;
-                    // normalized direction in pixel space
-                    let dir_x = dx_px / dist_px;
-                    let dir_y = dy_px / dist_px;
-
-                    // same math concept as before but applied along straight-line distance
-                    let step_px = (dist_px * rate).ceil();
-
-                    l[X][i] += (step_px * dir_x) / self.sys.size.x;
-                    l[Y][i] += (step_px * dir_y) / self.sys.size.y;
-                }
-            }
-        }
-
-        self.sys.nodes[i].local_animated_rect = l;
+        let still_moving = self.resolve_animation(i);
 
         // add the parent offset
         let parent = self.sys.nodes[i].parent;
@@ -1250,6 +1204,57 @@ impl Ui {
         }
 
         self.set_clip_rect(i);
+    }
+
+    pub(crate) fn resolve_animation(&mut self, i: NodeI) -> bool {
+        // do animations in local space
+        let target = self.sys.nodes[i].local_layout_rect;
+
+        // Todo: try a bruteforce optimization for offscreen nodes.
+        let mut l = target;
+        let mut still_moving = false;
+        let animate_position = self.sys.nodes[i].params.animation.state_transition.animate_position;
+        let skip_animations = !animate_position || (self.sys.disable_animations_on_resize && self.sys.changes.resize);
+
+        if ! skip_animations {
+            l = self.sys.nodes[i].local_animated_rect;
+
+            let speed = self.sys.global_animation_speed * self.sys.nodes[i].params.animation.speed;
+
+            let dt = 1.0 / 60.0; // todo use real frame time
+
+            let rate = 5.0 * speed * dt;
+
+            let const_speed_pixels = 3.0 * speed;
+            let diff = target - l;
+
+            for i in 0..2 {
+                // convert normalized diff into pixel space
+                let dx_px = diff[X][i] * self.sys.size.x;
+                let dy_px = diff[Y][i] * self.sys.size.y;
+
+                let dist_px = (dx_px * dx_px + dy_px * dy_px).sqrt();
+
+                if dist_px < const_speed_pixels {
+                    l[X][i] = target[X][i];
+                    l[Y][i] = target[Y][i];
+                } else {
+                    still_moving = true;
+                    // normalized direction in pixel space
+                    let dir_x = dx_px / dist_px;
+                    let dir_y = dy_px / dist_px;
+
+                    // same math concept as before but applied along straight-line distance
+                    let step_px = (dist_px * rate).ceil();
+
+                    l[X][i] += (step_px * dir_x) / self.sys.size.x;
+                    l[Y][i] += (step_px * dir_y) / self.sys.size.y;
+                }
+            }
+        }
+
+        self.sys.nodes[i].local_animated_rect = l;
+        still_moving
     }
 
     pub(crate) fn compute_accumulated_transform(&mut self, i: NodeI) {
