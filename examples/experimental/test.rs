@@ -10,8 +10,8 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         for _ in 0..100000 {
             let node = PANEL
             .color(Color::BLUE)
-            // .text("Hello")
-            .size_y(Size::Pixels(40.0))
+            .text("Hello")
+            .size_y(Size::FitContent)
             .size_x(Size::Pixels(100.0))
             ;
 

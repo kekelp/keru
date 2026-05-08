@@ -1036,7 +1036,10 @@ impl Ui {
         self.sys.depth_traversal_queue.push(ROOT_I);
         while let Some(i) = self.sys.depth_traversal_queue.pop() {
             self.resolve_animations_and_scrolling(i);
+
             self.update_text_boxes(i);
+            if !self.node_is_offscreen(i) {
+            }
 
             // This loop should be fine even without z-ordering.
             for_each_child_including_lingering_reverse!(self, self.sys.nodes[i], child, {
@@ -1057,17 +1060,6 @@ impl Ui {
             // Assign z values here so they reflect z_index-sorted order.
             self.sys.z_cursor += Z_STEP;
             self.sys.nodes[i].z = self.sys.z_cursor;
-            if let Some(text_i) = &self.sys.nodes[i].text_i {
-                let z = self.sys.nodes[i].z;
-                match text_i {
-                    TextI::TextBox(h) => {
-                        self.sys.renderer.text.get_text_box_mut(h).set_depth(z);
-                    }
-                    TextI::TextEdit(h) => {
-                        self.sys.renderer.text.get_text_edit_mut(h).set_depth(z);
-                    }
-                }
-            }
 
             let is_custom = self.sys.nodes[i].params.custom_render;
             let instance_index_before = self.sys.renderer.instance_count();
@@ -1142,6 +1134,16 @@ impl Ui {
         }
     }
     
+    // original check: (rect * screen * scale).round() / scale compared to screen * threshold
+    // the * scale / scale cancel, leaving just rect compared to threshold in normalized coords
+    pub(crate) fn node_is_offscreen(&self, i: NodeI) -> bool {
+        let rect = self.sys.nodes[i].real_rect;
+        rect[X][1] < -2.0
+            || rect[X][0] > 3.0
+            || rect[Y][1] < -2.0
+            || rect[Y][0] > 3.0
+    }
+
     pub(crate) fn resolve_animations_and_scrolling(&mut self, i: NodeI) {
         // do animations in local space
         let target = self.sys.nodes[i].local_layout_rect;
