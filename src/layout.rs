@@ -1056,45 +1056,46 @@ impl Ui {
         self.sys.depth_traversal_queue.clear();
         self.sys.depth_traversal_queue.push(ROOT_I);
 
-        while let Some(i) = self.sys.depth_traversal_queue.pop() {
-            // Assign z values here so they reflect z_index-sorted order.
-            self.sys.z_cursor += Z_STEP;
-            self.sys.nodes[i].z = self.sys.z_cursor;
+        with_arena(|arena| {
+            let mut z_ordering_vec: BumpVec<(NodeI, f32)> = BumpVec::with_capacity_in(20, arena);
 
-            if ! self.node_is_offscreen(i) {
-                let is_custom = self.sys.nodes[i].params.custom_render;
-                let instance_index_before = self.sys.renderer.instance_count();
+            while let Some(i) = self.sys.depth_traversal_queue.pop() {
+                // Assign z values here so they reflect z_index-sorted order.
+                self.sys.z_cursor += Z_STEP;
+                self.sys.nodes[i].z = self.sys.z_cursor;
 
-                self.push_render_and_click_data(i);
+                if ! self.node_is_offscreen(i) {
+                    let is_custom = self.sys.nodes[i].params.custom_render;
+                    let instance_index_before = self.sys.renderer.instance_count();
 
-                let instance_index_after = self.sys.renderer.instance_count();
+                    self.push_render_and_click_data(i);
 
-                if !is_custom {
-                    if keru_range_start.is_none() && instance_index_after > instance_index_before {
-                        keru_range_start = Some(instance_index_before);
+                    let instance_index_after = self.sys.renderer.instance_count();
+
+                    if !is_custom {
+                        if keru_range_start.is_none() && instance_index_after > instance_index_before {
+                            keru_range_start = Some(instance_index_before);
+                        }
+                    } else {
+                        self.add_custom_render_command(i, instance_index_before, instance_index_after, &mut keru_range_start,);
                     }
-                } else {
-                    self.add_custom_render_command(i, instance_index_before, instance_index_after, &mut keru_range_start,);
                 }
-            }
 
-            // Sort z-ordering
-            with_arena(|arena| {
-                let n_children = self.sys.nodes[i].n_children as usize + 5; // not sure if lingering children are counted, it's free anyway
-                let mut scratch = BumpVec::with_capacity_in(n_children, arena);
+                // Sort z-ordering
+                z_ordering_vec.clear();
                 let mut current = self.sys.nodes[i].last_child;
                 while let Some(child) = current {
-                    scratch.push((child, self.sys.nodes[child].params.z_index));
+                    z_ordering_vec.push((child, self.sys.nodes[child].params.z_index));
                     current = self.sys.nodes[child].prev_sibling;
                 }
-                scratch.sort_by(|x, y| {
+                z_ordering_vec.sort_by(|x, y| {
                     y.1.partial_cmp(&x.1).unwrap_or(std::cmp::Ordering::Equal)
                 });
-                for (child, _) in scratch {
-                    self.sys.depth_traversal_queue.push(child);
+                for (child, _) in &z_ordering_vec {
+                    self.sys.depth_traversal_queue.push(*child);
                 }
-            });
-        }
+            }
+        });
 
         // Close final Keru range if any
         if let Some(start) = keru_range_start {
