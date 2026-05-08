@@ -388,6 +388,22 @@ impl Ui {
     }
 
     pub(crate) fn push_render_and_click_data(&mut self, i: NodeI) {
+        // Skip all rendering if the node is well outside the visible area
+        let animated_rect = self.sys.nodes[i].get_animated_rect();
+        let screen_size = self.sys.size;
+        let scale = self.sys.nodes[i].accumulated_transform.scale;
+        let x0 = (animated_rect.x[0] * screen_size.x * scale).round() / scale;
+        let y0 = (animated_rect.y[0] * screen_size.y * scale).round() / scale;
+        let x1 = (animated_rect.x[1] * screen_size.x * scale).round() / scale;
+        let y1 = (animated_rect.y[1] * screen_size.y * scale).round() / scale;
+        if x1 < -screen_size.x * 2.0
+            || x0 > screen_size.x * 3.0
+            || y1 < -screen_size.y * 2.0
+            || y0 > screen_size.y * 3.0
+        {
+            return;
+        }
+
         let is_scrollable = self.sys.nodes[i].params.is_scrollable();
         let push_click_rect = if self.inspect_mode() {
             true
@@ -410,22 +426,6 @@ impl Ui {
             if click_rect.senses.contains(Sense::TIME) {
                 self.sys.has_any_time_sense_node = true;
             }
-        }
-
-        // Skip all rendering if the node is well outside the visible area
-        let animated_rect = self.sys.nodes[i].get_animated_rect();
-        let screen_size = self.sys.size;
-        let scale = self.sys.nodes[i].accumulated_transform.scale;
-        let x0 = (animated_rect.x[0] * screen_size.x * scale).round() / scale;
-        let y0 = (animated_rect.y[0] * screen_size.y * scale).round() / scale;
-        let x1 = (animated_rect.x[1] * screen_size.x * scale).round() / scale;
-        let y1 = (animated_rect.y[1] * screen_size.y * scale).round() / scale;
-        if x1 < -screen_size.x * 2.0
-            || x0 > screen_size.x * 3.0
-            || y1 < -screen_size.y * 2.0
-            || y0 > screen_size.y * 3.0
-        {
-            return;
         }
 
         // Get the clip rect for this node
