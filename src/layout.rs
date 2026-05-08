@@ -1164,15 +1164,13 @@ impl Ui {
         // do animations in local space
         let target = self.sys.nodes[i].local_layout_rect;
 
-        // Don't do animations on resizes, unless the flag is not set
-        let skip_animations = self.sys.disable_animations_on_resize && self.sys.changes.resize;
-
         // Todo: try a bruteforce optimization for offscreen nodes.
-        let mut l;
+        let mut l = target;
         let mut still_moving = false;
-        if skip_animations {
-            l = target;
-        } else {
+        let animate_position = self.sys.nodes[i].params.animation.state_transition.animate_position;
+        let skip_animations = !animate_position || (self.sys.disable_animations_on_resize && self.sys.changes.resize);
+
+        if ! skip_animations {
             l = self.sys.nodes[i].local_animated_rect;
 
             let speed = self.sys.global_animation_speed * self.sys.nodes[i].params.animation.speed;
@@ -1207,7 +1205,7 @@ impl Ui {
                     l[Y][i] += (step_px * dir_y) / self.sys.size.y;
                 }
             }
-        };
+        }
 
         self.sys.nodes[i].local_animated_rect = l;
 
