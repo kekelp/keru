@@ -53,7 +53,7 @@ pub struct InnerNode {
     pub parent: NodeI,
 
     // doesn't include lingering children.
-    pub n_children: u16,
+    pub n_children: u32,
 
     pub last_child: Option<NodeI>,
     pub prev_sibling: Option<NodeI>,

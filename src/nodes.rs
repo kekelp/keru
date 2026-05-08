@@ -1,5 +1,5 @@
 use std::collections::hash_map::Entry;
-use std::num::NonZeroU16;
+use std::num::NonZeroU32;
 use std::ops::{Index, IndexMut};
 use std::panic::Location;
 
@@ -17,15 +17,15 @@ pub(crate) struct Nodes {
 
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub(crate) struct NodeI(NonZeroU16);
+pub(crate) struct NodeI(NonZeroU32);
 
 impl NodeI {
     const fn from(value: usize) -> Self {
-        NodeI(NonZeroU16::new(value as u16).unwrap())
+        NodeI(NonZeroU32::new(value as u32).unwrap())
     }
 
     pub fn as_usize(&self) -> usize {
-        self.0.get().into()
+        self.0.get() as usize
     }
 }
 
@@ -60,7 +60,7 @@ impl Nodes {
 
     pub(crate) fn new() -> Self {
         let mut nodes = Slab::with_capacity(100);
-        // Insert a dummy node at position zero and never remove it, so that real nodes can be indexed by NonZeroU16
+        // Insert a dummy node at position zero and never remove it, so that real nodes can be indexed by NonZeroU32
         nodes.insert(ZERO_NODE_DUMMY);
         nodes.insert(NODE_ROOT);
 

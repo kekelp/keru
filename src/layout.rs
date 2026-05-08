@@ -624,7 +624,7 @@ impl Ui {
         // On the main axis, totally ignore the children's chosen Position's and place them according to our own Stack::Arrange value.
         // free_placement children are excluded from the stack flow and placed freely instead.
 
-        let mut n: u16 = 0;
+        let mut n: u32 = 0;
         let mut total_size = 0.0;
         for_each_child!(self, self.sys.nodes[i], child, {
             if !self.sys.nodes[child].params.free_placement {
