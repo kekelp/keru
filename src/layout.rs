@@ -1032,20 +1032,37 @@ impl Ui {
 
         self.sys.changes.unfinished_animations = false;
 
-        with_arena(|arena| {
-            let mut traversal_queue: BumpVec<(NodeI, Xy<f32>)> = BumpVec::with_capacity_in(64, arena);
-            traversal_queue.push((ROOT_I, Xy::new(0.0, 0.0)));
-            
-            while let Some((i, parent_scroll)) = traversal_queue.pop() {
-                self.resolve_animations_and_scrolling(i, parent_scroll);
+        struct TraversalEntry {
+            node: NodeI,
+            parent_scroll: Xy<f32>,
+            parent_expected_final_rect: XyRect,
+        }
 
-                self.update_text_boxes(i);
+        with_arena(|arena| {
+            let mut traversal_queue: BumpVec<TraversalEntry> = BumpVec::with_capacity_in(64, arena);
+            traversal_queue.push(TraversalEntry {
+                node: ROOT_I,
+                parent_scroll: Xy::new(0.0, 0.0),
+                parent_expected_final_rect: XyRect::new_symm([0.0, 0.0]),
+            });
+
+            while let Some(entry) = traversal_queue.pop() {
+                let i = entry.node;
+                let expected_final_rect = self.resolve_animations_and_scrolling(i, entry.parent_scroll, entry.parent_expected_final_rect);
+
+                if ! self.node_is_offscreen(i) {
+                    self.update_text_boxes(i);
+                }
 
                 let child_scroll = self.scroll_for_children(i);
 
                 // This loop should be fine even without z-ordering.
                 for_each_child_including_lingering_reverse!(self, self.sys.nodes[i], child, {
-                    traversal_queue.push((child, child_scroll));
+                    traversal_queue.push(TraversalEntry {
+                        node: child,
+                        parent_scroll: child_scroll,
+                        parent_expected_final_rect: expected_final_rect,
+                    });
                 });
             }
         });
@@ -1160,7 +1177,7 @@ impl Ui {
             || rect[Y][0] > 3.0
     }
 
-    pub(crate) fn resolve_animations_and_scrolling(&mut self, i: NodeI, parent_scroll: Xy<f32>) {
+    pub(crate) fn resolve_animations_and_scrolling(&mut self, i: NodeI, parent_scroll: Xy<f32>, parent_expected_final_rect: XyRect) -> XyRect {
         let still_moving = self.resolve_animation(i);
 
         // add the parent offset
@@ -1179,11 +1196,8 @@ impl Ui {
         self.sys.nodes[i].real_rect += scroll;
 
 
-        let parent = self.sys.nodes[i].parent;
-        let expected_final_parent_offset = self.sys.nodes[parent].expected_final_rect.top_left();
-
-        // set the new target (expected_final_rect)
-        self.sys.nodes[i].expected_final_rect = self.sys.nodes[i].local_layout_rect + expected_final_parent_offset + scroll;
+        // compute the settled target rect (local_layout_rect in world space, with scroll)
+        let expected_final_rect = self.sys.nodes[i].local_layout_rect + parent_expected_final_rect.top_left() + scroll;
 
         // Accumulate transforms from parent
         self.compute_accumulated_transform(i);
@@ -1204,6 +1218,8 @@ impl Ui {
         }
 
         self.set_clip_rect(i);
+
+        expected_final_rect
     }
 
     pub(crate) fn resolve_animation(&mut self, i: NodeI) -> bool {

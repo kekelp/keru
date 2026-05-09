@@ -22,7 +22,6 @@ pub struct InnerNode {
     pub clip_rect_handle: Option<keru_draw::ClipRectHandle>,
 
     pub real_rect: XyRect,
-    pub expected_final_rect: XyRect,
 
     // todo: should try to get rid of some of these stored rects that are basically just partial results in the layout process.
     // todo: or at least make a struct to hide them.
@@ -31,8 +30,7 @@ pub struct InnerNode {
     pub content_bounds: XyRect,
     // could maybe be passed down while traversing instead of stored.
     pub clip_rect: XyRect,
-    // sort of a partial result compared to expected_final_rect.
-    pub layout_rect: XyRect,    
+    pub layout_rect: XyRect,
     // this is sort of a partial result, but might be necessary because of the two-pass size, position layout.
     pub size: Xy<f32>,
     // partial result, but used for partial relayouts.
@@ -152,7 +150,6 @@ impl InnerNode {
         // add back somewhere
 
         return InnerNode {
-            expected_final_rect: Xy::new_symm([0.0, 1.0]),
             exit_animation_still_going: false,
             enter_animation_still_going: false,
             id: key.id_with_key_scope(),
@@ -281,7 +278,6 @@ pub const ZERO_NODE_DUMMY: InnerNode = const {
 
 pub const NODE_ROOT_ID: Id = Id(0);
 pub const NODE_ROOT: InnerNode = InnerNode {
-    expected_final_rect: Xy::new_symm([0.0, 1.0]),
     exit_animation_still_going: false,
     enter_animation_still_going: false,
     id: NODE_ROOT_ID,
