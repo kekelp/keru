@@ -1032,15 +1032,15 @@ impl Ui {
 
         self.sys.changes.unfinished_animations = false;
 
-        struct TraversalEntry {
+        struct AnimationTraversalNode {
             node: NodeI,
             parent_scroll: Xy<f32>,
             parent_expected_final_rect: XyRect,
         }
 
         with_arena(|arena| {
-            let mut traversal_queue: BumpVec<TraversalEntry> = BumpVec::with_capacity_in(64, arena);
-            traversal_queue.push(TraversalEntry {
+            let mut traversal_queue: BumpVec<AnimationTraversalNode> = BumpVec::with_capacity_in(64, arena);
+            traversal_queue.push(AnimationTraversalNode {
                 node: ROOT_I,
                 parent_scroll: Xy::new(0.0, 0.0),
                 parent_expected_final_rect: XyRect::new_symm([0.0, 0.0]),
@@ -1058,7 +1058,7 @@ impl Ui {
 
                 // This loop should be fine even without z-ordering.
                 for_each_child_including_lingering_reverse!(self, self.sys.nodes[i], child, {
-                    traversal_queue.push(TraversalEntry {
+                    traversal_queue.push(AnimationTraversalNode {
                         node: child,
                         parent_scroll: child_scroll,
                         parent_expected_final_rect: expected_final_rect,

@@ -645,6 +645,9 @@ impl Ui {
         self.sys.queue.submit(std::iter::once(encoder.finish()));
 
         output.present();
+
+        eprintln!("{:?}", self.sys.renderer.text.render_stats());
+
     }
 
     /// Returns `true` if the `Ui` needs to be rerendered.

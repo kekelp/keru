@@ -224,17 +224,6 @@ impl Ui {
     }
 
     pub(crate) fn refresh_node(&mut self, i: NodeI) {
-        if let Some(text_i) = &self.sys.nodes[i].text_i {
-            match text_i {
-                TextI::TextBox(handle) => {
-                    self.sys.renderer.text.refresh_text_box(handle);
-                }
-                TextI::TextEdit(handle) => {
-                    self.sys.renderer.text.refresh_text_edit(handle);
-                }
-            }
-        }
-
         self.sys.nodes[i].canvas_instances = None;
     }
 
@@ -543,7 +532,6 @@ impl Ui {
 
         self.sys.current_frame += 1;
         self.sys.last_linked_text_box_node = None;
-        self.sys.renderer.text.advance_frame_and_hide_boxes();
         self.sys.renderer.clear_for_new_frame();
 
         thread_local::clear_parent_stack();
