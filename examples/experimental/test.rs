@@ -7,7 +7,7 @@ struct State {}
 
 fn update_ui(state: &mut State, ui: &mut Ui) {
     ui.add(V_SCROLL_STACK).nest(|| {
-        for _ in 0..10_000 {
+        for _ in 0..100_000 {
             let node = PANEL
             .color(Color::BLUE)
             .text("Hello")

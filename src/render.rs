@@ -646,7 +646,7 @@ impl Ui {
 
         output.present();
 
-        eprintln!("{:?}", self.sys.renderer.text.render_stats());
+        // eprintln!("{:?}", self.sys.renderer.text.render_stats());
 
     }
 
