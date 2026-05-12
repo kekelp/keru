@@ -1495,7 +1495,7 @@ dependencies = [
  "parley",
  "peniko",
  "rustc-hash 2.1.1",
- "slotmap",
+ "slab",
  "smallvec",
  "swash",
  "wgpu",

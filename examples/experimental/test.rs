@@ -11,7 +11,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
             let node = PANEL
             .color(Color::BLUE)
             .text("Hello")
-            .size_y(Size::FitContent)
+            .size_y(Size::Pixels(50.0))
             .size_x(Size::Pixels(100.0))
             ;
 
