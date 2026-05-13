@@ -1648,18 +1648,22 @@ impl Ui {
 
             if let Some(text_i) = &self.sys.nodes[i].text_i {
 
+                let mut properties_opt: Option<BumpVec<StyleProperty<_>>> = None;
                 let flags = node.text_style_flags;
-                let flag_count = flags.bits().count_ones() as usize;
-                let mut properties = BumpVec::with_capacity_in(node.text_properties.len() + flag_count + 2, arena);
-                if flags.contains(TextStyleFlags::BOLD) { properties.push(BOLD); }
-                if flags.contains(TextStyleFlags::ITALIC) { properties.push(ITALIC); }
-                if flags.contains(TextStyleFlags::MONOSPACE) { properties.push(MONOSPACE); }
-                properties.extend_from_slice(node.text_properties);
-                if let Some(font_size) = node.text_size {
-                    properties.push(TextStyleProperty::FontSize(font_size));
-                }
-                if let Some(color) = node.text_color {
-                    properties.push(TextStyleProperty::Brush(keru_draw::ColorBrush(color.to_u8_array())));
+                if ! flags.is_empty() {
+                    let flag_count = flags.bits().count_ones() as usize;
+                    let mut properties = BumpVec::with_capacity_in(node.text_properties.len() + flag_count + 2, arena);
+                    if flags.contains(TextStyleFlags::BOLD) { properties.push(BOLD); }
+                    if flags.contains(TextStyleFlags::ITALIC) { properties.push(ITALIC); }
+                    if flags.contains(TextStyleFlags::MONOSPACE) { properties.push(MONOSPACE); }
+                    properties.extend_from_slice(node.text_properties);
+                    if let Some(font_size) = node.text_size {
+                        properties.push(TextStyleProperty::FontSize(font_size));
+                    }
+                    if let Some(color) = node.text_color {
+                        properties.push(TextStyleProperty::Brush(keru_draw::ColorBrush(color.to_u8_array())));
+                    }
+                    properties_opt = Some(properties);
                 }
 
                 match text_i {
@@ -1671,13 +1675,17 @@ impl Ui {
                             text_edit.set_placeholder_hashed(placeholder.as_str());
                         }
 
-                        text_edit.set_style_property_overrides(&properties);
+                        if let Some(properties) = properties_opt {
+                            text_edit.set_style_property_overrides(&properties);
+                        }
                         text_edit.set_alignment(node.text_alignment);
 
                     },
                     TextI::TextBox(handle) => {
                         let text_box = self.sys.renderer.text.get_text_box_mut(handle);
-                        text_box.set_style_property_overrides(&properties);
+                        if let Some(properties) = properties_opt {
+                            text_box.set_style_property_overrides(&properties);
+                        }
                         text_box.set_alignment(node.text_alignment);
                         text_box.set_selectable(node.text_options.selectable);
                     },

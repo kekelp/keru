@@ -177,8 +177,14 @@ impl Ui {
         self.sys.check_drag_released(key.id_with_key_scope(), MouseButton::Left)
     }
 
+    /// Returns `true` the node corresponding to `key` is currently hovered by the cursor.
+    pub fn is_hovered(&self, key: NodeKey) -> bool {
+        let id = key.id_with_key_scope();
+        self.sys.check_hovered(id)
+    }
+
     /// If the node corresponding to `key` is currently hovered by the cursor, returns hover information.
-    pub fn is_hovered(&self, key: NodeKey) -> Option<Hover> {
+    pub fn is_hovered_info(&self, key: NodeKey) -> Option<Hover> {
         self.get_node(key)?.is_hovered()
     }
 
@@ -265,8 +271,13 @@ impl UiParent {
     }
 
     /// If this node is currently hovered by the cursor, returns hover information.
-    pub fn is_hovered(&self, ui: &Ui) -> Option<Hover> {
+    pub fn is_hovered(&self, ui: &Ui) -> bool {
         ui.is_hovered(self.key(ui))
+    }
+
+    /// If this node is currently hovered by the cursor, returns hover information.
+    pub fn is_hovered_info(&self, ui: &Ui) -> Option<Hover> {
+        ui.is_hovered_info(self.key(ui))
     }
 
     /// Returns `true` if this node currently has keyboard focus.

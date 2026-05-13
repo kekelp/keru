@@ -646,9 +646,9 @@ impl Ui {
 
         output.present();
 
-        #[cfg(debug_assertions)] {
-            eprintln!("{:?}", self.sys.renderer.text.render_stats());
-        }
+        // #[cfg(debug_assertions)] {
+        //     eprintln!("{:?}", self.sys.renderer.text.render_stats());
+        // }
 
     }
 

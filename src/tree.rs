@@ -830,7 +830,7 @@ impl Ui {
         let scroll_handle_key = key.mix(SCROLL_HANDLE_Y);
 
         // todo: without the "! released", it gets stuck to the wide size after dragging.
-        let wide = self.is_hovered(scroll_rail_key).is_some() || self.is_hovered(scroll_handle_key).is_some()
+        let wide = self.is_hovered(scroll_rail_key) || self.is_hovered(scroll_handle_key)
             || (self.is_dragged(scroll_rail_key).is_some() && ! self.is_drag_released(scroll_rail_key))
             || (self.is_dragged(scroll_handle_key).is_some() && ! self.is_drag_released(scroll_handle_key));
 
