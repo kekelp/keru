@@ -1050,9 +1050,8 @@ impl Ui {
                 let i = entry.node;
                 let expected_final_rect = self.resolve_animations_and_scrolling(i, entry.parent_scroll, entry.parent_expected_final_rect);
 
-                if ! self.node_is_offscreen(i) {
-                    self.update_text_boxes(i);
-                }
+                // This could also be gated by ! self.node_is_offscreen(i), but it's a bit scary. Technically text boxes can overflow the node rect. And if the text box doesn't know its real location, it might not realize that it's offscreen and can cull itself, and it might end up being counterproductive.
+                self.update_text_boxes(i);
 
                 let child_scroll = self.scroll_for_children(i);
 

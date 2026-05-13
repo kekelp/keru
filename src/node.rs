@@ -1612,10 +1612,10 @@ impl Ui {
                     let z = 0.0;
                     // Create new widget
                     let new_text_i = if text_options.editable {
-                        let handle = self.sys.renderer.text.add_text_edit(display_text.to_string(), (0.0, 0.0), (500.0, 500.0), z);
+                        let handle = self.sys.renderer.text.add_text_edit(display_text.to_string(), None, (500.0, 500.0), z);
                         TextI::TextEdit(handle)
                     } else {
-                        let handle = self.sys.renderer.text.add_text_box(display_text.to_string(), (0.0, 0.0), (500.0, 500.0), z);
+                        let handle = self.sys.renderer.text.add_text_box(display_text.to_string(), None, (500.0, 500.0), z);
                         for (prop, range) in style_ranges.drain(..) {
                             self.sys.renderer.text.get_text_box_mut(&handle).push_ranged_style_property(prop, range);
                         }
