@@ -106,6 +106,13 @@ pub struct Node<'a> {
     pub image: Option<Image<'a>>,
     pub image_options: ImageOptions,
     pub placeholder_text: Option<NodeText<'a>>,
+
+    /// If true, when running in release mode, this node will never be hashed to detect differences and never trigger relayouts or rerenders.
+    /// 
+    /// In debug mode, the node will still be hashed and diffed, and an error will be reported if it's found to not actually be constant. 
+    /// 
+    /// Can be used as an extreme micro-optimization for programs that have many nodes that don't depend on any dynamic data.
+    pub constant: bool,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -129,7 +136,7 @@ impl Hash for Shadow {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum SlideEdge {
     Top,
     Bottom,
@@ -137,7 +144,7 @@ pub enum SlideEdge {
     Right,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum SlideDirection {
     In,
     Out,
@@ -675,20 +682,53 @@ pub const DEFAULT_CORNER_RADIUS: f32 = 9.0;
 
 impl<'a> Node<'a> {
     pub(crate) fn cosmetic_hash(&self) -> u64 {
-        let mut hasher = ahasher();
-        self.shape.hash(&mut hasher);
-        self.z_index.to_bits().hash(&mut hasher);
-        return hasher.finish();
+        let mut h = ahasher();
+        self.shape.hash(&mut h);
+        self.z_index.to_bits().hash(&mut h);
+        self.color.hash(&mut h);
+        self.blur.map(|v| v.to_bits()).hash(&mut h);
+        self.shadow.hash(&mut h);
+        self.second_shadow.hash(&mut h);
+        self.stroke.hash(&mut h);
+        self.animation.speed.to_bits().hash(&mut h);
+        std::mem::discriminant(&self.animation.enter).hash(&mut h);
+        match self.animation.enter {
+            EnterAnimation::None => {},
+            EnterAnimation::Slide { edge, direction } => { edge.hash(&mut h); direction.hash(&mut h); },
+            EnterAnimation::GrowShrink { axis, origin } => { axis.hash(&mut h); origin.hash(&mut h); },
+        }
+        std::mem::discriminant(&self.animation.exit).hash(&mut h);
+        match self.animation.exit {
+            ExitAnimation::None => {},
+            ExitAnimation::Slide { edge, direction } => { edge.hash(&mut h); direction.hash(&mut h); },
+            ExitAnimation::GrowShrink { axis, origin } => { axis.hash(&mut h); origin.hash(&mut h); },
+        }
+        self.animation.state_transition.animate_position.hash(&mut h);
+        self.transform.offset.x.to_bits().hash(&mut h);
+        self.transform.offset.y.to_bits().hash(&mut h);
+        self.transform.scale.to_bits().hash(&mut h);
+        self.custom_render.hash(&mut h);
+        self.interact.hash(&mut h);
+        (self.text_alignment as u8).hash(&mut h);
+        self.vertical_text_alignment.hash(&mut h);
+        self.text_color.map(|c| (c.r.to_bits(), c.g.to_bits(), c.b.to_bits(), c.a.to_bits())).hash(&mut h);
+        self.text_style_flags.hash(&mut h);
+        return h.finish();
     }
 
     pub(crate) fn layout_hash(&self) -> u64 {
-        let mut hasher = ahasher();
-        self.layout.hash(&mut hasher);
-        self.children_layout.hash(&mut hasher);
-        self.text_options.hash(&mut hasher);
-        self.grid_element.hash(&mut hasher);
-        self.free_placement.hash(&mut hasher);
-        return hasher.finish();
+        let mut h = ahasher();
+        self.layout.hash(&mut h);
+        self.children_layout.hash(&mut h);
+        self.text_options.hash(&mut h);
+        self.text_size.map(|v| v.to_bits()).hash(&mut h);
+        self.grid_element.hash(&mut h);
+        self.free_placement.hash(&mut h);
+        self.clip_children.hash(&mut h);
+        self.visible.hash(&mut h);
+        self.children_can_hide.hash(&mut h);
+        self.ignore_parent_scroll.hash(&mut h);
+        return h.finish();
     }
 
     pub const fn const_default() -> Self {
@@ -824,6 +864,19 @@ impl<'a> Node<'a> {
     /// Enable or disable the default click/hover animation.
     pub fn click_animation(mut self, value: bool) -> Self {
         self.interact.click_animation = value;
+        return self;
+    }
+
+
+    /// Mark a node as "constant".
+    /// 
+    /// When running in release mode, constant nodes will never be hashed to detect differences and never trigger relayouts or rerenders.
+    /// 
+    /// In debug mode, the node will still be hashed and diffed, and an error will be reported if it's found to not actually be constant. 
+    /// 
+    /// Can be used as an extreme micro-optimization for programs that have many nodes that don't depend on any dynamic data.
+    pub const fn constant(mut self, value: bool) -> Self {
+        self.constant = value;
         return self;
     }
 }
@@ -1719,6 +1772,15 @@ impl Ui {
             return;
         }
         
+        // What if we did all the hashing and diffing in a single sequential scan of the stored Nodes?
+        // (we'd store them in a separate Soa vec rather than inline in the InnerNode in that case.)
+        // The linear scan vs random order would probably be good, but on the other hand, the pre-copy Node is already hot in the cache either way, because we have to copy it.
+
+        #[cfg(not(debug_assertions))]
+        if node.constant && self.sys.nodes[i].frame_added != self.sys.current_frame {
+            return;
+        }
+
         if let Some(image_data) = node.image {
             match image_data {
                 Image::RasterStatic(image) => self.set_static_image(i, image),
@@ -1727,7 +1789,7 @@ impl Ui {
                 Image::SvgPath(path) => self.set_path_svg(i, path),
             };
         }
-        
+
         let new_cosmetic_hash = node.cosmetic_hash();
         let new_layout_hash = node.layout_hash();
         
@@ -1745,6 +1807,20 @@ impl Ui {
                 };
                 log::error!("Keru: incorrect reactive block: the {kind} params of node \"{}\" changed, but reactive thought they didn't", self.node_debug_name(i));
                 // log::error!("Keru: incorrect reactive block: the {kind} params of node \"{}\" changed, even if a reactive block declared that it shouldn't have.\n Check that the reactive block is correctly checking all the runtime variables that can affect the node's params.", self.node_debug_name(i));
+            }
+            return;
+        }
+
+        #[cfg(debug_assertions)]
+        if node.constant && self.sys.nodes[i].frame_added != self.sys.current_frame {
+            if cosmetic_changed || layout_changed {
+                let kind = match (layout_changed, cosmetic_changed) {
+                    (true, true) => "layout and appearance",
+                    (true, false) => "layout",
+                    (false, true) => "appearance",
+                    _ => unreachable!()
+                };
+                log::error!("Keru: node \"{}\" is marked constant but its {kind} params changed", self.node_debug_name(i));
             }
             return;
         }
@@ -1799,6 +1875,7 @@ impl<'a> Node<'a> {
             image_options: self.image_options,
             text_properties: &[],
             text_style_flags: TextStyleFlags::empty(),
+            constant: self.constant,
         };
         return staticized;
     }
