@@ -1139,6 +1139,8 @@ impl Ui {
             }
         });
 
+        self.sys.renderer.draw_text_decorations();
+
         // Close final Keru range if any
         if let Some(start) = keru_range_start {
             let final_count = self.sys.renderer.instance_count();
