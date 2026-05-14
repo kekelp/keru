@@ -825,18 +825,7 @@ impl Ui {
     }
 
 
-    pub(crate) fn add_scrollbar_y(&mut self, i: NodeI, key: NodeKey) {
-        let scroll_rail_key = key.mix(SCROLL_RAIL_Y);
-        let scroll_handle_key = key.mix(SCROLL_HANDLE_Y);
-
-        // todo: without the "! released", it gets stuck to the wide size after dragging.
-        let wide = self.is_hovered(scroll_rail_key) || self.is_hovered(scroll_handle_key)
-            || (self.is_dragged(scroll_rail_key).is_some() && ! self.is_drag_released(scroll_rail_key))
-            || (self.is_dragged(scroll_handle_key).is_some() && ! self.is_drag_released(scroll_handle_key));
-
-        let width = if wide { 8.0 } else { 3.0 };
-        let rail_width = if wide { 14.0 } else { 9.0 };
-
+    fn scrollbar_state(&self, i: NodeI) -> Option<ScrollbarState> {
         let container_rect = self.sys.nodes[i].layout_rect;
         let content_bounds = self.sys.nodes[i].content_bounds;
         let scroll_y = self.sys.nodes[i].scroll.relative_offset.y;
@@ -845,7 +834,7 @@ impl Ui {
         let content_h = content_bounds.size().y;
 
         if content_h <= container_h || container_h <= 0.0 {
-            return;
+            return None;
         }
 
         let thumb_h = (container_h / content_h).clamp(0.05, 1.0);
@@ -868,8 +857,31 @@ impl Ui {
             0.0
         };
 
-        let thumb_h_frac = thumb_h;
-        let thumb_top_frac = progress * (1.0 - thumb_h);
+        Some(ScrollbarState {
+            thumb_h_frac: thumb_h,
+            thumb_top_frac: progress * (1.0 - thumb_h),
+            scroll_range,
+            max_scroll,
+            container_h,
+            scroll_y,
+        })
+    }
+
+    pub(crate) fn add_scrollbar_y(&mut self, i: NodeI, key: NodeKey) {
+        let scroll_rail_key = key.sibling(SCROLL_RAIL_Y);
+        let scroll_handle_key = key.sibling(SCROLL_HANDLE_Y);
+
+        // todo: without the "! released", it gets stuck to the wide size after dragging.
+        let wide = self.is_hovered(scroll_rail_key) || self.is_hovered(scroll_handle_key)
+            || (self.is_dragged(scroll_rail_key).is_some() && ! self.is_drag_released(scroll_rail_key))
+            || (self.is_dragged(scroll_handle_key).is_some() && ! self.is_drag_released(scroll_handle_key));
+
+        let width = if wide { 8.0 } else { 3.0 };
+        let rail_width = if wide { 14.0 } else { 9.0 };
+
+        let Some(ScrollbarState { thumb_h_frac, thumb_top_frac, scroll_range, max_scroll, container_h, scroll_y }) = self.scrollbar_state(i) else {
+            return;
+        };
 
         let rail_color = if wide { Color::rgba_u8(80, 80, 80, 60) } else { Color::TRANSPARENT };
         let handle_color = if wide { Color::rgba_u8(80, 80, 80, 255) } else { Color::rgba_u8(80, 80, 80, 90) };
@@ -948,8 +960,43 @@ impl Ui {
 
         }
     }
+
+    pub(crate) fn update_scrollbar_handle_params(&mut self, container_i: NodeI) -> bool {
+        let container_original_key = self.sys.nodes[container_i].original_key;
+        let expected_handle_key = container_original_key.sibling(SCROLL_HANDLE_Y);
+
+        let mut handle_i = None;
+        let mut child = self.sys.nodes[container_i].first_child;
+        while let Some(c) = child {
+            if self.sys.nodes[c].original_key == expected_handle_key {
+                handle_i = Some(c);
+                break;
+            }
+            child = self.sys.nodes[c].next_sibling;
+        }
+
+        let Some(handle_i) = handle_i else {
+            return false;
+        };
+
+        let Some(ScrollbarState { thumb_top_frac, .. }) = self.scrollbar_state(container_i) else {
+            return false;
+        };
+
+        self.sys.nodes[handle_i].params.layout.position[Y] = Pos::Frac(thumb_top_frac);
+
+        true
+    }
 }
 
+struct ScrollbarState {
+    thumb_h_frac: f32,
+    thumb_top_frac: f32,
+    scroll_range: f32,
+    max_scroll: f32,
+    container_h: f32,
+    scroll_y: f32,
+}
 
 pub(crate) fn ahasher() -> ahash::AHasher {
     ahash::RandomState::with_seeds(567899776617, 113565788, 68634584565675377, 54345456222646).build_hasher()

@@ -219,6 +219,18 @@ impl Ui {
 
     }
 
+    /// A partial relayout function that only works for nodes which are known to have no complex layout dependencies, like scrollbars.
+    pub(crate) fn partial_relayout_for_scrollbar(&mut self, i: NodeI) {
+        let parent = self.sys.nodes[i].parent;
+        let starting_proposed_size = self.sys.nodes[parent].size;
+
+        self.recursive_determine_size_and_hidden(i, ProposedSizes::container(starting_proposed_size), false);
+
+        self.recursive_place_children(i);
+        
+        self.sys.nodes[i].last_layout_frame = self.sys.current_frame;
+    }
+
     pub(crate) fn _partial_relayout(&mut self, i: NodeI) {
         // if the node has already been layouted on the current frame, stop immediately, and don't even recurse.
         // when doing partial layouts, this avoids overlap, but it means that we have to sort the partial relayouts cleanly from least depth to highest depth in order to get it right. This is done in `relayout()`.

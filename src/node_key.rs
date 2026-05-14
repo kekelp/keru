@@ -15,7 +15,7 @@ use crate::*;
 /// ```
 /// 
 /// Used in many [`Ui`] methods to refer to specific nodes: for example, [`Ui::is_clicked`].
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct NodeKey {
     id: Id,
     debug_name: &'static str,
@@ -61,7 +61,8 @@ impl NodeKey {
         self.sibling(value)
     }
 
-    /// Combine two keys into a new one`.
+    // todo: remove this
+    /// Combine two keys into a new one.
     pub const fn mix(self, other: NodeKey) -> Self {
         const FNV_OFFSET: u64 = 14695981039346656037;
         const FNV_PRIME: u64 = 1099511628211;

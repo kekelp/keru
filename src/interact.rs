@@ -362,9 +362,19 @@ impl Ui {
                 self.set_new_ui_input();
             } else {
                 self.update_container_scroll(target_i, fdelta[Y], Y);
-                self.resolve_hover();
-                self.sys.changes.should_rebuild_render_data = true;
-                self.sys.changes.need_rerender = true;
+                let scrollbar_found = self.update_scrollbar_handle_params(target_i);
+                if ! scrollbar_found {
+                    let key = self.sys.nodes[target_i].original_key;
+                    self.add_scrollbar_y(target_i, key);
+                } else {
+
+                    self.partial_relayout_for_scrollbar(target_i);
+                    // scrolling can cause the cursor to end up on top of a new node.
+                    self.resolve_hover();
+                    
+                    self.sys.changes.should_rebuild_render_data = true;
+                    self.sys.changes.need_rerender = true;
+                }
             }
         }
     }
