@@ -856,7 +856,7 @@ pub const TEXT_EDIT_LINE: Node = Node {
     placeholder_text: None,
     image: None,
     image_options: ImageOptions::DEFAULT,
-    text_alignment: Alignment::Center,
+    text_alignment: Alignment::Start,
     vertical_text_alignment: VerticalTextAlignment::Center,
     text_size: None,
     text_color: None,

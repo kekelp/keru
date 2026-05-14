@@ -219,16 +219,17 @@ impl Ui {
 
     }
 
-    /// A partial relayout function that only works for nodes which are known to have no complex layout dependencies, like scrollbars.
-    pub(crate) fn partial_relayout_for_scrollbar(&mut self, i: NodeI) {
-        let parent = self.sys.nodes[i].parent;
-        let starting_proposed_size = self.sys.nodes[parent].size;
+    /// Relayout only the scrollbar nodes for `container_i`, without touching the container or any other children.
+    pub(crate) fn partial_relayout_for_scrollbar(&mut self, container_i: NodeI) {
+        let container_key = self.sys.nodes[container_i].original_key;
 
-        self.recursive_determine_size_and_hidden(i, ProposedSizes::container(starting_proposed_size), false);
-
-        self.recursive_place_children(i);
-        
-        self.sys.nodes[i].last_layout_frame = self.sys.current_frame;
+        for key in [container_key.sibling(SCROLL_RAIL_Y), container_key.sibling(SCROLL_HANDLE_Y)] {
+            let Some(node_i) = self.sys.nodes.get_by_id(key.id_with_key_scope()) else {
+                continue;
+            };
+            // self.recursive_determine_size_and_hidden(node_i, proposed_size, false);
+            self.place_child_free(node_i, container_i);
+        }
     }
 
     pub(crate) fn _partial_relayout(&mut self, i: NodeI) {
@@ -786,7 +787,7 @@ impl Ui {
         });
     }
 
-    fn place_child_free(&mut self, child: NodeI, parent: NodeI) {
+    pub(crate) fn place_child_free(&mut self, child: NodeI, parent: NodeI) {
         let parent_rect = self.sys.nodes[parent].layout_rect;
         let padding = self.pixels_to_frac2(self.sys.nodes[parent].params.layout.padding);
         let child_size = self.sys.nodes[child].size;
@@ -841,7 +842,7 @@ impl Ui {
         }
     }
 
-    fn place_children_free(&mut self, i: NodeI) {
+    pub(crate) fn place_children_free(&mut self, i: NodeI) {
         for_each_child!(self, self.sys.nodes[i], child, {
             self.place_child_free(child, i);
         });

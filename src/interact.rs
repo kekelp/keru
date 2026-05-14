@@ -353,6 +353,7 @@ impl Ui {
 
         if let Some((target_i, is_sense)) = scroll_target {
             if is_sense {
+                // if the node has the hover sense, we have to do set_new_ui_input and do a full rebuild, so everything will sort itself out automatically.
                 let id = self.sys.nodes[target_i].id;
                 let scroll_delta = match delta {
                     MouseScrollDelta::LineDelta(x, y) => Vec2::new(*x * 0.1, *y * 0.1),
@@ -361,20 +362,20 @@ impl Ui {
                 self.sys.mouse_input.push_scroll(scroll_delta, id);
                 self.set_new_ui_input();
             } else {
+                // otherwise, do atomic updates on the scroll value and the scrollbar state, and schedule just a rerender.
                 self.update_container_scroll(target_i, fdelta[Y], Y);
+
                 let scrollbar_found = self.update_scrollbar_handle_params(target_i);
                 if ! scrollbar_found {
                     let key = self.sys.nodes[target_i].original_key;
                     self.add_scrollbar_y(target_i, key);
-                } else {
-
-                    self.partial_relayout_for_scrollbar(target_i);
-                    // scrolling can cause the cursor to end up on top of a new node.
-                    self.resolve_hover();
-                    
-                    self.sys.changes.should_rebuild_render_data = true;
-                    self.sys.changes.need_rerender = true;
                 }
+                self.partial_relayout_for_scrollbar(target_i);
+                // scrolling can cause the cursor to end up on top of a new node.
+                self.resolve_hover();
+
+                self.sys.changes.should_rebuild_render_data = true;
+                self.sys.changes.need_rerender = true;
             }
         }
     }

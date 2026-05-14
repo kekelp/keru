@@ -915,6 +915,7 @@ impl Ui {
             .sense_hover_enter_or_exit(true)
             .z_index(100.0)
             .animate_position(true)
+            .animation_speed(2.5)
             .free_placement(true)
             .ignore_parent_scroll(true)
             .color(handle_color);
@@ -962,25 +963,13 @@ impl Ui {
     }
 
     pub(crate) fn update_scrollbar_handle_params(&mut self, container_i: NodeI) -> bool {
-        let container_original_key = self.sys.nodes[container_i].original_key;
-        let expected_handle_key = container_original_key.sibling(SCROLL_HANDLE_Y);
-
-        let mut handle_i = None;
-        let mut child = self.sys.nodes[container_i].first_child;
-        while let Some(c) = child {
-            if self.sys.nodes[c].original_key == expected_handle_key {
-                handle_i = Some(c);
-                break;
-            }
-            child = self.sys.nodes[c].next_sibling;
-        }
-
-        let Some(handle_i) = handle_i else {
+        let handle_key = self.sys.nodes[container_i].original_key.sibling(SCROLL_HANDLE_Y);
+        let Some(handle_i) = self.sys.nodes.get_by_id(handle_key.id_with_key_scope()) else {
             return false;
         };
 
         let Some(ScrollbarState { thumb_top_frac, .. }) = self.scrollbar_state(container_i) else {
-            return false;
+            return true;
         };
 
         self.sys.nodes[handle_i].params.layout.position[Y] = Pos::Frac(thumb_top_frac);
