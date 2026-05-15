@@ -1360,17 +1360,6 @@ impl Xy<f32> {
 
 }
 
-// todo remove?
-#[derive(Debug)]
-pub(crate) struct Scroll {
-    pub(crate) relative_offset: Xy<f32>,
-}
-impl Scroll {
-    pub const ZERO: Scroll = Scroll {
-        relative_offset: Xy::new(0.0, 0.0),
-    };
-}
-
 impl Ui {
     pub(crate) fn update_container_scroll(&mut self, i: NodeI, delta: f32, axis: Axis) {       
         let container_rect = self.sys.nodes[i].layout_rect;
@@ -1379,7 +1368,7 @@ impl Ui {
         let content_rect_size = content_bounds.size()[axis];
 
         if content_rect_size <= 0.0 {
-            self.sys.nodes[i].scroll.relative_offset[axis] = 0.0;
+            self.sys.nodes[i].scroll[axis] = 0.0;
             return;
         }
 
@@ -1401,7 +1390,7 @@ impl Ui {
             if self.sys.nodes[i].frame_added == self.sys.current_frame && delta == 0.0 {
                 if let ChildrenLayout::Stack { axis: stack_axis, arrange, .. } = self.sys.nodes[i].params.children_layout {
                     if stack_axis == axis {
-                        self.sys.nodes[i].scroll.relative_offset[axis] = match arrange {
+                        self.sys.nodes[i].scroll[axis] = match arrange {
                             Arrange::End => min_scroll,
                             _ => max_scroll,
                         };
@@ -1409,14 +1398,14 @@ impl Ui {
                 }
             } else {
                 // Normal scroll update
-                self.sys.nodes[i].scroll.relative_offset[axis] += delta;
+                self.sys.nodes[i].scroll[axis] += delta;
             }
             
-            let rel_offset = &mut self.sys.nodes[i].scroll.relative_offset[axis];
+            let rel_offset = &mut self.sys.nodes[i].scroll[axis];
             *rel_offset = rel_offset.clamp(min_scroll, max_scroll);
 
         } else {
-            self.sys.nodes[i].scroll.relative_offset[axis] = 0.0;
+            self.sys.nodes[i].scroll[axis] = 0.0;
         }
 
     }
@@ -1431,7 +1420,7 @@ impl Ui {
     }
 
     pub(crate) fn scroll_offset(&self, i: NodeI, axis: Axis) -> f32 {
-        let scroll_offset = self.sys.nodes[i].scroll.relative_offset[axis];
+        let scroll_offset = self.sys.nodes[i].scroll[axis];
 
         // round it to whole pixels to avoid wobbling
         // account for transform scale to round to real screen pixels

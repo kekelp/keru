@@ -50,7 +50,7 @@ pub struct Drag {
 
 /// A struct describing a scroll event on a GUI node.
 #[derive(Clone, Copy, Debug)]
-pub struct ScrollEvent {
+pub struct Scroll {
     /// Absolute screen position in pixels where the scroll occurred
     pub absolute_position: glam::Vec2,
     /// Position relative to the node (0.0 to 1.0 in each dimension)

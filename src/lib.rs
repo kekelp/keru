@@ -120,6 +120,7 @@ pub mod example_window_loop;
 pub mod basic_window_loop;
 
 pub mod mouse_events;
+pub(crate) use crate::mouse_events::*;
 
 pub mod key_events;
 

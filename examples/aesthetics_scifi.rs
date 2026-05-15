@@ -81,7 +81,7 @@ impl<'a> Component for Button<'a> {
         
         // The hover animation is fully stateless, and could be done without adding state to the component.
         let base_width = 270.0;
-        let hover_circle_size = if let Some(_) = hovered {
+        let hover_circle_size = if hovered {
             Size::Pixels(base_width + 30.0)
         } else {
             Size::Pixels(-10.0)

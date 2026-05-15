@@ -828,7 +828,7 @@ impl Ui {
     fn scrollbar_state(&self, i: NodeI) -> Option<ScrollbarState> {
         let container_rect = self.sys.nodes[i].layout_rect;
         let content_bounds = self.sys.nodes[i].content_bounds;
-        let scroll_y = self.sys.nodes[i].scroll.relative_offset.y;
+        let scroll_y = self.sys.nodes[i].scroll.y;
 
         let container_h = container_rect.size().y;
         let content_h = content_bounds.size().y;

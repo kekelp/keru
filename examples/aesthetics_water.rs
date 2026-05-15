@@ -113,7 +113,7 @@ impl<'a> Component for WaterButton<'a> {
         };
 
         // Soft ambient glow that pulses slowly when hovered
-        let glow_alpha = if hovered.is_some() { 0.18 } else { 0.06 };
+        let glow_alpha = if hovered { 0.18 } else { 0.06 };
         let glow = DEFAULT
             .color(WATER_TEAL.with_alpha(glow_alpha))
             .anchor_symm(Anchor::Center)

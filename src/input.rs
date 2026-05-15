@@ -111,13 +111,13 @@ impl<'a> UiNode<'a> {
     /// Returns details about the last scroll event on this node, or `None` if no scroll occurred.
     ///
     /// If the node was scrolled multiple times in the last frame, returns only the last scroll.
-    pub fn scrolled_at(&self) -> Option<ScrollEvent> {
+    pub fn scrolled_at(&self) -> Option<Scroll> {
         let sys = self.sys();
         let node = self.node();
         let scroll_event = sys.check_last_scroll_event(node.id)?;
         let logical_size = sys.logical_size();
         let relative_position = inner_relative_position(scroll_event.position, logical_size, node.real_rect, node.params.layout.padding);
-        Some(ScrollEvent {
+        Some(Scroll {
             relative_position,
             absolute_position: scroll_event.position,
             delta: scroll_event.delta,
@@ -206,7 +206,7 @@ impl Ui {
     /// Returns details about the last scroll event on the node corresponding to `key`, or `None` if no scroll occurred.
     ///
     /// If the node was scrolled multiple times in the last frame, returns only the last scroll.
-    pub fn scrolled_at(&self, key: NodeKey) -> Option<ScrollEvent> {
+    pub fn scrolled_at(&self, key: NodeKey) -> Option<Scroll> {
         self.get_node(key)?.scrolled_at()
     }
 }
@@ -298,7 +298,7 @@ impl UiParent {
     /// Returns details about the last scroll event on this node, or `None` if no scroll occurred.
     ///
     /// If the node was scrolled multiple times in the last frame, returns only the last scroll.
-    pub fn scrolled_at(&self, ui: &Ui) -> Option<ScrollEvent> {
+    pub fn scrolled_at(&self, ui: &Ui) -> Option<Scroll> {
         ui.scrolled_at(self.key(ui))
     }
 }

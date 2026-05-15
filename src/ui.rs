@@ -11,7 +11,7 @@ use keru_draw::Renderer;
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
 use key_events::KeyInput;
-use mouse_events::{MouseInput, SmallVec};
+use mouse_events::MouseInput;
 use winit::keyboard::Key;
 use key_events::FullKeyEvent;
 

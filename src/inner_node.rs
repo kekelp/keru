@@ -14,7 +14,8 @@ pub struct InnerNode {
     pub frame_added: u64,
     pub last_frame_touched: u64,
 
-    pub scroll: Scroll,
+    // scroll as relative offset
+    pub scroll: Xy<f32>,
 
     // Accumulated transform from all parents, used for rendering and hit testing
     pub accumulated_transform: Transform,
@@ -168,7 +169,7 @@ impl InnerNode {
             text_i: None,
             text_fingerprint: TextFingerprint::None,
 
-            scroll: Scroll::ZERO,
+            scroll: Xy::new(0.0, 0.0),
 
             accumulated_transform: Transform::IDENTITY,
             accumulated_transform_handle: None,
@@ -294,7 +295,7 @@ pub const NODE_ROOT: InnerNode = InnerNode {
 
     last_proposed_sizes: ProposedSizes::container(Xy::new_symm(1.0)),
 
-    scroll: Scroll::ZERO,
+    scroll: Xy::new(0.0, 0.0),
 
     accumulated_transform: Transform::IDENTITY,
     accumulated_transform_handle: None,
