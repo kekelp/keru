@@ -223,10 +223,6 @@ impl Ui {
         })
     }
 
-    pub(crate) fn refresh_node(&mut self, i: NodeI) {
-        self.sys.nodes[i].canvas_instances = None;
-    }
-
     // this function also detects new nodes and reorderings, and pushes partial relayouts for them. For deleted nodes, partial relayouts will be pushed in cleanup_and_stuff.
     pub(crate) fn set_tree_links(&mut self, new_node_i: NodeI, parent_i: NodeI, depth: usize, sibling_cursor: SiblingCursor) {
         self.clear_node_children(new_node_i);
@@ -512,16 +508,7 @@ impl Ui {
         self.sys.nodes[ROOT_I].next_sibling = None;
         self.sys.nodes[ROOT_I].n_children = 0;
 
-        self.sys.current_frame += 1;
-        self.sys.last_linked_text_box_node = None;
-        self.sys.renderer.clear_for_new_frame();
-
-        thread_local::clear_parent_stack();
-        self.sys.changes.unfinished_animations = false;
-
-        thread_local::push_parent(ROOT_I, SiblingCursor::None, self.sys.unique_id);
-
-        self.begin_frame_resolve_inputs();
+        self.begin_frame_inner();
     }
 
     /// Start a "retained mode" frame.
@@ -530,30 +517,20 @@ impl Ui {
     /// 
     /// Call [`Ui::begin_retained_mode_frame()`] to finish the retained-mode frame.
     pub fn begin_retained_mode_frame(&mut self) {
-        self.sys.current_frame += 1;
-
-        // Touch only nodes that are currently linked in the tree (reachable from root).
+        self.begin_frame_inner();
         // If we were more serious about retained mode, this could be done in slightly more efficient ways, probably.
-        let frame = self.sys.current_frame;
-        with_arena(|arena| {
-            let mut stack = BumpVec::with_capacity_in(20, arena);
-            stack.push(ROOT_I);
-            while let Some(i) = stack.pop() {
-                self.sys.nodes[i].last_frame_touched = frame;
+        self.readd_branch_recursive(ROOT_I);
+    }
 
-                let mut child = self.sys.nodes[i].first_child;
-                while let Some(c) = child {
-                    if !self.sys.nodes[c].exiting {
-                        stack.push(c);
-                    }
-                    child = self.sys.nodes[c].next_sibling;
-                }
-            }
-        });
-
+    pub fn begin_frame_inner(&mut self) {
+        self.sys.current_frame += 1;
         self.sys.last_linked_text_box_node = None;
         self.sys.renderer.clear_for_new_frame();
+
+        thread_local::clear_parent_stack();
         self.sys.changes.unfinished_animations = false;
+
+        thread_local::push_parent(ROOT_I, SiblingCursor::None, self.sys.unique_id);
 
         self.begin_frame_resolve_inputs();
     }
@@ -683,7 +660,6 @@ impl Ui {
             for &NodeWithDepth { i, .. } in &exiting_nodes {
                 let old_parent = self.sys.nodes[i].parent;
                 self.set_tree_links(i, old_parent, self.sys.nodes[i].depth, SiblingCursor::None);
-                self.refresh_node(i);
                 self.sys.nodes[i].exiting = true;
                 // we're reusing set_tree_links which also increases the parent's child count, but exiting nodes shouldn't be counted.
                 self.sys.nodes[old_parent].n_children -= 1;

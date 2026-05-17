@@ -818,12 +818,11 @@ impl Ui {
         self.sys.link_node_to_parent(i, parent, depth, sibling_cursor);
 
         self.sys.nodes[i].last_frame_touched = self.sys.current_frame;
-        self.refresh_node(i);
 
         self.readd_branch_recursive(i);
     }
 
-    fn readd_branch_recursive(&mut self, node_i: NodeI) {
+    pub(crate) fn readd_branch_recursive(&mut self, node_i: NodeI) {
         let mut current_child = self.sys.nodes[node_i].first_child;
         while let Some(child) = current_child {
             // Save next before any unlinking that would clear it.
@@ -838,7 +837,6 @@ impl Ui {
                 self.sys.nodes[node_i].n_children += 1;
             } else {
                 self.sys.nodes[child].last_frame_touched = self.sys.current_frame;
-                self.refresh_node(child);
                 self.readd_branch_recursive(child);
             }
             current_child = next;

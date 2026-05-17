@@ -166,8 +166,7 @@ impl Ui {
         self.set_tree_links(real_final_i, parent, depth, insert_after);
 
         self.sys.nodes[real_final_i].exiting = false;
-
-        self.refresh_node(real_final_i);
+        self.sys.nodes[real_final_i].canvas_instances = None;
 
         if new_node_should_relayout {
             self.sys.push_partial_relayout(real_final_i);
