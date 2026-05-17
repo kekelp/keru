@@ -85,8 +85,8 @@ impl Ui {
     /// If the node corresponding to `parent_key` exists, get a [`UiParent`] that can be used to break the normal nesting structure and add children to it.
     ///
     /// This is like [`jump_to_root`](Self::jump_to_root) but for any node.
-    pub fn jump_to_parent(&self, parent_key: NodeKey) -> Option<UiParent> {
-        let parent_i = self.sys.nodes.get_with_key_scope(parent_key)?;
+    pub fn jump_to_node(&self, key: NodeKey) -> Option<UiParent> {
+        let parent_i = self.sys.nodes.get_with_key_scope(key)?;
         Some(UiParent {
             i: parent_i,
             sibling_cursor: SiblingCursor::None,
@@ -494,29 +494,6 @@ impl Ui {
     }
 
 
-    pub(crate) fn push_partial_relayout(&mut self, i: NodeI) {
-        self.sys.push_partial_relayout(i);
-        // let relayout_chain_root = match self.sys.nodes[i].relayout_chain_root {
-        //     Some(root) => root,
-        //     None => i,
-        // };
-
-        // // even after the chain, we still have to go one layer up, because a different sized child probably means that the parent wants to place the node differently, and maybe pick a different size and position for the other children as well
-        // // In practice, the first half of that is basically always true, but the second half is only true for Stacks. I don't really feel like adding a distinction for that right now.
-        // let relayout_target = self.sys.nodes[relayout_chain_root].parent;
-
-        // // try skipping some duplicates
-        // if self.sys.changes.partial_relayouts.last().map(|x| x.i) == Some(relayout_target) {
-        //     return;
-        // }
-
-        // let relayout_entry = NodeWithDepth {
-        //     i: relayout_target,
-        //     depth: self.sys.nodes[relayout_target].depth,
-        // };
-        // self.sys.changes.partial_relayouts.push(relayout_entry);
-    }
-
     /// Clear the old Ui tree and start declaring another one.
     /// 
     /// Use together with [`Ui::finish_frame()`], at most once per frame.
@@ -528,7 +505,12 @@ impl Ui {
     /// ui.finish_frame();
     /// ```
     pub fn begin_frame(&mut self) {
-        self.reset_root();
+        // reset root
+        self.sys.nodes[ROOT_I].last_child = None;
+        self.sys.nodes[ROOT_I].first_child = None;
+        self.sys.nodes[ROOT_I].prev_sibling = None;
+        self.sys.nodes[ROOT_I].next_sibling = None;
+        self.sys.nodes[ROOT_I].n_children = 0;
 
         self.sys.current_frame += 1;
         self.sys.last_linked_text_box_node = None;
@@ -541,13 +523,39 @@ impl Ui {
 
         self.begin_frame_resolve_inputs();
     }
-    
-    fn reset_root(&mut self) {
-        self.sys.nodes[ROOT_I].last_child = None;
-        self.sys.nodes[ROOT_I].first_child = None;
-        self.sys.nodes[ROOT_I].prev_sibling = None;
-        self.sys.nodes[ROOT_I].next_sibling = None;
-        self.sys.nodes[ROOT_I].n_children = 0;
+
+    /// Start a "retained mode" frame.
+    ///
+    /// Unlike the normal [`Ui::begin_frame()`], this does not clear the tree, so you can do just the minimal imperative modifications to the tree instead of redeclaring a new one from scratch.
+    /// 
+    /// Call [`Ui::begin_retained_mode_frame()`] to finish the retained-mode frame.
+    pub fn begin_retained_mode_frame(&mut self) {
+        self.sys.current_frame += 1;
+
+        // Touch only nodes that are currently linked in the tree (reachable from root).
+        // If we were more serious about retained mode, this could be done in slightly more efficient ways, probably.
+        let frame = self.sys.current_frame;
+        with_arena(|arena| {
+            let mut stack = BumpVec::with_capacity_in(20, arena);
+            stack.push(ROOT_I);
+            while let Some(i) = stack.pop() {
+                self.sys.nodes[i].last_frame_touched = frame;
+
+                let mut child = self.sys.nodes[i].first_child;
+                while let Some(c) = child {
+                    if !self.sys.nodes[c].exiting {
+                        stack.push(c);
+                    }
+                    child = self.sys.nodes[c].next_sibling;
+                }
+            }
+        });
+
+        self.sys.last_linked_text_box_node = None;
+        self.sys.renderer.clear_for_new_frame();
+        self.sys.changes.unfinished_animations = false;
+
+        self.begin_frame_resolve_inputs();
     }
 
     /// Finish declaring the current GUI tree.
@@ -560,6 +568,15 @@ impl Ui {
         // pop the root node
         thread_local::pop_parent(self.sys.unique_id);
 
+        self.finish_frame_inner();
+    }
+
+    /// Finish a "retained mode" frame started with [`Ui::begin_retained_mode_frame()`].
+    pub fn finish_retained_mode_frame(&mut self) {
+        self.finish_frame_inner();
+    }
+
+    fn finish_frame_inner(&mut self) {
         self.cleanup_and_stuff();
 
         self.relayout();
@@ -624,23 +641,22 @@ impl Ui {
             for &i in &non_fresh_nodes {
                 let can_hide = self.sys.nodes[i].can_hide;
                 let currently_hidden = self.sys.nodes[i].currently_hidden;
-                let old_parent = self.sys.nodes[i].parent;
-                let old_parent_still_exists = self.sys.nodes.get_node_if_it_still_exists(old_parent).is_some();
-
-                let is_first_child_in_hidden_branch = match self.sys.nodes.get_node_if_it_still_exists(old_parent) {
-                    Some(old_parent) => old_parent.params.children_can_hide == ChildrenCanHide::Yes,
-                    None => false,
-                };
+                let old_parent_i = self.sys.nodes[i].parent;
+                let old_parent_node = self.sys.nodes.get_node_if_it_still_exists(old_parent_i);
+                let old_parent_still_exists = old_parent_node.is_some();
+                let is_first_child_in_hidden_branch = old_parent_node.map_or(false, |p| p.params.children_can_hide == ChildrenCanHide::Yes);
+                let parent_is_exiting = old_parent_node.map_or(false, |p| p.exit_animation_still_going);
                 let children_can_hide = self.sys.nodes[i].params.children_can_hide == ChildrenCanHide::Yes;
+                let has_exit_anim = !matches!(self.sys.nodes[i].params.animation.exit, ExitAnimation::None);
 
-                if old_parent_still_exists && self.sys.nodes[i].exiting && self.sys.nodes[i].exit_animation_still_going {
+                if old_parent_still_exists && self.sys.nodes[i].exiting && self.sys.nodes[i].exit_animation_still_going && (has_exit_anim || parent_is_exiting) {
 
                     exiting_nodes.push(NodeWithDepth { i, depth: self.sys.nodes[i].depth });
 
                 } else if ! can_hide {
                     to_cleanup.push(i);
                     if old_parent_still_exists {
-                        self.push_partial_relayout(old_parent);
+                        self.sys.push_partial_relayout(old_parent_i);
                     }
 
                     if children_can_hide {
@@ -652,9 +668,9 @@ impl Ui {
                     self.sys.nodes[i].currently_hidden = true;
 
                     if is_first_child_in_hidden_branch {
-                        self.add_hidden_child(i, old_parent);
+                        self.add_hidden_child(i, old_parent_i);
                         if old_parent_still_exists {
-                            self.push_partial_relayout(old_parent);
+                            self.sys.push_partial_relayout(old_parent_i);
                         }
                     }
                 }
@@ -707,6 +723,31 @@ impl Ui {
         if self.sys.nodes[i].last_frame_touched == self.sys.current_frame {
             log::trace!("Not removing: {}, as it was moved around and not removed", self.node_debug_name(i));
             return;
+        }
+
+        // Undo the exiting nodes set_tree_links? Should really revisit this...
+        if self.sys.nodes[i].exiting {
+            let parent_i = self.sys.nodes[i].parent;
+            if self.sys.nodes.get_node_if_it_still_exists(parent_i).is_some() {
+                let prev = self.sys.nodes[i].prev_sibling;
+                let next = self.sys.nodes[i].next_sibling;
+                match prev {
+                    Some(p) => self.sys.nodes[p].next_sibling = next,
+                    None => {
+                        if self.sys.nodes[parent_i].first_child == Some(i) {
+                            self.sys.nodes[parent_i].first_child = next;
+                        }
+                    }
+                }
+                match next {
+                    Some(n) => self.sys.nodes[n].prev_sibling = prev,
+                    None => {
+                        if self.sys.nodes[parent_i].last_child == Some(i) {
+                            self.sys.nodes[parent_i].last_child = prev;
+                        }
+                    }
+                }
+            }
         }
 
         let old_handle = self.sys.nodes[i].text_i.take();
@@ -1159,6 +1200,24 @@ impl Ui {
     }
 }
 impl System {
+    pub(crate) fn clear_children_of_node(&mut self, i: NodeI) {
+        self.mark_children_non_fresh(i);
+        self.nodes[i].first_child = None;
+        self.nodes[i].last_child = None;
+        self.nodes[i].n_children = 0;
+        self.push_partial_relayout(i);
+    }
+
+    fn mark_children_non_fresh(&mut self, i: NodeI) {
+        let mut child = self.nodes[i].first_child;
+        while let Some(c) = child {
+            let next = self.nodes[c].next_sibling;
+            self.nodes[c].last_frame_touched = 0;
+            self.mark_children_non_fresh(c);
+            child = next;
+        }
+    }
+
     /// Unlink a node from its current parent's child list.
     pub(crate) fn unlink_from_tree(&mut self, node_i: NodeI) {
         let old_parent = self.nodes[node_i].parent;
@@ -1298,6 +1357,26 @@ impl System {
 
     pub(crate) fn push_partial_relayout(&mut self, _i: NodeI) {
         self.changes.full_relayout = true;
+
+        // let relayout_chain_root = match self.sys.nodes[i].relayout_chain_root {
+        //     Some(root) => root,
+        //     None => i,
+        // };
+
+        // // even after the chain, we still have to go one layer up, because a different sized child probably means that the parent wants to place the node differently, and maybe pick a different size and position for the other children as well
+        // // In practice, the first half of that is basically always true, but the second half is only true for Stacks. I don't really feel like adding a distinction for that right now.
+        // let relayout_target = self.sys.nodes[relayout_chain_root].parent;
+
+        // // try skipping some duplicates
+        // if self.sys.changes.partial_relayouts.last().map(|x| x.i) == Some(relayout_target) {
+        //     return;
+        // }
+
+        // let relayout_entry = NodeWithDepth {
+        //     i: relayout_target,
+        //     depth: self.sys.nodes[relayout_target].depth,
+        // };
+        // self.sys.changes.partial_relayouts.push(relayout_entry);
     }
 
     fn remove_hidden_child_if_it_exists(&mut self, child_i: NodeI, parent_i: NodeI) {

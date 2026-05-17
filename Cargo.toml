@@ -22,6 +22,9 @@ opt-level = 1
 debug = 0
 strip = "debuginfo"
 
+[profile.release]
+strip = "debuginfo"
+
 [features]
 default = []
 serde = ["dep:serde", "glam/serde"]

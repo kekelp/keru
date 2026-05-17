@@ -62,6 +62,14 @@ impl<'a> Iterator for UiNodeChildrenIter<'a> {
 impl ExactSizeIterator for UiNodeChildrenIter<'_> {}
 
 impl<'a> UiNode<'a> {
+    /// Remove all children of this node.
+    ///
+    /// This is a "retained mode" function. The regular way to remove nodes is just to redeclare the whole new state of the whole tree. Just don't readd the nodes that you don't want, and they'll be gone.
+    pub fn clear_all_children(&mut self) {
+        let i = self.i;
+        self.sys_mut().clear_children_of_node(i);
+    }
+
     pub fn set_z_index(&mut self, z_index: f32) {
         self.node_mut().params.z_index = z_index;
     }
@@ -233,6 +241,9 @@ impl<'a> UiNode<'a> {
             TextI::TextBox(handle) => sys.renderer.text.get_text_box_mut(&handle).set_text_hashed(text),
             TextI::TextEdit(handle) => sys.renderer.text.get_text_edit_mut(&handle).set_text_hashed(text),
         };
+        if sys.nodes[i].params.is_fit_content() {
+            sys.push_partial_relayout(i);
+        }
         return Some(())
     }
 

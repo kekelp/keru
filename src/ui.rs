@@ -115,7 +115,7 @@ pub(crate) struct System {
     pub key_input: KeyInput,
     
     #[cfg(debug_assertions)]
-    pub inspect_hovered: SmallVec<Id>,
+    pub inspect_hovered: mouse_events::SmallVec<Id>,
 
     // ???????
     pub hovered: Vec<Id>,
@@ -373,6 +373,7 @@ impl Ui {
         return &mut self.sys.theme;
     }
 
+    /// The [`Ui`]'s current frame. Starts at `0`.
     pub fn current_frame(&self) -> u64 {
         return self.sys.current_frame;
     }
