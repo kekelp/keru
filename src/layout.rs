@@ -204,7 +204,7 @@ impl Ui {
     }
 
     pub(crate) fn relayout_from_root(&mut self) {
-        eprintln!("Full relayout");
+        log::info!("Full relayout");
 
         // 1st recursive tree traversal: start from the root and recursively determine the size of all nodes
         let starting_proposed_size = Xy::new(1.0, 1.0);

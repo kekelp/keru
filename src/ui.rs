@@ -393,7 +393,7 @@ impl Ui {
     /// Panics if [`Ui::register_window()`] wasn't called on this [`Ui`] instance.
     pub fn ui_waker(&mut self) -> UiWaker {
         if self.sys.window_ref.is_none() {
-            panic!("Wakeup not enabled. Ui::enable_auto_wakeup() must be called before calling this function.");
+            panic!("The Ui doesn't have a reference to the active window, so it can't use it to wake up the event loop. Please make sure to call Ui::register_window() before calling this function.");
         }
         UiWaker {
             needs_update: Arc::clone(&self.sys.needs_update),
@@ -420,7 +420,7 @@ impl Ui {
     /// Panics if [`Ui::register_window()`] wasn't called on this [`Ui`] instance.
     pub fn schedule_wakeup(&mut self, duration: Duration) {
         if self.sys.window_ref.is_none() {
-            panic!("Wakeup not enabled. Ui::enable_auto_wakeup() must be called before calling this function.");
+            panic!("The Ui doesn't have a reference to the active window, so it can't use it to wake up the event loop. Please make sure to call Ui::register_window() before calling this function.");
         }
         let waker = UiWaker {
             needs_update: Arc::clone(&self.sys.needs_update),

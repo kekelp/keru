@@ -188,7 +188,7 @@ impl<T> ApplicationHandler for Application<T> {
                     }
     
                     let frame_time = frame_start.elapsed();
-                    eprintln!("Time since last frame: {:?}", frame_time);
+                    log::info!("Time since last frame: {:?}", frame_time);
                 }
                 _ => {}
             }

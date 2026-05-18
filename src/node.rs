@@ -1703,7 +1703,8 @@ impl Ui {
 
                 let mut properties_opt: Option<BumpVec<StyleProperty<_>>> = None;
                 let flags = node.text_style_flags;
-                if ! flags.is_empty() {
+                let has_any_style = !flags.is_empty() || node.text_size.is_some() || node.text_color.is_some() || !node.text_properties.is_empty();
+                if has_any_style {
                     let flag_count = flags.bits().count_ones() as usize;
                     let mut properties = BumpVec::with_capacity_in(node.text_properties.len() + flag_count + 2, arena);
                     if flags.contains(TextStyleFlags::BOLD) { properties.push(BOLD); }
