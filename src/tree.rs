@@ -1136,10 +1136,10 @@ pub(crate) fn with_timer<T>(operation_name: &str, if_more_than: Option<std::time
 
         if let Some(if_more_than) = if_more_than {
             if elapsed > if_more_than {
-                println!("{}: {:?}", operation_name, elapsed);
+                log::info!("{}: {:?}", operation_name, elapsed);
             }
         } else {
-            println!("{}: {:?}", operation_name, elapsed);
+            log::info!("{}: {:?}", operation_name, elapsed);
         }
 
         result

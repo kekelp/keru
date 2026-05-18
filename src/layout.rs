@@ -391,11 +391,10 @@ impl Ui {
 
                 if n_fill_children > 0 {
                     // then, divide the remaining space between the Fill children
-                    let mut size_per_child = available_size_left;
                     if n_fill_children > 1 {
                         available_size_left[axis] -= ((n_fill_children - 1) as f32) * spacing;
                     }
-
+                    let mut size_per_child = available_size_left;
                     size_per_child[axis] /= n_fill_children as f32;
                     for_each_child!(self, self.sys.nodes[i], child, {
                         if !self.sys.nodes[child].params.free_placement && self.sys.nodes[child].params.layout.size[axis] == Size::Fill {
