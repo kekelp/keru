@@ -701,31 +701,6 @@ impl Ui {
             return;
         }
 
-        // Undo the exiting nodes set_tree_links? Should really revisit this...
-        if self.sys.nodes[i].exiting {
-            let parent_i = self.sys.nodes[i].parent;
-            if self.sys.nodes.get_node_if_it_still_exists(parent_i).is_some() {
-                let prev = self.sys.nodes[i].prev_sibling;
-                let next = self.sys.nodes[i].next_sibling;
-                match prev {
-                    Some(p) => self.sys.nodes[p].next_sibling = next,
-                    None => {
-                        if self.sys.nodes[parent_i].first_child == Some(i) {
-                            self.sys.nodes[parent_i].first_child = next;
-                        }
-                    }
-                }
-                match next {
-                    Some(n) => self.sys.nodes[n].prev_sibling = prev,
-                    None => {
-                        if self.sys.nodes[parent_i].last_child == Some(i) {
-                            self.sys.nodes[parent_i].last_child = prev;
-                        }
-                    }
-                }
-            }
-        }
-
         let old_handle = self.sys.nodes[i].text_i.take();
         if let Some(text_i) = old_handle {
             match text_i {

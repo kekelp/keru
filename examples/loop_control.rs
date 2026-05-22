@@ -15,7 +15,7 @@
 //! So, it uses [Node::sense_time()] to tell the Ui to keep the winit loop awake and to rerunning the update code as long as it is visible.
 //!
 //! (Note that this isn't needed for "built-in" animations like the banner's [Node::slide_from_bottom()], 
-//!   which can advance automatically when rerendering even without rerunning the update code.)
+//!   which can advance automatically even without rerunning the update code.)
 
 use std::task::Poll;
 use std::thread;
@@ -43,7 +43,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     #[node_key] const START_ASYNC: NodeKey;
     #[node_key] const RESET_ASYNC: NodeKey;
 
-    let banner_duration = Duration::from_millis(1000);
+    let banner_duration = Duration::from_millis(1500);
 
     let t = state.start.elapsed().as_secs_f32();
     let sx = (t * 1.3).sin() * 0.15 + 0.25;
@@ -70,17 +70,18 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         ui.add(BUTTON.static_text(toggle_label).key(TOGGLE_ANIM));
 
         match &mut state.async_task {
-            None => {
-                ui.add(BUTTON.static_text("Start Async Function").key(START_ASYNC));
-            }
+            None => ui.add(BUTTON.static_text("Start Async Function").key(START_ASYNC)),
             Some(future) => match future.poll() {
-                Poll::Pending => { ui.add(LABEL.static_text("Working...")); }
+                Poll::Pending => {
+                    dbg!("Sneed");
+                    ui.add(BUTTON.click_animation(false).static_text("Working..."))
+                },
                 Poll::Ready(msg) => {
                     ui.add(BUTTON.static_text("Reset Async Value").key(RESET_ASYNC));
-                    ui.add(LABEL.text(&msg));
+                    ui.add(LABEL.text(&msg))
                 }
             },
-        }
+        };
 
         if state.show_anim {
             ui.add(animated_node);

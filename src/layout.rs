@@ -1243,7 +1243,9 @@ impl Ui {
         let mut l = target;
         let mut still_moving = false;
         let animate_position = self.sys.nodes[i].params.animation.state_transition.animate_position;
-        let skip_animations = !animate_position || (self.sys.disable_animations_on_resize && self.sys.changes.resize);
+        let enter_anim = self.sys.nodes[i].enter_animation_still_going;
+        let exit_anim = self.sys.nodes[i].exit_animation_still_going;
+        let skip_animations = (!animate_position && !enter_anim && !exit_anim) || (self.sys.disable_animations_on_resize && self.sys.changes.resize);
 
         if ! skip_animations {
             l = self.sys.nodes[i].local_animated_rect;
