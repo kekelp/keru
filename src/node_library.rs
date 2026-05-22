@@ -1009,6 +1009,34 @@ pub const CONTAINER: Node = Node {
     text_style_flags: TextStyleFlags::empty(),
 };
 
+pub const BOTTOM_LEFT: Node = CONTAINER
+    .padding(15.0)
+    .position_x(Pos::Start)
+    .position_y(Pos::End)
+    .stack_arrange(Arrange::End)
+    .size_symm(Size::FitContent);
+
+pub const BOTTOM_RIGHT: Node = CONTAINER
+    .padding(15.0)
+    .position_x(Pos::Start)
+    .position_y(Pos::End)
+    .stack_arrange(Arrange::End)
+    .size_symm(Size::FitContent);
+
+pub const TOP_LEFT: Node = CONTAINER
+    .padding(15.0)
+    .position_x(Pos::Start)
+    .position_y(Pos::Start)
+    .stack_arrange(Arrange::End)
+    .size_symm(Size::FitContent);
+
+pub const TOP_RIGHT: Node = CONTAINER
+    .padding(15.0)
+    .position_x(Pos::End)
+    .position_y(Pos::Start)
+    .stack_arrange(Arrange::End)
+    .size_symm(Size::FitContent);
+
 /// [`Node`] for a custom rendered node.
 /// 
 /// Use [`UiNode::render_rect`] to get the render data for your node, then render it in a separate draw call.
