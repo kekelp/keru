@@ -298,8 +298,8 @@ impl Ui {
                     _ => {
                         let window_aspect = self.sys.size.x / self.sys.size.y;
                         let mult = match axis {
-                            X => 1.0 / (window_aspect * aspect),
-                            Y => window_aspect * aspect,
+                            X => aspect / window_aspect,
+                            Y => window_aspect / aspect,
                         };
                         size[axis] = size[axis.other()] * mult;
                     }
