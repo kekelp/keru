@@ -247,6 +247,18 @@ impl<'a> UiNode<'a> {
         return Some(())
     }
 
+    /// Sets a node's text edit box to focused.
+    /// 
+    /// Does nothing if the node doesn't have a text edit box.
+    pub fn set_focus(&mut self) {
+        let i = self.i;
+        let sys = self.sys_mut();
+        match sys.nodes[i].text_i.as_ref() {
+            Some(TextI::TextEdit(handle)) => sys.renderer.text.get_text_edit_mut(&handle).set_focus(),
+            _ => {}
+        };
+    }
+
     /// Set placeholder text for a text edit node that will be shown when the text edit is empty.
     ///
     /// Does nothing for non-editable text nodes or for nodes without text.
