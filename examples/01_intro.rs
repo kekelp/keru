@@ -7,9 +7,7 @@ pub struct State {
 }
 
 // This is the function that declaratively builds the GUI every frame.
-// The declarative calls update the retained GUI state in the `Ui` struct.
-// We're not rebuilding the GUI from scratch: this is not an immediate-mode library.
-// (At least not in that sense).
+// The declarative calls update the retained state of the GUI in the `Ui` struct.
 fn update_ui(state: &mut State, ui: &mut Ui) {
     // First, create a NodeKey, which is a unique identity for a GUI element.
     #[node_key] const INCREASE: NodeKey;
@@ -31,7 +29,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     // which means that its children will be arranged in a stack.
     // Everything is a Node, and a Node can be many things at once.
     // All the Node's fields are public, so you are free to create all sorts of combinations.
-    let v_stack = V_STACK.stack_spacing(15.0);
+    let v_stack: Node = V_STACK.stack_spacing(15.0);
 
     // Add the nodes into the tree.
     // The .nest(|| { ... }) calls define the tree structure and the layout.
@@ -77,7 +75,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 
 fn main() {
     // The examples use the `run_example_loop` helper, which sets up a winit/wgpu loop,
-    // and runs our `update_ui` on every frame.
+    // and runs our `update_ui` on every update.
     // This is just meant for the examples and for experimenting: 
     // the "intended" way to use the library is from a user-managed winit/wgpu loop. 
     // It's not that much code, and it gives you full control over what code gets executed and when, 

@@ -84,12 +84,10 @@ impl<'a> Component for WaterButton<'a> {
             let t_ring = (click_t - phase).max(0.0) / (1.0 - phase);
             if t_ring <= 0.0 { return None; }
 
-            // Ease out: rings decelerate as they expand
             let t_eased = 1.0 - (1.0 - t_ring).powi(2);
 
             let alpha = (1.0 - t_eased) * 0.7;
             let size = 30.0 + t_eased * 480.0;
-            // Outer rings are blurrier
             let blur = 6.0 + i as f32 * 5.0;
 
             let angle = PI * 0.3 + i as f32 * 0.4;
@@ -100,7 +98,7 @@ impl<'a> Component for WaterButton<'a> {
                 angle,
             };
 
-            Some(PANEL
+            let size_symm = PANEL
                 .gradient(ripple_grad)
                 .anchor_symm(Anchor::Center)
                 .position_x(Pos::Frac(pos.0))
@@ -109,7 +107,9 @@ impl<'a> Component for WaterButton<'a> {
                 .sense_time(true)
                 .shape(Shape::Ring { width: 4.0 })
                 .blur(blur)
-                .size_symm(Size::Pixels(size)))
+                .size_symm(Size::Pixels(size));
+            
+            Some(size_symm)
         };
 
         // Soft ambient glow that pulses slowly when hovered
