@@ -165,6 +165,13 @@ impl Ui {
         let (parent, insert_after, depth) = thread_local::current_parent(self.sys.unique_id);
         self.set_tree_links(real_final_i, parent, depth, insert_after);
 
+        self.sys.nodes[real_final_i].depth = depth;
+        if self.sys.nodes[real_final_i].currently_hidden {
+            self.sys.nodes[real_final_i].frame_added = self.sys.current_frame;
+        }
+        self.sys.nodes[real_final_i].currently_hidden = false;
+        self.sys.set_text_hidden(real_final_i, false);
+
         self.sys.nodes[real_final_i].exiting = false;
         self.sys.nodes[real_final_i].canvas_instances = None;
 

@@ -628,13 +628,9 @@ impl Ui {
 
                 if old_parent_still_exists && self.sys.nodes[i].exiting && self.sys.nodes[i].exit_animation_still_going && (has_exit_anim || parent_is_exiting) {
 
-                    println!("Exiting {:?}", self.sys.nodes[i].debug_name());
-
                     exiting_nodes.push(NodeWithDepth { i, depth: self.sys.nodes[i].depth });
 
                 } else if ! can_hide {
-
-                    println!("Removing {:?}", self.sys.nodes[i].debug_name());
 
                     to_cleanup.push(i);
                     if old_parent_still_exists {
@@ -646,8 +642,6 @@ impl Ui {
                     }
 
                 } else if ! currently_hidden {
-
-                    println!("Hiding {:?}", self.sys.nodes[i].debug_name());
 
                     self.sys.nodes[i].currently_hidden = true;
                     self.sys.set_text_hidden(i, true);
@@ -1229,12 +1223,8 @@ impl System {
         self.nodes[node_i].next_sibling = None;
     }
 
-    pub(crate) fn link_node_to_parent(&mut self, new_node_i: NodeI, parent_i: NodeI, depth: usize, sibling_cursor: SiblingCursor) {
+    pub(crate) fn link_node_to_parent(&mut self, new_node_i: NodeI, parent_i: NodeI, _depth: usize, sibling_cursor: SiblingCursor) {
         assert!(new_node_i != parent_i, "Keru: Internal error: tried to add a node as child of itself ({}). This shouldn't be possible.", self.nodes[new_node_i].debug_name());
-
-        self.nodes[new_node_i].depth = depth;
-        self.nodes[new_node_i].currently_hidden = false;
-        self.set_text_hidden(new_node_i, false);
 
         // If parent changed, convert local_animated_rect to the new parent's coordinate space using screen-space positions from the previous frame.
         let old_parent = self.nodes[new_node_i].parent;

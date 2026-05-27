@@ -13,8 +13,6 @@ struct State {
 #[node_key] const V_STACK_KEY: NodeKey;
 
 fn update_ui(state: &mut State, ui: &mut Ui) {
-
-
     // ui.add(PANEL.children_can_hide(true)).nest(|| {
     //     if state.show {
     //         // // The text edit line stays interactable even when hidden
@@ -30,7 +28,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     //     }
     // });
 
-    ui.add(V_STACK.size(Size::Pixels(200.0), Size::Pixels(200.0)).clip_children(true).children_can_hide(false)).nest(|| {
+    ui.add(V_STACK.size(Size::Pixels(200.0), Size::Pixels(200.0)).clip_children(true).children_can_hide(true)).nest(|| {
         if state.show {
             ui.add(PANEL.slide_from_top()).nest(|| {
                 ui.add(V_STACK).nest(|| {

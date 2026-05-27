@@ -868,7 +868,8 @@ impl Ui {
     }
 
     pub(crate) fn init_enter_animations(&mut self, i: NodeI) {
-        if self.sys.nodes[i].frame_added != self.current_frame() {
+        let is_just_added_or_dehidden = self.sys.nodes[i].frame_added == self.current_frame();
+        if ! is_just_added_or_dehidden {
             return;
         }
 
@@ -926,9 +927,16 @@ impl Ui {
 
     pub(crate) fn init_exit_animations(&mut self, i: NodeI) {
         // If already exiting, don't restart another anim.
-        if self.sys.nodes[i].exiting { return; }
+        if self.sys.nodes[i].exiting {
+            return;
+        }
         // Set exiting even if we don't have an exiting animation, because the node might need to stick around for a parent's exit animation.
         self.sys.nodes[i].exiting = true;
+
+        if self.sys.nodes[i].params.animation.exit == ExitAnimation::None {
+            return;
+        }
+
         self.sys.nodes[i].exit_animation_still_going = true;
 
         // set the whole branch to exiting.
@@ -938,7 +946,7 @@ impl Ui {
                 stack.push(child);
             });
             while let Some(node) = stack.pop() {
-                if self.sys.nodes[node].exiting { continue; }
+                if self.sys.nodes[node].exit_animation_still_going { continue; }
                 self.sys.nodes[node].exiting = true;
                 self.sys.nodes[node].exit_animation_still_going = true;
                 for_each_child_including_lingering_reverse!(self, &self.sys.nodes[node], child, {
