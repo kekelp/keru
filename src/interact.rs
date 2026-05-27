@@ -369,7 +369,12 @@ impl Ui {
                 let scrollbar_found = self.update_scrollbar_handle_params(target_i);
                 if ! scrollbar_found {
                     let key = self.sys.nodes[target_i].original_key;
-                    self.add_scrollbar_y(target_i, key);
+                    if self.sys.nodes[target_i].params.layout.scrollable[Y] {
+                        self.add_scrollbar(target_i, key, Y);
+                    }
+                    if self.sys.nodes[target_i].params.layout.scrollable[X] {
+                        self.add_scrollbar(target_i, key, X);
+                    }
                 }
                 self.partial_relayout_for_scrollbar(target_i);
                 // scrolling can cause the cursor to end up on top of a new node.

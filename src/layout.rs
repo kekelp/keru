@@ -223,7 +223,10 @@ impl Ui {
     pub(crate) fn partial_relayout_for_scrollbar(&mut self, container_i: NodeI) {
         let container_key = self.sys.nodes[container_i].original_key;
 
-        for key in [container_key.sibling(SCROLL_RAIL_Y), container_key.sibling(SCROLL_HANDLE_Y)] {
+        for key in [
+            container_key.sibling(SCROLL_RAIL_Y), container_key.sibling(SCROLL_HANDLE_Y),
+            container_key.sibling(SCROLL_RAIL_X), container_key.sibling(SCROLL_HANDLE_X),
+        ] {
             let Some(node_i) = self.sys.nodes.get_by_id(key.id_with_key_scope()) else {
                 continue;
             };

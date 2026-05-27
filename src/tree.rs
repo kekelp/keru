@@ -18,8 +18,10 @@ pub(crate) const FIRST_FRAME: u64 = 0;
 pub(crate) const Z_START: f32 = 0.5;
 pub const Z_STEP: f32 = -0.000_030_517_578;
 
-pub(crate) const SCROLL_HANDLE_Y: NodeKey = NodeKey::new(Id(834694356), "[internal] Scroll Handle");
-pub(crate) const SCROLL_RAIL_Y: NodeKey = NodeKey::new(Id(834694357), "[internal] Scroll Rail");
+pub(crate) const SCROLL_HANDLE_Y: NodeKey = NodeKey::new(Id(834694356), "[internal] Scroll Handle Y");
+pub(crate) const SCROLL_RAIL_Y: NodeKey = NodeKey::new(Id(834694357), "[internal] Scroll Rail Y");
+pub(crate) const SCROLL_HANDLE_X: NodeKey = NodeKey::new(Id(834694358), "[internal] Scroll Handle X");
+pub(crate) const SCROLL_RAIL_X: NodeKey = NodeKey::new(Id(834694359), "[internal] Scroll Rail X");
 
 impl Ui {
     /// Add a [`Node`] to the `Ui`.
@@ -43,7 +45,10 @@ impl Ui {
         self.set_params_text(i, &node);
 
         if node.layout.scrollable.y {
-            self.add_scrollbar_y(i, key);
+            self.add_scrollbar(i, key, Y);
+        }
+        if node.layout.scrollable.x {
+            self.add_scrollbar(i, key, X);
         }
 
         return UiParent { i, sibling_cursor: SiblingCursor::None, ui_instance_id: self.sys.unique_id };
@@ -817,76 +822,91 @@ impl Ui {
     }
 
 
-    fn scrollbar_state(&self, i: NodeI) -> Option<ScrollbarState> {
+    fn scrollbar_state(&self, i: NodeI, axis: Axis) -> Option<ScrollbarState> {
         let container_rect = self.sys.nodes[i].layout_rect;
         let content_bounds = self.sys.nodes[i].content_bounds;
-        let scroll_y = self.sys.nodes[i].scroll.y;
+        let scroll = self.sys.nodes[i].scroll[axis];
 
-        let container_h = container_rect.size().y;
-        let content_h = content_bounds.size().y;
+        let container_size = container_rect.size()[axis];
+        let content_size = content_bounds.size()[axis];
 
-        if content_h <= container_h || container_h <= 0.0 {
+        if content_size <= container_size || container_size <= 0.0 {
             return None;
         }
 
-        let thumb_h = (container_h / content_h).clamp(0.05, 1.0);
+        let thumb_frac = (container_size / content_size).clamp(0.05, 1.0);
 
-        let min_scroll = if content_bounds.y[1] > container_rect.y[1] {
-            container_rect.y[1] - content_bounds.y[1]
+        let min_scroll = if content_bounds[axis][1] > container_rect[axis][1] {
+            container_rect[axis][1] - content_bounds[axis][1]
         } else {
             0.0
         };
-        let max_scroll = if content_bounds.y[0] < container_rect.y[0] {
-            container_rect.y[0] - content_bounds.y[0]
+        let max_scroll = if content_bounds[axis][0] < container_rect[axis][0] {
+            container_rect[axis][0] - content_bounds[axis][0]
         } else {
             0.0
         };
 
         let scroll_range = min_scroll - max_scroll;
         let progress = if scroll_range < 0.0 {
-            ((scroll_y - max_scroll) / scroll_range).clamp(0.0, 1.0)
+            ((scroll - max_scroll) / scroll_range).clamp(0.0, 1.0)
         } else {
             0.0
         };
 
         Some(ScrollbarState {
-            thumb_h_frac: thumb_h,
-            thumb_top_frac: progress * (1.0 - thumb_h),
+            thumb_frac,
+            thumb_lead_frac: progress * (1.0 - thumb_frac),
             scroll_range,
             max_scroll,
-            container_h,
-            scroll_y,
+            container_size,
+            scroll,
         })
     }
 
-    pub(crate) fn add_scrollbar_y(&mut self, i: NodeI, key: NodeKey) {
-        let scroll_rail_key = key.sibling(SCROLL_RAIL_Y);
-        let scroll_handle_key = key.sibling(SCROLL_HANDLE_Y);
+    pub(crate) fn add_scrollbar(&mut self, i: NodeI, key: NodeKey, axis: Axis) {
+        let (rail_key, handle_key) = scrollbar_keys(key, axis);
 
         // todo: without the "! released", it gets stuck to the wide size after dragging.
-        let wide = self.is_hovered(scroll_rail_key) || self.is_hovered(scroll_handle_key)
-            || (self.is_dragged(scroll_rail_key).is_some() && ! self.is_drag_released(scroll_rail_key))
-            || (self.is_dragged(scroll_handle_key).is_some() && ! self.is_drag_released(scroll_handle_key));
+        let wide = self.is_hovered(rail_key) || self.is_hovered(handle_key)
+            || (self.is_dragged(rail_key).is_some() && ! self.is_drag_released(rail_key))
+            || (self.is_dragged(handle_key).is_some() && ! self.is_drag_released(handle_key));
 
         let width = if wide { 8.0 } else { 3.0 };
         let rail_width = if wide { 14.0 } else { 9.0 };
 
-        let Some(ScrollbarState { thumb_h_frac, thumb_top_frac, scroll_range, max_scroll, container_h, scroll_y }) = self.scrollbar_state(i) else {
+        let Some(ScrollbarState { thumb_frac, thumb_lead_frac, scroll_range, max_scroll, container_size, scroll }) = self.scrollbar_state(i, axis) else {
             return;
         };
 
         let rail_color = if wide { Color::rgba_u8(80, 80, 80, 60) } else { Color::TRANSPARENT };
         let handle_color = if wide { Color::rgba_u8(80, 80, 80, 255) } else { Color::rgba_u8(80, 80, 80, 90) };
 
-        let thumb_anchor_x = Anchor::Frac((rail_width + width) / (2.0 * width));
+        let thumb_anchor_cross = Anchor::Frac((rail_width + width) / (2.0 * width));
+
+        let (rail_size, rail_pos, handle_size, handle_pos, handle_anchor) = match axis {
+            Y => (
+                (Size::Pixels(rail_width), Size::Fill),
+                (Pos::End, Pos::Start),
+                (Size::Pixels(width), Size::Frac(thumb_frac)),
+                (Pos::Frac(1.0), Pos::Frac(thumb_lead_frac)),
+                (thumb_anchor_cross, Anchor::Start),
+            ),
+            X => (
+                (Size::Fill, Size::Pixels(rail_width)),
+                (Pos::Start, Pos::End),
+                (Size::Frac(thumb_frac), Size::Pixels(width)),
+                (Pos::Frac(thumb_lead_frac), Pos::Frac(1.0)),
+                (Anchor::Start, thumb_anchor_cross),
+            ),
+        };
 
         let scroll_rail_node = PANEL
-            .key(scroll_rail_key)
+            .key(rail_key)
             .shape(Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: rail_width / 2.0 })
-            .size(Size::Pixels(rail_width), Size::Fill)
-            .position_x(Pos::End)
-            .position_y(Pos::Start)
-            .anchor_y(Anchor::Start)
+            .size(rail_size.0, rail_size.1)
+            .position_x(rail_pos.0)
+            .position_y(rail_pos.1)
             .sense_hover_enter_or_exit(true)
             .sense_click(true)
             .sense_drag(true)
@@ -896,13 +916,13 @@ impl Ui {
             .color(rail_color);
 
         let scroll_handle_node = PANEL
-            .key(scroll_handle_key)
+            .key(handle_key)
             .shape(Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: width / 2.0 })
-            .size(Size::Pixels(width), Size::Frac(thumb_h_frac))
-            .position_x(Pos::Frac(1.0))
-            .anchor_x(thumb_anchor_x)
-            .position_y(Pos::Frac(thumb_top_frac))
-            .anchor_y(Anchor::Start)
+            .size(handle_size.0, handle_size.1)
+            .position_x(handle_pos.0)
+            .anchor_x(handle_anchor.0)
+            .position_y(handle_pos.1)
+            .anchor_y(handle_anchor.1)
             .sense_drag(true)
             .sense_hover_enter_or_exit(true)
             .z_index(100.0)
@@ -921,62 +941,74 @@ impl Ui {
 
         let container_i = i;
 
-        if self.is_dragged(scroll_rail_key).is_none() && let Some(drag) = self.is_dragged(scroll_handle_key) {
+        if self.is_dragged(rail_key).is_none() && let Some(drag) = self.is_dragged(handle_key) {
             if scroll_range < 0.0 {
-                let track_h = (1.0 - thumb_h_frac) * container_h;
-                let delta_norm = drag.absolute_delta.y / self.sys.logical_size().y;
-                let scroll_delta = if track_h > 0.0 {
-                    delta_norm / track_h * scroll_range
+                let track_size = (1.0 - thumb_frac) * container_size;
+                let logical_size = self.sys.logical_size();
+                let delta_norm = vec2_axis(drag.absolute_delta, axis) / logical_size[axis];
+                let scroll_delta = if track_size > 0.0 {
+                    delta_norm / track_size * scroll_range
                 } else {
                     0.0
                 };
-                self.update_container_scroll(container_i, scroll_delta, Y);
+                self.update_container_scroll(container_i, scroll_delta, axis);
             }
         } else {
-
-            let rail_cursor_y =
-            if let Some(click) = self.clicked_at(scroll_rail_key) {
-                Some(click.relative_position.y)
-            } else if let Some(drag) = self.is_dragged(scroll_rail_key) {
-                Some(drag.relative_position.y)
+            let rail_cursor =
+            if let Some(click) = self.clicked_at(rail_key) {
+                Some(vec2_axis(click.relative_position, axis))
+            } else if let Some(drag) = self.is_dragged(rail_key) {
+                Some(vec2_axis(drag.relative_position, axis))
             } else {
                 None
             };
 
-            if let Some(cursor_y) = rail_cursor_y {
+            if let Some(cursor) = rail_cursor {
                 if scroll_range < 0.0 {
-                    let progress = ((cursor_y - thumb_h_frac / 2.0) / (1.0 - thumb_h_frac)).clamp(0.0, 1.0);
+                    let progress = ((cursor - thumb_frac / 2.0) / (1.0 - thumb_frac)).clamp(0.0, 1.0);
                     let target_scroll = max_scroll + progress * scroll_range;
-                    self.update_container_scroll(container_i, target_scroll - scroll_y, Y);
+                    self.update_container_scroll(container_i, target_scroll - scroll, axis);
                 }
             }
-
         }
     }
 
     pub(crate) fn update_scrollbar_handle_params(&mut self, container_i: NodeI) -> bool {
-        let handle_key = self.sys.nodes[container_i].original_key.sibling(SCROLL_HANDLE_Y);
-        let Some(handle_i) = self.sys.nodes.get_by_id(handle_key.id_with_key_scope()) else {
-            return false;
-        };
+        let key = self.sys.nodes[container_i].original_key;
+        let mut found = false;
 
-        let Some(ScrollbarState { thumb_top_frac, .. }) = self.scrollbar_state(container_i) else {
-            return true;
-        };
+        for axis in [Y, X] {
+            let (_, handle_key) = scrollbar_keys(key, axis);
+            let Some(handle_i) = self.sys.nodes.get_by_id(handle_key.id_with_key_scope()) else {
+                continue;
+            };
+            found = true;
 
-        self.sys.nodes[handle_i].params.layout.position[Y] = Pos::Frac(thumb_top_frac);
+            let Some(ScrollbarState { thumb_lead_frac, .. }) = self.scrollbar_state(container_i, axis) else {
+                continue;
+            };
 
-        true
+            self.sys.nodes[handle_i].params.layout.position[axis] = Pos::Frac(thumb_lead_frac);
+        }
+
+        found
+    }
+}
+
+fn scrollbar_keys(key: NodeKey, axis: Axis) -> (NodeKey, NodeKey) {
+    match axis {
+        Y => (key.sibling(SCROLL_RAIL_Y), key.sibling(SCROLL_HANDLE_Y)),
+        X => (key.sibling(SCROLL_RAIL_X), key.sibling(SCROLL_HANDLE_X)),
     }
 }
 
 struct ScrollbarState {
-    thumb_h_frac: f32,
-    thumb_top_frac: f32,
+    thumb_frac: f32,
+    thumb_lead_frac: f32,
     scroll_range: f32,
     max_scroll: f32,
-    container_h: f32,
-    scroll_y: f32,
+    container_size: f32,
+    scroll: f32,
 }
 
 pub(crate) fn ahasher() -> ahash::AHasher {
@@ -1144,7 +1176,10 @@ impl Ui {
         self.set_params_text(i, &node);
 
         if node.layout.scrollable.y {
-            self.add_scrollbar_y(i, key);
+            self.add_scrollbar(i, key, Y);
+        }
+        if node.layout.scrollable.x {
+            self.add_scrollbar(i, key, X);
         }
 
         return self.get_node_mut(key).unwrap();

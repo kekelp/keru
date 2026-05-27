@@ -322,3 +322,10 @@ impl From<Xy<f32>> for Vec2 {
         return vec2(val.x, val.y);
     }
 }
+
+pub(crate) fn vec2_axis(v: Vec2, axis: Axis) -> f32 {
+    match axis {
+        X => v.x,
+        Y => v.y,
+    }
+}
