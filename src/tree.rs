@@ -628,9 +628,14 @@ impl Ui {
 
                 if old_parent_still_exists && self.sys.nodes[i].exiting && self.sys.nodes[i].exit_animation_still_going && (has_exit_anim || parent_is_exiting) {
 
+                    println!("Exiting {:?}", self.sys.nodes[i].debug_name());
+
                     exiting_nodes.push(NodeWithDepth { i, depth: self.sys.nodes[i].depth });
 
                 } else if ! can_hide {
+
+                    println!("Removing {:?}", self.sys.nodes[i].debug_name());
+
                     to_cleanup.push(i);
                     if old_parent_still_exists {
                         self.sys.push_partial_relayout(old_parent_i);
@@ -642,7 +647,10 @@ impl Ui {
 
                 } else if ! currently_hidden {
 
+                    println!("Hiding {:?}", self.sys.nodes[i].debug_name());
+
                     self.sys.nodes[i].currently_hidden = true;
+                    self.sys.set_text_hidden(i, true);
 
                     if is_first_child_in_hidden_branch {
                         self.add_hidden_child(i, old_parent_i);
@@ -654,8 +662,9 @@ impl Ui {
 
             }
 
-            // Add lingering nodes back into the tree.
-            // todo: don't just add them at the end, try to put them after their old prev_sibling. 
+            // Add lingering/exiting nodes back into the tree.
+            // todo: don't just add them at the end, try to put them after their old prev_sibling.
+            // (it only matters for z order, exiting nodes don't partecipate in layout)
             exiting_nodes.sort_by_key(|n| n.depth);
             for &NodeWithDepth { i, .. } in &exiting_nodes {
                 let old_parent = self.sys.nodes[i].parent;
