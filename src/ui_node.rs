@@ -1,5 +1,6 @@
 use glam::Vec2;
 use winit::event::MouseButton;
+use keru_draw::DrawContext;
 
 use crate::*;
 use crate::inner_node::*;
@@ -269,6 +270,36 @@ impl<'a> UiNode<'a> {
         if let Some(TextI::TextEdit(handle)) = &sys.nodes[i].text_i {
             sys.renderer.text.get_text_edit_mut(handle).set_placeholder(placeholder);
         }
+    }
+
+    /// Run a closure with a [`DrawContext`] for custom vector drawing in this node's area.
+    ///
+    /// The rendered shapes will be drawn on the node's post-layout position and z-order.
+    pub fn canvas_drawing(&mut self, drawing_function: impl FnOnce(&mut DrawContext)) {
+        let i = self.i;
+        let sys = self.sys_mut();
+
+        let (transform, clip_rect) = match sys.nodes[i].canvas_transform_and_clip {
+            Some(h) => h,
+            None => {
+                let transform_handle = sys.renderer.insert_transform(keru_draw::Transform::identity());
+                let clip_handle = sys.renderer.insert_clip_rect(keru_draw::ClipRect::NO_CLIPPING);
+                sys.nodes[i].canvas_transform_and_clip = Some((transform_handle, clip_handle));
+                (transform_handle, clip_handle)
+            }
+        };
+
+        sys.renderer.set_current_transform(transform);
+        sys.renderer.set_current_clip_rect(clip_rect);
+        sys.renderer.start_deferred_mode();
+
+        drawing_function(&mut sys.renderer.get_draw_context());
+
+        let instances = sys.renderer.end_deferred_mode();
+        sys.renderer.clear_current_transform();
+        sys.renderer.clear_current_clip_rect();
+
+        sys.nodes[i].canvas_instances = Some(instances);
     }
 }
 
@@ -596,5 +627,4 @@ impl Ui {
             total_drag_distance: event.total_delta,
         })
     }
-
 }

@@ -202,7 +202,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                     );
 
                     let seed = track_i as f32 * 7.3 + clip_i as f32 * 3.1;
-                    ui.canvas_drawing(canvas_key, |ctx| {
+                    ui.get_node_mut(canvas_key).unwrap().canvas_drawing(|canvas| {
                         use keru_draw::{Segment, ColorFill};
 
                         let num_points = (clip_w * 2.0) as usize + 2;
@@ -229,7 +229,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                             .collect();
 
                         for i in 0..points.len() - 1 {
-                            ctx.draw_segment(Segment {
+                            canvas.draw_segment(Segment {
                                 start: points[i],
                                 end: points[i + 1],
                                 thickness: 1.5,

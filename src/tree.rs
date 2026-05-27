@@ -247,21 +247,16 @@ impl Ui {
     fn add_hidden_child(&mut self, new_node_i: NodeI, parent_i: NodeI) {
         match self.sys.nodes[parent_i].first_hidden_child {
             None => {
-                self.add_hidden_first_child(new_node_i, parent_i)
+                // add hidden first child
+                self.sys.nodes[parent_i].first_hidden_child = Some(new_node_i);
             },
             Some(last_hidden_child) => {
+                // add hidden sibling
                 let old_last_hidden_child = last_hidden_child;
-                self.add_hidden_sibling(new_node_i, old_last_hidden_child, parent_i)
+                self.sys.nodes[old_last_hidden_child].next_hidden_sibling = Some(new_node_i);
+
             },
         };
-    }
-
-    fn add_hidden_first_child(&mut self, new_node_i: NodeI, parent_i: NodeI) {
-        self.sys.nodes[parent_i].first_hidden_child = Some(new_node_i);
-    }
-    
-    fn add_hidden_sibling(&mut self, new_node_i: NodeI, old_last_child: NodeI, _parent_i: NodeI) {
-        self.sys.nodes[old_last_child].next_hidden_sibling = Some(new_node_i);
     }
 
     pub(crate) fn update_text_boxes(&mut self, i: NodeI) {
@@ -1230,6 +1225,7 @@ impl System {
 
         self.nodes[new_node_i].depth = depth;
         self.nodes[new_node_i].currently_hidden = false;
+        self.set_text_hidden(new_node_i, false);
 
         // If parent changed, convert local_animated_rect to the new parent's coordinate space using screen-space positions from the previous frame.
         let old_parent = self.nodes[new_node_i].parent;
@@ -1379,6 +1375,19 @@ impl System {
                 }
                 prev = child;
                 current_child = self.nodes[child].next_hidden_sibling;
+            }
+        }
+    }
+
+    pub(crate) fn set_text_hidden(&mut self, i: NodeI, value: bool) {
+        if let Some(i) = &self.nodes[i].text_i {
+            match i {
+                TextI::TextBox(text_box_handle) => {
+                    self.renderer.text.get_text_box_mut(text_box_handle).set_hidden(value);
+                },
+                TextI::TextEdit(text_edit_handle) => {
+                    self.renderer.text.get_text_edit_mut(text_edit_handle).set_hidden(value);
+                },
             }
         }
     }

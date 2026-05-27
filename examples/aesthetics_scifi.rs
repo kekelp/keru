@@ -223,7 +223,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 
     let t = state.start.elapsed().as_secs_f32();
 
-    ui.canvas_drawing(WIREFRAME_CANVAS, |renderer| {
+    ui.get_node_mut(WIREFRAME_CANVAS).unwrap().canvas_drawing(|canvas| {
         use keru_draw::{Segment, ColorFill};
 
         let s = 0.5f32;
@@ -268,7 +268,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
             let p0 = project(verts[a]);
             let p1 = project(verts[b]);
             let color = RED.with_alpha(noise_alpha);
-            renderer.draw_segment(Segment {
+            canvas.draw_segment(Segment {
                 start: p0,
                 end: p1,
                 thickness: 3.0,

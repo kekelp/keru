@@ -286,7 +286,7 @@ impl UiExt for Ui {
 
             self.add(canvas_container);
 
-            self.canvas_drawing(CANVAS_CONTAINER, |renderer| {
+            self.get_node_mut(CANVAS_CONTAINER).unwrap().canvas_drawing(|canvas| {
                 use keru_draw::{Segment, ColorFill};
 
                 let num_points = 120;
@@ -318,7 +318,7 @@ impl UiExt for Ui {
                         Color::rgba_u8(200, 100, 150, 255)
                     };
 
-                    renderer.draw_segment(Segment {
+                    canvas.draw_segment(Segment {
                         start: points[i],
                         end: points[i + 1],
                         thickness,
@@ -360,7 +360,7 @@ impl UiExt for Ui {
 
                         self.add(canvas_container);
 
-                        self.canvas_drawing(CANVAS_CONTAINER, |renderer| {
+                        self.get_node_mut(CANVAS_CONTAINER).unwrap().canvas_drawing(|canvas| {
                             use keru_draw::QuadraticBezier;
 
                             let height = 120.0;
@@ -402,7 +402,7 @@ impl UiExt for Ui {
                             ];
 
                             for bezier in beziers {
-                                renderer.draw_quadratic_bezier(bezier);
+                                canvas.draw_quadratic_bezier(bezier);
                             }
                         });
 

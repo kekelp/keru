@@ -6,7 +6,6 @@ use ahash::{HashMap, HashMapExt};
 use bumpalo::Bump;
 use glam::Vec2;
 
-use keru_draw::DrawContext;
 use keru_draw::Renderer;
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
@@ -632,38 +631,6 @@ impl Ui {
         self.sys.renderer.text.font_context()
     }
 
-    /// If `key` corresponds to a node in the tree, run a closure with a [`keru_draw::DrawContext`] that can be used to do custom vector drawing in the node's area.
-    /// 
-    /// The rendered shapes will be drawn on the node's post-layout position and z-order.
-    /// 
-    /// The closure is executed immediately, not stored, so there are no limitations with borrowing state.
-    pub fn canvas_drawing(&mut self, key: NodeKey, drawing_function: impl FnOnce(&mut DrawContext)) {
-        let Some(i) = self.sys.nodes.get_with_key_scope(key) else {
-            return;
-        };
-
-        let (transform, clip_rect) = match self.sys.nodes[i].canvas_transform_and_clip {
-            Some(h) => h,
-            None => {
-                let transform_handle = self.sys.renderer.insert_transform(keru_draw::Transform::identity());
-                let clip_handle = self.sys.renderer.insert_clip_rect(keru_draw::ClipRect::NO_CLIPPING);
-                self.sys.nodes[i].canvas_transform_and_clip = Some((transform_handle, clip_handle));
-                (transform_handle, clip_handle)
-            }
-        };
-
-        self.sys.renderer.set_current_transform(transform);
-        self.sys.renderer.set_current_clip_rect(clip_rect);
-        self.sys.renderer.start_deferred_mode();
-
-        drawing_function(&mut self.sys.renderer.get_draw_context());
-
-        let instances = self.sys.renderer.end_deferred_mode();
-        self.sys.renderer.clear_current_transform();
-        self.sys.renderer.clear_current_clip_rect();
-
-        self.sys.nodes[i].canvas_instances = Some(instances);
-    }
 
     // todo what's going on here
     pub(crate) fn new_redraw_requested_frame(&mut self) {
