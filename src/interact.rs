@@ -353,7 +353,7 @@ impl Ui {
 
         if let Some((target_i, is_sense)) = scroll_target {
             if is_sense {
-                // if the node has the scroll sense, we have to do set_new_ui_input and do a full rebuild, so everything will sort itself out automatically.
+                // if the node has the scroll sense, we have to do set_new_ui_input and do a full rebuild, and everything will sort itself out automatically.
                 let id = self.sys.nodes[target_i].id;
                 let scroll_delta = match delta {
                     MouseScrollDelta::LineDelta(x, y) => Vec2::new(*x * 0.1, *y * 0.1),
@@ -366,16 +366,7 @@ impl Ui {
                 self.update_container_scroll(target_i, fdelta[X], X);
                 self.update_container_scroll(target_i, fdelta[Y], Y);
 
-                let scrollbar_found = self.update_scrollbar_handle_params(target_i);
-                if ! scrollbar_found {
-                    let key = self.sys.nodes[target_i].original_key;
-                    if self.sys.nodes[target_i].params.layout.scrollable[Y] {
-                        self.add_scrollbar(target_i, key, Y);
-                    }
-                    if self.sys.nodes[target_i].params.layout.scrollable[X] {
-                        self.add_scrollbar(target_i, key, X);
-                    }
-                }
+                self.update_scrollbar_handle_params(target_i);
                 self.partial_relayout_for_scrollbar(target_i);
                 // scrolling can cause the cursor to end up on top of a new node.
                 self.resolve_hover();

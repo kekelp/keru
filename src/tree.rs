@@ -973,16 +973,14 @@ impl Ui {
         }
     }
 
-    pub(crate) fn update_scrollbar_handle_params(&mut self, container_i: NodeI) -> bool {
+    pub(crate) fn update_scrollbar_handle_params(&mut self, container_i: NodeI) {
         let key = self.sys.nodes[container_i].original_key;
-        let mut found = false;
 
         for axis in [Y, X] {
             let (_, handle_key) = scrollbar_keys(key, axis);
             let Some(handle_i) = self.sys.nodes.get_by_id(handle_key.id_with_key_scope()) else {
                 continue;
             };
-            found = true;
 
             let Some(ScrollbarState { thumb_lead_frac, .. }) = self.scrollbar_state(container_i, axis) else {
                 continue;
@@ -990,8 +988,6 @@ impl Ui {
 
             self.sys.nodes[handle_i].params.layout.position[axis] = Pos::Frac(thumb_lead_frac);
         }
-
-        found
     }
 }
 
