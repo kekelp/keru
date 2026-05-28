@@ -38,31 +38,9 @@ impl Panes {
         content
     }
 
-    fn add_tab(&mut self, content_index: usize) {
-        let id = self.next_tab_id;
-        self.next_tab_id += 1;
-        let label = format!("Tab {:?}", id);
-        let tab = self.slab.insert(Pane {
-            kind: PaneKind::Tab { label, id },
-            weight: 1.0,
-            first_child: None,
-            next_sibling: None,
-            parent: Some(content_index),
-        });
-        match self.slab[content_index].first_child {
-            None => self.slab[content_index].first_child = Some(tab),
-            Some(mut cur) => {
-                while let Some(next) = self.slab[cur].next_sibling { cur = next; }
-                self.slab[cur].next_sibling = Some(tab);
-            }
-        }
-        let PaneKind::Content { active_tab } = &mut self.slab[content_index].kind else { return };
-        *active_tab = Some(tab);
-    }
-
-    fn remove_tab(&mut self, content_index: usize, tab_index: usize) {
+    // Removes tab_index from content's list. Returns (prev, old_next).
+    fn detach_tab(&mut self, content_index: usize, tab_index: usize) -> (Option<usize>, Option<usize>) {
         let old_next = self.slab[tab_index].next_sibling;
-
         let mut prev = None;
         let mut cur = self.slab[content_index].first_child;
         while let Some(i) = cur {
@@ -70,19 +48,58 @@ impl Panes {
             prev = Some(i);
             cur = self.slab[i].next_sibling;
         }
-
         match prev {
             None => self.slab[content_index].first_child = old_next,
             Some(p) => self.slab[p].next_sibling = old_next,
         }
+        self.slab[tab_index].next_sibling = None;
+        (prev, old_next)
+    }
 
+    // Inserts tab_index into content's list at insertion_index (clamped to end).
+    fn insert_tab_at(&mut self, content_index: usize, tab_index: usize, insertion_index: usize) {
+        let mut idx = 0;
+        let mut prev_node: Option<usize> = None;
+        let mut cur = self.slab[content_index].first_child;
+        while let Some(i) = cur {
+            if idx == insertion_index { break; }
+            idx += 1;
+            prev_node = Some(i);
+            cur = self.slab[i].next_sibling;
+        }
+        let next_node = match prev_node {
+            None => self.slab[content_index].first_child,
+            Some(p) => self.slab[p].next_sibling,
+        };
+        self.slab[tab_index].next_sibling = next_node;
+        match prev_node {
+            None => self.slab[content_index].first_child = Some(tab_index),
+            Some(p) => self.slab[p].next_sibling = Some(tab_index),
+        }
+    }
+
+    fn add_tab(&mut self, content_index: usize) {
+        let id = self.next_tab_id;
+        self.next_tab_id += 1;
+        let tab = self.slab.insert(Pane {
+            kind: PaneKind::Tab { label: format!("Tab {id}"), id },
+            weight: 1.0,
+            first_child: None,
+            next_sibling: None,
+            parent: Some(content_index),
+        });
+        self.insert_tab_at(content_index, tab, usize::MAX);
+        let PaneKind::Content { active_tab } = &mut self.slab[content_index].kind else { return };
+        *active_tab = Some(tab);
+    }
+
+    fn remove_tab(&mut self, content_index: usize, tab_index: usize) {
+        let (prev, old_next) = self.detach_tab(content_index, tab_index);
         let PaneKind::Content { active_tab } = &mut self.slab[content_index].kind else { return };
         if *active_tab == Some(tab_index) {
             *active_tab = old_next.or(prev);
         }
-
         self.slab.remove(tab_index);
-
         if self.slab[content_index].first_child.is_none() {
             self.remove(content_index);
         }
@@ -135,86 +152,22 @@ impl Panes {
     }
 
     fn reorder_tab(&mut self, content_index: usize, tab_index: usize, insertion_index: usize) {
-        // Detach from current position
-        let old_next = self.slab[tab_index].next_sibling;
-        let mut prev = None;
-        let mut cur = self.slab[content_index].first_child;
-        while let Some(i) = cur {
-            if i == tab_index { break; }
-            prev = Some(i);
-            cur = self.slab[i].next_sibling;
-        }
-        match prev {
-            None => self.slab[content_index].first_child = old_next,
-            Some(p) => self.slab[p].next_sibling = old_next,
-        }
-        self.slab[tab_index].next_sibling = None;
-
-        // Insert at insertion_index in the (now shorter) list
-        let mut idx = 0;
-        let mut prev_node: Option<usize> = None;
-        let mut cur = self.slab[content_index].first_child;
-        while let Some(i) = cur {
-            if idx == insertion_index { break; }
-            idx += 1;
-            prev_node = Some(i);
-            cur = self.slab[i].next_sibling;
-        }
-        let next_node = match prev_node {
-            None => self.slab[content_index].first_child,
-            Some(p) => self.slab[p].next_sibling,
-        };
-        self.slab[tab_index].next_sibling = next_node;
-        match prev_node {
-            None => self.slab[content_index].first_child = Some(tab_index),
-            Some(p) => self.slab[p].next_sibling = Some(tab_index),
-        }
+        self.detach_tab(content_index, tab_index);
+        self.insert_tab_at(content_index, tab_index, insertion_index);
     }
 
     fn move_tab(&mut self, tab_index: usize, from_content: usize, to_content: usize, insertion_index: usize) {
         if from_content == to_content { return; }
 
-        let old_next = self.slab[tab_index].next_sibling;
-
-        let mut prev = None;
-        let mut cur = self.slab[from_content].first_child;
-        while let Some(i) = cur {
-            if i == tab_index { break; }
-            prev = Some(i);
-            cur = self.slab[i].next_sibling;
-        }
-
-        match prev {
-            None => self.slab[from_content].first_child = old_next,
-            Some(p) => self.slab[p].next_sibling = old_next,
-        }
+        let (prev, old_next) = self.detach_tab(from_content, tab_index);
 
         let PaneKind::Content { active_tab } = &mut self.slab[from_content].kind else { return };
         if *active_tab == Some(tab_index) {
             *active_tab = old_next.or(prev);
         }
 
-        self.slab[tab_index].next_sibling = None;
         self.slab[tab_index].parent = Some(to_content);
-
-        let mut idx = 0;
-        let mut prev_node: Option<usize> = None;
-        let mut cur = self.slab[to_content].first_child;
-        while let Some(i) = cur {
-            if idx == insertion_index { break; }
-            idx += 1;
-            prev_node = Some(i);
-            cur = self.slab[i].next_sibling;
-        }
-        let next_node = match prev_node {
-            None => self.slab[to_content].first_child,
-            Some(p) => self.slab[p].next_sibling,
-        };
-        self.slab[tab_index].next_sibling = next_node;
-        match prev_node {
-            None => self.slab[to_content].first_child = Some(tab_index),
-            Some(p) => self.slab[p].next_sibling = Some(tab_index),
-        }
+        self.insert_tab_at(to_content, tab_index, insertion_index);
 
         let PaneKind::Content { active_tab } = &mut self.slab[to_content].kind else { return };
         *active_tab = Some(tab_index);
