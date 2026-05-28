@@ -266,19 +266,45 @@ impl Panes {
                 }.color(Color::GREY);
 
                 let hitbox = match axis {
-                    Axis::X => node_library::CONTAINER.size_x(Size::Pixels(WALL_HITBOX)).size_y(Size::Fill),
-                    Axis::Y => node_library::CONTAINER.size_x(Size::Fill).size_y(Size::Pixels(WALL_HITBOX)),
+                    Axis::X => node_library::CONTAINER.size_x(Size::Pixels(WALL_HITBOX)).size_y(Size::Frac(0.5)).position(Pos::Center, Pos::Center),
+                    Axis::Y => node_library::CONTAINER.size_x(Size::Frac(0.5)).size_y(Size::Pixels(WALL_HITBOX)).position(Pos::Center, Pos::Center),
                 }.sense_drag(true);
 
+                let insert_hitbox = match axis {
+                    Axis::X => PANEL.color(Color::GREEN.with_alpha(0.5))
+                        .size_x(Size::Pixels(WALL_HITBOX)).size_y(Size::Frac(0.3))
+                        .anchor_symm(Anchor::Center).free_placement(true).z_index(10.0),
+                    Axis::Y => PANEL.color(Color::GREEN.with_alpha(0.5))
+                        .size_x(Size::Frac(0.3)).size_y(Size::Pixels(WALL_HITBOX))
+                        .anchor_symm(Anchor::Center).free_placement(true).z_index(10.0),
+                };
+
                 ui.add(container).nest(|| {
+                    ui.add(match axis {
+                        Axis::X => insert_hitbox.position(Pos::Frac(0.0), Pos::Center),
+                        Axis::Y => insert_hitbox.position(Pos::Center, Pos::Frac(0.0)),
+                    }.key(WALL_INSERT_FIRST.sibling(index)));
+
+                    let mut cum_weight = 0.0;
                     while let Some(i) = child {
                         let pane_size = Size::Frac(self.slab[i].weight / total);
                         self.render_pane(i, pane_size, ui, Some(axis), drag_state);
+                        cum_weight += self.slab[i].weight;
                         if self.slab[i].next_sibling.is_some() {
                             ui.add(wall).nest(|| { ui.add(hitbox.key(WALL.sibling(i))); });
+                            let frac = cum_weight / total;
+                            ui.add(match axis {
+                                Axis::X => insert_hitbox.position(Pos::Frac(frac), Pos::Center),
+                                Axis::Y => insert_hitbox.position(Pos::Center, Pos::Frac(frac)),
+                            }.key(WALL_INSERT_INNER.sibling(i)));
                         }
                         child = self.slab[i].next_sibling;
                     }
+
+                    ui.add(match axis {
+                        Axis::X => insert_hitbox.position(Pos::Frac(1.0), Pos::Center),
+                        Axis::Y => insert_hitbox.position(Pos::Center, Pos::Frac(1.0)),
+                    }.key(WALL_INSERT_LAST.sibling(index)));
                 });
             }
             PaneKind::Content { active_tab } => {
@@ -354,17 +380,17 @@ impl Panes {
                         if drag_state.is_some() {
                             let h_edge = PANEL
                                 .color(Color::GREY.with_alpha(0.5))
-                                .size_x(Size::Pixels(SPLIT_EDGE_SIZE)).size_y(Size::Frac(0.6))
+                                .size_x(Size::Pixels(SPLIT_EDGE_SIZE)).size_y(Size::Frac(0.3)).anchor_x(Anchor::Center)
                                 .free_placement(true).sense_drag_drop_target(true).absorbs_clicks(false);
                             let v_edge = PANEL
                                 .color(Color::GREY.with_alpha(0.5))
-                                .size_x(Size::Frac(0.6)).size_y(Size::Pixels(SPLIT_EDGE_SIZE))
+                                .size_x(Size::Frac(0.3)).size_y(Size::Pixels(SPLIT_EDGE_SIZE)).anchor_y(Anchor::Center)
                                 .free_placement(true).sense_drag_drop_target(true).absorbs_clicks(false);
 
-                            ui.add(h_edge.position(Pos::Start, Pos::Center).key(SPLIT_EDGE_LEFT.sibling(index)));
-                            ui.add(h_edge.position(Pos::End, Pos::Center).key(SPLIT_EDGE_RIGHT.sibling(index)));
-                            ui.add(v_edge.position(Pos::Center, Pos::Start).key(SPLIT_EDGE_TOP.sibling(index)));
-                            ui.add(v_edge.position(Pos::Center, Pos::End).key(SPLIT_EDGE_BOTTOM.sibling(index)));
+                            ui.add(h_edge.position(Pos::Frac(0.25), Pos::Center).key(SPLIT_EDGE_LEFT.sibling(index)));
+                            ui.add(h_edge.position(Pos::Frac(0.75), Pos::Center).key(SPLIT_EDGE_RIGHT.sibling(index)));
+                            ui.add(v_edge.position(Pos::Center, Pos::Frac(0.25)).key(SPLIT_EDGE_TOP.sibling(index)));
+                            ui.add(v_edge.position(Pos::Center, Pos::Frac(0.75)).key(SPLIT_EDGE_BOTTOM.sibling(index)));
                         }
                     });
                 });
@@ -395,6 +421,9 @@ pub struct State {
 #[node_key] const SPLIT_EDGE_RIGHT: NodeKey;
 #[node_key] const SPLIT_EDGE_TOP: NodeKey;
 #[node_key] const SPLIT_EDGE_BOTTOM: NodeKey;
+#[node_key] const WALL_INSERT_FIRST: NodeKey;
+#[node_key] const WALL_INSERT_INNER: NodeKey;
+#[node_key] const WALL_INSERT_LAST: NodeKey;
 
 const WALL_THICKNESS: f32 = 10.0;
 const WALL_HITBOX: f32 = 20.0;
