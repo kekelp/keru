@@ -52,8 +52,8 @@ impl State {
             .size_y(Size::Fill)
             .position_y(Pos::Start)
             .sense_drag_drop_target(true)
-            .stack_arrange(Arrange::Start)
-;
+            .stack_arrange(Arrange::Start);
+
         let left_stack = stack.position_x(Pos::Start).key(LEFT_STACK);
 
         let mut left_drag_hovered: Option<usize> = None;

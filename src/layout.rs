@@ -374,21 +374,45 @@ impl Ui {
 
                 let mut n_added_children = 0;
                 let mut n_fill_children = 0;
-                // First, do all non-Fill children
+                // First, do all fixed-size children
                 for_each_child!(self, self.sys.nodes[i], child, {
                     if self.sys.nodes[child].params.free_placement {
                         // (for free_placement children, do the recursion without partecipating in the stack calculation)
                         self.recursive_determine_size_and_hidden(child, ProposedSizes::container(size_to_propose), children_can_hide);
-                    } else if self.sys.nodes[child].params.layout.size[axis] != Size::Fill {
-                        let child_size = self.recursive_determine_size_and_hidden(child, ProposedSizes::stack(available_size_left, size_to_propose), children_can_hide);
-                        content_size.update_for_child(child_size, Some(axis));
-                        if n_added_children != 0 {
-                            content_size[axis] += spacing;
-                        }
-                        available_size_left[axis] -= child_size[axis];
-                        n_added_children += 1;
                     } else {
-                        n_fill_children += 1;
+                        let size_on_axis = self.sys.nodes[child].params.layout.size[axis];
+                        if size_on_axis != Size::Fill && !matches!(size_on_axis, Size::Frac(_)) {
+                            let child_size = self.recursive_determine_size_and_hidden(child, ProposedSizes::stack(available_size_left, size_to_propose), children_can_hide);
+                            content_size.update_for_child(child_size, Some(axis));
+                            if n_added_children != 0 {
+                                content_size[axis] += spacing;
+                            }
+                            available_size_left[axis] -= child_size[axis];
+                            n_added_children += 1;
+                        } else if size_on_axis == Size::Fill {
+                            n_fill_children += 1;
+                        }
+                    }
+                });
+
+                // Second, do Frac children - they get a fraction of the remaining space after fixed children.
+                // All Frac children share the same base (snapshot before this pass), so Frac(0.5) always
+                // means 50% of the post-fixed remainder regardless of how many Frac siblings there are.
+                let remaining_after_fixed = available_size_left;
+                for_each_child!(self, self.sys.nodes[i], child, {
+                    if !self.sys.nodes[child].params.free_placement {
+                        if matches!(self.sys.nodes[child].params.layout.size[axis], Size::Frac(_)) {
+                            // Pass remaining space as to_all_children on the stack axis, full size on cross axis
+                            let mut frac_all_children = size_to_propose;
+                            frac_all_children[axis] = remaining_after_fixed[axis];
+                            let child_size = self.recursive_determine_size_and_hidden(child, ProposedSizes::stack(available_size_left, frac_all_children), children_can_hide);
+                            content_size.update_for_child(child_size, Some(axis));
+                            if n_added_children != 0 {
+                                content_size[axis] += spacing;
+                            }
+                            available_size_left[axis] -= child_size[axis];
+                            n_added_children += 1;
+                        }
                     }
                 });
 
