@@ -266,16 +266,16 @@ impl Panes {
                 }.color(Color::GREY);
 
                 let hitbox = match axis {
-                    Axis::X => node_library::CONTAINER.size_x(Size::Pixels(WALL_HITBOX)).size_y(Size::Frac(0.5)).position(Pos::Center, Pos::Center),
-                    Axis::Y => node_library::CONTAINER.size_x(Size::Frac(0.5)).size_y(Size::Pixels(WALL_HITBOX)).position(Pos::Center, Pos::Center),
+                    Axis::X => node_library::CONTAINER.size_x(Size::Pixels(WALL_HITBOX_THICKNESS)).size_y(Size::Frac(0.5)).position(Pos::Center, Pos::Center),
+                    Axis::Y => node_library::CONTAINER.size_x(Size::Frac(0.5)).size_y(Size::Pixels(WALL_HITBOX_THICKNESS)).position(Pos::Center, Pos::Center),
                 }.sense_drag(true);
 
                 let insert_hitbox = match axis {
                     Axis::X => PANEL.color(Color::GREEN.with_alpha(0.5))
-                        .size_x(Size::Pixels(WALL_HITBOX)).size_y(Size::Frac(0.3))
+                        .size_x(Size::Pixels(WALL_HITBOX_THICKNESS)).size_y(Size::Frac(0.3))
                         .anchor_symm(Anchor::Center).free_placement(true).z_index(10.0).sense_drag_drop_target(true),
                     Axis::Y => PANEL.color(Color::GREEN.with_alpha(0.5))
-                        .size_x(Size::Frac(0.3)).size_y(Size::Pixels(WALL_HITBOX))
+                        .size_x(Size::Frac(0.3)).size_y(Size::Pixels(WALL_HITBOX_THICKNESS))
                         .anchor_symm(Anchor::Center).free_placement(true).z_index(10.0).sense_drag_drop_target(true),
                 };
 
@@ -359,7 +359,7 @@ impl Panes {
                                 ui.add(Panes::tab_node(tab_id, is_active, true)).nest(|| {
                                     ui.add(H_STACK).nest(|| {
                                         ui.add(TEXT.text(label.as_str()).text_size(18.0).text_selectable(false));
-                                        ui.add(BUTTON.key(CLOSE_TAB.sibling(tab_id)).text("✕").text_size(18.0).color(Color::KERU_RED.with_alpha(0.3)).position_x(Pos::End));
+                                        ui.add(BUTTON.key(CLOSE_TAB.sibling(tab_id)).text("✕").text_size(18.0).padding(5.0).color(Color::KERU_RED.with_alpha(0.3)).position_x(Pos::End));
                                     });
                                 });
                                 render_idx += 1;
@@ -368,11 +368,15 @@ impl Panes {
                             tab = self.slab[t].next_sibling;
                         }
                         show_spacer(ui, render_idx);
-                        ui.add(BUTTON.animate_position(true).key(ADD_TAB.sibling(index)).text("+"));
+                        ui.add(BUTTON.animate_position(true).key(ADD_TAB.sibling(index)).padding(5.0).text_size(18.0).size_symm(Size::Pixels(TAB_BAR_HEIGHT - 4.0)).text("+"));
                     });
 
                     // Body
-                    let body = PANEL.size_x(Size::Fill).size_y(Size::Fill).shape(Shape::Rectangle { rounded_corners: RoundedCorners::BOTTOM, corner_radius: 10.0 }).absorbs_clicks(false);
+                    let active_tab_id = active_tab.and_then(|t| {
+                        if let PaneKind::Tab { id, .. } = &self.slab[t].kind { Some(*id) } else { None }
+                    });
+                    let body = PANEL.size_x(Size::Fill).size_y(Size::Fill).shape(Shape::Rectangle { rounded_corners: RoundedCorners::BOTTOM, corner_radius: 10.0 }).absorbs_clicks(false)
+                        .key(CONTENT_BODY.sibling(active_tab_id.unwrap_or(usize::MAX)));
 
                     ui.add(body).nest(|| {
                         ui.add(H_STACK).nest(|| {
@@ -424,6 +428,7 @@ pub struct State {
 #[node_key] const CLOSE_TAB: NodeKey;
 #[node_key] const ADD_TAB: NodeKey;
 #[node_key] const TAB_BAR_HITBOX: NodeKey;
+#[node_key] const CONTENT_BODY: NodeKey;
 #[node_key] const SPLIT_EDGE_LEFT: NodeKey;
 #[node_key] const SPLIT_EDGE_RIGHT: NodeKey;
 #[node_key] const SPLIT_EDGE_TOP: NodeKey;
@@ -433,8 +438,8 @@ pub struct State {
 #[node_key] const WALL_INSERT_LAST: NodeKey;
 
 const WALL_THICKNESS: f32 = 10.0;
-const WALL_HITBOX: f32 = 20.0;
-const TAB_BAR_HEIGHT: f32 = 60.0;
+const WALL_HITBOX_THICKNESS: f32 = 60.0;
+const TAB_BAR_HEIGHT: f32 = 40.0;
 const TAB_WIDTH: f32 = 100.0;
 const SPLIT_EDGE_SIZE: f32 = 60.0;
 
