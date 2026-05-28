@@ -105,7 +105,7 @@ impl Panes {
         }
     }
 
-    fn split(&mut self, content_index: usize, axis: Axis, after: bool) {
+    fn split(&mut self, content_index: usize, axis: Axis, after: bool) -> usize {
         let parent = self.slab[content_index].parent.expect("content must have parent");
         let parent_axis = match self.slab[parent].kind {
             PaneKind::Split { axis } => axis,
@@ -125,6 +125,7 @@ impl Panes {
                 self.slab[new_content].next_sibling = Some(content_index);
                 self.redirect_child(parent, content_index, Some(new_content));
             }
+            new_content
         } else {
             let old_next = self.slab[content_index].next_sibling;
             let old_weight = self.slab[content_index].weight;
@@ -148,6 +149,7 @@ impl Panes {
             self.slab[new_content].parent = Some(new_split);
 
             self.redirect_child(parent, content_index, Some(new_split));
+            new_content
         }
     }
 
@@ -256,7 +258,7 @@ impl Panes {
                 let container = match axis {
                     Axis::X => H_STACK,
                     Axis::Y => V_STACK,
-                }.size_x(size_x).size_y(size_y).stack_spacing(0.0).key(SPLIT_CONTAINER.sibling(index));
+                }.animate_position(true).size_x(size_x).size_y(size_y).stack_spacing(0.0).key(SPLIT_CONTAINER.sibling(index));
 
                 let wall = match axis {
                     Axis::X => PANEL.size_x(Size::Pixels(WALL_THICKNESS)).size_y(Size::Fill),
@@ -347,6 +349,23 @@ impl Panes {
                             ui.add(BUTTON.key(SPLIT_DOWN.sibling(index)).text("↓"));
                             ui.add(BUTTON.key(REMOVE_PANE.sibling(index)).text("✕").color(Color::KERU_RED));
                         });
+
+
+                        if drag_state.is_some() {
+                            let h_edge = PANEL
+                                .color(Color::GREY.with_alpha(0.5))
+                                .size_x(Size::Pixels(SPLIT_EDGE_SIZE)).size_y(Size::Frac(0.6))
+                                .free_placement(true).sense_drag_drop_target(true).absorbs_clicks(false);
+                            let v_edge = PANEL
+                                .color(Color::GREY.with_alpha(0.5))
+                                .size_x(Size::Frac(0.6)).size_y(Size::Pixels(SPLIT_EDGE_SIZE))
+                                .free_placement(true).sense_drag_drop_target(true).absorbs_clicks(false);
+
+                            ui.add(h_edge.position(Pos::Start, Pos::Center).key(SPLIT_EDGE_LEFT.sibling(index)));
+                            ui.add(h_edge.position(Pos::End, Pos::Center).key(SPLIT_EDGE_RIGHT.sibling(index)));
+                            ui.add(v_edge.position(Pos::Center, Pos::Start).key(SPLIT_EDGE_TOP.sibling(index)));
+                            ui.add(v_edge.position(Pos::Center, Pos::End).key(SPLIT_EDGE_BOTTOM.sibling(index)));
+                        }
                     });
                 });
             }
@@ -372,11 +391,16 @@ pub struct State {
 #[node_key] const CLOSE_TAB: NodeKey;
 #[node_key] const ADD_TAB: NodeKey;
 #[node_key] const TAB_BAR_HITBOX: NodeKey;
+#[node_key] const SPLIT_EDGE_LEFT: NodeKey;
+#[node_key] const SPLIT_EDGE_RIGHT: NodeKey;
+#[node_key] const SPLIT_EDGE_TOP: NodeKey;
+#[node_key] const SPLIT_EDGE_BOTTOM: NodeKey;
 
 const WALL_THICKNESS: f32 = 10.0;
 const WALL_HITBOX: f32 = 20.0;
 const TAB_BAR_HEIGHT: f32 = 60.0;
 const TAB_WIDTH: f32 = 100.0;
+const SPLIT_EDGE_SIZE: f32 = 60.0;
 
 struct TabDragState {
     tab_index: usize,
@@ -486,10 +510,10 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .collect();
 
     for i in content_indices {
-        if ui.is_clicked(SPLIT_LEFT.sibling(i)) { state.panes.split(i, Axis::X, false); }
-        else if ui.is_clicked(SPLIT_RIGHT.sibling(i)) { state.panes.split(i, Axis::X, true); }
-        else if ui.is_clicked(SPLIT_UP.sibling(i)) { state.panes.split(i, Axis::Y, false); }
-        else if ui.is_clicked(SPLIT_DOWN.sibling(i)) { state.panes.split(i, Axis::Y, true); }
+        if ui.is_clicked(SPLIT_LEFT.sibling(i)) { let _ = state.panes.split(i, Axis::X, false); }
+        else if ui.is_clicked(SPLIT_RIGHT.sibling(i)) { let _ = state.panes.split(i, Axis::X, true); }
+        else if ui.is_clicked(SPLIT_UP.sibling(i)) { let _ = state.panes.split(i, Axis::Y, false); }
+        else if ui.is_clicked(SPLIT_DOWN.sibling(i)) { let _ = state.panes.split(i, Axis::Y, true); }
         else if ui.is_clicked(REMOVE_PANE.sibling(i)) { state.panes.remove(i); }
         else if ui.is_clicked(ADD_TAB.sibling(i)) {
             state.panes.add_tab(i);
@@ -517,6 +541,30 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                     state.panes.reorder_tab(hovered, dragged.tab_index, insertion_index);
                 } else {
                     state.panes.move_tab(dragged.tab_index, dragged.content_index, hovered, insertion_index);
+                }
+            }
+        }
+
+        let content_indices: Vec<usize> = state.panes.slab.iter()
+            .filter_map(|(i, p)| if matches!(p.kind, PaneKind::Content { .. }) { Some(i) } else { None })
+            .collect();
+
+        let edges = [
+            (SPLIT_EDGE_LEFT,   Axis::X, false),
+            (SPLIT_EDGE_RIGHT,  Axis::X, true),
+            (SPLIT_EDGE_TOP,    Axis::Y, false),
+            (SPLIT_EDGE_BOTTOM, Axis::Y, true),
+        ];
+
+        'edge: for target_content in content_indices {
+            for (edge_key, axis, after) in edges {
+                if ui.is_drag_released_onto(TAB.sibling(dragged.tab_id), edge_key.sibling(target_content)).is_some() {
+                    let new_content = state.panes.split(target_content, axis, after);
+                    let placeholder = state.panes.slab[new_content].first_child.unwrap();
+                    state.panes.detach_tab(new_content, placeholder);
+                    state.panes.slab.remove(placeholder);
+                    state.panes.move_tab(dragged.tab_index, dragged.content_index, new_content, 0);
+                    break 'edge;
                 }
             }
         }
