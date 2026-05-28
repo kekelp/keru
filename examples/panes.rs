@@ -171,7 +171,7 @@ impl Panes {
         }
     }
 
-    fn move_tab(&mut self, tab_index: usize, from_content: usize, to_content: usize) {
+    fn move_tab(&mut self, tab_index: usize, from_content: usize, to_content: usize, insertion_index: usize) {
         if from_content == to_content { return; }
 
         let old_next = self.slab[tab_index].next_sibling;
@@ -197,12 +197,23 @@ impl Panes {
         self.slab[tab_index].next_sibling = None;
         self.slab[tab_index].parent = Some(to_content);
 
-        match self.slab[to_content].first_child {
+        let mut idx = 0;
+        let mut prev_node: Option<usize> = None;
+        let mut cur = self.slab[to_content].first_child;
+        while let Some(i) = cur {
+            if idx == insertion_index { break; }
+            idx += 1;
+            prev_node = Some(i);
+            cur = self.slab[i].next_sibling;
+        }
+        let next_node = match prev_node {
+            None => self.slab[to_content].first_child,
+            Some(p) => self.slab[p].next_sibling,
+        };
+        self.slab[tab_index].next_sibling = next_node;
+        match prev_node {
             None => self.slab[to_content].first_child = Some(tab_index),
-            Some(mut cur) => {
-                while let Some(next) = self.slab[cur].next_sibling { cur = next; }
-                self.slab[cur].next_sibling = Some(tab_index);
-            }
+            Some(p) => self.slab[p].next_sibling = Some(tab_index),
         }
 
         let PaneKind::Content { active_tab } = &mut self.slab[to_content].kind else { return };
@@ -552,7 +563,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                 if hovered == dragged.content_index {
                     state.panes.reorder_tab(hovered, dragged.tab_index, insertion_index);
                 } else {
-                    state.panes.move_tab(dragged.tab_index, dragged.content_index, hovered);
+                    state.panes.move_tab(dragged.tab_index, dragged.content_index, hovered, insertion_index);
                 }
             }
         }
