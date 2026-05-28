@@ -316,7 +316,7 @@ impl Panes {
             PaneKind::Content { active_tab } => {
                 let active_tab = *active_tab;
 
-                let stack = V_STACK.size_x(size_x).size_y(size_y).stack_arrange(Arrange::Start).padding(0.0).stack_spacing(0.0);
+                let stack = V_STACK.size_x(size_x).size_y(size_y).stack_arrange(Arrange::Start).padding(0.0).stack_spacing(0.0).key(CONTENT_PANE.sibling(index));
 
                 ui.add(stack).nest(|| {
                     let tab_bar_hitbox = node_library::CONTAINER
@@ -436,6 +436,8 @@ pub struct State {
 #[node_key] const WALL_INSERT_FIRST: NodeKey;
 #[node_key] const WALL_INSERT_INNER: NodeKey;
 #[node_key] const WALL_INSERT_LAST: NodeKey;
+#[node_key] const CONTENT_PANE: NodeKey;
+#[node_key] const DEST_INDICATOR: NodeKey;
 
 const WALL_THICKNESS: f32 = 10.0;
 const WALL_HITBOX_THICKNESS: f32 = 60.0;
@@ -518,6 +520,108 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                     ui.add(BUTTON.key(CLOSE_TAB.sibling(dragged.tab_id)).text("✕").text_size(18.0).color(Color::KERU_RED.with_alpha(0.3)).position_x(Pos::End));
                 });
             });
+        });
+
+        // Destination indicator: default is a tab-sized rect under the dragged tab.
+        // Overridden by split-edge hover (shows actual half-pane area) or wall-insert hover (shows strip near wall).
+        let mut ind: (f32, f32, f32, f32) = (
+            px - TAB_WIDTH / 2.0, py - TAB_BAR_HEIGHT / 2.0,
+            px + TAB_WIDTH / 2.0, py + TAB_BAR_HEIGHT / 2.0,
+        );
+
+        let content_list: Vec<usize> = state.panes.slab.iter()
+            .filter_map(|(i, p)| if matches!(p.kind, PaneKind::Content { .. }) { Some(i) } else { None })
+            .collect();
+
+        let split_list: Vec<(usize, Axis)> = state.panes.slab.iter()
+            .filter_map(|(i, p)| if let PaneKind::Split { axis } = p.kind { Some((i, axis)) } else { None })
+            .collect();
+
+        let mut found = false;
+
+        'split_edge: for target_content in &content_list {
+            for (edge_key, axis, after) in [
+                (SPLIT_EDGE_LEFT,   Axis::X, false),
+                (SPLIT_EDGE_RIGHT,  Axis::X, true),
+                (SPLIT_EDGE_TOP,    Axis::Y, false),
+                (SPLIT_EDGE_BOTTOM, Axis::Y, true),
+            ] {
+                if ui.is_drag_hovered_onto(TAB.sibling(dragged.tab_id), edge_key.sibling(*target_content)).is_some() {
+                    if let Some(n) = ui.get_node(CONTENT_PANE.sibling(*target_content)) {
+                        let r = n.rect();
+                        let (x0, x1) = (r[Axis::X][0], r[Axis::X][1]);
+                        let (y0, y1) = (r[Axis::Y][0], r[Axis::Y][1]);
+                        let mx = (x0 + x1) / 2.0;
+                        let my = (y0 + y1) / 2.0;
+                        ind = match (axis, after) {
+                            (Axis::X, false) => (x0, y0, mx, y1),
+                            (Axis::X, true)  => (mx, y0, x1, y1),
+                            (Axis::Y, false) => (x0, y0, x1, my),
+                            (Axis::Y, true)  => (x0, my, x1, y1),
+                        };
+                        found = true;
+                    }
+                    break 'split_edge;
+                }
+            }
+        }
+
+        if !found {
+            'wall: for (split_i, axis) in &split_list {
+                // For wall inserts, expand the indicator to fill the full cross-axis of the container.
+                let cross = axis.other();
+                let container_cross = ui.get_node(SPLIT_CONTAINER.sibling(*split_i))
+                    .map(|n| { let r = n.rect(); (r[cross][0], r[cross][1]) });
+
+                let expand_cross = |r: Xy<[f32; 2]>| -> (f32, f32, f32, f32) {
+                    let (c0, c1) = container_cross.unwrap_or((r[cross][0], r[cross][1]));
+                    match cross {
+                        Axis::X => (c0, r[Axis::Y][0], c1, r[Axis::Y][1]),
+                        Axis::Y => (r[Axis::X][0], c0, r[Axis::X][1], c1),
+                    }
+                };
+
+                if ui.is_drag_hovered_onto(TAB.sibling(dragged.tab_id), WALL_INSERT_FIRST.sibling(*split_i)).is_some() {
+                    if let Some(n) = ui.get_node(WALL_INSERT_FIRST.sibling(*split_i)) {
+                        ind = expand_cross(n.rect());
+                    }
+                    break 'wall;
+                }
+                if ui.is_drag_hovered_onto(TAB.sibling(dragged.tab_id), WALL_INSERT_LAST.sibling(*split_i)).is_some() {
+                    if let Some(n) = ui.get_node(WALL_INSERT_LAST.sibling(*split_i)) {
+                        ind = expand_cross(n.rect());
+                    }
+                    break 'wall;
+                }
+                let mut cur = state.panes.slab[*split_i].first_child;
+                while let Some(child_i) = cur {
+                    if state.panes.slab[child_i].next_sibling.is_some() {
+                        if ui.is_drag_hovered_onto(TAB.sibling(dragged.tab_id), WALL_INSERT_INNER.sibling(child_i)).is_some() {
+                            if let Some(n) = ui.get_node(WALL_INSERT_INNER.sibling(child_i)) {
+                                ind = expand_cross(n.rect());
+                            }
+                            break 'wall;
+                        }
+                    }
+                    cur = state.panes.slab[child_i].next_sibling;
+                }
+            }
+        }
+
+        let (ix0, iy0, ix1, iy1) = ind;
+        let (cx, cy) = ((ix0 + ix1) / 2.0, (iy0 + iy1) / 2.0);
+        ui.jump_to_root().nest(|| {
+            ui.add(PANEL
+                .color(Color::KERU_BLUE.with_alpha(0.7))
+                .free_placement(true)
+                .anchor_symm(Anchor::Center)
+                .position(Pos::Pixels(cx), Pos::Pixels(cy))
+                .size_x(Size::Pixels(ix1 - ix0))
+                .size_y(Size::Pixels(iy1 - iy0))
+                .z_index(4.0)
+                .absorbs_clicks(false)
+                .animate_position(true)
+                .key(DEST_INDICATOR));
         });
     }
 
