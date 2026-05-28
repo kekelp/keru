@@ -273,38 +273,44 @@ impl Panes {
                 let insert_hitbox = match axis {
                     Axis::X => PANEL.color(Color::GREEN.with_alpha(0.5))
                         .size_x(Size::Pixels(WALL_HITBOX)).size_y(Size::Frac(0.3))
-                        .anchor_symm(Anchor::Center).free_placement(true).z_index(10.0),
+                        .anchor_symm(Anchor::Center).free_placement(true).z_index(10.0).sense_drag_drop_target(true),
                     Axis::Y => PANEL.color(Color::GREEN.with_alpha(0.5))
                         .size_x(Size::Frac(0.3)).size_y(Size::Pixels(WALL_HITBOX))
-                        .anchor_symm(Anchor::Center).free_placement(true).z_index(10.0),
+                        .anchor_symm(Anchor::Center).free_placement(true).z_index(10.0).sense_drag_drop_target(true),
                 };
 
                 ui.add(container).nest(|| {
-                    ui.add(match axis {
-                        Axis::X => insert_hitbox.position(Pos::Frac(0.0), Pos::Center),
-                        Axis::Y => insert_hitbox.position(Pos::Center, Pos::Frac(0.0)),
-                    }.key(WALL_INSERT_FIRST.sibling(index)));
+                    if drag_state.is_some() {
+                        ui.add(match axis {
+                            Axis::X => insert_hitbox.position(Pos::Frac(0.0), Pos::Center),
+                            Axis::Y => insert_hitbox.position(Pos::Center, Pos::Frac(0.0)),
+                        }.key(WALL_INSERT_FIRST.sibling(index)));
+                    }
 
-                    let mut cum_weight = 0.0;
+                    let mut total_weight = 0.0;
                     while let Some(i) = child {
                         let pane_size = Size::Frac(self.slab[i].weight / total);
                         self.render_pane(i, pane_size, ui, Some(axis), drag_state);
-                        cum_weight += self.slab[i].weight;
+                        total_weight += self.slab[i].weight;
                         if self.slab[i].next_sibling.is_some() {
                             ui.add(wall).nest(|| { ui.add(hitbox.key(WALL.sibling(i))); });
-                            let frac = cum_weight / total;
-                            ui.add(match axis {
-                                Axis::X => insert_hitbox.position(Pos::Frac(frac), Pos::Center),
-                                Axis::Y => insert_hitbox.position(Pos::Center, Pos::Frac(frac)),
-                            }.key(WALL_INSERT_INNER.sibling(i)));
+                            if drag_state.is_some() {
+                                let frac = total_weight / total;
+                                ui.add(match axis {
+                                    Axis::X => insert_hitbox.position(Pos::Frac(frac), Pos::Center),
+                                    Axis::Y => insert_hitbox.position(Pos::Center, Pos::Frac(frac)),
+                                }.key(WALL_INSERT_INNER.sibling(i)));
+                            }
                         }
                         child = self.slab[i].next_sibling;
                     }
 
-                    ui.add(match axis {
-                        Axis::X => insert_hitbox.position(Pos::Frac(1.0), Pos::Center),
-                        Axis::Y => insert_hitbox.position(Pos::Center, Pos::Frac(1.0)),
-                    }.key(WALL_INSERT_LAST.sibling(index)));
+                    if drag_state.is_some() {
+                        ui.add(match axis {
+                            Axis::X => insert_hitbox.position(Pos::Frac(1.0), Pos::Center),
+                            Axis::Y => insert_hitbox.position(Pos::Center, Pos::Frac(1.0)),
+                        }.key(WALL_INSERT_LAST.sibling(index)));
+                    }
                 });
             }
             PaneKind::Content { active_tab } => {
@@ -325,6 +331,7 @@ impl Panes {
                     let tab_bar = H_SCROLL_STACK
                         .size_x(Size::Fill).size_y(Size::Pixels(TAB_BAR_HEIGHT))
                         .stack_arrange(Arrange::Start)
+                        .stack_spacing(0.0)
                         .key(TAB_BAR.sibling(index));
 
                     ui.add(tab_bar).nest(|| {
@@ -597,6 +604,42 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                 }
             }
         }
+
+        let split_info: Vec<(usize, Axis)> = state.panes.slab.iter()
+            .filter_map(|(i, p)| if let PaneKind::Split { axis } = p.kind { Some((i, axis)) } else { None })
+            .collect();
+
+        'insert: for (split_i, axis) in split_info {
+            let Some(first_child) = state.panes.slab[split_i].first_child else { continue };
+
+            if ui.is_drag_released_onto(TAB.sibling(dragged.tab_id), WALL_INSERT_FIRST.sibling(split_i)).is_some() {
+                let new_content = state.panes.split(first_child, axis, false);
+                let placeholder = state.panes.slab[new_content].first_child.unwrap();
+                state.panes.detach_tab(new_content, placeholder);
+                state.panes.slab.remove(placeholder);
+                state.panes.move_tab(dragged.tab_index, dragged.content_index, new_content, 0);
+                break 'insert;
+            }
+
+            let mut cur = Some(first_child);
+            while let Some(child_i) = cur {
+                let next = state.panes.slab[child_i].next_sibling;
+                let (key, target_child) = if next.is_some() {
+                    (WALL_INSERT_INNER.sibling(child_i), child_i)
+                } else {
+                    (WALL_INSERT_LAST.sibling(split_i), child_i)
+                };
+                if ui.is_drag_released_onto(TAB.sibling(dragged.tab_id), key).is_some() {
+                    let new_content = state.panes.split(target_child, axis, true);
+                    let placeholder = state.panes.slab[new_content].first_child.unwrap();
+                    state.panes.detach_tab(new_content, placeholder);
+                    state.panes.slab.remove(placeholder);
+                    state.panes.move_tab(dragged.tab_index, dragged.content_index, new_content, 0);
+                    break 'insert;
+                }
+                cur = next;
+            }
+        }
     }
 }
 
@@ -609,8 +652,16 @@ fn main() {
         next_sibling: None,
         parent: None,
     });
-    let c1 = panes.new_content(1.0, None, Some(root));
-    panes.slab[root].first_child = Some(c1);
+    let v_split = panes.slab.insert(Pane {
+        kind: PaneKind::Split { axis: Axis::Y },
+        weight: 1.0,
+        first_child: None,
+        next_sibling: None,
+        parent: Some(root),
+    });
+    panes.slab[root].first_child = Some(v_split);
+    let c1 = panes.new_content(1.0, None, Some(v_split));
+    panes.slab[v_split].first_child = Some(c1);
 
     run_example_loop(State { panes }, update_ui);
 }
