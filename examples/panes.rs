@@ -134,6 +134,43 @@ impl Panes {
         }
     }
 
+    fn reorder_tab(&mut self, content_index: usize, tab_index: usize, insertion_index: usize) {
+        // Detach from current position
+        let old_next = self.slab[tab_index].next_sibling;
+        let mut prev = None;
+        let mut cur = self.slab[content_index].first_child;
+        while let Some(i) = cur {
+            if i == tab_index { break; }
+            prev = Some(i);
+            cur = self.slab[i].next_sibling;
+        }
+        match prev {
+            None => self.slab[content_index].first_child = old_next,
+            Some(p) => self.slab[p].next_sibling = old_next,
+        }
+        self.slab[tab_index].next_sibling = None;
+
+        // Insert at insertion_index in the (now shorter) list
+        let mut idx = 0;
+        let mut prev_node: Option<usize> = None;
+        let mut cur = self.slab[content_index].first_child;
+        while let Some(i) = cur {
+            if idx == insertion_index { break; }
+            idx += 1;
+            prev_node = Some(i);
+            cur = self.slab[i].next_sibling;
+        }
+        let next_node = match prev_node {
+            None => self.slab[content_index].first_child,
+            Some(p) => self.slab[p].next_sibling,
+        };
+        self.slab[tab_index].next_sibling = next_node;
+        match prev_node {
+            None => self.slab[content_index].first_child = Some(tab_index),
+            Some(p) => self.slab[p].next_sibling = Some(tab_index),
+        }
+    }
+
     fn move_tab(&mut self, tab_index: usize, from_content: usize, to_content: usize) {
         if from_content == to_content { return; }
 
@@ -301,28 +338,37 @@ impl Panes {
                     ui.add(tab_bar).nest(|| {
                         ui.add(tab_bar_hitbox);
 
+                        let spacer = SPACER.size_x(Size::Pixels(TAB_WIDTH)).size_y(Size::FitContent);
+                        let show_spacer = |ui: &mut Ui, render_idx: usize| {
+                            if let Some(ds) = drag_state.as_ref() {
+                                if ds.hovered_content == Some(index) && ds.insertion_index == render_idx {
+                                    ui.add(spacer);
+                                }
+                            }
+                        };
+
+                        let mut render_idx = 0;
                         let mut tab = self.slab[index].first_child;
                         while let Some(t) = tab {
                             let PaneKind::Tab { label, id: tab_id } = &self.slab[t].kind else { break };
                             let (tab_id, label) = (*tab_id, label.clone());
                             let is_active = active_tab == Some(t);
+                            let is_dragged = drag_state.as_ref().map_or(false, |ds| ds.tab_index == t);
 
-                            let tab_node = Panes::tab_node(tab_id, is_active, true);
-
-                            if drag_state.as_ref().map_or(false, |ds| ds.tab_index == t) {
-                                // This tab is being dragged; render only the ghost spacer here
-                                ui.add(SPACER.size_x(Size::Pixels(TAB_WIDTH)).size_y(Size::FitContent));
-                            } else {
-                                ui.add(tab_node).nest(|| {
+                            if !is_dragged {
+                                show_spacer(ui, render_idx);
+                                ui.add(Panes::tab_node(tab_id, is_active, true)).nest(|| {
                                     ui.add(H_STACK).nest(|| {
                                         ui.add(TEXT.text(label.as_str()).text_size(18.0).text_selectable(false));
                                         ui.add(BUTTON.key(CLOSE_TAB.sibling(tab_id)).text("✕").text_size(18.0).color(Color::KERU_RED.with_alpha(0.3)).position_x(Pos::End));
                                     });
                                 });
+                                render_idx += 1;
                             }
 
                             tab = self.slab[t].next_sibling;
                         }
+                        show_spacer(ui, render_idx);
                         ui.add(BUTTON.animate_position(true).key(ADD_TAB.sibling(index)).text("+"));
                     });
 
@@ -374,6 +420,8 @@ struct TabDragState {
     content_index: usize,
     drag: Drag,
     locked_y: Option<f32>,
+    hovered_content: Option<usize>,
+    insertion_index: usize,
 }
 
 fn update_ui(state: &mut State, ui: &mut Ui) {
@@ -387,6 +435,8 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
             content_index: pane.parent.unwrap(),
             drag,
             locked_y: None,
+            hovered_content: None,
+            insertion_index: 0,
         });
         break;
     }
@@ -397,6 +447,23 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
             if ui.is_drag_hovered_onto(TAB.sibling(drag_state.tab_id), TAB_BAR_HITBOX.sibling(i)).is_some() {
                 drag_state.locked_y = ui.get_node(TAB_BAR.sibling(i))
                     .map(|n| { let r = n.rect(); (r[Axis::Y][0] + r[Axis::Y][1]) / 2.0 });
+                drag_state.hovered_content = Some(i);
+
+                let cursor_x = ui.cursor_position().x;
+                let tab_bar_x = ui.get_node(TAB_BAR.sibling(i))
+                    .map(|n| n.rect()[Axis::X][0])
+                    .unwrap_or(0.0);
+                let num_tabs = {
+                    let mut count = 0;
+                    let mut cur = state.panes.slab[i].first_child;
+                    while let Some(t) = cur {
+                        if t != drag_state.tab_index { count += 1; }
+                        cur = state.panes.slab[t].next_sibling;
+                    }
+                    count
+                };
+                let raw = ((cursor_x - tab_bar_x) / TAB_WIDTH).max(0.0) as usize;
+                drag_state.insertion_index = raw.min(num_tabs);
                 break;
             }
         }
@@ -479,19 +546,15 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     }
 
     if let Some(dragged) = &drag_state {
-        let all_contents: Vec<usize> = state.panes.slab.iter()
-            .filter_map(|(i, p)| if matches!(p.kind, PaneKind::Content { .. }) { Some(i) } else { None })
-            .collect();
-
-        let mut move_to: Option<usize> = None;
-        for content_i in all_contents {
-            if content_i != dragged.content_index && ui.is_drag_released_onto(TAB.sibling(dragged.tab_id), TAB_BAR_HITBOX.sibling(content_i)).is_some() {
-                move_to = Some(content_i);
-                break;
+        if let Some(hovered) = dragged.hovered_content {
+            if ui.is_drag_released_onto(TAB.sibling(dragged.tab_id), TAB_BAR_HITBOX.sibling(hovered)).is_some() {
+                let insertion_index = dragged.insertion_index;
+                if hovered == dragged.content_index {
+                    state.panes.reorder_tab(hovered, dragged.tab_index, insertion_index);
+                } else {
+                    state.panes.move_tab(dragged.tab_index, dragged.content_index, hovered);
+                }
             }
-        }
-        if let Some(to_i) = move_to {
-            state.panes.move_tab(dragged.tab_index, dragged.content_index, to_i);
         }
     }
 }
