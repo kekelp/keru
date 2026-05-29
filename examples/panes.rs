@@ -263,11 +263,11 @@ impl Panes {
                 let wall = match axis {
                     Axis::X => PANEL.size_x(Size::Pixels(WALL_THICKNESS)).size_y(Size::Fill),
                     Axis::Y => PANEL.size_x(Size::Fill).size_y(Size::Pixels(WALL_THICKNESS)),
-                }.color(Color::GREY);
+                }.color(Color::GREY).animate_position(true);
 
                 let hitbox = match axis {
-                    Axis::X => node_library::CONTAINER.size_x(Size::Pixels(WALL_HITBOX_THICKNESS)).size_y(Size::Frac(0.5)).position(Pos::Center, Pos::Center),
-                    Axis::Y => node_library::CONTAINER.size_x(Size::Frac(0.5)).size_y(Size::Pixels(WALL_HITBOX_THICKNESS)).position(Pos::Center, Pos::Center),
+                    Axis::X => node_library::CONTAINER.size_x(Size::Pixels(WALL_HITBOX_THICKNESS)).size_y(Size::Fill).position(Pos::Center, Pos::Center),
+                    Axis::Y => node_library::CONTAINER.size_x(Size::Fill).size_y(Size::Pixels(WALL_HITBOX_THICKNESS)).position(Pos::Center, Pos::Center),
                 }.sense_drag(true);
 
                 let insert_hitbox = match axis {
@@ -316,7 +316,7 @@ impl Panes {
             PaneKind::Content { active_tab } => {
                 let active_tab = *active_tab;
 
-                let stack = V_STACK.size_x(size_x).size_y(size_y).stack_arrange(Arrange::Start).padding(0.0).stack_spacing(0.0).key(CONTENT_PANE.sibling(index));
+                let stack = V_STACK.size_x(size_x).size_y(size_y).stack_arrange(Arrange::Start).padding(0.0).stack_spacing(0.0).key(CONTENT_PANE.sibling(index)).animate_position(true);
 
                 ui.add(stack).nest(|| {
                     let tab_bar_hitbox = node_library::CONTAINER
@@ -371,12 +371,11 @@ impl Panes {
                         ui.add(BUTTON.animate_position(true).key(ADD_TAB.sibling(index)).padding(5.0).text_size(18.0).size_symm(Size::Pixels(TAB_BAR_HEIGHT - 4.0)).text("+"));
                     });
 
-                    // Body
                     let active_tab_id = active_tab.and_then(|t| {
                         if let PaneKind::Tab { id, .. } = &self.slab[t].kind { Some(*id) } else { None }
                     });
                     let body = PANEL.size_x(Size::Fill).size_y(Size::Fill).shape(Shape::Rectangle { rounded_corners: RoundedCorners::BOTTOM, corner_radius: 10.0 }).absorbs_clicks(false)
-                        .key(CONTENT_BODY.sibling(active_tab_id.unwrap_or(usize::MAX)));
+                        .key(CONTENT_BODY.sibling(active_tab_id.unwrap_or(usize::MAX))).animate_position(true);
 
                     ui.add(body).nest(|| {
                         ui.add(H_STACK).nest(|| {
@@ -440,7 +439,7 @@ pub struct State {
 #[node_key] const DEST_INDICATOR: NodeKey;
 
 const WALL_THICKNESS: f32 = 10.0;
-const WALL_HITBOX_THICKNESS: f32 = 60.0;
+const WALL_HITBOX_THICKNESS: f32 = 40.0;
 const TAB_BAR_HEIGHT: f32 = 40.0;
 const TAB_WIDTH: f32 = 100.0;
 const SPLIT_EDGE_SIZE: f32 = 60.0;
