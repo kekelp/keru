@@ -1448,6 +1448,40 @@ impl<'a> Node<'a> {
         return self;
     }
 
+    pub const fn grow_from_top(mut self) -> Self {
+        self.animation.enter = EnterAnimation::GrowShrink { axis: Axis::Y, origin: Pos::Start };
+        return self;
+    }
+    pub const fn grow_from_bottom(mut self) -> Self {
+        self.animation.enter = EnterAnimation::GrowShrink { axis: Axis::Y, origin: Pos::End };
+        return self;
+    }
+    pub const fn grow_from_left(mut self) -> Self {
+        self.animation.enter = EnterAnimation::GrowShrink { axis: Axis::X, origin: Pos::Start };
+        return self;
+    }
+    pub const fn grow_from_right(mut self) -> Self {
+        self.animation.enter = EnterAnimation::GrowShrink { axis: Axis::X, origin: Pos::End };
+        return self;
+    }
+
+    pub const fn shrink_to_top(mut self) -> Self {
+        self.animation.exit = ExitAnimation::GrowShrink { axis: Axis::Y, origin: Pos::Start };
+        return self;
+    }
+    pub const fn shrink_to_bottom(mut self) -> Self {
+        self.animation.exit = ExitAnimation::GrowShrink { axis: Axis::Y, origin: Pos::End };
+        return self;
+    }
+    pub const fn shrink_to_left(mut self) -> Self {
+        self.animation.exit = ExitAnimation::GrowShrink { axis: Axis::X, origin: Pos::Start };
+        return self;
+    }
+    pub const fn shrink_to_right(mut self) -> Self {
+        self.animation.exit = ExitAnimation::GrowShrink { axis: Axis::X, origin: Pos::End };
+        return self;
+    }
+
     /// Animate position changes when this node moves.
     pub const fn animate_position(mut self, value: bool) -> Self {
         self.animation.state_transition.animate_position = value;

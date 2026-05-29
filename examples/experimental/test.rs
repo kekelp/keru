@@ -4,29 +4,46 @@ use keru::node_library::*;
 use keru::example_window_loop::*;
 
 #[derive(Default)]
-struct State {}
+struct State {
+    show: bool,
+}
 
 fn update_ui(state: &mut State, ui: &mut Ui) {
-    // V_STACK with mixed sizes: Pixels, Frac, Fill.
-    // Expected (container is 600px tall, with two 5px spacers):
-    //   - fixed:  100px  (Pixels)
-    //   - frac:   0.5 * (600 - 100 - 5 - 5) = 245px  (Frac(0.5) of remaining)
-    //   - fill:   600 - 100 - 245 - 5 - 5 = 245px  (Fill gets the rest)
-    //   => frac == fill here, both 245px
+    #[node_key] const TOGGLE: NodeKey;
+    #[node_key] const BOX: NodeKey;
 
-    let container = V_STACK
-        .size(Size::Pixels(400.0), Size::Pixels(600.0))
-        .padding(0.0)
-        .stack_spacing(5.0)
-        .stack_arrange(Arrange::Start);
+    let toggle = BUTTON
+        .key(TOGGLE)
+        .text("Toggle");
 
-    ui.add(container).nest(|| {
-        ui.add(PANEL.size_x(Size::Fill).size_y(Size::Pixels(100.0)).color(Color::RED));
-        ui.add(PANEL.size_x(Size::Fill).size_y(Size::Frac(0.5)).color(Color::KERU_BLUE));
-        ui.add(PANEL.size_x(Size::Fill).size_y(Size::Frac(0.3)).color(Color::GREEN));
-        ui.add(PANEL.size_x(Size::Fill).size_y(Size::Fill).color(Color::RED));
+    let panel = PANEL
+        .key(BOX)
+        .grow_from_left()
+        .shrink_to_right()
+        .size_x(Size::Pixels(200.0))
+        .size_y(Size::Pixels(200.0))
+        .clip_children(true);
 
+    let vstack = V_STACK.size_x(Size::Pixels(200.0)).size_y(Size::Pixels(500.0)).stack_arrange(Arrange::Start);
+    
+    ui.add(vstack).nest(|| { 
+        ui.add(toggle);
+        
+        if state.show {
+            ui.add(panel).nest(|| {
+                ui.add(V_STACK).nest(|| {
+                    ui.add(TEXT.text("aaaaaaa"));
+                    ui.add(TEXT.text("aaaaaaa"));
+                    ui.add(TEXT.text("aaaaaaa"));
+                    ui.add(TEXT.text("aaaaaaa"));
+                });
+            });
+        }
     });
+
+    if ui.is_clicked(TOGGLE) {
+        state.show = !state.show;
+    }
 }
 
 fn main() {
