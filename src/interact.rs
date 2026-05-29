@@ -259,7 +259,7 @@ impl Ui {
         for &id in &click_ids {
             if let Some(i) = self.sys.nodes.get_by_id(id) {
                 let senses = self.sys.nodes[i].params.interact.senses;
-                if senses.contains(Sense::CLICK_RELEASE) || senses.contains(Sense::DRAG) {
+                if senses.intersects(Sense::CLICK_RELEASE | Sense::DRAG | Sense::DRAG_DROP_TARGET) {
                     self.set_new_ui_input();
                 }
             }

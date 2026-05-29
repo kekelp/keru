@@ -16,13 +16,16 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .key(TOGGLE)
         .text("Toggle");
 
+    // ui.set_global_animation_speed(0.2);
+
     let panel = PANEL
         .key(BOX)
         .grow_from_left()
-        .shrink_to_right()
+        .shrink_to_left()
         .size_x(Size::Pixels(200.0))
         .size_y(Size::Pixels(200.0))
-        .clip_children(true);
+        .clip_children(true)
+        .animation_speed(1.0);
 
     let vstack = V_STACK.size_x(Size::Pixels(200.0)).size_y(Size::Pixels(500.0)).stack_arrange(Arrange::Start);
     

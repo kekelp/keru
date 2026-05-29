@@ -288,12 +288,13 @@ impl Panes {
                     }
 
                     let mut total_weight = 0.0;
+                    let mut wall_idx = 0usize;
                     while let Some(i) = child {
                         let pane_size = Size::Frac(self.slab[i].weight / total);
                         self.render_pane(i, pane_size, ui, Some(axis), drag_state);
                         total_weight += self.slab[i].weight;
                         if self.slab[i].next_sibling.is_some() {
-                            ui.add(wall).nest(|| { ui.add(hitbox.key(WALL.sibling(i))); });
+                            ui.add(wall).nest(|| { ui.add(hitbox.key(WALL.sibling(index).sibling(wall_idx).sibling(axis))); });
                             if drag_state.is_some() {
                                 let frac = total_weight / total;
                                 ui.add(match axis {
@@ -301,6 +302,7 @@ impl Panes {
                                     Axis::Y => insert_hitbox.position(Pos::Center, Pos::Frac(frac)),
                                 }.key(WALL_INSERT_INNER.sibling(i)));
                             }
+                            wall_idx += 1;
                         }
                         child = self.slab[i].next_sibling;
                     }
@@ -316,7 +318,7 @@ impl Panes {
             PaneKind::Content { active_tab } => {
                 let active_tab = *active_tab;
 
-                let stack = V_STACK.size_x(size_x).size_y(size_y).stack_arrange(Arrange::Start).padding(0.0).stack_spacing(0.0).key(CONTENT_PANE.sibling(index)).animate_position(true);
+                let stack = V_STACK.size_x(size_x).size_y(size_y).stack_arrange(Arrange::Start).padding(0.0).stack_spacing(0.0).key(CONTENT_PANE.sibling(index)).animate_position(true).children_can_hide(true).grow_from_left();
 
                 ui.add(stack).nest(|| {
                     let tab_bar_hitbox = node_library::CONTAINER
@@ -375,7 +377,7 @@ impl Panes {
                         if let PaneKind::Tab { id, .. } = &self.slab[t].kind { Some(*id) } else { None }
                     });
                     let body = PANEL.size_x(Size::Fill).size_y(Size::Fill).shape(Shape::Rectangle { rounded_corners: RoundedCorners::BOTTOM, corner_radius: 10.0 }).absorbs_clicks(false)
-                        .key(CONTENT_BODY.sibling(active_tab_id.unwrap_or(usize::MAX))).animate_position(true);
+                        .key(CONTENT_BODY.sibling(active_tab_id.unwrap_or(usize::MAX))).animate_position(true).sense_drag_drop_target(true);
 
                     ui.add(body).nest(|| {
                         ui.add(H_STACK).nest(|| {
@@ -455,6 +457,8 @@ struct TabDragState {
 }
 
 fn update_ui(state: &mut State, ui: &mut Ui) {
+    ui.set_global_animation_speed(0.2);
+    
     let mut drag_state: Option<TabDragState> = None;
     for (i, pane) in &state.panes.slab {
         let PaneKind::Tab { id: tab_id, .. } = pane.kind else { continue };
@@ -516,7 +520,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
             ui.add(tab_node.absorbs_clicks(false).animate_position(true).anchor_symm(Anchor::Center).position(Pos::Pixels(px), Pos::Pixels(py)).z_index(1.0)).nest(|| {
                 ui.add(H_STACK).nest(|| {
                     ui.add(TEXT.text(label.as_str()).text_size(18.0).text_selectable(false));
-                    ui.add(BUTTON.key(CLOSE_TAB.sibling(dragged.tab_id)).text("✕").text_size(18.0).color(Color::KERU_RED.with_alpha(0.3)).position_x(Pos::End));
+                    ui.add(BUTTON.key(CLOSE_TAB.sibling(dragged.tab_id)).text("✕").text_size(18.0).color(Color::KERU_RED.with_alpha(0.3)).absorbs_clicks(false).position_x(Pos::End));
                 });
             });
         });
@@ -634,9 +638,10 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
             .filter(|&s| s > 0.0) else { continue };
 
         let mut cur = state.panes.slab[split_i].first_child;
+        let mut wall_idx = 0usize;
         while let Some(left_i) = cur {
             let Some(right_i) = state.panes.slab[left_i].next_sibling else { break };
-            if let Some(drag) = ui.is_dragged(WALL.sibling(left_i)) {
+            if let Some(drag) = ui.is_dragged(WALL.sibling(split_i).sibling(wall_idx).sibling(axis)) {
                 let delta_px = match axis { Axis::X => drag.absolute_delta.x, Axis::Y => drag.absolute_delta.y };
                 let total = state.panes.slab[left_i].weight + state.panes.slab[right_i].weight;
                 let delta_w = delta_px / container_px_size * total;
@@ -645,6 +650,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                 state.panes.slab[left_i].weight = new_left;
                 state.panes.slab[right_i].weight = total - new_left;
             }
+            wall_idx += 1;
             cur = state.panes.slab[left_i].next_sibling;
         }
     }

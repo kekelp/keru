@@ -1460,6 +1460,14 @@ impl<'a> Node<'a> {
         self.animation.enter = EnterAnimation::GrowShrink { axis: Axis::X, origin: Pos::Start };
         return self;
     }
+    pub const fn grow_from_center_along_x(mut self) -> Self {
+        self.animation.enter = EnterAnimation::GrowShrink { axis: Axis::X, origin: Pos::Center };
+        return self;
+    }
+    pub const fn grow_from_center_along_y(mut self) -> Self {
+        self.animation.enter = EnterAnimation::GrowShrink { axis: Axis::Y, origin: Pos::Center };
+        return self;
+    }
     pub const fn grow_from_right(mut self) -> Self {
         self.animation.enter = EnterAnimation::GrowShrink { axis: Axis::X, origin: Pos::End };
         return self;
@@ -1479,6 +1487,14 @@ impl<'a> Node<'a> {
     }
     pub const fn shrink_to_right(mut self) -> Self {
         self.animation.exit = ExitAnimation::GrowShrink { axis: Axis::X, origin: Pos::End };
+        return self;
+    }
+    pub const fn shrink_to_center_along_x(mut self) -> Self {
+        self.animation.exit = ExitAnimation::GrowShrink { axis: Axis::X, origin: Pos::Center };
+        return self;
+    }
+    pub const fn shrink_to_center_along_y(mut self) -> Self {
+        self.animation.exit = ExitAnimation::GrowShrink { axis: Axis::Y, origin: Pos::Center };
         return self;
     }
 

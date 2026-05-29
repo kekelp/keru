@@ -884,10 +884,10 @@ impl Ui {
         );
 
         if ! self.sys.nodes[i].params.animation.state_transition.animate_position
-            // && ! self.sys.nodes[i].exit_animation_still_going // this one is not needed, because exiting nodes don't get layouted.
-                && ! self.sys.nodes[i].enter_animation_still_going {
+            && ! self.sys.nodes[i].exit_animation_still_going
+            && ! self.sys.nodes[i].enter_animation_still_going {
+
             self.sys.nodes[i].local_animated_rect = self.sys.nodes[i].local_layout_rect;
-            // might still be adjusted later for enter/exit animations.
         }
     }
 
@@ -1230,8 +1230,53 @@ impl Ui {
 
         // add the parent offset
         let parent = self.sys.nodes[i].parent;
-        // todo: pick a side depending on the parent stack and stuff like that, separate translation and resize, etc
-        let parent_offset = self.sys.nodes[parent].real_rect.top_left();
+
+        let real_tl = self.sys.nodes[parent].real_rect.top_left();
+        let mut parent_offset = real_tl;
+
+        // Heuristics to use a better parent_offset in specific cases.
+        // I don't know if it's possible to solve this generally.
+        let parent_enter_going = self.sys.nodes[parent].enter_animation_still_going;
+        let parent_exit_going = self.sys.nodes[parent].exit_animation_still_going;
+        let parent_exiting = self.sys.nodes[parent].exiting;
+        if parent_enter_going || parent_exit_going || parent_exiting {
+
+            let parent_enter_anim = &self.sys.nodes[parent].params.animation.enter;
+            let parent_exit_anim = &self.sys.nodes[parent].params.animation.exit;
+
+            if parent_enter_going {
+                let layout_tl = parent_expected_final_rect.top_left();
+                if let EnterAnimation::GrowShrink { axis, origin } = *parent_enter_anim {
+                    match origin {
+                        Pos::End | Pos::Center => match axis {
+                            Axis::X => parent_offset.x = layout_tl.x,
+                            Axis::Y => parent_offset.y = layout_tl.y,
+                        },
+                        _ => {}
+                    }
+                }
+            }
+            if parent_exiting {
+                let parent_size = self.sys.nodes[parent].layout_rect.size();
+                if let ExitAnimation::GrowShrink { axis, origin } = *parent_exit_anim {
+                    match origin {
+                        Pos::End => match axis {
+                            Axis::X => parent_offset.x = self.sys.nodes[parent].real_rect.x[1] - parent_size.x,
+                            Axis::Y => parent_offset.y = self.sys.nodes[parent].real_rect.y[1] - parent_size.y,
+                        },
+                        // Midpoint is stable: original start = stable midpoint - original size/2
+                        Pos::Center => match axis {
+                            Axis::X => { let r = self.sys.nodes[parent].real_rect.x; parent_offset.x = (r[0] + r[1]) / 2.0 - parent_size.x / 2.0; },
+                            Axis::Y => { let r = self.sys.nodes[parent].real_rect.y; parent_offset.y = (r[0] + r[1]) / 2.0 - parent_size.y / 2.0; },
+                        },
+                        _ => {}
+                    }
+                }
+            };
+        }
+
+        // let parent_offset = self.sys.nodes[parent].real_rect.top_left();
+
         self.sys.nodes[i].real_rect = self.sys.nodes[i].local_animated_rect + parent_offset;
 
 
