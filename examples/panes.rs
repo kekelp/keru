@@ -381,11 +381,11 @@ impl Panes {
 
                     ui.add(body).nest(|| {
                         ui.add(H_STACK).nest(|| {
-                            ui.add(BUTTON.key(SPLIT_LEFT.sibling(index)).text("←"));
-                            ui.add(BUTTON.key(SPLIT_RIGHT.sibling(index)).text("→"));
-                            ui.add(BUTTON.key(SPLIT_UP.sibling(index)).text("↑"));
-                            ui.add(BUTTON.key(SPLIT_DOWN.sibling(index)).text("↓"));
-                            ui.add(BUTTON.key(REMOVE_PANE.sibling(index)).text("✕").color(Color::KERU_RED));
+                            ui.add(BUTTON.animate_position(true).key(SPLIT_LEFT.sibling(index)).text("←"));
+                            ui.add(BUTTON.animate_position(true).key(SPLIT_RIGHT.sibling(index)).text("→"));
+                            ui.add(BUTTON.animate_position(true).key(SPLIT_UP.sibling(index)).text("↑"));
+                            ui.add(BUTTON.animate_position(true).key(SPLIT_DOWN.sibling(index)).text("↓"));
+                            ui.add(BUTTON.animate_position(true).key(REMOVE_PANE.sibling(index)).text("✕").color(Color::KERU_RED));
                         });
 
 
@@ -457,7 +457,7 @@ struct TabDragState {
 }
 
 fn update_ui(state: &mut State, ui: &mut Ui) {
-    ui.set_global_animation_speed(0.2);
+    // ui.set_global_animation_speed(0.2);
     
     let mut drag_state: Option<TabDragState> = None;
     for (i, pane) in &state.panes.slab {
