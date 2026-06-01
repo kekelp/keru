@@ -8,16 +8,14 @@ use keru::keru_text::parley::{FontFamily, FontFamilyName, GenericFamily};
 const RED: Color = Color::from_hex_str("#f26032");
 const TEXT_COLOR: Color = Color::from_hex_str("#f26032");
 
-const GRAD1: Gradient = Gradient {
+const GRAD1: LinearGradient = LinearGradient {
     color_start: Color::from_hex_str("#f26032"),
     color_end: Color::from_hex_str("#57360e"),
-    gradient_type: keru_draw::GradientType::Linear,
     angle: PI / 2.0,
 };
-const GRAD2: Gradient = Gradient {
+const GRAD2: LinearGradient = LinearGradient {
     color_start: Color::from_hex_str("#f37c5d"),
     color_end: Color::from_hex_str("#d34425").with_alpha(-0.8),
-    gradient_type: keru_draw::GradientType::Linear,
     angle: 0.45 * PI,
 };
 
@@ -129,9 +127,9 @@ impl<'a> Component for Button<'a> {
 
 
         let button = LABEL
-            .gradient(GRAD1.with_alpha(0.4))
+            .linear_gradient(GRAD1.with_alpha(0.4))
             .stroke(3.0)
-            .stroke_gradient(GRAD2)
+            .stroke_linear_gradient(GRAD2)
             .size_x(Size::Pixels(base_width))
             .size_y(Size::Pixels(50.0))
             .shape(Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: 0.0 })
@@ -176,7 +174,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 
     let background = IMAGE
         .shape(Shape::HexGrid { lattice_size: 20.0, offset: (0.0, 0.0), line_thickness: 2.0 })
-        .gradient(GRAD1.with_alpha(0.6))
+        .linear_gradient(GRAD1.with_alpha(0.6))
         .static_image(include_bytes!("assets/noise.jpg"))
         .image_options(ImageOptions {
             nine_slice: None,

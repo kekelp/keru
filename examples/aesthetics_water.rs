@@ -8,24 +8,21 @@ use keru::keru_text::parley::{FontFamily, FontFamilyName};
 const WATER_TEAL: Color = Color::from_hex_str("#4ab8c8");
 const TEXT_COLOR: Color = Color::from_hex_str("#cceeff");
 
-const GRAD_BG: Gradient = Gradient {
+const GRAD_BG: LinearGradient = LinearGradient {
     color_start: Color::from_hex_str("#0a1a2e"),
     color_end: Color::from_hex_str("#0d3b55"),
-    gradient_type: keru_draw::GradientType::Linear,
     angle: PI / 2.0,
 };
 
-const GRAD_BUTTON: Gradient = Gradient {
+const GRAD_BUTTON: LinearGradient = LinearGradient {
     color_start: Color::from_hex_str("#1a4a6e").with_alpha(0.6),
     color_end: Color::from_hex_str("#0d2a42").with_alpha(0.6),
-    gradient_type: keru_draw::GradientType::Linear,
     angle: PI / 2.0,
 };
 
-const GRAD_STROKE: Gradient = Gradient {
+const GRAD_STROKE: LinearGradient = LinearGradient {
     color_start: Color::from_hex_str("#6ad4f0"),
     color_end: Color::from_hex_str("#2a7a9a").with_alpha(-0.4),
-    gradient_type: keru_draw::GradientType::Linear,
     angle: PI / 2.0,
 };
 
@@ -91,15 +88,14 @@ impl<'a> Component for WaterButton<'a> {
             let blur = 6.0 + i as f32 * 5.0;
 
             let angle = PI * 0.3 + i as f32 * 0.4;
-            let ripple_grad = Gradient {
+            let ripple_grad = LinearGradient {
                 color_start: Color::from_hex_str("#e8f8ff").with_alpha(alpha),
                 color_end: Color::from_hex_str("#1a6888").with_alpha(alpha * 0.2),
-                gradient_type: keru_draw::GradientType::Linear,
                 angle,
             };
 
             let size_symm = PANEL
-                .gradient(ripple_grad)
+                .linear_gradient(ripple_grad)
                 .anchor_symm(Anchor::Center)
                 .position_x(Pos::Frac(pos.0))
                 .position_y(Pos::Frac(pos.1))
@@ -124,9 +120,9 @@ impl<'a> Component for WaterButton<'a> {
             .size_symm(Size::Frac(1.2));
 
         let button = LABEL
-            .gradient(GRAD_BUTTON)
+            .linear_gradient(GRAD_BUTTON)
             .stroke(2.0)
-            .stroke_gradient(GRAD_STROKE)
+            .stroke_linear_gradient(GRAD_STROKE)
             .size_x(Size::Pixels(380.0))
             .size_y(Size::Pixels(90.0))
             .shape(Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: 8.0 })
@@ -166,7 +162,7 @@ fn update_ui(_state: &mut State, ui: &mut Ui) {
     }
 
     let background = PANEL
-        .gradient(GRAD_BG)
+        .linear_gradient(GRAD_BG)
         .size_symm(Size::Frac(1.0))
         .absorbs_clicks(false);
 

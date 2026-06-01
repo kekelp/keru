@@ -73,6 +73,14 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 
     let [hx, hy] = arc_pos(state.t, TRACK_RADIUS);
 
+    let clip_wrapper = DEFAULT
+        .color(BG)
+        .size_symm(Size::Pixels(360.0))
+        .anchor_symm(Anchor::Center)
+        .position_symm(Pos::Center)
+        .clip_children_x(true)
+        .clip_children_y(true);
+
     let container = DEFAULT
         .color(BG)
         .size_symm(Size::Pixels(CONTAINER_SIZE))
@@ -92,26 +100,30 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .sense_hover(true)
         .shadow(Shadow { blur: 4.0, offset: Xy::new(0.0, 2.0), color: Some(Color::rgba_u8(0, 0, 0, 100)) })
         .absorbs_clicks(false)
-        .animate_position(true)
+        // .animate_position(true)
         .key(HANDLE);
 
     let center_stack = V_STACK
         .size_symm(Size::FitContent)
         .anchor_symm(Anchor::Center)
         .position_symm(Pos::Center)
-        .stack_spacing(2.0)
+        .stack_spacing(0.0)
         .stack_arrange(Arrange::Center);
 
     with_arena(|a| {
         let month_str = bumpalo::format!(in a, "{}", state.month);
         let label_str = if state.month == 1 { "month" } else { "months" };
 
-        ui.add(container).nest(|| {
-            ui.add(center_stack).nest(|| {
-                ui.add(TEXT.text(month_str.as_str()).text_size(80.0).bold().text_color(Color::rgba_u8(20, 20, 20, 255)));
-                ui.add(TEXT.static_text(label_str).text_size(18.0).text_color(Color::rgba_u8(80, 80, 80, 255)));
+        ui.add(PANEL.size_symm(Size::Fill).color(BG));
+
+        ui.add(clip_wrapper).nest(|| {
+            ui.add(container).nest(|| {
+                ui.add(center_stack).nest(|| {
+                    ui.add(TEXT.text(month_str.as_str()).text_size(80.0).bold().text_color(Color::rgba_u8(20, 20, 20, 255)));
+                    ui.add(TEXT.static_text(label_str).text_size(18.0).bold().text_color(Color::rgba_u8(80, 80, 80, 255)));
+                });
+                ui.add(handle);
             });
-            ui.add(handle);
         });
     });
 
@@ -162,18 +174,23 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                 start_angle,
                 end_angle,
                 thickness,
-                fill: ColorFill::Color(Color::rgba_u8(186, 0, 87, 160)),
+                fill: ColorFill::Color(Color::rgba_u8(186, 0, 87, 200)),
                 texture: None,
                 texture_options: None,
                 dash_length: None,
                 dash_offset: 0.0,
-                blur: 30.0,
+                blur: 60.0,
             });
 
-            let arc_color = ColorFill::Gradient(Gradient::radial(
-                Color::rgba_u8(249, 30, 80, 255),
-                Color::rgba_u8(186, 0, 87, 255),
-            ));
+            let arc_gradient = canvas.create_gradient(GradientGpu {
+                color_start: Color::rgba_u8(249, 30, 80, 200),
+                color_end: Color::rgba_u8(186, 0, 87, 200),
+                p0: [cx, cy],
+                p1: [OUTER_RADIUS, INNER_RADIUS],
+                gradient_type: 2, // radial
+                _pad: [0; 3],
+            });
+            let arc_color = ColorFill::StoredGradient(arc_gradient);
 
             // Track body
             canvas.draw_arc(CircleArc {
@@ -190,27 +207,28 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                 blur: 0.0,
             });
 
-            let start_pos = arc_pos(0.0, TRACK_RADIUS);
-            canvas.draw_circle(Circle {
-                center: start_pos,
-                radius: HALF_THICKNESS,
-                fill: arc_color,
-                texture: None,
-                texture_options: None,
-                blur: 0.0,
-            });
+            // The Arc primitive doesn't have circular ends, so we add two circles.
+            // This also means that it won't blend properly if arc_color's alpha is too low, but currently it's good enough.
+            // let start_pos = arc_pos(0.0, TRACK_RADIUS);
+            // canvas.draw_circle(Circle {
+            //     center: start_pos,
+            //     radius: HALF_THICKNESS,
+            //     fill: arc_color,
+            //     texture: None,
+            //     texture_options: None,
+            //     blur: 0.0,
+            // });
+            // let end_pos = arc_pos(t, TRACK_RADIUS);
+            // canvas.draw_circle(Circle {
+            //     center: end_pos,
+            //     radius: HALF_THICKNESS,
+            //     fill: arc_color,
+            //     texture: None,
+            //     texture_options: None,
+            //     blur: 0.0,
+            // });
 
-            let end_pos = arc_pos(t, TRACK_RADIUS);
-            canvas.draw_circle(Circle {
-                center: end_pos,
-                radius: HALF_THICKNESS,
-                fill: arc_color,
-                texture: None,
-                texture_options: None,
-                blur: 0.0,
-            });
-
-            // Mask the shadow bleed on the inside with a filled circle matching the background.
+            // Mask the shadow bleed on the inside with a filled circle matching the background
             canvas.draw_circle(Circle {
                 center: [cx, cy],
                 radius: INNER_RADIUS,

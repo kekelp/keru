@@ -199,12 +199,17 @@ impl Ui {
         let apply_dark_fill = |f: ColorFill| -> ColorFill {
             match f {
                 ColorFill::Color(color) => ColorFill::Color(apply_dark(color)),
-                ColorFill::Gradient(g) => ColorFill::Gradient(keru_draw::Gradient {
+                ColorFill::Linear(g) => ColorFill::Linear(keru_draw::LinearGradient {
                     color_start: apply_dark(g.color_start),
                     color_end: apply_dark(g.color_end),
-                    gradient_type: g.gradient_type,
                     angle: g.angle,
                 }),
+                ColorFill::Radial(g) => ColorFill::Radial(RadialGradient {
+                    color_start: apply_dark(g.color_start),
+                    color_end: apply_dark(g.color_end),
+                    inner_radius: g.inner_radius,
+                }),
+                ColorFill::StoredGradient(h) => ColorFill::StoredGradient(h),
             }
         };
 
@@ -222,14 +227,18 @@ impl Ui {
         // Check if fill is visible (alpha > 0)
         let fill_visible = !debug_box && match node.params.color {
             ColorFill::Color(c) => c.a > 0.0,
-            ColorFill::Gradient(g) => g.color_start.a > 0.0 || g.color_end.a > 0.0,
+            ColorFill::Linear(g) => g.color_start.a > 0.0 || g.color_end.a > 0.0,
+            ColorFill::Radial(g) => g.color_start.a > 0.0 || g.color_end.a > 0.0,
+            ColorFill::StoredGradient(_) => true,
         };
 
         let shadow_color = |s: Shadow| -> Color {
             s.color.unwrap_or_else(|| {
                 let base = match node.params.color {
                     ColorFill::Color(c) => c,
-                    ColorFill::Gradient(g) => g.color_start,
+                    ColorFill::Linear(g) => g.color_start,
+                    ColorFill::Radial(g) => g.color_start,
+                    ColorFill::StoredGradient(_) => Color::GREY,
                 };
                 Color::new(base.r * 0.3, base.g * 0.3, base.b * 0.3, base.a * 0.7)
             })
@@ -500,7 +509,9 @@ impl Ui {
                         // Dashed stroke
                         let stroke_color = match stroke_fill {
                             ColorFill::Color(c) => c,
-                            ColorFill::Gradient(g) => g.color_start,
+                            ColorFill::Linear(g) => g.color_start,
+                            ColorFill::Radial(g) => g.color_start,
+                            ColorFill::StoredGradient(_) => Color::WHITE,
                         };
                         self.sys.renderer.draw_dashed_box_outline(keru_draw::DashedBoxOutline {
                             top_left: [x0, y0],
@@ -561,7 +572,9 @@ impl Ui {
                         // Dashed stroke
                         let stroke_color = match stroke_fill {
                             ColorFill::Color(c) => c,
-                            ColorFill::Gradient(g) => g.color_start,
+                            ColorFill::Linear(g) => g.color_start,
+                            ColorFill::Radial(g) => g.color_start,
+                            ColorFill::StoredGradient(_) => Color::WHITE,
                         };
                         self.sys.renderer.draw_dashed_hexagon_outline(keru_draw::DashedHexagonOutline {
                             center: [cx, cy],

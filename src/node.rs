@@ -1057,11 +1057,22 @@ impl<'a> Node<'a> {
         return self;
     }
 
-    /// Set the stroke fill to a gradient.
-    pub const fn stroke_gradient(mut self, gradient: Gradient) -> Self {
+    /// Set the stroke fill to a linear gradient.
+    pub const fn stroke_linear_gradient(mut self, gradient: LinearGradient) -> Self {
         if let Some(old_stroke) = self.stroke {
             self.stroke = Some(Stroke {
-                color: ColorFill::Gradient(gradient),
+                color: ColorFill::Linear(gradient),
+                ..old_stroke
+            });
+        }
+        return self;
+    }
+
+    /// Set the stroke fill to a radial gradient.
+    pub const fn stroke_radial_gradient(mut self, gradient: RadialGradient) -> Self {
+        if let Some(old_stroke) = self.stroke {
+            self.stroke = Some(Stroke {
+                color: ColorFill::Radial(gradient),
                 ..old_stroke
             });
         }
@@ -1074,9 +1085,15 @@ impl<'a> Node<'a> {
         return self;
     }
 
-    /// Set the fill to a gradient.
-    pub const fn gradient(mut self, gradient: Gradient) -> Self {
-        self.color = ColorFill::Gradient(gradient);
+    /// Set the fill to a linear gradient.
+    pub const fn linear_gradient(mut self, gradient: LinearGradient) -> Self {
+        self.color = ColorFill::Linear(gradient);
+        return self;
+    }
+
+    /// Set the fill to a radial gradient.
+    pub const fn radial_gradient(mut self, gradient: RadialGradient) -> Self {
+        self.color = ColorFill::Radial(gradient);
         return self;
     }
 
