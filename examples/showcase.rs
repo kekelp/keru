@@ -322,6 +322,7 @@ impl UiExt for Ui {
                         start: points[i],
                         end: points[i + 1],
                         thickness,
+                        stroke_thickness: 0.0,
                         fill: ColorFill::Color(color),
                         dash_length: None,
                         dash_offset: 0.0,
@@ -374,6 +375,7 @@ impl UiExt for Ui {
                                     thickness: 4.0,
                                     color: Color::KERU_PINK,
                                     blur: 0.0,
+                                    stroke_thickness: 0.0,
                                 },
                                 QuadraticBezier {
                                     p0: [120.0, mid_y],
@@ -382,6 +384,7 @@ impl UiExt for Ui {
                                     thickness: 4.0,
                                     color: Color::KERU_GREEN,
                                     blur: 0.0,
+                                    stroke_thickness: 0.0,
                                 },
                                 QuadraticBezier {
                                     p0: [200.0, mid_y],
@@ -390,6 +393,7 @@ impl UiExt for Ui {
                                     thickness: 4.0,
                                     color: Color::KERU_BLUE,
                                     blur: 0.0,
+                                    stroke_thickness: 0.0,
                                 },
                                 QuadraticBezier {
                                     p0: [320.0, mid_y],
@@ -398,6 +402,7 @@ impl UiExt for Ui {
                                     thickness: 4.0,
                                     color: Color::KERU_GREEN,
                                     blur: 0.0,
+                                    stroke_thickness: 0.0,
                                 },
                             ];
 

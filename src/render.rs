@@ -193,27 +193,7 @@ impl Ui {
         let dark = dark_click.min(dark_hover);
 
         // Apply darkening to fill
-        let apply_dark = |c: Color| -> Color {
-            Color::new(c.r * dark, c.g * dark, c.b * dark, c.a)
-        };
-        let apply_dark_fill = |f: ColorFill| -> ColorFill {
-            match f {
-                ColorFill::Color(color) => ColorFill::Color(apply_dark(color)),
-                ColorFill::Linear(g) => ColorFill::Linear(keru_draw::LinearGradient {
-                    color_start: apply_dark(g.color_start),
-                    color_end: apply_dark(g.color_end),
-                    angle: g.angle,
-                }),
-                ColorFill::Radial(g) => ColorFill::Radial(RadialGradient {
-                    color_start: apply_dark(g.color_start),
-                    color_end: apply_dark(g.color_end),
-                    inner_radius: g.inner_radius,
-                }),
-                ColorFill::StoredGradient(h) => ColorFill::StoredGradient(h),
-            }
-        };
-
-        let fill = apply_dark_fill(node.params.color);
+        let fill = node.params.color.darken(dark);
 
         // Get stroke info
         let stroke = if debug_box {
@@ -226,19 +206,20 @@ impl Ui {
 
         // Check if fill is visible (alpha > 0)
         let fill_visible = !debug_box && match node.params.color {
-            ColorFill::Color(c) => c.a > 0.0,
-            ColorFill::Linear(g) => g.color_start.a > 0.0 || g.color_end.a > 0.0,
-            ColorFill::Radial(g) => g.color_start.a > 0.0 || g.color_end.a > 0.0,
-            ColorFill::StoredGradient(_) => true,
+            ColorFill2::Color(c) => c.a > 0.0,
+            ColorFill2::LinearGradient(lg) => lg.color_start.a > 0.0 || lg.color_end.a > 0.0,
+            ColorFill2::RadialGradient { color_inner, color_outer } => color_inner.a > 0.0 || color_outer.a > 0.0,
+            ColorFill2::SharedGradient(_) => true,
         };
 
+        // todo, why not use the same color
         let shadow_color = |s: Shadow| -> Color {
             s.color.unwrap_or_else(|| {
                 let base = match node.params.color {
-                    ColorFill::Color(c) => c,
-                    ColorFill::Linear(g) => g.color_start,
-                    ColorFill::Radial(g) => g.color_start,
-                    ColorFill::StoredGradient(_) => Color::GREY,
+                    ColorFill2::Color(c) => c,
+                    ColorFill2::LinearGradient(lg) => lg.color_start,
+                    ColorFill2::RadialGradient { color_inner, .. } => color_inner,
+                    ColorFill2::SharedGradient(_) => Color::GREY,
                 };
                 Color::new(base.r * 0.3, base.g * 0.3, base.b * 0.3, base.a * 0.7)
             })
@@ -247,14 +228,14 @@ impl Ui {
         struct ShapePass {
             offset: Xy<f32>,
             blur: f32,
-            fill: ColorFill,
+            fill: ColorFill2,
             texture: Option<LoadedImage>,
         }
 
         let shadow_pass = |s: Shadow| ShapePass {
             offset: Xy::new(s.offset.x * scale_factor, s.offset.y * scale_factor),
             blur: blur + s.blur * scale_factor,
-            fill: ColorFill::Color(shadow_color(s)),
+            fill: ColorFill2::Color(shadow_color(s)),
             texture,
         };
 
@@ -283,6 +264,7 @@ impl Ui {
             let py0 = y0 + pass.offset.y;
             let px1 = x1 + pass.offset.x;
             let py1 = y1 + pass.offset.y;
+            let fill = pass.fill.resolve(px0, py0, px1, py1);
 
             match shape {
                 Shape::NoShape => {}
@@ -293,7 +275,7 @@ impl Ui {
                         corner_radius: *corner_radius * scale_factor,
                         rounded_corners: *rounded_corners,
                         border_thickness: 0.0,
-                        fill: pass.fill,
+                        fill,
                         texture: pass.texture,
                         blur: pass.blur,
                         texture_options,
@@ -306,7 +288,7 @@ impl Ui {
                     self.sys.renderer.draw_circle(keru_draw::Circle {
                         center: [cx, cy],
                         radius,
-                        fill: pass.fill,
+                        fill,
                         texture: pass.texture,
                         blur: pass.blur,
                         texture_options,
@@ -322,7 +304,7 @@ impl Ui {
                         center: [cx, cy],
                         inner_radius,
                         outer_radius,
-                        fill: pass.fill,
+                        fill,
                         texture: pass.texture,
                         dash_length,
                         dash_offset: 0.0,
@@ -341,7 +323,7 @@ impl Ui {
                         start_angle: *start_angle,
                         end_angle: *end_angle,
                         thickness: *width * scale_factor,
-                        fill: pass.fill,
+                        fill,
                         texture: pass.texture,
                         dash_length,
                         dash_offset: 0.0,
@@ -358,7 +340,7 @@ impl Ui {
                         radius,
                         start_angle: *start_angle,
                         end_angle: *end_angle,
-                        fill: pass.fill,
+                        fill,
                         texture: pass.texture,
                         blur: pass.blur,
                         texture_options,
@@ -374,7 +356,8 @@ impl Ui {
                         start: [start_x, start_y],
                         end: [end_x, end_y],
                         thickness,
-                        fill: pass.fill,
+                        fill,
+                        stroke_thickness: 0.0,
                         dash_length: dash_length.map(|d| d * scale_factor),
                         dash_offset: 0.0,
                         texture: pass.texture,
@@ -390,7 +373,8 @@ impl Ui {
                         start: [px0, cy],
                         end: [px1, cy],
                         thickness,
-                        fill: pass.fill,
+                        fill,
+                        stroke_thickness: 0.0,
                         dash_length,
                         dash_offset: 0.0,
                         texture: pass.texture,
@@ -409,7 +393,7 @@ impl Ui {
                             center: [cx, cy],
                             size: actual_size,
                             rotation: *rotation,
-                            fill: pass.fill,
+                            fill,
                             stroke_thickness: 0.0,
                             texture: pass.texture,
                             blur: pass.blur,
@@ -425,7 +409,8 @@ impl Ui {
                         start: [cx, py0],
                         end: [cx, py1],
                         thickness,
-                        fill: pass.fill,
+                        fill,
+                        stroke_thickness: 0.0,
                         dash_length,
                         dash_offset: 0.0,
                         texture: pass.texture,
@@ -459,7 +444,8 @@ impl Ui {
                         p0: [p0_x, p0_y],
                         p1: [p1_x, p1_y],
                         p2: [p2_x, p2_y],
-                        fill: pass.fill,
+                        fill,
+                        stroke_thickness: 0.0,
                         texture: pass.texture,
                         blur: pass.blur,
                         texture_options,
@@ -472,7 +458,7 @@ impl Ui {
                         lattice_size: *lattice_size * scale_factor,
                         offset: [offset.0 * scale_factor, offset.1 * scale_factor],
                         line_thickness: *line_thickness * scale_factor,
-                        fill: pass.fill,
+                        fill,
                         grid_type: keru_draw::GridType::Square,
                         texture: pass.texture,
                         blur: pass.blur,
@@ -486,7 +472,7 @@ impl Ui {
                         lattice_size: *lattice_size * scale_factor,
                         offset: [offset.0 * scale_factor, offset.1 * scale_factor],
                         line_thickness: *line_thickness * scale_factor,
-                        fill: pass.fill,
+                        fill,
                         grid_type: keru_draw::GridType::Hexagonal,
                         texture: pass.texture,
                         blur: pass.blur,
@@ -504,14 +490,13 @@ impl Ui {
                 let width = x1 - x0;
                 let height = y1 - y0;
                 if let Some(stroke) = stroke {
-                    let stroke_fill = apply_dark_fill(stroke.color);
+                    let stroke_fill = stroke.color.darken(dark).resolve(x0, y0, x1, y1);
                     if stroke.dash_length > 0.0 {
                         // Dashed stroke
                         let stroke_color = match stroke_fill {
-                            ColorFill::Color(c) => c,
-                            ColorFill::Linear(g) => g.color_start,
-                            ColorFill::Radial(g) => g.color_start,
-                            ColorFill::StoredGradient(_) => Color::WHITE,
+                            keru_draw::ColorFill::Color(c) => c,
+                            keru_draw::ColorFill::Gradient(g) => g.color_start,
+                            keru_draw::ColorFill::SharedGradient(_) => Color::WHITE,
                         };
                         self.sys.renderer.draw_dashed_box_outline(keru_draw::DashedBoxOutline {
                             top_left: [x0, y0],
@@ -543,7 +528,7 @@ impl Ui {
                 let cy = (y0 + y1) / 2.0;
                 let radius = ((x1 - x0) / 2.0).min((y1 - y0) / 2.0);
                 if let Some(stroke) = stroke {
-                    let stroke_fill = apply_dark_fill(stroke.color);
+                    let stroke_fill = stroke.color.darken(dark).resolve(x0, y0, x1, y1);
                     let dash_length = if stroke.dash_length > 0.0 { Some(stroke.dash_length * scale_factor) } else { None };
                     self.sys.renderer.draw_ring(keru_draw::CircleRing {
                         center: [cx, cy],
@@ -567,14 +552,13 @@ impl Ui {
                 let actual_size = max_radius * size;
 
                 if let Some(stroke) = stroke {
-                    let stroke_fill = apply_dark_fill(stroke.color);
+                    let stroke_fill = stroke.color.darken(dark).resolve(x0, y0, x1, y1);
                     if stroke.dash_length > 0.0 {
                         // Dashed stroke
                         let stroke_color = match stroke_fill {
-                            ColorFill::Color(c) => c,
-                            ColorFill::Linear(g) => g.color_start,
-                            ColorFill::Radial(g) => g.color_start,
-                            ColorFill::StoredGradient(_) => Color::WHITE,
+                            keru_draw::ColorFill::Color(c) => c,
+                            keru_draw::ColorFill::Gradient(g) => g.color_start,
+                            keru_draw::ColorFill::SharedGradient(_) => Color::WHITE,
                         };
                         self.sys.renderer.draw_dashed_hexagon_outline(keru_draw::DashedHexagonOutline {
                             center: [cx, cy],

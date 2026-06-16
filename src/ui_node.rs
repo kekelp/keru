@@ -1,6 +1,6 @@
 use glam::Vec2;
 use winit::event::MouseButton;
-use keru_draw::DrawContext;
+use keru_draw::Canvas;
 
 use crate::*;
 use crate::inner_node::*;
@@ -272,10 +272,10 @@ impl<'a> UiNode<'a> {
         }
     }
 
-    /// Run a closure with a [`DrawContext`] for custom vector drawing in this node's area.
+    /// Run a closure with a [`Canvas`] for custom vector drawing in this node's area.
     ///
     /// The rendered shapes will be drawn on the node's post-layout position and z-order.
-    pub fn canvas_drawing(&mut self, drawing_function: impl FnOnce(&mut DrawContext)) {
+    pub fn canvas_drawing(&mut self, drawing_function: impl FnOnce(&mut Canvas)) {
         let i = self.i;
         let sys = self.sys_mut();
 

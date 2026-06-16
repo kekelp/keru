@@ -128,9 +128,8 @@ pub(crate) use thread_local::SiblingCursor;
 
 pub use bumpalo;
 
-pub use keru_draw::{TextStyle2 as SharedTextStyle, FontWeight, FontStyle, LineHeight, ColorBrush, StyleHandle, with_clipboard, Color, ColorFill, LinearGradient, RadialGradient, BoundingBox, TextureOptions as ImageOptions, NineSliceMargins, TileMode};
-pub use keru_draw::{DrawContext, Rectangle, Circle, CircleRing, CircleArc, CirclePie, Segment, Grid, GridType, Triangle, Hexagon, QuadraticBezier, DashedBoxOutline, DashedHexagonOutline, Transform as DrawTransform, ClipRect, LoadedImage};
-pub use keru_draw::{GradientGpu, GradientHandle};
+pub use keru_draw::{TextStyle2 as SharedTextStyle, FontWeight, FontStyle, LineHeight, ColorBrush, StyleHandle, with_clipboard, Color, ColorFill as CanvasColorFill, SharedGradient, BoundingBox, TextureOptions as ImageOptions, NineSliceMargins, TileMode};
+pub use keru_draw::{Canvas, Rectangle, Circle, CircleRing, CircleArc, CirclePie, Segment, Grid, GridType, Triangle, Hexagon, QuadraticBezier, DashedBoxOutline, DashedHexagonOutline, Transform as DrawTransform, ClipRect, LoadedImage, Gradient};
 
 mod changes;
 pub(crate) use crate::changes::*;

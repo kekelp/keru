@@ -74,7 +74,7 @@ pub struct Node<'a> {
     pub shadow: Option<Shadow>,
     pub second_shadow: Option<Shadow>,
     pub stroke: Option<Stroke>,
-    pub color: ColorFill,
+    pub color: ColorFill2,
     pub visible: bool, // skip both the shape, node and text
     pub interact: Interact,
     pub layout: Layout,
@@ -595,14 +595,134 @@ pub struct Rect {
     pub shape: Shape,
 }
 
+/// Linear gradient defined relative to the node's bounding box.
+/// `angle_deg`: 0 = left→right, 90 = top→bottom.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LinearGradient {
+    pub color_start: Color,
+    pub color_end: Color,
+    /// Degrees; 0 = left→right, 90 = top→bottom.
+    pub angle_deg: f32,
+}
+
+impl LinearGradient {
+    pub const fn new(color_start: Color, color_end: Color, angle_deg: f32) -> Self {
+        Self { color_start, color_end, angle_deg }
+    }
+}
+
+impl Hash for LinearGradient {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.color_start.r.to_bits().hash(state);
+        self.color_start.g.to_bits().hash(state);
+        self.color_start.b.to_bits().hash(state);
+        self.color_start.a.to_bits().hash(state);
+        self.color_end.r.to_bits().hash(state);
+        self.color_end.g.to_bits().hash(state);
+        self.color_end.b.to_bits().hash(state);
+        self.color_end.a.to_bits().hash(state);
+        self.angle_deg.to_bits().hash(state);
+    }
+}
+
+/// Fill style for keru nodes. Gradients are defined relative to the node's bounding box
+/// and resolved to absolute screen coordinates at render time.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ColorFill2 {
+    Color(Color),
+    /// Linear gradient at the given angle (degrees; 0 = left→right, 90 = top→bottom).
+    LinearGradient(LinearGradient),
+    /// Radial gradient centered in the node; `color_inner` is the center color.
+    RadialGradient {
+        color_inner: Color,
+        color_outer: Color,
+    },
+    /// A pre-registered absolute gradient. See [`Canvas::create_gradient`].
+    SharedGradient(SharedGradient),
+}
+
+impl ColorFill2 {
+    pub(crate) fn resolve(self, x0: f32, y0: f32, x1: f32, y1: f32) -> keru_draw::ColorFill {
+        match self {
+            ColorFill2::Color(c) => keru_draw::ColorFill::Color(c),
+            ColorFill2::LinearGradient(lg) => {
+                let cx = (x0 + x1) * 0.5;
+                let cy = (y0 + y1) * 0.5;
+                let w = x1 - x0;
+                let h = y1 - y0;
+                let rad = lg.angle_deg.to_radians();
+                // half-length of the gradient line so it covers the entire box
+                let half_len = (w * 0.5 * rad.cos()).abs() + (h * 0.5 * rad.sin()).abs();
+                let dx = rad.cos() * half_len;
+                let dy = rad.sin() * half_len;
+                let p0 = [cx - dx, cy - dy];
+                let p1 = [cx + dx, cy + dy];
+                keru_draw::ColorFill::Gradient(keru_draw::Gradient::linear(p0, p1, lg.color_start, lg.color_end))
+            },
+            ColorFill2::RadialGradient { color_inner, color_outer } => {
+                let cx = (x0 + x1) * 0.5;
+                let cy = (y0 + y1) * 0.5;
+                let w = x1 - x0;
+                let h = y1 - y0;
+                let outer_radius = w.min(h) * 0.5;
+                keru_draw::ColorFill::Gradient(keru_draw::Gradient::radial([cx, cy], outer_radius, 0.0, color_inner, color_outer))
+            },
+            ColorFill2::SharedGradient(h) => keru_draw::ColorFill::SharedGradient(h),
+        }
+    }
+
+    pub(crate) fn darken(self, factor: f32) -> Self {
+        let d = |c: Color| Color::new(c.r * factor, c.g * factor, c.b * factor, c.a);
+        match self {
+            ColorFill2::Color(c) => ColorFill2::Color(d(c)),
+            ColorFill2::LinearGradient(lg) => ColorFill2::LinearGradient(LinearGradient {
+                color_start: d(lg.color_start),
+                color_end: d(lg.color_end),
+                angle_deg: lg.angle_deg,
+            }),
+            ColorFill2::RadialGradient { color_inner, color_outer } =>
+                ColorFill2::RadialGradient { color_inner: d(color_inner), color_outer: d(color_outer) },
+            ColorFill2::SharedGradient(h) => ColorFill2::SharedGradient(h),
+        }
+    }
+}
+
 // todo: is the size of this really ok?
 /// The visual style of a stroke.
+impl Hash for ColorFill2 {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::mem::discriminant(self).hash(state);
+        match self {
+            ColorFill2::Color(c) => {
+                c.r.to_bits().hash(state);
+                c.g.to_bits().hash(state);
+                c.b.to_bits().hash(state);
+                c.a.to_bits().hash(state);
+            }
+            ColorFill2::LinearGradient(lg) => lg.hash(state),
+            ColorFill2::RadialGradient { color_inner, color_outer } => {
+                color_inner.r.to_bits().hash(state);
+                color_inner.g.to_bits().hash(state);
+                color_inner.b.to_bits().hash(state);
+                color_inner.a.to_bits().hash(state);
+                color_outer.r.to_bits().hash(state);
+                color_outer.g.to_bits().hash(state);
+                color_outer.b.to_bits().hash(state);
+                color_outer.a.to_bits().hash(state);
+            }
+            ColorFill2::SharedGradient(h) => {
+                h.hash(state);
+            }
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Stroke {
     /// Width of the stroke.
     pub width: f32,
     /// Color of the stroke.
-    pub color: ColorFill,
+    pub color: ColorFill2,
     /// Lengths of dashes.
     pub dash_length: f32,
     /// Dash offset.
@@ -613,7 +733,7 @@ impl Stroke {
     pub const fn new(width: f32) -> Self {
         Self {
             width,
-            color: ColorFill::Color(Color::KERU_GREEN),
+            color: ColorFill2::Color(Color::KERU_GREEN),
             dash_length: 0.0,
             dash_offset: 0.0,
         }
@@ -626,7 +746,7 @@ impl Stroke {
     }
 
     pub const fn with_color(mut self, color: Color) -> Self {
-        self.color = ColorFill::Color(color);
+        self.color = ColorFill2::Color(color);
         self
     }
 }
@@ -807,6 +927,17 @@ impl<'a> Node<'a> {
             stroke.width = width;
         } else {
             self.stroke = Some(Stroke::new(width))
+        }
+        return self;
+    }
+
+    /// Set the stroke width.
+    pub const fn stroke_linear_gradient(mut self, gradient: LinearGradient) -> Self {
+        if let Some(stroke) = &mut self.stroke {
+            stroke.color = ColorFill2::LinearGradient(gradient);
+        } else {
+            self.stroke = Some(Stroke::new(5.0));
+            self.stroke.unwrap().color = ColorFill2::LinearGradient(gradient);
         }
         return self;
     }
@@ -1057,22 +1188,11 @@ impl<'a> Node<'a> {
         return self;
     }
 
-    /// Set the stroke fill to a linear gradient.
-    pub const fn stroke_linear_gradient(mut self, gradient: LinearGradient) -> Self {
+    /// Set the stroke fill to a shared gradient.
+    pub const fn stroke_gradient(mut self, gradient: SharedGradient) -> Self {
         if let Some(old_stroke) = self.stroke {
             self.stroke = Some(Stroke {
-                color: ColorFill::Linear(gradient),
-                ..old_stroke
-            });
-        }
-        return self;
-    }
-
-    /// Set the stroke fill to a radial gradient.
-    pub const fn stroke_radial_gradient(mut self, gradient: RadialGradient) -> Self {
-        if let Some(old_stroke) = self.stroke {
-            self.stroke = Some(Stroke {
-                color: ColorFill::Radial(gradient),
+                color: ColorFill2::SharedGradient(gradient),
                 ..old_stroke
             });
         }
@@ -1081,24 +1201,24 @@ impl<'a> Node<'a> {
 
     /// Set the fill color.
     pub const fn color(mut self, color: Color) -> Self {
-        self.color = ColorFill::Color(color);
+        self.color = ColorFill2::Color(color);
         return self;
     }
 
-    /// Set the fill to a linear gradient.
+    /// Set the fill to a linear gradient relative to the node's bounds.
     pub const fn linear_gradient(mut self, gradient: LinearGradient) -> Self {
-        self.color = ColorFill::Linear(gradient);
+        self.color = ColorFill2::LinearGradient(gradient);
         return self;
     }
 
-    /// Set the fill to a radial gradient.
-    pub const fn radial_gradient(mut self, gradient: RadialGradient) -> Self {
-        self.color = ColorFill::Radial(gradient);
+    /// Set the fill to a shared gradient.
+    pub const fn gradient(mut self, gradient: SharedGradient) -> Self {
+        self.color = ColorFill2::SharedGradient(gradient);
         return self;
     }
 
-    /// Set the fill to a [`ColorFill`].
-    pub const fn fill(mut self, fill: ColorFill) -> Self {
+    /// Set the fill to a [`ColorFill2`].
+    pub const fn fill(mut self, fill: ColorFill2) -> Self {
         self.color = fill;
         return self;
     }

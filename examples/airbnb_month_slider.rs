@@ -131,7 +131,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         let t = state.t;
         let month = state.month;
         node.canvas_drawing(move |canvas| {
-            use keru::{Circle, CircleArc, CircleRing, ColorFill};
+            use keru::{Circle, CircleArc, CircleRing};
 
             let cx = CONTAINER_SIZE / 2.0;
             let cy = CONTAINER_SIZE / 2.0;
@@ -142,7 +142,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                 center: [cx, cy],
                 inner_radius: INNER_RADIUS,
                 outer_radius: OUTER_RADIUS,
-                fill: ColorFill::Color(Color::rgba_u8(0, 0, 0, 25)),
+                fill: CanvasColorFill::Color(Color::rgba_u8(0, 0, 0, 25)),
                 texture: None,
                 texture_options: None,
                 dash_length: None,
@@ -157,7 +157,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                 canvas.draw_circle(Circle {
                     center: pos,
                     radius: if is_current { 3.5 } else { 2.5 },
-                    fill: ColorFill::Color(Color::rgba_u8(0, 0, 0, if is_current { 140 } else { 70 })),
+                    fill: CanvasColorFill::Color(Color::rgba_u8(0, 0, 0, if is_current { 140 } else { 70 })),
                     texture: None,
                     texture_options: None,
                     blur: 0.0,
@@ -174,7 +174,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                 start_angle,
                 end_angle,
                 thickness,
-                fill: ColorFill::Color(Color::rgba_u8(186, 0, 87, 200)),
+                fill: CanvasColorFill::Color(Color::rgba_u8(186, 0, 87, 200)),
                 texture: None,
                 texture_options: None,
                 dash_length: None,
@@ -182,15 +182,11 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                 blur: 60.0,
             });
 
-            let arc_gradient = canvas.create_gradient(GradientGpu {
-                color_start: Color::rgba_u8(249, 30, 80, 200),
-                color_end: Color::rgba_u8(186, 0, 87, 200),
-                p0: [cx, cy],
-                p1: [OUTER_RADIUS, INNER_RADIUS],
-                gradient_type: 2, // radial
-                _pad: [0; 3],
-            });
-            let arc_color = ColorFill::StoredGradient(arc_gradient);
+            let arc_gradient = canvas.create_gradient(Gradient::radial(
+                [cx, cy], OUTER_RADIUS, INNER_RADIUS,
+                Color::rgba_u8(249, 30, 80, 200), Color::rgba_u8(186, 0, 87, 200),
+            ));
+            let arc_color = CanvasColorFill::SharedGradient(arc_gradient);
 
             // Track body
             canvas.draw_arc(CircleArc {
@@ -207,32 +203,11 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                 blur: 0.0,
             });
 
-            // The Arc primitive doesn't have circular ends, so we add two circles.
-            // This also means that it won't blend properly if arc_color's alpha is too low, but currently it's good enough.
-            // let start_pos = arc_pos(0.0, TRACK_RADIUS);
-            // canvas.draw_circle(Circle {
-            //     center: start_pos,
-            //     radius: HALF_THICKNESS,
-            //     fill: arc_color,
-            //     texture: None,
-            //     texture_options: None,
-            //     blur: 0.0,
-            // });
-            // let end_pos = arc_pos(t, TRACK_RADIUS);
-            // canvas.draw_circle(Circle {
-            //     center: end_pos,
-            //     radius: HALF_THICKNESS,
-            //     fill: arc_color,
-            //     texture: None,
-            //     texture_options: None,
-            //     blur: 0.0,
-            // });
-
             // Mask the shadow bleed on the inside with a filled circle matching the background
             canvas.draw_circle(Circle {
                 center: [cx, cy],
                 radius: INNER_RADIUS,
-                fill: ColorFill::Color(BG),
+                fill: CanvasColorFill::Color(BG),
                 texture: None,
                 texture_options: None,
                 blur: 0.0,
@@ -243,7 +218,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                 center: [cx, cy],
                 inner_radius: OUTER_RADIUS,
                 outer_radius: OUTER_RADIUS + SHADOW_BLEED,
-                fill: ColorFill::Color(BG),
+                fill: CanvasColorFill::Color(BG),
                 texture: None,
                 texture_options: None,
                 dash_length: None,

@@ -11,19 +11,19 @@ const TEXT_COLOR: Color = Color::from_hex_str("#cceeff");
 const GRAD_BG: LinearGradient = LinearGradient {
     color_start: Color::from_hex_str("#0a1a2e"),
     color_end: Color::from_hex_str("#0d3b55"),
-    angle: PI / 2.0,
+    angle_deg: PI / 2.0,
 };
 
 const GRAD_BUTTON: LinearGradient = LinearGradient {
     color_start: Color::from_hex_str("#1a4a6e").with_alpha(0.6),
     color_end: Color::from_hex_str("#0d2a42").with_alpha(0.6),
-    angle: PI / 2.0,
+    angle_deg: PI / 2.0,
 };
 
 const GRAD_STROKE: LinearGradient = LinearGradient {
     color_start: Color::from_hex_str("#6ad4f0"),
     color_end: Color::from_hex_str("#2a7a9a").with_alpha(-0.4),
-    angle: PI / 2.0,
+    angle_deg: PI / 2.0,
 };
 
 struct State {}
@@ -91,7 +91,7 @@ impl<'a> Component for WaterButton<'a> {
             let ripple_grad = LinearGradient {
                 color_start: Color::from_hex_str("#e8f8ff").with_alpha(alpha),
                 color_end: Color::from_hex_str("#1a6888").with_alpha(alpha * 0.2),
-                angle,
+                angle_deg: angle * 180.0 / PI,
             };
 
             let size_symm = PANEL
