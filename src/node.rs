@@ -634,6 +634,7 @@ impl Hash for LinearGradient {
 
 /// Color fill for Nodes.
 #[derive(Debug, Clone, Copy, PartialEq)]
+// todo: rename
 pub enum ColorFill2 {
     Color(Color),
     /// Linear gradient at the given angle (degrees; 0 = left→right, 90 = top→bottom).
@@ -643,8 +644,8 @@ pub enum ColorFill2 {
         color_inner: Color,
         color_outer: Color,
     },
-    /// A pre-registered absolute gradient. See [`Canvas::create_gradient`].
-    SharedGradient(SharedGradient),
+    /// Use the linear gradient of another node, identified by the [`NodeKey`].
+    SharedGradient(NodeKey),
 }
 
 impl ColorFill2 {
@@ -673,7 +674,7 @@ impl ColorFill2 {
                 let outer_radius = w.min(h) * 0.5;
                 keru_draw::ColorFill::Gradient(keru_draw::Gradient::radial([cx, cy], outer_radius, 0.0, color_inner, color_outer))
             },
-            ColorFill2::SharedGradient(h) => keru_draw::ColorFill::SharedGradient(h),
+            ColorFill2::SharedGradient(_) => keru_draw::ColorFill::Color(Color::TRANSPARENT),
         }
     }
 
@@ -699,7 +700,7 @@ impl ColorFill2 {
             }),
             ColorFill2::RadialGradient { color_inner, color_outer } =>
                 ColorFill2::RadialGradient { color_inner: d(color_inner), color_outer: d(color_outer) },
-            ColorFill2::SharedGradient(h) => ColorFill2::SharedGradient(h),
+            ColorFill2::SharedGradient(_) => panic!("darken called on SharedGradient; resolve first"),
         }
     }
 }
@@ -727,8 +728,8 @@ impl Hash for ColorFill2 {
                 color_outer.b.to_bits().hash(state);
                 color_outer.a.to_bits().hash(state);
             }
-            ColorFill2::SharedGradient(h) => {
-                h.hash(state);
+            ColorFill2::SharedGradient(k) => {
+                k.hash(state);
             }
         }
     }
@@ -1206,10 +1207,10 @@ impl<'a> Node<'a> {
     }
 
     /// Set the stroke fill to a shared gradient.
-    pub const fn stroke_gradient(mut self, gradient: SharedGradient) -> Self {
+    pub const fn stroke_fill(mut self, fill: ColorFill2) -> Self {
         if let Some(old_stroke) = self.stroke {
             self.stroke = Some(Stroke {
-                color: ColorFill2::SharedGradient(gradient),
+                color: fill,
                 ..old_stroke
             });
         }
@@ -1228,9 +1229,9 @@ impl<'a> Node<'a> {
         return self;
     }
 
-    /// Set the fill to a shared gradient.
-    pub const fn gradient(mut self, gradient: SharedGradient) -> Self {
-        self.color = ColorFill2::SharedGradient(gradient);
+    /// Set the fill to use another node's linear gradient at its absolute position.
+    pub const fn shared_gradient(mut self, key: NodeKey) -> Self {
+        self.color = ColorFill2::SharedGradient(key);
         return self;
     }
 

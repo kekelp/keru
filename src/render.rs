@@ -4,6 +4,19 @@ use winit::event::*;
 
 use crate::*;
 
+fn darken_fill(fill: keru_draw::ColorFill, factor: f32) -> keru_draw::ColorFill {
+    let d = |c: Color| Color::new(c.r * factor, c.g * factor, c.b * factor, c.a);
+    match fill {
+        keru_draw::ColorFill::Color(c) => keru_draw::ColorFill::Color(d(c)),
+        keru_draw::ColorFill::Gradient(g) => keru_draw::ColorFill::Gradient(keru_draw::Gradient {
+            color_start: d(g.color_start),
+            color_end: d(g.color_end),
+            ..g
+        }),
+        keru_draw::ColorFill::SharedGradient(_) => unreachable!(),
+    }
+}
+
 impl Ui {
     /// Handles window events and updates the `Ui`'s internal state accordingly.
     /// 
@@ -192,8 +205,46 @@ impl Ui {
         let dark_click = 1.0 - click * 0.78;
         let dark = dark_click.min(dark_hover);
 
-        // Apply darkening to fill
-        let fill = node.params.color.darken(dark);
+        // Apply darkening to fill (SharedGradient is handled separately via resolve_shared below)
+        let fill = if !matches!(node.params.color, ColorFill2::SharedGradient(_)) {
+            node.params.color.darken(dark)
+        } else {
+            node.params.color
+        };
+
+        // If the fill or stroke references another node's gradient, pre-resolve it using that
+        // node's absolute rect, then apply darkening on the resolved ColorFill.
+        let resolve_shared = |key: NodeKey| -> keru_draw::ColorFill {
+            if let Some(src_i) = self.sys.nodes.get_with_key_scope(key) {
+                let src = &self.sys.nodes[src_i];
+                let src_rect = src.get_animated_rect();
+                let sx0 = src_rect.x[0] * screen_size.x;
+                let sy0 = src_rect.y[0] * screen_size.y;
+                let sx1 = src_rect.x[1] * screen_size.x;
+                let sy1 = src_rect.y[1] * screen_size.y;
+                darken_fill(src.params.color.resolve(sx0, sy0, sx1, sy1), dark)
+            } else {
+                keru_draw::ColorFill::Color(Color::TRANSPARENT)
+            }
+        };
+
+        let node_gradient_resolved: Option<keru_draw::ColorFill> =
+            if let ColorFill2::SharedGradient(key) = node.params.color {
+                Some(resolve_shared(key))
+            } else {
+                None
+            };
+
+        let stroke_node_gradient_resolved: Option<keru_draw::ColorFill> =
+            if let Some(s) = node.params.stroke {
+                if let ColorFill2::SharedGradient(key) = s.color {
+                    Some(resolve_shared(key))
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
 
         // Get stroke info
         let stroke = if debug_box {
@@ -209,7 +260,12 @@ impl Ui {
             ColorFill2::Color(c) => c.a > 0.0,
             ColorFill2::LinearGradient(lg) => lg.color_start.a > 0.0 || lg.color_end.a > 0.0,
             ColorFill2::RadialGradient { color_inner, color_outer } => color_inner.a > 0.0 || color_outer.a > 0.0,
-            ColorFill2::SharedGradient(_) => true,
+            ColorFill2::SharedGradient(_) => match node_gradient_resolved {
+                Some(keru_draw::ColorFill::Color(c)) => c.a > 0.0,
+                Some(keru_draw::ColorFill::Gradient(ref g)) => g.color_start.a > 0.0 || g.color_end.a > 0.0,
+                Some(keru_draw::ColorFill::SharedGradient(_)) => true,
+                None => false,
+            },
         };
 
         // todo, why not use the same color
@@ -219,7 +275,11 @@ impl Ui {
                     ColorFill2::Color(c) => c,
                     ColorFill2::LinearGradient(lg) => lg.color_start,
                     ColorFill2::RadialGradient { color_inner, .. } => color_inner,
-                    ColorFill2::SharedGradient(_) => Color::GREY,
+                    ColorFill2::SharedGradient(_) => match node_gradient_resolved {
+                        Some(keru_draw::ColorFill::Color(c)) => c,
+                        Some(keru_draw::ColorFill::Gradient(ref g)) => g.color_start,
+                        _ => Color::GREY,
+                    },
                 };
                 Color::new(base.r * 0.3, base.g * 0.3, base.b * 0.3, base.a * 0.7)
             })
@@ -259,12 +319,20 @@ impl Ui {
         let texture_options = Some(node.params.image_options);
 
         // Draw all shapes, first the shadows then the real shape
+        let passes_len = passes.iter().filter(|p| p.is_some()).count();
+        let mut pass_index = 0;
         for pass in passes.into_iter().flatten() {
+            let is_real_pass = pass_index == passes_len - 1;
+            pass_index += 1;
             let px0 = x0 + pass.offset.x;
             let py0 = y0 + pass.offset.y;
             let px1 = x1 + pass.offset.x;
             let py1 = y1 + pass.offset.y;
-            let fill = pass.fill.resolve(px0, py0, px1, py1);
+            let fill = if is_real_pass {
+                node_gradient_resolved.unwrap_or_else(|| pass.fill.resolve(px0, py0, px1, py1))
+            } else {
+                pass.fill.resolve(px0, py0, px1, py1)
+            };
 
             match shape {
                 Shape::NoShape => {}
@@ -299,7 +367,11 @@ impl Ui {
                     let cy = (py0 + py1) / 2.0;
                     let outer_radius = ((px1 - px0) / 2.0).min((py1 - py0) / 2.0);
                     let inner_radius = (outer_radius - *width * scale_factor).max(0.0);
-                    let fill = pass.fill.resolve_radial(cx, cy, inner_radius, outer_radius, px0, py0, px1, py1);
+                    let fill = if is_real_pass {
+                        node_gradient_resolved.unwrap_or_else(|| pass.fill.resolve_radial(cx, cy, inner_radius, outer_radius, px0, py0, px1, py1))
+                    } else {
+                        pass.fill.resolve_radial(cx, cy, inner_radius, outer_radius, px0, py0, px1, py1)
+                    };
                     let dash_length = stroke.and_then(|s| if s.dash_length > 0.0 { Some(s.dash_length * scale_factor) } else { None });
                     self.sys.renderer.draw_ring(keru_draw::CircleRing {
                         center: [cx, cy],
@@ -320,7 +392,11 @@ impl Ui {
                     let actual_width = *width * scale_factor;
                     let inner_radius = (radius - actual_width / 2.0).max(0.0);
                     let outer_radius = radius + actual_width / 2.0;
-                    let fill = pass.fill.resolve_radial(cx, cy, inner_radius, outer_radius, px0, py0, px1, py1);
+                    let fill = if is_real_pass {
+                        node_gradient_resolved.unwrap_or_else(|| pass.fill.resolve_radial(cx, cy, inner_radius, outer_radius, px0, py0, px1, py1))
+                    } else {
+                        pass.fill.resolve_radial(cx, cy, inner_radius, outer_radius, px0, py0, px1, py1)
+                    };
                     let dash_length = stroke.and_then(|s| if s.dash_length > 0.0 { Some(s.dash_length * scale_factor) } else { None });
                     self.sys.renderer.draw_arc(keru_draw::CircleArc {
                         center: [cx, cy],
@@ -491,6 +567,14 @@ impl Ui {
             }
         }
 
+        let resolve_stroke_fill = |stroke: Stroke| -> keru_draw::ColorFill {
+            if stroke_node_gradient_resolved.is_some() {
+                stroke_node_gradient_resolved.unwrap()
+            } else {
+                stroke.color.darken(dark).resolve(x0, y0, x1, y1)
+            }
+        };
+
         // Draw strokes
         match shape {
             Shape::NoShape => {}
@@ -499,7 +583,7 @@ impl Ui {
                 let width = x1 - x0;
                 let height = y1 - y0;
                 if let Some(stroke) = stroke {
-                    let stroke_fill = stroke.color.darken(dark).resolve(x0, y0, x1, y1);
+                    let stroke_fill = resolve_stroke_fill(stroke);
                     if stroke.dash_length > 0.0 {
                         // Dashed stroke
                         let stroke_color = match stroke_fill {
@@ -537,7 +621,7 @@ impl Ui {
                 let cy = (y0 + y1) / 2.0;
                 let radius = ((x1 - x0) / 2.0).min((y1 - y0) / 2.0);
                 if let Some(stroke) = stroke {
-                    let stroke_fill = stroke.color.darken(dark).resolve(x0, y0, x1, y1);
+                    let stroke_fill = resolve_stroke_fill(stroke);
                     let dash_length = if stroke.dash_length > 0.0 { Some(stroke.dash_length * scale_factor) } else { None };
                     self.sys.renderer.draw_ring(keru_draw::CircleRing {
                         center: [cx, cy],
@@ -561,7 +645,7 @@ impl Ui {
                 let actual_size = max_radius * size;
 
                 if let Some(stroke) = stroke {
-                    let stroke_fill = stroke.color.darken(dark).resolve(x0, y0, x1, y1);
+                    let stroke_fill = resolve_stroke_fill(stroke);
                     if stroke.dash_length > 0.0 {
                         // Dashed stroke
                         let stroke_color = match stroke_fill {
