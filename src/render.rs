@@ -299,6 +299,7 @@ impl Ui {
                     let cy = (py0 + py1) / 2.0;
                     let outer_radius = ((px1 - px0) / 2.0).min((py1 - py0) / 2.0);
                     let inner_radius = (outer_radius - *width * scale_factor).max(0.0);
+                    let fill = pass.fill.resolve_radial(cx, cy, inner_radius, outer_radius, px0, py0, px1, py1);
                     let dash_length = stroke.and_then(|s| if s.dash_length > 0.0 { Some(s.dash_length * scale_factor) } else { None });
                     self.sys.renderer.draw_ring(keru_draw::CircleRing {
                         center: [cx, cy],
@@ -316,13 +317,17 @@ impl Ui {
                     let cx = (px0 + px1) / 2.0;
                     let cy = (py0 + py1) / 2.0;
                     let radius = ((px1 - px0) / 2.0).min((py1 - py0) / 2.0);
+                    let actual_width = *width * scale_factor;
+                    let inner_radius = (radius - actual_width / 2.0).max(0.0);
+                    let outer_radius = radius + actual_width / 2.0;
+                    let fill = pass.fill.resolve_radial(cx, cy, inner_radius, outer_radius, px0, py0, px1, py1);
                     let dash_length = stroke.and_then(|s| if s.dash_length > 0.0 { Some(s.dash_length * scale_factor) } else { None });
                     self.sys.renderer.draw_arc(keru_draw::CircleArc {
                         center: [cx, cy],
                         radius,
                         start_angle: *start_angle,
                         end_angle: *end_angle,
-                        thickness: *width * scale_factor,
+                        thickness: actual_width,
                         fill,
                         texture: pass.texture,
                         dash_length,
@@ -344,6 +349,8 @@ impl Ui {
                         texture: pass.texture,
                         blur: pass.blur,
                         texture_options,
+                        stroke_thickness: 0.0,
+                        corner_radius: 0.0,
                     });
                 }
                 Shape::Segment { start, end, dash_length } => {
@@ -398,6 +405,7 @@ impl Ui {
                             texture: pass.texture,
                             blur: pass.blur,
                             texture_options,
+                            corner_radius: 0.0,
                         });
                     }
                 }
@@ -449,6 +457,7 @@ impl Ui {
                         texture: pass.texture,
                         blur: pass.blur,
                         texture_options,
+                        corner_radius: 0.0,
                     });
                 }
                 Shape::SquareGrid { lattice_size, offset, line_thickness } => {
@@ -580,6 +589,7 @@ impl Ui {
                             texture: None,
                             blur,
                             texture_options: None,
+                            corner_radius: 0.0,
                         });
                     }
                 }

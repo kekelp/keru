@@ -1,4 +1,3 @@
-use std::f32::consts::PI;
 use std::time::Instant;
 
 use keru::*;
@@ -11,12 +10,12 @@ const TEXT_COLOR: Color = Color::from_hex_str("#f26032");
 const GRAD1: LinearGradient = LinearGradient {
     color_start: Color::from_hex_str("#f26032"),
     color_end: Color::from_hex_str("#57360e"),
-    angle: PI / 2.0,
+    angle_deg: 90.0,
 };
 const GRAD2: LinearGradient = LinearGradient {
     color_start: Color::from_hex_str("#f37c5d"),
     color_end: Color::from_hex_str("#d34425").with_alpha(-0.8),
-    angle: 0.45 * PI,
+    angle_deg: 0.45 * 180.0,
 };
 
 struct State {
@@ -276,6 +275,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                 blur: 0.0,
                 texture: None,
                 texture_options: None,
+                stroke_thickness: 0.0,
             });
         }
     });

@@ -609,6 +609,13 @@ impl LinearGradient {
     pub const fn new(color_start: Color, color_end: Color, angle_deg: f32) -> Self {
         Self { color_start, color_end, angle_deg }
     }
+
+    pub const fn with_alpha(self, alpha: f32) -> Self {
+        let mut new = self;
+        new.color_start = new.color_start.with_alpha(alpha);
+        new.color_end = new.color_end.with_alpha(alpha);
+        new
+    }
 }
 
 impl Hash for LinearGradient {
@@ -625,8 +632,7 @@ impl Hash for LinearGradient {
     }
 }
 
-/// Fill style for keru nodes. Gradients are defined relative to the node's bounding box
-/// and resolved to absolute screen coordinates at render time.
+/// Color fill for Nodes.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ColorFill2 {
     Color(Color),
@@ -668,6 +674,17 @@ impl ColorFill2 {
                 keru_draw::ColorFill::Gradient(keru_draw::Gradient::radial([cx, cy], outer_radius, 0.0, color_inner, color_outer))
             },
             ColorFill2::SharedGradient(h) => keru_draw::ColorFill::SharedGradient(h),
+        }
+    }
+
+    /// Like `resolve`, but for circular shapes that have explicit inner/outer radii.
+    /// For `RadialGradient`, uses those radii directly instead of deriving them from the bounding box.
+    pub(crate) fn resolve_radial(self, cx: f32, cy: f32, inner_r: f32, outer_r: f32, x0: f32, y0: f32, x1: f32, y1: f32) -> keru_draw::ColorFill {
+        match self {
+            ColorFill2::RadialGradient { color_inner, color_outer } => {
+                keru_draw::ColorFill::Gradient(keru_draw::Gradient::radial([cx, cy], outer_r, inner_r, color_inner, color_outer))
+            }
+            other => other.resolve(x0, y0, x1, y1),
         }
     }
 
