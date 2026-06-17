@@ -335,7 +335,7 @@ impl UiExt for Ui {
 
             self.static_paragraph("Nodes also have `scale` and `offset` fields apply to all their children, including the shapes drawn with the canvas API. In this example, we're using the `StatefulTransformView` component, which uses scale and offset internally, and also implements scroll-zooming and panning with space+drag or with the middle mouse button.");
 
-            let bg_panel = PANEL.size_symm(Size::Frac(0.8));
+            let bg_panel = PANEL.size(Size::Frac(0.8), Size::Pixels(900.0));
             self.add(bg_panel).nest(|| {
                 self.add_component(StatefulTransformView).nest(|| {
                     self.add(V_STACK).nest(|| {
@@ -373,7 +373,7 @@ impl UiExt for Ui {
                                     p1: [80.0, mid_y - 40.0],
                                     p2: [120.0, mid_y],
                                     thickness: 4.0,
-                                    color: Color::KERU_PINK,
+                                    color: Color::RED,
                                     blur: 0.0,
                                     stroke_thickness: 0.0,
                                 },
@@ -417,7 +417,6 @@ impl UiExt for Ui {
                         
                     });
                 });
-            
 
             });
 
