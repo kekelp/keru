@@ -83,13 +83,13 @@ impl<'a> Component for WaterButton<'a> {
 
             let t_eased = 1.0 - (1.0 - t_ring).powi(2);
 
-            let alpha = (1.0 - t_eased) * 0.7;
+            let alpha = (1.0 - t_eased) * 0.9;
             let size = 30.0 + t_eased * 480.0;
             let blur = 6.0 + i as f32 * 5.0;
 
             let angle = PI * 0.3 + i as f32 * 0.4;
             let ripple_grad = LinearGradient {
-                color_start: Color::from_hex_str("#e8f8ff").with_alpha(alpha),
+                color_start: Color::from_hex_str("#f8f8ff").with_alpha(alpha),
                 color_end: Color::from_hex_str("#1a6888").with_alpha(alpha * 0.2),
                 angle_deg: angle * 180.0 / PI,
             };

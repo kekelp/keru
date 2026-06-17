@@ -108,7 +108,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         ui.add(H_STACK.position_y(Pos::Start)).nest(|| {
             ui.add(V_SCROLL_STACK.padding_y(0.0).position_y(Pos::Start).size_x(Size::Pixels(250.0))).nest(|| {
 
-                ui.add(PANEL).nest(|| {
+                ui.add(PANEL.color(Color::KERU_BLUE)).nest(|| {
                     ui.add(V_STACK).nest(|| {
                         ui.add(TEXT.text("Grid properties:"));
 
@@ -128,7 +128,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                     });
                 });
 
-                ui.add(PANEL).nest(|| {
+                ui.add(PANEL.color(Color::KERU_BLUE)).nest(|| {
                     ui.add(V_STACK).nest(|| {
 
                         ui.add(H_STACK).nest(|| {
