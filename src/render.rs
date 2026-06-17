@@ -214,6 +214,7 @@ impl Ui {
 
         // If the fill or stroke references another node's gradient, pre-resolve it using that
         // node's absolute rect, then apply darkening on the resolved ColorFill.
+        let this_debug_name = node.debug_name();
         let resolve_shared = |key: NodeKey| -> keru_draw::ColorFill {
             if let Some(src_i) = self.sys.nodes.get_with_key_scope(key) {
                 let src = &self.sys.nodes[src_i];
@@ -224,7 +225,8 @@ impl Ui {
                 let sy1 = src_rect.y[1] * screen_size.y;
                 darken_fill(src.params.color.resolve(sx0, sy0, sx1, sy1), dark)
             } else {
-                keru_draw::ColorFill::Color(Color::TRANSPARENT)
+                log::error!("The node {} tried to use a shared gradient from the node {}, but it couldn't be found", this_debug_name, key.debug_name());
+                keru_draw::ColorFill::Color(Color::GREENSCREEN)
             }
         };
 
