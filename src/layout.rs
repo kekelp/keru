@@ -692,46 +692,7 @@ impl Ui {
             } else {
                 let child_size = self.sys.nodes[child].size;
 
-                match self.sys.nodes[child].params.layout.position[cross] {
-                    Pos::Center => {
-                        let origin = (stack_rect[cross][1] + stack_rect[cross][0]) / 2.0;
-                        self.sys.nodes[child].layout_rect[cross] = [
-                            origin - child_size[cross] / 2.0 ,
-                            origin + child_size[cross] / 2.0 ,
-                        ];
-                    },
-                    Pos::Start => {
-                        let origin = stack_rect[cross][0] + padding[cross];
-                        self.sys.nodes[child].layout_rect[cross] = [origin, origin + child_size[cross]];
-                    },
-                    Pos::Pixels(pixels) => {
-                        let static_pos = self.pixels_to_frac(pixels, cross);
-                        let anchor_offset = match self.sys.nodes[child].params.layout.anchor[cross] {
-                            Anchor::Start => 0.0,
-                            Anchor::Center => -child_size[cross] / 2.0,
-                            Anchor::End => -child_size[cross],
-                            Anchor::Frac(f) => -child_size[cross] * f,
-                        };
-                        let origin = stack_rect[cross][0] + padding[cross] + static_pos + anchor_offset;
-                        self.sys.nodes[child].layout_rect[cross] = [origin, origin + child_size[cross]];
-                    },
-                    Pos::Frac(frac) => {
-                        let inner_size = stack_rect.size()[cross] - 2.0 * padding[cross];
-                        let static_pos = frac * inner_size;
-                        let anchor_offset = match self.sys.nodes[child].params.layout.anchor[cross] {
-                            Anchor::Start => 0.0,
-                            Anchor::Center => -child_size[cross] / 2.0,
-                            Anchor::End => -child_size[cross],
-                            Anchor::Frac(f) => -child_size[cross] * f,
-                        };
-                        let origin = stack_rect[cross][0] + padding[cross] + static_pos + anchor_offset;
-                        self.sys.nodes[child].layout_rect[cross] = [origin, origin + child_size[cross]];
-                    },
-                    Pos::End => {
-                        let origin = stack_rect[cross][1] - padding[cross];
-                        self.sys.nodes[child].layout_rect[cross] = [origin - child_size[cross], origin];
-                    },
-                }
+                self.sys.nodes[child].layout_rect[cross] = self.resolve_pos_on_axis(child, cross, stack_rect, padding);
 
                 self.sys.nodes[child].layout_rect[main] = [walking_position, walking_position + child_size[main]];
 
@@ -813,52 +774,52 @@ impl Ui {
         });
     }
 
+    /// Resolve a child's `Pos` on one axis into a `[start, end]` layout range,
+    /// within the given `rect` and `padding`. Reads the child's position, anchor
+    /// and size from the node itself.
+    fn resolve_pos_on_axis(&self, child: NodeI, axis: Axis, rect: XyRect, padding: Xy<f32>) -> [f32; 2] {
+        let child_size = self.sys.nodes[child].size[axis];
+
+        let anchor_offset = match self.sys.nodes[child].params.layout.anchor[axis] {
+            Anchor::Start => 0.0,
+            Anchor::Center => -child_size / 2.0,
+            Anchor::End => -child_size,
+            Anchor::Frac(f) => -child_size * f,
+        };
+
+        match self.sys.nodes[child].params.layout.position[axis] {
+            Pos::Start => {
+                let origin = rect[axis][0] + padding[axis];
+                [origin, origin + child_size]
+            },
+            Pos::Pixels(pixels) => {
+                let static_pos = self.pixels_to_frac(pixels, axis);
+                let origin = rect[axis][0] + padding[axis] + static_pos + anchor_offset;
+                [origin, origin + child_size]
+            },
+            Pos::Frac(frac) => {
+                let inner_size = rect.size()[axis] - 2.0 * padding[axis];
+                let static_pos = frac * inner_size;
+                let origin = rect[axis][0] + padding[axis] + static_pos + anchor_offset;
+                [origin, origin + child_size]
+            },
+            Pos::End => {
+                let origin = rect[axis][1] - padding[axis];
+                [origin - child_size, origin]
+            },
+            Pos::Center => {
+                let origin = (rect[axis][0] + rect[axis][1]) / 2.0;
+                [origin - child_size / 2.0, origin + child_size / 2.0]
+            },
+        }
+    }
+
     pub(crate) fn place_child_free(&mut self, child: NodeI, parent: NodeI) {
         let parent_rect = self.sys.nodes[parent].layout_rect;
         let padding = self.pixels_to_frac2(self.sys.nodes[parent].params.layout.padding);
-        let child_size = self.sys.nodes[child].size;
 
         for axis in [X, Y] {
-            match self.sys.nodes[child].params.layout.position[axis] {
-                Pos::Start => {
-                    let origin = parent_rect[axis][0] + padding[axis];
-                    self.sys.nodes[child].layout_rect[axis] = [origin, origin + child_size[axis]];
-                },
-                Pos::Pixels(pixels) => {
-                    let static_pos = self.pixels_to_frac(pixels, axis);
-                    let anchor_offset = match self.sys.nodes[child].params.layout.anchor[axis] {
-                        Anchor::Start => 0.0,
-                        Anchor::Center => -child_size[axis] / 2.0,
-                        Anchor::End => -child_size[axis],
-                        Anchor::Frac(f) => -child_size[axis] * f,
-                    };
-                    let origin = parent_rect[axis][0] + padding[axis] + static_pos + anchor_offset;
-                    self.sys.nodes[child].layout_rect[axis] = [origin, origin + child_size[axis]];
-                }
-                Pos::Frac(frac) => {
-                    let inner_size = parent_rect.size()[axis] - 2.0 * padding[axis];
-                    let static_pos = frac * inner_size;
-                    let anchor_offset = match self.sys.nodes[child].params.layout.anchor[axis] {
-                        Anchor::Start => 0.0,
-                        Anchor::Center => -child_size[axis] / 2.0,
-                        Anchor::End => -child_size[axis],
-                        Anchor::Frac(f) => -child_size[axis] * f,
-                    };
-                    let origin = parent_rect[axis][0] + padding[axis] + static_pos + anchor_offset;
-                    self.sys.nodes[child].layout_rect[axis] = [origin, origin + child_size[axis]];
-                }
-                Pos::End => {
-                    let origin = parent_rect[axis][1] - padding[axis];
-                    self.sys.nodes[child].layout_rect[axis] = [origin - child_size[axis], origin];
-                },
-                Pos::Center => {
-                    let origin = (parent_rect[axis][0] + parent_rect[axis][1]) / 2.0;
-                    self.sys.nodes[child].layout_rect[axis] = [
-                        origin - child_size[axis] / 2.0 ,
-                        origin + child_size[axis] / 2.0 ,
-                    ];
-                },
-            }
+            self.sys.nodes[child].layout_rect[axis] = self.resolve_pos_on_axis(child, axis, parent_rect, padding);
         }
 
         self.set_local_layout_rect(child, parent);
