@@ -692,7 +692,7 @@ impl Ui {
             } else {
                 let child_size = self.sys.nodes[child].size;
 
-                self.sys.nodes[child].layout_rect[cross] = self.resolve_pos_on_axis(child, cross, stack_rect, padding);
+                self.sys.nodes[child].layout_rect[cross] = self.resolve_pos_on_axis(i, child, cross);
 
                 self.sys.nodes[child].layout_rect[main] = [walking_position, walking_position + child_size[main]];
 
@@ -774,52 +774,65 @@ impl Ui {
         });
     }
 
-    /// Resolve a child's `Pos` on one axis into a `[start, end]` layout range,
-    /// within the given `rect` and `padding`. Reads the child's position, anchor
-    /// and size from the node itself.
-    fn resolve_pos_on_axis(&self, child: NodeI, axis: Axis, rect: XyRect, padding: Xy<f32>) -> [f32; 2] {
+    fn resolve_pos_on_axis(&self, parent: NodeI, child: NodeI, axis: Axis) -> [f32; 2] {
+        let rect = self.sys.nodes[parent].layout_rect;
+        let padding = self.pixels_to_frac(self.sys.nodes[parent].params.layout.padding[axis], axis);
+        let flipped = match axis {
+            X => self.sys.nodes[parent].params.layout.pos_origin_x == HorizontalOrigin::Right,
+            Y => self.sys.nodes[parent].params.layout.pos_origin_y == VerticalOrigin::Bottom,
+        };
+
         let child_size = self.sys.nodes[child].size[axis];
 
-        let anchor_offset = match self.sys.nodes[child].params.layout.anchor[axis] {
+        // Anchor as a fraction of the child measured from its origin-side edge.
+        let anchor_frac = match self.sys.nodes[child].params.layout.anchor[axis] {
             Anchor::Start => 0.0,
-            Anchor::Center => -child_size / 2.0,
-            Anchor::End => -child_size,
-            Anchor::Frac(f) => -child_size * f,
+            Anchor::Center => 0.5,
+            Anchor::End => 1.0,
+            Anchor::Frac(f) => f,
         };
+
+        // Place a child whose anchor point lands on `reference`, where `reference`
+        // is an offset measured from the origin edge growing inwards.
+        let place_at = |reference: f32| {
+            if !flipped {
+                let low = reference - anchor_frac * child_size;
+                [low, low + child_size]
+            } else {
+                let high = reference + anchor_frac * child_size;
+                [high - child_size, high]
+            }
+        };
+        // Flush against the origin edge (`Pos::Start`) or the far edge (`Pos::End`).
+        let origin_edge = if !flipped { rect[axis][0] + padding } else { rect[axis][1] - padding };
+        let far_edge = if !flipped { rect[axis][1] - padding } else { rect[axis][0] + padding };
 
         match self.sys.nodes[child].params.layout.position[axis] {
             Pos::Start => {
-                let origin = rect[axis][0] + padding[axis];
-                [origin, origin + child_size]
+                if !flipped { [origin_edge, origin_edge + child_size] } else { [origin_edge - child_size, origin_edge] }
+            },
+            Pos::End => {
+                if !flipped { [far_edge - child_size, far_edge] } else { [far_edge, far_edge + child_size] }
             },
             Pos::Pixels(pixels) => {
                 let static_pos = self.pixels_to_frac(pixels, axis);
-                let origin = rect[axis][0] + padding[axis] + static_pos + anchor_offset;
-                [origin, origin + child_size]
+                place_at(if !flipped { origin_edge + static_pos } else { origin_edge - static_pos })
             },
             Pos::Frac(frac) => {
-                let inner_size = rect.size()[axis] - 2.0 * padding[axis];
+                let inner_size = rect.size()[axis] - 2.0 * padding;
                 let static_pos = frac * inner_size;
-                let origin = rect[axis][0] + padding[axis] + static_pos + anchor_offset;
-                [origin, origin + child_size]
-            },
-            Pos::End => {
-                let origin = rect[axis][1] - padding[axis];
-                [origin - child_size, origin]
+                place_at(if !flipped { origin_edge + static_pos } else { origin_edge - static_pos })
             },
             Pos::Center => {
-                let origin = (rect[axis][0] + rect[axis][1]) / 2.0;
-                [origin - child_size / 2.0, origin + child_size / 2.0]
+                let center = (rect[axis][0] + rect[axis][1]) / 2.0;
+                [center - child_size / 2.0, center + child_size / 2.0]
             },
         }
     }
 
     pub(crate) fn place_child_free(&mut self, child: NodeI, parent: NodeI) {
-        let parent_rect = self.sys.nodes[parent].layout_rect;
-        let padding = self.pixels_to_frac2(self.sys.nodes[parent].params.layout.padding);
-
         for axis in [X, Y] {
-            self.sys.nodes[child].layout_rect[axis] = self.resolve_pos_on_axis(child, axis, parent_rect, padding);
+            self.sys.nodes[child].layout_rect[axis] = self.resolve_pos_on_axis(parent, child, axis);
         }
 
         self.set_local_layout_rect(child, parent);

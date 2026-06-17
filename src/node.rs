@@ -265,6 +265,18 @@ impl Hash for Pos {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum HorizontalOrigin {
+    Left,
+    Right,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum VerticalOrigin {
+    Top,
+    Bottom,
+}
+
 /// Determines how the children of the node are laid out in its space.
 #[derive(Debug, Clone, Copy)]
 pub enum ChildrenLayout {
@@ -398,6 +410,8 @@ pub struct Layout {
     pub padding: Xy<f32>,
     pub position: Xy<Pos>,
     pub anchor: Xy<Anchor>,
+    pub pos_origin_x: HorizontalOrigin,
+    pub pos_origin_y: VerticalOrigin,
     pub scrollable: Xy<bool>,
 }
 impl Hash for Layout {
@@ -407,6 +421,8 @@ impl Hash for Layout {
         self.padding.y.to_bits().hash(state);
         self.position.hash(state);
         self.anchor.hash(state);
+        self.pos_origin_x.hash(state);
+        self.pos_origin_y.hash(state);
         self.scrollable.hash(state);
     }
 }
@@ -418,6 +434,8 @@ impl Default for Layout {
             padding: Xy::new_symm(10.0),
             position: Xy::new_symm(Pos::Center),
             anchor: Xy::new_symm(Anchor::Start),
+            pos_origin_x: HorizontalOrigin::Left,
+            pos_origin_y: VerticalOrigin::Top,
             scrollable: Xy::new(false, false),
         }
     }
@@ -465,6 +483,22 @@ impl Layout {
     pub const fn position_symm(mut self, position: Pos) -> Self {
         self.position.x = position;
         self.position.y = position;
+        return self;
+    }
+
+    pub const fn pos_origin(mut self, origin_x: HorizontalOrigin, origin_y: VerticalOrigin) -> Self {
+        self.pos_origin_x = origin_x;
+        self.pos_origin_y = origin_y;
+        return self;
+    }
+
+    pub const fn pos_origin_x(mut self, origin: HorizontalOrigin) -> Self {
+        self.pos_origin_x = origin;
+        return self;
+    }
+
+    pub const fn pos_origin_y(mut self, origin: VerticalOrigin) -> Self {
+        self.pos_origin_y = origin;
         return self;
     }
 }
@@ -1115,6 +1149,25 @@ impl<'a> Node<'a> {
     /// Set the vertical anchor point.
     pub const fn anchor_y(mut self, anchor: Anchor) -> Self {
         self.layout.anchor.y = anchor;
+        return self;
+    }
+
+    /// Set the origin edges for this node's children's positions.
+    pub const fn pos_origin(mut self, origin_x: HorizontalOrigin, origin_y: VerticalOrigin) -> Self {
+        self.layout.pos_origin_x = origin_x;
+        self.layout.pos_origin_y = origin_y;
+        return self;
+    }
+
+    /// Set the horizontal origin edge for this node's children's positions.
+    pub const fn pos_origin_x(mut self, origin: HorizontalOrigin) -> Self {
+        self.layout.pos_origin_x = origin;
+        return self;
+    }
+
+    /// Set the vertical origin edge for this node's children's positions.
+    pub const fn pos_origin_y(mut self, origin: VerticalOrigin) -> Self {
+        self.layout.pos_origin_y = origin;
         return self;
     }
 
