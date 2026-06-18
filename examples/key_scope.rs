@@ -40,7 +40,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                 }
             }
 
-            ui.add(TEXT.text("Broken counters:"));
+            ui.add(TEXT.text("Broken counters (increase by 3 or 0)"));
             ui.add(H_STACK).nest(|| {
                 counter_bad(state, ui);
                 counter_bad(state, ui);
@@ -58,7 +58,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                 });
             }
 
-            ui.add(TEXT.text("Fixed counters:"));
+            ui.add(TEXT.text("Fixed counters (increase by 1)"));
             ui.add(H_STACK).nest(|| {
                 counter_good(state, ui);
                 counter_good(state, ui);
@@ -76,7 +76,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                 });
             }
 
-            ui.add(TEXT.text("Read-only counters:"));
+            ui.add(TEXT.text("Read-only counters"));
             ui.add(H_STACK).nest(|| {
                 counter_display(state, ui);
                 counter_display(state, ui);

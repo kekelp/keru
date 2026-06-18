@@ -23,7 +23,7 @@ fn update_ui(_state: &mut State, ui: &mut Ui) {
 
     ui.add(V_STACK.stack_spacing(50.0)).nest(|| {
         
-        ui.add(BUTTON.static_text("Neumorphism button"));
+        ui.add(BUTTON.padding(18.0).static_text("Neumorphism button").text_color(Color::from_hex_str("#999999")));
         ui.add(BUTTON_CIRCLE.size_symm(Size::Pixels(150.0)));
         ui.add(BUTTON_HEXAGON.size_symm(Size::Pixels(150.0)));
     });

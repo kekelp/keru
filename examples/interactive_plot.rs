@@ -71,23 +71,27 @@ fn moving_average(points: &[Point], window: usize) -> Vec<[f32; 2]> {
         .collect()
 }
 
-struct State {
+struct Data {
     points: Vec<Point>,
+    average: Vec<[f32; 2]>,
+}
+
+fn load_data() -> Data {
+    let points = load_points();
+    let average = moving_average(&points, 12);
+    Data { points, average }
+}
+
+#[derive(Default)]
+struct State {
+    data: Option<Data>,
     transform: TransformViewState,
 }
 
-impl Default for State {
-    fn default() -> Self {
-        Self {
-            points: load_points(),
-            transform: TransformViewState::default(),
-        }
-    }
-}
-
 fn update_ui(state: &mut State, ui: &mut Ui) {
-    let State { points, transform } = state;
-    let points: &[Point] = points;
+    let State { data, transform } = state;
+    let data = data.get_or_insert_with(load_data);
+    let points: &[Point] = &data.points;
     ui.add(PANEL.size_symm(Size::Fill).color(Color::WHITE));
 
     let title = TEXT
@@ -256,7 +260,6 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 
     let size = ui.get_node(LINE_CONTAINER).map(|n| n.inner_size()).unwrap_or(Xy::new(0.0, 0.0));
     let (w, h) = (size.x, size.y);
-    let smooth = moving_average(points, 12);
     let s = transform.scale.max(1e-3);
 
     ui.get_node_mut(LINE_CONTAINER).unwrap().canvas_drawing(|canvas| {
@@ -286,7 +289,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
             to_canvas(YEAR_MAX, 0.0),
             1.0, Color::rgba_u8(120, 120, 120, 255));
 
-        for win in smooth.windows(2) {
+        for win in data.average.windows(2) {
             line(canvas,
                 to_canvas(win[0][0], win[0][1]),
                 to_canvas(win[1][0], win[1][1]),
