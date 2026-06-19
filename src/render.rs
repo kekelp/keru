@@ -53,9 +53,7 @@ impl Ui {
         event: &winit::event::WindowEvent,
         window: &winit::window::Window
     ) -> bool {
-        // Pass events to keru_text so it can register windows and track dimensions.
-        // This is essential for keru_text to set the screen resolution correctly.
-        if let WindowEvent::MouseInput { .. } = event {
+        let _text_response = if let WindowEvent::MouseInput { .. } = event {
             let topmost_text_box = self.sys.renderer.text.find_topmost_text_box(event);
 
             // Find the topmost interactive keru element under the cursor and get its z value.
@@ -75,11 +73,10 @@ impl Ui {
             };
 
             let topmost = if occluded { None } else { topmost_text_box };
-            self.sys.renderer.text.handle_event_with_topmost(event, window, topmost);
+            self.sys.renderer.text.handle_event_with_topmost(event, window, topmost)
         } else {
-            self.sys.renderer.text.handle_event(event, window);
-        }
-        // todo: see if keyboard events are consumed by a text box?
+            self.sys.renderer.text.handle_event(event, window)
+        };
 
         if self.sys.renderer.text.needs_rerender() {
             self.sys.changes.should_rebuild_render_data = true;
@@ -681,6 +678,45 @@ impl Ui {
                 }
             }
         }
+    }
+
+    pub(crate) fn draw_focus_rect(&mut self, i: NodeI) {        
+        let node = &self.sys.nodes[i];
+
+        let scale_factor = self.sys.scale_factor;
+        let animated_rect = node.get_animated_rect();
+
+        // Convert to pixel coordinates, rounding to screen pixels like draw_node_shape does.
+        let screen_size = self.sys.size;
+        let scale = node.accumulated_transform.scale;
+        let x0 = (animated_rect.x[0] * screen_size.x * scale).round() / scale;
+        let y0 = (animated_rect.y[0] * screen_size.y * scale).round() / scale;
+        let x1 = (animated_rect.x[1] * screen_size.x * scale).round() / scale;
+        let y1 = (animated_rect.y[1] * screen_size.y * scale).round() / scale;
+
+        // Expand the rect a bit so the focus ring sits outside the node's own shape.
+        let pad = 2.0 * scale_factor;
+        let thickness = 2.0 * scale_factor;
+
+        // Base the corner radius on the node's own rounding when it's a rectangle.
+        let base_radius = match &node.params.shape {
+            Shape::Rectangle { corner_radius, .. } => *corner_radius * scale_factor,
+            _ => 4.0 * scale_factor,
+        };
+
+        let focus_color = Color::new(0.4, 0.7, 1.0, 1.0);
+
+        self.sys.renderer.draw_box(keru_draw::Rectangle {
+            top_left: [x0 - pad, y0 - pad],
+            size: [(x1 - x0) + pad * 2.0, (y1 - y0) + pad * 2.0],
+            corner_radius: base_radius + pad,
+            rounded_corners: keru_draw::RoundedCorners::ALL,
+            border_thickness: thickness,
+            fill: keru_draw::ColorFill::Color(focus_color),
+            texture: None,
+            blur: 0.0,
+            texture_options: None,
+        });
     }
 
     /// Renders the UI into a render pass.

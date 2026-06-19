@@ -132,6 +132,11 @@ impl<'a> UiNode<'a> {
         self.node().exiting
     }
 
+    /// Returns `true` if the node currently holds the keyboard navigation focus.
+    pub fn is_focused(&self) -> bool {
+        self.sys().show_focus_indicator && self.sys().focused == Some(self.node().id)
+    }
+
     /// Returns a temporary key that can be used to refer to this node.
     pub fn temp_key(&self) -> NodeKey {
         NodeKey::new_temp(self.node().id, "temp_node_key")

@@ -74,8 +74,8 @@ impl<'a> Component for Button<'a> {
             (t.elapsed().as_secs_f32() / 0.25).min(1.0)
         });
 
-        let hovered = ui.is_hovered(Self::CLICK_AREA);
-        
+        let hovered = ui.is_hovered(Self::CLICK_AREA) || ui.is_focused(Self::CLICK_AREA);
+
         // The hover animation is fully stateless, and could be done without adding state to the component.
         let base_width = 270.0;
         let hover_circle_size = if hovered {
@@ -135,6 +135,7 @@ impl<'a> Component for Button<'a> {
             .padding(12.0)
             .sense_hover_enter_or_exit(true)
             .sense_click(true)
+            .focus_indicator(false)
             .clip_children(true)
             .animate_position(true)
             .static_image(include_bytes!("assets/noise.jpg"))

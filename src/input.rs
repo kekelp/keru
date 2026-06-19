@@ -93,11 +93,6 @@ impl<'a> UiNode<'a> {
         Some(Hover { absolute_position: cursor, relative_position, last_enter_or_exit: node.hover_enter_exit_instant })
     }
 
-    /// Returns `true` if this node currently has keyboard focus.
-    pub fn is_focused(&self) -> bool {
-        self.sys().check_focused(self.node().id)
-    }
-
     /// If this node is being held with the left mouse button, returns the duration of the hold.
     pub fn is_held(&self) -> Option<Duration> {
         self.sys().check_held_duration(self.node().id, MouseButton::Left)
@@ -188,9 +183,10 @@ impl Ui {
         self.get_node(key)?.is_hovered()
     }
 
-    /// Returns `true` if the node corresponding to `key` currently has keyboard focus.
+    /// Returns `true` if the node corresponding to `key` currently is currently holding the keyboard navigation focus.
     pub fn is_focused(&self, key: NodeKey) -> bool {
-        self.sys.check_focused(key.id_with_key_scope())
+        // Some non-interactive nodes can be "silently" focused in a way that's just useful for future tab navigation. is_focused shouldn't report that, though, so we also check self.sys.show_focus_indicator
+        self.sys.show_focus_indicator && self.sys.focused == Some(key.id_with_key_scope())
     }
 
     /// If the node corresponding to `key` is being held with the left mouse button, returns the duration of the hold.

@@ -120,6 +120,7 @@ pub(crate) struct System {
     pub hovered: Vec<Id>,
 
     pub focused: Option<Id>,
+    pub show_focus_indicator: bool,
 
     // this is used exclusively for info messages
     pub partial_relayout_count: u32,
@@ -300,6 +301,7 @@ impl Ui {
                 inspect_hovered: smallvec::SmallVec::new(),
 
                 focused: None,
+                show_focus_indicator: false,
 
                 anim_render_timer: AnimationRenderTimer::default(),
 

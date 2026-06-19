@@ -70,6 +70,32 @@ pub(crate) struct ClickRect {
     pub absorbs_mouse_events: bool,
 }
 
+/// A single node hit by the cursor, recorded by [`System::scan_all_hits`].
+/// Ordered topmost-first. Carries enough info that callers can filter for the
+/// senses they care about without rescanning.
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct HitNode {
+    pub id: Id,
+    pub senses: Sense,
+    pub absorbs_mouse_events: bool,
+}
+
+/// Pick out the nodes that have a given sense from a [`System::scan_all_hits`]
+/// result, stopping at the first absorbing node that has the sense (which
+/// consumes the event). Reproduces [`System::scan_hits_with_sense`].
+pub(crate) fn filter_hits_by_sense(hits: &[HitNode], sense: Sense) -> SmallVec<Id> {
+    let mut result = SmallVec::new();
+    for hit in hits {
+        if hit.senses.contains(sense) {
+            result.push(hit.id);
+        }
+        if hit.absorbs_mouse_events && hit.senses.contains(sense) {
+            break;
+        }
+    }
+    result
+}
+
 bitflags::bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
     pub struct Sense: u16 {
@@ -231,14 +257,17 @@ impl Ui {
     }
 
     pub(crate) fn handle_mouse_press(&mut self, button: MouseButton, window: &Window) -> bool {
-        self.sys.focused = None;
+        // Single scan of everything under the cursor. The code below picks out
+        // the senses it cares about from this one list.
+        let hits = self.sys.scan_all_hits();
 
-        let click_ids = self.sys.scan_hits_with_sense(Sense::CLICK);
-        let drag_ids = self.sys.scan_hits_with_sense(Sense::DRAG);
+        let click_ids = filter_hits_by_sense(&hits, Sense::CLICK);
+        let drag_ids = filter_hits_by_sense(&hits, Sense::DRAG);
 
         self.sys.mouse_input.push_press(button, click_ids.clone(), drag_ids);
 
-        // todo: instead of re-iterating, maybe do this while scanning?
+        self.resolve_focus_on_press(hits.first());
+
         let mut any_consumed = false;
         for &id in &click_ids {
             if let Some(i) = self.sys.nodes.get_by_id(id) {
@@ -266,9 +295,36 @@ impl Ui {
         }
     }
 
-    fn resolve_click_press(&mut self, button: MouseButton, _window: &Window, i: NodeI) -> bool {
-        let id = self.sys.nodes[i].id;
+    /// Move focus to a node on press. Runs for the topmost hit node regardless
+    /// of its senses. Clicking empty space (no hit) clears the focus.
+    fn resolve_focus_on_press(&mut self, hit: Option<&HitNode>) {
+        let Some(hit) = hit else {
+            self.sys.focused = None;
+            self.sys.renderer.text.clear_focus();
+            return;
+        };
+        let Some(i) = self.sys.nodes.get_by_id(hit.id) else {
+            return;
+        };
 
+        let prev_focused = self.sys.focused;
+
+        let interactable = self.is_interactable_for_focus(i);
+        if interactable {
+            let currently_showing_indicator = self.sys.show_focus_indicator;
+            self.set_focus_node(i, currently_showing_indicator);
+        } else {
+            // "Focus" the node anyway so that tab navigation can start from here.
+            // It's harmless to focus it if it's non-interactable.
+            self.set_focus_node(i, false);
+        }
+
+        if self.sys.focused != prev_focused {
+            self.set_new_ui_input();
+        }
+    }
+
+    fn resolve_click_press(&mut self, button: MouseButton, _window: &Window, i: NodeI) -> bool {
         if self.sys.nodes[i].params.interact.senses.contains(Sense::CLICK) {
             self.set_new_ui_input();
         }
@@ -280,12 +336,6 @@ impl Ui {
                 self.sys.nodes[i].last_click = t;
                 self.sys.changes.rebuild_render_data = true;
                 self.sys.anim_render_timer.push_new(Duration::from_secs_f32(ANIMATION_RERENDER_TIME));
-            }
-
-            if let Some(text_i) = &self.sys.nodes[i].text_i {
-                if matches!(text_i, TextI::TextEdit(_)) {
-                    self.sys.focused = Some(id);
-                }
             }
         }
 
@@ -301,7 +351,180 @@ impl Ui {
             }
             self.sys.debug_key_pressed = event.state.is_pressed();
         }
+
+        if let Key::Named(NamedKey::Tab) = &event.logical_key {
+            if event.state.is_pressed() {
+                let forward = !self.sys.key_input.key_mods().shift_key();
+                self.move_keyboard_focus(forward);
+                return true;
+            }
+        }
+
+        if let Key::Named(NamedKey::Escape) = &event.logical_key {
+            if event.state.is_pressed() && self.sys.show_focus_indicator {
+                // Hide the focus indicator without losing the focus itself, so a
+                // subsequent Tab resumes navigation from the same node.
+                self.sys.show_focus_indicator = false;
+                self.sys.changes.should_rebuild_render_data = true;
+                self.set_new_ui_input();
+                return true;
+            }
+        }
+
+        if let Key::Named(NamedKey::Space | NamedKey::Enter) = &event.logical_key {
+            if event.state.is_pressed() {
+                if let Some(i) = self.sys.focused.and_then(|id| self.sys.nodes.get_by_id(id)) {
+                    // Don't activate a focused text edit: Space/Enter are text
+                    // input there (handled by keru_text), not activation. Also
+                    // skip non-interactable nodes, which can only be focused as a
+                    // navigation anchor.
+                    let is_text_edit = matches!(self.sys.nodes[i].text_i, Some(TextI::TextEdit(_)));
+                    if self.is_interactable_for_focus(i) && !is_text_edit {
+                        self.activate_focused_node(i);
+                        return true;
+                    }
+                }
+            }
+        }
+
         false
+    }
+
+    /// Activate a node via the keyboard, as if it had been clicked.
+    fn activate_focused_node(&mut self, i: NodeI) {
+        self.sys.push_synthetic_click(i);
+
+        // Mirror the click animation that resolve_click_press triggers.
+        if self.sys.nodes[i].params.interact.click_animation {
+            self.sys.nodes[i].last_click = T0.elapsed().as_secs_f32();
+            self.sys.changes.rebuild_render_data = true;
+            self.sys.anim_render_timer.push_new(Duration::from_secs_f32(ANIMATION_RERENDER_TIME));
+        }
+
+        self.set_new_ui_input();
+    }
+
+    /// Move the keyboard focus to the next (or previous) interactable node in
+    /// depth-first order, wrapping around at the ends.
+    ///
+    /// If nothing is focused yet, focuses the first interactable node.
+    pub(crate) fn move_keyboard_focus(&mut self, forward: bool) {
+        // Using the keyboard always reveals the focus indicator, even if the
+        // focus doesn't end up moving (e.g. a single interactable node).
+        self.sys.show_focus_indicator = true;
+        self.sys.changes.should_rebuild_render_data = true;
+        self.set_new_ui_input();
+
+        let Some(first) = self.first_node() else { return; };
+        let Some(last) = self.last_node() else { return; };
+
+        // The node we start scanning from. When nothing is focused (or the
+        // focused node no longer exists), the first step should land on the
+        // very first (or last) node of the tree.
+        let start = match self.sys.focused.and_then(|id| self.sys.nodes.get_by_id(id)) {
+            Some(i) => i,
+            None => {
+                let candidate = if forward { first } else { last };
+                if self.is_interactable_for_focus(candidate) {
+                    self.set_focus_node(candidate, true);
+                    return;
+                }
+                candidate
+            }
+        };
+
+        let mut cursor = start;
+        loop {
+            cursor = if forward {
+                self.next_node(cursor).unwrap_or(first)
+            } else {
+                self.prev_node(cursor).unwrap_or(last)
+            };
+
+            if self.is_interactable_for_focus(cursor) {
+                self.set_focus_node(cursor, true);
+                return;
+            }
+
+            // Walked the whole tree without finding anything interactable.
+            if cursor == start {
+                return;
+            }
+        }
+    }
+
+    pub(crate) fn set_focus_node(&mut self, i: NodeI, show_indicator: bool) {
+        self.sys.focused = Some(self.sys.nodes[i].id);
+        self.sys.show_focus_indicator = show_indicator;
+        self.sys.changes.should_rebuild_render_data = true;
+
+        match &self.sys.nodes[i].text_i {
+            Some(TextI::TextEdit(handle)) => {
+                self.sys.renderer.text.get_text_edit_mut(handle).set_focus();
+            }
+            Some(TextI::TextBox(handle)) => {
+                self.sys.renderer.text.get_text_box_mut(handle).set_focus();
+            }
+            None => {
+                // self.sys.renderer.text.clear_focus();
+            }
+        }
+    }
+
+    fn is_interactable_for_focus(&self, i: NodeI) -> bool {
+        if !self.sys.nodes[i].params.interact.focusable {
+            return false;
+        }
+        let any_sense = self.sys.nodes[i].params.interact.senses.difference(Sense::TIME) != Sense::NONE;
+        let text_edit = matches!(self.sys.nodes[i].text_i, Some(TextI::TextEdit(_)));
+
+        return any_sense || text_edit;
+    }
+
+    fn first_node(&self) -> Option<NodeI> {
+        self.sys.nodes[ROOT_I].first_child
+    }
+
+    /// The last node of the tree in depth-first order (deepest last descendant).
+    fn last_node(&self) -> Option<NodeI> {
+        let mut cursor = self.sys.nodes[ROOT_I].last_child?;
+        while let Some(child) = self.sys.nodes[cursor].last_child {
+            cursor = child;
+        }
+        Some(cursor)
+    }
+
+    fn next_node(&self, i: NodeI) -> Option<NodeI> {
+        if let Some(child) = self.sys.nodes[i].first_child {
+            return Some(child);
+        }
+        let mut cursor = i;
+        loop {
+            if let Some(sibling) = self.sys.nodes[cursor].next_sibling {
+                return Some(sibling);
+            }
+            let parent = self.sys.nodes[cursor].parent;
+            if parent == ROOT_I {
+                return None;
+            }
+            cursor = parent;
+        }
+    }
+
+    fn prev_node(&self, i: NodeI) -> Option<NodeI> {
+        if let Some(sibling) = self.sys.nodes[i].prev_sibling {
+            // Deepest last descendant of the previous sibling.
+            let mut cursor = sibling;
+            while let Some(child) = self.sys.nodes[cursor].last_child {
+                cursor = child;
+            }
+            return Some(cursor);
+        }
+        let parent = self.sys.nodes[i].parent;
+        if parent == ROOT_I {
+            return None;
+        }
+        Some(parent)
     }
 
     pub(crate) fn handle_scroll_event(&mut self, delta: &MouseScrollDelta) {
@@ -381,6 +604,36 @@ impl Ui {
 // Methods that need to be reachable by the UiNode wrapper need to implemented for the inner System and not the Ui, because of the wrapper struct arena trick.
 // It doesn't make much difference. Maybe we should implement all private functions as methods of System for consistency.
 impl System {
+    /// Emit a synthetic click (and matching click-release) on a node, as if the
+    /// mouse had pressed and released on it. Used for keyboard activation. The
+    /// click position is placed at the middle of the node's rect.
+    pub(crate) fn push_synthetic_click(&mut self, i: NodeI) {
+        let id = self.nodes[i].id;
+
+        let logical_size = self.logical_size();
+        let rect = self.nodes[i].get_animated_rect();
+        let position = Vec2::new(
+            (rect[X][0] + rect[X][1]) / 2.0 * logical_size[X],
+            (rect[Y][0] + rect[Y][1]) / 2.0 * logical_size[Y],
+        );
+
+        let now = std::time::Instant::now();
+        let mut targets = SmallVec::new();
+        targets.push(id);
+        self.mouse_input.events.push(crate::mouse_events::InputEvent::Click(crate::mouse_events::ClickEvent {
+            targets: targets.clone(),
+            position,
+            button: MouseButton::Left,
+            timestamp: now,
+        }));
+        self.mouse_input.events.push(crate::mouse_events::InputEvent::ClickRelease(crate::mouse_events::ClickReleaseEvent {
+            targets,
+            position,
+            button: MouseButton::Left,
+            press_time: now,
+        }));
+    }
+
     pub(crate) fn click_rect(&self, i: NodeI) -> ClickRect {
         let real_rect = self.nodes[i].real_rect;
         let transform = self.nodes[i].accumulated_transform;
@@ -543,6 +796,57 @@ impl System {
 
     }
 
+    /// Scan once for every node under the cursor, recording enough info that
+    /// callers can later filter by whichever sense they care about (see
+    /// [`HitNode::filter_by_sense`]).
+    ///
+    /// The result is topmost-first. The scan visits all hit nodes in z-order
+    /// until it reaches an absorbing node; from there it only follows that
+    /// node's ancestor chain (the nodes an event could still pass through),
+    /// stopping at the first absorbing ancestor. This mirrors the visiting set
+    /// of [`scan_hits_with_sense`](Self::scan_hits_with_sense), so filtering the
+    /// result by a sense reproduces that function's output.
+    pub(crate) fn scan_all_hits(&self) -> SmallVec<HitNode> {
+        let mut result = SmallVec::new();
+
+        for clk_i in (0..self.click_rects.len()).rev() {
+            let rect = &self.click_rects[clk_i];
+
+            if ! self.hit_click_rect(rect) {
+                continue;
+            }
+
+            result.push(HitNode {
+                id: self.nodes[rect.i].id,
+                senses: rect.senses,
+                absorbs_mouse_events: rect.absorbs_mouse_events,
+            });
+
+            if rect.absorbs_mouse_events {
+                // Once we hit an absorbing node, events can only keep passing
+                // through to its ancestors. Walk up until the next absorbing one.
+                let mut current_i = self.nodes[rect.i].parent;
+                while current_i != ROOT_I {
+                    let parent_rect = self.click_rect(current_i);
+                    if self.hit_click_rect(&parent_rect) {
+                        result.push(HitNode {
+                            id: self.nodes[current_i].id,
+                            senses: parent_rect.senses,
+                            absorbs_mouse_events: parent_rect.absorbs_mouse_events,
+                        });
+                        if parent_rect.absorbs_mouse_events {
+                            break;
+                        }
+                    }
+                    current_i = self.nodes[current_i].parent;
+                }
+                break;
+            }
+        }
+
+        result
+    }
+
     /// Scan for nodes with a specific sense. Only stops at absorbing nodes that have the sense.
     /// If an absorbing node without the sense is encountered, walks up the parent tree instead
     /// of continuing to scan siblings/unrelated nodes.
@@ -628,10 +932,6 @@ impl System {
             }
         }
         self.hovered.contains(&id)
-    }
-
-    pub(crate) fn check_focused(&self, id: Id) -> bool {
-        self.focused == Some(id)
     }
 
     pub(crate) fn check_clicked_at(&self, id: Id, button: MouseButton) -> Option<&mouse_events::ClickEvent> {

@@ -369,13 +369,10 @@ impl Ui {
         } else {
             let opaque = self.sys.nodes[i].params.interact.absorbs_mouse_events;
             let has_senses = self.sys.nodes[i].params.interact.senses != Sense::NONE;
-            let editable = if let Some(text_i) = &self.sys.nodes[i].text_i {
-                match text_i {
-                    TextI::TextEdit(_) => true,
-                    TextI::TextBox(_) => false,
-                }
-            } else { false };
-            opaque || editable || has_senses || is_scrollable
+            // Some noninteractable nodes still need click rects so that they can partecipate silently to keyboard focus. That is, they silently receive the focus so that the next Tab or Shift+Tab can focus the node closest to them.
+            // It's currently extended just to non-editable text nodes, but maybe it should be all visible nodes?
+            let is_text = self.sys.nodes[i].text_i.is_some();
+            opaque || is_text || has_senses || is_scrollable
         };
 
         if push_click_rect {
@@ -908,6 +905,7 @@ impl Ui {
             .sense_hover_enter_or_exit(true)
             .sense_click(true)
             .sense_drag(true)
+            .focusable(false)
             .z_index(100.0)
             .free_placement(true)
             .ignore_parent_scroll(true)
@@ -923,6 +921,7 @@ impl Ui {
             .anchor_y(handle_anchor.1)
             .sense_drag(true)
             .sense_hover_enter_or_exit(true)
+            .focusable(false)
             .z_index(100.0)
             .animate_position(true)
             .animation_speed(2.5)

@@ -401,6 +401,10 @@ pub struct Interact {
     pub absorbs_mouse_events: bool,
     /// Which types of input the node can respond to
     pub senses: Sense,
+    /// Whether the default keyboard focus indicator rect is drawn when this node is focused.
+    pub focus_indicator: bool,
+    /// Whether the node can receive the keyboard-navigation focus.
+    pub focusable: bool,
 }
 
 /// The node's layout, size and position.
@@ -1047,6 +1051,20 @@ impl<'a> Node<'a> {
     /// Enable or disable the default click/hover animation.
     pub fn click_animation(mut self, value: bool) -> Self {
         self.interact.click_animation = value;
+        return self;
+    }
+
+    /// Enable or disable the default keyboard focus indicator rect.
+    ///
+    /// Disable it to draw a custom focus effect using [`UiNode::is_keyboard_focused`].
+    pub fn focus_indicator(mut self, value: bool) -> Self {
+        self.interact.focus_indicator = value;
+        return self;
+    }
+
+    /// Set whether the node can receive the keyboard-navigation focus at all (e.g. via Tab).
+    pub fn focusable(mut self, value: bool) -> Self {
+        self.interact.focusable = value;
         return self;
     }
 
@@ -1921,12 +1939,17 @@ impl Ui {
 
                     // this z doesn't matter, it's set when preparing render data. todo: cleanup.
                     let z = 0.0;
+                    // Tag the text widget with the id of the node it belongs to,
+                    // so we can map back from a text box/edit to its node.
+                    let node_tag = Some(self.sys.nodes[i].id.0);
                     // Create new widget
                     let new_text_i = if text_options.editable {
                         let handle = self.sys.renderer.text.add_text_edit(display_text.to_string(), None, (500.0, 500.0), z);
+                        self.sys.renderer.text.get_text_edit_mut(&handle).set_custom_tag(node_tag);
                         TextI::TextEdit(handle)
                     } else {
                         let handle = self.sys.renderer.text.add_text_box(display_text.to_string(), None, (500.0, 500.0), z);
+                        self.sys.renderer.text.get_text_box_mut(&handle).set_custom_tag(node_tag);
                         for (prop, range) in style_ranges.drain(..) {
                             self.sys.renderer.text.get_text_box_mut(&handle).push_ranged_style_property(prop, range);
                         }
