@@ -497,13 +497,7 @@ impl Ui {
     }
 
     fn is_interactable_for_focus(&self, i: NodeI) -> bool {
-        if !self.sys.nodes[i].params.interact.focusable {
-            return false;
-        }
-        let any_sense = self.sys.nodes[i].params.interact.senses.difference(Sense::TIME) != Sense::NONE;
-        let text_edit = matches!(self.sys.nodes[i].text_i, Some(TextI::TextEdit(_)));
-
-        return any_sense || text_edit;
+        return self.sys.nodes[i].params.interact.focusable;
     }
 
     fn first_node(&self) -> Option<NodeI> {

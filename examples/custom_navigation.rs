@@ -1,4 +1,5 @@
-#![allow(unused)]
+/// This example shows how to implement richer keyboard navigation logic that is still compatible with the default tab/shift-tab stuff.
+/// Of course it's also possible to disable the default logic and build a completely custom system.
 use keru::*;
 use keru::node_library::*;
 use winit::keyboard::{Key, NamedKey};
@@ -7,7 +8,7 @@ const RADIUS: i32 = 2;
 const STEP: f32 = 90.0;
 const MARGIN: f32 = 40.0;
 
-fn inside_diamond(x: i32, y: i32) -> bool {
+fn inside_diamond_shape(x: i32, y: i32) -> bool {
     x.abs() + y.abs() <= RADIUS
 }
 
@@ -30,7 +31,7 @@ fn update_ui(_state: &mut (), ui: &mut Ui) {
 
         for y in -RADIUS..=RADIUS {
             for x in -RADIUS..=RADIUS {
-                if ! inside_diamond(x, y) {
+                if ! inside_diamond_shape(x, y) {
                     continue;
                 }
 
@@ -59,7 +60,7 @@ fn update_ui(_state: &mut (), ui: &mut Ui) {
             match focused_cell {
                 Some((x, y)) => {
                     let (mut nx, mut ny) = (x + dx, y + dy);
-                    if ! inside_diamond(nx, ny) {
+                    if ! inside_diamond_shape(nx, ny) {
                         let limit = RADIUS - (x * dy).abs() - (y * dx).abs();
                         nx = x * dy.abs() - dx * limit;
                         ny = y * dx.abs() - dy * limit;

@@ -49,7 +49,7 @@ pub(crate) const NODE_ROOT_PARAMS: Node = Node {
         absorbs_mouse_events: false,
         click_animation: false,
         focus_indicator: true,
-        focusable: true,
+        focusable: false,
     },
     layout: Layout {
         size: Xy::new_symm(Size::Frac(1.0)),
@@ -98,7 +98,7 @@ pub const DEFAULT: Node = Node {
         absorbs_mouse_events: false,
         click_animation: false,
         focus_indicator: true,
-        focusable: true,
+        focusable: false,
     },
     layout: Layout {
         size: Xy::new_symm(Size::Frac(1.0)),
@@ -151,7 +151,7 @@ pub const V_STACK: Node = Node {
         absorbs_mouse_events: false,
         click_animation: false,
         focus_indicator: true,
-        focusable: true,
+        focusable: false,
     },
     layout: Layout {
         size: Xy::new(Size::FitContent, Size::FitContent),
@@ -204,7 +204,7 @@ pub const H_STACK: Node = Node {
         absorbs_mouse_events: false,
         click_animation: false,
         focus_indicator: true,
-        focusable: true,
+        focusable: false,
     },
     layout: Layout {
         size: Xy::new(Size::FitContent, Size::FitContent),
@@ -258,7 +258,7 @@ pub const V_SCROLL_STACK: Node = Node {
         absorbs_mouse_events: false,
         click_animation: false,
         focus_indicator: true,
-        focusable: true,
+        focusable: false,
     },
     layout: Layout {
         size: Xy::new(Size::FitContent, Size::Fill),
@@ -313,7 +313,7 @@ pub const H_SCROLL_STACK: Node = Node {
         absorbs_mouse_events: false,
         click_animation: false,
         focus_indicator: true,
-        focusable: true,
+        focusable: false,
     },
     layout: Layout {
         size: Xy::new(Size::Fill, Size::FitContent),
@@ -363,7 +363,7 @@ pub const MARGIN: Node = Node {
         absorbs_mouse_events: false,
         click_animation: false,
         focus_indicator: true,
-        focusable: true,
+        focusable: false,
     },
     layout: Layout {
         size: Xy::new_symm(Size::Frac(0.9)),
@@ -461,7 +461,7 @@ pub const IMAGE: Node = Node {
         absorbs_mouse_events: true,
         click_animation: false,
         focus_indicator: true,
-        focusable: true,
+        focusable: false,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -622,7 +622,7 @@ pub const LABEL: Node = Node {
         absorbs_mouse_events: true,
         click_animation: false,
         focus_indicator: true,
-        focusable: true,
+        focusable: false,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -679,7 +679,7 @@ pub const MULTILINE_LABEL: Node = Node {
         absorbs_mouse_events: true,
         click_animation: false,
         focus_indicator: true,
-        focusable: true,
+        focusable: false,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -736,7 +736,7 @@ pub const TEXT: Node = Node {
         absorbs_mouse_events: false,
         click_animation: false,
         focus_indicator: true,
-        focusable: true,
+        focusable: false,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -786,7 +786,7 @@ pub const ICON: Node = Node {
         absorbs_mouse_events: false,
         click_animation: false,
         focus_indicator: true,
-        focusable: true,
+        focusable: false,
     },
     layout: Layout {
         size: Xy::new_symm(Size::Pixels(40.0)),
@@ -957,7 +957,7 @@ pub const TEXT_PARAGRAPH: Node = Node {
         absorbs_mouse_events: false,
         click_animation: false,
         focus_indicator: true,
-        focusable: true,
+        focusable: false,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -1007,7 +1007,7 @@ pub const PANEL: Node = Node {
         absorbs_mouse_events: true,
         click_animation: false,
         focus_indicator: true,
-        focusable: true,
+        focusable: false,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -1057,7 +1057,7 @@ pub const CONTAINER: Node = Node {
         absorbs_mouse_events: false,
         click_animation: false,
         focus_indicator: true,
-        focusable: true,
+        focusable: false,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -1143,7 +1143,7 @@ pub const CUSTOM_RENDERED_PANEL: Node = Node {
         absorbs_mouse_events: true,
         click_animation: false,
         focus_indicator: true,
-        focusable: true,
+        focusable: false,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -1193,7 +1193,7 @@ pub const SPACER: Node = Node {
         absorbs_mouse_events: false,
         click_animation: false,
         focus_indicator: true,
-        focusable: true,
+        focusable: false,
     },
     layout: Layout {
         size: Xy::new_symm(Fill),
@@ -1243,7 +1243,7 @@ pub const H_SPACER: Node = Node {
         absorbs_mouse_events: false,
         click_animation: false,
         focus_indicator: true,
-        focusable: true,
+        focusable: false,
     },
     layout: Layout {
         size: Xy::new(Size::Fill, Size::FitContent),
@@ -1293,7 +1293,7 @@ pub const V_SPACER: Node = Node {
         absorbs_mouse_events: false,
         click_animation: false,
         focus_indicator: true,
-        focusable: true,
+        focusable: false,
     },
     layout: Layout {
         size: Xy::new(Size::FitContent, Size::Fill),
@@ -1348,7 +1348,7 @@ pub const GRID: Node = Node {
         absorbs_mouse_events: false,
         click_animation: false,
         focus_indicator: true,
-        focusable: true,
+        focusable: false,
     },
     layout: Layout {
         size: Xy::new(Size::FitContent, Size::FitContent),
@@ -1403,7 +1403,7 @@ pub const H_LINE: Node = Node {
         absorbs_mouse_events: false,
         click_animation: false,
         focus_indicator: true,
-        focusable: true,
+        focusable: false,
     },
     layout: Layout {
         size: Xy::new(Size::Fill, Size::Pixels(0.0)),
@@ -1453,7 +1453,7 @@ pub(crate) const COMPONENT_ROOT: Node = Node {
         absorbs_mouse_events: false,
         click_animation: false,
         focus_indicator: true,
-        focusable: true,
+        focusable: false,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
