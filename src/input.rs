@@ -183,7 +183,7 @@ impl Ui {
         self.get_node(key)?.is_hovered()
     }
 
-    /// Returns `true` if the node corresponding to `key` currently is currently holding the keyboard navigation focus.
+    /// Returns `true` if the node corresponding to `key` is currently holding the keyboard navigation focus.
     pub fn is_focused(&self, key: NodeKey) -> bool {
         // Some non-interactive nodes can be "silently" focused in a way that's just useful for future tab navigation. is_focused shouldn't report that, though, so we also check self.sys.show_focus_indicator
         self.sys.show_focus_indicator && self.sys.focused == Some(key.id_with_key_scope())

@@ -309,7 +309,7 @@ impl<'a> UiNode<'a> {
 }
 
 impl Ui {
-    /// Get the [`UiNode`] corresponding to the `key`, if such a node is currently part of the visible UI tree.
+    /// Get a mutable [`UiNode`] from a [`NodeKey`], if the key corresponds to a node in the visible UI tree.
     /// 
     /// This function will return the node if it exists and it is both visible and interactable. So it will return `None` if the node exists but it is hidden or if it is doing an exiting animation right before disappearing. Use also [`Ui::get_node_unfiltered`] for a version that also returns hidden and exiting nodes.
     ///
@@ -323,6 +323,7 @@ impl Ui {
         }
     }
 
+    /// Get a [`UiNode`] from a [`NodeKey`], if the key corresponds to a node in the visible UI tree.
     pub fn get_node(&self, key: NodeKey) -> Option<&UiNode<'_>> {
         let node = self.get_node_unfiltered(key)?;
         if node.node().currently_hidden || node.node().exiting {
@@ -366,6 +367,16 @@ impl Ui {
     pub fn get_node_unfiltered(&self, key: NodeKey) -> Option<&UiNode<'_>> {
         let i = self.sys.nodes.get_with_key_scope(key)?;
         let wrapper = UiNode { i, sys: UiRef::Shared(&self.sys)  };
+        return Some(self.arena_for_wrapper_structs.alloc(wrapper));
+    }
+
+    /// Returns the a reference to the UI node that currently holds the keyboard navigation focus, if any.
+    pub fn get_focused_node(&self) -> Option<&UiNode<'_>> {
+        if ! self.sys.show_focus_indicator {
+            return None;
+        }
+        let i = self.sys.nodes.get_by_id(self.sys.focused?)?;
+        let wrapper = UiNode { i, sys: UiRef::Shared(&self.sys) };
         return Some(self.arena_for_wrapper_structs.alloc(wrapper));
     }
 

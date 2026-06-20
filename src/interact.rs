@@ -404,6 +404,32 @@ impl Ui {
         self.set_new_ui_input();
     }
 
+    /// Set the keyboard focus to the node corresponding to `key`.
+    pub fn focus(&mut self, key: NodeKey) {
+        let id = key.id_with_key_scope();
+        if let Some(i) = self.sys.nodes.get_by_id(id) {
+            self.set_focus_node(i, true);
+        };
+    }
+
+    /// Move the keyboard focus to the next interactable node. If nothing is focused yet, focuses the first interactable node.
+    pub fn focus_next(&mut self) {
+        self.move_keyboard_focus(true);
+    }
+
+    /// Move the keyboard focus to the previous interactable node. If nothing is focused yet, focuses the last interactable node.
+    pub fn focus_previous(&mut self) {
+        self.move_keyboard_focus(false);
+    }
+
+    /// Clear the keyboard focus.
+    pub fn unfocus(&mut self) {
+        self.sys.focused = None;
+        self.sys.show_focus_indicator = false;
+        self.sys.renderer.text.clear_focus();
+        self.sys.changes.should_rebuild_render_data = true;
+    }
+
     /// Move the keyboard focus to the next (or previous) interactable node in
     /// depth-first order, wrapping around at the ends.
     ///
@@ -413,7 +439,6 @@ impl Ui {
         // focus doesn't end up moving (e.g. a single interactable node).
         self.sys.show_focus_indicator = true;
         self.sys.changes.should_rebuild_render_data = true;
-        self.set_new_ui_input();
 
         let Some(first) = self.first_node() else { return; };
         let Some(last) = self.last_node() else { return; };
