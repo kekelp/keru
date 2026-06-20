@@ -218,7 +218,18 @@ impl Ui {
             if let Some(drag) = self.is_dragged(HITBOX) {
                 *value = min + drag.relative_position.x as f32 * max;
             }
-        
+
+            // Arrow keys do a "drag" when the slider is focused.
+            if self.is_focused(HITBOX) {
+                let step = (max - min) * 0.01;
+                if self.key_input().key_pressed_or_repeated(&winit::keyboard::Key::Named(winit::keyboard::NamedKey::ArrowLeft)) {
+                    *value -= step;
+                }
+                if self.key_input().key_pressed_or_repeated(&winit::keyboard::Key::Named(winit::keyboard::NamedKey::ArrowRight)) {
+                    *value += step;
+                }
+            }
+
             *value = value.clamp(min, max);
             
             let handle_position_frac = (*value - min) / (max - min);
@@ -270,6 +281,7 @@ impl Ui {
                 .size_y(Size::Pixels(30.0))
                 .sense_click(true)
                 .sense_drag(true)
+                .focusable(true)
                 .padding(0.0)
                 .key(HITBOX);
             
@@ -307,6 +319,17 @@ impl SimpleComponent for Slider<'_> {
                 new_value += drag.relative_delta.x as f32 * (self.max - self.min);
             }
 
+            // Arrow keys do a "drag" when the slider is focused.
+            if ui.is_focused(SLIDER_CONTAINER) {
+                let step = (self.max - self.min) * 0.01;
+                if ui.key_input().key_pressed_or_repeated(&winit::keyboard::Key::Named(winit::keyboard::NamedKey::ArrowLeft)) {
+                    new_value -= step;
+                }
+                if ui.key_input().key_pressed_or_repeated(&winit::keyboard::Key::Named(winit::keyboard::NamedKey::ArrowRight)) {
+                    new_value += step;
+                }
+            }
+
             if new_value.is_finite() {
                 if self.clamp {
                     new_value = new_value.clamp(self.min, self.max);
@@ -320,9 +343,10 @@ impl SimpleComponent for Slider<'_> {
                 .size_x(Size::Fill)
                 .size_y(Size::Pixels(45.0))
                 .sense_drag(true)
-                // .shape(Shape::Rectangle { corner_radius: 36.0 })
+                .focusable(true)
+                .shape(Shape::Rectangle { corner_radius: 14.0, rounded_corners: RoundedCorners::ALL })
                 .key(SLIDER_CONTAINER);
-            
+
             let slider_fill = PANEL
                 .size_y(Fill)
                 .size_x(Size::Frac(filled_frac))
@@ -330,7 +354,7 @@ impl SimpleComponent for Slider<'_> {
                 .position_x(Start)
                 .padding_x(1.0)
                 .absorbs_clicks(false)
-                // .shape(Shape::Rectangle { corner_radius: 16.0 })
+                .shape(Shape::Rectangle { corner_radius: 9.0, rounded_corners: RoundedCorners::ALL })
                 .key(SLIDER_FILL);
 
 

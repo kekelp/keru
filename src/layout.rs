@@ -1150,7 +1150,7 @@ impl Ui {
 
         if self.sys.show_focus_indicator {
             if let Some(i) = self.sys.focused.and_then(|id| self.sys.nodes.get_by_id(id)) {
-                if self.sys.nodes[i].params.visible && self.sys.nodes[i].params.interact.focus_indicator {
+                if self.sys.nodes[i].params.interact.show_focus_indicator {
                     let transformed = self.sys.nodes[i].accumulated_transform != Transform::IDENTITY;
                     if transformed {
                         if let Some(handle) = self.sys.nodes[i].accumulated_transform_handle {

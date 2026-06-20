@@ -135,7 +135,7 @@ impl<'a> Component for Button<'a> {
             .padding(12.0)
             .sense_hover_enter_or_exit(true)
             .sense_click(true)
-            .focus_indicator(false)
+            .show_focus_indicator(false)
             .clip_children(true)
             .animate_position(true)
             .static_image(include_bytes!("assets/noise.jpg"))

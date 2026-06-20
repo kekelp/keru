@@ -402,7 +402,7 @@ pub struct Interact {
     /// Which types of input the node can respond to
     pub senses: Sense,
     /// Whether the default keyboard focus indicator rect is drawn when this node is focused.
-    pub focus_indicator: bool,
+    pub show_focus_indicator: bool,
     /// Whether the node can receive the keyboard-navigation focus.
     pub focusable: bool,
 }
@@ -1057,8 +1057,8 @@ impl<'a> Node<'a> {
     /// Enable or disable the default keyboard focus indicator rect.
     ///
     /// Disable it to draw a custom focus effect using [`UiNode::is_keyboard_focused`].
-    pub fn focus_indicator(mut self, value: bool) -> Self {
-        self.interact.focus_indicator = value;
+    pub fn show_focus_indicator(mut self, value: bool) -> Self {
+        self.interact.show_focus_indicator = value;
         return self;
     }
 
