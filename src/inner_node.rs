@@ -16,6 +16,7 @@ pub struct InnerNode {
 
     // scroll as relative offset
     pub scroll: Xy<f32>,
+    pub scroll_animation_target: Xy<f32>,
 
     // Accumulated transform from all parents, used for rendering and hit testing
     pub accumulated_transform: Transform,
@@ -25,7 +26,6 @@ pub struct InnerNode {
     pub real_rect: XyRect,
 
     // todo: should try to get rid of some of these stored rects that are basically just partial results in the layout process.
-    // todo: or at least make a struct to hide them.
     pub local_layout_rect: XyRect,
     pub local_animated_rect: XyRect,
     pub content_bounds: XyRect,
@@ -170,6 +170,7 @@ impl InnerNode {
             text_fingerprint: TextFingerprint::None,
 
             scroll: Xy::new(0.0, 0.0),
+            scroll_animation_target: Xy::new(0.0, 0.0),
 
             accumulated_transform: Transform::IDENTITY,
             accumulated_transform_handle: None,
@@ -296,6 +297,7 @@ pub const NODE_ROOT: InnerNode = InnerNode {
     last_proposed_sizes: ProposedSizes::container(Xy::new_symm(1.0)),
 
     scroll: Xy::new(0.0, 0.0),
+    scroll_animation_target: Xy::new(0.0, 0.0),
 
     accumulated_transform: Transform::IDENTITY,
     accumulated_transform_handle: None,

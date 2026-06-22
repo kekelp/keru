@@ -816,49 +816,6 @@ impl Ui {
         prefix.truncate(old_len);
     }
 
-
-    fn scrollbar_state(&self, i: NodeI, axis: Axis) -> Option<ScrollbarState> {
-        let container_rect = self.sys.nodes[i].layout_rect;
-        let content_bounds = self.sys.nodes[i].content_bounds;
-        let scroll = self.sys.nodes[i].scroll[axis];
-
-        let container_size = container_rect.size()[axis];
-        let content_size = content_bounds.size()[axis];
-
-        if content_size <= container_size || container_size <= 0.0 {
-            return None;
-        }
-
-        let thumb_frac = (container_size / content_size).clamp(0.05, 1.0);
-
-        let min_scroll = if content_bounds[axis][1] > container_rect[axis][1] {
-            container_rect[axis][1] - content_bounds[axis][1]
-        } else {
-            0.0
-        };
-        let max_scroll = if content_bounds[axis][0] < container_rect[axis][0] {
-            container_rect[axis][0] - content_bounds[axis][0]
-        } else {
-            0.0
-        };
-
-        let scroll_range = min_scroll - max_scroll;
-        let progress = if scroll_range < 0.0 {
-            ((scroll - max_scroll) / scroll_range).clamp(0.0, 1.0)
-        } else {
-            0.0
-        };
-
-        Some(ScrollbarState {
-            thumb_frac,
-            thumb_lead_frac: progress * (1.0 - thumb_frac),
-            scroll_range,
-            max_scroll,
-            container_size,
-            scroll,
-        })
-    }
-
     pub(crate) fn add_scrollbar(&mut self, i: NodeI, key: NodeKey, axis: Axis) {
         let (rail_key, handle_key) = scrollbar_keys(key, axis);
 
@@ -870,7 +827,7 @@ impl Ui {
         let width = if wide { 8.0 } else { 3.0 };
         let rail_width = if wide { 14.0 } else { 9.0 };
 
-        let Some(ScrollbarState { thumb_frac, thumb_lead_frac, scroll_range, max_scroll, container_size, scroll }) = self.scrollbar_state(i, axis) else {
+        let Some(ScrollbarState { thumb_frac, thumb_lead_frac, scroll_range, max_scroll, container_size, scroll }) = self.sys.scrollbar_state(i, axis) else {
             return;
         };
 
@@ -948,7 +905,7 @@ impl Ui {
                 } else {
                     0.0
                 };
-                self.update_container_scroll(container_i, scroll_delta, axis);
+                self.sys.update_container_scroll(container_i, scroll_delta, axis, false);
             }
         } else {
             let rail_cursor =
@@ -964,26 +921,9 @@ impl Ui {
                 if scroll_range < 0.0 {
                     let progress = ((cursor - thumb_frac / 2.0) / (1.0 - thumb_frac)).clamp(0.0, 1.0);
                     let target_scroll = max_scroll + progress * scroll_range;
-                    self.update_container_scroll(container_i, target_scroll - scroll, axis);
+                    self.sys.update_container_scroll(container_i, target_scroll - scroll, axis, false);
                 }
             }
-        }
-    }
-
-    pub(crate) fn update_scrollbar_handle_params(&mut self, container_i: NodeI) {
-        let key = self.sys.nodes[container_i].original_key;
-
-        for axis in [Y, X] {
-            let (_, handle_key) = scrollbar_keys(key, axis);
-            let Some(handle_i) = self.sys.nodes.get_by_id(handle_key.id_with_key_scope()) else {
-                continue;
-            };
-
-            let Some(ScrollbarState { thumb_lead_frac, .. }) = self.scrollbar_state(container_i, axis) else {
-                continue;
-            };
-
-            self.sys.nodes[handle_i].params.layout.position[axis] = Pos::Frac(thumb_lead_frac);
         }
     }
 }
@@ -1179,6 +1119,66 @@ impl Ui {
     }
 }
 impl System {
+    pub(crate) fn update_scrollbar_handle_params(&mut self, container_i: NodeI) {
+        let key = self.nodes[container_i].original_key;
+
+        for axis in [Y, X] {
+            let (_, handle_key) = scrollbar_keys(key, axis);
+            let Some(handle_i) = self.nodes.get_by_id(handle_key.id_with_key_scope()) else {
+                continue;
+            };
+
+            let Some(ScrollbarState { thumb_lead_frac, .. }) = self.scrollbar_state(container_i, axis) else {
+                continue;
+            };
+
+            self.nodes[handle_i].params.layout.position[axis] = Pos::Frac(thumb_lead_frac);
+        }
+    }
+
+
+    fn scrollbar_state(&self, i: NodeI, axis: Axis) -> Option<ScrollbarState> {
+        let container_rect = self.nodes[i].layout_rect;
+        let content_bounds = self.nodes[i].content_bounds;
+        let scroll = self.nodes[i].scroll[axis];
+
+        let container_size = container_rect.size()[axis];
+        let content_size = content_bounds.size()[axis];
+
+        if content_size <= container_size || container_size <= 0.0 {
+            return None;
+        }
+
+        let thumb_frac = (container_size / content_size).clamp(0.05, 1.0);
+
+        let min_scroll = if content_bounds[axis][1] > container_rect[axis][1] {
+            container_rect[axis][1] - content_bounds[axis][1]
+        } else {
+            0.0
+        };
+        let max_scroll = if content_bounds[axis][0] < container_rect[axis][0] {
+            container_rect[axis][0] - content_bounds[axis][0]
+        } else {
+            0.0
+        };
+
+        let scroll_range = min_scroll - max_scroll;
+        let progress = if scroll_range < 0.0 {
+            ((scroll - max_scroll) / scroll_range).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+
+        Some(ScrollbarState {
+            thumb_frac,
+            thumb_lead_frac: progress * (1.0 - thumb_frac),
+            scroll_range,
+            max_scroll,
+            container_size,
+            scroll,
+        })
+    }
+
     pub(crate) fn clear_children_of_node(&mut self, i: NodeI) {
         self.mark_children_non_fresh(i);
         self.nodes[i].first_child = None;

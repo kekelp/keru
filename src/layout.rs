@@ -1069,6 +1069,7 @@ impl Ui {
 
             while let Some(entry) = traversal_queue.pop() {
                 let i = entry.node;
+                self.update_scroll_animation(i);
                 let expected_final_rect = self.resolve_animations_and_scrolling(i, entry.parent_scroll, entry.parent_expected_final_rect);
 
                 // This could also be gated by ! self.node_is_offscreen(i), but it's a bit scary. Technically text boxes can overflow the node rect. And if the text box doesn't know its real location, it might not realize that it's offscreen and can cull itself, and it might end up being counterproductive.
@@ -1436,14 +1437,120 @@ impl Xy<f32> {
 }
 
 impl Ui {
-    pub(crate) fn update_container_scroll(&mut self, i: NodeI, delta: f32, axis: Axis) {       
-        let container_rect = self.sys.nodes[i].layout_rect;
+    // Todo: maybe deduplicate the math
+    pub(crate) fn update_scroll_animation(&mut self, i: NodeI) {
+        let mut moved = false;
+        for axis in [X, Y] {
+            let current = self.sys.nodes[i].scroll[axis];
+            let target = self.sys.nodes[i].scroll_animation_target[axis];
+            let diff = target - current;
+            if diff == 0.0 {
+                continue;
+            }
+            moved = true;
 
-        let content_bounds = self.sys.nodes[i].content_bounds;
+            let speed = self.sys.global_animation_speed * self.sys.nodes[i].params.animation.speed;
+            let rate = 5.0 * speed * (1.0 / 60.0);
+            let const_speed_pixels = 3.0 * speed;
+
+            let diff_px = diff * self.sys.size[axis];
+            let dist_px = diff_px.abs();
+
+            if dist_px < const_speed_pixels {
+                self.sys.nodes[i].scroll[axis] = target;
+            } else {
+                let dir = diff_px / dist_px;
+                let step_px = (dist_px * rate).ceil();
+                self.sys.nodes[i].scroll[axis] += (step_px * dir) / self.sys.size[axis];
+                self.sys.changes.unfinished_animations = true;
+            }
+        }
+
+        // Keep the scrollbar thumb in sync with the displayed offset as it animates.
+        // The thumb nodes are children of `i`, visited later in this same traversal.
+        if moved {
+            self.sys.update_scrollbar_handle_params(i);
+            self.partial_relayout_for_scrollbar(i);
+        }
+    }
+
+    pub(crate) fn scroll_offset(&self, i: NodeI, axis: Axis) -> f32 {
+        let scroll_offset = self.sys.nodes[i].scroll[axis];
+
+        // round it to whole pixels to avoid wobbling
+        // account for transform scale to round to real screen pixels
+        let size = self.sys.size[axis];
+        let scale = self.sys.nodes[i].accumulated_transform.scale;
+        let scroll_offset = (scroll_offset * size * scale).round() / scale / size;
+
+        return scroll_offset;
+    }
+}
+
+impl System {
+
+    /// Adjust the scroll offsets of all scrollable ancestors of `i` so that node
+    /// `i` ends up inside their visible rects. Used by keyboard focus navigation
+    /// to scroll the focused node into view.
+    pub(crate) fn scroll_node_into_view(&mut self, i: NodeI, padding_px: f32, animate: bool) {
+        let target_rect = self.nodes[i].real_rect;
+
+        let mut adjusted = false;
+        let mut current = self.nodes[i].parent;
+        while current != ROOT_I {
+            for axis in [X, Y] {
+                if !self.nodes[current].params.layout.scrollable[axis] {
+                    continue;
+                }
+
+                let viewport = self.nodes[current].real_rect[axis];
+                let target = target_rect[axis];
+
+                // Leave a gap between the node and the viewport edge instead of
+                // aligning it exactly against the boundary.
+                let pad = padding_px / self.size[axis];
+
+                let mut delta = 0.0;
+                if target[0] < viewport[0] {
+                    // target starts before the viewport: scroll content forward (down/right).
+                    delta = viewport[0] + pad - target[0];
+                } else if target[1] > viewport[1] {
+                    // target ends after the viewport: scroll content backward (up/left).
+                    // If the target is taller/wider than the viewport, prefer aligning the
+                    // start edge rather than overshooting it.
+                    let delta_end = viewport[1] - pad - target[1];
+                    let delta_start = viewport[0] + pad - target[0];
+                    delta = delta_end.max(delta_start);
+                }
+
+                if delta != 0.0 {
+                    self.update_container_scroll(current, delta, axis, animate);
+                    if ! animate {
+                        self.update_scrollbar_handle_params(current);
+                        // The scroll and focus rect change will probably cause a full relayout anyway, I think.
+                        // self.partial_relayout_for_scrollbar(current);
+                    }
+                    adjusted = true;
+                }
+            }
+            current = self.nodes[current].parent;
+        }
+
+        if adjusted {
+            self.changes.should_rebuild_render_data = true;
+            self.changes.need_rerender = true;
+        }
+    }
+
+    pub(crate) fn update_container_scroll(&mut self, i: NodeI, delta: f32, axis: Axis, animate: bool) {
+        let container_rect = self.nodes[i].layout_rect;
+
+        let content_bounds = self.nodes[i].content_bounds;
         let content_rect_size = content_bounds.size()[axis];
 
         if content_rect_size <= 0.0 {
-            self.sys.nodes[i].scroll[axis] = 0.0;
+            self.nodes[i].scroll[axis] = 0.0;
+            self.nodes[i].scroll_animation_target[axis] = 0.0;
             return;
         }
 
@@ -1461,49 +1568,40 @@ impl Ui {
             0.0
         };
                 
-        if min_scroll < max_scroll {                
-            if self.sys.nodes[i].frame_added == self.sys.current_frame && delta == 0.0 {
-                if let ChildrenLayout::Stack { axis: stack_axis, arrange, .. } = self.sys.nodes[i].params.children_layout {
+        if min_scroll < max_scroll {
+            if self.nodes[i].frame_added == self.current_frame && delta == 0.0 {
+                if let ChildrenLayout::Stack { axis: stack_axis, arrange, .. } = self.nodes[i].params.children_layout {
                     if stack_axis == axis {
-                        self.sys.nodes[i].scroll[axis] = match arrange {
+                        let init = match arrange {
                             Arrange::End => min_scroll,
                             _ => max_scroll,
                         };
+                        self.nodes[i].scroll[axis] = init;
+                        self.nodes[i].scroll_animation_target[axis] = init;
                     }
                 }
             } else {
                 // Normal scroll update
-                self.sys.nodes[i].scroll[axis] += delta;
+                let base = if animate {
+                    self.nodes[i].scroll[axis]
+                } else {
+                    self.nodes[i].scroll_animation_target[axis]
+                };
+                self.nodes[i].scroll_animation_target[axis] = base + delta;
             }
-            
-            let rel_offset = &mut self.sys.nodes[i].scroll[axis];
-            *rel_offset = rel_offset.clamp(min_scroll, max_scroll);
+
+            let target = &mut self.nodes[i].scroll_animation_target[axis];
+            *target = target.clamp(min_scroll, max_scroll);
+
+            if ! animate {
+                self.nodes[i].scroll[axis] = self.nodes[i].scroll_animation_target[axis];
+            }
 
         } else {
-            self.sys.nodes[i].scroll[axis] = 0.0;
+            self.nodes[i].scroll[axis] = 0.0;
+            self.nodes[i].scroll_animation_target[axis] = 0.0;
         }
 
-    }
-    
-    pub(crate) fn _clamp_scroll(&mut self, i: NodeI) {
-        // todo: this was hella wrong, figure it out from scratch
-        // this was mainly for resizing, I think. when the scroll values and bounds get messed up by resizing or relayouts, we should at least reclamp the offset, or set it to zero if all content fits now.
-        // for resizing, we should also store the offset as relative. Actually, for text it should be way more advanced, like  keeping track of the position in the text
-        for axis in [X, Y] {
-            self.update_container_scroll(i, 0.0, axis);
-        }
-    }
-
-    pub(crate) fn scroll_offset(&self, i: NodeI, axis: Axis) -> f32 {
-        let scroll_offset = self.sys.nodes[i].scroll[axis];
-
-        // round it to whole pixels to avoid wobbling
-        // account for transform scale to round to real screen pixels
-        let size = self.sys.size[axis];
-        let scale = self.sys.nodes[i].accumulated_transform.scale;
-        let scroll_offset = (scroll_offset * size * scale).round() / scale / size;
-
-        return scroll_offset;
     }
 }
 

@@ -253,6 +253,14 @@ impl<'a> UiNode<'a> {
         return Some(())
     }
 
+    /// Adjust the scroll state of any scrollable parents or grandparents so that the node comes into view.
+    /// 
+    /// The node might still not visible if its fixed position places it outside of a clip area regardless of scroll.
+    pub fn scroll_into_view(&mut self, pad_pixels: f32, animate: bool) {
+        let i = self.i;
+        self.sys_mut().scroll_node_into_view(i, pad_pixels, animate);
+    }
+
     /// Sets a node's text edit box to focused.
     /// 
     /// Does nothing if the node doesn't have a text edit box.

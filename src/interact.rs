@@ -8,6 +8,7 @@ use crate::Axis::{X, Y};
 use crate::mouse_events::SmallVec;
 
 pub(crate) const ANIMATION_RERENDER_TIME: f32 = 0.5;
+pub(crate) const SCROLL_INTO_VIEW_PADDING_PIXELS: f32 = 10.0;
 
 /// A struct describing a click event on a GUI node.
 #[derive(Clone, Copy, Debug)]
@@ -452,6 +453,7 @@ impl Ui {
                 let candidate = if forward { first } else { last };
                 if self.is_interactable_for_focus(candidate) {
                     self.set_focus_node(candidate, true);
+                    self.sys.scroll_node_into_view(candidate, SCROLL_INTO_VIEW_PADDING_PIXELS, true);
                     return;
                 }
                 candidate
@@ -468,6 +470,7 @@ impl Ui {
 
             if self.is_interactable_for_focus(cursor) {
                 self.set_focus_node(cursor, true);
+                self.sys.scroll_node_into_view(cursor, SCROLL_INTO_VIEW_PADDING_PIXELS, true);
                 return;
             }
 
@@ -605,10 +608,10 @@ impl Ui {
                 self.set_new_ui_input();
             } else {
                 // otherwise, do atomic updates on the scroll value and the scrollbar state, and schedule just a rerender.
-                self.update_container_scroll(target_i, fdelta[X], X);
-                self.update_container_scroll(target_i, fdelta[Y], Y);
+                self.sys.update_container_scroll(target_i, fdelta[X], X, false);
+                self.sys.update_container_scroll(target_i, fdelta[Y], Y, false);
 
-                self.update_scrollbar_handle_params(target_i);
+                self.sys.update_scrollbar_handle_params(target_i);
                 self.partial_relayout_for_scrollbar(target_i);
                 // scrolling can cause the cursor to end up on top of a new node.
                 self.resolve_hover();
