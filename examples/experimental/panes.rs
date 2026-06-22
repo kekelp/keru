@@ -3,7 +3,6 @@ use keru::node_library::*;
 use keru::example_window_loop::*;
 use slab::Slab;
 
-
 struct Panes {
     slab: Slab<Pane>,
     next_tab_id: usize,

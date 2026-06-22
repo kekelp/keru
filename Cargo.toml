@@ -76,3 +76,7 @@ path = "examples/experimental/rc_instead_of_thread_local.rs"
 [[example]]
 name = "reactive_old"
 path = "examples/experimental/reactive_old.rs"
+
+[[example]]
+name = "panes"
+path = "examples/experimental/panes.rs"
