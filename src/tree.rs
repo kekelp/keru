@@ -350,15 +350,19 @@ impl Ui {
         }
     }
 
-    pub(crate) fn push_render_and_click_data(&mut self, i: NodeI) {
+    pub(crate) fn push_render_and_click_data(&mut self, i: NodeI, alpha: f32) {
         if let Some(text_i) = &self.sys.nodes[i].text_i {
             let z = self.sys.nodes[i].z;
             match text_i {
                 TextI::TextBox(h) => {
-                    self.sys.renderer.text.get_text_box_mut(h).set_depth(z);
+                    let tb = self.sys.renderer.text.get_text_box_mut(h);
+                    tb.set_depth(z);
+                    tb.set_opacity(alpha);
                 }
                 TextI::TextEdit(h) => {
-                    self.sys.renderer.text.get_text_edit_mut(h).set_depth(z);
+                    let te = self.sys.renderer.text.get_text_edit_mut(h);
+                    te.set_depth(z);
+                    te.set_opacity(alpha);
                 }
             }
         }
@@ -436,11 +440,11 @@ impl Ui {
         });
 
         if self.sys.inspect_mode {
-            self.draw_node_shape(i, texture, true);
+            self.draw_node_shape(i, texture, true, alpha);
         }
 
         if self.sys.nodes[i].params.visible {
-            self.draw_node_shape(i, texture, false);
+            self.draw_node_shape(i, texture, false, alpha);
 
             if let Some(text_i) = &self.sys.nodes[i].text_i {
                 match text_i {

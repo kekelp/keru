@@ -71,6 +71,8 @@ pub struct Node<'a> {
     pub second_shadow: Option<Shadow>,
     pub stroke: Option<Stroke>,
     pub color: ColorFill2,
+    /// Opacity multiplier for the whole node and all its children and grandchildren.
+    pub alpha: f32,
     pub visible: bool, // skip both the shape, node and text
     pub interact: Interact,
     pub layout: Layout,
@@ -959,6 +961,7 @@ impl<'a> Node<'a> {
         self.shape.hash(&mut h);
         self.z_index.to_bits().hash(&mut h);
         self.color.hash(&mut h);
+        self.alpha.to_bits().hash(&mut h);
         self.blur.map(|v| v.to_bits()).hash(&mut h);
         self.shadow.hash(&mut h);
         self.second_shadow.hash(&mut h);
@@ -1100,6 +1103,12 @@ impl<'a> Node<'a> {
     /// Siblings with a higher value will be drawn on top. The default value is zero.
     pub const fn z_index(mut self, z_index: f32) -> Self {
         self.z_index = z_index;
+        return self;
+    }
+
+    /// Set the opacity multiplier for the whole node and all its descendants.
+    pub const fn alpha(mut self, alpha: f32) -> Self {
+        self.alpha = alpha;
         return self;
     }
 
@@ -2267,6 +2276,7 @@ impl<'a> Node<'a> {
             second_shadow: self.second_shadow,
             stroke: self.stroke,
             color: self.color,
+            alpha: self.alpha,
             visible: self.visible,
             interact: self.interact,
             layout: self.layout,

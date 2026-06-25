@@ -17,6 +17,22 @@ fn darken_fill(fill: keru_draw::ColorFill, factor: f32) -> keru_draw::ColorFill 
     }
 }
 
+fn alpha_fill(fill: keru_draw::ColorFill, alpha: f32) -> keru_draw::ColorFill {
+    if alpha >= 1.0 {
+        return fill;
+    }
+    let a = |c: Color| Color::new(c.r, c.g, c.b, c.a * alpha);
+    match fill {
+        keru_draw::ColorFill::Color(c) => keru_draw::ColorFill::Color(a(c)),
+        keru_draw::ColorFill::Gradient(g) => keru_draw::ColorFill::Gradient(keru_draw::Gradient {
+            color_start: a(g.color_start),
+            color_end: a(g.color_end),
+            ..g
+        }),
+        keru_draw::ColorFill::SharedGradient(_) => unreachable!(),
+    }
+}
+
 impl Ui {
     /// Handles window events and updates the `Ui`'s internal state accordingly.
     /// 
@@ -190,7 +206,7 @@ impl Ui {
     }
 
     /// Render a node's shape using keru_draw.
-    pub(crate) fn draw_node_shape(&mut self, i: NodeI, texture: Option<LoadedImage>, debug_box: bool) {
+    pub(crate) fn draw_node_shape(&mut self, i: NodeI, texture: Option<LoadedImage>, debug_box: bool, alpha: f32) {
         let node = &self.sys.nodes[i];
 
         let scale_factor = self.sys.scale_factor;
@@ -355,6 +371,7 @@ impl Ui {
             } else {
                 pass.fill.resolve(px0, py0, px1, py1)
             };
+            let fill = alpha_fill(fill, alpha);
 
             match shape {
                 Shape::NoShape => {}
@@ -394,6 +411,7 @@ impl Ui {
                     } else {
                         pass.fill.resolve_radial(cx, cy, inner_radius, outer_radius, px0, py0, px1, py1)
                     };
+                    let fill = alpha_fill(fill, alpha);
                     let dash_length = stroke.and_then(|s| if s.dash_length > 0.0 { Some(s.dash_length * scale_factor) } else { None });
                     self.sys.renderer.draw_ring(keru_draw::CircleRing {
                         center: [cx, cy],
@@ -419,6 +437,7 @@ impl Ui {
                     } else {
                         pass.fill.resolve_radial(cx, cy, inner_radius, outer_radius, px0, py0, px1, py1)
                     };
+                    let fill = alpha_fill(fill, alpha);
                     let dash_length = stroke.and_then(|s| if s.dash_length > 0.0 { Some(s.dash_length * scale_factor) } else { None });
                     self.sys.renderer.draw_arc(keru_draw::CircleArc {
                         center: [cx, cy],
@@ -590,11 +609,12 @@ impl Ui {
         }
 
         let resolve_stroke_fill = |stroke: Stroke| -> keru_draw::ColorFill {
-            if stroke_node_gradient_resolved.is_some() {
+            let f = if stroke_node_gradient_resolved.is_some() {
                 stroke_node_gradient_resolved.unwrap()
             } else {
                 stroke.color.darken(dark).resolve(x0, y0, x1, y1)
-            }
+            };
+            alpha_fill(f, alpha)
         };
 
         // Draw strokes

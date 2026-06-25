@@ -1104,22 +1104,25 @@ impl Ui {
         let mut keru_range_start: Option<usize> = None;
 
         self.sys.z_cursor = Z_START;
-        self.sys.depth_traversal_queue.clear();
-        self.sys.depth_traversal_queue.push(ROOT_I);
 
         with_arena(|arena| {
             let mut z_ordering_vec: BumpVec<(NodeI, f32)> = BumpVec::with_capacity_in(20, arena);
+            let mut traversal_queue: BumpVec<(NodeI, f32)> = BumpVec::with_capacity_in(64, arena);
+            traversal_queue.push((ROOT_I, 1.0));
 
-            while let Some(i) = self.sys.depth_traversal_queue.pop() {
+            while let Some((i, inherited_alpha)) = traversal_queue.pop() {
                 // Assign z values here so they reflect z_index-sorted order.
                 self.sys.z_cursor += Z_STEP;
                 self.sys.nodes[i].z = self.sys.z_cursor;
+
+                // Cascade the node's opacity multiplicatively down the tree.
+                let effective_alpha = inherited_alpha * self.sys.nodes[i].params.alpha;
 
                 if ! self.node_is_offscreen(i) {
                     let is_custom = self.sys.nodes[i].params.custom_render;
                     let instance_index_before = self.sys.renderer.instance_count();
 
-                    self.push_render_and_click_data(i);
+                    self.push_render_and_click_data(i, effective_alpha);
 
                     let instance_index_after = self.sys.renderer.instance_count();
 
@@ -1143,7 +1146,7 @@ impl Ui {
                     y.1.partial_cmp(&x.1).unwrap_or(std::cmp::Ordering::Equal)
                 });
                 for (child, _) in &z_ordering_vec {
-                    self.sys.depth_traversal_queue.push(*child);
+                    traversal_queue.push((*child, effective_alpha));
                 }
             }
         });

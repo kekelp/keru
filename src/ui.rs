@@ -125,9 +125,6 @@ pub(crate) struct System {
     // this is used exclusively for info messages
     pub partial_relayout_count: u32,
 
-    // Holds the nodes for breadth-first traversal.
-    pub depth_traversal_queue: Vec<NodeI>,
-
 
     pub changes: Changes,
 
@@ -291,8 +288,6 @@ impl Ui {
 
                 size: Xy::new(config.width as f32, config.height as f32),
                 scale_factor: 1.0,
-
-                depth_traversal_queue: Vec::with_capacity(64),
 
                 mouse_input: MouseInput::default(),
                 key_input: KeyInput::default(),
