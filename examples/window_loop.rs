@@ -20,7 +20,7 @@ struct State {
 }
 
 impl State {
-    fn new(window: Arc<Window>, instance: wgpu::Instance) -> Self {
+    fn new(event_loop: &ActiveEventLoop, window: Arc<Window>, instance: wgpu::Instance) -> Self {
         let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default())).unwrap();
         let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default())).unwrap();
 
@@ -47,7 +47,7 @@ impl State {
         surface.configure(&device, &config);
 
         let mut ui = Ui::new(&device, &queue, &config);
-        ui.register_window(window.clone());
+        ui.register_window(event_loop, window.clone());
 
         Self { window, surface, device, _queue: queue, config, ui, count: 0 }
     }
@@ -84,7 +84,7 @@ impl ApplicationHandler for Application {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let window = Arc::new(event_loop.create_window(Window::default_attributes()).unwrap());
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
-        let state = State::new(window, instance);
+        let state = State::new(event_loop, window, instance);
         self.state = Some(state);
     }
 

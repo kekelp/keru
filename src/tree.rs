@@ -553,6 +553,13 @@ impl Ui {
     fn finish_frame_inner(&mut self) {
         self.cleanup_and_stuff();
 
+        let update_accesskit_focus = self.sys.changes.focus_changed;
+        let update_accesskit_tree = self.sys.changes.full_relayout
+            || ! self.sys.changes.partial_relayouts.is_empty()
+            || self.sys.changes.text_changed;
+        // todo: we could also check accessibility roles, actions etc. on every node update.
+        // But I think it's highly unlikely that they'd change in a frame that doesn't also change text or layout.
+
         self.relayout();
 
         self.sys.last_frame_end_fake_time = get_observer_timestamp();
@@ -571,8 +578,21 @@ impl Ui {
         self.sys.needs_update.store(false, std::sync::atomic::Ordering::Relaxed);
 
         self.sys.mouse_input.finish_frame();
+        self.sys.accesskit_actions.clear();
+
+        if update_accesskit_tree {
+            // Partial borrows moment
+            if let Some(mut accesskit) = self.sys.accesskit.take() {
+                accesskit.update_if_active(|| self.build_accesskit_tree());
+                self.sys.accesskit = Some(accesskit);
+            }
+        } else if update_accesskit_focus {
+            self.update_accesskit_focus_if_active();
+        }
+        self.sys.changes.focus_changed = false;
+
         reset_arena();
-        
+
         self.arena_for_wrapper_structs.reset();
     }
 

@@ -302,6 +302,7 @@ impl Ui {
         let Some(hit) = hit else {
             self.sys.focused = None;
             self.sys.renderer.text.clear_focus();
+            self.sys.changes.focus_changed = true;
             return;
         };
         let Some(i) = self.sys.nodes.get_by_id(hit.id) else {
@@ -429,6 +430,7 @@ impl Ui {
         self.sys.show_focus_indicator = false;
         self.sys.renderer.text.clear_focus();
         self.sys.changes.should_rebuild_render_data = true;
+        self.sys.changes.focus_changed = true;
     }
 
     /// Move the keyboard focus to the next (or previous) interactable node in
@@ -485,6 +487,7 @@ impl Ui {
         self.sys.focused = Some(self.sys.nodes[i].id);
         self.sys.show_focus_indicator = show_indicator;
         self.sys.changes.should_rebuild_render_data = true;
+        self.sys.changes.focus_changed = true;
 
         match &self.sys.nodes[i].text_i {
             Some(TextI::TextEdit(handle)) => {
@@ -620,6 +623,22 @@ impl Ui {
                 self.sys.changes.need_rerender = true;
             }
         }
+    }
+
+    /// Scroll a scrollable container by `fdelta`, as if the wheel had been used
+    /// over it. Used to service the AccessKit scroll actions. `fdelta` is in the
+    /// same units as a mouse wheel delta (see [`Ui::handle_scroll_event`]).
+    pub(crate) fn push_synthetic_scroll(&mut self, i: NodeI, fdelta: Xy<f32>) {
+        self.sys.update_container_scroll(i, fdelta[X], X, false);
+        self.sys.update_container_scroll(i, fdelta[Y], Y, false);
+
+        self.sys.update_scrollbar_handle_params(i);
+        self.partial_relayout_for_scrollbar(i);
+        // Scrolling can move the cursor onto a different node.
+        self.resolve_hover();
+
+        self.sys.changes.should_rebuild_render_data = true;
+        self.sys.changes.need_rerender = true;
     }
 }
 

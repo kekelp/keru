@@ -136,6 +136,13 @@ impl Ui {
         self.sys.check_clicked(key.id_with_key_scope(), MouseButton::Right)
     }
 
+    /// Returns `true` if a screen reader requested the given AccessKit `action`
+    /// on the node corresponding to `key` during this frame.
+    pub fn accesskit_action(&self, key: NodeKey, action: AccessKitAction) -> bool {
+        let id = key.id_with_key_scope();
+        self.sys.accesskit_actions.iter().any(|(qid, a)| *qid == id && *a == action)
+    }
+
     /// Returns `true` if the node corresponding to `key` was just clicked with the given mouse button.
     ///
     /// This is "act on press". For "act on release", see [`Ui::is_click_released()`].

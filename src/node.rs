@@ -60,10 +60,6 @@ pub enum ChildrenCanHide {
 ///     .color(Color::RED)
 ///     .shape(Shape::Circle);
 /// ```
-/// 
-/// [`Node`] is a plain-old-data struct. Methods like [`Self::text()`] allow to associate borrowed data like a `&str` to a [`Node`].
-/// 
-/// The result is a [`Node`], a version of this struct that can hold borrowed data. Both versions can be used in the same ways.
 #[derive(Debug, Copy, Clone)]
 pub struct Node<'a> {
     pub key: Option<NodeKey>,
@@ -106,6 +102,9 @@ pub struct Node<'a> {
     pub image: Option<Image<'a>>,
     pub image_options: ImageOptions,
     pub placeholder_text: Option<NodeText<'a>>,
+
+    /// Accessibility properties exposed to screen readers.
+    pub accessibility: Accessibility,
 
     /// If true, when running in release mode, this node will never be hashed to detect differences and never trigger relayouts or rerenders.
     /// 
@@ -197,7 +196,105 @@ pub enum Size {
     AspectRatio(f32),
 }
 
-// Get a load of this crap that I have to write
+/// A numeric value with bounds, exposed to screen readers for range widgets
+/// like sliders and spin buttons (the AccessKit RangeValue).
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct NumericValue {
+    pub value: f64,
+    pub min: f64,
+    pub max: f64,
+}
+
+bitflags::bitflags! {
+    /// A set of actions a node advertises to screen readers, so that an
+    /// assistive technology can request them (handled via [`Ui::accesskit_action`]).
+    ///
+    /// Each flag is a distinct bit; [`AccessibilityActions::to_accesskit`] maps a
+    /// single flag to its [`accesskit::Action`].
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+    pub struct AccessibilityActions: u32 {
+        const NONE = 0;
+        const CLICK = 1 << 0;
+        const FOCUS = 1 << 1;
+        const BLUR = 1 << 2;
+        const COLLAPSE = 1 << 3;
+        const EXPAND = 1 << 4;
+        const CUSTOM_ACTION = 1 << 5;
+        const DECREMENT = 1 << 6;
+        const INCREMENT = 1 << 7;
+        const HIDE_TOOLTIP = 1 << 8;
+        const SHOW_TOOLTIP = 1 << 9;
+        const REPLACE_SELECTED_TEXT = 1 << 10;
+        const SCROLL_DOWN = 1 << 11;
+        const SCROLL_LEFT = 1 << 12;
+        const SCROLL_RIGHT = 1 << 13;
+        const SCROLL_UP = 1 << 14;
+        const SCROLL_INTO_VIEW = 1 << 15;
+        const SCROLL_TO_POINT = 1 << 16;
+        const SET_SCROLL_OFFSET = 1 << 17;
+        const SET_TEXT_SELECTION = 1 << 18;
+        const SET_SEQUENTIAL_FOCUS_NAVIGATION_STARTING_POINT = 1 << 19;
+        const SET_VALUE = 1 << 20;
+        const SHOW_CONTEXT_MENU = 1 << 21;
+    }
+}
+
+impl AccessibilityActions {
+    /// Map a single-flag value (one bit set, as yielded by [`bitflags::Flags::iter`])
+    /// to its [`accesskit::Action`]. Returns `None` for the empty set.
+    pub(crate) fn to_accesskit(self) -> Option<accesskit::Action> {
+        use accesskit::Action;
+        match self {
+            AccessibilityActions::NONE => None,
+            AccessibilityActions::CLICK => Some(Action::Click),
+            AccessibilityActions::FOCUS => Some(Action::Focus),
+            AccessibilityActions::BLUR => Some(Action::Blur),
+            AccessibilityActions::COLLAPSE => Some(Action::Collapse),
+            AccessibilityActions::EXPAND => Some(Action::Expand),
+            AccessibilityActions::CUSTOM_ACTION => Some(Action::CustomAction),
+            AccessibilityActions::DECREMENT => Some(Action::Decrement),
+            AccessibilityActions::INCREMENT => Some(Action::Increment),
+            AccessibilityActions::HIDE_TOOLTIP => Some(Action::HideTooltip),
+            AccessibilityActions::SHOW_TOOLTIP => Some(Action::ShowTooltip),
+            AccessibilityActions::REPLACE_SELECTED_TEXT => Some(Action::ReplaceSelectedText),
+            AccessibilityActions::SCROLL_DOWN => Some(Action::ScrollDown),
+            AccessibilityActions::SCROLL_LEFT => Some(Action::ScrollLeft),
+            AccessibilityActions::SCROLL_RIGHT => Some(Action::ScrollRight),
+            AccessibilityActions::SCROLL_UP => Some(Action::ScrollUp),
+            AccessibilityActions::SCROLL_INTO_VIEW => Some(Action::ScrollIntoView),
+            AccessibilityActions::SCROLL_TO_POINT => Some(Action::ScrollToPoint),
+            AccessibilityActions::SET_SCROLL_OFFSET => Some(Action::SetScrollOffset),
+            AccessibilityActions::SET_TEXT_SELECTION => Some(Action::SetTextSelection),
+            AccessibilityActions::SET_SEQUENTIAL_FOCUS_NAVIGATION_STARTING_POINT => Some(Action::SetSequentialFocusNavigationStartingPoint),
+            AccessibilityActions::SET_VALUE => Some(Action::SetValue),
+            AccessibilityActions::SHOW_CONTEXT_MENU => Some(Action::ShowContextMenu),
+            _ => panic!("to_accesskit expects a single flag")
+        }
+    }
+}
+
+/// Accessibility properties of a [`Node`], exposed to screen readers via AccessKit.
+#[derive(Debug, Copy, Clone)]
+pub struct Accessibility {
+    /// The node's role, such as button, label, container, tab list, etc.
+    pub role: AccessKitRole,
+    /// Whether the node counts as "selected" (e.g. the active tab in a tab list).
+    pub selected: bool,
+    /// Numeric value and bounds for range widgets, announced and adjustable by
+    /// screen readers. `None` for non-range nodes.
+    pub numeric_value: Option<NumericValue>,
+    /// Extra actions this node advertises, in addition to the ones keru derives
+    /// automatically from the node's role and interactions.
+    pub actions: AccessibilityActions,
+}
+
+impl Accessibility {
+    /// Default accessibility properties for the given role.
+    pub const fn new(role: AccessKitRole) -> Accessibility {
+        Accessibility { role, selected: false, numeric_value: None, actions: AccessibilityActions::NONE }
+    }
+}
+
 impl Hash for Size {
     fn hash<H: Hasher>(&self, state: &mut H) {
         use Size::*;
@@ -1828,6 +1925,42 @@ impl<'a> Node<'a> {
         return self;
     }
 
+    /// Set a custom accessibility role to the [`Node`].
+    pub const fn accessibility_role(mut self, role: AccessKitRole) -> Node<'a> {
+        self.accessibility.role = role;
+        return self;
+    }
+
+    /// Mark this [`Node`] as selected for screen readers.
+    ///
+    /// Meaningful for nodes with a selectable role such as
+    /// [`AccessKitRole::Tab`] or [`AccessKitRole::ListItem`]: the selected one
+    /// is announced as "selected" (e.g. the active tab in a tab strip).
+    pub const fn accessibility_selected(mut self, selected: bool) -> Node<'a> {
+        self.accessibility.selected = selected;
+        return self;
+    }
+
+    /// Expose a numeric value and its bounds to screen readers.
+    ///
+    /// Meaningful for range widgets with a role such as
+    /// [`AccessKitRole::Slider`] or [`AccessKitRole::SpinButton`]: the value is
+    /// announced and the widget can be adjusted (see [`Ui::accesskit_action`]).
+    pub const fn accessibility_numeric_value(mut self, value: f64, min: f64, max: f64) -> Node<'a> {
+        self.accessibility.numeric_value = Some(NumericValue { value, min, max });
+        return self;
+    }
+
+    /// Advertise extra [`AccessibilityActions`] to screen readers for this [`Node`].
+    ///
+    /// The actions are then requestable by an assistive technology and
+    /// observable from UI code via [`Ui::accesskit_action`]. Adds to any
+    /// previously set actions.
+    pub const fn accessibility_actions(mut self, actions: AccessibilityActions) -> Node<'a> {
+        self.accessibility.actions = self.accessibility.actions.union(actions);
+        return self;
+    }
+
     /// Set image options, such as tiling mode or 9-slice borders.
     pub const fn image_options(mut self, options: ImageOptions) -> Node<'a> {
         self.image_options = options;
@@ -2150,14 +2283,16 @@ impl<'a> Node<'a> {
             text_color: self.text_color,
             text_alignment: self.text_alignment,
             vertical_text_alignment: self.vertical_text_alignment,
+            accessibility: self.accessibility,
 
-            text: None,
-            placeholder_text: None,
-            image: None,
             image_options: self.image_options,
             text_properties: &[],
             text_style_flags: TextStyleFlags::empty(),
             constant: self.constant,
+
+            text: None,
+            placeholder_text: None,
+            image: None,
         };
         return staticized;
     }

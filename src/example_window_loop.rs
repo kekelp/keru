@@ -137,10 +137,12 @@ impl State {
 
 impl<T> ApplicationHandler for Application<T> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        let window = Arc::new(event_loop.create_window(Window::default_attributes()).unwrap());
+        let window = Arc::new(event_loop.create_window(Window::default_attributes().with_visible(false)).unwrap());
         let instance = Instance::new(&InstanceDescriptor::default());
-        let mut state = State::new(window, instance);
-        state.ui.register_window(state.window.clone());
+        let mut state = State::new(window.clone(), instance);
+        state.ui.register_window(event_loop, state.window.clone());
+        state.ui.enable_accessibility(event_loop, state.window.clone());
+        window.set_visible(true);
         self.state = Some(state);
     }
 
@@ -149,7 +151,7 @@ impl<T> ApplicationHandler for Application<T> {
 
         state.ui.window_event(&event, &state.window);
 
-        let always = false;
+        let always = true;
 
         if always {
             match event {

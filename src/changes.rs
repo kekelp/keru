@@ -27,6 +27,7 @@ pub struct Changes {
     pub text_changed: bool,
     pub unfinished_animations: bool,
 
+    pub focus_changed: bool,
 
     pub need_gpu_rect_update: bool,
 
@@ -43,6 +44,7 @@ impl Changes {
             text_changed: false,
             full_relayout: true,
             unfinished_animations: false,
+            focus_changed: false,
 
             should_rebuild_render_data: true,
             need_rerender: true,

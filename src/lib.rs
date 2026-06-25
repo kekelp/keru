@@ -123,6 +123,11 @@ pub mod mouse_events;
 
 pub mod key_events;
 
+mod keru_accesskit;
+pub use keru_accesskit::*;
+
+mod accessibility;
+
 mod thread_local;
 pub(crate) use thread_local::SiblingCursor;
 
@@ -152,3 +157,6 @@ pub use keru_macros::*;
 pub(crate) use Axis::*;
 
 pub use keru_draw::keru_text;
+
+pub use accesskit::Role as AccessKitRole;
+pub use accesskit::Action as AccessKitAction;

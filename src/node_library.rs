@@ -79,8 +79,14 @@ pub(crate) const NODE_ROOT_PARAMS: Node = Node {
     text_color: None,
     text_properties: &[],
     text_style_flags: TextStyleFlags::empty(),
+    accessibility: Accessibility {
+        role: AccessKitRole::GenericContainer,
+        selected: false,
+        numeric_value: None,
+        actions: AccessibilityActions::NONE,
+    }
 };
-/// [`Node`] for a default.
+/// Default empty [`Node`].
 pub const DEFAULT: Node = Node {
     animation: NO_ANIMATION,
     key: None,
@@ -128,6 +134,12 @@ pub const DEFAULT: Node = Node {
     text_color: None,
     text_properties: &[],
     text_style_flags: TextStyleFlags::empty(),
+    accessibility: Accessibility {
+        role: AccessKitRole::GenericContainer,
+        selected: false,
+        numeric_value: None,
+        actions: AccessibilityActions::NONE,
+    }
 };
 /// [`Node`] for a vertical stack.
 pub const V_STACK: Node = Node {
@@ -181,6 +193,12 @@ pub const V_STACK: Node = Node {
     text_color: None,
     text_properties: &[],
     text_style_flags: TextStyleFlags::empty(),
+    accessibility: Accessibility {
+        role: AccessKitRole::GenericContainer,
+        selected: false,
+        numeric_value: None,
+        actions: AccessibilityActions::NONE,
+    }
 };
 /// [`Node`] for a horizontal stack.
 pub const H_STACK: Node = Node {
@@ -234,6 +252,12 @@ pub const H_STACK: Node = Node {
     text_color: None,
     text_properties: &[],
     text_style_flags: TextStyleFlags::empty(),
+    accessibility: Accessibility {
+        role: AccessKitRole::GenericContainer,
+        selected: false,
+        numeric_value: None,
+        actions: AccessibilityActions::NONE,
+    }
 };
 
 /// [`Node`] for a vertically scrollable vertical stack.
@@ -288,6 +312,12 @@ pub const V_SCROLL_STACK: Node = Node {
     text_color: None,
     text_properties: &[],
     text_style_flags: TextStyleFlags::empty(),
+    accessibility: Accessibility {
+        role: AccessKitRole::ScrollView,
+        selected: false,
+        numeric_value: None,
+        actions: AccessibilityActions::NONE,
+    }
 };
 
 
@@ -343,6 +373,12 @@ pub const H_SCROLL_STACK: Node = Node {
     text_color: None,
     text_properties: &[],
     text_style_flags: TextStyleFlags::empty(),
+    accessibility: Accessibility {
+        role: AccessKitRole::ScrollView,
+        selected: false,
+        numeric_value: None,
+        actions: AccessibilityActions::NONE,
+    }
 };
 
 /// [`Node`] for a margin.
@@ -393,6 +429,12 @@ pub const MARGIN: Node = Node {
     text_color: None,
     text_properties: &[],
     text_style_flags: TextStyleFlags::empty(),
+    accessibility: Accessibility {
+        role: AccessKitRole::GenericContainer,
+        selected: false,
+        numeric_value: None,
+        actions: AccessibilityActions::NONE,
+    }
 };
 /// [`Node`] for an icon button.
 pub const ICON_BUTTON: Node = Node {
@@ -442,8 +484,14 @@ pub const ICON_BUTTON: Node = Node {
     text_color: None,
     text_properties: &[],
     text_style_flags: TextStyleFlags::empty(),
+    accessibility: Accessibility {
+        role: AccessKitRole::Button,
+        selected: false,
+        numeric_value: None,
+        actions: AccessibilityActions::NONE,
+    }
 };
-/// [`Node`] for an image. 
+/// [`Node`] for an image.
 pub const IMAGE: Node = Node {
     animation: NO_ANIMATION,
     key: None,
@@ -491,8 +539,14 @@ pub const IMAGE: Node = Node {
     text_color: None,
     text_properties: &[],
     text_style_flags: TextStyleFlags::empty(),
+    accessibility: Accessibility {
+        role: AccessKitRole::Image,
+        selected: false,
+        numeric_value: None,
+        actions: AccessibilityActions::NONE,
+    }
 };
-/// [`Node`] for an icon button. 
+/// [`Node`] for an icon button.
 pub const IMAGE_BUTTON: Node = Node {
     animation: NO_ANIMATION,
     key: None,
@@ -540,8 +594,14 @@ pub const IMAGE_BUTTON: Node = Node {
     text_color: None,
     text_properties: &[],
     text_style_flags: TextStyleFlags::empty(),
+    accessibility: Accessibility {
+        role: AccessKitRole::Button,
+        selected: false,
+        numeric_value: None,
+        actions: AccessibilityActions::NONE,
+    }
 };
-/// [`Node`] for a button. 
+/// [`Node`] for a button.
 pub const BUTTON: Node = Node {
     animation: NO_ANIMATION,
     key: None,
@@ -596,8 +656,14 @@ pub const BUTTON: Node = Node {
     text_color: None,
     text_properties: &[],
     text_style_flags: TextStyleFlags::empty(),
+    accessibility: Accessibility {
+        role: AccessKitRole::Button,
+        selected: false,
+        numeric_value: None,
+        actions: AccessibilityActions::NONE,
+    }
 };
-/// [`Node`] for a label. 
+/// [`Node`] for a label.
 pub const LABEL: Node = Node {
     animation: NO_ANIMATION,
     key: None,
@@ -652,6 +718,12 @@ pub const LABEL: Node = Node {
     text_color: None,
     text_properties: &[],
     text_style_flags: TextStyleFlags::empty(),
+    accessibility: Accessibility {
+        role: AccessKitRole::Label,
+        selected: false,
+        numeric_value: None,
+        actions: AccessibilityActions::NONE,
+    }
 };
 
 /// [`Node`] for a label containing a multi-line paragraph. 
@@ -709,6 +781,12 @@ pub const MULTILINE_LABEL: Node = Node {
     text_color: None,
     text_properties: &[],
     text_style_flags: TextStyleFlags::empty(),
+    accessibility: Accessibility {
+        role: AccessKitRole::Label,
+        selected: false,
+        numeric_value: None,
+        actions: AccessibilityActions::NONE,
+    }
 };
 
 /// [`Node`] for a text element. 
@@ -766,6 +844,12 @@ pub const TEXT: Node = Node {
     text_color: None,
     text_properties: &[],
     text_style_flags: TextStyleFlags::empty(),
+    accessibility: Accessibility {
+        role: AccessKitRole::Label,
+        selected: false,
+        numeric_value: None,
+        actions: AccessibilityActions::NONE,
+    }
 };
 
 /// [`Node`] for an icon element.
@@ -816,6 +900,12 @@ pub const ICON: Node = Node {
     text_color: None,
     text_properties: &[],
     text_style_flags: TextStyleFlags::empty(),
+    accessibility: Accessibility {
+        role: AccessKitRole::Image,
+        selected: false,
+        numeric_value: None,
+        actions: AccessibilityActions::NONE,
+    }
 };
 
 /// [`Node`] for a multiline text edit box. 
@@ -873,6 +963,12 @@ pub const TEXT_EDIT: Node = Node {
     text_color: None,
     text_properties: &[],
     text_style_flags: TextStyleFlags::empty(),
+    accessibility: Accessibility {
+        role: AccessKitRole::TextInput,
+        selected: false,
+        numeric_value: None,
+        actions: AccessibilityActions::NONE,
+    }
 };
 
 /// [`Node`] for a single line text edit box. 
@@ -930,6 +1026,12 @@ pub const TEXT_EDIT_LINE: Node = Node {
     text_color: None,
     text_properties: &[],
     text_style_flags: TextStyleFlags::empty(),
+    accessibility: Accessibility {
+        role: AccessKitRole::TextInput,
+        selected: false,
+        numeric_value: None,
+        actions: AccessibilityActions::NONE,
+    }
 };
 
 /// [`Node`] for a text element containing a multi-line paragraph.
@@ -987,9 +1089,15 @@ pub const TEXT_PARAGRAPH: Node = Node {
     text_color: None,
     text_properties: &[],
     text_style_flags: TextStyleFlags::empty(),
+    accessibility: Accessibility {
+        role: AccessKitRole::Label,
+        selected: false,
+        numeric_value: None,
+        actions: AccessibilityActions::NONE,
+    }
 };
 
-/// [`Node`] for a panel. 
+/// [`Node`] for a panel.
 pub const PANEL: Node = Node {
     animation: NO_ANIMATION,
     key: None,
@@ -1037,6 +1145,12 @@ pub const PANEL: Node = Node {
     text_color: None,
     text_properties: &[],
     text_style_flags: TextStyleFlags::empty(),
+    accessibility: Accessibility {
+        role: AccessKitRole::GenericContainer,
+        selected: false,
+        numeric_value: None,
+        actions: AccessibilityActions::NONE,
+    }
 };
 
 /// [`Node`] for a container. 
@@ -1087,6 +1201,12 @@ pub const CONTAINER: Node = Node {
     text_color: None,
     text_properties: &[],
     text_style_flags: TextStyleFlags::empty(),
+    accessibility: Accessibility {
+        role: AccessKitRole::GenericContainer,
+        selected: false,
+        numeric_value: None,
+        actions: AccessibilityActions::NONE,
+    }
 };
 
 pub const BOTTOM_LEFT: Node = CONTAINER
@@ -1173,6 +1293,12 @@ pub const CUSTOM_RENDERED_PANEL: Node = Node {
     text_color: None,
     text_properties: &[],
     text_style_flags: TextStyleFlags::empty(),
+    accessibility: Accessibility {
+        role: AccessKitRole::Unknown,
+        selected: false,
+        numeric_value: None,
+        actions: AccessibilityActions::NONE,
+    }
 };
 
 /// [`Node`] for a spacer element.
@@ -1223,6 +1349,12 @@ pub const SPACER: Node = Node {
     text_color: None,
     text_properties: &[],
     text_style_flags: TextStyleFlags::empty(),
+    accessibility: Accessibility {
+        role: AccessKitRole::Unknown,
+        selected: false,
+        numeric_value: None,
+        actions: AccessibilityActions::NONE,
+    }
 };
 
 /// [`Node`] for a invisible spacer element that fills all the available space in the X direction.
@@ -1273,6 +1405,12 @@ pub const H_SPACER: Node = Node {
     text_color: None,
     text_properties: &[],
     text_style_flags: TextStyleFlags::empty(),
+    accessibility: Accessibility {
+        role: AccessKitRole::Unknown,
+        selected: false,
+        numeric_value: None,
+        actions: AccessibilityActions::NONE,
+    }
 };
 
 /// [`Node`] for a invisible spacer element that fills all the available space in the Y direction.
@@ -1323,6 +1461,12 @@ pub const V_SPACER: Node = Node {
     text_color: None,
     text_properties: &[],
     text_style_flags: TextStyleFlags::empty(),
+    accessibility: Accessibility {
+        role: AccessKitRole::Unknown,
+        selected: false,
+        numeric_value: None,
+        actions: AccessibilityActions::NONE,
+    }
 };
 
 /// [`Node`] for a grid layout.
@@ -1378,6 +1522,12 @@ pub const GRID: Node = Node {
     text_color: None,
     text_properties: &[],
     text_style_flags: TextStyleFlags::empty(),
+    accessibility: Accessibility {
+        role: AccessKitRole::Grid,
+        selected: false,
+        numeric_value: None,
+        actions: AccessibilityActions::NONE,
+    }
 };
 
 /// [`Node`] for a horizontal divider line.
@@ -1433,6 +1583,12 @@ pub const H_LINE: Node = Node {
     text_color: None,
     text_properties: &[],
     text_style_flags: TextStyleFlags::empty(),
+    accessibility: Accessibility {
+        role: AccessKitRole::Unknown,
+        selected: false,
+        numeric_value: None,
+        actions: AccessibilityActions::NONE,
+    }
 };
 
 /// fake node used to keep track of components.
@@ -1483,4 +1639,10 @@ pub(crate) const COMPONENT_ROOT: Node = Node {
     text_color: None,
     text_properties: &[],
     text_style_flags: TextStyleFlags::empty(),
+    accessibility: Accessibility {
+        role: AccessKitRole::GenericContainer,
+        selected: false,
+        numeric_value: None,
+        actions: AccessibilityActions::NONE,
+    }
 };

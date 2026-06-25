@@ -117,11 +117,14 @@ impl Ui {
             }
 
             let h_stack = H_STACK.stack_spacing(0.0);
-            let tabs_v_stack = V_STACK.size_x(Size::Pixels(250.0));
+            let tabs_v_stack = V_STACK
+                .size_x(Size::Pixels(250.0))
+                .accessibility_role(AccessKitRole::TabList);
             let inactive_tab = BUTTON
                 .shape(Shape::Rectangle { rounded_corners: RoundedCorners::LEFT, corner_radius: DEFAULT_CORNER_RADIUS })
                 .size_x(Size::Fill)
-                .fill(self.theme().muted_background);
+                .fill(self.theme().muted_background)
+                .accessibility_role(AccessKitRole::Tab);
             let active_tab = inactive_tab.fill(self.theme().background);
 
             #[node_key] const VERTICAL_TABS_CONTENT_PANEL: NodeKey;
@@ -129,6 +132,7 @@ impl Ui {
                 .size_symm(Size::Fill)
                 .fill(self.theme().background)
                 .children_can_hide(true)
+                .accessibility_role(AccessKitRole::TabPanel)
                 .key(VERTICAL_TABS_CONTENT_PANEL);
 
             self.add(h_stack).nest(|| {
@@ -137,7 +141,7 @@ impl Ui {
                         let key_i = VERTICAL_TABS_TAB_BUTTON.sibling(i);
                         let active = i == *current_tab;
                         let tab = if active { active_tab } else { inactive_tab };
-                        let tab = tab.static_text(tab_name.0).key(key_i);
+                        let tab = tab.static_text(tab_name.0).accessibility_selected(active).key(key_i);
                         self.add(tab);
                     }
                 });
@@ -160,6 +164,24 @@ impl Ui {
                     new_value += drag.relative_delta.x as f32 * (max - min);
                 }
 
+                let step = (max - min) * 0.01;
+
+                if self.is_focused(SLIDER_CONTAINER) {
+                    if self.key_input().key_pressed_or_repeated(&winit::keyboard::Key::Named(winit::keyboard::NamedKey::ArrowRight)) {
+                        new_value += step;
+                    }
+                    if self.key_input().key_pressed_or_repeated(&winit::keyboard::Key::Named(winit::keyboard::NamedKey::ArrowLeft)) {
+                        new_value -= step;
+                    }
+                }
+
+                if self.accesskit_action(SLIDER_CONTAINER, AccessKitAction::Increment) {
+                    new_value += step;
+                }
+                if self.accesskit_action(SLIDER_CONTAINER, AccessKitAction::Decrement) {
+                    new_value -= step;
+                }
+
                 if new_value.is_finite() {
                     new_value = new_value.clamp(min, max);
                     *value = new_value;
@@ -172,6 +194,10 @@ impl Ui {
                     .size_x(Size::Fill)
                     .size_y(Size::Pixels(45.0))
                     .sense_drag(true)
+                    .focusable(true)
+                    .accessibility_role(AccessKitRole::Slider)
+                    .accessibility_numeric_value(*value as f64, min as f64, max as f64)
+                    .accessibility_actions(AccessibilityActions::INCREMENT | AccessibilityActions::DECREMENT)
                     // .shape(Shape::Rectangle { corner_radius: 36.0 })
                     .key(SLIDER_CONTAINER);
                 
@@ -282,6 +308,9 @@ impl Ui {
                 .sense_click(true)
                 .sense_drag(true)
                 .focusable(true)
+                .accessibility_role(AccessKitRole::Slider)
+                .accessibility_numeric_value(*value as f64, min as f64, max as f64)
+                .accessibility_actions(AccessibilityActions::INCREMENT | AccessibilityActions::DECREMENT)
                 .padding(0.0)
                 .key(HITBOX);
             
@@ -344,6 +373,9 @@ impl SimpleComponent for Slider<'_> {
                 .size_y(Size::Pixels(45.0))
                 .sense_drag(true)
                 .focusable(true)
+                .accessibility_role(AccessKitRole::Slider)
+                .accessibility_numeric_value(*self.value as f64, self.min as f64, self.max as f64)
+                .accessibility_actions(AccessibilityActions::INCREMENT | AccessibilityActions::DECREMENT)
                 .shape(Shape::Rectangle { corner_radius: 14.0, rounded_corners: RoundedCorners::ALL })
                 .key(SLIDER_CONTAINER);
 
@@ -580,17 +612,21 @@ impl Component for StatefulVerticalTabs<'_> {
         let current_tab = self.tabs[state.i];
 
         let h_stack = H_STACK.stack_spacing(0.0);
-        let tabs_v_stack = V_STACK.size_x(Size::Pixels(250.0));
+        let tabs_v_stack = V_STACK
+            .size_x(Size::Pixels(250.0))
+            .accessibility_role(AccessKitRole::TabList);
         let inactive_tab = BUTTON
             .shape(Shape::Rectangle { rounded_corners: RoundedCorners::LEFT, corner_radius: 5.0 })
             .size_x(Size::Fill)
-            .fill(ui.theme().muted_background);
+            .fill(ui.theme().muted_background)
+            .accessibility_role(AccessKitRole::Tab);
         let active_tab = inactive_tab.fill(ui.theme().background);
 
         let content_panel = PANEL
             .size_symm(Size::Fill)
             .fill(ui.theme().background)
             .children_can_hide(true)
+            .accessibility_role(AccessKitRole::TabPanel)
             .key(VERTICAL_TABS_CONTENT_PANEL);
 
         ui.add(h_stack).nest(|| {
@@ -599,7 +635,7 @@ impl Component for StatefulVerticalTabs<'_> {
                     let key_i = VERTICAL_TABS_TAB_BUTTON.sibling(i);
                     let active = i == state.i;
                     let tab = if active { active_tab } else { inactive_tab };
-                    let tab = tab.static_text(tab_name.0).key(key_i);
+                    let tab = tab.static_text(tab_name.0).accessibility_selected(active).key(key_i);
                     ui.add(tab);
                 }
             });
@@ -676,16 +712,20 @@ impl Component for TabContainer<'_> {
         let current_tab = self.tabs[state.i];
 
         let v_stack = V_STACK.stack_spacing(0.0);
-        let tabs_h_stack = H_STACK.size_y(Size::FitContent);
+        let tabs_h_stack = H_STACK
+            .size_y(Size::FitContent)
+            .accessibility_role(AccessKitRole::TabList);
         let inactive_tab = BUTTON
             .shape(Shape::Rectangle { rounded_corners: RoundedCorners::TOP, corner_radius: 5.0 })
-            .fill(ui.theme().muted_background);
+            .fill(ui.theme().muted_background)
+            .accessibility_role(AccessKitRole::Tab);
         let active_tab = inactive_tab.fill(ui.theme().background);
 
         let content_panel = PANEL
             .size_symm(Size::Fill)
             .fill(ui.theme().background)
             .children_can_hide(true)
+            .accessibility_role(AccessKitRole::TabPanel)
             .key(HORIZONTAL_TABS_CONTENT_PANEL);
 
         ui.add(v_stack).nest(|| {
@@ -694,7 +734,7 @@ impl Component for TabContainer<'_> {
                     let key_i = HORIZONTAL_TABS_TAB_BUTTON.sibling(i);
                     let active = i == state.i;
                     let tab = if active { active_tab } else { inactive_tab };
-                    let tab = tab.static_text(tab_name.0).key(key_i);
+                    let tab = tab.static_text(tab_name.0).accessibility_selected(active).key(key_i);
                     ui.add(tab);
                 }
             });

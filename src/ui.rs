@@ -150,6 +150,9 @@ pub(crate) struct System {
 
     pub listened_keys: Vec<Key>,
     pub filter_listened_keys: bool,
+
+    pub accesskit: Option<AccessKitAdapter>,
+    pub accesskit_actions: Vec<(Id, accesskit::Action)>,
 }
 
 /// A handle that can be used to wake up the [`Ui`] from another thread.
@@ -322,6 +325,9 @@ impl Ui {
 
                 listened_keys: Vec::new(),
                 filter_listened_keys: false,
+
+                accesskit: None,
+                accesskit_actions: Vec::with_capacity(0),
             },
 
             arena_for_wrapper_structs: Bump::with_capacity(10)
@@ -335,9 +341,34 @@ impl Ui {
     /// - enable [IME](https://en.wikipedia.org/wiki/Input_method) when a text edit box is focused, and disable it when unfocused so that there's less risk of hotkey collisions.
     /// 
     /// - automatically wakeup the event loop for cursor blinking, scheduled wakeups, when using the [`UiWaker`].
-    pub fn register_window(&mut self, window: Arc<winit::window::Window>) {
+    pub fn register_window(
+        &mut self,
+        _event_loop: &winit::event_loop::ActiveEventLoop,
+        window: Arc<winit::window::Window>,
+    ) {
         self.sys.renderer.text.set_auto_wakeup(window.clone());
         self.sys.window_ref = Some(Arc::downgrade(&window));
+    }
+
+    /// Enable accessibility. Because of underlying platform limitations, this function must be called when the `winit` window is still invisible.  
+    /// 
+    /// Create the window using `WindowAttributes::with_visible(false)`, then call `window.set_visible(true)` after the call to `enable_accessibility()`.
+    /// 
+    /// # Panics
+    /// 
+    /// Panics if `window` is visible when this function is called. 
+    pub fn enable_accessibility(
+        &mut self,
+        event_loop: &winit::event_loop::ActiveEventLoop,
+        window: Arc<winit::window::Window>,
+    ) {
+        if window.is_visible() == Some(true) {
+            panic!(
+                "The AccessKit winit adapter must be created before the window is shown (made visible) for the first time.
+                Create the window using `WindowAttributes::with_visible(false)`, then call `window.set_visible(true)` after the call to `enable_accessibility()`."
+            );
+        }
+        self.sys.accesskit = Some(AccessKitAdapter::new(event_loop, window.clone()));
     }
 
     /// Set the global animation speed multiplier.

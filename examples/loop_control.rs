@@ -73,7 +73,6 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
             None => ui.add(BUTTON.static_text("Start Async Function").key(START_ASYNC)),
             Some(future) => match future.poll() {
                 Poll::Pending => {
-                    dbg!("Sneed");
                     ui.add(BUTTON.click_animation(false).static_text("Working..."))
                 },
                 Poll::Ready(msg) => {

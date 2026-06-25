@@ -32,7 +32,30 @@ impl Ui {
         if *event == WindowEvent::RedrawRequested {
             self.set_scale_factor(window.scale_factor());
         }
-        
+
+        // Accessibility. Take the adapter out so we can call `self` methods
+        // (action handling, tree building) without holding a borrow on it.
+        if let Some(mut accesskit) = self.sys.accesskit.take() {
+            accesskit.process_event(event);
+            let mut tree_dirty = false;
+            for ak_event in accesskit.poll_events().collect::<Vec<_>>() {
+                match ak_event.window_event {
+                    AccessKitWindowEvent::InitialTreeRequested => {
+                        tree_dirty = true;
+                    }
+                    AccessKitWindowEvent::ActionRequested(request) => {
+                        self.handle_accesskit_action(request);
+                        tree_dirty = true;
+                    }
+                    AccessKitWindowEvent::AccessibilityDeactivated => {}
+                }
+            }
+            if tree_dirty {
+                accesskit.update_if_active(|| self.build_accesskit_tree());
+            }
+            self.sys.accesskit = Some(accesskit);
+        }
+
         self.sys.mouse_input.window_event(event, self.sys.scale_factor);
         self.sys.key_input.window_event(event);
 
