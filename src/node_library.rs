@@ -1619,7 +1619,7 @@ pub const H_LINE: Node = Node {
 
 /// fake node used to keep track of components.
 pub(crate) const COMPONENT_ROOT: Node = Node {
-    animation: Animation { speed: 1.0, enter: EnterAnimation::None, exit: ExitAnimation::None, state_transition: StateTransition { animate_position: true } },
+    animation: Animation { speed: 1.0, enter: EnterAnimation::None, exit: ExitAnimation::None, state_transition: StateTransition { animate_position: true, animate_properties: false } },
     key: None,
     children_layout: ChildrenLayout::Free,
     text_options: TextOptions::const_default(),

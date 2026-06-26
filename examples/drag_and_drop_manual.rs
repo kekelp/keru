@@ -24,15 +24,7 @@ impl State {
             .anchor_symm(Anchor::Center)
             .sense_drag(true)
             .absorbs_clicks(false) // it would be better to have an invisible vstack_hitbox on top of the items. 
-            .animate_position(true)
-            .animation(Animation {
-                speed: 1.0,
-                enter: EnterAnimation::None,
-                exit: ExitAnimation::None,
-                state_transition: StateTransition {
-                    animate_position: true,
-                },
-            });
+            .animate_position(true);
 
         let plus_sign = LABEL
             .static_text("+")
@@ -43,6 +35,7 @@ impl State {
                 exit: ExitAnimation::None,
                 state_transition: StateTransition {
                     animate_position: true,
+                    animate_properties: false,
                 },
             });
 

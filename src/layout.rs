@@ -1041,6 +1041,8 @@ impl Ui {
         // - separate from push_render_data so that prepare_text() can run after it knows whether any textbox changed, but before push_render_data.
         self.resolve_all_animations_and_scrolling();
 
+        self.update_property_animations();
+
         with_timer("prepare_text", Some(std::time::Duration::from_micros(500)), || {
             self.sys.renderer.prepare_text();
         });

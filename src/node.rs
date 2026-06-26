@@ -23,6 +23,7 @@ bitflags::bitflags! {
 
 use crate::*;
 use crate::node_library::*;
+use std::num::NonZeroU32;
 use std::{hash::{Hash, Hasher}, ops::Range};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -169,6 +170,8 @@ pub enum ExitAnimation {
 pub struct StateTransition {
     // For now, just position-based transitions (placeholder)
     pub animate_position: bool,
+    // Animate cosmetic property changes (alpha, fill color). Off by default: properties snap.
+    pub animate_properties: bool,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -185,6 +188,7 @@ pub const NO_ANIMATION: Animation = Animation {
     exit: ExitAnimation::None,
     state_transition: StateTransition {
         animate_position: false,
+        animate_properties: false,
     },
 };
 
@@ -980,6 +984,7 @@ impl<'a> Node<'a> {
             ExitAnimation::GrowShrink { axis, origin } => { axis.hash(&mut h); origin.hash(&mut h); },
         }
         self.animation.state_transition.animate_position.hash(&mut h);
+        self.animation.state_transition.animate_properties.hash(&mut h);
         self.transform.offset.x.to_bits().hash(&mut h);
         self.transform.offset.y.to_bits().hash(&mut h);
         self.transform.scale.to_bits().hash(&mut h);
@@ -1836,6 +1841,14 @@ impl<'a> Node<'a> {
         return self;
     }
 
+    /// Animate cosmetic property changes (alpha, fill color) when this node's params change.
+    ///
+    /// Off by default, in which case the properties snap to their new value.
+    pub const fn animate_properties(mut self, value: bool) -> Self {
+        self.animation.state_transition.animate_properties = value;
+        return self;
+    }
+
     pub fn is_fit_content(&self) -> bool {
         let Xy { x, y } = self.layout.size;
         return x == Size::FitContent || y == Size::FitContent
@@ -2196,10 +2209,6 @@ impl Ui {
             return;
         }
         
-        // What if we did all the hashing and diffing in a single sequential scan of the stored Nodes?
-        // (we'd store them in a separate Soa vec rather than inline in the InnerNode in that case.)
-        // The linear scan vs random order would probably be good, but on the other hand, the pre-copy Node is already hot in the cache either way, because we have to copy it.
-
         #[cfg(not(debug_assertions))]
         if node.constant && self.sys.nodes[i].frame_added != self.sys.current_frame {
             return;
@@ -2249,7 +2258,29 @@ impl Ui {
             return;
         }
         
-        self.sys.nodes[i].params = node.remove_borrowed_data_and_copy();
+        let mut new_params = node.remove_borrowed_data_and_copy();
+
+        let animate_enabled = node.animation.state_transition.animate_properties;
+        let animate = animate_enabled
+            && cosmetic_changed
+            && self.sys.nodes[i].frame_added != self.sys.current_frame;
+
+        // If we didn't support animation-only frames where the builtin animations progress even without rerunning the update code,
+        // we could resolve the property animation immediately here without even storing anything. It would be a lot simpler.
+        if animate {
+            self.start_property_animations(i, &mut new_params);
+        }
+
+        if self.sys.nodes[i].params_animation_target.is_some() {
+            if animate_enabled {
+                self.undo_animated_properties_update(i, &mut new_params);
+            } else {
+                // animate_properties was turned off while an animation was still in flight.
+                self.cancel_property_animation(i);
+            }
+        }
+
+        self.sys.nodes[i].params = new_params;
 
         self.sys.nodes[i].last_cosmetic_hash = new_cosmetic_hash;
         self.sys.nodes[i].last_layout_hash = new_layout_hash;
@@ -2261,8 +2292,277 @@ impl Ui {
             self.sys.changes.rebuild_render_data = true;
         }
     }
+
+    fn cancel_property_animation(&mut self, i: NodeI) {
+        if let Some(anim_i) = self.sys.nodes[i].params_animation_target {
+            let anim_i = anim_i.get() as usize - 1;
+            self.sys.params_animation_targets.remove(anim_i);
+            self.sys.nodes[i].params_animation_target = None;
+        }
+    }
+
+    fn start_property_animations(&mut self, i: NodeI, new_params: &mut Node<'static>) {
+        match self.sys.nodes[i].params_animation_target {
+            Some(anim_i) => {
+                // Update the target values in case the changed before the animation is done
+                let anim_i = anim_i.get() as usize - 1;
+                self.sys.params_animation_targets[anim_i].target = *new_params;
+            },
+            None => {
+                // Start a new animation
+                let new_anim = ParamsAnimation {
+                    target: *new_params,
+                    i,
+                    id: self.sys.nodes[i].id,
+                };
+                let new_anim_i = self.sys.params_animation_targets.insert(new_anim);
+                let new_anim_i = NonZeroU32::new(new_anim_i as u32 + 1).unwrap();
+                self.sys.nodes[i].params_animation_target = Some(new_anim_i);
+            },
+        };
+    }
+
+    fn undo_animated_properties_update(&self, i: NodeI, new_params: &mut Node<'static>) {
+        let current = &self.sys.nodes[i].params;
+        new_params.alpha = current.alpha;
+        // Color fills can only be interpolated between matching variants. If the variant changed,
+        // we can't animate it, so we leave new_params.color as the target (it snaps).
+        if same_fill_variant(current.color, new_params.color) {
+            new_params.color = current.color;
+        }
+        // Shapes can only be interpolated between matching variants (same shape type). If the
+        // variant changed, we leave new_params.shape as the target (it snaps).
+        if same_shape_variant(current.shape, new_params.shape) {
+            new_params.shape = current.shape;
+        }
+    }
+
+    pub(crate) fn update_property_animations(&mut self) {
+        let dt = 1.0 / 60.0; // todo use real frame time
+
+        for slab_i in 0..self.sys.params_animation_targets.capacity() {
+            let Some(&ParamsAnimation { target, i, id }) = self.sys.params_animation_targets.get(slab_i) else {
+                continue;
+            };
+            // The node got replaced by another one.
+            if self.sys.nodes[i].id != id {
+                self.sys.params_animation_targets.remove(slab_i);
+                continue;
+            }
+
+            let speed = 0.5 * self.sys.global_animation_speed * self.sys.nodes[i].params.animation.speed;
+            let rate = (5.0 * speed * dt).clamp(0.0, 1.0);
+
+            let mut done = true;
+            let mut changed = false;
+
+            let params = &mut self.sys.nodes[i].params;
+            done &= animate_alpha(&mut params.alpha, target.alpha, rate, &mut changed);
+            done &= animate_color_fill(&mut params.color, target.color, rate, &mut changed);
+            done &= animate_shape(&mut params.shape, target.shape, rate, &mut changed);
+
+            if changed {
+                self.sys.changes.rebuild_render_data = true;
+            }
+
+            if done {
+                self.sys.params_animation_targets.remove(slab_i);
+                self.sys.nodes[i].params_animation_target = None;
+            } else {
+                // Keep the render loop going until the animation settles.
+                self.sys.changes.unfinished_animations = true;
+            }
+        }
+    }
 }
 
+fn same_fill_variant(a: ColorFill2, b: ColorFill2) -> bool {
+    std::mem::discriminant(&a) == std::mem::discriminant(&b)
+}
+
+fn same_shape_variant(a: Shape, b: Shape) -> bool {
+    std::mem::discriminant(&a) == std::mem::discriminant(&b)
+}
+
+fn animate_shape(current: &mut Shape, target: Shape, rate: f32, changed: &mut bool) -> bool {
+    let (new, done) = step_shape(*current, target, rate);
+    if new != *current {
+        *current = new;
+        *changed = true;
+    }
+    done
+}
+
+fn step_shape(current: Shape, target: Shape, rate: f32) -> (Shape, bool) {
+    use Shape::*;
+    match (current, target) {
+        (
+            Rectangle { rounded_corners: _, corner_radius: ca },
+            Rectangle { rounded_corners, corner_radius: cb },
+        ) => {
+            let (corner_radius, done) = step_f32(ca, cb, rate);
+            // rounded_corners is a discrete flag set; snap it to the target.
+            (Rectangle { rounded_corners, corner_radius }, done)
+        }
+        (Ring { width: wa }, Ring { width: wb }) => {
+            let (width, done) = step_f32(wa, wb, rate);
+            (Ring { width }, done)
+        }
+        (
+            Arc { start_angle: sa, end_angle: ea, width: wa },
+            Arc { start_angle: sb, end_angle: eb, width: wb },
+        ) => {
+            let (start_angle, d0) = step_f32(sa, sb, rate);
+            let (end_angle, d1) = step_f32(ea, eb, rate);
+            let (width, d2) = step_f32(wa, wb, rate);
+            (Arc { start_angle, end_angle, width }, d0 && d1 && d2)
+        }
+        (
+            Pie { start_angle: sa, end_angle: ea },
+            Pie { start_angle: sb, end_angle: eb },
+        ) => {
+            let (start_angle, d0) = step_f32(sa, sb, rate);
+            let (end_angle, d1) = step_f32(ea, eb, rate);
+            (Pie { start_angle, end_angle }, d0 && d1)
+        }
+        (
+            Segment { start: sa, end: ea, dash_length: da },
+            Segment { start: sb, end: eb, dash_length: db },
+        ) => {
+            let (sx, d0) = step_f32(sa.0, sb.0, rate);
+            let (sy, d1) = step_f32(sa.1, sb.1, rate);
+            let (ex, d2) = step_f32(ea.0, eb.0, rate);
+            let (ey, d3) = step_f32(ea.1, eb.1, rate);
+            // dash_length can be None/Some; only interpolate when both are Some, else snap.
+            let (dash_length, d4) = match (da, db) {
+                (Some(la), Some(lb)) => {
+                    let (l, d) = step_f32(la, lb, rate);
+                    (Some(l), d)
+                }
+                _ => (db, true),
+            };
+            (Segment { start: (sx, sy), end: (ex, ey), dash_length }, d0 && d1 && d2 && d3 && d4)
+        }
+        (
+            Triangle { rotation: ra, width: wa },
+            Triangle { rotation: rb, width: wb },
+        ) => {
+            let (rotation, d0) = step_f32(ra, rb, rate);
+            let (width, d1) = step_f32(wa, wb, rate);
+            (Triangle { rotation, width }, d0 && d1)
+        }
+        (
+            SquareGrid { lattice_size: la, offset: oa, line_thickness: ta },
+            SquareGrid { lattice_size: lb, offset: ob, line_thickness: tb },
+        ) => {
+            let (lattice_size, d0) = step_f32(la, lb, rate);
+            let (ox, d1) = step_f32(oa.0, ob.0, rate);
+            let (oy, d2) = step_f32(oa.1, ob.1, rate);
+            let (line_thickness, d3) = step_f32(ta, tb, rate);
+            (SquareGrid { lattice_size, offset: (ox, oy), line_thickness }, d0 && d1 && d2 && d3)
+        }
+        (
+            HexGrid { lattice_size: la, offset: oa, line_thickness: ta },
+            HexGrid { lattice_size: lb, offset: ob, line_thickness: tb },
+        ) => {
+            let (lattice_size, d0) = step_f32(la, lb, rate);
+            let (ox, d1) = step_f32(oa.0, ob.0, rate);
+            let (oy, d2) = step_f32(oa.1, ob.1, rate);
+            let (line_thickness, d3) = step_f32(ta, tb, rate);
+            (HexGrid { lattice_size, offset: (ox, oy), line_thickness }, d0 && d1 && d2 && d3)
+        }
+        (
+            Hexagon { size: sa, rotation: ra },
+            Hexagon { size: sb, rotation: rb },
+        ) => {
+            let (size, d0) = step_f32(sa, sb, rate);
+            let (rotation, d1) = step_f32(ra, rb, rate);
+            (Hexagon { size, rotation }, d0 && d1)
+        }
+        // Variants with no interpolable params (NoShape, Circle, HorizontalLine, VerticalLine),
+        // or mismatched shape types: snap to the target.
+        _ => (target, true),
+    }
+}
+
+// Step `current` toward `target`, set `changed` if it moved, and return whether it settled.
+fn animate_alpha(current: &mut f32, target: f32, rate: f32, changed: &mut bool) -> bool {
+    let (new, done) = step_f32(*current, target, rate);
+    if new != *current {
+        *current = new;
+        *changed = true;
+    }
+    done
+}
+
+fn animate_color_fill(current: &mut ColorFill2, target: ColorFill2, rate: f32, changed: &mut bool) -> bool {
+    let (new, done) = step_color_fill(*current, target, rate);
+    if new != *current {
+        *current = new;
+        *changed = true;
+    }
+    done
+}
+
+// Step a scalar toward the target using the same shape of motion as the rectangle/position
+// animation in `layout.rs`: an exponential step (`dist * rate`) at the start, with a constant
+// minimum speed floor that makes the tail linear-ish, and a small snap threshold at the end.
+fn step_f32(current: f32, target: f32, rate: f32) -> (f32, bool) {
+    // Mirrors the rectangle animation: const_speed snap (≈3px) and min step (≈1px), here in
+    // normalized-ish units since shape params don't share a single pixel scale.
+    const CONST_SPEED: f32 = 0.003;
+    const MIN_STEP: f32 = 0.005;
+
+    let diff = target - current;
+    let dist = diff.abs();
+    if dist < CONST_SPEED {
+        (target, true)
+    } else {
+        // exponential step at the start, but never slower than MIN_STEP, and never overshooting.
+        let step = (dist * rate).max(MIN_STEP).min(dist);
+        (current + step * diff.signum(), false)
+    }
+}
+
+fn step_color(current: Color, target: Color, rate: f32) -> (Color, bool) {
+    let (r, d0) = step_f32(current.r, target.r, rate);
+    let (g, d1) = step_f32(current.g, target.g, rate);
+    let (b, d2) = step_f32(current.b, target.b, rate);
+    let (a, d3) = step_f32(current.a, target.a, rate);
+    (Color::new(r, g, b, a), d0 && d1 && d2 && d3)
+}
+
+fn step_color_fill(current: ColorFill2, target: ColorFill2, rate: f32) -> (ColorFill2, bool) {
+    match (current, target) {
+        (ColorFill2::Color(a), ColorFill2::Color(b)) => {
+            let (c, done) = step_color(a, b, rate);
+            (ColorFill2::Color(c), done)
+        }
+        (ColorFill2::LinearGradient(a), ColorFill2::LinearGradient(b)) => {
+            let (start, d0) = step_color(a.color_start, b.color_start, rate);
+            let (end, d1) = step_color(a.color_end, b.color_end, rate);
+            let (angle, d2) = step_f32(a.angle_deg, b.angle_deg, rate);
+            (ColorFill2::LinearGradient(LinearGradient::new(start, end, angle)), d0 && d1 && d2)
+        }
+        (
+            ColorFill2::RadialGradient { color_inner: ai, color_outer: ao },
+            ColorFill2::RadialGradient { color_inner: bi, color_outer: bo },
+        ) => {
+            let (inner, d0) = step_color(ai, bi, rate);
+            let (outer, d1) = step_color(ao, bo, rate);
+            (ColorFill2::RadialGradient { color_inner: inner, color_outer: outer }, d0 && d1)
+        }
+        // Mismatched or non-interpolable variants (e.g. SharedGradient): snap to the target.
+        _ => (target, true),
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct ParamsAnimation {
+    target: Node<'static>,
+    i: NodeI,
+    id: Id,
+}
 
 impl<'a> Node<'a> {
     fn remove_borrowed_data_and_copy(self) -> Node<'static> {

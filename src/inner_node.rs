@@ -1,3 +1,4 @@
+use std::num::NonZeroU32;
 use std::{fmt, fmt::Write, hash::Hash, panic::Location, time::Instant};
 use glam::Vec2;
 use keru_draw::{TextBoxHandle, TextEditHandle};
@@ -67,6 +68,8 @@ pub struct InnerNode {
     pub next_hidden_sibling: Option<NodeI>,
 
     pub params: Node<'static>,
+    // Index into ui.sys.params_animation_targets
+    pub params_animation_target: Option<NonZeroU32>,
 
     pub debug_location: &'static Location<'static>,
 
@@ -198,6 +201,8 @@ impl InnerNode {
             is_twin: twin_n,
             n_twins: 0,
             params: Node::const_default(),
+            params_animation_target: None,
+
             debug_location,
             hover_timestamp: f32::MIN,
             hovered: false,
@@ -328,6 +333,8 @@ pub const NODE_ROOT: InnerNode = InnerNode {
     n_twins: 0,
 
     params: NODE_ROOT_PARAMS,
+    params_animation_target: None,
+    
     debug_location: Location::caller(),
 
     hover_timestamp: f32::MIN,

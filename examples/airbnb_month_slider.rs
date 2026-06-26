@@ -1,7 +1,9 @@
-// Reproduction of the AirBnB-style circular month slider from PanGui.
-// Imitation is the best form of flattery...
-// Keru's renderer can't do non-rectangular clipping, so we have to use some tricks to simulate it.
-// PanGui uses a much more advanced SDF-based renderer that can do plenty of great things besides just nonrectangular clipping, but that's the only thing we're missing for this one example.
+/// Reproduction of the AirBnB-style circular month slider from PanGui.
+/// Imitation is the best form of flattery...
+/// Keru's renderer can't do non-rectangular clipping, so we have to use some tricks to simulate it.
+/// PanGui uses a much more advanced SDF renderer that can do plenty of great things besides just nonrectangular clipping, but that's the only thing we're missing for this one example.
+/// 
+/// This example uses built-in declarative animations and regular Nodes instead of canvas drawing, but for even more advanced visuals it can be simpler to use canvas drawing and to drive animations manually. 
 
 use keru::*;
 use keru::node_library::*;
@@ -57,11 +59,13 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 
     let is_dragging = maybe_drag.is_some();
     let is_hovered = ui.is_hovered(HANDLE);
-    let handle_visual_radius = if is_hovered || is_dragging {
+    let handle_radius = if is_hovered || is_dragging {
         HANDLE_RADIUS + 4.0
     } else {
         HANDLE_RADIUS
     };
+
+    let animate = maybe_drag.is_none();
 
     let t = state.t;
     let month = state.month;
@@ -99,6 +103,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .blur(60.0)
         .size_symm(Size::Pixels(TRACK_RADIUS * 2.0))
         .anchor_symm(Anchor::Center)
+        .animate_properties(animate)
         .position_symm(Pos::Center);
 
     let track_arc = DEFAULT
@@ -109,6 +114,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         })
         .size_symm(Size::Pixels(TRACK_RADIUS * 2.0))
         .anchor_symm(Anchor::Center)
+        .animate_properties(animate)
         .position_symm(Pos::Center);
 
     let inner_mask = DEFAULT
@@ -125,16 +131,28 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .anchor_symm(Anchor::Center)
         .position_symm(Pos::Center);
 
+    // Use a degenerate arc (start_angle == end_angle) for the handle, so that it animates in the same radial way as the track.
+    // A circle's default position animation would go in a straight line towards the target, not along the circle!
+    // We could also use our own r value and interpolate it manually.
     let handle = DEFAULT
-        .shape(Shape::Circle)
+        .shape(Shape::Arc { start_angle: end_angle, end_angle, width: handle_radius * 2.0 })
         .color(Color::rgba_u8(255, 252, 255, 255))
-        .size_symm(Size::Pixels(handle_visual_radius * 2.0))
+        .size_symm(Size::Pixels(TRACK_RADIUS * 2.0))
         .anchor_symm(Anchor::Center)
-        .position_x(Pos::Pixels(hx))
-        .position_y(Pos::Pixels(hy))
+        .position_symm(Pos::Center)
+        .animate_properties(animate)
+        .shadow(Shadow { blur: 4.0, offset: Xy::new(0.0, 2.0), color: Some(Color::rgba_u8(0, 0, 0, 100)) });
+
+    // But use a real circle as a hitbox for simplicity.
+    let handle_hitbox = DEFAULT
+        .shape(Shape::Circle)
+        .color(Color::TRANSPARENT)
+        .size_symm(Size::Pixels((HANDLE_RADIUS + 5.0) * 2.0))
+        .anchor_symm(Anchor::Center)
+        .position(Pos::Pixels(hx), Pos::Pixels(hy))
+        .animate_position(true)
         .sense_drag(true)
         .sense_hover(true)
-        .shadow(Shadow { blur: 4.0, offset: Xy::new(0.0, 2.0), color: Some(Color::rgba_u8(0, 0, 0, 100)) })
         .absorbs_clicks(false)
         .key(HANDLE);
 
@@ -179,6 +197,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                 });
 
                 ui.add(handle);
+                ui.add(handle_hitbox);
             });
         });
     });

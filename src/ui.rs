@@ -7,6 +7,7 @@ use bumpalo::Bump;
 use glam::Vec2;
 
 use keru_draw::Renderer;
+use slab::Slab;
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
 use key_events::KeyInput;
@@ -75,6 +76,8 @@ static INSTANCE_COUNTER: AtomicU32 = AtomicU32::new(1);
 
 pub(crate) struct System {
     pub nodes: Nodes,
+
+    pub params_animation_targets: Slab<ParamsAnimation>,
 
     pub custom_render_commands: Vec<RenderCommand>,
 
@@ -263,6 +266,7 @@ impl Ui {
             
             sys: System {
                 nodes,
+                params_animation_targets: slab::Slab::with_capacity(6),
                 custom_render_commands: Vec::with_capacity(50),
                 t: 0.0,
                 global_animation_speed: 1.0,
