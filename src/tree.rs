@@ -465,7 +465,10 @@ impl Ui {
         }
 
         // Draw canvas with combined transform (accumulated + canvas offset * scale)
-        if let Some(canvas_instances) = self.sys.nodes[i].canvas_instances 
+        // todo: keep the canvas for longer so we can remove the canvas_recorded_this_frame check and draw canvas stuff for exiting nodes
+        let canvas_recorded_this_frame = self.sys.nodes[i].last_frame_touched == self.sys.current_frame;
+        if canvas_recorded_this_frame
+        && let Some(canvas_instances) = self.sys.nodes[i].canvas_instances
         && let Some((canvas_transform, canvas_clip_rect)) = self.sys.nodes[i].canvas_transform_and_clip {
             let accumulated = &self.sys.nodes[i].accumulated_transform;
             let rect = &self.sys.nodes[i].real_rect;
@@ -716,7 +719,7 @@ impl Ui {
             // we could cheat and just return. instead we continue, so we can see the panic clearly in case there's any bugs.
         }
         let id = self.sys.nodes[i].id;
-        
+
         // skip the nodes that have last_frame_touched = now, because that means that they were not really removed, but just moved somewhere else in the tree.
         // Kind of weird to do this so late.
         // todo: with the new system we can delete this.

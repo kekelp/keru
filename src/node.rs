@@ -157,6 +157,7 @@ pub enum EnterAnimation {
     None,
     Slide { edge: SlideEdge, direction: SlideDirection },
     GrowShrink { axis: Axis, origin: Pos },
+    FadeIn,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -164,6 +165,7 @@ pub enum ExitAnimation {
     None,
     Slide { edge: SlideEdge, direction: SlideDirection },
     GrowShrink { axis: Axis, origin: Pos },
+    FadeOut,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -976,12 +978,14 @@ impl<'a> Node<'a> {
             EnterAnimation::None => {},
             EnterAnimation::Slide { edge, direction } => { edge.hash(&mut h); direction.hash(&mut h); },
             EnterAnimation::GrowShrink { axis, origin } => { axis.hash(&mut h); origin.hash(&mut h); },
+            EnterAnimation::FadeIn => {},
         }
         std::mem::discriminant(&self.animation.exit).hash(&mut h);
         match self.animation.exit {
             ExitAnimation::None => {},
             ExitAnimation::Slide { edge, direction } => { edge.hash(&mut h); direction.hash(&mut h); },
             ExitAnimation::GrowShrink { axis, origin } => { axis.hash(&mut h); origin.hash(&mut h); },
+            ExitAnimation::FadeOut => {},
         }
         self.animation.state_transition.animate_position.hash(&mut h);
         self.animation.state_transition.animate_properties.hash(&mut h);
@@ -1835,6 +1839,25 @@ impl<'a> Node<'a> {
         return self;
     }
 
+    /// Set alpha fade animations for when this node enters and exits..
+    pub const fn fade(mut self) -> Self {
+        self.animation.enter = EnterAnimation::FadeIn;
+        self.animation.exit = ExitAnimation::FadeOut;
+        return self;
+    }
+
+    /// Set an alpha fade animation for when this node enters.
+    pub const fn fade_in(mut self) -> Self {
+        self.animation.enter = EnterAnimation::FadeIn;
+        return self;
+    }
+
+    /// Set an alpha fade animation for when this node exits.
+    pub const fn fade_out(mut self) -> Self {
+        self.animation.exit = ExitAnimation::FadeOut;
+        return self;
+    }
+
     /// Animate position changes when this node moves.
     pub const fn animate_position(mut self, value: bool) -> Self {
         self.animation.state_transition.animate_position = value;
@@ -2507,7 +2530,7 @@ fn animate_color_fill(current: &mut ColorFill2, target: ColorFill2, rate: f32, c
 // Step a scalar toward the target using the same shape of motion as the rectangle/position
 // animation in `layout.rs`: an exponential step (`dist * rate`) at the start, with a constant
 // minimum speed floor that makes the tail linear-ish, and a small snap threshold at the end.
-fn step_f32(current: f32, target: f32, rate: f32) -> (f32, bool) {
+pub(crate) fn step_f32(current: f32, target: f32, rate: f32) -> (f32, bool) {
     // Mirrors the rectangle animation: const_speed snap (≈3px) and min step (≈1px), here in
     // normalized-ish units since shape params don't share a single pixel scale.
     const CONST_SPEED: f32 = 0.003;

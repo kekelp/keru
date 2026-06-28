@@ -39,8 +39,15 @@ pub struct InnerNode {
     pub last_proposed_sizes: ProposedSizes,
 
     // Enter or exit animation can be a fuzzy concept, because what if the node gets relayouted to a different position/state before the animation is over? The animation would be "extended" and only end what the node settles in the new final position. Even if at that point it's a mix between an enter/exit animation and a regular interpolation one.
-    pub enter_animation_still_going: bool,
+    // exit_animation_still_going is very important as it's what decides when an exiting nodes finally gets removed and cleaned up.
+    // enter_animation_still_going is needed so that a node with position interpolation off still doesn't snap around as long as it's still completing the enter animation.
     pub exit_animation_still_going: bool,
+    pub enter_animation_still_going: bool,
+
+    // with positions it was relatively common to have both a slide exit animation and a interpolation one, so we had to make both of them use the same system.
+    // With alpha, it's not as common, and it's easy to just multiply the two alphas. So it's simpler and probably fine to use a separate alpha just for the enter-exit animations
+    // This way, the cleanup logic is connected just to this new simpler subsystem and not to the whole property animation system. 
+    pub fade_alpha: f32,
 
     pub relayout_chain_root: Option<NodeI>,
 
@@ -156,6 +163,7 @@ impl InnerNode {
         return InnerNode {
             exit_animation_still_going: false,
             enter_animation_still_going: false,
+            fade_alpha: 1.0,
             id: key.id_with_key_scope(),
             original_key: *key,
             depth: 0,
@@ -287,6 +295,7 @@ pub const NODE_ROOT_ID: Id = Id(0);
 pub const NODE_ROOT: InnerNode = InnerNode {
     exit_animation_still_going: false,
     enter_animation_still_going: false,
+    fade_alpha: 1.0,
     id: NODE_ROOT_ID,
     original_key: NodeKey::new(NODE_ROOT_ID, "Root"),
     depth: 0,

@@ -920,6 +920,10 @@ impl Ui {
                 }
                 self.sys.nodes[i].enter_animation_still_going = true;
             }
+            EnterAnimation::FadeIn => {
+                self.sys.nodes[i].fade_alpha = 0.0;
+                // self.sys.nodes[i].enter_animation_still_going = true;
+            }
         }
     }
 
@@ -999,6 +1003,7 @@ impl Ui {
                     }
                 }
             }
+            ExitAnimation::FadeOut => {}
         }
 
     }
@@ -1118,7 +1123,7 @@ impl Ui {
                 self.sys.nodes[i].z = self.sys.z_cursor;
 
                 // Cascade the node's opacity multiplicatively down the tree.
-                let effective_alpha = inherited_alpha * self.sys.nodes[i].params.alpha;
+                let effective_alpha = inherited_alpha * self.sys.nodes[i].params.alpha * self.sys.nodes[i].fade_alpha;
 
                 if ! self.node_is_offscreen(i) {
                     let is_custom = self.sys.nodes[i].params.custom_render;
@@ -1365,6 +1370,19 @@ impl Ui {
         }
 
         self.sys.nodes[i].local_animated_rect = l;
+
+        let fade_exiting_animation = self.sys.nodes[i].params.animation.exit == ExitAnimation::FadeOut;
+        let fade_target = if self.sys.nodes[i].exiting && fade_exiting_animation { 0.0 } else { 1.0 };
+        if self.sys.nodes[i].fade_alpha != fade_target {
+            let speed = self.sys.global_animation_speed * self.sys.nodes[i].params.animation.speed;
+            let rate = (5.0 * speed / 60.0).clamp(0.0, 1.0);
+            let (new_fade, fade_done) = step_f32(self.sys.nodes[i].fade_alpha, fade_target, rate);
+            self.sys.nodes[i].fade_alpha = new_fade;
+            if ! fade_done {
+                still_moving = true;
+            }
+        }
+
         still_moving
     }
 
