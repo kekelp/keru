@@ -893,7 +893,7 @@ impl Ui {
                 self.sys.nodes[i].local_animated_rect.y[1] += offset_y;
                 self.sys.nodes[i].enter_animation_still_going = true;
             }
-            EnterAnimation::GrowShrink { axis, origin } => {
+            EnterAnimation::Grow { axis, origin } => {
                 use Pos::*;
                 let rect = self.sys.nodes[i].local_layout_rect;
 
@@ -922,7 +922,7 @@ impl Ui {
             }
             EnterAnimation::FadeIn => {
                 self.sys.nodes[i].fade_alpha = 0.0;
-                // self.sys.nodes[i].enter_animation_still_going = true;
+                // We don't need to set enter_animation_still_going, as that's only needed for when enter/exit animations interact with the regular position interpolation ones
             }
         }
     }
@@ -978,7 +978,7 @@ impl Ui {
                 self.sys.nodes[i].local_layout_rect.y[0] += offset_y;
                 self.sys.nodes[i].local_layout_rect.y[1] += offset_y;
             }
-            ExitAnimation::GrowShrink { axis, origin } => {
+            ExitAnimation::Shrink { axis, origin } => {
                 use Pos::*;
                 let rect = self.sys.nodes[i].local_layout_rect;
 
@@ -1251,7 +1251,7 @@ impl Ui {
 
             if parent_enter_going {
                 let layout_tl = parent_expected_final_rect.top_left();
-                if let EnterAnimation::GrowShrink { axis, origin } = *parent_enter_anim {
+                if let EnterAnimation::Grow { axis, origin } = *parent_enter_anim {
                     match origin {
                         Pos::End | Pos::Center => match axis {
                             Axis::X => parent_offset.x = layout_tl.x,
@@ -1263,7 +1263,7 @@ impl Ui {
             }
             if parent_exiting {
                 let parent_size = self.sys.nodes[parent].layout_rect.size();
-                if let ExitAnimation::GrowShrink { axis, origin } = *parent_exit_anim {
+                if let ExitAnimation::Shrink { axis, origin } = *parent_exit_anim {
                     match origin {
                         Pos::End => match axis {
                             Axis::X => parent_offset.x = self.sys.nodes[parent].real_rect.x[1] - parent_size.x,
@@ -1460,7 +1460,6 @@ impl Xy<f32> {
 }
 
 impl Ui {
-    // Todo: maybe deduplicate the math
     pub(crate) fn update_scroll_animation(&mut self, i: NodeI) {
         let mut moved = false;
         for axis in [X, Y] {
@@ -1474,19 +1473,14 @@ impl Ui {
 
             let speed = self.sys.global_animation_speed * self.sys.nodes[i].params.animation.speed;
             let rate = 5.0 * speed * (1.0 / 60.0);
-            let const_speed_pixels = 3.0 * speed;
 
             let diff_px = diff * self.sys.size[axis];
             let dist_px = diff_px.abs();
 
-            if dist_px < const_speed_pixels {
-                self.sys.nodes[i].scroll[axis] = target;
-            } else {
-                let dir = diff_px / dist_px;
-                let step_px = (dist_px * rate).ceil();
-                self.sys.nodes[i].scroll[axis] += (step_px * dir) / self.sys.size[axis];
-                self.sys.changes.unfinished_animations = true;
-            }
+            let dir = diff_px / dist_px;
+            let step_px = dist_px * rate;
+            self.sys.nodes[i].scroll[axis] += (step_px * dir) / self.sys.size[axis];
+            self.sys.changes.unfinished_animations = true;
         }
 
         // Keep the scrollbar thumb in sync with the displayed offset as it animates.

@@ -156,7 +156,7 @@ pub enum SlideDirection {
 pub enum EnterAnimation {
     None,
     Slide { edge: SlideEdge, direction: SlideDirection },
-    GrowShrink { axis: Axis, origin: Pos },
+    Grow { axis: Axis, origin: Pos },
     FadeIn,
 }
 
@@ -164,7 +164,7 @@ pub enum EnterAnimation {
 pub enum ExitAnimation {
     None,
     Slide { edge: SlideEdge, direction: SlideDirection },
-    GrowShrink { axis: Axis, origin: Pos },
+    Shrink { axis: Axis, origin: Pos },
     FadeOut,
 }
 
@@ -977,14 +977,14 @@ impl<'a> Node<'a> {
         match self.animation.enter {
             EnterAnimation::None => {},
             EnterAnimation::Slide { edge, direction } => { edge.hash(&mut h); direction.hash(&mut h); },
-            EnterAnimation::GrowShrink { axis, origin } => { axis.hash(&mut h); origin.hash(&mut h); },
+            EnterAnimation::Grow { axis, origin } => { axis.hash(&mut h); origin.hash(&mut h); },
             EnterAnimation::FadeIn => {},
         }
         std::mem::discriminant(&self.animation.exit).hash(&mut h);
         match self.animation.exit {
             ExitAnimation::None => {},
             ExitAnimation::Slide { edge, direction } => { edge.hash(&mut h); direction.hash(&mut h); },
-            ExitAnimation::GrowShrink { axis, origin } => { axis.hash(&mut h); origin.hash(&mut h); },
+            ExitAnimation::Shrink { axis, origin } => { axis.hash(&mut h); origin.hash(&mut h); },
             ExitAnimation::FadeOut => {},
         }
         self.animation.state_transition.animate_position.hash(&mut h);
@@ -1737,7 +1737,7 @@ impl<'a> Node<'a> {
 
     /// Set a grow-in enter animation.
     pub const fn enter_grow(mut self, axis: Axis, origin: Pos) -> Self {
-        self.animation.enter = EnterAnimation::GrowShrink { axis, origin };
+        self.animation.enter = EnterAnimation::Grow { axis, origin };
         return self;
     }
 
@@ -1750,7 +1750,7 @@ impl<'a> Node<'a> {
 
     /// Set a shrink-out exit animation.
     pub const fn exit_shrink(mut self, axis: Axis, origin: Pos) -> Self {
-        self.animation.exit = ExitAnimation::GrowShrink { axis, origin };
+        self.animation.exit = ExitAnimation::Shrink { axis, origin };
         return self;
     }
 
@@ -1784,58 +1784,58 @@ impl<'a> Node<'a> {
 
     /// Grow in and shrink out along an axis from an origin.
     pub const fn grow_shrink(mut self, axis: Axis, origin: Pos) -> Self {
-        self.animation.enter = EnterAnimation::GrowShrink { axis, origin };
-        self.animation.exit = ExitAnimation::GrowShrink { axis, origin };
+        self.animation.enter = EnterAnimation::Grow { axis, origin };
+        self.animation.exit = ExitAnimation::Shrink { axis, origin };
         return self;
     }
 
     pub const fn grow_from_top(mut self) -> Self {
-        self.animation.enter = EnterAnimation::GrowShrink { axis: Axis::Y, origin: Pos::Start };
+        self.animation.enter = EnterAnimation::Grow { axis: Axis::Y, origin: Pos::Start };
         return self;
     }
     pub const fn grow_from_bottom(mut self) -> Self {
-        self.animation.enter = EnterAnimation::GrowShrink { axis: Axis::Y, origin: Pos::End };
+        self.animation.enter = EnterAnimation::Grow { axis: Axis::Y, origin: Pos::End };
         return self;
     }
     pub const fn grow_from_left(mut self) -> Self {
-        self.animation.enter = EnterAnimation::GrowShrink { axis: Axis::X, origin: Pos::Start };
+        self.animation.enter = EnterAnimation::Grow { axis: Axis::X, origin: Pos::Start };
         return self;
     }
     pub const fn grow_from_center_along_x(mut self) -> Self {
-        self.animation.enter = EnterAnimation::GrowShrink { axis: Axis::X, origin: Pos::Center };
+        self.animation.enter = EnterAnimation::Grow { axis: Axis::X, origin: Pos::Center };
         return self;
     }
     pub const fn grow_from_center_along_y(mut self) -> Self {
-        self.animation.enter = EnterAnimation::GrowShrink { axis: Axis::Y, origin: Pos::Center };
+        self.animation.enter = EnterAnimation::Grow { axis: Axis::Y, origin: Pos::Center };
         return self;
     }
     pub const fn grow_from_right(mut self) -> Self {
-        self.animation.enter = EnterAnimation::GrowShrink { axis: Axis::X, origin: Pos::End };
+        self.animation.enter = EnterAnimation::Grow { axis: Axis::X, origin: Pos::End };
         return self;
     }
 
     pub const fn shrink_to_top(mut self) -> Self {
-        self.animation.exit = ExitAnimation::GrowShrink { axis: Axis::Y, origin: Pos::Start };
+        self.animation.exit = ExitAnimation::Shrink { axis: Axis::Y, origin: Pos::Start };
         return self;
     }
     pub const fn shrink_to_bottom(mut self) -> Self {
-        self.animation.exit = ExitAnimation::GrowShrink { axis: Axis::Y, origin: Pos::End };
+        self.animation.exit = ExitAnimation::Shrink { axis: Axis::Y, origin: Pos::End };
         return self;
     }
     pub const fn shrink_to_left(mut self) -> Self {
-        self.animation.exit = ExitAnimation::GrowShrink { axis: Axis::X, origin: Pos::Start };
+        self.animation.exit = ExitAnimation::Shrink { axis: Axis::X, origin: Pos::Start };
         return self;
     }
     pub const fn shrink_to_right(mut self) -> Self {
-        self.animation.exit = ExitAnimation::GrowShrink { axis: Axis::X, origin: Pos::End };
+        self.animation.exit = ExitAnimation::Shrink { axis: Axis::X, origin: Pos::End };
         return self;
     }
     pub const fn shrink_to_center_along_x(mut self) -> Self {
-        self.animation.exit = ExitAnimation::GrowShrink { axis: Axis::X, origin: Pos::Center };
+        self.animation.exit = ExitAnimation::Shrink { axis: Axis::X, origin: Pos::Center };
         return self;
     }
     pub const fn shrink_to_center_along_y(mut self) -> Self {
-        self.animation.exit = ExitAnimation::GrowShrink { axis: Axis::Y, origin: Pos::Center };
+        self.animation.exit = ExitAnimation::Shrink { axis: Axis::Y, origin: Pos::Center };
         return self;
     }
 

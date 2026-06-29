@@ -561,11 +561,14 @@ impl Ui {
         let Some(hover_i) = self.sys.nodes.get_by_id(first_id) else {
             return;
         };
-
-        let scale = self.sys.scale_factor;
-        let (dx, dy) = match delta {
-            MouseScrollDelta::LineDelta(x, y) => (x * 0.1, y * 0.1),
-            MouseScrollDelta::PixelDelta(PhysicalPosition { x, y }) => (*x as f32 / scale, *y as f32 / scale),
+        let scale = self.sys.scale_factor; 
+        let (dx, dy, likely_scrollwheel) = match delta {
+            MouseScrollDelta::LineDelta(x, y) => {
+                let likely_scrollwheel = if y.fract() == 0.0 { true } else { false };
+                let line_to_pixel_ratio = if likely_scrollwheel { 0.4 } else { 0.1 };
+                (x * line_to_pixel_ratio, y * line_to_pixel_ratio, likely_scrollwheel)
+            },
+            MouseScrollDelta::PixelDelta(PhysicalPosition { x, y }) => (*x as f32 / scale, *y as f32 / scale, false),
         };
         let fdelta = Xy::new(dx, dy);
 
@@ -601,18 +604,16 @@ impl Ui {
 
         if let Some((target_i, is_sense)) = scroll_target {
             if is_sense {
-                // if the node has the scroll sense, we have to do set_new_ui_input and do a full rebuild, and everything will sort itself out automatically.
+                // if the node has the scroll sense, we have to do set_new_ui_input and do a full rebuild, so everything will sort itself out automatically, scrollbar included.
                 let id = self.sys.nodes[target_i].id;
-                let scroll_delta = match delta {
-                    MouseScrollDelta::LineDelta(x, y) => Vec2::new(*x * 0.1, *y * 0.1),
-                    MouseScrollDelta::PixelDelta(p) => Vec2::new(p.x as f32 / scale, p.y as f32 / scale),
-                };
+                let scroll_delta = Vec2::new(fdelta.x, fdelta.y);
                 self.sys.mouse_input.push_scroll(scroll_delta, id);
                 self.set_new_ui_input();
             } else {
                 // otherwise, do atomic updates on the scroll value and the scrollbar state, and schedule just a rerender.
-                self.sys.update_container_scroll(target_i, fdelta[X], X, false);
-                self.sys.update_container_scroll(target_i, fdelta[Y], Y, false);
+                let animate = likely_scrollwheel;
+                self.sys.update_container_scroll(target_i, fdelta[X], X, animate);
+                self.sys.update_container_scroll(target_i, fdelta[Y], Y, animate);
 
                 self.sys.update_scrollbar_handle_params(target_i);
                 self.partial_relayout_for_scrollbar(target_i);
@@ -625,9 +626,6 @@ impl Ui {
         }
     }
 
-    /// Scroll a scrollable container by `fdelta`, as if the wheel had been used
-    /// over it. Used to service the AccessKit scroll actions. `fdelta` is in the
-    /// same units as a mouse wheel delta (see [`Ui::handle_scroll_event`]).
     pub(crate) fn push_synthetic_scroll(&mut self, i: NodeI, fdelta: Xy<f32>) {
         self.sys.update_container_scroll(i, fdelta[X], X, false);
         self.sys.update_container_scroll(i, fdelta[Y], Y, false);
