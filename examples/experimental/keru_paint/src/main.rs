@@ -5,15 +5,16 @@ mod paint_ui;
 mod color_picker;
 mod color_picker_render;
 mod oklab;
+mod window;
 
-use canvas::*;
+use canvas::Canvas;
 use color_picker::ColorPicker;
-use glam::vec2;
+use glam::dvec2;
 use winit::application::ApplicationHandler;
 use winit::event_loop::{ActiveEventLoop, ControlFlow};
 use winit::window::WindowId;
 use keru::*;
-use keru::basic_window_loop::*;
+use window::*;
 use winit::event::*;
 use winit::keyboard::*;
 
@@ -34,7 +35,6 @@ fn main() {
 
     let _ = event_loop.run_app(&mut state);
 
-    // skip running destructors, because the program is ending anyway. probably shouldn't do this.
     std::mem::forget(state);
 }
 
@@ -43,8 +43,6 @@ pub struct State {
     pub ui: Ui,
     pub color_picker: ColorPicker,
     pub canvas: Canvas,
-
-    pub format_scratch: String,
 
     pub show_ui: bool,
     pub slider_value: f32,
@@ -71,9 +69,6 @@ impl ApplicationHandler for State {
             self.update_and_render();
         }
 
-        // In the paint program, input events almost always cause an update/rerender (update hovered pixel info, ...)
-        // Instead of bothering to track if the canvas absorbs the event, we do this unconditionally.
-        // Should still track it, tbh.
         if event != WindowEvent::RedrawRequested || self.ui.should_rerender() {
             self.ctx.window.request_redraw();
         }
@@ -84,10 +79,9 @@ impl ApplicationHandler for State {
 impl State {
     fn new(ctx: Context) -> Self {
         let ui = Ui::new(&ctx.device, &ctx.queue, &ctx.surface_config);
-        let canvas = Canvas::new(&ctx, ui.base_uniform_buffer());
+        let canvas = Canvas::new(&ctx, &ctx.base_uniform_buffer);
 
-        #[node_key] const COLOR_PICKER_1: NodeKey;
-        let color_picker = ColorPicker::new(COLOR_PICKER_1, &ctx, ui.base_uniform_buffer());
+        let color_picker = ColorPicker::new(&ctx);
 
         return State {
             ctx,
@@ -96,7 +90,6 @@ impl State {
             color_picker,
             show_ui: true,
             slider_value: 0.2,
-            format_scratch: String::with_capacity(100),
         };
     }
 
@@ -111,37 +104,44 @@ impl State {
 
         let need_rerender = self.ui.should_rerender()
             || self.canvas.needs_rerender()
-            || self.color_picker.needs_rerender();
+            || self.color_picker.need_rerender;
 
         if need_rerender {
             self.render();
         }
+        self.color_picker.need_rerender = false;
     }
 
     pub fn render(&mut self) {
         // todo: if only the canvas needed rerender, we can skip ui.prepare(), and viceversa
         self.canvas.prepare(&self.ctx.queue);
-        
-        self.color_picker.prepare(&mut self.ui, &self.ctx.queue);
 
         let mut frame = self.ctx.begin_frame();
 
         {
             let mut render_pass = frame.begin_render_pass(BACKGROUND_GREY);
 
+            // Draw the canvas behind everything
             self.canvas.render(&mut render_pass);
-            
-            // Draw the Ui elements below the color picker, then the color picker, the the elements above.
-            // This is to allow the ui elements on top of the custom rendered color picker to have proper blending with the color picker itself.
-            // This is mostly just for demonstration.
+
             if self.show_ui {
-                if let Some(color_picker_z) = self.color_picker.custom_rendered_rect_z(&mut self.ui) {
-                    self.ui.render_z_range(&mut render_pass, &self.ctx.device, &self.ctx.queue, [1.0, color_picker_z]);
-                    self.color_picker.render(&mut render_pass);
-                    self.ui.render_z_range(&mut render_pass, &self.ctx.device, &self.ctx.queue, [color_picker_z, 0.0]);
-                } else {
-                    self.ui.render_in_render_pass(&mut render_pass, &self.ctx.device, &self.ctx.queue);
+                let window_size = [
+                    self.ctx.surface_config.width as f32,
+                    self.ctx.surface_config.height as f32,
+                ];
+                let commands = self.ui.render_commands().to_vec();
+                self.ui.begin_custom_render();
+                for command in commands {
+                    match command {
+                        RenderCommand::Keru(range) => {
+                            self.ui.render_range(&mut render_pass, range);
+                        }
+                        RenderCommand::CustomRenderingArea { key, rect } => {
+                            self.color_picker.render_custom(&mut render_pass, key, rect, window_size);
+                        }
+                    }
                 }
+                self.ui.finish_custom_render();
             }
         }
 
@@ -153,9 +153,8 @@ impl State {
 
     pub fn handle_canvas_event(&mut self, event: &WindowEvent) {
 
-        self.canvas.mouse_input.window_event(event);
         self.canvas.key_input.window_event(event);
-        
+
         match event {
             WindowEvent::MouseInput { state, button, .. } => {
                 if *button == MouseButton::Left {
@@ -174,12 +173,30 @@ impl State {
                         }
                     }
                 }
+                if *button == MouseButton::Middle {
+                    self.canvas.middle_pressed = *state == ElementState::Pressed;
+                }
             },
             WindowEvent::CursorMoved { position, .. } => {
+                let delta = dvec2(
+                    position.x - self.canvas.last_mouse_pos.x,
+                    position.y - self.canvas.last_mouse_pos.y,
+                );
                 self.canvas.last_mouse_pos = *position;
 
                 if self.canvas.is_drawing && ! self.canvas.space {
                     self.canvas.mouse_dots.push(*position);
+                }
+
+                // Accumulate the pan/rotate drag delta for `rotate_and_pan`:
+                // left button while Space is held, middle button otherwise.
+                let panning = if self.canvas.space {
+                    self.canvas.is_drawing
+                } else {
+                    self.canvas.middle_pressed
+                };
+                if panning {
+                    self.canvas.pan_drag_delta += delta;
                 }
             },
             WindowEvent::KeyboardInput { event, is_synthetic, .. } => {
@@ -225,7 +242,7 @@ impl State {
                         self.canvas.scroll.y += *y as f64;
                     },
                     winit::event::MouseScrollDelta::PixelDelta(pos) => {
-                        self.canvas.scroll += vec2(pos.x, pos.y);
+                        self.canvas.scroll += dvec2(pos.x, pos.y);
                     },
                 }
             }

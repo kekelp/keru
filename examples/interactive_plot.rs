@@ -1,4 +1,4 @@
-use keru::basic_window_loop::basic_env_logger_init;
+use keru::example_window_loop::basic_env_logger_init;
 use keru::*;
 use keru::node_library::*;
 

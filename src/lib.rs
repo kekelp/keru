@@ -117,7 +117,6 @@ pub mod thread_future;
 pub mod thread_future_2;
 
 pub mod example_window_loop;
-pub mod basic_window_loop;
 
 pub mod mouse_events;
 

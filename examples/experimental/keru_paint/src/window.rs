@@ -1,6 +1,5 @@
-//! Helper functions for `winit` and `wgpu`.
 pub use wgpu::{CommandEncoderDescriptor, TextureViewDescriptor};
-pub use winit::{error::EventLoopError, event::Event, event_loop::EventLoop};
+pub use winit::event_loop::EventLoop;
 use winit::window::*;
 
 use std::{
@@ -9,11 +8,13 @@ use std::{
 };
 
 use wgpu::{
-    CompositeAlphaMode, DeviceDescriptor, ExperimentalFeatures, Features, Instance, InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, SurfaceConfiguration, TextureFormat, TextureUsages
+    CompositeAlphaMode, DeviceDescriptor, ExperimentalFeatures, Features, Instance,
+    InstanceDescriptor, Limits, LoadOp, Operations, PresentMode, RenderPassColorAttachment,
+    RenderPassDescriptor, RequestAdapterOptions, SurfaceConfiguration, TextureFormat, TextureUsages,
 };
 use winit::event::WindowEvent;
 
-use crate::Ui;
+use keru::Ui;
 
 pub const BACKGROUND_GREY: wgpu::Color = wgpu::Color {
     r: 0.017,
@@ -24,7 +25,6 @@ pub const BACKGROUND_GREY: wgpu::Color = wgpu::Color {
 
 pub fn basic_wgpu_init() -> (wgpu::Instance, wgpu::Device, wgpu::Queue) {
     let instance = Instance::new(&InstanceDescriptor {
-        // backends: wgpu::Backends::VULKAN, // Force Vulkan
         ..Default::default()
     });
 
@@ -33,12 +33,11 @@ pub fn basic_wgpu_init() -> (wgpu::Instance, wgpu::Device, wgpu::Queue) {
 
     let device_desc = &DeviceDescriptor {
         label: None,
-        required_features: Features::default(),
-        // Downlevel defaults are really bad. Maximum texture size = 2048 means you can't even maximize a window on a 1440p screen.
+        // The color picker draws with a minimal pipeline that takes its rect + parameters as push constants.
+        required_features: Features::PUSH_CONSTANTS,
         required_limits: Limits {
-            // todo: this might be a compatibility problem, and it's used just for the render_range thing.
-            max_push_constant_size: 8,
-            ..Default::default()
+            max_push_constant_size: 64,
+            ..Limits::defaults()
         },
         memory_hints: wgpu::MemoryHints::MemoryUsage,
         trace: wgpu::Trace::Off,
@@ -79,12 +78,6 @@ impl<T> DerefMut for AutoUnwrap<T> {
 }
 
 pub struct Context {
-    // Winit wants us to initialize all our stuff before it actually creates a window for us, so the best we can do is creating something like an Option, set it to None initially, and then put the window there when we finally get it.
-    // This sort of makes sense: during its lifetime a process can have a variable number of window ranging from zero to multiple. So in the general case you'd have something like a Vec of windows that can be empty. An Option is a simpler version of that.
-    // But for most programs including this basic example, none of this is relevant, there's only one window that lasts for the whole duration of the program, and even having to unwrap an Option every time we want to use it is just annoying for no good reason.
-    // Luckily, we can avoid that with this AutoUnwrap struct. Normally this would be a very weird thing to do, but Winit's loop is weird enough that it makes sense here.
-    //
-    // The Arc is needed for even more arcane reasons.
     pub window: AutoUnwrap<Arc<winit::window::Window>>,
     pub surface: AutoUnwrap<wgpu::Surface<'static>>,
 
@@ -92,12 +85,16 @@ pub struct Context {
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     pub instance: wgpu::Instance,
+
+    // Keru used to expose its own projection/screen-size uniform via `Ui::base_uniform_buffer()`.
+    // That's gone, so we keep our own equivalent here for the custom canvas shader.
+    // Layout matches the `BaseUniforms` struct in canvas.wgsl: `screen_size: vec2f`, `t: f32`.
+    pub base_uniform_buffer: wgpu::Buffer,
 }
 
 impl Context {
     pub fn new() -> Self {
-        // At this point we don't even have a window, so it doesn't matter what we write here.
-        // Again, the winit loop is a bit weird.
+        // At this point we don't even have a window, so the size here doesn't matter.
         // The correct size will be set on the first resize event.
         let (width, height) = (1920, 1080);
 
@@ -105,6 +102,12 @@ impl Context {
 
         let config = basic_surface_config(width, height);
 
+        let base_uniform_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Base Uniform Buffer"),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            size: 16,
+            mapped_at_creation: false,
+        });
 
         let ctx = Self {
             window: AutoUnwrap(None),
@@ -113,9 +116,20 @@ impl Context {
             device,
             queue,
             instance,
+            base_uniform_buffer,
         };
 
         return ctx;
+    }
+
+    fn update_base_uniforms(&mut self) {
+        let data: [f32; 4] = [
+            self.surface_config.width as f32,
+            self.surface_config.height as f32,
+            0.0,
+            0.0,
+        ];
+        self.queue.write_buffer(&self.base_uniform_buffer, 0, bytemuck::bytes_of(&data));
     }
 
     pub fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
@@ -155,6 +169,7 @@ impl Context {
         self.surface_config.width = size.width;
         self.surface_config.height = size.height;
         self.surface.configure(&self.device, &self.surface_config);
+        self.update_base_uniforms();
         self.window.request_redraw();
     }
 
@@ -173,8 +188,10 @@ impl Context {
 
         let surface_texture = self.surface.get_current_texture().unwrap();
 
-        let view = surface_texture.texture.create_view(&TextureViewDescriptor::default());
-        
+        let view = surface_texture
+            .texture
+            .create_view(&TextureViewDescriptor::default());
+
         return RenderFrame {
             encoder,
             surface_texture,
@@ -228,29 +245,4 @@ pub fn basic_color_attachment(
         },
         depth_slice: None,
     })];
-}
-
-pub trait EventIsRedrawRequested {
-    fn is_redraw_requested(&self) -> bool;
-}
-impl EventIsRedrawRequested for Event<()> {
-    fn is_redraw_requested(&self) -> bool {
-        if let Event::WindowEvent {
-            event: WindowEvent::RedrawRequested,
-            ..
-        } = self
-        {
-            return true;
-        } else {
-            return false;
-        }
-    }
-}
-
-pub fn basic_env_logger_init() {
-    env_logger::Builder::new()
-        .filter_level(log::LevelFilter::Warn)
-        .filter_module("keru::", log::LevelFilter::Info)
-        .format_timestamp_millis() 
-        .init();
 }

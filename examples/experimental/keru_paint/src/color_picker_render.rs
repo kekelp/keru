@@ -1,102 +1,54 @@
-use basic_window_loop::basic_depth_stencil_state;
-use basic_window_loop::Context;
-use keru::*;
-
+use crate::window::Context;
 use keru::XyRect;
-
-use bytemuck::{Pod, Zeroable};
 use wgpu::*;
 
-use crate::color_picker::*;
-
-#[repr(C)]
-#[derive(Default, Debug, Pod, Zeroable, Copy, Clone)]
-pub(crate) struct ColorPickerRenderRect {
-    pub rect: XyRect,
-    pub z: f32,
-    pub oklch_color: [f32; 3],
+pub struct ColorPickerRenderer {
+    pub pipeline: RenderPipeline,
 }
 
-impl ColorPickerRenderRect {
-    pub fn buffer_desc() -> [VertexAttribute; 4] {
-        vertex_attr_array![
-            0 => Float32x2,
-            1 => Float32x2,
-            2 => Float32,
-            3 => Float32x3,
-        ]
-    }
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+struct PushConstants {
+    // Node rect in Keru graphics space (0..1): [min_x, min_y, max_x, max_y].
+    rect: [f32; 4],
+    // hue (radians), chroma, lightness
+    hcl: [f32; 3],
+    // window size in pixels, so the shader can size the ring in real pixels.
+    window_size: [f32; 2],
+    // 0.0 = hue wheel, 1.0 = lightness/chroma square.
+    mode: f32,
 }
 
 impl ColorPickerRenderer {
-    pub fn new(ctx: &Context, base_uniforms: &Buffer) -> Self {
-        let vertex_layout = VertexBufferLayout {
-            array_stride: size_of::<ColorPickerRenderRect>() as BufferAddress,
-            step_mode: VertexStepMode::Instance,
-            attributes: &ColorPickerRenderRect::buffer_desc(),
-        };
-
-        // Vertex buf
-        let vertex_buffer = ctx.device.create_buffer(&BufferDescriptor {
-            label: Some("Color Picker Rectangle Vertex Buffer"),
-            usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
-            size: (size_of::<ColorPickerRenderRect>() * 2) as u64,
-            mapped_at_creation: false,
-        });
-
-        let bind_group_layout = ctx.device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some("Texture Bind Group Layout"),
-            entries: &[
-                BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-            ],
-        });
-        
-        let bind_group = ctx.device.create_bind_group(&BindGroupDescriptor {
-            layout: &bind_group_layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: base_uniforms.as_entire_binding(),
-                },
-            ],
-            label: Some("Color Picker Bind Group"),
-        });
-
-        // Shader        
+    pub fn new(ctx: &Context) -> Self {
         let shader = ctx.device.create_shader_module(ShaderModuleDescriptor {
-            label: None,
+            label: Some("Color Picker Shader"),
             source: ShaderSource::Wgsl(include_str!("shaders/color_picker.wgsl").into()),
         });
-        
-        // Pipeline
+
         let pipeline_layout = ctx.device.create_pipeline_layout(&PipelineLayoutDescriptor {
-            label: Some("Color Picker Render Pipeline Layout"),
-            bind_group_layouts: &[&bind_group_layout],
-            push_constant_ranges: &[],
+            label: Some("Color Picker Pipeline Layout"),
+            bind_group_layouts: &[],
+            push_constant_ranges: &[PushConstantRange {
+                stages: ShaderStages::VERTEX_FRAGMENT,
+                range: 0..(size_of::<PushConstants>() as u32),
+            }],
         });
-        let render_pipeline = ctx.device.create_render_pipeline(&RenderPipelineDescriptor {
-            label: Some("Color Picker Render Pipeline"),
+
+        let pipeline = ctx.device.create_render_pipeline(&RenderPipelineDescriptor {
+            label: Some("Color Picker Pipeline"),
             layout: Some(&pipeline_layout),
             vertex: VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
-                buffers: &[vertex_layout],
+                buffers: &[],
                 compilation_options: PipelineCompilationOptions::default(),
             },
             fragment: Some(FragmentState {
                 module: &shader,
                 entry_point: Some("fs_main"),
                 targets: &[Some(ColorTargetState {
-                    format: TextureFormat::Bgra8UnormSrgb,
+                    format: ctx.surface_config.format,
                     blend: Some(BlendState::ALPHA_BLENDING),
                     write_mask: ColorWrites::ALL,
                 })],
@@ -104,25 +56,38 @@ impl ColorPickerRenderer {
             }),
             primitive: PrimitiveState {
                 topology: PrimitiveTopology::TriangleStrip,
-                strip_index_format: None,
-                front_face: FrontFace::Ccw,
-                cull_mode: None,
-                polygon_mode: PolygonMode::Fill,
-                unclipped_depth: false,
-                conservative: false,
+                ..Default::default()
             },
-            depth_stencil: Some(basic_depth_stencil_state()),
+            depth_stencil: None,
             multisample: MultisampleState::default(),
             multiview: None,
             cache: None,
         });
 
-        Self {
-            vertex_buffer,
-            bind_group,
-            render_pipeline,
-        }
+        Self { pipeline }
     }
 
-}
+    pub fn draw(
+        &self,
+        render_pass: &mut RenderPass,
+        rect: XyRect,
+        hcl: [f32; 3],
+        window_size: [f32; 2],
+        mode: u32,
+    ) {
+        let push_constants = PushConstants {
+            rect: [rect.x[0], rect.y[0], rect.x[1], rect.y[1]],
+            hcl,
+            window_size,
+            mode: mode as f32,
+        };
 
+        render_pass.set_pipeline(&self.pipeline);
+        render_pass.set_push_constants(
+            ShaderStages::VERTEX_FRAGMENT,
+            0,
+            bytemuck::bytes_of(&push_constants),
+        );
+        render_pass.draw(0..4, 0..1);
+    }
+}

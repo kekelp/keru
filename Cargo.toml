@@ -12,10 +12,6 @@ keywords = ["gui"]
 members = [
     "crates/keru_macros",
 ]
-exclude = [
-    "examples/keru_paint",
-    "examples/subsecond_example_doesnt_work",
-]
 
 [profile.dev]
 opt-level = 1
@@ -82,3 +78,7 @@ path = "examples/experimental/reactive_old.rs"
 [[example]]
 name = "panes"
 path = "examples/experimental/panes.rs"
+
+[[example]]
+name = "keru_paint"
+path = "examples/experimental/keru_paint/src/main.rs"

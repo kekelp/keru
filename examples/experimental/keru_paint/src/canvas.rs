@@ -4,10 +4,11 @@ use wgpu::*;
 use bytemuck::{Pod, Zeroable};
 use glam::*;
 
-use {BindGroup, BindGroupEntry, BindGroupLayoutEntry, BindingResource, Buffer, ColorTargetState, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
+use {BindGroup, BindGroupEntry, BindGroupLayoutEntry, BindingResource, Buffer, ColorTargetState, Extent3d, TexelCopyTextureInfo, TexelCopyBufferLayout, Origin3d, Queue, RenderPass, RenderPipeline, Texture, TextureAspect};
 use winit::dpi::PhysicalPosition;
 
-use keru::{basic_window_loop::{basic_depth_stencil_state, Context}, winit_key_events::KeyInput, winit_mouse_events::MouseInput, Xy};
+use keru::{key_events::KeyInput, Xy};
+use crate::window::Context;
 
 #[derive(Clone, Copy, Debug, Zeroable, Pod)]
 #[repr(C)]
@@ -92,8 +93,11 @@ impl PixelColorF32 {
 pub struct Canvas {
     pub scroll: DVec2,
 
-    pub mouse_input: MouseInput<()>,
     pub key_input: KeyInput,
+    // Manual drag tracking. Keru's `MouseInput::dragged()` was removed, so main.rs accumulates
+    // pan/rotate drag deltas into `pan_drag_delta` and we consume it each frame.
+    pub middle_pressed: bool,
+    pub pan_drag_delta: DVec2,
 
     pub width: usize,
     pub height: usize,
@@ -284,15 +288,17 @@ impl Canvas {
                 compilation_options: Default::default(),
             }),
             primitive: PrimitiveState::default(),
-            depth_stencil: Some(basic_depth_stencil_state()),
+            // No depth buffer: the canvas is just drawn first (background), Keru's UI is drawn on top.
+            depth_stencil: None,
             multisample: MultisampleState::default(),
             multiview: None,
             cache: None,
         });
         
         let mut canvas = Canvas {
-            mouse_input: MouseInput::default(),
             key_input: KeyInput::default(),
+            middle_pressed: false,
+            pan_drag_delta: dvec2(0.0, 0.0),
 
             scroll: dvec2(0.0, 0.0),
             
@@ -599,14 +605,14 @@ impl Canvas {
     pub fn prepare(&mut self, queue: &Queue, ) {
         let data = bytemuck::cast_slice(&self.pixels[..]);
         queue.write_texture(
-            ImageCopyTexture {
+            TexelCopyTextureInfo {
                 texture: &self.texture,
                 mip_level: 0,
                 origin: Origin3d::ZERO,
                 aspect: TextureAspect::All,
             },
             data,
-            ImageDataLayout {
+            TexelCopyBufferLayout {
                 offset: 0,
                 bytes_per_row: Some(self.image_width as u32 * 4),
                 rows_per_image: None,
