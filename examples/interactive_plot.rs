@@ -299,7 +299,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 }
 
 fn main() {
-    basic_env_logger_init();
+    // basic_env_logger_init();
     let state = State::default();
     example_window_loop::run_example_loop(state, update_ui);
 }

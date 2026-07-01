@@ -7,6 +7,8 @@ use crate::Id;
 
 pub(crate) type SmallVec<T> = smallvec::SmallVec<[T; 8]>;
 
+const ANIMATED_SCROLL_SNAP: f32 = 0.01;
+
 #[derive(Clone, Debug)]
 pub(crate) enum InputEvent {
     /// Mouse button was just pressed
@@ -23,6 +25,9 @@ pub(crate) enum InputEvent {
 
     /// Scroll wheel
     Scroll(ScrollEvent),
+
+    /// Scroll events smoothed out across multiple frames
+    AnimatedScroll(ScrollEvent),
 }
 
 #[derive(Clone, Debug)]
@@ -101,9 +106,17 @@ impl Pending {
     }
 }
 
+#[derive(Clone, Debug)]
+struct AnimatedScroll {
+    target: Id,
+    remaining: Vec2,
+    position: Vec2,
+}
+
 pub struct MouseInput {
     pub(crate) events: Vec<InputEvent>,
     pending: Vec<Pending>,
+    animated_scrolls: Vec<AnimatedScroll>,
     pub(crate) cursor_position: Vec2,
     pub(crate) prev_cursor_position: Vec2,
 }
@@ -113,6 +126,7 @@ impl Default for MouseInput {
         Self {
             events: Vec::with_capacity(20),
             pending: Vec::with_capacity(5),
+            animated_scrolls: Vec::with_capacity(5),
             cursor_position: Vec2::ZERO,
             prev_cursor_position: Vec2::ZERO,
         }
@@ -245,14 +259,63 @@ impl MouseInput {
         }
     }
 
-    pub fn push_scroll(&mut self, delta: Vec2, target: Id) {
+    pub fn push_scroll(&mut self, delta: Vec2, target: Id, animate: bool) {
         self.events.push(InputEvent::Scroll(ScrollEvent {
             target,
             delta,
             position: self.cursor_position,
             timestamp: Instant::now(),
         }));
+
+        if animate {
+            match self.animated_scrolls.iter_mut().find(|a| a.target == target) {
+                Some(a) => {
+                    a.remaining += delta;
+                    a.position = self.cursor_position;
+                }
+                None => self.animated_scrolls.push(AnimatedScroll {
+                    target,
+                    remaining: delta,
+                    position: self.cursor_position,
+                }),
+            }
+        } else {
+            self.events.push(InputEvent::AnimatedScroll(ScrollEvent {
+                target,
+                delta,
+                position: self.cursor_position,
+                timestamp: Instant::now(),
+            }));
+        }
     }
+
+    pub fn update_animated_scrolls(&mut self, animation_speed: f32) -> bool {
+        let rate = (5.0 * animation_speed * (1.0 / 60.0)).clamp(0.0, 1.0);
+        let mut any_active = false;
+        self.animated_scrolls.retain_mut(|a| {
+            let mut step = a.remaining * rate;
+
+            if a.remaining.length() < ANIMATED_SCROLL_SNAP {
+                step = a.remaining;
+            }
+            a.remaining -= step;
+            self.events.push(InputEvent::AnimatedScroll(ScrollEvent {
+                target: a.target,
+                delta: step,
+                position: a.position,
+                timestamp: Instant::now(),
+            }));
+            let active = a.remaining != Vec2::ZERO;
+            any_active |= active;
+            active
+        });
+        any_active
+    }
+
+    pub fn has_active_animated_scrolls(&self) -> bool {
+        !self.animated_scrolls.is_empty()
+    }
+
     /// Returns IDs of nodes currently being dragged
     pub fn currently_dragging(&self) -> impl Iterator<Item = (&Id, winit::event::MouseButton)> + '_ {
         self.pending.iter().filter_map(|p| match p {
@@ -294,6 +357,13 @@ impl MouseInput {
     pub fn scrolls(&self) -> impl Iterator<Item = &ScrollEvent> {
         self.events.iter().filter_map(|e| match e {
             InputEvent::Scroll(ev) => Some(ev),
+            _ => None,
+        })
+    }
+
+    pub fn animated_scrolls(&self) -> impl Iterator<Item = &ScrollEvent> {
+        self.events.iter().filter_map(|e| match e {
+            InputEvent::AnimatedScroll(ev) => Some(ev),
             _ => None,
         })
     }

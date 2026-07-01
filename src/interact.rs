@@ -255,6 +255,8 @@ impl Ui {
     pub(crate) fn begin_frame_resolve_inputs(&mut self) {
         self.sys.mouse_input.begin_new_frame();
         self.sys.key_input.begin_new_frame();
+        let speed = self.sys.global_animation_speed;
+        self.sys.mouse_input.update_animated_scrolls(speed);
     }
 
     pub(crate) fn handle_mouse_press(&mut self, button: MouseButton, window: &Window) -> bool {
@@ -564,7 +566,7 @@ impl Ui {
         let scale = self.sys.scale_factor; 
         let (dx, dy, likely_scrollwheel) = match delta {
             MouseScrollDelta::LineDelta(x, y) => {
-                let likely_scrollwheel = if y.fract() == 0.0 { true } else { false };
+                let likely_scrollwheel = y.fract() == 0.0 && y.abs() > 0.2;
                 let line_to_pixel_ratio = if likely_scrollwheel { 0.4 } else { 0.1 };
                 (x * line_to_pixel_ratio, y * line_to_pixel_ratio, likely_scrollwheel)
             },
@@ -607,7 +609,7 @@ impl Ui {
                 // if the node has the scroll sense, we have to do set_new_ui_input and do a full rebuild, so everything will sort itself out automatically, scrollbar included.
                 let id = self.sys.nodes[target_i].id;
                 let scroll_delta = Vec2::new(fdelta.x, fdelta.y);
-                self.sys.mouse_input.push_scroll(scroll_delta, id);
+                self.sys.mouse_input.push_scroll(scroll_delta, id, likely_scrollwheel);
                 self.set_new_ui_input();
             } else {
                 // otherwise, do atomic updates on the scroll value and the scrollbar state, and schedule just a rerender.
@@ -1065,6 +1067,25 @@ impl System {
         if found { Some(total) } else { None }
     }
 
+    pub(crate) fn check_scrolled_animated(&self, id: Id) -> Option<Vec2> {
+        #[cfg(debug_assertions)] {
+            if let Some(i) = self.nodes.get_by_id(id) {
+                if !self.check_node_sense(i, Sense::SCROLL, "is_scrolled_animated()", "Node::sense_scroll()") {
+                    return None;
+                }
+            }
+        }
+        let mut total = Vec2::ZERO;
+        let mut found = false;
+        for e in self.mouse_input.animated_scrolls() {
+            if e.target == id {
+                total += e.delta;
+                found = true;
+            }
+        }
+        if found { Some(total) } else { None }
+    }
+
     pub(crate) fn check_last_scroll_event(&self, id: Id) -> Option<&mouse_events::ScrollEvent> {
         #[cfg(debug_assertions)] {
             if let Some(i) = self.nodes.get_by_id(id) {
@@ -1074,6 +1095,19 @@ impl System {
             }
         }
         self.mouse_input.scrolls()
+            .filter(|e| e.target == id)
+            .last()
+    }
+
+    pub(crate) fn check_last_animated_scroll_event(&self, id: Id) -> Option<&mouse_events::ScrollEvent> {
+        #[cfg(debug_assertions)] {
+            if let Some(i) = self.nodes.get_by_id(id) {
+                if !self.check_node_sense(i, Sense::SCROLL, "scrolled_at_animated()", "Node::sense_scroll()") {
+                    return None;
+                }
+            }
+        }
+        self.mouse_input.animated_scrolls()
             .filter(|e| e.target == id)
             .last()
     }

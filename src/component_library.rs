@@ -528,7 +528,7 @@ impl Component for TransformView<'_> {
             self.state.zoom_drag_anchor = None;
         }
 
-        if let Some(scroll_event) = ui.scrolled_at(PAN_OVERLAY) {
+        if let Some(scroll_event) = ui.scrolled_at_animated(PAN_OVERLAY) {
             apply_zoom(scroll_event.delta.y, scroll_event.relative_position);
         }
 

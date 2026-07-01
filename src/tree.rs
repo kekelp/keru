@@ -571,7 +571,7 @@ impl Ui {
 
         self.sys.last_frame_end_fake_time = get_observer_timestamp();
 
-        if self.sys.has_any_time_sense_node {
+        if self.sys.has_any_time_sense_node || self.sys.mouse_input.has_active_animated_scrolls() {
             self.sys.update_frames_needed = 2;
         } else if self.sys.update_frames_needed > 0 {
             self.sys.update_frames_needed -= 1;

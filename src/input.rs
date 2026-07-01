@@ -103,6 +103,15 @@ impl<'a> UiNode<'a> {
         self.sys().check_scrolled(self.node().id)
     }
 
+    /// Like [`UiNode::is_scrolled()`], but big scroll-wheel scrolls are automatically animated and spread out over several frames.
+    ///
+    /// The values returned over the lifetime of a single scroll event sum to the same total as [`UiNode::is_scrolled()`].
+    /// 
+    /// Small pixel scrolls from a touchpad pass through as-is.
+    pub fn is_scrolled_animated(&self) -> Option<Vec2> {
+        self.sys().check_scrolled_animated(self.node().id)
+    }
+
     /// Returns details about the last scroll event on this node, or `None` if no scroll occurred.
     ///
     /// If the node was scrolled multiple times in the last frame, returns only the last scroll.
@@ -110,6 +119,25 @@ impl<'a> UiNode<'a> {
         let sys = self.sys();
         let node = self.node();
         let scroll_event = sys.check_last_scroll_event(node.id)?;
+        let logical_size = sys.logical_size();
+        let relative_position = inner_relative_position(scroll_event.position, logical_size, node.real_rect, node.params.layout.padding);
+        Some(Scroll {
+            relative_position,
+            absolute_position: scroll_event.position,
+            delta: scroll_event.delta,
+            timestamp: scroll_event.timestamp,
+        })
+    }
+
+    /// Like [`UiNode::scrolled_at()`], but big scroll-wheel scrolls are automatically animated and spread out over several frames.
+    ///
+    /// The values returned over the lifetime of a single scroll event sum to the same total as [`UiNode::scrolled_at()`].
+    /// 
+    /// Small pixel scrolls from a touchpad pass through as-is.
+    pub fn scrolled_at_animated(&self) -> Option<Scroll> {
+        let sys = self.sys();
+        let node = self.node();
+        let scroll_event = sys.check_last_animated_scroll_event(node.id)?;
         let logical_size = sys.logical_size();
         let relative_position = inner_relative_position(scroll_event.position, logical_size, node.real_rect, node.params.layout.padding);
         Some(Scroll {
@@ -206,11 +234,29 @@ impl Ui {
         self.sys.check_scrolled(key.id_with_key_scope())
     }
 
+    /// Like [`Ui::is_scrolled()`], but big scroll-wheel scrolls are automatically animated and spread out over several frames.
+    ///
+    /// The values returned over the lifetime of a single scroll event sum to the same total as [`Ui::is_scrolled()`].
+    /// 
+    /// Small pixel scrolls from a touchpad pass through as-is.
+    pub fn is_scrolled_animated(&self, key: NodeKey) -> Option<Vec2> {
+        self.sys.check_scrolled_animated(key.id_with_key_scope())
+    }
+
     /// Returns details about the last scroll event on the node corresponding to `key`, or `None` if no scroll occurred.
     ///
     /// If the node was scrolled multiple times in the last frame, returns only the last scroll.
     pub fn scrolled_at(&self, key: NodeKey) -> Option<Scroll> {
         self.get_node(key)?.scrolled_at()
+    }
+
+    /// Like [`Ui::scrolled_at()`], but big scroll-wheel scrolls are automatically animated and spread out over several frames.
+    ///
+    /// The values returned over the lifetime of a single scroll event sum to the same total as [`Ui::is_scrolled()`].
+    /// 
+    /// Small pixel scrolls from a touchpad pass through as-is.
+    pub fn scrolled_at_animated(&self, key: NodeKey) -> Option<Scroll> {
+        self.get_node(key)?.scrolled_at_animated()
     }
 }
 
@@ -298,10 +344,28 @@ impl UiParent {
         ui.is_scrolled(self.key(ui))
     }
 
+    /// Like [`UiParent::is_scrolled()`], but big scroll-wheel scrolls are automatically animated and spread out over several frames.
+    ///
+    /// The values returned over the lifetime of a single scroll event sum to the same total as [`UiParent::is_scrolled()`].
+    /// 
+    /// Small pixel scrolls from a touchpad pass through as-is.
+    pub fn is_scrolled_animated(&self, ui: &Ui) -> Option<Vec2> {
+        ui.is_scrolled_animated(self.key(ui))
+    }
+
     /// Returns details about the last scroll event on this node, or `None` if no scroll occurred.
     ///
     /// If the node was scrolled multiple times in the last frame, returns only the last scroll.
     pub fn scrolled_at(&self, ui: &Ui) -> Option<Scroll> {
         ui.scrolled_at(self.key(ui))
+    }
+
+    /// Like [`UiParent::scrolled_at()`], but big scroll-wheel scrolls are automatically animated and spread out over several frames.
+    ///
+    /// The values returned over the lifetime of a single scroll event sum to the same total as [`UiParent::scrolled_at()`].
+    /// 
+    /// Small pixel scrolls from a touchpad pass through as-is.
+    pub fn scrolled_at_animated(&self, ui: &Ui) -> Option<Scroll> {
+        ui.scrolled_at_animated(self.key(ui))
     }
 }
