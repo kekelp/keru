@@ -1351,7 +1351,9 @@ impl Ui {
 
                 let dist_px = (dx_px * dx_px + dy_px * dy_px).sqrt();
 
-                if dist_px < const_speed_pixels {
+                let step_px = (dist_px * rate).ceil();
+
+                if dist_px < const_speed_pixels || step_px >= dist_px {
                     l[X][i] = target[X][i];
                     l[Y][i] = target[Y][i];
                 } else {
@@ -1359,9 +1361,6 @@ impl Ui {
                     // normalized direction in pixel space
                     let dir_x = dx_px / dist_px;
                     let dir_y = dy_px / dist_px;
-
-                    // same math concept as before but applied along straight-line distance
-                    let step_px = (dist_px * rate).ceil();
 
                     l[X][i] += (step_px * dir_x) / self.sys.size.x;
                     l[Y][i] += (step_px * dir_y) / self.sys.size.y;

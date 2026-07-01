@@ -24,7 +24,6 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .position_x(Pos::Start);
     
     let h_group = H_STACK
-        .slide_from_top()
         .animate_position(true)
         .clip_children_y(true)
         .size_x(Size::Fill)
@@ -47,13 +46,15 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .text("???");
 
     let elem_vstack = V_STACK
-        .slide_from_top()
+        .grow_from_top().shrink_to_top()
         .animate_position(true)
+        .clip_children_y(true)
         .key(ELEM_VSTACK);
 
     let sub_elem_vstack = V_STACK
-        .slide_from_top()
+        .grow_from_top().shrink_to_top()
         .animate_position(true)
+        .clip_children_y(true)
         .key(SUB_ELEM_VSTACK);
     
     let n = 4;

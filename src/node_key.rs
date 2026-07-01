@@ -57,6 +57,7 @@ impl NodeKey {
         };
     }
 
+    /// Alias of [`NodeKey::sibling()`].
     pub fn s<H: Hash>(self, value: H) -> Self {
         self.sibling(value)
     }
