@@ -34,7 +34,7 @@ impl ColorPickerUi for Ui {
         // Interaction. Uses last frame's node geometry (positions are only known after layout).
         let cursor = self.cursor_position();
 
-        if self.is_dragged(OKLAB_HUE_WHEEL).is_some() {
+        if self.is_held(OKLAB_HUE_WHEEL).is_some() {
             if let Some(node) = self.get_node(OKLAB_HUE_WHEEL) {
                 let center = node.center();
                 let angle = (cursor.x - center.x).atan2(cursor.y - center.y);
@@ -67,7 +67,7 @@ impl ColorPickerUi for Ui {
             .custom_render(true)
             .size_symm(Size::Fill)
             .shape(Shape::Ring { width: RING_WIDTH })
-            .sense_drag(true)
+            .sense_hold(true)
             .key(OKLAB_HUE_WHEEL);
 
         // The handle is a radial segment (with rounded caps) spanning the ring band at the selected

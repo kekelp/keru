@@ -62,6 +62,13 @@ pub struct Scroll {
     pub timestamp: std::time::Instant,
 }
 
+/// Result of a single mouse-press hit-test pass. See `scan_press_hits`.
+pub(crate) struct PressHits {
+    pub click_ids: SmallVec<Id>,
+    pub drag_ids: SmallVec<Id>,
+    pub topmost: Option<Id>,
+}
+
 #[derive(Debug, Copy, Clone)]
 pub(crate) struct ClickRect {
     pub rect: XyRect,
@@ -69,32 +76,6 @@ pub(crate) struct ClickRect {
     pub senses: Sense,
     pub scrollable: Xy<bool>,
     pub absorbs_mouse_events: bool,
-}
-
-/// A single node hit by the cursor, recorded by [`System::scan_all_hits`].
-/// Ordered topmost-first. Carries enough info that callers can filter for the
-/// senses they care about without rescanning.
-#[derive(Debug, Copy, Clone)]
-pub(crate) struct HitNode {
-    pub id: Id,
-    pub senses: Sense,
-    pub absorbs_mouse_events: bool,
-}
-
-/// Pick out the nodes that have a given sense from a [`System::scan_all_hits`]
-/// result, stopping at the first absorbing node that has the sense (which
-/// consumes the event). Reproduces [`System::scan_hits_with_sense`].
-pub(crate) fn filter_hits_by_sense(hits: &[HitNode], sense: Sense) -> SmallVec<Id> {
-    let mut result = SmallVec::new();
-    for hit in hits {
-        if hit.senses.contains(sense) {
-            result.push(hit.id);
-        }
-        if hit.absorbs_mouse_events && hit.senses.contains(sense) {
-            break;
-        }
-    }
-    result
 }
 
 bitflags::bitflags! {
@@ -118,50 +99,17 @@ bitflags::bitflags! {
 }
 
 impl Ui {
-    /// Scan for any interactive node under cursor (for general hover detection)
     pub(crate) fn scan_opaque_hits(&self) -> SmallVec<Id> {
-        let mut result = SmallVec::new();
-
-        for clk_i in (0..self.sys.click_rects.len()).rev() {
-            let rect = &self.sys.click_rects[clk_i];
-
-            if ! self.sys.hit_click_rect(rect) {
-                continue;
-            }
-
-            let is_interactive = rect.senses != Sense::NONE
+        self.sys.scan_hits(|rect| {
+            rect.senses != Sense::NONE
                 || rect.scrollable[X] || rect.scrollable[Y]
-                || rect.absorbs_mouse_events;
-
-            if is_interactive {
-                result.push(self.sys.nodes[rect.i].id);
-            }
-
-            if rect.absorbs_mouse_events {
-                break;
-            }
-        }
-
-        result
+                || rect.absorbs_mouse_events
+        }, false)
     }
 
     #[cfg(debug_assertions)]
     pub(crate) fn scan_any_node_hits(&self) -> SmallVec<Id> {
-        let mut result = SmallVec::new();
-
-        for clk_i in (0..self.sys.click_rects.len()).rev() {
-            let rect = &self.sys.click_rects[clk_i];
-
-            if self.sys.hit_click_rect(rect) {
-                result.push(self.sys.nodes[rect.i].id);
-
-                if rect.absorbs_mouse_events {
-                    break;
-                }
-            }
-        }
-
-        result
+        self.sys.scan_hits(|_| true, false)
     }
 
     pub(crate) fn resolve_hover(&mut self) {
@@ -230,7 +178,7 @@ impl Ui {
             self.set_new_ui_input();
         }
         if has_click_animation {
-            self.sys.changes.rebuild_render_data = true;
+            self.sys.changes.should_rebuild_render_data = true;
             self.sys.anim_render_timer.push_new(Duration::from_secs_f32(ANIMATION_RERENDER_TIME));
         }
     }
@@ -242,7 +190,7 @@ impl Ui {
             if node.last_frame_touched == self.sys.current_frame && node.params.interact.click_animation {
                 node.hovered = false;
                 node.hover_timestamp = slow_accurate_timestamp_for_events_only();
-                self.sys.changes.rebuild_render_data = true;
+                self.sys.changes.should_rebuild_render_data = true;
                 self.sys.anim_render_timer.push_new(Duration::from_secs_f32(ANIMATION_RERENDER_TIME));
             }
             node.hover_enter_exit_instant = Some(std::time::Instant::now());
@@ -260,16 +208,11 @@ impl Ui {
     }
 
     pub(crate) fn handle_mouse_press(&mut self, button: MouseButton, window: &Window) -> bool {
-        // Single scan of everything under the cursor. The code below picks out
-        // the senses it cares about from this one list.
-        let hits = self.sys.scan_all_hits();
-
-        let click_ids = filter_hits_by_sense(&hits, Sense::CLICK);
-        let drag_ids = filter_hits_by_sense(&hits, Sense::DRAG);
+        let PressHits { click_ids, drag_ids, topmost } = self.sys.scan_press_hits();
 
         self.sys.mouse_input.push_press(button, click_ids.clone(), drag_ids);
 
-        self.resolve_focus_on_press(hits.first());
+        self.resolve_focus_on_press(topmost);
 
         let mut any_consumed = false;
         for &id in &click_ids {
@@ -283,7 +226,7 @@ impl Ui {
     }
 
     pub(crate) fn handle_mouse_release(&mut self, button: MouseButton) {
-        let click_ids = self.sys.scan_hits_with_sense(Sense::CLICK);
+        let click_ids = self.sys.scan_hits(|r| r.senses.contains(Sense::CLICK), true);
         self.sys.mouse_input.push_release(button, click_ids.clone());
 
         // todo: instead of re-iterating, maybe do this while scanning?
@@ -300,14 +243,14 @@ impl Ui {
 
     /// Move focus to a node on press. Runs for the topmost hit node regardless
     /// of its senses. Clicking empty space (no hit) clears the focus.
-    fn resolve_focus_on_press(&mut self, hit: Option<&HitNode>) {
-        let Some(hit) = hit else {
+    fn resolve_focus_on_press(&mut self, hit: Option<Id>) {
+        let Some(hit_id) = hit else {
             self.sys.focused = None;
             self.sys.renderer.text.clear_focus();
             self.sys.changes.focus_changed = true;
             return;
         };
-        let Some(i) = self.sys.nodes.get_by_id(hit.id) else {
+        let Some(i) = self.sys.nodes.get_by_id(hit_id) else {
             return;
         };
 
@@ -338,7 +281,7 @@ impl Ui {
 
             if self.sys.nodes[i].params.interact.click_animation {
                 self.sys.nodes[i].last_click = t;
-                self.sys.changes.rebuild_render_data = true;
+                self.sys.changes.should_rebuild_render_data = true;
                 self.sys.anim_render_timer.push_new(Duration::from_secs_f32(ANIMATION_RERENDER_TIME));
             }
         }
@@ -401,7 +344,7 @@ impl Ui {
         // Mirror the click animation that resolve_click_press triggers.
         if self.sys.nodes[i].params.interact.click_animation {
             self.sys.nodes[i].last_click = T0.elapsed().as_secs_f32();
-            self.sys.changes.rebuild_render_data = true;
+            self.sys.changes.should_rebuild_render_data = true;
             self.sys.anim_render_timer.push_new(Duration::from_secs_f32(ANIMATION_RERENDER_TIME));
         }
 
@@ -574,57 +517,48 @@ impl Ui {
         };
         let fdelta = Xy::new(dx, dy);
 
-        // Walk up to find a scroll target
-        let mut scroll_target: Option<(NodeI, bool)> = None; // (index, is_sense_target)
-
+        // Each axis resolves its own scroll target; the two axes may land on the
+        // same node or on different ones. Accumulate the per-axis deltas per target.
+        let mut targets: SmallVec<(NodeI, bool, Xy<f32>)> = SmallVec::new();
         for axis in [X, Y] {
             if fdelta[axis] == 0.0 {
                 continue;
             }
-
-            let mut current_i = hover_i;
-            loop {
-                // Check for SCROLL sense first
-                if self.sys.nodes[current_i].params.interact.senses.contains(Sense::SCROLL) {
-                    scroll_target = Some((current_i, true));
-                    break;
-                }
-
-                // Then check for scrollable container
-                if self.sys.nodes[current_i].params.layout.scrollable[axis] {
-                    scroll_target = Some((current_i, false));
-                    break;
-                }
-
-                let parent_i = self.sys.nodes[current_i].parent;
-                if parent_i == ROOT_I {
-                    break;
-                }
-                current_i = parent_i;
+            let Some((target_i, is_sense)) = self.sys.find_scroll_target(hover_i, axis) else {
+                continue;
+            };
+            if let Some(entry) = targets.iter_mut().find(|(i, _, _)| *i == target_i) {
+                entry.2[axis] = fdelta[axis];
+            } else {
+                let mut delta = Xy::new(0.0, 0.0);
+                delta[axis] = fdelta[axis];
+                targets.push((target_i, is_sense, delta));
             }
         }
 
-        if let Some((target_i, is_sense)) = scroll_target {
+        let mut scrolled_any_container = false;
+        for &(target_i, is_sense, delta) in &targets {
             if is_sense {
                 // if the node has the scroll sense, we have to do set_new_ui_input and do a full rebuild, so everything will sort itself out automatically, scrollbar included.
                 let id = self.sys.nodes[target_i].id;
-                let scroll_delta = Vec2::new(fdelta.x, fdelta.y);
-                self.sys.mouse_input.push_scroll(scroll_delta, id, likely_scrollwheel);
+                self.sys.mouse_input.push_scroll(Vec2::new(delta.x, delta.y), id, likely_scrollwheel);
                 self.set_new_ui_input();
             } else {
                 // otherwise, do atomic updates on the scroll value and the scrollbar state, and schedule just a rerender.
                 let animate = likely_scrollwheel;
-                self.sys.update_container_scroll(target_i, fdelta[X], X, animate);
-                self.sys.update_container_scroll(target_i, fdelta[Y], Y, animate);
-
+                self.sys.update_container_scroll(target_i, delta[X], X, animate);
+                self.sys.update_container_scroll(target_i, delta[Y], Y, animate);
                 self.sys.update_scrollbar_handle_params(target_i);
                 self.partial_relayout_for_scrollbar(target_i);
-                // scrolling can cause the cursor to end up on top of a new node.
-                self.resolve_hover();
-
-                self.sys.changes.should_rebuild_render_data = true;
-                self.sys.changes.need_rerender = true;
+                scrolled_any_container = true;
             }
+        }
+
+        if scrolled_any_container {
+            // scrolling can cause the cursor to end up on top of a new node.
+            self.resolve_hover();
+            self.sys.changes.should_rebuild_render_data = true;
+            self.sys.changes.need_rerender = true;
         }
     }
 
@@ -837,18 +771,34 @@ impl System {
 
     }
 
-    /// Scan once for every node under the cursor, recording enough info that
-    /// callers can later filter by whichever sense they care about (see
-    /// [`HitNode::filter_by_sense`]).
-    ///
-    /// The result is topmost-first. The scan visits all hit nodes in z-order
-    /// until it reaches an absorbing node; from there it only follows that
-    /// node's ancestor chain (the nodes an event could still pass through),
-    /// stopping at the first absorbing ancestor. This mirrors the visiting set
-    /// of [`scan_hits_with_sense`](Self::scan_hits_with_sense), so filtering the
-    /// result by a sense reproduces that function's output.
-    pub(crate) fn scan_all_hits(&self) -> SmallVec<HitNode> {
-        let mut result = SmallVec::new();
+
+    fn find_scroll_target(&self, starting_i: NodeI, axis: Axis) -> Option<(NodeI, bool)> {
+        let mut current_i = starting_i;
+        loop {
+            if self.nodes[current_i].params.interact.senses.contains(Sense::SCROLL) {
+                return Some((current_i, true));
+            }
+
+            if self.nodes[current_i].params.layout.scrollable[axis] {
+                return Some((current_i, false));
+            }
+
+            let parent_i = self.nodes[current_i].parent;
+            if parent_i == ROOT_I {
+                return None;
+            }
+            current_i = parent_i;
+        }
+    }
+
+    pub(crate) fn scan_press_hits(&self) -> PressHits {
+        let mut click_ids = SmallVec::new();
+        let mut drag_ids: SmallVec<Id> = SmallVec::new();
+        let mut topmost = None;
+
+        let mut click_absorbed = false;
+        let mut drag_absorbed = false;
+        let mut hold_absorbed = false;
 
         for clk_i in (0..self.click_rects.len()).rev() {
             let rect = &self.click_rects[clk_i];
@@ -857,41 +807,34 @@ impl System {
                 continue;
             }
 
-            result.push(HitNode {
-                id: self.nodes[rect.i].id,
-                senses: rect.senses,
-                absorbs_mouse_events: rect.absorbs_mouse_events,
-            });
+            let id = self.nodes[rect.i].id;
+
+            if topmost.is_none() {
+                topmost = Some(id);
+            }
+
+            let click = rect.senses.contains(Sense::CLICK);
+            let drag = rect.senses.contains(Sense::DRAG);
+            let hold = rect.senses.contains(Sense::HOLD);
+
+            if !click_absorbed && click {
+                click_ids.push(id);
+            }
+            if ((!drag_absorbed && drag) || (!hold_absorbed && hold)) && !drag_ids.contains(&id) {
+                drag_ids.push(id);
+            }
 
             if rect.absorbs_mouse_events {
-                // Once we hit an absorbing node, events can only keep passing
-                // through to its ancestors. Walk up until the next absorbing one.
-                let mut current_i = self.nodes[rect.i].parent;
-                while current_i != ROOT_I {
-                    let parent_rect = self.click_rect(current_i);
-                    if self.hit_click_rect(&parent_rect) {
-                        result.push(HitNode {
-                            id: self.nodes[current_i].id,
-                            senses: parent_rect.senses,
-                            absorbs_mouse_events: parent_rect.absorbs_mouse_events,
-                        });
-                        if parent_rect.absorbs_mouse_events {
-                            break;
-                        }
-                    }
-                    current_i = self.nodes[current_i].parent;
-                }
-                break;
+                if click { click_absorbed = true; }
+                if drag { drag_absorbed = true; }
+                if hold { hold_absorbed = true; }
             }
         }
 
-        result
+        PressHits { click_ids, drag_ids, topmost }
     }
 
-    /// Scan for nodes with a specific sense. Only stops at absorbing nodes that have the sense.
-    /// If an absorbing node without the sense is encountered, walks up the parent tree instead
-    /// of continuing to scan siblings/unrelated nodes.
-    pub(crate) fn scan_hits_with_sense(&self, sense: Sense) -> SmallVec<Id> {
+    pub(crate) fn scan_hits(&self, filter: impl Fn(&ClickRect) -> bool, _pass_to_parents: bool) -> SmallVec<Id> {
         let mut result = SmallVec::new();
 
         for clk_i in (0..self.click_rects.len()).rev() {
@@ -901,33 +844,37 @@ impl System {
                 continue;
             }
 
-            // If this node has the sense, add it
-            if rect.senses.contains(sense) {
+            let matched = filter(rect);
+            if matched {
                 result.push(self.nodes[rect.i].id);
             }
 
-            // If this is an absorbing node
             if rect.absorbs_mouse_events {
-                if rect.senses.contains(sense) {
-                    // Absorbing node with the sense - stop completely
+                if matched {
                     break;
-                } else {
-                    // Absorbing node without the sense - walk up the parent tree
-                    let mut current_i = self.nodes[rect.i].parent;
-                    while current_i != ROOT_I {
-                        let parent_rect = self.click_rect(current_i);
-                        if self.hit_click_rect(&parent_rect) {
-                            if parent_rect.senses.contains(sense) {
-                                result.push(self.nodes[current_i].id);
-                            }
-                            if parent_rect.absorbs_mouse_events {
-                                break;
-                            }
-                        }
-                        current_i = self.nodes[current_i].parent;
-                    }
-                    break; // Exit main loop after parent walking
                 }
+                // For now we're not doing this, the users will have to understand it and use hitboxes or similar.
+                // In the future we could bring this back and add a Node flag for the parent, something like "gets_events_through_opaque_children".
+                // (for things like drag-drop areas or similar) 
+                // if pass_to_parents {
+                //     // Absorbing node doesn't pass the filter: the event keeps
+                //     // passing up its ancestors until the next absorbing one.
+                //     let mut current_i = self.nodes[rect.i].parent;
+                //     while current_i != ROOT_I {
+                //         // This is slow, btw.
+                //         let parent_rect = self.click_rect(current_i);
+                //         if self.hit_click_rect(&parent_rect) {
+                //             if filter(&parent_rect) {
+                //                 result.push(self.nodes[current_i].id);
+                //             }
+                //             if parent_rect.absorbs_mouse_events {
+                //                 break;
+                //             }
+                //         }
+                //         current_i = self.nodes[current_i].parent;
+                //     }
+                //     break;
+                // }
             }
         }
 
@@ -1014,7 +961,7 @@ impl System {
 
     pub(crate) fn check_drag_released_onto(&self, src_id: Id, dest_id: Id, button: MouseButton) -> Option<&mouse_events::DragReleaseEvent> {
         // Check if dest is reachable as a drop target
-        let drop_targets = self.scan_hits_with_sense(Sense::DRAG_DROP_TARGET);
+        let drop_targets = self.scan_hits(|r| r.senses.contains(Sense::DRAG_DROP_TARGET), true);
         if !drop_targets.contains(&dest_id) {
             return None;
         }
@@ -1025,7 +972,7 @@ impl System {
 
     pub(crate) fn check_drag_hovered_onto(&self, src_id: Id, dest_id: Id, button: MouseButton) -> Option<&mouse_events::DragEvent> {
         // Check if dest is reachable as a drop target
-        let drop_targets = self.scan_hits_with_sense(Sense::DRAG_DROP_TARGET);
+        let drop_targets = self.scan_hits(|r| r.senses.contains(Sense::DRAG_DROP_TARGET), true);
         if !drop_targets.contains(&dest_id) {
             return None;
         }
@@ -1124,7 +1071,7 @@ impl System {
 
     /// Find any drag hovering onto dest (from any source)
     pub(crate) fn check_any_drag_hovered_onto(&self, dest_id: Id, button: MouseButton) -> Option<&mouse_events::DragEvent> {
-        let drop_targets = self.scan_hits_with_sense(Sense::DRAG_DROP_TARGET);
+        let drop_targets = self.scan_hits(|r| r.senses.contains(Sense::DRAG_DROP_TARGET), true);
         if !drop_targets.contains(&dest_id) {
             return None;
         }
@@ -1135,7 +1082,7 @@ impl System {
 
     /// Find any drag released onto dest (from any source)
     pub(crate) fn check_any_drag_released_onto(&self, dest_id: Id, button: MouseButton) -> Option<&mouse_events::DragReleaseEvent> {
-        let drop_targets = self.scan_hits_with_sense(Sense::DRAG_DROP_TARGET);
+        let drop_targets = self.scan_hits(|r| r.senses.contains(Sense::DRAG_DROP_TARGET), true);
         if !drop_targets.contains(&dest_id) {
             return None;
         }

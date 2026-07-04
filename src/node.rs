@@ -2312,7 +2312,7 @@ impl Ui {
             self.sys.push_partial_relayout(i);
         }
         if cosmetic_changed{
-            self.sys.changes.rebuild_render_data = true;
+            self.sys.changes.should_rebuild_render_data = true;
         }
     }
 
@@ -2385,7 +2385,7 @@ impl Ui {
             done &= animate_shape(&mut params.shape, target.shape, rate, &mut changed);
 
             if changed {
-                self.sys.changes.rebuild_render_data = true;
+                self.sys.changes.should_rebuild_render_data = true;
             }
 
             if done {
