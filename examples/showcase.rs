@@ -177,7 +177,7 @@ impl UiExt for Ui {
 
             self.add(button_with_colored_stroke);
 
-            self.static_paragraph("By adding Nodes with different Shape values, we can do some basic vector drawing. In debug mode, you can press F1 to see that every element is a regular Node.");
+            self.static_paragraph("By adding Nodes with different Shape values, we can do some basic vector drawing. In debug mode (F1) you can see that every element is a regular Node.");
 
             #[node_key] const LINE_CONTAINER: NodeKey;
             let line_container = CONTAINER
@@ -269,11 +269,9 @@ impl UiExt for Ui {
                 self.add(hexagon2);
             });
 
-            self.static_paragraph("There is also an API for using the keru renderer directly to do custom rendering with the keru primitives, such as rectangles, circles, line segments and quadratic Bezier curves.\n\n\
-            This allows custom vector drawing without having to create one Node for each tiny graphics element.\n\n\
-            This kind of custom drawing will use the same draw call as the keru GUI elements, so it's both faster and simpler to use compared to fully custom wgpu rendering. \n\n\
-            Note that the closure is executed immediately, not stored: this means that the code in the closure can freely access all the state it wants without any kind of borrowing restrictions.\n\n\
-            It also means that these primitives are created before the keru ones (GUI declaration time vs keru's post-layout rendering step in finish_frame(). However, the renderer is still able to render them in the correct z-order and at the correct post-layout position.)
+            self.static_paragraph("There is also a canvas drawing API for drawing shapes directly, such as rectangles, circles, line segments and quadratic Bezier curves.\n\n\
+            This allows custom vector drawing without having to create one Node for each small graphics element.\n\n\
+            The canvas drawing shapes are drawn in the same draw call as the normal GUI nodes, so it's both faster and simpler to use compared to fully custom wgpu rendering. \n\n\
             ");
 
             #[node_key] const CANVAS_CONTAINER: NodeKey;
@@ -427,7 +425,7 @@ impl UiExt for Ui {
             The plan is to provide most components both in stateful and state-borrowing forms.");
             self.add(header);
 
-            self.static_paragraph("For fully custom wgpu rendered content, there is also an experimental system for rendering in-between the Keru ui elements. See the \"custom_rendering\" example. This will necessarily mean that the keru rendering will have to be split between multiple draw calls.");
+            self.static_paragraph("For fully custom wgpu rendered content, there is also an experimental system for rendering in-between the Keru ui elements. See the \"custom_rendering\" example. This necessarily means that the keru rendering will be split between multiple draw calls.");
 
             self.static_paragraph("Of course if you just want to draw custom wgpu effects below or above the GUI, as when rendering a game, you can do it without any help from keru. Keru doesn't steal control of your winit/wgpu loop. See the \"window_loop\" example.");
 

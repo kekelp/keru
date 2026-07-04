@@ -664,26 +664,42 @@ impl Ui {
         // free_placement children are excluded from the stack flow and placed freely instead.
 
         let mut n: u32 = 0;
-        let mut total_size = 0.0;
+        let mut children_size = 0.0;
         for_each_child!(self, self.sys.nodes[i], child, {
             if !self.sys.nodes[child].params.free_placement {
-                total_size += self.sys.nodes[child].size[main];
+                children_size += self.sys.nodes[child].size[main];
                 n += 1;
             }
         });
 
-        if n > 0 {
-            total_size += spacing * (n - 1) as f32;
-        }
+        let total_size = if n > 0 {
+            children_size + spacing * (n - 1) as f32
+        } else {
+            children_size
+        };
 
-        let mut walking_position = match arrange {
-            Arrange::Start => stack_rect[main][0] + padding[main],
-            Arrange::End => stack_rect[main][1] - padding[main] - total_size,
+        let inner = (stack_rect[main][1] - stack_rect[main][0]) - 2.0 * padding[main];
+        let free = inner - children_size;
+
+        let (mut walking_position, gap) = match arrange {
+            Arrange::Start => (stack_rect[main][0] + padding[main], spacing),
+            Arrange::End => (stack_rect[main][1] - padding[main] - total_size, spacing),
             Arrange::Center => {
                 let center = (stack_rect[main][1] + stack_rect[main][0]) / 2.0;
-                center - total_size / 2.0
+                (center - total_size / 2.0, spacing)
             },
-            _ => todo!(),
+            Arrange::SpaceBetween => {
+                let gap = if n > 1 { free / (n - 1) as f32 } else { 0.0 };
+                (stack_rect[main][0] + padding[main], gap)
+            },
+            Arrange::SpaceAround => {
+                let gap = if n > 0 { free / n as f32 } else { 0.0 };
+                (stack_rect[main][0] + padding[main] + gap / 2.0, gap)
+            },
+            Arrange::SpaceEvenly => {
+                let gap = if n > 0 { free / (n + 1) as f32 } else { 0.0 };
+                (stack_rect[main][0] + padding[main] + gap, gap)
+            },
         };
 
         for_each_child!(self, self.sys.nodes[i], child, {
@@ -699,7 +715,7 @@ impl Ui {
                 self.set_local_layout_rect(child, i);
                 self.init_enter_animations(child);
 
-                walking_position += self.sys.nodes[child].size[main] + spacing;
+                walking_position += self.sys.nodes[child].size[main] + gap;
 
                 self.update_content_bounds(i, self.sys.nodes[child].layout_rect);
             }
