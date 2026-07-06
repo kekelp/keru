@@ -222,6 +222,72 @@ impl Ui {
         });
     }
 
+    /// Add a vertical slider for a `f32` value.
+    #[track_caller]
+    pub fn vertical_slider(&mut self, value: &mut f32, min: f32, max: f32) {
+        with_arena(|a| {
+            self.key_scope().start(|| {
+                let mut new_value = *value;
+                if let Some(drag) = self.is_dragged(SLIDER_CONTAINER) {
+                    new_value -= drag.relative_delta.y * (max - min);
+                }
+
+                let step = (max - min) * 0.01;
+
+                if self.is_focused(SLIDER_CONTAINER) {
+                    if self.key_input().key_pressed_or_repeated(&winit::keyboard::Key::Named(winit::keyboard::NamedKey::ArrowUp)) {
+                        new_value += step;
+                    }
+                    if self.key_input().key_pressed_or_repeated(&winit::keyboard::Key::Named(winit::keyboard::NamedKey::ArrowDown)) {
+                        new_value -= step;
+                    }
+                }
+
+                if self.accesskit_action(SLIDER_CONTAINER, AccessKitAction::Increment) {
+                    new_value += step;
+                }
+                if self.accesskit_action(SLIDER_CONTAINER, AccessKitAction::Decrement) {
+                    new_value -= step;
+                }
+
+                if new_value.is_finite() {
+                    new_value = new_value.clamp(min, max);
+                    *value = new_value;
+                }
+
+                let filled_frac = (*value - min) / (max - min);
+
+                #[node_key] const SLIDER_CONTAINER: NodeKey;
+                let slider_container = PANEL
+                    .size_y(Size::Fill)
+                    .size_x(Size::Pixels(45.0))
+                    .sense_drag(true)
+                    .focusable(true)
+                    .accessibility_role(AccessKitRole::Slider)
+                    .accessibility_numeric_value(*value as f64, min as f64, max as f64)
+                    .accessibility_actions(AccessibilityActions::INCREMENT | AccessibilityActions::DECREMENT)
+                    .key(SLIDER_CONTAINER);
+
+                #[node_key] const SLIDER_FILL: NodeKey;
+                let slider_fill = PANEL
+                    .size_x(Fill)
+                    .size_y(Size::Frac(filled_frac))
+                    .color(Color::KERU_RED)
+                    .position_y(End)
+                    .padding_y(1.0)
+                    .absorbs_clicks(false)
+                    .key(SLIDER_FILL);
+
+                let text = bumpalo::format!(in a, "{:.2}", value);
+
+                self.add(slider_container).nest(|| {
+                    self.add(slider_fill);
+                    self.text_line(&text);
+                });
+            });
+        });
+    }
+
     /// Add a classic looking slider for a `f32` value
     #[track_caller]
     pub fn classic_slider(&mut self, value: &mut f32, min: f32, max: f32) {

@@ -656,9 +656,9 @@ pub enum Shape {
         rotation: f32,
         width: f32,
     },
-    /// Grid pattern filling the node's rect.
+    /// Rectangular grid pattern filling the node's rect
     SquareGrid {
-        lattice_size: f32,
+        lattice_size: (f32, f32),
         offset: (f32, f32),
         line_thickness: f32,
     },
@@ -713,7 +713,8 @@ impl Hash for Shape {
                 width.to_bits().hash(state);
             }
             SquareGrid { lattice_size, offset, line_thickness } => {
-                lattice_size.to_bits().hash(state);
+                lattice_size.0.to_bits().hash(state);
+                lattice_size.1.to_bits().hash(state);
                 offset.0.to_bits().hash(state);
                 offset.1.to_bits().hash(state);
                 line_thickness.to_bits().hash(state);
@@ -2348,9 +2349,8 @@ impl Ui {
     fn undo_animated_properties_update(&self, i: NodeI, new_params: &mut Node<'static>) {
         let current = &self.sys.nodes[i].params;
         new_params.alpha = current.alpha;
-        // Color fills can only be interpolated between matching variants. If the variant changed,
-        // we can't animate it, so we leave new_params.color as the target (it snaps).
-        if same_fill_variant(current.color, new_params.color) {
+ 
+        if fills_can_be_interpolated(current.color, new_params.color) {
             new_params.color = current.color;
         }
         // Shapes can only be interpolated between matching variants (same shape type). If the
@@ -2403,8 +2403,16 @@ impl Ui {
     }
 }
 
-fn same_fill_variant(a: ColorFill2, b: ColorFill2) -> bool {
-    std::mem::discriminant(&a) == std::mem::discriminant(&b)
+fn fills_can_be_interpolated(a: ColorFill2, b: ColorFill2) -> bool {
+    use ColorFill2::*;
+    match (a, b) {
+        (Color(_), Color(_)) => true,
+        (LinearGradient(_), LinearGradient(_)) => true,
+        (RadialGradient { .. }, RadialGradient { .. }) => true,
+        (Color(_), LinearGradient(_)) | (LinearGradient(_), Color(_)) => true,
+        (Color(_), RadialGradient { .. }) | (RadialGradient { .. }, Color(_)) => true,
+        _ => false,
+    }
 }
 
 fn same_shape_variant(a: Shape, b: Shape) -> bool {
@@ -2474,11 +2482,12 @@ impl System {
                 SquareGrid { lattice_size: la, offset: oa, line_thickness: ta },
                 SquareGrid { lattice_size: lb, offset: ob, line_thickness: tb },
             ) => {
-                let (lattice_size, d0) = self.exp_tail_step(la, lb, speed);
-                let (ox, d1) = self.exp_tail_step(oa.0, ob.0, speed);
-                let (oy, d2) = self.exp_tail_step(oa.1, ob.1, speed);
-                let (line_thickness, d3) = self.exp_tail_step(ta, tb, speed);
-                (SquareGrid { lattice_size, offset: (ox, oy), line_thickness }, d0 && d1 && d2 && d3)
+                let (lx, d0) = self.exp_tail_step(la.0, lb.0, speed);
+                let (ly, d1) = self.exp_tail_step(la.1, lb.1, speed);
+                let (ox, d2) = self.exp_tail_step(oa.0, ob.0, speed);
+                let (oy, d3) = self.exp_tail_step(oa.1, ob.1, speed);
+                let (line_thickness, d4) = self.exp_tail_step(ta, tb, speed);
+                (SquareGrid { lattice_size: (lx, ly), offset: (ox, oy), line_thickness }, d0 && d1 && d2 && d3 && d4)
             }
             (
                 HexGrid { lattice_size: la, offset: oa, line_thickness: ta },
@@ -2513,28 +2522,57 @@ impl System {
     }
 
     fn step_color_fill(&self, current: ColorFill2, target: ColorFill2, speed: f32) -> (ColorFill2, bool) {
+        use ColorFill2::*;
         match (current, target) {
-            (ColorFill2::Color(a), ColorFill2::Color(b)) => {
+            (Color(a), Color(b)) => {
                 let (c, done) = self.step_color(a, b, speed);
-                (ColorFill2::Color(c), done)
+                (Color(c), done)
             }
-            (ColorFill2::LinearGradient(a), ColorFill2::LinearGradient(b)) => {
-                let (start, d0) = self.step_color(a.color_start, b.color_start, speed);
-                let (end, d1) = self.step_color(a.color_end, b.color_end, speed);
-                let (angle, d2) = self.exp_tail_step(a.angle_deg, b.angle_deg, speed);
-                (ColorFill2::LinearGradient(LinearGradient::new(start, end, angle)), d0 && d1 && d2)
+            (LinearGradient(a), LinearGradient(b)) => {
+                self.step_linear_gradient(a, b, speed)
             }
             (
-                ColorFill2::RadialGradient { color_inner: ai, color_outer: ao },
-                ColorFill2::RadialGradient { color_inner: bi, color_outer: bo },
+                RadialGradient { color_inner: ai, color_outer: ao },
+                RadialGradient { color_inner: bi, color_outer: bo },
             ) => {
-                let (inner, d0) = self.step_color(ai, bi, speed);
-                let (outer, d1) = self.step_color(ao, bo, speed);
-                (ColorFill2::RadialGradient { color_inner: inner, color_outer: outer }, d0 && d1)
+                self.step_radial_gradient(ai, ao, bi, bo, speed)
             }
-            // Mismatched or non-interpolable variants (e.g. SharedGradient): snap to the target.
+            (Color(a), LinearGradient(b)) => {
+                let (fill, done) = self.step_linear_gradient(crate::node::LinearGradient::new(a, a, b.angle_deg), b, speed);
+                if done { (target, true) } else { (fill, false) }
+            }
+            (LinearGradient(a), Color(b)) => {
+                let (fill, done) = self.step_linear_gradient(a, crate::node::LinearGradient::new(b, b, a.angle_deg), speed);
+                if done { (target, true) } else { (fill, false) }
+            }
+            (Color(a), RadialGradient { color_inner: bi, color_outer: bo }) => {
+                let (fill, done) = self.step_radial_gradient(a, a, bi, bo, speed);
+                if done { (target, true) } else { (fill, false) }
+            }
+            (RadialGradient { color_inner: ai, color_outer: ao }, Color(b)) => {
+                let (fill, done) = self.step_radial_gradient(ai, ao, b, b, speed);
+                if done { (target, true) } else { (fill, false) }
+            }
             _ => (target, true),
         }
+    }
+
+    fn step_linear_gradient(&self, a: LinearGradient, b: LinearGradient, speed: f32) -> (ColorFill2, bool) {
+        let (start, d0) = self.step_color(a.color_start, b.color_start, speed);
+        let (end, d1) = self.step_color(a.color_end, b.color_end, speed);
+        let delta = (b.angle_deg - a.angle_deg + 180.0).rem_euclid(360.0) - 180.0;
+        let (angle, d2) = self.exp_tail_step(a.angle_deg, a.angle_deg + delta, speed);
+        if d0 && d1 && d2 {
+            (ColorFill2::LinearGradient(b), true)
+        } else {
+            (ColorFill2::LinearGradient(LinearGradient::new(start, end, angle)), false)
+        }
+    }
+
+    fn step_radial_gradient(&self, ai: Color, ao: Color, bi: Color, bo: Color, speed: f32) -> (ColorFill2, bool) {
+        let (inner, d0) = self.step_color(ai, bi, speed);
+        let (outer, d1) = self.step_color(ao, bo, speed);
+        (ColorFill2::RadialGradient { color_inner: inner, color_outer: outer }, d0 && d1)
     }
 }
 

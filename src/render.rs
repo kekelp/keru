@@ -581,7 +581,7 @@ impl Ui {
                     self.sys.renderer.draw_grid(keru_draw::Grid {
                         top_left: [px0, py0],
                         size: [px1 - px0, py1 - py0],
-                        lattice_size: *lattice_size * scale_factor,
+                        lattice_size: [lattice_size.0 * scale_factor, lattice_size.1 * scale_factor],
                         offset: [offset.0 * scale_factor, offset.1 * scale_factor],
                         line_thickness: *line_thickness * scale_factor,
                         fill,
@@ -595,7 +595,8 @@ impl Ui {
                     self.sys.renderer.draw_grid(keru_draw::Grid {
                         top_left: [px0, py0],
                         size: [px1 - px0, py1 - py0],
-                        lattice_size: *lattice_size * scale_factor,
+                        // hex grids use a single spacing; the shader reads only the x component
+                        lattice_size: [*lattice_size * scale_factor, *lattice_size * scale_factor],
                         offset: [offset.0 * scale_factor, offset.1 * scale_factor],
                         line_thickness: *line_thickness * scale_factor,
                         fill,
