@@ -44,7 +44,7 @@ impl State {
         let show_button = BUTTON
             .color(Color::RED)
             .text(show_button_text)
-            .animate_position(true)
+            .animate_layout(true)
             .key(SHOW);
 
         let decrease_button = BUTTON
@@ -52,7 +52,7 @@ impl State {
             .key(DECREASE);
 
         let fmt_count = self.count.to_string();
-        let count = LABEL.text(&fmt_count).animate_position(true);
+        let count = LABEL.text(&fmt_count).animate_layout(true);
 
         ui.add(v_stack).nest(|| {
             ui.add(show_button);

@@ -873,7 +873,7 @@ impl Ui {
             [child_rect.y[0] - parent_rect.y[0], child_rect.y[1] - parent_rect.y[0]]
         );
 
-        if ! self.sys.nodes[i].params.animation.state_transition.animate_position
+        if ! self.sys.nodes[i].params.animation.state_transition.animate_layout
             && ! self.sys.nodes[i].exit_animation_still_going
             && ! self.sys.nodes[i].enter_animation_still_going {
 
@@ -1343,10 +1343,10 @@ impl Ui {
         // Todo: try a bruteforce optimization for offscreen nodes.
         let mut l = target;
         let mut still_moving = false;
-        let animate_position = self.sys.nodes[i].params.animation.state_transition.animate_position;
+        let animate_layout = self.sys.nodes[i].params.animation.state_transition.animate_layout;
         let enter_anim = self.sys.nodes[i].enter_animation_still_going;
         let exit_anim = self.sys.nodes[i].exit_animation_still_going;
-        let skip_animations = (!animate_position && !enter_anim && !exit_anim) || (self.sys.disable_animations_on_resize && self.sys.changes.resize);
+        let skip_animations = (!animate_layout && !enter_anim && !exit_anim) || (self.sys.disable_animations_on_resize && self.sys.changes.resize);
 
         if ! skip_animations {
             l = self.sys.nodes[i].local_animated_rect;
@@ -1357,6 +1357,8 @@ impl Ui {
             const MIN_STEP_PX: f32 = 1.0;
 
             let diff = target - l;
+            // We could try to separate position and size changes by looking at an anchor, either the real Anchor or based on the parent's arrange when it's a Stack.
+            // But I don't think it's common to want position to snap and size to animate or viceversa.
 
             for i in 0..2 {
                 // convert normalized diff into pixel space

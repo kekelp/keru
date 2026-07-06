@@ -113,7 +113,7 @@ impl<'a> Component for Button<'a> {
 
         let circle = DEFAULT
             .color(RED.with_alpha(0.4))
-            .animate_position(true)
+            .animate_layout(true)
             .anchor_symm(Anchor::Center)
             .absorbs_clicks(false)
             .static_image(include_bytes!("assets/noise.jpg"))
@@ -137,7 +137,7 @@ impl<'a> Component for Button<'a> {
             .sense_click(true)
             .show_focus_indicator(false)
             .clip_children(true)
-            .animate_position(true)
+            .animate_layout(true)
             .static_image(include_bytes!("assets/noise.jpg"))
             .image_options(ImageOptions {
                 nine_slice: None,
@@ -189,7 +189,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     #[component_key] const ログ: ComponentKey<Button<'_>>; 
     #[component_key] const 設定: ComponentKey<Button<'_>>; 
 
-    let left_vstack = V_STACK.size_x(Size::Frac(0.3)).position_x(Pos::Frac(0.07)).stack_spacing(20.0).animate_position(true);
+    let left_vstack = V_STACK.size_x(Size::Frac(0.3)).position_x(Pos::Frac(0.07)).stack_spacing(20.0).animate_layout(true);
     ui.add(left_vstack).nest(|| {
         ui.add_component(Button::new("決定 \\\\ Enter").key(決定));
         ui.add_component(Button::new("ログ \\\\ Log").key(ログ));

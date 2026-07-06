@@ -915,7 +915,7 @@ impl Component for ReorderStack {
     fn add_to_ui(&mut self, ui: &mut Ui, _state: &mut Self::State) -> Self::AddResult {
     
         let stack = V_STACK
-            .animate_position(true)
+            .animate_layout(true)
             .size(Size::Pixels(100.0), Size::Fill)
             .position_y(Pos::Start)
             .stack_arrange(Arrange::Start)
@@ -967,7 +967,7 @@ impl Component for ReorderStack {
                         .key(Self::SPACER)
                         .size_y(Size::Pixels(height))
                         .absorbs_clicks(false)
-                        .animate_position(true);
+                        .animate_layout(true);
 
                     ui.add(spacer);
                 });

@@ -25,7 +25,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .size_x(Size::Pixels(150.0))
         .color(Color::RED);
 
-    ui.add(V_STACK.animate_position(true)).nest(|| {
+    ui.add(V_STACK.animate_layout(true)).nest(|| {
         ui.add(create_button);
         
         for (n, item) in state.items.iter().enumerate() {

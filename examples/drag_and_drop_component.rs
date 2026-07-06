@@ -7,7 +7,7 @@
 //! - it calculates where the user is hovering it by going through the elements and measuring their height.
 //! - it inserts an invisible spacer in that position with the same height as the dragged element.
 //! - it removes the dragged elements from its place in the tree and it re-adds it as a free-floating node at the cursor position.
-//! - If the children that we add use the standard `.animate_position(true)`, they will animate smoothly as the component moves them around.
+//! - If the children that we add use the standard `.animate_layout(true)`, they will animate smoothly as the component moves them around.
 //! - when the dragged element is released, it returns a tuple of indices that indicate that it should be moved to the new position in the user's state.
 //! 
 //! Note that the advanced APIs for manipulating the tree are experimental.
@@ -24,7 +24,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     #[component_key] const STACK: ComponentKey<ReorderStack>;
 
     let item_base = BUTTON
-        .animate_position(true)
+        .animate_layout(true)
         .absorbs_clicks(false)
         .sense_drag(true)
         .size_x(Size::Pixels(100.0))

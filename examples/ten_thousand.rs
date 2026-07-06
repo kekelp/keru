@@ -37,7 +37,7 @@ fn update_ui(_: &mut (), ui: &mut Ui) {
                     .text(&text)
                     .size_y(Size::Pixels(height))
                     .size_x(Size::Pixels(100.0))
-                    .animate_position(true)
+                    .animate_layout(true)
                     .key(key);
 
                 ui.add(node);

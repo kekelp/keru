@@ -43,7 +43,7 @@ impl State {
     fn build_initial_tree(&mut self) {
         self.ui.begin_frame();
 
-        let v_stack = V_STACK.animate_position(true);
+        let v_stack = V_STACK.animate_layout(true);
         let show_button = BUTTON.color(Color::RED).text("Hide Counter").key(SHOW);
         let counter_area = V_STACK.key(COUNTER_AREA);
 

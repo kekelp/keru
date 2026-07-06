@@ -150,7 +150,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .size_symm(Size::Pixels((HANDLE_RADIUS + 5.0) * 2.0))
         .anchor_symm(Anchor::Center)
         .position(Pos::Pixels(hx), Pos::Pixels(hy))
-        .animate_position(true)
+        .animate_layout(true)
         .sense_drag(true)
         .sense_hover(true)
         .absorbs_clicks(false)

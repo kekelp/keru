@@ -907,7 +907,7 @@ impl Ui {
             .sense_hover_enter_or_exit(true)
             .focusable(false)
             .z_index(100.0)
-            .animate_position(true)
+            .animate_layout(true)
             .animation_speed(2.5)
             .free_placement(true)
             .ignore_parent_scroll(true)

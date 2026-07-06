@@ -25,7 +25,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .position_x(Pos::Start);
     
     let h_group = H_STACK
-        .animate_position(true)
+        .animate_layout(true)
         .clip_children_y(true)
         .size_x(Size::Fill)
         .stack_arrange(Arrange::Start);
@@ -48,13 +48,13 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 
     let elem_vstack = V_STACK
         .grow_from_top().shrink_to_top()
-        .animate_position(true)
+        .animate_layout(true)
         .clip_children_y(true)
         .key(ELEM_VSTACK);
 
     let sub_elem_vstack = V_STACK
         .grow_from_top().shrink_to_top()
-        .animate_position(true)
+        .animate_layout(true)
         .clip_children_y(true)
         .key(SUB_ELEM_VSTACK);
     

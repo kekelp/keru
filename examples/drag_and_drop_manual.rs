@@ -24,7 +24,7 @@ impl State {
             .anchor_symm(Anchor::Center)
             .sense_drag(true)
             .absorbs_clicks(false) // it would be better to have an invisible vstack_hitbox on top of the items. 
-            .animate_position(true);
+            .animate_layout(true);
 
         let plus_sign = LABEL
             .static_text("+")
@@ -34,7 +34,7 @@ impl State {
                 enter: EnterAnimation::Slide { edge: SlideEdge::Top, direction: SlideDirection::In },
                 exit: ExitAnimation::None,
                 state_transition: StateTransition {
-                    animate_position: true,
+                    animate_layout: true,
                     animate_properties: false,
                 },
             });

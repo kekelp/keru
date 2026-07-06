@@ -146,7 +146,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .size_symm(Size::Pixels(8.0))
         .anchor_symm(Anchor::Center)
         .sense_hover_enter_or_exit(true)
-        .animate_position(true)
+        .animate_layout(true)
         .absorbs_clicks(true);
 
     let hovered_point = point

@@ -168,7 +168,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                         .stroke_color(Color::BLUE)
                         .sense_click(true)
                         .size_symm(Size::Fill)
-                        .animate_position(true)
+                        .animate_layout(true)
                         .grid_row_span(element.row_span as u16)
                         .grid_column_span(element.column_span as u16)
                         .key(key);

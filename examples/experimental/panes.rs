@@ -226,9 +226,9 @@ impl Panes {
         }
     }
 
-    fn tab_node(tab_id: usize, is_active: bool, animate_position: bool) -> Node<'static> {
+    fn tab_node(tab_id: usize, is_active: bool, animate_layout: bool) -> Node<'static> {
         BUTTON.key(TAB.sibling(tab_id))
-            .animate_position(animate_position)
+            .animate_layout(animate_layout)
             .size(Size::Pixels(TAB_WIDTH), Size::Pixels(TAB_BAR_HEIGHT))
             .sense_drag(true)
             .shape(Shape::Rectangle { rounded_corners: RoundedCorners::TOP, corner_radius: 10.0 })
@@ -257,12 +257,12 @@ impl Panes {
                 let container = match axis {
                     Axis::X => H_STACK,
                     Axis::Y => V_STACK,
-                }.animate_position(true).size_x(size_x).size_y(size_y).stack_spacing(0.0).key(SPLIT_CONTAINER.sibling(index));
+                }.animate_layout(true).size_x(size_x).size_y(size_y).stack_spacing(0.0).key(SPLIT_CONTAINER.sibling(index));
 
                 let wall = match axis {
                     Axis::X => PANEL.size_x(Size::Pixels(WALL_THICKNESS)).size_y(Size::Fill),
                     Axis::Y => PANEL.size_x(Size::Fill).size_y(Size::Pixels(WALL_THICKNESS)),
-                }.color(Color::GREY).animate_position(true);
+                }.color(Color::GREY).animate_layout(true);
 
                 let hitbox = match axis {
                     Axis::X => node_library::CONTAINER.size_x(Size::Pixels(WALL_HITBOX_THICKNESS)).size_y(Size::Fill).position(Pos::Center, Pos::Center),
@@ -317,7 +317,7 @@ impl Panes {
             PaneKind::Content { active_tab } => {
                 let active_tab = *active_tab;
 
-                let stack = V_STACK.size_x(size_x).size_y(size_y).stack_arrange(Arrange::Start).padding(0.0).stack_spacing(0.0).key(CONTENT_PANE.sibling(index)).animate_position(true).children_can_hide(true).grow_from_left();
+                let stack = V_STACK.size_x(size_x).size_y(size_y).stack_arrange(Arrange::Start).padding(0.0).stack_spacing(0.0).key(CONTENT_PANE.sibling(index)).animate_layout(true).children_can_hide(true).grow_from_left();
 
                 ui.add(stack).nest(|| {
                     let tab_bar_hitbox = node_library::CONTAINER
@@ -369,22 +369,22 @@ impl Panes {
                             tab = self.slab[t].next_sibling;
                         }
                         show_spacer(ui, render_idx);
-                        ui.add(BUTTON.animate_position(true).key(ADD_TAB.sibling(index)).padding(5.0).text_size(18.0).size_symm(Size::Pixels(TAB_BAR_HEIGHT - 4.0)).text("+"));
+                        ui.add(BUTTON.animate_layout(true).key(ADD_TAB.sibling(index)).padding(5.0).text_size(18.0).size_symm(Size::Pixels(TAB_BAR_HEIGHT - 4.0)).text("+"));
                     });
 
                     let active_tab_id = active_tab.and_then(|t| {
                         if let PaneKind::Tab { id, .. } = &self.slab[t].kind { Some(*id) } else { None }
                     });
                     let body = PANEL.size_x(Size::Fill).size_y(Size::Fill).shape(Shape::Rectangle { rounded_corners: RoundedCorners::BOTTOM, corner_radius: 10.0 }).absorbs_clicks(false)
-                        .key(CONTENT_BODY.sibling(active_tab_id.unwrap_or(usize::MAX))).animate_position(true).sense_drag_drop_target(true);
+                        .key(CONTENT_BODY.sibling(active_tab_id.unwrap_or(usize::MAX))).animate_layout(true).sense_drag_drop_target(true);
 
                     ui.add(body).nest(|| {
                         ui.add(H_STACK).nest(|| {
-                            ui.add(BUTTON.animate_position(true).key(SPLIT_LEFT.sibling(index)).text("←"));
-                            ui.add(BUTTON.animate_position(true).key(SPLIT_RIGHT.sibling(index)).text("→"));
-                            ui.add(BUTTON.animate_position(true).key(SPLIT_UP.sibling(index)).text("↑"));
-                            ui.add(BUTTON.animate_position(true).key(SPLIT_DOWN.sibling(index)).text("↓"));
-                            ui.add(BUTTON.animate_position(true).key(REMOVE_PANE.sibling(index)).text("✕").color(Color::KERU_RED));
+                            ui.add(BUTTON.animate_layout(true).key(SPLIT_LEFT.sibling(index)).text("←"));
+                            ui.add(BUTTON.animate_layout(true).key(SPLIT_RIGHT.sibling(index)).text("→"));
+                            ui.add(BUTTON.animate_layout(true).key(SPLIT_UP.sibling(index)).text("↑"));
+                            ui.add(BUTTON.animate_layout(true).key(SPLIT_DOWN.sibling(index)).text("↓"));
+                            ui.add(BUTTON.animate_layout(true).key(REMOVE_PANE.sibling(index)).text("✕").color(Color::KERU_RED));
                         });
 
 
@@ -516,7 +516,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         let tab_node = Panes::tab_node(dragged.tab_id, is_active, false);
 
         ui.jump_to_root().nest(|| {
-            ui.add(tab_node.absorbs_clicks(false).animate_position(true).anchor_symm(Anchor::Center).position(Pos::Pixels(px), Pos::Pixels(py)).z_index(1.0)).nest(|| {
+            ui.add(tab_node.absorbs_clicks(false).animate_layout(true).anchor_symm(Anchor::Center).position(Pos::Pixels(px), Pos::Pixels(py)).z_index(1.0)).nest(|| {
                 ui.add(H_STACK).nest(|| {
                     ui.add(TEXT.text(label.as_str()).text_size(18.0).text_selectable(false));
                     ui.add(BUTTON.key(CLOSE_TAB.sibling(dragged.tab_id)).text("✕").text_size(18.0).color(Color::KERU_RED.with_alpha(0.3)).absorbs_clicks(false).position_x(Pos::End));
@@ -622,7 +622,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                 .size_y(Size::Pixels(iy1 - iy0))
                 .z_index(4.0)
                 .absorbs_clicks(false)
-                .animate_position(true)
+                .animate_layout(true)
                 .key(DEST_INDICATOR));
         });
     }

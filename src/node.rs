@@ -171,7 +171,7 @@ pub enum ExitAnimation {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct StateTransition {
     // For now, just position-based transitions (placeholder)
-    pub animate_position: bool,
+    pub animate_layout: bool,
     // Animate cosmetic property changes (alpha, fill color). Off by default: properties snap.
     pub animate_properties: bool,
 }
@@ -189,7 +189,7 @@ pub const NO_ANIMATION: Animation = Animation {
     enter: EnterAnimation::None,
     exit: ExitAnimation::None,
     state_transition: StateTransition {
-        animate_position: false,
+        animate_layout: false,
         animate_properties: false,
     },
 };
@@ -988,7 +988,7 @@ impl<'a> Node<'a> {
             ExitAnimation::Shrink { axis, origin } => { axis.hash(&mut h); origin.hash(&mut h); },
             ExitAnimation::FadeOut => {},
         }
-        self.animation.state_transition.animate_position.hash(&mut h);
+        self.animation.state_transition.animate_layout.hash(&mut h);
         self.animation.state_transition.animate_properties.hash(&mut h);
         self.transform.offset.x.to_bits().hash(&mut h);
         self.transform.offset.y.to_bits().hash(&mut h);
@@ -1859,9 +1859,9 @@ impl<'a> Node<'a> {
         return self;
     }
 
-    /// Animate position changes when this node moves.
-    pub const fn animate_position(mut self, value: bool) -> Self {
-        self.animation.state_transition.animate_position = value;
+    /// Animate position and size of this node when they change after a relayout.
+    pub const fn animate_layout(mut self, value: bool) -> Self {
+        self.animation.state_transition.animate_layout = value;
         return self;
     }
 
