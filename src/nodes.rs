@@ -92,6 +92,7 @@ impl Nodes {
 impl Ui {
     #[track_caller]
     pub(crate) fn add_or_update_node(&mut self, key: NodeKey) -> (NodeI, Id) {
+        let (parent, insert_after, depth) = thread_local::current_parent(self.sys.unique_id);
         let frame = self.sys.current_frame;
         let mut new_node_should_relayout = false;
 
@@ -124,7 +125,9 @@ impl Ui {
                     // do nothing, just calculate the twin key and go to twin part below
                     AddTwin => {
                         self.sys.nodes[old_i].n_twins += 1;
-                        let twin_key = key.sibling(self.sys.nodes[old_i].n_twins);
+                        let twin_key = key
+                            .sibling(self.sys.nodes[old_i].n_twins)
+                            .sibling(self.sys.nodes[parent].id);
 
                         NeedToUpdateTwin {
                             twin_key,
@@ -162,7 +165,6 @@ impl Ui {
         };
 
         // update the in-tree links and the thread-local state based on the current parent.
-        let (parent, insert_after, depth) = thread_local::current_parent(self.sys.unique_id);
         self.set_tree_links(real_final_i, parent, depth, insert_after);
 
         self.sys.nodes[real_final_i].depth = depth;
