@@ -289,8 +289,7 @@ impl MouseInput {
         }
     }
 
-    pub fn update_animated_scrolls(&mut self, animation_speed: f32) -> bool {
-        let rate = (5.0 * animation_speed * (1.0 / 60.0)).clamp(0.0, 1.0);
+    pub fn update_animated_scrolls(&mut self, rate: f32) -> bool {
         let mut any_active = false;
         self.animated_scrolls.retain_mut(|a| {
             let mut step = a.remaining * rate;

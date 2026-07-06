@@ -203,8 +203,9 @@ impl Ui {
     pub(crate) fn begin_frame_resolve_inputs(&mut self) {
         self.sys.mouse_input.begin_new_frame();
         self.sys.key_input.begin_new_frame();
-        let speed = self.sys.global_animation_speed;
-        self.sys.mouse_input.update_animated_scrolls(speed);
+
+        let anim_speed = self.sys.anim_exp_speed(1.0);
+        self.sys.mouse_input.update_animated_scrolls(anim_speed);
     }
 
     pub(crate) fn handle_mouse_press(&mut self, button: MouseButton, window: &Window) -> bool {

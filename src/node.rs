@@ -2361,8 +2361,6 @@ impl Ui {
     }
 
     pub(crate) fn update_property_animations(&mut self) {
-        let dt = 1.0 / 60.0; // todo use real frame time
-
         for slab_i in 0..self.sys.params_animation_targets.capacity() {
             let Some(&ParamsAnimation { target, i, id }) = self.sys.params_animation_targets.get(slab_i) else {
                 continue;
@@ -2373,16 +2371,22 @@ impl Ui {
                 continue;
             }
 
-            let speed = 0.5 * self.sys.global_animation_speed * self.sys.nodes[i].params.animation.speed;
-            let rate = (5.0 * speed * dt).clamp(0.0, 1.0);
+            let speed = 0.5 * self.sys.nodes[i].params.animation.speed;
 
-            let mut done = true;
-            let mut changed = false;
+            let old_alpha = self.sys.nodes[i].params.alpha;
+            let old_color = self.sys.nodes[i].params.color;
+            let old_shape = self.sys.nodes[i].params.shape;
 
-            let params = &mut self.sys.nodes[i].params;
-            done &= animate_alpha(&mut params.alpha, target.alpha, rate, &mut changed);
-            done &= animate_color_fill(&mut params.color, target.color, rate, &mut changed);
-            done &= animate_shape(&mut params.shape, target.shape, rate, &mut changed);
+            let (alpha, d0) = self.sys.exp_tail_step(old_alpha, target.alpha, speed);
+            let (color, d1) = self.sys.step_color_fill(old_color, target.color, speed);
+            let (shape, d2) = self.sys.step_shape(old_shape, target.shape, speed);
+            let done = d0 && d1 && d2;
+
+            let changed = alpha != old_alpha || color != old_color || shape != old_shape;
+
+            self.sys.nodes[i].params.alpha = alpha;
+            self.sys.nodes[i].params.color = color;
+            self.sys.nodes[i].params.shape = shape;
 
             if changed {
                 self.sys.changes.should_rebuild_render_data = true;
@@ -2407,176 +2411,130 @@ fn same_shape_variant(a: Shape, b: Shape) -> bool {
     std::mem::discriminant(&a) == std::mem::discriminant(&b)
 }
 
-fn animate_shape(current: &mut Shape, target: Shape, rate: f32, changed: &mut bool) -> bool {
-    let (new, done) = step_shape(*current, target, rate);
-    if new != *current {
-        *current = new;
-        *changed = true;
+impl System {
+    fn step_shape(&self, current: Shape, target: Shape, speed: f32) -> (Shape, bool) {
+        use Shape::*;
+        match (current, target) {
+            (
+                Rectangle { rounded_corners: _, corner_radius: ca },
+                Rectangle { rounded_corners, corner_radius: cb },
+            ) => {
+                let (corner_radius, done) = self.exp_tail_step(ca, cb, speed);
+                // rounded_corners is a discrete flag set; snap it to the target.
+                (Rectangle { rounded_corners, corner_radius }, done)
+            }
+            (Ring { width: wa }, Ring { width: wb }) => {
+                let (width, done) = self.exp_tail_step(wa, wb, speed);
+                (Ring { width }, done)
+            }
+            (
+                Arc { start_angle: sa, end_angle: ea, width: wa },
+                Arc { start_angle: sb, end_angle: eb, width: wb },
+            ) => {
+                let (start_angle, d0) = self.exp_tail_step(sa, sb, speed);
+                let (end_angle, d1) = self.exp_tail_step(ea, eb, speed);
+                let (width, d2) = self.exp_tail_step(wa, wb, speed);
+                (Arc { start_angle, end_angle, width }, d0 && d1 && d2)
+            }
+            (
+                Pie { start_angle: sa, end_angle: ea },
+                Pie { start_angle: sb, end_angle: eb },
+            ) => {
+                let (start_angle, d0) = self.exp_tail_step(sa, sb, speed);
+                let (end_angle, d1) = self.exp_tail_step(ea, eb, speed);
+                (Pie { start_angle, end_angle }, d0 && d1)
+            }
+            (
+                Segment { start: sa, end: ea, dash_length: da },
+                Segment { start: sb, end: eb, dash_length: db },
+            ) => {
+                let (sx, d0) = self.exp_tail_step(sa.0, sb.0, speed);
+                let (sy, d1) = self.exp_tail_step(sa.1, sb.1, speed);
+                let (ex, d2) = self.exp_tail_step(ea.0, eb.0, speed);
+                let (ey, d3) = self.exp_tail_step(ea.1, eb.1, speed);
+                // dash_length can be None/Some; only interpolate when both are Some, else snap.
+                let (dash_length, d4) = match (da, db) {
+                    (Some(la), Some(lb)) => {
+                        let (l, d) = self.exp_tail_step(la, lb, speed);
+                        (Some(l), d)
+                    }
+                    _ => (db, true),
+                };
+                (Segment { start: (sx, sy), end: (ex, ey), dash_length }, d0 && d1 && d2 && d3 && d4)
+            }
+            (
+                Triangle { rotation: ra, width: wa },
+                Triangle { rotation: rb, width: wb },
+            ) => {
+                let (rotation, d0) = self.exp_tail_step(ra, rb, speed);
+                let (width, d1) = self.exp_tail_step(wa, wb, speed);
+                (Triangle { rotation, width }, d0 && d1)
+            }
+            (
+                SquareGrid { lattice_size: la, offset: oa, line_thickness: ta },
+                SquareGrid { lattice_size: lb, offset: ob, line_thickness: tb },
+            ) => {
+                let (lattice_size, d0) = self.exp_tail_step(la, lb, speed);
+                let (ox, d1) = self.exp_tail_step(oa.0, ob.0, speed);
+                let (oy, d2) = self.exp_tail_step(oa.1, ob.1, speed);
+                let (line_thickness, d3) = self.exp_tail_step(ta, tb, speed);
+                (SquareGrid { lattice_size, offset: (ox, oy), line_thickness }, d0 && d1 && d2 && d3)
+            }
+            (
+                HexGrid { lattice_size: la, offset: oa, line_thickness: ta },
+                HexGrid { lattice_size: lb, offset: ob, line_thickness: tb },
+            ) => {
+                let (lattice_size, d0) = self.exp_tail_step(la, lb, speed);
+                let (ox, d1) = self.exp_tail_step(oa.0, ob.0, speed);
+                let (oy, d2) = self.exp_tail_step(oa.1, ob.1, speed);
+                let (line_thickness, d3) = self.exp_tail_step(ta, tb, speed);
+                (HexGrid { lattice_size, offset: (ox, oy), line_thickness }, d0 && d1 && d2 && d3)
+            }
+            (
+                Hexagon { size: sa, rotation: ra },
+                Hexagon { size: sb, rotation: rb },
+            ) => {
+                let (size, d0) = self.exp_tail_step(sa, sb, speed);
+                let (rotation, d1) = self.exp_tail_step(ra, rb, speed);
+                (Hexagon { size, rotation }, d0 && d1)
+            }
+            // Variants with no interpolable params (NoShape, Circle, HorizontalLine, VerticalLine),
+            // or mismatched shape types: snap to the target.
+            _ => (target, true),
+        }
     }
-    done
-}
 
-fn step_shape(current: Shape, target: Shape, rate: f32) -> (Shape, bool) {
-    use Shape::*;
-    match (current, target) {
-        (
-            Rectangle { rounded_corners: _, corner_radius: ca },
-            Rectangle { rounded_corners, corner_radius: cb },
-        ) => {
-            let (corner_radius, done) = step_f32(ca, cb, rate);
-            // rounded_corners is a discrete flag set; snap it to the target.
-            (Rectangle { rounded_corners, corner_radius }, done)
-        }
-        (Ring { width: wa }, Ring { width: wb }) => {
-            let (width, done) = step_f32(wa, wb, rate);
-            (Ring { width }, done)
-        }
-        (
-            Arc { start_angle: sa, end_angle: ea, width: wa },
-            Arc { start_angle: sb, end_angle: eb, width: wb },
-        ) => {
-            let (start_angle, d0) = step_f32(sa, sb, rate);
-            let (end_angle, d1) = step_f32(ea, eb, rate);
-            let (width, d2) = step_f32(wa, wb, rate);
-            (Arc { start_angle, end_angle, width }, d0 && d1 && d2)
-        }
-        (
-            Pie { start_angle: sa, end_angle: ea },
-            Pie { start_angle: sb, end_angle: eb },
-        ) => {
-            let (start_angle, d0) = step_f32(sa, sb, rate);
-            let (end_angle, d1) = step_f32(ea, eb, rate);
-            (Pie { start_angle, end_angle }, d0 && d1)
-        }
-        (
-            Segment { start: sa, end: ea, dash_length: da },
-            Segment { start: sb, end: eb, dash_length: db },
-        ) => {
-            let (sx, d0) = step_f32(sa.0, sb.0, rate);
-            let (sy, d1) = step_f32(sa.1, sb.1, rate);
-            let (ex, d2) = step_f32(ea.0, eb.0, rate);
-            let (ey, d3) = step_f32(ea.1, eb.1, rate);
-            // dash_length can be None/Some; only interpolate when both are Some, else snap.
-            let (dash_length, d4) = match (da, db) {
-                (Some(la), Some(lb)) => {
-                    let (l, d) = step_f32(la, lb, rate);
-                    (Some(l), d)
-                }
-                _ => (db, true),
-            };
-            (Segment { start: (sx, sy), end: (ex, ey), dash_length }, d0 && d1 && d2 && d3 && d4)
-        }
-        (
-            Triangle { rotation: ra, width: wa },
-            Triangle { rotation: rb, width: wb },
-        ) => {
-            let (rotation, d0) = step_f32(ra, rb, rate);
-            let (width, d1) = step_f32(wa, wb, rate);
-            (Triangle { rotation, width }, d0 && d1)
-        }
-        (
-            SquareGrid { lattice_size: la, offset: oa, line_thickness: ta },
-            SquareGrid { lattice_size: lb, offset: ob, line_thickness: tb },
-        ) => {
-            let (lattice_size, d0) = step_f32(la, lb, rate);
-            let (ox, d1) = step_f32(oa.0, ob.0, rate);
-            let (oy, d2) = step_f32(oa.1, ob.1, rate);
-            let (line_thickness, d3) = step_f32(ta, tb, rate);
-            (SquareGrid { lattice_size, offset: (ox, oy), line_thickness }, d0 && d1 && d2 && d3)
-        }
-        (
-            HexGrid { lattice_size: la, offset: oa, line_thickness: ta },
-            HexGrid { lattice_size: lb, offset: ob, line_thickness: tb },
-        ) => {
-            let (lattice_size, d0) = step_f32(la, lb, rate);
-            let (ox, d1) = step_f32(oa.0, ob.0, rate);
-            let (oy, d2) = step_f32(oa.1, ob.1, rate);
-            let (line_thickness, d3) = step_f32(ta, tb, rate);
-            (HexGrid { lattice_size, offset: (ox, oy), line_thickness }, d0 && d1 && d2 && d3)
-        }
-        (
-            Hexagon { size: sa, rotation: ra },
-            Hexagon { size: sb, rotation: rb },
-        ) => {
-            let (size, d0) = step_f32(sa, sb, rate);
-            let (rotation, d1) = step_f32(ra, rb, rate);
-            (Hexagon { size, rotation }, d0 && d1)
-        }
-        // Variants with no interpolable params (NoShape, Circle, HorizontalLine, VerticalLine),
-        // or mismatched shape types: snap to the target.
-        _ => (target, true),
+    fn step_color(&self, current: Color, target: Color, speed: f32) -> (Color, bool) {
+        let (r, d0) = self.exp_tail_step(current.r, target.r, speed);
+        let (g, d1) = self.exp_tail_step(current.g, target.g, speed);
+        let (b, d2) = self.exp_tail_step(current.b, target.b, speed);
+        let (a, d3) = self.exp_tail_step(current.a, target.a, speed);
+        (Color::new(r, g, b, a), d0 && d1 && d2 && d3)
     }
-}
 
-// Step `current` toward `target`, set `changed` if it moved, and return whether it settled.
-fn animate_alpha(current: &mut f32, target: f32, rate: f32, changed: &mut bool) -> bool {
-    let (new, done) = step_f32(*current, target, rate);
-    if new != *current {
-        *current = new;
-        *changed = true;
-    }
-    done
-}
-
-fn animate_color_fill(current: &mut ColorFill2, target: ColorFill2, rate: f32, changed: &mut bool) -> bool {
-    let (new, done) = step_color_fill(*current, target, rate);
-    if new != *current {
-        *current = new;
-        *changed = true;
-    }
-    done
-}
-
-// Step a scalar toward the target using the same shape of motion as the rectangle/position
-// animation in `layout.rs`: an exponential step (`dist * rate`) at the start, with a constant
-// minimum speed floor that makes the tail linear-ish, and a small snap threshold at the end.
-pub(crate) fn step_f32(current: f32, target: f32, rate: f32) -> (f32, bool) {
-    // Mirrors the rectangle animation: const_speed snap (≈3px) and min step (≈1px), here in
-    // normalized-ish units since shape params don't share a single pixel scale.
-    const CONST_SPEED: f32 = 0.003;
-    const MIN_STEP: f32 = 0.005;
-
-    let diff = target - current;
-    let dist = diff.abs();
-    if dist < CONST_SPEED {
-        (target, true)
-    } else {
-        // exponential step at the start, but never slower than MIN_STEP, and never overshooting.
-        let step = (dist * rate).max(MIN_STEP).min(dist);
-        (current + step * diff.signum(), false)
-    }
-}
-
-fn step_color(current: Color, target: Color, rate: f32) -> (Color, bool) {
-    let (r, d0) = step_f32(current.r, target.r, rate);
-    let (g, d1) = step_f32(current.g, target.g, rate);
-    let (b, d2) = step_f32(current.b, target.b, rate);
-    let (a, d3) = step_f32(current.a, target.a, rate);
-    (Color::new(r, g, b, a), d0 && d1 && d2 && d3)
-}
-
-fn step_color_fill(current: ColorFill2, target: ColorFill2, rate: f32) -> (ColorFill2, bool) {
-    match (current, target) {
-        (ColorFill2::Color(a), ColorFill2::Color(b)) => {
-            let (c, done) = step_color(a, b, rate);
-            (ColorFill2::Color(c), done)
+    fn step_color_fill(&self, current: ColorFill2, target: ColorFill2, speed: f32) -> (ColorFill2, bool) {
+        match (current, target) {
+            (ColorFill2::Color(a), ColorFill2::Color(b)) => {
+                let (c, done) = self.step_color(a, b, speed);
+                (ColorFill2::Color(c), done)
+            }
+            (ColorFill2::LinearGradient(a), ColorFill2::LinearGradient(b)) => {
+                let (start, d0) = self.step_color(a.color_start, b.color_start, speed);
+                let (end, d1) = self.step_color(a.color_end, b.color_end, speed);
+                let (angle, d2) = self.exp_tail_step(a.angle_deg, b.angle_deg, speed);
+                (ColorFill2::LinearGradient(LinearGradient::new(start, end, angle)), d0 && d1 && d2)
+            }
+            (
+                ColorFill2::RadialGradient { color_inner: ai, color_outer: ao },
+                ColorFill2::RadialGradient { color_inner: bi, color_outer: bo },
+            ) => {
+                let (inner, d0) = self.step_color(ai, bi, speed);
+                let (outer, d1) = self.step_color(ao, bo, speed);
+                (ColorFill2::RadialGradient { color_inner: inner, color_outer: outer }, d0 && d1)
+            }
+            // Mismatched or non-interpolable variants (e.g. SharedGradient): snap to the target.
+            _ => (target, true),
         }
-        (ColorFill2::LinearGradient(a), ColorFill2::LinearGradient(b)) => {
-            let (start, d0) = step_color(a.color_start, b.color_start, rate);
-            let (end, d1) = step_color(a.color_end, b.color_end, rate);
-            let (angle, d2) = step_f32(a.angle_deg, b.angle_deg, rate);
-            (ColorFill2::LinearGradient(LinearGradient::new(start, end, angle)), d0 && d1 && d2)
-        }
-        (
-            ColorFill2::RadialGradient { color_inner: ai, color_outer: ao },
-            ColorFill2::RadialGradient { color_inner: bi, color_outer: bo },
-        ) => {
-            let (inner, d0) = step_color(ai, bi, rate);
-            let (outer, d1) = step_color(ao, bo, rate);
-            (ColorFill2::RadialGradient { color_inner: inner, color_outer: outer }, d0 && d1)
-        }
-        // Mismatched or non-interpolable variants (e.g. SharedGradient): snap to the target.
-        _ => (target, true),
     }
 }
 

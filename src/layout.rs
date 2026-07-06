@@ -1351,13 +1351,11 @@ impl Ui {
         if ! skip_animations {
             l = self.sys.nodes[i].local_animated_rect;
 
-            let speed = self.sys.global_animation_speed * self.sys.nodes[i].params.animation.speed;
+            let local_speed = self.sys.nodes[i].params.animation.speed;
 
-            let dt = 1.0 / 60.0; // todo use real frame time
+            const SNAP_PX: f32 = 3.0;
+            const MIN_STEP_PX: f32 = 1.0;
 
-            let rate = 5.0 * speed * dt;
-
-            let const_speed_pixels = 3.0 * speed;
             let diff = target - l;
 
             for i in 0..2 {
@@ -1367,13 +1365,14 @@ impl Ui {
 
                 let dist_px = (dx_px * dx_px + dy_px * dy_px).sqrt();
 
-                let step_px = (dist_px * rate).ceil();
+                let (step_px, settled) = self.sys.exp_tail_step_dist(dist_px, local_speed, SNAP_PX, MIN_STEP_PX);
 
-                if dist_px < const_speed_pixels || step_px >= dist_px {
+                if settled {
                     l[X][i] = target[X][i];
                     l[Y][i] = target[Y][i];
                 } else {
                     still_moving = true;
+
                     // normalized direction in pixel space
                     let dir_x = dx_px / dist_px;
                     let dir_y = dy_px / dist_px;
@@ -1389,9 +1388,8 @@ impl Ui {
         let fade_exiting_animation = self.sys.nodes[i].params.animation.exit == ExitAnimation::FadeOut;
         let fade_target = if self.sys.nodes[i].exiting && fade_exiting_animation { 0.0 } else { 1.0 };
         if self.sys.nodes[i].fade_alpha != fade_target {
-            let speed = self.sys.global_animation_speed * self.sys.nodes[i].params.animation.speed;
-            let rate = (5.0 * speed / 60.0).clamp(0.0, 1.0);
-            let (new_fade, fade_done) = step_f32(self.sys.nodes[i].fade_alpha, fade_target, rate);
+            let local_speed = self.sys.nodes[i].params.animation.speed;
+            let (new_fade, fade_done) = self.sys.exp_tail_step(self.sys.nodes[i].fade_alpha, fade_target, local_speed);
             self.sys.nodes[i].fade_alpha = new_fade;
             if ! fade_done {
                 still_moving = true;
@@ -1480,22 +1478,19 @@ impl Ui {
         for axis in [X, Y] {
             let current = self.sys.nodes[i].scroll[axis];
             let target = self.sys.nodes[i].scroll_animation_target[axis];
-            let diff = target - current;
-            if diff == 0.0 {
+            if current == target {
                 continue;
             }
             moved = true;
 
-            let speed = self.sys.global_animation_speed * self.sys.nodes[i].params.animation.speed;
-            let rate = 5.0 * speed * (1.0 / 60.0);
+            let local_speed = self.sys.nodes[i].params.animation.speed;
 
-            let diff_px = diff * self.sys.size[axis];
-            let dist_px = diff_px.abs();
-
-            let dir = diff_px / dist_px;
-            let step_px = dist_px * rate;
-            self.sys.nodes[i].scroll[axis] += (step_px * dir) / self.sys.size[axis];
-            self.sys.changes.unfinished_animations = true;
+            let snap = 0.5 / self.sys.size[axis];
+            let (new, settled) = self.sys.pure_exp_step(current, target, local_speed, snap);
+            self.sys.nodes[i].scroll[axis] = new;
+            if !settled {
+                self.sys.changes.unfinished_animations = true;
+            }
         }
 
         // Keep the scrollbar thumb in sync with the displayed offset as it animates.

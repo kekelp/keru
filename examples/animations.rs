@@ -7,6 +7,7 @@ use keru::node_library::*;
 pub struct State {
     expanded: Vec<bool>,
     sub_expanded: Vec<Vec<bool>>,
+    animation_speed: f32,
 }
 
 fn update_ui(state: &mut State, ui: &mut Ui) {
@@ -43,7 +44,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 
     let elem = BUTTON
         .size_x(Size::Fill)
-        .text("???");
+        .text("Element");
 
     let elem_vstack = V_STACK
         .grow_from_top().shrink_to_top()
@@ -61,25 +62,31 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     let m = 4;
     let p = 4;
     
+    ui.set_global_animation_speed(state.animation_speed);
+
     ui.add(left_bar).nest(|| {
         for i in 0..n {
             ui.add(h_group).nest(|| {
-                let expand = expand.key(EXPAND.s(i));
-                ui.add(expand);
+                let key = EXPAND.sibling(i);
+                ui.add(expand.key(key));
                 
                 if state.expanded[i] {
-                    let elem_vstack = elem_vstack.key(ELEM_VSTACK.s(i));
-                    ui.add(elem_vstack).nest(|| {
+                    let key = ELEM_VSTACK.sibling(i);
+                    ui.add(elem_vstack.key(key)).nest(|| {
                         for j in 0..m {
 
-                            let h_group = h_group.key(HGROUP.s(i).s(j));
-                            ui.add(h_group).nest(|| {
-                                ui.add(sub_expand.key(SUB_EXPAND.s(i).s(j)));
+                            let key = HGROUP.sibling(i).sibling(j);
+                            ui.add(h_group.key(key)).nest(|| {
+                                let key = SUB_EXPAND.sibling(i).sibling(j);
+                                ui.add(sub_expand.key(key));
                                 
                                 if state.sub_expanded[i][j] {
-                                    ui.add(sub_elem_vstack.key(SUB_ELEM_VSTACK.s(i).s(j))).nest(|| {
+                                    let key = SUB_ELEM_VSTACK.sibling(i).sibling(j);
+                                    ui.add(sub_elem_vstack.key(key)).nest(|| {
+
                                         for k in 0..p {
-                                            ui.add(elem.key(ELEM.s(i).s(j).s(k)));
+                                            let key = ELEM.sibling(i).sibling(j).sibling(k);
+                                            ui.add(elem.key(key));
                                         }
                                     });
                                 }
@@ -89,6 +96,13 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                 }
             });
         }
+    });
+
+    ui.add(CONTAINER.position_y(Pos::End).size_x(Size::Frac(0.7))).nest(|| {
+        ui.add(V_STACK).nest(|| {
+            ui.add(TEXT.text("Global animation speed:"));
+            ui.slider(&mut state.animation_speed, 0.02, 1.5);
+        });
     });
     
     for i in 0..n {
@@ -101,9 +115,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                 state.sub_expanded[i][j] = !state.sub_expanded[i][j];
             }
         }
-    }
-    
-    // ui.debug_print_tree();
+    }    
 }
 
 fn main() {
@@ -116,6 +128,7 @@ fn main() {
             vec![false, false, false, false],
             vec![false, false, false, false],
         ],
+        animation_speed: 1.0,
     };
     example_window_loop::run_example_loop(state, update_ui);
 }

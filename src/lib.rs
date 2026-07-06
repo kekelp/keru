@@ -150,6 +150,7 @@ mod inner_node;
 pub(crate) use crate::inner_node::*;
 mod nodes;
 pub(crate) use crate::nodes::*;
+mod animation;
 
 pub use keru_macros::*;
 
