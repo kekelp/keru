@@ -31,7 +31,7 @@ pub(crate) enum InputEvent {
 }
 
 #[derive(Clone, Debug)]
-pub struct ClickEvent {
+pub(crate) struct ClickEvent {
     pub targets: SmallVec<Id>,
     pub position: Vec2,
     pub button: winit::event::MouseButton,
@@ -39,18 +39,15 @@ pub struct ClickEvent {
 }
 
 #[derive(Clone, Debug)]
-pub struct ClickReleaseEvent {
+pub(crate) struct ClickReleaseEvent {
     pub targets: SmallVec<Id>,
-    pub position: Vec2,
     pub button: winit::event::MouseButton,
-    pub press_time: Instant,
 }
 
 #[derive(Clone, Debug)]
-pub struct DragEvent {
+pub(crate) struct DragEvent {
     pub targets: SmallVec<Id>,
     pub button: winit::event::MouseButton,
-    pub start_pos: Vec2,
     pub current_pos: Vec2,
     pub frame_delta: Vec2,
     pub total_delta: Vec2,
@@ -58,17 +55,16 @@ pub struct DragEvent {
 }
 
 #[derive(Clone, Debug)]
-pub struct DragReleaseEvent {
+pub(crate) struct DragReleaseEvent {
     pub targets: SmallVec<Id>,
     pub button: winit::event::MouseButton,
-    pub start_pos: Vec2,
     pub end_pos: Vec2,
     pub total_delta: Vec2,
     pub start_time: Instant,
 }
 
 #[derive(Clone, Debug)]
-pub struct ScrollEvent {
+pub(crate) struct ScrollEvent {
     pub target: Id,
     pub delta: Vec2,
     pub position: Vec2,
@@ -83,7 +79,6 @@ pub(crate) enum Pending {
     Click {
         button: MouseButton,
         press_pos: Vec2,
-        press_time: Instant,
         targets: SmallVec<Id>,
     },
 
@@ -144,7 +139,6 @@ impl MouseInput {
                 self.events.push(InputEvent::Drag(DragEvent {
                     targets: targets.clone(),
                     button: *button,
-                    start_pos: *start_pos,
                     current_pos: self.cursor_position,
                     frame_delta,
                     total_delta,
@@ -190,7 +184,6 @@ impl MouseInput {
             self.pending.push(Pending::Click {
                 button,
                 press_pos: self.cursor_position,
-                press_time: now,
                 targets: click_targets,
             });
         }
@@ -215,14 +208,12 @@ impl MouseInput {
             if self.pending[i].button() == button {
                 let pending = self.pending.remove(i);
                 match pending {
-                    Pending::Click { press_pos, press_time, targets, .. } => {
+                    Pending::Click { press_pos, targets, .. } => {
                         // ClickRelease if released on same targets as pressed
                         if targets == current_click_targets {
                             self.events.push(InputEvent::ClickRelease(ClickReleaseEvent {
                                 targets,
-                                position: self.cursor_position,
                                 button,
-                                press_time,
                             }));
                         }
                         let _ = press_pos; // unused for now, might use for threshold later
@@ -235,7 +226,6 @@ impl MouseInput {
                         self.events.push(InputEvent::Drag(DragEvent {
                             targets: targets.clone(),
                             button,
-                            start_pos,
                             current_pos: self.cursor_position,
                             frame_delta,
                             total_delta,
@@ -246,7 +236,6 @@ impl MouseInput {
                         self.events.push(InputEvent::DragRelease(DragReleaseEvent {
                             targets,
                             button,
-                            start_pos,
                             end_pos: self.cursor_position,
                             total_delta,
                             start_time,
@@ -325,42 +314,42 @@ impl MouseInput {
 }
 
 impl MouseInput {
-    pub fn clicks(&self) -> impl Iterator<Item = &ClickEvent> {
+    pub(crate) fn clicks(&self) -> impl Iterator<Item = &ClickEvent> {
         self.events.iter().filter_map(|e| match e {
             InputEvent::Click(ev) => Some(ev),
             _ => None,
         })
     }
 
-    pub fn click_releases(&self) -> impl Iterator<Item = &ClickReleaseEvent> {
+    pub(crate) fn click_releases(&self) -> impl Iterator<Item = &ClickReleaseEvent> {
         self.events.iter().filter_map(|e| match e {
             InputEvent::ClickRelease(ev) => Some(ev),
             _ => None,
         })
     }
 
-    pub fn drags(&self) -> impl Iterator<Item = &DragEvent> {
+    pub(crate) fn drags(&self) -> impl Iterator<Item = &DragEvent> {
         self.events.iter().filter_map(|e| match e {
             InputEvent::Drag(ev) => Some(ev),
             _ => None,
         })
     }
 
-    pub fn drag_releases(&self) -> impl Iterator<Item = &DragReleaseEvent> {
+    pub(crate) fn drag_releases(&self) -> impl Iterator<Item = &DragReleaseEvent> {
         self.events.iter().filter_map(|e| match e {
             InputEvent::DragRelease(ev) => Some(ev),
             _ => None,
         })
     }
 
-    pub fn scrolls(&self) -> impl Iterator<Item = &ScrollEvent> {
+    pub(crate) fn scrolls(&self) -> impl Iterator<Item = &ScrollEvent> {
         self.events.iter().filter_map(|e| match e {
             InputEvent::Scroll(ev) => Some(ev),
             _ => None,
         })
     }
 
-    pub fn animated_scrolls(&self) -> impl Iterator<Item = &ScrollEvent> {
+    pub(crate) fn animated_scrolls(&self) -> impl Iterator<Item = &ScrollEvent> {
         self.events.iter().filter_map(|e| match e {
             InputEvent::AnimatedScroll(ev) => Some(ev),
             _ => None,

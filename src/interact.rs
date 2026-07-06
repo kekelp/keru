@@ -604,9 +604,7 @@ impl System {
         }));
         self.mouse_input.events.push(crate::mouse_events::InputEvent::ClickRelease(crate::mouse_events::ClickReleaseEvent {
             targets,
-            position,
             button: MouseButton::Left,
-            press_time: now,
         }));
     }
 
