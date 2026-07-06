@@ -767,7 +767,7 @@ impl Ui {
         // It makes sense to update it here because it's only used for render effects.
         // If it was used for other things, it would be better to update it in something like begin_frame,
         // but begin_frame doesn't work because it's normal to do rerenders without rerunning begin_frame and the update. 
-        self.sys.t = T0.elapsed().as_secs_f32();
+        self.sys.update_frame_time();
 
         // todo think harder
         if self.sys.changes.should_rebuild_render_data || self.sys.anim_render_timer.is_live() {
@@ -843,7 +843,7 @@ impl Ui {
     /// specific ranges of instances, interleaving with your own custom rendering.
     // todo: deduplicate and simplify this stuff
     pub fn begin_custom_render(&mut self) {
-        self.sys.t = T0.elapsed().as_secs_f32(); // todo: maybe deduplicate better
+        self.sys.update_frame_time(); // todo: maybe deduplicate better
 
         // Rebuild render data if needed
         if self.sys.changes.should_rebuild_render_data || self.sys.anim_render_timer.is_live() {

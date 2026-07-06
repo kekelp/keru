@@ -1,17 +1,29 @@
 use crate::*;
 
-const DT: f32 = 1.0 / 60.0;
-const BASE_EXPONENTIAL_RATE: f32 = 5.0;
+pub(crate) const DT: f32 = 1.0 / 60.0;
+
+const TUNING_RESCALE: f32 = 165.0 * 1.0 / 60.0;
+
+const BASE_EXPONENTIAL_RATE: f32 = 5.0 * TUNING_RESCALE;
 
 const SNAP_DISTANCE: f32 = 0.003;
-const MIN_SPEED: f32 = 0.005;
+const MIN_SPEED: f32 = 0.005 * TUNING_RESCALE;
 
 const CONST_RATE_EXPONENT: f32 = 0.5;
 
+const MIN_DT: f32 = 1.0 / 1000.0;
+const MAX_DT: f32 = 1.0 / 15.0;
+
 impl System {
-    // Frame delta. Todo: use the real measured frame time once it's threaded through.
     fn animation_dt(&self) -> f32 {
-        DT
+        self.frame_dt
+    }
+
+    pub(crate) fn update_frame_time(&mut self) {
+        let now = T0.elapsed().as_secs_f32();
+        let raw = now - self.t;
+        self.frame_dt = if raw > MAX_DT { DT } else { raw.max(MIN_DT) };
+        self.t = now;
     }
 
     pub(crate) fn anim_exp_speed(&self, speed: f32) -> f32 {
@@ -24,7 +36,7 @@ impl System {
         if effective <= 0.0 || dist <= snap * effective {
             (dist, true)
         } else {
-            let const_floor = min * speed * g.powf(CONST_RATE_EXPONENT);
+            let const_floor = min * speed * g.powf(CONST_RATE_EXPONENT) * (self.animation_dt() / DT);
             ((dist * self.anim_exp_speed(speed)).max(const_floor).min(dist), false)
         }
     }

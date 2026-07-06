@@ -87,6 +87,7 @@ pub(crate) struct System {
     pub disable_animations_on_resize: bool,
 
     pub t: f32, // time at the end of the last rendered frame, in seconds since the Ui creation
+    pub frame_dt: f32,
 
     pub unique_id: u32,
     pub theme: Theme,
@@ -269,6 +270,7 @@ impl Ui {
                 params_animation_targets: slab::Slab::with_capacity(6),
                 custom_render_commands: Vec::with_capacity(50),
                 t: 0.0,
+                frame_dt: animation::DT,
                 global_animation_speed: 1.0,
                 disable_animations_on_resize: true,
                 unique_id: INSTANCE_COUNTER.fetch_add(1, Ordering::Relaxed),
