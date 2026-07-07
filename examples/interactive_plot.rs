@@ -1,4 +1,3 @@
-use keru::example_window_loop::basic_env_logger_init;
 use keru::*;
 use keru::node_library::*;
 
@@ -20,7 +19,7 @@ const VAL_MAX: f32 = 1.4;
 const GRAD: LinearGradient = LinearGradient {
     color_start: Color::from_hex_str("#fc5367").with_alpha(0.8), // top
     color_end: Color::from_hex_str("#52cff2").with_alpha(0.8),   // bottom
-    angle_deg: 90.0,                             // top -> bottom
+    angle_deg: 90.0,
 };
 
 fn data_x(year: f32) -> f32 {
@@ -95,7 +94,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     ui.add(PANEL.size_symm(Size::Fill).color(Color::WHITE));
 
     let title = TEXT
-        .static_text("Temperature Anomaly")
+        .static_text("Temperature Anomaly - ctrl + scroll to zoom")
         .text_size(16.0)
         .text_color(Color::BLACK)
         .z_index(2.0)
@@ -194,7 +193,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 
                 for (i, p) in points.iter().enumerate() {
                     // We use real nodes for the points so that we can easily make them interactable. It will still run at 165Hz effortlessly.
-                    // For the non-interactable line segments though we can use canvas drawing later.
+                    // But we can use canvas drawing for the non-interactable line segments.
                     let key = POINT.sibling(i);
                     let is_hovered = ui.is_hovered(key);
                     if is_hovered {

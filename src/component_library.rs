@@ -595,7 +595,13 @@ impl Component for TransformView<'_> {
         }
 
         if let Some(scroll_event) = ui.scrolled_at_animated(PAN_OVERLAY) {
-            apply_zoom(scroll_event.delta.y, scroll_event.relative_position);
+            if ui.key_input().key_mods().control_key() {
+                apply_zoom(scroll_event.delta.y, scroll_event.relative_position);
+            } else {
+                const SCROLL_PAN_SPEED: f32 = 400.0;
+                self.state.pan_x += scroll_event.delta.x * SCROLL_PAN_SPEED;
+                self.state.pan_y += scroll_event.delta.y * SCROLL_PAN_SPEED;
+            }
         }
 
         return parent;

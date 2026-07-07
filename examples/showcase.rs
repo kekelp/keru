@@ -461,16 +461,6 @@ impl State {
                 *ui.default_text_style_mut() = ui.original_default_style();
             }
         }
-
-        if ui.key_input().key_mods().control_key() {
-            if let Some(scroll_delta) = ui.scroll_delta() {
-                if scroll_delta.y > 0.0 {
-                    ui.default_text_style_mut().font_size = (ui.default_text_style().font_size + 2.0).min(72.0);
-                } else if scroll_delta.y < 0.0 {
-                    ui.default_text_style_mut().font_size = (ui.default_text_style().font_size - 2.0).max(8.0);
-                }
-            }
-        }
     }
 }
 

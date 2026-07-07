@@ -132,18 +132,18 @@ impl<'a> UiNode<'a> {
     /// Like [`UiNode::scrolled_at()`], but big scroll-wheel scrolls are automatically animated and spread out over several frames.
     ///
     /// The values returned over the lifetime of a single scroll event sum to the same total as [`UiNode::scrolled_at()`].
-    /// 
     /// Small pixel scrolls from a touchpad pass through as-is.
     pub fn scrolled_at_animated(&self) -> Option<Scroll> {
         let sys = self.sys();
         let node = self.node();
+        let delta = sys.check_scrolled_animated(node.id)?;
         let scroll_event = sys.check_last_animated_scroll_event(node.id)?;
         let logical_size = sys.logical_size();
         let relative_position = inner_relative_position(scroll_event.position, logical_size, node.real_rect, node.params.layout.padding);
         Some(Scroll {
             relative_position,
             absolute_position: scroll_event.position,
-            delta: scroll_event.delta,
+            delta,
             timestamp: scroll_event.timestamp,
         })
     }
