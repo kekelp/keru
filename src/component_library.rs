@@ -154,6 +154,75 @@ impl Ui {
         })
     }
 
+    /// Add a horizontal tabs container.
+    #[track_caller]
+    pub fn horizontal_tabs(&mut self, tabs: &[Tab], current_tab: &mut usize) -> (UiParent, Tab) {
+        #[node_key] const HORIZONTAL_TABS_TAB_BUTTON: NodeKey;
+        #[node_key] const HORIZONTAL_TABS_CONTENT_PANEL: NodeKey;
+        assert!(!tabs.is_empty());
+
+        self.key_scope().start(|| {
+            let max_n = tabs.len() - 1;
+            if *current_tab > max_n {
+                *current_tab = max_n;
+            }
+
+            for (i, _) in tabs.iter().enumerate() {
+                if self.is_clicked(HORIZONTAL_TABS_TAB_BUTTON.sibling(i)) {
+                    *current_tab = i;
+                }
+            }
+
+            let ilen = tabs.len() as isize;
+            if self
+                .key_input()
+                .key_pressed_or_repeated(&winit::keyboard::Key::Named(
+                    winit::keyboard::NamedKey::Tab,
+                ))
+                && self.key_input().key_mods().control_key()
+            {
+                if self.key_input().key_mods().shift_key() {
+                    *current_tab = (((*current_tab as isize) - 1 + ilen) % ilen) as usize;
+                } else {
+                    *current_tab = (*current_tab + 1) % tabs.len();
+                }
+            }
+
+            let selected_tab = tabs[*current_tab];
+
+            let v_stack = V_STACK.stack_spacing(0.0);
+            let tabs_h_stack = H_STACK
+                .size_y(Size::FitContent)
+                .accessibility_role(AccessKitRole::TabList);
+            let inactive_tab = BUTTON
+                .shape(Shape::Rectangle { rounded_corners: RoundedCorners::TOP, corner_radius: 5.0 })
+                .fill(self.theme().muted_background)
+                .accessibility_role(AccessKitRole::Tab);
+            let active_tab = inactive_tab.fill(self.theme().background);
+
+            let content_panel = PANEL
+                .size_symm(Size::Fill)
+                .fill(self.theme().background)
+                .children_can_hide(true)
+                .accessibility_role(AccessKitRole::TabPanel)
+                .key(HORIZONTAL_TABS_CONTENT_PANEL);
+
+            self.add(v_stack).nest(|| {
+                self.add(tabs_h_stack).nest(|| {
+                    for (i, tab_name) in tabs.iter().enumerate() {
+                        let key_i = HORIZONTAL_TABS_TAB_BUTTON.sibling(i);
+                        let active = i == *current_tab;
+                        let tab = if active { active_tab } else { inactive_tab };
+                        let tab = tab.static_text(tab_name.0).accessibility_selected(active).key(key_i);
+                        self.add(tab);
+                    }
+                });
+
+                (self.add(content_panel), selected_tab)
+            })
+        })
+    }
+
     /// Add a slider for a `f32` value with a label
     #[track_caller]
     pub fn slider(&mut self, value: &mut f32, min: f32, max: f32) {
