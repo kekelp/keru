@@ -148,7 +148,10 @@ macro_rules! for_each_hidden_child {
 }
 
 impl Ui {
-    pub(crate) fn relayout(&mut self) {
+    /// Trigger a relayout of the UI.
+    /// 
+    /// Normally it's not necessary to call this function manually: the UI will relayout automatically in [`Ui::finish_frame()`].
+    pub fn relayout(&mut self) {
         let partial_relayouts = ! self.sys.changes.partial_relayouts.is_empty();
         let full_relayout = self.sys.changes.full_relayout;
         let text_changed = self.sys.changes.text_changed;
@@ -848,7 +851,8 @@ impl Ui {
 
     pub(crate) fn place_child_free(&mut self, child: NodeI, parent: NodeI) {
         for axis in [X, Y] {
-            self.sys.nodes[child].layout_rect[axis] = self.resolve_pos_on_axis(parent, child, axis);
+            let rect = self.resolve_pos_on_axis(parent, child, axis);
+            self.sys.nodes[child].layout_rect[axis] = self.apply_spill_on_axis(child, parent, axis, rect);
         }
 
         self.set_local_layout_rect(child, parent);
@@ -856,6 +860,61 @@ impl Ui {
         if !self.sys.nodes[child].params.ignore_parent_scroll {
             self.update_content_bounds(parent, self.sys.nodes[child].layout_rect);
         }
+    }
+
+    fn apply_spill_on_axis(&self, child: NodeI, parent: NodeI, axis: Axis, rect: [f32; 2]) -> [f32; 2] {
+        let behavior = self.sys.nodes[child].params.layout.window_overflow[axis];
+        if behavior == WindowOverflow::Ignore {
+            return rect;
+        }
+
+        const WIN_LO: f32 = 0.0;
+        const WIN_HI: f32 = 1.0;
+
+        let [lo, hi] = rect;
+        let size = hi - lo;
+
+        // If the node is larger than the window, just give up.
+        if size >= (WIN_HI - WIN_LO) {
+            return [WIN_LO, WIN_LO + size];
+        }
+
+        let mut out = rect;
+
+        if behavior == WindowOverflow::Flip {
+            // The anchor point (in absolute coords) is the point that should stay fixed, e.g. the cursor.
+            let flipped = match axis {
+                X => self.sys.nodes[parent].params.layout.pos_origin_x == HorizontalOrigin::Right,
+                Y => self.sys.nodes[parent].params.layout.pos_origin_y == VerticalOrigin::Bottom,
+            };
+            let anchor_frac = match self.sys.nodes[child].params.layout.anchor[axis] {
+                Anchor::Start => 0.0,
+                Anchor::Center => 0.5,
+                Anchor::End => 1.0,
+                Anchor::Frac(f) => f,
+            };
+            let a = if !flipped { lo + anchor_frac * size } else { hi - anchor_frac * size };
+
+            let reflected = [2.0 * a - hi, 2.0 * a - lo];
+            if hi > WIN_HI && reflected[0] >= WIN_LO {
+                out = reflected;
+            } else if lo < WIN_LO && reflected[1] <= WIN_HI {
+                out = reflected;
+            }
+        }
+
+        // Clamp (also the fallback when a flip wouldn't fit either).
+        let [mut lo, mut hi] = out;
+        let size = hi - lo;
+        if hi > WIN_HI {
+            hi = WIN_HI;
+            lo = hi - size;
+        }
+        if lo < WIN_LO {
+            lo = WIN_LO;
+            hi = lo + size;
+        }
+        [lo, hi]
     }
 
     pub(crate) fn place_children_free(&mut self, i: NodeI) {

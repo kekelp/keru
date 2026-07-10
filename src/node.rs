@@ -370,6 +370,20 @@ impl Hash for Pos {
     }
 }
 
+/// What to do if a freely-placed node would extend past the window edge.
+///
+/// Does not affect children of [`ChildrenLayout::Stack`] or [`ChildrenLayout::Grid`], unless they also use the [`free_placement`](NodeParams::free_placement)) flag.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum WindowOverflow {
+    /// Leave the node where it is, even if it spills out of the window.
+    #[default]
+    Ignore,
+    /// Push the node back inside the window.
+    Clamp,
+    /// Mirror the node to the other side of its anchor point. The expected behavior of classic right-click context menus.
+    Flip,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HorizontalOrigin {
     Left,
@@ -522,6 +536,8 @@ pub struct Layout {
     pub pos_origin_x: HorizontalOrigin,
     pub pos_origin_y: VerticalOrigin,
     pub scrollable: Xy<bool>,
+    /// What to do if this node would spill out of the window, when placed freely.
+    pub window_overflow: Xy<WindowOverflow>,
 }
 impl Hash for Layout {
     fn hash<H: Hasher>(&self, state: &mut H) {
@@ -533,6 +549,7 @@ impl Hash for Layout {
         self.pos_origin_x.hash(state);
         self.pos_origin_y.hash(state);
         self.scrollable.hash(state);
+        self.window_overflow.hash(state);
     }
 }
 
@@ -546,6 +563,7 @@ impl Default for Layout {
             pos_origin_x: HorizontalOrigin::Left,
             pos_origin_y: VerticalOrigin::Top,
             scrollable: Xy::new(false, false),
+            window_overflow: Xy::new_symm(WindowOverflow::Ignore),
         }
     }
 }
@@ -608,6 +626,28 @@ impl Layout {
 
     pub const fn pos_origin_y(mut self, origin: VerticalOrigin) -> Self {
         self.pos_origin_y = origin;
+        return self;
+    }
+
+    pub const fn keep_in_window(mut self, x: WindowOverflow, y: WindowOverflow) -> Self {
+        self.window_overflow.x = x;
+        self.window_overflow.y = y;
+        return self;
+    }
+
+    pub const fn keep_in_window_symm(mut self, value: WindowOverflow) -> Self {
+        self.window_overflow.x = value;
+        self.window_overflow.y = value;
+        return self;
+    }
+
+    pub const fn keep_in_window_x(mut self, value: WindowOverflow) -> Self {
+        self.window_overflow.x = value;
+        return self;
+    }
+
+    pub const fn keep_in_window_y(mut self, value: WindowOverflow) -> Self {
+        self.window_overflow.y = value;
         return self;
     }
 }
@@ -1303,6 +1343,33 @@ impl<'a> Node<'a> {
     pub const fn pos_origin_y(mut self, origin: VerticalOrigin) -> Self {
         self.layout.pos_origin_y = origin;
         return self;
+    }
+
+    /// Set the [`WindowOverflow`] behavior on both axes.
+    pub const fn keep_in_window(mut self, value: WindowOverflow) -> Self {
+        self.layout.window_overflow.x = value;
+        self.layout.window_overflow.y = value;
+        return self;
+    }
+
+    /// Set the horizontal [`WindowOverflow`].
+    pub const fn keep_in_window_x(mut self, value: WindowOverflow) -> Self {
+        self.layout.window_overflow.x = value;
+        return self;
+    }
+
+    /// Set the vertical [`WindowOverflow`].
+    pub const fn keep_in_window_y(mut self, value: WindowOverflow) -> Self {
+        self.layout.window_overflow.y = value;
+        return self;
+    }
+
+    /// Helper for positioning the node using the classic right-click context menu logic.
+    pub const fn context_menu_at(self, cursor_x: f32, cursor_y: f32) -> Self {
+        self.free_placement(true)
+            .position(Pos::Pixels(cursor_x), Pos::Pixels(cursor_y))
+            .anchor(Anchor::Start, Anchor::Start)
+            .keep_in_window(WindowOverflow::Flip)
     }
 
     /// Set the node's [`Layout`].

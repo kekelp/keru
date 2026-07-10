@@ -99,6 +99,12 @@ impl<'a> UiNode<'a> {
         sys.nodes[i].params.layout.position.y = y;
     }
 
+    pub fn set_keep_in_window(&mut self, x: WindowOverflow, y: WindowOverflow) {
+        let i = self.i;
+        let sys = self.sys_mut();
+        sys.nodes[i].params.layout.window_overflow = Xy::new(x, y);
+    }
+
     /// Get an iterator over all the children added to the node so far.
     pub fn children(&'a self) -> impl Iterator<Item = UiNode<'a>> {
         let sys = self.sys();
