@@ -25,12 +25,12 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     let orange = Color::from_hex_str("#f9844a");
 
     let color_to_gradient = if on {
-        ColorFill2::LinearGradient(LinearGradient { color_start: pink, color_end: cyan, angle_deg: 45.0 })
+        ColorFill::LinearGradient(LinearGradient { color_start: pink, color_end: cyan, angle_deg: 45.0 })
     } else {
-        ColorFill2::Color(green)
+        ColorFill::Color(green)
     };
 
-    let gradient_angle = ColorFill2::LinearGradient(LinearGradient {
+    let gradient_angle = ColorFill::LinearGradient(LinearGradient {
         color_start: pink,
         color_end: cyan,
         angle_deg: if on { 135.0 } else { 0.0 },
@@ -43,9 +43,9 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     };
 
     let color_to_radial = if on {
-        ColorFill2::RadialGradient { color_inner: yellow, color_outer: purple }
+        ColorFill::RadialGradient { color_inner: yellow, color_outer: purple }
     } else {
-        ColorFill2::Color(blue)
+        ColorFill::Color(blue)
     };
 
     let corner_radius = Shape::Rectangle {
@@ -54,9 +54,9 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     };
 
     let ring_fill = if on {
-        ColorFill2::RadialGradient { color_inner: cyan, color_outer: blue }
+        ColorFill::RadialGradient { color_inner: cyan, color_outer: blue }
     } else {
-        ColorFill2::Color(cyan)
+        ColorFill::Color(cyan)
     };
     let ring = Shape::Ring { width: if on { 44.0 } else { 8.0 } };
 
@@ -66,9 +66,9 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     };
 
     let hexagon_fill = if on {
-        ColorFill2::LinearGradient(LinearGradient { color_start: teal, color_end: blue, angle_deg: 90.0 })
+        ColorFill::LinearGradient(LinearGradient { color_start: teal, color_end: blue, angle_deg: 90.0 })
     } else {
-        ColorFill2::Color(teal)
+        ColorFill::Color(teal)
     };
     let hexagon = Shape::Hexagon {
         size: if on { 1.0 } else { 0.55 },
@@ -81,10 +81,10 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         width: if on { 34.0 } else { 14.0 },
     };
 
-    let orange_purple = ColorFill2::LinearGradient(LinearGradient { color_start: orange, color_end: purple, angle_deg: 45.0 });
-    let coral_teal = ColorFill2::LinearGradient(LinearGradient { color_start: coral, color_end: teal, angle_deg: 90.0 });
-    let yellow_coral = ColorFill2::LinearGradient(LinearGradient { color_start: yellow, color_end: coral, angle_deg: 90.0 });
-    let pink_yellow = ColorFill2::LinearGradient(LinearGradient { color_start: pink, color_end: yellow, angle_deg: 0.0 });
+    let orange_purple = ColorFill::LinearGradient(LinearGradient { color_start: orange, color_end: purple, angle_deg: 45.0 });
+    let coral_teal = ColorFill::LinearGradient(LinearGradient { color_start: coral, color_end: teal, angle_deg: 90.0 });
+    let yellow_coral = ColorFill::LinearGradient(LinearGradient { color_start: yellow, color_end: coral, angle_deg: 90.0 });
+    let pink_yellow = ColorFill::LinearGradient(LinearGradient { color_start: pink, color_end: yellow, angle_deg: 0.0 });
 
     let tile = PANEL.size_symm(Size::Pixels(140.0)).animate_properties(true);
     // Fixed-width cells so the columns line up and labels can't change the layout.

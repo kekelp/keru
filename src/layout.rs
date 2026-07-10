@@ -797,8 +797,8 @@ impl Ui {
         let rect = self.sys.nodes[parent].layout_rect;
         let padding = self.pixels_to_frac(self.sys.nodes[parent].params.layout.padding[axis], axis);
         let flipped = match axis {
-            X => self.sys.nodes[parent].params.layout.pos_origin_x == HorizontalOrigin::Right,
-            Y => self.sys.nodes[parent].params.layout.pos_origin_y == VerticalOrigin::Bottom,
+            X => self.sys.nodes[parent].params.layout.children_origin_x == HorizontalOrigin::Right,
+            Y => self.sys.nodes[parent].params.layout.children_origin_y == VerticalOrigin::Bottom,
         };
 
         let child_size = self.sys.nodes[child].size[axis];
@@ -884,8 +884,8 @@ impl Ui {
         if behavior == WindowOverflow::Flip {
             // The anchor point (in absolute coords) is the point that should stay fixed, e.g. the cursor.
             let flipped = match axis {
-                X => self.sys.nodes[parent].params.layout.pos_origin_x == HorizontalOrigin::Right,
-                Y => self.sys.nodes[parent].params.layout.pos_origin_y == VerticalOrigin::Bottom,
+                X => self.sys.nodes[parent].params.layout.children_origin_x == HorizontalOrigin::Right,
+                Y => self.sys.nodes[parent].params.layout.children_origin_y == VerticalOrigin::Bottom,
             };
             let anchor_frac = match self.sys.nodes[child].params.layout.anchor[axis] {
                 Anchor::Start => 0.0,

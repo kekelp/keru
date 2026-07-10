@@ -117,7 +117,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     let plot = CONTAINER
         .key(PLOT)
         .size_symm(Size::Fill)
-        .pos_origin(HorizontalOrigin::Left, VerticalOrigin::Bottom)
+        .children_origin(HorizontalOrigin::Left, VerticalOrigin::Bottom)
         .padding(0.0)
         .color(Color::TRANSPARENT);
 
@@ -141,7 +141,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .shape(Shape::Circle)
         .color(Color::TRANSPARENT)
         .stroke(1.4)
-        .stroke_fill(ColorFill2::SharedGradient(GRADIENT_SOURCE))
+        .stroke_fill(ColorFill::SharedGradient(GRADIENT_SOURCE))
         .size_symm(Size::Pixels(8.0))
         .anchor_symm(Anchor::Center)
         .sense_hover_enter_or_exit(true)
@@ -150,7 +150,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 
     let hovered_point = point
         .size_symm(Size::Pixels(12.0))
-        .stroke_fill(ColorFill2::Color(Color::BLACK))
+        .stroke_fill(ColorFill::Color(Color::BLACK))
         .z_index(1.0)
         .shared_gradient(GRADIENT_SOURCE);
 

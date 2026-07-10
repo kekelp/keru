@@ -27,7 +27,7 @@ fn update_ui(_state: &mut (), ui: &mut Ui) {
         .color(Color::TRANSPARENT)
         .absorbs_clicks(false)
         .stroke(14.0)
-        .stroke_fill(ColorFill2::SharedGradient(GRADIENT_SOURCE))
+        .stroke_fill(ColorFill::SharedGradient(GRADIENT_SOURCE))
         .size_symm(Size::Frac(0.9))
         .anchor_symm(Anchor::Center)
         .position_symm(Pos::Frac(0.5));

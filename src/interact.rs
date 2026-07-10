@@ -596,13 +596,13 @@ impl System {
         let now = std::time::Instant::now();
         let mut targets = SmallVec::new();
         targets.push(id);
-        self.mouse_input.events.push(crate::mouse_events::InputEvent::Click(crate::mouse_events::ClickEvent {
+        self.mouse_input.events.push(InputEvent::Click(ClickEvent {
             targets: targets.clone(),
             position,
             button: MouseButton::Left,
             timestamp: now,
         }));
-        self.mouse_input.events.push(crate::mouse_events::InputEvent::ClickRelease(crate::mouse_events::ClickReleaseEvent {
+        self.mouse_input.events.push(InputEvent::ClickRelease(ClickReleaseEvent {
             targets,
             button: MouseButton::Left,
         }));

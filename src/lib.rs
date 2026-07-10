@@ -119,6 +119,7 @@ pub mod thread_future_2;
 pub mod example_window_loop;
 
 pub(crate) mod mouse_events;
+pub(crate) use crate::mouse_events::*;
 
 pub mod key_events;
 

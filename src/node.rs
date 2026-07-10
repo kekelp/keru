@@ -71,7 +71,7 @@ pub struct Node<'a> {
     pub shadow: Option<Shadow>,
     pub second_shadow: Option<Shadow>,
     pub stroke: Option<Stroke>,
-    pub color: ColorFill2,
+    pub color: ColorFill,
     /// Opacity multiplier for the whole node and all its children and grandchildren.
     pub alpha: f32,
     pub visible: bool, // skip both the shape, node and text
@@ -533,8 +533,8 @@ pub struct Layout {
     pub padding: Xy<f32>,
     pub position: Xy<Pos>,
     pub anchor: Xy<Anchor>,
-    pub pos_origin_x: HorizontalOrigin,
-    pub pos_origin_y: VerticalOrigin,
+    pub children_origin_x: HorizontalOrigin,
+    pub children_origin_y: VerticalOrigin,
     pub scrollable: Xy<bool>,
     /// What to do if this node would spill out of the window, when placed freely.
     pub window_overflow: Xy<WindowOverflow>,
@@ -546,8 +546,8 @@ impl Hash for Layout {
         self.padding.y.to_bits().hash(state);
         self.position.hash(state);
         self.anchor.hash(state);
-        self.pos_origin_x.hash(state);
-        self.pos_origin_y.hash(state);
+        self.children_origin_x.hash(state);
+        self.children_origin_y.hash(state);
         self.scrollable.hash(state);
         self.window_overflow.hash(state);
     }
@@ -560,8 +560,8 @@ impl Default for Layout {
             padding: Xy::new_symm(10.0),
             position: Xy::new_symm(Pos::Center),
             anchor: Xy::new_symm(Anchor::Start),
-            pos_origin_x: HorizontalOrigin::Left,
-            pos_origin_y: VerticalOrigin::Top,
+            children_origin_x: HorizontalOrigin::Left,
+            children_origin_y: VerticalOrigin::Top,
             scrollable: Xy::new(false, false),
             window_overflow: Xy::new_symm(WindowOverflow::Ignore),
         }
@@ -613,19 +613,19 @@ impl Layout {
         return self;
     }
 
-    pub const fn pos_origin(mut self, origin_x: HorizontalOrigin, origin_y: VerticalOrigin) -> Self {
-        self.pos_origin_x = origin_x;
-        self.pos_origin_y = origin_y;
+    pub const fn children_origin(mut self, origin_x: HorizontalOrigin, origin_y: VerticalOrigin) -> Self {
+        self.children_origin_x = origin_x;
+        self.children_origin_y = origin_y;
         return self;
     }
 
-    pub const fn pos_origin_x(mut self, origin: HorizontalOrigin) -> Self {
-        self.pos_origin_x = origin;
+    pub const fn children_origin_x(mut self, origin: HorizontalOrigin) -> Self {
+        self.children_origin_x = origin;
         return self;
     }
 
-    pub const fn pos_origin_y(mut self, origin: VerticalOrigin) -> Self {
-        self.pos_origin_y = origin;
+    pub const fn children_origin_y(mut self, origin: VerticalOrigin) -> Self {
+        self.children_origin_y = origin;
         return self;
     }
 
@@ -818,8 +818,7 @@ impl Hash for LinearGradient {
 
 /// Color fill for Nodes.
 #[derive(Debug, Clone, Copy, PartialEq)]
-// todo: rename
-pub enum ColorFill2 {
+pub enum ColorFill {
     Color(Color),
     /// Linear gradient at the given angle (degrees; 0 = left→right, 90 = top→bottom).
     LinearGradient(LinearGradient),
@@ -832,11 +831,11 @@ pub enum ColorFill2 {
     SharedGradient(NodeKey),
 }
 
-impl ColorFill2 {
+impl ColorFill {
     pub(crate) fn resolve(self, x0: f32, y0: f32, x1: f32, y1: f32) -> keru_draw::ColorFill {
         match self {
-            ColorFill2::Color(c) => keru_draw::ColorFill::Color(c),
-            ColorFill2::LinearGradient(lg) => {
+            ColorFill::Color(c) => keru_draw::ColorFill::Color(c),
+            ColorFill::LinearGradient(lg) => {
                 let cx = (x0 + x1) * 0.5;
                 let cy = (y0 + y1) * 0.5;
                 let w = x1 - x0;
@@ -850,7 +849,7 @@ impl ColorFill2 {
                 let p1 = [cx + dx, cy + dy];
                 keru_draw::ColorFill::Gradient(keru_draw::Gradient::linear(p0, p1, lg.color_start, lg.color_end))
             },
-            ColorFill2::RadialGradient { color_inner, color_outer } => {
+            ColorFill::RadialGradient { color_inner, color_outer } => {
                 let cx = (x0 + x1) * 0.5;
                 let cy = (y0 + y1) * 0.5;
                 let w = x1 - x0;
@@ -858,7 +857,7 @@ impl ColorFill2 {
                 let outer_radius = w.min(h) * 0.5;
                 keru_draw::ColorFill::Gradient(keru_draw::Gradient::radial([cx, cy], outer_radius, 0.0, color_inner, color_outer))
             },
-            ColorFill2::SharedGradient(_) => keru_draw::ColorFill::Color(Color::TRANSPARENT),
+            ColorFill::SharedGradient(_) => keru_draw::ColorFill::Color(Color::TRANSPARENT),
         }
     }
 
@@ -866,7 +865,7 @@ impl ColorFill2 {
     /// For `RadialGradient`, uses those radii directly instead of deriving them from the bounding box.
     pub(crate) fn resolve_radial(self, cx: f32, cy: f32, inner_r: f32, outer_r: f32, x0: f32, y0: f32, x1: f32, y1: f32) -> keru_draw::ColorFill {
         match self {
-            ColorFill2::RadialGradient { color_inner, color_outer } => {
+            ColorFill::RadialGradient { color_inner, color_outer } => {
                 keru_draw::ColorFill::Gradient(keru_draw::Gradient::radial([cx, cy], outer_r, inner_r, color_inner, color_outer))
             }
             other => other.resolve(x0, y0, x1, y1),
@@ -876,33 +875,33 @@ impl ColorFill2 {
     pub(crate) fn darken(self, factor: f32) -> Self {
         let d = |c: Color| Color::new(c.r * factor, c.g * factor, c.b * factor, c.a);
         match self {
-            ColorFill2::Color(c) => ColorFill2::Color(d(c)),
-            ColorFill2::LinearGradient(lg) => ColorFill2::LinearGradient(LinearGradient {
+            ColorFill::Color(c) => ColorFill::Color(d(c)),
+            ColorFill::LinearGradient(lg) => ColorFill::LinearGradient(LinearGradient {
                 color_start: d(lg.color_start),
                 color_end: d(lg.color_end),
                 angle_deg: lg.angle_deg,
             }),
-            ColorFill2::RadialGradient { color_inner, color_outer } =>
-                ColorFill2::RadialGradient { color_inner: d(color_inner), color_outer: d(color_outer) },
-            ColorFill2::SharedGradient(_) => panic!("darken called on SharedGradient; resolve first"),
+            ColorFill::RadialGradient { color_inner, color_outer } =>
+                ColorFill::RadialGradient { color_inner: d(color_inner), color_outer: d(color_outer) },
+            ColorFill::SharedGradient(_) => panic!("darken called on SharedGradient; resolve first"),
         }
     }
 }
 
 // todo: is the size of this really ok?
 /// The visual style of a stroke.
-impl Hash for ColorFill2 {
+impl Hash for ColorFill {
     fn hash<H: Hasher>(&self, state: &mut H) {
         std::mem::discriminant(self).hash(state);
         match self {
-            ColorFill2::Color(c) => {
+            ColorFill::Color(c) => {
                 c.r.to_bits().hash(state);
                 c.g.to_bits().hash(state);
                 c.b.to_bits().hash(state);
                 c.a.to_bits().hash(state);
             }
-            ColorFill2::LinearGradient(lg) => lg.hash(state),
-            ColorFill2::RadialGradient { color_inner, color_outer } => {
+            ColorFill::LinearGradient(lg) => lg.hash(state),
+            ColorFill::RadialGradient { color_inner, color_outer } => {
                 color_inner.r.to_bits().hash(state);
                 color_inner.g.to_bits().hash(state);
                 color_inner.b.to_bits().hash(state);
@@ -912,7 +911,7 @@ impl Hash for ColorFill2 {
                 color_outer.b.to_bits().hash(state);
                 color_outer.a.to_bits().hash(state);
             }
-            ColorFill2::SharedGradient(k) => {
+            ColorFill::SharedGradient(k) => {
                 k.hash(state);
             }
         }
@@ -924,7 +923,7 @@ pub struct Stroke {
     /// Width of the stroke.
     pub width: f32,
     /// Color of the stroke.
-    pub color: ColorFill2,
+    pub color: ColorFill,
     /// Lengths of dashes.
     pub dash_length: f32,
     /// Dash offset.
@@ -935,7 +934,7 @@ impl Stroke {
     pub const fn new(width: f32) -> Self {
         Self {
             width,
-            color: ColorFill2::Color(Color::KERU_GREEN),
+            color: ColorFill::Color(Color::KERU_GREEN),
             dash_length: 0.0,
             dash_offset: 0.0,
         }
@@ -948,7 +947,7 @@ impl Stroke {
     }
 
     pub const fn with_color(mut self, color: Color) -> Self {
-        self.color = ColorFill2::Color(color);
+        self.color = ColorFill::Color(color);
         self
     }
 }
@@ -1140,10 +1139,10 @@ impl<'a> Node<'a> {
     /// Set the stroke width.
     pub const fn stroke_linear_gradient(mut self, gradient: LinearGradient) -> Self {
         if let Some(stroke) = &mut self.stroke {
-            stroke.color = ColorFill2::LinearGradient(gradient);
+            stroke.color = ColorFill::LinearGradient(gradient);
         } else {
             self.stroke = Some(Stroke::new(5.0));
-            self.stroke.unwrap().color = ColorFill2::LinearGradient(gradient);
+            self.stroke.unwrap().color = ColorFill::LinearGradient(gradient);
         }
         return self;
     }
@@ -1327,21 +1326,21 @@ impl<'a> Node<'a> {
     }
 
     /// Set the origin edges for this node's children's positions.
-    pub const fn pos_origin(mut self, origin_x: HorizontalOrigin, origin_y: VerticalOrigin) -> Self {
-        self.layout.pos_origin_x = origin_x;
-        self.layout.pos_origin_y = origin_y;
+    pub const fn children_origin(mut self, origin_x: HorizontalOrigin, origin_y: VerticalOrigin) -> Self {
+        self.layout.children_origin_x = origin_x;
+        self.layout.children_origin_y = origin_y;
         return self;
     }
 
     /// Set the horizontal origin edge for this node's children's positions.
-    pub const fn pos_origin_x(mut self, origin: HorizontalOrigin) -> Self {
-        self.layout.pos_origin_x = origin;
+    pub const fn children_origin_x(mut self, origin: HorizontalOrigin) -> Self {
+        self.layout.children_origin_x = origin;
         return self;
     }
 
     /// Set the vertical origin edge for this node's children's positions.
-    pub const fn pos_origin_y(mut self, origin: VerticalOrigin) -> Self {
-        self.layout.pos_origin_y = origin;
+    pub const fn children_origin_y(mut self, origin: VerticalOrigin) -> Self {
+        self.layout.children_origin_y = origin;
         return self;
     }
 
@@ -1461,7 +1460,7 @@ impl<'a> Node<'a> {
     }
 
     /// Set the stroke fill to a shared gradient.
-    pub const fn stroke_fill(mut self, fill: ColorFill2) -> Self {
+    pub const fn stroke_fill(mut self, fill: ColorFill) -> Self {
         if let Some(old_stroke) = self.stroke {
             self.stroke = Some(Stroke {
                 color: fill,
@@ -1473,24 +1472,24 @@ impl<'a> Node<'a> {
 
     /// Set the fill color.
     pub const fn color(mut self, color: Color) -> Self {
-        self.color = ColorFill2::Color(color);
+        self.color = ColorFill::Color(color);
         return self;
     }
 
     /// Set the fill to a linear gradient relative to the node's bounds.
     pub const fn linear_gradient(mut self, gradient: LinearGradient) -> Self {
-        self.color = ColorFill2::LinearGradient(gradient);
+        self.color = ColorFill::LinearGradient(gradient);
         return self;
     }
 
     /// Set the fill to use another node's linear gradient at its absolute position.
     pub const fn shared_gradient(mut self, key: NodeKey) -> Self {
-        self.color = ColorFill2::SharedGradient(key);
+        self.color = ColorFill::SharedGradient(key);
         return self;
     }
 
-    /// Set the fill to a [`ColorFill2`].
-    pub const fn fill(mut self, fill: ColorFill2) -> Self {
+    /// Set the fill to a [`ColorFill`].
+    pub const fn fill(mut self, fill: ColorFill) -> Self {
         self.color = fill;
         return self;
     }
@@ -2470,8 +2469,8 @@ impl Ui {
     }
 }
 
-fn fills_can_be_interpolated(a: ColorFill2, b: ColorFill2) -> bool {
-    use ColorFill2::*;
+fn fills_can_be_interpolated(a: ColorFill, b: ColorFill) -> bool {
+    use ColorFill::*;
     match (a, b) {
         (Color(_), Color(_)) => true,
         (LinearGradient(_), LinearGradient(_)) => true,
@@ -2588,8 +2587,8 @@ impl System {
         (Color::new(r, g, b, a), d0 && d1 && d2 && d3)
     }
 
-    fn step_color_fill(&self, current: ColorFill2, target: ColorFill2, speed: f32) -> (ColorFill2, bool) {
-        use ColorFill2::*;
+    fn step_color_fill(&self, current: ColorFill, target: ColorFill, speed: f32) -> (ColorFill, bool) {
+        use ColorFill::*;
         match (current, target) {
             (Color(a), Color(b)) => {
                 let (c, done) = self.step_color(a, b, speed);
@@ -2624,22 +2623,22 @@ impl System {
         }
     }
 
-    fn step_linear_gradient(&self, a: LinearGradient, b: LinearGradient, speed: f32) -> (ColorFill2, bool) {
+    fn step_linear_gradient(&self, a: LinearGradient, b: LinearGradient, speed: f32) -> (ColorFill, bool) {
         let (start, d0) = self.step_color(a.color_start, b.color_start, speed);
         let (end, d1) = self.step_color(a.color_end, b.color_end, speed);
         let delta = (b.angle_deg - a.angle_deg + 180.0).rem_euclid(360.0) - 180.0;
         let (angle, d2) = self.exp_tail_step(a.angle_deg, a.angle_deg + delta, speed);
         if d0 && d1 && d2 {
-            (ColorFill2::LinearGradient(b), true)
+            (ColorFill::LinearGradient(b), true)
         } else {
-            (ColorFill2::LinearGradient(LinearGradient::new(start, end, angle)), false)
+            (ColorFill::LinearGradient(LinearGradient::new(start, end, angle)), false)
         }
     }
 
-    fn step_radial_gradient(&self, ai: Color, ao: Color, bi: Color, bo: Color, speed: f32) -> (ColorFill2, bool) {
+    fn step_radial_gradient(&self, ai: Color, ao: Color, bi: Color, bo: Color, speed: f32) -> (ColorFill, bool) {
         let (inner, d0) = self.step_color(ai, bi, speed);
         let (outer, d1) = self.step_color(ao, bo, speed);
-        (ColorFill2::RadialGradient { color_inner: inner, color_outer: outer }, d0 && d1)
+        (ColorFill::RadialGradient { color_inner: inner, color_outer: outer }, d0 && d1)
     }
 }
 

@@ -1,5 +1,4 @@
 use glam::vec2;
-use keru_draw::*;
 use winit::event::*;
 
 use crate::*;
@@ -242,7 +241,7 @@ impl Ui {
         let dark = dark_click.min(dark_hover);
 
         // Apply darkening to fill (SharedGradient is handled separately via resolve_shared below)
-        let fill = if !matches!(node.params.color, ColorFill2::SharedGradient(_)) {
+        let fill = if !matches!(node.params.color, ColorFill::SharedGradient(_)) {
             node.params.color.darken(dark)
         } else {
             node.params.color
@@ -267,7 +266,7 @@ impl Ui {
         };
 
         let node_gradient_resolved: Option<keru_draw::ColorFill> =
-            if let ColorFill2::SharedGradient(key) = node.params.color {
+            if let ColorFill::SharedGradient(key) = node.params.color {
                 Some(resolve_shared(key))
             } else {
                 None
@@ -275,7 +274,7 @@ impl Ui {
 
         let stroke_node_gradient_resolved: Option<keru_draw::ColorFill> =
             if let Some(s) = node.params.stroke {
-                if let ColorFill2::SharedGradient(key) = s.color {
+                if let ColorFill::SharedGradient(key) = s.color {
                     Some(resolve_shared(key))
                 } else {
                     None
@@ -295,10 +294,10 @@ impl Ui {
 
         // Check if fill is visible (alpha > 0)
         let fill_visible = !debug_box && match node.params.color {
-            ColorFill2::Color(c) => c.a > 0.0,
-            ColorFill2::LinearGradient(lg) => lg.color_start.a > 0.0 || lg.color_end.a > 0.0,
-            ColorFill2::RadialGradient { color_inner, color_outer } => color_inner.a > 0.0 || color_outer.a > 0.0,
-            ColorFill2::SharedGradient(_) => match node_gradient_resolved {
+            ColorFill::Color(c) => c.a > 0.0,
+            ColorFill::LinearGradient(lg) => lg.color_start.a > 0.0 || lg.color_end.a > 0.0,
+            ColorFill::RadialGradient { color_inner, color_outer } => color_inner.a > 0.0 || color_outer.a > 0.0,
+            ColorFill::SharedGradient(_) => match node_gradient_resolved {
                 Some(keru_draw::ColorFill::Color(c)) => c.a > 0.0,
                 Some(keru_draw::ColorFill::Gradient(ref g)) => g.color_start.a > 0.0 || g.color_end.a > 0.0,
                 Some(keru_draw::ColorFill::SharedGradient(_)) => true,
@@ -310,10 +309,10 @@ impl Ui {
         let shadow_color = |s: Shadow| -> Color {
             s.color.unwrap_or_else(|| {
                 let base = match node.params.color {
-                    ColorFill2::Color(c) => c,
-                    ColorFill2::LinearGradient(lg) => lg.color_start,
-                    ColorFill2::RadialGradient { color_inner, .. } => color_inner,
-                    ColorFill2::SharedGradient(_) => match node_gradient_resolved {
+                    ColorFill::Color(c) => c,
+                    ColorFill::LinearGradient(lg) => lg.color_start,
+                    ColorFill::RadialGradient { color_inner, .. } => color_inner,
+                    ColorFill::SharedGradient(_) => match node_gradient_resolved {
                         Some(keru_draw::ColorFill::Color(c)) => c,
                         Some(keru_draw::ColorFill::Gradient(ref g)) => g.color_start,
                         _ => Color::GREY,
@@ -326,14 +325,14 @@ impl Ui {
         struct ShapePass {
             offset: Xy<f32>,
             blur: f32,
-            fill: ColorFill2,
+            fill: ColorFill,
             texture: Option<LoadedImage>,
         }
 
         let shadow_pass = |s: Shadow| ShapePass {
             offset: Xy::new(s.offset.x * scale_factor, s.offset.y * scale_factor),
             blur: blur + s.blur * scale_factor,
-            fill: ColorFill2::Color(shadow_color(s)),
+            fill: ColorFill::Color(shadow_color(s)),
             texture,
         };
 

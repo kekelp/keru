@@ -108,7 +108,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 
     let track_arc = DEFAULT
         .shape(Shape::Arc { start_angle, end_angle, width: THICKNESS })
-        .fill(ColorFill2::RadialGradient {
+        .fill(ColorFill::RadialGradient {
             color_inner: Color::rgba_u8(249, 30, 80, 200),
             color_outer: Color::rgba_u8(186, 0, 87, 200),
         })
