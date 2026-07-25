@@ -282,9 +282,8 @@ impl Ui {
         if let Some(TextI::TextBox(handle)) = &self.sys.nodes[i].text_i {
             let padding = self.pixels_to_frac2(self.sys.nodes[i].params.layout.padding);
             let inner_width = (self.sys.nodes[i].size.x - 2.0 * padding.x) * self.sys.size[X];
-            let height = self.sys.nodes[i].size.y * self.sys.size[Y];
             let text_box = self.sys.renderer.text.get_text_box_mut(handle);
-            text_box.set_size((inner_width, height));
+            text_box.set_width(inner_width);
         }
     }
 

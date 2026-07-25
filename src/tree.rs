@@ -272,7 +272,8 @@ impl Ui {
 
         // Update text position using animated rect
         let animated_rect = self.sys.nodes[i].get_animated_rect();
-        let padding = self.sys.nodes[i].params.layout.padding;
+
+        let padding = self.sys.nodes[i].params.layout.padding * Xy::new_symm(self.sys.scale_factor);
         let left = (animated_rect[X][0] * self.sys.size[X]) as f64 + padding[X] as f64;
 
         // Calculate node height in pixels
@@ -280,7 +281,6 @@ impl Ui {
         let node_width = (animated_rect[X][1] - animated_rect[X][0]) * self.sys.size[X];
 
         let available_height = node_height - (2.0 * padding[Y] as f32);
-        let available_width = node_width - (2.0 * padding[X] as f32);
 
         // Round to screen pixels using the transform scale
         let scale = self.sys.nodes[i].accumulated_transform.scale as f64;
@@ -308,8 +308,7 @@ impl Ui {
                     node_width - padding[X],                        // max_x
                     node_height - padding[Y] - vertical_offset,     // max_y
                 );
-                // looks like it needs one pixel of breathing room, or the FitContent text will overflow to two lines
-                text_box.set_size((available_width + 1.0, available_height));
+                text_box.set_height(available_height);
                 text_box.set_hitbox(Some(hitbox));
 
                 // Set the screen-space clip rect
@@ -337,7 +336,7 @@ impl Ui {
 
                 text_edit.set_pos(((left * scale).round() / scale, (top * scale).round() / scale));
 
-                // Set hitbox to cover the whole node (in local space relative to text position)
+                // Set hitbox to cover the whole node
                 let node_width = (animated_rect[X][1] - animated_rect[X][0]) * self.sys.size[X];
                 let hitbox = (
                     -padding[X],                                    // min_x
@@ -345,6 +344,8 @@ impl Ui {
                     node_width - padding[X],                        // max_x
                     node_height - padding[Y] - vertical_offset,     // max_y
                 );
+                // For the text edit case, this is pretty minor, it only makes a difference if the user clicks in the text edit node's padding outside of the real keru_text box. And even then the box still gets focus, it just doesn't do caret movement and selections correctly.
+                // For this reason it might be tempting to get rid of the explicit hitbox entirely. It might be replaced with a keru_text native padding. But the thing is that for non-edit text boxes this has another use: we can have a big node with some tiny text, and (for example) have double-click on the space of the whole big node select the text. Browsers do this sometimes, might as well support it.
                 text_edit.set_hitbox(Some(hitbox));
             },
         }
