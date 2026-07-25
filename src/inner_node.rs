@@ -11,7 +11,6 @@ pub struct InnerNode {
     pub original_key: NodeKey, // Without key scope
     pub depth: usize,
 
-    pub last_layout_frame: u64,
     pub frame_added: u64,
     pub last_frame_touched: u64,
 
@@ -30,13 +29,11 @@ pub struct InnerNode {
     pub local_layout_rect: XyRect,
     pub local_animated_rect: XyRect,
     pub content_bounds: XyRect,
-    // could maybe be passed down while traversing instead of stored.
     pub clip_rect: XyRect,
     pub layout_rect: XyRect,
-    // this is sort of a partial result, but might be necessary because of the two-pass size, position layout.
+
     pub size: Xy<f32>,
-    // partial result, but used for partial relayouts.
-    pub last_proposed_sizes: ProposedSizes,
+    pub min_content_size: Xy<f32>,
 
     // Enter or exit animation can be a fuzzy concept, because what if the node gets relayouted to a different position/state before the animation is over? The animation would be "extended" and only end what the node settles in the new final position. Even if at that point it's a mix between an enter/exit animation and a regular interpolation one.
     // exit_animation_still_going is very important as it's what decides when an exiting nodes finally gets removed and cleaned up.
@@ -174,9 +171,8 @@ impl InnerNode {
             clip_rect: Xy::new_symm([0.0, 1.0]),
 
             size: Xy::new_symm(0.5),
+            min_content_size: Xy::new_symm(0.5),
             content_bounds: XyRect::new_symm([0.0, 0.0]),
-
-            last_proposed_sizes: ProposedSizes::container(Xy::new_symm(0.5)),
             text_i: None,
             text_fingerprint: TextFingerprint::None,
 
@@ -219,7 +215,6 @@ impl InnerNode {
             z: 0.0,
 
             relayout_chain_root: None,
-            last_layout_frame: 0,
             frame_added: current_frame,
             last_frame_touched: current_frame,
 
@@ -306,9 +301,8 @@ pub const NODE_ROOT: InnerNode = InnerNode {
     clip_rect: Xy::new_symm([0.0, 1.0]),
 
     size: Xy::new_symm(1.0),
+    min_content_size: Xy::new_symm(1.0),
     content_bounds: XyRect::new_symm([0.0, 0.0]),
-
-    last_proposed_sizes: ProposedSizes::container(Xy::new_symm(1.0)),
 
     scroll: Xy::new(0.0, 0.0),
     scroll_animation_target: Xy::new(0.0, 0.0),
@@ -354,7 +348,6 @@ pub const NODE_ROOT: InnerNode = InnerNode {
     z: -10000.0,
 
     relayout_chain_root: None,
-    last_layout_frame: 0,
     frame_added: 0,
     last_frame_touched: u64::MAX,
 

@@ -126,9 +126,6 @@ pub(crate) struct System {
     pub focused: Option<Id>,
     pub show_focus_indicator: bool,
 
-    // this is used exclusively for info messages
-    pub partial_relayout_count: u32,
-
 
     pub changes: Changes,
 
@@ -286,8 +283,6 @@ impl Ui {
 
                 click_rects: Vec::with_capacity(50),
 
-
-                partial_relayout_count: 0,
 
                 current_frame: FIRST_FRAME,
                 last_frame_end_fake_time: 0,
@@ -649,7 +644,7 @@ impl Ui {
     /// For more advanced use cases, use [`Ui::font_context()`] to access the parley `FontContext` directly.
     ///
     /// # Example
-    /// ```no_run
+    /// ```ignore
     /// # use keru::*;
     /// # let mut ui: Ui = unimplemented!();
     /// let font_name = ui.load_font(include_bytes!("MyFont.ttf")).expect("Failed to load font");

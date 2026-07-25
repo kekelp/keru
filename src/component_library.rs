@@ -116,7 +116,7 @@ impl Ui {
                 }
             }
 
-            let h_stack = H_STACK.stack_spacing(0.0);
+            let h_stack = H_STACK.size_symm(Size::Fill).stack_spacing(0.0);
             let tabs_v_stack = V_STACK
                 .size_x(Size::Pixels(250.0))
                 .accessibility_role(AccessKitRole::TabList);
@@ -244,10 +244,10 @@ impl Ui {
                     }
                 }
 
-                if self.accesskit_action(SLIDER_CONTAINER, AccessKitAction::Increment) {
+                if self.check_accesskit_action(SLIDER_CONTAINER, AccessKitAction::Increment) {
                     new_value += step;
                 }
-                if self.accesskit_action(SLIDER_CONTAINER, AccessKitAction::Decrement) {
+                if self.check_accesskit_action(SLIDER_CONTAINER, AccessKitAction::Decrement) {
                     new_value -= step;
                 }
 
@@ -312,10 +312,10 @@ impl Ui {
                     }
                 }
 
-                if self.accesskit_action(SLIDER_CONTAINER, AccessKitAction::Increment) {
+                if self.check_accesskit_action(SLIDER_CONTAINER, AccessKitAction::Increment) {
                     new_value += step;
                 }
-                if self.accesskit_action(SLIDER_CONTAINER, AccessKitAction::Decrement) {
+                if self.check_accesskit_action(SLIDER_CONTAINER, AccessKitAction::Decrement) {
                     new_value -= step;
                 }
 

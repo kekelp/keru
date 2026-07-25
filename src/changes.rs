@@ -20,7 +20,6 @@ impl PartialOrd for NodeWithDepth {
 
 #[derive(Debug)]
 pub struct Changes {
-    pub partial_relayouts: Vec<NodeWithDepth>,
     pub full_relayout: bool,
     pub text_changed: bool,
     pub unfinished_animations: bool,
@@ -37,7 +36,6 @@ pub struct Changes {
 impl Changes {
     pub fn new() -> Changes {
         return Changes {
-            partial_relayouts: Vec::with_capacity(15),
             text_changed: false,
             full_relayout: true,
             unfinished_animations: false,
@@ -52,7 +50,6 @@ impl Changes {
     }
 
     pub fn reset_layout_changes(&mut self) {
-        self.partial_relayouts.clear();
         self.full_relayout = false;
     }
 }

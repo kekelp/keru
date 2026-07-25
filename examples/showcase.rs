@@ -136,7 +136,7 @@ impl UiExt for Ui {
             .size_x(Size::Fill)
             .static_text("Every node can be everything at once.");
 
-        self.add(PANEL).nest(|| {
+        self.add(PANEL.size_y(Size::Fill)).nest(|| {
             self.add(big_button).nest(|| {
                 self.spacer();
                 self.add(nested_button_1);

@@ -12,79 +12,6 @@ struct GridOccupancy<'a> {
     cursor_line: usize,
 }
 
-impl<'a> GridOccupancy<'a> {
-    fn new(n_per_line: usize, arena: &'a bumpalo::Bump) -> Self {
-        Self { cells: BumpVec::new_in(arena), n_per_line, n_lines: 0, cursor_line: 0 }
-    }
-
-    fn is_free(&self, line: usize, pos: usize, span_line: usize, span_pos: usize) -> bool {
-        for l in line..line + span_line {
-            if l >= self.n_lines { continue; } // unallocated lines are free
-            for p in pos..pos + span_pos {
-                if self.cells[l * self.n_per_line + p] { return false; }
-            }
-        }
-        true
-    }
-
-    fn occupy(&mut self, line: usize, pos: usize, span_line: usize, span_pos: usize) {
-        let needed = line + span_line;
-        if self.n_lines < needed {
-            self.cells.resize(needed * self.n_per_line, false);
-            self.n_lines = needed;
-        }
-        for l in line..line + span_line {
-            for p in pos..pos + span_pos {
-                self.cells[l * self.n_per_line + p] = true;
-            }
-        }
-    }
-
-    /// Find the first free rectangle of size (span_line x span_pos), occupy it, and return its (line, pos).
-    /// If `backfill` is true, search from the beginning (dense, fills gaps). Otherwise search from the cursor.
-    fn place_next(&mut self, span_line: usize, span_pos: usize, backfill: bool) -> (usize, usize) {
-        let span_pos = span_pos.min(self.n_per_line).max(1);
-        let span_line = span_line.max(1);
-        let mut line = if backfill { 0 } else { self.cursor_line };
-        loop {
-            for pos in 0..=self.n_per_line - span_pos {
-                if self.is_free(line, pos, span_line, span_pos) {
-                    self.occupy(line, pos, span_line, span_pos);
-                    if !backfill {
-                        self.cursor_line = line;
-                    }
-                    return (line, pos);
-                }
-            }
-            line += 1;
-        }
-    }
-}
-
-/// Convert (col_span, row_span) to occupancy (span_line, span_pos) based on main_axis.
-/// X-major: line=row, pos=col.  Y-major: line=col, pos=row.
-fn to_occ_spans(col_span: usize, row_span: usize, flow: GridFlow) -> (usize, usize) {
-    match flow.main_axis {
-        Axis::X => (row_span, col_span),
-        Axis::Y => (col_span, row_span),
-    }
-}
-
-/// Convert occupancy (line, pos) to (logical_col, logical_row).
-fn from_occ(line: usize, pos: usize, flow: GridFlow) -> (usize, usize) {
-    match flow.main_axis {
-        Axis::X => (pos, line),
-        Axis::Y => (line, pos),
-    }
-}
-
-/// Apply flow reversal: convert logical (col, row) to actual (col, row) for placement.
-fn apply_reversal(logical_col: usize, logical_row: usize, col_span: usize, row_span: usize, n_cols: usize, n_rows: usize, flow: GridFlow) -> (usize, usize) {
-    let col = if flow.x_fill_direction == Direction::RightToLeft { n_cols - col_span - logical_col } else { logical_col };
-    let row = if flow.y_fill_direction == Direction::RightToLeft { n_rows - row_span - logical_row } else { logical_row };
-    (col, row)
-}
-
 /// Iterate on the children linked list.
 #[macro_export]
 #[doc(hidden)] // Ideally these wouldn't even be public
@@ -152,25 +79,18 @@ impl Ui {
     /// 
     /// Normally it's not necessary to call this function manually: the UI will relayout automatically in [`Ui::finish_frame()`].
     pub fn relayout(&mut self) {
-        let partial_relayouts = ! self.sys.changes.partial_relayouts.is_empty();
         let full_relayout = self.sys.changes.full_relayout;
         let text_changed = self.sys.changes.text_changed;
-        let nothing_to_do = !partial_relayouts && !full_relayout && !text_changed;
+        let nothing_to_do = !full_relayout && !text_changed;
         if nothing_to_do {
             return;
         }
 
-        // if anything happened at all, we'll need to rerender.
         self.sys.changes.need_gpu_rect_update = true;
         self.sys.changes.need_rerender = true;
 
         // todo: bring back partial relayouts
-        self.relayout_from_root();
-        // if full_relayout {
-        //     self.relayout_from_root();
-        // } else {
-        //     self.do_partial_relayouts();
-        // }
+        self.clay_relayout_from_root();
 
         self.rebuild_render_data();
 
@@ -181,46 +101,539 @@ impl Ui {
         self.resolve_hover();
     }
 
-    // this gets called even when zero relayouts are needed. in that case it just does nothing. I guess it's to make the layout() logic more readable
-    pub(crate) fn _do_partial_relayouts(&mut self) {
-        // sort by depth
-        // todo: there was something about it being close to already sorted, except in reverse
-        // the plan was to sort it in reverse and then use it in reverse
-        self.sys.changes.partial_relayouts.sort();
-        self.sys.partial_relayout_count = 0;
-
-        for i in 0..self.sys.changes.partial_relayouts.len() {
-            // in partial_relayout(), we will check for overlaps.
-            // todo: if that works as expected, maybe we can skip the limit/full relayout thing, or at least raise the limit by a lot.
-            let relayout = self.sys.changes.partial_relayouts[i];
-            
-            self._partial_relayout(relayout.i);
-        }
-
-        if self.sys.partial_relayout_count != 0 {
-            let nodes = if self.sys.partial_relayout_count == 1 { "node" } else { "nodes" };
-            log::info!("Partial relayout ({:?} {nodes})", self.sys.partial_relayout_count);
-        }
-
-        self.sys.partial_relayout_count = 0;
-        self.sys.changes.partial_relayouts.clear();
-    }
-
-    pub(crate) fn relayout_from_root(&mut self) {
+    pub(crate) fn clay_relayout_from_root(&mut self) {
         log::info!("Full relayout");
 
-        // 1st recursive tree traversal: start from the root and recursively determine the size of all nodes
-        let starting_proposed_size = Xy::new(1.0, 1.0);
+        self.clay_fit_sizing(ROOT_I, X);
+        self.sys.nodes[ROOT_I].size[X] = 1.0;
 
-        self.recursive_determine_size_and_hidden(ROOT_I, ProposedSizes::container(starting_proposed_size), false);
-        
-        // 2nd recursive tree traversal: now that all nodes have a calculated size, place them.
-        // we don't do update_rects here because the first frame you can't update... but maybe just special-case the first frame, then should be faster
+        self.clay_grow_and_shrink(X);
+
+        self.clay_wrap_text(ROOT_I);
+
+        self.clay_fit_sizing(ROOT_I, Y);
+        self.sys.nodes[ROOT_I].size[Y] = 1.0;
+        self.clay_grow_and_shrink(Y);
+
+        self.clay_aspect_ratio_widths(ROOT_I);
+
+        self.clay_size_text_edits(ROOT_I);
+
+        self.sys.nodes[ROOT_I].layout_rect = XyRect::new([0.0, 1.0], [0.0, 1.0]);
         self.recursive_place_children(ROOT_I);
-        
-        self.sys.nodes[ROOT_I].last_layout_frame = self.sys.current_frame;
 
+        // self.dump_layout(ROOT_I, 0);
     }
+
+    #[allow(dead_code)]
+    fn dump_layout(&mut self, i: NodeI, depth: usize) {
+        let name = self.node_debug_name(i);
+        let s = self.sys.nodes[i].size;
+        let r = self.sys.nodes[i].layout_rect;
+        log::info!("{:indent$}{name}: size=({:.3},{:.3}) rect=x[{:.3},{:.3}] y[{:.3},{:.3}]",
+            "", s.x, s.y, r.x[0], r.x[1], r.y[0], r.y[1], indent = depth * 2);
+        for_each_child!(self, self.sys.nodes[i], child, {
+            self.dump_layout(child, depth + 1);
+        });
+    }
+
+    fn clay_fit_sizing(&mut self, i: NodeI, axis: Axis) {
+        let children_can_hide = match self.sys.nodes[i].params.children_can_hide {
+            ChildrenCanHide::Yes => true,
+            ChildrenCanHide::No => false,
+            ChildrenCanHide::Inherit => self.sys.nodes[i].can_hide,
+        };
+
+        for_each_child!(self, self.sys.nodes[i], child, {
+            if axis == X {
+                self.sys.nodes[child].can_hide = children_can_hide;
+            }
+            self.clay_fit_sizing(child, axis);
+        });
+
+        let padding = self.pixels_to_frac2(self.sys.nodes[i].params.layout.padding)[axis];
+
+        // Aggregate the children into a content fit size and a content min size: sum along the
+        // stack axis, max across it.
+        let mut content = 0.0f32;
+        let mut content_min = 0.0f32;
+        match self.sys.nodes[i].params.children_layout {
+            ChildrenLayout::Stack { axis: stack_axis, spacing, .. } if stack_axis == axis => {
+                let spacing = self.pixels_to_frac(spacing, axis);
+                let mut n = 0;
+                for_each_child!(self, self.sys.nodes[i], child, {
+                    if ! self.sys.nodes[child].params.free_placement {
+                        content += self.sys.nodes[child].size[axis];
+                        content_min += self.sys.nodes[child].min_content_size[axis];
+                        if n != 0 { content += spacing; content_min += spacing; }
+                        n += 1;
+                    }
+                });
+            }
+            ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow } => {
+                (content, content_min) = self.clay_grid_fit(i, axis, columns, spacing_x, spacing_y, flow);
+            }
+            // Across a stack, and for Free: the bounding extent.
+            _ => {
+                for_each_child!(self, self.sys.nodes[i], child, {
+                    if ! self.sys.nodes[child].params.free_placement {
+                        content = content.max(self.sys.nodes[child].size[axis]);
+                        content_min = content_min.max(self.sys.nodes[child].min_content_size[axis]);
+                    }
+                });
+            }
+        }
+
+        if self.sys.nodes[i].text_i.is_some() {
+            let (fit, min) = self.text_content_size(i, axis);
+            content = content.max(fit);
+            content_min = content_min.max(min);
+        }
+        if self.sys.nodes[i].imageref.is_some() {
+            let image = self.determine_image_size(i, Xy::new(1.0, 1.0))[axis];
+            content = content.max(image);
+            content_min = content_min.max(image);
+        }
+
+        let (size, min) = match self.sys.nodes[i].params.layout.size[axis] {
+            Size::Pixels(px) => {
+                let p = self.pixels_to_frac(px, axis);
+                (p, p) // a fixed size can't shrink
+            }
+
+            Size::AspectRatio(ratio) if axis == Y => {
+                let h = self.aspect_ratio_size(i, Y, ratio);
+                (h, h)
+            }
+
+            other => {
+                let min = if self.sys.nodes[i].params.layout.scrollable[axis] || matches!(other, Size::Frac(_)) {
+                    0.0
+                } else {
+                    content_min
+                };
+                (content + 2.0 * padding, min + 2.0 * padding)
+            }
+        };
+
+        self.sys.nodes[i].size[axis] = size;
+        self.sys.nodes[i].min_content_size[axis] = min;
+    }
+
+    fn aspect_ratio_size(&self, i: NodeI, axis: Axis, ratio: f32) -> f32 {
+        let other = axis.other();
+        let other_pixels = self.sys.nodes[i].size[other] * self.sys.size[other];
+        (ratio * other_pixels / self.sys.size[axis]).max(0.0)
+    }
+
+    fn clay_aspect_ratio_widths(&mut self, i: NodeI) {
+        if let Size::AspectRatio(ratio) = self.sys.nodes[i].params.layout.size[X]
+            && ! matches!(self.sys.nodes[i].params.layout.size[Y], Size::AspectRatio(_)) {
+            self.sys.nodes[i].size[X] = self.aspect_ratio_size(i, X, ratio);
+        }
+
+        for_each_child!(self, self.sys.nodes[i], child, {
+            self.clay_aspect_ratio_widths(child);
+        });
+    }
+
+    fn text_content_size(&mut self, i: NodeI, axis: Axis) -> (f32, f32) {
+        let window = self.sys.size[axis];
+        let text_i = self.sys.nodes[i].text_i.as_ref().unwrap();
+
+        const TEXT_WIDTH_TOLERANCE: f32 = 0.05;
+
+        match text_i {
+            TextI::TextBox(handle) => {
+                let text_box = self.sys.renderer.text.get_text_box_mut(handle);
+                match axis {
+                    X => {
+                        let widths = text_box.content_widths();
+                        (
+                            (widths.max + TEXT_WIDTH_TOLERANCE) / window,
+                            (widths.min + TEXT_WIDTH_TOLERANCE) / window,
+                        )
+                    }
+                    Y => {
+                        let height = text_box.layout().height() / window;
+                        (height, height)
+                    }
+                }
+            }
+            TextI::TextEdit(handle) => {
+                let text_edit = self.sys.renderer.text.get_text_edit_mut(handle);
+                if axis == Y && text_edit.single_line() {
+                    let line_height = match text_edit.layout().lines().next() {
+                        Some(first_line) => first_line.metrics().line_height,
+                        None => 0.0,
+                    };
+                    return (line_height / window, 0.0);
+                }
+                (1.0, 0.0)
+            }
+        }
+    }
+
+    fn clay_wrap_text(&mut self, i: NodeI) {
+        for_each_child!(self, self.sys.nodes[i], child, {
+            self.clay_wrap_text(child);
+        });
+
+        if let Some(TextI::TextBox(handle)) = &self.sys.nodes[i].text_i {
+            let padding = self.pixels_to_frac2(self.sys.nodes[i].params.layout.padding);
+            let inner_width = (self.sys.nodes[i].size.x - 2.0 * padding.x) * self.sys.size[X];
+            let height = self.sys.nodes[i].size.y * self.sys.size[Y];
+            let text_box = self.sys.renderer.text.get_text_box_mut(handle);
+            text_box.set_size((inner_width, height));
+        }
+    }
+
+    fn clay_size_text_edits(&mut self, i: NodeI) {
+        for_each_child!(self, self.sys.nodes[i], child, {
+            self.clay_size_text_edits(child);
+        });
+
+        if let Some(TextI::TextEdit(handle)) = &self.sys.nodes[i].text_i {
+            let padding = self.pixels_to_frac2(self.sys.nodes[i].params.layout.padding);
+            let inner_x = (self.sys.nodes[i].size.x - 2.0 * padding.x) * self.sys.size[X];
+            let inner_y = (self.sys.nodes[i].size.y - 2.0 * padding.y) * self.sys.size[Y];
+            let text_edit = self.sys.renderer.text.get_text_edit_mut(handle);
+            text_edit.set_size((inner_x, inner_y));
+        }
+    }
+
+    fn clay_grow_and_shrink(&mut self, axis: Axis) {
+        with_arena(|arena| {
+            let mut bfs = BumpVec::new_in(arena);
+            bfs.push(ROOT_I);
+            let mut resizable = BumpVec::new_in(arena);
+
+            let mut idx = 0;
+            while idx < bfs.len() {
+                let parent = bfs[idx];
+                idx += 1;
+
+                let padding2 = 2.0 * self.pixels_to_frac2(self.sys.nodes[parent].params.layout.padding)[axis];
+                let parent_size = self.sys.nodes[parent].size[axis];
+                let parent_inner = parent_size - padding2;
+
+                let mut n_children = 0;
+                for_each_child!(self, self.sys.nodes[parent], child, {
+                    if self.sys.nodes[child].n_children > 0 {
+                        bfs.push(child);
+                    }
+                    if self.sys.nodes[child].params.free_placement {
+                        self.clay_size_child_in(child, axis, parent_inner);
+                    } else {
+                        n_children += 1;
+                    }
+                });
+
+                if n_children == 0 { continue; }
+
+                // A grid sizes its children from its cells, not by distributing slack.
+                if let ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow } = self.sys.nodes[parent].params.children_layout {
+                    self.clay_grid_sizing(parent, axis, columns, spacing_x, spacing_y, flow);
+                    continue;
+                }
+
+                // Some when we're distributing along this parent's stack axis, None when across it.
+                let along = match self.sys.nodes[parent].params.children_layout {
+                    ChildrenLayout::Stack { axis: a, spacing, .. } if a == axis =>
+                        Some(self.pixels_to_frac(spacing, axis)),
+                    _ => None,
+                };
+
+                if let Some(spacing) = along {
+                    let gaps = spacing * (n_children as f32 - 1.0).max(0.0);
+
+                    let mut inner = gaps;
+                    for_each_child!(self, self.sys.nodes[parent], child, {
+                        if ! self.sys.nodes[child].params.free_placement {
+                            if let Size::Frac(f) = self.sys.nodes[child].params.layout.size[axis] {
+                                self.sys.nodes[child].size[axis] = (parent_size - padding2 - gaps) * f;
+                            }
+                            inner += self.sys.nodes[child].size[axis];
+                        }
+                    });
+                    let mut to_distribute = parent_size - padding2 - inner;
+
+                    let scrolls = self.sys.nodes[parent].params.layout.scrollable[axis];
+                    if to_distribute < 0.0 && !scrolls {
+                        resizable.clear();
+                        for_each_child!(self, self.sys.nodes[parent], child, {
+                            if ! self.sys.nodes[child].params.free_placement && self.clay_can_shrink(child, axis) {
+                                resizable.push(child);
+                            }
+                        });
+                        self.clay_shrink(axis, &mut resizable, &mut to_distribute);
+                    } else if to_distribute > 0.0 {
+                        resizable.clear();
+                        for_each_child!(self, self.sys.nodes[parent], child, {
+                            if ! self.sys.nodes[child].params.free_placement
+                                && self.sys.nodes[child].params.layout.size[axis] == Size::Fill {
+                                resizable.push(child);
+                            }
+                        });
+                        self.clay_grow(axis, &mut resizable, &mut to_distribute);
+                    }
+                } else {
+                    let mut available = parent_inner;
+                    if self.sys.nodes[parent].params.layout.scrollable[axis] {
+                        for_each_child!(self, self.sys.nodes[parent], child, {
+                            if ! self.sys.nodes[child].params.free_placement {
+                                available = available.max(self.sys.nodes[child].size[axis]);
+                            }
+                        });
+                    }
+
+                    for_each_child!(self, self.sys.nodes[parent], child, {
+                        if ! self.sys.nodes[child].params.free_placement {
+                            self.clay_size_child_in(child, axis, available);
+                        }
+                    });
+                }
+            }
+        });
+    }
+
+    fn clay_can_shrink(&self, child: NodeI, axis: Axis) -> bool {
+        match self.sys.nodes[child].params.layout.size[axis] {
+            Size::Fill | Size::FitContent => true,
+            Size::AspectRatio(_) => axis == X,
+            _ => false,
+        }
+    }
+
+    fn clay_size_child_in(&mut self, child: NodeI, axis: Axis, available: f32) {
+        match self.sys.nodes[child].params.layout.size[axis] {
+            Size::Fill => self.sys.nodes[child].size[axis] = available,
+            Size::Frac(f) => self.sys.nodes[child].size[axis] = available * f,
+            Size::FitContent => {
+                let size = self.sys.nodes[child].size[axis];
+                let constrained = if axis == X { size.min(available) } else { size };
+                self.sys.nodes[child].size[axis] = constrained.max(self.sys.nodes[child].min_content_size[axis]);
+            }
+            _ => {}
+        }
+    }
+
+    fn grid_line(&self, child: NodeI, axis: Axis) -> usize {
+        match axis {
+            X => self.sys.nodes[child].grid_element_column_i as usize,
+            Y => self.sys.nodes[child].grid_element_row_i as usize,
+        }
+    }
+
+    fn grid_span(&self, child: NodeI, axis: Axis) -> usize {
+        let span = match axis {
+            X => self.sys.nodes[child].params.grid_element.column_span,
+            Y => self.sys.nodes[child].params.grid_element.row_span,
+        };
+        (span as usize).max(1)
+    }
+
+    fn grid_n_lines(&self, i: NodeI, axis: Axis) -> usize {
+        match axis {
+            X => self.sys.nodes[i].grid_n_columns as usize,
+            Y => self.sys.nodes[i].grid_n_rows as usize,
+        }
+    }
+
+    /// The uniform size of one grid cell along an axis. Only valid once the cells are assigned.
+    fn grid_cell_size(&self, i: NodeI, axis: Axis, spacing: f32) -> f32 {
+        let padding = self.pixels_to_frac(self.sys.nodes[i].params.layout.padding[axis], axis);
+        let inner = self.sys.nodes[i].size[axis] - 2.0 * padding;
+        let n = self.grid_n_lines(i, axis) as f32;
+        ((inner - spacing * (n - 1.0)) / n).max(0.0)
+    }
+
+    /// How many cells fit along the main axis.
+    fn grid_n_main(&self, columns: MainAxisCellSize, flow: GridFlow, inner_main: f32, spacing_main: f32) -> usize {
+        match columns {
+            MainAxisCellSize::Count(n) => (n as usize).max(1),
+            MainAxisCellSize::Width(w) => {
+                let w = self.pixels_to_frac(w, flow.main_axis);
+                ((inner_main + spacing_main) / (w + spacing_main)).floor().max(1.0) as usize
+            }
+        }
+    }
+
+    fn grid_spans(&self, child: NodeI) -> (usize, usize) {
+        (self.grid_span(child, X), self.grid_span(child, Y))
+    }
+
+    fn grid_assign_cells(&mut self, i: NodeI, n_main: usize, flow: GridFlow) {
+        with_arena(|arena| {
+            let mut occ = GridOccupancy::new(n_main, arena);
+            for_each_child!(self, self.sys.nodes[i], child, {
+                if ! self.sys.nodes[child].params.free_placement {
+                    let (col_span, row_span) = self.grid_spans(child);
+                    let (span_line, span_pos) = to_occ_spans(col_span, row_span, flow);
+                    let (occ_line, occ_pos) = occ.place_next(span_line, span_pos, flow.backfill);
+                    let (col, row) = from_occ(occ_line, occ_pos, flow);
+                    self.sys.nodes[child].grid_element_column_i = col as u16;
+                    self.sys.nodes[child].grid_element_row_i = row as u16;
+                }
+            });
+
+            let (n_cols, n_rows) = match flow.main_axis {
+                Axis::X => (n_main, occ.n_lines),
+                Axis::Y => (occ.n_lines, n_main),
+            };
+            self.sys.nodes[i].grid_n_columns = n_cols as u16;
+            self.sys.nodes[i].grid_n_rows = n_rows as u16;
+        });
+
+        let reversed = flow.x_fill_direction == Direction::RightToLeft
+            || flow.y_fill_direction == Direction::RightToLeft;
+        if ! reversed { return; }
+
+        let n_cols = self.sys.nodes[i].grid_n_columns as usize;
+        let n_rows = self.sys.nodes[i].grid_n_rows as usize;
+        for_each_child!(self, self.sys.nodes[i], child, {
+            if ! self.sys.nodes[child].params.free_placement {
+                let (col_span, row_span) = self.grid_spans(child);
+                let logical_col = self.sys.nodes[child].grid_element_column_i as usize;
+                let logical_row = self.sys.nodes[child].grid_element_row_i as usize;
+                let (col, row) = apply_reversal(logical_col, logical_row, col_span, row_span, n_cols, n_rows, flow);
+                self.sys.nodes[child].grid_element_column_i = col as u16;
+                self.sys.nodes[child].grid_element_row_i = row as u16;
+            }
+        });
+    }
+
+    fn clay_grid_fit(&mut self, i: NodeI, axis: Axis, columns: MainAxisCellSize, spacing_x: f32, spacing_y: f32, flow: GridFlow) -> (f32, f32) {
+        let spacing = match axis {
+            X => self.pixels_to_frac(spacing_x, X),
+            Y => self.pixels_to_frac(spacing_y, Y),
+        };
+
+        if axis == X {
+            let n_main = match columns {
+                MainAxisCellSize::Count(n) => (n as usize).max(1),
+                MainAxisCellSize::Width(_) => 1,
+            };
+            self.grid_assign_cells(i, n_main, flow);
+        }
+
+        let n_lines = self.grid_n_lines(i, axis);
+        if n_lines == 0 { return (0.0, 0.0); }
+
+        // The biggest child sets the cell size, since cells are uniform.
+        let mut cell = 0.0f32;
+        let mut cell_min = 0.0f32;
+        for_each_child!(self, self.sys.nodes[i], child, {
+            if ! self.sys.nodes[child].params.free_placement {
+                let span = self.grid_span(child, axis);
+                let share = |v: f32| (v - (span - 1) as f32 * spacing) / span as f32;
+                cell = cell.max(share(self.sys.nodes[child].size[axis]));
+                cell_min = cell_min.max(share(self.sys.nodes[child].min_content_size[axis]));
+            }
+        });
+        // A fixed cell size along the main axis overrides what the children asked for.
+        if let MainAxisCellSize::Width(w) = columns {
+            if axis == flow.main_axis {
+                cell = self.pixels_to_frac(w, axis);
+                cell_min = cell;
+            }
+        }
+
+        let n = n_lines as f32;
+        let extent = |cell: f32| (n * cell + spacing * (n - 1.0)).max(0.0);
+        (extent(cell), extent(cell_min))
+    }
+
+    fn clay_grid_sizing(&mut self, parent: NodeI, axis: Axis, columns: MainAxisCellSize, spacing_x: f32, spacing_y: f32, flow: GridFlow) {
+        let main = flow.main_axis;
+        let spacing = Xy::new(self.pixels_to_frac(spacing_x, X), self.pixels_to_frac(spacing_y, Y));
+
+        let assign_axis = match columns {
+            MainAxisCellSize::Count(_) => X,
+            MainAxisCellSize::Width(_) => main,
+        };
+        if axis == assign_axis {
+            let padding = self.pixels_to_frac2(self.sys.nodes[parent].params.layout.padding);
+            let inner_main = self.sys.nodes[parent].size[main] - 2.0 * padding[main];
+            let n_main = self.grid_n_main(columns, flow, inner_main, spacing[main]);
+            self.grid_assign_cells(parent, n_main, flow);
+        }
+
+        self.clay_grid_size_children(parent, axis, spacing);
+
+        if axis == Y && assign_axis == Y {
+            self.clay_grid_size_children(parent, X, spacing);
+        }
+    }
+
+    fn clay_grid_size_children(&mut self, parent: NodeI, axis: Axis, spacing: Xy<f32>) {
+        if self.grid_n_lines(parent, axis) == 0 { return; }
+        let cell = self.grid_cell_size(parent, axis, spacing[axis]);
+
+        for_each_child!(self, self.sys.nodes[parent], child, {
+            if ! self.sys.nodes[child].params.free_placement {
+                let span = self.grid_span(child, axis);
+                let available = span as f32 * cell + (span - 1) as f32 * spacing[axis];
+                self.clay_size_child_in(child, axis, available);
+            }
+        });
+    }
+
+    fn clay_shrink(&mut self, axis: Axis, resizable: &mut BumpVec<NodeI>, to_distribute: &mut f32) {
+        while *to_distribute < -1e-6 && !resizable.is_empty() {
+            let mut largest = 0.0f32;
+            let mut second = 0.0f32;
+            let mut delta = *to_distribute;
+            for &c in resizable.iter() {
+                let cs = self.sys.nodes[c].size[axis];
+                if (cs - largest).abs() < 1e-9 { continue; }
+                if cs > largest { second = largest; largest = cs; }
+                if cs < largest { second = second.max(cs); delta = second - largest; }
+            }
+            delta = delta.max(*to_distribute / resizable.len() as f32);
+
+            let mut k = 0;
+            while k < resizable.len() {
+                let c = resizable[k];
+                let min = self.sys.nodes[c].min_content_size[axis];
+                let prev = self.sys.nodes[c].size[axis];
+                if (prev - largest).abs() < 1e-9 {
+                    let mut new = prev + delta;
+                    let mut done = false;
+                    if new <= min { new = min; done = true; }
+                    self.sys.nodes[c].size[axis] = new;
+                    *to_distribute -= new - prev;
+                    if done { resizable.swap_remove(k); continue; }
+                }
+                k += 1;
+            }
+        }
+    }
+
+    fn clay_grow(&mut self, axis: Axis, resizable: &mut BumpVec<NodeI>, to_distribute: &mut f32) {
+        while *to_distribute > 1e-6 && !resizable.is_empty() {
+            let mut smallest = f32::MAX;
+            let mut second = f32::MAX;
+            let mut delta = *to_distribute;
+            for &c in resizable.iter() {
+                let cs = self.sys.nodes[c].size[axis];
+                if (cs - smallest).abs() < 1e-9 { continue; }
+                if cs < smallest { second = smallest; smallest = cs; }
+                if cs > smallest { second = second.min(cs); delta = second - smallest; }
+            }
+            delta = delta.min(*to_distribute / resizable.len() as f32);
+
+            for k in 0..resizable.len() {
+                let c = resizable[k];
+                let prev = self.sys.nodes[c].size[axis];
+                if (prev - smallest).abs() < 1e-9 {
+                    self.sys.nodes[c].size[axis] = prev + delta;
+                    *to_distribute -= delta;
+                }
+            }
+        }
+    }
+
 
     /// Relayout only the scrollbar nodes for `container_i`, without touching the container or any other children.
     pub(crate) fn partial_relayout_for_scrollbar(&mut self, container_i: NodeI) {
@@ -233,327 +646,8 @@ impl Ui {
             let Some(node_i) = self.sys.nodes.get_by_id(key.id_with_key_scope()) else {
                 continue;
             };
-            // self.recursive_determine_size_and_hidden(node_i, proposed_size, false);
             self.place_child_free(node_i, container_i);
         }
-    }
-
-    pub(crate) fn _partial_relayout(&mut self, i: NodeI) {
-        // if the node has already been layouted on the current frame, stop immediately, and don't even recurse.
-        // when doing partial layouts, this avoids overlap, but it means that we have to sort the partial relayouts cleanly from least depth to highest depth in order to get it right. This is done in `relayout()`.
-        let current_frame = self.sys.current_frame;
-        if self.sys.nodes[i].last_layout_frame >= current_frame {
-            return;
-        }
-
-        // 1st recursive tree traversal: start from the root and recursively determine the size of all nodes
-        // For the first node, use the proposed size that we got from the parent last frame.
-        let starting_proposed_size = self.sys.nodes[i].last_proposed_sizes;
-        let hidden_branch = if i == ROOT_I {
-            false
-        } else {
-            match self.sys.nodes[self.sys.nodes[i].parent].params.children_can_hide {
-                ChildrenCanHide::Yes => true,
-                ChildrenCanHide::No => false,
-                ChildrenCanHide::Inherit => false, // This should be determined by traversing up, but for partial relayout we simplify
-            }
-        };
-        self.recursive_determine_size_and_hidden(i, starting_proposed_size, hidden_branch);
-        
-        // 2nd recursive tree traversal: now that all nodes have a calculated size, place them.
-
-        self.recursive_place_children(i);
-
-        self.sys.nodes[i].last_layout_frame = self.sys.current_frame;
-    }
-
-
-    fn get_size(
-        &mut self,
-        i: NodeI,    
-        child_proposed_size: Xy<f32>, // the size that was proposed to us specifically after dividing between children
-        whole_parent_proposed_size: Xy<f32>, // the whole size that the parent proposed to ALL its children collectively
-    ) -> Xy<f32> {
-        let mut size = child_proposed_size; // this default value is mostly useless
-
-        for axis in [X, Y] {
-            match self.sys.nodes[i].params.layout.size[axis] {
-                Size::FitContent => {
-                    size[axis] = child_proposed_size[axis];
-                }, // propose the whole available size. We will shrink our final size later if they end up using less or more 
-                Size::Fill => {
-                    size[axis] = child_proposed_size[axis]; // use the whole available size
-                },
-                Size::Pixels(pixels) => {
-                    size[axis] = self.pixels_to_frac(pixels, axis); // ignore the proposed size and force our pixel size
-                },
-                Size::Frac(frac) => {
-                    size[axis] = whole_parent_proposed_size[axis] * frac;
-                }
-                Size::AspectRatio(_aspect) => {} // do nothing
-            }
-        }
-
-        // apply AspectRatio
-        for axis in [X, Y] {
-            if let Size::AspectRatio(aspect) = self.sys.nodes[i].params.layout.size[axis] {
-                match self.sys.nodes[i].params.layout.size[axis.other()] {
-                    Size::AspectRatio(_second_aspect) => {
-                        log::warn!("A Size shouldn't be AspectRatio in both dimensions. (node: {})", self.node_debug_name(i));
-                    }
-                    _ => {
-                        let window_aspect = self.sys.size.x / self.sys.size.y;
-                        let mult = match axis {
-                            X => aspect / window_aspect,
-                            Y => window_aspect / aspect,
-                        };
-                        size[axis] = size[axis.other()] * mult;
-                    }
-                }
-            }
-        }
-
-        return size;
-    }
-
-    fn get_inner_size(&mut self, i: NodeI, size: Xy<f32>) -> Xy<f32> {
-        let mut inner_size = size;
-
-        // remove padding
-        let padding = self.pixels_to_frac2(self.sys.nodes[i].params.layout.padding);
-        for axis in [X, Y] {
-            inner_size[axis] -= 2.0 * padding[axis];
-        }
-
-        return inner_size;
-    }
-
-    fn recursive_determine_size_and_hidden(
-        &mut self,
-        i: NodeI,
-        proposed_sizes: ProposedSizes,
-        hideable_branch: bool,
-    ) -> Xy<f32> {
-        self.sys.nodes[i].last_proposed_sizes = proposed_sizes;
-        
-        // Set can_hide flag based on parent's children_can_hide setting
-        self.sys.nodes[i].can_hide = hideable_branch;
-        
-        // Determine this node's children_can_hide setting for its children
-        let children_can_hide = match self.sys.nodes[i].params.children_can_hide {
-            ChildrenCanHide::Yes => true,
-            ChildrenCanHide::No => false,
-            ChildrenCanHide::Inherit => hideable_branch,
-        };
-
-        let size = self.get_size(i, proposed_sizes.to_this_child, proposed_sizes.to_all_children);
-        let size_to_propose = self.get_inner_size(i, size);
-
-        let children_layout = self.sys.nodes[i].params.children_layout;
-        let padding = self.pixels_to_frac2(self.sys.nodes[i].params.layout.padding);
-        let mut content_size = Xy::new(0.0, 0.0);
-
-        match children_layout {
-            ChildrenLayout::Free => {
-                for_each_child!(self, self.sys.nodes[i], child, {
-                    let child_size = self.recursive_determine_size_and_hidden(child, ProposedSizes::container(size_to_propose), children_can_hide);
-                    content_size.update_for_child(child_size, None);
-                });
-            },
-            ChildrenLayout::Stack { axis, spacing, arrange: _ } => {
-                let spacing = self.pixels_to_frac(spacing, axis);
-
-                // Subtract stack spacing
-                let mut n_stack_children: f32 = 0.0;
-                for_each_child!(self, self.sys.nodes[i], child, {
-                    if !self.sys.nodes[child].params.free_placement {
-                        n_stack_children += 1.0;
-                    }
-                });
-                let mut available_size_left = size_to_propose;
-                if n_stack_children > 1.5 {
-                    available_size_left[axis] -= spacing * (n_stack_children - 1.0);
-                }
-
-                let mut n_added_children = 0;
-                let mut n_fill_children = 0;
-                // First, do all fixed-size children
-                for_each_child!(self, self.sys.nodes[i], child, {
-                    if self.sys.nodes[child].params.free_placement {
-                        // (for free_placement children, do the recursion without partecipating in the stack calculation)
-                        self.recursive_determine_size_and_hidden(child, ProposedSizes::container(size_to_propose), children_can_hide);
-                    } else {
-                        let size_on_axis = self.sys.nodes[child].params.layout.size[axis];
-                        if size_on_axis != Size::Fill && !matches!(size_on_axis, Size::Frac(_)) {
-                            let child_size = self.recursive_determine_size_and_hidden(child, ProposedSizes::stack(available_size_left, size_to_propose), children_can_hide);
-                            content_size.update_for_child(child_size, Some(axis));
-                            if n_added_children != 0 {
-                                content_size[axis] += spacing;
-                            }
-                            available_size_left[axis] -= child_size[axis];
-                            n_added_children += 1;
-                        } else if size_on_axis == Size::Fill {
-                            n_fill_children += 1;
-                        }
-                    }
-                });
-
-                // Second, do Frac children - they get a fraction of the remaining space after fixed children.
-                // All Frac children share the same base (snapshot before this pass), so Frac(0.5) always
-                // means 50% of the post-fixed remainder regardless of how many Frac siblings there are.
-                let remaining_after_fixed = available_size_left;
-                for_each_child!(self, self.sys.nodes[i], child, {
-                    if !self.sys.nodes[child].params.free_placement {
-                        if matches!(self.sys.nodes[child].params.layout.size[axis], Size::Frac(_)) {
-                            // Pass remaining space as to_all_children on the stack axis, full size on cross axis
-                            let mut frac_all_children = size_to_propose;
-                            frac_all_children[axis] = remaining_after_fixed[axis];
-                            let child_size = self.recursive_determine_size_and_hidden(child, ProposedSizes::stack(available_size_left, frac_all_children), children_can_hide);
-                            content_size.update_for_child(child_size, Some(axis));
-                            if n_added_children != 0 {
-                                content_size[axis] += spacing;
-                            }
-                            available_size_left[axis] -= child_size[axis];
-                            n_added_children += 1;
-                        }
-                    }
-                });
-
-                if n_fill_children > 0 {
-                    // then, divide the remaining space between the Fill children
-                    if n_fill_children > 1 {
-                        available_size_left[axis] -= ((n_fill_children - 1) as f32) * spacing;
-                    }
-                    let mut size_per_child = available_size_left;
-                    size_per_child[axis] /= n_fill_children as f32;
-                    for_each_child!(self, self.sys.nodes[i], child, {
-                        if !self.sys.nodes[child].params.free_placement && self.sys.nodes[child].params.layout.size[axis] == Size::Fill {
-                            let child_size = self.recursive_determine_size_and_hidden(child, ProposedSizes::stack(size_per_child, size_to_propose), children_can_hide);
-                            content_size.update_for_child(child_size, Some(axis));
-                            if n_added_children != 0 {
-                                content_size[axis] += spacing;
-                            }
-                            available_size_left[axis] -= child_size[axis];
-                            n_added_children += 1;
-                        }
-                    });
-                }
-            },
-            ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow } => {
-                let n = self.sys.nodes[i].n_children as usize;
-                if n > 0 {
-                    content_size = with_arena(|arena| {
-                        let spacing_x_frac_pre = self.pixels_to_frac(spacing_x, X);
-                        let spacing_y_frac_pre = self.pixels_to_frac(spacing_y, Y);
-                        let n_columns = match columns {
-                            MainAxisCellSize::Count(n) => (n as usize).max(1),
-                            MainAxisCellSize::Width(w) => match flow.main_axis {
-                                Axis::X => {
-                                    let w_frac = self.pixels_to_frac(w, X);
-                                    ((size_to_propose.x + spacing_x_frac_pre) / (w_frac + spacing_x_frac_pre)).floor().max(1.0) as usize
-                                }
-                                Axis::Y => {
-                                    let h_frac = self.pixels_to_frac(w, Y);
-                                    ((size_to_propose.y + spacing_y_frac_pre) / (h_frac + spacing_y_frac_pre)).floor().max(1.0) as usize
-                                }
-                            },
-                        };
-
-                        let mut occ = GridOccupancy::new(n_columns, arena);
-                        for_each_child!(self, self.sys.nodes[i], child, {
-                            if !self.sys.nodes[child].params.free_placement {
-                                let col_span = (self.sys.nodes[child].params.grid_element.column_span as usize).max(1);
-                                let row_span = (self.sys.nodes[child].params.grid_element.row_span as usize).max(1);
-                                let (span_line, span_pos) = to_occ_spans(col_span, row_span, flow);
-                                occ.place_next(span_line, span_pos, flow.backfill);
-                            }
-                        });
-                        let n_cross = occ.n_lines;
-
-                        let (n_cols, n_rows) = match flow.main_axis {
-                            Axis::X => (n_columns, n_cross),
-                            Axis::Y => (n_cross, n_columns),
-                        };
-
-                        self.sys.nodes[i].grid_n_columns = n_cols as u16;
-                        self.sys.nodes[i].grid_n_rows = n_rows as u16;
-
-                        let spacing_x_frac = spacing_x_frac_pre;
-                        let spacing_y_frac = spacing_y_frac_pre;
-
-                        let cell_w = ((size_to_propose.x - spacing_x_frac * (n_cols as f32 - 1.0)) / n_cols as f32).max(0.0);
-                        let cell_h = ((size_to_propose.y - spacing_y_frac * (n_rows as f32 - 1.0)) / n_rows as f32).max(0.0);
-
-                        let mut row_heights = BumpVec::new_in(arena);
-                        row_heights.resize(n_rows, 0.0f32);
-                        let mut occ = GridOccupancy::new(n_columns, arena);
-                        for_each_child!(self, self.sys.nodes[i], child, {
-                            if self.sys.nodes[child].params.free_placement {
-                                self.recursive_determine_size_and_hidden(child, ProposedSizes::container(size_to_propose), children_can_hide);
-                            } else {
-                                let col_span = (self.sys.nodes[child].params.grid_element.column_span as usize).max(1);
-                                let row_span = (self.sys.nodes[child].params.grid_element.row_span as usize).max(1);
-                                let (span_line, span_pos) = to_occ_spans(col_span, row_span, flow);
-                                let (occ_line, occ_pos) = occ.place_next(span_line, span_pos, flow.backfill);
-                                let (logical_col, logical_row) = from_occ(occ_line, occ_pos, flow);
-                                let (actual_col, actual_row) = apply_reversal(logical_col, logical_row, col_span, row_span, n_cols, n_rows, flow);
-
-                                self.sys.nodes[child].grid_element_column_i = actual_col as u16;
-                                self.sys.nodes[child].grid_element_row_i = actual_row as u16;
-
-                                let child_cell_size = Xy::new(
-                                    col_span as f32 * cell_w + (col_span - 1) as f32 * spacing_x_frac,
-                                    row_span as f32 * cell_h + (row_span - 1) as f32 * spacing_y_frac,
-                                );
-                                let child_actual = self.recursive_determine_size_and_hidden(child, ProposedSizes::container(child_cell_size), children_can_hide);
-
-                                let h_per_row = (child_actual.y - (row_span - 1) as f32 * spacing_y_frac) / row_span as f32;
-                                for r in 0..row_span {
-                                    let row = actual_row + r;
-                                    if row < row_heights.len() {
-                                        row_heights[row] = row_heights[row].max(h_per_row);
-                                    }
-                                }
-                            }
-                        });
-
-                        let total_h = row_heights.iter().sum::<f32>() + spacing_y_frac * (n_rows as f32 - 1.0).max(0.0);
-                        Xy::new(size_to_propose.x, total_h)
-                    });
-                }
-            },
-        }
-
-        // Decide our own size.
-        // We either use the size that we decided before, or we change our mind to based on children if we are FitContent.
-        let mut final_size = size;
-
-        let fit_content_x = self.sys.nodes[i].params.layout.size[X] == Size::FitContent;
-        let fit_content_y = self.sys.nodes[i].params.layout.size[Y] == Size::FitContent;
-
-        if fit_content_x || fit_content_y {
-            // Propose the whole size_to_propose to any inline text/image, and let them decide.
-            if self.sys.nodes[i].text_i.is_some() {
-                let text_size = self.determine_text_size(i, size_to_propose);
-                content_size.update_for_content(text_size);
-            }
-            if self.sys.nodes[i].imageref.is_some() {
-                let image_size = self.determine_image_size(i, size_to_propose);
-                content_size.update_for_content(image_size);
-            }
-
-            if fit_content_x {
-                let content_size_with_padding = content_size.x + 2.0 * padding.x;
-                final_size.x = content_size_with_padding;
-            }
-            if fit_content_y {
-                let content_size_with_padding = content_size.y + 2.0 * padding.y;
-                final_size.y = content_size_with_padding;
-            }
-        }
-
-        self.sys.nodes[i].size = final_size;
-        return final_size;
     }
 
     fn determine_image_size(&mut self, i: NodeI, proposed_size: Xy<f32>) -> Xy<f32> {
@@ -574,81 +668,16 @@ impl Ui {
         let fallback_pixels = Xy::new(100.0, 100.0);
         return self.pixels_to_frac2(fallback_pixels);
     }
+}
 
-    // This is only relevant when the parent is FitContent.
-    // Should reorganize
-    fn determine_text_size(&mut self, i: NodeI, proposed_size: Xy<f32>) -> Xy<f32> {
-        let text_i = self.sys.nodes[i].text_i.as_ref().unwrap();
-
-        match text_i {
-            TextI::TextEdit(handle) => {
-                let text_edit = self.sys.renderer.text.get_text_edit_mut(&handle);
-
-                if text_edit.single_line() {
-                    let layout = text_edit.layout();
-                    let text_height = if let Some(first_line) = layout.lines().next() {
-                        first_line.metrics().line_height
-                    } else {
-                        0.0 // todo rethink
-                    };
-
-                    let text_width = proposed_size.x * self.sys.size[X];
-
-                    text_edit.set_size((text_width, text_height));
-
-                    return Xy::new(text_width / self.sys.size[X], text_height / self.sys.size[Y]);
-
-                } else {
-                    let w = proposed_size.x * self.sys.size[X];
-                    let h = proposed_size.y * self.sys.size[Y];
-
-                    text_edit.set_size((w, h));
-                    return proposed_size;
-                }
-
-            }
-            TextI::TextBox(handle) => {
-
-                let mut size = proposed_size;
-                let proposed_size_pixels = proposed_size * self.sys.size;
-
-                let fit_content_x = self.sys.nodes[i].params.layout.size[X] == Size::FitContent;
-                let fit_content_y = self.sys.nodes[i].params.layout.size[Y] == Size::FitContent;
-
-                if fit_content_x || fit_content_y {
-                    let text_box = self.sys.renderer.text.get_text_box_mut(&handle);
-
-                    if text_box.needs_relayout() {
-                        // layout in the whole available space
-                        text_box.set_size((proposed_size_pixels.x, proposed_size_pixels.y));
-                        // after, it would make sense to also shrink the text box size... but that would mean that needs_relayout() would be true again on the next frame.
-                        // and it's probably okay without. selection already requires a click on the actual layout bounds, not on the whole textbox.
-                        // It should be fine to shrink just the node
-                    }
-
-                    let layout = text_box.layout();
-                    if fit_content_x {
-                        size.x = layout.width() / self.sys.size[X];
-                    }
-                    if fit_content_y {
-                        size.y = layout.height() / self.sys.size[Y];
-                    }
-                }
-
-                return size;
-            }
-        }
-    }
-
+impl Ui {
     pub(crate) fn recursive_place_children(&mut self, i: NodeI) {
         self.sys.nodes[i].content_bounds = XyRect::new_symm([f32::MAX, f32::MIN]);
-
-        self.sys.partial_relayout_count += 1;
 
         match self.sys.nodes[i].params.children_layout {
             ChildrenLayout::Free => self.place_children_free(i),
             ChildrenLayout::Stack { arrange, axis, spacing } => self.place_children_stack(i, axis, arrange, spacing),
-            ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow } => self.place_children_grid(i, columns, spacing_x, spacing_y, flow),
+            ChildrenLayout::Grid { spacing_x, spacing_y, .. } => self.place_children_grid(i, spacing_x, spacing_y),
         }
 
         for_each_child!(self, self.sys.nodes[i], child, {
@@ -727,69 +756,31 @@ impl Ui {
         // self.set_children_scroll(i);
     }
 
-    fn place_children_grid(&mut self, i: NodeI, _columns: MainAxisCellSize, spacing_x: f32, spacing_y: f32, _flow: GridFlow) {
-        let n = self.sys.nodes[i].n_children as usize;
-        if n == 0 { return; }
+    /// Place every child at the top-left corner of the cells it was assigned in
+    /// [`Ui::clay_grid_sizing`]. Children's own `Pos` values are ignored.
+    fn place_children_grid(&mut self, i: NodeI, spacing_x: f32, spacing_y: f32) {
+        if self.grid_n_lines(i, X) == 0 || self.grid_n_lines(i, Y) == 0 { return; }
 
-        let n_cols = self.sys.nodes[i].grid_n_columns as usize;
-        let n_rows = self.sys.nodes[i].grid_n_rows as usize;
-        if n_cols == 0 { return; }
+        let parent_rect = self.sys.nodes[i].layout_rect;
+        let padding = self.pixels_to_frac2(self.sys.nodes[i].params.layout.padding);
+        let spacing = Xy::new(self.pixels_to_frac(spacing_x, X), self.pixels_to_frac(spacing_y, Y));
+        let cell = Xy::new(self.grid_cell_size(i, X, spacing.x), self.grid_cell_size(i, Y, spacing.y));
 
-        with_arena(|arena| {
-            let parent_rect = self.sys.nodes[i].layout_rect;
-            let padding = self.pixels_to_frac2(self.sys.nodes[i].params.layout.padding);
-            let spacing_x_frac = self.pixels_to_frac(spacing_x, X);
-            let spacing_y_frac = self.pixels_to_frac(spacing_y, Y);
-
-            let inner_w = parent_rect.size().x - 2.0 * padding.x;
-            let cell_w = ((inner_w - spacing_x_frac * (n_cols as f32 - 1.0)) / n_cols as f32).max(0.0);
-
-            // Compute row heights from stored positions and child sizes
-            let mut row_heights: BumpVec<f32> = BumpVec::new_in(arena);
-            row_heights.resize(n_rows, 0.0f32);
-            for_each_child!(self, self.sys.nodes[i], child, {
-                if !self.sys.nodes[child].params.free_placement {
-                    let row_span = (self.sys.nodes[child].params.grid_element.row_span as usize).max(1);
-                    let actual_row = self.sys.nodes[child].grid_element_row_i as usize;
-                    let h_per_row = (self.sys.nodes[child].size.y - (row_span - 1) as f32 * spacing_y_frac) / row_span as f32;
-                    for r in 0..row_span {
-                        let row = actual_row + r;
-                        if row < row_heights.len() {
-                            row_heights[row] = row_heights[row].max(h_per_row);
-                        }
-                    }
+        for_each_child!(self, self.sys.nodes[i], child, {
+            if self.sys.nodes[child].params.free_placement {
+                self.place_child_free(child, i);
+            } else {
+                let child_size = self.sys.nodes[child].size;
+                for axis in [X, Y] {
+                    let line = self.grid_line(child, axis);
+                    let start = parent_rect[axis][0] + padding[axis] + line as f32 * (cell[axis] + spacing[axis]);
+                    self.sys.nodes[child].layout_rect[axis] = [start, start + child_size[axis]];
                 }
-            });
 
-            // Compute cumulative y offsets per row
-            let mut row_y_offsets: BumpVec<f32> = BumpVec::new_in(arena);
-            row_y_offsets.resize(n_rows, 0.0f32);
-            let mut y_acc = 0.0f32;
-            for r in 0..n_rows {
-                row_y_offsets[r] = y_acc;
-                y_acc += row_heights[r] + spacing_y_frac;
+                self.set_local_layout_rect(child, i);
+                self.init_enter_animations(child);
+                self.update_content_bounds(i, self.sys.nodes[child].layout_rect);
             }
-
-            // Place children inside their assigned grid cell
-            for_each_child!(self, self.sys.nodes[i], child, {
-                if self.sys.nodes[child].params.free_placement {
-                    self.place_child_free(child, i);
-                } else {
-                    let actual_col = self.sys.nodes[child].grid_element_column_i as usize;
-                    let actual_row = self.sys.nodes[child].grid_element_row_i as usize;
-                    let child_size = self.sys.nodes[child].size;
-
-                    let x0 = parent_rect.x[0] + padding.x + actual_col as f32 * (cell_w + spacing_x_frac);
-                    let y0 = parent_rect.y[0] + padding.y + row_y_offsets[actual_row];
-
-                    self.sys.nodes[child].layout_rect.x = [x0, x0 + child_size.x];
-                    self.sys.nodes[child].layout_rect.y = [y0, y0 + child_size.y];
-
-                    self.set_local_layout_rect(child, i);
-                    self.init_enter_animations(child);
-                    self.update_content_bounds(i, self.sys.nodes[child].layout_rect);
-                }
-            });
         });
     }
 
@@ -1295,8 +1286,6 @@ impl Ui {
         }
     }
     
-    // original check: (rect * screen * scale).round() / scale compared to screen * threshold
-    // the * scale / scale cancel, leaving just rect compared to threshold in normalized coords
     pub(crate) fn node_is_offscreen(&self, i: NodeI) -> bool {
         let rect = self.sys.nodes[i].real_rect;
         rect[X][1] < -2.0
@@ -1503,36 +1492,6 @@ impl Ui {
     }
 }
 
-impl Xy<f32> {
-    pub(crate) fn update_for_child(&mut self, child_size: Xy<f32>, stack_axis: Option<Axis>) {
-        match stack_axis {
-            None => {
-                for axis in [X, Y] {
-                    if child_size[axis] > self[axis] {
-                        self[axis] = child_size[axis];
-                    }
-                }
-            },
-            Some(axis) => {
-                let cross = axis.other();
-
-                self[axis] += child_size[axis];
-                if child_size[cross] > self[cross] {
-                    self[cross] = child_size[cross];
-                }
-            },
-        }
-    }
-    pub(crate) fn update_for_content(&mut self, content_size: Xy<f32>) {
-        for axis in [X, Y] {
-            if content_size[axis] > self[axis] {
-                self[axis] = content_size[axis];
-            }
-        }
-    }
-
-}
-
 impl Ui {
     pub(crate) fn update_scroll_animation(&mut self, i: NodeI) {
         let mut moved = false;
@@ -1693,22 +1652,76 @@ impl System {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
-pub(crate) struct ProposedSizes {
-    to_this_child: Xy<f32>, // the size that was proposed to a child specifically after dividing between children
-    to_all_children: Xy<f32>, // the whole size that the parent proposed to ALL its children collectively
+
+impl<'a> GridOccupancy<'a> {
+    fn new(n_per_line: usize, arena: &'a bumpalo::Bump) -> Self {
+        Self { cells: BumpVec::new_in(arena), n_per_line, n_lines: 0, cursor_line: 0 }
+    }
+
+    fn is_free(&self, line: usize, pos: usize, span_line: usize, span_pos: usize) -> bool {
+        for l in line..line + span_line {
+            if l >= self.n_lines { continue; } // unallocated lines are free
+            for p in pos..pos + span_pos {
+                if self.cells[l * self.n_per_line + p] { return false; }
+            }
+        }
+        true
+    }
+
+    fn occupy(&mut self, line: usize, pos: usize, span_line: usize, span_pos: usize) {
+        let needed = line + span_line;
+        if self.n_lines < needed {
+            self.cells.resize(needed * self.n_per_line, false);
+            self.n_lines = needed;
+        }
+        for l in line..line + span_line {
+            for p in pos..pos + span_pos {
+                self.cells[l * self.n_per_line + p] = true;
+            }
+        }
+    }
+
+    /// Find the first free rectangle of size (span_line x span_pos), occupy it, and return its (line, pos).
+    /// If `backfill` is true, search from the beginning (dense, fills gaps). Otherwise search from the cursor.
+    fn place_next(&mut self, span_line: usize, span_pos: usize, backfill: bool) -> (usize, usize) {
+        let span_pos = span_pos.min(self.n_per_line).max(1);
+        let span_line = span_line.max(1);
+        let mut line = if backfill { 0 } else { self.cursor_line };
+        loop {
+            for pos in 0..=self.n_per_line - span_pos {
+                if self.is_free(line, pos, span_line, span_pos) {
+                    self.occupy(line, pos, span_line, span_pos);
+                    if !backfill {
+                        self.cursor_line = line;
+                    }
+                    return (line, pos);
+                }
+            }
+            line += 1;
+        }
+    }
 }
-impl ProposedSizes {
-    pub(crate) const fn stack(to_this_child: Xy<f32>, to_all_children: Xy<f32>) -> ProposedSizes {
-        return ProposedSizes {
-            to_this_child,
-            to_all_children,
-        }
+
+/// Convert (col_span, row_span) to occupancy (span_line, span_pos) based on main_axis.
+/// X-major: line=row, pos=col.  Y-major: line=col, pos=row.
+fn to_occ_spans(col_span: usize, row_span: usize, flow: GridFlow) -> (usize, usize) {
+    match flow.main_axis {
+        Axis::X => (row_span, col_span),
+        Axis::Y => (col_span, row_span),
     }
-    pub(crate) const fn container(size: Xy<f32>) -> ProposedSizes {
-        return ProposedSizes {
-            to_this_child: size,
-            to_all_children: size,
-        }
+}
+
+/// Convert occupancy (line, pos) to (logical_col, logical_row).
+fn from_occ(line: usize, pos: usize, flow: GridFlow) -> (usize, usize) {
+    match flow.main_axis {
+        Axis::X => (pos, line),
+        Axis::Y => (line, pos),
     }
+}
+
+/// Apply flow reversal: convert logical (col, row) to actual (col, row) for placement.
+fn apply_reversal(logical_col: usize, logical_row: usize, col_span: usize, row_span: usize, n_cols: usize, n_rows: usize, flow: GridFlow) -> (usize, usize) {
+    let col = if flow.x_fill_direction == Direction::RightToLeft { n_cols - col_span - logical_col } else { logical_col };
+    let row = if flow.y_fill_direction == Direction::RightToLeft { n_rows - row_span - logical_row } else { logical_row };
+    (col, row)
 }

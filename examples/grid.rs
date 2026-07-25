@@ -105,7 +105,12 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
             .grid(columns, 8.0, 8.0, state.flow)
             .padding(8.0);
 
-        ui.add(H_STACK.position_y(Pos::Start)).nest(|| {
+        let h_stack = H_STACK
+            .size_x(Size::Fill)
+            .size_y(Size::Fill)
+            .position_y(Pos::Start);
+
+        ui.add(h_stack).nest(|| {
             ui.add(V_SCROLL_STACK.padding_y(0.0).position_y(Pos::Start).size_x(Size::Pixels(250.0))).nest(|| {
 
                 ui.add(PANEL.color(Color::KERU_BLUE)).nest(|| {
@@ -166,6 +171,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                     let node = PANEL
                         .color(color)
                         .stroke_color(Color::BLUE)
+                        .fade()
                         .sense_click(true)
                         .size_symm(Size::Fill)
                         .animate_layout(true)

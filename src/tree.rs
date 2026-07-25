@@ -562,7 +562,6 @@ impl Ui {
 
         let update_accesskit_focus = self.sys.changes.focus_changed;
         let update_accesskit_tree = self.sys.changes.full_relayout
-            || ! self.sys.changes.partial_relayouts.is_empty()
             || self.sys.changes.text_changed;
         // todo: we could also check accessibility roles, actions etc. on every node update.
         // But I think it's highly unlikely that they'd change in a frame that doesn't also change text or layout.
