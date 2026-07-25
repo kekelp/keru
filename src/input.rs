@@ -166,7 +166,8 @@ impl Ui {
 
     /// Returns `true` if a screen reader requested the given AccessKit `action`
     /// on the node corresponding to `key` during this frame.
-    pub fn accesskit_action(&self, key: NodeKey, action: AccessKitAction) -> bool {
+    // note: the inconsistent `check_...` name is because `accesskit_action` would come up before `add` in autocomplete, which is annoying.
+    pub fn check_accesskit_action(&self, key: NodeKey, action: AccessKitAction) -> bool {
         let id = key.id_with_key_scope();
         self.sys.accesskit_actions.iter().any(|(qid, a)| *qid == id && *a == action)
     }

@@ -160,7 +160,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .size_symm(Size::FitContent)
         .anchor_symm(Anchor::Center)
         .position_symm(Pos::Center)
-        .stack_spacing(0.0)
+        .stack_spacing(-15.0)
         .stack_arrange(Arrange::Center);
 
     with_arena(|a| {
@@ -183,6 +183,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                         .anchor_symm(Anchor::Center)
                         .position_x(Pos::Pixels(pos[0]))
                         .position_y(Pos::Pixels(pos[1]));
+
                     ui.add(dot);
                 }
 
