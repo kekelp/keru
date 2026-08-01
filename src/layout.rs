@@ -20,10 +20,10 @@ macro_rules! for_each_child {
         {
             let mut current_child = $start.first_child;
             while let Some($child) = current_child {
+                current_child = $ui.sys.nodes[$child].next_sibling;
                 if ! $ui.sys.nodes[$child].exiting {
                     $body
                 }
-                current_child = $ui.sys.nodes[$child].next_sibling;
             }
         }
     };
@@ -37,8 +37,8 @@ macro_rules! for_each_child_including_lingering {
         {
             let mut current_child = $start.first_child;
             while let Some($child) = current_child {
-                $body
                 current_child = $ui.sys.nodes[$child].next_sibling;
+                $body
             }
         }
     };
@@ -52,8 +52,8 @@ macro_rules! for_each_child_including_lingering_reverse {
         {
             let mut current_child = $start.last_child;
             while let Some($child) = current_child {
-                $body
                 current_child = $ui.sys.nodes[$child].prev_sibling;
+                $body
             }
         }
     };
@@ -67,8 +67,8 @@ macro_rules! for_each_hidden_child {
         {
             let mut current_child = $start.first_hidden_child;
             while let Some($child) = current_child {
-                $body
                 current_child = $ui.sys.nodes[$child].next_hidden_sibling;
+                $body
             }
         }
     };
