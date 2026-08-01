@@ -33,7 +33,6 @@ pub struct InnerNode {
     pub layout_rect: XyRect,
 
     pub size: Xy<f32>,
-    pub min_content_size: Xy<f32>,
 
     pub l2_stack_gaps: Xy<f32>,
     pub l2_base_guess: Xy<f32>,
@@ -178,7 +177,6 @@ impl InnerNode {
             clip_rect: Xy::new_symm([0.0, 1.0]),
 
             size: Xy::new_symm(0.5),
-            min_content_size: Xy::new_symm(0.5),
             content_bounds: XyRect::new_symm([0.0, 0.0]),
             text_i: None,
             text_fingerprint: TextFingerprint::None,
@@ -315,7 +313,6 @@ pub const NODE_ROOT: InnerNode = InnerNode {
     clip_rect: Xy::new_symm([0.0, 1.0]),
 
     size: Xy::new_symm(1.0),
-    min_content_size: Xy::new_symm(1.0),
     content_bounds: XyRect::new_symm([0.0, 0.0]),
 
     scroll: Xy::new(0.0, 0.0),
