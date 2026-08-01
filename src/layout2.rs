@@ -112,15 +112,13 @@ impl Ui {
             ChildrenLayout::Stack { axis, .. } => Some(axis),
             _ => None,
         };
-        let grid = matches!(self.sys.nodes[i].params.children_layout, ChildrenLayout::Grid { .. });
-
         let mut regular_is_fitcontent = Xy::new(false, false);
         let mut fitcontent_sizes = Xy::new([false; N_DECLARED_SIZES], [false; N_DECLARED_SIZES]);
         for axis in [X, Y] {
-            regular_is_fitcontent[axis] = matches!(self.sys.nodes[i].params.layout.size[axis], Size::FitContent) && ! grid;
+            regular_is_fitcontent[axis] = matches!(self.sys.nodes[i].params.layout.size[axis], Size::FitContent);
             // A `FitContent` bound is sized from the content just like a `FitContent` size is, so each of them waits for the children on its own.
             for size_type in DECLARED_SIZES {
-                fitcontent_sizes[axis][size_type as usize] = matches!(self.declared_size(i, axis, size_type), Some(Size::FitContent)) && ! grid;
+                fitcontent_sizes[axis][size_type as usize] = matches!(self.declared_size(i, axis, size_type), Some(Size::FitContent));
             }
         }
 
@@ -390,7 +388,69 @@ impl Ui {
                 }
             }
 
-            ChildrenLayout::Grid { .. } => todo!()
+            ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow } => {
+                let spacing = Xy::new(self.pixels_to_frac(spacing_x, X), self.pixels_to_frac(spacing_y, Y));
+                let main = flow.main_axis;
+
+                // The cells are assigned once, here, out of the size we're proposing to ourselves. The solve never reassigns them: a grid's shape isn't supposed to keep changing under it the way a stack's sizes do.
+                let n_main = self.grid_n_main(columns, flow, inner[main], spacing[main]);
+                self.grid_assign_cells(i, n_main, flow);
+
+                let n_lines = Xy::new(self.grid_n_lines(i, X) as f32, self.grid_n_lines(i, Y) as f32);
+                let mut gaps = Xy::new(0.0f32, 0.0);
+                for axis in [X, Y] {
+                    gaps[axis] = spacing[axis] * (n_lines[axis] - 1.0).max(0.0);
+                }
+                self.sys.nodes[i].l2_stack_gaps = gaps;
+
+                // What one cell would come out at if we handed out the size we have now. It's only a proposal: each child still settles on its own min and preferred.
+                let mut cell_proposal = Xy::new(0.0f32, 0.0);
+                for axis in [X, Y] {
+                    cell_proposal[axis] = ((inner[axis] - gaps[axis]) / n_lines[axis].max(1.0)).max(0.0);
+                }
+                if let MainAxisCellSize::Width(w) = columns {
+                    cell_proposal[main] = self.pixels_to_frac(w, main);
+                }
+
+                let mut cell_min = Xy::new(0.0f32, 0.0);
+                let mut cell_preferred: Xy<Option<f32>> = Xy::new(None, None);
+                for_each_child!(self, self.sys.nodes[i], child, {
+                    if self.sys.nodes[child].params.free_placement {
+                        let _ = self.determine_base_sizes_recursive(child, inner, inner, settled, None);
+                    } else {
+                        let mut spans = Xy::new(1.0f32, 1.0);
+                        let mut child_proposed = Xy::new(0.0f32, 0.0);
+                        for axis in [X, Y] {
+                            spans[axis] = self.grid_span(child, axis) as f32;
+                            child_proposed[axis] = spans[axis] * cell_proposal[axis] + (spans[axis] - 1.0) * spacing[axis];
+                        }
+
+                        let (child_min, child_preferred) = self.determine_base_sizes_recursive(child, child_proposed, child_proposed, settled, None);
+
+                        // The cells are uniform, so a child that spans several of them only asks for its share of one.
+                        for axis in [X, Y] {
+                            let share = |v: f32| (v - (spans[axis] - 1.0) * spacing[axis]) / spans[axis];
+                            cell_min[axis] = cell_min[axis].max(share(child_min[axis]));
+                            if let Some(child_preferred) = child_preferred[axis] {
+                                l2_max_into(&mut cell_preferred[axis], share(child_preferred));
+                            }
+                        }
+                    }
+                });
+
+                for axis in [X, Y] {
+                    // A fixed cell size along the main axis overrides what the children asked for.
+                    if axis == main && let MainAxisCellSize::Width(w) = columns {
+                        let w = self.pixels_to_frac(w, axis);
+                        cell_min[axis] = w;
+                        cell_preferred[axis] = Some(w);
+                    }
+                    content_min[axis] = n_lines[axis] * cell_min[axis] + gaps[axis];
+                    if let Some(cell_preferred) = cell_preferred[axis] {
+                        content_preferred[axis] = Some(n_lines[axis] * cell_preferred + gaps[axis]);
+                    }
+                }
+            }
         }
 
         if self.sys.nodes[i].text_i.is_some() {
@@ -703,6 +763,10 @@ impl Ui {
     }
 
     fn solve_fitcontent_size(&mut self, i: NodeI, axis: Axis) -> f32 {
+        if let ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow } = self.sys.nodes[i].params.children_layout {
+            return self.l2_solve_grid_fitcontent(i, axis, columns, Xy::new(spacing_x, spacing_y), flow);
+        }
+
         let stack_main = matches!(
             self.sys.nodes[i].params.children_layout,
             ChildrenLayout::Stack { axis: a, .. } if a == axis
@@ -751,6 +815,34 @@ impl Ui {
         current_size_estimate + gaps
     }
 
+    /// A grid that fits its content is as big as its cells, and the cells are as big as the biggest child in them.
+    fn l2_solve_grid_fitcontent(&mut self, i: NodeI, axis: Axis, columns: MainAxisCellSize, spacing_px: Xy<f32>, flow: GridFlow) -> f32 {
+        let spacing = self.pixels_to_frac(spacing_px[axis], axis);
+        let n_lines = self.grid_n_lines(i, axis) as f32;
+        if n_lines == 0.0 {
+            return 0.0;
+        }
+
+        let mut cell = 0.0f32;
+        if axis == flow.main_axis && let MainAxisCellSize::Width(w) = columns {
+            cell = self.pixels_to_frac(w, axis);
+        } else {
+            for_each_child!(self, self.sys.nodes[i], child, {
+                if ! self.sys.nodes[child].params.free_placement {
+                    let child_size = match self.sys.nodes[child].params.layout.size[axis] {
+                        // A child that only asks for a share of the cell can't be what decides how big the cell is.
+                        Size::Fill | Size::Frac(_) => self.l2_clamp(child, axis, 0.0),
+                        _ => self.l2_size_or_guess(child, axis),
+                    };
+                    let span = self.grid_span(child, axis) as f32;
+                    cell = cell.max((child_size - (span - 1.0) * spacing) / span);
+                }
+            });
+        }
+
+        n_lines * cell + spacing * (n_lines - 1.0)
+    }
+
     fn l2_fit_demand_stacked(&self, child: NodeI, axis: Axis, current_parent_size_estimate: f32) -> FitDemand {
         match self.sys.nodes[child].params.layout.size[axis] {
             Size::Frac(frac) => {
@@ -782,6 +874,19 @@ impl Ui {
         let parent_padding = self.pixels_to_frac2(self.sys.nodes[parent].params.layout.padding)[axis];
         let inner = (parent_size - 2.0 * parent_padding).max(0.0);
 
+        // In a grid, what the child gets is its cells, not the whole inner size.
+        if let ChildrenLayout::Grid { spacing_x, spacing_y, .. } = self.sys.nodes[parent].params.children_layout
+            && ! self.sys.nodes[i].params.free_placement {
+            let spacing = self.pixels_to_frac(Xy::new(spacing_x, spacing_y)[axis], axis);
+            let cell = self.l2_grid_cell_size(parent, axis, spacing);
+            let span = self.grid_span(i, axis) as f32;
+            let available = span * cell + (span - 1.0) * spacing;
+            return match size {
+                Size::Frac(f) => available * f,
+                _ => available,
+            };
+        }
+
         let stack_main = matches!(
             self.sys.nodes[parent].params.children_layout,
             ChildrenLayout::Stack { axis: a, .. } if a == axis
@@ -812,6 +917,18 @@ impl Ui {
 
         // The share is what the child gets unless its own size is already past it: it raises a child up to the common size, it never cuts one down to it.
         self.l2_size_or_guess(i, axis).max(share)
+    }
+
+    /// The size of one of a grid's uniform cells along an axis, out of the size the grid has so far.
+    fn l2_grid_cell_size(&self, parent: NodeI, axis: Axis, spacing: f32) -> f32 {
+        let n = self.grid_n_lines(parent, axis) as f32;
+        if n == 0.0 {
+            return 0.0;
+        }
+        let parent_size = self.l2_size_or_guess(parent, axis);
+        let parent_padding = self.pixels_to_frac2(self.sys.nodes[parent].params.layout.padding)[axis];
+        let inner = (parent_size - 2.0 * parent_padding).max(0.0);
+        ((inner - spacing * (n - 1.0)) / n).max(0.0)
     }
 
     /// What a stack has left over on its main axis for its children to divide, once its padding and its gaps are out of the way.

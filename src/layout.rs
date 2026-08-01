@@ -6,7 +6,7 @@ use crate::inner_node::*;
 use bumpalo::collections::Vec as BumpVec;
 
 const USE_L2_SIZING: bool = true;
-pub(crate) const DUMP_L2_SIZING: bool = true;
+pub(crate) const DUMP_L2_SIZING: bool = false;
 
 struct GridOccupancy<'a> {
     cells: BumpVec<'a, bool>,
@@ -433,7 +433,7 @@ impl Ui {
         }
     }
 
-    fn grid_span(&self, child: NodeI, axis: Axis) -> usize {
+    pub(crate) fn grid_span(&self, child: NodeI, axis: Axis) -> usize {
         let span = match axis {
             X => self.sys.nodes[child].params.grid_element.column_span,
             Y => self.sys.nodes[child].params.grid_element.row_span,
@@ -441,7 +441,7 @@ impl Ui {
         (span as usize).max(1)
     }
 
-    fn grid_n_lines(&self, i: NodeI, axis: Axis) -> usize {
+    pub(crate) fn grid_n_lines(&self, i: NodeI, axis: Axis) -> usize {
         match axis {
             X => self.sys.nodes[i].grid_n_columns as usize,
             Y => self.sys.nodes[i].grid_n_rows as usize,
@@ -449,7 +449,7 @@ impl Ui {
     }
 
     /// The uniform size of one grid cell along an axis. Only valid once the cells are assigned.
-    fn grid_cell_size(&self, i: NodeI, axis: Axis, spacing: f32) -> f32 {
+    pub(crate) fn grid_cell_size(&self, i: NodeI, axis: Axis, spacing: f32) -> f32 {
         let padding = self.pixels_to_frac(self.sys.nodes[i].params.layout.padding[axis], axis);
         let inner = self.sys.nodes[i].size[axis] - 2.0 * padding;
         let n = self.grid_n_lines(i, axis) as f32;
@@ -471,7 +471,7 @@ impl Ui {
         (self.grid_span(child, X), self.grid_span(child, Y))
     }
 
-    fn grid_assign_cells(&mut self, i: NodeI, n_main: usize, flow: GridFlow) {
+    pub(crate) fn grid_assign_cells(&mut self, i: NodeI, n_main: usize, flow: GridFlow) {
         with_arena(|arena| {
             let mut occ = GridOccupancy::new(n_main, arena);
             for_each_child!(self, self.sys.nodes[i], child, {

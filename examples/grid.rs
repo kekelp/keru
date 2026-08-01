@@ -136,11 +136,11 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                 ui.add(PANEL.color(Color::KERU_BLUE)).nest(|| {
                     ui.add(V_STACK).nest(|| {
 
-                        ui.add(H_STACK).nest(|| {
+                        ui.add(H_STACK.size_x(Size::Fill)).nest(|| {
                             ui.add(BUTTON.size_x(Size::Fill).text("Push Element").key(ADD));
                             ui.add(BUTTON.size_x(Size::Fill).text("Push 5").key(ADD_FIVE));
                         });
-                        ui.add(H_STACK).nest(|| {
+                        ui.add(H_STACK.size_x(Size::Fill)).nest(|| {
                             ui.add(BUTTON.size_x(Size::Fill).text("Pop Element").key(REMOVE));
                             ui.add(BUTTON.size_x(Size::Fill).text("Pop 5").key(REMOVE_FIVE));
                         });
