@@ -42,6 +42,7 @@ impl UiExt for Ui {
             #[node_key] const TEXT_EDIT_1: NodeKey;
             let edit = TEXT_EDIT_LINE
                 .key(TEXT_EDIT_1)
+                .size_x(Size::Fill)
                 .text("")
                 .placeholder_text("Single line text edit box");
 
@@ -51,6 +52,7 @@ impl UiExt for Ui {
             let edit2 = TEXT_EDIT
                 .key(TEXT_EDIT_2)
                 .size_y(Size::Pixels(200.0))
+                .size_x(Size::Fill)
                 .placeholder_text("Multiline text edit box")
                 .text("Text edit");
 
@@ -136,8 +138,8 @@ impl UiExt for Ui {
             .size_x(Size::Fill)
             .static_text("Every node can be everything at once.");
 
-        self.add(PANEL.size_y(Size::Fill)).nest(|| {
-            self.add(big_button).nest(|| {
+        self.add(PANEL.size_symm(Size::Fill)).nest(|| {
+            self.add(big_button.size_symm(Size::Fill)).nest(|| {
                 self.spacer();
                 self.add(nested_button_1);
                 self.spacer();

@@ -223,18 +223,18 @@ impl Ui {
         let y1 = (animated_rect.y[1] * screen_size.y * scale).round() / scale;
 
         // Calculate hover and click darkening effects
-        let clickable = if node.params.interact.senses != Sense::NONE { 1.0 } else { 0.0 };
+        let click_hover_anim = if node.params.interact.click_animation { 1.0 } else { 0.0 };
 
         let t = self.sys.t;
         let t_since_hover = (t - node.hover_timestamp) * 10.0;
         let hover = if node.hovered {
-            t_since_hover.clamp(0.0, 1.0) * clickable
+            t_since_hover.clamp(0.0, 1.0) * click_hover_anim
         } else {
-            (1.0 - t_since_hover.clamp(0.0, 1.0)) * if t_since_hover < 1.0 { 1.0 } else { 0.0 } * clickable
+            (1.0 - t_since_hover.clamp(0.0, 1.0)) * if t_since_hover < 1.0 { 1.0 } else { 0.0 } * click_hover_anim
         };
 
         let t_since_click = (t - node.last_click) * 4.1;
-        let click = (1.0 - t_since_click.clamp(0.0, 1.0)) * if t_since_click < 1.0 { 1.0 } else { 0.0 } * clickable;
+        let click = (1.0 - t_since_click.clamp(0.0, 1.0)) * if t_since_click < 1.0 { 1.0 } else { 0.0 } * click_hover_anim;
 
         let dark_hover = 1.0 - hover * 0.32;
         let dark_click = 1.0 - click * 0.78;

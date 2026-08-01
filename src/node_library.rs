@@ -52,7 +52,10 @@ pub(crate) const NODE_ROOT_PARAMS: Node = Node {
         focusable: false,
     },
     layout: Layout {
+        // It matters that this is Frac(1.0) of Fill and not something weird.
         size: Xy::new_symm(Size::Frac(1.0)),
+        min_size: Xy::new(None, None),
+        max_size: Xy::new(None, None),
         padding: Xy::new_symm(0.0),
         position: Xy::new_symm(Start),
         anchor: Xy::new_symm(Anchor::Start),
@@ -110,6 +113,8 @@ pub const DEFAULT: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(Size::Frac(1.0)),
+        min_size: Xy::new(None, None),
+        max_size: Xy::new(None, None),
         padding: Xy::new_symm(0.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
@@ -171,6 +176,8 @@ pub const V_STACK: Node = Node {
     },
     layout: Layout {
         size: Xy::new(Size::FitContent, Size::FitContent),
+        min_size: Xy::new(None, None),
+        max_size: Xy::new(None, None),
         padding: Xy::new_symm(0.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
@@ -232,6 +239,8 @@ pub const H_STACK: Node = Node {
     },
     layout: Layout {
         size: Xy::new(Size::FitContent, Size::FitContent),
+        min_size: Xy::new(None, None),
+        max_size: Xy::new(None, None),
         padding: Xy::new_symm(0.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
@@ -294,6 +303,8 @@ pub const V_SCROLL_STACK: Node = Node {
     },
     layout: Layout {
         size: Xy::new(Size::FitContent, Size::Fill),
+        min_size: Xy::new(None, None),
+        max_size: Xy::new(None, None),
         padding: Xy::new_symm(0.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
@@ -357,6 +368,8 @@ pub const H_SCROLL_STACK: Node = Node {
     },
     layout: Layout {
         size: Xy::new(Size::Fill, Size::FitContent),
+        min_size: Xy::new(None, None),
+        max_size: Xy::new(None, None),
         padding: Xy::new_symm(0.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
@@ -415,6 +428,8 @@ pub const MARGIN: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(Size::Frac(0.9)),
+        min_size: Xy::new(None, None),
+        max_size: Xy::new(None, None),
         padding: Xy::new_symm(0.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
@@ -472,6 +487,8 @@ pub const ICON_BUTTON: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(Size::Pixels(40.0)),
+        min_size: Xy::new(None, None),
+        max_size: Xy::new(None, None),
         padding: Xy::new_symm(2.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
@@ -529,6 +546,8 @@ pub const IMAGE: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
+        min_size: Xy::new(None, None),
+        max_size: Xy::new(None, None),
         padding: Xy::new_symm(0.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
@@ -586,6 +605,8 @@ pub const IMAGE_BUTTON: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
+        min_size: Xy::new(None, None),
+        max_size: Xy::new(None, None),
         padding: Xy::new_symm(0.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
@@ -650,6 +671,8 @@ pub const BUTTON: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
+        min_size: Xy::new(None, None),
+        max_size: Xy::new(None, None),
         padding: Xy::new_symm(10.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
@@ -714,6 +737,8 @@ pub const LABEL: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
+        min_size: Xy::new(None, None),
+        max_size: Xy::new(None, None),
         padding: Xy::new_symm(10.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
@@ -779,6 +804,8 @@ pub const MULTILINE_LABEL: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
+        min_size: Xy::new(None, None),
+        max_size: Xy::new(None, None),
         padding: Xy::new_symm(10.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
@@ -844,6 +871,8 @@ pub const TEXT: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
+        min_size: Xy::new(None, None),
+        max_size: Xy::new(None, None),
         padding: Xy::new_symm(2.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
@@ -902,6 +931,8 @@ pub const ICON: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(Size::Pixels(40.0)),
+        min_size: Xy::new(None, None),
+        max_size: Xy::new(None, None),
         padding: Xy::new_symm(2.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
@@ -967,6 +998,8 @@ pub const TEXT_EDIT: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
+        min_size: Xy::new(None, None),
+        max_size: Xy::new(None, None),
         padding: Xy::new_symm(10.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
@@ -1032,6 +1065,8 @@ pub const TEXT_EDIT_LINE: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
+        min_size: Xy::new(None, None),
+        max_size: Xy::new(None, None),
         padding: Xy::new_symm(10.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
@@ -1096,7 +1131,9 @@ pub const TEXT_PARAGRAPH: Node = Node {
         focusable: false,
     },
     layout: Layout {
-        size: Xy::new_symm(FitContent),
+        size: Xy::new(Fill, FitContent),
+        min_size: Xy::new(None, None),
+        max_size: Xy::new(None, None),
         padding: Xy::new_symm(2.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
@@ -1155,6 +1192,8 @@ pub const PANEL: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
+        min_size: Xy::new(None, None),
+        max_size: Xy::new(None, None),
         padding: Xy::new_symm(10.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
@@ -1213,6 +1252,8 @@ pub const CONTAINER: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
+        min_size: Xy::new(None, None),
+        max_size: Xy::new(None, None),
         padding: Xy::new_symm(10.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
@@ -1307,6 +1348,8 @@ pub const CUSTOM_RENDERED_PANEL: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
+        min_size: Xy::new(None, None),
+        max_size: Xy::new(None, None),
         padding: Xy::new_symm(0.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
@@ -1365,6 +1408,8 @@ pub const SPACER: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(Fill),
+        min_size: Xy::new(None, None),
+        max_size: Xy::new(None, None),
         padding: Xy::new_symm(0.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
@@ -1423,6 +1468,8 @@ pub const H_SPACER: Node = Node {
     },
     layout: Layout {
         size: Xy::new(Size::Fill, Size::FitContent),
+        min_size: Xy::new(None, None),
+        max_size: Xy::new(None, None),
         padding: Xy::new_symm(0.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
@@ -1481,6 +1528,8 @@ pub const V_SPACER: Node = Node {
     },
     layout: Layout {
         size: Xy::new(Size::FitContent, Size::Fill),
+        min_size: Xy::new(None, None),
+        max_size: Xy::new(None, None),
         padding: Xy::new_symm(0.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
@@ -1544,6 +1593,8 @@ pub const GRID: Node = Node {
     },
     layout: Layout {
         size: Xy::new(Size::FitContent, Size::FitContent),
+        min_size: Xy::new(None, None),
+        max_size: Xy::new(None, None),
         padding: Xy::new_symm(0.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
@@ -1607,6 +1658,8 @@ pub const H_LINE: Node = Node {
     },
     layout: Layout {
         size: Xy::new(Size::Fill, Size::Pixels(0.0)),
+        min_size: Xy::new(None, None),
+        max_size: Xy::new(None, None),
         padding: Xy::new_symm(0.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
@@ -1665,6 +1718,8 @@ pub(crate) const COMPONENT_ROOT: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
+        min_size: Xy::new(None, None),
+        max_size: Xy::new(None, None),
         padding: Xy::new_symm(0.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),

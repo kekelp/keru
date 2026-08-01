@@ -530,6 +530,8 @@ pub struct Interact {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Layout {
     pub size: Xy<Size>,
+    pub min_size: Xy<Option<Size>>,
+    pub max_size: Xy<Option<Size>>,
     pub padding: Xy<f32>,
     pub position: Xy<Pos>,
     pub anchor: Xy<Anchor>,
@@ -542,6 +544,8 @@ pub struct Layout {
 impl Hash for Layout {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.size.hash(state);
+        self.min_size.hash(state);
+        self.max_size.hash(state);
         self.padding.x.to_bits().hash(state);
         self.padding.y.to_bits().hash(state);
         self.position.hash(state);
@@ -557,6 +561,8 @@ impl Default for Layout {
     fn default() -> Self {
         Self {
             size: Xy::new_symm(Size::FitContent),
+            min_size: Xy::new(None, None),
+            max_size: Xy::new(None, None),
             padding: Xy::new_symm(10.0),
             position: Xy::new_symm(Pos::Center),
             anchor: Xy::new_symm(Anchor::Start),
@@ -588,6 +594,50 @@ impl Layout {
     pub const fn size_symm(mut self, size: Size) -> Self {
         self.size.x = size;
         self.size.y = size;
+        return self;
+    }
+
+    pub const fn min_size(mut self, min_x: Size, min_y: Size) -> Self {
+        self.min_size.x = Some(min_x);
+        self.min_size.y = Some(min_y);
+        return self;
+    }
+
+    pub const fn min_size_x(mut self, min_x: Size) -> Self {
+        self.min_size.x = Some(min_x);
+        return self;
+    }
+
+    pub const fn min_size_y(mut self, min_y: Size) -> Self {
+        self.min_size.y = Some(min_y);
+        return self;
+    }
+
+    pub const fn min_size_symm(mut self, min: Size) -> Self {
+        self.min_size.x = Some(min);
+        self.min_size.y = Some(min);
+        return self;
+    }
+
+    pub const fn max_size(mut self, max_x: Size, max_y: Size) -> Self {
+        self.max_size.x = Some(max_x);
+        self.max_size.y = Some(max_y);
+        return self;
+    }
+
+    pub const fn max_size_x(mut self, max_x: Size) -> Self {
+        self.max_size.x = Some(max_x);
+        return self;
+    }
+
+    pub const fn max_size_y(mut self, max_y: Size) -> Self {
+        self.max_size.y = Some(max_y);
+        return self;
+    }
+
+    pub const fn max_size_symm(mut self, max: Size) -> Self {
+        self.max_size.x = Some(max);
+        self.max_size.y = Some(max);
         return self;
     }
 
@@ -1400,6 +1450,58 @@ impl<'a> Node<'a> {
     pub const fn size_symm(mut self, size: Size) -> Self {
         self.layout.size.x = size;
         self.layout.size.y = size;
+        return self;
+    }
+
+    /// Set the least the node can be on both axes. See [`Layout::min_size`].
+    pub const fn min_size(mut self, min_x: Size, min_y: Size) -> Self {
+        self.layout.min_size.x = Some(min_x);
+        self.layout.min_size.y = Some(min_y);
+        return self;
+    }
+
+    /// Set the node's minimum width. See [`Layout::min_size`].
+    pub const fn min_size_x(mut self, min_x: Size) -> Self {
+        self.layout.min_size.x = Some(min_x);
+        return self;
+    }
+
+    /// Set the node's minimum height. See [`Layout::min_size`].
+    pub const fn min_size_y(mut self, min_y: Size) -> Self {
+        self.layout.min_size.y = Some(min_y);
+        return self;
+    }
+
+    /// Set the same minimum size on both axes. See [`Layout::min_size`].
+    pub const fn min_size_symm(mut self, min: Size) -> Self {
+        self.layout.min_size.x = Some(min);
+        self.layout.min_size.y = Some(min);
+        return self;
+    }
+
+    /// Set the most the node can be on both axes. See [`Layout::max_size`].
+    pub const fn max_size(mut self, max_x: Size, max_y: Size) -> Self {
+        self.layout.max_size.x = Some(max_x);
+        self.layout.max_size.y = Some(max_y);
+        return self;
+    }
+
+    /// Set the node's maximum width. See [`Layout::max_size`].
+    pub const fn max_size_x(mut self, max_x: Size) -> Self {
+        self.layout.max_size.x = Some(max_x);
+        return self;
+    }
+
+    /// Set the node's maximum height. See [`Layout::max_size`].
+    pub const fn max_size_y(mut self, max_y: Size) -> Self {
+        self.layout.max_size.y = Some(max_y);
+        return self;
+    }
+
+    /// Set the same maximum size on both axes. See [`Layout::max_size`].
+    pub const fn max_size_symm(mut self, max: Size) -> Self {
+        self.layout.max_size.x = Some(max);
+        self.layout.max_size.y = Some(max);
         return self;
     }
 

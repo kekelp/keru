@@ -5,6 +5,9 @@ use crate::inner_node::*;
 
 use bumpalo::collections::Vec as BumpVec;
 
+const USE_L2_SIZING: bool = true;
+pub(crate) const DUMP_L2_SIZING: bool = true;
+
 struct GridOccupancy<'a> {
     cells: BumpVec<'a, bool>,
     n_per_line: usize,
@@ -104,20 +107,26 @@ impl Ui {
     pub(crate) fn clay_relayout_from_root(&mut self) {
         log::info!("Full relayout");
 
-        self.clay_fit_sizing(ROOT_I, X);
-        self.sys.nodes[ROOT_I].size[X] = 1.0;
+        if USE_L2_SIZING {
+            self.l2_calculate_sizes();
+        } else {
+            self.clay_fit_sizing(ROOT_I, X);
+            self.sys.nodes[ROOT_I].size[X] = 1.0;
 
-        self.clay_grow_and_shrink(X);
+            self.clay_grow_and_shrink(X);
 
-        self.clay_wrap_text(ROOT_I);
+            self.clay_wrap_text(ROOT_I);
 
-        self.clay_fit_sizing(ROOT_I, Y);
-        self.sys.nodes[ROOT_I].size[Y] = 1.0;
-        self.clay_grow_and_shrink(Y);
+            self.clay_fit_sizing(ROOT_I, Y);
+            self.sys.nodes[ROOT_I].size[Y] = 1.0;
+            self.clay_grow_and_shrink(Y);
 
-        self.clay_aspect_ratio_widths(ROOT_I);
+            self.clay_aspect_ratio_widths(ROOT_I);
 
-        self.clay_size_text_edits(ROOT_I);
+            // Placement runs on top of whichever sizing pass ran.
+            self.clay_wrap_text(ROOT_I);
+            self.clay_size_text_edits(ROOT_I);
+        }
 
         self.sys.nodes[ROOT_I].layout_rect = XyRect::new([0.0, 1.0], [0.0, 1.0]);
         self.recursive_place_children(ROOT_I);
@@ -274,7 +283,7 @@ impl Ui {
         }
     }
 
-    fn clay_wrap_text(&mut self, i: NodeI) {
+    pub(crate) fn clay_wrap_text(&mut self, i: NodeI) {
         for_each_child!(self, self.sys.nodes[i], child, {
             self.clay_wrap_text(child);
         });
@@ -448,7 +457,7 @@ impl Ui {
     }
 
     /// How many cells fit along the main axis.
-    fn grid_n_main(&self, columns: MainAxisCellSize, flow: GridFlow, inner_main: f32, spacing_main: f32) -> usize {
+    pub(crate) fn grid_n_main(&self, columns: MainAxisCellSize, flow: GridFlow, inner_main: f32, spacing_main: f32) -> usize {
         match columns {
             MainAxisCellSize::Count(n) => (n as usize).max(1),
             MainAxisCellSize::Width(w) => {
@@ -649,7 +658,7 @@ impl Ui {
         }
     }
 
-    fn determine_image_size(&mut self, i: NodeI, proposed_size: Xy<f32>) -> Xy<f32> {
+    pub(crate) fn determine_image_size(&mut self, i: NodeI, proposed_size: Xy<f32>) -> Xy<f32> {
         if let Some(imageref) = &self.sys.nodes[i].imageref {
             match imageref {
                 crate::render::ImageRef::Raster(loaded) => {

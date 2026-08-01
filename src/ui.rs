@@ -108,6 +108,9 @@ pub(crate) struct System {
 
     pub click_rects: Vec<ClickRect>,
 
+    pub layout_solve_queue: Vec<GraphElement>,
+    pub layout_deferred_queue: Vec<GraphElement>,
+
     pub size: Xy<f32>,
     pub scale_factor: f32,
 
@@ -283,6 +286,8 @@ impl Ui {
 
                 click_rects: Vec::with_capacity(50),
 
+                layout_solve_queue: Vec::with_capacity(50),
+                layout_deferred_queue: Vec::with_capacity(50),
 
                 current_frame: FIRST_FRAME,
                 last_frame_end_fake_time: 0,
