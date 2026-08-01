@@ -1,6 +1,8 @@
 use crate::*;
 use crate::layout::DUMP_L2_SIZING;
 
+use bumpalo::collections::Vec as BumpVec;
+
 const MAX_FIT_STACK_FRAC: f32 = 0.999;
 const MAX_FIT_STACK_STEPS: usize = 64;
 const FIT_STACK_EPSILON: f32 = 1e-7;
@@ -156,6 +158,17 @@ impl Ui {
             if stack_main && parent_has_even_share_for_fill_children
                 && ! self.any_size_is_fill(i, axis) {
                 self.push_dependency(GraphElement { node: parent.node, axis, size_type: SizeType::EvenShareForFillChildren }, GraphElement { node: i, axis, size_type: SizeType::Final });
+            }
+
+            if stack_main && parent_has_even_share_for_fill_children
+                && matches!(self.sys.nodes[i].params.layout.size[axis], Size::Fill) {
+                for size_type in [SizeType::Min, SizeType::Max] {
+                    match self.declared_size(i, axis, size_type) {
+                        Some(Size::Fill | Size::Frac(_)) | None => continue,
+                        _ => {}
+                    }
+                    self.push_dependency(GraphElement { node: parent.node, axis, size_type: SizeType::EvenShareForFillChildren }, GraphElement { node: i, axis, size_type });
+                }
             }
 
             if ! self.sys.nodes[i].params.free_placement {
@@ -639,8 +652,8 @@ impl Ui {
                 self.l2_clamp(slot.node, slot.axis, regular)
             }
             SizeType::EvenShareForFillChildren => {
-                let available = self.l2_stack_available(slot.node, slot.axis);
-                self.l2_even_share_for_fill_children(slot.node, slot.axis, available)
+                let available = self.available_space_in_stack(slot.node, slot.axis);
+                self.even_share_for_fill_children(slot.node, slot.axis, available)
             }
             _ => {
                 let size = self.declared_size(slot.node, slot.axis, slot.size_type).unwrap();
@@ -898,7 +911,7 @@ impl Ui {
             };
         }
 
-        let available = self.l2_stack_available(parent, axis);
+        let available = self.available_space_in_stack(parent, axis);
 
         if let Size::Frac(f) = size {
             return available * f;
@@ -908,7 +921,7 @@ impl Ui {
         let share = match self.sys.nodes[parent].l2_solved[axis][SizeType::EvenShareForFillChildren as usize] {
             Some(share) => share,
             None => {
-                let share = self.l2_even_share_for_fill_children(parent, axis, available);
+                let share = self.even_share_for_fill_children(parent, axis, available);
                 self.sys.nodes[parent].l2_solved[axis][SizeType::EvenShareForFillChildren as usize] = Some(share);
                 share
             }
@@ -930,57 +943,79 @@ impl Ui {
         ((inner - spacing * (n - 1.0)) / n).max(0.0)
     }
 
-    /// What a stack has left over on its main axis for its children to divide, once its padding and its gaps are out of the way.
-    fn l2_stack_available(&self, parent: NodeI, axis: Axis) -> f32 {
+    fn available_space_in_stack(&self, parent: NodeI, axis: Axis) -> f32 {
         let parent_size = self.l2_size_or_guess(parent, axis);
         let parent_padding = self.pixels_to_frac2(self.sys.nodes[parent].params.layout.padding)[axis];
         let inner = (parent_size - 2.0 * parent_padding).max(0.0);
         (inner - self.sys.nodes[parent].l2_stack_gaps[axis]).max(0.0)
     }
 
-    /// The size every `Fill` child of this stack comes out at, except the ones whose own minimum is bigger: those keep their minimum, and the rest evenly divide whatever is left once the children that aren't asking for a share have taken theirs. Each round drops the children that are already past the current share out of the division, which can only lower it, so the split settles after at most one round per `Fill` child.
-    fn l2_even_share_for_fill_children(&mut self, parent: NodeI, axis: Axis, available: f32) -> f32 {
-        let mut budget = available;
-        let mut n_fills = 0;
-        for_each_child!(self, self.sys.nodes[parent], child, {
-            if self.sys.nodes[child].params.free_placement {
-                continue;
-            }
-            if self.sys.nodes[child].params.layout.size[axis] == Size::Fill {
-                n_fills += 1;
-            } else {
-                budget -= self.l2_size_or_guess(child, axis);
-            }
-        });
+    fn clamp_fill_child_with_share_estimate(&self, child: NodeI, axis: Axis, share: f32) -> f32 {
+        self.l2_clamp(child, axis, self.l2_size_or_guess(child, axis).max(share))
+    }
 
-        let mut share = budget / n_fills.max(1) as f32;
-        loop {
-            let mut over_share = 0.0f32;
-            let mut n_under = 0;
+    fn even_share_for_fill_children(&mut self, parent: NodeI, axis: Axis, available: f32) -> f32 {
+        let mut budget = available;
+
+        return with_arena(|arena| {
+            let mut fills: BumpVec<(NodeI, bool)> = BumpVec::new_in(arena);
+
             for_each_child!(self, self.sys.nodes[parent], child, {
-                if self.sys.nodes[child].params.free_placement
-                    || self.sys.nodes[child].params.layout.size[axis] != Size::Fill {
+                if self.sys.nodes[child].params.free_placement {
                     continue;
                 }
-                let base = self.l2_size_or_guess(child, axis);
-                if base > share {
-                    over_share += base;
+                if self.sys.nodes[child].params.layout.size[axis] == Size::Fill {
+                    fills.push((child, false));
                 } else {
-                    n_under += 1;
+                    budget -= self.l2_size_or_guess(child, axis);
                 }
             });
 
-            if n_under == n_fills {
-                break;
-            }
-            let new_share = (budget - over_share) / n_under.max(1) as f32;
-            if (new_share - share).abs() < 1e-9 {
-                break;
-            }
-            share = new_share;
-        }
+            let mut share = budget / fills.len().max(1) as f32;
+            let mut frozen_total = 0.0;
+            let mut n_frozen = 0;
 
-        share
+            while n_frozen < fills.len() {
+                share = (budget - frozen_total) / (fills.len() - n_frozen) as f32;
+
+                let mut total_violation = 0.0;
+                for (child, frozen) in fills.iter() {
+                    if *frozen {
+                        continue;
+                    }
+                    total_violation += self.clamp_fill_child_with_share_estimate(*child, axis, share) - share;
+                }
+
+                if total_violation.abs() < 1e-9 {
+                    break;
+                }
+
+                let mut froze_any = false;
+                for (child, frozen) in fills.iter_mut() {
+                    if *frozen {
+                        continue;
+                    }
+                    let size = self.clamp_fill_child_with_share_estimate(*child, axis, share);
+                    let violation = size - share;
+                    let stuck = match total_violation > 0.0 {
+                        true => violation > 1e-9,
+                        false => violation < -1e-9,
+                    };
+                    if stuck {
+                        *frozen = true;
+                        n_frozen += 1;
+                        frozen_total += size;
+                        froze_any = true;
+                    }
+                }
+
+                if ! froze_any {
+                    break;
+                }
+            }
+
+            return share;
+        });
     }
 
     fn l2_aspect_mult(&self, axis: Axis, aspect: f32) -> f32 {
