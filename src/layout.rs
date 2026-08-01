@@ -109,6 +109,8 @@ impl Ui {
 
         if USE_L2_SIZING {
             self.l2_calculate_sizes();
+            // Every other node gets its size written on the way down through `recursive_place_children`, but nobody places the root, so it writes its own.
+            self.l2_write_size(ROOT_I);
         } else {
             self.clay_fit_sizing(ROOT_I, X);
             self.sys.nodes[ROOT_I].size[X] = 1.0;
@@ -130,6 +132,10 @@ impl Ui {
 
         self.sys.nodes[ROOT_I].layout_rect = XyRect::new([0.0, 1.0], [0.0, 1.0]);
         self.recursive_place_children(ROOT_I);
+
+        if USE_L2_SIZING && DUMP_L2_SIZING {
+            self.l2_dump_sizes(ROOT_I, 0);
+        }
 
         // self.dump_layout(ROOT_I, 0);
     }
@@ -680,6 +686,10 @@ impl Ui {
 
 impl Ui {
     pub(crate) fn recursive_place_children(&mut self, i: NodeI) {
+        if USE_L2_SIZING {
+            self.l2_write_children_sizes(i);
+        }
+
         self.sys.nodes[i].content_bounds = XyRect::new_symm([f32::MAX, f32::MIN]);
 
         match self.sys.nodes[i].params.children_layout {

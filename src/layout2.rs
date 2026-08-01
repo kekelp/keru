@@ -76,10 +76,8 @@ impl Ui {
             self.dump_layout_dependencies();
         }
         self.l2_solve();
-        self.l2_write_sizes(ROOT_I);
         if DUMP_L2_SIZING {
             self.l2_dump_unsolved(ROOT_I);
-            self.l2_dump_sizes(ROOT_I, 0);
         }
     }
 
@@ -656,7 +654,14 @@ impl Ui {
         self.sys.layout_solve_queue.push(slot);
     }
 
-    pub(crate) fn l2_write_sizes(&mut self, i: NodeI) {
+    pub(crate) fn l2_write_size(&mut self, i: NodeI) {
+        for axis in [X, Y] {
+            self.sys.nodes[i].size[axis] = self.l2_size_or_guess(i, axis);
+        }
+        self.l2_write_text_size(i);
+    }
+
+    pub(crate) fn l2_write_children_sizes(&mut self, i: NodeI) {
         // Also do this annoying hidden thing while we're at it.
         let children_can_hide = match self.sys.nodes[i].params.children_can_hide {
             ChildrenCanHide::Yes => true,
@@ -664,15 +669,9 @@ impl Ui {
             ChildrenCanHide::Inherit => self.sys.nodes[i].can_hide,
         };
 
-        for axis in [X, Y] {
-            self.sys.nodes[i].size[axis] = self.l2_size_or_guess(i, axis);
-        }
-
-        self.l2_write_text_size(i);
-
         for_each_child!(self, self.sys.nodes[i], child, {
             self.sys.nodes[child].can_hide = children_can_hide;
-            self.l2_write_sizes(child);
+            self.l2_write_size(child);
         });
     }
 
