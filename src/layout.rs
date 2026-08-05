@@ -5,9 +5,6 @@ use crate::inner_node::*;
 
 use bumpalo::collections::Vec as BumpVec;
 
-const USE_L2_SIZING: bool = true;
-pub(crate) const DUMP_L2_SIZING: bool = false;
-
 struct GridOccupancy<'a> {
     cells: BumpVec<'a, bool>,
     n_per_line: usize,
@@ -113,21 +110,8 @@ impl Ui {
         self.l2_write_size(ROOT_I);
         self.recursive_place_children(ROOT_I);
 
-        if USE_L2_SIZING && DUMP_L2_SIZING {
-            self.l2_dump_sizes(ROOT_I, 0);
-        }
-    }
-
-    #[allow(dead_code)]
-    fn dump_layout(&mut self, i: NodeI, depth: usize) {
-        let name = self.node_debug_name(i);
-        let s = self.sys.nodes[i].size;
-        let r = self.sys.nodes[i].layout_rect;
-        log::info!("{:indent$}{name}: size=({:.3},{:.3}) rect=x[{:.3},{:.3}] y[{:.3},{:.3}]",
-            "", s.x, s.y, r.x[0], r.x[1], r.y[0], r.y[1], indent = depth * 2);
-        for_each_child!(self, self.sys.nodes[i], child, {
-            self.dump_layout(child, depth + 1);
-        });
+        // self.write_layout_dependencies_dot("layout_dependencies.dot");
+        // self.l2_dump_unsolved(ROOT_I);
     }
 
     fn grid_line(&self, child: NodeI, axis: Axis) -> usize {
@@ -230,24 +214,6 @@ impl Ui {
         }
     }
 
-    pub(crate) fn determine_image_size(&mut self, i: NodeI, proposed_size: Xy<f32>) -> Xy<f32> {
-        if let Some(imageref) = &self.sys.nodes[i].imageref {
-            match imageref {
-                crate::render::ImageRef::Raster(loaded) => {
-                    // use intrinsic size
-                    let size_pixels = Xy::new(loaded.width as f32, loaded.height as f32);
-                    return self.pixels_to_frac2(size_pixels);
-                }
-                crate::render::ImageRef::Svg(_loaded) => {
-                    // no intrinsic size
-                    return proposed_size;
-                }
-            }
-        }
-        // Fallback if no image is loaded
-        let fallback_pixels = Xy::new(100.0, 100.0);
-        return self.pixels_to_frac2(fallback_pixels);
-    }
 }
 
 impl Ui {

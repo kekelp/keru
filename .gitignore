@@ -7,3 +7,5 @@ perf.data
 perf.data.old
 flamegraph.svg
 profile.json.gz
+layout_dependencies.dot
+layout_dependencies.svg

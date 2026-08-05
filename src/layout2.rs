@@ -1,5 +1,4 @@
 use crate::*;
-use crate::layout::DUMP_L2_SIZING;
 
 use bumpalo::collections::Vec as BumpVec;
 
@@ -14,9 +13,10 @@ pub(crate) enum SizeType {
     Max,
     Final,
     EvenShareForFillChildren,
+    GridCells,
 }
-pub(crate) const N_SIZE_TYPES: usize = 5;
-pub(crate) const SIZE_TYPES: [SizeType; N_SIZE_TYPES] = [SizeType::Regular, SizeType::Min, SizeType::Max, SizeType::Final, SizeType::EvenShareForFillChildren];
+pub(crate) const N_SIZE_TYPES: usize = 6;
+pub(crate) const SIZE_TYPES: [SizeType; N_SIZE_TYPES] = [SizeType::Regular, SizeType::Min, SizeType::Max, SizeType::Final, SizeType::EvenShareForFillChildren, SizeType::GridCells];
 
 pub(crate) const N_DECLARED_SIZES: usize = 3;
 pub(crate) const DECLARED_SIZES: [SizeType; N_DECLARED_SIZES] = [SizeType::Regular, SizeType::Min, SizeType::Max];
@@ -38,14 +38,10 @@ pub(crate) struct ParentNodeInfo {
     pub regular_is_fitcontent: Xy<bool>,
     pub fitcontent_sizes: Xy<[bool; N_DECLARED_SIZES]>,
     pub stack_axis: Option<Axis>,
+    /// The main axis of the children's grid flow, if the children are laid out in a grid.
+    pub grid_main_axis: Option<Axis>,
     pub has_sized_children: Xy<bool>,
     pub has_fill_children: Xy<bool>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) struct TextSizes {
-    pub min: Xy<f32>,
-    pub preferred: Xy<f32>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -54,33 +50,23 @@ pub(crate) struct LayoutDependency {
     pub depends_on: GraphElement,
 }
 
-fn l2_settle(preferred: Option<f32>, min: f32, available: f32) -> f32 {
-    preferred.unwrap_or(min).min(available).max(min)
-}
-
-fn l2_max_into(slot: &mut Option<f32>, candidate: f32) {
-    *slot = Some(match *slot {
-        Some(so_far) => so_far.max(candidate),
-        None => candidate,
-    });
-}
-
 impl Ui {
     pub(crate) fn l2_calculate_sizes(&mut self) {
         self.sys.layout_solve_queue.clear();
         self.sys.layout_deferred_queue.clear();
-        self.clear_node_dependencies(ROOT_I);
+        self.reset_root();
+        self.collapse_underdetermined_fitcontents(ROOT_I);
         self.push_dependencies_recursive(ROOT_I);
-        let root = Xy::new(1.0, 1.0);
-        let _ = self.determine_base_sizes_recursive(ROOT_I, root, root, Xy::new(true, true), None);
+        self.solve_layout();
+    }
 
-        if DUMP_L2_SIZING {
-            self.dump_layout_dependencies();
-        }
-        self.l2_solve();
-        if DUMP_L2_SIZING {
-            self.l2_dump_unsolved(ROOT_I);
-        }
+    fn reset_root(&mut self) {
+        self.clear_node_dependencies(ROOT_I);
+        self.sys.layout_solve_queue.push(GraphElement { node: ROOT_I, axis: X, size_type: SizeType::Final });
+        self.sys.layout_solve_queue.push(GraphElement { node: ROOT_I, axis: Y, size_type: SizeType::Final });
+        self.sys.nodes[ROOT_I].size = Xy::new(1.0, 1.0);
+        self.sys.nodes[ROOT_I].l2_solved[X][SizeType::Final as usize] = Some(1.0);
+        self.sys.nodes[ROOT_I].l2_solved[Y][SizeType::Final as usize] = Some(1.0);
     }
 
     fn clear_node_dependencies(&mut self, i: NodeI) {
@@ -92,19 +78,52 @@ impl Ui {
     fn push_dependencies_recursive(&mut self, i: NodeI) {
         let info = self.get_parent_node_info(i);
 
-        // The even share for this node's Fill children is taken out of its own size, so it waits for it. The children it also waits for are pushed one by one in `push_node_dependencies`.
-        for axis in [X, Y] {
-            if self.l2_has_even_share_for_fill_children(&info, axis) {
-                self.push_dependency(GraphElement { node: i, axis, size_type: SizeType::EvenShareForFillChildren }, GraphElement { node: i, axis, size_type: SizeType::Final });
-            }
-        }
+        self.push_parent_dependencies(i, &info);
 
         for_each_child!(self, self.sys.nodes[i], child, {
             self.clear_node_dependencies(child);
-
             self.push_node_dependencies(child, info);
             self.push_dependencies_recursive(child);
         });
+
+        self.push_solvable_nodes(i);
+    }
+
+    fn push_parent_dependencies(&mut self, i: NodeI, info: &ParentNodeInfo) {
+        for axis in [X, Y] {
+            if self.has_even_share_for_fill_children(info, axis) {
+                self.push_dependency(LayoutDependency {
+                    dependent: GraphElement { node: i, axis, size_type: SizeType::EvenShareForFillChildren },
+                    depends_on: GraphElement { node: i, axis, size_type: SizeType::Final },
+                });
+            }
+        }
+
+        if let Some(main) = info.grid_main_axis {
+            let cells = GraphElement { node: i, axis: main, size_type: SizeType::GridCells };
+
+            if let ChildrenLayout::Grid { columns: MainAxisCellSize::Width(_), .. } = self.sys.nodes[i].params.children_layout {
+                self.push_dependency(LayoutDependency {
+                    dependent: cells,
+                    depends_on: GraphElement { node: i, axis: main, size_type: SizeType::Final },
+                });
+            }
+
+            for axis in [X, Y] {
+                for size_type in DECLARED_SIZES {
+                    if info.fitcontent_sizes[axis][size_type as usize] {
+                        let slot = match size_type {
+                            SizeType::Regular => self.regular_slot(i, axis),
+                            other => other,
+                        };
+                        self.push_dependency(LayoutDependency {
+                            dependent: GraphElement { node: i, axis, size_type: slot },
+                            depends_on: cells,
+                        });
+                    }
+                }
+            }
+        }
     }
 
     fn get_parent_node_info(&mut self, i: NodeI) -> ParentNodeInfo {
@@ -115,10 +134,15 @@ impl Ui {
         let mut regular_is_fitcontent = Xy::new(false, false);
         let mut fitcontent_sizes = Xy::new([false; N_DECLARED_SIZES], [false; N_DECLARED_SIZES]);
         for axis in [X, Y] {
-            regular_is_fitcontent[axis] = matches!(self.sys.nodes[i].params.layout.size[axis], Size::FitContent);
+            // A flex-collapsing node acts as Fill, not FitContent: it fills its parent, so to its own children it's a parent with real space to hand out, and it no longer waits on them for its own regular size.
+            regular_is_fitcontent[axis] = matches!(self.effective_size(i, axis), Size::FitContent);
             // A `FitContent` bound is sized from the content just like a `FitContent` size is, so each of them waits for the children on its own.
             for size_type in DECLARED_SIZES {
-                fitcontent_sizes[axis][size_type as usize] = matches!(self.declared_size(i, axis, size_type), Some(Size::FitContent));
+                let size = match size_type {
+                    SizeType::Regular => self.effective_size(i, axis),
+                    other => self.declared_size(i, axis, other).unwrap_or(Size::Fill),
+                };
+                fitcontent_sizes[axis][size_type as usize] = matches!(size, Size::FitContent);
             }
         }
 
@@ -137,15 +161,47 @@ impl Ui {
             }
         });
 
-        ParentNodeInfo { node: i, regular_is_fitcontent, fitcontent_sizes, stack_axis, has_sized_children, has_fill_children }
+        ParentNodeInfo { node: i, regular_is_fitcontent, fitcontent_sizes, stack_axis, grid_main_axis: self.grid_main_axis(i), has_sized_children, has_fill_children }
+    }
+
+
+    fn push_solvable_nodes(&mut self, i: NodeI) {
+        for axis in [X, Y] {
+            // Write fixed Pixel values
+            for size_type in DECLARED_SIZES {
+                if let Some(Size::Pixels(px)) = self.declared_size(i, axis, size_type) {
+                    let slot = match size_type {
+                        SizeType::Regular => self.regular_slot(i, axis),
+                        other => other,
+                    };
+                    self.sys.nodes[i].l2_solved[axis][slot as usize] = Some(self.pixels_to_frac(px, axis));
+                }
+            }
+
+            // Push solvable nodes in the solver queue
+            for size_type in SIZE_TYPES {
+                if self.size_type_exists(i, axis, size_type) {
+                    let slot = GraphElement { node: i, axis, size_type };
+                    if self.sys.nodes[i].l2_solved[axis][size_type as usize].is_some() {
+                        self.sys.nodes[i].n_unsolved_layout_dependencies[axis][size_type as usize] = 0;
+                        self.sys.layout_solve_queue.push(slot);
+                    } else if self.sys.nodes[i].n_unsolved_layout_dependencies[axis][size_type as usize] == 0 {
+                        self.solve_element(slot, false);
+                    }
+                }
+            }
+        }
     }
 
     fn push_node_dependencies(&mut self, i: NodeI, parent: ParentNodeInfo) {
         // Dependency of this node's final size on its regular, min, max sizes, if they exist.
         for axis in [X, Y] {
             for size_type in DECLARED_SIZES {
-                if self.declared_size(i, axis, size_type).is_some() {
-                    self.push_dependency(GraphElement { node: i, axis, size_type: SizeType::Final }, GraphElement { node: i, axis, size_type });
+                if self.declared_size(i, axis, size_type).is_some() && self.size_type_exists(i, axis, size_type) {
+                    self.push_dependency(LayoutDependency {
+                        dependent: GraphElement { node: i, axis, size_type: SizeType::Final },
+                        depends_on: GraphElement { node: i, axis, size_type }
+                    });
                 }
             }
         }
@@ -153,46 +209,70 @@ impl Ui {
         // Dependencies on other nodes.
         for axis in [X, Y] {
             let stack_main = parent.stack_axis == Some(axis) && ! self.sys.nodes[i].params.free_placement;
-            let parent_has_even_share_for_fill_children = self.l2_has_even_share_for_fill_children(&parent, axis);
+            let parent_has_even_share_for_fill_children = self.has_even_share_for_fill_children(&parent, axis);
 
-            if stack_main && parent_has_even_share_for_fill_children
-                && ! self.any_size_is_fill(i, axis) {
-                self.push_dependency(GraphElement { node: parent.node, axis, size_type: SizeType::EvenShareForFillChildren }, GraphElement { node: i, axis, size_type: SizeType::Final });
-            }
-
-            if stack_main && parent_has_even_share_for_fill_children
-                && matches!(self.sys.nodes[i].params.layout.size[axis], Size::Fill) {
-                for size_type in [SizeType::Min, SizeType::Max] {
+            if stack_main && parent_has_even_share_for_fill_children {
+                for size_type in DECLARED_SIZES {
                     match self.declared_size(i, axis, size_type) {
-                        Some(Size::Fill | Size::Frac(_)) | None => continue,
+                        None | Some(Size::Fill) => continue,
                         _ => {}
                     }
-                    self.push_dependency(GraphElement { node: parent.node, axis, size_type: SizeType::EvenShareForFillChildren }, GraphElement { node: i, axis, size_type });
+                    // A regular size lives in the Final slot when there are no bounds to clamp it against.
+                    let child_slot = match size_type {
+                        SizeType::Regular => self.regular_slot(i, axis),
+                        other => other,
+                    };
+                    self.push_dependency(LayoutDependency {
+                        dependent: GraphElement { node: parent.node, axis, size_type: SizeType::EvenShareForFillChildren },
+                        depends_on: GraphElement { node: i, axis, size_type: child_slot },
+                    });
                 }
             }
 
             if ! self.sys.nodes[i].params.free_placement {
-                let contributions: &[SizeType] = match self.sys.nodes[i].params.layout.size[axis] {
-                    Size::Fill | Size::Frac(_) => &[SizeType::Min, SizeType::Max],
-                    _ => &[SizeType::Final],
-                };
-                for &contribution in contributions {
-                    match self.declared_size(i, axis, contribution) {
-                        Some(Size::Fill | Size::Frac(_)) => continue,
-                        None if contribution != SizeType::Final => continue,
+                for child_size_type in DECLARED_SIZES {
+                    // A flex-collapsing child fills its FitContent parent instead of sizing it, so it's Fill-like here and contributes nothing (it goes through the even share like any Fill).
+                    let child_size = match child_size_type {
+                        SizeType::Regular => self.effective_size(i, axis),
+                        other => self.declared_size(i, axis, other).unwrap_or(Size::Fill),
+                    };
+                    match child_size {
+                        Size::Fill | Size::Frac(_) => continue,
                         _ => {}
                     }
-                    for size_type in DECLARED_SIZES {
-                        if parent.fitcontent_sizes[axis][size_type as usize] {
-                            self.push_dependency(GraphElement { node: parent.node, axis, size_type }, GraphElement { node: i, axis, size_type: contribution });
+                    let child_slot = match child_size_type {
+                        SizeType::Regular => self.regular_slot(i, axis),
+                        other => other,
+                    };
+                    for parent_size_type in DECLARED_SIZES {
+                        if parent.fitcontent_sizes[axis][parent_size_type as usize] {
+                            let parent_slot = match parent_size_type {
+                                SizeType::Regular => self.regular_slot(parent.node, axis),
+                                other => other,
+                            };
+                            self.push_dependency(LayoutDependency {
+                                dependent: GraphElement { node: parent.node, axis, size_type: parent_slot },
+                                depends_on: GraphElement { node: i, axis, size_type: child_slot },
+                            });
                         }
                     }
                 }
             }
 
             for size_type in DECLARED_SIZES {
-                let Some(size) = self.declared_size(i, axis, size_type) else { continue };
-                let element = GraphElement { node: i, axis, size_type };
+                // A flex-collapsing node's regular size behaves as Fill: it fills its parent instead of summing its children.
+                let size = match size_type {
+                    SizeType::Regular => Some(self.effective_size(i, axis)),
+                    other => self.declared_size(i, axis, other),
+                };
+                let Some(size) = size else { continue };
+                if self.is_phantom_fill_bound(i, axis, size_type) {
+                    continue;
+                }
+                let size_type = match size_type {
+                    SizeType::Regular => self.regular_slot(i, axis),
+                    other => other,
+                };
 
                 let mut dependency_on_other_axis = false;
                 let mut dependency_on_parent = false;
@@ -205,7 +285,7 @@ impl Ui {
 
                 if matches!(size, Size::AspectRatio(_)) {
                     if matches!(self.sys.nodes[i].params.layout.size[axis.other()], Size::AspectRatio(_)) {
-                        log::warn!("A node shouldn't be AspectRatio on both axes. (node: {})", self.node_debug_name(parent.node));
+                        log::warn!("A node shouldn't be AspectRatio on both axes. (node: {})", self.node_debug_name(i));
                     } else {
                         dependency_on_other_axis = true;
                     }
@@ -224,7 +304,10 @@ impl Ui {
                 }
 
                 if dependency_on_other_axis {
-                    self.push_dependency(element, GraphElement { node: i, axis: axis.other(), size_type: SizeType::Final });
+                    self.push_dependency(LayoutDependency {
+                        dependent: GraphElement { node: i, axis, size_type },
+                        depends_on: GraphElement { node: i, axis: axis.other(), size_type: SizeType::Final }
+                    });
                 }
                 if dependency_on_parent {
                     // A Fill on the stack's main axis comes out of the even share rather than straight out of the parent's size. The share waits for the parent itself, so nothing is lost by going through it.
@@ -232,369 +315,29 @@ impl Ui {
                         true => SizeType::EvenShareForFillChildren,
                         false => SizeType::Final,
                     };
-                    self.push_dependency(element, GraphElement { node: parent.node, axis, size_type: depends_on });
+                    self.push_dependency(LayoutDependency {
+                        dependent: GraphElement { node: i, axis, size_type },
+                        depends_on: GraphElement { node: parent.node, axis, size_type: depends_on }
+                    });
+                }
+                // In a grid, what a Fill or Frac child gets is its cells, so it has to wait for them to be assigned.
+                if fill_or_frac && let Some(main) = parent.grid_main_axis
+                    && ! self.sys.nodes[i].params.free_placement {
+                    self.push_dependency(LayoutDependency {
+                        dependent: GraphElement { node: i, axis, size_type },
+                        depends_on: GraphElement { node: parent.node, axis: main, size_type: SizeType::GridCells }
+                    });
                 }
             }
         }
     }
 
-    pub(crate) fn declared_size(&self, i: NodeI, axis: Axis, size_type: SizeType) -> Option<Size> {
-        let layout = &self.sys.nodes[i].params.layout;
-        match size_type {
-            SizeType::Min => layout.min_size[axis],
-            SizeType::Max => layout.max_size[axis],
-            SizeType::Regular => Some(layout.size[axis]),
-            SizeType::Final | SizeType::EvenShareForFillChildren => None,
-        }
+    fn push_dependency(&mut self, dependency: LayoutDependency) {
+        self.sys.nodes[dependency.dependent.node].n_unsolved_layout_dependencies[dependency.dependent.axis][dependency.dependent.size_type as usize] += 1;
+        self.sys.nodes[dependency.depends_on.node].layout_dependents.push(dependency);
     }
 
-    pub(crate) fn size_type_exists(&self, i: NodeI, axis: Axis, size_type: SizeType) -> bool {
-        let layout = &self.sys.nodes[i].params.layout;
-        match size_type {
-            SizeType::Regular | SizeType::Final => true,
-            SizeType::Min => layout.min_size[axis].is_some(),
-            SizeType::Max => layout.max_size[axis].is_some(),
-            // It isn't one of the node's own sizes, so nothing that walks the node's sizes should pick it up. It's solved from the graph alone.
-            SizeType::EvenShareForFillChildren => false,
-        }
-    }
-
-    /// Whether this node hands out an even share to Fill children on this axis: it has to be a stack along it, with something asking to fill it, and with room of its own to hand out.
-    fn l2_has_even_share_for_fill_children(&self, parent: &ParentNodeInfo, axis: Axis) -> bool {
-        parent.stack_axis == Some(axis) && parent.has_fill_children[axis] && ! parent.regular_is_fitcontent[axis]
-    }
-
-    fn any_size_is_fill(&self, i: NodeI, axis: Axis) -> bool {
-        DECLARED_SIZES.iter().any(|&size_type| matches!(self.declared_size(i, axis, size_type), Some(Size::Fill)))
-    }
-
-    fn any_size_is_fitcontent(&self, i: NodeI, axis: Axis) -> bool {
-        DECLARED_SIZES.iter().any(|&size_type| matches!(self.declared_size(i, axis, size_type), Some(Size::FitContent)))
-    }
-
-    fn text_wraps_from_width(&self, i: NodeI, size: Size) -> bool {
-        if ! matches!(self.sys.nodes[i].text_i, Some(TextI::TextBox(_))) {
-            return false;
-        }
-        if ! matches!(size, Size::FitContent) {
-            return false;
-        }
-        ! matches!(self.sys.nodes[i].params.layout.size[X], Size::AspectRatio(_))
-    }
-
-    fn child_can_size_parent(&self, child: NodeI, axis: Axis) -> bool {
-        let layout = &self.sys.nodes[child].params.layout;
-        match layout.size[axis] {
-            _ if self.sys.nodes[child].params.free_placement => false,
-            Size::Fill | Size::Frac(_) => matches!(layout.min_size[axis], Some(Size::Pixels(_) | Size::FitContent)),
-            Size::Pixels(_) | Size::FitContent | Size::AspectRatio(_) => true,
-        }
-    }
-
-    fn push_dependency(&mut self, dependent: GraphElement, depends_on: GraphElement) {
-        self.sys.nodes[dependent.node].n_unsolved_layout_dependencies[dependent.axis][dependent.size_type as usize] += 1;
-        self.sys.nodes[depends_on.node].layout_dependents.push(LayoutDependency { dependent, depends_on });
-    }
-
-    /// Returns the node's minimum content size and its preferred size, which is all the parent needs out of it on the way back up.
-    fn determine_base_sizes_recursive(&mut self, i: NodeI, proposed: Xy<f32>, parent_inner: Xy<f32>, parent_inner_final: Xy<bool>, parent_stack_axis: Option<Axis>) -> (Xy<f32>, Xy<Option<f32>>) {
-        for axis in [X, Y] {
-            for size_type in [SizeType::Min, SizeType::Max] {
-                if let Some(Size::Pixels(px)) = self.declared_size(i, axis, size_type) {
-                    self.sys.nodes[i].l2_solved[axis][size_type as usize] = Some(self.pixels_to_frac(px, axis));
-                }
-            }
-        }
-
-        // Determine the base sizes
-        let (available, settled) = self.take_available_size(i, proposed, parent_inner, parent_inner_final, parent_stack_axis);
-
-        self.sys.nodes[i].l2_stack_gaps = Xy::new(0.0, 0.0);
-
-        let padding = self.pixels_to_frac2(self.sys.nodes[i].params.layout.padding);
-        let mut inner = available;
-        for axis in [X, Y] {
-            inner[axis] = (inner[axis] - 2.0 * padding[axis]).max(0.0);
-        }
-
-        let mut content_min = Xy::new(0.0f32, 0.0f32);
-        let mut content_preferred: Xy<Option<f32>> = Xy::new(None, None);
-
-        // Recursively propose the size down to our children.
-        // While doing it, keep track of the sizes of the content. When we get back to this node after the recursive dive, use those sizes to determine our own.
-        match self.sys.nodes[i].params.children_layout {
-            ChildrenLayout::Free => {
-                for_each_child!(self, self.sys.nodes[i], child, {
-                    let (child_min, child_preferred) = self.determine_base_sizes_recursive(child, inner, inner, settled, None);
-                    for axis in [X, Y] {
-                        content_min[axis] = content_min[axis].max(child_min[axis]);
-                        if let Some(child_preferred) = child_preferred[axis] {
-                            l2_max_into(&mut content_preferred[axis], child_preferred);
-                        }
-                    }
-                });
-            }
-
-            ChildrenLayout::Stack { axis, spacing, .. } => {
-                let cross = axis.other();
-                let spacing = self.pixels_to_frac(spacing, axis);
-
-                let mut n = 0;
-                let mut fixed_total = 0.0;
-                let mut frac_total = 0.0;
-                for_each_child!(self, self.sys.nodes[i], child, {
-                    if ! self.sys.nodes[child].params.free_placement {
-                        n += 1;
-                        match self.sys.nodes[child].params.layout.size[axis] {
-                            Size::Pixels(px) => fixed_total += self.pixels_to_frac(px, axis),
-                            Size::Frac(f) => frac_total += f,
-                            _ => {}
-                        }
-                    }
-                });
-                let gaps = spacing * (n as f32 - 1.0).max(0.0);
-                self.sys.nodes[i].l2_stack_gaps[axis] = gaps;
-                if frac_total > MAX_FIT_STACK_FRAC && self.any_size_is_fitcontent(i, axis) {
-                    log::warn!("A FitContent stack has no finite size that satisfies its Frac children: they ask for {} of it in total. (node: {}, axis: {:?})",
-                        frac_total, self.node_debug_name(i), axis);
-                }
-
-                let mut children_inner = inner;
-                children_inner[axis] = (inner[axis] - gaps).max(0.0);
-
-                let mut n_added = 0;
-                let mut preferred_sum = 0.0f32;
-                let mut any_child_opinion = false;
-                for_each_child!(self, self.sys.nodes[i], child, {
-                    if self.sys.nodes[child].params.free_placement {
-                        let _ = self.determine_base_sizes_recursive(child, inner, inner, settled, None);
-                    } else {
-                        let own_fixed = match self.sys.nodes[child].params.layout.size[axis] {
-                            Size::Pixels(px) => self.pixels_to_frac(px, axis),
-                            _ => 0.0,
-                        };
-                        let mut child_proposed = children_inner;
-                        child_proposed[axis] = (children_inner[axis] - (fixed_total - own_fixed)).max(0.0);
-
-                        let (child_min, child_preferred) = self.determine_base_sizes_recursive(child, child_proposed, children_inner, settled, Some(axis));
-
-                        if n_added != 0 {
-                            content_min[axis] += spacing;
-                            preferred_sum += spacing;
-                        }
-                        content_min[axis] += child_min[axis];
-                        preferred_sum += child_preferred[axis].unwrap_or(child_min[axis]);
-                        any_child_opinion |= child_preferred[axis].is_some();
-
-                        content_min[cross] = content_min[cross].max(child_min[cross]);
-                        if let Some(cross_preferred) = child_preferred[cross] {
-                            l2_max_into(&mut content_preferred[cross], cross_preferred);
-                        }
-                        n_added += 1;
-                    }
-                });
-
-                if any_child_opinion {
-                    content_preferred[axis] = Some(preferred_sum);
-                }
-            }
-
-            ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow } => {
-                let spacing = Xy::new(self.pixels_to_frac(spacing_x, X), self.pixels_to_frac(spacing_y, Y));
-                let main = flow.main_axis;
-
-                // The cells are assigned once, here, out of the size we're proposing to ourselves. The solve never reassigns them: a grid's shape isn't supposed to keep changing under it the way a stack's sizes do.
-                let n_main = self.grid_n_main(columns, flow, inner[main], spacing[main]);
-                self.grid_assign_cells(i, n_main, flow);
-
-                let n_lines = Xy::new(self.grid_n_lines(i, X) as f32, self.grid_n_lines(i, Y) as f32);
-                let mut gaps = Xy::new(0.0f32, 0.0);
-                for axis in [X, Y] {
-                    gaps[axis] = spacing[axis] * (n_lines[axis] - 1.0).max(0.0);
-                }
-                self.sys.nodes[i].l2_stack_gaps = gaps;
-
-                // What one cell would come out at if we handed out the size we have now. It's only a proposal: each child still settles on its own min and preferred.
-                let mut cell_proposal = Xy::new(0.0f32, 0.0);
-                for axis in [X, Y] {
-                    cell_proposal[axis] = ((inner[axis] - gaps[axis]) / n_lines[axis].max(1.0)).max(0.0);
-                }
-                if let MainAxisCellSize::Width(w) = columns {
-                    cell_proposal[main] = self.pixels_to_frac(w, main);
-                }
-
-                let mut cell_min = Xy::new(0.0f32, 0.0);
-                let mut cell_preferred: Xy<Option<f32>> = Xy::new(None, None);
-                for_each_child!(self, self.sys.nodes[i], child, {
-                    if self.sys.nodes[child].params.free_placement {
-                        let _ = self.determine_base_sizes_recursive(child, inner, inner, settled, None);
-                    } else {
-                        let mut spans = Xy::new(1.0f32, 1.0);
-                        let mut child_proposed = Xy::new(0.0f32, 0.0);
-                        for axis in [X, Y] {
-                            spans[axis] = self.grid_span(child, axis) as f32;
-                            child_proposed[axis] = spans[axis] * cell_proposal[axis] + (spans[axis] - 1.0) * spacing[axis];
-                        }
-
-                        let (child_min, child_preferred) = self.determine_base_sizes_recursive(child, child_proposed, child_proposed, settled, None);
-
-                        // The cells are uniform, so a child that spans several of them only asks for its share of one.
-                        for axis in [X, Y] {
-                            let share = |v: f32| (v - (spans[axis] - 1.0) * spacing[axis]) / spans[axis];
-                            cell_min[axis] = cell_min[axis].max(share(child_min[axis]));
-                            if let Some(child_preferred) = child_preferred[axis] {
-                                l2_max_into(&mut cell_preferred[axis], share(child_preferred));
-                            }
-                        }
-                    }
-                });
-
-                for axis in [X, Y] {
-                    // A fixed cell size along the main axis overrides what the children asked for.
-                    if axis == main && let MainAxisCellSize::Width(w) = columns {
-                        let w = self.pixels_to_frac(w, axis);
-                        cell_min[axis] = w;
-                        cell_preferred[axis] = Some(w);
-                    }
-                    content_min[axis] = n_lines[axis] * cell_min[axis] + gaps[axis];
-                    if let Some(cell_preferred) = cell_preferred[axis] {
-                        content_preferred[axis] = Some(n_lines[axis] * cell_preferred + gaps[axis]);
-                    }
-                }
-            }
-        }
-
-        if self.sys.nodes[i].text_i.is_some() {
-            let text = self.l2_text_min_size(i, inner);
-            for axis in [X, Y] {
-                content_min[axis] = content_min[axis].max(text.min[axis]);
-                l2_max_into(&mut content_preferred[axis], text.preferred[axis]);
-            }
-        }
-        if self.sys.nodes[i].imageref.is_some() {
-            let image = self.determine_image_size(i, inner);
-            for axis in [X, Y] {
-                content_min[axis] = content_min[axis].max(image[axis]);
-                // An image is the size it is, so what it needs at a minimum is also what it wants.
-                l2_max_into(&mut content_preferred[axis], image[axis]);
-            }
-        }
-
-        let mut min = Xy::new(0.0f32, 0.0f32);
-        let mut preferred: Xy<Option<f32>> = Xy::new(None, None);
-        let mut final_size = Xy::new(None, None);
-        for axis in [X, Y] {
-            match self.sys.nodes[i].params.layout.size[axis] {
-                Size::Pixels(px) => {
-                    min[axis] = self.pixels_to_frac(px, axis);
-                    preferred[axis] = Some(min[axis]);
-                    final_size[axis] = Some(min[axis]);
-                }
-                Size::FitContent => {
-                    min[axis] = content_min[axis] + 2.0 * padding[axis];
-                    preferred[axis] = content_preferred[axis].map(|p| p + 2.0 * padding[axis]);
-                }
-                Size::Fill | Size::Frac(_) => {
-                    min[axis] = 2.0 * padding[axis];
-                    if settled[axis] {
-                        final_size[axis] = Some(available[axis]);
-                    }
-                }
-                Size::AspectRatio(_) => {}
-            }
-        }
-        for axis in [X, Y] {
-            if let Size::AspectRatio(aspect) = self.sys.nodes[i].params.layout.size[axis] {
-                if matches!(self.sys.nodes[i].params.layout.size[axis.other()], Size::AspectRatio(_)) {
-                    log::warn!("A Size shouldn't be AspectRatio in both dimensions. (node: {})", self.node_debug_name(i));
-                } else {
-                    let mult = self.l2_aspect_mult(axis, aspect);
-                    min[axis] = min[axis.other()] * mult;
-                    preferred[axis] = preferred[axis.other()].map(|other| other * mult);
-                    final_size[axis] = final_size[axis.other()].map(|other| other * mult);
-                }
-            }
-        }
-
-        for axis in [X, Y] {
-            if let Some(min_bound) = self.sys.nodes[i].l2_solved[axis][SizeType::Min as usize] {
-                min[axis] = min[axis].max(min_bound);
-            }
-            preferred[axis] = preferred[axis].map(|p| p.max(min[axis]));
-        }
-
-        let mut guess = Xy::new(0.0f32, 0.0f32);
-        for axis in [X, Y] {
-            guess[axis] = l2_settle(preferred[axis], min[axis], available[axis]);
-        }
-        self.sys.nodes[i].l2_base_guess = guess;
-
-        for axis in [X, Y] {
-            if final_size[axis].is_some() {
-                self.sys.nodes[i].l2_solved[axis][SizeType::Regular as usize] = final_size[axis];
-            }
-        }
-
-        for axis in [X, Y] {
-            for size_type in SIZE_TYPES {
-                if ! self.size_type_exists(i, axis, size_type) {
-                    continue;
-                }
-                if self.sys.nodes[i].l2_solved[axis][size_type as usize].is_some() {
-                    self.sys.nodes[i].n_unsolved_layout_dependencies[axis][size_type as usize] = 0;
-                } else if self.sys.nodes[i].n_unsolved_layout_dependencies[axis][size_type as usize] != 0 {
-                    continue;
-                } else {
-                    self.sys.nodes[i].l2_solved[axis][size_type as usize] = Some(guess[axis]);
-                }
-                self.sys.layout_solve_queue.push(GraphElement { node: i, axis, size_type });
-            }
-        }
-
-        (min, preferred)
-    }
-
-
-    fn take_available_size(&mut self, i: NodeI, proposed: Xy<f32>, parent_inner: Xy<f32>, parent_inner_final: Xy<bool>, parent_stack_axis: Option<Axis>) -> (Xy<f32>, Xy<bool>) {
-        let mut available = proposed;
-        let mut settled = Xy::new(false, false);
-
-        for axis in [X, Y] {
-            match self.sys.nodes[i].params.layout.size[axis] {
-                Size::Pixels(px) => {
-                    available[axis] = self.pixels_to_frac(px, axis);
-                    settled[axis] = true;
-                }
-                Size::Frac(frac) => {
-                    available[axis] = parent_inner[axis] * frac;
-                    settled[axis] = parent_inner_final[axis];
-                }
-                Size::Fill => {
-                    settled[axis] = parent_inner_final[axis] && parent_stack_axis != Some(axis);
-                }
-                Size::FitContent => {}
-                Size::AspectRatio(_) => {}
-            }
-        }
-
-        // Aspect ratio is settled if the other axis is.
-        for axis in [X, Y] {
-            if let Size::AspectRatio(aspect) = self.sys.nodes[i].params.layout.size[axis]
-                && ! matches!(self.sys.nodes[i].params.layout.size[axis.other()], Size::AspectRatio(_)) {
-                available[axis] = available[axis.other()] * self.l2_aspect_mult(axis, aspect);
-                settled[axis] = settled[axis.other()];
-            }
-        }
-
-        for axis in [X, Y] {
-            available[axis] = self.l2_clamp(i, axis, available[axis]);
-        }
-
-        (available, settled)
-    }
-
-
-    pub(crate) fn l2_solve(&mut self) {
+    pub(crate) fn solve_layout(&mut self) {
         let mut next_slot = 0;
         let mut next_deferred = 0;
         loop {
@@ -642,29 +385,62 @@ impl Ui {
         None
     }
 
-    fn solve_element(&mut self, slot: GraphElement, deferred: bool) {
+    fn solve_element(&mut self, slot: GraphElement, _deferred: bool) {
+        if _deferred {
+            log::warn!("Layout: solving {} with partial information due to a cycle in its layout dependencies.", self.node_debug_name(slot.node));
+        }
         if self.sys.nodes[slot.node].l2_solved[slot.axis][slot.size_type as usize].is_some() {
             return;
         }
         let solved = match slot.size_type {
-            SizeType::Final => {
-                let regular = self.l2_regular_or_guess(slot.node, slot.axis);
-                self.l2_clamp(slot.node, slot.axis, regular)
+            SizeType::Final => match self.regular_slot(slot.node, slot.axis) {
+                SizeType::Final => {
+                    let size = self.effective_size(slot.node, slot.axis);
+                    self.l2_solve_size(slot.node, slot.axis, size, SizeType::Regular)
+                }
+                _ => {
+                    let regular = self.l2_regular_or_guess(slot.node, slot.axis);
+                    self.l2_clamp(slot.node, slot.axis, regular)
+                }
             }
             SizeType::EvenShareForFillChildren => {
                 let available = self.available_space_in_stack(slot.node, slot.axis);
                 self.even_share_for_fill_children(slot.node, slot.axis, available)
             }
+            SizeType::GridCells => self.assign_grid_cells(slot.node) as f32,
             _ => {
-                let size = self.declared_size(slot.node, slot.axis, slot.size_type).unwrap();
-                self.l2_solve_size(slot.node, slot.axis, size)
+                let size = match slot.size_type {
+                    SizeType::Regular => self.effective_size(slot.node, slot.axis),
+                    other => self.declared_size(slot.node, slot.axis, other).unwrap(),
+                };
+                self.l2_solve_size(slot.node, slot.axis, size, slot.size_type)
             }
         };
         self.sys.nodes[slot.node].l2_solved[slot.axis][slot.size_type as usize] = Some(solved);
-        if DUMP_L2_SIZING {
-            self.l2_dump_solved(slot, solved, deferred);
-        }
         self.sys.layout_solve_queue.push(slot);
+    }
+
+    /// Work out how many cells a grid has along its main axis and drop every child into one. Returns the number of cells along the main axis.
+    fn assign_grid_cells(&mut self, i: NodeI) -> usize {
+        let ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow } = self.sys.nodes[i].params.children_layout else {
+            unreachable!("A GridCells element only exists on a grid.");
+        };
+        let main = flow.main_axis;
+
+        let inner_main = match columns {
+            // The count is the answer on its own, so there's no size to look at.
+            MainAxisCellSize::Count(_) => 0.0,
+            MainAxisCellSize::Width(_) => {
+                let size = self.l2_size_or_guess(i, main);
+                let padding = self.pixels_to_frac2(self.sys.nodes[i].params.layout.padding)[main];
+                (size - 2.0 * padding).max(0.0)
+            }
+        };
+        let spacing_main = self.pixels_to_frac(Xy::new(spacing_x, spacing_y)[main], main);
+
+        let n_main = self.grid_n_main(columns, flow, inner_main, spacing_main);
+        self.grid_assign_cells(i, n_main, flow);
+        n_main
     }
 
     pub(crate) fn l2_write_size(&mut self, i: NodeI) {
@@ -716,11 +492,8 @@ impl Ui {
     }
 
     fn l2_regular_or_guess(&self, i: NodeI, axis: Axis) -> f32 {
-        let node = &self.sys.nodes[i];
-        if let Some(size) = node.l2_solved[axis][SizeType::Regular as usize] {
-            return size;
-        }
-        node.l2_base_guess[axis]
+        // Zero is the only honest answer when the solve hasn't reached this size yet: any other number would be made up, and whatever reads it would build on it.
+        self.sys.nodes[i].l2_solved[axis][SizeType::Regular as usize].unwrap_or(0.0)
     }
 
     fn l2_clamp(&self, i: NodeI, axis: Axis, size: f32) -> f32 {
@@ -735,7 +508,7 @@ impl Ui {
         size
     }
 
-    fn l2_solve_size(&mut self, i: NodeI, axis: Axis, size: Size) -> f32 {
+    fn l2_solve_size(&mut self, i: NodeI, axis: Axis, size: Size, size_type: SizeType) -> f32 {
         let padding = self.pixels_to_frac2(self.sys.nodes[i].params.layout.padding)[axis];
 
         match size {
@@ -743,7 +516,8 @@ impl Ui {
 
             Size::AspectRatio(aspect) => {
                 let other = self.l2_size_or_guess(i, axis.other());
-                other * self.l2_aspect_mult(axis, aspect)
+                let window_aspect = self.sys.size.x / self.sys.size.y;
+                other * aspect / window_aspect
             }
 
             Size::FitContent => {
@@ -759,7 +533,7 @@ impl Ui {
             }
 
             Size::Fill | Size::Frac(_) => {
-                self.l2_solve_fill_or_frac_from_parent(i, axis, size)
+                self.l2_solve_fill_or_frac_from_parent(i, axis, size, size_type)
             },
         }
     }
@@ -768,63 +542,75 @@ impl Ui {
     fn l2_wrapped_text_height(&mut self, i: NodeI) -> f32 {
         let width = self.l2_size_or_guess(i, X);
         let padding = self.pixels_to_frac2(self.sys.nodes[i].params.layout.padding);
-        // The Y is whatever comes out of the wrapping, so there's nothing to offer on that axis.
-        let inner = Xy::new((width - 2.0 * padding[X]).max(0.0), 0.0);
+        let inner_x = (width - 2.0 * padding[X]).max(0.0);
 
-        self.l2_text_min_size(i, inner).min[Y]
+        self.l2_text_size(i, Some(inner_x))[Y]
     }
 
+    
+
     fn solve_fitcontent_size(&mut self, i: NodeI, axis: Axis) -> f32 {
-        if let ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow } = self.sys.nodes[i].params.children_layout {
-            return self.l2_solve_grid_fitcontent(i, axis, columns, Xy::new(spacing_x, spacing_y), flow);
+        let mut own_content = 0.0f32;
+        if self.sys.nodes[i].text_i.is_some() {
+            own_content = self.l2_text_size(i, None)[axis];
+        }
+        if let Some(ImageRef::Raster(loaded)) = &self.sys.nodes[i].imageref {
+            let size_pixels = Xy::new(loaded.width as f32, loaded.height as f32);
+            own_content = own_content.max(self.pixels_to_frac(size_pixels[axis], axis));
         }
 
-        let stack_main = matches!(
-            self.sys.nodes[i].params.children_layout,
-            ChildrenLayout::Stack { axis: a, .. } if a == axis
-        );
-        let gaps = self.sys.nodes[i].l2_stack_gaps[axis];
+        match self.sys.nodes[i].params.children_layout {
+            // A grid is as big as its cells, and it counts its own gaps.
+            ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow } => {
+                let cells = self.l2_solve_grid_fitcontent(i, axis, columns, Xy::new(spacing_x, spacing_y), flow);
+                cells.max(own_content)
+            }
 
-        if ! stack_main {
-            let mut total = 0.0f32;
-            for_each_child!(self, self.sys.nodes[i], child, {
-                if ! self.sys.nodes[child].params.free_placement {
-                    let child_size = match self.sys.nodes[child].params.layout.size[axis] {
-                        Size::Fill | Size::Frac(_) => self.l2_clamp(child, axis, 0.0),
-                        _ => self.l2_size_or_guess(child, axis),
+            ChildrenLayout::Stack { axis: stack_axis, .. } if stack_axis == axis => {
+                let mut current_size_estimate = 0.0f32;
+                for _ in 0..MAX_FIT_STACK_STEPS {
+                    let mut fixed = 0.0f32;
+                    let mut free_frac = 0.0f32;
+                    for_each_child!(self, self.sys.nodes[i], child, {
+                        if self.sys.nodes[child].params.free_placement {
+                            continue;
+                        }
+                        match self.l2_fit_demand_stacked(child, axis, current_size_estimate) {
+                            FitDemand::Scaling { frac } => free_frac += frac,
+                            FitDemand::Fixed(size) => fixed += size,
+                        }
+                    });
+
+                    let next = match free_frac <= MAX_FIT_STACK_FRAC {
+                        true => fixed / (1.0 - free_frac),
+                        false => fixed,
                     };
-                    total = total.max(child_size);
+                    let settled = (next - current_size_estimate).abs() <= FIT_STACK_EPSILON;
+                    current_size_estimate = next;
+                    if settled {
+                        break;
+                    }
                 }
-            });
-            return total + gaps;
-        }
 
-        let mut current_size_estimate = 0.0f32;
-        for _ in 0..MAX_FIT_STACK_STEPS {
-            let mut fixed = 0.0f32;
-            let mut free_frac = 0.0f32;
-            for_each_child!(self, self.sys.nodes[i], child, {
-                if self.sys.nodes[child].params.free_placement {
-                    continue;
-                }
-                match self.l2_fit_demand_stacked(child, axis, current_size_estimate) {
-                    FitDemand::Scaling { frac } => free_frac += frac,
-                    FitDemand::Fixed(size) => fixed += size,
-                }
-            });
+                current_size_estimate.max(own_content) + self.l2_stack_gaps(i, axis)
+            }
 
-            let next = match free_frac <= MAX_FIT_STACK_FRAC {
-                true => fixed / (1.0 - free_frac),
-                false => fixed,
-            };
-            let settled = (next - current_size_estimate).abs() <= FIT_STACK_EPSILON;
-            current_size_estimate = next;
-            if settled {
-                break;
+            ChildrenLayout::Stack { .. } | ChildrenLayout::Free => {
+                let mut biggest = 0.0f32;
+                for_each_child!(self, self.sys.nodes[i], child, {
+                    if ! self.sys.nodes[child].params.free_placement {
+                        let child_size = match self.sys.nodes[child].params.layout.size[axis] {
+                            Size::Fill | Size::Frac(_) => self.l2_clamp(child, axis, 0.0),
+                            _ => self.l2_size_or_guess(child, axis),
+                        };
+                        biggest = biggest.max(child_size);
+                    }
+                });
+
+                // No gaps: across a stack, or in a free layout, nothing is laid out one after the other.
+                biggest.max(own_content)
             }
         }
-
-        current_size_estimate + gaps
     }
 
     /// A grid that fits its content is as big as its cells, and the cells are as big as the biggest child in them.
@@ -880,7 +666,7 @@ enum FitDemand {
 impl Ui {
 
     /// A Fill or Frac slot taking its size out of the parent. `size` is the slot's own `Size`, which is a bound's when it's a bound being solved.
-    fn l2_solve_fill_or_frac_from_parent(&mut self, i: NodeI, axis: Axis, size: Size) -> f32 {
+    fn l2_solve_fill_or_frac_from_parent(&mut self, i: NodeI, axis: Axis, size: Size, size_type: SizeType) -> f32 {
         let parent = self.sys.nodes[i].parent;
         let parent_size = self.l2_size_or_guess(parent, axis);
         let parent_padding = self.pixels_to_frac2(self.sys.nodes[parent].params.layout.padding)[axis];
@@ -927,6 +713,11 @@ impl Ui {
             }
         };
 
+        // A `max_size(Fill)` bound is a cap that comes straight out of the share, so it resolves to the share itself: `min(content, share)` then happens when the node's regular size clamps against this bound. Raising it by the content the way a regular Fill is raised would turn the cap into the content and defeat it.
+        if size_type == SizeType::Max {
+            return share;
+        }
+
         // The share is what the child gets unless its own size is already past it: it raises a child up to the common size, it never cuts one down to it.
         self.l2_size_or_guess(i, axis).max(share)
     }
@@ -943,15 +734,42 @@ impl Ui {
         ((inner - spacing * (n - 1.0)) / n).max(0.0)
     }
 
+
     fn available_space_in_stack(&self, parent: NodeI, axis: Axis) -> f32 {
         let parent_size = self.l2_size_or_guess(parent, axis);
         let parent_padding = self.pixels_to_frac2(self.sys.nodes[parent].params.layout.padding)[axis];
         let inner = (parent_size - 2.0 * parent_padding).max(0.0);
-        (inner - self.sys.nodes[parent].l2_stack_gaps[axis]).max(0.0)
+        (inner - self.l2_stack_gaps(parent, axis)).max(0.0)
+    }
+    // Todo: should try to pre-count the free-placement children.
+    fn l2_stack_gaps(&self, i: NodeI, axis: Axis) -> f32 {
+        let ChildrenLayout::Stack { axis: stack_axis, spacing, .. } = self.sys.nodes[i].params.children_layout else {
+            return 0.0;
+        };
+        if stack_axis != axis {
+            return 0.0;
+        }
+
+        let mut n = 0;
+        for_each_child!(self, self.sys.nodes[i], child, {
+            if ! self.sys.nodes[child].params.free_placement {
+                n += 1;
+            }
+        });
+
+        self.pixels_to_frac(spacing, axis) * (n as f32 - 1.0).max(0.0)
     }
 
     fn clamp_fill_child_with_share_estimate(&self, child: NodeI, axis: Axis, share: f32) -> f32 {
-        self.l2_clamp(child, axis, self.l2_size_or_guess(child, axis).max(share))
+        let content = self.l2_size_or_guess(child, axis);
+        // Where the Fill sits decides whether the node's own content is a floor or a ceiling on what the share can do to it. A plain `Fill` (or a `min_size(Fill)` on a fixed node) grows the node up to the share, so the content is a floor: `content.max(share)`. A `max_size(Fill)` on an otherwise fixed node instead caps the node at the share, so the content is a ceiling: `content.min(share)`.
+        let capped_by_content = ! matches!(self.sys.nodes[child].params.layout.size[axis], Size::Fill)
+            && matches!(self.declared_size(child, axis, SizeType::Max), Some(Size::Fill));
+        let raw = match capped_by_content {
+            true => content.min(share),
+            false => content.max(share),
+        };
+        self.l2_clamp(child, axis, raw)
     }
 
     fn even_share_for_fill_children(&mut self, parent: NodeI, axis: Axis, available: f32) -> f32 {
@@ -964,7 +782,7 @@ impl Ui {
                 if self.sys.nodes[child].params.free_placement {
                     continue;
                 }
-                if self.sys.nodes[child].params.layout.size[axis] == Size::Fill {
+                if self.any_size_is_fill(child, axis) {
                     fills.push((child, false));
                 } else {
                     budget -= self.l2_size_or_guess(child, axis);
@@ -1018,15 +836,8 @@ impl Ui {
         });
     }
 
-    fn l2_aspect_mult(&self, axis: Axis, aspect: f32) -> f32 {
-        let window_aspect = self.sys.size.x / self.sys.size.y;
-        match axis {
-            X => aspect / window_aspect,
-            Y => window_aspect / aspect,
-        }
-    }
-
-    fn l2_text_min_size(&mut self, i: NodeI, inner: Xy<f32>) -> TextSizes {
+    /// The size the node's text takes at a given width, or at its own unwrapped width if none is given.
+    fn l2_text_size(&mut self, i: NodeI, width: Option<f32>) -> Xy<f32> {
         let window = self.sys.size;
         let text_i = self.sys.nodes[i].text_i.as_ref().unwrap();
 
@@ -1034,25 +845,19 @@ impl Ui {
 
         match text_i {
             TextI::TextBox(handle) => {
-                let inner_x_pixels = inner.x * window[X];
                 let text_box = self.sys.renderer.text.get_text_box_mut(handle);
 
                 let widths = text_box.content_widths();
-                let width = inner_x_pixels.clamp(widths.min, widths.max.max(widths.min));
+                let unwrapped = widths.max.max(widths.min);
+                let width = match width {
+                    Some(width) => (width * window[X]).clamp(widths.min, unwrapped),
+                    None => unwrapped,
+                };
 
                 text_box.set_width(width);
                 let height = text_box.layout().height();
 
-                TextSizes {
-                    min: Xy::new(
-                        (widths.min + TEXT_WIDTH_TOLERANCE) / window[X],
-                        height / window[Y],
-                    ),
-                    preferred: Xy::new(
-                        (widths.max.max(widths.min) + TEXT_WIDTH_TOLERANCE) / window[X],
-                        height / window[Y],
-                    ),
-                }
+                Xy::new((width + TEXT_WIDTH_TOLERANCE) / window[X], height / window[Y])
             }
             TextI::TextEdit(handle) => {
                 let text_edit = self.sys.renderer.text.get_text_edit_mut(handle);
@@ -1064,13 +869,171 @@ impl Ui {
                 } else {
                     0.0
                 };
-                // A text edit can be scrolled, so it never asks for any width, and there's nothing it wants beyond what it needs.
-                let size = Xy::new(0.0, height / window[Y]);
-                TextSizes {
-                    min: size,
-                    preferred: size,
+                // A text edit can be scrolled, so it never asks for any width.
+                Xy::new(0.0, height / window[Y])
+            }
+        }
+    }
+
+
+    pub(crate) fn declared_size(&self, i: NodeI, axis: Axis, size_type: SizeType) -> Option<Size> {
+        let layout = &self.sys.nodes[i].params.layout;
+        match size_type {
+            SizeType::Min => layout.min_size[axis],
+            SizeType::Max => layout.max_size[axis],
+            SizeType::Regular => Some(layout.size[axis]),
+            SizeType::Final | SizeType::EvenShareForFillChildren | SizeType::GridCells => None,
+        }
+    }
+
+    pub(crate) fn size_type_exists(&self, i: NodeI, axis: Axis, size_type: SizeType) -> bool {
+        let layout = &self.sys.nodes[i].params.layout;
+        match size_type {
+            SizeType::Final => true,
+            SizeType::Regular => self.regular_slot(i, axis) == SizeType::Regular,
+            SizeType::Min => layout.min_size[axis].is_some() && ! self.has_valid_bound(i, axis, SizeType::Min),
+            SizeType::Max => layout.max_size[axis].is_some() && ! self.has_valid_bound(i, axis, SizeType::Max),
+            // It isn't one of the node's own sizes, so nothing that walks the node's sizes should pick it up. It's solved from the graph alone.
+            SizeType::EvenShareForFillChildren => false,
+            // Only a grid has cells, and they're assigned once, on the flow's main axis.
+            SizeType::GridCells => self.grid_main_axis(i) == Some(axis),
+        }
+    }
+
+    pub(crate) fn grid_main_axis(&self, i: NodeI) -> Option<Axis> {
+        match self.sys.nodes[i].params.children_layout {
+            ChildrenLayout::Grid { flow, .. } => Some(flow.main_axis),
+            _ => None,
+        }
+    }
+
+
+    pub(crate) fn regular_slot(&self, i: NodeI, axis: Axis) -> SizeType {
+        let layout = &self.sys.nodes[i].params.layout;
+        let has_valid_min_bound = layout.min_size[axis].is_some() && ! self.has_valid_bound(i, axis, SizeType::Min);
+        let has_valid_max_bound = layout.max_size[axis].is_some() && ! self.has_valid_bound(i, axis, SizeType::Max);
+        let unbounded = ! has_valid_min_bound && ! has_valid_max_bound;
+        match unbounded {
+            true => SizeType::Final,
+            false => SizeType::Regular,
+        }
+    }
+
+    fn has_valid_bound(&self, i: NodeI, axis: Axis, size_type: SizeType) -> bool {
+        self.is_phantom_fill_bound(i, axis, size_type) || self.is_underdetermined_grid_bound(i, axis, size_type)
+    }
+
+    fn is_underdetermined_grid_bound(&self, i: NodeI, axis: Axis, size_type: SizeType) -> bool {
+        if ! matches!(self.declared_size(i, axis, size_type), Some(Size::FitContent)) {
+            return false;
+        }
+        let ChildrenLayout::Grid { columns: MainAxisCellSize::Width(_), flow, .. } = self.sys.nodes[i].params.children_layout else {
+            return false;
+        };
+        axis == flow.main_axis && self.sys.nodes[i].fitcontent_that_acts_as_fill[axis]
+    }
+
+    fn is_phantom_fill_bound(&self, i: NodeI, axis: Axis, size_type: SizeType) -> bool {
+        if ! matches!(size_type, SizeType::Min | SizeType::Max) {
+            return false;
+        }
+        if ! matches!(self.declared_size(i, axis, size_type), Some(Size::Fill)) {
+            return false;
+        }
+        if self.sys.nodes[i].params.free_placement {
+            return false;
+        }
+        let parent = self.sys.nodes[i].parent;
+        let stack_main = matches!(
+            self.sys.nodes[parent].params.children_layout,
+            ChildrenLayout::Stack { axis: a, .. } if a == axis
+        );
+        stack_main && matches!(self.sys.nodes[parent].params.layout.size[axis], Size::FitContent)
+    }
+
+    pub(crate) fn collapse_underdetermined_fitcontents(&mut self, i: NodeI) {
+        for_each_child!(self, self.sys.nodes[i], child, {
+            self.collapse_underdetermined_fitcontents(child);
+        });
+
+        for axis in [X, Y] {
+            let node = &self.sys.nodes[i];
+            let is_fitcontent = matches!(node.params.layout.size[axis], Size::FitContent);
+            let has_own_content = node.text_i.is_some() || node.imageref.is_some();
+            if ! is_fitcontent || has_own_content {
+                self.sys.nodes[i].fitcontent_that_acts_as_fill[axis] = false;
+                continue;
+            }
+
+            if let ChildrenLayout::Grid { columns: MainAxisCellSize::Width(_), flow, .. } = node.params.children_layout {
+                if axis == flow.main_axis {
+                    log::warn!("Layout: A `FitContent` grid using `MainAxisCellSize::Width` has no way to determine its size.");
+                    self.sys.nodes[i].fitcontent_that_acts_as_fill[axis] = true;
+                    continue;
                 }
             }
+
+            let mut has_hard_child = false;
+            let mut has_flex_child = false;
+            for_each_child!(self, self.sys.nodes[i], child, {
+                if ! self.sys.nodes[child].params.free_placement {
+                    let (hard, flex) = self.child_hard_flex(child, axis);
+                    has_hard_child |= hard;
+                    has_flex_child |= flex;
+                }
+            });
+
+            self.sys.nodes[i].fitcontent_that_acts_as_fill[axis] = ! has_hard_child && has_flex_child;
+        }
+    }
+
+    fn child_hard_flex(&self, child: NodeI, axis: Axis) -> (bool, bool) {
+        let layout = &self.sys.nodes[child].params.layout;
+        let min_hard = matches!(layout.min_size[axis], Some(Size::Pixels(_) | Size::FitContent));
+        let max_flex = matches!(layout.max_size[axis], Some(Size::Fill));
+        let (base_hard, base_flex) = match self.effective_size(child, axis) {
+            Size::Pixels(_) => (true, false),
+            // Aspect Ratio on both axes is undetermined either way.
+            Size::AspectRatio(_) if matches!(layout.size[axis.other()], Size::AspectRatio(_)) => (true, false),
+            Size::AspectRatio(_) => self.child_hard_flex(child, axis.other()),
+            Size::FitContent => (! matches!(layout.max_size[axis], Some(Size::Fill)), false),
+            Size::Fill | Size::Frac(_) => (false, true),
+        };
+        (min_hard || base_hard, max_flex || base_flex)
+    }
+
+    fn effective_size(&self, i: NodeI, axis: Axis) -> Size {
+        match self.sys.nodes[i].fitcontent_that_acts_as_fill[axis] {
+            true => Size::Fill,
+            false => self.sys.nodes[i].params.layout.size[axis],
+        }
+    }
+
+    fn has_even_share_for_fill_children(&self, parent: &ParentNodeInfo, axis: Axis) -> bool {
+        parent.stack_axis == Some(axis) && parent.has_fill_children[axis] && ! parent.regular_is_fitcontent[axis]
+    }
+
+    fn any_size_is_fill(&self, i: NodeI, axis: Axis) -> bool {
+        DECLARED_SIZES.iter().any(|&size_type| matches!(self.declared_size(i, axis, size_type), Some(Size::Fill)))
+    }
+
+    fn text_wraps_from_width(&self, i: NodeI, size: Size) -> bool {
+        if ! matches!(self.sys.nodes[i].text_i, Some(TextI::TextBox(_))) {
+            return false;
+        }
+        if ! matches!(size, Size::FitContent) {
+            return false;
+        }
+        ! matches!(self.sys.nodes[i].params.layout.size[X], Size::AspectRatio(_))
+    }
+
+    fn child_can_size_parent(&self, child: NodeI, axis: Axis) -> bool {
+        let layout = &self.sys.nodes[child].params.layout;
+        // A flex-collapsing child fills the parent rather than sizing it, so it counts as Fill here.
+        match self.effective_size(child, axis) {
+            _ if self.sys.nodes[child].params.free_placement => false,
+            Size::Fill | Size::Frac(_) => matches!(layout.min_size[axis], Some(Size::Pixels(_) | Size::FitContent)),
+            Size::Pixels(_) | Size::FitContent | Size::AspectRatio(_) => true,
         }
     }
 }

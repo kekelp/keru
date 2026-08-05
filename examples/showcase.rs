@@ -36,7 +36,7 @@ trait UiExt {
 
 impl UiExt for Ui {
     fn intro_tab(&mut self, state: &mut State) {
-        self.add(V_SCROLL_STACK).nest(|| {
+        self.add(V_SCROLL_STACK.size_y(Size::Fill)).nest(|| {
             self.static_paragraph("Keru is an experimental GUI library.");
             
             #[node_key] const TEXT_EDIT_1: NodeKey;
@@ -61,7 +61,7 @@ impl UiExt for Ui {
             self.static_paragraph("Here are some basic GUI elements:");
             self.static_paragraph("Button and label:");
 
-            self.h_stack().nest(|| {
+            self.add(H_STACK).nest(|| {
                 if self.add(BUTTON.text("Increase")).is_clicked(self) {
                     state.f32_value += 1.0;
                 }
@@ -108,18 +108,19 @@ impl UiExt for Ui {
         let v_stack = V_SCROLL_STACK.size_x(Size::Frac(0.8)).size_y(Size::Fill);
 
         self.add(v_stack).nest(|| {
-            self.add(LABEL.auto_markdown(true).static_text(
+            self.add(MULTILINE_LABEL.auto_markdown(true).static_text(
                 "Keru uses `parley` for text through the `keru_text` library. \n\
                 The text edit box supports IME, but this hasn't been thoroughly tested on all platforms yet."
             ));
             self.add(H_LINE.color(Color::WHITE));
-            self.add(LABEL.auto_markdown(true).static_text(include_str!("assets/showcase.md")));
+            self.add(MULTILINE_LABEL.auto_markdown(true).static_text(include_str!("assets/showcase.md")));
             self.add(H_LINE.color(Color::WHITE));
-            self.add(LABEL.static_text(JAPANESE_TEXT));
+            self.add(MULTILINE_LABEL.static_text(JAPANESE_TEXT));
+            self.add(MULTILINE_LABEL.static_text(JAPANESE_TEXT));
             self.add(H_LINE.color(Color::WHITE));
-            self.add(LABEL.static_text(CYRILLIC_TEXT));
+            self.add(MULTILINE_LABEL.static_text(CYRILLIC_TEXT));
             self.add(H_LINE.color(Color::WHITE));
-            self.add(LABEL.static_text(CHINESE_TEXT));
+            self.add(MULTILINE_LABEL.static_text(CHINESE_TEXT));
         });
     }
 
@@ -151,9 +152,9 @@ impl UiExt for Ui {
 
     fn graphics_tab(&mut self, _state: &mut State) {
 
-        self.add(V_SCROLL_STACK).nest(|| {
+        self.add(V_SCROLL_STACK.size_x(Size::Fill)).nest(|| {
 
-            self.static_paragraph("Keru uses its own wgpu-based renderer, with a similar architecture as the ones used in vger-rs and gpui.");
+            self.add(TEXT_PARAGRAPH.text("Keru uses its own wgpu-based renderer, with a similar architecture as the ones used in vger-rs and gpui."));
 
             let button_with_stroke = BUTTON
                 .static_text("Button example")
@@ -339,7 +340,7 @@ impl UiExt for Ui {
             self.add(bg_panel).nest(|| {
                 self.add_component(StatefulTransformView).nest(|| {
                     self.add(V_STACK).nest(|| {
-                        self.label("Transformed subtree");
+                        self.add(MULTILINE_LABEL.text("Transformed subtree"));
     
                         self.add(BUTTON.text("Button"));
     
@@ -411,16 +412,16 @@ impl UiExt for Ui {
                             }
                         });
 
-                        self.label("Unfortunately we can't say the same thing for text. It's rasterized on the CPU using parley's built-in rasterizer and drawn with a traditional atlas renderer. When zooming, we use the same texture and just scale the quads.");
+                        self.add(MULTILINE_LABEL.text("Unfortunately we can't say the same thing for text. It's rasterized on the CPU using parley's built-in rasterizer and drawn with a traditional atlas renderer. When zooming, we use the same texture and just scale the quads."));
 
-                        self.label("But now that the Slug algorithm isn't patented anymore, maybe this will change.");
+                        self.add(MULTILINE_LABEL.text("But now that the Slug algorithm isn't patented anymore, maybe this will change."));
                         
                     });
                 });
 
             });
 
-            let header = LABEL.static_text("Note that the Transformed view is a stateful component.\n\
+            let header = MULTILINE_LABEL.static_text("Note that the Transformed view is a stateful component.\n\
             It can remember its own state (the pan and zoom of the transform) without us having to make space for it in our own State struct and passing it by reference.\n\
             The state is initialized to its Default value when the component is first added to the tree, and is stored within the Ui struct in a Box<dyn Any>.\n\
             You can also see how this state is retained when swiching between tabs, thanks to the \"children can hide\" property.\n\n\

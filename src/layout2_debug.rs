@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::*;
 
 impl Ui {
@@ -7,7 +9,7 @@ impl Ui {
             .flat_map(|i| self.sys.nodes[i].layout_dependents.iter().copied())
     }
 
-    pub fn layout_dependencies_dot(&self) -> String {
+    pub(crate) fn layout_dependencies_dot(&self) -> String {
         use std::fmt::Write;
 
         let slot_id = |slot: GraphElement| {
@@ -48,6 +50,13 @@ impl Ui {
 
         let _ = writeln!(out, "}}");
         out
+    }
+
+    pub(crate) fn write_layout_dependencies_dot(&self, path: &str) {
+        match std::fs::write(path, self.layout_dependencies_dot()) {
+            Ok(()) => log::info!("Wrote the layout dependency graph to {path}"),
+            Err(e) => log::error!("Couldn't write the layout dependency graph to {path}: {e}"),
+        }
     }
 
     pub(crate) fn l2_dump_solved(&self, slot: GraphElement, size: f32, deferred: bool) {
@@ -114,40 +123,4 @@ impl Ui {
         });
     }
 
-    /// Experimental: every node's sizes after the solve, in pixels.
-    #[allow(dead_code)]
-    pub(crate) fn l2_dump_sizes(&mut self, i: NodeI, depth: usize) {
-        let window = self.sys.size;
-        let node = &self.sys.nodes[i];
-        let px = |v: f32, axis: Axis| v * window[axis];
-        let show = |v: Option<f32>, axis: Axis| match v {
-            Some(v) => format!("{:.1}", px(v, axis)),
-            None => "-".to_string(),
-        };
-
-        let slot = |axis: Axis, size_type: SizeType| show(node.l2_solved[axis][size_type as usize], axis);
-        eprintln!("{:indent$}{}  x: {:?} guess {:.1} [reg {} lo {} hi {} fin {}] => {:.1}   |   y: {:?} guess {:.1} [reg {} lo {} hi {} fin {}] => {:.1}",
-            "",
-            node.debug_name(),
-            node.params.layout.size[X], px(node.l2_base_guess[X], X),
-            slot(X, SizeType::Regular), slot(X, SizeType::Min), slot(X, SizeType::Max), slot(X, SizeType::Final), px(node.size[X], X),
-            node.params.layout.size[Y], px(node.l2_base_guess[Y], Y),
-            slot(Y, SizeType::Regular), slot(Y, SizeType::Min), slot(Y, SizeType::Max), slot(Y, SizeType::Final), px(node.size[Y], Y),
-            indent = depth * 2,
-        );
-
-        for_each_child!(self, self.sys.nodes[i], child, {
-            self.l2_dump_sizes(child, depth + 1);
-        });
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn dump_layout_dependencies(&mut self) {
-        for c in self.all_dependencies().collect::<Vec<_>>() {
-            let dependent_name = self.node_debug_name(c.dependent.node);
-            let depends_on_name = self.node_debug_name(c.depends_on.node);
-            eprintln!("{dependent_name}.{:?}.{:?} <- {depends_on_name}.{:?}.{:?}",
-                c.dependent.axis, c.dependent.size_type, c.depends_on.axis, c.depends_on.size_type);
-        }
-    }
 }

@@ -96,7 +96,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         let axis_label = match state.flow.main_axis { Axis::X => "Fill Rows First", Axis::Y => "Fill Columns First" };
         let x_label = if state.flow.x_fill_direction == Direction::RightToLeft { "Right to Left" } else { "Left to Right" };
         let y_label = if state.flow.y_fill_direction == Direction::RightToLeft { "Bottom to Top" } else { "Top to Bottom" };
-        let columns_label = if state.use_n_columns { "Column size: specify Count" } else { "Column size: specify Width" };
+        let columns_label = if state.use_n_columns { "Column size:\nspecify Count" } else { "Column size:\nspecify Width" };
 
         let columns = if state.use_n_columns { MainAxisCellSize::Count(state.n_columns as u32) } else { MainAxisCellSize::Width(state.column_width) };
 
@@ -108,12 +108,13 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         let h_stack = H_STACK
             .size_x(Size::Fill)
             .size_y(Size::Fill)
-            .position_y(Pos::Start);
+            .position_y(Pos::Start)
+            .stack_arrange(Arrange::Start);
 
         ui.add(h_stack).nest(|| {
-            ui.add(V_SCROLL_STACK.padding_y(0.0).position_y(Pos::Start).size_x(Size::Pixels(250.0))).nest(|| {
+            ui.add(V_SCROLL_STACK.padding_y(0.0).position_y(Pos::Start).size_x(Size::Pixels(250.0)).size_y(Size::Fill)).nest(|| {
 
-                ui.add(PANEL.color(Color::KERU_BLUE)).nest(|| {
+                ui.add(PANEL.color(Color::KERU_BLUE).size_x(Size::Fill)).nest(|| {
                     ui.add(V_STACK).nest(|| {
                         ui.add(TEXT.text("Grid properties:"));
 
@@ -133,19 +134,19 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                     });
                 });
 
-                ui.add(PANEL.color(Color::KERU_BLUE)).nest(|| {
-                    ui.add(V_STACK).nest(|| {
+                ui.add(PANEL.size_x(Size::Fill).color(Color::KERU_BLUE)).nest(|| {
+                    ui.add(V_STACK.size_x(Size::Fill)).nest(|| {
 
                         ui.add(H_STACK.size_x(Size::Fill)).nest(|| {
-                            ui.add(BUTTON.size_x(Size::Fill).text("Push Element").key(ADD));
-                            ui.add(BUTTON.size_x(Size::Fill).text("Push 5").key(ADD_FIVE));
+                            ui.add(BUTTON.max_size_x(Size::Fill).text("Push Element").key(ADD));
+                            ui.add(BUTTON.max_size_x(Size::Fill).text("Push 5").key(ADD_FIVE));
                         });
                         ui.add(H_STACK.size_x(Size::Fill)).nest(|| {
-                            ui.add(BUTTON.size_x(Size::Fill).text("Pop Element").key(REMOVE));
-                            ui.add(BUTTON.size_x(Size::Fill).text("Pop 5").key(REMOVE_FIVE));
+                            ui.add(BUTTON.max_size_x(Size::Fill).text("Pop Element").key(REMOVE));
+                            ui.add(BUTTON.max_size_x(Size::Fill).text("Pop 5").key(REMOVE_FIVE));
                         });
                         
-                        ui.add(TEXT.text("\
+                        ui.add(TEXT.max_size_x(Size::Fill).text("\
                             Click on elements to change their row span. \n\n\
                             Left click / right click: increase / decrease span \n\n\
                             Hold Shift to change column span

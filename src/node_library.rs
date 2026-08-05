@@ -805,7 +805,7 @@ pub const MULTILINE_LABEL: Node = Node {
     layout: Layout {
         size: Xy::new_symm(FitContent),
         min_size: Xy::new(None, None),
-        max_size: Xy::new(None, None),
+        max_size: Xy::new(Some(Size::Fill), None),
         padding: Xy::new_symm(10.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),
@@ -1133,7 +1133,7 @@ pub const TEXT_PARAGRAPH: Node = Node {
     layout: Layout {
         size: Xy::new(Fill, FitContent),
         min_size: Xy::new(None, None),
-        max_size: Xy::new(None, None),
+        max_size: Xy::new(Some(Fill), None),
         padding: Xy::new_symm(2.0),
         position: Xy::new_symm(Center),
         anchor: Xy::new_symm(Anchor::Start),

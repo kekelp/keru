@@ -34,9 +34,9 @@ pub struct InnerNode {
 
     pub size: Xy<f32>,
 
-    pub l2_stack_gaps: Xy<f32>,
-    pub l2_base_guess: Xy<f32>,
     pub l2_solved: Xy<[Option<f32>; N_SIZE_TYPES]>,
+
+    pub fitcontent_that_acts_as_fill: Xy<bool>,
 
     pub layout_dependents: Vec<LayoutDependency>,
     pub n_unsolved_layout_dependencies: Xy<[u32; N_SIZE_TYPES]>,
@@ -241,8 +241,8 @@ impl InnerNode {
 
             has_component_state: false,
 
-            l2_stack_gaps: Xy::new(0.0, 0.0),
-            l2_base_guess: Xy::new(0.0, 0.0),
+            fitcontent_that_acts_as_fill: Xy::new(false, false),
+
             l2_solved: Xy::new([None; N_SIZE_TYPES], [None; N_SIZE_TYPES]),
             layout_dependents: Vec::new(),
             n_unsolved_layout_dependencies: Xy::new([0; N_SIZE_TYPES], [0; N_SIZE_TYPES]),
@@ -276,14 +276,14 @@ impl InnerNode {
         let mut result = String::new();
         
         if !self.original_key.debug_name().is_empty() {
-            write!(result, "{} ", self.original_key.debug_name()).unwrap();
+            write!(result, "{}", self.original_key.debug_name()).unwrap();
             
             if let Some(twin_n) = self.is_twin {
-                write!(result, "(twin #{})", twin_n).unwrap();
+                write!(result, " (twin #{})", twin_n).unwrap();
             }
         }
         
-        write!(result, "[{}]", self.debug_location).unwrap();
+        write!(result, " [{}]", self.debug_location).unwrap();
         
         return result;
     }
@@ -380,8 +380,8 @@ pub const NODE_ROOT: InnerNode = InnerNode {
 
     has_component_state: false,
 
-    l2_stack_gaps: Xy::new(0.0, 0.0),
-    l2_base_guess: Xy::new(0.0, 0.0),
+    fitcontent_that_acts_as_fill: Xy::new(false, false),
+
     l2_solved: Xy::new([None; N_SIZE_TYPES], [None; N_SIZE_TYPES]),
     layout_dependents: Vec::new(),
     n_unsolved_layout_dependencies: Xy::new([0; N_SIZE_TYPES], [0; N_SIZE_TYPES]),

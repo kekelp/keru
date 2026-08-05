@@ -256,12 +256,38 @@ impl AnimationRenderTimer {
 
 impl Ui {
     pub fn new(device: &wgpu::Device, queue: &wgpu::Queue, config: &wgpu::SurfaceConfiguration) -> Self {
+        return Self::new_inner(device, queue, config.format, config.width as f32, config.height as f32);
+    }
+
+    /// Create a headless [`Ui`].
+    pub fn new_headless(width: u32, height: u32) -> Self {
+        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
+        let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default()))
+            .expect("Couldn't find a wgpu adapter");
+        let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
+            required_features: wgpu::Features::empty(),
+            required_limits: wgpu::Limits::defaults(),
+            memory_hints: wgpu::MemoryHints::MemoryUsage,
+            ..Default::default()
+        })).expect("Couldn't create a wgpu device");
+
+        return Self::new_inner(&device, &queue, wgpu::TextureFormat::Rgba8Unorm, width as f32, height as f32);
+    }
+
+    /// Resize the `Ui`.
+    /// 
+    /// When using the `Ui` normally from a `winit` loop, the `Ui` resizes automatically in response to `winit`'s `Resized` events, so calling this function is normally not required.
+    pub fn set_size(&mut self, width: u32, height: u32) {
+        self.resize(&PhysicalSize::new(width, height));
+    }
+
+    fn new_inner(device: &wgpu::Device, queue: &wgpu::Queue, format: wgpu::TextureFormat, width: f32, height: f32) -> Self {
         // initialize the static T0
         LazyLock::force(&T0);
 
         let nodes = Nodes::new();
 
-        let renderer = Renderer::new(&device, &queue, config.format);
+        let renderer = Renderer::new(&device, &queue, format);
 
         Self {
             
@@ -292,7 +318,7 @@ impl Ui {
                 current_frame: FIRST_FRAME,
                 last_frame_end_fake_time: 0,
 
-                size: Xy::new(config.width as f32, config.height as f32),
+                size: Xy::new(width, height),
                 scale_factor: 1.0,
 
                 mouse_input: MouseInput::default(),
