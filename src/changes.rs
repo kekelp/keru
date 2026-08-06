@@ -30,6 +30,7 @@ pub struct Changes {
 
     pub need_rerender: bool,
     pub should_rebuild_render_data: bool,
+    pub already_rebuilt_this_frame: bool,
 
     pub resize: bool,
 }
@@ -42,6 +43,7 @@ impl Changes {
             focus_changed: false,
 
             should_rebuild_render_data: true,
+            already_rebuilt_this_frame: false,
             need_rerender: true,
             need_gpu_rect_update: true,
 

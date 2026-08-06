@@ -1740,7 +1740,7 @@ impl<'a> Node<'a> {
     }
 
     /// Set the horizontal text alignment.
-    pub const fn text_alignment(mut self, alignment: Alignment) -> Self {
+    pub const fn text_alignment(mut self, alignment: TextAlignment) -> Self {
         self.text_alignment = alignment;
         return self;
     }

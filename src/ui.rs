@@ -88,6 +88,7 @@ pub(crate) struct System {
 
     pub t: f32, // time at the end of the last rendered frame, in seconds since the Ui creation
     pub frame_dt: f32,
+    pub monitor_frame_time: f32,
 
     pub unique_id: u32,
     pub theme: Theme,
@@ -297,6 +298,7 @@ impl Ui {
                 custom_render_commands: Vec::with_capacity(50),
                 t: 0.0,
                 frame_dt: animation::DT,
+                monitor_frame_time: animation::DT,
                 global_animation_speed: 1.0,
                 disable_animations_on_resize: true,
                 unique_id: INSTANCE_COUNTER.fetch_add(1, Ordering::Relaxed),
@@ -375,6 +377,16 @@ impl Ui {
     ) {
         self.sys.renderer.text.set_auto_wakeup(window.clone());
         self.sys.window_ref = Some(Arc::downgrade(&window));
+        self.update_monitor_frame_time(&window);
+    }
+
+    /// Refresh [`System::monitor_frame_time`] from the monitor the window is currently on. Called when the window is created or moves to another monitor, not every frame. refresh_rate_millihertz() is in mHz, so seconds-per-frame = 1000 / mHz.
+    pub(crate) fn update_monitor_frame_time(&mut self, window: &winit::window::Window) {
+        if let Some(mhz) = window.current_monitor().and_then(|m| m.refresh_rate_millihertz()) {
+            if mhz > 0 {
+                self.sys.monitor_frame_time = 1000.0 / mhz as f32;
+            }
+        }
     }
 
     /// Enable accessibility. Because of underlying platform limitations, this function must be called when the `winit` window is still invisible.  

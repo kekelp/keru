@@ -92,6 +92,7 @@ impl Ui {
         // todo: bring back partial relayouts
         self.relayout_from_root();
 
+        self.sys.update_frame_time();
         self.rebuild_render_data();
 
         self.sys.changes.reset_layout_changes();
@@ -653,6 +654,7 @@ impl Ui {
     }
 
     pub(crate) fn rebuild_render_data(&mut self) {
+        self.sys.changes.already_rebuilt_this_frame = true;
         self.sys.renderer.begin_frame();
 
         // This is another separate traversal:

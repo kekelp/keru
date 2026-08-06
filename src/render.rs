@@ -48,6 +48,11 @@ impl Ui {
             self.set_scale_factor(window.scale_factor());
         }
 
+        // Keep the nominal frame time in sync with the monitor the window is on: only when the window moves or the scale factor changes, not every frame.
+        if matches!(event, WindowEvent::Moved(_) | WindowEvent::ScaleFactorChanged { .. }) {
+            self.update_monitor_frame_time(window);
+        }
+
         // Accessibility. Take the adapter out so we can call `self` methods
         // (action handling, tree building) without holding a borrow on it.
         if let Some(mut accesskit) = self.sys.accesskit.take() {
@@ -767,16 +772,16 @@ impl Ui {
         // It makes sense to update it here because it's only used for render effects.
         // If it was used for other things, it would be better to update it in something like begin_frame,
         // but begin_frame doesn't work because it's normal to do rerenders without rerunning begin_frame and the update. 
-        self.sys.update_frame_time();
 
-        // todo think harder
-        if self.sys.changes.should_rebuild_render_data || self.sys.anim_render_timer.is_live() {
+        if ! self.sys.changes.already_rebuilt_this_frame && (self.sys.changes.should_rebuild_render_data || self.sys.anim_render_timer.is_live()) {
+            self.sys.update_frame_time();
             self.rebuild_render_data();
         }
 
         self.sys.renderer.render(render_pass);
 
         self.sys.changes.need_rerender = false;
+        self.sys.changes.already_rebuilt_this_frame = false;
     }
 
     /// Convenience function that creates a render pass, renders into it, and presents to the screen.
@@ -843,10 +848,9 @@ impl Ui {
     /// specific ranges of instances, interleaving with your own custom rendering.
     // todo: deduplicate and simplify this stuff
     pub fn begin_custom_render(&mut self) {
-        self.sys.update_frame_time(); // todo: maybe deduplicate better
-
-        // Rebuild render data if needed
-        if self.sys.changes.should_rebuild_render_data || self.sys.anim_render_timer.is_live() {
+        // Rebuild render data if needed, unless relayout() already rebuilt this frame (see render()).
+        if !self.sys.changes.already_rebuilt_this_frame && (self.sys.changes.should_rebuild_render_data || self.sys.anim_render_timer.is_live()) {
+            self.sys.update_frame_time();
             self.rebuild_render_data();
         }
 
@@ -868,6 +872,7 @@ impl Ui {
     /// Call this after you're done with all render_range() calls to clean up state.
     pub fn finish_custom_render(&mut self) {
         self.sys.changes.need_rerender = false;
+        self.sys.changes.already_rebuilt_this_frame = false;
     }
 
     /// Submit command buffer to the GPU queue.

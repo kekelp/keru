@@ -12,7 +12,6 @@ const MIN_SPEED: f32 = 0.005 * TUNING_RESCALE;
 const CONST_RATE_EXPONENT: f32 = 0.5;
 
 const MIN_DT: f32 = 1.0 / 1000.0;
-const MAX_DT: f32 = 1.0 / 15.0;
 
 impl System {
     fn animation_dt(&self) -> f32 {
@@ -22,7 +21,8 @@ impl System {
     pub(crate) fn update_frame_time(&mut self) {
         let now = T0.elapsed().as_secs_f32();
         let raw = now - self.t;
-        self.frame_dt = if raw > MAX_DT { DT } else { raw.max(MIN_DT) };
+        let max_dt = self.monitor_frame_time * 2.0;
+        self.frame_dt = if raw > max_dt { self.monitor_frame_time } else { raw.max(MIN_DT) };
         self.t = now;
     }
 
