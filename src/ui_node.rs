@@ -210,10 +210,8 @@ impl<'a> UiNode<'a> {
     /// Since the size and position of nodes is only determined after the layout pass at the end of the frame, 
     /// this function will return the value from last frame.
     pub fn render_rect(&self) -> RenderInfo {
-        let size = self.sys().size;
-        let scale = self.node().accumulated_transform.scale;
         return RenderInfo {
-            rect: self.node().real_rect.to_graphics_space_rounded(size, scale),
+            rect: self.node().real_rect.to_graphics_space(),
             z: self.node().z + Z_STEP / 2.0,
         };
     }

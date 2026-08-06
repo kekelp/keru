@@ -115,7 +115,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
             ui.add(V_SCROLL_STACK.padding_y(0.0).position_y(Pos::Start).size_x(Size::Pixels(250.0)).size_y(Size::Fill)).nest(|| {
 
                 ui.add(PANEL.color(Color::KERU_BLUE).size_x(Size::Fill)).nest(|| {
-                    ui.add(V_STACK).nest(|| {
+                    ui.add(V_STACK.size_x(Size::Fill)).nest(|| {
                         ui.add(TEXT.text("Grid properties:"));
 
                         ui.add(BUTTON.text(axis_label).key(TOGGLE_AXIS));

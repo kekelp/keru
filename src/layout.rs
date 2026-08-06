@@ -912,6 +912,12 @@ impl Ui {
         // Accumulate transforms from parent
         self.compute_accumulated_transform(i);
 
+        // Round to the pixel grid only once the node has settled, so animations stay smooth but final positions are crisp.
+        if !still_moving {
+            let scale = self.sys.nodes[i].accumulated_transform.scale;
+            self.sys.nodes[i].real_rect = self.sys.nodes[i].real_rect.round_to_pixel_grid(self.sys.size, scale);
+        }
+
         let parent = self.sys.nodes[i].parent;
         let parent_exiting = self.sys.nodes[parent].exit_animation_still_going;
         if !still_moving && !parent_exiting {
@@ -949,7 +955,7 @@ impl Ui {
 
             let local_speed = self.sys.nodes[i].params.animation.speed;
 
-            const SNAP_PX: f32 = 3.0;
+            const SNAP_PX: f32 = 0.3;
             const MIN_STEP_PX: f32 = 1.0;
 
             let diff = target - l;

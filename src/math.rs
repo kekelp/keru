@@ -206,8 +206,8 @@ impl XyRect {
         return Xy::new(self[X][1] - self[X][0], self[Y][1] - self[Y][0]);
     }
 
-    pub fn to_graphics_space_rounded(&self, size: Xy<f32>, scale: f32) -> Self {
-        // Round to screen pixel grid accounting for transform scale
+    /// Round the rect to the screen pixel grid, accounting for transform scale.
+    pub fn round_to_pixel_grid(&self, size: Xy<f32>, scale: f32) -> Self {
         let pixel_x = [
             (self.x[0] * size.x * scale).round() / scale / size.x,
             (self.x[1] * size.x * scale).round() / scale / size.x
@@ -216,11 +216,12 @@ impl XyRect {
             (self.y[0] * size.y * scale).round() / scale / size.y,
             (self.y[1] * size.y * scale).round() / scale / size.y
         ];
+        return Self::new(pixel_x, pixel_y);
+    }
 
-        let pixel_aligned = Self::new(pixel_x, pixel_y);
-
-        // Then do the normal conversion
-        let a = pixel_aligned * 2. - 1.;
+    /// Convert a rect in normalized [0,1] layout space to normalized device coordinates (NDC).
+    pub fn to_graphics_space(&self) -> Self {
+        let a = *self * 2. - 1.;
         return Self::new([a.x[0], a.x[1]], [-a.y[1], -a.y[0]]);
     }
 
