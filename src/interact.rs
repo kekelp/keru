@@ -319,8 +319,10 @@ impl Ui {
         }
 
         if let Key::Named(NamedKey::Tab) = &event.logical_key {
-            if event.state.is_pressed() {
-                let forward = !self.sys.key_input.key_mods().shift_key();
+            let mods = self.sys.key_input.key_mods();
+            let no_mods = mods.is_empty();
+            if event.state.is_pressed() && no_mods {
+                let forward = !mods.shift_key();
                 self.move_keyboard_focus(forward);
                 return true;
             }
@@ -328,8 +330,7 @@ impl Ui {
 
         if let Key::Named(NamedKey::Escape) = &event.logical_key {
             if event.state.is_pressed() && self.sys.show_focus_indicator {
-                // Hide the focus indicator without losing the focus itself, so a
-                // subsequent Tab resumes navigation from the same node.
+                // Hide the focus indicator without losing the focus itself, so a subsequent Tab resumes navigation from the same node.
                 self.sys.show_focus_indicator = false;
                 self.sys.changes.should_rebuild_render_data = true;
                 self.set_new_ui_input();
@@ -340,10 +341,6 @@ impl Ui {
         if let Key::Named(NamedKey::Space | NamedKey::Enter) = &event.logical_key {
             if event.state.is_pressed() {
                 if let Some(i) = self.sys.focused.and_then(|id| self.sys.nodes.get_by_id(id)) {
-                    // Don't activate a focused text edit: Space/Enter are text
-                    // input there (handled by keru_text), not activation. Also
-                    // skip non-interactable nodes, which can only be focused as a
-                    // navigation anchor.
                     let is_text_edit = matches!(self.sys.nodes[i].text_i, Some(TextI::TextEdit(_)));
                     if self.is_interactable_for_focus(i) && !is_text_edit {
                         self.activate_focused_node(i);
@@ -402,18 +399,17 @@ impl Ui {
     ///
     /// If nothing is focused yet, focuses the first interactable node.
     pub(crate) fn move_keyboard_focus(&mut self, forward: bool) {
-        // Using the keyboard always reveals the focus indicator, even if the
-        // focus doesn't end up moving (e.g. a single interactable node).
+        // Using the keyboard navigation always reveals the focus indicator even if the focus doesn't end up moving.
         self.sys.show_focus_indicator = true;
         self.sys.changes.should_rebuild_render_data = true;
 
         let Some(first) = self.first_node() else { return; };
         let Some(last) = self.last_node() else { return; };
 
-        // The node we start scanning from. When nothing is focused (or the
-        // focused node no longer exists), the first step should land on the
-        // very first (or last) node of the tree.
-        let start = match self.sys.focused.and_then(|id| self.sys.nodes.get_by_id(id)) {
+        let focus_anchor = self.sys.focused
+            .and_then(|id| self.sys.nodes.get_by_id(id))
+            .filter(|&i| !self.sys.nodes[i].currently_hidden);
+        let start = match focus_anchor {
             Some(i) => i,
             None => {
                 let candidate = if forward { first } else { last };
@@ -467,7 +463,7 @@ impl Ui {
     }
 
     fn is_interactable_for_focus(&self, i: NodeI) -> bool {
-        return self.sys.nodes[i].params.interact.focusable;
+        return self.sys.nodes[i].params.interact.focusable && !self.sys.nodes[i].currently_hidden;
     }
 
     fn first_node(&self) -> Option<NodeI> {

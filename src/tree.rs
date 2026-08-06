@@ -678,6 +678,10 @@ impl Ui {
 
                     self.sys.nodes[i].currently_hidden = true;
                     self.sys.set_text_hidden(i, true);
+                    
+                    if self.sys.focused == Some(self.sys.nodes[i].id) {
+                        self.unfocus();
+                    }
 
                     if is_first_child_in_hidden_branch {
                         self.add_hidden_child(i, old_parent_i);
@@ -735,6 +739,10 @@ impl Ui {
         if self.sys.nodes[i].last_frame_touched == self.sys.current_frame {
             log::trace!("Not removing: {}, as it was moved around and not removed", self.node_debug_name(i));
             return;
+        }
+
+        if self.sys.focused == Some(self.sys.nodes[i].id) {
+            self.unfocus();
         }
 
         let old_handle = self.sys.nodes[i].text_i.take();
