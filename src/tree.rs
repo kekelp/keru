@@ -347,6 +347,15 @@ impl Ui {
                 // For the text edit case, this is pretty minor, it only makes a difference if the user clicks in the text edit node's padding outside of the real keru_text box. And even then the box still gets focus, it just doesn't do caret movement and selections correctly.
                 // For this reason it might be tempting to get rid of the explicit hitbox entirely. It might be replaced with a keru_text native padding. But the thing is that for non-edit text boxes this has another use: we can have a big node with some tiny text, and (for example) have double-click on the space of the whole big node select the text. Browsers do this sometimes, might as well support it.
                 text_edit.set_hitbox(Some(hitbox));
+
+                // Set the screen-space clip rect
+                let clip = BoundingBox {
+                    x0: (node_clip_rect.x[0] * self.sys.size[X]) as f64,
+                    y0: (node_clip_rect.y[0] * self.sys.size[Y]) as f64,
+                    x1: (node_clip_rect.x[1] * self.sys.size[X]) as f64,
+                    y1: (node_clip_rect.y[1] * self.sys.size[Y]) as f64,
+                };
+                self.sys.renderer.text.get_text_edit_mut(&text_edit_handle).set_clip_rect(Some(clip));
             },
         }
     }
