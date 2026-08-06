@@ -139,6 +139,9 @@ impl Ui {
 
         self.sys.hovered.retain(|id| hovered_ids.contains(id));
 
+        // todo: this is not the best because hovered_ids is filtered on opaque nodes. In the future we should rewrite all this scanning code so it's easy to do a single scan that can check many different conditions without return-hell. 
+        self.update_cursor_icon(hovered_ids.first().copied());
+
         // Debug mode: track all hits for inspection
         #[cfg(debug_assertions)]
         if self.inspect_mode() {
@@ -151,6 +154,21 @@ impl Ui {
                 }
             }
             self.sys.inspect_hovered = all_hits;
+        }
+    }
+
+    /// Set the window cursor from the topmost hovered node that specifies one, only when it changes.
+    fn update_cursor_icon(&mut self, topmost: Option<Id>) {
+        let icon = topmost
+            .and_then(|id| self.sys.nodes.get_by_id(id))
+            .and_then(|i| self.sys.nodes[i].params.interact.hover_cursor_icon)
+            .unwrap_or(CursorIcon::Default);
+
+        if icon != self.sys.last_cursor_icon {
+            self.sys.last_cursor_icon = icon;
+            if let Some(window) = self.sys.window_ref.as_ref().and_then(|w| w.upgrade()) {
+                window.set_cursor(icon);
+            }
         }
     }
 

@@ -145,6 +145,7 @@ pub(crate) struct System {
 
     pub needs_update: Arc<AtomicBool>,
     pub window_ref: Option<Weak<Window>>,
+    pub last_cursor_icon: CursorIcon,
     pub scheduled_wakeup: Option<ScheduledWakeupHandle>,
 
     pub device: wgpu::Device,
@@ -347,6 +348,7 @@ impl Ui {
 
                 needs_update: Arc::new(AtomicBool::new(false)),
                 window_ref: None,
+                last_cursor_icon: CursorIcon::Default,
                 scheduled_wakeup: None,
 
                 device: device.clone(),

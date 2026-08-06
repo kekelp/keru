@@ -49,6 +49,7 @@ pub(crate) const NODE_ROOT_PARAMS: Node = Node {
         click_animation: false,
         show_focus_indicator: true,
         focusable: false,
+        hover_cursor_icon: None,
     },
     layout: Layout {
         // It matters that this is Frac(1.0) of Fill and not something weird.
@@ -109,6 +110,7 @@ pub const DEFAULT: Node = Node {
         click_animation: false,
         show_focus_indicator: true,
         focusable: false,
+        hover_cursor_icon: None,
     },
     layout: Layout {
         size: Xy::new_symm(Size::Frac(1.0)),
@@ -172,6 +174,7 @@ pub const V_STACK: Node = Node {
         click_animation: false,
         show_focus_indicator: true,
         focusable: false,
+        hover_cursor_icon: None,
     },
     layout: Layout {
         size: Xy::new(Size::FitContent, Size::FitContent),
@@ -235,6 +238,7 @@ pub const H_STACK: Node = Node {
         click_animation: false,
         show_focus_indicator: true,
         focusable: false,
+        hover_cursor_icon: None,
     },
     layout: Layout {
         size: Xy::new(Size::FitContent, Size::FitContent),
@@ -299,6 +303,7 @@ pub const V_SCROLL_STACK: Node = Node {
         click_animation: false,
         show_focus_indicator: true,
         focusable: false,
+        hover_cursor_icon: None,
     },
     layout: Layout {
         size: Xy::new(Size::FitContent, Size::Fill),
@@ -364,6 +369,7 @@ pub const H_SCROLL_STACK: Node = Node {
         click_animation: false,
         show_focus_indicator: true,
         focusable: false,
+        hover_cursor_icon: None,
     },
     layout: Layout {
         size: Xy::new(Size::Fill, Size::FitContent),
@@ -424,6 +430,7 @@ pub const MARGIN: Node = Node {
         click_animation: false,
         show_focus_indicator: true,
         focusable: false,
+        hover_cursor_icon: None,
     },
     layout: Layout {
         size: Xy::new_symm(Size::Frac(0.9)),
@@ -483,6 +490,7 @@ pub const ICON_BUTTON: Node = Node {
         click_animation: true,
         show_focus_indicator: true,
         focusable: true,
+        hover_cursor_icon: Some(CursorIcon::Pointer),
     },
     layout: Layout {
         size: Xy::new_symm(Size::Pixels(40.0)),
@@ -542,6 +550,7 @@ pub const IMAGE: Node = Node {
         click_animation: false,
         show_focus_indicator: true,
         focusable: false,
+        hover_cursor_icon: None,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -601,6 +610,7 @@ pub const IMAGE_BUTTON: Node = Node {
         click_animation: true,
         show_focus_indicator: true,
         focusable: true,
+        hover_cursor_icon: Some(CursorIcon::Pointer),
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -667,6 +677,7 @@ pub const BUTTON: Node = Node {
         click_animation: true,
         show_focus_indicator: true,
         focusable: true,
+        hover_cursor_icon: Some(CursorIcon::Pointer),
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -733,6 +744,7 @@ pub const LABEL: Node = Node {
         click_animation: false,
         show_focus_indicator: true,
         focusable: false,
+        hover_cursor_icon: None,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -800,6 +812,7 @@ pub const MULTILINE_LABEL: Node = Node {
         click_animation: false,
         show_focus_indicator: true,
         focusable: false,
+        hover_cursor_icon: None,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -867,6 +880,7 @@ pub const TEXT: Node = Node {
         click_animation: false,
         show_focus_indicator: true,
         focusable: false,
+        hover_cursor_icon: Some(CursorIcon::Text),
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -927,6 +941,7 @@ pub const ICON: Node = Node {
         click_animation: false,
         show_focus_indicator: true,
         focusable: false,
+        hover_cursor_icon: None,
     },
     layout: Layout {
         size: Xy::new_symm(Size::Pixels(40.0)),
@@ -994,6 +1009,7 @@ pub const TEXT_EDIT: Node = Node {
         click_animation: true,
         show_focus_indicator: true,
         focusable: true,
+        hover_cursor_icon: Some(CursorIcon::Text),
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -1061,6 +1077,7 @@ pub const TEXT_EDIT_LINE: Node = Node {
         click_animation: true,
         show_focus_indicator: true,
         focusable: true,
+        hover_cursor_icon: Some(CursorIcon::Text),
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -1128,6 +1145,7 @@ pub const TEXT_PARAGRAPH: Node = Node {
         click_animation: false,
         show_focus_indicator: true,
         focusable: false,
+        hover_cursor_icon: Some(CursorIcon::Text),
     },
     layout: Layout {
         size: Xy::new(Fill, FitContent),
@@ -1188,6 +1206,7 @@ pub const PANEL: Node = Node {
         click_animation: false,
         show_focus_indicator: true,
         focusable: false,
+        hover_cursor_icon: None,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -1248,6 +1267,7 @@ pub const CONTAINER: Node = Node {
         click_animation: false,
         show_focus_indicator: true,
         focusable: false,
+        hover_cursor_icon: None,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -1344,6 +1364,7 @@ pub const CUSTOM_RENDERED_PANEL: Node = Node {
         click_animation: false,
         show_focus_indicator: true,
         focusable: false,
+        hover_cursor_icon: None,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -1404,6 +1425,7 @@ pub const SPACER: Node = Node {
         click_animation: false,
         show_focus_indicator: true,
         focusable: false,
+        hover_cursor_icon: None,
     },
     layout: Layout {
         size: Xy::new_symm(Fill),
@@ -1464,6 +1486,7 @@ pub const H_SPACER: Node = Node {
         click_animation: false,
         show_focus_indicator: true,
         focusable: false,
+        hover_cursor_icon: None,
     },
     layout: Layout {
         size: Xy::new(Size::Fill, Size::FitContent),
@@ -1524,6 +1547,7 @@ pub const V_SPACER: Node = Node {
         click_animation: false,
         show_focus_indicator: true,
         focusable: false,
+        hover_cursor_icon: None,
     },
     layout: Layout {
         size: Xy::new(Size::FitContent, Size::Fill),
@@ -1589,6 +1613,7 @@ pub const GRID: Node = Node {
         click_animation: false,
         show_focus_indicator: true,
         focusable: false,
+        hover_cursor_icon: None,
     },
     layout: Layout {
         size: Xy::new(Size::FitContent, Size::FitContent),
@@ -1654,6 +1679,7 @@ pub const H_LINE: Node = Node {
         click_animation: false,
         show_focus_indicator: true,
         focusable: false,
+        hover_cursor_icon: None,
     },
     layout: Layout {
         size: Xy::new(Size::Fill, Size::Pixels(0.0)),
@@ -1714,6 +1740,7 @@ pub(crate) const COMPONENT_ROOT: Node = Node {
         click_animation: false,
         show_focus_indicator: true,
         focusable: false,
+        hover_cursor_icon: None,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),

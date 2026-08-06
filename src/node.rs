@@ -523,6 +523,8 @@ pub struct Interact {
     pub show_focus_indicator: bool,
     /// Whether the node can receive the keyboard-navigation focus.
     pub focusable: bool,
+    /// The mouse cursor icon shown while hovering this node.
+    pub hover_cursor_icon: Option<CursorIcon>,
 }
 
 /// The node's layout, size and position.
@@ -1269,6 +1271,12 @@ impl<'a> Node<'a> {
     /// Set whether the node can receive the keyboard-navigation focus at all (e.g. via Tab).
     pub fn focusable(mut self, value: bool) -> Self {
         self.interact.focusable = value;
+        return self;
+    }
+
+    /// Set the mouse cursor icon shown while hovering this node.
+    pub const fn hover_cursor_icon(mut self, icon: CursorIcon) -> Self {
+        self.interact.hover_cursor_icon = Some(icon);
         return self;
     }
 

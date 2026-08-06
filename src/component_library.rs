@@ -267,6 +267,7 @@ impl Ui {
                     .accessibility_role(AccessKitRole::Slider)
                     .accessibility_numeric_value(*value as f64, min as f64, max as f64)
                     .accessibility_actions(AccessibilityActions::INCREMENT | AccessibilityActions::DECREMENT)
+                    .hover_cursor_icon(CursorIcon::Pointer)
                     // .shape(Shape::Rectangle { corner_radius: 36.0 })
                     .key(SLIDER_CONTAINER);
                 
