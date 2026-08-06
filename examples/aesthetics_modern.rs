@@ -163,7 +163,7 @@ fn sidebar(state: &mut State, ui: &mut Ui) {
                     .sense_click(true)
                     .stack(Axis::X, Arrange::Start, 0.0)
                     .text(name).text_color(Color::BLACK).text_size(14.0)
-                    .text_alignment(keru_draw::parley::Alignment::Start)
+                    .text_alignment(TextAlignment::Start)
                     .key(key);
 
                 ui.add(item);

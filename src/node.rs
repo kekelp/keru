@@ -1,7 +1,6 @@
 use glam::vec2;
 use bumpalo::collections::Vec as BumpVec;
 use bumpalo::collections::String as BumpString;
-use keru_draw::parley::Alignment;
 use keru_draw::parley::StyleProperty;
 use keru_draw::parley::{FontStyle, FontWeight, FontFamily, FontFamilyName, GenericFamily};
 
@@ -93,7 +92,7 @@ pub struct Node<'a> {
     /// If true, this node is not shifted by the parent's scroll offset.
     pub ignore_parent_scroll: bool,
 
-    pub text_alignment: Alignment,
+    pub text_alignment: TextAlignment,
     pub vertical_text_alignment: VerticalTextAlignment,
 
     pub text: Option<NodeText<'a>>,
