@@ -1,5 +1,5 @@
 use std::num::NonZeroU32;
-use std::{fmt, fmt::Write, hash::Hash, panic::Location, time::Instant};
+use std::{fmt, hash::Hash, panic::Location, time::Instant};
 use glam::Vec2;
 use keru_draw::{TextBoxHandle, TextEditHandle};
 use crate::*;
@@ -261,31 +261,20 @@ impl fmt::Display for NodeDebugName<'_> {
                 write!(f, "(twin #{})", twin_n)?;
             }
         }
-        // write!(f, "[{}]", self.0.debug_location)
+        write!(f, "[{}]", self.0.debug_location)?;
         Ok(())
     }
 }
 
-impl Ui {
-    pub(crate) fn node_debug_name(&self, i: NodeI) -> NodeDebugName<'_> {
-        NodeDebugName(&self.sys.nodes[i])
+impl fmt::Debug for NodeDebugName<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self, f)
     }
 }
+
 impl InnerNode {
-    pub(crate) fn debug_name(&self) -> String {
-        let mut result = String::new();
-        
-        if !self.original_key.debug_name().is_empty() {
-            write!(result, "{}", self.original_key.debug_name()).unwrap();
-            
-            if let Some(twin_n) = self.is_twin {
-                write!(result, " (twin #{})", twin_n).unwrap();
-            }
-        }
-        
-        write!(result, " [{}]", self.debug_location).unwrap();
-        
-        return result;
+    pub(crate) fn debug_name(&self) -> NodeDebugName<'_> {
+        NodeDebugName(self)
     }
 }
 

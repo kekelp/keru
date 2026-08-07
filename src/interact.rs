@@ -149,7 +149,7 @@ impl Ui {
             if let Some(&new_id) = all_hits.first() {
                 if self.sys.inspect_hovered.first() != Some(&new_id) {
                     if let Some(i) = self.sys.nodes.get_by_id(new_id) {
-                        log::info!("Inspect mode: hovering {}", self.node_debug_name(i));
+                        log::info!("Inspect mode: hovering {}", self.sys.nodes[i].debug_name());
                     }
                 }
             }

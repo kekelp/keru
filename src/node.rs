@@ -2437,8 +2437,8 @@ impl Ui {
                     (false, true) => "appearance",
                     _ => unreachable!()
                 };
-                log::error!("Keru: incorrect reactive block: the {kind} params of node \"{}\" changed, but reactive thought they didn't", self.node_debug_name(i));
-                // log::error!("Keru: incorrect reactive block: the {kind} params of node \"{}\" changed, even if a reactive block declared that it shouldn't have.\n Check that the reactive block is correctly checking all the runtime variables that can affect the node's params.", self.node_debug_name(i));
+                log::error!("Keru: incorrect reactive block: the {kind} params of node \"{}\" changed, but reactive thought they didn't", self.sys.nodes[i].debug_name());
+                // log::error!("Keru: incorrect reactive block: the {kind} params of node \"{}\" changed, even if a reactive block declared that it shouldn't have.\n Check that the reactive block is correctly checking all the runtime variables that can affect the node's params.", self.sys.nodes[i].debug_name());
             }
             return;
         }
@@ -2452,7 +2452,7 @@ impl Ui {
                     (false, true) => "appearance",
                     _ => unreachable!()
                 };
-                log::error!("Keru: node \"{}\" is marked constant but its {kind} params changed", self.node_debug_name(i));
+                log::error!("Keru: node \"{}\" is marked constant but its {kind} params changed", self.sys.nodes[i].debug_name());
             }
             return;
         }

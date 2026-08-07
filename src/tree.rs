@@ -737,7 +737,7 @@ impl Ui {
         // Kind of weird to do this so late.
         // todo: with the new system we can delete this.
         if self.sys.nodes[i].last_frame_touched == self.sys.current_frame {
-            log::trace!("Not removing: {}, as it was moved around and not removed", self.node_debug_name(i));
+            log::trace!("Not removing: {}, as it was moved around and not removed", self.sys.nodes[i].debug_name());
             return;
         }
 

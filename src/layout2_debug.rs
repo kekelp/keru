@@ -18,7 +18,7 @@ impl Ui {
         };
         let slot_label = |slot: GraphElement| {
             // The debug name ends in a "[file:line]" part, which is too long to put in a graph.
-            let full = format!("{}", self.node_debug_name(slot.node));
+            let full = format!("{}", self.sys.nodes[slot.node].debug_name());
             let mut name = full.split('[').next().unwrap_or("").trim().to_string();
             if name.is_empty() {
                 name = format!("{:?}", slot.node);
@@ -76,13 +76,13 @@ impl Ui {
                 if ! guessed.is_empty() {
                     guessed.push_str(", ");
                 }
-                let _ = write!(guessed, "{}.{:?}.{:?}", self.node_debug_name(c.depends_on.node), c.depends_on.axis, c.depends_on.size_type);
+                let _ = write!(guessed, "{}.{:?}.{:?}", self.sys.nodes[c.depends_on.node].debug_name(), c.depends_on.axis, c.depends_on.size_type);
             }
             how = format!("DEFERRED, guessed {}", guessed);
         }
 
         eprintln!("SOLVED: {}.{:?}.{:?} ({:?}) = {:.1}px  ({})",
-            self.node_debug_name(slot.node),
+            self.sys.nodes[slot.node].debug_name(),
             slot.axis,
             slot.size_type,
             self.declared_size(slot.node, slot.axis, slot.size_type),
@@ -108,7 +108,7 @@ impl Ui {
                 };
 
                 eprintln!("UNSOLVED: {}.{:?}.{:?} ({:?}), {}. Falling back to {:.1}px",
-                    self.node_debug_name(i),
+                    self.sys.nodes[i].debug_name(),
                     axis,
                     size_type,
                     self.declared_size(i, axis, size_type),

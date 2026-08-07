@@ -285,7 +285,7 @@ impl Ui {
 
                 if matches!(size, Size::AspectRatio(_)) {
                     if matches!(self.sys.nodes[i].params.layout.size[axis.other()], Size::AspectRatio(_)) {
-                        log::warn!("A node shouldn't be AspectRatio on both axes. (node: {})", self.node_debug_name(i));
+                        log::warn!("A node shouldn't be AspectRatio on both axes. (node: {})", self.sys.nodes[i].debug_name());
                     } else {
                         dependency_on_other_axis = true;
                     }
@@ -295,11 +295,11 @@ impl Ui {
                     if ! parent.regular_is_fitcontent[axis] {
                         dependency_on_parent = true;
                     } else if ! parent.has_sized_children[axis] {
-                        log::warn!("A FitContent node has no children that could give it a size: all of them ask for a share of it with no bound to fall back on, so they all stay at zero. (node: {}, axis: {:?})", self.node_debug_name(parent.node), axis);
+                        log::warn!("A FitContent node has no children that could give it a size: all of them ask for a share of it with no bound to fall back on, so they all stay at zero. (node: {}, axis: {:?})", self.sys.nodes[parent.node].debug_name(), axis);
                     } else if ! stack_main || matches!(size, Size::Frac(_)) {
                         dependency_on_parent = true;
                     } else {
-                        log::warn!("A Fill child of a FitContent stack along its main axis has nothing to fill: the stack is only as big as its children, so there is never anything left over. It stays at its min size instead. (node: {}, axis: {:?})", self.node_debug_name(i), axis);
+                        log::warn!("A Fill child of a FitContent stack along its main axis has nothing to fill: the stack is only as big as its children, so there is never anything left over. It stays at its min size instead. (node: {}, axis: {:?})", self.sys.nodes[i].debug_name(), axis);
                     }
                 }
 
@@ -387,7 +387,7 @@ impl Ui {
 
     fn solve_element(&mut self, slot: GraphElement, _deferred: bool) {
         if _deferred {
-            log::warn!("Layout: solving {} with partial information due to a cycle in its layout dependencies.", self.node_debug_name(slot.node));
+            log::warn!("Layout: solving {} with partial information due to a cycle in its layout dependencies.", self.sys.nodes[slot.node].debug_name());
         }
         if self.sys.nodes[slot.node].l2_solved[slot.axis][slot.size_type as usize].is_some() {
             return;
