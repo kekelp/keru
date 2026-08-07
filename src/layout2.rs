@@ -864,7 +864,8 @@ impl Ui {
                 let height = if text_edit.single_line() {
                     match text_edit.layout().lines().next() {
                         Some(first_line) => first_line.metrics().line_height,
-                        None => 0.0,
+                        // In this empty case, we could probably get the height by looking at the metrics default font, but it's kind of complicated.
+                        None => 0.0, 
                     }
                 } else {
                     0.0

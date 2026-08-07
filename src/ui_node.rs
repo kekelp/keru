@@ -150,8 +150,8 @@ impl<'a> UiNode<'a> {
 
     /// Returns the node's inner size (without padding), in screen pixels.
     /// 
-    /// Since the size and position of nodes is only determined after the layout pass at the end of the frame, 
-    /// this function will return the value from last frame.  
+    /// Since the size and position of nodes is only determined in the layout pass at the end of the frame, 
+    /// using this function in the middle of UI declaration code will return the value from last frame.  
     pub fn inner_size(&self) -> Xy<f32> {
         let padding = self.node().params.layout.padding;
 
@@ -165,8 +165,8 @@ impl<'a> UiNode<'a> {
 
     /// Returns the center of the node's rectangle, in screen pixels.
     /// 
-    /// Since the size and position of nodes is only determined after the layout pass at the end of the frame, 
-    /// this function will return the value from last frame.
+    /// Since the size and position of nodes is only determined in the layout pass at the end of the frame, 
+    /// using this function in the middle of UI declaration code will return the value from last frame.
     pub fn center(&self) -> Xy<f32> {
         let rect = self.node().real_rect;
         
@@ -182,8 +182,8 @@ impl<'a> UiNode<'a> {
 
     /// Returns the bottom left point of the node's rectangle, in screen pixels.
     /// 
-    /// Since the size and position of nodes is only determined after the layout pass at the end of the frame, 
-    /// this function will return the value from last frame.
+    /// Since the size and position of nodes is only determined in the layout pass at the end of the frame, 
+    /// using this function in the middle of UI declaration code will return the value from last frame.
     pub fn bottom_left(&self) -> Xy<f32> {
         let rect = self.node().real_rect;
         
@@ -199,16 +199,16 @@ impl<'a> UiNode<'a> {
 
     /// Returns the node's rectangle in screen pixels.
     /// 
-    /// Since the size and position of nodes is only determined after the layout pass at the end of the frame, 
-    /// this function will return the value from last frame.
+    /// Since the size and position of nodes is only determined in the layout pass at the end of the frame, 
+    /// using this function in the middle of UI declaration code will return the value from last frame.
     pub fn rect(&self) -> XyRect {
         return self.node().real_rect * self.sys().size;
     }
 
     /// Returns the node's rectangle in normalized device coordinates (NDC).
     /// 
-    /// Since the size and position of nodes is only determined after the layout pass at the end of the frame, 
-    /// this function will return the value from last frame.
+    /// Since the size and position of nodes is only determined in the layout pass at the end of the frame, 
+    /// using this function in the middle of UI declaration code will return the value from last frame.
     pub fn render_rect(&self) -> RenderInfo {
         return RenderInfo {
             rect: self.node().real_rect.to_graphics_space(),

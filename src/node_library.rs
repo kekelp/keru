@@ -1081,7 +1081,7 @@ pub const TEXT_EDIT_LINE: Node = Node {
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
-        min_size: Xy::new(None, None),
+        min_size: Xy::new(Some(Size::Pixels(100.0)), None),
         max_size: Xy::new(None, None),
         padding: Xy::new_symm(10.0),
         position: Xy::new_symm(Center),
