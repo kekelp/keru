@@ -333,7 +333,9 @@ impl Ui {
     }
 
     fn push_dependency(&mut self, dependency: LayoutDependency) {
-        self.sys.nodes[dependency.dependent.node].n_unsolved_layout_dependencies[dependency.dependent.axis][dependency.dependent.size_type as usize] += 1;
+        self.sys.nodes[dependency.dependent.node].n_unsolved_layout_dependencies
+            [dependency.dependent.axis]
+            [dependency.dependent.size_type as usize] += 1;
         self.sys.nodes[dependency.depends_on.node].layout_dependents.push(dependency);
     }
 
@@ -697,9 +699,8 @@ impl Ui {
             };
         }
 
-        let available = self.available_space_in_stack(parent, axis);
-
         if let Size::Frac(f) = size {
+            let available = self.available_space_in_stack(parent, axis);
             return available * f;
         }
 
@@ -707,6 +708,7 @@ impl Ui {
         let share = match self.sys.nodes[parent].l2_solved[axis][SizeType::EvenShareForFillChildren as usize] {
             Some(share) => share,
             None => {
+                let available = self.available_space_in_stack(parent, axis);
                 let share = self.even_share_for_fill_children(parent, axis, available);
                 self.sys.nodes[parent].l2_solved[axis][SizeType::EvenShareForFillChildren as usize] = Some(share);
                 share
