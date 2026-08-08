@@ -9,6 +9,7 @@ const H: u32 = 1000;
 #[node_key] const A: NodeKey;
 #[node_key] const B: NodeKey;
 #[node_key] const C: NodeKey;
+#[node_key] const D: NodeKey;
 
 fn width(ui: &Ui, key: NodeKey) -> f32 {
     let r = ui.get_node(key).unwrap().rect();
@@ -240,4 +241,31 @@ fn max_size_fill_caps_fixed_child_at_share() {
         });
     });
     assert_rect(&ui, A, 450.0, 450.0, 100.0, 100.0);
+}
+
+// --- Cycles ---
+
+// A genuine cross-axis constraint cycle, built from two AspectRatio nodes:
+//   N (C): x = AspectRatio (width follows height), y = FitContent (height fits children).
+//   The FitContent-only cycle would be broken by the "fill punches through FitContent"
+//   collapse rule, so N is given a hard sibling (A, fixed Pixels) to keep it a real
+//   FitContent parent, and the aspect child (B) to close the loop:
+//   B: x = Fill (fills N), y = AspectRatio (height follows width).
+// This closes: B.y -aspect-> B.x -fill-> N.x -aspect-> N.y -fit-> B.y.
+// AspectRatio children are not excluded from the FitContent sum (only Fill/Frac are),
+// so N.y really does wait on B.y, and the loop is real and unsolvable. The point of the
+// test is that the solver still terminates and produces finite sizes via the deferred
+// fallback, instead of hanging or emitting NaN/inf.
+#[test]
+fn aspect_ratio_cycle_terminates_with_finite_sizes() {
+    let ui = run(|ui| {
+        ui.add(CONTAINER.key(D).size_x(AspectRatio(1.0)).size_y(FitContent)).nest(|| {
+            ui.add(BOX.key(A).size(Pixels(50.0), Pixels(50.0)));
+            ui.add(BOX.key(B).size_x(Fill).size_y(AspectRatio(1.0)));
+        });
+    });
+    for key in [D, A, B] {
+        let (w, h) = (width(&ui, key), height(&ui, key));
+        assert!(w.is_finite() && h.is_finite(), "expected finite size, got ({w} x {h})");
+    }
 }
