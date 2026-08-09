@@ -40,6 +40,7 @@ pub struct InnerNode {
 
     pub layout_dependents: Vec<LayoutDependency>,
     pub n_unsolved_layout_dependencies: Xy<[u32; N_SIZE_TYPES]>,
+    pub queued_in_deferred: Xy<[bool; N_SIZE_TYPES]>,
 
     // Enter or exit animation can be a fuzzy concept, because what if the node gets relayouted to a different position/state before the animation is over? The animation would be "extended" and only end what the node settles in the new final position. Even if at that point it's a mix between an enter/exit animation and a regular interpolation one.
     // exit_animation_still_going is very important as it's what decides when an exiting nodes finally gets removed and cleaned up.
@@ -246,6 +247,7 @@ impl InnerNode {
             l2_solved: Xy::new([None; N_SIZE_TYPES], [None; N_SIZE_TYPES]),
             layout_dependents: Vec::new(),
             n_unsolved_layout_dependencies: Xy::new([0; N_SIZE_TYPES], [0; N_SIZE_TYPES]),
+            queued_in_deferred: Xy::new([false; N_SIZE_TYPES], [false; N_SIZE_TYPES]),
         };
     }
 }
@@ -374,6 +376,7 @@ pub const NODE_ROOT: InnerNode = InnerNode {
     l2_solved: Xy::new([None; N_SIZE_TYPES], [None; N_SIZE_TYPES]),
     layout_dependents: Vec::new(),
     n_unsolved_layout_dependencies: Xy::new([0; N_SIZE_TYPES], [0; N_SIZE_TYPES]),
+    queued_in_deferred: Xy::new([false; N_SIZE_TYPES], [false; N_SIZE_TYPES]),
 };
 
 #[derive(Debug)]

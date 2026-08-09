@@ -72,6 +72,7 @@ impl Ui {
     fn clear_node_dependencies(&mut self, i: NodeI) {
         self.sys.nodes[i].layout_dependents.clear();
         self.sys.nodes[i].n_unsolved_layout_dependencies = Xy::new([0; N_SIZE_TYPES], [0; N_SIZE_TYPES]);
+        self.sys.nodes[i].queued_in_deferred = Xy::new([false; N_SIZE_TYPES], [false; N_SIZE_TYPES]);
         self.sys.nodes[i].l2_solved = Xy::new([None; N_SIZE_TYPES], [None; N_SIZE_TYPES]);
     }
 
@@ -361,7 +362,11 @@ impl Ui {
                     *deps_left -= 1;
                     if *deps_left != 0 {
                         // Some input did flow into this element, but it also has other dependencies. If these other dependencies are never solved, e.g. because they are part of a cycle, we should still try to solve it using the input that we did get
-                        self.sys.layout_deferred_queue.push(dep);
+                        let queued = &mut self.sys.nodes[dep.node].queued_in_deferred[dep.axis][dep.size_type as usize];
+                        if ! *queued {
+                            *queued = true;
+                            self.sys.layout_deferred_queue.push(dep);
+                        }
                         continue;
                     }
 
