@@ -21,7 +21,7 @@ fn hue_color(hue: f32) -> Color {
 fn update_ui(_: &mut (), ui: &mut Ui) {
     with_arena(|arena| {
 
-        ui.add(V_SCROLL_STACK).nest(|| {
+        ui.add(V_SCROLL_STACK.stack_spacing(0.0).size_x(Size::Pixels(200.0))).nest(|| {
             for i in 0..10_000 {
 
                 let key = KEY.sibling(i);
@@ -47,6 +47,7 @@ fn update_ui(_: &mut (), ui: &mut Ui) {
 }
 
 fn main() {
+    example_window_loop::basic_env_logger_init();
     example_window_loop::run_example_loop((), update_ui);
 }
 

@@ -18,7 +18,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .text("Increase")
         .key(INCREASE);
 
-    // Create another Node describing the count label. This one doesn't need a key.
+    // Create another Node describing the count label. We don't need a key for this one.
     // By using the Node's builder methods and the basic constants from keru::node_library, 
     // we can create different Nodes to describe all sorts of UI elements.
     let formatted_count = state.count.to_string();

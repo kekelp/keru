@@ -3,7 +3,6 @@
 use keru::*;
 use keru::node_library::*;
 
-#[derive(Default)]
 pub struct State {
     pub count: i32,
 }
@@ -13,7 +12,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     #[node_key] const INCREASE: NodeKey;
     
     // Create a Node struct describing a button
-    let increase_button = BUTTON
+    let increase_button: Node = BUTTON
         .color(Color::RED)
         .text("Increase")
         .key(INCREASE);
@@ -31,7 +30,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 }
 
 fn main() {
-    let state = State::default();
+    let state = State { count: 0 };
     example_window_loop::run_example_loop(state, update_ui);
 }
 
