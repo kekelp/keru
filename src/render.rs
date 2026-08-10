@@ -45,7 +45,7 @@ impl Ui {
     pub fn window_event(&mut self, event: &winit::event::WindowEvent, window: &winit::window::Window) -> bool {
         // there's already a ScaleFactorChanged event, but what about the initial one?
         if *event == WindowEvent::RedrawRequested {
-            self.set_scale_factor(window.scale_factor());
+            self.set_display_scale_factor(window.scale_factor());
         }
 
         // Keep the nominal frame time in sync with the monitor the window is on: only when the window moves or the scale factor changes, not every frame.
@@ -199,7 +199,7 @@ impl Ui {
             }
             WindowEvent::Resized(size) => self.resize(size),
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-                self.set_scale_factor(*scale_factor);
+                self.set_display_scale_factor(*scale_factor);
             }
             WindowEvent::MouseWheel { delta, .. } => {
                 self.handle_scroll_event(delta);

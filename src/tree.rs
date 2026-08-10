@@ -607,7 +607,7 @@ impl Ui {
         }
         self.sys.changes.focus_changed = false;
 
-        reset_arena();
+        thread_local_arena::reset_arena();
 
         self.arena_for_wrapper_structs.reset();
     }

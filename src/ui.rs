@@ -113,7 +113,10 @@ pub(crate) struct System {
     pub layout_deferred_queue: Vec<GraphElement>,
 
     pub size: Xy<f32>,
+    /// The effective scale factor, should be kept in sync as the display_scale_factor * custom_scale_factor
     pub scale_factor: f32,
+    pub display_scale_factor: f32,
+    pub explicit_scale_factor: f32,
 
     pub current_frame: u64,
     pub last_frame_end_fake_time: u64,
@@ -323,6 +326,8 @@ impl Ui {
 
                 size: Xy::new(width, height),
                 scale_factor: 1.0,
+                display_scale_factor: 1.0,
+                explicit_scale_factor: 1.0,
 
                 mouse_input: MouseInput::default(),
                 key_input: KeyInput::default(),
@@ -660,8 +665,22 @@ impl Ui {
         self.set_new_ui_input();
     }
 
-    pub(crate) fn set_scale_factor(&mut self, scale_factor: f64) {
-        let scale_factor = scale_factor as f32;
+    pub(crate) fn set_display_scale_factor(&mut self, scale_factor: f64) {
+        self.sys.display_scale_factor = scale_factor as f32;
+        self.sync_effective_scale_factor();
+    }
+
+    /// Set a scale factor for the whole GUI.
+    /// 
+    /// This is an explict scale factor separate from the intrinsic scale factor for high-dpi displays, which is respected automatically. 
+    pub fn set_explicit_scale_factor(&mut self, scale_factor: f32) {
+        self.sys.explicit_scale_factor = scale_factor;
+        self.sys.renderer.text.set_ui_scale_factor(scale_factor as f64);
+        self.sync_effective_scale_factor();
+    }
+
+    fn sync_effective_scale_factor(&mut self) {
+        let scale_factor = self.sys.display_scale_factor * self.sys.explicit_scale_factor;
         if self.sys.scale_factor != scale_factor {
             self.sys.scale_factor = scale_factor;
             self.sys.changes.full_relayout = true;
