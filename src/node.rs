@@ -396,7 +396,7 @@ pub enum VerticalOrigin {
 }
 
 /// Determines how the children of the node are laid out in its space.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ChildrenLayout {
     /// Children can position themselves freely according to their [`Size`] and [`Pos`] values. 
     Free,
@@ -442,7 +442,7 @@ impl Hash for ChildrenLayout {
 /// How many cells of a grid the node occupies.
 /// 
 /// Only works if the node is added as a child of a [`ChildrenLayout::Grid`] node, 
-#[derive(Debug, Clone, Copy, Hash)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq)]
 pub struct GridElement {
     pub row_span: u16,
     pub column_span: u16,
@@ -458,7 +458,7 @@ impl GridElement {
 ///
 /// `main_axis` determines whether items fill horizontally first (rows) or vertically first (columns).
 /// `x_fill_direction: Direction::RightToLeft` places items right-to-left; `y_fill_direction: Direction::RightToLeft` places items bottom-to-top.
-#[derive(Debug, Clone, Copy, Hash)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq)]
 pub struct GridFlow {
     pub main_axis: Axis,
     pub x_fill_direction: Direction,
@@ -480,7 +480,7 @@ impl GridFlow {
 }
 
 /// Specifies how cells are sized along the main axis of a grid layout.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum MainAxisCellSize {
     /// Fixed number of cells.
     Count(u32),
@@ -499,7 +499,7 @@ impl std::hash::Hash for MainAxisCellSize {
 }
 
 /// Options for the arrangement of child nodes within a stack node.
-#[derive(Debug, Clone, Copy, Hash)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq)]
 pub enum Arrange {
     Start,
     End,
@@ -511,7 +511,7 @@ pub enum Arrange {
 
 // might as well move to Rect? but maybe there's issues with non-clickable stuff absorbing the clicks.
 /// The node's interact behavior.
-#[derive(Debug, Copy, Clone, Hash)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq)]
 pub struct Interact {
     /// Whether the node displays the default animation when clicked and hovered.
     pub click_animation: bool,
@@ -1020,7 +1020,7 @@ impl Rect {
 // rename
 // todo: add greyed text for textinput
 /// Options for text nodes.
-#[derive(Debug, Copy, Clone, Hash)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq)]
 pub struct TextOptions {
     pub editable: bool,
     pub single_line: bool,
@@ -1053,58 +1053,40 @@ impl TextOptions {
 pub const DEFAULT_CORNER_RADIUS: f32 = 9.0;
 
 impl<'a> Node<'a> {
-    pub(crate) fn cosmetic_hash(&self) -> u64 {
-        let mut h = ahasher();
-        self.shape.hash(&mut h);
-        self.z_index.to_bits().hash(&mut h);
-        self.color.hash(&mut h);
-        self.alpha.to_bits().hash(&mut h);
-        self.blur.map(|v| v.to_bits()).hash(&mut h);
-        self.shadow.hash(&mut h);
-        self.second_shadow.hash(&mut h);
-        self.stroke.hash(&mut h);
-        self.animation.speed.to_bits().hash(&mut h);
-        std::mem::discriminant(&self.animation.enter).hash(&mut h);
-        match self.animation.enter {
-            EnterAnimation::None => {},
-            EnterAnimation::Slide { edge, direction } => { edge.hash(&mut h); direction.hash(&mut h); },
-            EnterAnimation::Grow { axis, origin } => { axis.hash(&mut h); origin.hash(&mut h); },
-            EnterAnimation::FadeIn => {},
-        }
-        std::mem::discriminant(&self.animation.exit).hash(&mut h);
-        match self.animation.exit {
-            ExitAnimation::None => {},
-            ExitAnimation::Slide { edge, direction } => { edge.hash(&mut h); direction.hash(&mut h); },
-            ExitAnimation::Shrink { axis, origin } => { axis.hash(&mut h); origin.hash(&mut h); },
-            ExitAnimation::FadeOut => {},
-        }
-        self.animation.state_transition.animate_layout.hash(&mut h);
-        self.animation.state_transition.animate_properties.hash(&mut h);
-        self.transform.offset.x.to_bits().hash(&mut h);
-        self.transform.offset.y.to_bits().hash(&mut h);
-        self.transform.scale.to_bits().hash(&mut h);
-        self.custom_render.hash(&mut h);
-        self.interact.hash(&mut h);
-        (self.text_alignment as u8).hash(&mut h);
-        self.vertical_text_alignment.hash(&mut h);
-        self.text_color.map(|c| (c.r.to_bits(), c.g.to_bits(), c.b.to_bits(), c.a.to_bits())).hash(&mut h);
-        self.text_style_flags.hash(&mut h);
-        return h.finish();
+    // Comparing field by field seems to be a lot faster than hashing, even in the common case where there's no difference and it can't short-circuit. Maybe because there are less serial dependencies and it gets instruction-level or memory-level parallelized.
+    pub(crate) fn compare_cosmetics(&self, o: &Node) -> bool {
+        return self.z_index == o.z_index
+            && self.blur == o.blur
+            && self.shadow == o.shadow
+            && self.second_shadow == o.second_shadow
+            && self.stroke == o.stroke
+            && self.animation.speed == o.animation.speed
+            && self.animation.enter == o.animation.enter
+            && self.animation.exit == o.animation.exit
+            && self.animation.state_transition.animate_layout == o.animation.state_transition.animate_layout
+            && self.animation.state_transition.animate_properties == o.animation.state_transition.animate_properties
+            && self.transform.offset.x == o.transform.offset.x
+            && self.transform.offset.y == o.transform.offset.y
+            && self.transform.scale == o.transform.scale
+            && self.custom_render == o.custom_render
+            && self.interact == o.interact
+            && self.text_alignment == o.text_alignment
+            && self.vertical_text_alignment == o.vertical_text_alignment
+            && self.text_color == o.text_color
+            && self.text_style_flags == o.text_style_flags;
     }
 
-    pub(crate) fn layout_hash(&self) -> u64 {
-        let mut h = ahasher();
-        self.layout.hash(&mut h);
-        self.children_layout.hash(&mut h);
-        self.text_options.hash(&mut h);
-        self.text_size.map(|v| v.to_bits()).hash(&mut h);
-        self.grid_element.hash(&mut h);
-        self.free_placement.hash(&mut h);
-        self.clip_children.hash(&mut h);
-        self.visible.hash(&mut h);
-        self.children_can_hide.hash(&mut h);
-        self.ignore_parent_scroll.hash(&mut h);
-        return h.finish();
+    pub(crate) fn compare_layout(&self, o: &Node) -> bool {
+        return self.layout == o.layout
+            && self.children_layout == o.children_layout
+            && self.text_options == o.text_options
+            && self.text_size == o.text_size
+            && self.grid_element == o.grid_element
+            && self.free_placement == o.free_placement
+            && self.clip_children == o.clip_children
+            && self.visible == o.visible
+            && self.children_can_hide == o.children_can_hide
+            && self.ignore_parent_scroll == o.ignore_parent_scroll;
     }
 
     pub const fn const_default() -> Self {
@@ -2248,13 +2230,13 @@ fn apply_markdown<'a>(text: &str, arena: &'a bumpalo::Bump) -> (BumpString<'a>, 
 
 impl Ui {
     pub(crate) fn set_params_text(&mut self, i: NodeI, node: &Node) {
+        if node.text.is_none() && !node.text_options.editable {
+            return;
+        }
         with_arena(|arena| {
 
             let text_options = node.text_options;
 
-            if node.text.is_none() && !text_options.editable {
-                return;
-            }
             let raw_text = node.text.unwrap_or(NodeText(""));
 
             let new_fingerprint = TextFingerprint::new(raw_text.as_str(), text_options.use_pointer_comparison);
@@ -2422,11 +2404,18 @@ impl Ui {
             };
         }
 
-        let new_cosmetic_hash = node.cosmetic_hash();
-        let new_layout_hash = node.layout_hash();
-        
-        let cosmetic_changed = new_cosmetic_hash != self.sys.nodes[i].last_cosmetic_hash;
-        let layout_changed = new_layout_hash != self.sys.nodes[i].last_layout_hash;
+        let animate_enabled = node.animation.state_transition.animate_properties;
+
+        #[cfg(debug_assertions)]
+        let (skip_layout_diff, skip_cosmetic_diff) = (false, false);
+        #[cfg(not(debug_assertions))]
+        let (skip_layout_diff, skip_cosmetic_diff) = (
+            self.sys.changes.full_relayout,
+            self.sys.changes.should_rebuild_render_data && !animate_enabled,
+        );
+
+        let layout_changed = !skip_layout_diff && !node.compare_layout(&self.sys.nodes[i].params);
+        let cosmetic_changed = !skip_cosmetic_diff && self.cosmetic_comparison_with_animation_target(i, node);
 
         #[cfg(debug_assertions)]
         if reactive::is_in_skipped_reactive_block() {
@@ -2457,32 +2446,31 @@ impl Ui {
             return;
         }
         
-        let mut new_params = node.remove_borrowed_data_and_copy();
-
-        let animate_enabled = node.animation.state_transition.animate_properties;
         let animate = animate_enabled
             && cosmetic_changed
             && self.sys.nodes[i].frame_added != self.sys.current_frame;
 
-        // If we didn't support animation-only frames where the builtin animations progress even without rerunning the update code,
-        // we could resolve the property animation immediately here without even storing anything. It would be a lot simpler.
-        if animate {
-            self.start_property_animations(i, &mut new_params);
-        }
+        if !animate && self.sys.nodes[i].params_animation_target.is_none() {
+            node.write_params_into(&mut self.sys.nodes[i].params);
+        } else {
+            let mut new_params = node.remove_borrowed_data_and_copy();
 
-        if self.sys.nodes[i].params_animation_target.is_some() {
-            if animate_enabled {
-                self.undo_animated_properties_update(i, &mut new_params);
-            } else {
-                // animate_properties was turned off while an animation was still in flight.
-                self.cancel_property_animation(i);
+            // If we didn't support animation-only frames where the transition animations make progress even without rerunning the update code, then we could resolve the property animation immediately here without even storing anything. It would be a lot simpler.
+            if animate {
+                self.start_property_animations(i, &mut new_params);
             }
+
+            if self.sys.nodes[i].params_animation_target.is_some() {
+                if animate_enabled {
+                    self.undo_animated_properties_update(i, &mut new_params);
+                } else {
+                    // animate_properties was turned off while an animation was still in flight.
+                    self.cancel_property_animation(i);
+                }
+            }
+
+            self.sys.nodes[i].params = new_params;
         }
-
-        self.sys.nodes[i].params = new_params;
-
-        self.sys.nodes[i].last_cosmetic_hash = new_cosmetic_hash;
-        self.sys.nodes[i].last_layout_hash = new_layout_hash;
 
         if layout_changed {
             self.sys.push_partial_relayout(i);
@@ -2490,6 +2478,23 @@ impl Ui {
         if cosmetic_changed{
             self.sys.changes.should_rebuild_render_data = true;
         }
+    }
+
+    /// Detect whether the declared cosmetic params changed since last frame. The stored `params` holds the declared values, except for `alpha`, `color`, and `shape` while a property animation is in flight: those get interpolated in place, so we compare them against the animation's declared target instead.
+    fn cosmetic_comparison_with_animation_target(&self, i: NodeI, node: &Node) -> bool {
+        let stored = &self.sys.nodes[i].params;
+        if !node.compare_cosmetics(stored) {
+            return true;
+        }
+
+        let (decl_alpha, decl_color, decl_shape) = match self.sys.nodes[i].params_animation_target {
+            Some(anim_i) => {
+                let target = &self.sys.params_animation_targets[anim_i.get() as usize - 1].target;
+                (target.alpha, target.color, target.shape)
+            }
+            None => (stored.alpha, stored.color, stored.shape),
+        };
+        return node.alpha != decl_alpha || node.color != decl_color || node.shape != decl_shape;
     }
 
     fn cancel_property_animation(&mut self, i: NodeI) {
@@ -2759,6 +2764,44 @@ pub(crate) struct ParamsAnimation {
 }
 
 impl<'a> Node<'a> {
+    fn write_params_into(&self, dst: &mut Node<'static>) {
+        dst.key = self.key;
+        dst.text_options = self.text_options;
+        dst.children_layout = self.children_layout;
+        dst.shape = self.shape;
+        dst.blur = self.blur;
+        dst.shadow = self.shadow;
+        dst.second_shadow = self.second_shadow;
+        dst.stroke = self.stroke;
+        dst.color = self.color;
+        dst.alpha = self.alpha;
+        dst.visible = self.visible;
+        dst.interact = self.interact;
+        dst.layout = self.layout;
+        dst.children_can_hide = self.children_can_hide;
+        dst.clip_children = self.clip_children;
+        dst.animation = self.animation;
+        dst.transform = self.transform;
+        dst.custom_render = self.custom_render;
+        dst.z_index = self.z_index;
+        dst.grid_element = self.grid_element;
+        dst.free_placement = self.free_placement;
+        dst.ignore_parent_scroll = self.ignore_parent_scroll;
+        dst.text_size = self.text_size;
+        dst.text_color = self.text_color;
+        dst.text_alignment = self.text_alignment;
+        dst.vertical_text_alignment = self.vertical_text_alignment;
+        dst.accessibility = self.accessibility;
+        dst.image_options = self.image_options;
+        dst.constant = self.constant;
+
+        dst.text_properties = &[];
+        dst.text_style_flags = TextStyleFlags::empty();
+        dst.text = None;
+        dst.placeholder_text = None;
+        dst.image = None;
+    }
+
     fn remove_borrowed_data_and_copy(self) -> Node<'static> {
         let staticized: Node<'static> = Node {
             key: self.key,

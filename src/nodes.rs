@@ -96,11 +96,14 @@ impl Ui {
         let frame = self.sys.current_frame;
         let mut new_node_should_relayout = false;
 
+        // Compute the scoped id once. It involves a thread-local access and a hash, so we avoid recomputing it below.
+        let scoped_id = key.id_with_key_scope();
+
         // Check the node corresponding to the key's id.
         // We might find that the key has already been used in this same frame:
         //      in this case, we take note, and calculate a twin key to use to add a "twin" in the next section.
         // Otherwise, we add or refresh normally, and take note of the final i.
-        let twin_check_result = match self.sys.nodes.node_hashmap.entry(key.id_with_key_scope()) {
+        let twin_check_result = match self.sys.nodes.node_hashmap.entry(scoped_id) {
             // Add a new normal node (no twins).
             Entry::Vacant(v) => {
                 let new_node = InnerNode::new(&key, None, Location::caller(), frame);
@@ -142,23 +145,24 @@ impl Ui {
         //      and there's nothing to do regarding twins, so we just confirm final_i.
         // If it's NeedToAddTwin, we repeat the same thing with the new twin_key.
         let (real_final_i, real_final_id) = match twin_check_result {
-            UpdatedNormal { final_i } => (final_i, key.id_with_key_scope()),
+            UpdatedNormal { final_i } => (final_i, scoped_id),
             NeedToUpdateTwin { twin_key, twin_n } => {
-                match self.sys.nodes.node_hashmap.entry(twin_key.id_with_key_scope()) {
+                let twin_scoped_id = twin_key.id_with_key_scope();
+                match self.sys.nodes.node_hashmap.entry(twin_scoped_id) {
                     // Add new twin.
                     Entry::Vacant(v) => {
                         let new_twin_node = InnerNode::new(&twin_key, Some(twin_n), Location::caller(), frame);
                         let real_final_i = NodeI::from(self.sys.nodes.nodes.insert(new_twin_node));
                         v.insert(real_final_i);
                         new_node_should_relayout = true;
-                        (real_final_i, twin_key.id_with_key_scope())
+                        (real_final_i, twin_scoped_id)
                     }
                     // Refresh a twin from the previous frame.
                     Entry::Occupied(o) => {
                         let real_final_i = *o.get();
                         self.sys.nodes.nodes[real_final_i.as_usize()].last_frame_touched = frame;
 
-                        (real_final_i, twin_key.id_with_key_scope())
+                        (real_final_i, twin_scoped_id)
                     }
                 }
             }
@@ -167,15 +171,17 @@ impl Ui {
         // update the in-tree links and the thread-local state based on the current parent.
         self.set_tree_links(real_final_i, parent, depth, insert_after);
 
-        self.sys.nodes[real_final_i].depth = depth;
-        if self.sys.nodes[real_final_i].currently_hidden {
-            self.sys.nodes[real_final_i].frame_added = self.sys.current_frame;
+        let current_frame = self.sys.current_frame;
+        let real_final_node = &mut self.sys.nodes[real_final_i];
+        real_final_node.depth = depth;
+        if real_final_node.currently_hidden {
+            real_final_node.frame_added = current_frame;
         }
-        self.sys.nodes[real_final_i].currently_hidden = false;
-        self.sys.set_text_hidden(real_final_i, false);
+        real_final_node.currently_hidden = false;
+        real_final_node.exiting = false;
+        real_final_node.canvas_instances = None;
 
-        self.sys.nodes[real_final_i].exiting = false;
-        self.sys.nodes[real_final_i].canvas_instances = None;
+        self.sys.set_text_hidden(real_final_i, false);
 
         if new_node_should_relayout {
             self.sys.push_partial_relayout(real_final_i);

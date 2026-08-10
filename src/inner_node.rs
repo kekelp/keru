@@ -93,9 +93,6 @@ pub struct InnerNode {
     pub hover_enter_exit_instant: Option<Instant>,
     pub z: f32,
 
-    pub last_cosmetic_hash: u64,
-    pub last_layout_hash: u64,
-
     pub can_hide: bool,
     pub currently_hidden: bool,
 
@@ -224,9 +221,6 @@ impl InnerNode {
             frame_added: current_frame,
             last_frame_touched: current_frame,
 
-            last_cosmetic_hash: 0,
-            last_layout_hash: 0,
-
             can_hide: false,
             currently_hidden: false,
 
@@ -352,9 +346,6 @@ pub const NODE_ROOT: InnerNode = InnerNode {
     relayout_chain_root: None,
     frame_added: 0,
     last_frame_touched: u64::MAX,
-
-    last_cosmetic_hash: 0,
-    last_layout_hash: 0,
 
     can_hide: false,
     currently_hidden: false,
