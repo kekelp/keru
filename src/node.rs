@@ -2451,25 +2451,26 @@ impl Ui {
             && self.sys.nodes[i].frame_added != self.sys.current_frame;
 
         if !animate && self.sys.nodes[i].params_animation_target.is_none() {
-            node.write_params_into(&mut self.sys.nodes[i].params);
+            node.write_static_params_into(&mut self.sys.nodes[i].params);
+            node.write_animated_properties_into(&mut self.sys.nodes[i].params);
         } else {
-            let mut new_params = node.remove_borrowed_data_and_copy();
 
-            // If we didn't support animation-only frames where the transition animations make progress even without rerunning the update code, then we could resolve the property animation immediately here without even storing anything. It would be a lot simpler.
+            node.write_static_params_into(&mut self.sys.nodes[i].params);
+
+            // If we didn't support animation-only frames where the transition animations make progress even without rerunning the update code, then we could resolve the animated property's current value immediately here without even storing anything. It would be a lot simpler.
             if animate {
-                self.start_property_animations(i, &mut new_params);
+                self.start_property_animations(i, node.animated_properties());
             }
 
             if self.sys.nodes[i].params_animation_target.is_some() {
                 if animate_enabled {
-                    self.undo_animated_properties_update(i, &mut new_params);
+                    self.snap_non_interpolable_properties(i, node);
                 } else {
-                    // animate_properties was turned off while an animation was still in flight.
+                    // animate_properties was turned off while an animation was still in progress, so snap to the declared values and stop animating.
+                    node.write_animated_properties_into(&mut self.sys.nodes[i].params);
                     self.cancel_property_animation(i);
                 }
             }
-
-            self.sys.nodes[i].params = new_params;
         }
 
         if layout_changed {
@@ -2505,17 +2506,17 @@ impl Ui {
         }
     }
 
-    fn start_property_animations(&mut self, i: NodeI, new_params: &mut Node<'static>) {
+    fn start_property_animations(&mut self, i: NodeI, target: AnimatedProperties) {
         match self.sys.nodes[i].params_animation_target {
             Some(anim_i) => {
-                // Update the target values in case the changed before the animation is done
+                // Update the target values in case they changed before the animation is done
                 let anim_i = anim_i.get() as usize - 1;
-                self.sys.params_animation_targets[anim_i].target = *new_params;
+                self.sys.params_animation_targets[anim_i].target = target;
             },
             None => {
                 // Start a new animation
                 let new_anim = ParamsAnimation {
-                    target: *new_params,
+                    target,
                     i,
                     id: self.sys.nodes[i].id,
                 };
@@ -2526,17 +2527,13 @@ impl Ui {
         };
     }
 
-    fn undo_animated_properties_update(&self, i: NodeI, new_params: &mut Node<'static>) {
-        let current = &self.sys.nodes[i].params;
-        new_params.alpha = current.alpha;
- 
-        if fills_can_be_interpolated(current.color, new_params.color) {
-            new_params.color = current.color;
+    fn snap_non_interpolable_properties(&mut self, i: NodeI, node: &Node) {
+        let params = &mut self.sys.nodes[i].params;
+        if ! fills_can_be_interpolated(params.color, node.color) {
+            params.color = node.color;
         }
-        // Shapes can only be interpolated between matching variants (same shape type). If the
-        // variant changed, we leave new_params.shape as the target (it snaps).
-        if same_shape_variant(current.shape, new_params.shape) {
-            new_params.shape = current.shape;
+        if ! same_shape_variant(params.shape, node.shape) {
+            params.shape = node.shape;
         }
     }
 
@@ -2757,24 +2754,40 @@ impl System {
 }
 
 #[derive(Debug, Copy, Clone)]
+pub(crate) struct AnimatedProperties {
+    alpha: f32,
+    color: ColorFill,
+    shape: Shape,
+}
+
+#[derive(Debug, Copy, Clone)]
 pub(crate) struct ParamsAnimation {
-    target: Node<'static>,
+    target: AnimatedProperties,
     i: NodeI,
     id: Id,
 }
 
 impl<'a> Node<'a> {
-    fn write_params_into(&self, dst: &mut Node<'static>) {
+    fn animated_properties(&self) -> AnimatedProperties {
+        return AnimatedProperties { alpha: self.alpha, color: self.color, shape: self.shape };
+    }
+
+    /// Write only the animatable properties (`alpha`, `color`, `shape`).
+    fn write_animated_properties_into(&self, dst: &mut Node<'static>) {
+        dst.shape = self.shape;
+        dst.color = self.color;
+        dst.alpha = self.alpha;
+    }
+
+    /// Write every param except the animatable ones (shape, color and alpha) and the borrowed ones (text and image, which are handled separately).
+    fn write_static_params_into(&self, dst: &mut Node<'static>) {
         dst.key = self.key;
         dst.text_options = self.text_options;
         dst.children_layout = self.children_layout;
-        dst.shape = self.shape;
         dst.blur = self.blur;
         dst.shadow = self.shadow;
         dst.second_shadow = self.second_shadow;
         dst.stroke = self.stroke;
-        dst.color = self.color;
-        dst.alpha = self.alpha;
         dst.visible = self.visible;
         dst.interact = self.interact;
         dst.layout = self.layout;
@@ -2802,45 +2815,4 @@ impl<'a> Node<'a> {
         dst.image = None;
     }
 
-    fn remove_borrowed_data_and_copy(self) -> Node<'static> {
-        let staticized: Node<'static> = Node {
-            key: self.key,
-            text_options: self.text_options,
-            children_layout: self.children_layout,
-            shape: self.shape,
-            blur: self.blur,
-            shadow: self.shadow,
-            second_shadow: self.second_shadow,
-            stroke: self.stroke,
-            color: self.color,
-            alpha: self.alpha,
-            visible: self.visible,
-            interact: self.interact,
-            layout: self.layout,
-            children_can_hide: self.children_can_hide,
-            clip_children: self.clip_children,
-            animation: self.animation,
-            transform: self.transform,
-            custom_render: self.custom_render,
-            z_index: self.z_index,
-            grid_element: self.grid_element,
-            free_placement: self.free_placement,
-            ignore_parent_scroll: self.ignore_parent_scroll,
-            text_size: self.text_size,
-            text_color: self.text_color,
-            text_alignment: self.text_alignment,
-            vertical_text_alignment: self.vertical_text_alignment,
-            accessibility: self.accessibility,
-
-            image_options: self.image_options,
-            text_properties: &[],
-            text_style_flags: TextStyleFlags::empty(),
-            constant: self.constant,
-
-            text: None,
-            placeholder_text: None,
-            image: None,
-        };
-        return staticized;
-    }
 }
