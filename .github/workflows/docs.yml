@@ -1,4 +1,4 @@
-name: Docs
+name: Website + Docs
 on:
   push:
     branches: [master]
@@ -16,29 +16,36 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      - name: Checkout website (compiled output)
+        uses: actions/checkout@v4
+        with:
+          repository: kekelp/keru_website
+          path: keru_website
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@nightly
-      - name: Install system dependencies for Parley...
+      - name: Install system dependencies for Parley
         run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev pkg-config
       - name: Configure cache
         uses: Swatinem/rust-cache@v2
       - name: Setup pages
-        id: pages
         uses: actions/configure-pages@v5
-      - name: Clean docs folder
-        run: cargo clean --doc
       - name: Build docs
         env:
           RUSTDOCFLAGS: "-Z unstable-options --generate-link-to-definition"
-        run: cargo doc --no-deps
-      - name: Add redirect
-        run: echo '<meta http-equiv="refresh" content="0;url=keru/index.html">' > target/doc/index.html
-      - name: Remove lock file
-        run: rm target/doc/.lock
+        run: |
+          cargo clean --doc
+          cargo doc --no-deps
+          rm -f target/doc/.lock
+      - name: Assemble site
+        run: |
+          mkdir -p public
+          cp -r keru_website/public/. public/
+          mkdir -p public/live_docs
+          cp -r target/doc/. public/live_docs/
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: target/doc
+          path: public
   deploy:
     name: Deploy
     environment:
