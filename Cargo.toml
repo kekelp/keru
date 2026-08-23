@@ -51,6 +51,9 @@ icu_provider = { version = "*", default-features = false, features = ["logging"]
 pulldown-cmark = "0.13.3"
 
 
+[dev-dependencies]
+qrcode = "0.14"
+
 [lints.clippy]
 needless_return = { level = "allow" }
 bool_comparison = { level = "allow" }
