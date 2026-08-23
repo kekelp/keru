@@ -42,6 +42,7 @@ jobs:
           cp -r keru_website/public/. public/
           mkdir -p public/live_docs
           cp -r target/doc/. public/live_docs/
+          echo '<meta http-equiv="refresh" content="0;url=keru/index.html">' > public/live_docs/index.html
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
