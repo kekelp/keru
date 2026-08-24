@@ -30,7 +30,14 @@ jobs:
         uses: Swatinem/rust-cache@v2
       - name: Setup pages
         uses: actions/configure-pages@v5
+      - name: Cache built docs
+        id: docs-cache
+        uses: actions/cache@v4
+        with:
+          path: target/doc
+          key: docs-${{ hashFiles('Cargo.lock', 'crates/**/*.rs', 'src/**/*.rs') }}
       - name: Build docs
+        if: steps.docs-cache.outputs.cache-hit != 'true'
         env:
           RUSTDOCFLAGS: "-Z unstable-options --generate-link-to-definition"
         run: |
