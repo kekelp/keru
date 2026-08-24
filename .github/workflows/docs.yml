@@ -17,25 +17,21 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Checkout website (compiled output)
-        uses: actions/checkout@v4
-        with:
-          repository: kekelp/keru_website
-          path: keru_website
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@nightly
-      - name: Install system dependencies for Parley
-        run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev pkg-config
-      - name: Configure cache
-        uses: Swatinem/rust-cache@v2
-      - name: Setup pages
-        uses: actions/configure-pages@v5
       - name: Cache built docs
         id: docs-cache
         uses: actions/cache@v4
         with:
           path: target/doc
           key: docs-${{ hashFiles('Cargo.lock', 'crates/**/*.rs', 'src/**/*.rs') }}
+      - name: Setup Rust
+        if: steps.docs-cache.outputs.cache-hit != 'true'
+        uses: dtolnay/rust-toolchain@nightly
+      - name: Install system dependencies for Parley
+        if: steps.docs-cache.outputs.cache-hit != 'true'
+        run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev pkg-config
+      - name: Configure cache
+        if: steps.docs-cache.outputs.cache-hit != 'true'
+        uses: Swatinem/rust-cache@v2
       - name: Build docs
         if: steps.docs-cache.outputs.cache-hit != 'true'
         env:
@@ -44,6 +40,13 @@ jobs:
           cargo clean --doc
           cargo doc --no-deps
           rm -f target/doc/.lock
+      - name: Checkout website (compiled output)
+        uses: actions/checkout@v4
+        with:
+          repository: kekelp/keru_website
+          path: keru_website
+      - name: Setup pages
+        uses: actions/configure-pages@v5
       - name: Assemble site
         run: |
           mkdir -p public
