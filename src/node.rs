@@ -1297,6 +1297,8 @@ pub enum Image<'a> {
     SvgStatic(&'static [u8]),
     /// SVG image from filesystem path
     SvgPath(&'a str),
+    /// An image already loaded into the atlas via [`Ui::load_image()`] or [`Ui::load_svg()`].
+    Loaded { loaded: LoadedImage, source_id: usize, svg: bool },
 }
 
 impl<'a> Node<'a> {
@@ -2099,6 +2101,14 @@ impl<'a> Node<'a> {
     }
 
     /// Set a raster image from static bytes.
+    /// 
+    /// # Example
+    /// 
+    /// ```no_run
+    /// # use keru::*; use keru::node_library::*; let mut ui: Ui = unimplemented!();
+    /// let image = IMAGE.static_image(include_bytes!("compile_time_image_path.png"));
+    /// ui.add(image);
+    /// ```
     pub fn static_image(mut self, image: &'static [u8]) -> Node<'a> {
         self.image = Some(Image::RasterStatic(image));
         return self;
@@ -2111,6 +2121,14 @@ impl<'a> Node<'a> {
     }
 
     /// Set an SVG image from static bytes.
+    /// 
+    /// # Example
+    /// 
+    /// ```no_run
+    /// # use keru::*; use keru::node_library::*; let mut ui: Ui = unimplemented!();
+    /// let icon = ICON.static_svg(include_bytes!("compile_time_svg_path.svg"));
+    /// ui.add(icon);
+    /// ```
     pub fn static_svg(mut self, svg: &'static [u8]) -> Node<'a> {
         self.image = Some(Image::SvgStatic(svg));
         return self;
@@ -2119,6 +2137,18 @@ impl<'a> Node<'a> {
     /// Set an SVG image from a filesystem path.
     pub fn svg_path(mut self, path: &'a str) -> Node<'a> {
         self.image = Some(Image::SvgPath(path));
+        return self;
+    }
+
+    /// Set an image previously loaded with [`Ui::load_image()`].
+    /// 
+    /// See also [`Ui::static_image()`].
+    pub fn image(mut self, handle: &LoadedImageHandle) -> Node<'a> {
+        let (loaded, svg) = match &handle.imageref {
+            ImageRef::Raster(loaded) => (*loaded, false),
+            ImageRef::Svg(loaded) => (*loaded, true),
+        };
+        self.image = Some(Image::Loaded { loaded, source_id: handle.id, svg });
         return self;
     }
 
@@ -2401,6 +2431,7 @@ impl Ui {
                 Image::RasterPath(path) => self.set_path_image(i, path),
                 Image::SvgStatic(svg) => self.set_static_svg(i, svg),
                 Image::SvgPath(path) => self.set_path_svg(i, path),
+                Image::Loaded { loaded, source_id, svg } => self.set_loaded_image(i, loaded, source_id, svg),
             };
         }
 

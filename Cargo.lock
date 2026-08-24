@@ -1845,6 +1845,7 @@ dependencies = [
  "env_logger",
  "glam",
  "icu_provider",
+ "image",
  "keru_draw",
  "keru_macros",
  "log",

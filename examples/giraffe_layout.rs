@@ -3,9 +3,6 @@ use keru::node_library::*;
 
 
 fn update_ui(_: &mut (), ui: &mut Ui) {
-
-    ui.set_explicit_scale_factor(2.0);
-
     // Giraffe
     #[node_key] const HSTACK: NodeKey;
     #[node_key] const GIRAFFE: NodeKey;

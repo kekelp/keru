@@ -539,6 +539,7 @@ impl Ui {
     pub fn begin_frame_inner(&mut self) {
         self.sys.current_frame += 1;
         self.sys.last_linked_text_box_node = None;
+        self.cleanup_loaded_images();
         self.sys.renderer.clear_for_new_frame();
 
         thread_local::clear_parent_stack();

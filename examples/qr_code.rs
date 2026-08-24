@@ -2,27 +2,8 @@ use keru::*;
 use keru::node_library::*;
 use keru::example_window_loop::*;
 
-use qrcode::render::svg;
-use qrcode::QrCode;
-
-#[derive(Default)]
 struct State {
-    qr_svg: Option<&'static [u8]>,
-}
-
-impl State {
-    fn regenerate(&mut self, text: &str) {
-        self.qr_svg = QrCode::new(text.as_bytes()).ok().map(|code| {
-            let svg = code
-                .render::<svg::Color>()
-                .min_dimensions(300, 300)
-                .dark_color(svg::Color("#000000"))
-                .light_color(svg::Color("#ffffff"))
-                .build();
-            // Leak to obtain a `'static` reference for the image API.
-            &*Box::leak(svg.into_bytes().into_boxed_slice())
-        });
-    }
+    qr_image: Option<LoadedImageHandle>,
 }
 
 fn update_ui(state: &mut State, ui: &mut Ui) {
@@ -34,11 +15,17 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .placeholder_text("Text to encode");
 
     if let Some(node) = ui.get_node(TEXT_EDIT) && let Some(new_text) = node.text_edit_changed() {
-        state.regenerate(new_text);
+        state.qr_image = None;
+        if let Ok(code) = qrcode::QrCode::new(new_text.as_bytes()) {
+            let img = code.render::<image::Luma<u8>>().build();
+            let (width, height) = (img.width(), img.height());
+            let rgba = image::DynamicImage::ImageLuma8(img).into_rgba8();
+            state.qr_image = ui.load_rgba_image(rgba.as_raw(), width, height);
+        }
     }
 
-    let qr = if let Some(svg) = state.qr_svg {
-        IMAGE.static_svg(svg).size(Size::Pixels(300.0), Size::Pixels(300.0))
+    let qr = if let Some(qr_image) = &state.qr_image {
+        IMAGE.image(qr_image).size(Size::Pixels(300.0), Size::Pixels(300.0))
     } else {
         SPACER.size(Size::Pixels(300.0), Size::Pixels(300.0))
     };
@@ -51,6 +38,6 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 }
 
 fn main() {
-    let state = State::default();
+    let state = State { qr_image: None };
     run_example_loop(state, update_ui);
 }

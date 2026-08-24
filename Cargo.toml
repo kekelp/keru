@@ -53,6 +53,7 @@ pulldown-cmark = "0.13.3"
 
 [dev-dependencies]
 qrcode = "0.14"
+image = "0.25"
 
 [lints.clippy]
 needless_return = { level = "allow" }
