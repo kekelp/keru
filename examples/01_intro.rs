@@ -90,7 +90,8 @@ fn main() {
 // 
 // To continue:
 // - the `02_dynamic.rs` example shows how to create NodeKeys at runtime for dynamic GUI elements.
-// - the `03_components.rs` example shows how to use the Component trait.
+// - the `03_components.rs` example shows how to use the Component trait for reusable components
+//   with local state.
 // 
 // Then, the rest of the examples show how these basic concepts 
 // can be combined together to build various things.
@@ -98,5 +99,5 @@ fn main() {
 // - the `showcase.rs` example gives an overview of various components, text,
 //       text editing, graphical effects, and vector drawing.
 // - the `aesthetics_*.rs` examples show a few different aesthetics.
-// - the `drag_and_drop_component.rs` shows an example of using an advanced Component,
+// - the `drag_and_drop_component.rs` shows an example of using an advanced Component
 //       that can manipulate the children that we add to it.
