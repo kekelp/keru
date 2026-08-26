@@ -2,6 +2,7 @@
 
 use keru::*;
 use keru::node_library::*;
+use keru::deterministic_keys::node_key;
 
 pub struct State {
     pub count: i32,
@@ -10,6 +11,8 @@ pub struct State {
 fn update_ui(state: &mut State, ui: &mut Ui) {
     // Define a unique identity for the button
     #[node_key] const INCREASE: NodeKey;
+
+    dbg!(INCREASE);
     
     // Create a Node struct describing a button
     let increase_button: Node = BUTTON

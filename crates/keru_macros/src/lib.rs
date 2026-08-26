@@ -4,6 +4,7 @@ use proc_macro::TokenStream;
 use proc_macro2::Ident;
 use quote::quote;
 use rand::Rng;
+use std::hash::{Hash, Hasher};
 use syn::{
     parse::{Parse, ParseStream},
     parse_macro_input, Token, Type,
@@ -69,6 +70,59 @@ pub fn node_key(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let expanded = quote! {
         pub const #key_ident: #key_type = <#key_type>::new(
             keru::Id(#random_id),
+            #debug_name,
+        );
+    };
+
+    return TokenStream::from(expanded);
+}
+
+fn deterministic_id(ident: &Ident) -> u64 {
+    let span = proc_macro::Span::call_site();
+    let mut hasher = std::hash::DefaultHasher::new();
+    std::env::var("CARGO_PKG_NAME").unwrap_or_default().hash(&mut hasher);
+    span.file().hash(&mut hasher);
+    span.line().hash(&mut hasher);
+    span.column().hash(&mut hasher);
+    ident.hash(&mut hasher);
+    hasher.finish()
+}
+
+/// Deterministic version of [`macro@node_key`]. The id is a hash of the call site instead of a random number.
+#[proc_macro_attribute]
+pub fn node_key_deterministic(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(item as ItemConstNoEq);
+
+    let key_ident = &input.ident;
+    let key_type = &input.ty;
+
+    let debug_name = format!("{}", key_ident);
+    let id = deterministic_id(key_ident);
+
+    let expanded = quote! {
+        pub const #key_ident: #key_type = <#key_type>::new(
+            keru::Id(#id),
+            #debug_name,
+        );
+    };
+
+    return TokenStream::from(expanded);
+}
+
+/// Deterministic version of [`macro@component_key`]. The id is a hash of the call site instead of a random number.
+#[proc_macro_attribute]
+pub fn component_key_deterministic(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(item as ItemConstNoEq);
+
+    let key_ident = &input.ident;
+    let key_type = &input.ty;
+
+    let debug_name = format!("{}", key_ident);
+    let id = deterministic_id(key_ident);
+
+    let expanded = quote! {
+        pub const #key_ident: #key_type = <#key_type>::new(
+            keru::Id(#id),
             #debug_name,
         );
     };

@@ -159,6 +159,11 @@ mod animation;
 
 pub use keru_macros::*;
 
+pub mod deterministic_keys {
+    pub use keru_macros::node_key_deterministic as node_key;
+    pub use keru_macros::component_key_deterministic as component_key;
+}
+
 pub(crate) use Axis::*;
 
 pub use keru_draw::keru_text;
