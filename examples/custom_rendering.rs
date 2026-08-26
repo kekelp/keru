@@ -259,6 +259,11 @@ impl ApplicationHandler for Application {
             state.window.request_redraw();
         }
     }
+
+    fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
+        // Manually drop the wgpu surface and window before winit gets to it to avoid a bug.
+        self.state = None;
+    }
 }
 
 fn main() {
