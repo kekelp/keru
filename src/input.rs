@@ -39,6 +39,18 @@ impl<'a> UiNode<'a> {
         self.sys().check_clicked(self.node().id, button)
     }
 
+    /// Returns `true` if this node was just double-clicked with the left mouse button.
+    /// 
+    /// See [`UiNode::is_multi_clicked()`] for more advanced uses like a triple right click.
+    pub fn is_double_clicked(&self) -> bool {
+        self.sys().check_multi_clicked(self.node().id, MouseButton::Left, 2)
+    }
+
+    /// Returns `true` if this node was just clicked `count` times in a row with the given mouse button.
+    pub fn is_multi_clicked(&self, button: MouseButton, count: u32) -> bool {
+        self.sys().check_multi_clicked(self.node().id, button, count)
+    }
+
     /// Returns `true` if a left mouse button click was just released on this node.
     pub fn is_click_released(&self) -> bool {
         self.sys().check_click_released(self.node().id, MouseButton::Left)
@@ -57,6 +69,7 @@ impl<'a> UiNode<'a> {
             relative_position,
             absolute_position: event.position,
             timestamp: event.timestamp,
+            count: event.count,
         })
     }
 
@@ -179,6 +192,18 @@ impl Ui {
         self.sys.check_clicked(key.id_with_key_scope(), button)
     }
 
+    /// Returns `true` if the node corresponding to `key` was just double-clicked with the left mouse button.
+    /// 
+    /// See [`Ui::is_multi_clicked()`] for more advanced uses, like a triple right click.
+    pub fn is_double_clicked(&self, key: NodeKey) -> bool {
+        self.sys.check_multi_clicked(key.id_with_key_scope(), MouseButton::Left, 2)
+    }
+
+    /// Returns `true` if the node corresponding to `key` was just clicked `count` times in a row with the given mouse button.
+    pub fn is_multi_clicked(&self, key: NodeKey, button: MouseButton, count: u32) -> bool {
+        self.sys.check_multi_clicked(key.id_with_key_scope(), button, count)
+    }
+
     /// Returns `true` if a left button mouse click was just released on the node corresponding to `key`.
     pub fn is_click_released(&self, key: NodeKey) -> bool {
         self.sys.check_click_released(key.id_with_key_scope(), MouseButton::Left)
@@ -289,6 +314,16 @@ impl UiParent {
     /// This is "act on press". For "act on release", see [`Ui::is_click_released()`].
     pub fn is_mouse_button_clicked(&self, ui: &Ui, button: MouseButton) -> bool {
         ui.is_mouse_button_clicked(self.key(ui), button)
+    }
+
+    /// Returns `true` if this node was just double-clicked with the left mouse button.
+    pub fn is_double_clicked(&self, ui: &Ui) -> bool {
+        ui.is_double_clicked(self.key(ui))
+    }
+
+    /// Returns `true` if this node was just clicked `count` times in a row with the given mouse button.
+    pub fn is_multi_clicked(&self, ui: &Ui, button: MouseButton, count: u32) -> bool {
+        ui.is_multi_clicked(self.key(ui), button, count)
     }
 
     /// Returns `true` if a left mouse button click was just released on this node.

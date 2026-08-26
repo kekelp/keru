@@ -9,6 +9,9 @@ pub(crate) type SmallVec<T> = smallvec::SmallVec<[T; 8]>;
 
 const ANIMATED_SCROLL_SNAP: f32 = 0.01;
 
+const MULTI_CLICK_TIME: std::time::Duration = std::time::Duration::from_millis(500);
+const MULTI_CLICK_DISTANCE: f32 = 5.0;
+
 #[derive(Clone, Debug)]
 pub(crate) enum InputEvent {
     /// Mouse button was just pressed
@@ -36,6 +39,7 @@ pub(crate) struct ClickEvent {
     pub position: Vec2,
     pub button: winit::event::MouseButton,
     pub timestamp: Instant,
+    pub count: u32,
 }
 
 #[derive(Clone, Debug)]
@@ -108,12 +112,21 @@ struct AnimatedScroll {
     position: Vec2,
 }
 
+#[derive(Clone, Debug)]
+struct LastClick {
+    button: MouseButton,
+    position: Vec2,
+    timestamp: Instant,
+    count: u32,
+}
+
 pub struct MouseInput {
     pub(crate) events: Vec<InputEvent>,
     pending: Vec<Pending>,
     animated_scrolls: Vec<AnimatedScroll>,
     pub(crate) cursor_position: Vec2,
     pub(crate) prev_cursor_position: Vec2,
+    last_click: Option<LastClick>,
 }
 
 impl Default for MouseInput {
@@ -124,6 +137,7 @@ impl Default for MouseInput {
             animated_scrolls: Vec::with_capacity(5),
             cursor_position: Vec2::ZERO,
             prev_cursor_position: Vec2::ZERO,
+            last_click: None,
         }
     }
 }
@@ -171,6 +185,24 @@ impl MouseInput {
     ) {
         let now = Instant::now();
 
+        let count;
+        if let Some(last) = &self.last_click 
+            && last.button == button
+            && now.duration_since(last.timestamp) <= MULTI_CLICK_TIME
+            && (self.cursor_position - last.position).length() <= MULTI_CLICK_DISTANCE {
+            count = last.count + 1;
+        }
+        else {
+            count = 1;
+        }
+
+        self.last_click = Some(LastClick {
+            button,
+            position: self.cursor_position,
+            timestamp: now,
+            count,
+        });
+
         // Emit Click event immediately
         if !click_targets.is_empty() {
             self.events.push(InputEvent::Click(ClickEvent {
@@ -178,6 +210,7 @@ impl MouseInput {
                 position: self.cursor_position,
                 button,
                 timestamp: now,
+                count,
             }));
 
             // Track for potential Click on release

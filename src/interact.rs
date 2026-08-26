@@ -19,6 +19,8 @@ pub struct Click {
     pub relative_position: glam::Vec2,
     /// Timestamp of the click
     pub timestamp: std::time::Instant,
+    /// Number of clicks in the current chain: 1 for a single click, 2 for a double click, and so on.
+    pub count: u32,
 }
 
 /// A struct describing a hover event on a GUI node.
@@ -615,6 +617,7 @@ impl System {
             position,
             button: MouseButton::Left,
             timestamp: now,
+            count: 1,
         }));
         self.mouse_input.events.push(InputEvent::ClickRelease(ClickReleaseEvent {
             targets,
@@ -905,6 +908,19 @@ impl System {
         
         self.mouse_input.clicks()
             .any(|e| e.button == button && e.targets.contains(&id))
+    }
+
+    pub(crate) fn check_multi_clicked(&self, id: Id, button: MouseButton, count: u32) -> bool {
+        #[cfg(debug_assertions)] {
+            if let Some(i) = self.nodes.get_by_id(id) {
+                if !self.check_node_sense(i, Sense::CLICK, "is_multi_clicked()", "Node::sense_click()") {
+                    return false;
+                }
+            }
+        }
+
+        self.mouse_input.clicks()
+            .any(|e| e.button == button && e.count == count && e.targets.contains(&id))
     }
 
     pub(crate) fn check_dragged(&self, id: Id, button: MouseButton) -> Option<&mouse_events::DragEvent> {
