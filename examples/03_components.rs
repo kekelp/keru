@@ -35,14 +35,12 @@ impl Component for StatefulCounter {
         // (Keru has a thread local arena that you can use without any setup.)
         with_arena(|arena| {
 
-            let panel = PANEL.color(self.color);
-            let count_text = bumpalo::format!(in arena, "Count: {:.2}", state);
+            let v_stack = V_STACK.padding(10.0).color(self.color);
+            let count_text = bumpalo::format!(in arena, "Count: {}", state);
 
-            ui.add(panel).nest(|| {
-                ui.add(V_STACK).nest(|| {
-                    ui.add(LABEL.text(&count_text));
-                    ui.add(BUTTON.text("Increase").key(INCREASE));
-                });
+            ui.add(v_stack).nest(|| {
+                ui.add(LABEL.text(&count_text));
+                ui.add(BUTTON.text("Increase").key(INCREASE));
             });
                 
             if ui.is_clicked(INCREASE) {
@@ -69,7 +67,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         color: Color::KERU_GREEN,
     };
 
-    ui.add(V_STACK).nest(|| { 
+    ui.add(V_STACK.stack_spacing(20.0)).nest(|| { 
         ui.add_component(counter);
         ui.add_component(counter2);
     });
