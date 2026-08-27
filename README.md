@@ -4,7 +4,7 @@ Keru is an experimental GUI library.
 
 It uses `winit` and `wgpu` for cross-platform support, but it has only been tested on Linux and Windows.
 
-See the [docs for the master branch](https://kekelp.github.io/keru/keru/index.html) for more information.
+See the [website](https://kekelp.github.io/keru/) and [blog](https://kekelp.github.io/keru/blog) for more information.
 
 ## Getting Started
 
@@ -42,11 +42,11 @@ Screenshot of a basic paint program. The canvas and the color picker are rendere
 
 ![Screenshot of paint example](screenshots/paint.png)
 
-[`01_intro.rs`]: https://github.com/kekelp/keru/blob/master/examples/01_intro.rs
-[`02_dynamic.rs`]: https://github.com/kekelp/keru/blob/master/examples/02_dynamic.rs
-[`03_components.rs`]: https://github.com/kekelp/keru/blob/master/examples/03_components.rs
-[`minimal.rs`]: https://github.com/kekelp/keru/blob/master/examples/minimal.rs
-[`window_loop.rs`]: https://github.com/kekelp/keru/blob/master/examples/window_loop.rs
-[`showcase.rs`]: https://github.com/kekelp/keru/blob/master/examples/showcase.rs
-[`aesthetics_modern.rs`]: https://github.com/kekelp/keru/blob/master/examples/aesthetics_modern.rs
-[`aesthetics_scifi.rs`]: https://github.com/kekelp/keru/blob/master/examples/aesthetics_scifi.rs
+[`01_intro.rs`]:            https://github.com/kekelp/keru/blob/master/examples/01_intro.rs
+[`02_dynamic.rs`]:          https://github.com/kekelp/keru/blob/master/examples/02_dynamic.rs
+[`03_components.rs`]:       https://github.com/kekelp/keru/blob/master/examples/03_components.rs
+[`minimal.rs`]:             https://github.com/kekelp/keru/blob/master/examples/minimal.rs
+[`window_loop.rs`]:         https://github.com/kekelp/keru/blob/master/examples/window_loop.rs
+[`showcase.rs`]:            https://github.com/kekelp/keru/blob/master/examples/showcase.rs
+[`aesthetics_modern.rs`]:   https://github.com/kekelp/keru/blob/master/examples/aesthetics_modern.rs
+[`aesthetics_scifi.rs`]:    https://github.com/kekelp/keru/blob/master/examples/aesthetics_scifi.rs

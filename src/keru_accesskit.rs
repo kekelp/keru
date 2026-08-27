@@ -126,7 +126,4 @@ impl AccessKitAdapter {
     }
 }
 
-/// The AccessKit id of the window root node, which mirrors the Keru root node
-/// (whose [`Id`] inner value is `0`). Every other AccessKit node reuses its
-/// Keru [`Id`] directly. The tree itself is built in [`crate::accessibility`].
-pub const WINDOW_NODE_ID: NodeId = NodeId(0);
+pub(crate) const WINDOW_NODE_ID: NodeId = NodeId(0);

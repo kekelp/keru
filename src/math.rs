@@ -219,7 +219,7 @@ impl XyRect {
         return Self::new(pixel_x, pixel_y);
     }
 
-    /// Convert a rect in normalized [0,1] layout space to normalized device coordinates (NDC).
+    /// Convert a rect in normalized \[0,1\] layout space to normalized device coordinates (NDC).
     pub fn to_graphics_space(&self) -> Self {
         let a = *self * 2. - 1.;
         return Self::new([a.x[0], a.x[1]], [-a.y[1], -a.y[0]]);

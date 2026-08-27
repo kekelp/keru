@@ -1,4 +1,4 @@
-//! Keru is an experimental graphical user interface library.
+//! Keru is an experimental GUI library.
 //! 
 //! # Code Example
 //! 
@@ -17,7 +17,7 @@
 //!     .text("Increase")
 //!     .key(INCREASE);
 //! 
-//! // Place the nodes into the tree and define the layout
+//! // Add the nodes to the tree
 //! ui.v_stack().nest(|| {
 //!     ui.add(increase_button);
 //!     ui.label(&state.count.to_string());
@@ -27,16 +27,14 @@
 //! if ui.is_clicked(INCREASE) {
 //!     state.count += 1;
 //! }
-//! // `is_clicked()` can be also called as a chained method after `ui.add(increase_button)`.
-//! // In that case, using a key wouldn't be necessary.
 //! ```
 //! 
-//! See the `minimal` example in the repository for a full working version of this code. 
+//! See the [`minimal.rs`](https://github.com/kekelp/keru/blob/master/examples/minimal.rs) example in the repository for a full working version of this code. 
 //! 
 //! 
 //! ## Window Loop
 //! 
-//! Keru is meant to be used as part of a regular `winit`/`wgpu` window loop managed by the library user, as shown in the `window_loop` example in the repository. However, it also includes a [one-line window loop](example_window_loop::run_example_loop) that can be used for quick experimentation. 
+//! Keru is meant to be used as part of a regular `winit`/`wgpu` window loop managed by the library user, as shown in the [`window_loop.rs`](https://github.com/kekelp/keru/blob/master/examples/window_loop.rs) example in the repository. However, it also includes a [one-line window loop helper](example_window_loop::run_example_loop) that can be used for quick experimentation.
 //! 
 //! Once you have a window loop, you can create a [`Ui`] struct and store it in your main program state.
 //! 
@@ -55,14 +53,11 @@
 //! ui.finish_frame();
 //! ```
 //! 
-//! The [`Ui`] struct retains the state of the whole GUI, so even if you do this on every frame, it doesn't mean that the GUI is rerendering or doing a full relayout every time. The library can detect differences and apply only the minimal updates or partial relayouts needed.
+//! The [`Ui`] struct retains the state of the whole GUI, so even if this code is rerun on every event, it doesn't mean that we are rebuilding the GUI from scratch every time. The library detects the differences and apply only the minimal updates needed.
 //! 
-//! 
-//! * In Keru, everything is a [`Node`]. Whether you want a [button](`node_library::BUTTON`), an [image](`node_library::IMAGE`), a [text element](`node_library::TEXT`), a [stack container](node_library::V_STACK), or anything else, the way is always to [`add()`](Ui::add) a node with the right values.
+//! * In Keru, everything is a [`Node`]. Whether you want a [button](`node_library::BUTTON`), an [image](`node_library::IMAGE`), a [text element](`node_library::TEXT`), a [stack container](node_library::V_STACK), or anything else, the way is always to [`add()`](Ui::add()) a node with the right values.
 //! 
 //! * There are also "components", like [`Slider`]. Components are added with [`Ui::add_component()`] and they are a way to wrap multiple nodes into a reusable structure. You can define custom components with the [`SimpleComponent`] and [`Component`] traits.
-//! 
-//! * [`Ui`] has some convenience methods like [`Ui::label()`]. They work the same way as components, but with more natural syntax.
 //! 
 //! * To check interactions on a node, use [`Node::key()`] to associate a [`NodeKey`] to a [`Node`], then call methods like [`Ui::is_clicked()`] with the same [`NodeKey`].
 //! 

@@ -371,7 +371,7 @@ impl Hash for Pos {
 
 /// What to do if a freely-placed node would extend past the window edge.
 ///
-/// Does not affect children of [`ChildrenLayout::Stack`] or [`ChildrenLayout::Grid`], unless they also use the [`free_placement`](NodeParams::free_placement)) flag.
+/// Does not affect children of [`ChildrenLayout::Stack`] or [`ChildrenLayout::Grid`], unless they also use the [`free_placement`](Node::free_placement) flag.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum WindowOverflow {
     /// Leave the node where it is, even if it spills out of the window.
@@ -1244,7 +1244,7 @@ impl<'a> Node<'a> {
 
     /// Enable or disable the default keyboard focus indicator rect.
     ///
-    /// Disable it to draw a custom focus effect using [`UiNode::is_keyboard_focused`].
+    /// Disable it to draw a custom focus effect using [`UiNode::is_focused`].
     pub fn show_focus_indicator(mut self, value: bool) -> Self {
         self.interact.show_focus_indicator = value;
         return self;
@@ -2142,7 +2142,7 @@ impl<'a> Node<'a> {
 
     /// Set an image previously loaded with [`Ui::load_image()`].
     /// 
-    /// See also [`Ui::static_image()`].
+    /// See also [`Node::static_image()`].
     pub fn image(mut self, handle: &LoadedImageHandle) -> Node<'a> {
         let (loaded, svg) = match &handle.imageref {
             ImageRef::Raster(loaded) => (*loaded, false),
@@ -2178,7 +2178,7 @@ impl<'a> Node<'a> {
     ///
     /// Meaningful for range widgets with a role such as
     /// [`AccessKitRole::Slider`] or [`AccessKitRole::SpinButton`]: the value is
-    /// announced and the widget can be adjusted (see [`Ui::accesskit_action`]).
+    /// announced and the widget can be adjusted (see [`Ui::check_accesskit_action`]).
     pub const fn accessibility_numeric_value(mut self, value: f64, min: f64, max: f64) -> Node<'a> {
         self.accessibility.numeric_value = Some(NumericValue { value, min, max });
         return self;
@@ -2187,7 +2187,7 @@ impl<'a> Node<'a> {
     /// Advertise extra [`AccessibilityActions`] to screen readers for this [`Node`].
     ///
     /// The actions are then requestable by an assistive technology and
-    /// observable from UI code via [`Ui::accesskit_action`]. Adds to any
+    /// observable from UI code via [`Ui::check_accesskit_action`]. Adds to any
     /// previously set actions.
     pub const fn accessibility_actions(mut self, actions: AccessibilityActions) -> Node<'a> {
         self.accessibility.actions = self.accessibility.actions.union(actions);
