@@ -119,7 +119,7 @@ pub(crate) use crate::mouse_events::*;
 pub mod key_events;
 
 mod keru_accesskit;
-pub use keru_accesskit::*;
+pub(crate) use keru_accesskit::*;
 
 mod accessibility;
 

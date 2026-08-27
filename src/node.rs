@@ -203,8 +203,7 @@ pub enum Size {
     AspectRatio(f32),
 }
 
-/// A numeric value with bounds, exposed to screen readers for range widgets
-/// like sliders and spin buttons (the AccessKit RangeValue).
+/// A numeric value with bounds exposed to accessibility tools.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct NumericValue {
     pub value: f64,
@@ -213,11 +212,7 @@ pub struct NumericValue {
 }
 
 bitflags::bitflags! {
-    /// A set of actions a node advertises to screen readers, so that an
-    /// assistive technology can request them (handled via [`Ui::accesskit_action`]).
-    ///
-    /// Each flag is a distinct bit; [`AccessibilityActions::to_accesskit`] maps a
-    /// single flag to its [`accesskit::Action`].
+    /// A set of actions a node advertises to accessibility tools.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
     pub struct AccessibilityActions: u32 {
         const NONE = 0;
@@ -247,8 +242,6 @@ bitflags::bitflags! {
 }
 
 impl AccessibilityActions {
-    /// Map a single-flag value (one bit set, as yielded by [`bitflags::Flags::iter`])
-    /// to its [`accesskit::Action`]. Returns `None` for the empty set.
     pub(crate) fn to_accesskit(self) -> Option<accesskit::Action> {
         use accesskit::Action;
         match self {
@@ -280,23 +273,16 @@ impl AccessibilityActions {
     }
 }
 
-/// Accessibility properties of a [`Node`], exposed to screen readers via AccessKit.
+/// Accessibility properties of a [`Node`].
 #[derive(Debug, Copy, Clone)]
 pub struct Accessibility {
-    /// The node's role, such as button, label, container, tab list, etc.
     pub role: AccessKitRole,
-    /// Whether the node counts as "selected" (e.g. the active tab in a tab list).
     pub selected: bool,
-    /// Numeric value and bounds for range widgets, announced and adjustable by
-    /// screen readers. `None` for non-range nodes.
     pub numeric_value: Option<NumericValue>,
-    /// Extra actions this node advertises, in addition to the ones keru derives
-    /// automatically from the node's role and interactions.
     pub actions: AccessibilityActions,
 }
 
 impl Accessibility {
-    /// Default accessibility properties for the given role.
     pub const fn new(role: AccessKitRole) -> Accessibility {
         Accessibility { role, selected: false, numeric_value: None, actions: AccessibilityActions::NONE }
     }

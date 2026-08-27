@@ -9,20 +9,11 @@ use accesskit::{Action, ActionRequest, Node as AccesskitNode, NodeId, Rect, Role
 use crate::*;
 
 impl Ui {
-    /// Builds a full AccessKit [`TreeUpdate`] mirroring the current Keru node
-    /// tree. The Keru root node becomes the AccessKit window root, and every
-    /// visible node below it becomes a child node.
-    ///
-    /// Node ids are reused directly: an AccessKit [`NodeId`] is the Keru
-    /// [`Id`]'s inner `u64`, so actions coming back from the screen reader can
-    /// be mapped straight back onto a Keru node.
     pub(crate) fn build_accesskit_tree(&mut self) -> TreeUpdate {
         let mut nodes = Vec::with_capacity(20);
         self.build_accesskit_subtree(ROOT_I, &mut nodes);
 
-        // The focused node must actually be present in the emitted tree (a
-        // focused node could have since been hidden), otherwise AccessKit
-        // rejects the update. Fall back to the window root.
+        // The focused node must be present in the emitted tree (it could have since been hidden), otherwise AccessKit rejects the update. Fall back to the window root.
         let focus = self
             .sys
             .focused
@@ -53,9 +44,6 @@ impl Ui {
         }
     }
 
-    /// Recursively builds the AccessKit node for `i` and all of its visible
-    /// descendants, pushing each `(NodeId, Node)` pair onto `out` in the order
-    /// AccessKit expects (parent before children).
     fn build_accesskit_subtree(&mut self, i: NodeI, out: &mut Vec<(NodeId, AccesskitNode)>) {
         let keru_node = &self.sys.nodes[i];
         let is_root = i == ROOT_I;
