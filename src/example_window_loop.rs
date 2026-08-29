@@ -203,9 +203,4 @@ impl<T> ApplicationHandler for Application<T> {
 
 
     }
-
-    fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
-        // Manually drop the wgpu surface and window before winit gets to it to avoid a bug.
-        self.state = None;
-    }
 }
