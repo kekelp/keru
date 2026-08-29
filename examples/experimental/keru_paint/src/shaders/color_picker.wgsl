@@ -25,7 +25,7 @@ struct PushConstants {
     mode: f32,
 }
 
-var<push_constant> data: PushConstants;
+var<immediate> data: PushConstants;
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,

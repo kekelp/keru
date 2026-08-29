@@ -22,7 +22,10 @@ struct State {
 impl State {
     fn new(event_loop: &ActiveEventLoop, window: Arc<Window>, instance: wgpu::Instance) -> Self {
         let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default())).unwrap();
-        let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default())).unwrap();
+        let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
+            required_limits: adapter.limits(),
+            ..Default::default()
+        })).unwrap();
 
         let surface = instance.create_surface(window.clone()).unwrap();
         let size = window.inner_size();
@@ -42,6 +45,7 @@ impl State {
             alpha_mode: wgpu::CompositeAlphaMode::Opaque,
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
+            color_space: wgpu::SurfaceColorSpace::Auto,
         };
 
         surface.configure(&device, &config);
@@ -83,7 +87,7 @@ impl ApplicationHandler for Application {
     // We'd also need to call `ui.register_window()` again.
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let window = Arc::new(event_loop.create_window(Window::default_attributes()).unwrap());
-        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let state = State::new(event_loop, window, instance);
         self.state = Some(state);
     }

@@ -24,20 +24,18 @@ pub const BACKGROUND_GREY: wgpu::Color = wgpu::Color {
 };
 
 pub fn basic_wgpu_init() -> (wgpu::Instance, wgpu::Device, wgpu::Queue) {
-    let instance = Instance::new(&InstanceDescriptor {
-        ..Default::default()
-    });
+    let instance = Instance::new(InstanceDescriptor::new_without_display_handle());
 
     let adapter_options = &RequestAdapterOptions::default();
     let adapter = pollster::block_on(instance.request_adapter(adapter_options)).unwrap();
 
     let device_desc = &DeviceDescriptor {
         label: None,
-        // The color picker draws with a minimal pipeline that takes its rect + parameters as push constants.
-        required_features: Features::PUSH_CONSTANTS,
+        // The color picker draws with a minimal pipeline that takes its rect + parameters as immediate data.
+        required_features: Features::IMMEDIATES,
         required_limits: Limits {
-            max_push_constant_size: 64,
-            ..Limits::defaults()
+            max_immediate_size: 64,
+            ..adapter.limits()
         },
         memory_hints: wgpu::MemoryHints::MemoryUsage,
         trace: wgpu::Trace::Off,
@@ -58,6 +56,7 @@ pub fn basic_surface_config(width: u32, height: u32) -> wgpu::SurfaceConfigurati
         alpha_mode: CompositeAlphaMode::Opaque,
         view_formats: vec![],
         desired_maximum_frame_latency: 2,
+        color_space: wgpu::SurfaceColorSpace::Auto,
     };
 }
 
@@ -186,7 +185,10 @@ impl Context {
             .device
             .create_command_encoder(&CommandEncoderDescriptor::default());
 
-        let surface_texture = self.surface.get_current_texture().unwrap();
+        let surface_texture = match self.surface.get_current_texture() {
+            wgpu::CurrentSurfaceTexture::Success(texture) | wgpu::CurrentSurfaceTexture::Suboptimal(texture) => texture,
+            other => panic!("Failed to get current surface texture: {other:?}"),
+        };
 
         let view = surface_texture
             .texture
@@ -202,7 +204,7 @@ impl Context {
     pub fn finish_frame(&mut self, frame: RenderFrame) {
         self.queue.submit(Some(frame.encoder.finish()));
         self.window.pre_present_notify();
-        frame.surface_texture.present();
+        self.queue.present(frame.surface_texture);
     }
 
     pub fn render_ui(&mut self, ui: &mut Ui, background_color: wgpu::Color) {
@@ -226,6 +228,7 @@ impl RenderFrame {
             depth_stencil_attachment: None,
             timestamp_writes: None,
             occlusion_query_set: None,
+            multiview_mask: None,
         };
         let render_pass = self.encoder.begin_render_pass(&render_pass_desc);
         return render_pass;

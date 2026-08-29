@@ -301,12 +301,12 @@ impl Ui {
 
     /// Create a headless [`Ui`].
     pub fn new_headless(width: u32, height: u32) -> Self {
-        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default()))
             .expect("Couldn't find a wgpu adapter");
         let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
             required_features: wgpu::Features::empty(),
-            required_limits: wgpu::Limits::defaults(),
+            required_limits: adapter.limits(),
             memory_hints: wgpu::MemoryHints::MemoryUsage,
             ..Default::default()
         })).expect("Couldn't create a wgpu device");

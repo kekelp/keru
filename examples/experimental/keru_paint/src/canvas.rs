@@ -221,7 +221,7 @@ impl Canvas {
             address_mode_w: AddressMode::ClampToEdge,
             mag_filter: FilterMode::Nearest,
             min_filter: FilterMode::Linear,
-            mipmap_filter: FilterMode::Nearest,
+            mipmap_filter: MipmapFilterMode::Nearest,
             ..Default::default()
         });
         
@@ -259,8 +259,8 @@ impl Canvas {
 
         let render_pipeline_layout = ctx.device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("Canvas Render Pipeline Layout"),
-            bind_group_layouts: &[&canvas_bind_group_layout],
-            push_constant_ranges: &[],
+            bind_group_layouts: &[Some(&canvas_bind_group_layout)],
+            immediate_size: 0,
         });
     
         let shader = ctx.device.create_shader_module(ShaderModuleDescriptor {
@@ -291,7 +291,7 @@ impl Canvas {
             // No depth buffer: the canvas is just drawn first (background), Keru's UI is drawn on top.
             depth_stencil: None,
             multisample: MultisampleState::default(),
-            multiview: None,
+            multiview_mask: None,
             cache: None,
         });
         

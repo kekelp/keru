@@ -39,10 +39,10 @@ struct State {
 impl State {
     fn new(window: Arc<Window>, instance: Instance) -> Self {
         let adapter = pollster::block_on(instance.request_adapter(&RequestAdapterOptions::default())).unwrap();
-        // Note that push constants are not guaranteed to be supported everywhere. It's just for the example.
+        // Note that immediate data / push constants are not guaranteed to be supported everywhere. It's just for the example.
         let (device, queue) = pollster::block_on(adapter.request_device(&DeviceDescriptor {
-            required_features: Features::PUSH_CONSTANTS,
-            required_limits: Limits { max_push_constant_size: 32, ..Default::default() },
+            required_features: Features::IMMEDIATES,
+            required_limits: Limits { max_immediate_size: 32, ..adapter.limits() },
             ..Default::default()
         })).unwrap();
 
@@ -62,7 +62,8 @@ impl State {
             present_mode: PresentMode::Fifo,
             alpha_mode: CompositeAlphaMode::Opaque,
             view_formats: vec![],
-            desired_maximum_frame_latency: 2
+            desired_maximum_frame_latency: 2,
+            color_space: SurfaceColorSpace::Auto,
         };
 
         surface.configure(&device, &config);
@@ -78,10 +79,7 @@ impl State {
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("Custom Pipeline Layout"),
             bind_group_layouts: &[],
-            push_constant_ranges: &[PushConstantRange {
-                stages: ShaderStages::VERTEX_FRAGMENT,
-                range: 0..32,
-            }],
+            immediate_size: 32,
         });
 
         let custom_pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
@@ -109,7 +107,7 @@ impl State {
             },
             depth_stencil: None,
             multisample: MultisampleState::default(),
-            multiview: None,
+            multiview_mask: None,
             cache: None,
         });
 
@@ -193,7 +191,7 @@ impl State {
                         0.0, 0.0, 0.0,
                     ];
                     render_pass.set_pipeline(&self.custom_pipeline);
-                    render_pass.set_push_constants(ShaderStages::VERTEX_FRAGMENT, 0, bytemuck::cast_slice(&push_constants));
+                    render_pass.set_immediates(0, bytemuck::cast_slice(&push_constants));
                     render_pass.draw(0..4, 0..1);
                 }
             }
@@ -207,7 +205,7 @@ impl State {
 impl ApplicationHandler for Application {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let window = Arc::new(event_loop.create_window(Window::default_attributes()).unwrap());
-        let instance = Instance::new(&InstanceDescriptor::default());
+        let instance = Instance::new(InstanceDescriptor::new_without_display_handle());
         let state = State::new(window, instance);
         self.state = Some(state);
     }
@@ -228,7 +226,10 @@ impl ApplicationHandler for Application {
                     state.ui.finish_frame();
                 }
 
-                let output = state.surface.get_current_texture().unwrap();
+                let output = match state.surface.get_current_texture() {
+                    wgpu::CurrentSurfaceTexture::Success(texture) | wgpu::CurrentSurfaceTexture::Suboptimal(texture) => texture,
+                    other => panic!("Failed to get current surface texture: {other:?}"),
+                };
                 let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
                 let mut encoder = state.device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
@@ -249,7 +250,7 @@ impl ApplicationHandler for Application {
                 }
 
                 state.ui.submit_commands(encoder.finish());
-                output.present();
+                state.ui.present(output);
             }
             _ => {}
         }

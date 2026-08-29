@@ -97,7 +97,7 @@ impl State {
         let adapter = pollster::block_on(instance.request_adapter(&RequestAdapterOptions::default())).unwrap();
         let (device, queue) = pollster::block_on(adapter.request_device(&DeviceDescriptor {
             required_features: wgpu::Features::TIMESTAMP_QUERY | wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS,
-            required_limits: Limits::defaults(),
+            required_limits: adapter.limits(),
             memory_hints: MemoryHints::MemoryUsage,
             ..Default::default()
         })).unwrap();
@@ -119,6 +119,7 @@ impl State {
             alpha_mode: CompositeAlphaMode::Opaque,
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
+            color_space: SurfaceColorSpace::Auto,
         };
 
         surface.configure(&device, &config);
@@ -138,7 +139,7 @@ impl State {
 impl<T> ApplicationHandler for Application<T> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let window = Arc::new(event_loop.create_window(Window::default_attributes().with_visible(false)).unwrap());
-        let instance = Instance::new(&InstanceDescriptor::default());
+        let instance = Instance::new(InstanceDescriptor::new_without_display_handle());
         let mut state = State::new(window.clone(), instance);
         state.ui.register_window(event_loop, state.window.clone());
         state.ui.enable_accessibility(event_loop, state.window.clone());

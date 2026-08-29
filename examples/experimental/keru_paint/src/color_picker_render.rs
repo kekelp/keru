@@ -29,10 +29,7 @@ impl ColorPickerRenderer {
         let pipeline_layout = ctx.device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("Color Picker Pipeline Layout"),
             bind_group_layouts: &[],
-            push_constant_ranges: &[PushConstantRange {
-                stages: ShaderStages::VERTEX_FRAGMENT,
-                range: 0..(size_of::<PushConstants>() as u32),
-            }],
+            immediate_size: size_of::<PushConstants>() as u32,
         });
 
         let pipeline = ctx.device.create_render_pipeline(&RenderPipelineDescriptor {
@@ -60,7 +57,7 @@ impl ColorPickerRenderer {
             },
             depth_stencil: None,
             multisample: MultisampleState::default(),
-            multiview: None,
+            multiview_mask: None,
             cache: None,
         });
 
@@ -83,8 +80,7 @@ impl ColorPickerRenderer {
         };
 
         render_pass.set_pipeline(&self.pipeline);
-        render_pass.set_push_constants(
-            ShaderStages::VERTEX_FRAGMENT,
+        render_pass.set_immediates(
             0,
             bytemuck::bytes_of(&push_constants),
         );

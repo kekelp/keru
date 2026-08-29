@@ -11,7 +11,7 @@ struct PushConstants {
     _padding2: f32,
 }
 
-var<push_constant> data: PushConstants;
+var<immediate> data: PushConstants;
 
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,

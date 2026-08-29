@@ -790,7 +790,10 @@ impl Ui {
     /// 
     /// Use [`Ui::render()`] to render the Ui into an existing render pass.
     pub fn autorender(&mut self, surface: &wgpu::Surface, background_color: wgpu::Color) {
-        let output = surface.get_current_texture().unwrap();
+        let output = match surface.get_current_texture() {
+            wgpu::CurrentSurfaceTexture::Success(texture) | wgpu::CurrentSurfaceTexture::Suboptimal(texture) => texture,
+            other => panic!("Failed to get current surface texture: {other:?}"),
+        };
         let view = output
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
@@ -814,6 +817,7 @@ impl Ui {
                 depth_stencil_attachment: None,
                 occlusion_query_set: None,
                 timestamp_writes: None,
+                multiview_mask: None,
             });
 
             self.render(&mut render_pass);
@@ -821,7 +825,7 @@ impl Ui {
 
         self.sys.queue.submit(std::iter::once(encoder.finish()));
 
-        output.present();
+        self.sys.queue.present(output);
 
         // #[cfg(debug_assertions)] {
         //     eprintln!("{:?}", self.sys.renderer.text.render_stats());
@@ -880,6 +884,13 @@ impl Ui {
     /// This is a convenience method for custom rendering loops.
     pub fn submit_commands(&mut self, command_buffer: wgpu::CommandBuffer) {
         self.sys.queue.submit(std::iter::once(command_buffer));
+    }
+
+    /// Presents a surface texture to the screen.
+    ///
+    /// This is a convenience method for custom rendering loops.
+    pub fn present(&mut self, surface_texture: wgpu::SurfaceTexture) {
+        self.sys.queue.present(surface_texture);
     }
 }
 
