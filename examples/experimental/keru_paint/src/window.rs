@@ -35,7 +35,7 @@ pub fn basic_wgpu_init() -> (wgpu::Instance, wgpu::Device, wgpu::Queue) {
         required_features: Features::IMMEDIATES,
         required_limits: Limits {
             max_immediate_size: 64,
-            ..adapter.limits()
+            ..Limits::defaults()
         },
         memory_hints: wgpu::MemoryHints::MemoryUsage,
         trace: wgpu::Trace::Off,

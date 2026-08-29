@@ -42,7 +42,7 @@ impl State {
         // Note that immediate data / push constants are not guaranteed to be supported everywhere. It's just for the example.
         let (device, queue) = pollster::block_on(adapter.request_device(&DeviceDescriptor {
             required_features: Features::IMMEDIATES,
-            required_limits: Limits { max_immediate_size: 32, ..adapter.limits() },
+            required_limits: Limits { max_immediate_size: 32, ..Default::default() },
             ..Default::default()
         })).unwrap();
 

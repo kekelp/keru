@@ -11,8 +11,6 @@ pub struct State {
 fn update_ui(state: &mut State, ui: &mut Ui) {
     // Define a unique identity for the button
     #[node_key] const INCREASE: NodeKey;
-
-    dbg!(INCREASE);
     
     // Create a Node struct describing a button
     let increase_button: Node = BUTTON

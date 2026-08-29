@@ -306,7 +306,7 @@ impl Ui {
             .expect("Couldn't find a wgpu adapter");
         let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
             required_features: wgpu::Features::empty(),
-            required_limits: adapter.limits(),
+            required_limits: wgpu::Limits::defaults(),
             memory_hints: wgpu::MemoryHints::MemoryUsage,
             ..Default::default()
         })).expect("Couldn't create a wgpu device");

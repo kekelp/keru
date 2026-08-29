@@ -22,10 +22,7 @@ struct State {
 impl State {
     fn new(event_loop: &ActiveEventLoop, window: Arc<Window>, instance: wgpu::Instance) -> Self {
         let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default())).unwrap();
-        let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
-            required_limits: adapter.limits(),
-            ..Default::default()
-        })).unwrap();
+        let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default())).unwrap();
 
         let surface = instance.create_surface(window.clone()).unwrap();
         let size = window.inner_size();

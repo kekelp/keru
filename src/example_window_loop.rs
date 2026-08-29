@@ -97,7 +97,7 @@ impl State {
         let adapter = pollster::block_on(instance.request_adapter(&RequestAdapterOptions::default())).unwrap();
         let (device, queue) = pollster::block_on(adapter.request_device(&DeviceDescriptor {
             required_features: wgpu::Features::TIMESTAMP_QUERY | wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS,
-            required_limits: adapter.limits(),
+            required_limits: Limits::defaults(),
             memory_hints: MemoryHints::MemoryUsage,
             ..Default::default()
         })).unwrap();
