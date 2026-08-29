@@ -28,7 +28,7 @@ serde = ["dep:serde", "glam/serde"]
 [dependencies]
 keru_draw = { git = "https://github.com/kekelp/keru_draw.git" }
 keru_macros = { git = "https://github.com/kekelp/keru.git", package = "keru_macros" }
-winit = { version = "0.30.5", features = ["rwh_05"] }
+winit = { version = "0.30", features = ["rwh_05"] }
 accesskit = "0.24"
 accesskit_winit = { version = "0.33", default-features = false, features = ["accesskit_unix", "async-io", "rwh_05"] }
 wgpu = { version = "30", default-features = true }
