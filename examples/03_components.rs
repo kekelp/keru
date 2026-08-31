@@ -30,7 +30,7 @@ impl Component for StatefulCounter {
     type AddResult = ();
     type ComponentOutput = ();
 
-    fn add_to_ui(&mut self, ui: &mut Ui, state: &mut Self::State) {
+    fn add_to_ui(&mut self, ui: &mut Ui, state: &mut i32) {
         // (Using an arena is not mandatory, but it makes formatting values a lot faster.)
         // (Keru has a thread local arena that you can use without any setup.)
         with_arena(|arena| {
@@ -58,7 +58,7 @@ impl Component for StatefulCounter {
 // We don't need any explicit state.
 pub struct State {}
 
-fn update_ui(state: &mut State, ui: &mut Ui) {
+fn update_ui(_state: &mut State, ui: &mut Ui) {
     let counter = StatefulCounter {
         color: Color::KERU_RED,
     };
