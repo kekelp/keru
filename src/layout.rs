@@ -664,6 +664,9 @@ impl Ui {
 
         self.update_property_animations();
 
+        if self.sys.headless {
+            self.sys.renderer.set_resolution(self.sys.size[X], self.sys.size[Y]);
+        }
         with_timer("prepare_text", Some(std::time::Duration::from_micros(500)), || {
             self.sys.renderer.prepare_text();
         });

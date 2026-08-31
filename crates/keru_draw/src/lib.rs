@@ -1331,6 +1331,11 @@ impl Renderer {
         self.text.prepare_all();
     }
 
+    /// Set the screen resolution explicitly, for headless rendering without a registered window.
+    pub fn set_resolution(&mut self, width: f32, height: f32) {
+        self.text.set_resolution(width, height);
+    }
+
     /// Internal helper to push an instance to the correct buffer based on deferred mode.
     fn push_instance(&mut self, instance: Instance) {
         if self.deferred_mode {

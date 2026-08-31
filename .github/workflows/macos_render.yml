@@ -1,0 +1,25 @@
+name: MacOS render
+on:
+  workflow_dispatch:
+jobs:
+  render:
+    name: MacOS render
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Configure cache
+        uses: Swatinem/rust-cache@v2
+      - name: Render headless image
+        env:
+          WGPU_BACKEND: metal
+          RUST_BACKTRACE: 1
+        run: cargo run --example headless_render -- headless_render.png
+      - name: Upload rendered image
+        uses: actions/upload-artifact@v4
+        with:
+          name: headless-render-macos
+          path: headless_render.png
+          if-no-files-found: error

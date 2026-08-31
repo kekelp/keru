@@ -833,6 +833,104 @@ impl Ui {
 
     }
 
+    /// Renders the UI into an offscreen texture and reads the result back into an [`image::RgbaImage`].
+    pub fn render_to_image(&mut self, background_color: wgpu::Color) -> image::RgbaImage {
+        assert!(self.sys.headless, "render_to_image requires a headless Ui created with Ui::new_headless");
+        let width = self.sys.size[X] as u32;
+        let height = self.sys.size[Y] as u32;
+        let format = self.sys.format;
+        assert_eq!(format, wgpu::TextureFormat::Rgba8Unorm, "render_to_image only supports Rgba8Unorm targets, but the Ui was created with {format:?}");
+
+        let texture = self.sys.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("keru render_to_image target"),
+            size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+            view_formats: &[],
+        });
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+        // The bytes-per-row of the copy buffer must be aligned to `COPY_BYTES_PER_ROW_ALIGNMENT`.
+        let unpadded_bytes_per_row = width * 4;
+        let align = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
+        let padded_bytes_per_row = unpadded_bytes_per_row.div_ceil(align) * align;
+
+        let output_buffer = self.sys.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("keru render_to_image readback buffer"),
+            size: (padded_bytes_per_row * height) as u64,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+
+        let mut encoder = self.sys.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("keru render_to_image encoder"),
+        });
+
+        {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("keru render_to_image render pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(background_color),
+                        store: wgpu::StoreOp::Store,
+                    },
+                    depth_slice: None,
+                })],
+                depth_stencil_attachment: None,
+                occlusion_query_set: None,
+                timestamp_writes: None,
+                multiview_mask: None,
+            });
+
+            self.render(&mut render_pass);
+        }
+
+        encoder.copy_texture_to_buffer(
+            wgpu::TexelCopyTextureInfo {
+                texture: &texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            wgpu::TexelCopyBufferInfo {
+                buffer: &output_buffer,
+                layout: wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(padded_bytes_per_row),
+                    rows_per_image: Some(height),
+                },
+            },
+            wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+        );
+
+        self.sys.queue.submit(std::iter::once(encoder.finish()));
+
+        let buffer_slice = output_buffer.slice(..);
+        let (sender, receiver) = std::sync::mpsc::channel();
+        buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
+            let _ = sender.send(result);
+        });
+        self.sys.device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+        receiver.recv().unwrap().unwrap();
+
+        let padded = buffer_slice.get_mapped_range().unwrap();
+        let mut pixels = Vec::with_capacity((unpadded_bytes_per_row * height) as usize);
+        for row in 0..height {
+            let start = (row * padded_bytes_per_row) as usize;
+            let end = start + unpadded_bytes_per_row as usize;
+            pixels.extend_from_slice(&padded[start..end]);
+        }
+        drop(padded);
+        output_buffer.unmap();
+
+        return image::RgbaImage::from_raw(width, height, pixels).unwrap();
+    }
+
     /// Returns `true` if the `Ui` needs to be rerendered.
     ///
     /// If this is true, you should call [`Ui::render`] as soon as possible to display the updated GUI state on the screen.

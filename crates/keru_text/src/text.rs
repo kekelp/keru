@@ -931,7 +931,12 @@ impl Text {
         let window_size = window.inner_size();
         let (width, height) = (window_size.width as f32, window_size.height as f32);
 
-        self.prepare_all_impl(window_id, (width, height));
+        self.prepare_all_impl(Some((window_id, (width, height))));
+    }
+
+    /// Set the screen resolution explicitly, for headless rendering without a registered window.
+    pub fn set_resolution(&mut self, width: f32, height: f32) {
+        self.shared.render_data.update_resolution(width, height);
     }
 
     /// Layout and rasterize all text, prepare the render data.
@@ -940,23 +945,12 @@ impl Text {
     ///
     /// [`Text`] keeps track of all changes to text boxes internally. So this function can be called multiple times in same frame without issues, if needed.
     pub fn prepare_all(&mut self) {
-        let res = self.shared.windows.first().map(|w| (w.window_id, w.dimensions));
+        let window = self.shared.windows.first().map(|w| (w.window_id, w.dimensions));
 
-        // This is what we would want to do:
-        // let (window_id, window_size) = res.expect("Text::prepare_all didn't register any windows, are you calling Text::handle_events?");
-        // However, it seems that winit continues to give us RedrawRequested events even after the CloseRequested event, even if we calling event_loop.exit()?
-        // But we unregister windows on CloseRequested.
-        // For this reason, it seems that we have to accept that prepare_all might be called when no windows are around and silently do nothing.
-        let Some((window_id, window_size)) = res else {
-            // Even if there are no windows, we should reset the change flags
-            // so they don't stay stuck at true
-            return;
-        };
-
-        self.prepare_all_impl(window_id, window_size);
+        self.prepare_all_impl(window);
     }
 
-    pub(crate) fn prepare_all_impl(&mut self, window_id: WindowId, window_size: (f32, f32)) {
+    pub(crate) fn prepare_all_impl(&mut self, window: Option<(WindowId, (f32, f32))>) {
         let mut encoder = self.encoder.take().unwrap_or_else(|| {
             self.renderer.device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default())
         });
@@ -969,7 +963,9 @@ impl Text {
         let styles_changed = ! self.shared.changed_style_keys.is_empty();
 
         self.shared.pasted_this_frame = false;
-        self.shared.render_data.update_resolution(window_size.0, window_size.1);
+        if let Some((_, (width, height))) = window {
+            self.shared.render_data.update_resolution(width, height);
+        }
 
         // todo: an extra loop just for this?
         for (_key, text_edit) in self.text_edits.iter_mut() {
@@ -999,8 +995,10 @@ impl Text {
         self.prepare_decoration_quads(&mut encoder);
 
         let should_clear_flags = {
-            if let Some(window_info) = self.shared.windows.iter_mut().find(|info| info.window_id == window_id) {
-                window_info.prepared = true;
+            if let Some((window_id, _)) = window {
+                if let Some(window_info) = self.shared.windows.iter_mut().find(|info| info.window_id == window_id) {
+                    window_info.prepared = true;
+                }
             }
             self.shared.windows.iter().all(|info| info.prepared)
         };

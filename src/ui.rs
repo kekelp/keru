@@ -160,6 +160,8 @@ pub(crate) struct System {
 
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
+    pub format: wgpu::TextureFormat,
+    pub headless: bool,
 
     pub listened_keys: Vec<Key>,
     pub filter_listened_keys: bool,
@@ -302,7 +304,9 @@ impl Ui {
         return Self::new_inner(device, queue, config.format, config.width as f32, config.height as f32);
     }
 
-    /// Create a headless [`Ui`].
+    /// Create a headless [`Ui`] for using without a `winit` window.
+    ///
+    /// This still initializes a `wgpu` context internally.
     pub fn new_headless(width: u32, height: u32) -> Self {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default()))
@@ -314,7 +318,9 @@ impl Ui {
             ..Default::default()
         })).expect("Couldn't create a wgpu device");
 
-        return Self::new_inner(&device, &queue, wgpu::TextureFormat::Rgba8Unorm, width as f32, height as f32);
+        let mut ui = Self::new_inner(&device, &queue, wgpu::TextureFormat::Rgba8Unorm, width as f32, height as f32);
+        ui.sys.headless = true;
+        return ui;
     }
 
     /// Resize the `Ui`.
@@ -404,6 +410,8 @@ impl Ui {
 
                 device: device.clone(),
                 queue: queue.clone(),
+                format,
+                headless: false,
 
                 listened_keys: Vec::new(),
                 filter_listened_keys: false,
