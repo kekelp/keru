@@ -109,6 +109,9 @@ pub(crate) struct System {
 
     pub click_rects: Vec<ClickRect>,
 
+    // List of nodes that have a scrollbar.
+    pub scroll_containers: Vec<ScrollbarInput>,
+
     pub layout_solve_queue: Vec<GraphElement>,
     pub layout_deferred_queue: Vec<GraphElement>,
 
@@ -354,6 +357,8 @@ impl Ui {
                 has_any_time_sense_node: false,
 
                 click_rects: Vec::with_capacity(50),
+
+                scroll_containers: Vec::with_capacity(0),
 
                 layout_solve_queue: Vec::with_capacity(50),
                 layout_deferred_queue: Vec::with_capacity(50),

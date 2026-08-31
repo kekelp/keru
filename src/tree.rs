@@ -4,6 +4,7 @@ use std::hash::Hasher;
 use std::panic::Location;
 use bytemuck::{Pod, Zeroable};
 use bumpalo::collections::Vec as BumpVec;
+use winit::event::MouseButton;
 
 /// An `u64` identifier for a GUI node.
 /// 
@@ -548,6 +549,7 @@ impl Ui {
         thread_local::push_parent(ROOT_I, SiblingCursor::None, self.sys.unique_id);
 
         self.begin_frame_resolve_inputs();
+        self.resolve_all_scrollbar_inputs();
     }
 
     /// Finish declaring the current GUI tree.
@@ -872,7 +874,7 @@ impl Ui {
         let width = if wide { 8.0 } else { 3.0 };
         let rail_width = if wide { 14.0 } else { 9.0 };
 
-        let Some(ScrollbarState { thumb_frac, thumb_lead_frac, scroll_range, max_scroll, container_size, scroll }) = self.sys.scrollbar_state(i, axis) else {
+        let Some(ScrollbarState { thumb_frac, thumb_lead_frac, .. }) = self.sys.scrollbar_state(i, axis) else {
             return;
         };
 
@@ -938,13 +940,37 @@ impl Ui {
 
         thread_local::pop_parent(self.sys.unique_id);
 
-        let container_i = i;
+        // Store the scrollbar nodes so that we can handle their input all at once instead of in the middle of the user's build code.
+        let rail_id = rail_key.id_with_key_scope();
+        let handle_id = handle_key.id_with_key_scope();
+        self.sys.scroll_containers.push(ScrollbarInput { container_i: i, axis, rail_id, handle_id });
+    }
 
-        if self.is_dragged(rail_key).is_none() && let Some(drag) = self.is_dragged(handle_key) {
+    pub(crate) fn resolve_all_scrollbar_inputs(&mut self) {
+        let mut bars = std::mem::take(&mut self.sys.scroll_containers);
+        for bar in &bars {
+            self.resolve_scrollbar_input(bar);
+        }
+        bars.clear();
+        self.sys.scroll_containers = bars;
+    }
+
+    fn resolve_scrollbar_input(&mut self, bar: &ScrollbarInput) {
+        let ScrollbarInput { container_i, axis, rail_id, handle_id } = *bar;
+
+        let Some(ScrollbarState { thumb_frac, scroll_range, max_scroll, container_size, scroll, .. }) = self.sys.scrollbar_state(container_i, axis) else {
+            return;
+        };
+
+        let logical_size = self.sys.logical_size();
+
+        let rail_dragged = self.sys.check_dragged(rail_id, MouseButton::Left).is_some();
+
+        if ! rail_dragged && let Some(drag) = self.sys.check_dragged(handle_id, MouseButton::Left) {
+            let delta = drag.frame_delta;
             if scroll_range < 0.0 {
                 let track_size = (1.0 - thumb_frac) * container_size;
-                let logical_size = self.sys.logical_size();
-                let delta_norm = vec2_axis(drag.absolute_delta, axis) / logical_size[axis];
+                let delta_norm = vec2_axis(delta, axis) / logical_size[axis];
                 let scroll_delta = if track_size > 0.0 {
                     delta_norm / track_size * scroll_range
                 } else {
@@ -953,16 +979,19 @@ impl Ui {
                 self.sys.update_container_scroll(container_i, scroll_delta, axis, false);
             }
         } else {
-            let rail_cursor =
-            if let Some(click) = self.clicked_at(rail_key) {
-                Some(vec2_axis(click.relative_position, axis))
-            } else if let Some(drag) = self.is_dragged(rail_key) {
-                Some(vec2_axis(drag.relative_position, axis))
+            // Cursor position on the rail from a click, or an ongoing rail drag.
+            let rail_pos = if let Some(click) = self.sys.check_clicked_at(rail_id, MouseButton::Left) {
+                Some(click.position)
+            } else if let Some(drag) = self.sys.check_dragged(rail_id, MouseButton::Left) {
+                Some(drag.current_pos)
             } else {
                 None
             };
 
-            if let Some(cursor) = rail_cursor {
+            if let Some(pos) = rail_pos && let Some(rail_i) = self.sys.nodes.get_by_id(rail_id) {
+                let rect = self.sys.nodes[rail_i].real_rect;
+                // Cursor position as a fraction of the rail along the scroll axis.
+                let cursor = (vec2_axis(pos, axis) / logical_size[axis] - rect[axis][0]) / rect.size()[axis];
                 if scroll_range < 0.0 {
                     let progress = ((cursor - thumb_frac / 2.0) / (1.0 - thumb_frac)).clamp(0.0, 1.0);
                     let target_scroll = max_scroll + progress * scroll_range;
@@ -987,6 +1016,13 @@ struct ScrollbarState {
     max_scroll: f32,
     container_size: f32,
     scroll: f32,
+}
+
+pub(crate) struct ScrollbarInput {
+    pub container_i: NodeI,
+    pub axis: Axis,
+    pub rail_id: Id,
+    pub handle_id: Id,
 }
 
 pub(crate) fn ahasher() -> ahash::AHasher {

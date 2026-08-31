@@ -2,7 +2,6 @@
 
 use keru::*;
 use keru::node_library::*;
-use keru::deterministic_keys::node_key;
 
 pub struct State {
     pub count: i32,

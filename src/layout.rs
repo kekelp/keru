@@ -716,7 +716,7 @@ impl Ui {
         let mut res = Xy::new(0.0, 0.0);
         for axis in [X, Y] {
             if self.sys.nodes[i].params.layout.scrollable[axis] {
-                res[axis] = self.scroll_offset(i, axis);
+                res[axis] = self.get_scroll_offset(i, axis);
             }
         }
         res
@@ -1077,7 +1077,7 @@ impl Ui {
         }
     }
 
-    pub(crate) fn scroll_offset(&self, i: NodeI, axis: Axis) -> f32 {
+    pub(crate) fn get_scroll_offset(&self, i: NodeI, axis: Axis) -> f32 {
         let scroll_offset = self.sys.nodes[i].scroll[axis];
 
         // round it to whole pixels to avoid wobbling

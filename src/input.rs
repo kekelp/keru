@@ -284,6 +284,11 @@ impl Ui {
     pub fn scrolled_at_animated(&self, key: NodeKey) -> Option<Scroll> {
         self.get_node(key)?.scrolled_at_animated()
     }
+
+    /// Returns the current scroll offset of the node corresponding to `key`, in logical pixels, measured from the start of the content, or `None` if the node does not exist.
+    pub fn scroll_offset(&self, key: NodeKey) -> Option<Xy<f32>> {
+        Some(self.get_node(key)?.scroll_offset())
+    }
 }
 
 
@@ -403,5 +408,12 @@ impl UiParent {
     /// Small pixel scrolls from a touchpad pass through as-is.
     pub fn scrolled_at_animated(&self, ui: &Ui) -> Option<Scroll> {
         ui.scrolled_at_animated(self.key(ui))
+    }
+
+    /// Returns the current scroll offset of this node, in logical pixels, measured from the start of the content.
+    ///
+    /// See [`UiNode::scroll_offset()`].
+    pub fn scroll_offset(&self, ui: &Ui) -> Option<Xy<f32>> {
+        ui.scroll_offset(self.key(ui))
     }
 }

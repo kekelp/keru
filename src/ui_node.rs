@@ -163,6 +163,21 @@ impl<'a> UiNode<'a> {
         return size - padding;
     }
 
+    /// Returns the current scroll offset of a scrollable node, in logical pixels.
+    pub fn scroll_offset(&self) -> Xy<f32> {
+        let node = self.node();
+        let logical_size = self.sys().logical_size();
+        let mut offset = Xy::new(0.0, 0.0);
+        for axis in [X, Y] {
+            let container = node.layout_rect[axis];
+            let content = node.content_bounds[axis];
+            // Displacement that aligns the content start with the viewport start. Content shorter than the viewport, or already aligned, gives 0.
+            let max_scroll = if content[0] < container[0] { container[0] - content[0] } else { 0.0 };
+            offset[axis] = ((max_scroll - node.scroll[axis]) * logical_size[axis]).max(0.0);
+        }
+        return offset;
+    }
+
     /// Returns the center of the node's rectangle, in screen pixels.
     /// 
     /// Since the size and position of nodes is only determined in the layout pass at the end of the frame, 
