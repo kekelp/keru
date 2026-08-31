@@ -11,6 +11,8 @@ keywords = ["gui"]
 [workspace]
 members = [
     "crates/keru_macros",
+    "crates/keru_draw",
+    "crates/keru_text",
 ]
 
 [profile.dev]
@@ -26,25 +28,25 @@ default = []
 serde = ["dep:serde", "glam/serde"]
 
 [dependencies]
-keru_draw = { git = "https://github.com/kekelp/keru_draw.git" }
-keru_macros = { git = "https://github.com/kekelp/keru.git", package = "keru_macros" }
-winit = { version = "0.30", features = ["rwh_05"] }
+keru_draw = { path = "crates/keru_draw" }
+keru_macros = { path = "crates/keru_macros" }
+winit = { version = "0.30.9", features = ["rwh_05"] }
 accesskit = "0.24"
 accesskit_winit = { version = "0.33", default-features = false, features = ["accesskit_unix", "async-io", "rwh_05"] }
 wgpu = { version = "30", default-features = true }
-pollster = "0.3.0"
-bytemuck = { version = "1.19.0", features = ["derive"] }
+pollster = "0.4"
+bytemuck = { version = "1.23", features = ["derive"] }
 glam = "0.30"
 serde = { version = "1", features = ["derive"], optional = true }
 slab = "0.4.9"
 log = "0.4.22"
 env_logger = "0.11.6"
 bitflags = "2.8.0"
-ahash = "0.8.11"
+ahash = "0.8.12"
 rustc-hash = "2"
 bumpalo = { version = "3.16", features = ["collections"] }
 smallvec = "1.15.1"
-lru = { version = "0.12", default-features = false }
+lru = { version = "0.12.1", default-features = false }
 
 # Try to force logging = true in this indirect dependency to disable the fallback eprintln! output
 icu_provider = { version = "*", default-features = false, features = ["logging"] }
@@ -53,7 +55,7 @@ pulldown-cmark = "0.13.3"
 
 [dev-dependencies]
 qrcode = "0.14"
-image = "0.25"
+image = "0.25.6"
 
 [lints.clippy]
 needless_return = { level = "allow" }

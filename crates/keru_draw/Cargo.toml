@@ -1,0 +1,24 @@
+[package]
+name = "keru_draw"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+keru_text = { path = "../keru_text", features = ["accessibility"] }
+wgpu = { version = "30", features = ["spirv"] }
+bytemuck = { version = "1.23", features = ["derive"] }
+bitflags = "2"
+euclid = { version = "0.22", features = ["bytemuck"] }
+resvg = "0.45"
+tiny-skia = "0.11"
+usvg = "0.45"
+etagere = "0.2.10"
+image = "0.25.6"
+
+[dev-dependencies]
+winit = "0.30.9"
+pollster = "0.4"
+
+[[example]]
+name = "example"
+path = "examples/example.rs"

@@ -36,7 +36,7 @@ trait UiExt {
 
 impl UiExt for Ui {
     fn intro_tab(&mut self, state: &mut State) {
-        self.add(V_SCROLL_STACK.size_y(Size::Fill)).nest(|| {
+        self.add(V_SCROLL_STACK.size_symm(Size::Fill)).nest(|| {
             self.static_paragraph("Keru is an experimental GUI library.");
             
             #[node_key] const TEXT_EDIT_1: NodeKey;

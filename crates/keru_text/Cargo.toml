@@ -1,0 +1,40 @@
+[package]
+name = "keru_text"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+default = ["fontconfig-dlopen"]
+panic_on_handle_drop = []
+accessibility = ["dep:accesskit", "parley/accesskit"]
+fontconfig-dlopen = ["fontique/fontconfig-dlopen"]
+
+[dependencies]
+parley = "0.11.1"
+fontique = "0.11.1"
+wgpu = { version = "30", default-features = true, features = ["spirv"] }
+etagere = "0.2.10"
+lru = { version = "0.12.1", default-features = false }
+rustc-hash = "2"
+swash = "0.2.2"
+image = "0.25.6"
+bytemuck = "1.23"
+euclid = { version = "0.22", features = ["bytemuck"] }
+winit = "0.30.9"
+lazy_static = "1.5.0"
+accesskit = { version = "0.24", optional = true }
+peniko = "0.4.0"
+arboard = "3.5.0"
+slab = "0.4.9"
+smallvec = "1.15.1"
+ahash = "0.8.12"
+offset-allocator = "0.2.0"
+
+[dev-dependencies]
+pollster = "0.4"
+winit = "0.30.9"
+
+[[example]]
+name = "accessibility"
+path = "examples/accessibility.rs"
+required-features = ["accessibility"]
