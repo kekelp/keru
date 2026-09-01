@@ -54,7 +54,7 @@
 //! 
 //! ## Accessibility
 //! 
-//! This library supports accessibility, but integrating it requires a bit more coordination with `winit` and with the GUI code outside of this library. In particular, `keru_text` doesn't have any concept of a tree. See the `accessibility.rs` example in the repository for a basic example.
+//! This library supports accessibility, but integrating it requires a bit more coordination with `winit` and with the GUI code outside of this library. In particular, `keru_text` doesn't have any concept of a tree.
 //! 
 //! ## Interaction
 //! 

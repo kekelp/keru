@@ -57,7 +57,7 @@
 //! 
 //! * In Keru, everything is a [`Node`]. Whether you want a [button](`node_library::BUTTON`), an [image](`node_library::IMAGE`), a [text element](`node_library::TEXT`), a [stack container](node_library::V_STACK), or anything else, the way is always to [`add()`](Ui::add()) a node with the right values.
 //! 
-//! * There are also "components", like [`Slider`]. Components are added with [`Ui::add_component()`] and they are a way to wrap multiple nodes into a reusable structure. You can define custom components with the [`SimpleComponent`] and [`Component`] traits.
+//! * There are also "components", like [`Slider`]. Components are added with [`Ui::add_stateless_component()`] and they are a way to wrap multiple nodes into a reusable structure. You can define custom components with the [`SimpleComponent`] and [`Component`] traits.
 //! 
 //! * To check interactions on a node, use [`Node::key()`] to associate a [`NodeKey`] to a [`Node`], then call methods like [`Ui::is_clicked()`] with the same [`NodeKey`].
 //! 

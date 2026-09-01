@@ -33,8 +33,3 @@ offset-allocator = "0.2.0"
 [dev-dependencies]
 pollster = "0.4"
 winit = "0.30.9"
-
-[[example]]
-name = "accessibility"
-path = "examples/accessibility.rs"
-required-features = ["accessibility"]

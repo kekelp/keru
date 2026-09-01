@@ -522,9 +522,13 @@ impl Ui {
             Size::Pixels(_) => panic!("A Pixels slot shouldn't be showing up as a dependent node that we have to solve."),
 
             Size::AspectRatio(aspect) => {
+                // I keep changing my mind on this, but as long as it's called AspectRatio it should probably be a real aspectratio for y as well, not flipped.
                 let other = self.l2_size_or_guess(i, axis.other());
                 let window_aspect = self.sys.size.x / self.sys.size.y;
-                other * aspect / window_aspect
+                match axis {
+                    X => other * aspect / window_aspect,
+                    Y => other * window_aspect / aspect,
+                }
             }
 
             Size::FitContent => {
