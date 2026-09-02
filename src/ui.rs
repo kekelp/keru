@@ -516,6 +516,11 @@ impl Ui {
         (s.x, s.y)
     }
 
+    /// The effective scale factor (implicit display scale factor * explicit scale factor).
+    pub fn scale_factor(&self) -> f32 {
+        self.sys.scale_factor
+    }
+
     pub fn push_external_event(&mut self) {
         self.sys.new_external_events = true;
     }

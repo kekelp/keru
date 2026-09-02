@@ -893,7 +893,7 @@ float4 grid_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, float2 
     if (grid.grid_type == 0) {
         // Rectangular grid
         float2 p = p_pixels / grid.lattice_size;
-        float2 grid_pos = fmod(p, 1.0);
+        float2 grid_pos = frac(p);
         float2 dist_to_line = min(grid_pos, 1.0 - grid_pos);
         float2 dist_pixels = dist_to_line * grid.lattice_size;
         dist = min(dist_pixels.x, dist_pixels.y);

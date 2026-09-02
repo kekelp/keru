@@ -4,7 +4,7 @@ pub(crate) const DT: f32 = 1.0 / 60.0;
 
 const TUNING_RESCALE: f32 = 165.0 * 1.0 / 60.0;
 
-const BASE_EXPONENTIAL_RATE: f32 = 5.0 * TUNING_RESCALE;
+const BASE_EXPONENTIAL_RATE: f32 = 15.0 * TUNING_RESCALE;
 
 const SNAP_DISTANCE: f32 = 0.003;
 const MIN_SPEED: f32 = 0.005 * TUNING_RESCALE;
@@ -27,7 +27,8 @@ impl System {
     }
 
     pub(crate) fn anim_exp_speed(&self, speed: f32) -> f32 {
-        (BASE_EXPONENTIAL_RATE * self.global_animation_speed * speed * self.animation_dt()).clamp(0.0, 1.0)
+        let rate = BASE_EXPONENTIAL_RATE * self.global_animation_speed * speed;
+        (1.0 - (-rate * self.animation_dt()).exp()).clamp(0.0, 1.0)
     }
 
     pub(crate) fn exp_tail_step_dist(&self, dist: f32, speed: f32, snap: f32, min: f32) -> (f32, bool) {
