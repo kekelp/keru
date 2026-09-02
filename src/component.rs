@@ -19,7 +19,7 @@ pub trait Component {
     /// 
     /// If you don't need this, you can set it to the empty type `()`. Unfortunately, Rust doesn't allow traits to provide default values for their associated types.
     /// Consider also using [`SimpleComponent`].
-    type State: Default + 'static;
+    type State;
 
     /// The type returned by [`Component::add_to_ui()`]. The component user will receive it back when calling [`Ui::add_component()`].
     /// 
@@ -41,7 +41,7 @@ pub trait Component {
     /// 
     /// When the component's user calls [`Ui::add_component()`], the [`Ui`] will do some setup, then call this function.
     /// 
-    /// If [`Component::State`] is not `()`, the [`Ui`] will initialize it as `Default` it when the component is first added, store it in its internal memory, and pass it to this function every time it's called. Then, it will drop the value when the component is removed from the tree.
+    /// If [`Component::State`] is not `()`, and it's managed implicitly (see [`Ui::add_component()`]), the [`Ui`] will initialize it as `Default` when the component is first added, store it in its internal memory, and pass it to this function every time it's called. Then, it will drop the value when the component is removed from the tree. Implicit state management requires [`Component::State`] to implement [`Default`].
     /// 
     /// If the same Component is added to the Ui multiple times in the same frame, each instance will get its own "private key scope", so [`NodeKey`](NodeKey) used inside this functions will work without conflicts.
     fn add_to_ui(&mut self, ui: &mut Ui, state: &mut Self::State) -> Self::AddResult;
@@ -81,13 +81,15 @@ impl<T: SimpleComponent> Component for T {
 
 impl Ui {
     #[track_caller]
-    /// Add a component to the `Ui`.
-    pub fn add_component<T: Component>(&mut self, mut component: T) -> T::AddResult {        
-        let key = match component.component_key() {
-            Some(key) => key.as_normal_key(),
-            None => NodeKey::new(Id(caller_location_id()), "Anon component"),
-        };
-        
+    /// Add a [`Component`] to the `Ui`.
+    ///
+    /// If the component has a `State` type, the `Ui` will initialize the state and manage it internally.
+    ///
+    /// This function also works for simple stateless components.
+    ///
+    /// Use [`Ui::add_component_with_state()`] if you want to manage the state yourself and pass it as an argument.
+    pub fn add_component<T: Component>(&mut self, mut component: T) -> T::AddResult where T::State: Default + 'static {
+        let key = self.component_key_or_caller(&component);
         // Add a fake node for the component. This is a lazy way to get a properly track_called, keyscoped, and twinned id to use for the component key scope.
         // We don't set it as parent, and it has free_placement so it doesn't mess with the layout algorithms, so hopefully it's okay.
         // We should really do it without a node though, so that it's not confusing when using get_node().get_children().
@@ -136,6 +138,30 @@ impl Ui {
         return res;
     }
 
+    /// Add a stateful component to the `Ui`, passing in a reference to its state.
+    /// 
+    /// Use [`Ui::add_component()`] instead to have the `Ui` manage the state internally.
+    #[track_caller]
+    pub fn add_component_with_state<T: Component>(&mut self, mut component: T, state: &mut T::State) -> T::AddResult {
+        let key = self.component_key_or_caller(&component);
+        let (i, id) = self.add_or_update_node(key);
+        self.set_params(i, &node_library::COMPONENT_ROOT);
+
+        thread_local::push_key_scope(id);
+        let res = T::add_to_ui(&mut component, self, state);
+        thread_local::pop_key_scope();
+
+        return res;
+    }
+
+    #[track_caller]
+    fn component_key_or_caller<T: Component>(&self, component: &T) -> NodeKey {
+        match component.component_key() {
+            Some(key) => key.as_normal_key(),
+            None => NodeKey::new(Id(caller_location_id()), "Anon component"),
+        }
+    }
+
     /// Run additional logic for a component. Simple components don't use this method, but some advanced components might use it for various reasons:
     /// 
     /// - as a way to return a value from the component, such as whether an internal button is clicked.
@@ -151,7 +177,7 @@ impl Ui {
     /// Get a mutable reference to a component's state by its key.
     ///
     /// Returns `None` if the component is not currently a part of the Ui tree.
-    pub fn component_state_mut<T: Component>(&mut self, component_key: ComponentKey<T>) -> Option<&mut T::State> {
+    pub fn component_state_mut<T: Component>(&mut self, component_key: ComponentKey<T>) -> Option<&mut T::State> where T::State: 'static {
         let id = component_key.as_normal_key().id_with_key_scope();
         self.sys.user_state.get_mut(&id)?.downcast_mut()
     }
