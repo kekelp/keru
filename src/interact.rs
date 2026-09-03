@@ -10,6 +10,95 @@ use crate::mouse_events::SmallVec;
 pub(crate) const ANIMATION_RERENDER_TIME: f32 = 0.5;
 pub(crate) const SCROLL_INTO_VIEW_PADDING_PIXELS: f32 = 10.0;
 
+pub(crate) const LINE_HIT_TOLERANCE: f32 = 5.0;
+
+const TAU: f32 = std::f32::consts::TAU;
+
+fn normalize_angle(angle: f32) -> f32 {
+    let r = angle % TAU;
+    if r < 0.0 { r + TAU } else { r }
+}
+
+fn sd_rounded_box(p: Vec2, half: Vec2, radii: [f32; 4]) -> f32 {
+    let [tl, tr, bl, br] = radii;
+    let r = match (p.x > 0.0, p.y > 0.0) {
+        (true, true) => br,
+        (true, false) => tr,
+        (false, true) => bl,
+        (false, false) => tl,
+    };
+    let q = p.abs() - half + Vec2::splat(r);
+    q.max(Vec2::ZERO).length() + q.x.max(q.y).min(0.0) - r
+}
+
+fn sd_arc(p: Vec2, inner: f32, outer: f32, start_angle: f32, end_angle: f32) -> f32 {
+    let angle = p.y.atan2(p.x);
+    let angle_rel = normalize_angle(angle - start_angle);
+    let span = normalize_angle(end_angle - start_angle);
+    let mid_radius = (inner + outer) * 0.5;
+    let half_thickness = (outer - inner) * 0.5;
+    let nearest_rel = if angle_rel <= span {
+        angle_rel
+    } else {
+        let dist_to_start = TAU - angle_rel;
+        let dist_to_end = angle_rel - span;
+        if dist_to_start < dist_to_end { 0.0 } else { span }
+    };
+    let nearest = mid_radius * Vec2::new((start_angle + nearest_rel).cos(), (start_angle + nearest_rel).sin());
+    (p - nearest).length() - half_thickness
+}
+
+fn sd_pie(p: Vec2, radius: f32, start_angle: f32, end_angle: f32) -> f32 {
+    let mut span = normalize_angle(end_angle - start_angle);
+    if span < 0.001 { span = TAU; }
+    if (span - TAU).abs() < 0.01 {
+        return p.length() - radius;
+    }
+    let mid_angle = start_angle + span * 0.5;
+    let rot = std::f32::consts::FRAC_PI_2 - mid_angle;
+    let (sr, cr) = rot.sin_cos();
+    let mut rp = Vec2::new(p.x * cr - p.y * sr, p.x * sr + p.y * cr);
+    let half_span = span * 0.5;
+    let c = Vec2::new(half_span.sin(), half_span.cos());
+    rp.x = rp.x.abs();
+    let l = rp.length() - radius;
+    let m = (rp - c * rp.dot(c).clamp(0.0, radius)).length();
+    l.max(m * (c.y * rp.x - c.x * rp.y).signum())
+}
+
+fn sd_hexagon(mut p: Vec2, r: f32) -> f32 {
+    let k = Vec2::new(-0.866025404, 0.5);
+    let kz = 0.577350269;
+    p = p.abs();
+    p -= 2.0 * k.dot(p).min(0.0) * k;
+    p -= Vec2::new(p.x.clamp(-kz * r, kz * r), r);
+    p.length() * p.y.signum()
+}
+
+fn sd_segment(p: Vec2, a: Vec2, b: Vec2) -> f32 {
+    let pa = p - a;
+    let ba = b - a;
+    let h = (pa.dot(ba) / ba.dot(ba)).clamp(0.0, 1.0);
+    (pa - ba * h).length()
+}
+
+fn sd_triangle(p: Vec2, p0: Vec2, p1: Vec2, p2: Vec2) -> f32 {
+    let e0 = p1 - p0;
+    let e1 = p2 - p1;
+    let e2 = p0 - p2;
+    let v0 = p - p0;
+    let v1 = p - p1;
+    let v2 = p - p2;
+    let pq0 = v0 - e0 * (v0.dot(e0) / e0.dot(e0)).clamp(0.0, 1.0);
+    let pq1 = v1 - e1 * (v1.dot(e1) / e1.dot(e1)).clamp(0.0, 1.0);
+    let pq2 = v2 - e2 * (v2.dot(e2) / e2.dot(e2)).clamp(0.0, 1.0);
+    let s = (e0.x * e2.y - e0.y * e2.x).signum();
+    let d = Vec2::new(pq0.dot(pq0), s * (v0.x * e0.y - v0.y * e0.x))
+        .min(Vec2::new(pq1.dot(pq1), s * (v1.x * e1.y - v1.y * e1.x)))
+        .min(Vec2::new(pq2.dot(pq2), s * (v2.x * e2.y - v2.y * e2.x)));
+    -d.x.sqrt() * d.y.signum()
+}
+
 /// A struct describing a click event on a GUI node.
 #[derive(Clone, Copy, Debug)]
 pub struct Click {
@@ -678,113 +767,97 @@ impl System {
             return false;
         }
 
-        // todo more accurate clicks
+        let scale_factor = self.scale_factor;
+        let px0 = rect.rect[X][0] * size[X];
+        let px1 = rect.rect[X][1] * size[X];
+        let py0 = rect.rect[Y][0] * size[Y];
+        let py1 = rect.rect[Y][1] * size[Y];
+        let center = Vec2::new((px0 + px1) / 2.0, (py0 + py1) / 2.0);
+        let cursor = Vec2::new(cursor_pos.0 * size[X], cursor_pos.1 * size[Y]);
+        let p = cursor - center;
+        // Line-like shapes get a small extra hit tolerance so thin strokes stay clickable.
+        let line_tolerance = LINE_HIT_TOLERANCE * scale_factor;
+        let stroke_half_thickness = || {
+            let w = self.nodes[node_i].params.stroke.map(|s| s.width).unwrap_or(1.0) * scale_factor;
+            (w / 2.0).max(line_tolerance)
+        };
+
         match self.nodes[node_i].params.shape {
             Shape::NoShape => {
                 return false; // weird...
             }
-            Shape::Rectangle { .. } => {
-                return true;
+            Shape::Rectangle { rounded_corners, corner_radius } => {
+                let half = Vec2::new((px1 - px0) / 2.0, (py1 - py0) / 2.0);
+                let r = corner_radius * scale_factor;
+                let radii = [
+                    if rounded_corners.contains(RoundedCorners::TOP_LEFT) { r } else { 0.0 },
+                    if rounded_corners.contains(RoundedCorners::TOP_RIGHT) { r } else { 0.0 },
+                    if rounded_corners.contains(RoundedCorners::BOTTOM_LEFT) { r } else { 0.0 },
+                    if rounded_corners.contains(RoundedCorners::BOTTOM_RIGHT) { r } else { 0.0 },
+                ];
+                return sd_rounded_box(p, half, radii) <= 0.0;
             }
             Shape::Circle => {
-                // Calculate the circle center and radius
-                let center_x = (rect.rect[X][0] + rect.rect[X][1]) / 2.0;
-                let center_y = (rect.rect[Y][0] + rect.rect[Y][1]) / 2.0;
-                let radius = (rect.rect[X][1] - rect.rect[X][0]) / 2.0;
-
-                // Check if the mouse is within the circle
-                let dx = cursor_pos.0 - center_x;
-                let dy = cursor_pos.1 - center_y;
-                return dx * dx + dy * dy <= radius * radius;
+                let radius = ((px1 - px0) / 2.0).min((py1 - py0) / 2.0);
+                return p.length() - radius <= 0.0;
             }
             Shape::Ring { width } => {
-                // scale to correct coordinates
-                // width should have been a Len anyway so this will have to change
-                let width = width / size[X];
-
-                let aspect = size[X] / size[Y];
-                // Calculate the ring's center and radii
-                let center_x = (rect.rect[X][0] + rect.rect[X][1]) / 2.0;
-                let center_y = (rect.rect[Y][0] + rect.rect[Y][1]) / 2.0;
-                let outer_radius = (rect.rect[X][1] - rect.rect[X][0]) / 2.0;
-                let inner_radius = outer_radius - width;
-
-                // Check if the mouse is within the ring
-                let dx = cursor_pos.0 - center_x;
-                let dy = (cursor_pos.1 - center_y) / aspect;
-                let distance_squared = dx * dx + dy * dy;
-                return distance_squared <= outer_radius * outer_radius
-                    && distance_squared >= inner_radius * inner_radius;
-
+                let outer = ((px1 - px0) / 2.0).min((py1 - py0) / 2.0);
+                let inner = (outer - width * scale_factor).max(0.0);
+                let d = p.length();
+                return d >= inner && d <= outer;
             }
-            Shape::Arc { .. } => {
-                let center_x = (rect.rect[X][0] + rect.rect[X][1]) / 2.0;
-                let center_y = (rect.rect[Y][0] + rect.rect[Y][1]) / 2.0;
-                let radius = (rect.rect[X][1] - rect.rect[X][0]) / 2.0;
-
-                let dx = cursor_pos.0 - center_x;
-                let dy = cursor_pos.1 - center_y;
-                return dx * dx + dy * dy <= radius * radius;
+            Shape::Arc { start_angle, end_angle, width } => {
+                let radius = ((px1 - px0) / 2.0).min((py1 - py0) / 2.0);
+                let actual_width = width * scale_factor;
+                let inner = (radius - actual_width / 2.0).max(0.0);
+                let outer = radius + actual_width / 2.0;
+                return sd_arc(p, inner, outer, start_angle, end_angle) <= 0.0;
             }
-            Shape::Pie { .. } => {
-                let center_x = (rect.rect[X][0] + rect.rect[X][1]) / 2.0;
-                let center_y = (rect.rect[Y][0] + rect.rect[Y][1]) / 2.0;
-                let radius = (rect.rect[X][1] - rect.rect[X][0]) / 2.0;
-
-                let dx = cursor_pos.0 - center_x;
-                let dy = cursor_pos.1 - center_y;
-                return dx * dx + dy * dy <= radius * radius;
+            Shape::Pie { start_angle, end_angle } => {
+                let radius = ((px1 - px0) / 2.0).min((py1 - py0) / 2.0);
+                return sd_pie(p, radius, start_angle, end_angle) <= 0.0;
             }
             Shape::Hexagon { size: size_param, rotation } => {
-                let screen_width = size[X];
-                let screen_height = size[Y];
-
-                // Convert rect to pixels
-                let x0 = rect.rect[X][0] * screen_width;
-                let x1 = rect.rect[X][1] * screen_width;
-                let y0 = rect.rect[Y][0] * screen_height;
-                let y1 = rect.rect[Y][1] * screen_height;
-
-                // Cursor in pixels
-                let cursor_px = cursor_pos.0 * screen_width;
-                let cursor_py = cursor_pos.1 * screen_height;
-
-                // Calculate hexagon parameters (matching render.rs)
-                let cx = (x0 + x1) / 2.0;
-                let cy = (y0 + y1) / 2.0;
-                let max_radius = ((x1 - x0) / 2.0).min((y1 - y0) / 2.0);
-                let hex_radius = max_radius * size_param;
-
-                // Transform cursor to hexagon-local coordinates
-                let dx = cursor_px - cx;
-                let dy = cursor_py - cy;
-
-                // Apply inverse rotation (rotate by -rotation)
-                let cos_r = rotation.cos();
-                let sin_r = rotation.sin();
-                let local_x = dx * cos_r + dy * sin_r;
-                let local_y = -dx * sin_r + dy * cos_r;
-
-                // Point-in-hexagon test using 3-band method for flat-top hexagon
-                // A regular hexagon can be described as the intersection of 3 pairs of parallel lines
-                let sqrt3 = 3.0_f32.sqrt();
-                let sqrt3_r = sqrt3 * hex_radius;
-                let inradius = sqrt3_r / 2.0; // distance from center to edge midpoint
-
-                // Check 3 constraints:
-                // 1. Top/bottom edges: |y| <= inradius
-                // 2. Upper-right/lower-left edges: |√3*x + y| <= √3*R
-                // 3. Lower-right/upper-left edges: |√3*x - y| <= √3*R
-                return local_y.abs() <= inradius
-                    && (sqrt3 * local_x + local_y).abs() <= sqrt3_r
-                    && (sqrt3 * local_x - local_y).abs() <= sqrt3_r;
+                let max_radius = ((px1 - px0) / 2.0).min((py1 - py0) / 2.0);
+                let hex_size = max_radius * size_param;
+                // Same rotation matrix as the shader.
+                let (sin_r, cos_r) = rotation.sin_cos();
+                let rp = Vec2::new(p.x * cos_r - p.y * sin_r, p.x * sin_r + p.y * cos_r);
+                return sd_hexagon(rp, hex_size) <= 0.0;
             }
-            Shape::Segment { .. } | Shape::HorizontalLine | Shape::VerticalLine | Shape::Triangle { .. } | Shape::SquareGrid { .. } | Shape::HexGrid { .. } => {
-                // For segments, triangles, and grids, use simple rectangle hit test
+            Shape::Segment { start, end, .. } => {
+                let a = Vec2::new(px0 + start.0 * (px1 - px0), py0 + start.1 * (py1 - py0));
+                let b = Vec2::new(px0 + end.0 * (px1 - px0), py0 + end.1 * (py1 - py0));
+                return sd_segment(cursor, a, b) - stroke_half_thickness() <= 0.0;
+            }
+            Shape::HorizontalLine => {
+                let a = Vec2::new(px0, center.y);
+                let b = Vec2::new(px1, center.y);
+                return sd_segment(cursor, a, b) - stroke_half_thickness() <= 0.0;
+            }
+            Shape::VerticalLine => {
+                let a = Vec2::new(center.x, py0);
+                let b = Vec2::new(center.x, py1);
+                return sd_segment(cursor, a, b) - stroke_half_thickness() <= 0.0;
+            }
+            Shape::Triangle { rotation, width } => {
+                let radius = ((px1 - px0).min(py1 - py0)) / 2.0;
+                let (sin_r, cos_r) = rotation.sin_cos();
+                let tip_dist = radius;
+                let base_back = radius * 0.5;
+                let base_half_width = radius * 0.866 * width;
+                let perp = Vec2::new(-sin_r, cos_r);
+                let dir = Vec2::new(cos_r, sin_r);
+                let p0 = center + dir * tip_dist;
+                let p1 = center - dir * base_back + perp * base_half_width;
+                let p2 = center - dir * base_back - perp * base_half_width;
+                return sd_triangle(cursor, p0, p1, p2) <= 0.0;
+            }
+            Shape::SquareGrid { .. } | Shape::HexGrid { .. } => {
                 return true;
             }
         }
-
     }
 
 
