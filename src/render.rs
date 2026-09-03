@@ -297,18 +297,37 @@ impl Ui {
 
         let shape = &node.params.shape;
 
-        // Check if fill is visible (alpha > 0)
-        let fill_visible = !debug_box && match node.params.color {
-            ColorFill::Color(c) => c.a > 0.0,
-            ColorFill::LinearGradient(lg) => lg.color_start.a > 0.0 || lg.color_end.a > 0.0,
-            ColorFill::RadialGradient { color_inner, color_outer } => color_inner.a > 0.0 || color_outer.a > 0.0,
-            ColorFill::SharedGradient(_) => match node_gradient_resolved {
-                Some(keru_draw::ColorFill::Color(c)) => c.a > 0.0,
-                Some(keru_draw::ColorFill::Gradient(ref g)) => g.color_start.a > 0.0 || g.color_end.a > 0.0,
-                Some(keru_draw::ColorFill::SharedGradient(_)) => true,
-                None => false,
-            },
+        // Whether a fill has any non-transparent color, resolving a shared gradient through its pre-resolved value.
+        let colorfill_is_visible = |fill: ColorFill, resolved: &Option<keru_draw::ColorFill>| -> bool {
+            match fill {
+                ColorFill::Color(c) => c.a > 0.0,
+                ColorFill::LinearGradient(lg) => lg.color_start.a > 0.0 || lg.color_end.a > 0.0,
+                ColorFill::RadialGradient { color_inner, color_outer } => color_inner.a > 0.0 || color_outer.a > 0.0,
+                ColorFill::SharedGradient(_) => match resolved {
+                    Some(keru_draw::ColorFill::Color(c)) => c.a > 0.0,
+                    Some(keru_draw::ColorFill::Gradient(g)) => g.color_start.a > 0.0 || g.color_end.a > 0.0,
+                    _ => true,
+                },
+            }
         };
+
+        let fill_visible = !debug_box && colorfill_is_visible(node.params.color, &node_gradient_resolved);
+        let stroke_visible = !debug_box && node.params.stroke.is_some_and(|s| colorfill_is_visible(s.color, &stroke_node_gradient_resolved));
+
+        // A shadow is visible if it has an explicit non-transparent color, or (when it inherits the fill color) the fill is non-transparent.
+        let shadow_visible = |s: Shadow| -> bool {
+            match s.color {
+                Some(c) => c.a > 0.0,
+                None => colorfill_is_visible(node.params.color, &node_gradient_resolved),
+            }
+        };
+        let any_shadow_visible = node.params.shadow.map(shadow_visible).unwrap_or(false)
+            || node.params.second_shadow.map(shadow_visible).unwrap_or(false);
+
+        // Skip the whole node when nothing it could draw is visible: a NoShape node, fully transparent fill with no texture/stroke/shadow, or zero inherited opacity. The debug box always draws.
+        if !debug_box && (matches!(shape, Shape::NoShape) || alpha <= 0.0 || (!fill_visible && texture.is_none() && !stroke_visible && !any_shadow_visible)) {
+            return;
+        }
 
         // todo, why not use the same color
         let shadow_color = |s: Shadow| -> Color {
@@ -332,6 +351,7 @@ impl Ui {
             blur: f32,
             fill: ColorFill,
             texture: Option<LoadedImage>,
+            is_real: bool,
         }
 
         let shadow_pass = |s: Shadow| ShapePass {
@@ -339,33 +359,32 @@ impl Ui {
             blur: blur + s.blur * scale_factor,
             fill: ColorFill::Color(shadow_color(s)),
             texture,
+            is_real: false,
         };
 
-        let real_pass = ShapePass {
+        let real_pass = (debug_box || fill_visible || texture.is_some()).then(|| ShapePass {
             offset: Xy::new(0.0, 0.0),
             blur,
             fill,
             texture,
-        };
+            is_real: true,
+        });
 
         let passes: [Option<ShapePass>; 3] = if debug_box {
-            [None, None, Some(real_pass)]
+            [None, None, real_pass]
         } else {
             [
-                node.params.shadow.map(shadow_pass),
-                node.params.second_shadow.map(shadow_pass),
-                Some(real_pass),
+                node.params.shadow.filter(|s| shadow_visible(*s)).map(shadow_pass),
+                node.params.second_shadow.filter(|s| shadow_visible(*s)).map(shadow_pass),
+                real_pass,
             ]
         };
 
         let texture_options = Some(node.params.image_options);
 
         // Draw all shapes, first the shadows then the real shape
-        let passes_len = passes.iter().filter(|p| p.is_some()).count();
-        let mut pass_index = 0;
         for pass in passes.into_iter().flatten() {
-            let is_real_pass = pass_index == passes_len - 1;
-            pass_index += 1;
+            let is_real_pass = pass.is_real;
             let px0 = x0 + pass.offset.x;
             let py0 = y0 + pass.offset.y;
             let px1 = x1 + pass.offset.x;
