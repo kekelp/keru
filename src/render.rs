@@ -451,10 +451,10 @@ impl Ui {
                 Shape::Arc { start_angle, end_angle, width } => {
                     let cx = (px0 + px1) / 2.0;
                     let cy = (py0 + py1) / 2.0;
-                    let radius = ((px1 - px0) / 2.0).min((py1 - py0) / 2.0);
+                    let outer_radius = ((px1 - px0) / 2.0).min((py1 - py0) / 2.0);
                     let actual_width = *width * scale_factor;
-                    let inner_radius = (radius - actual_width / 2.0).max(0.0);
-                    let outer_radius = radius + actual_width / 2.0;
+                    let inner_radius = (outer_radius - actual_width).max(0.0);
+                    let radius = (outer_radius - actual_width / 2.0).max(0.0);
                     let fill = if is_real_pass {
                         node_gradient_resolved.unwrap_or_else(|| pass.fill.resolve_radial(cx, cy, inner_radius, outer_radius, px0, py0, px1, py1))
                     } else {

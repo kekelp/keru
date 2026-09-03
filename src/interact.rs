@@ -808,10 +808,9 @@ impl System {
                 return d >= inner && d <= outer;
             }
             Shape::Arc { start_angle, end_angle, width } => {
-                let radius = ((px1 - px0) / 2.0).min((py1 - py0) / 2.0);
+                let outer = ((px1 - px0) / 2.0).min((py1 - py0) / 2.0);
                 let actual_width = width * scale_factor;
-                let inner = (radius - actual_width / 2.0).max(0.0);
-                let outer = radius + actual_width / 2.0;
+                let inner = (outer - actual_width).max(0.0);
                 return sd_arc(p, inner, outer, start_angle, end_angle) <= 0.0;
             }
             Shape::Pie { start_angle, end_angle } => {

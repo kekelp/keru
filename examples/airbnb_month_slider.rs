@@ -69,7 +69,6 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 
     let t = state.t;
     let month = state.month;
-    let [hx, hy] = arc_pos(t, TRACK_RADIUS);
 
     let start_angle = -TAU / 4.0;
     let end_angle = start_angle + t * TAU;
@@ -101,7 +100,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .shape(Shape::Arc { start_angle, end_angle, width: THICKNESS })
         .color(Color::rgba_u8(186, 0, 87, 200))
         .blur(60.0)
-        .size_symm(Size::Pixels(TRACK_RADIUS * 2.0))
+        .size_symm(Size::Pixels(OUTER_RADIUS * 2.0))
         .anchor_symm(Anchor::Center)
         .animate_properties(animate)
         .position_symm(Pos::Center);
@@ -112,7 +111,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
             color_inner: Color::rgba_u8(249, 30, 80, 200),
             color_outer: Color::rgba_u8(186, 0, 87, 200),
         })
-        .size_symm(Size::Pixels(TRACK_RADIUS * 2.0))
+        .size_symm(Size::Pixels(OUTER_RADIUS * 2.0))
         .anchor_symm(Anchor::Center)
         .animate_properties(animate)
         .position_symm(Pos::Center);
@@ -137,24 +136,16 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     let handle = DEFAULT
         .shape(Shape::Arc { start_angle: end_angle, end_angle, width: handle_radius * 2.0 })
         .color(Color::rgba_u8(255, 252, 255, 255))
-        .size_symm(Size::Pixels(TRACK_RADIUS * 2.0))
+        .size_symm(Size::Pixels((TRACK_RADIUS + handle_radius) * 2.0))
         .anchor_symm(Anchor::Center)
         .position_symm(Pos::Center)
+        .animate_layout(animate)
         .animate_properties(animate)
-        .shadow(Shadow { blur: 4.0, offset: Xy::new(0.0, 2.0), color: Some(Color::rgba_u8(0, 0, 0, 100)) });
-
-    // But use a real circle as a hitbox for simplicity.
-    let handle_hitbox = DEFAULT
-        .shape(Shape::Circle)
-        .color(Color::TRANSPARENT)
-        .size_symm(Size::Pixels((HANDLE_RADIUS + 5.0) * 2.0))
-        .anchor_symm(Anchor::Center)
-        .position(Pos::Pixels(hx), Pos::Pixels(hy))
-        .animate_layout(true)
         .sense_drag(true)
         .sense_hover(true)
         .absorbs_clicks(false)
-        .key(HANDLE);
+        .key(HANDLE)
+        .shadow(Shadow { blur: 4.0, offset: Xy::new(0.0, 2.0), color: Some(Color::rgba_u8(0, 0, 0, 100)) });
 
     let center_stack = V_STACK
         .size_symm(Size::FitContent)
@@ -198,7 +189,6 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                 });
 
                 ui.add(handle);
-                ui.add(handle_hitbox);
             });
         });
     });
