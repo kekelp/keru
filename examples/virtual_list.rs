@@ -34,6 +34,7 @@ fn update_ui(_: &mut (), ui: &mut Ui) {
     let last = (first + visible_count).min(ITEM_COUNT);
 
     let list = V_SCROLL_STACK
+        .sense_scroll(true)
         .stack_spacing(0.0)
         .size(Size::Pixels(320.0), Size::Pixels(500.0))
         .key(LIST);
@@ -42,7 +43,7 @@ fn update_ui(_: &mut (), ui: &mut Ui) {
     let top_spacer = SPACER.size_y(Size::Pixels(first as f32 * ROW_HEIGHT));
     let bottom_spacer = SPACER.size_y(Size::Pixels((ITEM_COUNT - last) as f32 * ROW_HEIGHT));
 
-    let element = BUTTON.sense_hover(true).size(Size::Fill, Size::Pixels(ROW_HEIGHT));
+    let element = BUTTON.size(Size::Fill, Size::Pixels(ROW_HEIGHT));
 
     ui.add(list).nest(|| {
         ui.add(top_spacer);

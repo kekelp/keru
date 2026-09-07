@@ -645,18 +645,21 @@ impl Ui {
         let mut scrolled_any_container = false;
         for &(target_i, is_sense, delta) in &targets {
             if is_sense {
-                // if the node has the scroll sense, we have to do set_new_ui_input and do a full rebuild, so everything will sort itself out automatically, scrollbar included.
                 let id = self.sys.nodes[target_i].id;
                 self.sys.mouse_input.push_scroll(Vec2::new(delta.x, delta.y), id, likely_scrollwheel);
                 self.set_new_ui_input();
-            } else {
-                // otherwise, do atomic updates on the scroll value and the scrollbar state, and schedule just a rerender.
+            }
+            let scrollable = self.sys.nodes[target_i].params.layout.scrollable;
+            if scrollable[X] || scrollable[Y] {
+                // Do atomic updates on the scroll value and the scrollbar state.
                 let animate = likely_scrollwheel;
                 self.sys.update_container_scroll(target_i, delta[X], X, animate);
                 self.sys.update_container_scroll(target_i, delta[Y], Y, animate);
                 self.sys.update_scrollbar_handle_params(target_i);
-                self.partial_relayout_for_scrollbar(target_i);
-                scrolled_any_container = true;
+                if ! is_sense {
+                    self.partial_relayout_for_scrollbar(target_i);
+                    scrolled_any_container = true;
+                }
             }
         }
 
