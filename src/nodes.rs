@@ -171,9 +171,11 @@ impl Ui {
         // update the in-tree links and the thread-local state based on the current parent.
         self.set_tree_links(real_final_i, parent, depth, insert_after);
 
+        // todo: clean up the fake depth (should be unused)
+        let true_depth = self.sys.nodes[parent].depth + 1;
         let current_frame = self.sys.current_frame;
         let real_final_node = &mut self.sys.nodes[real_final_i];
-        real_final_node.depth = depth;
+        real_final_node.depth = true_depth;
         if real_final_node.currently_hidden {
             real_final_node.frame_added = current_frame;
         }
