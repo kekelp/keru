@@ -40,16 +40,15 @@ impl Ui {
     #[track_caller]
     pub fn add<'a>(&mut self, node: Node<'a>) -> UiParent
     {
-        let key = node.key_or_anon_key();
-        let (i, _id) = self.add_or_update_node(key);
+        let (i, _id) = self.add_or_update_node(node.key);
         self.set_params(i, &node);
         self.set_params_text(i, &node);
 
         if node.layout.scrollable.y {
-            self.add_scrollbar(i, key, Y);
+            self.add_scrollbar(i, Y);
         }
         if node.layout.scrollable.x {
-            self.add_scrollbar(i, key, X);
+            self.add_scrollbar(i, X);
         }
 
         return UiParent { i, sibling_cursor: SiblingCursor::None, ui_instance_id: self.sys.unique_id };
@@ -863,8 +862,8 @@ impl Ui {
         prefix.truncate(old_len);
     }
 
-    pub(crate) fn add_scrollbar(&mut self, i: NodeI, key: NodeKey, axis: Axis) {
-        let (rail_key, handle_key) = scrollbar_keys(key, axis);
+    pub(crate) fn add_scrollbar(&mut self, i: NodeI, axis: Axis) {
+        let (rail_key, handle_key) = scrollbar_keys(self.sys.nodes[i].id, axis);
 
         // todo: without the "! released", it gets stuck to the wide size after dragging.
         let wide = self.is_hovered(rail_key) || self.is_hovered(handle_key)
@@ -1002,10 +1001,11 @@ impl Ui {
     }
 }
 
-fn scrollbar_keys(key: NodeKey, axis: Axis) -> (NodeKey, NodeKey) {
+fn scrollbar_keys(container_id: Id, axis: Axis) -> (NodeKey, NodeKey) {
+    let base = NodeKey::new_temp(container_id, "[internal] Scroll Container");
     match axis {
-        Y => (key.sibling(SCROLL_RAIL_Y), key.sibling(SCROLL_HANDLE_Y)),
-        X => (key.sibling(SCROLL_RAIL_X), key.sibling(SCROLL_HANDLE_X)),
+        Y => (base.sibling(SCROLL_RAIL_Y), base.sibling(SCROLL_HANDLE_Y)),
+        X => (base.sibling(SCROLL_RAIL_X), base.sibling(SCROLL_HANDLE_X)),
     }
 }
 
@@ -1169,7 +1169,7 @@ pub(crate) fn with_timer<T>(operation_name: &str, if_more_than: Option<std::time
 impl Ui {
     /// Alternate form of [`Ui::add()`] that returns an [`UiNode`].
     /// 
-    /// This way, we can call [`is_clicked`](UiNode::is_clicked()) and all the other [`UiNode`] directly after adding the node, without tricks.
+    /// This way, we can call [`is_clicked`](UiNode::is_clicked()) and all the other [`UiNode`] methods directly after adding the node, without tricks.
     /// 
     /// However, nesting requires two separate calls to `nest()` and `enter()` instead of just one `nest()`.
     /// 
@@ -1184,27 +1184,26 @@ impl Ui {
     #[track_caller]
     pub fn add2<'a>(&mut self, node: Node<'a>) -> &mut UiNode<'_>
     {
-        let key = node.key_or_anon_key();
-        let (i, _id) = self.add_or_update_node(key);
+        let (i, _id) = self.add_or_update_node(node.key);
         self.set_params(i, &node);
         self.set_params_text(i, &node);
 
         if node.layout.scrollable.y {
-            self.add_scrollbar(i, key, Y);
+            self.add_scrollbar(i, Y);
         }
         if node.layout.scrollable.x {
-            self.add_scrollbar(i, key, X);
+            self.add_scrollbar(i, X);
         }
 
-        return self.get_node_mut(key).unwrap();
+        return self.node_wrapper_mut(i);
     }
 }
 impl System {
     pub(crate) fn update_scrollbar_handle_params(&mut self, container_i: NodeI) {
-        let key = self.nodes[container_i].original_key;
+        let container_id = self.nodes[container_i].id;
 
         for axis in [Y, X] {
-            let (_, handle_key) = scrollbar_keys(key, axis);
+            let (_, handle_key) = scrollbar_keys(container_id, axis);
             let Some(handle_i) = self.nodes.get_by_id(handle_key.id_with_key_scope()) else {
                 continue;
             };

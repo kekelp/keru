@@ -407,6 +407,11 @@ impl Ui {
         return Some(self.arena_for_wrapper_structs.alloc(wrapper));
     }
 
+
+    pub(crate) fn node_wrapper_mut(&mut self, i: NodeI) -> &mut UiNode<'_> {
+        let wrapper = UiNode { i, sys: UiRef::Mut(&mut self.sys) };
+        return self.arena_for_wrapper_structs.alloc(wrapper);
+    }
 }
 
 /// The data needed for rendering a node with custom code.

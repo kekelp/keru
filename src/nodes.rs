@@ -91,12 +91,16 @@ impl Nodes {
 
 impl Ui {
     #[track_caller]
-    pub(crate) fn add_or_update_node(&mut self, key: NodeKey) -> (NodeI, Id) {
+    pub(crate) fn add_or_update_node(&mut self, key: Option<NodeKey>) -> (NodeI, Id) {
         let (parent, insert_after, depth) = thread_local::current_parent(self.sys.unique_id);
         let frame = self.sys.current_frame;
         let mut new_node_should_relayout = false;
 
-        // Compute the scoped id once. It involves a thread-local access and a hash, so we avoid recomputing it below.
+        let key = match key {
+            Some(key) => key,
+            None => NodeKey::new(Id(caller_location_id()), "Anon node").sibling(self.sys.nodes[parent].id),
+        };
+
         let scoped_id = key.id_with_key_scope();
 
         // Check the node corresponding to the key's id.

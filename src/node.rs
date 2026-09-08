@@ -2187,16 +2187,6 @@ impl<'a> Node<'a> {
     }
 }
 
-impl Node<'_> {
-    #[track_caller]
-    pub(crate) fn key_or_anon_key(&self) -> NodeKey {
-        return match self.key {
-            Some(key) => key,
-            None => NodeKey::new(Id(caller_location_id()), "Anon node"),
-        };
-    }
-}
-
 type MarkdownStyleRange = (TextStyleProperty, Range<usize>);
 
 fn apply_markdown<'a>(text: &str, arena: &'a bumpalo::Bump) -> (BumpString<'a>, BumpVec<'a, MarkdownStyleRange>) {
