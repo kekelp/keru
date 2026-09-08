@@ -500,6 +500,11 @@ impl Ui {
         return self.sys.inspect_mode;
     }
 
+    /// Keep the [`Ui`] awake for the next frame..
+    pub fn keep_awake(&mut self) {
+        self.sys.has_any_time_sense_node = true;
+    }
+
     /// Get a reference to the active theme.
     pub fn theme(&mut self) -> &mut Theme {
         return &mut self.sys.theme;
