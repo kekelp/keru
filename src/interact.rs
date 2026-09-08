@@ -410,12 +410,15 @@ impl Ui {
         }
 
         if let Key::Named(NamedKey::Tab) = &event.logical_key {
-            let mods = self.sys.key_input.key_mods();
-            let no_mods = mods.is_empty();
-            if event.state.is_pressed() && no_mods {
-                let forward = !mods.shift_key();
-                self.move_keyboard_focus(forward);
-                return true;
+            if event.state.is_pressed() {
+                let mods = self.sys.key_input.key_mods();
+                use winit::keyboard::ModifiersState;
+                let no_other_mods = *mods & ! ModifiersState::SHIFT == ModifiersState::empty();
+                if no_other_mods {
+                    let forward = ! mods.shift_key();
+                    self.move_keyboard_focus(forward);
+                    return true;
+                }
             }
         }
 
