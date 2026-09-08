@@ -752,7 +752,35 @@ float4 segment_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, floa
 
     float2 p = top_left + uv * size;
 
-    float dist = sd_segment(p, seg.start, seg.end) - half_thickness;
+    float2 seg_vec = seg.end - seg.start;
+    float seg_len = length(seg_vec);
+    float along = 0.0;
+    float perp = length(p - seg.start);
+    if (seg_len > 0.001) {
+        float2 seg_dir = seg_vec / seg_len;
+        along = dot(p - seg.start, seg_dir);
+        perp = length((p - seg.start) - seg_dir * along);
+    }
+
+    float axial = max(-along, along - seg_len);
+
+    float dash_length = seg.thickness_dash[1];
+    if (dash_length > 0.0001) {
+        float t = along + seg.thickness_dash[2];
+        float dash_period = dash_length * 2.0;
+        float pos_in_period = fmod(t, dash_period);
+        if (pos_in_period < 0.0) pos_in_period += dash_period;
+
+        float dash_axial;
+        if (pos_in_period <= dash_length) {
+            dash_axial = 0.0;
+        } else {
+            dash_axial = min(pos_in_period - dash_length, dash_period - pos_in_period);
+        }
+        axial = max(axial, dash_axial);
+    }
+
+    float dist = length(float2(max(axial, 0.0), perp)) - half_thickness;
 
     if (seg.thickness_dash[3] > 0.001) {
         dist = annular(dist, seg.thickness_dash[3]);
@@ -768,46 +796,6 @@ float4 segment_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, floa
 
     if (alpha < 0.001) {
         discard;
-    }
-
-    // Handle dashed lines
-    float dash_length = seg.thickness_dash[1];
-    if (dash_length > 0.0001) {
-        float dash_offset = seg.thickness_dash[2];
-        float2 seg_vec = seg.end - seg.start;
-        float seg_len = length(seg_vec);
-        float t = 0.0;
-        if (seg_len > 0.001) {
-            t = dot(p - seg.start, seg_vec) / seg_len;
-        }
-        t += dash_offset;
-
-        float dash_period = dash_length * 2.0;
-        float pos_in_period = fmod(t, dash_period);
-        if (pos_in_period < 0.0) pos_in_period += dash_period;
-
-        // Signed distance to nearest dash boundary: positive inside a dash, negative in a gap.
-        // Same fix as circle dashes: compute distance to both neighboring boundaries.
-        float dist_to_nearest_edge;
-        if (pos_in_period <= dash_length) {
-            dist_to_nearest_edge = min(pos_in_period, dash_length - pos_in_period);
-        } else {
-            float dist_to_prev = pos_in_period - dash_length;
-            float dist_to_next = dash_period - pos_in_period;
-            dist_to_nearest_edge = -min(dist_to_prev, dist_to_next);
-        }
-
-        float dash_alpha;
-        if (seg.blur_radius > 0.5) {
-            dash_alpha = 1.0 / (1.0 + exp(1.7 * (-dist_to_nearest_edge) / seg.blur_radius));
-        } else {
-            dash_alpha = linearstep(-0.5, 0.5, dist_to_nearest_edge);
-        }
-        alpha *= dash_alpha;
-
-        if (alpha < 0.001) {
-            discard;
-        }
     }
 
     // Calculate gradient color
