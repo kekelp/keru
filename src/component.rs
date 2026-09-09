@@ -2,23 +2,11 @@ use crate as keru;
 use keru::*;
 use std::{any::TypeId, collections::hash_map::Entry};
 
-
-/// Trait for a reusable Ui component.
-///
-/// This trait is simpler version of [`Component`] for simple components that don't use [`Component::State`], [`Component::AddResult`] or [`Component::ComponentOutput`].
-pub trait SimpleComponent {
-    /// Add the component's nodes to the `Ui` and run any side effects.
-    /// 
-    /// When the component's user calls [`Ui::add_component()`], the [`Ui`] will do some setup, then call this function.
-    fn add_to_ui(&mut self, ui: &mut Ui);
-}
-
 /// Trait for a reusable Ui component.
 pub trait Component {
     /// State that the [`Ui`] will automatically associate with each instance of this component.
     /// 
     /// If you don't need this, you can set it to the empty type `()`. Unfortunately, Rust doesn't allow traits to provide default values for their associated types.
-    /// Consider also using [`SimpleComponent`].
     type State;
 
     /// The type returned by [`Component::add_to_ui()`]. The component user will receive it back when calling [`Ui::add_component()`].
@@ -28,13 +16,11 @@ pub trait Component {
     /// - return the result of the app user's interaction with a node within the component.
     /// 
     /// If you don't need this, you can set it to the empty type `()`. Unfortunately, Rust doesn't allow traits to provide default values for their associated types.
-    /// Consider also using [`SimpleComponent`].
     type AddResult;
 
     /// The type returned by [`Component::run_component()`]. The component user will receive it back when calling [`Ui::run_component()`].
     /// 
     /// If you don't need this, you can set it to the empty type `()`. Unfortunately, Rust doesn't allow traits to provide default values for their associated types.
-    /// Consider also using [`SimpleComponent`].
     type ComponentOutput: Default;
 
     /// Add the component's nodes to the `Ui` and run any side effects.
@@ -66,16 +52,6 @@ pub trait Component {
     /// See the "drag_and_drop_component" example for an example.
     fn run_component(_ui: &mut Ui) -> Self::ComponentOutput {
         Self::ComponentOutput::default()
-    }
-}
-
-impl<T: SimpleComponent> Component for T {
-    type AddResult = ();
-    type State = ();
-    type ComponentOutput = ();
-
-    fn add_to_ui(&mut self, ui: &mut Ui, _state: &mut Self::State) -> Self::AddResult {
-        SimpleComponent::add_to_ui(self, ui)
     }
 }
 
