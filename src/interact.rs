@@ -461,11 +461,20 @@ impl Ui {
         self.set_new_ui_input();
     }
 
-    /// Set the keyboard focus to the node corresponding to `key`.
-    pub fn focus(&mut self, key: NodeKey) {
+    /// Set the keyboard focus to the node corresponding to `key` and makes the focus indicator immediately visible.
+    pub fn set_focus(&mut self, key: NodeKey) {
         let id = key.id_with_key_scope();
         if let Some(i) = self.sys.nodes.get_by_id(id) {
             self.set_focus_node(i, true);
+        };
+    }
+
+    /// Set the internal keyboard focus to the node corresponding to `key`, without showing the focus indicator if it's currently hidden.
+    pub fn update_focus_silently(&mut self, key: NodeKey) {
+        let id = key.id_with_key_scope();
+        if let Some(i) = self.sys.nodes.get_by_id(id) {
+            let currently_showing_indicator = self.sys.show_focus_indicator;
+            self.set_focus_node(i, currently_showing_indicator);
         };
     }
 

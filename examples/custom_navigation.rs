@@ -65,10 +65,10 @@ fn update_ui(_state: &mut (), ui: &mut Ui) {
                         nx = x * dy.abs() - dx * limit;
                         ny = y * dx.abs() - dy * limit;
                     }
-                    ui.focus(CELL.sibling((nx, ny)));
+                    ui.set_focus(CELL.sibling((nx, ny)));
                 }
                 None => {
-                    ui.focus(CELL.sibling((0, 0)));
+                    ui.set_focus(CELL.sibling((0, 0)));
                 }
             }
         }
