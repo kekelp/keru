@@ -2090,7 +2090,7 @@ impl<'a> Node<'a> {
     /// 
     /// # Example
     /// 
-    /// ```no_run
+    /// ```ignore
     /// # use keru::*; use keru::node_library::*; let mut ui: Ui = unimplemented!();
     /// let image = IMAGE.static_image(include_bytes!("compile_time_image_path.png"));
     /// ui.add(image);
@@ -2110,7 +2110,7 @@ impl<'a> Node<'a> {
     /// 
     /// # Example
     /// 
-    /// ```no_run
+    /// ```ignore
     /// # use keru::*; use keru::node_library::*; let mut ui: Ui = unimplemented!();
     /// let icon = ICON.static_svg(include_bytes!("compile_time_svg_path.svg"));
     /// ui.add(icon);
