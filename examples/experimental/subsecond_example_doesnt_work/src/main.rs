@@ -25,9 +25,9 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
             .text("Increase2122")
             .key(INCREASE);
 
-        ui.v_stack().nest(|| {
+        ui.add(V_STACK).nest(|| {
             ui.add(increase_button);
-            ui.label(&state.count.to_string());
+            ui.add(LABEL.text(&state.count.to_string()));
         });
 
         if ui.is_clicked(INCREASE) {

@@ -9,79 +9,6 @@ use keru::Pos::*;
 pub struct Tab(pub &'static str);
 
 impl Ui {
-    /// Add a panel.
-    #[track_caller]
-    pub fn panel(&mut self) -> UiParent {
-        self.add(PANEL)
-    }
-
-    /// Add a vertical stack container.
-    #[track_caller]
-    pub fn v_stack(&mut self) -> UiParent {
-        self.add(V_STACK)
-    }
-
-    /// Add a spacer.
-    #[track_caller]
-    pub fn spacer(&mut self) -> UiParent {
-        self.add(SPACER)
-    }
-    
-    /// Add a horizontal stack container.
-    #[track_caller]
-    pub fn h_stack(&mut self) -> UiParent {
-        self.add(H_STACK)
-    }
-
-    /// Add a multiline text paragraph from a `'static str`.
-    #[track_caller]
-    pub fn text_edit(&mut self, text: &'static str) -> UiParent {
-        let params = TEXT_EDIT.static_text(text);
-        self.add(params)
-    }
-
-    /// Add a single-line text element.
-    #[track_caller]
-    pub fn text_line(&mut self, text: &str) -> UiParent {
-        let params = TEXT.text(text);
-        self.add(params)
-    }
-
-    /// Add a single-line text element from a `'static str`.
-    #[track_caller]
-    pub fn static_text_line(&mut self, text: &'static str) -> UiParent {
-        let params = TEXT.static_text(text);
-        self.add(params)
-    }
-
-    /// Add a multiline text paragraph.
-    #[track_caller]
-    pub fn paragraph(&mut self, text: &str) -> UiParent {
-        let params = TEXT_PARAGRAPH.text(text);
-        self.add(params)
-    }
-
-    /// Add a multiline text paragraph from a `'static str`.
-    #[track_caller]
-    pub fn static_paragraph(&mut self, text: &'static str) -> UiParent {
-        let params = TEXT_PARAGRAPH.static_text(text);
-        self.add(params)
-    }
-
-    /// Add a label.
-    #[track_caller]
-    pub fn label(&mut self, text: &str) -> UiParent {
-        let params = LABEL.text(text);
-        self.add(params)
-    }
-
-    /// Add a label from a `&static str`.
-    #[track_caller]
-    pub fn static_label(&mut self, text: &'static str) -> UiParent {
-        let params = LABEL.static_text(text);
-        self.add(params)
-    }
-
     /// Add a vertical tabs container
     #[track_caller]
     pub fn vertical_tabs(&mut self, tabs: &[Tab], current_tab: &mut usize) -> UiParent {
@@ -287,7 +214,7 @@ impl Ui {
 
                 self.add(slider_container).nest(|| {
                     self.add(slider_fill);
-                    self.text_line(&text);
+                    self.add(TEXT.text(&text));
                 });
             });
         });
@@ -353,7 +280,7 @@ impl Ui {
 
                 self.add(slider_container).nest(|| {
                     self.add(slider_fill);
-                    self.text_line(&text);
+                    self.add(TEXT.text(&text));
                 });
             });
         });

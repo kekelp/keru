@@ -18,9 +18,9 @@
 //!     .key(INCREASE);
 //! 
 //! // Add the nodes to the tree
-//! ui.v_stack().nest(|| {
+//! ui.add(V_STACK).nest(|| {
 //!     ui.add(increase_button);
-//!     ui.label(&state.count.to_string());
+//!     ui.add(LABEL.text(&state.count.to_string()));
 //! });
 //! 
 //! // Change the state in response to events
@@ -43,12 +43,12 @@
 //! Every frame, start a new GUI frame, rerun all your GUI building code, then finish the frame.
 //! 
 //! ```no_run
-//! # use keru::*;
+//! # use keru::*; use keru::node_library::*;
 //! # let mut ui: Ui = unimplemented!();
 //! ui.begin_frame();
-//! ui.v_stack().nest(|| {
-//!     ui.label("Hello");
-//!     ui.label("World");
+//! ui.add(V_STACK).nest(|| {
+//!     ui.add(LABEL.text("Hello"));
+//!     ui.add(LABEL.text("World"));
 //! });
 //! ui.finish_frame();
 //! ```

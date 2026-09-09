@@ -152,13 +152,13 @@ impl State {
 
         self.ui.add(panel).nest(|| {
             self.ui.add(V_STACK).nest(|| {
-                self.ui.static_paragraph("Background panel,\nrendered below the custom shader rect");
+                self.ui.add(TEXT_PARAGRAPH.static_text("Background panel,\nrendered below the custom shader rect"));
                 
                 self.ui.add(custom_rect).nest(|| {
                     self.ui.add(button);
                 });
                 
-                self.ui.static_paragraph("Click and drag the panel to move it.");
+                self.ui.add(TEXT_PARAGRAPH.static_text("Click and drag the panel to move it."));
             })
         });
 

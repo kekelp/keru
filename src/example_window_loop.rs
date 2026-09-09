@@ -46,9 +46,9 @@ pub fn basic_env_logger_init() {
 ///         .text("Increase")
 ///         .key(INCREASE);
 ///
-///     ui.v_stack().nest(|| {
+///     ui.add(V_STACK).nest(|| {
 ///         ui.add(increase_button);
-///         ui.label(&state.count.to_string());
+///         ui.add(LABEL.text(&state.count.to_string()));
 ///     });
 ///
 ///     if ui.is_clicked(INCREASE) {

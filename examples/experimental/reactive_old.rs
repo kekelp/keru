@@ -44,10 +44,10 @@ impl CustomComponents for Ui {
                     .static_text(&"Decrease")
                     .key(DECREASE);
                 
-                self.h_stack().nest(|| {
+                self.add(H_STACK).nest(|| {
                     self.add(decrease_button);
                     // When using a wrong state declaration in reactive(), this count label will still update, and you won't see any error messages for it. This is because functions taking an `Observer<text>` can use the Observer directly, so they always skip unneeded updates even without a reactive block.
-                    self.label(&count.to_string());
+                    self.add(LABEL.text(&count.to_string()));
                     self.add(increase_button);
                 });
                 

@@ -68,8 +68,8 @@ impl State {
                 .size_y(Size::Pixels(50.0));
 
             self.ui.add(pixel_panel_2).nest(|| {
-                self.ui.v_stack().nest(|| {
-                    self.ui.text_line(&text);
+                self.ui.add(V_STACK).nest(|| {
+                    self.ui.add(TEXT.text(&text));
                 });
             });
 
@@ -97,8 +97,8 @@ impl State {
             .size_symm(Size::FitContent);
 
         self.ui.add(tools_panel).nest(|| {
-            self.ui.h_stack().nest(|| {
-                self.ui.v_stack().nest(|| {
+            self.ui.add(H_STACK).nest(|| {
+                self.ui.add(V_STACK).nest(|| {
                     self.ui.add(brush);
                     self.ui.add(eraser);
                 });
@@ -156,7 +156,7 @@ impl State {
             
             self.ui.add(slider_container).nest(|| {
                 self.ui.add(slider_fill);
-                self.ui.text_line(&text);
+                self.ui.add(TEXT.text(&text));
             });
             
         });

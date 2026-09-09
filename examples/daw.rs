@@ -160,7 +160,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .sense_time(state.is_playing);
 
     // UI tree.
-    ui.h_stack().nest(|| {
+    ui.add(H_STACK).nest(|| {
 
         // Right column: ruler + track rows, clipped and shifted by scroll offset.
         ui.add(timeline_area).nest(|| {

@@ -67,9 +67,9 @@ impl State {
             .text("Increase")
             .key(INCREASE);
 
-        self.ui.v_stack().nest(|| {
+        self.ui.add(V_STACK).nest(|| {
             self.ui.add(button);
-            self.ui.label(&self.count.to_string());
+            self.ui.add(LABEL.text(&self.count.to_string()));
         });
 
         if self.ui.is_clicked(INCREASE) {

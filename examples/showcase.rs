@@ -37,7 +37,7 @@ trait UiExt {
 impl UiExt for Ui {
     fn intro_tab(&mut self, state: &mut State) {
         self.add(V_SCROLL_STACK.size_symm(Size::Fill)).nest(|| {
-            self.static_paragraph("Keru is an experimental GUI library.");
+            self.add(TEXT_PARAGRAPH.static_text("Keru is an experimental GUI library."));
             
             #[node_key] const TEXT_EDIT_1: NodeKey;
             let edit = TEXT_EDIT_LINE
@@ -58,18 +58,18 @@ impl UiExt for Ui {
 
             self.add(edit2);
 
-            self.static_paragraph("Here are some basic GUI elements:");
-            self.static_paragraph("Button and label:");
+            self.add(TEXT_PARAGRAPH.static_text("Here are some basic GUI elements:"));
+            self.add(TEXT_PARAGRAPH.static_text("Button and label:"));
 
             self.add(H_STACK).nest(|| {
                 if self.add(BUTTON.text("Increase")).is_clicked(self) {
                     state.f32_value += 1.0;
                 }
                 let text = format!("{:.2}", state.f32_value);
-                self.label(text.as_str());
+                self.add(LABEL.text(text.as_str()));
             });
 
-            self.static_paragraph("Image:");
+            self.add(TEXT_PARAGRAPH.static_text("Image:"));
 
             let image = IMAGE.static_image(include_bytes!("../src/textures/clouds.png"));
             self.add(image);
@@ -77,17 +77,17 @@ impl UiExt for Ui {
             let icon = ICON.static_svg(include_bytes!("assets/tiger.svg")).size(Size::Pixels(250.0), Size::Pixels(250.0));
             self.add(icon);
 
-            self.static_paragraph("Fat slider:");
+            self.add(TEXT_PARAGRAPH.static_text("Fat slider:"));
 
             self.add_component(Slider::new(&mut state.f32_value, 0.0, 100.0, true));
 
-            self.static_paragraph("Classic slider:");
+            self.add(TEXT_PARAGRAPH.static_text("Classic slider:"));
             self.classic_slider(&mut state.f32_value, 0.0, 100.0);
 
-            self.static_paragraph("Press F1 for Inspect mode. This lets you see the bounds of the layout rectangles. \n\n\
+            self.add(TEXT_PARAGRAPH.static_text("Press F1 for Inspect mode. This lets you see the bounds of the layout rectangles. \n\n\
                 In Inspect mode, hovering nodes will also log an Info message with the node's debug name and source code location. \n\n\
                 Press Ctrl+Tab and Ctrl+Shift+Tab to switch between tabs. \n\n\
-                Press Ctrl+Plus, Ctrl+Minus and Ctrl+0 to control the zoom level of the default text style.\n\n");
+                Press Ctrl+Plus, Ctrl+Minus and Ctrl+0 to control the zoom level of the default text style.\n\n"));
 
 
             let red_text = TEXT
@@ -98,8 +98,8 @@ impl UiExt for Ui {
             
             self.add(red_text);
 
-            self.static_paragraph("The tab viewer uses the \"children_can_hide\" property, that can be set on any node. This means that when switching tabs, all ui state is kept in the background, and we can switch back without recreating the node tree. In addition all implicit \"state\" like the scroll offset, the text in the edit boxes, etc. is retained. \n\n\
-            Without \"children_can_hide\", everything would be cleaned up as soon as the tabs change.");
+            self.add(TEXT_PARAGRAPH.static_text("The tab viewer uses the \"children_can_hide\" property, that can be set on any node. This means that when switching tabs, all ui state is kept in the background, and we can switch back without recreating the node tree. In addition all implicit \"state\" like the scroll offset, the text in the edit boxes, etc. is retained. \n\n\
+            Without \"children_can_hide\", everything would be cleaned up as soon as the tabs change."));
 
         });
     }
@@ -141,11 +141,11 @@ impl UiExt for Ui {
 
         self.add(PANEL.size_symm(Size::Fill)).nest(|| {
             self.add(big_button.size_symm(Size::Fill)).nest(|| {
-                self.spacer();
+                self.add(SPACER);
                 self.add(nested_button_1);
-                self.spacer();
+                self.add(SPACER);
                 self.add(nested_button_2);
-                self.spacer();
+                self.add(SPACER);
             });
         });
     }
@@ -180,7 +180,7 @@ impl UiExt for Ui {
 
             self.add(button_with_colored_stroke);
 
-            self.static_paragraph("By adding Nodes with different Shape values, we can do some basic vector drawing. In debug mode (F1) you can see that every element is a regular Node.");
+            self.add(TEXT_PARAGRAPH.static_text("By adding Nodes with different Shape values, we can do some basic vector drawing. In debug mode (F1) you can see that every element is a regular Node."));
 
             #[node_key] const LINE_CONTAINER: NodeKey;
             let line_container = CONTAINER
@@ -272,10 +272,10 @@ impl UiExt for Ui {
                 self.add(hexagon2);
             });
 
-            self.static_paragraph("There is also a canvas drawing API for drawing shapes directly, such as rectangles, circles, line segments and quadratic Bezier curves.\n\n\
+            self.add(TEXT_PARAGRAPH.static_text("There is also a canvas drawing API for drawing shapes directly, such as rectangles, circles, line segments and quadratic Bezier curves.\n\n\
             This allows custom vector drawing without having to create one Node for each small graphics element.\n\n\
             The canvas drawing shapes are drawn in the same draw call as the normal GUI nodes, so it's both faster and simpler to use compared to fully custom wgpu rendering. \n\n\
-            ");
+            "));
 
             #[node_key] const CANVAS_CONTAINER: NodeKey;
             let canvas_container = CONTAINER
@@ -334,7 +334,7 @@ impl UiExt for Ui {
                 }
             });
 
-            self.static_paragraph("Nodes also have `scale` and `offset` fields apply to all their children, including the shapes drawn with the canvas API. In this example, we're using the `StatefulTransformView` component, which uses scale and offset internally, and also implements scroll-zooming and panning with space+drag or with the middle mouse button.");
+            self.add(TEXT_PARAGRAPH.static_text("Nodes also have `scale` and `offset` fields apply to all their children, including the shapes drawn with the canvas API. In this example, we're using the `StatefulTransformView` component, which uses scale and offset internally, and also implements scroll-zooming and panning with space+drag or with the middle mouse button."));
 
             let bg_panel = PANEL.size(Size::Frac(0.8), Size::Pixels(900.0));
             self.add(bg_panel).nest(|| {
@@ -350,7 +350,7 @@ impl UiExt for Ui {
                             self.add(PANEL.color(Color::BLUE).size_symm(Size::Pixels(50.0)));
                         });
     
-                        self.static_paragraph("The canvas API can be used inside a zoomable area: these are analytically rendered quadratic Beziers that can be scaled infinitely.");
+                        self.add(TEXT_PARAGRAPH.static_text("The canvas API can be used inside a zoomable area: these are analytically rendered quadratic Beziers that can be scaled infinitely."));
 
                         #[node_key] const CANVAS_CONTAINER: NodeKey;
                         let canvas_container = CONTAINER
@@ -428,9 +428,9 @@ impl UiExt for Ui {
             The plan is to provide most components both in stateful and state-borrowing forms.");
             self.add(header);
 
-            self.static_paragraph("For fully custom wgpu rendered content, there is also an experimental system for rendering in-between the Keru ui elements. See the \"custom_rendering\" example. This necessarily means that the keru rendering will be split between multiple draw calls.");
+            self.add(TEXT_PARAGRAPH.static_text("For fully custom wgpu rendered content, there is also an experimental system for rendering in-between the Keru ui elements. See the \"custom_rendering\" example. This necessarily means that the keru rendering will be split between multiple draw calls."));
 
-            self.static_paragraph("Of course if you just want to draw custom wgpu effects below or above the GUI, as when rendering a game, you can do it without any help from keru. Keru doesn't steal control of your winit/wgpu loop. See the \"window_loop\" example.");
+            self.add(TEXT_PARAGRAPH.static_text("Of course if you just want to draw custom wgpu effects below or above the GUI, as when rendering a game, you can do it without any help from keru. Keru doesn't steal control of your winit/wgpu loop. See the \"window_loop\" example."));
 
         });
 
