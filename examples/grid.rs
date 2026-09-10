@@ -126,10 +126,10 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                         ui.add(BUTTON.text(&columns_label).key(TOGGLE_COLUMNS));
                         if state.use_n_columns {
                             ui.add(TEXT.text("Columns: (rounded)"));
-                            ui.add_component(Slider::new(&mut state.n_columns, 0.0, 50.0, true))
+                            ui.add_component_with_state(Slider::new(0.0, 50.0, true), &mut state.n_columns)
                         } else {
                             ui.add(TEXT.text("Width: (rounded)"));
-                            ui.add_component(Slider::new(&mut state.column_width, 0.0, 300.0, true))
+                            ui.add_component_with_state(Slider::new(0.0, 300.0, true), &mut state.column_width)
                         }
                     });
                 });

@@ -4,7 +4,7 @@ pub(crate) const DT: f32 = 1.0 / 60.0;
 
 const TUNING_RESCALE: f32 = 165.0 * 1.0 / 60.0;
 
-const BASE_EXPONENTIAL_RATE: f32 = 15.0 * TUNING_RESCALE;
+const BASE_EXPONENTIAL_RATE: f32 = 5.0 * TUNING_RESCALE;
 
 const SNAP_DISTANCE: f32 = 0.003;
 const MIN_SPEED: f32 = 0.005 * TUNING_RESCALE;

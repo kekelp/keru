@@ -181,7 +181,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     let mut hovered = None;
     ui.add(frame).nest(|| {
         ui.add(content).nest(|| {
-        ui.add_component(TransformView::new(transform)).nest(|| {
+        ui.add_component_with_state(TransformView, transform).nest(|| {
             ui.add(plot).nest(|| {
                 ui.add(gradient);
 

@@ -102,8 +102,8 @@ pub use component::*;
 mod thread_local_arena;
 pub use thread_local_arena::*;
 
-mod component_library;
-pub use component_library::*;
+pub mod components;
+pub use components::*;
 
 mod interact;
 pub use crate::interact::*;

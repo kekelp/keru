@@ -8,10 +8,13 @@ use winit::keyboard::Key;
 #[derive(Default)]
 struct State {
     tabs: Vec<Tab>,
-    current_tab: usize,
+    current_tab: Tab,
 
     f32_value: f32,
 }
+
+#[derive(Clone, Copy, PartialEq, Eq, Default)]
+struct Tab(&'static str);
 
 const INTRO_TAB: Tab = Tab("Intro");
 const TEXT_TAB: Tab = Tab("Text");
@@ -79,10 +82,10 @@ impl UiExt for Ui {
 
             self.add(TEXT_PARAGRAPH.static_text("Fat slider:"));
 
-            self.add_component(Slider::new(&mut state.f32_value, 0.0, 100.0, true));
+            self.add_component_with_state(Slider::new(0.0, 100.0, true), &mut state.f32_value);
 
             self.add(TEXT_PARAGRAPH.static_text("Classic slider:"));
-            self.classic_slider(&mut state.f32_value, 0.0, 100.0);
+            self.add_component_with_state(ClassicSlider::new(0.0, 100.0), &mut state.f32_value);
 
             self.add(TEXT_PARAGRAPH.static_text("Press F1 for Inspect mode. This lets you see the bounds of the layout rectangles. \n\n\
                 In Inspect mode, hovering nodes will also log an Info message with the node's debug name and source code location. \n\n\
@@ -338,7 +341,7 @@ impl UiExt for Ui {
 
             let bg_panel = PANEL.size(Size::Frac(0.8), Size::Pixels(900.0));
             self.add(bg_panel).nest(|| {
-                self.add_component(StatefulTransformView).nest(|| {
+                self.add_component(TransformView).nest(|| {
                     self.add(V_STACK).nest(|| {
                         self.add(MULTILINE_LABEL.text("Transformed subtree"));
     
@@ -443,14 +446,20 @@ impl State {
     fn update_ui(&mut self, ui: &mut Ui) {
         self.update_global_text(ui);
 
-        ui.vertical_tabs(&self.tabs[..], &mut self.current_tab)
-            .nest(|| match self.tabs[self.current_tab] {
-                INTRO_TAB => ui.intro_tab(self),
-                NODES_TAB => ui.nodes_tab(self),
-                TEXT_TAB => ui.text_tab(),
-                GRAPHICS_TAB => ui.graphics_tab(self),
-                _ => {}
-            });
+        let result =
+            ui.add_component_with_state(TabContainer::new(&self.tabs).vertical(), &mut self.current_tab);
+
+        for (tab, button) in result.labels {
+            button.nest(|| { ui.add(TEXT.static_text(tab.0)); });
+        }
+
+        result.content.nest(|| match result.selected {
+            INTRO_TAB => ui.intro_tab(self),
+            NODES_TAB => ui.nodes_tab(self),
+            TEXT_TAB => ui.text_tab(),
+            GRAPHICS_TAB => ui.graphics_tab(self),
+            _ => {}
+        });
     }
 
     fn update_global_text(&mut self,  ui: &mut Ui) {
@@ -472,7 +481,7 @@ fn main() {
 
     let state = State {
         tabs: vec![INTRO_TAB, NODES_TAB, TEXT_TAB, GRAPHICS_TAB],
-        current_tab: 0,
+        current_tab: INTRO_TAB,
         f32_value: 20.0,
         ..Default::default()
     };

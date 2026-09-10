@@ -65,6 +65,19 @@ bool_comparison = { level = "allow" }
 rustdoc-args = ["--generate-link-to-definition"]
 
 
+# Components
+
+[[example]]
+name = "tab_container"
+path = "examples/components/tab_container.rs"
+
+[[example]]
+name = "accordion"
+path = "examples/components/accordion.rs"
+
+
+# Experimental
+
 [[example]]
 name = "test"
 path = "examples/experimental/test.rs"

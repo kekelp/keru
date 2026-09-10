@@ -101,7 +101,8 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
     ui.add(CONTAINER.position_y(Pos::End).size_x(Size::Frac(0.7))).nest(|| {
         ui.add(V_STACK).nest(|| {
             ui.add(TEXT.text("Global animation speed:"));
-            ui.slider(&mut state.animation_speed, 0.02, 1.5);
+            let slider = Slider::new(0.02, 1.5, true);
+            ui.add_component_with_state(slider, &mut state.animation_speed);
         });
     });
     

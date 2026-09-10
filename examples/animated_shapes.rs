@@ -152,7 +152,8 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         ui.add(controls_column).nest(|| {
             ui.add(BUTTON.key(TOGGLE).size_x(Size::Fill).text(if on { "Reset" } else { "Toggle" }));
             ui.add(TEXT.text("Speed"));
-            ui.vertical_slider(&mut state.speed, 0.05, 2.0);
+            let slider = Slider::new(0.05, 2.0, true).vertical();
+            ui.add_component_with_state(slider, &mut state.speed);
         });
     });
 
