@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use glam::Vec2;
-use winit::{dpi::PhysicalPosition, event::{KeyEvent, MouseButton, MouseScrollDelta}, keyboard::{Key, NamedKey}, window::Window};
+use winit::{dpi::PhysicalPosition, event::{KeyEvent, MouseButton, MouseScrollDelta}, keyboard::{Key, NamedKey}};
 
 use crate::*;
 use crate::Axis::{X, Y};
@@ -317,7 +317,7 @@ impl Ui {
         self.sys.mouse_input.update_animated_scrolls(anim_speed);
     }
 
-    pub(crate) fn handle_mouse_press(&mut self, button: MouseButton, window: &Window) -> bool {
+    pub(crate) fn handle_mouse_press(&mut self, button: MouseButton) -> bool {
         let PressHits { click_ids, drag_ids, topmost } = self.sys.scan_press_hits();
 
         self.sys.mouse_input.push_press(button, click_ids.clone(), drag_ids);
@@ -327,7 +327,7 @@ impl Ui {
         let mut any_consumed = false;
         for &id in &click_ids {
             if let Some(i) = self.sys.nodes.get_by_id(id) {
-                let consumed = self.resolve_click_press(button, window, i);
+                let consumed = self.resolve_click_press(button, i);
                 any_consumed = any_consumed || consumed;
             }
         }
@@ -381,7 +381,7 @@ impl Ui {
         }
     }
 
-    fn resolve_click_press(&mut self, button: MouseButton, _window: &Window, i: NodeI) -> bool {
+    fn resolve_click_press(&mut self, button: MouseButton, i: NodeI) -> bool {
         if self.sys.nodes[i].params.interact.senses.contains(Sense::CLICK) {
             self.set_new_ui_input();
         }

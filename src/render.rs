@@ -83,7 +83,7 @@ impl Ui {
         // todo keyboard events should be consumed actually.
         // but mouse events shouldn't. if a text edit gets focused, the node it's on should get focused as well.
 
-        let event_consumed = self.ui_input(&event, window);
+        let event_consumed = self.ui_input(&event);
         if event_consumed {
             return true;
         }
@@ -127,7 +127,7 @@ impl Ui {
         return false;
     }
 
-    pub fn ui_input(&mut self, event: &winit::event::WindowEvent, window: &winit::window::Window) -> bool {
+    pub(crate) fn ui_input(&mut self, event: &winit::event::WindowEvent) -> bool {
         match event {
             WindowEvent::RedrawRequested => {
                 self.new_redraw_requested_frame();
@@ -165,7 +165,7 @@ impl Ui {
             WindowEvent::MouseInput { button, state, .. } => {
                 match state {
                     ElementState::Pressed => {
-                        return self.handle_mouse_press(*button, window);
+                        return self.handle_mouse_press(*button);
                     }
                     ElementState::Released => {
                         self.handle_mouse_release(*button);
