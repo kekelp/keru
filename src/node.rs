@@ -1230,7 +1230,7 @@ impl<'a> Node<'a> {
 
     /// Enable or disable the default keyboard focus indicator rect.
     ///
-    /// Disable it to draw a custom focus effect using [`UiNode::is_focused`].
+    /// Disable it to draw a custom focus effect using [`UiNode::has_visible_keyboard_focus`].
     pub fn show_focus_indicator(mut self, value: bool) -> Self {
         self.interact.show_focus_indicator = value;
         return self;

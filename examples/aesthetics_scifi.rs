@@ -74,7 +74,7 @@ impl<'a> Component for Button<'a> {
             (t.elapsed().as_secs_f32() / 0.25).min(1.0)
         });
 
-        let hovered = ui.is_hovered(Self::CLICK_AREA) || ui.is_focused(Self::CLICK_AREA);
+        let hovered = ui.is_hovered(Self::CLICK_AREA) || ui.has_visible_keyboard_focus(Self::CLICK_AREA);
 
         // The hover animation is fully stateless, and could be done without adding state to the component.
         let base_width = 270.0;

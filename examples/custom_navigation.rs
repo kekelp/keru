@@ -48,7 +48,7 @@ fn update_ui(_state: &mut (), ui: &mut Ui) {
 
                 ui.add(node);
 
-                if ui.is_focused(key) {
+                if ui.has_visible_keyboard_focus(key) {
                     focused_cell = Some((x, y))
                 }
             }

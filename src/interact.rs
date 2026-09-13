@@ -1111,6 +1111,10 @@ impl System {
             .map(|e| e.start_time.elapsed())
     }
 
+    pub(crate) fn check_visible_keyboard_focus(&self, id: Id) -> bool {
+        self.show_focus_indicator && self.focused == Some(id)
+    }
+
     pub(crate) fn check_scrolled(&self, id: Id) -> Option<Vec2> {
         #[cfg(debug_assertions)] {
             if let Some(i) = self.nodes.get_by_id(id) {

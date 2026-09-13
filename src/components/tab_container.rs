@@ -84,8 +84,6 @@ impl<'a, T: PartialEq + Copy> Component for TabContainer<'a, T> {
         #[node_key] const TAB_BUTTON: NodeKey;
         #[node_key] const CONTENT_PANEL: NodeKey;
 
-        assert!(!self.tabs.is_empty());
-
         let vertical = self.axis == Axis::Y;
 
         // Resolve the selected tab to an index, falling back to the first tab if it isn't in the list.
@@ -122,7 +120,7 @@ impl<'a, T: PartialEq + Copy> Component for TabContainer<'a, T> {
         let tabs_stack = if vertical {
             V_STACK.size_x(Size::Pixels(250.0)).size_y(Size::Fill)
         } else {
-            H_STACK.size_y(Size::FitContent)
+            H_STACK.size_y(Size::Pixels(50.0))
         }.accessibility_role(AccessKitRole::TabList);
         let rounded_corners = if vertical { RoundedCorners::LEFT } else { RoundedCorners::TOP };
         let inactive_tab = BUTTON

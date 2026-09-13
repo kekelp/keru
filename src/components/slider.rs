@@ -76,7 +76,7 @@ impl Component for Slider {
             }
 
             // Arrow keys do a "drag" when the slider is focused.
-            if ui.is_focused(SLIDER_CONTAINER) {
+            if ui.has_visible_keyboard_focus(SLIDER_CONTAINER) {
                 let step = (self.max - self.min) * 0.01;
                 let (decrement_key, increment_key) = if vertical {
                     (winit::keyboard::NamedKey::ArrowDown, winit::keyboard::NamedKey::ArrowUp)
@@ -209,7 +209,7 @@ impl Component for ClassicSlider {
         }
 
         // Arrow keys do a "drag" when the slider is focused.
-        if ui.is_focused(HITBOX) {
+        if ui.has_visible_keyboard_focus(HITBOX) {
             let step = (self.max - self.min) * 0.01;
             if ui.key_input().key_pressed_or_repeated(&winit::keyboard::Key::Named(winit::keyboard::NamedKey::ArrowLeft)) {
                 *value -= step;
