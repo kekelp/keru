@@ -75,6 +75,9 @@ path = "examples/components/tab_container.rs"
 name = "accordion"
 path = "examples/components/accordion.rs"
 
+[[example]]
+name = "live_edit_box"
+path = "examples/components/live_edit_box.rs"
 
 # Experimental
 

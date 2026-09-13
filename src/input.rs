@@ -111,6 +111,11 @@ impl<'a> UiNode<'a> {
         self.sys().check_visible_keyboard_focus(self.node().id)
     }
 
+    /// Returns `true` if this node is a text edit and currently holds the keyboard focus.
+    pub fn is_text_edit_focused(&self) -> bool {
+        self.sys().check_text_edit_focused(self.node().id)
+    }
+
     /// If this node is being held with the left mouse button, returns the duration of the hold.
     pub fn is_held(&self) -> Option<Duration> {
         self.sys().check_held_duration(self.node().id, MouseButton::Left)
@@ -254,6 +259,16 @@ impl Ui {
         self.sys.check_visible_keyboard_focus(key.id_with_key_scope())
     }
 
+    /// Returns `true` if the node corresponding to `key` is a text edit and currently holds the keyboard focus.
+    pub fn is_text_edit_focused(&self, key: NodeKey) -> bool {
+        self.sys.check_text_edit_focused(key.id_with_key_scope())
+    }
+
+    /// Returns `true` if any text edit currently holds the keyboard focus.
+    pub fn any_text_edit_focused(&self) -> bool {
+        self.sys.check_any_text_edit_focused()
+    }
+
     /// If the node corresponding to `key` is being held with the left mouse button, returns the duration of the hold.
     pub fn is_held(&self, key: NodeKey) -> Option<Duration> {
         self.sys.check_held_duration(key.id_with_key_scope(), MouseButton::Left)
@@ -377,6 +392,11 @@ impl UiParent {
     /// Returns `true` if this node currently has keyboard focus.
     pub fn has_visible_keyboard_focus(&self, ui: &Ui) -> bool {
         ui.has_visible_keyboard_focus(self.key(ui))
+    }
+
+    /// Returns `true` if this node is a text edit and currently holds the keyboard focus.
+    pub fn is_text_edit_focused(&self, ui: &Ui) -> bool {
+        ui.is_text_edit_focused(self.key(ui))
     }
 
     /// If this node is being held with the left mouse button, returns the duration of the hold.

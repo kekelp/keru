@@ -1115,6 +1115,19 @@ impl System {
         self.show_focus_indicator && self.focused == Some(id)
     }
 
+    pub(crate) fn check_text_edit_focused(&self, id: Id) -> bool {
+        self.focused == Some(id) && self.id_is_text_edit(id)
+    }
+
+    pub(crate) fn check_any_text_edit_focused(&self) -> bool {
+        self.focused.is_some_and(|id| self.id_is_text_edit(id))
+    }
+
+    fn id_is_text_edit(&self, id: Id) -> bool {
+        let Some(i) = self.nodes.get_by_id(id) else { return false };
+        matches!(self.nodes[i].text_i, Some(TextI::TextEdit(_)))
+    }
+
     pub(crate) fn check_scrolled(&self, id: Id) -> Option<Vec2> {
         #[cfg(debug_assertions)] {
             if let Some(i) = self.nodes.get_by_id(id) {
