@@ -199,6 +199,7 @@ pub enum ImageHandleMessage {
 /// A handle to an image loaded with [`Ui::load_image()`], that can be used with [`Node::image()`].
 /// 
 /// This is a reference-counted handle: the image remains valid until the handle and all its clones are dropped.
+#[derive(Debug)]
 pub struct LoadedImageHandle {
     pub(crate) id: usize,
     pub(crate) imageref: ImageRef,
@@ -849,17 +850,34 @@ impl Ui {
                     }
                 }
                 ImageHandleMessage::Dropped(id) => {
-                    let mut unload = false;
-                    if let Some((_imageref, count)) = self.sys.loaded_images.get_mut(id) {
-                        *count -= 1;
-                        unload = *count == 0;
-                    }
-                    if unload {
-                        let (imageref, _) = self.sys.loaded_images.remove(id);
-                        self.unload_imageref(&imageref);
-                    }
+                    self.release_loaded_image(id);
                 }
             }
+        }
+    }
+
+    fn retain_loaded_image(&mut self, id: usize) {
+        if let Some((_imageref, count)) = self.sys.loaded_images.get_mut(id) {
+            *count += 1;
+        }
+    }
+
+    fn release_loaded_image(&mut self, id: usize) {
+        let mut unload = false;
+        if let Some((_imageref, count)) = self.sys.loaded_images.get_mut(id) {
+            *count -= 1;
+            unload = *count == 0;
+        }
+        if unload {
+            let (imageref, _) = self.sys.loaded_images.remove(id);
+            self.unload_imageref(&imageref);
+        }
+    }
+
+    /// If the node holds a refcounted loaded image, release the tree's reference to it. Call before the node's image source changes or the node is removed.
+    pub(crate) fn release_node_loaded_image(&mut self, i: NodeI) {
+        if let Some(crate::inner_node::ImageSourceId::Handle(id)) = self.sys.nodes[i].last_image_source {
+            self.release_loaded_image(id);
         }
     }
 
@@ -882,25 +900,30 @@ impl Ui {
     }
 
     pub(crate) fn set_loaded_image(&mut self, i: NodeI, loaded: LoadedImage, handle_id: usize, svg: bool) {
-        let node = &mut self.sys.nodes[i];
         let source = ImageSourceId::Handle(handle_id);
 
-        if node.last_image_source == Some(source) {
+        if self.sys.nodes[i].last_image_source == Some(source) {
             return;
         }
 
+        self.release_node_loaded_image(i);
+        self.retain_loaded_image(handle_id);
+
+        let node = &mut self.sys.nodes[i];
         node.imageref = Some(if svg { ImageRef::Svg(loaded) } else { ImageRef::Raster(loaded) });
         node.last_image_source = Some(source);
         self.sys.changes.should_rebuild_render_data = true;
     }
 
     pub(crate) fn set_static_image(&mut self, i: NodeI, image: &'static [u8]) {
-        let node = &mut self.sys.nodes[i];
         let source = ImageSourceId::StaticPtr(image.as_ptr());
 
-        if node.last_image_source == Some(source) {
+        if self.sys.nodes[i].last_image_source == Some(source) {
             return;
         }
+
+        self.release_node_loaded_image(i);
+        let node = &mut self.sys.nodes[i];
 
         // Check global cache
         if let Some(cached) = self.sys.image_cache.get(&source) {
@@ -923,12 +946,14 @@ impl Ui {
     }
 
     pub(crate) fn set_static_svg(&mut self, i: NodeI, svg_data: &'static [u8]) {
-        let node = &mut self.sys.nodes[i];
         let source = ImageSourceId::StaticPtr(svg_data.as_ptr());
 
-        if node.last_image_source == Some(source) {
+        if self.sys.nodes[i].last_image_source == Some(source) {
             return;
         }
+
+        self.release_node_loaded_image(i);
+        let node = &mut self.sys.nodes[i];
 
         // Check global cache
         if let Some(cached) = self.sys.image_cache.get(&source) {
@@ -952,12 +977,14 @@ impl Ui {
     }
 
     pub(crate) fn set_path_image(&mut self, i: NodeI, path: &str) {
-        let node = &mut self.sys.nodes[i];
         let source = crate::inner_node::ImageSourceId::PathHash(ahash(&path));
 
-        if node.last_image_source == Some(source) {
+        if self.sys.nodes[i].last_image_source == Some(source) {
             return;
         }
+
+        self.release_node_loaded_image(i);
+        let node = &mut self.sys.nodes[i];
 
         // Check global cache
         if let Some(cached) = self.sys.image_cache.get(&source) {
@@ -987,12 +1014,14 @@ impl Ui {
     }
 
     pub(crate) fn set_path_svg(&mut self, i: NodeI, path: &str) {
-        let node = &mut self.sys.nodes[i];
         let source = crate::inner_node::ImageSourceId::PathHash(ahash(&path));
 
-        if node.last_image_source == Some(source) {
+        if self.sys.nodes[i].last_image_source == Some(source) {
             return;
         }
+
+        self.release_node_loaded_image(i);
+        let node = &mut self.sys.nodes[i];
 
         // Check global cache
         if let Some(cached) = self.sys.image_cache.get(&source) {

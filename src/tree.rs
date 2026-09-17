@@ -779,6 +779,8 @@ impl Ui {
             self.sys.user_state.remove(&id);
         }
 
+        self.release_node_loaded_image(i);
+
         self.sys.nodes.remove(id);
     }
 
