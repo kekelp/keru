@@ -22,7 +22,7 @@ struct VertexOutput {
     nointerpolation uint clipRectIndex: CLIPRECTINDEX;
     float2 uv: TEXCOORD0;
     float2 screen_pos: TEXCOORD1;
-    float transform_scale: TEXCOORD2;
+    float2 transform_scale: TEXCOORD2;
 }
 
 struct VertexInput {
@@ -42,7 +42,7 @@ VertexOutput vertexMain(
     output.primitiveType = input.primitiveType;
     output.primitiveIndex = input.primitiveIndex;
     output.clipRectIndex = input.clipRectIndex;
-    output.transform_scale = 1.0; // Default scale
+    output.transform_scale = float2(1.0, 1.0);
 
     // grab the screen resolution from keru_text
     float2 resolution = keru_text.params.resolution;
@@ -86,7 +86,6 @@ VertexOutput vertexMain(
         Transform transform = reinterpret<Transform>(shapes.resources[input.transformIndex].a);
         float2 transformed_pos = screen_pos * transform.scale + transform.offset;
 
-        // Store the scale factor for antialiasing
         output.transform_scale = transform.scale;
 
         // Store the transformed screen position for clipping in fragment shader

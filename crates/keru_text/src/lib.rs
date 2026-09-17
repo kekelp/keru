@@ -265,18 +265,13 @@ impl GroupTransformHandle {
 }
 
 /// A group transform that can be shared across multiple text boxes.
-///
-/// This is a simple 2D transform with offset and uniform scale, matching the
-/// transform system in keru_draw.
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Zeroable, Pod)]
 pub struct GroupTransform {
     /// Translation offset in pixels (x, y)
     pub offset: [f32; 2],
-    /// Uniform scale factor
-    pub scale: f32,
-    /// Padding for 16-byte alignment / slab metadata when free
-    pub _padding: f32,
+    /// Scale factor (x, y).
+    pub scale: [f32; 2],
 }
 
 impl GroupTransform {
@@ -284,8 +279,7 @@ impl GroupTransform {
     pub const fn identity() -> Self {
         Self {
             offset: [0.0, 0.0],
-            scale: 1.0,
-            _padding: 0.0,
+            scale: [1.0, 1.0],
         }
     }
 
@@ -293,24 +287,30 @@ impl GroupTransform {
     pub const fn translation(x: f32, y: f32) -> Self {
         Self {
             offset: [x, y],
-            scale: 1.0,
-            _padding: 0.0,
+            scale: [1.0, 1.0],
         }
     }
 
-    /// Creates a group transform with only scale.
+    /// Creates a group transform with only uniform scale.
     pub const fn scale(scale: f32) -> Self {
         Self {
             offset: [0.0, 0.0],
-            scale,
-            _padding: 0.0,
+            scale: [scale, scale],
+        }
+    }
+
+    /// Creates a group transform with only per-axis scale.
+    pub const fn scale_xy(scale_x: f32, scale_y: f32) -> Self {
+        Self {
+            offset: [0.0, 0.0],
+            scale: [scale_x, scale_y],
         }
     }
 }
 
 impl GpuSlabItem for GroupTransform {
     fn next_free(&self) -> Option<usize> {
-        let bits = self._padding.to_bits();
+        let bits = self.scale[1].to_bits();
         if bits == u32::MAX {
             None
         } else {
@@ -323,6 +323,6 @@ impl GpuSlabItem for GroupTransform {
             Some(idx) => idx as u32,
             None => u32::MAX,
         };
-        self._padding = f32::from_bits(bits);
+        self.scale[1] = f32::from_bits(bits);
     }
 }

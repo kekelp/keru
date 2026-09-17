@@ -398,13 +398,12 @@ pub struct ScreenRect {
     pub max_y: f32,
 }
 
-/// A simple 2D transform with uniform scale and offset
+/// A 2D transform with scale and offset.
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Transform {
     pub offset: [f32; 2],
-    pub scale: f32,
-    pub _padding: f32,  // For 16-byte alignment
+    pub scale: [f32; 2],
 }
 
 /// A clip rect
@@ -427,8 +426,7 @@ impl Transform {
     pub fn identity() -> Self {
         Self {
             offset: [0.0, 0.0],
-            scale: 1.0,
-            _padding: 0.0,
+            scale: [1.0, 1.0],
         }
     }
 
@@ -436,17 +434,23 @@ impl Transform {
     pub fn translation(x: f32, y: f32) -> Self {
         Self {
             offset: [x, y],
-            scale: 1.0,
-            _padding: 0.0,
+            scale: [1.0, 1.0],
         }
     }
 
-    /// Create a scale transform centered at origin
+    /// Create a uniform scale transform centered at origin
     pub fn scale(scale: f32) -> Self {
         Self {
             offset: [0.0, 0.0],
-            scale,
-            _padding: 0.0,
+            scale: [scale, scale],
+        }
+    }
+
+    /// Create a per-axis scale transform centered at origin
+    pub fn scale_xy(scale_x: f32, scale_y: f32) -> Self {
+        Self {
+            offset: [0.0, 0.0],
+            scale: [scale_x, scale_y],
         }
     }
 }
@@ -461,13 +465,13 @@ pub type ResourceSlot = [f32; 16];
 impl From<Transform> for ResourceSlot {
     fn from(t: Transform) -> Self {
         let mut s = [0f32; 16];
-        s[0] = t.offset[0]; s[1] = t.offset[1]; s[2] = t.scale; s[3] = t._padding;
+        s[0] = t.offset[0]; s[1] = t.offset[1]; s[2] = t.scale[0]; s[3] = t.scale[1];
         s
     }
 }
 impl From<ResourceSlot> for Transform {
     fn from(s: ResourceSlot) -> Self {
-        Self { offset: [s[0], s[1]], scale: s[2], _padding: s[3] }
+        Self { offset: [s[0], s[1]], scale: [s[2], s[3]] }
     }
 }
 impl From<ClipRect> for ResourceSlot {
@@ -1437,7 +1441,6 @@ impl Renderer {
         let text_transform = keru_text::GroupTransform {
             offset: transform.offset,
             scale: transform.scale,
-            _padding: 0.0,
         };
         let text_handle = self.text.insert_group_transform(text_transform);
         TransformHandle { index: draw_index, text_transform: text_handle }
@@ -1454,11 +1457,10 @@ impl Renderer {
     /// All instances using this transform will be affected.
     pub fn update_transform(&mut self, handle: TransformHandle, transform: Transform) {
         self.resources[handle.index] = transform.into();
-        // Also update keru_text group transform
+        // Also update keru_text group transform.
         let text_transform = keru_text::GroupTransform {
             offset: transform.offset,
             scale: transform.scale,
-            _padding: 0.0,
         };
         self.text.update_group_transform(handle.text_transform, text_transform);
     }

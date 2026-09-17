@@ -425,8 +425,7 @@ impl Ui {
             let accumulated = &self.sys.nodes[i].accumulated_transform;
             let transform = keru_draw::Transform {
                 offset: [accumulated.offset.x, accumulated.offset.y],
-                scale: accumulated.scale,
-                _padding: 0.0,
+                scale: [accumulated.scale, accumulated.scale],
             };
             let handle = match self.sys.nodes[i].accumulated_transform_handle {
                 Some(h) => {
@@ -488,13 +487,23 @@ impl Ui {
             let canvas_offset_x = rect[X][0] * size.x * accumulated.scale;
             let canvas_offset_y = rect[Y][0] * size.y * accumulated.scale;
 
+            let canvas_scale = match self.sys.nodes[i].canvas_relative {
+                true => [
+                    rect.size().x * size.x * accumulated.scale,
+                    rect.size().y * size.y * accumulated.scale,
+                ],
+                false => {
+                    let s = accumulated.scale * self.sys.scale_factor;
+                    [s, s]
+                }
+            };
+
             let combined = keru_draw::Transform {
                 offset: [
                     accumulated.offset.x + canvas_offset_x,
                     accumulated.offset.y + canvas_offset_y,
                 ],
-                scale: accumulated.scale * self.sys.scale_factor,
-                _padding: 0.0,
+                scale: canvas_scale,
             };
 
             self.sys.renderer.update_transform(canvas_transform, combined);

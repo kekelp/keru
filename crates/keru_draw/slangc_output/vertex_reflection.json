@@ -885,24 +885,17 @@
                                         {
                                             "name": "scale",
                                             "type": {
-                                                "kind": "scalar",
-                                                "scalarType": "float32",
+                                                "kind": "vector",
+                                                "elementCount": 2,
+                                                "elementType": {
+                                                    "kind": "scalar",
+                                                    "scalarType": "float32"
+                                                },
                                                 "sizes": [
-                                                    {"kind": "uniform", "value": 4, "alignment": 4}
+                                                    {"kind": "uniform", "value": 8, "alignment": 8}
                                                 ]
                                             },
-                                            "binding": {"kind": "uniform", "offset": 8, "size": 4, "elementStride": 0}
-                                        },
-                                        {
-                                            "name": "_padding",
-                                            "type": {
-                                                "kind": "scalar",
-                                                "scalarType": "float32",
-                                                "sizes": [
-                                                    {"kind": "uniform", "value": 4, "alignment": 4}
-                                                ]
-                                            },
-                                            "binding": {"kind": "uniform", "offset": 12, "size": 4, "elementStride": 0}
+                                            "binding": {"kind": "uniform", "offset": 8, "size": 8, "elementStride": 4}
                                         }
                                     ],
                                     "sizes": [
@@ -1419,24 +1412,17 @@
                                             {
                                                 "name": "scale",
                                                 "type": {
-                                                    "kind": "scalar",
-                                                    "scalarType": "float32",
+                                                    "kind": "vector",
+                                                    "elementCount": 2,
+                                                    "elementType": {
+                                                        "kind": "scalar",
+                                                        "scalarType": "float32"
+                                                    },
                                                     "sizes": [
-                                                        {"kind": "uniform", "value": 4, "alignment": 4}
+                                                        {"kind": "uniform", "value": 8, "alignment": 8}
                                                     ]
                                                 },
-                                                "binding": {"kind": "uniform", "offset": 8, "size": 4, "elementStride": 0}
-                                            },
-                                            {
-                                                "name": "_padding",
-                                                "type": {
-                                                    "kind": "scalar",
-                                                    "scalarType": "float32",
-                                                    "sizes": [
-                                                        {"kind": "uniform", "value": 4, "alignment": 4}
-                                                    ]
-                                                },
-                                                "binding": {"kind": "uniform", "offset": 12, "size": 4, "elementStride": 0}
+                                                "binding": {"kind": "uniform", "offset": 8, "size": 8, "elementStride": 4}
                                             }
                                         ],
                                         "sizes": [
@@ -2349,24 +2335,17 @@
                                             {
                                                 "name": "scale",
                                                 "type": {
-                                                    "kind": "scalar",
-                                                    "scalarType": "float32",
+                                                    "kind": "vector",
+                                                    "elementCount": 2,
+                                                    "elementType": {
+                                                        "kind": "scalar",
+                                                        "scalarType": "float32"
+                                                    },
                                                     "sizes": [
-                                                        {"kind": "uniform", "value": 4, "alignment": 4}
+                                                        {"kind": "uniform", "value": 8, "alignment": 8}
                                                     ]
                                                 },
-                                                "binding": {"kind": "uniform", "offset": 8, "size": 4, "elementStride": 0}
-                                            },
-                                            {
-                                                "name": "_padding",
-                                                "type": {
-                                                    "kind": "scalar",
-                                                    "scalarType": "float32",
-                                                    "sizes": [
-                                                        {"kind": "uniform", "value": 4, "alignment": 4}
-                                                    ]
-                                                },
-                                                "binding": {"kind": "uniform", "offset": 12, "size": 4, "elementStride": 0}
+                                                "binding": {"kind": "uniform", "offset": 8, "size": 8, "elementStride": 4}
                                             }
                                         ],
                                         "sizes": [
@@ -2883,24 +2862,17 @@
                                                 {
                                                     "name": "scale",
                                                     "type": {
-                                                        "kind": "scalar",
-                                                        "scalarType": "float32",
+                                                        "kind": "vector",
+                                                        "elementCount": 2,
+                                                        "elementType": {
+                                                            "kind": "scalar",
+                                                            "scalarType": "float32"
+                                                        },
                                                         "sizes": [
-                                                            {"kind": "uniform", "value": 4, "alignment": 4}
+                                                            {"kind": "uniform", "value": 8, "alignment": 8}
                                                         ]
                                                     },
-                                                    "binding": {"kind": "uniform", "offset": 8, "size": 4, "elementStride": 0}
-                                                },
-                                                {
-                                                    "name": "_padding",
-                                                    "type": {
-                                                        "kind": "scalar",
-                                                        "scalarType": "float32",
-                                                        "sizes": [
-                                                            {"kind": "uniform", "value": 4, "alignment": 4}
-                                                        ]
-                                                    },
-                                                    "binding": {"kind": "uniform", "offset": 12, "size": 4, "elementStride": 0}
+                                                    "binding": {"kind": "uniform", "offset": 8, "size": 8, "elementStride": 4}
                                                 }
                                             ],
                                             "sizes": [
@@ -3191,8 +3163,12 @@
                         {
                             "name": "transform_scale",
                             "type": {
-                                "kind": "scalar",
-                                "scalarType": "float32",
+                                "kind": "vector",
+                                "elementCount": 2,
+                                "elementType": {
+                                    "kind": "scalar",
+                                    "scalarType": "float32"
+                                },
                                 "sizes": [
                                     {"kind": "varyingOutput", "value": 1}
                                 ]

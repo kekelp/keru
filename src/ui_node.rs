@@ -299,12 +299,22 @@ impl<'a> UiNode<'a> {
         }
     }
 
-    /// Run a closure with a [`Canvas`] for custom vector drawing in this node's area.
+    /// Run a closure with a [`Canvas`] for custom vector drawing in this node's area, in logical pixels relative to the node's top left corner.
     ///
     /// The rendered shapes will be drawn on the node's post-layout position and z-order.
     pub fn canvas_drawing(&mut self, drawing_function: impl FnOnce(&mut Canvas)) {
+        self.canvas_drawing_inner(false, drawing_function);
+    }
+
+    /// Run a closure with a [`Canvas`] for custom vector drawing in this node's area, in relative `[0, 1]` coordinates.
+    pub fn canvas_drawing_relative(&mut self, drawing_function: impl FnOnce(&mut Canvas)) {
+        self.canvas_drawing_inner(true, drawing_function);
+    }
+
+    fn canvas_drawing_inner(&mut self, relative: bool, drawing_function: impl FnOnce(&mut Canvas)) {
         let i = self.i;
         let sys = self.sys_mut();
+        sys.nodes[i].canvas_relative = relative;
 
         let (transform, clip_rect) = match sys.nodes[i].canvas_transform_and_clip {
             Some(h) => h,

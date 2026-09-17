@@ -192,8 +192,7 @@ struct QuadraticBezierGpu {
 
 struct Transform {
     float2 offset;
-    float scale;
-    float _padding;
+    float2 scale;
 }
 
 struct ClipRect {
@@ -299,6 +298,17 @@ float linear(float a, float b, float x) { return (x-a)/(b-a); }
 float linearstep(float a, float b, float x) { return clamp(linear(a,b,x), 0.0, 1.0); }
 float annular(float dist, float thickness) { return abs(dist + thickness * 0.5) - thickness * 0.5; }
 
+float sdf_pixel_width(float dist, float2 scale) {
+    if (scale.x == scale.y) {
+        return 1.0 / max(scale.x, 0.001);
+    }
+    return max(fwidth(dist), 1e-6);
+}
+
+float sdf_alpha_px(float dist, float pixel_width) {
+    return 1.0 - linearstep(-0.5 * pixel_width, 0.5 * pixel_width, dist);
+}
+
 // LOD for texture blur matching the shape's blur_radius (in screen pixels).
 // tex_uv_size is in atlas pixels; shape_size is in screen pixels.
 float tex_blur_lod(float blur_radius, float2 tex_uv_size, float2 shape_size) {
@@ -372,7 +382,7 @@ float sd_rounded_box(float2 p, float2 size, float4 r) {
     return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r.x;
 }
 
-float4 box_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, float2 screen_pos, bool surface_is_srgb, float transform_scale): SV_Target {
+float4 box_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, float2 screen_pos, bool surface_is_srgb, float2 transform_scale): SV_Target {
     var box: RectangleGpu = reinterpret<RectangleGpu>(shapes.primitives[primitiveIndex]);
     var clip: ClipRect = reinterpret<ClipRect>(shapes.resources[clipRectIndex].a);
 
@@ -400,6 +410,7 @@ float4 box_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, float2 s
 
     float2 half_size = box.size * 0.5;
     float dist = sd_rounded_box(p, half_size, corner_radii);
+    float pixel_width = sdf_pixel_width(dist, transform_scale);
 
     if (box.border_thickness > 0.001) {
         dist = annular(dist, box.border_thickness);
@@ -409,8 +420,7 @@ float4 box_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, float2 s
     if (box.blur_radius > 0.5) {
         alpha = 1.0 / (1.0 + exp(1.7 * dist / box.blur_radius));
     } else {
-        float aa_width = 0.5 / max(transform_scale, 0.001);
-        alpha = 1.0 - linearstep(-aa_width, aa_width, dist);
+        alpha = sdf_alpha_px(dist, pixel_width);
     }
 
     if (alpha < 0.001) {
@@ -570,7 +580,7 @@ float sd_circle_variant(float2 p, CircleGpu circle) {
     }
 }
 
-float4 circle_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, float2 screen_pos, bool srgb, float transform_scale): SV_Target {
+float4 circle_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, float2 screen_pos, bool srgb, float2 transform_scale): SV_Target {
     var circle: CircleGpu = reinterpret<CircleGpu>(shapes.primitives[primitiveIndex]);
     var clip: ClipRect = reinterpret<ClipRect>(shapes.resources[clipRectIndex].a);
 
@@ -587,6 +597,7 @@ float4 circle_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, float
     float2 p = (uv - 0.5) * float2((outer_radius + expand) * 2.0);
 
     float dist = sd_circle_variant(p, circle);
+    float pixel_width = sdf_pixel_width(dist, transform_scale);
 
     // Apply ring transform for full circles with an inner radius; arcs already encode thickness in their SDF.
     float angle_span = abs(circle.angles.y - circle.angles.x);
@@ -605,12 +616,11 @@ float4 circle_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, float
         }
     }
 
-    float aa_width = 0.5 / max(transform_scale, 0.001);
     float alpha;
     if (circle.blur_radius > 0.5) {
         alpha = 1.0 / (1.0 + exp(1.7 * dist / circle.blur_radius));
     } else {
-        alpha = 1.0 - linearstep(-aa_width, aa_width, dist);
+        alpha = sdf_alpha_px(dist, pixel_width);
     }
 
     // dashed circle
@@ -649,7 +659,7 @@ float4 circle_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, float
         if (circle.blur_radius > 0.5) {
             dash_alpha = 1.0 / (1.0 + exp(1.7 * (-dist_to_nearest_edge) / circle.blur_radius));
         } else {
-            dash_alpha = linearstep(-aa_width, aa_width, dist_to_nearest_edge);
+            dash_alpha = 1.0 - sdf_alpha_px(dist_to_nearest_edge, pixel_width);
         }
         alpha *= dash_alpha;
     }
@@ -746,7 +756,7 @@ float sd_segment(float2 p, float2 a, float2 b) {
     return length(pa - ba * h);
 }
 
-float4 segment_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, float2 screen_pos, bool srgb, float transform_scale): SV_Target {
+float4 segment_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, float2 screen_pos, bool srgb, float2 transform_scale): SV_Target {
     var seg: SegmentGpu = reinterpret<SegmentGpu>(shapes.primitives[primitiveIndex]);
     var clip: ClipRect = reinterpret<ClipRect>(shapes.resources[clipRectIndex].a);
 
@@ -795,17 +805,17 @@ float4 segment_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, floa
     }
 
     float dist = length(float2(max(axial, 0.0), perp)) - half_thickness;
+    float pixel_width = sdf_pixel_width(dist, transform_scale);
 
     if (seg.thickness_dash[3] > 0.001) {
         dist = annular(dist, seg.thickness_dash[3]);
     }
 
-    float aa_width = 0.5 / max(transform_scale, 0.001);
     float alpha;
     if (seg.blur_radius > 0.5) {
         alpha = 1.0 / (1.0 + exp(1.7 * dist / seg.blur_radius));
     } else {
-        alpha = 1.0 - linearstep(-aa_width, aa_width, dist);
+        alpha = sdf_alpha_px(dist, pixel_width);
     }
 
     if (alpha < 0.001) {
@@ -877,9 +887,14 @@ void grid_vertex(
 }
 
 // Thanks leftofzen. https://www.shadertoy.com/view/wtdSzX
-float4 grid_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, float2 screen_pos, bool surface_is_srgb, float transform_scale): SV_Target {
+float4 grid_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, float2 screen_pos, bool surface_is_srgb, float2 transform_scale): SV_Target {
     var grid: GridGpu = reinterpret<GridGpu>(shapes.primitives[primitiveIndex]);
     var clip: ClipRect = reinterpret<ClipRect>(shapes.resources[clipRectIndex].a);
+
+    float2 local_pos = uv * grid.size;
+    float2 p_pixels = local_pos + grid.offset;
+
+    float2 pixel_size = 1.0 / max(transform_scale, float2(0.001, 0.001));
 
     // Apply clipping
     if (screen_pos.x < clip.x_clip.x || screen_pos.x > clip.x_clip.y ||
@@ -887,17 +902,13 @@ float4 grid_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, float2 
         discard;
     }
 
-    // Transform to grid space
-    float2 local_pos = uv * grid.size;
-    float2 p_pixels = local_pos + grid.offset;
-
     float dist;
     if (grid.grid_type == 0) {
         // Rectangular grid
         float2 p = p_pixels / grid.lattice_size;
         float2 grid_pos = frac(p);
         float2 dist_to_line = min(grid_pos, 1.0 - grid_pos);
-        float2 dist_pixels = dist_to_line * grid.lattice_size;
+        float2 dist_pixels = dist_to_line * grid.lattice_size / pixel_size;
         dist = min(dist_pixels.x, dist_pixels.y);
     } else {
         const float COS30 = 0.8660254;
@@ -922,20 +933,16 @@ float4 grid_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, float2 
         float2 q = abs(h);
         float hexDist = max(dot(q, s * 0.5), q.x);
 
-        // Distance to hex edge (edge is at hexDist = 0.5)
-        dist = abs(hexDist - 0.5) * lattice_size;
+        float pixel_size_hex = (pixel_size.x + pixel_size.y) * 0.5;
+        dist = abs(hexDist - 0.5) * lattice_size / pixel_size_hex;
     }
 
-    // Apply line thickness and antialiasing
-    float line_width = grid.line_thickness / max(transform_scale, 0.001);
-    float half_thickness = line_width * 0.5;
-    float d = dist - half_thickness; // effective SDF: 0 at line edge, positive outside
+    float d = dist - grid.line_thickness * 0.5; // effective SDF: 0 at line edge, positive outside
     float alpha;
     if (grid.blur_radius > 0.5) {
         alpha = 1.0 / (1.0 + exp(1.7 * d / grid.blur_radius));
     } else {
-        float aa_width = 0.5 / max(transform_scale, 0.001);
-        alpha = 1.0 - linearstep(-aa_width, aa_width, d);
+        alpha = 1.0 - linearstep(-0.5, 0.5, d);
     }
 
     if (alpha < 0.001) {
@@ -1036,7 +1043,7 @@ float sd_triangle(float2 p, float2 p0, float2 p1, float2 p2) {
     return -sqrt(d.x) * sign(d.y);
 }
 
-float4 triangle_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, float2 screen_pos, bool surface_is_srgb, float transform_scale): SV_Target {
+float4 triangle_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, float2 screen_pos, bool surface_is_srgb, float2 transform_scale): SV_Target {
     var tri: TriangleGpu = reinterpret<TriangleGpu>(shapes.primitives[primitiveIndex]);
     var clip: ClipRect = reinterpret<ClipRect>(shapes.resources[clipRectIndex].a);
 
@@ -1057,6 +1064,7 @@ float4 triangle_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, flo
     float2 p = top_left + uv * size;
 
     float dist = sd_triangle(p, tri.p0, tri.p1, tri.p2);
+    float pixel_width = sdf_pixel_width(dist, transform_scale);
 
     if (tri.corner_radius > 0.001) {
         dist -= tri.corner_radius;
@@ -1069,8 +1077,7 @@ float4 triangle_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, flo
     if (tri.blur_radius > 0.5) {
         alpha = 1.0 / (1.0 + exp(1.7 * dist / tri.blur_radius));
     } else {
-        float aa_width = 0.5 / max(transform_scale, 0.001);
-        alpha = 1.0 - linearstep(-aa_width, aa_width, dist);
+        alpha = sdf_alpha_px(dist, pixel_width);
     }
 
     if (alpha < 0.001) {
@@ -1175,7 +1182,7 @@ float sd_polygon(float2 p, uint offset, uint count) {
     return s * sqrt(d);
 }
 
-float4 polygon_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, float2 screen_pos, bool surface_is_srgb, float transform_scale): SV_Target {
+float4 polygon_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, float2 screen_pos, bool surface_is_srgb, float2 transform_scale): SV_Target {
     var poly: PolygonGpu = reinterpret<PolygonGpu>(shapes.primitives[primitiveIndex]);
     var clip: ClipRect = reinterpret<ClipRect>(shapes.resources[clipRectIndex].a);
 
@@ -1190,6 +1197,7 @@ float4 polygon_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, floa
     float2 p = min_point + uv * (max_point - min_point);
 
     float dist = sd_polygon(p, poly.vert_offset, poly.vert_count);
+    float pixel_width = sdf_pixel_width(dist, transform_scale);
 
     if (poly.stroke_thickness > 0.001) {
         dist = annular(dist, poly.stroke_thickness);
@@ -1199,8 +1207,7 @@ float4 polygon_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, floa
     if (poly.blur_radius > 0.5) {
         alpha = 1.0 / (1.0 + exp(1.7 * dist / poly.blur_radius));
     } else {
-        float aa_width = 0.5 / max(transform_scale, 0.001);
-        alpha = 1.0 - linearstep(-aa_width, aa_width, dist);
+        alpha = sdf_alpha_px(dist, pixel_width);
     }
 
     if (alpha < 0.001) {
@@ -1257,7 +1264,7 @@ float sd_hexagon(float2 p, float r) {
     return length(p) * sign(p.y);
 }
 
-float4 hexagon_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, float2 screen_pos, bool surface_is_srgb, float transform_scale): SV_Target {
+float4 hexagon_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, float2 screen_pos, bool surface_is_srgb, float2 transform_scale): SV_Target {
     var hex: HexagonGpu = reinterpret<HexagonGpu>(shapes.primitives[primitiveIndex]);
     var clip: ClipRect = reinterpret<ClipRect>(shapes.resources[clipRectIndex].a);
 
@@ -1281,6 +1288,7 @@ float4 hexagon_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, floa
 
     // Calculate distance to hexagon
     float dist = sd_hexagon(rotated_p, hex.size);
+    float pixel_width = sdf_pixel_width(dist, transform_scale);
 
     if (hex.corner_radius > 0.001) {
         dist -= hex.corner_radius;
@@ -1293,8 +1301,7 @@ float4 hexagon_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, floa
     if (hex.blur_radius > 0.5) {
         alpha = 1.0 / (1.0 + exp(1.7 * dist / hex.blur_radius));
     } else {
-        float aa_width = 0.5 / max(transform_scale, 0.001);
-        alpha = 1.0 - linearstep(-aa_width, aa_width, dist);
+        alpha = sdf_alpha_px(dist, pixel_width);
     }
 
     if (alpha < 0.001) {
@@ -1437,7 +1444,7 @@ float sd_quadratic_bezier(float2 pos, float2 p0, float2 p1, float2 p2) {
     return sqrt(res);
 }
 
-float4 quadratic_bezier_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, float2 screen_pos, bool srgb, float transform_scale): SV_Target {
+float4 quadratic_bezier_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, float2 screen_pos, bool srgb, float2 transform_scale): SV_Target {
     var seg: QuadraticBezierGpu = reinterpret<QuadraticBezierGpu>(shapes.primitives[primitiveIndex]);
     var clip: ClipRect = reinterpret<ClipRect>(shapes.resources[clipRectIndex].a);
 
@@ -1458,6 +1465,7 @@ float4 quadratic_bezier_fragment(uint primitiveIndex, uint clipRectIndex, float2
     float2 p = top_left + uv * size;
 
     float dist = sd_quadratic_bezier(p, seg.p0, seg.p1, seg.p2) - half_thickness;
+    float pixel_width = sdf_pixel_width(dist, transform_scale);
 
     if (seg.stroke_thickness > 0.001) {
         dist = annular(dist, seg.stroke_thickness);
@@ -1467,8 +1475,7 @@ float4 quadratic_bezier_fragment(uint primitiveIndex, uint clipRectIndex, float2
     if (seg.blur_radius > 0.5) {
         alpha = 1.0 / (1.0 + exp(1.7 * dist / seg.blur_radius));
     } else {
-        float aa_width = 0.5 / max(transform_scale, 0.001);
-        alpha = 1.0 - linearstep(-aa_width, aa_width, dist);
+        alpha = sdf_alpha_px(dist, pixel_width);
     }
 
     if (alpha < 0.001) {

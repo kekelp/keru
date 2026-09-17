@@ -1,7 +1,6 @@
 struct GroupTransform {
     float2 offset;
-    float scale;
-    float _padding;
+    float2 scale;
 }
 
 struct BoxGpu {

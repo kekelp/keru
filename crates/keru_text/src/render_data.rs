@@ -524,7 +524,7 @@ impl RenderData {
         let t = text_box.transform.translation;
         let t = if let Some(handle) = text_box.group_transform_index {
             let group = &self.group_transforms[handle.0];
-            (t.0 * group.scale + group.offset[0], t.1 * group.scale + group.offset[1])
+            (t.0 * group.scale[0] + group.offset[0], t.1 * group.scale[1] + group.offset[1])
         } else {
             t
         };

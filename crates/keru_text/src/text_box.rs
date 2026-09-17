@@ -363,9 +363,9 @@ impl TextBox {
             0];
             // Forward transform is: pos = pos * scale + offset
             // Inverse is: pos = (pos - offset) / scale
-            if group.scale != 0.0 {
-                pos.x = (pos.x - group.offset[0]) / group.scale;                                   
-                pos.y = (pos.y - group.offset[1]) / group.scale;
+            if group.scale[0] != 0.0 && group.scale[1] != 0.0 {
+                pos.x = (pos.x - group.offset[0]) / group.scale[0];
+                pos.y = (pos.y - group.offset[1]) / group.scale[1];
             }
         }
         // Then, inverse the per-box transform

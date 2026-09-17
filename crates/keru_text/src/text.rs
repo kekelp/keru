@@ -119,11 +119,11 @@ pub(crate) fn compute_hit_test_shape(
 
         if let Some(handle) = group_transform_index {
             let g = &group_transforms[handle.0];
-            if g.scale != 0.0 {
-                min_x = g.offset[0] + min_x * g.scale;
-                max_x = g.offset[0] + max_x * g.scale;
-                min_y = g.offset[1] + min_y * g.scale;
-                max_y = g.offset[1] + max_y * g.scale;
+            if g.scale[0] != 0.0 && g.scale[1] != 0.0 {
+                min_x = g.offset[0] + min_x * g.scale[0];
+                max_x = g.offset[0] + max_x * g.scale[0];
+                min_y = g.offset[1] + min_y * g.scale[1];
+                max_y = g.offset[1] + max_y * g.scale[1];
             }
         }
 
@@ -154,9 +154,9 @@ fn hit_test_shape_check(shape: &HitTestShape, cursor_pos: (f64, f64), group_tran
             let mut pos = euclid::Point2D::new(cx, cy);
             if let Some(handle) = group_transform_index {
                 let g = &group_transforms[handle.0];
-                if g.scale != 0.0 {
-                    pos.x = (pos.x - g.offset[0]) / g.scale;
-                    pos.y = (pos.y - g.offset[1]) / g.scale;
+                if g.scale[0] != 0.0 && g.scale[1] != 0.0 {
+                    pos.x = (pos.x - g.offset[0]) / g.scale[0];
+                    pos.y = (pos.y - g.offset[1]) / g.scale[1];
                 }
             }
             let inv = transform.inverse().unwrap_or(Transform2D::identity());
