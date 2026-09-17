@@ -72,6 +72,7 @@ pub mod primitive {
     pub const TRIANGLE: u32 = 5;
     pub const HEXAGON: u32 = 6;
     pub const QUADRATIC_BEZIER: u32 = 7;
+    pub const POLYGON: u32 = 8;
 }
 
 bitflags::bitflags! {
@@ -286,6 +287,15 @@ pub struct Triangle {
     pub corner_radius: f32,
     pub texture: Option<LoadedImage>,
     pub texture_options: Option<TextureOptions>,
+    pub blur: f32,
+}
+
+/// Parameters for drawing a filled or stroked arbitrary polygon. The outline is `points` in order.
+#[derive(Debug, Clone)]
+pub struct Polygon<'a> {
+    pub points: &'a [[f32; 2]],
+    pub fill: ColorFill,
+    pub stroke_thickness: f32,  // 0 = filled, >0 = stroke only
     pub blur: f32,
 }
 
@@ -679,6 +689,8 @@ impl Renderer {
                 ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                 count: None,
             },
+            // Polygon outline vertices
+            GpuVec::<[f32; 2]>::bind_group_layout_entry(4),
         ];
 
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -713,6 +725,7 @@ impl Renderer {
                     binding: 3,
                     resource: wgpu::BindingResource::Sampler(&image_renderer.sampler),
                 },
+                shapes.polygon_vertices.bind_group_entry(4),
             ],
         })
     }
@@ -1016,6 +1029,40 @@ impl Renderer {
         });
         self.push_instance(Instance {
             p_type: primitive::QUADRATIC_BEZIER,
+            p_index: index,
+            transform_index: self.current_transform.index as u32,
+            clip_rect_index: self.current_clip_rect as u32,
+        });
+    }
+
+    /// Draw a filled or stroked arbitrary polygon.
+    pub fn draw_polygon(&mut self, params: Polygon) {
+        if params.points.len() < 3 {
+            return;
+        }
+        let gradient_index = gradient_index_for_fill(&mut self.resources, &mut self.shapes.gradient_indices, params.fill);
+
+        let vert_offset = self.shapes.polygon_vertices.len() as u32;
+        let mut bbox_min = params.points[0];
+        let mut bbox_max = params.points[0];
+        for p in params.points {
+            bbox_min = [bbox_min[0].min(p[0]), bbox_min[1].min(p[1])];
+            bbox_max = [bbox_max[0].max(p[0]), bbox_max[1].max(p[1])];
+            self.shapes.polygon_vertices.push(*p);
+        }
+
+        let index = self.shapes.push_primitive(shapes::PolygonGpu {
+            bbox_min,
+            bbox_max,
+            gradient_index,
+            vert_offset,
+            vert_count: params.points.len() as u32,
+            stroke_thickness: params.stroke_thickness,
+            blur_radius: params.blur,
+            _pad: [0.0; 3],
+        });
+        self.push_instance(Instance {
+            p_type: primitive::POLYGON,
             p_index: index,
             transform_index: self.current_transform.index as u32,
             clip_rect_index: self.current_clip_rect as u32,

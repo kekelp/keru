@@ -70,6 +70,11 @@ impl<'a> Canvas<'a> {
         self.renderer.draw_quadratic_bezier(params);
     }
 
+    /// Draw a filled or stroked arbitrary polygon.
+    pub fn draw_polygon(&mut self, params: Polygon) {
+        self.renderer.draw_polygon(params);
+    }
+
     /// Draw a dashed box outline.
     pub fn draw_dashed_box_outline(&mut self, params: DashedBoxOutline) {
         self.renderer.draw_dashed_box_outline(params);

@@ -198,20 +198,36 @@ pub struct QuadraticBezierGpu {
 
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct PolygonGpu {
+    pub bbox_min: [f32; 2],
+    pub bbox_max: [f32; 2],
+    pub gradient_index: u32,
+    pub vert_offset: u32,
+    pub vert_count: u32,
+    pub stroke_thickness: f32,  // 0 = filled, >0 = stroke only
+    pub blur_radius: f32,
+    pub _pad: [f32; 3],
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub(crate) struct PrimitiveGpu(pub [f32; 32]);
 
 pub struct Shapes {
     pub(crate) gradient_indices: Vec<usize>,
     pub(crate) primitives: GpuVec<PrimitiveGpu>,
+    pub(crate) polygon_vertices: GpuVec<[f32; 2]>,
 }
 
 impl Shapes {
     pub fn new(device: &wgpu::Device) -> Self {
         let primitives = GpuVec::new(device, 64, "keru_draw primitives");
+        let polygon_vertices = GpuVec::new(device, 64, "keru_draw polygon vertices");
 
         Self {
             gradient_indices: Vec::new(),
             primitives,
+            polygon_vertices,
         }
     }
 
@@ -228,9 +244,12 @@ impl Shapes {
     pub fn clear(&mut self) {
         // gradient_indices are drained by Renderer::clear_for_new_frame before calling this
         self.primitives.clear();
+        self.polygon_vertices.clear();
     }
 
     pub fn load_to_gpu(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) -> bool {
-        self.primitives.load_to_gpu(device, queue)
+        let primitives_realloc = self.primitives.load_to_gpu(device, queue);
+        let vertices_realloc = self.polygon_vertices.load_to_gpu(device, queue);
+        primitives_realloc || vertices_realloc
     }
 }

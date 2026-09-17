@@ -12,6 +12,7 @@ enum PrimitiveType: uint {
     Triangle = 5,
     Hexagon = 6,
     QuadraticBezier = 7,
+    Polygon = 8,
 }
 
 struct VertexOutput {
@@ -66,6 +67,9 @@ VertexOutput vertexMain(
     }
     else if (input.primitiveType == PrimitiveType::QuadraticBezier) {
         quadratic_bezier_vertex(input.primitiveIndex, vertexIndex, resolution, output.position, output.uv, output.screen_pos);
+    }
+    else if (input.primitiveType == PrimitiveType::Polygon) {
+        polygon_vertex(input.primitiveIndex, vertexIndex, resolution, output.position, output.uv, output.screen_pos);
     }
     else if (input.primitiveType == PrimitiveType::Text) {
         text_vertex(input.primitiveIndex, vertexIndex, resolution, output.position, output.uv);
@@ -122,6 +126,9 @@ float4 fragmentMain(VertexOutput input): SV_Target {
     }
     else if (input.primitiveType == PrimitiveType::QuadraticBezier) {
         return quadratic_bezier_fragment(input.primitiveIndex, input.clipRectIndex, input.uv, input.screen_pos, srgb, input.transform_scale);
+    }
+    else if (input.primitiveType == PrimitiveType::Polygon) {
+        return polygon_fragment(input.primitiveIndex, input.clipRectIndex, input.uv, input.screen_pos, srgb, input.transform_scale);
     }
     else if (input.primitiveType == PrimitiveType::Text) {
         return text_fragment(input.primitiveIndex, input.uv, input.position);

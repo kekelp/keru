@@ -16,6 +16,20 @@ struct ShapesGpu {
     StructuredBuffer<PrimitiveSlot> primitives;
     Texture2DArray<float4> atlas_texture;
     SamplerState atlas_sampler;
+    StructuredBuffer<float2> polygon_vertices;
+}
+
+struct PolygonGpu {
+    float2 bbox_min;
+    float2 bbox_max;
+    uint gradient_index;
+    uint vert_offset;
+    uint vert_count;
+    float stroke_thickness;
+    float blur_radius;
+    float _pad0;
+    float _pad1;
+    float _pad2;
 }
 
 ParameterBlock<ShapesGpu> shapes;
@@ -1114,6 +1128,100 @@ float4 triangle_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, flo
 
         // Multiply texture color with fill color (tinting)
         color = tex_color * color;
+    }
+
+    return float4(color.rgb, color.a * alpha);
+}
+
+void polygon_vertex(
+    uint instanceIndex,
+    uint vertexIndex,
+    float2 resolution,
+    out float4 position,
+    out float2 uv,
+    out float2 screen_pos,
+) {
+    var poly: PolygonGpu = reinterpret<PolygonGpu>(shapes.primitives[instanceIndex]);
+
+    // Bounding box, expanded for blur falloff plus a pixel of AA margin.
+    float expand = poly.blur_radius * 3.0 + 1.0;
+    float2 min_point = poly.bbox_min - float2(expand, expand);
+    float2 max_point = poly.bbox_max + float2(expand, expand);
+    float2 top_left = min_point;
+    float2 size = max_point - min_point;
+
+    quad_vertex(top_left, size, vertexIndex, resolution, position, uv);
+    screen_pos = top_left + uv * size;
+}
+
+// Signed distance to an arbitrary (possibly concave) polygon. Negative inside. From Inigo Quilez: distance to the nearest edge, sign from a crossing-number winding test.
+float sd_polygon(float2 p, uint offset, uint count) {
+    float2 v0 = shapes.polygon_vertices[offset];
+    float d = dot(p - v0, p - v0);
+    float s = 1.0;
+    float2 vj = shapes.polygon_vertices[offset + count - 1];
+    for (uint i = 0; i < count; i++) {
+        float2 vi = shapes.polygon_vertices[offset + i];
+        float2 e = vj - vi;
+        float2 w = p - vi;
+        float2 b = w - e * clamp(dot(w, e) / dot(e, e), 0.0, 1.0);
+        d = min(d, dot(b, b));
+        bool3 c = bool3(p.y >= vi.y, p.y < vj.y, e.x * w.y > e.y * w.x);
+        if (all(c) || all(!c)) {
+            s = -s;
+        }
+        vj = vi;
+    }
+    return s * sqrt(d);
+}
+
+float4 polygon_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, float2 screen_pos, bool surface_is_srgb, float transform_scale): SV_Target {
+    var poly: PolygonGpu = reinterpret<PolygonGpu>(shapes.primitives[primitiveIndex]);
+    var clip: ClipRect = reinterpret<ClipRect>(shapes.resources[clipRectIndex].a);
+
+    if (screen_pos.x < clip.x_clip.x || screen_pos.x > clip.x_clip.y ||
+        screen_pos.y < clip.y_clip.x || screen_pos.y > clip.y_clip.y) {
+        discard;
+    }
+
+    float expand = poly.blur_radius * 3.0 + 1.0;
+    float2 min_point = poly.bbox_min - float2(expand, expand);
+    float2 max_point = poly.bbox_max + float2(expand, expand);
+    float2 p = min_point + uv * (max_point - min_point);
+
+    float dist = sd_polygon(p, poly.vert_offset, poly.vert_count);
+
+    if (poly.stroke_thickness > 0.001) {
+        dist = annular(dist, poly.stroke_thickness);
+    }
+
+    float alpha;
+    if (poly.blur_radius > 0.5) {
+        alpha = 1.0 / (1.0 + exp(1.7 * dist / poly.blur_radius));
+    } else {
+        float aa_width = 0.5 / max(transform_scale, 0.001);
+        alpha = 1.0 - linearstep(-aa_width, aa_width, dist);
+    }
+
+    if (alpha < 0.001) {
+        discard;
+    }
+
+    var grad: GradientGpu = reinterpret<GradientGpu>(shapes.resources[poly.gradient_index]);
+    float4 color;
+    if (grad.gradient_type == 1) {
+        float2 dir = grad.p1 - grad.p0;
+        float t = dot(p - grad.p0, dir) / max(dot(dir, dir), 0.001);
+        color = gradient_oklab(grad.color_start, grad.color_end, clamp(t, 0.0, 1.0));
+    } else if (grad.gradient_type == 2) {
+        float t = (length(p - grad.p0) - grad.p1.y) / max(grad.p1.x - grad.p1.y, 0.001);
+        color = gradient_oklab(grad.color_start, grad.color_end, clamp(t, 0.0, 1.0));
+    } else {
+        color = grad.color_start;
+    }
+
+    if (surface_is_srgb) {
+        color.rgb = srgb_to_linear3(color.rgb);
     }
 
     return float4(color.rgb, color.a * alpha);

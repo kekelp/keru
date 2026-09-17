@@ -162,10 +162,32 @@
                                 ]
                             },
                             "binding": {"kind": "descriptorTableSlot", "index": 3}
+                        },
+                        {
+                            "name": "polygon_vertices",
+                            "type": {
+                                "kind": "resource",
+                                "baseShape": "structuredBuffer",
+                                "resultType": {
+                                    "kind": "vector",
+                                    "elementCount": 2,
+                                    "elementType": {
+                                        "kind": "scalar",
+                                        "scalarType": "float32"
+                                    },
+                                    "sizes": [
+                                        {"kind": "uniform", "value": 8, "alignment": 8}
+                                    ]
+                                },
+                                "sizes": [
+                                    {"kind": "descriptorTableSlot", "value": 1}
+                                ]
+                            },
+                            "binding": {"kind": "descriptorTableSlot", "index": 4}
                         }
                     ],
                     "sizes": [
-                        {"kind": "descriptorTableSlot", "value": 4}
+                        {"kind": "descriptorTableSlot", "value": 5}
                     ]
                 },
                 "containerVarLayout": {
@@ -328,13 +350,35 @@
                                     ]
                                 },
                                 "binding": {"kind": "descriptorTableSlot", "index": 3}
+                            },
+                            {
+                                "name": "polygon_vertices",
+                                "type": {
+                                    "kind": "resource",
+                                    "baseShape": "structuredBuffer",
+                                    "resultType": {
+                                        "kind": "vector",
+                                        "elementCount": 2,
+                                        "elementType": {
+                                            "kind": "scalar",
+                                            "scalarType": "float32"
+                                        },
+                                        "sizes": [
+                                            {"kind": "uniform", "value": 8, "alignment": 8}
+                                        ]
+                                    },
+                                    "sizes": [
+                                        {"kind": "descriptorTableSlot", "value": 1}
+                                    ]
+                                },
+                                "binding": {"kind": "descriptorTableSlot", "index": 4}
                             }
                         ],
                         "sizes": [
-                            {"kind": "descriptorTableSlot", "value": 4}
+                            {"kind": "descriptorTableSlot", "value": 5}
                         ]
                     },
-                    "binding": {"kind": "descriptorTableSlot", "index": 0, "count": 4}
+                    "binding": {"kind": "descriptorTableSlot", "index": 0, "count": 5}
                 },
                 "sizes": [
                     {"kind": "subElementRegisterSpace", "value": 1}
@@ -1582,10 +1626,32 @@
                                     ]
                                 },
                                 "binding": {"kind": "descriptorTableSlot", "index": 3}
+                            },
+                            {
+                                "name": "polygon_vertices",
+                                "type": {
+                                    "kind": "resource",
+                                    "baseShape": "structuredBuffer",
+                                    "resultType": {
+                                        "kind": "vector",
+                                        "elementCount": 2,
+                                        "elementType": {
+                                            "kind": "scalar",
+                                            "scalarType": "float32"
+                                        },
+                                        "sizes": [
+                                            {"kind": "uniform", "value": 8, "alignment": 8}
+                                        ]
+                                    },
+                                    "sizes": [
+                                        {"kind": "descriptorTableSlot", "value": 1}
+                                    ]
+                                },
+                                "binding": {"kind": "descriptorTableSlot", "index": 4}
                             }
                         ],
                         "sizes": [
-                            {"kind": "descriptorTableSlot", "value": 4}
+                            {"kind": "descriptorTableSlot", "value": 5}
                         ]
                     },
                     "containerVarLayout": {
@@ -1748,13 +1814,35 @@
                                         ]
                                     },
                                     "binding": {"kind": "descriptorTableSlot", "index": 3}
+                                },
+                                {
+                                    "name": "polygon_vertices",
+                                    "type": {
+                                        "kind": "resource",
+                                        "baseShape": "structuredBuffer",
+                                        "resultType": {
+                                            "kind": "vector",
+                                            "elementCount": 2,
+                                            "elementType": {
+                                                "kind": "scalar",
+                                                "scalarType": "float32"
+                                            },
+                                            "sizes": [
+                                                {"kind": "uniform", "value": 8, "alignment": 8}
+                                            ]
+                                        },
+                                        "sizes": [
+                                            {"kind": "descriptorTableSlot", "value": 1}
+                                        ]
+                                    },
+                                    "binding": {"kind": "descriptorTableSlot", "index": 4}
                                 }
                             ],
                             "sizes": [
-                                {"kind": "descriptorTableSlot", "value": 4}
+                                {"kind": "descriptorTableSlot", "value": 5}
                             ]
                         },
-                        "binding": {"kind": "descriptorTableSlot", "index": 0, "count": 4}
+                        "binding": {"kind": "descriptorTableSlot", "index": 0, "count": 5}
                     },
                     "sizes": [
                         {"kind": "subElementRegisterSpace", "value": 1}
