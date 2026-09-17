@@ -171,6 +171,27 @@ impl ImageRenderer {
         self.atlas_pages[loaded.page as usize].packer.deallocate(loaded.alloc.id);
     }
 
+    /// Replace the pixels of a previously loaded raster image, reusing the same atlas slot when the dimensions are unchanged and reallocating otherwise. Returns the new [`LoadedImage`], or `None` if `rgba_data` doesn't match `width * height * 4` or is too big to store.
+    pub fn replace_rgba8_image(&mut self, old: &LoadedImage, rgba_data: &[u8], width: u32, height: u32) -> Option<LoadedImage> {
+        if rgba_data.len() != (width * height * 4) as usize {
+            return None;
+        }
+        if width == old.width && height == old.height {
+            return Some(self.store_in_atlas(rgba_data, old.alloc, old.page as usize, width, height, old.id));
+        }
+        let new_loaded = self.store_image_data_with_id(rgba_data, width, height, old.id)?;
+        self.atlas_pages[old.page as usize].packer.deallocate(old.alloc.id);
+        Some(new_loaded)
+    }
+
+    /// Replace the pixels of a previously loaded raster image from encoded bytes. Returns the new [`LoadedImage`], or `None` if the bytes couldn't be decoded or stored.
+    pub fn replace_encoded_image(&mut self, old: &LoadedImage, image_data: &[u8]) -> Option<LoadedImage> {
+        let img = image::load_from_memory(image_data).ok()?;
+        let rgba = img.to_rgba8();
+        let (width, height) = rgba.dimensions();
+        self.replace_rgba8_image(old, rgba.as_raw(), width, height)
+    }
+
     /// Upload textures to GPU. Returns true if the texture array was rebuilt.
     pub(crate) fn load_to_gpu(&mut self, device: &Device, queue: &Queue) -> bool {
         if !self.needs_texture_array_rebuild && !self.atlas_pages.iter().any(|p| p.dirty) {

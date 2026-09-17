@@ -114,7 +114,7 @@ pub struct InnerNode {
 pub enum ImageSourceId {
     StaticPtr(*const u8),
     PathHash(u64),
-    Handle(usize),
+    Handle { id: usize, generation: u64 },
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]

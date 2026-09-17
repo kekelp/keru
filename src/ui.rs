@@ -139,9 +139,6 @@ pub(crate) struct System {
 
     pub changes: Changes,
 
-    // move to changes
-    // note that the magic "shader only animations" will probably disappear eventually,
-    // so things like this will need to rebuild render data, not just rerender
     pub anim_render_timer: AnimationRenderTimer,
 
     pub user_state: HashMap<Id, Box<dyn Any>>,
@@ -149,7 +146,7 @@ pub(crate) struct System {
     // todo: do something else
     pub image_cache: lru::LruCache<ImageSourceId, ImageRef>,
 
-    pub loaded_images: Slab<(ImageRef, usize)>,
+    pub loaded_images: Slab<LoadedImageEntry>,
     pub image_handle_sender: mpsc::Sender<ImageHandleMessage>,
     pub image_handle_receiver: mpsc::Receiver<ImageHandleMessage>,
 
@@ -196,13 +193,18 @@ pub enum ImageHandleMessage {
     Dropped(usize),
 }
 
+pub(crate) struct LoadedImageEntry {
+    pub imageref: ImageRef,
+    pub refcount: usize,
+    pub generation: u64,
+}
+
 /// A handle to an image loaded with [`Ui::load_image()`], that can be used with [`Node::image()`].
 /// 
 /// This is a reference-counted handle: the image remains valid until the handle and all its clones are dropped.
 #[derive(Debug)]
 pub struct LoadedImageHandle {
     pub(crate) id: usize,
-    pub(crate) imageref: ImageRef,
     sender: mpsc::Sender<ImageHandleMessage>,
 }
 
@@ -211,7 +213,6 @@ impl Clone for LoadedImageHandle {
         let _ = self.sender.send(ImageHandleMessage::Cloned(self.id));
         LoadedImageHandle {
             id: self.id,
-            imageref: self.imageref.clone(),
             sender: self.sender.clone(),
         }
     }
@@ -832,11 +833,10 @@ impl Ui {
     }
 
     fn register_loaded_image(&mut self, imageref: ImageRef) -> LoadedImageHandle {
-        let id = self.sys.loaded_images.insert((imageref.clone(), 1));
+        let id = self.sys.loaded_images.insert(LoadedImageEntry { imageref, refcount: 1, generation: 0 });
 
         LoadedImageHandle {
             id,
-            imageref,
             sender: self.sys.image_handle_sender.clone(),
         }
     }
@@ -845,8 +845,8 @@ impl Ui {
         while let Ok(message) = self.sys.image_handle_receiver.try_recv() {
             match message {
                 ImageHandleMessage::Cloned(id) => {
-                    if let Some((_loaded, count)) = self.sys.loaded_images.get_mut(id) {
-                        *count += 1;
+                    if let Some(entry) = self.sys.loaded_images.get_mut(id) {
+                        entry.refcount += 1;
                     }
                 }
                 ImageHandleMessage::Dropped(id) => {
@@ -857,26 +857,26 @@ impl Ui {
     }
 
     fn retain_loaded_image(&mut self, id: usize) {
-        if let Some((_imageref, count)) = self.sys.loaded_images.get_mut(id) {
-            *count += 1;
+        if let Some(entry) = self.sys.loaded_images.get_mut(id) {
+            entry.refcount += 1;
         }
     }
 
     fn release_loaded_image(&mut self, id: usize) {
         let mut unload = false;
-        if let Some((_imageref, count)) = self.sys.loaded_images.get_mut(id) {
-            *count -= 1;
-            unload = *count == 0;
+        if let Some(entry) = self.sys.loaded_images.get_mut(id) {
+            entry.refcount -= 1;
+            unload = entry.refcount == 0;
         }
         if unload {
-            let (imageref, _) = self.sys.loaded_images.remove(id);
-            self.unload_imageref(&imageref);
+            let entry = self.sys.loaded_images.remove(id);
+            self.unload_imageref(&entry.imageref);
         }
     }
 
     /// If the node holds a refcounted loaded image, release the tree's reference to it. Call before the node's image source changes or the node is removed.
     pub(crate) fn release_node_loaded_image(&mut self, i: NodeI) {
-        if let Some(crate::inner_node::ImageSourceId::Handle(id)) = self.sys.nodes[i].last_image_source {
+        if let Some(crate::inner_node::ImageSourceId::Handle { id, .. }) = self.sys.nodes[i].last_image_source {
             self.release_loaded_image(id);
         }
     }
@@ -899,20 +899,81 @@ impl Ui {
         }
     }
 
-    pub(crate) fn set_loaded_image(&mut self, i: NodeI, loaded: LoadedImage, handle_id: usize, svg: bool) {
-        let source = ImageSourceId::Handle(handle_id);
+    pub(crate) fn set_loaded_image(&mut self, i: NodeI, handle_id: usize) {
+        let Some(entry) = self.sys.loaded_images.get(handle_id) else {
+            unreachable!(); // the caller's handle should keep the image alive
+        };
+        let source = ImageSourceId::Handle { id: handle_id, generation: entry.generation };
+        let imageref = entry.imageref.clone();
 
-        if self.sys.nodes[i].last_image_source == Some(source) {
-            return;
+        match self.sys.nodes[i].last_image_source {
+            Some(prev) if prev == source => return,
+            Some(ImageSourceId::Handle { id, .. }) if id == handle_id => {}
+            _ => {
+                self.release_node_loaded_image(i);
+                self.retain_loaded_image(handle_id);
+            }
         }
 
-        self.release_node_loaded_image(i);
-        self.retain_loaded_image(handle_id);
-
         let node = &mut self.sys.nodes[i];
-        node.imageref = Some(if svg { ImageRef::Svg(loaded) } else { ImageRef::Raster(loaded) });
+        node.imageref = Some(imageref);
         node.last_image_source = Some(source);
         self.sys.changes.should_rebuild_render_data = true;
+    }
+
+    /// Replace the content of an image previously loaded with [`Ui::load_image()`], from encoded bytes (PNG, JPEG, etc.).
+    ///
+    /// Returns `false` if the bytes couldn't be decoded.
+    pub fn replace_image(&mut self, handle: &LoadedImageHandle, image_data: &[u8]) -> bool {
+        let new_loaded = match self.take_loaded_imageref(handle.id) {
+            Some(ImageRef::Raster(old)) => self.sys.renderer.image_renderer.replace_encoded_image(&old, image_data),
+            Some(ImageRef::Svg(old)) => {
+                // Convert SVG to raster: store the new image first, then free the old SVG only if that succeeded.
+                let new = self.sys.renderer.image_renderer.load_encoded_image(image_data);
+                if new.is_some() {
+                    self.sys.renderer.image_renderer.unload_svg(&old);
+                }
+                new
+            }
+            None => return false,
+        };
+        self.apply_replaced_image(handle.id, new_loaded)
+    }
+
+    /// Replace the content of an image previously loaded with [`Ui::load_rgba_image()`], from raw RGBA8 pixel data.
+    ///
+    /// See [`Ui::replace_image()`] and [`Ui::load_rgba_image()`].
+    pub fn replace_rgba_image(&mut self, handle: &LoadedImageHandle, rgba_data: &[u8], width: u32, height: u32) -> bool {
+        let new_loaded = match self.take_loaded_imageref(handle.id) {
+            Some(ImageRef::Raster(old)) => self.sys.renderer.image_renderer.replace_rgba8_image(&old, rgba_data, width, height),
+            Some(ImageRef::Svg(old)) => {
+                // Convert SVG to raster: store the new image first, then free the old SVG only if that succeeded.
+                let new = self.sys.renderer.image_renderer.load_rgba8_image(rgba_data, width, height);
+                if new.is_some() {
+                    self.sys.renderer.image_renderer.unload_svg(&old);
+                }
+                new
+            }
+            None => return false,
+        };
+        self.apply_replaced_image(handle.id, new_loaded)
+    }
+
+    /// A copy of the handle's current imageref, or `None` if the handle is gone. Copied out so the atlas borrow ends before the renderer is touched.
+    fn take_loaded_imageref(&self, id: usize) -> Option<ImageRef> {
+        self.sys.loaded_images.get(id).map(|entry| entry.imageref.clone())
+    }
+
+    /// Store a replaced image into its entry and bump the generation. Returns `false` if the new image couldn't be stored, leaving the entry unchanged.
+    fn apply_replaced_image(&mut self, id: usize, new_loaded: Option<LoadedImage>) -> bool {
+        let Some(new_loaded) = new_loaded else {
+            return false;
+        };
+        let entry = &mut self.sys.loaded_images[id];
+        entry.imageref = ImageRef::Raster(new_loaded);
+        entry.generation += 1;
+        self.sys.changes.should_rebuild_render_data = true;
+        true
     }
 
     pub(crate) fn set_static_image(&mut self, i: NodeI, image: &'static [u8]) {

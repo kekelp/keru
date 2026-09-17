@@ -15,25 +15,23 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         .placeholder_text("Text to encode");
 
     if let Some(node) = ui.get_node(TEXT_EDIT) && let Some(new_text) = node.text_edit_changed() {
-        state.qr_image = None;
         if let Ok(code) = qrcode::QrCode::new(new_text.as_bytes()) {
             let img = code.render::<image::Luma<u8>>().build();
             let (width, height) = (img.width(), img.height());
             let rgba = image::DynamicImage::ImageLuma8(img).into_rgba8();
-            state.qr_image = ui.load_rgba_image(rgba.as_raw(), width, height);
+            match &state.qr_image {
+                Some(handle) => { ui.replace_rgba_image(handle, rgba.as_raw(), width, height); }
+                None => state.qr_image = ui.load_rgba_image(rgba.as_raw(), width, height),
+            }
         }
     }
-
-    let qr = if let Some(qr_image) = &state.qr_image {
-        IMAGE.image(qr_image).size(Size::Pixels(300.0), Size::Pixels(300.0))
-    } else {
-        SPACER.size(Size::Pixels(300.0), Size::Pixels(300.0))
-    };
 
     ui.add(V_STACK.size_y(Size::Fill)).nest(|| {
         ui.add(LABEL.text("Enter text to generate QR code:"));
         ui.add(edit);
-        ui.add(qr);
+        if let Some(qr_image) = &state.qr_image {
+            ui.add(IMAGE.image(qr_image).size(Size::Pixels(300.0), Size::Pixels(300.0)));
+        }
     });
 }
 

@@ -2403,13 +2403,7 @@ impl Ui {
                 Image::RasterPath(path) => self.set_path_image(i, path),
                 Image::SvgStatic(svg) => self.set_static_svg(i, svg),
                 Image::SvgPath(path) => self.set_path_svg(i, path),
-                Image::Loaded(handle) => {
-                    let (loaded, svg) = match &handle.imageref {
-                        ImageRef::Raster(loaded) => (*loaded, false),
-                        ImageRef::Svg(loaded) => (*loaded, true),
-                    };
-                    self.set_loaded_image(i, loaded, handle.id, svg);
-                }
+                Image::Loaded(handle) => self.set_loaded_image(i, handle.id),
             };
         }
 
