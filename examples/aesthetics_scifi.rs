@@ -107,6 +107,7 @@ impl<'a> Component for Button<'a> {
                     nine_slice: None,
                     tile_x: TileMode::Tile,
                     tile_y: TileMode::Tile,
+                    space: TextureSpace::Shape,
                 })
                 .size_symm(Size::Pixels(ripple_size))
         });
@@ -121,6 +122,7 @@ impl<'a> Component for Button<'a> {
                 nine_slice: None,
                 tile_x: TileMode::Tile,
                 tile_y: TileMode::Tile,
+                space: TextureSpace::Shape,
             })
             .size_symm(hover_circle_size);
 
@@ -143,6 +145,7 @@ impl<'a> Component for Button<'a> {
                 nine_slice: None,
                 tile_x: TileMode::Tile,
                 tile_y: TileMode::Tile,
+                space: TextureSpace::Shape,
             })
             .key(Self::CLICK_AREA);
 
@@ -180,6 +183,7 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
             nine_slice: None,
             tile_x: TileMode::Tile,
             tile_y: TileMode::Tile,
+            space: TextureSpace::Shape,
         })
         .size_symm(Size::Frac(0.6));
 

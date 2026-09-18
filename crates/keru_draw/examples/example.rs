@@ -774,7 +774,7 @@ impl State {
         });
 
         // Box: nine-slice, tile_fit both axes
-        self.renderer.set_texture(ns, Some(TextureOptions { nine_slice: Some(insets), tile_x: TileMode::TileFit, tile_y: TileMode::TileFit }));
+        self.renderer.set_texture(ns, Some(TextureOptions { nine_slice: Some(insets), tile_x: TileMode::TileFit, tile_y: TileMode::TileFit, space: TextureSpace::Shape  }));
         self.renderer.draw_box(Rectangle {
             top_left: [x, 320.0],
             size: [450.0, 130.0],
@@ -786,7 +786,7 @@ impl State {
         });
 
         // Box: no nine-slice, tile both axes (repeating texture)
-        self.renderer.set_texture(self.texture_handle, Some(TextureOptions { nine_slice: None, tile_x: TileMode::Tile, tile_y: TileMode::Tile }));
+        self.renderer.set_texture(self.texture_handle, Some(TextureOptions { nine_slice: None, tile_x: TileMode::Tile, tile_y: TileMode::Tile, space: TextureSpace::Shape  }));
         self.renderer.draw_box(Rectangle {
             top_left: [x, 470.0],
             size: [200.0, 200.0],
@@ -807,7 +807,7 @@ impl State {
         });
 
         // Triangle: nine-slice, tile both
-        self.renderer.set_texture(ns, Some(TextureOptions { nine_slice: Some(insets), tile_x: TileMode::Tile, tile_y: TileMode::Tile }));
+        self.renderer.set_texture(ns, Some(TextureOptions { nine_slice: Some(insets), tile_x: TileMode::Tile, tile_y: TileMode::Tile, space: TextureSpace::Shape }));
         self.renderer.draw_triangle(Triangle {
             p0: [x + 70.0, 700.0],
             p1: [x, 840.0],

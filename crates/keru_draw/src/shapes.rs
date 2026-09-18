@@ -19,6 +19,21 @@ impl GradientGpu {
     }
 }
 
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable, Default)]
+pub(crate) struct TextureGpu {
+    pub uv_origin: [f32; 2],   // atlas pixel coords (top-left of the image in the atlas)
+    pub uv_size: [f32; 2],     // atlas pixel size of the image
+    pub page: u32,             // atlas layer
+    pub flags: u32,            // bit 0=nine-slice/tiling enabled; bits 1-2=tile_x; bits 3-4=tile_y; bit 5=absolute space
+    pub nine_slice: [f32; 4],  // insets: left, right, top, bottom
+    pub abs_origin: [f32; 2],  // absolute-space anchor rect origin (draw-call coords)
+    pub abs_size: [f32; 2],    // absolute-space anchor rect size
+    pub _pad: [f32; 2],        // to 16 floats (one ResourceSlot)
+}
+
+pub(crate) const TEXTURE_ABSOLUTE_BIT: u32 = 1 << 5;
+
 impl Gradient {
     pub(crate) fn to_gpu(self) -> GradientGpu {
         let gradient_type = match self.kind {
@@ -50,10 +65,6 @@ impl Gradient {
 pub struct RectangleGpu {
     pub top_left: [f32; 2],
     pub size: [f32; 2],
-    pub nine_slice_l: f32,           // left inset in pixels (0 = no nine-slice)
-    pub nine_slice_r: f32,           // right inset in pixels
-    pub nine_slice_t: f32,           // top inset in pixels
-    pub nine_slice_b: f32,           // bottom inset in pixels
     pub corner_radius: f32,
     pub border_thickness: f32,
     pub gradient_direction: [f32; 2],
@@ -61,12 +72,8 @@ pub struct RectangleGpu {
     pub color_end: Color,
     pub gradient_index: u32, // index into gradients buffer
     pub rounded_corners: u32, // bitflags: 1=top-left, 2=top-right, 4=bottom-left, 8=bottom-right
-    pub texture_uv_origin: [f32; 2], // pixel coords in atlas (top-left corner)
-    pub texture_uv_size: [f32; 2],   // pixel dimensions in atlas
-    pub texture_page: u32,           // atlas layer, u32::MAX = no texture
     pub blur_radius: f32,
-    pub nine_slice_tiling: u32,      // bit 0=enabled; bits 1-2=h mode; bits 3-4=v mode (0=stretch,1=tile,2=tile_fit)
-    pub _ns_pad: [f32; 3],           // padding to 128 bytes (16-byte aligned)
+    pub texture_index: u32,
 }
 
 #[repr(C)]
@@ -79,18 +86,12 @@ pub struct CircleGpu {
     pub angles: [f32; 2],     // [start_angle, end_angle] in radians
     pub gradient_direction: [f32; 2],
     pub gradient_index: u32, // index into gradients buffer
-    pub texture_page: u32,           // atlas layer, u32::MAX = no texture
-    pub texture_uv_origin: [f32; 2], // pixel coords in atlas (top-left corner)
-    pub texture_uv_size: [f32; 2],   // pixel dimensions in atlas
     pub dash_length: f32,            // 0 = no dashing, >0 = dash length in pixels
     pub dash_offset: f32,            // offset for dash pattern alignment
     pub blur_radius: f32,
-    pub nine_slice_l: f32,           // left inset in pixels (0 = no nine-slice)
-    pub nine_slice_r: f32,           // right inset in pixels
-    pub nine_slice_t: f32,           // top inset in pixels
-    pub nine_slice_b: f32,           // bottom inset in pixels
-    pub nine_slice_tiling: u32,      // bit 0=enabled; bits 1-2=h mode; bits 3-4=v mode (0=stretch,1=tile,2=tile_fit)
-    pub _ns_pad: [f32; 2],           // padding to 128 bytes (16-byte aligned)
+    pub texture_index: u32,
+    pub pie_stroke_thickness: f32, // pie only: 0=filled, >0=hollow outline
+    pub pie_corner_radius: f32,    // pie only: rounds center point and arc-edge corners
 }
 
 #[repr(C)]
@@ -102,15 +103,8 @@ pub struct SegmentGpu {
     pub color_end: Color,
     pub thickness_dash: [f32; 4], // [thickness, dash_length, dash_offset, stroke_thickness]
     pub gradient_index: u32, // index into gradients buffer
-    pub texture_page: u32,           // atlas layer, u32::MAX = no texture
-    pub texture_uv_origin: [f32; 2], // pixel coords in atlas (top-left corner)
-    pub texture_uv_size: [f32; 2],   // pixel dimensions in atlas
     pub blur_radius: f32,
-    pub nine_slice_l: f32,           // left inset in pixels (0 = no nine-slice)
-    pub nine_slice_r: f32,           // right inset in pixels
-    pub nine_slice_t: f32,           // top inset in pixels
-    pub nine_slice_b: f32,           // bottom inset in pixels
-    pub nine_slice_tiling: u32,      // bit 0=enabled; bits 1-2=h mode; bits 3-4=v mode (0=stretch,1=tile,2=tile_fit)
+    pub texture_index: u32,
 }
 
 #[repr(C)]
@@ -126,15 +120,8 @@ pub struct GridGpu {
     pub line_thickness: f32,
     pub gradient_index: u32, // index into gradients buffer
     pub grid_type: u32, // 0=square, 1=hex
-    pub texture_page: u32,           // atlas layer, u32::MAX = no texture
-    pub texture_uv_origin: [f32; 2], // pixel coords in atlas (top-left corner)
-    pub texture_uv_size: [f32; 2],   // pixel dimensions in atlas
     pub blur_radius: f32,
-    pub nine_slice_l: f32,           // left inset in pixels (0 = no nine-slice)
-    pub nine_slice_r: f32,           // right inset in pixels
-    pub nine_slice_t: f32,           // top inset in pixels
-    pub nine_slice_b: f32,           // bottom inset in pixels
-    pub nine_slice_tiling: u32,      // bit 0=enabled; bits 1-2=h mode; bits 3-4=v mode (0=stretch,1=tile,2=tile_fit)
+    pub texture_index: u32,
 }
 
 #[repr(C)]
@@ -147,17 +134,10 @@ pub struct TriangleGpu {
     pub color_start: Color,
     pub color_end: Color,
     pub gradient_index: u32, // index into gradients buffer
-    pub texture_page: u32,           // atlas layer, u32::MAX = no texture
-    pub texture_uv_origin: [f32; 2], // pixel coords in atlas (top-left corner)
-    pub texture_uv_size: [f32; 2],   // pixel dimensions in atlas
     pub blur_radius: f32,
-    pub nine_slice_l: f32,           // left inset in pixels (0 = no nine-slice)
-    pub nine_slice_r: f32,           // right inset in pixels
-    pub nine_slice_t: f32,           // top inset in pixels
-    pub nine_slice_b: f32,           // bottom inset in pixels
-    pub nine_slice_tiling: u32,      // bit 0=enabled; bits 1-2=h mode; bits 3-4=v mode (0=stretch,1=tile,2=tile_fit)
     pub stroke_thickness: f32,       // 0 = filled, >0 = stroke only
-    pub _tri_pad: [f32; 3],
+    pub texture_index: u32,
+    pub corner_radius: f32,
 }
 
 #[repr(C)]
@@ -168,19 +148,12 @@ pub struct HexagonGpu {
     pub rotation: f32,
     pub gradient_direction: [f32; 2],
     pub stroke_thickness: f32,
-    pub texture_page: u32,
     pub color_start: Color,
     pub color_end: Color,
     pub gradient_index: u32, // index into gradients buffer
-    pub nine_slice_l: f32,           // left inset in pixels (0 = no nine-slice)
-    pub texture_uv_origin: [f32; 2],
-    pub texture_uv_size: [f32; 2],
     pub blur_radius: f32,
-    pub nine_slice_r: f32,           // right inset in pixels
-    pub nine_slice_t: f32,           // top inset in pixels
-    pub nine_slice_b: f32,           // bottom inset in pixels
-    pub nine_slice_tiling: u32,      // bit 0=enabled; bits 1-2=h mode; bits 3-4=v mode (0=stretch,1=tile,2=tile_fit)
-    pub _ns_pad: f32,                // padding to 112 bytes (16-byte aligned)
+    pub texture_index: u32,
+    pub corner_radius: f32,
 }
 
 #[repr(C)]
@@ -206,9 +179,7 @@ pub struct PolygonGpu {
     pub vert_count: u32,
     pub stroke_thickness: f32,  // 0 = filled, >0 = stroke only
     pub blur_radius: f32,
-    pub texture_page: u32,            // atlas layer, u32::MAX = no texture
-    pub texture_uv_origin: [f32; 2],  // pixel coords in atlas (top-left corner)
-    pub texture_uv_size: [f32; 2],    // pixel dimensions in atlas
+    pub texture_index: u32,
 }
 
 #[repr(C)]

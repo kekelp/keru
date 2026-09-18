@@ -134,6 +134,16 @@ pub enum TileMode {
     TileFit = 2,
 }
 
+/// How a texture's `[0, 1]` UV is anchored.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub enum TextureSpace {
+    /// The texture maps over the shape's bounding box.
+    #[default]
+    Shape,
+    /// The texture is anchored to a rectangle in absolute (pre-transform) coordinates.
+    Absolute { origin: [f32; 2], size: [f32; 2] },
+}
+
 /// Texture options.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct TextureOptions {
@@ -147,6 +157,8 @@ pub struct TextureOptions {
     ///
     /// If `nine_slice` is not `None`, it will not apply to the corner regions
     pub tile_y: TileMode,
+    /// Where the texture's UV is anchored. Defaults to [`TextureSpace::Shape`].
+    pub space: TextureSpace,
 }
 impl TextureOptions {
     pub const DEFAULT: TextureOptions = TextureOptions {
@@ -158,6 +170,7 @@ impl TextureOptions {
         }),
         tile_x: TileMode::Stretch,
         tile_y: TileMode::Stretch,
+        space: TextureSpace::Shape,
     };
 }
 
@@ -343,21 +356,27 @@ fn gradient_index_for_fill(resources: &mut GpuSlab<ResourceSlot>, gradient_indic
 }
 
 // Returns (uv_origin, uv_size, page, ns_l, ns_r, ns_t, ns_b, tiling_flags)
-fn texture_options_gpu(texture: Option<LoadedImage>, opts: Option<TextureOptions>) -> ([f32; 2], [f32; 2], u32, f32, f32, f32, f32, u32) {
-    match texture {
-        None => ([0.0, 0.0], [0.0, 0.0], u32::MAX, 0.0, 0.0, 0.0, 0.0, 0),
-        Some(image) => {
-            let uv_origin = [image.alloc.rectangle.min.x as f32, image.alloc.rectangle.min.y as f32];
-            let uv_size = [image.width as f32, image.height as f32];
-            let page = image.page as u32;
-            let opts = opts.unwrap_or_default();
-            let has_insets = opts.nine_slice.is_some();
-            let has_tiling = opts.tile_x != TileMode::Stretch || opts.tile_y != TileMode::Stretch;
-            let enabled = (has_insets || has_tiling) as u32;
-            let flags: u32 = enabled | ((opts.tile_x as u32) << 1) | ((opts.tile_y as u32) << 3);
-            let i = opts.nine_slice.unwrap_or_default();
-            (uv_origin, uv_size, page, i.left, i.right, i.top, i.bottom, flags)
-        }
+fn texture_gpu(image: LoadedImage, opts: Option<TextureOptions>) -> shapes::TextureGpu {
+    let opts = opts.unwrap_or_default();
+    let has_insets = opts.nine_slice.is_some();
+    let has_tiling = opts.tile_x != TileMode::Stretch || opts.tile_y != TileMode::Stretch;
+    let enabled = (has_insets || has_tiling) as u32;
+    let absolute = matches!(opts.space, TextureSpace::Absolute { .. }) as u32;
+    let flags = enabled | ((opts.tile_x as u32) << 1) | ((opts.tile_y as u32) << 3) | (absolute * shapes::TEXTURE_ABSOLUTE_BIT);
+    let i = opts.nine_slice.unwrap_or_default();
+    let (abs_origin, abs_size) = match opts.space {
+        TextureSpace::Absolute { origin, size } => (origin, size),
+        TextureSpace::Shape => ([0.0, 0.0], [0.0, 0.0]),
+    };
+    shapes::TextureGpu {
+        uv_origin: [image.alloc.rectangle.min.x as f32, image.alloc.rectangle.min.y as f32],
+        uv_size: [image.width as f32, image.height as f32],
+        page: image.page as u32,
+        flags,
+        nine_slice: [i.left, i.right, i.top, i.bottom],
+        abs_origin,
+        abs_size,
+        _pad: [0.0, 0.0],
     }
 }
 
@@ -466,6 +485,11 @@ impl From<ResourceSlot> for ClipRect {
 impl From<shapes::GradientGpu> for ResourceSlot {
     fn from(g: shapes::GradientGpu) -> Self {
         bytemuck::cast(g)
+    }
+}
+impl From<shapes::TextureGpu> for ResourceSlot {
+    fn from(t: shapes::TextureGpu) -> Self {
+        bytemuck::cast(t)
     }
 }
 
@@ -715,27 +739,35 @@ impl Renderer {
         })
     }
 
-    /// Set the texture applied to shapes whose own `texture` field is None, until [`Self::clear_texture`]. A shape that sets its own `texture` overrides this.
+    /// Set the texture applied to the shapes drawn until [`Self::clear_texture`].
     pub fn set_texture(&mut self, texture: LoadedImage, options: Option<TextureOptions>) {
         self.current_texture = Some(texture);
         self.current_texture_options = options;
     }
 
-    /// Clear the current texture, so shapes without their own texture draw with their fill only.
+    /// Clear the current texture, so shapes draw with their fill only.
     pub fn clear_texture(&mut self) {
         self.current_texture = None;
         self.current_texture_options = None;
     }
 
-    /// The GPU texture fields for a draw call, from the current texture set with [`Self::set_texture`].
-    fn texture_gpu(&self) -> ([f32; 2], [f32; 2], u32, f32, f32, f32, f32, u32) {
-        texture_options_gpu(self.current_texture, self.current_texture_options)
+    /// The resource index a shape references for the current texture, or `u32::MAX` for no texture. Pushes one texture resource per textured draw (freed at frame end), like gradients.
+    fn texture_index(&mut self) -> u32 {
+        match self.current_texture {
+            None => u32::MAX,
+            Some(image) => {
+                let gpu = texture_gpu(image, self.current_texture_options);
+                let index = self.resources.insert(gpu.into());
+                self.shapes.gradient_indices.push(index);
+                index as u32
+            }
+        }
     }
 
     // Shape drawing methods
     pub fn draw_box(&mut self, params: Rectangle) {
         let gradient_index = gradient_index_for_fill(&mut self.resources, &mut self.shapes.gradient_indices, params.fill);
-        let (texture_uv_origin, texture_uv_size, texture_page, nine_slice_l, nine_slice_r, nine_slice_t, nine_slice_b, nine_slice_tiling) = self.texture_gpu();
+        let texture_index = self.texture_index();
 
         let index = self.shapes.push_primitive(shapes::RectangleGpu {
             top_left: params.top_left,
@@ -747,15 +779,8 @@ impl Renderer {
             color_end: Color::default(),
             gradient_index,
             rounded_corners: params.rounded_corners.bits(),
-            texture_uv_origin,
-            texture_uv_size,
-            texture_page,
+            texture_index,
             blur_radius: params.blur,
-            nine_slice_l,
-            nine_slice_r,
-            nine_slice_t,
-            nine_slice_b,
-            nine_slice_tiling,
             ..Default::default()
         });
         self.push_instance(Instance {
@@ -791,7 +816,7 @@ impl Renderer {
 
     pub fn draw_circle(&mut self, params: Circle) {
         let gradient_index = gradient_index_for_fill(&mut self.resources, &mut self.shapes.gradient_indices, params.fill);
-        let (texture_uv_origin, texture_uv_size, texture_page, nine_slice_l, nine_slice_r, nine_slice_t, nine_slice_b, nine_slice_tiling) = self.texture_gpu();
+        let texture_index = self.texture_index();
 
         let index = self.shapes.push_primitive(shapes::CircleGpu {
             center: params.center,
@@ -801,14 +826,12 @@ impl Renderer {
             color_start: Color::default(),
             color_end: Color::default(),
             gradient_index,
-            texture_page,
-            texture_uv_origin,
-            texture_uv_size,
+            texture_index,
             dash_length: 0.0,
             dash_offset: 0.0,
             blur_radius: params.blur,
-            nine_slice_l, nine_slice_r, nine_slice_t, nine_slice_b, nine_slice_tiling,
-            _ns_pad: [0.0; 2],
+            pie_stroke_thickness: 0.0,
+            pie_corner_radius: 0.0,
         });
         self.push_instance(Instance {
             p_type: primitive::CIRCLE,
@@ -820,7 +843,7 @@ impl Renderer {
 
     pub fn draw_ring(&mut self, params: CircleRing) {
         let gradient_index = gradient_index_for_fill(&mut self.resources, &mut self.shapes.gradient_indices, params.fill);
-        let (texture_uv_origin, texture_uv_size, texture_page, nine_slice_l, nine_slice_r, nine_slice_t, nine_slice_b, nine_slice_tiling) = self.texture_gpu();
+        let texture_index = self.texture_index();
 
         let index = self.shapes.push_primitive(shapes::CircleGpu {
             center: params.center,
@@ -830,14 +853,12 @@ impl Renderer {
             color_start: Color::default(),
             color_end: Color::default(),
             gradient_index,
-            texture_page,
-            texture_uv_origin,
-            texture_uv_size,
+            texture_index,
             dash_length: params.dash_length.unwrap_or(0.0),
             dash_offset: params.dash_offset,
             blur_radius: params.blur,
-            nine_slice_l, nine_slice_r, nine_slice_t, nine_slice_b, nine_slice_tiling,
-            _ns_pad: [0.0; 2],
+            pie_stroke_thickness: 0.0,
+            pie_corner_radius: 0.0,
         });
         self.push_instance(Instance {
             p_type: primitive::CIRCLE,
@@ -850,7 +871,7 @@ impl Renderer {
     pub fn draw_arc(&mut self, params: CircleArc) {
         let gradient_index = gradient_index_for_fill(&mut self.resources, &mut self.shapes.gradient_indices, params.fill);
 
-        let (texture_uv_origin, texture_uv_size, texture_page, nine_slice_l, nine_slice_r, nine_slice_t, nine_slice_b, nine_slice_tiling) = self.texture_gpu();
+        let texture_index = self.texture_index();
 
         let index = self.shapes.push_primitive(shapes::CircleGpu {
             center: params.center,
@@ -860,14 +881,12 @@ impl Renderer {
             color_start: Color::default(),
             color_end: Color::default(),
             gradient_index,
-            texture_page,
-            texture_uv_origin,
-            texture_uv_size,
+            texture_index,
             dash_length: params.dash_length.unwrap_or(0.0),
             dash_offset: params.dash_offset,
             blur_radius: params.blur,
-            nine_slice_l, nine_slice_r, nine_slice_t, nine_slice_b, nine_slice_tiling,
-            _ns_pad: [0.0; 2],
+            pie_stroke_thickness: 0.0,
+            pie_corner_radius: 0.0,
         });
         self.push_instance(Instance {
             p_type: primitive::CIRCLE,
@@ -879,7 +898,7 @@ impl Renderer {
 
     pub fn draw_pie(&mut self, params: CirclePie) {
         let gradient_index = gradient_index_for_fill(&mut self.resources, &mut self.shapes.gradient_indices, params.fill);
-        let (texture_uv_origin, texture_uv_size, texture_page, nine_slice_l, nine_slice_r, nine_slice_t, nine_slice_b, nine_slice_tiling) = self.texture_gpu();
+        let texture_index = self.texture_index();
 
         let index = self.shapes.push_primitive(shapes::CircleGpu {
             center: params.center,
@@ -889,14 +908,12 @@ impl Renderer {
             color_start: Color::default(),
             color_end: Color::default(),
             gradient_index,
-            texture_page,
-            texture_uv_origin,
-            texture_uv_size,
+            texture_index,
             dash_length: 0.0,
             dash_offset: 0.0,
             blur_radius: params.blur,
-            nine_slice_l, nine_slice_r, nine_slice_t, nine_slice_b, nine_slice_tiling,
-            _ns_pad: [params.stroke_thickness, params.corner_radius],
+            pie_stroke_thickness: params.stroke_thickness,
+            pie_corner_radius: params.corner_radius,
         });
         self.push_instance(Instance {
             p_type: primitive::CIRCLE,
@@ -908,7 +925,7 @@ impl Renderer {
 
     pub fn draw_segment(&mut self, params: Segment) {
         let gradient_index = gradient_index_for_fill(&mut self.resources, &mut self.shapes.gradient_indices, params.fill);
-        let (texture_uv_origin, texture_uv_size, texture_page, nine_slice_l, nine_slice_r, nine_slice_t, nine_slice_b, nine_slice_tiling) = self.texture_gpu();
+        let texture_index = self.texture_index();
 
         let index = self.shapes.push_primitive(shapes::SegmentGpu {
             start: params.start,
@@ -917,11 +934,8 @@ impl Renderer {
             color_end: Color::default(),
             thickness_dash: [params.thickness, params.dash_length.unwrap_or(0.0), params.dash_offset, params.stroke_thickness],
             gradient_index,
-            texture_page,
-            texture_uv_origin,
-            texture_uv_size,
+            texture_index,
             blur_radius: params.blur,
-            nine_slice_l, nine_slice_r, nine_slice_t, nine_slice_b, nine_slice_tiling,
         });
         self.push_instance(Instance {
             p_type: primitive::SEGMENT,
@@ -933,7 +947,7 @@ impl Renderer {
 
     pub fn draw_grid(&mut self, params: Grid) {
         let gradient_index = gradient_index_for_fill(&mut self.resources, &mut self.shapes.gradient_indices, params.fill);
-        let (texture_uv_origin, texture_uv_size, texture_page, nine_slice_l, nine_slice_r, nine_slice_t, nine_slice_b, nine_slice_tiling) = self.texture_gpu();
+        let texture_index = self.texture_index();
 
         let index = self.shapes.push_primitive(shapes::GridGpu {
             top_left: params.top_left,
@@ -946,11 +960,8 @@ impl Renderer {
             color_end: Color::default(),
             gradient_index,
             grid_type: params.grid_type as u32,
-            texture_page,
-            texture_uv_origin,
-            texture_uv_size,
+            texture_index,
             blur_radius: params.blur,
-            nine_slice_l, nine_slice_r, nine_slice_t, nine_slice_b, nine_slice_tiling,
         });
         self.push_instance(Instance {
             p_type: primitive::GRID,
@@ -962,7 +973,7 @@ impl Renderer {
 
     pub fn draw_triangle(&mut self, params: Triangle) {
         let gradient_index = gradient_index_for_fill(&mut self.resources, &mut self.shapes.gradient_indices, params.fill);
-        let (texture_uv_origin, texture_uv_size, texture_page, nine_slice_l, nine_slice_r, nine_slice_t, nine_slice_b, nine_slice_tiling) = self.texture_gpu();
+        let texture_index = self.texture_index();
 
         let index = self.shapes.push_primitive(shapes::TriangleGpu {
             p0: params.p0,
@@ -972,13 +983,10 @@ impl Renderer {
             color_start: Color::default(),
             color_end: Color::default(),
             gradient_index,
-            texture_page,
-            texture_uv_origin,
-            texture_uv_size,
+            texture_index,
             blur_radius: params.blur,
-            nine_slice_l, nine_slice_r, nine_slice_t, nine_slice_b, nine_slice_tiling,
             stroke_thickness: params.stroke_thickness,
-            _tri_pad: [params.corner_radius, 0.0, 0.0],
+            corner_radius: params.corner_radius,
         });
         self.push_instance(Instance {
             p_type: primitive::TRIANGLE,
@@ -990,7 +998,7 @@ impl Renderer {
 
     pub fn draw_hexagon(&mut self, params: Hexagon) {
         let gradient_index = gradient_index_for_fill(&mut self.resources, &mut self.shapes.gradient_indices, params.fill);
-        let (texture_uv_origin, texture_uv_size, texture_page, nine_slice_l, nine_slice_r, nine_slice_t, nine_slice_b, nine_slice_tiling) = self.texture_gpu();
+        let texture_index = self.texture_index();
 
         let index = self.shapes.push_primitive(shapes::HexagonGpu {
             center: params.center,
@@ -998,16 +1006,12 @@ impl Renderer {
             rotation: params.rotation,
             gradient_direction: [0.0; 2],
             stroke_thickness: params.stroke_thickness,
-            texture_page,
+            texture_index,
             color_start: Color::default(),
             color_end: Color::default(),
             gradient_index,
-            nine_slice_l,
-            texture_uv_origin,
-            texture_uv_size,
             blur_radius: params.blur,
-            nine_slice_r, nine_slice_t, nine_slice_b, nine_slice_tiling,
-            _ns_pad: params.corner_radius,
+            corner_radius: params.corner_radius,
         });
         self.push_instance(Instance {
             p_type: primitive::HEXAGON,
@@ -1043,7 +1047,7 @@ impl Renderer {
             return;
         }
         let gradient_index = gradient_index_for_fill(&mut self.resources, &mut self.shapes.gradient_indices, params.fill);
-        let (texture_uv_origin, texture_uv_size, texture_page, ..) = self.texture_gpu();
+        let texture_index = self.texture_index();
 
         let vert_offset = self.shapes.polygon_vertices.len() as u32;
         let mut bbox_min = params.points[0];
@@ -1062,9 +1066,7 @@ impl Renderer {
             vert_count: params.points.len() as u32,
             stroke_thickness: params.stroke_thickness,
             blur_radius: params.blur,
-            texture_page,
-            texture_uv_origin,
-            texture_uv_size,
+            texture_index,
         });
         self.push_instance(Instance {
             p_type: primitive::POLYGON,

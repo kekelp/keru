@@ -27,10 +27,21 @@ struct PolygonGpu {
     uint vert_count;
     float stroke_thickness;
     float blur_radius;
-    uint texture_page;        // atlas layer, 0xFFFFFFFF = no texture
-    float2 texture_uv_origin; // pixel coords in atlas (top-left corner)
-    float2 texture_uv_size;   // pixel dimensions in atlas
+    uint texture_index;       // resource index of a TextureGpu, 0xFFFFFFFF = no texture
 }
+
+struct TextureGpu {
+    float2 uv_origin;   // atlas pixel coords
+    float2 uv_size;     // atlas pixel size
+    uint page;          // atlas layer
+    uint flags;         // bit 0=nine-slice/tiling enabled; bits 1-2=tile_x; bits 3-4=tile_y; bit 5=absolute space
+    float4 nine_slice;  // l, r, t, b
+    float2 abs_origin;  // absolute-space anchor rect
+    float2 abs_size;
+    float2 _pad;
+}
+
+static const uint TEXTURE_ABSOLUTE_BIT = 1u << 5;
 
 ParameterBlock<ShapesGpu> shapes;
 
@@ -47,10 +58,6 @@ struct GradientGpu {
 struct RectangleGpu {
     float2 top_left;
     float2 size;
-    float nine_slice_l;        // left inset in pixels (0 = no nine-slice)
-    float nine_slice_r;        // right inset in pixels
-    float nine_slice_t;        // top inset in pixels
-    float nine_slice_b;        // bottom inset in pixels
     float corner_radius;
     float border_thickness;
     float2 gradient_direction; // unused (kept for layout compatibility)
@@ -58,14 +65,8 @@ struct RectangleGpu {
     float4 color_end;          // unused
     uint gradient_index; // index into gradients buffer
     uint rounded_corners; // bitflags: 1=top-left, 2=top-right, 4=bottom-left, 8=bottom-right
-    float2 texture_uv_origin; // pixel coords in atlas (top-left corner)
-    float2 texture_uv_size;   // pixel dimensions in atlas
-    uint texture_page;        // atlas layer, 0xFFFFFFFF = no texture
     float blur_radius;
-    uint nine_slice_tiling;    // bit 0=enabled; bits 1-2=h mode; bits 3-4=v mode (0=stretch,1=tile,2=tile_fit)
-    float _ns_pad1;
-    float _ns_pad2;
-    float _ns_pad3;
+    uint texture_index;
 }
 
 struct CircleGpu {
@@ -76,17 +77,10 @@ struct CircleGpu {
     float2 angles;
     float2 gradient_direction; // unused (kept for layout compatibility)
     uint gradient_index; // index into gradients buffer
-    uint texture_page;        // atlas layer, 0xFFFFFFFF = no texture
-    float2 texture_uv_origin; // pixel coords in atlas (top-left corner)
-    float2 texture_uv_size;   // pixel dimensions in atlas
     float dash_length;        // 0 = no dashing, >0 = dash length in pixels
     float dash_offset;        // offset for dash pattern alignment
     float blur_radius;
-    float nine_slice_l;        // left inset in pixels (0 = no nine-slice)
-    float nine_slice_r;        // right inset in pixels
-    float nine_slice_t;        // top inset in pixels
-    float nine_slice_b;        // bottom inset in pixels
-    uint nine_slice_tiling;    // bit 0=enabled; bits 1-2=h mode; bits 3-4=v mode (0=stretch,1=tile,2=tile_fit)
+    uint texture_index;
     float pie_stroke_thickness; // pie only: 0=filled, >0=hollow outline
     float pie_corner_radius;    // pie only: rounds center point and arc-edge corners
 }
@@ -98,16 +92,8 @@ struct SegmentGpu {
     float4 color_end;    // unused
     float4 thickness_dash; // [thickness, dash_length, dash_offset, stroke_thickness]
     uint gradient_index; // index into gradients buffer
-    uint texture_page;        // atlas layer, 0xFFFFFFFF = no texture
-    float2 texture_uv_origin; // pixel coords in atlas (top-left corner)
-    float2 texture_uv_size;   // pixel dimensions in atlas
     float blur_radius;
-    float nine_slice_l;        // left inset in pixels (0 = no nine-slice)
-    float nine_slice_r;        // right inset in pixels
-    float nine_slice_t;        // top inset in pixels
-    float nine_slice_b;        // bottom inset in pixels
-    uint nine_slice_tiling;    // bit 0=enabled; bits 1-2=h mode; bits 3-4=v mode (0=stretch,1=tile,2=tile_fit)
-    float4 _seg_pad;           // padding to 128 bytes (shared PrimitiveSlot size)
+    uint texture_index;
 }
 
 struct GridGpu {
@@ -121,15 +107,8 @@ struct GridGpu {
     float line_thickness;
     uint gradient_index; // index into gradients buffer
     uint grid_type; // 0=square, 1=hex
-    uint texture_page;        // atlas layer, 0xFFFFFFFF = no texture
-    float2 texture_uv_origin; // pixel coords in atlas (top-left corner)
-    float2 texture_uv_size;   // pixel dimensions in atlas
     float blur_radius;
-    float nine_slice_l;        // left inset in pixels (0 = no nine-slice)
-    float nine_slice_r;        // right inset in pixels
-    float nine_slice_t;        // top inset in pixels
-    float nine_slice_b;        // bottom inset in pixels
-    uint nine_slice_tiling;    // bit 0=enabled; bits 1-2=h mode; bits 3-4=v mode (0=stretch,1=tile,2=tile_fit)
+    uint texture_index;
 }
 
 struct TriangleGpu {
@@ -140,19 +119,10 @@ struct TriangleGpu {
     float4 color_start;        // unused
     float4 color_end;          // unused
     uint gradient_index; // index into gradients buffer
-    uint texture_page;        // atlas layer, 0xFFFFFFFF = no texture
-    float2 texture_uv_origin; // pixel coords in atlas (top-left corner)
-    float2 texture_uv_size;   // pixel dimensions in atlas
     float blur_radius;
-    float nine_slice_l;        // left inset in pixels (0 = no nine-slice)
-    float nine_slice_r;        // right inset in pixels
-    float nine_slice_t;        // top inset in pixels
-    float nine_slice_b;        // bottom inset in pixels
-    uint nine_slice_tiling;    // bit 0=enabled; bits 1-2=h mode; bits 3-4=v mode (0=stretch,1=tile,2=tile_fit)
     float stroke_thickness;    // 0 = filled, >0 = stroke only
+    uint texture_index;
     float corner_radius;
-    float _tri_pad1;
-    float _tri_pad2;
 }
 
 struct HexagonGpu {
@@ -161,20 +131,12 @@ struct HexagonGpu {
     float rotation;            // rotation in radians
     float2 gradient_direction; // unused (kept for layout compatibility)
     float stroke_thickness;    // 0 = filled, >0 = stroke only
-    uint texture_page;         // atlas layer, 0xFFFFFFFF = no texture
     float4 color_start;        // unused
     float4 color_end;          // unused
     uint gradient_index;       // index into gradients buffer
-    float nine_slice_l;        // left inset in pixels (0 = no nine-slice)
-    float2 texture_uv_origin;  // pixel coords in atlas (top-left corner)
-    float2 texture_uv_size;    // pixel dimensions in atlas
     float blur_radius;
-    float nine_slice_r;        // right inset in pixels
-    float nine_slice_t;        // top inset in pixels
-    float nine_slice_b;        // bottom inset in pixels
-    uint nine_slice_tiling;    // bit 0=enabled; bits 1-2=h mode; bits 3-4=v mode (0=stretch,1=tile,2=tile_fit)
+    uint texture_index;
     float corner_radius;
-    float4 _hex_pad;           // padding to 128 bytes (shared PrimitiveSlot size)
 }
 
 struct QuadraticBezierGpu {
@@ -316,6 +278,34 @@ float tex_blur_lod(float blur_radius, float2 tex_uv_size, float2 shape_size) {
     return max(0.0, log2(blur_radius * scale));
 }
 
+float4 sample_texture(TextureGpu tex, float2 local_uv, float2 shape_size, float2 abs_pixel_pos, float blur_radius, bool srgb) {
+    uint atlas_width, atlas_height, atlas_elements;
+    shapes.atlas_texture.GetDimensions(atlas_width, atlas_height, atlas_elements);
+    float2 atlas_size = float2(float(atlas_width), float(atlas_height));
+
+    float2 uv = local_uv;
+    float2 box_size = shape_size;
+    if ((tex.flags & TEXTURE_ABSOLUTE_BIT) != 0u) {
+        uv = frac((abs_pixel_pos - tex.abs_origin) / max(tex.abs_size, float2(1e-6, 1e-6)));
+        box_size = tex.abs_size;
+    }
+
+    float2 tex_uv;
+    if ((tex.flags & 1u) != 0u) {
+        tex_uv = nine_slice_uv(uv, box_size, tex.uv_origin, tex.uv_size,
+            tex.nine_slice.x, tex.nine_slice.y, tex.nine_slice.z, tex.nine_slice.w, tex.flags, atlas_size);
+    } else {
+        tex_uv = (tex.uv_origin + tex.uv_size * uv) / atlas_size;
+    }
+
+    float lod = tex_blur_lod(blur_radius, tex.uv_size, box_size);
+    float4 c = shapes.atlas_texture.SampleLevel(shapes.atlas_sampler, float3(tex_uv, float(tex.page)), lod);
+    if (srgb) {
+        c = srgb_to_linear4(c);
+    }
+    return c;
+}
+
 float srgb_to_linear(float x) {
     return x <= 0.04045 ? x / 12.92 : pow((x + 0.055) / 1.055, 2.4);
 }
@@ -446,39 +436,10 @@ float4 box_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, float2 s
         color.rgb = srgb_to_linear3(color.rgb);
     }
 
-    // Sample texture if enabled (texture_page != 0xFFFFFFFF)
-    if (box.texture_page != 0xFFFFFFFFu) {
-        // Get atlas dimensions
-        uint atlas_width, atlas_height, atlas_elements;
-        shapes.atlas_texture.GetDimensions(atlas_width, atlas_height, atlas_elements);
-        float2 atlas_size = float2(float(atlas_width), float(atlas_height));
-
+    if (box.texture_index != 0xFFFFFFFFu) {
+        TextureGpu tex = reinterpret<TextureGpu>(shapes.resources[box.texture_index]);
         float2 local_uv = (p + box.size * 0.5) / box.size;
-        float2 tex_uv;
-        if ((box.nine_slice_tiling & 1u) != 0u) {
-            tex_uv = nine_slice_uv(local_uv, box.size, box.texture_uv_origin, box.texture_uv_size,
-                box.nine_slice_l, box.nine_slice_r, box.nine_slice_t, box.nine_slice_b,
-                box.nine_slice_tiling, atlas_size);
-        } else {
-            tex_uv = (box.texture_uv_origin + box.texture_uv_size * local_uv) / atlas_size;
-        }
-
-        float lod = tex_blur_lod(box.blur_radius, box.texture_uv_size, box.size);
-
-        // Sample texture
-        float4 tex_color = shapes.atlas_texture.SampleLevel(
-            shapes.atlas_sampler,
-            float3(tex_uv, float(box.texture_page)),
-            lod
-        );
-
-        // Atlas is Rgba8Unorm (linear read); linearize sRGB-encoded image data when surface is sRGB.
-        if (surface_is_srgb) {
-            tex_color = srgb_to_linear4(tex_color);
-        }
-
-        // Multiply texture color with fill color (tinting)
-        color = tex_color * color;
+        color *= sample_texture(tex, local_uv, box.size, pixel_pos_box, box.blur_radius, surface_is_srgb);
     }
 
     return float4(color.rgb, color.a * alpha);
@@ -687,39 +648,11 @@ float4 circle_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, float
         color.rgb = srgb_to_linear3(color.rgb);
     }
 
-    // Sample texture if enabled (texture_page != 0xFFFFFFFF)
-    if (circle.texture_page != 0xFFFFFFFFu) {
-        // Get atlas dimensions
-        uint atlas_width, atlas_height, atlas_elements;
-        shapes.atlas_texture.GetDimensions(atlas_width, atlas_height, atlas_elements);
-        float2 atlas_size = float2(float(atlas_width), float(atlas_height));
-
+    if (circle.texture_index != 0xFFFFFFFFu) {
+        TextureGpu tex = reinterpret<TextureGpu>(shapes.resources[circle.texture_index]);
         float2 shape_sz = float2(outer_radius * 2.0);
         float2 local_uv = (p + float2(outer_radius)) / shape_sz;
-        float2 tex_uv;
-        if ((circle.nine_slice_tiling & 1u) != 0u) {
-            tex_uv = nine_slice_uv(local_uv, shape_sz, circle.texture_uv_origin, circle.texture_uv_size,
-                circle.nine_slice_l, circle.nine_slice_r, circle.nine_slice_t, circle.nine_slice_b,
-                circle.nine_slice_tiling, atlas_size);
-        } else {
-            tex_uv = (circle.texture_uv_origin + circle.texture_uv_size * local_uv) / atlas_size;
-        }
-
-        float lod = tex_blur_lod(circle.blur_radius, circle.texture_uv_size, shape_sz);
-
-        // Sample texture
-        float4 tex_color = shapes.atlas_texture.SampleLevel(
-            shapes.atlas_sampler,
-            float3(tex_uv, float(circle.texture_page)),
-            lod
-        );
-
-        if (srgb) {
-            tex_color = srgb_to_linear4(tex_color);
-        }
-
-        // Multiply texture color with fill color (tinting)
-        color = tex_color * color;
+        color *= sample_texture(tex, local_uv, shape_sz, pixel_pos_circle, circle.blur_radius, srgb);
     }
 
     return float4(color.rgb, alpha * color.a);
@@ -840,34 +773,12 @@ float4 segment_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, floa
         color.rgb = srgb_to_linear3(color.rgb);
     }
 
-    // Sample texture if enabled (texture_page != 0xFFFFFFFF)
-    if (seg.texture_page != 0xFFFFFFFFu) {
-        uint atlas_width, atlas_height, atlas_elements;
-        shapes.atlas_texture.GetDimensions(atlas_width, atlas_height, atlas_elements);
-        float2 atlas_size = float2(float(atlas_width), float(atlas_height));
+    if (seg.texture_index != 0xFFFFFFFFu) {
+        TextureGpu tex = reinterpret<TextureGpu>(shapes.resources[seg.texture_index]);
         float2 orig_min = min(seg.start, seg.end) - float2(half_thickness, half_thickness);
         float2 orig_size = max(seg.start, seg.end) + float2(half_thickness, half_thickness) - orig_min;
         float2 local_uv = (p - orig_min) / orig_size;
-        float2 tex_uv;
-        if ((seg.nine_slice_tiling & 1u) != 0u) {
-            tex_uv = nine_slice_uv(local_uv, orig_size, seg.texture_uv_origin, seg.texture_uv_size,
-                seg.nine_slice_l, seg.nine_slice_r, seg.nine_slice_t, seg.nine_slice_b,
-                seg.nine_slice_tiling, atlas_size);
-        } else {
-            tex_uv = (seg.texture_uv_origin + seg.texture_uv_size * local_uv) / atlas_size;
-        }
-
-        float lod = tex_blur_lod(seg.blur_radius, seg.texture_uv_size, orig_size);
-
-        float4 tex_color = shapes.atlas_texture.SampleLevel(
-            shapes.atlas_sampler,
-            float3(tex_uv, float(seg.texture_page)),
-            lod
-        );
-        if (srgb) {
-            tex_color = srgb_to_linear4(tex_color);
-        }
-        color = tex_color * color;
+        color *= sample_texture(tex, local_uv, orig_size, p, seg.blur_radius, srgb);
     }
 
     return float4(color.rgb, alpha * color.a);
@@ -970,29 +881,9 @@ float4 grid_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, float2 
     }
 
     // Sample texture if enabled (texture_page != 0xFFFFFFFF)
-    if (grid.texture_page != 0xFFFFFFFFu) {
-        uint atlas_width, atlas_height, atlas_elements;
-        shapes.atlas_texture.GetDimensions(atlas_width, atlas_height, atlas_elements);
-        float2 atlas_size = float2(float(atlas_width), float(atlas_height));
-        float2 tex_uv;
-        if ((grid.nine_slice_tiling & 1u) != 0u) {
-            tex_uv = nine_slice_uv(uv, grid.size, grid.texture_uv_origin, grid.texture_uv_size,
-                grid.nine_slice_l, grid.nine_slice_r, grid.nine_slice_t, grid.nine_slice_b,
-                grid.nine_slice_tiling, atlas_size);
-        } else {
-            tex_uv = (grid.texture_uv_origin + grid.texture_uv_size * uv) / atlas_size;
-        }
-        float lod = tex_blur_lod(grid.blur_radius, grid.texture_uv_size, grid.size);
-
-        float4 tex_color = shapes.atlas_texture.SampleLevel(
-            shapes.atlas_sampler,
-            float3(tex_uv, float(grid.texture_page)),
-            lod
-        );
-        if (surface_is_srgb) {
-            tex_color = srgb_to_linear4(tex_color);
-        }
-        color = tex_color * color;
+    if (grid.texture_index != 0xFFFFFFFFu) {
+        TextureGpu tex = reinterpret<TextureGpu>(shapes.resources[grid.texture_index]);
+        color *= sample_texture(tex, uv, grid.size, pixel_pos_grid, grid.blur_radius, surface_is_srgb);
     }
 
     return float4(color.rgb, color.a * alpha);
@@ -1103,38 +994,11 @@ float4 triangle_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, flo
     }
 
     // Sample texture if enabled (texture_page != 0xFFFFFFFF)
-    if (tri.texture_page != 0xFFFFFFFFu) {
-        // Get atlas dimensions
-        uint atlas_width, atlas_height, atlas_elements;
-        shapes.atlas_texture.GetDimensions(atlas_width, atlas_height, atlas_elements);
-        float2 atlas_size = float2(float(atlas_width), float(atlas_height));
-
+    if (tri.texture_index != 0xFFFFFFFFu) {
+        TextureGpu tex = reinterpret<TextureGpu>(shapes.resources[tri.texture_index]);
         float2 shape_sz = orig_max - orig_min;
         float2 local_uv = (p - orig_min) / shape_sz;
-        float2 tex_uv;
-        if ((tri.nine_slice_tiling & 1u) != 0u) {
-            tex_uv = nine_slice_uv(local_uv, shape_sz, tri.texture_uv_origin, tri.texture_uv_size,
-                tri.nine_slice_l, tri.nine_slice_r, tri.nine_slice_t, tri.nine_slice_b,
-                tri.nine_slice_tiling, atlas_size);
-        } else {
-            tex_uv = (tri.texture_uv_origin + tri.texture_uv_size * local_uv) / atlas_size;
-        }
-
-        float lod = tex_blur_lod(tri.blur_radius, tri.texture_uv_size, shape_sz);
-
-        // Sample texture
-        float4 tex_color = shapes.atlas_texture.SampleLevel(
-            shapes.atlas_sampler,
-            float3(tex_uv, float(tri.texture_page)),
-            lod
-        );
-
-        if (surface_is_srgb) {
-            tex_color = srgb_to_linear4(tex_color);
-        }
-
-        // Multiply texture color with fill color (tinting)
-        color = tex_color * color;
+        color *= sample_texture(tex, local_uv, shape_sz, p, tri.blur_radius, surface_is_srgb);
     }
 
     return float4(color.rgb, color.a * alpha);
@@ -1231,25 +1095,11 @@ float4 polygon_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, floa
         color.rgb = srgb_to_linear3(color.rgb);
     }
 
-    if (poly.texture_page != 0xFFFFFFFFu) {
-        uint atlas_width, atlas_height, atlas_elements;
-        shapes.atlas_texture.GetDimensions(atlas_width, atlas_height, atlas_elements);
-        float2 atlas_size = float2(float(atlas_width), float(atlas_height));
-
+    if (poly.texture_index != 0xFFFFFFFFu) {
+        TextureGpu tex = reinterpret<TextureGpu>(shapes.resources[poly.texture_index]);
         float2 shape_sz = poly.bbox_max - poly.bbox_min;
         float2 local_uv = (p - poly.bbox_min) / max(shape_sz, float2(1e-6, 1e-6));
-        float2 tex_uv = (poly.texture_uv_origin + poly.texture_uv_size * local_uv) / atlas_size;
-
-        float lod = tex_blur_lod(poly.blur_radius, poly.texture_uv_size, shape_sz);
-        float4 tex_color = shapes.atlas_texture.SampleLevel(
-            shapes.atlas_sampler,
-            float3(tex_uv, float(poly.texture_page)),
-            lod
-        );
-        if (surface_is_srgb) {
-            tex_color = srgb_to_linear4(tex_color);
-        }
-        color = tex_color * color;
+        color *= sample_texture(tex, local_uv, shape_sz, p, poly.blur_radius, surface_is_srgb);
     }
 
     return float4(color.rgb, color.a * alpha);
@@ -1349,32 +1199,12 @@ float4 hexagon_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, floa
     }
 
     // Sample texture if enabled (texture_page != 0xFFFFFFFF)
-    if (hex.texture_page != 0xFFFFFFFFu) {
-        uint atlas_width, atlas_height, atlas_elements;
-        shapes.atlas_texture.GetDimensions(atlas_width, atlas_height, atlas_elements);
-        float2 atlas_size = float2(float(atlas_width), float(atlas_height));
+    if (hex.texture_index != 0xFFFFFFFFu) {
+        TextureGpu tex = reinterpret<TextureGpu>(shapes.resources[hex.texture_index]);
         // Map p (in the 1.1547-scaled space) back to 0-1 over the original bounding box
         float2 shape_sz = float2(hex.size * 2.0);
         float2 local_uv = (p * 0.866025 + float2(hex.size)) / shape_sz;
-        float2 tex_uv;
-        if ((hex.nine_slice_tiling & 1u) != 0u) {
-            tex_uv = nine_slice_uv(local_uv, shape_sz, hex.texture_uv_origin, hex.texture_uv_size,
-                hex.nine_slice_l, hex.nine_slice_r, hex.nine_slice_t, hex.nine_slice_b,
-                hex.nine_slice_tiling, atlas_size);
-        } else {
-            tex_uv = (hex.texture_uv_origin + hex.texture_uv_size * local_uv) / atlas_size;
-        }
-        float lod = tex_blur_lod(hex.blur_radius, hex.texture_uv_size, shape_sz);
-
-        float4 tex_color = shapes.atlas_texture.SampleLevel(
-            shapes.atlas_sampler,
-            float3(tex_uv, float(hex.texture_page)),
-            lod
-        );
-        if (surface_is_srgb) {
-            tex_color = srgb_to_linear4(tex_color);
-        }
-        color = tex_color * color;
+        color *= sample_texture(tex, local_uv, shape_sz, pixel_pos_hex, hex.blur_radius, surface_is_srgb);
     }
 
     return float4(color.rgb, color.a * alpha);

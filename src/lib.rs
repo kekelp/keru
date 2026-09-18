@@ -131,7 +131,7 @@ pub(crate) use thread_local::SiblingCursor;
 
 pub use bumpalo;
 
-pub use keru_draw::{TextStyle2 as SharedTextStyle, FontWeight, FontStyle, LineHeight, ColorBrush, StyleHandle, with_clipboard, Color, ColorFill as CanvasColorFill, SharedGradient, BoundingBox, TextureOptions as ImageOptions, NineSliceMargins, TileMode};
+pub use keru_draw::{TextStyle2 as SharedTextStyle, FontWeight, FontStyle, LineHeight, ColorBrush, StyleHandle, with_clipboard, Color, ColorFill as CanvasColorFill, SharedGradient, BoundingBox, TextureOptions as ImageOptions, TextureSpace, NineSliceMargins, TileMode};
 pub use keru_draw::{Rectangle, Circle, CircleRing, CircleArc, CirclePie, Segment, Grid, GridType, Triangle, Polygon as CanvasPolygon, Hexagon, QuadraticBezier, DashedBoxOutline, DashedHexagonOutline, Transform as DrawTransform, ClipRect, LoadedImage, Gradient, RoundedCorners};
 pub use keru_draw::parley::Alignment as TextAlignment;
 pub use keru_draw::parley::{FontFamily, FontFamilyName, GenericFamily};
