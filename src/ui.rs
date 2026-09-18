@@ -7,6 +7,7 @@ use bumpalo::Bump;
 use glam::Vec2;
 
 use keru_draw::Renderer;
+use lru::LruCache;
 use slab::Slab;
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
@@ -144,7 +145,7 @@ pub(crate) struct System {
     pub user_state: HashMap<Id, Box<dyn Any>>,
 
     // todo: do something else
-    pub image_cache: lru::LruCache<ImageSourceId, ImageRef>,
+    pub image_cache: LruCache<ImageSourceId, ImageRef>,
 
     pub loaded_images: Slab<LoadedImageEntry>,
     pub image_handle_sender: mpsc::Sender<ImageHandleMessage>,
@@ -197,6 +198,30 @@ pub(crate) struct LoadedImageEntry {
     pub imageref: ImageRef,
     pub refcount: usize,
     pub generation: u64,
+}
+
+pub(crate) fn resolve_path_image(
+    renderer: &mut Renderer,
+    cache: &mut LruCache<ImageSourceId, ImageRef>,
+    path: &str,
+) -> Option<ImageRef> {
+    let source = ImageSourceId::PathHash(ahash(&path));
+    if let Some(cached) = cache.get(&source) {
+        return Some(cached.clone());
+    }
+    let bytes = std::fs::read(path).map_err(|e| log::error!("Failed to read image file '{}': {}", path, e)).ok()?;
+    let Some(loaded) = renderer.image_renderer.load_encoded_image(&bytes) else {
+        log::error!("Failed to decode image from path '{}'", path);
+        return None;
+    };
+    let imageref = ImageRef::Raster(loaded);
+    if let Some((_evicted_key, evicted)) = cache.push(source, imageref.clone()) {
+        match evicted {
+            ImageRef::Raster(l) => renderer.image_renderer.unload_image(&l),
+            ImageRef::Svg(l) => renderer.image_renderer.unload_svg(&l),
+        }
+    }
+    Some(imageref)
 }
 
 /// A handle to an image loaded with [`Ui::load_image()`], that can be used with [`Node::image()`].
@@ -399,7 +424,7 @@ impl Ui {
 
                 user_state: HashMap::with_capacity(7),
 
-                image_cache: lru::LruCache::new(NonZeroUsize::new(128).unwrap()),
+                image_cache: LruCache::new(NonZeroUsize::new(128).unwrap()),
 
                 loaded_images: Slab::with_capacity(4),
                 image_handle_sender,
@@ -876,7 +901,7 @@ impl Ui {
 
     /// If the node holds a refcounted loaded image, release the tree's reference to it. Call before the node's image source changes or the node is removed.
     pub(crate) fn release_node_loaded_image(&mut self, i: NodeI) {
-        if let Some(crate::inner_node::ImageSourceId::Handle { id, .. }) = self.sys.nodes[i].last_image_source {
+        if let Some(ImageSourceId::Handle { id, .. }) = self.sys.nodes[i].last_image_source {
             self.release_loaded_image(id);
         }
     }
@@ -1038,44 +1063,23 @@ impl Ui {
     }
 
     pub(crate) fn set_path_image(&mut self, i: NodeI, path: &str) {
-        let source = crate::inner_node::ImageSourceId::PathHash(ahash(&path));
+        let source = ImageSourceId::PathHash(ahash(&path));
 
         if self.sys.nodes[i].last_image_source == Some(source) {
             return;
         }
 
         self.release_node_loaded_image(i);
-        let node = &mut self.sys.nodes[i];
 
-        // Check global cache
-        if let Some(cached) = self.sys.image_cache.get(&source) {
-            node.imageref = Some(cached.clone());
-            node.last_image_source = Some(source);
+        if let Some(imageref) = resolve_path_image(&mut self.sys.renderer, &mut self.sys.image_cache, path) {
+            self.sys.nodes[i].imageref = Some(imageref);
+            self.sys.nodes[i].last_image_source = Some(source);
             self.sys.changes.should_rebuild_render_data = true;
-            return;
-        }
-
-        match std::fs::read(path) {
-            Ok(bytes) => {
-                if let Some(loaded) = self.sys.renderer.image_renderer.load_encoded_image(&bytes) {
-                    log::info!("Loaded image from path '{}': {}x{} on page {}", path, loaded.width, loaded.height, loaded.page);
-                    let imageref = ImageRef::Raster(loaded);
-                    self.cache_image(source, imageref.clone());
-                    self.sys.nodes[i].imageref = Some(imageref);
-                    self.sys.nodes[i].last_image_source = Some(source);
-                    self.sys.changes.should_rebuild_render_data = true;
-                } else {
-                    log::error!("Failed to decode image from path '{}'", path);
-                }
-            }
-            Err(e) => {
-                log::error!("Failed to read image file '{}': {}", path, e);
-            }
         }
     }
 
     pub(crate) fn set_path_svg(&mut self, i: NodeI, path: &str) {
-        let source = crate::inner_node::ImageSourceId::PathHash(ahash(&path));
+        let source = ImageSourceId::PathHash(ahash(&path));
 
         if self.sys.nodes[i].last_image_source == Some(source) {
             return;

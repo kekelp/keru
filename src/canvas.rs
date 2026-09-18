@@ -4,7 +4,9 @@ use keru_draw::{
     ClipRect, ClipRectHandle, LoadedImage, TextureOptions, Gradient, SharedGradient,
 };
 use slab::Slab;
-use crate::ui::LoadedImageEntry;
+use lru::LruCache;
+use crate::ui::{LoadedImageEntry, resolve_path_image};
+use crate::inner_node::ImageSourceId;
 use crate::render::ImageRef;
 use crate::LoadedImageHandle;
 
@@ -14,11 +16,16 @@ use crate::LoadedImageHandle;
 pub struct Canvas<'a> {
     renderer: &'a mut Renderer,
     images: &'a Slab<LoadedImageEntry>,
+    image_cache: &'a mut LruCache<ImageSourceId, ImageRef>,
 }
 
 impl<'a> Canvas<'a> {
-    pub(crate) fn new(renderer: &'a mut Renderer, images: &'a Slab<LoadedImageEntry>) -> Self {
-        Self { renderer, images }
+    pub(crate) fn new(
+        renderer: &'a mut Renderer,
+        images: &'a Slab<LoadedImageEntry>,
+        image_cache: &'a mut LruCache<ImageSourceId, ImageRef>,
+    ) -> Self {
+        Self { renderer, images, image_cache }
     }
 
     /// Resolve a handle to its atlas reference, if the image is loaded and ready.
@@ -32,6 +39,14 @@ impl<'a> Canvas<'a> {
     pub fn set_texture(&mut self, texture: &LoadedImageHandle, options: Option<TextureOptions>) {
         match self.resolve(texture) {
             Some(loaded) => self.renderer.set_texture(loaded, options),
+            None => self.renderer.clear_texture(),
+        }
+    }
+
+    /// Set the texture for the draw calls that follow using an image file path.
+    pub fn set_texture_from_path(&mut self, path: &str, options: Option<TextureOptions>) {
+        match resolve_path_image(self.renderer, self.image_cache, path) {
+            Some(ImageRef::Raster(loaded)) | Some(ImageRef::Svg(loaded)) => self.renderer.set_texture(loaded, options),
             None => self.renderer.clear_texture(),
         }
     }

@@ -330,8 +330,7 @@ impl<'a> UiNode<'a> {
         sys.renderer.set_current_clip_rect(clip_rect);
         sys.renderer.start_deferred_mode();
 
-        // The Canvas borrows the renderer to draw and the image slab to resolve texture handles; the two are disjoint fields of `System`.
-        let mut canvas = Canvas::new(&mut sys.renderer, &sys.loaded_images);
+        let mut canvas = Canvas::new(&mut sys.renderer, &sys.loaded_images, &mut sys.image_cache);
         drawing_function(&mut canvas);
 
         let instances = sys.renderer.end_deferred_mode();

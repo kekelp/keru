@@ -134,10 +134,7 @@ pub enum TileMode {
     TileFit = 2,
 }
 
-/// Texture sampling options: border insets for 9-slice scaling and per-axis tiling modes.
-///
-/// Used alongside `texture: Option<LoadedImage>` on shape structs.
-/// Nine-slice margins default to `None` (no slicing) and tiling defaults to `Stretch`.
+/// Texture options.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct TextureOptions {
     /// Nine-slice margins.
