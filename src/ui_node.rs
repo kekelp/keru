@@ -337,6 +337,8 @@ impl<'a> UiNode<'a> {
         let instances = sys.renderer.end_deferred_mode();
         sys.renderer.clear_current_transform();
         sys.renderer.clear_current_clip_rect();
+        // A texture the closure set stays on the renderer, so clear it before the core resumes drawing node shapes.
+        sys.renderer.clear_texture();
 
         sys.nodes[i].canvas_instances = Some(instances);
     }

@@ -396,6 +396,11 @@ impl Ui {
             };
             let fill = alpha_fill(fill, alpha);
 
+            match pass.texture {
+                Some(t) => self.sys.renderer.set_texture(t, texture_options),
+                None => self.sys.renderer.clear_texture(),
+            }
+
             match shape {
                 Shape::NoShape => {}
                 Shape::Rectangle { rounded_corners, corner_radius } => {
@@ -406,9 +411,7 @@ impl Ui {
                         rounded_corners: *rounded_corners,
                         border_thickness: 0.0,
                         fill,
-                        texture: pass.texture,
                         blur: pass.blur,
-                        texture_options,
                     });
                 }
                 Shape::Circle => {
@@ -419,9 +422,7 @@ impl Ui {
                         center: [cx, cy],
                         radius,
                         fill,
-                        texture: pass.texture,
                         blur: pass.blur,
-                        texture_options,
                     });
                 }
                 Shape::Ring { width } => {
@@ -441,11 +442,9 @@ impl Ui {
                         inner_radius,
                         outer_radius,
                         fill,
-                        texture: pass.texture,
                         dash_length,
                         dash_offset: 0.0,
                         blur: pass.blur,
-                        texture_options,
                     });
                 }
                 Shape::Arc { start_angle, end_angle, width } => {
@@ -469,11 +468,9 @@ impl Ui {
                         end_angle: *end_angle,
                         thickness: actual_width,
                         fill,
-                        texture: pass.texture,
                         dash_length,
                         dash_offset: 0.0,
                         blur: pass.blur,
-                        texture_options,
                     });
                 }
                 Shape::Pie { start_angle, end_angle } => {
@@ -486,9 +483,7 @@ impl Ui {
                         start_angle: *start_angle,
                         end_angle: *end_angle,
                         fill,
-                        texture: pass.texture,
                         blur: pass.blur,
-                        texture_options,
                         stroke_thickness: 0.0,
                         corner_radius: 0.0,
                     });
@@ -507,9 +502,7 @@ impl Ui {
                         stroke_thickness: 0.0,
                         dash_length: dash_length.map(|d| d * scale_factor),
                         dash_offset: 0.0,
-                        texture: pass.texture,
                         blur: pass.blur,
-                        texture_options,
                     });
                 }
                 Shape::HorizontalLine => {
@@ -524,9 +517,7 @@ impl Ui {
                         stroke_thickness: 0.0,
                         dash_length,
                         dash_offset: 0.0,
-                        texture: pass.texture,
                         blur: pass.blur,
-                        texture_options,
                     });
                 }
                 Shape::Hexagon { size, rotation } => {
@@ -542,9 +533,7 @@ impl Ui {
                             rotation: *rotation,
                             fill,
                             stroke_thickness: 0.0,
-                            texture: pass.texture,
                             blur: pass.blur,
-                            texture_options,
                             corner_radius: 0.0,
                         });
                     }
@@ -561,9 +550,7 @@ impl Ui {
                         stroke_thickness: 0.0,
                         dash_length,
                         dash_offset: 0.0,
-                        texture: pass.texture,
                         blur: pass.blur,
-                        texture_options,
                     });
                 }
                 Shape::Triangle { rotation, width } => {
@@ -594,9 +581,7 @@ impl Ui {
                         p2: [p2_x, p2_y],
                         fill,
                         stroke_thickness: 0.0,
-                        texture: pass.texture,
                         blur: pass.blur,
-                        texture_options,
                         corner_radius: 0.0,
                     });
                 }
@@ -609,9 +594,7 @@ impl Ui {
                         line_thickness: *line_thickness * scale_factor,
                         fill,
                         grid_type: keru_draw::GridType::Square,
-                        texture: pass.texture,
                         blur: pass.blur,
-                        texture_options,
                     });
                 }
                 Shape::HexGrid { lattice_size, offset, line_thickness } => {
@@ -624,9 +607,7 @@ impl Ui {
                         line_thickness: *line_thickness * scale_factor,
                         fill,
                         grid_type: keru_draw::GridType::Hexagonal,
-                        texture: pass.texture,
                         blur: pass.blur,
-                        texture_options,
                     });
                 }
             }
@@ -640,6 +621,9 @@ impl Ui {
             };
             alpha_fill(f, alpha)
         };
+
+        // Strokes are never textured.
+        self.sys.renderer.clear_texture();
 
         // Draw strokes
         match shape {
@@ -675,9 +659,7 @@ impl Ui {
                             rounded_corners: *rounded_corners,
                             border_thickness: stroke.width * scale_factor,
                             fill: stroke_fill,
-                            texture: None,
                             blur,
-                            texture_options: None,
                         });
                     }
                 }
@@ -694,11 +676,9 @@ impl Ui {
                         inner_radius: radius - stroke.width * scale_factor * 0.5,
                         outer_radius: radius + stroke.width * scale_factor * 0.5,
                         fill: stroke_fill,
-                        texture: None,
                         dash_length,
                         dash_offset: 0.0,
                         blur,
-                        texture_options: None,
                     });
                 }
             }
@@ -736,9 +716,7 @@ impl Ui {
                             rotation: *rotation,
                             fill: stroke_fill,
                             stroke_thickness: stroke.width * scale_factor,
-                            texture: None,
                             blur,
-                            texture_options: None,
                             corner_radius: 0.0,
                         });
                     }
@@ -780,9 +758,7 @@ impl Ui {
             rounded_corners: keru_draw::RoundedCorners::ALL,
             border_thickness: thickness,
             fill: keru_draw::ColorFill::Color(focus_color),
-            texture: None,
             blur: 0.0,
-            texture_options: None,
         });
     }
 

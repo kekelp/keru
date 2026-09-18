@@ -9,48 +9,40 @@ use crate::render::ImageRef;
 use crate::LoadedImageHandle;
 
 /// A context for custom vector drawing inside a node, handed to the closure of [`crate::UiNode::canvas_drawing`].
+///
+/// A texture for the shapes is set through [`Canvas::set_texture`], which resolves a [`LoadedImageHandle`] to its atlas entry before handing it to the renderer. The raw atlas reference never leaves the `Canvas`, so it cannot outlive the handle that keeps it loaded.
 pub struct Canvas<'a> {
     renderer: &'a mut Renderer,
     images: &'a Slab<LoadedImageEntry>,
-    current_texture: Option<LoadedImage>,
-    current_texture_options: Option<TextureOptions>,
 }
 
 impl<'a> Canvas<'a> {
     pub(crate) fn new(renderer: &'a mut Renderer, images: &'a Slab<LoadedImageEntry>) -> Self {
-        Self { renderer, images, current_texture: None, current_texture_options: None }
+        Self { renderer, images }
     }
 
     /// Resolve a handle to its atlas reference, if the image is loaded and ready.
     fn resolve(&self, handle: &LoadedImageHandle) -> Option<LoadedImage> {
         self.images.get(handle.id).map(|entry| match &entry.imageref {
-            ImageRef::Raster(loaded) | ImageRef::Svg(loaded) => loaded.clone(),
+            ImageRef::Raster(loaded) | ImageRef::Svg(loaded) => *loaded,
         })
     }
 
-    /// Set the texture for the draw calls that follow, until [`Self::clear_texture`].
+    /// Set the texture for the draw calls that follow, until [`Self::clear_texture`]. It is sampled over each shape and multiplied by that shape's fill, so a white fill shows the texture unchanged and a coloured fill tints it. A texture that is not yet loaded resolves to none, so the shapes draw with their fill only until it is ready.
     pub fn set_texture(&mut self, texture: &LoadedImageHandle, options: Option<TextureOptions>) {
-        self.current_texture = self.resolve(texture);
-        self.current_texture_options = options;
+        match self.resolve(texture) {
+            Some(loaded) => self.renderer.set_texture(loaded, options),
+            None => self.renderer.clear_texture(),
+        }
     }
 
     /// Clear the current texture, so subsequent draws use only their own fill.
     pub fn clear_texture(&mut self) {
-        self.current_texture = None;
-        self.current_texture_options = None;
-    }
-
-    /// Apply the current texture to a shape that has one, unless the caller already set a texture on the shape.
-    fn apply_texture(&self, texture: &mut Option<LoadedImage>, texture_options: &mut Option<TextureOptions>) {
-        if self.current_texture.is_some() && texture.is_none() {
-            *texture = self.current_texture.clone();
-            *texture_options = self.current_texture_options;
-        }
+        self.renderer.clear_texture();
     }
 
     /// Draw a box/rectangle.
-    pub fn draw_box(&mut self, mut params: Rectangle) {
-        self.apply_texture(&mut params.texture, &mut params.texture_options);
+    pub fn draw_box(&mut self, params: Rectangle) {
         self.renderer.draw_box(params);
     }
 
@@ -62,56 +54,47 @@ impl<'a> Canvas<'a> {
     }
 
     /// Draw a filled circle.
-    pub fn draw_circle(&mut self, mut params: Circle) {
-        self.apply_texture(&mut params.texture, &mut params.texture_options);
+    pub fn draw_circle(&mut self, params: Circle) {
         self.renderer.draw_circle(params);
     }
 
     /// Draw a ring (hollow circle).
-    pub fn draw_ring(&mut self, mut params: CircleRing) {
-        self.apply_texture(&mut params.texture, &mut params.texture_options);
+    pub fn draw_ring(&mut self, params: CircleRing) {
         self.renderer.draw_ring(params);
     }
 
     /// Draw an arc.
-    pub fn draw_arc(&mut self, mut params: CircleArc) {
-        self.apply_texture(&mut params.texture, &mut params.texture_options);
+    pub fn draw_arc(&mut self, params: CircleArc) {
         self.renderer.draw_arc(params);
     }
 
     /// Draw a pie slice.
-    pub fn draw_pie(&mut self, mut params: CirclePie) {
-        self.apply_texture(&mut params.texture, &mut params.texture_options);
+    pub fn draw_pie(&mut self, params: CirclePie) {
         self.renderer.draw_pie(params);
     }
 
     /// Draw a line segment.
-    pub fn draw_segment(&mut self, mut params: Segment) {
-        self.apply_texture(&mut params.texture, &mut params.texture_options);
+    pub fn draw_segment(&mut self, params: Segment) {
         self.renderer.draw_segment(params);
     }
 
     /// Draw a grid.
-    pub fn draw_grid(&mut self, mut params: Grid) {
-        self.apply_texture(&mut params.texture, &mut params.texture_options);
+    pub fn draw_grid(&mut self, params: Grid) {
         self.renderer.draw_grid(params);
     }
 
     /// Draw a triangle.
-    pub fn draw_triangle(&mut self, mut params: Triangle) {
-        self.apply_texture(&mut params.texture, &mut params.texture_options);
+    pub fn draw_triangle(&mut self, params: Triangle) {
         self.renderer.draw_triangle(params);
     }
 
     /// Draw a hexagon.
-    pub fn draw_hexagon(&mut self, mut params: Hexagon) {
-        self.apply_texture(&mut params.texture, &mut params.texture_options);
+    pub fn draw_hexagon(&mut self, params: Hexagon) {
         self.renderer.draw_hexagon(params);
     }
 
     /// Draw a filled or stroked arbitrary polygon.
-    pub fn draw_polygon(&mut self, mut params: Polygon) {
-        self.apply_texture(&mut params.texture, &mut params.texture_options);
+    pub fn draw_polygon(&mut self, params: Polygon) {
         self.renderer.draw_polygon(params);
     }
 

@@ -274,8 +274,6 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
                 dash_length: None,
                 dash_offset: 0.0,
                 blur: 0.0,
-                texture: None,
-                texture_options: None,
                 stroke_thickness: 0.0,
             });
         }

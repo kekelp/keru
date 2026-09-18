@@ -331,8 +331,6 @@ impl UiExt for Ui {
                         dash_length: None,
                         dash_offset: 0.0,
                         blur: 0.0,
-                        texture: None,
-                        texture_options: None,
                     });
                 }
             });

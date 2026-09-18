@@ -119,8 +119,6 @@ impl State {
             border_thickness: 0.0,
             fill: ColorFill::Color(Color::new(0.3, 0.6, 1.0, 1.0)),
             blur: 0.0,
-            texture: None,
-            texture_options: None,
         });
 
         self.renderer.draw_box(Rectangle {
@@ -131,8 +129,6 @@ impl State {
             border_thickness: 4.0,
             fill: ColorFill::Color(Color::new(0.3, 0.6, 1.0, 1.0)),
             blur: 0.0,
-            texture: None,
-            texture_options: None,
         });
 
         self.renderer.draw_box(Rectangle {
@@ -143,8 +139,6 @@ impl State {
             border_thickness: 24.0,
             fill: ColorFill::Color(Color::new(0.3, 0.6, 1.0, 1.0)),
             blur: 0.0,
-            texture: None,
-            texture_options: None,
         });
 
         self.renderer.draw_box(Rectangle {
@@ -155,8 +149,6 @@ impl State {
             border_thickness: 8.0,
             fill: ColorFill::Color(Color::new(0.3, 0.6, 1.0, 1.0)),
             blur: 10.0,
-            texture: None,
-            texture_options: None,
         });
 
         let grad = self.renderer.create_gradient(Gradient::linear(
@@ -171,8 +163,6 @@ impl State {
             border_thickness: 10.0,
             fill: ColorFill::SharedGradient(grad),
             blur: 0.0,
-            texture: None,
-            texture_options: None,
         });
 
         // --- Row 1: Circle / Ring ---
@@ -182,8 +172,6 @@ impl State {
             radius: cell * 0.45,
             fill: ColorFill::Color(Color::new(1.0, 0.6, 0.2, 1.0)),
             blur: 0.0,
-            texture: None,
-            texture_options: None,
         });
 
         self.renderer.draw_ring(CircleRing {
@@ -192,8 +180,6 @@ impl State {
             outer_radius: cell * 0.45,
             fill: ColorFill::Color(Color::new(1.0, 0.6, 0.2, 1.0)),
             blur: 0.0,
-            texture: None,
-            texture_options: None,
             dash_length: None,
             dash_offset: 0.0,
         });
@@ -204,8 +190,6 @@ impl State {
             outer_radius: cell * 0.45,
             fill: ColorFill::Color(Color::new(1.0, 0.6, 0.2, 1.0)),
             blur: 0.0,
-            texture: None,
-            texture_options: None,
             dash_length: None,
             dash_offset: 0.0,
         });
@@ -216,8 +200,6 @@ impl State {
             outer_radius: cell * 0.45,
             fill: ColorFill::Color(Color::new(1.0, 0.6, 0.2, 1.0)),
             blur: 0.0,
-            texture: None,
-            texture_options: None,
             dash_length: Some(14.0),
             dash_offset: 0.0,
         });
@@ -228,8 +210,6 @@ impl State {
             outer_radius: cell * 0.45,
             fill: ColorFill::Color(Color::new(1.0, 0.6, 0.2, 1.0)),
             blur: 10.0,
-            texture: None,
-            texture_options: None,
             dash_length: None,
             dash_offset: 0.0,
         });
@@ -244,8 +224,6 @@ impl State {
             outer_radius: cell * 0.45,
             fill: ColorFill::SharedGradient(grad),
             blur: 0.0,
-            texture: None,
-            texture_options: None,
             dash_length: None,
             dash_offset: 0.0,
         });
@@ -267,8 +245,6 @@ impl State {
             stroke_thickness: 0.0,
             corner_radius: 0.0,
             blur: 0.0,
-            texture: None,
-            texture_options: None,
         });
 
         let [p0, p1, p2] = tri(cx(1), cy(2), cell * 0.44);
@@ -278,8 +254,6 @@ impl State {
             stroke_thickness: 4.0,
             corner_radius: 0.0,
             blur: 0.0,
-            texture: None,
-            texture_options: None,
         });
 
         let [p0, p1, p2] = tri(cx(2), cy(2), cell * 0.44);
@@ -289,8 +263,6 @@ impl State {
             stroke_thickness: 22.0,
             corner_radius: 0.0,
             blur: 0.0,
-            texture: None,
-            texture_options: None,
         });
 
         let [p0, p1, p2] = tri(cx(3), cy(2), cell * 0.44);
@@ -300,8 +272,6 @@ impl State {
             stroke_thickness: 8.0,
             corner_radius: 0.0,
             blur: 8.0,
-            texture: None,
-            texture_options: None,
         });
 
         let grad = self.renderer.create_gradient(Gradient::linear(
@@ -315,8 +285,6 @@ impl State {
             stroke_thickness: 10.0,
             corner_radius: 0.0,
             blur: 0.0,
-            texture: None,
-            texture_options: None,
         });
 
         // --- Row 3: Rounded triangles and hexagons ---
@@ -328,8 +296,6 @@ impl State {
             stroke_thickness: 0.0,
             corner_radius: 12.0,
             blur: 0.0,
-            texture: None,
-            texture_options: None,
         });
 
         let [p0, p1, p2] = tri(cx(1), cy(3), cell * 0.44);
@@ -339,8 +305,6 @@ impl State {
             stroke_thickness: 5.0,
             corner_radius: 12.0,
             blur: 0.0,
-            texture: None,
-            texture_options: None,
         });
 
         let [p0, p1, p2] = tri(cx(2), cy(3), cell * 0.44);
@@ -350,8 +314,6 @@ impl State {
             stroke_thickness: 18.0,
             corner_radius: 12.0,
             blur: 0.0,
-            texture: None,
-            texture_options: None,
         });
 
         self.renderer.draw_hexagon(Hexagon {
@@ -362,8 +324,6 @@ impl State {
             stroke_thickness: 0.0,
             corner_radius: 10.0,
             blur: 0.0,
-            texture: None,
-            texture_options: None,
         });
 
         self.renderer.draw_hexagon(Hexagon {
@@ -374,8 +334,6 @@ impl State {
             stroke_thickness: 5.0,
             corner_radius: 10.0,
             blur: 0.0,
-            texture: None,
-            texture_options: None,
         });
 
         self.renderer.draw_hexagon(Hexagon {
@@ -386,8 +344,6 @@ impl State {
             stroke_thickness: 18.0,
             corner_radius: 10.0,
             blur: 0.0,
-            texture: None,
-            texture_options: None,
         });
 
         // --- Row 4: Capsule, Hexagon, Bezier ---
@@ -405,8 +361,6 @@ impl State {
             dash_length: None,
             dash_offset: 0.0,
             blur: 0.0,
-            texture: None,
-            texture_options: None,
         });
 
         self.renderer.draw_segment(Segment {
@@ -418,8 +372,6 @@ impl State {
             dash_length: None,
             dash_offset: 0.0,
             blur: 0.0,
-            texture: None,
-            texture_options: None,
         });
 
         self.renderer.draw_segment(Segment {
@@ -431,8 +383,6 @@ impl State {
             dash_length: None,
             dash_offset: 0.0,
             blur: 0.0,
-            texture: None,
-            texture_options: None,
         });
 
         self.renderer.draw_segment(Segment {
@@ -444,8 +394,6 @@ impl State {
             dash_length: None,
             dash_offset: 0.0,
             blur: 10.0,
-            texture: None,
-            texture_options: None,
         });
 
         self.renderer.draw_hexagon(Hexagon {
@@ -456,8 +404,6 @@ impl State {
             stroke_thickness: 10.0,
             corner_radius: 0.0,
             blur: 0.0,
-            texture: None,
-            texture_options: None,
         });
 
         let bx = cx(5);
@@ -485,8 +431,6 @@ impl State {
             dash_length: None,
             dash_offset: 0.0,
             blur: 0.0,
-            texture: None,
-            texture_options: None,
         });
 
         self.renderer.draw_arc(CircleArc {
@@ -499,8 +443,6 @@ impl State {
             dash_length: None,
             dash_offset: 0.0,
             blur: 0.0,
-            texture: None,
-            texture_options: None,
         });
 
         self.renderer.draw_arc(CircleArc {
@@ -513,8 +455,6 @@ impl State {
             dash_length: Some(16.0),
             dash_offset: 0.0,
             blur: 0.0,
-            texture: None,
-            texture_options: None,
         });
 
         self.renderer.draw_arc(CircleArc {
@@ -527,8 +467,6 @@ impl State {
             dash_length: None,
             dash_offset: 0.0,
             blur: 8.0,
-            texture: None,
-            texture_options: None,
         });
 
         let grad = self.renderer.create_gradient(Gradient::linear(
@@ -545,8 +483,6 @@ impl State {
             dash_length: None,
             dash_offset: 0.0,
             blur: 0.0,
-            texture: None,
-            texture_options: None,
         });
 
         // --- Row 6: Pie ---
@@ -559,8 +495,6 @@ impl State {
             end_angle: PI * 0.75,
             fill: ColorFill::Color(Color::new(1.0, 0.5, 0.2, 1.0)),
             blur: 0.0,
-            texture: None,
-            texture_options: None,
             stroke_thickness: 0.0,
             corner_radius: 0.0,
         });
@@ -573,8 +507,6 @@ impl State {
             end_angle: PI * 0.5,
             fill: ColorFill::Color(Color::new(1.0, 0.5, 0.2, 1.0)),
             blur: 0.0,
-            texture: None,
-            texture_options: None,
             stroke_thickness: 5.0,
             corner_radius: 0.0,
         });
@@ -587,8 +519,6 @@ impl State {
             end_angle: PI * 0.75,
             fill: ColorFill::Color(Color::new(1.0, 0.5, 0.2, 1.0)),
             blur: 0.0,
-            texture: None,
-            texture_options: None,
             stroke_thickness: 0.0,
             corner_radius: 14.0,
         });
@@ -601,8 +531,6 @@ impl State {
             end_angle: PI * 0.75,
             fill: ColorFill::Color(Color::new(1.0, 0.5, 0.2, 1.0)),
             blur: 0.0,
-            texture: None,
-            texture_options: None,
             stroke_thickness: 5.0,
             corner_radius: 10.0,
         });
@@ -619,8 +547,6 @@ impl State {
             end_angle: PI * 1.5,
             fill: ColorFill::SharedGradient(grad),
             blur: 8.0,
-            texture: None,
-            texture_options: None,
             stroke_thickness: 0.0,
             corner_radius: 0.0,
         });
