@@ -1,6 +1,6 @@
 use glam::Vec2;
 use winit::event::MouseButton;
-use keru_draw::Canvas;
+use crate::canvas::Canvas;
 
 use crate::*;
 use crate::inner_node::*;
@@ -330,7 +330,9 @@ impl<'a> UiNode<'a> {
         sys.renderer.set_current_clip_rect(clip_rect);
         sys.renderer.start_deferred_mode();
 
-        drawing_function(&mut sys.renderer.get_draw_context());
+        // The Canvas borrows the renderer to draw and the image slab to resolve texture handles; the two are disjoint fields of `System`.
+        let mut canvas = Canvas::new(&mut sys.renderer, &sys.loaded_images);
+        drawing_function(&mut canvas);
 
         let instances = sys.renderer.end_deferred_mode();
         sys.renderer.clear_current_transform();

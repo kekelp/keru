@@ -206,7 +206,9 @@ pub struct PolygonGpu {
     pub vert_count: u32,
     pub stroke_thickness: f32,  // 0 = filled, >0 = stroke only
     pub blur_radius: f32,
-    pub _pad: [f32; 3],
+    pub texture_page: u32,            // atlas layer, u32::MAX = no texture
+    pub texture_uv_origin: [f32; 2],  // pixel coords in atlas (top-left corner)
+    pub texture_uv_size: [f32; 2],    // pixel dimensions in atlas
 }
 
 #[repr(C)]

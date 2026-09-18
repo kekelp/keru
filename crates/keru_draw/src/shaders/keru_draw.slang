@@ -27,9 +27,9 @@ struct PolygonGpu {
     uint vert_count;
     float stroke_thickness;
     float blur_radius;
-    float _pad0;
-    float _pad1;
-    float _pad2;
+    uint texture_page;        // atlas layer, 0xFFFFFFFF = no texture
+    float2 texture_uv_origin; // pixel coords in atlas (top-left corner)
+    float2 texture_uv_size;   // pixel dimensions in atlas
 }
 
 ParameterBlock<ShapesGpu> shapes;
@@ -1229,6 +1229,27 @@ float4 polygon_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, floa
 
     if (surface_is_srgb) {
         color.rgb = srgb_to_linear3(color.rgb);
+    }
+
+    if (poly.texture_page != 0xFFFFFFFFu) {
+        uint atlas_width, atlas_height, atlas_elements;
+        shapes.atlas_texture.GetDimensions(atlas_width, atlas_height, atlas_elements);
+        float2 atlas_size = float2(float(atlas_width), float(atlas_height));
+
+        float2 shape_sz = poly.bbox_max - poly.bbox_min;
+        float2 local_uv = (p - poly.bbox_min) / max(shape_sz, float2(1e-6, 1e-6));
+        float2 tex_uv = (poly.texture_uv_origin + poly.texture_uv_size * local_uv) / atlas_size;
+
+        float lod = tex_blur_lod(poly.blur_radius, poly.texture_uv_size, shape_sz);
+        float4 tex_color = shapes.atlas_texture.SampleLevel(
+            shapes.atlas_sampler,
+            float3(tex_uv, float(poly.texture_page)),
+            lod
+        );
+        if (surface_is_srgb) {
+            tex_color = srgb_to_linear4(tex_color);
+        }
+        color = tex_color * color;
     }
 
     return float4(color.rgb, color.a * alpha);

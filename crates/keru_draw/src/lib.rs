@@ -6,9 +6,6 @@ pub mod gpu_vec;
 pub mod gpu_slab;
 pub mod images;
 
-mod limited_hangout;
-pub use limited_hangout::*;
-
 use gpu_vec::GpuVec;
 use gpu_slab::{GpuSlab, GpuSlabItem};
 use std::hash::{Hash, Hasher};
@@ -296,6 +293,9 @@ pub struct Polygon<'a> {
     pub points: &'a [[f32; 2]],
     pub fill: ColorFill,
     pub stroke_thickness: f32,  // 0 = filled, >0 = stroke only
+    /// Optional texture, sampled over the polygon's bounding box and multiplied by `fill` (so a white fill shows the texture unchanged).
+    pub texture: Option<LoadedImage>,
+    pub texture_options: Option<TextureOptions>,
     pub blur: f32,
 }
 
@@ -1045,6 +1045,7 @@ impl Renderer {
             return;
         }
         let gradient_index = gradient_index_for_fill(&mut self.resources, &mut self.shapes.gradient_indices, params.fill);
+        let (texture_uv_origin, texture_uv_size, texture_page, ..) = texture_options_gpu(params.texture, params.texture_options);
 
         let vert_offset = self.shapes.polygon_vertices.len() as u32;
         let mut bbox_min = params.points[0];
@@ -1063,7 +1064,9 @@ impl Renderer {
             vert_count: params.points.len() as u32,
             stroke_thickness: params.stroke_thickness,
             blur_radius: params.blur,
-            _pad: [0.0; 3],
+            texture_page,
+            texture_uv_origin,
+            texture_uv_size,
         });
         self.push_instance(Instance {
             p_type: primitive::POLYGON,
