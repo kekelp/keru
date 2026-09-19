@@ -52,6 +52,7 @@ pub(crate) const NODE_ROOT_PARAMS: Node = Node {
         show_focus_indicator: true,
         focusable: false,
         hover_cursor_icon: None,
+        trap_keyboard_focus: false,
     },
     layout: Layout {
         // It matters that this is Frac(1.0) of Fill and not something weird.
@@ -113,6 +114,7 @@ pub const DEFAULT: Node = Node {
         show_focus_indicator: true,
         focusable: false,
         hover_cursor_icon: None,
+        trap_keyboard_focus: false,
     },
     layout: Layout {
         size: Xy::new_symm(Size::Frac(1.0)),
@@ -177,6 +179,7 @@ pub const V_STACK: Node = Node {
         show_focus_indicator: true,
         focusable: false,
         hover_cursor_icon: None,
+        trap_keyboard_focus: false,
     },
     layout: Layout {
         size: Xy::new(Size::FitContent, Size::FitContent),
@@ -241,6 +244,7 @@ pub const H_STACK: Node = Node {
         show_focus_indicator: true,
         focusable: false,
         hover_cursor_icon: None,
+        trap_keyboard_focus: false,
     },
     layout: Layout {
         size: Xy::new(Size::FitContent, Size::FitContent),
@@ -306,6 +310,7 @@ pub const V_SCROLL_STACK: Node = Node {
         show_focus_indicator: true,
         focusable: false,
         hover_cursor_icon: None,
+        trap_keyboard_focus: false,
     },
     layout: Layout {
         size: Xy::new(Size::FitContent, Size::Fill),
@@ -372,6 +377,7 @@ pub const H_SCROLL_STACK: Node = Node {
         show_focus_indicator: true,
         focusable: false,
         hover_cursor_icon: None,
+        trap_keyboard_focus: false,
     },
     layout: Layout {
         size: Xy::new(Size::Fill, Size::FitContent),
@@ -433,6 +439,7 @@ pub const MARGIN: Node = Node {
         show_focus_indicator: true,
         focusable: false,
         hover_cursor_icon: None,
+        trap_keyboard_focus: false,
     },
     layout: Layout {
         size: Xy::new_symm(Size::Frac(0.9)),
@@ -493,6 +500,7 @@ pub const ICON_BUTTON: Node = Node {
         show_focus_indicator: true,
         focusable: true,
         hover_cursor_icon: Some(CursorIcon::Pointer),
+        trap_keyboard_focus: false,
     },
     layout: Layout {
         size: Xy::new_symm(Size::Pixels(40.0)),
@@ -553,6 +561,7 @@ pub const IMAGE: Node = Node {
         show_focus_indicator: true,
         focusable: false,
         hover_cursor_icon: None,
+        trap_keyboard_focus: false,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -613,6 +622,7 @@ pub const IMAGE_BUTTON: Node = Node {
         show_focus_indicator: true,
         focusable: true,
         hover_cursor_icon: Some(CursorIcon::Pointer),
+        trap_keyboard_focus: false,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -680,6 +690,7 @@ pub const BUTTON: Node = Node {
         show_focus_indicator: true,
         focusable: true,
         hover_cursor_icon: Some(CursorIcon::Pointer),
+        trap_keyboard_focus: false,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -747,6 +758,7 @@ pub const LABEL: Node = Node {
         show_focus_indicator: true,
         focusable: false,
         hover_cursor_icon: None,
+        trap_keyboard_focus: false,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -815,6 +827,7 @@ pub const MULTILINE_LABEL: Node = Node {
         show_focus_indicator: true,
         focusable: false,
         hover_cursor_icon: None,
+        trap_keyboard_focus: false,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -883,6 +896,7 @@ pub const TEXT: Node = Node {
         show_focus_indicator: true,
         focusable: false,
         hover_cursor_icon: Some(CursorIcon::Text),
+        trap_keyboard_focus: false,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -944,6 +958,7 @@ pub const ICON: Node = Node {
         show_focus_indicator: true,
         focusable: false,
         hover_cursor_icon: None,
+        trap_keyboard_focus: false,
     },
     layout: Layout {
         size: Xy::new_symm(Size::Pixels(40.0)),
@@ -1012,6 +1027,7 @@ pub const TEXT_EDIT: Node = Node {
         show_focus_indicator: true,
         focusable: true,
         hover_cursor_icon: Some(CursorIcon::Text),
+        trap_keyboard_focus: false,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -1080,6 +1096,7 @@ pub const TEXT_EDIT_LINE: Node = Node {
         show_focus_indicator: true,
         focusable: true,
         hover_cursor_icon: Some(CursorIcon::Text),
+        trap_keyboard_focus: false,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -1148,6 +1165,7 @@ pub const TEXT_PARAGRAPH: Node = Node {
         show_focus_indicator: true,
         focusable: false,
         hover_cursor_icon: Some(CursorIcon::Text),
+        trap_keyboard_focus: false,
     },
     layout: Layout {
         size: Xy::new(Fill, FitContent),
@@ -1209,6 +1227,7 @@ pub const PANEL: Node = Node {
         show_focus_indicator: true,
         focusable: false,
         hover_cursor_icon: None,
+        trap_keyboard_focus: false,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -1270,6 +1289,7 @@ pub const CONTAINER: Node = Node {
         show_focus_indicator: true,
         focusable: false,
         hover_cursor_icon: None,
+        trap_keyboard_focus: false,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -1367,6 +1387,7 @@ pub const CUSTOM_RENDERED_PANEL: Node = Node {
         show_focus_indicator: true,
         focusable: false,
         hover_cursor_icon: None,
+        trap_keyboard_focus: false,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),
@@ -1428,6 +1449,7 @@ pub const SPACER: Node = Node {
         show_focus_indicator: true,
         focusable: false,
         hover_cursor_icon: None,
+        trap_keyboard_focus: false,
     },
     layout: Layout {
         size: Xy::new_symm(Fill),
@@ -1489,6 +1511,7 @@ pub const H_SPACER: Node = Node {
         show_focus_indicator: true,
         focusable: false,
         hover_cursor_icon: None,
+        trap_keyboard_focus: false,
     },
     layout: Layout {
         size: Xy::new(Size::Fill, Size::FitContent),
@@ -1550,6 +1573,7 @@ pub const V_SPACER: Node = Node {
         show_focus_indicator: true,
         focusable: false,
         hover_cursor_icon: None,
+        trap_keyboard_focus: false,
     },
     layout: Layout {
         size: Xy::new(Size::FitContent, Size::Fill),
@@ -1616,6 +1640,7 @@ pub const GRID: Node = Node {
         show_focus_indicator: true,
         focusable: false,
         hover_cursor_icon: None,
+        trap_keyboard_focus: false,
     },
     layout: Layout {
         size: Xy::new(Size::FitContent, Size::FitContent),
@@ -1682,6 +1707,7 @@ pub const H_LINE: Node = Node {
         show_focus_indicator: true,
         focusable: false,
         hover_cursor_icon: None,
+        trap_keyboard_focus: false,
     },
     layout: Layout {
         size: Xy::new(Size::Fill, Size::Pixels(0.0)),
@@ -1743,6 +1769,7 @@ pub(crate) const COMPONENT_ROOT: Node = Node {
         show_focus_indicator: true,
         focusable: false,
         hover_cursor_icon: None,
+        trap_keyboard_focus: false,
     },
     layout: Layout {
         size: Xy::new_symm(FitContent),

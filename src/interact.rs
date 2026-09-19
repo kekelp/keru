@@ -528,9 +528,9 @@ impl Ui {
         let mut cursor = start;
         loop {
             cursor = if forward {
-                self.next_node(cursor).unwrap_or(first)
+                self.next_focus_node(cursor).unwrap_or(first)
             } else {
-                self.prev_node(cursor).unwrap_or(last)
+                self.prev_focus_node(cursor).unwrap_or(last)
             };
 
             if self.is_interactable_for_focus(cursor) {
@@ -575,14 +575,19 @@ impl Ui {
 
     /// The last node of the tree in depth-first order (deepest last descendant).
     fn last_node(&self) -> Option<NodeI> {
-        let mut cursor = self.sys.nodes[ROOT_I].last_child?;
+        self.deepest_last_descendant(ROOT_I)
+    }
+
+    /// The deepest last descendant of `i` in depth-first order.
+    fn deepest_last_descendant(&self, i: NodeI) -> Option<NodeI> {
+        let mut cursor = self.sys.nodes[i].last_child?;
         while let Some(child) = self.sys.nodes[cursor].last_child {
             cursor = child;
         }
         Some(cursor)
     }
 
-    fn next_node(&self, i: NodeI) -> Option<NodeI> {
+    fn next_focus_node(&self, i: NodeI) -> Option<NodeI> {
         if let Some(child) = self.sys.nodes[i].first_child {
             return Some(child);
         }
@@ -595,22 +600,23 @@ impl Ui {
             if parent == ROOT_I {
                 return None;
             }
+            if self.sys.nodes[parent].params.interact.trap_keyboard_focus {
+                return self.sys.nodes[parent].first_child;
+            }
             cursor = parent;
         }
     }
 
-    fn prev_node(&self, i: NodeI) -> Option<NodeI> {
+    fn prev_focus_node(&self, i: NodeI) -> Option<NodeI> {
         if let Some(sibling) = self.sys.nodes[i].prev_sibling {
-            // Deepest last descendant of the previous sibling.
-            let mut cursor = sibling;
-            while let Some(child) = self.sys.nodes[cursor].last_child {
-                cursor = child;
-            }
-            return Some(cursor);
+            return Some(self.deepest_last_descendant(sibling).unwrap_or(sibling));
         }
         let parent = self.sys.nodes[i].parent;
         if parent == ROOT_I {
             return None;
+        }
+        if self.sys.nodes[parent].params.interact.trap_keyboard_focus {
+            return self.deepest_last_descendant(parent);
         }
         Some(parent)
     }

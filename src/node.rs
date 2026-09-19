@@ -509,6 +509,10 @@ pub struct Interact {
     pub show_focus_indicator: bool,
     /// Whether the node can receive the keyboard-navigation focus.
     pub focusable: bool,
+    /// Whether keyboard focus navigation is confined to this node's subtree.
+    /// 
+    /// Components that trap keyboard focus should be easy to close, ideally with the Esc key.
+    pub trap_keyboard_focus: bool,
     /// The mouse cursor icon shown while hovering this node.
     pub hover_cursor_icon: Option<CursorIcon>,
 }
@@ -1239,6 +1243,12 @@ impl<'a> Node<'a> {
     /// Set whether the node can receive the keyboard-navigation focus at all (e.g. via Tab).
     pub fn focusable(mut self, value: bool) -> Self {
         self.interact.focusable = value;
+        return self;
+    }
+
+    /// Make keyboard focus navigation (e.g. Tab) wrap around within this node's subtree instead of leaving it. Useful for menus and modals. Focus that starts outside the subtree is not moved into it.
+    pub fn trap_keyboard_focus(mut self, value: bool) -> Self {
+        self.interact.trap_keyboard_focus = value;
         return self;
     }
 
