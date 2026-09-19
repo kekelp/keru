@@ -6,6 +6,7 @@ use crate::*;
 use crate::inner_node::*;
 use crate::mouse_events::{DragEvent, DragReleaseEvent};
 use crate::Axis::*;
+pub use keru_text::TextEdit;
 
 pub struct UiNode<'a> {
     pub(crate) i: NodeI,
@@ -246,6 +247,16 @@ impl<'a> UiNode<'a> {
         match self.node().text_i.as_ref()? {
             TextI::TextBox(handle) => Some(self.sys().renderer.text.get_text_box(&handle).text()),
             TextI::TextEdit(handle) => Some(self.sys().renderer.text.get_text_edit(&handle).raw_text()),
+        }
+    }
+
+    /// Get mutable access to the node's [`TextEdit`], if it is a text edit box.
+    pub fn text_edit_mut(&mut self) -> Option<&mut TextEdit> {
+        let i = self.i;
+        let sys = self.sys_mut();
+        match sys.nodes[i].text_i.as_ref()? {
+            TextI::TextEdit(handle) => Some(sys.renderer.text.get_text_edit_mut(&handle)),
+            TextI::TextBox(_) => None,
         }
     }
 

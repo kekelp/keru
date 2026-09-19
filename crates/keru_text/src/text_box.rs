@@ -1468,7 +1468,8 @@ impl TextBox {
     }
 
     /// Select the whole text.
-    pub(crate) fn select_all(&mut self) {
+    pub fn select_all(&mut self) {
+        self.refresh_layout();
         self.set_selection(
             Selection::from_byte_index(&self.layout, 0_usize, Affinity::default()).move_lines(
                 &self.layout,

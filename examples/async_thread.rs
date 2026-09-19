@@ -19,11 +19,10 @@ pub struct State {
 fn update_ui(state: &mut State, ui: &mut Ui) {
     let uiwaker = ui.ui_waker();
 
-    let path = "src/lib.rs";
     let load_file_slowly = move ||  {
         thread::sleep(Duration::from_millis(1800));
         let cargo_dir = Path::new(env!("CARGO_MANIFEST_DIR")).canonicalize().unwrap();
-        let contents = std::fs::read_to_string(cargo_dir.join(path)).unwrap();
+        let contents = std::fs::read_to_string(cargo_dir.join("src/lib.rs")).unwrap();
         return contents;
     };
 

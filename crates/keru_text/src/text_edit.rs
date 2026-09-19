@@ -1667,6 +1667,12 @@ impl TextEdit {
         }
     }
 
+    /// Select the whole text.
+    pub fn select_all(&mut self) {
+        self.refresh_layout();
+        self.text_box.select_all();
+    }
+
     /// Sets focus to this text edit.
     pub fn set_focus(&mut self) {
         let k = AnyBox::TextEdit(self.text_box.key);
