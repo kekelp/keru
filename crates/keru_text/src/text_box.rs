@@ -699,8 +699,10 @@ impl TextBox {
                         Key::Character(c) => {
                             match c.as_str() {
                                 "a" => {
-                                    self.select_all();
-                                    consumed = true;
+                                    if ! shift {
+                                        self.select_all();
+                                        consumed = true;
+                                    }
                                 }
                                 _ => (),
                             }

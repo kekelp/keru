@@ -1,5 +1,5 @@
 use glam::vec2;
-use winit::event::*;
+use winit::{event::*, keyboard::Key};
 
 use crate::*;
 
@@ -77,11 +77,12 @@ impl Ui {
         }
 
         self.sys.mouse_input.window_event(event, self.sys.scale_factor);
-        self.sys.key_input.window_event(event);
+
+        if !self.focused_text_edit_uses_key_press(event) {
+            self.sys.key_input.window_event(event);
+        }
 
         let _event_consumed_by_text = self.text_window_event(event, window);
-        // todo keyboard events should be consumed actually.
-        // but mouse events shouldn't. if a text edit gets focused, the node it's on should get focused as well.
 
         let event_consumed = self.ui_input(&event);
         if event_consumed {
@@ -89,6 +90,57 @@ impl Ui {
         }
 
         return false;
+    }
+
+    fn focused_text_edit_uses_key_press(&self, event: &winit::event::WindowEvent) -> bool {
+        let key_event = match event {
+            WindowEvent::KeyboardInput { event: key_event, .. } if key_event.state.is_pressed() => Some(key_event),
+            _ => None,
+        };
+
+        let focused_text_edit = self.sys.focused
+            .and_then(|id| self.sys.nodes.get_by_id(id))
+            .and_then(|i| match &self.sys.nodes[i].text_i {
+                Some(TextI::TextEdit(handle)) => Some(self.sys.renderer.text.get_text_edit(handle)),
+                _ => None,
+            });
+
+        match (key_event, focused_text_edit) {
+            (Some(key_event), Some(text_edit)) if !text_edit.hidden() && ! text_edit.disabled() && ! text_edit.is_composing() => {
+                let mods = self.sys.key_input.key_mods();
+                let multi_line = !text_edit.single_line();
+
+                use winit::keyboard::NamedKey::*;
+                let action_mod = if cfg!(target_os = "macos") { mods.super_key() } else { mods.control_key() };
+                match &key_event.logical_key {
+                    Key::Character(c) => {
+                        if action_mod {
+                            match c.to_lowercase().as_str() {
+                                "z" => true,
+                                "a" | "c" | "x" | "v" => if mods.shift_key() { false } else { true },
+                                _ => false,
+                            }
+                        } else {
+                            true
+                        }
+                    }
+                    Key::Named(Space) => ! action_mod,
+                    Key::Named(Enter) => {
+                        let shift = mods.shift_key();
+                        let newline_mode_matches = match text_edit.newline_mode() {
+                            keru_text::NewlineMode::Enter => !action_mod && !shift,
+                            keru_text::NewlineMode::ShiftEnter => shift && !action_mod,
+                            keru_text::NewlineMode::CtrlEnter => action_mod && !shift,
+                            keru_text::NewlineMode::None => false,
+                        };
+                        newline_mode_matches && multi_line
+                    }
+                    Key::Named(ArrowLeft | ArrowRight | ArrowUp | ArrowDown | Home | End | Delete | Backspace) => true,
+                    _ => false,
+                }
+            }
+            _ => false,
+        }
     }
 
     fn text_window_event(
