@@ -114,8 +114,10 @@ pub struct TextBox {
 pub(crate) struct RenderDataInfo {
     /// Index into the text renderer's box_data array for this text box
     pub box_index: usize,
-    /// The scroll offset when quads were prepared (for line-culling tolerance check)
+    /// The scroll offset when quads were prepared.
     pub base_scroll: (f32, f32),
+    /// The translation when quads were prepared.
+    pub base_translation: (f32, f32),
     /// Handle into the glyph quad heap for this box's current allocation.
     pub glyph_quad_handle: Option<Handle>,
 }
@@ -227,6 +229,7 @@ impl TextBox {
             render_data_info: RenderDataInfo {
                 box_index: 0,
                 base_scroll: (0.0, 0.0),
+                base_translation: (0.0, 0.0),
                 glyph_quad_handle: None,
             },
             explicit_hitbox: None,

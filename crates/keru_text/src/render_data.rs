@@ -522,15 +522,31 @@ impl RenderData {
         let w = self.params.screen_resolution_width;
         let h = self.params.screen_resolution_height;
         let t = text_box.transform.translation;
+
+        let mut scale = (text_box.transform.scale, text_box.transform.scale);
         let t = if let Some(handle) = text_box.group_transform_index {
             let group = &self.group_transforms[handle.0];
+            scale = (scale.0 * group.scale[0], scale.1 * group.scale[1]);
             (t.0 * group.scale[0] + group.offset[0], t.1 * group.scale[1] + group.offset[1])
         } else {
             t
         };
-        let offscreen = t.0 < -(5.0 * w) || t.0 > 6.0 * w || t.1 < -(5.0 * h) || t.1 > 6.0 * h;
 
-        if text_box.hidden() || offscreen {
+        if text_box.hidden() {
+            #[cfg(debug_assertions)] {
+                self.stats.boxes_skipped += 1;
+            }
+            return;
+        }
+
+        let _needs_relayout = text_box.needs_relayout();
+
+        text_box.refresh_layout();
+
+        let box_w = text_box.layout.width() * scale.0;
+        let box_h = text_box.layout.height() * scale.1;
+        let offscreen = t.0 + box_w < -(5.0 * w) || t.0 > 6.0 * w || t.1 + box_h < -(5.0 * h) || t.1 > 6.0 * h;
+        if offscreen {
             #[cfg(debug_assertions)] {
                 self.stats.boxes_skipped += 1;
             }
@@ -539,11 +555,6 @@ impl RenderData {
         #[cfg(debug_assertions)] {
             self.stats.boxes_prepared += 1;
         }
-        
-        let _needs_relayout = text_box.needs_relayout();
-
-        text_box.refresh_layout();
-        
         #[cfg(debug_assertions)] {
             if _needs_relayout {
                 self.stats.relayouts += 1;            
@@ -551,6 +562,11 @@ impl RenderData {
         }
 
         if text_box.is_scroll_distance_above_tolerance() {
+            text_box.needs_quad_rebuild = true;
+        }
+
+        let base_t = text_box.render_data_info.base_translation;
+        if (t.0 - base_t.0).abs() > SCROLL_TOLERANCE - 5.0 || (t.1 - base_t.1).abs() > SCROLL_TOLERANCE - 5.0 {
             text_box.needs_quad_rebuild = true;
         }
 
@@ -583,6 +599,14 @@ impl RenderData {
         // Line culling: clip_rect is already in layout-local coordinates (includes scroll)
         let (clip_top, clip_bottom) = if let Some(clip) = clip_rect {
             (clip.y0 as f32, clip.y1 as f32)
+        } else if let Some(sclip) = screen_clip {
+            let mut scale_y = text_box.transform().scale;
+            if let Some(handle) = text_box.group_transform_index {
+                scale_y *= self.group_transforms[handle.0].scale[1];
+            }
+            let top = (sclip.y0 as f32 - t.1) / scale_y + scroll_offset.1;
+            let bottom = (sclip.y1 as f32 - t.1) / scale_y + scroll_offset.1;
+            (top, bottom)
         } else {
             (0.0, self.params.screen_resolution_height)
         };
@@ -608,6 +632,7 @@ impl RenderData {
         }
 
         text_box.render_data_info.base_scroll = scroll_offset;
+        text_box.render_data_info.base_translation = t;
 
         self.glyph_quads.allocate_or_grow_and_write(&mut text_box.render_data_info.glyph_quad_handle, quads, spare_capacity, encoder);
 
