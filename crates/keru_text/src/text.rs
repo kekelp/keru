@@ -1358,6 +1358,7 @@ impl Text {
                                 let te = self.text_edits.get_mut(i).unwrap();
                                 let tb = &mut te.text_box;
                                 if apply_shift_nav_op(&mut tb.selection, &tb.layout, event, action_mod).is_some() {
+                                    te.needs_scroll_update = true;
                                     self.shared.reset_cursor_blink();
                                     return true;
                                 }
