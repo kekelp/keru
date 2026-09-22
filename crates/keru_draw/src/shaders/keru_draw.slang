@@ -300,6 +300,8 @@ float4 sample_texture(TextureGpu tex, float2 local_uv, float2 shape_size, float2
 
     float lod = tex_blur_lod(blur_radius, tex.uv_size, box_size);
     float4 c = shapes.atlas_texture.SampleLevel(shapes.atlas_sampler, float3(tex_uv, float(tex.page)), lod);
+    // Un-premultiply the atlas pixels
+    c.rgb = c.a > 0.0 ? c.rgb / c.a : float3(0.0, 0.0, 0.0);
     if (srgb) {
         c = srgb_to_linear4(c);
     }

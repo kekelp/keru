@@ -153,7 +153,9 @@ impl ImageRenderer {
     ///
     /// Returns None if the image couldn't be stored in the atlas.
     pub fn load_rgba8_image(&mut self, rgba_data: &[u8], width: u32, height: u32) -> Option<LoadedImage> {
-        self.store_image_data(rgba_data, width, height)
+        let mut owned = rgba_data.to_vec();
+        premultiply_rgba8_in_place(&mut owned);
+        self.store_image_data(&owned, width, height)
     }
 
     /// Load a raster image from encoded bytes (PNG, JPEG, etc.), returning the loaded image.
@@ -163,7 +165,9 @@ impl ImageRenderer {
         let img = image::load_from_memory(image_data).ok()?;
         let rgba = img.to_rgba8();
         let (width, height) = rgba.dimensions();
-        self.load_rgba8_image(rgba.as_raw(), width, height)
+        let mut raw = rgba.into_raw();
+        premultiply_rgba8_in_place(&mut raw);
+        self.store_image_data(&raw, width, height)
     }
 
     /// Remove a loaded image and free its atlas space
@@ -176,12 +180,9 @@ impl ImageRenderer {
         if rgba_data.len() != (width * height * 4) as usize {
             return None;
         }
-        if width == old.width && height == old.height {
-            return Some(self.store_in_atlas(rgba_data, old.alloc, old.page as usize, width, height, old.id));
-        }
-        let new_loaded = self.store_image_data_with_id(rgba_data, width, height, old.id)?;
-        self.atlas_pages[old.page as usize].packer.deallocate(old.alloc.id);
-        Some(new_loaded)
+        let mut owned = rgba_data.to_vec();
+        premultiply_rgba8_in_place(&mut owned);
+        self.replace_image(old, &owned, width, height)
     }
 
     /// Replace the pixels of a previously loaded raster image from encoded bytes. Returns the new [`LoadedImage`], or `None` if the bytes couldn't be decoded or stored.
@@ -189,7 +190,18 @@ impl ImageRenderer {
         let img = image::load_from_memory(image_data).ok()?;
         let rgba = img.to_rgba8();
         let (width, height) = rgba.dimensions();
-        self.replace_rgba8_image(old, rgba.as_raw(), width, height)
+        let mut raw = rgba.into_raw();
+        premultiply_rgba8_in_place(&mut raw);
+        self.replace_image(old, &raw, width, height)
+    }
+
+    fn replace_image(&mut self, old: &LoadedImage, premultiplied: &[u8], width: u32, height: u32) -> Option<LoadedImage> {
+        if width == old.width && height == old.height {
+            return Some(self.store_in_atlas(premultiplied, old.alloc, old.page as usize, width, height, old.id));
+        }
+        let new_loaded = self.store_image_data_with_id(premultiplied, width, height, old.id)?;
+        self.atlas_pages[old.page as usize].packer.deallocate(old.alloc.id);
+        Some(new_loaded)
     }
 
     /// Upload textures to GPU. Returns true if the texture array was rebuilt.
@@ -243,17 +255,8 @@ impl ImageRenderer {
         // Render
         resvg::render(&tree, transform, &mut pixmap.as_mut());
 
-        // unpremultiply alpha
-        let mut rgba_data = pixmap.take();
-        for pixel in rgba_data.chunks_exact_mut(4) {
-            let a = pixel[3];
-            if a > 0 && a < 255 {
-                let a_f = a as f32 / 255.0;
-                pixel[0] = (pixel[0] as f32 / a_f).round() as u8;
-                pixel[1] = (pixel[1] as f32 / a_f).round() as u8;
-                pixel[2] = (pixel[2] as f32 / a_f).round() as u8;
-            }
-        }
+        // the tiny_skia pixmap is already premultiplied
+        let rgba_data = pixmap.take();
 
         self.store_image_data_with_id(&rgba_data, width, height, id)
     }
@@ -410,6 +413,15 @@ impl ImageRenderer {
         }
 
         queue.submit(std::iter::once(encoder.finish()));
+    }
+}
+
+fn premultiply_rgba8_in_place(rgba_data: &mut [u8]) {
+    for pixel in rgba_data.chunks_exact_mut(4) {
+        let a = pixel[3] as u32;
+        for c in &mut pixel[..3] {
+            *c = ((*c as u32 * a + 127) / 255) as u8;
+        }
     }
 }
 
