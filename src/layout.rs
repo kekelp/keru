@@ -742,11 +742,14 @@ impl Ui {
                 // Cascade the node's opacity multiplicatively down the tree.
                 let effective_alpha = inherited_alpha * self.sys.nodes[i].params.alpha * self.sys.nodes[i].fade_alpha;
 
-                if ! self.node_is_offscreen(i) {
-                    let is_custom = self.sys.nodes[i].params.custom_render;
+                let is_custom = self.sys.nodes[i].params.custom_render;
+                let offscreen = self.node_is_offscreen(i);
+                if is_custom || ! offscreen {
                     let instance_index_before = self.sys.renderer.instance_count();
 
-                    self.push_render_and_click_data(i, effective_alpha);
+                    if ! offscreen {
+                        self.push_render_and_click_data(i, effective_alpha);
+                    }
 
                     let instance_index_after = self.sys.renderer.instance_count();
 
@@ -838,11 +841,26 @@ impl Ui {
     }
     
     pub(crate) fn node_is_offscreen(&self, i: NodeI) -> bool {
-        let rect = self.sys.nodes[i].real_rect;
-        rect[X][1] < -2.0
-            || rect[X][0] > 3.0
-            || rect[Y][1] < -2.0
-            || rect[Y][0] > 3.0
+        let node = &self.sys.nodes[i];
+        let rect = node.real_rect;
+        let t = node.accumulated_transform;
+        if t == Transform::IDENTITY {
+            return rect[X][1] < -2.0
+                || rect[X][0] > 3.0
+                || rect[Y][1] < -2.0
+                || rect[Y][0] > 3.0;
+        } else {
+            let off_x = t.offset.x / self.sys.size[X];
+            let off_y = t.offset.y / self.sys.size[Y];
+            let x0 = rect[X][0] * t.scale + off_x;
+            let x1 = rect[X][1] * t.scale + off_x;
+            let y0 = rect[Y][0] * t.scale + off_y;
+            let y1 = rect[Y][1] * t.scale + off_y;
+            return x1 < -2.0
+                || x0 > 3.0
+                || y1 < -2.0
+                || y0 > 3.0;
+        }
     }
 
     pub(crate) fn resolve_animations_and_scrolling(&mut self, i: NodeI, parent_scroll: Xy<f32>, parent_expected_final_rect: XyRect) -> XyRect {
