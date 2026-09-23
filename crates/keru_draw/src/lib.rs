@@ -1023,6 +1023,7 @@ impl Renderer {
 
     pub fn draw_quadratic_bezier(&mut self, params: QuadraticBezier) {
         let gradient_index = push_gradient(&mut self.resources, &mut self.shapes.gradient_indices, shapes::GradientGpu::solid(params.color));
+        let texture_index = self.texture_index();
         let index = self.shapes.push_primitive(shapes::QuadraticBezierGpu {
             p0: params.p0,
             p1: params.p1,
@@ -1031,7 +1032,8 @@ impl Renderer {
             blur_radius: params.blur,
             gradient_index,
             stroke_thickness: params.stroke_thickness,
-            _cu_pad: [0.0; 2],
+            texture_index,
+            _cu_pad: 0.0,
         });
         self.push_instance(Instance {
             p_type: primitive::QUADRATIC_BEZIER,

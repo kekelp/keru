@@ -166,7 +166,8 @@ pub struct QuadraticBezierGpu {
     pub blur_radius: f32,
     pub gradient_index: u32, // index into gradients buffer (replaces color: Color, same 16 bytes)
     pub stroke_thickness: f32,  // 0 = filled, >0 = stroke only
-    pub _cu_pad: [f32; 2],
+    pub texture_index: u32,     // resource index of a TextureGpu, 0xFFFFFFFF = no texture
+    pub _cu_pad: f32,
 }
 
 #[repr(C)]

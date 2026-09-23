@@ -147,7 +147,7 @@ struct QuadraticBezierGpu {
     float blur_radius;
     uint gradient_index; // index into gradients buffer (replaces color: float4, same 16 bytes)
     float stroke_thickness; // 0 = filled, >0 = stroke only
-    float _cu2;
+    uint texture_index;        // resource index of a TextureGpu, 0xFFFFFFFF = no texture
     float _cu3;
     float4 _qb_pad[5];         // padding to 128 bytes (shared PrimitiveSlot size)
 }
@@ -1340,6 +1340,13 @@ float4 quadratic_bezier_fragment(uint primitiveIndex, uint clipRectIndex, float2
 
     if (srgb) {
         color.rgb = srgb_to_linear3(color.rgb);
+    }
+
+    if (seg.texture_index != 0xFFFFFFFFu) {
+        TextureGpu tex = reinterpret<TextureGpu>(shapes.resources[seg.texture_index]);
+        float2 shape_sz = max_point - min_point;
+        float2 local_uv = (p - min_point) / max(shape_sz, float2(1e-6, 1e-6));
+        color *= sample_texture(tex, local_uv, shape_sz, p, seg.blur_radius, srgb);
     }
 
     return float4(color.rgb, alpha * color.a);
