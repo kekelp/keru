@@ -54,6 +54,17 @@ impl<'a> Button<'a> {
     #[node_key] const CLICK_AREA: NodeKey;
 }
 
+// Define a small extension trait to improve the shape of the user calls.
+// They could also call `ui.run_component(key)`` directly.
+trait ButtonExt {
+    fn is_button_clicked(&mut self, key: ComponentKey<Button>) -> bool;
+}
+impl ButtonExt for Ui {
+    fn is_button_clicked(&mut self, key: ComponentKey<Button>) -> bool {
+        self.run_component(key)
+    }
+}
+
 impl<'a> Component for Button<'a> {
     type State = ButtonState;
     type AddResult = ();
@@ -200,13 +211,13 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
         ui.add_component(Button::new("設定 \\\\ Settings").key(設定));
     });
 
-    if ui.run_component(決定) {
+    if ui.is_button_clicked(決定) {
         println!("決定");
     }
-    if ui.run_component(ログ) {
+    if ui.is_button_clicked(ログ) {
         println!("ログ");
     }
-    if ui.run_component(設定) {
+    if ui.is_button_clicked(設定) {
         println!("設定");
     }
 
