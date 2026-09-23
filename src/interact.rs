@@ -738,11 +738,11 @@ impl System {
     pub(crate) fn click_rect(&self, i: NodeI) -> ClickRect {
         let real_rect = self.nodes[i].real_rect;
         let transform = self.nodes[i].accumulated_transform;
-        let size = self.size;
+        let logical = self.logical_size();
 
         // Apply transform
-        let tx_norm = transform.offset.x / size[X];
-        let ty_norm = transform.offset.y / size[Y];
+        let tx_norm = transform.offset.x / logical[X];
+        let ty_norm = transform.offset.y / logical[Y];
 
         let transformed_rect = XyRect::new(
             [real_rect[X][0] * transform.scale + tx_norm, real_rect[X][1] * transform.scale + tx_norm],
@@ -789,6 +789,8 @@ impl System {
         }
 
         let scale_factor = self.scale_factor;
+        let zoom = self.nodes[node_i].accumulated_transform.scale;
+        let shape_px = scale_factor * zoom;
         let px0 = rect.rect[X][0] * size[X];
         let px1 = rect.rect[X][1] * size[X];
         let py0 = rect.rect[Y][0] * size[Y];
@@ -799,7 +801,7 @@ impl System {
         // Line-like shapes get a small extra hit tolerance so thin strokes stay clickable.
         let line_tolerance = LINE_HIT_TOLERANCE * scale_factor;
         let stroke_half_thickness = || {
-            let w = self.nodes[node_i].params.stroke.map(|s| s.width).unwrap_or(1.0) * scale_factor;
+            let w = self.nodes[node_i].params.stroke.map(|s| s.width).unwrap_or(1.0) * shape_px;
             (w / 2.0).max(line_tolerance)
         };
 
@@ -809,7 +811,7 @@ impl System {
             }
             Shape::Rectangle { rounded_corners, corner_radius } => {
                 let half = Vec2::new((px1 - px0) / 2.0, (py1 - py0) / 2.0);
-                let r = corner_radius * scale_factor;
+                let r = corner_radius * shape_px;
                 let radii = [
                     if rounded_corners.contains(RoundedCorners::TOP_LEFT) { r } else { 0.0 },
                     if rounded_corners.contains(RoundedCorners::TOP_RIGHT) { r } else { 0.0 },
@@ -824,13 +826,13 @@ impl System {
             }
             Shape::Ring { width } => {
                 let outer = ((px1 - px0) / 2.0).min((py1 - py0) / 2.0);
-                let inner = (outer - width * scale_factor).max(0.0);
+                let inner = (outer - width * shape_px).max(0.0);
                 let d = p.length();
                 return d >= inner && d <= outer;
             }
             Shape::Arc { start_angle, end_angle, width } => {
                 let outer = ((px1 - px0) / 2.0).min((py1 - py0) / 2.0);
-                let actual_width = width * scale_factor;
+                let actual_width = width * shape_px;
                 let inner = (outer - actual_width).max(0.0);
                 return sd_arc(p, inner, outer, start_angle, end_angle) <= 0.0;
             }

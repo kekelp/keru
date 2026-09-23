@@ -850,8 +850,9 @@ impl Ui {
                 || rect[Y][1] < -2.0
                 || rect[Y][0] > 3.0;
         } else {
-            let off_x = t.offset.x / self.sys.size[X];
-            let off_y = t.offset.y / self.sys.size[Y];
+            let logical = self.sys.logical_size();
+            let off_x = t.offset.x / logical[X];
+            let off_y = t.offset.y / logical[Y];
             let x0 = rect[X][0] * t.scale + off_x;
             let x1 = rect[X][1] * t.scale + off_x;
             let y0 = rect[Y][0] * t.scale + off_y;
@@ -1037,11 +1038,11 @@ impl Ui {
         let accumulated_transform;
 
         if own_transform != Transform::IDENTITY {
-            // Get node center in pixels for centered scaling
             let rect = self.sys.nodes[i].real_rect;
             let center = rect.center();
-            let center_px_x = center.x * self.sys.size[X];
-            let center_px_y = center.y * self.sys.size[Y];
+            let logical = self.sys.logical_size();
+            let center_px_x = center.x * logical[X];
+            let center_px_y = center.y * logical[Y];
 
             // Center the child's scale around the node's center
             // to scale around C, add C * (1 - scale) to offset

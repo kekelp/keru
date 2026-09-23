@@ -423,8 +423,9 @@ impl Ui {
         // Apply accumulated_transform for regular shapes
         if self.sys.nodes[i].accumulated_transform != Transform::IDENTITY {
             let accumulated = &self.sys.nodes[i].accumulated_transform;
+            let sf = self.sys.scale_factor;
             let transform = keru_draw::Transform {
-                offset: [accumulated.offset.x, accumulated.offset.y],
+                offset: [accumulated.offset.x * sf, accumulated.offset.y * sf],
                 scale: [accumulated.scale, accumulated.scale],
             };
             let handle = match self.sys.nodes[i].accumulated_transform_handle {
@@ -498,10 +499,11 @@ impl Ui {
                 }
             };
 
+            let sf = self.sys.scale_factor;
             let combined = keru_draw::Transform {
                 offset: [
-                    accumulated.offset.x + canvas_offset_x,
-                    accumulated.offset.y + canvas_offset_y,
+                    accumulated.offset.x * sf + canvas_offset_x,
+                    accumulated.offset.y * sf + canvas_offset_y,
                 ],
                 scale: canvas_scale,
             };
