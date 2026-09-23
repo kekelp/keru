@@ -89,6 +89,14 @@ impl Ui {
             key: key.as_normal_key(),
         };
     }
+
+    pub fn run_in_component<C, R>(&mut self, key: ComponentKey<C>, content: impl FnOnce(&mut Ui) -> R) -> R {
+        let scope_id = key.as_normal_key().id_with_key_scope();
+        thread_local::push_key_scope(scope_id);
+        let result = content(self);
+        thread_local::pop_key_scope();
+        return result;
+    }
 }
 
 impl UiKeyScope {

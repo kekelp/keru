@@ -45,6 +45,7 @@ pub struct TabContainer<'a, T: PartialEq + Copy> {
     pub tabs: &'a [T],
     /// The horizontal or vertical direction of the tab bar.
     pub axis: Axis,
+    pub skeleton: bool,
 }
 
 /// The result of adding a [`TabContainer`].
@@ -59,7 +60,12 @@ pub struct TabContainerResult<T> {
 
 impl<'a, T: PartialEq + Copy> TabContainer<'a, T> {
     pub fn new(tabs: &'a [T]) -> Self {
-        Self { tabs, axis: Axis::X }
+        Self { tabs, axis: Axis::X, skeleton: false }
+    }
+
+    pub fn skeleton(mut self, skeleton: bool) -> Self {
+        self.skeleton = skeleton;
+        self
     }
 
     /// Set the axis the tab buttons run along. `X` is horizontal, `Y` is vertical.
@@ -123,19 +129,26 @@ impl<'a, T: PartialEq + Copy> Component for TabContainer<'a, T> {
             H_STACK.size_y(Size::Pixels(50.0))
         }.accessibility_role(AccessKitRole::TabList);
         let rounded_corners = if vertical { RoundedCorners::LEFT } else { RoundedCorners::TOP };
+
         let inactive_tab = BUTTON
             .shape(Shape::Rectangle { rounded_corners, corner_radius: 5.0 })
             .size_x(if vertical { Size::Fill } else { Size::FitContent })
             .size_y(Size::FitContent)
             .fill(ui.theme().muted_background)
             .accessibility_role(AccessKitRole::Tab);
-        let active_tab = inactive_tab.fill(ui.theme().background);
+
+            let inactive_tab = if self.skeleton {
+            let bare = inactive_tab.invisible().click_animation(false).padding(0.0);
+            if vertical { bare.size_x(Size::Fill) } else { bare.size_y(Size::Fill) }
+        } else { inactive_tab };
+        let active_tab = if self.skeleton { inactive_tab } else { inactive_tab.fill(ui.theme().background) };
         let content_panel = PANEL
             .size_symm(Size::Fill)
             .fill(ui.theme().background)
             .children_can_hide(true)
             .accessibility_role(AccessKitRole::TabPanel)
             .key(CONTENT_PANEL);
+        let content_panel = if self.skeleton { content_panel.invisible().padding(0.0) } else { content_panel };
 
         let mut labels = Vec::with_capacity(self.tabs.len());
 
