@@ -193,6 +193,7 @@ pub struct Circle {
     pub radius: f32,
     pub fill: ColorFill,
     pub blur: f32,
+    pub stretch: [f32; 2],
 }
 
 /// Parameters for drawing a ring (hollow circle)
@@ -832,6 +833,7 @@ impl Renderer {
             blur_radius: params.blur,
             pie_stroke_thickness: 0.0,
             pie_corner_radius: 0.0,
+            stretch: params.stretch,
         });
         self.push_instance(Instance {
             p_type: primitive::CIRCLE,
@@ -859,6 +861,7 @@ impl Renderer {
             blur_radius: params.blur,
             pie_stroke_thickness: 0.0,
             pie_corner_radius: 0.0,
+            stretch: [1.0, 1.0],
         });
         self.push_instance(Instance {
             p_type: primitive::CIRCLE,
@@ -887,6 +890,7 @@ impl Renderer {
             blur_radius: params.blur,
             pie_stroke_thickness: 0.0,
             pie_corner_radius: 0.0,
+            stretch: [1.0, 1.0],
         });
         self.push_instance(Instance {
             p_type: primitive::CIRCLE,
@@ -914,6 +918,7 @@ impl Renderer {
             blur_radius: params.blur,
             pie_stroke_thickness: params.stroke_thickness,
             pie_corner_radius: params.corner_radius,
+            stretch: [1.0, 1.0],
         });
         self.push_instance(Instance {
             p_type: primitive::CIRCLE,

@@ -83,6 +83,7 @@ struct CircleGpu {
     uint texture_index;
     float pie_stroke_thickness; // pie only: 0=filled, >0=hollow outline
     float pie_corner_radius;    // pie only: rounds center point and arc-edge corners
+    float2 stretch;             // per-axis scale of the radius, [1, 1] = round
 }
 
 struct SegmentGpu {
@@ -457,12 +458,12 @@ void circle_vertex(
 ) {
     var circle: CircleGpu = reinterpret<CircleGpu>(shapes.primitives[instanceIndex]);
 
-    // Create bounding box for the circle, expanded for blur falloff and pie corner rounding.
     float outer_radius = circle.radii.y;
     float blur_margin = circle.blur_radius * 3.0;
     float expand = blur_margin + circle.pie_corner_radius;
-    float2 top_left = circle.center - float2(outer_radius + expand, outer_radius + expand);
-    float2 size = float2((outer_radius + expand) * 2.0, (outer_radius + expand) * 2.0);
+    float2 half_extent = float2(outer_radius) * circle.stretch + float2(expand);
+    float2 top_left = circle.center - half_extent;
+    float2 size = half_extent * 2.0;
 
     quad_vertex(top_left, size, vertexIndex, resolution, position, uv);
     screen_pos = top_left + uv * size;
@@ -557,7 +558,8 @@ float4 circle_fragment(uint primitiveIndex, uint clipRectIndex, float2 uv, float
     float inner_radius = circle.radii.x;
     float blur_margin = circle.blur_radius * 3.0;
     float expand = blur_margin + circle.pie_corner_radius;
-    float2 p = (uv - 0.5) * float2((outer_radius + expand) * 2.0);
+    float2 half_extent = float2(outer_radius) * circle.stretch + float2(expand);
+    float2 p = (uv - 0.5) * (half_extent * 2.0) / circle.stretch;
 
     float dist = sd_circle_variant(p, circle);
     float pixel_width = sdf_pixel_width(dist, transform_scale);

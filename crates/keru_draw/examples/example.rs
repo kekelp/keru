@@ -288,6 +288,7 @@ impl State {
             radius: 20.0,
             fill: ColorFill::SharedGradient(grad_circle_radial),
             blur: 0.0,
+            stretch: [0.0, 0.0],
         });
 
         // Linear gradient circle
@@ -296,6 +297,7 @@ impl State {
             radius: 30.0,
             fill: ColorFill::SharedGradient(grad_circle_linear),
             blur: 0.0,
+            stretch: [0.0, 0.0],
         });
 
         self.renderer.draw_circle(Circle {
@@ -303,6 +305,7 @@ impl State {
             radius: 40.0,
             fill: ColorFill::Color(Color { r: 0.3, g: 0.9, b: 1.0, a: 1.0 }),
             blur: 0.0,
+            stretch: [0.0, 0.0],
         });
 
         // Blurred circles
@@ -311,6 +314,7 @@ impl State {
             radius: 30.0,
             fill: ColorFill::Color(Color::new(1.0, 0.8, 0.2, 1.0)),
             blur: 8.0,
+            stretch: [0.0, 0.0],
         });
 
         self.renderer.draw_circle(Circle {
@@ -318,6 +322,7 @@ impl State {
             radius: 30.0,
             fill: ColorFill::Color(Color::new(0.4, 1.0, 0.5, 1.0)),
             blur: 20.0,
+            stretch: [0.0, 0.0],
         });
 
         self.renderer.draw_ring(CircleRing {
@@ -804,6 +809,7 @@ impl State {
             radius: 90.0,
             fill: ColorFill::Color(Color::WHITE),
             blur: 0.0,
+            stretch: [1.0, 1.0],
         });
 
         // Triangle: nine-slice, tile both

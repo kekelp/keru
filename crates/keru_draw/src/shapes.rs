@@ -92,6 +92,7 @@ pub struct CircleGpu {
     pub texture_index: u32,
     pub pie_stroke_thickness: f32, // pie only: 0=filled, >0=hollow outline
     pub pie_corner_radius: f32,    // pie only: rounds center point and arc-edge corners
+    pub stretch: [f32; 2],         // per-axis scale of the radius, [1, 1] = round
 }
 
 #[repr(C)]

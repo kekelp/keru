@@ -172,6 +172,7 @@ impl State {
             radius: cell * 0.45,
             fill: ColorFill::Color(Color::new(1.0, 0.6, 0.2, 1.0)),
             blur: 0.0,
+            stretch: [1.0, 1.0],
         });
 
         self.renderer.draw_ring(CircleRing {

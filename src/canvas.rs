@@ -1,6 +1,6 @@
 use keru_draw::{
     Renderer, Rectangle, Circle, CircleRing, CircleArc, CirclePie, Segment, Grid, Triangle,
-    Hexagon, Polygon, QuadraticBezier, DashedBoxOutline, DashedHexagonOutline, Transform,
+    Hexagon, Polygon, QuadraticBezier, DashedBoxOutline, DashedHexagonOutline,
     ClipRect, ClipRectHandle, LoadedImage, TextureOptions, Gradient, SharedGradient,
 };
 use slab::Slab;
@@ -126,17 +126,6 @@ impl<'a> Canvas<'a> {
     /// Draw a dashed hexagon outline.
     pub fn draw_dashed_hexagon_outline(&mut self, params: DashedHexagonOutline) {
         self.renderer.draw_dashed_hexagon_outline(params);
-    }
-
-    /// Set a transform for subsequent draw calls.
-    pub fn set_transform(&mut self, transform: Transform) {
-        let handle = self.renderer.insert_transform(transform);
-        self.renderer.set_current_transform(handle);
-    }
-
-    /// Clear the current transform, resetting to identity.
-    pub fn clear_transform(&mut self) {
-        self.renderer.clear_current_transform();
     }
 
     /// Create a clip rect for this frame.

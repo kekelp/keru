@@ -475,6 +475,7 @@ impl Ui {
                         radius,
                         fill,
                         blur: pass.blur,
+                        stretch: [1.0, 1.0],
                     });
                 }
                 Shape::Ring { width } => {

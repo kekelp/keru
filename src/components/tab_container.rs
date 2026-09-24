@@ -96,6 +96,7 @@ impl<'a, T: PartialEq + Copy> Component for TabContainer<'a, T> {
         let mut current = self.tabs.iter().position(|t| *t == *selected).unwrap_or(0);
 
         for i in 0..self.tabs.len() {
+            // todo: the skeleton idea is terrible, because the user's button will be drawn on top of these and absorb the clicks.
             if ui.is_clicked(TAB_BUTTON.sibling(i)) {
                 current = i;
             }
