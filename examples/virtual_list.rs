@@ -37,7 +37,10 @@ fn update_ui(_: &mut (), ui: &mut Ui) {
         .sense_scroll(true)
         .stack_spacing(0.0)
         .size(Size::Pixels(320.0), Size::Pixels(500.0))
-        .key(LIST);
+        .key(LIST)
+        // Normally, children_can_hide is inherited. If the virtual list was under a node with children_can_hide(true), it would inherit it and keep elements in memory even after we scroll away from them and stop add()ing them.
+        // In this case, we explicitly want the off-screen children to fully disappear and not take up any memory, so it's a good idea to specify children_can_hide(false).
+        .children_can_hide(false);
 
     // Add spacer elements instead of all the offscreen ones.
     let top_spacer = SPACER.size_y(Size::Pixels(first as f32 * ROW_HEIGHT));
