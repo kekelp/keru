@@ -123,13 +123,13 @@ pub enum ImageSourceId {
 pub enum TextFingerprint {
     None,
     Hash(u64),
-    Ptr(usize, usize),
+    Slice { pointer: usize, length: u32 },
 }
 
 impl TextFingerprint {
     pub fn new(s: &str, use_pointer: bool) -> Self {
         if use_pointer {
-            TextFingerprint::Ptr(s.as_ptr() as usize, s.len())
+            TextFingerprint::Slice { pointer: s.as_ptr() as usize,length: s.len() as u32 }
         } else {
             let mut hasher = ahasher();
             std::hash::Hash::hash(s, &mut hasher);
