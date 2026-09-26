@@ -116,6 +116,8 @@ pub(crate) struct System {
     pub layout_solve_queue: Vec<GraphElement>,
     pub layout_deferred_queue: Vec<GraphElement>,
 
+    pub svg_rasterize_queue: Vec<NodeI>,
+
     pub size: Xy<f32>,
     /// The effective scale factor, should be kept in sync as the display_scale_factor * custom_scale_factor
     pub scale_factor: f32,
@@ -144,8 +146,8 @@ pub(crate) struct System {
 
     pub user_state: HashMap<Id, Box<dyn Any>>,
 
-    // todo: do something else
     pub image_cache: LruCache<ImageSourceId, ImageRef>,
+    pub svg_raster_cache: LruCache<(ImageSourceId, u32, u32), ImageRef>,
 
     pub loaded_images: Slab<LoadedImageEntry>,
     pub image_handle_sender: mpsc::Sender<ImageHandleMessage>,
@@ -395,6 +397,7 @@ impl Ui {
 
                 layout_solve_queue: Vec::with_capacity(50),
                 layout_deferred_queue: Vec::with_capacity(50),
+                svg_rasterize_queue: Vec::with_capacity(0),
 
                 current_frame: FIRST_FRAME,
                 last_frame_end_fake_time: 0,
@@ -425,6 +428,7 @@ impl Ui {
                 user_state: HashMap::with_capacity(7),
 
                 image_cache: LruCache::new(NonZeroUsize::new(128).unwrap()),
+                svg_raster_cache: LruCache::new(NonZeroUsize::new(128).unwrap()),
 
                 loaded_images: Slab::with_capacity(4),
                 image_handle_sender,
@@ -899,8 +903,8 @@ impl Ui {
         }
     }
 
-    /// If the node holds a refcounted loaded image, release the tree's reference to it. Call before the node's image source changes or the node is removed.
     pub(crate) fn release_node_loaded_image(&mut self, i: NodeI) {
+        self.sys.nodes[i].svg_data = None;
         if let Some(ImageSourceId::Handle { id, .. }) = self.sys.nodes[i].last_image_source {
             self.release_loaded_image(id);
         }
@@ -1039,27 +1043,7 @@ impl Ui {
         }
 
         self.release_node_loaded_image(i);
-        let node = &mut self.sys.nodes[i];
-
-        // Check global cache
-        if let Some(cached) = self.sys.image_cache.get(&source) {
-            node.imageref = Some(cached.clone());
-            node.last_image_source = Some(source);
-            self.sys.changes.should_rebuild_render_data = true;
-            return;
-        }
-
-        let initial_size = 512;
-        if let Some(loaded) = self.sys.renderer.image_renderer.load_svg(svg_data, initial_size, initial_size) {
-            log::info!("Loaded SVG: {}x{} on page {}", loaded.width, loaded.height, loaded.page);
-            let imageref = ImageRef::Svg(loaded);
-            self.cache_image(source, imageref.clone());
-            self.sys.nodes[i].imageref = Some(imageref);
-            self.sys.nodes[i].last_image_source = Some(source);
-            self.sys.changes.should_rebuild_render_data = true;
-        } else {
-            log::error!("Failed to load SVG from {} bytes", svg_data.len());
-        }
+        self.set_node_svg(i, source, svg_data);
     }
 
     pub(crate) fn set_path_image(&mut self, i: NodeI, path: &str) {
@@ -1078,42 +1062,53 @@ impl Ui {
         }
     }
 
-    pub(crate) fn set_path_svg(&mut self, i: NodeI, path: &str) {
-        let source = ImageSourceId::PathHash(ahash(&path));
-
-        if self.sys.nodes[i].last_image_source == Some(source) {
-            return;
-        }
-
-        self.release_node_loaded_image(i);
+    fn set_node_svg(&mut self, i: NodeI, source: ImageSourceId, svg_data: &'static [u8]) {
         let node = &mut self.sys.nodes[i];
+        node.imageref = None;
+        node.last_image_source = Some(source);
+        node.svg_data = Some(svg_data);
+        self.sys.svg_rasterize_queue.push(i);
+        self.sys.changes.should_rebuild_render_data = true;
+    }
 
-        // Check global cache
-        if let Some(cached) = self.sys.image_cache.get(&source) {
-            node.imageref = Some(cached.clone());
-            node.last_image_source = Some(source);
-            self.sys.changes.should_rebuild_render_data = true;
-            return;
+    pub(crate) fn rasterize_queued_svgs(&mut self) {
+        for i in std::mem::take(&mut self.sys.svg_rasterize_queue) {
+            self.rasterize_node_svg(i);
+        }
+    }
+
+    fn rasterize_node_svg(&mut self, i: NodeI) {
+        const MAX_SVG_RASTER_SIZE: f32 = 4096.0;
+        let Some(node) = self.sys.nodes.get(i) else { return };
+        let (Some(svg_data), Some(source)) = (node.svg_data, node.last_image_source) else { return };
+
+        let px = Xy::new(node.size.x * self.sys.size.x, node.size.y * self.sys.size.y);
+        let w = px.x.round().clamp(1.0, MAX_SVG_RASTER_SIZE) as u32;
+        let h = px.y.round().clamp(1.0, MAX_SVG_RASTER_SIZE) as u32;
+
+        if let Some(ImageRef::Svg(loaded)) = &node.imageref {
+            if loaded.width == w && loaded.height == h {
+                return;
+            }
         }
 
-        match std::fs::read(path) {
-            Ok(bytes) => {
-                let initial_size = 512;
-                if let Some(loaded) = self.sys.renderer.image_renderer.load_svg(&bytes, initial_size, initial_size) {
-                    log::info!("Loaded SVG from path '{}': {}x{} on page {}", path, loaded.width, loaded.height, loaded.page);
-                    let imageref = ImageRef::Svg(loaded);
-                    self.cache_image(source, imageref.clone());
-                    self.sys.nodes[i].imageref = Some(imageref);
-                    self.sys.nodes[i].last_image_source = Some(source);
-                    self.sys.changes.should_rebuild_render_data = true;
-                } else {
-                    log::error!("Failed to decode SVG from path '{}'", path);
-                }
+        let key = (source, w, h);
+        let imageref = if let Some(cached) = self.sys.svg_raster_cache.get(&key) {
+            cached.clone()
+        } else {
+            let Some(loaded) = self.sys.renderer.image_renderer.load_svg(svg_data, w, h) else {
+                log::error!("Failed to load SVG from {} bytes", svg_data.len());
+                return;
+            };
+            let imageref = ImageRef::Svg(loaded);
+            if let Some((_evicted_key, evicted_imageref)) = self.sys.svg_raster_cache.push(key, imageref.clone()) {
+                self.unload_imageref(&evicted_imageref);
             }
-            Err(e) => {
-                log::error!("Failed to read SVG file '{}': {}", path, e);
-            }
-        }
+            imageref
+        };
+
+        self.sys.nodes[i].imageref = Some(imageref);
+        self.sys.changes.should_rebuild_render_data = true;
     }
 
     pub fn readd_branch(&mut self, branch_root: NodeKey) {

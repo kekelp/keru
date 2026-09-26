@@ -1291,8 +1291,6 @@ pub enum Image<'a> {
     RasterPath(&'a str),
     /// SVG image from static bytes
     SvgStatic(&'static [u8]),
-    /// SVG image from filesystem path
-    SvgPath(&'a str),
     /// An image already loaded into the [`Ui`] via [`Ui::load_image()`] or [`Ui::load_svg()`].
     Loaded(&'a LoadedImageHandle),
 }
@@ -2130,12 +2128,6 @@ impl<'a> Node<'a> {
         return self;
     }
 
-    /// Set an SVG image from a filesystem path.
-    pub fn svg_path(mut self, path: &'a str) -> Node<'a> {
-        self.image = Some(Image::SvgPath(path));
-        return self;
-    }
-
     /// Set an image previously loaded with [`Ui::load_image()`].
     /// 
     /// See also [`Node::static_image()`].
@@ -2412,7 +2404,6 @@ impl Ui {
                 Image::RasterStatic(image) => self.set_static_image(i, image),
                 Image::RasterPath(path) => self.set_path_image(i, path),
                 Image::SvgStatic(svg) => self.set_static_svg(i, svg),
-                Image::SvgPath(path) => self.set_path_svg(i, path),
                 Image::Loaded(handle) => self.set_loaded_image(i, handle.id),
             };
         }

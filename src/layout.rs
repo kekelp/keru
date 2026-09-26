@@ -110,6 +110,7 @@ impl Ui {
         self.sys.nodes[ROOT_I].layout_rect = XyRect::new([0.0, 1.0], [0.0, 1.0]);
         self.l2_write_size(ROOT_I);
         self.recursive_place_children(ROOT_I);
+        self.rasterize_queued_svgs();
 
         // self.write_layout_dependencies_dot("layout_dependencies.dot");
         // self.l2_dump_unsolved(ROOT_I);

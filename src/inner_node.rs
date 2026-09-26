@@ -60,6 +60,7 @@ pub struct InnerNode {
 
     pub imageref: Option<ImageRef>,
     pub last_image_source: Option<ImageSourceId>,
+    pub svg_data: Option<&'static [u8]>,
 
     pub parent: NodeI,
 
@@ -190,6 +191,7 @@ impl InnerNode {
 
             imageref: None,
             last_image_source: None,
+            svg_data: None,
 
             parent: DUMMY_I, // just a wrong value which will be overwritten. it's even worse here.
             // but it's for symmetry with update_node, where all these values are old and are reset.
@@ -315,6 +317,7 @@ pub const NODE_ROOT: InnerNode = InnerNode {
 
     imageref: None,
     last_image_source: None,
+    svg_data: None,
 
     // The root node is his own parent. This can be nice sometimes but it would probably be better to not use it.
     parent: ROOT_I,

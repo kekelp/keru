@@ -147,7 +147,7 @@ impl Ui {
             }
         }
 
-        let own_content = self.sys.nodes[i].text_i.is_some() || self.sys.nodes[i].imageref.is_some();
+        let own_content = self.sys.nodes[i].text_i.is_some() || self.sys.nodes[i].imageref.is_some() || self.sys.nodes[i].svg_data.is_some();
         let mut has_sized_children = Xy::new(own_content, own_content);
         let mut has_fill_children = Xy::new(false, false);
 
@@ -455,6 +455,9 @@ impl Ui {
             self.sys.nodes[i].size[axis] = self.l2_size_or_guess(i, axis);
         }
         self.l2_write_text_size(i);
+        if self.sys.nodes[i].svg_data.is_some() {
+            self.sys.svg_rasterize_queue.push(i);
+        }
     }
 
     pub(crate) fn l2_write_children_sizes(&mut self, i: NodeI) {
@@ -971,7 +974,7 @@ impl Ui {
         for axis in [X, Y] {
             let node = &self.sys.nodes[i];
             let is_fitcontent = matches!(node.params.layout.size[axis], Size::FitContent);
-            let has_own_content = node.text_i.is_some() || node.imageref.is_some();
+            let has_own_content = node.text_i.is_some() || node.imageref.is_some() || node.svg_data.is_some();
             if ! is_fitcontent || has_own_content {
                 self.sys.nodes[i].fitcontent_that_acts_as_fill[axis] = false;
                 continue;

@@ -250,7 +250,10 @@ impl ImageRenderer {
         let scale_y = height as f32 / svg_size.height();
         let scale = scale_x.min(scale_y);
 
-        let transform = tiny_skia::Transform::from_scale(scale, scale);
+        // Center the SVG when its aspect ratio differs from the requested size.
+        let offset_x = (width as f32 - svg_size.width() * scale) * 0.5;
+        let offset_y = (height as f32 - svg_size.height() * scale) * 0.5;
+        let transform = tiny_skia::Transform::from_scale(scale, scale).post_translate(offset_x, offset_y);
 
         // Render
         resvg::render(&tree, transform, &mut pixmap.as_mut());

@@ -49,6 +49,10 @@ impl IndexMut<NodeI> for Nodes {
 }
 
 impl Nodes {
+    pub(crate) fn get(&self, i: NodeI) -> Option<&InnerNode> {
+        return self.nodes.get(i.as_usize());
+    }
+
     pub(crate) fn get_with_key_scope(&self, key: NodeKey) -> Option<NodeI> {
         let id = key.id_with_key_scope();
         return self.node_hashmap.get(&id).copied();
