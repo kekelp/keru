@@ -866,7 +866,7 @@ impl Ui {
     }
 
     pub(crate) fn resolve_animations_and_scrolling(&mut self, i: NodeI, parent_scroll: Xy<f32>, parent_expected_final_rect: XyRect) -> XyRect {
-        let still_moving = self.resolve_animation(i);
+        let (animation_still_ongoing, position_still_moving) = self.resolve_animation(i);
 
         // add the parent offset
         let parent = self.sys.nodes[i].parent;
@@ -935,15 +935,15 @@ impl Ui {
         // Accumulate transforms from parent
         self.compute_accumulated_transform(i);
 
-        // Round to the pixel grid only once the node has settled, so animations stay smooth but final positions are crisp.
-        if !still_moving {
+        // Round to the pixel grid only once the node's position has settled, so animations stay smooth but final positions are crisp.
+        if ! position_still_moving {
             let scale = self.sys.nodes[i].accumulated_transform.scale;
             self.sys.nodes[i].real_rect = self.sys.nodes[i].real_rect.round_to_pixel_grid(self.sys.size, scale);
         }
 
         let parent = self.sys.nodes[i].parent;
         let parent_exiting = self.sys.nodes[parent].exit_animation_still_going;
-        if !still_moving && !parent_exiting {
+        if ! animation_still_ongoing && ! parent_exiting {
             if self.sys.nodes[i].exiting {
                 self.sys.nodes[i].exit_animation_still_going = false;
                 // todo: think harder
@@ -961,13 +961,16 @@ impl Ui {
         expected_final_rect
     }
 
-    pub(crate) fn resolve_animation(&mut self, i: NodeI) -> bool {
+    /// Returns `(animation_still_ongoing, position_still_moving)`.
+    /// `animation_still_ongoing` includes position as well as alpha.
+    pub(crate) fn resolve_animation(&mut self, i: NodeI) -> (bool, bool) {
         // do animations in local space
         let target = self.sys.nodes[i].local_layout_rect;
 
         // Todo: try a bruteforce optimization for offscreen nodes.
         let mut l = target;
-        let mut still_moving = false;
+        let mut animation_still_ongoing = false;
+        let mut position_still_moving = false;
         let animate_layout = self.sys.nodes[i].params.animation.state_transition.animate_layout;
         let enter_anim = self.sys.nodes[i].enter_animation_still_going;
         let exit_anim = self.sys.nodes[i].exit_animation_still_going;
@@ -998,7 +1001,8 @@ impl Ui {
                     l[X][i] = target[X][i];
                     l[Y][i] = target[Y][i];
                 } else {
-                    still_moving = true;
+                    animation_still_ongoing = true;
+                    position_still_moving = true;
 
                     // normalized direction in pixel space
                     let dir_x = dx_px / dist_px;
@@ -1019,11 +1023,11 @@ impl Ui {
             let (new_fade, fade_done) = self.sys.exp_tail_step(self.sys.nodes[i].fade_alpha, fade_target, local_speed);
             self.sys.nodes[i].fade_alpha = new_fade;
             if ! fade_done {
-                still_moving = true;
+                animation_still_ongoing = true;
             }
         }
 
-        still_moving
+        (animation_still_ongoing, position_still_moving)
     }
 
     pub(crate) fn compute_accumulated_transform(&mut self, i: NodeI) {
