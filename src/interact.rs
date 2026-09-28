@@ -337,14 +337,21 @@ impl Ui {
 
     pub(crate) fn handle_mouse_release(&mut self, button: MouseButton) {
         let click_ids = self.sys.scan_hits(|r| r.senses.contains(Sense::CLICK), true);
+        // A drag ending basically always needs to wake up the loop.
+        let was_dragging = self.sys.mouse_input.currently_dragging().any(|(_, b)| b == button);
+        if was_dragging {
+            self.set_new_ui_input();
+        }
+    
         self.sys.mouse_input.push_release(button, click_ids.clone());
+
 
         // todo: instead of re-iterating, maybe do this while scanning?
         // Signal update if any relevant nodes
         for &id in &click_ids {
             if let Some(i) = self.sys.nodes.get_by_id(id) {
                 let senses = self.sys.nodes[i].params.interact.senses;
-                if senses.intersects(Sense::CLICK_RELEASE | Sense::DRAG | Sense::DRAG_DROP_TARGET) {
+                if senses.contains(Sense::CLICK_RELEASE) {
                     self.set_new_ui_input();
                 }
             }
@@ -936,9 +943,9 @@ impl System {
             }
 
             if rect.absorbs_mouse_events {
-                if click { click_absorbed = true; }
-                if drag { drag_absorbed = true; }
-                if hold { hold_absorbed = true; }
+                click_absorbed = true;
+                drag_absorbed = true;
+                hold_absorbed = true;
             }
         }
 
@@ -961,31 +968,7 @@ impl System {
             }
 
             if rect.absorbs_mouse_events {
-                if matched {
-                    break;
-                }
-                // For now we're not doing this, the users will have to understand it and use hitboxes or similar.
-                // In the future we could bring this back and add a Node flag for the parent, something like "gets_events_through_opaque_children".
-                // (for things like drag-drop areas or similar) 
-                // if pass_to_parents {
-                //     // Absorbing node doesn't pass the filter: the event keeps
-                //     // passing up its ancestors until the next absorbing one.
-                //     let mut current_i = self.nodes[rect.i].parent;
-                //     while current_i != ROOT_I {
-                //         // This is slow, btw.
-                //         let parent_rect = self.click_rect(current_i);
-                //         if self.hit_click_rect(&parent_rect) {
-                //             if filter(&parent_rect) {
-                //                 result.push(self.nodes[current_i].id);
-                //             }
-                //             if parent_rect.absorbs_mouse_events {
-                //                 break;
-                //             }
-                //         }
-                //         current_i = self.nodes[current_i].parent;
-                //     }
-                //     break;
-                // }
+                break;
             }
         }
 
