@@ -248,6 +248,30 @@ impl XyRect {
     pub fn bottom_right(&self) -> Xy<f32> {
         return Xy::new(self[X][1], self[Y][1]);
     }
+
+    pub fn top_center(&self) -> Xy<f32> {
+        let tl = self.top_left();
+        let sz = self.size();
+        return Xy::new(tl.x + sz.x * 0.5, tl.y);
+    }
+
+    pub fn bottom_center(&self) -> Xy<f32> {
+        let bl = self.bottom_left();
+        let sz = self.size();
+        return Xy::new(bl.x + sz.x * 0.5, bl.y);
+    }
+
+    pub fn left_center(&self) -> Xy<f32> {
+        let tl = self.top_left();
+        let sz = self.size();
+        return Xy::new(tl.x, tl.y + sz.y * 0.5);
+    }
+
+    pub fn right_center(&self) -> Xy<f32> {
+        let tr = self.top_right();
+        let sz = self.size();
+        return Xy::new(tr.x, tr.y + sz.y * 0.5);
+    }
 }
 impl Add<f32> for XyRect {
     type Output = Self;
