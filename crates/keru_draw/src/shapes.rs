@@ -186,6 +186,28 @@ pub struct PolygonGpu {
 
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct OkhsvSaturationValueGradientGpu {
+    pub top_left: [f32; 2],
+    pub size: [f32; 2],
+    pub hue: f32,
+    pub _pad0: f32,
+    pub _pad1: f32,
+    pub _pad2: f32,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct OkhsvHueGradientGpu {
+    pub top_left: [f32; 2],
+    pub size: [f32; 2],
+    pub saturation: f32,
+    pub value: f32,
+    pub horizontal: f32,
+    pub _pad0: f32,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub(crate) struct PrimitiveGpu(pub [f32; 32]);
 
 pub struct Shapes {

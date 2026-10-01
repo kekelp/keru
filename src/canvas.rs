@@ -2,6 +2,7 @@ use keru_draw::{
     Renderer, Rectangle, Circle, CircleRing, CircleArc, CirclePie, Segment, Grid, Triangle,
     Hexagon, Polygon, QuadraticBezier, DashedBoxOutline, DashedHexagonOutline,
     ClipRect, ClipRectHandle, LoadedImage, TextureOptions, Gradient, SharedGradient,
+    OkhsvSaturationValueGradient, OkhsvHueGradient,
 };
 use slab::Slab;
 use lru::LruCache;
@@ -76,6 +77,16 @@ impl<'a> Canvas<'a> {
     /// Draw a ring (hollow circle).
     pub fn draw_ring(&mut self, params: CircleRing) {
         self.renderer.draw_ring(params);
+    }
+
+    /// Draw a fixed-hue OKHSV saturation/value color picker square.
+    pub fn draw_okhsv_saturation_value_gradient(&mut self, params: OkhsvSaturationValueGradient) {
+        self.renderer.draw_okhsv_saturation_value_gradient(params);
+    }
+
+    /// Draw a full-hue OKHSV selection strip at a fixed saturation/value.
+    pub fn draw_okhsv_hue_gradient(&mut self, params: OkhsvHueGradient) {
+        self.renderer.draw_okhsv_hue_gradient(params);
     }
 
     /// Draw an arc.

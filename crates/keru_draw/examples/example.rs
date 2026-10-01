@@ -25,6 +25,7 @@ struct State {
     text_box1: TextBoxHandle,
     text_box2: TextBoxHandle,
     text_box3: TextBoxHandle,
+    okhsv_label: TextBoxHandle,
     svg_handle: LoadedImage,
     texture_handle: LoadedImage,
     nine_slice_handle: LoadedImage,
@@ -138,12 +139,24 @@ impl State {
         );
         renderer.text.get_text_box_mut(&text_box3).set_style(&style);
 
+        let okhsv_label = renderer.text.add_text_box(
+            "Builtin primitives for OKLAB (OKHSV) color pickers ".to_owned(),
+            Some((0.0, 0.0)),
+            (500.0, 20.0),
+            0.0,
+        );
+        renderer.text.get_text_box_mut(&okhsv_label).set_style(&style);
+        renderer.text.get_text_box_mut(&okhsv_label).set_transform(Transform2D {
+            translation: (550.0, 675.0),
+            rotation: 0.0,
+            scale: 1.0,
+        });
 
         let svg_handle = renderer.image_renderer.load_svg(TIGER_SVG, 200, 200).unwrap();
         let texture_handle = renderer.image_renderer.load_encoded_image(TEXTURE).unwrap();
         let nine_slice_handle = renderer.image_renderer.load_encoded_image(NINE_SLICE_IMAGE).unwrap();
 
-        Self { device, surface, config, size, renderer, text_edit, text_box1, text_box2, text_box3, svg_handle, texture_handle, nine_slice_handle }
+        Self { device, surface, config, size, renderer, text_edit, text_box1, text_box2, text_box3, okhsv_label, svg_handle, texture_handle, nine_slice_handle }
     }
 
     fn resize(&mut self, new_size: PhysicalSize<u32>) {
@@ -746,6 +759,32 @@ impl State {
         });
 
         self.renderer.draw_text_box(&self.text_box3);
+        self.renderer.draw_text_box(&self.okhsv_label);
+
+        const OKHSV_COUNT: usize = 5;
+        for i in 0..OKHSV_COUNT {
+            let hue = i as f32 / OKHSV_COUNT as f32;
+            self.renderer.draw_okhsv_saturation_value_gradient(OkhsvSaturationValueGradient {
+                top_left: [550.0 + i as f32 * 105.0, 700.0],
+                size: [90.0, 90.0],
+                hue,
+            });
+        }
+
+        self.renderer.draw_okhsv_hue_gradient(OkhsvHueGradient {
+            top_left: [550.0, 800.0],
+            size: [510.0, 30.0],
+            saturation: 0.5,
+            value: 0.8,
+            horizontal: true,
+        });
+        self.renderer.draw_okhsv_hue_gradient(OkhsvHueGradient {
+            top_left: [1070.0, 700.0],
+            size: [25.0, 90.0],
+            saturation: 1.0,
+            value: 1.0,
+            horizontal: false,
+        });
 
         self.renderer.draw_text_edit(&self.text_edit);
 

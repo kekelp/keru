@@ -2,6 +2,8 @@ pub mod shapes;
 pub use shapes::*;
 pub mod color;
 pub use color::*;
+pub mod okhsv;
+pub use okhsv::{okhsv_to_srgb, srgb_to_okhsv};
 pub mod gpu_vec;
 pub mod gpu_slab;
 pub mod images;
@@ -70,6 +72,8 @@ pub mod primitive {
     pub const HEXAGON: u32 = 6;
     pub const QUADRATIC_BEZIER: u32 = 7;
     pub const POLYGON: u32 = 8;
+    pub const OKHSV_SQUARE: u32 = 9;
+    pub const OKHSV_HUE_RECT: u32 = 10;
 }
 
 bitflags::bitflags! {
@@ -184,6 +188,26 @@ pub struct Rectangle {
     pub border_thickness: f32,
     pub fill: ColorFill,
     pub blur: f32,
+}
+
+/// Parameters for drawing a fixed-hue OKHSV color picker square.
+#[derive(Debug, Clone)]
+pub struct OkhsvSaturationValueGradient {
+    pub top_left: [f32; 2],
+    pub size: [f32; 2],
+    /// Hue in `[0, 1)`.
+    pub hue: f32,
+}
+
+/// Parameters for drawing a full-hue OKHSV strip at a fixed saturation/value, for hue selection.
+#[derive(Debug, Clone)]
+pub struct OkhsvHueGradient {
+    pub top_left: [f32; 2],
+    pub size: [f32; 2],
+    pub saturation: f32,
+    pub value: f32,
+    /// `true`: hue runs left (0) to right (1). `false`: hue runs top (0) to bottom (1).
+    pub horizontal: bool,
 }
 
 /// Parameters for drawing a circle
@@ -786,6 +810,42 @@ impl Renderer {
         });
         self.push_instance(Instance {
             p_type: primitive::BOX,
+            p_index: index,
+            transform_index: self.current_transform.index as u32,
+            clip_rect_index: self.current_clip_rect as u32,
+        });
+    }
+
+    /// Draw a fixed-hue OKHSV saturation/value square.
+    pub fn draw_okhsv_saturation_value_gradient(&mut self, params: OkhsvSaturationValueGradient) {
+        let index = self.shapes.push_primitive(shapes::OkhsvSaturationValueGradientGpu {
+            top_left: params.top_left,
+            size: params.size,
+            hue: params.hue,
+            _pad0: 0.0,
+            _pad1: 0.0,
+            _pad2: 0.0,
+        });
+        self.push_instance(Instance {
+            p_type: primitive::OKHSV_SQUARE,
+            p_index: index,
+            transform_index: self.current_transform.index as u32,
+            clip_rect_index: self.current_clip_rect as u32,
+        });
+    }
+
+    /// Draw a full-hue OKHSV selection strip. See [`OkhsvHueRect`].
+    pub fn draw_okhsv_hue_gradient(&mut self, params: OkhsvHueGradient) {
+        let index = self.shapes.push_primitive(shapes::OkhsvHueGradientGpu {
+            top_left: params.top_left,
+            size: params.size,
+            saturation: params.saturation,
+            value: params.value,
+            horizontal: if params.horizontal { 1.0 } else { 0.0 },
+            _pad0: 0.0,
+        });
+        self.push_instance(Instance {
+            p_type: primitive::OKHSV_HUE_RECT,
             p_index: index,
             transform_index: self.current_transform.index as u32,
             clip_rect_index: self.current_clip_rect as u32,

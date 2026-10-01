@@ -13,6 +13,8 @@ enum PrimitiveType: uint {
     Hexagon = 6,
     QuadraticBezier = 7,
     Polygon = 8,
+    OkhsvSquare = 9,
+    OkhsvHueRect = 10,
 }
 
 struct VertexOutput {
@@ -71,6 +73,12 @@ VertexOutput vertexMain(
     else if (input.primitiveType == PrimitiveType::Polygon) {
         polygon_vertex(input.primitiveIndex, vertexIndex, resolution, output.position, output.uv, output.screen_pos);
     }
+    else if (input.primitiveType == PrimitiveType::OkhsvSquare) {
+        okhsv_square_vertex(input.primitiveIndex, vertexIndex, resolution, output.position, output.uv, output.screen_pos);
+    }
+    else if (input.primitiveType == PrimitiveType::OkhsvHueRect) {
+        okhsv_hue_rect_vertex(input.primitiveIndex, vertexIndex, resolution, output.position, output.uv, output.screen_pos);
+    }
     else if (input.primitiveType == PrimitiveType::Text) {
         text_vertex(input.primitiveIndex, vertexIndex, resolution, output.position, output.uv);
         output.screen_pos = float2(0.0, 0.0); // Text doesn't use screen_pos for clipping
@@ -128,6 +136,12 @@ float4 fragmentMain(VertexOutput input): SV_Target {
     }
     else if (input.primitiveType == PrimitiveType::Polygon) {
         return polygon_fragment(input.primitiveIndex, input.clipRectIndex, input.uv, input.screen_pos, srgb, input.transform_scale);
+    }
+    else if (input.primitiveType == PrimitiveType::OkhsvSquare) {
+        return okhsv_square_fragment(input.primitiveIndex, input.clipRectIndex, input.uv, input.screen_pos, srgb, input.transform_scale);
+    }
+    else if (input.primitiveType == PrimitiveType::OkhsvHueRect) {
+        return okhsv_hue_rect_fragment(input.primitiveIndex, input.clipRectIndex, input.uv, input.screen_pos, srgb, input.transform_scale);
     }
     else if (input.primitiveType == PrimitiveType::Text) {
         return text_fragment(input.primitiveIndex, input.uv, input.position);
