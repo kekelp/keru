@@ -202,7 +202,7 @@ impl Ui {
                     let mut anything_was_dragged = false;
                     for (id, _) in self.sys.mouse_input.currently_dragging() {
                         if let Some(i) = self.sys.nodes.get_by_id(*id) {
-                            if self.sys.nodes[i].params.interact.senses.contains(Sense::DRAG) {
+                            if self.sys.nodes[i].params.interact.senses.intersects(Sense::DRAG | Sense::HOLD) {
                                 anything_was_dragged = true;
                                 break;
                             }
