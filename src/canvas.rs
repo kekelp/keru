@@ -5,9 +5,7 @@ use keru_draw::{
     OkhsvSaturationValueGradient, OkhsvHueGradient,
 };
 use slab::Slab;
-use lru::LruCache;
-use crate::ui::{LoadedImageEntry, resolve_path_image};
-use crate::inner_node::ImageSourceId;
+use crate::ui::{LoadedImageEntry, ImageCache, resolve_path_image};
 use crate::render::ImageRef;
 use crate::LoadedImageHandle;
 
@@ -17,14 +15,14 @@ use crate::LoadedImageHandle;
 pub struct Canvas<'a> {
     renderer: &'a mut Renderer,
     images: &'a Slab<LoadedImageEntry>,
-    image_cache: &'a mut LruCache<ImageSourceId, ImageRef>,
+    image_cache: &'a mut ImageCache,
 }
 
 impl<'a> Canvas<'a> {
     pub(crate) fn new(
         renderer: &'a mut Renderer,
         images: &'a Slab<LoadedImageEntry>,
-        image_cache: &'a mut LruCache<ImageSourceId, ImageRef>,
+        image_cache: &'a mut ImageCache,
     ) -> Self {
         Self { renderer, images, image_cache }
     }

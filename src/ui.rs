@@ -146,8 +146,7 @@ pub(crate) struct System {
 
     pub user_state: HashMap<Id, Box<dyn Any>>,
 
-    pub image_cache: LruCache<ImageSourceId, ImageRef>,
-    pub svg_raster_cache: LruCache<(ImageSourceId, u32, u32), ImageRef>,
+    pub image_cache: ImageCache,
 
     pub loaded_images: Slab<LoadedImageEntry>,
     pub image_handle_sender: mpsc::Sender<ImageHandleMessage>,
@@ -202,12 +201,15 @@ pub(crate) struct LoadedImageEntry {
     pub generation: u64,
 }
 
+pub(crate) type ImageCacheKey = (ImageSourceId, Option<(u32, u32)>);
+pub(crate) type ImageCache = LruCache<ImageCacheKey, ImageRef>;
+
 pub(crate) fn resolve_path_image(
     renderer: &mut Renderer,
-    cache: &mut LruCache<ImageSourceId, ImageRef>,
+    cache: &mut ImageCache,
     path: &str,
 ) -> Option<ImageRef> {
-    let source = ImageSourceId::PathHash(ahash(&path));
+    let source = (ImageSourceId::PathHash(ahash(&path)), None);
     if let Some(cached) = cache.get(&source) {
         return Some(cached.clone());
     }
@@ -428,7 +430,6 @@ impl Ui {
                 user_state: HashMap::with_capacity(7),
 
                 image_cache: LruCache::new(NonZeroUsize::new(128).unwrap()),
-                svg_raster_cache: LruCache::new(NonZeroUsize::new(128).unwrap()),
 
                 loaded_images: Slab::with_capacity(4),
                 image_handle_sender,
@@ -922,7 +923,7 @@ impl Ui {
         }
     }
 
-    fn cache_image(&mut self, source: ImageSourceId, imageref: ImageRef) {
+    fn cache_image(&mut self, source: ImageCacheKey, imageref: ImageRef) {
         if let Some((_evicted_key, evicted_imageref)) = self.sys.image_cache.push(source, imageref) {
             self.unload_imageref(&evicted_imageref);
         }
@@ -1016,7 +1017,7 @@ impl Ui {
         let node = &mut self.sys.nodes[i];
 
         // Check global cache
-        if let Some(cached) = self.sys.image_cache.get(&source) {
+        if let Some(cached) = self.sys.image_cache.get(&(source, None)) {
             node.imageref = Some(cached.clone());
             node.last_image_source = Some(source);
             self.sys.changes.should_rebuild_render_data = true;
@@ -1026,7 +1027,7 @@ impl Ui {
         if let Some(loaded) = self.sys.renderer.image_renderer.load_encoded_image(image) {
             log::info!("Loaded image: {}x{} on page {}", loaded.width, loaded.height, loaded.page);
             let imageref = ImageRef::Raster(loaded);
-            self.cache_image(source, imageref.clone());
+            self.cache_image((source, None), imageref.clone());
             self.sys.nodes[i].imageref = Some(imageref);
             self.sys.nodes[i].last_image_source = Some(source);
             self.sys.changes.should_rebuild_render_data = true;
@@ -1092,8 +1093,8 @@ impl Ui {
             }
         }
 
-        let key = (source, w, h);
-        let imageref = if let Some(cached) = self.sys.svg_raster_cache.get(&key) {
+        let key = (source, Some((w, h)));
+        let imageref = if let Some(cached) = self.sys.image_cache.get(&key) {
             cached.clone()
         } else {
             let Some(loaded) = self.sys.renderer.image_renderer.load_svg(svg_data, w, h) else {
@@ -1101,9 +1102,7 @@ impl Ui {
                 return;
             };
             let imageref = ImageRef::Svg(loaded);
-            if let Some((_evicted_key, evicted_imageref)) = self.sys.svg_raster_cache.push(key, imageref.clone()) {
-                self.unload_imageref(&evicted_imageref);
-            }
+            self.cache_image(key, imageref.clone());
             imageref
         };
 
