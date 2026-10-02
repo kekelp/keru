@@ -2406,6 +2406,8 @@ impl Ui {
                 Image::SvgStatic(svg) => self.set_static_svg(i, svg),
                 Image::Loaded(handle) => self.set_loaded_image(i, handle.id),
             };
+        } else {
+            self.release_node_images(i);
         }
 
         let animate_enabled = node.animation.state_transition.animate_properties;

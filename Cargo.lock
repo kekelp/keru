@@ -2011,7 +2011,6 @@ dependencies = [
  "keru_draw",
  "keru_macros",
  "log",
- "lru",
  "pollster",
  "pulldown-cmark",
  "qrcode",

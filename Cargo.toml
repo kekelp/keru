@@ -47,7 +47,6 @@ ahash = "0.8.12"
 rustc-hash = "2"
 bumpalo = { version = "3.16", features = ["collections"] }
 smallvec = "1.15.1"
-lru = { version = "0.12.1", default-features = false }
 image = "0.25.6"
 
 # Try to force logging = true in this indirect dependency to disable the fallback eprintln! output

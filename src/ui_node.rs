@@ -1,5 +1,6 @@
 use glam::Vec2;
 use winit::event::MouseButton;
+use bumpalo::collections::Vec as BumpVec;
 use crate::canvas::Canvas;
 
 use crate::*;
@@ -337,16 +338,26 @@ impl<'a> UiNode<'a> {
         sys.renderer.set_current_clip_rect(clip_rect);
         sys.renderer.start_deferred_mode();
 
-        let mut canvas = Canvas::new(&mut sys.renderer, &sys.loaded_images, &mut sys.image_cache);
-        drawing_function(&mut canvas);
+        with_arena(|arena| {
+            let node_images = &mut sys.nodes[i].canvas_images;
+            let mut old_images = BumpVec::with_capacity_in(node_images.len(), arena);
+            old_images.extend_from_slice(node_images);
+            node_images.clear();
+            let mut canvas = Canvas::new(&mut sys.renderer, &mut sys.images, node_images);
+            drawing_function(&mut canvas);
 
-        let instances = sys.renderer.end_deferred_mode();
-        sys.renderer.clear_current_transform();
-        sys.renderer.clear_current_clip_rect();
-        // A texture the closure set stays on the renderer, so clear it before the core resumes drawing node shapes.
-        sys.renderer.clear_texture();
+            let instances = sys.renderer.end_deferred_mode();
+            sys.renderer.clear_current_transform();
+            sys.renderer.clear_current_clip_rect();
+            // A texture the closure set stays on the renderer, so clear it before the core resumes drawing node shapes.
+            sys.renderer.clear_texture();
 
-        sys.nodes[i].canvas_instances = Some(instances);
+            sys.nodes[i].canvas_instances = Some(instances);
+
+            for id in old_images {
+                sys.images.decrease_refcount(&mut sys.renderer, id);
+            }
+        });
     }
 }
 

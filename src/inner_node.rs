@@ -60,6 +60,8 @@ pub struct InnerNode {
 
     pub imageref: Option<ImageRef>,
     pub last_image_source: Option<ImageSourceId>,
+
+    pub image_id: Option<LoadedImageId>,
     pub svg_data: Option<&'static [u8]>,
 
     pub parent: NodeI,
@@ -106,6 +108,7 @@ pub struct InnerNode {
     pub exiting: bool,
 
     pub canvas_instances: Option<keru_draw::DeferredInstanceRange>,
+    pub canvas_images: Vec<LoadedImageId>,
     pub canvas_transform_and_clip: Option<(keru_draw::TransformHandle, keru_draw::ClipRectHandle)>,
     pub canvas_relative: bool,
 
@@ -116,7 +119,7 @@ pub struct InnerNode {
 pub enum ImageSourceId {
     StaticPtr(*const u8),
     PathHash(u64),
-    Handle { id: usize, generation: u64 },
+    Handle { id: LoadedImageId, generation: u64 },
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -191,6 +194,7 @@ impl InnerNode {
 
             imageref: None,
             last_image_source: None,
+            image_id: None,
             svg_data: None,
 
             parent: DUMMY_I, // just a wrong value which will be overwritten. it's even worse here.
@@ -236,6 +240,7 @@ impl InnerNode {
             exiting: false,
 
             canvas_instances: None,
+            canvas_images: Vec::with_capacity(0),
             canvas_transform_and_clip: None,
             canvas_relative: false,
 
@@ -317,6 +322,7 @@ pub const NODE_ROOT: InnerNode = InnerNode {
 
     imageref: None,
     last_image_source: None,
+    image_id: None,
     svg_data: None,
 
     // The root node is his own parent. This can be nice sometimes but it would probably be better to not use it.
@@ -364,6 +370,7 @@ pub const NODE_ROOT: InnerNode = InnerNode {
     exiting: false,
 
     canvas_instances: None,
+    canvas_images: Vec::new(),
     canvas_transform_and_clip: None,
     canvas_relative: false,
 

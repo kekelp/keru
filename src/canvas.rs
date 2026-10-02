@@ -4,27 +4,27 @@ use keru_draw::{
     ClipRect, ClipRectHandle, LoadedImage, TextureOptions, Gradient, SharedGradient,
     OkhsvSaturationValueGradient, OkhsvHueGradient,
 };
-use slab::Slab;
-use crate::ui::{LoadedImageEntry, ImageCache, resolve_path_image};
+use crate::ui::{ImageStore, LoadedImageId, load_path_image};
+use crate::inner_node::ImageSourceId;
+use crate::ahash;
 use crate::render::ImageRef;
 use crate::LoadedImageHandle;
 
 /// A context for custom vector drawing inside a node, handed to the closure of [`crate::UiNode::canvas_drawing`].
-///
-/// A texture for the shapes is set through [`Canvas::set_texture`], which resolves a [`LoadedImageHandle`] to its atlas entry before handing it to the renderer. The raw atlas reference never leaves the `Canvas`, so it cannot outlive the handle that keeps it loaded.
 pub struct Canvas<'a> {
     renderer: &'a mut Renderer,
-    images: &'a Slab<LoadedImageEntry>,
-    image_cache: &'a mut ImageCache,
+    images: &'a mut ImageStore,
+    // The node will have to keep track of the images used and clear them from the atlas when it disappears.
+    canvas_images: &'a mut Vec<LoadedImageId>,
 }
 
 impl<'a> Canvas<'a> {
     pub(crate) fn new(
         renderer: &'a mut Renderer,
-        images: &'a Slab<LoadedImageEntry>,
-        image_cache: &'a mut ImageCache,
-    ) -> Self {
-        Self { renderer, images, image_cache }
+        images: &'a mut ImageStore,
+        canvas_images: &'a mut Vec<LoadedImageId>,
+        ) -> Self {
+        Self { renderer, images, canvas_images }
     }
 
     /// Resolve a handle to its atlas reference, if the image is loaded and ready.
@@ -34,7 +34,7 @@ impl<'a> Canvas<'a> {
         })
     }
 
-    /// Set the texture for the draw calls that follow, until [`Self::clear_texture`]. It is sampled over each shape and multiplied by that shape's fill, so a white fill shows the texture unchanged and a coloured fill tints it. A texture that is not yet loaded resolves to none, so the shapes draw with their fill only until it is ready.
+    /// Set the texture for the draw calls that follow, until [`Self::clear_texture`].
     pub fn set_texture(&mut self, texture: &LoadedImageHandle, options: Option<TextureOptions>) {
         match self.resolve(texture) {
             Some(loaded) => self.renderer.set_texture(loaded, options),
@@ -42,11 +42,22 @@ impl<'a> Canvas<'a> {
         }
     }
 
-    /// Set the texture for the draw calls that follow using an image file path.
+    /// Set the texture for the draw calls that follow using an image file path, until [`Self::clear_texture`].
     pub fn set_texture_from_path(&mut self, path: &str, options: Option<TextureOptions>) {
-        match resolve_path_image(self.renderer, self.image_cache, path) {
-            Some(ImageRef::Raster(loaded)) | Some(ImageRef::Svg(loaded)) => self.renderer.set_texture(loaded, options),
-            None => self.renderer.clear_texture(),
+        let key = (ImageSourceId::PathHash(ahash(&path)), None);
+        let id = match self.images.get_new_ref_from_cache(&key) {
+            Some(id) => id,
+            None => {
+                let Some(imageref) = load_path_image(self.renderer, path) else {
+                    self.renderer.clear_texture();
+                    return;
+                };
+                self.images.save_in_cache(key, imageref)
+            }
+        };
+        self.canvas_images.push(id);
+        match self.images[id].imageref {
+            ImageRef::Raster(loaded) | ImageRef::Svg(loaded) => self.renderer.set_texture(loaded, options),
         }
     }
 

@@ -7,7 +7,6 @@ use bumpalo::Bump;
 use glam::Vec2;
 
 use keru_draw::Renderer;
-use lru::LruCache;
 use slab::Slab;
 use winit::dpi::PhysicalSize;
 use winit::window::Window;
@@ -18,7 +17,6 @@ use key_events::FullKeyEvent;
 
 use std::any::Any;
 use std::collections::BinaryHeap;
-use std::num::NonZeroUsize;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
@@ -146,9 +144,7 @@ pub(crate) struct System {
 
     pub user_state: HashMap<Id, Box<dyn Any>>,
 
-    pub image_cache: ImageCache,
-
-    pub loaded_images: Slab<LoadedImageEntry>,
+    pub images: ImageStore,
     pub image_handle_sender: mpsc::Sender<ImageHandleMessage>,
     pub image_handle_receiver: mpsc::Receiver<ImageHandleMessage>,
 
@@ -190,42 +186,102 @@ impl UiWaker {
     }
 }
 
+/// Key of an image in the [`ImageStore`].
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct LoadedImageId(pub(crate) usize);
+
 pub enum ImageHandleMessage {
-    Cloned(usize),
-    Dropped(usize),
+    Cloned(LoadedImageId),
+    Dropped(LoadedImageId),
 }
 
 pub(crate) struct LoadedImageEntry {
     pub imageref: ImageRef,
     pub refcount: usize,
     pub generation: u64,
+    /// Key of this image in [`ImageStore::cache`], if it's also saved in the `pointer/path -> entry` cache. 
+    /// Images loaded explicitly don't use the cache and have None.
+    pub cache_key: Option<ImageCacheKey>,
 }
 
 pub(crate) type ImageCacheKey = (ImageSourceId, Option<(u32, u32)>);
-pub(crate) type ImageCache = LruCache<ImageCacheKey, ImageRef>;
 
-pub(crate) fn resolve_path_image(
-    renderer: &mut Renderer,
-    cache: &mut ImageCache,
-    path: &str,
-) -> Option<ImageRef> {
-    let source = (ImageSourceId::PathHash(ahash(&path)), None);
-    if let Some(cached) = cache.get(&source) {
-        return Some(cached.clone());
+pub(crate) struct ImageStore {
+    entries: Slab<LoadedImageEntry>,
+    cache: HashMap<ImageCacheKey, LoadedImageId>,
+}
+
+impl ImageStore {
+    pub(crate) fn new() -> Self {
+        Self { entries: Slab::with_capacity(4), cache: HashMap::with_capacity(4) }
     }
-    let bytes = std::fs::read(path).map_err(|e| log::error!("Failed to read image file '{}': {}", path, e)).ok()?;
+
+    /// The image with this id, or `None` if it was already unloaded. Use this for ids that the caller doesn't hold a reference to. Indexing panics in that case.
+    pub(crate) fn get(&self, id: LoadedImageId) -> Option<&LoadedImageEntry> {
+        self.entries.get(id.0)
+    }
+
+    pub(crate) fn insert_owned(&mut self, imageref: ImageRef) -> LoadedImageId {
+        LoadedImageId(self.entries.insert(LoadedImageEntry { imageref, refcount: 1, generation: 0, cache_key: None }))
+    }
+
+    pub(crate) fn increase_refcount(&mut self, id: LoadedImageId) {
+        self[id].refcount += 1;
+    }
+
+    pub(crate) fn decrease_refcount(&mut self, renderer: &mut Renderer, id: LoadedImageId) {
+        self[id].refcount -= 1;
+        if self[id].refcount == 0 {
+            let entry = self.entries.remove(id.0);
+            if let Some(key) = entry.cache_key {
+                self.cache.remove(&key);
+            }
+            match entry.imageref {
+                ImageRef::Raster(loaded) => renderer.image_renderer.unload_image(&loaded),
+                ImageRef::Svg(loaded) => renderer.image_renderer.unload_svg(&loaded),
+            }
+        }
+    }
+
+    pub(crate) fn get_new_ref_from_cache(&mut self, key: &ImageCacheKey) -> Option<LoadedImageId> {
+        let id = self.cache.get(key).copied()?;
+        self.increase_refcount(id);
+        Some(id)
+    }
+
+    pub(crate) fn save_in_cache(&mut self, key: ImageCacheKey, imageref: ImageRef) -> LoadedImageId {
+        let id = LoadedImageId(self.entries.insert(LoadedImageEntry { imageref, refcount: 1, generation: 0, cache_key: Some(key) }));
+        self.cache.insert(key, id);
+        id
+    }
+}
+
+impl std::ops::Index<LoadedImageId> for ImageStore {
+    type Output = LoadedImageEntry;
+    fn index(&self, id: LoadedImageId) -> &LoadedImageEntry {
+        &self.entries[id.0]
+    }
+}
+impl std::ops::IndexMut<LoadedImageId> for ImageStore {
+    fn index_mut(&mut self, id: LoadedImageId) -> &mut LoadedImageEntry {
+        &mut self.entries[id.0]
+    }
+}
+
+/// Load an image file into the atlas.
+pub(crate) fn load_path_image(renderer: &mut Renderer, path: &str) -> Option<ImageRef> {
+    let bytes = match std::fs::read(path) {
+        Ok(bytes) => bytes,
+        Err(e) => {
+            log::error!("Failed to read image file '{}': {}", path, e);
+            return None;
+        }
+    };
     let Some(loaded) = renderer.image_renderer.load_encoded_image(&bytes) else {
         log::error!("Failed to decode image from path '{}'", path);
         return None;
     };
-    let imageref = ImageRef::Raster(loaded);
-    if let Some((_evicted_key, evicted)) = cache.push(source, imageref.clone()) {
-        match evicted {
-            ImageRef::Raster(l) => renderer.image_renderer.unload_image(&l),
-            ImageRef::Svg(l) => renderer.image_renderer.unload_svg(&l),
-        }
-    }
-    Some(imageref)
+    Some(ImageRef::Raster(loaded))
 }
 
 /// A handle to an image loaded with [`Ui::load_image()`], that can be used with [`Node::image()`].
@@ -233,7 +289,7 @@ pub(crate) fn resolve_path_image(
 /// This is a reference-counted handle: the image remains valid until the handle and all its clones are dropped.
 #[derive(Debug)]
 pub struct LoadedImageHandle {
-    pub(crate) id: usize,
+    pub(crate) id: LoadedImageId,
     sender: mpsc::Sender<ImageHandleMessage>,
 }
 
@@ -429,9 +485,7 @@ impl Ui {
 
                 user_state: HashMap::with_capacity(7),
 
-                image_cache: LruCache::new(NonZeroUsize::new(128).unwrap()),
-
-                loaded_images: Slab::with_capacity(4),
+                images: ImageStore::new(),
                 image_handle_sender,
                 image_handle_receiver,
 
@@ -863,7 +917,7 @@ impl Ui {
     }
 
     fn register_loaded_image(&mut self, imageref: ImageRef) -> LoadedImageHandle {
-        let id = self.sys.loaded_images.insert(LoadedImageEntry { imageref, refcount: 1, generation: 0 });
+        let id = self.sys.images.insert_owned(imageref);
 
         LoadedImageHandle {
             id,
@@ -875,9 +929,7 @@ impl Ui {
         while let Ok(message) = self.sys.image_handle_receiver.try_recv() {
             match message {
                 ImageHandleMessage::Cloned(id) => {
-                    if let Some(entry) = self.sys.loaded_images.get_mut(id) {
-                        entry.refcount += 1;
-                    }
+                    self.sys.images.increase_refcount(id);
                 }
                 ImageHandleMessage::Dropped(id) => {
                     self.release_loaded_image(id);
@@ -886,27 +938,23 @@ impl Ui {
         }
     }
 
-    fn retain_loaded_image(&mut self, id: usize) {
-        if let Some(entry) = self.sys.loaded_images.get_mut(id) {
-            entry.refcount += 1;
-        }
+    fn retain_loaded_image(&mut self, id: LoadedImageId) {
+        self.sys.images.increase_refcount(id);
     }
 
-    fn release_loaded_image(&mut self, id: usize) {
-        let mut unload = false;
-        if let Some(entry) = self.sys.loaded_images.get_mut(id) {
-            entry.refcount -= 1;
-            unload = entry.refcount == 0;
-        }
-        if unload {
-            let entry = self.sys.loaded_images.remove(id);
-            self.unload_imageref(&entry.imageref);
-        }
+    fn release_loaded_image(&mut self, id: LoadedImageId) {
+        self.sys.images.decrease_refcount(&mut self.sys.renderer, id);
     }
 
-    pub(crate) fn release_node_loaded_image(&mut self, i: NodeI) {
+    pub(crate) fn release_node_images(&mut self, i: NodeI) {
         self.sys.nodes[i].svg_data = None;
-        if let Some(ImageSourceId::Handle { id, .. }) = self.sys.nodes[i].last_image_source {
+        self.sys.nodes[i].imageref = None;
+        if let Some(id) = self.sys.nodes[i].image_id.take() {
+            self.release_loaded_image(id);
+        }
+        self.sys.nodes[i].last_image_source = None;
+
+        for id in std::mem::take(&mut self.sys.nodes[i].canvas_images) {
             self.release_loaded_image(id);
         }
     }
@@ -916,21 +964,16 @@ impl Ui {
         
     }
 
-    fn unload_imageref(&mut self, imageref: &ImageRef) {
-        match imageref {
-            ImageRef::Raster(loaded) => self.sys.renderer.image_renderer.unload_image(loaded),
-            ImageRef::Svg(loaded) => self.sys.renderer.image_renderer.unload_svg(loaded),
-        }
+    fn set_node_cached_image(&mut self, i: NodeI, source: ImageSourceId, id: LoadedImageId) {
+        let node = &mut self.sys.nodes[i];
+        node.image_id = Some(id);
+        node.imageref = Some(self.sys.images[id].imageref.clone());
+        node.last_image_source = Some(source);
+        self.sys.changes.should_rebuild_render_data = true;
     }
 
-    fn cache_image(&mut self, source: ImageCacheKey, imageref: ImageRef) {
-        if let Some((_evicted_key, evicted_imageref)) = self.sys.image_cache.push(source, imageref) {
-            self.unload_imageref(&evicted_imageref);
-        }
-    }
-
-    pub(crate) fn set_loaded_image(&mut self, i: NodeI, handle_id: usize) {
-        let Some(entry) = self.sys.loaded_images.get(handle_id) else {
+    pub(crate) fn set_loaded_image(&mut self, i: NodeI, handle_id: LoadedImageId) {
+        let Some(entry) = self.sys.images.get(handle_id) else {
             unreachable!(); // the caller's handle should keep the image alive
         };
         let source = ImageSourceId::Handle { id: handle_id, generation: entry.generation };
@@ -940,12 +983,13 @@ impl Ui {
             Some(prev) if prev == source => return,
             Some(ImageSourceId::Handle { id, .. }) if id == handle_id => {}
             _ => {
-                self.release_node_loaded_image(i);
+                self.release_node_images(i);
                 self.retain_loaded_image(handle_id);
             }
         }
 
         let node = &mut self.sys.nodes[i];
+        node.image_id = Some(handle_id);
         node.imageref = Some(imageref);
         node.last_image_source = Some(source);
         self.sys.changes.should_rebuild_render_data = true;
@@ -990,16 +1034,16 @@ impl Ui {
     }
 
     /// A copy of the handle's current imageref, or `None` if the handle is gone. Copied out so the atlas borrow ends before the renderer is touched.
-    fn take_loaded_imageref(&self, id: usize) -> Option<ImageRef> {
-        self.sys.loaded_images.get(id).map(|entry| entry.imageref.clone())
+    fn take_loaded_imageref(&self, id: LoadedImageId) -> Option<ImageRef> {
+        self.sys.images.get(id).map(|entry| entry.imageref.clone())
     }
 
     /// Store a replaced image into its entry and bump the generation. Returns `false` if the new image couldn't be stored, leaving the entry unchanged.
-    fn apply_replaced_image(&mut self, id: usize, new_loaded: Option<LoadedImage>) -> bool {
+    fn apply_replaced_image(&mut self, id: LoadedImageId, new_loaded: Option<LoadedImage>) -> bool {
         let Some(new_loaded) = new_loaded else {
             return false;
         };
-        let entry = &mut self.sys.loaded_images[id];
+        let entry = &mut self.sys.images[id];
         entry.imageref = ImageRef::Raster(new_loaded);
         entry.generation += 1;
         self.sys.changes.should_rebuild_render_data = true;
@@ -1013,27 +1057,21 @@ impl Ui {
             return;
         }
 
-        self.release_node_loaded_image(i);
-        let node = &mut self.sys.nodes[i];
+        self.release_node_images(i);
 
-        // Check global cache
-        if let Some(cached) = self.sys.image_cache.get(&(source, None)) {
-            node.imageref = Some(cached.clone());
-            node.last_image_source = Some(source);
-            self.sys.changes.should_rebuild_render_data = true;
-            return;
-        }
-
-        if let Some(loaded) = self.sys.renderer.image_renderer.load_encoded_image(image) {
-            log::info!("Loaded image: {}x{} on page {}", loaded.width, loaded.height, loaded.page);
-            let imageref = ImageRef::Raster(loaded);
-            self.cache_image((source, None), imageref.clone());
-            self.sys.nodes[i].imageref = Some(imageref);
-            self.sys.nodes[i].last_image_source = Some(source);
-            self.sys.changes.should_rebuild_render_data = true;
-        } else {
-            log::error!("Failed to load image from {} bytes", image.len());
-        }
+        let key = (source, None);
+        let id = match self.sys.images.get_new_ref_from_cache(&key) {
+            Some(id) => id,
+            None => {
+                let Some(loaded) = self.sys.renderer.image_renderer.load_encoded_image(image) else {
+                    log::error!("Failed to load image from {} bytes", image.len());
+                    return;
+                };
+                log::info!("Loaded image: {}x{} on page {}", loaded.width, loaded.height, loaded.page);
+                self.sys.images.save_in_cache(key, ImageRef::Raster(loaded))
+            }
+        };
+        self.set_node_cached_image(i, source, id);
     }
 
     pub(crate) fn set_static_svg(&mut self, i: NodeI, svg_data: &'static [u8]) {
@@ -1043,7 +1081,7 @@ impl Ui {
             return;
         }
 
-        self.release_node_loaded_image(i);
+        self.release_node_images(i);
         self.set_node_svg(i, source, svg_data);
     }
 
@@ -1054,13 +1092,17 @@ impl Ui {
             return;
         }
 
-        self.release_node_loaded_image(i);
+        self.release_node_images(i);
 
-        if let Some(imageref) = resolve_path_image(&mut self.sys.renderer, &mut self.sys.image_cache, path) {
-            self.sys.nodes[i].imageref = Some(imageref);
-            self.sys.nodes[i].last_image_source = Some(source);
-            self.sys.changes.should_rebuild_render_data = true;
-        }
+        let key = (source, None);
+        let id = match self.sys.images.get_new_ref_from_cache(&key) {
+            Some(id) => id,
+            None => {
+                let Some(imageref) = load_path_image(&mut self.sys.renderer, path) else { return };
+                self.sys.images.save_in_cache(key, imageref)
+            }
+        };
+        self.set_node_cached_image(i, source, id);
     }
 
     fn set_node_svg(&mut self, i: NodeI, source: ImageSourceId, svg_data: &'static [u8]) {
@@ -1094,19 +1136,24 @@ impl Ui {
         }
 
         let key = (source, Some((w, h)));
-        let imageref = if let Some(cached) = self.sys.image_cache.get(&key) {
-            cached.clone()
-        } else {
-            let Some(loaded) = self.sys.renderer.image_renderer.load_svg(svg_data, w, h) else {
-                log::error!("Failed to load SVG from {} bytes", svg_data.len());
-                return;
-            };
-            let imageref = ImageRef::Svg(loaded);
-            self.cache_image(key, imageref.clone());
-            imageref
+        let id = match self.sys.images.get_new_ref_from_cache(&key) {
+            Some(id) => id,
+            None => {
+                let Some(loaded) = self.sys.renderer.image_renderer.load_svg(svg_data, w, h) else {
+                    log::error!("Failed to load SVG from {} bytes", svg_data.len());
+                    return;
+                };
+                self.sys.images.save_in_cache(key, ImageRef::Svg(loaded))
+            }
         };
 
-        self.sys.nodes[i].imageref = Some(imageref);
+        // Swap the node's reference from the old raster size to the new one.
+        let old_id = self.sys.nodes[i].image_id;
+        self.sys.nodes[i].image_id = Some(id);
+        if let Some(old_id) = old_id {
+            self.release_loaded_image(old_id);
+        }
+        self.sys.nodes[i].imageref = Some(self.sys.images[id].imageref.clone());
         self.sys.changes.should_rebuild_render_data = true;
     }
 
