@@ -320,6 +320,15 @@ impl Ui {
     pub(crate) fn handle_mouse_press(&mut self, button: MouseButton) -> bool {
         let PressHits { click_ids, drag_ids, topmost } = self.sys.scan_press_hits();
 
+        // Wake up the loop for hold but not for drag.
+        // todo: keep track of this earler rather than doing the node lookup
+        for &id in &drag_ids {
+            if let Some(i) = self.sys.nodes.get_by_id(id) && self.sys.nodes[i].params.interact.senses.contains(Sense::HOLD) {
+                self.set_new_ui_input();
+                break;
+            }
+        }
+
         self.sys.mouse_input.push_press(button, click_ids.clone(), drag_ids);
 
         self.resolve_focus_on_press(topmost);
