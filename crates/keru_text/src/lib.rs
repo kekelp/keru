@@ -19,7 +19,7 @@
 //! let edit_handle = text.add_text_edit("Type here".to_string(), Some((10.0, 70.0)), (200.0, 30.0), 0.0);
 //! 
 //! // Use handles to access and modify the boxes:
-//! text.get_text_edit_mut(&edit_handle).raw_text_mut().push_str("... World");
+//! text.get_text_edit_mut(&edit_handle).set_text("Hello World");
 //! 
 //! // Manually remove text boxes when needed:
 //! text.remove_text_box(handle);

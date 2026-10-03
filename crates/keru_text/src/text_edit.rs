@@ -1252,16 +1252,6 @@ impl TextEdit {
 
 impl TextEdit {
 
-    /// Returns a mutable reference to the text content.
-    pub fn raw_text_mut(&mut self) -> &mut String {
-        // clear the placeholder so that the user can edit the text. If the text is empty after the modifications, the placeholder text should get restored anyway at the next relayout.
-        if self.showing_placeholder {
-            self.clear_placeholder();
-        }
-        self.text_changed = true;
-        self.text_box.text_mut_string()
-    }
-
     /// Set a custom tag for this text box.
     pub fn set_custom_tag(&mut self, custom_tag: Option<u64>) {
         self.text_box.set_custom_tag(custom_tag);
@@ -1456,8 +1446,30 @@ impl TextEdit {
         self.text_box.refresh_layout();
     }
 
+    fn record_external_set(&mut self, new_text: &str) {
+        // Preedit and placeholder text are not part of the real text, so they must go before the old text is recorded.
+        self.clear_compose();
+        self.clear_placeholder();
+        let old_text = if self.showing_placeholder { "" } else { self.text_box.text_inner() };
+        if old_text == new_text {
+            return;
+        }
+        let selection = self.text_box.selection();
+        self.history.can_grow = GrowHint::CannotGrow;
+        self.history.record(old_text, new_text, selection, 0..new_text.len());
+        self.history.can_grow = GrowHint::CannotGrow;
+    }
+
+    /// Wipes the undo and redo history.
+    pub fn clear_history(&mut self) {
+        self.history = TextEditHistory::new();
+    }
+
     /// Set the text of the text edit box.
+    ///
+    /// The user can undo the text change with Ctrl + Z. You can use [`Self::clear_history()`] to wipe the undo history explicitly.
     pub fn set_text(&mut self, new_text: &str) {
+        self.record_external_set(new_text);
         self.text_box.set_text(new_text);
         self.text_box.move_to_text_end();
         // Clear any composition state
@@ -1478,6 +1490,7 @@ impl TextEdit {
         if self.text_box.text_identity == Some(new_identity) {
             return;
         }
+        self.record_external_set(new_text);
         self.text_box.set_text_hashed(new_text);
         self.text_box.move_to_text_end();
         self.compose = None;
@@ -1497,6 +1510,7 @@ impl TextEdit {
         if self.text_box.text_identity == Some(new_identity) {
             return;
         }
+        self.record_external_set(new_text);
         self.text_box.set_text_with_pointer_check(new_text);
         self.text_box.move_to_text_end();
         self.compose = None;
@@ -1509,6 +1523,7 @@ impl TextEdit {
         if self.showing_placeholder && text == "" {
             return;
         }
+        self.record_external_set(text);
         self.text_box.set_static_text(text);
         self.text_box.move_to_text_end();
         self.compose = None;
@@ -1528,6 +1543,7 @@ impl TextEdit {
         if self.text_box.text_identity == Some(new_identity) {
             return;
         }
+        self.record_external_set(text);
         self.text_box.set_static_text_with_pointer_check(text);
         self.text_box.move_to_text_end();
         self.compose = None;
