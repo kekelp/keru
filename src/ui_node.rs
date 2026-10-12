@@ -48,7 +48,7 @@ impl<'a> Iterator for UiNodeChildrenIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(child_i) = self.current {
-            self.current = self.sys.nodes[child_i].next_sibling;
+            self.current = self.sys.nodes.links[child_i].next_sibling;
             if !self.sys.nodes[child_i].exiting {
                 self.remaining -= 1;
                 return Some(UiNode { sys: UiRef::Shared(&self.sys), i: child_i });
@@ -112,7 +112,7 @@ impl<'a> UiNode<'a> {
         let sys = self.sys();
         UiNodeChildrenIter {
             sys: sys,
-            current: sys.nodes[self.i].first_child,
+            current: sys.nodes.links[self.i].first_child,
             remaining: sys.nodes[self.i].n_children as usize,
         }
     }

@@ -13,6 +13,41 @@ use crate::*;
 pub(crate) struct Nodes {
     node_hashmap: FxHashMap<Id, NodeI>,
     nodes: Slab<InnerNode>,
+    pub links: NodeVec<Links>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Links {
+    pub parent: NodeI,
+    pub first_child: Option<NodeI>,
+    pub last_child: Option<NodeI>,
+    pub prev_sibling: Option<NodeI>,
+    pub next_sibling: Option<NodeI>,
+}
+
+const EMPTY_LINKS: Links = Links {
+    parent: DUMMY_I,
+    first_child: None,
+    last_child: None,
+    prev_sibling: None,
+    next_sibling: None,
+};
+
+/// A `Vec` indexed by `NodeI`.
+#[derive(Debug)]
+pub(crate) struct NodeVec<T>(pub Vec<T>);
+
+impl<T> Index<NodeI> for NodeVec<T> {
+    type Output = T;
+    fn index(&self, i: NodeI) -> &T {
+        &self.0[i.as_usize()]
+    }
+}
+
+impl<T> IndexMut<NodeI> for NodeVec<T> {
+    fn index_mut(&mut self, i: NodeI) -> &mut T {
+        &mut self.0[i.as_usize()]
+    }
 }
 
 
@@ -72,9 +107,12 @@ impl Nodes {
 
         node_hashmap.insert(NODE_ROOT_ID, ROOT_I);
 
+        let root_links = Links { parent: ROOT_I, ..EMPTY_LINKS };
+
         return Nodes {
             node_hashmap,
             nodes,
+            links: NodeVec(vec![EMPTY_LINKS, root_links]),
         };
     }
 
@@ -90,6 +128,13 @@ impl Nodes {
     pub fn remove(&mut self, id: Id) {
         let i = self.node_hashmap.remove(&id).unwrap();
         self.nodes.remove(i.as_usize());
+    }
+
+    fn clear_links(&mut self, i: NodeI) {
+        if self.links.0.len() <= i.as_usize() {
+            self.links.0.resize(i.as_usize() + 1, EMPTY_LINKS);
+        }
+        self.links[i] = EMPTY_LINKS;
     }
 }
 
@@ -117,6 +162,7 @@ impl Ui {
                 let new_node = InnerNode::new(&key, None, Location::caller(), frame);
                 let final_i = NodeI::from(self.sys.nodes.nodes.insert(new_node));
                 v.insert(final_i);
+                self.sys.nodes.clear_links(final_i);
 
                 new_node_should_relayout = true;
 
@@ -162,6 +208,7 @@ impl Ui {
                         let new_twin_node = InnerNode::new(&twin_key, Some(twin_n), Location::caller(), frame);
                         let real_final_i = NodeI::from(self.sys.nodes.nodes.insert(new_twin_node));
                         v.insert(real_final_i);
+                        self.sys.nodes.clear_links(real_final_i);
                         new_node_should_relayout = true;
                         (real_final_i, twin_scoped_id)
                     }

@@ -118,7 +118,7 @@ impl Ui {
             }
         }
 
-        for_each_child!(self, self.sys.nodes[i], child, {
+        for_each_child!(self, i, child, {
             self.l2_dump_unsolved(child);
         });
     }

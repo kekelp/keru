@@ -1169,10 +1169,10 @@ impl Ui {
     }
 
     pub(crate) fn readd_branch_recursive(&mut self, node_i: NodeI) {
-        let mut current_child = self.sys.nodes[node_i].first_child;
+        let mut current_child = self.sys.nodes.links[node_i].first_child;
         while let Some(child) = current_child {
             // Save next before any unlinking that would clear it.
-            let next = self.sys.nodes[child].next_sibling;
+            let next = self.sys.nodes.links[child].next_sibling;
             if self.sys.nodes[child].exiting {
                 // For exiting children, we have to imitate what would happen normally:
                 // They would get "removed" by the fact that the user doesn't re-declare them.

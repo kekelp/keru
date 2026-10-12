@@ -64,19 +64,11 @@ pub struct InnerNode {
     pub image_id: Option<LoadedImageId>,
     pub svg_data: Option<&'static [u8]>,
 
-    pub parent: NodeI,
-
     // doesn't include lingering children.
     pub n_children: u32,
 
-    pub last_child: Option<NodeI>,
-    pub prev_sibling: Option<NodeI>,
-
     pub old_first_child: Option<NodeI>,
     pub old_next_sibling: Option<NodeI>,
-
-    pub first_child: Option<NodeI>,
-    pub next_sibling: Option<NodeI>,
 
     pub first_hidden_child: Option<NodeI>,
     pub next_hidden_sibling: Option<NodeI>,
@@ -197,18 +189,10 @@ impl InnerNode {
             image_id: None,
             svg_data: None,
 
-            parent: DUMMY_I, // just a wrong value which will be overwritten. it's even worse here.
-            // but it's for symmetry with update_node, where all these values are old and are reset.
-
             n_children: 0,
-            last_child: None,
-            first_child: None,
 
             old_first_child: None,
             old_next_sibling: None,        
-
-            prev_sibling: None,
-            next_sibling: None,
 
             first_hidden_child: None,
             next_hidden_sibling: None,
@@ -325,14 +309,7 @@ pub const NODE_ROOT: InnerNode = InnerNode {
     image_id: None,
     svg_data: None,
 
-    // The root node is his own parent. This can be nice sometimes but it would probably be better to not use it.
-    parent: ROOT_I,
-
     n_children: 0,
-    last_child: None,
-    first_child: None,
-    prev_sibling: None,
-    next_sibling: None,
 
     old_first_child: None,
     old_next_sibling: None,

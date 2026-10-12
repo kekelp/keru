@@ -16,11 +16,11 @@ struct GridOccupancy<'a> {
 #[macro_export]
 #[doc(hidden)] // Ideally these wouldn't even be public
 macro_rules! for_each_child {
-    ($ui:expr, $start:expr, $child:ident, $body:block) => {
+    ($ui:expr, $i:expr, $child:ident, $body:block) => {
         {
-            let mut current_child = $start.first_child;
+            let mut current_child = $ui.sys.nodes.links[$i].first_child;
             while let Some($child) = current_child {
-                current_child = $ui.sys.nodes[$child].next_sibling;
+                current_child = $ui.sys.nodes.links[$child].next_sibling;
                 if ! $ui.sys.nodes[$child].exiting {
                     $body
                 }
@@ -33,11 +33,11 @@ macro_rules! for_each_child {
 #[macro_export]
 #[doc(hidden)] // Ideally these wouldn't even be public
 macro_rules! for_each_child_including_lingering {
-    ($ui:expr, $start:expr, $child:ident, $body:block) => {
+    ($ui:expr, $i:expr, $child:ident, $body:block) => {
         {
-            let mut current_child = $start.first_child;
+            let mut current_child = $ui.sys.nodes.links[$i].first_child;
             while let Some($child) = current_child {
-                current_child = $ui.sys.nodes[$child].next_sibling;
+                current_child = $ui.sys.nodes.links[$child].next_sibling;
                 $body
             }
         }
@@ -48,11 +48,11 @@ macro_rules! for_each_child_including_lingering {
 #[macro_export]
 #[doc(hidden)] // Ideally these wouldn't even be public
 macro_rules! for_each_child_including_lingering_reverse {
-    ($ui:expr, $start:expr, $child:ident, $body:block) => {
+    ($ui:expr, $i:expr, $child:ident, $body:block) => {
         {
-            let mut current_child = $start.last_child;
+            let mut current_child = $ui.sys.nodes.links[$i].last_child;
             while let Some($child) = current_child {
-                current_child = $ui.sys.nodes[$child].prev_sibling;
+                current_child = $ui.sys.nodes.links[$child].prev_sibling;
                 $body
             }
         }
@@ -164,7 +164,7 @@ impl Ui {
     pub(crate) fn grid_assign_cells(&mut self, i: NodeI, n_main: usize, flow: GridFlow) {
         with_arena(|arena| {
             let mut occ = GridOccupancy::new(n_main, arena);
-            for_each_child!(self, self.sys.nodes[i], child, {
+            for_each_child!(self, i, child, {
                 if ! self.sys.nodes[child].params.free_placement {
                     let (col_span, row_span) = self.grid_spans(child);
                     let (span_line, span_pos) = to_occ_spans(col_span, row_span, flow);
@@ -189,7 +189,7 @@ impl Ui {
 
         let n_cols = self.sys.nodes[i].grid_n_columns as usize;
         let n_rows = self.sys.nodes[i].grid_n_rows as usize;
-        for_each_child!(self, self.sys.nodes[i], child, {
+        for_each_child!(self, i, child, {
             if ! self.sys.nodes[child].params.free_placement {
                 let (col_span, row_span) = self.grid_spans(child);
                 let logical_col = self.sys.nodes[child].grid_element_column_i as usize;
@@ -230,7 +230,7 @@ impl Ui {
             ChildrenLayout::Grid { spacing_x, spacing_y, .. } => self.place_children_grid(i, spacing_x, spacing_y),
         }
 
-        for_each_child!(self, self.sys.nodes[i], child, {
+        for_each_child!(self, i, child, {
             self.recursive_place_children(child);
         });
     }
@@ -247,7 +247,7 @@ impl Ui {
 
         let mut n: u32 = 0;
         let mut children_size = 0.0;
-        for_each_child!(self, self.sys.nodes[i], child, {
+        for_each_child!(self, i, child, {
             if !self.sys.nodes[child].params.free_placement {
                 children_size += self.sys.nodes[child].size[main];
                 n += 1;
@@ -284,7 +284,7 @@ impl Ui {
             },
         };
 
-        for_each_child!(self, self.sys.nodes[i], child, {
+        for_each_child!(self, i, child, {
             if self.sys.nodes[child].params.free_placement {
                 self.place_child_free(child, i);
             } else {
@@ -316,7 +316,7 @@ impl Ui {
         let spacing = Xy::new(self.pixels_to_frac(spacing_x, X), self.pixels_to_frac(spacing_y, Y));
         let cell = Xy::new(self.grid_cell_size(i, X, spacing.x), self.grid_cell_size(i, Y, spacing.y));
 
-        for_each_child!(self, self.sys.nodes[i], child, {
+        for_each_child!(self, i, child, {
             if self.sys.nodes[child].params.free_placement {
                 self.place_child_free(child, i);
             } else {
@@ -459,7 +459,7 @@ impl Ui {
     }
 
     pub(crate) fn place_children_free(&mut self, i: NodeI) {
-        for_each_child!(self, self.sys.nodes[i], child, {
+        for_each_child!(self, i, child, {
             self.place_child_free(child, i);
         });
     }
@@ -560,14 +560,14 @@ impl Ui {
         // set the whole branch to exiting.
         with_arena(|a| {
             let mut stack = BumpVec::with_capacity_in(20, a);
-            for_each_child_including_lingering_reverse!(self, &self.sys.nodes[i], child, {
+            for_each_child_including_lingering_reverse!(self, i, child, {
                 stack.push(child);
             });
             while let Some(node) = stack.pop() {
                 if self.sys.nodes[node].exit_animation_still_going { continue; }
                 self.sys.nodes[node].exiting = true;
                 self.sys.nodes[node].exit_animation_still_going = true;
-                for_each_child_including_lingering_reverse!(self, &self.sys.nodes[node], child, {
+                for_each_child_including_lingering_reverse!(self, node, child, {
                     stack.push(child);
                 });
             }
@@ -639,7 +639,7 @@ impl Ui {
         let parent_clip_rect = if i == ROOT_I {
             Xy::new_symm([0.0, 1.0])
         } else {
-            let parent = self.sys.nodes[i].parent;
+            let parent = self.sys.nodes.links[i].parent;
             self.sys.nodes[parent].clip_rect
         };
 
@@ -703,7 +703,7 @@ impl Ui {
                 let child_scroll = self.scroll_for_children(i);
 
                 // This loop should be fine even without z-ordering.
-                for_each_child_including_lingering_reverse!(self, self.sys.nodes[i], child, {
+                for_each_child_including_lingering_reverse!(self, i, child, {
                     traversal_queue.push(AnimationTraversalNode {
                         node: child,
                         parent_scroll: child_scroll,
@@ -765,10 +765,10 @@ impl Ui {
 
                 // Sort z-ordering
                 z_ordering_vec.clear();
-                let mut current = self.sys.nodes[i].last_child;
+                let mut current = self.sys.nodes.links[i].last_child;
                 while let Some(child) = current {
                     z_ordering_vec.push((child, self.sys.nodes[child].params.z_index));
-                    current = self.sys.nodes[child].prev_sibling;
+                    current = self.sys.nodes.links[child].prev_sibling;
                 }
                 z_ordering_vec.sort_by(|x, y| {
                     y.1.partial_cmp(&x.1).unwrap_or(std::cmp::Ordering::Equal)
@@ -869,7 +869,7 @@ impl Ui {
         let (animation_still_ongoing, position_still_moving) = self.resolve_animation(i);
 
         // add the parent offset
-        let parent = self.sys.nodes[i].parent;
+        let parent = self.sys.nodes.links[i].parent;
 
         let real_tl = self.sys.nodes[parent].real_rect.top_left();
         let mut parent_offset = real_tl;
@@ -941,7 +941,7 @@ impl Ui {
             self.sys.nodes[i].real_rect = self.sys.nodes[i].real_rect.round_to_pixel_grid(self.sys.size, scale);
         }
 
-        let parent = self.sys.nodes[i].parent;
+        let parent = self.sys.nodes.links[i].parent;
         let parent_exiting = self.sys.nodes[parent].exit_animation_still_going;
         if ! animation_still_ongoing && ! parent_exiting {
             if self.sys.nodes[i].exiting {
@@ -1035,7 +1035,7 @@ impl Ui {
             self.sys.nodes[i].accumulated_transform = Transform::IDENTITY;
             return;
         }
-        let parent = self.sys.nodes[i].parent;
+        let parent = self.sys.nodes.links[i].parent;
 
 
         let parent_transform = self.sys.nodes[parent].accumulated_transform;
@@ -1124,7 +1124,7 @@ impl System {
         let target_rect = self.nodes[i].real_rect;
 
         let mut adjusted = false;
-        let mut current = self.nodes[i].parent;
+        let mut current = self.nodes.links[i].parent;
         while current != ROOT_I {
             for axis in [X, Y] {
                 if !self.nodes[current].params.layout.scrollable[axis] {
@@ -1161,7 +1161,7 @@ impl System {
                     adjusted = true;
                 }
             }
-            current = self.nodes[current].parent;
+            current = self.nodes.links[current].parent;
         }
 
         if adjusted {

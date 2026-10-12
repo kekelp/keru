@@ -49,7 +49,7 @@ impl Ui {
         let is_root = i == ROOT_I;
 
         let mut children = Vec::with_capacity(5);
-        for_each_child!(self, self.sys.nodes[i], child, {
+        for_each_child!(self, i, child, {
             children.push(child);
         });
 

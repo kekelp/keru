@@ -81,7 +81,7 @@ impl Ui {
 
         self.push_parent_dependencies(i, &info);
 
-        for_each_child!(self, self.sys.nodes[i], child, {
+        for_each_child!(self, i, child, {
             self.clear_node_dependencies(child);
             self.push_node_dependencies(child, info);
             self.push_dependencies_recursive(child);
@@ -151,7 +151,7 @@ impl Ui {
         let mut has_sized_children = Xy::new(own_content, own_content);
         let mut has_fill_children = Xy::new(false, false);
 
-        for_each_child!(self, self.sys.nodes[i], child, {
+        for_each_child!(self, i, child, {
             for axis in [X, Y] {
                 if self.child_can_size_parent(child, axis) {
                     has_sized_children[axis] = true;
@@ -468,7 +468,7 @@ impl Ui {
             ChildrenCanHide::Inherit => self.sys.nodes[i].can_hide,
         };
 
-        for_each_child!(self, self.sys.nodes[i], child, {
+        for_each_child!(self, i, child, {
             self.sys.nodes[child].can_hide = children_can_hide;
             self.l2_write_size(child);
         });
@@ -585,7 +585,7 @@ impl Ui {
                 for _ in 0..MAX_FIT_STACK_STEPS {
                     let mut fixed = 0.0f32;
                     let mut free_frac = 0.0f32;
-                    for_each_child!(self, self.sys.nodes[i], child, {
+                    for_each_child!(self, i, child, {
                         if self.sys.nodes[child].params.free_placement {
                             continue;
                         }
@@ -611,7 +611,7 @@ impl Ui {
 
             ChildrenLayout::Stack { .. } | ChildrenLayout::Free => {
                 let mut biggest = 0.0f32;
-                for_each_child!(self, self.sys.nodes[i], child, {
+                for_each_child!(self, i, child, {
                     if ! self.sys.nodes[child].params.free_placement {
                         let child_size = match self.sys.nodes[child].params.layout.size[axis] {
                             Size::Fill | Size::Frac(_) => self.l2_clamp(child, axis, 0.0),
@@ -639,7 +639,7 @@ impl Ui {
         if axis == flow.main_axis && let MainAxisCellSize::Width(w) = columns {
             cell = self.pixels_to_frac(w, axis);
         } else {
-            for_each_child!(self, self.sys.nodes[i], child, {
+            for_each_child!(self, i, child, {
                 if ! self.sys.nodes[child].params.free_placement {
                     let child_size = match self.sys.nodes[child].params.layout.size[axis] {
                         // A child that only asks for a share of the cell can't be what decides how big the cell is.
@@ -681,7 +681,7 @@ impl Ui {
 
     /// A Fill or Frac slot taking its size out of the parent. `size` is the slot's own `Size`, which is a bound's when it's a bound being solved.
     fn l2_solve_fill_or_frac_from_parent(&mut self, i: NodeI, axis: Axis, size: Size, size_type: SizeType) -> f32 {
-        let parent = self.sys.nodes[i].parent;
+        let parent = self.sys.nodes.links[i].parent;
         let parent_size = self.l2_size_or_guess(parent, axis);
         let parent_padding = self.pixels_to_frac2(self.sys.nodes[parent].params.layout.padding)[axis];
         let inner = (parent_size - 2.0 * parent_padding).max(0.0);
@@ -765,7 +765,7 @@ impl Ui {
         }
 
         let mut n = 0;
-        for_each_child!(self, self.sys.nodes[i], child, {
+        for_each_child!(self, i, child, {
             if ! self.sys.nodes[child].params.free_placement {
                 n += 1;
             }
@@ -792,7 +792,7 @@ impl Ui {
         return with_arena(|arena| {
             let mut fills: BumpVec<(NodeI, bool)> = BumpVec::new_in(arena);
 
-            for_each_child!(self, self.sys.nodes[parent], child, {
+            for_each_child!(self, parent, child, {
                 if self.sys.nodes[child].params.free_placement {
                     continue;
                 }
@@ -958,7 +958,7 @@ impl Ui {
         if self.sys.nodes[i].params.free_placement {
             return false;
         }
-        let parent = self.sys.nodes[i].parent;
+        let parent = self.sys.nodes.links[i].parent;
         let stack_main = matches!(
             self.sys.nodes[parent].params.children_layout,
             ChildrenLayout::Stack { axis: a, .. } if a == axis
@@ -967,7 +967,7 @@ impl Ui {
     }
 
     pub(crate) fn collapse_underdetermined_fitcontents(&mut self, i: NodeI) {
-        for_each_child!(self, self.sys.nodes[i], child, {
+        for_each_child!(self, i, child, {
             self.collapse_underdetermined_fitcontents(child);
         });
 
@@ -990,7 +990,7 @@ impl Ui {
 
             let mut has_hard_child = false;
             let mut has_flex_child = false;
-            for_each_child!(self, self.sys.nodes[i], child, {
+            for_each_child!(self, i, child, {
                 if ! self.sys.nodes[child].params.free_placement {
                     let (hard, flex) = self.child_hard_flex(child, axis);
                     has_hard_child |= hard;

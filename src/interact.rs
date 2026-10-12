@@ -586,7 +586,7 @@ impl Ui {
     }
 
     fn first_node(&self) -> Option<NodeI> {
-        self.sys.nodes[ROOT_I].first_child
+        self.sys.nodes.links[ROOT_I].first_child
     }
 
     /// The last node of the tree in depth-first order (deepest last descendant).
@@ -596,38 +596,38 @@ impl Ui {
 
     /// The deepest last descendant of `i` in depth-first order.
     fn deepest_last_descendant(&self, i: NodeI) -> Option<NodeI> {
-        let mut cursor = self.sys.nodes[i].last_child?;
-        while let Some(child) = self.sys.nodes[cursor].last_child {
+        let mut cursor = self.sys.nodes.links[i].last_child?;
+        while let Some(child) = self.sys.nodes.links[cursor].last_child {
             cursor = child;
         }
         Some(cursor)
     }
 
     fn next_focus_node(&self, i: NodeI) -> Option<NodeI> {
-        if let Some(child) = self.sys.nodes[i].first_child {
+        if let Some(child) = self.sys.nodes.links[i].first_child {
             return Some(child);
         }
         let mut cursor = i;
         loop {
-            if let Some(sibling) = self.sys.nodes[cursor].next_sibling {
+            if let Some(sibling) = self.sys.nodes.links[cursor].next_sibling {
                 return Some(sibling);
             }
-            let parent = self.sys.nodes[cursor].parent;
+            let parent = self.sys.nodes.links[cursor].parent;
             if parent == ROOT_I {
                 return None;
             }
             if self.sys.nodes[parent].params.interact.trap_keyboard_focus {
-                return self.sys.nodes[parent].first_child;
+                return self.sys.nodes.links[parent].first_child;
             }
             cursor = parent;
         }
     }
 
     fn prev_focus_node(&self, i: NodeI) -> Option<NodeI> {
-        if let Some(sibling) = self.sys.nodes[i].prev_sibling {
+        if let Some(sibling) = self.sys.nodes.links[i].prev_sibling {
             return Some(self.deepest_last_descendant(sibling).unwrap_or(sibling));
         }
-        let parent = self.sys.nodes[i].parent;
+        let parent = self.sys.nodes.links[i].parent;
         if parent == ROOT_I {
             return None;
         }
@@ -910,7 +910,7 @@ impl System {
                 return Some((current_i, false));
             }
 
-            let parent_i = self.nodes[current_i].parent;
+            let parent_i = self.nodes.links[current_i].parent;
             if parent_i == ROOT_I {
                 return None;
             }

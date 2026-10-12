@@ -125,7 +125,7 @@ impl Ui {
     /// ```
     pub fn jump_to_sibling(&self, jump_key: NodeKey) -> Option<UiParent> {
         let sibling_i = self.sys.nodes.get_with_key_scope(jump_key)?;
-        let parent_i = self.sys.nodes[sibling_i].parent;
+        let parent_i = self.sys.nodes.links[sibling_i].parent;
         Some(UiParent {
             i: parent_i,
             sibling_cursor: SiblingCursor::After(sibling_i),
@@ -159,8 +159,8 @@ impl Ui {
     /// ```
     pub fn jump_to_before_sibling(&self, jump_key: NodeKey) -> Option<UiParent> {
         let sibling_i = self.sys.nodes.get_with_key_scope(jump_key)?;
-        let parent_i = self.sys.nodes[sibling_i].parent;
-        let sibling_cursor = match self.sys.nodes[sibling_i].prev_sibling {
+        let parent_i = self.sys.nodes.links[sibling_i].parent;
+        let sibling_cursor = match self.sys.nodes.links[sibling_i].prev_sibling {
             Some(prev) => SiblingCursor::After(prev),
             None => SiblingCursor::AtStart,
         };
@@ -208,10 +208,10 @@ impl Ui {
         }
 
         // Walk to the nth child
-        let mut current = self.sys.nodes[parent_i].first_child;
+        let mut current = self.sys.nodes.links[parent_i].first_child;
         for _ in 1..n {
             match current {
-                Some(child_i) => current = self.sys.nodes[child_i].next_sibling,
+                Some(child_i) => current = self.sys.nodes.links[child_i].next_sibling,
                 None => break,
             }
         }
@@ -236,11 +236,11 @@ impl Ui {
 
     fn clear_node_children(&mut self, new_node_i: NodeI) {
         // Reset old links
-        self.sys.nodes[new_node_i].old_first_child = self.sys.nodes[new_node_i].first_child;
-        self.sys.nodes[new_node_i].old_next_sibling = self.sys.nodes[new_node_i].next_sibling;
+        self.sys.nodes[new_node_i].old_first_child = self.sys.nodes.links[new_node_i].first_child;
+        self.sys.nodes[new_node_i].old_next_sibling = self.sys.nodes.links[new_node_i].next_sibling;
 
-        self.sys.nodes[new_node_i].first_child = None;
-        self.sys.nodes[new_node_i].last_child = None;
+        self.sys.nodes.links[new_node_i].first_child = None;
+        self.sys.nodes.links[new_node_i].last_child = None;
         self.sys.nodes[new_node_i].n_children = 0;
     }
 
@@ -527,10 +527,10 @@ impl Ui {
     /// ```
     pub fn begin_frame(&mut self) {
         // reset root
-        self.sys.nodes[ROOT_I].last_child = None;
-        self.sys.nodes[ROOT_I].first_child = None;
-        self.sys.nodes[ROOT_I].prev_sibling = None;
-        self.sys.nodes[ROOT_I].next_sibling = None;
+        self.sys.nodes.links[ROOT_I].last_child = None;
+        self.sys.nodes.links[ROOT_I].first_child = None;
+        self.sys.nodes.links[ROOT_I].prev_sibling = None;
+        self.sys.nodes.links[ROOT_I].next_sibling = None;
         self.sys.nodes[ROOT_I].n_children = 0;
 
         self.begin_frame_inner();
@@ -652,7 +652,7 @@ impl Ui {
 
             // Start exit animations for all nodes that need them
             for &i in &non_fresh_nodes {
-                let old_parent = self.sys.nodes[i].parent;
+                let old_parent = self.sys.nodes.links[i].parent;
                 let old_parent_still_exists = self.sys.nodes.get_node_if_it_still_exists(old_parent).is_some();
 
                 if old_parent_still_exists {
@@ -664,7 +664,7 @@ impl Ui {
             for &i in &non_fresh_nodes {
                 let can_hide = self.sys.nodes[i].can_hide;
                 let currently_hidden = self.sys.nodes[i].currently_hidden;
-                let old_parent_i = self.sys.nodes[i].parent;
+                let old_parent_i = self.sys.nodes.links[i].parent;
                 let old_parent_node = self.sys.nodes.get_node_if_it_still_exists(old_parent_i);
                 let old_parent_still_exists = old_parent_node.is_some();
                 let is_first_child_in_hidden_branch = old_parent_node.map_or(false, |p| p.params.children_can_hide == ChildrenCanHide::Yes);
@@ -711,7 +711,7 @@ impl Ui {
             // (it only matters for z order, exiting nodes don't partecipate in layout)
             exiting_nodes.sort_by_key(|n| n.depth);
             for &NodeWithDepth { i, .. } in &exiting_nodes {
-                let old_parent = self.sys.nodes[i].parent;
+                let old_parent = self.sys.nodes.links[i].parent;
                 self.set_tree_links(i, old_parent, self.sys.nodes[i].depth, SiblingCursor::None);
                 self.sys.nodes[i].exiting = true;
                 // we're reusing set_tree_links which also increases the parent's child count, but exiting nodes shouldn't be counted.
@@ -734,7 +734,7 @@ impl Ui {
 
     fn add_branch_to_cleanup(&mut self, i: NodeI, vec: &mut BumpVec<'_, NodeI>) {
         vec.push(i);
-        for_each_child!(self, self.sys.nodes[i], child, {
+        for_each_child!(self, i, child, {
             self.add_branch_to_cleanup(child, vec);
         });
     }
@@ -799,7 +799,7 @@ impl Ui {
         let (parent, sibling_cursor, _depth) = thread_local::current_parent(self.sys.unique_id);
 
         let current_last_child = match sibling_cursor {
-            SiblingCursor::None => self.sys.nodes[parent].last_child,
+            SiblingCursor::None => self.sys.nodes.links[parent].last_child,
             SiblingCursor::AtStart => None,
             SiblingCursor::After(node) => Some(node),
         };
@@ -849,7 +849,7 @@ impl Ui {
         // Count children first to determine which is last
         let mut regular_count = 0;
         let mut hidden_count = 0;
-        for_each_child_including_lingering!(self, self.sys.nodes[node_i], _child, {
+        for_each_child_including_lingering!(self, node_i, _child, {
             regular_count += 1;
         });
         for_each_hidden_child!(self, self.sys.nodes[node_i], _hidden_child, {
@@ -859,7 +859,7 @@ impl Ui {
 
         // Traverse regular children
         let mut current_index = 0;
-        for_each_child_including_lingering!(self, self.sys.nodes[node_i], child, {
+        for_each_child_including_lingering!(self, node_i, child, {
             let is_child_last = current_index == total_count - 1;
             self.debug_print_node_recursive(child, prefix, is_child_last, false);
             current_index += 1;
@@ -1274,16 +1274,16 @@ impl System {
 
     pub(crate) fn clear_children_of_node(&mut self, i: NodeI) {
         self.mark_children_non_fresh(i);
-        self.nodes[i].first_child = None;
-        self.nodes[i].last_child = None;
+        self.nodes.links[i].first_child = None;
+        self.nodes.links[i].last_child = None;
         self.nodes[i].n_children = 0;
         self.push_partial_relayout(i);
     }
 
     fn mark_children_non_fresh(&mut self, i: NodeI) {
-        let mut child = self.nodes[i].first_child;
+        let mut child = self.nodes.links[i].first_child;
         while let Some(c) = child {
-            let next = self.nodes[c].next_sibling;
+            let next = self.nodes.links[c].next_sibling;
             self.nodes[c].last_frame_touched = 0;
             self.mark_children_non_fresh(c);
             child = next;
@@ -1292,18 +1292,18 @@ impl System {
 
     /// Unlink a node from its current parent's child list.
     pub(crate) fn unlink_from_tree(&mut self, node_i: NodeI) {
-        let old_parent = self.nodes[node_i].parent;
-        let prev = self.nodes[node_i].prev_sibling;
-        let next = self.nodes[node_i].next_sibling;
+        let old_parent = self.nodes.links[node_i].parent;
+        let prev = self.nodes.links[node_i].prev_sibling;
+        let next = self.nodes.links[node_i].next_sibling;
 
         match prev {
-            Some(prev_i) => self.nodes[prev_i].next_sibling = next,
-            None => self.nodes[old_parent].first_child = next,
+            Some(prev_i) => self.nodes.links[prev_i].next_sibling = next,
+            None => self.nodes.links[old_parent].first_child = next,
         }
 
         match next {
-            Some(next_i) => self.nodes[next_i].prev_sibling = prev,
-            None => self.nodes[old_parent].last_child = prev,
+            Some(next_i) => self.nodes.links[next_i].prev_sibling = prev,
+            None => self.nodes.links[old_parent].last_child = prev,
         }
 
         // Decrement parent's child count
@@ -1311,15 +1311,15 @@ impl System {
         self.nodes[old_parent].n_children -= 1;
 
         // Clear the node's sibling pointers
-        self.nodes[node_i].prev_sibling = None;
-        self.nodes[node_i].next_sibling = None;
+        self.nodes.links[node_i].prev_sibling = None;
+        self.nodes.links[node_i].next_sibling = None;
     }
 
     pub(crate) fn link_node_to_parent(&mut self, new_node_i: NodeI, parent_i: NodeI, _depth: usize, sibling_cursor: SiblingCursor) {
         assert!(new_node_i != parent_i, "Keru: Internal error: tried to add a node as child of itself ({}). This shouldn't be possible.", self.nodes[new_node_i].debug_name());
 
         // If parent changed, convert local_animated_rect to the new parent's coordinate space using screen-space positions from the previous frame.
-        let old_parent = self.nodes[new_node_i].parent;
+        let old_parent = self.nodes.links[new_node_i].parent;
         let is_new_node = self.nodes[new_node_i].frame_added == self.current_frame;
         if !is_new_node && old_parent != parent_i {
             let screen_pos = self.nodes[new_node_i].real_rect;
@@ -1328,33 +1328,33 @@ impl System {
         }
 
         // Add new child
-        self.nodes[new_node_i].parent = parent_i;
-        self.nodes[new_node_i].prev_sibling = None;
-        self.nodes[new_node_i].next_sibling = None;
+        self.nodes.links[new_node_i].parent = parent_i;
+        self.nodes.links[new_node_i].prev_sibling = None;
+        self.nodes.links[new_node_i].next_sibling = None;
 
         self.nodes[parent_i].n_children += 1;
 
         match sibling_cursor {
             // Add after last sibling (no jump)
             SiblingCursor::None => {
-                match self.nodes[parent_i].last_child {
+                match self.nodes.links[parent_i].last_child {
                     None => {
                         // First child
-                        self.nodes[parent_i].first_child = Some(new_node_i);
-                        self.nodes[parent_i].last_child = Some(new_node_i);
+                        self.nodes.links[parent_i].first_child = Some(new_node_i);
+                        self.nodes.links[parent_i].last_child = Some(new_node_i);
 
-                        if self.nodes[parent_i].first_child != self.nodes[parent_i].old_first_child {
+                        if self.nodes.links[parent_i].first_child != self.nodes[parent_i].old_first_child {
                             self.push_partial_relayout(parent_i);
                         }
                     },
                     Some(last_child) => {
                         let prev_sibling = last_child;
                         // Append after last_child
-                        self.nodes[new_node_i].prev_sibling = Some(prev_sibling);
-                        self.nodes[prev_sibling].next_sibling = Some(new_node_i);
-                        self.nodes[parent_i].last_child = Some(new_node_i);
+                        self.nodes.links[new_node_i].prev_sibling = Some(prev_sibling);
+                        self.nodes.links[prev_sibling].next_sibling = Some(new_node_i);
+                        self.nodes.links[parent_i].last_child = Some(new_node_i);
 
-                        if self.nodes[prev_sibling].old_next_sibling != self.nodes[prev_sibling].next_sibling {
+                        if self.nodes[prev_sibling].old_next_sibling != self.nodes.links[prev_sibling].next_sibling {
                             self.push_partial_relayout(parent_i);
                         }
                     },
@@ -1362,17 +1362,17 @@ impl System {
             },
             // Add at the start (before first child)
             SiblingCursor::AtStart => {
-                let old_first = self.nodes[parent_i].first_child;
+                let old_first = self.nodes.links[parent_i].first_child;
 
-                self.nodes[new_node_i].next_sibling = old_first;
-                self.nodes[parent_i].first_child = Some(new_node_i);
+                self.nodes.links[new_node_i].next_sibling = old_first;
+                self.nodes.links[parent_i].first_child = Some(new_node_i);
 
                 match old_first {
                     Some(old_first_i) => {
-                        self.nodes[old_first_i].prev_sibling = Some(new_node_i);
+                        self.nodes.links[old_first_i].prev_sibling = Some(new_node_i);
                     }
                     None => {
-                        self.nodes[parent_i].last_child = Some(new_node_i);
+                        self.nodes.links[parent_i].last_child = Some(new_node_i);
                     }
                 }
 
@@ -1383,18 +1383,18 @@ impl System {
             },
             // Add after a specific sibling
             SiblingCursor::After(after_i) => {
-                let old_next = self.nodes[after_i].next_sibling;
+                let old_next = self.nodes.links[after_i].next_sibling;
 
-                self.nodes[new_node_i].prev_sibling = Some(after_i);
-                self.nodes[new_node_i].next_sibling = old_next;
-                self.nodes[after_i].next_sibling = Some(new_node_i);
+                self.nodes.links[new_node_i].prev_sibling = Some(after_i);
+                self.nodes.links[new_node_i].next_sibling = old_next;
+                self.nodes.links[after_i].next_sibling = Some(new_node_i);
 
                 match old_next {
                     Some(old_next_i) => {
-                        self.nodes[old_next_i].prev_sibling = Some(new_node_i);
+                        self.nodes.links[old_next_i].prev_sibling = Some(new_node_i);
                     }
                     None => {
-                        self.nodes[parent_i].last_child = Some(new_node_i);
+                        self.nodes.links[parent_i].last_child = Some(new_node_i);
                     }
                 }
 
@@ -1427,25 +1427,6 @@ impl System {
     pub(crate) fn push_partial_relayout(&mut self, _i: NodeI) {
         self.changes.full_relayout = true;
 
-        // let relayout_chain_root = match self.sys.nodes[i].relayout_chain_root {
-        //     Some(root) => root,
-        //     None => i,
-        // };
-
-        // // even after the chain, we still have to go one layer up, because a different sized child probably means that the parent wants to place the node differently, and maybe pick a different size and position for the other children as well
-        // // In practice, the first half of that is basically always true, but the second half is only true for Stacks. I don't really feel like adding a distinction for that right now.
-        // let relayout_target = self.sys.nodes[relayout_chain_root].parent;
-
-        // // try skipping some duplicates
-        // if self.sys.changes.partial_relayouts.last().map(|x| x.i) == Some(relayout_target) {
-        //     return;
-        // }
-
-        // let relayout_entry = NodeWithDepth {
-        //     i: relayout_target,
-        //     depth: self.sys.nodes[relayout_target].depth,
-        // };
-        // self.sys.changes.partial_relayouts.push(relayout_entry);
     }
 
     fn remove_hidden_child_if_it_exists(&mut self, child_i: NodeI, parent_i: NodeI) {
