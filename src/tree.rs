@@ -713,7 +713,7 @@ impl Ui {
             for &NodeWithDepth { i, .. } in &exiting_nodes {
                 let old_parent = self.sys.nodes.links[i].parent;
                 self.set_tree_links(i, old_parent, self.sys.nodes[i].depth, SiblingCursor::None);
-                self.sys.nodes[i].exiting = true;
+                self.sys.nodes.set_exiting(i, true);
                 // we're reusing set_tree_links which also increases the parent's child count, but exiting nodes shouldn't be counted.
                 self.sys.nodes[old_parent].n_children -= 1;
             }

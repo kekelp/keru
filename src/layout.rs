@@ -79,6 +79,9 @@ impl Ui {
     /// 
     /// Normally it's not necessary to call this function manually: the UI will relayout automatically in [`Ui::finish_frame()`].
     pub fn relayout(&mut self) {
+        #[cfg(debug_assertions)]
+        self.sys.nodes.check_layout_params();
+
         let full_relayout = self.sys.changes.full_relayout;
         let text_changed = self.sys.changes.text_changed;
         let nothing_to_do = !full_relayout && !text_changed;
@@ -549,7 +552,7 @@ impl Ui {
             return;
         }
         // Set exiting even if we don't have an exiting animation, because the node might need to stick around for a parent's exit animation.
-        self.sys.nodes[i].exiting = true;
+        self.sys.nodes.set_exiting(i, true);
 
         if self.sys.nodes[i].params.animation.exit == ExitAnimation::None {
             return;
@@ -565,7 +568,7 @@ impl Ui {
             });
             while let Some(node) = stack.pop() {
                 if self.sys.nodes[node].exit_animation_still_going { continue; }
-                self.sys.nodes[node].exiting = true;
+                self.sys.nodes.set_exiting(node, true);
                 self.sys.nodes[node].exit_animation_still_going = true;
                 for_each_child_including_lingering_reverse!(self, node, child, {
                     stack.push(child);

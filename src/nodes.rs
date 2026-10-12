@@ -7,6 +7,7 @@ use rustc_hash::FxHashMap;
 use slab::Slab;
 
 use crate::*;
+use crate::layout_tree::{layout_params, LayoutTree};
 
 // The point of this data structure is that from "outside", the nodes can be referenced by stable Ids, but internally, nodes can refer to other nodes by holding a NodeI. A NodeI can be way smaller than both a pointer or an id, and you can use it to access nodes without hashing (as if they held a hashmap key), and without lifetime issues (as if they held references).
 #[derive(Debug)]
@@ -14,6 +15,7 @@ pub(crate) struct Nodes {
     node_hashmap: FxHashMap<Id, NodeI>,
     nodes: Slab<InnerNode>,
     pub links: NodeVec<Links>,
+    pub layout: LayoutTree,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -109,10 +111,14 @@ impl Nodes {
 
         let root_links = Links { parent: ROOT_I, ..EMPTY_LINKS };
 
+        let mut layout = LayoutTree::new();
+        layout.init(ROOT_I, layout_params(&NODE_ROOT));
+
         return Nodes {
             node_hashmap,
             nodes,
             links: NodeVec(vec![EMPTY_LINKS, root_links]),
+            layout,
         };
     }
 
@@ -135,6 +141,28 @@ impl Nodes {
             self.links.0.resize(i.as_usize() + 1, EMPTY_LINKS);
         }
         self.links[i] = EMPTY_LINKS;
+    }
+
+    fn init_layout(&mut self, i: NodeI) {
+        let params = layout_params(&self[i]);
+        self.layout.init(i, params);
+    }
+
+    pub(crate) fn sync_layout(&mut self, i: NodeI) {
+        self.layout.params[i] = layout_params(&self[i]);
+    }
+
+    pub(crate) fn set_exiting(&mut self, i: NodeI, exiting: bool) {
+        self[i].exiting = exiting;
+        self.layout.params[i].disabled = exiting;
+    }
+
+    #[cfg(debug_assertions)]
+    pub(crate) fn check_layout_params(&self) {
+        for (i, node) in self.nodes.iter().skip(1) {
+            let i = NodeI::from(i);
+            assert!(self.layout.params[i] == layout_params(node), "Layout params out of sync for {}", node.debug_name());
+        }
     }
 }
 
@@ -163,6 +191,7 @@ impl Ui {
                 let final_i = NodeI::from(self.sys.nodes.nodes.insert(new_node));
                 v.insert(final_i);
                 self.sys.nodes.clear_links(final_i);
+                self.sys.nodes.init_layout(final_i);
 
                 new_node_should_relayout = true;
 
@@ -209,6 +238,7 @@ impl Ui {
                         let real_final_i = NodeI::from(self.sys.nodes.nodes.insert(new_twin_node));
                         v.insert(real_final_i);
                         self.sys.nodes.clear_links(real_final_i);
+                        self.sys.nodes.init_layout(real_final_i);
                         new_node_should_relayout = true;
                         (real_final_i, twin_scoped_id)
                     }
@@ -235,8 +265,8 @@ impl Ui {
             real_final_node.frame_added = current_frame;
         }
         real_final_node.currently_hidden = false;
-        real_final_node.exiting = false;
         real_final_node.canvas_instances = None;
+        self.sys.nodes.set_exiting(real_final_i, false);
 
         self.sys.set_text_hidden(real_final_i, false);
 

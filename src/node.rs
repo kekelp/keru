@@ -2297,6 +2297,7 @@ impl Ui {
                     };
 
                     self.sys.nodes[i].text_i = Some(new_text_i);
+                    self.sys.nodes.sync_layout(i);
                 } else {
                     match &self.sys.nodes[i].text_i {
                         Some(TextI::TextEdit(_)) => {
@@ -2481,6 +2482,10 @@ impl Ui {
 
         if layout_changed {
             self.sys.push_partial_relayout(i);
+        }
+        let image_changed = crate::layout_tree::image_size(&self.sys.nodes[i]) != self.sys.nodes.layout.params[i].image;
+        if skip_layout_diff || layout_changed || image_changed {
+            self.sys.nodes.sync_layout(i);
         }
         if cosmetic_changed{
             self.sys.changes.should_rebuild_render_data = true;
