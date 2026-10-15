@@ -1,5 +1,4 @@
 use etagere::{Allocation, BucketedAtlasAllocator, size2};
-use image::RgbaImage;
 use wgpu::*;
 use std::collections::HashMap;
 
@@ -16,8 +15,6 @@ pub struct LoadedImage {
 
 struct AtlasPage {
     packer: BucketedAtlasAllocator,
-    image: RgbaImage,
-    dirty: bool,
 }
 
 // Number of mip levels generated for the atlas (levels 0..MIP_LEVELS, smallest = atlas_size >> (MIP_LEVELS-1)).
@@ -45,6 +42,9 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 /// Image renderer that manages texture atlases for SVG and raster images.
 /// Images are rendered by using them as textures on shapes (e.g., white boxes).
 pub struct ImageRenderer {
+    device: Device,
+    queue: Queue,
+
     atlas_size: u32,
     atlas_pages: Vec<AtlasPage>,
 
@@ -54,7 +54,8 @@ pub struct ImageRenderer {
     mip_pipeline: wgpu::ComputePipeline,
     mip_bind_group_layout: wgpu::BindGroupLayout,
 
-    needs_texture_array_rebuild: bool,
+    needs_bind_group_rebuild: bool,
+    needs_mipmaps: bool,
 
     /// Cache of raw SVG data for rerasterization
     svg_data_cache: HashMap<u64, Vec<u8>>,
@@ -64,12 +65,12 @@ pub struct ImageRenderer {
 
 impl ImageRenderer {
     /// Create a new ImageRenderer with default atlas size of 4096x4096
-    pub fn new(device: &Device, _queue: &Queue) -> Self {
-        Self::new_with_atlas_size(device, _queue, 4096)
+    pub fn new(device: &Device, queue: &Queue) -> Self {
+        Self::new_with_atlas_size(device, queue, 4096)
     }
 
     /// Create a new ImageRenderer with custom atlas size
-    pub fn new_with_atlas_size(device: &Device, _queue: &Queue, atlas_size: u32) -> Self {
+    pub fn new_with_atlas_size(device: &Device, queue: &Queue, atlas_size: u32) -> Self {
         // Create initial texture array with 1 layer
         let texture_array = create_texture_array(device, atlas_size, 1);
 
@@ -88,19 +89,20 @@ impl ImageRenderer {
 
         // Create initial atlas page
         let atlas_pages = vec![AtlasPage {
-            image: RgbaImage::new(atlas_size, atlas_size),
             packer: BucketedAtlasAllocator::new(size2(atlas_size as i32, atlas_size as i32)),
-            dirty: false,
         }];
 
         Self {
+            device: device.clone(),
+            queue: queue.clone(),
             atlas_size,
             atlas_pages,
             texture_array,
             sampler,
             mip_pipeline,
             mip_bind_group_layout,
-            needs_texture_array_rebuild: false,
+            needs_bind_group_rebuild: false,
+            needs_mipmaps: false,
             svg_data_cache: HashMap::new(),
             next_id: 1,
         }
@@ -204,27 +206,17 @@ impl ImageRenderer {
         Some(new_loaded)
     }
 
-    /// Upload textures to GPU. Returns true if the texture array was rebuilt.
-    pub(crate) fn load_to_gpu(&mut self, device: &Device, queue: &Queue) -> bool {
-        if !self.needs_texture_array_rebuild && !self.atlas_pages.iter().any(|p| p.dirty) {
-            return false;
+    // Since we use write_texture directly each time, this doesn't really fit the old "load_to_gpu" idea anymore.
+    pub(crate) fn load_to_gpu(&mut self) -> bool {
+        if self.needs_mipmaps {
+            self.generate_mipmaps();
+            self.needs_mipmaps = false;
         }
 
-        let rebuilt = if self.needs_texture_array_rebuild {
-            self.rebuild_texture_array(device, queue);
-            self.needs_texture_array_rebuild = false;
-            true
-        } else {
-            self.update_texture_array(queue);
-            false
-        };
-
-        self.generate_mipmaps(device, queue);
-
+        let rebuilt = self.needs_bind_group_rebuild;
+        self.needs_bind_group_rebuild = false;
         rebuilt
     }
-
-    // Internal methods
 
     fn rasterize_and_store(&mut self, svg_data: &[u8], width: u32, height: u32) -> Option<LoadedImage> {
         // Generate unique ID and store SVG data
@@ -311,24 +303,31 @@ impl ImageRenderer {
         height: u32,
         id: u64,
     ) -> LoadedImage {
-        // Copy image data to atlas
-        let dst_x = alloc.rectangle.min.x as u32;
-        let dst_y = alloc.rectangle.min.y as u32;
+        self.queue.write_texture(
+            wgpu::TexelCopyTextureInfo {
+                texture: &self.texture_array,
+                mip_level: 0,
+                origin: wgpu::Origin3d {
+                    x: alloc.rectangle.min.x as u32,
+                    y: alloc.rectangle.min.y as u32,
+                    z: page_idx as u32,
+                },
+                aspect: wgpu::TextureAspect::All,
+            },
+            rgba_data,
+            wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(4 * width),
+                rows_per_image: None,
+            },
+            wgpu::Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
+        );
 
-        for y in 0..height {
-            for x in 0..width {
-                let offset = ((y * width + x) * 4) as usize;
-                let pixel = image::Rgba([
-                    rgba_data[offset],
-                    rgba_data[offset + 1],
-                    rgba_data[offset + 2],
-                    rgba_data[offset + 3],
-                ]);
-                self.atlas_pages[page_idx].image.put_pixel(dst_x + x, dst_y + y, pixel);
-            }
-        }
-
-        self.atlas_pages[page_idx].dirty = true;
+        self.needs_mipmaps = true;
 
         LoadedImage {
             page: page_idx as u16,
@@ -340,39 +339,38 @@ impl ImageRenderer {
     }
 
     fn make_new_page(&mut self) -> usize {
+        let old_layers = self.atlas_pages.len() as u32;
         self.atlas_pages.push(AtlasPage {
-            image: RgbaImage::new(self.atlas_size, self.atlas_size),
             packer: BucketedAtlasAllocator::new(size2(self.atlas_size as i32, self.atlas_size as i32)),
-            dirty: true,
         });
-        self.needs_texture_array_rebuild = true;
+        self.grow_texture_array(old_layers);
         self.atlas_pages.len() - 1
     }
 
-    fn rebuild_texture_array(&mut self, device: &Device, queue: &Queue) {
-        let num_pages = self.atlas_pages.len().max(1);
+    fn grow_texture_array(&mut self, old_layers: u32) {
+        let new_texture = create_texture_array(&self.device, self.atlas_size, self.atlas_pages.len() as u32);
 
-        self.texture_array = create_texture_array(device, self.atlas_size, num_pages as u32);
+        // Only mip 0 is copied, the other ones are regenerated.
+        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+        encoder.copy_texture_to_texture(
+            self.texture_array.as_image_copy(),
+            new_texture.as_image_copy(),
+            wgpu::Extent3d {
+                width: self.atlas_size,
+                height: self.atlas_size,
+                depth_or_array_layers: old_layers,
+            },
+        );
+        self.queue.submit(std::iter::once(encoder.finish()));
 
-        // Upload all pages
-        for (page_idx, page) in self.atlas_pages.iter_mut().enumerate() {
-            upload_texture_page(queue, &self.texture_array, &page.image, page_idx as u32, self.atlas_size);
-            page.dirty = false;
-        }
+        self.texture_array = new_texture;
+        self.needs_bind_group_rebuild = true;
+        self.needs_mipmaps = true;
     }
 
-    fn update_texture_array(&mut self, queue: &Queue) {
-        for (page_idx, page) in self.atlas_pages.iter_mut().enumerate() {
-            if page.dirty {
-                upload_texture_page(queue, &self.texture_array, &page.image, page_idx as u32, self.atlas_size);
-                page.dirty = false;
-            }
-        }
-    }
-
-    fn generate_mipmaps(&self, device: &Device, queue: &Queue) {
+    fn generate_mipmaps(&self) {
         let num_layers = self.atlas_pages.len() as u32;
-        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
         for mip in 1..MIP_LEVELS {
             let src_view = self.texture_array.create_view(&wgpu::TextureViewDescriptor {
@@ -394,7 +392,7 @@ impl ImageRenderer {
                 ..Default::default()
             });
 
-            let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label: None,
                 layout: &self.mip_bind_group_layout,
                 entries: &[
@@ -415,7 +413,7 @@ impl ImageRenderer {
             pass.dispatch_workgroups(groups, groups, num_layers);
         }
 
-        queue.submit(std::iter::once(encoder.finish()));
+        self.queue.submit(std::iter::once(encoder.finish()));
     }
 }
 
@@ -444,7 +442,7 @@ fn create_texture_array(device: &Device, size: u32, layers: u32) -> Texture {
         // can't include sRGB either when STORAGE_BINDING is set. Atlas data is linear; the
         // surface handles sRGB conversion.
         format: TextureFormat::Rgba8Unorm,
-        usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING,
+        usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_SRC | TextureUsages::COPY_DST | TextureUsages::STORAGE_BINDING,
         view_formats: &[],
     })
 }
@@ -497,26 +495,4 @@ fn create_mip_pipeline(device: &Device) -> (wgpu::ComputePipeline, wgpu::BindGro
     });
 
     (pipeline, bgl)
-}
-
-fn upload_texture_page(queue: &Queue, texture: &Texture, image: &RgbaImage, layer: u32, size: u32) {
-    queue.write_texture(
-        wgpu::TexelCopyTextureInfo {
-            texture,
-            mip_level: 0,
-            origin: wgpu::Origin3d { z: layer, ..Default::default() },
-            aspect: wgpu::TextureAspect::All,
-        },
-        image.as_raw(),
-        wgpu::TexelCopyBufferLayout {
-            offset: 0,
-            bytes_per_row: Some(4 * size),
-            rows_per_image: None,
-        },
-        wgpu::Extent3d {
-            width: size,
-            height: size,
-            depth_or_array_layers: 1,
-        },
-    );
 }
