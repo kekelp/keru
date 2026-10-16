@@ -15,6 +15,7 @@ pub(crate) struct TextRenderer {
 
     pub(crate) pipeline: RenderPipeline,
     pub(crate) atlas_size: u32,
+    pub(crate) staging_buffer: Option<Buffer>,
 
     pub(crate) srgb: bool,
 }
@@ -53,84 +54,94 @@ impl TextRenderer {
 }
 
 impl TextRenderer {
-    pub(crate) fn rebuild_texture_arrays(&mut self, render_data: &mut RenderData) {
-        let (mask_texture_array, color_texture_array) = rebuild_texture_arrays(
-            &self.device,
-            &self.queue,
-            self.atlas_size,
-            &mut render_data.mask_atlas_pages,
-            &mut render_data.color_atlas_pages,
-            self.srgb,
-        );
+    pub(crate) fn upload_atlas(&mut self, render_data: &mut RenderData) -> bool {
+        let n_mask_pages = render_data.mask_atlas_pages.len() as u32;
+        let n_color_pages = render_data.color_atlas_pages.len() as u32;
+        let old_mask_layers = self.mask_texture_array.depth_or_array_layers();
+        let old_color_layers = self.color_texture_array.depth_or_array_layers();
 
-        self.mask_texture_array = mask_texture_array;
-        self.color_texture_array = color_texture_array;
-        // Bind group recreation is handled by the caller (load_to_gpu)
-    }
+        let needs_growth = n_mask_pages > old_mask_layers || n_color_pages > old_color_layers;
+        let staging = &mut render_data.glyph_staging_image;
 
-    pub(crate) fn update_texture_arrays(&mut self, render_data: &mut RenderData) {
-        for (i, page) in render_data.mask_atlas_pages.iter_mut().enumerate() {
-            if page.needs_upload {
-                let raw = page.image.as_raw();
-                self.queue.write_texture(
+        if !needs_growth && staging.uploads.is_empty() {
+            return false;
+        }
+
+        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+
+        if n_mask_pages > old_mask_layers {
+            let new_texture = create_mask_texture_array(&self.device, self.atlas_size, n_mask_pages);
+            copy_layers(&mut encoder, &self.mask_texture_array, &new_texture, self.atlas_size, old_mask_layers);
+            self.mask_texture_array = new_texture;
+        }
+
+        if n_color_pages > old_color_layers {
+            let new_texture = create_color_texture_array(&self.device, self.atlas_size, n_color_pages, self.srgb);
+            copy_layers(&mut encoder, &self.color_texture_array, &new_texture, self.atlas_size, old_color_layers);
+            self.color_texture_array = new_texture;
+        }
+
+        if !staging.uploads.is_empty() {
+            let needed_size = staging.data.len() as u64;
+            let too_small = self.staging_buffer.as_ref().is_none_or(|buffer| buffer.size() < needed_size);
+            if too_small {
+                self.staging_buffer = Some(self.device.create_buffer(&wgpu::BufferDescriptor {
+                    label: Some("glyph staging buffer"),
+                    size: needed_size.max(STAGING_BASE_CAPACITY as u64).next_power_of_two(),
+                    usage: wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::COPY_DST,
+                    mapped_at_creation: false,
+                }));
+            }
+            let staging_buffer = self.staging_buffer.as_ref().unwrap();
+
+            self.queue.write_buffer(staging_buffer, 0, &staging.data);
+
+            for upload in &staging.uploads {
+                let texture = match upload.content_type {
+                    Content::Mask => &self.mask_texture_array,
+                    Content::Color => &self.color_texture_array,
+                    Content::SubpixelMask => unreachable!(),
+                };
+
+                encoder.copy_buffer_to_texture(
+                    wgpu::TexelCopyBufferInfo {
+                        buffer: staging_buffer,
+                        layout: wgpu::TexelCopyBufferLayout {
+                            offset: upload.staging_offset,
+                            bytes_per_row: Some(staging.stride),
+                            rows_per_image: None,
+                        },
+                    },
                     wgpu::TexelCopyTextureInfo {
-                        texture: &self.mask_texture_array,
+                        texture,
                         mip_level: 0,
-                        origin: wgpu::Origin3d { x: 0, y: 0, z: i as u32 },
+                        origin: wgpu::Origin3d { x: upload.x, y: upload.y, z: upload.page },
                         aspect: wgpu::TextureAspect::All,
                     },
-                    raw,
-                    wgpu::TexelCopyBufferLayout {
-                        offset: 0,
-                        bytes_per_row: Some(page.image.width()),
-                        rows_per_image: None,
-                    },
                     wgpu::Extent3d {
-                        width: page.image.width(),
-                        height: page.image.height(),
+                        width: upload.width,
+                        height: upload.height,
                         depth_or_array_layers: 1,
                     },
                 );
-                #[cfg(debug_assertions)]
-                {
-                    render_data.stats.gpu_bytes += raw.len() as u64;
-                }
-                page.needs_upload = false;
             }
+
+            #[cfg(debug_assertions)]
+            {
+                render_data.stats.gpu_bytes += needed_size;
+            }
+
+            staging.clear();
         }
 
-        // Update only dirty color texture array pages
-        for (i, page) in render_data.color_atlas_pages.iter_mut().enumerate() {
-            if page.needs_upload {
-                let raw = page.image.as_raw();
-                self.queue.write_texture(
-                    wgpu::TexelCopyTextureInfo {
-                        texture: &self.color_texture_array,
-                        mip_level: 0,
-                        origin: wgpu::Origin3d { x: 0, y: 0, z: i as u32 },
-                        aspect: wgpu::TextureAspect::All,
-                    },
-                    raw,
-                    wgpu::TexelCopyBufferLayout {
-                        offset: 0,
-                        bytes_per_row: Some(page.image.width() * 4),
-                        rows_per_image: None,
-                    },
-                    wgpu::Extent3d {
-                        width: page.image.width(),
-                        height: page.image.height(),
-                        depth_or_array_layers: 1,
-                    },
-                );
-                #[cfg(debug_assertions)]
-                {
-                    render_data.stats.gpu_bytes += raw.len() as u64;
-                }
-                page.needs_upload = false;
-            }
+        self.queue.submit(std::iter::once(encoder.finish()));
+
+        if self.staging_buffer.as_ref().is_some_and(|buffer| buffer.size() > STAGING_BASE_CAPACITY as u64) {
+            self.staging_buffer = None;
         }
+
+        needs_growth
     }
-
 
     pub(crate) fn recreate_bind_group(&mut self, render_data: &RenderData) {
         self.bind_group = create_bind_group(
@@ -145,4 +156,17 @@ impl TextRenderer {
             &self.bind_group_layout,
         );
     }
+}
+
+/// Copy the first `layers` layers of `src` into `dst`.
+fn copy_layers(encoder: &mut wgpu::CommandEncoder, src: &wgpu::Texture, dst: &wgpu::Texture, atlas_size: u32, layers: u32) {
+    encoder.copy_texture_to_texture(
+        src.as_image_copy(),
+        dst.as_image_copy(),
+        wgpu::Extent3d {
+            width: atlas_size,
+            height: atlas_size,
+            depth_or_array_layers: layers,
+        },
+    );
 }

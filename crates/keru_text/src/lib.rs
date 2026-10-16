@@ -81,6 +81,9 @@ pub use setup::*;
 mod render_data;
 pub use render_data::*;
 
+mod glyph_staging;
+pub(crate) use glyph_staging::*;
+
 mod text_renderer;
 pub(crate) use text_renderer::*;
 
@@ -141,7 +144,6 @@ use swash::zeno::{Format, Vector};
 
 use wgpu::*;
 
-use image::{GrayImage, Luma, Rgba, RgbaImage};
 use parley::{
     Glyph, GlyphRun, PositionedLayoutItem,
 };

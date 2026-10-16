@@ -35,8 +35,11 @@ pub(crate) struct RenderData {
     pub(crate) glyph_cache: LruCache<GlyphKey, Option<StoredGlyph>, BuildHasherDefault<FxHasher>>,
     pub(crate) last_frame_evicted: u64,
 
-    pub(crate) mask_atlas_pages: Vec<AtlasPage<GrayImage>>,
-    pub(crate) color_atlas_pages: Vec<AtlasPage<RgbaImage>>,
+    pub(crate) mask_atlas_pages: Vec<AtlasPage>,
+    pub(crate) color_atlas_pages: Vec<AtlasPage>,
+
+    /// Glyphs rasterized this frame that still have to be written to the atlas textures.
+    pub(crate) glyph_staging_image: GlyphStagingImage,
 
     pub(crate) glyph_quads: GpuHeap<GlyphQuad>,
     pub(crate) box_data: GpuSlab<BoxGpu>,
@@ -45,7 +48,6 @@ pub(crate) struct RenderData {
     pub(crate) params: Params,
     pub(crate) atlas_size: u32,
 
-    pub(crate) needs_texture_array_rebuild: bool,
     pub(crate) needs_params_sync: bool,
 
     /// Handle into the glyph quad heap for the current frame's decoration quads (selections + cursor).
@@ -307,10 +309,9 @@ pub(crate) struct Params {
     pub _pad: u32,
 }
 
-pub(crate) struct AtlasPage<ImageType> {
+/// Allocation state of one atlas page. The pixels live only in the GPU texture array.
+pub(crate) struct AtlasPage {
     pub(crate) packer: BucketedAtlasAllocator,
-    pub(crate) image: ImageType,
-    pub(crate) needs_upload: bool,
 }
 
 const SOURCES: &[Source; 3] = &[
@@ -399,15 +400,11 @@ impl RenderData {
         let glyph_cache = LruCache::unbounded_with_hasher(BuildHasherDefault::<FxHasher>::default());
 
         let mask_atlas_pages = vec![AtlasPage {
-            image: GrayImage::from_pixel(atlas_size, atlas_size, Luma([0])),
             packer: BucketedAtlasAllocator::new(size2(atlas_size as i32, atlas_size as i32)),
-            needs_upload: true,
         }];
 
         let color_atlas_pages = vec![AtlasPage {
-            image: RgbaImage::from_pixel(atlas_size, atlas_size, Rgba([0, 0, 0, 0])),
             packer: BucketedAtlasAllocator::new(size2(atlas_size as i32, atlas_size as i32)),
-            needs_upload: true,
         }];
 
         let tmp_image = Image::new();
@@ -419,6 +416,7 @@ impl RenderData {
             last_frame_evicted: 0,
             mask_atlas_pages,
             color_atlas_pages,
+            glyph_staging_image: GlyphStagingImage::new(atlas_size),
             glyph_quads: GpuHeap::with_usage(device, 1000, "glyph quads buffer", wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST),
             box_data: GpuSlab::new(device, queue, 30, "box data buffer"),
             group_transforms: {
@@ -433,7 +431,6 @@ impl RenderData {
                 _pad: 0,
             },
             atlas_size,
-            needs_texture_array_rebuild: false,
             needs_params_sync: true,
             decoration_quad_handle: None,
             scale_cx: Some(ScaleContext::new()),
@@ -696,51 +693,22 @@ impl RenderData {
     }
 
     fn copy_glyph_to_atlas(&mut self, size: Size2D<i32, UnknownUnit>, alloc: &Allocation, page: usize, content_type: Content) {
-        for y in 0..size.height as i32 {
-            let src_start = (y as usize) * (size.width as usize);
-            let src_slice =
-                &self.tmp_image.data[src_start..(src_start + size.width as usize)];
-
-            let dst_y = (alloc.rectangle.min.y + y) as u32;
-            let dst_x = alloc.rectangle.min.x as u32;
-
-            match content_type {
-                Content::Mask => {
-                    let layout = self.mask_atlas_pages[page].image.as_flat_samples().layout;
-                    let mut samples = self.mask_atlas_pages[page].image.as_flat_samples_mut();
-                    let samples = samples.as_mut_slice();
-                    let dst_start =
-                    (dst_y as usize) * layout.height_stride + (dst_x as usize) * layout.width_stride;
-
-                samples[dst_start..(dst_start + size.width as usize)].copy_from_slice(src_slice);
-                },
-                Content::Color => {
-                    // todo: rewrite this with a cool copy_from_slice
-                    let layout = self.color_atlas_pages[page].image.as_flat_samples().layout;
-                    let mut samples = self.color_atlas_pages[page].image.as_flat_samples_mut();
-                    let samples = samples.as_mut_slice();
-
-                    // For RGBA, each pixel is 4 bytes
-                    for x in 0..size.width as usize {
-                        let src_idx = src_start + x;
-                        let dst_idx = (dst_y as usize) * layout.height_stride + (dst_x as usize + x) * layout.width_stride;
-
-                        // Copy all 4 channels
-                        for c in 0..4 {
-                            samples[dst_idx + c] = self.tmp_image.data[src_idx * 4 + c];
-                        }
-                    }
-                },
-                Content::SubpixelMask => unreachable!(),
-            };
-        }
-
-        // Mark the page as dirty since we've modified it
-        match content_type {
-            Content::Mask => self.mask_atlas_pages[page].needs_upload = true,
-            Content::Color => self.color_atlas_pages[page].needs_upload = true,
+        let bytes_per_pixel = match content_type {
+            Content::Mask => 1,
+            Content::Color => 4,
             Content::SubpixelMask => unreachable!(),
-        }
+        };
+        let len = size.width as usize * size.height as usize * bytes_per_pixel;
+
+        self.glyph_staging_image.push(
+            content_type,
+            page as u32,
+            alloc.rectangle.min.x as u32,
+            alloc.rectangle.min.y as u32,
+            size.width as u32,
+            size.height as u32,
+            &self.tmp_image.data[..len],
+        );
     }
 
     /// Render a glyph into the `self.tmp_swash_image` buffer
@@ -834,20 +802,14 @@ impl RenderData {
         match content_type {
             Content::Mask => {
                 self.mask_atlas_pages.push(AtlasPage {
-                    image: GrayImage::from_pixel(atlas_size, atlas_size, Luma([0])),
                     packer: BucketedAtlasAllocator::new(size2(atlas_size as i32, atlas_size as i32)),
-                    needs_upload: true,
                 });
-                self.needs_texture_array_rebuild = true;
                 return self.mask_atlas_pages.len() - 1;
             },
             Content::Color => {
                 self.color_atlas_pages.push(AtlasPage {
-                    image: RgbaImage::from_pixel(atlas_size, atlas_size, Rgba([0, 0, 0, 0])),
                     packer: BucketedAtlasAllocator::new(size2(atlas_size as i32, atlas_size as i32)),
-                    needs_upload: true,
                 });
-                self.needs_texture_array_rebuild = true;
                 return self.color_atlas_pages.len() - 1;
             },
             Content::SubpixelMask => unreachable!()

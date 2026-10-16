@@ -2069,7 +2069,6 @@ dependencies = [
  "etagere",
  "euclid",
  "fontique",
- "image",
  "lazy_static",
  "lru",
  "offset-allocator",

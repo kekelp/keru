@@ -584,13 +584,8 @@ impl Text {
             self.shared.render_data.needs_params_sync = false;
         }
 
-        // Rebuild texture arrays if needed
-        if self.shared.render_data.needs_texture_array_rebuild {
-            self.renderer.rebuild_texture_arrays(&mut self.shared.render_data);
-            self.shared.render_data.needs_texture_array_rebuild = false;
+        if self.renderer.upload_atlas(&mut self.shared.render_data) {
             needs_bind_group_recreate = true;
-        } else {
-            self.renderer.update_texture_arrays(&mut self.shared.render_data);
         }
 
         // Sync quads buffer bind group if the buffer was reallocated during prepare.
