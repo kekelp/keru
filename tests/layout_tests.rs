@@ -269,3 +269,144 @@ fn aspect_ratio_cycle_terminates_with_finite_sizes() {
         assert!(w.is_finite() && h.is_finite(), "expected finite size, got ({w} x {h})");
     }
 }
+
+// --- FitContent parent with Fill children ---
+
+#[derive(Clone, Copy, Debug)]
+enum FitParent {
+    /// `size: FitContent`.
+    FitContent,
+    /// `size: Pixels(500)`, `max_size: FitContent`.
+    MaxFitContent,
+    /// `size: Pixels(100)`, `min_size: FitContent`.
+    MinFitContent,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum FitLayout {
+    /// A stack along the x axis.
+    Along,
+    /// A stack along the y axis.
+    Across,
+    Free,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum FillChild {
+    Fill,
+    /// `Fill` with `max_size: Pixels(200)`.
+    FillMax,
+    /// `Fill` with `min_size: Pixels(200)`.
+    FillMin,
+}
+
+// Every combination of a FitContent parent and a Fill child, with and without a 300px sibling. Only the x axis is checked. Columns: parent, layout, child, sibling, expected parent width, expected child width.
+#[rustfmt::skip]
+const FIT_FILL_CASES: &[(FitParent, FitLayout, FillChild, bool, f32, f32)] = {
+    use FitParent::*;
+    use FitLayout::*;
+    use FillChild::*;
+    &[
+        (FitContent,    Along,  Fill,    false, 1000.0, 1000.0),
+        (FitContent,    Along,  Fill,    true,  1000.0, 700.0),
+        (FitContent,    Along,  FillMax, false, 200.0,  200.0),
+        (FitContent,    Along,  FillMax, true,  500.0,  200.0),
+        (FitContent,    Along,  FillMin, false, 1000.0, 1000.0),
+        (FitContent,    Along,  FillMin, true,  1000.0, 700.0),
+        (MaxFitContent, Along,  Fill,    false, 500.0,  500.0),
+        (MaxFitContent, Along,  Fill,    true,  500.0,  200.0),
+        (MaxFitContent, Along,  FillMax, false, 200.0,  200.0),
+        (MaxFitContent, Along,  FillMax, true,  500.0,  200.0),
+        (MaxFitContent, Along,  FillMin, false, 500.0,  500.0),
+        (MaxFitContent, Along,  FillMin, true,  500.0,  200.0),
+        (MinFitContent, Along,  Fill,    false, 100.0,  100.0),
+        (MinFitContent, Along,  Fill,    true,  300.0,  0.0),
+        (MinFitContent, Along,  FillMax, false, 100.0,  100.0),
+        (MinFitContent, Along,  FillMax, true,  300.0,  0.0),
+        (MinFitContent, Along,  FillMin, false, 200.0,  200.0),
+        (MinFitContent, Along,  FillMin, true,  500.0,  200.0),
+
+        (FitContent,    Across, Fill,    false, 1000.0, 1000.0),
+        (FitContent,    Across, Fill,    true,  300.0,  300.0),
+        (FitContent,    Across, FillMax, false, 200.0,  200.0),
+        (FitContent,    Across, FillMax, true,  300.0,  200.0),
+        (FitContent,    Across, FillMin, false, 1000.0, 1000.0),
+        (FitContent,    Across, FillMin, true,  300.0,  300.0),
+        (MaxFitContent, Across, Fill,    false, 500.0,  500.0),
+        (MaxFitContent, Across, Fill,    true,  500.0,  500.0),
+        (MaxFitContent, Across, FillMax, false, 200.0,  200.0),
+        (MaxFitContent, Across, FillMax, true,  300.0,  200.0),
+        (MaxFitContent, Across, FillMin, false, 500.0,  500.0),
+        (MaxFitContent, Across, FillMin, true,  500.0,  500.0),
+        (MinFitContent, Across, Fill,    false, 100.0,  100.0),
+        (MinFitContent, Across, Fill,    true,  300.0,  300.0),
+        (MinFitContent, Across, FillMax, false, 100.0,  100.0),
+        (MinFitContent, Across, FillMax, true,  300.0,  200.0),
+        (MinFitContent, Across, FillMin, false, 200.0,  200.0),
+        (MinFitContent, Across, FillMin, true,  300.0,  300.0),
+
+        (FitContent,    Free,   Fill,    false, 1000.0, 1000.0),
+        (FitContent,    Free,   Fill,    true,  300.0,  300.0),
+        (FitContent,    Free,   FillMax, false, 200.0,  200.0),
+        (FitContent,    Free,   FillMax, true,  300.0,  200.0),
+        (FitContent,    Free,   FillMin, false, 1000.0, 1000.0),
+        (FitContent,    Free,   FillMin, true,  300.0,  300.0),
+        (MaxFitContent, Free,   Fill,    false, 500.0,  500.0),
+        (MaxFitContent, Free,   Fill,    true,  500.0,  500.0),
+        (MaxFitContent, Free,   FillMax, false, 200.0,  200.0),
+        (MaxFitContent, Free,   FillMax, true,  300.0,  200.0),
+        (MaxFitContent, Free,   FillMin, false, 500.0,  500.0),
+        (MaxFitContent, Free,   FillMin, true,  500.0,  500.0),
+        (MinFitContent, Free,   Fill,    false, 100.0,  100.0),
+        (MinFitContent, Free,   Fill,    true,  300.0,  300.0),
+        (MinFitContent, Free,   FillMax, false, 100.0,  100.0),
+        (MinFitContent, Free,   FillMax, true,  300.0,  200.0),
+        (MinFitContent, Free,   FillMin, false, 200.0,  200.0),
+        (MinFitContent, Free,   FillMin, true,  300.0,  300.0),
+    ]
+};
+
+// Adds one case as a separate tree in the root. The keys of the parent and the child are `C` and `A` with the case index as sibling.
+fn add_fit_fill_case(ui: &mut Ui, case_i: usize, parent: FitParent, layout: FitLayout, child: FillChild, sibling: bool) {
+    let parent_node = match layout {
+        FitLayout::Along => H_STACK.stack_spacing(0.0),
+        FitLayout::Across => V_STACK.stack_spacing(0.0),
+        FitLayout::Free => BOX,
+    };
+    let parent_node = match parent {
+        FitParent::FitContent => parent_node.size_x(FitContent),
+        FitParent::MaxFitContent => parent_node.size_x(Pixels(500.0)).max_size_x(FitContent),
+        FitParent::MinFitContent => parent_node.size_x(Pixels(100.0)).min_size_x(FitContent),
+    };
+    let child_node = BOX.size(Fill, Pixels(50.0));
+    let child_node = match child {
+        FillChild::Fill => child_node,
+        FillChild::FillMax => child_node.max_size_x(Pixels(200.0)),
+        FillChild::FillMin => child_node.min_size_x(Pixels(200.0)),
+    };
+
+    ui.add(parent_node.key(C.sibling(case_i)).size_y(FitContent)).nest(|| {
+        if sibling {
+            ui.add(BOX.size(Pixels(300.0), Pixels(50.0)));
+        }
+        ui.add(child_node.key(A.sibling(case_i)));
+    });
+}
+
+#[test]
+fn fitcontent_parent_fill_children() {
+    let ui = run(|ui| {
+        for (case_i, &(parent, layout, child, sibling, _, _)) in FIT_FILL_CASES.iter().enumerate() {
+            add_fit_fill_case(ui, case_i, parent, layout, child, sibling);
+        }
+    });
+
+    let mut failures = Vec::new();
+    for (case_i, &(parent, layout, child, sibling, parent_w, child_w)) in FIT_FILL_CASES.iter().enumerate() {
+        let (got_parent, got_child) = (width(&ui, C.sibling(case_i)), width(&ui, A.sibling(case_i)));
+        if ! approx(got_parent, parent_w) || ! approx(got_child, child_w) {
+            failures.push(format!("{parent:?} {layout:?} {child:?} sibling={sibling}: expected ({parent_w}, {child_w}), got ({got_parent}, {got_child})"));
+        }
+    }
+    assert!(failures.is_empty(), "{} of {} cases failed:\n{}", failures.len(), FIT_FILL_CASES.len(), failures.join("\n"));
+}
