@@ -2023,6 +2023,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "keru_bindings"
+version = "0.1.0"
+dependencies = [
+ "keru",
+]
+
+[[package]]
 name = "keru_draw"
 version = "0.1.0"
 dependencies = [

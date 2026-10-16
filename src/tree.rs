@@ -1161,6 +1161,22 @@ impl UiParent {
     }
 }
 
+impl UiParent {
+    /// Start a nested block manually.
+    #[doc(hidden)]
+    pub fn push_parent(&self) {
+        thread_local::push_parent(self.i, self.sibling_cursor, self.ui_instance_id);
+    }
+}
+
+impl Ui {
+    /// End a nested block manually.
+    #[doc(hidden)]
+    pub fn pop_parent(&self) {
+        thread_local::pop_parent(self.sys.unique_id);
+    }
+}
+
 #[allow(dead_code)]
 #[track_caller]
 pub(crate) fn with_timer<T>(operation_name: &str, if_more_than: Option<std::time::Duration>, f: impl FnOnce() -> T) -> T {

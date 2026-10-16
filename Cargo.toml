@@ -13,6 +13,7 @@ members = [
     "crates/keru_macros",
     "crates/keru_draw",
     "crates/keru_text",
+    "crates/keru_bindings",
     "examples/subsecond",
 ]
 

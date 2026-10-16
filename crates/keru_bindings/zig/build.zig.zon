@@ -1,0 +1,12 @@
+.{
+    .name = .keru,
+    .version = "0.1.0",
+    .fingerprint = 0xbe1938121e4c69a8, // Changing this has security and trust implications.
+    .minimum_zig_version = "0.18.0-dev.253+16d31ceed",
+    .dependencies = .{},
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}
