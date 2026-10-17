@@ -1161,11 +1161,17 @@ impl UiParent {
     }
 }
 
+// For language bindings.
 impl UiParent {
     /// Start a nested block manually.
     #[doc(hidden)]
     pub fn push_parent(&self) {
         thread_local::push_parent(self.i, self.sibling_cursor, self.ui_instance_id);
+    }
+
+    #[doc(hidden)]
+    pub fn id(&self, ui: &Ui) -> Id {
+        ui.sys.nodes[self.i].id
     }
 }
 

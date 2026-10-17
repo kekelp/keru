@@ -8,16 +8,17 @@ fn updateUi(state: *State, ui: *keru.Ui) !void {
     const increase_key = comptime keru.Key.fromLocation(@src());
     const decrease_key = comptime keru.Key.fromStr("decrease");
 
-    const v_stack: keru.Node = .{ .base = .v_stack };
-    const increase: keru.Node = .{ .base = .button, .key = increase_key, .text = "Increase", .color = .red };
-    const count: keru.Node = .{ .base = .label, .text = try ui.allocPrint("{d}", .{state.count}) };
-    const decrease: keru.Node = .{ .base = .button, .key = decrease_key, .text = "Decrease" };
+    const increase = keru.Node.button.update(.{ .key = increase_key, .text = "Increase", .color = .{ .color = .red } });
+    const text = try ui.frame_arena.allocator().print("{d}", .{state.count}) ;
+    const count = keru.Node.label.update(.{ .text = text });
+    const decrease = keru.Node.button.update(.{ .key = decrease_key, .text = "Decrease" });
 
-    ui.addParent(v_stack);
+    ui.addParent(.v_stack);
     {
         ui.add(increase);
         ui.add(count);
         ui.add(decrease);
+        // if (ui.addImmediate(decrease).isClicked()) state.count -= 1;
     }
     ui.endParent();
 
