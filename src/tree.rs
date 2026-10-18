@@ -526,12 +526,7 @@ impl Ui {
     /// ui.finish_frame();
     /// ```
     pub fn begin_frame(&mut self) {
-        // reset root
-        self.sys.nodes.links[ROOT_I].last_child = None;
-        self.sys.nodes.links[ROOT_I].first_child = None;
-        self.sys.nodes.links[ROOT_I].prev_sibling = None;
-        self.sys.nodes.links[ROOT_I].next_sibling = None;
-        self.sys.nodes[ROOT_I].n_children = 0;
+        self.clear_node_children(ROOT_I);
 
         self.begin_frame_inner();
     }
@@ -552,6 +547,7 @@ impl Ui {
         self.sys.last_linked_text_box_node = None;
         self.cleanup_loaded_images();
         self.sys.renderer.clear_for_new_frame();
+        self.sys.changes.should_rebuild_render_data = true;
 
         thread_local::clear_parent_stack();
         self.sys.changes.unfinished_animations = false;
