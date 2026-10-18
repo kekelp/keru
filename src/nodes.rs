@@ -7,7 +7,6 @@ use rustc_hash::FxHashMap;
 use slab::Slab;
 
 use crate::*;
-use crate::layout_tree::{layout_params, LayoutTree};
 
 // The point of this data structure is that from "outside", the nodes can be referenced by stable Ids, but internally, nodes can refer to other nodes by holding a NodeI. A NodeI can be way smaller than both a pointer or an id, and you can use it to access nodes without hashing (as if they held a hashmap key), and without lifetime issues (as if they held references).
 #[derive(Debug)]
