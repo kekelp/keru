@@ -797,7 +797,7 @@ fn grid_area_is_free(occupied: &[bool], n_main: usize, line: usize, pos: usize, 
 }
 
 impl Ui {
-    pub(crate) fn layout_calculate_sizes(&mut self) {
+    pub(crate) fn l3_calculate_sizes(&mut self) {
         let window_size = self.sys.logical_size();
         let System { nodes, renderer, size, .. } = &mut self.sys;
         nodes.solve_layout(window_size, &mut |node, width| {

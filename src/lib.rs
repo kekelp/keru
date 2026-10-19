@@ -147,15 +147,11 @@ pub(crate) use crate::twin_nodes::TwinCheckResult::*;
 mod render;
 pub(crate) use crate::render::*;
 mod layout;
+#[allow(dead_code)]
 mod layout2;
 pub(crate) use crate::layout2::*;
 mod layout2_debug;
-// #[allow(dead_code)]
-// mod layout_tree;
-// #[allow(dead_code)]
-// mod layout_build;
-// #[allow(dead_code)]
-// mod layout_solve;
+#[allow(dead_code)]
 mod layout3;
 pub(crate) use crate::layout3::*;
 mod inner_node;
