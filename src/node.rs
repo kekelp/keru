@@ -698,7 +698,6 @@ pub use keru_draw::RoundedCorners;
 /// The node's shape.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Shape {
-    NoShape,
     Rectangle {
         rounded_corners: RoundedCorners,
         corner_radius: f32,
@@ -762,7 +761,6 @@ impl Hash for Shape {
         use Shape::*;
         std::mem::discriminant(self).hash(state);
         match self {
-            NoShape => {},
             Rectangle { rounded_corners, corner_radius } => {
                 rounded_corners.hash(state);
                 corner_radius.to_bits().hash(state);

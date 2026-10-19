@@ -130,7 +130,6 @@ pub enum KeruChildrenLayout {
 #[repr(C, u32)]
 #[derive(Clone, Copy)]
 pub enum KeruShape {
-    NoShape,
     Rectangle { rounded_corners: u32, corner_radius: f32 },
     Circle,
     Ring { width: f32 },
@@ -540,7 +539,6 @@ impl KeruChildrenLayout {
 impl KeruShape {
     fn to_keru(self) -> Shape {
         match self {
-            KeruShape::NoShape => Shape::NoShape,
             KeruShape::Rectangle { rounded_corners, corner_radius } => Shape::Rectangle {
                 rounded_corners: RoundedCorners::from_bits_truncate(rounded_corners),
                 corner_radius,

@@ -822,9 +822,6 @@ impl System {
         };
 
         match self.nodes[node_i].params.shape {
-            Shape::NoShape => {
-                return false; // weird...
-            }
             Shape::Rectangle { rounded_corners, corner_radius } => {
                 let half = Vec2::new((px1 - px0) / 2.0, (py1 - py0) / 2.0);
                 let r = corner_radius * shape_px;

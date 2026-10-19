@@ -376,8 +376,7 @@ impl Ui {
         let any_shadow_visible = node.params.shadow.map(shadow_visible).unwrap_or(false)
             || node.params.second_shadow.map(shadow_visible).unwrap_or(false);
 
-        // Skip the whole node when nothing it could draw is visible: a NoShape node, fully transparent fill with no texture/stroke/shadow, or zero inherited opacity. The debug box always draws.
-        if !debug_box && (matches!(shape, Shape::NoShape) || alpha <= 0.0 || (!fill_visible && texture.is_none() && !stroke_visible && !any_shadow_visible)) {
+        if alpha <= 0.0 || (!fill_visible && texture.is_none() && !stroke_visible && !any_shadow_visible) {
             return;
         }
 
@@ -454,7 +453,6 @@ impl Ui {
             }
 
             match shape {
-                Shape::NoShape => {}
                 Shape::Rectangle { rounded_corners, corner_radius } => {
                     self.sys.renderer.draw_box(keru_draw::Rectangle {
                         top_left: [px0, py0],
@@ -680,7 +678,6 @@ impl Ui {
 
         // Draw strokes
         match shape {
-            Shape::NoShape => {}
             Shape::Rectangle { rounded_corners, corner_radius } => {
                 let corner_radius = *corner_radius * scale_factor;
                 let width = x1 - x0;
