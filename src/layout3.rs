@@ -52,7 +52,7 @@ pub(crate) const DECLARED: [Kind; 3] = [Kind::Regular, Kind::Min, Kind::Max];
 pub(crate) const N_SLOTS: usize = 2 * N_KINDS;
 
 #[inline(always)]
-pub(crate) fn slot_index(axis: Axis, kind: Kind) -> usize {
+pub(crate) const fn slot_index(axis: Axis, kind: Kind) -> usize {
     axis as usize * N_KINDS + kind as usize
 }
 
@@ -65,10 +65,9 @@ pub(crate) struct Slot {
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct SolverData {
-    /// The solved value of each slot, or 0 if it isn't solved yet.
     pub solved: [f32; N_SLOTS],
-    /// One bit for each slot that is solved.
     pub solved_mask: u16,
+    pub deferred_mask: u16,
     /// How many dependencies of each slot are not solved yet.
     pub n_unsolved: [u32; N_SLOTS],
     /// Range of the dependents lists. The dependents of slot `k` are `dependents[dependents[k]..dependents[k + 1]]`.
@@ -81,9 +80,17 @@ pub(crate) struct SolverData {
     pub grid_lines: Xy<u16>,
 }
 
+const UNSOLVED: [f32; N_SLOTS] = {
+    let mut solved = [0.0; N_SLOTS];
+    solved[slot_index(X, Kind::Max)] = f32::INFINITY;
+    solved[slot_index(Y, Kind::Max)] = f32::INFINITY;
+    solved
+};
+
 pub(crate) const EMPTY_SOLVER_DATA: SolverData = SolverData {
-    solved: [0.0; N_SLOTS],
+    solved: UNSOLVED,
     solved_mask: 0,
+    deferred_mask: 0,
     n_unsolved: [0; N_SLOTS],
     dependents: [0; N_SLOTS + 1],
     n_placed_children: 0,
@@ -120,6 +127,10 @@ pub(crate) struct LayoutTree {
     pub solver_data: NodeVec<SolverData>,
     pub dependents: Vec<Slot>,
     pub solve_queue: Vec<Slot>,
+
+    pub deferred_queue: Vec<Slot>,
+    // Flag for when the solver is doing a deferred solve. Currently this is used only for debug assertions.
+    pub solving_deferred: bool,
 }
 
 impl LayoutTree {
@@ -130,6 +141,8 @@ impl LayoutTree {
             solver_data: NodeVec(Vec::with_capacity(100)),
             dependents: Vec::with_capacity(400),
             solve_queue: Vec::with_capacity(400),
+            deferred_queue: Vec::with_capacity(100),
+            solving_deferred: false,
         }
     }
 
@@ -240,6 +253,7 @@ impl Nodes {
         self.layout.solver_data.0.resize(self.layout.params.0.len(), EMPTY_SOLVER_DATA);
         self.layout.dependents.clear();
         self.layout.solve_queue.clear();
+        self.layout.deferred_queue.clear();
         self.build_dependency_graph_recursive(ROOT_I);
     }
 
@@ -416,31 +430,63 @@ impl Nodes {
 
     fn solve(&mut self, measure_text: &mut MeasureText) {
         let mut next = 0;
-        while next < self.layout.solve_queue.len() {
-            let slot = self.layout.solve_queue[next];
-            next += 1;
-            let size = self.solve_slot(slot, measure_text);
-            let k = slot_index(slot.axis, slot.kind);
-            self.layout.solver_data[slot.node].solved[k] = size;
-            self.layout.solver_data[slot.node].solved_mask |= 1 << k;
+        let mut next_deferred = 0;
+        loop {
+            while next < self.layout.solve_queue.len() {
+                let slot = self.layout.solve_queue[next];
+                next += 1;
+                self.solve_and_propagate(slot, measure_text);
+            }
 
-            let range = self.layout.solver_data[slot.node].dependents;
-            for d in range[k]..range[k + 1] {
-                let dependent = self.layout.dependents[d as usize];
-                let count = &mut self.layout.solver_data[dependent.node].n_unsolved[slot_index(dependent.axis, dependent.kind)];
-                *count -= 1;
-                if *count == 0 {
-                    self.layout.solve_queue.push(dependent);
-                }
+            let Some(slot) = self.next_deferred(&mut next_deferred) else { return };
+            log::warn!("Keru: Layout3: solving {} with partial information due to a cycle in its layout dependencies.", self[slot.node].debug_name());
+            self.layout.solver_data[slot.node].n_unsolved[slot_index(slot.axis, slot.kind)] = 0;
+            self.layout.solving_deferred = true;
+            self.solve_and_propagate(slot, measure_text);
+            self.layout.solving_deferred = false;
+        }
+    }
+
+    fn solve_and_propagate(&mut self, slot: Slot, measure_text: &mut MeasureText) {
+        let size = self.solve_slot(slot, measure_text);
+        let k = slot_index(slot.axis, slot.kind);
+        self.layout.solver_data[slot.node].solved[k] = size;
+        self.layout.solver_data[slot.node].solved_mask |= 1 << k;
+
+        let range = self.layout.solver_data[slot.node].dependents;
+        for d in range[k]..range[k + 1] {
+            let dependent = self.layout.dependents[d as usize];
+            let dk = slot_index(dependent.axis, dependent.kind);
+            let data = &mut self.layout.solver_data[dependent.node];
+            if data.n_unsolved[dk] == 0 {
+                continue;
+            }
+            data.n_unsolved[dk] -= 1;
+            if data.n_unsolved[dk] == 0 {
+                self.layout.solve_queue.push(dependent);
+            } else if data.deferred_mask & (1 << dk) == 0 {
+                data.deferred_mask |= 1 << dk;
+                self.layout.deferred_queue.push(dependent);
             }
         }
+    }
+
+    fn next_deferred(&self, next: &mut usize) -> Option<Slot> {
+        while *next < self.layout.deferred_queue.len() {
+            let slot = self.layout.deferred_queue[*next];
+            *next += 1;
+            if self.layout.solver_data[slot.node].n_unsolved[slot_index(slot.axis, slot.kind)] != 0 {
+                return Some(slot);
+            }
+        }
+        None
     }
 
     #[inline(always)]
     fn get_solved_value(&self, i: NodeI, axis: Axis, kind: Kind) -> f32 {
         let k = slot_index(axis, kind);
         let slots = &self.layout.solver_data[i];
-        debug_assert!(slots.solved_mask & (1 << k) != 0, "slot {axis:?} {kind:?} of node {i:?} read before it is solved: missing dependency");
+        debug_assert!(slots.solved_mask & (1 << k) != 0 || self.layout.solving_deferred, "slot {axis:?} {kind:?} of node {i:?} read before it is solved: missing dependency");
         slots.solved[k]
     }
 
