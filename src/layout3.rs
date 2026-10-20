@@ -98,14 +98,17 @@ pub(crate) const EMPTY_SOLVER_DATA: SolverData = SolverData {
     grid_lines: Xy { x: 0, y: 0 },
 };
 
-#[inline(always)]
-pub(crate) fn not_fill(size: Size) -> bool {
-    size != Size::Fill
-}
 
-#[inline(always)]
-pub(crate) fn not_flex(size: Size) -> bool {
-    ! matches!(size, Size::Frac(_) | Size::Fill)
+impl Size {
+    #[inline(always)]
+    pub(crate) fn not_fill(&self) -> bool {
+        *self != Size::Fill
+    }
+    
+    #[inline(always)]
+    pub(crate) fn is_flex(&self) -> bool {
+        matches!(self, Size::Frac(_) | Size::Fill)
+    }
 }
 
 macro_rules! for_each_layout_child {
@@ -318,13 +321,13 @@ impl Nodes {
     fn push_dependents(&mut self, i: NodeI, axis: Axis, kind: Kind) {
         let parent = self.links[i].parent;
         let in_parent = i != ROOT_I && ! self.layout.params[i].free_placement;
-        let flex = ! not_flex(self.layout.params[i].size[axis]);
+        let flex = self.layout.params[i].size[axis].is_flex();
 
         match kind {
             Kind::Regular | Kind::Min | Kind::Max => {
                 self.add_dependent(i, axis, Kind::Final);
                 let declared = self.declared(i, axis, kind).unwrap();
-                if in_parent && self.has_even_share(parent, axis) && self.any_size_is_fill(i, axis) && not_fill(declared) {
+                if in_parent && self.has_even_share(parent, axis) && self.any_size_is_fill(i, axis) && declared.not_fill() {
                     self.add_dependent(parent, axis, Kind::EvenShare);
                 }
                 if in_parent && flex && kind != Kind::Regular && ! self.reads_parent(i, axis, declared) {
@@ -569,7 +572,7 @@ impl Nodes {
                         for_each_layout_child!(self, i, child, {
                             if ! self.layout.params[child].free_placement {
                                 let span = self.layout.params[child].grid_span[axis].max(1) as f32;
-                                cell = cell.max((self.child_fit_size(child, axis) - (span - 1.0) * spacing) / span);
+                                cell = cell.max((self.pre_grow_size(child, axis) - (span - 1.0) * spacing) / span);
                             }
                         });
                         cell
@@ -584,7 +587,7 @@ impl Nodes {
                 let mut biggest = 0.0f32;
                 for_each_layout_child!(self, i, child, {
                     if ! self.layout.params[child].free_placement {
-                        biggest = biggest.max(self.child_fit_size(child, axis));
+                        biggest = biggest.max(self.pre_grow_size(child, axis));
                     }
                 });
                 (biggest, 0.0)
@@ -630,7 +633,7 @@ impl Nodes {
                         false => fixed += allowed,
                     }
                 } else {
-                    fixed += self.child_fit_size(child, axis);
+                    fixed += self.pre_grow_size(child, axis);
                 }
             });
 
@@ -652,10 +655,10 @@ impl Nodes {
     }
 
     #[inline(always)]
-    fn child_fit_size(&self, child: NodeI, axis: Axis) -> f32 {
-        match not_flex(self.layout.params[child].size[axis]) {
-            true => self.get_solved_value(child, axis, Kind::Final),
-            false => {
+    fn pre_grow_size(&self, child: NodeI, axis: Axis) -> f32 {
+        match self.layout.params[child].size[axis].is_flex() {
+            false => self.get_solved_value(child, axis, Kind::Final),
+            true => {
                 let min = if let Some(bound) = self.layout.params[child].min_size[axis] && ! self.reads_parent(child, axis, bound) {
                     Some(self.get_solved_value(child, axis, Kind::Min))
                 } else { None };
@@ -699,13 +702,13 @@ impl Nodes {
                 if node.free_placement {
                     // Nothing
                 } else if self.any_size_is_fill(child, axis) {
-                    let content = if not_fill(node.size[axis]) {
+                    let content = if node.size[axis].not_fill() {
                         Some(self.get_solved_value(child, axis, Kind::Regular))
                     } else { None };
-                    let min = if let Some(bound) = node.min_size[axis] && not_fill(bound) {
+                    let min = if let Some(bound) = node.min_size[axis] && bound.not_fill() {
                         Some(self.get_solved_value(child, axis, Kind::Min))
                     } else { None };
-                    let max = if let Some(bound) = node.max_size[axis] && not_fill(bound) {
+                    let max = if let Some(bound) = node.max_size[axis] && bound.not_fill() {
                         Some(self.get_solved_value(child, axis, Kind::Max))
                     } else { None };
                     fills.push(FillChild {
