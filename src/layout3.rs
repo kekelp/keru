@@ -195,6 +195,15 @@ impl Nodes {
     pub(crate) fn has_even_share(&self, i: NodeI, axis: Axis) -> bool {
         self.stack_axis(i) == Some(axis) && self.layout.params[i].size[axis] != Size::FitContent
     }
+
+    #[inline(always)]
+    fn reads_parent(&self, i: NodeI, axis: Axis, size: Size) -> bool {
+        match size {
+            Size::Frac(_) => true,
+            Size::Fill => ! self.is_stacked(i, axis) || self.has_even_share(self.links[i].parent, axis),
+            _ => false,
+        }
+    }
 }
 
 pub(crate) fn layout_params(node: &InnerNode) -> LayoutParams {
@@ -304,7 +313,7 @@ impl Nodes {
                 if in_parent && self.has_even_share(parent, axis) && self.any_size_is_fill(i, axis) && not_fill(declared) {
                     self.add_dependent(parent, axis, Kind::EvenShare);
                 }
-                if in_parent && flex && kind != Kind::Regular && not_flex(declared) {
+                if in_parent && flex && kind != Kind::Regular && ! self.reads_parent(i, axis, declared) {
                     self.add_fitcontents(parent, axis);
                 }
             }
@@ -428,15 +437,11 @@ impl Nodes {
     }
 
     #[inline(always)]
-    fn try_get_solved_value(&self, i: NodeI, axis: Axis, kind: Kind) -> Option<f32> {
+    fn get_solved_value(&self, i: NodeI, axis: Axis, kind: Kind) -> f32 {
         let k = slot_index(axis, kind);
         let slots = &self.layout.solver_data[i];
-        (slots.solved_mask & (1 << k) != 0).then_some(slots.solved[k])
-    }
-
-    #[inline(always)]
-    fn get_solved_value(&self, i: NodeI, axis: Axis, kind: Kind) -> f32 {
-        self.layout.solver_data[i].solved[slot_index(axis, kind)]
+        debug_assert!(slots.solved_mask & (1 << k) != 0, "slot {axis:?} {kind:?} of node {i:?} read before it is solved: missing dependency");
+        slots.solved[k]
     }
 
     #[inline(always)]
@@ -450,8 +455,12 @@ impl Nodes {
         match slot.kind {
             Kind::Regular if i == ROOT_I => 1.0,
             Kind::Final => {
-                let min = self.try_get_solved_value(i, axis, Kind::Min);
-                let max = self.try_get_solved_value(i, axis, Kind::Max);
+                let min = if self.declared(i, axis, Kind::Min).is_some() {
+                    Some(self.get_solved_value(i, axis, Kind::Min))
+                } else { None };
+                let max = if self.declared(i, axis, Kind::Max).is_some() {
+                    Some(self.get_solved_value(i, axis, Kind::Max))
+                } else { None };
                 clamp(self.get_solved_value(i, axis, Kind::Regular), min, max)
             }
             Kind::EvenShare => self.solve_even_share(i, axis),
@@ -563,7 +572,13 @@ impl Nodes {
                 } else if let Size::Frac(frac) = self.layout.params[child].size[axis] {
                     has_frac = true;
                     let wanted = estimate * frac;
-                    let allowed = clamp(wanted, self.try_get_solved_value(child, axis, Kind::Min), self.try_get_solved_value(child, axis, Kind::Max));
+                    let min = if let Some(bound) = self.layout.params[child].min_size[axis] && ! self.reads_parent(child, axis, bound) {
+                        Some(self.get_solved_value(child, axis, Kind::Min))
+                    } else { None };
+                    let max = if let Some(bound) = self.layout.params[child].max_size[axis] && ! self.reads_parent(child, axis, bound) {
+                        Some(self.get_solved_value(child, axis, Kind::Max))
+                    } else { None };
+                    let allowed = clamp(wanted, min, max);
                     match allowed == wanted {
                         true => free_frac += frac,
                         false => fixed += allowed,
@@ -594,7 +609,15 @@ impl Nodes {
     fn child_fit_size(&self, child: NodeI, axis: Axis) -> f32 {
         match not_flex(self.layout.params[child].size[axis]) {
             true => self.get_solved_value(child, axis, Kind::Final),
-            false => clamp(0.0, self.try_get_solved_value(child, axis, Kind::Min), self.try_get_solved_value(child, axis, Kind::Max)),
+            false => {
+                let min = if let Some(bound) = self.layout.params[child].min_size[axis] && ! self.reads_parent(child, axis, bound) {
+                    Some(self.get_solved_value(child, axis, Kind::Min))
+                } else { None };
+                let max = if let Some(bound) = self.layout.params[child].max_size[axis] && ! self.reads_parent(child, axis, bound) {
+                    Some(self.get_solved_value(child, axis, Kind::Max))
+                } else { None };
+                clamp(0.0, min, max)
+            }
         }
     }
 
@@ -630,11 +653,19 @@ impl Nodes {
                 if node.free_placement {
                     // Nothing
                 } else if self.any_size_is_fill(child, axis) {
-                    let content = not_fill(node.size[axis]).then(|| self.get_solved_value(child, axis, Kind::Regular));
+                    let content = if not_fill(node.size[axis]) {
+                        Some(self.get_solved_value(child, axis, Kind::Regular))
+                    } else { None };
+                    let min = if let Some(bound) = node.min_size[axis] && not_fill(bound) {
+                        Some(self.get_solved_value(child, axis, Kind::Min))
+                    } else { None };
+                    let max = if let Some(bound) = node.max_size[axis] && not_fill(bound) {
+                        Some(self.get_solved_value(child, axis, Kind::Max))
+                    } else { None };
                     fills.push(FillChild {
                         content,
-                        min: self.try_get_solved_value(child, axis, Kind::Min),
-                        max: self.try_get_solved_value(child, axis, Kind::Max),
+                        min,
+                        max,
                         capped_by_content: content.is_some() && node.max_size[axis] == Some(Size::Fill),
                         frozen: false,
                     });
