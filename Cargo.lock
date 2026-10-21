@@ -2050,6 +2050,9 @@ dependencies = [
 [[package]]
 name = "keru_graph_layout"
 version = "0.1.0"
+dependencies = [
+ "bumpalo",
+]
 
 [[package]]
 name = "keru_macros"
