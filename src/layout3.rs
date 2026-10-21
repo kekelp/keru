@@ -44,11 +44,16 @@ pub(crate) enum Kind {
     Final,
     EvenShare,
     GridCells,
+    /// Content lower bound of a `FitContent` node that becomes `Fill`. It never reads the parent.
+    ContentMin,
+    /// Content upper bound of a `FitContent` node that becomes `Fill` with only capped `Fill` children. It never reads the parent.
+    ContentMax,
 }
 
-const N_KINDS: usize = 6;
-pub(crate) const KINDS: [Kind; N_KINDS] = [Kind::Regular, Kind::Min, Kind::Max, Kind::Final, Kind::EvenShare, Kind::GridCells];
-pub(crate) const DECLARED: [Kind; 3] = [Kind::Regular, Kind::Min, Kind::Max];
+const N_KINDS: usize = 8;
+pub(crate) const KINDS: [Kind; N_KINDS] = [Kind::Regular, Kind::Min, Kind::Max, Kind::Final, Kind::EvenShare, Kind::GridCells, Kind::ContentMin, Kind::ContentMax];
+/// The kinds that have a `Size`. For `ContentMin` and `ContentMax`, the size is always `FitContent`.
+pub(crate) const DECLARED: [Kind; 5] = [Kind::Regular, Kind::Min, Kind::Max, Kind::ContentMin, Kind::ContentMax];
 pub(crate) const N_SLOTS: usize = 2 * N_KINDS;
 
 #[inline(always)]
@@ -78,12 +83,24 @@ pub(crate) struct SolverData {
     pub grid_cell: Xy<u16>,
     /// The number of columns and rows, if this node is a grid.
     pub grid_lines: Xy<u16>,
+    /// The declared size after `resolve_sizes`. A `FitContent` node with growing `Fill` children can become `Fill` here.
+    pub size: Xy<Size>,
+    /// The declared min size after `resolve_sizes`.
+    pub min_size: Xy<Option<Size>>,
+    /// The declared max size after `resolve_sizes`.
+    pub max_size: Xy<Option<Size>>,
+    /// True if the `ContentMin` slot exists.
+    pub content_min: Xy<bool>,
+    /// True if the `ContentMax` slot exists.
+    pub content_max: Xy<bool>,
 }
 
 const UNSOLVED: [f32; N_SLOTS] = {
     let mut solved = [0.0; N_SLOTS];
     solved[slot_index(X, Kind::Max)] = f32::INFINITY;
     solved[slot_index(Y, Kind::Max)] = f32::INFINITY;
+    solved[slot_index(X, Kind::ContentMax)] = f32::INFINITY;
+    solved[slot_index(Y, Kind::ContentMax)] = f32::INFINITY;
     solved
 };
 
@@ -96,6 +113,11 @@ pub(crate) const EMPTY_SOLVER_DATA: SolverData = SolverData {
     n_placed_children: 0,
     grid_cell: Xy { x: 0, y: 0 },
     grid_lines: Xy { x: 0, y: 0 },
+    size: Xy { x: Size::Pixels(0.0), y: Size::Pixels(0.0) },
+    min_size: Xy { x: None, y: None },
+    max_size: Xy { x: None, y: None },
+    content_min: Xy { x: false, y: false },
+    content_max: Xy { x: false, y: false },
 };
 
 
@@ -173,11 +195,13 @@ impl LayoutTree {
 impl Nodes {
     #[inline(always)]
     pub(crate) fn declared(&self, i: NodeI, axis: Axis, kind: Kind) -> Option<Size> {
-        let node = &self.layout.params[i];
+        let resolved = &self.layout.solver_data[i];
         match kind {
-            Kind::Regular => Some(node.size[axis]),
-            Kind::Min => node.min_size[axis],
-            Kind::Max => node.max_size[axis],
+            Kind::Regular => Some(resolved.size[axis]),
+            Kind::Min => resolved.min_size[axis],
+            Kind::Max => resolved.max_size[axis],
+            Kind::ContentMin => resolved.content_min[axis].then_some(Size::FitContent),
+            Kind::ContentMax => resolved.content_max[axis].then_some(Size::FitContent),
             Kind::Final | Kind::EvenShare | Kind::GridCells => None,
         }
     }
@@ -189,8 +213,7 @@ impl Nodes {
 
     #[inline(always)]
     pub(crate) fn text_wraps(&self, i: NodeI, axis: Axis) -> bool {
-        let node = &self.layout.params[i];
-        axis == Y && node.text == TextContent::Box && ! matches!(node.size[X], Size::AspectRatio(_))
+        axis == Y && self.layout.params[i].text == TextContent::Box && ! matches!(self.layout.solver_data[i].size[X], Size::AspectRatio(_))
     }
 
     #[inline(always)]
@@ -209,17 +232,9 @@ impl Nodes {
 
     #[inline(always)]
     pub(crate) fn has_even_share(&self, i: NodeI, axis: Axis) -> bool {
-        self.stack_axis(i) == Some(axis) && self.layout.params[i].size[axis] != Size::FitContent
+        self.stack_axis(i) == Some(axis) && self.layout.solver_data[i].size[axis] != Size::FitContent
     }
 
-    #[inline(always)]
-    fn reads_parent(&self, i: NodeI, axis: Axis, size: Size) -> bool {
-        match size {
-            Size::Frac(_) => true,
-            Size::Fill => ! self.is_stacked(i, axis) || self.has_even_share(self.links[i].parent, axis),
-            _ => false,
-        }
-    }
 }
 
 pub(crate) fn layout_params(node: &InnerNode) -> LayoutParams {
@@ -257,7 +272,97 @@ impl Nodes {
         self.layout.dependents.clear();
         self.layout.solve_queue.clear();
         self.layout.deferred_queue.clear();
+        self.resolve_sizes(ROOT_I);
         self.build_dependency_graph_recursive(ROOT_I);
+    }
+
+    fn resolve_sizes(&mut self, i: NodeI) {
+        for_each_layout_child!(self, i, child, {
+            self.resolve_sizes(child);
+        });
+
+        let params = &self.layout.params[i];
+        let mut size = params.size;
+        let mut content_min = Xy::new(false, false);
+        let mut content_max = Xy::new(false, false);
+        for axis in [X, Y] {
+            if self.fit_becomes_fill(i, axis) {
+                size[axis] = Size::Fill;
+                // Keep the content as a lower bound, so that the node doesn't get smaller than its children
+                content_min[axis] = true;
+                // If no child can grow to infinity, the content is also an upper bound.
+                content_max[axis] = self.growth_is_capped(i, axis);
+            }
+        }
+        let resolved = &mut self.layout.solver_data[i];
+        resolved.size = size;
+        resolved.min_size = params.min_size;
+        resolved.max_size = params.max_size;
+        resolved.content_min = content_min;
+        resolved.content_max = content_max;
+
+        // A stack without even-share has no space to share, so the Fill bounds of its stacked children don't apply. After this, every Fill bound reads the parent.
+        for axis in [X, Y] {
+            if self.stack_axis(i) == Some(axis) && ! self.has_even_share(i, axis) {
+                for_each_layout_child!(self, i, child, {
+                    if ! self.layout.params[child].free_placement {
+                        let resolved = &mut self.layout.solver_data[child];
+                        if resolved.min_size[axis] == Some(Size::Fill) {
+                            resolved.min_size[axis] = None;
+                        }
+                        if resolved.max_size[axis] == Some(Size::Fill) {
+                            resolved.max_size[axis] = None;
+                        }
+                    }
+                });
+            }
+        }
+    }
+
+    fn fit_becomes_fill(&self, i: NodeI, axis: Axis) -> bool {
+        let params = &self.layout.params[i];
+        if params.size[axis] != Size::FitContent {
+            return false;
+        }
+        let stacked = match params.children_layout {
+            ChildrenLayout::Stack { axis: stack_axis, .. } => stack_axis == axis,
+            ChildrenLayout::Free => false,
+            ChildrenLayout::Grid { .. } => return false,
+        };
+
+        let mut any_grows = false;
+        let mut all_grow = true;
+        for_each_layout_child!(self, i, child, {
+            if ! self.layout.params[child].free_placement {
+                let grows = self.grows(child, axis);
+                any_grows |= grows;
+                all_grow &= grows;
+            }
+        });
+
+        match stacked {
+            // Stacked Fill children always collapse in a FitContent stack.
+            true => any_grows,
+            // On the cross axis and in free layouts, Fill children stretch to the biggest sibling. They collapse only if there is no other content.
+            false => any_grows && all_grow && params.text == TextContent::None && params.image.is_none(),
+        }
+    }
+
+    /// A child that would grow into the space given by a `FitContent` parent that becomes `Fill`.
+    #[inline(always)]
+    fn grows(&self, child: NodeI, axis: Axis) -> bool {
+        self.layout.solver_data[child].size[axis] == Size::Fill
+    }
+
+    fn growth_is_capped(&self, i: NodeI, axis: Axis) -> bool {
+        let mut capped = true;
+        for_each_layout_child!(self, i, child, {
+            if ! self.layout.params[child].free_placement && self.grows(child, axis) {
+                let resolved = &self.layout.solver_data[child];
+                capped &= resolved.content_max[axis] || resolved.max_size[axis].is_some_and(|max| ! max.is_flex());
+            }
+        });
+        capped
     }
 
     fn build_dependency_graph_recursive(&mut self, i: NodeI) {
@@ -299,7 +404,7 @@ impl Nodes {
     fn slot_exists(&self, i: NodeI, axis: Axis, kind: Kind) -> bool {
         match kind {
             Kind::Regular | Kind::Final => true,
-            Kind::Min | Kind::Max => self.declared(i, axis, kind).is_some(),
+            Kind::Min | Kind::Max | Kind::ContentMin | Kind::ContentMax => self.declared(i, axis, kind).is_some(),
             Kind::EvenShare => self.has_even_share(i, axis),
             Kind::GridCells => self.grid_main_axis(i) == Some(axis),
         }
@@ -321,16 +426,15 @@ impl Nodes {
     fn push_dependents(&mut self, i: NodeI, axis: Axis, kind: Kind) {
         let parent = self.links[i].parent;
         let in_parent = i != ROOT_I && ! self.layout.params[i].free_placement;
-        let flex = self.layout.params[i].size[axis].is_flex();
 
         match kind {
-            Kind::Regular | Kind::Min | Kind::Max => {
+            Kind::Regular | Kind::Min | Kind::Max | Kind::ContentMin | Kind::ContentMax => {
                 self.add_dependent(i, axis, Kind::Final);
                 let declared = self.declared(i, axis, kind).unwrap();
                 if in_parent && self.has_even_share(parent, axis) && self.any_size_is_fill(i, axis) && declared.not_fill() {
                     self.add_dependent(parent, axis, Kind::EvenShare);
                 }
-                if in_parent && flex && kind != Kind::Regular && ! self.reads_parent(i, axis, declared) {
+                if in_parent && ! declared.is_flex() {
                     self.add_fitcontents(parent, axis);
                 }
             }
@@ -351,9 +455,6 @@ impl Nodes {
                 }
                 if in_parent && self.has_even_share(parent, axis) && ! self.any_size_is_fill(i, axis) {
                     self.add_dependent(parent, axis, Kind::EvenShare);
-                }
-                if in_parent && ! flex {
-                    self.add_fitcontents(parent, axis);
                 }
                 for_each_layout_child!(self, i, child, {
                     self.add_available_from_parent_readers(child, axis);
@@ -504,12 +605,7 @@ impl Nodes {
         match slot.kind {
             Kind::Regular if i == ROOT_I => 1.0,
             Kind::Final => {
-                let min = if self.declared(i, axis, Kind::Min).is_some() {
-                    Some(self.get_solved_value(i, axis, Kind::Min))
-                } else { None };
-                let max = if self.declared(i, axis, Kind::Max).is_some() {
-                    Some(self.get_solved_value(i, axis, Kind::Max))
-                } else { None };
+                let (min, max) = self.solved_bounds(i, axis, |_| false);
                 clamp(self.get_solved_value(i, axis, Kind::Regular), min, max)
             }
             Kind::EvenShare => self.solve_even_share(i, axis),
@@ -524,7 +620,10 @@ impl Nodes {
                         Y => other * window_aspect / aspect,
                     }
                 }
-                Size::FitContent => self.solve_fitcontent(i, axis, measure_text),
+                Size::FitContent => {
+                    let is_max_bound = matches!(declared, Kind::Max | Kind::ContentMax);
+                    self.solve_fitcontent(i, axis, is_max_bound, measure_text)
+                },
                 Size::Frac(frac) => self.available_from_parent(i, axis) * frac,
                 Size::Fill if self.is_stacked(i, axis) => {
                     let parent = self.links[i].parent;
@@ -536,6 +635,24 @@ impl Nodes {
                 Size::Fill => self.available_from_parent(i, axis),
             },
         }
+    }
+
+    #[inline(always)]
+    fn solved_bounds(&self, i: NodeI, axis: Axis, ignore_bounds_rule: impl Fn(Size) -> bool) -> (Option<f32>, Option<f32>) {
+        let resolved = &self.layout.solver_data[i];
+        let min = if let Some(bound) = resolved.min_size[axis] && ! ignore_bounds_rule(bound) {
+            Some(self.get_solved_value(i, axis, Kind::Min))
+        } else { None };
+        let max = if let Some(bound) = resolved.max_size[axis] && ! ignore_bounds_rule(bound) {
+            Some(self.get_solved_value(i, axis, Kind::Max))
+        } else { None };
+        let final_min = if resolved.content_min[axis] {
+            Some(clamp(self.get_solved_value(i, axis, Kind::ContentMin), min, max))
+        } else { min };
+        let final_max = if resolved.content_max[axis] {
+            Some(clamp(self.get_solved_value(i, axis, Kind::ContentMax), min, max))
+        } else { max };
+        (final_min, final_max)
     }
 
     fn available_from_parent(&self, i: NodeI, axis: Axis) -> f32 {
@@ -559,20 +676,19 @@ impl Nodes {
         }
     }
 
-    fn solve_fitcontent(&mut self, i: NodeI, axis: Axis, measure_text: &mut MeasureText) -> f32 {
+    fn solve_fitcontent(&mut self, i: NodeI, axis: Axis, is_max_bound: bool, measure_text: &mut MeasureText) -> f32 {
         let (children, gaps) = match self.layout.params[i].children_layout {
             ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow } => {
                 let spacing = self.pixels_to_frac(Xy::new(spacing_x, spacing_y)[axis], axis);
                 let n = self.layout.solver_data[i].grid_lines[axis] as f32;
                 let cell = match columns {
                     MainAxisCellSize::Width(w) if axis == flow.main_axis => self.pixels_to_frac(w, axis),
-                    // Each cell is as big as the biggest child in it.
                     _ => {
                         let mut cell = 0.0f32;
                         for_each_layout_child!(self, i, child, {
                             if ! self.layout.params[child].free_placement {
                                 let span = self.layout.params[child].grid_span[axis].max(1) as f32;
-                                cell = cell.max((self.pre_grow_size(child, axis) - (span - 1.0) * spacing) / span);
+                                cell = cell.max((self.pre_grow_size(child, axis, is_max_bound) - (span - 1.0) * spacing) / span);
                             }
                         });
                         cell
@@ -581,13 +697,13 @@ impl Nodes {
                 ((n * cell + spacing * (n - 1.0)).max(0.0), 0.0)
             }
             ChildrenLayout::Stack { axis: stack_axis, .. } if stack_axis == axis => {
-                (self.fit_stack_main(i, axis), self.stack_gaps(i, axis))
+                (self.fit_stack_main(i, axis, is_max_bound), self.stack_gaps(i, axis))
             }
             ChildrenLayout::Stack { .. } | ChildrenLayout::Free => {
                 let mut biggest = 0.0f32;
                 for_each_layout_child!(self, i, child, {
                     if ! self.layout.params[child].free_placement {
-                        biggest = biggest.max(self.pre_grow_size(child, axis));
+                        biggest = biggest.max(self.pre_grow_size(child, axis, is_max_bound));
                     }
                 });
                 (biggest, 0.0)
@@ -609,7 +725,7 @@ impl Nodes {
         children.max(own_content) + gaps + 2.0 * self.padding(i, axis)
     }
 
-    fn fit_stack_main(&self, i: NodeI, axis: Axis) -> f32 {
+    fn fit_stack_main(&self, i: NodeI, axis: Axis, at_max: bool) -> f32 {
         let mut estimate = 0.0f32;
         for _ in 0..MAX_FIT_STACK_STEPS {
             let mut fixed = 0.0f32;
@@ -618,26 +734,22 @@ impl Nodes {
             for_each_layout_child!(self, i, child, {
                 if self.layout.params[child].free_placement {
                     // Free children aren't part of the stack.
-                } else if let Size::Frac(frac) = self.layout.params[child].size[axis] {
+                } else if let Size::Frac(frac) = self.layout.solver_data[child].size[axis] {
                     has_frac = true;
                     let wanted = estimate * frac;
-                    let min = if let Some(bound) = self.layout.params[child].min_size[axis] && ! self.reads_parent(child, axis, bound) {
-                        Some(self.get_solved_value(child, axis, Kind::Min))
-                    } else { None };
-                    let max = if let Some(bound) = self.layout.params[child].max_size[axis] && ! self.reads_parent(child, axis, bound) {
-                        Some(self.get_solved_value(child, axis, Kind::Max))
-                    } else { None };
+                    let (min, max) = self.solved_bounds(child, axis, |bound| bound.is_flex());
                     let allowed = clamp(wanted, min, max);
                     match allowed == wanted {
                         true => free_frac += frac,
                         false => fixed += allowed,
                     }
                 } else {
-                    fixed += self.pre_grow_size(child, axis);
+                    fixed += self.pre_grow_size(child, axis, at_max);
                 }
             });
 
-            if ! has_frac {
+            // An infinite fixed part comes from an uncapped child at its max. The loop below can't improve on it.
+            if ! has_frac || fixed == f32::INFINITY {
                 return fixed;
             }
 
@@ -655,19 +767,15 @@ impl Nodes {
     }
 
     #[inline(always)]
-    fn pre_grow_size(&self, child: NodeI, axis: Axis) -> f32 {
-        match self.layout.params[child].size[axis].is_flex() {
-            false => self.get_solved_value(child, axis, Kind::Final),
-            true => {
-                let min = if let Some(bound) = self.layout.params[child].min_size[axis] && ! self.reads_parent(child, axis, bound) {
-                    Some(self.get_solved_value(child, axis, Kind::Min))
-                } else { None };
-                let max = if let Some(bound) = self.layout.params[child].max_size[axis] && ! self.reads_parent(child, axis, bound) {
-                    Some(self.get_solved_value(child, axis, Kind::Max))
-                } else { None };
-                clamp(0.0, min, max)
-            }
-        }
+    fn pre_grow_size(&self, child: NodeI, axis: Axis, at_max: bool) -> f32 {
+        let size = match self.layout.solver_data[child].size[axis] {
+            // A Fill child at its max grows until its max stops it, if it has one.
+            Size::Fill if at_max => f32::INFINITY,
+            size if size.is_flex() => 0.0,
+            _ => self.get_solved_value(child, axis, Kind::Regular),
+        };
+        let (min, max) = self.solved_bounds(child, axis, |bound| bound.is_flex());
+        clamp(size, min, max)
     }
 
     fn solve_even_share(&self, i: NodeI, axis: Axis) -> f32 {
@@ -699,23 +807,19 @@ impl Nodes {
             let mut fills = BumpVec::new_in(arena);
             for_each_layout_child!(self, i, child, {
                 let node = &self.layout.params[child];
+                let resolved = &self.layout.solver_data[child];
                 if node.free_placement {
                     // Nothing
                 } else if self.any_size_is_fill(child, axis) {
-                    let content = if node.size[axis].not_fill() {
+                    let content = if resolved.size[axis].not_fill() {
                         Some(self.get_solved_value(child, axis, Kind::Regular))
                     } else { None };
-                    let min = if let Some(bound) = node.min_size[axis] && bound.not_fill() {
-                        Some(self.get_solved_value(child, axis, Kind::Min))
-                    } else { None };
-                    let max = if let Some(bound) = node.max_size[axis] && bound.not_fill() {
-                        Some(self.get_solved_value(child, axis, Kind::Max))
-                    } else { None };
+                    let (min, max) = self.solved_bounds(child, axis, |bound| bound == Size::Fill);
                     fills.push(FillChild {
                         content,
                         min,
                         max,
-                        capped_by_content: content.is_some() && node.max_size[axis] == Some(Size::Fill),
+                        capped_by_content: content.is_some() && resolved.max_size[axis] == Some(Size::Fill),
                         frozen: false,
                     });
                 } else {
