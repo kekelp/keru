@@ -14,6 +14,7 @@ members = [
     "crates/keru_draw",
     "crates/keru_text",
     "crates/keru_bindings",
+    "crates/keru_graph_layout",
     "examples/subsecond",
 ]
 
