@@ -1,26 +1,27 @@
 use crate::*;
 
 #[derive(Clone, Copy)]
-struct ParentFrame {
+pub(crate) struct ParentFrame {
     rect: XyRect,
     padding: Xy<f32>,
     flipped: Xy<bool>,
 }
 
-impl<T: TreeAdapter> Solver<'_, T> {
-    pub(crate) fn place_all(&mut self) {
+/// The placement part of the layout. Every `TreeAdapter` gets it from the blanket impl.
+pub(crate) trait Place: Solve {
+    fn place_nodes(&mut self) {
         let window = Xy::new([0.0, 1.0], [0.0, 1.0]);
-        self.place(self.tree.root(), window, window);
+        self.place(self.root(), window, window);
     }
 
     /// Gives a node its final rect, then places its children inside it. The rects are not stored: each one goes to `write_output_rect`, and down the recursion.
-    fn place(&mut self, i: T::NodeId, rect: XyRect, parent_rect: XyRect) {
+    fn place(&mut self, i: Self::NodeId, rect: XyRect, parent_rect: XyRect) {
         let local_rect = Xy::new(
             [rect.x[0] - parent_rect.x[0], rect.x[1] - parent_rect.x[0]],
             [rect.y[0] - parent_rect.y[0], rect.y[1] - parent_rect.y[0]],
         );
-        self.tree.write_output_rect(i, rect, local_rect);
-        match self.tree.params(i).children_layout {
+        self.write_output_rect(i, rect, local_rect);
+        match self.params(i).children_layout {
             ChildrenLayout::Free => self.place_children_free(i, rect),
             ChildrenLayout::Stack { arrange, axis, spacing } => self.place_children_stack(i, rect, axis, arrange, spacing),
             ChildrenLayout::Grid { spacing_x, spacing_y, .. } => self.place_children_grid(i, rect, spacing_x, spacing_y),
@@ -28,19 +29,19 @@ impl<T: TreeAdapter> Solver<'_, T> {
     }
 
     /// Places a freely placed node and its subtree, inside the rect of its parent. It panics if the node is not freely placed.
-    pub(crate) fn place_free_placed_subtree(&mut self, node: T::NodeId, parent_rect: XyRect) {
-        assert!(node != self.tree.root(), "place_free_placed_subtree called on the root, which is not freely placed");
-        let parent = self.tree.parent(node);
-        let is_free = self.tree.params(node).free_placement || self.tree.params(parent).children_layout == ChildrenLayout::Free;
+    fn place_free_node(&mut self, node: Self::NodeId, parent_rect: XyRect) {
+        assert!(node != self.root(), "place_free_placed_subtree called on the root, which is not freely placed");
+        let parent = self.parent(node);
+        let is_free = self.params(node).free_placement || self.params(parent).children_layout == ChildrenLayout::Free;
         assert!(is_free, "place_free_placed_subtree called on {node:?}, which is not freely placed");
         let frame = self.parent_frame(parent, parent_rect);
-        self.place_child_free(node, &frame, self.size(node));
+        self.place_child_free(node, &frame, self.layout_data(node).size());
     }
 
     #[inline(always)]
-    fn parent_frame(&self, i: T::NodeId, rect: XyRect) -> ParentFrame {
-        let params = self.tree.params(i);
-        let window = self.window_size;
+    fn parent_frame(&self, i: Self::NodeId, rect: XyRect) -> ParentFrame {
+        let params = self.params(i);
+        let window = self.window_size();
         ParentFrame {
             rect,
             padding: Xy::new(params.padding.x / window.x, params.padding.y / window.y),
@@ -48,20 +49,20 @@ impl<T: TreeAdapter> Solver<'_, T> {
         }
     }
 
-    fn place_children_stack(&mut self, i: T::NodeId, rect: XyRect, axis: Axis, arrange: Arrange, spacing: f32) {
+    fn place_children_stack(&mut self, i: Self::NodeId, rect: XyRect, axis: Axis, arrange: Arrange, spacing: f32) {
         let (main, cross) = (axis, axis.other());
         let frame = self.parent_frame(i, rect);
         let stack_rect = frame.rect;
         let padding = frame.padding;
-        let spacing = spacing / self.window_size[axis];
+        let spacing = spacing / self.window_size()[axis];
 
         // On the main axis, totally ignore the children's chosen Position's and place them according to our own Stack::Arrange value.
 
         let mut n: u32 = 0;
         let mut children_size = 0.0;
         for_each_layout_child!(self, i, child, {
-            if ! self.tree.params(child).free_placement {
-                children_size += self.size(child)[main];
+            if ! self.params(child).free_placement {
+                children_size += self.layout_data(child).size()[main];
                 n += 1;
             }
         });
@@ -97,8 +98,8 @@ impl<T: TreeAdapter> Solver<'_, T> {
         };
 
         for_each_layout_child!(self, i, child, {
-            let child_size = self.size(child);
-            if self.tree.params(child).free_placement {
+            let child_size = self.layout_data(child).size();
+            if self.params(child).free_placement {
                 self.place_child_free(child, &frame, child_size);
             } else {
                 let mut child_rect = Xy::new([0.0, 0.0], [0.0, 0.0]);
@@ -110,12 +111,12 @@ impl<T: TreeAdapter> Solver<'_, T> {
         });
     }
 
-    fn place_children_grid(&mut self, i: T::NodeId, rect: XyRect, spacing_x: f32, spacing_y: f32) {
-        let lines = self.data(i).grid_lines;
+    fn place_children_grid(&mut self, i: Self::NodeId, rect: XyRect, spacing_x: f32, spacing_y: f32) {
+        let lines = self.layout_data(i).grid_lines;
 
         let frame = self.parent_frame(i, rect);
-        let spacing = Xy::new(spacing_x / self.window_size.x, spacing_y / self.window_size.y);
-        let size = self.size(i);
+        let spacing = Xy::new(spacing_x / self.window_size().x, spacing_y / self.window_size().y);
+        let size = self.layout_data(i).size();
         let mut cell = Xy::new(0.0, 0.0);
         for axis in [X, Y] {
             let n = lines[axis] as f32;
@@ -123,11 +124,11 @@ impl<T: TreeAdapter> Solver<'_, T> {
         }
 
         for_each_layout_child!(self, i, child, {
-            let child_size = self.size(child);
-            if self.tree.params(child).free_placement {
+            let child_size = self.layout_data(child).size();
+            if self.params(child).free_placement {
                 self.place_child_free(child, &frame, child_size);
             } else {
-                let child_cell = self.data(child).grid_cell;
+                let child_cell = self.layout_data(child).grid_cell;
                 let mut child_rect = Xy::new([0.0, 0.0], [0.0, 0.0]);
                 for axis in [X, Y] {
                     let start = frame.rect[axis][0] + frame.padding[axis] + child_cell[axis] as f32 * (cell[axis] + spacing[axis]);
@@ -139,11 +140,11 @@ impl<T: TreeAdapter> Solver<'_, T> {
     }
 
     #[inline(always)]
-    fn resolve_pos_on_axis(&self, frame: &ParentFrame, child: T::NodeId, axis: Axis, child_size: f32) -> [f32; 2] {
+    fn resolve_pos_on_axis(&self, frame: &ParentFrame, child: Self::NodeId, axis: Axis, child_size: f32) -> [f32; 2] {
         let rect = frame.rect;
         let padding = frame.padding[axis];
         let flipped = frame.flipped[axis];
-        let params = self.tree.params(child);
+        let params = self.params(child);
 
         let anchor_frac = anchor_frac(params.anchor[axis]);
 
@@ -168,7 +169,7 @@ impl<T: TreeAdapter> Solver<'_, T> {
                 if ! flipped { [far_edge - child_size, far_edge] } else { [far_edge, far_edge + child_size] }
             },
             Pos::Pixels(pixels) => {
-                let static_pos = pixels / self.window_size[axis];
+                let static_pos = pixels / self.window_size()[axis];
                 place_at(if ! flipped { origin_edge + static_pos } else { origin_edge - static_pos })
             },
             Pos::Frac(frac) => {
@@ -184,7 +185,7 @@ impl<T: TreeAdapter> Solver<'_, T> {
     }
 
     #[inline(always)]
-    fn place_child_free(&mut self, child: T::NodeId, frame: &ParentFrame, child_size: Xy<f32>) {
+    fn place_child_free(&mut self, child: Self::NodeId, frame: &ParentFrame, child_size: Xy<f32>) {
         let mut child_rect = Xy::new([0.0, 0.0], [0.0, 0.0]);
         for axis in [X, Y] {
             let rect = self.resolve_pos_on_axis(frame, child, axis, child_size[axis]);
@@ -193,8 +194,8 @@ impl<T: TreeAdapter> Solver<'_, T> {
         self.place(child, child_rect, frame.rect);
     }
 
-    fn apply_window_overflow(&self, frame: &ParentFrame, child: T::NodeId, axis: Axis, rect: [f32; 2]) -> [f32; 2] {
-        let params = self.tree.params(child);
+    fn apply_window_overflow(&self, frame: &ParentFrame, child: Self::NodeId, axis: Axis, rect: [f32; 2]) -> [f32; 2] {
+        let params = self.params(child);
         let behavior = params.window_overflow[axis];
         if behavior == WindowOverflow::Ignore {
             return rect;
@@ -240,14 +241,16 @@ impl<T: TreeAdapter> Solver<'_, T> {
         [lo, hi]
     }
 
-    fn place_children_free(&mut self, i: T::NodeId, rect: XyRect) {
+    fn place_children_free(&mut self, i: Self::NodeId, rect: XyRect) {
         let frame = self.parent_frame(i, rect);
         for_each_layout_child!(self, i, child, {
-            let child_size = self.size(child);
+            let child_size = self.layout_data(child).size();
             self.place_child_free(child, &frame, child_size);
         });
     }
 }
+
+impl<T: TreeAdapter + ?Sized> Place for T {}
 
 /// The anchor point of a node, as a fraction of its size from its origin-side edge.
 #[inline(always)]

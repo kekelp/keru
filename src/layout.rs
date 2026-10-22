@@ -1,4 +1,5 @@
 use glam::vec2;
+use keru_graph_layout::TreeAdapter;
 
 use crate::*;
 use crate::inner_node::*;
@@ -200,8 +201,7 @@ impl Ui {
             let Some(node_i) = self.sys.nodes.get_by_id(key.id_with_key_scope()) else {
                 continue;
             };
-            let window = self.sys.gl_window();
-            keru_graph_layout::place_free_placed_subtree(&mut self.sys, node_i, container_rect, window);
+            self.sys.place_free_placed_subtree(node_i, container_rect);
         }
     }
 

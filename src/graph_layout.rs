@@ -1,16 +1,11 @@
 use keru_graph_layout as gl;
+use keru_graph_layout::TreeAdapter;
 
 use crate::*;
 use crate::inner_node::*;
 use crate::Axis::{X, Y};
 
 impl System {
-    /// The logical window size, as the layout crate wants it.
-    pub(crate) fn gl_window(&self) -> gl::Xy<f32> {
-        let window = self.logical_size();
-        gl::Xy::new(window.x, window.y)
-    }
-
     /// Push the node's final inner size into its text box or text edit.
     fn write_text_size(&mut self, i: NodeI) {
         let logical_window = self.logical_size();
@@ -84,6 +79,11 @@ impl gl::TreeAdapter for System {
     fn measure_text(&mut self, i: NodeI, width: Option<f32>) -> gl::Xy<f32> {
         let size = measure_text(&mut self.renderer.text, self.nodes[i].text_i.as_ref().unwrap(), width, self.size);
         gl::Xy::new(size.x, size.y)
+    }
+
+    fn window_size(&self) -> gl::Xy<f32> {
+        let window = self.logical_size();
+        gl::Xy::new(window.x, window.y)
     }
 
     fn write_output_rect(&mut self, i: NodeI, rect: gl::XyRect, local_rect: gl::XyRect) {
@@ -266,10 +266,8 @@ pub(crate) fn image_size(node: &InnerNode) -> Option<gl::Xy<f32>> {
 }
 
 impl Ui {
-    /// Solves the sizes and places all the nodes. The layout crate writes the results into the nodes through `System::write_output_rect`.
     pub(crate) fn compute_layout(&mut self) {
-        let window = self.sys.gl_window();
-        gl::compute(&mut self.sys, window);
+        self.sys.solve_layout();
     }
 }
 

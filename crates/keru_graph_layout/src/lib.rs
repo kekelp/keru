@@ -7,8 +7,9 @@ use std::cell::RefCell;
 use std::fmt::Debug;
 use std::ops::{Index, IndexMut};
 
-pub use solve::{LayoutParams, NodeLayout, TextContent, compute, place_free_placed_subtree, solve};
+pub use solve::NodeLayout;
 pub(crate) use solve::*;
+pub(crate) use place::Place;
 pub use example_tree::{ExampleTree, NodeI, ROOT_I};
 
 pub trait TreeAdapter {
@@ -25,6 +26,19 @@ pub trait TreeAdapter {
     /// Called when the layout solver computes the end result for a node's rectangle.
     /// The output is provided in both absolute coordinates and relative to the parent.
     fn write_output_rect(&mut self, i: Self::NodeId, rect: XyRect, local_rect: XyRect);
+    /// The size of the window, in logical pixels. The layout converts all pixel values to fractions of it.
+    fn window_size(&self) -> Xy<f32>;
+
+    /// Solves the layout on all nodes.
+    fn solve_layout(&mut self) {
+        self.measure_sizes();
+        self.place_nodes();
+    }
+
+    /// Places a free-placement node into a new position. Can be used to move scroll bars without requiring a full relayout.
+    fn place_free_placed_subtree(&mut self, node: Self::NodeId, parent_rect: XyRect) {
+        self.place_free_node(node, parent_rect);
+    }
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
@@ -171,6 +185,52 @@ pub enum ChildrenLayout {
         spacing_y: f32,
         flow: GridFlow,
     },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TextContent {
+    None,
+    Box,
+    Edit,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LayoutParams {
+    pub size: Xy<Size>,
+    pub min_size: Xy<Option<Size>>,
+    pub max_size: Xy<Option<Size>>,
+    pub padding: Xy<f32>,
+    pub children_layout: ChildrenLayout,
+    pub free_placement: bool,
+    pub grid_span: Xy<u16>,
+    pub text: TextContent,
+    pub image: Option<Xy<f32>>,
+    /// For "exiting nodes".
+    pub disabled: bool,
+    pub position: Xy<Pos>,
+    pub anchor: Xy<Anchor>,
+    /// True if the children are placed from the right or the bottom edge.
+    pub children_origin_flipped: Xy<bool>,
+    pub window_overflow: Xy<WindowOverflow>,
+}
+
+impl LayoutParams {
+    pub const DEFAULT: LayoutParams = LayoutParams {
+        size: Xy { x: Size::FitContent, y: Size::FitContent },
+        min_size: Xy { x: None, y: None },
+        max_size: Xy { x: None, y: None },
+        padding: Xy { x: 0.0, y: 0.0 },
+        children_layout: ChildrenLayout::Free,
+        free_placement: false,
+        grid_span: Xy { x: 1, y: 1 },
+        text: TextContent::None,
+        image: None,
+        disabled: false,
+        position: Xy { x: Pos::Center, y: Pos::Center },
+        anchor: Xy { x: Anchor::Start, y: Anchor::Start },
+        children_origin_flipped: Xy { x: false, y: false },
+        window_overflow: Xy { x: WindowOverflow::Ignore, y: WindowOverflow::Ignore },
+    };
 }
 
 thread_local! {
