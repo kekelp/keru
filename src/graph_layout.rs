@@ -44,7 +44,7 @@ impl System {
 
 /// The keru tree, as the layout crate sees it.
 impl gl::TreeAdapter for System {
-    type Node = NodeI;
+    type NodeId = NodeI;
 
     #[inline(always)]
     fn root(&self) -> NodeI {
