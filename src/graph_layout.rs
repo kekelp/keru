@@ -53,6 +53,10 @@ impl gl::TreeAdapter for KeruTree<'_> {
         let size = measure_text(self.text, self.nodes[i].text_i.as_ref().unwrap(), width, self.window);
         gl::Xy::new(size.x, size.y)
     }
+
+    fn write_output_rect(&mut self, i: NodeI, rect: gl::XyRect) {
+        self.nodes[i].layout_rect = XyRect::new(rect.x, rect.y);
+    }
 }
 
 pub(crate) const EMPTY_PARAMS: gl::LayoutParams = gl::LayoutParams {
@@ -98,6 +102,14 @@ fn gl_anchor(anchor: Anchor) -> gl::Anchor {
         Anchor::Center => gl::Anchor::Center,
         Anchor::End => gl::Anchor::End,
         Anchor::Frac(f) => gl::Anchor::Frac(f),
+    }
+}
+
+fn gl_window_overflow(window_overflow: WindowOverflow) -> gl::WindowOverflow {
+    match window_overflow {
+        WindowOverflow::Ignore => gl::WindowOverflow::Ignore,
+        WindowOverflow::Clamp => gl::WindowOverflow::Clamp,
+        WindowOverflow::Flip => gl::WindowOverflow::Flip,
     }
 }
 
@@ -169,6 +181,7 @@ pub(crate) fn layout_params(node: &InnerNode) -> gl::LayoutParams {
             layout.children_origin_x == HorizontalOrigin::Right,
             layout.children_origin_y == VerticalOrigin::Bottom,
         ),
+        window_overflow: gl_xy(layout.window_overflow, gl_window_overflow),
     }
 }
 

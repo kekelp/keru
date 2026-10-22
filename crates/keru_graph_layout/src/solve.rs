@@ -25,6 +25,7 @@ pub struct LayoutParams {
     pub anchor: Xy<Anchor>,
     /// True if the children are placed from the right or the bottom edge.
     pub children_origin_flipped: Xy<bool>,
+    pub window_overflow: Xy<WindowOverflow>,
 }
 
 impl LayoutParams {
@@ -42,6 +43,7 @@ impl LayoutParams {
         position: Xy { x: Pos::Center, y: Pos::Center },
         anchor: Xy { x: Anchor::Start, y: Anchor::Start },
         children_origin_flipped: Xy { x: false, y: false },
+        window_overflow: Xy { x: WindowOverflow::Ignore, y: WindowOverflow::Ignore },
     };
 }
 
@@ -136,13 +138,11 @@ macro_rules! for_each_layout_child {
 #[derive(Debug, Clone, Copy)]
 pub struct NodeLayout {
     pub(crate) solver: SolverData,
-    pub(crate) rect: XyRect,
 }
 
 impl NodeLayout {
     pub const EMPTY: NodeLayout = NodeLayout {
         solver: EMPTY_SOLVER_DATA,
-        rect: Xy { x: [0.0, 0.0], y: [0.0, 0.0] },
     };
 
     /// The solved size of the node, in fractions of the window size.
@@ -160,20 +160,6 @@ impl NodeLayout {
     pub fn grid_lines(&self) -> Xy<u16> {
         self.solver.grid_lines
     }
-
-    /// The rect of the node, in fractions of the window size. Only `compute` sets it.
-    pub fn rect(&self) -> XyRect {
-        self.rect
-    }
-
-    /// The rect of the node, in pixels. Only `compute` sets it.
-    pub fn rect_px(&self, window_size: Xy<f32>) -> XyRect {
-        let rect = self.rect;
-        Xy::new(
-            [rect.x[0] * window_size.x, rect.x[1] * window_size.x],
-            [rect.y[0] * window_size.y, rect.y[1] * window_size.y],
-        )
-    }
 }
 
 impl Default for NodeLayout {
@@ -182,7 +168,7 @@ impl Default for NodeLayout {
     }
 }
 
-/// Solves the sizes and places the nodes. The results are in the `NodeLayout` of each node. Returns the number of slots that were read before they were solved, because of cycles.
+/// Solves the sizes and places the nodes. The sizes are in the `NodeLayout` of each node, and the rects go to `TreeAdapter::write_output_rect`. Returns the number of slots that were read before they were solved, because of cycles.
 pub fn compute<T: TreeAdapter>(tree: &mut T, window_size: Xy<f32>) -> usize {
     reset_arena();
     let mut solver = Solver { tree, window_size, n_deferred_solves: 0 };
@@ -215,16 +201,6 @@ impl<T: TreeAdapter> Solver<'_, T> {
     #[inline(always)]
     pub(crate) fn data_mut(&mut self, i: T::Node) -> &mut SolverData {
         &mut self.tree.layout_data_mut(i).solver
-    }
-
-    #[inline(always)]
-    pub(crate) fn rect(&self, i: T::Node) -> XyRect {
-        self.tree.layout_data(i).rect
-    }
-
-    #[inline(always)]
-    pub(crate) fn rect_mut(&mut self, i: T::Node) -> &mut XyRect {
-        &mut self.tree.layout_data_mut(i).rect
     }
 
     #[inline(always)]
@@ -455,9 +431,6 @@ impl<T: TreeAdapter> Solver<'_, T> {
         let data = self.data_mut(slot.node);
         data.values[k] = size;
         data.states = (data.states & ! (3 << (2 * k))) | (SOLVED << (2 * k));
-        if slot.kind == Kind::Final {
-            self.rect_mut(slot.node)[slot.axis] = [0.0, size];
-        }
     }
 
     #[inline(always)]

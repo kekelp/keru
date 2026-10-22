@@ -93,6 +93,18 @@ pub enum Pos {
     Frac(f32),
 }
 
+/// What to do if a freely placed node would extend past the window edge. It has no effect on the children of a `Stack` or a `Grid`, unless they are `free_placement`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum WindowOverflow {
+    /// Leave the node where it is, even if it extends past the window edge.
+    #[default]
+    Ignore,
+    /// Push the node back inside the window.
+    Clamp,
+    /// Mirror the node to the other side of its anchor point, as a right-click context menu does. If the mirrored node also doesn't fit, push it back inside the window.
+    Flip,
+}
+
 #[derive(Debug, Clone, Copy, Hash, PartialEq)]
 pub enum Arrange {
     Start,
@@ -157,6 +169,8 @@ pub trait TreeAdapter {
     fn layout_data_mut(&mut self, i: Self::Node) -> &mut NodeLayout;
     /// Measures the text of a node. The width and the result are in fractions of the window size. It is called only on nodes with text.
     fn measure_text(&mut self, i: Self::Node, width: Option<f32>) -> Xy<f32>;
+    /// Receives the final rect of a node, in fractions of the window size. `compute` calls it once on each placed node, on the parent before its children. `solve` never calls it.
+    fn write_output_rect(&mut self, i: Self::Node, rect: XyRect);
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -210,6 +224,7 @@ pub struct Nodes {
     links: NodeVec<Links>,
     params: NodeVec<LayoutParams>,
     layouts: NodeVec<NodeLayout>,
+    rects: NodeVec<XyRect>,
     window_size: Xy<f32>,
     n_deferred_solves: usize,
 }
@@ -262,6 +277,11 @@ impl TreeAdapter for NodesAdapter<'_, '_> {
     fn measure_text(&mut self, i: NodeI, width: Option<f32>) -> Xy<f32> {
         (self.measure_text)(i, width)
     }
+
+    #[inline(always)]
+    fn write_output_rect(&mut self, i: NodeI, rect: XyRect) {
+        self.nodes.rects[i] = rect;
+    }
 }
 
 impl Nodes {
@@ -270,6 +290,7 @@ impl Nodes {
             links: NodeVec(Vec::new()),
             params: NodeVec(Vec::new()),
             layouts: NodeVec(Vec::new()),
+            rects: NodeVec(Vec::new()),
             window_size: Xy::new(0.0, 0.0),
             n_deferred_solves: 0,
         };
@@ -282,6 +303,7 @@ impl Nodes {
         self.links.0.push(Links { parent, first_child: None, last_child: None, next_sibling: None });
         self.params.0.push(params);
         self.layouts.0.push(NodeLayout::EMPTY);
+        self.rects.0.push(Xy::new([0.0, 0.0], [0.0, 0.0]));
         i
     }
 
@@ -312,7 +334,12 @@ impl Nodes {
     }
 
     pub fn rect_px(&self, i: NodeI) -> XyRect {
-        self.layouts[i].rect_px(self.window_size)
+        let rect = self.rects[i];
+        let window = self.window_size;
+        Xy::new(
+            [rect.x[0] * window.x, rect.x[1] * window.x],
+            [rect.y[0] * window.y, rect.y[1] * window.y],
+        )
     }
 }
 

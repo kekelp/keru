@@ -9,43 +9,33 @@ struct ParentFrame {
 
 impl<T: TreeAdapter> Solver<'_, T> {
     pub(crate) fn place_all(&mut self) {
-        *self.rect_mut(self.tree.root()) = Xy::new([0.0, 1.0], [0.0, 1.0]);
-        self.recursive_place_children(self.tree.root());
+        self.place(self.tree.root(), Xy::new([0.0, 1.0], [0.0, 1.0]));
     }
 
-    fn recursive_place_children(&mut self, i: T::Node) {
+    /// Gives a node its final rect, then places its children inside it. The rects are not stored: each one goes to `write_output_rect`, and down the recursion.
+    fn place(&mut self, i: T::Node, rect: XyRect) {
+        self.tree.write_output_rect(i, rect);
         match self.tree.params(i).children_layout {
-            ChildrenLayout::Free => self.place_children_free(i),
-            ChildrenLayout::Stack { arrange, axis, spacing } => self.place_children_stack(i, axis, arrange, spacing),
-            ChildrenLayout::Grid { spacing_x, spacing_y, .. } => self.place_children_grid(i, spacing_x, spacing_y),
+            ChildrenLayout::Free => self.place_children_free(i, rect),
+            ChildrenLayout::Stack { arrange, axis, spacing } => self.place_children_stack(i, rect, axis, arrange, spacing),
+            ChildrenLayout::Grid { spacing_x, spacing_y, .. } => self.place_children_grid(i, rect, spacing_x, spacing_y),
         }
-
-        for_each_layout_child!(self, i, child, {
-            self.recursive_place_children(child);
-        });
-    }
-
-    /// The solved size of a node that isn't placed yet, in fractions of the window size. Solving a `Final` slot writes `[0, size]` into the node's rect.
-    #[inline(always)]
-    fn child_size(&self, child: T::Node) -> Xy<f32> {
-        let rect = self.rect(child);
-        Xy::new(rect.x[1], rect.y[1])
     }
 
     #[inline(always)]
-    fn parent_frame(&self, i: T::Node) -> ParentFrame {
+    fn parent_frame(&self, i: T::Node, rect: XyRect) -> ParentFrame {
         let params = self.tree.params(i);
         let window = self.window_size;
         ParentFrame {
-            rect: self.rect(i),
+            rect,
             padding: Xy::new(params.padding.x / window.x, params.padding.y / window.y),
             flipped: params.children_origin_flipped,
         }
     }
 
-    fn place_children_stack(&mut self, i: T::Node, axis: Axis, arrange: Arrange, spacing: f32) {
+    fn place_children_stack(&mut self, i: T::Node, rect: XyRect, axis: Axis, arrange: Arrange, spacing: f32) {
         let (main, cross) = (axis, axis.other());
-        let frame = self.parent_frame(i);
+        let frame = self.parent_frame(i, rect);
         let stack_rect = frame.rect;
         let padding = frame.padding;
         let spacing = spacing / self.window_size[axis];
@@ -56,7 +46,7 @@ impl<T: TreeAdapter> Solver<'_, T> {
         let mut children_size = 0.0;
         for_each_layout_child!(self, i, child, {
             if ! self.tree.params(child).free_placement {
-                children_size += self.child_size(child)[main];
+                children_size += self.size(child)[main];
                 n += 1;
             }
         });
@@ -92,21 +82,23 @@ impl<T: TreeAdapter> Solver<'_, T> {
         };
 
         for_each_layout_child!(self, i, child, {
-            let child_size = self.child_size(child);
+            let child_size = self.size(child);
             if self.tree.params(child).free_placement {
                 self.place_child_free(child, &frame, child_size);
             } else {
-                self.rect_mut(child)[cross] = self.resolve_pos_on_axis(&frame, child, cross, child_size[cross]);
-                self.rect_mut(child)[main] = [walking_position, walking_position + child_size[main]];
+                let mut child_rect = Xy::new([0.0, 0.0], [0.0, 0.0]);
+                child_rect[cross] = self.resolve_pos_on_axis(&frame, child, cross, child_size[cross]);
+                child_rect[main] = [walking_position, walking_position + child_size[main]];
                 walking_position += child_size[main] + gap;
+                self.place(child, child_rect);
             }
         });
     }
 
-    fn place_children_grid(&mut self, i: T::Node, spacing_x: f32, spacing_y: f32) {
+    fn place_children_grid(&mut self, i: T::Node, rect: XyRect, spacing_x: f32, spacing_y: f32) {
         let lines = self.data(i).grid_lines;
 
-        let frame = self.parent_frame(i);
+        let frame = self.parent_frame(i, rect);
         let spacing = Xy::new(spacing_x / self.window_size.x, spacing_y / self.window_size.y);
         let size = self.size(i);
         let mut cell = Xy::new(0.0, 0.0);
@@ -116,15 +108,17 @@ impl<T: TreeAdapter> Solver<'_, T> {
         }
 
         for_each_layout_child!(self, i, child, {
-            let child_size = self.child_size(child);
+            let child_size = self.size(child);
             if self.tree.params(child).free_placement {
                 self.place_child_free(child, &frame, child_size);
             } else {
                 let child_cell = self.data(child).grid_cell;
+                let mut child_rect = Xy::new([0.0, 0.0], [0.0, 0.0]);
                 for axis in [X, Y] {
                     let start = frame.rect[axis][0] + frame.padding[axis] + child_cell[axis] as f32 * (cell[axis] + spacing[axis]);
-                    self.rect_mut(child)[axis] = [start, start + child_size[axis]];
+                    child_rect[axis] = [start, start + child_size[axis]];
                 }
+                self.place(child, child_rect);
             }
         });
     }
@@ -136,12 +130,7 @@ impl<T: TreeAdapter> Solver<'_, T> {
         let flipped = frame.flipped[axis];
         let params = self.tree.params(child);
 
-        let anchor_frac = match params.anchor[axis] {
-            Anchor::Start => 0.0,
-            Anchor::Center => 0.5,
-            Anchor::End => 1.0,
-            Anchor::Frac(f) => f,
-        };
+        let anchor_frac = anchor_frac(params.anchor[axis]);
 
         let place_at = |reference: f32| {
             if ! flipped {
@@ -181,16 +170,77 @@ impl<T: TreeAdapter> Solver<'_, T> {
 
     #[inline(always)]
     fn place_child_free(&mut self, child: T::Node, frame: &ParentFrame, child_size: Xy<f32>) {
+        let mut child_rect = Xy::new([0.0, 0.0], [0.0, 0.0]);
         for axis in [X, Y] {
-            self.rect_mut(child)[axis] = self.resolve_pos_on_axis(frame, child, axis, child_size[axis]);
+            let rect = self.resolve_pos_on_axis(frame, child, axis, child_size[axis]);
+            child_rect[axis] = self.apply_window_overflow(frame, child, axis, rect);
         }
+        self.place(child, child_rect);
     }
 
-    fn place_children_free(&mut self, i: T::Node) {
-        let frame = self.parent_frame(i);
+    fn apply_window_overflow(&self, frame: &ParentFrame, child: T::Node, axis: Axis, rect: [f32; 2]) -> [f32; 2] {
+        let params = self.tree.params(child);
+        let behavior = params.window_overflow[axis];
+        if behavior == WindowOverflow::Ignore {
+            return rect;
+        }
+
+        const WIN_LO: f32 = 0.0;
+        const WIN_HI: f32 = 1.0;
+
+        let [lo, hi] = rect;
+        let size = hi - lo;
+
+        // If the node is larger than the window, just give up.
+        if size >= (WIN_HI - WIN_LO) {
+            return [WIN_LO, WIN_LO + size];
+        }
+
+        let mut out = rect;
+
+        if behavior == WindowOverflow::Flip {
+            // The anchor point (in absolute coords) is the point that should stay fixed, e.g. the cursor.
+            let anchor_frac = anchor_frac(params.anchor[axis]);
+            let a = if ! frame.flipped[axis] { lo + anchor_frac * size } else { hi - anchor_frac * size };
+
+            let reflected = [2.0 * a - hi, 2.0 * a - lo];
+            if hi > WIN_HI && reflected[0] >= WIN_LO {
+                out = reflected;
+            } else if lo < WIN_LO && reflected[1] <= WIN_HI {
+                out = reflected;
+            }
+        }
+
+        // Clamp (also the fallback when a flip wouldn't fit either).
+        let [mut lo, mut hi] = out;
+        let size = hi - lo;
+        if hi > WIN_HI {
+            hi = WIN_HI;
+            lo = hi - size;
+        }
+        if lo < WIN_LO {
+            lo = WIN_LO;
+            hi = lo + size;
+        }
+        [lo, hi]
+    }
+
+    fn place_children_free(&mut self, i: T::Node, rect: XyRect) {
+        let frame = self.parent_frame(i, rect);
         for_each_layout_child!(self, i, child, {
-            let child_size = self.child_size(child);
+            let child_size = self.size(child);
             self.place_child_free(child, &frame, child_size);
         });
+    }
+}
+
+/// The anchor point of a node, as a fraction of its size from its origin-side edge.
+#[inline(always)]
+fn anchor_frac(anchor: Anchor) -> f32 {
+    match anchor {
+        Anchor::Start => 0.0,
+        Anchor::Center => 0.5,
+        Anchor::End => 1.0,
+        Anchor::Frac(f) => f,
     }
 }
