@@ -1244,6 +1244,7 @@ impl System {
             };
 
             self.nodes[handle_i].params.layout.position[axis] = Pos::Frac(thumb_lead_frac);
+            self.nodes.sync_layout(handle_i);
         }
     }
 

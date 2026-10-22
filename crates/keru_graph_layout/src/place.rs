@@ -9,12 +9,17 @@ struct ParentFrame {
 
 impl<T: TreeAdapter> Solver<'_, T> {
     pub(crate) fn place_all(&mut self) {
-        self.place(self.tree.root(), Xy::new([0.0, 1.0], [0.0, 1.0]));
+        let window = Xy::new([0.0, 1.0], [0.0, 1.0]);
+        self.place(self.tree.root(), window, window);
     }
 
     /// Gives a node its final rect, then places its children inside it. The rects are not stored: each one goes to `write_output_rect`, and down the recursion.
-    fn place(&mut self, i: T::Node, rect: XyRect) {
-        self.tree.write_output_rect(i, rect);
+    fn place(&mut self, i: T::Node, rect: XyRect, parent_rect: XyRect) {
+        let local_rect = Xy::new(
+            [rect.x[0] - parent_rect.x[0], rect.x[1] - parent_rect.x[0]],
+            [rect.y[0] - parent_rect.y[0], rect.y[1] - parent_rect.y[0]],
+        );
+        self.tree.write_output_rect(i, rect, local_rect);
         match self.tree.params(i).children_layout {
             ChildrenLayout::Free => self.place_children_free(i, rect),
             ChildrenLayout::Stack { arrange, axis, spacing } => self.place_children_stack(i, rect, axis, arrange, spacing),
@@ -100,7 +105,7 @@ impl<T: TreeAdapter> Solver<'_, T> {
                 child_rect[cross] = self.resolve_pos_on_axis(&frame, child, cross, child_size[cross]);
                 child_rect[main] = [walking_position, walking_position + child_size[main]];
                 walking_position += child_size[main] + gap;
-                self.place(child, child_rect);
+                self.place(child, child_rect, frame.rect);
             }
         });
     }
@@ -128,7 +133,7 @@ impl<T: TreeAdapter> Solver<'_, T> {
                     let start = frame.rect[axis][0] + frame.padding[axis] + child_cell[axis] as f32 * (cell[axis] + spacing[axis]);
                     child_rect[axis] = [start, start + child_size[axis]];
                 }
-                self.place(child, child_rect);
+                self.place(child, child_rect, frame.rect);
             }
         });
     }
@@ -185,7 +190,7 @@ impl<T: TreeAdapter> Solver<'_, T> {
             let rect = self.resolve_pos_on_axis(frame, child, axis, child_size[axis]);
             child_rect[axis] = self.apply_window_overflow(frame, child, axis, rect);
         }
-        self.place(child, child_rect);
+        self.place(child, child_rect, frame.rect);
     }
 
     fn apply_window_overflow(&self, frame: &ParentFrame, child: T::Node, axis: Axis, rect: [f32; 2]) -> [f32; 2] {

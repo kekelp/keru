@@ -108,23 +108,13 @@ impl Ui {
     pub(crate) fn relayout_from_root(&mut self) {
         log::info!("Full relayout");
 
-        self.calculate_sizes();
+        self.compute_layout();
         // self.l2_calculate_sizes();
         
-        self.sys.nodes[ROOT_I].layout_rect = XyRect::new([0.0, 1.0], [0.0, 1.0]);
-        self.l2_write_size(ROOT_I);
-        self.recursive_place_children(ROOT_I);
         self.rasterize_queued_svgs();
 
         // self.write_layout_dependencies_dot("layout_dependencies.dot");
         // self.l2_dump_unsolved(ROOT_I);
-    }
-
-    fn grid_line(&self, child: NodeI, axis: Axis) -> usize {
-        match axis {
-            X => self.sys.nodes[child].grid_element_column_i as usize,
-            Y => self.sys.nodes[child].grid_element_row_i as usize,
-        }
     }
 
     pub(crate) fn grid_span(&self, child: NodeI, axis: Axis) -> usize {
@@ -140,14 +130,6 @@ impl Ui {
             X => self.sys.nodes[i].grid_n_columns as usize,
             Y => self.sys.nodes[i].grid_n_rows as usize,
         }
-    }
-
-    /// The uniform size of one grid cell along an axis. Only valid once the cells are assigned.
-    pub(crate) fn grid_cell_size(&self, i: NodeI, axis: Axis, spacing: f32) -> f32 {
-        let padding = self.pixels_to_frac(self.sys.nodes[i].params.layout.padding[axis], axis);
-        let inner = self.sys.nodes[i].size[axis] - 2.0 * padding;
-        let n = self.grid_n_lines(i, axis) as f32;
-        ((inner - spacing * (n - 1.0)) / n).max(0.0)
     }
 
     /// How many cells fit along the main axis.
@@ -208,6 +190,8 @@ impl Ui {
     /// Relayout only the scrollbar nodes for `container_i`, without touching the container or any other children.
     pub(crate) fn partial_relayout_for_scrollbar(&mut self, container_i: NodeI) {
         let container_key = self.sys.nodes[container_i].original_key;
+        let container_rect = self.sys.nodes[container_i].layout_rect;
+        let container_rect = keru_graph_layout::Xy::new(container_rect.x, container_rect.y);
 
         for key in [
             container_key.sibling(SCROLL_RAIL_Y), container_key.sibling(SCROLL_HANDLE_Y),
@@ -216,288 +200,27 @@ impl Ui {
             let Some(node_i) = self.sys.nodes.get_by_id(key.id_with_key_scope()) else {
                 continue;
             };
-            self.place_child_free(node_i, container_i);
+            let window = self.sys.gl_window();
+            keru_graph_layout::place_free_placed_subtree(&mut self.sys, node_i, container_rect, window);
         }
     }
 
 }
 
-impl Ui {
-    pub(crate) fn recursive_place_children(&mut self, i: NodeI) {
-        self.l2_write_children_sizes(i);
-
-        self.sys.nodes[i].content_bounds = XyRect::new_symm([f32::MAX, f32::MIN]);
-
-        match self.sys.nodes[i].params.children_layout {
-            ChildrenLayout::Free => self.place_children_free(i),
-            ChildrenLayout::Stack { arrange, axis, spacing } => self.place_children_stack(i, axis, arrange, spacing),
-            ChildrenLayout::Grid { spacing_x, spacing_y, .. } => self.place_children_grid(i, spacing_x, spacing_y),
-        }
-
-        for_each_child!(self, i, child, {
-            self.recursive_place_children(child);
-        });
-    }
-
-    fn place_children_stack(&mut self, i: NodeI, axis: Axis, arrange: Arrange, spacing: f32) {
-        let (main, cross) = (axis, axis.other());
-        let stack_rect = self.sys.nodes[i].layout_rect;
-
-        let padding = self.pixels_to_frac2(self.sys.nodes[i].params.layout.padding);
-        let spacing = self.pixels_to_frac(spacing, axis);
-        
-        // On the main axis, totally ignore the children's chosen Position's and place them according to our own Stack::Arrange value.
-        // free_placement children are excluded from the stack flow and placed freely instead.
-
-        let mut n: u32 = 0;
-        let mut children_size = 0.0;
-        for_each_child!(self, i, child, {
-            if !self.sys.nodes[child].params.free_placement {
-                children_size += self.sys.nodes[child].size[main];
-                n += 1;
-            }
-        });
-
-        let total_size = if n > 0 {
-            children_size + spacing * (n - 1) as f32
-        } else {
-            children_size
-        };
-
-        let inner = (stack_rect[main][1] - stack_rect[main][0]) - 2.0 * padding[main];
-        let free = inner - children_size;
-
-        let (mut walking_position, gap) = match arrange {
-            Arrange::Start => (stack_rect[main][0] + padding[main], spacing),
-            Arrange::End => (stack_rect[main][1] - padding[main] - total_size, spacing),
-            Arrange::Center => {
-                let center = (stack_rect[main][1] + stack_rect[main][0]) / 2.0;
-                (center - total_size / 2.0, spacing)
-            },
-            Arrange::SpaceBetween => {
-                let gap = if n > 1 { free / (n - 1) as f32 } else { 0.0 };
-                (stack_rect[main][0] + padding[main], gap)
-            },
-            Arrange::SpaceAround => {
-                let gap = if n > 0 { free / n as f32 } else { 0.0 };
-                (stack_rect[main][0] + padding[main] + gap / 2.0, gap)
-            },
-            Arrange::SpaceEvenly => {
-                let gap = if n > 0 { free / (n + 1) as f32 } else { 0.0 };
-                (stack_rect[main][0] + padding[main] + gap, gap)
-            },
-        };
-
-        for_each_child!(self, i, child, {
-            if self.sys.nodes[child].params.free_placement {
-                self.place_child_free(child, i);
-            } else {
-                let child_size = self.sys.nodes[child].size;
-
-                self.sys.nodes[child].layout_rect[cross] = self.resolve_pos_on_axis(i, child, cross);
-
-                self.sys.nodes[child].layout_rect[main] = [walking_position, walking_position + child_size[main]];
-
-                self.set_local_layout_rect(child, i);
-                self.init_enter_animations(child);
-
-                walking_position += self.sys.nodes[child].size[main] + gap;
-
-                self.update_content_bounds(i, self.sys.nodes[child].layout_rect);
-            }
-        });
-
-        // self.set_children_scroll(i);
-    }
-
-    /// Place every child at the top-left corner of the cells it was assigned in
-    /// [`Ui::clay_grid_sizing`]. Children's own `Pos` values are ignored.
-    fn place_children_grid(&mut self, i: NodeI, spacing_x: f32, spacing_y: f32) {
-        if self.grid_n_lines(i, X) == 0 || self.grid_n_lines(i, Y) == 0 { return; }
-
-        let parent_rect = self.sys.nodes[i].layout_rect;
-        let padding = self.pixels_to_frac2(self.sys.nodes[i].params.layout.padding);
-        let spacing = Xy::new(self.pixels_to_frac(spacing_x, X), self.pixels_to_frac(spacing_y, Y));
-        let cell = Xy::new(self.grid_cell_size(i, X, spacing.x), self.grid_cell_size(i, Y, spacing.y));
-
-        for_each_child!(self, i, child, {
-            if self.sys.nodes[child].params.free_placement {
-                self.place_child_free(child, i);
-            } else {
-                let child_size = self.sys.nodes[child].size;
-                for axis in [X, Y] {
-                    let line = self.grid_line(child, axis);
-                    let start = parent_rect[axis][0] + padding[axis] + line as f32 * (cell[axis] + spacing[axis]);
-                    self.sys.nodes[child].layout_rect[axis] = [start, start + child_size[axis]];
-                }
-
-                self.set_local_layout_rect(child, i);
-                self.init_enter_animations(child);
-                self.update_content_bounds(i, self.sys.nodes[child].layout_rect);
-            }
-        });
-    }
-
-    fn resolve_pos_on_axis(&self, parent: NodeI, child: NodeI, axis: Axis) -> [f32; 2] {
-        let rect = self.sys.nodes[parent].layout_rect;
-        let padding = self.pixels_to_frac(self.sys.nodes[parent].params.layout.padding[axis], axis);
-        let flipped = match axis {
-            X => self.sys.nodes[parent].params.layout.children_origin_x == HorizontalOrigin::Right,
-            Y => self.sys.nodes[parent].params.layout.children_origin_y == VerticalOrigin::Bottom,
-        };
-
-        let child_size = self.sys.nodes[child].size[axis];
-
-        // Anchor as a fraction of the child measured from its origin-side edge.
-        let anchor_frac = match self.sys.nodes[child].params.layout.anchor[axis] {
-            Anchor::Start => 0.0,
-            Anchor::Center => 0.5,
-            Anchor::End => 1.0,
-            Anchor::Frac(f) => f,
-        };
-
-        // Place a child whose anchor point lands on `reference`, where `reference`
-        // is an offset measured from the origin edge growing inwards.
-        let place_at = |reference: f32| {
-            if !flipped {
-                let low = reference - anchor_frac * child_size;
-                [low, low + child_size]
-            } else {
-                let high = reference + anchor_frac * child_size;
-                [high - child_size, high]
-            }
-        };
-        // Flush against the origin edge (`Pos::Start`) or the far edge (`Pos::End`).
-        let origin_edge = if !flipped { rect[axis][0] + padding } else { rect[axis][1] - padding };
-        let far_edge = if !flipped { rect[axis][1] - padding } else { rect[axis][0] + padding };
-
-        match self.sys.nodes[child].params.layout.position[axis] {
-            Pos::Start => {
-                if !flipped { [origin_edge, origin_edge + child_size] } else { [origin_edge - child_size, origin_edge] }
-            },
-            Pos::End => {
-                if !flipped { [far_edge - child_size, far_edge] } else { [far_edge, far_edge + child_size] }
-            },
-            Pos::Pixels(pixels) => {
-                let static_pos = self.pixels_to_frac(pixels, axis);
-                place_at(if !flipped { origin_edge + static_pos } else { origin_edge - static_pos })
-            },
-            Pos::Frac(frac) => {
-                let inner_size = rect.size()[axis] - 2.0 * padding;
-                let static_pos = frac * inner_size;
-                place_at(if !flipped { origin_edge + static_pos } else { origin_edge - static_pos })
-            },
-            Pos::Center => {
-                let center = (rect[axis][0] + rect[axis][1]) / 2.0;
-                [center - child_size / 2.0, center + child_size / 2.0]
-            },
-        }
-    }
-
-    pub(crate) fn place_child_free(&mut self, child: NodeI, parent: NodeI) {
-        for axis in [X, Y] {
-            let rect = self.resolve_pos_on_axis(parent, child, axis);
-            self.sys.nodes[child].layout_rect[axis] = self.apply_spill_on_axis(child, parent, axis, rect);
-        }
-
-        self.set_local_layout_rect(child, parent);
-        self.init_enter_animations(child);
-        if !self.sys.nodes[child].params.ignore_parent_scroll {
-            self.update_content_bounds(parent, self.sys.nodes[child].layout_rect);
-        }
-    }
-
-    fn apply_spill_on_axis(&self, child: NodeI, parent: NodeI, axis: Axis, rect: [f32; 2]) -> [f32; 2] {
-        let behavior = self.sys.nodes[child].params.layout.window_overflow[axis];
-        if behavior == WindowOverflow::Ignore {
-            return rect;
-        }
-
-        const WIN_LO: f32 = 0.0;
-        const WIN_HI: f32 = 1.0;
-
-        let [lo, hi] = rect;
-        let size = hi - lo;
-
-        // If the node is larger than the window, just give up.
-        if size >= (WIN_HI - WIN_LO) {
-            return [WIN_LO, WIN_LO + size];
-        }
-
-        let mut out = rect;
-
-        if behavior == WindowOverflow::Flip {
-            // The anchor point (in absolute coords) is the point that should stay fixed, e.g. the cursor.
-            let flipped = match axis {
-                X => self.sys.nodes[parent].params.layout.children_origin_x == HorizontalOrigin::Right,
-                Y => self.sys.nodes[parent].params.layout.children_origin_y == VerticalOrigin::Bottom,
-            };
-            let anchor_frac = match self.sys.nodes[child].params.layout.anchor[axis] {
-                Anchor::Start => 0.0,
-                Anchor::Center => 0.5,
-                Anchor::End => 1.0,
-                Anchor::Frac(f) => f,
-            };
-            let a = if !flipped { lo + anchor_frac * size } else { hi - anchor_frac * size };
-
-            let reflected = [2.0 * a - hi, 2.0 * a - lo];
-            if hi > WIN_HI && reflected[0] >= WIN_LO {
-                out = reflected;
-            } else if lo < WIN_LO && reflected[1] <= WIN_HI {
-                out = reflected;
-            }
-        }
-
-        // Clamp (also the fallback when a flip wouldn't fit either).
-        let [mut lo, mut hi] = out;
-        let size = hi - lo;
-        if hi > WIN_HI {
-            hi = WIN_HI;
-            lo = hi - size;
-        }
-        if lo < WIN_LO {
-            lo = WIN_LO;
-            hi = lo + size;
-        }
-        [lo, hi]
-    }
-
-    pub(crate) fn place_children_free(&mut self, i: NodeI) {
-        for_each_child!(self, i, child, {
-            self.place_child_free(child, i);
-        });
-    }
-
-    fn set_local_layout_rect(&mut self, i: NodeI, parent: NodeI) {       
-        let parent_rect = self.sys.nodes[parent].layout_rect;
-        let child_rect = self.sys.nodes[i].layout_rect;
-        
-        self.sys.nodes[i].local_layout_rect = XyRect::new(
-            [child_rect.x[0] - parent_rect.x[0], child_rect.x[1] - parent_rect.x[0]],
-            [child_rect.y[0] - parent_rect.y[0], child_rect.y[1] - parent_rect.y[0]]
-        );
-
-        if ! self.sys.nodes[i].params.animation.state_transition.animate_layout
-            && ! self.sys.nodes[i].exit_animation_still_going
-            && ! self.sys.nodes[i].enter_animation_still_going {
-
-            self.sys.nodes[i].local_animated_rect = self.sys.nodes[i].local_layout_rect;
-        }
-    }
-
-    pub(crate) fn init_enter_animations(&mut self, i: NodeI) {
-        let is_just_added_or_dehidden = self.sys.nodes[i].frame_added == self.current_frame();
+impl InnerNode {
+    pub(crate) fn init_enter_animations(&mut self, current_frame: u64) {
+        let is_just_added_or_dehidden = self.frame_added == current_frame;
         if ! is_just_added_or_dehidden {
             return;
         }
 
-        self.sys.nodes[i].local_animated_rect = self.sys.nodes[i].local_layout_rect;
+        self.local_animated_rect = self.local_layout_rect;
 
-        match self.sys.nodes[i].params.animation.enter {
+        match self.params.animation.enter {
             EnterAnimation::None => {}
             EnterAnimation::Slide { edge, direction: _ } => {
                 use SlideEdge::*;
-                let rect = self.sys.nodes[i].local_layout_rect;
+                let rect = self.local_layout_rect;
                 let size = rect.size();
 
                 let (offset_x, offset_y) = match edge {
@@ -507,15 +230,15 @@ impl Ui {
                     Right => (size.x.abs(), 0.0),
                 };
 
-                self.sys.nodes[i].local_animated_rect.x[0] += offset_x;
-                self.sys.nodes[i].local_animated_rect.x[1] += offset_x;
-                self.sys.nodes[i].local_animated_rect.y[0] += offset_y;
-                self.sys.nodes[i].local_animated_rect.y[1] += offset_y;
-                self.sys.nodes[i].enter_animation_still_going = true;
+                self.local_animated_rect.x[0] += offset_x;
+                self.local_animated_rect.x[1] += offset_x;
+                self.local_animated_rect.y[0] += offset_y;
+                self.local_animated_rect.y[1] += offset_y;
+                self.enter_animation_still_going = true;
             }
             EnterAnimation::Grow { axis, origin } => {
                 use Pos::*;
-                let rect = self.sys.nodes[i].local_layout_rect;
+                let rect = self.local_layout_rect;
 
                 match axis {
                     Axis::X => {
@@ -525,8 +248,8 @@ impl Ui {
                             Start => rect.x[0],
                             End => rect.x[1],
                         };
-                        self.sys.nodes[i].local_animated_rect.x[0] = origin_x;
-                        self.sys.nodes[i].local_animated_rect.x[1] = origin_x;
+                        self.local_animated_rect.x[0] = origin_x;
+                        self.local_animated_rect.x[1] = origin_x;
                     }
                     Axis::Y => {
                         let origin_y = match origin {
@@ -534,19 +257,21 @@ impl Ui {
                             Start => rect.y[0],
                             End => rect.y[1],
                         };
-                        self.sys.nodes[i].local_animated_rect.y[0] = origin_y;
-                        self.sys.nodes[i].local_animated_rect.y[1] = origin_y;
+                        self.local_animated_rect.y[0] = origin_y;
+                        self.local_animated_rect.y[1] = origin_y;
                     }
                 }
-                self.sys.nodes[i].enter_animation_still_going = true;
+                self.enter_animation_still_going = true;
             }
             EnterAnimation::FadeIn => {
-                self.sys.nodes[i].fade_alpha = 0.0;
+                self.fade_alpha = 0.0;
                 // We don't need to set enter_animation_still_going, as that's only needed for when enter/exit animations interact with the regular position interpolation ones
             }
         }
     }
+}
 
+impl Ui {
     pub(crate) fn init_exit_animations(&mut self, i: NodeI) {
         // If already exiting, don't restart another anim.
         if self.sys.nodes[i].exiting {
@@ -626,15 +351,6 @@ impl Ui {
             ExitAnimation::FadeOut => {}
         }
 
-    }
-
-    #[inline]
-    fn update_content_bounds(&mut self, i: NodeI, content_rect: XyRect) {
-        for axis in [X, Y] {
-            let c_bounds = &mut self.sys.nodes[i].content_bounds[axis];
-            c_bounds[0] = c_bounds[0].min(content_rect[axis][0]);
-            c_bounds[1] = c_bounds[1].max(content_rect[axis][1]);
-        }
     }
 
     pub(crate) fn set_clip_rect(&mut self, i: NodeI) {

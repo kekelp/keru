@@ -160,7 +160,6 @@ pub trait TreeAdapter {
     /// The handle of a node. It must stay valid during a `solve` or `compute` call.
     type Node: Copy + Eq + Debug;
     fn root(&self) -> Self::Node;
-    /// The parent of a node. It is never called on the root.
     fn parent(&self, i: Self::Node) -> Self::Node;
     fn first_child(&self, i: Self::Node) -> Option<Self::Node>;
     fn next_sibling(&self, i: Self::Node) -> Option<Self::Node>;
@@ -169,8 +168,9 @@ pub trait TreeAdapter {
     fn layout_data_mut(&mut self, i: Self::Node) -> &mut NodeLayout;
     /// Measures the text of a node. The width and the result are in fractions of the window size. It is called only on nodes with text.
     fn measure_text(&mut self, i: Self::Node, width: Option<f32>) -> Xy<f32>;
-    /// Receives the final rect of a node, in fractions of the window size. `compute` calls it once on each placed node, on the parent before its children. `solve` never calls it.
-    fn write_output_rect(&mut self, i: Self::Node, rect: XyRect);
+    /// Called when the layout solver computes the end result for a node's rectangle.
+    /// The output is provided in both absolute coordinates and relative to the parent.
+    fn write_output_rect(&mut self, i: Self::Node, rect: XyRect, local_rect: XyRect);
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -279,7 +279,7 @@ impl TreeAdapter for NodesAdapter<'_, '_> {
     }
 
     #[inline(always)]
-    fn write_output_rect(&mut self, i: NodeI, rect: XyRect) {
+    fn write_output_rect(&mut self, i: NodeI, rect: XyRect, _local_rect: XyRect) {
         self.nodes.rects[i] = rect;
     }
 }

@@ -4,14 +4,46 @@ use crate::*;
 use crate::inner_node::*;
 use crate::Axis::{X, Y};
 
-/// The keru tree, as the layout crate sees it.
-pub(crate) struct KeruTree<'a> {
-    pub nodes: &'a mut Nodes,
-    pub text: &'a mut keru_draw::Text,
-    pub window: Xy<f32>,
+impl System {
+    /// The logical window size, as the layout crate wants it.
+    pub(crate) fn gl_window(&self) -> gl::Xy<f32> {
+        let window = self.logical_size();
+        gl::Xy::new(window.x, window.y)
+    }
+
+    /// Push the node's final inner size into its text box or text edit.
+    fn write_text_size(&mut self, i: NodeI) {
+        let logical_window = self.logical_size();
+        let node = &self.nodes[i];
+        let Some(text_i) = &node.text_i else {
+            return;
+        };
+        let padding = node.params.layout.padding;
+        let inner_x = (node.size.x - 2.0 * padding.x / logical_window.x) * self.size.x;
+        let inner_y = (node.size.y - 2.0 * padding.y / logical_window.y) * self.size.y;
+
+        match text_i {
+            TextI::TextBox(handle) => {
+                self.renderer.text.get_text_box_mut(handle).set_width(inner_x);
+            }
+            TextI::TextEdit(handle) => {
+                self.renderer.text.get_text_edit_mut(handle).set_size((inner_x, inner_y));
+            }
+        }
+    }
+
+    #[inline]
+    fn update_content_bounds(&mut self, i: NodeI, content_rect: XyRect) {
+        for axis in [X, Y] {
+            let c_bounds = &mut self.nodes[i].content_bounds[axis];
+            c_bounds[0] = c_bounds[0].min(content_rect[axis][0]);
+            c_bounds[1] = c_bounds[1].max(content_rect[axis][1]);
+        }
+    }
 }
 
-impl gl::TreeAdapter for KeruTree<'_> {
+/// The keru tree, as the layout crate sees it.
+impl gl::TreeAdapter for System {
     type Node = NodeI;
 
     #[inline(always)]
@@ -50,12 +82,53 @@ impl gl::TreeAdapter for KeruTree<'_> {
     }
 
     fn measure_text(&mut self, i: NodeI, width: Option<f32>) -> gl::Xy<f32> {
-        let size = measure_text(self.text, self.nodes[i].text_i.as_ref().unwrap(), width, self.window);
+        let size = measure_text(&mut self.renderer.text, self.nodes[i].text_i.as_ref().unwrap(), width, self.size);
         gl::Xy::new(size.x, size.y)
     }
 
-    fn write_output_rect(&mut self, i: NodeI, rect: gl::XyRect) {
-        self.nodes[i].layout_rect = XyRect::new(rect.x, rect.y);
+    fn write_output_rect(&mut self, i: NodeI, rect: gl::XyRect, local_rect: gl::XyRect) {
+        let size = self.nodes.layout_data[i].size();
+        let parent = self.nodes.links[i].parent;
+
+        if i != ROOT_I {
+            let parent_node = &self.nodes[parent];
+            let can_hide = match parent_node.params.children_can_hide {
+                ChildrenCanHide::Yes => true,
+                ChildrenCanHide::No => false,
+                ChildrenCanHide::Inherit => parent_node.can_hide,
+            };
+            self.nodes[i].can_hide = can_hide;
+        }
+
+        let node = &mut self.nodes[i];
+        node.size = Xy::new(size.x, size.y);
+        node.layout_rect = XyRect::new(rect.x, rect.y);
+        node.local_layout_rect = XyRect::new(local_rect.x, local_rect.y);
+        // The children extend this when they are placed.
+        node.content_bounds = XyRect::new_symm([f32::MAX, f32::MIN]);
+        if ! node.params.animation.state_transition.animate_layout
+            && ! node.exit_animation_still_going
+            && ! node.enter_animation_still_going {
+
+            node.local_animated_rect = node.local_layout_rect;
+        }
+        if node.svg_data.is_some() {
+            self.svg_rasterize_queue.push(i);
+        }
+        self.write_text_size(i);
+
+        if i == ROOT_I {
+            return;
+        }
+
+        self.nodes[i].init_enter_animations(self.current_frame);
+
+        let params = &self.nodes[i].params;
+        let free = params.free_placement || self.nodes[parent].params.children_layout == ChildrenLayout::Free;
+        if ! (free && params.ignore_parent_scroll) {
+            let layout_rect = self.nodes[i].layout_rect;
+            self.update_content_bounds(parent, layout_rect);
+        }
     }
 }
 
@@ -193,30 +266,10 @@ pub(crate) fn image_size(node: &InnerNode) -> Option<gl::Xy<f32>> {
 }
 
 impl Ui {
-    pub(crate) fn calculate_sizes(&mut self) {
-        let window_size = self.sys.logical_size();
-        let System { nodes, renderer, size, .. } = &mut self.sys;
-        let mut tree = KeruTree { nodes, text: &mut renderer.text, window: *size };
-        gl::solve(&mut tree, gl::Xy::new(window_size.x, window_size.y));
-        self.write_sizes_recursive(ROOT_I);
-    }
-
-    fn write_sizes_recursive(&mut self, i: NodeI) {
-        let layout = &self.sys.nodes.layout_data[i];
-        let size = layout.size();
-        let cell = layout.grid_cell();
-        let lines = layout.grid_lines();
-        let node = &mut self.sys.nodes[i];
-        node.l2_solved[X][SizeType::Final as usize] = Some(size.x);
-        node.l2_solved[Y][SizeType::Final as usize] = Some(size.y);
-        node.grid_element_column_i = cell.x;
-        node.grid_element_row_i = cell.y;
-        node.grid_n_columns = lines.x;
-        node.grid_n_rows = lines.y;
-
-        for_each_child!(self, i, child, {
-            self.write_sizes_recursive(child);
-        });
+    /// Solves the sizes and places all the nodes. The layout crate writes the results into the nodes through `System::write_output_rect`.
+    pub(crate) fn compute_layout(&mut self) {
+        let window = self.sys.gl_window();
+        gl::compute(&mut self.sys, window);
     }
 }
 
