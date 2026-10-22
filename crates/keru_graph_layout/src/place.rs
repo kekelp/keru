@@ -22,6 +22,16 @@ impl<T: TreeAdapter> Solver<'_, T> {
         }
     }
 
+    /// Places a freely placed node and its subtree, inside the rect of its parent. It panics if the node is not freely placed.
+    pub(crate) fn place_free_placed_subtree(&mut self, node: T::Node, parent_rect: XyRect) {
+        assert!(node != self.tree.root(), "place_free_placed_subtree called on the root, which is not freely placed");
+        let parent = self.tree.parent(node);
+        let is_free = self.tree.params(node).free_placement || self.tree.params(parent).children_layout == ChildrenLayout::Free;
+        assert!(is_free, "place_free_placed_subtree called on {node:?}, which is not freely placed");
+        let frame = self.parent_frame(parent, parent_rect);
+        self.place_child_free(node, &frame, self.size(node));
+    }
+
     #[inline(always)]
     fn parent_frame(&self, i: T::Node, rect: XyRect) -> ParentFrame {
         let params = self.tree.params(i);

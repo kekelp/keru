@@ -6,7 +6,7 @@ use std::cell::RefCell;
 use std::fmt::Debug;
 use std::ops::{Index, IndexMut};
 
-pub use solve::{LayoutParams, NodeLayout, TextContent, compute, solve};
+pub use solve::{LayoutParams, NodeLayout, TextContent, compute, place_free_placed_subtree, solve};
 pub(crate) use solve::*;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]

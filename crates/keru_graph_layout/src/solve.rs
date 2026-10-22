@@ -185,6 +185,12 @@ pub fn solve<T: TreeAdapter>(tree: &mut T, window_size: Xy<f32>) -> usize {
     solver.n_deferred_solves
 }
 
+/// Places a node and its subtree again, without placing its siblings. The node must be freely placed: its parent is `ChildrenLayout::Free`, or the node is `free_placement`. Otherwise, it panics. `parent_rect` is the rect that the parent got in the last placement. The sizes come from the last `solve` or `compute`, so the tree must not change after it.
+pub fn place_free_placed_subtree<T: TreeAdapter>(tree: &mut T, node: T::Node, parent_rect: XyRect, window_size: Xy<f32>) {
+    let mut solver = Solver { tree, window_size, n_deferred_solves: 0 };
+    solver.place_free_placed_subtree(node, parent_rect);
+}
+
 /// The tree, with the state of one solve.
 pub(crate) struct Solver<'a, T: TreeAdapter> {
     pub tree: &'a mut T,
