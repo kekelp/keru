@@ -7,14 +7,14 @@ struct ParentFrame {
     flipped: Xy<bool>,
 }
 
-impl Nodes {
+impl<T: TreeAdapter> Solver<'_, T> {
     pub(crate) fn place_all(&mut self) {
-        self.rects[ROOT_I] = Xy::new([0.0, 1.0], [0.0, 1.0]);
-        self.recursive_place_children(ROOT_I);
+        self.layout.rects[self.tree.root()] = Xy::new([0.0, 1.0], [0.0, 1.0]);
+        self.recursive_place_children(self.tree.root());
     }
 
     fn recursive_place_children(&mut self, i: NodeI) {
-        match self.layout.params[i].children_layout {
+        match self.tree.params(i).children_layout {
             ChildrenLayout::Free => self.place_children_free(i),
             ChildrenLayout::Stack { arrange, axis, spacing } => self.place_children_stack(i, axis, arrange, spacing),
             ChildrenLayout::Grid { spacing_x, spacing_y, .. } => self.place_children_grid(i, spacing_x, spacing_y),
@@ -28,16 +28,16 @@ impl Nodes {
     /// The solved size of a node that isn't placed yet, in fractions of the window size. Solving a `Final` slot writes `[0, size]` into the node's rect.
     #[inline(always)]
     fn child_size(&self, child: NodeI) -> Xy<f32> {
-        let rect = self.rects[child];
+        let rect = self.layout.rects[child];
         Xy::new(rect.x[1], rect.y[1])
     }
 
     #[inline(always)]
     fn parent_frame(&self, i: NodeI) -> ParentFrame {
-        let params = &self.layout.params[i];
+        let params = self.tree.params(i);
         let window = self.layout.window_size;
         ParentFrame {
-            rect: self.rects[i],
+            rect: self.layout.rects[i],
             padding: Xy::new(params.padding.x / window.x, params.padding.y / window.y),
             flipped: params.children_origin_flipped,
         }
@@ -55,7 +55,7 @@ impl Nodes {
         let mut n: u32 = 0;
         let mut children_size = 0.0;
         for_each_layout_child!(self, i, child, {
-            if ! self.layout.params[child].free_placement {
+            if ! self.tree.params(child).free_placement {
                 children_size += self.child_size(child)[main];
                 n += 1;
             }
@@ -93,11 +93,11 @@ impl Nodes {
 
         for_each_layout_child!(self, i, child, {
             let child_size = self.child_size(child);
-            if self.layout.params[child].free_placement {
+            if self.tree.params(child).free_placement {
                 self.place_child_free(child, &frame, child_size);
             } else {
-                self.rects[child][cross] = self.resolve_pos_on_axis(&frame, child, cross, child_size[cross]);
-                self.rects[child][main] = [walking_position, walking_position + child_size[main]];
+                self.layout.rects[child][cross] = self.resolve_pos_on_axis(&frame, child, cross, child_size[cross]);
+                self.layout.rects[child][main] = [walking_position, walking_position + child_size[main]];
                 walking_position += child_size[main] + gap;
             }
         });
@@ -117,13 +117,13 @@ impl Nodes {
 
         for_each_layout_child!(self, i, child, {
             let child_size = self.child_size(child);
-            if self.layout.params[child].free_placement {
+            if self.tree.params(child).free_placement {
                 self.place_child_free(child, &frame, child_size);
             } else {
                 let child_cell = self.layout.solver_data[child].grid_cell;
                 for axis in [X, Y] {
                     let start = frame.rect[axis][0] + frame.padding[axis] + child_cell[axis] as f32 * (cell[axis] + spacing[axis]);
-                    self.rects[child][axis] = [start, start + child_size[axis]];
+                    self.layout.rects[child][axis] = [start, start + child_size[axis]];
                 }
             }
         });
@@ -134,7 +134,7 @@ impl Nodes {
         let rect = frame.rect;
         let padding = frame.padding[axis];
         let flipped = frame.flipped[axis];
-        let params = &self.layout.params[child];
+        let params = self.tree.params(child);
 
         let anchor_frac = match params.anchor[axis] {
             Anchor::Start => 0.0,
@@ -182,7 +182,7 @@ impl Nodes {
     #[inline(always)]
     fn place_child_free(&mut self, child: NodeI, frame: &ParentFrame, child_size: Xy<f32>) {
         for axis in [X, Y] {
-            self.rects[child][axis] = self.resolve_pos_on_axis(frame, child, axis, child_size[axis]);
+            self.layout.rects[child][axis] = self.resolve_pos_on_axis(frame, child, axis, child_size[axis]);
         }
     }
 

@@ -108,7 +108,7 @@ impl Ui {
     pub(crate) fn relayout_from_root(&mut self) {
         log::info!("Full relayout");
 
-        self.l3_calculate_sizes();
+        self.calculate_sizes();
         // self.l2_calculate_sizes();
         
         self.sys.nodes[ROOT_I].layout_rect = XyRect::new([0.0, 1.0], [0.0, 1.0]);

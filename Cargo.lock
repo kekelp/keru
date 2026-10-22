@@ -2009,6 +2009,7 @@ dependencies = [
  "icu_provider",
  "image",
  "keru_draw",
+ "keru_graph_layout",
  "keru_macros",
  "log",
  "pollster",

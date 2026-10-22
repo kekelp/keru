@@ -2481,7 +2481,7 @@ impl Ui {
         if layout_changed {
             self.sys.push_partial_relayout(i);
         }
-        let image_changed = image_size(&self.sys.nodes[i]) != self.sys.nodes.layout.params[i].image;
+        let image_changed = image_size(&self.sys.nodes[i]) != self.sys.nodes.layout_params[i].image;
         if skip_layout_diff || layout_changed || image_changed {
             self.sys.nodes.sync_layout(i);
         }

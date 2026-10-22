@@ -33,6 +33,7 @@ serde = ["dep:serde", "glam/serde"]
 [dependencies]
 keru_draw = { path = "crates/keru_draw" }
 keru_macros = { path = "crates/keru_macros" }
+keru_graph_layout = { path = "crates/keru_graph_layout" }
 winit = { version = "0.30.9", features = ["rwh_05"] }
 accesskit = "0.24"
 accesskit_winit = { version = "0.33", default-features = false, features = ["accesskit_unix", "async-io", "rwh_05"] }

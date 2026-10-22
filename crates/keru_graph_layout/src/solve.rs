@@ -121,45 +121,124 @@ impl Size {
 }
 
 macro_rules! for_each_layout_child {
-    ($nodes:expr, $i:expr, $child:ident, $body:block) => {{
-        let mut next = $nodes.links[$i].first_child;
+    ($solver:expr, $i:expr, $child:ident, $body:block) => {{
+        let mut next = $solver.tree.first_child($i);
         while let Some($child) = next {
-            next = $nodes.links[$child].next_sibling;
-            if ! $nodes.layout.params[$child].disabled {
+            next = $solver.tree.next_sibling($child);
+            if ! $solver.tree.params($child).disabled {
                 $body
             }
         }
     }};
 }
 
+/// The layout state of a tree. It is indexed by `NodeI` and has `TreeAdapter::index_bound` elements.
 #[derive(Debug)]
-pub(crate) struct LayoutTree {
-    pub params: NodeVec<LayoutParams>,
-    pub window_size: Xy<f32>,
-    pub solver_data: NodeVec<SolverData>,
-    pub n_deferred_solves: usize,
+pub struct Layout {
+    pub(crate) window_size: Xy<f32>,
+    pub(crate) solver_data: NodeVec<SolverData>,
+    pub(crate) rects: NodeVec<XyRect>,
+    pub(crate) n_deferred_solves: usize,
 }
 
-impl LayoutTree {
+impl Layout {
     pub fn new() -> Self {
-        LayoutTree {
-            params: NodeVec(Vec::with_capacity(100)),
+        Layout {
             window_size: Xy::new(0.0, 0.0),
             solver_data: NodeVec(Vec::with_capacity(100)),
+            rects: NodeVec(Vec::with_capacity(100)),
             n_deferred_solves: 0,
         }
     }
 
+    /// Solves the sizes and places the nodes.
+    pub fn compute<T: TreeAdapter>(&mut self, tree: &T, window_size: Xy<f32>, measure_text: &mut MeasureText) {
+        reset_arena();
+        let mut solver = Solver { tree, layout: self };
+        solver.solve_layout(window_size, measure_text);
+        solver.place_all();
+    }
+
+    /// Solves the sizes and the grid cells, without placing the nodes. Read the results with `size`, `grid_cell` and `grid_lines`.
+    pub fn solve<T: TreeAdapter>(&mut self, tree: &T, window_size: Xy<f32>, measure_text: &mut MeasureText) {
+        reset_arena();
+        let mut solver = Solver { tree, layout: self };
+        solver.solve_layout(window_size, measure_text);
+    }
+
+    /// The solved size of a node, in fractions of the window size.
     pub fn size(&self, i: NodeI) -> Xy<f32> {
         let values = &self.solver_data[i].values;
         Xy::new(values[slot_index(X, Kind::Final)], values[slot_index(Y, Kind::Final)])
     }
+
+    /// The cell of a node in its parent's grid.
+    pub fn grid_cell(&self, i: NodeI) -> Xy<u16> {
+        self.solver_data[i].grid_cell
+    }
+
+    /// The number of columns and rows of a grid node.
+    pub fn grid_lines(&self, i: NodeI) -> Xy<u16> {
+        self.solver_data[i].grid_lines
+    }
+
+    /// The rect of a node, in fractions of the window size.
+    pub fn rect(&self, i: NodeI) -> XyRect {
+        self.rects[i]
+    }
+
+    pub fn rect_px(&self, i: NodeI) -> XyRect {
+        let rect = self.rects[i];
+        let window = self.window_size;
+        Xy::new(
+            [rect.x[0] * window.x, rect.x[1] * window.x],
+            [rect.y[0] * window.y, rect.y[1] * window.y],
+        )
+    }
+
+    #[doc(hidden)]
+    pub fn deferred_solves(&self) -> usize {
+        self.n_deferred_solves
+    }
 }
 
-impl Nodes {
+impl Default for Layout {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// The tree that the solver reads, and the layout state that it writes.
+pub(crate) struct Solver<'a, T: TreeAdapter> {
+    pub tree: &'a T,
+    pub layout: &'a mut Layout,
+}
+
+impl<T: TreeAdapter> Solver<'_, T> {
+    /// The node after `i` in a depth-first preorder walk. It skips the subtrees of disabled nodes.
+    #[inline(always)]
+    pub(crate) fn next_in_preorder(&self, i: NodeI) -> Option<NodeI> {
+        if ! self.tree.params(i).disabled && let Some(child) = self.tree.first_child(i) {
+            return Some(child);
+        }
+        let root = self.tree.root();
+        let mut i = i;
+        loop {
+            if i == root {
+                return None;
+            }
+            if let Some(sibling) = self.tree.next_sibling(i) {
+                return Some(sibling);
+            }
+            i = self.tree.parent(i);
+        }
+    }
+}
+
+impl<T: TreeAdapter> Solver<'_, T> {
     #[inline(always)]
     pub(crate) fn declared(&self, i: NodeI, axis: Axis, kind: Kind) -> Option<Size> {
-        let node = &self.layout.params[i];
+        let node = self.tree.params(i);
         match kind {
             Kind::Regular => Some(node.size[axis]),
             Kind::Min => node.min_size[axis],
@@ -175,12 +254,12 @@ impl Nodes {
 
     #[inline(always)]
     pub(crate) fn text_wraps(&self, i: NodeI, axis: Axis) -> bool {
-        axis == Y && self.layout.params[i].text == TextContent::Box && ! matches!(self.layout.params[i].size[X], Size::AspectRatio(_))
+        axis == Y && self.tree.params(i).text == TextContent::Box && ! matches!(self.tree.params(i).size[X], Size::AspectRatio(_))
     }
 
     #[inline(always)]
     fn stack_axis(&self, i: NodeI) -> Option<Axis> {
-        match self.layout.params[i].children_layout {
+        match self.tree.params(i).children_layout {
             ChildrenLayout::Stack { axis, .. } => Some(axis),
             _ => None,
         }
@@ -188,26 +267,29 @@ impl Nodes {
 
     #[inline(always)]
     pub(crate) fn is_stacked(&self, i: NodeI, axis: Axis) -> bool {
-        let parent = self.links[i].parent;
-        self.stack_axis(parent) == Some(axis) && ! self.layout.params[i].free_placement
+        let parent = self.tree.parent(i);
+        self.stack_axis(parent) == Some(axis) && ! self.tree.params(i).free_placement
     }
 
     #[inline(always)]
     pub(crate) fn has_even_share(&self, i: NodeI, axis: Axis) -> bool {
-        self.stack_axis(i) == Some(axis) && self.layout.params[i].size[axis] != Size::FitContent
+        self.stack_axis(i) == Some(axis) && self.tree.params(i).size[axis] != Size::FitContent
     }
 
 }
 
-impl Nodes {
+impl<T: TreeAdapter> Solver<'_, T> {
     pub(crate) fn reset_solver_data(&mut self) {
         self.layout.solver_data.0.clear();
-        self.layout.solver_data.0.resize(self.layout.params.0.len(), EMPTY_SOLVER_DATA);
+        self.layout.solver_data.0.resize(self.tree.index_bound(), EMPTY_SOLVER_DATA);
+        self.layout.rects.0.resize(self.tree.index_bound(), Xy::new([0.0, 0.0], [0.0, 0.0]));
         self.layout.n_deferred_solves = 0;
-        for i in 1..self.layout.params.0.len() {
-            let params = &self.layout.params.0[i];
+        let mut next = self.next_in_preorder(self.tree.root());
+        while let Some(i) = next {
+            next = self.next_in_preorder(i);
+            let params = self.tree.params(i);
             if ! params.disabled && ! params.free_placement {
-                let parent = self.links.0[i].parent;
+                let parent = self.tree.parent(i);
                 self.layout.solver_data[parent].n_placed_children += 1;
             }
         }
@@ -215,7 +297,7 @@ impl Nodes {
 
     #[inline(always)]
     fn grid_main_axis(&self, i: NodeI) -> Option<Axis> {
-        match self.layout.params[i].children_layout {
+        match self.tree.params(i).children_layout {
             ChildrenLayout::Grid { flow, .. } => Some(flow.main_axis),
             _ => None,
         }
@@ -234,7 +316,7 @@ impl Nodes {
             Kind::EvenShare => {
                 self.solve_slot(i, axis, Kind::Final, measure_text);
                 for_each_layout_child!(self, i, child, {
-                    if self.layout.params[child].free_placement {
+                    if self.tree.params(child).free_placement {
                         // Nothing
                     } else if self.any_size_is_fill(child, axis) {
                         for kind in DECLARED {
@@ -248,17 +330,17 @@ impl Nodes {
                 });
             }
             Kind::GridCells => {
-                if matches!(self.layout.params[i].children_layout, ChildrenLayout::Grid { columns: MainAxisCellSize::Width(_), .. }) {
+                if matches!(self.tree.params(i).children_layout, ChildrenLayout::Grid { columns: MainAxisCellSize::Width(_), .. }) {
                     self.solve_slot(i, axis, Kind::Final, measure_text);
                 }
             }
             declared => match self.declared(i, axis, declared).unwrap() {
                 Size::Pixels(_) => {}
-                _ if i == ROOT_I && kind == Kind::Regular => {}
+                _ if i == self.tree.root() && kind == Kind::Regular => {}
                 Size::AspectRatio(_) => self.solve_slot(i, axis.other(), Kind::Final, measure_text),
                 Size::Frac(_) => self.read_available_from_parent(slot, measure_text),
                 Size::Fill if self.is_stacked(i, axis) => {
-                    let parent = self.links[i].parent;
+                    let parent = self.tree.parent(i);
                     if self.has_even_share(parent, axis) {
                         self.solve_slot(parent, axis, Kind::EvenShare, measure_text);
                     }
@@ -266,7 +348,7 @@ impl Nodes {
                 Size::Fill => self.read_available_from_parent(slot, measure_text),
                 Size::FitContent => {
                     for_each_layout_child!(self, i, child, {
-                        if ! self.layout.params[child].free_placement {
+                        if ! self.tree.params(child).free_placement {
                             for kind in DECLARED {
                                 if let Some(size) = self.declared(child, axis, kind) && ! size.is_flex() {
                                     self.solve_slot(child, axis, kind, measure_text);
@@ -289,12 +371,12 @@ impl Nodes {
     #[inline(always)]
     fn read_available_from_parent(&mut self, slot: Slot, measure_text: &mut MeasureText) {
         let i = slot.node;
-        if i == ROOT_I {
+        if i == self.tree.root() {
             return;
         }
-        let parent = self.links[i].parent;
+        let parent = self.tree.parent(i);
         self.solve_slot(parent, slot.axis, Kind::Final, measure_text);
-        if ! self.layout.params[i].free_placement && let Some(main) = self.grid_main_axis(parent) {
+        if ! self.tree.params(i).free_placement && let Some(main) = self.grid_main_axis(parent) {
             self.solve_slot(parent, main, Kind::GridCells, measure_text);
         }
     }
@@ -320,7 +402,7 @@ fn inner(size: f32, padding: f32) -> f32 {
 /// Measures the text of a node. The width and the result are in fractions of the window size.
 pub type MeasureText<'a> = dyn FnMut(NodeI, Option<f32>) -> Xy<f32> + 'a;
 
-impl Nodes {
+impl<T: TreeAdapter> Solver<'_, T> {
     pub(crate) fn solve_layout(&mut self, window_size: Xy<f32>, measure_text: &mut MeasureText) {
         self.layout.window_size = window_size;
         self.reset_solver_data();
@@ -328,9 +410,10 @@ impl Nodes {
     }
 
     fn solve(&mut self, measure_text: &mut MeasureText) {
-        for i in 0..self.layout.params.0.len() {
-            let node = NodeI::from_usize(i);
-            if self.layout.params[node].disabled {
+        let mut next = Some(self.tree.root());
+        while let Some(node) = next {
+            next = self.next_in_preorder(node);
+            if self.tree.params(node).disabled {
                 continue;
             }
             self.solve_slot(node, X, Kind::Final, measure_text);
@@ -359,7 +442,7 @@ impl Nodes {
         data.values[k] = size;
         data.states = (data.states & ! (3 << (2 * k))) | (SOLVED << (2 * k));
         if slot.kind == Kind::Final {
-            self.rects[slot.node][slot.axis] = [0.0, size];
+            self.layout.rects[slot.node][slot.axis] = [0.0, size];
         }
     }
 
@@ -380,7 +463,7 @@ impl Nodes {
         let i = slot.node;
         let axis = slot.axis;
         match slot.kind {
-            Kind::Regular if i == ROOT_I => 1.0,
+            Kind::Regular if i == self.tree.root() => 1.0,
             Kind::Final => {
                 let (min, max) = self.solved_bounds(i, axis, |_| false);
                 clamp(self.get_solved_value(i, axis, Kind::Regular), min, max)
@@ -403,7 +486,7 @@ impl Nodes {
                 },
                 Size::Frac(frac) => self.available_from_parent(i, axis) * frac,
                 Size::Fill if self.is_stacked(i, axis) => {
-                    let parent = self.links[i].parent;
+                    let parent = self.tree.parent(i);
                     match self.has_even_share(parent, axis) {
                         true => self.get_solved_value(parent, axis, Kind::EvenShare),
                         false => 0.0,
@@ -416,7 +499,7 @@ impl Nodes {
 
     #[inline(always)]
     fn solved_bounds(&self, i: NodeI, axis: Axis, ignore_bounds_rule: impl Fn(Size) -> bool) -> (Option<f32>, Option<f32>) {
-        let node = &self.layout.params[i];
+        let node = self.tree.params(i);
         let min = if let Some(bound) = node.min_size[axis] && ! ignore_bounds_rule(bound) {
             Some(self.get_solved_value(i, axis, Kind::Min))
         } else { None };
@@ -427,17 +510,17 @@ impl Nodes {
     }
 
     fn available_from_parent(&self, i: NodeI, axis: Axis) -> f32 {
-        let parent = self.links[i].parent;
+        let parent = self.tree.parent(i);
         let inner = inner(self.get_solved_value(parent, axis, Kind::Final), self.padding(parent, axis));
-        if self.layout.params[i].free_placement {
+        if self.tree.params(i).free_placement {
             return inner;
         }
-        match self.layout.params[parent].children_layout {
+        match self.tree.params(parent).children_layout {
             ChildrenLayout::Grid { spacing_x, spacing_y, .. } => {
                 let spacing = self.pixels_to_frac(Xy::new(spacing_x, spacing_y)[axis], axis);
                 let n = self.layout.solver_data[parent].grid_lines[axis] as f32;
                 let cell = ((inner - spacing * (n - 1.0)) / n.max(1.0)).max(0.0);
-                let span = self.layout.params[i].grid_span[axis].max(1) as f32;
+                let span = self.tree.params(i).grid_span[axis].max(1) as f32;
                 span * cell + (span - 1.0) * spacing
             }
             ChildrenLayout::Stack { axis: stack_axis, .. } if stack_axis == axis => {
@@ -448,7 +531,7 @@ impl Nodes {
     }
 
     fn solve_fitcontent(&mut self, i: NodeI, axis: Axis, is_max_bound: bool, measure_text: &mut MeasureText) -> f32 {
-        let (children, gaps) = match self.layout.params[i].children_layout {
+        let (children, gaps) = match self.tree.params(i).children_layout {
             ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow } => {
                 let spacing = self.pixels_to_frac(Xy::new(spacing_x, spacing_y)[axis], axis);
                 let n = self.layout.solver_data[i].grid_lines[axis] as f32;
@@ -457,8 +540,8 @@ impl Nodes {
                     _ => {
                         let mut cell = 0.0f32;
                         for_each_layout_child!(self, i, child, {
-                            if ! self.layout.params[child].free_placement {
-                                let span = self.layout.params[child].grid_span[axis].max(1) as f32;
+                            if ! self.tree.params(child).free_placement {
+                                let span = self.tree.params(child).grid_span[axis].max(1) as f32;
                                 cell = cell.max((self.pre_grow_size(child, axis, is_max_bound) - (span - 1.0) * spacing) / span);
                             }
                         });
@@ -473,7 +556,7 @@ impl Nodes {
             ChildrenLayout::Stack { .. } | ChildrenLayout::Free => {
                 let mut biggest = 0.0f32;
                 for_each_layout_child!(self, i, child, {
-                    if ! self.layout.params[child].free_placement {
+                    if ! self.tree.params(child).free_placement {
                         biggest = biggest.max(self.pre_grow_size(child, axis, is_max_bound));
                     }
                 });
@@ -481,7 +564,7 @@ impl Nodes {
             }
         };
 
-        let mut own_content = match self.layout.params[i].text {
+        let mut own_content = match self.tree.params(i).text {
             TextContent::None => 0.0,
             _ if self.text_wraps(i, axis) => {
                 let width = inner(self.get_solved_value(i, X, Kind::Final), self.padding(i, X));
@@ -489,7 +572,7 @@ impl Nodes {
             }
             _ => measure_text(i, None)[axis],
         };
-        if let Some(image) = self.layout.params[i].image {
+        if let Some(image) = self.tree.params(i).image {
             own_content = own_content.max(self.pixels_to_frac(image[axis], axis));
         }
 
@@ -503,9 +586,9 @@ impl Nodes {
             let mut free_frac = 0.0f32;
             let mut has_frac = false;
             for_each_layout_child!(self, i, child, {
-                if self.layout.params[child].free_placement {
+                if self.tree.params(child).free_placement {
                     // Nothing
-                } else if let Size::Frac(frac) = self.layout.params[child].size[axis] {
+                } else if let Size::Frac(frac) = self.tree.params(child).size[axis] {
                     has_frac = true;
                     let wanted = estimate * frac;
                     let (min, max) = self.solved_bounds(child, axis, |bound| bound.is_flex());
@@ -538,7 +621,7 @@ impl Nodes {
 
     #[inline(always)]
     fn pre_grow_size(&self, child: NodeI, axis: Axis, at_max: bool) -> f32 {
-        let size = match self.layout.params[child].size[axis] {
+        let size = match self.tree.params(child).size[axis] {
             Size::Fill if at_max => f32::INFINITY,
             size if size.is_flex() => 0.0,
             _ => self.get_solved_value(child, axis, Kind::Regular),
@@ -575,7 +658,7 @@ impl Nodes {
         with_arena(|arena| {
             let mut fills = BumpVec::new_in(arena);
             for_each_layout_child!(self, i, child, {
-                let node = &self.layout.params[child];
+                let node = self.tree.params(child);
                 if node.free_placement {
                     // Nothing
                 } else if self.any_size_is_fill(child, axis) {
@@ -638,7 +721,7 @@ impl Nodes {
     }
 
     fn solve_grid_cells(&mut self, i: NodeI) -> f32 {
-        let ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow } = self.layout.params[i].children_layout else {
+        let ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow } = self.tree.params(i).children_layout else {
             unreachable!();
         };
         let main = flow.main_axis;
@@ -661,8 +744,8 @@ impl Nodes {
             let mut cursor_line = 0;
 
             for_each_layout_child!(self, i, child, {
-                if ! self.layout.params[child].free_placement {
-                    let span = self.layout.params[child].grid_span;
+                if ! self.tree.params(child).free_placement {
+                    let span = self.tree.params(child).grid_span;
                     let span_pos = (span[flow.main_axis].max(1) as usize).min(n_main);
                     let span_line = span[flow.main_axis.other()].max(1) as usize;
 
@@ -709,8 +792,8 @@ impl Nodes {
             };
             if reversed {
                 for_each_layout_child!(self, i, child, {
-                    if ! self.layout.params[child].free_placement {
-                        let span = self.layout.params[child].grid_span[axis].max(1);
+                    if ! self.tree.params(child).free_placement {
+                        let span = self.tree.params(child).grid_span[axis].max(1);
                         let cell = &mut self.layout.solver_data[child].grid_cell[axis];
                         *cell = lines[axis] - span - *cell;
                     }
@@ -721,12 +804,12 @@ impl Nodes {
 
     #[inline(always)]
     fn padding(&self, i: NodeI, axis: Axis) -> f32 {
-        self.pixels_to_frac(self.layout.params[i].padding[axis], axis)
+        self.pixels_to_frac(self.tree.params(i).padding[axis], axis)
     }
 
     #[inline(always)]
     fn stack_gaps(&self, i: NodeI, axis: Axis) -> f32 {
-        let ChildrenLayout::Stack { axis: stack_axis, spacing, .. } = self.layout.params[i].children_layout else {
+        let ChildrenLayout::Stack { axis: stack_axis, spacing, .. } = self.tree.params(i).children_layout else {
             return 0.0;
         };
         if stack_axis != axis {
