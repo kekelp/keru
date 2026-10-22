@@ -1,16 +1,15 @@
 #[macro_use]
 mod solve;
 mod place;
-mod example_tree;
+pub mod example_tree;
 
 use std::cell::RefCell;
 use std::fmt::Debug;
 use std::ops::{Index, IndexMut};
 
-pub use solve::NodeLayout;
+pub use solve::LayoutData;
 pub(crate) use solve::*;
 pub(crate) use place::Place;
-pub use example_tree::{ExampleTree, NodeI, ROOT_I};
 
 pub trait TreeAdapter {
     type NodeId: Copy + Eq + Debug;
@@ -19,8 +18,8 @@ pub trait TreeAdapter {
     fn first_child(&self, i: Self::NodeId) -> Option<Self::NodeId>;
     fn next_sibling(&self, i: Self::NodeId) -> Option<Self::NodeId>;
     fn params(&self, i: Self::NodeId) -> &LayoutParams;
-    fn layout_data(&self, i: Self::NodeId) -> &NodeLayout;
-    fn layout_data_mut(&mut self, i: Self::NodeId) -> &mut NodeLayout;
+    fn layout_data(&self, i: Self::NodeId) -> &LayoutData;
+    fn layout_data_mut(&mut self, i: Self::NodeId) -> &mut LayoutData;
     /// Measures the text of a node. The width and the result are in fractions of the window size. It is called only on nodes with text.
     fn measure_text(&mut self, i: Self::NodeId, width: Option<f32>) -> Xy<f32>;
     /// Called when the layout solver computes the end result for a node's rectangle.

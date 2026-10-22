@@ -67,12 +67,12 @@ impl gl::TreeAdapter for System {
     }
 
     #[inline(always)]
-    fn layout_data(&self, i: NodeI) -> &gl::NodeLayout {
+    fn layout_data(&self, i: NodeI) -> &gl::LayoutData {
         &self.nodes.layout_data[i]
     }
 
     #[inline(always)]
-    fn layout_data_mut(&mut self, i: NodeI) -> &mut gl::NodeLayout {
+    fn layout_data_mut(&mut self, i: NodeI) -> &mut gl::LayoutData {
         &mut self.nodes.layout_data[i]
     }
 
@@ -87,7 +87,7 @@ impl gl::TreeAdapter for System {
     }
 
     fn write_output_rect(&mut self, i: NodeI, rect: gl::XyRect, local_rect: gl::XyRect) {
-        let size = self.nodes.layout_data[i].size();
+        let size = Xy::new(rect.x[1] - rect.x[0], rect.y[1] - rect.y[0]);
         let parent = self.nodes.links[i].parent;
 
         if i != ROOT_I {
@@ -101,7 +101,7 @@ impl gl::TreeAdapter for System {
         }
 
         let node = &mut self.nodes[i];
-        node.size = Xy::new(size.x, size.y);
+        node.size = size;
         node.layout_rect = XyRect::new(rect.x, rect.y);
         node.local_layout_rect = XyRect::new(local_rect.x, local_rect.y);
         // The children extend this when they are placed.

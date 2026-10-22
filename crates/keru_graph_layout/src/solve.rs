@@ -66,9 +66,9 @@ macro_rules! for_each_layout_child {
     }};
 }
 
-/// The layout data of one node. The `TreeAdapter` keeps one for each node, in any form of storage (for example, a `Vec`, a `SecondaryMap`, or a field in the node).
+/// Per-node data used by the layout solver.
 #[derive(Debug, Clone, Copy)]
-pub struct NodeLayout {
+pub struct LayoutData {
     /// The value of every slot, by `slot_index`. Only the slots that exist are used.
     pub(crate) values: [f32; N_SLOTS],
     /// The state of every slot, 2 bits each, by `slot_index`.
@@ -81,8 +81,8 @@ pub struct NodeLayout {
     pub(crate) grid_lines: Xy<u16>,
 }
 
-impl NodeLayout {
-    pub const EMPTY: NodeLayout = NodeLayout {
+impl LayoutData {
+    pub const EMPTY: LayoutData = LayoutData {
         values: EMPTY_VALUES,
         states: 0,
         n_placed_children: 0,
@@ -90,24 +90,13 @@ impl NodeLayout {
         grid_lines: Xy { x: 0, y: 0 },
     };
 
-    /// The solved size of the node, in fractions of the window size.
-    pub fn size(&self) -> Xy<f32> {
+    pub(crate) fn size(&self) -> Xy<f32> {
         let values = &self.values;
         Xy::new(values[slot_index(X, Kind::Final)], values[slot_index(Y, Kind::Final)])
     }
-
-    /// The cell of the node in its parent's grid.
-    pub fn grid_cell(&self) -> Xy<u16> {
-        self.grid_cell
-    }
-
-    /// The number of columns and rows, if the node is a grid.
-    pub fn grid_lines(&self) -> Xy<u16> {
-        self.grid_lines
-    }
 }
 
-impl Default for NodeLayout {
+impl Default for LayoutData {
     fn default() -> Self {
         Self::EMPTY
     }
@@ -131,9 +120,8 @@ fn inner(size: f32, padding: f32) -> f32 {
 }
 
 pub(crate) trait Solve: TreeAdapter {
-    /// The node after `i` in a depth-first preorder walk. It skips the subtrees of disabled nodes.
     #[inline(always)]
-    fn next_in_preorder(&self, i: Self::NodeId) -> Option<Self::NodeId> {
+    fn tree_traversal_next(&self, i: Self::NodeId) -> Option<Self::NodeId> {
         if ! self.params(i).disabled && let Some(child) = self.first_child(i) {
             return Some(child);
         }
@@ -193,11 +181,11 @@ pub(crate) trait Solve: TreeAdapter {
 
     fn reset_solver_data(&mut self) {
         let root = self.root();
-        *self.layout_data_mut(root) = NodeLayout::EMPTY;
-        let mut next = self.next_in_preorder(root);
+        *self.layout_data_mut(root) = LayoutData::EMPTY;
+        let mut next = self.tree_traversal_next(root);
         while let Some(i) = next {
-            next = self.next_in_preorder(i);
-            *self.layout_data_mut(i) = NodeLayout::EMPTY;
+            next = self.tree_traversal_next(i);
+            *self.layout_data_mut(i) = LayoutData::EMPTY;
             let params = self.params(i);
             if ! params.disabled && ! params.free_placement {
                 let parent = self.parent(i);
@@ -301,7 +289,7 @@ pub(crate) trait Solve: TreeAdapter {
     fn solve(&mut self) {
         let mut next = Some(self.root());
         while let Some(node) = next {
-            next = self.next_in_preorder(node);
+            next = self.tree_traversal_next(node);
             if self.params(node).disabled {
                 continue;
             }

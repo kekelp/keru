@@ -14,7 +14,7 @@ pub(crate) trait Place: Solve {
         self.place(self.root(), window, window);
     }
 
-    /// Gives a node its final rect, then places its children inside it. The rects are not stored: each one goes to `write_output_rect`, and down the recursion.
+    /// Gives a node its final rect, then places its children inside it.
     fn place(&mut self, i: Self::NodeId, rect: XyRect, parent_rect: XyRect) {
         let local_rect = Xy::new(
             [rect.x[0] - parent_rect.x[0], rect.x[1] - parent_rect.x[0]],
