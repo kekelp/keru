@@ -65,8 +65,8 @@ pub(crate) const fn slot_index(axis: Axis, kind: Kind) -> usize {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct Slot {
-    pub node: NodeI,
+pub(crate) struct Slot<N> {
+    pub node: N,
     pub axis: Axis,
     pub kind: Kind,
 }
@@ -132,92 +132,111 @@ macro_rules! for_each_layout_child {
     }};
 }
 
-/// The layout state of a tree. It is indexed by `NodeI` and has `TreeAdapter::index_bound` elements.
-#[derive(Debug)]
-pub struct Layout {
-    pub(crate) window_size: Xy<f32>,
-    pub(crate) solver_data: NodeVec<SolverData>,
-    pub(crate) rects: NodeVec<XyRect>,
-    pub(crate) n_deferred_solves: usize,
+/// The layout data of one node. The `TreeAdapter` keeps one for each node, in any form of storage (for example, a `Vec`, a `SecondaryMap`, or a field in the node).
+#[derive(Debug, Clone, Copy)]
+pub struct NodeLayout {
+    pub(crate) solver: SolverData,
+    pub(crate) rect: XyRect,
 }
 
-impl Layout {
-    pub fn new() -> Self {
-        Layout {
-            window_size: Xy::new(0.0, 0.0),
-            solver_data: NodeVec(Vec::with_capacity(100)),
-            rects: NodeVec(Vec::with_capacity(100)),
-            n_deferred_solves: 0,
-        }
-    }
+impl NodeLayout {
+    pub const EMPTY: NodeLayout = NodeLayout {
+        solver: EMPTY_SOLVER_DATA,
+        rect: Xy { x: [0.0, 0.0], y: [0.0, 0.0] },
+    };
 
-    /// Solves the sizes and places the nodes.
-    pub fn compute<T: TreeAdapter>(&mut self, tree: &T, window_size: Xy<f32>, measure_text: &mut MeasureText) {
-        reset_arena();
-        let mut solver = Solver { tree, layout: self };
-        solver.solve_layout(window_size, measure_text);
-        solver.place_all();
-    }
-
-    /// Solves the sizes and the grid cells, without placing the nodes. Read the results with `size`, `grid_cell` and `grid_lines`.
-    pub fn solve<T: TreeAdapter>(&mut self, tree: &T, window_size: Xy<f32>, measure_text: &mut MeasureText) {
-        reset_arena();
-        let mut solver = Solver { tree, layout: self };
-        solver.solve_layout(window_size, measure_text);
-    }
-
-    /// The solved size of a node, in fractions of the window size.
-    pub fn size(&self, i: NodeI) -> Xy<f32> {
-        let values = &self.solver_data[i].values;
+    /// The solved size of the node, in fractions of the window size.
+    pub fn size(&self) -> Xy<f32> {
+        let values = &self.solver.values;
         Xy::new(values[slot_index(X, Kind::Final)], values[slot_index(Y, Kind::Final)])
     }
 
-    /// The cell of a node in its parent's grid.
-    pub fn grid_cell(&self, i: NodeI) -> Xy<u16> {
-        self.solver_data[i].grid_cell
+    /// The cell of the node in its parent's grid.
+    pub fn grid_cell(&self) -> Xy<u16> {
+        self.solver.grid_cell
     }
 
-    /// The number of columns and rows of a grid node.
-    pub fn grid_lines(&self, i: NodeI) -> Xy<u16> {
-        self.solver_data[i].grid_lines
+    /// The number of columns and rows, if the node is a grid.
+    pub fn grid_lines(&self) -> Xy<u16> {
+        self.solver.grid_lines
     }
 
-    /// The rect of a node, in fractions of the window size.
-    pub fn rect(&self, i: NodeI) -> XyRect {
-        self.rects[i]
+    /// The rect of the node, in fractions of the window size. Only `compute` sets it.
+    pub fn rect(&self) -> XyRect {
+        self.rect
     }
 
-    pub fn rect_px(&self, i: NodeI) -> XyRect {
-        let rect = self.rects[i];
-        let window = self.window_size;
+    /// The rect of the node, in pixels. Only `compute` sets it.
+    pub fn rect_px(&self, window_size: Xy<f32>) -> XyRect {
+        let rect = self.rect;
         Xy::new(
-            [rect.x[0] * window.x, rect.x[1] * window.x],
-            [rect.y[0] * window.y, rect.y[1] * window.y],
+            [rect.x[0] * window_size.x, rect.x[1] * window_size.x],
+            [rect.y[0] * window_size.y, rect.y[1] * window_size.y],
         )
     }
-
-    #[doc(hidden)]
-    pub fn deferred_solves(&self) -> usize {
-        self.n_deferred_solves
-    }
 }
 
-impl Default for Layout {
+impl Default for NodeLayout {
     fn default() -> Self {
-        Self::new()
+        Self::EMPTY
     }
 }
 
-/// The tree that the solver reads, and the layout state that it writes.
+/// Solves the sizes and places the nodes. The results are in the `NodeLayout` of each node. Returns the number of slots that were read before they were solved, because of cycles.
+pub fn compute<T: TreeAdapter>(tree: &mut T, window_size: Xy<f32>) -> usize {
+    reset_arena();
+    let mut solver = Solver { tree, window_size, n_deferred_solves: 0 };
+    solver.solve_layout();
+    solver.place_all();
+    solver.n_deferred_solves
+}
+
+/// Solves the sizes and the grid cells, without placing the nodes. The results are in the `NodeLayout` of each node. Returns the number of slots that were read before they were solved, because of cycles.
+pub fn solve<T: TreeAdapter>(tree: &mut T, window_size: Xy<f32>) -> usize {
+    reset_arena();
+    let mut solver = Solver { tree, window_size, n_deferred_solves: 0 };
+    solver.solve_layout();
+    solver.n_deferred_solves
+}
+
+/// The tree, with the state of one solve.
 pub(crate) struct Solver<'a, T: TreeAdapter> {
-    pub tree: &'a T,
-    pub layout: &'a mut Layout,
+    pub tree: &'a mut T,
+    pub window_size: Xy<f32>,
+    pub n_deferred_solves: usize,
+}
+
+impl<T: TreeAdapter> Solver<'_, T> {
+    #[inline(always)]
+    pub(crate) fn data(&self, i: T::Node) -> &SolverData {
+        &self.tree.layout_data(i).solver
+    }
+
+    #[inline(always)]
+    pub(crate) fn data_mut(&mut self, i: T::Node) -> &mut SolverData {
+        &mut self.tree.layout_data_mut(i).solver
+    }
+
+    #[inline(always)]
+    pub(crate) fn rect(&self, i: T::Node) -> XyRect {
+        self.tree.layout_data(i).rect
+    }
+
+    #[inline(always)]
+    pub(crate) fn rect_mut(&mut self, i: T::Node) -> &mut XyRect {
+        &mut self.tree.layout_data_mut(i).rect
+    }
+
+    #[inline(always)]
+    pub(crate) fn size(&self, i: T::Node) -> Xy<f32> {
+        self.tree.layout_data(i).size()
+    }
 }
 
 impl<T: TreeAdapter> Solver<'_, T> {
     /// The node after `i` in a depth-first preorder walk. It skips the subtrees of disabled nodes.
     #[inline(always)]
-    pub(crate) fn next_in_preorder(&self, i: NodeI) -> Option<NodeI> {
+    pub(crate) fn next_in_preorder(&self, i: T::Node) -> Option<T::Node> {
         if ! self.tree.params(i).disabled && let Some(child) = self.tree.first_child(i) {
             return Some(child);
         }
@@ -237,7 +256,7 @@ impl<T: TreeAdapter> Solver<'_, T> {
 
 impl<T: TreeAdapter> Solver<'_, T> {
     #[inline(always)]
-    pub(crate) fn declared(&self, i: NodeI, axis: Axis, kind: Kind) -> Option<Size> {
+    pub(crate) fn declared(&self, i: T::Node, axis: Axis, kind: Kind) -> Option<Size> {
         let node = self.tree.params(i);
         match kind {
             Kind::Regular => Some(node.size[axis]),
@@ -248,17 +267,17 @@ impl<T: TreeAdapter> Solver<'_, T> {
     }
 
     #[inline(always)]
-    pub(crate) fn any_size_is_fill(&self, i: NodeI, axis: Axis) -> bool {
+    pub(crate) fn any_size_is_fill(&self, i: T::Node, axis: Axis) -> bool {
         DECLARED.iter().any(|&kind| self.declared(i, axis, kind) == Some(Size::Fill))
     }
 
     #[inline(always)]
-    pub(crate) fn text_wraps(&self, i: NodeI, axis: Axis) -> bool {
+    pub(crate) fn text_wraps(&self, i: T::Node, axis: Axis) -> bool {
         axis == Y && self.tree.params(i).text == TextContent::Box && ! matches!(self.tree.params(i).size[X], Size::AspectRatio(_))
     }
 
     #[inline(always)]
-    fn stack_axis(&self, i: NodeI) -> Option<Axis> {
+    fn stack_axis(&self, i: T::Node) -> Option<Axis> {
         match self.tree.params(i).children_layout {
             ChildrenLayout::Stack { axis, .. } => Some(axis),
             _ => None,
@@ -266,13 +285,13 @@ impl<T: TreeAdapter> Solver<'_, T> {
     }
 
     #[inline(always)]
-    pub(crate) fn is_stacked(&self, i: NodeI, axis: Axis) -> bool {
+    pub(crate) fn is_stacked(&self, i: T::Node, axis: Axis) -> bool {
         let parent = self.tree.parent(i);
         self.stack_axis(parent) == Some(axis) && ! self.tree.params(i).free_placement
     }
 
     #[inline(always)]
-    pub(crate) fn has_even_share(&self, i: NodeI, axis: Axis) -> bool {
+    pub(crate) fn has_even_share(&self, i: T::Node, axis: Axis) -> bool {
         self.stack_axis(i) == Some(axis) && self.tree.params(i).size[axis] != Size::FitContent
     }
 
@@ -280,87 +299,86 @@ impl<T: TreeAdapter> Solver<'_, T> {
 
 impl<T: TreeAdapter> Solver<'_, T> {
     pub(crate) fn reset_solver_data(&mut self) {
-        self.layout.solver_data.0.clear();
-        self.layout.solver_data.0.resize(self.tree.index_bound(), EMPTY_SOLVER_DATA);
-        self.layout.rects.0.resize(self.tree.index_bound(), Xy::new([0.0, 0.0], [0.0, 0.0]));
-        self.layout.n_deferred_solves = 0;
-        let mut next = self.next_in_preorder(self.tree.root());
+        let root = self.tree.root();
+        *self.tree.layout_data_mut(root) = NodeLayout::EMPTY;
+        let mut next = self.next_in_preorder(root);
         while let Some(i) = next {
             next = self.next_in_preorder(i);
+            *self.tree.layout_data_mut(i) = NodeLayout::EMPTY;
             let params = self.tree.params(i);
             if ! params.disabled && ! params.free_placement {
                 let parent = self.tree.parent(i);
-                self.layout.solver_data[parent].n_placed_children += 1;
+                self.data_mut(parent).n_placed_children += 1;
             }
         }
     }
 
     #[inline(always)]
-    fn grid_main_axis(&self, i: NodeI) -> Option<Axis> {
+    fn grid_main_axis(&self, i: T::Node) -> Option<Axis> {
         match self.tree.params(i).children_layout {
             ChildrenLayout::Grid { flow, .. } => Some(flow.main_axis),
             _ => None,
         }
     }
 
-    fn solve_all_dependencies(&mut self, slot: Slot, measure_text: &mut MeasureText) {
+    fn solve_all_dependencies(&mut self, slot: Slot<T::Node>) {
         let Slot { node: i, axis, kind } = slot;
         match kind {
             Kind::Final => {
                 for kind in DECLARED {
                     if self.declared(i, axis, kind).is_some() {
-                        self.solve_slot(i, axis, kind, measure_text);
+                        self.solve_slot(i, axis, kind);
                     }
                 }
             }
             Kind::EvenShare => {
-                self.solve_slot(i, axis, Kind::Final, measure_text);
+                self.solve_slot(i, axis, Kind::Final);
                 for_each_layout_child!(self, i, child, {
                     if self.tree.params(child).free_placement {
                         // Nothing
                     } else if self.any_size_is_fill(child, axis) {
                         for kind in DECLARED {
                             if let Some(size) = self.declared(child, axis, kind) && size.not_fill() {
-                                self.solve_slot(child, axis, kind, measure_text);
+                                self.solve_slot(child, axis, kind);
                             }
                         }
                     } else {
-                        self.solve_slot(child, axis, Kind::Final, measure_text);
+                        self.solve_slot(child, axis, Kind::Final);
                     }
                 });
             }
             Kind::GridCells => {
                 if matches!(self.tree.params(i).children_layout, ChildrenLayout::Grid { columns: MainAxisCellSize::Width(_), .. }) {
-                    self.solve_slot(i, axis, Kind::Final, measure_text);
+                    self.solve_slot(i, axis, Kind::Final);
                 }
             }
             declared => match self.declared(i, axis, declared).unwrap() {
                 Size::Pixels(_) => {}
                 _ if i == self.tree.root() && kind == Kind::Regular => {}
-                Size::AspectRatio(_) => self.solve_slot(i, axis.other(), Kind::Final, measure_text),
-                Size::Frac(_) => self.read_available_from_parent(slot, measure_text),
+                Size::AspectRatio(_) => self.solve_slot(i, axis.other(), Kind::Final),
+                Size::Frac(_) => self.read_available_from_parent(slot),
                 Size::Fill if self.is_stacked(i, axis) => {
                     let parent = self.tree.parent(i);
                     if self.has_even_share(parent, axis) {
-                        self.solve_slot(parent, axis, Kind::EvenShare, measure_text);
+                        self.solve_slot(parent, axis, Kind::EvenShare);
                     }
                 }
-                Size::Fill => self.read_available_from_parent(slot, measure_text),
+                Size::Fill => self.read_available_from_parent(slot),
                 Size::FitContent => {
                     for_each_layout_child!(self, i, child, {
                         if ! self.tree.params(child).free_placement {
                             for kind in DECLARED {
                                 if let Some(size) = self.declared(child, axis, kind) && ! size.is_flex() {
-                                    self.solve_slot(child, axis, kind, measure_text);
+                                    self.solve_slot(child, axis, kind);
                                 }
                             }
                         }
                     });
                     if axis == Y && self.text_wraps(i, Y) {
-                        self.solve_slot(i, X, Kind::Final, measure_text);
+                        self.solve_slot(i, X, Kind::Final);
                     }
                     if let Some(main) = self.grid_main_axis(i) {
-                        self.solve_slot(i, main, Kind::GridCells, measure_text);
+                        self.solve_slot(i, main, Kind::GridCells);
                     }
                 }
             },
@@ -369,15 +387,15 @@ impl<T: TreeAdapter> Solver<'_, T> {
 
     /// Solves what `available_from_parent` reads.
     #[inline(always)]
-    fn read_available_from_parent(&mut self, slot: Slot, measure_text: &mut MeasureText) {
+    fn read_available_from_parent(&mut self, slot: Slot<T::Node>) {
         let i = slot.node;
         if i == self.tree.root() {
             return;
         }
         let parent = self.tree.parent(i);
-        self.solve_slot(parent, slot.axis, Kind::Final, measure_text);
+        self.solve_slot(parent, slot.axis, Kind::Final);
         if ! self.tree.params(i).free_placement && let Some(main) = self.grid_main_axis(parent) {
-            self.solve_slot(parent, main, Kind::GridCells, measure_text);
+            self.solve_slot(parent, main, Kind::GridCells);
         }
     }
 }
@@ -399,67 +417,63 @@ fn inner(size: f32, padding: f32) -> f32 {
     (size - 2.0 * padding).max(0.0)
 }
 
-/// Measures the text of a node. The width and the result are in fractions of the window size.
-pub type MeasureText<'a> = dyn FnMut(NodeI, Option<f32>) -> Xy<f32> + 'a;
-
 impl<T: TreeAdapter> Solver<'_, T> {
-    pub(crate) fn solve_layout(&mut self, window_size: Xy<f32>, measure_text: &mut MeasureText) {
-        self.layout.window_size = window_size;
+    pub(crate) fn solve_layout(&mut self) {
         self.reset_solver_data();
-        self.solve(measure_text);
+        self.solve();
     }
 
-    fn solve(&mut self, measure_text: &mut MeasureText) {
+    fn solve(&mut self) {
         let mut next = Some(self.tree.root());
         while let Some(node) = next {
             next = self.next_in_preorder(node);
             if self.tree.params(node).disabled {
                 continue;
             }
-            self.solve_slot(node, X, Kind::Final, measure_text);
-            self.solve_slot(node, Y, Kind::Final, measure_text);
+            self.solve_slot(node, X, Kind::Final);
+            self.solve_slot(node, Y, Kind::Final);
             if let Some(main) = self.grid_main_axis(node) {
-                self.solve_slot(node, main, Kind::GridCells, measure_text);
+                self.solve_slot(node, main, Kind::GridCells);
             }
         }
     }
 
-    fn solve_slot(&mut self, node: NodeI, axis: Axis, kind: Kind, measure_text: &mut MeasureText) {
+    fn solve_slot(&mut self, node: T::Node, axis: Axis, kind: Kind) {
         let slot = Slot { node, axis, kind };
         let k = slot_index(slot.axis, slot.kind);
-        match (self.layout.solver_data[slot.node].states >> (2 * k)) & 3 {
+        match (self.data(slot.node).states >> (2 * k)) & 3 {
             SOLVED => return,
             IN_PROGRESS => {
-                self.layout.n_deferred_solves += 1;
+                self.n_deferred_solves += 1;
                 return;
             }
             _ => {}
         }
-        self.layout.solver_data[slot.node].states |= IN_PROGRESS << (2 * k);
-        self.solve_all_dependencies(slot, measure_text);
-        let size = self.solve_slot_inner(slot, measure_text);
-        let data = &mut self.layout.solver_data[slot.node];
+        self.data_mut(slot.node).states |= IN_PROGRESS << (2 * k);
+        self.solve_all_dependencies(slot);
+        let size = self.solve_slot_inner(slot);
+        let data = self.data_mut(slot.node);
         data.values[k] = size;
         data.states = (data.states & ! (3 << (2 * k))) | (SOLVED << (2 * k));
         if slot.kind == Kind::Final {
-            self.layout.rects[slot.node][slot.axis] = [0.0, size];
+            self.rect_mut(slot.node)[slot.axis] = [0.0, size];
         }
     }
 
     #[inline(always)]
-    fn get_solved_value(&self, i: NodeI, axis: Axis, kind: Kind) -> f32 {
+    fn get_solved_value(&self, i: T::Node, axis: Axis, kind: Kind) -> f32 {
         let k = slot_index(axis, kind);
-        let data = &self.layout.solver_data[i];
+        let data = self.data(i);
         debug_assert!((data.states >> (2 * k)) & 3 != UNSOLVED, "Slot {axis:?} {kind:?} of node {i:?} read before it is solved.");
         data.values[k]
     }
 
     #[inline(always)]
     fn pixels_to_frac(&self, pixels: f32, axis: Axis) -> f32 {
-        pixels / self.layout.window_size[axis]
+        pixels / self.window_size[axis]
     }
 
-    fn solve_slot_inner(&mut self, slot: Slot, measure_text: &mut MeasureText) -> f32 {
+    fn solve_slot_inner(&mut self, slot: Slot<T::Node>) -> f32 {
         let i = slot.node;
         let axis = slot.axis;
         match slot.kind {
@@ -474,7 +488,7 @@ impl<T: TreeAdapter> Solver<'_, T> {
                 Size::Pixels(pixels) => self.pixels_to_frac(pixels, axis),
                 Size::AspectRatio(aspect) => {
                     let other = self.get_solved_value(i, axis.other(), Kind::Final);
-                    let window_aspect = self.layout.window_size.x / self.layout.window_size.y;
+                    let window_aspect = self.window_size.x / self.window_size.y;
                     match axis {
                         X => other * aspect / window_aspect,
                         Y => other * window_aspect / aspect,
@@ -482,7 +496,7 @@ impl<T: TreeAdapter> Solver<'_, T> {
                 }
                 Size::FitContent => {
                     let is_max_bound = declared == Kind::Max;
-                    self.solve_fitcontent(i, axis, is_max_bound, measure_text)
+                    self.solve_fitcontent(i, axis, is_max_bound)
                 },
                 Size::Frac(frac) => self.available_from_parent(i, axis) * frac,
                 Size::Fill if self.is_stacked(i, axis) => {
@@ -498,7 +512,7 @@ impl<T: TreeAdapter> Solver<'_, T> {
     }
 
     #[inline(always)]
-    fn solved_bounds(&self, i: NodeI, axis: Axis, ignore_bounds_rule: impl Fn(Size) -> bool) -> (Option<f32>, Option<f32>) {
+    fn solved_bounds(&self, i: T::Node, axis: Axis, ignore_bounds_rule: impl Fn(Size) -> bool) -> (Option<f32>, Option<f32>) {
         let node = self.tree.params(i);
         let min = if let Some(bound) = node.min_size[axis] && ! ignore_bounds_rule(bound) {
             Some(self.get_solved_value(i, axis, Kind::Min))
@@ -509,7 +523,7 @@ impl<T: TreeAdapter> Solver<'_, T> {
         (min, max)
     }
 
-    fn available_from_parent(&self, i: NodeI, axis: Axis) -> f32 {
+    fn available_from_parent(&self, i: T::Node, axis: Axis) -> f32 {
         let parent = self.tree.parent(i);
         let inner = inner(self.get_solved_value(parent, axis, Kind::Final), self.padding(parent, axis));
         if self.tree.params(i).free_placement {
@@ -518,7 +532,7 @@ impl<T: TreeAdapter> Solver<'_, T> {
         match self.tree.params(parent).children_layout {
             ChildrenLayout::Grid { spacing_x, spacing_y, .. } => {
                 let spacing = self.pixels_to_frac(Xy::new(spacing_x, spacing_y)[axis], axis);
-                let n = self.layout.solver_data[parent].grid_lines[axis] as f32;
+                let n = self.data(parent).grid_lines[axis] as f32;
                 let cell = ((inner - spacing * (n - 1.0)) / n.max(1.0)).max(0.0);
                 let span = self.tree.params(i).grid_span[axis].max(1) as f32;
                 span * cell + (span - 1.0) * spacing
@@ -530,11 +544,11 @@ impl<T: TreeAdapter> Solver<'_, T> {
         }
     }
 
-    fn solve_fitcontent(&mut self, i: NodeI, axis: Axis, is_max_bound: bool, measure_text: &mut MeasureText) -> f32 {
+    fn solve_fitcontent(&mut self, i: T::Node, axis: Axis, is_max_bound: bool) -> f32 {
         let (children, gaps) = match self.tree.params(i).children_layout {
             ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow } => {
                 let spacing = self.pixels_to_frac(Xy::new(spacing_x, spacing_y)[axis], axis);
-                let n = self.layout.solver_data[i].grid_lines[axis] as f32;
+                let n = self.data(i).grid_lines[axis] as f32;
                 let cell = match columns {
                     MainAxisCellSize::Width(w) if axis == flow.main_axis => self.pixels_to_frac(w, axis),
                     _ => {
@@ -568,9 +582,9 @@ impl<T: TreeAdapter> Solver<'_, T> {
             TextContent::None => 0.0,
             _ if self.text_wraps(i, axis) => {
                 let width = inner(self.get_solved_value(i, X, Kind::Final), self.padding(i, X));
-                measure_text(i, Some(width))[Y]
+                self.tree.measure_text(i, Some(width))[Y]
             }
-            _ => measure_text(i, None)[axis],
+            _ => self.tree.measure_text(i, None)[axis],
         };
         if let Some(image) = self.tree.params(i).image {
             own_content = own_content.max(self.pixels_to_frac(image[axis], axis));
@@ -579,7 +593,7 @@ impl<T: TreeAdapter> Solver<'_, T> {
         children.max(own_content) + gaps + 2.0 * self.padding(i, axis)
     }
 
-    fn fit_stack_main(&self, i: NodeI, axis: Axis, at_max: bool) -> f32 {
+    fn fit_stack_main(&self, i: T::Node, axis: Axis, at_max: bool) -> f32 {
         let mut estimate = 0.0f32;
         for _ in 0..MAX_FIT_STACK_STEPS {
             let mut fixed = 0.0f32;
@@ -620,7 +634,7 @@ impl<T: TreeAdapter> Solver<'_, T> {
     }
 
     #[inline(always)]
-    fn pre_grow_size(&self, child: NodeI, axis: Axis, at_max: bool) -> f32 {
+    fn pre_grow_size(&self, child: T::Node, axis: Axis, at_max: bool) -> f32 {
         let size = match self.tree.params(child).size[axis] {
             Size::Fill if at_max => f32::INFINITY,
             size if size.is_flex() => 0.0,
@@ -630,7 +644,7 @@ impl<T: TreeAdapter> Solver<'_, T> {
         clamp(size, min, max)
     }
 
-    fn solve_even_share(&self, i: NodeI, axis: Axis) -> f32 {
+    fn solve_even_share(&self, i: T::Node, axis: Axis) -> f32 {
         #[derive(Debug)]
         struct FillChild {
             content: Option<f32>,
@@ -720,7 +734,7 @@ impl<T: TreeAdapter> Solver<'_, T> {
         })
     }
 
-    fn solve_grid_cells(&mut self, i: NodeI) -> f32 {
+    fn solve_grid_cells(&mut self, i: T::Node) -> f32 {
         let ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow } = self.tree.params(i).children_layout else {
             unreachable!();
         };
@@ -738,7 +752,7 @@ impl<T: TreeAdapter> Solver<'_, T> {
         n_main as f32
     }
 
-    fn assign_grid_cells(&mut self, i: NodeI, n_main: usize, flow: GridFlow) {
+    fn assign_grid_cells(&mut self, i: T::Node, n_main: usize, flow: GridFlow) {
         let n_lines = with_arena(|arena| {
             let mut occupied = BumpVec::new_in(arena);
             let mut cursor_line = 0;
@@ -773,7 +787,7 @@ impl<T: TreeAdapter> Solver<'_, T> {
                     let mut cell = Xy::new(0, 0);
                     cell[flow.main_axis] = pos as u16;
                     cell[flow.main_axis.other()] = line as u16;
-                    self.layout.solver_data[child].grid_cell = cell;
+                    self.data_mut(child).grid_cell = cell;
                 }
             });
 
@@ -783,7 +797,7 @@ impl<T: TreeAdapter> Solver<'_, T> {
         let mut lines = Xy::new(0, 0);
         lines[flow.main_axis] = n_main as u16;
         lines[flow.main_axis.other()] = n_lines as u16;
-        self.layout.solver_data[i].grid_lines = lines;
+        self.data_mut(i).grid_lines = lines;
 
         for axis in [X, Y] {
             let reversed = match axis {
@@ -794,7 +808,7 @@ impl<T: TreeAdapter> Solver<'_, T> {
                 for_each_layout_child!(self, i, child, {
                     if ! self.tree.params(child).free_placement {
                         let span = self.tree.params(child).grid_span[axis].max(1);
-                        let cell = &mut self.layout.solver_data[child].grid_cell[axis];
+                        let cell = &mut self.data_mut(child).grid_cell[axis];
                         *cell = lines[axis] - span - *cell;
                     }
                 });
@@ -803,19 +817,19 @@ impl<T: TreeAdapter> Solver<'_, T> {
     }
 
     #[inline(always)]
-    fn padding(&self, i: NodeI, axis: Axis) -> f32 {
+    fn padding(&self, i: T::Node, axis: Axis) -> f32 {
         self.pixels_to_frac(self.tree.params(i).padding[axis], axis)
     }
 
     #[inline(always)]
-    fn stack_gaps(&self, i: NodeI, axis: Axis) -> f32 {
+    fn stack_gaps(&self, i: T::Node, axis: Axis) -> f32 {
         let ChildrenLayout::Stack { axis: stack_axis, spacing, .. } = self.tree.params(i).children_layout else {
             return 0.0;
         };
         if stack_axis != axis {
             return 0.0;
         }
-        let n = self.layout.solver_data[i].n_placed_children as f32;
+        let n = self.data(i).n_placed_children as f32;
         self.pixels_to_frac(spacing, axis) * (n - 1.0).max(0.0)
     }
 }

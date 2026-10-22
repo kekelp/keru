@@ -15,7 +15,7 @@ pub(crate) struct Nodes {
     nodes: Slab<InnerNode>,
     pub links: NodeVec<Links>,
     pub layout_params: NodeVec<keru_graph_layout::LayoutParams>,
-    pub layout: keru_graph_layout::Layout,
+    pub layout_data: NodeVec<keru_graph_layout::NodeLayout>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -57,7 +57,7 @@ impl<T> IndexMut<NodeI> for NodeVec<T> {
 pub(crate) struct NodeI(NonZeroU32);
 
 impl NodeI {
-    pub(crate) const fn from(value: usize) -> Self {
+    const fn from(value: usize) -> Self {
         NodeI(NonZeroU32::new(value as u32).unwrap())
     }
 
@@ -118,7 +118,7 @@ impl Nodes {
             nodes,
             links: NodeVec(vec![EMPTY_LINKS, root_links]),
             layout_params,
-            layout: keru_graph_layout::Layout::new(),
+            layout_data: NodeVec(vec![keru_graph_layout::NodeLayout::EMPTY; 2]),
         };
     }
 
@@ -147,23 +147,13 @@ impl Nodes {
         let params = layout_params(&self[i]);
         if self.layout_params.0.len() <= i.as_usize() {
             self.layout_params.0.resize(i.as_usize() + 1, EMPTY_PARAMS);
+            self.layout_data.0.resize(i.as_usize() + 1, keru_graph_layout::NodeLayout::EMPTY);
         }
         self.layout_params[i] = params;
     }
 
     pub(crate) fn sync_layout(&mut self, i: NodeI) {
         self.layout_params[i] = layout_params(&self[i]);
-    }
-
-    /// Solves the sizes of all nodes in the tree. Read the results from `self.layout`.
-    pub(crate) fn solve_layout(&mut self, window_size: Xy<f32>, measure_text: &mut dyn FnMut(&InnerNode, Option<f32>) -> Xy<f32>) {
-        let Nodes { nodes, links, layout_params, layout, .. } = self;
-        let tree = KeruTree { links, params: layout_params };
-        let window_size = keru_graph_layout::Xy::new(window_size.x, window_size.y);
-        layout.solve(&tree, window_size, &mut |i, width| {
-            let size = measure_text(&nodes[from_gl_i(i).as_usize()], width);
-            keru_graph_layout::Xy::new(size.x, size.y)
-        });
     }
 
     pub(crate) fn set_exiting(&mut self, i: NodeI, exiting: bool) {

@@ -9,11 +9,11 @@ struct ParentFrame {
 
 impl<T: TreeAdapter> Solver<'_, T> {
     pub(crate) fn place_all(&mut self) {
-        self.layout.rects[self.tree.root()] = Xy::new([0.0, 1.0], [0.0, 1.0]);
+        *self.rect_mut(self.tree.root()) = Xy::new([0.0, 1.0], [0.0, 1.0]);
         self.recursive_place_children(self.tree.root());
     }
 
-    fn recursive_place_children(&mut self, i: NodeI) {
+    fn recursive_place_children(&mut self, i: T::Node) {
         match self.tree.params(i).children_layout {
             ChildrenLayout::Free => self.place_children_free(i),
             ChildrenLayout::Stack { arrange, axis, spacing } => self.place_children_stack(i, axis, arrange, spacing),
@@ -27,28 +27,28 @@ impl<T: TreeAdapter> Solver<'_, T> {
 
     /// The solved size of a node that isn't placed yet, in fractions of the window size. Solving a `Final` slot writes `[0, size]` into the node's rect.
     #[inline(always)]
-    fn child_size(&self, child: NodeI) -> Xy<f32> {
-        let rect = self.layout.rects[child];
+    fn child_size(&self, child: T::Node) -> Xy<f32> {
+        let rect = self.rect(child);
         Xy::new(rect.x[1], rect.y[1])
     }
 
     #[inline(always)]
-    fn parent_frame(&self, i: NodeI) -> ParentFrame {
+    fn parent_frame(&self, i: T::Node) -> ParentFrame {
         let params = self.tree.params(i);
-        let window = self.layout.window_size;
+        let window = self.window_size;
         ParentFrame {
-            rect: self.layout.rects[i],
+            rect: self.rect(i),
             padding: Xy::new(params.padding.x / window.x, params.padding.y / window.y),
             flipped: params.children_origin_flipped,
         }
     }
 
-    fn place_children_stack(&mut self, i: NodeI, axis: Axis, arrange: Arrange, spacing: f32) {
+    fn place_children_stack(&mut self, i: T::Node, axis: Axis, arrange: Arrange, spacing: f32) {
         let (main, cross) = (axis, axis.other());
         let frame = self.parent_frame(i);
         let stack_rect = frame.rect;
         let padding = frame.padding;
-        let spacing = spacing / self.layout.window_size[axis];
+        let spacing = spacing / self.window_size[axis];
 
         // On the main axis, totally ignore the children's chosen Position's and place them according to our own Stack::Arrange value.
 
@@ -96,19 +96,19 @@ impl<T: TreeAdapter> Solver<'_, T> {
             if self.tree.params(child).free_placement {
                 self.place_child_free(child, &frame, child_size);
             } else {
-                self.layout.rects[child][cross] = self.resolve_pos_on_axis(&frame, child, cross, child_size[cross]);
-                self.layout.rects[child][main] = [walking_position, walking_position + child_size[main]];
+                self.rect_mut(child)[cross] = self.resolve_pos_on_axis(&frame, child, cross, child_size[cross]);
+                self.rect_mut(child)[main] = [walking_position, walking_position + child_size[main]];
                 walking_position += child_size[main] + gap;
             }
         });
     }
 
-    fn place_children_grid(&mut self, i: NodeI, spacing_x: f32, spacing_y: f32) {
-        let lines = self.layout.solver_data[i].grid_lines;
+    fn place_children_grid(&mut self, i: T::Node, spacing_x: f32, spacing_y: f32) {
+        let lines = self.data(i).grid_lines;
 
         let frame = self.parent_frame(i);
-        let spacing = Xy::new(spacing_x / self.layout.window_size.x, spacing_y / self.layout.window_size.y);
-        let size = self.layout.size(i);
+        let spacing = Xy::new(spacing_x / self.window_size.x, spacing_y / self.window_size.y);
+        let size = self.size(i);
         let mut cell = Xy::new(0.0, 0.0);
         for axis in [X, Y] {
             let n = lines[axis] as f32;
@@ -120,17 +120,17 @@ impl<T: TreeAdapter> Solver<'_, T> {
             if self.tree.params(child).free_placement {
                 self.place_child_free(child, &frame, child_size);
             } else {
-                let child_cell = self.layout.solver_data[child].grid_cell;
+                let child_cell = self.data(child).grid_cell;
                 for axis in [X, Y] {
                     let start = frame.rect[axis][0] + frame.padding[axis] + child_cell[axis] as f32 * (cell[axis] + spacing[axis]);
-                    self.layout.rects[child][axis] = [start, start + child_size[axis]];
+                    self.rect_mut(child)[axis] = [start, start + child_size[axis]];
                 }
             }
         });
     }
 
     #[inline(always)]
-    fn resolve_pos_on_axis(&self, frame: &ParentFrame, child: NodeI, axis: Axis, child_size: f32) -> [f32; 2] {
+    fn resolve_pos_on_axis(&self, frame: &ParentFrame, child: T::Node, axis: Axis, child_size: f32) -> [f32; 2] {
         let rect = frame.rect;
         let padding = frame.padding[axis];
         let flipped = frame.flipped[axis];
@@ -164,7 +164,7 @@ impl<T: TreeAdapter> Solver<'_, T> {
                 if ! flipped { [far_edge - child_size, far_edge] } else { [far_edge, far_edge + child_size] }
             },
             Pos::Pixels(pixels) => {
-                let static_pos = pixels / self.layout.window_size[axis];
+                let static_pos = pixels / self.window_size[axis];
                 place_at(if ! flipped { origin_edge + static_pos } else { origin_edge - static_pos })
             },
             Pos::Frac(frac) => {
@@ -180,13 +180,13 @@ impl<T: TreeAdapter> Solver<'_, T> {
     }
 
     #[inline(always)]
-    fn place_child_free(&mut self, child: NodeI, frame: &ParentFrame, child_size: Xy<f32>) {
+    fn place_child_free(&mut self, child: T::Node, frame: &ParentFrame, child_size: Xy<f32>) {
         for axis in [X, Y] {
-            self.layout.rects[child][axis] = self.resolve_pos_on_axis(frame, child, axis, child_size[axis]);
+            self.rect_mut(child)[axis] = self.resolve_pos_on_axis(frame, child, axis, child_size[axis]);
         }
     }
 
-    fn place_children_free(&mut self, i: NodeI) {
+    fn place_children_free(&mut self, i: T::Node) {
         let frame = self.parent_frame(i);
         for_each_layout_child!(self, i, child, {
             let child_size = self.child_size(child);

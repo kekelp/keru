@@ -3,9 +3,10 @@ mod solve;
 mod place;
 
 use std::cell::RefCell;
+use std::fmt::Debug;
 use std::ops::{Index, IndexMut};
 
-pub use solve::{Layout, LayoutParams, MeasureText, TextContent};
+pub use solve::{LayoutParams, NodeLayout, TextContent, compute, solve};
 pub(crate) use solve::*;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
@@ -142,6 +143,22 @@ pub enum ChildrenLayout {
     },
 }
 
+/// The tree that the layout runs on. The tree keeps a `NodeLayout` for each node, and the layout reads and writes it through `layout_data` and `layout_data_mut`. The storage can be of any form: for example, a `Vec`, a `SecondaryMap`, or a field in the node.
+pub trait TreeAdapter {
+    /// The handle of a node. It must stay valid during a `solve` or `compute` call.
+    type Node: Copy + Eq + Debug;
+    fn root(&self) -> Self::Node;
+    /// The parent of a node. It is never called on the root.
+    fn parent(&self, i: Self::Node) -> Self::Node;
+    fn first_child(&self, i: Self::Node) -> Option<Self::Node>;
+    fn next_sibling(&self, i: Self::Node) -> Option<Self::Node>;
+    fn params(&self, i: Self::Node) -> &LayoutParams;
+    fn layout_data(&self, i: Self::Node) -> &NodeLayout;
+    fn layout_data_mut(&mut self, i: Self::Node) -> &mut NodeLayout;
+    /// Measures the text of a node. The width and the result are in fractions of the window size. It is called only on nodes with text.
+    fn measure_text(&mut self, i: Self::Node, width: Option<f32>) -> Xy<f32>;
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct NodeI(u32);
 
@@ -176,18 +193,6 @@ impl<T> IndexMut<NodeI> for NodeVec<T> {
     }
 }
 
-/// The tree that the layout runs on. The nodes are indexed by `NodeI`, and every index is smaller than `index_bound`. The indices don't have to be contiguous.
-pub trait TreeAdapter {
-    fn root(&self) -> NodeI;
-    /// The parent of a node. It is never called on the root.
-    fn parent(&self, i: NodeI) -> NodeI;
-    fn first_child(&self, i: NodeI) -> Option<NodeI>;
-    fn next_sibling(&self, i: NodeI) -> Option<NodeI>;
-    fn params(&self, i: NodeI) -> &LayoutParams;
-    /// An upper bound for the indices of the nodes. The `Layout` keeps this many elements.
-    fn index_bound(&self) -> usize;
-}
-
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Links {
     pub parent: NodeI,
@@ -196,14 +201,28 @@ pub(crate) struct Links {
     pub next_sibling: Option<NodeI>,
 }
 
-/// A simple standalone tree that implements `TreeAdapter`.
+/// Measures the text of a node in `Nodes`. The width and the result are in fractions of the window size.
+pub type MeasureText<'a> = dyn FnMut(NodeI, Option<f32>) -> Xy<f32> + 'a;
+
+/// A simple standalone tree, with the layout data in a `Vec`.
 #[derive(Debug)]
-pub struct VecTree {
-    pub(crate) links: NodeVec<Links>,
-    pub(crate) params: NodeVec<LayoutParams>,
+pub struct Nodes {
+    links: NodeVec<Links>,
+    params: NodeVec<LayoutParams>,
+    layouts: NodeVec<NodeLayout>,
+    window_size: Xy<f32>,
+    n_deferred_solves: usize,
 }
 
-impl TreeAdapter for VecTree {
+/// `Nodes` with a text measuring function, as a `TreeAdapter`.
+struct NodesAdapter<'a, 'b> {
+    nodes: &'a mut Nodes,
+    measure_text: &'a mut MeasureText<'b>,
+}
+
+impl TreeAdapter for NodesAdapter<'_, '_> {
+    type Node = NodeI;
+
     #[inline(always)]
     fn root(&self) -> NodeI {
         ROOT_I
@@ -211,82 +230,89 @@ impl TreeAdapter for VecTree {
 
     #[inline(always)]
     fn parent(&self, i: NodeI) -> NodeI {
-        self.links[i].parent
+        self.nodes.links[i].parent
     }
 
     #[inline(always)]
     fn first_child(&self, i: NodeI) -> Option<NodeI> {
-        self.links[i].first_child
+        self.nodes.links[i].first_child
     }
 
     #[inline(always)]
     fn next_sibling(&self, i: NodeI) -> Option<NodeI> {
-        self.links[i].next_sibling
+        self.nodes.links[i].next_sibling
     }
 
     #[inline(always)]
     fn params(&self, i: NodeI) -> &LayoutParams {
-        &self.params[i]
+        &self.nodes.params[i]
     }
 
     #[inline(always)]
-    fn index_bound(&self) -> usize {
-        self.links.0.len()
+    fn layout_data(&self, i: NodeI) -> &NodeLayout {
+        &self.nodes.layouts[i]
     }
-}
 
-#[derive(Debug)]
-pub struct Nodes {
-    pub tree: VecTree,
-    pub layout: Layout,
+    #[inline(always)]
+    fn layout_data_mut(&mut self, i: NodeI) -> &mut NodeLayout {
+        &mut self.nodes.layouts[i]
+    }
+
+    #[inline(always)]
+    fn measure_text(&mut self, i: NodeI, width: Option<f32>) -> Xy<f32> {
+        (self.measure_text)(i, width)
+    }
 }
 
 impl Nodes {
     pub fn new() -> Self {
         let mut nodes = Nodes {
-            tree: VecTree {
-                links: NodeVec(Vec::new()),
-                params: NodeVec(Vec::new()),
-            },
-            layout: Layout::new(),
+            links: NodeVec(Vec::new()),
+            params: NodeVec(Vec::new()),
+            layouts: NodeVec(Vec::new()),
+            window_size: Xy::new(0.0, 0.0),
+            n_deferred_solves: 0,
         };
         nodes.push(ROOT_I, LayoutParams::DEFAULT);
         nodes
     }
 
     fn push(&mut self, parent: NodeI, params: LayoutParams) -> NodeI {
-        let i = NodeI(self.tree.links.0.len() as u32);
-        self.tree.links.0.push(Links { parent, first_child: None, last_child: None, next_sibling: None });
-        self.tree.params.0.push(params);
+        let i = NodeI(self.links.0.len() as u32);
+        self.links.0.push(Links { parent, first_child: None, last_child: None, next_sibling: None });
+        self.params.0.push(params);
+        self.layouts.0.push(NodeLayout::EMPTY);
         i
     }
 
     pub fn add(&mut self, parent: NodeI, params: LayoutParams) -> NodeI {
         let i = self.push(parent, params);
-        let links = &mut self.tree.links;
-        match links[parent].last_child {
-            Some(last) => links[last].next_sibling = Some(i),
-            None => links[parent].first_child = Some(i),
+        match self.links[parent].last_child {
+            Some(last) => self.links[last].next_sibling = Some(i),
+            None => self.links[parent].first_child = Some(i),
         }
-        links[parent].last_child = Some(i);
+        self.links[parent].last_child = Some(i);
         i
     }
 
     pub fn len(&self) -> usize {
-        self.tree.links.0.len()
+        self.links.0.len()
     }
 
     pub fn compute(&mut self, window_size: Xy<f32>, measure_text: &mut MeasureText) {
-        self.layout.compute(&self.tree, window_size, measure_text);
+        self.window_size = window_size;
+        let mut adapter = NodesAdapter { nodes: self, measure_text };
+        let n_deferred_solves = compute(&mut adapter, window_size);
+        self.n_deferred_solves = n_deferred_solves;
     }
 
     #[doc(hidden)]
     pub fn deferred_solves(&self) -> usize {
-        self.layout.deferred_solves()
+        self.n_deferred_solves
     }
 
     pub fn rect_px(&self, i: NodeI) -> XyRect {
-        self.layout.rect_px(i)
+        self.layouts[i].rect_px(self.window_size)
     }
 }
 

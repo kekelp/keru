@@ -6,49 +6,52 @@ use crate::Axis::{X, Y};
 
 /// The keru tree, as the layout crate sees it.
 pub(crate) struct KeruTree<'a> {
-    pub links: &'a NodeVec<Links>,
-    pub params: &'a NodeVec<gl::LayoutParams>,
-}
-
-#[inline(always)]
-pub(crate) fn to_gl_i(i: NodeI) -> gl::NodeI {
-    gl::NodeI::from_usize(i.as_usize())
-}
-
-#[inline(always)]
-pub(crate) fn from_gl_i(i: gl::NodeI) -> NodeI {
-    NodeI::from(i.as_usize())
+    pub nodes: &'a mut Nodes,
+    pub text: &'a mut keru_draw::Text,
+    pub window: Xy<f32>,
 }
 
 impl gl::TreeAdapter for KeruTree<'_> {
+    type Node = NodeI;
+
     #[inline(always)]
-    fn root(&self) -> gl::NodeI {
-        to_gl_i(ROOT_I)
+    fn root(&self) -> NodeI {
+        ROOT_I
     }
 
     #[inline(always)]
-    fn parent(&self, i: gl::NodeI) -> gl::NodeI {
-        to_gl_i(self.links[from_gl_i(i)].parent)
+    fn parent(&self, i: NodeI) -> NodeI {
+        self.nodes.links[i].parent
     }
 
     #[inline(always)]
-    fn first_child(&self, i: gl::NodeI) -> Option<gl::NodeI> {
-        self.links[from_gl_i(i)].first_child.map(to_gl_i)
+    fn first_child(&self, i: NodeI) -> Option<NodeI> {
+        self.nodes.links[i].first_child
     }
 
     #[inline(always)]
-    fn next_sibling(&self, i: gl::NodeI) -> Option<gl::NodeI> {
-        self.links[from_gl_i(i)].next_sibling.map(to_gl_i)
+    fn next_sibling(&self, i: NodeI) -> Option<NodeI> {
+        self.nodes.links[i].next_sibling
     }
 
     #[inline(always)]
-    fn params(&self, i: gl::NodeI) -> &gl::LayoutParams {
-        &self.params[from_gl_i(i)]
+    fn params(&self, i: NodeI) -> &gl::LayoutParams {
+        &self.nodes.layout_params[i]
     }
 
     #[inline(always)]
-    fn index_bound(&self) -> usize {
-        self.params.0.len()
+    fn layout_data(&self, i: NodeI) -> &gl::NodeLayout {
+        &self.nodes.layout_data[i]
+    }
+
+    #[inline(always)]
+    fn layout_data_mut(&mut self, i: NodeI) -> &mut gl::NodeLayout {
+        &mut self.nodes.layout_data[i]
+    }
+
+    fn measure_text(&mut self, i: NodeI, width: Option<f32>) -> gl::Xy<f32> {
+        let size = measure_text(self.text, self.nodes[i].text_i.as_ref().unwrap(), width, self.window);
+        gl::Xy::new(size.x, size.y)
     }
 }
 
@@ -180,17 +183,16 @@ impl Ui {
     pub(crate) fn calculate_sizes(&mut self) {
         let window_size = self.sys.logical_size();
         let System { nodes, renderer, size, .. } = &mut self.sys;
-        nodes.solve_layout(window_size, &mut |node, width| {
-            measure_text(&mut renderer.text, node.text_i.as_ref().unwrap(), width, *size)
-        });
+        let mut tree = KeruTree { nodes, text: &mut renderer.text, window: *size };
+        gl::solve(&mut tree, gl::Xy::new(window_size.x, window_size.y));
         self.write_sizes_recursive(ROOT_I);
     }
 
     fn write_sizes_recursive(&mut self, i: NodeI) {
-        let layout = &self.sys.nodes.layout;
-        let size = layout.size(to_gl_i(i));
-        let cell = layout.grid_cell(to_gl_i(i));
-        let lines = layout.grid_lines(to_gl_i(i));
+        let layout = &self.sys.nodes.layout_data[i];
+        let size = layout.size();
+        let cell = layout.grid_cell();
+        let lines = layout.grid_lines();
         let node = &mut self.sys.nodes[i];
         node.l2_solved[X][SizeType::Final as usize] = Some(size.x);
         node.l2_solved[Y][SizeType::Final as usize] = Some(size.y);
