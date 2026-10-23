@@ -159,7 +159,7 @@ pub(crate) trait Solve: TreeAdapter {
             Kind::Regular => Some(node.size[axis]),
             Kind::Min => bound(node.min_size[axis]),
             Kind::Max => bound(node.max_size[axis]),
-            Kind::ContentMin => resolved.has(Resolved::CONTENT_MIN).then_some(Size::FitContent),
+            Kind::ContentMin => resolved.has(Resolved::FIT_IS_FILL).then_some(Size::FitContent),
             Kind::ContentMax => resolved.has(Resolved::CONTENT_MAX).then_some(Size::FitContent),
             Kind::Final | Kind::EvenShare | Kind::GridCells => unreachable!(),
         }
@@ -395,7 +395,7 @@ pub(crate) trait Solve: TreeAdapter {
             Some(self.get_solved_value(i, axis, Kind::Max))
         } else { None };
         let resolved = self.layout_data(i).resolved[axis];
-        let final_min = if resolved.has(Resolved::CONTENT_MIN) {
+        let final_min = if resolved.has(Resolved::FIT_IS_FILL) {
             Some(clamp(self.get_solved_value(i, axis, Kind::ContentMin), min, max))
         } else { min };
         let final_max = if resolved.has(Resolved::CONTENT_MAX) {
