@@ -1,38 +1,17 @@
 use crate::*;
 use crate::Axis::{X, Y};
 
-/// How the solver reads the declared sizes of a node on one axis, after `resolve_sizes`. With no flags set, it reads the `LayoutParams` as they are.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct Resolved(u8);
-
-impl Resolved {
-    pub(crate) const NONE: Resolved = Resolved(0);
-    pub(crate) const FIT_IS_FILL: Resolved = Resolved(1 << 0);
-    pub(crate) const CONTENT_MAX: Resolved = Resolved(1 << 1);
-    pub(crate) const FILL_BOUNDS_DROPPED: Resolved = Resolved(1 << 2);
-
-    #[inline(always)]
-    pub(crate) fn has(self, flag: Resolved) -> bool {
-        self.0 & flag.0 != 0
-    }
-
-    #[inline(always)]
-    pub(crate) fn set(&mut self, flag: Resolved) {
-        self.0 |= flag.0;
-    }
-}
-
 pub(crate) trait Resolve: Solve {
     fn resolve_sizes(&mut self, i: Self::NodeId) {
         for axis in [X, Y] {
             if self.fit_becomes_fill(i, axis) {
                 let content_max = self.growth_is_capped(i, axis);
-                let resolved = &mut self.layout_data_mut(i).resolved[axis];
+                let flags = &mut self.layout_data_mut(i).flags;
                 // Keep the content as a lower bound, so that the node doesn't get smaller than its children
-                resolved.set(Resolved::FIT_IS_FILL);
+                flags.set_flag(axis, NodeFlags::FIT_IS_FILL);
                 // If no child can grow to infinity, the content is also an upper bound.
                 if content_max {
-                    resolved.set(Resolved::CONTENT_MAX);
+                    flags.set_flag(axis, NodeFlags::CONTENT_MAX);
                 }
             }
         }
@@ -42,7 +21,7 @@ pub(crate) trait Resolve: Solve {
             if self.stack_axis(i) == Some(axis) && ! self.has_even_share(i, axis) {
                 for_each_layout_child!(self, i, child, {
                     if ! self.params(child).free_placement {
-                        self.layout_data_mut(child).resolved[axis].set(Resolved::FILL_BOUNDS_DROPPED);
+                        self.layout_data_mut(child).flags.set_flag(axis, NodeFlags::FILL_BOUNDS_DROPPED);
                     }
                 });
             }

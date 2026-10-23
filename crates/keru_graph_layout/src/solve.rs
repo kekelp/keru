@@ -35,11 +35,52 @@ pub(crate) struct Slot<N> {
     pub kind: Kind,
 }
 
-/// The state of each slot takes 2 bits in `NodeLayout::states`.
+/// The state of each slot takes 2 bits in `NodeFlags`.
 const UNSOLVED: u32 = 0;
 /// The slot is solving the slots that it reads. Reaching it again means that there is a cycle.
 const IN_PROGRESS: u32 = 1;
 const SOLVED: u32 = 2;
+
+/// The resolve flags of each axis come after the slot states.
+const RESOLVED_FLAGS_SHIFT: u32 = 2 * N_SLOTS as u32;
+const RESOLVED_FLAGS_BITS: u32 = 3;
+const _: () = assert!(RESOLVED_FLAGS_SHIFT + 2 * RESOLVED_FLAGS_BITS <= 32, "The slot states and the resolve flags don't fit in NodeFlags");
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct NodeFlags(u32);
+
+impl NodeFlags {
+    pub(crate) const EMPTY: NodeFlags = NodeFlags(0);
+
+    /// The `FitContent` size becomes `Fill`, and the content is a lower bound (`Kind::ContentMin`).
+    pub(crate) const FIT_IS_FILL: u32 = 1 << 0;
+    /// The content is also an upper bound (`Kind::ContentMax`).
+    pub(crate) const CONTENT_MAX: u32 = 1 << 1;
+    /// The `Fill` min and max sizes don't apply, because the node is in a stack that has no space to share.
+    pub(crate) const FILL_BOUNDS_DROPPED: u32 = 1 << 2;
+
+    #[inline(always)]
+    pub(crate) fn check_state(self, axis: Axis, kind: Kind) -> u32 {
+        let k = slot_index(axis, kind);
+        (self.0 >> (2 * k)) & 3
+    }
+
+    #[inline(always)]
+    pub(crate) fn set_state(&mut self, axis: Axis, kind: Kind, state: u32) {
+        let k = slot_index(axis, kind);
+        self.0 = (self.0 & ! (3 << (2 * k))) | (state << (2 * k));
+    }
+
+    #[inline(always)]
+    pub(crate) fn check_flag(self, axis: Axis, flag: u32) -> bool {
+        self.0 & (flag << (RESOLVED_FLAGS_SHIFT + RESOLVED_FLAGS_BITS * axis as u32)) != 0
+    }
+
+    #[inline(always)]
+    pub(crate) fn set_flag(&mut self, axis: Axis, flag: u32) {
+        self.0 |= flag << (RESOLVED_FLAGS_SHIFT + RESOLVED_FLAGS_BITS * axis as u32);
+    }
+}
 
 const EMPTY_VALUES: [f32; N_SLOTS] = {
     // A Max slot that is read before it is solved, in a cycle, means "no max".
@@ -77,30 +118,30 @@ macro_rules! for_each_layout_child {
 }
 
 /// Per-node data used by the layout solver.
+// todo: squeeze out 4 more bytes to get it to 64.
+// This could be done by merging the EvenShare slot with the grid data, since a node can't be a stack and a grid at the same time.
+// note also that it would drop far below if it didn't have the MinContent and MaxContent slots, which are only needed for the special fill-fitcontent interaction.
 #[derive(Debug, Clone, Copy)]
 pub struct LayoutData {
     /// The value of every slot, by `slot_index`. Only the slots that exist are used.
     pub(crate) values: [f32; N_SLOTS],
-    /// The state of every slot, 2 bits each, by `slot_index`.
-    pub(crate) states: u32,
+    /// The state of every slot and the result of `resolve_sizes`.
+    pub(crate) flags: NodeFlags,
     /// How many children aren't free-placement.
     pub(crate) n_placed_children: u32,
     /// The cell of this node in its parent's grid.
     pub(crate) grid_cell: Xy<u16>,
     /// The number of columns and rows, if this node is a grid.
     pub(crate) grid_lines: Xy<u16>,
-    /// The result of `resolve_sizes`.
-    pub(crate) resolved: Xy<Resolved>,
 }
 
 impl LayoutData {
     pub const EMPTY: LayoutData = LayoutData {
         values: EMPTY_VALUES,
-        states: 0,
+        flags: NodeFlags::EMPTY,
         n_placed_children: 0,
         grid_cell: Xy { x: 0, y: 0 },
         grid_lines: Xy { x: 0, y: 0 },
-        resolved: Xy { x: Resolved::NONE, y: Resolved::NONE },
     };
 
     pub(crate) fn size(&self) -> Xy<f32> {
@@ -154,18 +195,18 @@ pub(crate) trait Solve: TreeAdapter {
     #[inline(always)]
     fn read_size(&self, i: Self::NodeId, axis: Axis, kind: Kind) -> Option<Size> {
         let node = self.params(i);
-        let resolved = self.layout_data(i).resolved[axis];
+        let flags = self.layout_data(i).flags;
         let bound = |bound: Option<Size>| match bound {
-            Some(Size::Fill) if resolved.has(Resolved::FILL_BOUNDS_DROPPED) => None,
+            Some(Size::Fill) if flags.check_flag(axis, NodeFlags::FILL_BOUNDS_DROPPED) => None,
             bound => bound,
         };
         match kind {
-            Kind::Regular if resolved.has(Resolved::FIT_IS_FILL) => Some(Size::Fill),
+            Kind::Regular if flags.check_flag(axis, NodeFlags::FIT_IS_FILL) => Some(Size::Fill),
             Kind::Regular => Some(node.size[axis]),
             Kind::Min => bound(node.min_size[axis]),
             Kind::Max => bound(node.max_size[axis]),
-            Kind::ContentMin => resolved.has(Resolved::FIT_IS_FILL).then_some(Size::FitContent),
-            Kind::ContentMax => resolved.has(Resolved::CONTENT_MAX).then_some(Size::FitContent),
+            Kind::ContentMin => flags.check_flag(axis, NodeFlags::FIT_IS_FILL).then_some(Size::FitContent),
+            Kind::ContentMax => flags.check_flag(axis, NodeFlags::CONTENT_MAX).then_some(Size::FitContent),
             Kind::Final | Kind::EvenShare => unreachable!(),
         }
     }
@@ -324,17 +365,16 @@ pub(crate) trait Solve: TreeAdapter {
 
     fn solve_slot(&mut self, node: Self::NodeId, axis: Axis, kind: Kind) {
         let slot = Slot { node, axis, kind };
-        let k = slot_index(slot.axis, slot.kind);
-        match (self.layout_data(slot.node).states >> (2 * k)) & 3 {
+        match self.layout_data(node).flags.check_state(axis, kind) {
             SOLVED | IN_PROGRESS => return,
             _ => {}
         }
-        self.layout_data_mut(slot.node).states |= IN_PROGRESS << (2 * k);
+        self.layout_data_mut(node).flags.set_state(axis, kind, IN_PROGRESS);
         self.solve_all_dependencies(slot);
         let size = self.solve_slot_inner(slot);
-        let data = self.layout_data_mut(slot.node);
-        data.values[k] = size;
-        data.states = (data.states & ! (3 << (2 * k))) | (SOLVED << (2 * k));
+        let data = self.layout_data_mut(node);
+        data.values[slot_index(axis, kind)] = size;
+        data.flags.set_state(axis, kind, SOLVED);
         if kind == Kind::Final && self.width_grid_main_axis(node) == Some(axis) {
             self.assign_width_grid_cells(node);
         }
@@ -342,10 +382,9 @@ pub(crate) trait Solve: TreeAdapter {
 
     #[inline(always)]
     fn get_solved_value(&self, i: Self::NodeId, axis: Axis, kind: Kind) -> f32 {
-        let k = slot_index(axis, kind);
         let data = self.layout_data(i);
-        debug_assert!((data.states >> (2 * k)) & 3 != UNSOLVED, "Slot {axis:?} {kind:?} of node {i:?} read before it is solved.");
-        data.values[k]
+        debug_assert!(data.flags.check_state(axis, kind) != UNSOLVED, "Slot {axis:?} {kind:?} of node {i:?} read before it is solved.");
+        data.values[slot_index(axis, kind)]
     }
 
     #[inline(always)]
@@ -398,11 +437,11 @@ pub(crate) trait Solve: TreeAdapter {
         let max = if let Some(bound) = self.read_size(i, axis, Kind::Max) && ! ignore_bounds_rule(bound) {
             Some(self.get_solved_value(i, axis, Kind::Max))
         } else { None };
-        let resolved = self.layout_data(i).resolved[axis];
-        let final_min = if resolved.has(Resolved::FIT_IS_FILL) {
+        let flags = self.layout_data(i).flags;
+        let final_min = if flags.check_flag(axis, NodeFlags::FIT_IS_FILL) {
             Some(clamp(self.get_solved_value(i, axis, Kind::ContentMin), min, max))
         } else { min };
-        let final_max = if resolved.has(Resolved::CONTENT_MAX) {
+        let final_max = if flags.check_flag(axis, NodeFlags::CONTENT_MAX) {
             Some(clamp(self.get_solved_value(i, axis, Kind::ContentMax), min, max))
         } else { max };
         (final_min, final_max)
