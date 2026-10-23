@@ -7,19 +7,25 @@ pub(crate) enum Kind {
     Min,
     Max,
     Final,
-    EvenShare,
     ContentMin,
     ContentMax,
+    /// Has to be the last element of the enum!
+    EvenShare,
 }
 
 const N_KINDS: usize = 7;
+/// The kinds that have a slot on each axis.
+const N_AXIS_KINDS: usize = N_KINDS - 1;
 /// The kinds that have a `Size`. For `ContentMin` and `ContentMax`, the size is always `FitContent`.
 pub(crate) const DECLARED: [Kind; 5] = [Kind::Regular, Kind::Min, Kind::Max, Kind::ContentMin, Kind::ContentMax];
-pub(crate) const N_SLOTS: usize = 2 * N_KINDS;
+pub(crate) const N_SLOTS: usize = 2 * N_AXIS_KINDS + 1;
 
 #[inline(always)]
 pub(crate) const fn slot_index(axis: Axis, kind: Kind) -> usize {
-    axis as usize * N_KINDS + kind as usize
+    match kind {
+        Kind::EvenShare => 2 * N_AXIS_KINDS,
+        _ => axis as usize * N_AXIS_KINDS + kind as usize,
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
