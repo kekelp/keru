@@ -151,17 +151,17 @@ pub(crate) trait Solve: TreeAdapter {
         let node = self.params(i);
         let resolved = self.layout_data(i).resolved[axis];
         let bound = |bound: Option<Size>| match bound {
-            Some(Size::Fill) if resolved.fill_bounds_dropped => None,
+            Some(Size::Fill) if resolved.has(Resolved::FILL_BOUNDS_DROPPED) => None,
             bound => bound,
         };
         match kind {
-            Kind::Regular if resolved.fit_is_fill => Some(Size::Fill),
+            Kind::Regular if resolved.has(Resolved::FIT_IS_FILL) => Some(Size::Fill),
             Kind::Regular => Some(node.size[axis]),
             Kind::Min => bound(node.min_size[axis]),
             Kind::Max => bound(node.max_size[axis]),
-            Kind::ContentMin => resolved.content_min.then_some(Size::FitContent),
-            Kind::ContentMax => resolved.content_max.then_some(Size::FitContent),
-            Kind::Final | Kind::EvenShare | Kind::GridCells => None,
+            Kind::ContentMin => resolved.has(Resolved::CONTENT_MIN).then_some(Size::FitContent),
+            Kind::ContentMax => resolved.has(Resolved::CONTENT_MAX).then_some(Size::FitContent),
+            Kind::Final | Kind::EvenShare | Kind::GridCells => unreachable!(),
         }
     }
 
@@ -395,10 +395,10 @@ pub(crate) trait Solve: TreeAdapter {
             Some(self.get_solved_value(i, axis, Kind::Max))
         } else { None };
         let resolved = self.layout_data(i).resolved[axis];
-        let final_min = if resolved.content_min {
+        let final_min = if resolved.has(Resolved::CONTENT_MIN) {
             Some(clamp(self.get_solved_value(i, axis, Kind::ContentMin), min, max))
         } else { min };
-        let final_max = if resolved.content_max {
+        let final_max = if resolved.has(Resolved::CONTENT_MAX) {
             Some(clamp(self.get_solved_value(i, axis, Kind::ContentMax), min, max))
         } else { max };
         (final_min, final_max)
