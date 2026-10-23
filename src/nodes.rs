@@ -14,8 +14,8 @@ pub(crate) struct Nodes {
     node_hashmap: FxHashMap<Id, NodeI>,
     nodes: Slab<InnerNode>,
     pub links: NodeVec<Links>,
-    pub layout_params: NodeVec<keru_graph_layout::LayoutParams>,
-    pub layout_data: NodeVec<keru_graph_layout::LayoutData>,
+    pub layout_params: NodeVec<keru_layout::LayoutParams>,
+    pub layout_data: NodeVec<keru_layout::LayoutData>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -118,7 +118,7 @@ impl Nodes {
             nodes,
             links: NodeVec(vec![EMPTY_LINKS, root_links]),
             layout_params,
-            layout_data: NodeVec(vec![keru_graph_layout::LayoutData::EMPTY; 2]),
+            layout_data: NodeVec(vec![keru_layout::LayoutData::EMPTY; 2]),
         };
     }
 
@@ -147,7 +147,7 @@ impl Nodes {
         let params = layout_params(&self[i]);
         if self.layout_params.0.len() <= i.as_usize() {
             self.layout_params.0.resize(i.as_usize() + 1, EMPTY_PARAMS);
-            self.layout_data.0.resize(i.as_usize() + 1, keru_graph_layout::LayoutData::EMPTY);
+            self.layout_data.0.resize(i.as_usize() + 1, keru_layout::LayoutData::EMPTY);
         }
         self.layout_params[i] = params;
     }

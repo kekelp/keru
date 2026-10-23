@@ -1,5 +1,5 @@
-use keru_graph_layout as gl;
-use keru_graph_layout::TreeAdapter;
+use keru_layout as gl;
+use keru_layout::TreeAdapter;
 
 use crate::*;
 use crate::inner_node::*;

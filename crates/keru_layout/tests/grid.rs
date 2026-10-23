@@ -1,5 +1,5 @@
-use keru_graph_layout::example_tree::{ExampleTree, NodeI, ROOT_I};
-use keru_graph_layout::*;
+use keru_layout::example_tree::{ExampleTree, NodeI, ROOT_I};
+use keru_layout::*;
 
 const WINDOW: f32 = 1000.0;
 

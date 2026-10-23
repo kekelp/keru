@@ -1,5 +1,5 @@
 use glam::vec2;
-use keru_graph_layout::TreeAdapter;
+use keru_layout::TreeAdapter;
 
 use crate::*;
 use crate::inner_node::*;
@@ -192,7 +192,7 @@ impl Ui {
     pub(crate) fn partial_relayout_for_scrollbar(&mut self, container_i: NodeI) {
         let container_key = self.sys.nodes[container_i].original_key;
         let container_rect = self.sys.nodes[container_i].layout_rect;
-        let container_rect = keru_graph_layout::Xy::new(container_rect.x, container_rect.y);
+        let container_rect = keru_layout::Xy::new(container_rect.x, container_rect.y);
 
         for key in [
             container_key.sibling(SCROLL_RAIL_Y), container_key.sibling(SCROLL_HANDLE_Y),
