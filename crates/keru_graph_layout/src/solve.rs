@@ -16,8 +16,7 @@ pub(crate) enum Kind {
 const N_KINDS: usize = 7;
 /// The kinds that have a slot on each axis.
 const N_AXIS_KINDS: usize = N_KINDS - 1;
-/// The kinds that have a `Size`. For `ContentMin` and `ContentMax`, the size is always `FitContent`.
-pub(crate) const DECLARED: [Kind; 5] = [Kind::Regular, Kind::Min, Kind::Max, Kind::ContentMin, Kind::ContentMax];
+pub(crate) const DECLARED_SIZES: [Kind; 5] = [Kind::Regular, Kind::Min, Kind::Max, Kind::ContentMin, Kind::ContentMax];
 pub(crate) const N_SLOTS: usize = 2 * N_AXIS_KINDS + 1;
 
 #[inline(always)]
@@ -213,7 +212,8 @@ pub(crate) trait Solve: TreeAdapter {
 
     #[inline(always)]
     fn any_size_is_fill(&self, i: Self::NodeId, axis: Axis) -> bool {
-        DECLARED.iter().any(|&kind| self.read_size(i, axis, kind) == Some(Size::Fill))
+        let fill = Some(Size::Fill);
+        self.read_size(i, axis, Kind::Regular) == fill || self.read_size(i, axis, Kind::Min) == fill || self.read_size(i, axis, Kind::Max) == fill
     }
 
     #[inline(always)]
@@ -275,7 +275,7 @@ pub(crate) trait Solve: TreeAdapter {
         let Slot { node: i, axis, kind } = slot;
         match kind {
             Kind::Final => {
-                for kind in DECLARED {
+                for kind in DECLARED_SIZES {
                     if self.read_size(i, axis, kind).is_some() {
                         self.solve_slot(i, axis, kind);
                     }
@@ -287,7 +287,7 @@ pub(crate) trait Solve: TreeAdapter {
                     if self.params(child).free_placement {
                         // Nothing
                     } else if self.any_size_is_fill(child, axis) {
-                        for kind in DECLARED {
+                        for kind in DECLARED_SIZES {
                             if let Some(size) = self.read_size(child, axis, kind) && size.not_fill() {
                                 self.solve_slot(child, axis, kind);
                             }
@@ -312,7 +312,7 @@ pub(crate) trait Solve: TreeAdapter {
                 Size::FitContent => {
                     for_each_layout_child!(self, i, child, {
                         if ! self.params(child).free_placement {
-                            for kind in DECLARED {
+                            for kind in DECLARED_SIZES {
                                 if let Some(size) = self.read_size(child, axis, kind) && ! size.is_flex() {
                                     self.solve_slot(child, axis, kind);
                                 }
