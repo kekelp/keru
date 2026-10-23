@@ -1,5 +1,6 @@
 #[macro_use]
 mod solve;
+mod resolve;
 mod place;
 pub mod example_tree;
 
@@ -9,6 +10,7 @@ use std::ops::{Index, IndexMut};
 
 pub use solve::LayoutData;
 pub(crate) use solve::*;
+pub(crate) use resolve::*;
 pub(crate) use place::Place;
 
 pub trait TreeAdapter {

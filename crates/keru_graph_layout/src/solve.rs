@@ -9,10 +9,13 @@ pub(crate) enum Kind {
     Final,
     EvenShare,
     GridCells,
+    ContentMin,
+    ContentMax,
 }
 
-const N_KINDS: usize = 6;
-pub(crate) const DECLARED: [Kind; 3] = [Kind::Regular, Kind::Min, Kind::Max];
+const N_KINDS: usize = 8;
+/// The kinds that have a `Size`. For `ContentMin` and `ContentMax`, the size is always `FitContent`.
+pub(crate) const DECLARED: [Kind; 5] = [Kind::Regular, Kind::Min, Kind::Max, Kind::ContentMin, Kind::ContentMax];
 pub(crate) const N_SLOTS: usize = 2 * N_KINDS;
 
 #[inline(always)]
@@ -38,6 +41,8 @@ const EMPTY_VALUES: [f32; N_SLOTS] = {
     let mut values = [0.0; N_SLOTS];
     values[slot_index(X, Kind::Max)] = f32::INFINITY;
     values[slot_index(Y, Kind::Max)] = f32::INFINITY;
+    values[slot_index(X, Kind::ContentMax)] = f32::INFINITY;
+    values[slot_index(Y, Kind::ContentMax)] = f32::INFINITY;
     values
 };
 
@@ -79,6 +84,8 @@ pub struct LayoutData {
     pub(crate) grid_cell: Xy<u16>,
     /// The number of columns and rows, if this node is a grid.
     pub(crate) grid_lines: Xy<u16>,
+    /// The result of `resolve_sizes`.
+    pub(crate) resolved: Xy<Resolved>,
 }
 
 impl LayoutData {
@@ -88,6 +95,7 @@ impl LayoutData {
         n_placed_children: 0,
         grid_cell: Xy { x: 0, y: 0 },
         grid_lines: Xy { x: 0, y: 0 },
+        resolved: Xy { x: Resolved::NONE, y: Resolved::NONE },
     };
 
     pub(crate) fn size(&self) -> Xy<f32> {
@@ -139,19 +147,27 @@ pub(crate) trait Solve: TreeAdapter {
     }
 
     #[inline(always)]
-    fn declared(&self, i: Self::NodeId, axis: Axis, kind: Kind) -> Option<Size> {
+    fn read_size(&self, i: Self::NodeId, axis: Axis, kind: Kind) -> Option<Size> {
         let node = self.params(i);
+        let resolved = self.layout_data(i).resolved[axis];
+        let bound = |bound: Option<Size>| match bound {
+            Some(Size::Fill) if resolved.fill_bounds_dropped => None,
+            bound => bound,
+        };
         match kind {
+            Kind::Regular if resolved.fit_is_fill => Some(Size::Fill),
             Kind::Regular => Some(node.size[axis]),
-            Kind::Min => node.min_size[axis],
-            Kind::Max => node.max_size[axis],
+            Kind::Min => bound(node.min_size[axis]),
+            Kind::Max => bound(node.max_size[axis]),
+            Kind::ContentMin => resolved.content_min.then_some(Size::FitContent),
+            Kind::ContentMax => resolved.content_max.then_some(Size::FitContent),
             Kind::Final | Kind::EvenShare | Kind::GridCells => None,
         }
     }
 
     #[inline(always)]
     fn any_size_is_fill(&self, i: Self::NodeId, axis: Axis) -> bool {
-        DECLARED.iter().any(|&kind| self.declared(i, axis, kind) == Some(Size::Fill))
+        DECLARED.iter().any(|&kind| self.read_size(i, axis, kind) == Some(Size::Fill))
     }
 
     #[inline(always)]
@@ -175,23 +191,26 @@ pub(crate) trait Solve: TreeAdapter {
 
     #[inline(always)]
     fn has_even_share(&self, i: Self::NodeId, axis: Axis) -> bool {
-        self.stack_axis(i) == Some(axis) && self.params(i).size[axis] != Size::FitContent
+        self.stack_axis(i) == Some(axis) && self.read_size(i, axis, Kind::Regular) != Some(Size::FitContent)
     }
 
-
-    fn reset_solver_data(&mut self) {
-        let root = self.root();
-        *self.layout_data_mut(root) = LayoutData::EMPTY;
-        let mut next = self.tree_traversal_next(root);
-        while let Some(i) = next {
-            next = self.tree_traversal_next(i);
-            *self.layout_data_mut(i) = LayoutData::EMPTY;
-            let params = self.params(i);
+    fn prepare(&mut self, i: Self::NodeId) {
+        *self.layout_data_mut(i) = LayoutData::EMPTY;
+        if self.params(i).disabled {
+            return;
+        }
+        let mut n_placed_children = 0;
+        let mut next = self.first_child(i);
+        while let Some(child) = next {
+            next = self.next_sibling(child);
+            self.prepare(child);
+            let params = self.params(child);
             if ! params.disabled && ! params.free_placement {
-                let parent = self.parent(i);
-                self.layout_data_mut(parent).n_placed_children += 1;
+                n_placed_children += 1;
             }
         }
+        self.layout_data_mut(i).n_placed_children = n_placed_children;
+        self.resolve_sizes(i);
     }
 
     #[inline(always)]
@@ -207,7 +226,7 @@ pub(crate) trait Solve: TreeAdapter {
         match kind {
             Kind::Final => {
                 for kind in DECLARED {
-                    if self.declared(i, axis, kind).is_some() {
+                    if self.read_size(i, axis, kind).is_some() {
                         self.solve_slot(i, axis, kind);
                     }
                 }
@@ -219,7 +238,7 @@ pub(crate) trait Solve: TreeAdapter {
                         // Nothing
                     } else if self.any_size_is_fill(child, axis) {
                         for kind in DECLARED {
-                            if let Some(size) = self.declared(child, axis, kind) && size.not_fill() {
+                            if let Some(size) = self.read_size(child, axis, kind) && size.not_fill() {
                                 self.solve_slot(child, axis, kind);
                             }
                         }
@@ -233,7 +252,7 @@ pub(crate) trait Solve: TreeAdapter {
                     self.solve_slot(i, axis, Kind::Final);
                 }
             }
-            declared => match self.declared(i, axis, declared).unwrap() {
+            declared => match self.read_size(i, axis, declared).unwrap() {
                 Size::Pixels(_) => {}
                 _ if i == self.root() && kind == Kind::Regular => {}
                 Size::AspectRatio(_) => self.solve_slot(i, axis.other(), Kind::Final),
@@ -249,7 +268,7 @@ pub(crate) trait Solve: TreeAdapter {
                     for_each_layout_child!(self, i, child, {
                         if ! self.params(child).free_placement {
                             for kind in DECLARED {
-                                if let Some(size) = self.declared(child, axis, kind) && ! size.is_flex() {
+                                if let Some(size) = self.read_size(child, axis, kind) && ! size.is_flex() {
                                     self.solve_slot(child, axis, kind);
                                 }
                             }
@@ -282,7 +301,7 @@ pub(crate) trait Solve: TreeAdapter {
 
     fn measure_sizes(&mut self) {
         reset_arena();
-        self.reset_solver_data();
+        self.prepare(self.root());
         self.solve();
     }
 
@@ -340,7 +359,7 @@ pub(crate) trait Solve: TreeAdapter {
             }
             Kind::EvenShare => self.solve_even_share(i, axis),
             Kind::GridCells => self.solve_grid_cells(i),
-            declared => match self.declared(i, axis, declared).unwrap() {
+            declared => match self.read_size(i, axis, declared).unwrap() {
                 Size::Pixels(pixels) => self.pixels_to_frac(pixels, axis),
                 Size::AspectRatio(aspect) => {
                     let other = self.get_solved_value(i, axis.other(), Kind::Final);
@@ -351,7 +370,7 @@ pub(crate) trait Solve: TreeAdapter {
                     }
                 }
                 Size::FitContent => {
-                    let is_max_bound = declared == Kind::Max;
+                    let is_max_bound = matches!(declared, Kind::Max | Kind::ContentMax);
                     self.solve_fitcontent(i, axis, is_max_bound)
                 },
                 Size::Frac(frac) => self.available_from_parent(i, axis) * frac,
@@ -369,14 +388,20 @@ pub(crate) trait Solve: TreeAdapter {
 
     #[inline(always)]
     fn solved_bounds(&self, i: Self::NodeId, axis: Axis, ignore_bounds_rule: impl Fn(Size) -> bool) -> (Option<f32>, Option<f32>) {
-        let node = self.params(i);
-        let min = if let Some(bound) = node.min_size[axis] && ! ignore_bounds_rule(bound) {
+        let min = if let Some(bound) = self.read_size(i, axis, Kind::Min) && ! ignore_bounds_rule(bound) {
             Some(self.get_solved_value(i, axis, Kind::Min))
         } else { None };
-        let max = if let Some(bound) = node.max_size[axis] && ! ignore_bounds_rule(bound) {
+        let max = if let Some(bound) = self.read_size(i, axis, Kind::Max) && ! ignore_bounds_rule(bound) {
             Some(self.get_solved_value(i, axis, Kind::Max))
         } else { None };
-        (min, max)
+        let resolved = self.layout_data(i).resolved[axis];
+        let final_min = if resolved.content_min {
+            Some(clamp(self.get_solved_value(i, axis, Kind::ContentMin), min, max))
+        } else { min };
+        let final_max = if resolved.content_max {
+            Some(clamp(self.get_solved_value(i, axis, Kind::ContentMax), min, max))
+        } else { max };
+        (final_min, final_max)
     }
 
     fn available_from_parent(&self, i: Self::NodeId, axis: Axis) -> f32 {
@@ -491,7 +516,7 @@ pub(crate) trait Solve: TreeAdapter {
 
     #[inline(always)]
     fn pre_grow_size(&self, child: Self::NodeId, axis: Axis, at_max: bool) -> f32 {
-        let size = match self.params(child).size[axis] {
+        let size = match self.read_size(child, axis, Kind::Regular).unwrap() {
             Size::Fill if at_max => f32::INFINITY,
             size if size.is_flex() => 0.0,
             _ => self.get_solved_value(child, axis, Kind::Regular),
@@ -532,7 +557,7 @@ pub(crate) trait Solve: TreeAdapter {
                 if node.free_placement {
                     // Nothing
                 } else if self.any_size_is_fill(child, axis) {
-                    let content = if node.size[axis].not_fill() {
+                    let content = if self.read_size(child, axis, Kind::Regular) != Some(Size::Fill) {
                         Some(self.get_solved_value(child, axis, Kind::Regular))
                     } else { None };
                     let (min, max) = self.solved_bounds(child, axis, |bound| bound == Size::Fill);
@@ -540,7 +565,7 @@ pub(crate) trait Solve: TreeAdapter {
                         content,
                         min,
                         max,
-                        capped_by_content: content.is_some() && node.max_size[axis] == Some(Size::Fill),
+                        capped_by_content: content.is_some() && self.read_size(child, axis, Kind::Max) == Some(Size::Fill),
                         frozen: false,
                     });
                 } else {
