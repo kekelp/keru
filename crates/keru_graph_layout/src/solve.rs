@@ -8,12 +8,11 @@ pub(crate) enum Kind {
     Max,
     Final,
     EvenShare,
-    GridCells,
     ContentMin,
     ContentMax,
 }
 
-const N_KINDS: usize = 8;
+const N_KINDS: usize = 7;
 /// The kinds that have a `Size`. For `ContentMin` and `ContentMax`, the size is always `FitContent`.
 pub(crate) const DECLARED: [Kind; 5] = [Kind::Regular, Kind::Min, Kind::Max, Kind::ContentMin, Kind::ContentMax];
 pub(crate) const N_SLOTS: usize = 2 * N_KINDS;
@@ -161,7 +160,7 @@ pub(crate) trait Solve: TreeAdapter {
             Kind::Max => bound(node.max_size[axis]),
             Kind::ContentMin => resolved.has(Resolved::FIT_IS_FILL).then_some(Size::FitContent),
             Kind::ContentMax => resolved.has(Resolved::CONTENT_MAX).then_some(Size::FitContent),
-            Kind::Final | Kind::EvenShare | Kind::GridCells => unreachable!(),
+            Kind::Final | Kind::EvenShare => unreachable!(),
         }
     }
 
@@ -210,13 +209,17 @@ pub(crate) trait Solve: TreeAdapter {
             }
         }
         self.layout_data_mut(i).n_placed_children = n_placed_children;
+
+        if let ChildrenLayout::Grid { columns: MainAxisCellSize::Count(n), flow, .. } = self.params(i).children_layout {
+            self.assign_grid_cells(i, (n as usize).max(1), flow);
+        }
         self.resolve_sizes(i);
     }
 
     #[inline(always)]
-    fn grid_main_axis(&self, i: Self::NodeId) -> Option<Axis> {
+    fn width_grid_main_axis(&self, i: Self::NodeId) -> Option<Axis> {
         match self.params(i).children_layout {
-            ChildrenLayout::Grid { flow, .. } => Some(flow.main_axis),
+            ChildrenLayout::Grid { columns: MainAxisCellSize::Width(_), flow, .. } => Some(flow.main_axis),
             _ => None,
         }
     }
@@ -247,11 +250,6 @@ pub(crate) trait Solve: TreeAdapter {
                     }
                 });
             }
-            Kind::GridCells => {
-                if matches!(self.params(i).children_layout, ChildrenLayout::Grid { columns: MainAxisCellSize::Width(_), .. }) {
-                    self.solve_slot(i, axis, Kind::Final);
-                }
-            }
             declared => match self.read_size(i, axis, declared).unwrap() {
                 Size::Pixels(_) => {}
                 _ if i == self.root() && kind == Kind::Regular => {}
@@ -277,8 +275,9 @@ pub(crate) trait Solve: TreeAdapter {
                     if axis == Y && self.text_wraps(i, Y) {
                         self.solve_slot(i, X, Kind::Final);
                     }
-                    if let Some(main) = self.grid_main_axis(i) {
-                        self.solve_slot(i, main, Kind::GridCells);
+
+                    if let Some(main) = self.width_grid_main_axis(i) && main != axis {
+                        self.solve_slot(i, main, Kind::Final);
                     }
                 }
             },
@@ -294,8 +293,8 @@ pub(crate) trait Solve: TreeAdapter {
         }
         let parent = self.parent(i);
         self.solve_slot(parent, slot.axis, Kind::Final);
-        if ! self.params(i).free_placement && let Some(main) = self.grid_main_axis(parent) {
-            self.solve_slot(parent, main, Kind::GridCells);
+        if ! self.params(i).free_placement && let Some(main) = self.width_grid_main_axis(parent) {
+            self.solve_slot(parent, main, Kind::Final);
         }
     }
 
@@ -314,9 +313,6 @@ pub(crate) trait Solve: TreeAdapter {
             }
             self.solve_slot(node, X, Kind::Final);
             self.solve_slot(node, Y, Kind::Final);
-            if let Some(main) = self.grid_main_axis(node) {
-                self.solve_slot(node, main, Kind::GridCells);
-            }
         }
     }
 
@@ -333,6 +329,9 @@ pub(crate) trait Solve: TreeAdapter {
         let data = self.layout_data_mut(slot.node);
         data.values[k] = size;
         data.states = (data.states & ! (3 << (2 * k))) | (SOLVED << (2 * k));
+        if kind == Kind::Final && self.width_grid_main_axis(node) == Some(axis) {
+            self.assign_width_grid_cells(node);
+        }
     }
 
     #[inline(always)]
@@ -358,7 +357,6 @@ pub(crate) trait Solve: TreeAdapter {
                 clamp(self.get_solved_value(i, axis, Kind::Regular), min, max)
             }
             Kind::EvenShare => self.solve_even_share(i, axis),
-            Kind::GridCells => self.solve_grid_cells(i),
             declared => match self.read_size(i, axis, declared).unwrap() {
                 Size::Pixels(pixels) => self.pixels_to_frac(pixels, axis),
                 Size::AspectRatio(aspect) => {
@@ -429,9 +427,9 @@ pub(crate) trait Solve: TreeAdapter {
         let (children, gaps) = match self.params(i).children_layout {
             ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow } => {
                 let spacing = self.pixels_to_frac(Xy::new(spacing_x, spacing_y)[axis], axis);
-                let n = self.layout_data(i).grid_lines[axis] as f32;
-                let cell = match columns {
-                    MainAxisCellSize::Width(w) if axis == flow.main_axis => self.pixels_to_frac(w, axis),
+                let (n, cell) = match columns {
+                    // The number of columns depends on the final size, so a grid fits one column.
+                    MainAxisCellSize::Width(w) if axis == flow.main_axis => (1.0, self.pixels_to_frac(w, axis)),
                     _ => {
                         let mut cell = 0.0f32;
                         for_each_layout_child!(self, i, child, {
@@ -440,7 +438,7 @@ pub(crate) trait Solve: TreeAdapter {
                                 cell = cell.max((self.pre_grow_size(child, axis, is_max_bound) - (span - 1.0) * spacing) / span);
                             }
                         });
-                        cell
+                        (self.layout_data(i).grid_lines[axis] as f32, cell)
                     }
                 };
                 ((n * cell + spacing * (n - 1.0)).max(0.0), 0.0)
@@ -615,22 +613,17 @@ pub(crate) trait Solve: TreeAdapter {
         })
     }
 
-    fn solve_grid_cells(&mut self, i: Self::NodeId) -> f32 {
-        let ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow } = self.params(i).children_layout else {
+    /// Assigns the cells of a grid with `MainAxisCellSize::Width` columns, from its `Final` size on the main axis.
+    fn assign_width_grid_cells(&mut self, i: Self::NodeId) {
+        let ChildrenLayout::Grid { columns: MainAxisCellSize::Width(w), spacing_x, spacing_y, flow } = self.params(i).children_layout else {
             unreachable!();
         };
         let main = flow.main_axis;
-        let n_main = match columns {
-            MainAxisCellSize::Count(n) => (n as usize).max(1),
-            MainAxisCellSize::Width(w) => {
-                let spacing = self.pixels_to_frac(Xy::new(spacing_x, spacing_y)[main], main);
-                let width = self.pixels_to_frac(w, main);
-                let inner_main = inner(self.get_solved_value(i, main, Kind::Final), self.padding(i, main));
-                ((inner_main + spacing) / (width + spacing)).floor().max(1.0) as usize
-            }
-        };
+        let spacing = self.pixels_to_frac(Xy::new(spacing_x, spacing_y)[main], main);
+        let width = self.pixels_to_frac(w, main);
+        let inner_main = inner(self.get_solved_value(i, main, Kind::Final), self.padding(i, main));
+        let n_main = ((inner_main + spacing) / (width + spacing)).floor().max(1.0) as usize;
         self.assign_grid_cells(i, n_main, flow);
-        n_main as f32
     }
 
     fn assign_grid_cells(&mut self, i: Self::NodeId, n_main: usize, flow: GridFlow) {
