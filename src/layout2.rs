@@ -439,8 +439,8 @@ impl Ui {
             MainAxisCellSize::Count(_) => 0.0,
             MainAxisCellSize::Width(_) => {
                 let size = self.l2_size_or_guess(i, main);
-                let padding = self.pixels_to_frac2(self.sys.nodes[i].params.layout.padding)[main];
-                (size - 2.0 * padding).max(0.0)
+                let padding = self.pixels_to_frac2(self.sys.nodes[i].params.layout.total_padding())[main];
+                (size - padding).max(0.0)
             }
         };
         let spacing_main = self.pixels_to_frac(Xy::new(spacing_x, spacing_y)[main], main);
@@ -479,9 +479,9 @@ impl Ui {
         if self.sys.nodes[i].text_i.is_none() {
             return;
         }
-        let padding = self.pixels_to_frac2(self.sys.nodes[i].params.layout.padding);
-        let inner_x = (self.sys.nodes[i].size.x - 2.0 * padding.x) * self.sys.size[X];
-        let inner_y = (self.sys.nodes[i].size.y - 2.0 * padding.y) * self.sys.size[Y];
+        let padding = self.pixels_to_frac2(self.sys.nodes[i].params.layout.total_padding());
+        let inner_x = (self.sys.nodes[i].size.x - padding.x) * self.sys.size[X];
+        let inner_y = (self.sys.nodes[i].size.y - padding.y) * self.sys.size[Y];
 
         match self.sys.nodes[i].text_i.as_ref().unwrap() {
             TextI::TextBox(handle) => {
@@ -519,7 +519,7 @@ impl Ui {
     }
 
     fn l2_solve_size(&mut self, i: NodeI, axis: Axis, size: Size, size_type: SizeType) -> f32 {
-        let padding = self.pixels_to_frac2(self.sys.nodes[i].params.layout.padding)[axis];
+        let padding = self.pixels_to_frac2(self.sys.nodes[i].params.layout.total_padding())[axis];
 
         match size {
             Size::Pixels(_) => panic!("A Pixels slot shouldn't be showing up as a dependent node that we have to solve."),
@@ -539,11 +539,11 @@ impl Ui {
 
                 if axis == Y && self.text_wraps_from_width(i, size) {
                     let text = self.l2_wrapped_text_height(i);
-                    return content.max(text) + 2.0 * padding;
+                    return content.max(text) + padding;
                 }
 
                 // No clamp against the min: this is a sum over the same children the min is a sum over, and each one's solved size is at least its own min.
-                content + 2.0 * padding
+                content + padding
             }
 
             Size::Fill | Size::Frac(_) => {
@@ -555,8 +555,8 @@ impl Ui {
     /// How tall a wrapping text node is once it's laid out at the width it actually got.
     fn l2_wrapped_text_height(&mut self, i: NodeI) -> f32 {
         let width = self.l2_size_or_guess(i, X);
-        let padding = self.pixels_to_frac2(self.sys.nodes[i].params.layout.padding);
-        let inner_x = (width - 2.0 * padding[X]).max(0.0);
+        let padding = self.pixels_to_frac2(self.sys.nodes[i].params.layout.total_padding());
+        let inner_x = (width - padding[X]).max(0.0);
 
         self.l2_text_size(i, Some(inner_x))[Y]
     }
@@ -683,8 +683,8 @@ impl Ui {
     fn l2_solve_fill_or_frac_from_parent(&mut self, i: NodeI, axis: Axis, size: Size, size_type: SizeType) -> f32 {
         let parent = self.sys.nodes.links[i].parent;
         let parent_size = self.l2_size_or_guess(parent, axis);
-        let parent_padding = self.pixels_to_frac2(self.sys.nodes[parent].params.layout.padding)[axis];
-        let inner = (parent_size - 2.0 * parent_padding).max(0.0);
+        let parent_padding = self.pixels_to_frac2(self.sys.nodes[parent].params.layout.total_padding())[axis];
+        let inner = (parent_size - parent_padding).max(0.0);
 
         // In a grid, what the child gets is its cells, not the whole inner size.
         if let ChildrenLayout::Grid { spacing_x, spacing_y, .. } = self.sys.nodes[parent].params.children_layout
@@ -743,16 +743,16 @@ impl Ui {
             return 0.0;
         }
         let parent_size = self.l2_size_or_guess(parent, axis);
-        let parent_padding = self.pixels_to_frac2(self.sys.nodes[parent].params.layout.padding)[axis];
-        let inner = (parent_size - 2.0 * parent_padding).max(0.0);
+        let parent_padding = self.pixels_to_frac2(self.sys.nodes[parent].params.layout.total_padding())[axis];
+        let inner = (parent_size - parent_padding).max(0.0);
         ((inner - spacing * (n - 1.0)) / n).max(0.0)
     }
 
 
     fn available_space_in_stack(&self, parent: NodeI, axis: Axis) -> f32 {
         let parent_size = self.l2_size_or_guess(parent, axis);
-        let parent_padding = self.pixels_to_frac2(self.sys.nodes[parent].params.layout.padding)[axis];
-        let inner = (parent_size - 2.0 * parent_padding).max(0.0);
+        let parent_padding = self.pixels_to_frac2(self.sys.nodes[parent].params.layout.total_padding())[axis];
+        let inner = (parent_size - parent_padding).max(0.0);
         (inner - self.l2_stack_gaps(parent, axis)).max(0.0)
     }
     // Todo: should try to pre-count the free-placement children.

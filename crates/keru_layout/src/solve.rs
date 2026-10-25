@@ -169,7 +169,7 @@ fn clamp(size: f32, min: Option<f32>, max: Option<f32>) -> f32 {
 
 #[inline(always)]
 fn inner(size: f32, padding: f32) -> f32 {
-    (size - 2.0 * padding).max(0.0)
+    (size - padding).max(0.0)
 }
 
 pub(crate) trait Solve: TreeAdapter {
@@ -449,7 +449,7 @@ pub(crate) trait Solve: TreeAdapter {
 
     fn available_from_parent(&self, i: Self::NodeId, axis: Axis) -> f32 {
         let parent = self.parent(i);
-        let inner = inner(self.get_solved_value(parent, axis, Kind::Final), self.padding(parent, axis));
+        let inner = inner(self.get_solved_value(parent, axis, Kind::Final), self.total_padding(parent, axis));
         if self.params(i).free_placement {
             return inner;
         }
@@ -505,7 +505,7 @@ pub(crate) trait Solve: TreeAdapter {
         let mut own_content = match self.params(i).text {
             TextContent::None => 0.0,
             _ if self.text_wraps(i, axis) => {
-                let width = inner(self.get_solved_value(i, X, Kind::Final), self.padding(i, X));
+                let width = inner(self.get_solved_value(i, X, Kind::Final), self.total_padding(i, X));
                 self.measure_text(i, Some(width))[Y]
             }
             _ => self.measure_text(i, None)[axis],
@@ -514,7 +514,7 @@ pub(crate) trait Solve: TreeAdapter {
             own_content = own_content.max(self.pixels_to_frac(image[axis], axis));
         }
 
-        children.max(own_content) + gaps + 2.0 * self.padding(i, axis)
+        children.max(own_content) + gaps + self.total_padding(i, axis)
     }
 
     fn fit_stack_main(&self, i: Self::NodeId, axis: Axis, at_max: bool) -> f32 {
@@ -590,7 +590,7 @@ pub(crate) trait Solve: TreeAdapter {
             }
         }
 
-        let own = inner(self.get_solved_value(i, axis, Kind::Final), self.padding(i, axis));
+        let own = inner(self.get_solved_value(i, axis, Kind::Final), self.total_padding(i, axis));
         let mut budget = (own - self.stack_gaps(i, axis)).max(0.0);
 
         with_arena(|arena| {
@@ -666,7 +666,7 @@ pub(crate) trait Solve: TreeAdapter {
         let main = flow.main_axis;
         let spacing = self.pixels_to_frac(Xy::new(spacing_x, spacing_y)[main], main);
         let width = self.pixels_to_frac(w, main);
-        let inner_main = inner(self.get_solved_value(i, main, Kind::Final), self.padding(i, main));
+        let inner_main = inner(self.get_solved_value(i, main, Kind::Final), self.total_padding(i, main));
         let n_main = ((inner_main + spacing) / (width + spacing)).floor().max(1.0) as usize;
         self.assign_grid_cells(i, n_main, flow);
     }
@@ -736,8 +736,9 @@ pub(crate) trait Solve: TreeAdapter {
     }
 
     #[inline(always)]
-    fn padding(&self, i: Self::NodeId, axis: Axis) -> f32 {
-        self.pixels_to_frac(self.params(i).padding[axis], axis)
+    fn total_padding(&self, i: Self::NodeId, axis: Axis) -> f32 {
+        let [start, end] = self.params(i).padding[axis];
+        self.pixels_to_frac(start + end, axis)
     }
 
     #[inline(always)]

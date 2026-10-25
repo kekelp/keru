@@ -262,7 +262,7 @@ pub struct KeruLayout {
     pub size: KeruXy<KeruSize>,
     pub min_size: KeruXy<KeruOpt<KeruSize>>,
     pub max_size: KeruXy<KeruOpt<KeruSize>>,
-    pub padding: KeruXy<f32>,
+    pub padding: KeruXy<[f32; 2]>,
     pub position: KeruXy<KeruPos>,
     pub anchor: KeruXy<KeruAnchor>,
     pub children_origin_x: KeruHorizontalOrigin,

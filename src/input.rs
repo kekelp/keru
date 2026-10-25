@@ -6,11 +6,11 @@ use winit::event::MouseButton;
 
 // Returns cursor position as a fraction of the node's inner (post-padding) rect,
 // matching the coordinate space used by Pos::Frac for child positioning.
-fn inner_relative_position(cursor: Vec2, window_size: Xy<f32>, rect: XyRect, padding: Xy<f32>) -> Vec2 {
-    let inner_x0 = rect.x[0] + padding.x / window_size.x;
-    let inner_y0 = rect.y[0] + padding.y / window_size.y;
-    let inner_w  = rect.size().x - 2.0 * padding.x / window_size.x;
-    let inner_h  = rect.size().y - 2.0 * padding.y / window_size.y;
+fn inner_relative_position(cursor: Vec2, window_size: Xy<f32>, rect: XyRect, padding: Xy<[f32; 2]>) -> Vec2 {
+    let inner_x0 = rect.x[0] + padding.x[0] / window_size.x;
+    let inner_y0 = rect.y[0] + padding.y[0] / window_size.y;
+    let inner_w  = rect.size().x - (padding.x[0] + padding.x[1]) / window_size.x;
+    let inner_h  = rect.size().y - (padding.y[0] + padding.y[1]) / window_size.y;
     Vec2::new(
         (cursor.x / window_size.x - inner_x0) / inner_w,
         (cursor.y / window_size.y - inner_y0) / inner_h,

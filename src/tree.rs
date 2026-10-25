@@ -273,14 +273,16 @@ impl Ui {
         // Update text position using animated rect
         let animated_rect = self.sys.nodes[i].get_animated_rect();
 
-        let padding = self.sys.nodes[i].params.layout.padding * Xy::new_symm(self.sys.scale_factor);
+        let layout = self.sys.nodes[i].params.layout;
+        let padding = Xy::new(layout.padding.x[0], layout.padding.y[0]) * Xy::new_symm(self.sys.scale_factor);
+        let total_padding = layout.total_padding() * Xy::new_symm(self.sys.scale_factor);
         let left = (animated_rect[X][0] * self.sys.size[X]) as f64 + padding[X] as f64;
 
         // Calculate node height in pixels
         let node_height = (animated_rect[Y][1] - animated_rect[Y][0]) * self.sys.size[Y];
         let node_width = (animated_rect[X][1] - animated_rect[X][0]) * self.sys.size[X];
 
-        let available_height = node_height - (2.0 * padding[Y] as f32);
+        let available_height = node_height - total_padding[Y];
 
         // Round to screen pixels using the transform scale
         let scale = self.sys.nodes[i].accumulated_transform.scale as f64;

@@ -155,7 +155,7 @@ impl<'a> UiNode<'a> {
     /// Since the size and position of nodes is only determined in the layout pass at the end of the frame, 
     /// using this function in the middle of UI declaration code will return the value from last frame.  
     pub fn inner_size(&self) -> Xy<f32> {
-        let padding = self.node().params.layout.padding;
+        let padding = self.node().params.layout.total_padding();
 
         let size = self.node().size;
         let sys = self.sys();

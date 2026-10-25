@@ -523,7 +523,7 @@ pub struct Layout {
     pub size: Xy<Size>,
     pub min_size: Xy<Option<Size>>,
     pub max_size: Xy<Option<Size>>,
-    pub padding: Xy<f32>,
+    pub padding: Xy<[f32; 2]>,
     pub position: Xy<Pos>,
     pub anchor: Xy<Anchor>,
     pub children_origin_x: HorizontalOrigin,
@@ -537,8 +537,9 @@ impl Hash for Layout {
         self.size.hash(state);
         self.min_size.hash(state);
         self.max_size.hash(state);
-        self.padding.x.to_bits().hash(state);
-        self.padding.y.to_bits().hash(state);
+        for p in [self.padding.x, self.padding.y].as_flattened() {
+            p.to_bits().hash(state);
+        }
         self.position.hash(state);
         self.anchor.hash(state);
         self.children_origin_x.hash(state);
@@ -548,13 +549,20 @@ impl Hash for Layout {
     }
 }
 
+impl Layout {
+    /// The padding on both sides of each axis, added together.
+    pub(crate) fn total_padding(&self) -> Xy<f32> {
+        Xy::new(self.padding.x[0] + self.padding.x[1], self.padding.y[0] + self.padding.y[1])
+    }
+}
+
 impl Default for Layout {
     fn default() -> Self {
         Self {
             size: Xy::new_symm(Size::FitContent),
             min_size: Xy::new(None, None),
             max_size: Xy::new(None, None),
-            padding: Xy::new_symm(10.0),
+            padding: Xy::new_symm([10.0, 10.0]),
             position: Xy::new_symm(Pos::Center),
             anchor: Xy::new_symm(Anchor::Start),
             children_origin_x: HorizontalOrigin::Left,
@@ -1683,19 +1691,43 @@ impl<'a> Node<'a> {
 
     /// Set symmetric padding on both axes.
     pub const fn padding(mut self, padding: f32) -> Self {
-        self.layout.padding = Xy::new_symm(padding);
+        self.layout.padding = Xy::new_symm([padding, padding]);
         return self;
     }
 
     /// Set horizontal padding.
     pub const fn padding_x(mut self, padding: f32) -> Self {
-        self.layout.padding.x = padding;
+        self.layout.padding.x = [padding, padding];
         return self;
     }
 
     /// Set vertical padding.
     pub const fn padding_y(mut self, padding: f32) -> Self {
-        self.layout.padding.y = padding;
+        self.layout.padding.y = [padding, padding];
+        return self;
+    }
+
+    /// Set the padding on the left side.
+    pub const fn padding_left(mut self, padding: f32) -> Self {
+        self.layout.padding.x[0] = padding;
+        return self;
+    }
+
+    /// Set the padding on the right side.
+    pub const fn padding_right(mut self, padding: f32) -> Self {
+        self.layout.padding.x[1] = padding;
+        return self;
+    }
+
+    /// Set the padding on the top side.
+    pub const fn padding_top(mut self, padding: f32) -> Self {
+        self.layout.padding.y[0] = padding;
+        return self;
+    }
+
+    /// Set the padding on the bottom side.
+    pub const fn padding_bottom(mut self, padding: f32) -> Self {
+        self.layout.padding.y[1] = padding;
         return self;
     }
 

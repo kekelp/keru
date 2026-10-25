@@ -3,7 +3,7 @@ use crate::*;
 #[derive(Clone, Copy)]
 pub(crate) struct ParentFrame {
     rect: XyRect,
-    padding: Xy<f32>,
+    padding: Xy<[f32; 2]>,
     flipped: Xy<bool>,
 }
 
@@ -44,7 +44,7 @@ pub(crate) trait Place: Solve {
         let window = self.window_size();
         ParentFrame {
             rect,
-            padding: Xy::new(params.padding.x / window.x, params.padding.y / window.y),
+            padding: Xy::new(params.padding.x.map(|p| p / window.x), params.padding.y.map(|p| p / window.y)),
             flipped: params.children_origin_flipped,
         }
     }
@@ -53,7 +53,7 @@ pub(crate) trait Place: Solve {
         let (main, cross) = (axis, axis.other());
         let frame = self.parent_frame(i, rect);
         let stack_rect = frame.rect;
-        let padding = frame.padding;
+        let [pad_start, pad_end] = frame.padding[main];
         let spacing = spacing / self.window_size()[axis];
 
         // On the main axis, totally ignore the children's chosen Position's and place them according to our own Stack::Arrange value.
@@ -73,27 +73,27 @@ pub(crate) trait Place: Solve {
             children_size
         };
 
-        let inner = (stack_rect[main][1] - stack_rect[main][0]) - 2.0 * padding[main];
-        let free = inner - children_size;
+        let (inner_start, inner_end) = (stack_rect[main][0] + pad_start, stack_rect[main][1] - pad_end);
+        let free = (inner_end - inner_start) - children_size;
 
         let (mut walking_position, gap) = match arrange {
-            Arrange::Start => (stack_rect[main][0] + padding[main], spacing),
-            Arrange::End => (stack_rect[main][1] - padding[main] - total_size, spacing),
+            Arrange::Start => (inner_start, spacing),
+            Arrange::End => (inner_end - total_size, spacing),
             Arrange::Center => {
-                let center = (stack_rect[main][1] + stack_rect[main][0]) / 2.0;
+                let center = (inner_start + inner_end) / 2.0;
                 (center - total_size / 2.0, spacing)
             },
             Arrange::SpaceBetween => {
                 let gap = if n > 1 { free / (n - 1) as f32 } else { 0.0 };
-                (stack_rect[main][0] + padding[main], gap)
+                (inner_start, gap)
             },
             Arrange::SpaceAround => {
                 let gap = if n > 0 { free / n as f32 } else { 0.0 };
-                (stack_rect[main][0] + padding[main] + gap / 2.0, gap)
+                (inner_start + gap / 2.0, gap)
             },
             Arrange::SpaceEvenly => {
                 let gap = if n > 0 { free / (n + 1) as f32 } else { 0.0 };
-                (stack_rect[main][0] + padding[main] + gap, gap)
+                (inner_start + gap, gap)
             },
         };
 
@@ -120,7 +120,8 @@ pub(crate) trait Place: Solve {
         let mut cell = Xy::new(0.0, 0.0);
         for axis in [X, Y] {
             let n = lines[axis] as f32;
-            cell[axis] = ((size[axis] - 2.0 * frame.padding[axis] - spacing[axis] * (n - 1.0)) / n.max(1.0)).max(0.0);
+            let [pad_start, pad_end] = frame.padding[axis];
+            cell[axis] = ((size[axis] - pad_start - pad_end - spacing[axis] * (n - 1.0)) / n.max(1.0)).max(0.0);
         }
 
         for_each_layout_child!(self, i, child, {
@@ -131,7 +132,7 @@ pub(crate) trait Place: Solve {
                 let child_cell = self.layout_data(child).grid_cell;
                 let mut child_rect = Xy::new([0.0, 0.0], [0.0, 0.0]);
                 for axis in [X, Y] {
-                    let start = frame.rect[axis][0] + frame.padding[axis] + child_cell[axis] as f32 * (cell[axis] + spacing[axis]);
+                    let start = frame.rect[axis][0] + frame.padding[axis][0] + child_cell[axis] as f32 * (cell[axis] + spacing[axis]);
                     child_rect[axis] = [start, start + child_size[axis]];
                 }
                 self.place(child, child_rect, frame.rect);
@@ -142,7 +143,7 @@ pub(crate) trait Place: Solve {
     #[inline(always)]
     fn resolve_pos_on_axis(&self, frame: &ParentFrame, child: Self::NodeId, axis: Axis, child_size: f32) -> [f32; 2] {
         let rect = frame.rect;
-        let padding = frame.padding[axis];
+        let [pad_start, pad_end] = frame.padding[axis];
         let flipped = frame.flipped[axis];
         let params = self.params(child);
 
@@ -158,8 +159,9 @@ pub(crate) trait Place: Solve {
             }
         };
 
-        let origin_edge = if ! flipped { rect[axis][0] + padding } else { rect[axis][1] - padding };
-        let far_edge = if ! flipped { rect[axis][1] - padding } else { rect[axis][0] + padding };
+        let (inner_start, inner_end) = (rect[axis][0] + pad_start, rect[axis][1] - pad_end);
+        let origin_edge = if ! flipped { inner_start } else { inner_end };
+        let far_edge = if ! flipped { inner_end } else { inner_start };
 
         match params.position[axis] {
             Pos::Start => {
@@ -173,12 +175,11 @@ pub(crate) trait Place: Solve {
                 place_at(if ! flipped { origin_edge + static_pos } else { origin_edge - static_pos })
             },
             Pos::Frac(frac) => {
-                let inner_size = (rect[axis][1] - rect[axis][0]) - 2.0 * padding;
-                let static_pos = frac * inner_size;
+                let static_pos = frac * (inner_end - inner_start);
                 place_at(if ! flipped { origin_edge + static_pos } else { origin_edge - static_pos })
             },
             Pos::Center => {
-                let center = (rect[axis][0] + rect[axis][1]) / 2.0;
+                let center = (inner_start + inner_end) / 2.0;
                 [center - child_size / 2.0, center + child_size / 2.0]
             },
         }

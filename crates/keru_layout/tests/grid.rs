@@ -98,7 +98,7 @@ fn width_grid_fill_children_follow_the_final_size() {
 fn width_grid_counts_spacing_and_padding() {
     let mut params = grid(MainAxisCellSize::Width(100.0), Xy::new(px(360.0), Size::FitContent));
     params.children_layout = ChildrenLayout::Grid { columns: MainAxisCellSize::Width(100.0), spacing_x: 10.0, spacing_y: 5.0, flow: GridFlow::DEFAULT };
-    params.padding = Xy::new(20.0, 20.0);
+    params.padding = Xy::new([20.0, 20.0], [20.0, 20.0]);
     let (tree, g, c) = build(params, 4, leaf(100.0, 50.0));
     // The inner width is 320px: 3 columns of 100px with 10px between them. The height is 2 rows with 5px between them, plus padding.
     assert_rect(&tree, g, [0.0, 0.0, 360.0, 145.0]);

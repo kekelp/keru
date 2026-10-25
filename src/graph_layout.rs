@@ -13,9 +13,9 @@ impl System {
         let Some(text_i) = &node.text_i else {
             return;
         };
-        let padding = node.params.layout.padding;
-        let inner_x = (node.size.x - 2.0 * padding.x / logical_window.x) * self.size.x;
-        let inner_y = (node.size.y - 2.0 * padding.y / logical_window.y) * self.size.y;
+        let padding = node.params.layout.total_padding();
+        let inner_x = (node.size.x - padding.x / logical_window.x) * self.size.x;
+        let inner_y = (node.size.y - padding.y / logical_window.y) * self.size.y;
 
         match text_i {
             TextI::TextBox(handle) => {
