@@ -42,7 +42,7 @@ const SOLVED: u32 = 2;
 
 /// The resolve flags of each axis come after the slot states.
 const RESOLVED_FLAGS_SHIFT: u32 = 2 * N_SLOTS as u32;
-const RESOLVED_FLAGS_BITS: u32 = 3;
+const RESOLVED_FLAGS_BITS: u32 = 2;
 const _: () = assert!(RESOLVED_FLAGS_SHIFT + 2 * RESOLVED_FLAGS_BITS <= 32, "The slot states and the resolve flags don't fit in NodeFlags");
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -55,8 +55,6 @@ impl NodeFlags {
     pub(crate) const FIT_IS_FILL: u32 = 1 << 0;
     /// The content is also an upper bound (`Kind::ContentMax`).
     pub(crate) const CONTENT_MAX: u32 = 1 << 1;
-    /// The `Fill` min and max sizes don't apply, because the node is in a stack that has no space to share.
-    pub(crate) const FILL_BOUNDS_DROPPED: u32 = 1 << 2;
 
     #[inline(always)]
     pub(crate) fn check_state(self, axis: Axis, kind: Kind) -> u32 {
@@ -195,19 +193,28 @@ pub(crate) trait Solve: TreeAdapter {
     fn read_size(&self, i: Self::NodeId, axis: Axis, kind: Kind) -> Option<Size> {
         let node = self.params(i);
         let flags = self.layout_data(i).flags;
-        let bound = |bound: Option<Size>| match bound {
-            Some(Size::Fill) if flags.check_flag(axis, NodeFlags::FILL_BOUNDS_DROPPED) => None,
-            bound => bound,
-        };
         match kind {
+            Kind::Min | Kind::Max => {
+                let bound = if kind == Kind::Min { node.min_size[axis] } else { node.max_size[axis] };
+                let ignore_bound = bound == Some(Size::Fill) && self.ignore_fill_bound(i, axis);
+                if ignore_bound { None } else { bound }
+            }
             Kind::Regular if flags.check_flag(axis, NodeFlags::FIT_IS_FILL) => Some(Size::Fill),
             Kind::Regular => Some(node.size[axis]),
-            Kind::Min => bound(node.min_size[axis]),
-            Kind::Max => bound(node.max_size[axis]),
             Kind::ContentMin => flags.check_flag(axis, NodeFlags::FIT_IS_FILL).then_some(Size::FitContent),
             Kind::ContentMax => flags.check_flag(axis, NodeFlags::CONTENT_MAX).then_some(Size::FitContent),
             Kind::Final | Kind::EvenShare => unreachable!(),
         }
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn ignore_fill_bound(&self, i: Self::NodeId, axis: Axis) -> bool {
+        if i == self.root() || ! self.is_stacked(i, axis) {
+            return false;
+        }
+        let parent = self.parent(i);
+        self.params(parent).size[axis] == Size::FitContent && ! self.layout_data(parent).flags.check_flag(axis, NodeFlags::FIT_IS_FILL)
     }
 
     #[inline(always)]
@@ -240,11 +247,30 @@ pub(crate) trait Solve: TreeAdapter {
         self.stack_axis(i) == Some(axis) && self.read_size(i, axis, Kind::Regular) != Some(Size::FitContent)
     }
 
+    #[inline(always)]
+    fn can_become_fill(&self, i: Self::NodeId, axis: Axis) -> bool {
+        let params = self.params(i);
+        params.size[axis] == Size::FitContent && ! matches!(params.children_layout, ChildrenLayout::Grid { .. })
+    }
+
+    #[inline(always)]
+    fn check_child_growth(&self, growing_children: &mut GrowingChildren, child: Self::NodeId, axis: Axis) {
+        let child_can_grow = self.read_size(child, axis, Kind::Regular) == Some(Size::Fill);
+        growing_children.any |= child_can_grow;
+        growing_children.all &= child_can_grow;
+        if child_can_grow {
+            growing_children.all_capped &= self.read_size(child, axis, Kind::ContentMax).is_some() || self.read_size(child, axis, Kind::Max).is_some_and(|max| ! max.is_flex());
+        }
+    }
+
     fn prepare(&mut self, i: Self::NodeId) {
         *self.layout_data_mut(i) = LayoutData::EMPTY;
         if self.params(i).disabled {
             return;
         }
+        let collect = Xy::new(self.can_become_fill(i, X), self.can_become_fill(i, Y));
+        let mut growing_children = Xy::new(GrowingChildren::NONE, GrowingChildren::NONE);
+
         let mut n_placed_children = 0;
         let mut next = self.first_child(i);
         while let Some(child) = next {
@@ -253,6 +279,11 @@ pub(crate) trait Solve: TreeAdapter {
             let params = self.params(child);
             if ! params.disabled && ! params.free_placement {
                 n_placed_children += 1;
+                for axis in [X, Y] {
+                    if collect[axis] {
+                        self.check_child_growth(&mut growing_children[axis], child, axis);
+                    }
+                }
             }
         }
         self.layout_data_mut(i).n_placed_children = n_placed_children;
@@ -260,7 +291,27 @@ pub(crate) trait Solve: TreeAdapter {
         if let ChildrenLayout::Grid { columns: MainAxisCellSize::Count(n), flow, .. } = self.params(i).children_layout {
             self.assign_grid_cells(i, (n as usize).max(1), flow);
         }
-        self.resolve_sizes(i);
+        
+        for axis in [X, Y] {
+            if ! self.can_become_fill(i, axis) {
+                continue;
+            }
+            let params = self.params(i);
+            let growing_children = growing_children[axis];
+            let becomes_fill = match self.stack_axis(i) == Some(axis) {
+                true => growing_children.any,
+                false => growing_children.any && growing_children.all && params.text == TextContent::None && params.image.is_none(),
+            };
+            if becomes_fill {
+                let flags = &mut self.layout_data_mut(i).flags;
+                // Keep the content as a lower bound, so that the node doesn't get smaller than its children
+                flags.set_flag(axis, NodeFlags::FIT_IS_FILL);
+                // If no child can grow to infinity, the content is also an upper bound.
+                if growing_children.all_capped {
+                    flags.set_flag(axis, NodeFlags::CONTENT_MAX);
+                }
+            }
+        }
     }
 
     #[inline(always)]
@@ -767,3 +818,13 @@ fn grid_area_is_free(occupied: &[bool], n_main: usize, line: usize, pos: usize, 
     true
 }
 
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct GrowingChildren {
+    any: bool,
+    all: bool,
+    all_capped: bool,
+}
+
+impl GrowingChildren {
+    pub(crate) const NONE: GrowingChildren = GrowingChildren { any: false, all: true, all_capped: true };
+}
