@@ -133,7 +133,8 @@ use bumpalo::collections::Vec as BumpVec;
 
 const MAX_FIT_STACK_FRAC: f32 = 0.999;
 const MAX_FIT_STACK_STEPS: usize = 64;
-const FIT_STACK_EPSILON: f32 = 1e-7;
+const FIT_STACK_EPSILON: f32 = 1e-6;
+const EVEN_SHARE_EPSILON: f32 = 1e-3;
 
 #[inline(always)]
 fn clamp(size: f32, min: Option<f32>, max: Option<f32>) -> f32 {
@@ -383,29 +384,23 @@ pub(crate) trait Solve: TreeAdapter {
         data.values[slot_index(axis, kind)]
     }
 
-    #[inline(always)]
-    fn pixels_to_frac(&self, pixels: f32, axis: Axis) -> f32 {
-        pixels / self.window_size()[axis]
-    }
-
     fn solve_slot_inner(&mut self, slot: Slot<Self::NodeId>) -> f32 {
         let i = slot.node;
         let axis = slot.axis;
         match slot.kind {
-            Kind::Regular if i == self.root() => 1.0,
+            Kind::Regular if i == self.root() => self.window_size()[axis],
             Kind::Final => {
                 let (min, max) = self.solved_bounds(i, axis, |_| false);
                 clamp(self.get_solved_value(i, axis, Kind::Regular), min, max)
             }
             Kind::EvenShare => self.solve_even_share(i, axis),
             declared => match self.read_size(i, axis, declared).unwrap() {
-                Size::Pixels(pixels) => self.pixels_to_frac(pixels, axis),
+                Size::Pixels(pixels) => pixels,
                 Size::AspectRatio(aspect) => {
                     let other = self.get_solved_value(i, axis.other(), Kind::Final);
-                    let window_aspect = self.window_size().x / self.window_size().y;
                     match axis {
-                        X => other * aspect / window_aspect,
-                        Y => other * window_aspect / aspect,
+                        X => other * aspect,
+                        Y => other / aspect,
                     }
                 }
                 Size::FitContent => {
@@ -448,7 +443,7 @@ pub(crate) trait Solve: TreeAdapter {
         }
         match self.node_layout_params(parent).children_layout {
             ChildrenLayout::Grid { spacing_x, spacing_y, .. } => {
-                let spacing = self.pixels_to_frac(Xy::new(spacing_x, spacing_y)[axis], axis);
+                let spacing = Xy::new(spacing_x, spacing_y)[axis];
                 let n = self.node_layout_data(parent).grid_lines[axis] as f32;
                 let cell = ((inner - spacing * (n - 1.0)) / n.max(1.0)).max(0.0);
                 let span = self.node_layout_params(i).grid_span[axis].max(1) as f32;
@@ -464,10 +459,10 @@ pub(crate) trait Solve: TreeAdapter {
     fn solve_fitcontent(&mut self, i: Self::NodeId, axis: Axis, is_max_bound: bool) -> f32 {
         let (children, gaps) = match self.node_layout_params(i).children_layout {
             ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow } => {
-                let spacing = self.pixels_to_frac(Xy::new(spacing_x, spacing_y)[axis], axis);
+                let spacing = Xy::new(spacing_x, spacing_y)[axis];
                 let (n, cell) = match columns {
                     // The number of columns depends on the final size, so a grid fits one column.
-                    MainAxisCellSize::Width(w) if axis == flow.main_axis => (1.0, self.pixels_to_frac(w, axis)),
+                    MainAxisCellSize::Width(w) if axis == flow.main_axis => (1.0, w),
                     _ => {
                         let mut cell = 0.0f32;
                         for_each_layout_child!(self, i, child, {
@@ -499,19 +494,15 @@ pub(crate) trait Solve: TreeAdapter {
             TextContent::None => 0.0,
             _ if self.text_wraps(i, axis) => {
                 let width = inner(self.get_solved_value(i, X, Kind::Final), self.total_padding(i, X));
-                let height = self.measure_text_height(i, Some(width * self.window_size().x));
-                self.pixels_to_frac(height, Y)
+                self.measure_text_height(i, Some(width))
             }
-            _ => {
-                let size = match axis {
-                    X => self.measure_text_width(i),
-                    Y => self.measure_text_height(i, None),
-                };
-                self.pixels_to_frac(size, axis)
-            }
+            _ => match axis {
+                X => self.measure_text_width(i),
+                Y => self.measure_text_height(i, None),
+            },
         };
         if let Some(image) = self.node_layout_params(i).image {
-            own_content = own_content.max(self.pixels_to_frac(image[axis], axis));
+            own_content = own_content.max(image[axis]);
         }
 
         children.max(own_content) + gaps + self.total_padding(i, axis)
@@ -548,7 +539,7 @@ pub(crate) trait Solve: TreeAdapter {
                 true => fixed / (1.0 - free_frac),
                 false => fixed,
             };
-            let settled = (next - estimate).abs() <= FIT_STACK_EPSILON;
+            let settled = (next - estimate).abs() <= FIT_STACK_EPSILON * next.abs().max(1.0);
             estimate = next;
             if settled {
                 break;
@@ -646,7 +637,7 @@ pub(crate) trait Solve: TreeAdapter {
                         total_violation += child.size(share) - child.target(share);
                     }
                 }
-                if total_violation.abs() < 1e-9 {
+                if total_violation.abs() < EVEN_SHARE_EPSILON {
                     break;
                 }
 
@@ -655,8 +646,8 @@ pub(crate) trait Solve: TreeAdapter {
                     let size = child.size(share);
                     let target = child.target(share);
                     let stuck = match total_violation > 0.0 {
-                        true => size - target > 1e-9,
-                        false => size - target < -1e-9,
+                        true => size - target > EVEN_SHARE_EPSILON,
+                        false => size - target < -EVEN_SHARE_EPSILON,
                     };
                     if ! child.frozen && stuck {
                         child.frozen = true;
@@ -682,10 +673,9 @@ pub(crate) trait Solve: TreeAdapter {
             unreachable!();
         };
         let main = flow.main_axis;
-        let spacing = self.pixels_to_frac(Xy::new(spacing_x, spacing_y)[main], main);
-        let width = self.pixels_to_frac(w, main);
+        let spacing = Xy::new(spacing_x, spacing_y)[main];
         let inner_main = inner(self.get_solved_value(i, main, Kind::Final), self.total_padding(i, main));
-        let n_main = ((inner_main + spacing) / (width + spacing)).floor().max(1.0) as usize;
+        let n_main = ((inner_main + spacing) / (w + spacing)).floor().max(1.0) as usize;
         self.assign_grid_cells(i, n_main, flow);
     }
 
@@ -756,7 +746,7 @@ pub(crate) trait Solve: TreeAdapter {
     #[inline(always)]
     fn total_padding(&self, i: Self::NodeId, axis: Axis) -> f32 {
         let [start, end] = self.node_layout_params(i).padding[axis];
-        self.pixels_to_frac(start + end, axis)
+        start + end
     }
 
     #[inline(always)]
@@ -768,7 +758,7 @@ pub(crate) trait Solve: TreeAdapter {
             return 0.0;
         }
         let n = self.node_layout_data(i).n_placed_children as f32;
-        self.pixels_to_frac(spacing, axis) * (n - 1.0).max(0.0)
+        spacing * (n - 1.0).max(0.0)
     }
 }
 

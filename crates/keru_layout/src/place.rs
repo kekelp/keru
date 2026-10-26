@@ -10,7 +10,8 @@ pub(crate) struct ParentFrame {
 /// The placement part of the layout. Every `TreeAdapter` gets it from the blanket impl.
 pub(crate) trait Place: Solve {
     fn place_nodes(&mut self) {
-        let window = Xy::new([0.0, 1.0], [0.0, 1.0]);
+        let window = self.window_size();
+        let window = Xy::new([0.0, window.x], [0.0, window.y]);
         self.place(self.root(), window, window);
     }
 
@@ -20,7 +21,7 @@ pub(crate) trait Place: Solve {
             [rect.x[0] - parent_rect.x[0], rect.x[1] - parent_rect.x[0]],
             [rect.y[0] - parent_rect.y[0], rect.y[1] - parent_rect.y[0]],
         );
-        self.write_output_rect(i, self.rect_to_pixels(rect), self.rect_to_pixels(local_rect));
+        self.write_output_rect(i, rect, local_rect);
         match self.node_layout_params(i).children_layout {
             ChildrenLayout::Free => self.place_children_free(i, rect),
             ChildrenLayout::Stack { arrange, axis, spacing } => self.place_children_stack(i, rect, axis, arrange, spacing),
@@ -38,26 +39,12 @@ pub(crate) trait Place: Solve {
         self.place_child_free(node, &frame, self.node_layout_data(node).size());
     }
 
-    /// Converts a rect from fractions of the window size to logical pixels.
-    #[inline(always)]
-    fn rect_to_pixels(&self, rect: XyRect) -> XyRect {
-        let window = self.window_size();
-        Xy::new([rect.x[0] * window.x, rect.x[1] * window.x], [rect.y[0] * window.y, rect.y[1] * window.y])
-    }
-
-    #[inline(always)]
-    fn rect_to_frac(&self, rect: XyRect) -> XyRect {
-        let window = self.window_size();
-        Xy::new([rect.x[0] / window.x, rect.x[1] / window.x], [rect.y[0] / window.y, rect.y[1] / window.y])
-    }
-
     #[inline(always)]
     fn parent_frame(&self, i: Self::NodeId, rect: XyRect) -> ParentFrame {
         let params = self.node_layout_params(i);
-        let window = self.window_size();
         ParentFrame {
             rect,
-            padding: Xy::new(params.padding.x.map(|p| p / window.x), params.padding.y.map(|p| p / window.y)),
+            padding: params.padding,
             flipped: params.children_origin_flipped,
         }
     }
@@ -67,7 +54,6 @@ pub(crate) trait Place: Solve {
         let frame = self.parent_frame(i, rect);
         let stack_rect = frame.rect;
         let [pad_start, pad_end] = frame.padding[main];
-        let spacing = spacing / self.window_size()[axis];
 
         // On the main axis, totally ignore the children's chosen Position's and place them according to our own Stack::Arrange value.
 
@@ -128,7 +114,7 @@ pub(crate) trait Place: Solve {
         let lines = self.node_layout_data(i).grid_lines;
 
         let frame = self.parent_frame(i, rect);
-        let spacing = Xy::new(spacing_x / self.window_size().x, spacing_y / self.window_size().y);
+        let spacing = Xy::new(spacing_x, spacing_y);
         let size = self.node_layout_data(i).size();
         let mut cell = Xy::new(0.0, 0.0);
         for axis in [X, Y] {
@@ -184,8 +170,7 @@ pub(crate) trait Place: Solve {
                 if ! flipped { [far_edge - child_size, far_edge] } else { [far_edge, far_edge + child_size] }
             },
             Pos::Pixels(pixels) => {
-                let static_pos = pixels / self.window_size()[axis];
-                place_at(if ! flipped { origin_edge + static_pos } else { origin_edge - static_pos })
+                place_at(if ! flipped { origin_edge + pixels } else { origin_edge - pixels })
             },
             Pos::Frac(frac) => {
                 let static_pos = frac * (inner_end - inner_start);
@@ -215,15 +200,15 @@ pub(crate) trait Place: Solve {
             return rect;
         }
 
-        const WIN_LO: f32 = 0.0;
-        const WIN_HI: f32 = 1.0;
+        let win_low = 0.0;
+        let win_high = self.window_size()[axis];
 
         let [lo, hi] = rect;
         let size = hi - lo;
 
         // If the node is larger than the window, just give up.
-        if size >= (WIN_HI - WIN_LO) {
-            return [WIN_LO, WIN_LO + size];
+        if size >= (win_high - win_low) {
+            return [win_low, win_low + size];
         }
 
         let mut out = rect;
@@ -234,9 +219,9 @@ pub(crate) trait Place: Solve {
             let a = if ! frame.flipped[axis] { lo + anchor_frac * size } else { hi - anchor_frac * size };
 
             let reflected = [2.0 * a - hi, 2.0 * a - lo];
-            if hi > WIN_HI && reflected[0] >= WIN_LO {
+            if hi > win_high && reflected[0] >= win_low {
                 out = reflected;
-            } else if lo < WIN_LO && reflected[1] <= WIN_HI {
+            } else if lo < win_low && reflected[1] <= win_high {
                 out = reflected;
             }
         }
@@ -244,12 +229,12 @@ pub(crate) trait Place: Solve {
         // Clamp (also the fallback when a flip wouldn't fit either).
         let [mut lo, mut hi] = out;
         let size = hi - lo;
-        if hi > WIN_HI {
-            hi = WIN_HI;
+        if hi > win_high {
+            hi = win_high;
             lo = hi - size;
         }
-        if lo < WIN_LO {
-            lo = WIN_LO;
+        if lo < win_low {
+            lo = win_low;
             hi = lo + size;
         }
         [lo, hi]
