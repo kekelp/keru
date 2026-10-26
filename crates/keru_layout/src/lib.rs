@@ -25,8 +25,19 @@ pub trait TreeAdapter {
     /// Called when the layout solver computes the end result for a node's rectangle.
     /// The output is provided in both absolute coordinates and relative to the parent.
     fn write_output_rect(&mut self, i: Self::NodeId, rect: XyRect, local_rect: XyRect);
-    /// The size of the window, in logical pixels. The layout converts all pixel values to fractions of it.
+
+    /// The size of the window, in logical pixels.
     fn window_size(&self) -> Xy<f32>;
+    
+    /// Called when the layout solver finds that a node is part of a dependency cycle.
+    /// 
+    /// Depending on the use case, this can be reported to the user.
+    fn cycle_found(&mut self, _i: Self::NodeId) {}
+
+    /// The maximum amount of scratch memory that the layout solver can retain.
+    fn max_retained_scratch_memory(&self) -> usize {
+        1 << 20
+    }
 
     /// Solves the layout on all nodes.
     fn solve_layout(&mut self) {
@@ -246,13 +257,12 @@ where
     THREAD_ARENA.with(|arena| f(&arena.borrow()))
 }
 
-/// Resets the arena, and frees all of its memory if it keeps more than `max_retained` bytes.
 pub(crate) fn reset_arena(max_retained: usize) {
     THREAD_ARENA.with(|arena| {
         let mut arena = arena.borrow_mut();
         arena.reset();
         if arena.allocated_bytes() > max_retained {
-            *arena = bumpalo::Bump::new();
+            *arena = bumpalo::Bump::with_capacity(max_retained.saturating_sub(8192));
         }
     });
 }

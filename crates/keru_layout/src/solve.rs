@@ -44,6 +44,8 @@ pub(crate) struct NodeFlags(u32);
 impl NodeFlags {
     pub(crate) const EMPTY: NodeFlags = NodeFlags(0);
 
+    const IN_CYCLE: u32 = 1 << (2 * N_SLOTS);
+
     #[inline(always)]
     pub(crate) fn check_state(self, axis: Axis, kind: Kind) -> u32 {
         let k = slot_index(axis, kind);
@@ -57,8 +59,9 @@ impl NodeFlags {
     }
 }
 
+const _: () = assert!(2 * N_SLOTS + 1 <= 32, "The slot states and the flags don't fit in NodeFlags");
+
 const EMPTY_VALUES: [f32; N_SLOTS] = {
-    // A Max slot that is read before it is solved, in a cycle, means "no max".
     let mut values = [0.0; N_SLOTS];
     values[slot_index(X, Kind::Max)] = f32::INFINITY;
     values[slot_index(Y, Kind::Max)] = f32::INFINITY;
@@ -327,6 +330,7 @@ pub(crate) trait Solve: TreeAdapter {
     fn measure_sizes(&mut self) {
         self.prepare(self.root());
         self.solve();
+        reset_arena(self.max_retained_scratch_memory());
     }
 
     fn solve(&mut self) {
@@ -344,7 +348,11 @@ pub(crate) trait Solve: TreeAdapter {
     fn solve_slot(&mut self, node: Self::NodeId, axis: Axis, kind: Kind) {
         let slot = Slot { node, axis, kind };
         match self.node_layout_data(node).flags.check_state(axis, kind) {
-            SOLVED | IN_PROGRESS => return,
+            SOLVED => return,
+            IN_PROGRESS => {
+                self.record_cycle(node);
+                return;
+            }
             _ => {}
         }
         self.node_layout_data_mut(node).flags.set_state(axis, kind, IN_PROGRESS);
@@ -355,6 +363,16 @@ pub(crate) trait Solve: TreeAdapter {
         data.flags.set_state(axis, kind, SOLVED);
         if kind == Kind::Final && self.width_grid_main_axis(node) == Some(axis) {
             self.assign_width_grid_cells(node);
+        }
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn record_cycle(&mut self, node: Self::NodeId) {
+        let flags = &mut self.node_layout_data_mut(node).flags;
+        if flags.0 & NodeFlags::IN_CYCLE == 0 {
+            flags.0 |= NodeFlags::IN_CYCLE;
+            self.cycle_found(node);
         }
     }
 

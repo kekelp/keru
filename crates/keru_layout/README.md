@@ -60,5 +60,7 @@ In the trait-based API, `keru_layout` assumes that you already have a tree of UI
 
     - Finally, Implement the `write_output_rect()` callback, and make it write provided output rects where you need them to go, such as a `rect` field in the UI node.
 
+    - Optionally, implement `cycle_found()` to notify the user about any cycles in their layout.
+
 Then, you can call the trait's provided methods to calculate the layout and get information about cycles or other issues.
 
