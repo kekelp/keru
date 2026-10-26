@@ -103,6 +103,7 @@ pub enum Size {
     Pixels(f32),
     Frac(f32),
     Fill,
+    WeightedFill(f32),
     FitContent,
     AspectRatio(f32),
 }

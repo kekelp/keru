@@ -92,13 +92,22 @@ const EMPTY_VALUES: [f32; N_SLOTS] = {
 
 impl Size {
     #[inline(always)]
-    pub(crate) fn not_fill(&self) -> bool {
-        *self != Size::Fill
+    pub(crate) fn is_fill(&self) -> bool {
+        matches!(self, Size::Fill | Size::WeightedFill(_))
+    }
+
+    #[inline(always)]
+    pub(crate) fn fill_weight(self) -> Option<f32> {
+        match self {
+            Size::Fill => Some(1.0),
+            Size::WeightedFill(weight) => Some(weight),
+            _ => None,
+        }
     }
     
     #[inline(always)]
     pub(crate) fn is_flex(&self) -> bool {
-        matches!(self, Size::Frac(_) | Size::Fill)
+        matches!(self, Size::Frac(_) | Size::Fill | Size::WeightedFill(_))
     }
 }
 
@@ -196,7 +205,7 @@ pub(crate) trait Solve: TreeAdapter {
         match kind {
             Kind::Min | Kind::Max => {
                 let bound = if kind == Kind::Min { node.min_size[axis] } else { node.max_size[axis] };
-                let ignore_bound = bound == Some(Size::Fill) && self.ignore_fill_bound(i, axis);
+                let ignore_bound = bound.is_some_and(|bound| bound.is_fill()) && self.ignore_fill_bound(i, axis);
                 if ignore_bound { None } else { bound }
             }
             Kind::Regular if flags.check_flag(axis, NodeFlags::FIT_IS_FILL) => Some(Size::Fill),
@@ -219,8 +228,8 @@ pub(crate) trait Solve: TreeAdapter {
 
     #[inline(always)]
     fn any_size_is_fill(&self, i: Self::NodeId, axis: Axis) -> bool {
-        let fill = Some(Size::Fill);
-        self.read_size(i, axis, Kind::Regular) == fill || self.read_size(i, axis, Kind::Min) == fill || self.read_size(i, axis, Kind::Max) == fill
+        let is_fill = |size: Option<Size>| size.is_some_and(|size| size.is_fill());
+        is_fill(self.read_size(i, axis, Kind::Regular)) || is_fill(self.read_size(i, axis, Kind::Min)) || is_fill(self.read_size(i, axis, Kind::Max))
     }
 
     #[inline(always)]
@@ -255,7 +264,7 @@ pub(crate) trait Solve: TreeAdapter {
 
     #[inline(always)]
     fn check_child_growth(&self, growing_children: &mut GrowingChildren, child: Self::NodeId, axis: Axis) {
-        let child_can_grow = self.read_size(child, axis, Kind::Regular) == Some(Size::Fill);
+        let child_can_grow = self.read_size(child, axis, Kind::Regular).is_some_and(|size| size.is_fill());
         growing_children.any |= child_can_grow;
         growing_children.all &= child_can_grow;
         if child_can_grow {
@@ -339,7 +348,7 @@ pub(crate) trait Solve: TreeAdapter {
                         // Nothing
                     } else if self.any_size_is_fill(child, axis) {
                         for kind in DECLARED_SIZES {
-                            if let Some(size) = self.read_size(child, axis, kind) && size.not_fill() {
+                            if let Some(size) = self.read_size(child, axis, kind) && ! size.is_fill() {
                                 self.solve_slot(child, axis, kind);
                             }
                         }
@@ -353,13 +362,16 @@ pub(crate) trait Solve: TreeAdapter {
                 _ if i == self.root() && kind == Kind::Regular => {}
                 Size::AspectRatio(_) => self.solve_slot(i, axis.other(), Kind::Final),
                 Size::Frac(_) => self.read_available_from_parent(slot),
-                Size::Fill if self.is_stacked(i, axis) => {
-                    let parent = self.parent(i);
-                    if self.has_even_share(parent, axis) {
-                        self.solve_slot(parent, axis, Kind::EvenShare);
+                Size::Fill | Size::WeightedFill(_) => {
+                    if self.is_stacked(i, axis) {
+                        let parent = self.parent(i);
+                        if self.has_even_share(parent, axis) {
+                            self.solve_slot(parent, axis, Kind::EvenShare);
+                        }
+                    } else {
+                        self.read_available_from_parent(slot)
                     }
                 }
-                Size::Fill => self.read_available_from_parent(slot),
                 Size::FitContent => {
                     for_each_layout_child!(self, i, child, {
                         if ! self.params(child).free_placement {
@@ -468,14 +480,18 @@ pub(crate) trait Solve: TreeAdapter {
                     self.solve_fitcontent(i, axis, is_max_bound)
                 },
                 Size::Frac(frac) => self.available_from_parent(i, axis) * frac,
-                Size::Fill if self.is_stacked(i, axis) => {
-                    let parent = self.parent(i);
-                    match self.has_even_share(parent, axis) {
-                        true => self.get_solved_value(parent, axis, Kind::EvenShare),
-                        false => 0.0,
+
+                fill @ (Size::Fill | Size::WeightedFill(_)) => {
+                    if self.is_stacked(i, axis) {
+                        let parent = self.parent(i);
+                        match self.has_even_share(parent, axis) {
+                            true => self.get_solved_value(parent, axis, Kind::EvenShare) * fill.fill_weight().unwrap(),
+                            false => 0.0,
+                        }
+                    } else {
+                        self.available_from_parent(i, axis)
                     }
-                }
-                Size::Fill => self.available_from_parent(i, axis),
+                },
             },
         }
     }
@@ -611,8 +627,10 @@ pub(crate) trait Solve: TreeAdapter {
     #[inline(always)]
     fn pre_grow_size(&self, child: Self::NodeId, axis: Axis, at_max: bool) -> f32 {
         let size = match self.read_size(child, axis, Kind::Regular).unwrap() {
-            Size::Fill if at_max => f32::INFINITY,
-            size if size.is_flex() => 0.0,
+            Size::Fill | Size::WeightedFill(_) => {
+                if at_max { f32::INFINITY } else { 0.0 }
+            }
+            Size::Frac(_) => 0.0,
             _ => self.get_solved_value(child, axis, Kind::Regular),
         };
         let (min, max) = self.solved_bounds(child, axis, |bound| bound.is_flex());
@@ -626,16 +644,23 @@ pub(crate) trait Solve: TreeAdapter {
             min: Option<f32>,
             max: Option<f32>,
             capped_by_content: bool,
+            weight: f32,
             frozen: bool,
         }
 
         impl FillChild {
             #[inline(always)]
+            fn target(&self, share: f32) -> f32 {
+                share * self.weight
+            }
+
+            #[inline(always)]
             fn size(&self, share: f32) -> f32 {
+                let target = self.target(share);
                 let raw = match self.content {
-                    Some(content) if self.capped_by_content => content.min(share),
-                    Some(content) => content.max(share),
-                    None => share,
+                    Some(content) if self.capped_by_content => content.min(target),
+                    Some(content) => content.max(target),
+                    None => target,
                 };
                 clamp(raw, self.min, self.max)
             }
@@ -646,20 +671,28 @@ pub(crate) trait Solve: TreeAdapter {
 
         with_arena(|arena| {
             let mut fills = BumpVec::new_in(arena);
+            let mut unfrozen_weight = 0.0;
             for_each_layout_child!(self, i, child, {
                 let node = self.params(child);
                 if node.free_placement {
                     // Nothing
                 } else if self.any_size_is_fill(child, axis) {
-                    let content = if self.read_size(child, axis, Kind::Regular) != Some(Size::Fill) {
+                    let regular_weight = self.read_size(child, axis, Kind::Regular).and_then(Size::fill_weight);
+                    let max_weight = self.read_size(child, axis, Kind::Max).and_then(Size::fill_weight);
+                    let min_weight = self.read_size(child, axis, Kind::Min).and_then(Size::fill_weight);
+                    let content = if regular_weight.is_none() {
                         Some(self.get_solved_value(child, axis, Kind::Regular))
                     } else { None };
-                    let (min, max) = self.solved_bounds(child, axis, |bound| bound == Size::Fill);
+                    // A child sized by its content uses the weight of its Fill bound.
+                    let weight = regular_weight.or(max_weight).or(min_weight).unwrap();
+                    unfrozen_weight += weight;
+                    let (min, max) = self.solved_bounds(child, axis, |bound| bound.is_fill());
                     fills.push(FillChild {
                         content,
                         min,
                         max,
-                        capped_by_content: content.is_some() && self.read_size(child, axis, Kind::Max) == Some(Size::Fill),
+                        capped_by_content: content.is_some() && max_weight.is_some(),
+                        weight,
                         frozen: false,
                     });
                 } else {
@@ -670,15 +703,18 @@ pub(crate) trait Solve: TreeAdapter {
             let budget = budget.max(0.0);
             let mut n_frozen = 0;
             let mut frozen_total = 0.0;
-            let mut share = budget / fills.len().max(1) as f32;
+            let mut share = 0.0;
 
             while n_frozen < fills.len() {
-                share = (budget - frozen_total) / (fills.len() - n_frozen) as f32;
+                share = match unfrozen_weight > 0.0 {
+                    true => (budget - frozen_total) / unfrozen_weight,
+                    false => 0.0,
+                };
 
                 let mut total_violation = 0.0;
                 for child in fills.iter() {
                     if ! child.frozen {
-                        total_violation += child.size(share) - share;
+                        total_violation += child.size(share) - child.target(share);
                     }
                 }
                 if total_violation.abs() < 1e-9 {
@@ -688,14 +724,16 @@ pub(crate) trait Solve: TreeAdapter {
                 let mut froze_any = false;
                 for child in fills.iter_mut() {
                     let size = child.size(share);
+                    let target = child.target(share);
                     let stuck = match total_violation > 0.0 {
-                        true => size - share > 1e-9,
-                        false => size - share < -1e-9,
+                        true => size - target > 1e-9,
+                        false => size - target < -1e-9,
                     };
                     if ! child.frozen && stuck {
                         child.frozen = true;
                         n_frozen += 1;
                         frozen_total += size;
+                        unfrozen_weight -= child.weight;
                         froze_any = true;
                     }
                 }
