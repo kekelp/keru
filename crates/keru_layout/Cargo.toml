@@ -3,5 +3,10 @@ name = "keru_layout"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = ["fit_fill"]
+# The fill-fitcontent interaction. Without it, a `FitContent` node always fits its content, and it doesn't become `Fill` when its children are `Fill`.
+fit_fill = []
+
 [dependencies]
 bumpalo = { version = "3.16", features = ["collections"] }

@@ -1,6 +1,11 @@
 #[macro_use]
 mod solve;
 mod place;
+#[cfg(feature = "fit_fill")]
+mod fit_fill;
+#[cfg(not(feature = "fit_fill"))]
+#[path = "no_fit_fill.rs"]
+mod fit_fill;
 pub mod example_tree;
 
 use std::cell::RefCell;
