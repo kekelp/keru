@@ -77,11 +77,11 @@ impl gl::TreeAdapter for System {
     }
 
     fn measure_text_width(&mut self, i: NodeI) -> f32 {
-        measure_text_width(&mut self.renderer.text, self.nodes[i].text_i.as_ref().unwrap(), self.size)
+        measure_text_width(&mut self.renderer.text, self.nodes[i].text_i.as_ref().unwrap(), self.scale_factor)
     }
 
     fn measure_text_height(&mut self, i: NodeI, wrap_width: Option<f32>) -> f32 {
-        measure_text_height(&mut self.renderer.text, self.nodes[i].text_i.as_ref().unwrap(), wrap_width, self.size)
+        measure_text_height(&mut self.renderer.text, self.nodes[i].text_i.as_ref().unwrap(), wrap_width, self.scale_factor)
     }
 
     fn window_size(&self) -> gl::Xy<f32> {
@@ -90,6 +90,10 @@ impl gl::TreeAdapter for System {
     }
 
     fn write_output_rect(&mut self, i: NodeI, rect: gl::XyRect, local_rect: gl::XyRect) {
+        // The rest of keru works in fractions of the window size.
+        let window = self.logical_size();
+        let rect = rect_to_frac(rect, window);
+        let local_rect = rect_to_frac(local_rect, window);
         let size = Xy::new(rect.x[1] - rect.x[0], rect.y[1] - rect.y[0]);
         let parent = self.nodes.links[i].parent;
 
@@ -277,19 +281,30 @@ impl Ui {
 
 const TEXT_WIDTH_TOLERANCE: f32 = 0.05;
 
-fn measure_text_width(text: &mut keru_draw::Text, text_i: &TextI, window: Xy<f32>) -> f32 {
+/// Converts a rect from logical pixels to fractions of the window size.
+fn rect_to_frac(rect: gl::XyRect, window: Xy<f32>) -> gl::XyRect {
+    gl::Xy::new([rect.x[0] / window.x, rect.x[1] / window.x], [rect.y[0] / window.y, rect.y[1] / window.y])
+}
+
+/// Converts a rect from fractions of the window size to logical pixels.
+pub(crate) fn rect_to_pixels(rect: gl::XyRect, window: Xy<f32>) -> gl::XyRect {
+    gl::Xy::new([rect.x[0] * window.x, rect.x[1] * window.x], [rect.y[0] * window.y, rect.y[1] * window.y])
+}
+
+// The text system measures in physical pixels, and the layout wants logical pixels.
+fn measure_text_width(text: &mut keru_draw::Text, text_i: &TextI, scale_factor: f32) -> f32 {
     match text_i {
         TextI::TextBox(handle) => {
             let widths = text.get_text_box_mut(handle).content_widths();
             let unwrapped = widths.max.max(widths.min);
-            (unwrapped + TEXT_WIDTH_TOLERANCE) / window[X]
+            (unwrapped + TEXT_WIDTH_TOLERANCE) / scale_factor
         }
         // A text edit can be scrolled, so it never asks for any width.
         TextI::TextEdit(_) => 0.0,
     }
 }
 
-fn measure_text_height(text: &mut keru_draw::Text, text_i: &TextI, wrap_width: Option<f32>, window: Xy<f32>) -> f32 {
+fn measure_text_height(text: &mut keru_draw::Text, text_i: &TextI, wrap_width: Option<f32>, scale_factor: f32) -> f32 {
     match text_i {
         TextI::TextBox(handle) => {
             let text_box = text.get_text_box_mut(handle);
@@ -297,12 +312,12 @@ fn measure_text_height(text: &mut keru_draw::Text, text_i: &TextI, wrap_width: O
             let widths = text_box.content_widths();
             let unwrapped = widths.max.max(widths.min);
             let width = match wrap_width {
-                Some(width) => (width * window[X]).clamp(widths.min, unwrapped),
+                Some(width) => (width * scale_factor).clamp(widths.min, unwrapped),
                 None => unwrapped,
             };
 
             text_box.set_width(width);
-            text_box.layout().height() / window[Y]
+            text_box.layout().height() / scale_factor
         }
         TextI::TextEdit(handle) => {
             let text_edit = text.get_text_edit_mut(handle);
@@ -315,7 +330,7 @@ fn measure_text_height(text: &mut keru_draw::Text, text_i: &TextI, wrap_width: O
             } else {
                 0.0
             };
-            height / window[Y]
+            height / scale_factor
         }
     }
 }

@@ -25,7 +25,7 @@ fn leaf(w: Size, h: Size) -> LayoutParams {
 /// The size of a node in pixels.
 fn size(tree: &ExampleTree, i: NodeI) -> [f32; 2] {
     let r = tree[i].output_rect;
-    [(r.x[1] - r.x[0]) * WINDOW, (r.y[1] - r.y[0]) * WINDOW]
+    [r.x[1] - r.x[0], r.y[1] - r.y[0]]
 }
 
 fn assert_widths(tree: &ExampleTree, nodes: &[NodeI], expected: &[f32]) {

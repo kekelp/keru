@@ -20,7 +20,7 @@ pub(crate) trait Place: Solve {
             [rect.x[0] - parent_rect.x[0], rect.x[1] - parent_rect.x[0]],
             [rect.y[0] - parent_rect.y[0], rect.y[1] - parent_rect.y[0]],
         );
-        self.write_output_rect(i, rect, local_rect);
+        self.write_output_rect(i, self.rect_to_pixels(rect), self.rect_to_pixels(local_rect));
         match self.node_layout_params(i).children_layout {
             ChildrenLayout::Free => self.place_children_free(i, rect),
             ChildrenLayout::Stack { arrange, axis, spacing } => self.place_children_stack(i, rect, axis, arrange, spacing),
@@ -36,6 +36,19 @@ pub(crate) trait Place: Solve {
         assert!(is_free, "place_free_placed_subtree called on {node:?}, which is not freely placed");
         let frame = self.parent_frame(parent, parent_rect);
         self.place_child_free(node, &frame, self.node_layout_data(node).size());
+    }
+
+    /// Converts a rect from fractions of the window size to logical pixels.
+    #[inline(always)]
+    fn rect_to_pixels(&self, rect: XyRect) -> XyRect {
+        let window = self.window_size();
+        Xy::new([rect.x[0] * window.x, rect.x[1] * window.x], [rect.y[0] * window.y, rect.y[1] * window.y])
+    }
+
+    #[inline(always)]
+    fn rect_to_frac(&self, rect: XyRect) -> XyRect {
+        let window = self.window_size();
+        Xy::new([rect.x[0] / window.x, rect.x[1] / window.x], [rect.y[0] / window.y, rect.y[1] / window.y])
     }
 
     #[inline(always)]

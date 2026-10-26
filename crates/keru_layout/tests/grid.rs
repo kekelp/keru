@@ -23,7 +23,7 @@ fn leaf(w: f32, h: f32) -> LayoutParams {
 /// The rect of a node in pixels, as `[x, y, w, h]`.
 fn rect(tree: &ExampleTree, i: NodeI) -> [f32; 4] {
     let r = tree[i].output_rect;
-    [r.x[0] * WINDOW, r.y[0] * WINDOW, (r.x[1] - r.x[0]) * WINDOW, (r.y[1] - r.y[0]) * WINDOW]
+    [r.x[0], r.y[0], r.x[1] - r.x[0], r.y[1] - r.y[0]]
 }
 
 fn assert_rect(tree: &ExampleTree, i: NodeI, expected: [f32; 4]) {
