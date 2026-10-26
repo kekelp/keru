@@ -83,7 +83,7 @@ macro_rules! for_each_layout_child {
         let mut next = $solver.first_child($i);
         while let Some($child) = next {
             next = $solver.next_sibling($child);
-            if ! $solver.params($child).disabled {
+            if ! $solver.node_layout_params($child).disabled {
                 $body
             }
         }
@@ -92,7 +92,7 @@ macro_rules! for_each_layout_child {
 
 /// Per-node data used by the layout solver.
 #[derive(Debug, Clone, Copy)]
-pub struct LayoutData {
+pub struct NodeLayoutData {
     /// The value of every slot, by `slot_index`. Only the slots that exist are used.
     pub(crate) values: [f32; N_SLOTS],
     /// The state of every slot.
@@ -105,8 +105,8 @@ pub struct LayoutData {
     pub(crate) grid_lines: Xy<u16>,
 }
 
-impl LayoutData {
-    pub const EMPTY: LayoutData = LayoutData {
+impl NodeLayoutData {
+    pub const EMPTY: NodeLayoutData = NodeLayoutData {
         values: EMPTY_VALUES,
         flags: NodeFlags::EMPTY,
         n_placed_children: 0,
@@ -120,7 +120,7 @@ impl LayoutData {
     }
 }
 
-impl Default for LayoutData {
+impl Default for NodeLayoutData {
     fn default() -> Self {
         Self::EMPTY
     }
@@ -146,7 +146,7 @@ fn inner(size: f32, padding: f32) -> f32 {
 pub(crate) trait Solve: TreeAdapter {
     #[inline(always)]
     fn tree_traversal_next(&self, i: Self::NodeId) -> Option<Self::NodeId> {
-        if ! self.params(i).disabled && let Some(child) = self.first_child(i) {
+        if ! self.node_layout_params(i).disabled && let Some(child) = self.first_child(i) {
             return Some(child);
         }
         let root = self.root();
@@ -164,7 +164,7 @@ pub(crate) trait Solve: TreeAdapter {
 
     #[inline(always)]
     fn read_size(&self, i: Self::NodeId, axis: Axis, kind: Kind) -> Option<Size> {
-        let node = self.params(i);
+        let node = self.node_layout_params(i);
         match kind {
             Kind::Min | Kind::Max => {
                 let bound = if kind == Kind::Min { node.min_size[axis] } else { node.max_size[axis] };
@@ -183,7 +183,7 @@ pub(crate) trait Solve: TreeAdapter {
             return false;
         }
         let parent = self.parent(i);
-        self.params(parent).size[axis] == Size::FitContent
+        self.node_layout_params(parent).size[axis] == Size::FitContent
     }
 
     #[inline(always)]
@@ -194,12 +194,12 @@ pub(crate) trait Solve: TreeAdapter {
 
     #[inline(always)]
     fn text_wraps(&self, i: Self::NodeId, axis: Axis) -> bool {
-        axis == Y && self.params(i).text == TextContent::Box && ! matches!(self.params(i).size[X], Size::AspectRatio(_))
+        axis == Y && self.node_layout_params(i).text == TextContent::Box && ! matches!(self.node_layout_params(i).size[X], Size::AspectRatio(_))
     }
 
     #[inline(always)]
     fn stack_axis(&self, i: Self::NodeId) -> Option<Axis> {
-        match self.params(i).children_layout {
+        match self.node_layout_params(i).children_layout {
             ChildrenLayout::Stack { axis, .. } => Some(axis),
             _ => None,
         }
@@ -208,7 +208,7 @@ pub(crate) trait Solve: TreeAdapter {
     #[inline(always)]
     fn is_stacked(&self, i: Self::NodeId, axis: Axis) -> bool {
         let parent = self.parent(i);
-        self.stack_axis(parent) == Some(axis) && ! self.params(i).free_placement
+        self.stack_axis(parent) == Some(axis) && ! self.node_layout_params(i).free_placement
     }
 
     #[inline(always)]
@@ -217,8 +217,8 @@ pub(crate) trait Solve: TreeAdapter {
     }
 
     fn prepare(&mut self, i: Self::NodeId) {
-        *self.layout_data_mut(i) = LayoutData::EMPTY;
-        if self.params(i).disabled {
+        *self.node_layout_data_mut(i) = NodeLayoutData::EMPTY;
+        if self.node_layout_params(i).disabled {
             return;
         }
 
@@ -227,21 +227,21 @@ pub(crate) trait Solve: TreeAdapter {
         while let Some(child) = next {
             next = self.next_sibling(child);
             self.prepare(child);
-            let params = self.params(child);
+            let params = self.node_layout_params(child);
             if ! params.disabled && ! params.free_placement {
                 n_placed_children += 1;
             }
         }
-        self.layout_data_mut(i).n_placed_children = n_placed_children;
+        self.node_layout_data_mut(i).n_placed_children = n_placed_children;
 
-        if let ChildrenLayout::Grid { columns: MainAxisCellSize::Count(n), flow, .. } = self.params(i).children_layout {
+        if let ChildrenLayout::Grid { columns: MainAxisCellSize::Count(n), flow, .. } = self.node_layout_params(i).children_layout {
             self.assign_grid_cells(i, (n as usize).max(1), flow);
         }
     }
 
     #[inline(always)]
     fn width_grid_main_axis(&self, i: Self::NodeId) -> Option<Axis> {
-        match self.params(i).children_layout {
+        match self.node_layout_params(i).children_layout {
             ChildrenLayout::Grid { columns: MainAxisCellSize::Width(_), flow, .. } => Some(flow.main_axis),
             _ => None,
         }
@@ -260,7 +260,7 @@ pub(crate) trait Solve: TreeAdapter {
             Kind::EvenShare => {
                 self.solve_slot(i, axis, Kind::Final);
                 for_each_layout_child!(self, i, child, {
-                    if self.params(child).free_placement {
+                    if self.node_layout_params(child).free_placement {
                         // Nothing
                     } else if self.any_size_is_fill(child, axis) {
                         for kind in DECLARED_SIZES {
@@ -290,7 +290,7 @@ pub(crate) trait Solve: TreeAdapter {
                 }
                 Size::FitContent => {
                     for_each_layout_child!(self, i, child, {
-                        if ! self.params(child).free_placement {
+                        if ! self.node_layout_params(child).free_placement {
                             for kind in DECLARED_SIZES {
                                 if let Some(size) = self.read_size(child, axis, kind) && ! size.is_flex() {
                                     self.solve_slot(child, axis, kind);
@@ -319,13 +319,12 @@ pub(crate) trait Solve: TreeAdapter {
         }
         let parent = self.parent(i);
         self.solve_slot(parent, slot.axis, Kind::Final);
-        if ! self.params(i).free_placement && let Some(main) = self.width_grid_main_axis(parent) {
+        if ! self.node_layout_params(i).free_placement && let Some(main) = self.width_grid_main_axis(parent) {
             self.solve_slot(parent, main, Kind::Final);
         }
     }
 
     fn measure_sizes(&mut self) {
-        reset_arena();
         self.prepare(self.root());
         self.solve();
     }
@@ -334,7 +333,7 @@ pub(crate) trait Solve: TreeAdapter {
         let mut next = Some(self.root());
         while let Some(node) = next {
             next = self.tree_traversal_next(node);
-            if self.params(node).disabled {
+            if self.node_layout_params(node).disabled {
                 continue;
             }
             self.solve_slot(node, X, Kind::Final);
@@ -344,14 +343,14 @@ pub(crate) trait Solve: TreeAdapter {
 
     fn solve_slot(&mut self, node: Self::NodeId, axis: Axis, kind: Kind) {
         let slot = Slot { node, axis, kind };
-        match self.layout_data(node).flags.check_state(axis, kind) {
+        match self.node_layout_data(node).flags.check_state(axis, kind) {
             SOLVED | IN_PROGRESS => return,
             _ => {}
         }
-        self.layout_data_mut(node).flags.set_state(axis, kind, IN_PROGRESS);
+        self.node_layout_data_mut(node).flags.set_state(axis, kind, IN_PROGRESS);
         self.solve_all_dependencies(slot);
         let size = self.solve_slot_inner(slot);
-        let data = self.layout_data_mut(node);
+        let data = self.node_layout_data_mut(node);
         data.values[slot_index(axis, kind)] = size;
         data.flags.set_state(axis, kind, SOLVED);
         if kind == Kind::Final && self.width_grid_main_axis(node) == Some(axis) {
@@ -361,7 +360,7 @@ pub(crate) trait Solve: TreeAdapter {
 
     #[inline(always)]
     fn get_solved_value(&self, i: Self::NodeId, axis: Axis, kind: Kind) -> f32 {
-        let data = self.layout_data(i);
+        let data = self.node_layout_data(i);
         debug_assert!(data.flags.check_state(axis, kind) != UNSOLVED, "Slot {axis:?} {kind:?} of node {i:?} read before it is solved.");
         data.values[slot_index(axis, kind)]
     }
@@ -401,7 +400,7 @@ pub(crate) trait Solve: TreeAdapter {
                     if self.is_stacked(i, axis) {
                         let parent = self.parent(i);
                         match self.has_even_share(parent, axis) {
-                            true => self.get_solved_value(parent, axis, Kind::EvenShare) * self.params(i).fill_weight,
+                            true => self.get_solved_value(parent, axis, Kind::EvenShare) * self.node_layout_params(i).fill_weight,
                             false => 0.0,
                         }
                     } else {
@@ -426,15 +425,15 @@ pub(crate) trait Solve: TreeAdapter {
     fn available_from_parent(&self, i: Self::NodeId, axis: Axis) -> f32 {
         let parent = self.parent(i);
         let inner = inner(self.get_solved_value(parent, axis, Kind::Final), self.total_padding(parent, axis));
-        if self.params(i).free_placement {
+        if self.node_layout_params(i).free_placement {
             return inner;
         }
-        match self.params(parent).children_layout {
+        match self.node_layout_params(parent).children_layout {
             ChildrenLayout::Grid { spacing_x, spacing_y, .. } => {
                 let spacing = self.pixels_to_frac(Xy::new(spacing_x, spacing_y)[axis], axis);
-                let n = self.layout_data(parent).grid_lines[axis] as f32;
+                let n = self.node_layout_data(parent).grid_lines[axis] as f32;
                 let cell = ((inner - spacing * (n - 1.0)) / n.max(1.0)).max(0.0);
-                let span = self.params(i).grid_span[axis].max(1) as f32;
+                let span = self.node_layout_params(i).grid_span[axis].max(1) as f32;
                 span * cell + (span - 1.0) * spacing
             }
             ChildrenLayout::Stack { axis: stack_axis, .. } if stack_axis == axis => {
@@ -445,7 +444,7 @@ pub(crate) trait Solve: TreeAdapter {
     }
 
     fn solve_fitcontent(&mut self, i: Self::NodeId, axis: Axis, is_max_bound: bool) -> f32 {
-        let (children, gaps) = match self.params(i).children_layout {
+        let (children, gaps) = match self.node_layout_params(i).children_layout {
             ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow } => {
                 let spacing = self.pixels_to_frac(Xy::new(spacing_x, spacing_y)[axis], axis);
                 let (n, cell) = match columns {
@@ -454,12 +453,12 @@ pub(crate) trait Solve: TreeAdapter {
                     _ => {
                         let mut cell = 0.0f32;
                         for_each_layout_child!(self, i, child, {
-                            if ! self.params(child).free_placement {
-                                let span = self.params(child).grid_span[axis].max(1) as f32;
+                            if ! self.node_layout_params(child).free_placement {
+                                let span = self.node_layout_params(child).grid_span[axis].max(1) as f32;
                                 cell = cell.max((self.pre_grow_size(child, axis, is_max_bound) - (span - 1.0) * spacing) / span);
                             }
                         });
-                        (self.layout_data(i).grid_lines[axis] as f32, cell)
+                        (self.node_layout_data(i).grid_lines[axis] as f32, cell)
                     }
                 };
                 ((n * cell + spacing * (n - 1.0)).max(0.0), 0.0)
@@ -470,7 +469,7 @@ pub(crate) trait Solve: TreeAdapter {
             ChildrenLayout::Stack { .. } | ChildrenLayout::Free => {
                 let mut biggest = 0.0f32;
                 for_each_layout_child!(self, i, child, {
-                    if ! self.params(child).free_placement {
+                    if ! self.node_layout_params(child).free_placement {
                         biggest = biggest.max(self.pre_grow_size(child, axis, is_max_bound));
                     }
                 });
@@ -478,7 +477,7 @@ pub(crate) trait Solve: TreeAdapter {
             }
         };
 
-        let mut own_content = match self.params(i).text {
+        let mut own_content = match self.node_layout_params(i).text {
             TextContent::None => 0.0,
             _ if self.text_wraps(i, axis) => {
                 let width = inner(self.get_solved_value(i, X, Kind::Final), self.total_padding(i, X));
@@ -486,7 +485,7 @@ pub(crate) trait Solve: TreeAdapter {
             }
             _ => self.measure_text(i, None)[axis],
         };
-        if let Some(image) = self.params(i).image {
+        if let Some(image) = self.node_layout_params(i).image {
             own_content = own_content.max(self.pixels_to_frac(image[axis], axis));
         }
 
@@ -500,9 +499,9 @@ pub(crate) trait Solve: TreeAdapter {
             let mut free_frac = 0.0f32;
             let mut has_frac = false;
             for_each_layout_child!(self, i, child, {
-                if self.params(child).free_placement {
+                if self.node_layout_params(child).free_placement {
                     // Nothing
-                } else if let Size::Frac(frac) = self.params(child).size[axis] {
+                } else if let Size::Frac(frac) = self.node_layout_params(child).size[axis] {
                     has_frac = true;
                     let wanted = estimate * frac;
                     let (min, max) = self.solved_bounds(child, axis, |bound| bound.is_flex());
@@ -582,7 +581,7 @@ pub(crate) trait Solve: TreeAdapter {
             let mut fills = BumpVec::new_in(arena);
             let mut unfrozen_weight = 0.0;
             for_each_layout_child!(self, i, child, {
-                let node = self.params(child);
+                let node = self.node_layout_params(child);
                 if node.free_placement {
                     // Nothing
                 } else if self.any_size_is_fill(child, axis) {
@@ -654,7 +653,7 @@ pub(crate) trait Solve: TreeAdapter {
 
     /// Assigns the cells of a grid with `MainAxisCellSize::Width` columns, from its `Final` size on the main axis.
     fn assign_width_grid_cells(&mut self, i: Self::NodeId) {
-        let ChildrenLayout::Grid { columns: MainAxisCellSize::Width(w), spacing_x, spacing_y, flow } = self.params(i).children_layout else {
+        let ChildrenLayout::Grid { columns: MainAxisCellSize::Width(w), spacing_x, spacing_y, flow } = self.node_layout_params(i).children_layout else {
             unreachable!();
         };
         let main = flow.main_axis;
@@ -671,8 +670,8 @@ pub(crate) trait Solve: TreeAdapter {
             let mut cursor_line = 0;
 
             for_each_layout_child!(self, i, child, {
-                if ! self.params(child).free_placement {
-                    let span = self.params(child).grid_span;
+                if ! self.node_layout_params(child).free_placement {
+                    let span = self.node_layout_params(child).grid_span;
                     let span_pos = (span[flow.main_axis].max(1) as usize).min(n_main);
                     let span_line = span[flow.main_axis.other()].max(1) as usize;
 
@@ -700,7 +699,7 @@ pub(crate) trait Solve: TreeAdapter {
                     let mut cell = Xy::new(0, 0);
                     cell[flow.main_axis] = pos as u16;
                     cell[flow.main_axis.other()] = line as u16;
-                    self.layout_data_mut(child).grid_cell = cell;
+                    self.node_layout_data_mut(child).grid_cell = cell;
                 }
             });
 
@@ -710,7 +709,7 @@ pub(crate) trait Solve: TreeAdapter {
         let mut lines = Xy::new(0, 0);
         lines[flow.main_axis] = n_main as u16;
         lines[flow.main_axis.other()] = n_lines as u16;
-        self.layout_data_mut(i).grid_lines = lines;
+        self.node_layout_data_mut(i).grid_lines = lines;
 
         for axis in [X, Y] {
             let reversed = match axis {
@@ -719,9 +718,9 @@ pub(crate) trait Solve: TreeAdapter {
             };
             if reversed {
                 for_each_layout_child!(self, i, child, {
-                    if ! self.params(child).free_placement {
-                        let span = self.params(child).grid_span[axis].max(1);
-                        let cell = &mut self.layout_data_mut(child).grid_cell[axis];
+                    if ! self.node_layout_params(child).free_placement {
+                        let span = self.node_layout_params(child).grid_span[axis].max(1);
+                        let cell = &mut self.node_layout_data_mut(child).grid_cell[axis];
                         *cell = lines[axis] - span - *cell;
                     }
                 });
@@ -731,19 +730,19 @@ pub(crate) trait Solve: TreeAdapter {
 
     #[inline(always)]
     fn total_padding(&self, i: Self::NodeId, axis: Axis) -> f32 {
-        let [start, end] = self.params(i).padding[axis];
+        let [start, end] = self.node_layout_params(i).padding[axis];
         self.pixels_to_frac(start + end, axis)
     }
 
     #[inline(always)]
     fn stack_gaps(&self, i: Self::NodeId, axis: Axis) -> f32 {
-        let ChildrenLayout::Stack { axis: stack_axis, spacing, .. } = self.params(i).children_layout else {
+        let ChildrenLayout::Stack { axis: stack_axis, spacing, .. } = self.node_layout_params(i).children_layout else {
             return 0.0;
         };
         if stack_axis != axis {
             return 0.0;
         }
-        let n = self.layout_data(i).n_placed_children as f32;
+        let n = self.node_layout_data(i).n_placed_children as f32;
         self.pixels_to_frac(spacing, axis) * (n - 1.0).max(0.0)
     }
 }

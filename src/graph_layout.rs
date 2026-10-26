@@ -62,17 +62,17 @@ impl gl::TreeAdapter for System {
     }
 
     #[inline(always)]
-    fn params(&self, i: NodeI) -> &gl::LayoutParams {
+    fn node_layout_params(&self, i: NodeI) -> &gl::LayoutParams {
         &self.nodes.layout_params[i]
     }
 
     #[inline(always)]
-    fn layout_data(&self, i: NodeI) -> &gl::LayoutData {
+    fn node_layout_data(&self, i: NodeI) -> &gl::NodeLayoutData {
         &self.nodes.layout_data[i]
     }
 
     #[inline(always)]
-    fn layout_data_mut(&mut self, i: NodeI) -> &mut gl::LayoutData {
+    fn node_layout_data_mut(&mut self, i: NodeI) -> &mut gl::NodeLayoutData {
         &mut self.nodes.layout_data[i]
     }
 

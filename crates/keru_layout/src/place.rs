@@ -21,7 +21,7 @@ pub(crate) trait Place: Solve {
             [rect.y[0] - parent_rect.y[0], rect.y[1] - parent_rect.y[0]],
         );
         self.write_output_rect(i, rect, local_rect);
-        match self.params(i).children_layout {
+        match self.node_layout_params(i).children_layout {
             ChildrenLayout::Free => self.place_children_free(i, rect),
             ChildrenLayout::Stack { arrange, axis, spacing } => self.place_children_stack(i, rect, axis, arrange, spacing),
             ChildrenLayout::Grid { spacing_x, spacing_y, .. } => self.place_children_grid(i, rect, spacing_x, spacing_y),
@@ -32,15 +32,15 @@ pub(crate) trait Place: Solve {
     fn place_free_node(&mut self, node: Self::NodeId, parent_rect: XyRect) {
         assert!(node != self.root(), "place_free_placed_subtree called on the root, which is not freely placed");
         let parent = self.parent(node);
-        let is_free = self.params(node).free_placement || self.params(parent).children_layout == ChildrenLayout::Free;
+        let is_free = self.node_layout_params(node).free_placement || self.node_layout_params(parent).children_layout == ChildrenLayout::Free;
         assert!(is_free, "place_free_placed_subtree called on {node:?}, which is not freely placed");
         let frame = self.parent_frame(parent, parent_rect);
-        self.place_child_free(node, &frame, self.layout_data(node).size());
+        self.place_child_free(node, &frame, self.node_layout_data(node).size());
     }
 
     #[inline(always)]
     fn parent_frame(&self, i: Self::NodeId, rect: XyRect) -> ParentFrame {
-        let params = self.params(i);
+        let params = self.node_layout_params(i);
         let window = self.window_size();
         ParentFrame {
             rect,
@@ -61,8 +61,8 @@ pub(crate) trait Place: Solve {
         let mut n: u32 = 0;
         let mut children_size = 0.0;
         for_each_layout_child!(self, i, child, {
-            if ! self.params(child).free_placement {
-                children_size += self.layout_data(child).size()[main];
+            if ! self.node_layout_params(child).free_placement {
+                children_size += self.node_layout_data(child).size()[main];
                 n += 1;
             }
         });
@@ -98,8 +98,8 @@ pub(crate) trait Place: Solve {
         };
 
         for_each_layout_child!(self, i, child, {
-            let child_size = self.layout_data(child).size();
-            if self.params(child).free_placement {
+            let child_size = self.node_layout_data(child).size();
+            if self.node_layout_params(child).free_placement {
                 self.place_child_free(child, &frame, child_size);
             } else {
                 let mut child_rect = Xy::new([0.0, 0.0], [0.0, 0.0]);
@@ -112,11 +112,11 @@ pub(crate) trait Place: Solve {
     }
 
     fn place_children_grid(&mut self, i: Self::NodeId, rect: XyRect, spacing_x: f32, spacing_y: f32) {
-        let lines = self.layout_data(i).grid_lines;
+        let lines = self.node_layout_data(i).grid_lines;
 
         let frame = self.parent_frame(i, rect);
         let spacing = Xy::new(spacing_x / self.window_size().x, spacing_y / self.window_size().y);
-        let size = self.layout_data(i).size();
+        let size = self.node_layout_data(i).size();
         let mut cell = Xy::new(0.0, 0.0);
         for axis in [X, Y] {
             let n = lines[axis] as f32;
@@ -125,11 +125,11 @@ pub(crate) trait Place: Solve {
         }
 
         for_each_layout_child!(self, i, child, {
-            let child_size = self.layout_data(child).size();
-            if self.params(child).free_placement {
+            let child_size = self.node_layout_data(child).size();
+            if self.node_layout_params(child).free_placement {
                 self.place_child_free(child, &frame, child_size);
             } else {
-                let child_cell = self.layout_data(child).grid_cell;
+                let child_cell = self.node_layout_data(child).grid_cell;
                 let mut child_rect = Xy::new([0.0, 0.0], [0.0, 0.0]);
                 for axis in [X, Y] {
                     let start = frame.rect[axis][0] + frame.padding[axis][0] + child_cell[axis] as f32 * (cell[axis] + spacing[axis]);
@@ -145,7 +145,7 @@ pub(crate) trait Place: Solve {
         let rect = frame.rect;
         let [pad_start, pad_end] = frame.padding[axis];
         let flipped = frame.flipped[axis];
-        let params = self.params(child);
+        let params = self.node_layout_params(child);
 
         let anchor_frac = anchor_frac(params.anchor[axis]);
 
@@ -196,7 +196,7 @@ pub(crate) trait Place: Solve {
     }
 
     fn apply_window_overflow(&self, frame: &ParentFrame, child: Self::NodeId, axis: Axis, rect: [f32; 2]) -> [f32; 2] {
-        let params = self.params(child);
+        let params = self.node_layout_params(child);
         let behavior = params.window_overflow[axis];
         if behavior == WindowOverflow::Ignore {
             return rect;
@@ -245,7 +245,7 @@ pub(crate) trait Place: Solve {
     fn place_children_free(&mut self, i: Self::NodeId, rect: XyRect) {
         let frame = self.parent_frame(i, rect);
         for_each_layout_child!(self, i, child, {
-            let child_size = self.layout_data(child).size();
+            let child_size = self.node_layout_data(child).size();
             self.place_child_free(child, &frame, child_size);
         });
     }

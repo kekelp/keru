@@ -12,7 +12,7 @@ pub struct Node {
     pub last_child: Option<NodeI>,
     pub next_sibling: Option<NodeI>,
     pub params: LayoutParams,
-    pub layout: LayoutData,
+    pub layout: NodeLayoutData,
     pub output_rect: XyRect,
 }
 
@@ -24,7 +24,7 @@ impl Node {
             last_child: None,
             next_sibling: None,
             params,
-            layout: LayoutData::EMPTY,
+            layout: NodeLayoutData::EMPTY,
             output_rect: Xy::new([0.0, 0.0], [0.0, 0.0]),
         }
     }
@@ -97,17 +97,17 @@ impl TreeAdapter for ExampleTree {
     }
 
     #[inline(always)]
-    fn params(&self, i: NodeI) -> &LayoutParams {
+    fn node_layout_params(&self, i: NodeI) -> &LayoutParams {
         &self[i].params
     }
 
     #[inline(always)]
-    fn layout_data(&self, i: NodeI) -> &LayoutData {
+    fn node_layout_data(&self, i: NodeI) -> &NodeLayoutData {
         &self[i].layout
     }
 
     #[inline(always)]
-    fn layout_data_mut(&mut self, i: NodeI) -> &mut LayoutData {
+    fn node_layout_data_mut(&mut self, i: NodeI) -> &mut NodeLayoutData {
         &mut self[i].layout
     }
 

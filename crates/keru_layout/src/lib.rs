@@ -7,7 +7,7 @@ use std::cell::RefCell;
 use std::fmt::Debug;
 use std::ops::{Index, IndexMut};
 
-pub use solve::LayoutData;
+pub use solve::NodeLayoutData;
 pub(crate) use solve::*;
 pub(crate) use place::Place;
 
@@ -17,9 +17,9 @@ pub trait TreeAdapter {
     fn parent(&self, i: Self::NodeId) -> Self::NodeId;
     fn first_child(&self, i: Self::NodeId) -> Option<Self::NodeId>;
     fn next_sibling(&self, i: Self::NodeId) -> Option<Self::NodeId>;
-    fn params(&self, i: Self::NodeId) -> &LayoutParams;
-    fn layout_data(&self, i: Self::NodeId) -> &LayoutData;
-    fn layout_data_mut(&mut self, i: Self::NodeId) -> &mut LayoutData;
+    fn node_layout_params(&self, i: Self::NodeId) -> &LayoutParams;
+    fn node_layout_data(&self, i: Self::NodeId) -> &NodeLayoutData;
+    fn node_layout_data_mut(&mut self, i: Self::NodeId) -> &mut NodeLayoutData;
     /// Measures the text of a node. The width and the result are in fractions of the window size. It is called only on nodes with text.
     fn measure_text(&mut self, i: Self::NodeId, width: Option<f32>) -> Xy<f32>;
     /// Called when the layout solver computes the end result for a node's rectangle.
@@ -246,6 +246,13 @@ where
     THREAD_ARENA.with(|arena| f(&arena.borrow()))
 }
 
-pub(crate) fn reset_arena() {
-    THREAD_ARENA.with(|arena| arena.borrow_mut().reset());
+/// Resets the arena, and frees all of its memory if it keeps more than `max_retained` bytes.
+pub(crate) fn reset_arena(max_retained: usize) {
+    THREAD_ARENA.with(|arena| {
+        let mut arena = arena.borrow_mut();
+        arena.reset();
+        if arena.allocated_bytes() > max_retained {
+            *arena = bumpalo::Bump::new();
+        }
+    });
 }
