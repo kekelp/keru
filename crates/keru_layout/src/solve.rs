@@ -1,7 +1,5 @@
 use crate::*;
 use crate::Axis::{X, Y};
-use crate::fit_fill;
-pub(crate) use crate::fit_fill::DECLARED_SIZES;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Kind {
@@ -9,10 +7,6 @@ pub(crate) enum Kind {
     Min,
     Max,
     Final,
-    #[cfg(feature = "fit_fill")]
-    ContentMin,
-    #[cfg(feature = "fit_fill")]
-    ContentMax,
     /// Has to be the last element of the enum!
     EvenShare,
 }
@@ -20,6 +14,7 @@ pub(crate) enum Kind {
 const N_KINDS: usize = Kind::EvenShare as usize + 1;
 /// The kinds that have a slot on each axis.
 const N_AXIS_KINDS: usize = N_KINDS - 1;
+pub(crate) const DECLARED_SIZES: [Kind; 3] = [Kind::Regular, Kind::Min, Kind::Max];
 pub(crate) const N_SLOTS: usize = 2 * N_AXIS_KINDS + 1;
 
 #[inline(always)]
@@ -44,7 +39,7 @@ const IN_PROGRESS: u32 = 1;
 const SOLVED: u32 = 2;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct NodeFlags(pub(crate) u32);
+pub(crate) struct NodeFlags(u32);
 
 impl NodeFlags {
     pub(crate) const EMPTY: NodeFlags = NodeFlags(0);
@@ -67,7 +62,7 @@ const EMPTY_VALUES: [f32; N_SLOTS] = {
     let mut values = [0.0; N_SLOTS];
     values[slot_index(X, Kind::Max)] = f32::INFINITY;
     values[slot_index(Y, Kind::Max)] = f32::INFINITY;
-    fit_fill::init_content_values(values)
+    values
 };
 
 
@@ -96,14 +91,11 @@ macro_rules! for_each_layout_child {
 }
 
 /// Per-node data used by the layout solver.
-// todo: squeeze out 4 more bytes to get it to 64.
-// This could be done by merging the EvenShare slot with the grid data, since a node can't be a stack and a grid at the same time.
-// note also that it would drop far below if it didn't have the MinContent and MaxContent slots, which are only needed for the special fill-fitcontent interaction.
 #[derive(Debug, Clone, Copy)]
 pub struct LayoutData {
     /// The value of every slot, by `slot_index`. Only the slots that exist are used.
     pub(crate) values: [f32; N_SLOTS],
-    /// The state of every slot and the result of `resolve_sizes`.
+    /// The state of every slot.
     pub(crate) flags: NodeFlags,
     /// How many children aren't free-placement.
     pub(crate) n_placed_children: u32,
@@ -141,7 +133,7 @@ const MAX_FIT_STACK_STEPS: usize = 64;
 const FIT_STACK_EPSILON: f32 = 1e-7;
 
 #[inline(always)]
-pub(crate) fn clamp(size: f32, min: Option<f32>, max: Option<f32>) -> f32 {
+fn clamp(size: f32, min: Option<f32>, max: Option<f32>) -> f32 {
     let size = max.map_or(size, |max| size.min(max));
     min.map_or(size, |min| size.max(min))
 }
@@ -179,9 +171,8 @@ pub(crate) trait Solve: TreeAdapter {
                 let ignore_bound = bound.is_some_and(|bound| bound.is_fill()) && self.ignore_fill_bound(i, axis);
                 if ignore_bound { None } else { bound }
             }
-            Kind::Regular if fit_fill::fit_is_fill(self, i, axis) => Some(Size::Fill),
             Kind::Regular => Some(node.size[axis]),
-            kind => fit_fill::read_content_size(self, i, axis, kind),
+            Kind::Final | Kind::EvenShare => unreachable!(),
         }
     }
 
@@ -192,7 +183,7 @@ pub(crate) trait Solve: TreeAdapter {
             return false;
         }
         let parent = self.parent(i);
-        self.params(parent).size[axis] == Size::FitContent && ! fit_fill::fit_is_fill(self, parent, axis)
+        self.params(parent).size[axis] == Size::FitContent
     }
 
     #[inline(always)]
@@ -230,7 +221,6 @@ pub(crate) trait Solve: TreeAdapter {
         if self.params(i).disabled {
             return;
         }
-        let mut growing_children = fit_fill::start_growth(self, i);
 
         let mut n_placed_children = 0;
         let mut next = self.first_child(i);
@@ -240,7 +230,6 @@ pub(crate) trait Solve: TreeAdapter {
             let params = self.params(child);
             if ! params.disabled && ! params.free_placement {
                 n_placed_children += 1;
-                fit_fill::add_child_growth(self, &mut growing_children, child);
             }
         }
         self.layout_data_mut(i).n_placed_children = n_placed_children;
@@ -248,8 +237,6 @@ pub(crate) trait Solve: TreeAdapter {
         if let ChildrenLayout::Grid { columns: MainAxisCellSize::Count(n), flow, .. } = self.params(i).children_layout {
             self.assign_grid_cells(i, (n as usize).max(1), flow);
         }
-        
-        fit_fill::resolve(self, i, growing_children);
     }
 
     #[inline(always)]
@@ -405,7 +392,7 @@ pub(crate) trait Solve: TreeAdapter {
                     }
                 }
                 Size::FitContent => {
-                    let is_max_bound = fit_fill::is_max_bound(declared);
+                    let is_max_bound = declared == Kind::Max;
                     self.solve_fitcontent(i, axis, is_max_bound)
                 },
                 Size::Frac(frac) => self.available_from_parent(i, axis) * frac,
@@ -433,7 +420,7 @@ pub(crate) trait Solve: TreeAdapter {
         let max = if let Some(bound) = self.read_size(i, axis, Kind::Max) && ! ignore_bounds_rule(bound) {
             Some(self.get_solved_value(i, axis, Kind::Max))
         } else { None };
-        fit_fill::content_bounds(self, i, axis, min, max)
+        (min, max)
     }
 
     fn available_from_parent(&self, i: Self::NodeId, axis: Axis) -> f32 {
