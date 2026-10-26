@@ -113,8 +113,13 @@ impl TreeAdapter for ExampleTree {
     }
 
     #[inline(always)]
-    fn measure_text(&mut self, _i: NodeI, _width: Option<f32>) -> Xy<f32> {
-        Xy::new(0.0, 0.0)
+    fn measure_text_width(&mut self, _i: NodeI) -> f32 {
+        0.0
+    }
+
+    #[inline(always)]
+    fn measure_text_height(&mut self, _i: NodeI, _wrap_width: Option<f32>) -> f32 {
+        0.0
     }
 
     #[inline(always)]

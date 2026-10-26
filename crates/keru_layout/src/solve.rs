@@ -499,9 +499,12 @@ pub(crate) trait Solve: TreeAdapter {
             TextContent::None => 0.0,
             _ if self.text_wraps(i, axis) => {
                 let width = inner(self.get_solved_value(i, X, Kind::Final), self.total_padding(i, X));
-                self.measure_text(i, Some(width))[Y]
+                self.measure_text_height(i, Some(width))
             }
-            _ => self.measure_text(i, None)[axis],
+            _ => match axis {
+                X => self.measure_text_width(i),
+                Y => self.measure_text_height(i, None),
+            },
         };
         if let Some(image) = self.node_layout_params(i).image {
             own_content = own_content.max(self.pixels_to_frac(image[axis], axis));

@@ -76,9 +76,12 @@ impl gl::TreeAdapter for System {
         &mut self.nodes.layout_data[i]
     }
 
-    fn measure_text(&mut self, i: NodeI, width: Option<f32>) -> gl::Xy<f32> {
-        let size = measure_text(&mut self.renderer.text, self.nodes[i].text_i.as_ref().unwrap(), width, self.size);
-        gl::Xy::new(size.x, size.y)
+    fn measure_text_width(&mut self, i: NodeI) -> f32 {
+        measure_text_width(&mut self.renderer.text, self.nodes[i].text_i.as_ref().unwrap(), self.size)
+    }
+
+    fn measure_text_height(&mut self, i: NodeI, wrap_width: Option<f32>) -> f32 {
+        measure_text_height(&mut self.renderer.text, self.nodes[i].text_i.as_ref().unwrap(), wrap_width, self.size)
     }
 
     fn window_size(&self) -> gl::Xy<f32> {
@@ -274,22 +277,32 @@ impl Ui {
 
 const TEXT_WIDTH_TOLERANCE: f32 = 0.05;
 
-fn measure_text(text: &mut keru_draw::Text, text_i: &TextI, width: Option<f32>, window: Xy<f32>) -> Xy<f32> {
+fn measure_text_width(text: &mut keru_draw::Text, text_i: &TextI, window: Xy<f32>) -> f32 {
+    match text_i {
+        TextI::TextBox(handle) => {
+            let widths = text.get_text_box_mut(handle).content_widths();
+            let unwrapped = widths.max.max(widths.min);
+            (unwrapped + TEXT_WIDTH_TOLERANCE) / window[X]
+        }
+        // A text edit can be scrolled, so it never asks for any width.
+        TextI::TextEdit(_) => 0.0,
+    }
+}
+
+fn measure_text_height(text: &mut keru_draw::Text, text_i: &TextI, wrap_width: Option<f32>, window: Xy<f32>) -> f32 {
     match text_i {
         TextI::TextBox(handle) => {
             let text_box = text.get_text_box_mut(handle);
 
             let widths = text_box.content_widths();
             let unwrapped = widths.max.max(widths.min);
-            let width = match width {
+            let width = match wrap_width {
                 Some(width) => (width * window[X]).clamp(widths.min, unwrapped),
                 None => unwrapped,
             };
 
             text_box.set_width(width);
-            let height = text_box.layout().height();
-
-            Xy::new((width + TEXT_WIDTH_TOLERANCE) / window[X], height / window[Y])
+            text_box.layout().height() / window[Y]
         }
         TextI::TextEdit(handle) => {
             let text_edit = text.get_text_edit_mut(handle);
@@ -302,8 +315,7 @@ fn measure_text(text: &mut keru_draw::Text, text_i: &TextI, width: Option<f32>, 
             } else {
                 0.0
             };
-            // A text edit can be scrolled, so it never asks for any width.
-            Xy::new(0.0, height / window[Y])
+            height / window[Y]
         }
     }
 }

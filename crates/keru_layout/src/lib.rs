@@ -20,8 +20,11 @@ pub trait TreeAdapter {
     fn node_layout_params(&self, i: Self::NodeId) -> &LayoutParams;
     fn node_layout_data(&self, i: Self::NodeId) -> &NodeLayoutData;
     fn node_layout_data_mut(&mut self, i: Self::NodeId) -> &mut NodeLayoutData;
-    /// Measures the text of a node. The width and the result are in fractions of the window size. It is called only on nodes with text.
-    fn measure_text(&mut self, i: Self::NodeId, width: Option<f32>) -> Xy<f32>;
+    /// The width of the text in a node, without any wrapping, in fractions of the window size.
+    fn measure_text_width(&mut self, i: Self::NodeId) -> f32;
+    
+    /// The height of the text in a node, with its width optionally fixed to `wrap_width`.
+    fn measure_text_height(&mut self, i: Self::NodeId, wrap_width: Option<f32>) -> f32;
     /// Called when the layout solver computes the end result for a node's rectangle.
     /// The output is provided in both absolute coordinates and relative to the parent.
     fn write_output_rect(&mut self, i: Self::NodeId, rect: XyRect, local_rect: XyRect);
