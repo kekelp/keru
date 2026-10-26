@@ -241,6 +241,7 @@ pub(crate) fn layout_params(node: &InnerNode) -> gl::LayoutParams {
         size: gl_xy(layout.size, gl_size),
         min_size: gl_xy(layout.min_size, |s| s.map(gl_size)),
         max_size: gl_xy(layout.max_size, |s| s.map(gl_size)),
+        fill_weight: 1.0,
         padding: gl_xy(layout.padding, |p| p),
         children_layout: gl_children_layout(params.children_layout),
         free_placement: params.free_placement,

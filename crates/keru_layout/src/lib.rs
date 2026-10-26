@@ -103,7 +103,6 @@ pub enum Size {
     Pixels(f32),
     Frac(f32),
     Fill,
-    WeightedFill(f32),
     FitContent,
     AspectRatio(f32),
 }
@@ -199,6 +198,8 @@ pub struct LayoutParams {
     pub size: Xy<Size>,
     pub min_size: Xy<Option<Size>>,
     pub max_size: Xy<Option<Size>>,
+    /// In a stack, the `Fill` children share the free space in proportion to their weight. It has no effect on the other axis.
+    pub fill_weight: f32,
     pub padding: Xy<[f32; 2]>,
     pub children_layout: ChildrenLayout,
     pub free_placement: bool,
@@ -219,6 +220,7 @@ impl LayoutParams {
         size: Xy { x: Size::FitContent, y: Size::FitContent },
         min_size: Xy { x: None, y: None },
         max_size: Xy { x: None, y: None },
+        fill_weight: 1.0,
         padding: Xy { x: [0.0, 0.0], y: [0.0, 0.0] },
         children_layout: ChildrenLayout::Free,
         free_placement: false,

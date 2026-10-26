@@ -7,8 +7,9 @@ fn px(size: f32) -> Size {
     Size::Pixels(size)
 }
 
-fn fill(weight: f32) -> Size {
-    Size::WeightedFill(weight)
+fn weighted(mut params: LayoutParams, weight: f32) -> LayoutParams {
+    params.fill_weight = weight;
+    params
 }
 
 /// A 300x100 stack on the X axis.
@@ -44,44 +45,44 @@ fn build(children: &[LayoutParams]) -> (ExampleTree, Vec<NodeI>) {
 
 #[test]
 fn space_is_shared_by_weight() {
-    let (tree, k) = build(&[leaf(fill(1.0), px(10.0)), leaf(fill(2.0), px(10.0))]);
+    let (tree, k) = build(&[leaf(Size::Fill, px(10.0)), weighted(leaf(Size::Fill, px(10.0)), 2.0)]);
     assert_widths(&tree, &k, &[100.0, 200.0]);
 }
 
 #[test]
 fn weighted_child_frozen_by_max_size() {
-    let mut capped = leaf(fill(2.0), px(10.0));
+    let mut capped = weighted(leaf(Size::Fill, px(10.0)), 2.0);
     capped.max_size.x = Some(px(100.0));
-    let (tree, k) = build(&[leaf(fill(1.0), px(10.0)), capped]);
+    let (tree, k) = build(&[leaf(Size::Fill, px(10.0)), capped]);
     assert_widths(&tree, &k, &[200.0, 100.0]);
 }
 
 #[test]
 fn weighted_fill_max_caps_big_content() {
-    let mut big = leaf(px(500.0), px(10.0));
-    big.max_size.x = Some(fill(2.0));
-    let (tree, k) = build(&[leaf(fill(1.0), px(10.0)), big]);
+    let mut big = weighted(leaf(px(500.0), px(10.0)), 2.0);
+    big.max_size.x = Some(Size::Fill);
+    let (tree, k) = build(&[leaf(Size::Fill, px(10.0)), big]);
     assert_widths(&tree, &k, &[100.0, 200.0]);
 }
 
 #[test]
 fn weighted_fill_max_keeps_small_content() {
-    let mut small = leaf(px(50.0), px(10.0));
-    small.max_size.x = Some(fill(2.0));
-    let (tree, k) = build(&[leaf(fill(1.0), px(10.0)), small]);
+    let mut small = weighted(leaf(px(50.0), px(10.0)), 2.0);
+    small.max_size.x = Some(Size::Fill);
+    let (tree, k) = build(&[leaf(Size::Fill, px(10.0)), small]);
     assert_widths(&tree, &k, &[250.0, 50.0]);
 }
 
 #[test]
 fn weighted_fill_min_grows_small_content() {
-    let mut small = leaf(px(50.0), px(10.0));
-    small.min_size.x = Some(fill(2.0));
-    let (tree, k) = build(&[leaf(fill(1.0), px(10.0)), small]);
+    let mut small = weighted(leaf(px(50.0), px(10.0)), 2.0);
+    small.min_size.x = Some(Size::Fill);
+    let (tree, k) = build(&[leaf(Size::Fill, px(10.0)), small]);
     assert_widths(&tree, &k, &[100.0, 200.0]);
 }
 
 #[test]
 fn weight_has_no_effect_on_the_other_axis() {
-    let (tree, k) = build(&[leaf(fill(1.0), fill(3.0))]);
+    let (tree, k) = build(&[weighted(leaf(Size::Fill, Size::Fill), 3.0)]);
     assert_eq!(size(&tree, k[0])[1].round(), 100.0);
 }
