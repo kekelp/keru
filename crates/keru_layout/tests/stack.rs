@@ -62,3 +62,20 @@ fn flipped_space_between_reverses_the_order() {
     assert_eq!(x_range(&tree, k[0]), [230.0, 280.0]);
     assert_eq!(x_range(&tree, k[1]), [10.0, 110.0]);
 }
+
+#[test]
+fn space_around_keeps_spacing_as_minimum_gap() {
+    let (tree, k) = build(row(Arrange::SpaceAround, false));
+    assert_eq!(x_range(&tree, k[0]), [37.5, 87.5]);
+    assert_eq!(x_range(&tree, k[1]), [152.5, 252.5]);
+}
+
+#[test]
+fn overflowing_space_modes_place_as_start() {
+    for arrange in [Arrange::SpaceBetween, Arrange::SpaceAround, Arrange::SpaceEvenly] {
+        let params = LayoutParams { size: Xy::new(px(100.0), px(100.0)), ..row(arrange, false) };
+        let (tree, k) = build(params);
+        assert_eq!(x_range(&tree, k[0]), [10.0, 60.0], "{arrange:?}");
+        assert_eq!(x_range(&tree, k[1]), [70.0, 170.0], "{arrange:?}");
+    }
+}

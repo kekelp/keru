@@ -73,7 +73,7 @@ pub(crate) trait Place: Solve {
         };
 
         let (inner_start, inner_end) = (stack_rect[main][0] + pad_start, stack_rect[main][1] - pad_end);
-        let free = (inner_end - inner_start) - children_size;
+        let free = ((inner_end - inner_start) - total_size).max(0.0);
 
         let (mut walking_position, gap) = match arrange {
             Arrange::Start => (inner_start, spacing),
@@ -83,16 +83,16 @@ pub(crate) trait Place: Solve {
                 (center - total_size / 2.0, spacing)
             },
             Arrange::SpaceBetween => {
-                let gap = if n > 1 { free / (n - 1) as f32 } else { 0.0 };
-                (inner_start, gap)
+                let extra = if n > 1 { free / (n - 1) as f32 } else { 0.0 };
+                (inner_start, spacing + extra)
             },
             Arrange::SpaceAround => {
-                let gap = if n > 0 { free / n as f32 } else { 0.0 };
-                (inner_start + gap / 2.0, gap)
+                let extra = if n > 0 { free / n as f32 } else { 0.0 };
+                (inner_start + extra / 2.0, spacing + extra)
             },
             Arrange::SpaceEvenly => {
-                let gap = if n > 0 { free / (n + 1) as f32 } else { 0.0 };
-                (inner_start + gap, gap)
+                let extra = if n > 0 { free / (n + 1) as f32 } else { 0.0 };
+                (inner_start + extra, spacing + extra)
             },
         };
 
