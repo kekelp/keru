@@ -44,9 +44,7 @@ In the trait-based API, `keru_layout` assumes that you already have a tree of UI
 
     >If your UI nodes already have a lot of data in them, it may be good for performance to store the `LayoutParams` and `NodeLayoutData` separately: for example, in a `SecondaryMap` if the tree is a `SlotMap`, or in a parallel `Vec` if the tree is a `Slab`.
 
-3) Add a single centralized `TreeLayoutData` anywhere in the tree.
-
-4) Implement the `TreeAdapter` trait for the whole UI tree:
+3) Implement the `TreeAdapter` trait for the whole UI tree:
 
     - Set the `NodeId` type to the Id that can be used to refer to nodes in the UI tree, such as a slotmap key or a slab index.
     - Fill in the `node_layout_params()`, `node_layout_data()`, `node_layout_data_mut()` and `layout_data()` to simply access the data corresponding to that `NodeId`.
@@ -60,7 +58,7 @@ In the trait-based API, `keru_layout` assumes that you already have a tree of UI
 
     - Finally, implement the `write_output_rect()` callback, and make it write provided output rects where you need them to go, such as a `rect` field in the UI node.
 
-    - Optionally, implement `cycle_found()` to notify the user about any cycles in their layout.
+    - Optionally, implement the `layout_warning()` callback to notify the user about any cycles or other issues in their layout.
 
 Then, you can call the trait's `solve_layout()` method to calculate the layout and write all the output sizes.
 
