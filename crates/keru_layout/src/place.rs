@@ -103,7 +103,12 @@ pub(crate) trait Place: Solve {
             } else {
                 let mut child_rect = Xy::new([0.0, 0.0], [0.0, 0.0]);
                 child_rect[cross] = self.resolve_pos_on_axis(&frame, child, cross, child_size[cross]);
-                child_rect[main] = [walking_position, walking_position + child_size[main]];
+                child_rect[main] = if ! frame.flipped[main] {
+                    [walking_position, walking_position + child_size[main]]
+                } else {
+                    let mirror = inner_start + inner_end;
+                    [mirror - walking_position - child_size[main], mirror - walking_position]
+                };
                 walking_position += child_size[main] + gap;
                 self.place(child, child_rect, frame.rect);
             }
