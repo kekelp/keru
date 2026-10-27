@@ -217,7 +217,7 @@ pub(crate) trait Solve: TreeAdapter {
     }
 
     #[inline(always)]
-    fn is_stacked(&self, i: Self::NodeId, axis: Axis) -> bool {
+    fn is_in_stack(&self, i: Self::NodeId, axis: Axis) -> bool {
         let parent = self.parent(i);
         self.stack_axis(parent) == Some(axis) && ! self.node_layout_params(i).free_placement
     }
@@ -301,7 +301,7 @@ pub(crate) trait Solve: TreeAdapter {
                 Size::AspectRatio(_) => self.solve_slot(i, axis.other(), Kind::Final),
                 Size::Frac(_) => self.read_available_from_parent(slot),
                 Size::Fill => {
-                    if self.is_stacked(i, axis) {
+                    if self.is_in_stack(i, axis) {
                         let parent = self.parent(i);
                         self.solve_slot(parent, axis, Kind::EvenShare);
                     } else {
@@ -441,7 +441,7 @@ pub(crate) trait Solve: TreeAdapter {
                 Size::Frac(frac) => self.available_from_parent(i, axis) * frac,
 
                 Size::Fill => {
-                    if self.is_stacked(i, axis) {
+                    if self.is_in_stack(i, axis) {
                         let parent = self.parent(i);
                         self.get_solved_value(parent, axis, Kind::EvenShare) * self.node_layout_params(i).fill_weight
                     } else {
