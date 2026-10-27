@@ -35,7 +35,7 @@ impl Node {
 pub struct ExampleTree {
     pub nodes: Vec<Node>,
     pub window_size: Xy<f32>,
-    pub warnings: Vec<(NodeI, LayoutWarning)>,
+    pub warnings: Vec<LayoutWarning<NodeI>>,
 }
 
 impl ExampleTree {
@@ -132,7 +132,7 @@ impl TreeAdapter for ExampleTree {
         self[i].output_rect = rect;
     }
 
-    fn layout_warning(&mut self, i: NodeI, warning: LayoutWarning) {
-        self.warnings.push((i, warning));
+    fn layout_warning(&mut self, warning: LayoutWarning<NodeI>) {
+        self.warnings.push(warning);
     }
 }

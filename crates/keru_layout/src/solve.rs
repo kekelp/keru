@@ -44,10 +44,19 @@ pub(crate) struct NodeFlags(u32);
 impl NodeFlags {
     pub(crate) const EMPTY: NodeFlags = NodeFlags(0);
 
-    const IN_CYCLE: u32 = 1 << (2 * N_SLOTS);
-    const FLEX_CHILD_X: u32 = 1 << (2 * N_SLOTS + 1);
-    const FLEX_CHILD_Y: u32 = 1 << (2 * N_SLOTS + 2);
-    const GRID_SPANS: u32 = 1 << (2 * N_SLOTS + 3);
+    const IN_CYCLE_X: u32 = 1 << (2 * N_SLOTS);
+    const IN_CYCLE_Y: u32 = 1 << (2 * N_SLOTS + 1);
+    const FLEX_CHILD_X: u32 = 1 << (2 * N_SLOTS + 2);
+    const FLEX_CHILD_Y: u32 = 1 << (2 * N_SLOTS + 3);
+    const GRID_SPANS: u32 = 1 << (2 * N_SLOTS + 4);
+
+    #[inline(always)]
+    fn in_cycle(axis: Axis) -> u32 {
+        match axis {
+            X => NodeFlags::IN_CYCLE_X,
+            Y => NodeFlags::IN_CYCLE_Y,
+        }
+    }
 
     #[inline(always)]
     fn flex_child(axis: Axis) -> u32 {
@@ -70,7 +79,7 @@ impl NodeFlags {
     }
 }
 
-const _: () = assert!(2 * N_SLOTS + 4 <= 32, "The slot states and the flags don't fit in NodeFlags");
+const _: () = assert!(2 * N_SLOTS + 5 <= 32, "The slot states and the flags don't fit in NodeFlags");
 
 const EMPTY_VALUES: [f32; N_SLOTS] = {
     let mut values = [0.0; N_SLOTS];
@@ -220,7 +229,7 @@ pub(crate) trait Solve: TreeAdapter {
         }
 
         if let Xy { x: Size::AspectRatio(_), y: Size::AspectRatio(_) } = self.node_layout_params(i).size {
-            self.warn(i, LayoutWarning::AspectRatioOnBothAxes);
+            self.warn(LayoutWarning::AspectRatioOnBothAxes { node: i });
         }
 
         let mut n_placed_children = 0;
@@ -367,7 +376,7 @@ pub(crate) trait Solve: TreeAdapter {
         self.solve_all_dependencies(slot);
         let size = self.solve_slot_inner(slot);
         if kind == Kind::Final && ! size.is_finite() {
-            self.warn(node, LayoutWarning::NotFinite(axis));
+            self.warn(LayoutWarning::NotFinite { node, axis });
         }
         let data = self.node_layout_data_mut(node);
         data.values[slot_index(axis, kind)] = size;
@@ -380,17 +389,17 @@ pub(crate) trait Solve: TreeAdapter {
     /// Keeps the user's callback out of the hot code.
     #[cold]
     #[inline(never)]
-    fn warn(&mut self, node: Self::NodeId, warning: LayoutWarning) {
-        self.layout_warning(node, warning);
+    fn warn(&mut self, warning: LayoutWarning<Self::NodeId>) {
+        self.layout_warning(warning);
     }
 
     #[cold]
     #[inline(never)]
     fn record_cycle(&mut self, node: Self::NodeId, axis: Axis) {
         let flags = &mut self.node_layout_data_mut(node).flags;
-        if flags.0 & NodeFlags::IN_CYCLE == 0 {
-            flags.0 |= NodeFlags::IN_CYCLE;
-            self.layout_warning(node, LayoutWarning::Cycle(axis));
+        if flags.0 & NodeFlags::in_cycle(axis) == 0 {
+            flags.0 |= NodeFlags::in_cycle(axis);
+            self.layout_warning(LayoutWarning::Cycle { node, axis });
         }
     }
 
@@ -409,12 +418,12 @@ pub(crate) trait Solve: TreeAdapter {
             Kind::Final => {
                 let (min, max) = self.solved_bounds(i, axis, |_| false);
                 if let (Some(min), Some(max)) = (min, max) && min > max {
-                    self.warn(i, LayoutWarning::MinAboveMax(axis));
+                    self.warn(LayoutWarning::MinAboveMax { node: i, axis });
                 }
                 let size = clamp(self.get_solved_value(i, axis, Kind::Regular), min, max);
                 let has_flex_child = self.node_layout_data(i).flags.0 & NodeFlags::flex_child(axis) != 0;
                 if has_flex_child && size <= self.total_padding(i, axis) && self.node_layout_params(i).size[axis] == Size::FitContent {
-                    self.warn(i, LayoutWarning::FitContentCollapsed(axis));
+                    self.warn(LayoutWarning::FitContentCollapsed { node: i, axis });
                 }
                 size
             }
@@ -569,7 +578,7 @@ pub(crate) trait Solve: TreeAdapter {
             }
         }
         if overflow {
-            self.warn(i, LayoutWarning::ImpossibleFracChildren(axis));
+            self.warn(LayoutWarning::ImpossibleFracChildren { node: i, axis });
         }
         estimate
     }

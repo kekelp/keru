@@ -35,7 +35,7 @@ pub trait TreeAdapter {
     /// Called when the layout solver finds a problem in a node's layout.
     /// 
     /// Depending on the use case, this can be reported to the user.
-    fn layout_warning(&mut self, _i: Self::NodeId, _warning: LayoutWarning) {}
+    fn layout_warning(&mut self, _warning: LayoutWarning<Self::NodeId>) {}
 
     /// The maximum amount of scratch memory that the layout solver can retain.
     fn max_retained_scratch_memory(&self) -> usize {
@@ -141,21 +141,46 @@ pub enum Pos {
 /// A warning about a potential problem in the user's layout.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
-pub enum LayoutWarning {
+pub enum LayoutWarning<Id> {
     /// A node is stuck in a dependency cycle.
-    Cycle(Axis),
+    Cycle { node: Id, axis: Axis },
     /// The node's size is `AspectRatio` on both axes.
     /// 
     /// This also shows up as a `Cycle`.
-    AspectRatioOnBothAxes,
-    /// The node fits its content, but its only children are `Fill` or `Frac`, so its content size is zero.
-    FitContentCollapsed(Axis),
-    /// The node's min size is bigger than its max size. The min size is used.
-    MinAboveMax(Axis),
+    AspectRatioOnBothAxes { node: Id },
+    /// A `FitContent` node only has `Fill` or `Frac` children, so its size collapsed to zero.
+    FitContentCollapsed { node: Id, axis: Axis },
+    /// The node's min size is bigger than its max size.
+    MinAboveMax { node: Id, axis: Axis },
     /// A `FitContent` node couldn't determine consistent sizes for its `Frac` children, because they add up to more than 100%.
-    ImpossibleFracChildren(Axis),
+    ImpossibleFracChildren { node: Id, axis: Axis },
     /// The node's size is infinite or NaN.
-    NotFinite(Axis),
+    NotFinite { node: Id, axis: Axis },
+}
+
+impl<Id: Debug> std::fmt::Display for LayoutWarning<Id> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LayoutWarning::Cycle { node, axis } => write!(f,
+                "The {axis:?} size of node '{node:?}' is stuck in a dependency cycle."
+            ),
+            LayoutWarning::AspectRatioOnBothAxes { node } => write!(f,
+                "Node '{node:?}' is `AspectRatio` on both axes. This will also show up as a cycle."
+            ),
+            LayoutWarning::FitContentCollapsed { node, axis } => write!(f,
+                "The {axis:?} size of node '{node:?}' is `FitContent`, but it only has `Fill` or `Frac` children and no intrinsic content, so its size collapsed to zero."
+            ),
+            LayoutWarning::MinAboveMax { node, axis } => write!(f,
+                "On the {axis:?} axis, the '{node:?}' node's min size is bigger than its max size. "
+            ),
+            LayoutWarning::ImpossibleFracChildren { node, axis } => write!(f,
+                "On the {axis:?} axis, the '{node:?}' `FitContent` node couldn't determine consistent sizes for its `Frac` children, because they add up to more than 100%."
+            ),
+            LayoutWarning::NotFinite { node, axis } => write!(f,
+                "The {axis:?} size of node '{node:?}' is infinite or NaN."
+            ),
+        }
+    }
 }
 
 /// What to do if a freely placed node would extend past the window edge. It has no effect on the children of a `Stack` or a `Grid`, unless they are `free_placement`.

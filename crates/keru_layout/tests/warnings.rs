@@ -43,8 +43,8 @@ fn no_warnings_in_normal_layouts() {
 #[test]
 fn aspect_ratio_on_both_axes() {
     let (mut tree, node) = build(leaf(Size::AspectRatio(1.0), Size::AspectRatio(1.0)), &[]);
-    assert!(tree.warnings.contains(&(node, LayoutWarning::AspectRatioOnBothAxes)));
-    assert!(tree.warnings.iter().any(|&(i, warning)| i == node && matches!(warning, LayoutWarning::Cycle(_))));
+    assert!(tree.warnings.contains(&LayoutWarning::AspectRatioOnBothAxes { node }));
+    assert!(tree.warnings.iter().any(|warning| matches!(warning, LayoutWarning::Cycle { node: n, .. } if *n == node)));
     // Each warning is reported once for each node, in each run.
     let n = tree.warnings.len();
     tree.solve_layout();
@@ -54,7 +54,7 @@ fn aspect_ratio_on_both_axes() {
 #[test]
 fn fit_content_with_only_fill_children_collapses() {
     let (tree, node) = build(row(), &[leaf(Size::Fill, px(10.0)), leaf(Size::Frac(0.5), px(10.0))]);
-    assert_eq!(tree.warnings, &[(node, LayoutWarning::FitContentCollapsed(Axis::X))]);
+    assert_eq!(tree.warnings, &[LayoutWarning::FitContentCollapsed { node, axis: Axis::X }]);
 }
 
 #[test]
@@ -63,18 +63,18 @@ fn min_above_max() {
     params.min_size.x = Some(px(200.0));
     params.max_size.x = Some(px(100.0));
     let (tree, node) = build(params, &[]);
-    assert_eq!(tree.warnings, &[(node, LayoutWarning::MinAboveMax(Axis::X))]);
+    assert_eq!(tree.warnings, &[LayoutWarning::MinAboveMax { node, axis: Axis::X }]);
 }
 
 #[test]
 fn frac_children_add_up_to_more_than_the_parent() {
     let children = [leaf(px(100.0), px(10.0)), leaf(Size::Frac(0.6), px(10.0)), leaf(Size::Frac(0.6), px(10.0))];
     let (tree, node) = build(row(), &children);
-    assert_eq!(tree.warnings, &[(node, LayoutWarning::ImpossibleFracChildren(Axis::X))]);
+    assert_eq!(tree.warnings, &[LayoutWarning::ImpossibleFracChildren { node, axis: Axis::X }]);
 }
 
 #[test]
 fn infinite_size() {
     let (tree, node) = build(leaf(px(100.0), Size::AspectRatio(0.0)), &[]);
-    assert_eq!(tree.warnings, &[(node, LayoutWarning::NotFinite(Axis::Y))]);
+    assert_eq!(tree.warnings, &[LayoutWarning::NotFinite { node, axis: Axis::Y }]);
 }
