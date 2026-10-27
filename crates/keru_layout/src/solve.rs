@@ -45,6 +45,16 @@ impl NodeFlags {
     pub(crate) const EMPTY: NodeFlags = NodeFlags(0);
 
     const IN_CYCLE: u32 = 1 << (2 * N_SLOTS);
+    const FLEX_CHILD_X: u32 = 1 << (2 * N_SLOTS + 1);
+    const FLEX_CHILD_Y: u32 = 1 << (2 * N_SLOTS + 2);
+
+    #[inline(always)]
+    fn flex_child(axis: Axis) -> u32 {
+        match axis {
+            X => NodeFlags::FLEX_CHILD_X,
+            Y => NodeFlags::FLEX_CHILD_Y,
+        }
+    }
 
     #[inline(always)]
     pub(crate) fn check_state(self, axis: Axis, kind: Kind) -> u32 {
@@ -59,7 +69,7 @@ impl NodeFlags {
     }
 }
 
-const _: () = assert!(2 * N_SLOTS + 1 <= 32, "The slot states and the flags don't fit in NodeFlags");
+const _: () = assert!(2 * N_SLOTS + 3 <= 32, "The slot states and the flags don't fit in NodeFlags");
 
 const EMPTY_VALUES: [f32; N_SLOTS] = {
     let mut values = [0.0; N_SLOTS];
@@ -208,7 +218,12 @@ pub(crate) trait Solve: TreeAdapter {
             return;
         }
 
+        if let Xy { x: Size::AspectRatio(_), y: Size::AspectRatio(_) } = self.node_layout_params(i).size {
+            self.warn(i, LayoutWarning::AspectRatioOnBothAxes);
+        }
+
         let mut n_placed_children = 0;
+        let mut flex_children = 0;
         let mut next = self.first_child(i);
         while let Some(child) = next {
             next = self.next_sibling(child);
@@ -216,9 +231,17 @@ pub(crate) trait Solve: TreeAdapter {
             let params = self.node_layout_params(child);
             if ! params.disabled && ! params.free_placement {
                 n_placed_children += 1;
+                if params.size.x.is_flex() {
+                    flex_children |= NodeFlags::FLEX_CHILD_X;
+                }
+                if params.size.y.is_flex() {
+                    flex_children |= NodeFlags::FLEX_CHILD_Y;
+                }
             }
         }
-        self.node_layout_data_mut(i).n_placed_children = n_placed_children;
+        let data = self.node_layout_data_mut(i);
+        data.n_placed_children = n_placed_children;
+        data.flags.0 |= flex_children;
 
         if let ChildrenLayout::Grid { columns: MainAxisCellSize::Count(n), flow, .. } = self.node_layout_params(i).children_layout {
             self.assign_grid_cells(i, (n as usize).max(1), flow);
@@ -331,7 +354,7 @@ pub(crate) trait Solve: TreeAdapter {
         match self.node_layout_data(node).flags.check_state(axis, kind) {
             SOLVED => return,
             IN_PROGRESS => {
-                self.record_cycle(node);
+                self.record_cycle(node, axis);
                 return;
             }
             _ => {}
@@ -339,6 +362,9 @@ pub(crate) trait Solve: TreeAdapter {
         self.node_layout_data_mut(node).flags.set_state(axis, kind, IN_PROGRESS);
         self.solve_all_dependencies(slot);
         let size = self.solve_slot_inner(slot);
+        if kind == Kind::Final && ! size.is_finite() {
+            self.warn(node, LayoutWarning::NotFinite(axis));
+        }
         let data = self.node_layout_data_mut(node);
         data.values[slot_index(axis, kind)] = size;
         data.flags.set_state(axis, kind, SOLVED);
@@ -347,13 +373,20 @@ pub(crate) trait Solve: TreeAdapter {
         }
     }
 
+    /// Keeps the user's callback out of the hot code.
     #[cold]
     #[inline(never)]
-    fn record_cycle(&mut self, node: Self::NodeId) {
+    fn warn(&mut self, node: Self::NodeId, warning: LayoutWarning) {
+        self.layout_warning(node, warning);
+    }
+
+    #[cold]
+    #[inline(never)]
+    fn record_cycle(&mut self, node: Self::NodeId, axis: Axis) {
         let flags = &mut self.node_layout_data_mut(node).flags;
         if flags.0 & NodeFlags::IN_CYCLE == 0 {
             flags.0 |= NodeFlags::IN_CYCLE;
-            self.cycle_found(node);
+            self.layout_warning(node, LayoutWarning::Cycle(axis));
         }
     }
 
@@ -371,7 +404,15 @@ pub(crate) trait Solve: TreeAdapter {
             Kind::Regular if i == self.root() => self.window_size()[axis],
             Kind::Final => {
                 let (min, max) = self.solved_bounds(i, axis, |_| false);
-                clamp(self.get_solved_value(i, axis, Kind::Regular), min, max)
+                if let (Some(min), Some(max)) = (min, max) && min > max {
+                    self.warn(i, LayoutWarning::MinAboveMax(axis));
+                }
+                let size = clamp(self.get_solved_value(i, axis, Kind::Regular), min, max);
+                let has_flex_child = self.node_layout_data(i).flags.0 & NodeFlags::flex_child(axis) != 0;
+                if has_flex_child && size <= self.total_padding(i, axis) && self.node_layout_params(i).size[axis] == Size::FitContent {
+                    self.warn(i, LayoutWarning::FitContentCollapsed(axis));
+                }
+                size
             }
             Kind::EvenShare => self.solve_even_share(i, axis),
             declared => match self.read_size(i, axis, declared).unwrap() {
@@ -482,8 +523,9 @@ pub(crate) trait Solve: TreeAdapter {
         children.max(own_content) + gaps + self.total_padding(i, axis)
     }
 
-    fn fit_stack_main(&self, i: Self::NodeId, axis: Axis) -> f32 {
+    fn fit_stack_main(&mut self, i: Self::NodeId, axis: Axis) -> f32 {
         let mut estimate = 0.0f32;
+        let mut overflow = false;
         for _ in 0..MAX_FIT_STACK_STEPS {
             let mut fixed = 0.0f32;
             let mut free_frac = 0.0f32;
@@ -511,13 +553,19 @@ pub(crate) trait Solve: TreeAdapter {
 
             let next = match free_frac <= MAX_FIT_STACK_FRAC {
                 true => fixed / (1.0 - free_frac),
-                false => fixed,
+                false => {
+                    overflow = true;
+                    fixed
+                }
             };
             let settled = (next - estimate).abs() <= FIT_STACK_EPSILON * next.abs().max(1.0);
             estimate = next;
             if settled {
                 break;
             }
+        }
+        if overflow {
+            self.warn(i, LayoutWarning::ImpossibleFracChildren(axis));
         }
         estimate
     }

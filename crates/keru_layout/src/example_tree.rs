@@ -35,7 +35,7 @@ impl Node {
 pub struct ExampleTree {
     pub nodes: Vec<Node>,
     pub window_size: Xy<f32>,
-    pub cycle_nodes: Vec<NodeI>,
+    pub warnings: Vec<(NodeI, LayoutWarning)>,
 }
 
 impl ExampleTree {
@@ -43,7 +43,7 @@ impl ExampleTree {
     pub fn with_capacity(capacity: usize, window_size: Xy<f32>) -> Self {
         let mut nodes = Vec::with_capacity(capacity);
         nodes.push(Node::new(ROOT_I, LayoutParams::DEFAULT));
-        ExampleTree { nodes, window_size, cycle_nodes: Vec::new() }
+        ExampleTree { nodes, window_size, warnings: Vec::new() }
     }
 
     /// Adds a node as the last child of `parent`.
@@ -132,7 +132,7 @@ impl TreeAdapter for ExampleTree {
         self[i].output_rect = rect;
     }
 
-    fn cycle_found(&mut self, i: NodeI) {
-        self.cycle_nodes.push(i);
+    fn layout_warning(&mut self, i: NodeI, warning: LayoutWarning) {
+        self.warnings.push((i, warning));
     }
 }

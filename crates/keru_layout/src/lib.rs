@@ -32,10 +32,10 @@ pub trait TreeAdapter {
     /// The size of the window, in logical pixels.
     fn window_size(&self) -> Xy<f32>;
     
-    /// Called when the layout solver finds that a node is part of a dependency cycle.
+    /// Called when the layout solver finds a problem in a node's layout.
     /// 
     /// Depending on the use case, this can be reported to the user.
-    fn cycle_found(&mut self, _i: Self::NodeId) {}
+    fn layout_warning(&mut self, _i: Self::NodeId, _warning: LayoutWarning) {}
 
     /// The maximum amount of scratch memory that the layout solver can retain.
     fn max_retained_scratch_memory(&self) -> usize {
@@ -136,6 +136,26 @@ pub enum Pos {
     End,
     Pixels(f32),
     Frac(f32),
+}
+
+/// A warning about a potential problem in the user's layout.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum LayoutWarning {
+    /// A node is stuck in a dependency cycle.
+    Cycle(Axis),
+    /// The node's size is `AspectRatio` on both axes.
+    /// 
+    /// This also shows up as a `Cycle`.
+    AspectRatioOnBothAxes,
+    /// The node fits its content, but its only children are `Fill` or `Frac`, so its content size is zero.
+    FitContentCollapsed(Axis),
+    /// The node's min size is bigger than its max size. The min size is used.
+    MinAboveMax(Axis),
+    /// A `FitContent` node couldn't determine consistent sizes for its `Frac` children, because they add up to more than 100%.
+    ImpossibleFracChildren(Axis),
+    /// The node's size is infinite or NaN.
+    NotFinite(Axis),
 }
 
 /// What to do if a freely placed node would extend past the window edge. It has no effect on the children of a `Stack` or a `Grid`, unless they are `free_placement`.

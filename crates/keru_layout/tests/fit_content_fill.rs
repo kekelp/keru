@@ -31,7 +31,7 @@ fn build(row: LayoutParams, children: &[LayoutParams]) -> (ExampleTree, NodeI, V
     let r = tree.add(ROOT_I, row);
     let children = children.iter().map(|&child| tree.add(r, child)).collect();
     tree.solve_layout();
-    assert!(tree.cycle_nodes.is_empty());
+    assert_eq!(tree.warnings, &[]);
     (tree, r, children)
 }
 

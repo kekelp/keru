@@ -28,21 +28,21 @@ In short, the idea of this library is to consider the resulting graph of depende
 
 - Developer Experience: while it's usually not a problem to work around the correctness issues of traditional layout algorithms, it can still be confusing to run into them during development. Using a more consistent algorithm with less edge cases and surprises helps.
 
-- Debuggability: almost all layout systems can express cyclic dependencies between elements. In a traditional tree-based algorithm, this will result in a silently "broken" layout, but with a graph algorithm we can give the user a loud warning and an accurate list of the nodes that were stuck in cycles.
+- Debuggability: almost all layout systems can express cyclic dependencies between elements. In a traditional tree-based algorithm, this will result in a silently "broken" layout, but with a graph algorithm we can give the user a clear warning and an accurate list of the nodes that were stuck in cycles.
 
 
-# Integration
+# Usage
 
 `keru_layout` uses a trait-based API similar to Taffy's "low-level" API. A higher level API might be added in the future.
 
 In the trait-based API, `keru_layout` assumes that you already have a tree of UI elements, and that every UI element roughly corresponds to one layout element. Then, using the library looks like this:
 
 1) Add a `LayoutParams` to each UI node. This is the struct that defines the node's layout role (size, position, stack, grid, etc).
-2) Add a `NodeLayoutData` to each UI node. This is a very small opaque struct that the solver uses to store per-node intermediate results and flags.
+2) Add a `NodeLayoutData` to each UI node. This is a small opaque struct that the solver uses to store per-node intermediate results and flags.
 
     >The layout solver could store all the `NodeLayoutData`s internally, but then it would have to maintain a mapping between your `NodeId`s and its own internal `NodeLayoutData` ids. If you help the solver out by storing the `NodeLayoutData`s in your own tree, it can go much faster.
 
-    >Also, for performance, it might be helpful to store the `LayoutParams` and `NodeLayoutData` separately from the rest of the UI node's data. For example, in a `SecondaryMap` if the tree is a `SlotMap`, or in a parallel `Vec` if the tree is a `Slab`.
+    >If your UI nodes already have a lot of data in them, it may be good for performance to store the `LayoutParams` and `NodeLayoutData` separately: for example, in a `SecondaryMap` if the tree is a `SlotMap`, or in a parallel `Vec` if the tree is a `Slab`.
 
 3) Add a single centralized `TreeLayoutData` anywhere in the tree.
 
@@ -64,3 +64,9 @@ In the trait-based API, `keru_layout` assumes that you already have a tree of UI
 
 Then, you can call the trait's `solve_layout()` method to calculate the layout and write all the output sizes.
 
+
+# FAQ
+
+- **Is this the same as the Cassowary constraint algorithm?**
+
+    No, it's a different one.
