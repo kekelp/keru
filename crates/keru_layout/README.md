@@ -26,7 +26,7 @@ In short, the idea of this library is to consider the resulting graph of depende
 
     I wrote about one of these cases in this older [blog post](https://kekelp.github.io/keru/blog/layout/).
 
-- Developer Experience: while it's usually not a problem to work around the correctness issues of traditional layout algorithms, it can still be confusing to run nto them during development. Using a more consistent algorithm with less edge cases and surprises helps.
+- Developer Experience: while it's usually not a problem to work around the correctness issues of traditional layout algorithms, it can still be confusing to run into them during development. Using a more consistent algorithm with less edge cases and surprises helps.
 
 - Debuggability: almost all layout systems can express cyclic dependencies between elements. In a traditional tree-based algorithm, this will result in a silently "broken" layout, but with a graph algorithm we can give the user a loud warning and an accurate list of the nodes that were stuck in cycles.
 
@@ -55,12 +55,12 @@ In the trait-based API, `keru_layout` assumes that you already have a tree of UI
 
     - Implement the `write_output_rect()` callback, and make it write provided output rects where you need them to go, such as a `rect` field in the UI node.
 
-    - Implement the `measure_text()` method to measure the text contained in a node. If the `width` is `Some`, then the layout solver wants the text to wrap, and you should return the size of the text when wrapping to that width.
-    If text measurement is not needed, for example if no node wants to fit to the size of text, it's fine to provide a dummy implementation.
+    - Implement the `measure_text_width()` and `measure_text_height()` method to measure the text contained in a node.
+    If text measurement is not needed, for example if no node should fit to the size of text, it's fine to provide a dummy implementation.
 
-    - Finally, Implement the `write_output_rect()` callback, and make it write provided output rects where you need them to go, such as a `rect` field in the UI node.
+    - Finally, implement the `write_output_rect()` callback, and make it write provided output rects where you need them to go, such as a `rect` field in the UI node.
 
     - Optionally, implement `cycle_found()` to notify the user about any cycles in their layout.
 
-Then, you can call the trait's provided methods to calculate the layout and get information about cycles or other issues.
+Then, you can call the trait's `solve_layout()` method to calculate the layout and write all the output sizes.
 

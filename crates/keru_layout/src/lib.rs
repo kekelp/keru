@@ -49,8 +49,8 @@ pub trait TreeAdapter {
     }
 
     /// Places a free-placement node into a new position. Can be used to move scroll bars without requiring a full relayout. `parent_rect` is in logical pixels.
-    fn place_free_placed_subtree(&mut self, node: Self::NodeId, new_rect: XyRect) {
-        self.place_free_node(node, new_rect);
+    fn place_free_placed_subtree(&mut self, node: Self::NodeId, parent_rect: XyRect) {
+        self.place_free_node(node, parent_rect);
     }
 }
 
