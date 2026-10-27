@@ -47,6 +47,7 @@ impl NodeFlags {
     const IN_CYCLE: u32 = 1 << (2 * N_SLOTS);
     const FLEX_CHILD_X: u32 = 1 << (2 * N_SLOTS + 1);
     const FLEX_CHILD_Y: u32 = 1 << (2 * N_SLOTS + 2);
+    const GRID_SPANS: u32 = 1 << (2 * N_SLOTS + 3);
 
     #[inline(always)]
     fn flex_child(axis: Axis) -> u32 {
@@ -69,7 +70,7 @@ impl NodeFlags {
     }
 }
 
-const _: () = assert!(2 * N_SLOTS + 3 <= 32, "The slot states and the flags don't fit in NodeFlags");
+const _: () = assert!(2 * N_SLOTS + 4 <= 32, "The slot states and the flags don't fit in NodeFlags");
 
 const EMPTY_VALUES: [f32; N_SLOTS] = {
     let mut values = [0.0; N_SLOTS];
@@ -223,7 +224,7 @@ pub(crate) trait Solve: TreeAdapter {
         }
 
         let mut n_placed_children = 0;
-        let mut flex_children = 0;
+        let mut child_flags = 0;
         let mut next = self.first_child(i);
         while let Some(child) = next {
             next = self.next_sibling(child);
@@ -232,16 +233,19 @@ pub(crate) trait Solve: TreeAdapter {
             if ! params.disabled && ! params.free_placement {
                 n_placed_children += 1;
                 if params.size.x.is_flex() {
-                    flex_children |= NodeFlags::FLEX_CHILD_X;
+                    child_flags |= NodeFlags::FLEX_CHILD_X;
                 }
                 if params.size.y.is_flex() {
-                    flex_children |= NodeFlags::FLEX_CHILD_Y;
+                    child_flags |= NodeFlags::FLEX_CHILD_Y;
+                }
+                if params.grid_span.x > 1 || params.grid_span.y > 1 {
+                    child_flags |= NodeFlags::GRID_SPANS;
                 }
             }
         }
         let data = self.node_layout_data_mut(i);
         data.n_placed_children = n_placed_children;
-        data.flags.0 |= flex_children;
+        data.flags.0 |= child_flags;
 
         if let ChildrenLayout::Grid { columns: MainAxisCellSize::Count(n), flow, .. } = self.node_layout_params(i).children_layout {
             self.assign_grid_cells(i, (n as usize).max(1), flow);
@@ -699,7 +703,52 @@ pub(crate) trait Solve: TreeAdapter {
     }
 
     fn assign_grid_cells(&mut self, i: Self::NodeId, n_main: usize, flow: GridFlow) {
-        let n_lines = with_arena(|arena| {
+        let has_spans = self.node_layout_data(i).flags.0 & NodeFlags::GRID_SPANS != 0;
+        let n_lines = if ! has_spans {
+            self.assign_grid_cells_in_order(i, n_main, flow)
+        } else {
+            self.assign_grid_cells_with_spans(i, n_main, flow)
+        };
+
+        let mut lines = Xy::new(0, 0);
+        lines[flow.main_axis] = n_main as u16;
+        lines[flow.main_axis.other()] = n_lines as u16;
+        self.node_layout_data_mut(i).grid_lines = lines;
+
+        for axis in [X, Y] {
+            let reversed = match axis {
+                X => flow.x_fill_direction == Direction::RightToLeft,
+                Y => flow.y_fill_direction == Direction::RightToLeft,
+            };
+            if reversed {
+                for_each_layout_child!(self, i, child, {
+                    if ! self.node_layout_params(child).free_placement {
+                        let span = self.node_layout_params(child).grid_span[axis].max(1);
+                        let cell = &mut self.node_layout_data_mut(child).grid_cell[axis];
+                        *cell = lines[axis] - span - *cell;
+                    }
+                });
+            }
+        }
+    }
+
+    /// Without spans, the children go into predictable positions and `backfill` has no effect, because there are no holes.
+    fn assign_grid_cells_in_order(&mut self, i: Self::NodeId, n_main: usize, flow: GridFlow) -> usize {
+        let mut k = 0;
+        for_each_layout_child!(self, i, child, {
+            if ! self.node_layout_params(child).free_placement {
+                let mut cell = Xy::new(0, 0);
+                cell[flow.main_axis] = (k % n_main) as u16;
+                cell[flow.main_axis.other()] = (k / n_main) as u16;
+                self.node_layout_data_mut(child).grid_cell = cell;
+                k += 1;
+            }
+        });
+        k.div_ceil(n_main)
+    }
+
+    fn assign_grid_cells_with_spans(&mut self, i: Self::NodeId, n_main: usize, flow: GridFlow) -> usize {
+        with_arena(|arena| {
             let mut occupied = BumpVec::new_in(arena);
             let mut cursor_line = 0;
 
@@ -738,28 +787,7 @@ pub(crate) trait Solve: TreeAdapter {
             });
 
             occupied.len() / n_main
-        });
-
-        let mut lines = Xy::new(0, 0);
-        lines[flow.main_axis] = n_main as u16;
-        lines[flow.main_axis.other()] = n_lines as u16;
-        self.node_layout_data_mut(i).grid_lines = lines;
-
-        for axis in [X, Y] {
-            let reversed = match axis {
-                X => flow.x_fill_direction == Direction::RightToLeft,
-                Y => flow.y_fill_direction == Direction::RightToLeft,
-            };
-            if reversed {
-                for_each_layout_child!(self, i, child, {
-                    if ! self.node_layout_params(child).free_placement {
-                        let span = self.node_layout_params(child).grid_span[axis].max(1);
-                        let cell = &mut self.node_layout_data_mut(child).grid_cell[axis];
-                        *cell = lines[axis] - span - *cell;
-                    }
-                });
-            }
-        }
+        })
     }
 
     #[inline(always)]
