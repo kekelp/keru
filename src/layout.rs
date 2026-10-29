@@ -84,8 +84,9 @@ impl Ui {
         self.sys.nodes.check_layout_params();
 
         let full_relayout = self.sys.changes.full_relayout;
+        let relayout = self.sys.changes.relayout;
         let text_changed = self.sys.changes.text_changed;
-        let nothing_to_do = !full_relayout && !text_changed;
+        let nothing_to_do = !full_relayout && !relayout && !text_changed;
         if nothing_to_do {
             return;
         }
@@ -93,7 +94,6 @@ impl Ui {
         self.sys.changes.need_gpu_rect_update = true;
         self.sys.changes.need_rerender = true;
 
-        // todo: bring back partial relayouts
         self.relayout_from_root();
 
         self.sys.update_frame_time();
@@ -107,8 +107,6 @@ impl Ui {
     }
 
     pub(crate) fn relayout_from_root(&mut self) {
-        log::info!("Full relayout");
-
         self.compute_layout();
         // self.l2_calculate_sizes();
         
@@ -278,7 +276,7 @@ impl Ui {
             return;
         }
         // Set exiting even if we don't have an exiting animation, because the node might need to stick around for a parent's exit animation.
-        self.sys.nodes.set_exiting(i, true);
+        self.sys.set_exiting(i, true);
 
         if self.sys.nodes[i].params.animation.exit == ExitAnimation::None {
             return;
@@ -294,7 +292,7 @@ impl Ui {
             });
             while let Some(node) = stack.pop() {
                 if self.sys.nodes[node].exit_animation_still_going { continue; }
-                self.sys.nodes.set_exiting(node, true);
+                self.sys.set_exiting(node, true);
                 self.sys.nodes[node].exit_animation_still_going = true;
                 for_each_child_including_lingering_reverse!(self, node, child, {
                     stack.push(child);

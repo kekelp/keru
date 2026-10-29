@@ -16,6 +16,7 @@ pub(crate) struct Nodes {
     pub links: NodeVec<Links>,
     pub layout_params: NodeVec<keru_layout::LayoutParams>,
     pub layout_data: NodeVec<keru_layout::NodeLayoutData>,
+    pub tree_layout_data: keru_layout::LayoutData<NodeI>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -119,6 +120,7 @@ impl Nodes {
             links: NodeVec(vec![EMPTY_LINKS, root_links]),
             layout_params,
             layout_data: NodeVec(vec![keru_layout::NodeLayoutData::EMPTY; 2]),
+            tree_layout_data: keru_layout::LayoutData::new(),
         };
     }
 
@@ -150,15 +152,6 @@ impl Nodes {
             self.layout_data.0.resize(i.as_usize() + 1, keru_layout::NodeLayoutData::EMPTY);
         }
         self.layout_params[i] = params;
-    }
-
-    pub(crate) fn sync_layout(&mut self, i: NodeI) {
-        self.layout_params[i] = layout_params(&self[i]);
-    }
-
-    pub(crate) fn set_exiting(&mut self, i: NodeI, exiting: bool) {
-        self[i].exiting = exiting;
-        self.layout_params[i].disabled = exiting;
     }
 
     #[cfg(debug_assertions)]
@@ -270,7 +263,7 @@ impl Ui {
         }
         real_final_node.currently_hidden = false;
         real_final_node.canvas_instances = None;
-        self.sys.nodes.set_exiting(real_final_i, false);
+        self.sys.set_exiting(real_final_i, false);
 
         self.sys.set_text_hidden(real_final_i, false);
 

@@ -81,35 +81,35 @@ impl<'a> UiNode<'a> {
         let i = self.i;
         let sys = self.sys_mut();
         sys.nodes[i].params.free_placement = value;
-        sys.nodes.sync_layout(i);
+        sys.sync_layout(i);
     }
 
     pub fn set_position(&mut self, x: Pos, y: Pos) {
         let i = self.i;
         let sys = self.sys_mut();
         sys.nodes[i].params.layout.position = Xy::new(x, y);
-        sys.nodes.sync_layout(i);
+        sys.sync_layout(i);
     }
 
     pub fn set_position_x(&mut self, x: Pos) {
         let i = self.i;
         let sys = self.sys_mut();
         sys.nodes[i].params.layout.position.x = x;
-        sys.nodes.sync_layout(i);
+        sys.sync_layout(i);
     }
 
     pub fn set_position_y(&mut self, y: Pos) {
         let i = self.i;
         let sys = self.sys_mut();
         sys.nodes[i].params.layout.position.y = y;
-        sys.nodes.sync_layout(i);
+        sys.sync_layout(i);
     }
 
     pub fn set_keep_in_window(&mut self, x: WindowOverflow, y: WindowOverflow) {
         let i = self.i;
         let sys = self.sys_mut();
         sys.nodes[i].params.layout.window_overflow = Xy::new(x, y);
-        sys.nodes.sync_layout(i);
+        sys.sync_layout(i);
     }
 
     /// Get an iterator over all the children added to the node so far.
@@ -275,7 +275,7 @@ impl<'a> UiNode<'a> {
             TextI::TextEdit(handle) => sys.renderer.text.get_text_edit_mut(&handle).set_text_hashed(text),
         };
         if sys.nodes[i].params.is_fit_content() {
-            sys.push_partial_relayout(i);
+            sys.push_content_change(i);
         }
         return Some(())
     }

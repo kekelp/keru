@@ -21,6 +21,8 @@ impl PartialOrd for NodeWithDepth {
 #[derive(Debug)]
 pub struct Changes {
     pub full_relayout: bool,
+
+    pub relayout: bool,
     pub text_changed: bool,
     pub unfinished_animations: bool,
 
@@ -39,6 +41,7 @@ impl Changes {
         return Changes {
             text_changed: false,
             full_relayout: true,
+            relayout: false,
             unfinished_animations: false,
             focus_changed: false,
 
@@ -53,5 +56,6 @@ impl Changes {
 
     pub fn reset_layout_changes(&mut self) {
         self.full_relayout = false;
+        self.relayout = false;
     }
 }

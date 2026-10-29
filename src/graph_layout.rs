@@ -27,6 +27,32 @@ impl System {
         }
     }
 
+    /// Updates the layout params of a node from its params, and registers the change for the next relayout.
+    pub(crate) fn sync_layout(&mut self, i: NodeI) {
+        let new = layout_params(&self.nodes[i]);
+        let old = std::mem::replace(&mut self.nodes.layout_params[i], new);
+        if old != new {
+            self.register_node_change(i, &old);
+            self.changes.relayout = true;
+        }
+    }
+
+    pub(crate) fn set_exiting(&mut self, i: NodeI, exiting: bool) {
+        self.nodes[i].exiting = exiting;
+        let old = self.nodes.layout_params[i];
+        if old.disabled != exiting {
+            self.nodes.layout_params[i].disabled = exiting;
+            self.register_node_change(i, &old);
+            self.changes.relayout = true;
+        }
+    }
+
+    /// Registers that the text of a node changed, for the next relayout.
+    pub(crate) fn push_content_change(&mut self, i: NodeI) {
+        self.register_content_change(i);
+        self.changes.relayout = true;
+    }
+
     #[inline]
     fn update_content_bounds(&mut self, i: NodeI, content_rect: XyRect) {
         for axis in [X, Y] {
@@ -74,6 +100,11 @@ impl gl::TreeAdapter for System {
     #[inline(always)]
     fn node_layout_data_mut(&mut self, i: NodeI) -> &mut gl::NodeLayoutData {
         &mut self.nodes.layout_data[i]
+    }
+
+    #[inline(always)]
+    fn layout_data(&mut self) -> &mut gl::LayoutData<NodeI> {
+        &mut self.nodes.tree_layout_data
     }
 
     fn measure_text_width(&mut self, i: NodeI) -> f32 {
@@ -275,7 +306,15 @@ pub(crate) fn image_size(node: &InnerNode) -> Option<gl::Xy<f32>> {
 
 impl Ui {
     pub(crate) fn compute_layout(&mut self) {
-        self.sys.solve_layout();
+        if self.sys.changes.full_relayout {
+            log::info!("Full relayout");
+            self.sys.solve_layout();
+        } else {
+            match self.sys.solve_layout_incremental() {
+                gl::IncrementalRelayoutOutcome::Success { computed } => log::info!("Incremental relayout: {computed} slots computed"),
+                fallback => log::info!("Full relayout: {fallback:?}"),
+            }
+        }
     }
 }
 

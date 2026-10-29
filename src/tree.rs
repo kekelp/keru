@@ -583,6 +583,7 @@ impl Ui {
 
         let update_accesskit_focus = self.sys.changes.focus_changed;
         let update_accesskit_tree = self.sys.changes.full_relayout
+            || self.sys.changes.relayout
             || self.sys.changes.text_changed;
         // todo: we could also check accessibility roles, actions etc. on every node update.
         // But I think it's highly unlikely that they'd change in a frame that doesn't also change text or layout.
@@ -711,7 +712,7 @@ impl Ui {
             for &NodeWithDepth { i, .. } in &exiting_nodes {
                 let old_parent = self.sys.nodes.links[i].parent;
                 self.set_tree_links(i, old_parent, self.sys.nodes[i].depth, SiblingCursor::None);
-                self.sys.nodes.set_exiting(i, true);
+                self.sys.set_exiting(i, true);
                 // we're reusing set_tree_links which also increases the parent's child count, but exiting nodes shouldn't be counted.
                 self.sys.nodes[old_parent].n_children -= 1;
             }
@@ -1246,7 +1247,7 @@ impl System {
             };
 
             self.nodes[handle_i].params.layout.position[axis] = Pos::Frac(thumb_lead_frac);
-            self.nodes.sync_layout(handle_i);
+            self.sync_layout(handle_i);
         }
     }
 

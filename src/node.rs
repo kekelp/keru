@@ -2327,7 +2327,7 @@ impl Ui {
                     };
 
                     self.sys.nodes[i].text_i = Some(new_text_i);
-                    self.sys.nodes.sync_layout(i);
+                    self.sys.sync_layout(i);
                 } else {
                     match &self.sys.nodes[i].text_i {
                         Some(TextI::TextEdit(_)) => {
@@ -2344,6 +2344,8 @@ impl Ui {
                                     self.sys.renderer.text.get_text_box_mut(&handle).push_ranged_style_property(prop, range);
                                 }
                             }
+
+                            self.sys.push_content_change(i);
                         },
                         None => unreachable!("Should have created a new widget above"),
                     }
@@ -2452,6 +2454,7 @@ impl Ui {
         );
 
         let layout_changed = !skip_layout_diff && !node.compare_layout(&self.sys.nodes[i].params);
+        let text_style_changed = layout_changed && (node.text_size != self.sys.nodes[i].params.text_size || node.text_options != self.sys.nodes[i].params.text_options);
         let cosmetic_changed = !skip_cosmetic_diff && self.cosmetic_comparison_with_animation_target(i, node);
 
         #[cfg(debug_assertions)]
@@ -2510,12 +2513,16 @@ impl Ui {
             }
         }
 
+        if text_style_changed {
+            self.sys.push_content_change(i);
+        }
+        // Some of the layout params are used only by keru when the nodes are placed, so the layout crate doesn't see them.
         if layout_changed {
-            self.sys.push_partial_relayout(i);
+            self.sys.changes.relayout = true;
         }
         let image_changed = image_size(&self.sys.nodes[i]) != self.sys.nodes.layout_params[i].image;
         if skip_layout_diff || layout_changed || image_changed {
-            self.sys.nodes.sync_layout(i);
+            self.sys.sync_layout(i);
         }
         if cosmetic_changed{
             self.sys.changes.should_rebuild_render_data = true;
