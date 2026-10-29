@@ -474,7 +474,7 @@ pub(crate) trait Solve: TreeAdapter {
                 let spacing = Xy::new(spacing_x, spacing_y)[axis];
                 let n = self.node_layout_data(parent).grid_lines[axis] as f32;
                 let cell = ((inner - spacing * (n - 1.0)) / n.max(1.0)).max(0.0);
-                let span = self.node_layout_params(i).grid_span[axis].max(1) as f32;
+                let span = (self.node_layout_params(i).grid_span[axis].max(1) as f32).min(n.max(1.0));
                 span * cell + (span - 1.0) * spacing
             }
             ChildrenLayout::Stack { axis: stack_axis, .. } if stack_axis == axis => {
@@ -492,14 +492,15 @@ pub(crate) trait Solve: TreeAdapter {
                     // The number of columns depends on the final size, so a grid fits one column.
                     MainAxisCellSize::Width(w) if axis == flow.main_axis => (1.0, w),
                     _ => {
+                        let n = self.node_layout_data(i).grid_lines[axis] as f32;
                         let mut cell = 0.0f32;
                         for_each_layout_child!(self, i, child, {
                             if ! self.node_layout_params(child).free_placement {
-                                let span = self.node_layout_params(child).grid_span[axis].max(1) as f32;
+                                let span = (self.node_layout_params(child).grid_span[axis].max(1) as f32).min(n.max(1.0));
                                 cell = cell.max((self.pre_grow_size(child, axis) - (span - 1.0) * spacing) / span);
                             }
                         });
-                        (self.node_layout_data(i).grid_lines[axis] as f32, cell)
+                        (n, cell)
                     }
                 };
                 ((n * cell + spacing * (n - 1.0)).max(0.0), 0.0)
