@@ -2053,6 +2053,7 @@ name = "keru_layout"
 version = "0.1.0"
 dependencies = [
  "bumpalo",
+ "rand",
 ]
 
 [[package]]

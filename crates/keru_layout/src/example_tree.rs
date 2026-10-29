@@ -14,6 +14,8 @@ pub struct Node {
     pub params: LayoutParams,
     pub layout: NodeLayoutData,
     pub output_rect: XyRect,
+    /// The length of a fake text, for nodes with `text`. Each character is 8 pixels wide and 16 pixels high.
+    pub text_chars: u32,
 }
 
 impl Node {
@@ -26,16 +28,18 @@ impl Node {
             params,
             layout: NodeLayoutData::EMPTY,
             output_rect: Xy::new([0.0, 0.0], [0.0, 0.0]),
+            text_chars: 0,
         }
     }
 }
 
 /// A simple standalone tree that uses the layout.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ExampleTree {
     pub nodes: Vec<Node>,
     pub window_size: Xy<f32>,
     pub warnings: Vec<LayoutWarning<NodeI>>,
+    pub layout_data: LayoutData<NodeI>,
 }
 
 impl ExampleTree {
@@ -43,7 +47,7 @@ impl ExampleTree {
     pub fn with_capacity(capacity: usize, window_size: Xy<f32>) -> Self {
         let mut nodes = Vec::with_capacity(capacity);
         nodes.push(Node::new(ROOT_I, LayoutParams::DEFAULT));
-        ExampleTree { nodes, window_size, warnings: Vec::new() }
+        ExampleTree { nodes, window_size, warnings: Vec::new(), layout_data: LayoutData::new() }
     }
 
     /// Adds a node as the last child of `parent`.
@@ -113,13 +117,23 @@ impl TreeAdapter for ExampleTree {
     }
 
     #[inline(always)]
-    fn measure_text_width(&mut self, _i: NodeI) -> f32 {
-        0.0
+    fn layout_data(&mut self) -> &mut LayoutData<NodeI> {
+        &mut self.layout_data
     }
 
     #[inline(always)]
-    fn measure_text_height(&mut self, _i: NodeI, _wrap_width: Option<f32>) -> f32 {
-        0.0
+    fn measure_text_width(&mut self, i: NodeI) -> f32 {
+        self[i].text_chars as f32 * 8.0
+    }
+
+    #[inline(always)]
+    fn measure_text_height(&mut self, i: NodeI, wrap_width: Option<f32>) -> f32 {
+        let chars = self[i].text_chars;
+        let chars_per_line = match wrap_width {
+            Some(width) => ((width / 8.0).floor() as u32).max(1),
+            None => chars.max(1),
+        };
+        chars.div_ceil(chars_per_line) as f32 * 16.0
     }
 
     #[inline(always)]

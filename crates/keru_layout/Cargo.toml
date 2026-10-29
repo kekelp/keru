@@ -5,3 +5,6 @@ edition = "2024"
 
 [dependencies]
 bumpalo = { version = "3.16", features = ["collections"] }
+
+[dev-dependencies]
+rand = "0.9"

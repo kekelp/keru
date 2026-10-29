@@ -1,6 +1,7 @@
 #[macro_use]
 mod solve;
 mod place;
+mod incremental;
 pub mod example_tree;
 
 use std::cell::RefCell;
@@ -9,7 +10,9 @@ use std::ops::{Index, IndexMut};
 
 pub use solve::NodeLayoutData;
 pub(crate) use solve::*;
+pub(crate) use incremental::*;
 pub(crate) use place::Place;
+pub use incremental::{IncrementalRelayoutOutcome, LayoutData};
 
 pub trait TreeAdapter {
     type NodeId: Copy + Eq + Debug;
@@ -20,6 +23,8 @@ pub trait TreeAdapter {
     fn node_layout_params(&self, i: Self::NodeId) -> &LayoutParams;
     fn node_layout_data(&self, i: Self::NodeId) -> &NodeLayoutData;
     fn node_layout_data_mut(&mut self, i: Self::NodeId) -> &mut NodeLayoutData;
+    /// The layout data for the whole tree.
+    fn layout_data(&mut self) -> &mut LayoutData<Self::NodeId>;
     /// The width of the text in a node, without any wrapping, in logical pixels.
     fn measure_text_width(&mut self, i: Self::NodeId) -> f32;
     
@@ -44,8 +49,39 @@ pub trait TreeAdapter {
 
     /// Solves the layout on all nodes.
     fn solve_layout(&mut self) {
+        self.layout_data().clear();
         self.measure_sizes();
         self.place_nodes();
+    }
+
+    /// Tries to solve the layout with a faster incremental algorithm based on the tree changes registered with `register_node_change()` and `register_content_change()`.
+    /// 
+    /// The results should always be the same as a full relayout, provided that all the changes were registered. To catch missing register calls, you can use `solve_layout_incremental_checked()` in debug builds.
+    /// 
+    /// The incremental solver will fall back to a full relayout internally if the tree has layout cycles, if the registered changes changed the structure of the tree rather than just the parameters, or if it heuristically estimated that so many nodes changed that the incremental relayout might be slower than a full one.
+    /// 
+    /// It's also totally fine to ignore this method, don't bother registering changes at all, and run the full `solve_layout()` every frame, as it is quite fast on its own.
+    /// 
+    /// Incremental relayout is sort of overrated. Optimizing things like a popup showing up with incremental relayout is usually not worth the complexity, which is why `solve_layout_incremental()` doesn't support structural changes at all. The only case where it might be worth it is to optimize dragged elements or layout-based animations, which actually force the layout to run at 60 or 120+ Hz, and the power or heat savings might be meaningful. Even in that case, it's likely that they will be overshadowed by other per-frame costs like rendering.
+    /// 
+    /// Currently only the size-measuring part of the layout is incremental, while the placement isn't.
+    fn solve_layout_incremental(&mut self) -> IncrementalRelayoutOutcome {
+        self.solve_incremental(false)
+    }
+
+    /// Does `solve_layout_incremental`, then a full solve, and returns `IncrementalRelayoutOutcome::CheckedIncrementalRelayoutMismatch` if the result is different.
+    fn solve_layout_incremental_checked(&mut self) -> IncrementalRelayoutOutcome {
+        self.solve_incremental(true)
+    }
+
+    /// Records that the params of a node changed for incremental relayouts. Call it after the tree has the new params. A structural change, such as a different size kind, makes the next relayout a full solve.
+    fn register_node_change(&mut self, i: Self::NodeId, old: &LayoutParams) {
+        self.incr_register_node_change(i, old);
+    }
+
+    /// Records that the text or other intrinsic content of a node changed for incremental relayouts.
+    fn register_content_change(&mut self, i: Self::NodeId) {
+        self.incr_register_content_change(i);
     }
 
     /// Places a free-placement node into a new position. Can be used to move scroll bars without requiring a full relayout. `parent_rect` is in logical pixels.
@@ -265,7 +301,7 @@ pub struct LayoutParams {
     pub grid_span: Xy<u16>,
     pub text: TextContent,
     pub image: Option<Xy<f32>>,
-    /// For "exiting nodes".
+    /// For "exiting nodes". The solver skips a disabled node and its subtree. When a node is disabled, all its descendants must be disabled too.
     pub disabled: bool,
     pub position: Xy<Pos>,
     pub anchor: Xy<Anchor>,
