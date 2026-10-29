@@ -44,7 +44,7 @@ pub struct LayoutData<N> {
     /// The reason for the next relayout to be a full solve: the layout was never solved, or a structural change happened. A full solve clears it.
     pub(crate) pending_full_solve: Option<IncrementalRelayoutOutcome>,
     /// The window size of the last solve.
-    pub(crate) window_size: Xy<f32>,
+    pub(crate) last_window_size: Xy<f32>,
     /// True if the last full solve found a cycle. Then every relayout is a full solve.
     pub(crate) has_cycle: bool,
     /// The number of enabled nodes at the last full solve.
@@ -55,7 +55,7 @@ pub struct LayoutData<N> {
 
 impl<N> LayoutData<N> {
     pub const fn new() -> Self {
-        LayoutData { changes: Vec::new(), contents: Vec::new(), pending_full_solve: Some(IncrementalRelayoutOutcome::FallbackNeverSolved), window_size: Xy::new(0.0, 0.0), has_cycle: false, n_nodes: 0, current_level: 0 }
+        LayoutData { changes: Vec::new(), contents: Vec::new(), pending_full_solve: Some(IncrementalRelayoutOutcome::FallbackNeverSolved), last_window_size: Xy::new(0.0, 0.0), has_cycle: false, n_nodes: 0, current_level: 0 }
     }
 
     /// Returns the `Fallback` outcome if the next relayout has to be a full solve.
@@ -121,11 +121,11 @@ pub(crate) trait Incremental: Solve {
             let window_size = self.window_size();
             let root = self.root();
             for axis in [X, Y] {
-                if data.window_size[axis] != window_size[axis] {
+                if data.last_window_size[axis] != window_size[axis] {
                     self.queue(Slot { node: root, axis, kind: Kind::Regular }, &mut q);
                 }
             }
-            data.window_size = window_size;
+            data.last_window_size = window_size;
             for (i, old) in &data.changes {
                 self.queue_node_change(*i, old, &mut q);
             }

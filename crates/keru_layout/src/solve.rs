@@ -352,7 +352,7 @@ pub(crate) trait Solve: TreeAdapter {
     fn measure_sizes(&mut self) {
         let window_size = self.window_size();
         let data = self.layout_data();
-        data.window_size = window_size;
+        data.last_window_size = window_size;
         data.has_cycle = false;
         data.pending_full_solve = None;
         self.prepare(self.root());
