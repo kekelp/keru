@@ -3,9 +3,21 @@ name = "keru_layout"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = ["incremental"]
+incremental = []
+
 [dependencies]
 bumpalo = { version = "3.16", features = ["collections"] }
 slotmap = "1.0"
 
 [dev-dependencies]
 rand = "0.9"
+
+[[test]]
+name = "incremental_fuzz"
+required-features = ["incremental"]
+
+[[example]]
+name = "example"
+required-features = ["incremental"]

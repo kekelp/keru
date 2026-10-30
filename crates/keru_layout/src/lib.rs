@@ -1,7 +1,9 @@
 #[macro_use]
 mod solve;
 mod place;
+#[cfg(feature = "incremental")]
 mod incremental;
+#[cfg(feature = "incremental")]
 mod layout_tree;
 
 
@@ -11,9 +13,12 @@ use std::ops::{Index, IndexMut};
 
 pub use solve::NodeLayoutData;
 pub(crate) use solve::*;
+#[cfg(feature = "incremental")]
 pub(crate) use incremental::*;
 pub(crate) use place::Place;
+#[cfg(feature = "incremental")]
 pub use incremental::{IncrementalRelayoutOutcome, LayoutData};
+#[cfg(feature = "incremental")]
 pub use layout_tree::{LayoutTree, NodeId};
 
 pub trait TreeAdapter {
@@ -51,6 +56,7 @@ pub trait TreeAdapter {
 
     /// Solves the layout on all nodes.
     fn solve_layout(&mut self) {
+        #[cfg(feature = "incremental")]
         self.layout_data().clear();
         self.measure_sizes();
         self.place_nodes();
@@ -67,21 +73,25 @@ pub trait TreeAdapter {
     /// Incremental relayout is sort of overrated. Optimizing things like a popup showing up with incremental relayout is usually not worth the complexity, which is why `solve_layout_incremental()` doesn't support structural changes at all. The only case where it might be worth it is to optimize dragged elements or layout-based animations, which actually force the layout to run at 60 or 120+ Hz, and the power or heat savings might be meaningful. Even in that case, it's likely that they will be overshadowed by other per-frame costs like rendering.
     /// 
     /// Currently only the size-measuring part of the layout is incremental, while the placement isn't.
+    #[cfg(feature = "incremental")]
     fn solve_layout_incremental(&mut self) -> IncrementalRelayoutOutcome {
         self.solve_incremental(false)
     }
 
     /// Does `solve_layout_incremental`, then a full solve, and returns `IncrementalRelayoutOutcome::CheckedIncrementalRelayoutMismatch` if the result is different.
+    #[cfg(feature = "incremental")]
     fn solve_layout_incremental_checked(&mut self) -> IncrementalRelayoutOutcome {
         self.solve_incremental(true)
     }
 
     /// Records that the params of a node changed for incremental relayouts. Call it after the tree has the new params. A structural change, such as a different size kind, makes the next relayout a full solve.
+    #[cfg(feature = "incremental")]
     fn register_node_change(&mut self, i: Self::NodeId, old: &LayoutParams) {
         self.incr_register_node_change(i, old);
     }
 
     /// Records that the text or other intrinsic content of a node changed for incremental relayouts.
+    #[cfg(feature = "incremental")]
     fn register_content_change(&mut self, i: Self::NodeId) {
         self.incr_register_content_change(i);
     }
@@ -351,4 +361,23 @@ pub(crate) fn reset_arena(max_retained: usize) {
             *arena = bumpalo::Bump::with_capacity(max_retained.saturating_sub(8192));
         }
     });
+}
+
+/// Layout data for the whole tree. Without the `incremental` feature, it's empty.
+#[cfg(not(feature = "incremental"))]
+#[derive(Debug, Clone)]
+pub struct LayoutData<N>(std::marker::PhantomData<N>);
+
+#[cfg(not(feature = "incremental"))]
+impl<N> LayoutData<N> {
+    pub const fn new() -> Self {
+        LayoutData(std::marker::PhantomData)
+    }
+}
+
+#[cfg(not(feature = "incremental"))]
+impl<N> Default for LayoutData<N> {
+    fn default() -> Self {
+        Self::new()
+    }
 }

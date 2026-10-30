@@ -328,7 +328,8 @@ pub(crate) trait Incremental: Solve {
             let k = slot_index(slot.axis, slot.kind);
             let old = self.node_layout_data(slot.node);
             let (old_value, old_grid_lines) = (old.values[k], old.grid_lines);
-            self.finish_slot(slot, q.cursor as u16);
+            // The level of the slot stays the same.
+            self.finish_slot(slot);
             let new = self.node_layout_data(slot.node);
             // The cells of a width grid can change while its size stays the same.
             if new.values[k].to_bits() != old_value.to_bits() || new.grid_lines != old_grid_lines {

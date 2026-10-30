@@ -123,6 +123,7 @@ pub struct NodeLayoutData {
     /// The dependency level of every slot. Mapped by `slot_index()`.
     /// 
     /// The "level" is the longest chain of dependencies of dependencies flowing into a slot. This is used for efficient incremental relayout.
+    #[cfg(feature = "incremental")]
     pub(crate) levels: [u16; N_SLOTS],
     /// How many children aren't free-placement.
     pub(crate) n_placed_children: u32,
@@ -136,6 +137,7 @@ impl NodeLayoutData {
     pub const EMPTY: NodeLayoutData = NodeLayoutData {
         values: EMPTY_VALUES,
         flags: NodeFlags::EMPTY,
+        #[cfg(feature = "incremental")]
         levels: [0; N_SLOTS],
         n_placed_children: 0,
         grid_cell: Xy { x: 0, y: 0 },
@@ -350,17 +352,21 @@ pub(crate) trait Solve: TreeAdapter {
     }
 
     fn measure_sizes(&mut self) {
-        let window_size = self.window_size();
-        let data = self.layout_data();
-        data.last_window_size = window_size;
-        data.has_cycle = false;
-        data.pending_full_solve = None;
+        #[cfg(feature = "incremental")]
+        {
+            let window_size = self.window_size();
+            let data = self.layout_data();
+            data.last_window_size = window_size;
+            data.has_cycle = false;
+            data.pending_full_solve = None;
+        }
         self.prepare(self.root());
         self.solve();
         reset_arena(self.max_retained_scratch_memory());
     }
 
     fn solve(&mut self) {
+        #[cfg(feature = "incremental")]
         let mut n_nodes = 0;
         let mut next = Some(self.root());
         while let Some(node) = next {
@@ -368,39 +374,56 @@ pub(crate) trait Solve: TreeAdapter {
             if self.node_layout_params(node).disabled {
                 continue;
             }
-            n_nodes += 1;
+            #[cfg(feature = "incremental")]
+            {
+                n_nodes += 1;
+            }
             self.solve_slot(node, X, Kind::Final);
             self.solve_slot(node, Y, Kind::Final);
         }
-        self.layout_data().n_nodes = n_nodes;
+        #[cfg(feature = "incremental")]
+        {
+            self.layout_data().n_nodes = n_nodes;
+        }
     }
 
     fn solve_slot(&mut self, node: Self::NodeId, axis: Axis, kind: Kind) {
         let slot = Slot { node, axis, kind };
         match self.node_layout_data(node).flags.check_state(axis, kind) {
             SOLVED => {
-                let level = self.node_layout_data(node).levels[slot_index(axis, kind)];
-                let data = self.layout_data();
-                data.current_level = data.current_level.max(level + 1);
+                #[cfg(feature = "incremental")]
+                {
+                    let level = self.node_layout_data(node).levels[slot_index(axis, kind)];
+                    let data = self.layout_data();
+                    data.current_level = data.current_level.max(level + 1);
+                }
                 return;
             }
             IN_PROGRESS => {
-                self.layout_data().has_cycle = true;
+                #[cfg(feature = "incremental")]
+                {
+                    self.layout_data().has_cycle = true;
+                }
                 self.record_cycle(node, axis);
                 return;
             }
             _ => {}
         }
         self.node_layout_data_mut(node).flags.set_state(axis, kind, IN_PROGRESS);
+        #[cfg(feature = "incremental")]
         let outer = std::mem::replace(&mut self.layout_data().current_level, 0);
         self.solve_all_dependencies(slot);
-        let level = self.layout_data().current_level;
-        self.finish_slot(slot, level);
-        self.layout_data().current_level = outer.max(level + 1);
+        self.finish_slot(slot);
+        #[cfg(feature = "incremental")]
+        {
+            let level = self.layout_data().current_level;
+            self.layout_data().current_level = outer.max(level + 1);
+            self.node_layout_data_mut(node).levels[slot_index(axis, kind)] = level;
+        }
     }
 
     /// Computes the value of a slot whose dependencies are solved, and marks it as solved.
-    fn finish_slot(&mut self, slot: Slot<Self::NodeId>, level: u16) {
+    fn finish_slot(&mut self, slot: Slot<Self::NodeId>) {
         let Slot { node, axis, kind } = slot;
         let size = self.solve_slot_inner(slot);
         if kind == Kind::Final && ! size.is_finite() {
@@ -408,7 +431,6 @@ pub(crate) trait Solve: TreeAdapter {
         }
         let data = self.node_layout_data_mut(node);
         data.values[slot_index(axis, kind)] = size;
-        data.levels[slot_index(axis, kind)] = level;
         data.flags.set_state(axis, kind, SOLVED);
         if kind == Kind::Final && self.width_grid_main_axis(node) == Some(axis) {
             self.assign_width_grid_cells(node);
