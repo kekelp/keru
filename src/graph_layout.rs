@@ -1,4 +1,3 @@
-use keru_layout as gl;
 use keru_layout::TreeAdapter;
 
 use crate::*;
@@ -64,7 +63,7 @@ impl System {
 }
 
 /// The keru tree, as the layout crate sees it.
-impl gl::TreeAdapter for System {
+impl keru_layout::TreeAdapter for System {
     type NodeId = NodeI;
 
     #[inline(always)]
@@ -88,22 +87,22 @@ impl gl::TreeAdapter for System {
     }
 
     #[inline(always)]
-    fn node_layout_params(&self, i: NodeI) -> &gl::LayoutParams {
+    fn node_layout_params(&self, i: NodeI) -> &keru_layout::LayoutParams {
         &self.nodes.layout_params[i]
     }
 
     #[inline(always)]
-    fn node_layout_data(&self, i: NodeI) -> &gl::NodeLayoutData {
+    fn node_layout_data(&self, i: NodeI) -> &keru_layout::NodeLayoutData {
         &self.nodes.layout_data[i]
     }
 
     #[inline(always)]
-    fn node_layout_data_mut(&mut self, i: NodeI) -> &mut gl::NodeLayoutData {
+    fn node_layout_data_mut(&mut self, i: NodeI) -> &mut keru_layout::NodeLayoutData {
         &mut self.nodes.layout_data[i]
     }
 
     #[inline(always)]
-    fn layout_data(&mut self) -> &mut gl::LayoutData<NodeI> {
+    fn layout_data(&mut self) -> &mut keru_layout::LayoutData<NodeI> {
         &mut self.nodes.tree_layout_data
     }
 
@@ -115,12 +114,12 @@ impl gl::TreeAdapter for System {
         measure_text_height(&mut self.renderer.text, self.nodes[i].text_i.as_ref().unwrap(), wrap_width, self.scale_factor)
     }
 
-    fn window_size(&self) -> gl::Xy<f32> {
+    fn window_size(&self) -> keru_layout::Xy<f32> {
         let window = self.logical_size();
-        gl::Xy::new(window.x, window.y)
+        keru_layout::Xy::new(window.x, window.y)
     }
 
-    fn write_output_rect(&mut self, i: NodeI, rect: gl::XyRect, local_rect: gl::XyRect) {
+    fn write_output_rect(&mut self, i: NodeI, rect: keru_layout::XyRect, local_rect: keru_layout::XyRect) {
         // The rest of keru works in fractions of the window size.
         let window = self.logical_size();
         let rect = rect_to_frac(rect, window);
@@ -170,94 +169,94 @@ impl gl::TreeAdapter for System {
     }
 }
 
-pub(crate) const EMPTY_PARAMS: gl::LayoutParams = gl::LayoutParams {
+pub(crate) const EMPTY_PARAMS: keru_layout::LayoutParams = keru_layout::LayoutParams {
     disabled: true,
-    ..gl::LayoutParams::DEFAULT
+    ..keru_layout::LayoutParams::DEFAULT
 };
 
 #[inline(always)]
-fn gl_xy<T, U>(xy: Xy<T>, f: impl Fn(T) -> U) -> gl::Xy<U> {
-    gl::Xy::new(f(xy.x), f(xy.y))
+fn gl_xy<T, U>(xy: Xy<T>, f: impl Fn(T) -> U) -> keru_layout::Xy<U> {
+    keru_layout::Xy::new(f(xy.x), f(xy.y))
 }
 
-fn gl_axis(axis: Axis) -> gl::Axis {
+fn gl_axis(axis: Axis) -> keru_layout::Axis {
     match axis {
-        X => gl::Axis::X,
-        Y => gl::Axis::Y,
+        X => keru_layout::Axis::X,
+        Y => keru_layout::Axis::Y,
     }
 }
 
-fn gl_size(size: Size) -> gl::Size {
+fn gl_size(size: Size) -> keru_layout::Size {
     match size {
-        Size::Pixels(p) => gl::Size::Pixels(p),
-        Size::Frac(f) => gl::Size::Frac(f),
-        Size::Fill => gl::Size::Fill,
-        Size::FitContent => gl::Size::FitContent,
-        Size::AspectRatio(r) => gl::Size::AspectRatio(r),
+        Size::Pixels(p) => keru_layout::Size::Pixels(p),
+        Size::Frac(f) => keru_layout::Size::Frac(f),
+        Size::Fill => keru_layout::Size::Fill,
+        Size::FitContent => keru_layout::Size::FitContent,
+        Size::AspectRatio(r) => keru_layout::Size::AspectRatio(r),
     }
 }
 
-fn gl_pos(pos: Pos) -> gl::Pos {
+fn gl_pos(pos: Pos) -> keru_layout::Pos {
     match pos {
-        Pos::Center => gl::Pos::Center,
-        Pos::Start => gl::Pos::Start,
-        Pos::End => gl::Pos::End,
-        Pos::Pixels(p) => gl::Pos::Pixels(p),
-        Pos::Frac(f) => gl::Pos::Frac(f),
+        Pos::Center => keru_layout::Pos::Center,
+        Pos::Start => keru_layout::Pos::Start,
+        Pos::End => keru_layout::Pos::End,
+        Pos::Pixels(p) => keru_layout::Pos::Pixels(p),
+        Pos::Frac(f) => keru_layout::Pos::Frac(f),
     }
 }
 
-fn gl_anchor(anchor: Anchor) -> gl::Anchor {
+fn gl_anchor(anchor: Anchor) -> keru_layout::Anchor {
     match anchor {
-        Anchor::Start => gl::Anchor::Start,
-        Anchor::Center => gl::Anchor::Center,
-        Anchor::End => gl::Anchor::End,
-        Anchor::Frac(f) => gl::Anchor::Frac(f),
+        Anchor::Start => keru_layout::Anchor::Start,
+        Anchor::Center => keru_layout::Anchor::Center,
+        Anchor::End => keru_layout::Anchor::End,
+        Anchor::Frac(f) => keru_layout::Anchor::Frac(f),
     }
 }
 
-fn gl_window_overflow(window_overflow: WindowOverflow) -> gl::WindowOverflow {
+fn gl_window_overflow(window_overflow: WindowOverflow) -> keru_layout::WindowOverflow {
     match window_overflow {
-        WindowOverflow::Ignore => gl::WindowOverflow::Ignore,
-        WindowOverflow::Clamp => gl::WindowOverflow::Clamp,
-        WindowOverflow::Flip => gl::WindowOverflow::Flip,
+        WindowOverflow::Ignore => keru_layout::WindowOverflow::Ignore,
+        WindowOverflow::Clamp => keru_layout::WindowOverflow::Clamp,
+        WindowOverflow::Flip => keru_layout::WindowOverflow::Flip,
     }
 }
 
-fn gl_arrange(arrange: Arrange) -> gl::Arrange {
+fn gl_arrange(arrange: Arrange) -> keru_layout::Arrange {
     match arrange {
-        Arrange::Start => gl::Arrange::Start,
-        Arrange::End => gl::Arrange::End,
-        Arrange::Center => gl::Arrange::Center,
-        Arrange::SpaceBetween => gl::Arrange::SpaceBetween,
-        Arrange::SpaceAround => gl::Arrange::SpaceAround,
-        Arrange::SpaceEvenly => gl::Arrange::SpaceEvenly,
+        Arrange::Start => keru_layout::Arrange::Start,
+        Arrange::End => keru_layout::Arrange::End,
+        Arrange::Center => keru_layout::Arrange::Center,
+        Arrange::SpaceBetween => keru_layout::Arrange::SpaceBetween,
+        Arrange::SpaceAround => keru_layout::Arrange::SpaceAround,
+        Arrange::SpaceEvenly => keru_layout::Arrange::SpaceEvenly,
     }
 }
 
-fn gl_direction(direction: Direction) -> gl::Direction {
+fn gl_direction(direction: Direction) -> keru_layout::Direction {
     match direction {
-        Direction::LeftToRight => gl::Direction::LeftToRight,
-        Direction::RightToLeft => gl::Direction::RightToLeft,
+        Direction::LeftToRight => keru_layout::Direction::LeftToRight,
+        Direction::RightToLeft => keru_layout::Direction::RightToLeft,
     }
 }
 
-fn gl_children_layout(children_layout: ChildrenLayout) -> gl::ChildrenLayout {
+fn gl_children_layout(children_layout: ChildrenLayout) -> keru_layout::ChildrenLayout {
     match children_layout {
-        ChildrenLayout::Free => gl::ChildrenLayout::Free,
-        ChildrenLayout::Stack { arrange, axis, spacing } => gl::ChildrenLayout::Stack {
+        ChildrenLayout::Free => keru_layout::ChildrenLayout::Free,
+        ChildrenLayout::Stack { arrange, axis, spacing } => keru_layout::ChildrenLayout::Stack {
             arrange: gl_arrange(arrange),
             axis: gl_axis(axis),
             spacing,
         },
-        ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow } => gl::ChildrenLayout::Grid {
+        ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow } => keru_layout::ChildrenLayout::Grid {
             columns: match columns {
-                MainAxisCellSize::Count(n) => gl::MainAxisCellSize::Count(n),
-                MainAxisCellSize::Width(w) => gl::MainAxisCellSize::Width(w),
+                MainAxisCellSize::Count(n) => keru_layout::MainAxisCellSize::Count(n),
+                MainAxisCellSize::Width(w) => keru_layout::MainAxisCellSize::Width(w),
             },
             spacing_x,
             spacing_y,
-            flow: gl::GridFlow {
+            flow: keru_layout::GridFlow {
                 main_axis: gl_axis(flow.main_axis),
                 x_fill_direction: gl_direction(flow.x_fill_direction),
                 y_fill_direction: gl_direction(flow.y_fill_direction),
@@ -267,15 +266,15 @@ fn gl_children_layout(children_layout: ChildrenLayout) -> gl::ChildrenLayout {
     }
 }
 
-pub(crate) fn layout_params(node: &InnerNode) -> gl::LayoutParams {
+pub(crate) fn layout_params(node: &InnerNode) -> keru_layout::LayoutParams {
     let params = &node.params;
     let layout = &params.layout;
     let text = match node.text_i {
-        Some(TextI::TextBox(_)) => gl::TextContent::Box,
-        Some(TextI::TextEdit(_)) => gl::TextContent::Edit,
-        None => gl::TextContent::None,
+        Some(TextI::TextBox(_)) => keru_layout::TextContent::Box,
+        Some(TextI::TextEdit(_)) => keru_layout::TextContent::Edit,
+        None => keru_layout::TextContent::None,
     };
-    gl::LayoutParams {
+    keru_layout::LayoutParams {
         size: gl_xy(layout.size, gl_size),
         min_size: gl_xy(layout.min_size, |s| s.map(gl_size)),
         max_size: gl_xy(layout.max_size, |s| s.map(gl_size)),
@@ -283,13 +282,13 @@ pub(crate) fn layout_params(node: &InnerNode) -> gl::LayoutParams {
         padding: gl_xy(layout.padding, |p| p),
         children_layout: gl_children_layout(params.children_layout),
         free_placement: params.free_placement,
-        grid_span: gl::Xy::new(params.grid_element.column_span, params.grid_element.row_span),
+        grid_span: keru_layout::Xy::new(params.grid_element.column_span, params.grid_element.row_span),
         text,
         image: image_size(node),
         disabled: node.exiting,
         position: gl_xy(layout.position, gl_pos),
         anchor: gl_xy(layout.anchor, gl_anchor),
-        children_origin_flipped: gl::Xy::new(
+        children_origin_flipped: keru_layout::Xy::new(
             layout.children_origin_x == HorizontalOrigin::Right,
             layout.children_origin_y == VerticalOrigin::Bottom,
         ),
@@ -297,9 +296,9 @@ pub(crate) fn layout_params(node: &InnerNode) -> gl::LayoutParams {
     }
 }
 
-pub(crate) fn image_size(node: &InnerNode) -> Option<gl::Xy<f32>> {
+pub(crate) fn image_size(node: &InnerNode) -> Option<keru_layout::Xy<f32>> {
     match &node.imageref {
-        Some(ImageRef::Raster(loaded)) => Some(gl::Xy::new(loaded.width as f32, loaded.height as f32)),
+        Some(ImageRef::Raster(loaded)) => Some(keru_layout::Xy::new(loaded.width as f32, loaded.height as f32)),
         _ => None,
     }
 }
@@ -307,12 +306,12 @@ pub(crate) fn image_size(node: &InnerNode) -> Option<gl::Xy<f32>> {
 impl Ui {
     pub(crate) fn compute_layout(&mut self) {
         if self.sys.changes.full_relayout {
-            log::info!("Full relayout");
+            log::debug!("Full relayout");
             self.sys.solve_layout();
         } else {
             match self.sys.solve_layout_incremental() {
-                gl::IncrementalRelayoutOutcome::Success { computed } => log::info!("Incremental relayout: {computed} slots computed"),
-                fallback => log::info!("Full relayout: {fallback:?}"),
+                keru_layout::IncrementalRelayoutOutcome::Success { computed } => log::debug!("Incremental relayout: {computed} slots computed"),
+                fallback => log::debug!("Full relayout: {fallback:?}"),
             }
         }
     }
@@ -321,13 +320,13 @@ impl Ui {
 const TEXT_WIDTH_TOLERANCE: f32 = 0.05;
 
 /// Converts a rect from logical pixels to fractions of the window size.
-fn rect_to_frac(rect: gl::XyRect, window: Xy<f32>) -> gl::XyRect {
-    gl::Xy::new([rect.x[0] / window.x, rect.x[1] / window.x], [rect.y[0] / window.y, rect.y[1] / window.y])
+fn rect_to_frac(rect: keru_layout::XyRect, window: Xy<f32>) -> keru_layout::XyRect {
+    keru_layout::Xy::new([rect.x[0] / window.x, rect.x[1] / window.x], [rect.y[0] / window.y, rect.y[1] / window.y])
 }
 
 /// Converts a rect from fractions of the window size to logical pixels.
-pub(crate) fn rect_to_pixels(rect: gl::XyRect, window: Xy<f32>) -> gl::XyRect {
-    gl::Xy::new([rect.x[0] * window.x, rect.x[1] * window.x], [rect.y[0] * window.y, rect.y[1] * window.y])
+pub(crate) fn rect_to_pixels(rect: keru_layout::XyRect, window: Xy<f32>) -> keru_layout::XyRect {
+    keru_layout::Xy::new([rect.x[0] * window.x, rect.x[1] * window.x], [rect.y[0] * window.y, rect.y[1] * window.y])
 }
 
 // The text system measures in physical pixels, and the layout wants logical pixels.
