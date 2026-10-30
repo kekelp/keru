@@ -10,7 +10,7 @@ Most layout algorithms will do one or more traversals of the tree of UI elements
 
 However, the kind of dependencies that layout libraries usually expose can go along the direction of the tree (`Frac`, `Fill`), but also in the opposite direction (`FitContent`), or "laterally" (`AspectRatio`, wrapping text).
 
-In short, the idea of this library is to consider the resulting graph of dependencies and to solve it directly, walking through of this abstract dependency graph rather than the real UI tree.
+In short, the idea of this library is to consider the resulting graph of dependencies and to solve it directly. The algorithm traverses the abstract dependency graph rather than the real UI tree.
 
 # Advantages
 
@@ -28,14 +28,15 @@ In short, the idea of this library is to consider the resulting graph of depende
 
 - Developer Experience: while it's usually not a problem to work around the correctness issues of traditional layout algorithms, it can still be confusing to run into them during development. Using a more consistent algorithm with less edge cases and surprises helps.
 
-- Debuggability: almost all layout systems can express cyclic dependencies between elements. In a traditional tree-based algorithm, this will result in a silently "broken" layout, but with a graph algorithm we can give the user a clear warning and an accurate list of the nodes that were stuck in cycles.
+- Debuggability: almost all layout systems can express cyclic dependencies between elements, but in a traditional tree-based algorithm, this will result in a silently "broken" or inconsistent layout. With a graph algorithm we can give the user a clear warning and an accurate list of the nodes that were stuck in cycles.
 
 
 # Usage
 
-`keru_layout` uses a trait-based API similar to Taffy's "low-level" API. A higher level API might be added in the future.
+`keru_layout` has a trait-based API similar to Taffy's low-level API.
+There's also an alternative API similar to Taffy's high-level API where the library provides a ready-to-use `LayoutTree`, but it's only meant for quick experiments, examples and testing.
 
-In the trait-based API, `keru_layout` assumes that you already have a tree of UI elements, and that every UI element roughly corresponds to one layout element. Then, using the library looks like this:
+The trait-based API assumes that you already have a tree of UI elements, and that every UI element roughly corresponds to one layout element. Then, using the library looks like this:
 
 1) Add a `LayoutParams` to each UI node. This is the struct that defines the node's layout role (size, position, stack, grid, etc).
 2) Add a `NodeLayoutData` to each UI node. This is a small opaque struct that the solver uses to store per-node intermediate results and flags.
@@ -64,9 +65,27 @@ In the trait-based API, `keru_layout` assumes that you already have a tree of UI
 
 Then, you can call the trait's `solve_layout()` method to calculate the layout and write all the output sizes.
 
+## `LayoutTree` API
+
+Create a `LayoutTree`, then insert nodes into the layout tree to match the structure of your UI tree, run `tree.compute_layout()`, then use `tree.layout()` on each node to extract the results and use them to update the corresponding UI node.
+
+There's also a function that draws a SVG image to show the resulting layout.
+
+```rust
+use keru_layout::*;
+
+let mut tree: LayoutTree = LayoutTree::new();
+let row = tree.add_node(tree.root(), LayoutParams { size: Xy::new(Size::FitContent, Size::FitContent), ..LayoutParams::DEFAULT });
+let item = tree.add_node(row, LayoutParams { size: Xy::new(Size::Pixels(100.0), Size::Pixels(20.0)), ..LayoutParams::DEFAULT });
+tree.set_window_size(Xy::new(800.0, 600.0));
+tree.compute_layout();
+let rect = tree.layout(item);
+// Draw the layout rectangles as SVG to inspect the layout
+std::fs::write("example.svg", tree.to_svg()).unwrap();
+```
 
 # FAQ
 
-- **Is this the same as the Cassowary constraint algorithm?**
+- **Is this the same as the Cassowary constraint solving algorithm?**
 
-    No, it's a different algorithm.
+    No, it's different. This algorithm doesn't model all dependencies as constraints, doesn't use the simplex method, or anything like that.

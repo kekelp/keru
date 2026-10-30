@@ -20,6 +20,8 @@ pub enum IncrementalRelayoutOutcome {
     FallbackCycle,
     /// The incremental relayout fell back to a full relayout because the changes affected a large part of the tree, and the solver estimated it would be faster to fall back to a full relayout.
     FallbackTooMuchWork,
+    /// The incremental relayout fell back to a full relayout because `LayoutTree::invalidate()` was called explicitly.
+    FallbackInvalidated,
 }
 
 /// The queued slots of an incremental relayout, in one bucket per level.
@@ -61,6 +63,20 @@ impl<N> LayoutData<N> {
     /// Returns the `Fallback` outcome if the next relayout has to be a full solve.
     pub(crate) fn fallback(&self) -> Option<IncrementalRelayoutOutcome> {
         self.pending_full_solve.or(self.has_cycle.then_some(IncrementalRelayoutOutcome::FallbackCycle))
+    }
+
+    /// Records a change in the params of a node. A structural change makes the next relayout a full solve.
+    pub(crate) fn record_node_change(&mut self, i: N, old: &LayoutParams, new: &LayoutParams) {
+        if is_structural(old, new) {
+            self.request_full_solve(IncrementalRelayoutOutcome::FallbackStructuralChange);
+        } else {
+            self.changes.push((i, *old));
+        }
+    }
+
+    /// Makes the next relayout a full solve. An earlier reason stays.
+    pub(crate) fn request_full_solve(&mut self, reason: IncrementalRelayoutOutcome) {
+        self.pending_full_solve.get_or_insert(reason);
     }
 
     pub(crate) fn clear(&mut self) {
@@ -143,11 +159,8 @@ pub(crate) trait Incremental: Solve {
 
     /// Records a change in the params of a node.
     fn incr_register_node_change(&mut self, i: Self::NodeId, old: &LayoutParams) {
-        if is_structural(old, self.node_layout_params(i)) {
-            self.layout_data().pending_full_solve.get_or_insert(IncrementalRelayoutOutcome::FallbackStructuralChange);
-        } else {
-            self.layout_data().changes.push((i, *old));
-        }
+        let new = *self.node_layout_params(i);
+        self.layout_data().record_node_change(i, old, &new);
     }
 
     /// Records that the text or the image of a node changed.
@@ -394,7 +407,3 @@ pub(crate) trait Incremental: Solve {
 }
 
 impl<T: TreeAdapter + ?Sized> Incremental for T {}
-
-#[cfg(test)]
-#[path = "incremental_fuzz_tests.rs"]
-mod incremental_fuzz_tests;

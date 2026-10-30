@@ -2,7 +2,8 @@
 mod solve;
 mod place;
 mod incremental;
-pub mod example_tree;
+mod layout_tree;
+
 
 use std::cell::RefCell;
 use std::fmt::Debug;
@@ -13,6 +14,7 @@ pub(crate) use solve::*;
 pub(crate) use incremental::*;
 pub(crate) use place::Place;
 pub use incremental::{IncrementalRelayoutOutcome, LayoutData};
+pub use layout_tree::{LayoutTree, NodeId};
 
 pub trait TreeAdapter {
     type NodeId: Copy + Eq + Debug;

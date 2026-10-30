@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" font-family="monospace" font-size="5">
+<rect width="100%" height="100%" fill="#faf8f5"/>
+<rect x="0" y="0" width="400" height="300" fill="hsl(97, 62%, 34%)" fill-opacity="0.06" stroke="hsl(97, 62%, 34%)" stroke-width="1"/>
+<text x="1.5" y="6" fill="hsl(97, 62%, 34%)">[NodeId(1v1)] fit × fit</text>
+<rect x="73" y="76" width="254" height="148" fill="hsl(144, 48%, 36%)" fill-opacity="0.06" stroke="hsl(144, 48%, 36%)" stroke-width="1"/>
+<text x="74.5" y="82" fill="hsl(144, 48%, 36%)">[NodeId(2v1)] fit × fit</text>
+<rect x="189" y="86" width="128" height="128" fill="hsl(199, 54%, 37%)" fill-opacity="0.06" stroke="hsl(199, 54%, 37%)" stroke-width="1"/>
+<text x="190.5" y="92" fill="hsl(199, 54%, 37%)">[NodeId(4v1)] fit × fit</text>
+<rect x="197" y="108" width="112" height="98" fill="hsl(141, 64%, 43%)" fill-opacity="0.06" stroke="hsl(141, 64%, 43%)" stroke-width="1"/>
+<text x="198.5" y="114" fill="hsl(141, 64%, 43%)">[NodeId(6v1)] fill × fit</text>
+<rect x="197" y="94" width="112" height="14" fill="hsl(188, 58%, 32%)" fill-opacity="0.06" stroke="hsl(188, 58%, 32%)" stroke-width="1"/>
+<text x="198.5" y="100" fill="hsl(188, 58%, 32%)">[NodeId(5v1)] fit × fit</text>
+<rect x="83" y="86" width="96" height="128" fill="hsl(213, 68%, 36%)" fill-opacity="0.06" stroke="hsl(213, 68%, 36%)" stroke-width="1"/>
+<text x="84.5" y="92" fill="hsl(213, 68%, 36%)">[NodeId(3v1)] ratio 0.75 × fill</text>
+</svg>

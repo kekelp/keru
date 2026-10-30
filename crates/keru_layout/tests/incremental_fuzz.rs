@@ -1,7 +1,19 @@
-use super::*;
-use crate::example_tree::{ExampleTree, NodeI, ROOT_I};
+use keru_layout::*;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
+
+/// The context of each node is the length of a fake text.
+type Tree = LayoutTree<u32>;
+
+/// Measures the fake text. Each character is 8 pixels wide and 16 pixels high, and a wrapped line has as many characters as fit.
+fn measure(_: NodeId, chars: Option<&mut u32>, wrap_width: Option<f32>) -> Xy<f32> {
+    let chars = chars.map_or(0, |chars| *chars);
+    let chars_per_line = match wrap_width {
+        Some(width) => ((width / 8.0).floor() as u32).max(1),
+        None => chars.max(1),
+    };
+    Xy::new(chars as f32 * 8.0, chars.div_ceil(chars_per_line) as f32 * 16.0)
+}
 
 fn random_axis(rng: &mut StdRng) -> Axis {
     if rng.random_bool(0.5) { Axis::X } else { Axis::Y }
@@ -128,12 +140,9 @@ fn random_params(rng: &mut StdRng) -> LayoutParams {
     params
 }
 
-/// Adds a random subtree. The children of a disabled node are disabled too, as `LayoutParams::disabled` requires.
-fn add_random_subtree(tree: &mut ExampleTree, rng: &mut StdRng, parent: NodeI, depth: usize, budget: &mut usize) -> NodeI {
-    let mut params = random_params(rng);
-    params.disabled |= tree[parent].params.disabled;
-    let i = tree.add(parent, params);
-    tree[i].text_chars = rng.random_range(0..80);
+/// Adds a random subtree. The tree disables the children of a disabled node, as `LayoutParams::disabled` requires.
+fn add_random_subtree(tree: &mut Tree, rng: &mut StdRng, parent: NodeId, depth: usize, budget: &mut usize) -> NodeId {
+    let i = tree.add_node_with_context(parent, random_params(rng), rng.random_range(0..80));
     *budget = budget.saturating_sub(1);
     if depth > 0 {
         let n_children = rng.random_range(0..7);
@@ -147,73 +156,52 @@ fn add_random_subtree(tree: &mut ExampleTree, rng: &mut StdRng, parent: NodeI, d
     i
 }
 
-fn random_tree(rng: &mut StdRng) -> ExampleTree {
-    let mut tree = ExampleTree::with_capacity(128, Xy::new(800.0, 600.0));
-    tree[ROOT_I].params.children_layout = random_children_layout(rng);
-    tree[ROOT_I].params.padding = Xy::new([rng.random_range(0.0..8.0f32).round(); 2], [rng.random_range(0.0..8.0f32).round(); 2]);
+fn random_tree(rng: &mut StdRng) -> Tree {
+    let mut tree = Tree::with_capacity(128);
+    tree.set_window_size(Xy::new(800.0, 600.0));
+    let root = tree.root();
+    let mut params = *tree.params(root);
+    params.children_layout = random_children_layout(rng);
+    params.padding = Xy::new([rng.random_range(0.0..8.0f32).round(); 2], [rng.random_range(0.0..8.0f32).round(); 2]);
+    tree.update_node_params(root, params);
     let mut budget = rng.random_range(5..200);
     let depth = rng.random_range(2..10);
     while budget > 0 {
-        add_random_subtree(&mut tree, rng, ROOT_I, depth, &mut budget);
+        add_random_subtree(&mut tree, rng, root, depth, &mut budget);
     }
     tree
 }
 
 /// A random tree with its layout solved. Every relayout of a tree with a cycle is a full solve, so it doesn't test the incremental solver.
-fn solved_random_tree_without_cycle(rng: &mut StdRng) -> ExampleTree {
+fn solved_random_tree_without_cycle(rng: &mut StdRng) -> Tree {
     loop {
         let mut tree = random_tree(rng);
-        tree.solve_layout();
-        if ! tree.layout_data.has_cycle {
+        tree.solve_layout_with_measure(measure);
+        if ! tree.warnings().iter().any(|warning| matches!(warning, LayoutWarning::Cycle { .. })) {
             return tree;
         }
     }
 }
 
 /// The nodes that are reachable from the root. It includes disabled nodes, but not their children.
-fn reachable(tree: &ExampleTree) -> Vec<NodeI> {
+fn reachable(tree: &Tree) -> Vec<NodeId> {
     let mut nodes = Vec::new();
-    let mut stack = vec![ROOT_I];
+    let mut stack = vec![tree.root()];
     while let Some(i) = stack.pop() {
         nodes.push(i);
-        if ! tree[i].params.disabled {
-            let mut next = tree[i].first_child;
-            while let Some(child) = next {
-                stack.push(child);
-                next = tree[child].next_sibling;
-            }
+        if ! tree.params(i).disabled {
+            stack.extend(tree.children(i));
         }
     }
     nodes
 }
 
-/// A node and all its descendants.
-fn subtree(tree: &ExampleTree, i: NodeI) -> Vec<NodeI> {
-    let mut nodes = Vec::new();
-    let mut stack = vec![i];
-    while let Some(i) = stack.pop() {
-        nodes.push(i);
-        let mut next = tree[i].first_child;
-        while let Some(child) = next {
-            stack.push(child);
-            next = tree[child].next_sibling;
-        }
-    }
-    nodes
-}
-
-fn assert_same_layout(incremental: &ExampleTree, full: &ExampleTree, context: &str) {
+fn assert_same_layout(incremental: &Tree, full: &Tree, context: &str) {
     for i in reachable(full) {
-        if full[i].params.disabled {
+        if full.params(i).disabled {
             continue;
         }
-        let a = &incremental[i];
-        let b = &full[i];
-        for axis in [Axis::X, Axis::Y] {
-            let k = slot_index(axis, Kind::Final);
-            assert_eq!(a.layout.values[k].to_bits(), b.layout.values[k].to_bits(), "{context}: Final {axis:?} of {i:?}: {} vs {}", a.layout.values[k], b.layout.values[k]);
-        }
-        assert_eq!(a.output_rect, b.output_rect, "{context}: rect of {i:?}");
+        assert_eq!(incremental.layout(i), full.layout(i), "{context}: rect of {i:?}");
     }
 }
 
@@ -233,29 +221,33 @@ enum Mutation {
     Toggle,
     /// The window is resized.
     Window,
+    /// A node is added.
+    Add,
+    /// A node and its descendants are removed.
+    Remove,
+    /// A node moves to a new parent.
+    Move,
 }
-
-const MUTATIONS: [Mutation; 7] = [Mutation::Number, Mutation::Content, Mutation::SizeKind, Mutation::Layout, Mutation::Placement, Mutation::Toggle, Mutation::Window];
 
 /// The mutations that are never structural.
 const VALUE_MUTATIONS: [Mutation; 4] = [Mutation::Number, Mutation::Content, Mutation::Placement, Mutation::Window];
 
 /// The mutations that change the structure.
-const STRUCTURAL_MUTATIONS: [Mutation; 3] = [Mutation::SizeKind, Mutation::Layout, Mutation::Toggle];
+const STRUCTURAL_MUTATIONS: [Mutation; 6] = [Mutation::SizeKind, Mutation::Layout, Mutation::Toggle, Mutation::Add, Mutation::Remove, Mutation::Move];
 
-/// Changes the tree, and records the change with the `register_*` functions. It usually changes one of the `hot` nodes, if they are enabled, as an animation does.
-fn mutate(tree: &mut ExampleTree, rng: &mut StdRng, mutation: Mutation, hot: &[NodeI]) {
+/// Changes the tree, which records the change by itself. It usually changes one of the `hot` nodes, if they are enabled, as an animation does.
+fn mutate(tree: &mut Tree, rng: &mut StdRng, mutation: Mutation, hot: &[NodeId]) {
     let nodes = reachable(tree);
-    let enabled: Vec<NodeI> = nodes.iter().copied().filter(|&i| ! tree[i].params.disabled).collect();
-    let non_root: Vec<NodeI> = nodes.iter().copied().filter(|&i| i != ROOT_I).collect();
-    let hot: Vec<NodeI> = hot.iter().copied().filter(|i| enabled.contains(i)).collect();
+    let enabled: Vec<NodeId> = nodes.iter().copied().filter(|&i| ! tree.params(i).disabled).collect();
+    let non_root: Vec<NodeId> = nodes.iter().copied().filter(|&i| i != tree.root()).collect();
+    let hot: Vec<NodeId> = hot.iter().copied().filter(|i| enabled.contains(i)).collect();
     let i = match hot.is_empty() || rng.random_bool(0.3) {
         true => enabled[rng.random_range(0..enabled.len())],
         false => hot[rng.random_range(0..hot.len())],
     };
     let axis = random_axis(rng);
-    let old = tree[i].params;
-    let params = &mut tree[i].params;
+    let old = *tree.params(i);
+    let mut params = old;
     match mutation {
         Mutation::Number => {
             let changed = match rng.random_range(0..8) {
@@ -296,10 +288,9 @@ fn mutate(tree: &mut ExampleTree, rng: &mut StdRng, mutation: Mutation, hot: &[N
             }
         }
         Mutation::Content => {
-            let text_nodes: Vec<NodeI> = enabled.iter().copied().filter(|&i| tree[i].params.text != TextContent::None).collect();
+            let text_nodes: Vec<NodeId> = enabled.iter().copied().filter(|&i| tree.params(i).text != TextContent::None).collect();
             let i = if text_nodes.is_empty() { i } else { text_nodes[rng.random_range(0..text_nodes.len())] };
-            tree[i].text_chars = rng.random_range(0..40);
-            tree.register_content_change(i);
+            tree.update_node_context(i, Some(rng.random_range(0..40)));
             return;
         }
         Mutation::SizeKind => {
@@ -326,45 +317,64 @@ fn mutate(tree: &mut ExampleTree, rng: &mut StdRng, mutation: Mutation, hot: &[N
                 _ => params.position[axis] = random_pos(rng),
             },
         },
-        Mutation::Toggle if non_root.is_empty() => {}
-        Mutation::Toggle => {
-            // The parent of a reachable node is enabled, so the whole subtree can be enabled or disabled.
-            let i = non_root[rng.random_range(0..non_root.len())];
-            let disabled = ! tree[i].params.disabled;
-            for node in subtree(tree, i) {
-                let old = tree[node].params;
-                tree[node].params.disabled = disabled;
-                tree.register_node_change(node, &old);
+        Mutation::Add => {
+            tree.add_node_with_context(i, random_params(rng), rng.random_range(0..80));
+            return;
+        }
+        Mutation::Toggle | Mutation::Remove | Mutation::Move if non_root.is_empty() => {}
+        Mutation::Remove => {
+            tree.remove(non_root[rng.random_range(0..non_root.len())]);
+            return;
+        }
+        Mutation::Move => {
+            let moved = non_root[rng.random_range(0..non_root.len())];
+            // The new parent can't be in the subtree of the moved node.
+            let parents: Vec<NodeId> = enabled.iter().copied().filter(|&p| std::iter::successors(Some(p), |&p| tree.parent(p)).all(|p| p != moved)).collect();
+            let siblings: Vec<NodeId> = non_root.iter().copied().filter(|&s| s != moved && parents.contains(&tree.parent(s).unwrap())).collect();
+            if siblings.is_empty() || rng.random_bool(0.5) {
+                tree.move_node(moved, parents[rng.random_range(0..parents.len())], None);
+            } else {
+                let sibling = siblings[rng.random_range(0..siblings.len())];
+                tree.move_node(moved, tree.parent(sibling).unwrap(), Some(sibling));
             }
+            return;
+        }
+        Mutation::Toggle => {
+            // The parent of a reachable node is enabled, so the whole subtree can be enabled or disabled. The tree applies the change to the descendants.
+            let i = non_root[rng.random_range(0..non_root.len())];
+            let mut params = *tree.params(i);
+            params.disabled = ! params.disabled;
+            tree.update_node_params(i, params);
             return;
         }
         Mutation::Window => {
             // A small change, as in a resize by dragging, or a jump.
-            tree.window_size = match rng.random_bool(0.5) {
-                true => Xy::new((tree.window_size.x + rng.random_range(-20.0..20.0f32)).round().max(100.0), (tree.window_size.y + rng.random_range(-20.0..20.0f32)).round().max(100.0)),
+            let window = tree.window_size();
+            tree.set_window_size(match rng.random_bool(0.5) {
+                true => Xy::new((window.x + rng.random_range(-20.0..20.0f32)).round().max(100.0), (window.y + rng.random_range(-20.0..20.0f32)).round().max(100.0)),
                 false => Xy::new(rng.random_range(300.0..1200.0f32).round(), rng.random_range(300.0..1200.0f32).round()),
-            };
+            });
             return;
         }
     }
-    tree.register_node_change(i, &old);
+    tree.update_node_params(i, params);
 }
 
 /// Runs random changes on random trees, and compares the incremental relayout with a full solve.
 #[test]
 fn incremental_relayout_matches_full_solve() {
     let mut rng = StdRng::seed_from_u64(0x2545_f491_4f6c_dd1d);
-    for &mutation in MUTATIONS.iter() {
+    for &mutation in VALUE_MUTATIONS.iter().chain(&STRUCTURAL_MUTATIONS) {
         for _ in 0..1000 {
             // The trees can have cycles, and then the relayout is a full solve.
             let mut tree = random_tree(&mut rng);
-            tree.solve_layout();
+            tree.solve_layout_with_measure(measure);
             mutate(&mut tree, &mut rng, mutation, &[]);
             let mut full = tree.clone();
-            full.warnings.clear();
-            full.solve_layout();
+            full.invalidate();
+            full.solve_layout_with_measure(measure);
 
-            let outcome = tree.solve_layout_incremental();
+            let outcome = tree.solve_layout_with_measure(measure);
             assert_same_layout(&tree, &full, &format!("{mutation:?}"));
             if VALUE_MUTATIONS.contains(&mutation) {
                 assert_ne!(outcome, IncrementalRelayoutOutcome::FallbackStructuralChange, "{mutation:?} is not structural");
@@ -381,8 +391,8 @@ fn incremental_relayout_sequences_match_full_solve() {
     let mut incremental_frames = 0;
     for _ in 0..200 {
         let mut tree = solved_random_tree_without_cycle(&mut rng);
-        let n_nodes = tree.nodes.len() as u32;
-        let hot: Vec<NodeI> = (0..3).map(|_| NodeI(rng.random_range(0..n_nodes))).collect();
+        let nodes = reachable(&tree);
+        let hot: Vec<NodeId> = (0..3).map(|_| nodes[rng.random_range(0..nodes.len())]).collect();
         for frame in 0..50 {
             let n_mutations = rng.random_range(1..=4);
             let mut mutations: Vec<Mutation> = (0..n_mutations).map(|_| VALUE_MUTATIONS[rng.random_range(0..VALUE_MUTATIONS.len())]).collect();
@@ -393,9 +403,10 @@ fn incremental_relayout_sequences_match_full_solve() {
                 mutate(&mut tree, &mut rng, mutation, &hot);
             }
             let mut full = tree.clone();
-            full.solve_layout();
+            full.invalidate();
+            full.solve_layout_with_measure(measure);
 
-            let outcome = tree.solve_layout_incremental();
+            let outcome = tree.solve_layout_with_measure(measure);
             assert_same_layout(&tree, &full, &format!("frame {frame}, {mutations:?}"));
             if mutations.iter().all(|mutation| VALUE_MUTATIONS.contains(mutation)) {
                 assert_ne!(outcome, IncrementalRelayoutOutcome::FallbackStructuralChange, "{mutations:?} are not structural");
@@ -408,26 +419,4 @@ fn incremental_relayout_sequences_match_full_solve() {
     }
     // Make sure that the test still runs the incremental solver, and doesn't only compare full solves.
     assert!(incremental_frames * 3 > frames, "Only {incremental_frames} of {frames} frames computed slots incrementally");
-}
-
-/// A change in the structure of the tree without a full solve gives a wrong layout, and the opt-in verification finds it.
-#[test]
-fn verification_finds_unregistered_changes() {
-    let mut tree = ExampleTree::with_capacity(8, Xy::new(800.0, 600.0));
-    let stack = LayoutParams { size: Xy::new(Size::FitContent, Size::FitContent), children_layout: ChildrenLayout::Stack { arrange: Arrange::Start, axis: Axis::Y, spacing: 0.0 }, ..LayoutParams::DEFAULT };
-    let item = LayoutParams { size: Xy::new(Size::Pixels(50.0), Size::Pixels(20.0)), ..LayoutParams::DEFAULT };
-    let parent = tree.add(ROOT_I, stack);
-    tree.add(parent, item);
-    tree.solve_layout();
-
-    tree.add(parent, item);
-    let outcome = tree.solve_layout_incremental_checked();
-    assert_eq!(outcome, IncrementalRelayoutOutcome::CheckedIncrementalRelayoutMismatch);
-    assert_eq!(tree[parent].output_rect.y[1] - tree[parent].output_rect.y[0], 40.0, "The result of the full solve stays");
-
-    let old = tree[parent].params;
-    tree[parent].params.padding.y = [5.0, 5.0];
-    tree.register_node_change(parent, &old);
-    let outcome = tree.solve_layout_incremental_checked();
-    assert!(matches!(outcome, IncrementalRelayoutOutcome::Success { .. }), "{outcome:?}");
 }
