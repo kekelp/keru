@@ -2051,9 +2051,9 @@ dependencies = [
 [[package]]
 name = "keru_layout"
 version = "0.1.0"
+source = "git+https://github.com/kekelp/keru_layout#8615ec225258cf75c42f6356fdda2460cabf0dc8"
 dependencies = [
  "bumpalo",
- "rand",
  "slotmap",
 ]
 
