@@ -132,11 +132,11 @@ impl Ui {
     }
 
     /// How many cells fit along the main axis.
-    pub(crate) fn grid_n_main(&self, columns: MainAxisCellSize, flow: GridFlow, inner_main: f32, spacing_main: f32) -> usize {
+    pub(crate) fn grid_n_main(&self, columns: MainAxisCellSize, main_axis: Axis, inner_main: f32, spacing_main: f32) -> usize {
         match columns {
             MainAxisCellSize::Count(n) => (n as usize).max(1),
             MainAxisCellSize::Width(w) => {
-                let w = self.pixels_to_frac(w, flow.main_axis);
+                let w = self.pixels_to_frac(w, main_axis);
                 ((inner_main + spacing_main) / (w + spacing_main)).floor().max(1.0) as usize
             }
         }
@@ -146,43 +146,26 @@ impl Ui {
         (self.grid_span(child, X), self.grid_span(child, Y))
     }
 
-    pub(crate) fn grid_assign_cells(&mut self, i: NodeI, n_main: usize, flow: GridFlow) {
+    pub(crate) fn grid_assign_cells(&mut self, i: NodeI, n_main: usize, main_axis: Axis, backfill: bool) {
         with_arena(|arena| {
             let mut occ = GridOccupancy::new(n_main, arena);
             for_each_child!(self, i, child, {
                 if ! self.sys.nodes[child].params.free_placement {
                     let (col_span, row_span) = self.grid_spans(child);
-                    let (span_line, span_pos) = to_occ_spans(col_span, row_span, flow);
-                    let (occ_line, occ_pos) = occ.place_next(span_line, span_pos, flow.backfill);
-                    let (col, row) = from_occ(occ_line, occ_pos, flow);
+                    let (span_line, span_pos) = to_occ_spans(col_span, row_span, main_axis);
+                    let (occ_line, occ_pos) = occ.place_next(span_line, span_pos, backfill);
+                    let (col, row) = from_occ(occ_line, occ_pos, main_axis);
                     self.sys.nodes[child].grid_element_column_i = col as u16;
                     self.sys.nodes[child].grid_element_row_i = row as u16;
                 }
             });
 
-            let (n_cols, n_rows) = match flow.main_axis {
+            let (n_cols, n_rows) = match main_axis {
                 Axis::X => (n_main, occ.n_lines),
                 Axis::Y => (occ.n_lines, n_main),
             };
             self.sys.nodes[i].grid_n_columns = n_cols as u16;
             self.sys.nodes[i].grid_n_rows = n_rows as u16;
-        });
-
-        let reversed = flow.x_fill_direction == Direction::RightToLeft
-            || flow.y_fill_direction == Direction::RightToLeft;
-        if ! reversed { return; }
-
-        let n_cols = self.sys.nodes[i].grid_n_columns as usize;
-        let n_rows = self.sys.nodes[i].grid_n_rows as usize;
-        for_each_child!(self, i, child, {
-            if ! self.sys.nodes[child].params.free_placement {
-                let (col_span, row_span) = self.grid_spans(child);
-                let logical_col = self.sys.nodes[child].grid_element_column_i as usize;
-                let logical_row = self.sys.nodes[child].grid_element_row_i as usize;
-                let (col, row) = apply_reversal(logical_col, logical_row, col_span, row_span, n_cols, n_rows, flow);
-                self.sys.nodes[child].grid_element_column_i = col as u16;
-                self.sys.nodes[child].grid_element_row_i = row as u16;
-            }
         });
     }
 
@@ -1003,24 +986,17 @@ impl<'a> GridOccupancy<'a> {
 
 /// Convert (col_span, row_span) to occupancy (span_line, span_pos) based on main_axis.
 /// X-major: line=row, pos=col.  Y-major: line=col, pos=row.
-fn to_occ_spans(col_span: usize, row_span: usize, flow: GridFlow) -> (usize, usize) {
-    match flow.main_axis {
+fn to_occ_spans(col_span: usize, row_span: usize, main_axis: Axis) -> (usize, usize) {
+    match main_axis {
         Axis::X => (row_span, col_span),
         Axis::Y => (col_span, row_span),
     }
 }
 
 /// Convert occupancy (line, pos) to (logical_col, logical_row).
-fn from_occ(line: usize, pos: usize, flow: GridFlow) -> (usize, usize) {
-    match flow.main_axis {
+fn from_occ(line: usize, pos: usize, main_axis: Axis) -> (usize, usize) {
+    match main_axis {
         Axis::X => (pos, line),
         Axis::Y => (line, pos),
     }
-}
-
-/// Apply flow reversal: convert logical (col, row) to actual (col, row) for placement.
-fn apply_reversal(logical_col: usize, logical_row: usize, col_span: usize, row_span: usize, n_cols: usize, n_rows: usize, flow: GridFlow) -> (usize, usize) {
-    let col = if flow.x_fill_direction == Direction::RightToLeft { n_cols - col_span - logical_col } else { logical_col };
-    let row = if flow.y_fill_direction == Direction::RightToLeft { n_rows - row_span - logical_row } else { logical_row };
-    (col, row)
 }

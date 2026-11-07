@@ -224,7 +224,7 @@ fn main_content(ui: &mut Ui) {
     let grid = CONTAINER
         .size_symm(Size::Fill)
         .clip_children_y(true)
-        .grid(MainAxisCellSize::Count(3), 16.0, 16.0, GridFlow::DEFAULT)
+        .grid(Axis::X, MainAxisCellSize::Count(3), 16.0, 16.0, false)
         .padding(16.0);
 
     let avatar = DEFAULT

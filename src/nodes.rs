@@ -119,7 +119,7 @@ impl Nodes {
             nodes,
             links: NodeVec(vec![EMPTY_LINKS, root_links]),
             layout_params,
-            layout_data: NodeVec(vec![keru_layout::NodeLayoutData::EMPTY; 2]),
+            layout_data: NodeVec(vec![keru_layout::NodeLayoutData::new(); 2]),
             tree_layout_data: keru_layout::LayoutData::new(),
         };
     }
@@ -149,7 +149,7 @@ impl Nodes {
         let params = layout_params(&self[i]);
         if self.layout_params.0.len() <= i.as_usize() {
             self.layout_params.0.resize(i.as_usize() + 1, EMPTY_PARAMS);
-            self.layout_data.0.resize(i.as_usize() + 1, keru_layout::NodeLayoutData::EMPTY);
+            self.layout_data.0.resize(i.as_usize() + 1, keru_layout::NodeLayoutData::new());
         }
         self.layout_params[i] = params;
     }

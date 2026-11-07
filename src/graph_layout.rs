@@ -72,8 +72,12 @@ impl keru_layout::TreeAdapter for System {
     }
 
     #[inline(always)]
-    fn parent(&self, i: NodeI) -> NodeI {
-        self.nodes.links[i].parent
+    fn parent(&self, i: NodeI) -> Option<NodeI> {
+        if i == ROOT_I {
+            None
+        } else {
+            Some(self.nodes.links[i].parent)
+        }
     }
 
     #[inline(always)]
@@ -112,11 +116,6 @@ impl keru_layout::TreeAdapter for System {
 
     fn measure_text_height(&mut self, i: NodeI, wrap_width: Option<f32>) -> f32 {
         measure_text_height(&mut self.renderer.text, self.nodes[i].text_i.as_ref().unwrap(), wrap_width, self.scale_factor)
-    }
-
-    fn window_size(&self) -> keru_layout::Xy<f32> {
-        let window = self.logical_size();
-        keru_layout::Xy::new(window.x, window.y)
     }
 
     fn write_output_rect(&mut self, i: NodeI, rect: keru_layout::XyRect, local_rect: keru_layout::XyRect) {
@@ -234,13 +233,6 @@ fn gl_arrange(arrange: Arrange) -> keru_layout::Arrange {
     }
 }
 
-fn gl_direction(direction: Direction) -> keru_layout::Direction {
-    match direction {
-        Direction::LeftToRight => keru_layout::Direction::LeftToRight,
-        Direction::RightToLeft => keru_layout::Direction::RightToLeft,
-    }
-}
-
 fn gl_children_layout(children_layout: ChildrenLayout) -> keru_layout::ChildrenLayout {
     match children_layout {
         ChildrenLayout::Free => keru_layout::ChildrenLayout::Free,
@@ -249,19 +241,15 @@ fn gl_children_layout(children_layout: ChildrenLayout) -> keru_layout::ChildrenL
             axis: gl_axis(axis),
             spacing,
         },
-        ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow } => keru_layout::ChildrenLayout::Grid {
+        ChildrenLayout::Grid { columns, spacing_x, spacing_y, main_axis, backfill } => keru_layout::ChildrenLayout::Grid {
             columns: match columns {
                 MainAxisCellSize::Count(n) => keru_layout::MainAxisCellSize::Count(n),
                 MainAxisCellSize::Width(w) => keru_layout::MainAxisCellSize::Width(w),
             },
             spacing_x,
             spacing_y,
-            flow: keru_layout::GridFlow {
-                main_axis: gl_axis(flow.main_axis),
-                x_fill_direction: gl_direction(flow.x_fill_direction),
-                y_fill_direction: gl_direction(flow.y_fill_direction),
-                backfill: flow.backfill,
-            },
+            main_axis: gl_axis(main_axis),
+            backfill,
         },
     }
 }
@@ -270,8 +258,8 @@ pub(crate) fn layout_params(node: &InnerNode) -> keru_layout::LayoutParams {
     let params = &node.params;
     let layout = &params.layout;
     let text = match node.text_i {
-        Some(TextI::TextBox(_)) => keru_layout::TextContent::Box,
-        Some(TextI::TextEdit(_)) => keru_layout::TextContent::Edit,
+        Some(TextI::TextBox(_)) => keru_layout::TextContent::Wrapping,
+        Some(TextI::TextEdit(_)) => keru_layout::TextContent::Fixed,
         None => keru_layout::TextContent::None,
     };
     keru_layout::LayoutParams {
@@ -305,11 +293,14 @@ pub(crate) fn image_size(node: &InnerNode) -> Option<keru_layout::Xy<f32>> {
 
 impl Ui {
     pub(crate) fn compute_layout(&mut self) {
+        let window = self.sys.logical_size();
+        let window_size = keru_layout::Xy::new(window.x, window.y);
+
         if self.sys.changes.full_relayout {
             log::debug!("Full relayout");
-            self.sys.solve_layout();
+            self.sys.solve_layout(window_size);
         } else {
-            match self.sys.solve_layout_incremental() {
+            match self.sys.solve_layout_incremental(window_size) {
                 keru_layout::IncrementalRelayoutOutcome::Success { computed } => log::debug!("Incremental relayout: {computed} slots computed"),
                 fallback => log::debug!("Full relayout: {fallback:?}"),
             }

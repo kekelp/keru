@@ -96,13 +96,6 @@ pub enum KeruArrange {
     SpaceEvenly,
 }
 
-#[repr(u32)]
-#[derive(Clone, Copy)]
-pub enum KeruDirection {
-    LeftToRight,
-    RightToLeft,
-}
-
 #[repr(C, u32)]
 #[derive(Clone, Copy)]
 pub enum KeruMainAxisCellSize {
@@ -110,21 +103,12 @@ pub enum KeruMainAxisCellSize {
     Width(f32),
 }
 
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct KeruGridFlow {
-    pub main_axis: KeruAxis,
-    pub x_fill_direction: KeruDirection,
-    pub y_fill_direction: KeruDirection,
-    pub backfill: bool,
-}
-
 #[repr(C, u32)]
 #[derive(Clone, Copy)]
 pub enum KeruChildrenLayout {
     Free,
     Stack { arrange: KeruArrange, axis: KeruAxis, spacing: f32 },
-    Grid { columns: KeruMainAxisCellSize, spacing_x: f32, spacing_y: f32, flow: KeruGridFlow },
+    Grid { columns: KeruMainAxisCellSize, spacing_x: f32, spacing_y: f32, main_axis: KeruAxis, backfill: bool },
 }
 
 #[repr(C, u32)]
@@ -488,31 +472,11 @@ impl KeruArrange {
     }
 }
 
-impl KeruDirection {
-    fn to_keru(self) -> Direction {
-        match self {
-            KeruDirection::LeftToRight => Direction::LeftToRight,
-            KeruDirection::RightToLeft => Direction::RightToLeft,
-        }
-    }
-}
-
 impl KeruMainAxisCellSize {
     fn to_keru(self) -> MainAxisCellSize {
         match self {
             KeruMainAxisCellSize::Count(n) => MainAxisCellSize::Count(n),
             KeruMainAxisCellSize::Width(w) => MainAxisCellSize::Width(w),
-        }
-    }
-}
-
-impl KeruGridFlow {
-    fn to_keru(self) -> GridFlow {
-        GridFlow {
-            main_axis: self.main_axis.to_keru(),
-            x_fill_direction: self.x_fill_direction.to_keru(),
-            y_fill_direction: self.y_fill_direction.to_keru(),
-            backfill: self.backfill,
         }
     }
 }
@@ -526,11 +490,12 @@ impl KeruChildrenLayout {
                 axis: axis.to_keru(),
                 spacing,
             },
-            KeruChildrenLayout::Grid { columns, spacing_x, spacing_y, flow } => ChildrenLayout::Grid {
+            KeruChildrenLayout::Grid { columns, spacing_x, spacing_y, main_axis, backfill } => ChildrenLayout::Grid {
                 columns: columns.to_keru(),
                 spacing_x,
                 spacing_y,
-                flow: flow.to_keru(),
+                main_axis: main_axis.to_keru(),
+                backfill,
             },
         }
     }

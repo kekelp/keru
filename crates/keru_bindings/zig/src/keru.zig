@@ -116,8 +116,6 @@ pub const Axis = enum(u32) { x, y };
 
 pub const Arrange = enum(u32) { start, end, center, space_between, space_around, space_evenly };
 
-pub const Direction = enum(u32) { left_to_right, right_to_left };
-
 pub const MainAxisCellSize = union(enum) {
     count: u32,
     width: f32,
@@ -128,13 +126,6 @@ pub const MainAxisCellSize = union(enum) {
             .width => |v| .{ .tag = .width, .payload = .{ .width = v } },
         };
     }
-};
-
-pub const GridFlow = extern struct {
-    main_axis: Axis = .x,
-    x_fill_direction: Direction = .left_to_right,
-    y_fill_direction: Direction = .left_to_right,
-    backfill: bool = false,
 };
 
 pub const ChildrenLayout = union(enum) {
@@ -152,7 +143,8 @@ pub const ChildrenLayout = union(enum) {
         columns: MainAxisCellSize,
         spacing_x: f32,
         spacing_y: f32,
-        flow: GridFlow = .{},
+        main_axis: Axis = .x,
+        backfill: bool = false,
     };
 
     fn toC(self: ChildrenLayout) c.ChildrenLayout {
@@ -163,7 +155,8 @@ pub const ChildrenLayout = union(enum) {
                 .columns = v.columns.toC(),
                 .spacing_x = v.spacing_x,
                 .spacing_y = v.spacing_y,
-                .flow = v.flow,
+                .main_axis = v.main_axis,
+                .backfill = v.backfill,
             } } },
         };
     }

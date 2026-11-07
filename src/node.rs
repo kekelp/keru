@@ -392,14 +392,13 @@ pub enum ChildrenLayout {
         axis: Axis,
         spacing: f32,
     },
-    /// Children are arranged in a grid. Children's [`Pos`] values on both axes are ignored.
-    /// 
-    /// To give an element a size and position relative to the grid cell, you can add a [`CONTAINER`] node as the direct child of the grid, then add the element as a child of the Container.
+    /// Children are arranged in a grid.
     Grid {
         columns: MainAxisCellSize,
         spacing_x: f32,
         spacing_y: f32,
-        flow: GridFlow,
+        main_axis: Axis,
+        backfill: bool,
     },
 }
 
@@ -414,11 +413,12 @@ impl Hash for ChildrenLayout {
                 axis.hash(state);
                 spacing.to_bits().hash(state);
             },
-            ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow } => {
+            ChildrenLayout::Grid { columns, spacing_x, spacing_y, main_axis, backfill } => {
                 columns.hash(state);
                 spacing_x.to_bits().hash(state);
                 spacing_y.to_bits().hash(state);
-                flow.hash(state);
+                main_axis.hash(state);
+                backfill.hash(state);
             },
         }
 
@@ -438,31 +438,6 @@ impl GridElement {
         row_span: 1,
         column_span: 1,
     };
-}
-
-/// Controls in which direction grid children are placed.
-///
-/// `main_axis` determines whether items fill horizontally first (rows) or vertically first (columns).
-/// `x_fill_direction: Direction::RightToLeft` places items right-to-left; `y_fill_direction: Direction::RightToLeft` places items bottom-to-top.
-#[derive(Debug, Clone, Copy, Hash, PartialEq)]
-pub struct GridFlow {
-    pub main_axis: Axis,
-    pub x_fill_direction: Direction,
-    pub y_fill_direction: Direction,
-    /// If true, the placement algorithm restarts from the beginning of the grid for each item,
-    /// filling gaps left by earlier items with spans (like `grid-auto-flow: dense` in CSS).
-    /// If false, the cursor only moves forward and gaps are left unfilled.
-    pub backfill: bool,
-}
-
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-pub enum Direction {
-    LeftToRight,
-    RightToLeft,
-}
-
-impl GridFlow {
-    pub const DEFAULT: Self = Self { main_axis: Axis::X, x_fill_direction: Direction::LeftToRight, y_fill_direction: Direction::LeftToRight, backfill: false };
 }
 
 /// Specifies how cells are sized along the main axis of a grid layout.
@@ -1191,8 +1166,8 @@ impl<'a> Node<'a> {
     }
 
     /// Set children layout to a grid.
-    pub const fn grid(mut self, cells: MainAxisCellSize, spacing_x: f32, spacing_y: f32, flow: GridFlow) -> Self {
-        self.children_layout = ChildrenLayout::Grid { columns: cells, spacing_x, spacing_y, flow };
+    pub const fn grid(mut self, main_axis: Axis, cells: MainAxisCellSize, spacing_x: f32, spacing_y: f32, backfill: bool) -> Self {
+        self.children_layout = ChildrenLayout::Grid { columns: cells, spacing_x, spacing_y, main_axis, backfill };
         return self;
     }
 
@@ -1639,53 +1614,53 @@ impl<'a> Node<'a> {
         return self;
     }
 
+    /// The fields of the grid layout, or the default grid fields if the children layout is not a grid.
+    const fn grid_fields(&self) -> (MainAxisCellSize, f32, f32, Axis, bool) {
+        match self.children_layout {
+            ChildrenLayout::Grid { columns, spacing_x, spacing_y, main_axis, backfill } => (columns, spacing_x, spacing_y, main_axis, backfill),
+            _ => (MainAxisCellSize::Count(3), 8.0, 8.0, Axis::X, false),
+        }
+    }
+
     /// Set the number of columns in a grid layout.
     pub const fn grid_columns(mut self, count: u32) -> Self {
-        let (spacing_x, spacing_y, flow) = match self.children_layout {
-            ChildrenLayout::Grid { spacing_x, spacing_y, flow, .. } => (spacing_x, spacing_y, flow),
-            _ => (8.0, 8.0, GridFlow::DEFAULT),
-        };
-        self.children_layout = ChildrenLayout::Grid { columns: MainAxisCellSize::Count(count), spacing_x, spacing_y, flow };
+        let (_, spacing_x, spacing_y, main_axis, backfill) = self.grid_fields();
+        self.children_layout = ChildrenLayout::Grid { columns: MainAxisCellSize::Count(count), spacing_x, spacing_y, main_axis, backfill };
         return self;
     }
 
     /// Set the target cell width in a grid layout, letting the number of columns adjust automatically.
     pub const fn grid_column_width(mut self, width: f32) -> Self {
-        let (spacing_x, spacing_y, flow) = match self.children_layout {
-            ChildrenLayout::Grid { spacing_x, spacing_y, flow, .. } => (spacing_x, spacing_y, flow),
-            _ => (8.0, 8.0, GridFlow::DEFAULT),
-        };
-        self.children_layout = ChildrenLayout::Grid { columns: MainAxisCellSize::Width(width), spacing_x, spacing_y, flow };
+        let (_, spacing_x, spacing_y, main_axis, backfill) = self.grid_fields();
+        self.children_layout = ChildrenLayout::Grid { columns: MainAxisCellSize::Width(width), spacing_x, spacing_y, main_axis, backfill };
         return self;
     }
 
     /// Set the horizontal spacing between grid cells.
     pub const fn grid_spacing_x(mut self, spacing_x: f32) -> Self {
-        let (columns, spacing_y, flow) = match self.children_layout {
-            ChildrenLayout::Grid { columns, spacing_y, flow, .. } => (columns, spacing_y, flow),
-            _ => (MainAxisCellSize::Count(3), 8.0, GridFlow::DEFAULT),
-        };
-        self.children_layout = ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow };
+        let (columns, _, spacing_y, main_axis, backfill) = self.grid_fields();
+        self.children_layout = ChildrenLayout::Grid { columns, spacing_x, spacing_y, main_axis, backfill };
         return self;
     }
 
     /// Set the vertical spacing between grid cells.
     pub const fn grid_spacing_y(mut self, spacing_y: f32) -> Self {
-        let (columns, spacing_x, flow) = match self.children_layout {
-            ChildrenLayout::Grid { columns, spacing_x, flow, .. } => (columns, spacing_x, flow),
-            _ => (MainAxisCellSize::Count(3), 8.0, GridFlow::DEFAULT),
-        };
-        self.children_layout = ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow };
+        let (columns, spacing_x, _, main_axis, backfill) = self.grid_fields();
+        self.children_layout = ChildrenLayout::Grid { columns, spacing_x, spacing_y, main_axis, backfill };
         return self;
     }
 
-    /// Set the flow direction of a grid layout.
-    pub const fn grid_flow(mut self, flow: GridFlow) -> Self {
-        let (columns, spacing_x, spacing_y) = match self.children_layout {
-            ChildrenLayout::Grid { columns, spacing_x, spacing_y, .. } => (columns, spacing_x, spacing_y),
-            _ => (MainAxisCellSize::Count(3), 8.0, 8.0),
-        };
-        self.children_layout = ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow };
+    /// Set the axis that the children of a grid layout fill first.
+    pub const fn grid_main_axis(mut self, main_axis: Axis) -> Self {
+        let (columns, spacing_x, spacing_y, _, backfill) = self.grid_fields();
+        self.children_layout = ChildrenLayout::Grid { columns, spacing_x, spacing_y, main_axis, backfill };
+        return self;
+    }
+
+    /// Set if the children of a grid layout fill the holes left by earlier children with spans.
+    pub const fn grid_backfill(mut self, backfill: bool) -> Self {
+        let (columns, spacing_x, spacing_y, main_axis, _) = self.grid_fields();
+        self.children_layout = ChildrenLayout::Grid { columns, spacing_x, spacing_y, main_axis, backfill };
         return self;
     }
 

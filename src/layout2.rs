@@ -429,10 +429,9 @@ impl Ui {
 
     /// Work out how many cells a grid has along its main axis and drop every child into one. Returns the number of cells along the main axis.
     fn assign_grid_cells(&mut self, i: NodeI) -> usize {
-        let ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow } = self.sys.nodes[i].params.children_layout else {
+        let ChildrenLayout::Grid { columns, spacing_x, spacing_y, main_axis: main, backfill } = self.sys.nodes[i].params.children_layout else {
             unreachable!("A GridCells element only exists on a grid.");
         };
-        let main = flow.main_axis;
 
         let inner_main = match columns {
             // The count is the answer on its own, so there's no size to look at.
@@ -445,8 +444,8 @@ impl Ui {
         };
         let spacing_main = self.pixels_to_frac(Xy::new(spacing_x, spacing_y)[main], main);
 
-        let n_main = self.grid_n_main(columns, flow, inner_main, spacing_main);
-        self.grid_assign_cells(i, n_main, flow);
+        let n_main = self.grid_n_main(columns, main, inner_main, spacing_main);
+        self.grid_assign_cells(i, n_main, main, backfill);
         n_main
     }
 
@@ -575,8 +574,8 @@ impl Ui {
 
         match self.sys.nodes[i].params.children_layout {
             // A grid is as big as its cells, and it counts its own gaps.
-            ChildrenLayout::Grid { columns, spacing_x, spacing_y, flow } => {
-                let cells = self.l2_solve_grid_fitcontent(i, axis, columns, Xy::new(spacing_x, spacing_y), flow);
+            ChildrenLayout::Grid { columns, spacing_x, spacing_y, main_axis, .. } => {
+                let cells = self.l2_solve_grid_fitcontent(i, axis, columns, Xy::new(spacing_x, spacing_y), main_axis);
                 cells.max(own_content)
             }
 
@@ -628,7 +627,7 @@ impl Ui {
     }
 
     /// A grid that fits its content is as big as its cells, and the cells are as big as the biggest child in them.
-    fn l2_solve_grid_fitcontent(&mut self, i: NodeI, axis: Axis, columns: MainAxisCellSize, spacing_px: Xy<f32>, flow: GridFlow) -> f32 {
+    fn l2_solve_grid_fitcontent(&mut self, i: NodeI, axis: Axis, columns: MainAxisCellSize, spacing_px: Xy<f32>, main_axis: Axis) -> f32 {
         let spacing = self.pixels_to_frac(spacing_px[axis], axis);
         let n_lines = self.grid_n_lines(i, axis) as f32;
         if n_lines == 0.0 {
@@ -636,7 +635,7 @@ impl Ui {
         }
 
         let mut cell = 0.0f32;
-        if axis == flow.main_axis && let MainAxisCellSize::Width(w) = columns {
+        if axis == main_axis && let MainAxisCellSize::Width(w) = columns {
             cell = self.pixels_to_frac(w, axis);
         } else {
             for_each_child!(self, i, child, {
@@ -917,7 +916,7 @@ impl Ui {
 
     pub(crate) fn grid_main_axis(&self, i: NodeI) -> Option<Axis> {
         match self.sys.nodes[i].params.children_layout {
-            ChildrenLayout::Grid { flow, .. } => Some(flow.main_axis),
+            ChildrenLayout::Grid { main_axis, .. } => Some(main_axis),
             _ => None,
         }
     }
@@ -942,10 +941,10 @@ impl Ui {
         if ! matches!(self.declared_size(i, axis, size_type), Some(Size::FitContent)) {
             return false;
         }
-        let ChildrenLayout::Grid { columns: MainAxisCellSize::Width(_), flow, .. } = self.sys.nodes[i].params.children_layout else {
+        let ChildrenLayout::Grid { columns: MainAxisCellSize::Width(_), main_axis, .. } = self.sys.nodes[i].params.children_layout else {
             return false;
         };
-        axis == flow.main_axis && self.sys.nodes[i].fitcontent_that_acts_as_fill[axis]
+        axis == main_axis &&self.sys.nodes[i].fitcontent_that_acts_as_fill[axis]
     }
 
     fn is_phantom_fill_bound(&self, i: NodeI, axis: Axis, size_type: SizeType) -> bool {
@@ -980,8 +979,8 @@ impl Ui {
                 continue;
             }
 
-            if let ChildrenLayout::Grid { columns: MainAxisCellSize::Width(_), flow, .. } = node.params.children_layout {
-                if axis == flow.main_axis {
+            if let ChildrenLayout::Grid { columns: MainAxisCellSize::Width(_), main_axis, .. } = node.params.children_layout {
+                if axis == main_axis {
                     log::warn!("Layout: A `FitContent` grid using `MainAxisCellSize::Width` has no way to determine its size.");
                     self.sys.nodes[i].fitcontent_that_acts_as_fill[axis] = true;
                     continue;

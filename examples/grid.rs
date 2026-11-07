@@ -14,7 +14,10 @@ struct State {
     n_columns: f32,
     column_width: f32,
 
-    flow: GridFlow,
+    main_axis: Axis,
+    backfill: bool,
+    origin_x: HorizontalOrigin,
+    origin_y: VerticalOrigin,
 }
 
 #[derive(Clone, Copy)]
@@ -57,16 +60,16 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
             }
         }
         if ui.is_clicked(TOGGLE_AXIS) {
-            state.flow.main_axis = state.flow.main_axis.other();
+            state.main_axis = state.main_axis.other();
         }
         if ui.is_clicked(TOGGLE_X) {
-            state.flow.x_fill_direction = if state.flow.x_fill_direction == Direction::LeftToRight { Direction::RightToLeft } else { Direction::LeftToRight };
+            state.origin_x = if state.origin_x == HorizontalOrigin::Left { HorizontalOrigin::Right } else { HorizontalOrigin::Left };
         }
         if ui.is_clicked(TOGGLE_Y) {
-            state.flow.y_fill_direction = if state.flow.y_fill_direction == Direction::LeftToRight { Direction::RightToLeft } else { Direction::LeftToRight };
+            state.origin_y = if state.origin_y == VerticalOrigin::Top { VerticalOrigin::Bottom } else { VerticalOrigin::Top };
         }
         if ui.is_clicked(TOGGLE_BACKFILL) {
-            state.flow.backfill = ! state.flow.backfill;
+            state.backfill = ! state.backfill;
         }
         if ui.is_clicked(TOGGLE_COLUMNS) {
             state.use_n_columns = ! state.use_n_columns;
@@ -92,17 +95,18 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
             if element.column_span < 1.0 { element.column_span = 1.0 };
         }
 
-        let backfill_label = if state.flow.backfill { "Backfill: On" } else { "Backfill: Off" };
-        let axis_label = match state.flow.main_axis { Axis::X => "Fill Rows First", Axis::Y => "Fill Columns First" };
-        let x_label = if state.flow.x_fill_direction == Direction::RightToLeft { "Right to Left" } else { "Left to Right" };
-        let y_label = if state.flow.y_fill_direction == Direction::RightToLeft { "Bottom to Top" } else { "Top to Bottom" };
+        let backfill_label = if state.backfill { "Backfill: On" } else { "Backfill: Off" };
+        let axis_label = match state.main_axis { Axis::X => "Fill Rows First", Axis::Y => "Fill Columns First" };
+        let x_label = if state.origin_x == HorizontalOrigin::Right { "Right to Left" } else { "Left to Right" };
+        let y_label = if state.origin_y == VerticalOrigin::Bottom { "Bottom to Top" } else { "Top to Bottom" };
         let columns_label = if state.use_n_columns { "Column size:\nspecify Count" } else { "Column size:\nspecify Width" };
 
         let columns = if state.use_n_columns { MainAxisCellSize::Count(state.n_columns as u32) } else { MainAxisCellSize::Width(state.column_width) };
 
         let grid = PANEL
             .size_symm(Size::Fill)
-            .grid(columns, 8.0, 8.0, state.flow)
+            .grid(state.main_axis, columns, 8.0, 8.0, state.backfill)
+            .children_origin(state.origin_x, state.origin_y)
             .padding(8.0);
 
         let h_stack = H_STACK
@@ -193,6 +197,6 @@ fn update_ui(state: &mut State, ui: &mut Ui) {
 fn main() {
     let next_element = Element { row_span: 1.0, column_span: 1.0 };
     let elements = vec![next_element; 12];
-    let state = State { elements, next_element, flow: GridFlow::DEFAULT, use_n_columns: true, n_columns: 4.0, column_width: 150.0  };
+    let state = State { elements, next_element, main_axis: Axis::X, backfill: false, origin_x: HorizontalOrigin::Left, origin_y: VerticalOrigin::Top, use_n_columns: true, n_columns: 4.0, column_width: 150.0  };
     example_window_loop::run_example_loop(state, update_ui);
 }

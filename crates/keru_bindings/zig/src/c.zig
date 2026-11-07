@@ -2,7 +2,6 @@ const keru = @import("keru.zig");
 
 const Color = keru.Color;
 const Vec2 = keru.Vec2;
-const GridFlow = keru.GridFlow;
 const Sense = keru.Sense;
 const CursorIcon = keru.CursorIcon;
 const HorizontalOrigin = keru.HorizontalOrigin;
@@ -66,7 +65,7 @@ pub const ChildrenLayout = extern struct {
     tag: enum(u32) { free, stack, grid },
     payload: extern union {
         stack: keru.ChildrenLayout.Stack,
-        grid: extern struct { columns: MainAxisCellSize, spacing_x: f32, spacing_y: f32, flow: GridFlow },
+        grid: extern struct { columns: MainAxisCellSize, spacing_x: f32, spacing_y: f32, main_axis: Axis, backfill: bool },
     },
 };
 
