@@ -38,7 +38,7 @@ impl Ui {
     /// 
     /// Buttons, images, text elements, stack containers, etc. are all created by `add`ing a [`Node`] with the right fields.
     #[track_caller]
-    pub fn add<'a>(&mut self, node: Node<'a>) -> UiParent
+    pub fn add(&mut self, node: Node) -> UiParent
     {
         let (i, _id) = self.add_or_update_node(node.key);
         self.set_params(i, &node);
