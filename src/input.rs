@@ -202,6 +202,20 @@ impl Ui {
         self.sys.check_clicked(key.id_with_key_scope(), button)
     }
 
+    /// Returns the explicit globally unique ID of each node that was clicked  with `button` in the last frame.
+    /// 
+    /// If any clicked nodes didn't have an [explicit ID](NodeKey::from_globally_unique_id) in their key, they won't be picked up by this function.
+    /// 
+    /// This is an experimental API for handling clicks on a lot of keys without checking them one by one. Normally you can use [`Ui::is_clicked()`], which works with any keys, even without globally unique IDs.
+    pub fn get_clicked_ids(&self, button: MouseButton) -> impl Iterator<Item = u64> + '_ {
+        let clicks = self.sys.mouse_input.clicks().filter(move |click| click.button == button);
+        let targets = clicks.flat_map(|click| click.targets.iter());
+        return targets.filter_map(move |&id| {
+            let i = self.sys.nodes.get_by_id(id)?;
+            return self.sys.nodes[i].original_key.explicit_id();
+        });
+    }
+
     /// Returns `true` if the node corresponding to `key` was just double-clicked with the left mouse button.
     /// 
     /// See [`Ui::is_multi_clicked()`] for more advanced uses, like a triple right click.

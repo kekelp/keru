@@ -242,6 +242,11 @@ impl<'a> UiNode<'a> {
         None
     }
 
+    /// Returns the explicit ID of the node, if its key was created with [`NodeKey::from_globally_unique_id()`].
+    pub fn explicit_id(&self) -> Option<u64> {
+        return self.node().original_key.explicit_id();
+    }
+
     /// Get the text in a node's text edit box or text box.
     /// 
     /// Does nothing and returns `None` if the node doesn't have a text edit box or a text box. 
@@ -425,6 +430,18 @@ impl Ui {
     pub fn get_node_unfiltered(&self, key: NodeKey) -> Option<&UiNode<'_>> {
         let i = self.sys.nodes.get_with_key_scope(key)?;
         let wrapper = UiNode { i, sys: UiRef::Shared(&self.sys)  };
+        return Some(self.arena_for_wrapper_structs.alloc(wrapper));
+    }
+
+    /// Returns a reference to the UI node of the text edit box that currently holds the keyboard focus, if any.
+    ///
+    /// Only the focused text edit can change from typing, so this function can replace a loop that checks [`UiNode::text_edit_changed()`] on each text edit.
+    pub fn get_focused_text_edit(&self) -> Option<&UiNode<'_>> {
+        let i = self.sys.nodes.get_by_id(self.sys.focused?)?;
+        if !matches!(self.sys.nodes[i].text_i, Some(TextI::TextEdit(_))) {
+            return None;
+        }
+        let wrapper = UiNode { i, sys: UiRef::Shared(&self.sys) };
         return Some(self.arena_for_wrapper_structs.alloc(wrapper));
     }
 

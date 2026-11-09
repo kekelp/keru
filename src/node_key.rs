@@ -20,6 +20,7 @@ pub struct NodeKey {
     id: Id,
     debug_name: &'static str,
     temp: bool,
+    explicit_id: Option<u64>,
 }
 impl NodeKey {
     pub(crate) fn id_with_key_scope(&self) -> Id {
@@ -54,12 +55,28 @@ impl NodeKey {
             id: Id(new_id),
             debug_name: self.debug_name,
             temp: self.temp,
+            explicit_id: None,
         };
     }
 
     /// Alias of [`NodeKey::sibling()`].
     pub fn s<H: Hash>(self, value: H) -> Self {
         self.sibling(value)
+    }
+
+    /// Create a key associated with a globally unique id chosen by the user.
+    /// 
+    /// This is experimental, for cases where the user really wants to use explicit id and get it back with [`Ui::get_clicked_ids()`]
+    pub fn from_globally_unique_id(id: u64) -> Self {
+        const INDEXED_KEY_BASE: NodeKey = NodeKey::new(Id(13463426340598648355), "Indexed node");
+        return Self {
+            explicit_id: Some(id),
+            ..INDEXED_KEY_BASE.sibling(id)
+        };
+    }
+
+    pub(crate) fn explicit_id(&self) -> Option<u64> {
+        return self.explicit_id;
     }
 
     // todo: remove this
@@ -86,6 +103,7 @@ impl NodeKey {
             id: Id(hash),
             debug_name: self.debug_name,
             temp: self.temp,
+            explicit_id: None,
         };
     }
 
@@ -97,6 +115,7 @@ impl NodeKey {
             id,
             debug_name,
             temp: false,
+            explicit_id: None,
         };
     }
 
@@ -105,6 +124,7 @@ impl NodeKey {
             id,
             debug_name,
             temp: true,
+            explicit_id: None,
         };
     }
 
