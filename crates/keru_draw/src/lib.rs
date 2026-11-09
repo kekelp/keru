@@ -1399,11 +1399,13 @@ impl Renderer {
 
     /// Begin recording a new frame.
     ///
-    /// This only clears the main instance buffer, not the shape data, transforms, clip_rects, or deferred instances, so they can be reused.
-    ///
     /// To clear everything, call [`Renderer::clear_for_new_frame()`].
     pub fn begin_frame(&mut self) {
         self.instances.clear();
+        for idx in self.shapes.gradient_indices.drain(self.shapes.retained_gradients..) {
+            self.resources.remove(idx);
+        }
+        self.shapes.truncate_to_retained();
         self.current_transform = TransformHandle::IDENTITY;
         self.current_clip_rect = ClipRectHandle::NO_CLIP.0;
         self.deferred_mode = false;
@@ -1453,6 +1455,7 @@ impl Renderer {
     /// The returned [`DeferredInstanceRange`] can be used with `draw_deferred_elements()`to copy the recorded instances to the main buffer at any time.
     pub fn end_deferred_mode(&mut self) -> DeferredInstanceRange {
         self.deferred_mode = false;
+        self.shapes.retain_current_data();
         DeferredInstanceRange {
             start: self.deferred_mode_start,
             end: self.deferred_instances.len(),

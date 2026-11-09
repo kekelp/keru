@@ -214,6 +214,9 @@ pub struct Shapes {
     pub(crate) gradient_indices: Vec<usize>,
     pub(crate) primitives: GpuVec<PrimitiveGpu>,
     pub(crate) polygon_vertices: GpuVec<[f32; 2]>,
+    pub(crate) retained_gradients: usize,
+    retained_primitives: usize,
+    retained_polygon_vertices: usize,
 }
 
 impl Shapes {
@@ -225,7 +228,21 @@ impl Shapes {
             gradient_indices: Vec::new(),
             primitives,
             polygon_vertices,
+            retained_gradients: 0,
+            retained_primitives: 0,
+            retained_polygon_vertices: 0,
         }
+    }
+
+    pub(crate) fn retain_current_data(&mut self) {
+        self.retained_gradients = self.gradient_indices.len();
+        self.retained_primitives = self.primitives.len();
+        self.retained_polygon_vertices = self.polygon_vertices.len();
+    }
+
+    pub(crate) fn truncate_to_retained(&mut self) {
+        self.primitives.truncate(self.retained_primitives);
+        self.polygon_vertices.truncate(self.retained_polygon_vertices);
     }
 
     pub(crate) fn push_primitive<T: bytemuck::Pod>(&mut self, primitive: T) -> u32 {
@@ -242,6 +259,9 @@ impl Shapes {
         // gradient_indices are drained by Renderer::clear_for_new_frame before calling this
         self.primitives.clear();
         self.polygon_vertices.clear();
+        self.retained_gradients = 0;
+        self.retained_primitives = 0;
+        self.retained_polygon_vertices = 0;
     }
 
     pub fn load_to_gpu(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) -> bool {

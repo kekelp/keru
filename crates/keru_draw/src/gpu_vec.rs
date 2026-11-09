@@ -98,6 +98,13 @@ impl<T: Copy> GpuVec<T> {
         }
     }
 
+    pub fn truncate(&mut self, len: usize) {
+        if self.data.len() > len {
+            self.data.truncate(len);
+            self.dirty = true;
+        }
+    }
+
     pub fn push(&mut self, value: T) {
         self.data.push(value);
         self.dirty = true;
