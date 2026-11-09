@@ -1160,6 +1160,9 @@ impl Ui {
     pub fn readd_branch(&mut self, branch_root: NodeKey) {
         let Some(i) = self.sys.nodes.get_with_key_scope(branch_root) else { return };
 
+        // todo: think harder
+        self.sys.nodes[i].old_next_sibling = self.sys.nodes.links[i].next_sibling;
+
         let (parent, sibling_cursor, depth) = thread_local::current_parent(self.sys.unique_id);
         self.sys.link_node_to_parent(i, parent, depth, sibling_cursor);
 
