@@ -16,7 +16,7 @@ pub(crate) static FAKE_TIME: AtomicU64 = AtomicU64::new(10);
 /// 
 /// Might be useful to implement custom versions of [`Observer`].
 pub(crate) fn get_observer_timestamp() -> u64 {
-    // This would probably be used in a single thread. Unless maybe you move the Observer into another thread, modify it, and move it back. Even then, relaxed is probably fine? But honestly who knows.
+    // This would probably be used in a single thread. Unless maybe you move the Observer into another thread, modify it, and move it back. Even then, relaxed is probably fine?
     return FAKE_TIME.fetch_add(1, Ordering::Relaxed);
 }
 
@@ -133,7 +133,6 @@ impl<T: Not> Not for Observer<T> {
         Observer {
             value: !self.value,
             changed_at: get_observer_timestamp(),
-
         }
     }
 }

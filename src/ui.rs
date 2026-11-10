@@ -1159,7 +1159,10 @@ impl Ui {
 
     pub fn readd_branch(&mut self, branch_root: NodeKey) {
         let Some(i) = self.sys.nodes.get_with_key_scope(branch_root) else { return };
+        self.readd_nodei_branch(i);
+    }
 
+    pub(crate) fn readd_nodei_branch(&mut self, i: NodeI) {
         // todo: think harder
         self.sys.nodes[i].old_next_sibling = self.sys.nodes.links[i].next_sibling;
 

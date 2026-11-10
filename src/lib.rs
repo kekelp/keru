@@ -102,6 +102,9 @@ pub use theme::*;
 mod component;
 pub use component::*;
 
+mod reactive_component;
+pub use reactive_component::*;
+
 mod thread_local_arena;
 pub use thread_local_arena::*;
 

@@ -105,6 +105,8 @@ pub struct InnerNode {
     pub canvas_relative: bool,
 
     pub has_component_state: bool,
+
+    pub component_last_node: Option<Id>,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -229,6 +231,7 @@ impl InnerNode {
             canvas_relative: false,
 
             has_component_state: false,
+            component_last_node: None,
 
             fitcontent_that_acts_as_fill: Xy::new(false, false),
 
@@ -352,6 +355,7 @@ pub const NODE_ROOT: InnerNode = InnerNode {
     canvas_relative: false,
 
     has_component_state: false,
+    component_last_node: None,
 
     fitcontent_that_acts_as_fill: Xy::new(false, false),
 
