@@ -180,6 +180,20 @@ impl<'a> UiNode<'a> {
         return offset;
     }
 
+    /// Adds `delta` logical pixels to the scroll offset of a scrollable node without breaking the current animation, if any.
+    pub fn shift_scroll_offset(&mut self, delta: Xy<f32>) {
+        let logical_size = self.sys().logical_size();
+        let node = self.node_mut();
+        for axis in [X, Y] {
+            let normalized_delta = delta[axis] / logical_size[axis];
+            node.scroll[axis] -= normalized_delta;
+            node.scroll_animation_target[axis] -= normalized_delta;
+        }
+        let changes = &mut self.sys_mut().changes;
+        changes.should_rebuild_render_data = true;
+        changes.need_rerender = true;
+    }
+
     /// Returns the center of the node's rectangle, in screen pixels.
     /// 
     /// Since the size and position of nodes is only determined in the layout pass at the end of the frame,  using this function in the middle of UI declaration code will return the value from last frame.
