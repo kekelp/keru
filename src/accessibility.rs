@@ -92,6 +92,10 @@ impl Ui {
             node.set_selected(true);
         }
 
+        if let Some(toggled) = self.sys.nodes[i].params.accessibility.toggled {
+            node.set_toggled(if toggled { accesskit::Toggled::True } else { accesskit::Toggled::False });
+        }
+
         if let Some(numeric_value) = self.sys.nodes[i].params.accessibility.numeric_value {
             node.set_numeric_value(numeric_value.value);
             node.set_min_numeric_value(numeric_value.min);

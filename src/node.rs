@@ -278,13 +278,14 @@ impl AccessibilityActions {
 pub struct Accessibility {
     pub role: AccessKitRole,
     pub selected: bool,
+    pub toggled: Option<bool>,
     pub numeric_value: Option<NumericValue>,
     pub actions: AccessibilityActions,
 }
 
 impl Accessibility {
     pub const fn new(role: AccessKitRole) -> Accessibility {
-        Accessibility { role, selected: false, numeric_value: None, actions: AccessibilityActions::NONE }
+        Accessibility { role, selected: false, toggled: None, numeric_value: None, actions: AccessibilityActions::NONE }
     }
 }
 
@@ -2160,6 +2161,14 @@ impl<'a> Node<'a> {
     /// is announced as "selected" (e.g. the active tab in a tab strip).
     pub const fn accessibility_selected(mut self, selected: bool) -> Node<'a> {
         self.accessibility.selected = selected;
+        return self;
+    }
+
+    /// Mark a node as toggleable for accessibility and screen readers and set its current toggle state.
+    /// 
+    /// Meaningful for checkboxes, toggle switches or similar. 
+    pub const fn accessibility_toggled(mut self, toggled: bool) -> Node<'a> {
+        self.accessibility.toggled = Some(toggled);
         return self;
     }
 

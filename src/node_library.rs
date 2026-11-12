@@ -30,6 +30,7 @@ pub const ICON_UP: &[u8] = include_bytes!("svg_icons/up.svg");
 pub const ICON_DOWN: &[u8] = include_bytes!("svg_icons/down.svg");
 pub const ICON_DELETE: &[u8] = include_bytes!("svg_icons/delete.svg");
 pub const ICON_EDIT: &[u8] = include_bytes!("svg_icons/pencil.svg");
+pub const ICON_CHECK: &[u8] = include_bytes!("svg_icons/check.svg");
 const DEBUG_ONLY_SHAPE: Shape = Shape::Rectangle { rounded_corners: RoundedCorners::ALL, corner_radius: DEFAULT_CORNER_RADIUS };
 
 /// [`Node`] for a node_root_params.
@@ -90,6 +91,7 @@ pub(crate) const NODE_ROOT_PARAMS: Node = Node {
     accessibility: Accessibility {
         role: AccessKitRole::GenericContainer,
         selected: false,
+        toggled: None,
         numeric_value: None,
         actions: AccessibilityActions::NONE,
     }
@@ -151,6 +153,7 @@ pub const DEFAULT: Node = Node {
     accessibility: Accessibility {
         role: AccessKitRole::GenericContainer,
         selected: false,
+        toggled: None,
         numeric_value: None,
         actions: AccessibilityActions::NONE,
     }
@@ -216,6 +219,7 @@ pub const V_STACK: Node = Node {
     accessibility: Accessibility {
         role: AccessKitRole::GenericContainer,
         selected: false,
+        toggled: None,
         numeric_value: None,
         actions: AccessibilityActions::NONE,
     }
@@ -281,6 +285,7 @@ pub const H_STACK: Node = Node {
     accessibility: Accessibility {
         role: AccessKitRole::GenericContainer,
         selected: false,
+        toggled: None,
         numeric_value: None,
         actions: AccessibilityActions::NONE,
     }
@@ -347,6 +352,7 @@ pub const V_SCROLL_STACK: Node = Node {
     accessibility: Accessibility {
         role: AccessKitRole::ScrollView,
         selected: false,
+        toggled: None,
         numeric_value: None,
         actions: AccessibilityActions::NONE,
     }
@@ -414,6 +420,7 @@ pub const H_SCROLL_STACK: Node = Node {
     accessibility: Accessibility {
         role: AccessKitRole::ScrollView,
         selected: false,
+        toggled: None,
         numeric_value: None,
         actions: AccessibilityActions::NONE,
     }
@@ -476,6 +483,7 @@ pub const MARGIN: Node = Node {
     accessibility: Accessibility {
         role: AccessKitRole::GenericContainer,
         selected: false,
+        toggled: None,
         numeric_value: None,
         actions: AccessibilityActions::NONE,
     }
@@ -537,6 +545,7 @@ pub const ICON_BUTTON: Node = Node {
     accessibility: Accessibility {
         role: AccessKitRole::Button,
         selected: false,
+        toggled: None,
         numeric_value: None,
         actions: AccessibilityActions::NONE,
     }
@@ -598,6 +607,7 @@ pub const IMAGE: Node = Node {
     accessibility: Accessibility {
         role: AccessKitRole::Image,
         selected: false,
+        toggled: None,
         numeric_value: None,
         actions: AccessibilityActions::NONE,
     }
@@ -659,6 +669,7 @@ pub const IMAGE_BUTTON: Node = Node {
     accessibility: Accessibility {
         role: AccessKitRole::Button,
         selected: false,
+        toggled: None,
         numeric_value: None,
         actions: AccessibilityActions::NONE,
     }
@@ -727,6 +738,7 @@ pub const BUTTON: Node = Node {
     accessibility: Accessibility {
         role: AccessKitRole::Button,
         selected: false,
+        toggled: None,
         numeric_value: None,
         actions: AccessibilityActions::NONE,
     }
@@ -795,6 +807,7 @@ pub const LABEL: Node = Node {
     accessibility: Accessibility {
         role: AccessKitRole::Label,
         selected: false,
+        toggled: None,
         numeric_value: None,
         actions: AccessibilityActions::NONE,
     }
@@ -864,6 +877,7 @@ pub const MULTILINE_LABEL: Node = Node {
     accessibility: Accessibility {
         role: AccessKitRole::Label,
         selected: false,
+        toggled: None,
         numeric_value: None,
         actions: AccessibilityActions::NONE,
     }
@@ -933,6 +947,7 @@ pub const TEXT: Node = Node {
     accessibility: Accessibility {
         role: AccessKitRole::Label,
         selected: false,
+        toggled: None,
         numeric_value: None,
         actions: AccessibilityActions::NONE,
     }
@@ -995,6 +1010,7 @@ pub const ICON: Node = Node {
     accessibility: Accessibility {
         role: AccessKitRole::Image,
         selected: false,
+        toggled: None,
         numeric_value: None,
         actions: AccessibilityActions::NONE,
     }
@@ -1064,6 +1080,7 @@ pub const TEXT_EDIT: Node = Node {
     accessibility: Accessibility {
         role: AccessKitRole::TextInput,
         selected: false,
+        toggled: None,
         numeric_value: None,
         actions: AccessibilityActions::NONE,
     }
@@ -1133,6 +1150,7 @@ pub const TEXT_EDIT_LINE: Node = Node {
     accessibility: Accessibility {
         role: AccessKitRole::TextInput,
         selected: false,
+        toggled: None,
         numeric_value: None,
         actions: AccessibilityActions::NONE,
     }
@@ -1202,6 +1220,7 @@ pub const TEXT_PARAGRAPH: Node = Node {
     accessibility: Accessibility {
         role: AccessKitRole::Label,
         selected: false,
+        toggled: None,
         numeric_value: None,
         actions: AccessibilityActions::NONE,
     }
@@ -1264,6 +1283,7 @@ pub const PANEL: Node = Node {
     accessibility: Accessibility {
         role: AccessKitRole::GenericContainer,
         selected: false,
+        toggled: None,
         numeric_value: None,
         actions: AccessibilityActions::NONE,
     }
@@ -1326,6 +1346,7 @@ pub const CONTAINER: Node = Node {
     accessibility: Accessibility {
         role: AccessKitRole::GenericContainer,
         selected: false,
+        toggled: None,
         numeric_value: None,
         actions: AccessibilityActions::NONE,
     }
@@ -1424,6 +1445,7 @@ pub const CUSTOM_RENDERED_PANEL: Node = Node {
     accessibility: Accessibility {
         role: AccessKitRole::Unknown,
         selected: false,
+        toggled: None,
         numeric_value: None,
         actions: AccessibilityActions::NONE,
     }
@@ -1486,6 +1508,7 @@ pub const SPACER: Node = Node {
     accessibility: Accessibility {
         role: AccessKitRole::Unknown,
         selected: false,
+        toggled: None,
         numeric_value: None,
         actions: AccessibilityActions::NONE,
     }
@@ -1548,6 +1571,7 @@ pub const H_SPACER: Node = Node {
     accessibility: Accessibility {
         role: AccessKitRole::Unknown,
         selected: false,
+        toggled: None,
         numeric_value: None,
         actions: AccessibilityActions::NONE,
     }
@@ -1610,6 +1634,7 @@ pub const V_SPACER: Node = Node {
     accessibility: Accessibility {
         role: AccessKitRole::Unknown,
         selected: false,
+        toggled: None,
         numeric_value: None,
         actions: AccessibilityActions::NONE,
     }
@@ -1678,6 +1703,7 @@ pub const GRID: Node = Node {
     accessibility: Accessibility {
         role: AccessKitRole::Grid,
         selected: false,
+        toggled: None,
         numeric_value: None,
         actions: AccessibilityActions::NONE,
     }
@@ -1745,6 +1771,7 @@ pub const H_LINE: Node = Node {
     accessibility: Accessibility {
         role: AccessKitRole::Unknown,
         selected: false,
+        toggled: None,
         numeric_value: None,
         actions: AccessibilityActions::NONE,
     }
@@ -1807,6 +1834,7 @@ pub(crate) const COMPONENT_ROOT: Node = Node {
     accessibility: Accessibility {
         role: AccessKitRole::GenericContainer,
         selected: false,
+        toggled: None,
         numeric_value: None,
         actions: AccessibilityActions::NONE,
     }

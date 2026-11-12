@@ -11,6 +11,7 @@ struct State {
     current_tab: Tab,
 
     f32_value: f32,
+    bool_value: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Default)]
@@ -86,6 +87,10 @@ impl UiExt for Ui {
 
             self.add(TEXT_PARAGRAPH.static_text("Classic slider:"));
             self.add_component_with_state(ClassicSlider::new(0.0, 100.0), &mut state.f32_value);
+
+            self.add(TEXT_PARAGRAPH.static_text("Checkbox and toggle switch:"));
+            self.add_component_with_state(Checkbox::new().label("Checkbox"), &mut state.bool_value);
+            self.add_component_with_state(ToggleSwitch::new().label("Toggle switch"), &mut state.bool_value);
 
             self.add(TEXT_PARAGRAPH.static_text("Press F1 for Inspect mode. This lets you see the bounds of the layout rectangles. \n\n\
                 In Inspect mode, hovering nodes will also log an Info message with the node's debug name and source code location. \n\n\
@@ -481,6 +486,7 @@ fn main() {
         tabs: vec![INTRO_TAB, NODES_TAB, TEXT_TAB, GRAPHICS_TAB],
         current_tab: INTRO_TAB,
         f32_value: 20.0,
+        bool_value: false,
         ..Default::default()
     };
     run_example_loop(state, State::update_ui);
